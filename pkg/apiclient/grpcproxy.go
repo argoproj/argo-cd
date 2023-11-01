@@ -13,11 +13,9 @@ import (
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/keepalive"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 
-	"github.com/argoproj/argo-cd/v2/common"
 	argocderrors "github.com/argoproj/argo-cd/v2/util/errors"
 	argoio "github.com/argoproj/argo-cd/v2/util/io"
 	"github.com/argoproj/argo-cd/v2/util/rand"
@@ -114,11 +112,6 @@ func (c *client) startGRPCProxy() (*grpc.Server, net.Listener, error) {
 	}
 	proxySrv := grpc.NewServer(
 		grpc.ForceServerCodec(&noopCodec{}),
-		grpc.KeepaliveEnforcementPolicy(
-			keepalive.EnforcementPolicy{
-				MinTime: common.GetGRPCKeepAliveEnforcementMinimum(),
-			},
-		),
 		grpc.UnknownServiceHandler(func(srv interface{}, stream grpc.ServerStream) error {
 			fullMethodName, ok := grpc.MethodFromServerStream(stream)
 			if !ok {

@@ -1,153 +1,278 @@
-name: Publish ArgoCD Release
+name: Create ArgoCD release
 on:
   push:
     tags:
-      - 'v*'
-      - '!v2.4*'
-      - '!v2.5*'
-      - '!v2.6*'
-
-permissions: {}
+      - "release-v*"
+      - "!release-v1.5*"
+      - "!release-v1.4*"
+      - "!release-v1.3*"
+      - "!release-v1.2*"
+      - "!release-v1.1*"
+      - "!release-v1.0*"
+      - "!release-v0*"
 
 env:
-  GOLANG_VERSION: '1.21' # Note: go-version must also be set in job argocd-image.with.go-version
+  GOLANG_VERSION: '1.20.10'
+
+permissions:
+  contents: read
 
 jobs:
-  argocd-image:
+  prepare-release:
     permissions:
-      contents: read
-      id-token: write # for creating OIDC tokens for signing.
-      packages: write # used to push images to `ghcr.io` if used.
-    if: github.repository == 'argoproj/argo-cd'
-    uses: ./.github/workflows/image-reuse.yaml
-    with:
-      quay_image_name: quay.io/argoproj/argocd:${{ github.ref_name }}
-      # Note: cannot use env variables to set go-version (https://docs.github.com/en/actions/using-workflows/reusing-workflows#limitations)
-      go-version: 1.21
-      platforms: linux/amd64,linux/arm64,linux/s390x,linux/ppc64le
-      push: true
-    secrets:
-      quay_username: ${{ secrets.RELEASE_QUAY_USERNAME }}
-      quay_password: ${{ secrets.RELEASE_QUAY_TOKEN }}
-
-  argocd-image-provenance:
-      needs: [argocd-image]
-      permissions:
-        actions: read # for detecting the Github Actions environment.
-        id-token: write # for creating OIDC tokens for signing.
-        packages: write # for uploading attestations. (https://github.com/slsa-framework/slsa-github-generator/blob/main/internal/builders/container/README.md#known-issues)
-      # Must be refernced by a tag. https://github.com/slsa-framework/slsa-github-generator/blob/main/internal/builders/container/README.md#referencing-the-slsa-generator
-      if: github.repository == 'argoproj/argo-cd'
-      uses: slsa-framework/slsa-github-generator/.github/workflows/generator_container_slsa3.yml@v1.9.0
-      with:
-        image: quay.io/argoproj/argocd
-        digest: ${{ needs.argocd-image.outputs.image-digest }}
-      secrets:
-        registry-username: ${{ secrets.RELEASE_QUAY_USERNAME }}
-        registry-password: ${{ secrets.RELEASE_QUAY_TOKEN }}
-
-  goreleaser:
-    needs:
-      - argocd-image
-      - argocd-image-provenance
-    permissions:
-      contents: write # used for uploading assets
+      contents: write # To push changes to release branch
+    name: Perform automatic release on trigger ${{ github.ref }}
     if: github.repository == 'argoproj/argo-cd'
     runs-on: ubuntu-22.04
-    outputs:
-      hashes: ${{ steps.hash.outputs.hashes }}
-
+    env:
+      # The name of the tag as supplied by the GitHub event
+      SOURCE_TAG: ${{ github.ref }}
+      # The image namespace where Docker image will be published to
+      IMAGE_NAMESPACE: quay.io/argoproj
+      # Whether to create & push image and release assets
+      DRY_RUN: false
+      # Whether a draft release should be created, instead of public one
+      DRAFT_RELEASE: false
+      # Whether to update homebrew with this release as well
+      # Set RELEASE_HOMEBREW_TOKEN secret in repository for this to work - needs
+      # access to public repositories
+      UPDATE_HOMEBREW: false
+      # Name of the GitHub user for Git config
+      GIT_USERNAME: argo-bot
+      # E-Mail of the GitHub user for Git config
+      GIT_EMAIL: argoproj@gmail.com
     steps:
       - name: Checkout code
-        uses: actions/checkout@3df4ab11eba7bda6032a0b82a6bb43b11571feac # v4.0.0
+        uses: actions/checkout@24cb9080177205b6e8c946b17badbe402adc938f # v3.4.0
         with:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Fetch all tags
-        run: git fetch --force --tags
-
-      - name: Set GORELEASER_PREVIOUS_TAG # Workaround, GoReleaser uses 'git-describe' to determine a previous tag. Our tags are created in realease branches.
+      - name: Check if the published tag is well formed and setup vars
         run: |
           set -xue
-          if echo ${{ github.ref_name }} | grep -E -- '-rc1+$';then
-            echo "GORELEASER_PREVIOUS_TAG=$(git -c 'versionsort.suffix=-rc' tag --list --sort=version:refname | tail -n 2 | head -n 1)" >> $GITHUB_ENV
-          else
-            echo "This is not the first release on the branch, Using GoReleaser defaults"
+          # Target version must match major.minor.patch and optional -rcX suffix
+          # where X must be a number.
+          TARGET_VERSION=${SOURCE_TAG#*release-v}
+          if ! echo "${TARGET_VERSION}" | egrep '^[0-9]+\.[0-9]+\.[0-9]+(-rc[0-9]+)*$'; then
+            echo "::error::Target version '${TARGET_VERSION}' is malformed, refusing to continue." >&2
+            exit 1
           fi
 
+          # Target branch is the release branch we're going to operate on
+          # Its name is 'release-<major>.<minor>'
+          TARGET_BRANCH="release-${TARGET_VERSION%\.[0-9]*}"
+
+          # The release tag is the source tag, minus the release- prefix
+          RELEASE_TAG="${SOURCE_TAG#*release-}"
+
+          # Whether this is a pre-release (indicated by -rc suffix)
+          PRE_RELEASE=false
+          if echo "${RELEASE_TAG}" | egrep -- '-rc[0-9]+$'; then
+            PRE_RELEASE=true
+          fi
+
+          # We must not have a release trigger within the same release branch,
+          # because that means a release for this branch is already running.
+          if git tag -l | grep "release-v${TARGET_VERSION%\.[0-9]*}" | grep -v "release-v${TARGET_VERSION}"; then
+            echo "::error::Another release for branch ${TARGET_BRANCH} is currently in progress."
+            exit 1
+          fi
+
+          # Ensure that release do not yet exist
+          if git rev-parse ${RELEASE_TAG}; then
+            echo "::error::Release tag ${RELEASE_TAG} already exists in repository. Refusing to continue."
+            exit 1
+          fi
+
+          # Make the variables available in follow-up steps
+          echo "TARGET_VERSION=${TARGET_VERSION}" >> $GITHUB_ENV
+          echo "TARGET_BRANCH=${TARGET_BRANCH}" >> $GITHUB_ENV
+          echo "RELEASE_TAG=${RELEASE_TAG}" >> $GITHUB_ENV
+          echo "PRE_RELEASE=${PRE_RELEASE}" >> $GITHUB_ENV
+
+      - name: Check if our release tag has a correct annotation
+        run: |
+          set -ue
+          # Fetch all tag information as well
+          git fetch --prune --tags --force
+
+          echo "=========== BEGIN COMMIT MESSAGE ============="
+          git show ${SOURCE_TAG}
+          echo "============ END COMMIT MESSAGE =============="
+
+          # Quite dirty hack to get the release notes from the annotated tag
+          # into a temporary file.
+          RELEASE_NOTES=$(mktemp -p /tmp release-notes.XXXXXX)
+
+          prefix=true
+          begin=false
+          git show ${SOURCE_TAG} | while read line; do
+            # Whatever is in commit history for the tag, we only want that
+            # annotation from our tag. We discard everything else.
+            if test "$begin" = "false"; then
+              if echo "$line" | grep -q "tag ${SOURCE_TAG#refs/tags/}"; then begin="true"; fi
+              continue
+            fi
+            if test "$prefix" = "true"; then
+                  if test -z "$line"; then prefix=false; fi
+            else
+                  if echo "$line" | egrep -q '^commit [0-9a-f]+'; then
+                          break
+                  fi
+                  echo "$line" >> ${RELEASE_NOTES}
+            fi
+          done
+
+          # For debug purposes
+          echo "============BEGIN RELEASE NOTES================="
+          cat ${RELEASE_NOTES}
+          echo "=============END RELEASE NOTES=================="
+
+          # Too short release notes are suspicious. We need at least 100 bytes.
+          relNoteLen=$(stat -c '%s' $RELEASE_NOTES)
+          if test $relNoteLen -lt 100; then
+            echo "::error::No release notes provided in tag annotation (or tag is not annotated)"
+            exit 1
+          fi
+
+          # Check for magic string '## Quick Start' in head of release notes
+          if ! head -2 ${RELEASE_NOTES} | grep -iq '## Quick Start'; then
+            echo "::error::Release notes seem invalid, quick start section not found."
+            exit 1
+          fi
+
+          # We store path to temporary release notes file for later reading, we
+          # need it when creating release.
+          echo "RELEASE_NOTES=${RELEASE_NOTES}" >> $GITHUB_ENV
+
       - name: Setup Golang
-        uses: actions/setup-go@93397bea11091df50f3d7e59dc26a7711a8bcfbe # v4.0.0
+        uses: actions/setup-go@4d34df0c2316fe8122ab82dc22947d607c0c91f9 # v4.0.0
         with:
           go-version: ${{ env.GOLANG_VERSION }}
 
-      - name: Set environment variables for ldflags
-        id: set_ldflag
+      - name: Setup Git author information
         run: |
-          echo "KUBECTL_VERSION=$(go list -m k8s.io/client-go | head -n 1 | rev | cut -d' ' -f1 | rev)" >> $GITHUB_ENV
-          echo "GIT_TREE_STATE=$(if [ -z "`git status --porcelain`" ]; then echo "clean" ; else echo "dirty"; fi)" >> $GITHUB_ENV
+          set -ue
+          git config --global user.email "${GIT_EMAIL}"
+          git config --global user.name "${GIT_USERNAME}"
 
-      - name: Run GoReleaser
-        uses: goreleaser/goreleaser-action@7ec5c2b0c6cdda6e8bbb49444bc797dd33d74dd8 # v5.0.0
-        id: run-goreleaser
+      - name: Checkout corresponding release branch
+        run: |
+          set -ue
+          echo "Switching to release branch '${TARGET_BRANCH}'"
+          if ! git checkout ${TARGET_BRANCH}; then
+            echo "::error::Checking out release branch '${TARGET_BRANCH}' for target version '${TARGET_VERSION}' (tagged '${RELEASE_TAG}') failed. Does it exist in repo?"
+            exit 1
+          fi
+
+      - name: Create VERSION information
+        run: |
+          set -ue
+          echo "Bumping version from $(cat VERSION) to ${TARGET_VERSION}"
+          echo "${TARGET_VERSION}" > VERSION
+          git commit -m "Bump version to ${TARGET_VERSION}" VERSION
+
+      - name: Generate new set of manifests
+        run: |
+          set -ue
+          make install-codegen-tools-local
+          
+          # We install kustomize in the dist directory
+          echo "/home/runner/work/argo-cd/argo-cd/dist" >> $GITHUB_PATH
+          
+          make manifests-local VERSION=${TARGET_VERSION}
+          git diff
+          git commit manifests/ -m "Bump version to ${TARGET_VERSION}"
+
+      - name: Create the release tag
+        run: |
+          set -ue
+          echo "Creating release ${RELEASE_TAG}"
+          git tag ${RELEASE_TAG}
+
+      - name: Login to docker repositories
+        env:
+          DOCKER_USERNAME: ${{ secrets.RELEASE_DOCKERHUB_USERNAME }}
+          DOCKER_TOKEN: ${{ secrets.RELEASE_DOCKERHUB_TOKEN }}
+          QUAY_USERNAME: ${{ secrets.RELEASE_QUAY_USERNAME }}
+          QUAY_TOKEN: ${{ secrets.RELEASE_QUAY_TOKEN }}
+        run: |
+          set -ue
+          docker login quay.io --username "${QUAY_USERNAME}" --password-stdin <<< "${QUAY_TOKEN}"
+          # Remove the following when Docker Hub is gone
+          docker login --username "${DOCKER_USERNAME}" --password-stdin <<< "${DOCKER_TOKEN}"
+        if: ${{ env.DRY_RUN != 'true' }}
+
+      - uses: docker/setup-qemu-action@e81a89b1732b9c48d79cd809d8d81d79c4647a18 # v2.1.0
+      - uses: docker/setup-buildx-action@f03ac48505955848960e80bbb68046aa35c7b9e7 # v2.4.1
+      - name: Build and push Docker image for release
+        run: |
+          set -ue
+          git clean -fd
+          mkdir -p dist/
+          docker buildx build --platform linux/amd64,linux/arm64,linux/s390x,linux/ppc64le --sbom=false --provenance=false --push -t ${IMAGE_NAMESPACE}/argocd:v${TARGET_VERSION} -t argoproj/argocd:v${TARGET_VERSION} .
+          make release-cli
+          make checksums
+          chmod +x ./dist/argocd-linux-amd64
+          ./dist/argocd-linux-amd64 version --client
+        if: ${{ env.DRY_RUN != 'true' }}
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@c3667d99424e7e6047999fb6246c0da843953c65 # v3.0.1
         with:
-          version: latest
-          args: release --clean --timeout 55m
+          cosign-release: 'v1.13.1'
+
+      - name: Install crane to get digest of image
+        uses: imjasonh/setup-crane@00c9e93efa4e1138c9a7a5c594acd6c75a2fbf0c
+
+      - name: Get digest of image
+        run: |
+          echo "IMAGE_DIGEST=$(crane digest quay.io/argoproj/argocd:v${TARGET_VERSION})" >> $GITHUB_ENV
+
+      - name: Sign Argo CD container images and assets
+        run: |
+          cosign sign --key env://COSIGN_PRIVATE_KEY ${IMAGE_NAMESPACE}/argocd@${{ env.IMAGE_DIGEST }}
+          cosign sign-blob --key env://COSIGN_PRIVATE_KEY ./dist/argocd-${TARGET_VERSION}-checksums.txt > ./dist/argocd-${TARGET_VERSION}-checksums.sig
+          # Retrieves the public key to release as an asset
+          cosign public-key --key env://COSIGN_PRIVATE_KEY > ./dist/argocd-cosign.pub
+        env:
+          COSIGN_PRIVATE_KEY: ${{secrets.COSIGN_PRIVATE_KEY}}
+          COSIGN_PASSWORD: ${{secrets.COSIGN_PASSWORD}}
+        if: ${{ env.DRY_RUN != 'true' }}
+
+      - name: Read release notes file
+        id: release-notes
+        uses: juliangruber/read-file-action@02bbba9876a8f870efd4ad64e3b9088d3fb94d4b # v1.1.6
+        with:
+          path: ${{ env.RELEASE_NOTES }}
+
+      - name: Push changes to release branch
+        run: |
+          set -ue
+          git push origin ${TARGET_BRANCH}
+          git push origin ${RELEASE_TAG}
+
+      - name: Dry run GitHub release
+        uses: actions/create-release@0cb9c9b65d5d1901c1f53e5e66eaf4afd303e70e # v1.1.4
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          KUBECTL_VERSION: ${{ env.KUBECTL_VERSION }} 
-          GIT_TREE_STATE: ${{ env.GIT_TREE_STATE }}
+        id: create_release
+        with:
+          tag_name: ${{ env.RELEASE_TAG }}
+          release_name: ${{ env.RELEASE_TAG }}
+          draft: ${{ env.DRAFT_RELEASE }}
+          prerelease: ${{ env.PRE_RELEASE }}
+          body: ${{ steps.release-notes.outputs.content }}
+        if: ${{ env.DRY_RUN == 'true' }}
 
-      - name: Generate subject for provenance
-        id: hash
-        env:
-          ARTIFACTS: "${{ steps.run-goreleaser.outputs.artifacts }}"
+      # Based on this suggestion: https://github.com/actions/runner-images/issues/2840#issuecomment-1284059930
+      - name: Free Up Disk Space
+        id: free-up-disk-space
         run: |
-          set -euo pipefail
-
-          hashes=$(echo $ARTIFACTS | jq --raw-output '.[] | {name, "digest": (.extra.Digest // .extra.Checksum)} | select(.digest) | {digest} + {name} | join("  ") | sub("^sha256:";"")' | base64 -w0)
-          if test "$hashes" = ""; then # goreleaser < v1.13.0
-            checksum_file=$(echo "$ARTIFACTS" | jq -r '.[] | select (.type=="Checksum") | .path')
-            hashes=$(cat $checksum_file | base64 -w0)
-          fi
-          echo "hashes=$hashes" >> $GITHUB_OUTPUT
-
-  goreleaser-provenance:
-    needs: [goreleaser]
-    permissions:
-      actions: read # for detecting the Github Actions environment
-      id-token: write # Needed for provenance signing and ID
-      contents: write #  Needed for release uploads
-    if: github.repository == 'argoproj/argo-cd'
-    # Must be refernced by a tag. https://github.com/slsa-framework/slsa-github-generator/blob/main/internal/builders/container/README.md#referencing-the-slsa-generator
-    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v1.9.0
-    with:
-      base64-subjects: "${{ needs.goreleaser.outputs.hashes }}"
-      provenance-name: "argocd-cli.intoto.jsonl"
-      upload-assets: true
-
-  generate-sbom:
-    name: Create SBOM and generate hash
-    needs:
-      - argocd-image
-      - goreleaser
-    permissions:
-      contents: write # Needed for release uploads
-    outputs:
-      hashes: ${{ steps.sbom-hash.outputs.hashes}}
-    if: github.repository == 'argoproj/argo-cd'
-    runs-on: ubuntu-22.04
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@3df4ab11eba7bda6032a0b82a6bb43b11571feac # v4.0.0
-        with:
-          fetch-depth: 0
-          token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Setup Golang
-        uses: actions/setup-go@93397bea11091df50f3d7e59dc26a7711a8bcfbe # v4.1.0
-        with:
-          go-version: ${{ env.GOLANG_VERSION }}
+          df -h
+          sudo rm -rf /usr/share/dotnet
+          df -h
 
       - name: Generate SBOM (spdx)
         id: spdx-builder
@@ -160,7 +285,7 @@ jobs:
           # managers (gomod, yarn, npm).
           PROJECT_FOLDERS: ".,./ui"
           # full qualified name of the docker image to be inspected
-          DOCKER_IMAGE: quay.io/argoproj/argocd:${{ github.ref_name }}
+          DOCKER_IMAGE: ${{env.IMAGE_NAMESPACE}}/argocd:v${{env.TARGET_VERSION}}
         run: |
           yarn install --cwd ./ui
           go install github.com/spdx/spdx-sbom-generator/cmd/generator@$SPDX_GEN_VERSION
@@ -178,116 +303,43 @@ jobs:
           fi
 
           cd /tmp && tar -zcf sbom.tar.gz *.spdx
-          
-      - name: Generate SBOM hash
-        shell: bash
-        id: sbom-hash
+        if: ${{ env.DRY_RUN != 'true' }}
+
+      - name: Sign sbom
         run: |
-          # sha256sum generates sha256 hash for sbom.
-          # base64 -w0 encodes to base64 and outputs on a single line.
-          # sha256sum /tmp/sbom.tar.gz ... | base64 -w0
-          echo "hashes=$(sha256sum /tmp/sbom.tar.gz | base64 -w0)" >> "$GITHUB_OUTPUT"
-      
-      - name: Upload SBOM
+          cosign sign-blob --key env://COSIGN_PRIVATE_KEY /tmp/sbom.tar.gz > /tmp/sbom.tar.gz.sig
+        env:
+          COSIGN_PRIVATE_KEY: ${{secrets.COSIGN_PRIVATE_KEY}}
+          COSIGN_PASSWORD: ${{secrets.COSIGN_PASSWORD}}
+        if: ${{ env.DRY_RUN != 'true' }}
+
+      - name: Create GitHub release
         uses: softprops/action-gh-release@de2c0eb89ae2a093876385947365aca7b0e5f844 # v0.1.15
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
+          name: ${{ env.RELEASE_TAG }}
+          tag_name: ${{ env.RELEASE_TAG }}
+          draft: ${{ env.DRAFT_RELEASE }}
+          prerelease: ${{ env.PRE_RELEASE }}
+          body: ${{ steps.release-notes.outputs.content }}  # Pre-pended to the generated notes
           files: |
+            dist/argocd-*
             /tmp/sbom.tar.gz
-  
-  sbom-provenance:
-    needs: [generate-sbom]
-    permissions:
-      actions: read # for detecting the Github Actions environment
-      id-token: write # Needed for provenance signing and ID
-      contents: write #  Needed for release uploads
-    if: github.repository == 'argoproj/argo-cd'
-    # Must be refernced by a tag. https://github.com/slsa-framework/slsa-github-generator/blob/main/internal/builders/container/README.md#referencing-the-slsa-generator
-    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v1.9.0
-    with:
-      base64-subjects: "${{ needs.generate-sbom.outputs.hashes }}"
-      provenance-name: "argocd-sbom.intoto.jsonl"
-      upload-assets: true
-      
-  post-release:
-    needs:
-      - argocd-image
-      - goreleaser
-      - generate-sbom
-    permissions:
-      contents: write # Needed to push commit to update stable tag
-      pull-requests: write # Needed to create PR for VERSION update.
-    if: github.repository == 'argoproj/argo-cd'
-    runs-on: ubuntu-22.04
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@3df4ab11eba7bda6032a0b82a6bb43b11571feac # v4.0.0
-        with:
-          fetch-depth: 0
-          token: ${{ secrets.GITHUB_TOKEN }}
+            /tmp/sbom.tar.gz.sig
+        if: ${{ env.DRY_RUN != 'true' }}
 
-      - name: Setup Git author information
+      - name: Update homebrew formula
+        env:
+          HOMEBREW_TOKEN: ${{ secrets.RELEASE_HOMEBREW_TOKEN }}
+        uses: dawidd6/action-homebrew-bump-formula@02e79d9da43d79efa846d73695b6052cbbdbf48a # v3.8.3
+        with:
+          token: ${{env.HOMEBREW_TOKEN}}
+          formula: argocd
+        if: ${{ env.HOMEBREW_TOKEN != '' && env.UPDATE_HOMEBREW == 'true' && env.PRE_RELEASE != 'true' }}
+
+      - name: Delete original request tag from repository
         run: |
           set -ue
-          git config --global user.email 'ci@argoproj.com'
-          git config --global user.name 'CI'
-
-      - name: Check if tag is the latest version and not a pre-release
-        run: |
-          set -xue
-          # Fetch all tag information
-          git fetch --prune --tags --force
-
-          LATEST_TAG=$(git -c 'versionsort.suffix=-rc' tag --list --sort=version:refname | tail -n1)
-
-          PRE_RELEASE=false
-          # Check if latest tag is a pre-release
-          if echo $LATEST_TAG | grep -E -- '-rc[0-9]+$';then
-            PRE_RELEASE=true
-          fi
-
-          # Ensure latest tag matches github.ref_name & not a pre-release
-          if [[ $LATEST_TAG == ${{ github.ref_name }} ]] && [[ $PRE_RELEASE != 'true' ]];then
-            echo "TAG_STABLE=true" >> $GITHUB_ENV
-          else
-            echo "TAG_STABLE=false" >> $GITHUB_ENV
-          fi
-
-      - name: Update stable tag to latest version
-        run: |
-          git tag -f stable ${{ github.ref_name }}
-          git push -f origin stable
-        if: ${{ env.TAG_STABLE == 'true' }}
-
-      - name: Check to see if VERSION should be updated on master branch
-        run: |
-          set -xue
-          SOURCE_TAG=${{ github.ref_name }}
-          VERSION_REF="${SOURCE_TAG#*v}"
-          if echo "$VERSION_REF" | grep -E -- '^[0-9]+\.[0-9]+\.0-rc1';then
-            VERSION=$(awk 'BEGIN {FS=OFS="."} {$2++; print}' <<< "${VERSION_REF%-rc1}")
-            echo "Updating VERSION to: $VERSION"
-            echo "UPDATE_VERSION=true" >> $GITHUB_ENV
-            echo "NEW_VERSION=$VERSION" >> $GITHUB_ENV
-          else
-            echo "Not updating VERSION"
-            echo "UPDATE_VERSION=false" >> $GITHUB_ENV
-          fi
-
-      - name: Update VERSION on master branch
-        run: |
-          echo ${{ env.NEW_VERSION }} > VERSION
-        if: ${{ env.UPDATE_VERSION == 'true' }}
-
-      - name: Create PR to update VERSION on master branch
-        uses: peter-evans/create-pull-request@153407881ec5c347639a548ade7d8ad1d6740e38 # v5.0.2
-        with:
-          commit-message: Bump version in master
-          title: "chore: Bump version in master"
-          body: All images built from master should indicate which version we are on track for.
-          signoff: true
-          branch: update-version
-          branch-suffix: random
-          base: master
-        if: ${{ env.UPDATE_VERSION == 'true' }}
+          git push --delete origin ${SOURCE_TAG}
+        if: ${{ always() }}

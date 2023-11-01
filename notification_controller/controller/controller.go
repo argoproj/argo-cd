@@ -12,18 +12,14 @@ import (
 
 	service "github.com/argoproj/argo-cd/v2/util/notification/argocd"
 
-	argocert "github.com/argoproj/argo-cd/v2/util/cert"
-
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	"github.com/argoproj/argo-cd/v2/util/notification/settings"
 
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
 	"github.com/argoproj/notifications-engine/pkg/api"
 	"github.com/argoproj/notifications-engine/pkg/controller"
 	"github.com/argoproj/notifications-engine/pkg/services"
 	"github.com/argoproj/notifications-engine/pkg/subscriptions"
-	httputil "github.com/argoproj/notifications-engine/pkg/util/http"
 	log "github.com/sirupsen/logrus"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -39,8 +35,8 @@ const (
 )
 
 var (
-	applications = schema.GroupVersionResource{Group: application.Group, Version: "v1alpha1", Resource: application.ApplicationPlural}
-	appProjects  = schema.GroupVersionResource{Group: application.Group, Version: "v1alpha1", Resource: application.AppProjectPlural}
+	applications = schema.GroupVersionResource{Group: "argoproj.io", Version: "v1alpha1", Resource: "applications"}
+	appProjects  = schema.GroupVersionResource{Group: "argoproj.io", Version: "v1alpha1", Resource: "appprojects"}
 )
 
 func newAppProjClient(client dynamic.Interface, namespace string) dynamic.ResourceInterface {
@@ -163,9 +159,6 @@ type notificationController struct {
 }
 
 func (c *notificationController) Init(ctx context.Context) error {
-	// resolve certificates using injected "argocd-tls-certs-cm" ConfigMap
-	httputil.SetCertResolver(argocert.GetCertificateForConnect)
-
 	go c.appInformer.Run(ctx.Done())
 	go c.appProjInformer.Run(ctx.Done())
 	go c.secretInformer.Run(ctx.Done())

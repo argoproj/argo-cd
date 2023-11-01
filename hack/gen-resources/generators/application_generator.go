@@ -31,8 +31,8 @@ func NewApplicationGenerator(argoClientSet *appclientset.Clientset, clientSet *k
 }
 
 func (pg *ApplicationGenerator) buildRandomSource(repositories []*v1alpha1.Repository) (*v1alpha1.ApplicationSource, error) {
-	seed := rand.New(rand.NewSource(time.Now().Unix()))
-	repoNumber := seed.Int() % len(repositories)
+	rand.Seed(time.Now().Unix())
+	repoNumber := rand.Int() % len(repositories)
 	return &v1alpha1.ApplicationSource{
 		RepoURL:        repositories[repoNumber].Repo,
 		Path:           "helm-guestbook",
@@ -49,8 +49,8 @@ func (ag *ApplicationGenerator) buildSource(opts *util.GenerateOpts, repositorie
 }
 
 func (pg *ApplicationGenerator) buildRandomDestination(opts *util.GenerateOpts, clusters []v1alpha1.Cluster) (*v1alpha1.ApplicationDestination, error) {
-	seed := rand.New(rand.NewSource(time.Now().Unix()))
-	clusterNumber := seed.Int() % len(clusters)
+	rand.Seed(time.Now().Unix())
+	clusterNumber := rand.Int() % len(clusters)
 	return &v1alpha1.ApplicationDestination{
 		Namespace: opts.Namespace,
 		Name:      clusters[clusterNumber].Name,

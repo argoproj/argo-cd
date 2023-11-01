@@ -20,7 +20,7 @@ spec:
       - name: copyutil
         image: quay.io/argoproj/argocd:latest
         imagePullPolicy: Always
-        command: [/bin/cp, -n, /usr/local/bin/argocd, /shared/argocd-dex]
+        command: [cp, -n, /usr/local/bin/argocd, /shared/argocd-dex]
         volumeMounts:
         - mountPath: /shared
           name: static-files

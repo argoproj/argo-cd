@@ -15,4 +15,12 @@ fi
 
 mkdir -p $TEST_RESULTS
 
-GODEBUG="tarinsecurepath=0,zipinsecurepath=0" ${DIST_DIR}/gotestsum --rerun-fails-report=rerunreport.txt --junitfile=$TEST_RESULTS/junit.xml --format=testname --rerun-fails="$RERUN_FAILS" --packages="$PACKAGES" -- $TEST_FLAGS $*
+report() {
+	set -eux -o pipefail
+
+	go-junit-report < $TEST_RESULTS/test.out > $TEST_RESULTS/junit.xml
+}
+
+trap 'report' EXIT
+
+go test $TEST_FLAGS -failfast $* 2>&1 | tee $TEST_RESULTS/test.out

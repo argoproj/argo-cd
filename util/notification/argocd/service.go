@@ -10,6 +10,7 @@ import (
 
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
+	repoapiclient "github.com/argoproj/argo-cd/v2/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/v2/util/db"
 	"github.com/argoproj/argo-cd/v2/util/settings"
 )
@@ -21,7 +22,7 @@ type Service interface {
 	GetAppDetails(ctx context.Context, appSource *v1alpha1.ApplicationSource) (*shared.AppDetail, error)
 }
 
-func NewArgoCDService(clientset kubernetes.Interface, namespace string, repoClientset apiclient.Clientset) (*argoCDService, error) {
+func NewArgoCDService(clientset kubernetes.Interface, namespace string, repoClientset repoapiclient.Clientset) (*argoCDService, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	settingsMgr := settings.NewSettingsManager(ctx, clientset, namespace)
 	closer, repoClient, err := repoClientset.NewRepoServerClient()

@@ -63,7 +63,7 @@ repository or kustomize base.
 For example, consider the following kustomization.yaml
 
 ```yaml
-resources:
+bases:
 - github.com/argoproj/argo-cd//manifests/cluster-install
 ```
 

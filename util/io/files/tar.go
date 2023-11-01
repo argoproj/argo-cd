@@ -58,7 +58,7 @@ func Tgz(srcPath string, inclusions []string, exclusions []string, writers ...io
 //   - a full path
 //   - points to an empty directory or
 //   - points to a non existing directory
-func Untgz(dstPath string, r io.Reader, maxSize int64, preserveFileMode bool) error {
+func Untgz(dstPath string, r io.Reader, maxSize int64) error {
 	if !filepath.IsAbs(dstPath) {
 		return fmt.Errorf("dstPath points to a relative path: %s", dstPath)
 	}
@@ -92,11 +92,7 @@ func Untgz(dstPath string, r io.Reader, maxSize int64, preserveFileMode bool) er
 
 		switch header.Typeflag {
 		case tar.TypeDir:
-			var mode os.FileMode = 0755
-			if preserveFileMode {
-				mode = os.FileMode(header.Mode)
-			}
-			err := os.MkdirAll(target, mode)
+			err := os.MkdirAll(target, 0755)
 			if err != nil {
 				return fmt.Errorf("error creating nested folders: %w", err)
 			}
@@ -117,17 +113,12 @@ func Untgz(dstPath string, r io.Reader, maxSize int64, preserveFileMode bool) er
 				return fmt.Errorf("error creating symlink: %s", err)
 			}
 		case tar.TypeReg:
-			var mode os.FileMode = 0644
-			if preserveFileMode {
-				mode = os.FileMode(header.Mode)
-			}
-
 			err := os.MkdirAll(filepath.Dir(target), 0755)
 			if err != nil {
 				return fmt.Errorf("error creating nested folders: %w", err)
 			}
 
-			f, err := os.OpenFile(target, os.O_RDWR|os.O_CREATE|os.O_TRUNC, mode)
+			f, err := os.Create(target)
 			if err != nil {
 				return fmt.Errorf("error creating file %q: %w", target, err)
 			}

@@ -2,9 +2,7 @@
 
 ## Declarative
 
-You can install Helm charts through the UI, or in the declarative GitOps way.  
-Helm is [only used to inflate charts with `helm template`](../../faq#after-deploying-my-helm-application-with-argo-cd-i-cannot-see-it-with-helm-ls-and-other-helm-commands). The lifecycle of the application is handled by Argo CD instead of Helm.
-Here is an example:
+You can install Helm charts through the UI, or in the declarative GitOps way. Here is an example:
 
 ```yaml
 apiVersion: argoproj.io/v1alpha1
@@ -24,9 +22,6 @@ spec:
     server: "https://kubernetes.default.svc"
     namespace: kubeseal
 ```
-
-!!! note "When using multiple ways to provide values"
-    Order of precedence is `parameters > valuesObject > values > valueFiles > helm repository values.yaml` (see [Here](./helm.md#helm-value-precedence) for a more detailed example)
 
 ## Values Files
 
@@ -55,30 +50,9 @@ source:
 
 ## Values
 
-Argo CD supports the equivalent of a values file directly in the Application manifest using the `source.helm.valuesObject` key.
+Argo CD supports the equivalent of a values file directly in the Application manifest using the `source.helm.values` key.
 
-```yaml
-source:
-  helm:
-    valuesObject:
-      ingress:
-        enabled: true
-        path: /
-        hosts:
-          - mydomain.example.com
-        annotations:
-          kubernetes.io/ingress.class: nginx
-          kubernetes.io/tls-acme: "true"
-        labels: {}
-        tls:
-          - secretName: mydomain-tls
-            hosts:
-              - mydomain.example.com
 ```
-
-Alternatively, values can be passed in as a string using the `source.helm.values` key.
-
-```yaml
 source:
   helm:
     values: |
@@ -123,68 +97,9 @@ source:
       value: LoadBalancer
 ```
 
-## Helm Value Precedence
-Values injections have the following order of precedence
- `parameters > valuesObject > values > valueFiles > helm repository values.yaml`
- Or rather
-
-```
-    lowest  -> valueFiles
-            -> values
-            -> valuesObject
-    highest -> parameters
-```
-
-so values/valuesObject trumps valueFiles, and parameters trump both.
-
-Precedence of valueFiles themselves is the order they are defined in
-
-```
-if we have
-
-valuesFile:
-  - values-file-2.yaml
-  - values-file-1.yaml
-
-the last values-file i.e. values-file-1.yaml will trump the first
-```
-
-When multiple of the same key are found the last one wins i.e 
-
-```
-e.g. if we only have values-file-1.yaml and it contains
-
-param1: value1
-param1: value3000
-
-we get param1=value3000
-```
-
-```
-parameters:
-  - name: "param1"
-    value: value2
-  - name: "param1"
-    value: value1
-
-the result will be param1=value1
-```
-
-```
-values: |
-  param1: value2
-  param1: value5
-
-the result will be param1=value5
-```
-
-!!! note "When valuesFiles or values is used"
-    The list of parameters seen in the ui is not what is used for resources, rather it is the values/valuesObject merged with parameters (see [this issue](https://github.com/argoproj/argo-cd/issues/9213) incase it has been resolved)
-    As a workaround using parameters instead of values/valuesObject will provide a better overview of what will be used for resources
-
 ## Helm Release Name
 
-By default, the Helm release name is equal to the Application name to which it belongs. Sometimes, especially on a centralised Argo CD,
+By default, the Helm release name is equal to the Application name to which it belongs. Sometimes, especially on a centralised ArgoCD,
 you may want to override that  name, and it is possible with the `release-name` flag on the cli:
 
 ```bash
@@ -200,7 +115,7 @@ source:
 ```
 
 !!! warning "Important notice on overriding the release name"
-    Please note that overriding the Helm release name might cause problems when the chart you are deploying is using the `app.kubernetes.io/instance` label. Argo CD injects this label with the value of the Application name for tracking purposes. So when overriding the release name, the Application name will stop being equal to the release name. Because Argo CD will overwrite the label with the Application name it might cause some selectors on the resources to stop working. In order to avoid this we can configure Argo CD to use another label for tracking in the [ArgoCD configmap argocd-cm.yaml](../operator-manual/argocd-cm.yaml) - check the lines describing `application.instanceLabelKey`.
+    Please note that overriding the Helm release name might cause problems when the chart you are deploying is using the `app.kubernetes.io/instance` label. ArgoCD injects this label with the value of the Application name for tracking purposes. So when overriding the release name, the Application name will stop being equal to the release name. Because ArgoCD will overwrite the label with the Application name it might cause some selectors on the resources to stop working. In order to avoid this we can configure ArgoCD to use another label for tracking in the [ArgoCD configmap argocd-cm.yaml](../operator-manual/argocd-cm.yaml) - check the lines describing `application.instanceLabelKey`.
 
 ## Helm Hooks
 
@@ -209,28 +124,27 @@ is any normal Kubernetes resource annotated with the `helm.sh/hook` annotation.
 
 Argo CD supports many (most?) Helm hooks by mapping the Helm annotations onto Argo CD's own hook annotations:
 
-| Helm Annotation                 | Notes                                                                                         |
-| ------------------------------- | --------------------------------------------------------------------------------------------- |
-| `helm.sh/hook: crd-install`     | Supported as equivalent to `argocd.argoproj.io/hook: PreSync`.                                |
-| `helm.sh/hook: pre-delete`      | Not supported. In Helm stable there are 3 cases used to clean up CRDs and 3 to clean-up jobs. |
-| `helm.sh/hook: pre-rollback`    | Not supported. Never used in Helm stable.                                                     |
-| `helm.sh/hook: pre-install`     | Supported as equivalent to `argocd.argoproj.io/hook: PreSync`.                                |
-| `helm.sh/hook: pre-upgrade`     | Supported as equivalent to `argocd.argoproj.io/hook: PreSync`.                                |
-| `helm.sh/hook: post-upgrade`    | Supported as equivalent to `argocd.argoproj.io/hook: PostSync`.                               |
-| `helm.sh/hook: post-install`    | Supported as equivalent to `argocd.argoproj.io/hook: PostSync`.                               |
-| `helm.sh/hook: post-delete`     | Not supported. Never used in Helm stable.                                                     |
-| `helm.sh/hook: post-rollback`   | Not supported. Never used in Helm stable.                                                     |
-| `helm.sh/hook: test-success`    | Not supported. No equivalent in Argo CD.                                                      |
-| `helm.sh/hook: test-failure`    | Not supported. No equivalent in Argo CD.                                                      |
-| `helm.sh/hook-delete-policy`    | Supported. See also `argocd.argoproj.io/hook-delete-policy`).                                 |
-| `helm.sh/hook-delete-timeout`   | Not supported. Never used in Helm stable                                                      |
-| `helm.sh/hook-weight`           | Supported as equivalent to `argocd.argoproj.io/sync-wave`.                                    |
-| `helm.sh/resource-policy: keep` | Supported as equivalent to `argocd.argoproj.io/sync-options: Delete=false`.                   |
+| Helm Annotation | Notes |
+|---|---|
+| `helm.sh/hook: crd-install` | Supported as equivalent to `argocd.argoproj.io/hook: PreSync`. |
+| `helm.sh/hook: pre-delete` | Not supported. In Helm stable there are 3 cases used to clean up CRDs and 3 to clean-up jobs. |
+| `helm.sh/hook: pre-rollback` | Not supported. Never used in Helm stable. |
+| `helm.sh/hook: pre-install` | Supported as equivalent to `argocd.argoproj.io/hook: PreSync`. |
+| `helm.sh/hook: pre-upgrade` | Supported as equivalent to `argocd.argoproj.io/hook: PreSync`. |
+| `helm.sh/hook: post-upgrade` | Supported as equivalent to `argocd.argoproj.io/hook: PostSync`. |
+| `helm.sh/hook: post-install` | Supported as equivalent to `argocd.argoproj.io/hook: PostSync`. |
+| `helm.sh/hook: post-delete` | Not supported. Never used in Helm stable. |
+| `helm.sh/hook: post-rollback` | Not supported. Never used in Helm stable. |
+| `helm.sh/hook: test-success` | Not supported. No equivalent in Argo CD. |
+| `helm.sh/hook: test-failure` | Not supported. No equivalent in Argo CD. |
+| `helm.sh/hook-delete-policy` | Supported. See also `argocd.argoproj.io/hook-delete-policy`). |
+| `helm.sh/hook-delete-timeout` | Not supported. Never used in Helm stable |
+| `helm.sh/hook-weight` | Supported as equivalent to `argocd.argoproj.io/sync-wave`. |
 
 Unsupported hooks are ignored. In Argo CD, hooks are created by using `kubectl apply`, rather than `kubectl create`. This means that if the hook is named and already exists, it will not change unless you have annotated it with `before-hook-creation`.
 
 !!! warning "Helm hooks + ArgoCD hooks"
-    If you define any Argo CD hooks, _all_ Helm hooks will be ignored.   
+    If you define some Argo CD hooks in addition to the Helm ones, the Helm hooks will be ignored.   
 
 !!! warning "'install' vs 'upgrade' vs 'sync'"
     Argo CD cannot know if it is running a first-time "install" or an "upgrade" - every operation is a "sync'. This means that, by default, apps that have `pre-install` and `pre-upgrade` will have those hooks run at the same time.
@@ -316,7 +230,7 @@ One way to use this plugin is to prepare your own ArgoCD image where it is inclu
 
 Example `Dockerfile`:
 
-```dockerfile
+```
 FROM argoproj/argocd:v1.5.7
 
 USER root
@@ -346,43 +260,38 @@ Some users find this pattern preferable to maintaining their own version of the 
 
 Below is an example of how to add Helm plugins when installing ArgoCD with the [official ArgoCD helm chart](https://github.com/argoproj/argo-helm/tree/master/charts/argo-cd):
 
-```yaml
+```
 repoServer:
   volumes:
-    - name: gcp-credentials
+    - name: gcloud
       secret:
-        secretName: my-gcp-credentials
+        secretName: helm-credentials
   volumeMounts:
-    - name: gcp-credentials
-      mountPath: /gcp
+    - mountPath: /gcloud
+      name: gcloud
   env:
-    - name: HELM_CACHE_HOME
-      value: /helm-working-dir
-    - name: HELM_CONFIG_HOME
-      value: /helm-working-dir
-    - name: HELM_DATA_HOME
-      value: /helm-working-dir
+    - name: HELM_PLUGINS
+      value: /helm-working-dir/plugins/
+    - name: GOOGLE_APPLICATION_CREDENTIALS
+      value: /gcloud/key.json
   initContainers:
-    - name: helm-gcp-authentication
-      image: alpine/helm:3.8.1
+    - name: install-helm-plugins
+      image: alpine/helm:3.8.0
       volumeMounts:
-        - name: helm-working-dir
-          mountPath: /helm-working-dir
-        - name: gcp-credentials
-          mountPath: /gcp
+        - mountPath: /helm-working-dir
+          name: helm-working-dir
+        - mountPath: /gcloud
+          name: gcloud
       env:
-        - name: HELM_CACHE_HOME
-          value: /helm-working-dir
-        - name: HELM_CONFIG_HOME
-          value: /helm-working-dir
-        - name: HELM_DATA_HOME
-          value: /helm-working-dir
-      command: [ "/bin/sh", "-c" ]
+        - name: GOOGLE_APPLICATION_CREDENTIALS
+          value: /gcloud/key.json
+        - name: HELM_PLUGINS
+          value: /helm-working-dir/plugins
+      command: ["/bin/sh", "-c"]
       args:
         - apk --no-cache add curl;
           helm plugin install https://github.com/hayorov/helm-gcs.git;
-          helm repo add my-gcs-repo gs://my-private-helm-gcs-repository;
-          chmod -R 777 $HELM_DATA_HOME;
+          helm repo add my-private-gcs-repo gs://my-private-gcs-repo;
 ```
 
 ## Helm Version

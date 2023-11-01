@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 # If we're started as PID 1, we should wrap command execution through tini to
 # prevent leakage of orphaned processes ("zombies").

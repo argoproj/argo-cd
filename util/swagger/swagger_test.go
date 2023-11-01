@@ -52,7 +52,7 @@ func TestSwaggerUI(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if resp.StatusCode != http.StatusOK {
+	if resp.StatusCode != 200 {
 		t.Fatalf("Was expecting status code 200 from swagger-ui, but got %d instead", resp.StatusCode)
 	}
 }

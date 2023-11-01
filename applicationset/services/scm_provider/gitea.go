@@ -27,13 +27,11 @@ func NewGiteaProvider(ctx context.Context, owner, token, url string, allBranches
 	if insecure {
 		cookieJar, _ := cookiejar.New(nil)
 
-		tr := http.DefaultTransport.(*http.Transport).Clone()
-		tr.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
-
 		httpClient = &http.Client{
-			Jar:       cookieJar,
-			Transport: tr,
-		}
+			Jar: cookieJar,
+			Transport: &http.Transport{
+				TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+			}}
 	}
 	client, err := gitea.NewClient(url, gitea.SetToken(token), gitea.SetHTTPClient(httpClient))
 	if err != nil {
@@ -49,7 +47,7 @@ func NewGiteaProvider(ctx context.Context, owner, token, url string, allBranches
 func (g *GiteaProvider) GetBranches(ctx context.Context, repo *Repository) ([]*Repository, error) {
 	if !g.allBranches {
 		branch, status, err := g.client.GetRepoBranch(g.owner, repo.Repository, repo.Branch)
-		if status.StatusCode == http.StatusNotFound {
+		if status.StatusCode == 404 {
 			return nil, fmt.Errorf("got 404 while getting default branch %q for repo %q - check your repo config: %w", repo.Branch, repo.Repository, err)
 		}
 		if err != nil {

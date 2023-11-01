@@ -81,7 +81,7 @@ spec:
                   operator: In
                   values:
                   - kafka-connect
-              topologyKey: topology.kubernetes.io/zone
+              topologyKey: failure-domain.beta.kubernetes.io/zone
             weight: 100
       metadata:
         annotations:

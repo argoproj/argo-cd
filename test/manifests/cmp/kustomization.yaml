@@ -5,9 +5,9 @@ resources:
   - plugin.yaml
   - app.yaml
 
-patches:
-  - path: repo-patch.yaml
-  - path: secret-patch.yaml
+patchesStrategicMerge:
+  - repo-patch.yaml
+  - secret-patch.yaml
 
 images:
   - name: quay.io/argoproj/argocd

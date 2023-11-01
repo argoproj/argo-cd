@@ -75,7 +75,7 @@ func NewDexHTTPReverseProxy(serverAddr string, baseHRef string, tlsConfig *DexTL
 	}
 
 	proxy.ModifyResponse = func(resp *http.Response) error {
-		if resp.StatusCode == http.StatusInternalServerError {
+		if resp.StatusCode == 500 {
 			b, err := io.ReadAll(resp.Body)
 			if err != nil {
 				return err
@@ -123,7 +123,6 @@ type DexRewriteURLRoundTripper struct {
 func (s DexRewriteURLRoundTripper) RoundTrip(r *http.Request) (*http.Response, error) {
 	r.URL.Host = s.DexURL.Host
 	r.URL.Scheme = s.DexURL.Scheme
-	r.Host = s.DexURL.Host
 	return s.T.RoundTrip(r)
 }
 

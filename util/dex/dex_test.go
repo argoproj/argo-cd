@@ -9,8 +9,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/ghodss/yaml"
 	"github.com/stretchr/testify/assert"
-	"sigs.k8s.io/yaml"
 
 	// "github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/v2/util/settings"
@@ -64,7 +64,7 @@ staticClients:
   name: Argo Workflow
   redirectURIs:
   - https://argo/oauth2/callback
-  secret:  $dex.acme.clientSecret
+  secret:  $dex.acme.clientSecret  
 `
 var badDexConfig = `
 connectors:
@@ -293,9 +293,9 @@ func Test_GenerateDexConfig(t *testing.T) {
 		}
 		clients, ok := dexCfg["staticClients"].([]interface{})
 		assert.True(t, ok)
-		assert.Equal(t, 4, len(clients))
+		assert.Equal(t, 3, len(clients))
 
-		customClient := clients[3].(map[string]interface{})
+		customClient := clients[2].(map[string]interface{})
 		assert.Equal(t, "argo-workflow", customClient["id"].(string))
 		assert.Equal(t, 1, len(customClient["redirectURIs"].([]interface{})))
 	})
@@ -315,9 +315,9 @@ func Test_GenerateDexConfig(t *testing.T) {
 		}
 		clients, ok := dexCfg["staticClients"].([]interface{})
 		assert.True(t, ok)
-		assert.Equal(t, 4, len(clients))
+		assert.Equal(t, 3, len(clients))
 
-		customClient := clients[3].(map[string]interface{})
+		customClient := clients[2].(map[string]interface{})
 		assert.Equal(t, "barfoo", customClient["secret"])
 	})
 	t.Run("Override dex oauth2 configuration", func(t *testing.T) {
@@ -425,11 +425,9 @@ func Test_DexReverseProxy(t *testing.T) {
 		defer server.Close()
 		rt := NewDexRewriteURLRoundTripper(server.URL, http.DefaultTransport)
 		assert.NotNil(t, rt)
-		req, err := http.NewRequest(http.MethodGet, "/", bytes.NewBuffer([]byte("")))
+		req, err := http.NewRequest("GET", "/", bytes.NewBuffer([]byte("")))
 		assert.NoError(t, err)
 		_, err = rt.RoundTrip(req)
 		assert.NoError(t, err)
-		target, _ := url.Parse(server.URL)
-		assert.Equal(t, req.Host, target.Host)
 	})
 }

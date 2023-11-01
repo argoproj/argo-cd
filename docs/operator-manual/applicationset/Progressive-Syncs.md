@@ -52,7 +52,8 @@ Once a change is pushed, the following will happen in order.
 * The rollout will wait for all `env-qa` Applications to be manually synced via the `argocd` CLI or by clicking the Sync button in the UI.
 * 10% of all `env-prod` Applications will be updated at a time until all `env-prod` Applications have been updated.
 
-```yaml
+```
+---
 apiVersion: argoproj.io/v1alpha1
 kind: ApplicationSet
 metadata:
@@ -93,7 +94,6 @@ spec:
                 - env-prod
           maxUpdate: 10%    # maxUpdate supports both integer and percentage string values (rounds down, but floored at 1 Application for >0%)
   goTemplate: true
-  goTemplateOptions: ["missingkey=error"]
   template:
     metadata:
       name: '{{.cluster}}-guestbook'

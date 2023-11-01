@@ -2,7 +2,6 @@ package helm
 
 import (
 	"bytes"
-	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/json"
@@ -22,13 +21,13 @@ import (
 	"github.com/argoproj/pkg/sync"
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v2"
-	"oras.land/oras-go/v2/registry/remote"
-	"oras.land/oras-go/v2/registry/remote/auth"
 
+	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/util/cache"
 	argoio "github.com/argoproj/argo-cd/v2/util/io"
 	"github.com/argoproj/argo-cd/v2/util/io/files"
 	"github.com/argoproj/argo-cd/v2/util/proxy"
+	"github.com/argoproj/argo-cd/v2/util/text"
 )
 
 var (
@@ -133,7 +132,7 @@ func untarChart(tempDir string, cachedChartPath string, manifestMaxExtractedSize
 	if err != nil {
 		return err
 	}
-	return files.Untgz(tempDir, reader, manifestMaxExtractedSize, false)
+	return files.Untgz(tempDir, reader, manifestMaxExtractedSize)
 }
 
 func (c *nativeHelmChart) ExtractChart(chart string, version string, passCredentials bool, manifestMaxExtractedSize int64, disableManifestMaxExtractedSize bool) (string, argoio.Closer, error) {
@@ -191,7 +190,7 @@ func (c *nativeHelmChart) ExtractChart(chart string, version string, passCredent
 			}
 
 			// 'helm pull' ensures that chart is downloaded into temp directory
-			_, err = helmCmd.PullOCI(c.repoURL, chart, version, tempDest, c.creds)
+			_, err = helmCmd.PullOCI(c.repoURL, chart, version, tempDest)
 			if err != nil {
 				return "", nil, err
 			}
@@ -300,7 +299,7 @@ func (c *nativeHelmChart) loadRepoIndex() ([]byte, error) {
 		return nil, err
 	}
 
-	req, err := http.NewRequest(http.MethodGet, indexURL, nil)
+	req, err := http.NewRequest("GET", indexURL, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -326,7 +325,7 @@ func (c *nativeHelmChart) loadRepoIndex() ([]byte, error) {
 	}
 	defer func() { _ = resp.Body.Close() }()
 
-	if resp.StatusCode != http.StatusOK {
+	if resp.StatusCode != 200 {
 		return nil, errors.New("failed to get index: " + resp.Status)
 	}
 	return io.ReadAll(resp.Body)
@@ -400,8 +399,131 @@ func getIndexURL(rawURL string) (string, error) {
 	return repoURL.String(), nil
 }
 
+func getTagsListURL(rawURL string, chart string) (string, error) {
+	repoURL, err := url.Parse(strings.Trim(rawURL, "/"))
+	if err != nil {
+		return "", fmt.Errorf("unable to parse repo url: %v", err)
+	}
+	tagsPathFormat := "%s/v2/%s/tags/list"
+	repoURL.Scheme = "https"
+	repoURL.Path = fmt.Sprintf(tagsPathFormat, repoURL.Path, chart)
+	repoURL.RawPath = fmt.Sprintf(tagsPathFormat, repoURL.RawPath, url.PathEscape(chart))
+	return repoURL.String(), nil
+}
+
+func (c *nativeHelmChart) getTags(chart string) ([]byte, error) {
+	nextURL, err := getTagsListURL(c.repoURL, chart)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get tag list url: %v", err)
+	}
+
+	allTags := &TagsList{}
+	var data []byte
+	for nextURL != "" {
+		log.Debugf("fetching %s tags from %s", chart, sanitizeLog(text.Trunc(nextURL, 100)))
+		data, nextURL, err = c.getTagsFromUrl(nextURL)
+		if err != nil {
+			return nil, fmt.Errorf("failed tags part: %v", err)
+		}
+
+		tags := &TagsList{}
+		err := json.Unmarshal(data, tags)
+		if err != nil {
+			return nil, fmt.Errorf("unable to decode json: %v", err)
+		}
+		allTags.Tags = append(allTags.Tags, tags.Tags...)
+	}
+	data, err = json.Marshal(allTags)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal tag json: %w", err)
+	}
+	return data, nil
+}
+
+func getNextUrl(resp *http.Response) (string, error) {
+	link := resp.Header.Get("Link")
+	if link == "" {
+		return "", nil
+	}
+	if link[0] != '<' {
+		return "", fmt.Errorf("invalid next link %q: missing '<'", link)
+	}
+	if i := strings.IndexByte(link, '>'); i == -1 {
+		return "", fmt.Errorf("invalid next link %q: missing '>'", link)
+	} else {
+		link = link[1:i]
+	}
+	linkURL, err := resp.Request.URL.Parse(link)
+	if err != nil {
+		return "", err
+	}
+	return linkURL.String(), nil
+}
+
+func sanitizeLog(input string) string {
+	sanitized := strings.ReplaceAll(input, "\r", "")
+	sanitized = strings.ReplaceAll(sanitized, "\n", "")
+	return sanitized
+}
+
+func (c *nativeHelmChart) getTagsFromUrl(tagsURL string) ([]byte, string, error) {
+	req, err := http.NewRequest("GET", tagsURL, nil)
+	if err != nil {
+		return nil, "", fmt.Errorf("failed create request: %v", err)
+	}
+	req.Header.Add("Accept", `application/json`)
+	if c.creds.Username != "" || c.creds.Password != "" {
+		// only basic supported
+		req.SetBasicAuth(c.creds.Username, c.creds.Password)
+	}
+
+	tlsConf, err := newTLSConfig(c.creds)
+	if err != nil {
+		return nil, "", fmt.Errorf("failed setup tlsConfig: %v", err)
+	}
+
+	tr := &http.Transport{
+		Proxy:             proxy.GetCallback(c.proxy),
+		TLSClientConfig:   tlsConf,
+		DisableKeepAlives: true,
+	}
+	client := http.Client{Transport: tr}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, "", fmt.Errorf("request failed: %v", err)
+	}
+	defer func() {
+		if err = resp.Body.Close(); err != nil {
+			log.WithFields(log.Fields{
+				common.SecurityField:    common.SecurityMedium,
+				common.SecurityCWEField: 775,
+			}).Errorf("error closing response %q: %v", text.Trunc(tagsURL, 100), err)
+		}
+	}()
+
+	if resp.StatusCode != 200 {
+		data, err := io.ReadAll(resp.Body)
+		var responseExcerpt string
+		if err != nil {
+			responseExcerpt = fmt.Sprintf("err: %v", err)
+		} else {
+			responseExcerpt = text.Trunc(string(data), 100)
+		}
+		return nil, "", fmt.Errorf("invalid response: %s %s", resp.Status, responseExcerpt)
+	}
+	data, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, "", fmt.Errorf("failed to read body: %v", err)
+	}
+	nextUrl, err := getNextUrl(resp)
+	return data, nextUrl, err
+}
+
 func (c *nativeHelmChart) GetTags(chart string, noCache bool) (*TagsList, error) {
-	tagsURL := strings.Replace(fmt.Sprintf("%s/%s", c.repoURL, chart), "https://", "", 1)
+	tagsURL, err := getTagsListURL(c.repoURL, chart)
+	if err != nil {
+		return nil, fmt.Errorf("invalid tags url: %v", err)
+	}
 	indexLock.Lock(tagsURL)
 	defer indexLock.Unlock(tagsURL)
 
@@ -412,42 +534,10 @@ func (c *nativeHelmChart) GetTags(chart string, noCache bool) (*TagsList, error)
 		}
 	}
 
-	tags := &TagsList{}
 	if len(data) == 0 {
 		start := time.Now()
-		repo, err := remote.NewRepository(tagsURL)
-		if err != nil {
-			return nil, fmt.Errorf("failed to initialize repository: %v", err)
-		}
-		tlsConf, err := newTLSConfig(c.creds)
-		if err != nil {
-			return nil, fmt.Errorf("failed setup tlsConfig: %v", err)
-		}
-		client := &http.Client{Transport: &http.Transport{
-			Proxy:             proxy.GetCallback(c.proxy),
-			TLSClientConfig:   tlsConf,
-			DisableKeepAlives: true,
-		}}
-		repo.Client = &auth.Client{
-			Client: client,
-			Cache:  nil,
-			Credential: auth.StaticCredential(c.repoURL, auth.Credential{
-				Username: c.creds.Username,
-				Password: c.creds.Password,
-			}),
-		}
-
-		ctx := context.Background()
-		err = repo.Tags(ctx, "", func(tagsResult []string) error {
-			for _, tag := range tagsResult {
-				// By convention: Change underscore (_) back to plus (+) to get valid SemVer
-				convertedTag := strings.ReplaceAll(tag, "_", "+")
-				tags.Tags = append(tags.Tags, convertedTag)
-			}
-
-			return nil
-		})
-
+		var err error
+		data, err = c.getTags(chart)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get tags: %v", err)
 		}
@@ -460,11 +550,12 @@ func (c *nativeHelmChart) GetTags(chart string, noCache bool) (*TagsList, error)
 				log.Warnf("Failed to store tags list cache for repo: %s: %v", tagsURL, err)
 			}
 		}
-	} else {
-		err := json.Unmarshal(data, tags)
-		if err != nil {
-			return nil, fmt.Errorf("failed to decode tags: %v", err)
-		}
+	}
+
+	tags := &TagsList{}
+	err = json.Unmarshal(data, tags)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode tags: %v", err)
 	}
 
 	return tags, nil

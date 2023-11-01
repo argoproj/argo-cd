@@ -5,14 +5,12 @@ import (
 	"encoding/json"
 	"time"
 
-	"github.com/argoproj/argo-cd/v2/test/e2e/fixture"
-
 	"github.com/argoproj/pkg/errors"
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/dynamic"
 
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	argov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/test/e2e/fixture/applicationsets/utils"
 )
 
@@ -62,7 +60,7 @@ func (c *Consequences) When() *Actions {
 	return c.actions
 }
 
-func (c *Consequences) app(name string) *v1alpha1.Application {
+func (c *Consequences) app(name string) *argov1alpha1.Application {
 	apps := c.apps()
 
 	for index, app := range apps {
@@ -74,21 +72,14 @@ func (c *Consequences) app(name string) *v1alpha1.Application {
 	return nil
 }
 
-func (c *Consequences) apps() []v1alpha1.Application {
-
-	var namespace string
-	if c.context.useExternalNamespace {
-		namespace = utils.ArgoCDExternalNamespace
-	} else {
-		namespace = fixture.TestNamespace()
-	}
+func (c *Consequences) apps() []argov1alpha1.Application {
 
 	fixtureClient := utils.GetE2EFixtureK8sClient()
-	list, err := fixtureClient.AppClientset.ArgoprojV1alpha1().Applications(namespace).List(context.Background(), metav1.ListOptions{})
+	list, err := fixtureClient.AppClientset.ArgoprojV1alpha1().Applications(utils.ArgoCDNamespace).List(context.Background(), metav1.ListOptions{})
 	errors.CheckError(err)
 
 	if list == nil {
-		list = &v1alpha1.ApplicationList{}
+		list = &argov1alpha1.ApplicationList{}
 	}
 
 	return list.Items
@@ -97,16 +88,7 @@ func (c *Consequences) apps() []v1alpha1.Application {
 func (c *Consequences) applicationSet(applicationSetName string) *v1alpha1.ApplicationSet {
 
 	fixtureClient := utils.GetE2EFixtureK8sClient()
-
-	var appSetClientSet dynamic.ResourceInterface
-
-	if c.context.useExternalNamespace {
-		appSetClientSet = fixtureClient.ExternalAppSetClientset
-	} else {
-		appSetClientSet = fixtureClient.AppSetClientset
-	}
-
-	list, err := appSetClientSet.Get(context.Background(), c.actions.context.name, metav1.GetOptions{})
+	list, err := fixtureClient.AppSetClientset.Get(context.Background(), c.actions.context.name, metav1.GetOptions{})
 	errors.CheckError(err)
 
 	var appSet v1alpha1.ApplicationSet
