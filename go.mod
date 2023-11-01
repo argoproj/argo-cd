@@ -83,7 +83,7 @@ require (
 	golang.org/x/sync v0.3.0
 	golang.org/x/term v0.9.0
 	google.golang.org/genproto v0.0.0-20230410155749-daa745c078e1
-	google.golang.org/grpc v1.56.1
+	google.golang.org/grpc v1.56.0-dev
 	google.golang.org/protobuf v1.31.0
 	gopkg.in/go-playground/webhooks.v5 v5.17.0
 	gopkg.in/square/go-jose.v2 v2.6.0
@@ -119,7 +119,7 @@ require (
 )
 
 require (
-	cloud.google.com/go/compute v1.19.1 // indirect
+	cloud.google.com/go/compute v1.19.0 // indirect
 	cloud.google.com/go/compute/metadata v0.2.3 // indirect
 	github.com/Azure/go-ansiterm v0.0.0-20210617225240-d185dfc1b5a1 // indirect
 	github.com/Azure/go-autorest v14.2.0+incompatible // indirect
@@ -268,6 +268,8 @@ require (
 )
 
 replace (
+	github.com/argoproj/gitops-engine v0.7.1-0.20230607163028-425d65e07695 => github.com/codefresh-io/gitops-engine v0.7.1-0.20231101112317-9a82c6c72832
+
 	// https://github.com/golang/go/issues/33546#issuecomment-519656923
 	github.com/go-check/check => github.com/go-check/check v0.0.0-20180628173108-788fd7840127
 
