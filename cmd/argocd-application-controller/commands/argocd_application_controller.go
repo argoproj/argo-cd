@@ -143,7 +143,6 @@ func NewCommand() *cobra.Command {
 			}))
 			kubectl := kubeutil.NewKubectl()
 			clusterFilter := getClusterFilter(kubeClient, settingsMgr, shardingAlgorithm, enableDynamicClusterDistribution)
-			errors.CheckError(err)
 			appController, err = controller.NewApplicationController(
 				namespace,
 				settingsMgr,
