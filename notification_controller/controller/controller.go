@@ -12,6 +12,8 @@ import (
 
 	service "github.com/argoproj/argo-cd/v2/util/notification/argocd"
 
+	argocert "github.com/argoproj/argo-cd/v2/util/cert"
+
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	"github.com/argoproj/argo-cd/v2/util/notification/settings"
@@ -21,6 +23,7 @@ import (
 	"github.com/argoproj/notifications-engine/pkg/controller"
 	"github.com/argoproj/notifications-engine/pkg/services"
 	"github.com/argoproj/notifications-engine/pkg/subscriptions"
+	httputil "github.com/argoproj/notifications-engine/pkg/util/http"
 	log "github.com/sirupsen/logrus"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -61,7 +64,13 @@ func NewController(
 	secretName string,
 	configMapName string,
 ) *notificationController {
-	appClient := client.Resource(applications)
+	var appClient dynamic.ResourceInterface
+	namespaceableAppClient := client.Resource(applications)
+	appClient = namespaceableAppClient
+	if len(applicationNamespaces) == 0 {
+		appClient = namespaceableAppClient.Namespace(namespace)
+	}
+
 	appInformer := newInformer(appClient, namespace, applicationNamespaces, appLabelSelector)
 	appProjInformer := newInformer(newAppProjClient(client, namespace), namespace, []string{namespace}, "")
 	secretInformer := k8s.NewSecretInformer(k8sClient, namespace, secretName)
@@ -74,7 +83,7 @@ func NewController(
 		appInformer:       appInformer,
 		appProjInformer:   appProjInformer,
 		apiFactory:        apiFactory}
-	res.ctrl = controller.NewController(appClient, appInformer, apiFactory,
+	res.ctrl = controller.NewController(namespaceableAppClient, appInformer, apiFactory,
 		controller.WithSkipProcessing(func(obj v1.Object) (bool, string) {
 			app, ok := (obj).(*unstructured.Unstructured)
 			if !ok {
@@ -154,6 +163,9 @@ type notificationController struct {
 }
 
 func (c *notificationController) Init(ctx context.Context) error {
+	// resolve certificates using injected "argocd-tls-certs-cm" ConfigMap
+	httputil.SetCertResolver(argocert.GetCertificateForConnect)
+
 	go c.appInformer.Run(ctx.Done())
 	go c.appProjInformer.Run(ctx.Done())
 	go c.secretInformer.Run(ctx.Done())

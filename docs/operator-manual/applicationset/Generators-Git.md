@@ -210,6 +210,8 @@ metadata:
   name: cluster-addons
   namespace: argocd
 spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
   generators:
   - git:
       repoURL: https://github.com/example/example-repo.git
@@ -217,19 +219,19 @@ spec:
       directories:
       - path: '*'
       values:
-        cluster: '{{branch}}-{{path}}'
+        cluster: '{{.branch}}-{{.path.basename}}'
   template:
     metadata:
-      name: '{{path.basename}}'
+      name: '{{.path.basename}}'
     spec:
       project: "my-project"
       source:
         repoURL: https://github.com/example/example-repo.git
         targetRevision: HEAD
-        path: '{{path}}'
+        path: '{{.path.path}}'
       destination:
         server: https://kubernetes.default.svc
-        namespace: '{{values.cluster}}'
+        namespace: '{{.values.cluster}}'
 ```
 
 !!! note
@@ -323,15 +325,15 @@ As with other generators, clusters *must* already be defined within Argo CD, in 
 
 In addition to the flattened key/value pairs from the configuration file, the following generator parameters are provided:
 
-- `{{path}}`: The path to the directory containing matching configuration file within the Git repository. Example: `/clusters/clusterA`, if the config file was `/clusters/clusterA/config.json`
-- `{{path[n]}}`: The path to the matching configuration file within the Git repository, split into array elements (`n` - array index). Example: `path[0]: clusters`, `path[1]: clusterA`
-- `{{path.basename}}`: Basename of the path to the directory containing the configuration file (e.g. `clusterA`, with the above example.)
-- `{{path.basenameNormalized}}`: This field is the same as `path.basename` with unsupported characters replaced with `-` (e.g. a `path` of `/directory/directory_2`, and `path.basename` of `directory_2` would produce `directory-2` here).
-- `{{path.filename}}`: The matched filename. e.g., `config.json` in the above example.
-- `{{path.filenameNormalized}}`: The matched filename with unsupported characters replaced with `-`.
+- `{{.path.path}}`: The path to the directory containing matching configuration file within the Git repository. Example: `/clusters/clusterA`, if the config file was `/clusters/clusterA/config.json`
+- `{{index .path n}}`: The path to the matching configuration file within the Git repository, split into array elements (`n` - array index). Example: `index .path 0: clusters`, `index .path 1: clusterA`
+- `{{.path.basename}}`: Basename of the path to the directory containing the configuration file (e.g. `clusterA`, with the above example.)
+- `{{.path.basenameNormalized}}`: This field is the same as `.path.basename` with unsupported characters replaced with `-` (e.g. a `path` of `/directory/directory_2`, and `.path.basename` of `directory_2` would produce `directory-2` here).
+- `{{.path.filename}}`: The matched filename. e.g., `config.json` in the above example.
+- `{{.path.filenameNormalized}}`: The matched filename with unsupported characters replaced with `-`.
 
-**Note**: The right-most *directory* name always becomes `{{path.basename}}`. For example, from `- path: /one/two/three/four/config.json`, `{{path.basename}}` will be `four`. 
-The filename can always be accessed using `{{path.filename}}`. 
+**Note**: The right-most *directory* name always becomes `{{.path.basename}}`. For example, from `- path: /one/two/three/four/config.json`, `{{.path.basename}}` will be `four`. 
+The filename can always be accessed using `{{.path.filename}}`. 
 
 **Note**: If the `pathParamPrefix` option is specified, all `path`-related parameter names above will be prefixed with the specified value and a dot separator. E.g., if `pathParamPrefix` is `myRepo`, then the generated parameter name would be `myRepo.path` instead of `path`. Using this option is necessary in a Matrix generator where both child generators are Git generators (to avoid conflicts when merging the child generators’ items).
 
@@ -349,6 +351,8 @@ metadata:
   name: guestbook
   namespace: argocd
 spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
   generators:
   - git:
       repoURL: https://github.com/argoproj/argo-cd.git
@@ -356,18 +360,18 @@ spec:
       files:
       - path: "applicationset/examples/git-generator-files-discovery/cluster-config/**/config.json"
       values:
-        base_dir: "{{path[0]}}/{{path[1]}}/{{path[2]}}"
+        base_dir: "{{index .path 0}}/{{index .path 1}}/{{index .path 2}}"
   template:
     metadata:
-      name: '{{cluster.name}}-guestbook'
+      name: '{{.cluster.name}}-guestbook'
     spec:
       project: default
       source:
         repoURL: https://github.com/argoproj/argo-cd.git
         targetRevision: HEAD
-        path: "{{values.base_dir}}/apps/guestbook"
+        path: "{{.values.base_dir}}/apps/guestbook"
       destination:
-        server: '{{cluster.address}}'
+        server: '{{.cluster.address}}'
         namespace: guestbook
 ```
 
