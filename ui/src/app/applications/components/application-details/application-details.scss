@@ -1,6 +1,5 @@
 @import 'node_modules/argo-ui/src/styles/config';
 @import 'node_modules/foundation-sites/scss/util/util';
-@import 'node_modules/argo-ui/src/styles/theme';
 @import '../../../shared/config.scss';
 
 $header: 120px;
@@ -30,7 +29,7 @@ $header: 120px;
         overflow-x: auto;
         overflow-y: auto;
         margin-top: 150px;
-        height: calc(100vh - 2 * 70px - 115px);
+        height: calc(100vh - 2 * 50px - 115px);
         @media screen and (max-width: map-get($breakpoints, xlarge)) {
             margin-top: 165px;
         }
@@ -155,7 +154,7 @@ $header: 120px;
         }
     }
 
-    @media screen and (max-width: map-get($breakpoints, xxlarge)) {
+    @media screen and (max-width: map-get($breakpoints, xlarge)) {
         .page__content-wrapper {
             min-height: calc(100vh - 3 * 50px);
         }
@@ -212,13 +211,9 @@ $header: 120px;
         z-index: 1;
         padding: 5px;
         display: inline-block;
+        background-color: $argo-color-gray-1;
         box-shadow: 1px 1px 3px $argo-color-gray-5;
-        position: absolute;
-
-        @include themify($themes) {
-            background: themed('background-2');
-        }
-
+        position: fixed;
 
         a {
             padding: 5px;
@@ -232,6 +227,7 @@ $header: 120px;
                 position: relative;
                 display: inline-block;
                 vertical-align: middle;
+                font-size: 13px;
                 font-weight: 500;
                 line-height: 1.4;
                 text-align: center;
@@ -250,27 +246,21 @@ $header: 120px;
             &.group-nodes-button-on {
                 color: $argo-color-gray-1;
                 background-color: $argo-color-gray-6;
-                border: 3px solid $argo-color-teal-4;
-                font-size: 14px;
-                outline-style: solid;
                 &:hover {
                     background-color: $argo-color-gray-5;
                 }
-
             }
         }
 
         .separator {
-            @include themify($themes) {
-                border-right: 1px solid themed('border');
-            }
+            border-right: 1px solid $argo-color-gray-4;
             padding-top: 6px;
             padding-bottom: 6px;
         }
 
         .zoom-value {
             user-select: none;
-            margin-top: 5px;
+            margin-top: 3px;
             margin-right: 6px;
             margin-left: 4px;
             font-size: 14px;
@@ -283,97 +273,75 @@ $header: 120px;
             color: $argo-color-gray-7;
         }
     }
-
-
-    @media screen and (max-width: map-get($breakpoints, large)) {
-        .sliding-panel__body {
-            padding: 4px !important;
-        }
-        .sliding-panel--is-middle .sliding-panel__wrapper {
-            width: 90% !important;
-        }
-        .sliding-panel--is-middle .sliding-panel__body {
-            padding: 18px !important;
-        }
-        .sliding-panel__close {
-            z-index: 2 !important;
-        }
-        .top-bar__title {
-            display: none;
-        }
-
-        .top-bar__left-side {
-            white-space: normal !important;
-        }
-        .top-bar__left-side > div {
-            display: block !important;
-        }
-        .top-bar__right-side {
-            justify-content: right !important;
-        }
-        .application-status-panel.row {
-            flex-flow: unset;
-        }
-        .application-status-panel__item label {
-            margin-right: 0;
-        }
-        .application-status-panel__item {
-            padding: 5px 10px;
-        }
-
-        .white-box, .tabs__content {
-            padding: 4px !important;
-        }
-        .white-box__details-row .columns.small-3 {
-            overflow-wrap: unset !important;
-            overflow: scroll;
-        }
-        .white-box__details-row .columns.small-9{
-            padding-left: 4px;
-        }
-
-        .resource-details__header h1 {
-            font-size: 16px;
-        }
-        .resource-details__header {
-            margin-top: 30px;
-            padding-right: 4px;
-        }
-
-        .tabs__nav a:first-child, .tabs__nav a {
-            margin-left: 0 !important;
-        }
-
-        .editable-panel__buttons {
-            top: unset;
-        }
-    }
-}
-
-.resource-parent-node-info-title {
-    flex-direction: column;
-    color: $argo-color-gray-6;
-
-    &__label {
-        display: flex;
-        margin-bottom: 0.25em;
-        flex-shrink: 1;
-        div:first-child {
-            margin-right: 10px;
-            width: 60px;
-            text-align: right;
-        }
-        div:last-child {
-            font-weight: 500;
-            width: 100%;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            text-align: left;
-
-        }
-    }
 }
 
 
+@media screen and (max-width: map-get($breakpoints, large)) {
+.sliding-panel__body {
+    padding: 4px !important;
+}
+.sliding-panel--is-middle .sliding-panel__wrapper {
+    width: 90% !important;
+}
+.sliding-panel--is-middle .sliding-panel__body {
+    padding: 18px !important;
+}
+.sliding-panel__close {
+    z-index: 2 !important;
+}
+.top-bar__title {
+    display: none;
+}
 
+.top-bar__left-side {
+    white-space: normal !important;
+}
+.top-bar__left-side > div {
+    display: block !important;
+}
+.top-bar__right-side {
+    justify-content: right !important;
+}
+.application-status-panel.row {
+    flex-flow: unset;
+}
+.application-status-panel__item label {
+    margin-right: 0;
+}
+.application-status-panel__item {
+    padding: 5px 10px;
+}
+
+.white-box, .tabs__content {
+    padding: 4px !important;
+}
+.white-box__details-row .columns.small-3 {
+    overflow-wrap: unset !important;
+    overflow: scroll;
+}
+.white-box__details-row .columns.small-9{
+    padding-left: 4px;
+}
+
+.resource-details__header h1 {
+    font-size: 16px;
+}
+.resource-details__header {
+    margin-top: 30px;
+    padding-right: 4px;
+}
+
+.tabs__nav a:first-child, .tabs__nav a {
+    margin-left: 0 !important;
+}
+
+.editable-panel__buttons {
+    top: unset;
+}
+}
+
+@media screen and (max-width: map-get($breakpoints, medium)) {
+.sb-page-wrapper .top-bar.row {
+    display: none !important;
+}
+}

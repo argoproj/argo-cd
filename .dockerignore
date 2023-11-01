@@ -18,10 +18,8 @@ hack/
 docs/
 examples/
 .github/
-!test/container
-!test/e2e/testdata
 !test/fixture
-!test/remote
+!test/container
 !hack/installers
 !hack/gpg-wrapper.sh
 !hack/git-verify-wrapper.sh

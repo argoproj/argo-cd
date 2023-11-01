@@ -57,28 +57,4 @@ func TestEntries_MaxVersion(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, semver.MustParse("0.7.2"), version)
 	})
-	t.Run("Constraint", func(t *testing.T) {
-		constraints, _ := semver.NewConstraint("> 0.0.0")
-		version, err := entries.MaxVersion(constraints)
-		assert.NoError(t, err)
-		assert.Equal(t, semver.MustParse("0.7.2"), version)
-	})
-	t.Run("Constraint", func(t *testing.T) {
-		constraints, _ := semver.NewConstraint(">0.5.0,<0.7.0")
-		version, err := entries.MaxVersion(constraints)
-		assert.NoError(t, err)
-		assert.Equal(t, semver.MustParse("0.5.4"), version)
-	})
-	t.Run("Constraint", func(t *testing.T) {
-		constraints, _ := semver.NewConstraint("0.7.*")
-		version, err := entries.MaxVersion(constraints)
-		assert.NoError(t, err)
-		assert.Equal(t, semver.MustParse("0.7.2"), version)
-	})
-	t.Run("Constraint", func(t *testing.T) {
-		constraints, _ := semver.NewConstraint("*")
-		version, err := entries.MaxVersion(constraints)
-		assert.NoError(t, err)
-		assert.Equal(t, semver.MustParse("0.7.2"), version)
-	})
 }

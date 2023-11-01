@@ -3,9 +3,9 @@ package settings
 import (
 	"github.com/argoproj/notifications-engine/pkg/api"
 	"github.com/argoproj/notifications-engine/pkg/services"
+	"github.com/ghodss/yaml"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"sigs.k8s.io/yaml"
 
 	"github.com/argoproj/argo-cd/v2/util/notification/expression"
 
@@ -37,7 +37,6 @@ func initGetVars(argocdService service.Service, cfg *api.Config, configMap *v1.C
 		return expression.Spawn(&unstructured.Unstructured{Object: obj}, argocdService, map[string]interface{}{
 			"app":     obj,
 			"context": injectLegacyVar(context, dest.Service),
-			"secrets": secret.Data,
 		})
 	}, nil
 }

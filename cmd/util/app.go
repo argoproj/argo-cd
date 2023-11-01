@@ -295,7 +295,7 @@ func SetAppSpecOptions(flags *pflag.FlagSet, spec *argoappv1.ApplicationSpec, ap
 					Backoff: &argoappv1.Backoff{
 						Duration:    appOpts.retryBackoffDuration.String(),
 						MaxDuration: appOpts.retryBackoffMaxDuration.String(),
-						Factor:      pointer.Int64(appOpts.retryBackoffFactor),
+						Factor:      pointer.Int64Ptr(appOpts.retryBackoffFactor),
 					},
 				}
 			} else if appOpts.retryLimit == 0 {
@@ -427,10 +427,7 @@ func setHelmOpt(src *argoappv1.ApplicationSource, opts helmOpts) {
 		src.Helm.IgnoreMissingValueFiles = opts.ignoreMissingValueFiles
 	}
 	if len(opts.values) > 0 {
-		err := src.Helm.SetValuesString(opts.values)
-		if err != nil {
-			log.Fatal(err)
-		}
+		src.Helm.Values = opts.values
 	}
 	if opts.releaseName != "" {
 		src.Helm.ReleaseName = opts.releaseName
@@ -600,7 +597,7 @@ func constructAppsBaseOnName(appName string, labels, annotations, args []string,
 		}
 		appName = args[0]
 	}
-	appName, appNs := argo.ParseFromQualifiedName(appName, "")
+	appName, appNs := argo.ParseAppQualifiedName(appName, "")
 	app = &argoappv1.Application{
 		TypeMeta: v1.TypeMeta{
 			Kind:       application.ApplicationKind,
@@ -688,7 +685,7 @@ func setAnnotations(app *argoappv1.Application, annotations []string) {
 	}
 }
 
-// LiveObjects deserializes the list of live states into unstructured objects
+// liveObjects deserializes the list of live states into unstructured objects
 func LiveObjects(resources []*argoappv1.ResourceDiff) ([]*unstructured.Unstructured, error) {
 	objs := make([]*unstructured.Unstructured, len(resources))
 	for i, resState := range resources {

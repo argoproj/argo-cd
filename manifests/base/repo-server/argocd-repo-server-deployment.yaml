@@ -48,18 +48,6 @@ spec:
                 name: argocd-cmd-params-cm
                 key: reposerver.parallelism.limit
                 optional: true
-          - name: ARGOCD_REPO_SERVER_LISTEN_ADDRESS
-            valueFrom:
-              configMapKeyRef:
-                name: argocd-cmd-params-cm
-                key: reposerver.listen.address
-                optional: true
-          - name: ARGOCD_REPO_SERVER_LISTEN_METRICS_ADDRESS
-            valueFrom:
-              configMapKeyRef:
-                name: argocd-cmd-params-cm
-                key: reposerver.metrics.listen.address
-                optional: true
           - name: ARGOCD_REPO_SERVER_DISABLE_TLS
             valueFrom:
               configMapKeyRef:
@@ -166,18 +154,6 @@ spec:
             valueFrom:
               configMapKeyRef:
                 key: reposerver.enable.git.submodule
-                name: argocd-cmd-params-cm
-                optional: true
-          - name: ARGOCD_GIT_LS_REMOTE_PARALLELISM_LIMIT
-            valueFrom:
-              configMapKeyRef:
-                key: reposerver.git.lsremote.parallelism.limit
-                name: argocd-cmd-params-cm
-                optional: true
-          - name: ARGOCD_GIT_REQUEST_TIMEOUT
-            valueFrom:
-              configMapKeyRef:
-                key: reposerver.git.request.timeout
                 name: argocd-cmd-params-cm
                 optional: true
           - name: HELM_CACHE_HOME

@@ -22,6 +22,7 @@ import (
 	grpc_retry "github.com/grpc-ecosystem/go-grpc-middleware/retry"
 	"github.com/hashicorp/go-retryablehttp"
 	log "github.com/sirupsen/logrus"
+	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"golang.org/x/oauth2"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -45,6 +46,7 @@ import (
 	settingspkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/settings"
 	versionpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/version"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	argoappv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/util/argo"
 	"github.com/argoproj/argo-cd/v2/util/env"
 	grpc_util "github.com/argoproj/argo-cd/v2/util/grpc"
@@ -102,7 +104,7 @@ type Client interface {
 	NewProjectClientOrDie() (io.Closer, projectpkg.ProjectServiceClient)
 	NewAccountClient() (io.Closer, accountpkg.AccountServiceClient, error)
 	NewAccountClientOrDie() (io.Closer, accountpkg.AccountServiceClient)
-	WatchApplicationWithRetry(ctx context.Context, appName string, revision string) chan *v1alpha1.ApplicationWatchEvent
+	WatchApplicationWithRetry(ctx context.Context, appName string, revision string) chan *argoappv1.ApplicationWatchEvent
 }
 
 // ClientOptions hold address, security, and other settings for the API client.
@@ -125,11 +127,6 @@ type ClientOptions struct {
 	Headers              []string
 	HttpRetryMax         int
 	KubeOverrides        *clientcmd.ConfigOverrides
-	AppControllerName    string
-	ServerName           string
-	RedisHaProxyName     string
-	RedisName            string
-	RepoServerName       string
 }
 
 type client struct {
@@ -206,13 +203,14 @@ func NewClient(opts *ClientOptions) (Client, error) {
 		c.UserAgent = fmt.Sprintf("%s/%s", common.ArgoCDUserAgentName, common.GetVersion().Version)
 	}
 	// Override server address if specified in env or CLI flag
-	c.ServerAddr = env.StringFromEnv(EnvArgoCDServer, c.ServerAddr)
+	if serverFromEnv := os.Getenv(EnvArgoCDServer); serverFromEnv != "" {
+		c.ServerAddr = serverFromEnv
+	}
 	if opts.PortForward || opts.PortForwardNamespace != "" {
 		if opts.KubeOverrides == nil {
 			opts.KubeOverrides = &clientcmd.ConfigOverrides{}
 		}
-		serverPodLabelSelector := common.LabelKeyAppName + "=" + opts.ServerName
-		port, err := kube.PortForward(8080, opts.PortForwardNamespace, opts.KubeOverrides, serverPodLabelSelector)
+		port, err := kube.PortForward(8080, opts.PortForwardNamespace, opts.KubeOverrides, "app.kubernetes.io/name=argocd-server")
 		if err != nil {
 			return nil, err
 		}
@@ -226,8 +224,14 @@ func NewClient(opts *ClientOptions) (Client, error) {
 	if c.ServerAddr == "" {
 		return nil, errors.New("Argo CD server address unspecified")
 	}
+	if parts := strings.Split(c.ServerAddr, ":"); len(parts) == 1 {
+		// If port is unspecified, assume the most likely port
+		c.ServerAddr += ":443"
+	}
 	// Override auth-token if specified in env variable or CLI flag
-	c.AuthToken = env.StringFromEnv(EnvArgoCDAuthToken, c.AuthToken)
+	if authFromEnv := os.Getenv(EnvArgoCDAuthToken); authFromEnv != "" {
+		c.AuthToken = authFromEnv
+	}
 	if opts.AuthToken != "" {
 		c.AuthToken = strings.TrimSpace(opts.AuthToken)
 	}
@@ -281,12 +285,8 @@ func NewClient(opts *ClientOptions) (Client, error) {
 		}
 	}
 	if !c.GRPCWeb {
-		if parts := strings.Split(c.ServerAddr, ":"); len(parts) == 1 {
-			// If port is unspecified, assume the most likely port
-			c.ServerAddr += ":443"
-		}
-		// test if we need to set it to true
-		// if a call to grpc failed, then try again with GRPCWeb
+		//test if we need to set it to true
+		//if a call to grpc failed, then try again with GRPCWeb
 		conn, versionIf, err := c.NewVersionClient()
 		if err == nil {
 			defer argoio.Close(conn)
@@ -524,8 +524,8 @@ func (c *client) newConn() (*grpc.ClientConn, io.Closer, error) {
 	dialOpts = append(dialOpts, grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(MaxGRPCMessageSize), grpc.MaxCallSendMsgSize(MaxGRPCMessageSize)))
 	dialOpts = append(dialOpts, grpc.WithStreamInterceptor(grpc_retry.StreamClientInterceptor(retryOpts...)))
 	dialOpts = append(dialOpts, grpc.WithUnaryInterceptor(grpc_middleware.ChainUnaryClient(grpc_retry.UnaryClientInterceptor(retryOpts...))))
-	dialOpts = append(dialOpts, grpc.WithUnaryInterceptor(grpc_util.OTELUnaryClientInterceptor()))
-	dialOpts = append(dialOpts, grpc.WithStreamInterceptor(grpc_util.OTELStreamClientInterceptor()))
+	dialOpts = append(dialOpts, grpc.WithUnaryInterceptor(otelgrpc.UnaryClientInterceptor()))
+	dialOpts = append(dialOpts, grpc.WithStreamInterceptor(otelgrpc.StreamClientInterceptor()))
 
 	ctx := context.Background()
 
@@ -806,10 +806,10 @@ func (c *client) NewAccountClientOrDie() (io.Closer, accountpkg.AccountServiceCl
 
 // WatchApplicationWithRetry returns a channel of watch events for an application, retrying the
 // watch upon errors. Closes the returned channel when the context is cancelled.
-func (c *client) WatchApplicationWithRetry(ctx context.Context, appName string, revision string) chan *v1alpha1.ApplicationWatchEvent {
-	appEventsCh := make(chan *v1alpha1.ApplicationWatchEvent)
+func (c *client) WatchApplicationWithRetry(ctx context.Context, appName string, revision string) chan *argoappv1.ApplicationWatchEvent {
+	appEventsCh := make(chan *argoappv1.ApplicationWatchEvent)
 	cancelled := false
-	appName, appNs := argo.ParseFromQualifiedName(appName, "")
+	appName, appNs := argo.ParseAppQualifiedName(appName, "")
 	go func() {
 		defer close(appEventsCh)
 		for !cancelled {

@@ -19,12 +19,10 @@ import (
 	"k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
-	"k8s.io/utils/pointer"
 
 	cmdutil "github.com/argoproj/argo-cd/v2/cmd/util"
 	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/controller/sharding"
-	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
 	argoappv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
 	"github.com/argoproj/argo-cd/v2/util/argo"
@@ -40,7 +38,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/text/label"
 )
 
-func NewClusterCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clientcmd.PathOptions) *cobra.Command {
+func NewClusterCommand(pathOpts *clientcmd.PathOptions) *cobra.Command {
 	var command = &cobra.Command{
 		Use:   "cluster",
 		Short: "Manage clusters configuration",
@@ -51,8 +49,8 @@ func NewClusterCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clientc
 
 	command.AddCommand(NewClusterConfig())
 	command.AddCommand(NewGenClusterConfigCommand(pathOpts))
-	command.AddCommand(NewClusterStatsCommand(clientOpts))
-	command.AddCommand(NewClusterShardsCommand(clientOpts))
+	command.AddCommand(NewClusterStatsCommand())
+	command.AddCommand(NewClusterShardsCommand())
 	namespacesCommand := NewClusterNamespacesCommand()
 	namespacesCommand.AddCommand(NewClusterEnableNamespacedMode())
 	namespacesCommand.AddCommand(NewClusterDisableNamespacedMode())
@@ -69,7 +67,7 @@ type ClusterWithInfo struct {
 	Namespaces []string
 }
 
-func loadClusters(ctx context.Context, kubeClient *kubernetes.Clientset, appClient *versioned.Clientset, replicas int, namespace string, portForwardRedis bool, cacheSrc func() (*appstatecache.Cache, error), shard int, redisName string, redisHaProxyName string) ([]ClusterWithInfo, error) {
+func loadClusters(ctx context.Context, kubeClient *kubernetes.Clientset, appClient *versioned.Clientset, replicas int, namespace string, portForwardRedis bool, cacheSrc func() (*appstatecache.Cache, error), shard int) ([]ClusterWithInfo, error) {
 	settingsMgr := settings.NewSettingsManager(ctx, kubeClient, namespace)
 
 	argoDB := db.NewDB(namespace, settingsMgr, kubeClient)
@@ -80,10 +78,8 @@ func loadClusters(ctx context.Context, kubeClient *kubernetes.Clientset, appClie
 	var cache *appstatecache.Cache
 	if portForwardRedis {
 		overrides := clientcmd.ConfigOverrides{}
-		redisHaProxyPodLabelSelector := common.LabelKeyAppName + "=" + redisHaProxyName
-		redisPodLabelSelector := common.LabelKeyAppName + "=" + redisName
 		port, err := kubeutil.PortForward(6379, namespace, &overrides,
-			redisHaProxyPodLabelSelector, redisPodLabelSelector)
+			"app.kubernetes.io/name=argocd-redis-ha-haproxy", "app.kubernetes.io/name=argocd-redis")
 		if err != nil {
 			return nil, err
 		}
@@ -119,13 +115,10 @@ func loadClusters(ctx context.Context, kubeClient *kubernetes.Clientset, appClie
 		}
 		batch := clustersList.Items[batchStart:batchEnd]
 		_ = kube.RunAllAsync(len(batch), func(i int) error {
-			clusterShard := 0
 			cluster := batch[i]
+			clusterShard := 0
 			if replicas > 0 {
-				distributionFunction := sharding.GetDistributionFunction(argoDB, common.DefaultShardingAlgorithm)
-				distributionFunction(&cluster)
-				cluster.Shard = pointer.Int64(int64(clusterShard))
-				log.Infof("Cluster with uid: %s will be processed by shard %d", cluster.ID, clusterShard)
+				clusterShard = sharding.GetShardByID(cluster.ID, replicas)
 			}
 
 			if shard != -1 && clusterShard != shard {
@@ -149,17 +142,16 @@ func loadClusters(ctx context.Context, kubeClient *kubernetes.Clientset, appClie
 	return clusters, nil
 }
 
-func getControllerReplicas(ctx context.Context, kubeClient *kubernetes.Clientset, namespace string, appControllerName string) (int, error) {
-	appControllerPodLabelSelector := common.LabelKeyAppName + "=" + appControllerName
+func getControllerReplicas(ctx context.Context, kubeClient *kubernetes.Clientset, namespace string) (int, error) {
 	controllerPods, err := kubeClient.CoreV1().Pods(namespace).List(ctx, v1.ListOptions{
-		LabelSelector: appControllerPodLabelSelector})
+		LabelSelector: "app.kubernetes.io/name=argocd-application-controller"})
 	if err != nil {
 		return 0, err
 	}
 	return len(controllerPods.Items), nil
 }
 
-func NewClusterShardsCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
+func NewClusterShardsCommand() *cobra.Command {
 	var (
 		shard            int
 		replicas         int
@@ -183,14 +175,14 @@ func NewClusterShardsCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comm
 			appClient := versioned.NewForConfigOrDie(clientCfg)
 
 			if replicas == 0 {
-				replicas, err = getControllerReplicas(ctx, kubeClient, namespace, clientOpts.AppControllerName)
+				replicas, err = getControllerReplicas(ctx, kubeClient, namespace)
 				errors.CheckError(err)
 			}
 			if replicas == 0 {
 				return
 			}
 
-			clusters, err := loadClusters(ctx, kubeClient, appClient, replicas, namespace, portForwardRedis, cacheSrc, shard, clientOpts.RedisName, clientOpts.RedisHaProxyName)
+			clusters, err := loadClusters(ctx, kubeClient, appClient, replicas, namespace, portForwardRedis, cacheSrc, shard)
 			errors.CheckError(err)
 			if len(clusters) == 0 {
 				return
@@ -437,7 +429,7 @@ func NewClusterDisableNamespacedMode() *cobra.Command {
 	return &command
 }
 
-func NewClusterStatsCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
+func NewClusterStatsCommand() *cobra.Command {
 	var (
 		shard            int
 		replicas         int
@@ -461,10 +453,10 @@ func NewClusterStatsCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comma
 			kubeClient := kubernetes.NewForConfigOrDie(clientCfg)
 			appClient := versioned.NewForConfigOrDie(clientCfg)
 			if replicas == 0 {
-				replicas, err = getControllerReplicas(ctx, kubeClient, namespace, clientOpts.AppControllerName)
+				replicas, err = getControllerReplicas(ctx, kubeClient, namespace)
 				errors.CheckError(err)
 			}
-			clusters, err := loadClusters(ctx, kubeClient, appClient, replicas, namespace, portForwardRedis, cacheSrc, shard, clientOpts.RedisName, clientOpts.RedisHaProxyName)
+			clusters, err := loadClusters(ctx, kubeClient, appClient, replicas, namespace, portForwardRedis, cacheSrc, shard)
 			errors.CheckError(err)
 
 			w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)

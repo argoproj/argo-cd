@@ -1,13 +1,14 @@
 import {DataLoader} from 'argo-ui';
 import * as classNames from 'classnames';
 import * as React from 'react';
-import {useEffect, useState, useRef} from 'react';
+import {useEffect, useState} from 'react';
 import {bufferTime, delay, retryWhen} from 'rxjs/operators';
 
 import {LogEntry} from '../../../shared/models';
 import {services, ViewPreferences} from '../../../shared/services';
 
 import AutoSizer from 'react-virtualized/dist/commonjs/AutoSizer';
+import Grid from 'react-virtualized/dist/commonjs/Grid';
 
 import './pod-logs-viewer.scss';
 import {CopyLogsButton} from './copy-logs-button';
@@ -23,9 +24,9 @@ import {LogMessageFilter} from './log-message-filter';
 import {SinceSecondsSelector} from './since-seconds-selector';
 import {TailSelector} from './tail-selector';
 import {PodNamesToggleButton} from './pod-names-toggle-button';
-import {AutoScrollButton} from './auto-scroll-button';
-import {WrapLinesButton} from './wrap-lines-button';
 import Ansi from 'ansi-to-react';
+import {AutoScrollButton} from './auto-scroll-button';
+import {GridCellProps} from 'react-virtualized/dist/es/Grid';
 
 export interface PodLogsProps {
     namespace: string;
@@ -83,7 +84,6 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
     const [highlight, setHighlight] = useState<RegExp>(matchNothing);
     const [scrollToBottom, setScrollToBottom] = useState(true);
     const [logs, setLogs] = useState<LogEntry[]>([]);
-    const logsContainerRef = useRef(null);
 
     useEffect(() => {
         if (viewPodNames) {
@@ -102,15 +102,6 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
     }
 
     useEffect(() => setScrollToBottom(true), [follow]);
-
-    useEffect(() => {
-        if (scrollToBottom) {
-            const element = logsContainerRef.current;
-            if (element) {
-                element.scrollTop = element.scrollHeight;
-            }
-        }
-    }, [logs, scrollToBottom]);
 
     useEffect(() => {
         setLogs([]);
@@ -135,10 +126,6 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
         return () => logsSource.unsubscribe();
     }, [applicationName, applicationNamespace, namespace, podName, group, kind, name, containerName, tail, follow, sinceSeconds, filter, previous]);
 
-    const handleScroll = (event: React.WheelEvent<HTMLDivElement>) => {
-        if (event.deltaY < 0) setScrollToBottom(false);
-    };
-
     const renderLog = (log: LogEntry, lineNum: number) =>
         // show the pod name if there are multiple pods, pad with spaces to align
         (viewPodNames ? (lineNum === 0 || logs[lineNum - 1].podName !== log.podName ? podColor(podName) + log.podName + reset : ' '.repeat(log.podName.length)) + ' ' : '') +
@@ -146,15 +133,22 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
         (viewTimestamps ? (lineNum === 0 || (logs[lineNum - 1].timeStamp !== log.timeStamp ? log.timeStampStr : '').padEnd(30)) + ' ' : '') +
         // show the log content, highlight the filter text
         log.content?.replace(highlight, (substring: string) => whiteOnYellow + substring + reset);
-    const logsContent = (width: number, height: number, isWrapped: boolean) => (
-        <div ref={logsContainerRef} onScroll={handleScroll} style={{width, height, overflow: 'scroll'}}>
-            {logs.map((log, lineNum) => (
-                <pre key={lineNum} style={{whiteSpace: isWrapped ? 'normal' : 'pre'}} className='noscroll'>
-                    <Ansi>{renderLog(log, lineNum)}</Ansi>
-                </pre>
-            ))}
-        </div>
-    );
+
+    const cellRenderer = ({rowIndex, key, style}: GridCellProps) => {
+        return (
+            <pre key={key} style={style} className='noscroll'>
+                <Ansi>{renderLog(logs[rowIndex], rowIndex)}</Ansi>
+            </pre>
+        );
+    };
+
+    // calculate the width of the grid based on the longest log line
+    const maxWidth =
+        14 *
+        logs
+            .map(renderLog)
+            .map(v => v.length)
+            .reduce((a, b) => Math.max(a, b), 0);
 
     return (
         <DataLoader load={() => services.viewPreferences.getPreferences()}>
@@ -179,7 +173,6 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
                             </span>
                             <Spacer />
                             <span>
-                                <WrapLinesButton prefs={prefs} />
                                 <PodNamesToggleButton viewPodNames={viewPodNames} setViewPodNames={setViewPodNames} />
                                 <TimestampsToggleButton setViewTimestamps={setViewTimestamps} viewTimestamps={viewTimestamps} timestamp={timestamp} />
                                 <DarkModeToggleButton prefs={prefs} />
@@ -191,8 +184,25 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
                                 <FullscreenButton {...props} />
                             </span>
                         </div>
-                        <div className={classNames('pod-logs-viewer', {'pod-logs-viewer--inverted': prefs.appDetails.darkMode})} onWheel={handleScroll}>
-                            <AutoSizer>{({width, height}: {width: number; height: number}) => logsContent(width, height, prefs.appDetails.wrapLines)}</AutoSizer>
+                        <div
+                            className={classNames('pod-logs-viewer', {'pod-logs-viewer--inverted': prefs.appDetails.darkMode})}
+                            onWheel={e => {
+                                if (e.deltaY < 0) setScrollToBottom(false);
+                            }}>
+                            <AutoSizer>
+                                {({width, height}: {width: number; height: number}) => (
+                                    <Grid
+                                        cellRenderer={cellRenderer}
+                                        columnCount={1}
+                                        columnWidth={Math.max(width, maxWidth)}
+                                        height={height}
+                                        rowCount={logs.length}
+                                        rowHeight={18}
+                                        width={width}
+                                        scrollToRow={scrollToBottom ? logs.length - 1 : undefined}
+                                    />
+                                )}
+                            </AutoSizer>
                         </div>
                     </React.Fragment>
                 );

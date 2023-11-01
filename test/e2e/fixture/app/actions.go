@@ -78,12 +78,6 @@ func (a *Actions) AddTag(name string) *Actions {
 	return a
 }
 
-func (a *Actions) RemoveSubmodule() *Actions {
-	a.context.t.Helper()
-	fixture.RemoveSubmodule()
-	return a
-}
-
 func (a *Actions) CreateFromPartialFile(data string, flags ...string) *Actions {
 	a.context.t.Helper()
 	tmpFile, err := os.CreateTemp("", "")
@@ -364,10 +358,6 @@ func (a *Actions) Sync(args ...string) *Actions {
 
 	if a.context.force {
 		args = append(args, "--force")
-	}
-
-	if a.context.applyOutOfSyncOnly {
-		args = append(args, "--apply-out-of-sync-only")
 	}
 
 	if a.context.replace {

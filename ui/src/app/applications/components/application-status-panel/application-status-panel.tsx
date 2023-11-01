@@ -71,7 +71,7 @@ export const ApplicationStatusPanel = ({application, showDiff, showOperation, sh
     return (
         <div className='application-status-panel row'>
             <div className='application-status-panel__item'>
-                <div style={{lineHeight: '19.5px', marginBottom: '0.3em'}}>{sectionLabel({title: 'APP HEALTH', helpContent: 'The health status of your app'})}</div>
+                <div style={{marginBottom: '1em'}}>{sectionLabel({title: 'APP HEALTH', helpContent: 'The health status of your app'})}</div>
                 <div className='application-status-panel__item-value'>
                     <HealthStatusIcon state={application.status.health} />
                     &nbsp;
@@ -87,20 +87,22 @@ export const ApplicationStatusPanel = ({application, showDiff, showOperation, sh
                             helpContent: 'Whether or not the version of your app is up to date with your repo. You may wish to sync your app if it is out-of-sync.'
                         },
                         hasMultipleSources,
-                        () => showMetadataInfo(application.status.sync ? application.status.sync.revision : '')
+                        source.chart ? null : () => showMetadataInfo(application.status.sync ? application.status.sync.revision : '')
                     )}
-                    <div className={`application-status-panel__item-value${appOperationState?.phase ? ` application-status-panel__item-value--${appOperationState.phase}` : ''}`}>
-                        <div>
-                            {application.status.sync.status === models.SyncStatuses.OutOfSync ? (
-                                <a onClick={() => showDiff && showDiff()}>
+                    {appOperationState && (
+                        <div className={`application-status-panel__item-value application-status-panel__item-value--${appOperationState.phase}`}>
+                            <div>
+                                {application.status.sync.status === models.SyncStatuses.OutOfSync ? (
+                                    <a onClick={() => showDiff && showDiff()}>
+                                        <ComparisonStatusIcon status={application.status.sync.status} label={true} />
+                                    </a>
+                                ) : (
                                     <ComparisonStatusIcon status={application.status.sync.status} label={true} />
-                                </a>
-                            ) : (
-                                <ComparisonStatusIcon status={application.status.sync.status} label={true} />
-                            )}
+                                )}
+                            </div>
+                            <div className='application-status-panel__item-value__revision show-for-large'>{syncStatusMessage(application)}</div>
                         </div>
-                        <div className='application-status-panel__item-value__revision show-for-large'>{syncStatusMessage(application)}</div>
-                    </div>
+                    )}
                     <div className='application-status-panel__item-name' style={{marginBottom: '0.5em'}}>
                         {application.spec.syncPolicy?.automated ? 'Auto sync is enabled.' : 'Auto sync is not enabled.'}
                     </div>
@@ -128,7 +130,7 @@ export const ApplicationStatusPanel = ({application, showDiff, showOperation, sh
                                     ' days since last sync. Click for the status of that sync.'
                             },
                             hasMultipleSources,
-                            () => showMetadataInfo(appOperationState.syncResult ? appOperationState.syncResult.revision : '')
+                            source.chart ? null : () => showMetadataInfo(appOperationState.syncResult ? appOperationState.syncResult.revision : '')
                         )}
                         <div className={`application-status-panel__item-value application-status-panel__item-value--${appOperationState.phase}`}>
                             <a onClick={() => showOperation && showOperation()}>

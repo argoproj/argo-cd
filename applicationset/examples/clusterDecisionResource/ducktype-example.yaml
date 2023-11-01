@@ -4,7 +4,6 @@ metadata:
   name: book-import
 spec:
   goTemplate: true
-  goTemplateOptions: ["missingkey=error"]
   generators:
     - clusterDecisionResource:
         configMapRef: ocm-placement

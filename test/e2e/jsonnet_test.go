@@ -102,7 +102,7 @@ func TestJsonnetExtVarEnv(t *testing.T) {
 		})
 }
 
-// Jsonnet file located in nested sub directory uses import
+//Jsonnet file located in nested sub directory uses import
 func TestJsonnetNestedDirWithImports(t *testing.T) {
 	Given(t).
 		Path("jsonnet-nested-dir-with-imports/apps").
