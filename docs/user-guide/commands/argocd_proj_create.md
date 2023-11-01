@@ -14,7 +14,7 @@ argocd proj create PROJECT [flags]
   # Create a new project with name PROJECT
   argocd proj create PROJECT
   
-  # Create a new project with name PROJECT from a file or URL to a kubernetes manifest
+  # Create a new project with name PROJECT from a file or URL to a Kubernetes manifest
   argocd proj create PROJECT -f FILE|URL
 ```
 
