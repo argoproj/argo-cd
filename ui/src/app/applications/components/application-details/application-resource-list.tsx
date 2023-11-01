@@ -85,7 +85,10 @@ export const ApplicationResourceList = ({
                                         <Consumer>
                                             {ctx => (
                                                 <span className='application-details__external_link'>
-                                                    <a href={ctx.baseHref + 'applications/' + res.namespace + '/' + res.name} title='Open application'>
+                                                    <a
+                                                        href={ctx.baseHref + 'applications/' + res.namespace + '/' + res.name}
+                                                        onClick={e => e.stopPropagation()}
+                                                        title='Open application'>
                                                         <i className='fa fa-external-link-alt' />
                                                     </a>
                                                 </span>
