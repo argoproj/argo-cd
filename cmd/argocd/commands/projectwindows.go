@@ -59,7 +59,7 @@ func NewProjectWindowsDisableManualSyncCommand(clientOpts *argocdclient.ClientOp
 argocd proj windows disable-manual-sync PROJECT ID 
 
 #Disbaling manual sync for a windows set on the default project with Id 0
-agrocd proj windows disable-manual-sync default 0`,
+argocd proj windows disable-manual-sync default 0`,
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
 
@@ -102,7 +102,7 @@ func NewProjectWindowsEnableManualSyncCommand(clientOpts *argocdclient.ClientOpt
 argocd proj windows enable-manual-sync PROJECT ID 
 
 #Enabling manual sync for a windows set on the default project with Id 2
-agrocd proj windows enable-manual-sync default 2
+argocd proj windows enable-manual-sync default 2
 
 #Enabling manual synchronization with a custom message
 argocd proj windows enable-manual-sync my-app-project --message "Manual sync initiated by admin`,

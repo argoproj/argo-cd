@@ -51,7 +51,7 @@ argocd admin cluster generate-spec my-cluster -o yaml
 #Generate a kubeconfig for a cluster named "my-cluster" and display it in the console
 argocd admin cluster kubeconfig my-cluster
 
-#Print information namespaces which Argo CD manages in each cluster.
+#Print information namespaces which Argo CD manages in each cluster
 argocd admin cluster namespaces my-cluster `,
 		Run: func(c *cobra.Command, args []string) {
 			c.HelpFunc()(c, args)
