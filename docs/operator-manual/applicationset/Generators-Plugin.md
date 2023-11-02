@@ -22,8 +22,6 @@ kind: ApplicationSet
 metadata:
   name: myplugin
 spec:
-  goTemplate: true
-  goTemplateOptions: ["missingkey=error"]
   generators:
     - plugin:
         # Specify the configMap where the plugin configuration is located.
@@ -53,10 +51,10 @@ spec:
     metadata:
       name: myplugin
       annotations:
-        example.from.input.parameters: "{{ index .generator.input.parameters.map "key1" }}"
-        example.from.values: "{{ .values.value1 }}"
+        example.from.input.parameters: "{{ generator.input.parameters.map.key1 }}"
+        example.from.values: "{{ values.value1 }}"
         # The plugin determines what else it produces.
-        example.from.plugin.output: "{{ .something.from.the.plugin }}"
+        example.from.plugin.output: "{{ something.from.the.plugin }}"
 ```
 
 - `configMapRef.name`: A `ConfigMap` name containing the plugin configuration to use for RPC call.
@@ -96,8 +94,8 @@ metadata:
 type: Opaque
 data:
   # ...
-  # The secret value must be base64 encoded **once**.
-  # this value corresponds to: `printf "strong-password" | base64`.
+  # The secret value must be base64 encoded **once**
+  # this value corresponds to: `printf "strong-password" | base64`
   plugin.myplugin.token: "c3Ryb25nLXBhc3N3b3Jk"
   # ...
 ```
@@ -126,9 +124,9 @@ type: Opaque
 data:
   # ...
   # Store client secret like below.
-  # The secret value must be base64 encoded **once**.
-  # This value corresponds to: `printf "strong-password" | base64`.
-  plugin.myplugin.token: "c3Ryb25nLXBhc3N3b3Jk"
+  # Ensure the secret is base64 encoded
+  plugin.myplugin.token: <client-secret-base64-encoded>
+  # ...
 ```
 
 ### HTTP server
@@ -140,7 +138,7 @@ You can deploy it either as a sidecar or as a standalone deployment (the latter 
 In the example, the token is stored in a file at this location : `/var/run/argo/token`
 
 ```
-strong-password
+string-password
 ```
 
 ```python
@@ -201,7 +199,7 @@ if __name__ == '__main__':
 Execute getparams with curl :
 
 ```
-curl http://localhost:4355/api/v1/getparams.execute -H "Authorization: Bearer strong-password" -d \
+curl http://localhost:4355/api/v1/getparams.execute -H "Authorization: Bearer string-password" -d \
 '{
   "applicationSetName": "fake-appset",
   "input": {
@@ -232,7 +230,6 @@ metadata:
   name: fb-matrix
 spec:
   goTemplate: true
-  goTemplateOptions: ["missingkey=error"]
   generators:
     - matrix:
         generators:
@@ -286,7 +283,7 @@ To illustrate :
 - The generator plugin would then perform 2 requests as follows :
 
 ```shell
-curl http://localhost:4355/api/v1/getparams.execute -H "Authorization: Bearer strong-password" -d \
+curl http://localhost:4355/api/v1/getparams.execute -H "Authorization: Bearer string-password" -d \
 '{
   "applicationSetName": "fb-matrix",
   "input": {
@@ -300,7 +297,7 @@ curl http://localhost:4355/api/v1/getparams.execute -H "Authorization: Bearer st
 Then,
 
 ```shell
-curl http://localhost:4355/api/v1/getparams.execute -H "Authorization: Bearer strong-password" -d \
+curl http://localhost:4355/api/v1/getparams.execute -H "Authorization: Bearer string-password" -d \
 '{
   "applicationSetName": "fb-matrix",
   "input": {
