@@ -55,6 +55,7 @@ argocd-application-controller [flags]
       --redis-insecure-skip-tls-verify         Skip Redis server certificate validation.
       --redis-use-tls                          Use TLS when connecting to Redis. 
       --redisdb int                            Redis database.
+      --repo-error-grace-period-seconds int    Grace period in seconds for ignoring consecutive errors while communicating with repo server. (default 180)
       --repo-server string                     Repo server address. (default "argocd-repo-server:8081")
       --repo-server-plaintext                  Disable TLS on connections to repo server
       --repo-server-strict-tls                 Whether to use strict validation of the TLS cert presented by the repo server
