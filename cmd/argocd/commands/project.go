@@ -106,7 +106,7 @@ func NewProjectCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comm
 			# Create a new project with name PROJECT
 			argocd proj create PROJECT
 
-			# Create a new project with name PROJECT from a file or URL to a kubernetes manifest
+			# Create a new project with name PROJECT from a file or URL to a Kubernetes manifest
 			argocd proj create PROJECT -f FILE|URL
 		`),
 		Run: func(c *cobra.Command, args []string) {
