@@ -16,7 +16,7 @@ type PullRequest struct {
 	HeadSHA string
 	// Labels of the pull request.
 	Labels []string
-	// Draft is true if the pull request is a draft.
+	// Draft is the draft state of the pull request.
 	Draft bool
 }
 
