@@ -296,3 +296,38 @@ backoff = time.Since(lastRequeueTime) >= WORKQUEUE_FAILURE_COOLDOWN_NS ?
 ```
 backoff = WORKQUEUE_BASE_DELAY_NS
 ```
+
+## HTTP Request Retry Strategy
+
+In scenarios where network instability or transient server errors occur, the retry strategy ensures the robustness of HTTP communication by automatically resending failed requests. It uses a combination of maximum retries and backoff intervals to prevent overwhelming the server or thrashing the network.
+
+### Configuring Retries
+
+The retry logic can be fine-tuned with the following environment variables:
+
+* `ARGOCD_K8SCLIENT_RETRY_MAX` - The maximum number of retries for each request. The request will be dropped after this count is reached. Defaults to 0 (no retries).
+* `ARGOCD_K8SCLIENT_RETRY_BASE_BACKOFF` - The initial backoff delay on the first retry attempt in ms. Subsequent retries will double this backoff time up to a maximum threshold. Defaults to 100ms.
+
+### Backoff Strategy
+
+The backoff strategy employed is a simple exponential backoff without jitter. The backoff time increases exponentially with each retry attempt until a maximum backoff duration is reached.
+
+The formula for calculating the backoff time is:
+
+```
+backoff = min(retryWaitMax, baseRetryBackoff * (2 ^ retryAttempt))
+```
+Where `retryAttempt` starts at 0 and increments by 1 for each subsequent retry.
+
+### Maximum Wait Time
+
+There is a cap on the backoff time to prevent excessive wait times between retries. This cap is defined by:
+
+`retryWaitMax` - The maximum duration to wait before retrying. This ensures that retries happen within a reasonable timeframe. Defaults to 10 seconds.
+
+### Non-Retriable Conditions
+
+Not all HTTP responses are eligible for retries. The following conditions will not trigger a retry:
+
+* Responses with a status code indicating client errors (4xx) except for 429 Too Many Requests.
+* Responses with the status code 501 Not Implemented.
