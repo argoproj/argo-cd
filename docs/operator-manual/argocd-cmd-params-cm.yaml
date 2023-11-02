@@ -58,6 +58,12 @@ data:
   controller.sharding.algorithm: legacy
   # Number of allowed concurrent kubectl fork/execs. Any value less than 1 means no limit.
   controller.kubectl.parallelism.limit: "20"
+  # The maximum number of retries for each request
+  controller.k8sclient.retry.max: "0"
+  # The initial backoff delay on the first retry attempt in ms. Subsequent retries will double this backoff time up to a maximum threshold
+  controller.k8sclient.retry.base.backoff: "100"
+  # Grace period in seconds for ignoring consecutive errors while communicating with repo server.
+  controller.repo.error.grace.period.seconds: "180"
 
   ## Server properties
   # Listen on given address for incoming connections (default "0.0.0.0")
@@ -72,6 +78,10 @@ data:
   server.rootpath: ""
   # Directory path that contains additional static assets
   server.staticassets: "/shared/app"
+  # The maximum number of retries for each request
+  server.k8sclient.retry.max: "0"
+  # The initial backoff delay on the first retry attempt in ms. Subsequent retries will double this backoff time up to a maximum threshold
+  server.k8sclient.retry.base.backoff: "100"
 
   # Set the logging format. One of: text|json (default "text")
   server.log.format: "text"
