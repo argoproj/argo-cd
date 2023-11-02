@@ -921,29 +921,39 @@ func (sc *syncContext) applyObject(t *syncTask, dryRun, force, validate bool) (c
 	var err error
 	var message string
 	shouldReplace := sc.replace || resourceutil.HasAnnotationOption(t.targetObj, common.AnnotationSyncOptions, common.SyncOptionReplace)
-	if shouldReplace {
-		if t.liveObj != nil {
-			// Avoid using `kubectl replace` for CRDs since 'replace' might recreate resource and so delete all CRD instances.
-			// The same thing applies for namespaces, which would delete the namespace as well as everything within it,
-			// so we want to avoid using `kubectl replace` in that case as well.
-			if kube.IsCRD(t.targetObj) || t.targetObj.GetKind() == kubeutil.NamespaceKind {
-				update := t.targetObj.DeepCopy()
-				update.SetResourceVersion(t.liveObj.GetResourceVersion())
-				_, err = sc.resourceOps.UpdateResource(context.TODO(), update, dryRunStrategy)
-				if err == nil {
-					message = fmt.Sprintf("%s/%s updated", t.targetObj.GetKind(), t.targetObj.GetName())
-				} else {
-					message = fmt.Sprintf("error when updating: %v", err.Error())
-				}
-			} else {
-				message, err = sc.resourceOps.ReplaceResource(context.TODO(), t.targetObj, dryRunStrategy, force)
-			}
-		} else {
-			message, err = sc.resourceOps.CreateResource(context.TODO(), t.targetObj, dryRunStrategy, validate)
+	applyFn := func(dryRunStrategy cmdutil.DryRunStrategy) (string, error) {
+		if !shouldReplace {
+			return sc.resourceOps.ApplyResource(context.TODO(), t.targetObj, dryRunStrategy, force, validate, serverSideApply, sc.serverSideApplyManager)
 		}
-	} else {
-		message, err = sc.resourceOps.ApplyResource(context.TODO(), t.targetObj, dryRunStrategy, force, validate, serverSideApply, sc.serverSideApplyManager)
+		if t.liveObj == nil {
+			return sc.resourceOps.CreateResource(context.TODO(), t.targetObj, dryRunStrategy, validate)
+		}
+		// Avoid using `kubectl replace` for CRDs since 'replace' might recreate resource and so delete all CRD instances.
+		// The same thing applies for namespaces, which would delete the namespace as well as everything within it,
+		// so we want to avoid using `kubectl replace` in that case as well.
+		if kube.IsCRD(t.targetObj) || t.targetObj.GetKind() == kubeutil.NamespaceKind {
+			update := t.targetObj.DeepCopy()
+			update.SetResourceVersion(t.liveObj.GetResourceVersion())
+			_, err = sc.resourceOps.UpdateResource(context.TODO(), update, dryRunStrategy)
+			if err != nil {
+				return fmt.Sprintf("error when updating: %v", err.Error()), err
+			}
+			return fmt.Sprintf("%s/%s updated", t.targetObj.GetKind(), t.targetObj.GetName()), nil
+
+		}
+		return sc.resourceOps.ReplaceResource(context.TODO(), t.targetObj, dryRunStrategy, force)
 	}
+
+	message, err = applyFn(dryRunStrategy)
+
+	// DryRunServer fails with "Kind does not support fieldValidation" error for kubernetes server < 1.25
+	// it fails inside apply.go , o.DryRunVerifier.HasSupport(info.Mapping.GroupVersionKind) line
+	// so we retry with DryRunClient that works for all cases, but cause issues with hooks
+	// Details: https://github.com/argoproj/argo-cd/issues/16177
+	if dryRunStrategy == cmdutil.DryRunServer && err != nil {
+		message, err = applyFn(cmdutil.DryRunClient)
+	}
+
 	if err != nil {
 		return common.ResultCodeSyncFailed, err.Error()
 	}
