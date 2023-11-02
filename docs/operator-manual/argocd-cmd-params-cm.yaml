@@ -62,6 +62,8 @@ data:
   controller.k8sclient.retry.max: "0"
   # The initial backoff delay on the first retry attempt in ms. Subsequent retries will double this backoff time up to a maximum threshold
   controller.k8sclient.retry.base.backoff: "100"
+  # Grace period in seconds for ignoring consecutive errors while communicating with repo server.
+  controller.repo.error.grace.period.seconds: "180"
 
   ## Server properties
   # Listen on given address for incoming connections (default "0.0.0.0")
