@@ -29,7 +29,7 @@ argocd proj windows add my-project \
 --duration 3600 \
 --prune
 
-#- Delete a sync window from a project. 
+#Delete a sync window from a project 
 argocd proj windows delete <project-name> <window-id>
 
 #list project sync windows
@@ -98,14 +98,14 @@ func NewProjectWindowsEnableManualSyncCommand(clientOpts *argocdclient.ClientOpt
 		Short: "Enable manual sync for a sync window",
 		Long:  "Enable manual sync for a sync window. Requires ID which can be found by running \"argocd proj windows list PROJECT\"",
 		Example: `
-#enabling manual sync for a general case
+#Enabling manual sync for a general case
 argocd proj windows enable-manual-sync PROJECT ID 
 
-#enabling manual sync for a windows set on the default project with Id 2
+#Enabling manual sync for a windows set on the default project with Id 2
 agrocd proj windows enable-manual-sync default 2
 
-# Enabling manual synchronization with a custom message
-argocd proj windows enable-manual-sync my-app-project --message "Manual sync initiated by admin."`,
+#Enabling manual synchronization with a custom message
+argocd proj windows enable-manual-sync my-app-project --message "Manual sync initiated by admin`,
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
 
@@ -152,14 +152,15 @@ func NewProjectWindowsAddWindowCommand(clientOpts *argocdclient.ClientOptions) *
 	var command = &cobra.Command{
 		Use:   "add PROJECT",
 		Short: "Add a sync window to a project",
-		Example: `# Add a 1 hour allow sync window
+		Example: `
+#Add a 1 hour allow sync window
 argocd proj windows add PROJECT \
     --kind allow \
     --schedule "0 22 * * *" \
     --duration 1h \
     --applications "*"
 
-# Add a deny sync window with the ability to manually sync.
+#Add a deny sync window with the ability to manually sync.
 argocd proj windows add PROJECT \
     --kind deny \
     --schedule "30 10 * * *" \
@@ -307,10 +308,10 @@ func NewProjectWindowsListCommand(clientOpts *argocdclient.ClientOptions) *cobra
 	var command = &cobra.Command{
 		Use:   "list PROJECT",
 		Short: "List project sync windows",
-		Example: `# List project windows
+		Example: `#List project windows
 argocd proj windows list PROJECT
 
-# List project windows in yaml format
+#List project windows in yaml format
 argocd proj windows list PROJECT -o yaml
 
 #List project windows info for a project name test-project

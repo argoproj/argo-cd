@@ -16,14 +16,14 @@ argocd proj windows enable-manual-sync PROJECT ID [flags]
 
 ```
 
-#enabling manual sync for a general case
+#Enabling manual sync for a general case
 argocd proj windows enable-manual-sync PROJECT ID 
 
-#enabling manual sync for a windows set on the default project with Id 2
+#Enabling manual sync for a windows set on the default project with Id 2
 agrocd proj windows enable-manual-sync default 2
 
-# Enabling manual synchronization with a custom message
-argocd proj windows enable-manual-sync my-app-project --message "Manual sync initiated by admin."
+#Enabling manual synchronization with a custom message
+argocd proj windows enable-manual-sync my-app-project --message "Manual sync initiated by admin
 ```
 
 ### Options

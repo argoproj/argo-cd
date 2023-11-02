@@ -19,7 +19,7 @@ argocd admin cluster kubeconfig my-cluster
 #listing available kubeconfigs for clusters managed by argocd
 argocd admin cluster kubeconfig
 
-#removing a specific kubeconfig file 
+#Removing a specific kubeconfig file 
 argocd admin cluster kubeconfig my-cluster --delete
 
 #Generate a Kubeconfig for a Cluster with TLS Verification Disabled

@@ -464,7 +464,7 @@ argocd admin cluster stats
 #Display Cluster Statistics for a Specific Shard
 argocd admin cluster stats --shard=1
 
-#in a multi-cluster environment to print stats for a specific say(target-cluster)
+#In a multi-cluster environment to print stats for a specific say(target-cluster)
 argocd admin cluster stats target-cluster`,
 		Run: func(cmd *cobra.Command, args []string) {
 			ctx := cmd.Context()
@@ -518,7 +518,7 @@ argocd admin cluster kubeconfig my-cluster
 #listing available kubeconfigs for clusters managed by argocd
 argocd admin cluster kubeconfig
 
-#removing a specific kubeconfig file 
+#Removing a specific kubeconfig file 
 argocd admin cluster kubeconfig my-cluster --delete
 
 #Generate a Kubeconfig for a Cluster with TLS Verification Disabled
