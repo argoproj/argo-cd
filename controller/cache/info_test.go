@@ -406,7 +406,7 @@ func TestGetLinkAnnotatedIngressInfo(t *testing.T) {
 			Kind:      kube.ServiceKind,
 			Name:      "helm-guestbook",
 		}},
-		ExternalURLs: []string{"https://helm-guestbook.com/", "http://my-grafana.com/ingress-link"},
+		ExternalURLs: []string{"http://my-grafana.com/ingress-link", "https://helm-guestbook.com/"},
 	}, info.NetworkingInfo)
 }
 
