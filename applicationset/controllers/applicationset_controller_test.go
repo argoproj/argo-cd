@@ -12,6 +12,8 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
+	"gopkg.in/yaml.v2"
 	corev1 "k8s.io/api/core/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -218,7 +220,7 @@ func TestExtractApplications(t *testing.T) {
 				Cache:         &fakeCache{},
 			}
 
-			got, reason, err := r.generateApplications(log.NewEntry(log.StandardLogger()), v1alpha1.ApplicationSet{
+			got, reason, err := r.generateApplications(v1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "name",
 					Namespace: "namespace",
@@ -331,7 +333,7 @@ func TestMergeTemplateApplications(t *testing.T) {
 				KubeClientset: kubefake.NewSimpleClientset(),
 			}
 
-			got, _, _ := r.generateApplications(log.NewEntry(log.StandardLogger()), v1alpha1.ApplicationSet{
+			got, _, _ := r.generateApplications(v1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "name",
 					Namespace: "namespace",
@@ -979,296 +981,6 @@ func TestCreateOrUpdateInCluster(t *testing.T) {
 					},
 				},
 			},
-		}, {
-			// For this use case: https://github.com/argoproj/argo-cd/issues/9101#issuecomment-1191138278
-			name: "Ensure that ignored targetRevision difference doesn't cause an update, even if another field changes",
-			appSet: v1alpha1.ApplicationSet{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "name",
-					Namespace: "namespace",
-				},
-				Spec: v1alpha1.ApplicationSetSpec{
-					IgnoreApplicationDifferences: v1alpha1.ApplicationSetIgnoreDifferences{
-						{JQPathExpressions: []string{".spec.source.targetRevision"}},
-					},
-					Template: v1alpha1.ApplicationSetTemplate{
-						Spec: v1alpha1.ApplicationSpec{
-							Project: "project",
-							Source: &v1alpha1.ApplicationSource{
-								RepoURL:        "https://git.example.com/test-org/test-repo.git",
-								TargetRevision: "foo",
-							},
-						},
-					},
-				},
-			},
-			existingApps: []v1alpha1.Application{
-				{
-					TypeMeta: metav1.TypeMeta{
-						Kind:       "Application",
-						APIVersion: "argoproj.io/v1alpha1",
-					},
-					ObjectMeta: metav1.ObjectMeta{
-						Name:            "app1",
-						Namespace:       "namespace",
-						ResourceVersion: "2",
-					},
-					Spec: v1alpha1.ApplicationSpec{
-						Project: "project",
-						Source: &v1alpha1.ApplicationSource{
-							RepoURL:        "https://git.example.com/test-org/test-repo.git",
-							TargetRevision: "bar",
-						},
-					},
-				},
-			},
-			desiredApps: []v1alpha1.Application{
-				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "app1",
-					},
-					Spec: v1alpha1.ApplicationSpec{
-						Project: "project",
-						Source: &v1alpha1.ApplicationSource{
-							RepoURL: "https://git.example.com/test-org/test-repo.git",
-							// The targetRevision is ignored, so this should not be updated.
-							TargetRevision: "foo",
-							// This should be updated.
-							Helm: &v1alpha1.ApplicationSourceHelm{
-								Parameters: []v1alpha1.HelmParameter{
-									{Name: "hi", Value: "there"},
-								},
-							},
-						},
-					},
-				},
-			},
-			expected: []v1alpha1.Application{
-				{
-					TypeMeta: metav1.TypeMeta{
-						Kind:       "Application",
-						APIVersion: "argoproj.io/v1alpha1",
-					},
-					ObjectMeta: metav1.ObjectMeta{
-						Name:            "app1",
-						Namespace:       "namespace",
-						ResourceVersion: "3",
-					},
-					Spec: v1alpha1.ApplicationSpec{
-						Project: "project",
-						Source: &v1alpha1.ApplicationSource{
-							RepoURL: "https://git.example.com/test-org/test-repo.git",
-							// This is the existing value from the cluster, which should not be updated because the field is ignored.
-							TargetRevision: "bar",
-							// This was missing on the cluster, so it should be added.
-							Helm: &v1alpha1.ApplicationSourceHelm{
-								Parameters: []v1alpha1.HelmParameter{
-									{Name: "hi", Value: "there"},
-								},
-							},
-						},
-					},
-				},
-			},
-		}, {
-			// For this use case: https://github.com/argoproj/argo-cd/pull/14743#issuecomment-1761954799
-			name: "ignore parameters added to a multi-source app in the cluster",
-			appSet: v1alpha1.ApplicationSet{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "name",
-					Namespace: "namespace",
-				},
-				Spec: v1alpha1.ApplicationSetSpec{
-					IgnoreApplicationDifferences: v1alpha1.ApplicationSetIgnoreDifferences{
-						{JQPathExpressions: []string{`.spec.sources[] | select(.repoURL | contains("test-repo")).helm.parameters`}},
-					},
-					Template: v1alpha1.ApplicationSetTemplate{
-						Spec: v1alpha1.ApplicationSpec{
-							Project: "project",
-							Sources: []v1alpha1.ApplicationSource{
-								{
-									RepoURL: "https://git.example.com/test-org/test-repo.git",
-									Helm: &v1alpha1.ApplicationSourceHelm{
-										Values: "foo: bar",
-									},
-								},
-							},
-						},
-					},
-				},
-			},
-			existingApps: []v1alpha1.Application{
-				{
-					TypeMeta: metav1.TypeMeta{
-						Kind:       "Application",
-						APIVersion: "argoproj.io/v1alpha1",
-					},
-					ObjectMeta: metav1.ObjectMeta{
-						Name:            "app1",
-						Namespace:       "namespace",
-						ResourceVersion: "2",
-					},
-					Spec: v1alpha1.ApplicationSpec{
-						Project: "project",
-						Sources: []v1alpha1.ApplicationSource{
-							{
-								RepoURL: "https://git.example.com/test-org/test-repo.git",
-								Helm: &v1alpha1.ApplicationSourceHelm{
-									Values: "foo: bar",
-									Parameters: []v1alpha1.HelmParameter{
-										{Name: "hi", Value: "there"},
-									},
-								},
-							},
-						},
-					},
-				},
-			},
-			desiredApps: []v1alpha1.Application{
-				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "app1",
-					},
-					Spec: v1alpha1.ApplicationSpec{
-						Project: "project",
-						Sources: []v1alpha1.ApplicationSource{
-							{
-								RepoURL: "https://git.example.com/test-org/test-repo.git",
-								Helm: &v1alpha1.ApplicationSourceHelm{
-									Values: "foo: bar",
-								},
-							},
-						},
-					},
-				},
-			},
-			expected: []v1alpha1.Application{
-				{
-					TypeMeta: metav1.TypeMeta{
-						Kind:       "Application",
-						APIVersion: "argoproj.io/v1alpha1",
-					},
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "app1",
-						Namespace: "namespace",
-						// This should not be updated, because reconciliation shouldn't modify the App.
-						ResourceVersion: "2",
-					},
-					Spec: v1alpha1.ApplicationSpec{
-						Project: "project",
-						Sources: []v1alpha1.ApplicationSource{
-							{
-								RepoURL: "https://git.example.com/test-org/test-repo.git",
-								Helm: &v1alpha1.ApplicationSourceHelm{
-									Values: "foo: bar",
-									Parameters: []v1alpha1.HelmParameter{
-										// This existed only in the cluster, but it shouldn't be removed, because the field is ignored.
-										{Name: "hi", Value: "there"},
-									},
-								},
-							},
-						},
-					},
-				},
-			},
-		}, {
-			name: "Demonstrate limitation of MergePatch", // Maybe we can fix this in Argo CD 3.0: https://github.com/argoproj/argo-cd/issues/15975
-			appSet: v1alpha1.ApplicationSet{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "name",
-					Namespace: "namespace",
-				},
-				Spec: v1alpha1.ApplicationSetSpec{
-					IgnoreApplicationDifferences: v1alpha1.ApplicationSetIgnoreDifferences{
-						{JQPathExpressions: []string{`.spec.sources[] | select(.repoURL | contains("test-repo")).helm.parameters`}},
-					},
-					Template: v1alpha1.ApplicationSetTemplate{
-						Spec: v1alpha1.ApplicationSpec{
-							Project: "project",
-							Sources: []v1alpha1.ApplicationSource{
-								{
-									RepoURL: "https://git.example.com/test-org/test-repo.git",
-									Helm: &v1alpha1.ApplicationSourceHelm{
-										Values: "new: values",
-									},
-								},
-							},
-						},
-					},
-				},
-			},
-			existingApps: []v1alpha1.Application{
-				{
-					TypeMeta: metav1.TypeMeta{
-						Kind:       "Application",
-						APIVersion: "argoproj.io/v1alpha1",
-					},
-					ObjectMeta: metav1.ObjectMeta{
-						Name:            "app1",
-						Namespace:       "namespace",
-						ResourceVersion: "2",
-					},
-					Spec: v1alpha1.ApplicationSpec{
-						Project: "project",
-						Sources: []v1alpha1.ApplicationSource{
-							{
-								RepoURL: "https://git.example.com/test-org/test-repo.git",
-								Helm: &v1alpha1.ApplicationSourceHelm{
-									Values: "foo: bar",
-									Parameters: []v1alpha1.HelmParameter{
-										{Name: "hi", Value: "there"},
-									},
-								},
-							},
-						},
-					},
-				},
-			},
-			desiredApps: []v1alpha1.Application{
-				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "app1",
-					},
-					Spec: v1alpha1.ApplicationSpec{
-						Project: "project",
-						Sources: []v1alpha1.ApplicationSource{
-							{
-								RepoURL: "https://git.example.com/test-org/test-repo.git",
-								Helm: &v1alpha1.ApplicationSourceHelm{
-									Values: "new: values",
-								},
-							},
-						},
-					},
-				},
-			},
-			expected: []v1alpha1.Application{
-				{
-					TypeMeta: metav1.TypeMeta{
-						Kind:       "Application",
-						APIVersion: "argoproj.io/v1alpha1",
-					},
-					ObjectMeta: metav1.ObjectMeta{
-						Name:            "app1",
-						Namespace:       "namespace",
-						ResourceVersion: "3",
-					},
-					Spec: v1alpha1.ApplicationSpec{
-						Project: "project",
-						Sources: []v1alpha1.ApplicationSource{
-							{
-								RepoURL: "https://git.example.com/test-org/test-repo.git",
-								Helm: &v1alpha1.ApplicationSourceHelm{
-									Values: "new: values",
-									// The Parameters field got blown away, because the values field changed. MergePatch
-									// doesn't merge list items, it replaces the whole list if an item changes.
-									// If we eventually add a `name` field to Sources, we can use StrategicMergePatch.
-								},
-							},
-						},
-					},
-				},
-			},
 		},
 	} {
 
@@ -1282,7 +994,7 @@ func TestCreateOrUpdateInCluster(t *testing.T) {
 				initObjs = append(initObjs, &a)
 			}
 
-			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(initObjs...).WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).Build()
+			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(initObjs...).Build()
 
 			r := ApplicationSetReconciler{
 				Client:   client,
@@ -1291,8 +1003,8 @@ func TestCreateOrUpdateInCluster(t *testing.T) {
 				Cache:    &fakeCache{},
 			}
 
-			err = r.createOrUpdateInCluster(context.TODO(), log.NewEntry(log.StandardLogger()), c.appSet, c.desiredApps)
-			assert.NoError(t, err)
+			err = r.createOrUpdateInCluster(context.TODO(), c.appSet, c.desiredApps)
+			assert.Nil(t, err)
 
 			for _, obj := range c.expected {
 				got := &v1alpha1.Application{}
@@ -1302,6 +1014,7 @@ func TestCreateOrUpdateInCluster(t *testing.T) {
 				}, got)
 
 				err = controllerutil.SetControllerReference(&c.appSet, &obj, r.Scheme)
+				assert.Nil(t, err)
 				assert.Equal(t, obj, *got)
 			}
 		})
@@ -1375,7 +1088,7 @@ func TestRemoveFinalizerOnInvalidDestination_FinalizerTypes(t *testing.T) {
 
 			initObjs := []crtclient.Object{&app, &appSet}
 
-			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(initObjs...).WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).Build()
+			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(initObjs...).Build()
 			secret := &corev1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "my-secret",
@@ -1537,7 +1250,7 @@ func TestRemoveFinalizerOnInvalidDestination_DestinationTypes(t *testing.T) {
 
 			initObjs := []crtclient.Object{&app, &appSet}
 
-			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(initObjs...).WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).Build()
+			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(initObjs...).Build()
 			secret := &corev1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "my-secret",
@@ -1769,7 +1482,7 @@ func TestCreateApplications(t *testing.T) {
 				initObjs = append(initObjs, &a)
 			}
 
-			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(initObjs...).WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).Build()
+			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(initObjs...).Build()
 
 			r := ApplicationSetReconciler{
 				Client:   client,
@@ -1778,7 +1491,7 @@ func TestCreateApplications(t *testing.T) {
 				Cache:    &fakeCache{},
 			}
 
-			err = r.createInCluster(context.TODO(), log.NewEntry(log.StandardLogger()), c.appSet, c.apps)
+			err = r.createInCluster(context.TODO(), c.appSet, c.apps)
 			assert.Nil(t, err)
 
 			for _, obj := range c.expected {
@@ -1913,7 +1626,7 @@ func TestDeleteInCluster(t *testing.T) {
 			initObjs = append(initObjs, &temp)
 		}
 
-		client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(initObjs...).WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).Build()
+		client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(initObjs...).Build()
 
 		r := ApplicationSetReconciler{
 			Client:        client,
@@ -1922,7 +1635,7 @@ func TestDeleteInCluster(t *testing.T) {
 			KubeClientset: kubefake.NewSimpleClientset(),
 		}
 
-		err = r.deleteInCluster(context.TODO(), log.NewEntry(log.StandardLogger()), c.appSet, c.desiredApps)
+		err = r.deleteInCluster(context.TODO(), c.appSet, c.desiredApps)
 		assert.Nil(t, err)
 
 		// For each of the expected objects, verify they exist on the cluster
@@ -2287,15 +2000,7 @@ func TestReconcilerValidationProjectErrorBehaviour(t *testing.T) {
 	argoDBMock := dbmocks.ArgoDB{}
 	argoObjs := []runtime.Object{&project}
 
-	client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&appSet).WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).Build()
-	goodCluster := v1alpha1.Cluster{Server: "https://good-cluster", Name: "good-cluster"}
-	badCluster := v1alpha1.Cluster{Server: "https://bad-cluster", Name: "bad-cluster"}
-	argoDBMock.On("GetCluster", mock.Anything, "https://good-cluster").Return(&goodCluster, nil)
-	argoDBMock.On("GetCluster", mock.Anything, "https://bad-cluster").Return(&badCluster, nil)
-	argoDBMock.On("ListClusters", mock.Anything).Return(&v1alpha1.ClusterList{Items: []v1alpha1.Cluster{
-		goodCluster,
-	}}, nil)
-
+	client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&appSet).Build()
 	r := ApplicationSetReconciler{
 		Client:   client,
 		Scheme:   scheme,
@@ -2371,7 +2076,7 @@ func TestSetApplicationSetStatusCondition(t *testing.T) {
 	argoDBMock := dbmocks.ArgoDB{}
 	argoObjs := []runtime.Object{}
 
-	client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&appSet).WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).Build()
+	client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&appSet).Build()
 
 	r := ApplicationSetReconciler{
 		Client:   client,
@@ -2441,7 +2146,7 @@ func applicationsUpdateSyncPolicyTest(t *testing.T, applicationsSyncPolicy v1alp
 	argoDBMock := dbmocks.ArgoDB{}
 	argoObjs := []runtime.Object{&defaultProject}
 
-	client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&appSet).WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).Build()
+	client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&appSet).Build()
 	goodCluster := v1alpha1.Cluster{Server: "https://good-cluster", Name: "good-cluster"}
 	argoDBMock.On("GetCluster", mock.Anything, "https://good-cluster").Return(&goodCluster, nil)
 	argoDBMock.On("ListClusters", mock.Anything).Return(&v1alpha1.ClusterList{Items: []v1alpha1.Cluster{
@@ -2611,7 +2316,7 @@ func applicationsDeleteSyncPolicyTest(t *testing.T, applicationsSyncPolicy v1alp
 	argoDBMock := dbmocks.ArgoDB{}
 	argoObjs := []runtime.Object{&defaultProject}
 
-	client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&appSet).WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).Build()
+	client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&appSet).Build()
 	goodCluster := v1alpha1.Cluster{Server: "https://good-cluster", Name: "good-cluster"}
 	argoDBMock.On("GetCluster", mock.Anything, "https://good-cluster").Return(&goodCluster, nil)
 	argoDBMock.On("ListClusters", mock.Anything).Return(&v1alpha1.ClusterList{Items: []v1alpha1.Cluster{
@@ -2812,7 +2517,7 @@ func TestGenerateAppsUsingPullRequestGenerator(t *testing.T) {
 				KubeClientset: kubefake.NewSimpleClientset(),
 			}
 
-			gotApp, _, _ := appSetReconciler.generateApplications(log.NewEntry(log.StandardLogger()), v1alpha1.ApplicationSet{
+			gotApp, _, _ := appSetReconciler.generateApplications(v1alpha1.ApplicationSet{
 				Spec: v1alpha1.ApplicationSetSpec{
 					GoTemplate: true,
 					Generators: []v1alpha1.ApplicationSetGenerator{{
@@ -2922,7 +2627,7 @@ func TestPolicies(t *testing.T) {
 				},
 			}
 
-			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&appSet).WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).Build()
+			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&appSet).Build()
 
 			r := ApplicationSetReconciler{
 				Client:   client,
@@ -3101,7 +2806,7 @@ func TestSetApplicationSetApplicationStatus(t *testing.T) {
 				KubeClientset:    kubeclientset,
 			}
 
-			err = r.setAppSetApplicationStatus(context.TODO(), log.NewEntry(log.StandardLogger()), &cc.appSet, cc.appStatuses)
+			err = r.setAppSetApplicationStatus(context.TODO(), &cc.appSet, cc.appStatuses)
 			assert.Nil(t, err)
 
 			assert.Equal(t, cc.expectedAppStatuses, cc.appSet.Status.ApplicationStatus)
@@ -3864,7 +3569,7 @@ func TestBuildAppDependencyList(t *testing.T) {
 				KubeClientset:    kubeclientset,
 			}
 
-			appDependencyList, appStepMap, err := r.buildAppDependencyList(log.NewEntry(log.StandardLogger()), cc.appSet, cc.apps)
+			appDependencyList, appStepMap, err := r.buildAppDependencyList(context.TODO(), cc.appSet, cc.apps)
 			assert.Equal(t, err, nil, "expected no errors, but errors occured")
 			assert.Equal(t, cc.expectedList, appDependencyList, "expected appDependencyList did not match actual")
 			assert.Equal(t, cc.expectedStepMap, appStepMap, "expected appStepMap did not match actual")
@@ -5118,7 +4823,7 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 				KubeClientset:    kubeclientset,
 			}
 
-			appStatuses, err := r.updateApplicationSetApplicationStatus(context.TODO(), log.NewEntry(log.StandardLogger()), &cc.appSet, cc.apps, cc.appStepMap)
+			appStatuses, err := r.updateApplicationSetApplicationStatus(context.TODO(), &cc.appSet, cc.apps, cc.appStepMap)
 
 			// opt out of testing the LastTransitionTime is accurate
 			for i := range appStatuses {
@@ -5872,7 +5577,7 @@ func TestUpdateApplicationSetApplicationStatusProgress(t *testing.T) {
 				KubeClientset:    kubeclientset,
 			}
 
-			appStatuses, err := r.updateApplicationSetApplicationStatusProgress(context.TODO(), log.NewEntry(log.StandardLogger()), &cc.appSet, cc.appSyncMap, cc.appStepMap, cc.appMap)
+			appStatuses, err := r.updateApplicationSetApplicationStatusProgress(context.TODO(), &cc.appSet, cc.appSyncMap, cc.appStepMap, cc.appMap)
 
 			// opt out of testing the LastTransitionTime is accurate
 			for i := range appStatuses {
@@ -6011,6 +5716,176 @@ func TestOwnsHandler(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			ownsHandler = getOwnsHandlerPredicates(tt.args.enableProgressiveSyncs)
 			assert.Equalf(t, tt.want, ownsHandler.UpdateFunc(tt.args.e), "UpdateFunc(%v)", tt.args.e)
+		})
+	}
+}
+
+func Test_applyIgnoreDifferences(t *testing.T) {
+	appMeta := metav1.TypeMeta{
+		APIVersion: v1alpha1.ApplicationSchemaGroupVersionKind.GroupVersion().String(),
+		Kind:       v1alpha1.ApplicationSchemaGroupVersionKind.Kind,
+	}
+	testCases := []struct {
+		name              string
+		ignoreDifferences v1alpha1.ApplicationSetIgnoreDifferences
+		foundApp          string
+		generatedApp      string
+		expectedApp       string
+	}{
+		{
+			name: "empty ignoreDifferences",
+			foundApp: `
+spec: {}`,
+			generatedApp: `
+spec: {}`,
+			expectedApp: `
+spec: {}`,
+		},
+		{
+			// For this use case: https://github.com/argoproj/argo-cd/issues/9101#issuecomment-1191138278
+			name: "ignore target revision with jq",
+			ignoreDifferences: v1alpha1.ApplicationSetIgnoreDifferences{
+				{JQPathExpressions: []string{".spec.source.targetRevision"}},
+			},
+			foundApp: `
+spec:
+  source:
+    targetRevision: foo`,
+			generatedApp: `
+spec:
+  source:
+    targetRevision: bar`,
+			expectedApp: `
+spec:
+  source:
+    targetRevision: foo`,
+		},
+		{
+			// For this use case: https://github.com/argoproj/argo-cd/issues/9101#issuecomment-1103593714
+			name: "ignore helm parameter with jq",
+			ignoreDifferences: v1alpha1.ApplicationSetIgnoreDifferences{
+				{JQPathExpressions: []string{`.spec.source.helm.parameters | select(.name == "image.tag")`}},
+			},
+			foundApp: `
+spec:
+  source:
+    helm:
+      parameters:
+      - name: image.tag
+        value: test
+      - name: another
+        value: value`,
+			generatedApp: `
+spec:
+  source:
+    helm:
+      parameters:
+      - name: image.tag
+        value: v1.0.0
+      - name: another
+        value: value`,
+			expectedApp: `
+spec:
+  source:
+    helm:
+      parameters:
+      - name: image.tag
+        value: test
+      - name: another
+        value: value`,
+		},
+		{
+			// For this use case: https://github.com/argoproj/argo-cd/issues/9101#issuecomment-1191138278
+			name: "ignore auto-sync with jq",
+			ignoreDifferences: v1alpha1.ApplicationSetIgnoreDifferences{
+				{JQPathExpressions: []string{".spec.syncPolicy.automated"}},
+			},
+			foundApp: `
+spec:
+  syncPolicy:
+    retry:
+      limit: 5`,
+			generatedApp: `
+spec:
+  syncPolicy:
+    automated:
+      selfHeal: true
+    retry:
+      limit: 5`,
+			expectedApp: `
+spec:
+  syncPolicy:
+    retry:
+      limit: 5`,
+		},
+		{
+			// For this use case: https://github.com/argoproj/argo-cd/issues/9101#issuecomment-1420656537
+			name: "ignore a one-off annotation with jq",
+			ignoreDifferences: v1alpha1.ApplicationSetIgnoreDifferences{
+				{JQPathExpressions: []string{`.metadata.annotations | select(.["foo.bar"] == "baz")`}},
+			},
+			foundApp: `
+metadata:
+  annotations:
+    foo.bar: baz
+    some.other: annotation`,
+			generatedApp: `
+metadata:
+  annotations:
+    some.other: annotation`,
+			expectedApp: `
+metadata:
+  annotations:
+    foo.bar: baz
+    some.other: annotation`,
+		},
+		{
+			// For this use case: https://github.com/argoproj/argo-cd/issues/9101#issuecomment-1515672638
+			name: "ignore the source.plugin field with a json pointer",
+			ignoreDifferences: v1alpha1.ApplicationSetIgnoreDifferences{
+				{JSONPointers: []string{"/spec/source/plugin"}},
+			},
+			foundApp: `
+spec:
+  source:
+    plugin:
+      parameters:
+      - name: url
+        string: https://example.com`,
+			generatedApp: `
+spec:
+  source:
+    plugin:
+      parameters:
+      - name: url
+        string: https://example.com/wrong`,
+			expectedApp: `
+spec:
+  source:
+    plugin:
+      parameters:
+      - name: url
+        string: https://example.com`,
+		},
+	}
+
+	for _, tc := range testCases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			foundApp := v1alpha1.Application{TypeMeta: appMeta}
+			err := yaml.Unmarshal([]byte(tc.foundApp), &foundApp)
+			require.NoError(t, err, tc.foundApp)
+			generatedApp := v1alpha1.Application{TypeMeta: appMeta}
+			err = yaml.Unmarshal([]byte(tc.generatedApp), &generatedApp)
+			require.NoError(t, err, tc.generatedApp)
+			err = applyIgnoreDifferences(tc.ignoreDifferences, &foundApp, generatedApp)
+			require.NoError(t, err)
+			jsonFound, err := json.Marshal(tc.foundApp)
+			require.NoError(t, err)
+			jsonExpected, err := json.Marshal(tc.expectedApp)
+			require.NoError(t, err)
+			assert.Equal(t, string(jsonExpected), string(jsonFound))
 		})
 	}
 }

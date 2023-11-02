@@ -13,7 +13,6 @@ markdown_extensions:
 - admonition
 - toc:
     permalink: true
-- pymdownx.superfences
 nav:
 - Overview: index.md
 - understand_the_basics.md
@@ -27,9 +26,6 @@ nav:
   - operator-manual/declarative-setup.md
   - operator-manual/app-any-namespace.md
   - operator-manual/ingress.md
-  - High Availability:
-    - Overview: operator-manual/high_availability.md
-    - Dynamic Cluster Distribution: operator-manual/dynamic-cluster-distribution.md
   - User Management:
     - operator-manual/user-management/index.md
     - operator-manual/user-management/auth0.md
@@ -39,8 +35,6 @@ nav:
     - operator-manual/user-management/keycloak.md
     - operator-manual/user-management/openunison.md
     - operator-manual/user-management/google.md
-    - operator-manual/user-management/zitadel.md
-    - operator-manual/user-management/identity-center.md
     - operator-manual/rbac.md
   - Security:
     - Overview: operator-manual/security.md
@@ -50,6 +44,7 @@ nav:
   - operator-manual/cluster-bootstrapping.md
   - operator-manual/secret-management.md
   - operator-manual/disaster_recovery.md
+  - operator-manual/high_availability.md
   - operator-manual/reconcile.md
   - operator-manual/webhook.md
   - operator-manual/health.md
@@ -61,7 +56,7 @@ nav:
   - operator-manual/web_based_terminal.md
   - operator-manual/config-management-plugins.md
   - operator-manual/deep_links.md
-  - Notifications:
+  - Notification:
     - Overview: operator-manual/notifications/index.md
     - operator-manual/notifications/triggers.md
     - operator-manual/notifications/templates.md

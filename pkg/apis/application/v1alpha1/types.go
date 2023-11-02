@@ -1135,12 +1135,11 @@ type SyncPolicy struct {
 	Retry *RetryStrategy `json:"retry,omitempty" protobuf:"bytes,3,opt,name=retry"`
 	// ManagedNamespaceMetadata controls metadata in the given namespace (if CreateNamespace=true)
 	ManagedNamespaceMetadata *ManagedNamespaceMetadata `json:"managedNamespaceMetadata,omitempty" protobuf:"bytes,4,opt,name=managedNamespaceMetadata"`
-	// If you add a field here, be sure to update IsZero.
 }
 
 // IsZero returns true if the sync policy is empty
 func (p *SyncPolicy) IsZero() bool {
-	return p == nil || (p.Automated == nil && len(p.SyncOptions) == 0 && p.Retry == nil && p.ManagedNamespaceMetadata == nil)
+	return p == nil || (p.Automated == nil && len(p.SyncOptions) == 0 && p.Retry == nil)
 }
 
 // RetryStrategy contains information about the strategy to apply when a sync failed

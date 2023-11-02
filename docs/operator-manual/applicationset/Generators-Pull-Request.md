@@ -8,8 +8,6 @@ kind: ApplicationSet
 metadata:
   name: myapps
 spec:
-  goTemplate: true
-  goTemplateOptions: ["missingkey=error"]
   generators:
   - pullRequest:
       # When using a Pull Request generator, the ApplicationSet controller polls every `requeueAfterSeconds` interval (defaulting to every 30 minutes) to detect changes.
@@ -35,8 +33,6 @@ kind: ApplicationSet
 metadata:
   name: myapps
 spec:
-  goTemplate: true
-  goTemplateOptions: ["missingkey=error"]
   generators:
   - pullRequest:
       github:
@@ -79,8 +75,6 @@ kind: ApplicationSet
 metadata:
   name: myapps
 spec:
-  goTemplate: true
-  goTemplateOptions: ["missingkey=error"]
   generators:
   - pullRequest:
       gitlab:
@@ -111,7 +105,7 @@ spec:
 * `pullRequestState`: PullRequestState is an additional MRs filter to get only those with a certain state. Default: "" (all states)
 * `insecure`: By default (false) - Skip checking the validity of the SCM's certificate - useful for self-signed TLS certificates.
 
-As a preferable alternative to setting `insecure` to true, you can configure self-signed TLS certificates for Gitlab by [mounting self-signed certificate to the applicationset controller](./Generators-SCM-Provider.md#self-signed-tls-certificates).
+As a preferable alternative to setting `insecure` to true, you can configure self-signed TLS certificates for Gitlab by [mounting self-signed certificate to the applicationset controller](./Add-self-signed-TLS-Certs.md).
 
 ## Gitea
 
@@ -123,8 +117,6 @@ kind: ApplicationSet
 metadata:
   name: myapps
 spec:
-  goTemplate: true
-  goTemplateOptions: ["missingkey=error"]
   generators:
   - pullRequest:
       gitea:
@@ -161,8 +153,6 @@ kind: ApplicationSet
 metadata:
   name: myapps
 spec:
-  goTemplate: true
-  goTemplateOptions: ["missingkey=error"]
   generators:
   - pullRequest:
       bitbucketServer:
@@ -205,8 +195,6 @@ kind: ApplicationSet
 metadata:
   name: myapps
 spec:
-  goTemplate: true
-  goTemplateOptions: ["missingkey=error"]
   generators:
     - pullRequest:
         bitbucket:
@@ -263,8 +251,6 @@ kind: ApplicationSet
 metadata:
   name: myapps
 spec:
-  goTemplate: true
-  goTemplateOptions: ["missingkey=error"]
   generators:
   - pullRequest:
       azuredevops:
@@ -306,8 +292,6 @@ kind: ApplicationSet
 metadata:
   name: myapps
 spec:
-  goTemplate: true
-  goTemplateOptions: ["missingkey=error"]
   generators:
   - pullRequest:
       # ...
@@ -335,23 +319,21 @@ kind: ApplicationSet
 metadata:
   name: myapps
 spec:
-  goTemplate: true
-  goTemplateOptions: ["missingkey=error"]
   generators:
   - pullRequest:
     # ...
   template:
     metadata:
-      name: 'myapp-{{.branch}}-{{.number}}'
+      name: 'myapp-{{branch}}-{{number}}'
     spec:
       source:
         repoURL: 'https://github.com/myorg/myrepo.git'
-        targetRevision: '{{.head_sha}}'
+        targetRevision: '{{head_sha}}'
         path: kubernetes/
         helm:
           parameters:
           - name: "image.tag"
-            value: "pull-{{.head_sha}}"
+            value: "pull-{{head_sha}}"
       project: "my-project"
       destination:
         server: https://kubernetes.default.svc
@@ -366,25 +348,23 @@ kind: ApplicationSet
 metadata:
   name: myapps
 spec:
-  goTemplate: true
-  goTemplateOptions: ["missingkey=error"]
   generators:
   - pullRequest:
     # ...
   template:
     metadata:
-      name: 'myapp-{{.branch}}-{{.number}}'
+      name: 'myapp-{{branch}}-{{number}}'
     spec:
       source:
         repoURL: 'https://github.com/myorg/myrepo.git'
-        targetRevision: '{{.head_sha}}'
+        targetRevision: '{{head_sha}}'
         path: kubernetes/
         kustomize:
-          nameSuffix: '{{.branch}}'
+          nameSuffix: {{branch}}
           commonLabels:
-            app.kubernetes.io/instance: '{{.branch}}-{{.number}}'
+            app.kubernetes.io/instance: {{branch}}-{{number}}
           images:
-          - 'ghcr.io/myorg/myrepo:{{.head_sha}}'
+          - ghcr.io/myorg/myrepo:{{head_sha}}
       project: "my-project"
       destination:
         server: https://kubernetes.default.svc
