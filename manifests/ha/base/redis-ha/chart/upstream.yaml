@@ -1080,7 +1080,13 @@ spec:
         args:
         - /readonly/haproxy_init.sh
         securityContext: 
-          null
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          runAsNonRoot: true
+          seccompProfile:
+            type: RuntimeDefault
         volumeMounts:
         - name: config-volume
           mountPath: /readonly
@@ -1092,7 +1098,13 @@ spec:
         image: haproxy:2.6.14-alpine
         imagePullPolicy: IfNotPresent
         securityContext: 
-          null
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          runAsNonRoot: true
+          seccompProfile:
+            type: RuntimeDefault
         livenessProbe:
           httpGet:
             path: /healthz
@@ -1179,7 +1191,7 @@ spec:
       automountServiceAccountToken: false
       initContainers:
       - name: config-init
-        image: redis:7.0.11-alpine
+        image: redis:7.0.14-alpine
         imagePullPolicy: IfNotPresent
         resources:
           {}
@@ -1188,7 +1200,14 @@ spec:
         args:
         - /readonly-config/init.sh
         securityContext: 
-          null        
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          runAsNonRoot: true
+          runAsUser: 1000
+          seccompProfile:
+            type: RuntimeDefault        
         env:
         - name: SENTINEL_ID_0
           value: 3c0d9c0320bb34888c2df5757c718ce6ca992ce6
@@ -1206,14 +1225,21 @@ spec:
 
       containers:
       - name: redis
-        image: redis:7.0.11-alpine
+        image: redis:7.0.14-alpine
         imagePullPolicy: IfNotPresent
         command:
         - redis-server
         args:
         - /data/conf/redis.conf
         securityContext: 
-          null
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          runAsNonRoot: true
+          runAsUser: 1000
+          seccompProfile:
+            type: RuntimeDefault
         livenessProbe:
           initialDelaySeconds: 30
           periodSeconds: 15
@@ -1256,14 +1282,21 @@ spec:
               - /bin/sh
               - /readonly-config/trigger-failover-if-master.sh
       - name: sentinel
-        image: redis:7.0.11-alpine
+        image: redis:7.0.14-alpine
         imagePullPolicy: IfNotPresent
         command:
           - redis-sentinel
         args:
           - /data/conf/sentinel.conf
         securityContext: 
-          null
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          runAsNonRoot: true
+          runAsUser: 1000
+          seccompProfile:
+            type: RuntimeDefault
         livenessProbe:
           initialDelaySeconds: 30
           periodSeconds: 15
@@ -1300,14 +1333,21 @@ spec:
           {}
 
       - name: split-brain-fix
-        image: redis:7.0.11-alpine
+        image: redis:7.0.14-alpine
         imagePullPolicy: IfNotPresent
         command:
           - sh
         args:
           - /readonly-config/fix-split-brain.sh
         securityContext: 
-          null        
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          runAsNonRoot: true
+          runAsUser: 1000
+          seccompProfile:
+            type: RuntimeDefault        
         env:
         - name: SENTINEL_ID_0
           value: 3c0d9c0320bb34888c2df5757c718ce6ca992ce6
