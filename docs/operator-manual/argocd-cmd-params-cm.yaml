@@ -58,6 +58,8 @@ data:
   controller.sharding.algorithm: legacy
   # Number of allowed concurrent kubectl fork/execs. Any value less than 1 means no limit.
   controller.kubectl.parallelism.limit: "20"
+  # Grace period in seconds for ignoring consecutive errors while communicating with repo server.
+  controller.repo.error.grace.period.seconds: "180"
 
   ## Server properties
   # Listen on given address for incoming connections (default "0.0.0.0")
