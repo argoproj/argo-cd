@@ -13,6 +13,9 @@ $header: 120px;
         left: $sidebar-width;
         right: 0;
         z-index: 3;
+        @media screen and (max-width: map-get($breakpoints, xxlarge)) {
+            top: 150px;
+        }
         @media screen and (max-width: map-get($breakpoints, xlarge)) {
             top: 150px;
         }
