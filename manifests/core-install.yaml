@@ -21341,6 +21341,18 @@ spec:
               key: controller.kubectl.parallelism.limit
               name: argocd-cmd-params-cm
               optional: true
+        - name: ARGOCD_K8SCLIENT_RETRY_MAX
+          valueFrom:
+            configMapKeyRef:
+              key: controller.k8sclient.retry.max
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_K8SCLIENT_RETRY_BASE_BACKOFF
+          valueFrom:
+            configMapKeyRef:
+              key: controller.k8sclient.retry.base.backoff
+              name: argocd-cmd-params-cm
+              optional: true
         image: quay.io/argoproj/argocd:latest
         imagePullPolicy: Always
         name: argocd-application-controller
