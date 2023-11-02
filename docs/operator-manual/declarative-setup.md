@@ -266,7 +266,7 @@ metadata:
     argocd.argoproj.io/secret-type: repository
 stringData:
   type: git
-  repo: https://source.developers.google.com/p/my-google-project/r/my-repo
+  url: https://source.developers.google.com/p/my-google-project/r/my-repo
   gcpServiceAccountKey: |
     {
       "type": "service_account",
