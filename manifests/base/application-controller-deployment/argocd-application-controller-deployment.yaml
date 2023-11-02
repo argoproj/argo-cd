@@ -160,6 +160,18 @@ spec:
               name: argocd-cmd-params-cm
               key: controller.heatbeat.time
               optional: true
+        - name: ARGOCD_K8SCLIENT_RETRY_MAX
+          valueFrom:
+              configMapKeyRef:
+                name: argocd-cmd-params-cm
+                key: controller.k8sclient.retry.max
+                optional: true
+        - name: ARGOCD_K8SCLIENT_RETRY_BASE_BACKOFF
+          valueFrom:
+              configMapKeyRef:
+                name: argocd-cmd-params-cm
+                key: controller.k8sclient.retry.base.backoff
+                optional: true
         image: quay.io/argoproj/argocd:latest
         imagePullPolicy: Always
         name: argocd-application-controller
