@@ -467,6 +467,8 @@ type ApplicationSourceKustomize struct {
 	Replicas KustomizeReplicas `json:"replicas,omitempty" protobuf:"bytes,11,opt,name=replicas"`
 	// Patches is a list of Kustomize patches
 	Patches KustomizePatches `json:"patches,omitempty" protobuf:"bytes,12,opt,name=patches"`
+	// Components specifies a list of kustomize components to add to the kustmization before building
+	Components []string `json:"components,omitempty" protobuf:"bytes,13,rep,name=components"`
 }
 
 type KustomizeReplica struct {

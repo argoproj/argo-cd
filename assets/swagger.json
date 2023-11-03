@@ -6395,6 +6395,13 @@
             "type": "string"
           }
         },
+        "components": {
+          "type": "array",
+          "title": "Components specifies a list of kustomize components to add to the kustmization before building",
+          "items": {
+            "type": "string"
+          }
+        },
         "forceCommonAnnotations": {
           "type": "boolean",
           "title": "ForceCommonAnnotations specifies whether to force applying common annotations to resources for Kustomize apps"
