@@ -47,14 +47,14 @@ data:
   service.slack: |
     token: $slack-token
     username: <override-username> # optional username
-    icon: <override-icon> # optional icon for the message (supports both emoij and url notation)
+    icon: <override-icon> # optional icon for the message (supports both emoji and url notation)
 
   #  Slack based notifier with name mattermost
   service.slack.mattermost: |
     apiURL: https://my-mattermost-url.com/api
     token: $slack-token
     username: <override-username> # optional username
-    icon: <override-icon> # optional icon for the message (supports both emoij and url notation)
+    icon: <override-icon> # optional icon for the message (supports both emoji and url notation)
 
   #  Email
   service.email: |
