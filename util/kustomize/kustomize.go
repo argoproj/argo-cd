@@ -281,6 +281,7 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 	}
 
 	cmd.Env = append(cmd.Env, environ...)
+	cmd.Dir = k.path
 	out, err := executil.Run(cmd)
 	if err != nil {
 		return nil, nil, err
