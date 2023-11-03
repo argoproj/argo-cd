@@ -467,7 +467,7 @@ type ApplicationSourceKustomize struct {
 	Replicas KustomizeReplicas `json:"replicas,omitempty" protobuf:"bytes,11,opt,name=replicas"`
 	// Patches is a list of Kustomize patches
 	Patches KustomizePatches `json:"patches,omitempty" protobuf:"bytes,12,opt,name=patches"`
-	// Components specifies a list of kustomize components to add to the kustmization before building
+	// Components specifies a list of kustomize components to add to the kustomization before building
 	Components []string `json:"components,omitempty" protobuf:"bytes,13,rep,name=components"`
 }
 
@@ -558,7 +558,8 @@ func (k *ApplicationSourceKustomize) AllowsConcurrentProcessing() bool {
 		k.NamePrefix == "" &&
 		k.Namespace == "" &&
 		k.NameSuffix == "" &&
-		len(k.Patches) == 0
+		len(k.Patches) == 0 &&
+		len(k.Components) == 0
 }
 
 // IsZero returns true when the Kustomize options are considered empty

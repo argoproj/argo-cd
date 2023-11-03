@@ -6397,7 +6397,7 @@
         },
         "components": {
           "type": "array",
-          "title": "Components specifies a list of kustomize components to add to the kustmization before building",
+          "title": "Components specifies a list of kustomize components to add to the kustomization before building",
           "items": {
             "type": "string"
           }

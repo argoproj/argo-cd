@@ -322,7 +322,7 @@ spec:
                             type: object
                           components:
                             description: Components specifies a list of kustomize
-                              components to add to the kustmization before building
+                              components to add to the kustomization before building
                             items:
                               type: string
                             type: array
@@ -656,7 +656,7 @@ spec:
                               type: object
                             components:
                               description: Components specifies a list of kustomize
-                                components to add to the kustmization before building
+                                components to add to the kustomization before building
                               items:
                                 type: string
                               type: array
@@ -1107,7 +1107,7 @@ spec:
                         type: object
                       components:
                         description: Components specifies a list of kustomize components
-                          to add to the kustmization before building
+                          to add to the kustomization before building
                         items:
                           type: string
                         type: array
@@ -1431,7 +1431,7 @@ spec:
                           type: object
                         components:
                           description: Components specifies a list of kustomize components
-                            to add to the kustmization before building
+                            to add to the kustomization before building
                           items:
                             type: string
                           type: array
@@ -1908,7 +1908,7 @@ spec:
                               type: object
                             components:
                               description: Components specifies a list of kustomize
-                                components to add to the kustmization before building
+                                components to add to the kustomization before building
                               items:
                                 type: string
                               type: array
@@ -2246,7 +2246,7 @@ spec:
                                 type: object
                               components:
                                 description: Components specifies a list of kustomize
-                                  components to add to the kustmization before building
+                                  components to add to the kustomization before building
                                 items:
                                   type: string
                                 type: array
@@ -2728,7 +2728,7 @@ spec:
                                     type: object
                                   components:
                                     description: Components specifies a list of kustomize
-                                      components to add to the kustmization before
+                                      components to add to the kustomization before
                                       building
                                     items:
                                       type: string
@@ -3084,7 +3084,7 @@ spec:
                                       type: object
                                     components:
                                       description: Components specifies a list of
-                                        kustomize components to add to the kustmization
+                                        kustomize components to add to the kustomization
                                         before building
                                       items:
                                         type: string
@@ -3555,7 +3555,7 @@ spec:
                                 type: object
                               components:
                                 description: Components specifies a list of kustomize
-                                  components to add to the kustmization before building
+                                  components to add to the kustomization before building
                                 items:
                                   type: string
                                 type: array
@@ -3903,7 +3903,8 @@ spec:
                                   type: object
                                 components:
                                   description: Components specifies a list of kustomize
-                                    components to add to the kustmization before building
+                                    components to add to the kustomization before
+                                    building
                                   items:
                                     type: string
                                   type: array
@@ -4395,7 +4396,7 @@ spec:
                                 type: object
                               components:
                                 description: Components specifies a list of kustomize
-                                  components to add to the kustmization before building
+                                  components to add to the kustomization before building
                                 items:
                                   type: string
                                 type: array
@@ -4743,7 +4744,8 @@ spec:
                                   type: object
                                 components:
                                   description: Components specifies a list of kustomize
-                                    components to add to the kustmization before building
+                                    components to add to the kustomization before
+                                    building
                                   items:
                                     type: string
                                   type: array

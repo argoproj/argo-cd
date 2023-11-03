@@ -522,7 +522,7 @@ message ApplicationSourceKustomize {
   // Patches is a list of Kustomize patches
   repeated KustomizePatch patches = 12;
 
-  // Components specifies a list of kustomize components to add to the kustmization before building
+  // Components specifies a list of kustomize components to add to the kustomization before building
   repeated string components = 13;
 }
 

@@ -1959,7 +1959,7 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSourceKustomize(ref common.
 					},
 					"components": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Components specifies a list of kustomize components to add to the kustmization before building",
+							Description: "Components specifies a list of kustomize components to add to the kustomization before building",
 							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
