@@ -246,7 +246,7 @@ spec:
             host: service`)
 
 	testTraefikIngressRoute = strToUnstructured(`
-  apiVersion: traefik.containo.us/v1alpha1
+  apiVersion: traefik.traefik.io/v1alpha1
   kind: IngressRoute
   metadata:
     name: traefik-ingress
@@ -262,7 +262,7 @@ spec:
         port: 80`)
 
 	testTraefikIngressRouteWithNamespacedService = strToUnstructured(`
-  apiVersion: traefik.containo.us/v1alpha1
+  apiVersion: traefik.traefik.io/v1alpha1
   kind: IngressRoute
   metadata:
     name: traefik-ingress

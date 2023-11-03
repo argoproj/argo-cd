@@ -63,6 +63,8 @@ func populateNodeInfo(un *unstructured.Unstructured, res *ResourceInfo, customLa
 			populateIngressInfo(un, res)
 		}
 	case "traefik.containo.us":
+		fallthrough
+	case "traefik.io":
 		switch gvk.Kind {
 		case "IngressRoute":
 			populateTraefikIngressRouteInfo(un, res)
@@ -122,6 +124,8 @@ func getServiceName(backend map[string]interface{}, gvk schema.GroupVersionKind)
 			}
 		}
 	case "traefik.containo.us":
+		fallthrough
+	case "traefik.io":
 		switch gvk.Version {
 		case "v1alpha1":
 			return fmt.Sprintf("%s", backend["name"]), nil
