@@ -572,7 +572,8 @@ func (k *ApplicationSourceKustomize) IsZero() bool {
 			len(k.Replicas) == 0 &&
 			len(k.CommonLabels) == 0 &&
 			len(k.CommonAnnotations) == 0 &&
-			len(k.Patches) == 0
+			len(k.Patches) == 0 &&
+			len(k.Components) == 0
 }
 
 // MergeImage merges a new Kustomize image identifier in to a list of images
