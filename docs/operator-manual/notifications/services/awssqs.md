@@ -4,10 +4,10 @@
 
 This notification service is capable of sending simple messages to AWS SQS queue. 
 
-* `queue` - name of the queue you are intending to send messages to. Can be overwriten with target destination annotation.
+* `queue` - name of the queue you are intending to send messages to. Can be overwritten with target destination annotation.
 * `region` - region of the sqs queue can be provided via env variable AWS_DEFAULT_REGION
 * `key` - optional, aws access key must be either referenced from a secret via variable or via env variable AWS_ACCESS_KEY_ID
-* `secret` - optional, aws access secret must be either referenced from a secret via variableor via env variable AWS_SECRET_ACCESS_KEY
+* `secret` - optional, aws access secret must be either referenced from a secret via variable or via env variable AWS_SECRET_ACCESS_KEY
 * `account` optional, external accountId of the queue
 * `endpointUrl` optional, useful for development with localstack
 
@@ -63,7 +63,7 @@ stringData:
 
 ### Minimal configuration using AWS Env variables
 
-Ensure following list of enviromental variable is injected via OIDC, or other method. And assuming SQS is local to the account.
+Ensure following list of environmental variable is injected via OIDC, or other method. And assuming SQS is local to the account.
 You may skip usage of secret for sensitive data and omit other parameters. (Setting parameters via ConfigMap takes precedent.)
 
 Variables:

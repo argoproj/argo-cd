@@ -9,7 +9,7 @@ The Webhook notification service configuration includes following settings:
 
 - `url` - the url to send the webhook to
 - `headers` - optional, the headers to pass along with the webhook
-- `basicAuth` - optional, the basic authentication to pass along with the webook
+- `basicAuth` - optional, the basic authentication to pass along with the webhook
 - `insecureSkipVerify` - optional bool, true or false
 
 ## Configuration

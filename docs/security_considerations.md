@@ -115,7 +115,7 @@ Kubernetes users able to list pods in the argo namespace are able to retrieve th
 
 Additionally, In most installations, [the Pod name contains a random "trail" of characters](https://github.com/kubernetes/kubernetes/blob/dda530cfb74b157f1d17b97818aa128a9db8e711/staging/src/k8s.io/apiserver/pkg/storage/names/generate.go#L37).
 These characters are generated using [a time-seeded PRNG](https://github.com/kubernetes/apimachinery/blob/master/pkg/util/rand/rand.go#L26) and not a CSPRNG.
-An attacker could use this information in an attempt to deduce the state of the internal PRNG, aiding bruteforce attacks.
+An attacker could use this information in an attempt to deduce the state of the internal PRNG, aiding brute force attacks.
 
 **Mitigation and/or workaround:**
 
