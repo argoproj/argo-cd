@@ -308,7 +308,8 @@ func NewProjectWindowsListCommand(clientOpts *argocdclient.ClientOptions) *cobra
 	var command = &cobra.Command{
 		Use:   "list PROJECT",
 		Short: "List project sync windows",
-		Example: `#List project windows
+		Example: `
+#List project windows
 argocd proj windows list PROJECT
 
 #List project windows in yaml format

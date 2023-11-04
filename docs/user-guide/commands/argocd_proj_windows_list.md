@@ -11,6 +11,7 @@ argocd proj windows list PROJECT [flags]
 ### Examples
 
 ```
+
 #List project windows
 argocd proj windows list PROJECT
 
