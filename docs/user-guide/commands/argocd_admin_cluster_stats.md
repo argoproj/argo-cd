@@ -18,7 +18,7 @@ argocd admin cluster stats
 #Display Cluster Statistics for a Specific Shard
 argocd admin cluster stats --shard=1
 
-#In a multi-cluster environment to print stats for a specific say(target-cluster)
+#In a multi-cluster environment to print stats for a specific cluster say(target-cluster)
 argocd admin cluster stats target-cluster
 ```
 
