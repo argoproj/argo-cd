@@ -21,7 +21,7 @@ argocd proj windows add my-project \
 #Delete a sync window from a project 
 argocd proj windows delete <project-name> <window-id>
 
-#list project sync windows
+#List project sync windows
 argocd proj windows list <project-name>
 ```
 

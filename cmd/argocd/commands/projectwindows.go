@@ -32,7 +32,7 @@ argocd proj windows add my-project \
 #Delete a sync window from a project 
 argocd proj windows delete <project-name> <window-id>
 
-#list project sync windows
+#List project sync windows
 argocd proj windows list <project-name>`,
 		Run: func(c *cobra.Command, args []string) {
 			c.HelpFunc()(c, args)
@@ -104,7 +104,7 @@ argocd proj windows enable-manual-sync PROJECT ID
 #Enabling manual sync for a windows set on the default project with Id 2
 argocd proj windows enable-manual-sync default 2
 
-#Enabling manual synchronization with a custom message
+#Enabling manual sync with a custom message
 argocd proj windows enable-manual-sync my-app-project --message "Manual sync initiated by admin`,
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
