@@ -12,7 +12,6 @@ argocd admin cluster kubeconfig CLUSTER_URL OUTPUT_PATH [flags]
 
 ```
 
-
 #Generate a kubeconfig for a cluster named "my-cluster" on console
 argocd admin cluster kubeconfig my-cluster
 
