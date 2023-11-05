@@ -41,6 +41,7 @@ type WebhookHandler struct {
 }
 
 type gitGeneratorInfo struct {
+	CommitSHA   string
 	Revision    string
 	TouchedHead bool
 	RepoRegexp  *regexp.Regexp
@@ -135,7 +136,7 @@ func (h *WebhookHandler) HandleEvent(payload interface{}) {
 			}
 		}
 		if shouldRefresh {
-			err := refreshApplicationSet(h.client, &appSet)
+			err := refreshApplicationSet(h.client, &appSet, gitGenInfo.CommitSHA)
 			if err != nil {
 				log.Errorf("Failed to refresh ApplicationSet '%s' for controller reprocessing", appSet.Name)
 				continue
@@ -188,21 +189,25 @@ func parseRevision(ref string) string {
 
 func getGitGeneratorInfo(payload interface{}) *gitGeneratorInfo {
 	var (
+		commitSHA   string
 		webURL      string
 		revision    string
 		touchedHead bool
 	)
 	switch payload := payload.(type) {
 	case github.PushPayload:
+		commitSHA = payload.After
 		webURL = payload.Repository.HTMLURL
 		revision = parseRevision(payload.Ref)
 		touchedHead = payload.Repository.DefaultBranch == revision
 	case gitlab.PushEventPayload:
+		commitSHA = payload.After
 		webURL = payload.Project.WebURL
 		revision = parseRevision(payload.Ref)
 		touchedHead = payload.Project.DefaultBranch == revision
 	case azuredevops.GitPushEvent:
 		// See: https://learn.microsoft.com/en-us/azure/devops/service-hooks/events?view=azure-devops#git.push
+		commitSHA = payload.Resource.RefUpdates[0].NewObjectID
 		webURL = payload.Resource.Repository.RemoteURL
 		revision = parseRevision(payload.Resource.RefUpdates[0].Name)
 		touchedHead = payload.Resource.RefUpdates[0].Name == payload.Resource.Repository.DefaultBranch
@@ -228,6 +233,7 @@ func getGitGeneratorInfo(payload interface{}) *gitGeneratorInfo {
 		RepoRegexp:  repoRegexp,
 		TouchedHead: touchedHead,
 		Revision:    revision,
+		CommitSHA:   commitSHA,
 	}
 }
 
@@ -638,7 +644,7 @@ func (h *WebhookHandler) shouldRefreshMergeGenerator(gen *v1alpha1.MergeGenerato
 	return false
 }
 
-func refreshApplicationSet(c client.Client, appSet *v1alpha1.ApplicationSet) error {
+func refreshApplicationSet(c client.Client, appSet *v1alpha1.ApplicationSet, commitSHA string) error {
 	// patch the ApplicationSet with the refresh annotation to reconcile
 	return retry.RetryOnConflict(retry.DefaultBackoff, func() error {
 		err := c.Get(context.Background(), types.NamespacedName{Name: appSet.Name, Namespace: appSet.Namespace}, appSet)
@@ -649,6 +655,8 @@ func refreshApplicationSet(c client.Client, appSet *v1alpha1.ApplicationSet) err
 			appSet.Annotations = map[string]string{}
 		}
 		appSet.Annotations[common.AnnotationApplicationSetRefresh] = "true"
+		appSet.Annotations[common.AnnotationApplicationSetRefreshSHA] = commitSHA
+
 		return c.Patch(context.Background(), appSet, client.Merge)
 	})
 }
