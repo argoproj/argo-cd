@@ -18,13 +18,17 @@ spec:
       containers:
       - name: nginx
         image: nginx:alpine
+  updateStrategy:
+    rollingUpdate:
+      partition: 0
+      paused: false
         
 status:
   currentNumberScheduled: 1
   daemonSetHash: 5dffcdfcd7
   desiredNumberScheduled: 1
-  numberAvailable: 0
+  numberUnavailable: 1
   numberMisscheduled: 0
   numberReady: 0
   observedGeneration: 1
-  updatedNumberScheduled: 0
+  updatedNumberScheduled: 1

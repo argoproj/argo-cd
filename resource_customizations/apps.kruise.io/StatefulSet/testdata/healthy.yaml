@@ -19,6 +19,14 @@ spec:
       containers:
       - name: nginx
         image: nginx:alpine
+  updateStrategy:
+    rollingUpdate:
+      maxUnavailable: 1
+      minReadySeconds: 0
+      paused: false
+      partition: 0
+      podUpdatePolicy: ReCreate
+    type: RollingUpdate
         
 status:
   observedGeneration: 2
