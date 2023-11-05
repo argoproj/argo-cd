@@ -261,7 +261,7 @@ func cleanUpNamespace(fixtureClient *E2EFixtureK8sClient, namespace string) erro
 	msg := ""
 
 	if err == nil {
-		msg = fmt.Sprintf("namespace '%s' still exists, after delete", ArgoCDExternalNamespace)
+		msg = fmt.Sprintf("namespace '%s' still exists, after delete", namespace)
 	}
 
 	if msg == "" && err != nil && strings.Contains(err.Error(), "not found") {
