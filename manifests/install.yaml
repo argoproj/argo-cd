@@ -20568,6 +20568,7 @@ rules:
   - argoproj.io
   resources:
   - applications
+  - applicationsets
   verbs:
   - get
   - list
@@ -21375,7 +21376,7 @@ spec:
         - ""
         - --appendonly
         - "no"
-        image: redis:7.0.11-alpine
+        image: redis:7.0.14-alpine
         imagePullPolicy: Always
         name: redis
         ports:
@@ -21572,6 +21573,18 @@ spec:
           valueFrom:
             configMapKeyRef:
               key: reposerver.enable.git.submodule
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_GIT_LS_REMOTE_PARALLELISM_LIMIT
+          valueFrom:
+            configMapKeyRef:
+              key: reposerver.git.lsremote.parallelism.limit
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_GIT_REQUEST_TIMEOUT
+          valueFrom:
+            configMapKeyRef:
+              key: reposerver.git.request.timeout
               name: argocd-cmd-params-cm
               optional: true
         - name: HELM_CACHE_HOME
@@ -21919,6 +21932,18 @@ spec:
               key: server.enable.proxy.extension
               name: argocd-cmd-params-cm
               optional: true
+        - name: ARGOCD_K8SCLIENT_RETRY_MAX
+          valueFrom:
+            configMapKeyRef:
+              key: server.k8sclient.retry.max
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_K8SCLIENT_RETRY_BASE_BACKOFF
+          valueFrom:
+            configMapKeyRef:
+              key: server.k8sclient.retry.base.backoff
+              name: argocd-cmd-params-cm
+              optional: true
         image: quay.io/argoproj/argocd:latest
         imagePullPolicy: Always
         livenessProbe:
@@ -22045,6 +22070,12 @@ spec:
               key: timeout.hard.reconciliation
               name: argocd-cm
               optional: true
+        - name: ARGOCD_REPO_ERROR_GRACE_PERIOD_SECONDS
+          valueFrom:
+            configMapKeyRef:
+              key: controller.repo.error.grace.period.seconds
+              name: argocd-cmd-params-cm
+              optional: true
         - name: ARGOCD_APPLICATION_CONTROLLER_REPO_SERVER
           valueFrom:
             configMapKeyRef:
@@ -22163,6 +22194,18 @@ spec:
           valueFrom:
             configMapKeyRef:
               key: controller.kubectl.parallelism.limit
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_K8SCLIENT_RETRY_MAX
+          valueFrom:
+            configMapKeyRef:
+              key: controller.k8sclient.retry.max
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_K8SCLIENT_RETRY_BASE_BACKOFF
+          valueFrom:
+            configMapKeyRef:
+              key: controller.k8sclient.retry.base.backoff
               name: argocd-cmd-params-cm
               optional: true
         image: quay.io/argoproj/argocd:latest
