@@ -1654,6 +1654,12 @@ spec:
               key: applicationsetcontroller.allowed.scm.providers
               name: argocd-cmd-params-cm
               optional: true
+        - name: ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_SCM_PROVIDERS
+          valueFrom:
+            configMapKeyRef:
+              key: applicationsetcontroller.enable.scm.providers
+              name: argocd-cmd-params-cm
+              optional: true
         image: quay.io/argoproj/argocd:latest
         imagePullPolicy: Always
         name: argocd-applicationset-controller
@@ -1845,6 +1851,12 @@ spec:
           valueFrom:
             configMapKeyRef:
               key: notificationscontroller.log.level
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_APPLICATION_NAMESPACES
+          valueFrom:
+            configMapKeyRef:
+              key: application.namespaces
               name: argocd-cmd-params-cm
               optional: true
         image: quay.io/argoproj/argocd:latest
@@ -2170,6 +2182,18 @@ spec:
           valueFrom:
             configMapKeyRef:
               key: reposerver.enable.git.submodule
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_GIT_LS_REMOTE_PARALLELISM_LIMIT
+          valueFrom:
+            configMapKeyRef:
+              key: reposerver.git.lsremote.parallelism.limit
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_GIT_REQUEST_TIMEOUT
+          valueFrom:
+            configMapKeyRef:
+              key: reposerver.git.request.timeout
               name: argocd-cmd-params-cm
               optional: true
         - name: HELM_CACHE_HOME
@@ -2519,6 +2543,18 @@ spec:
               key: server.enable.proxy.extension
               name: argocd-cmd-params-cm
               optional: true
+        - name: ARGOCD_K8SCLIENT_RETRY_MAX
+          valueFrom:
+            configMapKeyRef:
+              key: server.k8sclient.retry.max
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_K8SCLIENT_RETRY_BASE_BACKOFF
+          valueFrom:
+            configMapKeyRef:
+              key: server.k8sclient.retry.base.backoff
+              name: argocd-cmd-params-cm
+              optional: true
         image: quay.io/argoproj/argocd:latest
         imagePullPolicy: Always
         livenessProbe:
@@ -2645,6 +2681,12 @@ spec:
               key: timeout.hard.reconciliation
               name: argocd-cm
               optional: true
+        - name: ARGOCD_REPO_ERROR_GRACE_PERIOD_SECONDS
+          valueFrom:
+            configMapKeyRef:
+              key: controller.repo.error.grace.period.seconds
+              name: argocd-cmd-params-cm
+              optional: true
         - name: ARGOCD_APPLICATION_CONTROLLER_REPO_SERVER
           valueFrom:
             configMapKeyRef:
@@ -2765,6 +2807,18 @@ spec:
               key: controller.kubectl.parallelism.limit
               name: argocd-cmd-params-cm
               optional: true
+        - name: ARGOCD_K8SCLIENT_RETRY_MAX
+          valueFrom:
+            configMapKeyRef:
+              key: controller.k8sclient.retry.max
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_K8SCLIENT_RETRY_BASE_BACKOFF
+          valueFrom:
+            configMapKeyRef:
+              key: controller.k8sclient.retry.base.backoff
+              name: argocd-cmd-params-cm
+              optional: true
         image: quay.io/argoproj/argocd:latest
         imagePullPolicy: Always
         name: argocd-application-controller
@@ -2842,7 +2896,7 @@ spec:
         - /data/conf/redis.conf
         command:
         - redis-server
-        image: redis:7.0.11-alpine
+        image: redis:7.0.14-alpine
         imagePullPolicy: IfNotPresent
         lifecycle:
           preStop:
@@ -2896,7 +2950,7 @@ spec:
         - /data/conf/sentinel.conf
         command:
         - redis-sentinel
-        image: redis:7.0.11-alpine
+        image: redis:7.0.14-alpine
         imagePullPolicy: IfNotPresent
         lifecycle: {}
         livenessProbe:
@@ -2949,7 +3003,7 @@ spec:
           value: 40000915ab58c3fa8fd888fb8b24711944e6cbb4
         - name: SENTINEL_ID_2
           value: 2bbec7894d954a8af3bb54d13eaec53cb024e2ca
-        image: redis:7.0.11-alpine
+        image: redis:7.0.14-alpine
         imagePullPolicy: IfNotPresent
         name: split-brain-fix
         resources: {}
@@ -2979,7 +3033,7 @@ spec:
           value: 40000915ab58c3fa8fd888fb8b24711944e6cbb4
         - name: SENTINEL_ID_2
           value: 2bbec7894d954a8af3bb54d13eaec53cb024e2ca
-        image: redis:7.0.11-alpine
+        image: redis:7.0.14-alpine
         imagePullPolicy: IfNotPresent
         name: config-init
         securityContext:

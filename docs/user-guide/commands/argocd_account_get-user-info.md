@@ -1,9 +1,21 @@
+# `argocd account get-user-info` Command Reference
+
 ## argocd account get-user-info
 
 Get user info
 
 ```
 argocd account get-user-info [flags]
+```
+
+### Examples
+
+```
+  # Get User information for the currently logged-in user (see 'argocd login')
+  argocd account get-user-info
+  
+  # Get User information in yaml format
+  argocd account get-user-info -o yaml
 ```
 
 ### Options

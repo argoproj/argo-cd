@@ -31,7 +31,6 @@ import (
 	"github.com/argoproj/pkg/sync"
 	"github.com/golang-jwt/jwt/v4"
 	"github.com/gorilla/handlers"
-	gmux "github.com/gorilla/mux"
 	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
 	grpc_auth "github.com/grpc-ecosystem/go-grpc-middleware/auth"
 	grpc_logrus "github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
@@ -179,7 +178,7 @@ type ArgoCDServer struct {
 	appInformer    cache.SharedIndexInformer
 	appLister      applisters.ApplicationLister
 	appsetInformer cache.SharedIndexInformer
-	appsetLister   applisters.ApplicationSetNamespaceLister
+	appsetLister   applisters.ApplicationSetLister
 	db             db.ArgoDB
 
 	// stopCh is the channel which when closed, will shutdown the Argo CD server
@@ -193,6 +192,7 @@ type ArgoCDServer struct {
 	secretInformer    cache.SharedIndexInformer
 	configMapInformer cache.SharedIndexInformer
 	serviceSet        *ArgoCDServiceSet
+	extensionManager  *extension.Manager
 }
 
 type ArgoCDServerOpts struct {
@@ -264,7 +264,7 @@ func NewServer(ctx context.Context, opts ArgoCDServerOpts) *ArgoCDServer {
 	appLister := appFactory.Argoproj().V1alpha1().Applications().Lister()
 
 	appsetInformer := appFactory.Argoproj().V1alpha1().ApplicationSets().Informer()
-	appsetLister := appFactory.Argoproj().V1alpha1().ApplicationSets().Lister().ApplicationSets(opts.Namespace)
+	appsetLister := appFactory.Argoproj().V1alpha1().ApplicationSets().Lister()
 
 	userStateStorage := util_session.NewUserStateStorage(opts.RedisClient)
 	sessionMgr := util_session.NewSessionManager(settingsMgr, projLister, opts.DexServerAddr, opts.DexTLSConfig, userStateStorage)
@@ -291,10 +291,16 @@ func NewServer(ctx context.Context, opts ArgoCDServerOpts) *ArgoCDServer {
 	apiFactory := api.NewFactory(settings_notif.GetFactorySettings(argocdService, "argocd-notifications-secret", "argocd-notifications-cm"), opts.Namespace, secretInformer, configMapInformer)
 
 	dbInstance := db.NewDB(opts.Namespace, settingsMgr, opts.KubeClientset)
+	logger := log.NewEntry(log.StandardLogger())
+
+	sg := extension.NewDefaultSettingsGetter(settingsMgr)
+	ag := extension.NewDefaultApplicationGetter(appLister)
+	pg := extension.NewDefaultProjectGetter(projLister, dbInstance)
+	em := extension.NewManager(logger, sg, ag, pg, enf)
 
 	a := &ArgoCDServer{
 		ArgoCDServerOpts:  opts,
-		log:               log.NewEntry(log.StandardLogger()),
+		log:               logger,
 		settings:          settings,
 		sessionMgr:        sessionMgr,
 		settingsMgr:       settingsMgr,
@@ -312,6 +318,7 @@ func NewServer(ctx context.Context, opts ArgoCDServerOpts) *ArgoCDServer {
 		apiFactory:        apiFactory,
 		secretInformer:    secretInformer,
 		configMapInformer: configMapInformer,
+		extensionManager:  em,
 	}
 
 	err = a.logInClusterWarnings()
@@ -464,6 +471,7 @@ func (a *ArgoCDServer) Listen() (*Listeners, error) {
 func (a *ArgoCDServer) Init(ctx context.Context) {
 	go a.projInformer.Run(ctx.Done())
 	go a.appInformer.Run(ctx.Done())
+	go a.appsetInformer.Run(ctx.Done())
 	go a.configMapInformer.Run(ctx.Done())
 	go a.secretInformer.Run(ctx.Done())
 }
@@ -616,6 +624,7 @@ func (a *ArgoCDServer) watchSettings() {
 	prevBitbucketUUID := a.settings.WebhookBitbucketUUID
 	prevBitbucketServerSecret := a.settings.WebhookBitbucketServerSecret
 	prevGogsSecret := a.settings.WebhookGogsSecret
+	prevExtConfig := a.settings.ExtensionConfig
 	var prevCert, prevCertKey string
 	if a.settings.Certificate != nil && !a.ArgoCDServerOpts.Insecure {
 		prevCert, prevCertKey = tlsutil.EncodeX509KeyPairString(*a.settings.Certificate)
@@ -657,6 +666,16 @@ func (a *ArgoCDServer) watchSettings() {
 		if prevGogsSecret != a.settings.WebhookGogsSecret {
 			log.Infof("gogs secret modified. restarting")
 			break
+		}
+		if prevExtConfig != a.settings.ExtensionConfig {
+			prevExtConfig = a.settings.ExtensionConfig
+			log.Infof("extensions configs modified. Updating proxy registry...")
+			err := a.extensionManager.UpdateExtensionRegistry(a.settings)
+			if err != nil {
+				log.Errorf("error updating extensions configs: %s", err)
+			} else {
+				log.Info("extensions configs updated successfully")
+			}
 		}
 		if !a.ArgoCDServerOpts.Insecure {
 			var newCert, newCertKey string
@@ -713,7 +732,7 @@ func (a *ArgoCDServer) newGRPCServer() (*grpc.Server, application.AppResourceTre
 		grpc.ConnectionTimeout(300 * time.Second),
 		grpc.KeepaliveEnforcementPolicy(
 			keepalive.EnforcementPolicy{
-				MinTime: common.GRPCKeepAliveEnforcementMinimum,
+				MinTime: common.GetGRPCKeepAliveEnforcementMinimum(),
 			},
 		),
 	}
@@ -834,9 +853,7 @@ func newArgoCDServiceSet(a *ArgoCDServer) *ArgoCDServiceSet {
 		a.db,
 		a.KubeClientset,
 		a.enf,
-		a.Cache,
 		a.AppClientset,
-		a.appLister,
 		a.appsetInformer,
 		a.appsetLister,
 		a.projLister,
@@ -1042,21 +1059,16 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandl
 // in the given mux. If any error is returned while registering
 // extensions handlers, no route will be added in the given mux.
 func registerExtensions(mux *http.ServeMux, a *ArgoCDServer) {
-	sg := extension.NewDefaultSettingsGetter(a.settingsMgr)
-	ag := extension.NewDefaultApplicationGetter(a.appLister)
-	pg := extension.NewDefaultProjectGetter(a.projLister, a.db)
-	em := extension.NewManager(a.log, sg, ag, pg, a.enf)
-	r := gmux.NewRouter()
-	// register an Auth middleware to ensure all requests to
-	// extensions are authenticated first.
-	r.Use(a.sessionMgr.AuthMiddlewareFunc(a.DisableAuth))
+	a.log.Info("Registering extensions...")
+	extHandler := http.HandlerFunc(a.extensionManager.CallExtension())
+	authMiddleware := a.sessionMgr.AuthMiddlewareFunc(a.DisableAuth)
+	// auth middleware ensures that requests to all extensions are authenticated first
+	mux.Handle(fmt.Sprintf("%s/", extension.URLPrefix), authMiddleware(extHandler))
 
-	err := em.RegisterHandlers(r)
+	err := a.extensionManager.RegisterExtensions()
 	if err != nil {
-		a.log.Errorf("error registering extension handlers: %s", err)
-		return
+		a.log.Errorf("Error registering extensions: %s", err)
 	}
-	mux.Handle(fmt.Sprintf("%s/", extension.URLPrefix), r)
 }
 
 var extensionsPattern = regexp.MustCompile(`^extension(.*)\.js$`)

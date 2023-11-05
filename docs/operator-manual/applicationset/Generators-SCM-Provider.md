@@ -111,11 +111,17 @@ spec:
 * `tokenRef`: A `Secret` name and key containing the GitLab access token to use for requests. If not specified, will make anonymous requests which have a lower rate limit and can only see public repositories.
 * `insecure`: By default (false) - Skip checking the validity of the SCM's certificate - useful for self-signed TLS certificates.
 
-As a preferable alternative to setting `insecure` to true, you can configure self-signed TLS certificates for Gitlab by [mounting self-signed certificate to the applicationset controller](./Add-self-signed-TLS-Certs.md).
-
 For label filtering, the repository tags are used.
 
 Available clone protocols are `ssh` and `https`.
+
+### Self-signed TLS Certificates
+
+As a preferable alternative to setting `insecure` to true, you can configure self-signed TLS certificates for Gitlab.
+
+In order for a self-signed TLS certificate be used by an ApplicationSet's SCM / PR Gitlab Generator, the certificate needs to be mounted on the applicationset-controller. The path of the mounted certificate must be explicitly set using the environment variable `ARGOCD_APPLICATIONSET_CONTROLLER_SCM_ROOT_CA_PATH` or alternatively using parameter `--scm-root-ca-path`. The applicationset controller will read the mounted certificate to create the Gitlab client for SCM/PR Providers
+
+This can be achieved conveniently by setting `applicationsetcontroller.scm.root.ca.path` in the argocd-cmd-params-cm ConfigMap. Be sure to restart the ApplicationSet controller after setting this value.
 
 ## Gitea
 
@@ -389,16 +395,18 @@ kind: ApplicationSet
 metadata:
   name: myapps
 spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
   generators:
   - scmProvider:
     # ...
   template:
     metadata:
-      name: '{{ repository }}'
+      name: '{{ .repository }}'
     spec:
       source:
-        repoURL: '{{ url }}'
-        targetRevision: '{{ branch }}'
+        repoURL: '{{ .url }}'
+        targetRevision: '{{ .branch }}'
         path: kubernetes/
       project: default
       destination:
@@ -427,6 +435,8 @@ kind: ApplicationSet
 metadata:
   name: myapps
 spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
   generators:
   - scmProvider:
       bitbucketServer:
@@ -439,15 +449,15 @@ spec:
             secretName: mypassword
             key: password
       values:
-        name: "{{organization}}-{{repository}}"
+        name: "{{.organization}}-{{.repository}}"
 
   template:
     metadata:
-      name: '{{ values.name }}'
+      name: '{{ .values.name }}'
     spec:
       source:
-        repoURL: '{{ url }}'
-        targetRevision: '{{ branch }}'
+        repoURL: '{{ .url }}'
+        targetRevision: '{{ .branch }}'
         path: kubernetes/
       project: default
       destination:
