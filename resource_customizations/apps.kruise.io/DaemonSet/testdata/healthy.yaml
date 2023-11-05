@@ -18,6 +18,10 @@ spec:
       containers:
       - name: nginx
         image: nginx:alpine
+  updateStrategy:
+    rollingUpdate:
+      partition: 0
+      paused: false
         
 status:
   currentNumberScheduled: 1

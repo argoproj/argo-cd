@@ -3,7 +3,7 @@ kind: CloneSet
 metadata:
   name: cloneset-test
   namespace: kruise
-  generation: 2
+  generation: 1
   labels:
     app: sample
 spec:
@@ -19,10 +19,12 @@ spec:
       containers:
       - name: nginx
         image: nginx:alpine
+  updateStrategy: 
+    paused: false
 
         
 status:
-  observedGeneration: 2
+  observedGeneration: 1
   replicas: 2
   updatedReadyReplicas: 2
   updatedAvailableReplicas: 2
