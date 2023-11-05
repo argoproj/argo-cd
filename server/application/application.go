@@ -116,7 +116,10 @@ func NewServer(
 	if appBroadcaster == nil {
 		appBroadcaster = &broadcasterHandler{}
 	}
-	appInformer.AddEventHandler(appBroadcaster)
+	_, err := appInformer.AddEventHandler(appBroadcaster)
+	if err != nil {
+		log.Error(err)
+	}
 	s := &Server{
 		ns:                namespace,
 		appclientset:      appclientset,
@@ -1216,9 +1219,9 @@ func (s *Server) getCachedAppState(ctx context.Context, a *appv1.Application, ge
 			return errors.New(argoutil.FormatAppConditions(conditions))
 		}
 		_, err = s.Get(ctx, &application.ApplicationQuery{
-			Name:         pointer.StringPtr(a.GetName()),
-			AppNamespace: pointer.StringPtr(a.GetNamespace()),
-			Refresh:      pointer.StringPtr(string(appv1.RefreshTypeNormal)),
+			Name:         pointer.String(a.GetName()),
+			AppNamespace: pointer.String(a.GetNamespace()),
+			Refresh:      pointer.String(string(appv1.RefreshTypeNormal)),
 		})
 		if err != nil {
 			return fmt.Errorf("error getting application by query: %w", err)

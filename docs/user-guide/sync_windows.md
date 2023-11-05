@@ -64,6 +64,7 @@ spec:
     manualSync: true
   - kind: deny
     schedule: '0 22 * * *'
+    timeZone: "Europe/Amsterdam"
     duration: 1h
     namespaces:
     - default

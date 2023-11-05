@@ -3,11 +3,14 @@ package controller
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
-	v1 "k8s.io/api/core/v1"
 	"reflect"
 	"strings"
+	goSync "sync"
 	"time"
+
+	v1 "k8s.io/api/core/v1"
 
 	"github.com/argoproj/gitops-engine/pkg/diff"
 	"github.com/argoproj/gitops-engine/pkg/health"
@@ -40,6 +43,10 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/stats"
 )
 
+var (
+	CompareStateRepoError = errors.New("failed to get repo objects")
+)
+
 type resourceInfoProviderStub struct {
 }
 
@@ -62,7 +69,7 @@ type managedResource struct {
 
 // AppStateManager defines methods which allow to compare application spec and actual application state.
 type AppStateManager interface {
-	CompareAppState(app *v1alpha1.Application, project *v1alpha1.AppProject, revisions []string, sources []v1alpha1.ApplicationSource, noCache bool, noRevisionCache bool, localObjects []string, hasMultipleSources bool) *comparisonResult
+	CompareAppState(app *v1alpha1.Application, project *v1alpha1.AppProject, revisions []string, sources []v1alpha1.ApplicationSource, noCache bool, noRevisionCache bool, localObjects []string, hasMultipleSources bool) (*comparisonResult, error)
 	SyncAppState(app *v1alpha1.Application, state *v1alpha1.OperationState)
 }
 
@@ -105,10 +112,11 @@ type appStateManager struct {
 	statusRefreshTimeout  time.Duration
 	resourceTracking      argo.ResourceTracking
 	persistResourceHealth bool
+	repoErrorCache        goSync.Map
+	repoErrorGracePeriod  time.Duration
 }
 
 func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, sources []v1alpha1.ApplicationSource, appLabelKey string, revisions []string, noCache, noRevisionCache, verifySignature bool, proj *v1alpha1.AppProject) ([]*unstructured.Unstructured, []*apiclient.ManifestResponse, error) {
-
 	ts := stats.NewTimingStats()
 	helmRepos, err := m.db.ListHelmRepositories(context.Background())
 	if err != nil {
@@ -345,7 +353,7 @@ func isManagedNamespace(ns *unstructured.Unstructured, app *v1alpha1.Application
 // CompareAppState compares application git state to the live app state, using the specified
 // revision and supplied source. If revision or overrides are empty, then compares against
 // revision and overrides in the app spec.
-func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1alpha1.AppProject, revisions []string, sources []v1alpha1.ApplicationSource, noCache bool, noRevisionCache bool, localManifests []string, hasMultipleSources bool) *comparisonResult {
+func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1alpha1.AppProject, revisions []string, sources []v1alpha1.ApplicationSource, noCache bool, noRevisionCache bool, localManifests []string, hasMultipleSources bool) (*comparisonResult, error) {
 	ts := stats.NewTimingStats()
 	appLabelKey, resourceOverrides, resFilter, err := m.getComparisonSettings()
 
@@ -361,7 +369,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 					Revisions:  revisions,
 				},
 				healthStatus: &v1alpha1.HealthStatus{Status: health.HealthStatusUnknown},
-			}
+			}, nil
 		} else {
 			return &comparisonResult{
 				syncStatus: &v1alpha1.SyncStatus{
@@ -370,7 +378,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 					Revision:   revisions[0],
 				},
 				healthStatus: &v1alpha1.HealthStatus{Status: health.HealthStatusUnknown},
-			}
+			}, nil
 		}
 	}
 
@@ -391,6 +399,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 	now := metav1.Now()
 
 	var manifestInfos []*apiclient.ManifestResponse
+	targetNsExists := false
 
 	if len(localManifests) == 0 {
 		// If the length of revisions is not same as the length of sources,
@@ -407,7 +416,21 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 			targetObjs = make([]*unstructured.Unstructured, 0)
 			msg := fmt.Sprintf("Failed to load target state: %s", err.Error())
 			conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: msg, LastTransitionTime: &now})
+			if firstSeen, ok := m.repoErrorCache.Load(app.Name); ok {
+				if time.Since(firstSeen.(time.Time)) <= m.repoErrorGracePeriod && !noRevisionCache {
+					// if first seen is less than grace period and it's not a Level 3 comparison,
+					// ignore error and short circuit
+					logCtx.Debugf("Ignoring repo error %v, already encountered error in grace period", err.Error())
+					return nil, CompareStateRepoError
+				}
+			} else if !noRevisionCache {
+				logCtx.Debugf("Ignoring repo error %v, new occurrence", err.Error())
+				m.repoErrorCache.Store(app.Name, time.Now())
+				return nil, CompareStateRepoError
+			}
 			failedToLoadObjs = true
+		} else {
+			m.repoErrorCache.Delete(app.Name)
 		}
 	} else {
 		// Prevent applying local manifests for now when signature verification is enabled
@@ -452,6 +475,13 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 				Message:            fmt.Sprintf("Resource %s/%s %s is excluded in the settings", gvk.Group, gvk.Kind, targetObj.GetName()),
 				LastTransitionTime: &now,
 			})
+		}
+
+		// If we reach this path, this means that a namespace has been both defined in Git, as well in the
+		// application's managedNamespaceMetadata. We want to ensure that this manifest is the one being used instead
+		// of what is present in managedNamespaceMetadata.
+		if isManagedNamespace(targetObj, app) {
+			targetNsExists = true
 		}
 	}
 	ts.AddCheckpoint("dedup_ms")
@@ -511,7 +541,10 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 			// entry in source control. In order for the namespace not to risk being pruned, we'll need to generate a
 			// namespace which we can compare the live namespace with. For that, we'll do the same as is done in
 			// gitops-engine, the difference here being that we create a managed namespace which is only used for comparison.
-			if isManagedNamespace(liveObj, app) {
+			//
+			// targetNsExists == true implies that it already exists as a target, so no need to add the namespace to the
+			// targetObjs array.
+			if isManagedNamespace(liveObj, app) && !targetNsExists {
 				nsSpec := &v1.Namespace{TypeMeta: metav1.TypeMeta{APIVersion: "v1", Kind: kubeutil.NamespaceKind}, ObjectMeta: metav1.ObjectMeta{Name: liveObj.GetName()}}
 				managedNs, err := kubeutil.ToUnstructured(nsSpec)
 
@@ -765,7 +798,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 	})
 	ts.AddCheckpoint("health_ms")
 	compRes.timings = ts.Timings()
-	return &compRes
+	return &compRes, nil
 }
 
 func (m *appStateManager) persistRevisionHistory(app *v1alpha1.Application, revision string, source v1alpha1.ApplicationSource, revisions []string, sources []v1alpha1.ApplicationSource, hasMultipleSources bool, startedAt metav1.Time) error {
@@ -821,6 +854,7 @@ func NewAppStateManager(
 	statusRefreshTimeout time.Duration,
 	resourceTracking argo.ResourceTracking,
 	persistResourceHealth bool,
+	repoErrorGracePeriod time.Duration,
 ) AppStateManager {
 	return &appStateManager{
 		liveStateCache:        liveStateCache,
@@ -836,6 +870,7 @@ func NewAppStateManager(
 		statusRefreshTimeout:  statusRefreshTimeout,
 		resourceTracking:      resourceTracking,
 		persistResourceHealth: persistResourceHealth,
+		repoErrorGracePeriod:  repoErrorGracePeriod,
 	}
 }
 
