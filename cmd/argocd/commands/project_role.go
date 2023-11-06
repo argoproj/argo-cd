@@ -395,6 +395,15 @@ func NewProjectRoleListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	var command = &cobra.Command{
 		Use:   "list PROJECT",
 		Short: "List all the roles in a project",
+		Example: templates.Examples(`  
+  # This command will list all the roles in argocd-project in a default table format.
+  argocd list argocd-project
+
+  # List the roles in the project in formats like json, yaml, wide, or name.
+  argocd list argocd-project --output json
+
+  		`),
+
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
 
