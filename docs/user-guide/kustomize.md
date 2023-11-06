@@ -13,6 +13,7 @@ The following configuration options are available for Kustomize:
 * `forceCommonAnnotations` is a boolean value which defines if it's allowed to override existing annotations
 * `commonAnnotationsEnvsubst` is a boolean value which enables env variables substition in annotation  values
 * `patches` is a list of Kustomize patches that supports inline updates
+* `components` is a list of Kustomize components
 
 To use Kustomize with an overlay, point your path to the overlay.
 
