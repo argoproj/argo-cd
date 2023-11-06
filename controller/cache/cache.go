@@ -300,8 +300,8 @@ func isRootAppNode(r *clustercache.Resource) bool {
 	return resInfo(r).AppName != "" && len(r.OwnerRefs) == 0
 }
 
-func getApp(r *clustercache.Resource, ns map[kube.ResourceKey]*clustercache.Resource) string {
-	return getAppRecursive(r, ns, map[kube.ResourceKey]bool{})
+func getApp(r *clustercache.Resource, ns map[kube.ResourceKey]*clustercache.Resource, isNamespaced isNamespacedFunc) string {
+	return getAppRecursive(r, ns, map[kube.ResourceKey]bool{}, isNamespaced)
 }
 
 func ownerRefGV(ownerRef metav1.OwnerReference) schema.GroupVersion {
@@ -312,7 +312,7 @@ func ownerRefGV(ownerRef metav1.OwnerReference) schema.GroupVersion {
 	return gv
 }
 
-func getAppRecursive(r *clustercache.Resource, ns map[kube.ResourceKey]*clustercache.Resource, visited map[kube.ResourceKey]bool) string {
+func getAppRecursive(r *clustercache.Resource, ns map[kube.ResourceKey]*clustercache.Resource, visited map[kube.ResourceKey]bool, isNamespaced isNamespacedFunc) string {
 	if !visited[r.ResourceKey()] {
 		visited[r.ResourceKey()] = true
 	} else {
@@ -325,8 +325,13 @@ func getAppRecursive(r *clustercache.Resource, ns map[kube.ResourceKey]*clusterc
 	}
 	for _, ownerRef := range r.OwnerRefs {
 		gv := ownerRefGV(ownerRef)
-		if parent, ok := ns[kube.NewResourceKey(gv.Group, ownerRef.Kind, r.Ref.Namespace, ownerRef.Name)]; ok {
-			app := getAppRecursive(parent, ns, visited)
+		ownerGvk := schema.FromAPIVersionAndKind(ownerRef.APIVersion, ownerRef.Kind)
+		var namespace string
+		if isNamespaced(ownerGvk.GroupKind()) {
+			namespace = r.Ref.Namespace
+		}
+		if parent, ok := ns[kube.NewResourceKey(gv.Group, ownerRef.Kind, namespace, ownerRef.Name)]; ok {
+			app := getAppRecursive(parent, ns, visited, isNamespaced)
 			if app != "" {
 				return app
 			}
@@ -565,7 +570,8 @@ func (c *liveStateCache) getCluster(server string) (clustercache.ClusterCache, e
 			if r == nil {
 				continue
 			}
-			app := getApp(r, namespaceResources)
+
+			app := getApp(r, namespaceResources, isNamespacedWrapper(clusterCache))
 			if app == "" || skipAppRequeuing(r.ResourceKey()) {
 				continue
 			}
@@ -582,6 +588,14 @@ func (c *liveStateCache) getCluster(server string) (clustercache.ClusterCache, e
 	c.clusters[server] = clusterCache
 
 	return clusterCache, nil
+}
+
+type isNamespacedFunc func(schema.GroupKind) bool
+
+func isNamespacedWrapper(c clustercache.ClusterCache) isNamespacedFunc {
+	return func(gk schema.GroupKind) bool {
+		return kube.IsNamespacedOrUnknown(c, gk)
+	}
 }
 
 func (c *liveStateCache) getSyncedCluster(server string) (clustercache.ClusterCache, error) {
@@ -624,7 +638,7 @@ func (c *liveStateCache) IterateHierarchy(server string, key kube.ResourceKey, a
 	}
 
 	clusterInfo.IterateHierarchy(key, func(resource *clustercache.Resource, namespaceResources map[kube.ResourceKey]*clustercache.Resource) bool {
-		return action(asResourceNode(resource, clusterInfo), getApp(resource, namespaceResources))
+		return action(asResourceNode(resource, clusterInfo), getApp(resource, namespaceResources, isNamespacedWrapper(clusterInfo)))
 	})
 	return nil
 }
