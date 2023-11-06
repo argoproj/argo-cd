@@ -444,7 +444,7 @@ func TestSkipResourceUpdate(t *testing.T) {
 			},
 		}))
 
-	}
+	})
 }
 
 func TestAsResourceNode(t *testing.T) {
