@@ -12170,8 +12170,6 @@ spec:
                       type: object
                     merge:
                       properties:
-                        allowDuplicates:
-                          type: boolean
                         generators:
                           items:
                             properties:

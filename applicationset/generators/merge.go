@@ -3,6 +3,7 @@ package generators
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/imdario/mergo"
@@ -19,6 +20,7 @@ var (
 	ErrLessThanTwoGeneratorsInMerge = fmt.Errorf("found less than two generators, Merge requires two or more")
 	ErrNoMergeKeys                  = fmt.Errorf("no merge keys were specified, Merge requires at least one")
 	ErrNonUniqueParamSets           = fmt.Errorf("the parameters from a generator were not unique by the given mergeKeys, Merge requires all param sets to be unique")
+	ErrNoCommonMergeKeys            = fmt.Errorf("no merge key was common amongst param sets produced by all generators")
 )
 
 type MergeGenerator struct {
@@ -65,10 +67,10 @@ func (m *MergeGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.Appl
 	}
 
 	baseParamSetsByMergeKey := make(map[string][]map[string]interface{})
-	if appSetGenerator.Merge.AllowDuplicates {
-		baseParamSetsByMergeKey, err = getParamSetsByMergeKey(appSetGenerator.Merge.MergeKeys, paramSetsFromGenerators[0], true)
-	} else {
+	if strings.HasSuffix(argoprojiov1alpha1.FullJoinUniq, argoprojiov1alpha1.UniqJoinSuffix) {
 		baseParamSetsByMergeKey, err = getParamSetsByMergeKey(appSetGenerator.Merge.MergeKeys, paramSetsFromGenerators[0], false)
+	} else {
+		baseParamSetsByMergeKey, err = getParamSetsByMergeKey(appSetGenerator.Merge.MergeKeys, paramSetsFromGenerators[0], true)
 	}
 
 	if err != nil {
@@ -81,37 +83,93 @@ func (m *MergeGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.Appl
 			return nil, fmt.Errorf("error getting param sets by merge key: %w", err)
 		}
 
-		for mergeKeyValue, baseParamSetList := range baseParamSetsByMergeKey {
-			for i, baseParamSet := range baseParamSetList {
-				if overrideParamSet, exists := paramSetsByMergeKey[mergeKeyValue]; exists {
-
-					if appSet.Spec.GoTemplate {
-						if err := mergo.Merge(&baseParamSet, overrideParamSet, mergo.WithOverride); err != nil {
-							return nil, fmt.Errorf("error merging base param set with override param set: %w", err)
-						}
-						baseParamSetsByMergeKey[mergeKeyValue][i] = baseParamSet
-					} else {
-						overriddenParamSet, err := utils.CombineStringMapsAllowDuplicates(baseParamSet, overrideParamSet[0])
-						if err != nil {
-							return nil, fmt.Errorf("error combining string maps: %w", err)
-						}
-						baseParamSetsByMergeKey[mergeKeyValue][i] = utils.ConvertToMapStringInterface(overriddenParamSet)
-					}
-				}
-			}
-		}
+		baseParamSetsByMergeKey, err = combineParamSetsByJoinType(appSetGenerator,
+			baseParamSetsByMergeKey,
+			paramSetsByMergeKey,
+			appSet)
 	}
 
-	mergedParamSets := make([]map[string]interface{}, len(paramSetsFromGenerators[0]))
-	var i = 0
+	var mergedParamSets []map[string]interface{}
 	for _, mergedParamSetList := range baseParamSetsByMergeKey {
 		for _, mergedParamSet := range mergedParamSetList {
-			mergedParamSets[i] = mergedParamSet
-			i += 1
+			mergedParamSets = append(mergedParamSets, mergedParamSet)
 		}
 	}
 
 	return mergedParamSets, nil
+}
+
+func combineParamSetsByJoinType(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator,
+	baseParamSetsByMergeKey map[string][]map[string]interface{},
+	paramSetsByMergeKey map[string][]map[string]interface{},
+	appSet *argoprojiov1alpha1.ApplicationSet) (map[string][]map[string]interface{}, error) {
+
+	var err error
+
+	//switch appSetGenerator.Merge.Mode {
+	switch argoprojiov1alpha1.FullJoinUniq {
+	case argoprojiov1alpha1.LeftJoin, argoprojiov1alpha1.LeftJoinUniq:
+		for mergeKeyValue, baseParamSetList := range baseParamSetsByMergeKey {
+			if overrideParamSet, exists := paramSetsByMergeKey[mergeKeyValue]; exists {
+				for i, baseParamSet := range baseParamSetList {
+					baseParamSetsByMergeKey, err = overrideParamSets(i, baseParamSet, overrideParamSet[0], mergeKeyValue, baseParamSetsByMergeKey, appSet)
+					if err != nil {
+						return nil, err
+					}
+				}
+			}
+		}
+
+	case argoprojiov1alpha1.InnerJoin, argoprojiov1alpha1.InnerJoinUniq:
+		for mergeKeyValue, baseParamSetList := range baseParamSetsByMergeKey {
+			if overrideParamSet, exists := paramSetsByMergeKey[mergeKeyValue]; exists {
+				for i, baseParamSet := range baseParamSetList {
+					baseParamSetsByMergeKey, err = overrideParamSets(i, baseParamSet, overrideParamSet[0], mergeKeyValue, baseParamSetsByMergeKey, appSet)
+					if err != nil {
+						return nil, err
+					}
+				}
+			} else {
+				delete(baseParamSetsByMergeKey, mergeKeyValue)
+			}
+		}
+		if len(baseParamSetsByMergeKey) == 0 {
+			return nil, ErrNoCommonMergeKeys
+		}
+
+	case argoprojiov1alpha1.FullJoin, argoprojiov1alpha1.FullJoinUniq:
+		for mergeKeyValue, paramSet := range paramSetsByMergeKey {
+			if baseParamSetList, exists := baseParamSetsByMergeKey[mergeKeyValue]; exists {
+				for i, baseParamSet := range baseParamSetList {
+					baseParamSetsByMergeKey, err = overrideParamSets(i, baseParamSet, paramSet[0], mergeKeyValue, baseParamSetsByMergeKey, appSet)
+					if err != nil {
+						return nil, err
+					}
+				}
+			} else {
+				baseParamSetsByMergeKey[mergeKeyValue] = paramSet
+			}
+		}
+	}
+	return baseParamSetsByMergeKey, nil
+}
+
+func overrideParamSets(i int, baseParamSet map[string]interface{}, overrideParamSet map[string]interface{},
+	mergeKeyValue string, baseParamSetsByMergeKey map[string][]map[string]interface{},
+	appSet *argoprojiov1alpha1.ApplicationSet) (map[string][]map[string]interface{}, error) {
+	if appSet.Spec.GoTemplate {
+		if err := mergo.Merge(&baseParamSet, overrideParamSet, mergo.WithOverride); err != nil {
+			return nil, fmt.Errorf("error merging base param set with override param set: %w", err)
+		}
+		baseParamSetsByMergeKey[mergeKeyValue][i] = baseParamSet
+	} else {
+		overriddenParamSet, err := utils.CombineStringMapsAllowDuplicates(baseParamSet, overrideParamSet)
+		if err != nil {
+			return nil, fmt.Errorf("error combining string maps: %w", err)
+		}
+		baseParamSetsByMergeKey[mergeKeyValue][i] = utils.ConvertToMapStringInterface(overriddenParamSet)
+	}
+	return baseParamSetsByMergeKey, nil
 }
 
 // getParamSetsByMergeKey converts the given list of parameter sets to a map of parameter sets where the key is the

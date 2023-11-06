@@ -6,9 +6,38 @@ metadata:
 spec:
   # See docs for available generators and their specs.
   generators:
-  - list:
-      elements:
-      - cluster: https://kubernetes.default.svc
+    - merge:
+        # The following line is commented, representing the default behaviour
+        allowDuplicates: true
+        mergeKeys:
+          - env
+        generators:
+          - list:
+              elements:
+                - env: staging
+                  server: https123555
+                - env: staging
+                  server: https1357
+                - env: production
+                  server: https2468
+                - env: production
+                  server: https3691
+                - env: performance
+                  server: https9876
+                - env: e2e
+                  server: https0989
+                  redis: 'true'
+          - list:
+              elements:
+                - env: staging
+                  redis: 'false'
+                - env: production
+                  redis: 'true'
+                - env: mid-prod
+                  redis: 'false'
+                  server: kkkk
+                - env: performance
+                  redis: 'true'
   # Determines whether go templating will be used in the `template` field below.
   goTemplate: false
   # Optional list of go templating options, see https://pkg.go.dev/text/template#Template.Option
@@ -17,9 +46,19 @@ spec:
   # These fields are identical to the Application spec.
   template:
     metadata:
-      name: test-hello-world-app
+      name: '{{env}}-{{server}}'
+      labels:
+        size: '{{env}}'
+        redisenabled: "{{redis}}"
     spec:
-      project: my-project
+      project: default
+      source:
+        repoURL: https://github.com/argoproj/argocd-example-apps
+        targetRevision: HEAD
+        path: guestbook
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: guestbook
   # This sync policy pertains to the ApplicationSet, not to the Applications it creates.
   syncPolicy:
     # Determines whether the controller will delete Applications when an ApplicationSet is deleted.
@@ -29,10 +68,4 @@ spec:
   # This field lets you define fields which should be ignored when applying Application resources. This is helpful if you
   # want to use ApplicationSets to create apps, but also want to allow users to modify those apps without having their
   # changes overwritten by the ApplicationSet.
-  ignoreApplicationDifferences:
-  - jsonPointers:
-    - /spec/source/targetRevision
-  - name: some-app
-    jqExpressions:
-    - .spec.source.helm.values
 
