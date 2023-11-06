@@ -374,7 +374,7 @@ jobs:
       ARGOCD_E2E_K3S: "true"
       ARGOCD_IN_CI: "true"
       ARGOCD_E2E_APISERVER_PORT: "8088"
-      ARGOCD_APPLICATION_NAMESPACES: "argocd-e2e-external"
+      ARGOCD_APPLICATION_NAMESPACES: "argocd-e2e-external,argocd-e2e-external-2"
       ARGOCD_SERVER: "127.0.0.1:8088"
       GITHUB_TOKEN: ${{ secrets.E2E_TEST_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
       GITLAB_TOKEN: ${{ secrets.E2E_TEST_GITLAB_TOKEN }}  
