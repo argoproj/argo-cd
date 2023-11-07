@@ -408,7 +408,7 @@ spec:
 * `tokenRef`: A `Secret` name and key containing the Gitea access token to use for requests. If not specified, will make anonymous requests which have a lower rate limit and can only see public repositories.
 * `insecure`: Allow for self-signed TLS certificates.
 
-This SCM provider does not yet support label filtering
+SCM-Manager SCM provider does not yet support label filtering.
 
 Available clone protocols are `ssh` and `https`. For SSH access the SSH plugin must be installed on your SCM-Manager server.
 

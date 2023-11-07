@@ -338,7 +338,7 @@ spec:
         # Repository Namespace. Required.
         namespace: myproject
         # Repository Name. Required.
-        repo: myrepository
+        name: myrepository
         # URL of the SCM-Manager server
         api: https://scm-manager.org/scm
         # Reference to a Secret containing an access token. (optional)
