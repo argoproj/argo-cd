@@ -9,10 +9,11 @@ The following configuration options are available for Kustomize:
 * `commonLabels` is a string map of additional labels
 * `forceCommonLabels` is a boolean value which defines if it's allowed to override existing labels
 * `commonAnnotations` is a string map of additional annotations
-* `namespace` is a kubernetes resources namespace
+* `namespace` is a Kubernetes resources namespace
 * `forceCommonAnnotations` is a boolean value which defines if it's allowed to override existing annotations
 * `commonAnnotationsEnvsubst` is a boolean value which enables env variables substition in annotation  values
 * `patches` is a list of Kustomize patches that supports inline updates
+* `components` is a list of Kustomize components
 
 To use Kustomize with an overlay, point your path to the overlay.
 
