@@ -349,8 +349,6 @@ func GetCMPWorkDir() string {
 const (
 	// AnnotationApplicationSetRefresh is an annotation that is added when an ApplicationSet is requested to be refreshed by a webhook. The ApplicationSet controller will remove this annotation at the end of reconciliation.
 	AnnotationApplicationSetRefresh = "argocd.argoproj.io/application-set-refresh"
-	// AnnotationApplicationSetRefreshSHA is an annotation used to note the latest commit-sha from webhook. It follows the same lifecycle as AnnotationApplicationSetRefresh.
-	AnnotationApplicationSetRefreshSHA = "argocd.argoproj.io/application-set-refresh-sha"
 )
 
 // gRPC settings
