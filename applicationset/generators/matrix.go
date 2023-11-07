@@ -50,7 +50,7 @@ func (m *MatrixGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.App
 
 	g0, err := m.getParams(appSetGenerator.Matrix.Generators[0], appSet, nil)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error failed to get params for first generator in matrix generator: %w", err)
 	}
 	for _, a := range g0 {
 		g1, err := m.getParams(appSetGenerator.Matrix.Generators[1], appSet, a)
@@ -61,11 +61,11 @@ func (m *MatrixGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.App
 
 			if appSet.Spec.GoTemplate {
 				tmp := map[string]interface{}{}
-				if err := mergo.Merge(&tmp, a); err != nil {
-					return nil, fmt.Errorf("failed to merge params from the first generator in the matrix generator with temp map: %w", err)
+				if err := mergo.Merge(&tmp, b, mergo.WithOverride); err != nil {
+					return nil, fmt.Errorf("failed to merge params from the second generator in the matrix generator with temp map: %w", err)
 				}
-				if err := mergo.Merge(&tmp, b); err != nil {
-					return nil, fmt.Errorf("failed to merge params from the first generator in the matrix generator with the second: %w", err)
+				if err := mergo.Merge(&tmp, a, mergo.WithOverride); err != nil {
+					return nil, fmt.Errorf("failed to merge params from the second generator in the matrix generator with the first: %w", err)
 				}
 				res = append(res, tmp)
 			} else {
@@ -94,7 +94,7 @@ func (m *MatrixGenerator) getParams(appSetBaseGenerator argoprojiov1alpha1.Appli
 	}
 	mergeGen, err := getMergeGenerator(appSetBaseGenerator)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error retrieving merge generator: %w", err)
 	}
 	if mergeGen != nil && !appSet.Spec.ApplyNestedSelectors {
 		foundSelector := dropDisabledNestedSelectors(mergeGen.Generators)
@@ -146,13 +146,15 @@ func (m *MatrixGenerator) GetRequeueAfter(appSetGenerator *argoprojiov1alpha1.Ap
 		matrixGen, _ := getMatrixGenerator(r)
 		mergeGen, _ := getMergeGenerator(r)
 		base := &argoprojiov1alpha1.ApplicationSetGenerator{
-			List:        r.List,
-			Clusters:    r.Clusters,
-			Git:         r.Git,
-			PullRequest: r.PullRequest,
-			Plugin:      r.Plugin,
-			Matrix:      matrixGen,
-			Merge:       mergeGen,
+			List:                    r.List,
+			Clusters:                r.Clusters,
+			Git:                     r.Git,
+			PullRequest:             r.PullRequest,
+			Plugin:                  r.Plugin,
+			SCMProvider:             r.SCMProvider,
+			ClusterDecisionResource: r.ClusterDecisionResource,
+			Matrix:                  matrixGen,
+			Merge:                   mergeGen,
 		}
 		generators := GetRelevantGenerators(base, m.supportedGenerators)
 

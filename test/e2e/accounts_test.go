@@ -14,7 +14,6 @@ import (
 	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/headless"
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/account"
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/session"
-	"github.com/argoproj/argo-cd/v2/test/e2e/fixture"
 	. "github.com/argoproj/argo-cd/v2/test/e2e/fixture"
 	accountFixture "github.com/argoproj/argo-cd/v2/test/e2e/fixture/account"
 	"github.com/argoproj/argo-cd/v2/util/io"
@@ -77,7 +76,7 @@ func TestCanIGetLogsAllowSwitchOn(t *testing.T) {
 		When().
 		Create().
 		Login().
-		SetPermissions([]fixture.ACL{
+		SetPermissions([]ACL{
 			{
 				Resource: "logs",
 				Action:   "get",

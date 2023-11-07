@@ -47,19 +47,29 @@ export const ApplicationsRefreshPanel = ({show, apps, hide}: {show: boolean; app
 
                             setProgress({percentage: 0, title: 'Refreshing applications'});
                             let i = 0;
+                            const refreshActions = [];
                             for (const app of selectedApps) {
-                                await services.applications.get(app.metadata.name, app.metadata.namespace, params.refreshType).catch(e => {
-                                    ctx.notifications.show({
-                                        content: <ErrorNotification title={`Unable to refresh ${app.metadata.name}`} e={e} />,
-                                        type: NotificationType.Error
+                                const refreshAction = async () => {
+                                    await services.applications.get(app.metadata.name, app.metadata.namespace, params.refreshType).catch(e => {
+                                        ctx.notifications.show({
+                                            content: <ErrorNotification title={`Unable to refresh ${app.metadata.name}`} e={e} />,
+                                            type: NotificationType.Error
+                                        });
                                     });
-                                });
-                                i++;
-                                setProgress({
-                                    percentage: i / selectedApps.length,
-                                    title: `Refreshed ${i} of ${selectedApps.length} applications`
-                                });
+                                    i++;
+                                    setProgress({
+                                        percentage: i / selectedApps.length,
+                                        title: `Refreshed ${i} of ${selectedApps.length} applications`
+                                    });
+                                };
+                                refreshActions.push(refreshAction());
+
+                                if (refreshActions.length >= 20) {
+                                    await Promise.all(refreshActions);
+                                    refreshActions.length = 0;
+                                }
                             }
+                            await Promise.all(refreshActions);
                             setProgress({percentage: 100, title: 'Complete'});
                         }}
                         getApi={setForm}>

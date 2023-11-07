@@ -37,6 +37,16 @@ func populateNodeInfo(un *unstructured.Unstructured, res *ResourceInfo, customLa
 			}
 		}
 	}
+
+	for k, v := range un.GetAnnotations() {
+		if strings.HasPrefix(k, common.AnnotationKeyLinkPrefix) {
+			if res.NetworkingInfo == nil {
+				res.NetworkingInfo = &v1alpha1.ResourceNetworkingInfo{}
+			}
+			res.NetworkingInfo.ExternalURLs = append(res.NetworkingInfo.ExternalURLs, v)
+		}
+	}
+
 	switch gvk.Group {
 	case "":
 		switch gvk.Kind {
@@ -56,15 +66,6 @@ func populateNodeInfo(un *unstructured.Unstructured, res *ResourceInfo, customLa
 		switch gvk.Kind {
 		case "VirtualService":
 			populateIstioVirtualServiceInfo(un, res)
-		}
-	}
-
-	for k, v := range un.GetAnnotations() {
-		if strings.HasPrefix(k, common.AnnotationKeyLinkPrefix) {
-			if res.NetworkingInfo == nil {
-				res.NetworkingInfo = &v1alpha1.ResourceNetworkingInfo{}
-			}
-			res.NetworkingInfo.ExternalURLs = append(res.NetworkingInfo.ExternalURLs, v)
 		}
 	}
 }
@@ -93,7 +94,13 @@ func populateServiceInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 	if serviceType, ok, err := unstructured.NestedString(un.Object, "spec", "type"); ok && err == nil && serviceType == string(v1.ServiceTypeLoadBalancer) {
 		ingress = getIngress(un)
 	}
-	res.NetworkingInfo = &v1alpha1.ResourceNetworkingInfo{TargetLabels: targetLabels, Ingress: ingress}
+
+	var urls []string
+	if res.NetworkingInfo != nil {
+		urls = res.NetworkingInfo.ExternalURLs
+	}
+
+	res.NetworkingInfo = &v1alpha1.ResourceNetworkingInfo{TargetLabels: targetLabels, Ingress: ingress, ExternalURLs: urls}
 }
 
 func getServiceName(backend map[string]interface{}, gvk schema.GroupVersionKind) (string, error) {
@@ -263,7 +270,12 @@ func populateIstioVirtualServiceInfo(un *unstructured.Unstructured, res *Resourc
 		targets = append(targets, target)
 	}
 
-	res.NetworkingInfo = &v1alpha1.ResourceNetworkingInfo{TargetRefs: targets}
+	var urls []string
+	if res.NetworkingInfo != nil {
+		urls = res.NetworkingInfo.ExternalURLs
+	}
+
+	res.NetworkingInfo = &v1alpha1.ResourceNetworkingInfo{TargetRefs: targets, ExternalURLs: urls}
 }
 
 func populatePodInfo(un *unstructured.Unstructured, res *ResourceInfo) {
@@ -374,7 +386,13 @@ func populatePodInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 	if restarts > 0 {
 		res.Info = append(res.Info, v1alpha1.InfoItem{Name: "Restart Count", Value: fmt.Sprintf("%d", restarts)})
 	}
-	res.NetworkingInfo = &v1alpha1.ResourceNetworkingInfo{Labels: un.GetLabels()}
+
+	var urls []string
+	if res.NetworkingInfo != nil {
+		urls = res.NetworkingInfo.ExternalURLs
+	}
+
+	res.NetworkingInfo = &v1alpha1.ResourceNetworkingInfo{Labels: un.GetLabels(), ExternalURLs: urls}
 }
 
 func populateHostNodeInfo(un *unstructured.Unstructured, res *ResourceInfo) {

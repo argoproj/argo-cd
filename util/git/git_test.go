@@ -160,10 +160,7 @@ func TestCustomHTTPClient(t *testing.T) {
 		assert.Equal(t, "http://proxy:5000", proxy.String())
 	}
 
-	os.Setenv("http_proxy", "http://proxy-from-env:7878")
-	defer func() {
-		assert.Nil(t, os.Unsetenv("http_proxy"))
-	}()
+	t.Setenv("http_proxy", "http://proxy-from-env:7878")
 
 	// Get HTTPSCreds without client cert creds, but insecure connection
 	creds = NewHTTPSCreds("test", "test", "", "", true, "", &NoopCredsStore{}, false)
@@ -199,7 +196,7 @@ func TestCustomHTTPClient(t *testing.T) {
 	defer os.RemoveAll(temppath)
 	err = os.WriteFile(filepath.Join(temppath, "127.0.0.1"), cert, 0666)
 	assert.NoError(t, err)
-	os.Setenv(common.EnvVarTLSDataPath, temppath)
+	t.Setenv(common.EnvVarTLSDataPath, temppath)
 	client = GetRepoHTTPClient("https://127.0.0.1", false, creds, "")
 	assert.NotNil(t, client)
 	assert.NotNil(t, client.Transport)

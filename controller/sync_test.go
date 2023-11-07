@@ -2,7 +2,6 @@ package controller
 
 import (
 	"context"
-	"os"
 	"testing"
 
 	"github.com/argoproj/gitops-engine/pkg/sync"
@@ -42,7 +41,7 @@ func TestPersistRevisionHistory(t *testing.T) {
 		},
 		managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
 	}
-	ctrl := newFakeController(&data)
+	ctrl := newFakeController(&data, nil)
 
 	// Sync with source unspecified
 	opState := &v1alpha1.OperationState{Operation: v1alpha1.Operation{
@@ -88,7 +87,7 @@ func TestPersistManagedNamespaceMetadataState(t *testing.T) {
 		},
 		managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
 	}
-	ctrl := newFakeController(&data)
+	ctrl := newFakeController(&data, nil)
 
 	// Sync with source unspecified
 	opState := &v1alpha1.OperationState{Operation: v1alpha1.Operation{
@@ -119,7 +118,7 @@ func TestPersistRevisionHistoryRollback(t *testing.T) {
 		},
 		managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
 	}
-	ctrl := newFakeController(&data)
+	ctrl := newFakeController(&data, nil)
 
 	// Sync with source specified
 	source := v1alpha1.ApplicationSource{
@@ -173,14 +172,13 @@ func TestSyncComparisonError(t *testing.T) {
 		},
 		managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
 	}
-	ctrl := newFakeController(&data)
+	ctrl := newFakeController(&data, nil)
 
 	// Sync with source unspecified
 	opState := &v1alpha1.OperationState{Operation: v1alpha1.Operation{
 		Sync: &v1alpha1.SyncOperation{},
 	}}
-	os.Setenv("ARGOCD_GPG_ENABLED", "true")
-	defer os.Setenv("ARGOCD_GPG_ENABLED", "false")
+	t.Setenv("ARGOCD_GPG_ENABLED", "true")
 	ctrl.appStateManager.SyncAppState(app, opState)
 
 	conditions := app.Status.GetConditions(map[v1alpha1.ApplicationConditionType]bool{v1alpha1.ApplicationConditionComparisonError: true})
@@ -219,7 +217,7 @@ func TestAppStateManager_SyncAppState(t *testing.T) {
 			},
 			managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
 		}
-		ctrl := newFakeController(&data)
+		ctrl := newFakeController(&data, nil)
 
 		return &fixture{
 			project:     project,

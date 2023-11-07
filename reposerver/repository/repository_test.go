@@ -413,6 +413,28 @@ func TestInvalidManifestsInDir(t *testing.T) {
 	assert.NotNil(t, err)
 }
 
+func TestInvalidMetadata(t *testing.T) {
+	service := newService(".")
+
+	src := argoappv1.ApplicationSource{Path: "./testdata/invalid-metadata", Directory: &argoappv1.ApplicationSourceDirectory{Recurse: true}}
+	q := apiclient.ManifestRequest{Repo: &argoappv1.Repository{}, ApplicationSource: &src, AppLabelKey: "test", AppName: "invalid-metadata", TrackingMethod: "annotation+label"}
+	_, err := service.GenerateManifest(context.Background(), &q)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "contains non-string key in the map")
+}
+
+func TestNilMetadataAccessors(t *testing.T) {
+	service := newService(".")
+	expected := "{\"apiVersion\":\"v1\",\"kind\":\"ConfigMap\",\"metadata\":{\"annotations\":{\"argocd.argoproj.io/tracking-id\":\"nil-metadata-accessors:/ConfigMap:/my-map\"},\"labels\":{\"test\":\"nil-metadata-accessors\"},\"name\":\"my-map\"},\"stringData\":{\"foo\":\"bar\"}}"
+
+	src := argoappv1.ApplicationSource{Path: "./testdata/nil-metadata-accessors", Directory: &argoappv1.ApplicationSourceDirectory{Recurse: true}}
+	q := apiclient.ManifestRequest{Repo: &argoappv1.Repository{}, ApplicationSource: &src, AppLabelKey: "test", AppName: "nil-metadata-accessors", TrackingMethod: "annotation+label"}
+	res, err := service.GenerateManifest(context.Background(), &q)
+	assert.NoError(t, err)
+	assert.Equal(t, len(res.Manifests), 1)
+	assert.Equal(t, expected, res.Manifests[0])
+}
+
 func TestGenerateJsonnetManifestInDir(t *testing.T) {
 	service := newService(".")
 
@@ -1505,6 +1527,7 @@ func Test_newEnv(t *testing.T) {
 		&argoappv1.EnvEntry{Name: "ARGOCD_APP_NAME", Value: "my-app-name"},
 		&argoappv1.EnvEntry{Name: "ARGOCD_APP_NAMESPACE", Value: "my-namespace"},
 		&argoappv1.EnvEntry{Name: "ARGOCD_APP_REVISION", Value: "my-revision"},
+		&argoappv1.EnvEntry{Name: "ARGOCD_APP_REVISION_SHORT", Value: "my-revi"},
 		&argoappv1.EnvEntry{Name: "ARGOCD_APP_SOURCE_REPO_URL", Value: "https://github.com/my-org/my-repo"},
 		&argoappv1.EnvEntry{Name: "ARGOCD_APP_SOURCE_PATH", Value: "my-path"},
 		&argoappv1.EnvEntry{Name: "ARGOCD_APP_SOURCE_TARGET_REVISION", Value: "my-target-revision"},
@@ -1871,6 +1894,44 @@ func TestGenerateManifestWithAnnotatedAndRegularGitTagHashes(t *testing.T) {
 			}
 
 		})
+	}
+}
+
+func TestGenerateManifestWithAnnotatedTagsAndMultiSourceApp(t *testing.T) {
+	annotatedGitTaghash := "95249be61b028d566c29d47b19e65c5603388a41"
+
+	service := newServiceWithCommitSHA(".", annotatedGitTaghash)
+
+	refSources := map[string]*argoappv1.RefTarget{}
+
+	refSources["$global"] = &argoappv1.RefTarget{
+		TargetRevision: annotatedGitTaghash,
+	}
+
+	refSources["$default"] = &argoappv1.RefTarget{
+		TargetRevision: annotatedGitTaghash,
+	}
+
+	manifestRequest := &apiclient.ManifestRequest{
+		Repo: &argoappv1.Repository{},
+		ApplicationSource: &argoappv1.ApplicationSource{
+			TargetRevision: annotatedGitTaghash,
+			Helm: &argoappv1.ApplicationSourceHelm{
+				ValueFiles: []string{"$global/values.yaml", "$default/secrets.yaml"},
+			},
+		},
+		HasMultipleSources: true,
+		NoCache:            true,
+		RefSources:         refSources,
+	}
+
+	response, err := service.GenerateManifest(context.Background(), manifestRequest)
+	if err != nil {
+		t.Errorf("unexpected %s", err)
+	}
+
+	if response.Revision != annotatedGitTaghash {
+		t.Errorf("returned SHA %s is different from expected annotated tag %s", response.Revision, annotatedGitTaghash)
 	}
 }
 
@@ -2602,16 +2663,27 @@ func runGit(t *testing.T, workDir string, args ...string) string {
 	return stringOut
 }
 
-func Test_findHelmValueFilesInPath(t *testing.T) {
+func Test_walkHelmValueFilesInPath(t *testing.T) {
 	t.Run("does not exist", func(t *testing.T) {
-		files, err := findHelmValueFilesInPath("/obviously/does/not/exist")
+		var files []string
+		root := "/obviously/does/not/exist"
+		err := filepath.Walk(root, walkHelmValueFilesInPath(root, &files))
 		assert.Error(t, err)
 		assert.Empty(t, files)
 	})
 	t.Run("values files", func(t *testing.T) {
-		files, err := findHelmValueFilesInPath("./testdata/values-files")
+		var files []string
+		root := "./testdata/values-files"
+		err := filepath.Walk(root, walkHelmValueFilesInPath(root, &files))
 		assert.NoError(t, err)
-		assert.Len(t, files, 4)
+		assert.Len(t, files, 5)
+	})
+	t.Run("unrelated root", func(t *testing.T) {
+		var files []string
+		root := "./testdata/values-files"
+		unrelated_root := "/different/root/path"
+		err := filepath.Walk(root, walkHelmValueFilesInPath(unrelated_root, &files))
+		assert.Error(t, err)
 	})
 }
 
@@ -2629,7 +2701,7 @@ func Test_populateHelmAppDetails(t *testing.T) {
 	err = populateHelmAppDetails(&res, appPath, appPath, &q, emptyTempPaths)
 	require.NoError(t, err)
 	assert.Len(t, res.Helm.Parameters, 3)
-	assert.Len(t, res.Helm.ValueFiles, 4)
+	assert.Len(t, res.Helm.ValueFiles, 5)
 }
 
 func Test_populateHelmAppDetails_values_symlinks(t *testing.T) {
@@ -2665,7 +2737,7 @@ func TestGetHelmRepos_OCIDependencies(t *testing.T) {
 	assert.Equal(t, len(helmRepos), 1)
 	assert.Equal(t, helmRepos[0].Username, "test")
 	assert.Equal(t, helmRepos[0].EnableOci, true)
-	assert.Equal(t, helmRepos[0].Repo, "example.com")
+	assert.Equal(t, helmRepos[0].Repo, "example.com/myrepo")
 }
 
 func TestGetHelmRepo_NamedRepos(t *testing.T) {

@@ -165,6 +165,7 @@ func TestHelmArgCleaner(t *testing.T) {
 		`bar`:        `bar`,
 		`not, clean`: `not\, clean`,
 		`a\,b,c`:     `a\,b\,c`,
+		`{a,b,c}`:    `{a,b,c}`,
 	} {
 		cleaned := cleanSetParameters(input)
 		assert.Equal(t, expected, cleaned)

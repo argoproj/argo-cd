@@ -1,5 +1,5 @@
 if obj.status ~= nil then
-    generation = tonumber(obj.status.observedGeneration)
+    local generation = tonumber(obj.status.observedGeneration)
     if generation == nil or generation > obj.metadata.generation then
         -- rollouts v0.9 and below
         obj.status.abort = nil

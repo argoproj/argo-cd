@@ -32,7 +32,7 @@ function deepCopy(object)
     return _copy(object)
 end
 
-workflow = {}
+local workflow = {}
 workflow.apiVersion = "argoproj.io/v1alpha1"
 workflow.kind = "Workflow"
 
@@ -50,7 +50,7 @@ if (obj.spec.workflowMetadata ~= nil) then
     end
 end
 workflow.metadata.labels["workflows.argoproj.io/cron-workflow"] = obj.metadata.name
-if (obj.metadata.labels["workflows.argoproj.io/controller-instanceid"] ~= nil) then
+if (obj.metadata.labels ~= nil and obj.metadata.labels["workflows.argoproj.io/controller-instanceid"] ~= nil) then
     workflow.metadata.labels["workflows.argoproj.io/controller-instanceid"] = obj.metadata.labels["workflows.argoproj.io/controller-instanceid"]
 end
 workflow.metadata.annotations["workflows.argoproj.io/scheduled-time"] = os.date("!%Y-%m-%dT%d:%H:%MZ")
@@ -63,7 +63,7 @@ if (obj.spec.workflowMetadata ~= nil and obj.spec.workflowMetadata.finalizers ~=
     end
 end
 
-ownerRef = {}
+local ownerRef = {}
 ownerRef.apiVersion = obj.apiVersion
 ownerRef.kind = obj.kind
 ownerRef.name = obj.metadata.name
@@ -73,10 +73,10 @@ workflow.metadata.ownerReferences[1] = ownerRef
 
 workflow.spec = deepCopy(obj.spec.workflowSpec)
 
-impactedResource = {}
+local impactedResource = {}
 impactedResource.operation = "create"
 impactedResource.resource = workflow
-result = {}
+local result = {}
 result[1] = impactedResource
 
 return result

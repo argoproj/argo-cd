@@ -393,7 +393,7 @@ func TestResourceOverrideAction(t *testing.T) {
 			assert.NoError(t, err)
 		})
 		assert.NoError(t, err)
-		assert.Contains(t, out, `NAME     ENABLED
+		assert.Contains(t, out, `NAME     DISABLED
 restart  false
 resume   false
 `)
@@ -440,7 +440,7 @@ resume   false
 
 		assert.NoError(t, err)
 		assert.Contains(t, out, "NAME")
-		assert.Contains(t, out, "ENABLED")
+		assert.Contains(t, out, "DISABLED")
 		assert.Contains(t, out, "create-a-job")
 		assert.Contains(t, out, "false")
 	})

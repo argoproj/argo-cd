@@ -131,11 +131,12 @@ func (s *Server) Get(ctx context.Context, q *settingspkg.SettingsQuery) (*settin
 	}
 	if oidcConfig := argoCDSettings.OIDCConfig(); oidcConfig != nil {
 		set.OIDCConfig = &settingspkg.OIDCConfig{
-			Name:        oidcConfig.Name,
-			Issuer:      oidcConfig.Issuer,
-			ClientID:    oidcConfig.ClientID,
-			CLIClientID: oidcConfig.CLIClientID,
-			Scopes:      oidcConfig.RequestedScopes,
+			Name:                     oidcConfig.Name,
+			Issuer:                   oidcConfig.Issuer,
+			ClientID:                 oidcConfig.ClientID,
+			CLIClientID:              oidcConfig.CLIClientID,
+			Scopes:                   oidcConfig.RequestedScopes,
+			EnablePKCEAuthentication: oidcConfig.EnablePKCEAuthentication,
 		}
 		if len(argoCDSettings.OIDCConfig().RequestedIDTokenClaims) > 0 {
 			set.OIDCConfig.IDTokenClaims = argoCDSettings.OIDCConfig().RequestedIDTokenClaims

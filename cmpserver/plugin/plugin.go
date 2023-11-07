@@ -97,6 +97,14 @@ func runCommand(ctx context.Context, command Command, path string, env []string)
 		<-ctx.Done()
 		// Kill by group ID to make sure child processes are killed. The - tells `kill` that it's a group ID.
 		// Since we didn't set Pgid in SysProcAttr, the group ID is the same as the process ID. https://pkg.go.dev/syscall#SysProcAttr
+
+		// Sending a TERM signal first to allow any potential cleanup if needed, and then sending a KILL signal
+		_ = sysCallTerm(-cmd.Process.Pid)
+
+		// modify cleanup timeout to allow process to cleanup
+		cleanupTimeout := 5 * time.Second
+		time.Sleep(cleanupTimeout)
+
 		_ = sysCallKill(-cmd.Process.Pid)
 	}()
 
@@ -112,11 +120,16 @@ func runCommand(ctx context.Context, command Command, path string, env []string)
 		logCtx.Error(err.Error())
 		return strings.TrimSuffix(output, "\n"), err
 	}
+
+	logCtx = logCtx.WithFields(log.Fields{
+		"stderr":  stderr.String(),
+		"command": command,
+	})
 	if len(output) == 0 {
-		log.WithFields(log.Fields{
-			"stderr":  stderr.String(),
-			"command": command,
-		}).Warn("Plugin command returned zero output")
+		logCtx.Warn("Plugin command returned zero output")
+	} else {
+		// Log stderr even on successfull commands to help develop plugins
+		logCtx.Info("Plugin command successfull")
 	}
 
 	return strings.TrimSuffix(output, "\n"), nil

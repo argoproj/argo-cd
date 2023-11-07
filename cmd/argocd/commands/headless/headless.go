@@ -11,6 +11,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/initialize"
+	"github.com/argoproj/argo-cd/v2/common"
 
 	"github.com/alicebob/miniredis/v2"
 	"github.com/golang/protobuf/ptypes/empty"
@@ -38,12 +39,14 @@ import (
 )
 
 type forwardCacheClient struct {
-	namespace   string
-	context     string
-	init        sync.Once
-	client      cache.CacheClient
-	compression cache.RedisCompressionType
-	err         error
+	namespace        string
+	context          string
+	init             sync.Once
+	client           cache.CacheClient
+	compression      cache.RedisCompressionType
+	err              error
+	redisHaProxyName string
+	redisName        string
 }
 
 func (c *forwardCacheClient) doLazy(action func(client cache.CacheClient) error) error {
@@ -51,8 +54,10 @@ func (c *forwardCacheClient) doLazy(action func(client cache.CacheClient) error)
 		overrides := clientcmd.ConfigOverrides{
 			CurrentContext: c.context,
 		}
+		redisHaProxyPodLabelSelector := common.LabelKeyAppName + "=" + c.redisHaProxyName
+		redisPodLabelSelector := common.LabelKeyAppName + "=" + c.redisName
 		redisPort, err := kubeutil.PortForward(6379, c.namespace, &overrides,
-			"app.kubernetes.io/name=argocd-redis-ha-haproxy", "app.kubernetes.io/name=argocd-redis")
+			redisHaProxyPodLabelSelector, redisPodLabelSelector)
 		if err != nil {
 			c.err = err
 			return
@@ -98,11 +103,12 @@ func (c *forwardCacheClient) NotifyUpdated(key string) error {
 }
 
 type forwardRepoClientset struct {
-	namespace     string
-	context       string
-	init          sync.Once
-	repoClientset repoapiclient.Clientset
-	err           error
+	namespace      string
+	context        string
+	init           sync.Once
+	repoClientset  repoapiclient.Clientset
+	err            error
+	repoServerName string
 }
 
 func (c *forwardRepoClientset) NewRepoServerClient() (io.Closer, repoapiclient.RepoServerServiceClient, error) {
@@ -110,7 +116,8 @@ func (c *forwardRepoClientset) NewRepoServerClient() (io.Closer, repoapiclient.R
 		overrides := clientcmd.ConfigOverrides{
 			CurrentContext: c.context,
 		}
-		repoServerPort, err := kubeutil.PortForward(8081, c.namespace, &overrides, "app.kubernetes.io/name=argocd-repo-server")
+		repoServerPodLabelSelector := common.LabelKeyAppName + "=" + c.repoServerName
+		repoServerPort, err := kubeutil.PortForward(8081, c.namespace, &overrides, repoServerPodLabelSelector)
 		if err != nil {
 			c.err = err
 			return
@@ -127,36 +134,45 @@ func (c *forwardRepoClientset) NewRepoServerClient() (io.Closer, repoapiclient.R
 func testAPI(ctx context.Context, clientOpts *apiclient.ClientOptions) error {
 	apiClient, err := apiclient.NewClient(clientOpts)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to create API client: %w", err)
 	}
 	closer, versionClient, err := apiClient.NewVersionClient()
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to create version client: %w", err)
 	}
 	defer io.Close(closer)
 	_, err = versionClient.Version(ctx, &empty.Empty{})
-	return err
+	if err != nil {
+		return fmt.Errorf("failed to get version: %w", err)
+	}
+	return nil
 }
 
-// StartLocalServer allows executing command in a headless mode: on the fly starts Argo CD API server and
-// changes provided client options to use started API server port
-func StartLocalServer(ctx context.Context, clientOpts *apiclient.ClientOptions, ctxStr string, port *int, address *string, compression cache.RedisCompressionType) error {
+// MaybeStartLocalServer allows executing command in a headless mode. If we're in core mode, starts the Argo CD API
+// server on the fly and changes provided client options to use started API server port.
+//
+// If the clientOpts enables core mode, but the local config does not have core mode enabled, this function will
+// not start the local server.
+func MaybeStartLocalServer(ctx context.Context, clientOpts *apiclient.ClientOptions, ctxStr string, port *int, address *string, compression cache.RedisCompressionType) error {
 	flags := pflag.NewFlagSet("tmp", pflag.ContinueOnError)
 	clientConfig := cli.AddKubectlFlagsToSet(flags)
 	startInProcessAPI := clientOpts.Core
 	if !startInProcessAPI {
+		// Core mode is enabled on client options. Check the local config to see if we should start the API server.
 		localCfg, err := localconfig.ReadLocalConfig(clientOpts.ConfigPath)
 		if err != nil {
-			return err
+			return fmt.Errorf("error reading local config: %w", err)
 		}
 		if localCfg != nil {
 			configCtx, err := localCfg.ResolveContext(clientOpts.Context)
 			if err != nil {
-				return err
+				return fmt.Errorf("error resolving context: %w", err)
 			}
+			// There was a local config file, so determine whether core mode is enabled per the config file.
 			startInProcessAPI = configCtx.Server.Core
 		}
 	}
+	// If we're in core mode, start the API server on the fly.
 	if !startInProcessAPI {
 		return nil
 	}
@@ -173,7 +189,7 @@ func StartLocalServer(ctx context.Context, clientOpts *apiclient.ClientOptions, 
 		addr := fmt.Sprintf("%s:0", *address)
 		ln, err := net.Listen("tcp", addr)
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to listen on %q: %w", addr, err)
 		}
 		port = &ln.Addr().(*net.TCPAddr).Port
 		io.Close(ln)
@@ -181,27 +197,27 @@ func StartLocalServer(ctx context.Context, clientOpts *apiclient.ClientOptions, 
 
 	restConfig, err := clientConfig.ClientConfig()
 	if err != nil {
-		return err
+		return fmt.Errorf("error creating client config: %w", err)
 	}
 	appClientset, err := appclientset.NewForConfig(restConfig)
 	if err != nil {
-		return err
+		return fmt.Errorf("error creating app clientset: %w", err)
 	}
 	kubeClientset, err := kubernetes.NewForConfig(restConfig)
 	if err != nil {
-		return err
+		return fmt.Errorf("error creating kubernetes clientset: %w", err)
 	}
 
 	namespace, _, err := clientConfig.Namespace()
 	if err != nil {
-		return err
+		return fmt.Errorf("error getting namespace: %w", err)
 	}
 
 	mr, err := miniredis.Run()
 	if err != nil {
-		return err
+		return fmt.Errorf("error running miniredis: %w", err)
 	}
-	appstateCache := appstatecache.NewCache(cache.NewCache(&forwardCacheClient{namespace: namespace, context: ctxStr, compression: compression}), time.Hour)
+	appstateCache := appstatecache.NewCache(cache.NewCache(&forwardCacheClient{namespace: namespace, context: ctxStr, compression: compression, redisHaProxyName: clientOpts.RedisHaProxyName, redisName: clientOpts.RedisName}), time.Hour)
 	srv := server.NewServer(ctx, server.ArgoCDServerOpts{
 		EnableGZip:           false,
 		Namespace:            namespace,
@@ -213,14 +229,14 @@ func StartLocalServer(ctx context.Context, clientOpts *apiclient.ClientOptions, 
 		KubeClientset:        kubeClientset,
 		Insecure:             true,
 		ListenHost:           *address,
-		RepoClientset:        &forwardRepoClientset{namespace: namespace, context: ctxStr},
+		RepoClientset:        &forwardRepoClientset{namespace: namespace, context: ctxStr, repoServerName: clientOpts.RepoServerName},
 		EnableProxyExtension: false,
 	})
 	srv.Init(ctx)
 
 	lns, err := srv.Listen()
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to listen: %w", err)
 	}
 	go srv.Run(ctx, lns)
 	clientOpts.ServerAddr = fmt.Sprintf("%s:%d", *address, *port)
@@ -236,7 +252,10 @@ func StartLocalServer(ctx context.Context, clientOpts *apiclient.ClientOptions, 
 		}
 		time.Sleep(time.Second)
 	}
-	return err
+	if err != nil {
+		return fmt.Errorf("all retries failed: %w", err)
+	}
+	return nil
 }
 
 // NewClientOrDie creates a new API client from a set of config options, or fails fatally if the new client creation fails.
@@ -244,7 +263,9 @@ func NewClientOrDie(opts *apiclient.ClientOptions, c *cobra.Command) apiclient.C
 	ctx := c.Context()
 
 	ctxStr := initialize.RetrieveContextIfChanged(c.Flag("context"))
-	err := StartLocalServer(ctx, opts, ctxStr, nil, nil, cache.RedisCompressionNone)
+	// If we're in core mode, start the API server on the fly and configure the client `opts` to use it.
+	// If we're not in core mode, this function call will do nothing.
+	err := MaybeStartLocalServer(ctx, opts, ctxStr, nil, nil, cache.RedisCompressionNone)
 	if err != nil {
 		log.Fatal(err)
 	}

@@ -244,6 +244,10 @@ spec:
                                           additionalProperties:
                                             type: string
                                           type: object
+                                        components:
+                                          items:
+                                            type: string
+                                          type: array
                                         forceCommonAnnotations:
                                           type: boolean
                                         forceCommonLabels:
@@ -258,6 +262,36 @@ spec:
                                           type: string
                                         namespace:
                                           type: string
+                                        patches:
+                                          items:
+                                            properties:
+                                              options:
+                                                additionalProperties:
+                                                  type: boolean
+                                                type: object
+                                              patch:
+                                                type: string
+                                              path:
+                                                type: string
+                                              target:
+                                                properties:
+                                                  annotationSelector:
+                                                    type: string
+                                                  group:
+                                                    type: string
+                                                  kind:
+                                                    type: string
+                                                  labelSelector:
+                                                    type: string
+                                                  name:
+                                                    type: string
+                                                  namespace:
+                                                    type: string
+                                                  version:
+                                                    type: string
+                                                type: object
+                                            type: object
+                                          type: array
                                         replicas:
                                           items:
                                             properties:
@@ -424,6 +458,10 @@ spec:
                                             additionalProperties:
                                               type: string
                                             type: object
+                                          components:
+                                            items:
+                                              type: string
+                                            type: array
                                           forceCommonAnnotations:
                                             type: boolean
                                           forceCommonLabels:
@@ -438,6 +476,36 @@ spec:
                                             type: string
                                           namespace:
                                             type: string
+                                          patches:
+                                            items:
+                                              properties:
+                                                options:
+                                                  additionalProperties:
+                                                    type: boolean
+                                                  type: object
+                                                patch:
+                                                  type: string
+                                                path:
+                                                  type: string
+                                                target:
+                                                  properties:
+                                                    annotationSelector:
+                                                      type: string
+                                                    group:
+                                                      type: string
+                                                    kind:
+                                                      type: string
+                                                    labelSelector:
+                                                      type: string
+                                                    name:
+                                                      type: string
+                                                    namespace:
+                                                      type: string
+                                                    version:
+                                                      type: string
+                                                  type: object
+                                              type: object
+                                            type: array
                                           replicas:
                                             items:
                                               properties:
@@ -763,6 +831,10 @@ spec:
                                           additionalProperties:
                                             type: string
                                           type: object
+                                        components:
+                                          items:
+                                            type: string
+                                          type: array
                                         forceCommonAnnotations:
                                           type: boolean
                                         forceCommonLabels:
@@ -777,6 +849,36 @@ spec:
                                           type: string
                                         namespace:
                                           type: string
+                                        patches:
+                                          items:
+                                            properties:
+                                              options:
+                                                additionalProperties:
+                                                  type: boolean
+                                                type: object
+                                              patch:
+                                                type: string
+                                              path:
+                                                type: string
+                                              target:
+                                                properties:
+                                                  annotationSelector:
+                                                    type: string
+                                                  group:
+                                                    type: string
+                                                  kind:
+                                                    type: string
+                                                  labelSelector:
+                                                    type: string
+                                                  name:
+                                                    type: string
+                                                  namespace:
+                                                    type: string
+                                                  version:
+                                                    type: string
+                                                type: object
+                                            type: object
+                                          type: array
                                         replicas:
                                           items:
                                             properties:
@@ -943,6 +1045,10 @@ spec:
                                             additionalProperties:
                                               type: string
                                             type: object
+                                          components:
+                                            items:
+                                              type: string
+                                            type: array
                                           forceCommonAnnotations:
                                             type: boolean
                                           forceCommonLabels:
@@ -957,6 +1063,36 @@ spec:
                                             type: string
                                           namespace:
                                             type: string
+                                          patches:
+                                            items:
+                                              properties:
+                                                options:
+                                                  additionalProperties:
+                                                    type: boolean
+                                                  type: object
+                                                patch:
+                                                  type: string
+                                                path:
+                                                  type: string
+                                                target:
+                                                  properties:
+                                                    annotationSelector:
+                                                      type: string
+                                                    group:
+                                                      type: string
+                                                    kind:
+                                                      type: string
+                                                    labelSelector:
+                                                      type: string
+                                                    name:
+                                                      type: string
+                                                    namespace:
+                                                      type: string
+                                                    version:
+                                                      type: string
+                                                  type: object
+                                              type: object
+                                            type: array
                                           replicas:
                                             items:
                                               properties:
@@ -1286,6 +1422,10 @@ spec:
                                           additionalProperties:
                                             type: string
                                           type: object
+                                        components:
+                                          items:
+                                            type: string
+                                          type: array
                                         forceCommonAnnotations:
                                           type: boolean
                                         forceCommonLabels:
@@ -1300,6 +1440,36 @@ spec:
                                           type: string
                                         namespace:
                                           type: string
+                                        patches:
+                                          items:
+                                            properties:
+                                              options:
+                                                additionalProperties:
+                                                  type: boolean
+                                                type: object
+                                              patch:
+                                                type: string
+                                              path:
+                                                type: string
+                                              target:
+                                                properties:
+                                                  annotationSelector:
+                                                    type: string
+                                                  group:
+                                                    type: string
+                                                  kind:
+                                                    type: string
+                                                  labelSelector:
+                                                    type: string
+                                                  name:
+                                                    type: string
+                                                  namespace:
+                                                    type: string
+                                                  version:
+                                                    type: string
+                                                type: object
+                                            type: object
+                                          type: array
                                         replicas:
                                           items:
                                             properties:
@@ -1466,6 +1636,10 @@ spec:
                                             additionalProperties:
                                               type: string
                                             type: object
+                                          components:
+                                            items:
+                                              type: string
+                                            type: array
                                           forceCommonAnnotations:
                                             type: boolean
                                           forceCommonLabels:
@@ -1480,6 +1654,36 @@ spec:
                                             type: string
                                           namespace:
                                             type: string
+                                          patches:
+                                            items:
+                                              properties:
+                                                options:
+                                                  additionalProperties:
+                                                    type: boolean
+                                                  type: object
+                                                patch:
+                                                  type: string
+                                                path:
+                                                  type: string
+                                                target:
+                                                  properties:
+                                                    annotationSelector:
+                                                      type: string
+                                                    group:
+                                                      type: string
+                                                    kind:
+                                                      type: string
+                                                    labelSelector:
+                                                      type: string
+                                                    name:
+                                                      type: string
+                                                    namespace:
+                                                      type: string
+                                                    version:
+                                                      type: string
+                                                  type: object
+                                              type: object
+                                            type: array
                                           replicas:
                                             items:
                                               properties:
@@ -1789,6 +1993,10 @@ spec:
                                           additionalProperties:
                                             type: string
                                           type: object
+                                        components:
+                                          items:
+                                            type: string
+                                          type: array
                                         forceCommonAnnotations:
                                           type: boolean
                                         forceCommonLabels:
@@ -1803,6 +2011,36 @@ spec:
                                           type: string
                                         namespace:
                                           type: string
+                                        patches:
+                                          items:
+                                            properties:
+                                              options:
+                                                additionalProperties:
+                                                  type: boolean
+                                                type: object
+                                              patch:
+                                                type: string
+                                              path:
+                                                type: string
+                                              target:
+                                                properties:
+                                                  annotationSelector:
+                                                    type: string
+                                                  group:
+                                                    type: string
+                                                  kind:
+                                                    type: string
+                                                  labelSelector:
+                                                    type: string
+                                                  name:
+                                                    type: string
+                                                  namespace:
+                                                    type: string
+                                                  version:
+                                                    type: string
+                                                type: object
+                                            type: object
+                                          type: array
                                         replicas:
                                           items:
                                             properties:
@@ -1969,6 +2207,10 @@ spec:
                                             additionalProperties:
                                               type: string
                                             type: object
+                                          components:
+                                            items:
+                                              type: string
+                                            type: array
                                           forceCommonAnnotations:
                                             type: boolean
                                           forceCommonLabels:
@@ -1983,6 +2225,36 @@ spec:
                                             type: string
                                           namespace:
                                             type: string
+                                          patches:
+                                            items:
+                                              properties:
+                                                options:
+                                                  additionalProperties:
+                                                    type: boolean
+                                                  type: object
+                                                patch:
+                                                  type: string
+                                                path:
+                                                  type: string
+                                                target:
+                                                  properties:
+                                                    annotationSelector:
+                                                      type: string
+                                                    group:
+                                                      type: string
+                                                    kind:
+                                                      type: string
+                                                    labelSelector:
+                                                      type: string
+                                                    name:
+                                                      type: string
+                                                    namespace:
+                                                      type: string
+                                                    version:
+                                                      type: string
+                                                  type: object
+                                              type: object
+                                            type: array
                                           replicas:
                                             items:
                                               properties:
@@ -2316,6 +2588,10 @@ spec:
                                                     additionalProperties:
                                                       type: string
                                                     type: object
+                                                  components:
+                                                    items:
+                                                      type: string
+                                                    type: array
                                                   forceCommonAnnotations:
                                                     type: boolean
                                                   forceCommonLabels:
@@ -2330,6 +2606,36 @@ spec:
                                                     type: string
                                                   namespace:
                                                     type: string
+                                                  patches:
+                                                    items:
+                                                      properties:
+                                                        options:
+                                                          additionalProperties:
+                                                            type: boolean
+                                                          type: object
+                                                        patch:
+                                                          type: string
+                                                        path:
+                                                          type: string
+                                                        target:
+                                                          properties:
+                                                            annotationSelector:
+                                                              type: string
+                                                            group:
+                                                              type: string
+                                                            kind:
+                                                              type: string
+                                                            labelSelector:
+                                                              type: string
+                                                            name:
+                                                              type: string
+                                                            namespace:
+                                                              type: string
+                                                            version:
+                                                              type: string
+                                                          type: object
+                                                      type: object
+                                                    type: array
                                                   replicas:
                                                     items:
                                                       properties:
@@ -2496,6 +2802,10 @@ spec:
                                                       additionalProperties:
                                                         type: string
                                                       type: object
+                                                    components:
+                                                      items:
+                                                        type: string
+                                                      type: array
                                                     forceCommonAnnotations:
                                                       type: boolean
                                                     forceCommonLabels:
@@ -2510,6 +2820,36 @@ spec:
                                                       type: string
                                                     namespace:
                                                       type: string
+                                                    patches:
+                                                      items:
+                                                        properties:
+                                                          options:
+                                                            additionalProperties:
+                                                              type: boolean
+                                                            type: object
+                                                          patch:
+                                                            type: string
+                                                          path:
+                                                            type: string
+                                                          target:
+                                                            properties:
+                                                              annotationSelector:
+                                                                type: string
+                                                              group:
+                                                                type: string
+                                                              kind:
+                                                                type: string
+                                                              labelSelector:
+                                                                type: string
+                                                              name:
+                                                                type: string
+                                                              namespace:
+                                                                type: string
+                                                              version:
+                                                                type: string
+                                                            type: object
+                                                        type: object
+                                                      type: array
                                                     replicas:
                                                       items:
                                                         properties:
@@ -2835,6 +3175,10 @@ spec:
                                                     additionalProperties:
                                                       type: string
                                                     type: object
+                                                  components:
+                                                    items:
+                                                      type: string
+                                                    type: array
                                                   forceCommonAnnotations:
                                                     type: boolean
                                                   forceCommonLabels:
@@ -2849,6 +3193,36 @@ spec:
                                                     type: string
                                                   namespace:
                                                     type: string
+                                                  patches:
+                                                    items:
+                                                      properties:
+                                                        options:
+                                                          additionalProperties:
+                                                            type: boolean
+                                                          type: object
+                                                        patch:
+                                                          type: string
+                                                        path:
+                                                          type: string
+                                                        target:
+                                                          properties:
+                                                            annotationSelector:
+                                                              type: string
+                                                            group:
+                                                              type: string
+                                                            kind:
+                                                              type: string
+                                                            labelSelector:
+                                                              type: string
+                                                            name:
+                                                              type: string
+                                                            namespace:
+                                                              type: string
+                                                            version:
+                                                              type: string
+                                                          type: object
+                                                      type: object
+                                                    type: array
                                                   replicas:
                                                     items:
                                                       properties:
@@ -3015,6 +3389,10 @@ spec:
                                                       additionalProperties:
                                                         type: string
                                                       type: object
+                                                    components:
+                                                      items:
+                                                        type: string
+                                                      type: array
                                                     forceCommonAnnotations:
                                                       type: boolean
                                                     forceCommonLabels:
@@ -3029,6 +3407,36 @@ spec:
                                                       type: string
                                                     namespace:
                                                       type: string
+                                                    patches:
+                                                      items:
+                                                        properties:
+                                                          options:
+                                                            additionalProperties:
+                                                              type: boolean
+                                                            type: object
+                                                          patch:
+                                                            type: string
+                                                          path:
+                                                            type: string
+                                                          target:
+                                                            properties:
+                                                              annotationSelector:
+                                                                type: string
+                                                              group:
+                                                                type: string
+                                                              kind:
+                                                                type: string
+                                                              labelSelector:
+                                                                type: string
+                                                              name:
+                                                                type: string
+                                                              namespace:
+                                                                type: string
+                                                              version:
+                                                                type: string
+                                                            type: object
+                                                        type: object
+                                                      type: array
                                                     replicas:
                                                       items:
                                                         properties:
@@ -3358,6 +3766,10 @@ spec:
                                                     additionalProperties:
                                                       type: string
                                                     type: object
+                                                  components:
+                                                    items:
+                                                      type: string
+                                                    type: array
                                                   forceCommonAnnotations:
                                                     type: boolean
                                                   forceCommonLabels:
@@ -3372,6 +3784,36 @@ spec:
                                                     type: string
                                                   namespace:
                                                     type: string
+                                                  patches:
+                                                    items:
+                                                      properties:
+                                                        options:
+                                                          additionalProperties:
+                                                            type: boolean
+                                                          type: object
+                                                        patch:
+                                                          type: string
+                                                        path:
+                                                          type: string
+                                                        target:
+                                                          properties:
+                                                            annotationSelector:
+                                                              type: string
+                                                            group:
+                                                              type: string
+                                                            kind:
+                                                              type: string
+                                                            labelSelector:
+                                                              type: string
+                                                            name:
+                                                              type: string
+                                                            namespace:
+                                                              type: string
+                                                            version:
+                                                              type: string
+                                                          type: object
+                                                      type: object
+                                                    type: array
                                                   replicas:
                                                     items:
                                                       properties:
@@ -3538,6 +3980,10 @@ spec:
                                                       additionalProperties:
                                                         type: string
                                                       type: object
+                                                    components:
+                                                      items:
+                                                        type: string
+                                                      type: array
                                                     forceCommonAnnotations:
                                                       type: boolean
                                                     forceCommonLabels:
@@ -3552,6 +3998,36 @@ spec:
                                                       type: string
                                                     namespace:
                                                       type: string
+                                                    patches:
+                                                      items:
+                                                        properties:
+                                                          options:
+                                                            additionalProperties:
+                                                              type: boolean
+                                                            type: object
+                                                          patch:
+                                                            type: string
+                                                          path:
+                                                            type: string
+                                                          target:
+                                                            properties:
+                                                              annotationSelector:
+                                                                type: string
+                                                              group:
+                                                                type: string
+                                                              kind:
+                                                                type: string
+                                                              labelSelector:
+                                                                type: string
+                                                              name:
+                                                                type: string
+                                                              namespace:
+                                                                type: string
+                                                              version:
+                                                                type: string
+                                                            type: object
+                                                        type: object
+                                                      type: array
                                                     replicas:
                                                       items:
                                                         properties:
@@ -3861,6 +4337,10 @@ spec:
                                                     additionalProperties:
                                                       type: string
                                                     type: object
+                                                  components:
+                                                    items:
+                                                      type: string
+                                                    type: array
                                                   forceCommonAnnotations:
                                                     type: boolean
                                                   forceCommonLabels:
@@ -3875,6 +4355,36 @@ spec:
                                                     type: string
                                                   namespace:
                                                     type: string
+                                                  patches:
+                                                    items:
+                                                      properties:
+                                                        options:
+                                                          additionalProperties:
+                                                            type: boolean
+                                                          type: object
+                                                        patch:
+                                                          type: string
+                                                        path:
+                                                          type: string
+                                                        target:
+                                                          properties:
+                                                            annotationSelector:
+                                                              type: string
+                                                            group:
+                                                              type: string
+                                                            kind:
+                                                              type: string
+                                                            labelSelector:
+                                                              type: string
+                                                            name:
+                                                              type: string
+                                                            namespace:
+                                                              type: string
+                                                            version:
+                                                              type: string
+                                                          type: object
+                                                      type: object
+                                                    type: array
                                                   replicas:
                                                     items:
                                                       properties:
@@ -4041,6 +4551,10 @@ spec:
                                                       additionalProperties:
                                                         type: string
                                                       type: object
+                                                    components:
+                                                      items:
+                                                        type: string
+                                                      type: array
                                                     forceCommonAnnotations:
                                                       type: boolean
                                                     forceCommonLabels:
@@ -4055,6 +4569,36 @@ spec:
                                                       type: string
                                                     namespace:
                                                       type: string
+                                                    patches:
+                                                      items:
+                                                        properties:
+                                                          options:
+                                                            additionalProperties:
+                                                              type: boolean
+                                                            type: object
+                                                          patch:
+                                                            type: string
+                                                          path:
+                                                            type: string
+                                                          target:
+                                                            properties:
+                                                              annotationSelector:
+                                                                type: string
+                                                              group:
+                                                                type: string
+                                                              kind:
+                                                                type: string
+                                                              labelSelector:
+                                                                type: string
+                                                              name:
+                                                                type: string
+                                                              namespace:
+                                                                type: string
+                                                              version:
+                                                                type: string
+                                                            type: object
+                                                        type: object
+                                                      type: array
                                                     replicas:
                                                       items:
                                                         properties:
@@ -4374,6 +4918,10 @@ spec:
                                                     additionalProperties:
                                                       type: string
                                                     type: object
+                                                  components:
+                                                    items:
+                                                      type: string
+                                                    type: array
                                                   forceCommonAnnotations:
                                                     type: boolean
                                                   forceCommonLabels:
@@ -4388,6 +4936,36 @@ spec:
                                                     type: string
                                                   namespace:
                                                     type: string
+                                                  patches:
+                                                    items:
+                                                      properties:
+                                                        options:
+                                                          additionalProperties:
+                                                            type: boolean
+                                                          type: object
+                                                        patch:
+                                                          type: string
+                                                        path:
+                                                          type: string
+                                                        target:
+                                                          properties:
+                                                            annotationSelector:
+                                                              type: string
+                                                            group:
+                                                              type: string
+                                                            kind:
+                                                              type: string
+                                                            labelSelector:
+                                                              type: string
+                                                            name:
+                                                              type: string
+                                                            namespace:
+                                                              type: string
+                                                            version:
+                                                              type: string
+                                                          type: object
+                                                      type: object
+                                                    type: array
                                                   replicas:
                                                     items:
                                                       properties:
@@ -4554,6 +5132,10 @@ spec:
                                                       additionalProperties:
                                                         type: string
                                                       type: object
+                                                    components:
+                                                      items:
+                                                        type: string
+                                                      type: array
                                                     forceCommonAnnotations:
                                                       type: boolean
                                                     forceCommonLabels:
@@ -4568,6 +5150,36 @@ spec:
                                                       type: string
                                                     namespace:
                                                       type: string
+                                                    patches:
+                                                      items:
+                                                        properties:
+                                                          options:
+                                                            additionalProperties:
+                                                              type: boolean
+                                                            type: object
+                                                          patch:
+                                                            type: string
+                                                          path:
+                                                            type: string
+                                                          target:
+                                                            properties:
+                                                              annotationSelector:
+                                                                type: string
+                                                              group:
+                                                                type: string
+                                                              kind:
+                                                                type: string
+                                                              labelSelector:
+                                                                type: string
+                                                              name:
+                                                                type: string
+                                                              namespace:
+                                                                type: string
+                                                              version:
+                                                                type: string
+                                                            type: object
+                                                        type: object
+                                                      type: array
                                                     replicas:
                                                       items:
                                                         properties:
@@ -4863,6 +5475,8 @@ spec:
                                     properties:
                                       api:
                                         type: string
+                                      insecure:
+                                        type: boolean
                                       labels:
                                         items:
                                           type: string
@@ -5090,6 +5704,10 @@ spec:
                                                     additionalProperties:
                                                       type: string
                                                     type: object
+                                                  components:
+                                                    items:
+                                                      type: string
+                                                    type: array
                                                   forceCommonAnnotations:
                                                     type: boolean
                                                   forceCommonLabels:
@@ -5104,6 +5722,36 @@ spec:
                                                     type: string
                                                   namespace:
                                                     type: string
+                                                  patches:
+                                                    items:
+                                                      properties:
+                                                        options:
+                                                          additionalProperties:
+                                                            type: boolean
+                                                          type: object
+                                                        patch:
+                                                          type: string
+                                                        path:
+                                                          type: string
+                                                        target:
+                                                          properties:
+                                                            annotationSelector:
+                                                              type: string
+                                                            group:
+                                                              type: string
+                                                            kind:
+                                                              type: string
+                                                            labelSelector:
+                                                              type: string
+                                                            name:
+                                                              type: string
+                                                            namespace:
+                                                              type: string
+                                                            version:
+                                                              type: string
+                                                          type: object
+                                                      type: object
+                                                    type: array
                                                   replicas:
                                                     items:
                                                       properties:
@@ -5270,6 +5918,10 @@ spec:
                                                       additionalProperties:
                                                         type: string
                                                       type: object
+                                                    components:
+                                                      items:
+                                                        type: string
+                                                      type: array
                                                     forceCommonAnnotations:
                                                       type: boolean
                                                     forceCommonLabels:
@@ -5284,6 +5936,36 @@ spec:
                                                       type: string
                                                     namespace:
                                                       type: string
+                                                    patches:
+                                                      items:
+                                                        properties:
+                                                          options:
+                                                            additionalProperties:
+                                                              type: boolean
+                                                            type: object
+                                                          patch:
+                                                            type: string
+                                                          path:
+                                                            type: string
+                                                          target:
+                                                            properties:
+                                                              annotationSelector:
+                                                                type: string
+                                                              group:
+                                                                type: string
+                                                              kind:
+                                                                type: string
+                                                              labelSelector:
+                                                                type: string
+                                                              name:
+                                                                type: string
+                                                              namespace:
+                                                                type: string
+                                                              version:
+                                                                type: string
+                                                            type: object
+                                                        type: object
+                                                      type: array
                                                     replicas:
                                                       items:
                                                         properties:
@@ -5576,7 +6258,11 @@ spec:
                                         type: string
                                       group:
                                         type: string
+                                      includeSharedProjects:
+                                        type: boolean
                                       includeSubgroups:
+                                        type: boolean
+                                      insecure:
                                         type: boolean
                                       tokenRef:
                                         properties:
@@ -5588,6 +6274,8 @@ spec:
                                         - key
                                         - secretName
                                         type: object
+                                      topic:
+                                        type: string
                                     required:
                                     - group
                                     type: object
@@ -5793,6 +6481,10 @@ spec:
                                                     additionalProperties:
                                                       type: string
                                                     type: object
+                                                  components:
+                                                    items:
+                                                      type: string
+                                                    type: array
                                                   forceCommonAnnotations:
                                                     type: boolean
                                                   forceCommonLabels:
@@ -5807,6 +6499,36 @@ spec:
                                                     type: string
                                                   namespace:
                                                     type: string
+                                                  patches:
+                                                    items:
+                                                      properties:
+                                                        options:
+                                                          additionalProperties:
+                                                            type: boolean
+                                                          type: object
+                                                        patch:
+                                                          type: string
+                                                        path:
+                                                          type: string
+                                                        target:
+                                                          properties:
+                                                            annotationSelector:
+                                                              type: string
+                                                            group:
+                                                              type: string
+                                                            kind:
+                                                              type: string
+                                                            labelSelector:
+                                                              type: string
+                                                            name:
+                                                              type: string
+                                                            namespace:
+                                                              type: string
+                                                            version:
+                                                              type: string
+                                                          type: object
+                                                      type: object
+                                                    type: array
                                                   replicas:
                                                     items:
                                                       properties:
@@ -5973,6 +6695,10 @@ spec:
                                                       additionalProperties:
                                                         type: string
                                                       type: object
+                                                    components:
+                                                      items:
+                                                        type: string
+                                                      type: array
                                                     forceCommonAnnotations:
                                                       type: boolean
                                                     forceCommonLabels:
@@ -5987,6 +6713,36 @@ spec:
                                                       type: string
                                                     namespace:
                                                       type: string
+                                                    patches:
+                                                      items:
+                                                        properties:
+                                                          options:
+                                                            additionalProperties:
+                                                              type: boolean
+                                                            type: object
+                                                          patch:
+                                                            type: string
+                                                          path:
+                                                            type: string
+                                                          target:
+                                                            properties:
+                                                              annotationSelector:
+                                                                type: string
+                                                              group:
+                                                                type: string
+                                                              kind:
+                                                                type: string
+                                                              labelSelector:
+                                                                type: string
+                                                              name:
+                                                                type: string
+                                                              namespace:
+                                                                type: string
+                                                              version:
+                                                                type: string
+                                                            type: object
+                                                        type: object
+                                                      type: array
                                                     replicas:
                                                       items:
                                                         properties:
@@ -6310,6 +7066,10 @@ spec:
                                           additionalProperties:
                                             type: string
                                           type: object
+                                        components:
+                                          items:
+                                            type: string
+                                          type: array
                                         forceCommonAnnotations:
                                           type: boolean
                                         forceCommonLabels:
@@ -6324,6 +7084,36 @@ spec:
                                           type: string
                                         namespace:
                                           type: string
+                                        patches:
+                                          items:
+                                            properties:
+                                              options:
+                                                additionalProperties:
+                                                  type: boolean
+                                                type: object
+                                              patch:
+                                                type: string
+                                              path:
+                                                type: string
+                                              target:
+                                                properties:
+                                                  annotationSelector:
+                                                    type: string
+                                                  group:
+                                                    type: string
+                                                  kind:
+                                                    type: string
+                                                  labelSelector:
+                                                    type: string
+                                                  name:
+                                                    type: string
+                                                  namespace:
+                                                    type: string
+                                                  version:
+                                                    type: string
+                                                type: object
+                                            type: object
+                                          type: array
                                         replicas:
                                           items:
                                             properties:
@@ -6490,6 +7280,10 @@ spec:
                                             additionalProperties:
                                               type: string
                                             type: object
+                                          components:
+                                            items:
+                                              type: string
+                                            type: array
                                           forceCommonAnnotations:
                                             type: boolean
                                           forceCommonLabels:
@@ -6504,6 +7298,36 @@ spec:
                                             type: string
                                           namespace:
                                             type: string
+                                          patches:
+                                            items:
+                                              properties:
+                                                options:
+                                                  additionalProperties:
+                                                    type: boolean
+                                                  type: object
+                                                patch:
+                                                  type: string
+                                                path:
+                                                  type: string
+                                                target:
+                                                  properties:
+                                                    annotationSelector:
+                                                      type: string
+                                                    group:
+                                                      type: string
+                                                    kind:
+                                                      type: string
+                                                    labelSelector:
+                                                      type: string
+                                                    name:
+                                                      type: string
+                                                    namespace:
+                                                      type: string
+                                                    version:
+                                                      type: string
+                                                  type: object
+                                              type: object
+                                            type: array
                                           replicas:
                                             items:
                                               properties:
@@ -6837,6 +7661,10 @@ spec:
                                                     additionalProperties:
                                                       type: string
                                                     type: object
+                                                  components:
+                                                    items:
+                                                      type: string
+                                                    type: array
                                                   forceCommonAnnotations:
                                                     type: boolean
                                                   forceCommonLabels:
@@ -6851,6 +7679,36 @@ spec:
                                                     type: string
                                                   namespace:
                                                     type: string
+                                                  patches:
+                                                    items:
+                                                      properties:
+                                                        options:
+                                                          additionalProperties:
+                                                            type: boolean
+                                                          type: object
+                                                        patch:
+                                                          type: string
+                                                        path:
+                                                          type: string
+                                                        target:
+                                                          properties:
+                                                            annotationSelector:
+                                                              type: string
+                                                            group:
+                                                              type: string
+                                                            kind:
+                                                              type: string
+                                                            labelSelector:
+                                                              type: string
+                                                            name:
+                                                              type: string
+                                                            namespace:
+                                                              type: string
+                                                            version:
+                                                              type: string
+                                                          type: object
+                                                      type: object
+                                                    type: array
                                                   replicas:
                                                     items:
                                                       properties:
@@ -7017,6 +7875,10 @@ spec:
                                                       additionalProperties:
                                                         type: string
                                                       type: object
+                                                    components:
+                                                      items:
+                                                        type: string
+                                                      type: array
                                                     forceCommonAnnotations:
                                                       type: boolean
                                                     forceCommonLabels:
@@ -7031,6 +7893,36 @@ spec:
                                                       type: string
                                                     namespace:
                                                       type: string
+                                                    patches:
+                                                      items:
+                                                        properties:
+                                                          options:
+                                                            additionalProperties:
+                                                              type: boolean
+                                                            type: object
+                                                          patch:
+                                                            type: string
+                                                          path:
+                                                            type: string
+                                                          target:
+                                                            properties:
+                                                              annotationSelector:
+                                                                type: string
+                                                              group:
+                                                                type: string
+                                                              kind:
+                                                                type: string
+                                                              labelSelector:
+                                                                type: string
+                                                              name:
+                                                                type: string
+                                                              namespace:
+                                                                type: string
+                                                              version:
+                                                                type: string
+                                                            type: object
+                                                        type: object
+                                                      type: array
                                                     replicas:
                                                       items:
                                                         properties:
@@ -7356,6 +8248,10 @@ spec:
                                                     additionalProperties:
                                                       type: string
                                                     type: object
+                                                  components:
+                                                    items:
+                                                      type: string
+                                                    type: array
                                                   forceCommonAnnotations:
                                                     type: boolean
                                                   forceCommonLabels:
@@ -7370,6 +8266,36 @@ spec:
                                                     type: string
                                                   namespace:
                                                     type: string
+                                                  patches:
+                                                    items:
+                                                      properties:
+                                                        options:
+                                                          additionalProperties:
+                                                            type: boolean
+                                                          type: object
+                                                        patch:
+                                                          type: string
+                                                        path:
+                                                          type: string
+                                                        target:
+                                                          properties:
+                                                            annotationSelector:
+                                                              type: string
+                                                            group:
+                                                              type: string
+                                                            kind:
+                                                              type: string
+                                                            labelSelector:
+                                                              type: string
+                                                            name:
+                                                              type: string
+                                                            namespace:
+                                                              type: string
+                                                            version:
+                                                              type: string
+                                                          type: object
+                                                      type: object
+                                                    type: array
                                                   replicas:
                                                     items:
                                                       properties:
@@ -7536,6 +8462,10 @@ spec:
                                                       additionalProperties:
                                                         type: string
                                                       type: object
+                                                    components:
+                                                      items:
+                                                        type: string
+                                                      type: array
                                                     forceCommonAnnotations:
                                                       type: boolean
                                                     forceCommonLabels:
@@ -7550,6 +8480,36 @@ spec:
                                                       type: string
                                                     namespace:
                                                       type: string
+                                                    patches:
+                                                      items:
+                                                        properties:
+                                                          options:
+                                                            additionalProperties:
+                                                              type: boolean
+                                                            type: object
+                                                          patch:
+                                                            type: string
+                                                          path:
+                                                            type: string
+                                                          target:
+                                                            properties:
+                                                              annotationSelector:
+                                                                type: string
+                                                              group:
+                                                                type: string
+                                                              kind:
+                                                                type: string
+                                                              labelSelector:
+                                                                type: string
+                                                              name:
+                                                                type: string
+                                                              namespace:
+                                                                type: string
+                                                              version:
+                                                                type: string
+                                                            type: object
+                                                        type: object
+                                                      type: array
                                                     replicas:
                                                       items:
                                                         properties:
@@ -7879,6 +8839,10 @@ spec:
                                                     additionalProperties:
                                                       type: string
                                                     type: object
+                                                  components:
+                                                    items:
+                                                      type: string
+                                                    type: array
                                                   forceCommonAnnotations:
                                                     type: boolean
                                                   forceCommonLabels:
@@ -7893,6 +8857,36 @@ spec:
                                                     type: string
                                                   namespace:
                                                     type: string
+                                                  patches:
+                                                    items:
+                                                      properties:
+                                                        options:
+                                                          additionalProperties:
+                                                            type: boolean
+                                                          type: object
+                                                        patch:
+                                                          type: string
+                                                        path:
+                                                          type: string
+                                                        target:
+                                                          properties:
+                                                            annotationSelector:
+                                                              type: string
+                                                            group:
+                                                              type: string
+                                                            kind:
+                                                              type: string
+                                                            labelSelector:
+                                                              type: string
+                                                            name:
+                                                              type: string
+                                                            namespace:
+                                                              type: string
+                                                            version:
+                                                              type: string
+                                                          type: object
+                                                      type: object
+                                                    type: array
                                                   replicas:
                                                     items:
                                                       properties:
@@ -8059,6 +9053,10 @@ spec:
                                                       additionalProperties:
                                                         type: string
                                                       type: object
+                                                    components:
+                                                      items:
+                                                        type: string
+                                                      type: array
                                                     forceCommonAnnotations:
                                                       type: boolean
                                                     forceCommonLabels:
@@ -8073,6 +9071,36 @@ spec:
                                                       type: string
                                                     namespace:
                                                       type: string
+                                                    patches:
+                                                      items:
+                                                        properties:
+                                                          options:
+                                                            additionalProperties:
+                                                              type: boolean
+                                                            type: object
+                                                          patch:
+                                                            type: string
+                                                          path:
+                                                            type: string
+                                                          target:
+                                                            properties:
+                                                              annotationSelector:
+                                                                type: string
+                                                              group:
+                                                                type: string
+                                                              kind:
+                                                                type: string
+                                                              labelSelector:
+                                                                type: string
+                                                              name:
+                                                                type: string
+                                                              namespace:
+                                                                type: string
+                                                              version:
+                                                                type: string
+                                                            type: object
+                                                        type: object
+                                                      type: array
                                                     replicas:
                                                       items:
                                                         properties:
@@ -8382,6 +9410,10 @@ spec:
                                                     additionalProperties:
                                                       type: string
                                                     type: object
+                                                  components:
+                                                    items:
+                                                      type: string
+                                                    type: array
                                                   forceCommonAnnotations:
                                                     type: boolean
                                                   forceCommonLabels:
@@ -8396,6 +9428,36 @@ spec:
                                                     type: string
                                                   namespace:
                                                     type: string
+                                                  patches:
+                                                    items:
+                                                      properties:
+                                                        options:
+                                                          additionalProperties:
+                                                            type: boolean
+                                                          type: object
+                                                        patch:
+                                                          type: string
+                                                        path:
+                                                          type: string
+                                                        target:
+                                                          properties:
+                                                            annotationSelector:
+                                                              type: string
+                                                            group:
+                                                              type: string
+                                                            kind:
+                                                              type: string
+                                                            labelSelector:
+                                                              type: string
+                                                            name:
+                                                              type: string
+                                                            namespace:
+                                                              type: string
+                                                            version:
+                                                              type: string
+                                                          type: object
+                                                      type: object
+                                                    type: array
                                                   replicas:
                                                     items:
                                                       properties:
@@ -8562,6 +9624,10 @@ spec:
                                                       additionalProperties:
                                                         type: string
                                                       type: object
+                                                    components:
+                                                      items:
+                                                        type: string
+                                                      type: array
                                                     forceCommonAnnotations:
                                                       type: boolean
                                                     forceCommonLabels:
@@ -8576,6 +9642,36 @@ spec:
                                                       type: string
                                                     namespace:
                                                       type: string
+                                                    patches:
+                                                      items:
+                                                        properties:
+                                                          options:
+                                                            additionalProperties:
+                                                              type: boolean
+                                                            type: object
+                                                          patch:
+                                                            type: string
+                                                          path:
+                                                            type: string
+                                                          target:
+                                                            properties:
+                                                              annotationSelector:
+                                                                type: string
+                                                              group:
+                                                                type: string
+                                                              kind:
+                                                                type: string
+                                                              labelSelector:
+                                                                type: string
+                                                              name:
+                                                                type: string
+                                                              namespace:
+                                                                type: string
+                                                              version:
+                                                                type: string
+                                                            type: object
+                                                        type: object
+                                                      type: array
                                                     replicas:
                                                       items:
                                                         properties:
@@ -8895,6 +9991,10 @@ spec:
                                                     additionalProperties:
                                                       type: string
                                                     type: object
+                                                  components:
+                                                    items:
+                                                      type: string
+                                                    type: array
                                                   forceCommonAnnotations:
                                                     type: boolean
                                                   forceCommonLabels:
@@ -8909,6 +10009,36 @@ spec:
                                                     type: string
                                                   namespace:
                                                     type: string
+                                                  patches:
+                                                    items:
+                                                      properties:
+                                                        options:
+                                                          additionalProperties:
+                                                            type: boolean
+                                                          type: object
+                                                        patch:
+                                                          type: string
+                                                        path:
+                                                          type: string
+                                                        target:
+                                                          properties:
+                                                            annotationSelector:
+                                                              type: string
+                                                            group:
+                                                              type: string
+                                                            kind:
+                                                              type: string
+                                                            labelSelector:
+                                                              type: string
+                                                            name:
+                                                              type: string
+                                                            namespace:
+                                                              type: string
+                                                            version:
+                                                              type: string
+                                                          type: object
+                                                      type: object
+                                                    type: array
                                                   replicas:
                                                     items:
                                                       properties:
@@ -9075,6 +10205,10 @@ spec:
                                                       additionalProperties:
                                                         type: string
                                                       type: object
+                                                    components:
+                                                      items:
+                                                        type: string
+                                                      type: array
                                                     forceCommonAnnotations:
                                                       type: boolean
                                                     forceCommonLabels:
@@ -9089,6 +10223,36 @@ spec:
                                                       type: string
                                                     namespace:
                                                       type: string
+                                                    patches:
+                                                      items:
+                                                        properties:
+                                                          options:
+                                                            additionalProperties:
+                                                              type: boolean
+                                                            type: object
+                                                          patch:
+                                                            type: string
+                                                          path:
+                                                            type: string
+                                                          target:
+                                                            properties:
+                                                              annotationSelector:
+                                                                type: string
+                                                              group:
+                                                                type: string
+                                                              kind:
+                                                                type: string
+                                                              labelSelector:
+                                                                type: string
+                                                              name:
+                                                                type: string
+                                                              namespace:
+                                                                type: string
+                                                              version:
+                                                                type: string
+                                                            type: object
+                                                        type: object
+                                                      type: array
                                                     replicas:
                                                       items:
                                                         properties:
@@ -9384,6 +10548,8 @@ spec:
                                     properties:
                                       api:
                                         type: string
+                                      insecure:
+                                        type: boolean
                                       labels:
                                         items:
                                           type: string
@@ -9611,6 +10777,10 @@ spec:
                                                     additionalProperties:
                                                       type: string
                                                     type: object
+                                                  components:
+                                                    items:
+                                                      type: string
+                                                    type: array
                                                   forceCommonAnnotations:
                                                     type: boolean
                                                   forceCommonLabels:
@@ -9625,6 +10795,36 @@ spec:
                                                     type: string
                                                   namespace:
                                                     type: string
+                                                  patches:
+                                                    items:
+                                                      properties:
+                                                        options:
+                                                          additionalProperties:
+                                                            type: boolean
+                                                          type: object
+                                                        patch:
+                                                          type: string
+                                                        path:
+                                                          type: string
+                                                        target:
+                                                          properties:
+                                                            annotationSelector:
+                                                              type: string
+                                                            group:
+                                                              type: string
+                                                            kind:
+                                                              type: string
+                                                            labelSelector:
+                                                              type: string
+                                                            name:
+                                                              type: string
+                                                            namespace:
+                                                              type: string
+                                                            version:
+                                                              type: string
+                                                          type: object
+                                                      type: object
+                                                    type: array
                                                   replicas:
                                                     items:
                                                       properties:
@@ -9791,6 +10991,10 @@ spec:
                                                       additionalProperties:
                                                         type: string
                                                       type: object
+                                                    components:
+                                                      items:
+                                                        type: string
+                                                      type: array
                                                     forceCommonAnnotations:
                                                       type: boolean
                                                     forceCommonLabels:
@@ -9805,6 +11009,36 @@ spec:
                                                       type: string
                                                     namespace:
                                                       type: string
+                                                    patches:
+                                                      items:
+                                                        properties:
+                                                          options:
+                                                            additionalProperties:
+                                                              type: boolean
+                                                            type: object
+                                                          patch:
+                                                            type: string
+                                                          path:
+                                                            type: string
+                                                          target:
+                                                            properties:
+                                                              annotationSelector:
+                                                                type: string
+                                                              group:
+                                                                type: string
+                                                              kind:
+                                                                type: string
+                                                              labelSelector:
+                                                                type: string
+                                                              name:
+                                                                type: string
+                                                              namespace:
+                                                                type: string
+                                                              version:
+                                                                type: string
+                                                            type: object
+                                                        type: object
+                                                      type: array
                                                     replicas:
                                                       items:
                                                         properties:
@@ -10097,7 +11331,11 @@ spec:
                                         type: string
                                       group:
                                         type: string
+                                      includeSharedProjects:
+                                        type: boolean
                                       includeSubgroups:
+                                        type: boolean
+                                      insecure:
                                         type: boolean
                                       tokenRef:
                                         properties:
@@ -10109,6 +11347,8 @@ spec:
                                         - key
                                         - secretName
                                         type: object
+                                      topic:
+                                        type: string
                                     required:
                                     - group
                                     type: object
@@ -10314,6 +11554,10 @@ spec:
                                                     additionalProperties:
                                                       type: string
                                                     type: object
+                                                  components:
+                                                    items:
+                                                      type: string
+                                                    type: array
                                                   forceCommonAnnotations:
                                                     type: boolean
                                                   forceCommonLabels:
@@ -10328,6 +11572,36 @@ spec:
                                                     type: string
                                                   namespace:
                                                     type: string
+                                                  patches:
+                                                    items:
+                                                      properties:
+                                                        options:
+                                                          additionalProperties:
+                                                            type: boolean
+                                                          type: object
+                                                        patch:
+                                                          type: string
+                                                        path:
+                                                          type: string
+                                                        target:
+                                                          properties:
+                                                            annotationSelector:
+                                                              type: string
+                                                            group:
+                                                              type: string
+                                                            kind:
+                                                              type: string
+                                                            labelSelector:
+                                                              type: string
+                                                            name:
+                                                              type: string
+                                                            namespace:
+                                                              type: string
+                                                            version:
+                                                              type: string
+                                                          type: object
+                                                      type: object
+                                                    type: array
                                                   replicas:
                                                     items:
                                                       properties:
@@ -10494,6 +11768,10 @@ spec:
                                                       additionalProperties:
                                                         type: string
                                                       type: object
+                                                    components:
+                                                      items:
+                                                        type: string
+                                                      type: array
                                                     forceCommonAnnotations:
                                                       type: boolean
                                                     forceCommonLabels:
@@ -10508,6 +11786,36 @@ spec:
                                                       type: string
                                                     namespace:
                                                       type: string
+                                                    patches:
+                                                      items:
+                                                        properties:
+                                                          options:
+                                                            additionalProperties:
+                                                              type: boolean
+                                                            type: object
+                                                          patch:
+                                                            type: string
+                                                          path:
+                                                            type: string
+                                                          target:
+                                                            properties:
+                                                              annotationSelector:
+                                                                type: string
+                                                              group:
+                                                                type: string
+                                                              kind:
+                                                                type: string
+                                                              labelSelector:
+                                                                type: string
+                                                              name:
+                                                                type: string
+                                                              namespace:
+                                                                type: string
+                                                              version:
+                                                                type: string
+                                                            type: object
+                                                        type: object
+                                                      type: array
                                                     replicas:
                                                       items:
                                                         properties:
@@ -10835,6 +12143,10 @@ spec:
                                           additionalProperties:
                                             type: string
                                           type: object
+                                        components:
+                                          items:
+                                            type: string
+                                          type: array
                                         forceCommonAnnotations:
                                           type: boolean
                                         forceCommonLabels:
@@ -10849,6 +12161,36 @@ spec:
                                           type: string
                                         namespace:
                                           type: string
+                                        patches:
+                                          items:
+                                            properties:
+                                              options:
+                                                additionalProperties:
+                                                  type: boolean
+                                                type: object
+                                              patch:
+                                                type: string
+                                              path:
+                                                type: string
+                                              target:
+                                                properties:
+                                                  annotationSelector:
+                                                    type: string
+                                                  group:
+                                                    type: string
+                                                  kind:
+                                                    type: string
+                                                  labelSelector:
+                                                    type: string
+                                                  name:
+                                                    type: string
+                                                  namespace:
+                                                    type: string
+                                                  version:
+                                                    type: string
+                                                type: object
+                                            type: object
+                                          type: array
                                         replicas:
                                           items:
                                             properties:
@@ -11015,6 +12357,10 @@ spec:
                                             additionalProperties:
                                               type: string
                                             type: object
+                                          components:
+                                            items:
+                                              type: string
+                                            type: array
                                           forceCommonAnnotations:
                                             type: boolean
                                           forceCommonLabels:
@@ -11029,6 +12375,36 @@ spec:
                                             type: string
                                           namespace:
                                             type: string
+                                          patches:
+                                            items:
+                                              properties:
+                                                options:
+                                                  additionalProperties:
+                                                    type: boolean
+                                                  type: object
+                                                patch:
+                                                  type: string
+                                                path:
+                                                  type: string
+                                                target:
+                                                  properties:
+                                                    annotationSelector:
+                                                      type: string
+                                                    group:
+                                                      type: string
+                                                    kind:
+                                                      type: string
+                                                    labelSelector:
+                                                      type: string
+                                                    name:
+                                                      type: string
+                                                    namespace:
+                                                      type: string
+                                                    version:
+                                                      type: string
+                                                  type: object
+                                              type: object
+                                            type: array
                                           replicas:
                                             items:
                                               properties:
@@ -11345,6 +12721,10 @@ spec:
                                           additionalProperties:
                                             type: string
                                           type: object
+                                        components:
+                                          items:
+                                            type: string
+                                          type: array
                                         forceCommonAnnotations:
                                           type: boolean
                                         forceCommonLabels:
@@ -11359,6 +12739,36 @@ spec:
                                           type: string
                                         namespace:
                                           type: string
+                                        patches:
+                                          items:
+                                            properties:
+                                              options:
+                                                additionalProperties:
+                                                  type: boolean
+                                                type: object
+                                              patch:
+                                                type: string
+                                              path:
+                                                type: string
+                                              target:
+                                                properties:
+                                                  annotationSelector:
+                                                    type: string
+                                                  group:
+                                                    type: string
+                                                  kind:
+                                                    type: string
+                                                  labelSelector:
+                                                    type: string
+                                                  name:
+                                                    type: string
+                                                  namespace:
+                                                    type: string
+                                                  version:
+                                                    type: string
+                                                type: object
+                                            type: object
+                                          type: array
                                         replicas:
                                           items:
                                             properties:
@@ -11525,6 +12935,10 @@ spec:
                                             additionalProperties:
                                               type: string
                                             type: object
+                                          components:
+                                            items:
+                                              type: string
+                                            type: array
                                           forceCommonAnnotations:
                                             type: boolean
                                           forceCommonLabels:
@@ -11539,6 +12953,36 @@ spec:
                                             type: string
                                           namespace:
                                             type: string
+                                          patches:
+                                            items:
+                                              properties:
+                                                options:
+                                                  additionalProperties:
+                                                    type: boolean
+                                                  type: object
+                                                patch:
+                                                  type: string
+                                                path:
+                                                  type: string
+                                                target:
+                                                  properties:
+                                                    annotationSelector:
+                                                      type: string
+                                                    group:
+                                                      type: string
+                                                    kind:
+                                                      type: string
+                                                    labelSelector:
+                                                      type: string
+                                                    name:
+                                                      type: string
+                                                    namespace:
+                                                      type: string
+                                                    version:
+                                                      type: string
+                                                  type: object
+                                              type: object
+                                            type: array
                                           replicas:
                                             items:
                                               properties:
@@ -11834,6 +13278,8 @@ spec:
                           properties:
                             api:
                               type: string
+                            insecure:
+                              type: boolean
                             labels:
                               items:
                                 type: string
@@ -12061,6 +13507,10 @@ spec:
                                           additionalProperties:
                                             type: string
                                           type: object
+                                        components:
+                                          items:
+                                            type: string
+                                          type: array
                                         forceCommonAnnotations:
                                           type: boolean
                                         forceCommonLabels:
@@ -12075,6 +13525,36 @@ spec:
                                           type: string
                                         namespace:
                                           type: string
+                                        patches:
+                                          items:
+                                            properties:
+                                              options:
+                                                additionalProperties:
+                                                  type: boolean
+                                                type: object
+                                              patch:
+                                                type: string
+                                              path:
+                                                type: string
+                                              target:
+                                                properties:
+                                                  annotationSelector:
+                                                    type: string
+                                                  group:
+                                                    type: string
+                                                  kind:
+                                                    type: string
+                                                  labelSelector:
+                                                    type: string
+                                                  name:
+                                                    type: string
+                                                  namespace:
+                                                    type: string
+                                                  version:
+                                                    type: string
+                                                type: object
+                                            type: object
+                                          type: array
                                         replicas:
                                           items:
                                             properties:
@@ -12241,6 +13721,10 @@ spec:
                                             additionalProperties:
                                               type: string
                                             type: object
+                                          components:
+                                            items:
+                                              type: string
+                                            type: array
                                           forceCommonAnnotations:
                                             type: boolean
                                           forceCommonLabels:
@@ -12255,6 +13739,36 @@ spec:
                                             type: string
                                           namespace:
                                             type: string
+                                          patches:
+                                            items:
+                                              properties:
+                                                options:
+                                                  additionalProperties:
+                                                    type: boolean
+                                                  type: object
+                                                patch:
+                                                  type: string
+                                                path:
+                                                  type: string
+                                                target:
+                                                  properties:
+                                                    annotationSelector:
+                                                      type: string
+                                                    group:
+                                                      type: string
+                                                    kind:
+                                                      type: string
+                                                    labelSelector:
+                                                      type: string
+                                                    name:
+                                                      type: string
+                                                    namespace:
+                                                      type: string
+                                                    version:
+                                                      type: string
+                                                  type: object
+                                              type: object
+                                            type: array
                                           replicas:
                                             items:
                                               properties:
@@ -12547,7 +14061,11 @@ spec:
                               type: string
                             group:
                               type: string
+                            includeSharedProjects:
+                              type: boolean
                             includeSubgroups:
+                              type: boolean
+                            insecure:
                               type: boolean
                             tokenRef:
                               properties:
@@ -12559,6 +14077,8 @@ spec:
                               - key
                               - secretName
                               type: object
+                            topic:
+                              type: string
                           required:
                           - group
                           type: object
@@ -12764,6 +14284,10 @@ spec:
                                           additionalProperties:
                                             type: string
                                           type: object
+                                        components:
+                                          items:
+                                            type: string
+                                          type: array
                                         forceCommonAnnotations:
                                           type: boolean
                                         forceCommonLabels:
@@ -12778,6 +14302,36 @@ spec:
                                           type: string
                                         namespace:
                                           type: string
+                                        patches:
+                                          items:
+                                            properties:
+                                              options:
+                                                additionalProperties:
+                                                  type: boolean
+                                                type: object
+                                              patch:
+                                                type: string
+                                              path:
+                                                type: string
+                                              target:
+                                                properties:
+                                                  annotationSelector:
+                                                    type: string
+                                                  group:
+                                                    type: string
+                                                  kind:
+                                                    type: string
+                                                  labelSelector:
+                                                    type: string
+                                                  name:
+                                                    type: string
+                                                  namespace:
+                                                    type: string
+                                                  version:
+                                                    type: string
+                                                type: object
+                                            type: object
+                                          type: array
                                         replicas:
                                           items:
                                             properties:
@@ -12944,6 +14498,10 @@ spec:
                                             additionalProperties:
                                               type: string
                                             type: object
+                                          components:
+                                            items:
+                                              type: string
+                                            type: array
                                           forceCommonAnnotations:
                                             type: boolean
                                           forceCommonLabels:
@@ -12958,6 +14516,36 @@ spec:
                                             type: string
                                           namespace:
                                             type: string
+                                          patches:
+                                            items:
+                                              properties:
+                                                options:
+                                                  additionalProperties:
+                                                    type: boolean
+                                                  type: object
+                                                patch:
+                                                  type: string
+                                                path:
+                                                  type: string
+                                                target:
+                                                  properties:
+                                                    annotationSelector:
+                                                      type: string
+                                                    group:
+                                                      type: string
+                                                    kind:
+                                                      type: string
+                                                    labelSelector:
+                                                      type: string
+                                                    name:
+                                                      type: string
+                                                    namespace:
+                                                      type: string
+                                                    version:
+                                                      type: string
+                                                  type: object
+                                              type: object
+                                            type: array
                                           replicas:
                                             items:
                                               properties:
@@ -13109,9 +14697,28 @@ spec:
                 items:
                   type: string
                 type: array
+              ignoreApplicationDifferences:
+                items:
+                  properties:
+                    jqPathExpressions:
+                      items:
+                        type: string
+                      type: array
+                    jsonPointers:
+                      items:
+                        type: string
+                      type: array
+                    name:
+                      type: string
+                  type: object
+                type: array
               preservedFields:
                 properties:
                   annotations:
+                    items:
+                      type: string
+                    type: array
+                  labels:
                     items:
                       type: string
                     type: array
@@ -13337,6 +14944,10 @@ spec:
                                 additionalProperties:
                                   type: string
                                 type: object
+                              components:
+                                items:
+                                  type: string
+                                type: array
                               forceCommonAnnotations:
                                 type: boolean
                               forceCommonLabels:
@@ -13351,6 +14962,36 @@ spec:
                                 type: string
                               namespace:
                                 type: string
+                              patches:
+                                items:
+                                  properties:
+                                    options:
+                                      additionalProperties:
+                                        type: boolean
+                                      type: object
+                                    patch:
+                                      type: string
+                                    path:
+                                      type: string
+                                    target:
+                                      properties:
+                                        annotationSelector:
+                                          type: string
+                                        group:
+                                          type: string
+                                        kind:
+                                          type: string
+                                        labelSelector:
+                                          type: string
+                                        name:
+                                          type: string
+                                        namespace:
+                                          type: string
+                                        version:
+                                          type: string
+                                      type: object
+                                  type: object
+                                type: array
                               replicas:
                                 items:
                                   properties:
@@ -13517,6 +15158,10 @@ spec:
                                   additionalProperties:
                                     type: string
                                   type: object
+                                components:
+                                  items:
+                                    type: string
+                                  type: array
                                 forceCommonAnnotations:
                                   type: boolean
                                 forceCommonLabels:
@@ -13531,6 +15176,36 @@ spec:
                                   type: string
                                 namespace:
                                   type: string
+                                patches:
+                                  items:
+                                    properties:
+                                      options:
+                                        additionalProperties:
+                                          type: boolean
+                                        type: object
+                                      patch:
+                                        type: string
+                                      path:
+                                        type: string
+                                      target:
+                                        properties:
+                                          annotationSelector:
+                                            type: string
+                                          group:
+                                            type: string
+                                          kind:
+                                            type: string
+                                          labelSelector:
+                                            type: string
+                                          name:
+                                            type: string
+                                          namespace:
+                                            type: string
+                                          version:
+                                            type: string
+                                        type: object
+                                    type: object
+                                  type: array
                                 replicas:
                                   items:
                                     properties:

@@ -1,4 +1,4 @@
-# Overview
+# Notifications Overview
 
 Argo CD Notifications continuously monitors Argo CD applications and provides a flexible way to notify
 users about important changes in the application state. Using a flexible mechanism of
@@ -10,37 +10,38 @@ So you can just use them instead of reinventing new ones.
 
 * Install Triggers and Templates from the catalog
 
-```
-kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/notifications_catalog/install.yaml
-```
+    ```bash
+    kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/notifications_catalog/install.yaml
+    ```
 
 * Add Email username and password token to `argocd-notifications-secret` secret
 
-```bash
-export EMAIL_USER=<your-username>
-export PASSWORD=<your-password>
-kubectl apply -n argocd -f - << EOF
-apiVersion: v1
-kind: Secret
-metadata:
-  name: argocd-notifications-secret
-stringData:
-  email-username: $EMAIL_USER
-  email-password: $PASSWORD
-type: Opaque
-EOF
-```
+    ```bash
+    EMAIL_USER=<your-username>
+    PASSWORD=<your-password>
+    
+    kubectl apply -n argocd -f - << EOF
+    apiVersion: v1
+    kind: Secret
+    metadata:
+      name: argocd-notifications-secret
+    stringData:
+      email-username: $EMAIL_USER
+      email-password: $PASSWORD
+    type: Opaque
+    EOF
+    ```
 
 * Register Email notification service
 
-```bash
-kubectl patch cm argocd-notifications-cm -n argocd --type merge -p '{"data": {"service.email.gmail": "{ username: $email-username, password: $email-password, host: smtp.gmail.com, port: 465, from: $email-username }" }}'
-```
+    ```bash
+    kubectl patch cm argocd-notifications-cm -n argocd --type merge -p '{"data": {"service.email.gmail": "{ username: $email-username, password: $email-password, host: smtp.gmail.com, port: 465, from: $email-username }" }}'
+    ```
 
 * Subscribe to notifications by adding the `notifications.argoproj.io/subscribe.on-sync-succeeded.slack` annotation to the Argo CD application or project:
 
-```bash
-kubectl patch app <my-app> -n argocd -p '{"metadata": {"annotations": {"notifications.argoproj.io/subscribe.on-sync-succeeded.slack":"<my-channel>"}}}' --type merge
-```
+    ```bash
+    kubectl patch app <my-app> -n argocd -p '{"metadata": {"annotations": {"notifications.argoproj.io/subscribe.on-sync-succeeded.slack":"<my-channel>"}}}' --type merge
+    ```
 
 Try syncing an application to get notified when the sync is completed.

@@ -5,9 +5,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/argoproj/argo-cd/v2/applicationset/generators"
-	"github.com/argoproj/argo-cd/v2/applicationset/services/mocks"
-	argov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -17,6 +14,10 @@ import (
 	kubefake "k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+
+	"github.com/argoproj/argo-cd/v2/applicationset/generators"
+	"github.com/argoproj/argo-cd/v2/applicationset/services/mocks"
+	argov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 )
 
 func TestRequeueAfter(t *testing.T) {
@@ -59,9 +60,9 @@ func TestRequeueAfter(t *testing.T) {
 		"List":                    generators.NewListGenerator(),
 		"Clusters":                generators.NewClusterGenerator(k8sClient, ctx, appClientset, "argocd"),
 		"Git":                     generators.NewGitGenerator(mockServer),
-		"SCMProvider":             generators.NewSCMProviderGenerator(fake.NewClientBuilder().WithObjects(&corev1.Secret{}).Build(), generators.SCMAuthProviders{}),
+		"SCMProvider":             generators.NewSCMProviderGenerator(fake.NewClientBuilder().WithObjects(&corev1.Secret{}).Build(), generators.SCMAuthProviders{}, "", []string{""}, true),
 		"ClusterDecisionResource": generators.NewDuckTypeGenerator(ctx, fakeDynClient, appClientset, "argocd"),
-		"PullRequest":             generators.NewPullRequestGenerator(k8sClient, generators.SCMAuthProviders{}),
+		"PullRequest":             generators.NewPullRequestGenerator(k8sClient, generators.SCMAuthProviders{}, "", []string{""}, true),
 	}
 
 	nestedGenerators := map[string]generators.Generator{

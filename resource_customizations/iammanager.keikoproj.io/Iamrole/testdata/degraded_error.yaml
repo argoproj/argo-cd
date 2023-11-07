@@ -1,0 +1,29 @@
+apiVersion: iammanager.keikoproj.io/v1alpha1
+kind: Iamrole
+metadata:
+  finalizers:
+    - iamrole.finalizers.iammanager.keikoproj.io
+  name: iamrole
+  namespace: test
+spec:
+  PolicyDocument:
+    Statement:
+      - Action:
+          - ec2:*
+        Effect: Deny
+        Resource:
+          - '*'
+      - Action:
+          - iam:*
+        Effect: Deny
+        Resource:
+          - '*'
+status:
+  errorDescription: "NoSuchEntity: The role with name k8s-test cannot
+    be found.\n\tstatus code: 404, request id: f80c99fc-c78d-4b1c-806d-3a162fbbc900"
+  lastUpdatedTimestamp: "2023-10-10T19:31:06Z"
+  retryCount: 1
+  roleARN: arn:aws:iam::111111111111:role/k8s-test
+  roleID: ABCDEFGHIJKLMNOPQRSTU
+  roleName: k8s-test
+  state: Error

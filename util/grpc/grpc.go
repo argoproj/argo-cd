@@ -88,7 +88,7 @@ func BlockingDial(ctx context.Context, network, address string, creds credential
 			grpc.FailOnNonTempDialError(true),
 			grpc.WithContextDialer(dialer),
 			grpc.WithTransportCredentials(insecure.NewCredentials()), // we are handling TLS, so tell grpc not to
-			grpc.WithKeepaliveParams(keepalive.ClientParameters{Time: common.GRPCKeepAliveTime}),
+			grpc.WithKeepaliveParams(keepalive.ClientParameters{Time: common.GetGRPCKeepAliveTime()}),
 		)
 		conn, err := grpc.DialContext(ctx, address, opts...)
 		var res interface{}

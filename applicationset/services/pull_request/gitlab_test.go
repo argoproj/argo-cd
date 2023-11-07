@@ -34,7 +34,7 @@ func TestGitLabServiceCustomBaseURL(t *testing.T) {
 		writeMRListResponse(t, w)
 	})
 
-	svc, err := NewGitLabService(context.Background(), "", server.URL, "278964", nil, "")
+	svc, err := NewGitLabService(context.Background(), "", server.URL, "278964", nil, "", "", false)
 	assert.NoError(t, err)
 
 	_, err = svc.List(context.Background())
@@ -53,7 +53,7 @@ func TestGitLabServiceToken(t *testing.T) {
 		writeMRListResponse(t, w)
 	})
 
-	svc, err := NewGitLabService(context.Background(), "token-123", server.URL, "278964", nil, "")
+	svc, err := NewGitLabService(context.Background(), "token-123", server.URL, "278964", nil, "", "", false)
 	assert.NoError(t, err)
 
 	_, err = svc.List(context.Background())
@@ -72,7 +72,7 @@ func TestList(t *testing.T) {
 		writeMRListResponse(t, w)
 	})
 
-	svc, err := NewGitLabService(context.Background(), "", server.URL, "278964", []string{}, "")
+	svc, err := NewGitLabService(context.Background(), "", server.URL, "278964", []string{}, "", "", false)
 	assert.NoError(t, err)
 
 	prs, err := svc.List(context.Background())
@@ -96,7 +96,7 @@ func TestListWithLabels(t *testing.T) {
 		writeMRListResponse(t, w)
 	})
 
-	svc, err := NewGitLabService(context.Background(), "", server.URL, "278964", []string{"feature", "ready"}, "")
+	svc, err := NewGitLabService(context.Background(), "", server.URL, "278964", []string{"feature", "ready"}, "", "", false)
 	assert.NoError(t, err)
 
 	_, err = svc.List(context.Background())
@@ -115,7 +115,7 @@ func TestListWithState(t *testing.T) {
 		writeMRListResponse(t, w)
 	})
 
-	svc, err := NewGitLabService(context.Background(), "", server.URL, "278964", []string{}, "opened")
+	svc, err := NewGitLabService(context.Background(), "", server.URL, "278964", []string{}, "opened", "", false)
 	assert.NoError(t, err)
 
 	_, err = svc.List(context.Background())

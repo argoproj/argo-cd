@@ -9,7 +9,7 @@ export const Revision = ({repoUrl, revision, path, isForPath, children}: {repoUr
     revision = revision || '';
     const hasPath = path && path !== '.';
     let url = revisionUrl(repoUrl, revision, hasPath);
-    if (hasPath) {
+    if (url !== null && hasPath) {
         url += '/' + path;
     }
     const content = children || (isSHA(revision) ? revision.substr(0, 7) : revision);

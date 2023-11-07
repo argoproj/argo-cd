@@ -1,13 +1,16 @@
 package cache
 
 import (
+	"context"
 	"errors"
 	"net"
 	"net/url"
+	"sync"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -16,8 +19,10 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/cache/mocks"
 	"github.com/argoproj/gitops-engine/pkg/health"
 	"github.com/stretchr/testify/mock"
+	"k8s.io/client-go/kubernetes/fake"
 
 	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	argosettings "github.com/argoproj/argo-cd/v2/util/settings"
 )
 
 type netError string
@@ -106,6 +111,100 @@ func TestHandleAddEvent_ClusterExcluded(t *testing.T) {
 	})
 
 	assert.Len(t, clustersCache.clusters, 0)
+}
+
+func TestHandleDeleteEvent_CacheDeadlock(t *testing.T) {
+	testCluster := &appv1.Cluster{
+		Server: "https://mycluster",
+		Config: appv1.ClusterConfig{Username: "bar"},
+	}
+	fakeClient := fake.NewSimpleClientset()
+	settingsMgr := argosettings.NewSettingsManager(context.TODO(), fakeClient, "argocd")
+	liveStateCacheLock := sync.RWMutex{}
+	gitopsEngineClusterCache := &mocks.ClusterCache{}
+	clustersCache := liveStateCache{
+		clusters: map[string]cache.ClusterCache{
+			testCluster.Server: gitopsEngineClusterCache,
+		},
+		clusterFilter: func(cluster *appv1.Cluster) bool {
+			return true
+		},
+		settingsMgr: settingsMgr,
+		// Set the lock here so we can reference it later
+		// nolint We need to overwrite here to have access to the lock
+		lock: liveStateCacheLock,
+	}
+	channel := make(chan string)
+	// Mocked lock held by the gitops-engine cluster cache
+	gitopsEngineClusterCacheLock := sync.Mutex{}
+	// Ensure completion of both EnsureSynced and Invalidate
+	ensureSyncedCompleted := sync.Mutex{}
+	invalidateCompleted := sync.Mutex{}
+	// Locks to force trigger condition during test
+	// Condition order:
+	//   EnsuredSynced -> Locks gitops-engine
+	//   handleDeleteEvent -> Locks liveStateCache
+	//   EnsureSynced via sync, newResource, populateResourceInfoHandler -> attempts to Lock liveStateCache
+	//   handleDeleteEvent via cluster.Invalidate -> attempts to Lock gitops-engine
+	handleDeleteWasCalled := sync.Mutex{}
+	engineHoldsEngineLock := sync.Mutex{}
+	ensureSyncedCompleted.Lock()
+	invalidateCompleted.Lock()
+	handleDeleteWasCalled.Lock()
+	engineHoldsEngineLock.Lock()
+
+	gitopsEngineClusterCache.On("EnsureSynced").Run(func(args mock.Arguments) {
+		gitopsEngineClusterCacheLock.Lock()
+		t.Log("EnsureSynced: Engine has engine lock")
+		engineHoldsEngineLock.Unlock()
+		defer gitopsEngineClusterCacheLock.Unlock()
+		// Wait until handleDeleteEvent holds the liveStateCache lock
+		handleDeleteWasCalled.Lock()
+		// Try and obtain the liveStateCache lock
+		clustersCache.lock.Lock()
+		t.Log("EnsureSynced: Engine has LiveStateCache lock")
+		clustersCache.lock.Unlock()
+		ensureSyncedCompleted.Unlock()
+	}).Return(nil).Once()
+
+	gitopsEngineClusterCache.On("Invalidate").Run(func(args mock.Arguments) {
+		// Allow EnsureSynced to continue now that we're in the deadlock condition
+		handleDeleteWasCalled.Unlock()
+		// Wait until gitops engine holds the gitops lock
+		// This prevents timing issues if we reach this point before EnsureSynced has obtained the lock
+		engineHoldsEngineLock.Lock()
+		t.Log("Invalidate: Engine has engine lock")
+		engineHoldsEngineLock.Unlock()
+		// Lock engine lock
+		gitopsEngineClusterCacheLock.Lock()
+		t.Log("Invalidate: Invalidate has engine lock")
+		gitopsEngineClusterCacheLock.Unlock()
+		invalidateCompleted.Unlock()
+	}).Return()
+	go func() {
+		// Start the gitops-engine lock holds
+		go func() {
+			err := gitopsEngineClusterCache.EnsureSynced()
+			if err != nil {
+				assert.Fail(t, err.Error())
+			}
+		}()
+		// Run in background
+		go clustersCache.handleDeleteEvent(testCluster.Server)
+		// Allow execution to continue on clusters cache call to trigger lock
+		ensureSyncedCompleted.Lock()
+		invalidateCompleted.Lock()
+		t.Log("Competing functions were able to obtain locks")
+		invalidateCompleted.Unlock()
+		ensureSyncedCompleted.Unlock()
+		channel <- "PASSED"
+	}()
+	select {
+	case str := <-channel:
+		assert.Equal(t, "PASSED", str, str)
+	case <-time.After(5 * time.Second):
+		assert.Fail(t, "Ended up in deadlock")
+	}
 }
 
 func TestIsRetryableError(t *testing.T) {

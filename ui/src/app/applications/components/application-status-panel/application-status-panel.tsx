@@ -71,7 +71,7 @@ export const ApplicationStatusPanel = ({application, showDiff, showOperation, sh
     return (
         <div className='application-status-panel row'>
             <div className='application-status-panel__item'>
-                <div style={{marginBottom: '1em'}}>{sectionLabel({title: 'APP HEALTH', helpContent: 'The health status of your app'})}</div>
+                <div style={{lineHeight: '19.5px', marginBottom: '0.3em'}}>{sectionLabel({title: 'APP HEALTH', helpContent: 'The health status of your app'})}</div>
                 <div className='application-status-panel__item-value'>
                     <HealthStatusIcon state={application.status.health} />
                     &nbsp;
@@ -89,20 +89,18 @@ export const ApplicationStatusPanel = ({application, showDiff, showOperation, sh
                         hasMultipleSources,
                         () => showMetadataInfo(application.status.sync ? application.status.sync.revision : '')
                     )}
-                    {appOperationState && (
-                        <div className={`application-status-panel__item-value application-status-panel__item-value--${appOperationState.phase}`}>
-                            <div>
-                                {application.status.sync.status === models.SyncStatuses.OutOfSync ? (
-                                    <a onClick={() => showDiff && showDiff()}>
-                                        <ComparisonStatusIcon status={application.status.sync.status} label={true} />
-                                    </a>
-                                ) : (
+                    <div className={`application-status-panel__item-value${appOperationState?.phase ? ` application-status-panel__item-value--${appOperationState.phase}` : ''}`}>
+                        <div>
+                            {application.status.sync.status === models.SyncStatuses.OutOfSync ? (
+                                <a onClick={() => showDiff && showDiff()}>
                                     <ComparisonStatusIcon status={application.status.sync.status} label={true} />
-                                )}
-                            </div>
-                            <div className='application-status-panel__item-value__revision show-for-large'>{syncStatusMessage(application)}</div>
+                                </a>
+                            ) : (
+                                <ComparisonStatusIcon status={application.status.sync.status} label={true} />
+                            )}
                         </div>
-                    )}
+                        <div className='application-status-panel__item-value__revision show-for-large'>{syncStatusMessage(application)}</div>
+                    </div>
                     <div className='application-status-panel__item-name' style={{marginBottom: '0.5em'}}>
                         {application.spec.syncPolicy?.automated ? 'Auto sync is enabled.' : 'Auto sync is not enabled.'}
                     </div>

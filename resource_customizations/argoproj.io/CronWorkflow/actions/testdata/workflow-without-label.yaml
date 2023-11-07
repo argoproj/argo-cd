@@ -1,0 +1,26 @@
+- k8sOperation: create
+  unstructuredObj:
+    apiVersion: argoproj.io/v1alpha1
+    kind: Workflow
+    metadata:
+      annotations:
+        another-example: another-test
+      labels:
+        example: test
+      name: hello-world-202306221736
+      namespace: default
+      ownerReferences:
+        - apiVersion: argoproj.io/v1alpha1
+          kind: CronWorkflow
+          name: hello-world
+    finalizers: [test-finalizer]
+    spec:
+      entrypoint: whalesay
+      templates:
+        - container:
+            args:
+              - "\U0001F553 hello world. Scheduled on: {{workflow.scheduledTime}}"
+            command:
+              - cowsay
+            image: 'docker/whalesay:latest'
+          name: whalesay

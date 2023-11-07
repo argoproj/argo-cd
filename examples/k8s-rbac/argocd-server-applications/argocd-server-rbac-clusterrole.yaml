@@ -8,6 +8,12 @@ metadata:
   name: argocd-server-cluster-apps
 rules:
 - apiGroups:
+  - ""
+  resources:
+  - events
+  verbs:
+  - create
+- apiGroups:
   - "argoproj.io"
   resources:
   - "applications"

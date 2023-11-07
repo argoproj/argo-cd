@@ -1,0 +1,4 @@
+actionTests:
+  - action: push
+    inputPath: testdata/push-secret.yaml
+    expectedOutputPath: testdata/push-secret-updated.yaml

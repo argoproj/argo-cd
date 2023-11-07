@@ -40,12 +40,12 @@ func TestPrintApplicationSetTable(t *testing.T) {
 			},
 			Spec: v1alpha1.ApplicationSetSpec{
 				Generators: []v1alpha1.ApplicationSetGenerator{
-					v1alpha1.ApplicationSetGenerator{
+					{
 						Git: &v1alpha1.GitGenerator{
 							RepoURL:  "https://github.com/argoproj/argo-cd.git",
 							Revision: "head",
 							Directories: []v1alpha1.GitDirectoryGeneratorItem{
-								v1alpha1.GitDirectoryGeneratorItem{
+								{
 									Path: "applicationset/examples/git-generator-directory/cluster-addons/*",
 								},
 							},
@@ -60,7 +60,7 @@ func TestPrintApplicationSetTable(t *testing.T) {
 			},
 			Status: v1alpha1.ApplicationSetStatus{
 				Conditions: []v1alpha1.ApplicationSetCondition{
-					v1alpha1.ApplicationSetCondition{
+					{
 						Status: v1alpha1.ApplicationSetConditionStatusTrue,
 						Type:   v1alpha1.ApplicationSetConditionResourcesUpToDate,
 					},
@@ -75,12 +75,12 @@ func TestPrintApplicationSetTable(t *testing.T) {
 			},
 			Spec: v1alpha1.ApplicationSetSpec{
 				Generators: []v1alpha1.ApplicationSetGenerator{
-					v1alpha1.ApplicationSetGenerator{
+					{
 						Git: &v1alpha1.GitGenerator{
 							RepoURL:  "https://github.com/argoproj/argo-cd.git",
 							Revision: "head",
 							Directories: []v1alpha1.GitDirectoryGeneratorItem{
-								v1alpha1.GitDirectoryGeneratorItem{
+								{
 									Path: "applicationset/examples/git-generator-directory/cluster-addons/*",
 								},
 							},
@@ -95,7 +95,7 @@ func TestPrintApplicationSetTable(t *testing.T) {
 			},
 			Status: v1alpha1.ApplicationSetStatus{
 				Conditions: []v1alpha1.ApplicationSetCondition{
-					v1alpha1.ApplicationSetCondition{
+					{
 						Status: v1alpha1.ApplicationSetConditionStatusTrue,
 						Type:   v1alpha1.ApplicationSetConditionResourcesUpToDate,
 					},
@@ -118,12 +118,12 @@ func TestPrintAppSetSummaryTable(t *testing.T) {
 		},
 		Spec: v1alpha1.ApplicationSetSpec{
 			Generators: []v1alpha1.ApplicationSetGenerator{
-				v1alpha1.ApplicationSetGenerator{
+				{
 					Git: &v1alpha1.GitGenerator{
 						RepoURL:  "https://github.com/argoproj/argo-cd.git",
 						Revision: "head",
 						Directories: []v1alpha1.GitDirectoryGeneratorItem{
-							v1alpha1.GitDirectoryGeneratorItem{
+							{
 								Path: "applicationset/examples/git-generator-directory/cluster-addons/*",
 							},
 						},
@@ -138,7 +138,7 @@ func TestPrintAppSetSummaryTable(t *testing.T) {
 		},
 		Status: v1alpha1.ApplicationSetStatus{
 			Conditions: []v1alpha1.ApplicationSetCondition{
-				v1alpha1.ApplicationSetCondition{
+				{
 					Status: v1alpha1.ApplicationSetConditionStatusTrue,
 					Type:   v1alpha1.ApplicationSetConditionResourcesUpToDate,
 				},

@@ -103,6 +103,7 @@ generators' templating:
 - `{{ path.filename }}` becomes `{{ .path.filename }}`
 - `{{ path.filenameNormalized }}` becomes `{{ .path.filenameNormalized }}`
 - `{{ path[n] }}` becomes `{{ index .path.segments n }}`
+- `{{ values }}` if being used in the file generator becomes `{{ .values }}`
 
 Here is an example:
 
@@ -173,6 +174,18 @@ It is also possible to use Sprig functions to construct the path variables manua
 | `{{path.filenameNormalized}}` | `{{.path.filenameNormalized}}` | `{{normalize .path.filename}}` |
 | `{{path[N]}}` | `-` | `{{index .path.segments N}}` |
 
+## Available template functions
+
+ApplicationSet controller provides:
+
+- all [sprig](http://masterminds.github.io/sprig/) Go templates function except `env`, `expandenv` and `getHostByName`
+- `normalize`: sanitizes the input so that it complies with the following rules:
+  1. contains no more than 253 characters
+  2. contains only lowercase alphanumeric characters, '-' or '.'
+  3. starts and ends with an alphanumeric character
+- `toYaml` / `fromYaml` / `fromYamlArray` helm like functions
+
+
 ## Examples
 
 ### Basic Go template usage
@@ -233,7 +246,7 @@ spec:
         nameSuffix: -my-name-suffix
   template:
     metadata:
-      name: '{{.cluster}}{{dig "nameSuffix" . ""}}'
+      name: '{{.cluster}}{{dig "nameSuffix" "" .}}'
     spec:
       project: default
       source:

@@ -9,7 +9,6 @@ import (
 	"math"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"strconv"
 	"strings"
 	"testing"
@@ -449,59 +448,47 @@ func TestCacheValueGetters(t *testing.T) {
 	})
 
 	t.Run("Valid environment overrides", func(t *testing.T) {
-		os.Setenv(envLoginMaxFailCount, "5")
-		os.Setenv(envLoginMaxCacheSize, "5")
+		t.Setenv(envLoginMaxFailCount, "5")
+		t.Setenv(envLoginMaxCacheSize, "5")
 
 		mlf := getMaxLoginFailures()
 		assert.Equal(t, 5, mlf)
 
 		mcs := getMaximumCacheSize()
 		assert.Equal(t, 5, mcs)
-
-		os.Setenv(envLoginMaxFailCount, "")
-		os.Setenv(envLoginMaxCacheSize, "")
 	})
 
 	t.Run("Invalid environment overrides", func(t *testing.T) {
-		os.Setenv(envLoginMaxFailCount, "invalid")
-		os.Setenv(envLoginMaxCacheSize, "invalid")
+		t.Setenv(envLoginMaxFailCount, "invalid")
+		t.Setenv(envLoginMaxCacheSize, "invalid")
 
 		mlf := getMaxLoginFailures()
 		assert.Equal(t, defaultMaxLoginFailures, mlf)
 
 		mcs := getMaximumCacheSize()
 		assert.Equal(t, defaultMaxCacheSize, mcs)
-
-		os.Setenv(envLoginMaxFailCount, "")
-		os.Setenv(envLoginMaxCacheSize, "")
 	})
 
 	t.Run("Less than allowed in environment overrides", func(t *testing.T) {
-		os.Setenv(envLoginMaxFailCount, "-1")
-		os.Setenv(envLoginMaxCacheSize, "-1")
+		t.Setenv(envLoginMaxFailCount, "-1")
+		t.Setenv(envLoginMaxCacheSize, "-1")
 
 		mlf := getMaxLoginFailures()
 		assert.Equal(t, defaultMaxLoginFailures, mlf)
 
 		mcs := getMaximumCacheSize()
 		assert.Equal(t, defaultMaxCacheSize, mcs)
-
-		os.Setenv(envLoginMaxFailCount, "")
-		os.Setenv(envLoginMaxCacheSize, "")
 	})
 
 	t.Run("Greater than allowed in environment overrides", func(t *testing.T) {
-		os.Setenv(envLoginMaxFailCount, fmt.Sprintf("%d", math.MaxInt32+1))
-		os.Setenv(envLoginMaxCacheSize, fmt.Sprintf("%d", math.MaxInt32+1))
+		t.Setenv(envLoginMaxFailCount, fmt.Sprintf("%d", math.MaxInt32+1))
+		t.Setenv(envLoginMaxCacheSize, fmt.Sprintf("%d", math.MaxInt32+1))
 
 		mlf := getMaxLoginFailures()
 		assert.Equal(t, defaultMaxLoginFailures, mlf)
 
 		mcs := getMaximumCacheSize()
 		assert.Equal(t, defaultMaxCacheSize, mcs)
-
-		os.Setenv(envLoginMaxFailCount, "")
-		os.Setenv(envLoginMaxCacheSize, "")
 	})
 
 }
@@ -561,7 +548,7 @@ func TestMaxCacheSize(t *testing.T) {
 
 	invalidUsers := []string{"invalid1", "invalid2", "invalid3", "invalid4", "invalid5", "invalid6", "invalid7"}
 	// Temporarily decrease max cache size
-	os.Setenv(envLoginMaxCacheSize, "5")
+	t.Setenv(envLoginMaxCacheSize, "5")
 
 	for _, user := range invalidUsers {
 		err := mgr.VerifyUsernamePassword(user, "password")
@@ -577,7 +564,7 @@ func TestFailedAttemptsExpiry(t *testing.T) {
 
 	invalidUsers := []string{"invalid1", "invalid2", "invalid3", "invalid4", "invalid5", "invalid6", "invalid7"}
 
-	os.Setenv(envLoginFailureWindowSeconds, "1")
+	t.Setenv(envLoginFailureWindowSeconds, "1")
 
 	for _, user := range invalidUsers {
 		err := mgr.VerifyUsernamePassword(user, "password")
@@ -589,8 +576,6 @@ func TestFailedAttemptsExpiry(t *testing.T) {
 	err := mgr.VerifyUsernamePassword("invalid8", "password")
 	assert.Error(t, err)
 	assert.Len(t, mgr.GetLoginFailures(), 1)
-
-	os.Setenv(envLoginFailureWindowSeconds, "")
 }
 
 func getKubeClientWithConfig(config map[string]string, secretConfig map[string][]byte) *fake.Clientset {

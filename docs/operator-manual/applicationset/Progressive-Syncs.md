@@ -15,7 +15,7 @@ As an experimental feature, progressive syncs must be explicitly enabled, in one
 
 1. Pass `--enable-progressive-syncs` to the ApplicationSet controller args.
 1. Set `ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_PROGRESSIVE_SYNCS=true` in the ApplicationSet controller environment variables.
-1. Set `applicationsetcontroller.enable.progressive.syncs: true` in the Argo CD ConfigMap.
+1. Set `applicationsetcontroller.enable.progressive.syncs: true` in the Argo CD `argocd-cmd-params-cm` ConfigMap.
 
 ## Strategies
 
@@ -52,8 +52,7 @@ Once a change is pushed, the following will happen in order.
 * The rollout will wait for all `env-qa` Applications to be manually synced via the `argocd` CLI or by clicking the Sync button in the UI.
 * 10% of all `env-prod` Applications will be updated at a time until all `env-prod` Applications have been updated.
 
-```
----
+```yaml
 apiVersion: argoproj.io/v1alpha1
 kind: ApplicationSet
 metadata:

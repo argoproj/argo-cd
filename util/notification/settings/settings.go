@@ -37,6 +37,7 @@ func initGetVars(argocdService service.Service, cfg *api.Config, configMap *v1.C
 		return expression.Spawn(&unstructured.Unstructured{Object: obj}, argocdService, map[string]interface{}{
 			"app":     obj,
 			"context": injectLegacyVar(context, dest.Service),
+			"secrets": secret.Data,
 		})
 	}, nil
 }
