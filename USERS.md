@@ -94,6 +94,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [Flexport](https://www.flexport.com/)
 1. [Flip](https://flip.id)
 1. [Fonoa](https://www.fonoa.com/)
+1. [Fortra](https://www.fortra.com)
 1. [freee](https://corp.freee.co.jp/en/company/)
 1. [Freshop, Inc](https://www.freshop.com/)
 1. [Future PLC](https://www.futureplc.com/)
