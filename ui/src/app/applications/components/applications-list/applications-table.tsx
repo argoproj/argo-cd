@@ -68,17 +68,17 @@ export const ApplicationsTable = (props: {
                                                                 <button
                                                                     onClick={e => {
                                                                         e.stopPropagation();
-                                                                        favList?.includes(app.metadata.name)
-                                                                            ? favList.splice(favList.indexOf(app.metadata.name), 1)
-                                                                            : favList.push(app.metadata.name);
+                                                                        favList?.includes(`${app.metadata.namespace}/${app.metadata.name}`)
+                                                                            ? favList.splice(favList.indexOf(`${app.metadata.namespace}/${app.metadata.name}`), 1)
+                                                                            : favList.push(`${app.metadata.namespace}/${app.metadata.name}`);
                                                                         services.viewPreferences.updatePreferences({appList: {...pref.appList, favoritesAppList: favList}});
                                                                     }}>
                                                                     <i
-                                                                        className={favList?.includes(app.metadata.name) ? 'fas fa-star' : 'far fa-star'}
+                                                                        className={favList?.includes(`${app.metadata.namespace}/${app.metadata.name}`) ? 'fas fa-star' : 'far fa-star'}
                                                                         style={{
                                                                             cursor: 'pointer',
                                                                             marginRight: '7px',
-                                                                            color: favList?.includes(app.metadata.name) ? '#FFCE25' : '#8fa4b1'
+                                                                            color: favList?.includes(`${app.metadata.namespace}/${app.metadata.name}`) ? '#FFCE25' : '#8fa4b1'
                                                                         }}
                                                                     />
                                                                 </button>
