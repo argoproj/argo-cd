@@ -9,6 +9,9 @@ redis-ha:
     config:
       save: "\"\""
       bind: "0.0.0.0"
+  exporter:
+    enabled: true
+    tag: v1.58.0
   haproxy:
     enabled: true
     IPv6:

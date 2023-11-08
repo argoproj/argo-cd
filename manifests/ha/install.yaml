@@ -23755,6 +23755,10 @@ spec:
     port: 26379
     protocol: TCP
     targetPort: sentinel
+  - name: http-exporter-port
+    port: 9121
+    protocol: TCP
+    targetPort: exporter-port
   selector:
     app.kubernetes.io/name: argocd-redis-ha
   type: ClusterIP
@@ -23777,6 +23781,10 @@ spec:
     port: 26379
     protocol: TCP
     targetPort: sentinel
+  - name: http-exporter
+    port: 9121
+    protocol: TCP
+    targetPort: exporter-port
   publishNotReadyAddresses: true
   selector:
     app.kubernetes.io/name: argocd-redis-ha
@@ -23801,6 +23809,10 @@ spec:
     port: 26379
     protocol: TCP
     targetPort: sentinel
+  - name: http-exporter
+    port: 9121
+    protocol: TCP
+    targetPort: exporter-port
   publishNotReadyAddresses: true
   selector:
     app.kubernetes.io/name: argocd-redis-ha
@@ -23825,6 +23837,10 @@ spec:
     port: 26379
     protocol: TCP
     targetPort: sentinel
+  - name: http-exporter
+    port: 9121
+    protocol: TCP
+    targetPort: exporter-port
   publishNotReadyAddresses: true
   selector:
     app.kubernetes.io/name: argocd-redis-ha
@@ -25524,6 +25540,9 @@ spec:
     metadata:
       annotations:
         checksum/init-config: 9d3c019a5ea1fd98ab5cde397d8eecd351da884f15e6ba346c607cb2446c2198
+        prometheus.io/path: /metrics
+        prometheus.io/port: "9121"
+        prometheus.io/scrape: "true"
       labels:
         app.kubernetes.io/name: argocd-redis-ha
     spec:
@@ -25682,6 +25701,47 @@ spec:
           readOnly: true
         - mountPath: /data
           name: data
+      - args: null
+        env:
+        - name: REDIS_ADDR
+          value: redis://localhost:6379
+        - name: REDIS_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              key: auth
+              name: argocd-redis
+        image: oliver006/redis_exporter:v1.58.0
+        imagePullPolicy: IfNotPresent
+        livenessProbe:
+          httpGet:
+            path: /metrics
+            port: 9121
+          initialDelaySeconds: 15
+          periodSeconds: 15
+          timeoutSeconds: 3
+        name: redis-exporter
+        ports:
+        - containerPort: 9121
+          name: exporter-port
+        readinessProbe:
+          httpGet:
+            path: /metrics
+            port: 9121
+          initialDelaySeconds: 15
+          periodSeconds: 15
+          successThreshold: 2
+          timeoutSeconds: 3
+        resources: {}
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          runAsNonRoot: true
+          runAsUser: 1000
+          seccompProfile:
+            type: RuntimeDefault
+        volumeMounts: null
       initContainers:
       - args:
         - /readonly-config/init.sh

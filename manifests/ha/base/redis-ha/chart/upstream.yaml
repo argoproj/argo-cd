@@ -919,6 +919,10 @@ spec:
     port: 26379
     protocol: TCP
     targetPort: sentinel
+  - name: http-exporter
+    port: 9121
+    protocol: TCP
+    targetPort: exporter-port
   selector:
     release: argocd
     app: redis-ha
@@ -948,6 +952,10 @@ spec:
     port: 26379
     protocol: TCP
     targetPort: sentinel
+  - name: http-exporter
+    port: 9121
+    protocol: TCP
+    targetPort: exporter-port
   selector:
     release: argocd
     app: redis-ha
@@ -977,6 +985,10 @@ spec:
     port: 26379
     protocol: TCP
     targetPort: sentinel
+  - name: http-exporter
+    port: 9121
+    protocol: TCP
+    targetPort: exporter-port
   selector:
     release: argocd
     app: redis-ha
@@ -993,6 +1005,7 @@ metadata:
     heritage: "Helm"
     release: "argocd"
     chart: redis-ha-4.26.6
+    exporter: enabled
   annotations:
 spec:
   type: ClusterIP
@@ -1006,6 +1019,10 @@ spec:
     port: 26379
     protocol: TCP
     targetPort: sentinel
+  - name: http-exporter-port
+    port: 9121
+    protocol: TCP
+    targetPort: exporter-port
   selector:
     release: argocd
     app: redis-ha
@@ -1196,6 +1213,9 @@ spec:
     metadata:
       annotations:
         checksum/init-config: 9d3c019a5ea1fd98ab5cde397d8eecd351da884f15e6ba346c607cb2446c2198
+        prometheus.io/port: "9121"
+        prometheus.io/scrape: "true"
+        prometheus.io/path: /metrics
       labels:
         release: argocd
         app: redis-ha
@@ -1413,6 +1433,48 @@ spec:
           readOnly: true
         - mountPath: /data
           name: data
+      - name: redis-exporter
+        image: "oliver006/redis_exporter:v1.58.0"
+        imagePullPolicy: IfNotPresent
+        args:
+        securityContext: 
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          runAsNonRoot: true
+          runAsUser: 1000
+          seccompProfile:
+            type: RuntimeDefault        
+        env:
+          - name: REDIS_ADDR
+            value: redis://localhost:6379
+          - name: REDIS_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: argocd-redis
+                key: auth
+        livenessProbe:
+          httpGet:
+            path: /metrics
+            port: 9121
+          initialDelaySeconds: 15
+          periodSeconds: 15
+          timeoutSeconds: 3
+        readinessProbe:
+          httpGet:
+            path: /metrics
+            port: 9121
+          initialDelaySeconds: 15
+          periodSeconds: 15
+          successThreshold: 2
+          timeoutSeconds: 3
+        resources:
+          {}
+        ports:
+          - name: exporter-port
+            containerPort: 9121
+        volumeMounts:
       volumes:
       - name: config
         configMap:
