@@ -35,11 +35,11 @@ import (
 	"k8s.io/client-go/tools/clientcmd/api"
 	"sigs.k8s.io/yaml"
 
+	"github.com/argoproj/argo-cd/v2/util/env"
+
 	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/util/collections"
-	"github.com/argoproj/argo-cd/v2/util/env"
 	"github.com/argoproj/argo-cd/v2/util/helm"
-	utilhttp "github.com/argoproj/argo-cd/v2/util/http"
 	"github.com/argoproj/argo-cd/v2/util/security"
 )
 
@@ -467,8 +467,6 @@ type ApplicationSourceKustomize struct {
 	Replicas KustomizeReplicas `json:"replicas,omitempty" protobuf:"bytes,11,opt,name=replicas"`
 	// Patches is a list of Kustomize patches
 	Patches KustomizePatches `json:"patches,omitempty" protobuf:"bytes,12,opt,name=patches"`
-	// Components specifies a list of kustomize components to add to the kustomization before building
-	Components []string `json:"components,omitempty" protobuf:"bytes,13,rep,name=components"`
 }
 
 type KustomizeReplica struct {
@@ -558,8 +556,7 @@ func (k *ApplicationSourceKustomize) AllowsConcurrentProcessing() bool {
 		k.NamePrefix == "" &&
 		k.Namespace == "" &&
 		k.NameSuffix == "" &&
-		len(k.Patches) == 0 &&
-		len(k.Components) == 0
+		len(k.Patches) == 0
 }
 
 // IsZero returns true when the Kustomize options are considered empty
@@ -573,8 +570,7 @@ func (k *ApplicationSourceKustomize) IsZero() bool {
 			len(k.Replicas) == 0 &&
 			len(k.CommonLabels) == 0 &&
 			len(k.CommonAnnotations) == 0 &&
-			len(k.Patches) == 0 &&
-			len(k.Components) == 0
+			len(k.Patches) == 0
 }
 
 // MergeImage merges a new Kustomize image identifier in to a list of images
@@ -1139,12 +1135,11 @@ type SyncPolicy struct {
 	Retry *RetryStrategy `json:"retry,omitempty" protobuf:"bytes,3,opt,name=retry"`
 	// ManagedNamespaceMetadata controls metadata in the given namespace (if CreateNamespace=true)
 	ManagedNamespaceMetadata *ManagedNamespaceMetadata `json:"managedNamespaceMetadata,omitempty" protobuf:"bytes,4,opt,name=managedNamespaceMetadata"`
-	// If you add a field here, be sure to update IsZero.
 }
 
 // IsZero returns true if the sync policy is empty
 func (p *SyncPolicy) IsZero() bool {
-	return p == nil || (p.Automated == nil && len(p.SyncOptions) == 0 && p.Retry == nil && p.ManagedNamespaceMetadata == nil)
+	return p == nil || (p.Automated == nil && len(p.SyncOptions) == 0 && p.Retry == nil)
 }
 
 // RetryStrategy contains information about the strategy to apply when a sync failed
@@ -2896,12 +2891,6 @@ func SetK8SConfigDefaults(config *rest.Config) error {
 	config.Timeout = K8sServerSideTimeout
 
 	config.Transport = tr
-	maxRetries := env.ParseInt64FromEnv(utilhttp.EnvRetryMax, 0, 1, math.MaxInt64)
-	if maxRetries > 0 {
-		backoffDurationMS := env.ParseInt64FromEnv(utilhttp.EnvRetryBaseBackoff, 100, 1, math.MaxInt64)
-		backoffDuration := time.Duration(backoffDurationMS) * time.Millisecond
-		config.WrapTransport = utilhttp.WithRetry(maxRetries, backoffDuration)
-	}
 	return nil
 }
 

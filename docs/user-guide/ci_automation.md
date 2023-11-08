@@ -18,7 +18,7 @@ docker push mycompany/guestbook:v2.0
 ## Update The Local Manifests Using Your Preferred Templating Tool, And Push The Changes To Git
 
 !!! tip
-    The use of a different Git repository to hold your Kubernetes manifests (separate from
+    The use of a different Git repository to hold your kubernetes manifests (separate from
     your application source code), is highly recommended. See [best practices](best_practices.md)
     for further rationale.
 

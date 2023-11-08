@@ -25,7 +25,6 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/env"
 	"github.com/argoproj/argo-cd/v2/util/errors"
 	"github.com/argoproj/argo-cd/v2/util/kube"
-	"github.com/argoproj/argo-cd/v2/util/templates"
 	"github.com/argoproj/argo-cd/v2/util/tls"
 	traceutil "github.com/argoproj/argo-cd/v2/util/trace"
 )
@@ -212,13 +211,6 @@ func NewCommand() *cobra.Command {
 				}
 			}
 		},
-		Example: templates.Examples(`
-			# Start the Argo CD API server with default settings
-			$ argocd-server
-				
-			# Start the Argo CD API server on a custom port and enable tracing
-			$ argocd-server --port 8888 --otlp-address localhost:4317
-		`),
 	}
 
 	clientConfig = cli.AddKubectlFlagsToCmd(command)

@@ -8,28 +8,6 @@ Add a sync window to a project
 argocd proj windows add PROJECT [flags]
 ```
 
-### Examples
-
-```
-# Add a 1 hour allow sync window
-argocd proj windows add PROJECT \
-    --kind allow \
-    --schedule "0 22 * * *" \
-    --duration 1h \
-    --applications "*"
-
-# Add a deny sync window with the ability to manually sync.
-argocd proj windows add PROJECT \
-    --kind deny \
-    --schedule "30 10 * * *" \
-    --duration 30m \
-    --applications "prod-\\*,website" \
-    --namespaces "default,\\*-prod" \
-    --clusters "prod,staging" \
-    --manual-sync
-	
-```
-
 ### Options
 
 ```
