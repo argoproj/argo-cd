@@ -49,7 +49,7 @@ ARGOCD_E2E_DEX_PORT?=5556
 ARGOCD_E2E_YARN_HOST?=localhost
 ARGOCD_E2E_DISABLE_AUTH?=
 
-ARGOCD_E2E_TEST_TIMEOUT?=60m
+ARGOCD_E2E_TEST_TIMEOUT?=45m
 
 ARGOCD_IN_CI?=false
 ARGOCD_TEST_E2E?=true
@@ -352,7 +352,7 @@ lint-local:
 	golangci-lint --version
 	# NOTE: If you get a "Killed" OOM message, try reducing the value of GOGC
 	# See https://github.com/golangci/golangci-lint#memory-usage-of-golangci-lint
-	GOGC=$(ARGOCD_LINT_GOGC) GOMAXPROCS=2 golangci-lint run --enable gofmt --fix --verbose --timeout 3000s --max-issues-per-linter 0 --max-same-issues 0
+	GOGC=$(ARGOCD_LINT_GOGC) GOMAXPROCS=2 golangci-lint run --fix --verbose --timeout 3000s
 
 .PHONY: lint-ui
 lint-ui: test-tools-image
@@ -386,9 +386,9 @@ test: test-tools-image
 .PHONY: test-local
 test-local:
 	if test "$(TEST_MODULE)" = ""; then \
-		DIST_DIR=${DIST_DIR} RERUN_FAILS=0 PACKAGES=`go list ./... | grep -v 'test/e2e'` ./hack/test.sh -coverprofile=coverage.out; \
+		./hack/test.sh -coverprofile=coverage.out `go list ./... | grep -v 'test/e2e'`; \
 	else \
-		DIST_DIR=${DIST_DIR} RERUN_FAILS=0 PACKAGES="$(TEST_MODULE)" ./hack/test.sh -coverprofile=coverage.out "$(TEST_MODULE)"; \
+		./hack/test.sh -coverprofile=coverage.out "$(TEST_MODULE)"; \
 	fi
 
 .PHONY: test-race
@@ -400,9 +400,9 @@ test-race: test-tools-image
 .PHONY: test-race-local
 test-race-local:
 	if test "$(TEST_MODULE)" = ""; then \
-		DIST_DIR=${DIST_DIR} RERUN_FAILS=0 PACKAGES=`go list ./... | grep -v 'test/e2e'` ./hack/test.sh -race -coverprofile=coverage.out; \
+		./hack/test.sh -race -coverprofile=coverage.out `go list ./... | grep -v 'test/e2e'`; \
 	else \
-		DIST_DIR=${DIST_DIR} RERUN_FAILS=0 PACKAGES="$(TEST_MODULE)" ./hack/test.sh -race -coverprofile=coverage.out; \
+		./hack/test.sh -race -coverprofile=coverage.out "$(TEST_MODULE)"; \
 	fi
 
 # Run the E2E test suite. E2E test servers (see start-e2e target) must be
@@ -416,7 +416,7 @@ test-e2e:
 test-e2e-local: cli-local
 	# NO_PROXY ensures all tests don't go out through a proxy if one is configured on the test system
 	export GO111MODULE=off
-	DIST_DIR=${DIST_DIR} RERUN_FAILS=5 PACKAGES="./test/e2e" ARGOCD_E2E_RECORD=${ARGOCD_E2E_RECORD} ARGOCD_GPG_ENABLED=true NO_PROXY=* ./hack/test.sh -timeout $(ARGOCD_E2E_TEST_TIMEOUT) -v
+	ARGOCD_E2E_RECORD=${ARGOCD_E2E_RECORD} ARGOCD_GPG_ENABLED=true NO_PROXY=* ./hack/test.sh -timeout $(ARGOCD_E2E_TEST_TIMEOUT) -v ./test/e2e
 
 # Spawns a shell in the test server container for debugging purposes
 debug-test-server: test-tools-image
@@ -438,7 +438,6 @@ start-e2e: test-tools-image
 start-e2e-local: mod-vendor-local dep-ui-local cli-local
 	kubectl create ns argocd-e2e || true
 	kubectl create ns argocd-e2e-external || true
-	kubectl create ns argocd-e2e-external-2 || true
 	kubectl config set-context --current --namespace=argocd-e2e
 	kustomize build test/manifests/base | kubectl apply -f -
 	kubectl apply -f https://raw.githubusercontent.com/open-cluster-management/api/a6845f2ebcb186ec26b832f60c988537a58f3859/cluster/v1alpha1/0000_04_clusters.open-cluster-management.io_placementdecisions.crd.yaml
@@ -459,8 +458,8 @@ start-e2e-local: mod-vendor-local dep-ui-local cli-local
 	ARGOCD_ZJWT_FEATURE_FLAG=always \
 	ARGOCD_IN_CI=$(ARGOCD_IN_CI) \
 	BIN_MODE=$(ARGOCD_BIN_MODE) \
-	ARGOCD_APPLICATION_NAMESPACES=argocd-e2e-external,argocd-e2e-external-2 \
-	ARGOCD_APPLICATIONSET_CONTROLLER_NAMESPACES=argocd-e2e-external,argocd-e2e-external-2 \
+	ARGOCD_APPLICATION_NAMESPACES=argocd-e2e-external \
+	ARGOCD_APPLICATIONSET_CONTROLLER_NAMESPACES=argocd-e2e-external \
 	ARGOCD_APPLICATIONSET_CONTROLLER_ALLOWED_SCM_PROVIDERS=http://127.0.0.1:8341,http://127.0.0.1:8342,http://127.0.0.1:8343,http://127.0.0.1:8344 \
 	ARGOCD_E2E_TEST=true \
 		goreman -f $(ARGOCD_PROCFILE) start ${ARGOCD_START}
@@ -558,7 +557,6 @@ install-tools-local: install-test-tools-local install-codegen-tools-local instal
 install-test-tools-local:
 	./hack/install.sh kustomize
 	./hack/install.sh helm-linux
-	./hack/install.sh gotestsum
 
 # Installs all tools required for running codegen (Linux packages)
 .PHONY: install-codegen-tools-local

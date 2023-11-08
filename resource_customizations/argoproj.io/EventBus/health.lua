@@ -1,4 +1,4 @@
-local hs={ status = "Progressing", message = "Waiting for initialization" }
+hs={ status = "Progressing", message = "Waiting for initialization" }
 
 if obj.status ~= nil then
   if obj.status.conditions ~= nil then

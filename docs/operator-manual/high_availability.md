@@ -28,7 +28,7 @@ or if the repositories have a lot of files. To avoid this problem mount a persis
 * `argocd-repo-server` uses `git ls-remote` to resolve ambiguous revisions such as `HEAD`, a branch or a tag name. This operation happens frequently
 and might fail. To avoid failed syncs use the `ARGOCD_GIT_ATTEMPTS_COUNT` environment variable to retry failed requests.
 
-* `argocd-repo-server` Every 3m (by default) Argo CD checks for changes to the app manifests. Argo CD assumes by default that manifests only change when the repo changes, so it caches the generated manifests (for 24h by default). With Kustomize remote bases, or in case a Helm chart gets changed without bumping its version number, the expected manifests can change even though the repo has not changed. By reducing the cache time, you can get the changes without waiting for 24h. Use `--repo-cache-expiration duration`, and we'd suggest in low volume environments you try '1h'. Bear in mind that this will negate the benefits of caching if set too low.
+* `argocd-repo-server` Every 3m (by default) Argo CD checks for changes to the app manifests. Argo CD assumes by default that manifests only change when the repo changes, so it caches the generated manifests (for 24h by default). With Kustomize remote bases, or Helm patch releases, the manifests can change even though the repo has not changed. By reducing the cache time, you can get the changes without waiting for 24h. Use `--repo-cache-expiration duration`, and we'd suggest in low volume environments you try '1h'. Bear in mind that this will negate the benefits of caching if set too low. 
 
 * `argocd-repo-server` executes config management tools such as `helm` or `kustomize` and enforces a 90 second timeout. This timeout can be changed by using the `ARGOCD_EXEC_TIMEOUT` env variable. The value should be in the Go time duration string format, for example, `2m30s`.
 
@@ -60,10 +60,9 @@ reconciliation. In this case, we advise to use the preferred resource version in
 * The controller polls Git every 3m by default. You can change this duration using the `timeout.reconciliation` setting in the `argocd-cm` ConfigMap. The value of `timeout.reconciliation` is a duration string e.g `60s`, `1m`, `1h` or `1d`.
 
 * If the controller is managing too many clusters and uses too much memory then you can shard clusters across multiple
-controller replicas. To enable sharding, increase the number of replicas in `argocd-application-controller` `StatefulSet`
-and repeat the number of replicas in the `ARGOCD_CONTROLLER_REPLICAS` environment variable. The strategic merge patch below demonstrates changes required to configure two controller replicas.
-
-* By default, the controller will update the cluster information every 10 seconds. If there is a problem with your cluster network environment that is causing the update time to take a long time, you can try modifying the environment variable `ARGO_CD_UPDATE_CLUSTER_INFO_TIMEOUT` to increase the timeout (the unit is seconds).
+controller replicas. To enable sharding increase the number of replicas in `argocd-application-controller` `StatefulSet`
+and repeat the number of replicas in the `ARGOCD_CONTROLLER_REPLICAS` environment variable. The strategic merge patch below
+demonstrates changes required to configure two controller replicas.
 
 ```yaml
 apiVersion: apps/v1
@@ -80,7 +79,6 @@ spec:
         - name: ARGOCD_CONTROLLER_REPLICAS
           value: "2"
 ```
-* In order to manually set the cluster's shard number, specify the optional `shard` property when creating a cluster. If not specified, it will be calculated on the fly by the application controller.
 
 * The shard distribution algorithm of the `argocd-application-controller` can be set by using the `--sharding-method` parameter. Supported sharding methods are : [legacy (default), round-robin]. `legacy` mode uses an `uid` based distribution (non-uniform). `round-robin` uses an equal distribution across all shards. The `--sharding-method` parameter can also be overriden by setting the key `controller.sharding.algorithm` in the `argocd-cmd-params-cm` `configMap` (preferably) or by setting the `ARGOCD_CONTROLLER_SHARDING_ALGORITHM` environment variable and by specifiying the same possible values.
 
@@ -111,18 +109,6 @@ stringData:
 ```
 
 * `ARGOCD_ENABLE_GRPC_TIME_HISTOGRAM` - environment variable that enables collecting RPC performance metrics. Enable it if you need to troubleshoot performance issues. Note: This metric is expensive to both query and store!
-
-* `ARGOCD_CLUSTER_CACHE_LIST_PAGE_BUFFER_SIZE` - environment variable controlling the number of pages the controller
-  buffers in memory when performing a list operation against the K8s api server while syncing the cluster cache. This
-  is useful when the cluster contains a large number of resources and cluster sync times exceed the default etcd
-  compaction interval timeout. In this scenario, when attempting to sync the cluster cache, the application controller
-  may throw an error that the `continue parameter is too old to display a consistent list result`. Setting a higher
-  value for this environment variable configures the controller with a larger buffer in which to store pre-fetched
-  pages which are processed asynchronously, increasing the likelihood that all pages have been pulled before the etcd
-  compaction interval timeout expires. In the most extreme case, operators can set this value such that
-  `ARGOCD_CLUSTER_CACHE_LIST_PAGE_SIZE * ARGOCD_CLUSTER_CACHE_LIST_PAGE_BUFFER_SIZE` exceeds the largest resource
-  count (grouped by k8s api version, the granule of parallelism for list operations). In this case, all resources will
-  be buffered in memory -- no api server request will be blocked by processing.
 
 **metrics**
 
@@ -155,7 +141,7 @@ spec:
 
 * The `ARGOCD_API_SERVER_REPLICAS` environment variable is used to divide [the limit of concurrent login requests (`ARGOCD_MAX_CONCURRENT_LOGIN_REQUESTS_COUNT`)](./user-management/index.md#failed-logins-rate-limiting) between each replica.
 * The `ARGOCD_GRPC_MAX_SIZE_MB` environment variable allows specifying the max size of the server response message in megabytes.
-The default value is 200. You might need to increase this for an Argo CD instance that manages 3000+ applications.
+The default value is 200. You might need to increase this for an Argo CD instance that manages 3000+ applications.    
 
 ### argocd-dex-server, argocd-redis
 
@@ -243,91 +229,3 @@ spec:
     path: my-application
 # ...
 ```
-
-## Rate Limiting Application Reconciliations
-
-To prevent high controller resource usage or sync loops caused either due to misbehaving apps or other environment specific factors, 
-we can configure rate limits on the workqueues used by the application controller. There are two types of rate limits that can be configured:
-
-  * Global rate limits
-  * Per item rate limits
-
-The final rate limiter uses a combination of both and calculates the final backoff as `max(globalBackoff, perItemBackoff)`. 
-
-### Global rate limits
-
-  This is enabled by default, it is a simple bucket based rate limiter that limits the number of items that can be queued per second.
-This is useful to prevent a large number of apps from being queued at the same time. 
-  
-To configure the bucket limiter you can set the following environment variables:
-
-  * `WORKQUEUE_BUCKET_SIZE` - The number of items that can be queued in a single burst. Defaults to 500.
-  * `WORKQUEUE_BUCKET_QPS` - The number of items that can be queued per second. Defaults to 50.
-
-### Per item rate limits 
-
-  This by default returns a fixed base delay/backoff value but can be configured to return exponential values, read further to understand it's working. 
-Per item rate limiter limits the number of times a particular item can be queued. This is based on exponential backoff where the backoff time for an item keeps increasing exponentially 
-if it is queued multiple times in a short period, but the backoff is reset automatically if a configured `cool down` period has elapsed since the last time the item was queued.
-
-To configure the per item limiter you can set the following environment variables:
-
-  * `WORKQUEUE_FAILURE_COOLDOWN_NS` : The cool down period in nanoseconds, once period has elapsed for an item the backoff is reset. Exponential backoff is disabled if set to 0(default), eg. values : 10 * 10^9 (=10s)
-  * `WORKQUEUE_BASE_DELAY_NS` : The base delay in nanoseconds, this is the initial backoff used in the exponential backoff formula. Defaults to 1000 (=1μs)
-  * `WORKQUEUE_MAX_DELAY_NS` : The max delay in nanoseconds, this is the max backoff limit. Defaults to 3 * 10^9 (=3s)
-  * `WORKQUEUE_BACKOFF_FACTOR` : The backoff factor, this is the factor by which the backoff is increased for each retry. Defaults to 1.5
-
-The formula used to calculate the backoff time for an item, where `numRequeue` is the number of times the item has been queued 
-and `lastRequeueTime` is the time at which the item was last queued:
-
-- When `WORKQUEUE_FAILURE_COOLDOWN_NS` != 0 :
-
-```
-backoff = time.Since(lastRequeueTime) >= WORKQUEUE_FAILURE_COOLDOWN_NS ? 
-          WORKQUEUE_BASE_DELAY_NS : 
-          min(
-              WORKQUEUE_MAX_DELAY_NS, 
-              WORKQUEUE_BASE_DELAY_NS * WORKQUEUE_BACKOFF_FACTOR ^ (numRequeue)
-              )
-```
-
-- When `WORKQUEUE_FAILURE_COOLDOWN_NS` = 0 :
-
-```
-backoff = WORKQUEUE_BASE_DELAY_NS
-```
-
-## HTTP Request Retry Strategy
-
-In scenarios where network instability or transient server errors occur, the retry strategy ensures the robustness of HTTP communication by automatically resending failed requests. It uses a combination of maximum retries and backoff intervals to prevent overwhelming the server or thrashing the network.
-
-### Configuring Retries
-
-The retry logic can be fine-tuned with the following environment variables:
-
-* `ARGOCD_K8SCLIENT_RETRY_MAX` - The maximum number of retries for each request. The request will be dropped after this count is reached. Defaults to 0 (no retries).
-* `ARGOCD_K8SCLIENT_RETRY_BASE_BACKOFF` - The initial backoff delay on the first retry attempt in ms. Subsequent retries will double this backoff time up to a maximum threshold. Defaults to 100ms.
-
-### Backoff Strategy
-
-The backoff strategy employed is a simple exponential backoff without jitter. The backoff time increases exponentially with each retry attempt until a maximum backoff duration is reached.
-
-The formula for calculating the backoff time is:
-
-```
-backoff = min(retryWaitMax, baseRetryBackoff * (2 ^ retryAttempt))
-```
-Where `retryAttempt` starts at 0 and increments by 1 for each subsequent retry.
-
-### Maximum Wait Time
-
-There is a cap on the backoff time to prevent excessive wait times between retries. This cap is defined by:
-
-`retryWaitMax` - The maximum duration to wait before retrying. This ensures that retries happen within a reasonable timeframe. Defaults to 10 seconds.
-
-### Non-Retriable Conditions
-
-Not all HTTP responses are eligible for retries. The following conditions will not trigger a retry:
-
-* Responses with a status code indicating client errors (4xx) except for 429 Too Many Requests.
-* Responses with the status code 501 Not Implemented.

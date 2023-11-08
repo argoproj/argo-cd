@@ -79,10 +79,6 @@
         border: 1px solid transparent;
         cursor: pointer;
 
-        .theme-dark & {
-            box-shadow: 1px 1px 1px $argo-color-gray-7;
-        }
-
         .icon {
             font-size: 2em;
         }
@@ -124,10 +120,6 @@
             }
             margin-top: 9px;
             margin-left: 215px;
-
-            .theme-dark & {
-                box-shadow: 1px 1px 1px $argo-color-gray-7;
-            }
         }
 
         &--podgroup--expansion {
@@ -139,10 +131,6 @@
             box-shadow: 1px 1px 1px $argo-color-gray-4;
             background-color: white;
             margin-left: 215px;
-
-            .theme-dark & {
-                box-shadow: 1px 1px 1px $argo-color-gray-7;
-            }
         }
 
         &--pod {
@@ -360,12 +348,8 @@
             border-radius: 33px;
             left: -20px;
             top: -8px;
+            border: 4px solid white;
             text-align: center;
-
-            @include themify($themes) {
-                border: 4px solid themed('background-2');
-            }
-
             i {
                 color: $white-color;
                 line-height: 56px;
