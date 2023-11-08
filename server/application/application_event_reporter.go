@@ -732,6 +732,9 @@ func (s *applicationEventReporter) getApplicationEventPayload(
 }
 
 func getResourceDesiredState(rs *appv1.ResourceStatus, ds *apiclient.ManifestResponse, logger *log.Entry) *apiclient.Manifest {
+	if ds == nil {
+		return &apiclient.Manifest{}
+	}
 	for _, m := range ds.Manifests {
 		u, err := appv1.UnmarshalToUnstructured(m.CompiledManifest)
 		if err != nil {
