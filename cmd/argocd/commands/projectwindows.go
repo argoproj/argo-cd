@@ -315,7 +315,7 @@ argocd proj windows list PROJECT
 #List project windows in yaml format
 argocd proj windows list PROJECT -o yaml
 
-#List project windows info for a project name test-project
+#List project windows info for a project name (test-project)
 argocd proj windows list test-project`,
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
