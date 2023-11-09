@@ -1654,13 +1654,7 @@ spec:
               key: applicationsetcontroller.allowed.scm.providers
               name: argocd-cmd-params-cm
               optional: true
-        - name: ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_SCM_PROVIDERS
-          valueFrom:
-            configMapKeyRef:
-              key: applicationsetcontroller.enable.scm.providers
-              name: argocd-cmd-params-cm
-              optional: true
-        image: quay.io/argoproj/argocd:latest
+        image: quay.io/argoproj/argocd:v2.9.0
         imagePullPolicy: Always
         name: argocd-applicationset-controller
         ports:
@@ -1783,7 +1777,7 @@ spec:
         - -n
         - /usr/local/bin/argocd
         - /shared/argocd-dex
-        image: quay.io/argoproj/argocd:latest
+        image: quay.io/argoproj/argocd:v2.9.0
         imagePullPolicy: Always
         name: copyutil
         securityContext:
@@ -1859,7 +1853,7 @@ spec:
               key: application.namespaces
               name: argocd-cmd-params-cm
               optional: true
-        image: quay.io/argoproj/argocd:latest
+        image: quay.io/argoproj/argocd:v2.9.0
         imagePullPolicy: Always
         livenessProbe:
           tcpSocket:
@@ -2184,25 +2178,13 @@ spec:
               key: reposerver.enable.git.submodule
               name: argocd-cmd-params-cm
               optional: true
-        - name: ARGOCD_GIT_LS_REMOTE_PARALLELISM_LIMIT
-          valueFrom:
-            configMapKeyRef:
-              key: reposerver.git.lsremote.parallelism.limit
-              name: argocd-cmd-params-cm
-              optional: true
-        - name: ARGOCD_GIT_REQUEST_TIMEOUT
-          valueFrom:
-            configMapKeyRef:
-              key: reposerver.git.request.timeout
-              name: argocd-cmd-params-cm
-              optional: true
         - name: HELM_CACHE_HOME
           value: /helm-working-dir
         - name: HELM_CONFIG_HOME
           value: /helm-working-dir
         - name: HELM_DATA_HOME
           value: /helm-working-dir
-        image: quay.io/argoproj/argocd:latest
+        image: quay.io/argoproj/argocd:v2.9.0
         imagePullPolicy: Always
         livenessProbe:
           failureThreshold: 3
@@ -2254,7 +2236,7 @@ spec:
         - -n
         - /usr/local/bin/argocd
         - /var/run/argocd/argocd-cmp-server
-        image: quay.io/argoproj/argocd:latest
+        image: quay.io/argoproj/argocd:v2.9.0
         name: copyutil
         securityContext:
           allowPrivilegeEscalation: false
@@ -2543,7 +2525,7 @@ spec:
               key: server.enable.proxy.extension
               name: argocd-cmd-params-cm
               optional: true
-        image: quay.io/argoproj/argocd:latest
+        image: quay.io/argoproj/argocd:v2.9.0
         imagePullPolicy: Always
         livenessProbe:
           httpGet:
@@ -2789,7 +2771,7 @@ spec:
               key: controller.kubectl.parallelism.limit
               name: argocd-cmd-params-cm
               optional: true
-        image: quay.io/argoproj/argocd:latest
+        image: quay.io/argoproj/argocd:v2.9.0
         imagePullPolicy: Always
         name: argocd-application-controller
         ports:

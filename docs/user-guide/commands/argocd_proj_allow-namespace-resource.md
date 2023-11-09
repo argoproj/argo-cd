@@ -8,13 +8,6 @@ Removes a namespaced API resource from the deny list or add a namespaced API res
 argocd proj allow-namespace-resource PROJECT GROUP KIND [flags]
 ```
 
-### Examples
-
-```
-  # Removes a namespaced API resource with specified GROUP and KIND from the deny list or add a namespaced API resource to the allow list for project PROJECT
-  argocd proj allow-namespace-resource PROJECT GROUP KIND
-```
-
 ### Options
 
 ```

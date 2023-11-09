@@ -178,7 +178,7 @@ type ArgoCDServer struct {
 	appInformer    cache.SharedIndexInformer
 	appLister      applisters.ApplicationLister
 	appsetInformer cache.SharedIndexInformer
-	appsetLister   applisters.ApplicationSetNamespaceLister
+	appsetLister   applisters.ApplicationSetLister
 	db             db.ArgoDB
 
 	// stopCh is the channel which when closed, will shutdown the Argo CD server
@@ -264,7 +264,7 @@ func NewServer(ctx context.Context, opts ArgoCDServerOpts) *ArgoCDServer {
 	appLister := appFactory.Argoproj().V1alpha1().Applications().Lister()
 
 	appsetInformer := appFactory.Argoproj().V1alpha1().ApplicationSets().Informer()
-	appsetLister := appFactory.Argoproj().V1alpha1().ApplicationSets().Lister().ApplicationSets(opts.Namespace)
+	appsetLister := appFactory.Argoproj().V1alpha1().ApplicationSets().Lister()
 
 	userStateStorage := util_session.NewUserStateStorage(opts.RedisClient)
 	sessionMgr := util_session.NewSessionManager(settingsMgr, projLister, opts.DexServerAddr, opts.DexTLSConfig, userStateStorage)
@@ -471,6 +471,7 @@ func (a *ArgoCDServer) Listen() (*Listeners, error) {
 func (a *ArgoCDServer) Init(ctx context.Context) {
 	go a.projInformer.Run(ctx.Done())
 	go a.appInformer.Run(ctx.Done())
+	go a.appsetInformer.Run(ctx.Done())
 	go a.configMapInformer.Run(ctx.Done())
 	go a.secretInformer.Run(ctx.Done())
 }
@@ -731,7 +732,7 @@ func (a *ArgoCDServer) newGRPCServer() (*grpc.Server, application.AppResourceTre
 		grpc.ConnectionTimeout(300 * time.Second),
 		grpc.KeepaliveEnforcementPolicy(
 			keepalive.EnforcementPolicy{
-				MinTime: common.GetGRPCKeepAliveEnforcementMinimum(),
+				MinTime: common.GRPCKeepAliveEnforcementMinimum,
 			},
 		),
 	}
@@ -852,9 +853,7 @@ func newArgoCDServiceSet(a *ArgoCDServer) *ArgoCDServiceSet {
 		a.db,
 		a.KubeClientset,
 		a.enf,
-		a.Cache,
 		a.AppClientset,
-		a.appLister,
 		a.appsetInformer,
 		a.appsetLister,
 		a.projLister,

@@ -41,8 +41,6 @@ func NewProjectAllowListGenCommand() *cobra.Command {
 	var command = &cobra.Command{
 		Use:   "generate-allow-list CLUSTERROLE_PATH PROJ_NAME",
 		Short: "Generates project allow list from the specified clusterRole file",
-		Example: `# Generates project allow list from the specified clusterRole file
-argocd admin proj generate-allow-list /path/to/clusterrole.yaml my-project`,
 		Run: func(c *cobra.Command, args []string) {
 			if len(args) != 2 {
 				c.HelpFunc()(c, args)
