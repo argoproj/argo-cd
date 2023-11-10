@@ -51,7 +51,8 @@ func NewOIDCProvider(issuerURL string, client *http.Client) Provider {
 // oidcProvider lazily initializes, memoizes, and returns the OIDC provider.
 func (p *providerImpl) provider() (*gooidc.Provider, error) {
 	p.RLock()
-	var prov = p.goOIDCProvider
+        var err error
+	prov := p.goOIDCProvider
 	p.RUnlock()
 	if prov != nil {
 		return prov, nil
