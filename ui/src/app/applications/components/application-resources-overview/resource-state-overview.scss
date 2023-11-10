@@ -1,0 +1,16 @@
+@import 'node_modules/argo-ui/src/styles/config';
+
+
+.resource-state-overview {
+    &__lineitem{
+        border-left: 5px solid $argo-color-gray-4;
+        justify-content: center;
+
+        &--Gray {
+            border-left-color: $argo-color-gray-5;
+        }
+        &--Error {
+            border-left-color: $argo-failed-color;
+        }
+    }
+}

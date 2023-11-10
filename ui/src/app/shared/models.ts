@@ -329,6 +329,15 @@ export type ReadinessGate = {
     conditionType: string;
 };
 
+export type Condition ={
+    lastTransitionTime: models.Time;
+    lastUpdateTime : models.Time;
+    message: string;
+    reason: string;
+    status: string;
+    type: string;
+}
+
 export interface ResourceStatus {
     group: string;
     version: string;
@@ -374,9 +383,11 @@ export interface InfoItem {
 export interface ResourceNode extends ResourceRef {
     parentRefs: ResourceRef[];
     info: InfoItem[];
+    health?: HealthStatus;
     networkingInfo?: ResourceNetworkingInfo;
     images?: string[];
     resourceVersion: string;
+    Health?: HealthStatus;
     createdAt?: models.Time;
 }
 
@@ -930,7 +941,6 @@ export interface Pod extends ResourceNode {
     fullName: string;
     metadata: models.ObjectMeta;
     spec: PodSpec;
-    health: HealthStatusCode;
 }
 
 export interface PodSpec {
