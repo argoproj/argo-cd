@@ -41,6 +41,8 @@ metadata:
     notifications.argoproj.io/subscribe.<trigger-name>.newrelic: <app-id>
 ```
 
+Note: Install the trigger from the [triggers catalog](../index.md#getting-started) and the [template below](#templates).
+
 ## Templates
 
 * `description` - __optional__, high-level description of this deployment, visible in the [Summary](https://docs.newrelic.com/docs/apm/applications-menu/monitoring/apm-overview-page) page and on the [Deployments](https://docs.newrelic.com/docs/apm/applications-menu/events/deployments-page) page when you select an individual deployment.

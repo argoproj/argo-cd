@@ -31,3 +31,5 @@ metadata:
   annotations:
     notifications.argoproj.io/subscribe.on-sync-succeeded.pushover: uumy8u4owy7bgkapp6mc5mvhfsvpcd
 ```
+
+Note: Install the trigger from the [triggers catalog](../index.md#getting-started) and create a [template](../templates.md).

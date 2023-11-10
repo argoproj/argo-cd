@@ -80,6 +80,8 @@ The Slack notification service configuration includes following settings:
                   recipients: [my-channel-21, my-channel-22]
     ```
 
+Note: Install the trigger from the [triggers catalog](../index.md#getting-started) and the [template below](#templates).
+
 ## Templates
 
 [Notification templates](../templates.md) can be customized to leverage slack message blocks and attachments

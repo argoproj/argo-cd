@@ -12,7 +12,7 @@ Available parameters :
 
 1. Login to your Grafana instance as `admin`
 2. On the left menu, go to Configuration / API Keys
-3. Click "Add API Key" 
+3. Click "Add API Key"
 4. Fill the Key with name `ArgoCD Notification`, role `Editor` and Time to Live `10y` (for example)
 5. Click on Add button
 6. Store apiKey in `argocd-notifications-secret` Secret and Copy your API Key and define it in `argocd-notifications-cm` ConfigMap
@@ -46,6 +46,8 @@ metadata:
   annotations:
     notifications.argoproj.io/subscribe.<trigger-name>.grafana: tag1|tag2 # list of tags separated with |
 ```
+
+Note: Install the trigger from the [triggers catalog](../index.md#getting-started).
 
 8. Change the annotations settings
 ![8](https://user-images.githubusercontent.com/18019529/112022083-47fb0600-8b75-11eb-849b-d25d41925909.png)

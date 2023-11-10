@@ -39,3 +39,7 @@ You need to check your argocd-notifications controller version. For instance, th
 ### notification service 'xxxx' is not supported
 
 You have not defined `xxxx` in `argocd-notifications-cm` or to fail to parse settings.
+
+## Subscription not triggered
+
+The triggers mentioned in the docs (e.g. `on-sync-succeeded`) must be explicitly installed, see [Getting Started with Notifications](index.md#getting-started).

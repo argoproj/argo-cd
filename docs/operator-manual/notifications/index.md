@@ -8,7 +8,7 @@ So you can just use them instead of reinventing new ones.
 
 ## Getting Started
 
-* Install Triggers and Templates from the catalog
+* Install triggers and templates. You can choose to install the whole catalog that comes with Argo CD, or you can just pick the ones you need. None are installed by default.
 
     ```bash
     kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/notifications_catalog/install.yaml
