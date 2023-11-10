@@ -59,7 +59,7 @@ func (p *providerImpl) provider() (*gooidc.Provider, error) {
 	}
 	// We don't want to hold the lock during the call.
 	// Hence, this could be executed multiple times, but no harm.
-	prov, err := p.newGoOIDCProvider()
+	prov, err = p.newGoOIDCProvider()
 	if err != nil {
 		return nil, err
 	}
