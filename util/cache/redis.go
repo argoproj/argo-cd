@@ -110,6 +110,7 @@ func (r *redisCache) Set(item *Item) error {
 		Key:   r.getKey(item.Key),
 		Value: val,
 		TTL:   expiration,
+		SetNX: item.DisableOverwrite,
 	})
 }
 

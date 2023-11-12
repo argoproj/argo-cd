@@ -16,6 +16,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/common"
 	certutil "github.com/argoproj/argo-cd/v2/util/cert"
 	"github.com/argoproj/argo-cd/v2/util/env"
+	log "github.com/sirupsen/logrus"
 )
 
 const (
@@ -163,30 +164,46 @@ func (c *Cache) SetClient(client CacheClient) {
 	c.client = client
 }
 
-func (c *Cache) SetItem(key string, item interface{}, expiration time.Duration, delete bool) error {
-	key = fmt.Sprintf("%s|%s", key, common.CacheVersion)
+func (c *Cache) generateFullKey(key string) string {
+	if key == "" {
+		log.Debug("Cache key is empty, this will result in key collisions if there is more than one empty key")
+	}
+	return fmt.Sprintf("%s|%s", key, common.CacheVersion)
+}
+
+func (c *Cache) SetCacheItem(item *Item, delete bool) error {
+	item.Key = c.generateFullKey(item.Key)
 	if delete {
-		return c.client.Delete(key)
+		return c.client.Delete(item.Key)
 	} else {
 		if item == nil {
-			return fmt.Errorf("cannot set item to nil for key %s", key)
+			return fmt.Errorf("cannot set item to nil for key %s", item.Key)
 		}
-		return c.client.Set(&Item{Object: item, Key: key, Expiration: expiration})
+		return c.client.Set(item)
 	}
 }
 
+func (c *Cache) SetItem(key string, item interface{}, expiration time.Duration, delete bool) error {
+	cacheItem := &Item{
+		Key:        key,
+		Object:     item,
+		Expiration: expiration,
+	}
+	return c.SetCacheItem(cacheItem, delete)
+}
+
 func (c *Cache) GetItem(key string, item interface{}) error {
+	key = c.generateFullKey(key)
 	if item == nil {
 		return fmt.Errorf("cannot get item into a nil for key %s", key)
 	}
-	key = fmt.Sprintf("%s|%s", key, common.CacheVersion)
 	return c.client.Get(key, item)
 }
 
 func (c *Cache) OnUpdated(ctx context.Context, key string, callback func() error) error {
-	return c.client.OnUpdated(ctx, fmt.Sprintf("%s|%s", key, common.CacheVersion), callback)
+	return c.client.OnUpdated(ctx, c.generateFullKey(key), callback)
 }
 
 func (c *Cache) NotifyUpdated(key string) error {
-	return c.client.NotifyUpdated(fmt.Sprintf("%s|%s", key, common.CacheVersion))
+	return c.client.NotifyUpdated(c.generateFullKey(key))
 }

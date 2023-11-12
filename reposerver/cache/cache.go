@@ -12,6 +12,7 @@ import (
 
 	"github.com/argoproj/gitops-engine/pkg/utils/text"
 	"github.com/go-git/go-git/v5/plumbing"
+	"github.com/google/uuid"
 	"github.com/redis/go-redis/v9"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -25,11 +26,27 @@ import (
 )
 
 var ErrCacheMiss = cacheutil.ErrCacheMiss
+var ErrCacheKeyLocked = cacheutil.ErrCacheKeyLocked
+
+var CacheOptsDefaults = &CacheOpts{
+	repoCacheExpiration:           env.ParseDurationFromEnv("ARGOCD_REPO_CACHE_EXPIRATION", 24*time.Hour, 0, math.MaxInt64),
+	revisionCacheExpiration:       env.ParseDurationFromEnv("ARGOCD_RECONCILIATION_TIMEOUT", 3*time.Minute, 0, math.MaxInt64),
+	revisionCacheLockWaitEnabled:  env.ParseBoolFromEnv("ARGOCD_REVISION_CACHE_LOCK_WAIT_ENABLED", false),
+	revisionCacheLockTimeout:      env.ParseDurationFromEnv("ARGOCD_REVISION_CACHE_LOCK_TIMEOUT", 10*time.Second, 0, math.MaxInt64),
+	revisionCacheLockWaitInterval: env.ParseDurationFromEnv("ARGOCD_REVISION_CACHE_LOCK_WAIT_INTERVAL", 1*time.Second, 0, math.MaxInt64),
+}
+
+type CacheOpts struct {
+	repoCacheExpiration           time.Duration
+	revisionCacheExpiration       time.Duration
+	revisionCacheLockWaitEnabled  bool
+	revisionCacheLockTimeout      time.Duration
+	revisionCacheLockWaitInterval time.Duration
+}
 
 type Cache struct {
-	cache                   *cacheutil.Cache
-	repoCacheExpiration     time.Duration
-	revisionCacheExpiration time.Duration
+	cache *cacheutil.Cache
+	CacheOpts
 }
 
 // ClusterRuntimeInfo holds cluster runtime information
@@ -40,16 +57,21 @@ type ClusterRuntimeInfo interface {
 	GetKubeVersion() string
 }
 
-func NewCache(cache *cacheutil.Cache, repoCacheExpiration time.Duration, revisionCacheExpiration time.Duration) *Cache {
-	return &Cache{cache, repoCacheExpiration, revisionCacheExpiration}
+func NewCache(cache *cacheutil.Cache, cacheOpts *CacheOpts) *Cache {
+	if cacheOpts == nil {
+		cacheOpts = CacheOptsDefaults
+	}
+	return &Cache{cache, *cacheOpts}
 }
 
 func AddCacheFlagsToCmd(cmd *cobra.Command, opts ...func(client *redis.Client)) func() (*Cache, error) {
-	var repoCacheExpiration time.Duration
-	var revisionCacheExpiration time.Duration
+	var cacheOpts *CacheOpts = &CacheOpts{}
 
-	cmd.Flags().DurationVar(&repoCacheExpiration, "repo-cache-expiration", env.ParseDurationFromEnv("ARGOCD_REPO_CACHE_EXPIRATION", 24*time.Hour, 0, math.MaxInt64), "Cache expiration for repo state, incl. app lists, app details, manifest generation, revision meta-data")
-	cmd.Flags().DurationVar(&revisionCacheExpiration, "revision-cache-expiration", env.ParseDurationFromEnv("ARGOCD_RECONCILIATION_TIMEOUT", 3*time.Minute, 0, math.MaxInt64), "Cache expiration for cached revision")
+	cmd.Flags().DurationVar(&cacheOpts.repoCacheExpiration, "repo-cache-expiration", CacheOptsDefaults.repoCacheExpiration, "Cache expiration for repo state, incl. app lists, app details, manifest generation, revision meta-data")
+	cmd.Flags().DurationVar(&cacheOpts.revisionCacheExpiration, "revision-cache-expiration", CacheOptsDefaults.revisionCacheExpiration, "Cache expiration for cached revision")
+	cmd.Flags().BoolVar(&cacheOpts.revisionCacheLockWaitEnabled, "enable-revision-cache-lock", CacheOptsDefaults.revisionCacheLockWaitEnabled, "Enables a lock to prevent duplicate git requests during revision cache updates")
+	cmd.Flags().DurationVar(&cacheOpts.revisionCacheLockTimeout, "revision-cache-lock-timeout", CacheOptsDefaults.revisionCacheLockTimeout, "Specifies the max amount of time each routine making identical git requests will wait for the git reference cache to update before making a new git requests")
+	cmd.Flags().DurationVar(&cacheOpts.revisionCacheLockWaitInterval, "revision-cache-lock-wait-interval", CacheOptsDefaults.revisionCacheLockWaitInterval, "Specifies the amount of time between each check to see if the git cache refs lock has been released")
 
 	repoFactory := cacheutil.AddCacheFlagsToCmd(cmd, opts...)
 
@@ -58,7 +80,7 @@ func AddCacheFlagsToCmd(cmd *cobra.Command, opts ...func(client *redis.Client)) 
 		if err != nil {
 			return nil, fmt.Errorf("error adding cache flags to cmd: %w", err)
 		}
-		return NewCache(cache, repoCacheExpiration, revisionCacheExpiration), nil
+		return NewCache(cache, cacheOpts), nil
 	}
 }
 
@@ -176,18 +198,89 @@ func (c *Cache) SetGitReferences(repo string, references []*plumbing.Reference) 
 	return c.cache.SetItem(gitRefsKey(repo), input, c.revisionCacheExpiration, false)
 }
 
+func GitRefCacheItemToReferences(cacheItem [][2]string) []*plumbing.Reference {
+	var res []*plumbing.Reference
+	for i := range cacheItem {
+		res = append(res, plumbing.NewReferenceFromStrings(cacheItem[i][0], cacheItem[i][1]))
+	}
+	return res
+}
+
 // GetGitReferences retrieves resolved Git repository references from cache
 func (c *Cache) GetGitReferences(repo string, references *[]*plumbing.Reference) error {
 	var input [][2]string
 	if err := c.cache.GetItem(gitRefsKey(repo), &input); err != nil {
 		return err
 	}
-	var res []*plumbing.Reference
-	for i := range input {
-		res = append(res, plumbing.NewReferenceFromStrings(input[i][0], input[i][1]))
-	}
-	*references = res
+	*references = GitRefCacheItemToReferences(input)
 	return nil
+}
+
+// TryLockGitRefCache attempts to lock the key for the Git repository references if the key doesn't exist
+func (c *Cache) TryLockGitRefCache(repo string, lockId string) {
+	err := c.cache.SetCacheItem(&cacheutil.Item{
+		Key:              gitRefsKey(repo),
+		Object:           [][2]string{{cacheutil.CacheLockedValue, lockId}},
+		Expiration:       c.revisionCacheLockTimeout,
+		DisableOverwrite: true,
+	}, false)
+	if err != nil {
+		// The key already existing does not produce an error for go-redis so we'll use the get to validate
+		// In memory would produce an error, but ignoring provides a consistent flow
+		log.Debug("Error setting git references cache lock: ", err)
+	}
+}
+
+// GetOrLockGitReferences retrieves the git references if they exist, otherwise creates a lock and returns so the caller can populate the cache
+func (c *Cache) GetOrLockGitReferences(repo string, references *[]*plumbing.Reference) (lockCreated bool, lockId string, err error) {
+	// feature flagged for now
+	if !c.revisionCacheLockWaitEnabled {
+		log.Debug("Git references cache lock is disabled")
+		return false, "", c.GetGitReferences(repo, references)
+	}
+	var input [][2]string
+	myLockUUID, err := uuid.NewRandom()
+	if err != nil {
+		log.Debug("Error generating git references cache lock id: ", err)
+		return false, "", err
+	}
+	// We need to be able to identify that our lock was the successful one, otherwise we'll still have duplicate requests
+	myLockId := myLockUUID.String()
+	waitUntil := time.Now().Add(c.revisionCacheLockTimeout)
+	// Wait only the maximum amount of time configured for the lock
+	for time.Now().Before(waitUntil) {
+		// Attempt to get the lock
+		c.TryLockGitRefCache(repo, myLockId)
+		err = c.cache.GetItem(gitRefsKey(repo), &input)
+		if err == nil && len(input) > 0 && len(input[0]) > 0 {
+			if input[0][0] != cacheutil.CacheLockedValue {
+				// Valid value in cache, convert to plumbing.Reference and return
+				*references = GitRefCacheItemToReferences(input)
+				return false, myLockId, err
+			} else if input[0][1] == myLockId {
+				// Our lock was successful
+				return true, myLockId, nil
+			}
+		}
+		// Wait for lock, valid value, or timeout
+		time.Sleep(c.revisionCacheLockWaitInterval)
+	}
+	return false, myLockId, cacheutil.ErrLockWaitExpired
+}
+
+// UnlockGitReferences unlocks the key for the Git repository references if needed
+func (c *Cache) UnlockGitReferences(repo string, lockId string) error {
+	var input [][2]string
+	var err error
+	if err = c.cache.GetItem(gitRefsKey(repo), &input); err == nil &&
+		len(input) > 0 &&
+		len(input[0]) > 1 &&
+		input[0][0] == cacheutil.CacheLockedValue &&
+		input[0][1] == lockId {
+		// We have the lock, so remove it
+		return c.cache.SetItem(gitRefsKey(repo), input, 0, true)
+	}
+	return err
 }
 
 // refSourceCommitSHAs is a list of resolved revisions for each ref source. This allows us to invalidate the cache

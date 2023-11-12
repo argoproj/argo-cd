@@ -22719,6 +22719,24 @@ spec:
               key: reposerver.repo.cache.expiration
               name: argocd-cmd-params-cm
               optional: true
+        - name: ARGOCD_REVISION_CACHE_LOCK_WAIT_ENABLED
+          valueFrom:
+            configMapKeyRef:
+              key: reposerver.repo.cache.lock.enabled
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_REVISION_CACHE_LOCK_TIMEOUT
+          valueFrom:
+            configMapKeyRef:
+              key: reposerver.repo.cache.lock.timeout
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_REVISION_CACHE_LOCK_WAIT_INTERVAL
+          valueFrom:
+            configMapKeyRef:
+              key: reposerver.repo.cache.lock.interval
+              name: argocd-cmd-params-cm
+              optional: true
         - name: REDIS_SERVER
           valueFrom:
             configMapKeyRef:

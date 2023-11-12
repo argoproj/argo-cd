@@ -29,7 +29,11 @@ func (i *InMemoryCache) Set(item *Item) error {
 	if err != nil {
 		return err
 	}
-	i.memCache.Set(item.Key, buf, item.Expiration)
+	if item.DisableOverwrite {
+		i.memCache.Add(item.Key, buf, item.Expiration)
+	} else {
+		i.memCache.Set(item.Key, buf, item.Expiration)
+	}
 	return nil
 }
 

@@ -1026,9 +1026,9 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandl
 	// Dex reverse proxy and client app and OAuth2 login/callback
 	a.registerDexHandlers(mux)
 
-	// Webhook handler for git events (Note: cache timeouts are hardcoded because API server does not write to cache and not really using them)
+	// Webhook handler for git events (Note: repo cache timeouts can be configured with the same environment variables as repo-server)
 	argoDB := db.NewDB(a.Namespace, a.settingsMgr, a.KubeClientset)
-	acdWebhookHandler := webhook.NewHandler(a.Namespace, a.ArgoCDServerOpts.ApplicationNamespaces, a.AppClientset, a.settings, a.settingsMgr, repocache.NewCache(a.Cache.GetCache(), 24*time.Hour, 3*time.Minute), a.Cache, argoDB)
+	acdWebhookHandler := webhook.NewHandler(a.Namespace, a.ArgoCDServerOpts.ApplicationNamespaces, a.AppClientset, a.settings, a.settingsMgr, repocache.NewCache(a.Cache.GetCache(), repocache.CacheOptsDefaults), a.Cache, argoDB)
 
 	mux.HandleFunc("/api/webhook", acdWebhookHandler.Handler)
 
