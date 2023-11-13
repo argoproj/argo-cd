@@ -495,7 +495,8 @@ func (m *nativeGitClient) getRefs() ([]*plumbing.Reference, error) {
 		// Defer a soft reset of the cache lock, if the value is set this call will be ignored
 		defer func() {
 			if needsUnlock {
-				m.gitRefCache.UnlockGitReferences(m.repoURL, lockId)
+				err := m.gitRefCache.UnlockGitReferences(m.repoURL, lockId)
+				log.Debugf("Error unlocking git references from cache: %v", err)
 			}
 		}()
 	}

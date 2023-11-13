@@ -3331,7 +3331,8 @@ func TestGetRefs_CacheUnlockedOnUpdateFailed(t *testing.T) {
 		gitCache := repoCache.GetGitCache()
 		assert.Equal(t, repoCache.CallCounts["UnlockGitReferences"], 1, "UnlockGitReferences should have been called")
 		var output [][2]string
-		gitCache.GetItem(fmt.Sprintf("git-refs|%s|%s", repoUrl, common.CacheVersion), &output)
+		err = gitCache.GetItem(fmt.Sprintf("git-refs|%s|%s", repoUrl, common.CacheVersion), &output)
+		assert.Error(t, err, "Should be a cache miss")
 		assert.Equal(t, 0, len(output), "Expected cache to be empty for key")
 	}
 }

@@ -350,18 +350,22 @@ func TestTryLockGitRefCache_OwnershipFlows(t *testing.T) {
 	cache.TryLockGitRefCache("my-repo-url", "my-lock-id")
 	var output [][2]string
 	key := fmt.Sprintf("git-refs|%s", "my-repo-url")
-	cache.cache.GetItem(key, &output)
+	err := cache.cache.GetItem(key, &output)
+	assert.NoError(t, err)
 	assert.Equal(t, "locked", output[0][0], "The lock should be set")
 	assert.Equal(t, "my-lock-id", output[0][1], "The lock should be set to the provided lock id")
 	// Test not being able to overwrite the lock
 	cache.TryLockGitRefCache("my-repo-url", "other-lock-id")
-	cache.cache.GetItem(key, &output)
+	err = cache.cache.GetItem(key, &output)
+	assert.NoError(t, err)
 	assert.Equal(t, "locked", output[0][0], "The lock should not have changed")
 	assert.Equal(t, "my-lock-id", output[0][1], "The lock should not have changed")
 	// Test can overwrite once there is nothing set
-	cache.cache.SetItem(key, [][2]string{}, 0, true)
+	err = cache.cache.SetItem(key, [][2]string{}, 0, true)
+	assert.NoError(t, err)
 	cache.TryLockGitRefCache("my-repo-url", "other-lock-id")
-	cache.cache.GetItem(key, &output)
+	err = cache.cache.GetItem(key, &output)
+	assert.NoError(t, err)
 	assert.Equal(t, "locked", output[0][0], "The lock should be set")
 	assert.Equal(t, "other-lock-id", output[0][1], "The lock id should have changed to other-lock-id")
 }
