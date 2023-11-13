@@ -34,7 +34,7 @@ export const ApplicationResourceList = ({
     const searchParams = new URLSearchParams(window.location.search);
     const view = searchParams.get('view');
 
-    const ParenRefDetails = () => {
+    const ParentRefDetails = () => {
         return (
             <div className='resource-parent-node-info-title'>
                 <div>Parent Node Info</div>
@@ -51,10 +51,10 @@ export const ApplicationResourceList = ({
     };
     return (
         <div>
-            {/*Display only when the view is set to tree*/}
+            {/* Display only when the view is set to  or network */}
             {(view === 'tree' || view === 'network') && (
                 <div className='resource-details__header' style={{paddingTop: '20px'}}>
-                    <ParenRefDetails />
+                    <ParentRefDetails />
                 </div>
             )}
             <div className='argo-table-list argo-table-list--clickable'>
