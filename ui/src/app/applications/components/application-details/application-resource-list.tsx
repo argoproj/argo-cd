@@ -35,7 +35,7 @@ export const ApplicationResourceList = ({
     const view = searchParams.get('view');
 
     const ParentRefDetails = () => {
-        return (
+        return Object.keys(parentNode).length > 0 ? (
             <div className='resource-parent-node-info-title'>
                 <div>Parent Node Info</div>
                 <div className='resource-parent-node-info-title__label'>
@@ -47,6 +47,8 @@ export const ApplicationResourceList = ({
                     <div>{parentNode?.kind}</div>
                 </div>
             </div>
+        ) : (
+            <div />
         );
     };
     return (
