@@ -77,8 +77,8 @@ func (c *Consequences) app(name string) *v1alpha1.Application {
 func (c *Consequences) apps() []v1alpha1.Application {
 
 	var namespace string
-	if c.context.useExternalNamespace {
-		namespace = utils.ArgoCDExternalNamespace
+	if c.context.switchToNamespace != "" {
+		namespace = string(c.context.switchToNamespace)
 	} else {
 		namespace = fixture.TestNamespace()
 	}
@@ -100,8 +100,8 @@ func (c *Consequences) applicationSet(applicationSetName string) *v1alpha1.Appli
 
 	var appSetClientSet dynamic.ResourceInterface
 
-	if c.context.useExternalNamespace {
-		appSetClientSet = fixtureClient.ExternalAppSetClientset
+	if c.context.switchToNamespace != "" {
+		appSetClientSet = fixtureClient.ExternalAppSetClientsets[c.context.switchToNamespace]
 	} else {
 		appSetClientSet = fixtureClient.AppSetClientset
 	}

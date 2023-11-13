@@ -1,9 +1,18 @@
+# `argocd proj add-source` Command Reference
+
 ## argocd proj add-source
 
 Add project source repository
 
 ```
 argocd proj add-source PROJECT URL [flags]
+```
+
+### Examples
+
+```
+  # Add a source repository (URL) to the project with name PROJECT
+  argocd proj add-source PROJECT URL
 ```
 
 ### Options

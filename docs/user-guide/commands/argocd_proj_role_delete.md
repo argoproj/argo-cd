@@ -1,9 +1,17 @@
+# `argocd proj role delete` Command Reference
+
 ## argocd proj role delete
 
 Delete a project role
 
 ```
 argocd proj role delete PROJECT ROLE-NAME [flags]
+```
+
+### Examples
+
+```
+$ argocd proj role delete test-project test-role
 ```
 
 ### Options

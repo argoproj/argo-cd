@@ -19,10 +19,11 @@ import (
 	argov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/test/e2e/fixture"
 
+	"github.com/stretchr/testify/assert"
+
 	. "github.com/argoproj/argo-cd/v2/test/e2e/fixture/applicationsets"
 	"github.com/argoproj/argo-cd/v2/test/e2e/fixture/applicationsets/utils"
 	. "github.com/argoproj/argo-cd/v2/util/errors"
-	"github.com/stretchr/testify/assert"
 
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
 )
@@ -48,10 +49,11 @@ var (
 			Reason:  v1alpha1.ApplicationSetReasonApplicationSetUpToDate,
 		},
 	}
-	LabelKeyAppSetInstance = "argocd.argoproj.io/application-set-name"
 )
 
 func TestSimpleListGeneratorExternalNamespace(t *testing.T) {
+
+	var externalNamespace = string(utils.ArgoCDExternalNamespace)
 
 	expectedApp := argov1alpha1.Application{
 		TypeMeta: metav1.TypeMeta{
@@ -59,11 +61,8 @@ func TestSimpleListGeneratorExternalNamespace(t *testing.T) {
 			APIVersion: "argoproj.io/v1alpha1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "my-cluster-guestbook",
-			Namespace: utils.ArgoCDExternalNamespace,
-			Labels: map[string]string{
-				LabelKeyAppSetInstance: "simple-list-generator-external",
-			},
+			Name:       "my-cluster-guestbook",
+			Namespace:  externalNamespace,
 			Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
 		},
 		Spec: argov1alpha1.ApplicationSpec{
@@ -85,10 +84,10 @@ func TestSimpleListGeneratorExternalNamespace(t *testing.T) {
 	Given(t).
 		// Create a ListGenerator-based ApplicationSet
 		When().
-		SwitchToExternalNamespace().
-		CreateNamespace(utils.ArgoCDExternalNamespace).Create(v1alpha1.ApplicationSet{ObjectMeta: metav1.ObjectMeta{
+		SwitchToExternalNamespace(utils.ArgoCDExternalNamespace).
+		CreateNamespace(externalNamespace).Create(v1alpha1.ApplicationSet{ObjectMeta: metav1.ObjectMeta{
 		Name:      "simple-list-generator-external",
-		Namespace: utils.ArgoCDExternalNamespace,
+		Namespace: externalNamespace,
 	},
 		Spec: v1alpha1.ApplicationSetSpec{
 			GoTemplate: true,
@@ -135,15 +134,13 @@ func TestSimpleListGeneratorExternalNamespace(t *testing.T) {
 			expectedAppNewMetadata = expectedAppNewNamespace.DeepCopy()
 			expectedAppNewMetadata.ObjectMeta.Annotations = map[string]string{"annotation-key": "annotation-value"}
 			expectedAppNewMetadata.ObjectMeta.Labels = map[string]string{
-				"label-key":            "label-value",
-				LabelKeyAppSetInstance: "simple-list-generator-external",
+				"label-key": "label-value",
 			}
 		}).
 		Update(func(appset *v1alpha1.ApplicationSet) {
 			appset.Spec.Template.Annotations = map[string]string{"annotation-key": "annotation-value"}
 			appset.Spec.Template.Labels = map[string]string{
-				"label-key":            "label-value",
-				LabelKeyAppSetInstance: "simple-list-generator-external",
+				"label-key": "label-value",
 			}
 		}).Then().Expect(ApplicationsExist([]argov1alpha1.Application{*expectedAppNewMetadata})).
 
@@ -156,6 +153,191 @@ func TestSimpleListGeneratorExternalNamespace(t *testing.T) {
 
 }
 
+func TestSimpleListGeneratorExternalNamespaceNoConflict(t *testing.T) {
+
+	var externalNamespace = string(utils.ArgoCDExternalNamespace)
+	var externalNamespace2 = string(utils.ArgoCDExternalNamespace2)
+
+	expectedApp := argov1alpha1.Application{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "Application",
+			APIVersion: "argoproj.io/v1alpha1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:       "my-cluster-guestbook",
+			Namespace:  externalNamespace,
+			Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
+		},
+		Spec: argov1alpha1.ApplicationSpec{
+			Project: "default",
+			Source: &argov1alpha1.ApplicationSource{
+				RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
+				TargetRevision: "HEAD",
+				Path:           "guestbook",
+			},
+			Destination: argov1alpha1.ApplicationDestination{
+				Server:    "https://kubernetes.default.svc",
+				Namespace: "guestbook",
+			},
+		},
+	}
+
+	expectedAppExternalNamespace2 := argov1alpha1.Application{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "Application",
+			APIVersion: "argoproj.io/v1alpha1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:       "my-cluster-guestbook",
+			Namespace:  externalNamespace2,
+			Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
+		},
+		Spec: argov1alpha1.ApplicationSpec{
+			Project: "default",
+			Source: &argov1alpha1.ApplicationSource{
+				RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
+				TargetRevision: "HEAD",
+				Path:           "guestbook",
+			},
+			Destination: argov1alpha1.ApplicationDestination{
+				Server:    "https://kubernetes.default.svc",
+				Namespace: "guestbook",
+			},
+		},
+	}
+
+	var expectedAppNewNamespace *argov1alpha1.Application
+	var expectedAppNewMetadata *argov1alpha1.Application
+
+	Given(t).
+		// Create a ListGenerator-based ApplicationSet
+		When().
+		SwitchToExternalNamespace(utils.ArgoCDExternalNamespace2).
+		CreateNamespace(externalNamespace2).Create(v1alpha1.ApplicationSet{ObjectMeta: metav1.ObjectMeta{
+		Name:      "simple-list-generator-external",
+		Namespace: externalNamespace2,
+	},
+		Spec: v1alpha1.ApplicationSetSpec{
+			GoTemplate: true,
+			Template: v1alpha1.ApplicationSetTemplate{
+				ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "{{.cluster}}-guestbook"},
+				Spec: argov1alpha1.ApplicationSpec{
+					Project: "default",
+					Source: &argov1alpha1.ApplicationSource{
+						RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
+						TargetRevision: "HEAD",
+						Path:           "guestbook",
+					},
+					Destination: argov1alpha1.ApplicationDestination{
+						Server:    "{{.url}}",
+						Namespace: "guestbook",
+					},
+				},
+			},
+			Generators: []v1alpha1.ApplicationSetGenerator{
+				{
+					List: &v1alpha1.ListGenerator{
+						Elements: []apiextensionsv1.JSON{{
+							Raw: []byte(`{"cluster": "my-cluster","url": "https://kubernetes.default.svc"}`),
+						}},
+					},
+				},
+			},
+		},
+	}).Then().Expect(ApplicationsExist([]argov1alpha1.Application{expectedAppExternalNamespace2})).
+		When().
+		SwitchToExternalNamespace(utils.ArgoCDExternalNamespace).
+		CreateNamespace(externalNamespace).Create(v1alpha1.ApplicationSet{ObjectMeta: metav1.ObjectMeta{
+		Name:      "simple-list-generator-external",
+		Namespace: externalNamespace,
+	},
+		Spec: v1alpha1.ApplicationSetSpec{
+			GoTemplate: true,
+			Template: v1alpha1.ApplicationSetTemplate{
+				ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "{{.cluster}}-guestbook"},
+				Spec: argov1alpha1.ApplicationSpec{
+					Project: "default",
+					Source: &argov1alpha1.ApplicationSource{
+						RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
+						TargetRevision: "HEAD",
+						Path:           "guestbook",
+					},
+					Destination: argov1alpha1.ApplicationDestination{
+						Server:    "{{.url}}",
+						Namespace: "guestbook",
+					},
+				},
+			},
+			Generators: []v1alpha1.ApplicationSetGenerator{
+				{
+					List: &v1alpha1.ListGenerator{
+						Elements: []apiextensionsv1.JSON{{
+							Raw: []byte(`{"cluster": "my-cluster","url": "https://kubernetes.default.svc"}`),
+						}},
+					},
+				},
+			},
+		},
+	}).Then().Expect(ApplicationsExist([]argov1alpha1.Application{expectedApp})).
+		When().
+		SwitchToExternalNamespace(utils.ArgoCDExternalNamespace2).
+		Then().
+		Expect(ApplicationsExist([]argov1alpha1.Application{expectedAppExternalNamespace2})).
+		When().
+		SwitchToExternalNamespace(utils.ArgoCDExternalNamespace).
+		Then().
+		// Update the ApplicationSet template namespace, and verify it updates the Applications
+		When().
+		And(func() {
+			expectedAppNewNamespace = expectedApp.DeepCopy()
+			expectedAppNewNamespace.Spec.Destination.Namespace = "guestbook2"
+		}).
+		Update(func(appset *v1alpha1.ApplicationSet) {
+			appset.Spec.Template.Spec.Destination.Namespace = "guestbook2"
+		}).Then().Expect(ApplicationsExist([]argov1alpha1.Application{*expectedAppNewNamespace})).
+		When().
+		SwitchToExternalNamespace(utils.ArgoCDExternalNamespace2).
+		Then().
+		Expect(ApplicationsExist([]argov1alpha1.Application{expectedAppExternalNamespace2})).
+		When().
+		SwitchToExternalNamespace(utils.ArgoCDExternalNamespace).
+		Then().
+		// Update the metadata fields in the appset template, and make sure it propagates to the apps
+		When().
+		And(func() {
+			expectedAppNewMetadata = expectedAppNewNamespace.DeepCopy()
+			expectedAppNewMetadata.ObjectMeta.Annotations = map[string]string{"annotation-key": "annotation-value"}
+			expectedAppNewMetadata.ObjectMeta.Labels = map[string]string{
+				"label-key": "label-value",
+			}
+		}).
+		Update(func(appset *v1alpha1.ApplicationSet) {
+			appset.Spec.Template.Annotations = map[string]string{"annotation-key": "annotation-value"}
+			appset.Spec.Template.Labels = map[string]string{
+				"label-key": "label-value",
+			}
+		}).Then().Expect(ApplicationsExist([]argov1alpha1.Application{*expectedAppNewMetadata})).
+
+		// verify the ApplicationSet status conditions were set correctly
+		Expect(ApplicationSetHasConditions("simple-list-generator-external", ExpectedConditions)).
+		When().
+		SwitchToExternalNamespace(utils.ArgoCDExternalNamespace2).
+		Then().
+		Expect(ApplicationsExist([]argov1alpha1.Application{expectedAppExternalNamespace2})).
+		When().
+		SwitchToExternalNamespace(utils.ArgoCDExternalNamespace).
+		Then().
+		// Delete the ApplicationSet, and verify it deletes the Applications
+		When().
+		Delete().Then().Expect(ApplicationsDoNotExist([]argov1alpha1.Application{*expectedAppNewMetadata})).
+		When().
+		SwitchToExternalNamespace(utils.ArgoCDExternalNamespace2).
+		Then().
+		Expect(ApplicationsExist([]argov1alpha1.Application{expectedAppExternalNamespace2})).
+		When().
+		Delete().Then().Expect(ApplicationsDoNotExist([]argov1alpha1.Application{expectedAppExternalNamespace2}))
+}
+
 func TestSimpleListGenerator(t *testing.T) {
 
 	expectedApp := argov1alpha1.Application{
@@ -164,11 +346,8 @@ func TestSimpleListGenerator(t *testing.T) {
 			APIVersion: "argoproj.io/v1alpha1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "my-cluster-guestbook",
-			Namespace: fixture.TestNamespace(),
-			Labels: map[string]string{
-				LabelKeyAppSetInstance: "simple-list-generator",
-			},
+			Name:       "my-cluster-guestbook",
+			Namespace:  fixture.TestNamespace(),
 			Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
 		},
 		Spec: argov1alpha1.ApplicationSpec{
@@ -235,10 +414,7 @@ func TestSimpleListGenerator(t *testing.T) {
 		And(func() {
 			expectedAppNewMetadata = expectedAppNewNamespace.DeepCopy()
 			expectedAppNewMetadata.ObjectMeta.Annotations = map[string]string{"annotation-key": "annotation-value"}
-			expectedAppNewMetadata.ObjectMeta.Labels = map[string]string{
-				LabelKeyAppSetInstance: "simple-list-generator",
-				"label-key":            "label-value",
-			}
+			expectedAppNewMetadata.ObjectMeta.Labels = map[string]string{"label-key": "label-value"}
 		}).
 		Update(func(appset *v1alpha1.ApplicationSet) {
 			appset.Spec.Template.Annotations = map[string]string{"annotation-key": "annotation-value"}
@@ -265,9 +441,6 @@ func TestSimpleListGeneratorGoTemplate(t *testing.T) {
 			Name:       "my-cluster-guestbook",
 			Namespace:  fixture.TestNamespace(),
 			Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
-			Labels: map[string]string{
-				LabelKeyAppSetInstance: "simple-list-generator",
-			},
 		},
 		Spec: argov1alpha1.ApplicationSpec{
 			Project: "default",
@@ -334,10 +507,7 @@ func TestSimpleListGeneratorGoTemplate(t *testing.T) {
 		And(func() {
 			expectedAppNewMetadata = expectedAppNewNamespace.DeepCopy()
 			expectedAppNewMetadata.ObjectMeta.Annotations = map[string]string{"annotation-key": "annotation-value"}
-			expectedAppNewMetadata.ObjectMeta.Labels = map[string]string{
-				LabelKeyAppSetInstance: "simple-list-generator",
-				"label-key":            "label-value",
-			}
+			expectedAppNewMetadata.ObjectMeta.Labels = map[string]string{"label-key": "label-value"}
 		}).
 		Update(func(appset *v1alpha1.ApplicationSet) {
 			appset.Spec.Template.Annotations = map[string]string{"annotation-key": "annotation-value"}
@@ -364,9 +534,6 @@ func TestRenderHelmValuesObject(t *testing.T) {
 			Name:       "my-cluster-guestbook",
 			Namespace:  fixture.TestNamespace(),
 			Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
-			Labels: map[string]string{
-				LabelKeyAppSetInstance: "test-values-object",
-			},
 		},
 		Spec: argov1alpha1.ApplicationSpec{
 			Project: "default",
@@ -443,9 +610,6 @@ func TestSyncPolicyCreateUpdate(t *testing.T) {
 			Name:       "my-cluster-guestbook-sync-policy-create-update",
 			Namespace:  utils.ArgoCDNamespace,
 			Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
-			Labels: map[string]string{
-				LabelKeyAppSetInstance: "sync-policy-create-update",
-			},
 		},
 		Spec: argov1alpha1.ApplicationSpec{
 			Project: "default",
@@ -515,15 +679,13 @@ func TestSyncPolicyCreateUpdate(t *testing.T) {
 			expectedAppNewMetadata = expectedAppNewNamespace.DeepCopy()
 			expectedAppNewMetadata.ObjectMeta.Annotations = map[string]string{"annotation-key": "annotation-value"}
 			expectedAppNewMetadata.ObjectMeta.Labels = map[string]string{
-				LabelKeyAppSetInstance: "sync-policy-create-update",
-				"label-key":            "label-value",
+				"label-key": "label-value",
 			}
 		}).
 		Update(func(appset *v1alpha1.ApplicationSet) {
 			appset.Spec.Template.Annotations = map[string]string{"annotation-key": "annotation-value"}
 			appset.Spec.Template.Labels = map[string]string{
-				LabelKeyAppSetInstance: "sync-policy-create-update",
-				"label-key":            "label-value",
+				"label-key": "label-value",
 			}
 			applicationsSyncPolicy := argov1alpha1.ApplicationsSyncPolicyCreateUpdate
 			appset.Spec.SyncPolicy = &argov1alpha1.ApplicationSetSyncPolicy{
@@ -558,9 +720,6 @@ func TestSyncPolicyCreateDelete(t *testing.T) {
 			Name:       "my-cluster-guestbook-sync-policy-create-delete",
 			Namespace:  utils.ArgoCDNamespace,
 			Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
-			Labels: map[string]string{
-				LabelKeyAppSetInstance: "sync-policy-create-delete",
-			},
 		},
 		Spec: argov1alpha1.ApplicationSpec{
 			Project: "default",
@@ -661,9 +820,6 @@ func TestSyncPolicyCreateOnly(t *testing.T) {
 			Name:       "my-cluster-guestbook-sync-policy-create-only",
 			Namespace:  utils.ArgoCDNamespace,
 			Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
-			Labels: map[string]string{
-				LabelKeyAppSetInstance: "sync-policy-create-only",
-			},
 		},
 		Spec: argov1alpha1.ApplicationSpec{
 			Project: "default",
@@ -764,9 +920,6 @@ func TestSimpleGitDirectoryGenerator(t *testing.T) {
 				Name:       name,
 				Namespace:  fixture.TestNamespace(),
 				Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
-				Labels: map[string]string{
-					LabelKeyAppSetInstance: "simple-git-generator",
-				},
 			},
 			Spec: argov1alpha1.ApplicationSpec{
 				Project: "default",
@@ -848,10 +1001,7 @@ func TestSimpleGitDirectoryGenerator(t *testing.T) {
 			for _, expectedApp := range expectedAppsNewNamespace {
 				expectedAppNewMetadata := expectedApp.DeepCopy()
 				expectedAppNewMetadata.ObjectMeta.Annotations = map[string]string{"annotation-key": "annotation-value"}
-				expectedAppNewMetadata.ObjectMeta.Labels = map[string]string{
-					LabelKeyAppSetInstance: "simple-git-generator",
-					"label-key":            "label-value",
-				}
+				expectedAppNewMetadata.ObjectMeta.Labels = map[string]string{"label-key": "label-value"}
 				expectedAppsNewMetadata = append(expectedAppsNewMetadata, *expectedAppNewMetadata)
 			}
 		}).
@@ -879,9 +1029,6 @@ func TestSimpleGitDirectoryGeneratorGoTemplate(t *testing.T) {
 				Name:       name,
 				Namespace:  fixture.TestNamespace(),
 				Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
-				Labels: map[string]string{
-					LabelKeyAppSetInstance: "simple-git-generator",
-				},
 			},
 			Spec: argov1alpha1.ApplicationSpec{
 				Project: "default",
@@ -964,10 +1111,7 @@ func TestSimpleGitDirectoryGeneratorGoTemplate(t *testing.T) {
 			for _, expectedApp := range expectedAppsNewNamespace {
 				expectedAppNewMetadata := expectedApp.DeepCopy()
 				expectedAppNewMetadata.ObjectMeta.Annotations = map[string]string{"annotation-key": "annotation-value"}
-				expectedAppNewMetadata.ObjectMeta.Labels = map[string]string{
-					LabelKeyAppSetInstance: "simple-git-generator",
-					"label-key":            "label-value",
-				}
+				expectedAppNewMetadata.ObjectMeta.Labels = map[string]string{"label-key": "label-value"}
 				expectedAppsNewMetadata = append(expectedAppsNewMetadata, *expectedAppNewMetadata)
 			}
 		}).
@@ -996,9 +1140,6 @@ func TestSimpleGitFilesGenerator(t *testing.T) {
 				Name:       name,
 				Namespace:  fixture.TestNamespace(),
 				Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
-				Labels: map[string]string{
-					LabelKeyAppSetInstance: "simple-git-generator",
-				},
 			},
 			Spec: argov1alpha1.ApplicationSpec{
 				Project: "default",
@@ -1079,10 +1220,7 @@ func TestSimpleGitFilesGenerator(t *testing.T) {
 			for _, expectedApp := range expectedAppsNewNamespace {
 				expectedAppNewMetadata := expectedApp.DeepCopy()
 				expectedAppNewMetadata.ObjectMeta.Annotations = map[string]string{"annotation-key": "annotation-value"}
-				expectedAppNewMetadata.ObjectMeta.Labels = map[string]string{
-					LabelKeyAppSetInstance: "simple-git-generator",
-					"label-key":            "label-value",
-				}
+				expectedAppNewMetadata.ObjectMeta.Labels = map[string]string{"label-key": "label-value"}
 				expectedAppsNewMetadata = append(expectedAppsNewMetadata, *expectedAppNewMetadata)
 			}
 		}).
@@ -1111,9 +1249,6 @@ func TestSimpleGitFilesGeneratorGoTemplate(t *testing.T) {
 				Name:       name,
 				Namespace:  fixture.TestNamespace(),
 				Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
-				Labels: map[string]string{
-					LabelKeyAppSetInstance: "simple-git-generator",
-				},
 			},
 			Spec: argov1alpha1.ApplicationSpec{
 				Project: "default",
@@ -1195,10 +1330,7 @@ func TestSimpleGitFilesGeneratorGoTemplate(t *testing.T) {
 			for _, expectedApp := range expectedAppsNewNamespace {
 				expectedAppNewMetadata := expectedApp.DeepCopy()
 				expectedAppNewMetadata.ObjectMeta.Annotations = map[string]string{"annotation-key": "annotation-value"}
-				expectedAppNewMetadata.ObjectMeta.Labels = map[string]string{
-					LabelKeyAppSetInstance: "simple-git-generator",
-					"label-key":            "label-value",
-				}
+				expectedAppNewMetadata.ObjectMeta.Labels = map[string]string{"label-key": "label-value"}
 				expectedAppsNewMetadata = append(expectedAppsNewMetadata, *expectedAppNewMetadata)
 			}
 		}).
@@ -1557,9 +1689,6 @@ func TestSimpleSCMProviderGenerator(t *testing.T) {
 			Name:       "argo-cd-guestbook",
 			Namespace:  fixture.TestNamespace(),
 			Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
-			Labels: map[string]string{
-				LabelKeyAppSetInstance: "simple-scm-provider-generator",
-			},
 		},
 		Spec: argov1alpha1.ApplicationSpec{
 			Project: "default",
@@ -1634,9 +1763,6 @@ func TestSimpleSCMProviderGeneratorGoTemplate(t *testing.T) {
 			Name:       "argo-cd-guestbook",
 			Namespace:  fixture.TestNamespace(),
 			Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
-			Labels: map[string]string{
-				LabelKeyAppSetInstance: "simple-scm-provider-generator",
-			},
 		},
 		Spec: argov1alpha1.ApplicationSpec{
 			Project: "default",
@@ -1706,9 +1832,6 @@ func TestSCMProviderGeneratorSCMProviderNotAllowed(t *testing.T) {
 			Name:       "argo-cd-guestbook",
 			Namespace:  fixture.TestNamespace(),
 			Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
-			Labels: map[string]string{
-				LabelKeyAppSetInstance: "simple-scm-provider-generator",
-			},
 		},
 		Spec: argov1alpha1.ApplicationSpec{
 			Project: "default",
@@ -1770,7 +1893,7 @@ func TestSCMProviderGeneratorSCMProviderNotAllowed(t *testing.T) {
 			// app should be listed
 			output, err := fixture.RunCli("appset", "get", "scm-provider-generator-scm-provider-not-allowed")
 			assert.NoError(t, err)
-			assert.Contains(t, output, "scm provider not allowed: http://myservice.mynamespace.svc.cluster.local")
+			assert.Contains(t, output, "scm provider not allowed")
 		})
 }
 
@@ -1784,9 +1907,6 @@ func TestCustomApplicationFinalizers(t *testing.T) {
 			Name:       "my-cluster-guestbook",
 			Namespace:  fixture.TestNamespace(),
 			Finalizers: []string{"resources-finalizer.argocd.argoproj.io/background"},
-			Labels: map[string]string{
-				LabelKeyAppSetInstance: "simple-list-generator",
-			},
 		},
 		Spec: argov1alpha1.ApplicationSpec{
 			Project: "default",
@@ -1853,9 +1973,6 @@ func TestCustomApplicationFinalizersGoTemplate(t *testing.T) {
 			Name:       "my-cluster-guestbook",
 			Namespace:  fixture.TestNamespace(),
 			Finalizers: []string{"resources-finalizer.argocd.argoproj.io/background"},
-			Labels: map[string]string{
-				LabelKeyAppSetInstance: "simple-list-generator",
-			},
 		},
 		Spec: argov1alpha1.ApplicationSpec{
 			Project: "default",
@@ -1963,9 +2080,6 @@ func TestSimplePullRequestGenerator(t *testing.T) {
 			Name:       "guestbook-1",
 			Namespace:  fixture.TestNamespace(),
 			Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
-			Labels: map[string]string{
-				LabelKeyAppSetInstance: "simple-pull-request-generator",
-			},
 		},
 		Spec: argov1alpha1.ApplicationSpec{
 			Project: "default",
@@ -2043,10 +2157,7 @@ func TestSimplePullRequestGeneratorGoTemplate(t *testing.T) {
 			Name:       "guestbook-1",
 			Namespace:  fixture.TestNamespace(),
 			Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
-			Labels: map[string]string{
-				"app":                  "preview",
-				LabelKeyAppSetInstance: "simple-pull-request-generator",
-			},
+			Labels:     map[string]string{"app": "preview"},
 		},
 		Spec: argov1alpha1.ApplicationSpec{
 			Project: "default",
@@ -2122,8 +2233,7 @@ func TestPullRequestGeneratorNotAllowedSCMProvider(t *testing.T) {
 			Namespace:  fixture.TestNamespace(),
 			Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
 			Labels: map[string]string{
-				"app":                  "preview",
-				LabelKeyAppSetInstance: "simple-pull-request-generator",
+				"app": "preview",
 			},
 		},
 		Spec: argov1alpha1.ApplicationSpec{
@@ -2190,7 +2300,7 @@ func TestPullRequestGeneratorNotAllowedSCMProvider(t *testing.T) {
 			// app should be listed
 			output, err := fixture.RunCli("appset", "get", "pull-request-generator-not-allowed-scm")
 			assert.NoError(t, err)
-			assert.Contains(t, output, "failed to select pull request service provider: scm provider not allowed: http://myservice.mynamespace.svc.cluster.local")
+			assert.Contains(t, output, "scm provider not allowed")
 		})
 }
 
@@ -2206,9 +2316,6 @@ func TestGitGeneratorPrivateRepo(t *testing.T) {
 				Name:       name,
 				Namespace:  fixture.TestNamespace(),
 				Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
-				Labels: map[string]string{
-					LabelKeyAppSetInstance: "simple-git-generator-private",
-				},
 			},
 			Spec: argov1alpha1.ApplicationSpec{
 				Project: "default",
@@ -2284,9 +2391,6 @@ func TestGitGeneratorPrivateRepoGoTemplate(t *testing.T) {
 				Name:       name,
 				Namespace:  fixture.TestNamespace(),
 				Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
-				Labels: map[string]string{
-					LabelKeyAppSetInstance: "simple-git-generator-private",
-				},
 			},
 			Spec: argov1alpha1.ApplicationSpec{
 				Project: "default",
