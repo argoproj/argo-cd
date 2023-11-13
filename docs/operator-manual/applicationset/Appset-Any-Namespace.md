@@ -35,6 +35,8 @@ kind: ApplicationSet
 metadata:
   name: myapps
 spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
   generators:
   - scmProvider:
       gitea:
@@ -53,7 +55,6 @@ spec:
 
 Therefore administrator must restrict the urls of the allowed SCM Providers (example: `https://git.mydomain.com/,https://gitlab.mydomain.com/`) by setting the environment variable `ARGOCD_APPLICATIONSET_CONTROLLER_ALLOWED_SCM_PROVIDERS` to argocd-cmd-params-cm `applicationsetcontroller.allowed.scm.providers`. If another url is used, it will be rejected by the applicationset controller.
 
-
 For example:
 ```yaml
 apiVersion: v1
@@ -64,7 +65,14 @@ data:
   applicationsetcontroller.allowed.scm.providers: https://git.mydomain.com/,https://gitlab.mydomain.com/
 ```
 
-> Please note url used in the `api` field of the `ApplicationSet` must match the url declared by the Administrator including the protocol
+!!! note
+    Please note url used in the `api` field of the `ApplicationSet` must match the url declared by the Administrator including the protocol
+
+!!! warning
+    The allow-list only applies to SCM providers for which the user may configure a custom `api`. Where an SCM or PR
+    generator does not accept a custom API URL, the provider is implicitly allowed.
+
+If you do not intend to allow users to use the SCM or PR generators, you can disable them entirely by setting the environment variable `ARGOCD_APPLICATIONSET_CONTROLLER_ALLOW_SCM_PROVIDERS` to argocd-cmd-params-cm `applicationsetcontroller.allow.scm.providers` to `false`.
 
 ### Overview
 
@@ -131,17 +139,19 @@ metadata:
   name: team-one-product-one
   namespace: team-one-cd
 spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
   generators:
     list:
-    - id: infra
+    - name: infra
       project: infra-project
-    - id: team-two
+    - name: team-two
       project: team-two-project
-    template:
-      metadata:
-        name: '{{name}}-escalation'
-      spec:
-        project: "{{project}}"
+  template:
+    metadata:
+      name: '{{.name}}-escalation'
+    spec:
+      project: "{{.project}}"
 ```
   
 ### ApplicationSet names

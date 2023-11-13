@@ -2,6 +2,7 @@ package generators
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -31,24 +32,26 @@ type SCMProviderGenerator struct {
 	SCMAuthProviders
 	scmRootCAPath       string
 	allowedSCMProviders []string
+	enableSCMProviders  bool
 }
 
 type SCMAuthProviders struct {
 	GitHubApps github_app_auth.Credentials
 }
 
-func NewSCMProviderGenerator(client client.Client, providers SCMAuthProviders, scmRootCAPath string, allowedSCMProviders []string) Generator {
+func NewSCMProviderGenerator(client client.Client, providers SCMAuthProviders, scmRootCAPath string, allowedSCMProviders []string, enableSCMProviders bool) Generator {
 	return &SCMProviderGenerator{
 		client:              client,
 		SCMAuthProviders:    providers,
 		scmRootCAPath:       scmRootCAPath,
 		allowedSCMProviders: allowedSCMProviders,
+		enableSCMProviders:  enableSCMProviders,
 	}
 }
 
 // Testing generator
 func NewTestSCMProviderGenerator(overrideProvider scm_provider.SCMProviderService) Generator {
-	return &SCMProviderGenerator{overrideProvider: overrideProvider}
+	return &SCMProviderGenerator{overrideProvider: overrideProvider, enableSCMProviders: true}
 }
 
 func (g *SCMProviderGenerator) GetRequeueAfter(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator) time.Duration {
@@ -65,14 +68,34 @@ func (g *SCMProviderGenerator) GetTemplate(appSetGenerator *argoprojiov1alpha1.A
 	return &appSetGenerator.SCMProvider.Template
 }
 
-func ScmProviderAllowed(applicationSetInfo *argoprojiov1alpha1.ApplicationSet, url string, allowedScmProviders []string) bool {
+var ErrSCMProvidersDisabled = errors.New("scm providers are disabled")
+
+type ErrDisallowedSCMProvider struct {
+	Provider string
+	Allowed  []string
+}
+
+func NewErrDisallowedSCMProvider(provider string, allowed []string) ErrDisallowedSCMProvider {
+	return ErrDisallowedSCMProvider{
+		Provider: provider,
+		Allowed:  allowed,
+	}
+}
+
+func (e ErrDisallowedSCMProvider) Error() string {
+	return fmt.Sprintf("scm provider %q not allowed, must use one of the following: %s", e.Provider, strings.Join(e.Allowed, ", "))
+}
+
+func ScmProviderAllowed(applicationSetInfo *argoprojiov1alpha1.ApplicationSet, generator SCMGeneratorWithCustomApiUrl, allowedScmProviders []string) error {
+	url := generator.CustomApiUrl()
+
 	if url == "" || len(allowedScmProviders) == 0 {
-		return true
+		return nil
 	}
 
 	for _, allowedScmProvider := range allowedScmProviders {
 		if url == allowedScmProvider {
-			return true
+			return nil
 		}
 	}
 
@@ -80,9 +103,9 @@ func ScmProviderAllowed(applicationSetInfo *argoprojiov1alpha1.ApplicationSet, u
 		common.SecurityField: common.SecurityMedium,
 		"applicationset":     applicationSetInfo.Name,
 		"appSetNamespace":    applicationSetInfo.Namespace,
-	}).Debugf("attempted to use disallowed SCM %q", url)
+	}).Debugf("attempted to use disallowed SCM %q, must use one of the following: %s", url, strings.Join(allowedScmProviders, ", "))
 
-	return false
+	return NewErrDisallowedSCMProvider(url, allowedScmProviders)
 }
 
 func (g *SCMProviderGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator, applicationSetInfo *argoprojiov1alpha1.ApplicationSet) ([]map[string]interface{}, error) {
@@ -94,38 +117,37 @@ func (g *SCMProviderGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha
 		return nil, EmptyAppSetGeneratorError
 	}
 
-	ctx := context.Background()
+	if !g.enableSCMProviders {
+		return nil, ErrSCMProvidersDisabled
+	}
 
 	// Create the SCM provider helper.
 	providerConfig := appSetGenerator.SCMProvider
+
+	if err := ScmProviderAllowed(applicationSetInfo, providerConfig, g.allowedSCMProviders); err != nil {
+		return nil, fmt.Errorf("scm provider not allowed: %w", err)
+	}
+
+	ctx := context.Background()
 	var provider scm_provider.SCMProviderService
 	if g.overrideProvider != nil {
 		provider = g.overrideProvider
 	} else if providerConfig.Github != nil {
-		if !ScmProviderAllowed(applicationSetInfo, providerConfig.Github.API, g.allowedSCMProviders) {
-			return nil, fmt.Errorf("scm provider not allowed: %s", providerConfig.Github.API)
-		}
 		var err error
 		provider, err = g.githubProvider(ctx, providerConfig.Github, applicationSetInfo)
 		if err != nil {
 			return nil, fmt.Errorf("scm provider: %w", err)
 		}
 	} else if providerConfig.Gitlab != nil {
-		if !ScmProviderAllowed(applicationSetInfo, providerConfig.Gitlab.API, g.allowedSCMProviders) {
-			return nil, fmt.Errorf("scm provider not allowed: %s", providerConfig.Gitlab.API)
-		}
 		token, err := g.getSecretRef(ctx, providerConfig.Gitlab.TokenRef, applicationSetInfo.Namespace)
 		if err != nil {
 			return nil, fmt.Errorf("error fetching Gitlab token: %v", err)
 		}
-		provider, err = scm_provider.NewGitlabProvider(ctx, providerConfig.Gitlab.Group, token, providerConfig.Gitlab.API, providerConfig.Gitlab.AllBranches, providerConfig.Gitlab.IncludeSubgroups, providerConfig.Gitlab.Insecure, g.scmRootCAPath)
+		provider, err = scm_provider.NewGitlabProvider(ctx, providerConfig.Gitlab.Group, token, providerConfig.Gitlab.API, providerConfig.Gitlab.AllBranches, providerConfig.Gitlab.IncludeSubgroups, providerConfig.Gitlab.WillIncludeSharedProjects(), providerConfig.Gitlab.Insecure, g.scmRootCAPath, providerConfig.Gitlab.Topic)
 		if err != nil {
 			return nil, fmt.Errorf("error initializing Gitlab service: %v", err)
 		}
 	} else if providerConfig.Gitea != nil {
-		if !ScmProviderAllowed(applicationSetInfo, providerConfig.Gitea.API, g.allowedSCMProviders) {
-			return nil, fmt.Errorf("scm provider not allowed: %s", providerConfig.Gitea.API)
-		}
 		token, err := g.getSecretRef(ctx, providerConfig.Gitea.TokenRef, applicationSetInfo.Namespace)
 		if err != nil {
 			return nil, fmt.Errorf("error fetching Gitea token: %v", err)
@@ -136,9 +158,6 @@ func (g *SCMProviderGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha
 		}
 	} else if providerConfig.BitbucketServer != nil {
 		providerConfig := providerConfig.BitbucketServer
-		if !ScmProviderAllowed(applicationSetInfo, providerConfig.API, g.allowedSCMProviders) {
-			return nil, fmt.Errorf("scm provider not allowed: %s", providerConfig.API)
-		}
 		var scmError error
 		if providerConfig.BasicAuth != nil {
 			password, err := g.getSecretRef(ctx, providerConfig.BasicAuth.PasswordRef, applicationSetInfo.Namespace)
@@ -153,9 +172,6 @@ func (g *SCMProviderGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha
 			return nil, fmt.Errorf("error initializing Bitbucket Server service: %v", scmError)
 		}
 	} else if providerConfig.AzureDevOps != nil {
-		if !ScmProviderAllowed(applicationSetInfo, providerConfig.AzureDevOps.API, g.allowedSCMProviders) {
-			return nil, fmt.Errorf("scm provider not allowed: %s", providerConfig.AzureDevOps.API)
-		}
 		token, err := g.getSecretRef(ctx, providerConfig.AzureDevOps.AccessTokenRef, applicationSetInfo.Namespace)
 		if err != nil {
 			return nil, fmt.Errorf("error fetching Azure Devops access token: %v", err)

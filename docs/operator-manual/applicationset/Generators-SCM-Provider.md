@@ -87,6 +87,11 @@ spec:
         allBranches: true
         # If true, recurses through subgroups. If false, it searches only in the base group. Defaults to false.
         includeSubgroups: true
+        # If true and includeSubgroups is also true, include Shared Projects, which is gitlab API default.
+        # If false only search Projects under the same path. Defaults to true.
+        includeSharedProjects: false
+        # filter projects by topic. A single topic is supported by Gitlab API. Defaults to "" (all topics).
+        topic: "my-topic"
         # Reference to a Secret containing an access token. (optional)
         tokenRef:
           secretName: gitlab-token
@@ -101,14 +106,22 @@ spec:
 * `api`: If using self-hosted GitLab, the URL to access it.
 * `allBranches`: By default (false) the template will only be evaluated for the default branch of each repo. If this is true, every branch of every repository will be passed to the filters. If using this flag, you likely want to use a `branchMatch` filter.
 * `includeSubgroups`: By default (false) the controller will only search for repos directly in the base group. If this is true, it will recurse through all the subgroups searching for repos to scan.
+* `includeSharedProjects`: If true and includeSubgroups is also true, include Shared Projects, which is gitlab API default. If false only search Projects under the same path. In general most would want the behaviour when set to false. Defaults to true.
+* `topic`: filter projects by topic. A single topic is supported by Gitlab API. Defaults to "" (all topics).
 * `tokenRef`: A `Secret` name and key containing the GitLab access token to use for requests. If not specified, will make anonymous requests which have a lower rate limit and can only see public repositories.
 * `insecure`: By default (false) - Skip checking the validity of the SCM's certificate - useful for self-signed TLS certificates.
-
-As a preferable alternative to setting `insecure` to true, you can configure self-signed TLS certificates for Gitlab by [mounting self-signed certificate to the applicationset controller](./Add-self-signed-TLS-Certs.md).
 
 For label filtering, the repository tags are used.
 
 Available clone protocols are `ssh` and `https`.
+
+### Self-signed TLS Certificates
+
+As a preferable alternative to setting `insecure` to true, you can configure self-signed TLS certificates for Gitlab.
+
+In order for a self-signed TLS certificate be used by an ApplicationSet's SCM / PR Gitlab Generator, the certificate needs to be mounted on the applicationset-controller. The path of the mounted certificate must be explicitly set using the environment variable `ARGOCD_APPLICATIONSET_CONTROLLER_SCM_ROOT_CA_PATH` or alternatively using parameter `--scm-root-ca-path`. The applicationset controller will read the mounted certificate to create the Gitlab client for SCM/PR Providers
+
+This can be achieved conveniently by setting `applicationsetcontroller.scm.root.ca.path` in the argocd-cmd-params-cm ConfigMap. Be sure to restart the ApplicationSet controller after setting this value.
 
 ## Gitea
 
@@ -314,7 +327,7 @@ Depending on whether `role` is provided in `awsCodeCommit` property, AWS IAM per
 #### Discover AWS CodeCommit Repositories in the same AWS Account as ApplicationSet Controller
 
 Without specifying `role`, ApplicationSet controller will use its own AWS identity to scan AWS CodeCommit repos.
-This is suitable when you have a simple setup that all AWS CodeCommit repos reside in the same AWS account as your ArgoCD.
+This is suitable when you have a simple setup that all AWS CodeCommit repos reside in the same AWS account as your Argo CD.
 
 As the ApplicationSet controller AWS identity is used directly for repo discovery, it must be granted below AWS permissions.
 
@@ -382,16 +395,18 @@ kind: ApplicationSet
 metadata:
   name: myapps
 spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
   generators:
   - scmProvider:
     # ...
   template:
     metadata:
-      name: '{{ repository }}'
+      name: '{{ .repository }}'
     spec:
       source:
-        repoURL: '{{ url }}'
-        targetRevision: '{{ branch }}'
+        repoURL: '{{ .url }}'
+        targetRevision: '{{ .branch }}'
         path: kubernetes/
       project: default
       destination:
@@ -406,7 +421,7 @@ spec:
 * `sha`: The Git commit SHA for the branch.
 * `short_sha`: The abbreviated Git commit SHA for the branch (8 chars or the length of the `sha` if it's shorter).
 * `short_sha_7`: The abbreviated Git commit SHA for the branch (7 chars or the length of the `sha` if it's shorter).
-* `labels`: A comma-separated list of repository labels.
+* `labels`: A comma-separated list of repository labels in case of Gitea, repository topics in case of Gitlab and Github. Not supported by Bitbucket Cloud, Bitbucket Server, or Azure DevOps.
 * `branchNormalized`: The value of `branch` normalized to contain only lowercase alphanumeric characters, '-' or '.'.
 
 ## Pass additional key-value pairs via `values` field
@@ -420,6 +435,8 @@ kind: ApplicationSet
 metadata:
   name: myapps
 spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
   generators:
   - scmProvider:
       bitbucketServer:
@@ -432,15 +449,15 @@ spec:
             secretName: mypassword
             key: password
       values:
-        name: "{{organization}}-{{repository}}"
+        name: "{{.organization}}-{{.repository}}"
 
   template:
     metadata:
-      name: '{{ values.name }}'
+      name: '{{ .values.name }}'
     spec:
       source:
-        repoURL: '{{ url }}'
-        targetRevision: '{{ branch }}'
+        repoURL: '{{ .url }}'
+        targetRevision: '{{ .branch }}'
         path: kubernetes/
       project: default
       destination:
