@@ -214,7 +214,10 @@ func (c *Cache) SetGitReferences(repo string, references []*plumbing.Reference) 
 func GitRefCacheItemToReferences(cacheItem [][2]string) []*plumbing.Reference {
 	var res []*plumbing.Reference
 	for i := range cacheItem {
-		res = append(res, plumbing.NewReferenceFromStrings(cacheItem[i][0], cacheItem[i][1]))
+		// Skip empty data
+		if cacheItem[i][0] != "" || cacheItem[i][1] != "" {
+			res = append(res, plumbing.NewReferenceFromStrings(cacheItem[i][0], cacheItem[i][1]))
+		}
 	}
 	return res
 }
@@ -231,6 +234,9 @@ func (c *Cache) GetGitReferences(repo string, references *[]*plumbing.Reference)
 
 // TryLockGitRefCache attempts to lock the key for the Git repository references if the key doesn't exist
 func (c *Cache) TryLockGitRefCache(repo string, lockId string) {
+	// This try set with DisableOverwrite is important for making sure that only one process is able to claim ownership
+	// A normal get + set, or just set would cause ownership to go to whoever the last writer was, and during race conditions
+	// leads to duplicate requests
 	err := c.cache.SetCacheItem(&cacheutil.Item{
 		Key:              gitRefsKey(repo),
 		Object:           [][2]string{{cacheutil.CacheLockedValue, lockId}},
@@ -238,8 +244,8 @@ func (c *Cache) TryLockGitRefCache(repo string, lockId string) {
 		DisableOverwrite: true,
 	}, false)
 	if err != nil {
-		// The key already existing does not produce an error for go-redis so we'll use the get to validate
-		// In memory would produce an error, but ignoring provides a consistent flow
+		// The key already existing does not produce an error for go-redis so throwing it here for in-memory
+		// would cause inconsistent behavior, use a get on the key to determine if the lock was successful
 		log.Debug("Error setting git references cache lock: ", err)
 	}
 }

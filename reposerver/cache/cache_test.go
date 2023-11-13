@@ -3,6 +3,7 @@ package cache
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -26,7 +27,7 @@ func newFixtures() *fixtures {
 			RepoCacheExpiration:           1 * time.Minute,
 			RevisionCacheExpiration:       1 * time.Minute,
 			RevisionCacheLockWaitEnabled:  true,
-			RevisionCacheLockTimeout:      10 * time.Second,
+			RevisionCacheLockTimeout:      30 * time.Second,
 			RevisionCacheLockWaitInterval: 1 * time.Second,
 		},
 	)}
@@ -318,4 +319,49 @@ func TestCachedManifestResponse_ShallowCopyExpectedFields(t *testing.T) {
 		assert.Truef(t, strings.Contains(string(str), "\""+expectedField+"\""), "Missing field: %s", expectedField)
 	}
 
+}
+
+func TestGitRefCacheItemToReferences_DataChecks(t *testing.T) {
+	references := GitRefCacheItemToReferences(nil)
+	assert.Equal(t, 0, len(references), "No data should be handled gracefully by returning an empty slice")
+	references = GitRefCacheItemToReferences([][2]string{{"", ""}})
+	assert.Equal(t, 0, len(references), "Empty data should be discarded")
+	references = GitRefCacheItemToReferences([][2]string{{"test", ""}})
+	assert.Equal(t, 1, len(references), "Just the key being set should not be discarded")
+	assert.Equal(t, "test", references[0].Name().String(), "Name should be set and equal test")
+	references = GitRefCacheItemToReferences([][2]string{{"", "ref: test1"}})
+	assert.Equal(t, 1, len(references), "Just the value being set should not be discarded")
+	assert.Equal(t, "test1", references[0].Target().String(), "Target should be set and equal test1")
+	references = GitRefCacheItemToReferences([][2]string{{"test2", "ref: test2"}})
+	assert.Equal(t, 1, len(references), "Valid data is should be preserved")
+	assert.Equal(t, "test2", references[0].Name().String(), "Name should be set and equal test2")
+	assert.Equal(t, "test2", references[0].Target().String(), "Target should be set and equal test2")
+	references = GitRefCacheItemToReferences([][2]string{{"test3", "ref: test3"}, {"test4", "ref: test4"}})
+	assert.Equal(t, 2, len(references), "Valid data is should be preserved")
+	assert.Equal(t, "test3", references[0].Name().String(), "Name should be set and equal test3")
+	assert.Equal(t, "test3", references[0].Target().String(), "Target should be set and equal test3")
+	assert.Equal(t, "test4", references[1].Name().String(), "Name should be set and equal test4")
+	assert.Equal(t, "test4", references[1].Target().String(), "Target should be set and equal test4")
+}
+
+func TestTryLockGitRefCache_OwnershipFlows(t *testing.T) {
+	cache := newFixtures().Cache
+	// Test setting the lock
+	cache.TryLockGitRefCache("my-repo-url", "my-lock-id")
+	var output [][2]string
+	key := fmt.Sprintf("git-refs|%s", "my-repo-url")
+	cache.cache.GetItem(key, &output)
+	assert.Equal(t, "locked", output[0][0], "The lock should be set")
+	assert.Equal(t, "my-lock-id", output[0][1], "The lock should be set to the provided lock id")
+	// Test not being able to overwrite the lock
+	cache.TryLockGitRefCache("my-repo-url", "other-lock-id")
+	cache.cache.GetItem(key, &output)
+	assert.Equal(t, "locked", output[0][0], "The lock should not have changed")
+	assert.Equal(t, "my-lock-id", output[0][1], "The lock should not have changed")
+	// Test can overwrite once there is nothing set
+	cache.cache.SetItem(key, [][2]string{}, 0, true)
+	cache.TryLockGitRefCache("my-repo-url", "other-lock-id")
+	cache.cache.GetItem(key, &output)
+	assert.Equal(t, "locked", output[0][0], "The lock should be set")
+	assert.Equal(t, "other-lock-id", output[0][1], "The lock id should have changed to other-lock-id")
 }

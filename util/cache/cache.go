@@ -172,11 +172,14 @@ func (c *Cache) generateFullKey(key string) string {
 }
 
 func (c *Cache) SetCacheItem(item *Item, delete bool) error {
+	if item == nil {
+		return fmt.Errorf("cannot set nil item in cache")
+	}
 	item.Key = c.generateFullKey(item.Key)
 	if delete {
 		return c.client.Delete(item.Key)
 	} else {
-		if item == nil {
+		if item.Object == nil {
 			return fmt.Errorf("cannot set item to nil for key %s", item.Key)
 		}
 		return c.client.Set(item)

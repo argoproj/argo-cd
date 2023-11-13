@@ -2,6 +2,7 @@ package mocks
 
 import (
 	"context"
+	"sync"
 	"time"
 
 	"github.com/alicebob/miniredis/v2"
@@ -22,8 +23,10 @@ type MockRepoCache struct {
 	cache     *cacheutil.Cache
 	baseCache *reposerverCache.Cache
 	reposerverCache.CacheOpts
-	CallCounts     map[string]int
-	ErrorResponses map[string]error
+	CallCounts        map[string]int
+	ErrorResponses    map[string]error
+	StopRedisCallback func()
+	CallCountsMutex   *sync.Mutex
 }
 
 type MockCacheOptions struct {
@@ -44,7 +47,7 @@ func NewInMemoryRedis() (*redis.Client, func()) {
 }
 
 func NewMockRepoCache(cacheType MockCacheType, cacheOpts *MockCacheOptions) *MockRepoCache {
-	redisClient, _ := NewInMemoryRedis()
+	redisClient, stopRedis := NewInMemoryRedis()
 	var cacheClient cacheutil.CacheClient
 	switch cacheType {
 	case MockCacheTypeRedis:
@@ -64,11 +67,13 @@ func NewMockRepoCache(cacheType MockCacheType, cacheOpts *MockCacheOptions) *Moc
 		RevisionCacheLockWaitInterval: cacheOpts.RevisionCacheLockWaitInterval,
 	}
 	return &MockRepoCache{
-		cache:          utilCache,
-		baseCache:      reposerverCache.NewCache(utilCache, &baseCacheOptions),
-		CacheOpts:      baseCacheOptions,
-		CallCounts:     make(map[string]int),
-		ErrorResponses: cacheOpts.ErrorResponses,
+		cache:             utilCache,
+		baseCache:         reposerverCache.NewCache(utilCache, &baseCacheOptions),
+		CacheOpts:         baseCacheOptions,
+		CallCounts:        make(map[string]int),
+		CallCountsMutex:   &sync.Mutex{},
+		ErrorResponses:    cacheOpts.ErrorResponses,
+		StopRedisCallback: stopRedis,
 	}
 }
 
@@ -80,7 +85,9 @@ func (c *MockRepoCache) SetGitReferences(repo string, references []*plumbing.Ref
 	if err := c.ErrorResponses["SetGitReferences"]; err != nil {
 		return err
 	}
+	c.CallCountsMutex.Lock()
 	c.CallCounts["SetGitReferences"]++
+	c.CallCountsMutex.Unlock()
 	return c.baseCache.SetGitReferences(repo, references)
 }
 
@@ -88,7 +95,9 @@ func (c *MockRepoCache) GetGitReferences(repo string, references *[]*plumbing.Re
 	if err := c.ErrorResponses["GetGitReferences"]; err != nil {
 		return err
 	}
+	c.CallCountsMutex.Lock()
 	c.CallCounts["GetGitReferences"]++
+	c.CallCountsMutex.Unlock()
 	return c.baseCache.GetGitReferences(repo, references)
 }
 
@@ -96,7 +105,9 @@ func (c *MockRepoCache) UnlockGitReferences(repo string, lockId string) error {
 	if err := c.ErrorResponses["UnlockGitReferences"]; err != nil {
 		return err
 	}
+	c.CallCountsMutex.Lock()
 	c.CallCounts["UnlockGitReferences"]++
+	c.CallCountsMutex.Unlock()
 	return c.baseCache.UnlockGitReferences(repo, lockId)
 }
 
@@ -104,7 +115,9 @@ func (c *MockRepoCache) GetOrLockGitReferences(repo string, references *[]*plumb
 	if err := c.ErrorResponses["GetOrLockGitReferences"]; err != nil {
 		return false, "", err
 	}
+	c.CallCountsMutex.Lock()
 	c.CallCounts["GetOrLockGitReferences"]++
+	c.CallCountsMutex.Unlock()
 	return c.baseCache.GetOrLockGitReferences(repo, references)
 }
 

@@ -3132,6 +3132,7 @@ func TestGetRefs_CacheDisabled(t *testing.T) {
 			ReadDelay:  0,
 			WriteDelay: 0,
 		})
+		t.Cleanup(repoCache.StopRedisCallback)
 		client, err := git.NewClient(fmt.Sprintf("file://%s", dir), git.NopCreds{}, true, false, "", git.WithCache(repoCache, false))
 		require.NoError(t, err)
 		refs, err := client.LsRefs()
@@ -3168,6 +3169,7 @@ func TestGetRefs_CacheWithLockDisabled(t *testing.T) {
 			ReadDelay:  0,
 			WriteDelay: 0,
 		})
+		t.Cleanup(repoCache.StopRedisCallback)
 		var wg sync.WaitGroup
 		numberOfCallers := 10
 		for i := 0; i < numberOfCallers; i++ {
@@ -3216,6 +3218,7 @@ func TestGetRefs_CacheWithLockEnabled(t *testing.T) {
 			ReadDelay:  0,
 			WriteDelay: 0,
 		})
+		t.Cleanup(repoCache.StopRedisCallback)
 		var wg sync.WaitGroup
 		numberOfCallers := 10
 		for i := 0; i < numberOfCallers; i++ {
@@ -3264,6 +3267,7 @@ func TestGetRefs_CacheLockTimeout(t *testing.T) {
 			// Add a relatively high write delay so that all routines will reach their timeout without obtaining the lock
 			WriteDelay: 1 * time.Second,
 		})
+		t.Cleanup(repoCache.StopRedisCallback)
 		var wg sync.WaitGroup
 		numberOfCallers := 3
 		for i := 0; i < numberOfCallers; i++ {
@@ -3315,6 +3319,7 @@ func TestGetRefs_CacheUnlockedOnUpdateFailed(t *testing.T) {
 				"SetGitReferences": fmt.Errorf("test error updating cache"),
 			},
 		})
+		t.Cleanup(repoCache.StopRedisCallback)
 		repoUrl := fmt.Sprintf("file://%s", dir)
 		client, err := git.NewClient(repoUrl, git.NopCreds{}, true, false, "", git.WithCache(repoCache, true))
 		require.NoError(t, err)
