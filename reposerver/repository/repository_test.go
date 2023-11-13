@@ -14,6 +14,7 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -28,10 +29,12 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/yaml"
 
+	"github.com/argoproj/argo-cd/v2/common"
 	argoappv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/v2/reposerver/cache"
 	"github.com/argoproj/argo-cd/v2/reposerver/metrics"
+	repositorymocks "github.com/argoproj/argo-cd/v2/reposerver/repository/mocks"
 	fileutil "github.com/argoproj/argo-cd/v2/test/fixture/path"
 	"github.com/argoproj/argo-cd/v2/util/argo"
 	cacheutil "github.com/argoproj/argo-cd/v2/util/cache"
@@ -96,8 +99,13 @@ func newServiceWithOpt(cf clientFunc, root string) (*Service, *gitmocks.Client) 
 	cf(gitClient, helmClient, paths)
 	service := NewService(metrics.NewMetricsServer(), cache.NewCache(
 		cacheutil.NewCache(cacheutil.NewInMemoryCache(1*time.Minute)),
-		1*time.Minute,
-		1*time.Minute,
+		&cache.CacheOpts{
+			RepoCacheExpiration:           1 * time.Minute,
+			RevisionCacheExpiration:       1 * time.Minute,
+			RevisionCacheLockWaitEnabled:  true,
+			RevisionCacheLockTimeout:      10 * time.Second,
+			RevisionCacheLockWaitInterval: 1 * time.Second,
+		},
 	), RepoServerInitConstants{ParallelismLimit: 1}, argo.NewResourceTracking(), &git.NoopCredsStore{}, root)
 
 	service.newGitClient = func(rawRepoURL string, root string, creds git.Creds, insecure bool, enableLfs bool, prosy string, opts ...git.ClientOpts) (client git.Client, e error) {
@@ -2579,9 +2587,11 @@ func TestDirectoryPermissionInitializer(t *testing.T) {
 	require.Error(t, err)
 }
 
-func initGitRepo(repoPath string, remote string) error {
-	if err := os.Mkdir(repoPath, 0755); err != nil {
-		return err
+func initGitRepo(repoPath string, remote string, createPath bool, makeEmptyCommit bool) error {
+	if createPath {
+		if err := os.Mkdir(repoPath, 0755); err != nil {
+			return err
+		}
 	}
 
 	cmd := exec.Command("git", "init", repoPath)
@@ -2589,9 +2599,21 @@ func initGitRepo(repoPath string, remote string) error {
 	if err := cmd.Run(); err != nil {
 		return err
 	}
-	cmd = exec.Command("git", "remote", "add", "origin", remote)
-	cmd.Dir = repoPath
-	return cmd.Run()
+	if remote != "" {
+		cmd = exec.Command("git", "remote", "add", "origin", remote)
+		cmd.Dir = repoPath
+		if err := cmd.Run(); err != nil {
+			return err
+		}
+	}
+	if makeEmptyCommit {
+		cmd = exec.Command("git", "commit", "-m", "Initial commit", "--allow-empty")
+		cmd.Dir = repoPath
+		if err := cmd.Run(); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func TestInit(t *testing.T) {
@@ -2604,7 +2626,7 @@ func TestInit(t *testing.T) {
 	})
 
 	repoPath := path.Join(dir, "repo1")
-	require.NoError(t, initGitRepo(repoPath, "https://github.com/argo-cd/test-repo1"))
+	require.NoError(t, initGitRepo(repoPath, "https://github.com/argo-cd/test-repo1", true, false))
 
 	service := newService(".")
 	service.rootDir = dir
@@ -2613,7 +2635,7 @@ func TestInit(t *testing.T) {
 
 	_, err := os.ReadDir(dir)
 	require.Error(t, err)
-	require.NoError(t, initGitRepo(path.Join(dir, "repo2"), "https://github.com/argo-cd/test-repo2"))
+	require.NoError(t, initGitRepo(path.Join(dir, "repo2"), "https://github.com/argo-cd/test-repo2", true, false))
 }
 
 // TestCheckoutRevisionCanGetNonstandardRefs shows that we can fetch a revision that points to a non-standard ref. In
@@ -3089,4 +3111,222 @@ func Test_getRepoSanitizerRegex(t *testing.T) {
 	assert.Equal(t, "error message containing <path to cached source> and other stuff", msg)
 	msg = r.ReplaceAllString("error message containing /tmp/_argocd-repo/SENSITIVE/with/trailing/path and other stuff", "<path to cached source>")
 	assert.Equal(t, "error message containing <path to cached source>/with/trailing/path and other stuff", msg)
+}
+
+func TestGetRefs_CacheDisabled(t *testing.T) {
+	// Test that default get refs with cache disabled does not call GetOrLockGitReferences
+	dir := t.TempDir()
+	err := initGitRepo(dir, "", false, true)
+	assert.NoError(t, err, "Could not init git repo")
+	// Test in-memory and redis
+	cacheTypes := []repositorymocks.MockCacheType{repositorymocks.MockCacheTypeInMem, repositorymocks.MockCacheTypeRedis}
+	for _, cacheType := range cacheTypes {
+		repoCache := repositorymocks.NewMockRepoCache(cacheType, &repositorymocks.MockCacheOptions{
+			CacheOpts: cache.CacheOpts{
+				RepoCacheExpiration:           cache.CacheOptsDefaults.RepoCacheExpiration,
+				RevisionCacheExpiration:       cache.CacheOptsDefaults.RevisionCacheExpiration,
+				RevisionCacheLockWaitEnabled:  true,
+				RevisionCacheLockTimeout:      30 * time.Second,
+				RevisionCacheLockWaitInterval: 100 * time.Millisecond,
+			},
+			ReadDelay:  0,
+			WriteDelay: 0,
+		})
+		client, err := git.NewClient(fmt.Sprintf("file://%s", dir), git.NopCreds{}, true, false, "", git.WithCache(repoCache, false))
+		require.NoError(t, err)
+		refs, err := client.LsRefs()
+		assert.NoError(t, err)
+		assert.NotNil(t, refs)
+		assert.NotEqual(t, 0, len(refs.Branches), "Expected branches to be populated")
+		assert.NotEmpty(t, refs.Branches[0])
+		// Unlock should not have been called
+		assert.Equal(t, repoCache.CallCounts["UnlockGitReferences"], 0, "UnlockGitReferences should not have been called")
+		assert.Zero(t,
+			repoCache.CallCounts["GetOrLockGitReferences"],
+			"GetOrLockGitReferences should not be called when cache is disabled but was called %d times",
+			repoCache.CallCounts["GetOrLockGitReferences"])
+	}
+}
+
+func TestGetRefs_CacheWithLockDisabled(t *testing.T) {
+	// Test that when the lock is disabled the default behavior still works correctly
+	// Also shows the current issue with the git requests due to cache misses
+	dir := t.TempDir()
+	err := initGitRepo(dir, "", false, true)
+	assert.NoError(t, err, "Could not init git repo")
+	// Test in-memory and redis
+	cacheTypes := []repositorymocks.MockCacheType{repositorymocks.MockCacheTypeInMem, repositorymocks.MockCacheTypeRedis}
+	for _, cacheType := range cacheTypes {
+		repoCache := repositorymocks.NewMockRepoCache(cacheType, &repositorymocks.MockCacheOptions{
+			CacheOpts: cache.CacheOpts{
+				RepoCacheExpiration:           cache.CacheOptsDefaults.RepoCacheExpiration,
+				RevisionCacheExpiration:       cache.CacheOptsDefaults.RevisionCacheExpiration,
+				RevisionCacheLockWaitEnabled:  false,
+				RevisionCacheLockTimeout:      1 * time.Second,
+				RevisionCacheLockWaitInterval: 100 * time.Millisecond,
+			},
+			ReadDelay:  0,
+			WriteDelay: 0,
+		})
+		var wg sync.WaitGroup
+		numberOfCallers := 10
+		for i := 0; i < numberOfCallers; i++ {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				client, err := git.NewClient(fmt.Sprintf("file://%s", dir), git.NopCreds{}, true, false, "", git.WithCache(repoCache, true))
+				require.NoError(t, err)
+				refs, err := client.LsRefs()
+				assert.NoError(t, err)
+				assert.NotNil(t, refs)
+				assert.NotEqual(t, 0, len(refs.Branches), "Expected branches to be populated")
+				assert.NotEmpty(t, refs.Branches[0])
+			}()
+		}
+		wg.Wait()
+		// Unlock should not have been called
+		assert.Equal(t, repoCache.CallCounts["UnlockGitReferences"], 0, "UnlockGitReferences should not have been called")
+		// This would normally be all 10 due to them being so close together,
+		// but since it's timing related, to prevent flakiness we only check that it is greater than half the number of callers
+		assert.Greater(t,
+			repoCache.CallCounts["SetGitReferences"],
+			numberOfCallers/2,
+			"SetGitReferences have been called more than %d times but was called %d times",
+			numberOfCallers/2,
+			repoCache.CallCounts["SetGitReferences"])
+	}
+}
+
+func TestGetRefs_CacheWithLockEnabled(t *testing.T) {
+	// Test that when the lock is enabled there is only one call to SetGitReferences for the same repo which is done after the ls-remote
+	dir := t.TempDir()
+	err := initGitRepo(dir, "", false, true)
+	assert.NoError(t, err, "Could not init git repo")
+	// Test in-memory and redis
+	cacheTypes := []repositorymocks.MockCacheType{repositorymocks.MockCacheTypeInMem, repositorymocks.MockCacheTypeRedis}
+	for _, cacheType := range cacheTypes {
+		repoCache := repositorymocks.NewMockRepoCache(cacheType, &repositorymocks.MockCacheOptions{
+			CacheOpts: cache.CacheOpts{
+				RepoCacheExpiration:           cache.CacheOptsDefaults.RepoCacheExpiration,
+				RevisionCacheExpiration:       cache.CacheOptsDefaults.RevisionCacheExpiration,
+				RevisionCacheLockWaitEnabled:  true,
+				RevisionCacheLockTimeout:      1 * time.Second,
+				RevisionCacheLockWaitInterval: 100 * time.Millisecond,
+			},
+			ReadDelay:  0,
+			WriteDelay: 0,
+		})
+		var wg sync.WaitGroup
+		numberOfCallers := 10
+		for i := 0; i < numberOfCallers; i++ {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				client, err := git.NewClient(fmt.Sprintf("file://%s", dir), git.NopCreds{}, true, false, "", git.WithCache(repoCache, true))
+				require.NoError(t, err)
+				refs, err := client.LsRefs()
+				assert.NoError(t, err)
+				assert.NotNil(t, refs)
+				assert.NotEqual(t, 0, len(refs.Branches), "Expected branches to be populated")
+				assert.NotEmpty(t, refs.Branches[0])
+			}()
+		}
+		wg.Wait()
+		// Unlock should not have been called
+		assert.Equal(t, repoCache.CallCounts["UnlockGitReferences"], 0, "UnlockGitReferences should not have been called")
+		assert.Equal(t,
+			repoCache.CallCounts["SetGitReferences"],
+			1,
+			"SetGitReferences should have been called only once but was called %d times",
+			repoCache.CallCounts["SetGitReferences"])
+	}
+}
+
+func TestGetRefs_CacheLockTimeout(t *testing.T) {
+	// Test that the lock timeout is respected
+	dir := t.TempDir()
+	err := initGitRepo(dir, "", false, true)
+	assert.NoError(t, err, "Could not init git repo")
+	// Test in-memory and redis
+	cacheTypes := []repositorymocks.MockCacheType{
+		repositorymocks.MockCacheTypeInMem,
+		repositorymocks.MockCacheTypeRedis}
+	for _, cacheType := range cacheTypes {
+		repoCache := repositorymocks.NewMockRepoCache(cacheType, &repositorymocks.MockCacheOptions{
+			CacheOpts: cache.CacheOpts{
+				RepoCacheExpiration:           cache.CacheOptsDefaults.RepoCacheExpiration,
+				RevisionCacheExpiration:       cache.CacheOptsDefaults.RevisionCacheExpiration,
+				RevisionCacheLockWaitEnabled:  true,
+				RevisionCacheLockTimeout:      100 * time.Millisecond,
+				RevisionCacheLockWaitInterval: 10 * time.Millisecond,
+			},
+			ReadDelay: 0,
+			// Add a relatively high write delay so that all routines will reach their timeout without obtaining the lock
+			WriteDelay: 1 * time.Second,
+		})
+		var wg sync.WaitGroup
+		numberOfCallers := 3
+		for i := 0; i < numberOfCallers; i++ {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				client, err := git.NewClient(fmt.Sprintf("file://%s", dir), git.NopCreds{}, true, false, "", git.WithCache(repoCache, true))
+				require.NoError(t, err)
+				refs, err := client.LsRefs()
+				assert.NoError(t, err)
+				assert.NotNil(t, refs)
+				assert.NotEqual(t, 0, len(refs.Branches), "Expected branches to be populated")
+				assert.NotEmpty(t, refs.Branches[0])
+			}()
+		}
+		wg.Wait()
+		// Unlock should not have been called
+		assert.Equal(t, repoCache.CallCounts["UnlockGitReferences"], 0, "UnlockGitReferences should not have been called")
+		assert.Equal(t,
+			repoCache.CallCounts["SetGitReferences"],
+			numberOfCallers,
+			"SetGitReferences should have been called %d times but was called %d times",
+			numberOfCallers,
+			repoCache.CallCounts["SetGitReferences"])
+	}
+}
+
+func TestGetRefs_CacheUnlockedOnUpdateFailed(t *testing.T) {
+	// Worst case the ttl on the lock expires and the lock is removed
+	// however if the holder of the lock fails to update the cache the caller should remove the lock
+	// to allow other callers to attempt to update the cache as quickly as possible
+	dir := t.TempDir()
+	err := initGitRepo(dir, "", false, true)
+	assert.NoError(t, err, "Could not init git repo")
+	// Test in-memory and redis
+	cacheTypes := []repositorymocks.MockCacheType{repositorymocks.MockCacheTypeInMem, repositorymocks.MockCacheTypeRedis}
+	for _, cacheType := range cacheTypes {
+		repoCache := repositorymocks.NewMockRepoCache(cacheType, &repositorymocks.MockCacheOptions{
+			CacheOpts: cache.CacheOpts{
+				RepoCacheExpiration:           cache.CacheOptsDefaults.RepoCacheExpiration,
+				RevisionCacheExpiration:       cache.CacheOptsDefaults.RevisionCacheExpiration,
+				RevisionCacheLockWaitEnabled:  true,
+				RevisionCacheLockTimeout:      30 * time.Second,
+				RevisionCacheLockWaitInterval: 100 * time.Millisecond,
+			},
+			ReadDelay:  0,
+			WriteDelay: 0,
+			ErrorResponses: map[string]error{
+				"SetGitReferences": fmt.Errorf("test error updating cache"),
+			},
+		})
+		repoUrl := fmt.Sprintf("file://%s", dir)
+		client, err := git.NewClient(repoUrl, git.NopCreds{}, true, false, "", git.WithCache(repoCache, true))
+		require.NoError(t, err)
+		refs, err := client.LsRefs()
+		assert.NoError(t, err)
+		assert.NotNil(t, refs)
+		assert.NotEqual(t, 0, len(refs.Branches), "Expected branches to be populated")
+		assert.NotEmpty(t, refs.Branches[0])
+		gitCache := repoCache.GetGitCache()
+		assert.Equal(t, repoCache.CallCounts["UnlockGitReferences"], 1, "UnlockGitReferences should have been called")
+		var output [][2]string
+		gitCache.GetItem(fmt.Sprintf("git-refs|%s|%s", repoUrl, common.CacheVersion), &output)
+		assert.Equal(t, 0, len(output), "Expected cache to be empty for key")
+	}
 }

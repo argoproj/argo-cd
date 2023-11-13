@@ -56,7 +56,7 @@ type Refs struct {
 type gitRefCache interface {
 	SetGitReferences(repo string, references []*plumbing.Reference) error
 	GetGitReferences(repo string, references *[]*plumbing.Reference) error
-	GetOrLockGitReferences(repo string, references *[]*plumbing.Reference) (lockCreated bool, lockId string, err error)
+	GetOrLockGitReferences(repo string, references *[]*plumbing.Reference) (updateCache bool, lockId string, err error)
 	UnlockGitReferences(repo string, lockId string) error
 }
 
@@ -483,17 +483,14 @@ func (m *nativeGitClient) getRefs() ([]*plumbing.Reference, error) {
 	needsUnlock := true
 	if m.gitRefCache != nil && m.loadRefFromCache {
 		var res []*plumbing.Reference
-		lockCreated, lockId, err := m.gitRefCache.GetOrLockGitReferences(m.repoURL, &res)
-		if !lockCreated && err == nil {
+		updateCache, lockId, err := m.gitRefCache.GetOrLockGitReferences(m.repoURL, &res)
+		if !updateCache && err == nil {
 			// Valid value already in cache
 			return res, nil
-		} else if err != nil {
+		} else if !updateCache && err != nil {
 			// Error getting value from cache
 			log.Debugf("Error getting git references from cache: %v", err)
 			return nil, err
-		} else {
-			// We don't own the lock so there's no path where we need to unlock
-			needsUnlock = false
 		}
 		// Defer a soft reset of the cache lock, if the value is set this call will be ignored
 		defer func() {
@@ -527,8 +524,10 @@ func (m *nativeGitClient) getRefs() ([]*plumbing.Reference, error) {
 	if err == nil && m.gitRefCache != nil {
 		if err := m.gitRefCache.SetGitReferences(m.repoURL, res); err != nil {
 			log.Warnf("Failed to store git references to cache: %v", err)
+		} else {
+			// Since we successfully overwrote the lock with valid data, we don't need to unlock
+			needsUnlock = false
 		}
-		needsUnlock = false
 		return res, nil
 	}
 	return res, err

@@ -8,7 +8,6 @@ import (
 
 var ErrCacheMiss = errors.New("cache: key is missing")
 var ErrCacheKeyLocked = errors.New("cache: key is locked")
-var ErrLockWaitExpired = errors.New("cache: wait for lock exceeded max wait time")
 var CacheLockedValue = "locked"
 
 type Item struct {

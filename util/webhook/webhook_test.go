@@ -69,8 +69,13 @@ func NewMockHandler(reactor *reactorDef, applicationNamespaces []string, objects
 
 	return NewHandler("argocd", applicationNamespaces, appClientset, &settings.ArgoCDSettings{}, &fakeSettingsSrc{}, cache.NewCache(
 		cacheClient,
-		1*time.Minute,
-		1*time.Minute,
+		&cache.CacheOpts{
+			RepoCacheExpiration:           1 * time.Minute,
+			RevisionCacheExpiration:       1 * time.Minute,
+			RevisionCacheLockWaitEnabled:  true,
+			RevisionCacheLockTimeout:      10 * time.Second,
+			RevisionCacheLockWaitInterval: 1 * time.Second,
+		},
 	), servercache.NewCache(appstate.NewCache(cacheClient, time.Minute), time.Minute, time.Minute, time.Minute), &mocks.ArgoDB{})
 }
 

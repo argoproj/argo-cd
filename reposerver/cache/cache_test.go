@@ -22,8 +22,13 @@ type fixtures struct {
 func newFixtures() *fixtures {
 	return &fixtures{NewCache(
 		cacheutil.NewCache(cacheutil.NewInMemoryCache(1*time.Hour)),
-		1*time.Minute,
-		1*time.Minute,
+		&CacheOpts{
+			RepoCacheExpiration:           1 * time.Minute,
+			RevisionCacheExpiration:       1 * time.Minute,
+			RevisionCacheLockWaitEnabled:  true,
+			RevisionCacheLockTimeout:      10 * time.Second,
+			RevisionCacheLockWaitInterval: 1 * time.Second,
+		},
 	)}
 }
 
@@ -143,8 +148,13 @@ func TestCachedManifestResponse_HashBehavior(t *testing.T) {
 
 	repoCache := NewCache(
 		cacheutil.NewCache(inMemCache),
-		1*time.Minute,
-		1*time.Minute,
+		&CacheOpts{
+			RepoCacheExpiration:           1 * time.Minute,
+			RevisionCacheExpiration:       1 * time.Minute,
+			RevisionCacheLockWaitEnabled:  true,
+			RevisionCacheLockTimeout:      10 * time.Second,
+			RevisionCacheLockWaitInterval: 1 * time.Second,
+		},
 	)
 
 	response := apiclient.ManifestResponse{
