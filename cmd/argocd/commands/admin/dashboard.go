@@ -14,7 +14,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/errors"
 )
 
-func NewDashboardCommand() *cobra.Command {
+func NewDashboardCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
 		port           int
 		address        string
@@ -28,7 +28,8 @@ func NewDashboardCommand() *cobra.Command {
 
 			compression, err := cache.CompressionTypeFromString(compressionStr)
 			errors.CheckError(err)
-			errors.CheckError(headless.MaybeStartLocalServer(ctx, &argocdclient.ClientOptions{Core: true}, initialize.RetrieveContextIfChanged(cmd.Flag("context")), &port, &address, compression))
+			clientOpts.Core = true
+			errors.CheckError(headless.MaybeStartLocalServer(ctx, clientOpts, initialize.RetrieveContextIfChanged(cmd.Flag("context")), &port, &address, compression))
 			println(fmt.Sprintf("Argo CD UI is available at http://%s:%d", address, port))
 			<-ctx.Done()
 		},
