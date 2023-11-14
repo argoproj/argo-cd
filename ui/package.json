@@ -50,7 +50,7 @@
     "react-virtualized": "^9.22.3",
     "redoc": "^2.0.0-rc.64",
     "rxjs": "^6.6.6",
-    "superagent": "^8.0.9",
+    "superagent": "^8.1.2",
     "timezones-list": "3.0.1",
     "tsx": "^3.4.0",
     "unidiff": "^1.0.2",
