@@ -1,8 +1,9 @@
-package application
+package reporter
 
 import (
 	"context"
 	"encoding/json"
+	application2 "github.com/argoproj/argo-cd/v2/server/application"
 	"testing"
 	"time"
 
@@ -214,7 +215,7 @@ func newAppLister(objects ...runtime.Object) applisters.ApplicationLister {
 	return appLister
 }
 
-func fakeServer() *Server {
+func fakeServer() *application2.Server {
 	cm := test.NewFakeConfigMap()
 	secret := test.NewFakeSecret()
 	kubeclientset := fake.NewSimpleClientset(cm, secret)
@@ -229,7 +230,7 @@ func fakeServer() *Server {
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "guestbook",
-			Namespace: testNamespace,
+			Namespace: application2.testNamespace,
 		},
 		Spec: appsv1.ApplicationSpec{
 			Project: "default",
@@ -270,8 +271,8 @@ func fakeServer() *Server {
 		1*time.Minute,
 	)
 
-	server, _ := NewServer(test.FakeArgoCDNamespace, kubeclientset, appClientSet, appLister, appInformer, nil, nil, cache, nil, nil, nil, nil, nil, nil, nil)
-	return server.(*Server)
+	server, _ := application2.NewServer(test.FakeArgoCDNamespace, kubeclientset, appClientSet, appLister, appInformer, nil, nil, cache, nil, nil, nil, nil, nil, nil, nil)
+	return server.(*application2.Server)
 }
 
 func TestShouldSendEvent(t *testing.T) {

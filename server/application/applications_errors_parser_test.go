@@ -2,6 +2,7 @@ package application
 
 import (
 	"fmt"
+	"github.com/argoproj/argo-cd/v2/event_reporter/reporter"
 	"testing"
 
 	"github.com/argoproj/gitops-engine/pkg/sync/common"
@@ -12,7 +13,7 @@ import (
 
 func TestParseResourceSyncResultErrors(t *testing.T) {
 	t.Run("Resource of app contain error that contain comma", func(t *testing.T) {
-		errors := parseResourceSyncResultErrors(&v1alpha1.ResourceStatus{
+		errors := reporter.parseResourceSyncResultErrors(&v1alpha1.ResourceStatus{
 			Group:     "group",
 			Kind:      "kind",
 			Namespace: "namespace",
@@ -48,7 +49,7 @@ func TestParseResourceSyncResultErrors(t *testing.T) {
 		assert.Equal(t, errors[0].Level, "error")
 	})
 	t.Run("Resource of app contain error", func(t *testing.T) {
-		errors := parseResourceSyncResultErrors(&v1alpha1.ResourceStatus{
+		errors := reporter.parseResourceSyncResultErrors(&v1alpha1.ResourceStatus{
 			Group:     "group",
 			Kind:      "kind",
 			Namespace: "namespace",
@@ -84,7 +85,7 @@ func TestParseResourceSyncResultErrors(t *testing.T) {
 		assert.Equal(t, errors[0].Level, "error")
 	})
 	t.Run("Resource of app not contain error", func(t *testing.T) {
-		errors := parseResourceSyncResultErrors(&v1alpha1.ResourceStatus{
+		errors := reporter.parseResourceSyncResultErrors(&v1alpha1.ResourceStatus{
 			Group:     "group",
 			Kind:      "kind",
 			Namespace: "namespace",
@@ -117,7 +118,7 @@ func TestParseResourceSyncResultErrors(t *testing.T) {
 		assert.Len(t, errors, 0)
 	})
 	t.Run("App of app contain error", func(t *testing.T) {
-		errors := parseApplicationSyncResultErrors(&v1alpha1.OperationState{
+		errors := reporter.parseApplicationSyncResultErrors(&v1alpha1.OperationState{
 			Phase:   common.OperationError,
 			Message: "error message",
 			SyncResult: &v1alpha1.SyncOperationResult{
@@ -135,7 +136,7 @@ func TestParseResourceSyncResultErrors(t *testing.T) {
 
 func TestParseApplicationSyncResultErrorsFromConditions(t *testing.T) {
 	t.Run("conditions exists", func(t *testing.T) {
-		errors := parseApplicationSyncResultErrorsFromConditions(v1alpha1.ApplicationStatus{
+		errors := reporter.parseApplicationSyncResultErrorsFromConditions(v1alpha1.ApplicationStatus{
 			Conditions: []v1alpha1.ApplicationCondition{
 				{
 					Type:    "error",
@@ -151,11 +152,11 @@ func TestParseApplicationSyncResultErrorsFromConditions(t *testing.T) {
 	})
 
 	t.Run("conditions erorr replaced with sync result errors", func(t *testing.T) {
-		errors := parseApplicationSyncResultErrorsFromConditions(v1alpha1.ApplicationStatus{
+		errors := reporter.parseApplicationSyncResultErrorsFromConditions(v1alpha1.ApplicationStatus{
 			Conditions: []v1alpha1.ApplicationCondition{
 				{
 					Type:    "error",
-					Message: syncTaskUnsuccessfullErrorMessage,
+					Message: reporter.syncTaskUnsuccessfullErrorMessage,
 				},
 			},
 			OperationState: &v1alpha1.OperationState{
@@ -202,7 +203,7 @@ func TestParseApplicationSyncResultErrorsFromConditions(t *testing.T) {
 
 func TestParseAggregativeHealthErrors(t *testing.T) {
 	t.Run("application tree is nil", func(t *testing.T) {
-		errs := parseAggregativeHealthErrors(&v1alpha1.ResourceStatus{
+		errs := reporter.parseAggregativeHealthErrors(&v1alpha1.ResourceStatus{
 			Group:     "group",
 			Kind:      "application",
 			Namespace: "namespace",
