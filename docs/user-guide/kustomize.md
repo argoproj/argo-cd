@@ -23,7 +23,7 @@ To use Kustomize with an overlay, point your path to the overlay.
 ## Patches
 Patches are a way to kustomize resources using inline configurations in Argo CD applications.  `patches`  follow the same logic as the corresponding Kustomization.  Any patches that target existing Kustomization file will be merged.
 
-This Kustomizate example sources manifests from the `/kustomize-guestbook` folder of the `argoproj/argocd-example-apps` repository and patches the `Deployment` to use port `443` on the container.
+This Kustomize example sources manifests from the `/kustomize-guestbook` folder of the `argoproj/argocd-example-apps` repository, and patches the `Deployment` to use port `443` on the container.
 ```yaml
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
@@ -104,10 +104,6 @@ spec:
       destination:
         name: 'in-cluster'
         namespace: default
-      syncPolicy:
-        automated:
-          prune: true
-          selfHeal: true
 ```
 
 ## Private Remote Bases
