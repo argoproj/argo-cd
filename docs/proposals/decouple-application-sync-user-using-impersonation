@@ -14,7 +14,7 @@ approvers:
   - "@jannfis"
 
 creation-date: 2023-06-23
-last-updated: 2023-09-18
+last-updated: 2023-11-15
 ---
 
 # Decouple Application Sync using Impersonation
@@ -43,13 +43,16 @@ kubectl --as <user-to-impersonate> --as-group <group-to-impersonate> ...
 >If there are more than one matching destination, either with a regex match or an exact match, then we report an error in the sync operation. This is to avoid conflicting destination configurations and to simplify the overhead of choosing the right/closest matching service account.
 - Can the kubernetes audit trail events capture the impersonation.
 >Yes, kubernetes audit trail events capture both the actual user and the impersonating user details and hence its possible to track who executed the commands and as which user permissions using the audit trails.
+- Would the Sync hooks be using the impersonation service account.
+>Yes, if the impersonation feature is enabled and customers use Sync hooks, then impersonation service account would be used for executing the hook jobs as well.
+
 ## Summary
 
 In a multi team/multi tenant environment, an application team is typically granted access to a namespace to self-manage their Applications in a declarative way. Current implementation of ArgoCD requires the ArgoCD Administrator to create an `AppProject` with access settings configured to replicate the RBAC resources that are configured for each team. This approach requires duplication of effort and also requires syncing the access between both to maintain the security posture. It would be desirable for users to use the existing RBAC rules without having to revert to Argo CD API to create and manage these Applications. One namespace per team, or even one namespace per application is what we are looking to address as part of this proposal.
 
 ## Motivation
 
-This proposal would allow ArgoCD administrators to manage the cluster permissions using kubernetes native RBAC implementation rather than using complex configurations in `AppProjects` to restrict access to individual applications. By decoupling the privileges required for application sync from the privileges required for ArgoCD control plane, the security requirement of providing least privileges can be achieved there by improving the security posture of ArgoCD. For implementing multi team/tenant use cases, this decoupling would be greatly beneficial.
+This proposal would allow ArgoCD administrators to manage the cluster permissions using kubernetes native RBAC implementation rather than using complex configurations in `AppProjects` to restrict access to individual applications. By decoupling the privileges required for application sync from the privileges required for ArgoCD control plane operations, the security requirement of providing least privileges can be achieved there by improving the security posture of ArgoCD. For implementing multi team/tenant use cases, this decoupling would be greatly beneficial.
 
 ### Assumptions
 
@@ -60,8 +63,8 @@ This proposal would allow ArgoCD administrators to manage the cluster permission
 
 
 ### Goals
-- Applications may only impersonate ServiceAccounts that live in the same namespace as the application itself. ServiceAccount to be used for syncing each application is determined by the target destination configured in the `AppProject` associated with the `Application`.
-- If impersonation feature is enabled, and no service account name is provided in the Application CR, then it should use a default service account of the `Application` namespace.
+- Applications may only impersonate ServiceAccounts that live in the same namespace as the destination namespace configured in the application. ServiceAccount to be used for syncing each application is determined by the target destination configured in the `AppProject` associated with the `Application`.
+- If impersonation feature is enabled, and no service account name is provided in the associated `AppProject`, then the default service account of the destination namespace of the `Application` should be used.
 - Access restrictions implemented through properties in AppProject (if done) must have the existing behavior. From a security standpoint, any restrictions that were available before switching to a service account based approach should continue to exist even when the impersonation feature is enabled.
 
 ### Non-Goals
@@ -72,7 +75,7 @@ None
 ## Proposal
 
 Enable ArgoCD Admin to specify a `serviceAccountName` in `AppProjects` CR on a per `destination` basis.
-When applications gets synced, based on its destination, the `serviceAccountName` configured in the `AppProject` will be chosen and used for impersonation when executing the kubectl apply/create commands. There could either be a regex based match of the destination or an exact match of the destination. If there are multiple possible options, then an error would be thrown during the sync operation.
+When applications gets synced, based on its destination (server and namespace combination), the `serviceAccountName` configured in the `AppProject` will be chosen and used for impersonation when executing the kubectl apply/create commands. There could either be a regex based match of the destination or an exact match of the destination. If there are multiple regex matches, then the regex that is the closest match would be selected as the candidate. If there is exact match found for the destination, then that would take the highest precedence compared to the regex matched candidates. If there are multiple candidates with an exact match, then the application sync fails with an error.
 
 ```
 apiVersion: argoproj.io/v1alpha1
@@ -135,10 +138,12 @@ Set `ARGOCD_APPLICATION_CONTROLLER_ENABLE_IMPERSONATION=true` in the Application
 - Provide an option to enable this feature using a command line flag `--enable-impersonation`. This new argument option needs to be added to the Application controller args.
 
 - Fix Application Controller `sync.go` to set the Impersonate configuration from the AppProject CR to the `SyncContext` Object (rawConfig and restConfig field, need to understand which config is used for the actual sync and if both configs need to be impersonated.)
+
 #### Component: ArgoCD UI
 
 - Provide option to provide `serviceAccountName` for a `ApplicationDestination` section in an `AppProject` created/updated via the web console.
 - Update the User Guide documentation on how to use these newly added fields from the web console.
+
 #### Component: ArgoCD CLI
 
 - Provide option to provide serviceAccountName for an Application created/updated via the console.
@@ -171,13 +176,13 @@ kubectl create role guestbook-deployer-role --verb get,list,update,delete --reso
 kubectl create rolebinding guestbook-deployer-rb --serviceaccount guestbook-deployer --role guestbook-deployer-role
 ```
 
-- Create the `Application` in the `guestbook` namespace and the required `AppProject` as below 
+- Create the `Application` in the `argocd` namespace and the required `AppProject` as below 
 ```
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
   name: guestbook
-  namespace: guestbook
+  namespace: argocd
 spec:
   project: my-project
   source:
@@ -236,7 +241,7 @@ apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
   name: guestbook
-  namespace: guestbook
+  namespace: argocd
 spec:
   project: my-project
   source:
@@ -306,7 +311,7 @@ apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
   name: guestbook
-  namespace: guestbook
+  namespace: argocd
 spec:
   project: my-project
   source:
@@ -376,7 +381,7 @@ apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
   name: guestbook
-  namespace: guestbook
+  namespace: argocd
 spec:
   project: my-project
   source:
@@ -479,3 +484,8 @@ https://github.com/argoproj/argo-cd/issues/7689
 ### Related links
 
 https://kubernetes.io/docs/reference/access-authn-authz/authentication/#user-impersonation
+
+### Prior art
+
+https://github.com/argoproj/argo-cd/pull/3377
+https://github.com/argoproj/argo-cd/pull/7651
