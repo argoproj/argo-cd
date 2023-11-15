@@ -36,7 +36,7 @@ registerResourceExtension(component: ExtensionComponent, group: string, kind: st
 - `component: ExtensionComponent` is a React component that receives the following properties:
 
   - application: Application - Argo CD Application resource;
-  - resource: State - the Kubernetes resource object;
+  - resource: State - the kubernetes resource object;
   - tree: ApplicationTree - includes list of all resources that comprise the application;
 
   See properties interfaces in [models.ts](https://github.com/argoproj/argo-cd/blob/master/ui/src/app/shared/models.ts)

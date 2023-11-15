@@ -1103,11 +1103,6 @@ func (in *ApplicationSourceKustomize) DeepCopyInto(out *ApplicationSourceKustomi
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
 	}
-	if in.Components != nil {
-		in, out := &in.Components, &out.Components
-		*out = make([]string, len(*in))
-		copy(*out, *in)
-	}
 	return
 }
 

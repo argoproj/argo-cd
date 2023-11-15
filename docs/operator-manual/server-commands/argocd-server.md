@@ -12,16 +12,6 @@ The API server is a gRPC/REST server which exposes the API consumed by the Web U
 argocd-server [flags]
 ```
 
-### Examples
-
-```
-  # Start the Argo CD API server with default settings
-  $ argocd-server
-  
-  # Start the Argo CD API server on a custom port and enable tracing
-  $ argocd-server --port 8888 --otlp-address localhost:4317
-```
-
 ### Options
 
 ```
@@ -44,7 +34,6 @@ argocd-server [flags]
       --dex-server-plaintext                          Use a plaintext client (non-TLS) to connect to dex server
       --dex-server-strict-tls                         Perform strict validation of TLS certificates when connecting to dex server
       --disable-auth                                  Disable client authentication
-      --disable-compression                           If true, opt-out of response compression for all requests to the server
       --enable-gzip                                   Enable GZIP compression (default true)
       --enable-proxy-extension                        Enable Proxy Extension feature
       --gloglevel int                                 Set the glog logging level

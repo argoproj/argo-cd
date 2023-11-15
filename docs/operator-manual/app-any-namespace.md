@@ -20,7 +20,7 @@ Some manual steps will need to be performed by the Argo CD administrator in orde
 
 ### Cluster-scoped Argo CD installation
 
-This feature can only be enabled and used when your Argo CD is installed as a cluster-wide instance, so it has permissions to list and manipulate resources on a cluster scope. It will not work with an Argo CD installed in namespace-scoped mode.
+This feature can only be enabled and used when your Argo CD is installed as a cluster-wide instance, so it has permissions to list and manipulate resources on a cluster scope. It will *not* work with an Argo CD installed in namespace-scoped mode.
 
 ### Switch resource tracking method
 
