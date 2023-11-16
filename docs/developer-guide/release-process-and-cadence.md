@@ -6,13 +6,13 @@
 
 These are the upcoming releases dates:
 
-| Release | Release Candidate 1   | General Availability | Release Champion                                      | Checklist                                                     |
-|---------|-----------------------|----------------------|-------------------------------------------------------|---------------------------------------------------------------|
-| v2.6    | Monday, Dec. 19, 2022 | Monday, Feb. 6, 2023 | [William Tam](https://github.com/wtam2018)            | [checklist](https://github.com/argoproj/argo-cd/issues/11563) |
-| v2.7    | Monday, Mar. 20, 2023 | Monday, May 1, 2023  | [Pavel Kostohrys](https://github.com/pasha-codefresh) | [checklist](https://github.com/argoproj/argo-cd/issues/12762) |
-| v2.8    | Monday, Jun. 26, 2023 | Monday, Aug. 7, 2023 | [Keith Chong](https://github.com/keithchong)          | [checklist](https://github.com/argoproj/argo-cd/issues/13742) |
-| v2.9    | Monday, Sep. 18, 2023 | Monday, Nov. 6, 2023 | [Leonardo Almeida](https://github.com/leoluz)         | [checklist](https://github.com/argoproj/argo-cd/issues/14078) |
-| v2.10   | Monday, Dec. 18, 2023 | Monday, Feb. 5, 2024 | 
+| Release | Release Candidate 1   | General Availability | Release Champion                                      | Release Approver                                      |Checklist                                                      |
+|---------|-----------------------|----------------------|-------------------------------------------------------|-------------------------------------------------------|---------------------------------------------------------------|
+| v2.6    | Monday, Dec. 19, 2022 | Monday, Feb. 6, 2023 | [William Tam](https://github.com/wtam2018)            | [William Tam](https://github.com/wtam2018)            | [checklist](https://github.com/argoproj/argo-cd/issues/11563) |
+| v2.7    | Monday, Mar. 20, 2023 | Monday, May 1, 2023  | [Pavel Kostohrys](https://github.com/pasha-codefresh) | [Pavel Kostohrys](https://github.com/pasha-codefresh) | [checklist](https://github.com/argoproj/argo-cd/issues/12762) |
+| v2.8    | Monday, Jun. 26, 2023 | Monday, Aug. 7, 2023 | [Keith Chong](https://github.com/keithchong)          | [Keith Chong](https://github.com/keithchong)          | [checklist](https://github.com/argoproj/argo-cd/issues/13742) |
+| v2.9    | Monday, Sep. 18, 2023 | Monday, Nov. 6, 2023 | [Leonardo Almeida](https://github.com/leoluz)         | [Leonardo Almeida](https://github.com/leoluz)         | [checklist](https://github.com/argoproj/argo-cd/issues/14078) |
+| v2.10   | Monday, Dec. 18, 2023 | Monday, Feb. 5, 2024 | [Katie Lamkin](https://github.com/kmlamkin9)          |                                                       | [checklist](https://github.com/argoproj/argo-cd/issues/16339) |
 | v2.11   | Monday, Mar. 18, 2024 | Monday, May 6, 2024  | 
 | v2.12   | Monday, Jun. 17, 2024 | Monday, Aug. 5, 2024 | 
 
