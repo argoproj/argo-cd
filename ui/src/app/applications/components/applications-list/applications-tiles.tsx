@@ -121,14 +121,13 @@ export const ApplicationTiles = (tilesProps: AbstractApplicationTilesProps) => {
                                 {tilesProps.applications.map((app, i) => {
                                     const source = getAppDefaultSource(app);
                                     return (
-                                        <div key={AppUtils.appInstanceName(app)} className='column column-block'>
-                                            <div
+                                        <div 
                                                 key={AppUtils.appInstanceName(app)}
                                                 ref={appRef.set ? null : appRef.ref}
                                                 className={isApp(app) ? `argo-table-list__row applications-list__entry applications-list__entry--health-${(app as models.Application).status.health.status} ${
                                                     selectedApp === i ? 'applications-tiles__selected' : ''
-                                                }`: `argo-table-list__row applications-list__entry applications-list__entry--health-${getAppSetHealthStatus((app as ApplicationSet).status)} ${selectedApp === i ? 'applications-tiles__selected' : '' }`
-                                            }>
+                                                }`: `argo-table-list__row applications-list__entry applications-list__entry--health-${getAppSetHealthStatus((app as ApplicationSet).status)} ${selectedApp === i ? 'applications-tiles__selected' : '' 
+                                            }`}>
                                                 <div
                                                     className='row applications-tiles__wrapper'
                                                     onClick={e =>
@@ -333,7 +332,6 @@ export const ApplicationTiles = (tilesProps: AbstractApplicationTilesProps) => {
                                                     </div>
                                                 </div>
                                             </div>
-                                        </div>
                                     );
                                 })}
                             </div>
