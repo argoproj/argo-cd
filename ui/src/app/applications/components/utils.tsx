@@ -1289,7 +1289,7 @@ export function isApp(abstractApp: appModels.AbstractApplication): abstractApp i
 
 export function isInvokedFromApps(): boolean {
     // console.log("*** ctx.history.location.pathname *** " + ctx.history.location.pathname)
-    const isInvokedFromApp = false //ctx.history.location.pathname.includes("applicationsets") ? true : false
+    const isInvokedFromApp = true //ctx.history.location.pathname.includes("applicationsets") ? true : false
     return isInvokedFromApp
 }
 

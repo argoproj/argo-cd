@@ -107,21 +107,19 @@ export const ApplicationStatusPanel = ({ application, showDiff, showOperation, s
                         hasMultipleSources,
                         () => showMetadataInfo((application as models.Application).status.sync ? (application as models.Application).status.sync.revision : '')
                     )}
-                    {appOperationState && (
-                        <div className={`application-status-panel__item-value application-status-panel__item-value--${appOperationState.phase}`}>
-                            <div>
-                                {(application as models.Application).status.sync.status === models.SyncStatuses.OutOfSync ? (
-                                    <a onClick={() => showDiff && showDiff()}>
-                                        <ComparisonStatusIcon status={(application as models.Application).status.sync.status} label={true} />
-                                    </a>
-                                ) : (
+                    <div className={`application-status-panel__item-value${appOperationState?.phase ? ` application-status-panel__item-value--${appOperationState.phase}` : ''}`}>
+                        <div>
+                            {(application as models.Application).status.sync.status === models.SyncStatuses.OutOfSync ? (
+                                <a onClick={() => showDiff && showDiff()}>
                                     <ComparisonStatusIcon status={(application as models.Application).status.sync.status} label={true} />
-                                )}
-                            </div>
-                            <div className='application-status-panel__item-value__revision show-for-large'>{syncStatusMessage(application)}</div>
+                                </a>
+                            ) : (
+                                <ComparisonStatusIcon status={(application as models.Application).status.sync.status} label={true} />
+                            )}
                         </div>
-                    )}
-                    <div className='application-status-panel__item-name' style={{ marginBottom: '0.5em' }}>
+                        <div className='application-status-panel__item-value__revision show-for-large'>{syncStatusMessage(application)}</div>
+                    </div>
+                    <div className='application-status-panel__item-name' style={{marginBottom: '0.5em'}}>
                         {(application as models.Application).spec.syncPolicy?.automated ? 'Auto sync is enabled.' : 'Auto sync is not enabled.'}
                     </div>
                     {(application as models.Application).status && (application as models.Application).status.sync && (application as models.Application).status.sync.revision && !(application as models.Application).spec.source.chart && (
