@@ -22,8 +22,8 @@ function registerAppViewExtension(component: ExtensionComponent, title: string, 
     extensions.appViewExtensions.push({component, title, icon});
 }
 
-function registerStatusPanelExtension(component: ExtensionComponent, title: string) {
-    extensions.statusPanelExtensions.push({component, title});
+function registerStatusPanelExtension(component: ExtensionComponent, flyout: ExtensionComponent, title: string) {
+    extensions.statusPanelExtensions.push({component, flyout, title});
 }
 
 let legacyInitialized = false;
@@ -63,13 +63,16 @@ export interface AppViewExtension {
 
 export interface StatusPanelExtension {
     component: StatusPanelExtensionComponent;
+    flyout?: StatusPanelExtensionFlyoutComponent;
     title: string;
+    id: string;
 }
 
 export type ExtensionComponent = React.ComponentType<ExtensionComponentProps>;
 export type SystemExtensionComponent = React.ComponentType;
 export type AppViewExtensionComponent = React.ComponentType<AppViewComponentProps>;
 export type StatusPanelExtensionComponent = React.ComponentType<StatusPanelComponentProps>;
+export type StatusPanelExtensionFlyoutComponent = React.ComponentType<StatusPanelFlyoutProps>;
 
 export interface Extension {
     component: ExtensionComponent;
@@ -87,6 +90,11 @@ export interface AppViewComponentProps {
 }
 
 export interface StatusPanelComponentProps {
+    application: Application;
+    openFlyout: () => any;
+}
+
+export interface StatusPanelFlyoutProps {
     application: Application;
 }
 

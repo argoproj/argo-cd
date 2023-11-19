@@ -423,6 +423,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                                     showDiff={() => this.selectNode(appFullName, 0, 'diff')}
                                                     showOperation={() => this.setOperationStatusVisible(true)}
                                                     showConditions={() => this.setConditionsStatusVisible(true)}
+                                                    showExtension={(index) => this.setExtensionPanelVisible(index)}
                                                     showMetadataInfo={revision => this.setState({...this.state, revision})}
                                                 />
                                             </div>
@@ -964,6 +965,10 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
 
     private setRollbackPanelVisible(selectedDeploymentIndex = 0) {
         this.appContext.apis.navigation.goto('.', {rollback: selectedDeploymentIndex}, {replace: true});
+    }
+
+    private setExtensionPanelVisible(selectedExtension = 0) {
+        this.appContext.apis.navigation.goto('.', {extension: selectedExtension}, {replace: true});
     }
 
     private selectNode(fullName: string, containerIndex = 0, tab: string = null) {
