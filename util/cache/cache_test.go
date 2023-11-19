@@ -13,9 +13,15 @@ import (
 )
 
 func TestAddCacheFlagsToCmd(t *testing.T) {
-	cache, err := AddCacheFlagsToCmd(&cobra.Command{})()
+	cache, err := AddCacheFlagsToCmd(&cobra.Command{})(false)
 	assert.NoError(t, err)
 	assert.Equal(t, 24*time.Hour, cache.client.(*redisCache).expiration)
+}
+
+func TestAddCacheFlagsToCmdTwoLevelCache(t *testing.T) {
+	cache, err := AddCacheFlagsToCmd(&cobra.Command{})(true)
+	assert.NoError(t, err)
+	assert.Equal(t, 24*time.Hour, cache.client.(*twoLevelClient).externalCache.(*redisCache).expiration)
 }
 
 func NewInMemoryRedis() (*redis.Client, func()) {
@@ -31,56 +37,50 @@ func TestCacheClient(t *testing.T) {
 	defer stopRedis()
 	redisCache := NewRedisCache(clientRedis, 5*time.Second, RedisCompressionNone)
 	clientMemCache := NewInMemoryCache(60 * time.Second)
+	twoLevelClient := NewTwoLevelClient(redisCache, 5*time.Second)
 	// Run tests for both Redis and InMemoryCache
-	for _, client := range []CacheClient{clientMemCache, redisCache} {
+	for _, client := range []CacheClient{clientMemCache, redisCache, twoLevelClient} {
 		cache := NewCache(client)
 		t.Run("SetItem", func(t *testing.T) {
-			err := cache.SetItem("foo", "bar", 60*time.Second, false)
-			assert.NoError(t, err)
-		})
-		t.Run("SetCacheItem", func(t *testing.T) {
-			err := cache.SetCacheItem(&Item{Key: "foo", Object: "bar", Expiration: 60 * time.Second}, false)
+			err := cache.SetItem("foo", "bar", &CacheActionOpts{Expiration: 60 * time.Second, DisableOverwrite: true, Delete: false})
 			assert.NoError(t, err)
 			var output string
-			err = cache.GetItem("foo", &output)
+			err = cache.GetItem("foo", &output, nil)
 			assert.NoError(t, err)
 			assert.Equal(t, "bar", output)
 		})
 		t.Run("SetCacheItem W/Disable Overwrite", func(t *testing.T) {
-			err := cache.SetCacheItem(&Item{Key: "foo", Object: "bar", Expiration: 60 * time.Second}, false)
+			err := cache.SetItem("foo", "bar", &CacheActionOpts{Expiration: 60 * time.Second, DisableOverwrite: true, Delete: false})
 			assert.NoError(t, err)
 			var output string
-			err = cache.GetItem("foo", &output)
+			err = cache.GetItem("foo", &output, nil)
 			assert.NoError(t, err)
 			assert.Equal(t, "bar", output)
-			err = cache.SetCacheItem(&Item{Key: "foo", Object: "baz", Expiration: 60 * time.Second, DisableOverwrite: true}, false)
+			err = cache.SetItem("foo", "bar", &CacheActionOpts{Expiration: 60 * time.Second, DisableOverwrite: true, Delete: false})
 			assert.NoError(t, err)
-			err = cache.GetItem("foo", &output)
+			err = cache.GetItem("foo", &output, nil)
 			assert.NoError(t, err)
 			assert.Equal(t, "bar", output, "output should not have changed with DisableOverwrite set to true")
 		})
 		t.Run("GetItem", func(t *testing.T) {
 			var val string
-			err := cache.GetItem("foo", &val)
+			err := cache.GetItem("foo", &val, nil)
 			assert.NoError(t, err)
 			assert.Equal(t, "bar", val)
 		})
 		t.Run("DeleteItem", func(t *testing.T) {
-			err := cache.SetItem("foo", "bar", 0, true)
+			err := cache.SetItem("foo", "bar", &CacheActionOpts{Expiration: 0, Delete: true})
 			assert.NoError(t, err)
 			var val string
-			err = cache.GetItem("foo", &val)
+			err = cache.GetItem("foo", &val, nil)
 			assert.Error(t, err)
 			assert.Empty(t, val)
 		})
 		t.Run("Check for nil items", func(t *testing.T) {
-			err := cache.SetItem("foo", nil, 0, false)
-			assert.Error(t, err)
-			assert.Contains(t, err.Error(), "cannot set item")
-			err = cache.SetCacheItem(nil, false)
+			err := cache.SetItem("foo", nil, &CacheActionOpts{Expiration: 0, Delete: true})
 			assert.Error(t, err)
 			assert.Contains(t, err.Error(), "cannot set nil item")
-			err = cache.GetItem("foo", nil)
+			err = cache.GetItem("foo", nil, nil)
 			assert.Error(t, err)
 			assert.Contains(t, err.Error(), "cannot get item")
 		})

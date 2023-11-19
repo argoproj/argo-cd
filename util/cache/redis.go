@@ -114,16 +114,16 @@ func (r *redisCache) Set(item *Item) error {
 	})
 }
 
-func (r *redisCache) Get(key string, obj interface{}) error {
+func (r *redisCache) Get(item *Item) error {
 	var data []byte
-	err := r.cache.Get(context.TODO(), r.getKey(key), &data)
+	err := r.cache.Get(context.TODO(), r.getKey(item.Key), &data)
 	if err == rediscache.ErrCacheMiss {
 		err = ErrCacheMiss
 	}
 	if err != nil {
 		return err
 	}
-	return r.unmarshal(data, obj)
+	return r.unmarshal(data, item.Object)
 }
 
 func (r *redisCache) Delete(key string) error {

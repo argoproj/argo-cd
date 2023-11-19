@@ -31,7 +31,7 @@ const (
 )
 
 func NewCache(client CacheClient) *Cache {
-	return &Cache{client}
+	return &Cache{client: client}
 }
 
 func buildRedisClient(redisAddress, password, username string, redisDB, maxRetries int, tlsConfig *tls.Config) *redis.Client {
@@ -74,7 +74,7 @@ func buildFailoverRedisClient(sentinelMaster, password, username string, redisDB
 }
 
 // AddCacheFlagsToCmd adds flags which control caching to the specified command
-func AddCacheFlagsToCmd(cmd *cobra.Command, opts ...func(client *redis.Client)) func() (*Cache, error) {
+func AddCacheFlagsToCmd(cmd *cobra.Command, opts ...func(client *redis.Client)) func(useTwoLevelCache bool) (*Cache, error) {
 	redisAddress := ""
 	sentinelAddresses := make([]string, 0)
 	sentinelMaster := ""
@@ -98,7 +98,7 @@ func AddCacheFlagsToCmd(cmd *cobra.Command, opts ...func(client *redis.Client)) 
 	cmd.Flags().BoolVar(&insecureRedis, "redis-insecure-skip-tls-verify", false, "Skip Redis server certificate validation.")
 	cmd.Flags().StringVar(&redisCACertificate, "redis-ca-certificate", "", "Path to Redis server CA certificate (e.g. /etc/certs/redis/ca.crt). If not specified, system trusted CAs will be used for server certificate validation.")
 	cmd.Flags().StringVar(&compressionStr, "redis-compress", env.StringFromEnv("REDIS_COMPRESSION", string(RedisCompressionGZip)), "Enable compression for data sent to Redis with the required compression algorithm. (possible values: gzip, none)")
-	return func() (*Cache, error) {
+	return func(useTwoLevelCache bool) (*Cache, error) {
 		var tlsConfig *tls.Config = nil
 		if redisUseTLS {
 			tlsConfig = &tls.Config{}
@@ -132,22 +132,23 @@ func AddCacheFlagsToCmd(cmd *cobra.Command, opts ...func(client *redis.Client)) 
 		if err != nil {
 			return nil, err
 		}
+		var redisClient *redis.Client
 		if len(sentinelAddresses) > 0 {
-			client := buildFailoverRedisClient(sentinelMaster, password, username, redisDB, maxRetries, tlsConfig, sentinelAddresses)
-			for i := range opts {
-				opts[i](client)
+			redisClient = buildFailoverRedisClient(sentinelMaster, password, username, redisDB, maxRetries, tlsConfig, sentinelAddresses)
+		} else {
+			if redisAddress == "" {
+				redisAddress = common.DefaultRedisAddr
 			}
-			return NewCache(NewRedisCache(client, defaultCacheExpiration, compression)), nil
+			redisClient = buildRedisClient(redisAddress, password, username, redisDB, maxRetries, tlsConfig)
 		}
-		if redisAddress == "" {
-			redisAddress = common.DefaultRedisAddr
-		}
-
-		client := buildRedisClient(redisAddress, password, username, redisDB, maxRetries, tlsConfig)
+		redisCache := NewRedisCache(redisClient, defaultCacheExpiration, compression)
 		for i := range opts {
-			opts[i](client)
+			opts[i](redisClient)
 		}
-		return NewCache(NewRedisCache(client, defaultCacheExpiration, compression)), nil
+		if useTwoLevelCache {
+			return NewCache(NewTwoLevelClient(redisCache, defaultCacheExpiration)), nil
+		}
+		return NewCache(redisCache), nil
 	}
 }
 
@@ -156,6 +157,7 @@ type Cache struct {
 	client CacheClient
 }
 
+// Returns the cache client with the given type
 func (c *Cache) GetClient() CacheClient {
 	return c.client
 }
@@ -171,36 +173,33 @@ func (c *Cache) generateFullKey(key string) string {
 	return fmt.Sprintf("%s|%s", key, common.CacheVersion)
 }
 
-func (c *Cache) SetCacheItem(item *Item, delete bool) error {
+// Sets or deletes an item in cache
+func (c *Cache) SetItem(key string, item interface{}, opts *CacheActionOpts) error {
+	if opts == nil {
+		opts = &CacheActionOpts{}
+	}
 	if item == nil {
 		return fmt.Errorf("cannot set nil item in cache")
 	}
-	item.Key = c.generateFullKey(item.Key)
-	if delete {
-		return c.client.Delete(item.Key)
+	fullKey := c.generateFullKey(key)
+	client := c.GetClient()
+	if opts.Delete {
+		return client.Delete(fullKey)
 	} else {
-		if item.Object == nil {
-			return fmt.Errorf("cannot set item to nil for key %s", item.Key)
-		}
-		return c.client.Set(item)
+		return client.Set(&Item{Key: fullKey, Object: item, CacheActionOpts: *opts})
 	}
 }
 
-func (c *Cache) SetItem(key string, item interface{}, expiration time.Duration, delete bool) error {
-	cacheItem := &Item{
-		Key:        key,
-		Object:     item,
-		Expiration: expiration,
+func (c *Cache) GetItem(key string, item interface{}, opts *CacheActionOpts) error {
+	if opts == nil {
+		opts = &CacheActionOpts{}
 	}
-	return c.SetCacheItem(cacheItem, delete)
-}
-
-func (c *Cache) GetItem(key string, item interface{}) error {
 	key = c.generateFullKey(key)
 	if item == nil {
 		return fmt.Errorf("cannot get item into a nil for key %s", key)
 	}
-	return c.client.Get(key, item)
+	client := c.GetClient()
+	return client.Get(&Item{Key: key, Object: item, CacheActionOpts: *opts})
 }
 
 func (c *Cache) OnUpdated(ctx context.Context, key string, callback func() error) error {

@@ -27,7 +27,7 @@ func TestRedisSetCache(t *testing.T) {
 	t.Run("Successful get", func(t *testing.T) {
 		var res string
 		client := NewRedisCache(redis.NewClient(&redis.Options{Addr: mr.Addr()}), 10*time.Second, RedisCompressionNone)
-		err = client.Get("foo", &res)
+		err = client.Get(&Item{Key: "foo", Object: &res})
 		assert.NoError(t, err)
 		assert.Equal(t, res, "bar")
 	})
@@ -41,7 +41,7 @@ func TestRedisSetCache(t *testing.T) {
 	t.Run("Cache miss", func(t *testing.T) {
 		var res string
 		client := NewRedisCache(redis.NewClient(&redis.Options{Addr: mr.Addr()}), 10*time.Second, RedisCompressionNone)
-		err = client.Get("foo", &res)
+		err = client.Get(&Item{Key: "foo", Object: &res})
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "cache: key is missing")
 	})
@@ -66,7 +66,7 @@ func TestRedisSetCacheCompressed(t *testing.T) {
 	assert.True(t, len(compressedData) > len([]byte(testValue)), "compressed data is bigger than uncompressed")
 
 	var result string
-	assert.NoError(t, client.Get("my-key", &result))
+	assert.NoError(t, client.Get(&Item{Key: "my-key", Object: &result}))
 
 	assert.Equal(t, testValue, result)
 }

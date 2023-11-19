@@ -55,7 +55,6 @@ type Refs struct {
 
 type gitRefCache interface {
 	SetGitReferences(repo string, references []*plumbing.Reference) error
-	GetGitReferences(repo string, references *[]*plumbing.Reference) error
 	GetOrLockGitReferences(repo string, references *[]*plumbing.Reference) (updateCache bool, lockId string, err error)
 	UnlockGitReferences(repo string, lockId string) error
 }

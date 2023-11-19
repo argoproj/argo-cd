@@ -13,6 +13,9 @@ func NewTwoLevelClient(client CacheClient, inMemoryExpiration time.Duration) *tw
 	return &twoLevelClient{inMemoryCache: NewInMemoryCache(inMemoryExpiration), externalCache: client}
 }
 
+// compile-time validation of adherance of the CacheClient contract
+var _ CacheClient = &twoLevelClient{}
+
 type twoLevelClient struct {
 	inMemoryCache *InMemoryCache
 	externalCache CacheClient
@@ -21,6 +24,17 @@ type twoLevelClient struct {
 // Set stores the given value in both in-memory and external cache.
 // Skip storing the value in external cache if the same value already exists in memory to avoid requesting external cache.
 func (c *twoLevelClient) Set(item *Item) error {
+	switch item.CacheType {
+	case CacheTypeInMemory:
+		return c.inMemoryCache.Set(item)
+	case CacheTypeExternal:
+		return c.externalCache.Set(item)
+	default:
+		return c.SetTwoLevel(item)
+	}
+}
+
+func (c *twoLevelClient) SetTwoLevel(item *Item) error {
 	has, err := c.inMemoryCache.HasSame(item.Key, item.Object)
 	if has {
 		return nil
@@ -35,17 +49,28 @@ func (c *twoLevelClient) Set(item *Item) error {
 	return c.externalCache.Set(item)
 }
 
+func (c *twoLevelClient) Get(item *Item) error {
+	switch item.CacheType {
+	case CacheTypeInMemory:
+		return c.inMemoryCache.Get(item)
+	case CacheTypeExternal:
+		return c.externalCache.Get(item)
+	default:
+		return c.GetTwoLevel(item)
+	}
+}
+
 // Get returns cache value from in-memory cache if it present. Otherwise loads it from external cache and persists
 // in memory to avoid future requests to external cache.
-func (c *twoLevelClient) Get(key string, obj interface{}) error {
-	err := c.inMemoryCache.Get(key, obj)
+func (c *twoLevelClient) GetTwoLevel(item *Item) error {
+	err := c.inMemoryCache.Get(item)
 	if err == nil {
 		return nil
 	}
 
-	err = c.externalCache.Get(key, obj)
+	err = c.externalCache.Get(item)
 	if err == nil {
-		_ = c.inMemoryCache.Set(&Item{Key: key, Object: obj})
+		_ = c.inMemoryCache.Set(item)
 	}
 	return err
 }
