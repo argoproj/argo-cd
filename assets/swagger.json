@@ -234,7 +234,7 @@
           },
           {
             "type": "string",
-            "description": "forces application reconciliation if set to 'hard'.",
+            "description": "forces application reconciliation if set to true.",
             "name": "refresh",
             "in": "query"
           },
@@ -573,7 +573,7 @@
           },
           {
             "type": "string",
-            "description": "forces application reconciliation if set to 'hard'.",
+            "description": "forces application reconciliation if set to true.",
             "name": "refresh",
             "in": "query"
           },
@@ -3816,7 +3816,7 @@
           },
           {
             "type": "string",
-            "description": "forces application reconciliation if set to 'hard'.",
+            "description": "forces application reconciliation if set to true.",
             "name": "refresh",
             "in": "query"
           },
@@ -4036,7 +4036,7 @@
       "type": "object",
       "properties": {
         "expiresIn": {
-          "type": "integer",
+          "type": "string",
           "format": "int64",
           "title": "expiresIn represents a duration in seconds"
         },
@@ -4063,14 +4063,14 @@
       "type": "object",
       "properties": {
         "expiresAt": {
-          "type": "integer",
+          "type": "string",
           "format": "int64"
         },
         "id": {
           "type": "string"
         },
         "issuedAt": {
-          "type": "integer",
+          "type": "string",
           "format": "int64"
         }
       }
@@ -4162,7 +4162,7 @@
           "type": "boolean"
         },
         "id": {
-          "type": "integer",
+          "type": "string",
           "format": "int64"
         },
         "name": {
@@ -4462,9 +4462,6 @@
         "clientID": {
           "type": "string"
         },
-        "enablePKCEAuthentication": {
-          "type": "boolean"
-        },
         "idTokenClaims": {
           "type": "object",
           "additionalProperties": {
@@ -4629,7 +4626,7 @@
           "type": "string"
         },
         "type": {
-          "type": "integer",
+          "type": "string",
           "format": "int64"
         }
       }
@@ -4768,7 +4765,7 @@
           "type": "string"
         },
         "expiresIn": {
-          "type": "integer",
+          "type": "string",
           "format": "int64",
           "title": "expiresIn represents a duration in seconds"
         },
@@ -5092,7 +5089,7 @@
       }
     },
     "runtimeRawExtension": {
-      "description": "RawExtension is used to hold extensions in external versions.\n\nTo use this, make a field which has RawExtension as its type in your external, versioned\nstruct, and Object in your internal struct. You also need to register your\nvarious plugin types.\n\n// Internal package:\n\n\ttype MyAPIObject struct {\n\t\truntime.TypeMeta `json:\",inline\"`\n\t\tMyPlugin runtime.Object `json:\"myPlugin\"`\n\t}\n\n\ttype PluginA struct {\n\t\tAOption string `json:\"aOption\"`\n\t}\n\n// External package:\n\n\ttype MyAPIObject struct {\n\t\truntime.TypeMeta `json:\",inline\"`\n\t\tMyPlugin runtime.RawExtension `json:\"myPlugin\"`\n\t}\n\n\ttype PluginA struct {\n\t\tAOption string `json:\"aOption\"`\n\t}\n\n// On the wire, the JSON will look something like this:\n\n\t{\n\t\t\"kind\":\"MyAPIObject\",\n\t\t\"apiVersion\":\"v1\",\n\t\t\"myPlugin\": {\n\t\t\t\"kind\":\"PluginA\",\n\t\t\t\"aOption\":\"foo\",\n\t\t},\n\t}\n\nSo what happens? Decode first uses json or yaml to unmarshal the serialized data into\nyour external MyAPIObject. That causes the raw JSON to be stored, but not unpacked.\nThe next step is to copy (using pkg/conversion) into the internal struct. The runtime\npackage's DefaultScheme has conversion functions installed which will unpack the\nJSON stored in RawExtension, turning it into the correct object type, and storing it\nin the Object. (TODO: In the case where the object is of an unknown type, a\nruntime.Unknown object will be created and stored.)\n\n+k8s:deepcopy-gen=true\n+protobuf=true\n+k8s:openapi-gen=true",
+      "description": "RawExtension is used to hold extensions in external versions.\n\nTo use this, make a field which has RawExtension as its type in your external, versioned\nstruct, and Object in your internal struct. You also need to register your\nvarious plugin types.\n\n// Internal package:\ntype MyAPIObject struct {\n\truntime.TypeMeta `json:\",inline\"`\n\tMyPlugin runtime.Object `json:\"myPlugin\"`\n}\ntype PluginA struct {\n\tAOption string `json:\"aOption\"`\n}\n\n// External package:\ntype MyAPIObject struct {\n\truntime.TypeMeta `json:\",inline\"`\n\tMyPlugin runtime.RawExtension `json:\"myPlugin\"`\n}\ntype PluginA struct {\n\tAOption string `json:\"aOption\"`\n}\n\n// On the wire, the JSON will look something like this:\n{\n\t\"kind\":\"MyAPIObject\",\n\t\"apiVersion\":\"v1\",\n\t\"myPlugin\": {\n\t\t\"kind\":\"PluginA\",\n\t\t\"aOption\":\"foo\",\n\t},\n}\n\nSo what happens? Decode first uses json or yaml to unmarshal the serialized data into\nyour external MyAPIObject. That causes the raw JSON to be stored, but not unpacked.\nThe next step is to copy (using pkg/conversion) into the internal struct. The runtime\npackage's DefaultScheme has conversion functions installed which will unpack the\nJSON stored in RawExtension, turning it into the correct object type, and storing it\nin the Object. (TODO: In the case where the object is of an unknown type, a\nruntime.Unknown object will be created and stored.)\n\n+k8s:deepcopy-gen=true\n+protobuf=true\n+k8s:openapi-gen=true",
       "type": "object",
       "properties": {
         "raw": {
@@ -5359,7 +5356,7 @@
           "type": "string"
         },
         "remainingItemCount": {
-          "type": "integer",
+          "type": "string",
           "format": "int64",
           "title": "remainingItemCount is the number of subsequent items in the list which are not included in this\nlist response. If the list request contained label or field selectors, then the number of\nremaining items is unknown and the field will be left unset and omitted during serialization.\nIf the list is complete (either because it is not chunking or because this is the last chunk),\nthen there are no more remaining items and this field will be left unset and omitted during\nserialization.\nServers older than v1.15 do not set this field.\nThe intended use of the remainingItemCount is *estimating* the size of a collection. Clients\nshould not rely on the remainingItemCount to be set or to be exact.\n+optional"
         },
@@ -5437,7 +5434,7 @@
         },
         "seconds": {
           "description": "Represents seconds of UTC time since Unix epoch\n1970-01-01T00:00:00Z. Must be from 0001-01-01T00:00:00Z to\n9999-12-31T23:59:59Z inclusive.",
-          "type": "integer",
+          "type": "string",
           "format": "int64"
         }
       }
@@ -5499,11 +5496,15 @@
             "type": "string"
           }
         },
+        "clusterName": {
+          "description": "Deprecated: ClusterName is a legacy field that was always cleared by\nthe system and never used; it will be removed completely in 1.25.\n\nThe name in the go struct is changed to help clients detect\naccidental use.\n\n+optional",
+          "type": "string"
+        },
         "creationTimestamp": {
           "$ref": "#/definitions/v1Time"
         },
         "deletionGracePeriodSeconds": {
-          "type": "integer",
+          "type": "string",
           "format": "int64",
           "title": "Number of seconds allowed for this object to gracefully terminate before\nit will be removed from the system. Only set when deletionTimestamp is also set.\nMay only be shortened.\nRead-only.\n+optional"
         },
@@ -5522,7 +5523,7 @@
           "type": "string"
         },
         "generation": {
-          "type": "integer",
+          "type": "string",
           "format": "int64",
           "title": "A sequence number representing a specific generation of the desired state.\nPopulated by the system. Read-only.\n+optional"
         },
@@ -5570,8 +5571,8 @@
       }
     },
     "v1ObjectReference": {
-      "description": "ObjectReference contains enough information to let you inspect or modify the referred object.\n---\nNew uses of this type are discouraged because of difficulty describing its usage when embedded in APIs.\n 1. Ignored fields.  It includes many fields which are not generally honored.  For instance, ResourceVersion and FieldPath are both very rarely valid in actual usage.\n 2. Invalid usage help.  It is impossible to add specific help for individual usage.  In most embedded usages, there are particular\n    restrictions like, \"must refer only to types A and B\" or \"UID not honored\" or \"name must be restricted\".\n    Those cannot be well described when embedded.\n 3. Inconsistent validation.  Because the usages are different, the validation rules are different by usage, which makes it hard for users to predict what will happen.\n 4. The fields are both imprecise and overly precise.  Kind is not a precise mapping to a URL. This can produce ambiguity\n    during interpretation and require a REST mapping.  In most cases, the dependency is on the group,resource tuple\n    and the version of the actual struct is irrelevant.\n 5. We cannot easily change it.  Because this type is embedded in many locations, updates to this type\n    will affect numerous schemas.  Don't make new APIs embed an underspecified API type they do not control.\n\nInstead of using this type, create a locally provided and used type that is well-focused on your reference.\nFor example, ServiceReferences for admission registration: https://github.com/kubernetes/api/blob/release-1.17/admissionregistration/v1/types.go#L533 .\n+k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object\n+structType=atomic",
       "type": "object",
+      "title": "ObjectReference contains enough information to let you inspect or modify the referred object.\n---\nNew uses of this type are discouraged because of difficulty describing its usage when embedded in APIs.\n 1. Ignored fields.  It includes many fields which are not generally honored.  For instance, ResourceVersion and FieldPath are both very rarely valid in actual usage.\n 2. Invalid usage help.  It is impossible to add specific help for individual usage.  In most embedded usages, there are particular\n    restrictions like, \"must refer only to types A and B\" or \"UID not honored\" or \"name must be restricted\".\n    Those cannot be well described when embedded.\n 3. Inconsistent validation.  Because the usages are different, the validation rules are different by usage, which makes it hard for users to predict what will happen.\n 4. The fields are both imprecise and overly precise.  Kind is not a precise mapping to a URL. This can produce ambiguity\n    during interpretation and require a REST mapping.  In most cases, the dependency is on the group,resource tuple\n    and the version of the actual struct is irrelevant.\n 5. We cannot easily change it.  Because this type is embedded in many locations, updates to this type\n    will affect numerous schemas.  Don't make new APIs embed an underspecified API type they do not control.\nInstead of using this type, create a locally provided and used type that is well-focused on your reference.\nFor example, ServiceReferences for admission registration: https://github.com/kubernetes/api/blob/release-1.17/admissionregistration/v1/types.go#L533 .\n+k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object\n+structType=atomic",
       "properties": {
         "apiVersion": {
           "type": "string",
@@ -5653,8 +5654,19 @@
     },
     "v1Time": {
       "description": "Time is a wrapper around time.Time which supports correct\nmarshaling to YAML and JSON.  Wrappers are provided for many\nof the factory methods that the time package offers.\n\n+protobuf.options.marshal=false\n+protobuf.as=Timestamp\n+protobuf.options.(gogoproto.goproto_stringer)=false",
-      "type": "string",
-      "format": "date-time"
+      "type": "object",
+      "properties": {
+        "nanos": {
+          "description": "Non-negative fractions of a second at nanosecond resolution. Negative\nsecond values with fractions must still have non-negative nanos values\nthat count forward in time. Must be from 0 to 999,999,999\ninclusive. This field may be limited in precision depending on context.",
+          "type": "integer",
+          "format": "int32"
+        },
+        "seconds": {
+          "description": "Represents seconds of UTC time since Unix epoch\n1970-01-01T00:00:00Z. Must be from 0001-01-01T00:00:00Z to\n9999-12-31T23:59:59Z inclusive.",
+          "type": "string",
+          "format": "int64"
+        }
+      }
     },
     "v1alpha1AWSAuthConfig": {
       "type": "object",
@@ -5840,16 +5852,16 @@
       "title": "ApplicationDestination holds information about the application's destination",
       "properties": {
         "name": {
-          "description": "Name is an alternate way of specifying the target cluster by its symbolic name. This must be set if Server is not set.",
-          "type": "string"
+          "type": "string",
+          "title": "Name is an alternate way of specifying the target cluster by its symbolic name"
         },
         "namespace": {
           "type": "string",
           "title": "Namespace specifies the target namespace for the application's resources.\nThe namespace will only be set for namespace-scoped resources that have not set a value for .metadata.namespace"
         },
         "server": {
-          "description": "Server specifies the URL of the target cluster's Kubernetes control plane API. This must be set if Name is not set.",
-          "type": "string"
+          "type": "string",
+          "title": "Server specifies the URL of the target cluster and must be set to the Kubernetes control plane API"
         }
       }
     },
@@ -5889,12 +5901,6 @@
       "type": "object",
       "properties": {
         "annotations": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        },
-        "labels": {
           "type": "array",
           "items": {
             "type": "string"
@@ -6054,30 +6060,6 @@
         }
       }
     },
-    "v1alpha1ApplicationSetResourceIgnoreDifferences": {
-      "description": "ApplicationSetResourceIgnoreDifferences configures how the ApplicationSet controller will ignore differences in live\napplications when applying changes from generated applications.",
-      "type": "object",
-      "properties": {
-        "jqPathExpressions": {
-          "description": "JQPathExpressions is a list of JQ path expressions to fields to ignore differences for.",
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        },
-        "jsonPointers": {
-          "description": "JSONPointers is a list of JSON pointers to fields to ignore differences for.",
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        },
-        "name": {
-          "description": "Name is the name of the application to ignore differences for. If not specified, the rule applies to all applications.",
-          "type": "string"
-        }
-      }
-    },
     "v1alpha1ApplicationSetRolloutStep": {
       "type": "object",
       "properties": {
@@ -6124,12 +6106,6 @@
           "type": "array",
           "items": {
             "type": "string"
-          }
-        },
-        "ignoreApplicationDifferences": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/v1alpha1ApplicationSetResourceIgnoreDifferences"
           }
         },
         "preservedFields": {
@@ -6395,13 +6371,6 @@
             "type": "string"
           }
         },
-        "components": {
-          "type": "array",
-          "title": "Components specifies a list of kustomize components to add to the kustomization before building",
-          "items": {
-            "type": "string"
-          }
-        },
         "forceCommonAnnotations": {
           "type": "boolean",
           "title": "ForceCommonAnnotations specifies whether to force applying common annotations to resources for Kustomize apps"
@@ -6428,13 +6397,6 @@
         "namespace": {
           "type": "string",
           "title": "Namespace sets the namespace that Kustomize adds to all resources"
-        },
-        "patches": {
-          "type": "array",
-          "title": "Patches is a list of Kustomize patches",
-          "items": {
-            "$ref": "#/definitions/v1alpha1KustomizePatch"
-          }
         },
         "replicas": {
           "type": "array",
@@ -6524,7 +6486,7 @@
         },
         "revisionHistoryLimit": {
           "description": "RevisionHistoryLimit limits the number of items kept in the application's revision history, which is used for informational purposes as well as for rollbacks to previous versions.\nThis should only be changed in exceptional circumstances.\nSetting to zero will store no history. This will reduce storage used.\nIncreasing will increase the space used to store the history, so we do not recommend increasing it.\nDefault is 10.",
-          "type": "integer",
+          "type": "string",
           "format": "int64"
         },
         "source": {
@@ -6674,7 +6636,7 @@
           "title": "Duration is the amount to back off. Default unit is seconds, but could also be a duration (e.g. \"2m\", \"1h\")"
         },
         "factor": {
-          "type": "integer",
+          "type": "string",
           "format": "int64",
           "title": "Factor is a factor to multiply the base duration after each failed retry"
         },
@@ -6785,7 +6747,7 @@
         },
         "shard": {
           "description": "Shard contains optional shard number. Calculated on the fly by the application controller if not specified.",
-          "type": "integer",
+          "type": "string",
           "format": "int64"
         }
       }
@@ -6795,7 +6757,7 @@
       "title": "ClusterCacheInfo contains information about the cluster cache",
       "properties": {
         "apisCount": {
-          "type": "integer",
+          "type": "string",
           "format": "int64",
           "title": "APIsCount holds number of observed Kubernetes API count"
         },
@@ -6803,7 +6765,7 @@
           "$ref": "#/definitions/v1Time"
         },
         "resourcesCount": {
-          "type": "integer",
+          "type": "string",
           "format": "int64",
           "title": "ResourcesCount holds number of observed Kubernetes resources"
         }
@@ -6866,7 +6828,7 @@
           }
         },
         "applicationsCount": {
-          "type": "integer",
+          "type": "string",
           "format": "int64",
           "title": "ApplicationsCount is the number of applications managed by Argo CD on the cluster"
         },
@@ -6991,7 +6953,7 @@
           "type": "string"
         },
         "requeueAfterSeconds": {
-          "type": "integer",
+          "type": "string",
           "format": "int64"
         },
         "template": {
@@ -7079,7 +7041,7 @@
           "type": "string"
         },
         "requeueAfterSeconds": {
-          "type": "integer",
+          "type": "string",
           "format": "int64"
         },
         "revision": {
@@ -7211,15 +7173,15 @@
       "title": "TODO: describe this type",
       "properties": {
         "capacity": {
-          "type": "integer",
+          "type": "string",
           "format": "int64"
         },
         "requestedByApp": {
-          "type": "integer",
+          "type": "string",
           "format": "int64"
         },
         "requestedByNeighbors": {
-          "type": "integer",
+          "type": "string",
           "format": "int64"
         },
         "resourceName": {
@@ -7257,11 +7219,11 @@
       "title": "JWTToken holds the issuedAt and expiresAt values of a token",
       "properties": {
         "exp": {
-          "type": "integer",
+          "type": "string",
           "format": "int64"
         },
         "iat": {
-          "type": "integer",
+          "type": "string",
           "format": "int64"
         },
         "id": {
@@ -7308,20 +7270,6 @@
         }
       }
     },
-    "v1alpha1KustomizeGvk": {
-      "type": "object",
-      "properties": {
-        "group": {
-          "type": "string"
-        },
-        "kind": {
-          "type": "string"
-        },
-        "version": {
-          "type": "string"
-        }
-      }
-    },
     "v1alpha1KustomizeOptions": {
       "type": "object",
       "title": "KustomizeOptions are options for kustomize to use when building manifests",
@@ -7336,26 +7284,6 @@
         }
       }
     },
-    "v1alpha1KustomizePatch": {
-      "type": "object",
-      "properties": {
-        "options": {
-          "type": "object",
-          "additionalProperties": {
-            "type": "boolean"
-          }
-        },
-        "patch": {
-          "type": "string"
-        },
-        "path": {
-          "type": "string"
-        },
-        "target": {
-          "$ref": "#/definitions/v1alpha1KustomizeSelector"
-        }
-      }
-    },
     "v1alpha1KustomizeReplica": {
       "type": "object",
       "properties": {
@@ -7365,34 +7293,6 @@
         "name": {
           "type": "string",
           "title": "Name of Deployment or StatefulSet"
-        }
-      }
-    },
-    "v1alpha1KustomizeResId": {
-      "type": "object",
-      "properties": {
-        "gvk": {
-          "$ref": "#/definitions/v1alpha1KustomizeGvk"
-        },
-        "name": {
-          "type": "string"
-        },
-        "namespace": {
-          "type": "string"
-        }
-      }
-    },
-    "v1alpha1KustomizeSelector": {
-      "type": "object",
-      "properties": {
-        "annotationSelector": {
-          "type": "string"
-        },
-        "labelSelector": {
-          "type": "string"
-        },
-        "resId": {
-          "$ref": "#/definitions/v1alpha1KustomizeResId"
         }
       }
     },
@@ -7522,7 +7422,7 @@
           "title": "Phase is the current phase of the operation"
         },
         "retryCount": {
-          "type": "integer",
+          "type": "string",
           "format": "int64",
           "title": "RetryCount contains time of operation retries"
         },
@@ -7614,7 +7514,7 @@
         },
         "requeueAfterSeconds": {
           "description": "RequeueAfterSeconds determines how long the ApplicationSet controller will wait before reconciling the ApplicationSet again.",
-          "type": "integer",
+          "type": "string",
           "format": "int64"
         },
         "template": {
@@ -7707,7 +7607,7 @@
         },
         "requeueAfterSeconds": {
           "description": "Standard parameters.",
-          "type": "integer",
+          "type": "string",
           "format": "int64"
         },
         "template": {
@@ -7914,12 +7814,12 @@
           "title": "GithubAppEnterpriseBaseURL specifies the GitHub API URL for GitHub app authentication. If empty will default to https://api.github.com"
         },
         "githubAppID": {
-          "type": "integer",
+          "type": "string",
           "format": "int64",
           "title": "GithubAppId specifies the Github App ID of the app used to access the repo for GitHub app authentication"
         },
         "githubAppInstallationID": {
-          "type": "integer",
+          "type": "string",
           "format": "int64",
           "title": "GithubAppInstallationId specifies the ID of the installed GitHub App for GitHub app authentication"
         },
@@ -8004,12 +7904,12 @@
           "title": "GithubAppEnterpriseBaseURL specifies the base URL of GitHub Enterprise installation. If empty will default to https://api.github.com"
         },
         "githubAppID": {
-          "type": "integer",
+          "type": "string",
           "format": "int64",
           "title": "GithubAppId specifies the ID of the GitHub app used to access the repo"
         },
         "githubAppInstallationID": {
-          "type": "integer",
+          "type": "string",
           "format": "int64",
           "title": "GithubAppInstallationId specifies the installation ID of the GitHub App used to access the repo"
         },
@@ -8323,15 +8223,13 @@
             "$ref": "#/definitions/v1alpha1ResourceRef"
           }
         },
+        "resourceRef": {
+          "$ref": "#/definitions/v1alpha1ResourceRef"
+        },
         "resourceVersion": {
           "type": "string"
         }
-      },
-      "allOf": [
-        {
-          "$ref": "#/definitions/v1alpha1ResourceRef"
-        }
-      ]
+      }
     },
     "v1alpha1ResourceOverride": {
       "type": "object",
@@ -8459,7 +8357,7 @@
           "type": "string"
         },
         "syncWave": {
-          "type": "integer",
+          "type": "string",
           "format": "int64"
         },
         "version": {
@@ -8476,7 +8374,7 @@
         },
         "limit": {
           "description": "Limit is the maximum number of attempts for retrying a failed sync. If set to 0, no retries will be performed.",
-          "type": "integer",
+          "type": "string",
           "format": "int64"
         }
       }
@@ -8492,7 +8390,7 @@
           "$ref": "#/definitions/v1Time"
         },
         "id": {
-          "type": "integer",
+          "type": "string",
           "format": "int64",
           "title": "ID is an auto incrementing identifier of the RevisionHistory"
         },
@@ -8585,7 +8483,7 @@
         },
         "requeueAfterSeconds": {
           "description": "Standard parameters.",
-          "type": "integer",
+          "type": "string",
           "format": "int64"
         },
         "template": {
@@ -8790,10 +8688,6 @@
           "description": "Gitlab group to scan. Required.  You can use either the project id (recommended) or the full namespaced path.",
           "type": "string"
         },
-        "includeSharedProjects": {
-          "type": "boolean",
-          "title": "When recursing through subgroups, also include shared Projects (true) or scan only the subgroups under same path (false).  Defaults to \"true\""
-        },
         "includeSubgroups": {
           "type": "boolean",
           "title": "Recurse through subgroups (true) or scan only the base group (false).  Defaults to \"false\""
@@ -8804,10 +8698,6 @@
         },
         "tokenRef": {
           "$ref": "#/definitions/v1alpha1SecretRef"
-        },
-        "topic": {
-          "description": "Filter repos list based on Gitlab Topic.",
-          "type": "string"
         }
       }
     },

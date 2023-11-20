@@ -319,12 +319,6 @@ spec:
                             description: CommonLabels is a list of additional labels
                               to add to rendered manifests
                             type: object
-                          components:
-                            description: Components specifies a list of kustomize
-                              components to add to the kustomization before building
-                            items:
-                              type: string
-                            type: array
                           forceCommonAnnotations:
                             description: ForceCommonAnnotations specifies whether
                               to force applying common annotations to resources for
@@ -354,37 +348,6 @@ spec:
                             description: Namespace sets the namespace that Kustomize
                               adds to all resources
                             type: string
-                          patches:
-                            description: Patches is a list of Kustomize patches
-                            items:
-                              properties:
-                                options:
-                                  additionalProperties:
-                                    type: boolean
-                                  type: object
-                                patch:
-                                  type: string
-                                path:
-                                  type: string
-                                target:
-                                  properties:
-                                    annotationSelector:
-                                      type: string
-                                    group:
-                                      type: string
-                                    kind:
-                                      type: string
-                                    labelSelector:
-                                      type: string
-                                    name:
-                                      type: string
-                                    namespace:
-                                      type: string
-                                    version:
-                                      type: string
-                                  type: object
-                              type: object
-                            type: array
                           replicas:
                             description: Replicas is a list of Kustomize Replicas
                               override specifications
@@ -653,12 +616,6 @@ spec:
                               description: CommonLabels is a list of additional labels
                                 to add to rendered manifests
                               type: object
-                            components:
-                              description: Components specifies a list of kustomize
-                                components to add to the kustomization before building
-                              items:
-                                type: string
-                              type: array
                             forceCommonAnnotations:
                               description: ForceCommonAnnotations specifies whether
                                 to force applying common annotations to resources
@@ -689,37 +646,6 @@ spec:
                               description: Namespace sets the namespace that Kustomize
                                 adds to all resources
                               type: string
-                            patches:
-                              description: Patches is a list of Kustomize patches
-                              items:
-                                properties:
-                                  options:
-                                    additionalProperties:
-                                      type: boolean
-                                    type: object
-                                  patch:
-                                    type: string
-                                  path:
-                                    type: string
-                                  target:
-                                    properties:
-                                      annotationSelector:
-                                        type: string
-                                      group:
-                                        type: string
-                                      kind:
-                                        type: string
-                                      labelSelector:
-                                        type: string
-                                      name:
-                                        type: string
-                                      namespace:
-                                        type: string
-                                      version:
-                                        type: string
-                                    type: object
-                                type: object
-                              type: array
                             replicas:
                               description: Replicas is a list of Kustomize Replicas
                                 override specifications
@@ -860,8 +786,7 @@ spec:
                 properties:
                   name:
                     description: Name is an alternate way of specifying the target
-                      cluster by its symbolic name. This must be set if Server is
-                      not set.
+                      cluster by its symbolic name
                     type: string
                   namespace:
                     description: Namespace specifies the target namespace for the
@@ -869,9 +794,8 @@ spec:
                       namespace-scoped resources that have not set a value for .metadata.namespace
                     type: string
                   server:
-                    description: Server specifies the URL of the target cluster's
-                      Kubernetes control plane API. This must be set if Name is not
-                      set.
+                    description: Server specifies the URL of the target cluster and
+                      must be set to the Kubernetes control plane API
                     type: string
                 type: object
               ignoreDifferences:
@@ -1104,12 +1028,6 @@ spec:
                         description: CommonLabels is a list of additional labels to
                           add to rendered manifests
                         type: object
-                      components:
-                        description: Components specifies a list of kustomize components
-                          to add to the kustomization before building
-                        items:
-                          type: string
-                        type: array
                       forceCommonAnnotations:
                         description: ForceCommonAnnotations specifies whether to force
                           applying common annotations to resources for Kustomize apps
@@ -1138,37 +1056,6 @@ spec:
                         description: Namespace sets the namespace that Kustomize adds
                           to all resources
                         type: string
-                      patches:
-                        description: Patches is a list of Kustomize patches
-                        items:
-                          properties:
-                            options:
-                              additionalProperties:
-                                type: boolean
-                              type: object
-                            patch:
-                              type: string
-                            path:
-                              type: string
-                            target:
-                              properties:
-                                annotationSelector:
-                                  type: string
-                                group:
-                                  type: string
-                                kind:
-                                  type: string
-                                labelSelector:
-                                  type: string
-                                name:
-                                  type: string
-                                namespace:
-                                  type: string
-                                version:
-                                  type: string
-                              type: object
-                          type: object
-                        type: array
                       replicas:
                         description: Replicas is a list of Kustomize Replicas override
                           specifications
@@ -1428,12 +1315,6 @@ spec:
                           description: CommonLabels is a list of additional labels
                             to add to rendered manifests
                           type: object
-                        components:
-                          description: Components specifies a list of kustomize components
-                            to add to the kustomization before building
-                          items:
-                            type: string
-                          type: array
                         forceCommonAnnotations:
                           description: ForceCommonAnnotations specifies whether to
                             force applying common annotations to resources for Kustomize
@@ -1463,37 +1344,6 @@ spec:
                           description: Namespace sets the namespace that Kustomize
                             adds to all resources
                           type: string
-                        patches:
-                          description: Patches is a list of Kustomize patches
-                          items:
-                            properties:
-                              options:
-                                additionalProperties:
-                                  type: boolean
-                                type: object
-                              patch:
-                                type: string
-                              path:
-                                type: string
-                              target:
-                                properties:
-                                  annotationSelector:
-                                    type: string
-                                  group:
-                                    type: string
-                                  kind:
-                                    type: string
-                                  labelSelector:
-                                    type: string
-                                  name:
-                                    type: string
-                                  namespace:
-                                    type: string
-                                  version:
-                                    type: string
-                                type: object
-                            type: object
-                          type: array
                         replicas:
                           description: Replicas is a list of Kustomize Replicas override
                             specifications
@@ -1905,12 +1755,6 @@ spec:
                               description: CommonLabels is a list of additional labels
                                 to add to rendered manifests
                               type: object
-                            components:
-                              description: Components specifies a list of kustomize
-                                components to add to the kustomization before building
-                              items:
-                                type: string
-                              type: array
                             forceCommonAnnotations:
                               description: ForceCommonAnnotations specifies whether
                                 to force applying common annotations to resources
@@ -1941,37 +1785,6 @@ spec:
                               description: Namespace sets the namespace that Kustomize
                                 adds to all resources
                               type: string
-                            patches:
-                              description: Patches is a list of Kustomize patches
-                              items:
-                                properties:
-                                  options:
-                                    additionalProperties:
-                                      type: boolean
-                                    type: object
-                                  patch:
-                                    type: string
-                                  path:
-                                    type: string
-                                  target:
-                                    properties:
-                                      annotationSelector:
-                                        type: string
-                                      group:
-                                        type: string
-                                      kind:
-                                        type: string
-                                      labelSelector:
-                                        type: string
-                                      name:
-                                        type: string
-                                      namespace:
-                                        type: string
-                                      version:
-                                        type: string
-                                    type: object
-                                type: object
-                              type: array
                             replicas:
                               description: Replicas is a list of Kustomize Replicas
                                 override specifications
@@ -2243,12 +2056,6 @@ spec:
                                 description: CommonLabels is a list of additional
                                   labels to add to rendered manifests
                                 type: object
-                              components:
-                                description: Components specifies a list of kustomize
-                                  components to add to the kustomization before building
-                                items:
-                                  type: string
-                                type: array
                               forceCommonAnnotations:
                                 description: ForceCommonAnnotations specifies whether
                                   to force applying common annotations to resources
@@ -2279,37 +2086,6 @@ spec:
                                 description: Namespace sets the namespace that Kustomize
                                   adds to all resources
                                 type: string
-                              patches:
-                                description: Patches is a list of Kustomize patches
-                                items:
-                                  properties:
-                                    options:
-                                      additionalProperties:
-                                        type: boolean
-                                      type: object
-                                    patch:
-                                      type: string
-                                    path:
-                                      type: string
-                                    target:
-                                      properties:
-                                        annotationSelector:
-                                          type: string
-                                        group:
-                                          type: string
-                                        kind:
-                                          type: string
-                                        labelSelector:
-                                          type: string
-                                        name:
-                                          type: string
-                                        namespace:
-                                          type: string
-                                        version:
-                                          type: string
-                                      type: object
-                                  type: object
-                                type: array
                               replicas:
                                 description: Replicas is a list of Kustomize Replicas
                                   override specifications
@@ -2725,13 +2501,6 @@ spec:
                                     description: CommonLabels is a list of additional
                                       labels to add to rendered manifests
                                     type: object
-                                  components:
-                                    description: Components specifies a list of kustomize
-                                      components to add to the kustomization before
-                                      building
-                                    items:
-                                      type: string
-                                    type: array
                                   forceCommonAnnotations:
                                     description: ForceCommonAnnotations specifies
                                       whether to force applying common annotations
@@ -2762,37 +2531,6 @@ spec:
                                     description: Namespace sets the namespace that
                                       Kustomize adds to all resources
                                     type: string
-                                  patches:
-                                    description: Patches is a list of Kustomize patches
-                                    items:
-                                      properties:
-                                        options:
-                                          additionalProperties:
-                                            type: boolean
-                                          type: object
-                                        patch:
-                                          type: string
-                                        path:
-                                          type: string
-                                        target:
-                                          properties:
-                                            annotationSelector:
-                                              type: string
-                                            group:
-                                              type: string
-                                            kind:
-                                              type: string
-                                            labelSelector:
-                                              type: string
-                                            name:
-                                              type: string
-                                            namespace:
-                                              type: string
-                                            version:
-                                              type: string
-                                          type: object
-                                      type: object
-                                    type: array
                                   replicas:
                                     description: Replicas is a list of Kustomize Replicas
                                       override specifications
@@ -3081,13 +2819,6 @@ spec:
                                       description: CommonLabels is a list of additional
                                         labels to add to rendered manifests
                                       type: object
-                                    components:
-                                      description: Components specifies a list of
-                                        kustomize components to add to the kustomization
-                                        before building
-                                      items:
-                                        type: string
-                                      type: array
                                     forceCommonAnnotations:
                                       description: ForceCommonAnnotations specifies
                                         whether to force applying common annotations
@@ -3118,38 +2849,6 @@ spec:
                                       description: Namespace sets the namespace that
                                         Kustomize adds to all resources
                                       type: string
-                                    patches:
-                                      description: Patches is a list of Kustomize
-                                        patches
-                                      items:
-                                        properties:
-                                          options:
-                                            additionalProperties:
-                                              type: boolean
-                                            type: object
-                                          patch:
-                                            type: string
-                                          path:
-                                            type: string
-                                          target:
-                                            properties:
-                                              annotationSelector:
-                                                type: string
-                                              group:
-                                                type: string
-                                              kind:
-                                                type: string
-                                              labelSelector:
-                                                type: string
-                                              name:
-                                                type: string
-                                              namespace:
-                                                type: string
-                                              version:
-                                                type: string
-                                            type: object
-                                        type: object
-                                      type: array
                                     replicas:
                                       description: Replicas is a list of Kustomize
                                         Replicas override specifications
@@ -3552,12 +3251,6 @@ spec:
                                 description: CommonLabels is a list of additional
                                   labels to add to rendered manifests
                                 type: object
-                              components:
-                                description: Components specifies a list of kustomize
-                                  components to add to the kustomization before building
-                                items:
-                                  type: string
-                                type: array
                               forceCommonAnnotations:
                                 description: ForceCommonAnnotations specifies whether
                                   to force applying common annotations to resources
@@ -3588,37 +3281,6 @@ spec:
                                 description: Namespace sets the namespace that Kustomize
                                   adds to all resources
                                 type: string
-                              patches:
-                                description: Patches is a list of Kustomize patches
-                                items:
-                                  properties:
-                                    options:
-                                      additionalProperties:
-                                        type: boolean
-                                      type: object
-                                    patch:
-                                      type: string
-                                    path:
-                                      type: string
-                                    target:
-                                      properties:
-                                        annotationSelector:
-                                          type: string
-                                        group:
-                                          type: string
-                                        kind:
-                                          type: string
-                                        labelSelector:
-                                          type: string
-                                        name:
-                                          type: string
-                                        namespace:
-                                          type: string
-                                        version:
-                                          type: string
-                                      type: object
-                                  type: object
-                                type: array
                               replicas:
                                 description: Replicas is a list of Kustomize Replicas
                                   override specifications
@@ -3900,13 +3562,6 @@ spec:
                                   description: CommonLabels is a list of additional
                                     labels to add to rendered manifests
                                   type: object
-                                components:
-                                  description: Components specifies a list of kustomize
-                                    components to add to the kustomization before
-                                    building
-                                  items:
-                                    type: string
-                                  type: array
                                 forceCommonAnnotations:
                                   description: ForceCommonAnnotations specifies whether
                                     to force applying common annotations to resources
@@ -3937,37 +3592,6 @@ spec:
                                   description: Namespace sets the namespace that Kustomize
                                     adds to all resources
                                   type: string
-                                patches:
-                                  description: Patches is a list of Kustomize patches
-                                  items:
-                                    properties:
-                                      options:
-                                        additionalProperties:
-                                          type: boolean
-                                        type: object
-                                      patch:
-                                        type: string
-                                      path:
-                                        type: string
-                                      target:
-                                        properties:
-                                          annotationSelector:
-                                            type: string
-                                          group:
-                                            type: string
-                                          kind:
-                                            type: string
-                                          labelSelector:
-                                            type: string
-                                          name:
-                                            type: string
-                                          namespace:
-                                            type: string
-                                          version:
-                                            type: string
-                                        type: object
-                                    type: object
-                                  type: array
                                 replicas:
                                   description: Replicas is a list of Kustomize Replicas
                                     override specifications
@@ -4169,8 +3793,7 @@ spec:
                         properties:
                           name:
                             description: Name is an alternate way of specifying the
-                              target cluster by its symbolic name. This must be set
-                              if Server is not set.
+                              target cluster by its symbolic name
                             type: string
                           namespace:
                             description: Namespace specifies the target namespace
@@ -4179,9 +3802,8 @@ spec:
                               not set a value for .metadata.namespace
                             type: string
                           server:
-                            description: Server specifies the URL of the target cluster's
-                              Kubernetes control plane API. This must be set if Name
-                              is not set.
+                            description: Server specifies the URL of the target cluster
+                              and must be set to the Kubernetes control plane API
                             type: string
                         type: object
                       ignoreDifferences:
@@ -4393,12 +4015,6 @@ spec:
                                 description: CommonLabels is a list of additional
                                   labels to add to rendered manifests
                                 type: object
-                              components:
-                                description: Components specifies a list of kustomize
-                                  components to add to the kustomization before building
-                                items:
-                                  type: string
-                                type: array
                               forceCommonAnnotations:
                                 description: ForceCommonAnnotations specifies whether
                                   to force applying common annotations to resources
@@ -4429,37 +4045,6 @@ spec:
                                 description: Namespace sets the namespace that Kustomize
                                   adds to all resources
                                 type: string
-                              patches:
-                                description: Patches is a list of Kustomize patches
-                                items:
-                                  properties:
-                                    options:
-                                      additionalProperties:
-                                        type: boolean
-                                      type: object
-                                    patch:
-                                      type: string
-                                    path:
-                                      type: string
-                                    target:
-                                      properties:
-                                        annotationSelector:
-                                          type: string
-                                        group:
-                                          type: string
-                                        kind:
-                                          type: string
-                                        labelSelector:
-                                          type: string
-                                        name:
-                                          type: string
-                                        namespace:
-                                          type: string
-                                        version:
-                                          type: string
-                                      type: object
-                                  type: object
-                                type: array
                               replicas:
                                 description: Replicas is a list of Kustomize Replicas
                                   override specifications
@@ -4741,13 +4326,6 @@ spec:
                                   description: CommonLabels is a list of additional
                                     labels to add to rendered manifests
                                   type: object
-                                components:
-                                  description: Components specifies a list of kustomize
-                                    components to add to the kustomization before
-                                    building
-                                  items:
-                                    type: string
-                                  type: array
                                 forceCommonAnnotations:
                                   description: ForceCommonAnnotations specifies whether
                                     to force applying common annotations to resources
@@ -4778,37 +4356,6 @@ spec:
                                   description: Namespace sets the namespace that Kustomize
                                     adds to all resources
                                   type: string
-                                patches:
-                                  description: Patches is a list of Kustomize patches
-                                  items:
-                                    properties:
-                                      options:
-                                        additionalProperties:
-                                          type: boolean
-                                        type: object
-                                      patch:
-                                        type: string
-                                      path:
-                                        type: string
-                                      target:
-                                        properties:
-                                          annotationSelector:
-                                            type: string
-                                          group:
-                                            type: string
-                                          kind:
-                                            type: string
-                                          labelSelector:
-                                            type: string
-                                          name:
-                                            type: string
-                                          namespace:
-                                            type: string
-                                          version:
-                                            type: string
-                                        type: object
-                                    type: object
-                                  type: array
                                 replicas:
                                   description: Replicas is a list of Kustomize Replicas
                                     override specifications
