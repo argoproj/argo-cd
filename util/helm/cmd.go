@@ -7,6 +7,7 @@ import (
 	"path"
 	"path/filepath"
 	"regexp"
+	"strings"
 
 	log "github.com/sirupsen/logrus"
 
@@ -271,6 +272,10 @@ var (
 )
 
 func cleanSetParameters(val string) string {
+	// `{}` equal helm list parameters format, so don't escape `,`.
+	if strings.HasPrefix(val, `{`) && strings.HasSuffix(val, `}`) {
+		return val
+	}
 	return re.ReplaceAllString(val, `$1\,`)
 }
 

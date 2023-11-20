@@ -1818,6 +1818,44 @@ func TestGenerateManifestWithAnnotatedAndRegularGitTagHashes(t *testing.T) {
 	}
 }
 
+func TestGenerateManifestWithAnnotatedTagsAndMultiSourceApp(t *testing.T) {
+	annotatedGitTaghash := "95249be61b028d566c29d47b19e65c5603388a41"
+
+	service := newServiceWithCommitSHA(".", annotatedGitTaghash)
+
+	refSources := map[string]*argoappv1.RefTarget{}
+
+	refSources["$global"] = &argoappv1.RefTarget{
+		TargetRevision: annotatedGitTaghash,
+	}
+
+	refSources["$default"] = &argoappv1.RefTarget{
+		TargetRevision: annotatedGitTaghash,
+	}
+
+	manifestRequest := &apiclient.ManifestRequest{
+		Repo: &argoappv1.Repository{},
+		ApplicationSource: &argoappv1.ApplicationSource{
+			TargetRevision: annotatedGitTaghash,
+			Helm: &argoappv1.ApplicationSourceHelm{
+				ValueFiles: []string{"$global/values.yaml", "$default/secrets.yaml"},
+			},
+		},
+		HasMultipleSources: true,
+		NoCache:            true,
+		RefSources:         refSources,
+	}
+
+	response, err := service.GenerateManifest(context.Background(), manifestRequest)
+	if err != nil {
+		t.Errorf("unexpected %s", err)
+	}
+
+	if response.Revision != annotatedGitTaghash {
+		t.Errorf("returned SHA %s is different from expected annotated tag %s", response.Revision, annotatedGitTaghash)
+	}
+}
+
 func TestFindResources(t *testing.T) {
 	testCases := []struct {
 		name          string
