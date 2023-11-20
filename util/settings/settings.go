@@ -69,6 +69,8 @@ type ArgoCDSettings struct {
 	WebhookGitLabSecret string `json:"webhookGitLabSecret,omitempty"`
 	// WebhookBitbucketUUID holds the UUID for authenticating Bitbucket webhook events
 	WebhookBitbucketUUID string `json:"webhookBitbucketUUID,omitempty"`
+	// ScmWebhookSecret holds the secret for authenticating SCMM webhook events
+	WebhookScmSecret string `json:"webhookScmSecret,omitempty"`
 	// WebhookBitbucketServerSecret holds the shared secret for authenticating BitbucketServer webhook events
 	WebhookBitbucketServerSecret string `json:"webhookBitbucketServerSecret,omitempty"`
 	// WebhookGogsSecret holds the shared secret for authenticating Gogs webhook events
