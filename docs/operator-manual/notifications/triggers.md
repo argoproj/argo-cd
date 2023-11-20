@@ -3,7 +3,7 @@ and notification templates reference. The condition is a predicate expression th
 should be sent. The trigger condition evaluation is powered by [antonmedv/expr](https://github.com/antonmedv/expr).
 The condition language syntax is described at [Language-Definition.md](https://github.com/antonmedv/expr/blob/master/docs/Language-Definition.md).
 
-The trigger is configured in the `argocd-notifications-cm` ConfigMap. For example the following trigger sends a notification
+The trigger is configured in `argocd-notifications-cm` ConfigMap. For example the following trigger sends a notification
 when application sync status changes to `Unknown` using the `app-sync-status` template:
 
 ```yaml
@@ -17,9 +17,9 @@ data:
       send: [app-sync-status, github-commit-status] # template names
 ```
 
-Each condition might use several templates. Typically, each template is responsible for generating a service-specific notification part.
-In the example above, the `app-sync-status` template "knows" how to create email and Slack notification, and `github-commit-status` knows how to
-generate the payload for GitHub webhook.
+Each condition might use several templates. Typically each template is responsible for generating a service-specific notification part.
+In the example above `app-sync-status` template "knows" how to create email and slack notification and `github-commit-status` knows how to
+generate payload for Github webhook.
 
 ## Conditions Bundles
 

@@ -8,16 +8,16 @@ $header: 120px;
 .application-details {
     height: 100vh;
     width: 100%;
-
-    &__wrapper {
-        display: flex;
-        flex-direction: column;
-        height: calc(100vh - 2 * $top-bar-height);
-        overflow: hidden;
-
-        @media screen and (max-width: map-get($breakpoints, xxlarge)) {
-            height: calc(100vh - 3 * $top-bar-height);
-            margin-top: $top-bar-height;
+    &__status-panel {
+        position: fixed;
+        left: $sidebar-width;
+        right: 0;
+        z-index: 3;
+        @media screen and (max-width: map-get($breakpoints, xlarge)) {
+            top: 150px;
+        }
+        @media screen and (max-width: map-get($breakpoints, large)) {
+            top: 146px;
         }
     }
 
@@ -27,11 +27,13 @@ $header: 120px;
 
     &__tree {
         padding: 1em;
-
-        flex: 1;
         overflow-x: auto;
         overflow-y: auto;
-        overscroll-behavior-x: none;
+        margin-top: 150px;
+        height: calc(100vh - 2 * 70px - 115px);
+        @media screen and (max-width: map-get($breakpoints, xlarge)) {
+            margin-top: 165px;
+        }
     }
 
     &__sliding-panel-pagination-wrap {

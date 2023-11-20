@@ -140,10 +140,7 @@ func (db *db) watchSecrets(ctx context.Context,
 
 	indexers := cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}
 	clusterSecretInformer := informerv1.NewFilteredSecretInformer(db.kubeclientset, db.ns, 3*time.Minute, indexers, secretListOptions)
-	_, err := clusterSecretInformer.AddEventHandler(secretEventHandler)
-	if err != nil {
-		log.Error(err)
-	}
+	clusterSecretInformer.AddEventHandler(secretEventHandler)
 
 	log.Info("Starting secretInformer for", secretType)
 	go func() {

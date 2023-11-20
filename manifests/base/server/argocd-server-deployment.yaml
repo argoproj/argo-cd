@@ -227,18 +227,6 @@ spec:
                 name: argocd-cmd-params-cm
                 key: server.enable.proxy.extension
                 optional: true
-        - name: ARGOCD_K8SCLIENT_RETRY_MAX
-          valueFrom:
-              configMapKeyRef:
-                name: argocd-cmd-params-cm
-                key: server.k8sclient.retry.max
-                optional: true
-        - name: ARGOCD_K8SCLIENT_RETRY_BASE_BACKOFF
-          valueFrom:
-              configMapKeyRef:
-                name: argocd-cmd-params-cm
-                key: server.k8sclient.retry.base.backoff
-                optional: true
         volumeMounts:
         - name: ssh-known-hosts
           mountPath: /app/config/ssh
