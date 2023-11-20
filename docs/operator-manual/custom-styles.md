@@ -21,7 +21,7 @@ metadata:
   ...
   name: argocd-cm
 data:
-  ui.cssurl: "https://www.myhost.com/my-styles.css"
+  ui.cssurl: "https://www.example.com/my-styles.css"
 ```
 
 ## Adding Styles Via Volume Mounts
