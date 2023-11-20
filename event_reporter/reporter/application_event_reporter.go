@@ -35,6 +35,15 @@ type applicationEventReporter struct {
 }
 
 type ApplicationEventReporter interface {
+	StreamApplicationEvents(
+		ctx context.Context,
+		a *appv1.Application,
+		ts string,
+		ignoreResourceCache bool,
+		appInstanceLabelKey string,
+		trackingMethod appv1.TrackingMethod,
+	) error
+	ShouldSendApplicationEvent(ae *appv1.ApplicationWatchEvent) (shouldSend bool, syncStatusChanged bool)
 }
 
 func NewApplicationEventReporter() ApplicationEventReporter {
@@ -114,7 +123,7 @@ func (r *applicationEventReporter) getDesiredManifests(ctx context.Context, a *a
 	return desiredManifests, nil, false
 }
 
-func (s *applicationEventReporter) streamApplicationEvents(
+func (s *applicationEventReporter) StreamApplicationEvents(
 	ctx context.Context,
 	a *appv1.Application,
 	ts string,
@@ -331,7 +340,7 @@ func (s *applicationEventReporter) processResource(
 	return nil
 }
 
-func (s *applicationEventReporter) shouldSendApplicationEvent(ae *appv1.ApplicationWatchEvent) (shouldSend bool, syncStatusChanged bool) {
+func (s *applicationEventReporter) ShouldSendApplicationEvent(ae *appv1.ApplicationWatchEvent) (shouldSend bool, syncStatusChanged bool) {
 	logCtx := log.WithField("app", ae.Application.Name)
 
 	if ae.Type == watch.Deleted {
