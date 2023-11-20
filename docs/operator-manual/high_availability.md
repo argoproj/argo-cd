@@ -98,8 +98,8 @@ metadata:
 type: Opaque
 stringData:
   shard: 1
-  name: mycluster.com
-  server: https://mycluster.com
+  name: mycluster.example.com
+  server: https://mycluster.example.com
   config: |
     {
       "bearerToken": "<authentication token>",
