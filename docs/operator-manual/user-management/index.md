@@ -387,6 +387,20 @@ For a simple case this can be:
   oidc.config: |
     requestedIDTokenClaims: {"groups": {"essential": true}}
 ```
+
+### Retrieving group claims when not in the token
+
+Some OIDC providers don't return the group information for a user in the ID token, even if explicitly requested using the `requestedIDTokenClaims` setting (Okta for example). They instead provide the groups on the user info endpoint. With the following config, Argo CD queries the user info endpoint during login for groups information of a user:
+
+```yaml
+oidc.config: |
+    enableUserInfoGroups: true
+    userInfoPath: /userinfo
+    userInfoCacheExpiration: "5m"
+```
+
+**Note: If you omit the `userInfoCacheExpiration` setting or if it's greater than the expiration of the ID token, the argocd-server will cache group information as long as the ID token is valid!**
+
 ### Configuring a custom logout URL for your OIDC provider
 
 Optionally, if your OIDC provider exposes a logout API and you wish to configure a custom logout URL for the purposes of invalidating 
