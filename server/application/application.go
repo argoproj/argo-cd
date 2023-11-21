@@ -330,7 +330,7 @@ func (s *Server) Create(ctx context.Context, q *application.ApplicationCreateReq
 
 	created, err := s.appclientset.ArgoprojV1alpha1().Applications(appNs).Create(ctx, a, metav1.CreateOptions{})
 	if err == nil {
-		s.logAppEvent(created, ctx, argo.EventReasonResourceCreated, "created application")
+		s.logAppEvent(created, ctx, a.Spec, argo.EventReasonResourceCreated, "created application")
 		s.waitSync(created)
 		return created, nil
 	}
@@ -870,7 +870,7 @@ func (s *Server) updateApp(app *appv1.Application, newApp *appv1.Application, ct
 
 		res, err := s.appclientset.ArgoprojV1alpha1().Applications(app.Namespace).Update(ctx, app, metav1.UpdateOptions{})
 		if err == nil {
-			s.logAppEvent(app, ctx, argo.EventReasonResourceUpdated, "updated application spec")
+			s.logAppEvent(app, ctx, app.Spec, argo.EventReasonResourceUpdated, "updated application spec")
 			s.waitSync(res)
 			return res, nil
 		}
@@ -1031,7 +1031,7 @@ func (s *Server) Delete(ctx context.Context, q *application.ApplicationDeleteReq
 	if err != nil {
 		return nil, fmt.Errorf("error deleting application: %w", err)
 	}
-	s.logAppEvent(a, ctx, argo.EventReasonResourceDeleted, "deleted application")
+	s.logAppEvent(a, ctx, a.Spec, argo.EventReasonResourceDeleted, "deleted application")
 	return &application.ApplicationResponse{}, nil
 }
 
@@ -1336,7 +1336,7 @@ func (s *Server) PatchResource(ctx context.Context, q *application.ApplicationRe
 	if err != nil {
 		return nil, fmt.Errorf("erro marshaling manifest object: %w", err)
 	}
-	s.logAppEvent(a, ctx, argo.EventReasonResourceUpdated, fmt.Sprintf("patched resource %s/%s '%s'", q.GetGroup(), q.GetKind(), q.GetResourceName()))
+	s.logAppEvent(a, ctx, a.Spec, argo.EventReasonResourceUpdated, fmt.Sprintf("patched resource %s/%s '%s'", q.GetGroup(), q.GetKind(), q.GetResourceName()))
 	m := string(data)
 	return &application.ApplicationResourceResponse{
 		Manifest: &m,
@@ -1375,7 +1375,7 @@ func (s *Server) DeleteResource(ctx context.Context, q *application.ApplicationR
 	if err != nil {
 		return nil, fmt.Errorf("error deleting resource: %w", err)
 	}
-	s.logAppEvent(a, ctx, argo.EventReasonResourceDeleted, fmt.Sprintf("deleted resource %s/%s '%s'", q.GetGroup(), q.GetKind(), q.GetResourceName()))
+	s.logAppEvent(a, ctx, a.Spec, argo.EventReasonResourceDeleted, fmt.Sprintf("deleted resource %s/%s '%s'", q.GetGroup(), q.GetKind(), q.GetResourceName()))
 	return &application.ApplicationResponse{}, nil
 }
 
@@ -1820,7 +1820,7 @@ func (s *Server) Sync(ctx context.Context, syncReq *application.ApplicationSyncR
 	if syncReq.Manifests != nil {
 		reason = fmt.Sprintf("initiated %ssync locally", partial)
 	}
-	s.logAppEvent(a, ctx, argo.EventReasonOperationStarted, reason)
+	s.logAppEvent(a, ctx, a.Spec, argo.EventReasonOperationStarted, reason)
 	return a, nil
 }
 
@@ -1879,7 +1879,7 @@ func (s *Server) Rollback(ctx context.Context, rollbackReq *application.Applicat
 	if err != nil {
 		return nil, fmt.Errorf("error setting app operation: %w", err)
 	}
-	s.logAppEvent(a, ctx, argo.EventReasonOperationStarted, fmt.Sprintf("initiated rollback to %d", rollbackReq.GetId()))
+	s.logAppEvent(a, ctx, a.Spec, argo.EventReasonOperationStarted, fmt.Sprintf("initiated rollback to %d", rollbackReq.GetId()))
 	return a, nil
 }
 
@@ -2051,7 +2051,7 @@ func (s *Server) TerminateOperation(ctx context.Context, termOpReq *application.
 		updated, err := s.appclientset.ArgoprojV1alpha1().Applications(appNs).Update(ctx, a, metav1.UpdateOptions{})
 		if err == nil {
 			s.waitSync(updated)
-			s.logAppEvent(a, ctx, argo.EventReasonResourceUpdated, "terminated running operation")
+			s.logAppEvent(a, ctx, a.Spec, argo.EventReasonResourceUpdated, "terminated running operation")
 			return &application.OperationTerminateResponse{}, nil
 		}
 		if !apierr.IsConflict(err) {
@@ -2067,14 +2067,14 @@ func (s *Server) TerminateOperation(ctx context.Context, termOpReq *application.
 	return nil, status.Errorf(codes.Internal, "Failed to terminate app. Too many conflicts")
 }
 
-func (s *Server) logAppEvent(a *appv1.Application, ctx context.Context, reason string, action string) {
+func (s *Server) logAppEvent(a *appv1.Application, ctx context.Context, spec appv1.ApplicationSpec, reason string, action string) {
 	eventInfo := argo.EventInfo{Type: v1.EventTypeNormal, Reason: reason}
 	user := session.Username(ctx)
 	if user == "" {
 		user = "Unknown user"
 	}
 	message := fmt.Sprintf("%s %s", user, action)
-	s.auditLogger.LogAppEvent(a, eventInfo, message, user)
+	s.auditLogger.LogAppEvent(a, eventInfo, a.Spec, message, user)
 }
 
 func (s *Server) logResourceEvent(res *appv1.ResourceNode, ctx context.Context, reason string, action string) {
@@ -2257,9 +2257,9 @@ func (s *Server) RunResourceAction(ctx context.Context, q *application.ResourceA
 	}
 
 	if res == nil {
-		s.logAppEvent(a, ctx, argo.EventReasonResourceActionRan, fmt.Sprintf("ran action %s", q.GetAction()))
+		s.logAppEvent(a, ctx, a.Spec, argo.EventReasonResourceActionRan, fmt.Sprintf("ran action %s", q.GetAction()))
 	} else {
-		s.logAppEvent(a, ctx, argo.EventReasonResourceActionRan, fmt.Sprintf("ran action %s on resource %s/%s/%s", q.GetAction(), res.Group, res.Kind, res.Name))
+		s.logAppEvent(a, ctx, a.Spec, argo.EventReasonResourceActionRan, fmt.Sprintf("ran action %s on resource %s/%s/%s", q.GetAction(), res.Group, res.Kind, res.Name))
 		s.logResourceEvent(res, ctx, argo.EventReasonResourceActionRan, fmt.Sprintf("ran action %s", q.GetAction()))
 	}
 	return &application.ApplicationResponse{}, nil

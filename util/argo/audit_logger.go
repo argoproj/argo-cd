@@ -94,7 +94,7 @@ func (l *AuditLogger) logEvent(objMeta ObjectRef, gvk schema.GroupVersionKind, i
 	}
 }
 
-func (l *AuditLogger) LogAppEvent(app *v1alpha1.Application, info EventInfo, message, user string) {
+func (l *AuditLogger) LogAppEvent(app *v1alpha1.Application, info EventInfo, spec v1alpha1.ApplicationSpec, message, user string) {
 	objectMeta := ObjectRef{
 		Name:            app.ObjectMeta.Name,
 		Namespace:       app.ObjectMeta.Namespace,
@@ -108,6 +108,7 @@ func (l *AuditLogger) LogAppEvent(app *v1alpha1.Application, info EventInfo, mes
 	if user != "" {
 		fields["user"] = user
 	}
+	fields["spec"] = spec.GetProject()
 	l.logEvent(objectMeta, v1alpha1.ApplicationSchemaGroupVersionKind, info, message, fields)
 }
 
