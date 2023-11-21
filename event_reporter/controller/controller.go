@@ -4,21 +4,19 @@ import (
 	"context"
 	argocommon "github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/event_reporter/reporter"
-	"github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
+	applicationpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	applisters "github.com/argoproj/argo-cd/v2/pkg/client/listers/application/v1alpha1"
 	servercache "github.com/argoproj/argo-cd/v2/server/cache"
-	"github.com/argoproj/argo-cd/v2/server/rbacpolicy"
 	argoutil "github.com/argoproj/argo-cd/v2/util/argo"
 	"github.com/argoproj/argo-cd/v2/util/env"
 	"github.com/argoproj/argo-cd/v2/util/rbac"
 	"github.com/argoproj/argo-cd/v2/util/security"
 	"github.com/argoproj/argo-cd/v2/util/settings"
 	log "github.com/sirupsen/logrus"
-	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/watch"
+	"k8s.io/client-go/tools/cache"
 	"math"
-	"strconv"
 	"strings"
 	"time"
 )
@@ -26,7 +24,6 @@ import (
 var (
 	watchAPIBufferSize              = 100
 	applicationEventCacheExpiration = time.Minute * time.Duration(env.ParseNumFromEnv(argocommon.EnvApplicationEventCacheDuration, 20, 0, math.MaxInt32))
-	resourceEventCacheExpiration    = time.Minute * time.Duration(env.ParseNumFromEnv(argocommon.EnvResourceEventCacheDuration, 20, 0, math.MaxInt32))
 )
 
 type EventReporterController interface {
@@ -42,10 +39,19 @@ type eventReporterController struct {
 	appLister                applisters.ApplicationLister
 	ns                       string
 	enabledNamespaces        []string
+	applicationServiceClient applicationpkg.ApplicationServiceClient
 }
 
-func NewEventReporterController() EventReporterController {
-	return &eventReporterController{}
+func NewEventReporterController(appInformer cache.SharedIndexInformer, cache *servercache.Cache, settingsMgr *settings.SettingsManager, applicationServiceClient applicationpkg.ApplicationServiceClient) EventReporterController {
+	appBroadcaster := reporter.NewBroadcaster()
+	appInformer.AddEventHandler(appBroadcaster)
+	return &eventReporterController{
+		appBroadcaster:           appBroadcaster,
+		applicationEventReporter: reporter.NewApplicationEventReporter(cache, applicationServiceClient),
+		cache:                    cache,
+		settingsMgr:              settingsMgr,
+		applicationServiceClient: applicationServiceClient,
+	}
 }
 
 func (c *eventReporterController) appNamespaceOrDefault(appNs string) string {
@@ -62,59 +68,14 @@ func (c *eventReporterController) isNamespaceEnabled(namespace string) bool {
 
 func (c *eventReporterController) Run(ctx context.Context) {
 	var (
-		logCtx   log.FieldLogger = log.StandardLogger()
-		selector labels.Selector
-		err      error
+		logCtx log.FieldLogger = log.StandardLogger()
 	)
-	q := application.ApplicationQuery{}
-
-	if q.Name != nil {
-		logCtx = logCtx.WithField("application", *q.Name)
-	}
-
-	var claims []string
-
-	if q.Selector != nil {
-		selector, err = labels.Parse(*q.Selector)
-		if err != nil {
-			return err
-		}
-	}
-
-	minVersion := 0
-	if q.ResourceVersion != nil {
-		if minVersion, err = strconv.Atoi(*q.ResourceVersion); err != nil {
-			minVersion = 0
-		}
-	}
-
-	appNs := c.appNamespaceOrDefault(q.GetAppNamespace())
 
 	// sendIfPermitted is a helper to send the application to the client's streaming channel if the
 	// caller has RBAC privileges permissions to view it
 	sendIfPermitted := func(ctx context.Context, a appv1.Application, eventType watch.EventType, ts string, ignoreResourceCache bool) error {
 		if eventType == watch.Bookmark {
 			return nil // ignore this event
-		}
-
-		if appVersion, err := strconv.Atoi(a.ResourceVersion); err == nil && appVersion < minVersion {
-			return nil
-		}
-
-		if selector != nil {
-			matchedEvent := (q.GetName() == "" || a.Name == q.GetName()) && selector.Matches(labels.Set(a.Labels))
-			if !matchedEvent {
-				return nil
-			}
-		}
-
-		if !c.isNamespaceEnabled(appNs) {
-			return security.NamespaceNotPermittedError(appNs)
-		}
-
-		if !c.enf.Enforce(claims, rbacpolicy.ResourceApplications, rbacpolicy.ActionGet, a.RBACName(c.ns)) {
-			// do not emit apps user does not have accessing
-			return nil
 		}
 
 		appInstanceLabelKey, err := c.settingsMgr.GetAppInstanceLabelKey()
@@ -155,7 +116,6 @@ func (c *eventReporterController) Run(ctx context.Context) {
 				if strings.Contains(err.Error(), "context deadline exceeded") {
 					logCtx.Info("Closing event-source connection")
 					cancel()
-					return err
 				}
 			}
 			cancel()

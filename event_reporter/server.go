@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/argoproj/argo-cd/v2/common"
 	event_reporter "github.com/argoproj/argo-cd/v2/event_reporter/controller"
+	applicationpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
 	appinformer "github.com/argoproj/argo-cd/v2/pkg/client/informers/externalversions"
 	applisters "github.com/argoproj/argo-cd/v2/pkg/client/listers/application/v1alpha1"
@@ -19,13 +20,9 @@ import (
 	errorsutil "github.com/argoproj/argo-cd/v2/util/errors"
 	"github.com/argoproj/argo-cd/v2/util/healthz"
 	"github.com/argoproj/argo-cd/v2/util/io"
-	service "github.com/argoproj/argo-cd/v2/util/notification/argocd"
-	"github.com/argoproj/argo-cd/v2/util/notification/k8s"
-	settings_notif "github.com/argoproj/argo-cd/v2/util/notification/settings"
 	"github.com/argoproj/argo-cd/v2/util/rbac"
 	util_session "github.com/argoproj/argo-cd/v2/util/session"
 	settings_util "github.com/argoproj/argo-cd/v2/util/settings"
-	"github.com/argoproj/notifications-engine/pkg/api"
 	"github.com/redis/go-redis/v9"
 	log "github.com/sirupsen/logrus"
 	"io/fs"
@@ -56,21 +53,16 @@ type EventReporterServer struct {
 	policyEnforcer *rbacpolicy.RBACPolicyEnforcer
 	appInformer    cache.SharedIndexInformer
 	appLister      applisters.ApplicationLister
-	appsetInformer cache.SharedIndexInformer
-	appsetLister   applisters.ApplicationSetNamespaceLister
 	db             db.ArgoDB
 
 	// stopCh is the channel which when closed, will shutdown the Argo CD server
-	stopCh            chan struct{}
-	userStateStorage  util_session.UserStateStorage
-	indexDataInit     gosync.Once
-	indexData         []byte
-	indexDataErr      error
-	staticAssets      http.FileSystem
-	apiFactory        api.Factory
-	secretInformer    cache.SharedIndexInformer
-	configMapInformer cache.SharedIndexInformer
-	serviceSet        *EventReporterServerSet
+	stopCh           chan struct{}
+	userStateStorage util_session.UserStateStorage
+	indexDataInit    gosync.Once
+	indexData        []byte
+	indexDataErr     error
+	staticAssets     http.FileSystem
+	serviceSet       *EventReporterServerSet
 }
 
 type EventReporterServerSet struct {
@@ -78,17 +70,18 @@ type EventReporterServerSet struct {
 }
 
 type EventReporterServerOpts struct {
-	ListenPort            int
-	ListenHost            string
-	Namespace             string
-	KubeClientset         kubernetes.Interface
-	AppClientset          appclientset.Interface
-	RepoClientset         repoapiclient.Clientset
-	Cache                 *servercache.Cache
-	RedisClient           *redis.Client
-	ApplicationNamespaces []string
-	BaseHRef              string
-	RootPath              string
+	ListenPort               int
+	ListenHost               string
+	Namespace                string
+	KubeClientset            kubernetes.Interface
+	AppClientset             appclientset.Interface
+	RepoClientset            repoapiclient.Clientset
+	ApplicationServiceClient applicationpkg.ApplicationServiceClient
+	Cache                    *servercache.Cache
+	RedisClient              *redis.Client
+	ApplicationNamespaces    []string
+	BaseHRef                 string
+	RootPath                 string
 }
 
 type handlerSwitcher struct {
@@ -121,7 +114,7 @@ func (a *EventReporterServer) healthCheck(r *http.Request) error {
 // Init starts informers used by the API server
 func (a *EventReporterServer) Init(ctx context.Context) {
 	go a.appInformer.Run(ctx.Done())
-	controller := event_reporter.NewEventReporterController()
+	controller := event_reporter.NewEventReporterController(a.appInformer, a.Cache, a.settingsMgr, a.ApplicationServiceClient)
 	go controller.Run(ctx)
 }
 
@@ -208,14 +201,6 @@ func NewEventReporterServer(ctx context.Context, opts EventReporterServerOpts) *
 
 	var staticFS fs.FS = io.NewSubDirFS("dist/app", ui.Embedded)
 
-	argocdService, err := service.NewArgoCDService(opts.KubeClientset, opts.Namespace, opts.RepoClientset)
-	errorsutil.CheckError(err)
-
-	secretInformer := k8s.NewSecretInformer(opts.KubeClientset, opts.Namespace, "argocd-notifications-secret")
-	configMapInformer := k8s.NewConfigMapInformer(opts.KubeClientset, opts.Namespace, "argocd-notifications-cm")
-
-	apiFactory := api.NewFactory(settings_notif.GetFactorySettings(argocdService, "argocd-notifications-secret", "argocd-notifications-cm"), opts.Namespace, secretInformer, configMapInformer)
-
 	dbInstance := db.NewDB(opts.Namespace, settingsMgr, opts.KubeClientset)
 
 	a := &EventReporterServer{
@@ -233,9 +218,6 @@ func NewEventReporterServer(ctx context.Context, opts EventReporterServerOpts) *
 		userStateStorage:        userStateStorage,
 		staticAssets:            http.FS(staticFS),
 		db:                      dbInstance,
-		apiFactory:              apiFactory,
-		secretInformer:          secretInformer,
-		configMapInformer:       configMapInformer,
 	}
 
 	if err != nil {

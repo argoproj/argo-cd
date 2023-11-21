@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/argoproj/argo-cd/v2/event_reporter"
+	"github.com/argoproj/argo-cd/v2/pkg/apiclient"
 	"math"
 	"time"
 
@@ -18,7 +19,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
-	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
+	repoapiclient "github.com/argoproj/argo-cd/v2/reposerver/apiclient"
 	servercache "github.com/argoproj/argo-cd/v2/server/cache"
 	"github.com/argoproj/argo-cd/v2/util/cli"
 	"github.com/argoproj/argo-cd/v2/util/env"
@@ -107,7 +108,7 @@ func NewCommand() *cobra.Command {
 				appclientsetConfig = kube.AddFailureRetryWrapper(appclientsetConfig, failureRetryCount, failureRetryPeriodMilliSeconds)
 			}
 			appClientSet := appclientset.NewForConfigOrDie(appclientsetConfig)
-			tlsConfig := apiclient.TLSConfiguration{
+			tlsConfig := repoapiclient.TLSConfiguration{
 				DisableTLS:       repoServerPlaintext,
 				StrictValidation: repoServerStrictTLS,
 			}
@@ -125,7 +126,7 @@ func NewCommand() *cobra.Command {
 				tlsConfig.Certificates = pool
 			}
 
-			repoclientset := apiclient.NewRepoServerClientset(repoServerAddress, repoServerTimeoutSeconds, tlsConfig)
+			repoclientset := repoapiclient.NewRepoServerClientset(repoServerAddress, repoServerTimeoutSeconds, tlsConfig)
 			if rootPath != "" {
 				if baseHRef != "" && baseHRef != rootPath {
 					log.Warnf("--basehref and --rootpath had conflict: basehref: %s rootpath: %s", baseHRef, rootPath)
@@ -133,18 +134,26 @@ func NewCommand() *cobra.Command {
 				baseHRef = rootPath
 			}
 
+			applicationClientSet, err := apiclient.NewClient(&apiclient.ClientOptions{})
+			closer, applicationClient, err := applicationClientSet.NewApplicationClient()
+
+			defer func() {
+				_ = closer.Close()
+			}()
+
 			eventReporterServerOpts := event_reporter.EventReporterServerOpts{
-				ListenPort:            listenPort,
-				ListenHost:            listenHost,
-				Namespace:             namespace,
-				BaseHRef:              baseHRef,
-				RootPath:              rootPath,
-				KubeClientset:         kubeclientset,
-				AppClientset:          appClientSet,
-				RepoClientset:         repoclientset,
-				Cache:                 cache,
-				RedisClient:           redisClient,
-				ApplicationNamespaces: applicationNamespaces,
+				ListenPort:               listenPort,
+				ListenHost:               listenHost,
+				Namespace:                namespace,
+				BaseHRef:                 baseHRef,
+				RootPath:                 rootPath,
+				KubeClientset:            kubeclientset,
+				AppClientset:             appClientSet,
+				RepoClientset:            repoclientset,
+				Cache:                    cache,
+				RedisClient:              redisClient,
+				ApplicationNamespaces:    applicationNamespaces,
+				ApplicationServiceClient: applicationClient,
 			}
 
 			stats.RegisterStackDumper()

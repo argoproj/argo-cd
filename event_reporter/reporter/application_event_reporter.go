@@ -4,10 +4,15 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	argocommon "github.com/argoproj/argo-cd/v2/common"
+	applicationpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	applisters "github.com/argoproj/argo-cd/v2/pkg/client/listers/application/v1alpha1"
 	servercache "github.com/argoproj/argo-cd/v2/server/cache"
+	"github.com/argoproj/argo-cd/v2/util/env"
+	"math"
 	"reflect"
 	"strings"
+	"time"
 
 	"github.com/argoproj/argo-cd/v2/util/argo"
 
@@ -25,6 +30,10 @@ import (
 	appv1reg "github.com/argoproj/argo-cd/v2/pkg/apis/application"
 	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
+)
+
+var (
+	resourceEventCacheExpiration = time.Minute * time.Duration(env.ParseNumFromEnv(argocommon.EnvResourceEventCacheDuration, 20, 0, math.MaxInt32))
 )
 
 type applicationEventReporter struct {
@@ -46,8 +55,11 @@ type ApplicationEventReporter interface {
 	ShouldSendApplicationEvent(ae *appv1.ApplicationWatchEvent) (shouldSend bool, syncStatusChanged bool)
 }
 
-func NewApplicationEventReporter() ApplicationEventReporter {
-	return &applicationEventReporter{}
+func NewApplicationEventReporter(cache *servercache.Cache, applicationServiceClient applicationpkg.ApplicationServiceClient) ApplicationEventReporter {
+	return &applicationEventReporter{
+		cache:        cache,
+		serverClient: NewServerClient(applicationServiceClient),
+	}
 }
 
 func (s *applicationEventReporter) shouldSendResourceEvent(a *appv1.Application, rs appv1.ResourceStatus) bool {
