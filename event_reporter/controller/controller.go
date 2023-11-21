@@ -4,14 +4,12 @@ import (
 	"context"
 	argocommon "github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/event_reporter/reporter"
-	"github.com/argoproj/argo-cd/v2/event_reporter/sharding"
 	applicationpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	applisters "github.com/argoproj/argo-cd/v2/pkg/client/listers/application/v1alpha1"
 	servercache "github.com/argoproj/argo-cd/v2/server/cache"
 	argoutil "github.com/argoproj/argo-cd/v2/util/argo"
 	"github.com/argoproj/argo-cd/v2/util/env"
-	"github.com/argoproj/argo-cd/v2/util/errors"
 	"github.com/argoproj/argo-cd/v2/util/rbac"
 	"github.com/argoproj/argo-cd/v2/util/security"
 	"github.com/argoproj/argo-cd/v2/util/settings"
@@ -24,7 +22,7 @@ import (
 )
 
 var (
-	watchAPIBufferSize              = 1000
+	watchAPIBufferSize              = 100000
 	applicationEventCacheExpiration = time.Minute * time.Duration(env.ParseNumFromEnv(argocommon.EnvApplicationEventCacheDuration, 20, 0, math.MaxInt32))
 )
 
@@ -74,8 +72,6 @@ func (c *eventReporterController) Run(ctx context.Context) {
 		logCtx log.FieldLogger = log.StandardLogger()
 	)
 
-	filter := getApplicationFilter("")
-
 	// sendIfPermitted is a helper to send the application to the client's streaming channel if the
 	// caller has RBAC privileges permissions to view it
 	sendIfPermitted := func(ctx context.Context, a appv1.Application, eventType watch.EventType, ts string, ignoreResourceCache bool) error {
@@ -103,16 +99,11 @@ func (c *eventReporterController) Run(ctx context.Context) {
 
 	eventsChannel := make(chan *appv1.ApplicationWatchEvent, watchAPIBufferSize)
 	unsubscribe := c.appBroadcaster.Subscribe(eventsChannel)
-	ticker := time.NewTicker(5 * time.Second)
 	defer unsubscribe()
-	defer ticker.Stop()
 	for {
 		select {
 		case event := <-eventsChannel:
-			if filter != nil && filter(&event.Application) {
-				logCtx.Info("filtering application, wrong shard")
-				continue
-			}
+			logCtx.Infof("channel size is %d", len(eventsChannel))
 			shouldProcess, ignoreResourceCache := c.applicationEventReporter.ShouldSendApplicationEvent(event)
 			if !shouldProcess {
 				continue
@@ -130,26 +121,4 @@ func (c *eventReporterController) Run(ctx context.Context) {
 			cancel()
 		}
 	}
-}
-
-func getApplicationFilter(shardingAlgorithm string) sharding.ApplicationFilterFunction {
-	shardingSvc := sharding.NewSharding()
-
-	replicas := env.ParseNumFromEnv(argocommon.EnvControllerReplicas, 0, 0, math.MaxInt32)
-	shard := env.ParseNumFromEnv(argocommon.EnvControllerShard, -1, -math.MaxInt32, math.MaxInt32)
-	var applicationFilter func(app *appv1.Application) bool
-	if replicas > 1 {
-		if shard < 0 {
-			var err error
-			shard, err = sharding.InferShard()
-			errors.CheckError(err)
-		}
-		log.Infof("Processing applications from shard %d", shard)
-		log.Infof("Using filter function:  %s", shardingAlgorithm)
-		distributionFunction := shardingSvc.GetDistributionFunction(shardingAlgorithm)
-		applicationFilter = shardingSvc.GetApplicationFilter(distributionFunction, shard)
-	} else {
-		log.Info("Processing all application shards")
-	}
-	return applicationFilter
 }

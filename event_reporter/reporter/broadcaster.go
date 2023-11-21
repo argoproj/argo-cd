@@ -1,6 +1,11 @@
 package reporter
 
 import (
+	argocommon "github.com/argoproj/argo-cd/v2/common"
+	"github.com/argoproj/argo-cd/v2/event_reporter/sharding"
+	"github.com/argoproj/argo-cd/v2/util/env"
+	"github.com/argoproj/argo-cd/v2/util/errors"
+	"math"
 	"sync"
 
 	log "github.com/sirupsen/logrus"
@@ -34,10 +39,14 @@ type Broadcaster interface {
 type broadcasterHandler struct {
 	lock        sync.Mutex
 	subscribers []*subscriber
+	filter      sharding.ApplicationFilterFunction
 }
 
 func NewBroadcaster() Broadcaster {
-	return &broadcasterHandler{}
+	filter := getApplicationFilter("")
+	return &broadcasterHandler{
+		filter: filter,
+	}
 }
 
 func (b *broadcasterHandler) notify(event *appv1.ApplicationWatchEvent) {
@@ -47,6 +56,11 @@ func (b *broadcasterHandler) notify(event *appv1.ApplicationWatchEvent) {
 	b.lock.Lock()
 	subscribers = append(subscribers, b.subscribers...)
 	b.lock.Unlock()
+
+	if b.filter != nil && !b.filter(&event.Application) {
+		log.Info("filtering application, wrong shard")
+		return
+	}
 
 	for _, s := range subscribers {
 		if s.matches(event) {
@@ -96,4 +110,26 @@ func (b *broadcasterHandler) OnDelete(obj interface{}) {
 	if app, ok := obj.(*appv1.Application); ok {
 		b.notify(&appv1.ApplicationWatchEvent{Application: *app, Type: watch.Deleted})
 	}
+}
+
+func getApplicationFilter(shardingAlgorithm string) sharding.ApplicationFilterFunction {
+	shardingSvc := sharding.NewSharding()
+
+	replicas := env.ParseNumFromEnv(argocommon.EnvControllerReplicas, 0, 0, math.MaxInt32)
+	shard := env.ParseNumFromEnv(argocommon.EnvControllerShard, -1, -math.MaxInt32, math.MaxInt32)
+	var applicationFilter func(app *appv1.Application) bool
+	if replicas > 1 {
+		if shard < 0 {
+			var err error
+			shard, err = sharding.InferShard()
+			errors.CheckError(err)
+		}
+		log.Infof("Processing applications from shard %d", shard)
+		log.Infof("Using filter function:  %s", shardingAlgorithm)
+		distributionFunction := shardingSvc.GetDistributionFunction(shardingAlgorithm)
+		applicationFilter = shardingSvc.GetApplicationFilter(distributionFunction, shard)
+	} else {
+		log.Info("Processing all application shards")
+	}
+	return applicationFilter
 }
