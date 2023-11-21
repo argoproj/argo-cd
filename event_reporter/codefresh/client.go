@@ -1,4 +1,4 @@
-package reporter
+package codefresh
 
 type codefreshClient struct {
 }

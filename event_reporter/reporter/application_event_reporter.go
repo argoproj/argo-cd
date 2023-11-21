@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	argocommon "github.com/argoproj/argo-cd/v2/common"
+	"github.com/argoproj/argo-cd/v2/event_reporter/codefresh"
 	applicationpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	applisters "github.com/argoproj/argo-cd/v2/pkg/client/listers/application/v1alpha1"
 	servercache "github.com/argoproj/argo-cd/v2/server/cache"
@@ -38,7 +39,7 @@ var (
 
 type applicationEventReporter struct {
 	cache                    *servercache.Cache
-	codefreshClient          CodefreshClient
+	codefreshClient          codefresh.CodefreshClient
 	appLister                applisters.ApplicationLister
 	applicationServiceClient applicationpkg.ApplicationServiceClient
 }
@@ -59,7 +60,7 @@ func NewApplicationEventReporter(cache *servercache.Cache, applicationServiceCli
 	return &applicationEventReporter{
 		cache:                    cache,
 		applicationServiceClient: applicationServiceClient,
-		codefreshClient:          NewCodefreshClient(),
+		codefreshClient:          codefresh.NewCodefreshClient(),
 		appLister:                appLister,
 	}
 }
