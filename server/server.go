@@ -1121,7 +1121,7 @@ func (a *ArgoCDServer) registerDexHandlers(mux *http.ServeMux) {
 	// Run dex OpenID Connect Identity Provider behind a reverse proxy (served at /api/dex)
 	var err error
 	mux.HandleFunc(common.DexAPIEndpoint+"/", dexutil.NewDexHTTPReverseProxy(a.DexServerAddr, a.BaseHRef, a.DexTLSConfig))
-	a.ssoClientApp, err = oidc.NewClientApp(a.settings, a.DexServerAddr, a.DexTLSConfig, a.BaseHRef)
+	a.ssoClientApp, err = oidc.NewClientApp(a.settings, a.DexServerAddr, a.DexTLSConfig, a.BaseHRef, cacheutil.NewRedisCache(a.RedisClient, a.settings.UserInfoCacheExpiration(), cacheutil.RedisCompressionNone))
 	errorsutil.CheckError(err)
 	mux.HandleFunc(common.LoginEndpoint, a.ssoClientApp.HandleLogin)
 	mux.HandleFunc(common.CallbackEndpoint, a.ssoClientApp.HandleCallback)
@@ -1315,7 +1315,35 @@ func (a *ArgoCDServer) getClaims(ctx context.Context) (jwt.Claims, string, error
 	if err != nil {
 		return claims, "", status.Errorf(codes.Unauthenticated, "invalid session: %v", err)
 	}
-	return claims, newToken, nil
+
+	// Some SSO implementations (Okta) require a call to
+	// the OIDC user info path to get attributes like groups
+	// we assume that everywhere in argocd jwt.MapClaims is used as type for interface jwt.Claims
+	// otherwise this would cause a panic
+	var groupClaims jwt.MapClaims
+	if groupClaims, ok = claims.(jwt.MapClaims); !ok {
+		if tmpClaims, ok := claims.(*jwt.MapClaims); ok {
+			groupClaims = *tmpClaims
+		}
+	}
+	iss := jwtutil.StringField(groupClaims, "iss")
+	if iss != util_session.SessionManagerClaimsIssuer && a.settings.UserInfoGroupsEnabled() && a.settings.UserInfoPath() != "" {
+		userInfo, unauthorized, err := a.ssoClientApp.GetUserInfo(groupClaims, a.settings.IssuerURL(), a.settings.UserInfoPath())
+		if unauthorized {
+			log.Errorf("error while quering userinfo endpoint: %v", err)
+			return claims, "", status.Errorf(codes.Unauthenticated, "invalid session")
+		}
+		if err != nil {
+			log.Errorf("error fetching user info endpoint: %v", err)
+			return claims, "", status.Errorf(codes.Internal, "invalid userinfo response")
+		}
+		if groupClaims["sub"] != userInfo["sub"] {
+			return claims, "", status.Error(codes.Unknown, "subject of claims from user info endpoint didn't match subject of idToken, see https://openid.net/specs/openid-connect-core-1_0.html#UserInfo")
+		}
+		groupClaims["groups"] = userInfo["groups"]
+	}
+
+	return groupClaims, newToken, nil
 }
 
 // getToken extracts the token from gRPC metadata or cookie headers
