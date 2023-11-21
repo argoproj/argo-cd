@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/go-logr/logr"
+	log "github.com/sirupsen/logrus"
 
 	k8smanagedfields "k8s.io/apimachinery/pkg/util/managedfields"
 
@@ -63,7 +64,6 @@ func (b *DiffConfigBuilder) WithNoCache() *DiffConfigBuilder {
 // WithCache sets the appstatecache.Cache and the appName in the diff config. Those the
 // are two objects necessary to retrieve a cached diff.
 func (b *DiffConfigBuilder) WithCache(s *appstatecache.Cache, appName string) *DiffConfigBuilder {
-	b.diffConfig.noCache = false
 	b.diffConfig.stateCache = s
 	b.diffConfig.appName = appName
 	return b
@@ -102,6 +102,11 @@ func (b *DiffConfigBuilder) WithResourceOperations(resourceOps kube.ResourceOper
 
 func (b *DiffConfigBuilder) WithServerSideDiff(ssd bool) *DiffConfigBuilder {
 	b.diffConfig.serverSideDiff = ssd
+	return b
+}
+
+func (b *DiffConfigBuilder) WithRefreshType(rt v1alpha1.RefreshType) *DiffConfigBuilder {
+	b.diffConfig.refreshType = rt
 	return b
 }
 
@@ -171,6 +176,7 @@ type diffConfig struct {
 	manager               string
 	serverSideDiff        bool
 	resourceOperations    kube.ResourceOperations
+	refreshType           v1alpha1.RefreshType
 }
 
 func (c *diffConfig) Ignores() []v1alpha1.ResourceIgnoreDifferences {
@@ -363,9 +369,12 @@ func (c *diffConfig) DiffFromCache(appName string) (bool, []*v1alpha1.ResourceDi
 		return false, nil
 	}
 	cachedDiff := make([]*v1alpha1.ResourceDiff, 0)
-	// TODO (SSD): Fix this code as it is swallowing errors if
-	// GetAppManagedResources fails to execute.
-	if c.stateCache != nil && c.stateCache.GetAppManagedResources(appName, &cachedDiff) == nil {
+	if c.stateCache != nil {
+		err := c.stateCache.GetAppManagedResources(appName, &cachedDiff)
+		if err != nil {
+			log.Errorf("DiffFromCache error: error getting managed resources: %s", err)
+			return false, nil
+		}
 		return true, cachedDiff
 	}
 	return false, nil
