@@ -1201,17 +1201,6 @@ func (s *Server) getCachedAppState(ctx context.Context, a *appv1.Application, ge
 	return err
 }
 
-func (s *Server) getAppResources(ctx context.Context, a *appv1.Application) (*appv1.ApplicationTree, error) {
-	var tree appv1.ApplicationTree
-	err := s.getCachedAppState(ctx, a, func() error {
-		return s.cache.GetAppResourcesTree(a.InstanceName(s.ns), &tree)
-	})
-	if err != nil {
-		return &tree, fmt.Errorf("error getting cached app resource tree: %w", err)
-	}
-	return &tree, nil
-}
-
 func (s *Server) getAppLiveResource(ctx context.Context, action string, q *application.ApplicationResourceRequest) (*appv1.ResourceNode, *rest.Config, *appv1.Application, error) {
 	a, err := s.getApplicationEnforceRBACInformer(ctx, action, q.GetProject(), q.GetAppNamespace(), q.GetName())
 	if err != nil {
@@ -1347,6 +1336,17 @@ func (s *Server) DeleteResource(ctx context.Context, q *application.ApplicationR
 	}
 	s.logAppEvent(a, ctx, argo.EventReasonResourceDeleted, fmt.Sprintf("deleted resource %s/%s '%s'", q.GetGroup(), q.GetKind(), q.GetResourceName()))
 	return &application.ApplicationResponse{}, nil
+}
+
+func (s *Server) getAppResources(ctx context.Context, a *appv1.Application) (*appv1.ApplicationTree, error) {
+	var tree appv1.ApplicationTree
+	err := s.getCachedAppState(ctx, a, func() error {
+		return s.cache.GetAppResourcesTree(a.InstanceName(s.ns), &tree)
+	})
+	if err != nil {
+		return &tree, fmt.Errorf("error getting cached app resource tree: %w", err)
+	}
+	return &tree, nil
 }
 
 func (s *Server) ResourceTree(ctx context.Context, q *application.ResourcesQuery) (*appv1.ApplicationTree, error) {

@@ -37,10 +37,10 @@ var (
 )
 
 type applicationEventReporter struct {
-	cache           *servercache.Cache
-	serverClient    ServerClient
-	codefreshClient CodefreshClient
-	appLister       applisters.ApplicationLister
+	cache                    *servercache.Cache
+	codefreshClient          CodefreshClient
+	appLister                applisters.ApplicationLister
+	applicationServiceClient applicationpkg.ApplicationServiceClient
 }
 
 type ApplicationEventReporter interface {
@@ -57,10 +57,10 @@ type ApplicationEventReporter interface {
 
 func NewApplicationEventReporter(cache *servercache.Cache, applicationServiceClient applicationpkg.ApplicationServiceClient, appLister applisters.ApplicationLister) ApplicationEventReporter {
 	return &applicationEventReporter{
-		cache:           cache,
-		serverClient:    NewServerClient(applicationServiceClient),
-		codefreshClient: NewCodefreshClient(),
-		appLister:       appLister,
+		cache:                    cache,
+		applicationServiceClient: applicationServiceClient,
+		codefreshClient:          NewCodefreshClient(),
+		appLister:                appLister,
 	}
 }
 
@@ -114,7 +114,7 @@ func getAppAsResource(a *appv1.Application) *appv1.ResourceStatus {
 
 func (r *applicationEventReporter) getDesiredManifests(ctx context.Context, a *appv1.Application, logCtx *log.Entry) (*apiclient.ManifestResponse, error, bool) {
 	// get the desired state manifests of the application
-	desiredManifests, err := r.serverClient.GetManifests(ctx, &application.ApplicationManifestQuery{
+	desiredManifests, err := r.applicationServiceClient.GetManifests(ctx, &application.ApplicationManifestQuery{
 		Name:     &a.Name,
 		Revision: &a.Status.Sync.Revision,
 	})
@@ -149,7 +149,11 @@ func (s *applicationEventReporter) StreamApplicationEvents(
 
 	logCtx.WithField("ignoreResourceCache", ignoreResourceCache).Info("streaming application events")
 
-	appTree, err := s.serverClient.GetAppResources(ctx, a)
+	appTree, err := s.applicationServiceClient.ResourceTree(ctx, &application.ResourcesQuery{
+		ApplicationName: &a.Name,
+		Project:         &a.Spec.Project,
+		Namespace:       &a.Namespace,
+	})
 	if err != nil {
 		if strings.Contains(err.Error(), "context deadline exceeded") {
 			return fmt.Errorf("failed to get application tree: %w", err)
@@ -168,7 +172,7 @@ func (s *applicationEventReporter) StreamApplicationEvents(
 	parentAppName := getParentAppName(a, appInstanceLabelKey, trackingMethod)
 
 	if isChildApp(parentAppName) {
-		parentApplicationEntity, err := s.serverClient.Get(ctx, &application.ApplicationQuery{
+		parentApplicationEntity, err := s.applicationServiceClient.Get(ctx, &application.ApplicationQuery{
 			Name: &parentAppName,
 		})
 		if err != nil {
@@ -291,7 +295,7 @@ func (s *applicationEventReporter) processResource(
 	desiredState := getResourceDesiredState(&rs, desiredManifests, logCtx)
 
 	// get resource actual state
-	actualState, err := s.serverClient.GetResource(ctx, &application.ApplicationResourceRequest{
+	actualState, err := s.applicationServiceClient.GetResource(ctx, &application.ApplicationResourceRequest{
 		Name:         &parentApplication.Name,
 		Namespace:    &rs.Namespace,
 		ResourceName: &rs.Name,
@@ -456,7 +460,7 @@ func getOperationRevision(a *appv1.Application) string {
 }
 
 func (s *applicationEventReporter) getApplicationRevisionDetails(ctx context.Context, a *appv1.Application, revision string) (*appv1.RevisionMetadata, error) {
-	return s.serverClient.RevisionMetadata(ctx, &application.RevisionMetadataQuery{
+	return s.applicationServiceClient.RevisionMetadata(ctx, &application.RevisionMetadataQuery{
 		Name:     &a.Name,
 		Revision: &revision,
 	})

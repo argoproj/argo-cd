@@ -22,7 +22,7 @@ import (
 )
 
 var (
-	watchAPIBufferSize              = 100
+	watchAPIBufferSize              = 1000
 	applicationEventCacheExpiration = time.Minute * time.Duration(env.ParseNumFromEnv(argocommon.EnvApplicationEventCacheDuration, 20, 0, math.MaxInt32))
 )
 
