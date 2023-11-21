@@ -35,13 +35,13 @@ func (sc *serverClient) GetAppResources(ctx context.Context, a *appv1.Applicatio
 }
 
 func (sc *serverClient) GetResource(ctx context.Context, q *application.ApplicationResourceRequest) (*application.ApplicationResourceResponse, error) {
-	return sc.GetResource(ctx, q)
+	return sc.applicationServiceClient.GetResource(ctx, q)
 }
 
 func (sc *serverClient) Get(ctx context.Context, q *application.ApplicationQuery) (*appv1.Application, error) {
-	return sc.Get(ctx, q)
+	return sc.applicationServiceClient.Get(ctx, q)
 }
 
 func (sc *serverClient) RevisionMetadata(ctx context.Context, q *application.RevisionMetadataQuery) (*appv1.RevisionMetadata, error) {
-	return sc.RevisionMetadata(ctx, q)
+	return sc.applicationServiceClient.RevisionMetadata(ctx, q)
 }

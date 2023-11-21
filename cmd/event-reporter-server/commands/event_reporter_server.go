@@ -58,6 +58,7 @@ func NewCommand() *cobra.Command {
 		baseHRef                 string
 		rootPath                 string
 		repoServerAddress        string
+		applicationServerAddress string
 		disableAuth              bool
 		cacheSrc                 func() (*servercache.Cache, error)
 		contentSecurityPolicy    string
@@ -134,8 +135,18 @@ func NewCommand() *cobra.Command {
 				baseHRef = rootPath
 			}
 
-			applicationClientSet, err := apiclient.NewClient(&apiclient.ClientOptions{})
+			applicationClientSet, err := apiclient.NewClient(&apiclient.ClientOptions{
+				ServerAddr: applicationServerAddress,
+				Insecure:   true,
+				GRPCWeb:    true,
+				PlainText:  true,
+				AuthToken:  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJhcmdvY2QiLCJzdWIiOiJhZG1pbjpsb2dpbiIsImV4cCI6MTcwMDY1MzkxMCwibmJmIjoxNzAwNTY3NTEwLCJpYXQiOjE3MDA1Njc1MTAsImp0aSI6IjNjNjljZGU4LTIyNTYtNDk4Ny1iNzQxLTAzNGZmYTFmOGYwMiJ9.ZTUyKciOQZU3TMfp6nTN9cyhblBeata6CfDgUAAaLdE",
+			})
+			errors.CheckError(err)
+
 			closer, applicationClient, err := applicationClientSet.NewApplicationClient()
+
+			errors.CheckError(err)
 
 			defer func() {
 				_ = closer.Close()
@@ -182,6 +193,7 @@ func NewCommand() *cobra.Command {
 	command.Flags().StringVar(&cmdutil.LogFormat, "logformat", env.StringFromEnv("ARGOCD_SERVER_LOGFORMAT", "text"), "Set the logging format. One of: text|json")
 	command.Flags().StringVar(&cmdutil.LogLevel, "loglevel", env.StringFromEnv("ARGOCD_SERVER_LOG_LEVEL", "info"), "Set the logging level. One of: debug|info|warn|error")
 	command.Flags().IntVar(&glogLevel, "gloglevel", 0, "Set the glog logging level")
+	command.Flags().StringVar(&applicationServerAddress, "application-server", env.StringFromEnv("ARGOCD_SERVER_APPLICATION_SERVER", common.DefaultApplicationServerAddr), "Application server address")
 	command.Flags().StringVar(&repoServerAddress, "repo-server", env.StringFromEnv("ARGOCD_SERVER_REPO_SERVER", common.DefaultRepoServerAddr), "Repo server address")
 	command.Flags().BoolVar(&disableAuth, "disable-auth", env.ParseBoolFromEnv("ARGOCD_SERVER_DISABLE_AUTH", false), "Disable client authentication")
 	command.AddCommand(cli.NewVersionCmd(cliName))

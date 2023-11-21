@@ -114,7 +114,7 @@ func (a *EventReporterServer) healthCheck(r *http.Request) error {
 // Init starts informers used by the API server
 func (a *EventReporterServer) Init(ctx context.Context) {
 	go a.appInformer.Run(ctx.Done())
-	controller := event_reporter.NewEventReporterController(a.appInformer, a.Cache, a.settingsMgr, a.ApplicationServiceClient)
+	controller := event_reporter.NewEventReporterController(a.appInformer, a.Cache, a.settingsMgr, a.ApplicationServiceClient, a.appLister)
 	go controller.Run(ctx)
 }
 

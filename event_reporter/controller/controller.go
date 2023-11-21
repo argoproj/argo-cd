@@ -42,15 +42,16 @@ type eventReporterController struct {
 	applicationServiceClient applicationpkg.ApplicationServiceClient
 }
 
-func NewEventReporterController(appInformer cache.SharedIndexInformer, cache *servercache.Cache, settingsMgr *settings.SettingsManager, applicationServiceClient applicationpkg.ApplicationServiceClient) EventReporterController {
+func NewEventReporterController(appInformer cache.SharedIndexInformer, cache *servercache.Cache, settingsMgr *settings.SettingsManager, applicationServiceClient applicationpkg.ApplicationServiceClient, appLister applisters.ApplicationLister) EventReporterController {
 	appBroadcaster := reporter.NewBroadcaster()
 	appInformer.AddEventHandler(appBroadcaster)
 	return &eventReporterController{
 		appBroadcaster:           appBroadcaster,
-		applicationEventReporter: reporter.NewApplicationEventReporter(cache, applicationServiceClient),
+		applicationEventReporter: reporter.NewApplicationEventReporter(cache, applicationServiceClient, appLister),
 		cache:                    cache,
 		settingsMgr:              settingsMgr,
 		applicationServiceClient: applicationServiceClient,
+		appLister:                appLister,
 	}
 }
 

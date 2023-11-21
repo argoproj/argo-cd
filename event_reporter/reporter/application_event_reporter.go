@@ -55,10 +55,12 @@ type ApplicationEventReporter interface {
 	ShouldSendApplicationEvent(ae *appv1.ApplicationWatchEvent) (shouldSend bool, syncStatusChanged bool)
 }
 
-func NewApplicationEventReporter(cache *servercache.Cache, applicationServiceClient applicationpkg.ApplicationServiceClient) ApplicationEventReporter {
+func NewApplicationEventReporter(cache *servercache.Cache, applicationServiceClient applicationpkg.ApplicationServiceClient, appLister applisters.ApplicationLister) ApplicationEventReporter {
 	return &applicationEventReporter{
-		cache:        cache,
-		serverClient: NewServerClient(applicationServiceClient),
+		cache:           cache,
+		serverClient:    NewServerClient(applicationServiceClient),
+		codefreshClient: NewCodefreshClient(),
+		appLister:       appLister,
 	}
 }
 
