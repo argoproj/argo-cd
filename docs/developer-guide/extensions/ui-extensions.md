@@ -101,7 +101,7 @@ Make sure to use 'argoproj.io'/'Application' as group/kind and an extension will
 The status panel is the bar at the top of the application view where the sync status is displayed. Argo CD allows you to add new items to the status panel of an application. The extension should be registered using the `extensionsAPI.registerStatusPanelExtension` method:
 
 ```typescript
-registerStatusPanelExtension(component: ExtensionComponent)
+registerStatusPanelExtension(component: StatusPanelExtensionComponent, title: string, id: string, flyout?: ExtensionComponent)
 ```
 
 Below is an example of a simple extension:
@@ -117,6 +117,44 @@ Below is an example of a simple extension:
   };
   window.extensionsAPI.registerStatusPanelExtension(
     component,
+    "My Extension",
+    "my_extension"
+  );
+})(window);
+```
+
+### Flyout widget
+
+It is also possible to add an optional flyout widget to your extension. It can be opened by calling `openFlyout()` from your extension's component. Your flyout component will then be rendered in a sliding panel, similar to the panel that opens when clicking on `History and rollback`.
+
+Below is an example of an extension using the flyout widget:
+
+```typescript
+((window) => {
+  const component = (props: {
+      openFlyout: () => any
+    }) => {
+    return React.createElement(
+      "div",
+      { 
+        style: { padding: "10px" },
+        onClick: () => props.openFlyout()
+      },
+      "Hello World"
+    );
+  };
+  const flyout = () => {
+    return React.createElement(
+      "div",
+      { style: { padding: "10px" } },
+      "This is a flyout"
+    );
+  };
+  window.extensionsAPI.registerStatusPanelExtension(
+    component,
+    "My Extension",
+    "my_extension",
+    flyout
   );
 })(window);
 ```
