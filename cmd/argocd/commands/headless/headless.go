@@ -219,18 +219,19 @@ func MaybeStartLocalServer(ctx context.Context, clientOpts *apiclient.ClientOpti
 	}
 	appstateCache := appstatecache.NewCache(cache.NewCache(&forwardCacheClient{namespace: namespace, context: ctxStr, compression: compression, redisHaProxyName: clientOpts.RedisHaProxyName, redisName: clientOpts.RedisName}), time.Hour)
 	srv := server.NewServer(ctx, server.ArgoCDServerOpts{
-		EnableGZip:           false,
-		Namespace:            namespace,
-		ListenPort:           *port,
-		AppClientset:         appClientset,
-		DisableAuth:          true,
-		RedisClient:          redis.NewClient(&redis.Options{Addr: mr.Addr()}),
-		Cache:                servercache.NewCache(appstateCache, 0, 0, 0),
-		KubeClientset:        kubeClientset,
-		Insecure:             true,
-		ListenHost:           *address,
-		RepoClientset:        &forwardRepoClientset{namespace: namespace, context: ctxStr, repoServerName: clientOpts.RepoServerName},
-		EnableProxyExtension: false,
+		EnableGZip:            false,
+		Namespace:             namespace,
+		ListenPort:            *port,
+		AppClientset:          appClientset,
+		DisableAuth:           true,
+		RedisClient:           redis.NewClient(&redis.Options{Addr: mr.Addr()}),
+		Cache:                 servercache.NewCache(appstateCache, 0, 0, 0),
+		KubeClientset:         kubeClientset,
+		Insecure:              true,
+		ListenHost:            *address,
+		RepoClientset:         &forwardRepoClientset{namespace: namespace, context: ctxStr, repoServerName: clientOpts.RepoServerName},
+		EnableProxyExtension:  false,
+		ApplicationNamespaces: []string{"*"},
 	})
 	srv.Init(ctx)
 
