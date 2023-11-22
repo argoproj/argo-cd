@@ -142,6 +142,10 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
         return nodeContainer.key;
     }
 
+    private get selectedExtension() {
+        return new URLSearchParams(this.props.history.location.search).get('extension');
+    }
+
     private closeGroupedNodesPanel() {
         this.setState({groupedResources: []});
         this.setState({slidingPanelPage: 0});
@@ -353,6 +357,10 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                 name: application.metadata.name,
                                 namespace: application.metadata.namespace
                             });
+                            
+                            const extensions = services.extensions.getStatusPanelExtensions();
+                            const activeExtension = this.selectedExtension && extensions.find(ext => ext.id === this.selectedExtension);
+
                             return (
                                 <div className={`application-details ${this.props.match.params.name}`}>
                                     <Page
@@ -423,7 +431,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                                     showDiff={() => this.selectNode(appFullName, 0, 'diff')}
                                                     showOperation={() => this.setOperationStatusVisible(true)}
                                                     showConditions={() => this.setConditionsStatusVisible(true)}
-                                                    showExtension={(index) => this.setExtensionPanelVisible(index)}
+                                                    showExtension={(id) => this.setExtensionPanelVisible(id)}
                                                     showMetadataInfo={revision => this.setState({...this.state, revision})}
                                                 />
                                             </div>
@@ -733,6 +741,11 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                                     </DataLoader>
                                                 ))}
                                         </SlidingPanel>
+                                        <SlidingPanel isShown={this.selectedExtension != "" && activeExtension && activeExtension.flyout && true} onClose={() => this.setExtensionPanelVisible("")}>
+                                            {this.selectedExtension != "" && activeExtension && activeExtension.flyout && (
+                                              <activeExtension.flyout application={application}/>
+                                            )}
+                                        </SlidingPanel>
                                     </Page>
                                 </div>
                             );
@@ -967,7 +980,8 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
         this.appContext.apis.navigation.goto('.', {rollback: selectedDeploymentIndex}, {replace: true});
     }
 
-    private setExtensionPanelVisible(selectedExtension = 0) {
+    private setExtensionPanelVisible(selectedExtension = "") {
+        console.log(`Opening extension ${selectedExtension}`);
         this.appContext.apis.navigation.goto('.', {extension: selectedExtension}, {replace: true});
     }
 

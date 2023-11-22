@@ -22,8 +22,8 @@ function registerAppViewExtension(component: ExtensionComponent, title: string, 
     extensions.appViewExtensions.push({component, title, icon});
 }
 
-function registerStatusPanelExtension(component: ExtensionComponent, flyout: ExtensionComponent, title: string) {
-    extensions.statusPanelExtensions.push({component, flyout, title});
+function registerStatusPanelExtension(component: StatusPanelExtensionComponent, title: string, id: string, flyout?: ExtensionComponent) {
+    extensions.statusPanelExtensions.push({component, flyout, title, id});
 }
 
 let legacyInitialized = false;
