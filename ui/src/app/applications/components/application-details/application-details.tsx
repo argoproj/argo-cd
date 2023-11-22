@@ -42,8 +42,8 @@ interface ApplicationDetailsState {
     collapsedNodes?: string[];
     extensions?: AppViewExtension[];
     extensionsMap?: {[key: string]: AppViewExtension};
-    statusExtensions ?: StatusPanelExtension[];
-    statusExtensionsMap ?: {[key: string]: StatusPanelExtension};
+    statusExtensions?: StatusPanelExtension[];
+    statusExtensionsMap?: {[key: string]: StatusPanelExtension};
 }
 
 interface FilterInput {
@@ -367,7 +367,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                 namespace: application.metadata.namespace
                             });
 
-                            const activeExtension = this.state.statusExtensionsMap[this.selectedExtension]
+                            const activeExtension = this.state.statusExtensionsMap[this.selectedExtension];
 
                             return (
                                 <div className={`application-details ${this.props.match.params.name}`}>
@@ -439,7 +439,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                                     showDiff={() => this.selectNode(appFullName, 0, 'diff')}
                                                     showOperation={() => this.setOperationStatusVisible(true)}
                                                     showConditions={() => this.setConditionsStatusVisible(true)}
-                                                    showExtension={(id) => this.setExtensionPanelVisible(id)}
+                                                    showExtension={id => this.setExtensionPanelVisible(id)}
                                                     showMetadataInfo={revision => this.setState({...this.state, revision})}
                                                 />
                                             </div>
@@ -749,9 +749,11 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                                     </DataLoader>
                                                 ))}
                                         </SlidingPanel>
-                                        <SlidingPanel isShown={this.selectedExtension != "" && activeExtension != null && activeExtension.flyout != null} onClose={() => this.setExtensionPanelVisible("")}>
-                                            {this.selectedExtension != "" && activeExtension && activeExtension.flyout && (
-                                              <activeExtension.flyout application={application} tree={tree}/>
+                                        <SlidingPanel
+                                            isShown={this.selectedExtension !== '' && activeExtension != null && activeExtension.flyout != null}
+                                            onClose={() => this.setExtensionPanelVisible('')}>
+                                            {this.selectedExtension !== '' && activeExtension && activeExtension.flyout && (
+                                                <activeExtension.flyout application={application} tree={tree} />
                                             )}
                                         </SlidingPanel>
                                     </Page>
@@ -988,7 +990,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
         this.appContext.apis.navigation.goto('.', {rollback: selectedDeploymentIndex}, {replace: true});
     }
 
-    private setExtensionPanelVisible(selectedExtension = "") {
+    private setExtensionPanelVisible(selectedExtension = '') {
         this.appContext.apis.navigation.goto('.', {extension: selectedExtension}, {replace: true});
     }
 
