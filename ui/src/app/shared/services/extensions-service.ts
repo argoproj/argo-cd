@@ -96,6 +96,7 @@ export interface StatusPanelComponentProps {
 
 export interface StatusPanelFlyoutProps {
     application: Application;
+    tree: ApplicationTree;
 }
 
 export class ExtensionsService {

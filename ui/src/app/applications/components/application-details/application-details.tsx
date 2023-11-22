@@ -30,7 +30,7 @@ import {ApplicationsDetailsAppDropdown} from './application-details-app-dropdown
 import {useSidebarTarget} from '../../../sidebar/sidebar';
 
 import './application-details.scss';
-import {AppViewExtension} from '../../../shared/services/extensions-service';
+import {AppViewExtension, StatusPanelExtension} from '../../../shared/services/extensions-service';
 
 interface ApplicationDetailsState {
     page: number;
@@ -42,6 +42,8 @@ interface ApplicationDetailsState {
     collapsedNodes?: string[];
     extensions?: AppViewExtension[];
     extensionsMap?: {[key: string]: AppViewExtension};
+    statusExtensions ?: StatusPanelExtension[];
+    statusExtensionsMap ?: {[key: string]: StatusPanelExtension};
 }
 
 interface FilterInput {
@@ -87,6 +89,11 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
         extensions.forEach(ext => {
             extensionsMap[ext.title] = ext;
         });
+        const statusExtensions = services.extensions.getStatusPanelExtensions();
+        const statusExtensionsMap: {[key: string]: StatusPanelExtension} = {};
+        statusExtensions.forEach(ext => {
+            statusExtensionsMap[ext.id] = ext;
+        });
         this.state = {
             page: 0,
             groupedResources: [],
@@ -95,7 +102,9 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
             truncateNameOnRight: false,
             collapsedNodes: [],
             extensions,
-            extensionsMap
+            extensionsMap,
+            statusExtensions,
+            statusExtensionsMap
         };
         if (typeof this.props.match.params.appnamespace === 'undefined') {
             this.appNamespace = '';
@@ -357,9 +366,8 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                 name: application.metadata.name,
                                 namespace: application.metadata.namespace
                             });
-                            
-                            const extensions = services.extensions.getStatusPanelExtensions();
-                            const activeExtension = this.selectedExtension && extensions.find(ext => ext.id === this.selectedExtension);
+
+                            const activeExtension = this.state.statusExtensionsMap[this.selectedExtension]
 
                             return (
                                 <div className={`application-details ${this.props.match.params.name}`}>
@@ -741,9 +749,9 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                                     </DataLoader>
                                                 ))}
                                         </SlidingPanel>
-                                        <SlidingPanel isShown={this.selectedExtension != "" && activeExtension && activeExtension.flyout && true} onClose={() => this.setExtensionPanelVisible("")}>
+                                        <SlidingPanel isShown={this.selectedExtension != "" && activeExtension != null && activeExtension.flyout != null} onClose={() => this.setExtensionPanelVisible("")}>
                                             {this.selectedExtension != "" && activeExtension && activeExtension.flyout && (
-                                              <activeExtension.flyout application={application}/>
+                                              <activeExtension.flyout application={application} tree={tree}/>
                                             )}
                                         </SlidingPanel>
                                     </Page>
@@ -981,7 +989,6 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
     }
 
     private setExtensionPanelVisible(selectedExtension = "") {
-        console.log(`Opening extension ${selectedExtension}`);
         this.appContext.apis.navigation.goto('.', {extension: selectedExtension}, {replace: true});
     }
 
