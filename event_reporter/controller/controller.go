@@ -97,6 +97,7 @@ func (c *eventReporterController) Run(ctx context.Context) {
 		return nil
 	}
 
+	//TODO: move to abstraction
 	eventsChannel := make(chan *appv1.ApplicationWatchEvent, watchAPIBufferSize)
 	unsubscribe := c.appBroadcaster.Subscribe(eventsChannel)
 	defer unsubscribe()

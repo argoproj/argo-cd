@@ -42,6 +42,7 @@ func (s *sharding) GetApplicationFilter(distributionFunction DistributionFunctio
 // the current datas.
 func (s *sharding) GetDistributionFunction(shardingAlgorithm string) DistributionFunction {
 	log.Infof("Using filter function:  %s", shardingAlgorithm)
+	//TODO: implement switch case for multiple strategies
 	return s.LegacyDistributionFunction()
 }
 

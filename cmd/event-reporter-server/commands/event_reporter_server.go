@@ -142,6 +142,7 @@ func NewCommand() *cobra.Command {
 				PlainText:  true,
 				AuthToken:  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJhcmdvY2QiLCJzdWIiOiJhZG1pbjpsb2dpbiIsImV4cCI6MTcwMDY1MzkxMCwibmJmIjoxNzAwNTY3NTEwLCJpYXQiOjE3MDA1Njc1MTAsImp0aSI6IjNjNjljZGU4LTIyNTYtNDk4Ny1iNzQxLTAzNGZmYTFmOGYwMiJ9.ZTUyKciOQZU3TMfp6nTN9cyhblBeata6CfDgUAAaLdE",
 			})
+			
 			errors.CheckError(err)
 
 			closer, applicationClient, err := applicationClientSet.NewApplicationClient()
