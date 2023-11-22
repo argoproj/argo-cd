@@ -210,9 +210,10 @@ func NewClusterShardsCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comm
 	command.Flags().BoolVar(&portForwardRedis, "port-forward-redis", true, "Automatically port-forward ha proxy redis from current namespace?")
 	cacheSrc = appstatecache.AddCacheFlagsToCmd(&command)
 
-	// parse all added flags and get the redis-compression flag that was added by parent command
-	err := command.Flags().Parse(os.Args[1:])
-	errors.CheckError(err)
+	// parse all added flags so far to get the redis-compression flag that was added by AddCacheFlagsToCmd() above
+	// we can ignore unchecked error here as the command will be parsed again and checked when command.Execute() is run later
+	// nolint:errcheck
+	command.ParseFlags(os.Args[1:])
 	redisCompressionStr, _ = command.Flags().GetString(cacheutil.CLIFlagRedisCompress)
 	return &command
 }
@@ -492,9 +493,10 @@ func NewClusterStatsCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comma
 	command.Flags().BoolVar(&portForwardRedis, "port-forward-redis", true, "Automatically port-forward ha proxy redis from current namespace?")
 	cacheSrc = appstatecache.AddCacheFlagsToCmd(&command)
 
-	// parse all added flags and get the redis-compression flag that was added by parent command
-	err := command.Flags().Parse(os.Args[1:])
-	errors.CheckError(err)
+	// parse all added flags so far to get the redis-compression flag that was added by AddCacheFlagsToCmd() above
+	// we can ignore unchecked error here as the command will be parsed again and checked when command.Execute() is run later
+	// nolint:errcheck
+	command.ParseFlags(os.Args[1:])
 	redisCompressionStr, _ = command.Flags().GetString(cacheutil.CLIFlagRedisCompress)
 	return &command
 }
