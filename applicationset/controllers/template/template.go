@@ -1,14 +1,15 @@
-package utils
+package template
 
 import (
 	log "github.com/sirupsen/logrus"
 
 	"github.com/argoproj/argo-cd/v2/applicationset/generators"
+	"github.com/argoproj/argo-cd/v2/applicationset/utils"
 
 	argov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 )
 
-func GenerateApplications(logCtx *log.Entry, applicationSetInfo argov1alpha1.ApplicationSet, g map[string]generators.Generator, renderer Renderer) ([]argov1alpha1.Application, argov1alpha1.ApplicationSetReasonType, error) {
+func GenerateApplications(logCtx *log.Entry, applicationSetInfo argov1alpha1.ApplicationSet, g map[string]generators.Generator, renderer utils.Renderer) ([]argov1alpha1.Application, argov1alpha1.ApplicationSetReasonType, error) {
 	var res []argov1alpha1.Application
 
 	var firstError error
@@ -27,7 +28,7 @@ func GenerateApplications(logCtx *log.Entry, applicationSetInfo argov1alpha1.App
 		}
 
 		for _, a := range t {
-			tmplApplication := getTempApplication(a.Template)
+			tmplApplication := GetTempApplication(a.Template)
 
 			for _, p := range a.Params {
 				app, err := renderer.RenderTemplateParams(tmplApplication, applicationSetInfo.Spec.SyncPolicy, p, applicationSetInfo.Spec.GoTemplate, applicationSetInfo.Spec.GoTemplateOptions)
@@ -52,7 +53,7 @@ func GenerateApplications(logCtx *log.Entry, applicationSetInfo argov1alpha1.App
 	return res, applicationSetReason, firstError
 }
 
-func getTempApplication(applicationSetTemplate argov1alpha1.ApplicationSetTemplate) *argov1alpha1.Application {
+func GetTempApplication(applicationSetTemplate argov1alpha1.ApplicationSetTemplate) *argov1alpha1.Application {
 	var tmplApplication argov1alpha1.Application
 	tmplApplication.Annotations = applicationSetTemplate.Annotations
 	tmplApplication.Labels = applicationSetTemplate.Labels

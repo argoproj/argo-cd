@@ -141,7 +141,10 @@ func newTestAppSetServerWithEnforcerConfigure(f func(*rbac.Enforcer), namespace 
 	server := NewServer(
 		db,
 		kubeclientset,
+		nil,
+		nil,
 		enforcer,
+		nil,
 		fakeAppsClientset,
 		appInformer,
 		factory.Argoproj().V1alpha1().ApplicationSets().Lister(),
