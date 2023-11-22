@@ -64,7 +64,7 @@ export const ApplicationStatusPanel = ({application, showDiff, showOperation, sh
         showOperation = null;
     }
 
-    const extensions = services.extensions.getStatusPanelExtensions();
+    const statusExtensions = services.extensions.getStatusPanelExtensions();
 
     const infos = cntByCategory.get('info');
     const warnings = cntByCategory.get('warning');
@@ -206,7 +206,7 @@ export const ApplicationStatusPanel = ({application, showDiff, showOperation, sh
                     </React.Fragment>
                 )}
             </DataLoader>
-            {extensions && extensions.map(ext => <ext.component key={ext.title} application={application} openFlyout={() => showExtension && showExtension(ext.id)} />)}
+            {statusExtensions && statusExtensions.map(ext => <ext.component key={ext.title} application={application} openFlyout={() => showExtension && showExtension(ext.id)} />)}
         </div>
     );
 };
