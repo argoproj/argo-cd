@@ -3,6 +3,7 @@ package controller
 import (
 	"context"
 	argocommon "github.com/argoproj/argo-cd/v2/common"
+	"github.com/argoproj/argo-cd/v2/event_reporter/metrics"
 	"github.com/argoproj/argo-cd/v2/event_reporter/reporter"
 	applicationpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
@@ -40,18 +41,20 @@ type eventReporterController struct {
 	ns                       string
 	enabledNamespaces        []string
 	applicationServiceClient applicationpkg.ApplicationServiceClient
+	metricsServer            *metrics.MetricsServer
 }
 
-func NewEventReporterController(appInformer cache.SharedIndexInformer, cache *servercache.Cache, settingsMgr *settings.SettingsManager, applicationServiceClient applicationpkg.ApplicationServiceClient, appLister applisters.ApplicationLister) EventReporterController {
+func NewEventReporterController(appInformer cache.SharedIndexInformer, cache *servercache.Cache, settingsMgr *settings.SettingsManager, applicationServiceClient applicationpkg.ApplicationServiceClient, appLister applisters.ApplicationLister, metricsServer *metrics.MetricsServer) EventReporterController {
 	appBroadcaster := reporter.NewBroadcaster()
 	appInformer.AddEventHandler(appBroadcaster)
 	return &eventReporterController{
 		appBroadcaster:           appBroadcaster,
-		applicationEventReporter: reporter.NewApplicationEventReporter(cache, applicationServiceClient, appLister),
+		applicationEventReporter: reporter.NewApplicationEventReporter(cache, applicationServiceClient, appLister, metricsServer),
 		cache:                    cache,
 		settingsMgr:              settingsMgr,
 		applicationServiceClient: applicationServiceClient,
 		appLister:                appLister,
+		metricsServer:            metricsServer,
 	}
 }
 
@@ -107,6 +110,7 @@ func (c *eventReporterController) Run(ctx context.Context) {
 			logCtx.Infof("channel size is %d", len(eventsChannel))
 			shouldProcess, ignoreResourceCache := c.applicationEventReporter.ShouldSendApplicationEvent(event)
 			if !shouldProcess {
+				c.metricsServer.IncCachedIgnoredEventsCounter(metrics.MetricAppEventType)
 				continue
 			}
 			ts := time.Now().Format("2006-01-02T15:04:05.000Z")

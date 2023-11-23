@@ -6,6 +6,7 @@ import (
 	"fmt"
 	argocommon "github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/event_reporter/codefresh"
+	"github.com/argoproj/argo-cd/v2/event_reporter/metrics"
 	applicationpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	applisters "github.com/argoproj/argo-cd/v2/pkg/client/listers/application/v1alpha1"
 	servercache "github.com/argoproj/argo-cd/v2/server/cache"
@@ -42,6 +43,7 @@ type applicationEventReporter struct {
 	codefreshClient          codefresh.CodefreshClient
 	appLister                applisters.ApplicationLister
 	applicationServiceClient applicationpkg.ApplicationServiceClient
+	metricsServer            *metrics.MetricsServer
 }
 
 type ApplicationEventReporter interface {
@@ -56,12 +58,13 @@ type ApplicationEventReporter interface {
 	ShouldSendApplicationEvent(ae *appv1.ApplicationWatchEvent) (shouldSend bool, syncStatusChanged bool)
 }
 
-func NewApplicationEventReporter(cache *servercache.Cache, applicationServiceClient applicationpkg.ApplicationServiceClient, appLister applisters.ApplicationLister) ApplicationEventReporter {
+func NewApplicationEventReporter(cache *servercache.Cache, applicationServiceClient applicationpkg.ApplicationServiceClient, appLister applisters.ApplicationLister, metricsServer *metrics.MetricsServer) ApplicationEventReporter {
 	return &applicationEventReporter{
 		cache:                    cache,
 		applicationServiceClient: applicationServiceClient,
 		codefreshClient:          codefresh.NewCodefreshClient(),
 		appLister:                appLister,
+		metricsServer:            metricsServer,
 	}
 }
 
@@ -146,6 +149,7 @@ func (s *applicationEventReporter) StreamApplicationEvents(
 	appInstanceLabelKey string,
 	trackingMethod appv1.TrackingMethod,
 ) error {
+	startTime := time.Now()
 	logCtx := log.WithField("app", a.Name)
 
 	logCtx.WithField("ignoreResourceCache", ignoreResourceCache).Info("streaming application events")
@@ -197,12 +201,16 @@ func (s *applicationEventReporter) StreamApplicationEvents(
 
 		err = s.processResource(ctx, *rs, parentApplicationEntity, logCtx, ts, parentDesiredManifests, appTree, manifestGenErr, a, parentRevisionMetadata, true, appInstanceLabelKey, trackingMethod, desiredManifests.ApplicationVersions)
 		if err != nil {
+			s.metricsServer.IncErroredEventsCounter(metrics.MetricChildAppEventType, metrics.MetricEventUnknownErrorType)
 			return err
 		}
+		reconcileDuration := time.Since(startTime)
+		s.metricsServer.ObserveEventProcessingDurationHistogramDuration(metrics.MetricChildAppEventType, reconcileDuration)
 	} else {
 		// will get here only for root applications (not managed as a resource by another application)
 		appEvent, err := s.getApplicationEventPayload(ctx, a, ts, appInstanceLabelKey, trackingMethod, desiredManifests.ApplicationVersions)
 		if err != nil {
+			s.metricsServer.IncErroredEventsCounter(metrics.MetricParentAppEventType, metrics.MetricEventGetPayloadErrorType)
 			return fmt.Errorf("failed to get application event: %w", err)
 		}
 
@@ -213,8 +221,11 @@ func (s *applicationEventReporter) StreamApplicationEvents(
 
 		logWithAppStatus(a, logCtx, ts).Info("sending root application event")
 		if err := s.codefreshClient.Send(appEvent.Payload); err != nil {
+			s.metricsServer.IncErroredEventsCounter(metrics.MetricParentAppEventType, metrics.MetricEventDeliveryErrorType)
 			return fmt.Errorf("failed to send event for root application %s/%s: %w", a.Namespace, a.Name, err)
 		}
+		reconcileDuration := time.Since(startTime)
+		s.metricsServer.ObserveEventProcessingDurationHistogramDuration(metrics.MetricParentAppEventType, reconcileDuration)
 	}
 
 	revisionMetadata, _ := s.getApplicationRevisionDetails(ctx, a, getOperationRevision(a))
@@ -224,11 +235,14 @@ func (s *applicationEventReporter) StreamApplicationEvents(
 		if isApp(rs) {
 			continue
 		}
-
+		startTime := time.Now()
 		err := s.processResource(ctx, rs, a, logCtx, ts, desiredManifests, appTree, manifestGenErr, nil, revisionMetadata, ignoreResourceCache, appInstanceLabelKey, trackingMethod, nil)
 		if err != nil {
+			s.metricsServer.IncErroredEventsCounter(metrics.MetricResourceEventType, metrics.MetricEventUnknownErrorType)
 			return err
 		}
+		reconcileDuration := time.Since(startTime)
+		s.metricsServer.ObserveEventProcessingDurationHistogramDuration(metrics.MetricResourceEventType, reconcileDuration)
 	}
 	return nil
 }
@@ -274,6 +288,11 @@ func (s *applicationEventReporter) processResource(
 	trackingMethod appv1.TrackingMethod,
 	applicationVersions *apiclient.ApplicationVersions,
 ) error {
+	metricsEventType := metrics.MetricResourceEventType
+	if isApp(rs) {
+		metricsEventType = metrics.MetricChildAppEventType
+	}
+
 	logCtx = logCtx.WithFields(log.Fields{
 		"gvk":      fmt.Sprintf("%s/%s/%s", rs.Group, rs.Version, rs.Kind),
 		"resource": fmt.Sprintf("%s/%s", rs.Namespace, rs.Name),
@@ -289,6 +308,7 @@ func (s *applicationEventReporter) processResource(
 	}
 
 	if !ignoreResourceCache && !s.shouldSendResourceEvent(parentApplication, rs) {
+		s.metricsServer.IncCachedIgnoredEventsCounter(metricsEventType)
 		return nil
 	}
 
@@ -313,6 +333,7 @@ func (s *applicationEventReporter) processResource(
 				return fmt.Errorf("failed to get actual state: %w", err)
 			}
 
+			s.metricsServer.IncErroredEventsCounter(metricsEventType, metrics.MetricEventUnknownErrorType)
 			logCtx.WithError(err).Warn("failed to get actual state, resuming")
 			return nil
 		}
@@ -332,6 +353,7 @@ func (s *applicationEventReporter) processResource(
 
 	ev, err := getResourceEventPayload(parentApplicationToReport, &rs, actualState, desiredState, appTree, manifestGenErr, ts, originalApplication, revisionMetadataToReport, originalAppRevisionMetadata, appInstanceLabelKey, trackingMethod, applicationVersions)
 	if err != nil {
+		s.metricsServer.IncErroredEventsCounter(metricsEventType, metrics.MetricEventGetPayloadErrorType)
 		logCtx.WithError(err).Warn("failed to get event payload, resuming")
 		return nil
 	}
@@ -348,6 +370,7 @@ func (s *applicationEventReporter) processResource(
 			return fmt.Errorf("failed to send resource event: %w", err)
 		}
 
+		s.metricsServer.IncErroredEventsCounter(metricsEventType, metrics.MetricEventDeliveryErrorType)
 		logCtx.WithError(err).Warn("failed to send resource event, resuming")
 		return nil
 	}

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/argoproj/argo-cd/v2/common"
 	event_reporter "github.com/argoproj/argo-cd/v2/event_reporter/controller"
+	"github.com/argoproj/argo-cd/v2/event_reporter/metrics"
 	applicationpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
 	appinformer "github.com/argoproj/argo-cd/v2/pkg/client/informers/externalversions"
@@ -16,6 +17,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/server/repository"
 	"github.com/argoproj/argo-cd/v2/ui"
 	"github.com/argoproj/argo-cd/v2/util/assets"
+	cacheutil "github.com/argoproj/argo-cd/v2/util/cache"
 	"github.com/argoproj/argo-cd/v2/util/db"
 	errorsutil "github.com/argoproj/argo-cd/v2/util/errors"
 	"github.com/argoproj/argo-cd/v2/util/healthz"
@@ -66,12 +68,15 @@ type EventReporterServer struct {
 }
 
 type EventReporterServerSet struct {
-	RepoService *repository.Server
+	RepoService   *repository.Server
+	MetricsServer *metrics.MetricsServer
 }
 
 type EventReporterServerOpts struct {
 	ListenPort               int
 	ListenHost               string
+	MetricsPort              int
+	MetricsHost              string
 	Namespace                string
 	KubeClientset            kubernetes.Interface
 	AppClientset             appclientset.Interface
@@ -114,7 +119,7 @@ func (a *EventReporterServer) healthCheck(r *http.Request) error {
 // Init starts informers used by the API server
 func (a *EventReporterServer) Init(ctx context.Context) {
 	go a.appInformer.Run(ctx.Done())
-	controller := event_reporter.NewEventReporterController(a.appInformer, a.Cache, a.settingsMgr, a.ApplicationServiceClient, a.appLister)
+	controller := event_reporter.NewEventReporterController(a.appInformer, a.Cache, a.settingsMgr, a.ApplicationServiceClient, a.appLister, a.serviceSet.MetricsServer)
 	go controller.Run(ctx)
 }
 
@@ -230,8 +235,13 @@ func NewEventReporterServer(ctx context.Context, opts EventReporterServerOpts) *
 
 func newEventReporterServiceSet(a *EventReporterServer) *EventReporterServerSet {
 	repoService := repository.NewServer(a.RepoClientset, a.db, a.enf, a.Cache, a.appLister, a.projInformer, a.Namespace, a.settingsMgr)
+	metricsServer := metrics.NewMetricsServer(a.MetricsHost, a.MetricsPort)
+	if a.RedisClient != nil {
+		cacheutil.CollectMetrics(a.RedisClient, metricsServer)
+	}
 
 	return &EventReporterServerSet{
-		RepoService: repoService,
+		RepoService:   repoService,
+		MetricsServer: metricsServer,
 	}
 }
