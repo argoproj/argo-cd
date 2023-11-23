@@ -40,6 +40,7 @@ nav:
     - operator-manual/user-management/openunison.md
     - operator-manual/user-management/google.md
     - operator-manual/user-management/zitadel.md
+    - operator-manual/user-management/identity-center.md
     - operator-manual/rbac.md
   - Security:
     - Overview: operator-manual/security.md
@@ -127,6 +128,8 @@ nav:
     - operator-manual/server-commands/additional-configuration-method.md
   - Upgrading:
     - operator-manual/upgrading/overview.md
+    - operator-manual/upgrading/2.9-2.10.md
+    - operator-manual/upgrading/2.8-2.9.md
     - operator-manual/upgrading/2.7-2.8.md
     - operator-manual/upgrading/2.6-2.7.md
     - operator-manual/upgrading/2.5-2.6.md
