@@ -150,19 +150,19 @@ func StripCRLFCharacter(input string) string {
 	return strings.TrimSpace(input)
 }
 
-// GetApplicationControllerReplicas gets the replicas of application controller
+// GetApplicationControllerReplicas gets the replicas of application controller pods
 func (db *db) GetApplicationControllerReplicas() int {
-	// get the replicas from application controller deployment, if the application controller deployment does not exist, check for environment variable
-	applicationControllerName := env.StringFromEnv(common.EnvAppControllerName, common.DefaultApplicationControllerName)
-	appControllerDeployment, err := db.kubeclientset.AppsV1().Deployments(db.settingsMgr.GetNamespace()).Get(context.Background(), applicationControllerName, metav1.GetOptions{})
-	if err != nil {
-		appControllerDeployment = nil
-		if !kubeerrors.IsNotFound(err) {
-			log.Warnf("error retrieveing Argo CD controller deployment: %s", err)
-		}
+	var appControllerReplicas int
+	appControllerName := env.StringFromEnv(common.EnvAppControllerName, common.DefaultApplicationControllerName)
+	appControllerPodLabelSelector := common.LabelKeyAppName + "=" + appControllerName
+	appControllerPods, err := db.kubeclientset.CoreV1().Pods(db.settingsMgr.GetNamespace()).List(context.Background(), metav1.ListOptions{
+		LabelSelector: appControllerPodLabelSelector})
+	if err != nil && !kubeerrors.IsNotFound(err) {
+		log.Warnf("error retrieving ArgoCD app-controller pods: %s", err)
 	}
-	if appControllerDeployment != nil && appControllerDeployment.Spec.Replicas != nil {
-		return int(*appControllerDeployment.Spec.Replicas)
+	appControllerReplicas = len(appControllerPods.Items)
+	if appControllerReplicas == 0 {
+		return env.ParseNumFromEnv(common.EnvControllerReplicas, 0, 0, math.MaxInt32)
 	}
-	return env.ParseNumFromEnv(common.EnvControllerReplicas, 0, 0, math.MaxInt32)
+	return appControllerReplicas
 }

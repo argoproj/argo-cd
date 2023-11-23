@@ -2,6 +2,7 @@ package db
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -9,7 +10,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	appv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -760,15 +760,38 @@ func TestGetApplicationControllerReplicas(t *testing.T) {
 	assert.Equal(t, int(expectedReplicas), replicas)
 
 	expectedReplicas = int32(3)
-	clientset = getClientset(nil, &appv1.Deployment{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      common.ApplicationController,
-			Namespace: testNamespace,
+	clientset = getClientset(nil,
+		&v1.Pod{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      fmt.Sprintf("%s-0", common.ApplicationController),
+				Namespace: testNamespace,
+				Labels: map[string]string{
+					common.LabelKeyAppName: common.DefaultApplicationControllerName,
+				},
+			},
+			Spec: v1.PodSpec{},
 		},
-		Spec: appv1.DeploymentSpec{
-			Replicas: &expectedReplicas,
+		&v1.Pod{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      fmt.Sprintf("%s-1", common.ApplicationController),
+				Namespace: testNamespace,
+				Labels: map[string]string{
+					common.LabelKeyAppName: common.DefaultApplicationControllerName,
+				},
+			},
+			Spec: v1.PodSpec{},
 		},
-	})
+		&v1.Pod{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      fmt.Sprintf("%s-2", common.ApplicationController),
+				Namespace: testNamespace,
+				Labels: map[string]string{
+					common.LabelKeyAppName: common.DefaultApplicationControllerName,
+				},
+			},
+			Spec: v1.PodSpec{},
+		},
+	)
 	t.Setenv(common.EnvControllerReplicas, "2")
 	db = NewDB(testNamespace, settings.NewSettingsManager(context.Background(), clientset, testNamespace), clientset)
 	replicas = db.GetApplicationControllerReplicas()
