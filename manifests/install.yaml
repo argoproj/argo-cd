@@ -11179,6 +11179,8 @@ spec:
                                         type: boolean
                                       insecure:
                                         type: boolean
+                                      latestProtectedTag:
+                                        type: boolean
                                       tokenRef:
                                         properties:
                                           key:
@@ -16206,6 +16208,8 @@ spec:
                                         type: boolean
                                       insecure:
                                         type: boolean
+                                      latestProtectedTag:
+                                        type: boolean
                                       tokenRef:
                                         properties:
                                           key:
@@ -18889,6 +18893,8 @@ spec:
                             includeSubgroups:
                               type: boolean
                             insecure:
+                              type: boolean
+                            latestProtectedTag:
                               type: boolean
                             tokenRef:
                               properties:

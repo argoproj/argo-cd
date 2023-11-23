@@ -8802,6 +8802,10 @@
           "type": "boolean",
           "title": "Skips validating the SCM provider's TLS certificate - useful for self-signed certificates.; default: false"
         },
+        "latestProtectedTag": {
+          "type": "boolean",
+          "title": "Obtain latest protected tag from GitLab project. Default to \"false\""
+        },
         "tokenRef": {
           "$ref": "#/definitions/v1alpha1SecretRef"
         },

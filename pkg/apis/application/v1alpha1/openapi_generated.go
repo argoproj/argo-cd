@@ -7246,6 +7246,13 @@ func schema_pkg_apis_application_v1alpha1_SCMProviderGeneratorGitlab(ref common.
 							Format:      "",
 						},
 					},
+					"latestProtectedTag": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Obtain latest protected tag from GitLab project. Default to \"false\"",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
 				},
 				Required: []string{"group"},
 			},

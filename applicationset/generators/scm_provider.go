@@ -230,6 +230,15 @@ func (g *SCMProviderGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha
 			"branchNormalized": utils.SanitizeName(repo.Branch),
 		}
 
+		if providerConfig.Gitlab != nil && providerConfig.Gitlab.LatestProtectedTag {
+			latestProtectedTag, err := scm_provider.GitlabLatestProtectedTag(ctx, repo, provider.(*scm_provider.GitlabProvider))
+			if err != nil {
+				return nil, fmt.Errorf("error getting latest protected tag: %v", err)
+			} else if len(latestProtectedTag) > 0 {
+				params["latestProtectedTag"] = latestProtectedTag
+			}
+		}
+
 		err := appendTemplatedValues(appSetGenerator.SCMProvider.Values, params, applicationSetInfo.Spec.GoTemplate, applicationSetInfo.Spec.GoTemplateOptions)
 		if err != nil {
 			return nil, fmt.Errorf("failed to append templated values: %w", err)

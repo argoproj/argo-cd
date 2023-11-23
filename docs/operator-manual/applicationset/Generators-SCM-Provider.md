@@ -98,6 +98,8 @@ spec:
           key: token
         # If true, skips validating the SCM provider's TLS certificate - useful for self-signed certificates.
         insecure: false
+        # If true, get latest protected tag of every repository.
+        latestProtectedTag: false
   template:
   # ...
 ```
@@ -110,6 +112,7 @@ spec:
 * `topic`: filter projects by topic. A single topic is supported by Gitlab API. Defaults to "" (all topics).
 * `tokenRef`: A `Secret` name and key containing the GitLab access token to use for requests. If not specified, will make anonymous requests which have a lower rate limit and can only see public repositories.
 * `insecure`: By default (false) - Skip checking the validity of the SCM's certificate - useful for self-signed TLS certificates.
+* `latestProtectedTag`: Obtain latest protected tag to use it in deployments.
 
 For label filtering, the repository topics are used.
 
@@ -423,6 +426,9 @@ spec:
 * `short_sha_7`: The abbreviated Git commit SHA for the branch (7 chars or the length of the `sha` if it's shorter).
 * `labels`: A comma-separated list of repository labels in case of Gitea, repository topics in case of Gitlab and Github. Not supported by Bitbucket Cloud, Bitbucket Server, or Azure DevOps.
 * `branchNormalized`: The value of `branch` normalized to contain only lowercase alphanumeric characters, '-' or '.'.
+
+GitLab only if `latestProtectedTag` is true
+* `latestProtectedTag`: Latest protoected tag of every repository.
 
 ## Pass additional key-value pairs via `values` field
 
