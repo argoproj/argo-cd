@@ -151,6 +151,8 @@ func StripCRLFCharacter(input string) string {
 }
 
 // GetApplicationControllerReplicas gets the replicas of application controller pods
+// using the app.kubernetes.io/name label selector
+// if it couldn't get the number of pods, it uses the env var ARGOCD_CONTROLLER_REPLICAS
 func (db *db) GetApplicationControllerReplicas() int {
 	var appControllerReplicas int
 	appControllerName := env.StringFromEnv(common.EnvAppControllerName, common.DefaultApplicationControllerName)
