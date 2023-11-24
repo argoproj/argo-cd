@@ -161,6 +161,9 @@ func (o *oidcConfig) toExported() *OIDCConfig {
 		ClientID:                 o.ClientID,
 		ClientSecret:             o.ClientSecret,
 		CLIClientID:              o.CLIClientID,
+		UserInfoPath:             o.UserInfoPath,
+		EnableUserInfoGroups:     o.EnableUserInfoGroups,
+		UserInfoCacheExpiration:  o.UserInfoCacheExpiration,
 		RequestedScopes:          o.RequestedScopes,
 		RequestedIDTokenClaims:   o.RequestedIDTokenClaims,
 		LogoutURL:                o.LogoutURL,
@@ -175,6 +178,9 @@ type OIDCConfig struct {
 	ClientID                 string                 `json:"clientID,omitempty"`
 	ClientSecret             string                 `json:"clientSecret,omitempty"`
 	CLIClientID              string                 `json:"cliClientID,omitempty"`
+	EnableUserInfoGroups     bool                   `json:"enableUserInfoGroups,omitempty"`
+	UserInfoPath             string                 `json:"userInfoPath,omitempty"`
+	UserInfoCacheExpiration  string                 `json:"userInfoCacheExpiration,omitempty"`
 	RequestedScopes          []string               `json:"requestedScopes,omitempty"`
 	RequestedIDTokenClaims   map[string]*oidc.Claim `json:"requestedIDTokenClaims,omitempty"`
 	LogoutURL                string                 `json:"logoutURL,omitempty"`
@@ -1848,6 +1854,34 @@ func (a *ArgoCDSettings) IssuerURL() string {
 		return a.URL + common.DexAPIEndpoint
 	}
 	return ""
+}
+
+// UserInfoGroupsEnabled returns whether group claims should be fetch from UserInfo endpoint
+func (a *ArgoCDSettings) UserInfoGroupsEnabled() bool {
+	if oidcConfig := a.OIDCConfig(); oidcConfig != nil {
+		return oidcConfig.EnableUserInfoGroups
+	}
+	return false
+}
+
+// UserInfoPath returns the sub-path on which the IDP exposes the UserInfo endpoint
+func (a *ArgoCDSettings) UserInfoPath() string {
+	if oidcConfig := a.OIDCConfig(); oidcConfig != nil {
+		return oidcConfig.UserInfoPath
+	}
+	return ""
+}
+
+// UserInfoCacheExpiration returns the expiry time of the UserInfo cache
+func (a *ArgoCDSettings) UserInfoCacheExpiration() time.Duration {
+	if oidcConfig := a.OIDCConfig(); oidcConfig != nil && oidcConfig.UserInfoCacheExpiration != "" {
+		userInfoCacheExpiration, err := time.ParseDuration(oidcConfig.UserInfoCacheExpiration)
+		if err != nil {
+			log.Warnf("Failed to parse 'oidc.config.userInfoCacheExpiration' key: %v", err)
+		}
+		return userInfoCacheExpiration
+	}
+	return 0
 }
 
 func (a *ArgoCDSettings) OAuth2ClientID() string {

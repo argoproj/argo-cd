@@ -110,6 +110,18 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 
 	// Do not attempt to further reconcile the ApplicationSet if it is being deleted.
 	if applicationSetInfo.ObjectMeta.DeletionTimestamp != nil {
+		if controllerutil.ContainsFinalizer(&applicationSetInfo, argov1alpha1.ResourcesFinalizerName) {
+			deleteAllowed := utils.DefaultPolicy(applicationSetInfo.Spec.SyncPolicy, r.Policy, r.EnablePolicyOverride).AllowDelete()
+			if !deleteAllowed {
+				if err := r.removeOwnerReferencesOnDeleteAppSet(ctx, applicationSetInfo); err != nil {
+					return ctrl.Result{}, err
+				}
+				controllerutil.RemoveFinalizer(&applicationSetInfo, argov1alpha1.ResourcesFinalizerName)
+				if err := r.Update(ctx, &applicationSetInfo); err != nil {
+					return ctrl.Result{}, err
+				}
+			}
+		}
 		return ctrl.Result{}, nil
 	}
 
@@ -761,10 +773,9 @@ func (r *ApplicationSetReconciler) createInCluster(ctx context.Context, logCtx *
 	return r.createOrUpdateInCluster(ctx, logCtx, applicationSet, createApps)
 }
 
-func (r *ApplicationSetReconciler) getCurrentApplications(_ context.Context, applicationSet argov1alpha1.ApplicationSet) ([]argov1alpha1.Application, error) {
-	// TODO: Should this use the context param?
+func (r *ApplicationSetReconciler) getCurrentApplications(ctx context.Context, applicationSet argov1alpha1.ApplicationSet) ([]argov1alpha1.Application, error) {
 	var current argov1alpha1.ApplicationList
-	err := r.Client.List(context.Background(), &current, client.MatchingFields{".metadata.controller": applicationSet.Name})
+	err := r.Client.List(ctx, &current, client.MatchingFields{".metadata.controller": applicationSet.Name}, client.InNamespace(applicationSet.Namespace))
 
 	if err != nil {
 		return nil, fmt.Errorf("error retrieving applications: %w", err)
@@ -899,6 +910,23 @@ func (r *ApplicationSetReconciler) removeFinalizerOnInvalidDestination(ctx conte
 
 			r.Recorder.Eventf(&applicationSet, corev1.EventTypeNormal, "Updated", "Updated Application %q finalizer before deletion, because application has an invalid destination", app.Name)
 			appLog.Log(log.InfoLevel, "Updating application finalizer before deletion, because application has an invalid destination")
+		}
+	}
+
+	return nil
+}
+
+func (r *ApplicationSetReconciler) removeOwnerReferencesOnDeleteAppSet(ctx context.Context, applicationSet argov1alpha1.ApplicationSet) error {
+	applications, err := r.getCurrentApplications(ctx, applicationSet)
+	if err != nil {
+		return err
+	}
+
+	for _, app := range applications {
+		app.SetOwnerReferences([]metav1.OwnerReference{})
+		err := r.Client.Update(ctx, &app)
+		if err != nil {
+			return err
 		}
 	}
 
