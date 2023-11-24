@@ -18,18 +18,18 @@ The Teams notification service send message notifications using Teams bot and re
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: <config-map-name>
+  name: argocd-notifications-cm
 data:
   service.teams: |
     recipientUrls:
-      channelName: $channel-teams-url
+      <channelName>: $channel-teams-url
 ```
 
 ```yaml
 apiVersion: v1
 kind: Secret
 metadata:
-  name: <secret-name>
+  name: argocd-notifications-secret
 stringData:
   channel-teams-url: https://example.com
 ```
