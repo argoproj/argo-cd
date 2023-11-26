@@ -65,7 +65,6 @@ export interface AbstractApplicationResourceTreeProps {
     updateUsrHelpTipMsgs: (userMsgs: models.UserMessages) => void;
     setShowCompactNodes: (showCompactNodes: boolean) => void;
     zoom: number;
-    // podGroupCount: number;
     filters?: string[];
     setTreeFilterGraph?: (filterGraph: any[]) => void;
     nameDirection: boolean;
