@@ -326,7 +326,7 @@ export interface ApplicationSetSpec {
     preservedFields: ApplicationPreservedFields;
 }
 
-export interface ApplicationSetSyncPolicy{
+export interface ApplicationSetSyncPolicy {
     preserveResourcesOnDeletion: boolean;
 }
 
@@ -349,10 +349,16 @@ export interface ApplicationSetCondition {
 
 export interface ApplicationSetApplicationStatus {
     application: string;
-    message: string;
-    lastTransitionTime: models.Time;
-    status: string;
-    step: string;
+    progressiveSyncLastTransitionTime: models.Time;
+    progressiveSyncMessage: string;
+    progressiveSyncStatus: string;
+    progressiveSyncStep: string;
+    createdAt: models.Time;
+    health: HealthStatus;
+    // message: string;
+    // lastTransitionTime: models.Time;
+    // status: string;
+    // step: string;
 }
 
 export type ApplicationSetConditionType = 'ErrorOccurred' | 'ParametersGenerated' | 'ResourcesUpToDate' | 'RolloutProgressing';
@@ -361,7 +367,7 @@ export const ApplicationSetConditionTypes: {[key: string]: ApplicationSetConditi
     ErrorOccurred: 'ErrorOccurred',
     ParametersGenerated: 'ParametersGenerated',
     ResourcesUpToDate: 'ResourcesUpToDate',
-    RolloutProgressing: 'RolloutProgressing',
+    RolloutProgressing: 'RolloutProgressing'
 };
 
 export type ApplicationSetConditionStatus = 'True' | 'False' | 'Unknown';
@@ -369,7 +375,7 @@ export type ApplicationSetConditionStatus = 'True' | 'False' | 'Unknown';
 export const ApplicationSetConditionStatuses: {[key: string]: ApplicationSetConditionStatus} = {
     True: 'True',
     False: 'False',
-    Unknown: 'Unknown',
+    Unknown: 'Unknown'
 };
 
 export type SyncStatusCode = 'Unknown' | 'Synced' | 'OutOfSync';
@@ -453,11 +459,16 @@ export interface ResourceNode extends ResourceRef {
     createdAt?: models.Time;
 }
 
-export interface ApplicationTree {
+export interface AbstractApplicationTree {
     nodes: ResourceNode[];
+}
+
+export interface ApplicationTree extends AbstractApplicationTree {
     orphanedNodes: ResourceNode[];
     hosts: Node[];
 }
+
+export interface ApplicationSetTree extends AbstractApplicationTree {}
 
 export interface ResourceID {
     group: string;

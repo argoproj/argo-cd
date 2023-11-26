@@ -1,10 +1,10 @@
 import * as React from 'react';
 import {Checkbox} from 'argo-ui/v2';
-import {ApplicationTree, HealthStatusCode, HealthStatuses, SyncStatusCode, SyncStatuses} from '../../../shared/models';
+import {ApplicationSetTree, ApplicationTree, HealthStatusCode, HealthStatuses, SyncStatusCode, SyncStatuses} from '../../../shared/models';
 import {AppDetailsPreferences, AppSetDetailsPreferences, services} from '../../../shared/services';
 import {Context} from '../../../shared/context';
 import {Filter, FiltersGroup} from '../filter/filter';
-import {ComparisonStatusIcon, HealthStatusIcon} from '../utils';
+import {ComparisonStatusIcon, HealthStatusIcon, isInvokedFromApps} from '../utils';
 import {resources} from '../resources';
 import * as models from '../../../shared/models';
 
@@ -17,18 +17,19 @@ function toOption(label: string) {
 export interface AbstractFiltersProps {
     children?: React.ReactNode;
     pref: AppDetailsPreferences | AppSetDetailsPreferences;
-    tree: ApplicationTree;
+    tree: ApplicationTree | ApplicationSetTree;
     resourceNodes: models.ResourceStatus[];
     onSetFilter: (items: string[]) => void;
     onClearFilter: () => void;
     collapsed?: boolean;
 }
 
-export interface FiltersProps extends AbstractFiltersProps{
+export interface FiltersProps extends AbstractFiltersProps {
     pref: AppDetailsPreferences;
+    tree: ApplicationTree;
 }
 
-export interface AppSetFiltersProps extends AbstractFiltersProps{
+export interface AppSetFiltersProps extends AbstractFiltersProps {
     pref: AppSetDetailsPreferences;
 }
 
@@ -160,7 +161,7 @@ export const Filters = (props: AbstractFiltersProps) => {
                 }))
             })}
             {namespaces.length > 1 && ResourceFilter({label: 'NAMESPACES', prefix: 'namespace', options: (namespaces || []).filter(l => l && l !== '').map(toOption), field: true})}
-            {(tree.orphanedNodes || []).length > 0 && (
+            {((isInvokedFromApps() ? (tree as ApplicationTree).orphanedNodes : []) || []).length > 0 && (
                 <div className={`filter filter__item ${pref.orphanedResources ? 'filter__item--selected' : ''}`}>
                     <Checkbox
                         value={!!pref.orphanedResources}

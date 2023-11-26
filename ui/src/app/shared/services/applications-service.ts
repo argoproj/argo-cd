@@ -1,11 +1,11 @@
 import * as deepMerge from 'deepmerge';
-import { Observable } from 'rxjs';
-import { map, repeat, retry } from 'rxjs/operators';
+import {Observable} from 'rxjs';
+import {map, repeat, retry} from 'rxjs/operators';
 
 import * as models from '../models';
-import { isValidURL } from '../utils';
+import {isValidURL} from '../utils';
 import requests from './requests';
-import { getRootPath, isInvokedFromApps } from '../../applications/components/utils';
+import {getRootPath, isInvokedFromApps} from '../../applications/components/utils';
 
 interface QueryOptions {
     fields: string[];
@@ -16,7 +16,7 @@ interface QueryOptions {
 
 function optionsToSearch(options?: QueryOptions) {
     if (options) {
-        return { fields: (options.exclude ? '-' : '') + options.fields.join(','), selector: options.selector || '', appNamespace: options.appNamespace || '' };
+        return {fields: (options.exclude ? '-' : '') + options.fields.join(','), selector: options.selector || '', appNamespace: options.appNamespace || ''};
     }
     return {};
 }
@@ -24,10 +24,9 @@ function optionsToSearch(options?: QueryOptions) {
 
 function getQuery(projects: string[], options?: QueryOptions): any {
     if (isInvokedFromApps()) {
-        return { projects, ...optionsToSearch(options) }
-    }
-    else {
-        return { ...optionsToSearch(options) }
+        return {projects, ...optionsToSearch(options)};
+    } else {
+        return {...optionsToSearch(options)};
     }
 }
 
@@ -38,21 +37,20 @@ export class ApplicationsService {
             .query(getQuery(projects, options))
             .then(res => {
                 if (isInvokedFromApps()) {
-                    return res.body as models.ApplicationList
-                }
-                else {
-                    return res.body as models.ApplicationSetList
+                    return res.body as models.ApplicationList;
+                } else {
+                    return res.body as models.ApplicationSetList;
                 }
             })
             .then(list => {
                 list.items = (list.items || []).map(app => this.parseAppFields(app));
-                
+
                 return list;
             });
     }
 
     public get(name: string, appNamespace: string, refresh?: 'normal' | 'hard'): Promise<models.AbstractApplication> {
-        const query: { [key: string]: string } = {};
+        const query: {[key: string]: string} = {};
         if (refresh) {
             query.refresh = refresh;
         }
@@ -69,29 +67,30 @@ export class ApplicationsService {
     public getApplicationSyncWindowState(name: string, appNamespace: string): Promise<models.ApplicationSyncWindowState> {
         return requests
             .get(`/applications/${name}/syncwindows`)
-            .query({ name, appNamespace })
+            .query({name, appNamespace})
             .then(res => res.body as models.ApplicationSyncWindowState);
     }
 
     public revisionMetadata(name: string, appNamespace: string, revision: string): Promise<models.RevisionMetadata> {
         return requests
             .get(`/applications/${name}/revisions/${revision || 'HEAD'}/metadata`)
-            .query({ appNamespace })
+            .query({appNamespace})
             .then(res => res.body as models.RevisionMetadata);
     }
 
     public revisionChartDetails(name: string, appNamespace: string, revision: string): Promise<models.ChartDetails> {
         return requests
             .get(`/applications/${name}/revisions/${revision || 'HEAD'}/chartdetails`)
-            .query({ appNamespace })
+            .query({appNamespace})
             .then(res => res.body as models.ChartDetails);
     }
 
-    public resourceTree(name: string, appNamespace: string): Promise<models.ApplicationTree> {
+    public resourceTree(name: string, appNamespace: string): Promise<models.AbstractApplicationTree> {
+        console.log('***  RESOURCE TREE ****');
         return requests
             .get(`${getRootPath()}/${name}/resource-tree`)
-            .query({ appNamespace })
-            .then(res => res.body as models.ApplicationTree);
+            .query({appNamespace})
+            .then(isInvokedFromApps() ? res => res.body as models.ApplicationTree : res => res.body as models.ApplicationSetTree);
     }
 
     public watchResourceTree(name: string, appNamespace: string): Observable<models.ApplicationTree> {
@@ -100,11 +99,11 @@ export class ApplicationsService {
             .pipe(map(data => JSON.parse(data).result as models.ApplicationTree));
     }
 
-    public managedResources(name: string, appNamespace: string, options: { id?: models.ResourceID; fields?: string[] } = {}): Promise<models.ResourceDiff[]> {
+    public managedResources(name: string, appNamespace: string, options: {id?: models.ResourceID; fields?: string[]} = {}): Promise<models.ResourceDiff[]> {
         return requests
             .get(`${getRootPath()}/${name}/managed-resources`)
             .query(`appNamespace=${appNamespace.toString()}`)
-            .query({ ...options.id, fields: (options.fields || []).join(',') })
+            .query({...options.id, fields: (options.fields || []).join(',')})
             .then(res => (res.body.items as any[]) || [])
             .then(items => {
                 items.forEach(item => {
@@ -128,23 +127,23 @@ export class ApplicationsService {
     public getManifest(name: string, appNamespace: string, revision: string): Promise<models.ManifestResponse> {
         return requests
             .get(`${getRootPath()}/${name}/manifests`)
-            .query({ name, revision, appNamespace })
+            .query({name, revision, appNamespace})
             .then(res => res.body as models.ManifestResponse);
     }
 
     public updateSpec(appName: string, appNamespace: string, spec: models.ApplicationSpec): Promise<models.ApplicationSpec> {
         return requests
             .put(`${getRootPath()}/${appName}/spec`)
-            .query({ appNamespace })
+            .query({appNamespace})
             .send(spec)
             .then(res => res.body as models.ApplicationSpec);
     }
 
-    public update(app: models.AbstractApplication, query: { validate?: boolean } = {}): Promise<models.AbstractApplication> {
+    public update(app: models.AbstractApplication, query: {validate?: boolean} = {}): Promise<models.AbstractApplication> {
         return requests
             .put(`${getRootPath()}/${app.metadata.name}`)
             .query(query)
-            .send(isInvokedFromApps() ? app as models.Application : app as models.ApplicationSet)
+            .send(isInvokedFromApps() ? (app as models.Application) : (app as models.ApplicationSet))
             .then(res => this.parseAppFields(res.body));
     }
 
@@ -158,7 +157,7 @@ export class ApplicationsService {
         }
         return requests
             .post(getRootPath())
-            .send(isInvokedFromApps() ? app as models.Application : app as models.ApplicationSet)
+            .send(isInvokedFromApps() ? (app as models.Application) : (app as models.ApplicationSet))
             .then(res => this.parseAppFields(res.body));
     }
 
@@ -179,7 +178,7 @@ export class ApplicationsService {
             .then(() => true);
     }
 
-    public watch(query?: { name?: string; resourceVersion?: string; projects?: string[]; appNamespace?: string }, options?: QueryOptions): Observable<models.ApplicationWatchEvent> {
+    public watch(query?: {name?: string; resourceVersion?: string; projects?: string[]; appNamespace?: string}, options?: QueryOptions): Observable<models.ApplicationWatchEvent> {
         const search = new URLSearchParams();
         if (query) {
             if (query.name) {
@@ -236,7 +235,7 @@ export class ApplicationsService {
                 dryRun: !!dryRun,
                 strategy,
                 resources,
-                syncOptions: syncOptions ? { items: syncOptions } : null,
+                syncOptions: syncOptions ? {items: syncOptions} : null,
                 retryStrategy
             })
             .then(() => true);
@@ -245,7 +244,7 @@ export class ApplicationsService {
     public rollback(name: string, appNamespace: string, id: number): Promise<boolean> {
         return requests
             .post(`/applications/${name}/rollback`)
-            .send({ id, appNamespace })
+            .send({id, appNamespace})
             .then(() => true);
     }
 
@@ -254,10 +253,10 @@ export class ApplicationsService {
         appNamespace: string,
         namespace: string,
         podName: string,
-        resource: { group: string; kind: string; name: string },
+        resource: {group: string; kind: string; name: string},
         containerName: string
     ): string {
-        const search = this.getLogsQuery({ namespace, appNamespace, podName, resource, containerName, follow: false });
+        const search = this.getLogsQuery({namespace, appNamespace, podName, resource, containerName, follow: false});
         search.set('download', 'true');
         return `api/v1/applications/${applicationName}/logs?${search.toString()}`;
     }
@@ -267,7 +266,7 @@ export class ApplicationsService {
         appNamespace: string;
         namespace: string;
         podName: string;
-        resource: { group: string; kind: string; name: string };
+        resource: {group: string; kind: string; name: string};
         containerName: string;
         tail?: number;
         follow?: boolean;
@@ -276,7 +275,7 @@ export class ApplicationsService {
         filter?: string;
         previous?: boolean;
     }): Observable<models.LogEntry> {
-        const { applicationName } = query;
+        const {applicationName} = query;
         const search = this.getLogsQuery(query);
         const entries = requests.loadEventSource(`/applications/${applicationName}/logs?${search.toString()}`).pipe(map(data => JSON.parse(data).result as models.LogEntry));
         let first = true;
@@ -288,7 +287,7 @@ export class ApplicationsService {
                         observer.complete();
                         subscription.unsubscribe();
                     } else {
-                        observer.next({ ...entry, first });
+                        observer.next({...entry, first});
                         first = false;
                     }
                 },
@@ -317,7 +316,7 @@ export class ApplicationsService {
                 kind: resource.kind,
                 group: resource.group || '' // The group query param must be present even if empty.
             })
-            .then(res => res.body as { manifest: string })
+            .then(res => res.body as {manifest: string})
             .then(res => JSON.parse(res.manifest) as models.State);
     }
 
@@ -368,7 +367,7 @@ export class ApplicationsService {
                 patchType
             })
             .send(JSON.stringify(patch))
-            .then(res => res.body as { manifest: string })
+            .then(res => res.body as {manifest: string})
             .then(res => JSON.parse(res.manifest) as models.State);
     }
 
@@ -393,7 +392,7 @@ export class ApplicationsService {
     public events(applicationName: string, appNamespace: string): Promise<models.Event[]> {
         return requests
             .get(`${getRootPath()}/${applicationName}/events`)
-            .query({ appNamespace })
+            .query({appNamespace})
             .send()
             .then(res => (res.body as models.EventList).items || []);
     }
@@ -422,7 +421,7 @@ export class ApplicationsService {
     public terminateOperation(applicationName: string, appNamespace: string): Promise<boolean> {
         return requests
             .delete(`/applications/${applicationName}/operation`)
-            .query({ appNamespace })
+            .query({appNamespace})
             .send()
             .then(() => true);
     }
@@ -430,7 +429,7 @@ export class ApplicationsService {
     public getLinks(applicationName: string, namespace: string): Promise<models.LinksResponse> {
         return requests
             .get(`${getRootPath()}/${applicationName}/links`)
-            .query({ namespace })
+            .query({namespace})
             .send()
             .then(res => res.body as models.LinksResponse);
     }
@@ -465,7 +464,7 @@ export class ApplicationsService {
         namespace: string;
         appNamespace: string;
         podName: string;
-        resource: { group: string; kind: string; name: string };
+        resource: {group: string; kind: string; name: string};
         containerName: string;
         tail?: number;
         follow?: boolean;
@@ -474,8 +473,8 @@ export class ApplicationsService {
         filter?: string;
         previous?: boolean;
     }): URLSearchParams {
-        const { appNamespace, containerName, namespace, podName, resource, tail, sinceSeconds, untilTime, filter, previous } = query;
-        let { follow } = query;
+        const {appNamespace, containerName, namespace, podName, resource, tail, sinceSeconds, untilTime, filter, previous} = query;
+        let {follow} = query;
         if (follow === undefined || follow === null) {
             follow = true;
         }
@@ -529,12 +528,11 @@ export class ApplicationsService {
             );
 
             return data as models.Application;
-        }
-        else {
+        } else {
             data = deepMerge(
                 {
                     apiVersion: 'argoproj.io/v1alpha1',
-                    kind: 'ApplicationSet',
+                    kind: 'ApplicationSet'
                 },
                 data
             );

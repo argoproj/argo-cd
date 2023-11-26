@@ -30,6 +30,7 @@ import {NodeUpdateAnimation} from './node-update-animation';
 import {PodGroup} from '../application-pod-view/pod-view';
 import './application-resource-tree.scss';
 import {ArrowConnector} from './arrow-connector';
+import {Application, ApplicationTree} from '../../../shared/models';
 
 function treeNodeKey(node: NodeId & {uid?: string}) {
     return node.uid || nodeKey(node);
@@ -50,7 +51,7 @@ export interface ResourceTreeNode extends models.ResourceNode {
 
 export interface AbstractApplicationResourceTreeProps {
     app: models.AbstractApplication;
-    tree: models.ApplicationTree;
+    tree: models.AbstractApplicationTree;
     useNetworkingHierarchy: boolean;
     nodeFilter: (node: ResourceTreeNode) => boolean;
     selectedNodeFullName?: string;
@@ -918,7 +919,7 @@ export const ApplicationResourceTree = (props: AbstractApplicationResourceTreePr
     const nodeByKey = new Map<string, ResourceTreeNode>();
     props.tree.nodes
         .map(node => ({...node, orphaned: false}))
-        .concat(((props.showOrphanedResources && props.tree.orphanedNodes) || []).map(node => ({...node, orphaned: true})))
+        .concat(((props.showOrphanedResources && isApp(props.app) ? (props.tree as ApplicationTree).orphanedNodes : []) || []).map(node => ({...node, orphaned: true})))
         .forEach(node => {
             const status = statusByKey.get(nodeKey(node));
             const resourceNode: ResourceTreeNode = {...node};
@@ -931,6 +932,7 @@ export const ApplicationResourceTree = (props: AbstractApplicationResourceTreePr
             nodeByKey.set(treeNodeKey(node), resourceNode);
         });
     const nodes = Array.from(nodeByKey.values());
+    console.log(nodes);
     let roots: ResourceTreeNode[] = [];
     const childrenByParentKey = new Map<string, ResourceTreeNode[]>();
     const nodesHavingChildren = new Map<string, number>();
@@ -1084,8 +1086,8 @@ export const ApplicationResourceTree = (props: AbstractApplicationResourceTreePr
         }
     } else {
         // Tree view
-        const managedKeys = isApp(props.app) ? new Set((props.app as models.Application).status.resources.map(nodeKey)) : new Set();
-        const orphanedKeys = new Set(props.tree.orphanedNodes?.map(nodeKey));
+        const managedKeys = isApp(props.app) ? new Set((props.app as Application).status.resources.map(nodeKey)) : new Set();
+        const orphanedKeys = isApp(props.app) ? new Set((props.tree as ApplicationTree).orphanedNodes?.map(nodeKey)) : new Set();
         const orphans: ResourceTreeNode[] = [];
         let allChildNodes: ResourceTreeNode[] = [];
         nodesHavingChildren.set(appNode.uid, 1);
