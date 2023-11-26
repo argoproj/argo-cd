@@ -22470,13 +22470,13 @@ spec:
               key: otlp.address
               name: argocd-cmd-params-cm
               optional: true
-        - name: ARGOCD_SERVER_OTLP_INSECURE
+        - name: ARGOCD_APPLICATION_CONTROLLER_OTLP_INSECURE
           valueFrom:
             configMapKeyRef:
               key: otlp.insecure
               name: argocd-cmd-params-cm
               optional: true
-        - name: ARGOCD_SERVER_OTLP_HEADERS
+        - name: ARGOCD_APPLICATION_CONTROLLER_OTLP_HEADERS
           valueFrom:
             configMapKeyRef:
               key: otlp.headers
