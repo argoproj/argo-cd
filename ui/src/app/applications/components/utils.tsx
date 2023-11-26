@@ -1,19 +1,21 @@
-import { models, DataLoader, FormField, MenuItem, NotificationType, Tooltip } from 'argo-ui';
-import { ActionButton } from 'argo-ui/v2';
+import {models, DataLoader, FormField, MenuItem, NotificationType, Tooltip} from 'argo-ui';
+import {ActionButton} from 'argo-ui/v2';
 import * as classNames from 'classnames';
 import * as React from 'react';
 import * as ReactForm from 'react-form';
-import { FormApi, Text } from 'react-form';
+import {FormApi, Text} from 'react-form';
 import * as moment from 'moment';
-import { BehaviorSubject, combineLatest, concat, from, fromEvent, Observable, Observer, Subscription } from 'rxjs';
-import { debounceTime, map } from 'rxjs/operators';
-import { AppContext, Context, ContextApis } from '../../shared/context';
-import { ResourceTreeNode } from './application-resource-tree/application-resource-tree';
+import {BehaviorSubject, combineLatest, concat, from, fromEvent, Observable, Observer, Subscription} from 'rxjs';
+import {debounceTime, map} from 'rxjs/operators';
+import {AppContext, Context, ContextApis} from '../../shared/context';
+import {ResourceTreeNode} from './application-resource-tree/application-resource-tree';
 
-import { CheckboxField, COLORS, ErrorNotification, Revision } from '../../shared/components';
+import {CheckboxField, COLORS, ErrorNotification, Revision} from '../../shared/components';
 import * as appModels from '../../shared/models';
-import { services } from '../../shared/services';
-import { ApplicationSetConditionStatus, ApplicationSetStatus } from '../../shared/models';
+import {services} from '../../shared/services';
+import {ApplicationSetConditionStatus, ApplicationSetStatus} from '../../shared/models';
+
+import {History} from 'history';
 
 require('./utils.scss');
 
@@ -27,7 +29,7 @@ export interface NodeId {
     createdAt?: models.Time;
 }
 
-type ActionMenuItem = MenuItem & { disabled?: boolean; tooltip?: string };
+type ActionMenuItem = MenuItem & {disabled?: boolean; tooltip?: string};
 
 export function nodeKey(node: NodeId) {
     return [node.group, node.kind, node.namespace, node.name].join('/');
@@ -44,7 +46,7 @@ export function isSameNode(first: NodeId, second: NodeId) {
 export function helpTip(text: string) {
     return (
         <Tooltip content={text}>
-            <span style={{ fontSize: 'smaller' }}>
+            <span style={{fontSize: 'smaller'}}>
                 {' '}
                 <i className='fas fa-info-circle' />
             </span>
@@ -53,7 +55,7 @@ export function helpTip(text: string) {
 }
 export async function deleteApplication(appName: string, appNamespace: string, apis: ContextApis): Promise<boolean> {
     let confirmed = false;
-    const propagationPolicies: { name: string; message: string }[] = [
+    const propagationPolicies: {name: string; message: string}[] = [
         {
             name: 'Foreground',
             message: `Cascade delete the application's resources using foreground propagation policy`
@@ -119,9 +121,9 @@ export async function deleteApplication(appName: string, appNamespace: string, a
                 }
             }
         },
-        { name: 'argo-icon-warning', color: 'warning' },
+        {name: 'argo-icon-warning', color: 'warning'},
         'yellow',
-        { propagationPolicy: 'foreground' }
+        {propagationPolicy: 'foreground'}
     );
     return confirmed;
 }
@@ -166,15 +168,15 @@ export async function confirmSyncingAppOfApps(apps: appModels.Application[], api
                 }
             }
         },
-        { name: 'argo-icon-warning', color: 'warning' },
+        {name: 'argo-icon-warning', color: 'warning'},
         'yellow'
     );
     return confirmed;
 }
 
-const PropagationPolicyOption = ReactForm.FormField((props: { fieldApi: ReactForm.FieldApi; policy: string; message: string }) => {
+const PropagationPolicyOption = ReactForm.FormField((props: {fieldApi: ReactForm.FieldApi; policy: string; message: string}) => {
     const {
-        fieldApi: { setValue }
+        fieldApi: {setValue}
     } = props;
     return (
         <div className='propagation-policy-option'>
@@ -195,7 +197,7 @@ const PropagationPolicyOption = ReactForm.FormField((props: { fieldApi: ReactFor
     );
 });
 
-export const OperationPhaseIcon = ({ app }: { app: appModels.Application }) => {
+export const OperationPhaseIcon = ({app}: {app: appModels.Application}) => {
     const operationState = getAppOperationState(app);
     if (operationState === undefined) {
         return <React.Fragment />;
@@ -220,7 +222,7 @@ export const OperationPhaseIcon = ({ app }: { app: appModels.Application }) => {
             color = COLORS.operation.running;
             break;
     }
-    return <i title={getOperationStateTitle(app)} qe-id='utils-operations-status-title' className={className} style={{ color }} />;
+    return <i title={getOperationStateTitle(app)} qe-id='utils-operations-status-title' className={className} style={{color}} />;
 };
 
 export const ComparisonStatusIcon = ({
@@ -230,7 +232,7 @@ export const ComparisonStatusIcon = ({
     noSpin
 }: {
     status: appModels.SyncStatusCode;
-    resource?: { requiresPruning?: boolean };
+    resource?: {requiresPruning?: boolean};
     label?: boolean;
     noSpin?: boolean;
 }) => {
@@ -259,13 +261,13 @@ export const ComparisonStatusIcon = ({
     }
     return (
         <React.Fragment>
-            <i qe-id='utils-sync-status-title' title={title} className={className} style={{ color }} /> {label && title}
+            <i qe-id='utils-sync-status-title' title={title} className={className} style={{color}} /> {label && title}
         </React.Fragment>
     );
 };
 
 export function showDeploy(resource: string, revision: string, apis: ContextApis) {
-    apis.navigation.goto('.', { deploy: resource, revision }, { replace: true });
+    apis.navigation.goto('.', {deploy: resource, revision}, {replace: true});
 }
 
 export function findChildPod(node: appModels.ResourceNode, tree: appModels.ApplicationTree): appModels.ResourceNode {
@@ -304,7 +306,7 @@ export const deletePodAction = async (pod: appModels.Pod, appContext: AppContext
                 <p>
                     Are you sure you want to delete Pod <kbd>{pod.name}</kbd>?
                 </p>
-                <div className='argo-form-row' style={{ paddingLeft: '30px' }}>
+                <div className='argo-form-row' style={{paddingLeft: '30px'}}>
                     <CheckboxField id='force-delete-checkbox' field='force'>
                         <label htmlFor='force-delete-checkbox'>Force delete</label>
                     </CheckboxField>
@@ -327,7 +329,12 @@ export const deletePodAction = async (pod: appModels.Pod, appContext: AppContext
     );
 };
 
-export const deletePopup = async (ctx: ContextApis, resource: ResourceTreeNode, application: appModels.AbstractApplication, appChanged?: BehaviorSubject<appModels.AbstractApplication>) => {
+export const deletePopup = async (
+    ctx: ContextApis,
+    resource: ResourceTreeNode,
+    application: appModels.AbstractApplication,
+    appChanged?: BehaviorSubject<appModels.AbstractApplication>
+) => {
     const isManaged = !!resource.status;
     const deleteOptions = {
         option: 'foreground'
@@ -356,17 +363,17 @@ export const deletePopup = async (ctx: ContextApis, resource: ResourceTreeNode, 
                         value='foreground'
                         onChange={() => handleStateChange('foreground')}
                         defaultChecked={true}
-                        style={{ marginRight: '5px' }}
+                        style={{marginRight: '5px'}}
                         id='foreground-delete-radio'
                     />
-                    <label htmlFor='foreground-delete-radio' style={{ paddingRight: '30px' }}>
+                    <label htmlFor='foreground-delete-radio' style={{paddingRight: '30px'}}>
                         Foreground Delete {helpTip('Deletes the resource and dependent resources using the cascading policy in the foreground')}
                     </label>
-                    <input type='radio' name='deleteOptions' value='force' onChange={() => handleStateChange('force')} style={{ marginRight: '5px' }} id='force-delete-radio' />
-                    <label htmlFor='force-delete-radio' style={{ paddingRight: '30px' }}>
+                    <input type='radio' name='deleteOptions' value='force' onChange={() => handleStateChange('force')} style={{marginRight: '5px'}} id='force-delete-radio' />
+                    <label htmlFor='force-delete-radio' style={{paddingRight: '30px'}}>
                         Force Delete {helpTip('Deletes the resource and its dependent resources in the background')}
                     </label>
-                    <input type='radio' name='deleteOptions' value='orphan' onChange={() => handleStateChange('orphan')} style={{ marginRight: '5px' }} id='cascade-delete-radio' />
+                    <input type='radio' name='deleteOptions' value='orphan' onChange={() => handleStateChange('orphan')} style={{marginRight: '5px'}} id='cascade-delete-radio' />
                     <label htmlFor='cascade-delete-radio'>Non-cascading (Orphan) Delete {helpTip('Deletes the resource and orphans the dependent resources')}</label>
                 </div>
             </div>
@@ -393,7 +400,7 @@ export const deletePopup = async (ctx: ContextApis, resource: ResourceTreeNode, 
                 }
             }
         },
-        { name: 'argo-icon-warning', color: 'warning' },
+        {name: 'argo-icon-warning', color: 'warning'},
         'yellow'
     );
 };
@@ -404,24 +411,24 @@ function getResourceActionsMenuItems(resource: ResourceTreeNode, metadata: model
         .then(actions => {
             return actions.map(
                 action =>
-                ({
-                    title: action.displayName ?? action.name,
-                    disabled: !!action.disabled,
-                    iconClassName: action.iconClass,
-                    action: async () => {
-                        try {
-                            const confirmed = await apis.popup.confirm(`Execute '${action.name}' action?`, `Are you sure you want to execute '${action.name}' action?`);
-                            if (confirmed) {
-                                await services.applications.runResourceAction(metadata.name, metadata.namespace, resource, action.name);
+                    ({
+                        title: action.displayName ?? action.name,
+                        disabled: !!action.disabled,
+                        iconClassName: action.iconClass,
+                        action: async () => {
+                            try {
+                                const confirmed = await apis.popup.confirm(`Execute '${action.name}' action?`, `Are you sure you want to execute '${action.name}' action?`);
+                                if (confirmed) {
+                                    await services.applications.runResourceAction(metadata.name, metadata.namespace, resource, action.name);
+                                }
+                            } catch (e) {
+                                apis.notifications.show({
+                                    content: <ErrorNotification title='Unable to execute resource action' e={e} />,
+                                    type: NotificationType.Error
+                                });
                             }
-                        } catch (e) {
-                            apis.notifications.show({
-                                content: <ErrorNotification title='Unable to execute resource action' e={e} />,
-                                type: NotificationType.Error
-                            });
                         }
-                    }
-                } as MenuItem)
+                    } as MenuItem)
             );
         })
         .catch(() => [] as MenuItem[]);
@@ -457,7 +464,7 @@ function getActionItems(
         items.unshift({
             title: 'Details',
             iconClassName: 'fa fa-fw fa-info-circle',
-            action: () => apis.navigation.goto('.', { node: nodeKey(resource) })
+            action: () => apis.navigation.goto('.', {node: nodeKey(resource)})
         });
     }
 
@@ -465,7 +472,7 @@ function getActionItems(
         items.push({
             title: 'Logs',
             iconClassName: 'fa fa-fw fa-align-left',
-            action: () => apis.navigation.goto('.', { node: nodeKey(resource), tab: 'logs' }, { replace: true })
+            action: () => apis.navigation.goto('.', {node: nodeKey(resource), tab: 'logs'}, {replace: true})
         });
     }
 
@@ -482,7 +489,7 @@ function getActionItems(
                     {
                         title: 'Exec',
                         iconClassName: 'fa fa-fw fa-terminal',
-                        action: async () => apis.navigation.goto('.', { node: nodeKey(resource), tab: 'exec' }, { replace: true })
+                        action: async () => apis.navigation.goto('.', {node: nodeKey(resource), tab: 'exec'}, {replace: true})
                     } as MenuItem
                 ];
             }
@@ -497,12 +504,12 @@ function getActionItems(
         .then(data => {
             return (data.items || []).map(
                 link =>
-                ({
-                    title: link.title,
-                    iconClassName: `fa fa-fw ${link.iconClass ? link.iconClass : 'fa-external-link'}`,
-                    action: () => window.open(link.url, '_blank'),
-                    tooltip: link.description
-                } as MenuItem)
+                    ({
+                        title: link.title,
+                        iconClassName: `fa fa-fw ${link.iconClass ? link.iconClass : 'fa-external-link'}`,
+                        action: () => window.open(link.url, '_blank'),
+                        tooltip: link.description
+                    } as MenuItem)
             );
         })
         .catch(() => [] as MenuItem[]);
@@ -536,7 +543,7 @@ export function renderResourceMenu(
                 <ul>
                     {items.map((item, i) => (
                         <li
-                            className={classNames('application-details__action-menu', { disabled: item.disabled })}
+                            className={classNames('application-details__action-menu', {disabled: item.disabled})}
                             key={i}
                             onClick={e => {
                                 e.stopPropagation();
@@ -573,7 +580,7 @@ export function renderResourceActionMenu(resource: ResourceTreeNode, application
                 <ul>
                     {items.map((item, i) => (
                         <li
-                            className={classNames('application-details__action-menu', { disabled: item.disabled })}
+                            className={classNames('application-details__action-menu', {disabled: item.disabled})}
                             key={i}
                             onClick={e => {
                                 e.stopPropagation();
@@ -666,7 +673,7 @@ export function syncStatusMessage(app: appModels.Application) {
     }
 }
 
-export const HealthStatusIcon = ({ state, noSpin }: { state: appModels.HealthStatus; noSpin?: boolean }) => {
+export const HealthStatusIcon = ({state, noSpin}: {state: appModels.HealthStatus; noSpin?: boolean}) => {
     let color = COLORS.health.unknown;
     let icon = 'fa-question-circle';
 
@@ -696,11 +703,11 @@ export const HealthStatusIcon = ({ state, noSpin }: { state: appModels.HealthSta
     if (state.message) {
         title = `${state.status}: ${state.message}`;
     }
-    return <i qe-id='utils-health-status-title' title={title} className={'fa ' + icon} style={{ color }} />;
+    return <i qe-id='utils-health-status-title' title={title} className={'fa ' + icon} style={{color}} />;
 };
 
 /** from above */
-export const AppSetHealthStatusIcon = ({ state, noSpin }: { state: appModels.ApplicationSetStatus; noSpin?: boolean }) => {
+export const AppSetHealthStatusIcon = ({state, noSpin}: {state: appModels.ApplicationSetStatus; noSpin?: boolean}) => {
     let color = COLORS.health.unknown;
     let icon = 'fa-question-circle';
 
@@ -724,11 +731,10 @@ export const AppSetHealthStatusIcon = ({ state, noSpin }: { state: appModels.App
         title = `${getAppSetHealthStatus(state)}: ${getAppSetHealthMessage(state)}`;
     }
 
-    return <i qe-id='utils-health-status-title' title={title} className={'fa ' + icon} style={{ color }} />;
+    return <i qe-id='utils-health-status-title' title={title} className={'fa ' + icon} style={{color}} />;
 };
 
-
-export const PodHealthIcon = ({ state }: { state: appModels.HealthStatus }) => {
+export const PodHealthIcon = ({state}: {state: appModels.HealthStatus}) => {
     let icon = 'fa-question-circle';
 
     switch (state.status) {
@@ -752,7 +758,7 @@ export const PodHealthIcon = ({ state }: { state: appModels.HealthStatus }) => {
     return <i qe-id='utils-health-status-title' title={title} className={'fa ' + icon} />;
 };
 
-export const PodPhaseIcon = ({ state }: { state: appModels.PodPhase }) => {
+export const PodPhaseIcon = ({state}: {state: appModels.PodPhase}) => {
     let className = '';
     switch (state) {
         case appModels.PodPhase.PodSucceeded:
@@ -774,7 +780,7 @@ export const PodPhaseIcon = ({ state }: { state: appModels.PodPhase }) => {
     return <i qe-id='utils-pod-phase-icon' className={className} />;
 };
 
-export const ResourceResultIcon = ({ resource }: { resource: appModels.ResourceResult }) => {
+export const ResourceResultIcon = ({resource}: {resource: appModels.ResourceResult}) => {
     let color = COLORS.sync_result.unknown;
     let icon = 'fas fa-question-circle';
 
@@ -800,7 +806,7 @@ export const ResourceResultIcon = ({ resource }: { resource: appModels.ResourceR
         if (resource.message) {
             title = `${resource.status}: ${resource.message}`;
         }
-        return <i title={title} className={'fa ' + icon} style={{ color }} />;
+        return <i title={title} className={'fa ' + icon} style={{color}} />;
     }
     if (resource.hookType && resource.hookPhase) {
         let className = '';
@@ -830,7 +836,7 @@ export const ResourceResultIcon = ({ resource }: { resource: appModels.ResourceR
         if (resource.message) {
             title = `${resource.hookPhase}: ${resource.message}`;
         }
-        return <i title={title} className={className} style={{ color }} />;
+        return <i title={title} className={className} style={{color}} />;
     }
     return null;
 };
@@ -889,7 +895,7 @@ const getOperationStateTitle = (app: appModels.Application) => {
     return 'Unknown';
 };
 
-export const OperationState = ({ app, quiet }: { app: appModels.Application; quiet?: boolean }) => {
+export const OperationState = ({app, quiet}: {app: appModels.Application; quiet?: boolean}) => {
     const appOperationState = getAppOperationState(app);
     if (appOperationState === undefined) {
         return <React.Fragment />;
@@ -905,7 +911,7 @@ export const OperationState = ({ app, quiet }: { app: appModels.Application; qui
     );
 };
 
-export function getPodStateReason(pod: appModels.State): { message: string; reason: string; netContainerStatuses: any[] } {
+export function getPodStateReason(pod: appModels.State): {message: string; reason: string; netContainerStatuses: any[]} {
     let reason = pod.status.phase;
     let message = '';
     if (pod.status.reason) {
@@ -976,10 +982,10 @@ export function getPodStateReason(pod: appModels.State): { message: string; reas
         message = '';
     }
 
-    return { reason, message, netContainerStatuses };
+    return {reason, message, netContainerStatuses};
 }
 
-export const getPodReadinessGatesState = (pod: appModels.State): { nonExistingConditions: string[]; notPassedConditions: string[] } => {
+export const getPodReadinessGatesState = (pod: appModels.State): {nonExistingConditions: string[]; notPassedConditions: string[]} => {
     // if pod does not have readiness gates then return empty status
     if (!pod.spec?.readinessGates?.length) {
         return {
@@ -1047,14 +1053,13 @@ export function getAppSetConditionCategory(condition: appModels.ApplicationSetCo
     }
 }
 
-
 export function isAppNode(node: appModels.ResourceNode) {
     return node.kind === 'Application' && node.group === 'argoproj.io';
 }
 
 export function getAppOverridesCount(app: appModels.AbstractApplication) {
     let isApplicationSet = true;
-    if ("resource" in app.status) {
+    if ('resource' in app.status) {
         isApplicationSet = false;
     }
     if (isApplicationSet) {
@@ -1097,10 +1102,10 @@ export function setAppRefreshing(app: appModels.Application) {
 }
 
 export function refreshLinkAttrs(app: appModels.Application) {
-    return { disabled: isAppRefreshing(app) };
+    return {disabled: isAppRefreshing(app)};
 }
 
-export const SyncWindowStatusIcon = ({ state, window }: { state: appModels.SyncWindowsState; window: appModels.SyncWindow }) => {
+export const SyncWindowStatusIcon = ({state, window}: {state: appModels.SyncWindowsState; window: appModels.SyncWindow}) => {
     let className = '';
     let color = '';
     let current = '';
@@ -1142,12 +1147,12 @@ export const SyncWindowStatusIcon = ({ state, window }: { state: appModels.SyncW
 
     return (
         <React.Fragment>
-            <i title={current} className={className} style={{ color }} /> {current}
+            <i title={current} className={className} style={{color}} /> {current}
         </React.Fragment>
     );
 };
 
-export const ApplicationSyncWindowStatusIcon = ({ project, state }: { project: string; state: appModels.ApplicationSyncWindowState }) => {
+export const ApplicationSyncWindowStatusIcon = ({project, state}: {project: string; state: appModels.ApplicationSyncWindowState}) => {
     let className = '';
     let color = '';
     let deny = false;
@@ -1186,8 +1191,8 @@ export const ApplicationSyncWindowStatusIcon = ({ project, state }: { project: s
 
     const ctx = React.useContext(Context);
     return (
-        <a href={`${ctx.baseHref}settings/projects/${project}?tab=windows`} style={{ color }}>
-            <i className={className} style={{ color }} /> SyncWindow
+        <a href={`${ctx.baseHref}settings/projects/${project}?tab=windows`} style={{color}}>
+            <i className={className} style={{color}} /> SyncWindow
         </a>
     );
 };
@@ -1235,12 +1240,12 @@ export function handlePageVisibility<T>(src: () => Observable<T>): Observable<T>
     });
 }
 
-export function parseApiVersion(apiVersion: string): { group: string; version: string } {
+export function parseApiVersion(apiVersion: string): {group: string; version: string} {
     const parts = apiVersion.split('/');
     if (parts.length > 1) {
-        return { group: parts[0], version: parts[1] };
+        return {group: parts[0], version: parts[1]};
     }
-    return { version: parts[0], group: '' };
+    return {version: parts[0], group: ''};
 }
 
 export function getContainerName(pod: any, containerIndex: number | null): string {
@@ -1284,21 +1289,31 @@ export function appInstanceName(app: appModels.AbstractApplication): string {
 }
 
 export function isApp(abstractApp: appModels.AbstractApplication): abstractApp is appModels.Application {
-    return abstractApp.kind === "Application";
+    return abstractApp.kind === 'Application';
 }
 
 export function isInvokedFromApps(): boolean {
     // console.log("*** ctx.history.location.pathname *** " + ctx.history.location.pathname)
-    const isInvokedFromApp = true //ctx.history.location.pathname.includes("applicationsets") ? true : false
-    return isInvokedFromApp
+    const isInvokedFromApp = true; //ctx.history.location.pathname.includes("applicationsets") ? true : false
+    return isInvokedFromApp;
 }
 
-export function getAppSetHealthStatus(status: ApplicationSetStatus) : ApplicationSetConditionStatus{
-    return status.conditions[0].status
+export function isInvokedFromAppsCtx(
+    ctx: ContextApis & {
+        history: History<unknown>;
+    }
+): boolean {
+    console.log('*** ctx.history.location.pathname *** ' + ctx.history.location.pathname);
+    const isInvokedFromApp = ctx.history.location.pathname.includes('applications') ? true : false;
+    return isInvokedFromApp;
 }
 
-export function getAppSetHealthMessage(status: ApplicationSetStatus) : string{
-    return status.conditions[0].message
+export function getAppSetHealthStatus(status: ApplicationSetStatus): ApplicationSetConditionStatus {
+    return status.conditions[0].status;
+}
+
+export function getAppSetHealthMessage(status: ApplicationSetStatus): string {
+    return status.conditions[0].message;
 }
 /*
 ctxh: ContextApis & {
@@ -1307,9 +1322,8 @@ ctxh: ContextApis & {
 */
 
 export function getRootPath(): string {
-    return isInvokedFromApps() ? '/applications' : '/applicationsets'
+    return isInvokedFromApps() ? '/applications' : '/applicationsets';
 }
-
 
 export function formatCreationTimestamp(creationTimestamp: string) {
     const createdAt = moment
@@ -1323,7 +1337,7 @@ export function formatCreationTimestamp(creationTimestamp: string) {
     return (
         <span>
             {createdAt}
-            <i style={{ padding: '2px' }} /> ({fromNow})
+            <i style={{padding: '2px'}} /> ({fromNow})
         </span>
     );
 }

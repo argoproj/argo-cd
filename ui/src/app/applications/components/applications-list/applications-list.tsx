@@ -32,8 +32,11 @@ import {useSidebarTarget} from '../../../sidebar/sidebar';
 
 import './applications-list.scss';
 import './flex-top-bar.scss';
-import {isApp, isInvokedFromApps} from '../utils';
+import {isApp, isInvokedFromApps, isInvokedFromAppsCtx} from '../utils';
 import {AbstractApplication, Application, ApplicationSet} from '../../../shared/models';
+import {History} from 'history';
+
+// const ctx = React.useContext(Context);
 
 const EVENTS_BUFFER_TIMEOUT = 500;
 const WATCH_RETRY_TIMEOUT = 500;
@@ -69,6 +72,7 @@ const APP_WATCH_FIELDS = AppUtils.isInvokedFromApps()
     : ['result.type', ...APPSET_FIELDS.map(field => `result.application.${field}`)];
 
 function loadApplications(projects: string[], appNamespace: string): Observable<models.AbstractApplication[]> {
+    // console.log('*** ctx.history.location.pathname *** ' + ctx.history.location.pathname);
     return from(services.applications.list(projects, {appNamespace, fields: APP_LIST_FIELDS})).pipe(
         mergeMap(applicationsList => {
             const applications = applicationsList.items;
@@ -104,7 +108,7 @@ function loadApplications(projects: string[], appNamespace: string): Observable<
                         })
                     )
                     .pipe(filter(item => item.updated))
-                    .pipe(map(item => (isInvokedFromApps() ? (item.applications as models.Application[]) : (item.applications as models.ApplicationSet[]))))
+                    .pipe(map(item => (isApp(applications[0]) ? (item.applications as models.Application[]) : (item.applications as models.ApplicationSet[]))))
             );
         })
     );
@@ -121,7 +125,6 @@ const ViewPref = ({children}: {children: (pref: AbstractAppsListPreferences & {p
                             const viewPref: AbstractAppsListPreferences = {...items[0]};
                             if (isInvokedFromApps()) {
                                 // App specific filters
-                                // TODO: the knowledge about what is relevant for Apps and what for AppSets should be elsewhere and not here
                                 if (params.get('proj') != null) {
                                     (viewPref as AppsListPreferences).projectsFilter = params
                                         .get('proj')
@@ -191,7 +194,7 @@ function filterApps(
 ): {filteredApps: AbstractApplication[]; filterResults: AbstractFilteredApp[]} {
     applications = applications.map(app => {
         let isAppOfAppsPattern = false;
-        if (!isInvokedFromApps()) {
+        if (!isApp(applications[0])) {
             // AppSet behaves like an app of apps
             isAppOfAppsPattern = true;
         } else {
@@ -205,7 +208,7 @@ function filterApps(
         }
         return {...app, isAppOfAppsPattern};
     });
-    const filterResults = isInvokedFromApps()
+    const filterResults = isApp(applications[0])
         ? getFilterResults(applications as Application[], pref as AppsListPreferences)
         : getFilterResults(applications as ApplicationSet[], pref as AppSetsListPreferences);
     return {
@@ -224,7 +227,13 @@ function tryJsonParse(input: string) {
     }
 }
 
-const SearchBar = (props: {content: string; ctx: ContextApis; apps: models.AbstractApplication[]}) => {
+const SearchBar = (props: {
+    content: string;
+    ctx: ContextApis & {
+        history: History<unknown>;
+    };
+    apps: models.AbstractApplication[];
+}) => {
     const {content, ctx, apps} = {...props};
 
     const searchBar = React.useRef<HTMLDivElement>(null);
@@ -236,7 +245,7 @@ const SearchBar = (props: {content: string; ctx: ContextApis; apps: models.Abstr
     const [isFocused, setFocus] = React.useState(false);
     const useAuthSettingsCtx = React.useContext(AuthSettingsCtx);
 
-    const placeholderText = isInvokedFromApps() ? 'Search applications...' : 'Search application sets...';
+    const placeholderText = isInvokedFromAppsCtx(ctx) ? 'Search applications...' : 'Search application sets...';
 
     useKeybinding({
         keys: Key.SLASH,
@@ -358,6 +367,8 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
     const loaderRef = React.useRef<DataLoader>();
     const {List, Summary, Tiles} = AppsListViewKey;
 
+    const ctx = React.useContext(Context);
+
     function refreshApp(appName: string, appNamespace: string) {
         // app refreshing might be done too quickly so that UI might miss it due to event batching
         // add refreshing annotation in the UI to improve user experience
@@ -372,25 +383,30 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
         services.applications.get(appName, appNamespace, 'normal');
     }
 
-    function onFilterPrefChanged(ctx: ContextApis, newPref: AbstractAppsListPreferences) {
+    function onFilterPrefChanged(
+        ctx: ContextApis & {
+            history: History<unknown>;
+        },
+        newPref: AbstractAppsListPreferences
+    ) {
         services.viewPreferences.updatePreferences({appList: newPref});
         ctx.navigation.goto(
             '.',
 
             {
-                proj: isInvokedFromApps() ? (newPref as AppsListPreferences).projectsFilter.join(',') : '',
-                sync: isInvokedFromApps() ? (newPref as AppsListPreferences).syncFilter.join(',') : '',
-                autoSync: isInvokedFromApps() ? (newPref as AppsListPreferences).autoSyncFilter.join(',') : '',
+                proj: isInvokedFromAppsCtx(ctx) ? (newPref as AppsListPreferences).projectsFilter.join(',') : '',
+                sync: isInvokedFromAppsCtx(ctx) ? (newPref as AppsListPreferences).syncFilter.join(',') : '',
+                autoSync: isInvokedFromAppsCtx(ctx) ? (newPref as AppsListPreferences).autoSyncFilter.join(',') : '',
                 health: newPref.healthFilter.join(','),
-                namespace: isInvokedFromApps() ? (newPref as AppsListPreferences).namespacesFilter.join(',') : '',
-                cluster: isInvokedFromApps() ? (newPref as AppsListPreferences).clustersFilter.join(',') : '',
+                namespace: isInvokedFromAppsCtx(ctx) ? (newPref as AppsListPreferences).namespacesFilter.join(',') : '',
+                cluster: isInvokedFromAppsCtx(ctx) ? (newPref as AppsListPreferences).clustersFilter.join(',') : '',
                 labels: newPref.labelsFilter.map(encodeURIComponent).join(',')
             },
             {replace: true}
         );
     }
 
-    const pageTitlePrefix = isInvokedFromApps() ? 'Applications ' : 'ApplicationSets ';
+    const pageTitlePrefix = isInvokedFromAppsCtx(ctx) ? 'Applications ' : 'ApplicationSets ';
 
     function getPageTitle(view: string) {
         switch (view) {
@@ -406,7 +422,7 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
 
     const sidebarTarget = useSidebarTarget();
 
-    const getEmptyStateText = isInvokedFromApps() ? 'No matching applications found' : 'No matching application sets found';
+    const getEmptyStateText = isInvokedFromAppsCtx(ctx) ? 'No matching applications found' : 'No matching application sets found';
 
     const applicationTilesProps = (ctx: ContextApis, data: models.Application[]): ApplicationTilesProps => {
         return {
@@ -434,7 +450,7 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
     };
 
     function getProjectsFilter(pref: AbstractAppsListPreferences): string[] {
-        return isInvokedFromApps() ? (pref as AppsListPreferences & {page: number; search: string}).projectsFilter : [];
+        return isInvokedFromAppsCtx(ctx) ? (pref as AppsListPreferences & {page: number; search: string}).projectsFilter : [];
     }
 
     return (
@@ -449,18 +465,18 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                     title={getPageTitle(pref.view)}
                                     useTitleOnly={true}
                                     toolbar={
-                                        isInvokedFromApps()
+                                        isInvokedFromAppsCtx(ctx)
                                             ? {breadcrumbs: [{title: 'Applications', path: '/applications'}]}
                                             : {breadcrumbs: [{title: 'Settings', path: '/settings'}, {title: 'ApplicationSets'}]}
                                     }
                                     hideAuth={true}>
                                     <DataLoader
-                                        input={isInvokedFromApps() ? (pref as AppsListPreferences & {page: number; search: string}).projectsFilter?.join(',') : ''}
+                                        input={isInvokedFromAppsCtx(ctx) ? (pref as AppsListPreferences & {page: number; search: string}).projectsFilter?.join(',') : ''}
                                         ref={loaderRef}
                                         load={() =>
                                             AppUtils.handlePageVisibility(() =>
                                                 loadApplications(
-                                                    isInvokedFromApps() ? (pref as AppsListPreferences & {page: number; search: string}).projectsFilter : [],
+                                                    isInvokedFromAppsCtx(ctx) ? (pref as AppsListPreferences & {page: number; search: string}).projectsFilter : [],
                                                     query.get('appNamespace')
                                                 )
                                             )
@@ -473,8 +489,8 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                         {(applications: models.AbstractApplication[]) => {
                                             const healthBarPrefs = pref.statusBarView || ({} as HealthStatusBarPreferences);
                                             const {filteredApps, filterResults} = filterApps(
-                                                isInvokedFromApps() ? (applications as Application[]) : (applications as ApplicationSet[]),
-                                                isInvokedFromApps()
+                                                isInvokedFromAppsCtx(ctx) ? (applications as Application[]) : (applications as ApplicationSet[]),
+                                                isInvokedFromAppsCtx(ctx)
                                                     ? (pref as AppsListPreferences & {page: number; search: string})
                                                     : (pref as AppSetsListPreferences & {page: number; search: string}),
                                                 pref.search
@@ -580,7 +596,7 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                                                                 apps={filterResults}
                                                                                 onChange={newPrefs => onFilterPrefChanged(ctx, newPrefs)}
                                                                                 pref={
-                                                                                    isInvokedFromApps()
+                                                                                    isInvokedFromAppsCtx(ctx)
                                                                                         ? (pref as AppsListPreferences & {page: number; search: string})
                                                                                         : (pref as AppSetsListPreferences)
                                                                                 }
@@ -604,7 +620,7 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                                                                     Change filter criteria or&nbsp;
                                                                                     <a
                                                                                         onClick={() => {
-                                                                                            if (isInvokedFromApps()) {
+                                                                                            if (isInvokedFromAppsCtx(ctx)) {
                                                                                                 AppsListPreferences.clearFilters(
                                                                                                     pref as AppsListPreferences & {page: number; search: string}
                                                                                                 );
