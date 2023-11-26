@@ -1,33 +1,33 @@
-import { DataLoader, DropDown, Tab, Tabs } from 'argo-ui';
+import {DataLoader, DropDown, Tab, Tabs} from 'argo-ui';
 import * as React from 'react';
-import { useState } from 'react';
-import { EventsList, YamlEditor } from '../../../shared/components';
+import {useState} from 'react';
+import {EventsList, YamlEditor} from '../../../shared/components';
 import * as models from '../../../shared/models';
-import { ErrorBoundary } from '../../../shared/components/error-boundary/error-boundary';
-import { Context } from '../../../shared/context';
-import { AbstractApplication, Application, ApplicationTree, AppSourceType, Event, RepoAppDetails, ResourceNode, State, SyncStatuses } from '../../../shared/models';
-import { services } from '../../../shared/services';
-import { ResourceTabExtension } from '../../../shared/services/extensions-service';
-import { NodeInfo, SelectNode } from '../application-details/application-details';
-import { ApplicationNodeInfo } from '../application-node-info/application-node-info';
-import { ApplicationParameters } from '../application-parameters/application-parameters';
-import { ApplicationResourceEvents } from '../application-resource-events/application-resource-events';
-import { ResourceTreeNode } from '../application-resource-tree/application-resource-tree';
-import { ApplicationResourcesDiff } from '../application-resources-diff/application-resources-diff';
-import { ApplicationSummary } from '../application-summary/application-summary';
-import { PodsLogsViewer } from '../pod-logs-viewer/pod-logs-viewer';
-import { PodTerminalViewer } from '../pod-terminal-viewer/pod-terminal-viewer';
-import { ResourceIcon } from '../resource-icon';
-import { ResourceLabel } from '../resource-label';
+import {ErrorBoundary} from '../../../shared/components/error-boundary/error-boundary';
+import {Context} from '../../../shared/context';
+import {AbstractApplication, Application, ApplicationTree, AppSourceType, Event, RepoAppDetails, ResourceNode, State, SyncStatuses} from '../../../shared/models';
+import {services} from '../../../shared/services';
+import {ResourceTabExtension} from '../../../shared/services/extensions-service';
+import {NodeInfo, SelectNode} from '../application-details/application-details';
+import {ApplicationNodeInfo} from '../application-node-info/application-node-info';
+import {ApplicationParameters} from '../application-parameters/application-parameters';
+import {ApplicationResourceEvents} from '../application-resource-events/application-resource-events';
+import {ResourceTreeNode} from '../application-resource-tree/application-resource-tree';
+import {ApplicationResourcesDiff} from '../application-resources-diff/application-resources-diff';
+import {ApplicationSummary} from '../application-summary/application-summary';
+import {PodsLogsViewer} from '../pod-logs-viewer/pod-logs-viewer';
+import {PodTerminalViewer} from '../pod-terminal-viewer/pod-terminal-viewer';
+import {ResourceIcon} from '../resource-icon';
+import {ResourceLabel} from '../resource-label';
 import * as AppUtils from '../utils';
 import './resource-details.scss';
-import { isApp } from '../utils';
+import {isApp} from '../utils';
 
 const jsonMergePatch = require('json-merge-patch');
 
 interface ResourceDetailsProps {
     selectedNode: ResourceNode;
-    updateApp: (app: AbstractApplication, query: { validate?: boolean }) => Promise<any>;
+    updateApp: (app: AbstractApplication, query: {validate?: boolean}) => Promise<any>;
     application: Application;
     isAppSelected: boolean;
     tree: ApplicationTree;
@@ -35,7 +35,7 @@ interface ResourceDetailsProps {
 }
 
 export const ResourceDetails = (props: ResourceDetailsProps) => {
-    const { selectedNode, updateApp, application, isAppSelected, tree } = { ...props };
+    const {selectedNode, updateApp, application, isAppSelected, tree} = {...props};
     const [activeContainer, setActiveContainer] = useState();
     const appContext = React.useContext(Context);
     const tab = new URLSearchParams(appContext.history.location.search).get('tab');
@@ -155,13 +155,14 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
     };
 
     const getApplicationTabs = () => {
-        const tabs: Tab[] = []
+        const tabs: Tab[] = [];
         if (isApp(application)) {
-            tabs.push({
-                title: 'SUMMARY',
-                key: 'summary',
-                content: <ApplicationSummary app={application} updateApp={(app, query: { validate?: boolean }) => updateApp(app, query)} />
-            },
+            tabs.push(
+                {
+                    title: 'SUMMARY',
+                    key: 'summary',
+                    content: <ApplicationSummary app={application} updateApp={(app, query: {validate?: boolean}) => updateApp(app, query)} />
+                },
                 {
                     title: 'PARAMETERS',
                     key: 'parameters',
@@ -177,14 +178,15 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                             }>
                             {(details: RepoAppDetails) => (
                                 <ApplicationParameters
-                                    save={(app: models.Application, query: { validate?: boolean }) => updateApp(app, query)}
+                                    save={(app: models.Application, query: {validate?: boolean}) => updateApp(app, query)}
                                     application={application}
                                     details={details}
                                 />
                             )}
                         </DataLoader>
                     )
-                })
+                }
+            );
         }
         tabs.push({
             title: 'MANIFEST',
@@ -199,7 +201,7 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                     }}
                 />
             )
-        })
+        });
 
         if (isApp(application) && (application as Application).status.sync.status !== SyncStatuses.Synced) {
             tabs.push({
@@ -239,7 +241,7 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
     const extensions = selectedNode?.kind ? services.extensions.getResourceTabs(selectedNode?.group || '', selectedNode?.kind) : [];
 
     return (
-        <div style={{ width: '100%', height: '100%' }}>
+        <div style={{width: '100%', height: '100%'}}>
             {selectedNode && (
                 <DataLoader
                     noLoaderOnInputChange={true}
@@ -255,8 +257,8 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                         });
                         const controlled = managedResources.find(item => AppUtils.isSameNode(selectedNode, item));
                         const summary = application.status.resources.find(item => AppUtils.isSameNode(selectedNode, item));
-                        const controlledState = (controlled && summary && { summary, state: controlled }) || null;
-                        const resQuery = { ...selectedNode };
+                        const controlledState = (controlled && summary && {summary, state: controlled}) || null;
+                        const resQuery = {...selectedNode};
                         if (controlled && controlled.targetState) {
                             resQuery.version = AppUtils.parseApiVersion(controlled.targetState.apiVersion).version;
                         }
@@ -284,33 +286,33 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                         const logsAllowed = await services.accounts.canI('logs', 'get', application.spec.project + '/' + application.metadata.name);
                         const execAllowed = await services.accounts.canI('exec', 'create', application.spec.project + '/' + application.metadata.name);
                         const links = await services.applications.getResourceLinks(application.metadata.name, application.metadata.namespace, selectedNode).catch(() => null);
-                        return { controlledState, liveState, events, podState, execEnabled, execAllowed, logsAllowed, links };
+                        return {controlledState, liveState, events, podState, execEnabled, execAllowed, logsAllowed, links};
                     }}>
                     {data => (
                         <React.Fragment>
                             <div className='resource-details__header'>
-                                <div style={{ display: 'flex', flexDirection: 'column', marginRight: '15px', alignItems: 'center', fontSize: '12px' }}>
+                                <div style={{display: 'flex', flexDirection: 'column', marginRight: '15px', alignItems: 'center', fontSize: '12px'}}>
                                     <ResourceIcon kind={selectedNode.kind} />
-                                    {ResourceLabel({ kind: selectedNode.kind })}
+                                    {ResourceLabel({kind: selectedNode.kind})}
                                 </div>
                                 <h1>{selectedNode.name}</h1>
                                 {data.controlledState && (
                                     <React.Fragment>
-                                        <span style={{ marginRight: '5px' }}>
+                                        <span style={{marginRight: '5px'}}>
                                             <AppUtils.ComparisonStatusIcon status={data.controlledState.summary.status} resource={data.controlledState.summary} />
                                         </span>
                                     </React.Fragment>
                                 )}
                                 {(selectedNode as ResourceTreeNode).health && <AppUtils.HealthStatusIcon state={(selectedNode as ResourceTreeNode).health} />}
                                 <button
-                                    onClick={() => appContext.navigation.goto('.', { deploy: AppUtils.nodeKey(selectedNode) }, { replace: true })}
-                                    style={{ marginLeft: 'auto', marginRight: '5px' }}
+                                    onClick={() => appContext.navigation.goto('.', {deploy: AppUtils.nodeKey(selectedNode)}, {replace: true})}
+                                    style={{marginLeft: 'auto', marginRight: '5px'}}
                                     className='argo-button argo-button--base'>
                                     <i className='fa fa-sync-alt' /> <span className='show-for-large'>SYNC</span>
                                 </button>
                                 <button
                                     onClick={() => AppUtils.deletePopup(appContext, selectedNode, application)}
-                                    style={{ marginRight: '5px' }}
+                                    style={{marginRight: '5px'}}
                                     className='argo-button argo-button--base'>
                                     <i className='fa fa-trash' /> <span className='show-for-large'>DELETE</span>
                                 </button>
@@ -353,7 +355,7 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                                     data.logsAllowed
                                 )}
                                 selectedTabKey={props.tab}
-                                onTabSelected={selected => appContext.navigation.goto('.', { tab: selected }, { replace: true })}
+                                onTabSelected={selected => appContext.navigation.goto('.', {tab: selected}, {replace: true})}
                             />
                         </React.Fragment>
                     )}
@@ -364,7 +366,7 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                     navTransparent={true}
                     tabs={getApplicationTabs()}
                     selectedTabKey={tab}
-                    onTabSelected={selected => appContext.navigation.goto('.', { tab: selected }, { replace: true })}
+                    onTabSelected={selected => appContext.navigation.goto('.', {tab: selected}, {replace: true})}
                 />
             )}
         </div>

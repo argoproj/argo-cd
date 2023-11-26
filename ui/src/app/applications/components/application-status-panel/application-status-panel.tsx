@@ -1,13 +1,13 @@
-import { HelpIcon } from 'argo-ui';
+import {HelpIcon} from 'argo-ui';
 import * as React from 'react';
-import { ARGO_GRAY6_COLOR, DataLoader } from '../../../shared/components';
-import { Revision } from '../../../shared/components/revision';
-import { Timestamp } from '../../../shared/components/timestamp';
+import {ARGO_GRAY6_COLOR, DataLoader} from '../../../shared/components';
+import {Revision} from '../../../shared/components/revision';
+import {Timestamp} from '../../../shared/components/timestamp';
 import * as models from '../../../shared/models';
-import { services } from '../../../shared/services';
-import { AppSetHealthStatusIcon, ApplicationSyncWindowStatusIcon, ComparisonStatusIcon, getAppDefaultSource, getAppOperationState, getAppSetHealthStatus, isApp } from '../utils';
-import { getConditionCategory, HealthStatusIcon, OperationState, syncStatusMessage, helpTip } from '../utils';
-import { RevisionMetadataPanel } from './revision-metadata-panel';
+import {services} from '../../../shared/services';
+import {AppSetHealthStatusIcon, ApplicationSyncWindowStatusIcon, ComparisonStatusIcon, getAppDefaultSource, getAppOperationState, getAppSetHealthStatus, isApp} from '../utils';
+import {getConditionCategory, HealthStatusIcon, OperationState, syncStatusMessage, helpTip} from '../utils';
+import {RevisionMetadataPanel} from './revision-metadata-panel';
 
 import './application-status-panel.scss';
 
@@ -25,7 +25,7 @@ interface SectionInfo {
 }
 
 const sectionLabel = (info: SectionInfo) => (
-    <label style={{ fontSize: '12px', fontWeight: 600, color: ARGO_GRAY6_COLOR }}>
+    <label style={{fontSize: '12px', fontWeight: 600, color: ARGO_GRAY6_COLOR}}>
         {info.title}
         {info.helpContent && <HelpIcon title={info.helpContent} />}
     </label>
@@ -33,7 +33,7 @@ const sectionLabel = (info: SectionInfo) => (
 
 const sectionHeader = (info: SectionInfo, hasMultipleSources: boolean, onClick?: () => any) => {
     return (
-        <div style={{ display: 'flex', alignItems: 'center', marginBottom: '0.5em' }}>
+        <div style={{display: 'flex', alignItems: 'center', marginBottom: '0.5em'}}>
             {sectionLabel(info)}
             {onClick && (
                 <button className='application-status-panel__more-button' onClick={onClick} disabled={hasMultipleSources}>
@@ -45,7 +45,7 @@ const sectionHeader = (info: SectionInfo, hasMultipleSources: boolean, onClick?:
     );
 };
 
-export const ApplicationStatusPanel = ({ application, showDiff, showOperation, showConditions, showMetadataInfo }: Props) => {
+export const ApplicationStatusPanel = ({application, showDiff, showOperation, showConditions, showMetadataInfo}: Props) => {
     let cntByCategory;
     let hasMultipleSources;
     let source;
@@ -69,10 +69,8 @@ export const ApplicationStatusPanel = ({ application, showDiff, showOperation, s
             showOperation = null;
         }
         hasMultipleSources = (application as models.Application).spec.sources && (application as models.Application).spec.sources.length > 0;
-        source = getAppDefaultSource((application as models.Application));
-
-    }
-    else {
+        source = getAppDefaultSource(application as models.Application);
+    } else {
         cntByCategory = ((application as models.ApplicationSet).status.conditions || []).reduce(
             (map, next) => map.set(getConditionCategory(next), (map.get(getConditionCategory(next)) || 0) + 1),
             new Map<string, number>()
@@ -83,57 +81,68 @@ export const ApplicationStatusPanel = ({ application, showDiff, showOperation, s
     const warnings = cntByCategory.get('warning');
     const errors = cntByCategory.get('error');
 
-
     return (
         <div className='application-status-panel row'>
             <div className='application-status-panel__item'>
-                <div style={{ lineHeight: '19.5px', marginBottom: '0.3em' }}>{sectionLabel({ title: 'APP HEALTH', helpContent: 'The health status of your app' })}</div>
+                <div style={{lineHeight: '19.5px', marginBottom: '0.3em'}}>{sectionLabel({title: 'APP HEALTH', helpContent: 'The health status of your app'})}</div>
                 <div className='application-status-panel__item-value'>
                     {isApp(application) && <HealthStatusIcon state={(application as models.Application).status.health} />}
                     {!isApp(application) && <AppSetHealthStatusIcon state={(application as models.ApplicationSet).status} />}
                     &nbsp;
                     {isApp(application) ? (application as models.Application).status.health.status : getAppSetHealthStatus((application as models.ApplicationSet).status)}
                 </div>
-                {isApp(application) && (application as models.Application).status.health.message && <div className='application-status-panel__item-name'>{(application as models.Application).status.health.message}</div>}
-                {!isApp(application) && (application as models.ApplicationSet).status.conditions[0].message && <div className='application-status-panel__item-name'>{(application as models.ApplicationSet).status.conditions[0].message}</div>}
+                {isApp(application) && (application as models.Application).status.health.message && (
+                    <div className='application-status-panel__item-name'>{(application as models.Application).status.health.message}</div>
+                )}
+                {!isApp(application) && (application as models.ApplicationSet).status.conditions[0].message && (
+                    <div className='application-status-panel__item-name'>{(application as models.ApplicationSet).status.conditions[0].message}</div>
+                )}
             </div>
-            {isApp(application) && <div className='application-status-panel__item'>
-                <React.Fragment>
-                    {sectionHeader(
-                        {
-                            title: 'SYNC STATUS',
-                            helpContent: 'Whether or not the version of your app is up to date with your repo. You may wish to sync your app if it is out-of-sync.'
-                        },
-                        hasMultipleSources,
-                        () => showMetadataInfo((application as models.Application).status.sync ? (application as models.Application).status.sync.revision : '')
-                    )}
-                    <div className={`application-status-panel__item-value${appOperationState?.phase ? ` application-status-panel__item-value--${appOperationState.phase}` : ''}`}>
-                        <div>
-                            {(application as models.Application).status.sync.status === models.SyncStatuses.OutOfSync ? (
-                                <a onClick={() => showDiff && showDiff()}>
+            {isApp(application) && (
+                <div className='application-status-panel__item'>
+                    <React.Fragment>
+                        {sectionHeader(
+                            {
+                                title: 'SYNC STATUS',
+                                helpContent: 'Whether or not the version of your app is up to date with your repo. You may wish to sync your app if it is out-of-sync.'
+                            },
+                            hasMultipleSources,
+                            () => showMetadataInfo((application as models.Application).status.sync ? (application as models.Application).status.sync.revision : '')
+                        )}
+                        <div
+                            className={`application-status-panel__item-value${
+                                appOperationState?.phase ? ` application-status-panel__item-value--${appOperationState.phase}` : ''
+                            }`}>
+                            <div>
+                                {(application as models.Application).status.sync.status === models.SyncStatuses.OutOfSync ? (
+                                    <a onClick={() => showDiff && showDiff()}>
+                                        <ComparisonStatusIcon status={(application as models.Application).status.sync.status} label={true} />
+                                    </a>
+                                ) : (
                                     <ComparisonStatusIcon status={(application as models.Application).status.sync.status} label={true} />
-                                </a>
-                            ) : (
-                                <ComparisonStatusIcon status={(application as models.Application).status.sync.status} label={true} />
+                                )}
+                            </div>
+                            <div className='application-status-panel__item-value__revision show-for-large'>{syncStatusMessage(application)}</div>
+                        </div>
+                        <div className='application-status-panel__item-name' style={{marginBottom: '0.5em'}}>
+                            {(application as models.Application).spec.syncPolicy?.automated ? 'Auto sync is enabled.' : 'Auto sync is not enabled.'}
+                        </div>
+                        {(application as models.Application).status &&
+                            (application as models.Application).status.sync &&
+                            (application as models.Application).status.sync.revision &&
+                            !(application as models.Application).spec.source.chart && (
+                                <div className='application-status-panel__item-name'>
+                                    <RevisionMetadataPanel
+                                        appName={application.metadata.name}
+                                        appNamespace={application.metadata.namespace}
+                                        type={source && source.chart && 'helm'}
+                                        revision={(application as models.Application).status.sync.revision}
+                                    />
+                                </div>
                             )}
-                        </div>
-                        <div className='application-status-panel__item-value__revision show-for-large'>{syncStatusMessage(application)}</div>
-                    </div>
-                    <div className='application-status-panel__item-name' style={{marginBottom: '0.5em'}}>
-                        {(application as models.Application).spec.syncPolicy?.automated ? 'Auto sync is enabled.' : 'Auto sync is not enabled.'}
-                    </div>
-                    {(application as models.Application).status && (application as models.Application).status.sync && (application as models.Application).status.sync.revision && !(application as models.Application).spec.source.chart && (
-                        <div className='application-status-panel__item-name'>
-                            <RevisionMetadataPanel
-                                appName={application.metadata.name}
-                                appNamespace={application.metadata.namespace}
-                                type={source && source.chart && 'helm'}
-                                revision={(application as models.Application).status.sync.revision}
-                            />
-                        </div>
-                    )}
-                </React.Fragment>
-            </div> }
+                    </React.Fragment>
+                </div>
+            )}
             {isApp(application) && appOperationState && (
                 <div className='application-status-panel__item'>
                     <React.Fragment>
@@ -159,7 +168,7 @@ export const ApplicationStatusPanel = ({ application, showDiff, showOperation, s
                             )}
                         </div>
 
-                        <div className='application-status-panel__item-name' style={{ marginBottom: '0.5em' }}>
+                        <div className='application-status-panel__item-name' style={{marginBottom: '0.5em'}}>
                             {appOperationState.phase} <Timestamp date={appOperationState.finishedAt || appOperationState.startedAt} />
                         </div>
                         {(appOperationState.syncResult && appOperationState.syncResult.revision && (
@@ -175,7 +184,7 @@ export const ApplicationStatusPanel = ({ application, showDiff, showOperation, s
             )}
             {application.status.conditions && (
                 <div className={`application-status-panel__item`}>
-                    {sectionLabel({ title: 'APP CONDITIONS' })}
+                    {sectionLabel({title: 'APP CONDITIONS'})}
                     <div className='application-status-panel__item-value application-status-panel__conditions' onClick={() => showConditions && showConditions()}>
                         {infos && (
                             <a className='info'>
@@ -195,32 +204,34 @@ export const ApplicationStatusPanel = ({ application, showDiff, showOperation, s
                     </div>
                 </div>
             )}
-            {isApp(application) && <DataLoader
-                noLoaderOnInputChange={true}
-                input={application}
-                load={async app => {
-                    return await services.applications.getApplicationSyncWindowState(app.metadata.name, app.metadata.namespace);
-                }}>
-                {(data: models.ApplicationSyncWindowState) => (
-                    <React.Fragment>
-                        {data.assignedWindows && (
-                            <div className='application-status-panel__item' style={{ position: 'relative' }}>
-                                {sectionLabel({
-                                    title: 'SYNC WINDOWS',
-                                    helpContent:
-                                        'The aggregate state of sync windows for this app. ' +
-                                        'Red: no syncs allowed. ' +
-                                        'Yellow: manual syncs allowed. ' +
-                                        'Green: all syncs allowed'
-                                })}
-                                <div className='application-status-panel__item-value' style={{ margin: 'auto 0' }}>
-                                    <ApplicationSyncWindowStatusIcon project={application.spec.project} state={data} />
+            {isApp(application) && (
+                <DataLoader
+                    noLoaderOnInputChange={true}
+                    input={application}
+                    load={async app => {
+                        return await services.applications.getApplicationSyncWindowState(app.metadata.name, app.metadata.namespace);
+                    }}>
+                    {(data: models.ApplicationSyncWindowState) => (
+                        <React.Fragment>
+                            {data.assignedWindows && (
+                                <div className='application-status-panel__item' style={{position: 'relative'}}>
+                                    {sectionLabel({
+                                        title: 'SYNC WINDOWS',
+                                        helpContent:
+                                            'The aggregate state of sync windows for this app. ' +
+                                            'Red: no syncs allowed. ' +
+                                            'Yellow: manual syncs allowed. ' +
+                                            'Green: all syncs allowed'
+                                    })}
+                                    <div className='application-status-panel__item-value' style={{margin: 'auto 0'}}>
+                                        <ApplicationSyncWindowStatusIcon project={application.spec.project} state={data} />
+                                    </div>
                                 </div>
-                            </div>
-                        )}
-                    </React.Fragment>
-                )}
-            </DataLoader> }
+                            )}
+                        </React.Fragment>
+                    )}
+                </DataLoader>
+            )}
         </div>
     );
 };

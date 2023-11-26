@@ -1,25 +1,26 @@
-import { Tooltip } from 'argo-ui/v2';
+import {Tooltip} from 'argo-ui/v2';
 import * as React from 'react';
-import { COLORS } from '../../../shared/components';
-import { Consumer } from '../../../shared/context';
+import {COLORS} from '../../../shared/components';
+import {Consumer} from '../../../shared/context';
 import * as models from '../../../shared/models';
 
 import './applications-status-bar.scss';
-import { getAppSetHealthStatus, isInvokedFromApps } from '../utils';
-import { Application, ApplicationSet } from '../../../shared/models';
+import {getAppSetHealthStatus, isInvokedFromApps} from '../utils';
+import {Application, ApplicationSet} from '../../../shared/models';
 
 export interface ApplicationsStatusBarProps {
     applications: models.AbstractApplication[];
 }
 
-export const ApplicationsStatusBar = ({ applications }: ApplicationsStatusBarProps) => {
+export const ApplicationsStatusBar = ({applications}: ApplicationsStatusBarProps) => {
     const readings: any[] = [];
     if (isInvokedFromApps()) {
-        readings.push({
-            name: 'Healthy',
-            value: applications.filter(app => (app as Application).status.health.status === 'Healthy').length,
-            color: COLORS.health.healthy
-        },
+        readings.push(
+            {
+                name: 'Healthy',
+                value: applications.filter(app => (app as Application).status.health.status === 'Healthy').length,
+                color: COLORS.health.healthy
+            },
             {
                 name: 'Progressing',
                 value: applications.filter(app => (app as Application).status.health.status === 'Progressing').length,
@@ -44,9 +45,9 @@ export const ApplicationsStatusBar = ({ applications }: ApplicationsStatusBarPro
                 name: 'Unknown',
                 value: applications.filter(app => (app as Application).status.health.status === 'Unknown').length,
                 color: COLORS.health.unknown
-            })
-    }
-    else {
+            }
+        );
+    } else {
         readings.push(
             {
                 name: 'Healthy',
@@ -84,7 +85,7 @@ export const ApplicationsStatusBar = ({ applications }: ApplicationsStatusBarPro
                                 readings.map((item, i) => {
                                     if (item.value > 0) {
                                         return (
-                                            <div className='status-bar__segment' style={{ backgroundColor: item.color, width: (item.value / totalItems) * 100 + '%' }} key={i}>
+                                            <div className='status-bar__segment' style={{backgroundColor: item.color, width: (item.value / totalItems) * 100 + '%'}} key={i}>
                                                 <Tooltip content={`${item.value} ${item.name}`} inverted={true}>
                                                     <div className='status-bar__segment__fill' />
                                                 </Tooltip>

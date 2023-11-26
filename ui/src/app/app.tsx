@@ -5,7 +5,6 @@ import * as React from 'react';
 import {Helmet} from 'react-helmet';
 import {Redirect, Route, RouteComponentProps, Router, Switch} from 'react-router';
 import applications from './applications';
-// import applicationsets from './applicationsets';
 import help from './help';
 import login from './login';
 import settings from './settings';
@@ -32,7 +31,7 @@ type Routes = {[path: string]: {component: React.ComponentType<RouteComponentPro
 const routes: Routes = {
     '/login': {component: login.component as any, noLayout: true},
     '/applications': {component: applications.component},
-    '/applicationsets': {component: applications.component}, 
+    '/applicationsets': {component: applications.component},
     '/settings': {component: settings.component},
     '/user-info': {component: userInfo.component},
     '/help': {component: help.component},
@@ -53,7 +52,7 @@ const navItems: NavItem[] = [
         path: '/applications',
         iconClassName: 'argo-icon argo-icon-application'
     },
-        {
+    {
         title: 'Settings',
         tooltip: 'Manage your repositories, projects, settings, application sets',
         path: '/settings',

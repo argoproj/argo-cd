@@ -1,17 +1,17 @@
-import { DataLoader, Tooltip } from 'argo-ui';
+import {DataLoader, Tooltip} from 'argo-ui';
 import * as classNames from 'classnames';
 import * as React from 'react';
-import { Key, KeybindingContext, NumKey, NumKeyToNumber, NumPadKey, useNav } from 'argo-ui/v2';
-import { Cluster } from '../../../shared/components';
-import { Consumer, Context, AuthSettingsCtx } from '../../../shared/context';
+import {Key, KeybindingContext, NumKey, NumKeyToNumber, NumPadKey, useNav} from 'argo-ui/v2';
+import {Cluster} from '../../../shared/components';
+import {Consumer, Context, AuthSettingsCtx} from '../../../shared/context';
 import * as models from '../../../shared/models';
-import { ApplicationURLs } from '../application-urls';
+import {ApplicationURLs} from '../application-urls';
 import * as AppUtils from '../utils';
-import { getAppDefaultSource, getAppSetHealthStatus, isApp, OperationState } from '../utils';
-import { services } from '../../../shared/services';
+import {getAppDefaultSource, getAppSetHealthStatus, isApp, OperationState} from '../utils';
+import {services} from '../../../shared/services';
 
 import './applications-tiles.scss';
-import { Application, ApplicationSet } from '../../../shared/models';
+import {Application, ApplicationSet} from '../../../shared/models';
 
 export interface ApplicationTilesProps extends AbstractApplicationTilesProps {
     applications: models.Application[];
@@ -59,17 +59,17 @@ export const ApplicationTiles = (tilesProps: AbstractApplicationTilesProps) => {
     const [selectedApp, navApp, reset] = useNav(tilesProps.applications.length);
 
     const ctxh = React.useContext(Context);
-    const appRef = { ref: React.useRef(null), set: false };
+    const appRef = {ref: React.useRef(null), set: false};
     const appContainerRef = React.useRef(null);
     const appsPerRow = useItemsPerContainer(appRef.ref, appContainerRef);
     const useAuthSettingsCtx = React.useContext(AuthSettingsCtx);
 
-    const { useKeybinding } = React.useContext(KeybindingContext);
+    const {useKeybinding} = React.useContext(KeybindingContext);
 
-    useKeybinding({ keys: Key.RIGHT, action: () => navApp(1) });
-    useKeybinding({ keys: Key.LEFT, action: () => navApp(-1) });
-    useKeybinding({ keys: Key.DOWN, action: () => navApp(appsPerRow) });
-    useKeybinding({ keys: Key.UP, action: () => navApp(-1 * appsPerRow) });
+    useKeybinding({keys: Key.RIGHT, action: () => navApp(1)});
+    useKeybinding({keys: Key.LEFT, action: () => navApp(-1)});
+    useKeybinding({keys: Key.DOWN, action: () => navApp(appsPerRow)});
+    useKeybinding({keys: Key.UP, action: () => navApp(-1 * appsPerRow)});
 
     useKeybinding({
         keys: Key.ENTER,
@@ -121,36 +121,44 @@ export const ApplicationTiles = (tilesProps: AbstractApplicationTilesProps) => {
                                 {tilesProps.applications.map((app, i) => {
                                     const source = getAppDefaultSource(app);
                                     return (
-                                        <div 
-                                                key={AppUtils.appInstanceName(app)}
-                                                ref={appRef.set ? null : appRef.ref}
-                                                className={isApp(app) ? `argo-table-list__row applications-list__entry applications-list__entry--health-${(app as models.Application).status.health.status} ${
-                                                    selectedApp === i ? 'applications-tiles__selected' : ''
-                                                }`: `argo-table-list__row applications-list__entry applications-list__entry--health-${getAppSetHealthStatus((app as ApplicationSet).status)} ${selectedApp === i ? 'applications-tiles__selected' : '' 
-                                            }`}>
+                                        <div
+                                            key={AppUtils.appInstanceName(app)}
+                                            ref={appRef.set ? null : appRef.ref}
+                                            className={
+                                                isApp(app)
+                                                    ? `argo-table-list__row applications-list__entry applications-list__entry--health-${
+                                                          (app as models.Application).status.health.status
+                                                      } ${selectedApp === i ? 'applications-tiles__selected' : ''}`
+                                                    : `argo-table-list__row applications-list__entry applications-list__entry--health-${getAppSetHealthStatus(
+                                                          (app as ApplicationSet).status
+                                                      )} ${selectedApp === i ? 'applications-tiles__selected' : ''}`
+                                            }>
+                                            <div
+                                                className='row applications-tiles__wrapper'
+                                                onClick={e =>
+                                                    ctx.navigation.goto(
+                                                        `${AppUtils.getRootPath()}/${app.metadata.namespace}/${app.metadata.name}`,
+                                                        {view: pref.appDetails.view},
+                                                        {event: e}
+                                                    )
+                                                }>
                                                 <div
-                                                    className='row applications-tiles__wrapper'
-                                                    onClick={e =>
-                                                        ctx.navigation.goto(
-                                                            `${AppUtils.getRootPath()}/${app.metadata.namespace}/${app.metadata.name}`,
-                                                            { view: pref.appDetails.view },
-                                                            { event: e }
-                                                        )
-                                                    }>
-                                                    <div
-                                                        className={`columns small-12 applications-list__info qe-applications-list-${AppUtils.appInstanceName(
-                                                            app
-                                                        )} applications-tiles__item`}>
-                                                        <div className='row'>
-                                                            {isApp(app) && <div className={app.status.summary.externalURLs?.length > 0 ? 'columns small-10' : 'columns small-11'}>
+                                                    className={`columns small-12 applications-list__info qe-applications-list-${AppUtils.appInstanceName(
+                                                        app
+                                                    )} applications-tiles__item`}>
+                                                    <div className='row'>
+                                                        {isApp(app) && (
+                                                            <div className={app.status.summary.externalURLs?.length > 0 ? 'columns small-10' : 'columns small-11'}>
                                                                 <i className={'icon argo-icon-' + (source.chart != null ? 'helm' : 'git')} />
                                                                 <Tooltip content={AppUtils.appInstanceName(app)}>
                                                                     <span className='applications-list__title'>
                                                                         {AppUtils.appQualifiedName(app, useAuthSettingsCtx?.appsInAnyNamespaceEnabled)}
                                                                     </span>
                                                                 </Tooltip>
-                                                            </div>}
-                                                            {isApp(app) && <div className={app.status.summary.externalURLs?.length > 0 ? 'columns small-2' : 'columns small-1'}>
+                                                            </div>
+                                                        )}
+                                                        {isApp(app) && (
+                                                            <div className={app.status.summary.externalURLs?.length > 0 ? 'columns small-2' : 'columns small-1'}>
                                                                 <div className='applications-list__external-link'>
                                                                     <ApplicationURLs urls={app.status.summary.externalURLs} />
                                                                     <Tooltip content={favList?.includes(app.metadata.name) ? 'Remove Favorite' : 'Add Favorite'}>
@@ -174,55 +182,61 @@ export const ApplicationTiles = (tilesProps: AbstractApplicationTilesProps) => {
                                                                         </button>
                                                                     </Tooltip>
                                                                 </div>
-                                                            </div>}
-                                                        </div>
-                                                        {isApp(app) && <div className='row'>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                    {isApp(app) && (
+                                                        <div className='row'>
                                                             <div className='columns small-3' title='Project:'>
                                                                 Project:
                                                             </div>
                                                             <div className='columns small-9'>{app.spec.project}</div>
-                                                        </div>}
-                                                        <div className='row'>
-                                                            <div className='columns small-3' title='Labels:'>
-                                                                Labels:
-                                                            </div>
-                                                            <div className='columns small-9'>
-                                                                <Tooltip
-                                                                    zIndex={4}
-                                                                    content={
-                                                                        <div>
-                                                                            {Object.keys(app.metadata.labels || {})
-                                                                                .map(label => ({label, value: app.metadata.labels[label]}))
-                                                                                .map(item => (
-                                                                                    <div key={item.label}>
-                                                                                        {item.label}={item.value}
-                                                                                    </div>
-                                                                                ))}
-                                                                        </div>
-                                                                    }>
-                                                                    <span>
+                                                        </div>
+                                                    )}
+                                                    <div className='row'>
+                                                        <div className='columns small-3' title='Labels:'>
+                                                            Labels:
+                                                        </div>
+                                                        <div className='columns small-9'>
+                                                            <Tooltip
+                                                                zIndex={4}
+                                                                content={
+                                                                    <div>
                                                                         {Object.keys(app.metadata.labels || {})
-                                                                            .map(label => `${label}=${app.metadata.labels[label]}`)
-                                                                            .join(', ')}
-                                                                    </span>
-                                                                </Tooltip>
-                                                            </div>
+                                                                            .map(label => ({label, value: app.metadata.labels[label]}))
+                                                                            .map(item => (
+                                                                                <div key={item.label}>
+                                                                                    {item.label}={item.value}
+                                                                                </div>
+                                                                            ))}
+                                                                    </div>
+                                                                }>
+                                                                <span>
+                                                                    {Object.keys(app.metadata.labels || {})
+                                                                        .map(label => `${label}=${app.metadata.labels[label]}`)
+                                                                        .join(', ')}
+                                                                </span>
+                                                            </Tooltip>
                                                         </div>
+                                                    </div>
+                                                    <div className='row'>
+                                                        <div className='columns small-3' title='Status:'>
+                                                            Status:
+                                                        </div>
+                                                        <div className='columns small-9' qe-id='applications-tiles-health-status'>
+                                                            {isApp(app) && <AppUtils.HealthStatusIcon state={(app as Application).status.health} />}{' '}
+                                                            {isApp(app) && (app as Application).status.health.status}
+                                                            {!isApp(app) && <AppUtils.AppSetHealthStatusIcon state={(app as ApplicationSet).status} />}{' '}
+                                                            {!isApp(app) && getAppSetHealthStatus((app as ApplicationSet).status)}
+                                                            &nbsp;
+                                                            {isApp(app) && <AppUtils.ComparisonStatusIcon status={(app as Application).status.sync.status} />}{' '}
+                                                            {isApp(app) && (app as Application).status.sync.status}
+                                                            &nbsp;
+                                                            {isApp(app) && <OperationState app={app} quiet={true} />}
+                                                        </div>
+                                                    </div>
+                                                    {isApp(app) && (
                                                         <div className='row'>
-                                                            <div className='columns small-3' title='Status:'>
-                                                                Status:
-                                                            </div>
-                                                            <div className='columns small-9' qe-id='applications-tiles-health-status'>
-                                                            {isApp(app) && <AppUtils.HealthStatusIcon state={(app as Application).status.health} />} {isApp(app) && (app as Application).status.health.status}
-                                                                {!isApp(app) && <AppUtils.AppSetHealthStatusIcon state={(app as ApplicationSet).status} />} {!isApp(app) && getAppSetHealthStatus((app as ApplicationSet).status)}
-                                                                &nbsp;
-                                                                {isApp(app) && <AppUtils.ComparisonStatusIcon status={(app as Application).status.sync.status} />} {isApp(app) && (app as Application).status.sync.status}
-                                                                &nbsp;
-                                                                {isApp(app) && <OperationState app={app} quiet={true} />}
-                                                            </div>
-                                                        </div>
-                                                        {isApp(app) &&
-                                                            (<div className='row'>
                                                             <div className='columns small-3' title='Repository:'>
                                                                 Repository:
                                                             </div>
@@ -232,32 +246,32 @@ export const ApplicationTiles = (tilesProps: AbstractApplicationTilesProps) => {
                                                                 </Tooltip>
                                                             </div>
                                                         </div>
-                                                         )}
-                                                        {isApp(app) &&
-                                                        (<div className='row'>
+                                                    )}
+                                                    {isApp(app) && (
+                                                        <div className='row'>
                                                             <div className='columns small-3' title='Target Revision:'>
                                                                 Target Revision:
                                                             </div>
                                                             <div className='columns small-9'>{source.targetRevision || 'HEAD'}</div>
                                                         </div>
-                                                        )}
-                                                        {isApp(app) && source.path && (
-                                                            <div className='row'>
-                                                                <div className='columns small-3' title='Path:'>
-                                                                    Path:
-                                                                </div>
-                                                                <div className='columns small-9'>{source.path}</div>
+                                                    )}
+                                                    {isApp(app) && source.path && (
+                                                        <div className='row'>
+                                                            <div className='columns small-3' title='Path:'>
+                                                                Path:
                                                             </div>
-                                                        )}
-                                                        {isApp(app) && source.chart && (
-                                                            <div className='row'>
-                                                                <div className='columns small-3' title='Chart:'>
-                                                                    Chart:
-                                                                </div>
-                                                                <div className='columns small-9'>{source.chart}</div>
+                                                            <div className='columns small-9'>{source.path}</div>
+                                                        </div>
+                                                    )}
+                                                    {isApp(app) && source.chart && (
+                                                        <div className='row'>
+                                                            <div className='columns small-3' title='Chart:'>
+                                                                Chart:
                                                             </div>
-                                                        )}
-                                                        {isApp(app) && (
+                                                            <div className='columns small-9'>{source.chart}</div>
+                                                        </div>
+                                                    )}
+                                                    {isApp(app) && (
                                                         <div className='row'>
                                                             <div className='columns small-3' title='Destination:'>
                                                                 Destination:
@@ -266,32 +280,34 @@ export const ApplicationTiles = (tilesProps: AbstractApplicationTilesProps) => {
                                                                 <Cluster server={(app as models.Application).spec.destination.server} name={app.spec.destination.name} />
                                                             </div>
                                                         </div>
-                                                        )}
-                                                         {isApp(app) && (
+                                                    )}
+                                                    {isApp(app) && (
                                                         <div className='row'>
                                                             <div className='columns small-3' title='Namespace:'>
                                                                 Namespace:
                                                             </div>
                                                             <div className='columns small-9'>{(app as models.Application).spec.destination.namespace}</div>
                                                         </div>
-                                                         )}
-                                                        <div className='row'>
-                                                            <div className='columns small-3' title='Age:'>
-                                                                Created At:
-                                                            </div>
-                                                            <div className='columns small-9'>{AppUtils.formatCreationTimestamp(app.metadata.creationTimestamp)}</div>
+                                                    )}
+                                                    <div className='row'>
+                                                        <div className='columns small-3' title='Age:'>
+                                                            Created At:
                                                         </div>
-                                                        {isApp(app) && (app as models.Application).status.operationState && (
-                                                            <div className='row'>
-                                                                <div className='columns small-3' title='Last sync:'>
-                                                                    Last Sync:
-                                                                </div>
-                                                                <div className='columns small-9'>
-                                                                    {AppUtils.formatCreationTimestamp((app as Application).status.operationState.finishedAt || app.status.operationState.startedAt)}
-                                                                </div>
+                                                        <div className='columns small-9'>{AppUtils.formatCreationTimestamp(app.metadata.creationTimestamp)}</div>
+                                                    </div>
+                                                    {isApp(app) && (app as models.Application).status.operationState && (
+                                                        <div className='row'>
+                                                            <div className='columns small-3' title='Last sync:'>
+                                                                Last Sync:
                                                             </div>
-                                                        )}
-                                                        {isApp(app) && (
+                                                            <div className='columns small-9'>
+                                                                {AppUtils.formatCreationTimestamp(
+                                                                    (app as Application).status.operationState.finishedAt || app.status.operationState.startedAt
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                    {isApp(app) && (
                                                         <div className='row'>
                                                             <div className='columns applications-list__entry--actions'>
                                                                 <a
@@ -328,10 +344,10 @@ export const ApplicationTiles = (tilesProps: AbstractApplicationTilesProps) => {
                                                                 </a>
                                                             </div>
                                                         </div>
-                                                        )}
-                                                    </div>
+                                                    )}
                                                 </div>
                                             </div>
+                                        </div>
                                     );
                                 })}
                             </div>
