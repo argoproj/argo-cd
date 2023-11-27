@@ -153,9 +153,11 @@ func testAPI(ctx context.Context, clientOpts *apiclient.ClientOptions) error {
 //
 // If the clientOpts enables core mode, but the local config does not have core mode enabled, this function will
 // not start the local server.
-func MaybeStartLocalServer(ctx context.Context, clientOpts *apiclient.ClientOptions, ctxStr string, port *int, address *string, compression cache.RedisCompressionType) error {
-	flags := pflag.NewFlagSet("tmp", pflag.ContinueOnError)
-	clientConfig := cli.AddKubectlFlagsToSet(flags)
+func MaybeStartLocalServer(ctx context.Context, clientOpts *apiclient.ClientOptions, ctxStr string, port *int, address *string, compression cache.RedisCompressionType, clientConfig clientcmd.ClientConfig) error {
+	if clientConfig == nil {
+		flags := pflag.NewFlagSet("tmp", pflag.ContinueOnError)
+		clientConfig = cli.AddKubectlFlagsToSet(flags)
+	}
 	startInProcessAPI := clientOpts.Core
 	if !startInProcessAPI {
 		// Core mode is enabled on client options. Check the local config to see if we should start the API server.
@@ -244,6 +246,7 @@ func MaybeStartLocalServer(ctx context.Context, clientOpts *apiclient.ClientOpti
 	if !cache2.WaitForCacheSync(ctx.Done(), srv.Initialized) {
 		log.Fatal("Timed out waiting for project cache to sync")
 	}
+
 	tries := 5
 	for i := 0; i < tries; i++ {
 		err = testAPI(ctx, clientOpts)
@@ -265,7 +268,7 @@ func NewClientOrDie(opts *apiclient.ClientOptions, c *cobra.Command) apiclient.C
 	ctxStr := initialize.RetrieveContextIfChanged(c.Flag("context"))
 	// If we're in core mode, start the API server on the fly and configure the client `opts` to use it.
 	// If we're not in core mode, this function call will do nothing.
-	err := MaybeStartLocalServer(ctx, opts, ctxStr, nil, nil, cache.RedisCompressionNone)
+	err := MaybeStartLocalServer(ctx, opts, ctxStr, nil, nil, cache.RedisCompressionNone, nil)
 	if err != nil {
 		log.Fatal(err)
 	}
