@@ -1485,7 +1485,10 @@ func TestUseDiffCache(t *testing.T) {
 			app.SetAnnotations(annotations)
 		}
 		if appSpec != nil {
-			mergo.Merge(&app.Spec, appSpec, mergo.WithOverride)
+			err := mergo.Merge(&app.Spec, appSpec, mergo.WithOverride)
+			if err != nil {
+				t.Fatalf("error merging appSpec: %s", err)
+			}
 		}
 		return app
 	}
