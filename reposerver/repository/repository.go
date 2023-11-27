@@ -1997,13 +1997,12 @@ func (s *Service) createGetAppDetailsCacheHandler(res *apiclient.RepoAppDetailsR
 
 func populateHelmAppDetails(res *apiclient.RepoAppDetailsResponse, appPath string, repoRoot string, q *apiclient.RepoServerAppDetailsQuery, gitRepoPaths io.TempPaths) error {
 	var selectedValueFiles []string
-	var availableValueFiles []string
 
 	if q.Source.Helm != nil {
 		selectedValueFiles = q.Source.Helm.ValueFiles
 	}
 
-	err := filepath.Walk(appPath, walkHelmValueFilesInPath(appPath, &availableValueFiles))
+	availableValueFiles, err := findHelmValueFilesInPath(appPath)
 	if err != nil {
 		return err
 	}
@@ -2080,25 +2079,26 @@ func loadFileIntoIfExists(path pathutil.ResolvedFilePath, destination *string) e
 	return nil
 }
 
-func walkHelmValueFilesInPath(root string, valueFiles *[]string) filepath.WalkFunc {
-	return func(path string, info os.FileInfo, err error) error {
+func findHelmValueFilesInPath(path string) ([]string, error) {
+	var result []string
 
-		if err != nil {
-			return fmt.Errorf("error reading helm values file from %s: %w", path, err)
-		}
-
-		filename := info.Name()
-		fileNameExt := strings.ToLower(filepath.Ext(path))
-		if strings.Contains(filename, "values") && (fileNameExt == ".yaml" || fileNameExt == ".yml") {
-			relPath, err := filepath.Rel(root, path)
-			if err != nil {
-				return fmt.Errorf("error traversing path from %s to %s: %w", root, path, err)
-			}
-			*valueFiles = append(*valueFiles, relPath)
-		}
-
-		return nil
+	files, err := os.ReadDir(path)
+	if err != nil {
+		return result, fmt.Errorf("error reading helm values file from %s: %w", path, err)
 	}
+
+	for _, f := range files {
+		if f.IsDir() {
+			continue
+		}
+		filename := f.Name()
+		fileNameExt := strings.ToLower(filepath.Ext(filename))
+		if strings.Contains(filename, "values") && (fileNameExt == ".yaml" || fileNameExt == ".yml") {
+			result = append(result, filename)
+		}
+	}
+
+	return result, nil
 }
 
 func populateKustomizeAppDetails(res *apiclient.RepoAppDetailsResponse, q *apiclient.RepoServerAppDetailsQuery, appPath string, reversion string, credsStore git.CredsStore) error {

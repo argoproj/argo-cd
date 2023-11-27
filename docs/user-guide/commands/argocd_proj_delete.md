@@ -8,13 +8,6 @@ Delete project
 argocd proj delete PROJECT [flags]
 ```
 
-### Examples
-
-```
-  # Delete the project with name PROJECT
-  argocd proj delete PROJECT
-```
-
 ### Options
 
 ```

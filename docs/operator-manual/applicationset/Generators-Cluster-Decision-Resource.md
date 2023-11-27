@@ -1,6 +1,6 @@
 # Cluster Decision Resource Generator
 
-The cluster decision resource generates a list of Argo CD clusters. This is done using [duck-typing](https://pkg.go.dev/knative.dev/pkg/apis/duck), which does not require knowledge of the full shape of the referenced Kubernetes resource. The following is an example of a cluster-decision-resource-based ApplicationSet generator:
+The cluster decision resource generates a list of Argo CD clusters. This is done using [duck-typing](https://pkg.go.dev/knative.dev/pkg/apis/duck), which does not require knowledge of the full shape of the referenced kubernetes resource. The following is an example of a cluster-decision-resource-based ApplicationSet generator:
 ```yaml
 apiVersion: argoproj.io/v1alpha1
 kind: ApplicationSet
@@ -8,8 +8,6 @@ metadata:
  name: guestbook
  namespace: argocd
 spec:
- goTemplate: true
- goTemplateOptions: ["missingkey=error"]
  generators:
  - clusterDecisionResource:
     # ConfigMap with GVK information for the duck type resource
@@ -28,7 +26,7 @@ spec:
     requeueAfterSeconds: 60
  template:
    metadata:
-     name: '{{.name}}-guestbook'
+     name: '{{name}}-guestbook'
    spec:
       project: "default"
       source:
@@ -36,7 +34,7 @@ spec:
         targetRevision: HEAD
         path: guestbook
       destination:
-        server: '{{.clusterName}}' # 'server' field of the secret
+        server: '{{clusterName}}' # 'server' field of the secret
         namespace: guestbook
 ```
 The `quak` resource, referenced by the ApplicationSet `clusterDecisionResource` generator:

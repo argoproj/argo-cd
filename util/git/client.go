@@ -174,10 +174,6 @@ func NewClientExt(rawRepoURL string, root string, creds Creds, insecure bool, en
 	return client, nil
 }
 
-var (
-	gitClientTimeout = env.ParseDurationFromEnv("ARGOCD_GIT_REQUEST_TIMEOUT", 15*time.Second, 0, math.MaxInt64)
-)
-
 // Returns a HTTP client object suitable for go-git to use using the following
 // pattern:
 //   - If insecure is true, always returns a client with certificate verification
@@ -189,8 +185,8 @@ var (
 func GetRepoHTTPClient(repoURL string, insecure bool, creds Creds, proxyURL string) *http.Client {
 	// Default HTTP client
 	var customHTTPClient = &http.Client{
-		// 15 second timeout by default
-		Timeout: gitClientTimeout,
+		// 15 second timeout
+		Timeout: 15 * time.Second,
 		// don't follow redirect
 		CheckRedirect: func(req *http.Request, via []*http.Request) error {
 			return http.ErrUseLastResponse

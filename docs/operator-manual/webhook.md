@@ -41,7 +41,7 @@ the contents of webhook payloads are considered untrusted, and will only result 
 application (a process which already occurs at three-minute intervals). If Argo CD is publicly
 accessible, then configuring a webhook secret is recommended to prevent a DDoS attack.
 
-In the `argocd-secret` Kubernetes secret, configure one of the following keys with the Git
+In the `argocd-secret` kubernetes secret, configure one of the following keys with the Git
 provider's webhook secret configured in step 1.
 
 | Provider        | K8s Secret Key                   |
@@ -54,13 +54,13 @@ provider's webhook secret configured in step 1.
 | Azure DevOps    | `webhook.azuredevops.username`   |
 |                 | `webhook.azuredevops.password`   |
 
-Edit the Argo CD Kubernetes secret:
+Edit the Argo CD kubernetes secret:
 
 ```bash
 kubectl edit secret argocd-secret -n argocd
 ```
 
-TIP: for ease of entering secrets, Kubernetes supports inputting secrets in the `stringData` field,
+TIP: for ease of entering secrets, kubernetes supports inputting secrets in the `stringData` field,
 which saves you the trouble of base64 encoding the values and copying it to the `data` field.
 Simply copy the shared webhook secret created in step 1, to the corresponding
 GitHub/GitLab/BitBucket key under the `stringData` field:
