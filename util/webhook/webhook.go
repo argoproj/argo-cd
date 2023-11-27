@@ -27,6 +27,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/reposerver/cache"
 	servercache "github.com/argoproj/argo-cd/v2/server/cache"
 	"github.com/argoproj/argo-cd/v2/util/argo"
+	app2 "github.com/argoproj/argo-cd/v2/util/cache"
 	"github.com/argoproj/argo-cd/v2/util/db"
 	"github.com/argoproj/argo-cd/v2/util/glob"
 	"github.com/argoproj/argo-cd/v2/util/security"
@@ -349,16 +350,19 @@ func (a *ArgoCDWebhookHandler) storePreviouslyCachedManifests(app *v1alpha1.Appl
 		return fmt.Errorf("error getting ref sources: %w", err)
 	}
 	source := app.Spec.GetSource()
-	cache.LogDebugManifestCacheKeyFields("getting manifests cache", "webhook app revision changed", change.shaBefore, &source, refSources, &clusterInfo, app.Spec.Destination.Namespace, trackingMethod, appInstanceLabelKey, app.Name, nil)
+
+	appID := app2.NewAppIdentity(app.Name, app.Namespace, a.ns)
+
+	cache.LogDebugManifestCacheKeyFields("getting manifests cache", "webhook app revision changed", change.shaBefore, &source, refSources, &clusterInfo, app.Spec.Destination.Namespace, trackingMethod, appInstanceLabelKey, appID, nil)
 
 	var cachedManifests cache.CachedManifestResponse
-	if err := a.repoCache.GetManifests(change.shaBefore, &source, refSources, &clusterInfo, app.Spec.Destination.Namespace, trackingMethod, appInstanceLabelKey, app.Name, &cachedManifests, nil); err != nil {
+	if err := a.repoCache.GetManifests(change.shaBefore, &source, refSources, &clusterInfo, app.Spec.Destination.Namespace, trackingMethod, appInstanceLabelKey, appID, &cachedManifests, nil); err != nil {
 		return err
 	}
 
-	cache.LogDebugManifestCacheKeyFields("setting manifests cache", "webhook app revision changed", change.shaAfter, &source, refSources, &clusterInfo, app.Spec.Destination.Namespace, trackingMethod, appInstanceLabelKey, app.Name, nil)
+	cache.LogDebugManifestCacheKeyFields("setting manifests cache", "webhook app revision changed", change.shaAfter, &source, refSources, &clusterInfo, app.Spec.Destination.Namespace, trackingMethod, appInstanceLabelKey, appID, nil)
 
-	if err = a.repoCache.SetManifests(change.shaAfter, &source, refSources, &clusterInfo, app.Spec.Destination.Namespace, trackingMethod, appInstanceLabelKey, app.Name, &cachedManifests, nil); err != nil {
+	if err = a.repoCache.SetManifests(change.shaAfter, &source, refSources, &clusterInfo, app.Spec.Destination.Namespace, trackingMethod, appInstanceLabelKey, appID, &cachedManifests, nil); err != nil {
 		return err
 	}
 	return nil

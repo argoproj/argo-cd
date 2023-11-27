@@ -58,8 +58,8 @@ func (c *Cache) GetAppResourcesTree(appName string, res *appv1.ApplicationTree) 
 	return c.cache.GetAppResourcesTree(appName, res)
 }
 
-func (c *Cache) OnAppResourcesTreeChanged(ctx context.Context, appName string, callback func() error) error {
-	return c.cache.OnAppResourcesTreeChanged(ctx, appName, callback)
+func (c *Cache) OnAppResourcesTreeChanged(ctx context.Context, appID cacheutil.AppIdentity, callback func() error) error {
+	return c.cache.OnAppResourcesTreeChanged(ctx, appID, callback)
 }
 
 func (c *Cache) GetAppManagedResources(appName string, res *[]*appv1.ResourceDiff) error {

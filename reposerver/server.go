@@ -48,7 +48,7 @@ type ArgoCDRepoServer struct {
 var tlsHostList []string = []string{"localhost", "reposerver"}
 
 // NewServer returns a new instance of the Argo CD Repo server
-func NewServer(metricsServer *metrics.MetricsServer, cache *reposervercache.Cache, tlsConfCustomizer tlsutil.ConfigCustomizer, initConstants repository.RepoServerInitConstants, gitCredsStore git.CredsStore) (*ArgoCDRepoServer, error) {
+func NewServer(metricsServer *metrics.MetricsServer, cache *reposervercache.Cache, tlsConfCustomizer tlsutil.ConfigCustomizer, initConstants repository.RepoServerInitConstants, gitCredsStore git.CredsStore, ns string) (*ArgoCDRepoServer, error) {
 	var tlsConfig *tls.Config
 
 	// Generate or load TLS server certificates to use with this instance of
@@ -100,7 +100,7 @@ func NewServer(metricsServer *metrics.MetricsServer, cache *reposervercache.Cach
 	if tlsConfig != nil {
 		serverOpts = append(serverOpts, grpc.Creds(credentials.NewTLS(tlsConfig)))
 	}
-	repoService := repository.NewService(metricsServer, cache, initConstants, argo.NewResourceTracking(), gitCredsStore, filepath.Join(os.TempDir(), "_argocd-repo"))
+	repoService := repository.NewService(metricsServer, cache, initConstants, argo.NewResourceTracking(), gitCredsStore, filepath.Join(os.TempDir(), "_argocd-repo"), ns)
 	if err := repoService.Init(); err != nil {
 		return nil, err
 	}
