@@ -955,6 +955,20 @@ type ApplicationStatus struct {
 	ControllerNamespace string `json:"controllerNamespace,omitempty" protobuf:"bytes,13,opt,name=controllerNamespace"`
 }
 
+// GetRevisions will return the current revision associated with the Application.
+// If app has multisources, it will return all corresponding revisions preserving
+// order from the app.spec.sources. If app has only one source, it will return a
+// single revision in the list.
+func (a *ApplicationStatus) GetRevisions() []string {
+	revisions := []string{}
+	if len(a.Sync.Revisions) > 0 {
+		revisions = a.Sync.Revisions
+	} else if a.Sync.Revision != "" {
+		revisions = append(revisions, a.Sync.Revision)
+	}
+	return revisions
+}
+
 // JWTTokens represents a list of JWT tokens
 type JWTTokens struct {
 	Items []JWTToken `json:"items,omitempty" protobuf:"bytes,1,opt,name=items"`
