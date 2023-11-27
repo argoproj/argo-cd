@@ -61,6 +61,8 @@ argocd-server [flags]
       --oidc-cache-expiration duration                Cache expiration for OIDC state (default 3m0s)
       --otlp-address string                           OpenTelemetry collector address to send traces to
       --otlp-attrs strings                            List of OpenTelemetry collector extra attrs when send traces, each attribute is separated by a colon(e.g. key:value)
+      --otlp-headers stringToString                   List of OpenTelemetry collector extra headers sent with traces, headers are comma-separated key-value pairs(e.g. key1=value1,key2=value2) (default [])
+      --otlp-insecure                                 OpenTelemetry collector insecure mode (default true)
       --password string                               Password for basic authentication to the API server
       --port int                                      Listen on given port (default 8080)
       --proxy-url string                              If provided, this URL will be used to connect via proxy
