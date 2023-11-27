@@ -695,8 +695,6 @@ github.com/apache/thrift v0.12.0/go.mod h1:cp2SuWMxlEZw2r+iP2GNCdIi4C1qmUzdZFSVb
 github.com/apache/thrift v0.13.0/go.mod h1:cp2SuWMxlEZw2r+iP2GNCdIi4C1qmUzdZFSVb+bacwQ=
 github.com/apache/thrift v0.16.0/go.mod h1:PHK3hniurgQaNMZYaCLEqXKsYK8upmhPbmdP2FXSqgU=
 github.com/appscode/go v0.0.0-20191119085241-0887d8ec2ecc/go.mod h1:OawnOmAL4ZX3YaPdN+8HTNwBveT1jMsqP74moa9XUbE=
-github.com/argoproj/gitops-engine v0.7.1-0.20231102154024-c0c2dd1f6f48 h1:vnXMrNkBFC0H0KBkH1Jno31OVgJQR4KSd0ypEcfzQRA=
-github.com/argoproj/gitops-engine v0.7.1-0.20231102154024-c0c2dd1f6f48/go.mod h1:1TchqKw9XmYYZluyEHa1dTJQoZgbV6PhabB/e8Wf3KY=
 github.com/argoproj/notifications-engine v0.4.1-0.20230905144632-9dcecdc3eebf h1:4wliaBwd6iKvT/5huDTJntaYtTSdwPLs00SOQwDSK6A=
 github.com/argoproj/notifications-engine v0.4.1-0.20230905144632-9dcecdc3eebf/go.mod h1:TuK0BNKo34DIUOyCCGOB9ij+smGCxeCgt9ZB+0fMWno=
 github.com/argoproj/pkg v0.13.7-0.20230626144333-d56162821bd1 h1:qsHwwOJ21K2Ao0xPju1sNuqphyMnMYkyB3ZLoLtxWpo=
@@ -821,6 +819,8 @@ github.com/creack/pty v1.1.7/go.mod h1:lj5s0c3V2DBrqTV7llrYr5NG6My20zk30Fl46Y7Do
 github.com/creack/pty v1.1.9/go.mod h1:oKZEueFk5CKHvIhNR5MUki03XCEU+Q6VDXinZuGJ33E=
 github.com/creack/pty v1.1.11 h1:07n33Z8lZxZ2qwegKbObQohDhXDQxiMMz1NOUGYlesw=
 github.com/creack/pty v1.1.11/go.mod h1:oKZEueFk5CKHvIhNR5MUki03XCEU+Q6VDXinZuGJ33E=
+github.com/crenshaw-dev/gitops-engine v0.6.1-0.20231127180231-9111de055948 h1:oow7KIO20GONBONlYT8kqlSKouUlJ26lmymD3XGCBUk=
+github.com/crenshaw-dev/gitops-engine v0.6.1-0.20231127180231-9111de055948/go.mod h1:1TchqKw9XmYYZluyEHa1dTJQoZgbV6PhabB/e8Wf3KY=
 github.com/cyphar/filepath-securejoin v0.2.4 h1:Ugdm7cg7i6ZK6x3xDF1oEu1nfkyfH53EtKeQYTC3kyg=
 github.com/cyphar/filepath-securejoin v0.2.4/go.mod h1:aPGpWjXOXUn2NCNjFvBE6aRxGGx79pTxQpKOJNYHHl4=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=

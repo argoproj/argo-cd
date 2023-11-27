@@ -286,6 +286,7 @@ require (
 )
 
 replace (
+	github.com/argoproj/gitops-engine => github.com/crenshaw-dev/gitops-engine v0.6.1-0.20231127180231-9111de055948
 	// https://github.com/golang/go/issues/33546#issuecomment-519656923
 	github.com/go-check/check => github.com/go-check/check v0.0.0-20180628173108-788fd7840127
 
@@ -327,5 +328,4 @@ replace (
 	k8s.io/sample-apiserver => k8s.io/sample-apiserver v0.26.4
 	k8s.io/sample-cli-plugin => k8s.io/sample-cli-plugin v0.26.4
 	k8s.io/sample-controller => k8s.io/sample-controller v0.26.4
-
 )
