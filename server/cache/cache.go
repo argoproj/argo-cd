@@ -6,7 +6,7 @@ import (
 	"math"
 	"time"
 
-	"github.com/go-redis/redis/v8"
+	"github.com/redis/go-redis/v9"
 	"github.com/spf13/cobra"
 
 	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"

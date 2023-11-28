@@ -2,7 +2,7 @@ import {AutocompleteField, DropDownMenu, ErrorNotification, FormField, FormSelec
 import * as React from 'react';
 import {FormApi, Text} from 'react-form';
 import {
-    ARGO_WARNING_COLOR,
+    ClipboardText,
     Cluster,
     DataLoader,
     EditablePanel,
@@ -21,7 +21,7 @@ import {services} from '../../../shared/services';
 
 import {ApplicationSyncOptionsField} from '../application-sync-options/application-sync-options';
 import {RevisionFormField} from '../revision-form-field/revision-form-field';
-import {ComparisonStatusIcon, HealthStatusIcon, syncStatusMessage, urlPattern, formatCreationTimestamp, getAppDefaultSource, getAppSpecDefaultSource} from '../utils';
+import {ComparisonStatusIcon, HealthStatusIcon, syncStatusMessage, urlPattern, formatCreationTimestamp, getAppDefaultSource, getAppSpecDefaultSource, helpTip} from '../utils';
 import {ApplicationRetryOptions} from '../application-retry-options/application-retry-options';
 import {ApplicationRetryView} from '../application-retry-view/application-retry-view';
 import {Link} from 'react-router-dom';
@@ -52,6 +52,8 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
 
     const notificationSubscriptions = useEditNotificationSubscriptions(app.metadata.annotations || {});
     const updateApp = notificationSubscriptions.withNotificationSubscriptions(props.updateApp);
+
+    const hasMultipleSources = app.spec.sources && app.spec.sources.length > 0;
 
     const attributes = [
         {
@@ -149,7 +151,7 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
         },
         {
             title: 'NAMESPACE',
-            view: app.spec.destination.namespace,
+            view: <ClipboardText text={app.spec.destination.namespace} />,
             edit: (formApi: FormApi) => <FormField formApi={formApi} field='spec.destination.namespace' component={Text} />
         },
         {
@@ -159,7 +161,12 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
         {
             title: 'REPO URL',
             view: <Repo url={source.repoURL} />,
-            edit: (formApi: FormApi) => <FormField formApi={formApi} field='spec.source.repoURL' component={Text} />
+            edit: (formApi: FormApi) =>
+                hasMultipleSources ? (
+                    helpTip('REPO URL is not editable for applications with multiple sources. You can edit them in the "Manifest" tab.')
+                ) : (
+                    <FormField formApi={formApi} field='spec.source.repoURL' component={Text} />
+                )
         },
         ...(isHelm
             ? [
@@ -170,54 +177,62 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                               {source.chart}:{source.targetRevision}
                           </span>
                       ),
-                      edit: (formApi: FormApi) => (
-                          <DataLoader
-                              input={{repoURL: getAppSpecDefaultSource(formApi.getFormState().values.spec).repoURL}}
-                              load={src => services.repos.charts(src.repoURL).catch(() => new Array<models.HelmChart>())}>
-                              {(charts: models.HelmChart[]) => (
-                                  <div className='row'>
-                                      <div className='columns small-8'>
-                                          <FormField
-                                              formApi={formApi}
-                                              field='spec.source.chart'
-                                              component={AutocompleteField}
-                                              componentProps={{
-                                                  items: charts.map(chart => chart.name),
-                                                  filterSuggestions: true
-                                              }}
-                                          />
+                      edit: (formApi: FormApi) =>
+                          hasMultipleSources ? (
+                              helpTip('CHART is not editable for applications with multiple sources. You can edit them in the "Manifest" tab.')
+                          ) : (
+                              <DataLoader
+                                  input={{repoURL: getAppSpecDefaultSource(formApi.getFormState().values.spec).repoURL}}
+                                  load={src => services.repos.charts(src.repoURL).catch(() => new Array<models.HelmChart>())}>
+                                  {(charts: models.HelmChart[]) => (
+                                      <div className='row'>
+                                          <div className='columns small-8'>
+                                              <FormField
+                                                  formApi={formApi}
+                                                  field='spec.source.chart'
+                                                  component={AutocompleteField}
+                                                  componentProps={{
+                                                      items: charts.map(chart => chart.name),
+                                                      filterSuggestions: true
+                                                  }}
+                                              />
+                                          </div>
+                                          <DataLoader
+                                              input={{charts, chart: getAppSpecDefaultSource(formApi.getFormState().values.spec).chart}}
+                                              load={async data => {
+                                                  const chartInfo = data.charts.find(chart => chart.name === data.chart);
+                                                  return (chartInfo && chartInfo.versions) || new Array<string>();
+                                              }}>
+                                              {(versions: string[]) => (
+                                                  <div className='columns small-4'>
+                                                      <FormField
+                                                          formApi={formApi}
+                                                          field='spec.source.targetRevision'
+                                                          component={AutocompleteField}
+                                                          componentProps={{
+                                                              items: versions
+                                                          }}
+                                                      />
+                                                      <RevisionHelpIcon type='helm' top='0' />
+                                                  </div>
+                                              )}
+                                          </DataLoader>
                                       </div>
-                                      <DataLoader
-                                          input={{charts, chart: getAppSpecDefaultSource(formApi.getFormState().values.spec).chart}}
-                                          load={async data => {
-                                              const chartInfo = data.charts.find(chart => chart.name === data.chart);
-                                              return (chartInfo && chartInfo.versions) || new Array<string>();
-                                          }}>
-                                          {(versions: string[]) => (
-                                              <div className='columns small-4'>
-                                                  <FormField
-                                                      formApi={formApi}
-                                                      field='spec.source.targetRevision'
-                                                      component={AutocompleteField}
-                                                      componentProps={{
-                                                          items: versions
-                                                      }}
-                                                  />
-                                                  <RevisionHelpIcon type='helm' top='0' />
-                                              </div>
-                                          )}
-                                      </DataLoader>
-                                  </div>
-                              )}
-                          </DataLoader>
-                      )
+                                  )}
+                              </DataLoader>
+                          )
                   }
               ]
             : [
                   {
                       title: 'TARGET REVISION',
                       view: <Revision repoUrl={source.repoURL} revision={source.targetRevision || 'HEAD'} />,
-                      edit: (formApi: FormApi) => <RevisionFormField helpIconTop={'0'} hideLabel={true} formApi={formApi} repoURL={source.repoURL} />
+                      edit: (formApi: FormApi) =>
+                          hasMultipleSources ? (
+                              helpTip('TARGET REVISION is not editable for applications with multiple sources. You can edit them in the "Manifest" tab.')
+                          ) : (
+                              <RevisionFormField helpIconTop={'0'} hideLabel={true} formApi={formApi} repoURL={source.repoURL} />
+                          )
                   },
                   {
                       title: 'PATH',
@@ -226,7 +241,12 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                               {source.path ?? ''}
                           </Revision>
                       ),
-                      edit: (formApi: FormApi) => <FormField formApi={formApi} field='spec.source.path' component={Text} />
+                      edit: (formApi: FormApi) =>
+                          hasMultipleSources ? (
+                              helpTip('PATH is not editable for applications with multiple sources. You can edit them in the "Manifest" tab.')
+                          ) : (
+                              <FormField formApi={formApi} field='spec.source.path' component={Text} />
+                          )
                   }
               ]),
 
@@ -251,7 +271,7 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
         {
             title: 'SYNC OPTIONS',
             view: (
-                <div style={{display: 'flex'}}>
+                <div style={{display: 'flex', flexWrap: 'wrap'}}>
                     {((app.spec.syncPolicy || {}).syncOptions || []).map(opt =>
                         opt.endsWith('=true') || opt.endsWith('=false') ? (
                             <div key={opt} style={{marginRight: '10px'}}>
@@ -299,7 +319,7 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
         {
             title: 'LINKS',
             view: (
-                <DataLoader load={() => services.applications.getLinks(app.metadata.name)} input={app} key='appLinks'>
+                <DataLoader load={() => services.applications.getLinks(app.metadata.name, app.metadata.namespace)} input={app} key='appLinks'>
                     {(links: models.LinksResponse) => <DeepLinks links={links.items} />}
                 </DataLoader>
             )
@@ -455,13 +475,6 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
 
     return (
         <div className='application-summary'>
-            {source.plugin && typeof source.plugin.name === 'string' && source.plugin.name !== '' && (
-                <div className='white-box'>
-                    <i className='fa fa-exclamation-triangle' style={{color: ARGO_WARNING_COLOR}} /> This Application uses a plugin which will no longer be supported starting with
-                    Argo CD version 2.6. Contact your Argo CD administrator to make sure they upgrade the '{source.plugin.name}' plugin before upgrading to Argo CD 2.6. See the{' '}
-                    <a href='https://argo-cd.readthedocs.io/en/latest/operator-manual/upgrading/2.4-2.5/'>2.4-to-2.5 upgrade notes</a> for details.
-                </div>
-            )}
             <EditablePanel
                 save={updateApp}
                 validate={input => ({

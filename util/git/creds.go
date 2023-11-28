@@ -3,6 +3,7 @@ package git
 import (
 	"context"
 	"crypto/sha256"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -39,6 +40,7 @@ const (
 	ASKPASS_NONCE_ENV = "ARGOCD_GIT_ASKPASS_NONCE"
 	// githubAccessTokenUsername is a username that is used to with the github access token
 	githubAccessTokenUsername = "x-access-token"
+	forceBasicAuthHeaderEnv   = "ARGOCD_GIT_AUTH_HEADER"
 )
 
 func init() {
@@ -126,9 +128,11 @@ type HTTPSCreds struct {
 	proxy string
 	// temporal credentials store
 	store CredsStore
+	// whether to force usage of basic auth
+	forceBasicAuth bool
 }
 
-func NewHTTPSCreds(username string, password string, clientCertData string, clientCertKey string, insecure bool, proxy string, store CredsStore) GenericHTTPSCreds {
+func NewHTTPSCreds(username string, password string, clientCertData string, clientCertKey string, insecure bool, proxy string, store CredsStore, forceBasicAuth bool) GenericHTTPSCreds {
 	return HTTPSCreds{
 		username,
 		password,
@@ -137,7 +141,15 @@ func NewHTTPSCreds(username string, password string, clientCertData string, clie
 		clientCertKey,
 		proxy,
 		store,
+		forceBasicAuth,
 	}
+}
+
+func (c HTTPSCreds) BasicAuthHeader() string {
+	h := "Authorization: Basic "
+	t := c.username + ":" + c.password
+	h += base64.StdEncoding.EncodeToString([]byte(t))
+	return h
 }
 
 // Get additional required environment variables for executing git client to
@@ -196,6 +208,12 @@ func (c HTTPSCreds) Environ() (io.Closer, []string, error) {
 		}
 		// GIT_SSL_KEY is the full path to a client certificate's key to be used
 		env = append(env, fmt.Sprintf("GIT_SSL_KEY=%s", keyFile.Name()))
+	}
+	// If at least password is set, we will set ARGOCD_BASIC_AUTH_HEADER to
+	// hold the HTTP authorization header, so auth mechanism negotiation is
+	// skipped. This is insecure, but some environments may need it.
+	if c.password != "" && c.forceBasicAuth {
+		env = append(env, fmt.Sprintf("%s=%s", forceBasicAuthHeaderEnv, c.BasicAuthHeader()))
 	}
 	nonce := c.store.Add(text.FirstNonEmpty(c.username, githubAccessTokenUsername), c.password)
 	env = append(env, getGitAskPassEnv(nonce)...)
@@ -261,7 +279,7 @@ func (c SSHCreds) Environ() (io.Closer, []string, error) {
 		if err = file.Close(); err != nil {
 			log.WithFields(log.Fields{
 				common.SecurityField:    common.SecurityMedium,
-				common.SecurityCWEField: 775,
+				common.SecurityCWEField: common.SecurityCWEMissingReleaseOfFileDescriptor,
 			}).Errorf("error closing file %q: %v", file.Name(), err)
 		}
 	}()
@@ -438,15 +456,16 @@ func (g GitHubAppCreds) GetClientCertKey() string {
 // GoogleCloudCreds to authenticate to Google Cloud Source repositories
 type GoogleCloudCreds struct {
 	creds *google.Credentials
+	store CredsStore
 }
 
-func NewGoogleCloudCreds(jsonData string) GoogleCloudCreds {
+func NewGoogleCloudCreds(jsonData string, store CredsStore) GoogleCloudCreds {
 	creds, err := google.CredentialsFromJSON(context.Background(), []byte(jsonData), "https://www.googleapis.com/auth/cloud-platform")
 	if err != nil {
 		// Invalid JSON
 		log.Errorf("Failed reading credentials from JSON: %+v", err)
 	}
-	return GoogleCloudCreds{creds}
+	return GoogleCloudCreds{creds, store}
 }
 
 func (c GoogleCloudCreds) Environ() (io.Closer, []string, error) {
@@ -459,9 +478,13 @@ func (c GoogleCloudCreds) Environ() (io.Closer, []string, error) {
 		return NopCloser{}, nil, fmt.Errorf("failed to get access token from creds: %w", err)
 	}
 
-	env := []string{fmt.Sprintf("GIT_ASKPASS=%s", "git-ask-pass.sh"), fmt.Sprintf("GIT_USERNAME=%s", username), fmt.Sprintf("GIT_PASSWORD=%s", token)}
+	nonce := c.store.Add(username, token)
+	env := getGitAskPassEnv(nonce)
 
-	return NopCloser{}, env, nil
+	return argoioutils.NewCloser(func() error {
+		c.store.Remove(nonce)
+		return NopCloser{}.Close()
+	}), env, nil
 }
 
 func (c GoogleCloudCreds) getUsername() (string, error) {

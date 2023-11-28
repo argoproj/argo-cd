@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"html"
 	"html/template"
+	"io"
 	"net"
 	"net/http"
 	"net/url"
@@ -21,9 +22,12 @@ import (
 
 	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/server/settings/oidc"
+	"github.com/argoproj/argo-cd/v2/util/cache"
 	"github.com/argoproj/argo-cd/v2/util/crypto"
 	"github.com/argoproj/argo-cd/v2/util/dex"
+
 	httputil "github.com/argoproj/argo-cd/v2/util/http"
+	jwtutil "github.com/argoproj/argo-cd/v2/util/jwt"
 	"github.com/argoproj/argo-cd/v2/util/rand"
 	"github.com/argoproj/argo-cd/v2/util/settings"
 )
@@ -31,9 +35,11 @@ import (
 var InvalidRedirectURLError = fmt.Errorf("invalid return URL")
 
 const (
-	GrantTypeAuthorizationCode = "authorization_code"
-	GrantTypeImplicit          = "implicit"
-	ResponseTypeCode           = "code"
+	GrantTypeAuthorizationCode  = "authorization_code"
+	GrantTypeImplicit           = "implicit"
+	ResponseTypeCode            = "code"
+	UserInfoResponseCachePrefix = "userinfo_response"
+	AccessTokenCachePrefix      = "access_token"
 )
 
 // OIDCConfiguration holds a subset of interested fields from the OIDC configuration spec
@@ -57,6 +63,8 @@ type ClientApp struct {
 	redirectURI string
 	// URL of the issuer (e.g. https://argocd.example.com/api/dex)
 	issuerURL string
+	// the path where the issuer providers user information (e.g /user-info for okta)
+	userInfoPath string
 	// The URL endpoint at which the ArgoCD server is accessed.
 	baseHRef string
 	// client is the HTTP client which is used to query the IDp
@@ -70,6 +78,8 @@ type ClientApp struct {
 	encryptionKey []byte
 	// provider is the OIDC provider
 	provider Provider
+	// clientCache represent a cache of sso artifact
+	clientCache cache.CacheClient
 }
 
 func GetScopesOrDefault(scopes []string) []string {
@@ -81,7 +91,7 @@ func GetScopesOrDefault(scopes []string) []string {
 
 // NewClientApp will register the Argo CD client app (either via Dex or external OIDC) and return an
 // object which has HTTP handlers for handling the HTTP responses for login and callback
-func NewClientApp(settings *settings.ArgoCDSettings, dexServerAddr string, dexTlsConfig *dex.DexTLSConfig, baseHRef string) (*ClientApp, error) {
+func NewClientApp(settings *settings.ArgoCDSettings, dexServerAddr string, dexTlsConfig *dex.DexTLSConfig, baseHRef string, cacheClient cache.CacheClient) (*ClientApp, error) {
 	redirectURL, err := settings.RedirectURL()
 	if err != nil {
 		return nil, err
@@ -95,8 +105,10 @@ func NewClientApp(settings *settings.ArgoCDSettings, dexServerAddr string, dexTl
 		clientSecret:  settings.OAuth2ClientSecret(),
 		redirectURI:   redirectURL,
 		issuerURL:     settings.IssuerURL(),
+		userInfoPath:  settings.UserInfoPath(),
 		baseHRef:      baseHRef,
 		encryptionKey: encryptionKey,
+		clientCache:   cacheClient,
 	}
 	log.Infof("Creating client app (%s)", a.clientID)
 	u, err := url.Parse(settings.URL)
@@ -353,9 +365,12 @@ func (a *ClientApp) HandleCallback(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "no id_token in token response", http.StatusInternalServerError)
 		return
 	}
-	idToken, err := a.provider.Verify(a.clientID, idTokenRAW)
+
+	idToken, err := a.provider.Verify(idTokenRAW, a.settings)
+
 	if err != nil {
-		http.Error(w, fmt.Sprintf("invalid session token: %v", err), http.StatusInternalServerError)
+		log.Warnf("Failed to verify token: %s", err)
+		http.Error(w, common.TokenVerificationError, http.StatusInternalServerError)
 		return
 	}
 	path := "/"
@@ -373,6 +388,26 @@ func (a *ClientApp) HandleCallback(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	// save the accessToken in memory for later use
+	encToken, err := crypto.Encrypt([]byte(token.AccessToken), a.encryptionKey)
+	if err != nil {
+		claimsJSON, _ := json.Marshal(claims)
+		http.Error(w, "failed encrypting token", http.StatusInternalServerError)
+		log.Errorf("cannot encrypt accessToken: %v (claims=%s)", err, claimsJSON)
+		return
+	}
+	sub := jwtutil.StringField(claims, "sub")
+	err = a.clientCache.Set(&cache.Item{
+		Key:        formatAccessTokenCacheKey(AccessTokenCachePrefix, sub),
+		Object:     encToken,
+		Expiration: getTokenExpiration(claims),
+	})
+	if err != nil {
+		claimsJSON, _ := json.Marshal(claims)
+		http.Error(w, fmt.Sprintf("claims=%s, err=%v", claimsJSON, err), http.StatusInternalServerError)
+		return
+	}
+
 	if idTokenRAW != "" {
 		cookies, err := httputil.MakeCookieMetadata(common.AuthCookieName, idTokenRAW, flags...)
 		if err != nil {
@@ -505,4 +540,146 @@ func createClaimsAuthenticationRequestParameter(requestedClaims map[string]*oidc
 		return nil, err
 	}
 	return oauth2.SetAuthURLParam("claims", string(claimsRequestRAW)), nil
+}
+
+// GetUserInfo queries the IDP userinfo endpoint for claims
+func (a *ClientApp) GetUserInfo(actualClaims jwt.MapClaims, issuerURL, userInfoPath string) (jwt.MapClaims, bool, error) {
+	sub := jwtutil.StringField(actualClaims, "sub")
+	var claims jwt.MapClaims
+	var encClaims []byte
+
+	// in case we got it in the cache, we just return the item
+	clientCacheKey := formatUserInfoResponseCacheKey(UserInfoResponseCachePrefix, sub)
+	if err := a.clientCache.Get(clientCacheKey, &encClaims); err == nil {
+		claimsRaw, err := crypto.Decrypt(encClaims, a.encryptionKey)
+		if err != nil {
+			log.Errorf("decrypting the cached claims failed (sub=%s): %s", sub, err)
+		} else {
+			err = json.Unmarshal(claimsRaw, &claims)
+			if err != nil {
+				log.Errorf("cannot unmarshal cached claims structure: %s", err)
+			} else {
+				// return the cached claims since they are not yet expired, were successfully decrypted and unmarshaled
+				return claims, false, err
+			}
+		}
+	}
+
+	// check if the accessToken for the user is still present
+	var encAccessToken []byte
+	err := a.clientCache.Get(formatAccessTokenCacheKey(AccessTokenCachePrefix, sub), &encAccessToken)
+	// without an accessToken we can't query the user info endpoint
+	// thus the user needs to reauthenticate for argocd to get a new accessToken
+	if err == cache.ErrCacheMiss {
+		return claims, true, fmt.Errorf("no accessToken for %s: %w", sub, err)
+	} else if err != nil {
+		return claims, true, fmt.Errorf("couldn't read accessToken from cache for %s: %w", sub, err)
+	}
+
+	accessToken, err := crypto.Decrypt(encAccessToken, a.encryptionKey)
+	if err != nil {
+		return claims, true, fmt.Errorf("couldn't decrypt accessToken for %s: %w", sub, err)
+	}
+
+	url := issuerURL + userInfoPath
+	request, err := http.NewRequest("GET", url, nil)
+
+	if err != nil {
+		err = fmt.Errorf("failed creating new http request: %w", err)
+		return claims, false, err
+	}
+
+	bearer := fmt.Sprintf("Bearer %s", accessToken)
+	request.Header.Set("Authorization", bearer)
+
+	response, err := a.client.Do(request)
+	if err != nil {
+		return claims, false, fmt.Errorf("failed to query userinfo endpoint of IDP: %w", err)
+	}
+	defer response.Body.Close()
+	if response.StatusCode == http.StatusUnauthorized {
+		return claims, true, err
+	}
+
+	// according to https://openid.net/specs/openid-connect-core-1_0.html#UserInfoResponseValidation
+	// the response should be validated
+	header := response.Header.Get("content-type")
+	rawBody, err := io.ReadAll(response.Body)
+	if err != nil {
+		return claims, false, fmt.Errorf("got error reading response body: %w", err)
+	}
+	switch header {
+	case "application/jwt":
+		// if body is JWT, first validate it before extracting claims
+		idToken, err := a.provider.Verify(string(rawBody), a.settings)
+		if err != nil {
+			return claims, false, fmt.Errorf("user info response in jwt format not valid: %w", err)
+		}
+		err = idToken.Claims(claims)
+		if err != nil {
+			return claims, false, fmt.Errorf("cannot get claims from userinfo jwt: %w", err)
+		}
+	default:
+		// if body is json, unsigned and unencrypted claims can be deserialized
+		err = json.Unmarshal(rawBody, &claims)
+		if err != nil {
+			return claims, false, fmt.Errorf("failed to decode response body to struct: %w", err)
+		}
+	}
+
+	// in case response was successfully validated and there was no error, put item in cache
+	// but first let's determine the expiry of the cache
+	var cacheExpiry time.Duration
+	settingExpiry := a.settings.UserInfoCacheExpiration()
+	tokenExpiry := getTokenExpiration(claims)
+
+	// only use configured expiry if the token lives longer and the expiry is configured
+	// if the token has no expiry, use the expiry of the actual token
+	// otherwise use the expiry of the token
+	if settingExpiry < tokenExpiry && settingExpiry != 0 {
+		cacheExpiry = settingExpiry
+	} else if tokenExpiry < 0 {
+		cacheExpiry = getTokenExpiration(actualClaims)
+	} else {
+		cacheExpiry = tokenExpiry
+	}
+
+	rawClaims, err := json.Marshal(claims)
+	if err != nil {
+		return claims, false, fmt.Errorf("couldn't marshal claim to json: %w", err)
+	}
+	encClaims, err = crypto.Encrypt(rawClaims, a.encryptionKey)
+	if err != nil {
+		return claims, false, fmt.Errorf("couldn't encrypt user info response: %w", err)
+	}
+
+	err = a.clientCache.Set(&cache.Item{
+		Key:        clientCacheKey,
+		Object:     encClaims,
+		Expiration: cacheExpiry,
+	})
+	if err != nil {
+		return claims, false, fmt.Errorf("couldn't put item to cache: %w", err)
+	}
+
+	return claims, false, nil
+}
+
+// getTokenExpiration returns a time.Duration until the token expires
+func getTokenExpiration(claims jwt.MapClaims) time.Duration {
+	// get duration until token expires
+	exp := jwtutil.Float64Field(claims, "exp")
+	tm := time.Unix(int64(exp), 0)
+	tokenExpiry := time.Until(tm)
+	return tokenExpiry
+}
+
+// formatUserInfoResponseCacheKey returns the key which is used to store userinfo of user in cache
+func formatUserInfoResponseCacheKey(prefix, sub string) string {
+	return fmt.Sprintf("%s_%s", UserInfoResponseCachePrefix, sub)
+}
+
+// formatAccessTokenCacheKey returns the key which is used to store the accessToken of a user in cache
+func formatAccessTokenCacheKey(prefix, sub string) string {
+	return fmt.Sprintf("%s_%s", prefix, sub)
 }

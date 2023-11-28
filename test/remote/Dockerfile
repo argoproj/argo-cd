@@ -1,6 +1,6 @@
 ARG BASE_IMAGE=docker.io/library/ubuntu:22.04
 
-FROM golang:1.18 AS go
+FROM docker.io/library/golang:1.21.3@sha256:02d7116222536a5cf0fcf631f90b507758b669648e0f20186d2dc94a9b419a9b AS go
 
 RUN go install github.com/mattn/goreman@latest && \
     go install github.com/kisielk/godepgraph@latest
@@ -9,21 +9,21 @@ FROM $BASE_IMAGE
 
 ENV DEBIAN_FRONTEND=noninteractive
 RUN  apt-get update && apt-get install --no-install-recommends -y \
-        ca-certificates \
-        curl \
-        openssh-server \
-        nginx \
-        fcgiwrap \
-        git \
-        git-lfs \
-        gpg \
-        make \
-        wget \
-        gcc \
-        sudo \
-        zip && \
-        apt-get clean && \
-        rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+    ca-certificates \
+    curl \
+    openssh-server \
+    nginx \
+    fcgiwrap \
+    git \
+    git-lfs \
+    gpg \
+    make \
+    wget \
+    gcc \
+    sudo \
+    zip && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
 # These are required for running end-to-end tests
 COPY ./test/fixture/testrepos/id_rsa.pub /root/.ssh/authorized_keys

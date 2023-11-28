@@ -9,6 +9,7 @@ import help from './help';
 import login from './login';
 import settings from './settings';
 import {Layout} from './shared/components/layout/layout';
+import {Page} from './shared/components/page/page';
 import {VersionPanel} from './shared/components/version-info/version-info-panel';
 import {AuthSettingsCtx, Provider} from './shared/context';
 import {services} from './shared/services';
@@ -17,6 +18,7 @@ import {hashCode} from './shared/utils';
 import {Banner} from './ui-banner/ui-banner';
 import userInfo from './user-info';
 import {AuthSettings} from './shared/models';
+import {PKCEVerification} from './login/components/pkce-verify';
 
 services.viewPreferences.init();
 const bases = document.getElementsByTagName('base');
@@ -31,7 +33,8 @@ const routes: Routes = {
     '/applications': {component: applications.component},
     '/settings': {component: settings.component},
     '/user-info': {component: userInfo.component},
-    '/help': {component: help.component}
+    '/help': {component: help.component},
+    '/pkce/verify': {component: PKCEVerification, noLayout: true}
 };
 
 interface NavItem {
@@ -176,7 +179,9 @@ export class App extends React.Component<
                     <Helmet>
                         <title>{extension.title} - Argo CD</title>
                     </Helmet>
-                    <extension.component />
+                    <Page title={extension.title}>
+                        <extension.component />
+                    </Page>
                 </>
             );
             extendedRoutes[extension.path] = {
@@ -214,7 +219,9 @@ export class App extends React.Component<
                 </Helmet>
                 <PageContext.Provider value={{title: 'Argo CD'}}>
                     <Provider value={{history, popup: this.popupManager, notifications: this.notificationsManager, navigation: this.navigationManager, baseHref: base}}>
-                        {this.state.popupProps && <Popup {...this.state.popupProps} />}
+                        <DataLoader load={() => services.viewPreferences.getPreferences()}>
+                            {pref => <div className={pref.theme ? 'theme-' + pref.theme : 'theme-light'}>{this.state.popupProps && <Popup {...this.state.popupProps} />}</div>}
+                        </DataLoader>
                         <AuthSettingsCtx.Provider value={this.state.authSettings}>
                             <Router history={history}>
                                 <Switch>

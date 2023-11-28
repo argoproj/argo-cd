@@ -256,6 +256,7 @@ func TestGiteaList(t *testing.T) {
 	assert.Equal(t, len(prs), 1)
 	assert.Equal(t, prs[0].Number, 1)
 	assert.Equal(t, prs[0].Branch, "test")
+	assert.Equal(t, prs[0].TargetBranch, "main")
 	assert.Equal(t, prs[0].HeadSHA, "7bbaf62d92ddfafd9cc8b340c619abaec32bc09f")
 }
 
@@ -268,9 +269,9 @@ func TestGetGiteaPRLabelNames(t *testing.T) {
 		{
 			Name: "PR has labels",
 			PullLabels: []*gitea.Label{
-				&gitea.Label{Name: "label1"},
-				&gitea.Label{Name: "label2"},
-				&gitea.Label{Name: "label3"},
+				{Name: "label1"},
+				{Name: "label2"},
+				{Name: "label3"},
 			},
 			ExpectedResult: []string{"label1", "label2", "label3"},
 		},

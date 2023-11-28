@@ -3,10 +3,10 @@ package commands
 import (
 	"fmt"
 	"os"
-
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"text/tabwriter"
 
 	"github.com/argoproj/argo-cd/v2/cmd/util"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -19,8 +19,6 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/argo"
 	"github.com/argoproj/argo-cd/v2/util/errors"
 	argoio "github.com/argoproj/argo-cd/v2/util/io"
-
-	"text/tabwriter"
 )
 
 func NewApplicationPatchResourceCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
@@ -31,6 +29,7 @@ func NewApplicationPatchResourceCommand(clientOpts *argocdclient.ClientOptions) 
 	var kind string
 	var group string
 	var all bool
+	var project string
 	command := &cobra.Command{
 		Use:   "patch-resource APPNAME",
 		Short: "Patch resource in an application",
@@ -47,6 +46,7 @@ func NewApplicationPatchResourceCommand(clientOpts *argocdclient.ClientOptions) 
 	command.Flags().StringVar(&group, "group", "", "Group")
 	command.Flags().StringVar(&namespace, "namespace", "", "Namespace")
 	command.Flags().BoolVar(&all, "all", false, "Indicates whether to patch multiple matching of resources")
+	command.Flags().StringVar(&project, "project", "", `The name of the application's project - specifying this allows the command to report "not found" instead of "permission denied" if the app does not exist`)
 	command.Run = func(c *cobra.Command, args []string) {
 		ctx := c.Context()
 
@@ -54,7 +54,7 @@ func NewApplicationPatchResourceCommand(clientOpts *argocdclient.ClientOptions) 
 			c.HelpFunc()(c, args)
 			os.Exit(1)
 		}
-		appName, appNs := argo.ParseAppQualifiedName(args[0], "")
+		appName, appNs := argo.ParseFromQualifiedName(args[0], "")
 
 		conn, appIf := headless.NewClientOrDie(clientOpts, c).NewApplicationClientOrDie()
 		defer argoio.Close(conn)
@@ -78,6 +78,7 @@ func NewApplicationPatchResourceCommand(clientOpts *argocdclient.ClientOptions) 
 				Kind:         pointer.String(gvk.Kind),
 				Patch:        pointer.String(patch),
 				PatchType:    pointer.String(patchType),
+				Project:      pointer.String(project),
 			})
 			errors.CheckError(err)
 			log.Infof("Resource '%s' patched", obj.GetName())
@@ -95,6 +96,7 @@ func NewApplicationDeleteResourceCommand(clientOpts *argocdclient.ClientOptions)
 	var force bool
 	var orphan bool
 	var all bool
+	var project string
 	command := &cobra.Command{
 		Use:   "delete-resource APPNAME",
 		Short: "Delete resource in an application",
@@ -109,6 +111,7 @@ func NewApplicationDeleteResourceCommand(clientOpts *argocdclient.ClientOptions)
 	command.Flags().BoolVar(&force, "force", false, "Indicates whether to orphan the dependents of the deleted resource")
 	command.Flags().BoolVar(&orphan, "orphan", false, "Indicates whether to force delete the resource")
 	command.Flags().BoolVar(&all, "all", false, "Indicates whether to patch multiple matching of resources")
+	command.Flags().StringVar(&project, "project", "", `The name of the application's project - specifying this allows the command to report "not found" instead of "permission denied" if the app does not exist`)
 	command.Run = func(c *cobra.Command, args []string) {
 		ctx := c.Context()
 
@@ -116,7 +119,7 @@ func NewApplicationDeleteResourceCommand(clientOpts *argocdclient.ClientOptions)
 			c.HelpFunc()(c, args)
 			os.Exit(1)
 		}
-		appName, appNs := argo.ParseAppQualifiedName(args[0], "")
+		appName, appNs := argo.ParseFromQualifiedName(args[0], "")
 
 		conn, appIf := headless.NewClientOrDie(clientOpts, c).NewApplicationClientOrDie()
 		defer argoio.Close(conn)
@@ -140,6 +143,7 @@ func NewApplicationDeleteResourceCommand(clientOpts *argocdclient.ClientOptions)
 				Kind:         pointer.String(gvk.Kind),
 				Force:        &force,
 				Orphan:       &orphan,
+				Project:      pointer.String(project),
 			})
 			errors.CheckError(err)
 			log.Infof("Resource '%s' deleted", obj.GetName())
@@ -149,50 +153,133 @@ func NewApplicationDeleteResourceCommand(clientOpts *argocdclient.ClientOptions)
 	return command
 }
 
-func printResources(listAll bool, orphaned bool, appResourceTree *v1alpha1.ApplicationTree) {
+func parentChildInfo(nodes []v1alpha1.ResourceNode) (map[string]v1alpha1.ResourceNode, map[string][]string, map[string]struct{}) {
+	mapUidToNode := make(map[string]v1alpha1.ResourceNode)
+	mapParentToChild := make(map[string][]string)
+	parentNode := make(map[string]struct{})
+
+	for _, node := range nodes {
+		mapUidToNode[node.UID] = node
+
+		if len(node.ParentRefs) > 0 {
+			_, ok := mapParentToChild[node.ParentRefs[0].UID]
+			if !ok {
+				var temp []string
+				mapParentToChild[node.ParentRefs[0].UID] = temp
+			}
+			mapParentToChild[node.ParentRefs[0].UID] = append(mapParentToChild[node.ParentRefs[0].UID], node.UID)
+		} else {
+			parentNode[node.UID] = struct{}{}
+		}
+	}
+	return mapUidToNode, mapParentToChild, parentNode
+}
+
+func printDetailedTreeViewAppResourcesNotOrphaned(nodeMapping map[string]v1alpha1.ResourceNode, parentChildMapping map[string][]string, parentNodes map[string]struct{}, orphaned bool, listAll bool, w *tabwriter.Writer) {
+	for uid := range parentNodes {
+		detailedTreeViewAppResourcesNotOrphaned("", nodeMapping, parentChildMapping, nodeMapping[uid], w)
+	}
+
+}
+
+func printDetailedTreeViewAppResourcesOrphaned(nodeMapping map[string]v1alpha1.ResourceNode, parentChildMapping map[string][]string, parentNodes map[string]struct{}, orphaned bool, listAll bool, w *tabwriter.Writer) {
+	for uid := range parentNodes {
+		detailedTreeViewAppResourcesOrphaned("", nodeMapping, parentChildMapping, nodeMapping[uid], w)
+	}
+}
+
+func printTreeViewAppResourcesNotOrphaned(nodeMapping map[string]v1alpha1.ResourceNode, parentChildMapping map[string][]string, parentNodes map[string]struct{}, orphaned bool, listAll bool, w *tabwriter.Writer) {
+	for uid := range parentNodes {
+		treeViewAppResourcesNotOrphaned("", nodeMapping, parentChildMapping, nodeMapping[uid], w)
+	}
+
+}
+
+func printTreeViewAppResourcesOrphaned(nodeMapping map[string]v1alpha1.ResourceNode, parentChildMapping map[string][]string, parentNodes map[string]struct{}, orphaned bool, listAll bool, w *tabwriter.Writer) {
+	for uid := range parentNodes {
+		treeViewAppResourcesOrphaned("", nodeMapping, parentChildMapping, nodeMapping[uid], w)
+	}
+}
+
+func printResources(listAll bool, orphaned bool, appResourceTree *v1alpha1.ApplicationTree, output string) {
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	headers := []interface{}{"GROUP", "KIND", "NAMESPACE", "NAME", "ORPHANED"}
-	fmtStr := "%s\t%s\t%s\t%s\t%s\n"
-	_, _ = fmt.Fprintf(w, fmtStr, headers...)
-	if !orphaned || listAll {
-		for _, res := range appResourceTree.Nodes {
-			if len(res.ParentRefs) == 0 {
-				_, _ = fmt.Fprintf(w, fmtStr, res.Group, res.Kind, res.Namespace, res.Name, "No")
+	if output == "tree=detailed" {
+		fmt.Fprintf(w, "GROUP\tKIND\tNAMESPACE\tNAME\tORPHANED\tAGE\tHEALTH\tREASON\n")
+
+		if !orphaned || listAll {
+			mapUidToNode, mapParentToChild, parentNode := parentChildInfo(appResourceTree.Nodes)
+			printDetailedTreeViewAppResourcesNotOrphaned(mapUidToNode, mapParentToChild, parentNode, orphaned, listAll, w)
+		}
+
+		if orphaned || listAll {
+			mapUidToNode, mapParentToChild, parentNode := parentChildInfo(appResourceTree.OrphanedNodes)
+			printDetailedTreeViewAppResourcesOrphaned(mapUidToNode, mapParentToChild, parentNode, orphaned, listAll, w)
+		}
+
+	} else if output == "tree" {
+		fmt.Fprintf(w, "GROUP\tKIND\tNAMESPACE\tNAME\tORPHANED\n")
+
+		if !orphaned || listAll {
+			mapUidToNode, mapParentToChild, parentNode := parentChildInfo(appResourceTree.Nodes)
+			printTreeViewAppResourcesNotOrphaned(mapUidToNode, mapParentToChild, parentNode, orphaned, listAll, w)
+		}
+
+		if orphaned || listAll {
+			mapUidToNode, mapParentToChild, parentNode := parentChildInfo(appResourceTree.OrphanedNodes)
+			printTreeViewAppResourcesOrphaned(mapUidToNode, mapParentToChild, parentNode, orphaned, listAll, w)
+		}
+
+	} else {
+
+		headers := []interface{}{"GROUP", "KIND", "NAMESPACE", "NAME", "ORPHANED"}
+		fmtStr := "%s\t%s\t%s\t%s\t%s\n"
+		_, _ = fmt.Fprintf(w, fmtStr, headers...)
+		if !orphaned || listAll {
+			for _, res := range appResourceTree.Nodes {
+				if len(res.ParentRefs) == 0 {
+					_, _ = fmt.Fprintf(w, fmtStr, res.Group, res.Kind, res.Namespace, res.Name, "No")
+				}
 			}
 		}
-	}
-	if orphaned || listAll {
-		for _, res := range appResourceTree.OrphanedNodes {
-			_, _ = fmt.Fprintf(w, fmtStr, res.Group, res.Kind, res.Namespace, res.Name, "Yes")
+		if orphaned || listAll {
+			for _, res := range appResourceTree.OrphanedNodes {
+				_, _ = fmt.Fprintf(w, fmtStr, res.Group, res.Kind, res.Namespace, res.Name, "Yes")
+			}
 		}
+
 	}
 	_ = w.Flush()
+
 }
 
 func NewApplicationListResourcesCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var orphaned bool
+	var output string
+	var project string
 	var command = &cobra.Command{
 		Use:   "resources APPNAME",
 		Short: "List resource of application",
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
-
 			if len(args) != 1 {
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
 			listAll := !c.Flag("orphaned").Changed
-			appName, appNs := argo.ParseAppQualifiedName(args[0], "")
+			appName, appNs := argo.ParseFromQualifiedName(args[0], "")
 			conn, appIf := headless.NewClientOrDie(clientOpts, c).NewApplicationClientOrDie()
 			defer argoio.Close(conn)
 			appResourceTree, err := appIf.ResourceTree(ctx, &applicationpkg.ResourcesQuery{
 				ApplicationName: &appName,
 				AppNamespace:    &appNs,
+				Project:         &project,
 			})
 			errors.CheckError(err)
-			printResources(listAll, orphaned, appResourceTree)
+			printResources(listAll, orphaned, appResourceTree, output)
 		},
 	}
 	command.Flags().BoolVar(&orphaned, "orphaned", false, "Lists only orphaned resources")
+	command.Flags().StringVar(&output, "output", "", "Provides the tree view of the resources")
+	command.Flags().StringVar(&project, "project", "", `The name of the application's project - specifying this allows the command to report "not found" instead of "permission denied" if the app does not exist`)
 	return command
 }
