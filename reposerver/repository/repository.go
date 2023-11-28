@@ -13,6 +13,7 @@ import (
 	"path"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strings"
 	"time"
 
@@ -31,6 +32,7 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	textutils "github.com/argoproj/gitops-engine/pkg/utils/text"
 	"github.com/argoproj/pkg/sync"
+	"github.com/bmatcuk/doublestar/v4"
 	jsonpatch "github.com/evanphx/json-patch"
 	gogit "github.com/go-git/go-git/v5"
 	"github.com/google/go-jsonnet"
@@ -1261,16 +1263,31 @@ func getResolvedValueFiles(
 		}
 
 		if !isRemote {
-			_, err = os.Stat(string(resolvedPath))
-			if os.IsNotExist(err) {
+			paths, err := doublestar.FilepathGlob(string(resolvedPath), doublestar.WithNoFollow())
+
+			if err != nil {
+				return nil, fmt.Errorf("failed to get Helm values file by glob pattern: %w", err)
+			}
+			// To guarantee lexical order
+			sort.Strings(paths)
+			if len(paths) > 0 {
+				for _, path := range paths {
+					err := argopath.CheckOutOfBoundsSymlink(path, repoRoot)
+					if err != nil {
+						return nil, err
+					}
+					resolvedValueFiles = append(resolvedValueFiles, pathutil.ResolvedFilePath(path))
+				}
+			} else {
 				if ignoreMissingValueFiles {
 					log.Debugf(" %s values file does not exist", resolvedPath)
 					continue
 				}
+				resolvedValueFiles = append(resolvedValueFiles, resolvedPath)
 			}
+		} else {
+			resolvedValueFiles = append(resolvedValueFiles, resolvedPath)
 		}
-
-		resolvedValueFiles = append(resolvedValueFiles, resolvedPath)
 	}
 	return resolvedValueFiles, nil
 }

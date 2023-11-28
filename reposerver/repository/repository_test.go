@@ -72,15 +72,19 @@ func newServiceWithMocks(root string, signed bool) (*Service, *gitmocks.Client) 
 
 		chart := "my-chart"
 		oobChart := "out-of-bounds-chart"
+		oobValuesFileLinkChart := "out-of-bounds-values-file-link"
 		version := "1.1.0"
 		helmClient.On("GetIndex", true).Return(&helm.Index{Entries: map[string]helm.Entries{
-			chart:    {{Version: "1.0.0"}, {Version: version}},
-			oobChart: {{Version: "1.0.0"}, {Version: version}},
+			chart:                  {{Version: "1.0.0"}, {Version: version}},
+			oobChart:               {{Version: "1.0.0"}, {Version: version}},
+			oobValuesFileLinkChart: {{Version: "1.0.0"}, {Version: version}},
 		}}, nil)
 		helmClient.On("ExtractChart", chart, version).Return("./testdata/my-chart", io.NopCloser, nil)
 		helmClient.On("ExtractChart", oobChart, version).Return("./testdata2/out-of-bounds-chart", io.NopCloser, nil)
+		helmClient.On("ExtractChart", oobValuesFileLinkChart, version).Return("./testdata/out-of-bounds-values-file-link", io.NopCloser, nil)
 		helmClient.On("CleanChartCache", chart, version).Return(nil)
 		helmClient.On("CleanChartCache", oobChart, version).Return(nil)
+		helmClient.On("CleanChartCache", oobValuesFileLinkChart, version).Return(nil)
 		helmClient.On("DependencyBuild").Return(nil)
 
 		paths.On("Add", mock.Anything, mock.Anything).Return(root, nil)
@@ -360,6 +364,40 @@ func TestHelmChartReferencingExternalValues_OutOfBounds_Symlink(t *testing.T) {
 				// Reference `ref` but do not use the oob symlink. The mere existence of the link should be enough to
 				// cause an error.
 				ValueFiles: []string{"$ref/testdata/oob-symlink/values.yaml"},
+			}},
+			{Ref: "ref", RepoURL: "https://git.example.com/test/repo"},
+		},
+	}
+	repoDB := &dbmocks.ArgoDB{}
+	repoDB.On("GetRepository", context.Background(), "https://git.example.com/test/repo").Return(&argoappv1.Repository{
+		Repo: "https://git.example.com/test/repo",
+	}, nil)
+	refSources, err := argo.GetRefSources(context.Background(), spec, repoDB)
+	require.NoError(t, err)
+	request := &apiclient.ManifestRequest{Repo: &argoappv1.Repository{}, ApplicationSource: &spec.Sources[0], NoCache: true, RefSources: refSources, HasMultipleSources: true}
+	_, err = service.GenerateManifest(context.Background(), request)
+	assert.Error(t, err)
+}
+
+func TestHelmChartReferencingExternalValuesOutOfBoundsSymlinkInGlob(t *testing.T) {
+	service := newService(".")
+	err := os.Mkdir("testdata/oob-symlink", 0755)
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		err = os.RemoveAll("testdata/oob-symlink")
+		require.NoError(t, err)
+	})
+	// Create a symlink to a file outside of the repo
+	err = os.Symlink("../../../values.yaml", "./testdata/oob-symlink/oob-symlink.yaml")
+	// Create a regular file to reference from another source
+	err = os.WriteFile("./testdata/oob-symlink/values.yaml", []byte("foo: bar"), 0644)
+	require.NoError(t, err)
+	spec := argoappv1.ApplicationSpec{
+		Sources: []argoappv1.ApplicationSource{
+			{RepoURL: "https://helm.example.com", Chart: "my-chart", TargetRevision: ">= 1.0.0", Helm: &argoappv1.ApplicationSourceHelm{
+				// Reference `ref` but do not use the oob symlink. The mere existence of the link should be enough to
+				// cause an error.
+				ValueFiles: []string{"$ref/**/*.yaml"},
 			}},
 			{Ref: "ref", RepoURL: "https://git.example.com/test/repo"},
 		},
@@ -892,6 +930,80 @@ func TestHelmWithMissingValueFiles(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+func TestGenerateHelmWithGlobValues(t *testing.T) {
+	service := newService("../../util/helm/testdata/redis")
+
+	res, err := service.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
+		Repo:    &argoappv1.Repository{},
+		AppName: "test",
+		ApplicationSource: &argoappv1.ApplicationSource{
+			Path: ".",
+			Helm: &argoappv1.ApplicationSourceHelm{
+				ValueFiles:   []string{"values*.yaml"},
+				ValuesObject: &runtime.RawExtension{Raw: []byte(`cluster: {slaveCount: 2}`)},
+			},
+		},
+		ProjectName:        "something",
+		ProjectSourceRepos: []string{"*"},
+	})
+
+	assert.NoError(t, err)
+
+	replicasVerified := false
+	for _, src := range res.Manifests {
+		obj := unstructured.Unstructured{}
+		err = json.Unmarshal([]byte(src), &obj)
+		assert.NoError(t, err)
+
+		if obj.GetKind() == "Deployment" && obj.GetName() == "test-redis-slave" {
+			var dep v1.Deployment
+			err := runtime.DefaultUnstructuredConverter.FromUnstructured(obj.Object, &dep)
+			assert.NoError(t, err)
+			assert.Equal(t, int32(2), *dep.Spec.Replicas)
+			replicasVerified = true
+		}
+	}
+	assert.True(t, replicasVerified)
+
+}
+
+func TestGenerateHelmWithGlobSubdirectoriesValues(t *testing.T) {
+	service := newService("../../util/helm/testdata/redis")
+
+	res, err := service.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
+		Repo:    &argoappv1.Repository{},
+		AppName: "test",
+		ApplicationSource: &argoappv1.ApplicationSource{
+			Path: ".",
+			Helm: &argoappv1.ApplicationSourceHelm{
+				ValueFiles: []string{"/additional-values/**/values*.yaml"},
+			},
+		},
+		ProjectName:        "something",
+		ProjectSourceRepos: []string{"*"},
+	})
+
+	assert.NoError(t, err)
+
+	replicasVerified := false
+	for _, src := range res.Manifests {
+		obj := unstructured.Unstructured{}
+		err = json.Unmarshal([]byte(src), &obj)
+		assert.NoError(t, err)
+
+		if obj.GetKind() == "Deployment" && obj.GetName() == "test-redis-slave" {
+			var dep v1.Deployment
+			err := runtime.DefaultUnstructuredConverter.FromUnstructured(obj.Object, &dep)
+			assert.NoError(t, err)
+			assert.Equal(t, int32(2), *dep.Spec.Replicas)
+			assert.Equal(t, map[string]string{"custom-annotation": "base"}, dep.Spec.Template.ObjectMeta.Annotations)
+			replicasVerified = true
+		}
+	}
+	assert.True(t, replicasVerified)
+
+}
+
 func TestGenerateHelmWithEnvVars(t *testing.T) {
 	service := newService("../../util/helm/testdata/redis")
 
@@ -1013,6 +1125,20 @@ func TestHelmManifestFromChartRepoWithValueFileOutsideRepo(t *testing.T) {
 	assert.Error(t, err)
 }
 
+func TestHelmManifestFromChartRepoWithGlobValueFileOutsideRepo(t *testing.T) {
+	service := newService(".")
+	source := &argoappv1.ApplicationSource{
+		Chart:          "my-chart",
+		TargetRevision: ">= 1.0.0",
+		Helm: &argoappv1.ApplicationSourceHelm{
+			ValueFiles: []string{"../**/*.values.yaml"},
+		},
+	}
+	request := &apiclient.ManifestRequest{Repo: &argoappv1.Repository{}, ApplicationSource: source, NoCache: true}
+	_, err := service.GenerateManifest(context.Background(), request)
+	assert.Error(t, err)
+}
+
 func TestHelmManifestFromChartRepoWithValueFileLinks(t *testing.T) {
 	t.Run("Valid symlink", func(t *testing.T) {
 		service := newService(".")
@@ -1027,6 +1153,57 @@ func TestHelmManifestFromChartRepoWithValueFileLinks(t *testing.T) {
 			ProjectSourceRepos: []string{"*"}}
 		_, err := service.GenerateManifest(context.Background(), request)
 		assert.NoError(t, err)
+	})
+	t.Run("Out of repo symlink in Glob", func(t *testing.T) {
+		service := newService(".")
+		source := &argoappv1.ApplicationSource{
+			Chart:          "out-of-bounds-values-file-link",
+			TargetRevision: ">= 1.0.0",
+			Helm: &argoappv1.ApplicationSourceHelm{
+				ValueFiles: []string{"*.yaml"},
+			},
+		}
+		request := &apiclient.ManifestRequest{Repo: &argoappv1.Repository{}, ApplicationSource: source, NoCache: true, ProjectName: "something",
+			ProjectSourceRepos: []string{"*"}}
+		_, err := service.GenerateManifest(context.Background(), request)
+		assert.Error(t, err)
+	})
+}
+
+func TestHelmManifestFromChartRepoWithValueFileLinksWithAllowOutOfBoundsSymlinks(t *testing.T) {
+	t.Run("Valid symlink", func(t *testing.T) {
+		service := newService(".")
+		service.initConstants = RepoServerInitConstants{
+			AllowOutOfBoundsSymlinks: true,
+		}
+		source := &argoappv1.ApplicationSource{
+			Chart:          "my-chart",
+			TargetRevision: ">= 1.0.0",
+			Helm: &argoappv1.ApplicationSourceHelm{
+				ValueFiles: []string{"my-chart-link.yaml"},
+			},
+		}
+		request := &apiclient.ManifestRequest{Repo: &argoappv1.Repository{}, ApplicationSource: source, NoCache: true, ProjectName: "something",
+			ProjectSourceRepos: []string{"*"}}
+		_, err := service.GenerateManifest(context.Background(), request)
+		assert.NoError(t, err)
+	})
+	t.Run("Out of repo symlink in Glob", func(t *testing.T) {
+		service := newService(".")
+		service.initConstants = RepoServerInitConstants{
+			AllowOutOfBoundsSymlinks: true,
+		}
+		source := &argoappv1.ApplicationSource{
+			Chart:          "out-of-bounds-values-file-link",
+			TargetRevision: ">= 1.0.0",
+			Helm: &argoappv1.ApplicationSourceHelm{
+				ValueFiles: []string{"*.yaml"},
+			},
+		}
+		request := &apiclient.ManifestRequest{Repo: &argoappv1.Repository{}, ApplicationSource: source, NoCache: true, ProjectName: "something",
+			ProjectSourceRepos: []string{"*"}}
+		_, err := service.GenerateManifest(context.Background(), request)
+		assert.Error(t, err)
 	})
 }
 
@@ -1389,7 +1566,7 @@ func TestGetHelmCharts(t *testing.T) {
 	})
 
 	assert.NoError(t, err)
-	assert.Len(t, res.Items, 2)
+	assert.Len(t, res.Items, 3)
 
 	item := res.Items[0]
 	assert.Equal(t, "my-chart", item.Name)
@@ -1398,6 +1575,10 @@ func TestGetHelmCharts(t *testing.T) {
 	item2 := res.Items[1]
 	assert.Equal(t, "out-of-bounds-chart", item2.Name)
 	assert.EqualValues(t, []string{"1.0.0", "1.1.0"}, item2.Versions)
+
+	item3 := res.Items[2]
+	assert.Equal(t, "out-of-bounds-values-file-link", item3.Name)
+	assert.EqualValues(t, []string{"1.0.0", "1.1.0"}, item3.Versions)
 }
 
 func TestGetRevisionMetadata(t *testing.T) {

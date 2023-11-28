@@ -53,6 +53,46 @@ source:
     - values-production.yaml
 ```
 
+Argo CD now supports Glob expressions for valueFiles (especially useful when using umbrella charts with a lot of dependencies) :
+
+```bash
+argocd app set helm-guestbook --values subdir/**/values-*.yaml
+```
+
+In the declarative syntax:
+
+```yaml
+source:
+  helm:
+    valueFiles:
+    - subdir/**/values-*.yaml
+```
+!!! note
+    Environment variables substitution is evaluated __*before*__ the Glob evaluation
+
+### Ordering
+After Glob evaluation, the valueFiles item order is preserved and, for each Glob expression, matching files are ordered lexically.
+
+Example :
+```yaml
+source:
+  helm:
+    valueFiles:
+    - b-*.yaml
+    - a-*.yaml
+    - values-*.yaml
+```
+Output file order used for the Helm chart :
+```
+- b-file-one.yaml
+- b-file-three.yaml
+- b-file-two.yaml
+- a-file-1.yaml
+- a-file-2.yaml
+- a-file-3.yaml
+- values-prod.yaml
+``` 
+
 ## Values
 
 Argo CD supports the equivalent of a values file directly in the Application manifest using the `source.helm.valuesObject` key.

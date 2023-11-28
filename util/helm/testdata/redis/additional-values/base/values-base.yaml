@@ -1,0 +1,9 @@
+
+## Cluster settings
+cluster:
+  enabled: true
+  slaveCount: 3
+
+slave: 
+  podAnnotations: 
+    custom-annotation: base
