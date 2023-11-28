@@ -1121,8 +1121,16 @@ func (s *Server) StartEventSource(es *events.EventSource, stream events.Eventing
 	for {
 		select {
 		case event := <-eventsChannel:
+			log.Infof("event channel size is %d", len(eventsChannel))
+			rVersion, _ := s.settingsMgr.GetCodefreshReporterVersion()
+			if rVersion == string(settings.CodefreshV2ReporterVersion) {
+				logCtx.Info("v1 reported disabled skipping event")
+				continue
+			}
+
 			shouldProcess, ignoreResourceCache := s.applicationEventReporter.shouldSendApplicationEvent(event)
 			if !shouldProcess {
+				log.Infof("ignore event for app %s", event.Application.Name)
 				continue
 			}
 			ts := time.Now().Format("2006-01-02T15:04:05.000Z")

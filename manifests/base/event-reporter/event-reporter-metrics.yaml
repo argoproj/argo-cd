@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app.kubernetes.io/name: event-reporter-metrics
+    app.kubernetes.io/part-of: argocd
+    app.kubernetes.io/component: event-reporter
+  name: event-reporter-metrics
+spec:
+  ports:
+  - name: metrics
+    protocol: TCP
+    port: 8087
+    targetPort: 8087
+  selector:
+    app.kubernetes.io/name: event-reporter
