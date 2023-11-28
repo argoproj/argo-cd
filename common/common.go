@@ -15,8 +15,7 @@ import (
 // Default service addresses and URLS of Argo CD internal services
 const (
 	// DefaultRepoServerAddr is the gRPC address of the Argo CD repo server
-	DefaultRepoServerAddr        = "argocd-repo-server:8081"
-	DefaultApplicationServerAddr = "argo-cd-server:80"
+	DefaultRepoServerAddr = "argocd-repo-server:8081"
 	// DefaultDexServerAddr is the HTTP address of the Dex OIDC server, which we run a reverse proxy against
 	DefaultDexServerAddr = "argocd-dex-server:5556"
 	// DefaultRedisAddr is the default redis address
@@ -45,24 +44,20 @@ const (
 
 // Default listener ports for ArgoCD components
 const (
-	DefaultPortAPIServer                  = 8080
-	DefaultPortRepoServer                 = 8081
-	DefaultPortArgoCDMetrics              = 8082
-	DefaultPortArgoCDAPIServerMetrics     = 8083
-	DefaultPortRepoServerMetrics          = 8084
-	DefaultPortEventReporterServerMetrics = 8087
-	DefaultPortEventReporterServer        = 8088
+	DefaultPortAPIServer              = 8080
+	DefaultPortRepoServer             = 8081
+	DefaultPortArgoCDMetrics          = 8082
+	DefaultPortArgoCDAPIServerMetrics = 8083
+	DefaultPortRepoServerMetrics      = 8084
 )
 
 // DefaultAddressAPIServer for ArgoCD components
 const (
-	DefaultAddressAdminDashboard             = "localhost"
-	DefaultAddressAPIServer                  = "0.0.0.0"
-	DefaultAddressAPIServerMetrics           = "0.0.0.0"
-	DefaultAddressRepoServer                 = "0.0.0.0"
-	DefaultAddressRepoServerMetrics          = "0.0.0.0"
-	DefaultAddressEventReporterServer        = "0.0.0.0"
-	DefaultAddressEventReporterServerMetrics = "0.0.0.0"
+	DefaultAddressAdminDashboard    = "localhost"
+	DefaultAddressAPIServer         = "0.0.0.0"
+	DefaultAddressAPIServerMetrics  = "0.0.0.0"
+	DefaultAddressRepoServer        = "0.0.0.0"
+	DefaultAddressRepoServerMetrics = "0.0.0.0"
 )
 
 // Default paths on the pod's file system
@@ -242,12 +237,6 @@ const (
 	EnvCMPWorkDir = "ARGOCD_CMP_WORKDIR"
 	// EnvGPGDataPath overrides the location where GPG keyring for signature verification is stored
 	EnvGPGDataPath = "ARGOCD_GPG_DATA_PATH"
-	// EnvEventReporterShardingAlgorithm is the distribution sharding algorithm to be used: legacy
-	EnvEventReporterShardingAlgorithm = "EVENT_REPORTER_SHARDING_ALGORITHM"
-	// EnvEventReporterReplicas is the number of EventReporter replicas
-	EnvEventReporterReplicas = "EVENT_REPORTER_REPLICAS"
-	// EnvEventReporterShard is the shard number that should be handled by reporter
-	EnvEventReporterShard = "EVENT_REPORTER_SHARD"
 )
 
 // Config Management Plugin related constants
@@ -356,9 +345,3 @@ const TokenVerificationError = "failed to verify the token"
 var TokenVerificationErr = errors.New(TokenVerificationError)
 
 var PermissionDeniedAPIError = status.Error(codes.PermissionDenied, "permission denied")
-
-// Event reporter constants
-const (
-	EventReporterLegacyShardingAlgorithm  = "legacy"
-	DefaultEventReporterShardingAlgorithm = EventReporterLegacyShardingAlgorithm
-)
