@@ -11,6 +11,8 @@
 | `ARGOCD_APP_SOURCE_PATH`            | The path of the app within the source repo.                             |
 | `ARGOCD_APP_SOURCE_REPO_URL`        | The source repo URL.                                                    |
 | `ARGOCD_APP_SOURCE_TARGET_REVISION` | The target revision from the spec, e.g. `master`.                       |
+| `ARGOCD_APP_LABELS`                 | The labels of the application stringified , e.g. `'"{"test":"label"}"'` |
+| `ARGOCD_APP_SPEC`                   | The application spec stringified.                                       |
 | `KUBE_VERSION`                      | The version of Kubernetes.                                              |
 | `KUBE_API_VERSIONS`                 | The version of the Kubernetes API.                                      |
 
