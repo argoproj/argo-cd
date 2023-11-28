@@ -3,6 +3,7 @@ package controller
 import (
 	"context"
 	"encoding/json"
+	goerrors "errors"
 	"fmt"
 	"os"
 	"strconv"
@@ -152,7 +153,13 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 		revisions = []string{revision}
 	}
 
-	compareResult := m.CompareAppState(app, proj, revisions, sources, false, true, syncOp.Manifests, app.Spec.HasMultipleSources())
+	// ignore error if CompareStateRepoError, this shouldn't happen as noRevisionCache is true
+	compareResult, err := m.CompareAppState(app, proj, revisions, sources, false, true, syncOp.Manifests, app.Spec.HasMultipleSources())
+	if err != nil && !goerrors.Is(err, CompareStateRepoError) {
+		state.Phase = common.OperationError
+		state.Message = err.Error()
+		return
+	}
 	// We now have a concrete commit SHA. Save this in the sync result revision so that we remember
 	// what we should be syncing to when resuming operations.
 
@@ -322,7 +329,29 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 	var resState []common.ResourceSyncResult
 	state.Phase, state.Message, resState = syncCtx.GetState()
 	state.SyncResult.Resources = nil
+
+	if app.Spec.SyncPolicy != nil {
+		state.SyncResult.ManagedNamespaceMetadata = app.Spec.SyncPolicy.ManagedNamespaceMetadata
+	}
+
+	var apiVersion []kube.APIResourceInfo
 	for _, res := range resState {
+		augmentedMsg, err := argo.AugmentSyncMsg(res, func() ([]kube.APIResourceInfo, error) {
+			if apiVersion == nil {
+				_, apiVersion, err = m.liveStateCache.GetVersionsInfo(app.Spec.Destination.Server)
+				if err != nil {
+					return nil, fmt.Errorf("failed to get version info from the target cluster %q", app.Spec.Destination.Server)
+				}
+			}
+			return apiVersion, nil
+		})
+
+		if err != nil {
+			log.Errorf("using the original message since: %v", err)
+		} else {
+			res.Message = augmentedMsg
+		}
+
 		state.SyncResult.Resources = append(state.SyncResult.Resources, &v1alpha1.ResourceResult{
 			HookType:  res.HookType,
 			Group:     res.ResourceKey.Group,

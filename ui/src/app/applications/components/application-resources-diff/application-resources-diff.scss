@@ -6,9 +6,7 @@
         text-align: right;
         label {
             padding-right: 2em;
-            @include themify($themes) {            
-                color: themed('text-2');
-            }
+            color: $argo-color-gray-8;
         }
     }
     &__diff {

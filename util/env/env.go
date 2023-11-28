@@ -1,6 +1,7 @@
 package env
 
 import (
+	"math"
 	"os"
 	"strconv"
 	"strings"
@@ -21,20 +22,24 @@ func ParseNumFromEnv(env string, defaultValue, min, max int) int {
 	if str == "" {
 		return defaultValue
 	}
-	num, err := strconv.Atoi(str)
+	num, err := strconv.ParseInt(str, 10, 0)
 	if err != nil {
 		log.Warnf("Could not parse '%s' as a number from environment %s", str, env)
 		return defaultValue
 	}
-	if num < min {
+	if num > math.MaxInt || num < math.MinInt {
+		log.Warnf("Value in %s is %d is outside of the min and max %d allowed values. Using default %d", env, num, min, defaultValue)
+		return defaultValue
+	}
+	if int(num) < min {
 		log.Warnf("Value in %s is %d, which is less than minimum %d allowed", env, num, min)
 		return defaultValue
 	}
-	if num > max {
+	if int(num) > max {
 		log.Warnf("Value in %s is %d, which is greater than maximum %d allowed", env, num, max)
 		return defaultValue
 	}
-	return num
+	return int(num)
 }
 
 // Helper function to parse a int64 from an environment variable. Returns a
@@ -89,6 +94,33 @@ func ParseFloatFromEnv(env string, defaultValue, min, max float32) float32 {
 		return defaultValue
 	}
 	return float32(num)
+}
+
+// Helper function to parse a float64 from an environment variable. Returns a
+// default if env is not set, is not parseable to a number, exceeds max (if
+// max is greater than 0) or is less than min (and min is greater than 0).
+//
+// nolint:unparam
+func ParseFloat64FromEnv(env string, defaultValue, min, max float64) float64 {
+	str := os.Getenv(env)
+	if str == "" {
+		return defaultValue
+	}
+
+	num, err := strconv.ParseFloat(str, 64)
+	if err != nil {
+		log.Warnf("Could not parse '%s' as a float32 from environment %s", str, env)
+		return defaultValue
+	}
+	if num < min {
+		log.Warnf("Value in %s is %f, which is less than minimum %f allowed", env, num, min)
+		return defaultValue
+	}
+	if num > max {
+		log.Warnf("Value in %s is %f, which is greater than maximum %f allowed", env, num, max)
+		return defaultValue
+	}
+	return num
 }
 
 // Helper function to parse a time duration from an environment variable. Returns a

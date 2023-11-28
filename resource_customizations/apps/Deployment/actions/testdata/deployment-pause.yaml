@@ -4,6 +4,8 @@ metadata:
   annotations:
     deployment.kubernetes.io/revision: "1"
   creationTimestamp: "2021-09-21T22:35:20Z"
+  name: nginx-deploy
+  namespace: default  
   generation: 2
 spec:
   paused: true

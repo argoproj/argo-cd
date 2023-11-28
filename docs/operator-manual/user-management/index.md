@@ -3,7 +3,7 @@
 Once installed Argo CD has one built-in `admin` user that has full access to the system. It is recommended to use `admin` user only
 for initial configuration and then switch to local users or configure SSO integration.
 
-## Local users/accounts (v1.5)
+## Local users/accounts
 
 The local users/accounts feature serves two main use-cases:
 
@@ -43,6 +43,24 @@ Each user might have two capabilities:
 
 * apiKey - allows generating authentication tokens for API access
 * login - allows to login using UI
+
+### Delete user
+
+In order to delete a user, you must remove the corresponding entry defined in the `argocd-cm` ConfigMap:
+
+Example:
+
+```bash
+kubectl patch -n argocd cm argocd-cm --type='json' -p='[{"op": "remove", "path": "/data/accounts.alice"}]'
+```
+
+It is recommended to also remove the password entry in the `argocd-secret` Secret:
+
+Example:
+
+```bash
+kubectl patch -n argocd secrets argocd-secret --type='json' -p='[{"op": "remove", "path": "/data/accounts.alice.password"}]'
+```
 
 ### Disable admin user
 
@@ -301,6 +319,19 @@ data:
     issuer: https://dev-123456.oktapreview.com
     clientID: aaaabbbbccccddddeee
     clientSecret: $oidc.okta.clientSecret
+    
+    # Optional list of allowed aud claims. If omitted or empty, defaults to the clientID value above (and the 
+    # cliClientID, if that is also specified). If you specify a list and want the clientID to be allowed, you must 
+    # explicitly include it in the list.
+    # Token verification will pass if any of the token's audiences matches any of the audiences in this list.
+    allowedAudiences:
+    - aaaabbbbccccddddeee
+    - qqqqwwwweeeerrrrttt
+
+    # Optional. If false, tokens without an audience will always fail validation. If true, tokens without an audience 
+    # will always pass validation.
+    # Defaults to true for Argo CD < 2.6.0. Defaults to false for Argo CD >= 2.6.0.
+    skipAudienceCheckWhenTokenHasNoAudience: true
 
     # Optional set of OIDC scopes to request. If omitted, defaults to: ["openid", "profile", "email", "groups"]
     requestedScopes: ["openid", "profile", "email", "groups"]
@@ -313,6 +344,12 @@ data:
     # for the 'localhost' (CLI) client to Dex. This field is optional. If omitted, the CLI will
     # use the same clientID as the Argo CD server
     cliClientID: vvvvwwwwxxxxyyyyzzzz
+
+    # PKCE authentication flow processes authorization flow from browser only - default false
+    # uses the clientID
+    # make sure the Identity Provider (IdP) is public and doesn't need clientSecret
+    # make sure the Identity Provider (IdP) has this redirect URI registered: https://argocd.example.com/pkce/verify
+    enablePKCEAuthentication: true
 ```
 
 !!! note
@@ -405,7 +442,7 @@ Add a `rootCA` to your `oidc.config` which contains the PEM encoded root certifi
 
 #### Example
 
-SSO `clientSecret` can thus be stored as a kubernetes secret with the following manifests
+SSO `clientSecret` can thus be stored as a Kubernetes secret with the following manifests
 
 `argocd-secret`:
 ```yaml

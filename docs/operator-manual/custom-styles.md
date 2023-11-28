@@ -56,7 +56,7 @@ metadata:
   name: argocd-styles-cm
 data:
   my-styles.css: |
-    .nav-bar {
+    .sidebar {
       background: linear-gradient(to bottom, #999, #777, #333, #222, #111);
     }
 ```
@@ -100,7 +100,7 @@ experience, you may wish to build a separate project using the [Argo CD UI dev s
 
 ## Banners
 
-Argo CD can optionally display a banner that can be used to notify your users of upcoming maintenance and operational changes. This feature can be enabled by specifying the banner message using the `ui.bannercontent` field in the `argocd-cm` ConfigMap and Argo CD will display this message at the top of every UI page. You can optionally add a link to this message by setting `ui.bannerurl`. You can also make the banner sticky (permanent) by setting `ui.bannerpermanent` to `true` and change it's position to the bottom by using `ui.bannerposition: "bottom"` 
+Argo CD can optionally display a banner that can be used to notify your users of upcoming maintenance and operational changes. This feature can be enabled by specifying the banner message using the `ui.bannercontent` field in the `argocd-cm` ConfigMap and Argo CD will display this message at the top of every UI page. You can optionally add a link to this message by setting `ui.bannerurl`. You can also make the banner sticky (permanent) by setting `ui.bannerpermanent` to true and change its position to "both" or "bottom" by using `ui.bannerposition: "both"`, allowing the banner to display on both the top and bottom, or `ui.bannerposition: "bottom"` to display it exclusively at the bottom.
 
 ### argocd-cm
 ```yaml
