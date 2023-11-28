@@ -18859,6 +18859,15 @@ metadata:
     app.kubernetes.io/part-of: argocd
   name: argocd-server
 ---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  labels:
+    app.kubernetes.io/component: event-reporter
+    app.kubernetes.io/name: event-reporter
+    app.kubernetes.io/part-of: argocd
+  name: event-reporter
+---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
@@ -19028,6 +19037,50 @@ rules:
   - list
 ---
 apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  labels:
+    app.kubernetes.io/component: event-reporter
+    app.kubernetes.io/name: event-reporter
+    app.kubernetes.io/part-of: argocd
+  name: event-reporter
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - secrets
+  - configmaps
+  verbs:
+  - create
+  - get
+  - list
+  - watch
+  - update
+  - patch
+  - delete
+- apiGroups:
+  - argoproj.io
+  resources:
+  - applications
+  - appprojects
+  - applicationsets
+  verbs:
+  - create
+  - get
+  - list
+  - watch
+  - update
+  - delete
+  - patch
+- apiGroups:
+  - ""
+  resources:
+  - events
+  verbs:
+  - create
+  - list
+---
+apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
   labels:
@@ -19149,6 +19202,22 @@ roleRef:
 subjects:
 - kind: ServiceAccount
   name: argocd-server
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  labels:
+    app.kubernetes.io/component: event-reporter
+    app.kubernetes.io/name: event-reporter
+    app.kubernetes.io/part-of: argocd
+  name: event-reporter
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: event-reporter
+subjects:
+- kind: ServiceAccount
+  name: event-reporter
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
@@ -19395,6 +19464,44 @@ spec:
     targetPort: 8083
   selector:
     app.kubernetes.io/name: argocd-server
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app.kubernetes.io/component: event-reporter
+    app.kubernetes.io/name: event-reporter
+    app.kubernetes.io/part-of: argocd
+  name: event-reporter
+spec:
+  ports:
+  - name: http
+    port: 80
+    protocol: TCP
+    targetPort: 8088
+  - name: https
+    port: 443
+    protocol: TCP
+    targetPort: 8088
+  selector:
+    app.kubernetes.io/name: event-reporter
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app.kubernetes.io/component: event-reporter
+    app.kubernetes.io/name: event-reporter-metrics
+    app.kubernetes.io/part-of: argocd
+  name: event-reporter-metrics
+spec:
+  ports:
+  - name: metrics
+    port: 8087
+    protocol: TCP
+    targetPort: 8087
+  selector:
+    app.kubernetes.io/name: event-reporter
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -20536,6 +20643,175 @@ spec:
       volumes:
       - emptyDir: {}
         name: argocd-home
+      - name: argocd-repo-server-tls
+        secret:
+          items:
+          - key: tls.crt
+            path: tls.crt
+          - key: tls.key
+            path: tls.key
+          - key: ca.crt
+            path: ca.crt
+          optional: true
+          secretName: argocd-repo-server-tls
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  labels:
+    app.kubernetes.io/component: event-reporter
+    app.kubernetes.io/name: event-reporter
+    app.kubernetes.io/part-of: argocd
+  name: event-reporter
+spec:
+  replicas: 5
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: event-reporter
+  serviceName: event-reporter
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: event-reporter
+    spec:
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - podAffinityTerm:
+              labelSelector:
+                matchLabels:
+                  app.kubernetes.io/name: event-reporter
+              topologyKey: kubernetes.io/hostname
+            weight: 100
+          - podAffinityTerm:
+              labelSelector:
+                matchLabels:
+                  app.kubernetes.io/part-of: argocd
+              topologyKey: kubernetes.io/hostname
+            weight: 5
+      containers:
+      - args:
+        - /usr/local/bin/event-reporter-server
+        env:
+        - name: EVENT_REPORTER_REPLICAS
+          value: "5"
+        - name: ARGOCD_TOKEN
+          valueFrom:
+            secretKeyRef:
+              key: token
+              name: argocd-token
+        - name: CODEFRESH_URL
+          valueFrom:
+            configMapKeyRef:
+              key: base-url
+              name: codefresh-cm
+              optional: true
+        - name: CODEFRESH_TOKEN
+          valueFrom:
+            secretKeyRef:
+              key: token
+              name: codefresh-token
+        - name: EVENT_REPORTER_INSECURE
+          valueFrom:
+            configMapKeyRef:
+              key: event-reporter.insecure
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: EVENT_REPORTER_LOGFORMAT
+          valueFrom:
+            configMapKeyRef:
+              key: event-reporter.log.format
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: EVENT_REPORTER_LOG_LEVEL
+          valueFrom:
+            configMapKeyRef:
+              key: event-reporter.log.level
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: EVENT_REPORTER_REPO_SERVER
+          valueFrom:
+            configMapKeyRef:
+              key: repo.server
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: EVENT_REPORTER_REPO_SERVER_TIMEOUT_SECONDS
+          valueFrom:
+            configMapKeyRef:
+              key: event-reporter.repo.server.timeout.seconds
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: EVENT_REPORTER_REPO_SERVER_PLAINTEXT
+          valueFrom:
+            configMapKeyRef:
+              key: event-reporter.repo.server.plaintext
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: REDIS_SERVER
+          valueFrom:
+            configMapKeyRef:
+              key: redis.server
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: REDISDB
+          valueFrom:
+            configMapKeyRef:
+              key: redis.db
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: EVENT_REPORTER_LISTEN_ADDRESS
+          valueFrom:
+            configMapKeyRef:
+              key: event-reporter.listen.address
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: EVENT_REPORTER_METRICS_LISTEN_ADDRESS
+          valueFrom:
+            configMapKeyRef:
+              key: event-reporter.metrics.listen.address
+              name: argocd-cmd-params-cm
+              optional: true
+        image: quay.io/codefresh/argocd:latest
+        imagePullPolicy: Always
+        livenessProbe:
+          httpGet:
+            path: /healthz?full=true
+            port: health
+          initialDelaySeconds: 3
+          periodSeconds: 30
+          timeoutSeconds: 5
+        name: event-reporter
+        ports:
+        - containerPort: 8088
+          name: health
+        - containerPort: 8087
+          name: metrics
+        readinessProbe:
+          httpGet:
+            path: /healthz
+            port: health
+          initialDelaySeconds: 3
+          periodSeconds: 30
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+          seccompProfile:
+            type: RuntimeDefault
+        volumeMounts:
+        - mountPath: /app/config/server/tls
+          name: argocd-repo-server-tls
+        - mountPath: /tmp
+          name: tmp
+      serviceAccountName: event-reporter
+      volumes:
+      - emptyDir: {}
+        name: plugins-home
+      - emptyDir: {}
+        name: tmp
       - name: argocd-repo-server-tls
         secret:
           items:

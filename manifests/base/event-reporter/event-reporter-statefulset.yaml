@@ -1,0 +1,168 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  labels:
+    app.kubernetes.io/name: event-reporter
+    app.kubernetes.io/part-of: argocd
+    app.kubernetes.io/component: event-reporter
+  name: event-reporter
+spec:
+  replicas: 5
+  serviceName: event-reporter
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: event-reporter
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: event-reporter
+    spec:
+      serviceAccountName: event-reporter
+      containers:
+      - name: event-reporter
+        image: quay.io/argoproj/argocd:latest
+        imagePullPolicy: Always
+        args:
+          - /usr/local/bin/event-reporter-server
+        env:
+        - name: EVENT_REPORTER_REPLICAS
+          value: "5"
+        - name: ARGOCD_TOKEN
+          valueFrom: 
+             secretKeyRef: 
+               key: token
+               name: argocd-token
+        - name: CODEFRESH_URL
+          valueFrom:
+            configMapKeyRef:
+              name: codefresh-cm
+              key: base-url
+              optional: true
+        - name: CODEFRESH_TOKEN
+          valueFrom: 
+             secretKeyRef: 
+               key: token
+               name: codefresh-token
+        - name: EVENT_REPORTER_INSECURE
+          valueFrom:
+            configMapKeyRef:
+              name: argocd-cmd-params-cm
+              key: event-reporter.insecure
+              optional: true
+        - name: EVENT_REPORTER_LOGFORMAT
+          valueFrom:
+              configMapKeyRef:
+                name: argocd-cmd-params-cm
+                key: event-reporter.log.format
+                optional: true
+        - name: EVENT_REPORTER_LOG_LEVEL
+          valueFrom:
+              configMapKeyRef:
+                name: argocd-cmd-params-cm
+                key: event-reporter.log.level
+                optional: true
+        - name: EVENT_REPORTER_REPO_SERVER
+          valueFrom:
+              configMapKeyRef:
+                name: argocd-cmd-params-cm
+                key: repo.server
+                optional: true
+        - name: EVENT_REPORTER_REPO_SERVER_TIMEOUT_SECONDS
+          valueFrom:
+              configMapKeyRef:
+                name: argocd-cmd-params-cm
+                key: event-reporter.repo.server.timeout.seconds
+                optional: true
+        - name: EVENT_REPORTER_REPO_SERVER_PLAINTEXT
+          valueFrom:
+              configMapKeyRef:
+                name: argocd-cmd-params-cm
+                key: event-reporter.repo.server.plaintext
+                optional: true
+        - name: REDIS_SERVER
+          valueFrom:
+              configMapKeyRef:
+                name: argocd-cmd-params-cm
+                key: redis.server
+                optional: true
+        - name: REDISDB
+          valueFrom:
+              configMapKeyRef:
+                name: argocd-cmd-params-cm
+                key: redis.db
+                optional: true
+        - name: EVENT_REPORTER_LISTEN_ADDRESS
+          valueFrom:
+              configMapKeyRef:
+                name: argocd-cmd-params-cm
+                key: event-reporter.listen.address
+                optional: true
+        - name: EVENT_REPORTER_METRICS_LISTEN_ADDRESS
+          valueFrom:
+              configMapKeyRef:
+                name: argocd-cmd-params-cm
+                key: event-reporter.metrics.listen.address
+                optional: true
+        volumeMounts:
+        - name: argocd-repo-server-tls
+          mountPath: /app/config/server/tls
+        - mountPath: /tmp
+          name: tmp
+        ports:
+        - containerPort: 8088
+          name: health
+        - containerPort: 8087
+          name: metrics
+        livenessProbe:
+          httpGet:
+            path: /healthz?full=true
+            port: health
+          initialDelaySeconds: 3
+          periodSeconds: 30
+          timeoutSeconds: 5
+        readinessProbe:
+          httpGet:
+            path: /healthz
+            port: health
+          initialDelaySeconds: 3
+          periodSeconds: 30
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+          capabilities:
+            drop:
+            - ALL
+          seccompProfile:
+            type: RuntimeDefault
+      volumes:
+      - emptyDir: {}
+        name: plugins-home
+      - emptyDir: {}
+        name: tmp
+      - name: argocd-repo-server-tls
+        secret:
+          secretName: argocd-repo-server-tls
+          optional: true
+          items:
+          - key: tls.crt
+            path: tls.crt
+          - key: tls.key
+            path: tls.key
+          - key: ca.crt
+            path: ca.crt
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchLabels:
+                  app.kubernetes.io/name: event-reporter
+              topologyKey: kubernetes.io/hostname
+          - weight: 5
+            podAffinityTerm:
+              labelSelector:
+                matchLabels:
+                  app.kubernetes.io/part-of: argocd
+              topologyKey: kubernetes.io/hostname
