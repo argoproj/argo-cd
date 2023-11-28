@@ -12,6 +12,8 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	. "github.com/argoproj/gitops-engine/pkg/utils/testing"
 	"github.com/imdario/mergo"
+	"github.com/sirupsen/logrus"
+	logrustest "github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -1432,7 +1434,7 @@ func TestUseDiffCache(t *testing.T) {
 		}
 	}
 
-	app := func(namespace string, revision string, refresh bool, appSpec *argoappv1.ApplicationSpec) *argoappv1.Application {
+	app := func(namespace string, revision string, refresh bool, a *argoappv1.Application) *argoappv1.Application {
 		app := &argoappv1.Application{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "httpbin",
@@ -1484,10 +1486,10 @@ func TestUseDiffCache(t *testing.T) {
 			annotations[argoappv1.AnnotationKeyRefresh] = string(argoappv1.RefreshTypeNormal)
 			app.SetAnnotations(annotations)
 		}
-		if appSpec != nil {
-			err := mergo.Merge(&app.Spec, appSpec, mergo.WithOverride)
+		if a != nil {
+			err := mergo.Merge(app, a, mergo.WithOverride, mergo.WithOverwriteWithEmptyValue)
 			if err != nil {
-				t.Fatalf("error merging appSpec: %s", err)
+				t.Fatalf("error merging app: %s", err)
 			}
 		}
 		return app
@@ -1501,6 +1503,49 @@ func TestUseDiffCache(t *testing.T) {
 			sources:              sources(),
 			app:                  app("httpbin", "rev1", false, nil),
 			manifestRevisions:    []string{"rev1"},
+			statusRefreshTimeout: time.Hour * 24,
+			expectedUseCache:     true,
+		},
+		{
+			testName:      "will use diff cache for multisource",
+			noCache:       false,
+			manifestInfos: manifestInfos("rev1"),
+			sources:       sources(),
+			app: app("httpbin", "", false, &argoappv1.Application{
+				Spec: argoappv1.ApplicationSpec{
+					Source: nil,
+					Sources: argoappv1.ApplicationSources{
+						{
+							RepoURL: "multisource repo1",
+						},
+						{
+							RepoURL: "multisource repo2",
+						},
+					},
+				},
+				Status: argoappv1.ApplicationStatus{
+					Resources: []argoappv1.ResourceStatus{},
+					Sync: argoappv1.SyncStatus{
+						Status: argoappv1.SyncStatusCodeSynced,
+						ComparedTo: argoappv1.ComparedTo{
+							Source: argoappv1.ApplicationSource{},
+							Sources: argoappv1.ApplicationSources{
+								{
+									RepoURL: "multisource repo1",
+								},
+								{
+									RepoURL: "multisource repo2",
+								},
+							},
+						},
+						Revisions: []string{"rev1", "rev2"},
+					},
+					ReconciledAt: &metav1.Time{
+						Time: time.Now().Add(-time.Hour),
+					},
+				},
+			}),
+			manifestRevisions:    []string{"rev1", "rev2"},
 			statusRefreshTimeout: time.Hour * 24,
 			expectedUseCache:     true,
 		},
@@ -1549,9 +1594,11 @@ func TestUseDiffCache(t *testing.T) {
 			noCache:       false,
 			manifestInfos: manifestInfos("rev1"),
 			sources:       sources(),
-			app: app("httpbin", "rev1", false, &argoappv1.ApplicationSpec{
-				Source: &argoappv1.ApplicationSource{
-					RepoURL: "new-repo",
+			app: app("httpbin", "rev1", false, &argoappv1.Application{
+				Spec: argoappv1.ApplicationSpec{
+					Source: &argoappv1.ApplicationSource{
+						RepoURL: "new-repo",
+					},
 				},
 			}),
 			manifestRevisions:    []string{"rev1"},
@@ -1563,14 +1610,16 @@ func TestUseDiffCache(t *testing.T) {
 			noCache:       false,
 			manifestInfos: manifestInfos("rev1"),
 			sources:       sources(),
-			app: app("httpbin", "rev1", false, &argoappv1.ApplicationSpec{
-				IgnoreDifferences: []argoappv1.ResourceIgnoreDifferences{
-					{
-						Group:             "app/v1",
-						Kind:              "application",
-						Name:              "httpbin",
-						Namespace:         "httpbin",
-						JQPathExpressions: []string{"."},
+			app: app("httpbin", "rev1", false, &argoappv1.Application{
+				Spec: argoappv1.ApplicationSpec{
+					IgnoreDifferences: []argoappv1.ResourceIgnoreDifferences{
+						{
+							Group:             "app/v1",
+							Kind:              "application",
+							Name:              "httpbin",
+							Namespace:         "httpbin",
+							JQPathExpressions: []string{"."},
+						},
 					},
 				},
 			}),
@@ -1585,9 +1634,11 @@ func TestUseDiffCache(t *testing.T) {
 		t.Run(tc.testName, func(t *testing.T) {
 			// Given
 			t.Parallel()
+			logger, _ := logrustest.NewNullLogger()
+			log := logrus.NewEntry(logger)
 
 			// When
-			useDiffCache := useDiffCache(tc.noCache, tc.manifestInfos, tc.sources, tc.app, tc.manifestRevisions, tc.statusRefreshTimeout)
+			useDiffCache := useDiffCache(tc.noCache, tc.manifestInfos, tc.sources, tc.app, tc.manifestRevisions, tc.statusRefreshTimeout, log)
 
 			// Then
 			assert.Equal(t, useDiffCache, tc.expectedUseCache)

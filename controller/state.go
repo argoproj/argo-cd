@@ -584,7 +584,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 		manifestRevisions = append(manifestRevisions, manifestInfo.Revision)
 	}
 
-	useDiffCache := useDiffCache(noCache, manifestInfos, sources, app, manifestRevisions, m.statusRefreshTimeout)
+	useDiffCache := useDiffCache(noCache, manifestInfos, sources, app, manifestRevisions, m.statusRefreshTimeout, logCtx)
 
 	diffConfigBuilder := argodiff.NewDiffConfigBuilder().
 		WithDiffSettings(app.Spec.IgnoreDifferences, resourceOverrides, compareOptions.IgnoreAggregatedRoles).
@@ -802,46 +802,41 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 
 // useDiffCache will determine if the diff should be calculated based
 // on the existing live state cache or not.
-func useDiffCache(noCache bool, manifestInfos []*apiclient.ManifestResponse, sources []v1alpha1.ApplicationSource, app *v1alpha1.Application, manifestRevisions []string, statusRefreshTimeout time.Duration) bool {
+func useDiffCache(noCache bool, manifestInfos []*apiclient.ManifestResponse, sources []v1alpha1.ApplicationSource, app *v1alpha1.Application, manifestRevisions []string, statusRefreshTimeout time.Duration, log *log.Entry) bool {
 
 	if noCache {
-		log.Debug("useDiffCache(false): noCache is true")
+		log.WithField("useDiffCache", "false").Debug("noCache is true")
 		return false
 	}
 	_, refreshRequested := app.IsRefreshRequested()
 	if refreshRequested {
-		log.Debug("useDiffCache(false): refreshRequested")
+		log.WithField("useDiffCache", "false").Debug("refreshRequested")
 		return false
 	}
 	if app.Status.Expired(statusRefreshTimeout) {
-		log.Debug("useDiffCache(false): app.status.expired")
+		log.WithField("useDiffCache", "false").Debug("app.status.expired")
 		return false
 	}
 
-	revisionChanged := len(manifestInfos) != len(sources) ||
-		!reflect.DeepEqual(app.Status.GetRevisions(), manifestRevisions)
+	if len(manifestInfos) != len(sources) {
+		log.WithField("useDiffCache", "false").Debug("manifestInfos len != sources len")
+		return false
+	}
+
+	revisionChanged := !reflect.DeepEqual(app.Status.GetRevisions(), manifestRevisions)
 	if revisionChanged {
-		log.Debug("useDiffCache(false): revisionChanged")
+		log.WithField("useDiffCache", "false").Debug("revisionChanged")
 		return false
 	}
 
-	currentSource := v1alpha1.ApplicationSource{}
-	if app.Spec.Source != nil {
-		currentSource = *app.Spec.Source
-	}
-	currentSpec := v1alpha1.ComparedTo{
-		Source:            currentSource,
-		Destination:       app.Spec.Destination,
-		Sources:           app.Spec.Sources,
-		IgnoreDifferences: app.Spec.IgnoreDifferences,
-	}
+	currentSpec := app.BuildComparedToStatus()
 	specChanged := !reflect.DeepEqual(app.Status.Sync.ComparedTo, currentSpec)
 	if specChanged {
-		log.Debug("useDiffCache(false): specChanged")
+		log.WithField("useDiffCache", "false").Debug("specChanged")
 		return false
 	}
 
-	log.Debug("useDiffCache(true): using diff cache")
+	log.WithField("useDiffCache", "true").Debug("using diff cache")
 	return true
 }
 
