@@ -107,6 +107,10 @@ type appStateManager struct {
 	persistResourceHealth bool
 }
 
+// getRepoObjs will generate the manifests for the given application delegating the
+// task to the repo-server. It returns the list of generated manifests as unstructured
+// objects. It also returns the full response from all calls to the repo server as the
+// second argument.
 func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, sources []v1alpha1.ApplicationSource, appLabelKey string, revisions []string, noCache, noRevisionCache, verifySignature bool, proj *v1alpha1.AppProject) ([]*unstructured.Unstructured, []*apiclient.ManifestResponse, error) {
 
 	ts := stats.NewTimingStats()
@@ -558,21 +562,16 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 		manifestRevisions = append(manifestRevisions, manifestInfo.Revision)
 	}
 
-	// restore comparison using cached diff result if previous comparison was performed for the same revision
-	revisionChanged := len(manifestInfos) != len(sources) || !reflect.DeepEqual(app.Status.Sync.Revisions, manifestRevisions)
-	specChanged := !reflect.DeepEqual(app.Status.Sync.ComparedTo, v1alpha1.ComparedTo{Source: app.Spec.GetSource(), Destination: app.Spec.Destination, Sources: sources, IgnoreDifferences: app.Spec.IgnoreDifferences})
-
-	_, refreshRequested := app.IsRefreshRequested()
-	noCache = noCache || refreshRequested || app.Status.Expired(m.statusRefreshTimeout) || specChanged || revisionChanged
+	useDiffCache := useDiffCache(noCache, manifestInfos, sources, app, manifestRevisions, m.statusRefreshTimeout, logCtx)
 
 	diffConfigBuilder := argodiff.NewDiffConfigBuilder().
 		WithDiffSettings(app.Spec.IgnoreDifferences, resourceOverrides, compareOptions.IgnoreAggregatedRoles).
 		WithTracking(appLabelKey, string(trackingMethod))
 
-	if noCache {
-		diffConfigBuilder.WithNoCache()
+	if useDiffCache {
+		diffConfigBuilder.WithCache(m.cache, app.InstanceName(m.namespace))
 	} else {
-		diffConfigBuilder.WithCache(m.cache, app.GetName())
+		diffConfigBuilder.WithNoCache()
 	}
 
 	gvkParser, err := m.getGVKParser(app.Spec.Destination.Server)
@@ -777,6 +776,46 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 	ts.AddCheckpoint("health_ms")
 	compRes.timings = ts.Timings()
 	return &compRes
+}
+
+// useDiffCache will determine if the diff should be calculated based
+// on the existing live state cache or not.
+func useDiffCache(noCache bool, manifestInfos []*apiclient.ManifestResponse, sources []v1alpha1.ApplicationSource, app *v1alpha1.Application, manifestRevisions []string, statusRefreshTimeout time.Duration, log *log.Entry) bool {
+
+	if noCache {
+		log.WithField("useDiffCache", "false").Debug("noCache is true")
+		return false
+	}
+	_, refreshRequested := app.IsRefreshRequested()
+	if refreshRequested {
+		log.WithField("useDiffCache", "false").Debug("refreshRequested")
+		return false
+	}
+	if app.Status.Expired(statusRefreshTimeout) {
+		log.WithField("useDiffCache", "false").Debug("app.status.expired")
+		return false
+	}
+
+	if len(manifestInfos) != len(sources) {
+		log.WithField("useDiffCache", "false").Debug("manifestInfos len != sources len")
+		return false
+	}
+
+	revisionChanged := !reflect.DeepEqual(app.Status.GetRevisions(), manifestRevisions)
+	if revisionChanged {
+		log.WithField("useDiffCache", "false").Debug("revisionChanged")
+		return false
+	}
+
+	currentSpec := app.BuildComparedToStatus()
+	specChanged := !reflect.DeepEqual(app.Status.Sync.ComparedTo, currentSpec)
+	if specChanged {
+		log.WithField("useDiffCache", "false").Debug("specChanged")
+		return false
+	}
+
+	log.WithField("useDiffCache", "true").Debug("using diff cache")
+	return true
 }
 
 func (m *appStateManager) persistRevisionHistory(app *v1alpha1.Application, revision string, source v1alpha1.ApplicationSource, revisions []string, sources []v1alpha1.ApplicationSource, hasMultipleSources bool, startedAt metav1.Time) error {
