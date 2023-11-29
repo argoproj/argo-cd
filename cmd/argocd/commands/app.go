@@ -14,6 +14,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/argoproj/gitops-engine/pkg/diff"
 	"github.com/argoproj/gitops-engine/pkg/health"
 	"github.com/argoproj/gitops-engine/pkg/sync/common"
 	"github.com/argoproj/gitops-engine/pkg/sync/hook"
@@ -1062,7 +1063,7 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	var command = &cobra.Command{
 		Use:   "diff APPNAME",
 		Short: shortDesc,
-		Long:  shortDesc + "\nUses 'diff' to render the difference. KUBECTL_EXTERNAL_DIFF environment variable can be used to select your own diff tool.\nReturns the following exit codes: 2 on general errors, 1 when a diff is found, and 0 when no diff is found",
+		Long:  shortDesc + "\nUses 'diff' to render the difference. KUBECTL_EXTERNAL_DIFF environment variable can be used to select your own diff tool.\nReturns the following exit codes: 2 on general errors, 1 when a diff is found, and 0 when no diff is found.\nChanges in Kubernetes Secrets will be reported, but their content will not be shown.",
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
 
@@ -1229,6 +1230,13 @@ func findandPrintDiff(ctx context.Context, app *argoappv1.Application, proj *arg
 			if !foundDiffs {
 				foundDiffs = true
 			}
+
+			// in case of local diff, we need to ensure we don't show secrets on the CLI
+			if diffOptions.local != "" {
+				target, _, err = diff.HideSecretData(target, nil)
+				errors.CheckError(err)
+			}
+
 			_ = cli.PrintDiff(item.key.Name, live, target)
 		}
 	}
@@ -1243,11 +1251,6 @@ func groupObjsForDiff(resources *application.ManagedResourcesResponse, objs map[
 		errors.CheckError(err)
 
 		key := kube.ResourceKey{Name: res.Name, Namespace: res.Namespace, Group: res.Group, Kind: res.Kind}
-		if key.Kind == kube.SecretKind && key.Group == "" {
-			// Don't bother comparing secrets, argo-cd doesn't have access to k8s secret data
-			delete(objs, key)
-			continue
-		}
 		if local, ok := objs[key]; ok || live != nil {
 			if local != nil && !kube.IsCRD(local) {
 				err = resourceTracking.SetAppInstance(local, argoSettings.AppLabelKey, appName, namespace, argoappv1.TrackingMethod(argoSettings.GetTrackingMethod()))
@@ -1259,11 +1262,6 @@ func groupObjsForDiff(resources *application.ManagedResourcesResponse, objs map[
 		}
 	}
 	for key, local := range objs {
-		if key.Kind == kube.SecretKind && key.Group == "" {
-			// Don't bother comparing secrets, argo-cd doesn't have access to k8s secret data
-			delete(objs, key)
-			continue
-		}
 		items = append(items, objKeyLiveTarget{key, nil, local})
 	}
 	return items
