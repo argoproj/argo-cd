@@ -62,6 +62,8 @@ message AppProjectSpec {
   optional string description = 3;
 
   // Roles are user defined RBAC roles associated with this project
+  // +patchMergeKey=name
+  // +patchStrategy=merge
   repeated ProjectRole roles = 4;
 
   // ClusterResourceWhitelist contains list of whitelisted cluster level resources
@@ -443,6 +445,8 @@ message ApplicationSourceHelm {
   repeated string valueFiles = 1;
 
   // Parameters is a list of Helm parameters which are passed to the helm template command upon manifest generation
+  // +patchMergeKey=name
+  // +patchStrategy=merge
   repeated HelmParameter parameters = 2;
 
   // ReleaseName is the Helm release name to use. If omitted it will use the application name
@@ -453,6 +457,8 @@ message ApplicationSourceHelm {
   optional string values = 4;
 
   // FileParameters are file parameters to the helm template
+  // +patchMergeKey=name
+  // +patchStrategy=merge
   repeated HelmFileParameter fileParameters = 5;
 
   // Version is the Helm version to use for templating ("3")
@@ -475,9 +481,13 @@ message ApplicationSourceHelm {
 // ApplicationSourceJsonnet holds options specific to applications of type Jsonnet
 message ApplicationSourceJsonnet {
   // ExtVars is a list of Jsonnet External Variables
+  // +patchMergeKey=name
+  // +patchStrategy=merge
   repeated JsonnetVar extVars = 1;
 
   // TLAS is a list of Jsonnet Top-level Arguments
+  // +patchMergeKey=name
+  // +patchStrategy=merge
   repeated JsonnetVar tlas = 2;
 
   // Additional library search dirs
@@ -568,6 +578,8 @@ message ApplicationSpec {
   repeated ResourceIgnoreDifferences ignoreDifferences = 5;
 
   // Info contains a list of information (URLs, email addresses, and plain text) that relates to the application
+  // +patchMergeKey=name
+  // +patchStrategy=merge
   repeated Info info = 6;
 
   // RevisionHistoryLimit limits the number of items kept in the application's revision history, which is used for informational purposes as well as for rollbacks to previous versions.
@@ -1055,6 +1067,8 @@ message JWTToken {
 
 // JWTTokens represents a list of JWT tokens
 message JWTTokens {
+  // +patchMergeKey=id
+  // +patchStrategy=merge
   repeated JWTToken items = 1;
 }
 

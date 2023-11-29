@@ -73,7 +73,9 @@ type ApplicationSpec struct {
 	// IgnoreDifferences is a list of resources and their fields which should be ignored during comparison
 	IgnoreDifferences IgnoreDifferences `json:"ignoreDifferences,omitempty" protobuf:"bytes,5,name=ignoreDifferences"`
 	// Info contains a list of information (URLs, email addresses, and plain text) that relates to the application
-	Info []Info `json:"info,omitempty" protobuf:"bytes,6,name=info"`
+	// +patchMergeKey=name
+	// +patchStrategy=merge
+	Info []Info `json:"info,omitempty" patchStrategy:"merge" patchMergeKey:"name" protobuf:"bytes,6,name=info"`
 	// RevisionHistoryLimit limits the number of items kept in the application's revision history, which is used for informational purposes as well as for rollbacks to previous versions.
 	// This should only be changed in exceptional circumstances.
 	// Setting to zero will store no history. This will reduce storage used.
@@ -304,14 +306,18 @@ type ApplicationSourceHelm struct {
 	// ValuesFiles is a list of Helm value files to use when generating a template
 	ValueFiles []string `json:"valueFiles,omitempty" protobuf:"bytes,1,opt,name=valueFiles"`
 	// Parameters is a list of Helm parameters which are passed to the helm template command upon manifest generation
-	Parameters []HelmParameter `json:"parameters,omitempty" protobuf:"bytes,2,opt,name=parameters"`
+	// +patchMergeKey=name
+	// +patchStrategy=merge
+	Parameters []HelmParameter `json:"parameters,omitempty" patchStrategy:"merge" patchMergeKey:"name" protobuf:"bytes,2,opt,name=parameters"`
 	// ReleaseName is the Helm release name to use. If omitted it will use the application name
 	ReleaseName string `json:"releaseName,omitempty" protobuf:"bytes,3,opt,name=releaseName"`
 	// Values specifies Helm values to be passed to helm template, typically defined as a block. ValuesObject takes precedence over Values, so use one or the other.
 	// +patchStrategy=replace
 	Values string `json:"values,omitempty" patchStrategy:"replace" protobuf:"bytes,4,opt,name=values"`
 	// FileParameters are file parameters to the helm template
-	FileParameters []HelmFileParameter `json:"fileParameters,omitempty" protobuf:"bytes,5,opt,name=fileParameters"`
+	// +patchMergeKey=name
+	// +patchStrategy=merge
+	FileParameters []HelmFileParameter `json:"fileParameters,omitempty" patchStrategy:"merge" patchMergeKey:"name" protobuf:"bytes,5,opt,name=fileParameters"`
 	// Version is the Helm version to use for templating ("3")
 	Version string `json:"version,omitempty" protobuf:"bytes,6,opt,name=version"`
 	// PassCredentials pass credentials to all domains (Helm's --pass-credentials)
@@ -627,9 +633,13 @@ func NewJsonnetVar(s string, code bool) JsonnetVar {
 // ApplicationSourceJsonnet holds options specific to applications of type Jsonnet
 type ApplicationSourceJsonnet struct {
 	// ExtVars is a list of Jsonnet External Variables
-	ExtVars []JsonnetVar `json:"extVars,omitempty" protobuf:"bytes,1,opt,name=extVars"`
+	// +patchMergeKey=name
+	// +patchStrategy=merge
+	ExtVars []JsonnetVar `json:"extVars,omitempty" patchStrategy:"merge" patchMergeKey:"name" protobuf:"bytes,1,opt,name=extVars"`
 	// TLAS is a list of Jsonnet Top-level Arguments
-	TLAs []JsonnetVar `json:"tlas,omitempty" protobuf:"bytes,2,opt,name=tlas"`
+	// +patchMergeKey=name
+	// +patchStrategy=merge
+	TLAs []JsonnetVar `json:"tlas,omitempty" patchStrategy:"merge" patchMergeKey:"name" protobuf:"bytes,2,opt,name=tlas"`
 	// Additional library search dirs
 	Libs []string `json:"libs,omitempty" protobuf:"bytes,3,opt,name=libs"`
 }
@@ -957,7 +967,9 @@ type ApplicationStatus struct {
 
 // JWTTokens represents a list of JWT tokens
 type JWTTokens struct {
-	Items []JWTToken `json:"items,omitempty" protobuf:"bytes,1,opt,name=items"`
+	// +patchMergeKey=id
+	// +patchStrategy=merge
+	Items []JWTToken `json:"items,omitempty" patchStrategy:"merge" patchMergeKey:"id" protobuf:"bytes,1,opt,name=items"`
 }
 
 // OperationInitiator contains information about the initiator of an operation
@@ -2150,7 +2162,9 @@ type AppProjectSpec struct {
 	// Description contains optional project description
 	Description string `json:"description,omitempty" protobuf:"bytes,3,opt,name=description"`
 	// Roles are user defined RBAC roles associated with this project
-	Roles []ProjectRole `json:"roles,omitempty" protobuf:"bytes,4,rep,name=roles"`
+	// +patchMergeKey=name
+	// +patchStrategy=merge
+	Roles []ProjectRole `json:"roles,omitempty" patchStrategy:"merge" patchMergeKey:"name" protobuf:"bytes,4,rep,name=roles"`
 	// ClusterResourceWhitelist contains list of whitelisted cluster level resources
 	ClusterResourceWhitelist []metav1.GroupKind `json:"clusterResourceWhitelist,omitempty" protobuf:"bytes,5,opt,name=clusterResourceWhitelist"`
 	// NamespaceResourceBlacklist contains list of blacklisted namespace level resources
