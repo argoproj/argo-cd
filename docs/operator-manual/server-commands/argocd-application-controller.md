@@ -44,6 +44,8 @@ argocd-application-controller [flags]
       --operation-processors int               Number of application operation processors (default 10)
       --otlp-address string                    OpenTelemetry collector address to send traces to
       --otlp-attrs strings                     List of OpenTelemetry collector extra attrs when send traces, each attribute is separated by a colon(e.g. key:value)
+      --otlp-headers stringToString            List of OpenTelemetry collector extra headers sent with traces, headers are comma-separated key-value pairs(e.g. key1=value1,key2=value2) (default [])
+      --otlp-insecure                          OpenTelemetry collector insecure mode (default true)
       --password string                        Password for basic authentication to the API server
       --persist-resource-health                Enables storing the managed resources health in the Application CRD (default true)
       --proxy-url string                       If provided, this URL will be used to connect via proxy
@@ -55,6 +57,7 @@ argocd-application-controller [flags]
       --redis-insecure-skip-tls-verify         Skip Redis server certificate validation.
       --redis-use-tls                          Use TLS when connecting to Redis. 
       --redisdb int                            Redis database.
+      --repo-error-grace-period-seconds int    Grace period in seconds for ignoring consecutive errors while communicating with repo server. (default 180)
       --repo-server string                     Repo server address. (default "argocd-repo-server:8081")
       --repo-server-plaintext                  Disable TLS on connections to repo server
       --repo-server-strict-tls                 Whether to use strict validation of the TLS cert presented by the repo server

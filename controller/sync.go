@@ -3,6 +3,7 @@ package controller
 import (
 	"context"
 	"encoding/json"
+	goerrors "errors"
 	"fmt"
 	"os"
 	"strconv"
@@ -158,7 +159,13 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 		revisions = []string{revision}
 	}
 
-	compareResult := m.CompareAppState(app, proj, revisions, sources, false, true, syncOp.Manifests, app.Spec.HasMultipleSources())
+	// ignore error if CompareStateRepoError, this shouldn't happen as noRevisionCache is true
+	compareResult, err := m.CompareAppState(app, proj, revisions, sources, false, true, syncOp.Manifests, app.Spec.HasMultipleSources())
+	if err != nil && !goerrors.Is(err, CompareStateRepoError) {
+		state.Phase = common.OperationError
+		state.Message = err.Error()
+		return
+	}
 	// We now have a concrete commit SHA. Save this in the sync result revision so that we remember
 	// what we should be syncing to when resuming operations.
 

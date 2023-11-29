@@ -70,7 +70,7 @@ import (
 
 const (
 	updateOperationStateTimeout             = 1 * time.Second
-	defaultDeploymentInformerResyncDuration = 10
+	defaultDeploymentInformerResyncDuration = 10 * time.Second
 	// orphanedIndex contains application which monitor orphaned resources by namespace
 	orphanedIndex = "orphaned"
 )
@@ -143,6 +143,7 @@ func NewApplicationController(
 	appResyncPeriod time.Duration,
 	appHardResyncPeriod time.Duration,
 	selfHealTimeout time.Duration,
+	repoErrorGracePeriod time.Duration,
 	metricsPort int,
 	metricsCacheExpiration time.Duration,
 	metricsApplicationLabels []string,
@@ -259,7 +260,7 @@ func NewApplicationController(
 		}
 	}
 	stateCache := statecache.NewLiveStateCache(db, appInformer, ctrl.settingsMgr, kubectl, ctrl.metricsServer, ctrl.handleObjectUpdated, clusterFilter, argo.NewResourceTracking())
-	appStateManager := NewAppStateManager(db, applicationClientset, repoClientset, namespace, kubectl, ctrl.settingsMgr, stateCache, projInformer, ctrl.metricsServer, argoCache, ctrl.statusRefreshTimeout, argo.NewResourceTracking(), persistResourceHealth)
+	appStateManager := NewAppStateManager(db, applicationClientset, repoClientset, namespace, kubectl, ctrl.settingsMgr, stateCache, projInformer, ctrl.metricsServer, argoCache, ctrl.statusRefreshTimeout, argo.NewResourceTracking(), persistResourceHealth, repoErrorGracePeriod)
 	ctrl.appInformer = appInformer
 	ctrl.appLister = appLister
 	ctrl.projInformer = projInformer
@@ -1512,9 +1513,14 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 	}
 	now := metav1.Now()
 
-	compareResult := ctrl.appStateManager.CompareAppState(app, project, revisions, sources,
+	compareResult, err := ctrl.appStateManager.CompareAppState(app, project, revisions, sources,
 		refreshType == appv1.RefreshTypeHard,
 		comparisonLevel == CompareWithLatestForceResolve, localManifests, hasMultipleSources)
+
+	if goerrors.Is(err, CompareStateRepoError) {
+		logCtx.Warnf("Ignoring temporary failed attempt to compare app state against repo: %v", err)
+		return // short circuit if git error is encountered
+	}
 
 	for k, v := range compareResult.timings {
 		logCtx = logCtx.WithField(k, v.Milliseconds())
