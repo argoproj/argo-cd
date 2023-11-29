@@ -12,7 +12,7 @@ The GitHub notification service changes commit status using [GitHub Apps](https:
 ## Configuration
 
 1. Create a GitHub Apps using https://github.com/settings/apps/new
-2. Change repository permissions to enable write commit statuses and/or deployments
+2. Change repository permissions to enable write commit statuses and/or deployments and/or pull requests comments
 ![2](https://user-images.githubusercontent.com/18019529/108397381-3ca57980-725b-11eb-8d17-5b8992dc009e.png)
 3. Generate a private key, and download it automatically
 ![3](https://user-images.githubusercontent.com/18019529/108397926-d4a36300-725b-11eb-83fe-74795c8c3e03.png)
@@ -76,6 +76,10 @@ template.app-deployed: |
       logURL: "{{.context.argocdUrl}}/applications/{{.app.metadata.name}}?operation=true"
       requiredContexts: []
       autoMerge: true
+    pullRequestComment:
+      content: |
+        Application {{.app.metadata.name}} is now running new version of deployments manifests.
+        See more here: {{.context.argocdUrl}}/applications/{{.app.metadata.name}}?operation=true
 ```
 
 **Notes**:
@@ -83,4 +87,5 @@ template.app-deployed: |
 - If `github.repoURLPath` and `github.revisionPath` are same as above, they can be omitted.
 - Automerge is optional and `true` by default for github deployments to ensure the requested ref is up to date with the default branch.
   Setting this option to `false` is required if you would like to deploy older refs in your default branch.
-  For more information see the [Github Deployment API Docs](https://docs.github.com/en/rest/deployments/deployments?apiVersion=2022-11-28#create-a-deployment).
+  For more information see the [GitHub Deployment API Docs](https://docs.github.com/en/rest/deployments/deployments?apiVersion=2022-11-28#create-a-deployment).
+- If `github.pullRequestComment.content` is set to 65536 characters or more, it will be truncated.
