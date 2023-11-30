@@ -1293,7 +1293,7 @@ export function isApp(abstractApp: appModels.AbstractApplication): abstractApp i
 }
 
 export function isInvokedFromApps(): boolean {
-    const isInvokedFromApp = true;
+    const isInvokedFromApp = false;
     return isInvokedFromApp;
 }
 

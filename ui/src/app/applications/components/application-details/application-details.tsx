@@ -33,7 +33,7 @@ import * as AppUtils from '../utils';
 import {ApplicationResourceList} from './application-resource-list';
 import {AbstractFiltersProps, Filters} from './application-resource-filter';
 import {getAppDefaultSource, urlPattern, helpTip, isApp, isInvokedFromApps} from '../utils';
-import {ApplicationTree, ChartDetails, ResourceStatus} from '../../../shared/models';
+import {AbstractApplication, ApplicationTree, ChartDetails, ResourceStatus} from '../../../shared/models';
 import {ApplicationsDetailsAppDropdown} from './application-details-app-dropdown';
 import {useSidebarTarget} from '../../../sidebar/sidebar';
 
@@ -155,10 +155,10 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
         this.setState({slidingPanelPage: 0});
     }
 
-    private toggleCompactView(appName: string, pref: AbstractAppDetailsPreferences) {
-        if (isInvokedFromApps()) {
+    private toggleCompactView(app: AbstractApplication, pref: AbstractAppDetailsPreferences) {
+        if (isApp(app)) {
             (pref as AppDetailsPreferences).userHelpTipMsgs = (pref as AppDetailsPreferences).userHelpTipMsgs.map(usrMsg =>
-                usrMsg.appName === appName && usrMsg.msgKey === 'groupNodes' ? {...usrMsg, display: true} : usrMsg
+                usrMsg.appName === app.metadata.name && usrMsg.msgKey === 'groupNodes' ? {...usrMsg, display: true} : usrMsg
             );
         }
         services.viewPreferences.updatePreferences({appDetails: {...pref, groupNodes: !pref.groupNodes}});
@@ -520,7 +520,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                                                     <a
                                                                         className={`group-nodes-button group-nodes-button${!pref.groupNodes ? '' : '-on'}`}
                                                                         title={pref.view === 'tree' ? 'Group Nodes' : 'Collapse Pods'}
-                                                                        onClick={() => this.toggleCompactView(application.metadata.name, pref)}>
+                                                                        onClick={() => this.toggleCompactView(application, pref)}>
                                                                         <i className={classNames('fa fa-object-group fa-fw')} />
                                                                     </a>
                                                                 </Tooltip>
