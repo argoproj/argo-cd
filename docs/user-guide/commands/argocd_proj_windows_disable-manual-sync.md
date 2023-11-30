@@ -12,6 +12,17 @@ Disable manual sync for a sync window. Requires ID which can be found by running
 argocd proj windows disable-manual-sync PROJECT ID [flags]
 ```
 
+### Examples
+
+```
+
+#Disable manual sync for a sync window for the Project 
+argocd proj windows disable-manual-sync PROJECT ID 
+
+#Disbaling manual sync for a windows set on the default project with Id 0
+argocd proj windows disable-manual-sync default 0
+```
+
 ### Options
 
 ```
