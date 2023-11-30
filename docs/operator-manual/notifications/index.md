@@ -109,7 +109,7 @@ metadata:
 ```
 
 !!! note
-When the same notification service and trigger are defined in controller level configuration and application level configuration,
-both notifications will be sent according to its own configuration.
+    When the same notification service and trigger are defined in controller level configuration and application level configuration,
+    both notifications will be sent according to its own configuration.
 
 [Defining and using secrets within notification templates](templates.md/#defining-and-using-secrets-within-notification-templates) function is not available when flag `--self-service-notification-enable` is on.
