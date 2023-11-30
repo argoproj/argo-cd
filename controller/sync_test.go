@@ -254,7 +254,7 @@ func TestAppStateManager_SyncAppState(t *testing.T) {
 	})
 }
 
-func Test_SyncWindowDeniesSync(t *testing.T) {
+func TestSyncWindowDeniesSync(t *testing.T) {
 	type fixture struct {
 		project     *v1alpha1.AppProject
 		application *v1alpha1.Application
