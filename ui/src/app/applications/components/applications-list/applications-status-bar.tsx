@@ -5,7 +5,7 @@ import {Consumer} from '../../../shared/context';
 import * as models from '../../../shared/models';
 
 import './applications-status-bar.scss';
-import {getAppSetHealthStatus, isInvokedFromApps} from '../utils';
+import {getAppSetHealthStatus, isApp} from '../utils';
 import {Application, ApplicationSet} from '../../../shared/models';
 
 export interface ApplicationsStatusBarProps {
@@ -14,7 +14,7 @@ export interface ApplicationsStatusBarProps {
 
 export const ApplicationsStatusBar = ({applications}: ApplicationsStatusBarProps) => {
     const readings: any[] = [];
-    if (isInvokedFromApps()) {
+    if (isApp(applications[0])) {
         readings.push(
             {
                 name: 'Healthy',

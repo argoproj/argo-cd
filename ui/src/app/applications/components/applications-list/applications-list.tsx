@@ -72,7 +72,6 @@ const APP_WATCH_FIELDS = AppUtils.isInvokedFromApps()
     : ['result.type', ...APPSET_FIELDS.map(field => `result.application.${field}`)];
 
 function loadApplications(projects: string[], appNamespace: string): Observable<models.AbstractApplication[]> {
-    // console.log('*** ctx.history.location.pathname *** ' + ctx.history.location.pathname);
     return from(services.applications.list(projects, {appNamespace, fields: APP_LIST_FIELDS})).pipe(
         mergeMap(applicationsList => {
             const applications = applicationsList.items;

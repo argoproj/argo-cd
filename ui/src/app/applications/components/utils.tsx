@@ -1293,8 +1293,7 @@ export function isApp(abstractApp: appModels.AbstractApplication): abstractApp i
 }
 
 export function isInvokedFromApps(): boolean {
-    // console.log("*** ctx.history.location.pathname *** " + ctx.history.location.pathname)
-    const isInvokedFromApp = true; //ctx.history.location.pathname.includes("applicationsets") ? true : false
+    const isInvokedFromApp = true;
     return isInvokedFromApp;
 }
 
@@ -1303,8 +1302,7 @@ export function isInvokedFromAppsCtx(
         history: History<unknown>;
     }
 ): boolean {
-    console.log('*** ctx.history.location.pathname *** ' + ctx.history.location.pathname);
-    const isInvokedFromApp = ctx.history.location.pathname.includes('applications') ? true : false;
+    const isInvokedFromApp = ctx.history.location.pathname.includes('applicationsets') ? false : true;
     return isInvokedFromApp;
 }
 

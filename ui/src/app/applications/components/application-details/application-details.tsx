@@ -164,8 +164,8 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
         services.viewPreferences.updatePreferences({appDetails: {...pref, groupNodes: !pref.groupNodes}});
     }
 
-    private getPageTitle(view: string) {
-        if (isInvokedFromApps()) {
+    private getPageTitle(view: string, isApp: boolean) {
+        if (isApp) {
             const {Tree, Pods, Network, List} = AppsDetailsViewKey;
             switch (view) {
                 case Tree:
@@ -405,11 +405,11 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                     <Page
                                         title={
                                             isApp(application)
-                                                ? this.props.match.params.name + ' - ' + this.getPageTitle(pref.view)
-                                                : this.props.match.params.name + ' - ' + this.getPageTitle(pref.view)
+                                                ? this.props.match.params.name + ' - ' + this.getPageTitle(pref.view, isApp(application))
+                                                : this.props.match.params.name + ' - ' + this.getPageTitle(pref.view, isApp(application))
                                         }
                                         useTitleOnly={true}
-                                        topBarTitle={this.getPageTitle(pref.view)}
+                                        topBarTitle={this.getPageTitle(pref.view, isApp(application))}
                                         toolbar={{
                                             breadcrumbs: [
                                                 {title: 'Applications', path: '/applications'},

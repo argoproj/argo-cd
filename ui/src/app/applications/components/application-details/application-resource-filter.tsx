@@ -4,7 +4,7 @@ import {ApplicationSetTree, ApplicationTree, HealthStatusCode, HealthStatuses, S
 import {AppDetailsPreferences, AppSetDetailsPreferences, services} from '../../../shared/services';
 import {Context} from '../../../shared/context';
 import {Filter, FiltersGroup} from '../filter/filter';
-import {ComparisonStatusIcon, HealthStatusIcon, isInvokedFromApps} from '../utils';
+import {ComparisonStatusIcon, HealthStatusIcon, isInvokedFromAppsCtx} from '../utils';
 import {resources} from '../resources';
 import * as models from '../../../shared/models';
 
@@ -161,7 +161,7 @@ export const Filters = (props: AbstractFiltersProps) => {
                 }))
             })}
             {namespaces.length > 1 && ResourceFilter({label: 'NAMESPACES', prefix: 'namespace', options: (namespaces || []).filter(l => l && l !== '').map(toOption), field: true})}
-            {((isInvokedFromApps() ? (tree as ApplicationTree).orphanedNodes : []) || []).length > 0 && (
+            {((isInvokedFromAppsCtx(ctx) ? (tree as ApplicationTree).orphanedNodes : []) || []).length > 0 && (
                 <div className={`filter filter__item ${pref.orphanedResources ? 'filter__item--selected' : ''}`}>
                     <Checkbox
                         value={!!pref.orphanedResources}

@@ -4,7 +4,7 @@ const PieChart = require('react-svg-piechart').default;
 import {COLORS} from '../../../shared/components';
 import * as models from '../../../shared/models';
 import {Application, ApplicationSet, HealthStatusCode, SyncStatusCode} from '../../../shared/models';
-import {ComparisonStatusIcon, HealthStatusIcon, getAppSetHealthStatus, isInvokedFromApps} from '../utils';
+import {ComparisonStatusIcon, HealthStatusIcon, getAppSetHealthStatus, isApp} from '../utils';
 
 const healthColors = new Map<models.HealthStatusCode, string>();
 healthColors.set('Unknown', COLORS.health.unknown);
@@ -28,8 +28,7 @@ export const ApplicationsSummary = ({applications}: {applications: models.Abstra
     const sync = new Map<string, number>();
     const health = new Map<string, number>();
 
-    // if (isApp(applications[0])) {
-    if (isInvokedFromApps()) {
+    if (isApp(applications[0])) {
         applications.forEach(app => sync.set((app as Application).status.sync.status, (sync.get((app as Application).status.sync.status) || 0) + 1));
         applications.forEach(app => health.set((app as Application).status.health.status, (health.get((app as Application).status.health.status) || 0) + 1));
     } else {
@@ -38,7 +37,7 @@ export const ApplicationsSummary = ({applications}: {applications: models.Abstra
         );
     }
 
-    const attributes = isInvokedFromApps()
+    const attributes = isApp(applications[0])
         ? [
               {
                   title: 'APPLICATIONS',
@@ -72,7 +71,7 @@ export const ApplicationsSummary = ({applications}: {applications: models.Abstra
               }
           ];
 
-    const charts = isInvokedFromApps()
+    const charts = isApp(applications[0])
         ? [
               {
                   title: 'Sync',
@@ -128,7 +127,7 @@ export const ApplicationsSummary = ({applications}: {applications: models.Abstra
                                                 <ul>
                                                     {Array.from(chart.legend.keys()).map(key => (
                                                         <li style={{listStyle: 'none', whiteSpace: 'nowrap'}} key={key}>
-                                                            {isInvokedFromApps() && chart.title === 'Health' && (
+                                                            {isApp(applications[0]) && chart.title === 'Health' && (
                                                                 <HealthStatusIcon state={{status: key as HealthStatusCode, message: ''}} noSpin={true} />
                                                             )}
                                                             {/* {chart.title === 'Health' && <AppSetHealthStatusIcon state={{conditions : key as ApplicationSetConditionStatus}} noSpin={true} />}  */}
