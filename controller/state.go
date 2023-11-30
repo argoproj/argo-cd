@@ -114,6 +114,7 @@ type appStateManager struct {
 	persistResourceHealth bool
 	repoErrorCache        goSync.Map
 	repoErrorGracePeriod  time.Duration
+	serverSideDiff        bool
 }
 
 // getRepoObjs will generate the manifests for the given application delegating the
@@ -584,13 +585,15 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 		manifestRevisions = append(manifestRevisions, manifestInfo.Revision)
 	}
 
-	useDiffCache := useDiffCache(noCache, manifestInfos, sources, app, manifestRevisions, m.statusRefreshTimeout, logCtx)
+	// TODO (SSD): Make serverSideDiff configurable via argocd-cm
+	// and resource annotation
+	serverSideDiff := true
+
+	useDiffCache := useDiffCache(noCache, manifestInfos, sources, app, manifestRevisions, m.statusRefreshTimeout, serverSideDiff, logCtx)
 
 	diffConfigBuilder := argodiff.NewDiffConfigBuilder().
 		WithDiffSettings(app.Spec.IgnoreDifferences, resourceOverrides, compareOptions.IgnoreAggregatedRoles).
-		WithTracking(appLabelKey, string(trackingMethod)).
-		WithCache(m.cache, app.InstanceName(m.namespace)).
-		WithRefreshType(refreshType)
+		WithTracking(appLabelKey, string(trackingMethod))
 
 	if useDiffCache {
 		diffConfigBuilder.WithCache(m.cache, app.InstanceName(m.namespace))
@@ -605,9 +608,6 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 	diffConfigBuilder.WithGVKParser(gvkParser)
 	diffConfigBuilder.WithManager(common.ArgoCDSSAManager)
 
-	// TODO (SSD): Make serverSideDiff configurable via argocd-cm
-	// and resource annotation
-	serverSideDiff := true
 	diffConfigBuilder.WithServerSideDiff(serverSideDiff)
 
 	if serverSideDiff {
@@ -819,18 +819,26 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 
 // useDiffCache will determine if the diff should be calculated based
 // on the existing live state cache or not.
-func useDiffCache(noCache bool, manifestInfos []*apiclient.ManifestResponse, sources []v1alpha1.ApplicationSource, app *v1alpha1.Application, manifestRevisions []string, statusRefreshTimeout time.Duration, log *log.Entry) bool {
+func useDiffCache(noCache bool, manifestInfos []*apiclient.ManifestResponse, sources []v1alpha1.ApplicationSource, app *v1alpha1.Application, manifestRevisions []string, statusRefreshTimeout time.Duration, serverSideDiff bool, log *log.Entry) bool {
 
 	if noCache {
 		log.WithField("useDiffCache", "false").Debug("noCache is true")
 		return false
 	}
-	_, refreshRequested := app.IsRefreshRequested()
+	refreshType, refreshRequested := app.IsRefreshRequested()
 	if refreshRequested {
-		log.WithField("useDiffCache", "false").Debug("refreshRequested")
-		return false
+		if refreshType == v1alpha1.RefreshTypeHard {
+			log.WithField("useDiffCache", "false").Debug("hard refresh requested")
+			return false
+		}
+		// serverSideDiff should still use cache if normal refresh is requested
+		if !serverSideDiff && refreshType == v1alpha1.RefreshTypeNormal {
+			log.WithField("useDiffCache", "false").Debug("normal refresh Requested")
+			return false
+		}
 	}
-	if app.Status.Expired(statusRefreshTimeout) {
+	// serverSideDiff should still use cache even if status is expired
+	if app.Status.Expired(statusRefreshTimeout) && !serverSideDiff {
 		log.WithField("useDiffCache", "false").Debug("app.status.expired")
 		return false
 	}
@@ -911,6 +919,7 @@ func NewAppStateManager(
 	resourceTracking argo.ResourceTracking,
 	persistResourceHealth bool,
 	repoErrorGracePeriod time.Duration,
+	serverSideDiff bool,
 ) AppStateManager {
 	return &appStateManager{
 		liveStateCache:        liveStateCache,
@@ -927,6 +936,7 @@ func NewAppStateManager(
 		resourceTracking:      resourceTracking,
 		persistResourceHealth: persistResourceHealth,
 		repoErrorGracePeriod:  repoErrorGracePeriod,
+		serverSideDiff:        serverSideDiff,
 	}
 }
 

@@ -1407,6 +1407,7 @@ func TestUseDiffCache(t *testing.T) {
 		manifestRevisions    []string
 		statusRefreshTimeout time.Duration
 		expectedUseCache     bool
+		serverSideDiff       bool
 	}
 
 	manifestInfos := func(revision string) []*apiclient.ManifestResponse {
@@ -1505,6 +1506,7 @@ func TestUseDiffCache(t *testing.T) {
 			manifestRevisions:    []string{"rev1"},
 			statusRefreshTimeout: time.Hour * 24,
 			expectedUseCache:     true,
+			serverSideDiff:       false,
 		},
 		{
 			testName:      "will use diff cache for multisource",
@@ -1548,6 +1550,7 @@ func TestUseDiffCache(t *testing.T) {
 			manifestRevisions:    []string{"rev1", "rev2"},
 			statusRefreshTimeout: time.Hour * 24,
 			expectedUseCache:     true,
+			serverSideDiff:       false,
 		},
 		{
 			testName:             "will return false if nocache is true",
@@ -1558,6 +1561,7 @@ func TestUseDiffCache(t *testing.T) {
 			manifestRevisions:    []string{"rev1"},
 			statusRefreshTimeout: time.Hour * 24,
 			expectedUseCache:     false,
+			serverSideDiff:       false,
 		},
 		{
 			testName:             "will return false if requested refresh",
@@ -1568,6 +1572,7 @@ func TestUseDiffCache(t *testing.T) {
 			manifestRevisions:    []string{"rev1"},
 			statusRefreshTimeout: time.Hour * 24,
 			expectedUseCache:     false,
+			serverSideDiff:       false,
 		},
 		{
 			testName:             "will return false if status expired",
@@ -1578,6 +1583,7 @@ func TestUseDiffCache(t *testing.T) {
 			manifestRevisions:    []string{"rev1"},
 			statusRefreshTimeout: time.Minute,
 			expectedUseCache:     false,
+			serverSideDiff:       false,
 		},
 		{
 			testName:             "will return false if there is a new revision",
@@ -1588,6 +1594,7 @@ func TestUseDiffCache(t *testing.T) {
 			manifestRevisions:    []string{"rev2"},
 			statusRefreshTimeout: time.Hour * 24,
 			expectedUseCache:     false,
+			serverSideDiff:       false,
 		},
 		{
 			testName:      "will return false if app spec repo changed",
@@ -1604,6 +1611,7 @@ func TestUseDiffCache(t *testing.T) {
 			manifestRevisions:    []string{"rev1"},
 			statusRefreshTimeout: time.Hour * 24,
 			expectedUseCache:     false,
+			serverSideDiff:       false,
 		},
 		{
 			testName:      "will return false if app spec IgnoreDifferences changed",
@@ -1626,6 +1634,7 @@ func TestUseDiffCache(t *testing.T) {
 			manifestRevisions:    []string{"rev1"},
 			statusRefreshTimeout: time.Hour * 24,
 			expectedUseCache:     false,
+			serverSideDiff:       false,
 		},
 	}
 
@@ -1638,7 +1647,7 @@ func TestUseDiffCache(t *testing.T) {
 			log := logrus.NewEntry(logger)
 
 			// When
-			useDiffCache := useDiffCache(tc.noCache, tc.manifestInfos, tc.sources, tc.app, tc.manifestRevisions, tc.statusRefreshTimeout, log)
+			useDiffCache := useDiffCache(tc.noCache, tc.manifestInfos, tc.sources, tc.app, tc.manifestRevisions, tc.statusRefreshTimeout, tc.serverSideDiff, log)
 
 			// Then
 			assert.Equal(t, useDiffCache, tc.expectedUseCache)

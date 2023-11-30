@@ -105,11 +105,6 @@ func (b *DiffConfigBuilder) WithServerSideDiff(ssd bool) *DiffConfigBuilder {
 	return b
 }
 
-func (b *DiffConfigBuilder) WithRefreshType(rt v1alpha1.RefreshType) *DiffConfigBuilder {
-	b.diffConfig.refreshType = rt
-	return b
-}
-
 // Build will first validate the current state of the diff config and return the
 // DiffConfig implementation if no errors are found. Will return nil and the error
 // details otherwise.
@@ -176,7 +171,6 @@ type diffConfig struct {
 	manager               string
 	serverSideDiff        bool
 	resourceOperations    kube.ResourceOperations
-	refreshType           v1alpha1.RefreshType
 }
 
 func (c *diffConfig) Ignores() []v1alpha1.ResourceIgnoreDifferences {
@@ -292,9 +286,6 @@ func StateDiffs(lives, configs []*unstructured.Unstructured, diffConfig DiffConf
 		diffOpts = append(diffOpts, diff.WithLogr(*diffConfig.Logger()))
 	}
 
-	// TODO (SSD): ServerSideDiff needs to be configured to always rely on the
-	// cache to avoid hitting Kube API too frequently. Need to validate if the
-	// current cached diff is compatible with SSD.
 	useCache, cachedDiff := diffConfig.DiffFromCache(diffConfig.AppName())
 	if useCache && cachedDiff != nil {
 		cached, err := diffArrayCached(normResults.Targets, normResults.Lives, cachedDiff, diffOpts...)
