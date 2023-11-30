@@ -44,6 +44,15 @@ func NewClusterCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clientc
 	var command = &cobra.Command{
 		Use:   "cluster",
 		Short: "Manage clusters configuration",
+		Example: `
+#Generate declarative config for a cluster
+argocd admin cluster generate-spec my-cluster -o yaml
+
+#Generate a kubeconfig for a cluster named "my-cluster" and display it in the console
+argocd admin cluster kubeconfig my-cluster
+
+#Print information namespaces which Argo CD manages in each cluster
+argocd admin cluster namespaces my-cluster `,
 		Run: func(c *cobra.Command, args []string) {
 			c.HelpFunc()(c, args)
 		},
@@ -460,6 +469,15 @@ func NewClusterStatsCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comma
 	var command = cobra.Command{
 		Use:   "stats",
 		Short: "Prints information cluster statistics and inferred shard number",
+		Example: `
+#Display stats and shards for clusters 
+argocd admin cluster stats
+
+#Display Cluster Statistics for a Specific Shard
+argocd admin cluster stats --shard=1
+
+#In a multi-cluster environment to print stats for a specific cluster say(target-cluster)
+argocd admin cluster stats target-cluster`,
 		Run: func(cmd *cobra.Command, args []string) {
 			ctx := cmd.Context()
 
@@ -510,6 +528,18 @@ func NewClusterConfig() *cobra.Command {
 		Use:               "kubeconfig CLUSTER_URL OUTPUT_PATH",
 		Short:             "Generates kubeconfig for the specified cluster",
 		DisableAutoGenTag: true,
+		Example: `
+#Generate a kubeconfig for a cluster named "my-cluster" on console
+argocd admin cluster kubeconfig my-cluster
+
+#Listing available kubeconfigs for clusters managed by argocd
+argocd admin cluster kubeconfig
+
+#Removing a specific kubeconfig file 
+argocd admin cluster kubeconfig my-cluster --delete
+
+#Generate a Kubeconfig for a Cluster with TLS Verification Disabled
+argocd admin cluster kubeconfig https://cluster-api-url:6443 /path/to/output/kubeconfig.yaml --insecure-skip-tls-verify`,
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
 
