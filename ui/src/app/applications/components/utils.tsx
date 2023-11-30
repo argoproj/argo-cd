@@ -435,7 +435,7 @@ function getResourceActionsMenuItems(resource: ResourceTreeNode, metadata: model
                                             close();
                                         } catch (e) {
                                             apis.notifications.show({
-                                                content: <ErrorNotification title='Unable to delete application' e={e} />,
+                                                content: <ErrorNotification title='Unable to run action' e={e} />,
                                                 type: NotificationType.Error
                                             });
                                         }
