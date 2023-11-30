@@ -818,12 +818,12 @@ metadata:
     release: "argocd"
     chart: redis-ha-4.22.3
 rules:
-  - apiGroups:
-      - ""
-    resources:
-      - endpoints
-    verbs:
-      - get
+- apiGroups:
+    - ""
+  resources:
+    - endpoints
+  verbs:
+    - get
 ---
 # Source: redis-ha/charts/redis-ha/templates/redis-haproxy-role.yaml
 apiVersion: rbac.authorization.k8s.io/v1
@@ -838,12 +838,12 @@ metadata:
     chart: redis-ha-4.22.3
     component: argocd-redis-ha-haproxy
 rules:
-  - apiGroups:
-      - ""
-    resources:
-      - endpoints
-    verbs:
-      - get
+- apiGroups:
+    - ""
+  resources:
+    - endpoints
+  verbs:
+    - get
 ---
 # Source: redis-ha/charts/redis-ha/templates/redis-ha-rolebinding.yaml
 apiVersion: rbac.authorization.k8s.io/v1
@@ -857,8 +857,8 @@ metadata:
     release: "argocd"
     chart: redis-ha-4.22.3
 subjects:
-  - kind: ServiceAccount
-    name: argocd-redis-ha
+- kind: ServiceAccount
+  name: argocd-redis-ha
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
@@ -877,8 +877,8 @@ metadata:
     chart: redis-ha-4.22.3
     component: argocd-redis-ha-haproxy
 subjects:
-  - kind: ServiceAccount
-    name: argocd-redis-ha-haproxy
+- kind: ServiceAccount
+  name: argocd-redis-ha-haproxy
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
@@ -901,14 +901,14 @@ spec:
   publishNotReadyAddresses: true
   type: ClusterIP
   ports:
-    - name: tcp-server
-      port: 6379
-      protocol: TCP
-      targetPort: redis
-    - name: tcp-sentinel
-      port: 26379
-      protocol: TCP
-      targetPort: sentinel
+  - name: tcp-server
+    port: 6379
+    protocol: TCP
+    targetPort: redis
+  - name: tcp-sentinel
+    port: 26379
+    protocol: TCP
+    targetPort: sentinel
   selector:
     release: argocd
     app: redis-ha
@@ -931,14 +931,14 @@ spec:
   publishNotReadyAddresses: true
   type: ClusterIP
   ports:
-    - name: tcp-server
-      port: 6379
-      protocol: TCP
-      targetPort: redis
-    - name: tcp-sentinel
-      port: 26379
-      protocol: TCP
-      targetPort: sentinel
+  - name: tcp-server
+    port: 6379
+    protocol: TCP
+    targetPort: redis
+  - name: tcp-sentinel
+    port: 26379
+    protocol: TCP
+    targetPort: sentinel
   selector:
     release: argocd
     app: redis-ha
@@ -961,14 +961,14 @@ spec:
   publishNotReadyAddresses: true
   type: ClusterIP
   ports:
-    - name: tcp-server
-      port: 6379
-      protocol: TCP
-      targetPort: redis
-    - name: tcp-sentinel
-      port: 26379
-      protocol: TCP
-      targetPort: sentinel
+  - name: tcp-server
+    port: 6379
+    protocol: TCP
+    targetPort: redis
+  - name: tcp-sentinel
+    port: 26379
+    protocol: TCP
+    targetPort: sentinel
   selector:
     release: argocd
     app: redis-ha
@@ -990,14 +990,14 @@ spec:
   type: ClusterIP
   clusterIP: None
   ports:
-    - name: tcp-server
-      port: 6379
-      protocol: TCP
-      targetPort: redis
-    - name: tcp-sentinel
-      port: 26379
-      protocol: TCP
-      targetPort: sentinel
+  - name: tcp-server
+    port: 6379
+    protocol: TCP
+    targetPort: redis
+  - name: tcp-sentinel
+    port: 26379
+    protocol: TCP
+    targetPort: sentinel
   selector:
     release: argocd
     app: redis-ha
@@ -1018,14 +1018,14 @@ metadata:
 spec:
   type: ClusterIP
   ports:
-    - name: tcp-haproxy
-      port: 6379
-      protocol: TCP
-      targetPort: redis
-    - name: http-exporter-port
-      port: 9101
-      protocol: TCP
-      targetPort: metrics-port
+  - name: tcp-haproxy
+    port: 6379
+    protocol: TCP
+    targetPort: redis
+  - name: http-exporter-port
+    port: 9101
+    protocol: TCP
+    targetPort: metrics-port
   selector:
     release: argocd
     app: redis-ha-haproxy
@@ -1066,7 +1066,7 @@ spec:
       # Needed when using unmodified rbac-setup.yml
       
       serviceAccountName: argocd-redis-ha-haproxy
-      securityContext:
+      securityContext: 
         fsGroup: 99
         runAsNonRoot: true
         runAsUser: 99
@@ -1084,77 +1084,77 @@ spec:
                   revision: "1"
               topologyKey: kubernetes.io/hostname
       initContainers:
-        - name: config-init
-          image: haproxy:2.6.14-alpine
-          imagePullPolicy: IfNotPresent
-          resources:
-            {}
-          command:
-            - sh
-          args:
-            - /readonly/haproxy_init.sh
-          securityContext:
-            allowPrivilegeEscalation: false
-            capabilities:
-              drop:
-                - ALL
-            runAsNonRoot: true
-            seccompProfile:
-              type: RuntimeDefault
-          volumeMounts:
-            - name: config-volume
-              mountPath: /readonly
-              readOnly: true
-            - name: data
-              mountPath: /data
-      containers:
-        - name: haproxy
-          image: haproxy:2.6.14-alpine
-          imagePullPolicy: IfNotPresent
-          securityContext:
-            allowPrivilegeEscalation: false
-            capabilities:
-              drop:
-                - ALL
-            runAsNonRoot: true
-            seccompProfile:
-              type: RuntimeDefault
-          livenessProbe:
-            httpGet:
-              path: /healthz
-              port: 8888
-            initialDelaySeconds: 5
-            periodSeconds: 3
-          readinessProbe:
-            httpGet:
-              path: /healthz
-              port: 8888
-            initialDelaySeconds: 5
-            periodSeconds: 3
-          ports:
-            - name: redis
-              containerPort: 6379
-            - name: metrics-port
-              containerPort: 9101
-          resources:
-            {}
-          volumeMounts:
-            - name: data
-              mountPath: /usr/local/etc/haproxy
-            - name: shared-socket
-              mountPath: /run/haproxy
-          lifecycle:
-            {}
-      volumes:
+      - name: config-init
+        image: haproxy:2.6.14-alpine
+        imagePullPolicy: IfNotPresent
+        resources:
+          {}
+        command:
+        - sh
+        args:
+        - /readonly/haproxy_init.sh
+        securityContext: 
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          runAsNonRoot: true
+          seccompProfile:
+            type: RuntimeDefault
+        volumeMounts:
         - name: config-volume
-          configMap:
-            name: argocd-redis-ha-configmap
-        - name: shared-socket
-          emptyDir:
-            {}
+          mountPath: /readonly
+          readOnly: true
         - name: data
-          emptyDir:
-            {}
+          mountPath: /data
+      containers:
+      - name: haproxy
+        image: haproxy:2.6.14-alpine
+        imagePullPolicy: IfNotPresent
+        securityContext: 
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          runAsNonRoot: true
+          seccompProfile:
+            type: RuntimeDefault
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 8888
+          initialDelaySeconds: 5
+          periodSeconds: 3
+        readinessProbe:
+          httpGet:
+            path: /healthz
+            port: 8888
+          initialDelaySeconds: 5
+          periodSeconds: 3
+        ports:
+        - name: redis
+          containerPort: 6379
+        - name: metrics-port
+          containerPort: 9101
+        resources:
+          {}
+        volumeMounts:
+        - name: data
+          mountPath: /usr/local/etc/haproxy
+        - name: shared-socket
+          mountPath: /run/haproxy
+        lifecycle:
+          {}
+      volumes:
+      - name: config-volume
+        configMap:
+          name: argocd-redis-ha-configmap
+      - name: shared-socket
+        emptyDir:
+          {}
+      - name: data
+        emptyDir:
+          {}
 ---
 # Source: redis-ha/charts/redis-ha/templates/redis-ha-statefulset.yaml
 apiVersion: apps/v1
@@ -1199,194 +1199,194 @@ spec:
                   release: argocd
                   argocd-redis-ha: replica
               topologyKey: kubernetes.io/hostname
-      securityContext:
+      securityContext: 
         fsGroup: 1000
         runAsNonRoot: true
         runAsUser: 1000
       serviceAccountName: argocd-redis-ha
       automountServiceAccountToken: false
       initContainers:
-        - name: config-init
-          image: redis:7.0.14-alpine
-          imagePullPolicy: IfNotPresent
-          resources:
-            {}
-          command:
-            - sh
-          args:
-            - /readonly-config/init.sh
-          securityContext:
-            allowPrivilegeEscalation: false
-            capabilities:
-              drop:
-                - ALL
-            runAsNonRoot: true
-            runAsUser: 1000
-            seccompProfile:
-              type: RuntimeDefault
-          env:
-            - name: SENTINEL_ID_0
-              value: 3c0d9c0320bb34888c2df5757c718ce6ca992ce6
-            - name: SENTINEL_ID_1
-              value: 40000915ab58c3fa8fd888fb8b24711944e6cbb4
-            - name: SENTINEL_ID_2
-              value: 2bbec7894d954a8af3bb54d13eaec53cb024e2ca
-          volumeMounts:
-            - name: config
-              mountPath: /readonly-config
-              readOnly: true
-            - name: data
-              mountPath: /data
+      - name: config-init
+        image: redis:7.0.14-alpine
+        imagePullPolicy: IfNotPresent
+        resources:
+          {}
+        command:
+        - sh
+        args:
+        - /readonly-config/init.sh
+        securityContext: 
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          runAsNonRoot: true
+          runAsUser: 1000
+          seccompProfile:
+            type: RuntimeDefault        
+        env:
+        - name: SENTINEL_ID_0
+          value: 3c0d9c0320bb34888c2df5757c718ce6ca992ce6
+        - name: SENTINEL_ID_1
+          value: 40000915ab58c3fa8fd888fb8b24711944e6cbb4
+        - name: SENTINEL_ID_2
+          value: 2bbec7894d954a8af3bb54d13eaec53cb024e2ca
+        volumeMounts:
+        - name: config
+          mountPath: /readonly-config
+          readOnly: true
+        - name: data
+          mountPath: /data
 
 
       containers:
+      - name: redis
+        image: redis:7.0.14-alpine
+        imagePullPolicy: IfNotPresent
+        command:
+        - redis-server
+        args:
+        - /data/conf/redis.conf
+        securityContext: 
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          runAsNonRoot: true
+          runAsUser: 1000
+          seccompProfile:
+            type: RuntimeDefault
+        livenessProbe:
+          initialDelaySeconds: 30
+          periodSeconds: 15
+          timeoutSeconds: 15
+          successThreshold: 1
+          failureThreshold: 5
+          exec:
+            command:
+              - sh
+              - -c
+              - /health/redis_liveness.sh
+        readinessProbe:
+          initialDelaySeconds: 30
+          periodSeconds: 15
+          timeoutSeconds: 15
+          successThreshold: 1
+          failureThreshold: 5
+          exec:
+            command:
+              - sh
+              - -c
+              - /health/redis_readiness.sh
+        resources:
+          {}
+        ports:
         - name: redis
-          image: redis:7.0.14-alpine
-          imagePullPolicy: IfNotPresent
-          command:
-            - redis-server
-          args:
-            - /data/conf/redis.conf
-          securityContext:
-            allowPrivilegeEscalation: false
-            capabilities:
-              drop:
-                - ALL
-            runAsNonRoot: true
-            runAsUser: 1000
-            seccompProfile:
-              type: RuntimeDefault
-          livenessProbe:
-            initialDelaySeconds: 30
-            periodSeconds: 15
-            timeoutSeconds: 15
-            successThreshold: 1
-            failureThreshold: 5
-            exec:
-              command:
-                - sh
-                - -c
-                - /health/redis_liveness.sh
-          readinessProbe:
-            initialDelaySeconds: 30
-            periodSeconds: 15
-            timeoutSeconds: 15
-            successThreshold: 1
-            failureThreshold: 5
-            exec:
-              command:
-                - sh
-                - -c
-                - /health/redis_readiness.sh
-          resources:
-            {}
-          ports:
-            - name: redis
-              containerPort: 6379
-          volumeMounts:
-            - name: config
-              mountPath: /readonly-config
-              readOnly: true
-            - mountPath: /data
-              name: data
-            - mountPath: /health
-              name: health
-          lifecycle:
-            preStop:
-              exec:
-                command:
-                  - /bin/sh
-                  - /readonly-config/trigger-failover-if-master.sh
-        - name: sentinel
-          image: redis:7.0.14-alpine
-          imagePullPolicy: IfNotPresent
-          command:
-            - redis-sentinel
-          args:
-            - /data/conf/sentinel.conf
-          securityContext:
-            allowPrivilegeEscalation: false
-            capabilities:
-              drop:
-                - ALL
-            runAsNonRoot: true
-            runAsUser: 1000
-            seccompProfile:
-              type: RuntimeDefault
-          livenessProbe:
-            initialDelaySeconds: 30
-            periodSeconds: 15
-            timeoutSeconds: 15
-            successThreshold: 1
-            failureThreshold: 5
-            exec:
-              command:
-                - sh
-                - -c
-                - /health/sentinel_liveness.sh
-          readinessProbe:
-            initialDelaySeconds: 30
-            periodSeconds: 15
-            timeoutSeconds: 15
-            successThreshold: 3
-            failureThreshold: 5
-            exec:
-              command:
-                - sh
-                - -c
-                - /health/sentinel_liveness.sh
-          resources:
-            {}
-          ports:
-            - name: sentinel
-              containerPort: 26379
-          volumeMounts:
-            - mountPath: /data
-              name: data
-            - mountPath: /health
-              name: health
-          lifecycle:
-            {}
-
-        - name: split-brain-fix
-          image: redis:7.0.14-alpine
-          imagePullPolicy: IfNotPresent
-          command:
-            - sh
-          args:
-            - /readonly-config/fix-split-brain.sh
-          securityContext:
-            allowPrivilegeEscalation: false
-            capabilities:
-              drop:
-                - ALL
-            runAsNonRoot: true
-            runAsUser: 1000
-            seccompProfile:
-              type: RuntimeDefault
-          env:
-            - name: SENTINEL_ID_0
-              value: 3c0d9c0320bb34888c2df5757c718ce6ca992ce6
-            - name: SENTINEL_ID_1
-              value: 40000915ab58c3fa8fd888fb8b24711944e6cbb4
-            - name: SENTINEL_ID_2
-              value: 2bbec7894d954a8af3bb54d13eaec53cb024e2ca
-          resources:
-            {}
-          volumeMounts:
-            - name: config
-              mountPath: /readonly-config
-              readOnly: true
-            - mountPath: /data
-              name: data
-      volumes:
+          containerPort: 6379
+        volumeMounts:
         - name: config
-          configMap:
-            name: argocd-redis-ha-configmap
-        - name: health
-          configMap:
-            name: argocd-redis-ha-health-configmap
-            defaultMode: 0755
-        - name: data
-          emptyDir:
-            {}
+          mountPath: /readonly-config
+          readOnly: true
+        - mountPath: /data
+          name: data
+        - mountPath: /health
+          name: health
+        lifecycle:
+          preStop:
+            exec:
+              command:
+              - /bin/sh
+              - /readonly-config/trigger-failover-if-master.sh
+      - name: sentinel
+        image: redis:7.0.14-alpine
+        imagePullPolicy: IfNotPresent
+        command:
+          - redis-sentinel
+        args:
+          - /data/conf/sentinel.conf
+        securityContext: 
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          runAsNonRoot: true
+          runAsUser: 1000
+          seccompProfile:
+            type: RuntimeDefault
+        livenessProbe:
+          initialDelaySeconds: 30
+          periodSeconds: 15
+          timeoutSeconds: 15
+          successThreshold: 1
+          failureThreshold: 5
+          exec:
+            command:
+              - sh
+              - -c
+              - /health/sentinel_liveness.sh
+        readinessProbe:
+          initialDelaySeconds: 30
+          periodSeconds: 15
+          timeoutSeconds: 15
+          successThreshold: 3
+          failureThreshold: 5
+          exec:
+            command:
+              - sh
+              - -c
+              - /health/sentinel_liveness.sh
+        resources:
+          {}
+        ports:
+          - name: sentinel
+            containerPort: 26379
+        volumeMounts:
+        - mountPath: /data
+          name: data
+        - mountPath: /health
+          name: health
+        lifecycle:
+          {}
+
+      - name: split-brain-fix
+        image: redis:7.0.14-alpine
+        imagePullPolicy: IfNotPresent
+        command:
+          - sh
+        args:
+          - /readonly-config/fix-split-brain.sh
+        securityContext: 
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          runAsNonRoot: true
+          runAsUser: 1000
+          seccompProfile:
+            type: RuntimeDefault        
+        env:
+        - name: SENTINEL_ID_0
+          value: 3c0d9c0320bb34888c2df5757c718ce6ca992ce6
+        - name: SENTINEL_ID_1
+          value: 40000915ab58c3fa8fd888fb8b24711944e6cbb4
+        - name: SENTINEL_ID_2
+          value: 2bbec7894d954a8af3bb54d13eaec53cb024e2ca
+        resources:
+          {}
+        volumeMounts:
+        - name: config
+          mountPath: /readonly-config
+          readOnly: true
+        - mountPath: /data
+          name: data
+      volumes:
+      - name: config
+        configMap:
+          name: argocd-redis-ha-configmap
+      - name: health
+        configMap:
+          name: argocd-redis-ha-health-configmap
+          defaultMode: 0755
+      - name: data
+        emptyDir:
+          {}
