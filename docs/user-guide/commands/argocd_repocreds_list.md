@@ -8,22 +8,6 @@ List configured repository credentials
 argocd repocreds list [flags]
 ```
 
-### Examples
-
-```
-  # List all repo urls
-  argocd repocreds list
-  
-  # List all repo urls in json format
-  argocd repocreds list -o json
-  
-  # List all repo urls in yaml format
-  argocd repocreds list -o yaml
-  
-  # List all repo urls in url format
-  argocd repocreds list -o url
-```
-
 ### Options
 
 ```

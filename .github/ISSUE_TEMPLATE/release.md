@@ -9,6 +9,12 @@ assignees: ''
 Target RC1 date: ___. __, ____
 Target GA date: ___. __, ____
 
+ - [ ] Create new section in the [Release Planning doc](https://docs.google.com/document/d/1trJIomcgXcfvLw0aYnERrFWfPjQOfYMDJOCh1S8nMBc/edit?usp=sharing)
+ - [ ] Schedule a Release Planning meeting roughly two weeks before the scheduled Release freeze date by adding it to the community calendar (or delegate this task to someone with write access to the community calendar)
+     - [ ] Include Zoom link in the invite
+ - [ ] Post in #argo-cd and #argo-contributors one week before the meeting
+ - [ ] Post again one hour before the meeting
+ - [ ] At the meeting, remove issues/PRs from the project's column for that release which have not been “claimed” by at least one Approver (add it to the next column if Approver requests that)
  - [ ] 1wk before feature freeze post in #argo-contributors that PRs must be merged by DD-MM-YYYY to be included in the release - ask approvers to drop items from milestone they can’t merge
  - [ ] At least two days before RC1 date, draft RC blog post and submit it for review (or delegate this task)
  - [ ] Cut RC1 (or delegate this task to an Approver and coordinate timing)

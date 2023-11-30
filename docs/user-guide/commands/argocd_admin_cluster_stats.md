@@ -8,20 +8,6 @@ Prints information cluster statistics and inferred shard number
 argocd admin cluster stats [flags]
 ```
 
-### Examples
-
-```
-
-#Display stats and shards for clusters 
-argocd admin cluster stats
-
-#Display Cluster Statistics for a Specific Shard
-argocd admin cluster stats --shard=1
-
-#In a multi-cluster environment to print stats for a specific cluster say(target-cluster)
-argocd admin cluster stats target-cluster
-```
-
 ### Options
 
 ```
@@ -35,7 +21,6 @@ argocd admin cluster stats target-cluster
       --cluster string                        The name of the kubeconfig cluster to use
       --context string                        The name of the kubeconfig context to use
       --default-cache-expiration duration     Cache expiration default (default 24h0m0s)
-      --disable-compression                   If true, opt-out of response compression for all requests to the server
   -h, --help                                  help for stats
       --insecure-skip-tls-verify              If true, the server's certificate will not be checked for validity. This will make your HTTPS connections insecure
       --kubeconfig string                     Path to a kube config. Only required if out-of-cluster

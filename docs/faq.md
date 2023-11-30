@@ -36,15 +36,6 @@ which might cause health check to return `Progressing` state instead of `Healthy
 As workaround Argo CD allows providing [health check](operator-manual/health.md) customization which overrides default
 behavior.
 
-If you are using Traefik for your Ingress, you can update the Traefik config to publish the loadBalancer IP using [publishedservice](https://doc.traefik.io/traefik/providers/kubernetes-ingress/#publishedservice), which will resolve this issue. 
-
-```yaml
-providers:
-  kubernetesIngress:
-    publishedService:
-      enabled: true
-```
-
 ## I forgot the admin password, how do I reset it?
 
 For Argo CD v1.8 and earlier, the initial password is set to the name of the server pod, as

@@ -2856,27 +2856,16 @@ func runGit(t *testing.T, workDir string, args ...string) string {
 	return stringOut
 }
 
-func Test_walkHelmValueFilesInPath(t *testing.T) {
+func Test_findHelmValueFilesInPath(t *testing.T) {
 	t.Run("does not exist", func(t *testing.T) {
-		var files []string
-		root := "/obviously/does/not/exist"
-		err := filepath.Walk(root, walkHelmValueFilesInPath(root, &files))
+		files, err := findHelmValueFilesInPath("/obviously/does/not/exist")
 		assert.Error(t, err)
 		assert.Empty(t, files)
 	})
 	t.Run("values files", func(t *testing.T) {
-		var files []string
-		root := "./testdata/values-files"
-		err := filepath.Walk(root, walkHelmValueFilesInPath(root, &files))
+		files, err := findHelmValueFilesInPath("./testdata/values-files")
 		assert.NoError(t, err)
-		assert.Len(t, files, 5)
-	})
-	t.Run("unrelated root", func(t *testing.T) {
-		var files []string
-		root := "./testdata/values-files"
-		unrelated_root := "/different/root/path"
-		err := filepath.Walk(root, walkHelmValueFilesInPath(unrelated_root, &files))
-		assert.Error(t, err)
+		assert.Len(t, files, 4)
 	})
 }
 
@@ -2894,7 +2883,7 @@ func Test_populateHelmAppDetails(t *testing.T) {
 	err = populateHelmAppDetails(&res, appPath, appPath, &q, emptyTempPaths)
 	require.NoError(t, err)
 	assert.Len(t, res.Helm.Parameters, 3)
-	assert.Len(t, res.Helm.ValueFiles, 5)
+	assert.Len(t, res.Helm.ValueFiles, 4)
 }
 
 func Test_populateHelmAppDetails_values_symlinks(t *testing.T) {
