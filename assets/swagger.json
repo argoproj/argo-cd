@@ -8156,6 +8156,9 @@
         "displayName": {
           "type": "string"
         },
+        "errorMessage": {
+          "type": "string"
+        },
         "hasParameters": {
           "type": "boolean"
         },
@@ -8170,6 +8173,9 @@
           "items": {
             "$ref": "#/definitions/v1alpha1ResourceActionParam"
           }
+        },
+        "regexp": {
+          "type": "string"
         }
       }
     },

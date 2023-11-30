@@ -2025,6 +2025,8 @@ type ResourceAction struct {
 	DisplayName   string                `json:"displayName,omitempty" protobuf:"bytes,5,opt,name=displayName"`
 	DefaultValue  string                `json:"defaultValue,omitempty" protobuf:"bytes,6,opt,name=defaultValue"`
 	HasParameters bool                  `json:"hasParameters,omitempty" protobuf:"bytes,7,opt,name=hasParameters"`
+	Regexp        string                `json:"regexp,omitempty" protobuf:"bytes,8,opt,name=regexp"`
+	ErrorMessage  string                `json:"errorMessage,omitempty" protobuf:"bytes,9,opt,name=errorMessage"`
 }
 
 // TODO: describe this type

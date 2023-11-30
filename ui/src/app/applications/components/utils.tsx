@@ -425,6 +425,9 @@ function getResourceActionsMenuItems(resource: ResourceTreeNode, metadata: model
                                     </div>
                                 ),
                                 {
+                                    validate: vals => ({
+                                        inputParameter: !vals.inputParameter.match(action.regexp) && action.errorMessage
+                                    }),
                                     submit: async (vals, _, close) => {
                                         try {
                                             const resourceActionParameters = action.hasParameters ? [{name: action.name, value: vals.inputParameter}] : [];
