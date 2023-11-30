@@ -320,6 +320,7 @@ spec:
 
 * `branchMatch`: A regexp matched against source branch names.
 * `targetBranchMatch`: A regexp matched against target branch names.
+* `titleMatch`: A regexp matched against pull request's title.
 
 [GitHub](#github) and [GitLab](#gitlab) also support a `labels` filter.
 

@@ -60,6 +60,7 @@ func TestListPullRequest(t *testing.T) {
 
 	pullRequestMock := []git.GitPullRequest{
 		{
+			Title:         createStringPtr("An Azure DevOps pull request"),
 			PullRequestId: createIntPtr(pr_id),
 			SourceRefName: createStringPtr("refs/heads/feature-branch"),
 			LastMergeSourceCommit: &git.GitCommitRef{
@@ -92,6 +93,7 @@ func TestListPullRequest(t *testing.T) {
 	list, err := provider.List(ctx)
 	assert.NoError(t, err)
 	assert.Equal(t, 1, len(list))
+	assert.Equal(t, "An Azure DevOps pull request", list[0].Title)
 	assert.Equal(t, "feature-branch", list[0].Branch)
 	assert.Equal(t, pr_head_sha, list[0].HeadSHA)
 	assert.Equal(t, pr_id, list[0].Number)

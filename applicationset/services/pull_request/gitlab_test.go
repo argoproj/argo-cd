@@ -78,6 +78,7 @@ func TestList(t *testing.T) {
 	prs, err := svc.List(context.Background())
 	assert.NoError(t, err)
 	assert.Len(t, prs, 1)
+	assert.Equal(t, prs[0].Title, "Draft: Use structured logging for DB load balancer")
 	assert.Equal(t, prs[0].Number, 15442)
 	assert.Equal(t, prs[0].Branch, "use-structured-logging-for-db-load-balancer")
 	assert.Equal(t, prs[0].TargetBranch, "master")

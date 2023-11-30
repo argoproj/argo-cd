@@ -92,6 +92,7 @@ func (a *AzureDevOpsService) List(ctx context.Context) ([]*PullRequest, error) {
 
 		if *pr.Repository.Name == a.repo {
 			pullRequests = append(pullRequests, &PullRequest{
+				Title:   *pr.Title,
 				Number:  *pr.PullRequestId,
 				Branch:  strings.Replace(*pr.SourceRefName, "refs/heads/", "", 1),
 				HeadSHA: *pr.LastMergeSourceCommit.CommitId,

@@ -56,6 +56,7 @@ func (g *GiteaService) List(ctx context.Context) ([]*PullRequest, error) {
 	list := []*PullRequest{}
 	for _, pr := range prs {
 		list = append(list, &PullRequest{
+			Title:        pr.Title,
 			Number:       int(pr.Index),
 			Branch:       pr.Head.Ref,
 			TargetBranch: pr.Base.Ref,

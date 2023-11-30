@@ -16,6 +16,7 @@ func TestFilterBranchMatchBadRegexp(t *testing.T) {
 		context.Background(),
 		[]*PullRequest{
 			{
+				Title:        "This is a PR",
 				Number:       1,
 				Branch:       "branch1",
 				TargetBranch: "master",
@@ -33,29 +34,56 @@ func TestFilterBranchMatchBadRegexp(t *testing.T) {
 	assert.Error(t, err)
 }
 
+func TestFilterTitleMatchBadRegexp(t *testing.T) {
+	provider, _ := NewFakeService(
+		context.Background(),
+		[]*PullRequest{
+			{
+				Title:        "This is a PR",
+				Number:       1,
+				Branch:       "branch1",
+				TargetBranch: "master",
+				HeadSHA:      "089d92cbf9ff857a39e6feccd32798ca700fb958",
+			},
+		},
+		nil,
+	)
+	filters := []argoprojiov1alpha1.PullRequestGeneratorFilter{
+		{
+			TitleMatch: strp("("),
+		},
+	}
+	_, err := ListPullRequests(context.Background(), provider, filters)
+	assert.Error(t, err)
+}
+
 func TestFilterBranchMatch(t *testing.T) {
 	provider, _ := NewFakeService(
 		context.Background(),
 		[]*PullRequest{
 			{
+				Title:        "This is a PR",
 				Number:       1,
 				Branch:       "one",
 				TargetBranch: "master",
 				HeadSHA:      "189d92cbf9ff857a39e6feccd32798ca700fb958",
 			},
 			{
+				Title:        "This is a PR",
 				Number:       2,
 				Branch:       "two",
 				TargetBranch: "master",
 				HeadSHA:      "289d92cbf9ff857a39e6feccd32798ca700fb958",
 			},
 			{
+				Title:        "This is a PR",
 				Number:       3,
 				Branch:       "three",
 				TargetBranch: "master",
 				HeadSHA:      "389d92cbf9ff857a39e6feccd32798ca700fb958",
 			},
 			{
+				Title:        "This is a PR",
 				Number:       4,
 				Branch:       "four",
 				TargetBranch: "master",
@@ -80,24 +108,28 @@ func TestFilterTargetBranchMatch(t *testing.T) {
 		context.Background(),
 		[]*PullRequest{
 			{
+				Title:        "This is a PR",
 				Number:       1,
 				Branch:       "one",
 				TargetBranch: "master",
 				HeadSHA:      "189d92cbf9ff857a39e6feccd32798ca700fb958",
 			},
 			{
+				Title:        "This is a PR",
 				Number:       2,
 				Branch:       "two",
 				TargetBranch: "branch1",
 				HeadSHA:      "289d92cbf9ff857a39e6feccd32798ca700fb958",
 			},
 			{
+				Title:        "This is a PR",
 				Number:       3,
 				Branch:       "three",
 				TargetBranch: "branch2",
 				HeadSHA:      "389d92cbf9ff857a39e6feccd32798ca700fb958",
 			},
 			{
+				Title:        "This is a PR",
 				Number:       4,
 				Branch:       "four",
 				TargetBranch: "branch3",
@@ -117,29 +149,79 @@ func TestFilterTargetBranchMatch(t *testing.T) {
 	assert.Equal(t, "two", pullRequests[0].Branch)
 }
 
-func TestMultiFilterOr(t *testing.T) {
+func TestFilterTitleMatch(t *testing.T) {
 	provider, _ := NewFakeService(
 		context.Background(),
 		[]*PullRequest{
 			{
+				Title:        "PR number one",
 				Number:       1,
 				Branch:       "one",
 				TargetBranch: "master",
 				HeadSHA:      "189d92cbf9ff857a39e6feccd32798ca700fb958",
 			},
 			{
+				Title:        "PR number two",
+				Number:       2,
+				Branch:       "two",
+				TargetBranch: "branch1",
+				HeadSHA:      "289d92cbf9ff857a39e6feccd32798ca700fb958",
+			},
+			{
+				Title:        "This is an MR",
+				Number:       3,
+				Branch:       "three",
+				TargetBranch: "branch2",
+				HeadSHA:      "389d92cbf9ff857a39e6feccd32798ca700fb958",
+			},
+			{
+				Title:        "This is a PR",
+				Number:       4,
+				Branch:       "four",
+				TargetBranch: "branch3",
+				HeadSHA:      "489d92cbf9ff857a39e6feccd32798ca700fb958",
+			},
+		},
+		nil,
+	)
+	filters := []argoprojiov1alpha1.PullRequestGeneratorFilter{
+		{
+			TitleMatch: strp("MR$"),
+		},
+	}
+	pullRequests, err := ListPullRequests(context.Background(), provider, filters)
+	assert.NoError(t, err)
+	assert.Len(t, pullRequests, 1)
+	assert.Equal(t, "This is an MR", pullRequests[0].Title)
+}
+
+func TestMultiFilterOr(t *testing.T) {
+	provider, _ := NewFakeService(
+		context.Background(),
+		[]*PullRequest{
+			{
+				Title:        "The real MR",
+				Number:       1,
+				Branch:       "one",
+				TargetBranch: "master",
+				HeadSHA:      "189d92cbf9ff857a39e6feccd32798ca700fb958",
+			},
+			{
+				Title:        "The fake MR",
 				Number:       2,
 				Branch:       "two",
 				TargetBranch: "master",
 				HeadSHA:      "289d92cbf9ff857a39e6feccd32798ca700fb958",
 			},
 			{
+				Title:        "The fake PR",
 				Number:       3,
 				Branch:       "three",
 				TargetBranch: "master",
 				HeadSHA:      "389d92cbf9ff857a39e6feccd32798ca700fb958",
 			},
 			{
+				Title:        "The fake PR",
 				Number:       4,
 				Branch:       "four",
 				TargetBranch: "master",
@@ -155,38 +237,46 @@ func TestMultiFilterOr(t *testing.T) {
 		{
 			BranchMatch: strp("r"),
 		},
+		{
+			TitleMatch: strp("^The real"),
+		},
 	}
 	pullRequests, err := ListPullRequests(context.Background(), provider, filters)
 	assert.NoError(t, err)
-	assert.Len(t, pullRequests, 3)
-	assert.Equal(t, "two", pullRequests[0].Branch)
-	assert.Equal(t, "three", pullRequests[1].Branch)
-	assert.Equal(t, "four", pullRequests[2].Branch)
+	assert.Len(t, pullRequests, 4)
+	assert.Equal(t, "The real MR", pullRequests[0].Title)
+	assert.Equal(t, "two", pullRequests[1].Branch)
+	assert.Equal(t, "three", pullRequests[2].Branch)
+	assert.Equal(t, "four", pullRequests[3].Branch)
 }
 
-func TestMultiFilterOrWithTargetBranchFilter(t *testing.T) {
+func TestMultiFilterAll(t *testing.T) {
 	provider, _ := NewFakeService(
 		context.Background(),
 		[]*PullRequest{
 			{
+				Title:        "MR",
 				Number:       1,
 				Branch:       "one",
 				TargetBranch: "master",
 				HeadSHA:      "189d92cbf9ff857a39e6feccd32798ca700fb958",
 			},
 			{
+				Title:        "MR",
 				Number:       2,
 				Branch:       "two",
 				TargetBranch: "branch1",
 				HeadSHA:      "289d92cbf9ff857a39e6feccd32798ca700fb958",
 			},
 			{
+				Title:        "PR",
 				Number:       3,
 				Branch:       "three",
 				TargetBranch: "branch2",
 				HeadSHA:      "389d92cbf9ff857a39e6feccd32798ca700fb958",
 			},
 			{
+				Title:        "PullRequest",
 				Number:       4,
 				Branch:       "four",
 				TargetBranch: "branch3",
@@ -199,17 +289,22 @@ func TestMultiFilterOrWithTargetBranchFilter(t *testing.T) {
 		{
 			BranchMatch:       strp("w"),
 			TargetBranchMatch: strp("1"),
+			TitleMatch:        strp("^MR$"),
 		},
 		{
 			BranchMatch:       strp("r"),
 			TargetBranchMatch: strp("3"),
 		},
+		{
+			TitleMatch: strp("^PR$"),
+		},
 	}
 	pullRequests, err := ListPullRequests(context.Background(), provider, filters)
 	assert.NoError(t, err)
-	assert.Len(t, pullRequests, 2)
+	assert.Len(t, pullRequests, 3)
 	assert.Equal(t, "two", pullRequests[0].Branch)
-	assert.Equal(t, "four", pullRequests[1].Branch)
+	assert.Equal(t, "PR", pullRequests[1].Title)
+	assert.Equal(t, "four", pullRequests[2].Branch)
 }
 
 func TestNoFilters(t *testing.T) {
@@ -217,12 +312,14 @@ func TestNoFilters(t *testing.T) {
 		context.Background(),
 		[]*PullRequest{
 			{
+				Title:        "This is a PR",
 				Number:       1,
 				Branch:       "one",
 				TargetBranch: "master",
 				HeadSHA:      "189d92cbf9ff857a39e6feccd32798ca700fb958",
 			},
 			{
+				Title:        "This is a PR",
 				Number:       2,
 				Branch:       "two",
 				TargetBranch: "master",

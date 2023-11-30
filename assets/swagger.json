@@ -7801,6 +7801,9 @@
         },
         "targetBranchMatch": {
           "type": "string"
+        },
+        "titleMatch": {
+          "type": "string"
         }
       }
     },

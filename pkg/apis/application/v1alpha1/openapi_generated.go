@@ -5090,6 +5090,12 @@ func schema_pkg_apis_application_v1alpha1_PullRequestGeneratorFilter(ref common.
 							Format: "",
 						},
 					},
+					"titleMatch": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
 				},
 			},
 		},

@@ -24,6 +24,7 @@ func defaultHandler(t *testing.T) func(http.ResponseWriter, *http.Request) {
 					"values": [
 						{
 							"id": 101,
+                            "title": "A Bitbucket Server pull request",
 							"toRef": {
 								"latestCommit": "5b766e3564a3453808f3cd3dd3f2e5fad8ef0e7a",
 								"displayId": "master",
@@ -77,6 +78,7 @@ func TestListPullRequestPagination(t *testing.T) {
 					"values": [
 						{
 							"id": 101,
+                            "title": "A pull request number one",
 							"toRef": {
 								"latestCommit": "5b766e3564a3453808f3cd3dd3f2e5fad8ef0e7a",
 								"displayId": "master",
@@ -90,6 +92,7 @@ func TestListPullRequestPagination(t *testing.T) {
 						},
 						{
 							"id": 102,
+                            "title": "A pull request number two",
 							"toRef": {
 								"latestCommit": "5b766e3564a3453808f3cd3dd3f2e5fad8ef0e7a",
 								"displayId": "branch",
@@ -112,6 +115,7 @@ func TestListPullRequestPagination(t *testing.T) {
 				"values": [
 					{
 						"id": 200,
+                        "title": "A pull request number three",
 						"toRef": {
 							"latestCommit": "5b766e3564a3453808f3cd3dd3f2e5fad8ef0e7a",
 							"displayId": "master",
@@ -140,6 +144,7 @@ func TestListPullRequestPagination(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, 3, len(pullRequests))
 	assert.Equal(t, PullRequest{
+		Title:        "A pull request number one",
 		Number:       101,
 		Branch:       "feature-101",
 		TargetBranch: "master",
@@ -147,6 +152,7 @@ func TestListPullRequestPagination(t *testing.T) {
 		Labels:       []string{},
 	}, *pullRequests[0])
 	assert.Equal(t, PullRequest{
+		Title:        "A pull request number two",
 		Number:       102,
 		Branch:       "feature-102",
 		TargetBranch: "branch",
@@ -154,6 +160,7 @@ func TestListPullRequestPagination(t *testing.T) {
 		Labels:       []string{},
 	}, *pullRequests[1])
 	assert.Equal(t, PullRequest{
+		Title:        "A pull request number three",
 		Number:       200,
 		Branch:       "feature-200",
 		TargetBranch: "master",
@@ -175,6 +182,7 @@ func TestListPullRequestBasicAuth(t *testing.T) {
 	pullRequests, err := ListPullRequests(context.Background(), svc, []v1alpha1.PullRequestGeneratorFilter{})
 	assert.NoError(t, err)
 	assert.Equal(t, 1, len(pullRequests))
+	assert.Equal(t, "A Bitbucket Server pull request", pullRequests[0].Title)
 	assert.Equal(t, 101, pullRequests[0].Number)
 	assert.Equal(t, "feature-ABC-123", pullRequests[0].Branch)
 	assert.Equal(t, "cb3cf2e4d1517c83e720d2585b9402dbef71f992", pullRequests[0].HeadSHA)
@@ -255,6 +263,7 @@ func TestListPullRequestBranchMatch(t *testing.T) {
 					"values": [
 						{
 							"id": 101,
+                            "title": "PR with ID 101",
 							"toRef": {
 								"latestCommit": "5b766e3564a3453808f3cd3dd3f2e5fad8ef0e7a",
 								"displayId": "master",
@@ -268,6 +277,7 @@ func TestListPullRequestBranchMatch(t *testing.T) {
 						},
 						{
 							"id": 102,
+                            "title": "PR with ID 102",
 							"toRef": {
 								"latestCommit": "5b766e3564a3453808f3cd3dd3f2e5fad8ef0e7a",
 								"displayId": "branch",
@@ -290,6 +300,7 @@ func TestListPullRequestBranchMatch(t *testing.T) {
 				"values": [
 					{
 						"id": 200,
+                        "title": "PR with ID 200",
 						"toRef": {
 							"latestCommit": "5b766e3564a3453808f3cd3dd3f2e5fad8ef0e7a",
 							"displayId": "master",
@@ -323,6 +334,7 @@ func TestListPullRequestBranchMatch(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, 2, len(pullRequests))
 	assert.Equal(t, PullRequest{
+		Title:        "PR with ID 101",
 		Number:       101,
 		Branch:       "feature-101",
 		TargetBranch: "master",
@@ -330,6 +342,7 @@ func TestListPullRequestBranchMatch(t *testing.T) {
 		Labels:       []string{},
 	}, *pullRequests[0])
 	assert.Equal(t, PullRequest{
+		Title:        "PR with ID 102",
 		Number:       102,
 		Branch:       "feature-102",
 		TargetBranch: "branch",
@@ -348,6 +361,7 @@ func TestListPullRequestBranchMatch(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, 1, len(pullRequests))
 	assert.Equal(t, PullRequest{
+		Title:        "PR with ID 102",
 		Number:       102,
 		Branch:       "feature-102",
 		TargetBranch: "branch",

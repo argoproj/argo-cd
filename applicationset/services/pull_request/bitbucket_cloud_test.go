@@ -26,6 +26,7 @@ func defaultHandlerCloud(t *testing.T) func(http.ResponseWriter, *http.Request) 
 					"values": [
 						{
 							"id": 101,
+							"title": "A Bitbucket Cloud pull request",
 							"source": {
 								"branch": {
 									"name": "feature/foo-bar"
@@ -84,6 +85,7 @@ func TestListPullRequestBearerTokenCloud(t *testing.T) {
 	pullRequests, err := ListPullRequests(context.Background(), svc, []v1alpha1.PullRequestGeneratorFilter{})
 	assert.NoError(t, err)
 	assert.Equal(t, 1, len(pullRequests))
+	assert.Equal(t, "A Bitbucket Cloud pull request", pullRequests[0].Title)
 	assert.Equal(t, 101, pullRequests[0].Number)
 	assert.Equal(t, "feature/foo-bar", pullRequests[0].Branch)
 	assert.Equal(t, "1a8dd249c04a", pullRequests[0].HeadSHA)
@@ -100,6 +102,7 @@ func TestListPullRequestNoAuthCloud(t *testing.T) {
 	pullRequests, err := ListPullRequests(context.Background(), svc, []v1alpha1.PullRequestGeneratorFilter{})
 	assert.NoError(t, err)
 	assert.Equal(t, 1, len(pullRequests))
+	assert.Equal(t, "A Bitbucket Cloud pull request", pullRequests[0].Title)
 	assert.Equal(t, 101, pullRequests[0].Number)
 	assert.Equal(t, "feature/foo-bar", pullRequests[0].Branch)
 	assert.Equal(t, "1a8dd249c04a", pullRequests[0].HeadSHA)
@@ -116,6 +119,7 @@ func TestListPullRequestBasicAuthCloud(t *testing.T) {
 	pullRequests, err := ListPullRequests(context.Background(), svc, []v1alpha1.PullRequestGeneratorFilter{})
 	assert.NoError(t, err)
 	assert.Equal(t, 1, len(pullRequests))
+	assert.Equal(t, "A Bitbucket Cloud pull request", pullRequests[0].Title)
 	assert.Equal(t, 101, pullRequests[0].Number)
 	assert.Equal(t, "feature/foo-bar", pullRequests[0].Branch)
 	assert.Equal(t, "1a8dd249c04a", pullRequests[0].HeadSHA)
@@ -135,6 +139,7 @@ func TestListPullRequestPaginationCloud(t *testing.T) {
 				"values": [
 					{
 						"id": 101,
+                        "title": "PullRequest number one",
 						"source": {
 							"branch": {
 								"name": "feature-101"
@@ -147,6 +152,7 @@ func TestListPullRequestPaginationCloud(t *testing.T) {
 					},
 					{
 						"id": 102,
+                        "title": "PullRequest number two",
 						"source": {
 							"branch": {
 								"name": "feature-102"
@@ -168,6 +174,7 @@ func TestListPullRequestPaginationCloud(t *testing.T) {
 				"values": [
 					{
 						"id": 103,
+                        "title": "PullRequest number fifty",
 						"source": {
 							"branch": {
 								"name": "feature-103"
@@ -194,16 +201,19 @@ func TestListPullRequestPaginationCloud(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, 3, len(pullRequests))
 	assert.Equal(t, PullRequest{
+		Title:   "PullRequest number one",
 		Number:  101,
 		Branch:  "feature-101",
 		HeadSHA: "1a8dd249c04a",
 	}, *pullRequests[0])
 	assert.Equal(t, PullRequest{
+		Title:   "PullRequest number two",
 		Number:  102,
 		Branch:  "feature-102",
 		HeadSHA: "4cf807e67a6d",
 	}, *pullRequests[1])
 	assert.Equal(t, PullRequest{
+		Title:   "PullRequest number fifty",
 		Number:  103,
 		Branch:  "feature-103",
 		HeadSHA: "6344d9623e3b",
@@ -308,6 +318,7 @@ func TestListPullRequestBranchMatchCloud(t *testing.T) {
 				"values": [
 					{
 						"id": 101,
+                        "title": "PullRequest number one",
 						"source": {
 							"branch": {
 								"name": "feature-101"
@@ -320,6 +331,7 @@ func TestListPullRequestBranchMatchCloud(t *testing.T) {
 					},
 					{
 						"id": 200,
+                        "title": "PullRequest number onetyone",
 						"source": {
 							"branch": {
 								"name": "feature-200"
@@ -341,6 +353,7 @@ func TestListPullRequestBranchMatchCloud(t *testing.T) {
 				"values": [
 					{
 						"id": 102,
+                        "title": "PullRequest number thwee",
 						"source": {
 							"branch": {
 								"name": "feature-102"
@@ -372,11 +385,13 @@ func TestListPullRequestBranchMatchCloud(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, 2, len(pullRequests))
 	assert.Equal(t, PullRequest{
+		Title:   "PullRequest number one",
 		Number:  101,
 		Branch:  "feature-101",
 		HeadSHA: "1a8dd249c04a",
 	}, *pullRequests[0])
 	assert.Equal(t, PullRequest{
+		Title:   "PullRequest number thwee",
 		Number:  102,
 		Branch:  "feature-102",
 		HeadSHA: "6344d9623e3b",
@@ -393,6 +408,7 @@ func TestListPullRequestBranchMatchCloud(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, 1, len(pullRequests))
 	assert.Equal(t, PullRequest{
+		Title:   "PullRequest number thwee",
 		Number:  102,
 		Branch:  "feature-102",
 		HeadSHA: "6344d9623e3b",
