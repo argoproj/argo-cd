@@ -6,11 +6,15 @@ If you want to send message using incoming webhook, you can use [webhook](./webh
 
 The Slack notification service configuration includes following settings:
 
-* `token` - the app token
-* `apiURL` - optional, the server url, e.g. https://example.com/api
-* `username` - optional, the app username
-* `icon` - optional, the app icon, e.g. :robot_face: or https://example.com/image.png
-* `insecureSkipVerify` - optional bool, true or false
+| **Option**           | **Required** | **Type**       | **Description** | **Example** |
+| -------------------- | ------------ | -------------- | --------------- | ----------- |
+| `apiURL`             | False        | `string`       | The server URL. | `https://example.com/api` |
+| `channels`           | False        | `list[string]` |                 | `["my-channel-1", "my-channel-2"]` |
+| `icon`               | False        | `string`       | The app icon.   | `:robot_face:` or `https://example.com/image.png` |
+| `insecureSkipVerify` | False        | `bool`         |                 | `true` |
+| `signingSecret`       | False        | `string`       |                 | `8f742231b10e8888abcd99yyyzzz85a5` |
+| `token`              | **True**     | `string`       | The app's OAuth access token. | `xoxb-1234567890-1234567890123-5n38u5ed63fgzqlvuyxvxcx6` |
+| `username`           | False        | `string`       | The app username. | `argocd` |
 
 ## Configuration
 
@@ -29,56 +33,56 @@ The Slack notification service configuration includes following settings:
 1. Invite your slack bot to this channel **otherwise slack bot won't be able to deliver notifications to this channel**
 1. Store Oauth access token in `argocd-notifications-secret` secret
 
-```yaml
-  apiVersion: v1
-  kind: Secret
-  metadata:
-      name: <secret-name>
-  stringData:
-      slack-token: <Oauth-access-token>
-```
+    ```yaml
+      apiVersion: v1
+      kind: Secret
+      metadata:
+          name: <secret-name>
+      stringData:
+          slack-token: <Oauth-access-token>
+    ```
 
 1. Define service type slack in data section of `argocd-notifications-cm` configmap:
 
-```yaml
-  apiVersion: v1
-  kind: ConfigMap
-  metadata:
-    name: <config-map-name>
-  data:
-    service.slack: |
-      token: $slack-token
-```
+    ```yaml
+      apiVersion: v1
+      kind: ConfigMap
+      metadata:
+        name: <config-map-name>
+      data:
+        service.slack: |
+          token: $slack-token
+    ```
 
 1. Add annotation in application yaml file to enable notifications for specific argocd app.  The following example uses the [on-sync-succeeded trigger](../catalog.md#triggers):
 
-```yaml
-  apiVersion: argoproj.io/v1alpha1
-  kind: Application
-  metadata:
-    annotations:
-      notifications.argoproj.io/subscribe.on-sync-succeeded.slack: my_channel
-```
+    ```yaml
+      apiVersion: argoproj.io/v1alpha1
+      kind: Application
+      metadata:
+        annotations:
+          notifications.argoproj.io/subscribe.on-sync-succeeded.slack: my_channel
+    ```
 
 1. Annotation with more than one [trigger](../catalog.md#triggers), with multiple destinations and recipients
 
-```yaml
-  apiVersion: argoproj.io/v1alpha1
-  kind: Application
-  metadata:
-    annotations:
-      notifications.argoproj.io/subscriptions: |
-        - trigger: [on-scaling-replica-set, on-rollout-updated, on-rollout-step-completed]
-          destinations:
-            - service: slack
-              recipients: [my-channel-1, my-channel-2]
-            - service: email
-              recipients: [recipient-1, recipient-2, recipient-3 ]
-        - trigger: [on-rollout-aborted, on-analysis-run-failed, on-analysis-run-error]
-          destinations:
-            - service: slack
-              recipients: [my-channel-21, my-channel-22]
-```
+    ```yaml
+      apiVersion: argoproj.io/v1alpha1
+      kind: Application
+      metadata:
+        annotations:
+          notifications.argoproj.io/subscriptions: |
+            - trigger: [on-scaling-replica-set, on-rollout-updated, on-rollout-step-completed]
+              destinations:
+                - service: slack
+                  recipients: [my-channel-1, my-channel-2]
+                - service: email
+                  recipients: [recipient-1, recipient-2, recipient-3 ]
+            - trigger: [on-rollout-aborted, on-analysis-run-failed, on-analysis-run-error]
+              destinations:
+                - service: slack
+                  recipients: [my-channel-21, my-channel-22]
+    ```
 
 ## Templates
 

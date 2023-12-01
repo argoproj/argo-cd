@@ -415,9 +415,9 @@ Once we create this service, we can configure the Ingress to conditionally route
 ```
 
 ## [Istio](https://www.istio.io)
-You can put ArgoCD behind Istio using following configurations. Here we will achive both serving ArgoCD behind istio and using subpath on Istio
+You can put Argo CD behind Istio using following configurations. Here we will achive both serving Argo CD behind istio and using subpath on Istio
 
-First we need to make sure that we can run ArgoCD with subpath (ie /argocd). For this we have used install.yaml from argocd project as is
+First we need to make sure that we can run Argo CD with subpath (ie /argocd). For this we have used install.yaml from argocd project as is
 
 ```bash
 curl -kLs -o install.yaml https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
@@ -467,7 +467,7 @@ spec:
          value: "0"
 ```
 
-After that install ArgoCD  (there should be only 3 yml file defined above in current directory )
+After that install Argo CD  (there should be only 3 yml file defined above in current directory )
 
 ```bash
 kubectl apply -k ./ -n argocd --wait=true
@@ -661,9 +661,9 @@ metadata:
     networking.gke.io/v1beta1.FrontendConfig: argocd-frontend-config
 spec:
   tls:
-    - secretName: secret-yourdomain-com
+    - secretName: secret-example-com
   rules:
-    - host: argocd.yourdomain.com
+    - host: argocd.example.com
       http:
         paths:
         - pathType: ImplementationSpecific
@@ -686,9 +686,9 @@ metadata:
     networking.gke.io/v1beta1.FrontendConfig: argocd-frontend-config
 spec:
   tls:
-    - secretName: secret-yourdomain-com
+    - secretName: secret-example-com
   rules:
-    - host: argocd.yourdomain.com
+    - host: argocd.example.com
       http:
         paths:
         - pathType: Prefix
@@ -700,7 +700,7 @@ spec:
                 number: 80
 ```
 
-As you may know already, it can take some minutes to deploy the load balancer and become ready to accept connections. Once it's ready, get the public IP address for your Load Balancer, go to your DNS server (Google or third party) and point your domain or subdomain (i.e. argocd.yourdomain.com) to that IP address.
+As you may know already, it can take some minutes to deploy the load balancer and become ready to accept connections. Once it's ready, get the public IP address for your Load Balancer, go to your DNS server (Google or third party) and point your domain or subdomain (i.e. argocd.example.com) to that IP address.
 
 You can get that IP address describing the Ingress object like this:
 
@@ -712,7 +712,7 @@ Once the DNS change is propagated, you're ready to use Argo with your Google Clo
 
 ## Authenticating through multiple layers of authenticating reverse proxies
 
-ArgoCD endpoints may be protected by one or more reverse proxies layers, in that case, you can provide additional headers through the `argocd` CLI `--header` parameter to authenticate through those layers.
+Argo CD endpoints may be protected by one or more reverse proxies layers, in that case, you can provide additional headers through the `argocd` CLI `--header` parameter to authenticate through those layers.
 
 ```shell
 $ argocd login <host>:<port> --header 'x-token1:foo' --header 'x-token2:bar' # can be repeated multiple times
@@ -720,7 +720,7 @@ $ argocd login <host>:<port> --header 'x-token1:foo,x-token2:bar' # headers can 
 ```
 ## ArgoCD Server and UI Root Path (v1.5.3)
 
-ArgoCD server and UI can be configured to be available under a non-root path (e.g. `/argo-cd`).
+Argo CD server and UI can be configured to be available under a non-root path (e.g. `/argo-cd`).
 To do this, add the `--rootpath` flag into the `argocd-server` deployment command:
 
 ```yaml

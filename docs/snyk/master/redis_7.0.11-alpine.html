@@ -7,7 +7,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <title>Snyk test report</title>
-  <meta name="description" content="3 known vulnerabilities found in 27 vulnerable dependency paths.">
+  <meta name="description" content="5 known vulnerabilities found in 41 vulnerable dependency paths.">
   <base target="_blank">
   <link rel="icon" type="image/png" href="https://res.cloudinary.com/snyk/image/upload/v1468845142/favicon/favicon.png"
     sizes="194x194">
@@ -456,7 +456,7 @@
               <div class="header-wrap">
                   <h1 class="project__header__title">Snyk test report</h1>
     
-                <p class="timestamp">August 6th 2023, 12:14:57 am (UTC+00:00)</p>
+                <p class="timestamp">October 29th 2023, 12:15:46 am (UTC+00:00)</p>
               </div>
               <div class="source-panel">
                 <span>Scanned the following path:</span>
@@ -466,8 +466,8 @@
               </div>
     
               <div class="meta-counts">
-                <div class="meta-count"><span>3</span> <span>known vulnerabilities</span></div>
-                <div class="meta-count"><span>27 vulnerable dependency paths</span></div>
+                <div class="meta-count"><span>5</span> <span>known vulnerabilities</span></div>
+                <div class="meta-count"><span>41 vulnerable dependency paths</span></div>
                 <div class="meta-count"><span>18</span> <span>dependencies</span></div>
               </div><!-- .meta-counts -->
             </div><!-- .layout-container--short -->
@@ -485,6 +485,114 @@
       </section>
     <div class="layout-container" style="padding-top: 35px;">
       <div class="cards--vuln filter--patch filter--ignore">
+        <div class="card card--vuln  disclosure--not-new severity--critical" data-snyk-test="critical">
+            <h2 class="card__title">Out-of-bounds Write</h2>
+            <div class="card__section">
+        
+                <div class="label label--critical">
+                    <span class="label__text">critical severity</span>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Package Manager: alpine:3.18
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            busybox/busybox
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                docker-image|redis@7.0.11-alpine and busybox/busybox@1.36.1-r0
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|redis@7.0.11-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        busybox/busybox@1.36.1-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|redis@7.0.11-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        alpine-baselayout/alpine-baselayout@3.4.3-r1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        busybox/busybox-binsh@1.36.1-r0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        busybox/busybox@1.36.1-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|redis@7.0.11-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        busybox/busybox-binsh@1.36.1-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|redis@7.0.11-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        alpine-baselayout/alpine-baselayout@3.4.3-r1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        busybox/busybox-binsh@1.36.1-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|redis@7.0.11-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        busybox/ssl_client@1.36.1-r0
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="nvd-description">NVD Description</h2>
+        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>busybox</code> package and not the <code>busybox</code> package as distributed by <code>Alpine</code>.</em>
+        <em>See <code>How to fix?</code> for <code>Alpine:3.18</code> relevant fixed versions and status.</em></p>
+        <p>There is a stack overflow vulnerability in ash.c:6030 in busybox before 1.35. In the environment of Internet of Vehicles, this vulnerability can be executed from command to arbitrary code execution.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>Alpine:3.18</code> <code>busybox</code> to version 1.36.1-r1 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://bugs.busybox.net/show_bug.cgi?id=15216">cve@mitre.org</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-ALPINE318-BUSYBOX-5890990">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
         <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
             <h2 class="card__title">Improper Authentication</h2>
             <div class="card__section">
@@ -797,7 +905,7 @@
               <hr/>
               <!-- Overview -->
               <h2 id="nvd-description">NVD Description</h2>
-        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>openssl</code> package and not the <code>openssl</code> package as distributed by <code>Alpine:3.18</code>.</em>
+        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>openssl</code> package and not the <code>openssl</code> package as distributed by <code>Alpine</code>.</em>
         <em>See <code>How to fix?</code> for <code>Alpine:3.18</code> relevant fixed versions and status.</em></p>
         <p>Issue summary: Checking excessively long DH keys or parameters may be very slow.</p>
         <p>Impact summary: Applications that use the functions DH_check(), DH_check_ex()
@@ -835,6 +943,7 @@
         <li><a href="http://www.openwall.com/lists/oss-security/2023/07/19/6">openssl-security@openssl.org</a></li>
         <li><a href="http://www.openwall.com/lists/oss-security/2023/07/31/1">openssl-security@openssl.org</a></li>
         <li><a href="https://security.netapp.com/advisory/ntap-20230803-0011/">openssl-security@openssl.org</a></li>
+        <li><a href="https://lists.debian.org/debian-lts-announce/2023/08/msg00019.html">openssl-security@openssl.org</a></li>
         </ul>
         
               <hr/>
@@ -844,8 +953,192 @@
             </div>
         
         </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
+            <h2 class="card__title">Excessive Iteration</h2>
+            <div class="card__section">
+        
+                <div class="label label--medium">
+                    <span class="label__text">medium severity</span>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Package Manager: alpine:3.18
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            openssl/libcrypto3
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                docker-image|redis@7.0.11-alpine and openssl/libcrypto3@3.1.1-r1
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|redis@7.0.11-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto3@3.1.1-r1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|redis@7.0.11-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        .redis-rundeps@20230614.215749
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto3@3.1.1-r1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|redis@7.0.11-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        apk-tools/apk-tools@2.14.0-r2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto3@3.1.1-r1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|redis@7.0.11-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        busybox/ssl_client@1.36.1-r0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto3@3.1.1-r1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|redis@7.0.11-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        .redis-rundeps@20230614.215749
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3@3.1.1-r1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto3@3.1.1-r1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|redis@7.0.11-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3@3.1.1-r1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|redis@7.0.11-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        .redis-rundeps@20230614.215749
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3@3.1.1-r1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|redis@7.0.11-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        apk-tools/apk-tools@2.14.0-r2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3@3.1.1-r1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|redis@7.0.11-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        busybox/ssl_client@1.36.1-r0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3@3.1.1-r1
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="nvd-description">NVD Description</h2>
+        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>openssl</code> package and not the <code>openssl</code> package as distributed by <code>Alpine</code>.</em>
+        <em>See <code>How to fix?</code> for <code>Alpine:3.18</code> relevant fixed versions and status.</em></p>
+        <p>Issue summary: Checking excessively long DH keys or parameters may be very slow.</p>
+        <p>Impact summary: Applications that use the functions DH_check(), DH_check_ex()
+        or EVP_PKEY_param_check() to check a DH key or DH parameters may experience long
+        delays. Where the key or parameters that are being checked have been obtained
+        from an untrusted source this may lead to a Denial of Service.</p>
+        <p>The function DH_check() performs various checks on DH parameters. After fixing
+        CVE-2023-3446 it was discovered that a large q parameter value can also trigger
+        an overly long computation during some of these checks. A correct q value,
+        if present, cannot be larger than the modulus p parameter, thus it is
+        unnecessary to perform these checks if q is larger than p.</p>
+        <p>An application that calls DH_check() and supplies a key or parameters obtained
+        from an untrusted source could be vulnerable to a Denial of Service attack.</p>
+        <p>The function DH_check() is itself called by a number of other OpenSSL functions.
+        An application calling any of those other functions may similarly be affected.
+        The other functions affected by this are DH_check_ex() and
+        EVP_PKEY_param_check().</p>
+        <p>Also vulnerable are the OpenSSL dhparam and pkeyparam command line applications
+        when using the &#34;-check&#34; option.</p>
+        <p>The OpenSSL SSL/TLS implementation is not affected by this issue.</p>
+        <p>The OpenSSL 3.0 and 3.1 FIPS providers are not affected by this issue.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>Alpine:3.18</code> <code>openssl</code> to version 3.1.2-r0 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://git.openssl.org/gitweb/?p=openssl.git;a=commitdiff;h=6a1eb62c29db6cb5eec707f9338aee00f44e26f5">openssl-security@openssl.org</a></li>
+        <li><a href="https://git.openssl.org/gitweb/?p=openssl.git;a=commitdiff;h=869ad69aadd985c7b8ca6f4e5dd0eb274c9f3644">openssl-security@openssl.org</a></li>
+        <li><a href="https://git.openssl.org/gitweb/?p=openssl.git;a=commitdiff;h=9002fd07327a91f35ba6c1307e71fa6fd4409b7f">openssl-security@openssl.org</a></li>
+        <li><a href="https://git.openssl.org/gitweb/?p=openssl.git;a=commitdiff;h=91ddeba0f2269b017dc06c46c993a788974b1aa5">openssl-security@openssl.org</a></li>
+        <li><a href="https://www.openssl.org/news/secadv/20230731.txt">openssl-security@openssl.org</a></li>
+        <li><a href="http://www.openwall.com/lists/oss-security/2023/07/31/1">openssl-security@openssl.org</a></li>
+        <li><a href="http://seclists.org/fulldisclosure/2023/Jul/43">openssl-security@openssl.org</a></li>
+        <li><a href="https://lists.debian.org/debian-lts-announce/2023/08/msg00019.html">openssl-security@openssl.org</a></li>
+        <li><a href="https://security.netapp.com/advisory/ntap-20230818-0014/">openssl-security@openssl.org</a></li>
+        <li><a href="http://www.openwall.com/lists/oss-security/2023/09/22/9">openssl-security@openssl.org</a></li>
+        <li><a href="http://www.openwall.com/lists/oss-security/2023/09/22/11">openssl-security@openssl.org</a></li>
+        <li><a href="https://security.netapp.com/advisory/ntap-20231027-0008/">openssl-security@openssl.org</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-ALPINE318-OPENSSL-5821142">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
         <div class="card card--vuln  disclosure--not-new severity--low" data-snyk-test="low">
-            <h2 class="card__title">CVE-2023-3817</h2>
+            <h2 class="card__title">CVE-2023-5363</h2>
             <div class="card__section">
         
                 <div class="label label--low">
@@ -981,45 +1274,56 @@
               <hr/>
               <!-- Overview -->
               <h2 id="nvd-description">NVD Description</h2>
-        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>openssl</code> package and not the <code>openssl</code> package as distributed by <code>Alpine:3.18</code>.</em>
+        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>openssl</code> package and not the <code>openssl</code> package as distributed by <code>Alpine</code>.</em>
         <em>See <code>How to fix?</code> for <code>Alpine:3.18</code> relevant fixed versions and status.</em></p>
-        <p>Issue summary: Checking excessively long DH keys or parameters may be very slow.</p>
-        <p>Impact summary: Applications that use the functions DH_check(), DH_check_ex()
-        or EVP_PKEY_param_check() to check a DH key or DH parameters may experience long
-        delays. Where the key or parameters that are being checked have been obtained
-        from an untrusted source this may lead to a Denial of Service.</p>
-        <p>The function DH_check() performs various checks on DH parameters. After fixing
-        CVE-2023-3446 it was discovered that a large q parameter value can also trigger
-        an overly long computation during some of these checks. A correct q value,
-        if present, cannot be larger than the modulus p parameter, thus it is
-        unnecessary to perform these checks if q is larger than p.</p>
-        <p>An application that calls DH_check() and supplies a key or parameters obtained
-        from an untrusted source could be vulnerable to a Denial of Service attack.</p>
-        <p>The function DH_check() is itself called by a number of other OpenSSL functions.
-        An application calling any of those other functions may similarly be affected.
-        The other functions affected by this are DH_check_ex() and
-        EVP_PKEY_param_check().</p>
-        <p>Also vulnerable are the OpenSSL dhparam and pkeyparam command line applications
-        when using the &#34;-check&#34; option.</p>
+        <p>Issue summary: A bug has been identified in the processing of key and
+        initialisation vector (IV) lengths.  This can lead to potential truncation
+        or overruns during the initialisation of some symmetric ciphers.</p>
+        <p>Impact summary: A truncation in the IV can result in non-uniqueness,
+        which could result in loss of confidentiality for some cipher modes.</p>
+        <p>When calling EVP_EncryptInit_ex2(), EVP_DecryptInit_ex2() or
+        EVP_CipherInit_ex2() the provided OSSL_PARAM array is processed after
+        the key and IV have been established.  Any alterations to the key length,
+        via the &#34;keylen&#34; parameter or the IV length, via the &#34;ivlen&#34; parameter,
+        within the OSSL_PARAM array will not take effect as intended, potentially
+        causing truncation or overreading of these values.  The following ciphers
+        and cipher modes are impacted: RC2, RC4, RC5, CCM, GCM and OCB.</p>
+        <p>For the CCM, GCM and OCB cipher modes, truncation of the IV can result in
+        loss of confidentiality.  For example, when following NIST&#39;s SP 800-38D
+        section 8.2.1 guidance for constructing a deterministic IV for AES in
+        GCM mode, truncation of the counter portion could lead to IV reuse.</p>
+        <p>Both truncations and overruns of the key and overruns of the IV will
+        produce incorrect results and could, in some cases, trigger a memory
+        exception.  However, these issues are not currently assessed as security
+        critical.</p>
+        <p>Changing the key and/or IV lengths is not considered to be a common operation
+        and the vulnerable API was recently introduced. Furthermore it is likely that
+        application developers will have spotted this problem during testing since
+        decryption would fail unless both peers in the communication were similarly
+        vulnerable. For these reasons we expect the probability of an application being
+        vulnerable to this to be quite low. However if an application is vulnerable then
+        this issue is considered very serious. For these reasons we have assessed this
+        issue as Moderate severity overall.</p>
         <p>The OpenSSL SSL/TLS implementation is not affected by this issue.</p>
-        <p>The OpenSSL 3.0 and 3.1 FIPS providers are not affected by this issue.</p>
+        <p>The OpenSSL 3.0 and 3.1 FIPS providers are not affected by this because
+        the issue lies outside of the FIPS provider boundary.</p>
+        <p>OpenSSL 3.1 and 3.0 are vulnerable to this issue.</p>
         <h2 id="remediation">Remediation</h2>
-        <p>Upgrade <code>Alpine:3.18</code> <code>openssl</code> to version 3.1.2-r0 or higher.</p>
+        <p>Upgrade <code>Alpine:3.18</code> <code>openssl</code> to version 3.1.4-r0 or higher.</p>
         <h2 id="references">References</h2>
         <ul>
-        <li><a href="https://git.openssl.org/gitweb/?p=openssl.git;a=commitdiff;h=6a1eb62c29db6cb5eec707f9338aee00f44e26f5">openssl-security@openssl.org</a></li>
-        <li><a href="https://git.openssl.org/gitweb/?p=openssl.git;a=commitdiff;h=869ad69aadd985c7b8ca6f4e5dd0eb274c9f3644">openssl-security@openssl.org</a></li>
-        <li><a href="https://git.openssl.org/gitweb/?p=openssl.git;a=commitdiff;h=9002fd07327a91f35ba6c1307e71fa6fd4409b7f">openssl-security@openssl.org</a></li>
-        <li><a href="https://git.openssl.org/gitweb/?p=openssl.git;a=commitdiff;h=91ddeba0f2269b017dc06c46c993a788974b1aa5">openssl-security@openssl.org</a></li>
-        <li><a href="https://www.openssl.org/news/secadv/20230731.txt">openssl-security@openssl.org</a></li>
-        <li><a href="http://www.openwall.com/lists/oss-security/2023/07/31/1">openssl-security@openssl.org</a></li>
-        <li><a href="http://seclists.org/fulldisclosure/2023/Jul/43">openssl-security@openssl.org</a></li>
+        <li><a href="http://www.openwall.com/lists/oss-security/2023/10/24/1">openssl-security@openssl.org</a></li>
+        <li><a href="https://git.openssl.org/gitweb/?p=openssl.git;a=commitdiff;h=0df40630850fb2740e6be6890bb905d3fc623b2d">openssl-security@openssl.org</a></li>
+        <li><a href="https://git.openssl.org/gitweb/?p=openssl.git;a=commitdiff;h=5f69f5c65e483928c4b28ed16af6e5742929f1ee">openssl-security@openssl.org</a></li>
+        <li><a href="https://www.debian.org/security/2023/dsa-5532">openssl-security@openssl.org</a></li>
+        <li><a href="https://www.openssl.org/news/secadv/20231024.txt">openssl-security@openssl.org</a></li>
+        <li><a href="https://security.netapp.com/advisory/ntap-20231027-0010/">openssl-security@openssl.org</a></li>
         </ul>
         
               <hr/>
         
             <div class="cta card__cta">
-                <p><a href="https://snyk.io/vuln/SNYK-ALPINE318-OPENSSL-5821142">More about this vulnerability</a></p>
+                <p><a href="https://snyk.io/vuln/SNYK-ALPINE318-OPENSSL-6032386">More about this vulnerability</a></p>
             </div>
         
         </div><!-- .card -->

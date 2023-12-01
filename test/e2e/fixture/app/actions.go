@@ -366,6 +366,10 @@ func (a *Actions) Sync(args ...string) *Actions {
 		args = append(args, "--force")
 	}
 
+	if a.context.applyOutOfSyncOnly {
+		args = append(args, "--apply-out-of-sync-only")
+	}
+
 	if a.context.replace {
 		args = append(args, "--replace")
 	}
