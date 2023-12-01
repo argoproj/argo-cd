@@ -65,6 +65,7 @@ type ApplicationSetSpec struct {
 	// ApplyNestedSelectors enables selectors defined within the generators of two level-nested matrix or merge generators
 	ApplyNestedSelectors         bool                            `json:"applyNestedSelectors,omitempty" protobuf:"bytes,8,name=applyNestedSelectors"`
 	IgnoreApplicationDifferences ApplicationSetIgnoreDifferences `json:"ignoreApplicationDifferences,omitempty" protobuf:"bytes,9,name=ignoreApplicationDifferences"`
+	TemplatePatch                *string                         `json:"templatePatch,omitempty" protobuf:"bytes,10,name=templatePatch"`
 }
 
 type ApplicationPreservedFields struct {
