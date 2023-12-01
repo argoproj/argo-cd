@@ -714,6 +714,7 @@ export interface ProjectSignatureKey {
 
 export interface ProjectSpec {
     sourceRepos: string[];
+    sourceNamespaces: string[];
     destinations: ApplicationDestination[];
     description: string;
     roles: ProjectRole[];
