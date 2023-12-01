@@ -1533,10 +1533,10 @@ func Test_newEnv(t *testing.T) {
 		&argoappv1.EnvEntry{Name: "ARGOCD_APP_SOURCE_PATH", Value: "my-path"},
 		&argoappv1.EnvEntry{Name: "ARGOCD_APP_SOURCE_TARGET_REVISION", Value: "my-target-revision"},
 	}, newEnv(&apiclient.ManifestRequest{
-		AppName:   "my-app-name",
-		Namespace: "my-namespace",
+		AppName:     "my-app-name",
+		Namespace:   "my-namespace",
 		ProjectName: "my-project",
-		Repo:      &argoappv1.Repository{Repo: "https://github.com/my-org/my-repo"},
+		Repo:        &argoappv1.Repository{Repo: "https://github.com/my-org/my-repo"},
 		ApplicationSource: &argoappv1.ApplicationSource{
 			Path:           "my-path",
 			TargetRevision: "my-target-revision",
