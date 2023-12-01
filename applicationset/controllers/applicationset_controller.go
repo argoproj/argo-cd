@@ -524,6 +524,7 @@ func (r *ApplicationSetReconciler) generateApplications(logCtx *log.Entry, appli
 
 			for _, p := range a.Params {
 				app, err := r.Renderer.RenderTemplateParams(tmplApplication, applicationSetInfo.Spec.SyncPolicy, p, applicationSetInfo.Spec.GoTemplate, applicationSetInfo.Spec.GoTemplateOptions)
+
 				if err != nil {
 					logCtx.WithError(err).WithField("params", a.Params).WithField("generator", requestedGenerator).
 						Error("error generating application from params")
@@ -534,6 +535,24 @@ func (r *ApplicationSetReconciler) generateApplications(logCtx *log.Entry, appli
 					}
 					continue
 				}
+
+				if applicationSetInfo.Spec.TemplatePatch != nil {
+					patchedApplication, err := r.applyTemplatePatch(app, applicationSetInfo, p)
+
+					if err != nil {
+						log.WithError(err).WithField("params", a.Params).WithField("generator", requestedGenerator).
+							Error("error generating application from params")
+
+						if firstError == nil {
+							firstError = err
+							applicationSetReason = argov1alpha1.ApplicationSetReasonRenderTemplateParamsError
+						}
+						continue
+					}
+
+					app = patchedApplication
+				}
+
 				res = append(res, *app)
 			}
 		}
@@ -543,6 +562,16 @@ func (r *ApplicationSetReconciler) generateApplications(logCtx *log.Entry, appli
 	}
 
 	return res, applicationSetReason, firstError
+}
+
+func (r *ApplicationSetReconciler) applyTemplatePatch(app *argov1alpha1.Application, applicationSetInfo argov1alpha1.ApplicationSet, params map[string]interface{}) (*argov1alpha1.Application, error) {
+	replacedTemplate, err := r.Renderer.Replace(*applicationSetInfo.Spec.TemplatePatch, params, applicationSetInfo.Spec.GoTemplate, applicationSetInfo.Spec.GoTemplateOptions)
+
+	if err != nil {
+		return nil, fmt.Errorf("error replacing values in templatePatch: %w", err)
+	}
+
+	return applyTemplatePatch(app, replacedTemplate)
 }
 
 func ignoreNotAllowedNamespaces(namespaces []string) predicate.Predicate {
@@ -619,6 +648,8 @@ func (r *ApplicationSetReconciler) createOrUpdateInCluster(ctx context.Context, 
 	var firstError error
 	// Creates or updates the application in appList
 	for _, generatedApp := range desiredApplications {
+		// The app's namespace must be the same as the AppSet's namespace to preserve the appsets-in-any-namespace
+		// security boundary.
 		generatedApp.Namespace = applicationSet.Namespace
 
 		appLog := logCtx.WithFields(log.Fields{"app": generatedApp.QualifiedName()})
