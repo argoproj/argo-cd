@@ -2,9 +2,12 @@ package utils
 
 import (
 	"bytes"
+	"crypto/tls"
+	"crypto/x509"
 	"encoding/json"
 	"fmt"
 	"io"
+	"os"
 	"reflect"
 	"regexp"
 	"sort"
@@ -13,7 +16,9 @@ import (
 	"unsafe"
 
 	"github.com/Masterminds/sprig/v3"
+	"github.com/gosimple/slug"
 	"github.com/valyala/fasttemplate"
+	"sigs.k8s.io/yaml"
 
 	log "github.com/sirupsen/logrus"
 
@@ -28,6 +33,10 @@ func init() {
 	delete(sprigFuncMap, "expandenv")
 	delete(sprigFuncMap, "getHostByName")
 	sprigFuncMap["normalize"] = SanitizeName
+	sprigFuncMap["slugify"] = SlugifyName
+	sprigFuncMap["toYaml"] = toYAML
+	sprigFuncMap["fromYaml"] = fromYAML
+	sprigFuncMap["fromYamlArray"] = fromYAMLArray
 }
 
 type Renderer interface {
@@ -46,6 +55,22 @@ func copyValueIntoUnexported(destination, value reflect.Value) {
 func copyUnexported(copy, original reflect.Value) {
 	var unexported = reflect.NewAt(original.Type(), unsafe.Pointer(original.UnsafeAddr())).Elem()
 	copyValueIntoUnexported(copy, unexported)
+}
+
+func IsJSONStr(str string) bool {
+	str = strings.TrimSpace(str)
+	return len(str) > 0 && str[0] == '{'
+}
+
+func ConvertYAMLToJSON(str string) (string, error) {
+	if !IsJSONStr(str) {
+		jsonStr, err := yaml.YAMLToJSON([]byte(str))
+		if err != nil {
+			return str, err
+		}
+		return string(jsonStr), nil
+	}
+	return str, nil
 }
 
 // This function is in charge of searching all String fields of the object recursively and apply templating
@@ -71,6 +96,7 @@ func (r *Render) deeplyReplace(copy, original reflect.Value, replaceMap map[stri
 		}
 		// Unwrap the newly created pointer
 		if err := r.deeplyReplace(copy.Elem(), originalValue, replaceMap, useGoTemplate, goTemplateOptions); err != nil {
+			// Not wrapping the error, since this is a recursive function. Avoids excessively long error messages.
 			return err
 		}
 
@@ -83,11 +109,19 @@ func (r *Render) deeplyReplace(copy, original reflect.Value, replaceMap map[stri
 		originalValue := original.Elem()
 		// Create a new object. Now new gives us a pointer, but we want the value it
 		// points to, so we have to call Elem() to unwrap it
-		copyValue := reflect.New(originalValue.Type()).Elem()
-		if err := r.deeplyReplace(copyValue, originalValue, replaceMap, useGoTemplate, goTemplateOptions); err != nil {
-			return err
+
+		if originalValue.IsValid() {
+			reflectType := originalValue.Type()
+
+			reflectValue := reflect.New(reflectType)
+
+			copyValue := reflectValue.Elem()
+			if err := r.deeplyReplace(copyValue, originalValue, replaceMap, useGoTemplate, goTemplateOptions); err != nil {
+				// Not wrapping the error, since this is a recursive function. Avoids excessively long error messages.
+				return err
+			}
+			copy.Set(copyValue)
 		}
-		copy.Set(copyValue)
 
 	// If it is a struct we translate each field
 	case reflect.Struct:
@@ -96,10 +130,14 @@ func (r *Render) deeplyReplace(copy, original reflect.Value, replaceMap map[stri
 			// specific case time
 			if currentType == "time.Time" {
 				copy.Field(i).Set(original.Field(i))
-			} else if currentType == "Raw.k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1" {
+			} else if currentType == "Raw.k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1" || currentType == "Raw.k8s.io/apimachinery/pkg/runtime" {
 				var unmarshaled interface{}
 				originalBytes := original.Field(i).Bytes()
-				err := json.Unmarshal(originalBytes, &unmarshaled)
+				convertedToJson, err := ConvertYAMLToJSON(string(originalBytes))
+				if err != nil {
+					return fmt.Errorf("error while converting template to json %q: %w", convertedToJson, err)
+				}
+				err = json.Unmarshal([]byte(convertedToJson), &unmarshaled)
 				if err != nil {
 					return fmt.Errorf("failed to unmarshal JSON field: %w", err)
 				}
@@ -116,6 +154,7 @@ func (r *Render) deeplyReplace(copy, original reflect.Value, replaceMap map[stri
 				}
 				copy.Field(i).Set(reflect.ValueOf(data))
 			} else if err := r.deeplyReplace(copy.Field(i), original.Field(i), replaceMap, useGoTemplate, goTemplateOptions); err != nil {
+				// Not wrapping the error, since this is a recursive function. Avoids excessively long error messages.
 				return err
 			}
 		}
@@ -130,6 +169,7 @@ func (r *Render) deeplyReplace(copy, original reflect.Value, replaceMap map[stri
 
 		for i := 0; i < original.Len(); i += 1 {
 			if err := r.deeplyReplace(copy.Index(i), original.Index(i), replaceMap, useGoTemplate, goTemplateOptions); err != nil {
+				// Not wrapping the error, since this is a recursive function. Avoids excessively long error messages.
 				return err
 			}
 		}
@@ -150,6 +190,7 @@ func (r *Render) deeplyReplace(copy, original reflect.Value, replaceMap map[stri
 			copyValue := reflect.New(originalValue.Type()).Elem()
 
 			if err := r.deeplyReplace(copyValue, originalValue, replaceMap, useGoTemplate, goTemplateOptions); err != nil {
+				// Not wrapping the error, since this is a recursive function. Avoids excessively long error messages.
 				return err
 			}
 
@@ -157,6 +198,7 @@ func (r *Render) deeplyReplace(copy, original reflect.Value, replaceMap map[stri
 			if key.Kind() == reflect.String {
 				templatedKey, err := r.Replace(key.String(), replaceMap, useGoTemplate, goTemplateOptions)
 				if err != nil {
+					// Not wrapping the error, since this is a recursive function. Avoids excessively long error messages.
 					return err
 				}
 				key = reflect.ValueOf(templatedKey)
@@ -171,6 +213,7 @@ func (r *Render) deeplyReplace(copy, original reflect.Value, replaceMap map[stri
 		strToTemplate := original.String()
 		templated, err := r.Replace(strToTemplate, replaceMap, useGoTemplate, goTemplateOptions)
 		if err != nil {
+			// Not wrapping the error, since this is a recursive function. Avoids excessively long error messages.
 			return err
 		}
 		if copy.CanSet() {
@@ -280,7 +323,10 @@ func (r *Render) Replace(tmpl string, replaceMap map[string]interface{}, useGoTe
 		return tmpl, nil
 	}
 
-	fstTmpl := fasttemplate.New(tmpl, "{{", "}}")
+	fstTmpl, err := fasttemplate.NewTemplate(tmpl, "{{", "}}")
+	if err != nil {
+		return "", fmt.Errorf("invalid template: %w", err)
+	}
 	replacedTmpl := fstTmpl.ExecuteFuncString(func(w io.Writer, tag string) (int, error) {
 		trimmedTag := strings.TrimSpace(tag)
 		replacement, ok := replaceMap[trimmedTag].(string)
@@ -390,19 +436,85 @@ func NormalizeBitbucketBasePath(basePath string) string {
 	return basePath
 }
 
-// SanitizeName sanitizes the name in accordance with the below rules
-// 1. contain no more than 253 characters
-// 2. contain only lowercase alphanumeric characters, '-' or '.'
-// 3. start and end with an alphanumeric character
-func SanitizeName(name string) string {
-	invalidDNSNameChars := regexp.MustCompile("[^-a-z0-9.]")
-	maxDNSNameLength := 253
+// SlugifyName generates a URL-friendly slug from the provided name and additional options.
+// The slug is generated in accordance with the following rules:
+// 1. The generated slug will be URL-safe and suitable for use in URLs.
+// 2. The maximum length of the slug can be specified using the `maxSize` argument.
+// 3. Smart truncation can be enabled or disabled using the `EnableSmartTruncate` argument.
+// 4. The input name can be any string value that needs to be converted into a slug.
+//
+// Args:
+// - args: A variadic number of arguments where:
+//   - The first argument (if provided) is an integer specifying the maximum length of the slug.
+//   - The second argument (if provided) is a boolean indicating whether smart truncation is enabled.
+//   - The last argument (if provided) is the input name that needs to be slugified.
+//     If no name is provided, an empty string will be used.
+//
+// Returns:
+// - string: The generated URL-friendly slug based on the input name and options.
+func SlugifyName(args ...interface{}) string {
+	// Default values for arguments
+	maxSize := 50
+	EnableSmartTruncate := true
+	name := ""
 
-	name = strings.ToLower(name)
-	name = invalidDNSNameChars.ReplaceAllString(name, "-")
-	if len(name) > maxDNSNameLength {
-		name = name[:maxDNSNameLength]
+	// Process the arguments
+	for idx, arg := range args {
+		switch idx {
+		case len(args) - 1:
+			name = arg.(string)
+		case 0:
+			maxSize = arg.(int)
+		case 1:
+			EnableSmartTruncate = arg.(bool)
+		default:
+			log.Errorf("Bad 'slugify' arguments.")
+		}
 	}
 
-	return strings.Trim(name, "-.")
+	sanitizedName := SanitizeName(name)
+
+	// Configure slug generation options
+	slug.EnableSmartTruncate = EnableSmartTruncate
+	slug.MaxLength = maxSize
+
+	// Generate the slug from the input name
+	urlSlug := slug.Make(sanitizedName)
+
+	return urlSlug
+}
+
+func getTlsConfigWithCACert(scmRootCAPath string) *tls.Config {
+
+	tlsConfig := &tls.Config{}
+
+	if scmRootCAPath != "" {
+		_, err := os.Stat(scmRootCAPath)
+		if os.IsNotExist(err) {
+			log.Errorf("scmRootCAPath '%s' specified does not exist: %s", scmRootCAPath, err)
+			return tlsConfig
+		}
+		rootCA, err := os.ReadFile(scmRootCAPath)
+		if err != nil {
+			log.Errorf("error reading certificate from file '%s', proceeding without custom rootCA : %s", scmRootCAPath, err)
+			return tlsConfig
+		}
+		certPool := x509.NewCertPool()
+		ok := certPool.AppendCertsFromPEM([]byte(rootCA))
+		if !ok {
+			log.Errorf("failed to append certificates from PEM: proceeding without custom rootCA")
+		} else {
+			tlsConfig.RootCAs = certPool
+		}
+	}
+	return tlsConfig
+}
+
+func GetTlsConfig(scmRootCAPath string, insecure bool) *tls.Config {
+	tlsConfig := getTlsConfigWithCACert(scmRootCAPath)
+
+	if insecure {
+		tlsConfig.InsecureSkipVerify = true
+	}
+	return tlsConfig
 }

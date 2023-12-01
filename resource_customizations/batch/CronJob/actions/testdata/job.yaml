@@ -5,8 +5,18 @@
     metadata:
       name: hello-00000000000
       namespace: test-ns
+      labels:
+        my: label
+      annotations:
+        my: annotation
     spec:
+      ttlSecondsAfterFinished: 100
       template:
+        metadata:
+          labels:
+            pod: label
+          annotations:
+            pod: annotation
         spec:
           containers:
           - name: hello

@@ -1,6 +1,6 @@
 # Reconcile Optimization
 
-By default, an Argo CD Application is refreshed everytime a resource that belongs to it changes.
+By default, an Argo CD Application is refreshed every time a resource that belongs to it changes.
 
 Kubernetes controllers often update the resources they watch periodically, causing continuous reconcile operation on the Application
 and a high CPU usage on the `argocd-application-controller`. Argo CD allows you to optionally ignore resource updates on specific fields
@@ -13,7 +13,8 @@ When a resource update is ignored, if the resource's [health status](./health.md
 Argo CD allows ignoring resource updates at a specific JSON path, using [RFC6902 JSON patches](https://tools.ietf.org/html/rfc6902) and [JQ path expressions](https://stedolan.github.io/jq/manual/#path(path_expression)). It can be configured for a specified group and kind
 in `resource.customizations` key of the `argocd-cm` ConfigMap.
 
-The feature is behind a flag. To enable it, set `resource.ignoreResourceUpdatesEnabled` to `"true"` in the `argocd-cm` ConfigMap.
+!!!important "Enabling the feature"
+    The feature is behind a flag. To enable it, set `resource.ignoreResourceUpdatesEnabled` to `"true"` in the `argocd-cm` ConfigMap.
 
 Following is an example of a customization which ignores the `refreshTime` status field of an [`ExternalSecret`](https://external-secrets.io/main/api/externalsecret/) resource:
 
@@ -22,6 +23,9 @@ data:
   resource.customizations.ignoreResourceUpdates.external-secrets.io_ExternalSecret: |
     jsonPointers:
     - /status/refreshTime
+    # JQ equivalent of the above:
+    # jqPathExpressions:
+    # - .status.refreshTime
 ```
 
 It is possible to configure `ignoreResourceUpdates` to be applied to all tracked resources in every Application managed by an Argo CD instance. In order to do so, resource customizations can be configured like in the example below:
@@ -61,4 +65,49 @@ To find these logs, search for `"Requesting app refresh caused by object update"
 fields for `api-version` and `kind`.  Counting the number of refreshes triggered, by api-version/kind should
 reveal the high-churn resource kinds.
 
-Note that these logs are at the `debug` level. Configure the application-controller's log level to `debug`.
+!!!note 
+    These logs are at the `debug` level. Configure the application-controller's log level to `debug`.
+
+Once you have identified some resources which change often, you can try to determine which fields are changing. Here is
+one approach:
+
+```shell
+kubectl get <resource> -o yaml > /tmp/before.yaml
+# Wait a minute or two.
+kubectl get <resource> -o yaml > /tmp/after.yaml
+diff /tmp/before.yaml /tmp/after
+```
+
+The diff can give you a sense for which fields are changing and should perhaps be ignored.
+
+## Checking Whether Resource Updates are Ignored
+
+Whenever Argo CD skips a refresh due to an ignored resource update, the controller logs the following line:
+"Ignoring change of object because none of the watched resource fields have changed".
+
+Search the application-controller logs for this line to confirm that your resource ignore rules are being applied.
+
+!!!note
+    These logs are at the `debug` level. Configure the application-controller's log level to `debug`.
+
+## Examples
+
+### argoproj.io/Application
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-cm
+data:
+  resource.customizations.ignoreResourceUpdates.argoproj.io_Application: |
+    jsonPointers:
+    # Ignore when ownerReferences change, for example when a parent ApplicationSet changes often.
+    - /metadata/ownerReferences
+    # Ignore reconciledAt, since by itself it doesn't indicate any important change.
+    - /status/reconciledAt
+    jqPathExpressions:
+    # Ignore lastTransitionTime for conditions; helpful when SharedResourceWarnings are being regularly updated but not
+    # actually changing in content.
+    - .status.conditions[].lastTransitionTime
+```

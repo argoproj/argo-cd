@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"math"
 	"os"
 	"strings"
 	"testing"
@@ -71,7 +72,7 @@ func TestIndex(t *testing.T) {
 
 func Test_nativeHelmChart_ExtractChart(t *testing.T) {
 	client := NewClient("https://argoproj.github.io/argo-helm", Creds{}, false, "")
-	path, closer, err := client.ExtractChart("argo-cd", "0.7.1", false)
+	path, closer, err := client.ExtractChart("argo-cd", "0.7.1", false, math.MaxInt64, true)
 	assert.NoError(t, err)
 	defer io.Close(closer)
 	info, err := os.Stat(path)
@@ -79,9 +80,15 @@ func Test_nativeHelmChart_ExtractChart(t *testing.T) {
 	assert.True(t, info.IsDir())
 }
 
+func Test_nativeHelmChart_ExtractChartWithLimiter(t *testing.T) {
+	client := NewClient("https://argoproj.github.io/argo-helm", Creds{}, false, "")
+	_, _, err := client.ExtractChart("argo-cd", "0.7.1", false, 100, false)
+	assert.Error(t, err, "error while iterating on tar reader: unexpected EOF")
+}
+
 func Test_nativeHelmChart_ExtractChart_insecure(t *testing.T) {
 	client := NewClient("https://argoproj.github.io/argo-helm", Creds{InsecureSkipVerify: true}, false, "")
-	path, closer, err := client.ExtractChart("argo-cd", "0.7.1", false)
+	path, closer, err := client.ExtractChart("argo-cd", "0.7.1", false, math.MaxInt64, true)
 	assert.NoError(t, err)
 	defer io.Close(closer)
 	info, err := os.Stat(path)
@@ -160,7 +167,14 @@ func TestGetTagsFromUrl(t *testing.T) {
 			w.Header().Set("Link", fmt.Sprintf("<https://%s%s?token=next-token>; rel=next", r.Host, r.URL.Path))
 			responseTags.Tags = []string{"first"}
 		} else {
-			responseTags.Tags = []string{"second"}
+			responseTags.Tags = []string{
+				"second",
+				"2.8.0",
+				"2.8.0-prerelease",
+				"2.8.0_build",
+				"2.8.0-prerelease_build",
+				"2.8.0-prerelease.1_build.1234",
+			}
 		}
 		w.WriteHeader(http.StatusOK)
 		err := json.NewEncoder(w).Encode(responseTags)
@@ -173,6 +187,13 @@ func TestGetTagsFromUrl(t *testing.T) {
 
 	tags, err := client.GetTags("mychart", true)
 	assert.NoError(t, err)
-	assert.Equal(t, tags.Tags[0], "first")
-	assert.Equal(t, tags.Tags[1], "second")
+	assert.ElementsMatch(t, tags.Tags, []string{
+		"first",
+		"second",
+		"2.8.0",
+		"2.8.0-prerelease",
+		"2.8.0+build",
+		"2.8.0-prerelease+build",
+		"2.8.0-prerelease.1+build.1234",
+	})
 }

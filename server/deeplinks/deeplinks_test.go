@@ -5,15 +5,16 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/util/settings"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/utils/pointer"
+
+	"github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/util/settings"
 )
 
 type deepLinkTC struct {
@@ -34,7 +35,7 @@ func TestDeepLinks(t *testing.T) {
 		},
 		Spec: v1alpha1.ApplicationSpec{
 			Destination: v1alpha1.ApplicationDestination{
-				Server:    "test.com",
+				Server:    "test.example.com",
 				Namespace: "testns",
 			},
 		},
@@ -76,6 +77,22 @@ func TestDeepLinks(t *testing.T) {
 				Title:     "link",
 				URL:       "http://example.com/{{ .application.metadata.name }}&{{ .resource.data.key }}&{{ index .project.spec.sourceRepos 0}}&{{ .cluster.name }}",
 				Condition: pointer.String(`application.metadata.name == "test" && project.metadata.name == "test-project"`),
+			}},
+			outputLinks: []*application.LinkInfo{{
+				Title: pointer.String("link"),
+				Url:   pointer.String("http://example.com/test&value1&test-repo.git&test-cluster"),
+			}},
+			error: []string{},
+		},
+		{
+			appObj:      appObj,
+			resourceObj: resourceObj,
+			projectObj:  projectObj,
+			clusterObj:  clusterObj,
+			inputLinks: []settings.DeepLink{{
+				Title:     "link",
+				URL:       "http://example.com/{{ .app.metadata.name }}&{{ .resource.data.key }}&{{ index .project.spec.sourceRepos 0}}&{{ .cluster.name }}",
+				Condition: pointer.String(`app.metadata.name == "test" && project.metadata.name == "test-project"`),
 			}},
 			outputLinks: []*application.LinkInfo{{
 				Title: pointer.String("link"),
@@ -129,6 +146,22 @@ func TestDeepLinks(t *testing.T) {
 				Url:   pointer.String("http://example.com/test&testns"),
 			}},
 			error: []string{"link condition '1 + 1' evaluated to non-boolean value for resource test"},
+		},
+		{
+			appObj:      appObj,
+			resourceObj: resourceObj,
+			projectObj:  projectObj,
+			clusterObj:  clusterObj,
+			inputLinks: []settings.DeepLink{{
+				Title:     "link",
+				URL:       "http://example.com/{{ .cluster.name | replace \"-\" \"_\" }}&{{ first .project.spec.sourceRepos }}",
+				Condition: pointer.String(`application.metadata.name == "test" && project.metadata.name == "test-project"`),
+			}},
+			outputLinks: []*application.LinkInfo{{
+				Title: pointer.String("link"),
+				Url:   pointer.String("http://example.com/test_cluster&test-repo.git"),
+			}},
+			error: []string{},
 		},
 	}
 

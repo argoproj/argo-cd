@@ -35,6 +35,10 @@ const (
 	errDestinationMissing = "Destination server missing from app spec"
 )
 
+var (
+	ErrAnotherOperationInProgress = status.Errorf(codes.FailedPrecondition, "another operation is already in progress")
+)
+
 // AugmentSyncMsg enrich the K8s message with user-relevant information
 func AugmentSyncMsg(res common.ResourceSyncResult, apiResourceInfoGetter func() ([]kube.APIResourceInfo, error)) (string, error) {
 	switch res.Message {
@@ -585,7 +589,7 @@ func ValidatePermissions(ctx context.Context, spec *argoappv1.ApplicationSpec, p
 		if !permitted {
 			conditions = append(conditions, argoappv1.ApplicationCondition{
 				Type:    argoappv1.ApplicationConditionInvalidSpecError,
-				Message: fmt.Sprintf("application destination {%s %s} is not permitted in project '%s'", spec.Destination.Server, spec.Destination.Namespace, spec.Project),
+				Message: fmt.Sprintf("application destination server '%s' and namespace '%s' do not match any of the allowed destinations in project '%s'", spec.Destination.Server, spec.Destination.Namespace, spec.Project),
 			})
 		}
 		// Ensure the k8s cluster the app is referencing, is configured in Argo CD
@@ -800,7 +804,7 @@ func SetAppOperation(appIf v1alpha1.ApplicationInterface, appName string, op *ar
 			return nil, fmt.Errorf("error getting application %q: %w", appName, err)
 		}
 		if a.Operation != nil {
-			return nil, status.Errorf(codes.FailedPrecondition, "another operation is already in progress")
+			return nil, ErrAnotherOperationInProgress
 		}
 		a.Operation = op
 		a.Status.OperationState = nil
@@ -851,12 +855,15 @@ func NormalizeApplicationSpec(spec *argoappv1.ApplicationSpec) *argoappv1.Applic
 	if spec.Project == "" {
 		spec.Project = argoappv1.DefaultAppProjectName
 	}
-
+	if spec.SyncPolicy.IsZero() {
+		spec.SyncPolicy = nil
+	}
 	if spec.Sources != nil && len(spec.Sources) > 0 {
 		for _, source := range spec.Sources {
 			NormalizeSource(&source)
 		}
-	} else {
+	} else if spec.Source != nil {
+		// In practice, spec.Source should never be nil.
 		NormalizeSource(spec.Source)
 	}
 	return spec
