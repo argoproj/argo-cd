@@ -412,10 +412,10 @@ func shouldRefreshPRGenerator(gen *v1alpha1.PullRequestGenerator, info *prGenera
 	}
 
 	if gen.Github != nil && info.Github != nil {
-		if gen.Github.Owner != info.Github.Owner {
+		if !strings.EqualFold(gen.Github.Owner, info.Github.Owner) {
 			return false
 		}
-		if gen.Github.Repo != info.Github.Repo {
+		if !strings.EqualFold(gen.Github.Repo, info.Github.Repo) {
 			return false
 		}
 		api := gen.Github.API
