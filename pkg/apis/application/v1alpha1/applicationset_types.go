@@ -591,6 +591,7 @@ type PullRequestGenerator struct {
 	Bitbucket           *PullRequestGeneratorBitbucket `json:"bitbucket,omitempty" protobuf:"bytes,8,opt,name=bitbucket"`
 	// Additional provider to use and config for it.
 	AzureDevOps *PullRequestGeneratorAzureDevOps `json:"azuredevops,omitempty" protobuf:"bytes,9,opt,name=azuredevops"`
+	Values      map[string]string                `json:"values,omitempty" protobuf:"bytes,10,name=values"`
 	// If you add a new SCM provider, update CustomApiUrl below.
 }
 
