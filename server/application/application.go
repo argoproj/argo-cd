@@ -1113,38 +1113,104 @@ func (s *Server) StartEventSource(es *events.EventSource, stream events.Eventing
 		return nil
 	}
 
-	eventsChannel := make(chan *appv1.ApplicationWatchEvent, watchAPIBufferSize)
-	unsubscribe := s.appBroadcaster.Subscribe(eventsChannel)
+	processEvent := func(event *appv1.ApplicationWatchEvent) error {
+		shouldProcess, ignoreResourceCache := s.applicationEventReporter.shouldSendApplicationEvent(event)
+		if !shouldProcess {
+			log.Infof("ignore event for app %s", event.Application.Name)
+			return nil
+		}
+		ts := time.Now().Format("2006-01-02T15:04:05.000Z")
+		ctx, cancel := context.WithTimeout(stream.Context(), 2*time.Minute)
+		err := sendIfPermitted(ctx, event.Application, event.Type, ts, ignoreResourceCache)
+		if err != nil {
+			logCtx.WithError(err).Error("failed to stream application events")
+			if strings.Contains(err.Error(), "context deadline exceeded") {
+				logCtx.Info("Closing event-source connection")
+				cancel()
+				return err
+			}
+		}
+		cancel()
+		return nil
+	}
+
+	priorityQueueEnabled := env.ParseBoolFromEnv("CODEFRESH_PRIORITY_QUEUE", false)
+
+	allEventsChannel := make(chan *appv1.ApplicationWatchEvent, watchAPIBufferSize)
+	onUpdateEventsChannel := make(chan *appv1.ApplicationWatchEvent, watchAPIBufferSize)
+	onDeleteEventsChannel := make(chan *appv1.ApplicationWatchEvent, watchAPIBufferSize)
+	onAddEventsChannel := make(chan *appv1.ApplicationWatchEvent, watchAPIBufferSize)
+
+	v1ReporterEnabledFilter := func(event *appv1.ApplicationWatchEvent) bool {
+		rVersion, _ := s.settingsMgr.GetCodefreshReporterVersion()
+		if rVersion == string(settings.CodefreshV2ReporterVersion) {
+			logCtx.Info("v1 reporter disabled skipping event")
+			return false
+		}
+		return true
+	}
+
+	if priorityQueueEnabled {
+		unsubscribeOnUpdateChannel := s.appBroadcaster.Subscribe(onUpdateEventsChannel, func(event *appv1.ApplicationWatchEvent) bool {
+			return event.Type == watch.Modified
+		}, v1ReporterEnabledFilter)
+
+		unsubscribeOnDeleteChannel := s.appBroadcaster.Subscribe(onDeleteEventsChannel, func(event *appv1.ApplicationWatchEvent) bool {
+			return event.Type == watch.Deleted
+		}, v1ReporterEnabledFilter)
+
+		unsubscribeOnAddChannel := s.appBroadcaster.Subscribe(onAddEventsChannel, func(event *appv1.ApplicationWatchEvent) bool {
+			return event.Type == watch.Added
+		}, v1ReporterEnabledFilter)
+
+		defer unsubscribeOnUpdateChannel()
+		defer unsubscribeOnDeleteChannel()
+		defer unsubscribeOnAddChannel()
+	} else {
+		unsubscribeEventsChannel := s.appBroadcaster.Subscribe(allEventsChannel, v1ReporterEnabledFilter)
+		defer unsubscribeEventsChannel()
+	}
+
 	ticker := time.NewTicker(5 * time.Second)
-	defer unsubscribe()
 	defer ticker.Stop()
 	for {
 		select {
-		case event := <-eventsChannel:
-			log.Infof("event channel size is %d", len(eventsChannel))
-			rVersion, _ := s.settingsMgr.GetCodefreshReporterVersion()
-			if rVersion == string(settings.CodefreshV2ReporterVersion) {
-				logCtx.Info("v1 reported disabled skipping event")
-				continue
-			}
-
-			shouldProcess, ignoreResourceCache := s.applicationEventReporter.shouldSendApplicationEvent(event)
-			if !shouldProcess {
-				log.Infof("ignore event for app %s", event.Application.Name)
-				continue
-			}
-			ts := time.Now().Format("2006-01-02T15:04:05.000Z")
-			ctx, cancel := context.WithTimeout(stream.Context(), 2*time.Minute)
-			err := sendIfPermitted(ctx, event.Application, event.Type, ts, ignoreResourceCache)
-			if err != nil {
-				logCtx.WithError(err).Error("failed to stream application events")
-				if strings.Contains(err.Error(), "context deadline exceeded") {
-					logCtx.Info("Closing event-source connection")
-					cancel()
+		case event := <-onAddEventsChannel: // active only when CODEFRESH_PRIORITY_QUEUE=true
+			{
+				logCtx.Infof("OnAdd channel size is %d", len(onAddEventsChannel))
+				logCtx.Infof("Received application \"%s\" added event", event.Application.Name)
+				err = processEvent(event)
+				if err != nil {
 					return err
 				}
 			}
-			cancel()
+		case event := <-onDeleteEventsChannel: // active only when CODEFRESH_PRIORITY_QUEUE=true
+			{
+				logCtx.Infof("OnDelete channel size is %d", len(onDeleteEventsChannel))
+				logCtx.Infof("Received application \"%s\" deleted event", event.Application.Name)
+				err = processEvent(event)
+				if err != nil {
+					return err
+				}
+			}
+		case event := <-onUpdateEventsChannel: // active only when CODEFRESH_PRIORITY_QUEUE=true
+			{
+				logCtx.Infof("OnUpdate channel size is %d", len(onUpdateEventsChannel))
+				logCtx.Infof("Received application \"%s\" update event", event.Application.Name)
+				err = processEvent(event)
+				if err != nil {
+					return err
+				}
+			}
+		case event := <-allEventsChannel: // active only when CODEFRESH_PRIORITY_QUEUE=false
+			{
+				logCtx.Infof("All events channel size is %d", len(allEventsChannel))
+				logCtx.Infof("Received application \"%s\" event", event.Application.Name)
+				err = processEvent(event)
+				if err != nil {
+					return err
+				}
+			}
 		case <-ticker.C:
 			var err error
 			ts := time.Now().Format("2006-01-02T15:04:05.000Z")
