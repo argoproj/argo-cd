@@ -568,10 +568,10 @@ func (r *ApplicationSetReconciler) applyTemplatePatch(app *argov1alpha1.Applicat
 	replacedTemplate, err := r.Renderer.Replace(*applicationSetInfo.Spec.TemplatePatch, params, applicationSetInfo.Spec.GoTemplate, applicationSetInfo.Spec.GoTemplateOptions)
 
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error replacing values in templatePatch: %w", err)
 	}
 
-	return utils.ApplyPatchTemplate(app, replacedTemplate)
+	return applyTemplatePatch(app, replacedTemplate)
 }
 
 func ignoreNotAllowedNamespaces(namespaces []string) predicate.Predicate {
@@ -648,6 +648,8 @@ func (r *ApplicationSetReconciler) createOrUpdateInCluster(ctx context.Context, 
 	var firstError error
 	// Creates or updates the application in appList
 	for _, generatedApp := range desiredApplications {
+		// The app's namespace must be the same as the AppSet's namespace to preserve the appsets-in-any-namespace
+		// security boundary.
 		generatedApp.Namespace = applicationSet.Namespace
 
 		appLog := logCtx.WithFields(log.Fields{"app": generatedApp.QualifiedName()})
