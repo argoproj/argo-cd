@@ -278,7 +278,7 @@ func TestUpdateCluster_FieldsPathSet(t *testing.T) {
 	_, err := server.Update(context.Background(), &clusterapi.ClusterUpdateRequest{
 		Cluster: &v1alpha1.Cluster{
 			Server: "https://127.0.0.1",
-			Shard:  pointer.Int64Ptr(1),
+			Shard:  pointer.Int64(1),
 		},
 		UpdatedFields: []string{"shard"},
 	})

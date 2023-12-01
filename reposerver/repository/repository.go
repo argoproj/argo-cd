@@ -300,6 +300,7 @@ func (s *Service) runRepoOperation(
 	var gitClient git.Client
 	var helmClient helm.Client
 	var err error
+	gitClientOpts := git.WithCache(s.cache, !settings.noRevisionCache && !settings.noCache)
 	revision = textutils.FirstNonEmpty(revision, source.TargetRevision)
 	unresolvedRevision := revision
 	if source.IsHelm() {
@@ -308,13 +309,13 @@ func (s *Service) runRepoOperation(
 			return err
 		}
 	} else {
-		gitClient, revision, err = s.newClientResolveRevision(repo, revision, git.WithCache(s.cache, !settings.noRevisionCache && !settings.noCache))
+		gitClient, revision, err = s.newClientResolveRevision(repo, revision, gitClientOpts)
 		if err != nil {
 			return err
 		}
 	}
 
-	repoRefs, err := resolveReferencedSources(hasMultipleSources, source.Helm, refSources, s.newClientResolveRevision)
+	repoRefs, err := resolveReferencedSources(hasMultipleSources, source.Helm, refSources, s.newClientResolveRevision, gitClientOpts)
 	if err != nil {
 		return err
 	}
@@ -463,7 +464,7 @@ type gitClientGetter func(repo *v1alpha1.Repository, revision string, opts ...gi
 //
 // Much of this logic is duplicated in runManifestGenAsync. If making changes here, check whether runManifestGenAsync
 // should be updated.
-func resolveReferencedSources(hasMultipleSources bool, source *v1alpha1.ApplicationSourceHelm, refSources map[string]*v1alpha1.RefTarget, newClientResolveRevision gitClientGetter) (map[string]string, error) {
+func resolveReferencedSources(hasMultipleSources bool, source *v1alpha1.ApplicationSourceHelm, refSources map[string]*v1alpha1.RefTarget, newClientResolveRevision gitClientGetter, gitClientOpts git.ClientOpts) (map[string]string, error) {
 	repoRefs := make(map[string]string)
 	if !hasMultipleSources || source == nil {
 		return repoRefs, nil
@@ -490,7 +491,7 @@ func resolveReferencedSources(hasMultipleSources bool, source *v1alpha1.Applicat
 			normalizedRepoURL := git.NormalizeGitURL(refSourceMapping.Repo.Repo)
 			_, ok = repoRefs[normalizedRepoURL]
 			if !ok {
-				_, referencedCommitSHA, err := newClientResolveRevision(&refSourceMapping.Repo, refSourceMapping.TargetRevision)
+				_, referencedCommitSHA, err := newClientResolveRevision(&refSourceMapping.Repo, refSourceMapping.TargetRevision, gitClientOpts)
 				if err != nil {
 					log.Errorf("Failed to get git client for repo %s: %v", refSourceMapping.Repo.Repo, err)
 					return nil, fmt.Errorf("failed to get git client for repo %s", refSourceMapping.Repo.Repo)
@@ -728,7 +729,7 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 								return
 							}
 						} else {
-							gitClient, referencedCommitSHA, err := s.newClientResolveRevision(&refSourceMapping.Repo, refSourceMapping.TargetRevision)
+							gitClient, referencedCommitSHA, err := s.newClientResolveRevision(&refSourceMapping.Repo, refSourceMapping.TargetRevision, git.WithCache(s.cache, !q.NoRevisionCache && !q.NoCache))
 							if err != nil {
 								log.Errorf("Failed to get git client for repo %s: %v", refSourceMapping.Repo.Repo, err)
 								ch.errCh <- fmt.Errorf("failed to get git client for repo %s", refSourceMapping.Repo.Repo)
@@ -1997,12 +1998,13 @@ func (s *Service) createGetAppDetailsCacheHandler(res *apiclient.RepoAppDetailsR
 
 func populateHelmAppDetails(res *apiclient.RepoAppDetailsResponse, appPath string, repoRoot string, q *apiclient.RepoServerAppDetailsQuery, gitRepoPaths io.TempPaths) error {
 	var selectedValueFiles []string
+	var availableValueFiles []string
 
 	if q.Source.Helm != nil {
 		selectedValueFiles = q.Source.Helm.ValueFiles
 	}
 
-	availableValueFiles, err := findHelmValueFilesInPath(appPath)
+	err := filepath.Walk(appPath, walkHelmValueFilesInPath(appPath, &availableValueFiles))
 	if err != nil {
 		return err
 	}
@@ -2079,26 +2081,25 @@ func loadFileIntoIfExists(path pathutil.ResolvedFilePath, destination *string) e
 	return nil
 }
 
-func findHelmValueFilesInPath(path string) ([]string, error) {
-	var result []string
+func walkHelmValueFilesInPath(root string, valueFiles *[]string) filepath.WalkFunc {
+	return func(path string, info os.FileInfo, err error) error {
 
-	files, err := os.ReadDir(path)
-	if err != nil {
-		return result, fmt.Errorf("error reading helm values file from %s: %w", path, err)
-	}
-
-	for _, f := range files {
-		if f.IsDir() {
-			continue
+		if err != nil {
+			return fmt.Errorf("error reading helm values file from %s: %w", path, err)
 		}
-		filename := f.Name()
-		fileNameExt := strings.ToLower(filepath.Ext(filename))
+
+		filename := info.Name()
+		fileNameExt := strings.ToLower(filepath.Ext(path))
 		if strings.Contains(filename, "values") && (fileNameExt == ".yaml" || fileNameExt == ".yml") {
-			result = append(result, filename)
+			relPath, err := filepath.Rel(root, path)
+			if err != nil {
+				return fmt.Errorf("error traversing path from %s to %s: %w", root, path, err)
+			}
+			*valueFiles = append(*valueFiles, relPath)
 		}
-	}
 
-	return result, nil
+		return nil
+	}
 }
 
 func populateKustomizeAppDetails(res *apiclient.RepoAppDetailsResponse, q *apiclient.RepoServerAppDetailsQuery, appPath string, reversion string, credsStore git.CredsStore) error {
