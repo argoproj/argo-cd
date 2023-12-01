@@ -58,6 +58,13 @@ $deselected-text: #818d94;
         text-overflow: ellipsis;
     }
 
+    &__tooltip {
+        max-width: 300px;
+        @media screen and (max-width: 590px) {
+            max-width: 250px;
+        }
+    }
+
     &__nav-item {
         cursor: pointer;
         display: flex;
