@@ -292,7 +292,7 @@ p, proj:my-project:admin, repositories, update, my-project/*, allow
 This provides extra flexibility so that admins can have stricter rules. e.g.:
 
 ```
-p, proj:my-project:admin, repositories, update, my-project/https://github.my-company.com/*, allow
+p, proj:my-project:admin, repositories, update, my-project/https://github.example.com/*, allow
 ```
 
 Once the appropriate RBAC rules are in place, developers can create their own Git repositories and (assuming 
@@ -330,9 +330,9 @@ metadata:
     argocd.argoproj.io/secret-type: cluster
 type: Opaque
 stringData:
-  name: mycluster.com
+  name: mycluster.example.com
   project: my-project1 # Project scoped 
-  server: https://mycluster.com
+  server: https://mycluster.example.com
   config: |
     {
       "bearerToken": "<authentication token>",
