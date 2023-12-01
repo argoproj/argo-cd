@@ -210,3 +210,5 @@ data:
   notificationscontroller.log.level: "info"
   # Set the logging format. One of: text|json (default "text")
   notificationscontroller.log.format: "text"
+  # Enable self-service notifications config. Used in conjunction with apps-in-any-namespace. (default "false")
+  notificationscontroller.selfservice.enabled: "false"

@@ -318,6 +318,8 @@ message ApplicationSetSpec {
   optional bool applyNestedSelectors = 8;
 
   repeated ApplicationSetResourceIgnoreDifferences ignoreApplicationDifferences = 9;
+
+  optional string templatePatch = 10;
 }
 
 // ApplicationSetStatus defines the observed state of ApplicationSet
