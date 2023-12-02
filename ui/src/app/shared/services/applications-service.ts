@@ -39,7 +39,7 @@ export class ApplicationsService {
         },
         options?: QueryOptions
     ): Promise<models.AbstractApplicationList> {
-        let isFromApps = isInvokedFromAppsPath(ctx.history.location.pathname);
+        const isFromApps = isInvokedFromAppsPath(ctx.history.location.pathname);
         return requests
             .get(getRootPathByPath(ctx.history.location.pathname))
             .query(getQuery(projects, isFromApps, options))
@@ -59,7 +59,7 @@ export class ApplicationsService {
 
     public get(name: string, appNamespace: string, pathname: string, refresh?: 'normal' | 'hard'): Promise<models.AbstractApplication> {
         const query: {[key: string]: string} = {};
-        let isFromApps = isInvokedFromAppsPath(pathname);
+        const isFromApps = isInvokedFromAppsPath(pathname);
         if (refresh) {
             query.refresh = refresh;
         }
@@ -95,12 +95,14 @@ export class ApplicationsService {
     }
 
     public resourceTree(name: string, appNamespace: string, pathname: string): Promise<models.AbstractApplicationTree> {
-        console.log('***  RESOURCE TREE ****');
-        let isFromApps = isInvokedFromAppsPath(pathname);
-        return requests
-            .get(`${getRootPathByPath(pathname)}/${name}/resource-tree`)
-            .query({appNamespace})
-            .then(isFromApps ? res => res.body as models.ApplicationTree : res => res.body as models.ApplicationSetTree);
+        // const isFromApps = isInvokedFromAppsPath(pathname);
+        return (
+            requests
+                .get(`${getRootPathByPath(pathname)}/${name}/resource-tree`)
+                .query({appNamespace})
+                // .then(isFromApps ? res => res.body as models.ApplicationTree : res => res.body as models.ApplicationSetTree);
+                .then(res => res.body as models.AbstractApplicationTree)
+        );
     }
 
     public watchResourceTree(name: string, appNamespace: string, pathname: string): Observable<models.ApplicationTree> {
@@ -143,14 +145,14 @@ export class ApplicationsService {
 
     public updateSpec(appName: string, appNamespace: string, spec: models.ApplicationSpec): Promise<models.ApplicationSpec> {
         return requests
-            .put(`${getRootPathByPath('REPLACE ME')}/${appName}/spec`)
+            .put(`/applications/${appName}/spec`)
             .query({appNamespace})
             .send(spec)
             .then(res => res.body as models.ApplicationSpec);
     }
 
     public update(app: models.AbstractApplication, query: {validate?: boolean} = {}): Promise<models.AbstractApplication> {
-        let isAnApp = isApp(app);
+        const isAnApp = isApp(app);
         return requests
             .put(`${getRootPathByApp(app)}/${app.metadata.name}`)
             .query(query)
@@ -159,7 +161,7 @@ export class ApplicationsService {
     }
 
     public create(app: models.AbstractApplication): Promise<models.AbstractApplication> {
-        let isAnApp = isApp(app);
+        const isAnApp = isApp(app);
         // Namespace may be specified in the app name. We need to parse and
         // handle it accordingly.
         if (app.metadata.name.includes('/')) {
@@ -181,7 +183,7 @@ export class ApplicationsService {
         }
         // let isFromApps = isInvokedFromApps();
         return requests
-            .delete(`${getRootPathByPath('REPLACE ME')}/${name}`)
+            .delete(`/applications//${name}`)
             .query({
                 cascade,
                 propagationPolicy,
@@ -197,7 +199,7 @@ export class ApplicationsService {
         options?: QueryOptions
     ): Observable<models.ApplicationWatchEvent> {
         const search = new URLSearchParams();
-        let isFromApps = isInvokedFromAppsPath(pathname);
+        const isFromApps = isInvokedFromAppsPath(pathname);
         if (query) {
             if (query.name) {
                 search.set('name', query.name);
@@ -410,7 +412,7 @@ export class ApplicationsService {
     public events(applicationName: string, appNamespace: string): Promise<models.Event[]> {
         // let isFromApps = isInvokedFromApps();
         return requests
-            .get(`${getRootPathByPath('REPLACE ME')}/${applicationName}/events`)
+            .get(`/applications/${applicationName}/events`)
             .query({appNamespace})
             .send()
             .then(res => (res.body as models.EventList).items || []);
@@ -427,7 +429,7 @@ export class ApplicationsService {
     ): Promise<models.Event[]> {
         // let isFromApps = isInvokedFromApps();
         return requests
-            .get(`${getRootPathByPath('REPLACE ME')}/${applicationName}/events`)
+            .get(`/applications/${applicationName}/events`)
             .query({
                 appNamespace,
                 resourceUID: resource.uid,

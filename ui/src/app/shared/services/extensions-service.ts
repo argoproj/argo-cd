@@ -7,7 +7,7 @@ const extensions = {
     resourceExtentions: new Array<ResourceTabExtension>(),
     // appSetResourceExtentions: new Array<AppSetResourceTabExtension>(),
     systemLevelExtensions: new Array<SystemLevelExtension>(),
-    appViewExtensions: new Array<AppViewExtension>(),
+    appViewExtensions: new Array<AppViewExtension>()
     // appSetViewExtensions: new Array<AppSetViewExtension>()
 };
 
@@ -26,7 +26,6 @@ function registerAppViewExtension(component: ExtensionComponent, title: string, 
 // function registerAppSetViewExtension(component: AppSetExtensionComponent, title: string, icon: string) {
 //     extensions.appSetViewExtensions.push({component, title, icon});
 // }
-
 
 let legacyInitialized = false;
 
@@ -96,15 +95,15 @@ export interface AbstractExtensionComponentProps {
     application: ApplicationSet | Application;
 }
 
-export interface ExtensionComponentProps extends AbstractExtensionComponentProps{
+export interface ExtensionComponentProps extends AbstractExtensionComponentProps {
     application: Application;
 }
 
-export interface AppSetExtensionComponentProps extends AbstractExtensionComponentProps{
+export interface AppSetExtensionComponentProps extends AbstractExtensionComponentProps {
     application: ApplicationSet;
 }
 
-export interface ViewComponentProps extends AbstractViewComponentProps{
+export interface ViewComponentProps extends AbstractViewComponentProps {
     application: Application;
 }
 
@@ -130,7 +129,6 @@ export class ExtensionsService {
     //     return items.sort((a, b) => a.title.localeCompare(b.title));
     // }
 
-
     public getSystemExtensions(): SystemLevelExtension[] {
         return extensions.systemLevelExtensions.slice();
     }
@@ -142,7 +140,6 @@ export class ExtensionsService {
     // public getAppSetViewExtensions(): AppSetViewExtension[] {
     //     return extensions.appSetViewExtensions.slice();
     // }
-
 }
 
 ((window: any) => {
@@ -154,7 +151,6 @@ export class ExtensionsService {
         registerAppViewExtension
     };
 })(window);
-
 
 export class AppSetExtensionsService {
     public getResourceTabs(group: string, kind: string): ResourceTabExtension[] {

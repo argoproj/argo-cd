@@ -17,7 +17,7 @@ import {ApplicationsList} from '../../applications/components/applications-list/
 export const SettingsContainer = (props: RouteComponentProps<any>) => (
     <Switch>
         <Route exact={true} path={`${props.match.path}`} component={SettingsOverview} />
-        <Route exact={true} path={`${props.match.path}/applicationsets`} component={ApplicationsList} />        
+        <Route exact={true} path={`${props.match.path}/applicationsets`} component={ApplicationsList} />
         <Route exact={true} path={`${props.match.path}/repos`} component={ReposList} />
         <Route exact={true} path={`${props.match.path}/certs`} component={CertsList} />
         <Route exact={true} path={`${props.match.path}/gpgkeys`} component={GpgKeysList} />

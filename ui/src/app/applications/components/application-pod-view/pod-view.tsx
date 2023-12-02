@@ -15,7 +15,7 @@ import {ComparisonStatusIcon, isYoungerThanXMinutes, HealthStatusIcon, nodeKey, 
 
 import './pod-view.scss';
 import {PodTooltip} from './pod-tooltip';
-import { Observable } from 'rxjs';
+import {Observable} from 'rxjs';
 
 interface PodViewProps {
     tree: ApplicationTree;
@@ -76,7 +76,10 @@ export class PodView extends React.Component<PodViewProps> {
                                             style={{border: 'none', width: '170px'}}
                                             onClick={() =>
                                                 services.viewPreferences.updatePreferences({
-                                                    appDetails: {...prefs.appDetails, podView: {...podPrefs, hideUnschedulable: !podPrefs.hideUnschedulable} } as AppDetailsPreferences
+                                                    appDetails: {
+                                                        ...prefs.appDetails,
+                                                        podView: {...podPrefs, hideUnschedulable: !podPrefs.hideUnschedulable}
+                                                    } as AppDetailsPreferences
                                                 })
                                             }>
                                             <i className={`fa fa-${podPrefs.hideUnschedulable ? 'eye-slash' : 'eye'}`} style={{width: '15px', marginRight: '5px'}} />

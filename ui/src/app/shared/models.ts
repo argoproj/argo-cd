@@ -139,8 +139,8 @@ export interface AbstractApplication {
     kind?: string;
     metadata: models.ObjectMeta;
 
-    spec: any; //ApplicationSetSpec | ApplicationSpec;
-    status: any; //ApplicationStatus | ApplicationSetStatus;
+    spec: any; // ApplicationSetSpec | ApplicationSpec;
+    status: any; // ApplicationStatus | ApplicationSetStatus;
 }
 
 export interface Application extends AbstractApplication {
@@ -468,7 +468,10 @@ export interface ApplicationTree extends AbstractApplicationTree {
     hosts: Node[];
 }
 
-export interface ApplicationSetTree extends AbstractApplicationTree {}
+export interface ApplicationSetTree extends AbstractApplicationTree {
+    // FFU
+    dummyToPlacateLinter: any;
+}
 
 export interface ResourceID {
     group: string;

@@ -48,24 +48,6 @@ export interface AppSetDetailsPreferences extends AbstractAppDetailsPreferences 
     view: AppSetsDetailsViewType | string;
 }
 
-// export interface AppDetailsPreferences {
-//     resourceFilter: string[];
-//     view: AppsDetailsViewType | string;
-//     resourceView: 'manifest' | 'diff' | 'desiredManifest';
-//     inlineDiff: boolean;
-//     compactDiff: boolean;
-//     hideManagedFields?: boolean;
-//     orphanedResources: boolean;
-//     podView: PodViewPreferences;
-//     darkMode: boolean;
-//     followLogs: boolean;
-//     hideFilters: boolean;
-//     wrapLines: boolean;
-//     groupNodes?: boolean;
-//     zoom: number;
-//     podGroupCount: number;
-// }
-
 export interface PodViewPreferences {
     sortMode: PodGroupType;
     hideUnschedulable: boolean;
@@ -271,7 +253,7 @@ export class ViewPreferencesService {
         return this.preferencesSubj;
     }
 
-    public updatePreferences(change: Partial<AbstractViewPreferences>) {
+    public updatePreferences(change: Partial<ViewPreferences> | Partial<AppSetViewPreferences>) {
         const nextPref = Object.assign({}, this.preferencesSubj.getValue(), change, {version: minVer});
         window.localStorage.setItem(VIEW_PREFERENCES_KEY, JSON.stringify(nextPref));
         this.preferencesSubj.next(nextPref);

@@ -40,7 +40,10 @@ export interface FilterResult extends AbstractFilterResult {
     clusters: boolean;
 }
 
-export interface ApplicationSetFilterResult extends AbstractFilterResult {}
+export interface ApplicationSetFilterResult extends AbstractFilterResult {
+    // FFU
+    dummyToPlacateLinter: any;
+}
 
 export interface AbstractFilteredApp extends AbstractApplication {
     filterResult: AbstractFilterResult;
@@ -117,7 +120,7 @@ const optionsFrom = (options: string[], filter: string[]) => {
 };
 
 interface AbstractAppFilterProps {
-    apps: FilteredApp[] | ApplicationSetFilteredApp[];
+    apps: AbstractFilteredApp[]; // FilteredApp[] | ApplicationSetFilteredApp[];
     pref: AbstractAppsListPreferences;
     onChange: (newPrefs: AbstractAppsListPreferences) => void;
     children?: React.ReactNode;

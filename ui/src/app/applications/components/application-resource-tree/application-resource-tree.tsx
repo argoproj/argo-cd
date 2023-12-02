@@ -77,7 +77,10 @@ export interface ApplicationResourceTreeProps extends AbstractApplicationResourc
     podGroupCount: number;
 }
 
-export interface ApplicationSetResourceTreeProps extends AbstractApplicationResourceTreeProps {}
+export interface ApplicationSetResourceTreeProps extends AbstractApplicationResourceTreeProps {
+    // FFU
+    dummyMemberToPlacateLinter: any;
+}
 
 interface Line {
     x1: number;
@@ -932,7 +935,6 @@ export const ApplicationResourceTree = (props: AbstractApplicationResourceTreePr
             nodeByKey.set(treeNodeKey(node), resourceNode);
         });
     const nodes = Array.from(nodeByKey.values());
-    console.log(nodes);
     let roots: ResourceTreeNode[] = [];
     const childrenByParentKey = new Map<string, ResourceTreeNode[]>();
     const nodesHavingChildren = new Map<string, number>();

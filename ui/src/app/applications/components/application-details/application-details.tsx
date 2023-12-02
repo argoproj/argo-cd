@@ -164,8 +164,8 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
         services.viewPreferences.updatePreferences({appDetails: {...pref, groupNodes: !pref.groupNodes}});
     }
 
-    private getPageTitle(view: string, isApp: boolean) {
-        if (isApp) {
+    private getPageTitle(view: string, isAnApp: boolean) {
+        if (isAnApp) {
             const {Tree, Pods, Network, List} = AppsDetailsViewKey;
             switch (view) {
                 case Tree:
@@ -1016,7 +1016,6 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
 
     private groupAppNodesByKey(application: appModels.AbstractApplication, tree: appModels.AbstractApplicationTree) {
         const nodeByKey = new Map<string, appModels.ResourceDiff | appModels.ResourceNode | appModels.AbstractApplication>();
-        console.log(tree.nodes.length);
         tree.nodes.concat((isApp(application) ? (tree as appModels.ApplicationTree).orphanedNodes : []) || []).forEach(node => nodeByKey.set(AppUtils.nodeKey(node), node));
         nodeByKey.set(AppUtils.nodeKey({group: 'argoproj.io', kind: application.kind, name: application.metadata.name, namespace: application.metadata.namespace}), application);
         return nodeByKey;

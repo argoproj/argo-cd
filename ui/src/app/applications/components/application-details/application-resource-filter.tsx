@@ -1,6 +1,6 @@
 import * as React from 'react';
 import {Checkbox} from 'argo-ui/v2';
-import {ApplicationSetTree, ApplicationTree, HealthStatusCode, HealthStatuses, SyncStatusCode, SyncStatuses} from '../../../shared/models';
+import {AbstractApplicationTree, ApplicationTree, HealthStatusCode, HealthStatuses, SyncStatusCode, SyncStatuses} from '../../../shared/models';
 import {AppDetailsPreferences, AppSetDetailsPreferences, services} from '../../../shared/services';
 import {Context} from '../../../shared/context';
 import {Filter, FiltersGroup} from '../filter/filter';
@@ -17,7 +17,7 @@ function toOption(label: string) {
 export interface AbstractFiltersProps {
     children?: React.ReactNode;
     pref: AppDetailsPreferences | AppSetDetailsPreferences;
-    tree: ApplicationTree | ApplicationSetTree;
+    tree: AbstractApplicationTree; // | ApplicationSetTree;
     resourceNodes: models.ResourceStatus[];
     onSetFilter: (items: string[]) => void;
     onClearFilter: () => void;

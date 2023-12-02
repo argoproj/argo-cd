@@ -83,7 +83,7 @@ function loadApplications(
     projects: string[],
     appNamespace: string
 ): Observable<models.AbstractApplication[]> {
-    let isFromApps = isInvokedFromAppsPath(ctx.history.location.pathname);
+    const isFromApps = isInvokedFromAppsPath(ctx.history.location.pathname);
     return from(services.applications.list(projects, ctx, {appNamespace, fields: getAppListFields(isFromApps)})).pipe(
         mergeMap(applicationsList => {
             const applications = applicationsList.items;
@@ -223,7 +223,7 @@ function filterApps(
         return {...app, isAppOfAppsPattern};
     });
     const filterResults =
-        applications.length == 0
+        applications.length === 0
             ? getFilterResults(applications, pref)
             : isApp(applications[0])
             ? getFilterResults(applications as Application[], pref as AppsListPreferences)
@@ -384,7 +384,7 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
     const loaderRef = React.useRef<DataLoader>();
     const {List, Summary, Tiles} = AppsListViewKey;
 
-    const ctx = React.useContext(Context);
+    const listCtx = React.useContext(Context);
 
     function refreshApp(appName: string, appNamespace: string) {
         // app refreshing might be done too quickly so that UI might miss it due to event batching
@@ -400,30 +400,25 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
         services.applications.get(appName, appNamespace, 'normal');
     }
 
-    function onFilterPrefChanged(
-        ctx: ContextApis & {
-            history: History<unknown>;
-        },
-        newPref: AbstractAppsListPreferences
-    ) {
+    function onFilterPrefChanged(newPref: AbstractAppsListPreferences) {
         services.viewPreferences.updatePreferences({appList: newPref});
-        ctx.navigation.goto(
+        listCtx.navigation.goto(
             '.',
 
             {
-                proj: isInvokedFromAppsPath(ctx.history.location.pathname) ? (newPref as AppsListPreferences).projectsFilter.join(',') : '',
-                sync: isInvokedFromAppsPath(ctx.history.location.pathname) ? (newPref as AppsListPreferences).syncFilter.join(',') : '',
-                autoSync: isInvokedFromAppsPath(ctx.history.location.pathname) ? (newPref as AppsListPreferences).autoSyncFilter.join(',') : '',
+                proj: isInvokedFromAppsPath(listCtx.history.location.pathname) ? (newPref as AppsListPreferences).projectsFilter.join(',') : '',
+                sync: isInvokedFromAppsPath(listCtx.history.location.pathname) ? (newPref as AppsListPreferences).syncFilter.join(',') : '',
+                autoSync: isInvokedFromAppsPath(listCtx.history.location.pathname) ? (newPref as AppsListPreferences).autoSyncFilter.join(',') : '',
                 health: newPref.healthFilter.join(','),
-                namespace: isInvokedFromAppsPath(ctx.history.location.pathname) ? (newPref as AppsListPreferences).namespacesFilter.join(',') : '',
-                cluster: isInvokedFromAppsPath(ctx.history.location.pathname) ? (newPref as AppsListPreferences).clustersFilter.join(',') : '',
+                namespace: isInvokedFromAppsPath(listCtx.history.location.pathname) ? (newPref as AppsListPreferences).namespacesFilter.join(',') : '',
+                cluster: isInvokedFromAppsPath(listCtx.history.location.pathname) ? (newPref as AppsListPreferences).clustersFilter.join(',') : '',
                 labels: newPref.labelsFilter.map(encodeURIComponent).join(',')
             },
             {replace: true}
         );
     }
 
-    const pageTitlePrefix = isInvokedFromAppsPath(ctx.history.location.pathname) ? 'Applications ' : 'ApplicationSets ';
+    const pageTitlePrefix = isInvokedFromAppsPath(listCtx.history.location.pathname) ? 'Applications ' : 'ApplicationSets ';
 
     function getPageTitle(view: string) {
         switch (view) {
@@ -439,35 +434,35 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
 
     const sidebarTarget = useSidebarTarget();
 
-    const getEmptyStateText = isInvokedFromAppsPath(ctx.history.location.pathname) ? 'No matching applications found' : 'No matching application sets found';
+    const getEmptyStateText = isInvokedFromAppsPath(listCtx.history.location.pathname) ? 'No matching applications found' : 'No matching application sets found';
 
-    const applicationTilesProps = (ctx: ContextApis, data: models.Application[]): ApplicationTilesProps => {
+    const applicationTilesProps = (data: models.Application[]): ApplicationTilesProps => {
         return {
             applications: data,
-            syncApplication: (appName, appNamespace) => ctx.navigation.goto('.', {syncApp: appName, appNamespace}, {replace: true}),
+            syncApplication: (appName, appNamespace) => listCtx.navigation.goto('.', {syncApp: appName, appNamespace}, {replace: true}),
 
             refreshApplication: refreshApp,
-            deleteApplication: (appName, appNamespace) => AppUtils.deleteApplication(appName, appNamespace, ctx)
+            deleteApplication: (appName, appNamespace) => AppUtils.deleteApplication(appName, appNamespace, listCtx)
         };
     };
 
-    const applicationSetTilesProps = (ctx: ContextApis, data: models.ApplicationSet[]): ApplicationSetTilesProps => {
+    const applicationSetTilesProps = (data: models.ApplicationSet[]): ApplicationSetTilesProps => {
         return {
             applications: data,
-            deleteApplication: (appName, appNamespace) => AppUtils.deleteApplication(appName, appNamespace, ctx)
+            deleteApplication: (appName, appNamespace) => AppUtils.deleteApplication(appName, appNamespace, listCtx)
         };
     };
 
-    const abstractApplicationTilesProps = (ctx: ContextApis, applications: models.AbstractApplication[]): AbstractApplicationTilesProps => {
+    const abstractApplicationTilesProps = (applications: models.AbstractApplication[]): AbstractApplicationTilesProps => {
         if (isApp(applications[0])) {
-            return applicationTilesProps(ctx, applications);
+            return applicationTilesProps(applications);
         } else {
-            return applicationSetTilesProps(ctx, applications);
+            return applicationSetTilesProps(applications);
         }
     };
 
     function getProjectsFilter(pref: AbstractAppsListPreferences): string[] {
-        return isInvokedFromAppsPath(ctx.history.location.pathname) ? (pref as AppsListPreferences & {page: number; search: string}).projectsFilter : [];
+        return isInvokedFromAppsPath(listCtx.history.location.pathname) ? (pref as AppsListPreferences & {page: number; search: string}).projectsFilter : [];
     }
 
     return (
@@ -619,7 +614,7 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                                                         {allpref => (
                                                                             <ApplicationsFilter
                                                                                 apps={filterResults}
-                                                                                onChange={newPrefs => onFilterPrefChanged(ctx, newPrefs)}
+                                                                                onChange={newPrefs => onFilterPrefChanged(newPrefs)}
                                                                                 pref={
                                                                                     isInvokedFromAppsPath(ctx.history.location.pathname)
                                                                                         ? (pref as AppsListPreferences & {page: number; search: string})
@@ -652,7 +647,7 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                                                                             } else {
                                                                                                 AppSetsListPreferences.clearFilters(pref as AppSetsListPreferences);
                                                                                             }
-                                                                                            onFilterPrefChanged(ctx, pref);
+                                                                                            onFilterPrefChanged(pref);
                                                                                         }}>
                                                                                         clear filters
                                                                                     </a>
@@ -688,7 +683,7 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                                                         data={filteredApps}
                                                                         onPageChange={page => ctx.navigation.goto('.', {page})}>
                                                                         {data =>
-                                                                            (pref.view === 'tiles' && <ApplicationTiles {...abstractApplicationTilesProps(ctx, data)} />) || (
+                                                                            (pref.view === 'tiles' && <ApplicationTiles {...abstractApplicationTilesProps(data)} />) || (
                                                                                 <ApplicationsTable
                                                                                     applications={data}
                                                                                     syncApplication={(appName, appNamespace) =>
