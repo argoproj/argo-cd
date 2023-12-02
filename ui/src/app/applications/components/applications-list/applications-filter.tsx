@@ -23,7 +23,7 @@ import {
 import {AbstractAppsListPreferences, AppSetsListPreferences, AppsListPreferences, services} from '../../../shared/services';
 import {Filter, FiltersGroup} from '../filter/filter';
 import * as LabelSelector from '../label-selector';
-import {ComparisonStatusIcon, getAppDefaultSource, getAppSetHealthStatus, HealthStatusIcon, isApp, isInvokedFromAppsPath} from '../utils';
+import {AppSetHealthStatusIcon, ComparisonStatusIcon, getAppDefaultSource, getAppSetHealthStatus, HealthStatusIcon, isApp, isInvokedFromAppsPath} from '../utils';
 import {ContextApis} from '../../../shared/context';
 import {History} from 'history';
 
@@ -239,9 +239,14 @@ const HealthFilter = (props: AbstractAppFilterProps) => {
                           'health',
                           app => getAppSetHealthStatus(app.status),
                           Object.keys(ApplicationSetConditionStatuses)
-                          // s => (
-                          //     <HealthStatusIcon state={{ status: s as HealthStatusCode, message: '' }} noSpin={true} />
-                          // )
+                          //   state={(app as ApplicationSet).status
+                          /*
+                        export interface ApplicationSetStatus {
+    conditions?: ApplicationSetCondition[];
+    applicationStatus: ApplicationSetApplicationStatus[];
+}
+                        */
+                          //   s => <AppSetHealthStatusIcon state={{status: s as HealthStatusCode, message: ''}} noSpin={true} />
                       )
             }
         />
