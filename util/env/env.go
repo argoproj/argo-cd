@@ -96,6 +96,33 @@ func ParseFloatFromEnv(env string, defaultValue, min, max float32) float32 {
 	return float32(num)
 }
 
+// Helper function to parse a float64 from an environment variable. Returns a
+// default if env is not set, is not parseable to a number, exceeds max (if
+// max is greater than 0) or is less than min (and min is greater than 0).
+//
+// nolint:unparam
+func ParseFloat64FromEnv(env string, defaultValue, min, max float64) float64 {
+	str := os.Getenv(env)
+	if str == "" {
+		return defaultValue
+	}
+
+	num, err := strconv.ParseFloat(str, 64)
+	if err != nil {
+		log.Warnf("Could not parse '%s' as a float32 from environment %s", str, env)
+		return defaultValue
+	}
+	if num < min {
+		log.Warnf("Value in %s is %f, which is less than minimum %f allowed", env, num, min)
+		return defaultValue
+	}
+	if num > max {
+		log.Warnf("Value in %s is %f, which is greater than maximum %f allowed", env, num, max)
+		return defaultValue
+	}
+	return num
+}
+
 // Helper function to parse a time duration from an environment variable. Returns a
 // default if env is not set, is not parseable to a duration, exceeds max (if
 // max is greater than 0) or is less than min.
@@ -158,4 +185,31 @@ func ParseBoolFromEnv(envVar string, defaultValue bool) bool {
 		}
 	}
 	return defaultValue
+}
+
+// ParseStringToStringVar parses given value from the environment as a map of string.
+// Returns default value if envVar is not set.
+func ParseStringToStringFromEnv(envVar string, defaultValue map[string]string, seperator string) map[string]string {
+	str := os.Getenv(envVar)
+	str = strings.TrimSpace(str)
+	if str == "" {
+		return defaultValue
+	}
+
+	parsed := make(map[string]string)
+	for _, pair := range strings.Split(str, seperator) {
+		keyvalue := strings.Split(pair, "=")
+		if len(keyvalue) != 2 {
+			log.Warnf("Invalid key-value pair when parsing environment '%s' as a string map", str)
+			return defaultValue
+		}
+		key := strings.TrimSpace(keyvalue[0])
+		value := strings.TrimSpace(keyvalue[1])
+		if _, ok := parsed[key]; ok {
+			log.Warnf("Duplicate key '%s' when parsing environment '%s' as a string map", key, str)
+			return defaultValue
+		}
+		parsed[key] = value
+	}
+	return parsed
 }

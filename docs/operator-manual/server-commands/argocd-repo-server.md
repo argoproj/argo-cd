@@ -1,3 +1,5 @@
+# `argocd-repo-server` Command Reference
+
 ## argocd-repo-server
 
 Run ArgoCD Repository Server
@@ -27,6 +29,8 @@ argocd-repo-server [flags]
       --metrics-port int                               Start metrics server on given port (default 8084)
       --otlp-address string                            OpenTelemetry collector address to send traces to
       --otlp-attrs strings                             List of OpenTelemetry collector extra attrs when send traces, each attribute is separated by a colon(e.g. key:value)
+      --otlp-headers stringToString                    List of OpenTelemetry collector extra headers sent with traces, headers are comma-separated key-value pairs(e.g. key1=value1,key2=value2) (default [])
+      --otlp-insecure                                  OpenTelemetry collector insecure mode (default true)
       --parallelismlimit int                           Limit on number of concurrent manifests generate requests. Any value less the 1 means no limit.
       --plugin-tar-exclude stringArray                 Globs to filter when sending tarballs to plugins.
       --port int                                       Listen on given port for incoming connections (default 8081)

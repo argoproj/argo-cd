@@ -34,6 +34,8 @@ metadata:
   # The name of the plugin must be unique within a given Argo CD instance.
   name: my-plugin
 spec:
+  # The version of your plugin. Optional. If specified, the Application's spec.source.plugin.name field
+  # must be <plugin name>-<plugin version>.
   version: v1.0
   # The init command runs in the Application source directory at the beginning of each manifest generation. The init
   # command can output anything. A non-zero status code will fail manifest generation.
@@ -44,6 +46,7 @@ spec:
     args: [-c, 'echo "Initializing..."']
   # The generate command runs in the Application source directory each time manifests are generated. Standard output
   # must be ONLY valid Kubernetes Objects in either YAML or JSON. A non-zero exit code will fail manifest generation.
+  # To write log messages from the command, write them to stderr, it will always be displayed.
   # Error output will be sent to the UI, so avoid printing sensitive information (such as secrets).
   generate:
     command: [sh, -c]
@@ -333,6 +336,7 @@ If you are actively developing a sidecar-installed CMP, keep a few things in min
 3. CMP errors are cached by the repo-server in Redis. Restarting the repo-server Pod will not clear the cache. Always
    do a "Hard Refresh" when actively developing a CMP so you have the latest output.
 4. Verify your sidecar has started properly by viewing the Pod and seeing that two containers are running `kubectl get pod -l app.kubernetes.io/component=repo-server -n argocd`
+5. Write log message to stderr and set the `--loglevel=info` flag in the sidecar. This will print everything written to stderr, even on successfull command execution.
 
 
 ### Other Common Errors

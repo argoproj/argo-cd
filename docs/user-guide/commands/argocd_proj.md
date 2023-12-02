@@ -1,9 +1,27 @@
+# `argocd proj` Command Reference
+
 ## argocd proj
 
 Manage projects
 
 ```
 argocd proj [flags]
+```
+
+### Examples
+
+```
+  # List all available projects
+  argocd proj list
+  
+  # Create a new project with name PROJECT
+  argocd proj create PROJECT
+  
+  # Delete the project with name PROJECT
+  argocd proj delete PROJECT
+  
+  # Edit the information on project with name PROJECT
+  argocd proj edit PROJECT
 ```
 
 ### Options
@@ -17,6 +35,7 @@ argocd proj [flags]
       --client-key string              Path to a client key file for TLS
       --cluster string                 The name of the kubeconfig cluster to use
       --context string                 The name of the kubeconfig context to use
+      --disable-compression            If true, opt-out of response compression for all requests to the server
   -h, --help                           help for proj
       --insecure-skip-tls-verify       If true, the server's certificate will not be checked for validity. This will make your HTTPS connections insecure
       --kubeconfig string              Path to a kube config. Only required if out-of-cluster

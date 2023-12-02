@@ -98,7 +98,7 @@ The AppProject CRD is the Kubernetes resource object representing a logical grou
 It is defined by the following key pieces of information:
 
 * `sourceRepos` reference to the repositories that applications within the project can pull manifests from.
-* `destinations` reference to clusters and namespaces that applications within the project can deploy into (don't use the `name` field, only the `server` field is matched).
+* `destinations` reference to clusters and namespaces that applications within the project can deploy into.
 * `roles` list of entities with definitions of their access to resources within the project.
 
 !!!warning "Projects which can deploy to the Argo CD namespace grant admin access"
@@ -266,7 +266,7 @@ metadata:
     argocd.argoproj.io/secret-type: repository
 stringData:
   type: git
-  repo: https://source.developers.google.com/p/my-google-project/r/my-repo
+  url: https://source.developers.google.com/p/my-google-project/r/my-repo
   gcpServiceAccountKey: |
     {
       "type": "service_account",
@@ -590,8 +590,8 @@ metadata:
     argocd.argoproj.io/secret-type: cluster
 type: Opaque
 stringData:
-  name: mycluster.com
-  server: https://mycluster.com
+  name: mycluster.example.com
+  server: https://mycluster.example.com
   config: |
     {
       "bearerToken": "<authentication token>",
@@ -615,8 +615,8 @@ metadata:
     argocd.argoproj.io/secret-type: cluster
 type: Opaque
 stringData:
-  name: "mycluster.com"
-  server: "https://mycluster.com"
+  name: "mycluster.example.com"
+  server: "https://mycluster.example.com"
   config: |
     {
       "awsAuthConfig": {
@@ -742,8 +742,8 @@ metadata:
     argocd.argoproj.io/secret-type: cluster
 type: Opaque
 stringData:
-  name: mycluster.com
-  server: https://mycluster.com
+  name: mycluster.example.com
+  server: https://mycluster.example.com
   config: |
     {
       "execProviderConfig": {
@@ -795,8 +795,8 @@ metadata:
     argocd.argoproj.io/secret-type: cluster
 type: Opaque
 stringData:
-  name: mycluster.com
-  server: https://mycluster.com
+  name: mycluster.example.com
+  server: https://mycluster.example.com
   config: |
     {
       "execProviderConfig": {
@@ -830,8 +830,8 @@ metadata:
     argocd.argoproj.io/secret-type: cluster
 type: Opaque
 stringData:
-  name: mycluster.com
-  server: https://mycluster.com
+  name: mycluster.example.com
+  server: https://mycluster.example.com
   config: |
     {
       "execProviderConfig": {

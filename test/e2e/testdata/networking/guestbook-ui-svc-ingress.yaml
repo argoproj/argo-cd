@@ -9,7 +9,7 @@ metadata:
     ingress.kubernetes.io/app-root: "/"
 spec:
   rules:
-  - host: myhost.com
+  - host: example.com
     http:
       paths:
       - path: /
@@ -27,7 +27,7 @@ metadata:
     ingress.kubernetes.io/app-root: "/"
 spec:
   rules:
-    - host: myhost.com
+    - host: example.com
       http:
         paths:
           - path: /
