@@ -133,15 +133,12 @@ export class AppsListPreferences extends AbstractAppsListPreferences {
 
 export class AppSetsListPreferences extends AbstractAppsListPreferences {
     public static countEnabledFilters(pref: AppSetsListPreferences) {
-        return [pref.healthFilter, pref.labelsFilter].reduce(
-            (count, filter) => {
-                if (filter && filter.length > 0) {
-                    return count + 1;
-                }
-                return count;
-            },
-            0
-        );
+        return [pref.healthFilter, pref.labelsFilter].reduce((count, filter) => {
+            if (filter && filter.length > 0) {
+                return count + 1;
+            }
+            return count;
+        }, 0);
     }
 
     public static clearFilters(pref: AppSetsListPreferences) {
@@ -151,8 +148,8 @@ export class AppSetsListPreferences extends AbstractAppsListPreferences {
 
 export interface AbstractViewPreferences {
     version: number;
-    pageSizes: { [key: string]: number };
-    sortOptions?: { [key: string]: string };
+    pageSizes: {[key: string]: number};
+    sortOptions?: {[key: string]: string};
     hideBannerContent: string;
     hideSidebar: boolean;
     position: string;
@@ -175,81 +172,83 @@ const VIEW_PREFERENCES_KEY = 'view_preferences';
 
 const minVer = 5;
 
-const DEFAULT_PREFERENCES: ViewPreferences | AppSetViewPreferences = isInvokedFromApps ? {
-    version: 1,
-    appDetails: {
-        view: 'tree',
-        hideFilters: false,
-        resourceFilter: [],
-        inlineDiff: false,
-        compactDiff: false,
-        hideManagedFields: true,
-        resourceView: 'manifest',
-        orphanedResources: false,
-        podView: {
-            sortMode: 'node',
-            hideUnschedulable: true
-        },
-        darkMode: false,
-        followLogs: false,
-        wrapLines: false,
-        zoom: 1.0,
-        podGroupCount: 15.0,
-        userHelpTipMsgs: []
-    },
-    appList: {
-        view: 'tiles' as AppsListViewType,
-        labelsFilter: new Array<string>(),
-        projectsFilter: new Array<string>(),
-        namespacesFilter: new Array<string>(),
-        clustersFilter: new Array<string>(),
-        reposFilter: new Array<string>(),
-        syncFilter: new Array<string>(),
-        autoSyncFilter: new Array<string>(),
-        healthFilter: new Array<string>(),
-        hideFilters: false,
-        showFavorites: false,
-        favoritesAppList: new Array<string>(),
-        statusBarView: {
-            showHealthStatusBar: true
-        }
-    },
-    pageSizes: {},
-    hideBannerContent: '',
-    hideSidebar: false,
-    position: '',
-    theme: 'light'
-} : {
-    version: 1,
-    appDetails: {
-        view: 'tree',
-        hideFilters: false,
-        resourceFilter: [],
-        inlineDiff: false,
-        compactDiff: false,
-        hideManagedFields: true,
-        resourceView: 'manifest',
-        orphanedResources: false,
-        darkMode: false,
-        zoom: 1.0,
-    },
-    appList: {
-        view: 'tiles' as AppsListViewType,
-        labelsFilter: new Array<string>(),
-        healthFilter: new Array<string>(),
-        hideFilters: false,
-        showFavorites: false,
-        favoritesAppList: new Array<string>(),
-        statusBarView: {
-            showHealthStatusBar: true
-        }
-    },
-    pageSizes: {},
-    hideBannerContent: '',
-    hideSidebar: false,
-    position: '',
-    theme: 'light'
-};
+const DEFAULT_PREFERENCES: ViewPreferences | AppSetViewPreferences = isInvokedFromApps()
+    ? {
+          version: 1,
+          appDetails: {
+              view: 'tree',
+              hideFilters: false,
+              resourceFilter: [],
+              inlineDiff: false,
+              compactDiff: false,
+              hideManagedFields: true,
+              resourceView: 'manifest',
+              orphanedResources: false,
+              podView: {
+                  sortMode: 'node',
+                  hideUnschedulable: true
+              },
+              darkMode: false,
+              followLogs: false,
+              wrapLines: false,
+              zoom: 1.0,
+              podGroupCount: 15.0,
+              userHelpTipMsgs: []
+          },
+          appList: {
+              view: 'tiles' as AppsListViewType,
+              labelsFilter: new Array<string>(),
+              projectsFilter: new Array<string>(),
+              namespacesFilter: new Array<string>(),
+              clustersFilter: new Array<string>(),
+              reposFilter: new Array<string>(),
+              syncFilter: new Array<string>(),
+              autoSyncFilter: new Array<string>(),
+              healthFilter: new Array<string>(),
+              hideFilters: false,
+              showFavorites: false,
+              favoritesAppList: new Array<string>(),
+              statusBarView: {
+                  showHealthStatusBar: true
+              }
+          },
+          pageSizes: {},
+          hideBannerContent: '',
+          hideSidebar: false,
+          position: '',
+          theme: 'light'
+      }
+    : {
+          version: 1,
+          appDetails: {
+              view: 'tree',
+              hideFilters: false,
+              resourceFilter: [],
+              inlineDiff: false,
+              compactDiff: false,
+              hideManagedFields: true,
+              resourceView: 'manifest',
+              orphanedResources: false,
+              darkMode: false,
+              zoom: 1.0
+          },
+          appList: {
+              view: 'tiles' as AppsListViewType,
+              labelsFilter: new Array<string>(),
+              healthFilter: new Array<string>(),
+              hideFilters: false,
+              showFavorites: false,
+              favoritesAppList: new Array<string>(),
+              statusBarView: {
+                  showHealthStatusBar: true
+              }
+          },
+          pageSizes: {},
+          hideBannerContent: '',
+          hideSidebar: false,
+          position: '',
+          theme: 'light'
+      };
 
 export function isAppSetViewPreferences(pref: AbstractViewPreferences) {
     // There must be a more elegant way of determining that
@@ -273,7 +272,7 @@ export class ViewPreferencesService {
     }
 
     public updatePreferences(change: Partial<AbstractViewPreferences>) {
-        const nextPref = Object.assign({}, this.preferencesSubj.getValue(), change, { version: minVer });
+        const nextPref = Object.assign({}, this.preferencesSubj.getValue(), change, {version: minVer});
         window.localStorage.setItem(VIEW_PREFERENCES_KEY, JSON.stringify(nextPref));
         this.preferencesSubj.next(nextPref);
     }

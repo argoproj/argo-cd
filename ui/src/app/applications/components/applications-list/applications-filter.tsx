@@ -23,7 +23,9 @@ import {
 import {AbstractAppsListPreferences, AppSetsListPreferences, AppsListPreferences, services} from '../../../shared/services';
 import {Filter, FiltersGroup} from '../filter/filter';
 import * as LabelSelector from '../label-selector';
-import {ComparisonStatusIcon, getAppDefaultSource, getAppSetHealthStatus, HealthStatusIcon, isApp} from '../utils';
+import {ComparisonStatusIcon, getAppDefaultSource, getAppSetHealthStatus, HealthStatusIcon, isApp, isInvokedFromAppsPath} from '../utils';
+import {ContextApis} from '../../../shared/context';
+import {History} from 'history';
 
 export interface AbstractFilterResult {
     favourite: boolean;
@@ -75,8 +77,9 @@ export function getFilterResults(applications: AbstractApplication[], pref: Abst
                   repos: (pref as AppsListPreferences).reposFilter.length === 0 || (pref as AppsListPreferences).reposFilter.includes(getAppDefaultSource(app).repoURL),
                   sync: (pref as AppsListPreferences).syncFilter.length === 0 || (pref as AppsListPreferences).syncFilter.includes(app.status.sync.status),
                   autosync:
-                      (pref as AppsListPreferences).autoSyncFilter.length === 0 || (pref as AppsListPreferences).autoSyncFilter.includes(getAutoSyncStatus(app.spec.syncPolicy)),
-                  health: pref.healthFilter.length === 0 || pref.healthFilter.includes(app.status.health.status),
+                      (pref as AppsListPreferences).autoSyncFilter.length === 0 ||
+                      (pref as AppsListPreferences).autoSyncFilter.includes(getAutoSyncStatus((app as Application).spec.syncPolicy)),
+                  health: pref.healthFilter.length === 0 || pref.healthFilter.includes((app as Application).status.health.status),
                   namespaces:
                       (pref as AppsListPreferences).namespacesFilter.length === 0 ||
                       (pref as AppsListPreferences).namespacesFilter.some(ns => app.spec.destination.namespace && minimatch(app.spec.destination.namespace, ns)),
@@ -131,8 +134,14 @@ interface ApplicationSetFilterProps extends AbstractAppFilterProps {
     pref: AppSetsListPreferences;
     onChange: (newPrefs: AppSetsListPreferences) => void;
 }
-export function isAppFilterProps(abstractAppFilterProps: AbstractAppFilterProps): abstractAppFilterProps is AppFilterProps {
-    return isApp(abstractAppFilterProps.apps[0]);
+export function isAppFilterProps(
+    abstractAppFilterProps: AbstractAppFilterProps,
+    ctx: ContextApis & {
+        history: History<unknown>;
+    }
+): abstractAppFilterProps is AppFilterProps {
+    // return isApp(abstractAppFilterProps.apps[0]);
+    return isInvokedFromAppsPath(ctx.history.location.pathname);
 }
 
 const getCounts = (apps: FilteredApp[], filterType: keyof FilterResult, filter: (app: Application) => string, init?: string[]) => {
@@ -204,34 +213,37 @@ const SyncFilter = (props: AppFilterProps) => (
     />
 );
 
-const HealthFilter = (props: AbstractAppFilterProps) => (
-    <Filter
-        label='HEALTH STATUS'
-        selected={props.pref.healthFilter}
-        setSelected={s =>
-            isAppFilterProps(props) ? props.onChange({...props.pref, healthFilter: s}) : props.onChange({...(props as ApplicationSetFilterProps).pref, healthFilter: s})
-        }
-        options={
-            isAppFilterProps(props)
-                ? getOptions(
-                      props.apps,
-                      'health',
-                      app => app.status.health.status,
-                      Object.keys(HealthStatuses),
-                      s => <HealthStatusIcon state={{status: s as HealthStatusCode, message: ''}} noSpin={true} />
-                  )
-                : getAppSetOptions(
-                      (props as ApplicationSetFilterProps).apps,
-                      'health',
-                      app => getAppSetHealthStatus(app.status),
-                      Object.keys(ApplicationSetConditionStatuses)
-                      // s => (
-                      //     <HealthStatusIcon state={{ status: s as HealthStatusCode, message: '' }} noSpin={true} />
-                      // )
-                  )
-        }
-    />
-);
+const HealthFilter = (props: AbstractAppFilterProps) => {
+    const ctx = React.useContext(Context);
+    return (
+        <Filter
+            label='HEALTH STATUS'
+            selected={props.pref.healthFilter}
+            setSelected={s =>
+                isAppFilterProps(props, ctx) ? props.onChange({...props.pref, healthFilter: s}) : props.onChange({...(props as ApplicationSetFilterProps).pref, healthFilter: s})
+            }
+            options={
+                isAppFilterProps(props, ctx)
+                    ? getOptions(
+                          props.apps,
+                          'health',
+                          app => app.status.health.status,
+                          Object.keys(HealthStatuses),
+                          s => <HealthStatusIcon state={{status: s as HealthStatusCode, message: ''}} noSpin={true} />
+                      )
+                    : getAppSetOptions(
+                          (props as ApplicationSetFilterProps).apps,
+                          'health',
+                          app => getAppSetHealthStatus(app.status),
+                          Object.keys(ApplicationSetConditionStatuses)
+                          // s => (
+                          //     <HealthStatusIcon state={{ status: s as HealthStatusCode, message: '' }} noSpin={true} />
+                          // )
+                      )
+            }
+        />
+    );
+};
 
 const LabelsFilter = (props: AbstractAppFilterProps) => {
     const labels = new Map<string, Set<string>>();
@@ -380,16 +392,17 @@ const AutoSyncFilter = (props: AppFilterProps) => (
 );
 
 export const ApplicationsFilter = (props: AbstractAppFilterProps) => {
+    const ctx = React.useContext(Context);
     return (
         <FiltersGroup content={props.children} collapsed={props.collapsed}>
             <FavoriteFilter {...props} />
-            {isAppFilterProps(props) && <SyncFilter {...props} />}
+            {isAppFilterProps(props, ctx) && <SyncFilter {...props} />}
             <HealthFilter {...props} />
             <LabelsFilter {...props} />
-            {isAppFilterProps(props) && <ProjectFilter {...props} />}
-            {isAppFilterProps(props) && <ClusterFilter {...props} />}
-            {isAppFilterProps(props) && <NamespaceFilter {...props} />}
-            {isAppFilterProps(props) && <AutoSyncFilter {...props} collapsed={true} />}
+            {isAppFilterProps(props, ctx) && <ProjectFilter {...props} />}
+            {isAppFilterProps(props, ctx) && <ClusterFilter {...props} />}
+            {isAppFilterProps(props, ctx) && <NamespaceFilter {...props} />}
+            {isAppFilterProps(props, ctx) && <AutoSyncFilter {...props} collapsed={true} />}
         </FiltersGroup>
     );
 };

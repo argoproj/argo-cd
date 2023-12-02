@@ -4,7 +4,9 @@ const PieChart = require('react-svg-piechart').default;
 import {COLORS} from '../../../shared/components';
 import * as models from '../../../shared/models';
 import {Application, ApplicationSet, HealthStatusCode, SyncStatusCode} from '../../../shared/models';
-import {ComparisonStatusIcon, HealthStatusIcon, getAppSetHealthStatus, isApp} from '../utils';
+import {ComparisonStatusIcon, HealthStatusIcon, getAppSetHealthStatus, isInvokedFromAppsPath} from '../utils';
+import {ContextApis} from '../../../shared/context';
+import {History} from 'history';
 
 const healthColors = new Map<models.HealthStatusCode, string>();
 healthColors.set('Unknown', COLORS.health.unknown);
@@ -24,11 +26,19 @@ syncColors.set('Unknown', COLORS.sync.unknown);
 syncColors.set('Synced', COLORS.sync.synced);
 syncColors.set('OutOfSync', COLORS.sync.out_of_sync);
 
-export const ApplicationsSummary = ({applications}: {applications: models.AbstractApplication[]}) => {
+export const ApplicationsSummary = ({
+    applications,
+    ctx
+}: {
+    applications: models.AbstractApplication[];
+    ctx: ContextApis & {
+        history: History<unknown>;
+    };
+}) => {
     const sync = new Map<string, number>();
     const health = new Map<string, number>();
 
-    if (isApp(applications[0])) {
+    if (isInvokedFromAppsPath(ctx.history.location.pathname)) {
         applications.forEach(app => sync.set((app as Application).status.sync.status, (sync.get((app as Application).status.sync.status) || 0) + 1));
         applications.forEach(app => health.set((app as Application).status.health.status, (health.get((app as Application).status.health.status) || 0) + 1));
     } else {
@@ -37,7 +47,7 @@ export const ApplicationsSummary = ({applications}: {applications: models.Abstra
         );
     }
 
-    const attributes = isApp(applications[0])
+    const attributes = isInvokedFromAppsPath(ctx.history.location.pathname)
         ? [
               {
                   title: 'APPLICATIONS',
@@ -71,7 +81,7 @@ export const ApplicationsSummary = ({applications}: {applications: models.Abstra
               }
           ];
 
-    const charts = isApp(applications[0])
+    const charts = isInvokedFromAppsPath(ctx.history.location.pathname)
         ? [
               {
                   title: 'Sync',
@@ -87,7 +97,11 @@ export const ApplicationsSummary = ({applications}: {applications: models.Abstra
         : [
               {
                   title: 'Health',
-                  data: Array.from(health.keys()).map(key => ({title: key, value: health.get(key), color: appSetHealthColors.get(key as models.ApplicationSetConditionStatus)})),
+                  data: Array.from(health.keys()).map(key => ({
+                      title: key,
+                      value: health.get(key),
+                      color: appSetHealthColors.get(key as models.ApplicationSetConditionStatus)
+                  })),
                   legend: appSetHealthColors as Map<string, string>
               }
           ];
@@ -127,7 +141,7 @@ export const ApplicationsSummary = ({applications}: {applications: models.Abstra
                                                 <ul>
                                                     {Array.from(chart.legend.keys()).map(key => (
                                                         <li style={{listStyle: 'none', whiteSpace: 'nowrap'}} key={key}>
-                                                            {isApp(applications[0]) && chart.title === 'Health' && (
+                                                            {isInvokedFromAppsPath(ctx.history.location.pathname) && chart.title === 'Health' && (
                                                                 <HealthStatusIcon state={{status: key as HealthStatusCode, message: ''}} noSpin={true} />
                                                             )}
                                                             {/* {chart.title === 'Health' && <AppSetHealthStatusIcon state={{conditions : key as ApplicationSetConditionStatus}} noSpin={true} />}  */}

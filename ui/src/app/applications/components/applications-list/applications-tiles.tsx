@@ -75,7 +75,7 @@ export const ApplicationTiles = (tilesProps: AbstractApplicationTilesProps) => {
         keys: Key.ENTER,
         action: () => {
             if (selectedApp > -1) {
-                ctxh.navigation.goto(`${AppUtils.getRootPath()}/${tilesProps.applications[selectedApp].metadata.name}`);
+                ctxh.navigation.goto(`${AppUtils.getRootPathByPath(ctxh.history.location.pathname)}/${tilesProps.applications[selectedApp].metadata.name}`);
                 // tilesProps.applications[selectedApp]
                 return true;
             }
@@ -137,7 +137,7 @@ export const ApplicationTiles = (tilesProps: AbstractApplicationTilesProps) => {
                                                 className='row applications-tiles__wrapper'
                                                 onClick={e =>
                                                     ctx.navigation.goto(
-                                                        `${AppUtils.getRootPath()}/${app.metadata.namespace}/${app.metadata.name}`,
+                                                        `${AppUtils.getRootPathByPath(ctx.history.location.pathname)}/${app.metadata.namespace}/${app.metadata.name}`,
                                                         {view: pref.appDetails.view},
                                                         {event: e}
                                                     )

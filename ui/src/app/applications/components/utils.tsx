@@ -331,6 +331,7 @@ export const deletePodAction = async (pod: appModels.Pod, appContext: AppContext
 
 export const deletePopup = async (
     ctx: ContextApis,
+    history: History<unknown>,
     resource: ResourceTreeNode,
     application: appModels.AbstractApplication,
     appChanged?: BehaviorSubject<appModels.AbstractApplication>
@@ -389,7 +390,7 @@ export const deletePopup = async (
                 try {
                     await services.applications.deleteResource(application.metadata.name, application.metadata.namespace, resource, !!force, !!orphan);
                     if (appChanged) {
-                        appChanged.next(await services.applications.get(application.metadata.name, application.metadata.namespace));
+                        appChanged.next(await services.applications.get(application.metadata.name, application.metadata.namespace, history.location.pathname));
                     }
                     close();
                 } catch (e) {
@@ -439,6 +440,7 @@ function getActionItems(
     application: appModels.Application,
     tree: appModels.ApplicationTree,
     apis: ContextApis,
+    history: History<unknown>,
     appChanged: BehaviorSubject<appModels.AbstractApplication>,
     isQuickStart: boolean
 ): Observable<ActionMenuItem[]> {
@@ -456,7 +458,7 @@ function getActionItems(
             title: 'Delete',
             iconClassName: 'fa fa-fw fa-times-circle',
             action: async () => {
-                return deletePopup(apis, resource, application, appChanged);
+                return deletePopup(apis, history, resource, application, appChanged);
             }
         }
     ];
@@ -527,6 +529,7 @@ export function renderResourceMenu(
     application: appModels.Application,
     tree: appModels.ApplicationTree,
     apis: ContextApis,
+    history: History<unknown>,
     appChanged: BehaviorSubject<appModels.AbstractApplication>,
     getApplicationActionMenu: () => any
 ): React.ReactNode {
@@ -535,7 +538,7 @@ export function renderResourceMenu(
     if (isAppNode(resource) && resource.name === application.metadata.name) {
         menuItems = from([getApplicationActionMenu()]);
     } else {
-        menuItems = getActionItems(resource, application, tree, apis, appChanged, false);
+        menuItems = getActionItems(resource, application, tree, apis, history, appChanged, false);
     }
     return (
         <DataLoader load={() => menuItems}>
@@ -603,10 +606,11 @@ export function renderResourceButtons(
     application: appModels.Application,
     tree: appModels.ApplicationTree,
     apis: ContextApis,
+    history: History<unknown>,
     appChanged: BehaviorSubject<appModels.AbstractApplication>
 ): React.ReactNode {
     let menuItems: Observable<ActionMenuItem[]>;
-    menuItems = getActionItems(resource, application, tree, apis, appChanged, true);
+    menuItems = getActionItems(resource, application, tree, apis, history, appChanged, true);
     return (
         <DataLoader load={() => menuItems}>
             {items => (
@@ -1288,39 +1292,36 @@ export function appInstanceName(app: appModels.AbstractApplication): string {
     return app.metadata.namespace + '_' + app.metadata.name;
 }
 
+// This function determines whether an AbstractApp is an Application or an AppSet (by looking at it's kind).
+// If an Application, it returns it casted to Application.
 export function isApp(abstractApp: appModels.AbstractApplication): abstractApp is appModels.Application {
     return abstractApp.kind === 'Application';
 }
 
+// Currently used for view-preferences-service only.
+// TODO: GET RID OF IT (by finding an elegant solution for loading the relevant prefs by using location.pathname).
 export function isInvokedFromApps(): boolean {
-    const isInvokedFromApp = false;
-    return isInvokedFromApp;
+    return true;
 }
 
-export function isInvokedFromAppsCtx(
-    ctx: ContextApis & {
-        history: History<unknown>;
-    }
-): boolean {
-    const isInvokedFromApp = ctx.history.location.pathname.includes('applicationsets') ? false : true;
-    return isInvokedFromApp;
+export function isInvokedFromAppsPath(pathname: string): boolean {
+    return pathname.includes('applicationsets') ? false : true;
 }
 
 export function getAppSetHealthStatus(status: ApplicationSetStatus): ApplicationSetConditionStatus {
-    return status.conditions[0].status;
+    return status.conditions ? status.conditions[0].status : null;
 }
 
 export function getAppSetHealthMessage(status: ApplicationSetStatus): string {
     return status.conditions[0].message;
 }
-/*
-ctxh: ContextApis & {
-    history: History<unknown>;
-}
-*/
 
-export function getRootPath(): string {
-    return isInvokedFromApps() ? '/applications' : '/applicationsets';
+export function getRootPathByPath(pathname: string) {
+    return isInvokedFromAppsPath(pathname) ? '/applications' : '/applicationsets';
+}
+
+export function getRootPathByApp(abstractApp: appModels.AbstractApplication) {
+    return isApp(abstractApp) ? '/applications' : '/applicationsets';
 }
 
 export function formatCreationTimestamp(creationTimestamp: string) {

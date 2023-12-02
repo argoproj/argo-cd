@@ -38,7 +38,7 @@ export const ApplicationsTable = (props: {
         keys: Key.ENTER,
         action: () => {
             if (selectedApp > -1) {
-                ctxh.navigation.goto(`${AppUtils.getRootPath()}/${props.applications[selectedApp].metadata.name}`);
+                ctxh.navigation.goto(`${AppUtils.getRootPathByPath(ctxh.history.location.pathname)}/${props.applications[selectedApp].metadata.name}`);
                 return true;
             }
             return false;
@@ -62,7 +62,13 @@ export const ApplicationsTable = (props: {
                 } ${selectedApp === i ? 'applications-tiles__selected' : ''}`}>
                                         <div
                                             className={`row applications-list__table-row`}
-                                            onClick={e => ctx.navigation.goto(`${AppUtils.getRootPath()}/${app.metadata.namespace}/${app.metadata.name}`, {}, {event: e})}>
+                                            onClick={e =>
+                                                ctx.navigation.goto(
+                                                    `${AppUtils.getRootPathByPath(ctx.history.location.pathname)}/${app.metadata.namespace}/${app.metadata.name}`,
+                                                    {},
+                                                    {event: e}
+                                                )
+                                            }>
                                             <div className='columns small-4'>
                                                 <div className='row'>
                                                     <div className=' columns small-2'>

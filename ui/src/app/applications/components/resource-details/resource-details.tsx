@@ -212,7 +212,7 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                     <DataLoader
                         key='diff'
                         load={async () =>
-                            await services.applications.managedResources(application.metadata.name, application.metadata.namespace, {
+                            await services.applications.managedResources(application.metadata.name, application.metadata.namespace, appContext.history.location.pathname, {
                                 fields: ['items.normalizedLiveState', 'items.predictedLiveState', 'items.group', 'items.kind', 'items.namespace', 'items.name']
                             })
                         }>
@@ -247,14 +247,19 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                     noLoaderOnInputChange={true}
                     input={selectedNode.resourceVersion}
                     load={async () => {
-                        const managedResources = await services.applications.managedResources(application.metadata.name, application.metadata.namespace, {
-                            id: {
-                                name: selectedNode.name,
-                                namespace: selectedNode.namespace,
-                                kind: selectedNode.kind,
-                                group: selectedNode.group
+                        const managedResources = await services.applications.managedResources(
+                            application.metadata.name,
+                            application.metadata.namespace,
+                            appContext.history.location.pathname,
+                            {
+                                id: {
+                                    name: selectedNode.name,
+                                    namespace: selectedNode.namespace,
+                                    kind: selectedNode.kind,
+                                    group: selectedNode.group
+                                }
                             }
-                        });
+                        );
                         const controlled = managedResources.find(item => AppUtils.isSameNode(selectedNode, item));
                         const summary = application.status.resources.find(item => AppUtils.isSameNode(selectedNode, item));
                         const controlledState = (controlled && summary && {summary, state: controlled}) || null;
@@ -262,7 +267,9 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                         if (controlled && controlled.targetState) {
                             resQuery.version = AppUtils.parseApiVersion(controlled.targetState.apiVersion).version;
                         }
-                        const liveState = await services.applications.getResource(application.metadata.name, application.metadata.namespace, resQuery).catch(() => null);
+                        const liveState = await services.applications
+                            .getResource(application.metadata.name, application.metadata.namespace, appContext.history.location.pathname, resQuery)
+                            .catch(() => null);
                         const events =
                             (liveState &&
                                 (await services.applications.resourceEvents(application.metadata.name, application.metadata.namespace, {
@@ -277,7 +284,9 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                         } else {
                             const childPod = AppUtils.findChildPod(selectedNode, tree);
                             if (childPod) {
-                                podState = await services.applications.getResource(application.metadata.name, application.metadata.namespace, childPod).catch(() => null);
+                                podState = await services.applications
+                                    .getResource(application.metadata.name, application.metadata.namespace, appContext.history.location.pathname, childPod)
+                                    .catch(() => null);
                             }
                         }
 
@@ -311,7 +320,7 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                                     <i className='fa fa-sync-alt' /> <span className='show-for-large'>SYNC</span>
                                 </button>
                                 <button
-                                    onClick={() => AppUtils.deletePopup(appContext, selectedNode, application)}
+                                    onClick={() => AppUtils.deletePopup(appContext, appContext.history, selectedNode, application)}
                                     style={{marginRight: '5px'}}
                                     className='argo-button argo-button--base'>
                                     <i className='fa fa-trash' /> <span className='show-for-large'>DELETE</span>

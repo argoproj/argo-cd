@@ -32,7 +32,7 @@ import {ResourceDetails} from '../resource-details/resource-details';
 import * as AppUtils from '../utils';
 import {ApplicationResourceList} from './application-resource-list';
 import {AbstractFiltersProps, Filters} from './application-resource-filter';
-import {getAppDefaultSource, urlPattern, helpTip, isApp, isInvokedFromApps} from '../utils';
+import {getAppDefaultSource, urlPattern, helpTip, isApp, isInvokedFromAppsPath} from '../utils';
 import {AbstractApplication, ApplicationTree, ChartDetails, ResourceStatus} from '../../../shared/models';
 import {ApplicationsDetailsAppDropdown} from './application-details-app-dropdown';
 import {useSidebarTarget} from '../../../sidebar/sidebar';
@@ -194,8 +194,12 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
             <ObservableQuery>
                 {q => (
                     <DataLoader
-                        errorRenderer={error => <Page title={isInvokedFromApps() ? 'Application Details' : 'ApplicationSet Details'}>{error}</Page>}
-                        loadingRenderer={() => <Page title={isInvokedFromApps() ? 'Application Details' : 'Application Set Details'}>Loading...</Page>}
+                        errorRenderer={error => (
+                            <Page title={isInvokedFromAppsPath(this.props.history.location.pathname) ? 'Application Details' : 'ApplicationSet Details'}>{error}</Page>
+                        )}
+                        loadingRenderer={() => (
+                            <Page title={isInvokedFromAppsPath(this.props.history.location.pathname) ? 'Application Details' : 'Application Set Details'}>Loading...</Page>
+                        )}
                         input={this.props.match.params.name}
                         load={name =>
                             combineLatest([this.loadAppInfo(name, this.appNamespace), services.viewPreferences.getPreferences(), q]).pipe(
@@ -549,8 +553,14 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                                             selectedNodeFullName={this.selectedNodeKey}
                                                             onNodeClick={fullName => this.selectNode(fullName)}
                                                             nodeMenu={node =>
-                                                                AppUtils.renderResourceMenu(node, application, tree as ApplicationTree, this.appContext.apis, this.appChanged, () =>
-                                                                    this.getApplicationActionMenu(application, false)
+                                                                AppUtils.renderResourceMenu(
+                                                                    node,
+                                                                    application,
+                                                                    tree as ApplicationTree,
+                                                                    this.appContext.apis,
+                                                                    this.props.history,
+                                                                    this.appChanged,
+                                                                    () => this.getApplicationActionMenu(application, false)
                                                                 )
                                                             }
                                                             showCompactNodes={pref.groupNodes}
@@ -580,12 +590,25 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                                             app={application}
                                                             onItemClick={fullName => this.selectNode(fullName)}
                                                             nodeMenu={node =>
-                                                                AppUtils.renderResourceMenu(node, application, tree as ApplicationTree, this.appContext.apis, this.appChanged, () =>
-                                                                    this.getApplicationActionMenu(application, false)
+                                                                AppUtils.renderResourceMenu(
+                                                                    node,
+                                                                    application,
+                                                                    tree as ApplicationTree,
+                                                                    this.appContext.apis,
+                                                                    this.props.history,
+                                                                    this.appChanged,
+                                                                    () => this.getApplicationActionMenu(application, false)
                                                                 )
                                                             }
                                                             quickStarts={node =>
-                                                                AppUtils.renderResourceButtons(node, application, tree as ApplicationTree, this.appContext.apis, this.appChanged)
+                                                                AppUtils.renderResourceButtons(
+                                                                    node,
+                                                                    application,
+                                                                    tree as ApplicationTree,
+                                                                    this.appContext.apis,
+                                                                    this.props.history,
+                                                                    this.appChanged
+                                                                )
                                                             }
                                                         />
                                                     )) ||
@@ -621,6 +644,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                                                                     application,
                                                                                     tree as ApplicationTree,
                                                                                     this.appContext.apis,
+                                                                                    this.props.history,
                                                                                     this.appChanged,
                                                                                     () => this.getApplicationActionMenu(application, false)
                                                                                 )
@@ -656,6 +680,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                                                     application,
                                                                     tree as ApplicationTree,
                                                                     this.appContext.apis,
+                                                                    this.props.history,
                                                                     this.appChanged,
                                                                     () => this.getApplicationActionMenu(application, false)
                                                                 )
@@ -862,7 +887,8 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                   items={[
                                       {
                                           title: 'Hard Refresh',
-                                          action: () => !refreshing && services.applications.get(app.metadata.name, app.metadata.namespace, 'hard')
+                                          action: () =>
+                                              !refreshing && services.applications.get(app.metadata.name, app.metadata.namespace, this.props.history.location.pathname, 'hard')
                                       }
                                   ]}
                                   anchor={() => <i className='fa fa-caret-down' />}
@@ -872,7 +898,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                       disabled: !!refreshing,
                       action: () => {
                           if (!refreshing) {
-                              services.applications.get(app.metadata.name, app.metadata.namespace, 'normal');
+                              services.applications.get(app.metadata.name, app.metadata.namespace, this.props.location.pathname, 'normal');
                               AppUtils.setAppRefreshing(app);
                               this.appChanged.next(app);
                           }
@@ -930,7 +956,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
     }
 
     private loadAppInfo(name: string, appNamespace: string): Observable<{application: appModels.AbstractApplication; tree: appModels.AbstractApplicationTree}> {
-        return from(services.applications.get(name, appNamespace))
+        return from(services.applications.get(name, appNamespace, this.props.history.location.pathname))
             .pipe(
                 mergeMap(app => {
                     const fallbackTree = {
@@ -944,7 +970,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                             this.appChanged.pipe(filter(item => !!item)),
                             AppUtils.handlePageVisibility(() =>
                                 services.applications
-                                    .watch({name, appNamespace})
+                                    .watch(this.props.history.location.pathname, {name, appNamespace})
                                     .pipe(
                                         map(watchEvent => {
                                             if (watchEvent.type === 'DELETED') {
@@ -959,10 +985,10 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                         ),
                         merge(
                             from([fallbackTree]),
-                            services.applications.resourceTree(name, appNamespace).catch(() => fallbackTree),
+                            services.applications.resourceTree(name, appNamespace, this.props.history.location.pathname).catch(() => fallbackTree),
                             AppUtils.handlePageVisibility(() =>
                                 services.applications
-                                    .watchResourceTree(name, appNamespace)
+                                    .watchResourceTree(name, appNamespace, this.props.history.location.pathname)
                                     .pipe(repeat())
                                     .pipe(retryWhen(errors => errors.pipe(delay(500))))
                             )
@@ -980,7 +1006,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
     }
 
     private async updateApp(app: appModels.Application, query: {validate?: boolean}) {
-        const latestApp = await services.applications.get(app.metadata.name, app.metadata.namespace);
+        const latestApp = await services.applications.get(app.metadata.name, app.metadata.namespace, this.props.history.location.pathname);
         latestApp.metadata.labels = app.metadata.labels;
         latestApp.metadata.annotations = app.metadata.annotations;
         latestApp.spec = app.spec;
@@ -1058,7 +1084,7 @@ Are you sure you want to disable auto-sync and rollback application '${this.prop
                     await services.applications.update(update);
                 }
                 await services.applications.rollback(this.props.match.params.name, this.appNamespace, revisionHistory.id);
-                this.appChanged.next(await services.applications.get(this.props.match.params.name, this.appNamespace));
+                this.appChanged.next(await services.applications.get(this.props.match.params.name, this.appNamespace, this.props.history.location.pathname));
                 this.setRollbackPanelVisible(-1);
             }
         } catch (e) {
