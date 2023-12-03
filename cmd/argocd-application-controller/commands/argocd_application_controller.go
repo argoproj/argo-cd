@@ -30,11 +30,13 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/settings"
 	"github.com/argoproj/argo-cd/v2/util/tls"
 	"github.com/argoproj/argo-cd/v2/util/trace"
+	kubeerrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 const (
 	// CLIName is the name of the CLI
-	cliName = "argocd-application-controller"
+	cliName = common.ApplicationController
 	// Default time in seconds for application resync period
 	defaultAppResyncPeriod = 180
 	// Default time in seconds for application hard resync period
@@ -43,27 +45,29 @@ const (
 
 func NewCommand() *cobra.Command {
 	var (
-		clientConfig             clientcmd.ClientConfig
-		appResyncPeriod          int64
-		appHardResyncPeriod      int64
-		repoServerAddress        string
-		repoServerTimeoutSeconds int
-		selfHealTimeoutSeconds   int
-		statusProcessors         int
-		operationProcessors      int
-		glogLevel                int
-		metricsPort              int
-		metricsCacheExpiration   time.Duration
-		metricsAplicationLabels  []string
-		kubectlParallelismLimit  int64
-		cacheSrc                 func() (*appstatecache.Cache, error)
-		redisClient              *redis.Client
-		repoServerPlaintext      bool
-		repoServerStrictTLS      bool
-		otlpAddress              string
-		applicationNamespaces    []string
-		persistResourceHealth    bool
-		shardingAlgorithm        string
+		clientConfig                     clientcmd.ClientConfig
+		appResyncPeriod                  int64
+		appHardResyncPeriod              int64
+		repoServerAddress                string
+		repoServerTimeoutSeconds         int
+		selfHealTimeoutSeconds           int
+		statusProcessors                 int
+		operationProcessors              int
+		glogLevel                        int
+		metricsPort                      int
+		metricsCacheExpiration           time.Duration
+		metricsAplicationLabels          []string
+		kubectlParallelismLimit          int64
+		cacheSource                      func() (*appstatecache.Cache, error)
+		redisClient                      *redis.Client
+		repoServerPlaintext              bool
+		repoServerStrictTLS              bool
+		otlpAddress                      string
+		otlpAttrs                        []string
+		applicationNamespaces            []string
+		persistResourceHealth            bool
+		shardingAlgorithm                string
+		enableDynamicClusterDistribution bool
 	)
 	var command = cobra.Command{
 		Use:               cliName,
@@ -91,7 +95,7 @@ func NewCommand() *cobra.Command {
 			config, err := clientConfig.ClientConfig()
 			errors.CheckError(err)
 			errors.CheckError(v1alpha1.SetK8SConfigDefaults(config))
-			config.UserAgent = fmt.Sprintf("argocd-application-controller/%s (%s)", vers.Version, vers.Platform)
+			config.UserAgent = fmt.Sprintf("%s/%s (%s)", common.DefaultApplicationControllerName, vers.Version, vers.Platform)
 
 			kubeClient := kubernetes.NewForConfigOrDie(config)
 			appClient := appclientset.NewForConfigOrDie(config)
@@ -126,7 +130,7 @@ func NewCommand() *cobra.Command {
 
 			repoClientset := apiclient.NewRepoServerClientset(repoServerAddress, repoServerTimeoutSeconds, tlsConfig)
 
-			cache, err := cacheSrc()
+			cache, err := cacheSource()
 			errors.CheckError(err)
 			cache.Cache.SetClient(cacheutil.NewTwoLevelClient(cache.Cache.GetClient(), 10*time.Minute))
 
@@ -136,7 +140,8 @@ func NewCommand() *cobra.Command {
 				appController.InvalidateProjectsCache()
 			}))
 			kubectl := kubeutil.NewKubectl()
-			clusterFilter := getClusterFilter(kubeClient, settingsMgr, shardingAlgorithm)
+			clusterFilter := getClusterFilter(kubeClient, settingsMgr, shardingAlgorithm, enableDynamicClusterDistribution)
+			errors.CheckError(err)
 			appController, err = controller.NewApplicationController(
 				namespace,
 				settingsMgr,
@@ -164,7 +169,7 @@ func NewCommand() *cobra.Command {
 			stats.RegisterHeapDumper("memprofile")
 
 			if otlpAddress != "" {
-				closeTracer, err := trace.InitTracer(ctx, "argocd-controller", otlpAddress)
+				closeTracer, err := trace.InitTracer(ctx, "argocd-controller", otlpAddress, otlpAttrs)
 				if err != nil {
 					log.Fatalf("failed to initialize tracing: %v", err)
 				}
@@ -196,30 +201,66 @@ func NewCommand() *cobra.Command {
 	command.Flags().BoolVar(&repoServerStrictTLS, "repo-server-strict-tls", env.ParseBoolFromEnv("ARGOCD_APPLICATION_CONTROLLER_REPO_SERVER_STRICT_TLS", false), "Whether to use strict validation of the TLS cert presented by the repo server")
 	command.Flags().StringSliceVar(&metricsAplicationLabels, "metrics-application-labels", []string{}, "List of Application labels that will be added to the argocd_application_labels metric")
 	command.Flags().StringVar(&otlpAddress, "otlp-address", env.StringFromEnv("ARGOCD_APPLICATION_CONTROLLER_OTLP_ADDRESS", ""), "OpenTelemetry collector address to send traces to")
+	command.Flags().StringSliceVar(&otlpAttrs, "otlp-attrs", env.StringsFromEnv("ARGOCD_APPLICATION_CONTROLLER_OTLP_ATTRS", []string{}, ","), "List of OpenTelemetry collector extra attrs when send traces, each attribute is separated by a colon(e.g. key:value)")
 	command.Flags().StringSliceVar(&applicationNamespaces, "application-namespaces", env.StringsFromEnv("ARGOCD_APPLICATION_NAMESPACES", []string{}, ","), "List of additional namespaces that applications are allowed to be reconciled from")
 	command.Flags().BoolVar(&persistResourceHealth, "persist-resource-health", env.ParseBoolFromEnv("ARGOCD_APPLICATION_CONTROLLER_PERSIST_RESOURCE_HEALTH", true), "Enables storing the managed resources health in the Application CRD")
 	command.Flags().StringVar(&shardingAlgorithm, "sharding-method", env.StringFromEnv(common.EnvControllerShardingAlgorithm, common.DefaultShardingAlgorithm), "Enables choice of sharding method. Supported sharding methods are : [legacy, round-robin] ")
-	cacheSrc = appstatecache.AddCacheFlagsToCmd(&command, func(client *redis.Client) {
+	command.Flags().BoolVar(&enableDynamicClusterDistribution, "dynamic-cluster-distribution-enabled", env.ParseBoolFromEnv(common.EnvEnableDynamicClusterDistribution, false), "Enables dynamic cluster distribution.")
+	cacheSource = appstatecache.AddCacheFlagsToCmd(&command, func(client *redis.Client) {
 		redisClient = client
 	})
 	return &command
 }
 
-func getClusterFilter(kubeClient *kubernetes.Clientset, settingsMgr *settings.SettingsManager, shardingAlgorithm string) sharding.ClusterFilterFunction {
-	replicas := env.ParseNumFromEnv(common.EnvControllerReplicas, 0, 0, math.MaxInt32)
+func getClusterFilter(kubeClient *kubernetes.Clientset, settingsMgr *settings.SettingsManager, shardingAlgorithm string, enableDynamicClusterDistribution bool) sharding.ClusterFilterFunction {
+
+	var replicas int
 	shard := env.ParseNumFromEnv(common.EnvControllerShard, -1, -math.MaxInt32, math.MaxInt32)
+
+	applicationControllerName := env.StringFromEnv(common.EnvAppControllerName, common.DefaultApplicationControllerName)
+	appControllerDeployment, err := kubeClient.AppsV1().Deployments(settingsMgr.GetNamespace()).Get(context.Background(), applicationControllerName, metav1.GetOptions{})
+
+	// if the application controller deployment was not found, the Get() call returns an empty Deployment object. So, set the variable to nil explicitly
+	if err != nil && kubeerrors.IsNotFound(err) {
+		appControllerDeployment = nil
+	}
+
+	if enableDynamicClusterDistribution && appControllerDeployment != nil && appControllerDeployment.Spec.Replicas != nil {
+		replicas = int(*appControllerDeployment.Spec.Replicas)
+	} else {
+		replicas = env.ParseNumFromEnv(common.EnvControllerReplicas, 0, 0, math.MaxInt32)
+	}
+
 	var clusterFilter func(cluster *v1alpha1.Cluster) bool
 	if replicas > 1 {
-		if shard < 0 {
+		// check for shard mapping using configmap if application-controller is a deployment
+		// else use existing logic to infer shard from pod name if application-controller is a statefulset
+		if enableDynamicClusterDistribution && appControllerDeployment != nil {
+
 			var err error
-			shard, err = sharding.InferShard()
+			// retry 3 times if we find a conflict while updating shard mapping configMap.
+			// If we still see conflicts after the retries, wait for next iteration of heartbeat process.
+			for i := 0; i <= common.AppControllerHeartbeatUpdateRetryCount; i++ {
+				shard, err = sharding.GetOrUpdateShardFromConfigMap(kubeClient, settingsMgr, replicas, shard)
+				if !kubeerrors.IsConflict(err) {
+					err = fmt.Errorf("unable to get shard due to error updating the sharding config map: %s", err)
+					break
+				}
+				log.Warnf("conflict when getting shard from shard mapping configMap. Retrying (%d/3)", i)
+			}
 			errors.CheckError(err)
+		} else {
+			if shard < 0 {
+				var err error
+				shard, err = sharding.InferShard()
+				errors.CheckError(err)
+			}
 		}
 		log.Infof("Processing clusters from shard %d", shard)
 		db := db.NewDB(settingsMgr.GetNamespace(), settingsMgr, kubeClient)
 		log.Infof("Using filter function:  %s", shardingAlgorithm)
 		distributionFunction := sharding.GetDistributionFunction(db, shardingAlgorithm)
-		clusterFilter = sharding.GetClusterFilter(distributionFunction, shard)
+		clusterFilter = sharding.GetClusterFilter(db, distributionFunction, shard)
 	} else {
 		log.Info("Processing all cluster shards")
 	}

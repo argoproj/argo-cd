@@ -388,13 +388,13 @@ func (l *legacyRepositoryBackend) credentialsToRepository(repoInfo settings.Repo
 		Proxy:                      repoInfo.Proxy,
 	}
 	err := l.db.unmarshalFromSecretsStr(map[*SecretMaperValidation]*apiv1.SecretKeySelector{
-		&SecretMaperValidation{Dest: &repo.Username, Transform: StripCRLFCharacter}:             repoInfo.UsernameSecret,
-		&SecretMaperValidation{Dest: &repo.Password, Transform: StripCRLFCharacter}:             repoInfo.PasswordSecret,
-		&SecretMaperValidation{Dest: &repo.SSHPrivateKey, Transform: StripCRLFCharacter}:        repoInfo.SSHPrivateKeySecret,
-		&SecretMaperValidation{Dest: &repo.TLSClientCertData, Transform: StripCRLFCharacter}:    repoInfo.TLSClientCertDataSecret,
-		&SecretMaperValidation{Dest: &repo.TLSClientCertKey, Transform: StripCRLFCharacter}:     repoInfo.TLSClientCertKeySecret,
-		&SecretMaperValidation{Dest: &repo.GithubAppPrivateKey, Transform: StripCRLFCharacter}:  repoInfo.GithubAppPrivateKeySecret,
-		&SecretMaperValidation{Dest: &repo.GCPServiceAccountKey, Transform: StripCRLFCharacter}: repoInfo.GCPServiceAccountKey,
+		{Dest: &repo.Username, Transform: StripCRLFCharacter}:             repoInfo.UsernameSecret,
+		{Dest: &repo.Password, Transform: StripCRLFCharacter}:             repoInfo.PasswordSecret,
+		{Dest: &repo.SSHPrivateKey, Transform: StripCRLFCharacter}:        repoInfo.SSHPrivateKeySecret,
+		{Dest: &repo.TLSClientCertData, Transform: StripCRLFCharacter}:    repoInfo.TLSClientCertDataSecret,
+		{Dest: &repo.TLSClientCertKey, Transform: StripCRLFCharacter}:     repoInfo.TLSClientCertKeySecret,
+		{Dest: &repo.GithubAppPrivateKey, Transform: StripCRLFCharacter}:  repoInfo.GithubAppPrivateKeySecret,
+		{Dest: &repo.GCPServiceAccountKey, Transform: StripCRLFCharacter}: repoInfo.GCPServiceAccountKey,
 	}, make(map[string]*apiv1.Secret))
 	return repo, err
 }
@@ -408,13 +408,13 @@ func (l *legacyRepositoryBackend) credentialsToRepositoryCredentials(repoInfo se
 		EnableOCI:                  repoInfo.EnableOCI,
 	}
 	err := l.db.unmarshalFromSecretsStr(map[*SecretMaperValidation]*apiv1.SecretKeySelector{
-		&SecretMaperValidation{Dest: &creds.Username}:             repoInfo.UsernameSecret,
-		&SecretMaperValidation{Dest: &creds.Password}:             repoInfo.PasswordSecret,
-		&SecretMaperValidation{Dest: &creds.SSHPrivateKey}:        repoInfo.SSHPrivateKeySecret,
-		&SecretMaperValidation{Dest: &creds.TLSClientCertData}:    repoInfo.TLSClientCertDataSecret,
-		&SecretMaperValidation{Dest: &creds.TLSClientCertKey}:     repoInfo.TLSClientCertKeySecret,
-		&SecretMaperValidation{Dest: &creds.GithubAppPrivateKey}:  repoInfo.GithubAppPrivateKeySecret,
-		&SecretMaperValidation{Dest: &creds.GCPServiceAccountKey}: repoInfo.GCPServiceAccountKey,
+		{Dest: &creds.Username}:             repoInfo.UsernameSecret,
+		{Dest: &creds.Password}:             repoInfo.PasswordSecret,
+		{Dest: &creds.SSHPrivateKey}:        repoInfo.SSHPrivateKeySecret,
+		{Dest: &creds.TLSClientCertData}:    repoInfo.TLSClientCertDataSecret,
+		{Dest: &creds.TLSClientCertKey}:     repoInfo.TLSClientCertKeySecret,
+		{Dest: &creds.GithubAppPrivateKey}:  repoInfo.GithubAppPrivateKeySecret,
+		{Dest: &creds.GCPServiceAccountKey}: repoInfo.GCPServiceAccountKey,
 	}, make(map[string]*apiv1.Secret))
 	return creds, err
 }

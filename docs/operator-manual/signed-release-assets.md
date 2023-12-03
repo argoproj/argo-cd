@@ -142,7 +142,7 @@ A single attestation (`argocd-sbom.intoto.jsonl`) from each release is provided 
 slsa-verifier verify-artifact sbom.tar.gz \
   --provenance-path argocd-sbom.intoto.jsonl \
   --source-uri github.com/argoproj/argo-cd \
-  --source-tag v2.8.0
+  --source-tag v2.7.0
 ```
 
 ***

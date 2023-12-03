@@ -28,9 +28,11 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/kubernetes"
+	k8scache "k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
+	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -58,10 +60,6 @@ const (
 	//   https://github.com/argoproj-labs/argocd-notifications/blob/33d345fa838829bb50fca5c08523aba380d2c12b/pkg/controller/state.go#L17
 	NotifiedAnnotationKey             = "notified.notifications.argoproj.io"
 	ReconcileRequeueOnValidationError = time.Minute * 3
-
-	// LabelKeyAppSetInstance is the label key to use to uniquely identify the apps of an applicationset
-	// The ArgoCD applicationset name is used as the instance name
-	LabelKeyAppSetInstance = "argocd.argoproj.io/application-set-name"
 )
 
 var (
@@ -83,10 +81,13 @@ type ApplicationSetReconciler struct {
 	Policy               argov1alpha1.ApplicationsSyncPolicy
 	EnablePolicyOverride bool
 	utils.Renderer
-	ArgoCDNamespace          string
-	ApplicationSetNamespaces []string
-	EnableProgressiveSyncs   bool
-	SCMRootCAPath            string
+	ArgoCDNamespace            string
+	ApplicationSetNamespaces   []string
+	EnableProgressiveSyncs     bool
+	SCMRootCAPath              string
+	GlobalPreservedAnnotations []string
+	GlobalPreservedLabels      []string
+	Cache                      cache.Cache
 }
 
 // +kubebuilder:rbac:groups=argoproj.io,resources=applicationsets,verbs=get;list;watch;create;update;patch;delete
@@ -159,13 +160,15 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 
 	if r.EnableProgressiveSyncs {
 		if applicationSetInfo.Spec.Strategy == nil && len(applicationSetInfo.Status.ApplicationStatus) > 0 {
+			// If appset used progressive sync but stopped, clean up the progressive sync application statuses
 			log.Infof("Removing %v unnecessary AppStatus entries from ApplicationSet %v", len(applicationSetInfo.Status.ApplicationStatus), applicationSetInfo.Name)
 
 			err := r.setAppSetApplicationStatus(ctx, &applicationSetInfo, []argov1alpha1.ApplicationSetApplicationStatus{})
 			if err != nil {
 				return ctrl.Result{}, fmt.Errorf("failed to clear previous AppSet application statuses for %v: %w", applicationSetInfo.Name, err)
 			}
-		} else {
+		} else if applicationSetInfo.Spec.Strategy != nil {
+			// appset uses progressive sync
 			applications, err := r.getCurrentApplications(ctx, applicationSetInfo)
 			if err != nil {
 				return ctrl.Result{}, fmt.Errorf("failed to get current applications for application set: %w", err)
@@ -295,7 +298,6 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	}
 
 	requeueAfter := r.getMinRequeueAfter(&applicationSetInfo)
-	logCtx.WithField("requeueAfter", requeueAfter).Info("end reconcile")
 
 	if len(validateErrors) == 0 {
 		if err := r.setApplicationSetStatusCondition(ctx,
@@ -309,7 +311,12 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		); err != nil {
 			return ctrl.Result{}, err
 		}
+	} else if requeueAfter == time.Duration(0) {
+		// Ensure that the request is requeued if there are validation errors.
+		requeueAfter = ReconcileRequeueOnValidationError
 	}
+
+	logCtx.WithField("requeueAfter", requeueAfter).Info("end reconcile")
 
 	return ctrl.Result{
 		RequeueAfter: requeueAfter,
@@ -431,8 +438,7 @@ func (r *ApplicationSetReconciler) validateGeneratedApplications(ctx context.Con
 			errorsByIndex[i] = fmt.Errorf("ApplicationSet %s contains applications with duplicate name: %s", applicationSetInfo.Name, app.Name)
 			continue
 		}
-
-		proj, err := r.ArgoAppClientset.ArgoprojV1alpha1().AppProjects(r.ArgoCDNamespace).Get(ctx, app.Spec.GetProject(), metav1.GetOptions{})
+		_, err := r.ArgoAppClientset.ArgoprojV1alpha1().AppProjects(r.ArgoCDNamespace).Get(ctx, app.Spec.GetProject(), metav1.GetOptions{})
 		if err != nil {
 			if apierr.IsNotFound(err) {
 				errorsByIndex[i] = fmt.Errorf("application references project %s which does not exist", app.Spec.Project)
@@ -443,15 +449,6 @@ func (r *ApplicationSetReconciler) validateGeneratedApplications(ctx context.Con
 
 		if err := utils.ValidateDestination(ctx, &app.Spec.Destination, r.KubeClientset, r.ArgoCDNamespace); err != nil {
 			errorsByIndex[i] = fmt.Errorf("application destination spec is invalid: %s", err.Error())
-			continue
-		}
-
-		conditions, err := argoutil.ValidatePermissions(ctx, &app.Spec, proj, r.ArgoDB)
-		if err != nil {
-			return nil, err
-		}
-		if len(conditions) > 0 {
-			errorsByIndex[i] = fmt.Errorf("application spec is invalid: %s", argoutil.FormatAppConditions(conditions))
 			continue
 		}
 
@@ -512,10 +509,6 @@ func (r *ApplicationSetReconciler) generateApplications(applicationSetInfo argov
 
 		for _, a := range t {
 			tmplApplication := getTempApplication(a.Template)
-			if tmplApplication.Labels == nil {
-				tmplApplication.Labels = make(map[string]string)
-			}
-			tmplApplication.Labels[LabelKeyAppSetInstance] = applicationSetInfo.Name
 
 			for _, p := range a.Params {
 				app, err := r.Renderer.RenderTemplateParams(tmplApplication, applicationSetInfo.Spec.SyncPolicy, p, applicationSetInfo.Spec.GoTemplate, applicationSetInfo.Spec.GoTemplateOptions)
@@ -584,6 +577,25 @@ func (r *ApplicationSetReconciler) SetupWithManager(mgr ctrl.Manager, enableProg
 		Complete(r)
 }
 
+func (r *ApplicationSetReconciler) updateCache(ctx context.Context, obj client.Object, logger *log.Entry) {
+	informer, err := r.Cache.GetInformer(ctx, obj)
+	if err != nil {
+		logger.Errorf("failed to get informer: %v", err)
+		return
+	}
+	// The controller runtime abstract away informers creation
+	// so unfortunately could not find any other way to access informer store.
+	k8sInformer, ok := informer.(k8scache.SharedInformer)
+	if !ok {
+		logger.Error("informer is not a kubernetes informer")
+		return
+	}
+	if err := k8sInformer.GetStore().Update(obj); err != nil {
+		logger.Errorf("failed to update cache: %v", err)
+		return
+	}
+}
+
 // createOrUpdateInCluster will create / update application resources in the cluster.
 // - For new applications, it will call create
 // - For existing application, it will call update
@@ -611,7 +623,7 @@ func (r *ApplicationSetReconciler) createOrUpdateInCluster(ctx context.Context, 
 			},
 		}
 
-		action, err := utils.CreateOrUpdate(ctx, r.Client, found, func() error {
+		action, err := utils.CreateOrUpdate(ctx, appLog, r.Client, applicationSet.Spec.IgnoreApplicationDifferences, found, func() error {
 			// Copy only the Application/ObjectMeta fields that are significant, from the generatedApp
 			found.Spec = generatedApp.Spec
 
@@ -621,9 +633,21 @@ func (r *ApplicationSetReconciler) createOrUpdateInCluster(ctx context.Context, 
 			}
 
 			preservedAnnotations := make([]string, 0)
+			preservedLabels := make([]string, 0)
+
 			if applicationSet.Spec.PreservedFields != nil {
 				preservedAnnotations = append(preservedAnnotations, applicationSet.Spec.PreservedFields.Annotations...)
+				preservedLabels = append(preservedLabels, applicationSet.Spec.PreservedFields.Labels...)
 			}
+
+			if len(r.GlobalPreservedAnnotations) > 0 {
+				preservedAnnotations = append(preservedAnnotations, r.GlobalPreservedAnnotations...)
+			}
+
+			if len(r.GlobalPreservedLabels) > 0 {
+				preservedLabels = append(preservedLabels, r.GlobalPreservedLabels...)
+			}
+
 			// Preserve specially treated argo cd annotations:
 			// * https://github.com/argoproj/applicationset/issues/180
 			// * https://github.com/argoproj/argo-cd/issues/10500
@@ -637,10 +661,21 @@ func (r *ApplicationSetReconciler) createOrUpdateInCluster(ctx context.Context, 
 					generatedApp.Annotations[key] = state
 				}
 			}
+
+			for _, key := range preservedLabels {
+				if state, exists := found.ObjectMeta.Labels[key]; exists {
+					if generatedApp.Labels == nil {
+						generatedApp.Labels = map[string]string{}
+					}
+					generatedApp.Labels[key] = state
+				}
+			}
+
 			found.ObjectMeta.Annotations = generatedApp.Annotations
 
 			found.ObjectMeta.Finalizers = generatedApp.Finalizers
 			found.ObjectMeta.Labels = generatedApp.Labels
+
 			return controllerutil.SetControllerReference(&applicationSet, found, r.Scheme)
 		})
 
@@ -651,7 +686,7 @@ func (r *ApplicationSetReconciler) createOrUpdateInCluster(ctx context.Context, 
 			}
 			continue
 		}
-
+		r.updateCache(ctx, found, appLog)
 		r.Recorder.Eventf(&applicationSet, corev1.EventTypeNormal, fmt.Sprint(action), "%s Application %q", action, generatedApp.Name)
 		appLog.Logf(log.InfoLevel, "%s Application", action)
 	}
@@ -692,7 +727,7 @@ func (r *ApplicationSetReconciler) getCurrentApplications(_ context.Context, app
 	err := r.Client.List(context.Background(), &current, client.MatchingFields{".metadata.controller": applicationSet.Name})
 
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error retrieving applications: %w", err)
 	}
 
 	return current.Items, nil
@@ -809,15 +844,21 @@ func (r *ApplicationSetReconciler) removeFinalizerOnInvalidDestination(ctx conte
 
 		// If the finalizer length changed (due to filtering out an Argo finalizer), update the finalizer list on the app
 		if len(newFinalizers) != len(app.Finalizers) {
-			app.Finalizers = newFinalizers
+			updated := app.DeepCopy()
+			updated.Finalizers = newFinalizers
+			patch := client.MergeFrom(app)
+			if log.IsLevelEnabled(log.DebugLevel) {
+				utils.LogPatch(appLog, patch, updated)
+			}
+			if err := r.Client.Patch(ctx, updated, patch); err != nil {
+				return fmt.Errorf("error updating finalizers: %w", err)
+			}
+			r.updateCache(ctx, updated, appLog)
+			// Application must have updated list of finalizers
+			updated.DeepCopyInto(app)
 
 			r.Recorder.Eventf(&applicationSet, corev1.EventTypeNormal, "Updated", "Updated Application %q finalizer before deletion, because application has an invalid destination", app.Name)
 			appLog.Log(log.InfoLevel, "Updating application finalizer before deletion, because application has an invalid destination")
-
-			err := r.Client.Update(ctx, app, &client.UpdateOptions{})
-			if err != nil {
-				return fmt.Errorf("error updating finalizers: %w", err)
-			}
 		}
 	}
 

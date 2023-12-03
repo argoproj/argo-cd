@@ -41,6 +41,10 @@ message ManifestRequest {
     bool hasMultipleSources = 22;
     map<string, github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.RefTarget> refSources = 23;
     VersionConfig versionConfig = 24;
+    // This is used to surface "source not permitted" errors for Helm repositories
+    repeated string projectSourceRepos = 25;
+    // This is used to surface "source not permitted" errors for Helm repositories
+    string projectName = 26;
 }
 
 message ManifestRequestWithFiles {

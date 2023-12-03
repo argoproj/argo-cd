@@ -3002,6 +3002,16 @@ func TestSourceAllowsConcurrentProcessing_KustomizeParams(t *testing.T) {
 
 		assert.False(t, src.AllowsConcurrentProcessing())
 	})
+
+	t.Run("Has Patches", func(t *testing.T) {
+		src := ApplicationSource{Path: ".", Kustomize: &ApplicationSourceKustomize{
+			Patches: KustomizePatches{{
+				Path: "test",
+			}},
+		}}
+
+		assert.False(t, src.AllowsConcurrentProcessing())
+	})
 }
 
 func TestUnSetCascadedDeletion(t *testing.T) {
@@ -3156,7 +3166,7 @@ func TestGetCAPath(t *testing.T) {
 	if err != nil {
 		panic(err)
 	}
-	os.Setenv(argocdcommon.EnvVarTLSDataPath, temppath)
+	t.Setenv(argocdcommon.EnvVarTLSDataPath, temppath)
 	validcert := []string{
 		"https://foo.example.com",
 		"oci://foo.example.com",

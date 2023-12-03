@@ -18,6 +18,8 @@ redis-ha:
       server: 6m
       client: 6m
     checkInterval: 3s
+    metrics:
+      enabled: true
   image:
     repository: quay.io/codefresh/redis
     tag: 7.0.11-alpine

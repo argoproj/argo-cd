@@ -18,8 +18,8 @@ import (
 const maxCookieLength = 4093
 
 // max number of chunks a cookie can be broken into. To be compatible with
-// widest range of browsers, we shouldn't create more than 30 cookies per domain
-var maxCookieNumber = env.ParseNumFromEnv(common.EnvMaxCookieNumber, 10, 0, 30)
+// widest range of browsers, you shouldn't create more than 30 cookies per domain
+var maxCookieNumber = env.ParseNumFromEnv(common.EnvMaxCookieNumber, 20, 0, math.MaxInt)
 
 // MakeCookieMetadata generates a string representing a Web cookie.  Yum!
 func MakeCookieMetadata(key, value string, flags ...string) ([]string, error) {

@@ -130,7 +130,7 @@ func NewCertAddTLSCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 			}
 		},
 	}
-	command.Flags().StringVar(&fromFile, "from", "", "read TLS certificate data from file (default is to read from stdin)")
+	command.Flags().StringVar(&fromFile, "from", "", "Read TLS certificate data from file (default is to read from stdin)")
 	command.Flags().BoolVar(&upsert, "upsert", false, "Replace existing TLS certificate if certificate is different in input")
 	return command
 }
@@ -300,9 +300,9 @@ func NewCertListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	}
 
 	command.Flags().StringVarP(&output, "output", "o", "wide", "Output format. One of: json|yaml|wide")
-	command.Flags().StringVar(&sortOrder, "sort", "", "set display sort order for output format wide. One of: hostname|type")
-	command.Flags().StringVar(&certType, "cert-type", "", "only list certificates of given type, valid: 'ssh','https'")
-	command.Flags().StringVar(&hostNamePattern, "hostname-pattern", "", "only list certificates for hosts matching given glob-pattern")
+	command.Flags().StringVar(&sortOrder, "sort", "", "Set display sort order for output format wide. One of: hostname|type")
+	command.Flags().StringVar(&certType, "cert-type", "", "Only list certificates of given type, valid: 'ssh','https'")
+	command.Flags().StringVar(&hostNamePattern, "hostname-pattern", "", "Only list certificates for hosts matching given glob-pattern")
 	return command
 }
 

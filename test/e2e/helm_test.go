@@ -20,6 +20,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/test/e2e/fixture"
 	. "github.com/argoproj/argo-cd/v2/test/e2e/fixture"
 	. "github.com/argoproj/argo-cd/v2/test/e2e/fixture/app"
+	projectFixture "github.com/argoproj/argo-cd/v2/test/e2e/fixture/project"
 	"github.com/argoproj/argo-cd/v2/test/e2e/fixture/repos"
 	. "github.com/argoproj/argo-cd/v2/util/errors"
 	"github.com/argoproj/argo-cd/v2/util/settings"
@@ -94,24 +95,24 @@ func TestDeclarativeHelmInvalidValuesFile(t *testing.T) {
 		Expect(Condition(ApplicationConditionComparisonError, "does-not-exist-values.yaml: no such file or directory"))
 }
 
-// func TestHelmRepo(t *testing.T) {
-// 	SkipOnEnv(t, "HELM")
-// 	Given(t).
-// 		CustomCACertAdded().
-// 		HelmRepoAdded("custom-repo").
-// 		RepoURLType(RepoURLTypeHelm).
-// 		Chart("helm").
-// 		Revision("1.0.0").
-// 		When().
-// 		Create().
-// 		Then().
-// 		When().
-// 		Sync().
-// 		Then().
-// 		Expect(OperationPhaseIs(OperationSucceeded)).
-// 		Expect(HealthIs(health.HealthStatusHealthy)).
-// 		Expect(SyncStatusIs(SyncStatusCodeSynced))
-// }
+func TestHelmRepo(t *testing.T) {
+	SkipOnEnv(t, "HELM")
+	Given(t).
+		CustomCACertAdded().
+		HelmRepoAdded("custom-repo").
+		RepoURLType(RepoURLTypeHelm).
+		Chart("helm").
+		Revision("1.0.0").
+		When().
+		CreateApp().
+		Then().
+		When().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(HealthIs(health.HealthStatusHealthy)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced))
+}
 
 func TestHelmValues(t *testing.T) {
 	Given(t).
@@ -400,6 +401,45 @@ func TestHelmWithMultipleDependencies(t *testing.T) {
 		Expect(SyncStatusIs(SyncStatusCodeSynced))
 }
 
+func TestHelmDependenciesPermissionDenied(t *testing.T) {
+	SkipOnEnv(t, "HELM")
+
+	projName := "argo-helm-project-denied"
+	projectFixture.
+		Given(t).
+		Name(projName).
+		Destination("*,*").
+		When().
+		Create().
+		AddSource(RepoURL(RepoURLTypeFile))
+
+	expectedErr := fmt.Sprintf("helm repos localhost:5000/myrepo are not permitted in project '%s'", projName)
+	GivenWithSameState(t).
+		Project(projName).
+		Path("helm-oci-with-dependencies").
+		CustomCACertAdded().
+		HelmHTTPSCredentialsUserPassAdded().
+		HelmPassCredentials().
+		When().
+		IgnoreErrors().
+		CreateApp().
+		Then().
+		Expect(Error("", expectedErr))
+
+	expectedErr = fmt.Sprintf("helm repos https://localhost:9443/argo-e2e/testdata.git/helm-repo/local, https://localhost:9443/argo-e2e/testdata.git/helm-repo/local2 are not permitted in project '%s'", projName)
+	GivenWithSameState(t).
+		Project(projName).
+		Path("helm-with-multiple-dependencies-permission-denied").
+		CustomCACertAdded().
+		HelmHTTPSCredentialsUserPassAdded().
+		HelmPassCredentials().
+		When().
+		IgnoreErrors().
+		CreateApp().
+		Then().
+		Expect(Error("", expectedErr))
+}
+
 func TestHelmWithDependenciesLegacyRepo(t *testing.T) {
 	SkipOnEnv(t, "HELM")
 	testHelmWithDependencies(t, "helm-with-dependencies", true)
@@ -491,7 +531,6 @@ func TestHelmRepoDiffLocal(t *testing.T) {
 }
 
 func TestHelmOCIRegistry(t *testing.T) {
-	SkipOnEnv(t, "HELM")
 	Given(t).
 		PushChartToOCIRegistry("helm-values", "helm-values", "1.0.0").
 		HelmOCIRepoAdded("myrepo").
@@ -510,7 +549,6 @@ func TestHelmOCIRegistry(t *testing.T) {
 }
 
 func TestGitWithHelmOCIRegistryDependencies(t *testing.T) {
-	SkipOnEnv(t, "HELM")
 	Given(t).
 		PushChartToOCIRegistry("helm-values", "helm-values", "1.0.0").
 		HelmOCIRepoAdded("myrepo").
@@ -527,7 +565,6 @@ func TestGitWithHelmOCIRegistryDependencies(t *testing.T) {
 }
 
 func TestHelmOCIRegistryWithDependencies(t *testing.T) {
-	SkipOnEnv(t, "HELM")
 	Given(t).
 		PushChartToOCIRegistry("helm-values", "helm-values", "1.0.0").
 		PushChartToOCIRegistry("helm-oci-with-dependencies", "helm-oci-with-dependencies", "1.0.0").
@@ -547,7 +584,6 @@ func TestHelmOCIRegistryWithDependencies(t *testing.T) {
 }
 
 func TestTemplatesGitWithHelmOCIDependencies(t *testing.T) {
-	SkipOnEnv(t, "HELM")
 	Given(t).
 		PushChartToOCIRegistry("helm-values", "helm-values", "1.0.0").
 		HelmoOCICredentialsWithoutUserPassAdded().
@@ -564,7 +600,6 @@ func TestTemplatesGitWithHelmOCIDependencies(t *testing.T) {
 }
 
 func TestTemplatesHelmOCIWithDependencies(t *testing.T) {
-	SkipOnEnv(t, "HELM")
 	Given(t).
 		PushChartToOCIRegistry("helm-values", "helm-values", "1.0.0").
 		PushChartToOCIRegistry("helm-oci-with-dependencies", "helm-oci-with-dependencies", "1.0.0").

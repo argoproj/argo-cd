@@ -1278,7 +1278,7 @@ func Test_GetRefSources(t *testing.T) {
 			{RepoURL: fmt.Sprintf("file://%s", repoPath)},
 		})
 
-		refSources, err := GetRefSources(context.TODO(), *argoSpec, repoDB)
+		refSources, err := GetRefSources(context.Background(), *argoSpec, repoDB)
 
 		expectedRefSource := argoappv1.RefTargetRevisionMapping{
 			"$source-1_2": &argoappv1.RefTarget{
@@ -1298,7 +1298,7 @@ func Test_GetRefSources(t *testing.T) {
 			{RepoURL: "file://does-not-exist", Ref: "source1"},
 		})
 
-		refSources, err := GetRefSources(context.TODO(), *argoSpec, repoDB)
+		refSources, err := GetRefSources(context.Background(), *argoSpec, repoDB)
 
 		assert.Error(t, err)
 		assert.Empty(t, refSources)

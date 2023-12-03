@@ -955,3 +955,12 @@ export interface LinkInfo {
 export interface LinksResponse {
     items: LinkInfo[];
 }
+
+export interface UserMessages {
+    appName: string;
+    msgKey: string;
+    display: boolean;
+    condition?: HealthStatusCode;
+    duration?: number;
+    animation?: string;
+}
