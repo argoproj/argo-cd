@@ -1308,12 +1308,14 @@ export function isInvokedFromAppsPath(pathname: string): boolean {
     return pathname.includes('applicationsets') ? false : true;
 }
 
+// Calculated as the last AppSet condition status - not sure this is the correct way to calculate
 export function getAppSetHealthStatus(status: ApplicationSetStatus): ApplicationSetConditionStatus {
-    return status.conditions ? status.conditions[0].status : null;
+    return status.conditions ? status.conditions[status.conditions.length - 1].status : null;
 }
 
+// Calculated as the last AppSet condition message - not sure this is the correct way to calculate
 export function getAppSetHealthMessage(status: ApplicationSetStatus): string {
-    return status.conditions[0].message;
+    return status.conditions[status.conditions.length - 1].message;
 }
 
 export function getRootPathByPath(pathname: string) {
