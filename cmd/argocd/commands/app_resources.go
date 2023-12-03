@@ -149,28 +149,6 @@ func NewApplicationDeleteResourceCommand(clientOpts *argocdclient.ClientOptions)
 	return command
 }
 
-func parentChildInfo(nodes []v1alpha1.ResourceNode) (map[string]v1alpha1.ResourceNode, map[string][]string, map[string]struct{}) {
-	mapUidToNode := make(map[string]v1alpha1.ResourceNode)
-	mapParentToChild := make(map[string][]string)
-	parentNode := make(map[string]struct{})
-
-	for _, node := range nodes {
-		mapUidToNode[node.UID] = node
-
-		if len(node.ParentRefs) > 0 {
-			_, ok := mapParentToChild[node.ParentRefs[0].UID]
-			if !ok {
-				var temp []string
-				mapParentToChild[node.ParentRefs[0].UID] = temp
-			}
-			mapParentToChild[node.ParentRefs[0].UID] = append(mapParentToChild[node.ParentRefs[0].UID], node.UID)
-		} else {
-			parentNode[node.UID] = struct{}{}
-		}
-	}
-	return mapUidToNode, mapParentToChild, parentNode
-}
-
 func printResources(listAll bool, orphaned bool, appResourceTree *v1alpha1.ApplicationTree, output string) {
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 	headers := []interface{}{"GROUP", "KIND", "NAMESPACE", "NAME", "ORPHANED"}
