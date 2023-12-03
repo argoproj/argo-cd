@@ -116,7 +116,8 @@ func NewApplicationSetGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 
 // NewApplicationSetCreateCommand returns a new instance of an `argocd appset create` command
 func NewApplicationSetCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
-	var upsert bool
+	var upsert, dryRun bool
+
 	var command = &cobra.Command{
 		Use:   "create",
 		Short: "Create one or more ApplicationSets",
@@ -159,9 +160,15 @@ func NewApplicationSetCreateCommand(clientOpts *argocdclient.ClientOptions) *cob
 				appSetCreateRequest := applicationset.ApplicationSetCreateRequest{
 					Applicationset: appset,
 					Upsert:         upsert,
+					DryRun:         dryRun,
 				}
 				created, err := appIf.Create(ctx, &appSetCreateRequest)
 				errors.CheckError(err)
+
+				dryRunMsg := ""
+				if dryRun {
+					dryRunMsg = " (dry-run)"
+				}
 
 				var action string
 				if existing == nil {
@@ -172,11 +179,12 @@ func NewApplicationSetCreateCommand(clientOpts *argocdclient.ClientOptions) *cob
 					action = "updated"
 				}
 
-				fmt.Printf("ApplicationSet '%s' %s\n", created.ObjectMeta.Name, action)
+				fmt.Printf("ApplicationSet '%s' %s%s\n", created.ObjectMeta.Name, action, dryRunMsg)
 			}
 		},
 	}
 	command.Flags().BoolVar(&upsert, "upsert", false, "Allows to override ApplicationSet with the same name even if supplied ApplicationSet spec is different from existing spec")
+	command.Flags().BoolVar(&dryRun, "dry-run", false, "Allows to evaluate the ApplicationSet template on the server to get a preview of the applications that would be created")
 	return command
 }
 
@@ -191,7 +199,7 @@ func NewApplicationSetListCommand(clientOpts *argocdclient.ClientOptions) *cobra
 	var command = &cobra.Command{
 		Use:   "list",
 		Short: "List ApplicationSets",
-		Example: templates.Examples(`  
+		Example: templates.Examples(`
 	# List all ApplicationSets
 	argocd appset list
 		`),
@@ -234,7 +242,7 @@ func NewApplicationSetDeleteCommand(clientOpts *argocdclient.ClientOptions) *cob
 	var command = &cobra.Command{
 		Use:   "delete",
 		Short: "Delete one or more ApplicationSets",
-		Example: templates.Examples(`  
+		Example: templates.Examples(`
 	# Delete an applicationset
 	argocd appset delete APPSETNAME (APPSETNAME...)
 		`),
