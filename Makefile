@@ -192,7 +192,10 @@ gogen: ensure-gopath
 	go generate ./util/argo/...
 
 .PHONY: protogen
-protogen: ensure-gopath mod-vendor-local
+protogen: mod-vendor-local protogen-fast
+
+.PHONY: protogen-fast
+protogen-fast:
 	export GO111MODULE=off
 	./hack/generate-proto.sh
 
