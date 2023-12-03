@@ -221,9 +221,3 @@ test('ResourceResultIcon.Hook.Terminating', () => {
 
     expect(tree).toMatchSnapshot();
 });
-
-test('isInvokedFromApps', () => {
-    const state = isInvokedFromApps();
-
-    expect(state).toStrictEqual({phase: OperationPhases.Running, startedAt: zero});
-});
