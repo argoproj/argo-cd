@@ -375,7 +375,7 @@ func TestKustomizeBuildPatches(t *testing.T) {
 			},
 		},
 	}
-	objs, _, err := kustomize.Build(&kustomizeSource, nil, nil)
+	objs, _, err := kustomize.Build(&kustomizeSource, nil, nil, "")
 	assert.Nil(t, err)
 	obj := objs[0]
 	containers, found, err := unstructured.NestedSlice(obj.Object, "spec", "template", "spec", "containers")
