@@ -84,7 +84,13 @@ export const ApplicationStatusPanel = ({application, showDiff, showOperation, sh
     return (
         <div className='application-status-panel row'>
             <div className='application-status-panel__item'>
-                <div style={{lineHeight: '19.5px', marginBottom: '0.3em'}}>{sectionLabel({title: 'APP HEALTH', helpContent: 'The health status of your app'})}</div>
+                <div style={{lineHeight: '19.5px', marginBottom: '0.3em'}}>
+                    {sectionLabel(
+                        isApp(application)
+                            ? {title: 'APP HEALTH', helpContent: 'The health status of your app'}
+                            : {title: 'APPSET HEALTH', helpContent: 'The health status of your appset'}
+                    )}
+                </div>
                 <div className='application-status-panel__item-value'>
                     {isApp(application) && <HealthStatusIcon state={(application as models.Application).status.health} />}
                     {!isApp(application) && <AppSetHealthStatusIcon state={(application as models.ApplicationSet).status} />}
@@ -184,7 +190,7 @@ export const ApplicationStatusPanel = ({application, showDiff, showOperation, sh
             )}
             {application.status.conditions && (
                 <div className={`application-status-panel__item`}>
-                    {sectionLabel({title: 'APP CONDITIONS'})}
+                    {sectionLabel(isApp(application) ? {title: 'APP CONDITIONS'} : {title: 'APPSET CONDITIONS'})}
                     <div className='application-status-panel__item-value application-status-panel__conditions' onClick={() => showConditions && showConditions()}>
                         {infos && (
                             <a className='info'>

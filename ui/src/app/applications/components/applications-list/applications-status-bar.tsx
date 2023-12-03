@@ -50,12 +50,12 @@ export const ApplicationsStatusBar = ({applications}: ApplicationsStatusBarProps
     } else {
         readings.push(
             {
-                name: 'Healthy',
+                name: 'True',
                 value: applications.filter(app => getAppSetHealthStatus((app as ApplicationSet).status) === 'True').length,
                 color: COLORS.health.healthy
             },
             {
-                name: 'Degraded',
+                name: 'False',
                 value: applications.filter(app => getAppSetHealthStatus((app as ApplicationSet).status) === 'False').length,
                 color: COLORS.health.degraded
             },
@@ -74,11 +74,13 @@ export const ApplicationsStatusBar = ({applications}: ApplicationsStatusBarProps
         return total + i.value;
     }, 0);
 
+    console.log(totalItems);
+
     return (
         <Consumer>
             {ctx => (
                 <>
-                    {totalItems > 1 && (
+                    {totalItems > 0 && (
                         <div className='status-bar'>
                             {readings &&
                                 readings.length > 1 &&

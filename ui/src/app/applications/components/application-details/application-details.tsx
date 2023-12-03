@@ -198,7 +198,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                             <Page title={isInvokedFromAppsPath(this.props.history.location.pathname) ? 'Application Details' : 'ApplicationSet Details'}>{error}</Page>
                         )}
                         loadingRenderer={() => (
-                            <Page title={isInvokedFromAppsPath(this.props.history.location.pathname) ? 'Application Details' : 'Application Set Details'}>Loading...</Page>
+                            <Page title={isInvokedFromAppsPath(this.props.history.location.pathname) ? 'Application Details' : 'ApplicationSet Details'}>Loading...</Page>
                         )}
                         input={this.props.match.params.name}
                         load={name =>
@@ -407,16 +407,12 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                             return (
                                 <div className={`application-details ${this.props.match.params.name}`}>
                                     <Page
-                                        title={
-                                            isApp(application)
-                                                ? this.props.match.params.name + ' - ' + this.getPageTitle(pref.view, isApp(application))
-                                                : this.props.match.params.name + ' - ' + this.getPageTitle(pref.view, isApp(application))
-                                        }
+                                        title={this.props.match.params.name + ' - ' + this.getPageTitle(pref.view, isApp(application))}
                                         useTitleOnly={true}
                                         topBarTitle={this.getPageTitle(pref.view, isApp(application))}
                                         toolbar={{
                                             breadcrumbs: [
-                                                {title: 'Applications', path: '/applications'},
+                                                isApp(application) ? {title: 'Applications', path: '/applications'} : {title: 'ApplicationSets', path: '/settings/applicationsets'},
                                                 {title: <ApplicationsDetailsAppDropdown appName={this.props.match.params.name} />}
                                             ],
                                             actionMenu: {items: this.getApplicationActionMenu(application, true)},

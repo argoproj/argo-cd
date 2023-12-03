@@ -629,7 +629,7 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
 
                                                                 {(pref.view === 'summary' && <ApplicationsSummary applications={filteredApps} ctx={ctx} />) || (
                                                                     <Paginate
-                                                                        header={filteredApps.length > 1 && <ApplicationsStatusBar applications={filteredApps} />}
+                                                                        header={filteredApps.length > 0 && <ApplicationsStatusBar applications={filteredApps} />}
                                                                         showHeader={healthBarPrefs.showHealthStatusBar}
                                                                         preferencesKey='applications-list'
                                                                         page={pref.page}
