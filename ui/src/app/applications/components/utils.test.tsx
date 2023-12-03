@@ -1,7 +1,7 @@
 import * as React from 'react';
 import * as renderer from 'react-test-renderer';
 import {Application, HealthStatus, HealthStatuses, OperationPhases, ResourceResult, ResultCodes, SyncStatuses} from '../../shared/models';
-import {ComparisonStatusIcon, getAppOperationState, getOperationType, HealthStatusIcon, OperationState, ResourceResultIcon} from './utils';
+import {ComparisonStatusIcon, isInvokedFromApps, getAppOperationState, getOperationType, HealthStatusIcon, OperationState, ResourceResultIcon} from './utils';
 
 const zero = new Date(0).toISOString();
 
@@ -220,4 +220,10 @@ test('ResourceResultIcon.Hook.Terminating', () => {
     const tree = renderer.create(<ResourceResultIcon resource={{hookType: 'Sync', hookPhase: OperationPhases.Terminating} as ResourceResult} />).toJSON();
 
     expect(tree).toMatchSnapshot();
+});
+
+test('isInvokedFromApps', () => {
+    const state = isInvokedFromApps();
+
+    expect(state).toStrictEqual({phase: OperationPhases.Running, startedAt: zero});
 });

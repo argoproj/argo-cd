@@ -23,7 +23,7 @@ import {
 import {AbstractAppsListPreferences, AppSetsListPreferences, AppsListPreferences, services} from '../../../shared/services';
 import {Filter, FiltersGroup} from '../filter/filter';
 import * as LabelSelector from '../label-selector';
-import {AppSetHealthStatusIcon, ComparisonStatusIcon, getAppDefaultSource, getAppSetHealthStatus, HealthStatusIcon, isApp, isInvokedFromAppsPath} from '../utils';
+import {ComparisonStatusIcon, getAppDefaultSource, getAppSetHealthStatus, HealthStatusIcon, isApp, isInvokedFromAppsPath} from '../utils';
 import {ContextApis} from '../../../shared/context';
 import {History} from 'history';
 
