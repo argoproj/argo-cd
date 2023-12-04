@@ -37,7 +37,7 @@ func NewClusterSharding(db db.ArgoDB, shard, replicas int, shardingAlgorithm str
 	distributionFunction := NoShardingDistributionFunction()
 	if replicas > 1 {
 		log.Debugf("Processing clusters from shard %d: Using filter function:  %s", shard, shardingAlgorithm)
-		distributionFunction = GetDistributionFunction(db, clusterSharding.GetClusterAccessor(), shardingAlgorithm)
+		distributionFunction = GetDistributionFunction(clusterSharding.GetClusterAccessor(), shardingAlgorithm, replicas)
 	} else {
 		log.Info("Processing all cluster shards")
 	}

@@ -54,8 +54,7 @@ type shardApplicationControllerMapping struct {
 // and returns wheter or not the cluster should be processed by a given shard. It calls the distributionFunction
 // to determine which shard will process the cluster, and if the given shard is equal to the calculated shard
 // the function will return true.
-func GetClusterFilter(db db.ArgoDB, distributionFunction DistributionFunction, shard int) ClusterFilterFunction {
-	replicas := db.GetApplicationControllerReplicas()
+func GetClusterFilter(db db.ArgoDB, distributionFunction DistributionFunction, replicas, shard int) ClusterFilterFunction {
 	return func(c *v1alpha1.Cluster) bool {
 		clusterShard := 0
 		if c != nil && c.Shard != nil {
@@ -74,16 +73,16 @@ func GetClusterFilter(db db.ArgoDB, distributionFunction DistributionFunction, s
 
 // GetDistributionFunction returns which DistributionFunction should be used based on the passed algorithm and
 // the current datas.
-func GetDistributionFunction(db db.ArgoDB, clusters clusterAccessor, shardingAlgorithm string) DistributionFunction {
+func GetDistributionFunction(clusters clusterAccessor, shardingAlgorithm string, replicasCount int) DistributionFunction {
 	log.Debugf("Using filter function:  %s", shardingAlgorithm)
-	distributionFunction := LegacyDistributionFunction(db)
+	distributionFunction := LegacyDistributionFunction(replicasCount)
 	switch shardingAlgorithm {
 	case common.NoShardingAlgorithm:
 		distributionFunction = NoShardingDistributionFunction()
 	case common.RoundRobinShardingAlgorithm:
-		distributionFunction = RoundRobinDistributionFunction(db, clusters)
+		distributionFunction = RoundRobinDistributionFunction(clusters, replicasCount)
 	case common.LegacyShardingAlgorithm:
-		distributionFunction = LegacyDistributionFunction(db)
+		distributionFunction = LegacyDistributionFunction(replicasCount)
 	default:
 		log.Warnf("distribution type %s is not supported, defaulting to %s", shardingAlgorithm, common.DefaultShardingAlgorithm)
 	}
@@ -95,8 +94,7 @@ func GetDistributionFunction(db db.ArgoDB, clusters clusterAccessor, shardingAlg
 // is lightweight and can be distributed easily, however, it does not ensure an homogenous distribution as
 // some shards may get assigned more clusters than others. It is the legacy function distribution that is
 // kept for compatibility reasons
-func LegacyDistributionFunction(db db.ArgoDB) DistributionFunction {
-	replicas := db.GetApplicationControllerReplicas()
+func LegacyDistributionFunction(replicas int) DistributionFunction {
 	return func(c *v1alpha1.Cluster) int {
 		if replicas == 0 {
 			log.Debugf("Replicas count is : %d, returning -1", replicas)
@@ -132,8 +130,7 @@ func LegacyDistributionFunction(db db.ArgoDB) DistributionFunction {
 // clusters +/-1 , but with the drawback of a reshuffling of clusters accross shards in case of some changes
 // in the cluster list
 
-func RoundRobinDistributionFunction(db db.ArgoDB, clusters clusterAccessor) DistributionFunction {
-	replicas := db.GetApplicationControllerReplicas()
+func RoundRobinDistributionFunction(clusters clusterAccessor, replicas int) DistributionFunction {
 	return func(c *v1alpha1.Cluster) int {
 		if replicas > 0 {
 			if c == nil { // in-cluster does not necessarly have a secret assigned. So we are receiving a nil cluster here.

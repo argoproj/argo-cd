@@ -146,7 +146,6 @@ func NewCommand() *cobra.Command {
 				appController.InvalidateProjectsCache()
 			}))
 			kubectl := kubeutil.NewKubectl()
-			errors.CheckError(err)
 			clusterSharding := getClusterSharding(kubeClient, settingsMgr, shardingAlgorithm, enableDynamicClusterDistribution)
 			appController, err = controller.NewApplicationController(
 				namespace,
