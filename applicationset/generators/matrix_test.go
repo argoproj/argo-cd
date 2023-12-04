@@ -1054,7 +1054,7 @@ func TestGitGenerator_GenerateParams_list_x_git_matrix_generator(t *testing.T) {
 	}
 
 	repoServiceMock := &mocks.Repos{}
-	repoServiceMock.On("GetFiles", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(map[string][]byte{
+	repoServiceMock.On("GetFiles", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(map[string][]byte{
 		"some/path.json": []byte("test: content"),
 	}, nil)
 	gitGenerator := NewGitGenerator(repoServiceMock)
