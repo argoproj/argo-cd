@@ -9,10 +9,11 @@ The following configuration options are available for Kustomize:
 * `commonLabels` is a string map of additional labels
 * `forceCommonLabels` is a boolean value which defines if it's allowed to override existing labels
 * `commonAnnotations` is a string map of additional annotations
-* `namespace` is a kubernetes resources namespace
+* `namespace` is a Kubernetes resources namespace
 * `forceCommonAnnotations` is a boolean value which defines if it's allowed to override existing annotations
 * `commonAnnotationsEnvsubst` is a boolean value which enables env variables substition in annotation  values
 * `patches` is a list of Kustomize patches that supports inline updates
+* `components` is a list of Kustomize components
 
 To use Kustomize with an overlay, point your path to the overlay.
 
@@ -20,9 +21,9 @@ To use Kustomize with an overlay, point your path to the overlay.
     If you're generating resources, you should read up how to ignore those generated resources using the [`IgnoreExtraneous` compare option](compare-options.md).
 
 ## Patches
-Patches are a way to kustomize resources using inline configurations in Argo CD applications.  This allows for kustomizing without  kustomization file.  `patches`  follow the same logic as the corresponding Kustomization.  Any patches that target existing Kustomization file will be merged.
+Patches are a way to kustomize resources using inline configurations in Argo CD applications.  `patches`  follow the same logic as the corresponding Kustomization.  Any patches that target existing Kustomization file will be merged.
 
-The following Kustomization can be done similarly in an Argo CD application.
+This Kustomize example sources manifests from the `/kustomize-guestbook` folder of the `argoproj/argocd-example-apps` repository, and patches the `Deployment` to use port `443` on the container.
 ```yaml
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
@@ -30,8 +31,7 @@ metadata:
   name: kustomize-inline-example
 namespace: test1
 resources:
-  - https://raw.githubusercontent.com/argoproj/argocd-example-apps/master/guestbook/guestbook-ui-deployment.yaml
-  - https://raw.githubusercontent.com/argoproj/argocd-example-apps/master/guestbook/guestbook-ui-svc.yaml
+  - https://raw.githubusercontent.com/argoproj/argocd-example-apps/master/kustomize-guestbook/
 patches:
   - target:
       kind: Deployment
@@ -41,7 +41,8 @@ patches:
         path: /spec/template/spec/containers/0/ports/0/containerPort
         value: 443
 ```
-Application will clone the repository, use the specified path, then kustomize using inline patches configuration.
+
+This `Application` does the equivalent using the inline `kustomize.patches` configuration.
 ```yaml
 apiVersion: argoproj.io/v1alpha1
 kind: Application
@@ -56,7 +57,7 @@ spec:
     server: https://kubernetes.default.svc
   project: default
   source:
-    path: guestbook
+    path: kustomize-guestbook
     repoURL: https://github.com/argoproj/argocd-example-apps.git
     targetRevision: master
     kustomize:
@@ -68,6 +69,41 @@ spec:
             - op: replace
               path: /spec/template/spec/containers/0/ports/0/containerPort
               value: 443
+```
+
+The inline kustomize patches work well with `ApplicationSets`, too. Instead of maintaining a patch or overlay for each cluster, patches can now be done in the `Application` template and utilize attributes from the generators. For example, with [`external-dns`](https://github.com/kubernetes-sigs/external-dns/) to set the [`txt-owner-id`](https://github.com/kubernetes-sigs/external-dns/blob/e1adc9079b12774cccac051966b2c6a3f18f7872/docs/registry/registry.md?plain=1#L6) to the cluster name.
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: external-dns
+spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
+  generators:
+  - clusters: {}
+  template:
+    metadata:
+      name: 'external-dns'
+    spec:
+      project: default
+      source:
+        repoURL: https://github.com/kubernetes-sigs/external-dns/
+        targetRevision: v0.14.0
+        path: kustomize
+        kustomize:
+          patches:
+          - target:
+              kind: Deployment
+              name: external-dns
+            patch: |-
+              - op: add
+                path: /spec/template/spec/containers/0/args/3
+                value: --txt-owner-id={{.name}}   # patch using attribute from generator
+      destination:
+        name: 'in-cluster'
+        namespace: default
 ```
 
 ## Private Remote Bases
@@ -142,6 +178,34 @@ argocd app set <appName> --kustomize-version v3.5.4
 ## Build Environment
 
 Kustomize apps have access to the [standard build environment](build-environment.md) which can be used in combination with a [config managment plugin](../operator-manual/config-management-plugins.md) to alter the rendered manifests.
+
+You can use these build environment variables in your Argo CD Application manifests. You can enable this by setting `.spec.source.kustomize.commonAnnotationsEnvsubst` to `true` in your Application manifest.
+
+For example, the following Application manifest will set the `app-source` annotation to the name of the Application:
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: guestbook-app
+  namespace: argocd
+spec:
+  project: default
+  destination:
+    namespace: demo
+    server: https://kubernetes.default.svc
+  source:
+    path: kustomize-guestbook
+    repoURL: https://github.com/argoproj/argocd-example-apps
+    targetRevision: HEAD
+    kustomize:
+      commonAnnotationsEnvsubst: true
+      commonAnnotations:
+        app-source: ${ARGOCD_APP_NAME}
+  syncPolicy:
+    syncOptions:
+      - CreateNamespace=true
+```
 
 ## Kustomizing Helm charts
 

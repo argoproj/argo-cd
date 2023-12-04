@@ -8,6 +8,16 @@ Add a resource to orphaned ignore list
 argocd proj add-orphaned-ignore PROJECT GROUP KIND [flags]
 ```
 
+### Examples
+
+```
+  # Add a resource of the specified GROUP and KIND to orphaned ignore list on the project with name PROJECT
+  argocd proj add-orphaned-ignore PROJECT GROUP KIND
+  
+  # Add resources of the specified GROUP and KIND using a NAME pattern to orphaned ignore list on the project with name PROJECT
+  argocd proj add-orphaned-ignore PROJECT GROUP KIND --name NAME
+```
+
 ### Options
 
 ```

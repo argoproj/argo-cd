@@ -273,6 +273,19 @@ message ApplicationSetNestedGenerator {
   optional PluginGenerator plugin = 10;
 }
 
+// ApplicationSetResourceIgnoreDifferences configures how the ApplicationSet controller will ignore differences in live
+// applications when applying changes from generated applications.
+message ApplicationSetResourceIgnoreDifferences {
+  // Name is the name of the application to ignore differences for. If not specified, the rule applies to all applications.
+  optional string name = 1;
+
+  // JSONPointers is a list of JSON pointers to fields to ignore differences for.
+  repeated string jsonPointers = 2;
+
+  // JQPathExpressions is a list of JQ path expressions to fields to ignore differences for.
+  repeated string jqPathExpressions = 3;
+}
+
 message ApplicationSetRolloutStep {
   repeated ApplicationMatchExpression matchExpressions = 1;
 
@@ -301,6 +314,10 @@ message ApplicationSetSpec {
 
   // ApplyNestedSelectors enables selectors defined within the generators of two level-nested matrix or merge generators
   optional bool applyNestedSelectors = 8;
+
+  repeated ApplicationSetResourceIgnoreDifferences ignoreApplicationDifferences = 9;
+
+  optional string templatePatch = 10;
 }
 
 // ApplicationSetStatus defines the observed state of ApplicationSet
@@ -506,6 +523,9 @@ message ApplicationSourceKustomize {
 
   // Patches is a list of Kustomize patches
   repeated KustomizePatch patches = 12;
+
+  // Components specifies a list of kustomize components to add to the kustomization before building
+  repeated string components = 13;
 }
 
 // ApplicationSourcePlugin holds options specific to config management plugins
