@@ -2,7 +2,7 @@ local hs = {}
 if obj.status ~= nil then
   if obj.status.conditions ~= nil then
 
-    -- Always Handle Issueing First to ensure consistent behaviour
+    -- Always Handle Issuing First to ensure consistent behaviour
     for i, condition in ipairs(obj.status.conditions) do
       if condition.type == "Issuing" and condition.status == "True" then
         hs.status = "Progressing"
