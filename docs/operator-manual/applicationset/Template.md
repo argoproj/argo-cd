@@ -157,12 +157,12 @@ spec:
         helm:
           valueFiles:
           {{- range $valueFile := .valueFiles }}
-            - {{ $valueFile | toJson }}
+            - {{ $valueFile }}
           {{- end }}
     {{- if .autoSync }}
       syncPolicy:
         automated:
-          prune: {{ .prune | toJson }}
+          prune: {{ .prune }}
     {{- end }}
 ```
 
