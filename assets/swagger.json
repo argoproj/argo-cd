@@ -218,6 +218,39 @@
         }
       }
     },
+    "/api/v1/application-validate": {
+      "post": {
+        "tags": [
+          "ApplicationService"
+        ],
+        "summary": "Create creates an application",
+        "operationId": "ApplicationService_ValidateSrcAndDst",
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1alpha1Application"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/applicationApplicationValidateResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        }
+      }
+    },
     "/api/v1/applications": {
       "get": {
         "tags": [
@@ -1710,6 +1743,45 @@
             "description": "A successful response.",
             "schema": {
               "$ref": "#/definitions/v1alpha1Application"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/applications/{name}/rollout-rollback": {
+      "post": {
+        "tags": [
+          "ApplicationService"
+        ],
+        "summary": "Rollback application rollout",
+        "operationId": "ApplicationService_RollbackApplicationRollout",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "name",
+            "in": "path",
+            "required": true
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/applicationApplicationRolloutRollbackRequest"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/applicationApplicationRolloutRollbackResponse"
             }
           },
           "default": {
@@ -4222,6 +4294,39 @@
         }
       }
     },
+    "applicationApplicationRolloutRollbackRequest": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "namespace": {
+          "type": "string"
+        },
+        "rolloutName": {
+          "type": "string"
+        },
+        "rolloutNamespace": {
+          "type": "string"
+        },
+        "rolloutRevision": {
+          "type": "integer",
+          "format": "int64"
+        }
+      }
+    },
+    "applicationApplicationRolloutRollbackResponse": {
+      "type": "object",
+      "properties": {
+        "newRevision": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "rollout": {
+          "type": "string"
+        }
+      }
+    },
     "applicationApplicationSyncRequest": {
       "type": "object",
       "title": "ApplicationSyncRequest is a request to apply the config state to live state",
@@ -4307,6 +4412,17 @@
         },
         "canSync": {
           "type": "boolean"
+        }
+      }
+    },
+    "applicationApplicationValidateResponse": {
+      "type": "object",
+      "properties": {
+        "entity": {
+          "type": "string"
+        },
+        "error": {
+          "type": "string"
         }
       }
     },
