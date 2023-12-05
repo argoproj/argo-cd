@@ -93,8 +93,16 @@ func NewClusterAddCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clie
 				cmdutil.PrintKubeContexts(configAccess)
 				os.Exit(1)
 			}
+
+			if clusterOpts.InCluster && clusterOpts.ClusterEndpoint != "" {
+				log.Fatal("Can only use one of --in-cluster or --cluster-endpoint")
+				return
+			}
+
 			contextName := args[0]
 			conf, err := getRestConfig(pathOpts, contextName)
+			errors.CheckError(err)
+			clientset, err := kubernetes.NewForConfig(conf)
 			errors.CheckError(err)
 			managerBearerToken := ""
 			var awsAuthConf *argoappv1.AWSAuthConfig
@@ -114,13 +122,10 @@ func NewClusterAddCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clie
 				}
 			} else {
 				// Install RBAC resources for managing the cluster
-				clientset, err := kubernetes.NewForConfig(conf)
-				errors.CheckError(err)
 				if clusterOpts.ServiceAccount != "" {
 					managerBearerToken, err = clusterauth.GetServiceAccountBearerToken(clientset, clusterOpts.SystemNamespace, clusterOpts.ServiceAccount, common.BearerTokenTimeout)
 				} else {
 					isTerminal := isatty.IsTerminal(os.Stdout.Fd()) || isatty.IsCygwinTerminal(os.Stdout.Fd())
-
 					if isTerminal && !skipConfirmation {
 						accessLevel := "cluster"
 						if len(clusterOpts.Namespaces) > 0 {
@@ -147,9 +152,18 @@ func NewClusterAddCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clie
 				contextName = clusterOpts.Name
 			}
 			clst := cmdutil.NewCluster(contextName, clusterOpts.Namespaces, clusterOpts.ClusterResources, conf, managerBearerToken, awsAuthConf, execProviderConf, labelsMap, annotationsMap)
-			if clusterOpts.InCluster {
+			if clusterOpts.InClusterEndpoint() {
 				clst.Server = argoappv1.KubernetesInternalAPIServerAddr
+			} else if clusterOpts.ClusterEndpoint == string(cmdutil.KubePublicEndpoint) {
+				endpoint, err := cmdutil.GetKubePublicEndpoint(clientset)
+				if err != nil || len(endpoint) == 0 {
+					log.Warnf("Failed to find the cluster endpoint from kube-public data: %v", err)
+					log.Infof("Falling back to the endpoint '%s' as listed in the kubeconfig context", clst.Server)
+					endpoint = clst.Server
+				}
+				clst.Server = endpoint
 			}
+
 			if clusterOpts.Shard >= 0 {
 				clst.Shard = &clusterOpts.Shard
 			}
@@ -471,6 +485,23 @@ func NewClusterListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comman
 				errors.CheckError(fmt.Errorf("unknown output format: %s", output))
 			}
 		},
+		Example: `
+# List Clusters in Default "Wide" Format
+argocd cluster list
+
+# List Cluster via specifing the server
+argocd cluster list --server <ARGOCD_SERVER_ADDRESS>
+
+# List Clusters in JSON Format
+argocd cluster list -o json --server <ARGOCD_SERVER_ADDRESS>
+
+# List Clusters in YAML Format
+argocd cluster list -o yaml --server <ARGOCD_SERVER_ADDRESS>
+
+# List Clusters that have been added to your Argo CD 
+argocd cluster list -o server <ARGOCD_SERVER_ADDRESS>
+
+`,
 	}
 	command.Flags().StringVarP(&output, "output", "o", "wide", "Output format. One of: json|yaml|wide|server")
 	return command

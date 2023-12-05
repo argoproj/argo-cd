@@ -39,4 +39,34 @@
             color: $argo-color-gray-8;
         }
     }
+    &__err_msg {
+        padding-right: 2em;
+        color: $argo-failed-color;
+    }
+    &__container {
+        display: flex;
+        align-items: center;
+        flex-direction: row;
+        line-height: 1.8;
+        border-bottom: 1px solid rgba(222, 230, 235, 0.7);
+
+        &--name {
+            width: 15%;
+        }
+        &--highlight {
+            font-style: italic;
+        }
+
+        &--hint {
+            text-decoration: underline;
+            text-decoration-style: dashed;
+            cursor: pointer;
+            &:hover {
+                text-decoration: none;
+            }
+        }
+        &:last-child {
+            border-bottom: none;
+        }
+    }
 }

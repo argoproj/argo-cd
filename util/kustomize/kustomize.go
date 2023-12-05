@@ -13,6 +13,7 @@ import (
 	"sync"
 
 	"github.com/Masterminds/semver/v3"
+	"sigs.k8s.io/yaml"
 
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	log "github.com/sirupsen/logrus"
@@ -86,80 +87,11 @@ func mapToEditAddArgs(val map[string]string) []string {
 
 func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOptions *v1alpha1.KustomizeOptions, envVars *v1alpha1.Env) ([]*unstructured.Unstructured, []Image, error) {
 
-	if opts != nil {
-		if opts.NamePrefix != "" {
-			cmd := exec.Command(k.getBinaryPath(), "edit", "set", "nameprefix", "--", opts.NamePrefix)
-			cmd.Dir = k.path
-			_, err := executil.Run(cmd)
-			if err != nil {
-				return nil, nil, err
-			}
-		}
-		if opts.NameSuffix != "" {
-			cmd := exec.Command(k.getBinaryPath(), "edit", "set", "namesuffix", "--", opts.NameSuffix)
-			cmd.Dir = k.path
-			_, err := executil.Run(cmd)
-			if err != nil {
-				return nil, nil, err
-			}
-		}
-		if len(opts.Images) > 0 {
-			// set image postgres=eu.gcr.io/my-project/postgres:latest my-app=my-registry/my-app@sha256:24a0c4b4a4c0eb97a1aabb8e29f18e917d05abfe1b7a7c07857230879ce7d3d3
-			// set image node:8.15.0 mysql=mariadb alpine@sha256:24a0c4b4a4c0eb97a1aabb8e29f18e917d05abfe1b7a7c07857230879ce7d3d3
-			args := []string{"edit", "set", "image"}
-			for _, image := range opts.Images {
-				args = append(args, string(image))
-			}
-			cmd := exec.Command(k.getBinaryPath(), args...)
-			cmd.Dir = k.path
-			_, err := executil.Run(cmd)
-			if err != nil {
-				return nil, nil, err
-			}
-		}
-
-		if len(opts.CommonLabels) > 0 {
-			//  edit add label foo:bar
-			args := []string{"edit", "add", "label"}
-			if opts.ForceCommonLabels {
-				args = append(args, "--force")
-			}
-			cmd := exec.Command(k.getBinaryPath(), append(args, mapToEditAddArgs(opts.CommonLabels)...)...)
-			cmd.Dir = k.path
-			_, err := executil.Run(cmd)
-			if err != nil {
-				return nil, nil, err
-			}
-		}
-
-		if len(opts.CommonAnnotations) > 0 {
-			//  edit add annotation foo:bar
-			args := []string{"edit", "add", "annotation"}
-			if opts.ForceCommonAnnotations {
-				args = append(args, "--force")
-			}
-			cmd := exec.Command(k.getBinaryPath(), append(args, mapToEditAddArgs(opts.CommonAnnotations)...)...)
-			cmd.Dir = k.path
-			_, err := executil.Run(cmd)
-			if err != nil {
-				return nil, nil, err
-			}
-		}
-	}
-
-	var cmd *exec.Cmd
-	if kustomizeOptions != nil && kustomizeOptions.BuildOptions != "" {
-		params := parseKustomizeBuildOptions(k.path, kustomizeOptions.BuildOptions)
-		cmd = exec.Command(k.getBinaryPath(), params...)
-	} else {
-		cmd = exec.Command(k.getBinaryPath(), "build", k.path)
-	}
-
 	env := os.Environ()
 	if envVars != nil {
 		env = append(env, envVars.Environ()...)
 	}
-	cmd.Env = env
+
 	closer, environ, err := k.creds.Environ()
 	if err != nil {
 		return nil, nil, err
@@ -187,7 +119,188 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 		}
 	}
 
-	cmd.Env = append(cmd.Env, environ...)
+	env = append(env, environ...)
+
+	if opts != nil {
+		if opts.NamePrefix != "" {
+			cmd := exec.Command(k.getBinaryPath(), "edit", "set", "nameprefix", "--", opts.NamePrefix)
+			cmd.Dir = k.path
+			_, err := executil.Run(cmd)
+			if err != nil {
+				return nil, nil, err
+			}
+		}
+		if opts.NameSuffix != "" {
+			cmd := exec.Command(k.getBinaryPath(), "edit", "set", "namesuffix", "--", opts.NameSuffix)
+			cmd.Dir = k.path
+			_, err := executil.Run(cmd)
+			if err != nil {
+				return nil, nil, err
+			}
+		}
+		if len(opts.Images) > 0 {
+			// set image postgres=eu.gcr.io/my-project/postgres:latest my-app=my-registry/my-app@sha256:24a0c4b4a4c0eb97a1aabb8e29f18e917d05abfe1b7a7c07857230879ce7d3d3
+			// set image node:8.15.0 mysql=mariadb alpine@sha256:24a0c4b4a4c0eb97a1aabb8e29f18e917d05abfe1b7a7c07857230879ce7d3d3
+			args := []string{"edit", "set", "image"}
+			for _, image := range opts.Images {
+				// this allows using ${ARGOCD_APP_REVISION}
+				envSubstitutedImage := envVars.Envsubst(string(image))
+				args = append(args, envSubstitutedImage)
+			}
+			cmd := exec.Command(k.getBinaryPath(), args...)
+			cmd.Dir = k.path
+			_, err := executil.Run(cmd)
+			if err != nil {
+				return nil, nil, err
+			}
+		}
+
+		if len(opts.Replicas) > 0 {
+			// set replicas my-development=2 my-statefulset=4
+			args := []string{"edit", "set", "replicas"}
+			for _, replica := range opts.Replicas {
+				count, err := replica.GetIntCount()
+				if err != nil {
+					return nil, nil, err
+				}
+				arg := fmt.Sprintf("%s=%d", replica.Name, count)
+				args = append(args, arg)
+			}
+
+			cmd := exec.Command(k.getBinaryPath(), args...)
+			cmd.Dir = k.path
+			_, err := executil.Run(cmd)
+			if err != nil {
+				return nil, nil, err
+			}
+		}
+
+		if len(opts.CommonLabels) > 0 {
+			//  edit add label foo:bar
+			args := []string{"edit", "add", "label"}
+			if opts.ForceCommonLabels {
+				args = append(args, "--force")
+			}
+			commonLabels := map[string]string{}
+			for name, value := range opts.CommonLabels {
+				commonLabels[name] = envVars.Envsubst(value)
+			}
+			cmd := exec.Command(k.getBinaryPath(), append(args, mapToEditAddArgs(commonLabels)...)...)
+			cmd.Dir = k.path
+			_, err := executil.Run(cmd)
+			if err != nil {
+				return nil, nil, err
+			}
+		}
+
+		if len(opts.CommonAnnotations) > 0 {
+			//  edit add annotation foo:bar
+			args := []string{"edit", "add", "annotation"}
+			if opts.ForceCommonAnnotations {
+				args = append(args, "--force")
+			}
+			var commonAnnotations map[string]string
+			if opts.CommonAnnotationsEnvsubst {
+				commonAnnotations = map[string]string{}
+				for name, value := range opts.CommonAnnotations {
+					commonAnnotations[name] = envVars.Envsubst(value)
+				}
+			} else {
+				commonAnnotations = opts.CommonAnnotations
+			}
+			cmd := exec.Command(k.getBinaryPath(), append(args, mapToEditAddArgs(commonAnnotations)...)...)
+			cmd.Dir = k.path
+			_, err := executil.Run(cmd)
+			if err != nil {
+				return nil, nil, err
+			}
+		}
+
+		if opts.Namespace != "" {
+			cmd := exec.Command(k.getBinaryPath(), "edit", "set", "namespace", "--", opts.Namespace)
+			cmd.Dir = k.path
+			_, err := executil.Run(cmd)
+			if err != nil {
+				return nil, nil, err
+			}
+		}
+
+		if len(opts.Patches) > 0 {
+			kustomizationPath := filepath.Join(k.path, "kustomization.yaml")
+			b, err := os.ReadFile(kustomizationPath)
+			if err != nil {
+				return nil, nil, fmt.Errorf("failed to load kustomization.yaml: %w", err)
+			}
+			var kustomization interface{}
+			err = yaml.Unmarshal(b, &kustomization)
+			if err != nil {
+				return nil, nil, fmt.Errorf("failed to unmarshal kustomization.yaml: %w", err)
+			}
+			kMap, ok := kustomization.(map[string]interface{})
+			if !ok {
+				return nil, nil, fmt.Errorf("expected kustomization.yaml to be type map[string]interface{}, but got %T", kMap)
+			}
+			patches, ok := kMap["patches"]
+			if ok {
+				// The kustomization.yaml already had a patches field, so we need to append to it.
+				patchesList, ok := patches.([]interface{})
+				if !ok {
+					return nil, nil, fmt.Errorf("expected 'patches' field in kustomization.yaml to be []interface{}, but got %T", patches)
+				}
+				// Since the patches from the Application manifest are typed, we need to convert them to a type which
+				// can be appended to the existing list.
+				untypedPatches := make([]interface{}, len(opts.Patches))
+				for i := range opts.Patches {
+					untypedPatches[i] = opts.Patches[i]
+				}
+				patchesList = append(patchesList, untypedPatches...)
+				// Update the kustomization.yaml with the appended patches list.
+				kMap["patches"] = patchesList
+			} else {
+				kMap["patches"] = opts.Patches
+			}
+			updatedKustomization, err := yaml.Marshal(kMap)
+			if err != nil {
+				return nil, nil, fmt.Errorf("failed to marshal kustomization.yaml after adding patches: %w", err)
+			}
+			kustomizationFileInfo, err := os.Stat(kustomizationPath)
+			if err != nil {
+				return nil, nil, fmt.Errorf("failed to stat kustomization.yaml: %w", err)
+			}
+			err = os.WriteFile(kustomizationPath, updatedKustomization, kustomizationFileInfo.Mode())
+			if err != nil {
+				return nil, nil, fmt.Errorf("failed to write kustomization.yaml with updated 'patches' field: %w", err)
+			}
+		}
+
+		if len(opts.Components) > 0 {
+			// components only supported in kustomize >= v3.7.0
+			// https://github.com/kubernetes-sigs/kustomize/blob/master/examples/components.md
+			if getSemverSafe().LessThan(semver.MustParse("v3.7.0")) {
+				return nil, nil, fmt.Errorf("kustomize components require kustomize v3.7.0 and above")
+			}
+
+			// add components
+			args := []string{"edit", "add", "component"}
+			args = append(args, opts.Components...)
+			cmd := exec.Command(k.getBinaryPath(), args...)
+			cmd.Dir = k.path
+			cmd.Env = env
+			_, err := executil.Run(cmd)
+			if err != nil {
+				return nil, nil, err
+			}
+		}
+	}
+
+	var cmd *exec.Cmd
+	if kustomizeOptions != nil && kustomizeOptions.BuildOptions != "" {
+		params := parseKustomizeBuildOptions(k.path, kustomizeOptions.BuildOptions)
+		cmd = exec.Command(k.getBinaryPath(), params...)
+	} else {
+		cmd = exec.Command(k.getBinaryPath(), "build", k.path)
+	}
+	cmd.Env = env
 	out, err := executil.Run(cmd)
 	if err != nil {
 		return nil, nil, err

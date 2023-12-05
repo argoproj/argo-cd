@@ -1,4 +1,4 @@
-health_status = {}
+local health_status = {}
 if obj.status == nil then
   health_status.status = "Progressing"
   health_status.message = "Current resource status is insufficient"

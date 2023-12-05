@@ -56,7 +56,7 @@ func TestLogAppProjEvent(t *testing.T) {
 	}
 
 	output := captureLogEntries(func() {
-		logger.LogAppProjEvent(&proj, ei, "This is a test message")
+		logger.LogAppProjEvent(&proj, ei, "This is a test message", "")
 	})
 
 	assert.Contains(t, output, "level=info")
@@ -91,7 +91,7 @@ func TestLogAppEvent(t *testing.T) {
 	}
 
 	output := captureLogEntries(func() {
-		logger.LogAppEvent(&app, ei, "This is a test message")
+		logger.LogAppEvent(&app, ei, "This is a test message", "")
 	})
 
 	assert.Contains(t, output, "level=info")
@@ -125,7 +125,7 @@ func TestLogResourceEvent(t *testing.T) {
 	}
 
 	output := captureLogEntries(func() {
-		logger.LogResourceEvent(&res, ei, "This is a test message")
+		logger.LogResourceEvent(&res, ei, "This is a test message", "")
 	})
 
 	assert.Contains(t, output, "level=info")

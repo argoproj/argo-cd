@@ -9,11 +9,11 @@ import (
 
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/argoproj/pkg/errors"
-	"github.com/ghodss/yaml"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"sigs.k8s.io/yaml"
 
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 )
@@ -52,7 +52,7 @@ var (
     resourceVersion: "123"
     uid: "4"
     annotations:
-      link.argocd.argoproj.io/external-link: http://my-grafana.com/pre-generated-link
+      link.argocd.argoproj.io/external-link: http://my-grafana.example.com/pre-generated-link
   spec:
     selector:
       app: guestbook
@@ -74,7 +74,7 @@ var (
       serviceName: not-found-service
       servicePort: 443
     rules:
-    - host: helm-guestbook.com
+    - host: helm-guestbook.example.com
       http:
         paths:
         - backend:
@@ -86,7 +86,7 @@ var (
             servicePort: https
           path: /
     tls:
-    - host: helm-guestbook.com
+    - host: helm-guestbook.example.com
     secretName: my-tls-secret
   status:
     loadBalancer:
@@ -101,13 +101,13 @@ var (
     namespace: default
     uid: "4"
     annotations:
-      link.argocd.argoproj.io/external-link: http://my-grafana.com/ingress-link
+      link.argocd.argoproj.io/external-link: http://my-grafana.example.com/ingress-link
   spec:
     backend:
       serviceName: not-found-service
       servicePort: 443
     rules:
-    - host: helm-guestbook.com
+    - host: helm-guestbook.example.com
       http:
         paths:
         - backend:
@@ -119,7 +119,7 @@ var (
             servicePort: https
           path: /
     tls:
-    - host: helm-guestbook.com
+    - host: helm-guestbook.example.com
     secretName: my-tls-secret
   status:
     loadBalancer:
@@ -138,7 +138,7 @@ var (
       serviceName: not-found-service
       servicePort: 443
     rules:
-    - host: helm-guestbook.com
+    - host: helm-guestbook.example.com
       http:
         paths:
         - backend:
@@ -150,7 +150,7 @@ var (
             servicePort: https
           path: /*
     tls:
-    - host: helm-guestbook.com
+    - host: helm-guestbook.example.com
     secretName: my-tls-secret
   status:
     loadBalancer:
@@ -169,7 +169,7 @@ var (
       serviceName: not-found-service
       servicePort: 443
     rules:
-    - host: helm-guestbook.com
+    - host: helm-guestbook.example.com
       http:
         paths:
         - backend:
@@ -199,7 +199,7 @@ var (
         port:
           number: 443
     rules:
-    - host: helm-guestbook.com
+    - host: helm-guestbook.example.com
       http:
         paths:
         - backend:
@@ -215,7 +215,7 @@ var (
                 name: https
           path: /
     tls:
-    - host: helm-guestbook.com
+    - host: helm-guestbook.example.com
     secretName: my-tls-secret
   status:
     loadBalancer:
@@ -327,7 +327,7 @@ func TestGetLinkAnnotatedServiceInfo(t *testing.T) {
 	assert.Equal(t, &v1alpha1.ResourceNetworkingInfo{
 		TargetLabels: map[string]string{"app": "guestbook"},
 		Ingress:      []v1.LoadBalancerIngress{{Hostname: "localhost"}},
-		ExternalURLs: []string{"http://my-grafana.com/pre-generated-link"},
+		ExternalURLs: []string{"http://my-grafana.example.com/pre-generated-link"},
 	}, info.NetworkingInfo)
 }
 
@@ -381,7 +381,7 @@ func TestGetIngressInfo(t *testing.T) {
 				Kind:      kube.ServiceKind,
 				Name:      "helm-guestbook",
 			}},
-			ExternalURLs: []string{"https://helm-guestbook.com/"},
+			ExternalURLs: []string{"https://helm-guestbook.example.com/"},
 		}, info.NetworkingInfo)
 	}
 }
@@ -406,7 +406,7 @@ func TestGetLinkAnnotatedIngressInfo(t *testing.T) {
 			Kind:      kube.ServiceKind,
 			Name:      "helm-guestbook",
 		}},
-		ExternalURLs: []string{"https://helm-guestbook.com/", "http://my-grafana.com/ingress-link"},
+		ExternalURLs: []string{"http://my-grafana.example.com/ingress-link", "https://helm-guestbook.example.com/"},
 	}, info.NetworkingInfo)
 }
 
@@ -430,7 +430,7 @@ func TestGetIngressInfoWildCardPath(t *testing.T) {
 			Kind:      kube.ServiceKind,
 			Name:      "helm-guestbook",
 		}},
-		ExternalURLs: []string{"https://helm-guestbook.com/"},
+		ExternalURLs: []string{"https://helm-guestbook.example.com/"},
 	}, info.NetworkingInfo)
 }
 
@@ -454,7 +454,7 @@ func TestGetIngressInfoWithoutTls(t *testing.T) {
 			Kind:      kube.ServiceKind,
 			Name:      "helm-guestbook",
 		}},
-		ExternalURLs: []string{"http://helm-guestbook.com/"},
+		ExternalURLs: []string{"http://helm-guestbook.example.com/"},
 	}, info.NetworkingInfo)
 }
 
@@ -563,7 +563,7 @@ func TestExternalUrlWithMultipleSubPaths(t *testing.T) {
     namespace: default
   spec:
     rules:
-    - host: helm-guestbook.com
+    - host: helm-guestbook.example.com
       http:
         paths:
         - backend:
@@ -587,7 +587,7 @@ func TestExternalUrlWithMultipleSubPaths(t *testing.T) {
 	info := &ResourceInfo{}
 	populateNodeInfo(ingress, info, []string{})
 
-	expectedExternalUrls := []string{"https://helm-guestbook.com/my/sub/path/", "https://helm-guestbook.com/my/sub/path/2", "https://helm-guestbook.com"}
+	expectedExternalUrls := []string{"https://helm-guestbook.example.com/my/sub/path/", "https://helm-guestbook.example.com/my/sub/path/2", "https://helm-guestbook.example.com"}
 	actualURLs := info.NetworkingInfo.ExternalURLs
 	sort.Strings(expectedExternalUrls)
 	sort.Strings(actualURLs)
@@ -693,4 +693,63 @@ func TestCustomLabel(t *testing.T) {
 	assert.Equal(t, "value", info.Info[0].Value)
 	assert.Equal(t, "other-label", info.Info[1].Name)
 	assert.Equal(t, "value2", info.Info[1].Value)
+}
+
+func TestManifestHash(t *testing.T) {
+	manifest := strToUnstructured(`
+  apiVersion: v1
+  kind: Pod
+  metadata:
+    name: helm-guestbook-pod
+    namespace: default
+    ownerReferences:
+    - apiVersion: extensions/v1beta1
+      kind: ReplicaSet
+      name: helm-guestbook-rs
+    resourceVersion: "123"
+    labels:
+      app: guestbook
+  spec:
+    nodeName: minikube
+    containers:
+    - image: bar
+      resources:
+        requests:
+          memory: 128Mi
+`)
+
+	ignores := []v1alpha1.ResourceIgnoreDifferences{
+		{
+			Group:        "*",
+			Kind:         "*",
+			JSONPointers: []string{"/metadata/resourceVersion"},
+		},
+	}
+
+	data, _ := strToUnstructured(`
+  apiVersion: v1
+  kind: Pod
+  metadata:
+    name: helm-guestbook-pod
+    namespace: default
+    ownerReferences:
+    - apiVersion: extensions/v1beta1
+      kind: ReplicaSet
+      name: helm-guestbook-rs
+    labels:
+      app: guestbook
+  spec:
+    nodeName: minikube
+    containers:
+    - image: bar
+      resources:
+        requests:
+          memory: 128Mi
+`).MarshalJSON()
+
+	expected := hash(data)
+
+	hash, err := generateManifestHash(manifest, ignores, nil)
+	assert.Equal(t, expected, hash)
+	assert.Nil(t, err)
 }

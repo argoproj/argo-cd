@@ -8,6 +8,8 @@ import (
 
 	"github.com/argoproj/argo-cd/v2/applicationset/utils"
 	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+
+	log "github.com/sirupsen/logrus"
 )
 
 var _ Generator = (*MatrixGenerator)(nil)
@@ -48,7 +50,7 @@ func (m *MatrixGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.App
 
 	g0, err := m.getParams(appSetGenerator.Matrix.Generators[0], appSet, nil)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error failed to get params for first generator in matrix generator: %w", err)
 	}
 	for _, a := range g0 {
 		g1, err := m.getParams(appSetGenerator.Matrix.Generators[1], appSet, a)
@@ -59,11 +61,11 @@ func (m *MatrixGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.App
 
 			if appSet.Spec.GoTemplate {
 				tmp := map[string]interface{}{}
-				if err := mergo.Merge(&tmp, a); err != nil {
-					return nil, fmt.Errorf("failed to merge params from the first generator in the matrix generator with temp map: %w", err)
+				if err := mergo.Merge(&tmp, b, mergo.WithOverride); err != nil {
+					return nil, fmt.Errorf("failed to merge params from the second generator in the matrix generator with temp map: %w", err)
 				}
-				if err := mergo.Merge(&tmp, b); err != nil {
-					return nil, fmt.Errorf("failed to merge params from the first generator in the matrix generator with the second: %w", err)
+				if err := mergo.Merge(&tmp, a, mergo.WithOverride); err != nil {
+					return nil, fmt.Errorf("failed to merge params from the second generator in the matrix generator with the first: %w", err)
 				}
 				res = append(res, tmp)
 			} else {
@@ -80,27 +82,24 @@ func (m *MatrixGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.App
 }
 
 func (m *MatrixGenerator) getParams(appSetBaseGenerator argoprojiov1alpha1.ApplicationSetNestedGenerator, appSet *argoprojiov1alpha1.ApplicationSet, params map[string]interface{}) ([]map[string]interface{}, error) {
-	var matrix *argoprojiov1alpha1.MatrixGenerator
-	if appSetBaseGenerator.Matrix != nil {
-		// Since nested matrix generator is represented as a JSON object in the CRD, we unmarshall it back to a Go struct here.
-		nestedMatrix, err := argoprojiov1alpha1.ToNestedMatrixGenerator(appSetBaseGenerator.Matrix)
-		if err != nil {
-			return nil, fmt.Errorf("unable to unmarshall nested matrix generator: %v", err)
-		}
-		if nestedMatrix != nil {
-			matrix = nestedMatrix.ToMatrixGenerator()
+	matrixGen, err := getMatrixGenerator(appSetBaseGenerator)
+	if err != nil {
+		return nil, err
+	}
+	if matrixGen != nil && !appSet.Spec.ApplyNestedSelectors {
+		foundSelector := dropDisabledNestedSelectors(matrixGen.Generators)
+		if foundSelector {
+			log.Warnf("AppSet '%v' defines selector on nested matrix generator's generator without enabling them via 'spec.applyNestedSelectors', ignoring nested selectors", appSet.Name)
 		}
 	}
-
-	var mergeGenerator *argoprojiov1alpha1.MergeGenerator
-	if appSetBaseGenerator.Merge != nil {
-		// Since nested merge generator is represented as a JSON object in the CRD, we unmarshall it back to a Go struct here.
-		nestedMerge, err := argoprojiov1alpha1.ToNestedMergeGenerator(appSetBaseGenerator.Merge)
-		if err != nil {
-			return nil, fmt.Errorf("unable to unmarshall nested merge generator: %v", err)
-		}
-		if nestedMerge != nil {
-			mergeGenerator = nestedMerge.ToMergeGenerator()
+	mergeGen, err := getMergeGenerator(appSetBaseGenerator)
+	if err != nil {
+		return nil, fmt.Errorf("error retrieving merge generator: %w", err)
+	}
+	if mergeGen != nil && !appSet.Spec.ApplyNestedSelectors {
+		foundSelector := dropDisabledNestedSelectors(mergeGen.Generators)
+		if foundSelector {
+			log.Warnf("AppSet '%v' defines selector on nested merge generator's generator without enabling them via 'spec.applyNestedSelectors', ignoring nested selectors", appSet.Name)
 		}
 	}
 
@@ -112,8 +111,9 @@ func (m *MatrixGenerator) getParams(appSetBaseGenerator argoprojiov1alpha1.Appli
 			SCMProvider:             appSetBaseGenerator.SCMProvider,
 			ClusterDecisionResource: appSetBaseGenerator.ClusterDecisionResource,
 			PullRequest:             appSetBaseGenerator.PullRequest,
-			Matrix:                  matrix,
-			Merge:                   mergeGenerator,
+			Plugin:                  appSetBaseGenerator.Plugin,
+			Matrix:                  matrixGen,
+			Merge:                   mergeGen,
 			Selector:                appSetBaseGenerator.Selector,
 		},
 		m.supportedGenerators,
@@ -143,11 +143,18 @@ func (m *MatrixGenerator) GetRequeueAfter(appSetGenerator *argoprojiov1alpha1.Ap
 	var found bool
 
 	for _, r := range appSetGenerator.Matrix.Generators {
+		matrixGen, _ := getMatrixGenerator(r)
+		mergeGen, _ := getMergeGenerator(r)
 		base := &argoprojiov1alpha1.ApplicationSetGenerator{
-			List:        r.List,
-			Clusters:    r.Clusters,
-			Git:         r.Git,
-			PullRequest: r.PullRequest,
+			List:                    r.List,
+			Clusters:                r.Clusters,
+			Git:                     r.Git,
+			PullRequest:             r.PullRequest,
+			Plugin:                  r.Plugin,
+			SCMProvider:             r.SCMProvider,
+			ClusterDecisionResource: r.ClusterDecisionResource,
+			Matrix:                  matrixGen,
+			Merge:                   mergeGen,
 		}
 		generators := GetRelevantGenerators(base, m.supportedGenerators)
 
@@ -166,6 +173,17 @@ func (m *MatrixGenerator) GetRequeueAfter(appSetGenerator *argoprojiov1alpha1.Ap
 		return NoRequeueAfter
 	}
 
+}
+
+func getMatrixGenerator(r argoprojiov1alpha1.ApplicationSetNestedGenerator) (*argoprojiov1alpha1.MatrixGenerator, error) {
+	if r.Matrix == nil {
+		return nil, nil
+	}
+	matrix, err := argoprojiov1alpha1.ToNestedMatrixGenerator(r.Matrix)
+	if err != nil {
+		return nil, err
+	}
+	return matrix.ToMatrixGenerator(), nil
 }
 
 func (m *MatrixGenerator) GetTemplate(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator) *argoprojiov1alpha1.ApplicationSetTemplate {

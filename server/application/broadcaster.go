@@ -23,6 +23,14 @@ func (s *subscriber) matches(event *appv1.ApplicationWatchEvent) bool {
 	return true
 }
 
+// Broadcaster is an interface for broadcasting application informer watch events to multiple subscribers.
+type Broadcaster interface {
+	Subscribe(ch chan *appv1.ApplicationWatchEvent, filters ...func(event *appv1.ApplicationWatchEvent) bool) func()
+	OnAdd(interface{})
+	OnUpdate(interface{}, interface{})
+	OnDelete(interface{})
+}
+
 type broadcasterHandler struct {
 	lock        sync.Mutex
 	subscribers []*subscriber

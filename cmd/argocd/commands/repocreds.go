@@ -17,6 +17,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/errors"
 	"github.com/argoproj/argo-cd/v2/util/git"
 	"github.com/argoproj/argo-cd/v2/util/io"
+	"github.com/argoproj/argo-cd/v2/util/templates"
 )
 
 // NewRepoCredsCommand returns a new instance of an `argocd repocreds` command
@@ -24,6 +25,16 @@ func NewRepoCredsCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command 
 	var command = &cobra.Command{
 		Use:   "repocreds",
 		Short: "Manage repository connection parameters",
+		Example: templates.Examples(`
+			# Add credentials with user/pass authentication to use for all repositories under the specified URL
+			argocd repocreds add URL --username USERNAME --password PASSWORD
+
+			# List all the configured repository credentials
+			argocd repocreds list
+
+			# Remove credentials for the repositories with speficied URL
+			argocd repocreds rm URL
+		`),
 		Run: func(c *cobra.Command, args []string) {
 			c.HelpFunc()(c, args)
 			os.Exit(1)
@@ -175,6 +186,7 @@ func NewRepoCredsAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comma
 	command.Flags().BoolVar(&repo.EnableOCI, "enable-oci", false, "Specifies whether helm-oci support should be enabled for this repo")
 	command.Flags().StringVar(&repo.Type, "type", common.DefaultRepoType, "type of the repository, \"git\" or \"helm\"")
 	command.Flags().StringVar(&gcpServiceAccountKeyPath, "gcp-service-account-key-path", "", "service account key for the Google Cloud Platform")
+	command.Flags().BoolVar(&repo.ForceHttpBasicAuth, "force-http-basic-auth", false, "whether to force basic auth when connecting via HTTP")
 	return command
 }
 
@@ -183,6 +195,10 @@ func NewRepoCredsRemoveCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	var command = &cobra.Command{
 		Use:   "rm CREDSURL",
 		Short: "Remove repository credentials",
+		Example: templates.Examples(`
+			# Remove credentials for the repositories with URL https://git.example.com/repos
+			argocd repocreds rm https://git.example.com/repos/
+		`),
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
 
@@ -230,6 +246,19 @@ func NewRepoCredsListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comm
 	var command = &cobra.Command{
 		Use:   "list",
 		Short: "List configured repository credentials",
+		Example: templates.Examples(`
+			# List all repo urls 
+			argocd repocreds list
+
+			# List all repo urls in json format
+			argocd repocreds list -o json
+
+			# List all repo urls in yaml format
+			argocd repocreds list -o yaml
+
+			# List all repo urls in url format
+			argocd repocreds list -o url
+		`),
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
 

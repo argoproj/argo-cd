@@ -21,7 +21,7 @@ export interface NodeId {
     namespace: string;
     name: string;
     group: string;
-    createdAt?: appModels.Time;
+    createdAt?: models.Time;
 }
 
 type ActionMenuItem = MenuItem & {disabled?: boolean; tooltip?: string};
@@ -261,8 +261,8 @@ export const ComparisonStatusIcon = ({
     );
 };
 
-export function showDeploy(resource: string, appContext: AppContext) {
-    appContext.apis.navigation.goto('.', {deploy: resource}, {replace: true});
+export function showDeploy(resource: string, revision: string, apis: ContextApis) {
+    apis.navigation.goto('.', {deploy: resource, revision}, {replace: true});
 }
 
 export function findChildPod(node: appModels.ResourceNode, tree: appModels.ApplicationTree): appModels.ResourceNode {
@@ -395,26 +395,24 @@ export const deletePopup = async (ctx: ContextApis, resource: ResourceTreeNode, 
     );
 };
 
-function getResourceActionsMenuItems(resource: ResourceTreeNode, metadata: models.Metadata, appContext: AppContext): Observable<ActionMenuItem[]> {
+function getResourceActionsMenuItems(resource: ResourceTreeNode, metadata: models.ObjectMeta, apis: ContextApis): Promise<ActionMenuItem[]> {
     return services.applications
         .getResourceActions(metadata.name, metadata.namespace, resource)
         .then(actions => {
             return actions.map(
                 action =>
                     ({
-                        title: action.name,
+                        title: action.displayName ?? action.name,
                         disabled: !!action.disabled,
+                        iconClassName: action.iconClass,
                         action: async () => {
                             try {
-                                const confirmed = await appContext.apis.popup.confirm(
-                                    `Execute '${action.name}' action?`,
-                                    `Are you sure you want to execute '${action.name}' action?`
-                                );
+                                const confirmed = await apis.popup.confirm(`Execute '${action.name}' action?`, `Are you sure you want to execute '${action.name}' action?`);
                                 if (confirmed) {
                                     await services.applications.runResourceAction(metadata.name, metadata.namespace, resource, action.name);
                                 }
                             } catch (e) {
-                                appContext.apis.notifications.show({
+                                apis.notifications.show({
                                     content: <ErrorNotification title='Unable to execute resource action' e={e} />,
                                     type: NotificationType.Error
                                 });
@@ -430,7 +428,7 @@ function getActionItems(
     resource: ResourceTreeNode,
     application: appModels.Application,
     tree: appModels.ApplicationTree,
-    appContext: AppContext,
+    apis: ContextApis,
     appChanged: BehaviorSubject<appModels.Application>,
     isQuickStart: boolean
 ): Observable<ActionMenuItem[]> {
@@ -439,32 +437,32 @@ function getActionItems(
         ...((isRoot && [
             {
                 title: 'Sync',
-                iconClassName: 'fa fa-sync',
-                action: () => showDeploy(nodeKey(resource), appContext)
+                iconClassName: 'fa fa-fw fa-sync',
+                action: () => showDeploy(nodeKey(resource), null, apis)
             }
         ]) ||
             []),
         {
             title: 'Delete',
-            iconClassName: 'fa fa-times-circle',
+            iconClassName: 'fa fa-fw fa-times-circle',
             action: async () => {
-                return deletePopup(appContext.apis, resource, application, appChanged);
+                return deletePopup(apis, resource, application, appChanged);
             }
         }
     ];
     if (!isQuickStart) {
         items.unshift({
             title: 'Details',
-            iconClassName: 'fa fa-info-circle',
-            action: () => appContext.apis.navigation.goto('.', {node: nodeKey(resource)})
+            iconClassName: 'fa fa-fw fa-info-circle',
+            action: () => apis.navigation.goto('.', {node: nodeKey(resource)})
         });
     }
 
     if (findChildPod(resource, tree)) {
         items.push({
             title: 'Logs',
-            iconClassName: 'fa fa-align-left',
-            action: () => appContext.apis.navigation.goto('.', {node: nodeKey(resource), tab: 'logs'}, {replace: true})
+            iconClassName: 'fa fa-fw fa-align-left',
+            action: () => apis.navigation.goto('.', {node: nodeKey(resource), tab: 'logs'}, {replace: true})
         });
     }
 
@@ -475,13 +473,13 @@ function getActionItems(
     const execAction = services.authService
         .settings()
         .then(async settings => {
-            const execAllowed = await services.accounts.canI('exec', 'create', application.spec.project + '/' + application.metadata.name);
-            if (resource.kind === 'Pod' && settings.execEnabled && execAllowed) {
+            const execAllowed = settings.execEnabled && (await services.accounts.canI('exec', 'create', application.spec.project + '/' + application.metadata.name));
+            if (resource.kind === 'Pod' && execAllowed) {
                 return [
                     {
                         title: 'Exec',
-                        iconClassName: 'fa fa-terminal',
-                        action: async () => appContext.apis.navigation.goto('.', {node: nodeKey(resource), tab: 'exec'}, {replace: true})
+                        iconClassName: 'fa fa-fw fa-terminal',
+                        action: async () => apis.navigation.goto('.', {node: nodeKey(resource), tab: 'exec'}, {replace: true})
                     } as MenuItem
                 ];
             }
@@ -489,19 +487,22 @@ function getActionItems(
         })
         .catch(() => [] as MenuItem[]);
 
-    const resourceActions = getResourceActionsMenuItems(resource, application.metadata, appContext);
+    const resourceActions = getResourceActionsMenuItems(resource, application.metadata, apis);
 
-    const links = services.applications.getResourceLinks(application.metadata.name, application.metadata.namespace, resource).then(data => {
-        return (data.items || []).map(
-            link =>
-                ({
-                    title: link.title,
-                    iconClassName: `fa ${link.iconClass ? link.iconClass : 'fa-external-link'}`,
-                    action: () => window.open(link.url, '_blank'),
-                    tooltip: link.description
-                } as MenuItem)
-        );
-    });
+    const links = services.applications
+        .getResourceLinks(application.metadata.name, application.metadata.namespace, resource)
+        .then(data => {
+            return (data.items || []).map(
+                link =>
+                    ({
+                        title: link.title,
+                        iconClassName: `fa fa-fw ${link.iconClass ? link.iconClass : 'fa-external-link'}`,
+                        action: () => window.open(link.url, '_blank'),
+                        tooltip: link.description
+                    } as MenuItem)
+            );
+        })
+        .catch(() => [] as MenuItem[]);
 
     return combineLatest(
         from([items]), // this resolves immediately
@@ -515,7 +516,7 @@ export function renderResourceMenu(
     resource: ResourceTreeNode,
     application: appModels.Application,
     tree: appModels.ApplicationTree,
-    appContext: AppContext,
+    apis: ContextApis,
     appChanged: BehaviorSubject<appModels.Application>,
     getApplicationActionMenu: () => any
 ): React.ReactNode {
@@ -524,7 +525,7 @@ export function renderResourceMenu(
     if (isAppNode(resource) && resource.name === application.metadata.name) {
         menuItems = from([getApplicationActionMenu()]);
     } else {
-        menuItems = getActionItems(resource, application, tree, appContext, appChanged, false);
+        menuItems = getActionItems(resource, application, tree, apis, appChanged, false);
     }
     return (
         <DataLoader load={() => menuItems}>
@@ -560,8 +561,8 @@ export function renderResourceMenu(
     );
 }
 
-export function renderResourceActionMenu(resource: ResourceTreeNode, application: appModels.Application, tree: appModels.ApplicationTree, appContext: AppContext): React.ReactNode {
-    const menuItems = getResourceActionsMenuItems(resource, application.metadata, appContext);
+export function renderResourceActionMenu(resource: ResourceTreeNode, application: appModels.Application, apis: ContextApis): React.ReactNode {
+    const menuItems = getResourceActionsMenuItems(resource, application.metadata, apis);
 
     return (
         <DataLoader load={() => menuItems}>
@@ -591,11 +592,11 @@ export function renderResourceButtons(
     resource: ResourceTreeNode,
     application: appModels.Application,
     tree: appModels.ApplicationTree,
-    appContext: AppContext,
+    apis: ContextApis,
     appChanged: BehaviorSubject<appModels.Application>
 ): React.ReactNode {
     let menuItems: Observable<ActionMenuItem[]>;
-    menuItems = getActionItems(resource, application, tree, appContext, appChanged, true);
+    menuItems = getActionItems(resource, application, tree, apis, appChanged, true);
     return (
         <DataLoader load={() => menuItems}>
             {items => (
@@ -642,7 +643,7 @@ export function syncStatusMessage(app: appModels.Application) {
         case appModels.SyncStatuses.Synced:
             return (
                 <span>
-                    To{' '}
+                    to{' '}
                     <Revision repoUrl={source.repoURL} revision={rev}>
                         {message}
                     </Revision>{' '}
@@ -651,7 +652,7 @@ export function syncStatusMessage(app: appModels.Application) {
         case appModels.SyncStatuses.OutOfSync:
             return (
                 <span>
-                    From{' '}
+                    from{' '}
                     <Revision repoUrl={source.repoURL} revision={rev}>
                         {message}
                     </Revision>{' '}
@@ -872,7 +873,7 @@ export const OperationState = ({app, quiet}: {app: appModels.Application; quiet?
     );
 };
 
-export function getPodStateReason(pod: appModels.State): {message: string; reason: string} {
+export function getPodStateReason(pod: appModels.State): {message: string; reason: string; netContainerStatuses: any[]} {
     let reason = pod.status.phase;
     let message = '';
     if (pod.status.reason) {
@@ -880,6 +881,10 @@ export function getPodStateReason(pod: appModels.State): {message: string; reaso
     }
 
     let initializing = false;
+
+    let netContainerStatuses = pod.status.initContainerStatuses || [];
+    netContainerStatuses = netContainerStatuses.concat(pod.status.containerStatuses || []);
+
     for (const container of (pod.status.initContainerStatuses || []).slice().reverse()) {
         if (container.state.terminated && container.state.terminated.exitCode === 0) {
             continue;
@@ -939,8 +944,56 @@ export function getPodStateReason(pod: appModels.State): {message: string; reaso
         message = '';
     }
 
-    return {reason, message};
+    return {reason, message, netContainerStatuses};
 }
+
+export const getPodReadinessGatesState = (pod: appModels.State): {nonExistingConditions: string[]; notPassedConditions: string[]} => {
+    // if pod does not have readiness gates then return empty status
+    if (!pod.spec?.readinessGates?.length) {
+        return {
+            nonExistingConditions: [],
+            notPassedConditions: []
+        };
+    }
+
+    const existingConditions = new Map<string, boolean>();
+    const podConditions = new Map<string, boolean>();
+
+    const podStatusConditions = pod.status?.conditions || [];
+
+    for (const condition of podStatusConditions) {
+        existingConditions.set(condition.type, true);
+        // priority order of conditions
+        // eg. if there are multiple conditions set with same name then the one which comes first is evaluated
+        if (podConditions.has(condition.type)) {
+            continue;
+        }
+
+        if (condition.status === 'False') {
+            podConditions.set(condition.type, false);
+        } else if (condition.status === 'True') {
+            podConditions.set(condition.type, true);
+        }
+    }
+
+    const nonExistingConditions: string[] = [];
+    const failedConditions: string[] = [];
+
+    const readinessGates: appModels.ReadinessGate[] = pod.spec?.readinessGates || [];
+
+    for (const readinessGate of readinessGates) {
+        if (!existingConditions.has(readinessGate.conditionType)) {
+            nonExistingConditions.push(readinessGate.conditionType);
+        } else if (podConditions.get(readinessGate.conditionType) === false) {
+            failedConditions.push(readinessGate.conditionType);
+        }
+    }
+
+    return {
+        nonExistingConditions,
+        notPassedConditions: failedConditions
+    };
+};
 
 export function getConditionCategory(condition: appModels.ApplicationCondition): 'error' | 'warning' | 'info' {
     if (condition.type.endsWith('Error')) {
@@ -1197,3 +1250,19 @@ export function formatCreationTimestamp(creationTimestamp: string) {
         </span>
     );
 }
+
+export const selectPostfix = (arr: string[], singular: string, plural: string) => (arr.length > 1 ? plural : singular);
+
+export function getUsrMsgKeyToDisplay(appName: string, msgKey: string, usrMessages: appModels.UserMessages[]) {
+    const usrMsg = usrMessages?.find((msg: appModels.UserMessages) => msg.appName === appName && msg.msgKey === msgKey);
+    if (usrMsg !== undefined) {
+        return {...usrMsg, display: true};
+    } else {
+        return {appName, msgKey, display: false, duration: 1} as appModels.UserMessages;
+    }
+}
+
+export const userMsgsList: {[key: string]: string} = {
+    groupNodes: `Since the number of pods has surpassed the threshold pod count of 15, you will now be switched to the group node view.
+                 If you prefer the tree view, you can simply click on the Group Nodes toolbar button to deselect the current view.`
+};

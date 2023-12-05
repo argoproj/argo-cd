@@ -9,8 +9,10 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/argoproj/pkg/rand"
 
@@ -22,6 +24,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/io/files"
 
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
+	"github.com/cyphar/filepath-securejoin"
 	"github.com/mattn/go-zglob"
 	log "github.com/sirupsen/logrus"
 )
@@ -73,9 +76,8 @@ func runCommand(ctx context.Context, command Command, path string, env []string)
 	}
 	logCtx := log.WithFields(log.Fields{"execID": execId})
 
-	// log in a way we can copy-and-paste into a terminal
-	args := strings.Join(cmd.Args, " ")
-	logCtx.WithFields(log.Fields{"dir": cmd.Dir}).Info(args)
+	argsToLog := getCommandArgsToLog(cmd)
+	logCtx.WithFields(log.Fields{"dir": cmd.Dir}).Info(argsToLog)
 
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
@@ -95,6 +97,14 @@ func runCommand(ctx context.Context, command Command, path string, env []string)
 		<-ctx.Done()
 		// Kill by group ID to make sure child processes are killed. The - tells `kill` that it's a group ID.
 		// Since we didn't set Pgid in SysProcAttr, the group ID is the same as the process ID. https://pkg.go.dev/syscall#SysProcAttr
+
+		// Sending a TERM signal first to allow any potential cleanup if needed, and then sending a KILL signal
+		_ = sysCallTerm(-cmd.Process.Pid)
+
+		// modify cleanup timeout to allow process to cleanup
+		cleanupTimeout := 5 * time.Second
+		time.Sleep(cleanupTimeout)
+
 		_ = sysCallKill(-cmd.Process.Pid)
 	}()
 
@@ -106,12 +116,45 @@ func runCommand(ctx context.Context, command Command, path string, env []string)
 	logCtx.WithFields(log.Fields{"duration": duration}).Debug(output)
 
 	if err != nil {
-		err := newCmdError(args, errors.New(err.Error()), strings.TrimSpace(stderr.String()))
+		err := newCmdError(argsToLog, errors.New(err.Error()), strings.TrimSpace(stderr.String()))
 		logCtx.Error(err.Error())
 		return strings.TrimSuffix(output, "\n"), err
 	}
 
+	logCtx = logCtx.WithFields(log.Fields{
+		"stderr":  stderr.String(),
+		"command": command,
+	})
+	if len(output) == 0 {
+		logCtx.Warn("Plugin command returned zero output")
+	} else {
+		// Log stderr even on successfull commands to help develop plugins
+		logCtx.Info("Plugin command successfull")
+	}
+
 	return strings.TrimSuffix(output, "\n"), nil
+}
+
+// getCommandArgsToLog represents the given command in a way that we can copy-and-paste into a terminal
+func getCommandArgsToLog(cmd *exec.Cmd) string {
+	var argsToLog []string
+	for _, arg := range cmd.Args {
+		containsSpace := false
+		for _, r := range arg {
+			if unicode.IsSpace(r) {
+				containsSpace = true
+				break
+			}
+		}
+		if containsSpace {
+			// add quotes and escape any internal quotes
+			argsToLog = append(argsToLog, strconv.Quote(arg))
+		} else {
+			argsToLog = append(argsToLog, arg)
+		}
+	}
+	args := strings.Join(argsToLog, " ")
+	return args
 }
 
 type CmdError struct {
@@ -153,7 +196,7 @@ func getTempDirMustCleanup(baseDir string) (workDir string, cleanup func(), err 
 		if err := os.RemoveAll(workDir); err != nil {
 			log.WithFields(map[string]interface{}{
 				common.SecurityField:    common.SecurityHigh,
-				common.SecurityCWEField: 459,
+				common.SecurityCWEField: common.SecurityCWEIncompleteCleanup,
 			}).Errorf("Failed to clean up temp directory: %s", err)
 		}
 	}
@@ -184,7 +227,7 @@ func (s *Service) generateManifestGeneric(stream GenerateManifestStream) error {
 	}
 	defer cleanup()
 
-	metadata, err := cmp.ReceiveRepoStream(ctx, stream, workDir)
+	metadata, err := cmp.ReceiveRepoStream(ctx, stream, workDir, s.initConstants.PluginConfig.Spec.PreserveFileMode)
 	if err != nil {
 		return fmt.Errorf("generate manifest error receiving stream: %w", err)
 	}
@@ -268,16 +311,16 @@ func (s *Service) matchRepositoryGeneric(stream MatchRepositoryStream) error {
 	}
 	defer cleanup()
 
-	metadata, err := cmp.ReceiveRepoStream(bufferedCtx, stream, workDir)
+	metadata, err := cmp.ReceiveRepoStream(bufferedCtx, stream, workDir, s.initConstants.PluginConfig.Spec.PreserveFileMode)
 	if err != nil {
 		return fmt.Errorf("match repository error receiving stream: %w", err)
 	}
 
-	isSupported, err := s.matchRepository(bufferedCtx, workDir, metadata.GetEnv())
+	isSupported, isDiscoveryEnabled, err := s.matchRepository(bufferedCtx, workDir, metadata.GetEnv(), metadata.GetAppRelPath())
 	if err != nil {
 		return fmt.Errorf("match repository error: %w", err)
 	}
-	repoResponse := &apiclient.RepositoryResponse{IsSupported: isSupported}
+	repoResponse := &apiclient.RepositoryResponse{IsSupported: isSupported, IsDiscoveryEnabled: isDiscoveryEnabled}
 
 	err = stream.SendAndClose(repoResponse)
 	if err != nil {
@@ -286,50 +329,55 @@ func (s *Service) matchRepositoryGeneric(stream MatchRepositoryStream) error {
 	return nil
 }
 
-func (s *Service) matchRepository(ctx context.Context, workdir string, envEntries []*apiclient.EnvEntry) (bool, error) {
+func (s *Service) matchRepository(ctx context.Context, workdir string, envEntries []*apiclient.EnvEntry, appRelPath string) (isSupported bool, isDiscoveryEnabled bool, err error) {
 	config := s.initConstants.PluginConfig
+
+	appPath, err := securejoin.SecureJoin(workdir, appRelPath)
+	if err != nil {
+		log.WithFields(map[string]interface{}{
+			common.SecurityField:    common.SecurityHigh,
+			common.SecurityCWEField: common.SecurityCWEIncompleteCleanup,
+		}).Errorf("error joining workdir %q and appRelPath %q: %v", workdir, appRelPath, err)
+	}
+
 	if config.Spec.Discover.FileName != "" {
 		log.Debugf("config.Spec.Discover.FileName is provided")
-		pattern := filepath.Join(workdir, config.Spec.Discover.FileName)
+		pattern := filepath.Join(appPath, config.Spec.Discover.FileName)
 		matches, err := filepath.Glob(pattern)
 		if err != nil {
 			e := fmt.Errorf("error finding filename match for pattern %q: %w", pattern, err)
 			log.Debug(e)
-			return false, e
+			return false, true, e
 		}
-		return len(matches) > 0, nil
+		return len(matches) > 0, true, nil
 	}
 
 	if config.Spec.Discover.Find.Glob != "" {
 		log.Debugf("config.Spec.Discover.Find.Glob is provided")
-		pattern := filepath.Join(workdir, config.Spec.Discover.Find.Glob)
+		pattern := filepath.Join(appPath, config.Spec.Discover.Find.Glob)
 		// filepath.Glob doesn't have '**' support hence selecting third-party lib
 		// https://github.com/golang/go/issues/11862
 		matches, err := zglob.Glob(pattern)
 		if err != nil {
 			e := fmt.Errorf("error finding glob match for pattern %q: %w", pattern, err)
 			log.Debug(e)
-			return false, e
+			return false, true, e
 		}
 
-		if len(matches) > 0 {
-			return true, nil
+		return len(matches) > 0, true, nil
+	}
+
+	if len(config.Spec.Discover.Find.Command.Command) > 0 {
+		log.Debugf("Going to try runCommand.")
+		env := append(os.Environ(), environ(envEntries)...)
+		find, err := runCommand(ctx, config.Spec.Discover.Find.Command, appPath, env)
+		if err != nil {
+			return false, true, fmt.Errorf("error running find command: %w", err)
 		}
-		return false, nil
+		return find != "", true, nil
 	}
 
-	log.Debugf("Going to try runCommand.")
-	env := append(os.Environ(), environ(envEntries)...)
-
-	find, err := runCommand(ctx, config.Spec.Discover.Find.Command, workdir, env)
-	if err != nil {
-		return false, fmt.Errorf("error running find command: %w", err)
-	}
-
-	if find != "" {
-		return true, nil
-	}
-	return false, nil
+	return false, false, nil
 }
 
 // ParametersAnnouncementStream defines an interface able to send/receive a stream of parameter announcements.
@@ -349,7 +397,7 @@ func (s *Service) GetParametersAnnouncement(stream apiclient.ConfigManagementPlu
 	}
 	defer cleanup()
 
-	metadata, err := cmp.ReceiveRepoStream(bufferedCtx, stream, workDir)
+	metadata, err := cmp.ReceiveRepoStream(bufferedCtx, stream, workDir, s.initConstants.PluginConfig.Spec.PreserveFileMode)
 	if err != nil {
 		return fmt.Errorf("parameters announcement error receiving stream: %w", err)
 	}
@@ -358,7 +406,7 @@ func (s *Service) GetParametersAnnouncement(stream apiclient.ConfigManagementPlu
 		return fmt.Errorf("illegal appPath: out of workDir bound")
 	}
 
-	repoResponse, err := getParametersAnnouncement(bufferedCtx, appPath, s.initConstants.PluginConfig.Spec.Parameters.Static, s.initConstants.PluginConfig.Spec.Parameters.Dynamic)
+	repoResponse, err := getParametersAnnouncement(bufferedCtx, appPath, s.initConstants.PluginConfig.Spec.Parameters.Static, s.initConstants.PluginConfig.Spec.Parameters.Dynamic, metadata.GetEnv())
 	if err != nil {
 		return fmt.Errorf("get parameters announcement error: %w", err)
 	}
@@ -370,11 +418,12 @@ func (s *Service) GetParametersAnnouncement(stream apiclient.ConfigManagementPlu
 	return nil
 }
 
-func getParametersAnnouncement(ctx context.Context, appDir string, announcements []*repoclient.ParameterAnnouncement, command Command) (*apiclient.ParametersAnnouncementResponse, error) {
+func getParametersAnnouncement(ctx context.Context, appDir string, announcements []*repoclient.ParameterAnnouncement, command Command, envEntries []*apiclient.EnvEntry) (*apiclient.ParametersAnnouncementResponse, error) {
 	augmentedAnnouncements := announcements
 
 	if len(command.Command) > 0 {
-		stdout, err := runCommand(ctx, command, appDir, os.Environ())
+		env := append(os.Environ(), environ(envEntries)...)
+		stdout, err := runCommand(ctx, command, appDir, env)
 		if err != nil {
 			return nil, fmt.Errorf("error executing dynamic parameter output command: %w", err)
 		}

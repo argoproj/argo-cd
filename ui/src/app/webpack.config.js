@@ -4,7 +4,6 @@ const MonacoWebpackPlugin = require('monaco-editor-webpack-plugin');
 const CopyWebpackPlugin = require('copy-webpack-plugin');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
 const webpack = require('webpack');
-const path = require('path');
 
 const isProd = process.env.NODE_ENV === 'production';
 
@@ -28,9 +27,9 @@ const config = {
         alias: { react: require.resolve('react') },
         fallback: { fs: false }
     },
-    ignoreWarnings: [
-        (warning) => true,
-    ],
+    ignoreWarnings: [{
+        module: new RegExp('/node_modules/argo-ui/.*')
+    }],
     module: {
         rules: [
             {

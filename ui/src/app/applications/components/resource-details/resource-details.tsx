@@ -41,9 +41,6 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
     const selectedNodeInfo = NodeInfo(new URLSearchParams(appContext.history.location.search).get('node'));
     const selectedNodeKey = selectedNodeInfo.key;
 
-    const page = parseInt(new URLSearchParams(appContext.history.location.search).get('page'), 10) || 0;
-    const untilTimes = (new URLSearchParams(appContext.history.location.search).get('untilTimes') || '').split(',') || [];
-
     const getResourceTabs = (
         node: ResourceNode,
         state: State,
@@ -110,8 +107,6 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                                     applicationName={application.metadata.name}
                                     applicationNamespace={application.metadata.namespace}
                                     containerName={AppUtils.getContainerName(podState, activeContainer)}
-                                    page={{number: page, untilTimes}}
-                                    setPage={pageData => appContext.navigation.goto('.', {page: pageData.number, untilTimes: pageData.untilTimes.join(',')})}
                                     containerGroups={containerGroups}
                                     onClickContainer={onClickContainer}
                                 />
@@ -285,8 +280,8 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                         const settings = await services.authService.settings();
                         const execEnabled = settings.execEnabled;
                         const logsAllowed = await services.accounts.canI('logs', 'get', application.spec.project + '/' + application.metadata.name);
-                        const execAllowed = await services.accounts.canI('exec', 'create', application.spec.project + '/' + application.metadata.name);
-                        const links = await services.applications.getResourceLinks(application.metadata.name, application.metadata.namespace, selectedNode);
+                        const execAllowed = execEnabled && (await services.accounts.canI('exec', 'create', application.spec.project + '/' + application.metadata.name));
+                        const links = await services.applications.getResourceLinks(application.metadata.name, application.metadata.namespace, selectedNode).catch(() => null);
                         return {controlledState, liveState, events, podState, execEnabled, execAllowed, logsAllowed, links};
                     }}>
                     {data => (
@@ -324,7 +319,7 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                                             <i className='fa fa-ellipsis-v' />
                                         </button>
                                     )}>
-                                    {() => AppUtils.renderResourceActionMenu(selectedNode, application, tree, {apis: appContext})}
+                                    {() => AppUtils.renderResourceActionMenu(selectedNode, application, appContext)}
                                 </DropDown>
                             </div>
                             <Tabs

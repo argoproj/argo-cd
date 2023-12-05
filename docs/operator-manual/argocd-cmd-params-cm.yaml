@@ -9,18 +9,19 @@ data:
   # Repo server address. (default "argocd-repo-server:8081")
   repo.server: "argocd-repo-server:8081"
 
-  # Dex server address (default "http://argocd-dex-server:5556")
-  dex.server: "http://argocd-dex-server:5556"
-
   # Redis server hostname and port (e.g. argocd-redis:6379)
   redis.server: "argocd-redis:6379"
-  # Enable compression for data sent to Redis with the required compression algorithm. (default 'none')
-  redis.compression: none
+  # Enable compression for data sent to Redis with the required compression algorithm. (default 'gzip')
+  redis.compression: gzip
   # Redis database
   redis.db:
 
   # Open-Telemetry collector address: (e.g. "otel-collector:4317")
-  otlp.address:
+  otlp.address: ""
+  # Open-Telemetry collector insecure: (e.g. "true")
+  otlp.insecure: "true"
+  # Open-Telemetry collector headers: (e.g. "key1=value1,key2=value2")
+  otlp.headers: ""
 
   # List of additional namespaces where applications may be created in and
   # reconciled from. The namespace where Argo CD is installed to will always
@@ -57,8 +58,22 @@ data:
   controller.resource.health.persist: "true"
   # Cache expiration default (default 24h0m0s)
   controller.default.cache.expiration: "24h0m0s"
+  # Sharding algorithm used to balance clusters accross application controller shards (default "legacy")
+  controller.sharding.algorithm: legacy
+  # Number of allowed concurrent kubectl fork/execs. Any value less than 1 means no limit.
+  controller.kubectl.parallelism.limit: "20"
+  # The maximum number of retries for each request
+  controller.k8sclient.retry.max: "0"
+  # The initial backoff delay on the first retry attempt in ms. Subsequent retries will double this backoff time up to a maximum threshold
+  controller.k8sclient.retry.base.backoff: "100"
+  # Grace period in seconds for ignoring consecutive errors while communicating with repo server.
+  controller.repo.error.grace.period.seconds: "180"
 
   ## Server properties
+  # Listen on given address for incoming connections (default "0.0.0.0")
+  server.listen.address: "0.0.0.0"
+  # Listen on given address for metrics (default "0.0.0.0")
+  server.metrics.listen.address: "0.0.0.0"
   # Run server without TLS
   server.insecure: "false"
   # Value for base href in index.html. Used if Argo CD is running behind reverse proxy under subpath different from / (default "/")
@@ -67,6 +82,10 @@ data:
   server.rootpath: ""
   # Directory path that contains additional static assets
   server.staticassets: "/shared/app"
+  # The maximum number of retries for each request
+  server.k8sclient.retry.max: "0"
+  # The initial backoff delay on the first retry attempt in ms. Subsequent retries will double this backoff time up to a maximum threshold
+  server.k8sclient.retry.base.backoff: "100"
 
   # Set the logging format. One of: text|json (default "text")
   server.log.format: "text"
@@ -78,14 +97,16 @@ data:
   server.repo.server.plaintext: "false"
   # Perform strict validation of TLS certificates when connecting to repo server
   server.repo.server.strict.tls: "false"
+  # Dex server address (default "http://argocd-dex-server:5556")
+  server.dex.server: "http://argocd-dex-server:5556"
   # Use a plaintext client (non-TLS) to connect to dex server
   server.dex.server.plaintext: "false"
   # Perform strict validation of TLS certificates when connecting to dex server
   server.dex.server.strict.tls: "false"
   # Disable client authentication
   server.disable.auth: "false"
-  # Enable GZIP compression
-  server.enable.gzip: "false"
+  # Toggle GZIP compression
+  server.enable.gzip: "true"
   # Set X-Frame-Options header in HTTP responses to value. To disable, set to "". (default "sameorigin")
   server.x.frame.options: "sameorigin"
   # The minimum SSL/TLS version that is acceptable (one of: 1.0|1.1|1.2|1.3) (default "1.2")
@@ -108,6 +129,10 @@ data:
   server.enable.proxy.extension: "false"
 
   ## Repo-server properties
+  # Listen on given address for incoming connections (default "0.0.0.0")
+  reposerver.listen.address: "0.0.0.0"
+  # Listen on given address for metrics (default "0.0.0.0")
+  reposerver.metrics.listen.address: "0.0.0.0"
   # Set the logging format. One of: text|json (default "text")
   reposerver.log.format: "text"
   # Set the logging level. One of: debug|info|warn|error (default "info")
@@ -143,6 +168,10 @@ data:
   reposerver.streamed.manifest.max.extracted.size: "1G"
   # Enable git submodule support
   reposerver.enable.git.submodule: "true"
+  # Number of concurrent git ls-remote requests. Any value less than 1 means no limit.
+  reposerver.git.lsremote.parallelism.limit: "0"
+  # Git requests timeout.
+  reposerver.git.request.timeout: "15s"
 
   # Disable TLS on the HTTP endpoint
   dexserver.disable.tls: "false"
@@ -150,8 +179,6 @@ data:
   ## ApplicationSet Controller Properties
   # Enable leader election for controller manager. Enabling this will ensure there is only one active controller manager.
   applicationsetcontroller.enable.leader.election: "false"
-  # Argo CD repo namespace (default: argocd)
-  applicationsetcontroller.namespace: ""
   # "Modify how application is synced between the generator and the cluster. Default is 'sync' (create & update & delete), options: 'create-only', 'create-update' (no deletion), 'create-delete' (no update)"
   applicationsetcontroller.policy: "sync"
   # Print debug logs. Takes precedence over loglevel
@@ -164,5 +191,24 @@ data:
   applicationsetcontroller.dryrun: "false"
   # Enable git submodule support
   applicationsetcontroller.enable.git.submodule: "true"
-  # Enables use of the Progressive Rollouts capability
-  applicationsetcontroller.enable.progressive.rollouts: "false"
+  # Enables use of the Progressive Syncs capability
+  applicationsetcontroller.enable.progressive.syncs: "false"
+  # A list of glob patterns specifying where to look for ApplicationSet resources. (default is only the ns where the controller is installed)
+  applicationsetcontroller.namespaces: "argocd,argocd-appsets-*"
+  # Path of the self-signed TLS certificate for SCM/PR Gitlab Generator
+  applicationsetcontroller.scm.root.ca.path: ""
+  # A comma separated list of allowed SCM providers (default "" is all SCM providers).
+  # Setting this field is required when using ApplicationSets-in-any-namespace, to prevent users from
+  # sending secrets from `tokenRef`s to disallowed `api` domains.
+  # The url used in the scm generator must exactly match one in the list
+  applicationsetcontroller.allowed.scm.providers: "https://git.example.com/,https://gitlab.example.com/"
+  # To disable SCM providers entirely (i.e. disable the SCM and PR generators), set this to "false". Default is "true".
+  applicationsetcontroller.enable.scm.providers: "false"
+
+  ## Argo CD Notifications Controller Properties
+  # Set the logging level. One of: debug|info|warn|error (default "info")
+  notificationscontroller.log.level: "info"
+  # Set the logging format. One of: text|json (default "text")
+  notificationscontroller.log.format: "text"
+  # Enable self-service notifications config. Used in conjunction with apps-in-any-namespace. (default "false")
+  notificationscontroller.selfservice.enabled: "false"

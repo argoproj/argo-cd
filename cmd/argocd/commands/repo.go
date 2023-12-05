@@ -3,6 +3,7 @@ package commands
 import (
 	"fmt"
 	"os"
+	"strconv"
 	"text/tabwriter"
 
 	log "github.com/sirupsen/logrus"
@@ -28,6 +29,19 @@ func NewRepoCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 			c.HelpFunc()(c, args)
 			os.Exit(1)
 		},
+		Example: `
+# Add git repository connection parameters
+argocd repo add git@git.example.com:repos/repo
+
+# Get a Configured Repository by URL
+argocd repo get https://github.com/yourusername/your-repo.git
+
+# List Configured Repositories
+argocd repo list
+
+# Remove Repository Credentials
+argocd repo rm https://github.com/yourusername/your-repo.git
+`,
 	}
 
 	command.AddCommand(NewRepoAddCommand(clientOpts))
@@ -160,6 +174,7 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 			repoOpts.Repo.GithubAppInstallationId = repoOpts.GithubAppInstallationId
 			repoOpts.Repo.GitHubAppEnterpriseBaseURL = repoOpts.GitHubAppEnterpriseBaseURL
 			repoOpts.Repo.Proxy = repoOpts.Proxy
+			repoOpts.Repo.ForceHttpBasicAuth = repoOpts.ForceHttpBasicAuth
 
 			if repoOpts.Repo.Type == "helm" && repoOpts.Repo.Name == "" {
 				errors.CheckError(fmt.Errorf("Must specify --name for repos of type 'helm'"))
@@ -199,6 +214,7 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 				Proxy:                      repoOpts.Proxy,
 				Project:                    repoOpts.Repo.Project,
 				GcpServiceAccountKey:       repoOpts.Repo.GCPServiceAccountKey,
+				ForceHttpBasicAuth:         repoOpts.Repo.ForceHttpBasicAuth,
 			}
 			_, err := repoIf.ValidateAccess(ctx, &repoAccessReq)
 			errors.CheckError(err)
@@ -248,15 +264,12 @@ func printRepoTable(repos appsv1.Repositories) {
 	_, _ = fmt.Fprintf(w, "TYPE\tNAME\tREPO\tINSECURE\tOCI\tLFS\tCREDS\tSTATUS\tMESSAGE\tPROJECT\n")
 	for _, r := range repos {
 		var hasCreds string
-		if !r.HasCredentials() {
-			hasCreds = "false"
+		if r.InheritedCreds {
+			hasCreds = "inherited"
 		} else {
-			if r.InheritedCreds {
-				hasCreds = "inherited"
-			} else {
-				hasCreds = "true"
-			}
+			hasCreds = strconv.FormatBool(r.HasCredentials())
 		}
+
 		_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%v\t%v\t%v\t%s\t%s\t%s\t%s\n", r.Type, r.Name, r.Repo, r.IsInsecure(), r.EnableOCI, r.EnableLFS, hasCreds, r.ConnectionState.Status, r.ConnectionState.Message, r.Project)
 	}
 	_ = w.Flush()
@@ -309,7 +322,7 @@ func NewRepoListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 		},
 	}
 	command.Flags().StringVarP(&output, "output", "o", "wide", "Output format. One of: json|yaml|wide|url")
-	command.Flags().StringVar(&refresh, "refresh", "", "Force a cache refresh on connection status")
+	command.Flags().StringVar(&refresh, "refresh", "", "Force a cache refresh on connection status , must be one of: 'hard'")
 	return command
 }
 
@@ -360,6 +373,6 @@ func NewRepoGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 		},
 	}
 	command.Flags().StringVarP(&output, "output", "o", "wide", "Output format. One of: json|yaml|wide|url")
-	command.Flags().StringVar(&refresh, "refresh", "", "Force a cache refresh on connection status")
+	command.Flags().StringVar(&refresh, "refresh", "", "Force a cache refresh on connection status , must be one of: 'hard'")
 	return command
 }
