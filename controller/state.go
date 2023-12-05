@@ -826,13 +826,12 @@ func useDiffCache(noCache bool, manifestInfos []*apiclient.ManifestResponse, sou
 	}
 	refreshType, refreshRequested := app.IsRefreshRequested()
 	if refreshRequested {
-		if refreshType == v1alpha1.RefreshTypeHard {
-			log.WithField("useDiffCache", "false").Debug("hard refresh requested")
-			return false
-		}
-		// serverSideDiff should still use cache if normal refresh is requested
-		if !serverSideDiff && refreshType == v1alpha1.RefreshTypeNormal {
+		switch refreshType {
+		case v1alpha1.RefreshTypeNormal:
 			log.WithField("useDiffCache", "false").Debug("normal refresh Requested")
+			return false
+		case v1alpha1.RefreshTypeHard:
+			log.WithField("useDiffCache", "false").Debug("hard refresh requested")
 			return false
 		}
 	}
