@@ -2,7 +2,7 @@
 
 ## argocd admin cluster stats
 
-Prints estimated cluster statistics and inferred shard number
+Prints information cluster statistics and inferred shard number
 
 ```
 argocd admin cluster stats [flags]
