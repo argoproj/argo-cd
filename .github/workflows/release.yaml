@@ -149,9 +149,9 @@ jobs:
           go-version: ${{ env.GOLANG_VERSION }}
 
       - name: Install cosign
-        uses: sigstore/cosign-installer@c3667d99424e7e6047999fb6246c0da843953c65 # v3.0.1
+        uses: sigstore/cosign-installer@1fc5bd396d372bee37d608f955b336615edf79c8 # v3.2.0
         with:
-          cosign-release: 'v2.0.0'
+          cosign-release: 'v2.2.1'
 
       - name: Generate SBOM (spdx)
         id: spdx-builder
