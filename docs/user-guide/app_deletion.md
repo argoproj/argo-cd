@@ -54,7 +54,7 @@ When deleting an Application with this finalizer, the Argo CD application contro
 Adding the finalizer enables cascading deletes when implementing [the App of Apps pattern](../operator-manual/cluster-bootstrapping.md#cascading-deletion).
 
 The default propagation policy for cascading deletion is [foreground cascading deletion](https://kubernetes.io/docs/concepts/architecture/garbage-collection/#foreground-deletion).
-Argo CD performs [background cascading deletion](https://kubernetes.io/docs/concepts/architecture/garbage-collection/#background-deletion) when `resources-finalizer.argocd.argoproj.io/background` is set.
+ArgoCD performs [background cascading deletion](https://kubernetes.io/docs/concepts/architecture/garbage-collection/#background-deletion) when `resources-finalizer.argocd.argoproj.io/background` is set.
 
 When you invoke `argocd app delete` with `--cascade`, the finalizer is added automatically.
 You can set the propagation policy with `--propagation-policy <foreground|background>`.

@@ -468,10 +468,6 @@ export interface AuthSettings {
     };
     oidcConfig: {
         name: string;
-        issuer: string;
-        clientID: string;
-        scopes: string[];
-        enablePKCEAuthentication: boolean;
     };
     help: {
         chatUrl: string;
@@ -714,7 +710,6 @@ export interface ProjectSignatureKey {
 
 export interface ProjectSpec {
     sourceRepos: string[];
-    sourceNamespaces: string[];
     destinations: ApplicationDestination[];
     description: string;
     roles: ProjectRole[];

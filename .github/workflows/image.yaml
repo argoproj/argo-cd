@@ -25,7 +25,7 @@ jobs:
       image-tag: ${{ steps.image.outputs.tag}}
       platforms: ${{ steps.platforms.outputs.platforms }}
     steps:
-      - uses: actions/checkout@3df4ab11eba7bda6032a0b82a6bb43b11571feac # v4.0.0
+      - uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
 
       - name: Set image tag for ghcr
         run: echo "tag=$(cat ./VERSION)-${GITHUB_SHA::8}" >> $GITHUB_OUTPUT
@@ -52,7 +52,7 @@ jobs:
     uses: ./.github/workflows/image-reuse.yaml
     with:
       # Note: cannot use env variables to set go-version (https://docs.github.com/en/actions/using-workflows/reusing-workflows#limitations)
-      go-version: 1.21
+      go-version: 1.20
       platforms: ${{ needs.set-vars.outputs.platforms }}
       push: false
 
@@ -68,7 +68,7 @@ jobs:
       quay_image_name: quay.io/argoproj/argocd:latest
       ghcr_image_name: ghcr.io/argoproj/argo-cd/argocd:${{ needs.set-vars.outputs.image-tag }}
       # Note: cannot use env variables to set go-version (https://docs.github.com/en/actions/using-workflows/reusing-workflows#limitations)
-      go-version: 1.21
+      go-version: 1.20
       platforms: ${{ needs.set-vars.outputs.platforms }}
       push: true
     secrets:
@@ -86,7 +86,7 @@ jobs:
       packages: write # for uploading attestations. (https://github.com/slsa-framework/slsa-github-generator/blob/main/internal/builders/container/README.md#known-issues)
     if: ${{ github.repository == 'argoproj/argo-cd' && github.event_name == 'push' }}
     # Must be refernced by a tag. https://github.com/slsa-framework/slsa-github-generator/blob/main/internal/builders/container/README.md#referencing-the-slsa-generator
-    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_container_slsa3.yml@v1.7.0
+    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_container_slsa3.yml@v1.9.0
     with:
       image: ghcr.io/argoproj/argo-cd/argocd
       digest: ${{ needs.build-and-publish.outputs.image-digest }}
@@ -104,7 +104,7 @@ jobs:
     if: ${{ github.repository == 'argoproj/argo-cd' && github.event_name == 'push' }}
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@3df4ab11eba7bda6032a0b82a6bb43b11571feac # v4.0.0
+      - uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.3.0
       - run: git clone "https://$TOKEN@github.com/argoproj/argoproj-deployments"
         env:
           TOKEN: ${{ secrets.TOKEN }}

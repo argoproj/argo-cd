@@ -21,16 +21,3 @@ func StringMapsEqual(first map[string]string, second map[string]string) bool {
 	}
 	return reflect.DeepEqual(first, second)
 }
-
-func MergeStringMaps(items ...map[string]string) map[string]string {
-	res := make(map[string]string)
-	for _, m := range items {
-		if m == nil {
-			continue
-		}
-		for k, v := range m {
-			res[k] = v
-		}
-	}
-	return res
-}

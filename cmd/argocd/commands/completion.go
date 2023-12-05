@@ -212,13 +212,6 @@ Optionally, also add the following, in case you are getting errors involving com
 autoload -Uz compinit
 compinit 
 `,
-		Example: `# For bash
-$ source <(argocd completion bash)
-
-# For zsh
-$ argocd completion zsh > _argocd
-$ source _argocd
-`,
 		Run: func(cmd *cobra.Command, args []string) {
 			if len(args) != 1 {
 				cmd.HelpFunc()(cmd, args)

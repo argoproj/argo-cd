@@ -1,6 +1,5 @@
 @import 'node_modules/argo-ui/src/styles/config';
 @import 'node_modules/foundation-sites/scss/util/util';
-@import 'node_modules/argo-ui/src/styles/theme';
 @import '../../../shared/config.scss';
 
 $header: 120px;
@@ -8,16 +7,16 @@ $header: 120px;
 .application-details {
     height: 100vh;
     width: 100%;
-
-    &__wrapper {
-        display: flex;
-        flex-direction: column;
-        height: calc(100vh - 2 * $top-bar-height);
-        overflow: hidden;
-
-        @media screen and (max-width: map-get($breakpoints, xxlarge)) {
-            height: calc(100vh - 3 * $top-bar-height);
-            margin-top: $top-bar-height;
+    &__status-panel {
+        position: fixed;
+        left: $sidebar-width;
+        right: 0;
+        z-index: 3;
+        @media screen and (max-width: map-get($breakpoints, xlarge)) {
+            top: 150px;
+        }
+        @media screen and (max-width: map-get($breakpoints, large)) {
+            top: 146px;
         }
     }
 
@@ -27,11 +26,13 @@ $header: 120px;
 
     &__tree {
         padding: 1em;
-
-        flex: 1;
         overflow-x: auto;
         overflow-y: auto;
-        overscroll-behavior-x: none;
+        margin-top: 150px;
+        height: calc(100vh - 2 * 70px - 115px);
+        @media screen and (max-width: map-get($breakpoints, xlarge)) {
+            margin-top: 165px;
+        }
     }
 
     &__sliding-panel-pagination-wrap {
@@ -210,14 +211,9 @@ $header: 120px;
         z-index: 1;
         padding: 5px;
         display: inline-block;
+        background-color: $argo-color-gray-1;
         box-shadow: 1px 1px 3px $argo-color-gray-5;
         position: absolute;
-
-        @include themify($themes) {
-            background: themed('background-2');
-        }
-
-
         a {
             padding: 5px;
             margin: 2px;
@@ -259,9 +255,7 @@ $header: 120px;
         }
 
         .separator {
-            @include themify($themes) {
-                border-right: 1px solid themed('border');
-            }
+            border-right: 1px solid $argo-color-gray-4;
             padding-top: 6px;
             padding-bottom: 6px;
         }

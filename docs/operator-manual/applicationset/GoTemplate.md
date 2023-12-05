@@ -12,29 +12,6 @@ An additional `normalize` function makes any string parameter usable as a valid 
 with hyphens and truncating at 253 characters. This is useful when making parameters safe for things like Application
 names.
 
-Another function has `slugify` function has been added which, by default, sanitizes and smart truncate (means doesn't cut a word into 2). This function accepts a couple of arguments:
-- The first argument (if provided) is an integer specifying the maximum length of the slug.
-- The second argument (if provided) is a boolean indicating whether smart truncation is enabled.
-- The last argument (if provided) is the input name that needs to be slugified.
-
-#### Usage example
-
-```
-apiVersion: argoproj.io/v1alpha1
-kind: ApplicationSet
-metadata:
-  name: test-appset
-spec:
-  ... 
-  template:
-    metadata:
-      name: 'hellos3-{{.name}}-{{ cat .branch | slugify 23 }}'
-      annotations:
-        label-1: '{{ cat .branch | slugify }}'
-        label-2: '{{ cat .branch | slugify 23 }}'
-        label-3: '{{ cat .branch | slugify 50 false }}'
-```
-
 If you want to customize [options defined by text/template](https://pkg.go.dev/text/template#Template.Option), you can
 add the `goTemplateOptions: ["opt1", "opt2", ...]` key to your ApplicationSet next to `goTemplate: true`. Note that at
 the time of writing, there is only one useful option defined, which is `missingkey=error`.
@@ -197,18 +174,6 @@ It is also possible to use Sprig functions to construct the path variables manua
 | `{{path.filenameNormalized}}` | `{{.path.filenameNormalized}}` | `{{normalize .path.filename}}` |
 | `{{path[N]}}` | `-` | `{{index .path.segments N}}` |
 
-## Available template functions
-
-ApplicationSet controller provides:
-
-- all [sprig](http://masterminds.github.io/sprig/) Go templates function except `env`, `expandenv` and `getHostByName`
-- `normalize`: sanitizes the input so that it complies with the following rules:
-  1. contains no more than 253 characters
-  2. contains only lowercase alphanumeric characters, '-' or '.'
-  3. starts and ends with an alphanumeric character
-- `toYaml` / `fromYaml` / `fromYamlArray` helm like functions
-
-
 ## Examples
 
 ### Basic Go template usage
@@ -269,7 +234,7 @@ spec:
         nameSuffix: -my-name-suffix
   template:
     metadata:
-      name: '{{.cluster}}{{dig "nameSuffix" "" .}}'
+      name: '{{.cluster}}{{dig "nameSuffix" . ""}}'
     spec:
       project: default
       source:

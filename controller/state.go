@@ -3,14 +3,11 @@ package controller
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
+	v1 "k8s.io/api/core/v1"
 	"reflect"
 	"strings"
-	goSync "sync"
 	"time"
-
-	v1 "k8s.io/api/core/v1"
 
 	"github.com/argoproj/gitops-engine/pkg/diff"
 	"github.com/argoproj/gitops-engine/pkg/health"
@@ -43,10 +40,6 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/stats"
 )
 
-var (
-	CompareStateRepoError = errors.New("failed to get repo objects")
-)
-
 type resourceInfoProviderStub struct {
 }
 
@@ -69,7 +62,7 @@ type managedResource struct {
 
 // AppStateManager defines methods which allow to compare application spec and actual application state.
 type AppStateManager interface {
-	CompareAppState(app *v1alpha1.Application, project *v1alpha1.AppProject, revisions []string, sources []v1alpha1.ApplicationSource, noCache bool, noRevisionCache bool, localObjects []string, hasMultipleSources bool) (*comparisonResult, error)
+	CompareAppState(app *v1alpha1.Application, project *v1alpha1.AppProject, revisions []string, sources []v1alpha1.ApplicationSource, noCache bool, noRevisionCache bool, localObjects []string, hasMultipleSources bool) *comparisonResult
 	SyncAppState(app *v1alpha1.Application, state *v1alpha1.OperationState)
 }
 
@@ -112,15 +105,10 @@ type appStateManager struct {
 	statusRefreshTimeout  time.Duration
 	resourceTracking      argo.ResourceTracking
 	persistResourceHealth bool
-	repoErrorCache        goSync.Map
-	repoErrorGracePeriod  time.Duration
 }
 
-// getRepoObjs will generate the manifests for the given application delegating the
-// task to the repo-server. It returns the list of generated manifests as unstructured
-// objects. It also returns the full response from all calls to the repo server as the
-// second argument.
 func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, sources []v1alpha1.ApplicationSource, appLabelKey string, revisions []string, noCache, noRevisionCache, verifySignature bool, proj *v1alpha1.AppProject) ([]*unstructured.Unstructured, []*apiclient.ManifestResponse, error) {
+
 	ts := stats.NewTimingStats()
 	helmRepos, err := m.db.ListHelmRepositories(context.Background())
 	if err != nil {
@@ -213,8 +201,6 @@ func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, sources []v1alp
 			HelmOptions:        helmOptions,
 			HasMultipleSources: app.Spec.HasMultipleSources(),
 			RefSources:         refSources,
-			ProjectName:        proj.Name,
-			ProjectSourceRepos: proj.Spec.SourceRepos,
 		})
 		if err != nil {
 			return nil, nil, fmt.Errorf("failed to generate manifest for source %d of %d: %w", i+1, len(sources), err)
@@ -357,7 +343,7 @@ func isManagedNamespace(ns *unstructured.Unstructured, app *v1alpha1.Application
 // CompareAppState compares application git state to the live app state, using the specified
 // revision and supplied source. If revision or overrides are empty, then compares against
 // revision and overrides in the app spec.
-func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1alpha1.AppProject, revisions []string, sources []v1alpha1.ApplicationSource, noCache bool, noRevisionCache bool, localManifests []string, hasMultipleSources bool) (*comparisonResult, error) {
+func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1alpha1.AppProject, revisions []string, sources []v1alpha1.ApplicationSource, noCache bool, noRevisionCache bool, localManifests []string, hasMultipleSources bool) *comparisonResult {
 	ts := stats.NewTimingStats()
 	appLabelKey, resourceOverrides, resFilter, err := m.getComparisonSettings()
 
@@ -373,7 +359,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 					Revisions:  revisions,
 				},
 				healthStatus: &v1alpha1.HealthStatus{Status: health.HealthStatusUnknown},
-			}, nil
+			}
 		} else {
 			return &comparisonResult{
 				syncStatus: &v1alpha1.SyncStatus{
@@ -382,7 +368,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 					Revision:   revisions[0],
 				},
 				healthStatus: &v1alpha1.HealthStatus{Status: health.HealthStatusUnknown},
-			}, nil
+			}
 		}
 	}
 
@@ -420,21 +406,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 			targetObjs = make([]*unstructured.Unstructured, 0)
 			msg := fmt.Sprintf("Failed to load target state: %s", err.Error())
 			conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: msg, LastTransitionTime: &now})
-			if firstSeen, ok := m.repoErrorCache.Load(app.Name); ok {
-				if time.Since(firstSeen.(time.Time)) <= m.repoErrorGracePeriod && !noRevisionCache {
-					// if first seen is less than grace period and it's not a Level 3 comparison,
-					// ignore error and short circuit
-					logCtx.Debugf("Ignoring repo error %v, already encountered error in grace period", err.Error())
-					return nil, CompareStateRepoError
-				}
-			} else if !noRevisionCache {
-				logCtx.Debugf("Ignoring repo error %v, new occurrence", err.Error())
-				m.repoErrorCache.Store(app.Name, time.Now())
-				return nil, CompareStateRepoError
-			}
 			failedToLoadObjs = true
-		} else {
-			m.repoErrorCache.Delete(app.Name)
 		}
 	} else {
 		// Prevent applying local manifests for now when signature verification is enabled
@@ -584,16 +556,21 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 		manifestRevisions = append(manifestRevisions, manifestInfo.Revision)
 	}
 
-	useDiffCache := useDiffCache(noCache, manifestInfos, sources, app, manifestRevisions, m.statusRefreshTimeout, logCtx)
+	// restore comparison using cached diff result if previous comparison was performed for the same revision
+	revisionChanged := len(manifestInfos) != len(sources) || !reflect.DeepEqual(app.Status.Sync.Revisions, manifestRevisions)
+	specChanged := !reflect.DeepEqual(app.Status.Sync.ComparedTo, v1alpha1.ComparedTo{Source: app.Spec.GetSource(), Destination: app.Spec.Destination, Sources: sources, IgnoreDifferences: app.Spec.IgnoreDifferences})
+
+	_, refreshRequested := app.IsRefreshRequested()
+	noCache = noCache || refreshRequested || app.Status.Expired(m.statusRefreshTimeout) || specChanged || revisionChanged
 
 	diffConfigBuilder := argodiff.NewDiffConfigBuilder().
 		WithDiffSettings(app.Spec.IgnoreDifferences, resourceOverrides, compareOptions.IgnoreAggregatedRoles).
 		WithTracking(appLabelKey, string(trackingMethod))
 
-	if useDiffCache {
-		diffConfigBuilder.WithCache(m.cache, app.InstanceName(m.namespace))
-	} else {
+	if noCache {
 		diffConfigBuilder.WithNoCache()
+	} else {
+		diffConfigBuilder.WithCache(m.cache, app.GetName())
 	}
 
 	gvkParser, err := m.getGVKParser(app.Spec.Destination.Server)
@@ -797,47 +774,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 	})
 	ts.AddCheckpoint("health_ms")
 	compRes.timings = ts.Timings()
-	return &compRes, nil
-}
-
-// useDiffCache will determine if the diff should be calculated based
-// on the existing live state cache or not.
-func useDiffCache(noCache bool, manifestInfos []*apiclient.ManifestResponse, sources []v1alpha1.ApplicationSource, app *v1alpha1.Application, manifestRevisions []string, statusRefreshTimeout time.Duration, log *log.Entry) bool {
-
-	if noCache {
-		log.WithField("useDiffCache", "false").Debug("noCache is true")
-		return false
-	}
-	_, refreshRequested := app.IsRefreshRequested()
-	if refreshRequested {
-		log.WithField("useDiffCache", "false").Debug("refreshRequested")
-		return false
-	}
-	if app.Status.Expired(statusRefreshTimeout) {
-		log.WithField("useDiffCache", "false").Debug("app.status.expired")
-		return false
-	}
-
-	if len(manifestInfos) != len(sources) {
-		log.WithField("useDiffCache", "false").Debug("manifestInfos len != sources len")
-		return false
-	}
-
-	revisionChanged := !reflect.DeepEqual(app.Status.GetRevisions(), manifestRevisions)
-	if revisionChanged {
-		log.WithField("useDiffCache", "false").Debug("revisionChanged")
-		return false
-	}
-
-	currentSpec := app.BuildComparedToStatus()
-	specChanged := !reflect.DeepEqual(app.Status.Sync.ComparedTo, currentSpec)
-	if specChanged {
-		log.WithField("useDiffCache", "false").Debug("specChanged")
-		return false
-	}
-
-	log.WithField("useDiffCache", "true").Debug("using diff cache")
-	return true
+	return &compRes
 }
 
 func (m *appStateManager) persistRevisionHistory(app *v1alpha1.Application, revision string, source v1alpha1.ApplicationSource, revisions []string, sources []v1alpha1.ApplicationSource, hasMultipleSources bool, startedAt metav1.Time) error {
@@ -893,7 +830,6 @@ func NewAppStateManager(
 	statusRefreshTimeout time.Duration,
 	resourceTracking argo.ResourceTracking,
 	persistResourceHealth bool,
-	repoErrorGracePeriod time.Duration,
 ) AppStateManager {
 	return &appStateManager{
 		liveStateCache:        liveStateCache,
@@ -909,7 +845,6 @@ func NewAppStateManager(
 		statusRefreshTimeout:  statusRefreshTimeout,
 		resourceTracking:      resourceTracking,
 		persistResourceHealth: persistResourceHealth,
-		repoErrorGracePeriod:  repoErrorGracePeriod,
 	}
 }
 
