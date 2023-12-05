@@ -15,12 +15,15 @@ Some manual steps will need to be performed by the Argo CD administrator in orde
 
 !!! note
     This feature is considered beta as of now. Some of the implementation details may change over the course of time until it is promoted to a stable status. We will be happy if early adopters use this feature and provide us with bug reports and feedback.
-    
+
+
+One additional advantage of adopting applications in any namespace is to allow end-users to configure notifications for their Argo CD application in the namespace where Argo CD application is running in. See notifications [namespace based configuration](notifications/index.md#namespace-based-configuration) page for more information.
+
 ## Prerequisites
 
 ### Cluster-scoped Argo CD installation
 
-This feature can only be enabled and used when your Argo CD is installed as a cluster-wide instance, so it has permissions to list and manipulate resources on a cluster scope. It will *not* work with an Argo CD installed in namespace-scoped mode.
+This feature can only be enabled and used when your Argo CD is installed as a cluster-wide instance, so it has permissions to list and manipulate resources on a cluster scope. It will not work with an Argo CD installed in namespace-scoped mode.
 
 ### Switch resource tracking method
 
@@ -70,6 +73,8 @@ We supply a `ClusterRole` and `ClusterRoleBinding` suitable for this purpose in 
 ```shell
 kubectl apply -k examples/k8s-rbac/argocd-server-applications/
 ```
+
+`argocd-notifications-controller-rbac-clusterrole.yaml` and `argocd-notifications-controller-rbac-clusterrolebinding.yaml` are used to support notifications controller to notify apps in all namespaces.
 
 !!! note
     At some later point in time, we may make this cluster role part of the default installation manifests.
