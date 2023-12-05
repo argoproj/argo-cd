@@ -232,6 +232,7 @@ message GitFilesRequest {
     string revision = 3;
     string path = 4;
     bool NewGitFileGlobbingEnabled = 5;
+    bool noRevisionCache = 6;
 }
 
 message GitFilesResponse {
@@ -243,6 +244,7 @@ message GitDirectoriesRequest {
     github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.Repository repo = 1;
     bool submoduleEnabled = 2;
     string revision = 3;
+    bool noRevisionCache = 4;
 }
 
 message GitDirectoriesResponse {
