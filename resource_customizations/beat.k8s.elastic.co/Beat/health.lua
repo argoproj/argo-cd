@@ -1,6 +1,6 @@
 local hs = {}
 
-if obj.status ~= nil then
+if obj.status ~= nil and (obj.status.health ~= nil or obj.status.expectedNodes ~= nil) then
   if obj.status.health == "red" then
     hs.status = "Degraded"
     hs.message = "Elastic Beat status is Red"
@@ -19,7 +19,7 @@ if obj.status ~= nil then
         hs.message = "Elastic Beat phase is progressing"
         return hs
     end
-  else
+  elseif obj.status.health == nil then
     hs.status = "Progressing"
     hs.message = "Elastic Beat phase is progressing"
     return hs

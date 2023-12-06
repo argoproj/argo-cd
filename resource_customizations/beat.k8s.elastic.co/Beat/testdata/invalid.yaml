@@ -7,6 +7,6 @@ spec:
   type: metricbeat
 status:
   expectedNodes: 1
-  health: red
+  health: invalid
   observedGeneration: 1
   version: 8.8.1
