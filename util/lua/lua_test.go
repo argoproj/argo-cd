@@ -867,3 +867,45 @@ func TestAddToArrayOfArray(t *testing.T) {
 	assert.Equal(t, newObjects[0].K8SOperation, K8SOperation("patch"))
 	assert.Equal(t, expectedObj, newObjects[0].UnstructuredObj)
 }
+
+const objArrayWithOneObject = `
+apiVersion: argoproj.io/v1alpha1
+kind: TestDummy
+metadata:
+  name: test
+spec:
+  something: {}
+  testArray:
+  - attribute1: "a"
+    attribute2: "b"
+`
+
+const addToArrayAction = `
+item = {}
+table.insert(obj.spec.testArray, item)
+return obj
+`
+
+const objArrayWithTwoObjectsExpected = `
+apiVersion: argoproj.io/v1alpha1
+kind: TestDummy
+metadata:
+  name: test
+spec:
+  something: {}
+  testArray:
+  - attribute1: "a"
+    attribute2: "b"
+  - {}
+`
+
+func TestAddToArrayWithObject(t *testing.T) {
+	testObj := StrToUnstructured(objArrayWithOneObject)
+	expectedObj := StrToUnstructured(objArrayWithTwoObjectsExpected)
+	vm := VM{}
+	newObjects, err := vm.ExecuteResourceAction(testObj, addToArrayAction)
+	assert.Nil(t, err)
+	assert.Equal(t, len(newObjects), 1)
+	assert.Equal(t, newObjects[0].K8SOperation, K8SOperation("patch"))
+	assert.Equal(t, expectedObj, newObjects[0].UnstructuredObj)
+}

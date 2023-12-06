@@ -250,21 +250,45 @@ func cleanReturnedObj(newObj, obj map[string]interface{}) map[string]interface{}
 
 // cleanReturnedArray allows Argo CD to recurse into nested arrays when checking for unintentional empty struct to
 // empty array conversions.
-func cleanReturnedArray(newObj, obj []interface{}) []interface{} {
-	arrayToReturn := newObj
-	for i := range newObj {
-		if len(obj) > i {
-			switch newValue := newObj[i].(type) {
+func cleanReturnedArray(newArray, obj []interface{}) []interface{} {
+	arrayToReturn := newArray
+	if len(obj) == 0 {
+		// We can't infer types from an empty array, so we return the new array as is and hope the types are correct.
+		// In effect, this means that actions can't safely add empty objects to empty arrays, because we won't know
+		// that the array is supposed to contain objects. That's an acceptable bug for now.
+		return arrayToReturn
+	}
+	for i := range newArray {
+		indexOfReference := i
+		if i >= len(obj) {
+			indexOfReference = 0
+			// We use the first item of obj to infer the desired type of items in newArray. We do this in case the new
+			// array is longer than the old array, to avoid an index out of bounds error. We can safely assume that the
+			// first item of obj is of the same type as the rest of the items in obj.
+		}
+		switch obj[indexOfReference].(type) {
+		case map[string]interface{}:
+			switch newValue := newArray[i].(type) {
 			case map[string]interface{}:
-				if oldValue, ok := obj[i].(map[string]interface{}); ok {
+				if oldValue, ok := obj[indexOfReference].(map[string]interface{}); ok {
 					convertedMap := cleanReturnedObj(newValue, oldValue)
 					arrayToReturn[i] = convertedMap
 				}
 			case []interface{}:
-				if oldValue, ok := obj[i].([]interface{}); ok {
+				if len(newValue) == 0 {
+					// This is the special case where we convert an empty array to an empty object
+					arrayToReturn[i] = make(map[string]interface{})
+				} else if oldValue, ok := obj[indexOfReference].([]interface{}); ok {
+					newValue := newArray[i].([]interface{})
 					convertedMap := cleanReturnedArray(newValue, oldValue)
 					arrayToReturn[i] = convertedMap
 				}
+			}
+		case []interface{}:
+			if oldValue, ok := obj[indexOfReference].([]interface{}); ok {
+				newValue := newArray[i].([]interface{})
+				convertedMap := cleanReturnedArray(newValue, oldValue)
+				arrayToReturn[i] = convertedMap
 			}
 		}
 	}
