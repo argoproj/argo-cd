@@ -490,7 +490,7 @@ stringData:
 
 ### Legacy behaviour
 
-In Argo CD version 2.0 and earlier, repositories where stored as part of the `argocd-cm` config map. For
+In Argo CD version 2.0 and earlier, repositories were stored as part of the `argocd-cm` config map. For
 backward-compatibility, Argo CD will still honor repositories in the config map, but this style of repository
 configuration is deprecated and support for it will be removed in a future version.
 
