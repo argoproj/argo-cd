@@ -1,5 +1,5 @@
 function getStatusBasedOnPhase(obj)
-    local hs = {}
+    hs = {}
     hs.status = "Progressing"
     hs.message = "Waiting for machines"
     if obj.status ~= nil and obj.status.phase ~= nil then
@@ -26,7 +26,7 @@ function getReadyContitionMessage(obj)
     return "Condition is unknown"
 end
 
-local hs = getStatusBasedOnPhase(obj)
+hs = getStatusBasedOnPhase(obj)
 if hs.status ~= "Healthy" then
     hs.message = getReadyContitionMessage(obj)
 end

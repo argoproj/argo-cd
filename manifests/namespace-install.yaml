@@ -479,8 +479,7 @@ metadata:
   name: argocd-dex-server
 spec:
   ports:
-  - appProtocol: TCP
-    name: http
+  - name: http
     port: 5556
     protocol: TCP
     targetPort: 5556
@@ -625,18 +624,6 @@ spec:
       - args:
         - /usr/local/bin/argocd-applicationset-controller
         env:
-        - name: ARGOCD_APPLICATIONSET_CONTROLLER_GLOBAL_PRESERVED_ANNOTATIONS
-          valueFrom:
-            configMapKeyRef:
-              key: applicationsetcontroller.global.preserved.annotations
-              name: argocd-cmd-params-cm
-              optional: true
-        - name: ARGOCD_APPLICATIONSET_CONTROLLER_GLOBAL_PRESERVED_LABELS
-          valueFrom:
-            configMapKeyRef:
-              key: applicationsetcontroller.global.preserved.labels
-              name: argocd-cmd-params-cm
-              optional: true
         - name: NAMESPACE
           valueFrom:
             fieldRef:
@@ -749,7 +736,7 @@ spec:
               key: applicationsetcontroller.allowed.scm.providers
               name: argocd-cmd-params-cm
               optional: true
-        image: quay.io/argoproj/argocd:latest
+        image: quay.io/argoproj/argocd:v2.8.7
         imagePullPolicy: Always
         name: argocd-applicationset-controller
         ports:
@@ -872,7 +859,7 @@ spec:
         - -n
         - /usr/local/bin/argocd
         - /shared/argocd-dex
-        image: quay.io/argoproj/argocd:latest
+        image: quay.io/argoproj/argocd:v2.8.7
         imagePullPolicy: Always
         name: copyutil
         securityContext:
@@ -942,7 +929,13 @@ spec:
               key: notificationscontroller.log.level
               name: argocd-cmd-params-cm
               optional: true
-        image: quay.io/argoproj/argocd:latest
+        - name: ARGOCD_APPLICATION_NAMESPACES
+          valueFrom:
+            configMapKeyRef:
+              key: application.namespaces
+              name: argocd-cmd-params-cm
+              optional: true
+        image: quay.io/argoproj/argocd:v2.8.7
         imagePullPolicy: Always
         livenessProbe:
           tcpSocket:
@@ -1224,7 +1217,7 @@ spec:
           value: /helm-working-dir
         - name: HELM_DATA_HOME
           value: /helm-working-dir
-        image: quay.io/argoproj/argocd:latest
+        image: quay.io/argoproj/argocd:v2.8.7
         imagePullPolicy: Always
         livenessProbe:
           failureThreshold: 3
@@ -1276,7 +1269,7 @@ spec:
         - -n
         - /usr/local/bin/argocd
         - /var/run/argocd/argocd-cmp-server
-        image: quay.io/argoproj/argocd:latest
+        image: quay.io/argoproj/argocd:v2.8.7
         name: copyutil
         securityContext:
           allowPrivilegeEscalation: false
@@ -1563,7 +1556,7 @@ spec:
               key: server.enable.proxy.extension
               name: argocd-cmd-params-cm
               optional: true
-        image: quay.io/argoproj/argocd:latest
+        image: quay.io/argoproj/argocd:v2.8.7
         imagePullPolicy: Always
         livenessProbe:
           httpGet:
@@ -1809,7 +1802,7 @@ spec:
               key: controller.kubectl.parallelism.limit
               name: argocd-cmd-params-cm
               optional: true
-        image: quay.io/argoproj/argocd:latest
+        image: quay.io/argoproj/argocd:v2.8.7
         imagePullPolicy: Always
         name: argocd-application-controller
         ports:

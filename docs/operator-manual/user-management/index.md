@@ -3,7 +3,7 @@
 Once installed Argo CD has one built-in `admin` user that has full access to the system. It is recommended to use `admin` user only
 for initial configuration and then switch to local users or configure SSO integration.
 
-## Local users/accounts
+## Local users/accounts (v1.5)
 
 The local users/accounts feature serves two main use-cases:
 
@@ -43,24 +43,6 @@ Each user might have two capabilities:
 
 * apiKey - allows generating authentication tokens for API access
 * login - allows to login using UI
-
-### Delete user
-
-In order to delete a user, you must remove the corresponding entry defined in the `argocd-cm` ConfigMap:
-
-Example:
-
-```bash
-kubectl patch -n argocd cm argocd-cm --type='json' -p='[{"op": "remove", "path": "/data/accounts.alice"}]'
-```
-
-It is recommended to also remove the password entry in the `argocd-secret` Secret:
-
-Example:
-
-```bash
-kubectl patch -n argocd secrets argocd-secret --type='json' -p='[{"op": "remove", "path": "/data/accounts.alice.password"}]'
-```
 
 ### Disable admin user
 

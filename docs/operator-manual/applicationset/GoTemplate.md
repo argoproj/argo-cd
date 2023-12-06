@@ -234,7 +234,7 @@ spec:
         nameSuffix: -my-name-suffix
   template:
     metadata:
-      name: '{{.cluster}}{{dig "nameSuffix" "" .}}'
+      name: '{{.cluster}}{{dig "nameSuffix" . ""}}'
     spec:
       project: default
       source:

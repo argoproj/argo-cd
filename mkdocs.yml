@@ -69,7 +69,6 @@ nav:
     - operator-manual/notifications/troubleshooting-errors.md
     - Notification Services:
       - operator-manual/notifications/services/alertmanager.md
-      - operator-manual/notifications/services/awssqs.md
       - operator-manual/notifications/services/email.md
       - operator-manual/notifications/services/github.md
       - operator-manual/notifications/services/googlechat.md

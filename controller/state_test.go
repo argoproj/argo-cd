@@ -89,6 +89,122 @@ func TestCompareAppStateNamespaceMetadataDiffers(t *testing.T) {
 	assert.Len(t, app.Status.Conditions, 0)
 }
 
+// TestCompareAppStateNamespaceMetadataDiffers tests comparison when managed namespace metadata differs to live and manifest ns
+func TestCompareAppStateNamespaceMetadataDiffersToManifest(t *testing.T) {
+	ns := NewNamespace()
+	ns.SetName(test.FakeDestNamespace)
+	ns.SetNamespace(test.FakeDestNamespace)
+	ns.SetAnnotations(map[string]string{"bar": "bat"})
+
+	app := newFakeApp()
+	app.Spec.SyncPolicy.ManagedNamespaceMetadata = &argoappv1.ManagedNamespaceMetadata{
+		Labels: map[string]string{
+			"foo": "bar",
+		},
+		Annotations: map[string]string{
+			"foo": "bar",
+		},
+	}
+	app.Status.OperationState = &argoappv1.OperationState{
+		SyncResult: &argoappv1.SyncOperationResult{},
+	}
+
+	liveNs := ns.DeepCopy()
+	liveNs.SetAnnotations(nil)
+
+	data := fakeData{
+		manifestResponse: &apiclient.ManifestResponse{
+			Manifests: []string{toJSON(t, liveNs)},
+			Namespace: test.FakeDestNamespace,
+			Server:    test.FakeClusterURL,
+			Revision:  "abc123",
+		},
+		managedLiveObjs: map[kube.ResourceKey]*unstructured.Unstructured{
+			kube.GetResourceKey(ns): ns,
+		},
+	}
+	ctrl := newFakeController(&data)
+	sources := make([]argoappv1.ApplicationSource, 0)
+	sources = append(sources, app.Spec.GetSource())
+	revisions := make([]string, 0)
+	revisions = append(revisions, "")
+	compRes := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false)
+	assert.NotNil(t, compRes)
+	assert.NotNil(t, compRes.syncStatus)
+	assert.Equal(t, argoappv1.SyncStatusCodeOutOfSync, compRes.syncStatus.Status)
+	assert.Len(t, compRes.resources, 1)
+	assert.Len(t, compRes.managedResources, 1)
+	assert.NotNil(t, compRes.diffResultList)
+	assert.Len(t, compRes.diffResultList.Diffs, 1)
+
+	result := NewNamespace()
+	assert.NoError(t, json.Unmarshal(compRes.diffResultList.Diffs[0].PredictedLive, result))
+
+	labels := result.GetLabels()
+	delete(labels, "kubernetes.io/metadata.name")
+
+	assert.Equal(t, map[string]string{}, labels)
+	// Manifests override definitions in managedNamespaceMetadata
+	assert.Equal(t, map[string]string{"bar": "bat"}, result.GetAnnotations())
+	assert.Len(t, app.Status.Conditions, 0)
+}
+
+// TestCompareAppStateNamespaceMetadata tests comparison when managed namespace metadata differs to live
+func TestCompareAppStateNamespaceMetadata(t *testing.T) {
+	ns := NewNamespace()
+	ns.SetName(test.FakeDestNamespace)
+	ns.SetNamespace(test.FakeDestNamespace)
+	ns.SetAnnotations(map[string]string{"bar": "bat"})
+
+	app := newFakeApp()
+	app.Spec.SyncPolicy.ManagedNamespaceMetadata = &argoappv1.ManagedNamespaceMetadata{
+		Labels: map[string]string{
+			"foo": "bar",
+		},
+		Annotations: map[string]string{
+			"foo": "bar",
+		},
+	}
+	app.Status.OperationState = &argoappv1.OperationState{
+		SyncResult: &argoappv1.SyncOperationResult{},
+	}
+
+	data := fakeData{
+		manifestResponse: &apiclient.ManifestResponse{
+			Manifests: []string{},
+			Namespace: test.FakeDestNamespace,
+			Server:    test.FakeClusterURL,
+			Revision:  "abc123",
+		},
+		managedLiveObjs: map[kube.ResourceKey]*unstructured.Unstructured{
+			kube.GetResourceKey(ns): ns,
+		},
+	}
+	ctrl := newFakeController(&data)
+	sources := make([]argoappv1.ApplicationSource, 0)
+	sources = append(sources, app.Spec.GetSource())
+	revisions := make([]string, 0)
+	revisions = append(revisions, "")
+	compRes := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false)
+	assert.NotNil(t, compRes)
+	assert.NotNil(t, compRes.syncStatus)
+	assert.Equal(t, argoappv1.SyncStatusCodeOutOfSync, compRes.syncStatus.Status)
+	assert.Len(t, compRes.resources, 1)
+	assert.Len(t, compRes.managedResources, 1)
+	assert.NotNil(t, compRes.diffResultList)
+	assert.Len(t, compRes.diffResultList.Diffs, 1)
+
+	result := NewNamespace()
+	assert.NoError(t, json.Unmarshal(compRes.diffResultList.Diffs[0].PredictedLive, result))
+
+	labels := result.GetLabels()
+	delete(labels, "kubernetes.io/metadata.name")
+
+	assert.Equal(t, map[string]string{"foo": "bar"}, labels)
+	assert.Equal(t, map[string]string{"argocd.argoproj.io/sync-options": "ServerSideApply=true", "bar": "bat", "foo": "bar"}, result.GetAnnotations())
+	assert.Len(t, app.Status.Conditions, 0)
+}
+
 // TestCompareAppStateNamespaceMetadataIsTheSame tests comparison when managed namespace metadata is the same
 func TestCompareAppStateNamespaceMetadataIsTheSame(t *testing.T) {
 	app := newFakeApp()
@@ -341,6 +457,7 @@ func TestAppRevisionsSingleSource(t *testing.T) {
 	assert.NotNil(t, compRes.syncStatus)
 	assert.NotEmpty(t, compRes.syncStatus.Revision)
 	assert.Len(t, compRes.syncStatus.Revisions, 0)
+
 }
 
 // TestAppRevisions tests that revisions are properly propagated for a multi source app
@@ -748,8 +865,9 @@ var signedProj = argoappv1.AppProject{
 }
 
 func TestSignedResponseNoSignatureRequired(t *testing.T) {
-	t.Setenv("ARGOCD_GPG_ENABLED", "true")
-
+	oldval := os.Getenv("ARGOCD_GPG_ENABLED")
+	os.Setenv("ARGOCD_GPG_ENABLED", "true")
+	defer os.Setenv("ARGOCD_GPG_ENABLED", oldval)
 	// We have a good signature response, but project does not require signed commits
 	{
 		app := newFakeApp()
@@ -805,7 +923,9 @@ func TestSignedResponseNoSignatureRequired(t *testing.T) {
 }
 
 func TestSignedResponseSignatureRequired(t *testing.T) {
-	t.Setenv("ARGOCD_GPG_ENABLED", "true")
+	oldval := os.Getenv("ARGOCD_GPG_ENABLED")
+	os.Setenv("ARGOCD_GPG_ENABLED", "true")
+	defer os.Setenv("ARGOCD_GPG_ENABLED", oldval)
 
 	// We have a good signature response, valid key, and signing is required - sync!
 	{
@@ -971,7 +1091,7 @@ func TestSignedResponseSignatureRequired(t *testing.T) {
 		assert.Contains(t, app.Status.Conditions[0].Message, "Cannot use local manifests")
 	}
 
-	t.Setenv("ARGOCD_GPG_ENABLED", "false")
+	os.Setenv("ARGOCD_GPG_ENABLED", "false")
 	// We have a bad signature response and signing would be required, but GPG subsystem is disabled - sync
 	{
 		app := newFakeApp()
@@ -1027,6 +1147,7 @@ func TestSignedResponseSignatureRequired(t *testing.T) {
 		assert.Len(t, compRes.managedResources, 0)
 		assert.Len(t, app.Status.Conditions, 0)
 	}
+
 }
 
 func TestComparisonResult_GetHealthStatus(t *testing.T) {

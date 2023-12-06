@@ -130,9 +130,9 @@ has appropriate RBAC permissions to change other accounts.
 		},
 	}
 
-	command.Flags().StringVar(&currentPassword, "current-password", "", "Password of the currently logged on user")
-	command.Flags().StringVar(&newPassword, "new-password", "", "New password you want to update to")
-	command.Flags().StringVar(&account, "account", "", "An account name that should be updated. Defaults to current user account")
+	command.Flags().StringVar(&currentPassword, "current-password", "", "password of the currently logged on user")
+	command.Flags().StringVar(&newPassword, "new-password", "", "new password you want to update to")
+	command.Flags().StringVar(&account, "account", "", "an account name that should be updated. Defaults to current user account")
 	return command
 }
 

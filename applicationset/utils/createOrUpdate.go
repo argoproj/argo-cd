@@ -45,11 +45,7 @@ func CreateOrUpdate(ctx context.Context, c client.Client, obj client.Object, f c
 		return controllerutil.OperationResultCreated, nil
 	}
 
-	existingObj := obj.DeepCopyObject()
-	existing, ok := existingObj.(client.Object)
-	if !ok {
-		panic(fmt.Errorf("existing object is not a client.Object"))
-	}
+	existing := obj.DeepCopyObject()
 	if err := mutate(f, key, obj); err != nil {
 		return controllerutil.OperationResultNone, err
 	}
@@ -83,7 +79,7 @@ func CreateOrUpdate(ctx context.Context, c client.Client, obj client.Object, f c
 		return controllerutil.OperationResultNone, nil
 	}
 
-	if err := c.Patch(ctx, obj, client.MergeFrom(existing)); err != nil {
+	if err := c.Update(ctx, obj); err != nil {
 		return controllerutil.OperationResultNone, err
 	}
 	return controllerutil.OperationResultUpdated, nil

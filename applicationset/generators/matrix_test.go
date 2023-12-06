@@ -272,28 +272,6 @@ func TestMatrixGenerateGoTemplate(t *testing.T) {
 			},
 		},
 		{
-			name: "parameter override: first list elements take precedence",
-			baseGenerators: []argoprojiov1alpha1.ApplicationSetNestedGenerator{
-				{
-					List: &argoprojiov1alpha1.ListGenerator{
-						Elements: []apiextensionsv1.JSON{
-							{Raw: []byte(`{"booleanFalse": false, "booleanTrue": true, "stringFalse": "false", "stringTrue": "true"}`)},
-						},
-					},
-				},
-				{
-					List: &argoprojiov1alpha1.ListGenerator{
-						Elements: []apiextensionsv1.JSON{
-							{Raw: []byte(`{"booleanFalse": true, "booleanTrue": false, "stringFalse": "true", "stringTrue": "false"}`)},
-						},
-					},
-				},
-			},
-			expected: []map[string]interface{}{
-				{"booleanFalse": false, "booleanTrue": true, "stringFalse": "false", "stringTrue": "true"},
-			},
-		},
-		{
 			name: "returns error if there is less than two base generators",
 			baseGenerators: []argoprojiov1alpha1.ApplicationSetNestedGenerator{
 				{
@@ -426,10 +404,6 @@ func TestMatrixGetRequeueAfter(t *testing.T) {
 
 	pullRequestGenerator := &argoprojiov1alpha1.PullRequestGenerator{}
 
-	scmGenerator := &argoprojiov1alpha1.SCMProviderGenerator{}
-
-	duckTypeGenerator := &argoprojiov1alpha1.DuckTypeGenerator{}
-
 	testCases := []struct {
 		name               string
 		baseGenerators     []argoprojiov1alpha1.ApplicationSetNestedGenerator
@@ -487,30 +461,6 @@ func TestMatrixGetRequeueAfter(t *testing.T) {
 			},
 			expected: time.Duration(30 * time.Minute),
 		},
-		{
-			name: "returns the default time for duck type generator",
-			baseGenerators: []argoprojiov1alpha1.ApplicationSetNestedGenerator{
-				{
-					Git: gitGenerator,
-				},
-				{
-					ClusterDecisionResource: duckTypeGenerator,
-				},
-			},
-			expected: time.Duration(3 * time.Minute),
-		},
-		{
-			name: "returns the default time for scm generator",
-			baseGenerators: []argoprojiov1alpha1.ApplicationSetNestedGenerator{
-				{
-					Git: gitGenerator,
-				},
-				{
-					SCMProvider: scmGenerator,
-				},
-			},
-			expected: time.Duration(30 * time.Minute),
-		},
 	}
 
 	for _, testCase := range testCases {
@@ -521,22 +471,18 @@ func TestMatrixGetRequeueAfter(t *testing.T) {
 
 			for _, g := range testCaseCopy.baseGenerators {
 				gitGeneratorSpec := argoprojiov1alpha1.ApplicationSetGenerator{
-					Git:                     g.Git,
-					List:                    g.List,
-					PullRequest:             g.PullRequest,
-					SCMProvider:             g.SCMProvider,
-					ClusterDecisionResource: g.ClusterDecisionResource,
+					Git:         g.Git,
+					List:        g.List,
+					PullRequest: g.PullRequest,
 				}
 				mock.On("GetRequeueAfter", &gitGeneratorSpec).Return(testCaseCopy.gitGetRequeueAfter, nil)
 			}
 
 			var matrixGenerator = NewMatrixGenerator(
 				map[string]Generator{
-					"Git":                     mock,
-					"List":                    &ListGenerator{},
-					"PullRequest":             &PullRequestGenerator{},
-					"SCMProvider":             &SCMProviderGenerator{},
-					"ClusterDecisionResource": &DuckTypeGenerator{},
+					"Git":         mock,
+					"List":        &ListGenerator{},
+					"PullRequest": &PullRequestGenerator{},
 				},
 			)
 
@@ -1108,7 +1054,7 @@ func TestGitGenerator_GenerateParams_list_x_git_matrix_generator(t *testing.T) {
 	}
 
 	repoServiceMock := &mocks.Repos{}
-	repoServiceMock.On("GetFiles", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(map[string][]byte{
+	repoServiceMock.On("GetFiles", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(map[string][]byte{
 		"some/path.json": []byte("test: content"),
 	}, nil)
 	gitGenerator := NewGitGenerator(repoServiceMock)
