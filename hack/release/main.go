@@ -111,6 +111,14 @@ func release() error {
 	fmt.Printf("Changelog: %s\n", changelog)
 	release := fmt.Sprintf("release-v%s", version)
 	fmt.Printf("Release: %s\n", release)
+	err = moveChangelog()
+	if err != nil {
+		return err
+	}
+	err = commitChanges(version)
+	if err != nil {
+		return err
+	}
 	// git tag -a v2.9.3-2021.07.07-3a4b7f4 -m "Codefresh version for synced 2.9.3"
 	_ = exec.Command("git", "tag", "-d", release).Run()
 	cmd := exec.Command("git", "tag", "-a", release, "-m", changelog)
@@ -122,10 +130,6 @@ func release() error {
 	// git push origin tags/version
 	cmd = exec.Command("git", "push", "origin", "tags/"+release)
 	if err := cmd.Run(); err != nil {
-		return err
-	}
-	err = moveChangelog()
-	if err != nil {
 		return err
 	}
 	return exec.Command("git", "push", "origin", "--delete", release).Run()
@@ -143,7 +147,7 @@ func commitChanges(version string) error {
 		return err
 	}
 
-	cmd = exec.Command("git", "commit", fmt.Sprintf("chore: update version to %s", version))
+	cmd = exec.Command("git", "commit", "-a", "-m", fmt.Sprintf("chore: update version to %s", version))
 	if err := cmd.Run(); err != nil {
 		return err
 	}
