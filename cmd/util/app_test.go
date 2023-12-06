@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	argoappv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
@@ -216,7 +217,7 @@ func Test_setAppSpecOptions(t *testing.T) {
 	t.Run("Kustomize", func(t *testing.T) {
 		assert.NoError(t, f.SetFlag("kustomize-replica", "my-deployment=2"))
 		assert.NoError(t, f.SetFlag("kustomize-replica", "my-statefulset=4"))
-		assert.Equal(t, f.spec.Source.Kustomize.Replicas, v1alpha1.KustomizeReplicas{{Name: "my-deployment", Count: intstr.FromInt(2)}, {Name: "my-statefulset", Count: intstr.FromInt(4)}})
+		assert.Equal(t, f.spec.Source.Kustomize.Replicas, argoappv1.KustomizeReplicas{{Name: "my-deployment", Count: intstr.FromInt(2)}, {Name: "my-statefulset", Count: intstr.FromInt(4)}})
 	})
 }
 
@@ -293,7 +294,7 @@ func TestReadAppsFromURI(t *testing.T) {
 	_, _ = file.WriteString(appsYaml)
 	_ = file.Sync()
 
-	apps := make([]*v1alpha1.Application, 0)
+	apps := make([]*argoappv1.Application, 0)
 	err = readAppsFromURI(file.Name(), &apps)
 	assert.NoError(t, err)
 	assert.Equal(t, 2, len(apps))

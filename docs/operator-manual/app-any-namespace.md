@@ -68,8 +68,10 @@ We decided to not extend the Kubernetes RBAC for the `argocd-server` workload by
 We supply a `ClusterRole` and `ClusterRoleBinding` suitable for this purpose in the `examples/k8s-rbac/argocd-server-applications` directory. For a default Argo CD installation (i.e. installed to the `argocd` namespace), you can just apply them as-is:
 
 ```shell
-kubectl apply -k examples/k8s-rbac/argocd-server-applications/
+kubectl apply -f examples/k8s-rbac/argocd-server-applications/
 ```
+
+`argocd-notifications-controller-rbac-clusterrole.yaml` and `argocd-notifications-controller-rbac-clusterrolebinding.yaml` are used to support notifications controller to notify apps in all namespaces.
 
 !!! note
     At some later point in time, we may make this cluster role part of the default installation manifests.
@@ -130,7 +132,7 @@ For backwards compatibility, if the namespace of the Application is the control 
 
 ### Application RBAC
 
-The RBAC syntax for Application objects has been changed from `<project>/<application>` to `<project>/<namespace>/<application>` to accommodate the need to restrict access based on the source namespace of the Application to be managed.
+The RBAC syntax for Application objects has been changed from `<project>/<application>` to `<project>/<namespace>/<application>` to accomodate the need to restrict access based on the source namespace of the Application to be managed.
 
 For backwards compatibility, Applications in the `argocd` namespace can still be refered to as `<project>/<application>` in the RBAC policy rules.
 

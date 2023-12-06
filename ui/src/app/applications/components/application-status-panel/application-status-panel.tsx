@@ -71,7 +71,7 @@ export const ApplicationStatusPanel = ({application, showDiff, showOperation, sh
     return (
         <div className='application-status-panel row'>
             <div className='application-status-panel__item'>
-                <div style={{lineHeight: '19.5px', marginBottom: '0.3em'}}>{sectionLabel({title: 'APP HEALTH', helpContent: 'The health status of your app'})}</div>
+                <div style={{marginBottom: '1em'}}>{sectionLabel({title: 'APP HEALTH', helpContent: 'The health status of your app'})}</div>
                 <div className='application-status-panel__item-value'>
                     <HealthStatusIcon state={application.status.health} />
                     &nbsp;
@@ -87,7 +87,7 @@ export const ApplicationStatusPanel = ({application, showDiff, showOperation, sh
                             helpContent: 'Whether or not the version of your app is up to date with your repo. You may wish to sync your app if it is out-of-sync.'
                         },
                         hasMultipleSources,
-                        () => showMetadataInfo(application.status.sync ? application.status.sync.revision : '')
+                        source.chart ? null : () => showMetadataInfo(application.status.sync ? application.status.sync.revision : '')
                     )}
                     {appOperationState && (
                         <div className={`application-status-panel__item-value application-status-panel__item-value--${appOperationState.phase}`}>
@@ -130,7 +130,7 @@ export const ApplicationStatusPanel = ({application, showDiff, showOperation, sh
                                     ' days since last sync. Click for the status of that sync.'
                             },
                             hasMultipleSources,
-                            () => showMetadataInfo(appOperationState.syncResult ? appOperationState.syncResult.revision : '')
+                            source.chart ? null : () => showMetadataInfo(appOperationState.syncResult ? appOperationState.syncResult.revision : '')
                         )}
                         <div className={`application-status-panel__item-value application-status-panel__item-value--${appOperationState.phase}`}>
                             <a onClick={() => showOperation && showOperation()}>

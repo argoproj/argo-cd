@@ -1,4 +1,4 @@
-local health_status = {}
+health_status = {}
 if obj.status ~= nil then
     if obj.status.currentState ~= nil then
         if obj.status.currentState == "Initialized" then

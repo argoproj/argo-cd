@@ -343,6 +343,22 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
   labels:
+    app.kubernetes.io/component: redis
+    app.kubernetes.io/name: argocd-redis
+    app.kubernetes.io/part-of: argocd
+  name: argocd-redis
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: argocd-redis
+subjects:
+- kind: ServiceAccount
+  name: argocd-redis
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  labels:
     app.kubernetes.io/component: server
     app.kubernetes.io/name: argocd-server
     app.kubernetes.io/part-of: argocd
@@ -479,8 +495,7 @@ metadata:
   name: argocd-dex-server
 spec:
   ports:
-  - appProtocol: TCP
-    name: http
+  - name: http
     port: 5556
     protocol: TCP
     targetPort: 5556
@@ -625,18 +640,6 @@ spec:
       - args:
         - /usr/local/bin/argocd-applicationset-controller
         env:
-        - name: ARGOCD_APPLICATIONSET_CONTROLLER_GLOBAL_PRESERVED_ANNOTATIONS
-          valueFrom:
-            configMapKeyRef:
-              key: applicationsetcontroller.global.preserved.annotations
-              name: argocd-cmd-params-cm
-              optional: true
-        - name: ARGOCD_APPLICATIONSET_CONTROLLER_GLOBAL_PRESERVED_LABELS
-          valueFrom:
-            configMapKeyRef:
-              key: applicationsetcontroller.global.preserved.labels
-              name: argocd-cmd-params-cm
-              optional: true
         - name: NAMESPACE
           valueFrom:
             fieldRef:
@@ -645,6 +648,12 @@ spec:
           valueFrom:
             configMapKeyRef:
               key: applicationsetcontroller.enable.leader.election
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_APPLICATIONSET_CONTROLLER_NAMESPACE
+          valueFrom:
+            configMapKeyRef:
+              key: applicationsetcontroller.namespace
               name: argocd-cmd-params-cm
               optional: true
         - name: ARGOCD_APPLICATIONSET_CONTROLLER_REPO_SERVER
@@ -657,12 +666,6 @@ spec:
           valueFrom:
             configMapKeyRef:
               key: applicationsetcontroller.policy
-              name: argocd-cmd-params-cm
-              optional: true
-        - name: ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_POLICY_OVERRIDE
-          valueFrom:
-            configMapKeyRef:
-              key: applicationsetcontroller.enable.policy.override
               name: argocd-cmd-params-cm
               optional: true
         - name: ARGOCD_APPLICATIONSET_CONTROLLER_DEBUG
@@ -701,55 +704,7 @@ spec:
               key: applicationsetcontroller.enable.progressive.syncs
               name: argocd-cmd-params-cm
               optional: true
-        - name: ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_NEW_GIT_FILE_GLOBBING
-          valueFrom:
-            configMapKeyRef:
-              key: applicationsetcontroller.enable.new.git.file.globbing
-              name: argocd-cmd-params-cm
-              optional: true
-        - name: ARGOCD_APPLICATIONSET_CONTROLLER_REPO_SERVER_PLAINTEXT
-          valueFrom:
-            configMapKeyRef:
-              key: applicationsetcontroller.repo.server.plaintext
-              name: argocd-cmd-params-cm
-              optional: true
-        - name: ARGOCD_APPLICATIONSET_CONTROLLER_REPO_SERVER_STRICT_TLS
-          valueFrom:
-            configMapKeyRef:
-              key: applicationsetcontroller.repo.server.strict.tls
-              name: argocd-cmd-params-cm
-              optional: true
-        - name: ARGOCD_APPLICATIONSET_CONTROLLER_REPO_SERVER_TIMEOUT_SECONDS
-          valueFrom:
-            configMapKeyRef:
-              key: applicationsetcontroller.repo.server.timeout.seconds
-              name: argocd-cmd-params-cm
-              optional: true
-        - name: ARGOCD_APPLICATIONSET_CONTROLLER_CONCURRENT_RECONCILIATIONS
-          valueFrom:
-            configMapKeyRef:
-              key: applicationsetcontroller.concurrent.reconciliations.max
-              name: argocd-cmd-params-cm
-              optional: true
-        - name: ARGOCD_APPLICATIONSET_CONTROLLER_NAMESPACES
-          valueFrom:
-            configMapKeyRef:
-              key: applicationsetcontroller.namespaces
-              name: argocd-cmd-params-cm
-              optional: true
-        - name: ARGOCD_APPLICATIONSET_CONTROLLER_SCM_ROOT_CA_PATH
-          valueFrom:
-            configMapKeyRef:
-              key: applicationsetcontroller.scm.root.ca.path
-              name: argocd-cmd-params-cm
-              optional: true
-        - name: ARGOCD_APPLICATIONSET_CONTROLLER_ALLOWED_SCM_PROVIDERS
-          valueFrom:
-            configMapKeyRef:
-              key: applicationsetcontroller.allowed.scm.providers
-              name: argocd-cmd-params-cm
-              optional: true
-        image: quay.io/argoproj/argocd:latest
+        image: quay.io/argoproj/argocd:v2.7.15
         imagePullPolicy: Always
         name: argocd-applicationset-controller
         ports:
@@ -777,8 +732,6 @@ spec:
           name: gpg-keyring
         - mountPath: /tmp
           name: tmp
-        - mountPath: /app/config/reposerver/tls
-          name: argocd-repo-server-tls
       serviceAccountName: argocd-applicationset-controller
       volumes:
       - configMap:
@@ -794,17 +747,6 @@ spec:
         name: gpg-keyring
       - emptyDir: {}
         name: tmp
-      - name: argocd-repo-server-tls
-        secret:
-          items:
-          - key: tls.crt
-            path: tls.crt
-          - key: tls.key
-            path: tls.key
-          - key: ca.crt
-            path: ca.crt
-          optional: true
-          secretName: argocd-repo-server-tls
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -872,7 +814,7 @@ spec:
         - -n
         - /usr/local/bin/argocd
         - /shared/argocd-dex
-        image: quay.io/argoproj/argocd:latest
+        image: quay.io/argoproj/argocd:v2.7.15
         imagePullPolicy: Always
         name: copyutil
         securityContext:
@@ -930,19 +872,13 @@ spec:
       - args:
         - /usr/local/bin/argocd-notifications
         env:
-        - name: ARGOCD_NOTIFICATIONS_CONTROLLER_LOGFORMAT
+        - name: ARGOCD_APPLICATION_NAMESPACES
           valueFrom:
             configMapKeyRef:
-              key: notificationscontroller.log.format
+              key: application.namespaces
               name: argocd-cmd-params-cm
               optional: true
-        - name: ARGOCD_NOTIFICATIONS_CONTROLLER_LOGLEVEL
-          valueFrom:
-            configMapKeyRef:
-              key: notificationscontroller.log.level
-              name: argocd-cmd-params-cm
-              optional: true
-        image: quay.io/argoproj/argocd:latest
+        image: quay.io/argoproj/argocd:v2.7.15
         imagePullPolicy: Always
         livenessProbe:
           tcpSocket:
@@ -1019,7 +955,7 @@ spec:
         - ""
         - --appendonly
         - "no"
-        image: redis:7.0.11-alpine
+        image: redis:7.0.14-alpine
         imagePullPolicy: Always
         name: redis
         ports:
@@ -1029,7 +965,6 @@ spec:
           capabilities:
             drop:
             - ALL
-          readOnlyRootFilesystem: true
       securityContext:
         runAsNonRoot: true
         runAsUser: 999
@@ -1096,18 +1031,6 @@ spec:
           valueFrom:
             configMapKeyRef:
               key: reposerver.parallelism.limit
-              name: argocd-cmd-params-cm
-              optional: true
-        - name: ARGOCD_REPO_SERVER_LISTEN_ADDRESS
-          valueFrom:
-            configMapKeyRef:
-              key: reposerver.listen.address
-              name: argocd-cmd-params-cm
-              optional: true
-        - name: ARGOCD_REPO_SERVER_LISTEN_METRICS_ADDRESS
-          valueFrom:
-            configMapKeyRef:
-              key: reposerver.metrics.listen.address
               name: argocd-cmd-params-cm
               optional: true
         - name: ARGOCD_REPO_SERVER_DISABLE_TLS
@@ -1224,7 +1147,7 @@ spec:
           value: /helm-working-dir
         - name: HELM_DATA_HOME
           value: /helm-working-dir
-        image: quay.io/argoproj/argocd:latest
+        image: quay.io/argoproj/argocd:v2.7.15
         imagePullPolicy: Always
         livenessProbe:
           failureThreshold: 3
@@ -1276,7 +1199,7 @@ spec:
         - -n
         - /usr/local/bin/argocd
         - /var/run/argocd/argocd-cmp-server
-        image: quay.io/argoproj/argocd:latest
+        image: quay.io/argoproj/argocd:v2.7.15
         name: copyutil
         securityContext:
           allowPrivilegeEscalation: false
@@ -1533,18 +1456,6 @@ spec:
               key: server.http.cookie.maxnumber
               name: argocd-cmd-params-cm
               optional: true
-        - name: ARGOCD_SERVER_LISTEN_ADDRESS
-          valueFrom:
-            configMapKeyRef:
-              key: server.listen.address
-              name: argocd-cmd-params-cm
-              optional: true
-        - name: ARGOCD_SERVER_METRICS_LISTEN_ADDRESS
-          valueFrom:
-            configMapKeyRef:
-              key: server.metrics.listen.address
-              name: argocd-cmd-params-cm
-              optional: true
         - name: ARGOCD_SERVER_OTLP_ADDRESS
           valueFrom:
             configMapKeyRef:
@@ -1563,7 +1474,7 @@ spec:
               key: server.enable.proxy.extension
               name: argocd-cmd-params-cm
               optional: true
-        image: quay.io/argoproj/argocd:latest
+        image: quay.io/argoproj/argocd:v2.7.15
         imagePullPolicy: Always
         livenessProbe:
           httpGet:
@@ -1797,19 +1708,13 @@ spec:
               key: application.namespaces
               name: argocd-cmd-params-cm
               optional: true
-        - name: ARGOCD_CONTROLLER_SHARDING_ALGORITHM
-          valueFrom:
-            configMapKeyRef:
-              key: controller.sharding.algorithm
-              name: argocd-cmd-params-cm
-              optional: true
         - name: ARGOCD_APPLICATION_CONTROLLER_KUBECTL_PARALLELISM_LIMIT
           valueFrom:
             configMapKeyRef:
               key: controller.kubectl.parallelism.limit
               name: argocd-cmd-params-cm
               optional: true
-        image: quay.io/argoproj/argocd:latest
+        image: quay.io/argoproj/argocd:v2.7.15
         imagePullPolicy: Always
         name: argocd-application-controller
         ports:
@@ -1981,9 +1886,6 @@ spec:
     - podSelector:
         matchLabels:
           app.kubernetes.io/name: argocd-notifications-controller
-    - podSelector:
-        matchLabels:
-          app.kubernetes.io/name: argocd-applicationset-controller
     ports:
     - port: 8081
       protocol: TCP

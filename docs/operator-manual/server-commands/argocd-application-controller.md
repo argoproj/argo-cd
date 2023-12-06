@@ -1,5 +1,3 @@
-# `argocd-application-controller` Command Reference
-
 ## argocd-application-controller
 
 Run ArgoCD Application Controller
@@ -41,7 +39,6 @@ argocd-application-controller [flags]
   -n, --namespace string                      If present, the namespace scope for this CLI request
       --operation-processors int              Number of application operation processors (default 10)
       --otlp-address string                   OpenTelemetry collector address to send traces to
-      --otlp-attrs strings                    List of OpenTelemetry collector extra attrs when send traces, each attribute is separated by a colon(e.g. key:value)
       --password string                       Password for basic authentication to the API server
       --persist-resource-health               Enables storing the managed resources health in the Application CRD (default true)
       --proxy-url string                      If provided, this URL will be used to connect via proxy
@@ -49,7 +46,7 @@ argocd-application-controller [flags]
       --redis-ca-certificate string           Path to Redis server CA certificate (e.g. /etc/certs/redis/ca.crt). If not specified, system trusted CAs will be used for server certificate validation.
       --redis-client-certificate string       Path to Redis client certificate (e.g. /etc/certs/redis/client.crt).
       --redis-client-key string               Path to Redis client key (e.g. /etc/certs/redis/client.crt).
-      --redis-compress string                 Enable compression for data sent to Redis with the required compression algorithm. (possible values: gzip, none) (default "gzip")
+      --redis-compress string                 Enable compression for data sent to Redis with the required compression algorithm. (possible values: none, gzip) (default "none")
       --redis-insecure-skip-tls-verify        Skip Redis server certificate validation.
       --redis-use-tls                         Use TLS when connecting to Redis. 
       --redisdb int                           Redis database.
@@ -62,7 +59,6 @@ argocd-application-controller [flags]
       --sentinel stringArray                  Redis sentinel hostname and port (e.g. argocd-redis-ha-announce-0:6379). 
       --sentinelmaster string                 Redis sentinel master group name. (default "master")
       --server string                         The address and port of the Kubernetes API server
-      --sharding-method string                Enables choice of sharding method. Supported sharding methods are : [legacy, round-robin]  (default "legacy")
       --status-processors int                 Number of application status processors (default 20)
       --tls-server-name string                If provided, this name will be used to validate server certificate. If this is not provided, hostname used to contact the server is used.
       --token string                          Bearer token for authentication to the API server

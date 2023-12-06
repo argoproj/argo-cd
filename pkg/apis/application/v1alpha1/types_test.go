@@ -2226,20 +2226,6 @@ func TestSyncWindows_CanSync(t *testing.T) {
 		// then
 		assert.False(t, canSync)
 	})
-	t.Run("will allow auto sync with active-allow and inactive-allow", func(t *testing.T) {
-		// given
-		t.Parallel()
-		proj := newProjectBuilder().
-			withActiveAllowWindow(false).
-			withInactiveAllowWindow(false).
-			build()
-
-		// when
-		canSync := proj.Spec.SyncWindows.CanSync(false)
-
-		// then
-		assert.True(t, canSync)
-	})
 	t.Run("will deny manual sync with active-deny", func(t *testing.T) {
 		// given
 		t.Parallel()
@@ -3002,16 +2988,6 @@ func TestSourceAllowsConcurrentProcessing_KustomizeParams(t *testing.T) {
 
 		assert.False(t, src.AllowsConcurrentProcessing())
 	})
-
-	t.Run("Has Patches", func(t *testing.T) {
-		src := ApplicationSource{Path: ".", Kustomize: &ApplicationSourceKustomize{
-			Patches: KustomizePatches{{
-				Path: "test",
-			}},
-		}}
-
-		assert.False(t, src.AllowsConcurrentProcessing())
-	})
 }
 
 func TestUnSetCascadedDeletion(t *testing.T) {
@@ -3166,7 +3142,7 @@ func TestGetCAPath(t *testing.T) {
 	if err != nil {
 		panic(err)
 	}
-	t.Setenv(argocdcommon.EnvVarTLSDataPath, temppath)
+	os.Setenv(argocdcommon.EnvVarTLSDataPath, temppath)
 	validcert := []string{
 		"https://foo.example.com",
 		"oci://foo.example.com",

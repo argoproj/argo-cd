@@ -100,7 +100,7 @@ func DetectConfigManagementPlugin(ctx context.Context, appPath, repoPath, plugin
 		// check if the given plugin supports the repo
 		conn, cmpClient, connFound = cmpSupports(ctx, pluginSockFilePath, appPath, repoPath, fmt.Sprintf("%v.sock", pluginName), env, tarExcludedGlobs, true)
 		if !connFound {
-			return nil, nil, fmt.Errorf("couldn't find cmp-server plugin with name %q supporting the given repository", pluginName)
+			return nil, nil, fmt.Errorf("couldn't find cmp-server plugin with name %v supporting the given repository", pluginName)
 		}
 	} else {
 		fileList, err := os.ReadDir(pluginSockFilePath)

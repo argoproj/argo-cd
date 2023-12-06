@@ -4,7 +4,6 @@ metadata:
   name: myapp
 spec:
   goTemplate: true
-  goTemplateOptions: ["missingkey=error"]
   generators:
   - pullRequest:
       github:

@@ -23,7 +23,7 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout code
-        uses: actions/checkout@3df4ab11eba7bda6032a0b82a6bb43b11571feac  # v4.0.0
+        uses: actions/checkout@755da8c3cf115ac066823e79a1e1788f8940201b  # v3.2.0
         with:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -56,15 +56,8 @@ jobs:
           make manifests-local VERSION=${{ inputs.TARGET_VERSION }}
           git diff
 
-      - name: Generate version compatibility table
-        run: |
-          git stash
-          bash hack/update-supported-versions.sh
-          git add -u .
-          git stash pop
-
       - name: Create pull request
-        uses: peter-evans/create-pull-request@153407881ec5c347639a548ade7d8ad1d6740e38  # v5.0.2
+        uses: peter-evans/create-pull-request@38e0b6e68b4c852a5500a94740f0e535e0d7ba54  # v4.2.4
         with:
           commit-message: "Bump version to ${{ inputs.TARGET_VERSION }}"
           title: "Bump version to ${{ inputs.TARGET_VERSION }} on ${{ inputs.TARGET_BRANCH }} branch"

@@ -1,4 +1,0 @@
-actionTests:
-  - action: refresh
-    inputPath: testdata/external-secret.yaml
-    expectedOutputPath: testdata/external-secret-updated.yaml

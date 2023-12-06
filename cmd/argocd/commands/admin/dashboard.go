@@ -35,7 +35,7 @@ func NewDashboardCommand() *cobra.Command {
 	}
 	initialize.InitCommand(cmd)
 	cmd.Flags().IntVar(&port, "port", common.DefaultPortAPIServer, "Listen on given port")
-	cmd.Flags().StringVar(&address, "address", common.DefaultAddressAdminDashboard, "Listen on given address")
-	cmd.Flags().StringVar(&compressionStr, "redis-compress", env.StringFromEnv("REDIS_COMPRESSION", string(cache.RedisCompressionGZip)), "Enable this if the application controller is configured with redis compression enabled. (possible values: gzip, none)")
+	cmd.Flags().StringVar(&address, "address", common.DefaultAddressAPIServer, "Listen on given address")
+	cmd.Flags().StringVar(&compressionStr, "redis-compress", env.StringFromEnv("REDIS_COMPRESSION", string(cache.RedisCompressionNone)), "Enable this if the application controller is configured with redis compression enabled. (possible values: none, gzip)")
 	return cmd
 }

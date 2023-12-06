@@ -175,11 +175,11 @@ argocd login cd.argoproj.io --core`,
 			fmt.Printf("Context '%s' updated\n", ctxName)
 		},
 	}
-	command.Flags().StringVar(&ctxName, "name", "", "Name to use for the context")
-	command.Flags().StringVar(&username, "username", "", "The username of an account to authenticate")
-	command.Flags().StringVar(&password, "password", "", "The password of an account to authenticate")
-	command.Flags().BoolVar(&sso, "sso", false, "Perform SSO login")
-	command.Flags().IntVar(&ssoPort, "sso-port", DefaultSSOLocalPort, "Port to run local OAuth2 login application")
+	command.Flags().StringVar(&ctxName, "name", "", "name to use for the context")
+	command.Flags().StringVar(&username, "username", "", "the username of an account to authenticate")
+	command.Flags().StringVar(&password, "password", "", "the password of an account to authenticate")
+	command.Flags().BoolVar(&sso, "sso", false, "perform SSO login")
+	command.Flags().IntVar(&ssoPort, "sso-port", DefaultSSOLocalPort, "port to run local OAuth2 login application")
 	command.Flags().
 		BoolVar(&skipTestTLS, "skip-test-tls", false, "Skip testing whether the server is configured with TLS (this can help when the command hangs for no apparent reason)")
 	return command
