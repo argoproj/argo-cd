@@ -60,7 +60,7 @@ jobs:
 
           # Target branch is the release branch we're going to operate on
           # Its name is 'release-<major>.<minor>'
-          TARGET_BRANCH=$(echo "$TARGET_VERSION" | grep -oE '^[0-9]+\.[0-9]+')
+          TARGET_BRANCH=release-$(echo "$TARGET_VERSION" | grep -oE '^[0-9]+\.[0-9]+')
           # The release tag is the source tag, minus the release- prefix
           RELEASE_TAG="${SOURCE_TAG#*release-}"
           # Whether this is a pre-release (indicated by -rc suffix)

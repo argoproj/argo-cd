@@ -130,3 +130,28 @@ func release() error {
 	}
 	return exec.Command("git", "push", "origin", "--delete", release).Run()
 }
+
+func commitChanges(version string) error {
+	// git add VERSION
+	cmd := exec.Command("git", "add", "VERSION")
+	if err := cmd.Run(); err != nil {
+		return err
+	}
+
+	cmd = exec.Command("git", "add", fmt.Sprintf("changelog/CHANGELOG-%s.md", version))
+	if err := cmd.Run(); err != nil {
+		return err
+	}
+
+	cmd = exec.Command("git", "commit", fmt.Sprintf("chore: update version to %s", version))
+	if err := cmd.Run(); err != nil {
+		return err
+	}
+
+	cmd = exec.Command("git", "push")
+	if err := cmd.Run(); err != nil {
+		return err
+	}
+
+	return nil
+}
