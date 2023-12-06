@@ -101,7 +101,7 @@ for i in ${PROTO_FILES}; do
         "$i"
 done
 
-[ -L "${GOPATH_PROJECT_ROOT}" ] && rm -rf v2 "${GOPATH_PROJECT_ROOT}"
+[ -L "${GOPATH_PROJECT_ROOT}" ] && rm -rf "${GOPATH_PROJECT_ROOT}"
 [ -L ./v2 ] && rm -rf v2
 
 # collect_swagger gathers swagger files into a subdirectory

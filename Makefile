@@ -183,7 +183,6 @@ ensure-gopath:
 ifneq ("$(PWD)","$(LEGACY_PATH)")
 	@echo "Due to legacy requirements for codegen, repository needs to be checked out within \$$GOPATH"
 	@echo "Location of this repo should be '$(LEGACY_PATH)' but is '$(PWD)'"
-	@exit 1
 endif
 
 .PHONY: gogen
@@ -227,6 +226,9 @@ clidocsgen: ensure-gopath
 .PHONY: codegen-local
 codegen-local: ensure-gopath mod-vendor-local gogen protogen clientgen openapigen clidocsgen manifests-local notification-docs notification-catalog
 	rm -rf vendor/
+
+.PHONY: codegen-local-fast
+codegen-local-fast: gogen protogen-fast clientgen openapigen clidocsgen manifests-local notification-docs notification-catalog
 
 .PHONY: codegen
 codegen: test-tools-image
