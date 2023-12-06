@@ -3,6 +3,7 @@ package controller
 import (
 	"context"
 	"encoding/json"
+	goerrors "errors"
 	"fmt"
 	"math"
 	"net/http"
@@ -67,7 +68,7 @@ import (
 
 const (
 	updateOperationStateTimeout             = 1 * time.Second
-	defaultDeploymentInformerResyncDuration = 10
+	defaultDeploymentInformerResyncDuration = 10 * time.Second
 	// orphanedIndex contains application which monitor orphaned resources by namespace
 	orphanedIndex = "orphaned"
 )
@@ -208,14 +209,18 @@ func NewApplicationController(
 		},
 	})
 
-	factory := informers.NewSharedInformerFactory(ctrl.kubeClientset, defaultDeploymentInformerResyncDuration)
+	factory := informers.NewSharedInformerFactoryWithOptions(ctrl.kubeClientset, defaultDeploymentInformerResyncDuration, informers.WithNamespace(settingsMgr.GetNamespace()))
 	deploymentInformer := factory.Apps().V1().Deployments()
 
 	readinessHealthCheck := func(r *http.Request) error {
 		applicationControllerName := env.StringFromEnv(common.EnvAppControllerName, common.DefaultApplicationControllerName)
 		appControllerDeployment, err := deploymentInformer.Lister().Deployments(settingsMgr.GetNamespace()).Get(applicationControllerName)
-		if !kubeerrors.IsNotFound(err) {
-			return fmt.Errorf("error retrieving Application Controller Deployment: %s", err)
+		if err != nil {
+			if kubeerrors.IsNotFound(err) {
+				appControllerDeployment = nil
+			} else {
+				return fmt.Errorf("error retrieving Application Controller Deployment: %s", err)
+			}
 		}
 		if appControllerDeployment != nil {
 			if appControllerDeployment.Spec.Replicas != nil && int(*appControllerDeployment.Spec.Replicas) <= 0 {
@@ -1783,6 +1788,13 @@ func (ctrl *ApplicationController) autoSync(app *appv1.Application, syncStatus *
 	_, err := argo.SetAppOperation(appIf, app.Name, &op)
 	setOpTime := time.Since(start)
 	if err != nil {
+		if goerrors.Is(err, argo.ErrAnotherOperationInProgress) {
+			// skipping auto-sync because another operation is in progress and was not noticed due to stale data in informer
+			// it is safe to skip auto-sync because it is already running
+			logCtx.Warnf("Failed to initiate auto-sync to %s: %v", desiredCommitSHA, err)
+			return nil, 0
+		}
+
 		logCtx.Errorf("Failed to initiate auto-sync to %s: %v", desiredCommitSHA, err)
 		return &appv1.ApplicationCondition{Type: appv1.ApplicationConditionSyncError, Message: err.Error()}, setOpTime
 	}

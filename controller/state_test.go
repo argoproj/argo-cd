@@ -10,6 +10,9 @@ import (
 	synccommon "github.com/argoproj/gitops-engine/pkg/sync/common"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	. "github.com/argoproj/gitops-engine/pkg/utils/testing"
+	"github.com/imdario/mergo"
+	"github.com/sirupsen/logrus"
+	logrustest "github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -86,6 +89,122 @@ func TestCompareAppStateNamespaceMetadataDiffers(t *testing.T) {
 	assert.Equal(t, argoappv1.SyncStatusCodeOutOfSync, compRes.syncStatus.Status)
 	assert.Len(t, compRes.resources, 0)
 	assert.Len(t, compRes.managedResources, 0)
+	assert.Len(t, app.Status.Conditions, 0)
+}
+
+// TestCompareAppStateNamespaceMetadataDiffers tests comparison when managed namespace metadata differs to live and manifest ns
+func TestCompareAppStateNamespaceMetadataDiffersToManifest(t *testing.T) {
+	ns := NewNamespace()
+	ns.SetName(test.FakeDestNamespace)
+	ns.SetNamespace(test.FakeDestNamespace)
+	ns.SetAnnotations(map[string]string{"bar": "bat"})
+
+	app := newFakeApp()
+	app.Spec.SyncPolicy.ManagedNamespaceMetadata = &argoappv1.ManagedNamespaceMetadata{
+		Labels: map[string]string{
+			"foo": "bar",
+		},
+		Annotations: map[string]string{
+			"foo": "bar",
+		},
+	}
+	app.Status.OperationState = &argoappv1.OperationState{
+		SyncResult: &argoappv1.SyncOperationResult{},
+	}
+
+	liveNs := ns.DeepCopy()
+	liveNs.SetAnnotations(nil)
+
+	data := fakeData{
+		manifestResponse: &apiclient.ManifestResponse{
+			Manifests: []string{toJSON(t, liveNs)},
+			Namespace: test.FakeDestNamespace,
+			Server:    test.FakeClusterURL,
+			Revision:  "abc123",
+		},
+		managedLiveObjs: map[kube.ResourceKey]*unstructured.Unstructured{
+			kube.GetResourceKey(ns): ns,
+		},
+	}
+	ctrl := newFakeController(&data)
+	sources := make([]argoappv1.ApplicationSource, 0)
+	sources = append(sources, app.Spec.GetSource())
+	revisions := make([]string, 0)
+	revisions = append(revisions, "")
+	compRes := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false)
+	assert.NotNil(t, compRes)
+	assert.NotNil(t, compRes.syncStatus)
+	assert.Equal(t, argoappv1.SyncStatusCodeOutOfSync, compRes.syncStatus.Status)
+	assert.Len(t, compRes.resources, 1)
+	assert.Len(t, compRes.managedResources, 1)
+	assert.NotNil(t, compRes.diffResultList)
+	assert.Len(t, compRes.diffResultList.Diffs, 1)
+
+	result := NewNamespace()
+	assert.NoError(t, json.Unmarshal(compRes.diffResultList.Diffs[0].PredictedLive, result))
+
+	labels := result.GetLabels()
+	delete(labels, "kubernetes.io/metadata.name")
+
+	assert.Equal(t, map[string]string{}, labels)
+	// Manifests override definitions in managedNamespaceMetadata
+	assert.Equal(t, map[string]string{"bar": "bat"}, result.GetAnnotations())
+	assert.Len(t, app.Status.Conditions, 0)
+}
+
+// TestCompareAppStateNamespaceMetadata tests comparison when managed namespace metadata differs to live
+func TestCompareAppStateNamespaceMetadata(t *testing.T) {
+	ns := NewNamespace()
+	ns.SetName(test.FakeDestNamespace)
+	ns.SetNamespace(test.FakeDestNamespace)
+	ns.SetAnnotations(map[string]string{"bar": "bat"})
+
+	app := newFakeApp()
+	app.Spec.SyncPolicy.ManagedNamespaceMetadata = &argoappv1.ManagedNamespaceMetadata{
+		Labels: map[string]string{
+			"foo": "bar",
+		},
+		Annotations: map[string]string{
+			"foo": "bar",
+		},
+	}
+	app.Status.OperationState = &argoappv1.OperationState{
+		SyncResult: &argoappv1.SyncOperationResult{},
+	}
+
+	data := fakeData{
+		manifestResponse: &apiclient.ManifestResponse{
+			Manifests: []string{},
+			Namespace: test.FakeDestNamespace,
+			Server:    test.FakeClusterURL,
+			Revision:  "abc123",
+		},
+		managedLiveObjs: map[kube.ResourceKey]*unstructured.Unstructured{
+			kube.GetResourceKey(ns): ns,
+		},
+	}
+	ctrl := newFakeController(&data)
+	sources := make([]argoappv1.ApplicationSource, 0)
+	sources = append(sources, app.Spec.GetSource())
+	revisions := make([]string, 0)
+	revisions = append(revisions, "")
+	compRes := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false)
+	assert.NotNil(t, compRes)
+	assert.NotNil(t, compRes.syncStatus)
+	assert.Equal(t, argoappv1.SyncStatusCodeOutOfSync, compRes.syncStatus.Status)
+	assert.Len(t, compRes.resources, 1)
+	assert.Len(t, compRes.managedResources, 1)
+	assert.NotNil(t, compRes.diffResultList)
+	assert.Len(t, compRes.diffResultList.Diffs, 1)
+
+	result := NewNamespace()
+	assert.NoError(t, json.Unmarshal(compRes.diffResultList.Diffs[0].PredictedLive, result))
+
+	labels := result.GetLabels()
+	delete(labels, "kubernetes.io/metadata.name")
+
+	assert.Equal(t, map[string]string{"foo": "bar"}, labels)
+	assert.Equal(t, map[string]string{"argocd.argoproj.io/sync-options": "ServerSideApply=true", "bar": "bat", "foo": "bar"}, result.GetAnnotations())
 	assert.Len(t, app.Status.Conditions, 0)
 }
 
@@ -1222,4 +1341,253 @@ func TestIsLiveResourceManaged(t *testing.T) {
 		// then
 		assert.True(t, manager.isSelfReferencedObj(managedWrongAPIGroup, config, appName, common.AnnotationKeyAppInstance, argo.TrackingMethodAnnotation))
 	})
+}
+
+func TestUseDiffCache(t *testing.T) {
+	type fixture struct {
+		testName             string
+		noCache              bool
+		manifestInfos        []*apiclient.ManifestResponse
+		sources              []argoappv1.ApplicationSource
+		app                  *argoappv1.Application
+		manifestRevisions    []string
+		statusRefreshTimeout time.Duration
+		expectedUseCache     bool
+	}
+
+	manifestInfos := func(revision string) []*apiclient.ManifestResponse {
+		return []*apiclient.ManifestResponse{
+			{
+				Manifests: []string{
+					"{\"apiVersion\":\"v1\",\"kind\":\"Service\",\"metadata\":{\"labels\":{\"app.kubernetes.io/instance\":\"httpbin\"},\"name\":\"httpbin-svc\",\"namespace\":\"httpbin\"},\"spec\":{\"ports\":[{\"name\":\"http-port\",\"port\":7777,\"targetPort\":80},{\"name\":\"test\",\"port\":333}],\"selector\":{\"app\":\"httpbin\"}}}",
+					"{\"apiVersion\":\"apps/v1\",\"kind\":\"Deployment\",\"metadata\":{\"labels\":{\"app.kubernetes.io/instance\":\"httpbin\"},\"name\":\"httpbin-deployment\",\"namespace\":\"httpbin\"},\"spec\":{\"replicas\":2,\"selector\":{\"matchLabels\":{\"app\":\"httpbin\"}},\"template\":{\"metadata\":{\"labels\":{\"app\":\"httpbin\"}},\"spec\":{\"containers\":[{\"image\":\"kennethreitz/httpbin\",\"imagePullPolicy\":\"Always\",\"name\":\"httpbin\",\"ports\":[{\"containerPort\":80}]}]}}}}",
+				},
+				Namespace:    "",
+				Server:       "",
+				Revision:     revision,
+				SourceType:   "Kustomize",
+				VerifyResult: "",
+			},
+		}
+	}
+	sources := func() []argoappv1.ApplicationSource {
+		return []argoappv1.ApplicationSource{
+			{
+				RepoURL:        "https://some-repo.com",
+				Path:           "argocd/httpbin",
+				TargetRevision: "HEAD",
+			},
+		}
+	}
+
+	app := func(namespace string, revision string, refresh bool, a *argoappv1.Application) *argoappv1.Application {
+		app := &argoappv1.Application{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "httpbin",
+				Namespace: namespace,
+			},
+			Spec: argoappv1.ApplicationSpec{
+				Source: &argoappv1.ApplicationSource{
+					RepoURL:        "https://some-repo.com",
+					Path:           "argocd/httpbin",
+					TargetRevision: "HEAD",
+				},
+				Destination: argoappv1.ApplicationDestination{
+					Server:    "https://kubernetes.default.svc",
+					Namespace: "httpbin",
+				},
+				Project: "default",
+				SyncPolicy: &argoappv1.SyncPolicy{
+					SyncOptions: []string{
+						"CreateNamespace=true",
+						"ServerSideApply=true",
+					},
+				},
+			},
+			Status: argoappv1.ApplicationStatus{
+				Resources: []argoappv1.ResourceStatus{},
+				Sync: argoappv1.SyncStatus{
+					Status: argoappv1.SyncStatusCodeSynced,
+					ComparedTo: argoappv1.ComparedTo{
+						Source: argoappv1.ApplicationSource{
+							RepoURL:        "https://some-repo.com",
+							Path:           "argocd/httpbin",
+							TargetRevision: "HEAD",
+						},
+						Destination: argoappv1.ApplicationDestination{
+							Server:    "https://kubernetes.default.svc",
+							Namespace: "httpbin",
+						},
+					},
+					Revision:  revision,
+					Revisions: []string{},
+				},
+				ReconciledAt: &metav1.Time{
+					Time: time.Now().Add(-time.Hour),
+				},
+			},
+		}
+		if refresh {
+			annotations := make(map[string]string)
+			annotations[argoappv1.AnnotationKeyRefresh] = string(argoappv1.RefreshTypeNormal)
+			app.SetAnnotations(annotations)
+		}
+		if a != nil {
+			err := mergo.Merge(app, a, mergo.WithOverride, mergo.WithOverwriteWithEmptyValue)
+			if err != nil {
+				t.Fatalf("error merging app: %s", err)
+			}
+		}
+		return app
+	}
+
+	cases := []fixture{
+		{
+			testName:             "will use diff cache",
+			noCache:              false,
+			manifestInfos:        manifestInfos("rev1"),
+			sources:              sources(),
+			app:                  app("httpbin", "rev1", false, nil),
+			manifestRevisions:    []string{"rev1"},
+			statusRefreshTimeout: time.Hour * 24,
+			expectedUseCache:     true,
+		},
+		{
+			testName:      "will use diff cache for multisource",
+			noCache:       false,
+			manifestInfos: manifestInfos("rev1"),
+			sources:       sources(),
+			app: app("httpbin", "", false, &argoappv1.Application{
+				Spec: argoappv1.ApplicationSpec{
+					Source: nil,
+					Sources: argoappv1.ApplicationSources{
+						{
+							RepoURL: "multisource repo1",
+						},
+						{
+							RepoURL: "multisource repo2",
+						},
+					},
+				},
+				Status: argoappv1.ApplicationStatus{
+					Resources: []argoappv1.ResourceStatus{},
+					Sync: argoappv1.SyncStatus{
+						Status: argoappv1.SyncStatusCodeSynced,
+						ComparedTo: argoappv1.ComparedTo{
+							Source: argoappv1.ApplicationSource{},
+							Sources: argoappv1.ApplicationSources{
+								{
+									RepoURL: "multisource repo1",
+								},
+								{
+									RepoURL: "multisource repo2",
+								},
+							},
+						},
+						Revisions: []string{"rev1", "rev2"},
+					},
+					ReconciledAt: &metav1.Time{
+						Time: time.Now().Add(-time.Hour),
+					},
+				},
+			}),
+			manifestRevisions:    []string{"rev1", "rev2"},
+			statusRefreshTimeout: time.Hour * 24,
+			expectedUseCache:     true,
+		},
+		{
+			testName:             "will return false if nocache is true",
+			noCache:              true,
+			manifestInfos:        manifestInfos("rev1"),
+			sources:              sources(),
+			app:                  app("httpbin", "rev1", false, nil),
+			manifestRevisions:    []string{"rev1"},
+			statusRefreshTimeout: time.Hour * 24,
+			expectedUseCache:     false,
+		},
+		{
+			testName:             "will return false if requested refresh",
+			noCache:              false,
+			manifestInfos:        manifestInfos("rev1"),
+			sources:              sources(),
+			app:                  app("httpbin", "rev1", true, nil),
+			manifestRevisions:    []string{"rev1"},
+			statusRefreshTimeout: time.Hour * 24,
+			expectedUseCache:     false,
+		},
+		{
+			testName:             "will return false if status expired",
+			noCache:              false,
+			manifestInfos:        manifestInfos("rev1"),
+			sources:              sources(),
+			app:                  app("httpbin", "rev1", false, nil),
+			manifestRevisions:    []string{"rev1"},
+			statusRefreshTimeout: time.Minute,
+			expectedUseCache:     false,
+		},
+		{
+			testName:             "will return false if there is a new revision",
+			noCache:              false,
+			manifestInfos:        manifestInfos("rev1"),
+			sources:              sources(),
+			app:                  app("httpbin", "rev1", false, nil),
+			manifestRevisions:    []string{"rev2"},
+			statusRefreshTimeout: time.Hour * 24,
+			expectedUseCache:     false,
+		},
+		{
+			testName:      "will return false if app spec repo changed",
+			noCache:       false,
+			manifestInfos: manifestInfos("rev1"),
+			sources:       sources(),
+			app: app("httpbin", "rev1", false, &argoappv1.Application{
+				Spec: argoappv1.ApplicationSpec{
+					Source: &argoappv1.ApplicationSource{
+						RepoURL: "new-repo",
+					},
+				},
+			}),
+			manifestRevisions:    []string{"rev1"},
+			statusRefreshTimeout: time.Hour * 24,
+			expectedUseCache:     false,
+		},
+		{
+			testName:      "will return false if app spec IgnoreDifferences changed",
+			noCache:       false,
+			manifestInfos: manifestInfos("rev1"),
+			sources:       sources(),
+			app: app("httpbin", "rev1", false, &argoappv1.Application{
+				Spec: argoappv1.ApplicationSpec{
+					IgnoreDifferences: []argoappv1.ResourceIgnoreDifferences{
+						{
+							Group:             "app/v1",
+							Kind:              "application",
+							Name:              "httpbin",
+							Namespace:         "httpbin",
+							JQPathExpressions: []string{"."},
+						},
+					},
+				},
+			}),
+			manifestRevisions:    []string{"rev1"},
+			statusRefreshTimeout: time.Hour * 24,
+			expectedUseCache:     false,
+		},
+	}
+
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.testName, func(t *testing.T) {
+			// Given
+			t.Parallel()
+			logger, _ := logrustest.NewNullLogger()
+			log := logrus.NewEntry(logger)
+
+			// When
+			useDiffCache := useDiffCache(tc.noCache, tc.manifestInfos, tc.sources, tc.app, tc.manifestRevisions, tc.statusRefreshTimeout, log)
+
+			// Then
+			assert.Equal(t, useDiffCache, tc.expectedUseCache)
+		})
+	}
 }

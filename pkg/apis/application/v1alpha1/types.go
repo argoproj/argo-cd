@@ -951,6 +951,35 @@ type ApplicationStatus struct {
 	ControllerNamespace string `json:"controllerNamespace,omitempty" protobuf:"bytes,13,opt,name=controllerNamespace"`
 }
 
+// GetRevisions will return the current revision associated with the Application.
+// If app has multisources, it will return all corresponding revisions preserving
+// order from the app.spec.sources. If app has only one source, it will return a
+// single revision in the list.
+func (a *ApplicationStatus) GetRevisions() []string {
+	revisions := []string{}
+	if len(a.Sync.Revisions) > 0 {
+		revisions = a.Sync.Revisions
+	} else if a.Sync.Revision != "" {
+		revisions = append(revisions, a.Sync.Revision)
+	}
+	return revisions
+}
+
+// BuildComparedToStatus will build a ComparedTo object based on the current
+// Application state.
+func (app *Application) BuildComparedToStatus() ComparedTo {
+	ct := ComparedTo{
+		Destination:       app.Spec.Destination,
+		IgnoreDifferences: app.Spec.IgnoreDifferences,
+	}
+	if app.Spec.HasMultipleSources() {
+		ct.Sources = app.Spec.Sources
+	} else {
+		ct.Source = app.Spec.GetSource()
+	}
+	return ct
+}
+
 // JWTTokens represents a list of JWT tokens
 type JWTTokens struct {
 	Items []JWTToken `json:"items,omitempty" protobuf:"bytes,1,opt,name=items"`
@@ -1135,11 +1164,12 @@ type SyncPolicy struct {
 	Retry *RetryStrategy `json:"retry,omitempty" protobuf:"bytes,3,opt,name=retry"`
 	// ManagedNamespaceMetadata controls metadata in the given namespace (if CreateNamespace=true)
 	ManagedNamespaceMetadata *ManagedNamespaceMetadata `json:"managedNamespaceMetadata,omitempty" protobuf:"bytes,4,opt,name=managedNamespaceMetadata"`
+	// If you add a field here, be sure to update IsZero.
 }
 
 // IsZero returns true if the sync policy is empty
 func (p *SyncPolicy) IsZero() bool {
-	return p == nil || (p.Automated == nil && len(p.SyncOptions) == 0 && p.Retry == nil)
+	return p == nil || (p.Automated == nil && len(p.SyncOptions) == 0 && p.Retry == nil && p.ManagedNamespaceMetadata == nil)
 }
 
 // RetryStrategy contains information about the strategy to apply when a sync failed
