@@ -175,19 +175,8 @@ endif
 .PHONY: all
 all: cli image
 
-# We have some legacy requirements for being checked out within $GOPATH.
-# The ensure-gopath target can be used as dependency to ensure we are running
-# within these boundaries.
-.PHONY: ensure-gopath
-ensure-gopath:
-ifneq ("$(PWD)","$(LEGACY_PATH)")
-	@echo "Due to legacy requirements for codegen, repository needs to be checked out within \$$GOPATH"
-	@echo "Location of this repo should be '$(LEGACY_PATH)' but is '$(PWD)'"
-	@exit 1
-endif
-
 .PHONY: gogen
-gogen: ensure-gopath
+gogen:
 	export GO111MODULE=off
 	go generate ./util/argo/...
 
@@ -200,7 +189,7 @@ protogen-fast:
 	./hack/generate-proto.sh
 
 .PHONY: openapigen
-openapigen: ensure-gopath
+openapigen:
 	export GO111MODULE=off
 	./hack/update-openapi.sh
 
@@ -215,18 +204,21 @@ notification-docs:
 
 
 .PHONY: clientgen
-clientgen: ensure-gopath
+clientgen:
 	export GO111MODULE=off
 	./hack/update-codegen.sh
 
 .PHONY: clidocsgen
-clidocsgen: ensure-gopath
+clidocsgen:
 	go run tools/cmd-docs/main.go
 
 
 .PHONY: codegen-local
-codegen-local: ensure-gopath mod-vendor-local gogen protogen clientgen openapigen clidocsgen manifests-local notification-docs notification-catalog
+codegen-local: mod-vendor-local gogen protogen clientgen openapigen clidocsgen manifests-local notification-docs notification-catalog
 	rm -rf vendor/
+
+.PHONY: codegen-local-fast
+codegen-local-fast: gogen protogen-fast clientgen openapigen clidocsgen manifests-local notification-docs notification-catalog
 
 .PHONY: codegen
 codegen: test-tools-image
