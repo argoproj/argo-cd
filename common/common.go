@@ -117,7 +117,12 @@ const (
 	RoundRobinShardingAlgorithm = "round-robin"
 	// AppControllerHeartbeatUpdateRetryCount is the retry count for updating the Shard Mapping to the Shard Mapping ConfigMap used by Application Controller
 	AppControllerHeartbeatUpdateRetryCount = 3
-	DefaultShardingAlgorithm               = LegacyShardingAlgorithm
+	// ConsistentHashingWithBoundedLoadsAlgorithm uses an algorithm that tries to use an equal distribution accross
+	// all shards but is optimised to handled sharding and/or cluster addings or removal. In case of sharding or
+	// cluster changes, this algorithm minimise the changes between shard and clusters assignments.
+	ConsistentHashingWithBoundedLoadsAlgorithm = "consistent-hashing"
+
+	DefaultShardingAlgorithm = LegacyShardingAlgorithm
 )
 
 // Dex related constants
