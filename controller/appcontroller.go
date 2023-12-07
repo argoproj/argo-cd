@@ -16,6 +16,8 @@ import (
 	"time"
 
 	"github.com/argoproj/argo-cd/v2/pkg/ratelimiter"
+	cacheutil "github.com/argoproj/argo-cd/v2/util/cache"
+
 	clustercache "github.com/argoproj/gitops-engine/pkg/cache"
 	"github.com/argoproj/gitops-engine/pkg/diff"
 	"github.com/argoproj/gitops-engine/pkg/health"
@@ -426,6 +428,7 @@ func (ctrl *ApplicationController) handleObjectUpdated(managedByApp map[string]b
 // setAppManagedResources will build a list of ResourceDiff based on the provided comparisonResult
 // and persist app resources related data in the cache. Will return the persisted ApplicationTree.
 func (ctrl *ApplicationController) setAppManagedResources(a *appv1.Application, comparisonResult *comparisonResult) (*appv1.ApplicationTree, error) {
+	appID := cacheutil.NewAppIdentity(a.Name, a.Namespace, ctrl.namespace)
 	managedResources, err := ctrl.hideSecretData(a, comparisonResult)
 	if err != nil {
 		return nil, fmt.Errorf("error getting managed resources: %s", err)
@@ -434,11 +437,11 @@ func (ctrl *ApplicationController) setAppManagedResources(a *appv1.Application, 
 	if err != nil {
 		return nil, fmt.Errorf("error getting resource tree: %s", err)
 	}
-	err = ctrl.cache.SetAppResourcesTree(a.InstanceName(ctrl.namespace), tree)
+	err = ctrl.cache.SetAppResourcesTree(appID, tree)
 	if err != nil {
 		return nil, fmt.Errorf("error setting app resource tree: %s", err)
 	}
-	err = ctrl.cache.SetAppManagedResources(a.InstanceName(ctrl.namespace), managedResources)
+	err = ctrl.cache.SetAppManagedResources(appID, managedResources)
 	if err != nil {
 		return nil, fmt.Errorf("error setting app managed resources: %s", err)
 	}
@@ -1115,11 +1118,13 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Applic
 		}
 	}
 
-	if err := ctrl.cache.SetAppManagedResources(app.Name, nil); err != nil {
+	appID := cacheutil.NewAppIdentity(app.Name, app.Namespace, ctrl.namespace)
+
+	if err := ctrl.cache.SetAppManagedResources(appID, nil); err != nil {
 		return objs, err
 	}
 
-	if err := ctrl.cache.SetAppResourcesTree(app.Name, nil); err != nil {
+	if err := ctrl.cache.SetAppResourcesTree(appID, nil); err != nil {
 		return objs, err
 	}
 
@@ -1446,15 +1451,17 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 		}).Info("Reconciliation completed")
 	}()
 
+	appID := cacheutil.NewAppIdentity(app.Name, app.Namespace, ctrl.namespace)
+
 	if comparisonLevel == ComparisonWithNothing {
 		managedResources := make([]*appv1.ResourceDiff, 0)
-		if err := ctrl.cache.GetAppManagedResources(app.InstanceName(ctrl.namespace), &managedResources); err != nil {
+		if err := ctrl.cache.GetAppManagedResources(appID, &managedResources); err != nil {
 			logCtx.Warnf("Failed to get cached managed resources for tree reconciliation, fall back to full reconciliation")
 		} else {
 			var tree *appv1.ApplicationTree
 			if tree, err = ctrl.getResourceTree(app, managedResources); err == nil {
 				app.Status.Summary = tree.GetSummary(app)
-				if err := ctrl.cache.SetAppResourcesTree(app.InstanceName(ctrl.namespace), tree); err != nil {
+				if err := ctrl.cache.SetAppResourcesTree(appID, tree); err != nil {
 					logCtx.Errorf("Failed to cache resources tree: %v", err)
 					return
 				}
@@ -1471,10 +1478,10 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 		app.Status.Health.Status = health.HealthStatusUnknown
 		patchMs = ctrl.persistAppStatus(origApp, &app.Status)
 
-		if err := ctrl.cache.SetAppResourcesTree(app.InstanceName(ctrl.namespace), &appv1.ApplicationTree{}); err != nil {
+		if err := ctrl.cache.SetAppResourcesTree(appID, &appv1.ApplicationTree{}); err != nil {
 			log.Warnf("failed to set app resource tree: %v", err)
 		}
-		if err := ctrl.cache.SetAppManagedResources(app.InstanceName(ctrl.namespace), nil); err != nil {
+		if err := ctrl.cache.SetAppManagedResources(appID, nil); err != nil {
 			log.Warnf("failed to set app managed resources tree: %v", err)
 		}
 		return

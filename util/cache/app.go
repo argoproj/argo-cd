@@ -13,8 +13,11 @@ type AppIdentity struct {
 // NewAppIdentity panics if any provided string is empty. All three arguments are necessarily to construct a unique app
 // identity.
 func NewAppIdentity(name, namespace, defaultNamespace string) AppIdentity {
-	if name == "" || namespace == "" || defaultNamespace == "" {
-		panic("failed to specify all components of an app identity")
+	if name == "" {
+		panic("Failed to specify app name in new app identity. This is a bug. Please file an issue at https://github.com/argoproj/argo-cd")
+	}
+	if namespace == "" && defaultNamespace == "" {
+		panic("Failed to specify either an app namespace or a controller namespace in new app identity. This is a bug. Please file an issue at https://github.com/argoproj/argo-cd")
 	}
 	return AppIdentity{
 		name:             name,

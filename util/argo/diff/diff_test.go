@@ -11,6 +11,7 @@ import (
 	testutil "github.com/argoproj/argo-cd/v2/test"
 	argo "github.com/argoproj/argo-cd/v2/util/argo/diff"
 	"github.com/argoproj/argo-cd/v2/util/argo/testdata"
+	cacheutil "github.com/argoproj/argo-cd/v2/util/cache"
 	appstatecache "github.com/argoproj/argo-cd/v2/util/cache/appstate"
 )
 
@@ -200,7 +201,6 @@ func TestDiffConfigBuilder(t *testing.T) {
 		assert.Equal(t, f.trackingMethod, diffConfig.TrackingMethod())
 		assert.Equal(t, f.noCache, diffConfig.NoCache())
 		assert.Equal(t, f.ignoreRoles, diffConfig.IgnoreAggregatedRoles())
-		assert.Equal(t, "", diffConfig.AppName())
 		assert.Nil(t, diffConfig.StateCache())
 	})
 	t.Run("will initialize ignore differences if nil is passed", func(t *testing.T) {
@@ -225,21 +225,6 @@ func TestDiffConfigBuilder(t *testing.T) {
 		assert.Equal(t, f.noCache, diffConfig.NoCache())
 		assert.Equal(t, f.ignoreRoles, diffConfig.IgnoreAggregatedRoles())
 	})
-	t.Run("will return error if retrieving diff from cache an no appName configured", func(t *testing.T) {
-		// given
-		f := setup()
-
-		// when
-		diffConfig, err := argo.NewDiffConfigBuilder().
-			WithDiffSettings(f.ignores, f.overrides, f.ignoreRoles).
-			WithTracking(f.label, f.trackingMethod).
-			WithCache(&appstatecache.Cache{}, "").
-			Build()
-
-		// then
-		require.Error(t, err)
-		require.Nil(t, diffConfig)
-	})
 	t.Run("will return error if retrieving diff from cache and no stateCache configured", func(t *testing.T) {
 		// given
 		f := setup()
@@ -248,7 +233,7 @@ func TestDiffConfigBuilder(t *testing.T) {
 		diffConfig, err := argo.NewDiffConfigBuilder().
 			WithDiffSettings(f.ignores, f.overrides, f.ignoreRoles).
 			WithTracking(f.label, f.trackingMethod).
-			WithCache(nil, f.appName).
+			WithCache(nil, cacheutil.NewAppIdentity("test", "argocd", "argocd")).
 			Build()
 
 		// then

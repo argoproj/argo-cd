@@ -35,6 +35,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/v2/util/argo"
 	argodiff "github.com/argoproj/argo-cd/v2/util/argo/diff"
+	cacheutil "github.com/argoproj/argo-cd/v2/util/cache"
 	appstatecache "github.com/argoproj/argo-cd/v2/util/cache/appstate"
 	"github.com/argoproj/argo-cd/v2/util/db"
 	"github.com/argoproj/argo-cd/v2/util/gpg"
@@ -594,7 +595,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 	if noCache {
 		diffConfigBuilder.WithNoCache()
 	} else {
-		diffConfigBuilder.WithCache(m.cache, app.GetName())
+		diffConfigBuilder.WithCache(m.cache, cacheutil.NewAppIdentity(app.Name, app.Namespace, m.namespace))
 	}
 
 	gvkParser, err := m.getGVKParser(app.Spec.Destination.Server)

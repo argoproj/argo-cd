@@ -47,6 +47,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/server/rbacpolicy"
 	"github.com/argoproj/argo-cd/v2/util/argo"
 	argoutil "github.com/argoproj/argo-cd/v2/util/argo"
+	cacheutil "github.com/argoproj/argo-cd/v2/util/cache"
 	"github.com/argoproj/argo-cd/v2/util/collections"
 	"github.com/argoproj/argo-cd/v2/util/db"
 	"github.com/argoproj/argo-cd/v2/util/env"
@@ -1234,7 +1235,7 @@ func (s *Server) getCachedAppState(ctx context.Context, a *appv1.Application, ge
 func (s *Server) getAppResources(ctx context.Context, a *appv1.Application) (*appv1.ApplicationTree, error) {
 	var tree appv1.ApplicationTree
 	err := s.getCachedAppState(ctx, a, func() error {
-		return s.cache.GetAppResourcesTree(a.InstanceName(s.ns), &tree)
+		return s.cache.GetAppResourcesTree(cacheutil.NewAppIdentity(a.Name, a.Namespace, s.ns), &tree)
 	})
 	if err != nil {
 		return &tree, fmt.Errorf("error getting cached app resource tree: %w", err)
@@ -1394,8 +1395,8 @@ func (s *Server) WatchResourceTree(q *application.ResourcesQuery, ws application
 		return err
 	}
 
-	cacheKey := argo.AppInstanceName(q.GetApplicationName(), q.GetAppNamespace(), s.ns)
-	return s.cache.OnAppResourcesTreeChanged(ws.Context(), cacheKey, func() error {
+	cacheKey := cacheutil.NewAppIdentity(q.GetApplicationName(), q.GetAppNamespace(), s.ns)
+	return s.cache.OnAppResourcesTreeChanged(ws.Context(), cacheutil.NewAppIdentity(q.GetApplicationName(), q.GetAppNamespace(), s.ns), func() error {
 		var tree appv1.ApplicationTree
 		err := s.cache.GetAppResourcesTree(cacheKey, &tree)
 		if err != nil {
@@ -1474,7 +1475,7 @@ func (s *Server) ManagedResources(ctx context.Context, q *application.ResourcesQ
 
 	items := make([]*appv1.ResourceDiff, 0)
 	err = s.getCachedAppState(ctx, a, func() error {
-		return s.cache.GetAppManagedResources(a.InstanceName(s.ns), &items)
+		return s.cache.GetAppManagedResources(cacheutil.NewAppIdentity(a.Name, a.Namespace, s.ns), &items)
 	})
 	if err != nil {
 		return nil, fmt.Errorf("error getting cached app managed resources: %w", err)
@@ -2400,7 +2401,7 @@ func (s *Server) GetApplicationSyncWindows(ctx context.Context, q *application.A
 func (s *Server) inferResourcesStatusHealth(app *appv1.Application) {
 	if app.Status.ResourceHealthSource == appv1.ResourceHealthLocationAppTree {
 		tree := &appv1.ApplicationTree{}
-		if err := s.cache.GetAppResourcesTree(app.Name, tree); err == nil {
+		if err := s.cache.GetAppResourcesTree(cacheutil.NewAppIdentity(app.Name, app.Namespace, s.ns), tree); err == nil {
 			healthByKey := map[kube.ResourceKey]*appv1.HealthStatus{}
 			for _, node := range tree.Nodes {
 				healthByKey[kube.NewResourceKey(node.Group, node.Kind, node.Namespace, node.Name)] = node.Health

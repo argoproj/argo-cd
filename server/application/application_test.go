@@ -251,7 +251,8 @@ func newTestAppServerWithEnforcerConfigure(f func(*rbac.Enforcer), t *testing.T,
 	for _, obj := range objects {
 		app, ok := obj.(*appsv1.Application)
 		if ok {
-			err := appStateCache.SetAppManagedResources(app.Name, []*appsv1.ResourceDiff{})
+			appID := cacheutil.NewAppIdentity(app.Name, app.Namespace, "argocd")
+			err := appStateCache.SetAppManagedResources(appID, []*appsv1.ResourceDiff{})
 			require.NoError(t, err)
 
 			// Pre-populate the resource tree based on the app's resources.
@@ -268,7 +269,7 @@ func newTestAppServerWithEnforcerConfigure(f func(*rbac.Enforcer), t *testing.T,
 					},
 				}
 			}
-			err = appStateCache.SetAppResourcesTree(app.Name, &appsv1.ApplicationTree{
+			err = appStateCache.SetAppResourcesTree(appID, &appsv1.ApplicationTree{
 				Nodes: nodes,
 			})
 			require.NoError(t, err)
@@ -431,7 +432,8 @@ func newTestAppServerWithEnforcerConfigureWithBenchmark(f func(*rbac.Enforcer), 
 	for _, obj := range objects {
 		app, ok := obj.(*appsv1.Application)
 		if ok {
-			err := appStateCache.SetAppManagedResources(app.Name, []*appsv1.ResourceDiff{})
+			appID := cacheutil.NewAppIdentity(app.Name, app.Namespace, "argocd")
+			err := appStateCache.SetAppManagedResources(appID, []*appsv1.ResourceDiff{})
 			require.NoError(b, err)
 
 			// Pre-populate the resource tree based on the app's resources.
@@ -448,7 +450,7 @@ func newTestAppServerWithEnforcerConfigureWithBenchmark(f func(*rbac.Enforcer), 
 					},
 				}
 			}
-			err = appStateCache.SetAppResourcesTree(app.Name, &appsv1.ApplicationTree{
+			err = appStateCache.SetAppResourcesTree(appID, &appsv1.ApplicationTree{
 				Nodes: nodes,
 			})
 			require.NoError(b, err)
@@ -2071,7 +2073,8 @@ func TestInferResourcesStatusHealth(t *testing.T) {
 	}}
 	appServer := newTestAppServer(t, testApp)
 	appStateCache := appstate.NewCache(cacheClient, time.Minute)
-	err := appStateCache.SetAppResourcesTree(testApp.Name, &appsv1.ApplicationTree{Nodes: []appsv1.ResourceNode{{
+	appID := cacheutil.NewAppIdentity(testApp.Name, testApp.Namespace, "argocd")
+	err := appStateCache.SetAppResourcesTree(appID, &appsv1.ApplicationTree{Nodes: []appsv1.ResourceNode{{
 		ResourceRef: appsv1.ResourceRef{
 			Group:     "apps",
 			Kind:      "Deployment",
@@ -2177,7 +2180,8 @@ func TestRunNewStyleResourceAction(t *testing.T) {
 		appServer := newTestAppServer(t, testApp, createJobDenyingProj, kube.MustToUnstructured(&cronJob))
 		appServer.cache = servercache.NewCache(appStateCache, time.Minute, time.Minute, time.Minute)
 
-		err := appStateCache.SetAppResourcesTree(testApp.Name, &appsv1.ApplicationTree{Nodes: nodes})
+		appID := cacheutil.NewAppIdentity(testApp.Name, testApp.Namespace, "argocd")
+		err := appStateCache.SetAppResourcesTree(appID, &appsv1.ApplicationTree{Nodes: nodes})
 		require.NoError(t, err)
 
 		appResponse, runErr := appServer.RunResourceAction(context.Background(), &application.ResourceActionRunRequest{
@@ -2203,7 +2207,8 @@ func TestRunNewStyleResourceAction(t *testing.T) {
 		appServer := newTestAppServer(t, testApp, kube.MustToUnstructured(&cronJob))
 		appServer.cache = servercache.NewCache(appStateCache, time.Minute, time.Minute, time.Minute)
 
-		err := appStateCache.SetAppResourcesTree(testApp.Name, &appsv1.ApplicationTree{Nodes: nodes})
+		appID := cacheutil.NewAppIdentity(testApp.Name, testApp.Namespace, "argocd")
+		err := appStateCache.SetAppResourcesTree(appID, &appsv1.ApplicationTree{Nodes: nodes})
 		require.NoError(t, err)
 
 		appResponse, runErr := appServer.RunResourceAction(context.Background(), &application.ResourceActionRunRequest{
@@ -2274,7 +2279,8 @@ func TestRunOldStyleResourceAction(t *testing.T) {
 		appServer := newTestAppServer(t, testApp, kube.MustToUnstructured(&deployment))
 		appServer.cache = servercache.NewCache(appStateCache, time.Minute, time.Minute, time.Minute)
 
-		err := appStateCache.SetAppResourcesTree(testApp.Name, &appsv1.ApplicationTree{Nodes: nodes})
+		appID := cacheutil.NewAppIdentity(testApp.Name, testApp.Namespace, "argocd")
+		err := appStateCache.SetAppResourcesTree(appID, &appsv1.ApplicationTree{Nodes: nodes})
 		require.NoError(t, err)
 
 		appResponse, runErr := appServer.RunResourceAction(context.Background(), &application.ResourceActionRunRequest{

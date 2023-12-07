@@ -10,6 +10,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/util/argo"
 	"github.com/argoproj/argo-cd/v2/util/argo/managedfields"
+	"github.com/argoproj/argo-cd/v2/util/cache"
 	appstatecache "github.com/argoproj/argo-cd/v2/util/cache/appstate"
 
 	"github.com/argoproj/gitops-engine/pkg/diff"
@@ -60,12 +61,12 @@ func (b *DiffConfigBuilder) WithNoCache() *DiffConfigBuilder {
 	return b
 }
 
-// WithCache sets the appstatecache.Cache and the appName in the diff config. Those the
-// are two objects necessary to retrieve a cached diff.
-func (b *DiffConfigBuilder) WithCache(s *appstatecache.Cache, appName string) *DiffConfigBuilder {
+// WithCache sets the appstatecache.Cache and the appID in the diff config. Those are
+// the two objects necessary to retrieve a cached diff.
+func (b *DiffConfigBuilder) WithCache(s *appstatecache.Cache, appID cache.AppIdentity) *DiffConfigBuilder {
 	b.diffConfig.noCache = false
 	b.diffConfig.stateCache = s
-	b.diffConfig.appName = appName
+	b.diffConfig.appID = appID
 	return b
 }
 
@@ -113,7 +114,7 @@ type DiffConfig interface {
 	Validate() error
 	// DiffFromCache will verify if it should retrieve the cached ResourceDiff based on this
 	// DiffConfig.
-	DiffFromCache(appName string) (bool, []*v1alpha1.ResourceDiff)
+	DiffFromCache(appID cache.AppIdentity) (bool, []*v1alpha1.ResourceDiff)
 	// Ignores Application level ignore difference configurations.
 	Ignores() []v1alpha1.ResourceIgnoreDifferences
 	// Overrides is map of system configurations to override the Application ones.
@@ -122,7 +123,7 @@ type DiffConfig interface {
 	AppLabelKey() string
 	TrackingMethod() string
 	// AppName the Application name. Used to retrieve the cached diff.
-	AppName() string
+	AppID() cache.AppIdentity
 	// NoCache defines if should retrieve the diff from cache.
 	NoCache() bool
 	// StateCache is used when retrieving the diff from the cache.
@@ -148,7 +149,7 @@ type diffConfig struct {
 	overrides             map[string]v1alpha1.ResourceOverride
 	appLabelKey           string
 	trackingMethod        string
-	appName               string
+	appID                 cache.AppIdentity
 	noCache               bool
 	stateCache            *appstatecache.Cache
 	ignoreAggregatedRoles bool
@@ -170,8 +171,8 @@ func (c *diffConfig) AppLabelKey() string {
 func (c *diffConfig) TrackingMethod() string {
 	return c.trackingMethod
 }
-func (c *diffConfig) AppName() string {
-	return c.appName
+func (c *diffConfig) AppID() cache.AppIdentity {
+	return c.appID
 }
 func (c *diffConfig) NoCache() bool {
 	return c.noCache
@@ -206,9 +207,6 @@ func (c *diffConfig) Validate() error {
 		return fmt.Errorf("%s: ResourceOverride can not be nil", msg)
 	}
 	if !c.noCache {
-		if c.appName == "" {
-			return fmt.Errorf("%s: AppName must be set when retrieving from cache", msg)
-		}
 		if c.stateCache == nil {
 			return fmt.Errorf("%s: StateCache must be set when retrieving from cache", msg)
 		}
@@ -260,7 +258,7 @@ func StateDiffs(lives, configs []*unstructured.Unstructured, diffConfig DiffConf
 		diffOpts = append(diffOpts, diff.WithLogr(*diffConfig.Logger()))
 	}
 
-	useCache, cachedDiff := diffConfig.DiffFromCache(diffConfig.AppName())
+	useCache, cachedDiff := diffConfig.DiffFromCache(diffConfig.AppID())
 	if useCache && cachedDiff != nil {
 		cached, err := diffArrayCached(normResults.Targets, normResults.Lives, cachedDiff, diffOpts...)
 		if err != nil {
@@ -330,12 +328,12 @@ func diffArrayCached(configArray []*unstructured.Unstructured, liveArray []*unst
 // DiffFromCache will verify if it should retrieve the cached ResourceDiff based on this
 // DiffConfig. Returns true and the cached ResourceDiff if configured to use the cache.
 // Returns false and nil otherwise.
-func (c *diffConfig) DiffFromCache(appName string) (bool, []*v1alpha1.ResourceDiff) {
-	if c.noCache || c.stateCache == nil || appName == "" {
+func (c *diffConfig) DiffFromCache(appID cache.AppIdentity) (bool, []*v1alpha1.ResourceDiff) {
+	if c.noCache || c.stateCache == nil {
 		return false, nil
 	}
 	cachedDiff := make([]*v1alpha1.ResourceDiff, 0)
-	if c.stateCache != nil && c.stateCache.GetAppManagedResources(appName, &cachedDiff) == nil {
+	if c.stateCache != nil && c.stateCache.GetAppManagedResources(appID, &cachedDiff) == nil {
 		return true, cachedDiff
 	}
 	return false, nil
