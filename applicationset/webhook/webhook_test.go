@@ -111,7 +111,7 @@ func TestWebhookHandler(t *testing.T) {
 			expectedRefresh:    false,
 		},
 		{
-			desc:               "WebHook from a GitHub repository via pull_reqeuest opened event",
+			desc:               "WebHook from a GitHub repository via pull_request opened event",
 			headerKey:          "X-GitHub-Event",
 			headerValue:        "pull_request",
 			payloadFile:        "github-pull-request-opened-event.json",
@@ -120,13 +120,22 @@ func TestWebhookHandler(t *testing.T) {
 			expectedRefresh:    true,
 		},
 		{
-			desc:               "WebHook from a GitHub repository via pull_reqeuest assigned event",
+			desc:               "WebHook from a GitHub repository via pull_request assigned event",
 			headerKey:          "X-GitHub-Event",
 			headerValue:        "pull_request",
 			payloadFile:        "github-pull-request-assigned-event.json",
 			effectedAppSets:    []string{"pull-request-github", "matrix-pull-request-github", "matrix-scm-pull-request-github", "merge-pull-request-github", "plugin", "matrix-pull-request-github-plugin"},
 			expectedStatusCode: http.StatusOK,
 			expectedRefresh:    false,
+		},
+		{
+			desc:               "WebHook from a GitHub repository via pull_request labeled event",
+			headerKey:          "X-GitHub-Event",
+			headerValue:        "pull_request",
+			payloadFile:        "github-pull-request-labeled-event.json",
+			effectedAppSets:    []string{"pull-request-github", "matrix-pull-request-github", "matrix-scm-pull-request-github", "merge-pull-request-github", "plugin", "matrix-pull-request-github-plugin"},
+			expectedStatusCode: http.StatusOK,
+			expectedRefresh:    true,
 		},
 		{
 			desc:               "WebHook from a GitLab repository via open merge request event",
