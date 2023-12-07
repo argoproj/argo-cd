@@ -906,6 +906,7 @@ func (mgr *SettingsManager) GetResourceOverrides() (map[string]v1alpha1.Resource
 		addIgnoreDiffItemOverrideToGK(resourceOverrides, crdGK, crdPrsvUnkn)
 	case "all":
 		addStatusOverrideToGK(resourceOverrides, "*/*")
+		addIgnoreDiffItemOverrideToGK(resourceOverrides, crdGK, crdPrsvUnkn)
 		log.Info("Ignore status for all objects")
 
 	case "off", "false":
