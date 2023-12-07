@@ -23,7 +23,7 @@ Actual release dates might differ from the plan by a few days.
 
 #### Major Releases
 
-A major Argo CD release may occur once a year, in the fall release. These releases follow the same pattern of minor releases but may include removing features that have been previously deprecated. Major releases are optional and may be skipped if no deprecations are required. 
+A major Argo CD release may occur once a year, in the fall release. These releases follow the same pattern of minor releases but may include removing features that have been previously deprecated. Major releases are optional and may be skipped if no deprecations are required. If enough features or changes are planned to merit, the major release may happen out of the planned phase. Those changes should be minimal.
 
 #### Minor Releases (e.g. 2.x.0)
 
