@@ -394,9 +394,6 @@ func preDiffNormalize(lives, targets []*unstructured.Unstructured, diffConfig Di
 			gvk := target.GetObjectKind().GroupVersionKind()
 			idc := NewIgnoreDiffConfig(diffConfig.Ignores(), diffConfig.Overrides())
 			ok, ignoreDiff := idc.HasIgnoreDifference(gvk.Group, gvk.Kind, target.GetName(), target.GetNamespace())
-			// TODO (SSD): This is likely unnecessary when ServerSideDiff is enabled
-			// as it seems that Kubernetes already takes care of it during dryrun apply.
-			// Need to validate and add condition if confirmed.
 			if ok && len(ignoreDiff.ManagedFieldsManagers) > 0 {
 				pt := scheme.ResolveParseableType(gvk, diffConfig.GVKParser())
 				var err error

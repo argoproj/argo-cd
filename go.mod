@@ -104,7 +104,7 @@ require (
 	layeh.com/gopher-json v0.0.0-20190114024228-97fed8db8427
 	oras.land/oras-go/v2 v2.3.0
 	sigs.k8s.io/controller-runtime v0.14.6
-	sigs.k8s.io/structured-merge-diff/v4 v4.3.0
+	sigs.k8s.io/structured-merge-diff/v4 v4.4.1
 	sigs.k8s.io/yaml v1.3.0
 )
 
@@ -294,7 +294,8 @@ require (
 
 replace (
 	// TODO (SSD): Remove this before merging
-	github.com/argoproj/gitops-engine => /Users/lalmeida1/dev/git/intuit/gitops-engine
+	// github.com/argoproj/gitops-engine => /Users/lalmeida1/dev/git/intuit/gitops-engine
+	github.com/argoproj/gitops-engine => github.com/leoluz/gitops-engine v0.4.1-0.20231207195844-158a833350fc
 
 	// https://github.com/golang/go/issues/33546#issuecomment-519656923
 	github.com/go-check/check => github.com/go-check/check v0.0.0-20180628173108-788fd7840127
