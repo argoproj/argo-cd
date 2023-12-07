@@ -6,7 +6,7 @@ Not all commands are described here, see the [argocd cluster Command Reference](
 
 ## Adding a cluster
 
-Run `argocd cluster add $CONTEXT`.
+Run `argocd cluster add context-name`.
 
 If you're unsure about the context names, run `kubectl config get-contexts` to get them all listed.
 
