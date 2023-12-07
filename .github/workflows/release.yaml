@@ -335,7 +335,7 @@ jobs:
           tag_name: ${{ env.RELEASE_TAG }}
           draft: ${{ env.DRAFT_RELEASE }}
           prerelease: ${{ needs.prepare-release.outputs.PRE_RELEASE }}
-          body: ${{ needs.prepare-release.outputs.RELEASE_NOTES }}
+          body_path: changelog/CHANGELOG-${{ needs.prepare-release.outputs.TARGET_VERSION }}.md
 
       - name: Update homebrew formula
         env:
