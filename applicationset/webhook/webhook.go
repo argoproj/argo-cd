@@ -412,6 +412,8 @@ func shouldRefreshPRGenerator(gen *v1alpha1.PullRequestGenerator, info *prGenera
 	}
 
 	if gen.Github != nil && info.Github != nil {
+		// repository owner and name are case-insensitive
+		// See https://docs.github.com/en/rest/pulls/pulls?apiVersion=2022-11-28#list-pull-requests
 		if !strings.EqualFold(gen.Github.Owner, info.Github.Owner) {
 			return false
 		}
