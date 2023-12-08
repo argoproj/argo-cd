@@ -19,3 +19,4 @@ for MOD in "${MODS[@]}"; do
   go mod edit "-replace=${MOD}=${MOD}@${V}"
 done
 go get "k8s.io/kubernetes@v${VERSION}"
+go mod tidy
