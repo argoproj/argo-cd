@@ -6,6 +6,8 @@ import (
 
 	"github.com/spf13/cobra"
 
+	_ "go.uber.org/automaxprocs"
+
 	appcontroller "github.com/argoproj/argo-cd/v2/cmd/argocd-application-controller/commands"
 	applicationset "github.com/argoproj/argo-cd/v2/cmd/argocd-applicationset-controller/commands"
 	cmpserver "github.com/argoproj/argo-cd/v2/cmd/argocd-cmp-server/commands"
