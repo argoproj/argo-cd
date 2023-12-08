@@ -27,7 +27,6 @@ argocd-repo-server [flags]
       --max-combined-directory-manifests-size string   Max combined size of manifest files in a directory-type Application (default "10M")
       --metrics-address string                         Listen on given address for metrics (default "0.0.0.0")
       --metrics-port int                               Start metrics server on given port (default 8084)
-      --namespace string                               The namespace in which the server is running
       --otlp-address string                            OpenTelemetry collector address to send traces to
       --otlp-attrs strings                             List of OpenTelemetry collector extra attrs when send traces, each attribute is separated by a colon(e.g. key:value)
       --parallelismlimit int                           Limit on number of concurrent manifests generate requests. Any value less the 1 means no limit.
