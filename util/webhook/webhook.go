@@ -351,7 +351,7 @@ func (a *ArgoCDWebhookHandler) storePreviouslyCachedManifests(app *v1alpha1.Appl
 	}
 	source := app.Spec.GetSource()
 
-	appID := app2.NewAppIdentity(app.Name, app.Namespace, a.ns)
+	appID := app2.NewAppID(app.Name, app.Namespace)
 
 	cache.LogDebugManifestCacheKeyFields("getting manifests cache", "webhook app revision changed", change.shaBefore, &source, refSources, &clusterInfo, app.Spec.Destination.Namespace, trackingMethod, appInstanceLabelKey, appID, nil)
 

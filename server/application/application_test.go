@@ -251,7 +251,7 @@ func newTestAppServerWithEnforcerConfigure(f func(*rbac.Enforcer), t *testing.T,
 	for _, obj := range objects {
 		app, ok := obj.(*appsv1.Application)
 		if ok {
-			appID := cacheutil.NewAppIdentity(app.Name, app.Namespace, testNamespace)
+			appID := cacheutil.NewAppID(app.Name, app.Namespace)
 			err := appStateCache.SetAppManagedResources(appID, []*appsv1.ResourceDiff{})
 			require.NoError(t, err)
 
@@ -432,7 +432,7 @@ func newTestAppServerWithEnforcerConfigureWithBenchmark(f func(*rbac.Enforcer), 
 	for _, obj := range objects {
 		app, ok := obj.(*appsv1.Application)
 		if ok {
-			appID := cacheutil.NewAppIdentity(app.Name, app.Namespace, "argocd")
+			appID := cacheutil.NewAppID(app.Name, app.Namespace)
 			err := appStateCache.SetAppManagedResources(appID, []*appsv1.ResourceDiff{})
 			require.NoError(b, err)
 
@@ -2073,7 +2073,7 @@ func TestInferResourcesStatusHealth(t *testing.T) {
 	}}
 	appServer := newTestAppServer(t, testApp)
 	appStateCache := appstate.NewCache(cacheClient, time.Minute)
-	appID := cacheutil.NewAppIdentity(testApp.Name, testApp.Namespace, testNamespace)
+	appID := cacheutil.NewAppID(testApp.Name, testApp.Namespace)
 	err := appStateCache.SetAppResourcesTree(appID, &appsv1.ApplicationTree{Nodes: []appsv1.ResourceNode{{
 		ResourceRef: appsv1.ResourceRef{
 			Group:     "apps",
@@ -2180,7 +2180,7 @@ func TestRunNewStyleResourceAction(t *testing.T) {
 		appServer := newTestAppServer(t, testApp, createJobDenyingProj, kube.MustToUnstructured(&cronJob))
 		appServer.cache = servercache.NewCache(appStateCache, time.Minute, time.Minute, time.Minute)
 
-		appID := cacheutil.NewAppIdentity(testApp.Name, testApp.Namespace, testNamespace)
+		appID := cacheutil.NewAppID(testApp.Name, testApp.Namespace)
 		err := appStateCache.SetAppResourcesTree(appID, &appsv1.ApplicationTree{Nodes: nodes})
 		require.NoError(t, err)
 
@@ -2207,7 +2207,7 @@ func TestRunNewStyleResourceAction(t *testing.T) {
 		appServer := newTestAppServer(t, testApp, kube.MustToUnstructured(&cronJob))
 		appServer.cache = servercache.NewCache(appStateCache, time.Minute, time.Minute, time.Minute)
 
-		appID := cacheutil.NewAppIdentity(testApp.Name, testApp.Namespace, testNamespace)
+		appID := cacheutil.NewAppID(testApp.Name, testApp.Namespace)
 		err := appStateCache.SetAppResourcesTree(appID, &appsv1.ApplicationTree{Nodes: nodes})
 		require.NoError(t, err)
 
@@ -2279,7 +2279,7 @@ func TestRunOldStyleResourceAction(t *testing.T) {
 		appServer := newTestAppServer(t, testApp, kube.MustToUnstructured(&deployment))
 		appServer.cache = servercache.NewCache(appStateCache, time.Minute, time.Minute, time.Minute)
 
-		appID := cacheutil.NewAppIdentity(testApp.Name, testApp.Namespace, testNamespace)
+		appID := cacheutil.NewAppID(testApp.Name, testApp.Namespace)
 		err := appStateCache.SetAppResourcesTree(appID, &appsv1.ApplicationTree{Nodes: nodes})
 		require.NoError(t, err)
 

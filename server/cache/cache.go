@@ -54,15 +54,15 @@ func AddCacheFlagsToCmd(cmd *cobra.Command, opts ...func(client *redis.Client)) 
 	}
 }
 
-func (c *Cache) GetAppResourcesTree(appID cacheutil.AppIdentity, res *appv1.ApplicationTree) error {
+func (c *Cache) GetAppResourcesTree(appID cacheutil.AppID, res *appv1.ApplicationTree) error {
 	return c.cache.GetAppResourcesTree(appID, res)
 }
 
-func (c *Cache) OnAppResourcesTreeChanged(ctx context.Context, appID cacheutil.AppIdentity, callback func() error) error {
+func (c *Cache) OnAppResourcesTreeChanged(ctx context.Context, appID cacheutil.AppID, callback func() error) error {
 	return c.cache.OnAppResourcesTreeChanged(ctx, appID, callback)
 }
 
-func (c *Cache) GetAppManagedResources(appID cacheutil.AppIdentity, res *[]*appv1.ResourceDiff) error {
+func (c *Cache) GetAppManagedResources(appID cacheutil.AppID, res *[]*appv1.ResourceDiff) error {
 	return c.cache.GetAppManagedResources(appID, res)
 }
 

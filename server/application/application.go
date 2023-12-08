@@ -480,8 +480,9 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 			Repo:               repo,
 			Revision:           revision,
 			AppLabelKey:        appInstanceLabelKey,
-			AppName:            a.InstanceName(s.ns),
+			AppName:            a.Name,
 			Namespace:          a.Spec.Destination.Namespace,
+			AppNamespace:       a.Namespace,
 			ApplicationSource:  &source,
 			Repos:              helmRepos,
 			KustomizeOptions:   kustomizeOptions,
@@ -579,6 +580,7 @@ func (s *Server) GetManifestsWithFiles(stream application.ApplicationService_Get
 			Revision:           source.TargetRevision,
 			AppLabelKey:        appInstanceLabelKey,
 			AppName:            a.Name,
+			AppNamespace:       a.Namespace,
 			Namespace:          a.Spec.Destination.Namespace,
 			ApplicationSource:  &source,
 			Repos:              helmRepos,
@@ -1235,7 +1237,7 @@ func (s *Server) getCachedAppState(ctx context.Context, a *appv1.Application, ge
 func (s *Server) getAppResources(ctx context.Context, a *appv1.Application) (*appv1.ApplicationTree, error) {
 	var tree appv1.ApplicationTree
 	err := s.getCachedAppState(ctx, a, func() error {
-		return s.cache.GetAppResourcesTree(cacheutil.NewAppIdentity(a.Name, a.Namespace, s.ns), &tree)
+		return s.cache.GetAppResourcesTree(cacheutil.NewAppID(a.Name, a.Namespace), &tree)
 	})
 	if err != nil {
 		return &tree, fmt.Errorf("error getting cached app resource tree: %w", err)
@@ -1390,15 +1392,15 @@ func (s *Server) ResourceTree(ctx context.Context, q *application.ResourcesQuery
 }
 
 func (s *Server) WatchResourceTree(q *application.ResourcesQuery, ws application.ApplicationService_WatchResourceTreeServer) error {
-	_, err := s.getApplicationEnforceRBACInformer(ws.Context(), rbacpolicy.ActionGet, q.GetProject(), q.GetAppNamespace(), q.GetApplicationName())
+	a, err := s.getApplicationEnforceRBACInformer(ws.Context(), rbacpolicy.ActionGet, q.GetProject(), q.GetAppNamespace(), q.GetApplicationName())
 	if err != nil {
 		return err
 	}
 
-	cacheKey := cacheutil.NewAppIdentity(q.GetApplicationName(), q.GetAppNamespace(), s.ns)
-	return s.cache.OnAppResourcesTreeChanged(ws.Context(), cacheutil.NewAppIdentity(q.GetApplicationName(), q.GetAppNamespace(), s.ns), func() error {
+	appID := cacheutil.NewAppID(a.Name, a.Namespace)
+	return s.cache.OnAppResourcesTreeChanged(ws.Context(), appID, func() error {
 		var tree appv1.ApplicationTree
-		err := s.cache.GetAppResourcesTree(cacheKey, &tree)
+		err := s.cache.GetAppResourcesTree(appID, &tree)
 		if err != nil {
 			return fmt.Errorf("error getting app resource tree: %w", err)
 		}
@@ -1475,7 +1477,7 @@ func (s *Server) ManagedResources(ctx context.Context, q *application.ResourcesQ
 
 	items := make([]*appv1.ResourceDiff, 0)
 	err = s.getCachedAppState(ctx, a, func() error {
-		return s.cache.GetAppManagedResources(cacheutil.NewAppIdentity(a.Name, a.Namespace, s.ns), &items)
+		return s.cache.GetAppManagedResources(cacheutil.NewAppID(a.Name, a.Namespace), &items)
 	})
 	if err != nil {
 		return nil, fmt.Errorf("error getting cached app managed resources: %w", err)
@@ -2401,7 +2403,7 @@ func (s *Server) GetApplicationSyncWindows(ctx context.Context, q *application.A
 func (s *Server) inferResourcesStatusHealth(app *appv1.Application) {
 	if app.Status.ResourceHealthSource == appv1.ResourceHealthLocationAppTree {
 		tree := &appv1.ApplicationTree{}
-		if err := s.cache.GetAppResourcesTree(cacheutil.NewAppIdentity(app.Name, app.Namespace, s.ns), tree); err == nil {
+		if err := s.cache.GetAppResourcesTree(cacheutil.NewAppID(app.Name, app.Namespace), tree); err == nil {
 			healthByKey := map[kube.ResourceKey]*appv1.HealthStatus{}
 			for _, node := range tree.Nodes {
 				healthByKey[kube.NewResourceKey(node.Group, node.Kind, node.Namespace, node.Name)] = node.Health

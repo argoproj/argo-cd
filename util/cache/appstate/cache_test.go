@@ -23,8 +23,8 @@ func newFixtures() *fixtures {
 }
 
 func TestCache_GetAppManagedResources(t *testing.T) {
-	appNameID := cacheutil.NewAppIdentity("my-appname", "argocd", "argocd")
-	otherAppID := cacheutil.NewAppIdentity("other-appname", "argocd", "argocd")
+	appNameID := cacheutil.NewAppID("my-appname", "argocd")
+	otherAppID := cacheutil.NewAppID("other-appname", "argocd")
 
 	cache := newFixtures().Cache
 	// cache miss
@@ -44,8 +44,8 @@ func TestCache_GetAppManagedResources(t *testing.T) {
 }
 
 func TestCache_GetAppResourcesTree(t *testing.T) {
-	appNameID := cacheutil.NewAppIdentity("my-appname", "argocd", "argocd")
-	otherAppID := cacheutil.NewAppIdentity("other-appname", "argocd", "argocd")
+	appNameID := cacheutil.NewAppID("my-appname", "argocd")
+	otherAppID := cacheutil.NewAppID("other-appname", "argocd")
 
 	cache := newFixtures().Cache
 	// cache miss

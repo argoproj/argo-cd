@@ -233,7 +233,7 @@ func TestDiffConfigBuilder(t *testing.T) {
 		diffConfig, err := argo.NewDiffConfigBuilder().
 			WithDiffSettings(f.ignores, f.overrides, f.ignoreRoles).
 			WithTracking(f.label, f.trackingMethod).
-			WithCache(nil, cacheutil.NewAppIdentity("test", "argocd", "argocd")).
+			WithCache(nil, cacheutil.NewAppID("test", "argocd")).
 			Build()
 
 		// then

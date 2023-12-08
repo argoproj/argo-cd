@@ -428,7 +428,7 @@ func (ctrl *ApplicationController) handleObjectUpdated(managedByApp map[string]b
 // setAppManagedResources will build a list of ResourceDiff based on the provided comparisonResult
 // and persist app resources related data in the cache. Will return the persisted ApplicationTree.
 func (ctrl *ApplicationController) setAppManagedResources(a *appv1.Application, comparisonResult *comparisonResult) (*appv1.ApplicationTree, error) {
-	appID := cacheutil.NewAppIdentity(a.Name, a.Namespace, ctrl.namespace)
+	appID := cacheutil.NewAppID(a.Name, a.Namespace)
 	managedResources, err := ctrl.hideSecretData(a, comparisonResult)
 	if err != nil {
 		return nil, fmt.Errorf("error getting managed resources: %s", err)
@@ -1118,7 +1118,7 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Applic
 		}
 	}
 
-	appID := cacheutil.NewAppIdentity(app.Name, app.Namespace, ctrl.namespace)
+	appID := cacheutil.NewAppID(app.Name, app.Namespace)
 
 	if err := ctrl.cache.SetAppManagedResources(appID, nil); err != nil {
 		return objs, err
@@ -1451,7 +1451,7 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 		}).Info("Reconciliation completed")
 	}()
 
-	appID := cacheutil.NewAppIdentity(app.Name, app.Namespace, ctrl.namespace)
+	appID := cacheutil.NewAppID(app.Name, app.Namespace)
 
 	if comparisonLevel == ComparisonWithNothing {
 		managedResources := make([]*appv1.ResourceDiff, 0)

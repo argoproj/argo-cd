@@ -197,7 +197,8 @@ func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, sources []v1alp
 			NoCache:            noCache,
 			NoRevisionCache:    noRevisionCache,
 			AppLabelKey:        appLabelKey,
-			AppName:            app.InstanceName(m.namespace),
+			AppName:            app.Name,
+			AppNamespace:       app.Namespace,
 			Namespace:          app.Spec.Destination.Namespace,
 			ApplicationSource:  &source,
 			KustomizeOptions:   kustomizeOptions,
@@ -595,7 +596,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 	if noCache {
 		diffConfigBuilder.WithNoCache()
 	} else {
-		diffConfigBuilder.WithCache(m.cache, cacheutil.NewAppIdentity(app.Name, app.Namespace, m.namespace))
+		diffConfigBuilder.WithCache(m.cache, cacheutil.NewAppID(app.Name, app.Namespace))
 	}
 
 	gvkParser, err := m.getGVKParser(app.Spec.Destination.Server)

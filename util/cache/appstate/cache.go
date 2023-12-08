@@ -53,40 +53,40 @@ func (c *Cache) SetItem(key string, item interface{}, expiration time.Duration, 
 	return c.Cache.SetItem(key, item, expiration, delete)
 }
 
-func appManagedResourcesKey(appID cacheutil.AppIdentity) string {
-	return fmt.Sprintf("app|managed-resources|%s", appID.QualifiedName())
+func appManagedResourcesKey(appID cacheutil.AppID) string {
+	return fmt.Sprintf("app|managed-resources|%s", appID.Key())
 }
 
-func (c *Cache) GetAppManagedResources(appID cacheutil.AppIdentity, res *[]*appv1.ResourceDiff) error {
+func (c *Cache) GetAppManagedResources(appID cacheutil.AppID, res *[]*appv1.ResourceDiff) error {
 	err := c.GetItem(appManagedResourcesKey(appID), &res)
 	return err
 }
 
-func (c *Cache) SetAppManagedResources(appID cacheutil.AppIdentity, managedResources []*appv1.ResourceDiff) error {
+func (c *Cache) SetAppManagedResources(appID cacheutil.AppID, managedResources []*appv1.ResourceDiff) error {
 	sort.Slice(managedResources, func(i, j int) bool {
 		return managedResources[i].FullName() < managedResources[j].FullName()
 	})
 	return c.SetItem(appManagedResourcesKey(appID), managedResources, c.appStateCacheExpiration, managedResources == nil)
 }
 
-func appResourcesTreeKey(appID cacheutil.AppIdentity) string {
-	return fmt.Sprintf("app|resources-tree|%s", appID.QualifiedName())
+func appResourcesTreeKey(appID cacheutil.AppID) string {
+	return fmt.Sprintf("app|resources-tree|%s", appID.Key())
 }
 
 func clusterInfoKey(server string) string {
 	return fmt.Sprintf("cluster|info|%s", server)
 }
 
-func (c *Cache) GetAppResourcesTree(appID cacheutil.AppIdentity, res *appv1.ApplicationTree) error {
+func (c *Cache) GetAppResourcesTree(appID cacheutil.AppID, res *appv1.ApplicationTree) error {
 	err := c.GetItem(appResourcesTreeKey(appID), &res)
 	return err
 }
 
-func (c *Cache) OnAppResourcesTreeChanged(ctx context.Context, appID cacheutil.AppIdentity, callback func() error) error {
+func (c *Cache) OnAppResourcesTreeChanged(ctx context.Context, appID cacheutil.AppID, callback func() error) error {
 	return c.Cache.OnUpdated(ctx, appManagedResourcesKey(appID), callback)
 }
 
-func (c *Cache) SetAppResourcesTree(appID cacheutil.AppIdentity, resourcesTree *appv1.ApplicationTree) error {
+func (c *Cache) SetAppResourcesTree(appID cacheutil.AppID, resourcesTree *appv1.ApplicationTree) error {
 	if resourcesTree != nil {
 		resourcesTree.Normalize()
 	}

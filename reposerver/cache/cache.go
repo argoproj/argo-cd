@@ -192,13 +192,13 @@ func (c *Cache) GetGitReferences(repo string, references *[]*plumbing.Reference)
 
 // refSourceCommitSHAs is a list of resolved revisions for each ref source. This allows us to invalidate the cache
 // when someone pushes a commit to a source which is referenced from the main source (the one referred to by `revision`).
-func manifestCacheKey(revision string, appSrc *appv1.ApplicationSource, srcRefs appv1.RefTargetRevisionMapping, namespace string, trackingMethod string, appLabelKey string, appID cacheutil.AppIdentity, info ClusterRuntimeInfo, refSourceCommitSHAs ResolvedRevisions) string {
+func manifestCacheKey(revision string, appSrc *appv1.ApplicationSource, srcRefs appv1.RefTargetRevisionMapping, namespace string, trackingMethod string, appLabelKey string, appID cacheutil.AppID, info ClusterRuntimeInfo, refSourceCommitSHAs ResolvedRevisions) string {
 	// TODO: this function is getting unwieldy. We should probably consolidate some of this stuff into a struct. For
 	//       example, revision could be part of ResolvedRevisions. And srcRefs is probably redundant now that
 	//       refSourceCommitSHAs has been added. We don't need to know the _target_ revisions of the referenced sources
 	//       when the _resolved_ revisions are already part of the key.
 	trackingKey := trackingKey(appLabelKey, trackingMethod)
-	return fmt.Sprintf("mfst|%s|%s|%s|%s|%d", trackingKey, appID.QualifiedName(), revision, namespace, appSourceKey(appSrc, srcRefs, refSourceCommitSHAs)+clusterRuntimeInfoKey(info))
+	return fmt.Sprintf("mfst|%s|%s|%s|%s|%d", trackingKey, appID.Key(), revision, namespace, appSourceKey(appSrc, srcRefs, refSourceCommitSHAs)+clusterRuntimeInfoKey(info))
 }
 
 func trackingKey(appLabelKey string, trackingMethod string) string {
@@ -211,21 +211,21 @@ func trackingKey(appLabelKey string, trackingMethod string) string {
 
 // LogDebugManifestCacheKeyFields logs all the information included in a manifest cache key. It's intended to be run
 // before every manifest cache operation to help debug cache misses.
-func LogDebugManifestCacheKeyFields(message string, reason string, revision string, appSrc *appv1.ApplicationSource, srcRefs appv1.RefTargetRevisionMapping, clusterInfo ClusterRuntimeInfo, namespace string, trackingMethod string, appLabelKey string, appID cacheutil.AppIdentity, refSourceCommitSHAs ResolvedRevisions) {
+func LogDebugManifestCacheKeyFields(message string, reason string, revision string, appSrc *appv1.ApplicationSource, srcRefs appv1.RefTargetRevisionMapping, clusterInfo ClusterRuntimeInfo, namespace string, trackingMethod string, appLabelKey string, appID cacheutil.AppID, refSourceCommitSHAs ResolvedRevisions) {
 	if log.IsLevelEnabled(log.DebugLevel) {
 		log.WithFields(log.Fields{
 			"revision":    revision,
 			"appSrc":      appSourceKeyJSON(appSrc, srcRefs, refSourceCommitSHAs),
 			"namespace":   namespace,
 			"trackingKey": trackingKey(appLabelKey, trackingMethod),
-			"appName":     appID.QualifiedName(),
+			"appName":     appID.Key(),
 			"clusterInfo": clusterRuntimeInfoKeyUnhashed(clusterInfo),
 			"reason":      reason,
 		}).Debug(message)
 	}
 }
 
-func (c *Cache) GetManifests(revision string, appSrc *appv1.ApplicationSource, srcRefs appv1.RefTargetRevisionMapping, clusterInfo ClusterRuntimeInfo, namespace string, trackingMethod string, appLabelKey string, appID cacheutil.AppIdentity, res *CachedManifestResponse, refSourceCommitSHAs ResolvedRevisions) error {
+func (c *Cache) GetManifests(revision string, appSrc *appv1.ApplicationSource, srcRefs appv1.RefTargetRevisionMapping, clusterInfo ClusterRuntimeInfo, namespace string, trackingMethod string, appLabelKey string, appID cacheutil.AppID, res *CachedManifestResponse, refSourceCommitSHAs ResolvedRevisions) error {
 	err := c.cache.GetItem(manifestCacheKey(revision, appSrc, srcRefs, namespace, trackingMethod, appLabelKey, appID, clusterInfo, refSourceCommitSHAs), res)
 
 	if err != nil {
@@ -239,7 +239,7 @@ func (c *Cache) GetManifests(revision string, appSrc *appv1.ApplicationSource, s
 
 	// If cached result does not have manifests or the expected hash of the cache entry does not match the actual hash value...
 	if hash != res.CacheEntryHash || res.ManifestResponse == nil && res.MostRecentError == "" {
-		log.Warnf("Manifest hash did not match expected value or cached manifests response is empty, treating as a cache miss: %s", appID.QualifiedName())
+		log.Warnf("Manifest hash did not match expected value or cached manifests response is empty, treating as a cache miss: %s", appID.Key())
 
 		LogDebugManifestCacheKeyFields("deleting manifests cache", "manifest hash did not match or cached response is empty", revision, appSrc, srcRefs, clusterInfo, namespace, trackingMethod, appLabelKey, appID, refSourceCommitSHAs)
 
@@ -258,7 +258,7 @@ func (c *Cache) GetManifests(revision string, appSrc *appv1.ApplicationSource, s
 	return nil
 }
 
-func (c *Cache) SetManifests(revision string, appSrc *appv1.ApplicationSource, srcRefs appv1.RefTargetRevisionMapping, clusterInfo ClusterRuntimeInfo, namespace string, trackingMethod string, appLabelKey string, appID cacheutil.AppIdentity, res *CachedManifestResponse, refSourceCommitSHAs ResolvedRevisions) error {
+func (c *Cache) SetManifests(revision string, appSrc *appv1.ApplicationSource, srcRefs appv1.RefTargetRevisionMapping, clusterInfo ClusterRuntimeInfo, namespace string, trackingMethod string, appLabelKey string, appID cacheutil.AppID, res *CachedManifestResponse, refSourceCommitSHAs ResolvedRevisions) error {
 	// Generate and apply the cache entry hash, before writing
 	if res != nil {
 		res = res.shallowCopy()
@@ -272,7 +272,7 @@ func (c *Cache) SetManifests(revision string, appSrc *appv1.ApplicationSource, s
 	return c.cache.SetItem(manifestCacheKey(revision, appSrc, srcRefs, namespace, trackingMethod, appLabelKey, appID, clusterInfo, refSourceCommitSHAs), res, c.repoCacheExpiration, res == nil)
 }
 
-func (c *Cache) DeleteManifests(revision string, appSrc *appv1.ApplicationSource, srcRefs appv1.RefTargetRevisionMapping, clusterInfo ClusterRuntimeInfo, namespace, trackingMethod, appLabelKey string, appID cacheutil.AppIdentity, refSourceCommitSHAs ResolvedRevisions) error {
+func (c *Cache) DeleteManifests(revision string, appSrc *appv1.ApplicationSource, srcRefs appv1.RefTargetRevisionMapping, clusterInfo ClusterRuntimeInfo, namespace, trackingMethod, appLabelKey string, appID cacheutil.AppID, refSourceCommitSHAs ResolvedRevisions) error {
 	return c.cache.SetItem(manifestCacheKey(revision, appSrc, srcRefs, namespace, trackingMethod, appLabelKey, appID, clusterInfo, refSourceCommitSHAs), "", c.repoCacheExpiration, true)
 }
 

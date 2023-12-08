@@ -15,6 +15,7 @@ message ManifestRequest {
     string appLabelKey = 4;
     // Name of the application for which the request is triggered
     string appName = 5;
+    // Namespace is the app's destination namespace, as configured in spec.destination.namespace.
     string namespace = 8;
     github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.ApplicationSource applicationSource = 10;
     repeated github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.Repository repos = 11;
@@ -36,6 +37,8 @@ message ManifestRequest {
     repeated string projectSourceRepos = 24;
     // This is used to surface "source not permitted" errors for Helm repositories
     string projectName = 25;
+    // AppNamespace is the namespace in which the app resides.
+    string appNamespace = 26;
 }
 
 message ManifestRequestWithFiles {

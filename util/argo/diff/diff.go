@@ -63,7 +63,7 @@ func (b *DiffConfigBuilder) WithNoCache() *DiffConfigBuilder {
 
 // WithCache sets the appstatecache.Cache and the appID in the diff config. Those are
 // the two objects necessary to retrieve a cached diff.
-func (b *DiffConfigBuilder) WithCache(s *appstatecache.Cache, appID cache.AppIdentity) *DiffConfigBuilder {
+func (b *DiffConfigBuilder) WithCache(s *appstatecache.Cache, appID cache.AppID) *DiffConfigBuilder {
 	b.diffConfig.noCache = false
 	b.diffConfig.stateCache = s
 	b.diffConfig.appID = appID
@@ -114,7 +114,7 @@ type DiffConfig interface {
 	Validate() error
 	// DiffFromCache will verify if it should retrieve the cached ResourceDiff based on this
 	// DiffConfig.
-	DiffFromCache(appID cache.AppIdentity) (bool, []*v1alpha1.ResourceDiff)
+	DiffFromCache(appID cache.AppID) (bool, []*v1alpha1.ResourceDiff)
 	// Ignores Application level ignore difference configurations.
 	Ignores() []v1alpha1.ResourceIgnoreDifferences
 	// Overrides is map of system configurations to override the Application ones.
@@ -123,7 +123,7 @@ type DiffConfig interface {
 	AppLabelKey() string
 	TrackingMethod() string
 	// AppName the Application name. Used to retrieve the cached diff.
-	AppID() cache.AppIdentity
+	AppID() cache.AppID
 	// NoCache defines if should retrieve the diff from cache.
 	NoCache() bool
 	// StateCache is used when retrieving the diff from the cache.
@@ -149,7 +149,7 @@ type diffConfig struct {
 	overrides             map[string]v1alpha1.ResourceOverride
 	appLabelKey           string
 	trackingMethod        string
-	appID                 cache.AppIdentity
+	appID                 cache.AppID
 	noCache               bool
 	stateCache            *appstatecache.Cache
 	ignoreAggregatedRoles bool
@@ -171,7 +171,7 @@ func (c *diffConfig) AppLabelKey() string {
 func (c *diffConfig) TrackingMethod() string {
 	return c.trackingMethod
 }
-func (c *diffConfig) AppID() cache.AppIdentity {
+func (c *diffConfig) AppID() cache.AppID {
 	return c.appID
 }
 func (c *diffConfig) NoCache() bool {
@@ -328,7 +328,7 @@ func diffArrayCached(configArray []*unstructured.Unstructured, liveArray []*unst
 // DiffFromCache will verify if it should retrieve the cached ResourceDiff based on this
 // DiffConfig. Returns true and the cached ResourceDiff if configured to use the cache.
 // Returns false and nil otherwise.
-func (c *diffConfig) DiffFromCache(appID cache.AppIdentity) (bool, []*v1alpha1.ResourceDiff) {
+func (c *diffConfig) DiffFromCache(appID cache.AppID) (bool, []*v1alpha1.ResourceDiff) {
 	if c.noCache || c.stateCache == nil {
 		return false, nil
 	}

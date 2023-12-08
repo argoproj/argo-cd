@@ -996,6 +996,7 @@ func getLocalObjectsString(ctx context.Context, app *argoappv1.Application, proj
 		Repo:               &argoappv1.Repository{Repo: source.RepoURL},
 		AppLabelKey:        appLabelKey,
 		AppName:            app.Name,
+		AppNamespace:       app.Namespace,
 		Namespace:          app.Spec.Destination.Namespace,
 		ApplicationSource:  &source,
 		KustomizeOptions:   kustomizeOptions,
