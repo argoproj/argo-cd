@@ -524,6 +524,8 @@ func (c *liveStateCache) getCluster(server string) (clustercache.ClusterCache, e
 
 	clusterCache = clustercache.NewClusterCache(clusterCacheConfig, clusterCacheOpts...)
 
+	clusterCache.StartClusterConnectionStatusMonitoring(context.Background())
+
 	_ = clusterCache.OnResourceUpdated(func(newRes *clustercache.Resource, oldRes *clustercache.Resource, namespaceResources map[kube.ResourceKey]*clustercache.Resource) {
 		toNotify := make(map[string]bool)
 		var ref v1.ObjectReference
