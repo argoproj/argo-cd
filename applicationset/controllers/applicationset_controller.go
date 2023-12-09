@@ -1381,6 +1381,7 @@ func (r *ApplicationSetReconciler) updateResourcesStatus(ctx context.Context, lo
 func buildResourceStatus(statusMap map[string]argov1alpha1.ResourceStatus, apps []argov1alpha1.Application) (map[string]argov1alpha1.ResourceStatus) {
  	appMap := map[string]argov1alpha1.Application{}
 	for _, app := range apps {
+    appCopy := app
 		appMap[app.Name] = app
 
 		// Create status if it does not exist
@@ -1390,14 +1391,14 @@ func buildResourceStatus(statusMap map[string]argov1alpha1.ResourceStatus, apps 
 				Name: app.Name,
         Namespace: app.Namespace,
         Status: app.Status.Sync.Status,
-        Health: &app.Status.Health,
+        Health: &appCopy.Status.Health,
 			}
 		}
 
     status.Name = app.Name
     status.Namespace = app.Namespace
     status.Status = app.Status.Sync.Status
-    status.Health = &app.Status.Health
+    status.Health = &appCopy.Status.Health
 
 		statusMap[app.Name] = status
 	}
