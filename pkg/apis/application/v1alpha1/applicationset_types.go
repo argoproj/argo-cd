@@ -758,6 +758,8 @@ type ApplicationSetStatus struct {
 	// Important: Run "make" to regenerate code after modifying this file
 	Conditions        []ApplicationSetCondition         `json:"conditions,omitempty" protobuf:"bytes,1,name=conditions"`
 	ApplicationStatus []ApplicationSetApplicationStatus `json:"applicationStatus,omitempty" protobuf:"bytes,2,name=applicationStatus"`
+	// Resources is a list of Applications resources managed by this application set.
+	Resources []ResourceStatus `json:"resources,omitempty" protobuf:"bytes,3,opt,name=resources"`
 }
 
 // ApplicationSetCondition contains details about an applicationset condition, which is usally an error or warning
