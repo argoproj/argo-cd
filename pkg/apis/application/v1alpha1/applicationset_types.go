@@ -845,6 +845,21 @@ type ApplicationSetList struct {
 	Items           []ApplicationSet `json:"items" protobuf:"bytes,2,rep,name=items"`
 }
 
+// ApplicationSetTree holds nodes which belongs to the application
+// Used to build a tree of an ApplicationSet and its children
+type ApplicationSetTree struct {
+	// Nodes contains list of nodes which are directly managed by the applicationset
+	Nodes []ResourceNode `json:"nodes,omitempty" protobuf:"bytes,1,rep,name=nodes"`
+}
+
+// Normalize sorts applicationset tree nodes. The persistent order allows to
+// effectively compare previously cached app tree and allows to unnecessary Redis requests.
+func (t *ApplicationSetTree) Normalize() {
+	sort.Slice(t.Nodes, func(i, j int) bool {
+		return t.Nodes[i].FullName() < t.Nodes[j].FullName()
+	})
+}
+
 // func init() {
 // 	SchemeBuilder.Register(&ApplicationSet{}, &ApplicationSetList{})
 // }
