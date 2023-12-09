@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-  "github.com/argoproj/gitops-engine/pkg/utils/kube"
+	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/argoproj/pkg/sync"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
