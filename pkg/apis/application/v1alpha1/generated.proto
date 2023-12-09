@@ -327,6 +327,9 @@ message ApplicationSetStatus {
   repeated ApplicationSetCondition conditions = 1;
 
   repeated ApplicationSetApplicationStatus applicationStatus = 2;
+
+  // Resources is a list of Applications resources managed by this application set.
+  repeated ResourceStatus resources = 3;
 }
 
 // ApplicationSetStrategy configures how generated Applications are updated in sequence.
