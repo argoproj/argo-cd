@@ -163,6 +163,12 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		return ctrl.Result{RequeueAfter: ReconcileRequeueOnValidationError}, nil
 	}
 
+  currentApplications, err := r.getCurrentApplications(ctx, applicationSetInfo)
+	if err != nil {
+		return ctrl.Result{}, fmt.Errorf("failed to get current applications for application set: %w", err)
+	}
+  r.updateResourcesStatus(ctx, logCtx, &applicationSetInfo, currentApplications)
+
 	// appMap is a name->app collection of Applications in this ApplicationSet.
 	appMap := map[string]argov1alpha1.Application{}
 	// appSyncMap tracks which apps will be synced during this reconciliation.
@@ -179,16 +185,11 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 			}
 		} else if applicationSetInfo.Spec.Strategy != nil {
 			// appset uses progressive sync
-			applications, err := r.getCurrentApplications(ctx, applicationSetInfo)
-			if err != nil {
-				return ctrl.Result{}, fmt.Errorf("failed to get current applications for application set: %w", err)
-			}
-
-			for _, app := range applications {
+			for _, app := range currentApplications {
 				appMap[app.Name] = app
 			}
 
-			appSyncMap, err = r.performProgressiveSyncs(ctx, logCtx, applicationSetInfo, applications, desiredApplications, appMap)
+			appSyncMap, err = r.performProgressiveSyncs(ctx, logCtx, applicationSetInfo, currentApplications, desiredApplications, appMap)
 			if err != nil {
 				return ctrl.Result{}, fmt.Errorf("failed to perform progressive sync reconciliation for application set: %w", err)
 			}
@@ -1347,6 +1348,78 @@ func findApplicationStatusIndex(appStatuses []argov1alpha1.ApplicationSetApplica
 		}
 	}
 	return -1
+}
+
+func (r *ApplicationSetReconciler) updateResourcesStatus(ctx context.Context, logCtx *log.Entry, appset *argov1alpha1.ApplicationSet, apps []argov1alpha1.Application) (error) {
+  statusMap := getResourceStatusMap(appset)
+  statusMap = buildResourceStatus(statusMap, apps)
+
+  statuses := []argov1alpha1.ResourceStatus{}
+  for _, status := range statusMap {
+    statuses = append(statuses, status)
+  }
+  appset.Status.Resources = statuses
+
+  namespacedName := types.NamespacedName{Namespace: appset.Namespace, Name: appset.Name}
+  err := r.Client.Status().Update(ctx, appset)
+  if err != nil {
+
+    logCtx.Errorf("unable to set application set status: %v", err)
+    return fmt.Errorf("unable to set application set status: %v", err)
+  }
+
+  if err := r.Get(ctx, namespacedName, appset); err != nil {
+    if client.IgnoreNotFound(err) != nil {
+      return nil
+    }
+    return fmt.Errorf("error fetching updated application set: %v", err)
+  }
+
+	return nil
+}
+
+func buildResourceStatus(statusMap map[string]argov1alpha1.ResourceStatus, apps []argov1alpha1.Application) (map[string]argov1alpha1.ResourceStatus) {
+ 	appMap := map[string]argov1alpha1.Application{}
+	for _, app := range apps {
+		appMap[app.Name] = app
+
+		// Create status if it does not exist
+		status, ok := statusMap[app.Name]
+		if !ok {
+			status = argov1alpha1.ResourceStatus{
+				Name: app.Name,
+        Namespace: app.Namespace,
+        Status: app.Status.Sync.Status,
+        Health: &app.Status.Health,
+			}
+		}
+
+    status.Name = app.Name
+    status.Namespace = app.Namespace
+    status.Status = app.Status.Sync.Status
+    status.Health = &app.Status.Health
+
+		statusMap[app.Name] = status
+	}
+	cleanupDeletedApplicationStatuses(statusMap, appMap) 
+
+  return statusMap
+}
+
+func getResourceStatusMap(appset *argov1alpha1.ApplicationSet) map[string]argov1alpha1.ResourceStatus {
+  statusMap := map[string]argov1alpha1.ResourceStatus{}
+  for _, status := range appset.Status.Resources {
+    statusMap[status.Name] = status
+  }
+  return statusMap
+}
+
+func cleanupDeletedApplicationStatuses(statusMap map[string]argov1alpha1.ResourceStatus, apps map[string]argov1alpha1.Application) {
+	for name := range statusMap {
+		if _, ok := apps[name]; !ok {
+			delete(statusMap, name)
+		}
+	}
 }
 
 // setApplicationSetApplicationStatus updates the ApplicatonSet's status field
