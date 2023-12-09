@@ -395,6 +395,13 @@ message ApplicationSetTerminalGenerator {
   optional k8s.io.apimachinery.pkg.apis.meta.v1.LabelSelector selector = 8;
 }
 
+// ApplicationSetTree holds nodes which belongs to the application
+// Used to build a tree of an ApplicationSet and its children
+message ApplicationSetTree {
+  // Nodes contains list of nodes which are directly managed by the applicationset
+  repeated ResourceNode nodes = 1;
+}
+
 // ApplicationSource contains all required information about the source of an application
 message ApplicationSource {
   // RepoURL is the URL to the repository (Git or Helm) that contains the application manifests
