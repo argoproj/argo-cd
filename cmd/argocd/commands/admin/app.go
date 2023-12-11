@@ -297,6 +297,7 @@ func NewReconcileCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command 
 	command.Flags().StringVar(&outputFormat, "o", "yaml", "Output format (yaml|json)")
 	command.Flags().BoolVar(&refresh, "refresh", false, "If set to true then recalculates apps reconciliation")
 	command.Flags().BoolVar(&serverSideDiff, "serverSideDiff", false, "If set to true will use serverSideDiff while comparing resources")
+	command.Flags().BoolVar(&serverSideDiff, "server-side-diff-enabled", false, "If set to \"true\" will use server-side diff while comparing resources. Default (\"false\")")
 
 	return command
 }

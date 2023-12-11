@@ -260,7 +260,8 @@ const (
 	EnvRedisHaProxyName = "ARGOCD_REDIS_HAPROXY_NAME"
 	// EnvGRPCKeepAliveMin defines the GRPCKeepAliveEnforcementMinimum, used in the grpc.KeepaliveEnforcementPolicy. Expects a "Duration" format (e.g. 10s).
 	EnvGRPCKeepAliveMin = "ARGOCD_GRPC_KEEP_ALIVE_MIN"
-	// EnvServerSideDiff defines the env var used to enable ServerSide Diff feature
+	// EnvServerSideDiff defines the env var used to enable ServerSide Diff feature.
+	// If defined, value must be "true" or "false".
 	EnvServerSideDiff = "ARGOCD_APPLICATION_CONTROLLER_SERVER_SIDE_DIFF"
 )
 

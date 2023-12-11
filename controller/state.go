@@ -616,7 +616,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 			conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionUnknownError, Message: err.Error(), LastTransitionTime: &now})
 		}
 		defer cleanup()
-		diffConfigBuilder.WithResourceOperations(resourceOps)
+		diffConfigBuilder.WithServerSideDryRunner(diff.NewK8sServerSideDryRunner(resourceOps))
 	}
 
 	// enable structured merge diff if application syncs with server-side apply
@@ -826,16 +826,14 @@ func useDiffCache(noCache bool, manifestInfos []*apiclient.ManifestResponse, sou
 	}
 	refreshType, refreshRequested := app.IsRefreshRequested()
 	if refreshRequested {
-		switch refreshType {
-		case v1alpha1.RefreshTypeNormal:
-			log.WithField("useDiffCache", "false").Debug("normal refresh Requested")
-			return false
-		case v1alpha1.RefreshTypeHard:
-			log.WithField("useDiffCache", "false").Debug("hard refresh requested")
-			return false
-		}
+		log.WithField("useDiffCache", "false").Debugf("refresh type %s requested", string(refreshType))
+		return false
 	}
-	// serverSideDiff should still use cache even if status is expired
+	// serverSideDiff should still use cache even if status is expired.
+	// This is an attempt to avoid hitting k8s API server too frequently during
+	// app refresh with serverSideDiff is enabled. If there are negative side
+	// effects identified with this approach, the serverSideDiff should be removed
+	// from this condition.
 	if app.Status.Expired(statusRefreshTimeout) && !serverSideDiff {
 		log.WithField("useDiffCache", "false").Debug("app.status.expired")
 		return false

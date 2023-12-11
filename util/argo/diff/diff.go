@@ -95,8 +95,8 @@ func (b *DiffConfigBuilder) WithManager(manager string) *DiffConfigBuilder {
 	return b
 }
 
-func (b *DiffConfigBuilder) WithResourceOperations(resourceOps kube.ResourceOperations) *DiffConfigBuilder {
-	b.diffConfig.resourceOperations = resourceOps
+func (b *DiffConfigBuilder) WithServerSideDryRunner(ssdr diff.ServerSideDryRunner) *DiffConfigBuilder {
+	b.diffConfig.serverSideDryRunner = ssdr
 	return b
 }
 
@@ -151,8 +151,8 @@ type DiffConfig interface {
 	// calculating the structured merge diff.
 	Manager() string
 
-	ResourceOperations() kube.ResourceOperations
 	ServerSideDiff() bool
+	ServerSideDryRunner() diff.ServerSideDryRunner
 }
 
 // diffConfig defines the configurations used while applying diffs.
@@ -170,7 +170,7 @@ type diffConfig struct {
 	structuredMergeDiff   bool
 	manager               string
 	serverSideDiff        bool
-	resourceOperations    kube.ResourceOperations
+	serverSideDryRunner   diff.ServerSideDryRunner
 }
 
 func (c *diffConfig) Ignores() []v1alpha1.ResourceIgnoreDifferences {
@@ -209,8 +209,8 @@ func (c *diffConfig) StructuredMergeDiff() bool {
 func (c *diffConfig) Manager() string {
 	return c.manager
 }
-func (c *diffConfig) ResourceOperations() kube.ResourceOperations {
-	return c.resourceOperations
+func (c *diffConfig) ServerSideDryRunner() diff.ServerSideDryRunner {
+	return c.serverSideDryRunner
 }
 func (c *diffConfig) ServerSideDiff() bool {
 	return c.serverSideDiff
@@ -234,8 +234,8 @@ func (c *diffConfig) Validate() error {
 			return fmt.Errorf("%s: StateCache must be set when retrieving from cache", msg)
 		}
 	}
-	if c.serverSideDiff && c.resourceOperations == nil {
-		return fmt.Errorf("%s: restConfig must be set when using server side diff", msg)
+	if c.serverSideDiff && c.serverSideDryRunner == nil {
+		return fmt.Errorf("%s: serverSideDryRunner must be set when using server side diff", msg)
 	}
 	return nil
 }
@@ -279,7 +279,7 @@ func StateDiffs(lives, configs []*unstructured.Unstructured, diffConfig DiffConf
 		diff.WithGVKParser(diffConfig.GVKParser()),
 		diff.WithManager(diffConfig.Manager()),
 		diff.WithServerSideDiff(diffConfig.ServerSideDiff()),
-		diff.WithKubeApplier(diffConfig.ResourceOperations()),
+		diff.WithServerSideDryRunner(diffConfig.ServerSideDryRunner()),
 	}
 
 	if diffConfig.Logger() != nil {
@@ -363,7 +363,7 @@ func (c *diffConfig) DiffFromCache(appName string) (bool, []*v1alpha1.ResourceDi
 	if c.stateCache != nil {
 		err := c.stateCache.GetAppManagedResources(appName, &cachedDiff)
 		if err != nil {
-			log.Errorf("DiffFromCache error: error getting managed resources: %s", err)
+			log.Errorf("DiffFromCache error: error getting managed resources for app %s: %s", appName, err)
 			return false, nil
 		}
 		return true, cachedDiff
