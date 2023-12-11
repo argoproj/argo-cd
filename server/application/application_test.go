@@ -76,7 +76,7 @@ func fakeRepo() *appsv1.Repository {
 
 func fakeCluster() *appsv1.Cluster {
 	return &appsv1.Cluster{
-		Server: "https://cluster-api.com",
+		Server: "https://cluster-api.example.com",
 		Name:   "fake-cluster",
 		Config: appsv1.ClusterConfig{},
 	}
@@ -170,6 +170,7 @@ func newTestAppServerWithEnforcerConfigure(f func(*rbac.Enforcer), t *testing.T,
 			Destinations: []appsv1.ApplicationDestination{{Server: "*", Namespace: "*"}},
 		},
 	}
+
 	myProj := &appsv1.AppProject{
 		ObjectMeta: metav1.ObjectMeta{Name: "my-proj", Namespace: "default"},
 		Spec: appsv1.AppProjectSpec{
@@ -208,7 +209,7 @@ func newTestAppServerWithEnforcerConfigure(f func(*rbac.Enforcer), t *testing.T,
 	// populate the app informer with the fake objects
 	appInformer := factory.Argoproj().V1alpha1().Applications().Informer()
 	// TODO(jessesuen): probably should return cancel function so tests can stop background informer
-	//ctx, cancel := context.WithCancel(context.Background())
+	// ctx, cancel := context.WithCancel(context.Background())
 	go appInformer.Run(ctx.Done())
 	if !k8scache.WaitForCacheSync(ctx.Done(), appInformer.HasSynced) {
 		panic("Timed out waiting for caches to sync")
@@ -502,7 +503,7 @@ spec:
       environment: default
   destination:
     namespace: ` + test.FakeDestNamespace + `
-    server: https://cluster-api.com
+    server: https://cluster-api.example.com
 `
 
 const fakeAppWithDestName = `
@@ -540,7 +541,7 @@ spec:
       environment: default
   destination:
     namespace: ` + test.FakeDestNamespace + `
-    server: https://cluster-api.com
+    server: https://cluster-api.example.com
 `
 
 func newTestAppWithDestName(opts ...func(app *appsv1.Application)) *appsv1.Application {
@@ -796,22 +797,22 @@ func TestNoAppEnumeration(t *testing.T) {
 
 	t.Run("UpdateSpec", func(t *testing.T) {
 		_, err := appServer.UpdateSpec(adminCtx, &application.ApplicationUpdateSpecRequest{Name: pointer.String("test"), Spec: &appsv1.ApplicationSpec{
-			Destination: appsv1.ApplicationDestination{Namespace: "default", Server: "https://cluster-api.com"},
+			Destination: appsv1.ApplicationDestination{Namespace: "default", Server: "https://cluster-api.example.com"},
 			Source:      &appsv1.ApplicationSource{RepoURL: "https://some-fake-source", Path: "."},
 		}})
 		assert.NoError(t, err)
 		_, err = appServer.UpdateSpec(noRoleCtx, &application.ApplicationUpdateSpecRequest{Name: pointer.String("test"), Spec: &appsv1.ApplicationSpec{
-			Destination: appsv1.ApplicationDestination{Namespace: "default", Server: "https://cluster-api.com"},
+			Destination: appsv1.ApplicationDestination{Namespace: "default", Server: "https://cluster-api.example.com"},
 			Source:      &appsv1.ApplicationSource{RepoURL: "https://some-fake-source", Path: "."},
 		}})
 		assert.Equal(t, permissionDeniedErr.Error(), err.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
 		_, err = appServer.UpdateSpec(adminCtx, &application.ApplicationUpdateSpecRequest{Name: pointer.String("doest-not-exist"), Spec: &appsv1.ApplicationSpec{
-			Destination: appsv1.ApplicationDestination{Namespace: "default", Server: "https://cluster-api.com"},
+			Destination: appsv1.ApplicationDestination{Namespace: "default", Server: "https://cluster-api.example.com"},
 			Source:      &appsv1.ApplicationSource{RepoURL: "https://some-fake-source", Path: "."},
 		}})
 		assert.Equal(t, permissionDeniedErr.Error(), err.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
 		_, err = appServer.UpdateSpec(adminCtx, &application.ApplicationUpdateSpecRequest{Name: pointer.String("doest-not-exist"), Project: pointer.String("test"), Spec: &appsv1.ApplicationSpec{
-			Destination: appsv1.ApplicationDestination{Namespace: "default", Server: "https://cluster-api.com"},
+			Destination: appsv1.ApplicationDestination{Namespace: "default", Server: "https://cluster-api.example.com"},
 			Source:      &appsv1.ApplicationSource{RepoURL: "https://some-fake-source", Path: "."},
 		}})
 		assert.Equal(t, "rpc error: code = NotFound desc = applications.argoproj.io \"doest-not-exist\" not found", err.Error(), "when the request specifies a project, we can return the standard k8s error message")
@@ -1135,7 +1136,7 @@ func testListAppsWithLabels(t *testing.T, appQuery application.ApplicationQuery,
 			label:          "!key2",
 			expectedResult: []string{"App2", "App3"}},
 	}
-	//test valid scenarios
+	// test valid scenarios
 	for _, validTest := range validTests {
 		t.Run(validTest.testName, func(t *testing.T) {
 			appQuery.Selector = &validTest.label
@@ -1161,7 +1162,7 @@ func testListAppsWithLabels(t *testing.T, appQuery application.ApplicationQuery,
 			label:       "key1<value1",
 			errorMesage: "error parsing the selector"},
 	}
-	//test invalid scenarios
+	// test invalid scenarios
 	for _, invalidTest := range invalidTests {
 		t.Run(invalidTest.testName, func(t *testing.T) {
 			appQuery.Selector = &invalidTest.label
@@ -1435,7 +1436,7 @@ func TestCreateAppWithDestName(t *testing.T) {
 	app, err := appServer.Create(context.Background(), &createReq)
 	assert.NoError(t, err)
 	assert.NotNil(t, app)
-	assert.Equal(t, app.Spec.Destination.Server, "https://cluster-api.com")
+	assert.Equal(t, app.Spec.Destination.Server, "https://cluster-api.example.com")
 }
 
 func TestUpdateApp(t *testing.T) {
@@ -2000,7 +2001,7 @@ func TestGetAppRefresh_NormalRefresh(t *testing.T) {
 
 	_, err := appServer.Get(context.Background(), &application.ApplicationQuery{
 		Name:    &testApp.Name,
-		Refresh: pointer.StringPtr(string(appsv1.RefreshTypeNormal)),
+		Refresh: pointer.String(string(appsv1.RefreshTypeNormal)),
 	})
 	assert.NoError(t, err)
 
@@ -2036,7 +2037,7 @@ func TestGetAppRefresh_HardRefresh(t *testing.T) {
 
 	_, err := appServer.Get(context.Background(), &application.ApplicationQuery{
 		Name:    &testApp.Name,
-		Refresh: pointer.StringPtr(string(appsv1.RefreshTypeHard)),
+		Refresh: pointer.String(string(appsv1.RefreshTypeHard)),
 	})
 	assert.NoError(t, err)
 	require.NotNil(t, getAppDetailsQuery)
@@ -2342,4 +2343,146 @@ func TestIsApplicationPermitted(t *testing.T) {
 		permitted := appServer.isApplicationPermitted(labels.Everything(), 0, nil, testApp.Name, testApp.Namespace, nil, *testApp)
 		assert.True(t, permitted)
 	})
+}
+
+func TestAppNamespaceRestrictions(t *testing.T) {
+	t.Run("List applications in controller namespace", func(t *testing.T) {
+		testApp := newTestApp()
+		appServer := newTestAppServer(t, testApp)
+		apps, err := appServer.List(context.TODO(), &application.ApplicationQuery{})
+		require.NoError(t, err)
+		require.Len(t, apps.Items, 1)
+	})
+
+	t.Run("List applications with non-allowed apps existing", func(t *testing.T) {
+		testApp1 := newTestApp()
+		testApp1.Namespace = "argocd-1"
+		appServer := newTestAppServer(t, testApp1)
+		apps, err := appServer.List(context.TODO(), &application.ApplicationQuery{})
+		require.NoError(t, err)
+		require.Len(t, apps.Items, 0)
+	})
+
+	t.Run("List applications with non-allowed apps existing and explicit ns request", func(t *testing.T) {
+		testApp1 := newTestApp()
+		testApp2 := newTestApp()
+		testApp2.Namespace = "argocd-1"
+		appServer := newTestAppServer(t, testApp1, testApp2)
+		apps, err := appServer.List(context.TODO(), &application.ApplicationQuery{AppNamespace: pointer.String("argocd-1")})
+		require.NoError(t, err)
+		require.Len(t, apps.Items, 0)
+	})
+
+	t.Run("List applications with allowed apps in other namespaces", func(t *testing.T) {
+		testApp1 := newTestApp()
+		testApp1.Namespace = "argocd-1"
+		appServer := newTestAppServer(t, testApp1)
+		appServer.enabledNamespaces = []string{"argocd-1"}
+		apps, err := appServer.List(context.TODO(), &application.ApplicationQuery{})
+		require.NoError(t, err)
+		require.Len(t, apps.Items, 1)
+	})
+
+	t.Run("Get application in control plane namespace", func(t *testing.T) {
+		testApp := newTestApp()
+		appServer := newTestAppServer(t, testApp)
+		app, err := appServer.Get(context.TODO(), &application.ApplicationQuery{
+			Name: pointer.String("test-app"),
+		})
+		require.NoError(t, err)
+		assert.Equal(t, "test-app", app.GetName())
+	})
+	t.Run("Get application in other namespace when forbidden", func(t *testing.T) {
+		testApp := newTestApp()
+		testApp.Namespace = "argocd-1"
+		appServer := newTestAppServer(t, testApp)
+		app, err := appServer.Get(context.TODO(), &application.ApplicationQuery{
+			Name:         pointer.String("test-app"),
+			AppNamespace: pointer.String("argocd-1"),
+		})
+		require.Error(t, err)
+		require.ErrorContains(t, err, "permission denied")
+		require.Nil(t, app)
+	})
+	t.Run("Get application in other namespace when allowed", func(t *testing.T) {
+		testApp := newTestApp()
+		testApp.Namespace = "argocd-1"
+		appServer := newTestAppServer(t, testApp)
+		appServer.enabledNamespaces = []string{"argocd-1"}
+		app, err := appServer.Get(context.TODO(), &application.ApplicationQuery{
+			Name:         pointer.String("test-app"),
+			AppNamespace: pointer.String("argocd-1"),
+		})
+		require.NoError(t, err)
+		require.NotNil(t, app)
+		require.Equal(t, "argocd-1", app.Namespace)
+		require.Equal(t, "test-app", app.Name)
+	})
+	t.Run("Create application in other namespace when allowed", func(t *testing.T) {
+		testApp := newTestApp()
+		testApp.Namespace = "argocd-1"
+		testApp.Spec.Project = "other-ns"
+		otherNsProj := &appsv1.AppProject{
+			ObjectMeta: metav1.ObjectMeta{Name: "other-ns", Namespace: "default"},
+			Spec: appsv1.AppProjectSpec{
+				SourceRepos:      []string{"*"},
+				Destinations:     []appsv1.ApplicationDestination{{Server: "*", Namespace: "*"}},
+				SourceNamespaces: []string{"argocd-1"},
+			},
+		}
+		appServer := newTestAppServer(t, otherNsProj)
+		appServer.enabledNamespaces = []string{"argocd-1"}
+		app, err := appServer.Create(context.TODO(), &application.ApplicationCreateRequest{
+			Application: testApp,
+		})
+		require.NoError(t, err)
+		require.NotNil(t, app)
+		assert.Equal(t, "test-app", app.Name)
+		assert.Equal(t, "argocd-1", app.Namespace)
+	})
+
+	t.Run("Create application in other namespace when not allowed by project", func(t *testing.T) {
+		testApp := newTestApp()
+		testApp.Namespace = "argocd-1"
+		testApp.Spec.Project = "other-ns"
+		otherNsProj := &appsv1.AppProject{
+			ObjectMeta: metav1.ObjectMeta{Name: "other-ns", Namespace: "default"},
+			Spec: appsv1.AppProjectSpec{
+				SourceRepos:      []string{"*"},
+				Destinations:     []appsv1.ApplicationDestination{{Server: "*", Namespace: "*"}},
+				SourceNamespaces: []string{},
+			},
+		}
+		appServer := newTestAppServer(t, otherNsProj)
+		appServer.enabledNamespaces = []string{"argocd-1"}
+		app, err := appServer.Create(context.TODO(), &application.ApplicationCreateRequest{
+			Application: testApp,
+		})
+		require.Error(t, err)
+		require.Nil(t, app)
+		require.ErrorContains(t, err, "not allowed to use project")
+	})
+
+	t.Run("Create application in other namespace when not allowed by configuration", func(t *testing.T) {
+		testApp := newTestApp()
+		testApp.Namespace = "argocd-1"
+		testApp.Spec.Project = "other-ns"
+		otherNsProj := &appsv1.AppProject{
+			ObjectMeta: metav1.ObjectMeta{Name: "other-ns", Namespace: "default"},
+			Spec: appsv1.AppProjectSpec{
+				SourceRepos:      []string{"*"},
+				Destinations:     []appsv1.ApplicationDestination{{Server: "*", Namespace: "*"}},
+				SourceNamespaces: []string{"argocd-1"},
+			},
+		}
+		appServer := newTestAppServer(t, otherNsProj)
+		appServer.enabledNamespaces = []string{"argocd-2"}
+		app, err := appServer.Create(context.TODO(), &application.ApplicationCreateRequest{
+			Application: testApp,
+		})
+		require.Error(t, err)
+		require.Nil(t, app)
+		require.ErrorContains(t, err, "namespace 'argocd-1' is not permitted")
+	})
+
 }

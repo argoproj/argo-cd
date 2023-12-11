@@ -5,18 +5,19 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"k8s.io/apimachinery/pkg/types"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"testing"
 	"time"
 
+	"k8s.io/apimachinery/pkg/types"
+
+	"github.com/go-playground/webhooks/v6/bitbucket"
+	bitbucketserver "github.com/go-playground/webhooks/v6/bitbucket-server"
+	"github.com/go-playground/webhooks/v6/github"
+	"github.com/go-playground/webhooks/v6/gitlab"
 	gogsclient "github.com/gogits/go-gogs-client"
-	"gopkg.in/go-playground/webhooks.v5/bitbucket"
-	bitbucketserver "gopkg.in/go-playground/webhooks.v5/bitbucket-server"
-	"gopkg.in/go-playground/webhooks.v5/github"
-	"gopkg.in/go-playground/webhooks.v5/gitlab"
 	"k8s.io/apimachinery/pkg/runtime"
 	kubetesting "k8s.io/client-go/testing"
 
@@ -85,6 +86,22 @@ func TestGitHubCommitEvent(t *testing.T) {
 	h.Handler(w, req)
 	assert.Equal(t, w.Code, http.StatusOK)
 	expectedLogResult := "Received push event repo: https://github.com/jessesuen/test-repo, revision: master, touchedHead: true"
+	assert.Equal(t, expectedLogResult, hook.LastEntry().Message)
+	hook.Reset()
+}
+
+func TestAzureDevOpsCommitEvent(t *testing.T) {
+	hook := test.NewGlobal()
+	h := NewMockHandler(nil, []string{})
+	req := httptest.NewRequest(http.MethodPost, "/api/webhook", nil)
+	req.Header.Set("X-Vss-Activityid", "abc")
+	eventJSON, err := os.ReadFile("testdata/azuredevops-git-push-event.json")
+	assert.NoError(t, err)
+	req.Body = io.NopCloser(bytes.NewReader(eventJSON))
+	w := httptest.NewRecorder()
+	h.Handler(w, req)
+	assert.Equal(t, w.Code, http.StatusOK)
+	expectedLogResult := "Received push event repo: https://dev.azure.com/alexander0053/alex-test/_git/alex-test, revision: master, touchedHead: true"
 	assert.Equal(t, expectedLogResult, hook.LastEntry().Message)
 	hook.Reset()
 }

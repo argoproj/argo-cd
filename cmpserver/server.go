@@ -65,7 +65,7 @@ func NewServer(initConstants plugin.CMPServerInitConstants) (*ArgoCDCMPServer, e
 		grpc.MaxSendMsgSize(apiclient.MaxGRPCMessageSize),
 		grpc.KeepaliveEnforcementPolicy(
 			keepalive.EnforcementPolicy{
-				MinTime: common.GRPCKeepAliveEnforcementMinimum,
+				MinTime: common.GetGRPCKeepAliveEnforcementMinimum(),
 			},
 		),
 	}

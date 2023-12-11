@@ -468,6 +468,10 @@ export interface AuthSettings {
     };
     oidcConfig: {
         name: string;
+        issuer: string;
+        clientID: string;
+        scopes: string[];
+        enablePKCEAuthentication: boolean;
     };
     help: {
         chatUrl: string;
@@ -710,6 +714,7 @@ export interface ProjectSignatureKey {
 
 export interface ProjectSpec {
     sourceRepos: string[];
+    sourceNamespaces: string[];
     destinations: ApplicationDestination[];
     description: string;
     roles: ProjectRole[];
@@ -772,6 +777,8 @@ export interface ResourceAction {
     name: string;
     params: ResourceActionParam[];
     disabled: boolean;
+    iconClass: string;
+    displayName: string;
 }
 
 export interface SyncWindowsState {
@@ -952,4 +959,13 @@ export interface LinkInfo {
 
 export interface LinksResponse {
     items: LinkInfo[];
+}
+
+export interface UserMessages {
+    appName: string;
+    msgKey: string;
+    display: boolean;
+    condition?: HealthStatusCode;
+    duration?: number;
+    animation?: string;
 }

@@ -1,10 +1,16 @@
 tests:
 - healthStatus:
     status: Healthy
-  inputPath: testdata/healthy_running.yaml
+  inputPath: testdata/healthy_running_v0.1.x.yaml
 - healthStatus:
     status: Healthy
-  inputPath: testdata/healthy_suspended.yaml
+  inputPath: testdata/healthy_running_v1.x.yaml
+- healthStatus:
+    status: Healthy
+  inputPath: testdata/healthy_suspended_v0.1.x.yaml
+- healthStatus:
+    status: Healthy
+  inputPath: testdata/healthy_suspended_v1.x.yaml
 - healthStatus:
     status: Progressing
     message: Waiting for deploying
