@@ -65,6 +65,18 @@ var (
 			},
 		},
 	}
+	testAppDots = v1alpha1.Application{
+		ObjectMeta: v1.ObjectMeta{Name: "test.app", Namespace: "default"},
+		Status: v1alpha1.ApplicationStatus{
+			Sync:   v1alpha1.SyncStatus{Status: v1alpha1.SyncStatusCodeSynced},
+			Health: v1alpha1.HealthStatus{Status: health.HealthStatusHealthy},
+			OperationState: &v1alpha1.OperationState{
+				SyncResult: &v1alpha1.SyncOperationResult{
+					Revision: "aa29b85",
+				},
+			},
+		},
+	}
 	testProject = v1alpha1.AppProject{
 		ObjectMeta: v1.ObjectMeta{Name: "test-project", Namespace: "default"},
 		Spec:       v1alpha1.AppProjectSpec{},
@@ -331,4 +343,23 @@ func TestHandlerFeatureIsDisabled(t *testing.T) {
 	assert.Equal(t, toRGBString(Purple), rightRectColorPattern.FindStringSubmatch(response)[1])
 	assert.Equal(t, "Unknown", leftTextPattern.FindStringSubmatch(response)[1])
 	assert.Equal(t, "Unknown", rightTextPattern.FindStringSubmatch(response)[1])
+}
+
+func TestHandlerNameDotsContained(t *testing.T) {
+	settingsMgr := settings.NewSettingsManager(context.Background(), fake.NewSimpleClientset(&argoCDCm, &argoCDSecret), "default")
+	handler := NewHandler(appclientset.NewSimpleClientset(&testAppDots), settingsMgr, "default", []string{})
+	req, err := http.NewRequest(http.MethodGet, "/api/badge?name=test.app", nil)
+	assert.NoError(t, err)
+
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+
+	assert.Equal(t, "private, no-store", rr.Header().Get("Cache-Control"))
+	assert.Equal(t, "*", rr.Header().Get("Access-Control-Allow-Origin"))
+
+	response := rr.Body.String()
+	assert.Equal(t, toRGBString(Green), leftRectColorPattern.FindStringSubmatch(response)[1])
+	assert.Equal(t, toRGBString(Green), rightRectColorPattern.FindStringSubmatch(response)[1])
+	assert.Equal(t, "Healthy", leftTextPattern.FindStringSubmatch(response)[1])
+	assert.Equal(t, "Synced", rightTextPattern.FindStringSubmatch(response)[1])
 }

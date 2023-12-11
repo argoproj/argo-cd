@@ -96,7 +96,8 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	//Sample url: http://localhost:8080/api/badge?name=123
 	if name, ok := r.URL.Query()["name"]; ok && enabled && !notFound {
-		if errs := validation.NameIsDNSLabel(strings.ToLower(name[0]), false); len(errs) == 0 {
+		// replace dots with empty string in order to comply with the RFC 1123 spec.
+		if errs := validation.NameIsDNSLabel(strings.Replace(strings.ToLower(name[0]), ".", "", -1), false); len(errs) == 0 {
 			if app, err := h.appClientset.ArgoprojV1alpha1().Applications(reqNs).Get(context.Background(), name[0], v1.GetOptions{}); err == nil {
 				health = app.Status.Health.Status
 				status = app.Status.Sync.Status
