@@ -86,6 +86,12 @@ func (g *generatorMock) GenerateParams(appSetGenerator *v1alpha1.ApplicationSetG
 	return args.Get(0).([]map[string]interface{}), args.Error(1)
 }
 
+func (g *generatorMock) Replace(tmpl string, replaceMap map[string]interface{}, useGoTemplate bool, goTemplateOptions []string) (string, error) {
+	args := g.Called(tmpl, replaceMap, useGoTemplate, goTemplateOptions)
+
+	return args.Get(0).(string), args.Error(1)
+}
+
 type rendererMock struct {
 	mock.Mock
 }
@@ -105,6 +111,12 @@ func (r *rendererMock) RenderTemplateParams(tmpl *v1alpha1.Application, syncPoli
 
 	return args.Get(0).(*v1alpha1.Application), args.Error(1)
 
+}
+
+func (r *rendererMock) Replace(tmpl string, replaceMap map[string]interface{}, useGoTemplate bool, goTemplateOptions []string) (string, error) {
+	args := r.Called(tmpl, replaceMap, useGoTemplate, goTemplateOptions)
+
+	return args.Get(0).(string), args.Error(1)
 }
 
 func TestExtractApplications(t *testing.T) {
