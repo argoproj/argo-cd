@@ -10,6 +10,9 @@ import (
 	"github.com/argoproj/pkg/stats"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/cache"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
 	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/v2/util/tls"
@@ -48,6 +51,7 @@ func NewCommand() *cobra.Command {
 		metricsAddr                  string
 		probeBindAddr                string
 		webhookAddr                  string
+		profilingAddr                string
 		enableLeaderElection         bool
 		applicationSetNamespaces     []string
 		argocdRepoServer             string
@@ -103,25 +107,31 @@ func NewCommand() *cobra.Command {
 			}
 
 			// By default watch all namespace
-			var watchedNamespace string = ""
+			watchedNamespaces := map[string]cache.Config{}
 
 			// If the applicationset-namespaces contains only one namespace it corresponds to the current namespace
 			if len(applicationSetNamespaces) == 1 {
-				watchedNamespace = (applicationSetNamespaces)[0]
+				watchedNamespaces[(applicationSetNamespaces)[0]] = cache.Config{}
 			} else if enableScmProviders && len(allowedScmProviders) == 0 {
 				log.Error("When enabling applicationset in any namespace using applicationset-namespaces, you must either set --enable-scm-providers=false or specify --allowed-scm-providers")
 				os.Exit(1)
 			}
 
 			mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
-				Scheme:                 scheme,
-				MetricsBindAddress:     metricsAddr,
-				Namespace:              watchedNamespace,
+				Scheme: scheme,
+				Metrics: server.Options{
+					BindAddress: metricsAddr,
+				},
+				Cache: cache.Options{
+					DefaultNamespaces: watchedNamespaces,
+				},
 				HealthProbeBindAddress: probeBindAddr,
-				Port:                   9443,
+				PprofBindAddress:       profilingAddr,
 				LeaderElection:         enableLeaderElection,
 				LeaderElectionID:       "58ac56fa.applicationsets.argoproj.io",
-				DryRunClient:           dryRun,
+				Client: client.Options{
+					DryRun: &dryRun,
+				},
 			})
 
 			if err != nil {
@@ -238,6 +248,7 @@ func NewCommand() *cobra.Command {
 	command.Flags().StringVar(&metricsAddr, "metrics-addr", ":8080", "The address the metric endpoint binds to.")
 	command.Flags().StringVar(&probeBindAddr, "probe-addr", ":8081", "The address the probe endpoint binds to.")
 	command.Flags().StringVar(&webhookAddr, "webhook-addr", ":7000", "The address the webhook endpoint binds to.")
+	command.Flags().StringVar(&profilingAddr, "pporf-addr", "", "The address the pprof endpoint binds to.")
 	command.Flags().BoolVar(&enableLeaderElection, "enable-leader-election", env.ParseBoolFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_LEADER_ELECTION", false),
 		"Enable leader election for controller manager. "+
 			"Enabling this will ensure there is only one active controller manager.")

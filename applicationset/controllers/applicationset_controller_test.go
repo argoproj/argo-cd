@@ -66,7 +66,7 @@ type fakeCache struct {
 	cache.Cache
 }
 
-func (f *fakeCache) GetInformer(ctx context.Context, obj crtclient.Object) (cache.Informer, error) {
+func (f *fakeCache) GetInformer(context.Context, crtclient.Object, ...cache.InformerGetOption) (cache.Informer, error) {
 	return &fakeInformer{}, nil
 }
 

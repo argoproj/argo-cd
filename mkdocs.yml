@@ -120,6 +120,7 @@ nav:
     - Git File Generator Globbing: operator-manual/applicationset/Generators-Git-File-Globbing.md
     - ApplicationSet Specification Reference: operator-manual/applicationset/applicationset-specification.md
     - ApplicationSet in any namespace: operator-manual/applicationset/Appset-Any-Namespace.md
+    - Profiling: operator-manual/applicationset/Profiling.md
   - Server Configuration Parameters:
     - operator-manual/server-commands/argocd-server.md
     - operator-manual/server-commands/argocd-application-controller.md
