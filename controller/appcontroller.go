@@ -1701,7 +1701,7 @@ func (ctrl *ApplicationController) persistAppStatus(orig *appv1.Application, new
 		&appv1.Application{ObjectMeta: metav1.ObjectMeta{Annotations: orig.GetAnnotations()}, Status: orig.Status},
 		&appv1.Application{ObjectMeta: metav1.ObjectMeta{Annotations: newAnnotations}, Status: *newStatus})
 	if err != nil {
-		logCtx.Errorf("Failed to construct app status merge: %v", err)
+		logCtx.Errorf("Error constructing app status patch: %v", err)
 		return
 	}
 	if !modified {
@@ -1714,14 +1714,12 @@ func (ctrl *ApplicationController) persistAppStatus(orig *appv1.Application, new
 	defer func() {
 		patchMs = time.Since(start)
 	}()
-
 	_, err = ctrl.PatchAppWithWriteBack(context.Background(), orig.Name, orig.Namespace, types.MergePatchType, patch, metav1.PatchOptions{})
 	if err != nil {
 		logCtx.Warnf("Error updating application: %v", err)
 	} else {
 		logCtx.Infof("Update successful")
 	}
-
 	return patchMs
 }
 
