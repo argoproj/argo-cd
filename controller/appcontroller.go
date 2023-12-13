@@ -1719,12 +1719,13 @@ func (ctrl *ApplicationController) persistAppStatus(orig *appv1.Application, new
 		return
 	}
 
+	// calculate time for path call
+	start := time.Now()
+	defer func() {
+		patchMs = time.Since(start)
+	}()
+
 	if modified {
-		// calculate time for path call
-		start := time.Now()
-		defer func() {
-			patchMs = time.Since(start)
-		}()
 		_, err = ctrl.PatchAppWithWriteBack(context.Background(), orig.Name, orig.Namespace, types.MergePatchType, patch, metav1.PatchOptions{})
 		if err != nil {
 			logCtx.Warnf("Error updating application: %v", err)
@@ -1739,7 +1740,7 @@ func (ctrl *ApplicationController) persistAppStatus(orig *appv1.Application, new
 			return
 		}
 		appClient := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(orig.Namespace)
-		_, err = appClient.Patch(context.Background(), orig.Name, types.MergePatchType, valuesObjectPatch, metav1.PatchOptions{})
+		_, err = ctrl.PatchAppWithWriteBack(context.Background(), orig.Name, orig.Namespace, types.MergePatchType, valuesObjectPatch, metav1.PatchOptions{})
 		if err != nil {
 			logCtx.Warnf("Error updating valuesObject in application: %v", err)
 		} else {
