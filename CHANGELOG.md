@@ -1,5 +1,9 @@
 # Changelog
 
+## v2.4.7 (2023-12-13)
+
+- update go lang
+
 ## v2.4.8 (2022-07-29)
 
 ### Bug fixes
