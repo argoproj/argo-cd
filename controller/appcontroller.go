@@ -26,6 +26,7 @@ import (
 	"golang.org/x/sync/semaphore"
 	v1 "k8s.io/api/core/v1"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
+	kubeerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
@@ -41,8 +42,6 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
 
-	"github.com/argoproj/argo-cd/v2/pkg/ratelimiter"
-
 	"github.com/argoproj/argo-cd/v2/common"
 	statecache "github.com/argoproj/argo-cd/v2/controller/cache"
 	"github.com/argoproj/argo-cd/v2/controller/metrics"
@@ -53,15 +52,13 @@ import (
 	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
 	"github.com/argoproj/argo-cd/v2/pkg/client/informers/externalversions/application/v1alpha1"
 	applisters "github.com/argoproj/argo-cd/v2/pkg/client/listers/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/pkg/ratelimiter"
 	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/v2/util/argo"
 	argodiff "github.com/argoproj/argo-cd/v2/util/argo/diff"
-	"github.com/argoproj/argo-cd/v2/util/env"
-
-	kubeerrors "k8s.io/apimachinery/pkg/api/errors"
-
 	appstatecache "github.com/argoproj/argo-cd/v2/util/cache/appstate"
 	"github.com/argoproj/argo-cd/v2/util/db"
+	"github.com/argoproj/argo-cd/v2/util/env"
 	"github.com/argoproj/argo-cd/v2/util/errors"
 	"github.com/argoproj/argo-cd/v2/util/glob"
 	"github.com/argoproj/argo-cd/v2/util/helm"
@@ -1699,52 +1696,14 @@ func (ctrl *ApplicationController) persistAppStatus(orig *appv1.Application, new
 		delete(newAnnotations, appv1.AnnotationKeyRefresh)
 	}
 
-	// false on first run (Create) but that's ok, original diff logic can handle nulls; avoid nil pointer deref
-	hasHelmValuesObject := orig.Status.Sync.ComparedTo.Source.Helm != nil && newStatus.Sync.ComparedTo.Source.Helm != nil
-
-	valuesObjectPatch, valuesModified, valuesErr := []byte{}, false, error(nil)
-	if hasHelmValuesObject {
-		valuesObjectPatch, valuesModified, valuesErr = createMergePatchValuesObject(
-			orig.Status.Sync.ComparedTo.Source.Helm.ValuesObject,
-			newStatus.Sync.ComparedTo.Source.Helm.ValuesObject,
-		)
-		if valuesErr != nil {
-			logCtx.Errorf("Error constructing status patch in valuesObject: %v", valuesErr)
-			return
-		}
-	}
-
-	var origTmp, newStatusTmp *apiruntime.RawExtension
-	if hasHelmValuesObject {
-		// strategic merge patching should ignore valuesObject
-		origTmp = orig.Status.Sync.ComparedTo.Source.Helm.ValuesObject
-		orig.Status.Sync.ComparedTo.Source.Helm.ValuesObject = nil
-
-		newStatusTmp = newStatus.Sync.ComparedTo.Source.Helm.ValuesObject
-		newStatus.Sync.ComparedTo.Source.Helm.ValuesObject = nil
-	}
-	patch, modified, err := diff.CreateTwoWayMergePatch(
+	// Only create merge patch for annotations+status.
+	patch, modified, err := createAppMergePatch(
 		&appv1.Application{ObjectMeta: metav1.ObjectMeta{Annotations: orig.GetAnnotations()}, Status: orig.Status},
-		&appv1.Application{ObjectMeta: metav1.ObjectMeta{Annotations: newAnnotations}, Status: *newStatus}, appv1.Application{})
-
-	if hasHelmValuesObject {
-		orig.Status.Sync.ComparedTo.Source.Helm.ValuesObject = origTmp
-		newStatus.Sync.ComparedTo.Source.Helm.ValuesObject = newStatusTmp
-	}
+		&appv1.Application{ObjectMeta: metav1.ObjectMeta{Annotations: newAnnotations}, Status: *newStatus})
 	if err != nil {
-		logCtx.Errorf("Error constructing app status patch: %v", err)
+		logCtx.Errorf("Failed to construct app status merge: %v", err)
 		return
 	}
-
-	if valuesModified {
-		modified = true
-		patch, err = jsonpatch.MergeMergePatches(patch, valuesObjectPatch)
-		if err != nil {
-			logCtx.Errorf("error merging operation state patch: %v", err)
-			return
-		}
-	}
-
 	if !modified {
 		logCtx.Infof("No status changes. Skipping patch")
 		return
@@ -2186,3 +2145,155 @@ func (ctrl *ApplicationController) toAppQualifiedName(appName, appNamespace stri
 }
 
 type ClusterFilterFunction func(c *argov1alpha.Cluster, distributionFunction sharding.DistributionFunction) bool
+
+// createAppMergePatch calculates the merge patch for two applications.
+// The main meat of this includes special logic required for handling RawUnstructured fields, which MUST be merged
+// using JSON merges, rather than strategic merges (as is default for other items).
+func createAppMergePatch(orig *argov1alpha.Application, new *argov1alpha.Application) ([]byte, bool, error) {
+	origValuesObject, newValuesObject, origSourceList, newSourceList, hasRawFields := unsetAndSaveRawFields(orig, new)
+	defer resetRawFields(orig, new, origValuesObject, newValuesObject, origSourceList, newSourceList)
+
+	// Create merge patch on the Application, minus any Raw fields (removed above).
+	patch, modified, err := diff.CreateTwoWayMergePatch(orig, new, appv1.Application{})
+	if err != nil {
+		return nil, false, fmt.Errorf("error constructing app status patch: %w", err)
+	}
+
+	// If no RawExtension fields to manage, we can return now.
+	if !hasRawFields {
+		return patch, modified, nil
+	}
+
+	// Create ValueObject merge patch, set with the correct paths to ensure merge compatibility.
+	valuesObjectPatch, modifiedVals, err := createMergePatchValuesObject(
+		origValuesObject, newValuesObject,
+		origSourceList, newSourceList)
+	if err != nil {
+		return nil, false, fmt.Errorf("error constructing status patch for valuesObject: %w", err)
+	}
+
+	// If we generated a merge patch for valueObjects, we now need to merge that patch with the rest of the app patch.
+	if modifiedVals {
+		patch, err = jsonpatch.MergeMergePatches(patch, valuesObjectPatch)
+		if err != nil {
+			return nil, false, fmt.Errorf("error merging operation state patch: %w", err)
+		}
+	}
+
+	return patch, modified || modifiedVals, nil
+}
+
+// unsetAndSaveRawFields unsets all RawExtension fields, and returns them to be merged separately.
+// This can be undone by using resetRawFields.
+func unsetAndSaveRawFields(orig *argov1alpha.Application, new *argov1alpha.Application) (
+	*apiruntime.RawExtension, *apiruntime.RawExtension,
+	argov1alpha.ApplicationSources, argov1alpha.ApplicationSources,
+	bool) {
+	var origValuesObject, newValuesObject *apiruntime.RawExtension
+	if orig.Status.Sync.ComparedTo.Source.Helm != nil {
+		origValuesObject = orig.Status.Sync.ComparedTo.Source.Helm.ValuesObject
+		orig.Status.Sync.ComparedTo.Source.Helm.ValuesObject = nil
+	}
+	if new.Status.Sync.ComparedTo.Source.Helm != nil {
+		newValuesObject = new.Status.Sync.ComparedTo.Source.Helm.ValuesObject
+		new.Status.Sync.ComparedTo.Source.Helm.ValuesObject = nil
+	}
+
+	// We use full ApplicationSources, so the patch can keep track of indexes. This needs to be reverted later.
+	var origSourceList, newSourceList argov1alpha.ApplicationSources
+	if len(orig.Status.Sync.ComparedTo.Sources) > 0 {
+		origSourceList, orig.Status.Sync.ComparedTo.Sources =
+			getHelmValueObjSources(orig.Status.Sync.ComparedTo.Sources)
+	}
+	if len(new.Status.Sync.ComparedTo.Sources) > 0 {
+		newSourceList, new.Status.Sync.ComparedTo.Sources =
+			getHelmValueObjSources(new.Status.Sync.ComparedTo.Sources)
+	}
+	return origValuesObject, newValuesObject,
+		origSourceList, newSourceList,
+		origValuesObject != nil || newValuesObject != nil || len(origSourceList) != 0 || len(newSourceList) != 0
+
+}
+
+// resetRawFields re-sets all RawExtension fields, the opposite of unsetAndSaveRawFields.
+func resetRawFields(orig *argov1alpha.Application, new *argov1alpha.Application,
+	origVals *apiruntime.RawExtension, newVals *apiruntime.RawExtension,
+	origSourceList argov1alpha.ApplicationSources, newSourceList argov1alpha.ApplicationSources) {
+	if orig.Status.Sync.ComparedTo.Source.Helm != nil && origVals != nil {
+		orig.Status.Sync.ComparedTo.Source.Helm.ValuesObject = origVals
+	}
+	if new.Status.Sync.ComparedTo.Source.Helm != nil && newVals != nil {
+		new.Status.Sync.ComparedTo.Source.Helm.ValuesObject = newVals
+	}
+	for idx, s := range origSourceList {
+		if s.Helm != nil && s.Helm.ValuesObject != nil {
+			orig.Status.Sync.ComparedTo.Sources[idx].Helm.ValuesObject = s.Helm.ValuesObject
+		}
+	}
+	for idx, s := range newSourceList {
+		if s.Helm != nil && s.Helm.ValuesObject != nil {
+			new.Status.Sync.ComparedTo.Sources[idx].Helm.ValuesObject = s.Helm.ValuesObject
+		}
+	}
+}
+
+// getHelmValueObjSources takes a list of ApplicationSources, and returns two application sources where one contains
+// only Helm.ValuesObject fields, and the second returns all other fields.
+// This is used for calculating JSON patches.
+func getHelmValueObjSources(in argov1alpha.ApplicationSources) (argov1alpha.ApplicationSources, argov1alpha.ApplicationSources) {
+	helmOnly := make(argov1alpha.ApplicationSources, len(in))
+	others := make(argov1alpha.ApplicationSources, len(in))
+	for idx, s := range in {
+		if s.Helm != nil && s.Helm.ValuesObject != nil {
+			helmOnly[idx].Helm = &argov1alpha.ApplicationSourceHelm{ValuesObject: s.Helm.ValuesObject}
+			s.Helm.ValuesObject = nil
+		}
+		others[idx] = s
+	}
+	return helmOnly, others
+}
+
+// jsonCreateMergePatch is a wrapper func to calculate the diff between two objects
+// instead of bytes.
+func jsonCreateMergePatch(orig, new any) ([]byte, bool, error) {
+	origBytes, err := json.Marshal(orig)
+	if err != nil {
+		return nil, false, err
+	}
+	newBytes, err := json.Marshal(new)
+	if err != nil {
+		return nil, false, err
+	}
+	patch, err := jsonpatch.CreateMergePatch(origBytes, newBytes)
+	return patch, string(patch) != "{}", err
+}
+
+// createMergePatchValuesObject computes a patch just for the Helm.ValuesObject fields, using jsonpatch.
+func createMergePatchValuesObject(orig, new *apiruntime.RawExtension, origSourceList, newSourceList []argov1alpha.ApplicationSource) ([]byte, bool, error) {
+	return jsonCreateMergePatch(
+		&appv1.Application{ObjectMeta: metav1.ObjectMeta{}, Status: appv1.ApplicationStatus{
+			Sync: appv1.SyncStatus{
+				ComparedTo: appv1.ComparedTo{
+					Source: appv1.ApplicationSource{
+						Helm: &appv1.ApplicationSourceHelm{
+							ValuesObject: orig,
+						},
+					},
+					Sources: origSourceList,
+				},
+			},
+		}},
+		&appv1.Application{ObjectMeta: metav1.ObjectMeta{}, Status: appv1.ApplicationStatus{
+			Sync: appv1.SyncStatus{
+				ComparedTo: appv1.ComparedTo{
+					Source: appv1.ApplicationSource{
+						Helm: &appv1.ApplicationSourceHelm{
+							ValuesObject: new,
+						},
+					},
+					Sources: newSourceList,
+				},
+			},
+		}},
+	)
+}

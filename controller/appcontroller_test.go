@@ -4,25 +4,23 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
+	"reflect"
 	"testing"
 	"time"
 
-	"github.com/sirupsen/logrus"
-	"k8s.io/apimachinery/pkg/api/resource"
-
 	clustercache "github.com/argoproj/gitops-engine/pkg/cache"
-
-	"github.com/argoproj/argo-cd/v2/common"
-	statecache "github.com/argoproj/argo-cd/v2/controller/cache"
-
 	"github.com/argoproj/gitops-engine/pkg/cache/mocks"
+	"github.com/argoproj/gitops-engine/pkg/diff"
 	synccommon "github.com/argoproj/gitops-engine/pkg/sync/common"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube/kubetest"
+	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	corev1 "k8s.io/api/core/v1"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -32,8 +30,12 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"sigs.k8s.io/yaml"
 
+	"github.com/argoproj/argo-cd/v2/common"
+	statecache "github.com/argoproj/argo-cd/v2/controller/cache"
 	mockstatecache "github.com/argoproj/argo-cd/v2/controller/cache/mocks"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	argoappsv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned/fake"
 	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
 	mockrepoclient "github.com/argoproj/argo-cd/v2/reposerver/apiclient/mocks"
@@ -1735,4 +1737,128 @@ func TestAddControllerNamespace(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, test.FakeArgoCDNamespace, updatedApp.Status.ControllerNamespace)
 	})
+}
+
+func newFakeAppHelmValueObject(input []byte) *argoappsv1.Application {
+	app := newFakeApp()
+	app.Status.Sync.ComparedTo.Source.Helm = &argoappsv1.ApplicationSourceHelm{
+		ValuesObject: &runtime.RawExtension{Raw: input},
+	}
+	return app
+}
+
+func newFakeAppSources(s argoappsv1.ApplicationSources) *argoappsv1.Application {
+	app := newFakeApp()
+	app.Status.Sync.ComparedTo.Sources = s
+	return app
+}
+
+func Test_SimpleHelmValuesObjectMerge(t *testing.T) {
+	origApp := newFakeAppHelmValueObject([]byte(`{"foo": {"bar": "2"}}`))
+	newApp := newFakeAppHelmValueObject([]byte(`{"foo": {"bar": 3}}`))
+
+	// "basic" patch throws error.
+	_, _, err := diff.CreateTwoWayMergePatch(
+		&appv1.Application{ObjectMeta: metav1.ObjectMeta{Annotations: origApp.GetAnnotations()}, Status: origApp.Status},
+		&appv1.Application{ObjectMeta: metav1.ObjectMeta{Annotations: newApp.GetAnnotations()}, Status: newApp.Status}, appv1.Application{})
+	assert.Errorf(t, err, "Basic merge patch should fail")
+
+	// Fancy patch works fine.
+	_, modified, err := createAppMergePatch(origApp, newApp)
+	assert.NoError(t, err, "Two-way merge with should not have thrown an error")
+	assert.True(t, modified, "A merge patch should have been created")
+}
+
+func Test_createAppMergePatch(t *testing.T) {
+	tests := []struct {
+		name    string
+		origApp *argoappsv1.Application
+		newApp  *argoappsv1.Application
+	}{
+		{
+			name:    "NoValuesMerge",
+			origApp: newFakeApp(),
+			newApp:  newFakeApp(),
+		}, {
+			name:    "EmptyValuesMerge",
+			origApp: newFakeAppHelmValueObject([]byte(`{}`)),
+			newApp:  newFakeAppHelmValueObject([]byte(`{}`)),
+		}, {
+			name:    "SimpleValuesObjectMerge",
+			origApp: newFakeAppHelmValueObject([]byte(`{"foo": {"bar": "2"}}`)),
+			newApp:  newFakeAppHelmValueObject([]byte(`{"foo": {"bar": 3}}`)),
+		}, {
+			name:    "EmptySourcesMerge",
+			origApp: newFakeAppSources([]argoappsv1.ApplicationSource{}),
+			newApp:  newFakeAppSources([]argoappsv1.ApplicationSource{}),
+		}, {
+			name: "SimpleSourcesMerge",
+			origApp: newFakeAppSources([]argoappsv1.ApplicationSource{
+				{
+					Helm: &argoappsv1.ApplicationSourceHelm{
+						ValuesObject: &runtime.RawExtension{Raw: []byte(`{"foo": {"bar": "2"}}`)},
+					},
+				},
+			}),
+			newApp: newFakeAppSources([]argoappsv1.ApplicationSource{
+				{
+					Helm: &argoappsv1.ApplicationSourceHelm{
+						ValuesObject: &runtime.RawExtension{Raw: []byte(`{"foo": {"bar": 3}}`)},
+					},
+				},
+			}),
+		}, {
+			name: "MultipleSourcesMerge",
+			origApp: newFakeAppSources([]argoappsv1.ApplicationSource{
+				{Kustomize: &argoappsv1.ApplicationSourceKustomize{}},
+				{
+					Helm: &argoappsv1.ApplicationSourceHelm{
+						ValuesObject: &runtime.RawExtension{Raw: []byte(`{"foo": {"bar": "2"}}`)},
+					},
+				},
+			}),
+			newApp: newFakeAppSources([]argoappsv1.ApplicationSource{
+				{Kustomize: &argoappsv1.ApplicationSourceKustomize{}},
+				{
+					Helm: &argoappsv1.ApplicationSourceHelm{
+						ValuesObject: &runtime.RawExtension{Raw: []byte(`{"foo": {"bar": 3}}`)},
+					},
+				},
+			}),
+		}, {
+			name: "DiffSourcesCountMerge",
+			origApp: newFakeAppSources([]argoappsv1.ApplicationSource{
+				{
+					Helm: &argoappsv1.ApplicationSourceHelm{
+						ValuesObject: &runtime.RawExtension{Raw: []byte(`{"foo": {"bar": "2"}}`)},
+					},
+				},
+			}),
+			newApp: newFakeAppSources([]argoappsv1.ApplicationSource{
+				{Kustomize: &argoappsv1.ApplicationSourceKustomize{}},
+				{
+					Helm: &argoappsv1.ApplicationSourceHelm{
+						ValuesObject: &runtime.RawExtension{Raw: []byte(`{"foo": {"bar": 3}}`)},
+					},
+				},
+			}),
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			origTmp := tt.origApp.DeepCopy()
+			newTmp := tt.newApp.DeepCopy()
+
+			_, modified, err := createAppMergePatch(tt.origApp, tt.newApp)
+			assert.NoError(t, err, fmt.Sprintf("createAppMergePatch(%v, %v) should not have thrown an error", tt.origApp, tt.newApp))
+
+			// Ensure that the object haven't been modified during execution.
+			assert.True(t, reflect.DeepEqual(origTmp, tt.origApp), "createAppMergePatch(%v, %v) should not have modified original app", tt.origApp, tt.newApp)
+			assert.True(t, reflect.DeepEqual(newTmp, tt.newApp), "createAppMergePatch(%v, %v) should not have modified new app", tt.origApp, tt.newApp)
+
+			// If objects are different, then we should get a patch.
+			assert.Equal(t, !reflect.DeepEqual(tt.origApp, tt.newApp), modified, "createAppMergePatch(%v, %v) got an unexpected patch result", tt.origApp, tt.newApp)
+
+		})
+	}
 }
