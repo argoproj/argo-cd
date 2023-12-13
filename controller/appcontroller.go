@@ -15,7 +15,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/argoproj/argo-cd/v2/pkg/ratelimiter"
 	clustercache "github.com/argoproj/gitops-engine/pkg/cache"
 	"github.com/argoproj/gitops-engine/pkg/diff"
 	"github.com/argoproj/gitops-engine/pkg/health"
@@ -41,6 +40,8 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
+
+	"github.com/argoproj/argo-cd/v2/pkg/ratelimiter"
 
 	"github.com/argoproj/argo-cd/v2/common"
 	statecache "github.com/argoproj/argo-cd/v2/controller/cache"
@@ -1709,16 +1710,33 @@ func (ctrl *ApplicationController) persistAppStatus(orig *appv1.Application, new
 		logCtx.Infof("No status changes. Skipping patch")
 		return
 	}
-	// calculate time for path call
-	start := time.Now()
-	defer func() {
-		patchMs = time.Since(start)
-	}()
-	_, err = ctrl.PatchAppWithWriteBack(context.Background(), orig.Name, orig.Namespace, types.MergePatchType, patch, metav1.PatchOptions{})
-	if err != nil {
-		logCtx.Warnf("Error updating application: %v", err)
-	} else {
-		logCtx.Infof("Update successful")
+
+	if modified {
+		// calculate time for path call
+		start := time.Now()
+		defer func() {
+			patchMs = time.Since(start)
+		}()
+		_, err = ctrl.PatchAppWithWriteBack(context.Background(), orig.Name, orig.Namespace, types.MergePatchType, patch, metav1.PatchOptions{})
+		if err != nil {
+			logCtx.Warnf("Error updating application: %v", err)
+		} else {
+			logCtx.Infof("Update successful")
+		}
+	}
+
+	if valuesModified {
+		if valuesErr != nil {
+			logCtx.Errorf("Error constructing status patch in valuesObject: %v", err)
+			return
+		}
+		appClient := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(orig.Namespace)
+		_, err = appClient.Patch(context.Background(), orig.Name, types.MergePatchType, valuesObjectPatch, metav1.PatchOptions{})
+		if err != nil {
+			logCtx.Warnf("Error updating valuesObject in application: %v", err)
+		} else {
+			logCtx.Infof("Update successful")
+		}
 	}
 	return patchMs
 }
