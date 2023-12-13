@@ -1699,13 +1699,52 @@ func (ctrl *ApplicationController) persistAppStatus(orig *appv1.Application, new
 		delete(newAnnotations, appv1.AnnotationKeyRefresh)
 	}
 
-	patch, modified, err := argodiff.jsonMergePatch(
+	// false on first run (Create) but that's ok, original diff logic can handle nulls; avoid nil pointer deref
+	hasHelmValuesObject := orig.Status.Sync.ComparedTo.Source.Helm != nil && newStatus.Sync.ComparedTo.Source.Helm != nil
+
+	valuesObjectPatch, valuesModified, valuesErr := []byte{}, false, error(nil)
+	if hasHelmValuesObject {
+		valuesObjectPatch, valuesModified, valuesErr = createMergePatchValuesObject(
+			orig.Status.Sync.ComparedTo.Source.Helm.ValuesObject,
+			newStatus.Sync.ComparedTo.Source.Helm.ValuesObject,
+		)
+		if valuesErr != nil {
+			logCtx.Errorf("Error constructing status patch in valuesObject: %v", valuesErr)
+			return
+		}
+	}
+
+	var origTmp, newStatusTmp *apiruntime.RawExtension
+	if hasHelmValuesObject {
+		// strategic merge patching should ignore valuesObject
+		origTmp = orig.Status.Sync.ComparedTo.Source.Helm.ValuesObject
+		orig.Status.Sync.ComparedTo.Source.Helm.ValuesObject = nil
+
+		newStatusTmp = newStatus.Sync.ComparedTo.Source.Helm.ValuesObject
+		newStatus.Sync.ComparedTo.Source.Helm.ValuesObject = nil
+	}
+	patch, modified, err := diff.CreateTwoWayMergePatch(
 		&appv1.Application{ObjectMeta: metav1.ObjectMeta{Annotations: orig.GetAnnotations()}, Status: orig.Status},
-		&appv1.Application{ObjectMeta: metav1.ObjectMeta{Annotations: newAnnotations}, Status: *newStatus})
+		&appv1.Application{ObjectMeta: metav1.ObjectMeta{Annotations: newAnnotations}, Status: *newStatus}, appv1.Application{})
+
+	if hasHelmValuesObject {
+		orig.Status.Sync.ComparedTo.Source.Helm.ValuesObject = origTmp
+		newStatus.Sync.ComparedTo.Source.Helm.ValuesObject = newStatusTmp
+	}
 	if err != nil {
 		logCtx.Errorf("Error constructing app status patch: %v", err)
 		return
 	}
+
+	if valuesModified {
+		modified = true
+		patch, err = jsonpatch.MergeMergePatches(patch, valuesObjectPatch)
+		if err != nil {
+			logCtx.Errorf("error merging operation state patch: %v", err)
+			return
+		}
+	}
+
 	if !modified {
 		logCtx.Infof("No status changes. Skipping patch")
 		return
@@ -1717,28 +1756,13 @@ func (ctrl *ApplicationController) persistAppStatus(orig *appv1.Application, new
 		patchMs = time.Since(start)
 	}()
 
-	if modified {
-		_, err = ctrl.PatchAppWithWriteBack(context.Background(), orig.Name, orig.Namespace, types.MergePatchType, patch, metav1.PatchOptions{})
-		if err != nil {
-			logCtx.Warnf("Error updating application: %v", err)
-		} else {
-			logCtx.Infof("Update successful")
-		}
+	_, err = ctrl.PatchAppWithWriteBack(context.Background(), orig.Name, orig.Namespace, types.MergePatchType, patch, metav1.PatchOptions{})
+	if err != nil {
+		logCtx.Warnf("Error updating application: %v", err)
+	} else {
+		logCtx.Infof("Update successful")
 	}
 
-	if valuesModified {
-		if valuesErr != nil {
-			logCtx.Errorf("Error constructing status patch in valuesObject: %v", err)
-			return
-		}
-		appClient := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(orig.Namespace)
-		_, err = ctrl.PatchAppWithWriteBack(context.Background(), orig.Name, orig.Namespace, types.MergePatchType, valuesObjectPatch, metav1.PatchOptions{})
-		if err != nil {
-			logCtx.Warnf("Error updating valuesObject in application: %v", err)
-		} else {
-			logCtx.Infof("Update successful")
-		}
-	}
 	return patchMs
 }
 
