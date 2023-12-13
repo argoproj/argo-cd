@@ -1718,11 +1718,14 @@ func (ctrl *ApplicationController) persistAppStatus(orig *appv1.Application, new
 		logCtx.Infof("No status changes. Skipping patch")
 		return
 	}
-<<<<<<< HEAD
 
 	if modified {
-		appClient := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(orig.Namespace)
-		_, err = appClient.Patch(context.Background(), orig.Name, types.MergePatchType, patch, metav1.PatchOptions{})
+		// calculate time for path call
+		start := time.Now()
+		defer func() {
+			patchMs = time.Since(start)
+		}()
+		_, err = ctrl.PatchAppWithWriteBack(context.Background(), orig.Name, orig.Namespace, types.MergePatchType, patch, metav1.PatchOptions{})
 		if err != nil {
 			logCtx.Warnf("Error updating application: %v", err)
 		} else {
@@ -1742,18 +1745,6 @@ func (ctrl *ApplicationController) persistAppStatus(orig *appv1.Application, new
 		} else {
 			logCtx.Infof("Update successful")
 		}
-=======
-	// calculate time for path call
-	start := time.Now()
-	defer func() {
-		patchMs = time.Since(start)
-	}()
-	_, err = ctrl.PatchAppWithWriteBack(context.Background(), orig.Name, orig.Namespace, types.MergePatchType, patch, metav1.PatchOptions{})
-	if err != nil {
-		logCtx.Warnf("Error updating application: %v", err)
-	} else {
-		logCtx.Infof("Update successful")
->>>>>>> a43b79960 (feat: add write back to application informer (#15987))
 	}
 	return patchMs
 }
