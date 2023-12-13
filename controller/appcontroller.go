@@ -1748,20 +1748,17 @@ func (ctrl *ApplicationController) persistAppStatus(orig *appv1.Application, new
 		logCtx.Infof("No status changes. Skipping patch")
 		return
 	}
-
 	// calculate time for path call
 	start := time.Now()
 	defer func() {
 		patchMs = time.Since(start)
 	}()
-
 	_, err = ctrl.PatchAppWithWriteBack(context.Background(), orig.Name, orig.Namespace, types.MergePatchType, patch, metav1.PatchOptions{})
 	if err != nil {
 		logCtx.Warnf("Error updating application: %v", err)
 	} else {
 		logCtx.Infof("Update successful")
 	}
-
 	return patchMs
 }
 
