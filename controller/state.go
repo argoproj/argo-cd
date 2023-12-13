@@ -588,6 +588,12 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 	serverSideDiff := m.serverSideDiff ||
 		resourceutil.HasAnnotationOption(app, common.AnnotationCompareOptions, "ServerSideDiff=true")
 
+	// This allows turning SSD off for a given app if it is enabled at the
+	// controller level
+	if resourceutil.HasAnnotationOption(app, common.AnnotationCompareOptions, "ServerSideDiff=false") {
+		serverSideDiff = false
+	}
+
 	useDiffCache := useDiffCache(noCache, manifestInfos, sources, app, manifestRevisions, m.statusRefreshTimeout, serverSideDiff, logCtx)
 
 	diffConfigBuilder := argodiff.NewDiffConfigBuilder().
