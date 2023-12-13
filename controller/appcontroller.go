@@ -1621,23 +1621,49 @@ func (ctrl *ApplicationController) persistAppStatus(orig *appv1.Application, new
 		delete(newAnnotations, appv1.AnnotationKeyRefresh)
 	}
 
-	patch, modified, err := jsonCreateMergePatch(
+	valuesObjectPatch, valuesModified, valuesErr := createMergePatchValuesObject(
+		orig.Status.Sync.ComparedTo.Source.Helm.ValuesObject,
+		newStatus.Sync.ComparedTo.Source.Helm.ValuesObject,
+	)
+
+	// strategic merge patching ignores valuesObject
+	orig.Status.Sync.ComparedTo.Source.Helm.ValuesObject = nil
+	newStatus.Sync.ComparedTo.Source.Helm.ValuesObject = nil
+	patch, modified, err := diff.CreateTwoWayMergePatch(
 		&appv1.Application{ObjectMeta: metav1.ObjectMeta{Annotations: orig.GetAnnotations()}, Status: orig.Status},
-		&appv1.Application{ObjectMeta: metav1.ObjectMeta{Annotations: newAnnotations}, Status: *newStatus})
+		&appv1.Application{ObjectMeta: metav1.ObjectMeta{Annotations: newAnnotations}, Status: *newStatus}, appv1.Application{})
 	if err != nil {
 		logCtx.Errorf("Error constructing app status patch: %v", err)
 		return
 	}
-	if !modified {
+
+	if !modified && !valuesModified {
 		logCtx.Infof("No status changes. Skipping patch")
 		return
 	}
-	appClient := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(orig.Namespace)
-	_, err = appClient.Patch(context.Background(), orig.Name, types.MergePatchType, patch, metav1.PatchOptions{})
-	if err != nil {
-		logCtx.Warnf("Error updating application: %v", err)
-	} else {
-		logCtx.Infof("Update successful")
+
+	if modified {
+		appClient := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(orig.Namespace)
+		_, err = appClient.Patch(context.Background(), orig.Name, types.MergePatchType, patch, metav1.PatchOptions{})
+		if err != nil {
+			logCtx.Warnf("Error updating application: %v", err)
+		} else {
+			logCtx.Infof("Update successful")
+		}
+	}
+
+	if valuesModified {
+		if valuesErr != nil {
+			logCtx.Errorf("Error constructing status patch in valuesObject: %v", err)
+			return
+		}
+		appClient := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(orig.Namespace)
+		_, err = appClient.Patch(context.Background(), orig.Name, types.MergePatchType, valuesObjectPatch, metav1.PatchOptions{})
+		if err != nil {
+			logCtx.Warnf("Error updating valuesObject in application: %v", err)
+		} else {
+			logCtx.Infof("Update successful")
+		}
 	}
 }
 
@@ -2045,4 +2071,32 @@ func jsonCreateMergePatch(orig, new interface{}) ([]byte, bool, error) {
 	}
 	patch, err := jsonpatch.CreateMergePatch(origBytes, newBytes)
 	return patch, string(patch) != "{}", err
+}
+
+// createMergePatchValuesObject compute patch just for the Helm valuesObject using jsonpatch.
+func createMergePatchValuesObject(orig, new *apiruntime.RawExtension) ([]byte, bool, error) {
+	return jsonCreateMergePatch(
+		&appv1.Application{ObjectMeta: metav1.ObjectMeta{}, Status: appv1.ApplicationStatus{
+			Sync: appv1.SyncStatus{
+				ComparedTo: appv1.ComparedTo{
+					Source: appv1.ApplicationSource{
+						Helm: &appv1.ApplicationSourceHelm{
+							ValuesObject: orig,
+						},
+					},
+				},
+			},
+		}},
+		&appv1.Application{ObjectMeta: metav1.ObjectMeta{}, Status: appv1.ApplicationStatus{
+			Sync: appv1.SyncStatus{
+				ComparedTo: appv1.ComparedTo{
+					Source: appv1.ApplicationSource{
+						Helm: &appv1.ApplicationSourceHelm{
+							ValuesObject: new,
+						},
+					},
+				},
+			},
+		}},
+	)
 }
