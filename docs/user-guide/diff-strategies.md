@@ -41,7 +41,11 @@ are only triggered when:
   targeting.
 - Argo CD Application spec changed.
 
-The advantages of Server-Side Diff is that 
+One advantage of Server-Side Diff is that Kubernetes Admission
+Controllers will participate in the diff calculation. If for example
+a validation webhook identifies a resource to be invalid, that will be
+informed to Argo CD during the diff stage rather than during the sync 
+state.
 
 ### Enabling it
 
