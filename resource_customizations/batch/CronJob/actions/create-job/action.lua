@@ -38,12 +38,18 @@ if job.metadata == nil then
 end
 job.metadata.name = obj.metadata.name .. "-" ..os.date("!%Y%m%d%H%M")
 job.metadata.namespace = obj.metadata.namespace
+if job.metadata.annotations == nil then
+  job.metadata.annotations = {}
+end
+job.metadata.annotations['cronjob.kubernetes.io/instantiate'] = "manual"
 
 ownerRef = {}
 ownerRef.apiVersion = obj.apiVersion
 ownerRef.kind = obj.kind
 ownerRef.name = obj.metadata.name
 ownerRef.uid = obj.metadata.uid
+ownerRef.blockOwnerDeletion = true
+ownerRef.controller = true
 job.metadata.ownerReferences = {}
 job.metadata.ownerReferences[1] = ownerRef
 
