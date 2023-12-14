@@ -1022,6 +1022,10 @@ func getHelmDependencyRepos(appPath string) ([]*v1alpha1.Repository, error) {
 			repos = append(repos, &v1alpha1.Repository{
 				Name: r.Repository[1:],
 			})
+		} else if strings.HasPrefix(r.Repository, "alias:") {
+			repos = append(repos, &v1alpha1.Repository{
+				Name: strings.TrimPrefix(r.Repository, "alias:"),
+			})
 		} else if u, err := url.Parse(r.Repository); err == nil && (u.Scheme == "https" || u.Scheme == "oci") {
 			repo := &v1alpha1.Repository{
 				// trimming oci:// prefix since it is currently not supported by Argo CD (OCI repos just have no scheme)
@@ -2506,6 +2510,7 @@ func (s *Service) GetGitFiles(_ context.Context, request *apiclient.GitFilesRequ
 	repo := request.GetRepo()
 	revision := request.GetRevision()
 	gitPath := request.GetPath()
+	noRevisionCache := request.GetNoRevisionCache()
 	enableNewGitFileGlobbing := request.GetNewGitFileGlobbingEnabled()
 	if gitPath == "" {
 		gitPath = "."
@@ -2515,7 +2520,7 @@ func (s *Service) GetGitFiles(_ context.Context, request *apiclient.GitFilesRequ
 		return nil, status.Error(codes.InvalidArgument, "must pass a valid repo")
 	}
 
-	gitClient, revision, err := s.newClientResolveRevision(repo, revision, git.WithCache(s.cache, true))
+	gitClient, revision, err := s.newClientResolveRevision(repo, revision, git.WithCache(s.cache, !noRevisionCache))
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "unable to resolve git revision %s: %v", revision, err)
 	}
@@ -2568,12 +2573,12 @@ func (s *Service) GetGitFiles(_ context.Context, request *apiclient.GitFilesRequ
 func (s *Service) GetGitDirectories(_ context.Context, request *apiclient.GitDirectoriesRequest) (*apiclient.GitDirectoriesResponse, error) {
 	repo := request.GetRepo()
 	revision := request.GetRevision()
-
+	noRevisionCache := request.GetNoRevisionCache()
 	if repo == nil {
 		return nil, status.Error(codes.InvalidArgument, "must pass a valid repo")
 	}
 
-	gitClient, revision, err := s.newClientResolveRevision(repo, revision, git.WithCache(s.cache, true))
+	gitClient, revision, err := s.newClientResolveRevision(repo, revision, git.WithCache(s.cache, !noRevisionCache))
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "unable to resolve git revision %s: %v", revision, err)
 	}

@@ -327,6 +327,9 @@ message ApplicationSetStatus {
   repeated ApplicationSetCondition conditions = 1;
 
   repeated ApplicationSetApplicationStatus applicationStatus = 2;
+
+  // Resources is a list of Applications resources managed by this application set.
+  repeated ResourceStatus resources = 3;
 }
 
 // ApplicationSetStrategy configures how generated Applications are updated in sequence.
@@ -390,6 +393,13 @@ message ApplicationSetTerminalGenerator {
 
   // Selector allows to post-filter all generator.
   optional k8s.io.apimachinery.pkg.apis.meta.v1.LabelSelector selector = 8;
+}
+
+// ApplicationSetTree holds nodes which belongs to the application
+// Used to build a tree of an ApplicationSet and its children
+message ApplicationSetTree {
+  // Nodes contains list of nodes which are directly managed by the applicationset
+  repeated ResourceNode nodes = 1;
 }
 
 // ApplicationSource contains all required information about the source of an application
