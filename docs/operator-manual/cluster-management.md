@@ -15,7 +15,7 @@ Note that you will need privileged access to the cluster.
 
 ## Removing a cluster
 
-Run `argocd cluster rm $NAME`.
+Run `argocd cluster rm context-name`.
 
 This removes the cluster with the specified name.
 
