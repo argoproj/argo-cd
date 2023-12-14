@@ -1,0 +1,86 @@
+# Diff Strategies
+
+Argo CD calculates the diff between the desired state and the live
+state in order to define if an Application is out-of-sync. This same
+logic is also used in Argo CD UI to display the differences between
+live and desired states for all resources belonging to an application.
+
+Argo CD currently has 3 different strategies to calculate diffs:
+
+- **Legacy**: This is the main diff strategy used by default. It
+  applies a 3-way diff based on live state, desired state and
+  last-applied-configuration (annotation).
+- **Structured-Merge Diff**: Strategy automatically applied when
+  enabling Server-Side Apply sync option. 
+- **Server-Side Diff**: New strategy that invokes a Server-Side Apply
+  in dryrun mode delegating to Kube-API the action of calculating the
+  diff.
+
+## Structured-Merge Diff
+*Current Status: [Beta][1] (Since v2.5.0)*
+
+This is diff strategy is automatically used when Server-Side Apply
+sync option is enabled. It uses the [structured-merge-diff][2] library
+used by kubernetes to calculate diffs based on fields ownership. There
+are some challenges using this strategy to calculate diffs for CRDs
+that define default values. After different issues were identified by
+the community, this is strategy is being discontinued in favour of
+Server-Side Diff.
+
+## Server-Side Diff
+*Current Status: [Beta][1] (Since v2.10.0)*
+
+This diff strategy will execute a Server-Side Apply in dryrun mode for
+each resource of the application. The response of this operation is then
+compared with the live state in order to provide the diff results. The
+diff results are cached and new Server-Side Apply requests to Kube API
+are only triggered when:
+
+- An Application refresh or hard-refresh is requested.
+- There is a new revision in the repo where Argo CD Application is
+  targeting.
+- Argo CD Application spec changed.
+
+The advantages of Server-Side Diff is that 
+
+### Enabling it
+
+Server-Side Diff can be enabled at the Argo CD Controller level or per
+Application.
+
+**Enabling Server-Side Diff for all Applications**
+
+Add the following entry in the argocd-cmd-params-cm configmap:
+
+```
+controller.diff.server.side: "true"
+```
+
+**Enabling Server-Side Diff for one application**
+
+Add the following annotation in the Argo CD Application resource:
+
+```
+argocd.argoproj.io/compare-options: ServerSideDiff=true
+```
+
+### Mutation Webhooks
+
+Server-Side Diff will revert changes made by mutation webhooks by
+default. If you want to include mutation webhooks in Argo CD diffs add
+the following annotation in the Argo CD Application resource:
+
+```
+argocd.argoproj.io/compare-options: IncludeMutationWebhookInDiff=true
+```
+
+Note: This annoation is only effective with Server-Side Diff is
+enabled. To enable both options for a given application add the
+following annotation in the Argo CD Application resource:
+
+```
+argocd.argoproj.io/compare-options: ServerSideDiff=true,IncludeMutationWebhookInDiff=true
+```
+
+[1]: https://github.com/argoproj/argoproj/blob/main/community/feature-status.md#beta
+[2]: https://github.com/kubernetes-sigs/structured-merge-diff
