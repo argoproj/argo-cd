@@ -7,7 +7,14 @@ import {Consumer} from '../../../shared/context';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
 import {ApplicationRetryOptions} from '../application-retry-options/application-retry-options';
-import {ApplicationManualSyncFlags, ApplicationSyncOptions, FORCE_WARNING, SyncFlags, REPLACE_WARNING} from '../application-sync-options/application-sync-options';
+import {
+    ApplicationManualSyncFlags,
+    ApplicationSyncOptions,
+    FORCE_WARNING,
+    SyncFlags,
+    REPLACE_WARNING,
+    PRUNE_WARNING
+} from '../application-sync-options/application-sync-options';
 import {ComparisonStatusIcon, getAppDefaultSource, nodeKey} from '../utils';
 
 import './application-sync-panel.scss';
@@ -76,6 +83,7 @@ export const ApplicationSyncPanel = ({application, selectedResource, hide}: {app
 
                                 const syncFlags = {...params.syncFlags} as SyncFlags;
                                 const force = syncFlags.Force || false;
+                                const prune = syncFlags.Prune || false;
 
                                 if (syncFlags.ApplyOnly) {
                                     syncStrategy.apply = {force};
@@ -86,6 +94,20 @@ export const ApplicationSyncPanel = ({application, selectedResource, hide}: {app
                                     const confirmed = await ctx.popup.confirm('Synchronize with force?', () => (
                                         <div>
                                             <i className='fa fa-exclamation-triangle' style={{color: ARGO_WARNING_COLOR}} /> {FORCE_WARNING} Are you sure you want to continue?
+                                        </div>
+                                    ));
+                                    if (!confirmed) {
+                                        setPending(false);
+                                        return;
+                                    }
+                                }
+
+                                if (prune) {
+                                    const confirmed = await ctx.popup.confirm('Synchronize with prune?', () => (
+                                        <div>
+                                            <i className='fa fa-exclamation-triangle'
+                                               style={{color: ARGO_WARNING_COLOR}}/> {PRUNE_WARNING} Are you sure you
+                                            want to continue?
                                         </div>
                                     ));
                                     if (!confirmed) {
