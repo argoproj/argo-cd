@@ -101,7 +101,6 @@ export const ApplicationSyncPanel = ({application, selectedResource, hide}: {app
                                         return;
                                     }
                                 }
-
                                 if (prune) {
                                     const confirmed = await ctx.popup.confirm('Synchronize with prune?', () => (
                                         <div>
