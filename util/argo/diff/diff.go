@@ -27,7 +27,9 @@ type DiffConfigBuilder struct {
 // NewDiffConfigBuilder create a new DiffConfigBuilder instance.
 func NewDiffConfigBuilder() *DiffConfigBuilder {
 	return &DiffConfigBuilder{
-		diffConfig: &diffConfig{},
+		diffConfig: &diffConfig{
+			ignoreMutationWebhook: true,
+		},
 	}
 }
 
@@ -105,6 +107,11 @@ func (b *DiffConfigBuilder) WithServerSideDiff(ssd bool) *DiffConfigBuilder {
 	return b
 }
 
+func (b *DiffConfigBuilder) WithIgnoreMutationWebhook(m bool) *DiffConfigBuilder {
+	b.diffConfig.ignoreMutationWebhook = m
+	return b
+}
+
 // Build will first validate the current state of the diff config and return the
 // DiffConfig implementation if no errors are found. Will return nil and the error
 // details otherwise.
@@ -153,6 +160,7 @@ type DiffConfig interface {
 
 	ServerSideDiff() bool
 	ServerSideDryRunner() diff.ServerSideDryRunner
+	IgnoreMutationWebhook() bool
 }
 
 // diffConfig defines the configurations used while applying diffs.
@@ -171,6 +179,7 @@ type diffConfig struct {
 	manager               string
 	serverSideDiff        bool
 	serverSideDryRunner   diff.ServerSideDryRunner
+	ignoreMutationWebhook bool
 }
 
 func (c *diffConfig) Ignores() []v1alpha1.ResourceIgnoreDifferences {
@@ -214,6 +223,9 @@ func (c *diffConfig) ServerSideDryRunner() diff.ServerSideDryRunner {
 }
 func (c *diffConfig) ServerSideDiff() bool {
 	return c.serverSideDiff
+}
+func (c *diffConfig) IgnoreMutationWebhook() bool {
+	return c.ignoreMutationWebhook
 }
 
 // Validate will check the current state of this diffConfig and return
@@ -280,6 +292,7 @@ func StateDiffs(lives, configs []*unstructured.Unstructured, diffConfig DiffConf
 		diff.WithManager(diffConfig.Manager()),
 		diff.WithServerSideDiff(diffConfig.ServerSideDiff()),
 		diff.WithServerSideDryRunner(diffConfig.ServerSideDryRunner()),
+		diff.WithIgnoreMutationWebhook(diffConfig.IgnoreMutationWebhook()),
 	}
 
 	if diffConfig.Logger() != nil {

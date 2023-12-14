@@ -606,6 +606,10 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 		diffConfigBuilder.WithNoCache()
 	}
 
+	if resourceutil.HasAnnotationOption(app, common.AnnotationCompareOptions, "IncludeMutationWebhook=true") {
+		diffConfigBuilder.WithIgnoreMutationWebhook(false)
+	}
+
 	gvkParser, err := m.getGVKParser(app.Spec.Destination.Server)
 	if err != nil {
 		conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionUnknownError, Message: err.Error(), LastTransitionTime: &now})

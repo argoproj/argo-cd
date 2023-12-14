@@ -75,15 +75,15 @@ default. If you want to include mutation webhooks in Argo CD diffs add
 the following annotation in the Argo CD Application resource:
 
 ```
-argocd.argoproj.io/compare-options: IncludeMutationWebhookInDiff=true
+argocd.argoproj.io/compare-options: IncludeMutationWebhook=true
 ```
 
-Note: This annoation is only effective with Server-Side Diff is
+Note: This annoation is only effective when Server-Side Diff is
 enabled. To enable both options for a given application add the
 following annotation in the Argo CD Application resource:
 
 ```
-argocd.argoproj.io/compare-options: ServerSideDiff=true,IncludeMutationWebhookInDiff=true
+argocd.argoproj.io/compare-options: ServerSideDiff=true,IncludeMutationWebhook=true
 ```
 
 [1]: https://github.com/argoproj/argoproj/blob/main/community/feature-status.md#beta
