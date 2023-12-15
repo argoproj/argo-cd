@@ -84,6 +84,15 @@ func TestWebhookHandler(t *testing.T) {
 			expectedRefresh:    false,
 		},
 		{
+			desc:               "WebHook from a Gitea repository via Commit",
+			headerKey:          "X-Gitea-Event",
+			headerValue:        "push",
+			payloadFile:        "gitea-push-event.json",
+			effectedAppSets:    []string{"git-gitea", "plugin", "matrix-pull-request-github-plugin"},
+			expectedStatusCode: http.StatusOK,
+			expectedRefresh:    true,
+		},
+		{
 			desc:               "WebHook from a GitLab repository via Commit",
 			headerKey:          "X-Gitlab-Event",
 			headerValue:        "Push Hook",
@@ -125,6 +134,24 @@ func TestWebhookHandler(t *testing.T) {
 			headerValue:        "pull_request",
 			payloadFile:        "github-pull-request-assigned-event.json",
 			effectedAppSets:    []string{"pull-request-github", "matrix-pull-request-github", "matrix-scm-pull-request-github", "merge-pull-request-github", "plugin", "matrix-pull-request-github-plugin"},
+			expectedStatusCode: http.StatusOK,
+			expectedRefresh:    false,
+		},
+		{
+			desc:               "WebHook from a Gitea repository via pull_request opened event",
+			headerKey:          "X-Gitea-Event",
+			headerValue:        "pull_request",
+			payloadFile:        "gitea-pull-request-opened-event.json",
+			effectedAppSets:    []string{"pull-request-gitea", "plugin", "matrix-pull-request-github-plugin"},
+			expectedStatusCode: http.StatusOK,
+			expectedRefresh:    true,
+		},
+		{
+			desc:               "WebHook from a Gitea repository via pull_request assigned event",
+			headerKey:          "X-Gitea-Event",
+			headerValue:        "pull_request",
+			payloadFile:        "gitea-pull-request-assigned-event.json",
+			effectedAppSets:    []string{"pull-request-gitea", "plugin"},
 			expectedStatusCode: http.StatusOK,
 			expectedRefresh:    false,
 		},
@@ -178,9 +205,11 @@ func TestWebhookHandler(t *testing.T) {
 		t.Run(test.desc, func(t *testing.T) {
 			fc := fake.NewClientBuilder().WithScheme(scheme).WithObjects(
 				fakeAppWithGitGenerator("git-github", namespace, "https://github.com/org/repo"),
+				fakeAppWithGitGenerator("git-gitea", namespace, "https://gitea/org/repo"),
 				fakeAppWithGitGenerator("git-gitlab", namespace, "https://gitlab/group/name"),
 				fakeAppWithGitGenerator("git-azure-devops", namespace, "https://dev.azure.com/fabrikam-fiber-inc/DefaultCollection/_git/Fabrikam-Fiber-Git"),
 				fakeAppWithGithubPullRequestGenerator("pull-request-github", namespace, "Codertocat", "Hello-World"),
+				fakeAppWithGiteaPullRequestGenerator("pull-request-gitea", namespace, "Codertocat", "Hello-World", "https://gitea/org/repo"),
 				fakeAppWithGitlabPullRequestGenerator("pull-request-gitlab", namespace, "100500"),
 				fakeAppWithAzureDevOpsPullRequestGenerator("pull-request-azure-devops", namespace, "DefaultCollection", "Fabrikam"),
 				fakeAppWithPluginGenerator("plugin", namespace),
@@ -206,7 +235,7 @@ func TestWebhookHandler(t *testing.T) {
 			w := httptest.NewRecorder()
 
 			h.Handler(w, req)
-			assert.Equal(t, w.Code, test.expectedStatusCode)
+			assert.Equal(t, test.expectedStatusCode, w.Code)
 
 			list := &v1alpha1.ApplicationSetList{}
 			err = fc.List(context.TODO(), list)
@@ -223,7 +252,7 @@ func TestWebhookHandler(t *testing.T) {
 					}
 					effectedAppSetsAsExpected[gotAppSet.Name] = true
 				} else {
-					assert.False(t, gotAppSet.RefreshRequired())
+					assert.False(t, gotAppSet.RefreshRequired(), gotAppSet.Name)
 				}
 			}
 			for appSetName, checked := range effectedAppSetsAsExpected {
@@ -350,6 +379,28 @@ func fakeAppWithGithubPullRequestGenerator(name, namespace, owner, repo string) 
 						Github: &v1alpha1.PullRequestGeneratorGithub{
 							Owner: owner,
 							Repo:  repo,
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+func fakeAppWithGiteaPullRequestGenerator(name, namespace, owner, repo string, api string) *v1alpha1.ApplicationSet {
+	return &v1alpha1.ApplicationSet{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: namespace,
+		},
+		Spec: v1alpha1.ApplicationSetSpec{
+			Generators: []v1alpha1.ApplicationSetGenerator{
+				{
+					PullRequest: &v1alpha1.PullRequestGenerator{
+						Gitea: &v1alpha1.PullRequestGeneratorGitea{
+							Owner: owner,
+							Repo:  repo,
+							API:   api,
 						},
 					},
 				},
