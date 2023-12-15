@@ -117,6 +117,11 @@ func (p *providerImpl) Verify(tokenString string, argoSettings *settings.ArgoCDS
 			if err == nil {
 				break
 			}
+			// We log a warning if the token is not valid for a specific audience, but we continue to check other
+			// audiences.
+			// If this gets merged, we'll be able to detect failures unrelated to audiences and short-circuit this loop
+			// to avoid logging irrelevant warnings: https://github.com/coreos/go-oidc/pull/406
+			log.Warnf("Token verification failed for audience %q: %v", aud, err)
 		}
 	}
 
