@@ -163,6 +163,25 @@ message ApplicationPreservedFields {
   repeated string labels = 2;
 }
 
+// ApplicationRevisionHistory defines the manifests for every application's history revision.
+// It will be auto-delete when owner application deleted, or application history expired
+message ApplicationRevisionHistory {
+  // ApplicationName is the owner application name
+  optional string applicationName = 1;
+
+  // ApplicationUID is the owner application's uid
+  optional string applicationUID = 2;
+
+  // Project is the owner application's project
+  optional string project = 3;
+
+  // HistoryID is the id of history which application used
+  optional int64 historyID = 4;
+
+  // ManagedResources define the manifests this history managed. It will be generated when history persist
+  repeated string managedResources = 5;
+}
+
 // ApplicationSet is a set of Application resources
 // +genclient
 // +genclient:noStatus

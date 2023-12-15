@@ -88,6 +88,7 @@ argocd app [flags]
 * [argocd app list](argocd_app_list.md)	 - List applications
 * [argocd app logs](argocd_app_logs.md)	 - Get logs of application pods
 * [argocd app manifests](argocd_app_manifests.md)	 - Print manifests of an application
+* [argocd app manifests-history](argocd_app_manifests-history.md)	 - Print manifests history of an application
 * [argocd app patch](argocd_app_patch.md)	 - Patch application
 * [argocd app patch-resource](argocd_app_patch-resource.md)	 - Patch resource in an application
 * [argocd app resources](argocd_app_resources.md)	 - List resource of application

@@ -99,21 +99,22 @@ func (res *comparisonResult) GetHealthStatus() *v1alpha1.HealthStatus {
 
 // appStateManager allows to compare applications to git
 type appStateManager struct {
-	metricsServer         *metrics.MetricsServer
-	db                    db.ArgoDB
-	settingsMgr           *settings.SettingsManager
-	appclientset          appclientset.Interface
-	projInformer          cache.SharedIndexInformer
-	kubectl               kubeutil.Kubectl
-	repoClientset         apiclient.Clientset
-	liveStateCache        statecache.LiveStateCache
-	cache                 *appstatecache.Cache
-	namespace             string
-	statusRefreshTimeout  time.Duration
-	resourceTracking      argo.ResourceTracking
-	persistResourceHealth bool
-	repoErrorCache        goSync.Map
-	repoErrorGracePeriod  time.Duration
+	metricsServer              *metrics.MetricsServer
+	db                         db.ArgoDB
+	settingsMgr                *settings.SettingsManager
+	appclientset               appclientset.Interface
+	projInformer               cache.SharedIndexInformer
+	kubectl                    kubeutil.Kubectl
+	repoClientset              apiclient.Clientset
+	liveStateCache             statecache.LiveStateCache
+	cache                      *appstatecache.Cache
+	namespace                  string
+	statusRefreshTimeout       time.Duration
+	resourceTracking           argo.ResourceTracking
+	persistResourceHealth      bool
+	repoErrorCache             goSync.Map
+	repoErrorGracePeriod       time.Duration
+	enableRevisionHistoryStore bool
 }
 
 // getRepoObjs will generate the manifests for the given application delegating the
@@ -894,22 +895,24 @@ func NewAppStateManager(
 	resourceTracking argo.ResourceTracking,
 	persistResourceHealth bool,
 	repoErrorGracePeriod time.Duration,
+	enableRevisionHistoryStore bool,
 ) AppStateManager {
 	return &appStateManager{
-		liveStateCache:        liveStateCache,
-		cache:                 cache,
-		db:                    db,
-		appclientset:          appclientset,
-		kubectl:               kubectl,
-		repoClientset:         repoClientset,
-		namespace:             namespace,
-		settingsMgr:           settingsMgr,
-		projInformer:          projInformer,
-		metricsServer:         metricsServer,
-		statusRefreshTimeout:  statusRefreshTimeout,
-		resourceTracking:      resourceTracking,
-		persistResourceHealth: persistResourceHealth,
-		repoErrorGracePeriod:  repoErrorGracePeriod,
+		liveStateCache:             liveStateCache,
+		cache:                      cache,
+		db:                         db,
+		appclientset:               appclientset,
+		kubectl:                    kubectl,
+		repoClientset:              repoClientset,
+		namespace:                  namespace,
+		settingsMgr:                settingsMgr,
+		projInformer:               projInformer,
+		metricsServer:              metricsServer,
+		statusRefreshTimeout:       statusRefreshTimeout,
+		resourceTracking:           resourceTracking,
+		persistResourceHealth:      persistResourceHealth,
+		repoErrorGracePeriod:       repoErrorGracePeriod,
+		enableRevisionHistoryStore: enableRevisionHistoryStore,
 	}
 }
 

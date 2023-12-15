@@ -92,6 +92,18 @@ type ArgoDB interface {
 
 	// GetApplicationControllerReplicas gets the replicas of application controller
 	GetApplicationControllerReplicas() int
+
+	// CreateApplicationRevisionHistory creates a revisionHistory for application
+	CreateApplicationRevisionHistory(ctx context.Context, app *appv1.Application,
+		history *appv1.ApplicationRevisionHistory) error
+	// DeleteApplicationRevisionHistory delete the revisionHistory by application and historyID
+	DeleteApplicationRevisionHistory(ctx context.Context, appName, appUID string, historyID int64) error
+	// GetApplicationRevisionHistory get the revisionHistory by application and historyID
+	GetApplicationRevisionHistory(ctx context.Context, appName, appUID string,
+		historyID int64) (*appv1.ApplicationRevisionHistory, error)
+	// ListApplicationRevisionHistories list revisionHistories by application
+	ListApplicationRevisionHistories(ctx context.Context, appName,
+		appUID string) ([]*appv1.ApplicationRevisionHistory, error)
 }
 
 type db struct {
