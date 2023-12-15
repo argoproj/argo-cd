@@ -15,7 +15,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/argoproj/argo-cd/v2/pkg/ratelimiter"
 	clustercache "github.com/argoproj/gitops-engine/pkg/cache"
 	"github.com/argoproj/gitops-engine/pkg/diff"
 	"github.com/argoproj/gitops-engine/pkg/health"
@@ -41,6 +40,8 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
+
+	"github.com/argoproj/argo-cd/v2/pkg/ratelimiter"
 
 	"github.com/argoproj/argo-cd/v2/common"
 	statecache "github.com/argoproj/argo-cd/v2/controller/cache"
@@ -78,13 +79,18 @@ const (
 type CompareWith int
 
 const (
-	// Compare live application state against state defined in latest git revision with no resolved revision caching.
+	// CompareWithLatestForceResolve compares live application state against state defined in latest git revision with
+	// no resolved revision caching. This is the default level when the user manually requests a refresh.
 	CompareWithLatestForceResolve CompareWith = 3
-	// Compare live application state against state defined in latest git revision.
+	// CompareWithLatest compares live application state against state defined in latest git revision.
 	CompareWithLatest CompareWith = 2
-	// Compare live application state against state defined using revision of most recent comparison.
+	// CompareWithRecent compares the live application state against the state defined using revision of most recent
+	// comparison. This is the default level for resources which are managed by the application, i.e. resources defined
+	// in git.
 	CompareWithRecent CompareWith = 1
-	// Skip comparison and only refresh application resources tree
+	// ComparisonWithNothing skips comparison and only refreshes the application resources tree. This is the default
+	// level for resources which are not managed by the application, i.e. resources not defined in git. For example, a
+	// Pod resource which is a child of a Deployment in git would trigger ComparisonWithNothing.
 	ComparisonWithNothing CompareWith = 0
 )
 
