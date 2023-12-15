@@ -13,18 +13,17 @@ Argo CD currently has 3 different strategies to calculate diffs:
 - **Structured-Merge Diff**: Strategy automatically applied when
   enabling Server-Side Apply sync option. 
 - **Server-Side Diff**: New strategy that invokes a Server-Side Apply
-  in dryrun mode delegating to Kube-API the action of calculating the
-  diff.
+  in dryrun mode in order to generate the predicted live state.
 
 ## Structured-Merge Diff
 *Current Status: [Beta][1] (Since v2.5.0)*
 
 This is diff strategy is automatically used when Server-Side Apply
 sync option is enabled. It uses the [structured-merge-diff][2] library
-used by kubernetes to calculate diffs based on fields ownership. There
+used by Kubernetes to calculate diffs based on fields ownership. There
 are some challenges using this strategy to calculate diffs for CRDs
 that define default values. After different issues were identified by
-the community, this is strategy is being discontinued in favour of
+the community, this strategy is being discontinued in favour of
 Server-Side Diff.
 
 ## Server-Side Diff
@@ -37,7 +36,7 @@ diff results are cached and new Server-Side Apply requests to Kube API
 are only triggered when:
 
 - An Application refresh or hard-refresh is requested.
-- There is a new revision in the repo where Argo CD Application is
+- There is a new revision in the repo which the Argo CD Application is
   targeting.
 - Argo CD Application spec changed.
 
@@ -65,17 +64,45 @@ controller.diff.server.side: "true"
 Add the following annotation in the Argo CD Application resource:
 
 ```
-argocd.argoproj.io/compare-options: ServerSideDiff=true
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  annotations:
+    argocd.argoproj.io/compare-options: ServerSideDiff=true
+...
 ```
+
+**Disabling Server-Side Diff for one application**
+
+If Server-Side Diff is enabled globally in your Argo CD instance, it
+is possible to disable it at the application level. In order to do so,
+add the following annotation in the Application resource:
+
+```
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  annotations:
+    argocd.argoproj.io/compare-options: ServerSideDiff=false
+...
+```
+
+*Note: Please report any issues that forced you to disable the
+Server-Side Diff feature*
 
 ### Mutation Webhooks
 
-Server-Side Diff will revert changes made by mutation webhooks by
+Server-Side Diff does not include changes made by mutation webhooks by
 default. If you want to include mutation webhooks in Argo CD diffs add
 the following annotation in the Argo CD Application resource:
 
 ```
-argocd.argoproj.io/compare-options: IncludeMutationWebhook=true
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  annotations:
+    argocd.argoproj.io/compare-options: IncludeMutationWebhook=true
+...
 ```
 
 Note: This annoation is only effective when Server-Side Diff is
@@ -83,7 +110,12 @@ enabled. To enable both options for a given application add the
 following annotation in the Argo CD Application resource:
 
 ```
-argocd.argoproj.io/compare-options: ServerSideDiff=true,IncludeMutationWebhook=true
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  annotations:
+    argocd.argoproj.io/compare-options: ServerSideDiff=true,IncludeMutationWebhook=true
+...
 ```
 
 [1]: https://github.com/argoproj/argoproj/blob/main/community/feature-status.md#beta
