@@ -3,6 +3,7 @@ package scm_provider
 import (
 	"context"
 	"fmt"
+	"io"
 
 	"github.com/argoproj/argo-cd/v2/applicationset/utils"
 	bitbucketv1 "github.com/gfleury/go-bitbucket-v1"
@@ -183,8 +184,9 @@ func (b *BitbucketServerProvider) listBranches(repo *Repository) ([]bitbucketv1.
 
 func (b *BitbucketServerProvider) getDefaultBranch(org string, repo string) (*bitbucketv1.Branch, error) {
 	response, err := b.client.DefaultApi.GetDefaultBranch(org, repo)
-	if response != nil && response.StatusCode == 404 {
-		// There's no default branch i.e. empty repo, not an error
+	// The API will return 404 if a default branch is set but doesn't exist. In case the repo is empty and default branch is unset,
+	// we will get an EOF and a nil response.
+	if (response != nil && response.StatusCode == 404) || (response == nil && err == io.EOF) {
 		return nil, nil
 	}
 	if err != nil {
