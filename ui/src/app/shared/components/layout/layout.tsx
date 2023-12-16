@@ -1,6 +1,7 @@
 import * as React from 'react';
 import {Sidebar} from '../../../sidebar/sidebar';
 import {ViewPreferences} from '../../services';
+import {Theme, useTheme} from '../theme/theme';
 
 require('./layout.scss');
 
@@ -15,20 +16,22 @@ export interface LayoutProps {
 const getBGColor = (theme: string): string => (theme === 'light' ? '#dee6eb' : '#100f0f');
 
 export const Layout = (props: LayoutProps) => {
+    const theme = useTheme(props.pref);
+
     React.useEffect(() => {
-        if (props.pref.theme) {
-            document.body.style.background = getBGColor(props.pref.theme);
+        if (theme) {
+            document.body.style.background = getBGColor(theme);
         }
-    }, [props.pref.theme]);
+    }, [theme]);
 
     return (
-        <div className={props.pref.theme ? 'theme-' + props.pref.theme : 'theme-light'}>
+        <Theme pref={props.pref}>
             <div className={`cd-layout ${props.isExtension ? 'cd-layout--extension' : ''}`}>
                 <Sidebar onVersionClick={props.onVersionClick} navItems={props.navItems} pref={props.pref} />
                 <div className={`cd-layout__content ${props.pref.hideSidebar ? 'cd-layout__content--sb-collapsed' : 'cd-layout__content--sb-expanded'} custom-styles`}>
                     {props.children}
                 </div>
             </div>
-        </div>
+        </Theme>
     );
 };
