@@ -60,9 +60,9 @@ func TestRequeueAfter(t *testing.T) {
 		"List":                    generators.NewListGenerator(),
 		"Clusters":                generators.NewClusterGenerator(k8sClient, ctx, appClientset, "argocd"),
 		"Git":                     generators.NewGitGenerator(mockServer),
-		"SCMProvider":             generators.NewSCMProviderGenerator(fake.NewClientBuilder().WithObjects(&corev1.Secret{}).Build(), generators.SCMAuthProviders{}, "", []string{""}),
+		"SCMProvider":             generators.NewSCMProviderGenerator(fake.NewClientBuilder().WithObjects(&corev1.Secret{}).Build(), generators.SCMAuthProviders{}, "", []string{""}, true),
 		"ClusterDecisionResource": generators.NewDuckTypeGenerator(ctx, fakeDynClient, appClientset, "argocd"),
-		"PullRequest":             generators.NewPullRequestGenerator(k8sClient, generators.SCMAuthProviders{}, "", []string{""}),
+		"PullRequest":             generators.NewPullRequestGenerator(k8sClient, generators.SCMAuthProviders{}, "", []string{""}, true),
 	}
 
 	nestedGenerators := map[string]generators.Generator{

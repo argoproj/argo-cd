@@ -361,7 +361,7 @@ export const deletePopup = async (ctx: ContextApis, resource: ResourceTreeNode, 
                     </label>
                     <input type='radio' name='deleteOptions' value='force' onChange={() => handleStateChange('force')} style={{marginRight: '5px'}} id='force-delete-radio' />
                     <label htmlFor='force-delete-radio' style={{paddingRight: '30px'}}>
-                        Force Delete {helpTip('Deletes the resource and its dependent resources in the background')}
+                        Background Delete {helpTip('Performs a forceful "background cascading deletion" of the resource and its dependent resources')}
                     </label>
                     <input type='radio' name='deleteOptions' value='orphan' onChange={() => handleStateChange('orphan')} style={{marginRight: '5px'}} id='cascade-delete-radio' />
                     <label htmlFor='cascade-delete-radio'>Non-cascading (Orphan) Delete {helpTip('Deletes the resource and orphans the dependent resources')}</label>
@@ -473,8 +473,8 @@ function getActionItems(
     const execAction = services.authService
         .settings()
         .then(async settings => {
-            const execAllowed = await services.accounts.canI('exec', 'create', application.spec.project + '/' + application.metadata.name);
-            if (resource.kind === 'Pod' && settings.execEnabled && execAllowed) {
+            const execAllowed = settings.execEnabled && (await services.accounts.canI('exec', 'create', application.spec.project + '/' + application.metadata.name));
+            if (resource.kind === 'Pod' && execAllowed) {
                 return [
                     {
                         title: 'Exec',
@@ -1252,3 +1252,17 @@ export function formatCreationTimestamp(creationTimestamp: string) {
 }
 
 export const selectPostfix = (arr: string[], singular: string, plural: string) => (arr.length > 1 ? plural : singular);
+
+export function getUsrMsgKeyToDisplay(appName: string, msgKey: string, usrMessages: appModels.UserMessages[]) {
+    const usrMsg = usrMessages?.find((msg: appModels.UserMessages) => msg.appName === appName && msg.msgKey === msgKey);
+    if (usrMsg !== undefined) {
+        return {...usrMsg, display: true};
+    } else {
+        return {appName, msgKey, display: false, duration: 1} as appModels.UserMessages;
+    }
+}
+
+export const userMsgsList: {[key: string]: string} = {
+    groupNodes: `Since the number of pods has surpassed the threshold pod count of 15, you will now be switched to the group node view.
+                 If you prefer the tree view, you can simply click on the Group Nodes toolbar button to deselect the current view.`
+};

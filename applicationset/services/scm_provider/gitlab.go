@@ -30,9 +30,9 @@ func NewGitlabProvider(ctx context.Context, organization string, token string, u
 	}
 	var client *gitlab.Client
 
-	tr := &http.Transport{
-		TLSClientConfig: utils.GetTlsConfig(scmRootCAPath, insecure),
-	}
+	tr := http.DefaultTransport.(*http.Transport).Clone()
+	tr.TLSClientConfig = utils.GetTlsConfig(scmRootCAPath, insecure)
+
 	retryClient := retryablehttp.NewClient()
 	retryClient.HTTPClient.Transport = tr
 
@@ -100,12 +100,20 @@ func (g *GitlabProvider) ListRepos(ctx context.Context, cloneProtocol string) ([
 				return nil, fmt.Errorf("unknown clone protocol for Gitlab %v", cloneProtocol)
 			}
 
+			var repoLabels []string
+			if len(gitlabRepo.Topics) == 0 {
+				// fallback to for gitlab prior to 14.5
+				repoLabels = gitlabRepo.TagList
+			} else {
+				repoLabels = gitlabRepo.Topics
+			}
+
 			repos = append(repos, &Repository{
 				Organization: gitlabRepo.Namespace.FullPath,
 				Repository:   gitlabRepo.Path,
 				URL:          url,
 				Branch:       gitlabRepo.DefaultBranch,
-				Labels:       gitlabRepo.TagList,
+				Labels:       repoLabels,
 				RepositoryId: gitlabRepo.ID,
 			})
 		}
