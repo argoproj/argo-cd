@@ -42,7 +42,7 @@ connectors:
   id: acme-github
   name: Acme GitHub
   config:
-    hostName: github.acme.com
+    hostName: github.acme.example.com
     clientID: abcdefghijklmnopqrst
     clientSecret: $dex.acme.clientSecret
     orgs:
@@ -79,7 +79,7 @@ connectors:
   id: acme-github
   name: Acme GitHub
   config:
-    hostName: github.acme.com
+    hostName: github.acme.example.com
     clientID: abcdefghijklmnopqrst
     clientSecret: $dex.acme.clientSecret
     orgs:

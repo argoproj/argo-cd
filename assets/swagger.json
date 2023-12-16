@@ -6179,6 +6179,9 @@
         },
         "template": {
           "$ref": "#/definitions/v1alpha1ApplicationSetTemplate"
+        },
+        "templatePatch": {
+          "type": "string"
         }
       }
     },

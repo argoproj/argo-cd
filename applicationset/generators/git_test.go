@@ -317,7 +317,7 @@ func TestGitGenerateParamsFromDirectories(t *testing.T) {
 
 			argoCDServiceMock := mocks.Repos{}
 
-			argoCDServiceMock.On("GetDirectories", mock.Anything, mock.Anything, mock.Anything).Return(testCaseCopy.repoApps, testCaseCopy.repoError)
+			argoCDServiceMock.On("GetDirectories", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(testCaseCopy.repoApps, testCaseCopy.repoError)
 
 			var gitGenerator = NewGitGenerator(&argoCDServiceMock)
 			applicationSetInfo := argoprojiov1alpha1.ApplicationSet{
@@ -613,7 +613,7 @@ func TestGitGenerateParamsFromDirectoriesGoTemplate(t *testing.T) {
 
 			argoCDServiceMock := mocks.Repos{}
 
-			argoCDServiceMock.On("GetDirectories", mock.Anything, mock.Anything, mock.Anything).Return(testCaseCopy.repoApps, testCaseCopy.repoError)
+			argoCDServiceMock.On("GetDirectories", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(testCaseCopy.repoApps, testCaseCopy.repoError)
 
 			var gitGenerator = NewGitGenerator(&argoCDServiceMock)
 			applicationSetInfo := argoprojiov1alpha1.ApplicationSet{
@@ -972,7 +972,7 @@ cluster:
 			t.Parallel()
 
 			argoCDServiceMock := mocks.Repos{}
-			argoCDServiceMock.On("GetFiles", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+			argoCDServiceMock.On("GetFiles", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 				Return(testCaseCopy.repoFileContents, testCaseCopy.repoPathsError)
 
 			var gitGenerator = NewGitGenerator(&argoCDServiceMock)
@@ -1322,7 +1322,7 @@ cluster:
 			t.Parallel()
 
 			argoCDServiceMock := mocks.Repos{}
-			argoCDServiceMock.On("GetFiles", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+			argoCDServiceMock.On("GetFiles", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 				Return(testCaseCopy.repoFileContents, testCaseCopy.repoPathsError)
 
 			var gitGenerator = NewGitGenerator(&argoCDServiceMock)
