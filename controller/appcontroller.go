@@ -1117,7 +1117,6 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Applic
 			return nil
 		}
 		logCtx.Infof("Successfully deleted %d resources", len(objs))
-		logCtx.Infof("Resource entries removed from undefined cluster")
 		app.UnSetCascadedDeletion()
 		return ctrl.updateFinalizers(app)
 	}

@@ -118,6 +118,8 @@ func (ctrl *ApplicationController) cleanupPostDeleteHooks(liveObjs map[kube.Reso
 	healthOverrides := lua.ResourceHealthOverrides(resourceOverrides)
 
 	pendingDeletionCount := 0
+	aggregatedHealth := health.HealthStatusHealthy
+	var hooks []*unstructured.Unstructured
 	for _, obj := range liveObjs {
 		if !isPostDeleteHook(obj) {
 			continue
@@ -126,8 +128,15 @@ func (ctrl *ApplicationController) cleanupPostDeleteHooks(liveObjs map[kube.Reso
 		if err != nil {
 			return false, err
 		}
+		if health.IsWorse(aggregatedHealth, hookHealth.Status) {
+			aggregatedHealth = hookHealth.Status
+		}
+		hooks = append(hooks, obj)
+	}
+
+	for _, obj := range hooks {
 		for _, policy := range hook.DeletePolicies(obj) {
-			if policy == common.HookDeletePolicyHookFailed && hookHealth.Status == health.HealthStatusDegraded || policy == common.HookDeletePolicyHookSucceeded && hookHealth.Status == health.HealthStatusHealthy {
+			if policy == common.HookDeletePolicyHookFailed && aggregatedHealth == health.HealthStatusDegraded || policy == common.HookDeletePolicyHookSucceeded && aggregatedHealth == health.HealthStatusHealthy {
 				pendingDeletionCount++
 				if obj.GetDeletionTimestamp() != nil {
 					continue
@@ -139,6 +148,7 @@ func (ctrl *ApplicationController) cleanupPostDeleteHooks(liveObjs map[kube.Reso
 				}
 			}
 		}
+
 	}
 	if pendingDeletionCount > 0 {
 		logCtx.Infof("Waiting for %d post-delete hooks to be deleted", pendingDeletionCount)
