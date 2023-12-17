@@ -1586,6 +1586,17 @@ func TestUseDiffCache(t *testing.T) {
 			serverSideDiff:       false,
 		},
 		{
+			testName:             "will return true if status expired and server-side diff",
+			noCache:              false,
+			manifestInfos:        manifestInfos("rev1"),
+			sources:              sources(),
+			app:                  app("httpbin", "rev1", false, nil),
+			manifestRevisions:    []string{"rev1"},
+			statusRefreshTimeout: time.Minute,
+			expectedUseCache:     true,
+			serverSideDiff:       false,
+		},
+		{
 			testName:             "will return false if there is a new revision",
 			noCache:              false,
 			manifestInfos:        manifestInfos("rev1"),
