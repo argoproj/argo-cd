@@ -1594,7 +1594,7 @@ func TestUseDiffCache(t *testing.T) {
 			manifestRevisions:    []string{"rev1"},
 			statusRefreshTimeout: time.Minute,
 			expectedUseCache:     true,
-			serverSideDiff:       false,
+			serverSideDiff:       true,
 		},
 		{
 			testName:             "will return false if there is a new revision",
