@@ -7,7 +7,14 @@ import {Consumer} from '../../../shared/context';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
 import {ApplicationRetryOptions} from '../application-retry-options/application-retry-options';
-import {ApplicationManualSyncFlags, ApplicationSyncOptions, FORCE_WARNING, SyncFlags, REPLACE_WARNING, PRUNE_ALL_WARNING} from '../application-sync-options/application-sync-options';
+import {
+    ApplicationManualSyncFlags,
+    ApplicationSyncOptions,
+    FORCE_WARNING,
+    SyncFlags,
+    REPLACE_WARNING,
+    PRUNE_ALL_WARNING
+} from '../application-sync-options/application-sync-options';
 import {ComparisonStatusIcon, getAppDefaultSource, nodeKey} from '../utils';
 
 import './application-sync-panel.scss';
@@ -61,7 +68,7 @@ export const ApplicationSyncPanel = ({application, selectedResource, hide}: {app
                                 const allResourcesAreSelected = selectedResources.length === appResources.length;
                                 const syncFlags = {...params.syncFlags} as SyncFlags;
 
-                                let allRequirePruning = !selectedResources.some(resource => !resource?.requiresPruning);
+                                const allRequirePruning = !selectedResources.some(resource => !resource?.requiresPruning);
                                 if (syncFlags.Prune && allRequirePruning && allResourcesAreSelected) {
                                     const confirmed = await ctx.popup.confirm('Prune all resources?', () => (
                                         <div>
