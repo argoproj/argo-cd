@@ -91,7 +91,7 @@ func (r *MockResourceOps) GetLastResourceCommand(key kube.ResourceKey) string {
 	return r.lastCommandPerResource[key]
 }
 
-func (r *MockResourceOps) ApplyResource(ctx context.Context, obj *unstructured.Unstructured, dryRunStrategy cmdutil.DryRunStrategy, force, validate, serverSideApply bool, manager string) (string, error) {
+func (r *MockResourceOps) ApplyResource(ctx context.Context, obj *unstructured.Unstructured, dryRunStrategy cmdutil.DryRunStrategy, force, validate, serverSideApply bool, manager string, serverSideDiff bool) (string, error) {
 	r.SetLastValidate(validate)
 	r.SetLastServerSideApply(serverSideApply)
 	r.SetLastServerSideApplyManager(manager)

@@ -923,7 +923,7 @@ func (sc *syncContext) applyObject(t *syncTask, dryRun, force, validate bool) (c
 	shouldReplace := sc.replace || resourceutil.HasAnnotationOption(t.targetObj, common.AnnotationSyncOptions, common.SyncOptionReplace)
 	applyFn := func(dryRunStrategy cmdutil.DryRunStrategy) (string, error) {
 		if !shouldReplace {
-			return sc.resourceOps.ApplyResource(context.TODO(), t.targetObj, dryRunStrategy, force, validate, serverSideApply, sc.serverSideApplyManager)
+			return sc.resourceOps.ApplyResource(context.TODO(), t.targetObj, dryRunStrategy, force, validate, serverSideApply, sc.serverSideApplyManager, false)
 		}
 		if t.liveObj == nil {
 			return sc.resourceOps.CreateResource(context.TODO(), t.targetObj, dryRunStrategy, validate)

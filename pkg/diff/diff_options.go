@@ -1,9 +1,13 @@
 package diff
 
 import (
+	"context"
+
 	"github.com/go-logr/logr"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/util/managedfields"
 	"k8s.io/klog/v2/klogr"
+	cmdutil "k8s.io/kubectl/pkg/cmd/util"
 )
 
 type Option func(*options)
@@ -17,11 +21,15 @@ type options struct {
 	structuredMergeDiff   bool
 	gvkParser             *managedfields.GvkParser
 	manager               string
+	serverSideDiff        bool
+	serverSideDryRunner   ServerSideDryRunner
+	ignoreMutationWebhook bool
 }
 
 func applyOptions(opts []Option) options {
 	o := options{
 		ignoreAggregatedRoles: false,
+		ignoreMutationWebhook: true,
 		normalizer:            GetNoopNormalizer(),
 		log:                   klogr.New(),
 	}
@@ -29,6 +37,36 @@ func applyOptions(opts []Option) options {
 		opt(&o)
 	}
 	return o
+}
+
+type KubeApplier interface {
+	ApplyResource(ctx context.Context, obj *unstructured.Unstructured, dryRunStrategy cmdutil.DryRunStrategy, force, validate, serverSideApply bool, manager string, serverSideDiff bool) (string, error)
+}
+
+// ServerSideDryRunner defines the contract to run a server-side apply in
+// dryrun mode.
+type ServerSideDryRunner interface {
+	Run(ctx context.Context, obj *unstructured.Unstructured, manager string) (string, error)
+}
+
+// K8sServerSideDryRunner is the Kubernetes implementation of ServerSideDryRunner.
+type K8sServerSideDryRunner struct {
+	dryrunApplier KubeApplier
+}
+
+// NewK8sServerSideDryRunner will instantiate a new K8sServerSideDryRunner with
+// the given kubeApplier.
+func NewK8sServerSideDryRunner(kubeApplier KubeApplier) *K8sServerSideDryRunner {
+	return &K8sServerSideDryRunner{
+		dryrunApplier: kubeApplier,
+	}
+}
+
+// ServerSideApplyDryRun will invoke a kubernetes server-side apply with the given
+// obj and the given manager in dryrun mode. Will return the predicted live state
+// json as string.
+func (kdr *K8sServerSideDryRunner) Run(ctx context.Context, obj *unstructured.Unstructured, manager string) (string, error) {
+	return kdr.dryrunApplier.ApplyResource(ctx, obj, cmdutil.DryRunServer, false, false, true, manager, true)
 }
 
 func IgnoreAggregatedRoles(ignore bool) Option {
@@ -64,5 +102,23 @@ func WithGVKParser(parser *managedfields.GvkParser) Option {
 func WithManager(manager string) Option {
 	return func(o *options) {
 		o.manager = manager
+	}
+}
+
+func WithServerSideDiff(ssd bool) Option {
+	return func(o *options) {
+		o.serverSideDiff = ssd
+	}
+}
+
+func WithIgnoreMutationWebhook(mw bool) Option {
+	return func(o *options) {
+		o.ignoreMutationWebhook = mw
+	}
+}
+
+func WithServerSideDryRunner(ssadr ServerSideDryRunner) Option {
+	return func(o *options) {
+		o.serverSideDryRunner = ssadr
 	}
 }

@@ -6,6 +6,7 @@ package diff
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -83,6 +84,14 @@ func Diff(config, live *unstructured.Unstructured, opts ...Option) (*DiffResult,
 		Normalize(live, opts...)
 	}
 
+	if o.serverSideDiff {
+		r, err := ServerSideDiff(config, live, opts...)
+		if err != nil {
+			return nil, fmt.Errorf("error calculating server side diff: %w", err)
+		}
+		return r, nil
+	}
+
 	// TODO The two variables bellow are necessary because there is a cyclic
 	// dependency with the kube package that blocks the usage of constants
 	// from common package. common package needs to be refactored and exclude
@@ -118,6 +127,165 @@ func Diff(config, live *unstructured.Unstructured, opts ...Option) (*DiffResult,
 		}
 	}
 	return TwoWayDiff(config, live)
+}
+
+// ServerSideDiff will execute a k8s server-side apply in dry-run mode with the
+// given config. The result will be compared with given live resource to determine
+// diff. If config or live are nil it means resource creation or deletion. In this
+// no call will be made to kube-api and a simple diff will be returned.
+func ServerSideDiff(config, live *unstructured.Unstructured, opts ...Option) (*DiffResult, error) {
+	if live != nil && config != nil {
+		result, err := serverSideDiff(config, live, opts...)
+		if err != nil {
+			return nil, fmt.Errorf("serverSideDiff error: %w", err)
+		}
+		return result, nil
+	}
+	// Currently, during resource creation a shallow diff (non ServerSide apply
+	// based) will be returned. The reasons are:
+	// - Saves 1 additional call to KubeAPI
+	// - Much lighter/faster diff
+	// - This is the existing behaviour users are already used to
+	// - No direct benefit to the user
+	result, err := handleResourceCreateOrDeleteDiff(config, live)
+	if err != nil {
+		return nil, fmt.Errorf("error handling resource creation or deletion: %w", err)
+	}
+	return result, nil
+}
+
+// ServerSideDiff will execute a k8s server-side apply in dry-run mode with the
+// given config. The result will be compared with given live resource to determine
+// diff. Modifications done by mutation webhooks are removed from the diff by default.
+// This behaviour can be customized with Option.WithIgnoreMutationWebhook.
+func serverSideDiff(config, live *unstructured.Unstructured, opts ...Option) (*DiffResult, error) {
+	o := applyOptions(opts)
+	if o.serverSideDryRunner == nil {
+		return nil, fmt.Errorf("serverSideDryRunner is null")
+	}
+	predictedLiveStr, err := o.serverSideDryRunner.Run(context.Background(), config, o.manager)
+	if err != nil {
+		return nil, fmt.Errorf("error running server side apply in dryrun mode: %w", err)
+	}
+	predictedLive, err := jsonStrToUnstructured(predictedLiveStr)
+	if err != nil {
+		return nil, fmt.Errorf("error converting json string to unstructured: %w", err)
+	}
+
+	if o.ignoreMutationWebhook {
+		predictedLive, err = removeWebhookMutation(predictedLive, live, o.gvkParser, o.manager)
+		if err != nil {
+			return nil, fmt.Errorf("error removing non config mutations: %w", err)
+		}
+	}
+
+	Normalize(predictedLive, opts...)
+	unstructured.RemoveNestedField(predictedLive.Object, "metadata", "managedFields")
+
+	predictedLiveBytes, err := json.Marshal(predictedLive)
+	if err != nil {
+		return nil, fmt.Errorf("error marshaling predicted live resource: %w", err)
+	}
+
+	unstructured.RemoveNestedField(live.Object, "metadata", "managedFields")
+	liveBytes, err := json.Marshal(live)
+	if err != nil {
+		return nil, fmt.Errorf("error marshaling live resource: %w", err)
+	}
+	return buildDiffResult(predictedLiveBytes, liveBytes), nil
+}
+
+// removeWebhookMutation will compare the predictedLive with live to identify
+// changes done by mutation webhooks. Webhook mutations are identified by finding
+// changes in predictedLive fields not associated with any manager in the
+// managedFields. All fields under this condition will be reverted with their state
+// from live. If the given predictedLive does not have the managedFields, an error
+// will be returned.
+func removeWebhookMutation(predictedLive, live *unstructured.Unstructured, gvkParser *managedfields.GvkParser, manager string) (*unstructured.Unstructured, error) {
+	plManagedFields := predictedLive.GetManagedFields()
+	if len(plManagedFields) == 0 {
+		return nil, fmt.Errorf("predictedLive for resource %s/%s must have the managedFields", predictedLive.GetKind(), predictedLive.GetName())
+	}
+	gvk := predictedLive.GetObjectKind().GroupVersionKind()
+	pt := gvkParser.Type(gvk)
+	typedPredictedLive, err := pt.FromUnstructured(predictedLive.Object)
+	if err != nil {
+		return nil, fmt.Errorf("error converting predicted live state from unstructured to %s: %w", gvk, err)
+	}
+
+	typedLive, err := pt.FromUnstructured(live.Object)
+	if err != nil {
+		return nil, fmt.Errorf("error converting live state from unstructured to %s: %w", gvk, err)
+	}
+
+	// Compare the predicted live with the live resource
+	comparison, err := typedLive.Compare(typedPredictedLive)
+	if err != nil {
+		return nil, fmt.Errorf("error comparing predicted resource to live resource: %w", err)
+	}
+
+	// Loop over all existing managers in predicted live resource to identify
+	// fields mutated (in predicted live) not owned by any manager.
+	for _, mfEntry := range plManagedFields {
+		mfs := &fieldpath.Set{}
+		err := mfs.FromJSON(bytes.NewReader(mfEntry.FieldsV1.Raw))
+		if err != nil {
+			return nil, fmt.Errorf("error building managedFields set: %s", err)
+		}
+		if comparison.Added != nil && !comparison.Added.Empty() {
+			// exclude the added fields owned by this manager from the comparison
+			comparison.Added = comparison.Added.Difference(mfs)
+		}
+		if comparison.Modified != nil && !comparison.Modified.Empty() {
+			// exclude the modified fields owned by this manager from the comparison
+			comparison.Modified = comparison.Modified.Difference(mfs)
+		}
+		if comparison.Removed != nil && !comparison.Removed.Empty() {
+			// exclude the removed fields owned by this manager from the comparison
+			comparison.Removed = comparison.Removed.Difference(mfs)
+		}
+	}
+	// At this point, comparison holds all mutations that aren't owned by any
+	// of the existing managers.
+
+	if comparison.Added != nil && !comparison.Added.Empty() {
+		// remove added fields that aren't owned by any manager
+		typedPredictedLive = typedPredictedLive.RemoveItems(comparison.Added)
+	}
+
+	if comparison.Modified != nil && !comparison.Modified.Empty() {
+		liveModValues := typedLive.ExtractItems(comparison.Modified)
+		// revert modified fields not owned by any manager
+		typedPredictedLive, err = typedPredictedLive.Merge(liveModValues)
+		if err != nil {
+			return nil, fmt.Errorf("error reverting webhook modified fields in predicted live resource: %s", err)
+		}
+	}
+
+	if comparison.Removed != nil && !comparison.Removed.Empty() {
+		liveRmValues := typedLive.ExtractItems(comparison.Removed)
+		// revert removed fields not owned by any manager
+		typedPredictedLive, err = typedPredictedLive.Merge(liveRmValues)
+		if err != nil {
+			return nil, fmt.Errorf("error reverting webhook removed fields in predicted live resource: %s", err)
+		}
+	}
+
+	plu := typedPredictedLive.AsValue().Unstructured()
+	pl, ok := plu.(map[string]interface{})
+	if !ok {
+		return nil, fmt.Errorf("error converting live typedValue: expected map got %T", plu)
+	}
+	return &unstructured.Unstructured{Object: pl}, nil
+}
+
+func jsonStrToUnstructured(jsonString string) (*unstructured.Unstructured, error) {
+	res := make(map[string]interface{})
+	err := json.Unmarshal([]byte(jsonString), &res)
+	if err != nil {
+		return nil, fmt.Errorf("unmarshal error: %s", err)
+	}
+	return &unstructured.Unstructured{Object: res}, nil
 }
 
 // StructuredMergeDiff will calculate the diff using the structured-merge-diff

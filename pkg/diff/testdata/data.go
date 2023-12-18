@@ -32,4 +32,13 @@ var (
 	//
 	//go:embed openapiv2.bin
 	OpenAPIV2Doc []byte
+
+	//go:embed ssd-service-config.yaml
+	ServiceConfigYAMLSSD string
+
+	//go:embed ssd-service-live.yaml
+	ServiceLiveYAMLSSD string
+
+	//go:embed ssd-service-predicted-live.json
+	ServicePredictedLiveJSONSSD string
 )

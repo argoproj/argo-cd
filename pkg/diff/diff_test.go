@@ -1,6 +1,7 @@
 package diff
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -9,9 +10,11 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/argoproj/gitops-engine/pkg/diff/mocks"
 	"github.com/argoproj/gitops-engine/pkg/diff/testdata"
 	openapi_v2 "github.com/google/gnostic/openapiv2"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
 	appsv1 "k8s.io/api/apps/v1"
@@ -884,6 +887,76 @@ func TestStructuredMergeDiff(t *testing.T) {
 		}
 		assert.Equal(t, expectedMaxSurge, deploy.Spec.Strategy.RollingUpdate.MaxSurge)
 		assert.Equal(t, "ClusterFirst", string(deploy.Spec.Template.Spec.DNSPolicy))
+	})
+}
+
+func TestServerSideDiff(t *testing.T) {
+	buildOpts := func(predictedLive string) []Option {
+		gvkParser := buildGVKParser(t)
+		manager := "argocd-controller"
+		dryRunner := mocks.NewServerSideDryRunner(t)
+
+		dryRunner.On("Run", mock.Anything, mock.AnythingOfType("*unstructured.Unstructured"), manager).
+			Return(func(ctx context.Context, obj *unstructured.Unstructured, manager string) (string, error) {
+				return predictedLive, nil
+			})
+		opts := []Option{
+			WithGVKParser(gvkParser),
+			WithManager(manager),
+			WithServerSideDryRunner(dryRunner),
+		}
+
+		return opts
+	}
+
+	t.Run("will ignore modifications done by mutation webhook by default", func(t *testing.T) {
+		// given
+		t.Parallel()
+		liveState := StrToUnstructured(testdata.ServiceLiveYAMLSSD)
+		desiredState := StrToUnstructured(testdata.ServiceConfigYAMLSSD)
+		opts := buildOpts(testdata.ServicePredictedLiveJSONSSD)
+
+		// when
+		result, err := serverSideDiff(desiredState, liveState, opts...)
+
+		// then
+		require.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.True(t, result.Modified)
+		predictedSVC := YamlToSvc(t, result.PredictedLive)
+		liveSVC := YamlToSvc(t, result.NormalizedLive)
+		require.NotNil(t, predictedSVC.Spec.InternalTrafficPolicy)
+		require.NotNil(t, liveSVC.Spec.InternalTrafficPolicy)
+		assert.Equal(t, "Cluster", string(*predictedSVC.Spec.InternalTrafficPolicy))
+		assert.Equal(t, "Cluster", string(*liveSVC.Spec.InternalTrafficPolicy))
+		assert.Empty(t, predictedSVC.Annotations[AnnotationLastAppliedConfig])
+		assert.Empty(t, liveSVC.Annotations[AnnotationLastAppliedConfig])
+		assert.Empty(t, predictedSVC.Labels["event"])
+	})
+	t.Run("will include mutation webhook modifications", func(t *testing.T) {
+		// given
+		t.Parallel()
+		liveState := StrToUnstructured(testdata.ServiceLiveYAMLSSD)
+		desiredState := StrToUnstructured(testdata.ServiceConfigYAMLSSD)
+		opts := buildOpts(testdata.ServicePredictedLiveJSONSSD)
+		opts = append(opts, WithIgnoreMutationWebhook(false))
+
+		// when
+		result, err := serverSideDiff(desiredState, liveState, opts...)
+
+		// then
+		require.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.True(t, result.Modified)
+		predictedSVC := YamlToSvc(t, result.PredictedLive)
+		liveSVC := YamlToSvc(t, result.NormalizedLive)
+		require.NotNil(t, predictedSVC.Spec.InternalTrafficPolicy)
+		require.NotNil(t, liveSVC.Spec.InternalTrafficPolicy)
+		assert.Equal(t, "Cluster", string(*predictedSVC.Spec.InternalTrafficPolicy))
+		assert.Equal(t, "Cluster", string(*liveSVC.Spec.InternalTrafficPolicy))
+		assert.Empty(t, predictedSVC.Annotations[AnnotationLastAppliedConfig])
+		assert.Empty(t, liveSVC.Annotations[AnnotationLastAppliedConfig])
+		assert.NotEmpty(t, predictedSVC.Labels["event"])
 	})
 }
 

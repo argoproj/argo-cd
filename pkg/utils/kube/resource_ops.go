@@ -38,7 +38,7 @@ import (
 
 // ResourceOperations provides methods to manage k8s resources
 type ResourceOperations interface {
-	ApplyResource(ctx context.Context, obj *unstructured.Unstructured, dryRunStrategy cmdutil.DryRunStrategy, force, validate, serverSideApply bool, manager string) (string, error)
+	ApplyResource(ctx context.Context, obj *unstructured.Unstructured, dryRunStrategy cmdutil.DryRunStrategy, force, validate, serverSideApply bool, manager string, serverSideDiff bool) (string, error)
 	ReplaceResource(ctx context.Context, obj *unstructured.Unstructured, dryRunStrategy cmdutil.DryRunStrategy, force bool) (string, error)
 	CreateResource(ctx context.Context, obj *unstructured.Unstructured, dryRunStrategy cmdutil.DryRunStrategy, validate bool) (string, error)
 	UpdateResource(ctx context.Context, obj *unstructured.Unstructured, dryRunStrategy cmdutil.DryRunStrategy) (*unstructured.Unstructured, error)
@@ -224,7 +224,7 @@ func (k *kubectlResourceOperations) UpdateResource(ctx context.Context, obj *uns
 }
 
 // ApplyResource performs an apply of a unstructured resource
-func (k *kubectlResourceOperations) ApplyResource(ctx context.Context, obj *unstructured.Unstructured, dryRunStrategy cmdutil.DryRunStrategy, force, validate, serverSideApply bool, manager string) (string, error) {
+func (k *kubectlResourceOperations) ApplyResource(ctx context.Context, obj *unstructured.Unstructured, dryRunStrategy cmdutil.DryRunStrategy, force, validate, serverSideApply bool, manager string, serverSideDiff bool) (string, error) {
 	span := k.tracer.StartSpan("ApplyResource")
 	span.SetBaggageItem("kind", obj.GetKind())
 	span.SetBaggageItem("name", obj.GetName())
@@ -237,7 +237,7 @@ func (k *kubectlResourceOperations) ApplyResource(ctx context.Context, obj *unst
 		}
 		defer cleanup()
 
-		applyOpts, err := k.newApplyOptions(ioStreams, obj, fileName, validate, force, serverSideApply, dryRunStrategy, manager)
+		applyOpts, err := k.newApplyOptions(ioStreams, obj, fileName, validate, force, serverSideApply, dryRunStrategy, manager, serverSideDiff)
 		if err != nil {
 			return err
 		}
@@ -245,7 +245,7 @@ func (k *kubectlResourceOperations) ApplyResource(ctx context.Context, obj *unst
 	})
 }
 
-func (k *kubectlResourceOperations) newApplyOptions(ioStreams genericclioptions.IOStreams, obj *unstructured.Unstructured, fileName string, validate bool, force, serverSideApply bool, dryRunStrategy cmdutil.DryRunStrategy, manager string) (*apply.ApplyOptions, error) {
+func (k *kubectlResourceOperations) newApplyOptions(ioStreams genericclioptions.IOStreams, obj *unstructured.Unstructured, fileName string, validate bool, force, serverSideApply bool, dryRunStrategy cmdutil.DryRunStrategy, manager string, serverSideDiff bool) (*apply.ApplyOptions, error) {
 	flags := apply.NewApplyFlags(k.fact, ioStreams)
 	o := &apply.ApplyOptions{
 		IOStreams:         ioStreams,
@@ -267,7 +267,7 @@ func (k *kubectlResourceOperations) newApplyOptions(ioStreams genericclioptions.
 		return nil, err
 	}
 	o.OpenAPISchema = k.openAPISchema
-	o.DryRunVerifier = resource.NewQueryParamVerifier(dynamicClient, k.fact.OpenAPIGetter(), resource.QueryParamFieldValidation)
+	o.DryRunVerifier = resource.NewQueryParamVerifier(dynamicClient, k.fact.OpenAPIGetter(), resource.QueryParamDryRun)
 	o.FieldValidationVerifier = resource.NewQueryParamVerifier(dynamicClient, k.fact.OpenAPIGetter(), resource.QueryParamFieldValidation)
 	validateDirective := metav1.FieldValidationIgnore
 	if validate {
@@ -292,9 +292,20 @@ func (k *kubectlResourceOperations) newApplyOptions(ioStreams genericclioptions.
 				return nil, err
 			}
 		case cmdutil.DryRunServer:
-			err = o.PrintFlags.Complete("%s (server dry run)")
-			if err != nil {
-				return nil, err
+			if serverSideDiff {
+				// managedFields are required by server-side diff to identify
+				// changes made by mutation webhooks.
+				o.PrintFlags.JSONYamlPrintFlags.ShowManagedFields = true
+				p, err := o.PrintFlags.JSONYamlPrintFlags.ToPrinter("json")
+				if err != nil {
+					return nil, fmt.Errorf("error configuring server-side diff printer: %w", err)
+				}
+				return p, nil
+			} else {
+				err = o.PrintFlags.Complete("%s (server dry run)")
+				if err != nil {
+					return nil, fmt.Errorf("error configuring server dryrun printer: %w", err)
+				}
 			}
 		}
 		return o.PrintFlags.ToPrinter()
@@ -326,7 +337,7 @@ func (k *kubectlResourceOperations) newCreateOptions(config *rest.Config, ioStre
 		return nil, err
 	}
 
-	o.DryRunVerifier = resource.NewQueryParamVerifier(dynamicClient, k.fact.OpenAPIGetter(), resource.QueryParamFieldValidation)
+	o.DryRunVerifier = resource.NewQueryParamVerifier(dynamicClient, k.fact.OpenAPIGetter(), resource.QueryParamDryRun)
 	o.FieldValidationVerifier = resource.NewQueryParamVerifier(dynamicClient, k.fact.OpenAPIGetter(), resource.QueryParamFieldValidation)
 
 	switch dryRunStrategy {
@@ -373,7 +384,7 @@ func (k *kubectlResourceOperations) newReplaceOptions(config *rest.Config, f cmd
 		return nil, err
 	}
 
-	o.DryRunVerifier = resource.NewQueryParamVerifier(dynamicClient, k.fact.OpenAPIGetter(), resource.QueryParamFieldValidation)
+	o.DryRunVerifier = resource.NewQueryParamVerifier(dynamicClient, k.fact.OpenAPIGetter(), resource.QueryParamDryRun)
 	o.FieldValidationVerifier = resource.NewQueryParamVerifier(dynamicClient, k.fact.OpenAPIGetter(), resource.QueryParamFieldValidation)
 	o.Builder = func() *resource.Builder {
 		return f.NewBuilder()
