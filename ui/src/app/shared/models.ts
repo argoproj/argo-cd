@@ -131,6 +131,7 @@ export const AnnotationHookKey = 'argocd.argoproj.io/hook';
 export const AnnotationSyncWaveKey = 'argocd.argoproj.io/sync-wave';
 export const AnnotationDefaultView = 'pref.argocd.argoproj.io/default-view';
 export const AnnotationDefaultPodSort = 'pref.argocd.argoproj.io/default-pod-sort';
+export const LabelCustomCSSKey = 'argoproj.io/app-css-class-name';
 
 export interface Application {
     apiVersion?: string;
