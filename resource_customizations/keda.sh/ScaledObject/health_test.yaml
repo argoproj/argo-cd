@@ -1,0 +1,17 @@
+tests:
+- healthStatus:
+    status: Progressing
+    message: "Creating HorizontalPodAutoscaler Object"
+  inputPath: testdata/progressing.yaml
+- healthStatus:
+    status: Degraded
+    message: "ScaledObject doesn't have correct Idle/Min/Max Replica Counts specification"
+  inputPath: testdata/degraded-2.yaml
+- healthStatus:
+    status: Degraded
+    message: "ScaledObject doesn't have correct triggers specification"
+  inputPath: testdata/degraded.yaml
+- healthStatus:
+    status: Healthy
+    message: "ScaledObject is defined correctly and is ready for scaling"
+  inputPath: testdata/healthy.yaml
