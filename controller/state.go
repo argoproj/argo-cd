@@ -71,6 +71,7 @@ type managedResource struct {
 type AppStateManager interface {
 	CompareAppState(app *v1alpha1.Application, project *v1alpha1.AppProject, revisions []string, sources []v1alpha1.ApplicationSource, noCache bool, noRevisionCache bool, localObjects []string, hasMultipleSources bool) (*comparisonResult, error)
 	SyncAppState(app *v1alpha1.Application, state *v1alpha1.OperationState)
+	GetRepoObjs(app *v1alpha1.Application, sources []v1alpha1.ApplicationSource, appLabelKey string, revisions []string, noCache, noRevisionCache, verifySignature bool, proj *v1alpha1.AppProject) ([]*unstructured.Unstructured, []*apiclient.ManifestResponse, error)
 }
 
 // comparisonResult holds the state of an application after the reconciliation
@@ -85,8 +86,9 @@ type comparisonResult struct {
 	// appSourceTypes stores the SourceType for each application source under sources field
 	appSourceTypes []v1alpha1.ApplicationSourceType
 	// timings maps phases of comparison to the duration it took to complete (for statistical purposes)
-	timings        map[string]time.Duration
-	diffResultList *diff.DiffResultList
+	timings            map[string]time.Duration
+	diffResultList     *diff.DiffResultList
+	hasPostDeleteHooks bool
 }
 
 func (res *comparisonResult) GetSyncStatus() *v1alpha1.SyncStatus {
@@ -116,11 +118,11 @@ type appStateManager struct {
 	repoErrorGracePeriod  time.Duration
 }
 
-// getRepoObjs will generate the manifests for the given application delegating the
+// GetRepoObjs will generate the manifests for the given application delegating the
 // task to the repo-server. It returns the list of generated manifests as unstructured
 // objects. It also returns the full response from all calls to the repo server as the
 // second argument.
-func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, sources []v1alpha1.ApplicationSource, appLabelKey string, revisions []string, noCache, noRevisionCache, verifySignature bool, proj *v1alpha1.AppProject) ([]*unstructured.Unstructured, []*apiclient.ManifestResponse, error) {
+func (m *appStateManager) GetRepoObjs(app *v1alpha1.Application, sources []v1alpha1.ApplicationSource, appLabelKey string, revisions []string, noCache, noRevisionCache, verifySignature bool, proj *v1alpha1.AppProject) ([]*unstructured.Unstructured, []*apiclient.ManifestResponse, error) {
 	ts := stats.NewTimingStats()
 	helmRepos, err := m.db.ListHelmRepositories(context.Background())
 	if err != nil {
@@ -236,7 +238,7 @@ func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, sources []v1alp
 		logCtx = logCtx.WithField(k, v.Milliseconds())
 	}
 	logCtx = logCtx.WithField("time_ms", time.Since(ts.StartTime).Milliseconds())
-	logCtx.Info("getRepoObjs stats")
+	logCtx.Info("GetRepoObjs stats")
 	return targetObjs, manifestInfos, nil
 }
 
@@ -415,7 +417,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 			}
 		}
 
-		targetObjs, manifestInfos, err = m.getRepoObjs(app, sources, appLabelKey, revisions, noCache, noRevisionCache, verifySignature, project)
+		targetObjs, manifestInfos, err = m.GetRepoObjs(app, sources, appLabelKey, revisions, noCache, noRevisionCache, verifySignature, project)
 		if err != nil {
 			targetObjs = make([]*unstructured.Unstructured, 0)
 			msg := fmt.Sprintf("Failed to load target state: %s", err.Error())
@@ -569,6 +571,12 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 			}
 		}
 	}
+	hasPostDeleteHooks := false
+	for _, obj := range targetObjs {
+		if isPostDeleteHook(obj) {
+			hasPostDeleteHooks = true
+		}
+	}
 
 	reconciliation := sync.Reconcile(targetObjs, liveObjByKey, app.Spec.Destination.Namespace, infoProvider)
 	ts.AddCheckpoint("live_ms")
@@ -643,7 +651,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 			Kind:            gvk.Kind,
 			Version:         gvk.Version,
 			Group:           gvk.Group,
-			Hook:            hookutil.IsHook(obj),
+			Hook:            isHook(obj),
 			RequiresPruning: targetObj == nil && liveObj != nil && isSelfReferencedObj,
 		}
 		if targetObj != nil {
@@ -776,6 +784,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 		reconciliationResult: reconciliation,
 		diffConfig:           diffConfig,
 		diffResultList:       diffResults,
+		hasPostDeleteHooks:   hasPostDeleteHooks,
 	}
 
 	if hasMultipleSources {

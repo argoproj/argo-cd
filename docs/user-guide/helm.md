@@ -210,7 +210,7 @@ is any normal Kubernetes resource annotated with the `helm.sh/hook` annotation.
 Argo CD supports many (most?) Helm hooks by mapping the Helm annotations onto Argo CD's own hook annotations:
 
 | Helm Annotation                 | Notes                                                                                         |
-| ------------------------------- | --------------------------------------------------------------------------------------------- |
+| ------------------------------- |-----------------------------------------------------------------------------------------------|
 | `helm.sh/hook: crd-install`     | Supported as equivalent to `argocd.argoproj.io/hook: PreSync`.                                |
 | `helm.sh/hook: pre-delete`      | Not supported. In Helm stable there are 3 cases used to clean up CRDs and 3 to clean-up jobs. |
 | `helm.sh/hook: pre-rollback`    | Not supported. Never used in Helm stable.                                                     |
@@ -218,7 +218,7 @@ Argo CD supports many (most?) Helm hooks by mapping the Helm annotations onto Ar
 | `helm.sh/hook: pre-upgrade`     | Supported as equivalent to `argocd.argoproj.io/hook: PreSync`.                                |
 | `helm.sh/hook: post-upgrade`    | Supported as equivalent to `argocd.argoproj.io/hook: PostSync`.                               |
 | `helm.sh/hook: post-install`    | Supported as equivalent to `argocd.argoproj.io/hook: PostSync`.                               |
-| `helm.sh/hook: post-delete`     | Not supported. Never used in Helm stable.                                                     |
+| `helm.sh/hook: post-delete`     | Supported as equivalent to `argocd.argoproj.io/hook: PostDelete`.                             |
 | `helm.sh/hook: post-rollback`   | Not supported. Never used in Helm stable.                                                     |
 | `helm.sh/hook: test-success`    | Not supported. No equivalent in Argo CD.                                                      |
 | `helm.sh/hook: test-failure`    | Not supported. No equivalent in Argo CD.                                                      |
