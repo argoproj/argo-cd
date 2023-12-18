@@ -113,6 +113,7 @@ func TestGetReconcileResults_Refresh(t *testing.T) {
 		func(argoDB db.ArgoDB, appInformer cache.SharedIndexInformer, settingsMgr *settings.SettingsManager, server *metrics.MetricsServer) statecache.LiveStateCache {
 			return &liveStateCache
 		},
+		false,
 	)
 
 	if !assert.NoError(t, err) {

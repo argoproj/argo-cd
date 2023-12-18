@@ -116,6 +116,7 @@ type appStateManager struct {
 	persistResourceHealth bool
 	repoErrorCache        goSync.Map
 	repoErrorGracePeriod  time.Duration
+	serverSideDiff        bool
 }
 
 // GetRepoObjs will generate the manifests for the given application delegating the
@@ -592,7 +593,16 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 		manifestRevisions = append(manifestRevisions, manifestInfo.Revision)
 	}
 
-	useDiffCache := useDiffCache(noCache, manifestInfos, sources, app, manifestRevisions, m.statusRefreshTimeout, logCtx)
+	serverSideDiff := m.serverSideDiff ||
+		resourceutil.HasAnnotationOption(app, common.AnnotationCompareOptions, "ServerSideDiff=true")
+
+	// This allows turning SSD off for a given app if it is enabled at the
+	// controller level
+	if resourceutil.HasAnnotationOption(app, common.AnnotationCompareOptions, "ServerSideDiff=false") {
+		serverSideDiff = false
+	}
+
+	useDiffCache := useDiffCache(noCache, manifestInfos, sources, app, manifestRevisions, m.statusRefreshTimeout, serverSideDiff, logCtx)
 
 	diffConfigBuilder := argodiff.NewDiffConfigBuilder().
 		WithDiffSettings(app.Spec.IgnoreDifferences, resourceOverrides, compareOptions.IgnoreAggregatedRoles).
@@ -604,12 +614,28 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 		diffConfigBuilder.WithNoCache()
 	}
 
+	if resourceutil.HasAnnotationOption(app, common.AnnotationCompareOptions, "IncludeMutationWebhook=true") {
+		diffConfigBuilder.WithIgnoreMutationWebhook(false)
+	}
+
 	gvkParser, err := m.getGVKParser(app.Spec.Destination.Server)
 	if err != nil {
 		conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionUnknownError, Message: err.Error(), LastTransitionTime: &now})
 	}
 	diffConfigBuilder.WithGVKParser(gvkParser)
 	diffConfigBuilder.WithManager(common.ArgoCDSSAManager)
+
+	diffConfigBuilder.WithServerSideDiff(serverSideDiff)
+
+	if serverSideDiff {
+		resourceOps, cleanup, err := m.getResourceOperations(app.Spec.Destination.Server)
+		if err != nil {
+			log.Errorf("CompareAppState error getting resource operations: %s", err)
+			conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionUnknownError, Message: err.Error(), LastTransitionTime: &now})
+		}
+		defer cleanup()
+		diffConfigBuilder.WithServerSideDryRunner(diff.NewK8sServerSideDryRunner(resourceOps))
+	}
 
 	// enable structured merge diff if application syncs with server-side apply
 	if app.Spec.SyncPolicy != nil && app.Spec.SyncPolicy.SyncOptions.HasOption("ServerSideApply=true") {
@@ -811,18 +837,23 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 
 // useDiffCache will determine if the diff should be calculated based
 // on the existing live state cache or not.
-func useDiffCache(noCache bool, manifestInfos []*apiclient.ManifestResponse, sources []v1alpha1.ApplicationSource, app *v1alpha1.Application, manifestRevisions []string, statusRefreshTimeout time.Duration, log *log.Entry) bool {
+func useDiffCache(noCache bool, manifestInfos []*apiclient.ManifestResponse, sources []v1alpha1.ApplicationSource, app *v1alpha1.Application, manifestRevisions []string, statusRefreshTimeout time.Duration, serverSideDiff bool, log *log.Entry) bool {
 
 	if noCache {
 		log.WithField("useDiffCache", "false").Debug("noCache is true")
 		return false
 	}
-	_, refreshRequested := app.IsRefreshRequested()
+	refreshType, refreshRequested := app.IsRefreshRequested()
 	if refreshRequested {
-		log.WithField("useDiffCache", "false").Debug("refreshRequested")
+		log.WithField("useDiffCache", "false").Debugf("refresh type %s requested", string(refreshType))
 		return false
 	}
-	if app.Status.Expired(statusRefreshTimeout) {
+	// serverSideDiff should still use cache even if status is expired.
+	// This is an attempt to avoid hitting k8s API server too frequently during
+	// app refresh with serverSideDiff is enabled. If there are negative side
+	// effects identified with this approach, the serverSideDiff should be removed
+	// from this condition.
+	if app.Status.Expired(statusRefreshTimeout) && !serverSideDiff {
 		log.WithField("useDiffCache", "false").Debug("app.status.expired")
 		return false
 	}
@@ -903,6 +934,7 @@ func NewAppStateManager(
 	resourceTracking argo.ResourceTracking,
 	persistResourceHealth bool,
 	repoErrorGracePeriod time.Duration,
+	serverSideDiff bool,
 ) AppStateManager {
 	return &appStateManager{
 		liveStateCache:        liveStateCache,
@@ -919,6 +951,7 @@ func NewAppStateManager(
 		resourceTracking:      resourceTracking,
 		persistResourceHealth: persistResourceHealth,
 		repoErrorGracePeriod:  repoErrorGracePeriod,
+		serverSideDiff:        serverSideDiff,
 	}
 }
 

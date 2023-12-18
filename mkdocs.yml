@@ -162,7 +162,9 @@ nav:
   - user-guide/multiple_sources.md
   - GnuPG verification: user-guide/gpg-verification.md
   - user-guide/auto_sync.md
-  - user-guide/diffing.md
+  - Diffing:
+    - Diff Strategies: user-guide/diff-strategies.md
+    - Diff Customization: user-guide/diffing.md
   - user-guide/orphaned-resources.md
   - user-guide/compare-options.md
   - user-guide/sync-options.md
