@@ -57,11 +57,12 @@ export const ApplicationSyncPanel = ({application, selectedResource, hide}: {app
                             })}
                             onSubmit={async (params: any) => {
                                 setPending(true);
-                                let resources = appResources.filter((_, i) => params.resources[i]);
+                                let selectedResources = appResources.filter((_, i) => params.resources[i]);
+                                const allResourcesAreSelected = selectedResources.length === appResources.length;
                                 const syncFlags = {...params.syncFlags} as SyncFlags;
 
-                                let allRequirePruning = !resources.some(resource => !resource?.requiresPruning);
-                                if (syncFlags.Prune && allRequirePruning) {
+                                let allRequirePruning = !selectedResources.some(resource => !resource?.requiresPruning);
+                                if (syncFlags.Prune && allRequirePruning && allResourcesAreSelected) {
                                     const confirmed = await ctx.popup.confirm('Prune all resources?', () => (
                                         <div>
                                             <i className='fa fa-exclamation-triangle' style={{color: ARGO_WARNING_COLOR}} />
@@ -73,9 +74,8 @@ export const ApplicationSyncPanel = ({application, selectedResource, hide}: {app
                                         return;
                                     }
                                 }
-
-                                if (resources.length === appResources.length) {
-                                    resources = null;
+                                if (allResourcesAreSelected) {
+                                    selectedResources = null;
                                 }
                                 const replace = params.syncOptions?.findIndex((opt: string) => opt === 'Replace=true') > -1;
                                 if (replace) {
@@ -117,7 +117,7 @@ export const ApplicationSyncPanel = ({application, selectedResource, hide}: {app
                                         syncFlags.Prune || false,
                                         syncFlags.DryRun || false,
                                         syncStrategy,
-                                        resources,
+                                        selectedResources,
                                         params.syncOptions,
                                         params.retryStrategy
                                     );
