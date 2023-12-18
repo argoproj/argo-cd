@@ -25,6 +25,9 @@ func compileFilters(filters []argoprojiov1alpha1.PullRequestGeneratorFilter) ([]
 				return nil, fmt.Errorf("error compiling TargetBranchMatch regexp %q: %v", *filter.TargetBranchMatch, err)
 			}
 		}
+		if filter.IgnoreDraft != nil {
+			outFilter.IgnoreDraft = *filter.IgnoreDraft
+		}
 		outFilters = append(outFilters, outFilter)
 	}
 	return outFilters, nil
@@ -35,6 +38,9 @@ func matchFilter(pullRequest *PullRequest, filter *Filter) bool {
 		return false
 	}
 	if filter.TargetBranchMatch != nil && !filter.TargetBranchMatch.MatchString(pullRequest.TargetBranch) {
+		return false
+	}
+	if filter.IgnoreDraft && pullRequest.Draft {
 		return false
 	}
 

@@ -319,6 +319,7 @@ spec:
 ```
 
 * `branchMatch`: A regexp matched against source branch names.
+* `ignoreDraft`: A bool whether to exclude draft pull requests.
 * `targetBranchMatch`: A regexp matched against target branch names.
 
 [GitHub](#github) and [GitLab](#gitlab) also support a `labels` filter.
