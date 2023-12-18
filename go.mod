@@ -13,7 +13,7 @@ require (
 	github.com/TomOnTime/utfutil v0.0.0-20180511104225-09c41003ee1d
 	github.com/alicebob/miniredis/v2 v2.30.4
 	github.com/antonmedv/expr v1.15.2
-	github.com/argoproj/gitops-engine v0.7.1-0.20231102154024-c0c2dd1f6f48
+	github.com/argoproj/gitops-engine v0.7.1-0.20231218194513-aba38192fb16
 	github.com/argoproj/notifications-engine v0.4.1-0.20231027194313-a8d185ecc0a9
 	github.com/argoproj/pkg v0.13.7-0.20230626144333-d56162821bd1
 	github.com/aws/aws-sdk-go v1.44.317
@@ -293,10 +293,6 @@ require (
 )
 
 replace (
-	// TODO (SSD): Remove this before merging
-	// github.com/argoproj/gitops-engine => /Users/lalmeida1/dev/git/intuit/gitops-engine
-	github.com/argoproj/gitops-engine => github.com/leoluz/gitops-engine v0.4.1-0.20231213210257-c4a60dce1e93
-
 	// https://github.com/golang/go/issues/33546#issuecomment-519656923
 	github.com/go-check/check => github.com/go-check/check v0.0.0-20180628173108-788fd7840127
 

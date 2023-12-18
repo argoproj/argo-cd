@@ -696,6 +696,8 @@ github.com/apache/thrift v0.12.0/go.mod h1:cp2SuWMxlEZw2r+iP2GNCdIi4C1qmUzdZFSVb
 github.com/apache/thrift v0.13.0/go.mod h1:cp2SuWMxlEZw2r+iP2GNCdIi4C1qmUzdZFSVb+bacwQ=
 github.com/apache/thrift v0.16.0/go.mod h1:PHK3hniurgQaNMZYaCLEqXKsYK8upmhPbmdP2FXSqgU=
 github.com/appscode/go v0.0.0-20191119085241-0887d8ec2ecc/go.mod h1:OawnOmAL4ZX3YaPdN+8HTNwBveT1jMsqP74moa9XUbE=
+github.com/argoproj/gitops-engine v0.7.1-0.20231218194513-aba38192fb16 h1:kR15L8UsSVr7oitABKU88msQirMT0/RO/KRla1jkq/s=
+github.com/argoproj/gitops-engine v0.7.1-0.20231218194513-aba38192fb16/go.mod h1:gWE8uROi7hIkWGNAVM+8FWkMfo0vZ03SLx/aFw/DBzg=
 github.com/argoproj/notifications-engine v0.4.1-0.20231027194313-a8d185ecc0a9 h1:1lt0VXzmLK7Vv0kaeal3S6/JIfzPyBORkUWXhiqF3l0=
 github.com/argoproj/notifications-engine v0.4.1-0.20231027194313-a8d185ecc0a9/go.mod h1:E/vv4+by868m0mmflaRfGBmKBtAupoF+mmyfekP8QCk=
 github.com/argoproj/pkg v0.13.7-0.20230626144333-d56162821bd1 h1:qsHwwOJ21K2Ao0xPju1sNuqphyMnMYkyB3ZLoLtxWpo=
@@ -1355,8 +1357,6 @@ github.com/kylelemons/godebug v1.1.0 h1:RPNrshWIDI6G2gRW9EHilWtl7Z6Sb1BR0xunSBf0
 github.com/kylelemons/godebug v1.1.0/go.mod h1:9/0rRGxNHcop5bhtWyNeEfOS8JIWk580+fNqagV/RAw=
 github.com/leodido/go-urn v1.2.0 h1:hpXL4XnriNwQ/ABnpepYM/1vCLWNDfUNts8dX3xTG6Y=
 github.com/leodido/go-urn v1.2.0/go.mod h1:+8+nEpDfqqsY+g338gtMEUOtuK+4dEMhiQEgxpxOKII=
-github.com/leoluz/gitops-engine v0.4.1-0.20231213210257-c4a60dce1e93 h1:SVGSimn24UZnAFWSuQw6HimgAjUTOav1xSQLCATw25Q=
-github.com/leoluz/gitops-engine v0.4.1-0.20231213210257-c4a60dce1e93/go.mod h1:gWE8uROi7hIkWGNAVM+8FWkMfo0vZ03SLx/aFw/DBzg=
 github.com/liggitt/tabwriter v0.0.0-20181228230101-89fcab3d43de h1:9TO3cAIGXtEhnIaL+V+BEER86oLrvS+kWobKpbJuye0=
 github.com/liggitt/tabwriter v0.0.0-20181228230101-89fcab3d43de/go.mod h1:zAbeS9B/r2mtpb6U+EI2rYA5OAXxsYw6wTamcNW+zcE=
 github.com/lightstep/lightstep-tracer-common/golang/gogo v0.0.0-20190605223551-bc2310a04743/go.mod h1:qklhhLq1aX+mtWk9cPHPzaBjWImj5ULL6C7HFJtXQMM=
