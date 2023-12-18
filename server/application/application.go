@@ -152,7 +152,12 @@ func NewServer(
 // If the user does provide a "project," we can respond more specifically. If the user does not have access to the given
 // app name in the given project, we return "permission denied." If the app exists, but the project is different from
 func (s *Server) getAppEnforceRBAC(ctx context.Context, action, project, namespace, name string, getApp func() (*appv1.Application, error)) (*appv1.Application, error) {
+	user := session.Username(ctx)
+	if user == "" {
+		user = "Unknown user"
+	}
 	logCtx := log.WithFields(map[string]interface{}{
+		"user":        user,
 		"application": name,
 		"namespace":   namespace,
 	})
