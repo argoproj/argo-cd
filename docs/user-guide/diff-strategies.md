@@ -38,13 +38,13 @@ are only triggered when:
 - An Application refresh or hard-refresh is requested.
 - There is a new revision in the repo which the Argo CD Application is
   targeting.
-- Argo CD Application spec changed.
+- The Argo CD Application spec changed.
 
 One advantage of Server-Side Diff is that Kubernetes Admission
 Controllers will participate in the diff calculation. If for example
 a validation webhook identifies a resource to be invalid, that will be
 informed to Argo CD during the diff stage rather than during the sync 
-state.
+stage.
 
 ### Enabling it
 
@@ -58,6 +58,9 @@ Add the following entry in the argocd-cmd-params-cm configmap:
 ```
 controller.diff.server.side: "true"
 ```
+
+Note: It is necessary to restart the `argocd-application-controller`
+after applying this configuration.
 
 **Enabling Server-Side Diff for one application**
 
