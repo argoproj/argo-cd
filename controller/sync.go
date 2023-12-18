@@ -57,6 +57,27 @@ func (m *appStateManager) getGVKParser(server string) (*managedfields.GvkParser,
 	return cluster.GetGVKParser(), nil
 }
 
+// getResourceOperations will return the kubectl implementation of the ResourceOperations
+// interface that provides functionality to manage kubernetes resources. Returns a
+// cleanup function that must be called to remove the generated kube config for this
+// server.
+func (m *appStateManager) getResourceOperations(server string) (kube.ResourceOperations, func(), error) {
+	clusterCache, err := m.liveStateCache.GetClusterCache(server)
+	if err != nil {
+		return nil, nil, fmt.Errorf("error getting cluster cache: %w", err)
+	}
+
+	cluster, err := m.db.GetCluster(context.Background(), server)
+	if err != nil {
+		return nil, nil, fmt.Errorf("error getting cluster: %w", err)
+	}
+	ops, cleanup, err := m.kubectl.ManageResources(cluster.RawRestConfig(), clusterCache.GetOpenAPISchema())
+	if err != nil {
+		return nil, nil, fmt.Errorf("error creating kubectl ResourceOperations: %w", err)
+	}
+	return ops, cleanup, nil
+}
+
 func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha1.OperationState) {
 	// Sync requests might be requested with ambiguous revisions (e.g. master, HEAD, v1.2.3).
 	// This can change meaning when resuming operations (e.g a hook sync). After calculating a

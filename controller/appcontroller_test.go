@@ -152,6 +152,7 @@ func newFakeController(data *fakeData, repoErr error) *ApplicationController {
 		nil,
 		data.applicationNamespaces,
 		nil,
+		false,
 	)
 	if err != nil {
 		panic(err)
