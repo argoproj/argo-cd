@@ -71,6 +71,28 @@ message ApplicationManifestQuery {
 	optional string project = 4;
 }
 
+// ApplicationManifestHistoryQuery is a query for manifest history resources
+message ApplicationManifestHistoryQuery {
+	required string name = 1;
+	optional string namespace = 2;
+	optional string project = 3;
+	optional int64 historyID = 4;
+}
+
+// GetManifestsHistoryResponse defines the response that query history manifest of application
+message GetManifestsHistoryResponse {
+	optional string applicationName = 1;
+	optional string applicationUID = 2;
+	optional string project = 3;
+	repeated ApplicationManifestHistory histories = 4;
+}
+
+// ApplicationManifestHistory is the manifest details for every history of application
+message ApplicationManifestHistory {
+	optional int64 historyID = 1;
+	repeated string manifests = 2;
+}
+
 message FileChunk {
 	required bytes chunk = 1;
 }
@@ -355,6 +377,10 @@ service ApplicationService {
 	// GetManifests returns application manifests
 	rpc GetManifests (ApplicationManifestQuery) returns (repository.ManifestResponse) {
 		option (google.api.http).get = "/api/v1/applications/{name}/manifests";
+	}
+
+	rpc GetManifestsHistory (ApplicationManifestHistoryQuery) returns (GetManifestsHistoryResponse) {
+		option (google.api.http).get = "/api/v1/applications/{name}/manifestsHistory";
 	}
 
 	// GetManifestsWithFiles returns application manifests using provided files to generate them

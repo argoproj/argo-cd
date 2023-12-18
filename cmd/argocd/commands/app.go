@@ -84,6 +84,7 @@ func NewApplicationCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comman
 	command.AddCommand(NewApplicationDeleteCommand(clientOpts))
 	command.AddCommand(NewApplicationWaitCommand(clientOpts))
 	command.AddCommand(NewApplicationManifestsCommand(clientOpts))
+	command.AddCommand(NewApplicationManifestsHistoryCommand(clientOpts))
 	command.AddCommand(NewApplicationTerminateOpCommand(clientOpts))
 	command.AddCommand(NewApplicationEditCommand(clientOpts))
 	command.AddCommand(NewApplicationPatchCommand(clientOpts))
@@ -2623,6 +2624,52 @@ func NewApplicationManifestsCommand(clientOpts *argocdclient.ClientOptions) *cob
 	command.Flags().StringVar(&revision, "revision", "", "Show manifests at a specific revision")
 	command.Flags().StringVar(&local, "local", "", "If set, show locally-generated manifests. Value is the absolute path to app manifests within the manifest repo. Example: '/home/username/apps/env/app-1'.")
 	command.Flags().StringVar(&localRepoRoot, "local-repo-root", ".", "Path to the local repository root. Used together with --local allows setting the repository root. Example: '/home/username/apps'.")
+	return command
+}
+
+func NewApplicationManifestsHistoryCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
+	var (
+		historyID int64
+	)
+	var command = &cobra.Command{
+		Use:   "manifests-history APPNAME",
+		Short: "Print manifests history of an application",
+		Run: func(c *cobra.Command, args []string) {
+			ctx := c.Context()
+
+			if len(args) != 1 {
+				c.HelpFunc()(c, args)
+				os.Exit(1)
+			}
+			appName, appNs := argo.ParseFromQualifiedName(args[0], "")
+			clientset := headless.NewClientOrDie(clientOpts, c)
+			conn, appIf := clientset.NewApplicationClientOrDie()
+			defer argoio.Close(conn)
+			query := &application.ApplicationManifestHistoryQuery{
+				Name:      &appName,
+				Namespace: &appNs,
+			}
+			if historyID >= 0 {
+				query.HistoryID = &historyID
+			}
+			resp, err := appIf.GetManifestsHistory(ctx, query)
+			errors.CheckError(err)
+
+			for _, history := range resp.Histories {
+				fmt.Printf("### HistoryID: %d\n", *history.HistoryID)
+				for i := range history.Manifests {
+					mfst := history.Manifests[i]
+					obj, err := argoappv1.UnmarshalToUnstructured(mfst)
+					errors.CheckError(err)
+					fmt.Println("---")
+					yamlBytes, err := yaml.Marshal(obj)
+					errors.CheckError(err)
+					fmt.Printf("%s\n", yamlBytes)
+				}
+			}
+		},
+	}
+	command.Flags().Int64Var(&historyID, "id", -1, "The history id of application. It will return all if historyID < 0")
 	return command
 }
 

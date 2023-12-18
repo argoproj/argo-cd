@@ -11,7 +11,6 @@ import (
 	"time"
 
 	cdcommon "github.com/argoproj/argo-cd/v2/common"
-
 	"github.com/argoproj/gitops-engine/pkg/sync"
 	"github.com/argoproj/gitops-engine/pkg/sync/common"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
@@ -375,7 +374,60 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 			state.Phase = common.OperationError
 			state.Message = fmt.Sprintf("failed to record sync to history: %v", err)
 		}
+		if err == nil && m.enableRevisionHistoryStore && len(app.Status.History) != 0 {
+			history := app.Status.History.LastRevisionHistory()
+			if err = m.saveAndTruncApplicationRevisionHistory(logEntry, app, compareResult); err != nil {
+				logEntry.WithField("history", history.ID).Warnf("save application revision history failed: %s", err.Error())
+			} else {
+				logEntry.WithField("history", history.ID).Infof("save application revision history success")
+			}
+		}
 	}
+}
+
+func (m *appStateManager) saveAndTruncApplicationRevisionHistory(logEntry *log.Entry, app *v1alpha1.Application,
+	compare *comparisonResult) error {
+	managedResources := make([]string, 0, len(compare.managedResources))
+	for i := range compare.managedResources {
+		bs, err := compare.managedResources[i].Target.MarshalJSON()
+		if err != nil {
+			return fmt.Errorf("marshal comparison result managed resources[%d] failed: %s", i, err.Error())
+		}
+		managedResources = append(managedResources, string(bs))
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	appUID := string(app.UID)
+	if err := m.db.CreateApplicationRevisionHistory(ctx, app, &v1alpha1.ApplicationRevisionHistory{
+		ApplicationName:  app.Name,
+		ApplicationUID:   appUID,
+		Project:          app.Spec.Project,
+		HistoryID:        app.Status.History.LastRevisionHistory().ID,
+		ManagedResources: managedResources,
+	}); err != nil {
+		return fmt.Errorf("create application revision history failed: %s", err.Error())
+	}
+	histories, err := m.db.ListApplicationRevisionHistories(ctx, app.Name, appUID)
+	if err != nil {
+		return fmt.Errorf("list application revision histories failed: %s", err.Error())
+	}
+	existHistories := make(map[int64]struct{})
+	for i := range app.Status.History {
+		existHistories[app.Status.History[i].ID] = struct{}{}
+	}
+	for _, history := range histories {
+		if _, ok := existHistories[history.HistoryID]; ok {
+			continue
+		}
+		if err = m.db.DeleteApplicationRevisionHistory(ctx, app.Name, appUID, history.HistoryID); err != nil {
+			logEntry.WithField("history", history.HistoryID).
+				Warnf("delete application revision history failed: %s", err.Error())
+		} else {
+			logEntry.WithField("history", history.HistoryID).
+				Infof("delete application revision history success")
+		}
+	}
+	return nil
 }
 
 // normalizeTargetResources will apply the diff normalization in all live and target resources.

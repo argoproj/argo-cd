@@ -432,6 +432,54 @@ func (s *Server) queryRepoServer(ctx context.Context, a *appv1.Application, acti
 	return action(client, repo, permittedHelmRepos, permittedHelmCredentials, helmOptions, kustomizeOptions, enabledSourceTypes)
 }
 
+func (s *Server) GetManifestsHistory(ctx context.Context, q *application.ApplicationManifestHistoryQuery) (*application.GetManifestsHistoryResponse, error) {
+	if q.Name == nil || *q.Name == "" {
+		return nil, fmt.Errorf("invalid request: application name is missing")
+	}
+	a, err := s.getApplicationEnforceRBACInformer(ctx, rbacpolicy.ActionGet, q.GetProject(), q.GetNamespace(), q.GetName())
+	if err != nil {
+		return nil, err
+	}
+	appUID := string(a.UID)
+	result := &application.GetManifestsHistoryResponse{
+		ApplicationName: &a.Name,
+		ApplicationUID:  &appUID,
+		Project:         &a.Spec.Project,
+	}
+	if q.HistoryID != nil {
+		existHistoryID := false
+		for i := range a.Status.History {
+			if a.Status.History[i].ID == *q.HistoryID {
+				existHistoryID = true
+				break
+			}
+		}
+		if !existHistoryID {
+			return nil, fmt.Errorf("invalid request: application history '%d' not found", *q.HistoryID)
+		}
+		history, err := s.db.GetApplicationRevisionHistory(ctx, a.Name, appUID, *q.HistoryID)
+		if err != nil {
+			return nil, err
+		}
+		result.Histories = append(result.Histories, &application.ApplicationManifestHistory{
+			HistoryID: &history.HistoryID,
+			Manifests: history.ManagedResources,
+		})
+	} else {
+		histories, err := s.db.ListApplicationRevisionHistories(ctx, a.Name, appUID)
+		if err != nil {
+			return nil, fmt.Errorf("query application histories failed: %s", err.Error())
+		}
+		for _, history := range histories {
+			result.Histories = append(result.Histories, &application.ApplicationManifestHistory{
+				HistoryID: &history.HistoryID,
+				Manifests: history.ManagedResources,
+			})
+		}
+	}
+	return result, nil
+}
+
 // GetManifests returns application manifests
 func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationManifestQuery) (*apiclient.ManifestResponse, error) {
 	if q.Name == nil || *q.Name == "" {

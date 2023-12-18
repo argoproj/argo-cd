@@ -160,6 +160,15 @@ const (
 	// LabelValueSecretTypeRepoCreds indicates a secret type of repository credentials
 	LabelValueSecretTypeRepoCreds = "repo-creds"
 
+	// LabelKeyApplicationRevisionHistoryAppUID defines the appuid label for revision history of application
+	LabelKeyApplicationRevisionHistoryAppUID = "argocd.argoproj.io/application-history-appuid"
+	// LabelKeyApplicationRevisionHistoryAppName defines the appname label for revision history of application
+	LabelKeyApplicationRevisionHistoryAppName = "argocd.argoproj.io/application-histoy-appname"
+	// LabelKeyApplicationRevisionHistoryID defines the historyID label for revision history of application
+	LabelKeyApplicationRevisionHistoryID = "argocd.argoproj.io/application-histoy-id"
+	// LabelValueApplicationRevisionHistory indicates a secret type for revision history of application
+	LabelValueApplicationRevisionHistory = "application-revision-history"
+
 	// AnnotationKeyAppInstance is the Argo CD application name is used as the instance name
 	AnnotationKeyAppInstance = "argocd.argoproj.io/tracking-id"
 
@@ -226,6 +235,8 @@ const (
 	EnvControllerShardingAlgorithm = "ARGOCD_CONTROLLER_SHARDING_ALGORITHM"
 	//EnvEnableDynamicClusterDistribution enables dynamic sharding (ALPHA)
 	EnvEnableDynamicClusterDistribution = "ARGOCD_ENABLE_DYNAMIC_CLUSTER_DISTRIBUTION"
+	// EnvEnableRevisionHistoryStore enables store manifests for application's revision history
+	EnvEnableRevisionHistoryStore = "ARGOCD_ENABLE_REVISION_HISTORY_STORE"
 	// EnvEnableGRPCTimeHistogramEnv enables gRPC metrics collection
 	EnvEnableGRPCTimeHistogramEnv = "ARGOCD_ENABLE_GRPC_TIME_HISTOGRAM"
 	// EnvGithubAppCredsExpirationDuration controls the caching of Github app credentials. This value is in minutes (default: 60)

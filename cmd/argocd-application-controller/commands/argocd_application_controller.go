@@ -73,6 +73,7 @@ func NewCommand() *cobra.Command {
 		persistResourceHealth            bool
 		shardingAlgorithm                string
 		enableDynamicClusterDistribution bool
+		enableRevisionHistoryStore       bool
 	)
 	var command = cobra.Command{
 		Use:               cliName,
@@ -166,6 +167,7 @@ func NewCommand() *cobra.Command {
 				clusterFilter,
 				applicationNamespaces,
 				&workqueueRateLimit,
+				enableRevisionHistoryStore,
 			)
 			errors.CheckError(err)
 			cacheutil.CollectMetrics(redisClient, appController.GetMetricsServer())
@@ -224,6 +226,7 @@ func NewCommand() *cobra.Command {
 	command.Flags().DurationVar(&workqueueRateLimit.MaxDelay, "wq-maxdelay-ns", time.Duration(env.ParseInt64FromEnv("WORKQUEUE_MAX_DELAY_NS", time.Second.Nanoseconds(), 1*time.Millisecond.Nanoseconds(), (24*time.Hour).Nanoseconds())), "Set Workqueue Per Item Rate Limiter Max Delay duration in nanoseconds, default 1000000000 (1s)")
 	command.Flags().Float64Var(&workqueueRateLimit.BackoffFactor, "wq-backoff-factor", env.ParseFloat64FromEnv("WORKQUEUE_BACKOFF_FACTOR", 1.5, 0, math.MaxFloat64), "Set Workqueue Per Item Rate Limiter Backoff Factor, default is 1.5")
 	command.Flags().BoolVar(&enableDynamicClusterDistribution, "dynamic-cluster-distribution-enabled", env.ParseBoolFromEnv(common.EnvEnableDynamicClusterDistribution, false), "Enables dynamic cluster distribution.")
+	command.Flags().BoolVar(&enableRevisionHistoryStore, "revision-history-store-enabled", env.ParseBoolFromEnv(common.EnvEnableRevisionHistoryStore, false), "Enables store manifests for application history revision")
 	cacheSource = appstatecache.AddCacheFlagsToCmd(&command, func(client *redis.Client) {
 		redisClient = client
 	})

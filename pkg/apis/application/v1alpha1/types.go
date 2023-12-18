@@ -1581,6 +1581,21 @@ type ApplicationSummary struct {
 	Images []string `json:"images,omitempty" protobuf:"bytes,2,opt,name=images"`
 }
 
+// ApplicationRevisionHistory defines the manifests for every application's history revision.
+// It will be auto-delete when owner application deleted, or application history expired
+type ApplicationRevisionHistory struct {
+	// ApplicationName is the owner application name
+	ApplicationName string `json:"applicationName,omitempty" protobuf:"bytes,1,opt,name=applicationName"`
+	// ApplicationUID is the owner application's uid
+	ApplicationUID string `json:"applicationUID,omitempty" protobuf:"bytes,2,opt,name=applicationUID"`
+	// Project is the owner application's project
+	Project string `json:"project,omitempty" protobuf:"bytes,3,opt,name=project"`
+	// HistoryID is the id of history which application used
+	HistoryID int64 `json:"historyID,omitempty" protobuf:"bytes,4,opt,name=historyID"`
+	// ManagedResources define the manifests this history managed. It will be generated when history persist
+	ManagedResources []string `json:"managedResources,omitempty" protobuf:"bytes,5,opt,name=managedResources"`
+}
+
 // TODO: Document purpose of this method
 func (t *ApplicationTree) FindNode(group string, kind string, namespace string, name string) *ResourceNode {
 	for _, n := range append(t.Nodes, t.OrphanedNodes...) {

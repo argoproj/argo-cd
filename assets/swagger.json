@@ -27,7 +27,7 @@
             }
           },
           "default": {
-            "description": "An unexpected error response.",
+            "description": "An unexpected error response",
             "schema": {
               "$ref": "#/definitions/runtimeError"
             }
@@ -70,7 +70,7 @@
             }
           },
           "default": {
-            "description": "An unexpected error response.",
+            "description": "An unexpected error response",
             "schema": {
               "$ref": "#/definitions/runtimeError"
             }
@@ -103,7 +103,7 @@
             }
           },
           "default": {
-            "description": "An unexpected error response.",
+            "description": "An unexpected error response",
             "schema": {
               "$ref": "#/definitions/runtimeError"
             }
@@ -134,7 +134,7 @@
             }
           },
           "default": {
-            "description": "An unexpected error response.",
+            "description": "An unexpected error response",
             "schema": {
               "$ref": "#/definitions/runtimeError"
             }
@@ -173,7 +173,7 @@
             }
           },
           "default": {
-            "description": "An unexpected error response.",
+            "description": "An unexpected error response",
             "schema": {
               "$ref": "#/definitions/runtimeError"
             }
@@ -210,7 +210,7 @@
             }
           },
           "default": {
-            "description": "An unexpected error response.",
+            "description": "An unexpected error response",
             "schema": {
               "$ref": "#/definitions/runtimeError"
             }
@@ -291,7 +291,7 @@
             }
           },
           "default": {
-            "description": "An unexpected error response.",
+            "description": "An unexpected error response",
             "schema": {
               "$ref": "#/definitions/runtimeError"
             }
@@ -312,16 +312,6 @@
             "schema": {
               "$ref": "#/definitions/v1alpha1Application"
             }
-          },
-          {
-            "type": "boolean",
-            "name": "upsert",
-            "in": "query"
-          },
-          {
-            "type": "boolean",
-            "name": "validate",
-            "in": "query"
           }
         ],
         "responses": {
@@ -332,7 +322,7 @@
             }
           },
           "default": {
-            "description": "An unexpected error response.",
+            "description": "An unexpected error response",
             "schema": {
               "$ref": "#/definitions/runtimeError"
             }
@@ -366,7 +356,7 @@
             }
           },
           "default": {
-            "description": "An unexpected error response.",
+            "description": "An unexpected error response",
             "schema": {
               "$ref": "#/definitions/runtimeError"
             }
@@ -396,16 +386,6 @@
             "schema": {
               "$ref": "#/definitions/v1alpha1Application"
             }
-          },
-          {
-            "type": "boolean",
-            "name": "validate",
-            "in": "query"
-          },
-          {
-            "type": "string",
-            "name": "project",
-            "in": "query"
           }
         ],
         "responses": {
@@ -416,7 +396,7 @@
             }
           },
           "default": {
-            "description": "An unexpected error response.",
+            "description": "An unexpected error response",
             "schema": {
               "$ref": "#/definitions/runtimeError"
             }
@@ -482,7 +462,7 @@
             }
           },
           "default": {
-            "description": "An unexpected error response.",
+            "description": "An unexpected error response",
             "schema": {
               "$ref": "#/definitions/runtimeError"
             }
@@ -548,7 +528,7 @@
             }
           },
           "default": {
-            "description": "An unexpected error response.",
+            "description": "An unexpected error response",
             "schema": {
               "$ref": "#/definitions/runtimeError"
             }
@@ -630,7 +610,7 @@
             }
           },
           "default": {
-            "description": "An unexpected error response.",
+            "description": "An unexpected error response",
             "schema": {
               "$ref": "#/definitions/runtimeError"
             }
@@ -652,6 +632,7 @@
           },
           {
             "type": "boolean",
+            "format": "boolean",
             "name": "cascade",
             "in": "query"
           },
@@ -679,7 +660,7 @@
             }
           },
           "default": {
-            "description": "An unexpected error response.",
+            "description": "An unexpected error response",
             "schema": {
               "$ref": "#/definitions/runtimeError"
             }
@@ -716,7 +697,7 @@
             }
           },
           "default": {
-            "description": "An unexpected error response.",
+            "description": "An unexpected error response",
             "schema": {
               "$ref": "#/definitions/runtimeError"
             }
@@ -772,7 +753,7 @@
             }
           },
           "default": {
-            "description": "An unexpected error response.",
+            "description": "An unexpected error response",
             "schema": {
               "$ref": "#/definitions/runtimeError"
             }
@@ -813,7 +794,7 @@
             }
           },
           "default": {
-            "description": "An unexpected error response.",
+            "description": "An unexpected error response",
             "schema": {
               "$ref": "#/definitions/runtimeError"
             }
@@ -878,6 +859,7 @@
           },
           {
             "type": "boolean",
+            "format": "boolean",
             "name": "follow",
             "in": "query"
           },
@@ -908,6 +890,7 @@
           },
           {
             "type": "boolean",
+            "format": "boolean",
             "name": "previous",
             "in": "query"
           },
@@ -939,7 +922,7 @@
             }
           },
           "default": {
-            "description": "An unexpected error response.",
+            "description": "An unexpected error response",
             "schema": {
               "$ref": "#/definitions/runtimeError"
             }
@@ -985,7 +968,53 @@
             }
           },
           "default": {
-            "description": "An unexpected error response.",
+            "description": "An unexpected error response",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/applications/{name}/manifestsHistory": {
+      "get": {
+        "tags": [
+          "ApplicationService"
+        ],
+        "operationId": "ApplicationService_GetManifestsHistory",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "name",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "name": "namespace",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "project",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "format": "int64",
+            "name": "historyID",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/applicationGetManifestsHistoryResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response",
             "schema": {
               "$ref": "#/definitions/runtimeError"
             }
@@ -1026,7 +1055,7 @@
             }
           },
           "default": {
-            "description": "An unexpected error response.",
+            "description": "An unexpected error response",
             "schema": {
               "$ref": "#/definitions/runtimeError"
             }
@@ -1092,6 +1121,7 @@
           },
           {
             "type": "boolean",
+            "format": "boolean",
             "name": "follow",
             "in": "query"
           },
@@ -1122,6 +1152,7 @@
           },
           {
             "type": "boolean",
+            "format": "boolean",
             "name": "previous",
             "in": "query"
           },
@@ -1153,7 +1184,7 @@
             }
           },
           "default": {
-            "description": "An unexpected error response.",
+            "description": "An unexpected error response",
             "schema": {
               "$ref": "#/definitions/runtimeError"
             }
@@ -1219,7 +1250,7 @@
             }
           },
           "default": {
-            "description": "An unexpected error response.",
+            "description": "An unexpected error response",
             "schema": {
               "$ref": "#/definitions/runtimeError"
             }
@@ -1246,46 +1277,6 @@
             "schema": {
               "type": "string"
             }
-          },
-          {
-            "type": "string",
-            "name": "namespace",
-            "in": "query"
-          },
-          {
-            "type": "string",
-            "name": "resourceName",
-            "in": "query"
-          },
-          {
-            "type": "string",
-            "name": "version",
-            "in": "query"
-          },
-          {
-            "type": "string",
-            "name": "group",
-            "in": "query"
-          },
-          {
-            "type": "string",
-            "name": "kind",
-            "in": "query"
-          },
-          {
-            "type": "string",
-            "name": "patchType",
-            "in": "query"
-          },
-          {
-            "type": "string",
-            "name": "appNamespace",
-            "in": "query"
-          },
-          {
-            "type": "string",
-            "name": "project",
-            "in": "query"
           }
         ],
         "responses": {
@@ -1296,7 +1287,7 @@
             }
           },
           "default": {
-            "description": "An unexpected error response.",
+            "description": "An unexpected error response",
             "schema": {
               "$ref": "#/definitions/runtimeError"
             }
@@ -1343,11 +1334,13 @@
           },
           {
             "type": "boolean",
+            "format": "boolean",
             "name": "force",
             "in": "query"
           },
           {
             "type": "boolean",
+            "format": "boolean",
             "name": "orphan",
             "in": "query"
           },
@@ -1370,7 +1363,7 @@
             }
           },
           "default": {
-            "description": "An unexpected error response.",
+            "description": "An unexpected error response",
             "schema": {
               "$ref": "#/definitions/runtimeError"
             }
@@ -1436,7 +1429,7 @@
             }
           },
           "default": {
-            "description": "An unexpected error response.",
+            "description": "An unexpected error response",
             "schema": {
               "$ref": "#/definitions/runtimeError"
             }
@@ -1463,41 +1456,6 @@
             "schema": {
               "type": "string"
             }
-          },
-          {
-            "type": "string",
-            "name": "namespace",
-            "in": "query"
-          },
-          {
-            "type": "string",
-            "name": "resourceName",
-            "in": "query"
-          },
-          {
-            "type": "string",
-            "name": "version",
-            "in": "query"
-          },
-          {
-            "type": "string",
-            "name": "group",
-            "in": "query"
-          },
-          {
-            "type": "string",
-            "name": "kind",
-            "in": "query"
-          },
-          {
-            "type": "string",
-            "name": "appNamespace",
-            "in": "query"
-          },
-          {
-            "type": "string",
-            "name": "project",
-            "in": "query"
           }
         ],
         "responses": {
@@ -1508,7 +1466,7 @@
             }
           },
           "default": {
-            "description": "An unexpected error response.",
+            "description": "An unexpected error response",
             "schema": {
               "$ref": "#/definitions/runtimeError"
             }
@@ -1574,7 +1532,7 @@
             }
           },
           "default": {
-            "description": "An unexpected error response.",
+            "description": "An unexpected error response",
             "schema": {
               "$ref": "#/definitions/runtimeError"
             }
@@ -1624,7 +1582,7 @@
             }
           },
           "default": {
-            "description": "An unexpected error response.",
+            "description": "An unexpected error response",
             "schema": {
               "$ref": "#/definitions/runtimeError"
             }
@@ -1674,7 +1632,7 @@
             }
           },
           "default": {
-            "description": "An unexpected error response.",
+            "description": "An unexpected error response",
             "schema": {
               "$ref": "#/definitions/runtimeError"
             }
@@ -1713,7 +1671,7 @@
             }
           },
           "default": {
-            "description": "An unexpected error response.",
+            "description": "An unexpected error response",
             "schema": {
               "$ref": "#/definitions/runtimeError"
             }
@@ -1742,21 +1700,6 @@
             "schema": {
               "$ref": "#/definitions/v1alpha1ApplicationSpec"
             }
-          },
-          {
-            "type": "boolean",
-            "name": "validate",
-            "in": "query"
-          },
-          {
-            "type": "string",
-            "name": "appNamespace",
-            "in": "query"
-          },
-          {
-            "type": "string",
-            "name": "project",
-            "in": "query"
           }
         ],
         "responses": {
@@ -1767,7 +1710,7 @@
             }
           },
           "default": {
-            "description": "An unexpected error response.",
+            "description": "An unexpected error response",
             "schema": {
               "$ref": "#/definitions/runtimeError"
             }
@@ -1806,7 +1749,7 @@
             }
           },
           "default": {
-            "description": "An unexpected error response.",
+            "description": "An unexpected error response",
             "schema": {
               "$ref": "#/definitions/runtimeError"
             }
@@ -1847,7 +1790,7 @@
             }
           },
           "default": {
-            "description": "An unexpected error response.",
+            "description": "An unexpected error response",
             "schema": {
               "$ref": "#/definitions/runtimeError"
             }
@@ -1894,7 +1837,7 @@
             }
           },
           "default": {
-            "description": "An unexpected error response.",
+            "description": "An unexpected error response",
             "schema": {
               "$ref": "#/definitions/runtimeError"
             }
@@ -1915,11 +1858,6 @@
             "schema": {
               "$ref": "#/definitions/v1alpha1ApplicationSet"
             }
-          },
-          {
-            "type": "boolean",
-            "name": "upsert",
-            "in": "query"
           }
         ],
         "responses": {
@@ -1930,7 +1868,7 @@
             }
           },
           "default": {
-            "description": "An unexpected error response.",
+            "description": "An unexpected error response",
             "schema": {
               "$ref": "#/definitions/runtimeError"
             }
@@ -1968,7 +1906,7 @@
             }
           },
           "default": {
-            "description": "An unexpected error response.",
+            "description": "An unexpected error response",
             "schema": {
               "$ref": "#/definitions/runtimeError"
             }
@@ -2003,7 +1941,7 @@
             }
           },
           "default": {
-            "description": "An unexpected error response.",
+            "description": "An unexpected error response",
             "schema": {
               "$ref": "#/definitions/runtimeError"
             }
@@ -2046,7 +1984,7 @@
             }
           },
           "default": {
-            "description": "An unexpected error response.",
+            "description": "An unexpected error response",
             "schema": {
               "$ref": "#/definitions/runtimeError"
             }
@@ -2068,12 +2006,6 @@
             "schema": {
               "$ref": "#/definitions/v1alpha1RepositoryCertificateList"
             }
-          },
-          {
-            "type": "boolean",
-            "description": "Whether to upsert already existing certificates.",
-            "name": "upsert",
-            "in": "query"
           }
         ],
         "responses": {
@@ -2084,7 +2016,7 @@
             }
           },
           "default": {
-            "description": "An unexpected error response.",
+            "description": "An unexpected error response",
             "schema": {
               "$ref": "#/definitions/runtimeError"
             }
@@ -2125,7 +2057,7 @@
             }
           },
           "default": {
-            "description": "An unexpected error response.",
+            "description": "An unexpected error response",
             "schema": {
               "$ref": "#/definitions/runtimeError"
             }
@@ -2172,7 +2104,7 @@
             }
           },
           "default": {
-            "description": "An unexpected error response.",
+            "description": "An unexpected error response",
             "schema": {
               "$ref": "#/definitions/runtimeError"
             }
@@ -2193,11 +2125,6 @@
             "schema": {
               "$ref": "#/definitions/v1alpha1Cluster"
             }
-          },
-          {
-            "type": "boolean",
-            "name": "upsert",
-            "in": "query"
           }
         ],
         "responses": {
@@ -2208,7 +2135,7 @@
             }
           },
           "default": {
-            "description": "An unexpected error response.",
+            "description": "An unexpected error response",
             "schema": {
               "$ref": "#/definitions/runtimeError"
             }
@@ -2256,7 +2183,7 @@
             }
           },
           "default": {
-            "description": "An unexpected error response.",
+            "description": "An unexpected error response",
             "schema": {
               "$ref": "#/definitions/runtimeError"
             }
@@ -2284,21 +2211,6 @@
             "schema": {
               "$ref": "#/definitions/v1alpha1Cluster"
             }
-          },
-          {
-            "type": "array",
-            "items": {
-              "type": "string"
-            },
-            "collectionFormat": "multi",
-            "name": "updatedFields",
-            "in": "query"
-          },
-          {
-            "type": "string",
-            "description": "type is the type of the specified cluster identifier ( \"server\" - default, \"name\" ).",
-            "name": "id.type",
-            "in": "query"
           }
         ],
         "responses": {
@@ -2309,7 +2221,7 @@
             }
           },
           "default": {
-            "description": "An unexpected error response.",
+            "description": "An unexpected error response",
             "schema": {
               "$ref": "#/definitions/runtimeError"
             }
@@ -2355,7 +2267,7 @@
             }
           },
           "default": {
-            "description": "An unexpected error response.",
+            "description": "An unexpected error response",
             "schema": {
               "$ref": "#/definitions/runtimeError"
             }
@@ -2387,7 +2299,7 @@
             }
           },
           "default": {
-            "description": "An unexpected error response.",
+            "description": "An unexpected error response",
             "schema": {
               "$ref": "#/definitions/runtimeError"
             }
@@ -2419,7 +2331,7 @@
             }
           },
           "default": {
-            "description": "An unexpected error response.",
+            "description": "An unexpected error response",
             "schema": {
               "$ref": "#/definitions/runtimeError"
             }
@@ -2450,7 +2362,7 @@
             }
           },
           "default": {
-            "description": "An unexpected error response.",
+            "description": "An unexpected error response",
             "schema": {
               "$ref": "#/definitions/runtimeError"
             }
@@ -2472,12 +2384,6 @@
             "schema": {
               "$ref": "#/definitions/v1alpha1GnuPGPublicKey"
             }
-          },
-          {
-            "type": "boolean",
-            "description": "Whether to upsert already existing public keys.",
-            "name": "upsert",
-            "in": "query"
           }
         ],
         "responses": {
@@ -2488,7 +2394,7 @@
             }
           },
           "default": {
-            "description": "An unexpected error response.",
+            "description": "An unexpected error response",
             "schema": {
               "$ref": "#/definitions/runtimeError"
             }
@@ -2517,7 +2423,7 @@
             }
           },
           "default": {
-            "description": "An unexpected error response.",
+            "description": "An unexpected error response",
             "schema": {
               "$ref": "#/definitions/runtimeError"
             }
@@ -2549,7 +2455,7 @@
             }
           },
           "default": {
-            "description": "An unexpected error response.",
+            "description": "An unexpected error response",
             "schema": {
               "$ref": "#/definitions/runtimeError"
             }
@@ -2572,7 +2478,7 @@
             }
           },
           "default": {
-            "description": "An unexpected error response.",
+            "description": "An unexpected error response",
             "schema": {
               "$ref": "#/definitions/runtimeError"
             }
@@ -2595,7 +2501,7 @@
             }
           },
           "default": {
-            "description": "An unexpected error response.",
+            "description": "An unexpected error response",
             "schema": {
               "$ref": "#/definitions/runtimeError"
             }
@@ -2618,7 +2524,7 @@
             }
           },
           "default": {
-            "description": "An unexpected error response.",
+            "description": "An unexpected error response",
             "schema": {
               "$ref": "#/definitions/runtimeError"
             }
@@ -2648,7 +2554,7 @@
             }
           },
           "default": {
-            "description": "An unexpected error response.",
+            "description": "An unexpected error response",
             "schema": {
               "$ref": "#/definitions/runtimeError"
             }
@@ -2679,7 +2585,7 @@
             }
           },
           "default": {
-            "description": "An unexpected error response.",
+            "description": "An unexpected error response",
             "schema": {
               "$ref": "#/definitions/runtimeError"
             }
@@ -2710,7 +2616,7 @@
             }
           },
           "default": {
-            "description": "An unexpected error response.",
+            "description": "An unexpected error response",
             "schema": {
               "$ref": "#/definitions/runtimeError"
             }
@@ -2739,7 +2645,7 @@
             }
           },
           "default": {
-            "description": "An unexpected error response.",
+            "description": "An unexpected error response",
             "schema": {
               "$ref": "#/definitions/runtimeError"
             }
@@ -2770,7 +2676,7 @@
             }
           },
           "default": {
-            "description": "An unexpected error response.",
+            "description": "An unexpected error response",
             "schema": {
               "$ref": "#/definitions/runtimeError"
             }
@@ -2801,7 +2707,7 @@
             }
           },
           "default": {
-            "description": "An unexpected error response.",
+            "description": "An unexpected error response",
             "schema": {
               "$ref": "#/definitions/runtimeError"
             }
@@ -2832,7 +2738,7 @@
             }
           },
           "default": {
-            "description": "An unexpected error response.",
+            "description": "An unexpected error response",
             "schema": {
               "$ref": "#/definitions/runtimeError"
             }
@@ -2863,7 +2769,7 @@
             }
           },
           "default": {
-            "description": "An unexpected error response.",
+            "description": "An unexpected error response",
             "schema": {
               "$ref": "#/definitions/runtimeError"
             }
@@ -2894,7 +2800,7 @@
             }
           },
           "default": {
-            "description": "An unexpected error response.",
+            "description": "An unexpected error response",
             "schema": {
               "$ref": "#/definitions/runtimeError"
             }
@@ -2934,7 +2840,7 @@
             }
           },
           "default": {
-            "description": "An unexpected error response.",
+            "description": "An unexpected error response",
             "schema": {
               "$ref": "#/definitions/runtimeError"
             }
@@ -2979,7 +2885,7 @@
             }
           },
           "default": {
-            "description": "An unexpected error response.",
+            "description": "An unexpected error response",
             "schema": {
               "$ref": "#/definitions/runtimeError"
             }
@@ -3028,7 +2934,7 @@
             }
           },
           "default": {
-            "description": "An unexpected error response.",
+            "description": "An unexpected error response",
             "schema": {
               "$ref": "#/definitions/runtimeError"
             }
@@ -3059,7 +2965,7 @@
             }
           },
           "default": {
-            "description": "An unexpected error response.",
+            "description": "An unexpected error response",
             "schema": {
               "$ref": "#/definitions/runtimeError"
             }
@@ -3081,12 +2987,6 @@
             "schema": {
               "$ref": "#/definitions/v1alpha1RepoCreds"
             }
-          },
-          {
-            "type": "boolean",
-            "description": "Whether to create in upsert mode.",
-            "name": "upsert",
-            "in": "query"
           }
         ],
         "responses": {
@@ -3097,7 +2997,7 @@
             }
           },
           "default": {
-            "description": "An unexpected error response.",
+            "description": "An unexpected error response",
             "schema": {
               "$ref": "#/definitions/runtimeError"
             }
@@ -3137,7 +3037,7 @@
             }
           },
           "default": {
-            "description": "An unexpected error response.",
+            "description": "An unexpected error response",
             "schema": {
               "$ref": "#/definitions/runtimeError"
             }
@@ -3168,7 +3068,7 @@
             }
           },
           "default": {
-            "description": "An unexpected error response.",
+            "description": "An unexpected error response",
             "schema": {
               "$ref": "#/definitions/runtimeError"
             }
@@ -3192,6 +3092,7 @@
           },
           {
             "type": "boolean",
+            "format": "boolean",
             "description": "Whether to force a cache refresh on repo's connection state.",
             "name": "forceRefresh",
             "in": "query"
@@ -3205,7 +3106,7 @@
             }
           },
           "default": {
-            "description": "An unexpected error response.",
+            "description": "An unexpected error response",
             "schema": {
               "$ref": "#/definitions/runtimeError"
             }
@@ -3227,18 +3128,6 @@
             "schema": {
               "$ref": "#/definitions/v1alpha1Repository"
             }
-          },
-          {
-            "type": "boolean",
-            "description": "Whether to create in upsert mode.",
-            "name": "upsert",
-            "in": "query"
-          },
-          {
-            "type": "boolean",
-            "description": "Whether to operate on credential set instead of repository.",
-            "name": "credsOnly",
-            "in": "query"
           }
         ],
         "responses": {
@@ -3249,7 +3138,7 @@
             }
           },
           "default": {
-            "description": "An unexpected error response.",
+            "description": "An unexpected error response",
             "schema": {
               "$ref": "#/definitions/runtimeError"
             }
@@ -3289,7 +3178,7 @@
             }
           },
           "default": {
-            "description": "An unexpected error response.",
+            "description": "An unexpected error response",
             "schema": {
               "$ref": "#/definitions/runtimeError"
             }
@@ -3314,6 +3203,7 @@
           },
           {
             "type": "boolean",
+            "format": "boolean",
             "description": "Whether to force a cache refresh on repo's connection state.",
             "name": "forceRefresh",
             "in": "query"
@@ -3327,7 +3217,7 @@
             }
           },
           "default": {
-            "description": "An unexpected error response.",
+            "description": "An unexpected error response",
             "schema": {
               "$ref": "#/definitions/runtimeError"
             }
@@ -3350,6 +3240,7 @@
           },
           {
             "type": "boolean",
+            "format": "boolean",
             "description": "Whether to force a cache refresh on repo's connection state.",
             "name": "forceRefresh",
             "in": "query"
@@ -3363,7 +3254,7 @@
             }
           },
           "default": {
-            "description": "An unexpected error response.",
+            "description": "An unexpected error response",
             "schema": {
               "$ref": "#/definitions/runtimeError"
             }
@@ -3409,7 +3300,7 @@
             }
           },
           "default": {
-            "description": "An unexpected error response.",
+            "description": "An unexpected error response",
             "schema": {
               "$ref": "#/definitions/runtimeError"
             }
@@ -3434,6 +3325,7 @@
           },
           {
             "type": "boolean",
+            "format": "boolean",
             "description": "Whether to force a cache refresh on repo's connection state.",
             "name": "forceRefresh",
             "in": "query"
@@ -3447,7 +3339,7 @@
             }
           },
           "default": {
-            "description": "An unexpected error response.",
+            "description": "An unexpected error response",
             "schema": {
               "$ref": "#/definitions/runtimeError"
             }
@@ -3471,6 +3363,7 @@
           },
           {
             "type": "boolean",
+            "format": "boolean",
             "description": "Whether to force a cache refresh on repo's connection state.",
             "name": "forceRefresh",
             "in": "query"
@@ -3484,7 +3377,7 @@
             }
           },
           "default": {
-            "description": "An unexpected error response.",
+            "description": "An unexpected error response",
             "schema": {
               "$ref": "#/definitions/runtimeError"
             }
@@ -3515,110 +3408,6 @@
             "schema": {
               "type": "string"
             }
-          },
-          {
-            "type": "string",
-            "description": "Username for accessing repo.",
-            "name": "username",
-            "in": "query"
-          },
-          {
-            "type": "string",
-            "description": "Password for accessing repo.",
-            "name": "password",
-            "in": "query"
-          },
-          {
-            "type": "string",
-            "description": "Private key data for accessing SSH repository.",
-            "name": "sshPrivateKey",
-            "in": "query"
-          },
-          {
-            "type": "boolean",
-            "description": "Whether to skip certificate or host key validation.",
-            "name": "insecure",
-            "in": "query"
-          },
-          {
-            "type": "string",
-            "description": "TLS client cert data for accessing HTTPS repository.",
-            "name": "tlsClientCertData",
-            "in": "query"
-          },
-          {
-            "type": "string",
-            "description": "TLS client cert key for accessing HTTPS repository.",
-            "name": "tlsClientCertKey",
-            "in": "query"
-          },
-          {
-            "type": "string",
-            "description": "The type of the repo.",
-            "name": "type",
-            "in": "query"
-          },
-          {
-            "type": "string",
-            "description": "The name of the repo.",
-            "name": "name",
-            "in": "query"
-          },
-          {
-            "type": "boolean",
-            "description": "Whether helm-oci support should be enabled for this repo.",
-            "name": "enableOci",
-            "in": "query"
-          },
-          {
-            "type": "string",
-            "description": "Github App Private Key PEM data.",
-            "name": "githubAppPrivateKey",
-            "in": "query"
-          },
-          {
-            "type": "string",
-            "format": "int64",
-            "description": "Github App ID of the app used to access the repo.",
-            "name": "githubAppID",
-            "in": "query"
-          },
-          {
-            "type": "string",
-            "format": "int64",
-            "description": "Github App Installation ID of the installed GitHub App.",
-            "name": "githubAppInstallationID",
-            "in": "query"
-          },
-          {
-            "type": "string",
-            "description": "Github App Enterprise base url if empty will default to https://api.github.com.",
-            "name": "githubAppEnterpriseBaseUrl",
-            "in": "query"
-          },
-          {
-            "type": "string",
-            "description": "HTTP/HTTPS proxy to access the repository.",
-            "name": "proxy",
-            "in": "query"
-          },
-          {
-            "type": "string",
-            "description": "Reference between project and repository that allow you automatically to be added as item inside SourceRepos project entity.",
-            "name": "project",
-            "in": "query"
-          },
-          {
-            "type": "string",
-            "description": "Google Cloud Platform service account key.",
-            "name": "gcpServiceAccountKey",
-            "in": "query"
-          },
-          {
-            "type": "boolean",
-            "description": "Whether to force HTTP basic auth.",
-            "name": "forceHttpBasicAuth",
-            "in": "query"
           }
         ],
         "responses": {
@@ -3629,7 +3418,7 @@
             }
           },
           "default": {
-            "description": "An unexpected error response.",
+            "description": "An unexpected error response",
             "schema": {
               "$ref": "#/definitions/runtimeError"
             }
@@ -3669,7 +3458,7 @@
             }
           },
           "default": {
-            "description": "An unexpected error response.",
+            "description": "An unexpected error response",
             "schema": {
               "$ref": "#/definitions/runtimeError"
             }
@@ -3702,7 +3491,7 @@
             }
           },
           "default": {
-            "description": "An unexpected error response.",
+            "description": "An unexpected error response",
             "schema": {
               "$ref": "#/definitions/runtimeError"
             }
@@ -3723,7 +3512,7 @@
             }
           },
           "default": {
-            "description": "An unexpected error response.",
+            "description": "An unexpected error response",
             "schema": {
               "$ref": "#/definitions/runtimeError"
             }
@@ -3746,7 +3535,7 @@
             }
           },
           "default": {
-            "description": "An unexpected error response.",
+            "description": "An unexpected error response",
             "schema": {
               "$ref": "#/definitions/runtimeError"
             }
@@ -3769,7 +3558,7 @@
             }
           },
           "default": {
-            "description": "An unexpected error response.",
+            "description": "An unexpected error response",
             "schema": {
               "$ref": "#/definitions/runtimeError"
             }
@@ -3792,7 +3581,7 @@
             }
           },
           "default": {
-            "description": "An unexpected error response.",
+            "description": "An unexpected error response",
             "schema": {
               "$ref": "#/definitions/runtimeError"
             }
@@ -3882,7 +3671,7 @@
             }
           },
           "default": {
-            "description": "An unexpected error response.",
+            "description": "An unexpected error response",
             "schema": {
               "$ref": "#/definitions/runtimeError"
             }
@@ -3957,7 +3746,7 @@
             }
           },
           "default": {
-            "description": "An unexpected error response.",
+            "description": "An unexpected error response",
             "schema": {
               "$ref": "#/definitions/runtimeError"
             }
@@ -3980,7 +3769,7 @@
             }
           },
           "default": {
-            "description": "An unexpected error response.",
+            "description": "An unexpected error response",
             "schema": {
               "$ref": "#/definitions/runtimeError"
             }
@@ -4000,7 +3789,8 @@
           }
         },
         "enabled": {
-          "type": "boolean"
+          "type": "boolean",
+          "format": "boolean"
         },
         "name": {
           "type": "string"
@@ -4092,6 +3882,22 @@
     "accountUpdatePasswordResponse": {
       "type": "object"
     },
+    "applicationApplicationManifestHistory": {
+      "type": "object",
+      "title": "ApplicationManifestHistory is the manifest details for every history of application",
+      "properties": {
+        "historyID": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "manifests": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
     "applicationApplicationManifestQueryWithFiles": {
       "type": "object",
       "properties": {
@@ -4159,7 +3965,8 @@
           "type": "string"
         },
         "dryRun": {
-          "type": "boolean"
+          "type": "boolean",
+          "format": "boolean"
         },
         "id": {
           "type": "integer",
@@ -4172,7 +3979,8 @@
           "type": "string"
         },
         "prune": {
-          "type": "boolean"
+          "type": "boolean",
+          "format": "boolean"
         }
       }
     },
@@ -4184,7 +3992,8 @@
           "type": "string"
         },
         "dryRun": {
-          "type": "boolean"
+          "type": "boolean",
+          "format": "boolean"
         },
         "infos": {
           "type": "array",
@@ -4205,7 +4014,8 @@
           "type": "string"
         },
         "prune": {
-          "type": "boolean"
+          "type": "boolean",
+          "format": "boolean"
         },
         "resources": {
           "type": "array",
@@ -4237,7 +4047,8 @@
           "type": "string"
         },
         "manualSync": {
-          "type": "boolean"
+          "type": "boolean",
+          "format": "boolean"
         },
         "schedule": {
           "type": "string"
@@ -4260,7 +4071,8 @@
           }
         },
         "canSync": {
-          "type": "boolean"
+          "type": "boolean",
+          "format": "boolean"
         }
       }
     },
@@ -4270,6 +4082,27 @@
         "chunk": {
           "type": "string",
           "format": "byte"
+        }
+      }
+    },
+    "applicationGetManifestsHistoryResponse": {
+      "type": "object",
+      "title": "GetManifestsHistoryResponse defines the response that query history manifest of application",
+      "properties": {
+        "applicationName": {
+          "type": "string"
+        },
+        "applicationUID": {
+          "type": "string"
+        },
+        "histories": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/applicationApplicationManifestHistory"
+          }
+        },
+        "project": {
+          "type": "string"
         }
       }
     },
@@ -4308,7 +4141,8 @@
           "type": "string"
         },
         "last": {
-          "type": "boolean"
+          "type": "boolean",
+          "format": "boolean"
         },
         "podName": {
           "type": "string"
@@ -4425,7 +4259,8 @@
       "type": "object",
       "properties": {
         "anonymizeUsers": {
-          "type": "boolean"
+          "type": "boolean",
+          "format": "boolean"
         },
         "trackingID": {
           "type": "string"
@@ -4463,7 +4298,8 @@
           "type": "string"
         },
         "enablePKCEAuthentication": {
-          "type": "boolean"
+          "type": "boolean",
+          "format": "boolean"
         },
         "idTokenClaims": {
           "type": "object",
@@ -4502,7 +4338,8 @@
           "type": "string"
         },
         "appsInAnyNamespaceEnabled": {
-          "type": "boolean"
+          "type": "boolean",
+          "format": "boolean"
         },
         "configManagementPlugins": {
           "description": "Deprecated: use sidecar plugins instead.",
@@ -4518,7 +4355,8 @@
           "$ref": "#/definitions/clusterDexConfig"
         },
         "execEnabled": {
-          "type": "boolean"
+          "type": "boolean",
+          "format": "boolean"
         },
         "googleAnalytics": {
           "$ref": "#/definitions/clusterGoogleAnalyticsConfig"
@@ -4554,7 +4392,8 @@
           }
         },
         "statusBadgeEnabled": {
-          "type": "boolean"
+          "type": "boolean",
+          "format": "boolean"
         },
         "statusBadgeRootUrl": {
           "type": "string"
@@ -4566,7 +4405,8 @@
           "type": "string"
         },
         "uiBannerPermanent": {
-          "type": "boolean"
+          "type": "boolean",
+          "format": "boolean"
         },
         "uiBannerPosition": {
           "type": "string"
@@ -4581,7 +4421,8 @@
           "type": "string"
         },
         "userLoginsDisabled": {
-          "type": "boolean"
+          "type": "boolean",
+          "format": "boolean"
         }
       }
     },
@@ -4695,7 +4536,8 @@
       "type": "object",
       "properties": {
         "essential": {
-          "type": "boolean"
+          "type": "boolean",
+          "format": "boolean"
         },
         "value": {
           "type": "string"
@@ -4756,7 +4598,8 @@
           "$ref": "#/definitions/v1alpha1AppProject"
         },
         "upsert": {
-          "type": "boolean"
+          "type": "boolean",
+          "format": "boolean"
         }
       }
     },
@@ -4973,7 +4816,8 @@
         },
         "required": {
           "description": "required defines if this given parameter is mandatory.",
-          "type": "boolean"
+          "type": "boolean",
+          "format": "boolean"
         },
         "string": {
           "description": "string is the default value of the parameter if the parameter is a string.",
@@ -5141,7 +4985,8 @@
           "type": "string"
         },
         "loggedIn": {
-          "type": "boolean"
+          "type": "boolean",
+          "format": "boolean"
         },
         "username": {
           "type": "string"
@@ -5613,10 +5458,12 @@
         },
         "blockOwnerDeletion": {
           "type": "boolean",
+          "format": "boolean",
           "title": "If true, AND if the owner has the \"foregroundDeletion\" finalizer, then\nthe owner cannot be deleted from the key-value store until this\nreference is removed.\nSee https://kubernetes.io/docs/concepts/architecture/garbage-collection/#foreground-deletion\nfor how the garbage collector interacts with this field and enforces the foreground deletion.\nDefaults to false.\nTo set this field, a user needs \"delete\" permission of the owner,\notherwise 422 (Unprocessable Entity) will be returned.\n+optional"
         },
         "controller": {
           "type": "boolean",
+          "format": "boolean",
           "title": "If true, this reference points to the managing controller.\n+optional"
         },
         "kind": {
@@ -5748,6 +5595,7 @@
         },
         "permitOnlyProjectScopedClusters": {
           "type": "boolean",
+          "format": "boolean",
           "title": "PermitOnlyProjectScopedClusters determines whether destinations can only reference clusters which are project-scoped"
         },
         "roles": {
@@ -6109,6 +5957,7 @@
       "properties": {
         "applyNestedSelectors": {
           "type": "boolean",
+          "format": "boolean",
           "title": "ApplyNestedSelectors enables selectors defined within the generators of two level-nested matrix or merge generators"
         },
         "generators": {
@@ -6118,7 +5967,8 @@
           }
         },
         "goTemplate": {
-          "type": "boolean"
+          "type": "boolean",
+          "format": "boolean"
         },
         "goTemplateOptions": {
           "type": "array",
@@ -6190,7 +6040,8 @@
         },
         "preserveResourcesOnDeletion": {
           "description": "PreserveResourcesOnDeletion will preserve resources on deletion. If PreserveResourcesOnDeletion is set to true, these Applications will not be deleted.",
-          "type": "boolean"
+          "type": "boolean",
+          "format": "boolean"
         }
       }
     },
@@ -6291,6 +6142,7 @@
         },
         "recurse": {
           "type": "boolean",
+          "format": "boolean",
           "title": "Recurse specifies whether to scan a directory recursively for manifests"
         }
       }
@@ -6308,6 +6160,7 @@
         },
         "ignoreMissingValueFiles": {
           "type": "boolean",
+          "format": "boolean",
           "title": "IgnoreMissingValueFiles prevents helm template from failing when valueFiles do not exist locally by not appending them to helm template --values"
         },
         "parameters": {
@@ -6319,6 +6172,7 @@
         },
         "passCredentials": {
           "type": "boolean",
+          "format": "boolean",
           "title": "PassCredentials pass credentials to all domains (Helm's --pass-credentials)"
         },
         "releaseName": {
@@ -6327,6 +6181,7 @@
         },
         "skipCrds": {
           "type": "boolean",
+          "format": "boolean",
           "title": "SkipCrds skips custom resource definition installation step (Helm's --skip-crds)"
         },
         "valueFiles": {
@@ -6389,6 +6244,7 @@
         },
         "commonAnnotationsEnvsubst": {
           "type": "boolean",
+          "format": "boolean",
           "title": "CommonAnnotationsEnvsubst specifies whether to apply env variables substitution for annotation values"
         },
         "commonLabels": {
@@ -6407,10 +6263,12 @@
         },
         "forceCommonAnnotations": {
           "type": "boolean",
+          "format": "boolean",
           "title": "ForceCommonAnnotations specifies whether to force applying common annotations to resources for Kustomize apps"
         },
         "forceCommonLabels": {
           "type": "boolean",
+          "format": "boolean",
           "title": "ForceCommonLabels specifies whether to force applying common labels to resources for Kustomize apps"
         },
         "images": {
@@ -6742,7 +6600,8 @@
         },
         "clusterResources": {
           "description": "Indicates if cluster level resources should be managed. This setting is used only if cluster is connected in a namespaced mode.",
-          "type": "boolean"
+          "type": "boolean",
+          "format": "boolean"
         },
         "config": {
           "$ref": "#/definitions/v1alpha1ClusterConfig"
@@ -6955,7 +6814,8 @@
           "$ref": "#/definitions/v1alpha1Command"
         },
         "lockRepo": {
-          "type": "boolean"
+          "type": "boolean",
+          "format": "boolean"
         },
         "name": {
           "type": "string"
@@ -7045,7 +6905,8 @@
       "type": "object",
       "properties": {
         "exclude": {
-          "type": "boolean"
+          "type": "boolean",
+          "format": "boolean"
         },
         "path": {
           "type": "string"
@@ -7179,6 +7040,7 @@
       "properties": {
         "forceString": {
           "type": "boolean",
+          "format": "boolean",
           "title": "ForceString determines whether to tell Helm to interpret booleans and numbers as strings"
         },
         "name": {
@@ -7289,7 +7151,8 @@
       "title": "JsonnetVar represents a variable to be passed to jsonnet during manifest generation",
       "properties": {
         "code": {
-          "type": "boolean"
+          "type": "boolean",
+          "format": "boolean"
         },
         "name": {
           "type": "string"
@@ -7345,7 +7208,8 @@
         "options": {
           "type": "object",
           "additionalProperties": {
-            "type": "boolean"
+            "type": "boolean",
+            "format": "boolean"
           }
         },
         "patch": {
@@ -7498,7 +7362,8 @@
       "properties": {
         "automated": {
           "description": "Automated is set to true if operation was initiated automatically by the application controller.",
-          "type": "boolean"
+          "type": "boolean",
+          "format": "boolean"
         },
         "username": {
           "type": "string",
@@ -7565,6 +7430,7 @@
         },
         "warn": {
           "type": "boolean",
+          "format": "boolean",
           "title": "Warn indicates if warning condition should be created for apps which have orphaned resources"
         }
       }
@@ -7817,6 +7683,7 @@
         },
         "insecure": {
           "type": "boolean",
+          "format": "boolean",
           "title": "Skips validating the SCM provider's TLS certificate - useful for self-signed certificates.; default: false"
         },
         "labels": {
@@ -7849,7 +7716,8 @@
         },
         "insecure": {
           "description": "Allow insecure tls, for self-signed certificates; default: false.",
-          "type": "boolean"
+          "type": "boolean",
+          "format": "boolean"
         },
         "owner": {
           "description": "Gitea org or user to scan. Required.",
@@ -7902,10 +7770,12 @@
       "properties": {
         "enableOCI": {
           "type": "boolean",
+          "format": "boolean",
           "title": "EnableOCI specifies whether helm-oci support should be enabled for this repo"
         },
         "forceHttpBasicAuth": {
           "type": "boolean",
+          "format": "boolean",
           "title": "ForceHttpBasicAuth specifies whether Argo CD should attempt to force basic auth for HTTP connections"
         },
         "gcpServiceAccountKey": {
@@ -7988,14 +7858,17 @@
         },
         "enableLfs": {
           "description": "EnableLFS specifies whether git-lfs support should be enabled for this repo. Only valid for Git repositories.",
-          "type": "boolean"
+          "type": "boolean",
+          "format": "boolean"
         },
         "enableOCI": {
           "type": "boolean",
+          "format": "boolean",
           "title": "EnableOCI specifies whether helm-oci support should be enabled for this repo"
         },
         "forceHttpBasicAuth": {
           "type": "boolean",
+          "format": "boolean",
           "title": "ForceHttpBasicAuth specifies whether Argo CD should attempt to force basic auth for HTTP connections"
         },
         "gcpServiceAccountKey": {
@@ -8022,14 +7895,17 @@
         },
         "inheritedCreds": {
           "type": "boolean",
+          "format": "boolean",
           "title": "Whether credentials were inherited from a credential set"
         },
         "insecure": {
           "type": "boolean",
+          "format": "boolean",
           "title": "Insecure specifies whether the connection to the repository ignores any errors when verifying TLS certificates or SSH host keys"
         },
         "insecureIgnoreHostKey": {
           "type": "boolean",
+          "format": "boolean",
           "title": "InsecureIgnoreHostKey should not be used anymore, Insecure is favoured\nUsed only for Git repos"
         },
         "name": {
@@ -8137,7 +8013,8 @@
       "title": "TODO: describe this type\nTODO: describe members of this type",
       "properties": {
         "disabled": {
-          "type": "boolean"
+          "type": "boolean",
+          "format": "boolean"
         },
         "displayName": {
           "type": "string"
@@ -8186,7 +8063,8 @@
           "type": "string"
         },
         "hook": {
-          "type": "boolean"
+          "type": "boolean",
+          "format": "boolean"
         },
         "kind": {
           "type": "string"
@@ -8196,7 +8074,8 @@
           "title": "TargetState contains the JSON live resource manifest"
         },
         "modified": {
-          "type": "boolean"
+          "type": "boolean",
+          "format": "boolean"
         },
         "name": {
           "type": "string"
@@ -8359,7 +8238,8 @@
           }
         },
         "useOpenLibs": {
-          "type": "boolean"
+          "type": "boolean",
+          "format": "boolean"
         }
       }
     },
@@ -8444,7 +8324,8 @@
           "$ref": "#/definitions/v1alpha1HealthStatus"
         },
         "hook": {
-          "type": "boolean"
+          "type": "boolean",
+          "format": "boolean"
         },
         "kind": {
           "type": "string"
@@ -8456,7 +8337,8 @@
           "type": "string"
         },
         "requiresPruning": {
-          "type": "boolean"
+          "type": "boolean",
+          "format": "boolean"
         },
         "status": {
           "type": "string"
@@ -8609,7 +8491,8 @@
       "properties": {
         "allBranches": {
           "description": "Scan all branches instead of just the default branch.",
-          "type": "boolean"
+          "type": "boolean",
+          "format": "boolean"
         },
         "region": {
           "description": "Region provides the AWS region to discover repos.\nif not provided, AppSet controller will infer the current region from environment.",
@@ -8637,7 +8520,8 @@
         },
         "allBranches": {
           "description": "Scan all branches instead of just the default branch.",
-          "type": "boolean"
+          "type": "boolean",
+          "format": "boolean"
         },
         "api": {
           "description": "The URL to Azure DevOps. If blank, use https://dev.azure.com.",
@@ -8659,7 +8543,8 @@
       "properties": {
         "allBranches": {
           "description": "Scan all branches instead of just the main branch.",
-          "type": "boolean"
+          "type": "boolean",
+          "format": "boolean"
         },
         "appPasswordRef": {
           "$ref": "#/definitions/v1alpha1SecretRef"
@@ -8680,7 +8565,8 @@
       "properties": {
         "allBranches": {
           "description": "Scan all branches instead of just the default branch.",
-          "type": "boolean"
+          "type": "boolean",
+          "format": "boolean"
         },
         "api": {
           "description": "The Bitbucket Server REST API URL to talk to. Required.",
@@ -8733,7 +8619,8 @@
       "properties": {
         "allBranches": {
           "description": "Scan all branches instead of just the default branch.",
-          "type": "boolean"
+          "type": "boolean",
+          "format": "boolean"
         },
         "api": {
           "description": "The Gitea URL to talk to. For example https://gitea.mydomain.com/.",
@@ -8741,6 +8628,7 @@
         },
         "insecure": {
           "type": "boolean",
+          "format": "boolean",
           "title": "Allow self-signed TLS / Certificates; default: false"
         },
         "owner": {
@@ -8758,7 +8646,8 @@
       "properties": {
         "allBranches": {
           "description": "Scan all branches instead of just the default branch.",
-          "type": "boolean"
+          "type": "boolean",
+          "format": "boolean"
         },
         "api": {
           "description": "The GitHub API URL to talk to. If blank, use https://api.github.com/.",
@@ -8783,7 +8672,8 @@
       "properties": {
         "allBranches": {
           "description": "Scan all branches instead of just the default branch.",
-          "type": "boolean"
+          "type": "boolean",
+          "format": "boolean"
         },
         "api": {
           "description": "The Gitlab API URL to talk to.",
@@ -8795,14 +8685,17 @@
         },
         "includeSharedProjects": {
           "type": "boolean",
+          "format": "boolean",
           "title": "When recursing through subgroups, also include shared Projects (true) or scan only the subgroups under same path (false).  Defaults to \"true\""
         },
         "includeSubgroups": {
           "type": "boolean",
+          "format": "boolean",
           "title": "Recurse through subgroups (true) or scan only the base group (false).  Defaults to \"false\""
         },
         "insecure": {
           "type": "boolean",
+          "format": "boolean",
           "title": "Skips validating the SCM provider's TLS certificate - useful for self-signed certificates.; default: false"
         },
         "tokenRef": {
@@ -8842,6 +8735,7 @@
       "properties": {
         "dryRun": {
           "type": "boolean",
+          "format": "boolean",
           "title": "DryRun specifies to perform a `kubectl apply --dry-run` without actually performing the sync"
         },
         "manifests": {
@@ -8853,6 +8747,7 @@
         },
         "prune": {
           "type": "boolean",
+          "format": "boolean",
           "title": "Prune specifies to delete resources from the cluster that are no longer tracked in git"
         },
         "resources": {
@@ -8978,14 +8873,17 @@
       "properties": {
         "allowEmpty": {
           "type": "boolean",
+          "format": "boolean",
           "title": "AllowEmpty allows apps have zero live resources (default: false)"
         },
         "prune": {
           "type": "boolean",
+          "format": "boolean",
           "title": "Prune specifies whether to delete resources from the cluster that are not found in the sources anymore as part of automated sync (default: false)"
         },
         "selfHeal": {
           "type": "boolean",
+          "format": "boolean",
           "title": "SelfHeal specifies whether to revert resources back to their desired state upon modification in the cluster (default: false)"
         }
       }
@@ -9032,7 +8930,8 @@
       "properties": {
         "force": {
           "description": "Force indicates whether or not to supply the --force flag to `kubectl apply`.\nThe --force flag deletes and re-create the resource, when PATCH encounters conflict and has\nretried for 5 times.",
-          "type": "boolean"
+          "type": "boolean",
+          "format": "boolean"
         }
       }
     },
@@ -9073,6 +8972,7 @@
         },
         "manualSync": {
           "type": "boolean",
+          "format": "boolean",
           "title": "ManualSync enables manual syncs when they would otherwise be blocked"
         },
         "namespaces": {
@@ -9108,7 +9008,8 @@
         },
         "insecure": {
           "description": "Insecure specifies that the server should be accessed without verifying the TLS certificate. For testing only.",
-          "type": "boolean"
+          "type": "boolean",
+          "format": "boolean"
         },
         "keyData": {
           "type": "string",
