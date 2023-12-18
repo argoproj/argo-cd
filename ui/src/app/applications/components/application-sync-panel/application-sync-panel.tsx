@@ -7,7 +7,7 @@ import {Consumer} from '../../../shared/context';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
 import {ApplicationRetryOptions} from '../application-retry-options/application-retry-options';
-import {ApplicationManualSyncFlags, ApplicationSyncOptions, FORCE_WARNING, SyncFlags, REPLACE_WARNING, PRUNE_WARNING} from '../application-sync-options/application-sync-options';
+import {ApplicationManualSyncFlags, ApplicationSyncOptions, FORCE_WARNING, SyncFlags, REPLACE_WARNING, PRUNE_ALL_WARNING} from '../application-sync-options/application-sync-options';
 import {ComparisonStatusIcon, getAppDefaultSource, nodeKey} from '../utils';
 
 import './application-sync-panel.scss';
@@ -58,16 +58,14 @@ export const ApplicationSyncPanel = ({application, selectedResource, hide}: {app
                             onSubmit={async (params: any) => {
                                 setPending(true);
                                 let resources = appResources.filter((_, i) => params.resources[i]);
-
                                 const syncFlags = {...params.syncFlags} as SyncFlags;
-                                const prune = syncFlags.Prune || false;
-                                const requiresPrune = resources.filter(resource => resource?.requiresPruning === true);
 
-                                if (prune && appResources.length === requiresPrune.length) {
-                                    const confirmed = await ctx.popup.confirm('Synchronize with prune?', () => (
+                                let allRequirePruning = !resources.some(resource => !resource?.requiresPruning);
+                                if (syncFlags.Prune && allRequirePruning) {
+                                    const confirmed = await ctx.popup.confirm('Prune all resources?', () => (
                                         <div>
                                             <i className='fa fa-exclamation-triangle' style={{color: ARGO_WARNING_COLOR}} />
-                                            {PRUNE_WARNING} Are you sure you want to continue?
+                                            {PRUNE_ALL_WARNING} Are you sure you want to continue?
                                         </div>
                                     ));
                                     if (!confirmed) {

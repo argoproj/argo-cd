@@ -7,7 +7,7 @@ import './application-sync-options.scss';
 
 export const REPLACE_WARNING = `The resources will be synced using 'kubectl replace/create' command that is a potentially destructive action and might cause resources recreation.`;
 export const FORCE_WARNING = `The resources will be synced using '--force' that is a potentially destructive action and will immediately remove resources from the API and bypasses graceful deletion. Immediate deletion of some resources may result in inconsistency or data loss.`;
-export const PRUNE_WARNING = `The resources will be synced using '--prune' that is a potentially destructive action and will immediately delete resources from your target cluster. Consider the option carefully.`;
+export const PRUNE_ALL_WARNING = `The resources will be synced using '--prune', and all resources are marked to be pruned. Only continue if you want to delete all of the Application's resources.`;
 
 export interface ApplicationSyncOptionProps {
     options: string[];
