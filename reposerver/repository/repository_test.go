@@ -339,6 +339,62 @@ func TestGenerateManifests_EmptyCache(t *testing.T) {
 	gitMocks.AssertCalled(t, "Fetch", mock.Anything)
 }
 
+// Test that when Generate manifest is called with a source that is ref only it does not try to generate manifests or hit the manifest cache
+// but it does resolve and cache the revision
+func TestGenerateManifest_RefOnlyShortCircuit(t *testing.T) {
+	lsremoteCalled := false
+	dir := t.TempDir()
+	repopath := fmt.Sprintf("%s/tmprepo", dir)
+	repoRemote := fmt.Sprintf("file://%s", repopath)
+	cacheMocks := newCacheMocks()
+	t.Cleanup(cacheMocks.mockCache.StopRedisCallback)
+	service := NewService(metrics.NewMetricsServer(), cacheMocks.cache, RepoServerInitConstants{ParallelismLimit: 1}, argo.NewResourceTracking(), &git.NoopCredsStore{}, repopath)
+	service.newGitClient = func(rawRepoURL string, root string, creds git.Creds, insecure bool, enableLfs bool, proxy string, opts ...git.ClientOpts) (client git.Client, e error) {
+		opts = append(opts, git.WithEventHandlers(git.EventHandlers{
+			// Primary check, we want to make sure ls-remote is not called when the item is in cache
+			OnLsRemote: func(repo string) func() {
+				return func() {
+					lsremoteCalled = true
+				}
+			},
+			OnFetch: func(repo string) func() {
+				return func() {
+					assert.Fail(t, "Fetch should not be called from GenerateManifest when the source is ref only")
+				}
+			},
+		}))
+		gitClient, err := git.NewClientExt(rawRepoURL, root, creds, insecure, enableLfs, proxy, opts...)
+		return gitClient, err
+	}
+	revision := initGitRepo(t, newGitRepoOptions{
+		path:           repopath,
+		createPath:     true,
+		remote:         repoRemote,
+		addEmptyCommit: true,
+	})
+	src := argoappv1.ApplicationSource{RepoURL: repoRemote, TargetRevision: "HEAD", Ref: "test-ref"}
+	repo := &argoappv1.Repository{
+		Repo: repoRemote,
+	}
+	q := apiclient.ManifestRequest{
+		Repo:               repo,
+		Revision:           "HEAD",
+		HasMultipleSources: true,
+		ApplicationSource:  &src,
+		ProjectName:        "default",
+		ProjectSourceRepos: []string{"*"},
+	}
+	_, err := service.GenerateManifest(context.Background(), &q)
+	assert.NoError(t, err)
+	cacheMocks.mockCache.AssertCacheCalledTimes(t, &repositorymocks.CacheCallCounts{
+		ExternalSets: 1,
+		ExternalGets: 1})
+	assert.True(t, lsremoteCalled, "ls-remote should be called when the source is ref only")
+	var revisions [][2]string
+	assert.NoError(t, cacheMocks.cacheutilCache.GetItem(fmt.Sprintf("git-refs|%s", repoRemote), &revisions))
+	assert.ElementsMatch(t, [][2]string{{"refs/heads/main", revision}, {"HEAD", "ref: refs/heads/main"}}, revisions)
+}
+
 // Test that calling manifest generation on source helm reference helm files that when the revision is cached it does not call ls-remote
 func TestGenerateManifestsHelmWithRefs_CachedNoLsRemote(t *testing.T) {
 	dir := t.TempDir()
@@ -2760,7 +2816,7 @@ func initGitRepo(t *testing.T, options newGitRepoOptions) (revision string) {
 		assert.NoError(t, os.Mkdir(options.path, 0755))
 	}
 
-	cmd := exec.Command("git", "init", options.path)
+	cmd := exec.Command("git", "init", "-b", "main", options.path)
 	cmd.Dir = options.path
 	assert.NoError(t, cmd.Run())
 
