@@ -289,6 +289,7 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 			cmd := exec.Command(k.getBinaryPath(), args...)
 			cmd.Dir = k.path
 			cmd.Env = env
+			cmd.Dir = k.repoRoot
 			_, err := executil.Run(cmd)
 			if err != nil {
 				return nil, nil, err
