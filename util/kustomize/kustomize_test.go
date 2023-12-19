@@ -356,7 +356,7 @@ func TestKustomizeCustomVersion(t *testing.T) {
 func TestKustomizeBuildComponents(t *testing.T) {
 	appPath, err := testDataDir(t, kustomization6)
 	assert.Nil(t, err)
-	kustomize := NewKustomizeApp(appPath, git.NopCreds{}, "", "")
+	kustomize := NewKustomizeApp(appPath, appPath, git.NopCreds{}, "", "")
 
 	kustomizeSource := v1alpha1.ApplicationSourceKustomize{
 		Components: []string{"./components"},
