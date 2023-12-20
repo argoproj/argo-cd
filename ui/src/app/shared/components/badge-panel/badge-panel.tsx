@@ -1,14 +1,14 @@
-import {DataLoader, DropDownMenu} from 'argo-ui';
+import {DropDownMenu} from 'argo-ui';
 import * as React from 'react';
 
-import {services} from '../../../shared/services';
-import {Context} from '../../context';
+import {AuthSettingsCtx, Context} from '../../context';
 
 require('./badge-panel.scss');
 
 export const BadgePanel = ({app, project}: {app?: string; project?: string}) => {
     const [badgeType, setBadgeType] = React.useState('URL');
     const context = React.useContext(Context);
+    const settingsContext = React.useContext(AuthSettingsCtx);
     if (!app && !project) {
         throw new Error('Either app or project property must be specified');
     }
@@ -67,9 +67,9 @@ export const BadgePanel = ({app, project}: {app?: string; project?: string}) => 
         );
     }
 
-    return (
-        <DataLoader load={() => services.authService.settings()}>
-            {settings => (settings.statusBadgeEnabled && <div>{badgeContent(settings.statusBadgeRootUrl)}</div>) || null}
-        </DataLoader>
-    );
+    if (settingsContext.statusBadgeEnabled) {
+        return <div>{badgeContent(settingsContext.statusBadgeRootUrl)}</div>;
+    }
+
+    return null;
 };
