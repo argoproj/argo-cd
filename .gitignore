@@ -3,6 +3,7 @@
 .DS_Store
 vendor/
 dist/*
+/logs
 ui/dist/app/*
 !ui/dist/app/gitkeep
 site/
