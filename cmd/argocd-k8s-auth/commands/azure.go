@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"fmt"
 	"os"
 
 	"github.com/Azure/kubelogin/pkg/token"
@@ -19,24 +20,33 @@ const (
 )
 
 func newAzureCommand() *cobra.Command {
-	o := token.NewOptions()
-	//we'll use default of WorkloadIdentityLogin for the login flow
-	o.LoginMethod = token.WorkloadIdentityLogin
-	o.ServerID = DEFAULT_AAD_SERVER_APPLICATION_ID
 	var command = &cobra.Command{
 		Use: "azure",
 		Run: func(c *cobra.Command, args []string) {
-			o.UpdateFromEnv()
+			ctx := c.Context()
+
+			o := token.OptionsWithEnv()
+			// we'll use default of WorkloadIdentityLogin for the login flow
+			if o.LoginMethod == "" {
+				o.LoginMethod = token.WorkloadIdentityLogin
+			}
+			if o.ServerID == "" {
+				o.ServerID = DEFAULT_AAD_SERVER_APPLICATION_ID
+			}
+
 			if v, ok := os.LookupEnv(envServerApplicationID); ok {
 				o.ServerID = v
 			}
 			if v, ok := os.LookupEnv(envEnvironmentName); ok {
 				o.Environment = v
 			}
-			plugin, err := token.New(&o)
+			tokenProvider, err := token.GetTokenProvider(o)
 			errors.CheckError(err)
-			err = plugin.Do()
+
+			accessToken, err := tokenProvider.GetAccessToken(ctx)
 			errors.CheckError(err)
+
+			_, _ = fmt.Fprint(os.Stdout, formatJSON(accessToken.Token, accessToken.ExpiresOn))
 		},
 	}
 	return command
