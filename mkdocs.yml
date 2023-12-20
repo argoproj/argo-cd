@@ -40,6 +40,7 @@ nav:
     - operator-manual/user-management/openunison.md
     - operator-manual/user-management/google.md
     - operator-manual/user-management/zitadel.md
+    - operator-manual/user-management/identity-center.md
     - operator-manual/rbac.md
   - Security:
     - Overview: operator-manual/security.md
@@ -127,6 +128,8 @@ nav:
     - operator-manual/server-commands/additional-configuration-method.md
   - Upgrading:
     - operator-manual/upgrading/overview.md
+    - operator-manual/upgrading/2.9-2.10.md
+    - operator-manual/upgrading/2.8-2.9.md
     - operator-manual/upgrading/2.7-2.8.md
     - operator-manual/upgrading/2.6-2.7.md
     - operator-manual/upgrading/2.5-2.6.md
@@ -159,7 +162,9 @@ nav:
   - user-guide/multiple_sources.md
   - GnuPG verification: user-guide/gpg-verification.md
   - user-guide/auto_sync.md
-  - user-guide/diffing.md
+  - Diffing:
+    - Diff Strategies: user-guide/diff-strategies.md
+    - Diff Customization: user-guide/diffing.md
   - user-guide/orphaned-resources.md
   - user-guide/compare-options.md
   - user-guide/sync-options.md

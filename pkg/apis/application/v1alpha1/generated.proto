@@ -316,6 +316,8 @@ message ApplicationSetSpec {
   optional bool applyNestedSelectors = 8;
 
   repeated ApplicationSetResourceIgnoreDifferences ignoreApplicationDifferences = 9;
+
+  optional string templatePatch = 10;
 }
 
 // ApplicationSetStatus defines the observed state of ApplicationSet
@@ -521,6 +523,9 @@ message ApplicationSourceKustomize {
 
   // Patches is a list of Kustomize patches
   repeated KustomizePatch patches = 12;
+
+  // Components specifies a list of kustomize components to add to the kustomization before building
+  repeated string components = 13;
 }
 
 // ApplicationSourcePlugin holds options specific to config management plugins

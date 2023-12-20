@@ -9,6 +9,8 @@ and after a Sync operation. Hooks can also be run if a Sync operation fails at a
 Kubernetes rolling update strategy.
 * Using a `PostSync` hook to run integration and health checks after a deployment.
 * Using a `SyncFail` hook to run clean-up or finalizer logic if a Sync operation fails. _`SyncFail` hooks are only available starting in v1.2_
+* Using a `PostDelete` hook to run clean-up or finalizer logic after an all Application resources are deleted. Please note that
+  `PostDelete` hooks are only deleted if delete policy matches to the aggregated deletion hooks status and not garbage collected after the application is deleted. 
 
 ## Usage
 
