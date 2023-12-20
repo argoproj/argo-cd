@@ -7465,6 +7465,9 @@
             "type": "string"
           }
         },
+        "mode": {
+          "type": "string"
+        },
         "template": {
           "$ref": "#/definitions/v1alpha1ApplicationSetTemplate"
         }
