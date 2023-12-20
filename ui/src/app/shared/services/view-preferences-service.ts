@@ -21,6 +21,8 @@ export interface AppDetailsPreferences {
     compactDiff: boolean;
     hideManagedFields?: boolean;
     orphanedResources: boolean;
+    hideOldRevisions: boolean;
+    latestRevision: string;
     podView: PodViewPreferences;
     darkMode: boolean;
     followLogs: boolean;
