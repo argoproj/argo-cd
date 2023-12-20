@@ -1440,7 +1440,7 @@ func updateSettingsFromConfigMap(settings *ArgoCDSettings, argoCDCM *apiv1.Confi
 	if err := validateExternalURL(argoCDCM.Data[settingURLKey]); err != nil {
 		log.Warnf("Failed to validate URL in configmap: %v", err)
 	}
-	settings.URL = argoCDCM.Data[settingURLKey]
+	settings.URL = strings.TrimSuffix(argoCDCM.Data[settingURLKey], "/")
 	if err := validateExternalURL(argoCDCM.Data[settingUiBannerURLKey]); err != nil {
 		log.Warnf("Failed to validate UI banner URL in configmap: %v", err)
 	}
