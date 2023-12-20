@@ -73,6 +73,10 @@ CONTAINER_GID=$(shell id -g)
 # Set SUDO to sudo to run privileged commands with sudo
 SUDO?=
 
+# Set to pass extra arguments to the respective docker commands
+EXTRA_DOCKER_BUILD_ARGS?=
+EXTRA_DOCKER_RUN_ARGS?=
+
 # Runs any command in the argocd-test-utils container in server mode
 # Server mode container will start with uid 0 and drop privileges during runtime
 define run-in-test-server
@@ -101,6 +105,7 @@ define run-in-test-server
 		-p ${ARGOCD_E2E_APISERVER_PORT}:8080 \
 		-p 4000:4000 \
 		-p 5000:5000 \
+		$(EXTRA_DOCKER_RUN_ARGS) \
 		$(TEST_TOOLS_PREFIX)$(TEST_TOOLS_IMAGE):$(TEST_TOOLS_TAG) \
 		bash -c "$(1)"
 endef
@@ -122,6 +127,7 @@ define run-in-test-client
 		-v ${HOME}/.kube:/home/user/.kube${VOLUME_MOUNT} \
 		-v /tmp:/tmp${VOLUME_MOUNT} \
 		-w ${DOCKER_WORKDIR} \
+		$(EXTRA_DOCKER_RUN_ARGS) \
 		$(TEST_TOOLS_PREFIX)$(TEST_TOOLS_IMAGE):$(TEST_TOOLS_TAG) \
 		bash -c "$(1)"
 endef
@@ -254,7 +260,7 @@ release-cli: clean-debug build-ui
 .PHONY: test-tools-image
 test-tools-image:
 ifndef SKIP_TEST_TOOLS_IMAGE
-	$(SUDO) docker build --build-arg UID=$(CONTAINER_UID) -t $(TEST_TOOLS_PREFIX)$(TEST_TOOLS_IMAGE) -f test/container/Dockerfile .
+	$(SUDO) docker build --build-arg UID=$(CONTAINER_UID) -t $(TEST_TOOLS_PREFIX)$(TEST_TOOLS_IMAGE) -f test/container/Dockerfile $(EXTRA_DOCKER_BUILD_ARGS) .
 	$(SUDO) docker tag $(TEST_TOOLS_PREFIX)$(TEST_TOOLS_IMAGE) $(TEST_TOOLS_PREFIX)$(TEST_TOOLS_IMAGE):$(TEST_TOOLS_TAG)
 endif
 
@@ -265,6 +271,11 @@ manifests-local:
 .PHONY: manifests
 manifests: test-tools-image
 	$(call run-in-test-client,make manifests-local IMAGE_NAMESPACE='${IMAGE_NAMESPACE}' IMAGE_TAG='${IMAGE_TAG}')
+
+# Build all Go code
+.PHONY: argocd-all-virtualized
+argocd-all-virtualized: build
+	$(call run-in-test-client, make argocd-all)
 
 # consolidated binary for cli, util, server, repo-server, controller
 .PHONY: argocd-all
