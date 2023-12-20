@@ -2385,6 +2385,7 @@ definitions:
 }
 
 func TestAppLogs(t *testing.T) {
+	t.SkipNow() // Too flaky. https://github.com/argoproj/argo-cd/issues/13834
 	SkipOnEnv(t, "OPENSHIFT")
 	Given(t).
 		Path("guestbook-logs").
