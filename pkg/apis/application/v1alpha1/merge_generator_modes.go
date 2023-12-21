@@ -1,13 +1,15 @@
 package v1alpha1
 
+type MergeMode string
+
 const (
 	// all types of sql joins
-	LeftJoinUniq  = "left-join-uniq"
-	LeftJoin      = "left-join"
-	InnerJoinUniq = "inner-join-uniq"
-	InnerJoin     = "inner-join"
-	FullJoinUniq  = "full-join-uniq"
-	FullJoin      = "full-join"
+	LeftJoinUniq  MergeMode = "left-join-uniq"
+	LeftJoin      MergeMode = "left-join"
+	InnerJoinUniq MergeMode = "inner-join-uniq"
+	InnerJoin     MergeMode = "inner-join"
+	FullJoinUniq  MergeMode = "full-join-uniq"
+	FullJoin      MergeMode = "full-join"
 
 	// suffix
 	UniqJoinSuffix = "-uniq"
