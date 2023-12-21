@@ -67,7 +67,7 @@ func (m *MergeGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.Appl
 	}
 
 	baseParamSetsByMergeKey := make(map[string][]map[string]interface{})
-	if strings.HasSuffix(appSetGenerator.Merge.Mode, argoprojiov1alpha1.UniqJoinSuffix) {
+	if strings.HasSuffix(string(appSetGenerator.Merge.Mode), argoprojiov1alpha1.UniqJoinSuffix) {
 		baseParamSetsByMergeKey, err = getParamSetsByMergeKey(appSetGenerator.Merge.MergeKeys, paramSetsFromGenerators[0], false)
 	} else {
 		baseParamSetsByMergeKey, err = getParamSetsByMergeKey(appSetGenerator.Merge.MergeKeys, paramSetsFromGenerators[0], true)

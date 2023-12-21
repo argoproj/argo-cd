@@ -349,3 +349,90 @@ func TestParamSetsAreUniqueByMergeKeys(t *testing.T) {
 
 	}
 }
+
+func TestParamSetsAreNonUniqueByMergeKeys(t *testing.T) {
+	testCases := []struct {
+		name        string
+		mergeKeys   []string
+		paramSets   []map[string]interface{}
+		expectedErr error
+		expected    map[string][]map[string]interface{}
+	}{
+		{
+			name:      "simple key, non-unique paramSets",
+			mergeKeys: []string{"key"},
+			paramSets: []map[string]interface{}{{"key": "a"}, {"key": "b"}, {"key": "b"}},
+			expected: map[string][]map[string]interface{}{
+				`{"key":"a"}`: {{"key": "a"}},
+				`{"key":"b"}`: {{"key": "b"}, {"key": "b"}},
+			},
+		},
+		{
+			name:      "simple key object, duplicated key name, non-unique paramSets",
+			mergeKeys: []string{"key"},
+			paramSets: []map[string]interface{}{{"key": map[string]interface{}{"hello": "world"}}, {"key": "b"}, {"key": "b"}},
+			expected: map[string][]map[string]interface{}{
+				`{"key":{"hello":"world"}}`: {{"key": map[string]interface{}{"hello": "world"}}},
+				`{"key":"b"}`:               {{"key": "b"}, {"key": "b"}},
+			},
+		},
+		{
+			name:      "compound key, non-unique paramSets",
+			mergeKeys: []string{"key1", "key2"},
+			paramSets: []map[string]interface{}{
+				{"key1": "a", "key2": "a"},
+				{"key1": "a", "key2": "a"},
+				{"key1": "b", "key2": "a"},
+			},
+			expected: map[string][]map[string]interface{}{
+				`{"key1":"a","key2":"a"}`: {{"key1": "a", "key2": "a"}, {"key1": "a", "key2": "a"}},
+				`{"key1":"b","key2":"a"}`: {{"key1": "b", "key2": "a"}},
+			},
+		},
+		{
+			name:      "compound key object, non-unique paramSets",
+			mergeKeys: []string{"key1"},
+			paramSets: []map[string]interface{}{
+				{"key1": "a", "key2": map[string]interface{}{"hello": "world"}},
+				{"key1": "a", "key2": "b"},
+				{"key1": "b", "key2": "a"},
+			},
+			expected: map[string][]map[string]interface{}{
+				`{"key1":"a"}`: {{"key1": "a", "key2": map[string]interface{}{"hello": "world"}}, {"key1": "a", "key2": "b"}},
+				`{"key1":"b"}`: {{"key1": "b", "key2": "a"}},
+			},
+		},
+		{
+			name:      "compound key, compound key object, non-unique paramSets",
+			mergeKeys: []string{"key1", "key2"},
+			paramSets: []map[string]interface{}{
+				{"key1": "a", "key2": map[string]interface{}{"hello": "world"}, "key3": "bye"},
+				{"key1": "a", "key2": map[string]interface{}{"hello": "world"}, "key3": "world"},
+				{"key1": "b", "key2": "a"},
+			},
+			expected: map[string][]map[string]interface{}{
+				`{"key1":"a","key2":{"hello":"world"}}`: {{"key1": "a", "key2": map[string]interface{}{"hello": "world"}, "key3": "bye"}, {"key1": "a", "key2": map[string]interface{}{"hello": "world"}, "key3": "world"}},
+				`{"key1":"b","key2":"a"}`:               {{"key1": "b", "key2": "a"}},
+			},
+		},
+	}
+
+	for _, testCase := range testCases {
+		testCaseCopy := testCase // since tests may run in parallel
+
+		t.Run(testCaseCopy.name, func(t *testing.T) {
+			t.Parallel()
+
+			got, err := getParamSetsByMergeKey(testCaseCopy.mergeKeys, testCaseCopy.paramSets, true)
+
+			if testCaseCopy.expectedErr != nil {
+				assert.EqualError(t, err, testCaseCopy.expectedErr.Error())
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, testCaseCopy.expected, got)
+			}
+
+		})
+
+	}
+}
