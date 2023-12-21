@@ -83,7 +83,8 @@ func (m *MergeGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.Appl
 			return nil, fmt.Errorf("error getting param sets by merge key: %w", err)
 		}
 
-		baseParamSetsByMergeKey, err = combineParamSetsByJoinType(appSetGenerator,
+		baseParamSetsByMergeKey, err = combineParamSetsByJoinType(
+			appSetGenerator.Merge.Mode,
 			baseParamSetsByMergeKey,
 			paramSetsByMergeKey,
 			appSet)
@@ -99,14 +100,14 @@ func (m *MergeGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.Appl
 	return mergedParamSets, nil
 }
 
-func combineParamSetsByJoinType(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator,
+func combineParamSetsByJoinType(mergeMode argoprojiov1alpha1.MergeMode,
 	baseParamSetsByMergeKey map[string][]map[string]interface{},
 	paramSetsByMergeKey map[string][]map[string]interface{},
 	appSet *argoprojiov1alpha1.ApplicationSet) (map[string][]map[string]interface{}, error) {
 
 	var err error
 
-	switch appSetGenerator.Merge.Mode {
+	switch mergeMode {
 	case argoprojiov1alpha1.LeftJoin, argoprojiov1alpha1.LeftJoinUniq, "":
 		for mergeKeyValue, baseParamSetList := range baseParamSetsByMergeKey {
 			if overrideParamSet, exists := paramSetsByMergeKey[mergeKeyValue]; exists {

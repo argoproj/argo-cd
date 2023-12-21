@@ -5,10 +5,10 @@ The Merge generator combines parameters produced by the base (first) generator w
 Using a Merge generator is appropriate when a subset of parameter sets require overriding.
 
 The following merge modes are supported
-* left-join (default)
+* left-join
 * inner-join
 * full-join
-* left-join-uniq
+* left-join-uniq (default)
 * inner-join-uniq
 * full-join-uniq
 
