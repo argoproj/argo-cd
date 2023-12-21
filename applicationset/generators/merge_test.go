@@ -215,7 +215,7 @@ func TestParamSetsAreUniqueByMergeKeys(t *testing.T) {
 		mergeKeys   []string
 		paramSets   []map[string]interface{}
 		expectedErr error
-		expected    map[string]map[string]interface{}
+		expected    map[string][]map[string]interface{}
 	}{
 		{
 			name:        "no merge keys",
@@ -225,24 +225,24 @@ func TestParamSetsAreUniqueByMergeKeys(t *testing.T) {
 		{
 			name:      "no paramSets",
 			mergeKeys: []string{"key"},
-			expected:  make(map[string]map[string]interface{}),
+			expected:  make(map[string][]map[string]interface{}),
 		},
 		{
 			name:      "simple key, unique paramSets",
 			mergeKeys: []string{"key"},
 			paramSets: []map[string]interface{}{{"key": "a"}, {"key": "b"}},
-			expected: map[string]map[string]interface{}{
-				`{"key":"a"}`: {"key": "a"},
-				`{"key":"b"}`: {"key": "b"},
+			expected: map[string][]map[string]interface{}{
+				`{"key":"a"}`: {{"key": "a"}},
+				`{"key":"b"}`: {{"key": "b"}},
 			},
 		},
 		{
 			name:      "simple key object, unique paramSets",
 			mergeKeys: []string{"key"},
 			paramSets: []map[string]interface{}{{"key": map[string]interface{}{"hello": "world"}}, {"key": "b"}},
-			expected: map[string]map[string]interface{}{
-				`{"key":{"hello":"world"}}`: {"key": map[string]interface{}{"hello": "world"}},
-				`{"key":"b"}`:               {"key": "b"},
+			expected: map[string][]map[string]interface{}{
+				`{"key":{"hello":"world"}}`: {{"key": map[string]interface{}{"hello": "world"}}},
+				`{"key":"b"}`:               {{"key": "b"}},
 			},
 		},
 		{
@@ -255,9 +255,9 @@ func TestParamSetsAreUniqueByMergeKeys(t *testing.T) {
 			name:      "simple key, duplicated key name, unique paramSets",
 			mergeKeys: []string{"key", "key"},
 			paramSets: []map[string]interface{}{{"key": "a"}, {"key": "b"}},
-			expected: map[string]map[string]interface{}{
-				`{"key":"a"}`: {"key": "a"},
-				`{"key":"b"}`: {"key": "b"},
+			expected: map[string][]map[string]interface{}{
+				`{"key":"a"}`: {{"key": "a"}},
+				`{"key":"b"}`: {{"key": "b"}},
 			},
 		},
 		{
@@ -274,10 +274,10 @@ func TestParamSetsAreUniqueByMergeKeys(t *testing.T) {
 				{"key1": "a", "key2": "b"},
 				{"key1": "b", "key2": "a"},
 			},
-			expected: map[string]map[string]interface{}{
-				`{"key1":"a","key2":"a"}`: {"key1": "a", "key2": "a"},
-				`{"key1":"a","key2":"b"}`: {"key1": "a", "key2": "b"},
-				`{"key1":"b","key2":"a"}`: {"key1": "b", "key2": "a"},
+			expected: map[string][]map[string]interface{}{
+				`{"key1":"a","key2":"a"}`: {{"key1": "a", "key2": "a"}},
+				`{"key1":"a","key2":"b"}`: {{"key1": "a", "key2": "b"}},
+				`{"key1":"b","key2":"a"}`: {{"key1": "b", "key2": "a"}},
 			},
 		},
 		{
@@ -288,10 +288,10 @@ func TestParamSetsAreUniqueByMergeKeys(t *testing.T) {
 				{"key1": "a", "key2": "b"},
 				{"key1": "b", "key2": "a"},
 			},
-			expected: map[string]map[string]interface{}{
-				`{"key1":"a","key2":{"hello":"world"}}`: {"key1": "a", "key2": map[string]interface{}{"hello": "world"}},
-				`{"key1":"a","key2":"b"}`:               {"key1": "a", "key2": "b"},
-				`{"key1":"b","key2":"a"}`:               {"key1": "b", "key2": "a"},
+			expected: map[string][]map[string]interface{}{
+				`{"key1":"a","key2":{"hello":"world"}}`: {{"key1": "a", "key2": map[string]interface{}{"hello": "world"}}},
+				`{"key1":"a","key2":"b"}`:               {{"key1": "a", "key2": "b"}},
+				`{"key1":"b","key2":"a"}`:               {{"key1": "b", "key2": "a"}},
 			},
 		},
 		{
@@ -302,10 +302,10 @@ func TestParamSetsAreUniqueByMergeKeys(t *testing.T) {
 				{"key1": "a", "key2": "b"},
 				{"key1": "b", "key2": "a"},
 			},
-			expected: map[string]map[string]interface{}{
-				`{"key1":"a","key2":"a"}`: {"key1": "a", "key2": "a"},
-				`{"key1":"a","key2":"b"}`: {"key1": "a", "key2": "b"},
-				`{"key1":"b","key2":"a"}`: {"key1": "b", "key2": "a"},
+			expected: map[string][]map[string]interface{}{
+				`{"key1":"a","key2":"a"}`: {{"key1": "a", "key2": "a"}},
+				`{"key1":"a","key2":"b"}`: {{"key1": "a", "key2": "b"}},
+				`{"key1":"b","key2":"a"}`: {{"key1": "b", "key2": "a"}},
 			},
 		},
 		{
@@ -336,7 +336,7 @@ func TestParamSetsAreUniqueByMergeKeys(t *testing.T) {
 		t.Run(testCaseCopy.name, func(t *testing.T) {
 			t.Parallel()
 
-			got, err := getParamSetsByMergeKey(testCaseCopy.mergeKeys, testCaseCopy.paramSets)
+			got, err := getParamSetsByMergeKey(testCaseCopy.mergeKeys, testCaseCopy.paramSets, false)
 
 			if testCaseCopy.expectedErr != nil {
 				assert.EqualError(t, err, testCaseCopy.expectedErr.Error())

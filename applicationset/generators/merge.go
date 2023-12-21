@@ -107,7 +107,7 @@ func combineParamSetsByJoinType(appSetGenerator *argoprojiov1alpha1.ApplicationS
 	var err error
 
 	switch appSetGenerator.Merge.Mode {
-	case argoprojiov1alpha1.LeftJoin, argoprojiov1alpha1.LeftJoinUniq:
+	case argoprojiov1alpha1.LeftJoin, argoprojiov1alpha1.LeftJoinUniq, "":
 		for mergeKeyValue, baseParamSetList := range baseParamSetsByMergeKey {
 			if overrideParamSet, exists := paramSetsByMergeKey[mergeKeyValue]; exists {
 				for i, baseParamSet := range baseParamSetList {
