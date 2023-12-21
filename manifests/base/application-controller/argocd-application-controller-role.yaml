@@ -36,3 +36,9 @@ rules:
   verbs:
   - create
   - list
+- apiGroups:
+  - apps
+  resources:
+  - deployments
+  verbs:
+  - list
