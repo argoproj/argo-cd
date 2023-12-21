@@ -436,3 +436,150 @@ func TestParamSetsAreNonUniqueByMergeKeys(t *testing.T) {
 
 	}
 }
+
+func TestMergeModes(t *testing.T) {
+
+	testCases := []struct {
+		name            string
+		mode            argoprojiov1alpha1.MergeMode
+		firstParamSets  map[string][]map[string]interface{}
+		secondParamSets map[string][]map[string]interface{}
+		expectedErr     error
+		expected        map[string][]map[string]interface{}
+	}{
+		{
+			name: "left-join-uniq",
+			mode: argoprojiov1alpha1.LeftJoinUniq,
+			firstParamSets: map[string][]map[string]interface{}{
+				`{"key":"a"}`: {{"key": "a", "firstSet": "firstVal"}},
+				`{"key":"b"}`: {{"key": "b"}},
+			},
+			secondParamSets: map[string][]map[string]interface{}{
+				`{"key":"a"}`: {{"key": "a", "secondSet": "secondVal"}},
+				`{"key":"c"}`: {{"key": "c", "secondSet": "secondVal2"}},
+			},
+			expected: map[string][]map[string]interface{}{
+				`{"key":"a"}`: {{"key": "a", "firstSet": "firstVal", "secondSet": "secondVal"}},
+				`{"key":"b"}`: {{"key": "b"}},
+			},
+		},
+		{
+			name: "left-join with multiple param sets for same merge key",
+			mode: argoprojiov1alpha1.LeftJoin,
+			firstParamSets: map[string][]map[string]interface{}{
+				`{"key":"a"}`: {{"key": "a", "firstSet": "hello"}, {"key": "a", "firstSet": "bye"}},
+				`{"key":"b"}`: {{"key": "b"}},
+			},
+			secondParamSets: map[string][]map[string]interface{}{
+				`{"key":"a"}`: {{"key": "a", "secondSet": "secondVal"}},
+				`{"key":"c"}`: {{"key": "c", "secondSet": "secondVal2"}},
+			},
+			expected: map[string][]map[string]interface{}{
+				`{"key":"a"}`: {{"key": "a", "firstSet": "hello", "secondSet": "secondVal"}, {"key": "a", "firstSet": "bye", "secondSet": "secondVal"}},
+				`{"key":"b"}`: {{"key": "b"}},
+			},
+		},
+		{
+			name: "default is left-join-uniq",
+			firstParamSets: map[string][]map[string]interface{}{
+				`{"key":"a"}`: {{"key": "a", "firstSet": "firstVal"}},
+				`{"key":"b"}`: {{"key": "b"}},
+			},
+			secondParamSets: map[string][]map[string]interface{}{
+				`{"key":"a"}`: {{"key": "a", "secondSet": "secondVal"}},
+				`{"key":"c"}`: {{"key": "c", "secondSet": "secondVal2"}},
+			},
+			expected: map[string][]map[string]interface{}{
+				`{"key":"a"}`: {{"key": "a", "firstSet": "firstVal", "secondSet": "secondVal"}},
+				`{"key":"b"}`: {{"key": "b"}},
+			},
+		},
+		{
+			name: "inner-join-uniq",
+			mode: argoprojiov1alpha1.InnerJoinUniq,
+			firstParamSets: map[string][]map[string]interface{}{
+				`{"key":"a"}`: {{"key": "a", "firstSet": "firstVal"}},
+				`{"key":"b"}`: {{"key": "b"}},
+			},
+			secondParamSets: map[string][]map[string]interface{}{
+				`{"key":"a"}`: {{"key": "a", "secondSet": "secondVal"}},
+				`{"key":"c"}`: {{"key": "c", "secondSet": "secondVal2"}},
+			},
+			expected: map[string][]map[string]interface{}{
+				`{"key":"a"}`: {{"key": "a", "firstSet": "firstVal", "secondSet": "secondVal"}},
+			},
+		},
+		{
+			name: "inner-join with multiple param sets for same merge key",
+			mode: argoprojiov1alpha1.InnerJoin,
+			firstParamSets: map[string][]map[string]interface{}{
+				`{"key":"a"}`: {{"key": "a", "firstSet": "hello"}, {"key": "a", "firstSet": "bye"}},
+				`{"key":"b"}`: {{"key": "b"}},
+			},
+			secondParamSets: map[string][]map[string]interface{}{
+				`{"key":"a"}`: {{"key": "a", "secondSet": "secondVal"}},
+				`{"key":"c"}`: {{"key": "c", "secondSet": "secondVal2"}},
+			},
+			expected: map[string][]map[string]interface{}{
+				`{"key":"a"}`: {{"key": "a", "firstSet": "hello", "secondSet": "secondVal"}, {"key": "a", "firstSet": "bye", "secondSet": "secondVal"}},
+			},
+		},
+		{
+			name: "full-join-uniq",
+			mode: argoprojiov1alpha1.FullJoinUniq,
+			firstParamSets: map[string][]map[string]interface{}{
+				`{"key":"a"}`: {{"key": "a", "firstSet": "firstVal"}},
+				`{"key":"b"}`: {{"key": "b"}},
+			},
+			secondParamSets: map[string][]map[string]interface{}{
+				`{"key":"a"}`: {{"key": "a", "secondSet": "secondVal"}},
+				`{"key":"c"}`: {{"key": "c", "secondSet": "secondVal2"}},
+			},
+			expected: map[string][]map[string]interface{}{
+				`{"key":"a"}`: {{"key": "a", "firstSet": "firstVal", "secondSet": "secondVal"}},
+				`{"key":"b"}`: {{"key": "b"}},
+				`{"key":"c"}`: {{"key": "c", "secondSet": "secondVal2"}},
+			},
+		},
+		{
+			name: "full-join with multiple param sets for same merge key",
+			mode: argoprojiov1alpha1.FullJoin,
+			firstParamSets: map[string][]map[string]interface{}{
+				`{"key":"a"}`: {{"key": "a", "firstSet": "hello"}, {"key": "a", "firstSet": "bye"}},
+				`{"key":"b"}`: {{"key": "b"}},
+			},
+			secondParamSets: map[string][]map[string]interface{}{
+				`{"key":"a"}`: {{"key": "a", "secondSet": "secondVal"}},
+				`{"key":"c"}`: {{"key": "c", "secondSet": "secondVal2"}},
+			},
+			expected: map[string][]map[string]interface{}{
+				`{"key":"a"}`: {{"key": "a", "firstSet": "hello", "secondSet": "secondVal"}, {"key": "a", "firstSet": "bye", "secondSet": "secondVal"}},
+				`{"key":"b"}`: {{"key": "b"}},
+				`{"key":"c"}`: {{"key": "c", "secondSet": "secondVal2"}},
+			},
+		},
+	}
+
+	for _, testCase := range testCases {
+		testCaseCopy := testCase // since tests may run in parallel
+
+		t.Run(testCaseCopy.name, func(t *testing.T) {
+			t.Parallel()
+
+			appSet := &argoprojiov1alpha1.ApplicationSet{}
+
+			got, err := combineParamSetsByJoinType(
+				testCaseCopy.mode,
+				testCaseCopy.firstParamSets,
+				testCaseCopy.secondParamSets,
+				appSet)
+
+			if testCaseCopy.expectedErr != nil {
+				assert.EqualError(t, err, testCaseCopy.expectedErr.Error())
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, testCaseCopy.expected, got)
+			}
+		})
+	}
+}
