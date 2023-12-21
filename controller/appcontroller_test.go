@@ -7,8 +7,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/argoproj/gitops-engine/pkg/utils/kube/kubetest"
 	"github.com/sirupsen/logrus"
+	"github.com/stretchr/testify/require"
 	"k8s.io/apimachinery/pkg/api/resource"
+	"k8s.io/client-go/rest"
 
 	clustercache "github.com/argoproj/gitops-engine/pkg/cache"
 
@@ -18,7 +21,6 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/cache/mocks"
 	synccommon "github.com/argoproj/gitops-engine/pkg/sync/common"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
-	"github.com/argoproj/gitops-engine/pkg/utils/kube/kubetest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	corev1 "k8s.io/api/core/v1"
@@ -57,6 +59,23 @@ type fakeData struct {
 	configMapData          map[string]string
 	metricsCacheExpiration time.Duration
 	applicationNamespaces  []string
+}
+
+type MockKubectl struct {
+	kube.Kubectl
+
+	DeletedResources []kube.ResourceKey
+	CreatedResources []*unstructured.Unstructured
+}
+
+func (m *MockKubectl) CreateResource(ctx context.Context, config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string, obj *unstructured.Unstructured, createOptions metav1.CreateOptions, subresources ...string) (*unstructured.Unstructured, error) {
+	m.CreatedResources = append(m.CreatedResources, obj)
+	return m.Kubectl.CreateResource(ctx, config, gvk, name, namespace, obj, createOptions, subresources...)
+}
+
+func (m *MockKubectl) DeleteResource(ctx context.Context, config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string, deleteOptions metav1.DeleteOptions) error {
+	m.DeletedResources = append(m.DeletedResources, kube.NewResourceKey(gvk.Group, gvk.Kind, namespace, name))
+	return m.Kubectl.DeleteResource(ctx, config, gvk, name, namespace, deleteOptions)
 }
 
 func newFakeController(data *fakeData, repoErr error) *ApplicationController {
@@ -109,7 +128,7 @@ func newFakeController(data *fakeData, repoErr error) *ApplicationController {
 	}
 	kubeClient := fake.NewSimpleClientset(&clust, &cm, &secret)
 	settingsMgr := settings.NewSettingsManager(context.Background(), kubeClient, test.FakeArgoCDNamespace)
-	kubectl := &kubetest.MockKubectlCmd{}
+	kubectl := &MockKubectl{Kubectl: &kubetest.MockKubectlCmd{}}
 	ctrl, err := NewApplicationController(
 		test.FakeArgoCDNamespace,
 		settingsMgr,
@@ -133,6 +152,7 @@ func newFakeController(data *fakeData, repoErr error) *ApplicationController {
 		nil,
 		data.applicationNamespaces,
 		nil,
+		false,
 	)
 	if err != nil {
 		panic(err)
@@ -337,6 +357,38 @@ metadata:
 data:
 `
 
+var fakePostDeleteHook = `
+{
+  "apiVersion": "v1",
+  "kind": "Pod",
+  "metadata": {
+    "name": "post-delete-hook",
+    "namespace": "default",
+    "labels": {
+      "app.kubernetes.io/instance": "my-app"
+    },
+    "annotations": {
+      "argocd.argoproj.io/hook": "PostDelete",
+      "argocd.argoproj.io/hook-delete-policy": "HookSucceeded"
+    }
+  },
+  "spec": {
+    "containers": [
+      {
+        "name": "post-delete-hook",
+        "image": "busybox",
+        "restartPolicy": "Never",
+        "command": [
+          "/bin/sh",
+          "-c",
+          "sleep 5 && echo hello from the post-delete-hook pod"
+        ]
+      }
+    ]
+  }
+}
+`
+
 func newFakeApp() *v1alpha1.Application {
 	return createFakeApp(fakeApp)
 }
@@ -365,6 +417,15 @@ func createFakeApp(testApp string) *v1alpha1.Application {
 func newFakeCM() map[string]interface{} {
 	var cm map[string]interface{}
 	err := yaml.Unmarshal([]byte(fakeStrayResource), &cm)
+	if err != nil {
+		panic(err)
+	}
+	return cm
+}
+
+func newFakePostDeleteHook() map[string]interface{} {
+	var cm map[string]interface{}
+	err := yaml.Unmarshal([]byte(fakePostDeleteHook), &cm)
 	if err != nil {
 		panic(err)
 	}
@@ -619,6 +680,7 @@ func TestFinalizeAppDeletion(t *testing.T) {
 	// Ensure app can be deleted cascading
 	t.Run("CascadingDelete", func(t *testing.T) {
 		app := newFakeApp()
+		app.SetCascadedDeletion(v1alpha1.ResourcesFinalizerName)
 		app.Spec.Destination.Namespace = test.FakeArgoCDNamespace
 		appObj := kube.MustToUnstructured(&app)
 		ctrl := newFakeController(&fakeData{apps: []runtime.Object{app, &defaultProj}, managedLiveObjs: map[kube.ResourceKey]*unstructured.Unstructured{
@@ -636,7 +698,7 @@ func TestFinalizeAppDeletion(t *testing.T) {
 			patched = true
 			return true, &v1alpha1.Application{}, nil
 		})
-		_, err := ctrl.finalizeApplicationDeletion(app, func(project string) ([]*v1alpha1.Cluster, error) {
+		err := ctrl.finalizeApplicationDeletion(app, func(project string) ([]*v1alpha1.Cluster, error) {
 			return []*v1alpha1.Cluster{}, nil
 		})
 		assert.NoError(t, err)
@@ -662,6 +724,7 @@ func TestFinalizeAppDeletion(t *testing.T) {
 			},
 		}
 		app := newFakeApp()
+		app.SetCascadedDeletion(v1alpha1.ResourcesFinalizerName)
 		app.Spec.Destination.Namespace = test.FakeArgoCDNamespace
 		app.Spec.Project = "restricted"
 		appObj := kube.MustToUnstructured(&app)
@@ -686,7 +749,7 @@ func TestFinalizeAppDeletion(t *testing.T) {
 			patched = true
 			return true, &v1alpha1.Application{}, nil
 		})
-		objs, err := ctrl.finalizeApplicationDeletion(app, func(project string) ([]*v1alpha1.Cluster, error) {
+		err := ctrl.finalizeApplicationDeletion(app, func(project string) ([]*v1alpha1.Cluster, error) {
 			return []*v1alpha1.Cluster{}, nil
 		})
 		assert.NoError(t, err)
@@ -697,14 +760,16 @@ func TestFinalizeAppDeletion(t *testing.T) {
 		}
 		// Managed objects must be empty
 		assert.Empty(t, objsMap)
+
 		// Loop through all deleted objects, ensure that test-cm is none of them
-		for _, o := range objs {
-			assert.NotEqual(t, "test-cm", o.GetName())
+		for _, o := range ctrl.kubectl.(*MockKubectl).DeletedResources {
+			assert.NotEqual(t, "test-cm", o.Name)
 		}
 	})
 
 	t.Run("DeleteWithDestinationClusterName", func(t *testing.T) {
 		app := newFakeAppWithDestName()
+		app.SetCascadedDeletion(v1alpha1.ResourcesFinalizerName)
 		appObj := kube.MustToUnstructured(&app)
 		ctrl := newFakeController(&fakeData{apps: []runtime.Object{app, &defaultProj}, managedLiveObjs: map[kube.ResourceKey]*unstructured.Unstructured{
 			kube.GetResourceKey(appObj): appObj,
@@ -720,7 +785,7 @@ func TestFinalizeAppDeletion(t *testing.T) {
 			patched = true
 			return true, &v1alpha1.Application{}, nil
 		})
-		_, err := ctrl.finalizeApplicationDeletion(app, func(project string) ([]*v1alpha1.Cluster, error) {
+		err := ctrl.finalizeApplicationDeletion(app, func(project string) ([]*v1alpha1.Cluster, error) {
 			return []*v1alpha1.Cluster{}, nil
 		})
 		assert.NoError(t, err)
@@ -745,7 +810,7 @@ func TestFinalizeAppDeletion(t *testing.T) {
 			fakeAppCs.AddReactor("get", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
 				return defaultReactor.React(action)
 			})
-			_, err := ctrl.finalizeApplicationDeletion(app, func(project string) ([]*v1alpha1.Cluster, error) {
+			err := ctrl.finalizeApplicationDeletion(app, func(project string) ([]*v1alpha1.Cluster, error) {
 				return []*v1alpha1.Cluster{}, nil
 			})
 			assert.NoError(t, err)
@@ -766,6 +831,109 @@ func TestFinalizeAppDeletion(t *testing.T) {
 
 	})
 
+	t.Run("PostDelete_HookIsCreated", func(t *testing.T) {
+		app := newFakeApp()
+		app.SetPostDeleteFinalizer()
+		app.Spec.Destination.Namespace = test.FakeArgoCDNamespace
+		ctrl := newFakeController(&fakeData{
+			manifestResponses: []*apiclient.ManifestResponse{{
+				Manifests: []string{fakePostDeleteHook},
+			}},
+			apps:            []runtime.Object{app, &defaultProj},
+			managedLiveObjs: map[kube.ResourceKey]*unstructured.Unstructured{}}, nil)
+
+		patched := false
+		fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
+		defaultReactor := fakeAppCs.ReactionChain[0]
+		fakeAppCs.ReactionChain = nil
+		fakeAppCs.AddReactor("get", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+			return defaultReactor.React(action)
+		})
+		fakeAppCs.AddReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+			patched = true
+			return true, &v1alpha1.Application{}, nil
+		})
+		err := ctrl.finalizeApplicationDeletion(app, func(project string) ([]*v1alpha1.Cluster, error) {
+			return []*v1alpha1.Cluster{}, nil
+		})
+		assert.NoError(t, err)
+		// finalizer is not deleted
+		assert.False(t, patched)
+		// post-delete hook is created
+		require.Len(t, ctrl.kubectl.(*MockKubectl).CreatedResources, 1)
+		require.Equal(t, "post-delete-hook", ctrl.kubectl.(*MockKubectl).CreatedResources[0].GetName())
+	})
+
+	t.Run("PostDelete_HookIsExecuted", func(t *testing.T) {
+		app := newFakeApp()
+		app.SetPostDeleteFinalizer()
+		app.Spec.Destination.Namespace = test.FakeArgoCDNamespace
+		liveHook := &unstructured.Unstructured{Object: newFakePostDeleteHook()}
+		require.NoError(t, unstructured.SetNestedField(liveHook.Object, "Succeeded", "status", "phase"))
+		ctrl := newFakeController(&fakeData{
+			manifestResponses: []*apiclient.ManifestResponse{{
+				Manifests: []string{fakePostDeleteHook},
+			}},
+			apps: []runtime.Object{app, &defaultProj},
+			managedLiveObjs: map[kube.ResourceKey]*unstructured.Unstructured{
+				kube.GetResourceKey(liveHook): liveHook,
+			}}, nil)
+
+		patched := false
+		fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
+		defaultReactor := fakeAppCs.ReactionChain[0]
+		fakeAppCs.ReactionChain = nil
+		fakeAppCs.AddReactor("get", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+			return defaultReactor.React(action)
+		})
+		fakeAppCs.AddReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+			patched = true
+			return true, &v1alpha1.Application{}, nil
+		})
+		err := ctrl.finalizeApplicationDeletion(app, func(project string) ([]*v1alpha1.Cluster, error) {
+			return []*v1alpha1.Cluster{}, nil
+		})
+		assert.NoError(t, err)
+		// finalizer is removed
+		assert.True(t, patched)
+	})
+
+	t.Run("PostDelete_HookIsDeleted", func(t *testing.T) {
+		app := newFakeApp()
+		app.SetPostDeleteFinalizer("cleanup")
+		app.Spec.Destination.Namespace = test.FakeArgoCDNamespace
+		liveHook := &unstructured.Unstructured{Object: newFakePostDeleteHook()}
+		require.NoError(t, unstructured.SetNestedField(liveHook.Object, "Succeeded", "status", "phase"))
+		ctrl := newFakeController(&fakeData{
+			manifestResponses: []*apiclient.ManifestResponse{{
+				Manifests: []string{fakePostDeleteHook},
+			}},
+			apps: []runtime.Object{app, &defaultProj},
+			managedLiveObjs: map[kube.ResourceKey]*unstructured.Unstructured{
+				kube.GetResourceKey(liveHook): liveHook,
+			}}, nil)
+
+		patched := false
+		fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
+		defaultReactor := fakeAppCs.ReactionChain[0]
+		fakeAppCs.ReactionChain = nil
+		fakeAppCs.AddReactor("get", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+			return defaultReactor.React(action)
+		})
+		fakeAppCs.AddReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+			patched = true
+			return true, &v1alpha1.Application{}, nil
+		})
+		err := ctrl.finalizeApplicationDeletion(app, func(project string) ([]*v1alpha1.Cluster, error) {
+			return []*v1alpha1.Cluster{}, nil
+		})
+		assert.NoError(t, err)
+		// post-delete hook is deleted
+		require.Len(t, ctrl.kubectl.(*MockKubectl).DeletedResources, 1)
+		require.Equal(t, "post-delete-hook", ctrl.kubectl.(*MockKubectl).DeletedResources[0].Name)
+		// finalizer is not removed
+		assert.False(t, patched)
+	})
 }
 
 // TestNormalizeApplication verifies we normalize an application during reconciliation
