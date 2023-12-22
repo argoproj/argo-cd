@@ -129,11 +129,13 @@ func (r *applicationEventReporter) getDesiredManifests(ctx context.Context, a *a
 		// we can ignore the error
 		notAppPathDoesntExistsError := !strings.Contains(err.Error(), "app path does not exist")
 
+		wrongDestinationError := !strings.Contains(err.Error(), "error validating destination")
+
 		// when application deleted rbac also throws erorr with PermissionDenied
 		// we can ignore the error, as we check rbac access before reporting events
 		notPermissionDeniedError := !strings.Contains(err.Error(), "PermissionDenied")
 
-		if notManifestGenerationError && notPermissionDeniedError && notAppPathDoesntExistsError {
+		if notManifestGenerationError && notPermissionDeniedError && notAppPathDoesntExistsError && wrongDestinationError {
 			return nil, fmt.Errorf("failed to get application desired state manifests: %w", err), false
 		}
 		// if it's manifest generation error we need to still report the actual state
