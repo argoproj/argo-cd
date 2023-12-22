@@ -297,6 +297,7 @@ export interface RevisionHistory {
     sources: ApplicationSource[];
     deployStartedAt: models.Time;
     deployedAt: models.Time;
+    initiatedBy: OperationInitiator;
 }
 
 export type SyncStatusCode = 'Unknown' | 'Synced' | 'OutOfSync';
