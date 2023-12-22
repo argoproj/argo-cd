@@ -36,6 +36,5 @@ func (f *FeatureManager) Watch() {
 }
 
 func (f *FeatureManager) ShouldReporterRun() bool {
-	//return f.shouldRun
-	return true
+	return f.shouldRun
 }
