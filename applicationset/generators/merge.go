@@ -92,9 +92,7 @@ func (m *MergeGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.Appl
 
 	var mergedParamSets []map[string]interface{}
 	for _, mergedParamSetList := range baseParamSetsByMergeKey {
-		for _, mergedParamSet := range mergedParamSetList {
-			mergedParamSets = append(mergedParamSets, mergedParamSet)
-		}
+		mergedParamSets = append(mergedParamSets, mergedParamSetList...)
 	}
 
 	return mergedParamSets, nil
