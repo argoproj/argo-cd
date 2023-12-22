@@ -880,7 +880,16 @@ func useDiffCache(noCache bool, manifestInfos []*apiclient.ManifestResponse, sou
 	return true
 }
 
-func (m *appStateManager) persistRevisionHistory(app *v1alpha1.Application, revision string, source v1alpha1.ApplicationSource, revisions []string, sources []v1alpha1.ApplicationSource, hasMultipleSources bool, startedAt metav1.Time) error {
+func (m *appStateManager) persistRevisionHistory(
+	app *v1alpha1.Application,
+	revision string,
+	source v1alpha1.ApplicationSource,
+	revisions []string,
+	sources []v1alpha1.ApplicationSource,
+	hasMultipleSources bool,
+	startedAt metav1.Time,
+	initiatedBy v1alpha1.OperationInitiator,
+) error {
 	var nextID int64
 	if len(app.Status.History) > 0 {
 		nextID = app.Status.History.LastRevisionHistory().ID + 1
@@ -893,6 +902,7 @@ func (m *appStateManager) persistRevisionHistory(app *v1alpha1.Application, revi
 			ID:              nextID,
 			Sources:         sources,
 			Revisions:       revisions,
+			InitiatedBy:     initiatedBy,
 		})
 	} else {
 		app.Status.History = append(app.Status.History, v1alpha1.RevisionHistory{
@@ -901,6 +911,7 @@ func (m *appStateManager) persistRevisionHistory(app *v1alpha1.Application, revi
 			DeployStartedAt: &startedAt,
 			ID:              nextID,
 			Source:          source,
+			InitiatedBy:     initiatedBy,
 		})
 	}
 
