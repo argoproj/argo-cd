@@ -61,6 +61,12 @@ func (m *MergeGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.Appl
 		return nil, ErrLessThanTwoGeneratorsInMerge
 	}
 
+	if appSetGenerator.Merge.Mode == "" {
+		appSetGenerator.Merge.Mode = argoprojiov1alpha1.LeftJoinUniq
+	}
+
+	// todo: return error if mode is not of one of those types
+
 	paramSetsFromGenerators, err := m.getParamSetsForAllGenerators(appSetGenerator.Merge.Generators, appSet)
 	if err != nil {
 		return nil, fmt.Errorf("error getting param sets from generators: %w", err)

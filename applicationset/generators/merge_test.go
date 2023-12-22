@@ -558,6 +558,10 @@ func TestMergeModes(t *testing.T) {
 				`{"key":"c"}`: {{"key": "c", "secondSet": "secondVal2"}},
 			},
 		},
+		// todo:
+		// test errors for all
+		// test non-existing join type
+		// test no join type
 	}
 
 	for _, testCase := range testCases {
