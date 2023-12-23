@@ -337,6 +337,7 @@ export interface ApplicationPreservedFields {
 export interface ApplicationSetStatus {
     conditions?: ApplicationSetCondition[];
     applicationStatus: ApplicationSetApplicationStatus[];
+    resources: ResourceStatus[];
 }
 
 export interface ApplicationSetCondition {
