@@ -30,7 +30,7 @@ import {NodeUpdateAnimation} from './node-update-animation';
 import {PodGroup} from '../application-pod-view/pod-view';
 import './application-resource-tree.scss';
 import {ArrowConnector} from './arrow-connector';
-import {Application, ApplicationTree} from '../../../shared/models';
+import {Application, ApplicationSet, ApplicationTree} from '../../../shared/models';
 
 function treeNodeKey(node: NodeId & {uid?: string}) {
     return node.uid || nodeKey(node);
@@ -920,6 +920,9 @@ export const ApplicationResourceTree = (props: AbstractApplicationResourceTreePr
     const statusByKey = new Map<string, models.ResourceStatus>();
     if (isApp(props.app)) {
         (props.app as models.Application).status.resources.forEach(res => statusByKey.set(nodeKey(res), res));
+    } else {
+        // Assuming AppSet. Revisit this if a third type of an AbstractApp is born.
+        (props.app as models.ApplicationSet).status.resources.forEach(res => statusByKey.set(nodeKey(res), res));
     }
     const nodeByKey = new Map<string, ResourceTreeNode>();
     props.tree.nodes
@@ -1090,7 +1093,11 @@ export const ApplicationResourceTree = (props: AbstractApplicationResourceTreePr
         }
     } else {
         // Tree view
-        const managedKeys = isApp(props.app) ? new Set((props.app as Application).status.resources.map(nodeKey)) : new Set();
+
+        const managedKeys = isApp(props.app)
+            ? new Set((props.app as Application).status.resources.map(nodeKey))
+            : new Set((props.app as ApplicationSet).status.resources.map(nodeKey));
+
         const orphanedKeys = isApp(props.app) ? new Set((props.tree as ApplicationTree).orphanedNodes?.map(nodeKey)) : new Set();
         const orphans: ResourceTreeNode[] = [];
         let allChildNodes: ResourceTreeNode[] = [];

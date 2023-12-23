@@ -95,14 +95,11 @@ export class ApplicationsService {
     }
 
     public resourceTree(name: string, appNamespace: string, pathname: string): Promise<models.AbstractApplicationTree> {
-        // const isFromApps = isInvokedFromAppsPath(pathname);
-        return (
-            requests
-                .get(`${getRootPathByPath(pathname)}/${name}/resource-tree`)
-                .query({appNamespace})
-                // .then(isFromApps ? res => res.body as models.ApplicationTree : res => res.body as models.ApplicationSetTree);
-                .then(res => res.body as models.AbstractApplicationTree)
-        );
+        return requests
+            .get(`${getRootPathByPath(pathname)}/${name}/resource-tree`)
+            .query({appNamespace})
+
+            .then(res => res.body as models.AbstractApplicationTree);
     }
 
     public watchResourceTree(name: string, appNamespace: string, pathname: string): Observable<models.ApplicationTree> {
@@ -554,10 +551,15 @@ export class ApplicationsService {
             data = deepMerge(
                 {
                     apiVersion: 'argoproj.io/v1alpha1',
-                    kind: 'ApplicationSet'
+                    kind: 'ApplicationSet',
+                    status: {
+                        resources: []
+                    }
                 },
                 data
             );
+            (data as models.ApplicationSet).status.resources[0].kind = 'Application';
+            (data as models.ApplicationSet).status.resources[0].group = 'argoproj.io';
             return data as models.ApplicationSet;
         }
     }

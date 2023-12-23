@@ -13,7 +13,7 @@ import {ResourceTreeNode} from './application-resource-tree/application-resource
 import {CheckboxField, COLORS, ErrorNotification, Revision} from '../../shared/components';
 import * as appModels from '../../shared/models';
 import {services} from '../../shared/services';
-import {ApplicationSetConditionStatus, ApplicationSetStatus} from '../../shared/models';
+import {ApplicationSetConditionStatus, ApplicationSetStatus, ApplicationTree} from '../../shared/models';
 
 import {History} from 'history';
 
@@ -32,6 +32,7 @@ export interface NodeId {
 type ActionMenuItem = MenuItem & {disabled?: boolean; tooltip?: string};
 
 export function nodeKey(node: NodeId) {
+    console.log('nodeKEy ' + [node.group, node.kind, node.namespace, node.name].join('/'));
     return [node.group, node.kind, node.namespace, node.name].join('/');
 }
 
@@ -437,8 +438,8 @@ function getResourceActionsMenuItems(resource: ResourceTreeNode, metadata: model
 
 function getActionItems(
     resource: ResourceTreeNode,
-    application: appModels.Application,
-    tree: appModels.ApplicationTree,
+    application: appModels.AbstractApplication,
+    tree: appModels.AbstractApplicationTree,
     apis: ContextApis,
     history: History<unknown>,
     appChanged: BehaviorSubject<appModels.AbstractApplication>,
@@ -470,12 +471,14 @@ function getActionItems(
         });
     }
 
-    if (findChildPod(resource, tree)) {
-        items.push({
-            title: 'Logs',
-            iconClassName: 'fa fa-fw fa-align-left',
-            action: () => apis.navigation.goto('.', {node: nodeKey(resource), tab: 'logs'}, {replace: true})
-        });
+    if (isApp(application)) {
+        if (findChildPod(resource, tree as ApplicationTree)) {
+            items.push({
+                title: 'Logs',
+                iconClassName: 'fa fa-fw fa-align-left',
+                action: () => apis.navigation.goto('.', {node: nodeKey(resource), tab: 'logs'}, {replace: true})
+            });
+        }
     }
 
     if (isQuickStart) {
@@ -526,8 +529,8 @@ function getActionItems(
 
 export function renderResourceMenu(
     resource: ResourceTreeNode,
-    application: appModels.Application,
-    tree: appModels.ApplicationTree,
+    application: appModels.AbstractApplication,
+    tree: appModels.AbstractApplicationTree,
     apis: ContextApis,
     history: History<unknown>,
     appChanged: BehaviorSubject<appModels.AbstractApplication>,
