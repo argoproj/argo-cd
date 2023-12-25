@@ -28,6 +28,8 @@ spec:
 !!! note "When using multiple ways to provide values"
     Order of precedence is `parameters > valuesObject > values > valueFiles > helm repository values.yaml` (see [Here](./helm.md#helm-value-precedence) for a more detailed example)
 
+For more info about Helm Chart Repositories and how to configure Private Helm repos see [Here](../operator-manual/declarative-setup.md#helm-chart-repositories).
+
 ## Values Files
 
 Helm has the ability to use a different, or even multiple "values.yaml" files to derive its
