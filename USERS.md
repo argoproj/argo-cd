@@ -267,6 +267,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [Spendesk](https://spendesk.com/)
 1. [Splunk](https://splunk.com/)
 1. [Spores Labs](https://spores.app)
+1. [Statsig](https://statsig.com)
 1. [StreamNative](https://streamnative.io)
 1. [Stuart](https://stuart.com/)
 1. [Sumo Logic](https://sumologic.com/)
