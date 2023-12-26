@@ -40,6 +40,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [Boozt](https://www.booztgroup.com/)
 1. [Boticario](https://www.boticario.com.br/)
 1. [Bulder Bank](https://bulderbank.no)
+1. [CAM](https://cam-inc.co.jp)
 1. [Camptocamp](https://camptocamp.com)
 1. [Candis](https://www.candis.io)
 1. [Capital One](https://www.capitalone.com)
