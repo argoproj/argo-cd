@@ -32,19 +32,29 @@ type httpApplicationClient struct {
 	httpClient *http.Client
 	baseUrl    string
 	token      string
+	rootpath   string
 }
 
-func NewHttpApplicationClient(token string, address string) ApplicationClient {
+func NewHttpApplicationClient(token string, address string, rootpath string) ApplicationClient {
+	if rootpath != "" && !strings.HasPrefix(rootpath, "/") {
+		rootpath = "/" + rootpath
+	}
+
 	if !strings.Contains(address, "http") {
 		address = "http://" + address
+	}
+
+	if rootpath != "" {
+		address = address + rootpath
 	}
 
 	return &httpApplicationClient{
 		httpClient: &http.Client{
 			Timeout: 30 * time.Second,
 		},
-		baseUrl: address,
-		token:   token,
+		baseUrl:  address,
+		token:    token,
+		rootpath: rootpath,
 	}
 }
 

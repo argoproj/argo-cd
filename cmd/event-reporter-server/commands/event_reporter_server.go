@@ -46,14 +46,15 @@ func init() {
 	failureRetryPeriodMilliSeconds = env.ParseNumFromEnv(failureRetryPeriodMilliSecondsEnv, failureRetryPeriodMilliSeconds, 0, 1000)
 }
 
-func getApplicationClient(useGrpc bool, address, token string) appclient.ApplicationClient {
+func getApplicationClient(useGrpc bool, address, token string, path string) appclient.ApplicationClient {
 	if useGrpc {
 		applicationClientSet, err := apiclient.NewClient(&apiclient.ClientOptions{
-			ServerAddr: address,
-			Insecure:   true,
-			GRPCWeb:    true,
-			PlainText:  true,
-			AuthToken:  token,
+			ServerAddr:      address,
+			Insecure:        true,
+			GRPCWeb:         true,
+			PlainText:       true,
+			AuthToken:       token,
+			GRPCWebRootPath: path,
 		})
 
 		errors.CheckError(err)
@@ -64,7 +65,7 @@ func getApplicationClient(useGrpc bool, address, token string) appclient.Applica
 
 		return applicationClient
 	}
-	return appclient.NewHttpApplicationClient(token, address)
+	return appclient.NewHttpApplicationClient(token, address, path)
 }
 
 // NewCommand returns a new instance of an event reporter command
@@ -90,6 +91,7 @@ func NewCommand() *cobra.Command {
 		codefreshUrl             string
 		codefreshToken           string
 		shardingAlgorithm        string
+		rootpath                 string
 		useGrpc                  bool
 	)
 	var command = &cobra.Command{
@@ -165,7 +167,7 @@ func NewCommand() *cobra.Command {
 				Cache:                    cache,
 				RedisClient:              redisClient,
 				ApplicationNamespaces:    applicationNamespaces,
-				ApplicationServiceClient: getApplicationClient(useGrpc, applicationServerAddress, argocdToken),
+				ApplicationServiceClient: getApplicationClient(useGrpc, applicationServerAddress, argocdToken, rootpath),
 				CodefreshConfig: &codefresh.CodefreshConfig{
 					BaseURL:   codefreshUrl,
 					AuthToken: codefreshToken,
@@ -194,6 +196,7 @@ func NewCommand() *cobra.Command {
 	}
 
 	clientConfig = cli.AddKubectlFlagsToCmd(command)
+	command.Flags().StringVar(&rootpath, "argocd-server-path", env.StringFromEnv("ARGOCD_SERVER_ROOTPATH", ""), "Used if Argo CD is running behind reverse proxy under subpath different from /")
 	command.Flags().BoolVar(&insecure, "insecure", env.ParseBoolFromEnv("EVENT_REPORTER_INSECURE", false), "Run server without TLS")
 	command.Flags().StringVar(&cmdutil.LogFormat, "logformat", env.StringFromEnv("EVENT_REPORTER_LOGFORMAT", "text"), "Set the logging format. One of: text|json")
 	command.Flags().StringVar(&cmdutil.LogLevel, "loglevel", env.StringFromEnv("EVENT_REPORTER_LOG_LEVEL", "info"), "Set the logging level. One of: debug|info|warn|error")
