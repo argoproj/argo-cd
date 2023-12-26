@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/argoproj/argo-cd/v2/event_reporter"
+	appclient "github.com/argoproj/argo-cd/v2/event_reporter/application"
 	"github.com/argoproj/argo-cd/v2/event_reporter/codefresh"
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient"
 
@@ -45,6 +46,27 @@ func init() {
 	failureRetryPeriodMilliSeconds = env.ParseNumFromEnv(failureRetryPeriodMilliSecondsEnv, failureRetryPeriodMilliSeconds, 0, 1000)
 }
 
+func getApplicationClient(useGrpc bool, address, token string) appclient.ApplicationClient {
+	if useGrpc {
+		applicationClientSet, err := apiclient.NewClient(&apiclient.ClientOptions{
+			ServerAddr: address,
+			Insecure:   true,
+			GRPCWeb:    true,
+			PlainText:  true,
+			AuthToken:  token,
+		})
+
+		errors.CheckError(err)
+
+		_, applicationClient, err := applicationClientSet.NewApplicationClient()
+
+		errors.CheckError(err)
+
+		return applicationClient
+	}
+	return appclient.NewHttpApplicationClient(token, address)
+}
+
 // NewCommand returns a new instance of an event reporter command
 func NewCommand() *cobra.Command {
 	var (
@@ -68,6 +90,7 @@ func NewCommand() *cobra.Command {
 		codefreshUrl             string
 		codefreshToken           string
 		shardingAlgorithm        string
+		useGrpc                  bool
 	)
 	var command = &cobra.Command{
 		Use:               cliName,
@@ -130,24 +153,6 @@ func NewCommand() *cobra.Command {
 
 			repoclientset := repoapiclient.NewRepoServerClientset(repoServerAddress, repoServerTimeoutSeconds, tlsConfig)
 
-			applicationClientSet, err := apiclient.NewClient(&apiclient.ClientOptions{
-				ServerAddr: applicationServerAddress,
-				Insecure:   true,
-				GRPCWeb:    true,
-				PlainText:  true,
-				AuthToken:  argocdToken,
-			})
-
-			errors.CheckError(err)
-
-			closer, applicationClient, err := applicationClientSet.NewApplicationClient()
-
-			errors.CheckError(err)
-
-			defer func() {
-				_ = closer.Close()
-			}()
-
 			eventReporterServerOpts := event_reporter.EventReporterServerOpts{
 				ListenPort:               listenPort,
 				ListenHost:               listenHost,
@@ -160,12 +165,14 @@ func NewCommand() *cobra.Command {
 				Cache:                    cache,
 				RedisClient:              redisClient,
 				ApplicationNamespaces:    applicationNamespaces,
-				ApplicationServiceClient: applicationClient,
+				ApplicationServiceClient: getApplicationClient(useGrpc, applicationServerAddress, argocdToken),
 				CodefreshConfig: &codefresh.CodefreshConfig{
 					BaseURL:   codefreshUrl,
 					AuthToken: codefreshToken,
 				},
 			}
+
+			log.Infof("Starting event reporter server with grpc transport %v", useGrpc)
 
 			stats.RegisterStackDumper()
 			stats.StartStatsTicker(10 * time.Minute)
@@ -206,6 +213,7 @@ func NewCommand() *cobra.Command {
 	command.Flags().StringVar(&codefreshUrl, "codefresh-url", env.StringFromEnv("CODEFRESH_URL", "https://g.codefresh.io"), "Codefresh API url")
 	command.Flags().StringVar(&codefreshToken, "codefresh-token", env.StringFromEnv("CODEFRESH_TOKEN", ""), "Codefresh token")
 	command.Flags().StringVar(&shardingAlgorithm, "sharding-method", env.StringFromEnv(common.EnvEventReporterShardingAlgorithm, common.DefaultEventReporterShardingAlgorithm), "Enables choice of sharding method. Supported sharding methods are : [legacy] ")
+	command.Flags().BoolVar(&useGrpc, "grpc", env.ParseBoolFromEnv("USE_GRPC", true), "Use grpc for interact with argocd server")
 	cacheSrc = servercache.AddCacheFlagsToCmd(command, func(client *redis.Client) {
 		redisClient = client
 	})

@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	appclient "github.com/argoproj/argo-cd/v2/event_reporter/application"
 	"github.com/argoproj/argo-cd/v2/event_reporter/sharding"
 	applicationpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	"net/http"
@@ -10,10 +11,10 @@ import (
 )
 
 type RequestHandlers struct {
-	ApplicationServiceClient applicationpkg.ApplicationServiceClient
+	ApplicationServiceClient appclient.ApplicationClient
 }
 
-func GetRequestHandlers(applicationServiceClient applicationpkg.ApplicationServiceClient) *RequestHandlers {
+func GetRequestHandlers(applicationServiceClient appclient.ApplicationClient) *RequestHandlers {
 	return &RequestHandlers{
 		ApplicationServiceClient: applicationServiceClient,
 	}

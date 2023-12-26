@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+	appclient "github.com/argoproj/argo-cd/v2/event_reporter/application"
 	"github.com/argoproj/argo-cd/v2/event_reporter/reporter"
 	"net"
 	"net/http"
@@ -16,7 +17,6 @@ import (
 	event_reporter "github.com/argoproj/argo-cd/v2/event_reporter/controller"
 	"github.com/argoproj/argo-cd/v2/event_reporter/handlers"
 	"github.com/argoproj/argo-cd/v2/event_reporter/metrics"
-	applicationpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
 	appinformer "github.com/argoproj/argo-cd/v2/pkg/client/informers/externalversions"
 	applisters "github.com/argoproj/argo-cd/v2/pkg/client/listers/application/v1alpha1"
@@ -86,7 +86,7 @@ type EventReporterServerOpts struct {
 	KubeClientset            kubernetes.Interface
 	AppClientset             appclientset.Interface
 	RepoClientset            repoapiclient.Clientset
-	ApplicationServiceClient applicationpkg.ApplicationServiceClient
+	ApplicationServiceClient appclient.ApplicationClient
 	Cache                    *servercache.Cache
 	RedisClient              *redis.Client
 	ApplicationNamespaces    []string
