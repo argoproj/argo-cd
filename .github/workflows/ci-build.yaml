@@ -1,6 +1,9 @@
 name: Integration tests
+
 on: 
   push:
+    paths-ignore:
+      - '*.md'
     branches:
       - 'master'
       - 'release-*'
