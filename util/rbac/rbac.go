@@ -352,7 +352,7 @@ func (e *Enforcer) RunPolicyLoader(ctx context.Context, onUpdated func(cm *apiv1
 			return err
 		}
 	} else {
-		err = e.syncUpdate(cm, onUpdated)
+		err = e.SyncUpdate(cm, onUpdated)
 		if err != nil {
 			return err
 		}
@@ -367,7 +367,7 @@ func (e *Enforcer) runInformer(ctx context.Context, onUpdated func(cm *apiv1.Con
 		cache.ResourceEventHandlerFuncs{
 			AddFunc: func(obj interface{}) {
 				if cm, ok := obj.(*apiv1.ConfigMap); ok {
-					err := e.syncUpdate(cm, onUpdated)
+					err := e.SyncUpdate(cm, onUpdated)
 					if err != nil {
 						log.Error(err)
 					} else {
@@ -381,7 +381,7 @@ func (e *Enforcer) runInformer(ctx context.Context, onUpdated func(cm *apiv1.Con
 				if oldCM.ResourceVersion == newCM.ResourceVersion {
 					return
 				}
-				err := e.syncUpdate(newCM, onUpdated)
+				err := e.SyncUpdate(newCM, onUpdated)
 				if err != nil {
 					log.Error(err)
 				} else {
@@ -430,8 +430,8 @@ func PolicyCSV(data map[string]string) string {
 	return strBuilder.String()
 }
 
-// syncUpdate updates the enforcer
-func (e *Enforcer) syncUpdate(cm *apiv1.ConfigMap, onUpdated func(cm *apiv1.ConfigMap) error) error {
+// SyncUpdate updates the enforcer
+func (e *Enforcer) SyncUpdate(cm *apiv1.ConfigMap, onUpdated func(cm *apiv1.ConfigMap) error) error {
 	e.SetDefaultRole(cm.Data[ConfigMapPolicyDefaultKey])
 	e.SetMatchMode(cm.Data[ConfigMapMatchModeKey])
 	policyCSV := PolicyCSV(cm.Data)
