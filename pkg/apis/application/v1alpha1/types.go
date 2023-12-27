@@ -3126,3 +3126,15 @@ func (a *Application) QualifiedName() string {
 func (a *Application) RBACName(defaultNS string) string {
 	return security.RBACName(defaultNS, a.Spec.GetProject(), a.Namespace, a.Name)
 }
+
+// RBACPolicy represents an RBAC (Role-Based Access Control) policy.
+type RBACPolicy struct {
+	PolicyKey string `json:"policyKey" protobuf:"bytes,1,opt,name=policyKey"`
+	Policy    string `json:"policy" protobuf:"bytes,2,opt,name=policy"`
+}
+
+// RBACPolicyList is a list of RBACPolicy resources.
+type RBACPolicyList struct {
+	metav1.ListMeta `json:"metadata,omitempty" protobuf:"bytes,1,opt,name=metadata"`
+	Items           []RBACPolicy `json:"items" protobuf:"bytes,2,rep,name=items"`
+}

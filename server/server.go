@@ -91,6 +91,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/server/metrics"
 	"github.com/argoproj/argo-cd/v2/server/notification"
 	"github.com/argoproj/argo-cd/v2/server/project"
+	rbacservice "github.com/argoproj/argo-cd/v2/server/rbac"
 	"github.com/argoproj/argo-cd/v2/server/rbacpolicy"
 	"github.com/argoproj/argo-cd/v2/server/repocreds"
 	"github.com/argoproj/argo-cd/v2/server/repository"
@@ -819,6 +820,7 @@ type ArgoCDServiceSet struct {
 	CertificateService    *certificate.Server
 	GpgkeyService         *gpgkey.Server
 	VersionService        *version.Server
+	RBACService           *rbacservice.Server
 }
 
 func newArgoCDServiceSet(a *ArgoCDServer) *ArgoCDServiceSet {
@@ -880,6 +882,7 @@ func newArgoCDServiceSet(a *ArgoCDServer) *ArgoCDServiceSet {
 		}
 		return sett.AnonymousUserEnabled, err
 	})
+	rbacService := rbacservice.NewServer(a.enf, a.KubeClientset, a.Namespace, common.ArgoCDRBACConfigMapName)
 
 	return &ArgoCDServiceSet{
 		ClusterService:        clusterService,
@@ -896,6 +899,7 @@ func newArgoCDServiceSet(a *ArgoCDServer) *ArgoCDServiceSet {
 		CertificateService:    certificateService,
 		GpgkeyService:         gpgkeyService,
 		VersionService:        versionService,
+		RBACService:           rbacService,
 	}
 }
 
