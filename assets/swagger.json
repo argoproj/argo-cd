@@ -3036,6 +3036,129 @@
         }
       }
     },
+    "/api/v1/rbac/policies": {
+      "get": {
+        "tags": [
+          "RBACService"
+        ],
+        "summary": "List returns a list of policies",
+        "operationId": "RBACService_ListPolicies",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1alpha1RBACPolicyList"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/rbac/policies/{policyKey}": {
+      "get": {
+        "tags": [
+          "RBACService"
+        ],
+        "summary": "Get returns a policy by name",
+        "operationId": "RBACService_GetPolicy",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "Policy Key is the key of the policy to query",
+            "name": "policyKey",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1alpha1RBACPolicy"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "RBACService"
+        ],
+        "summary": "Update updates a policy",
+        "operationId": "RBACService_AddPolicy",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "policyKey",
+            "in": "path",
+            "required": true
+          },
+          {
+            "description": "Policy definition",
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1alpha1RBACPolicyRule"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1alpha1RBACPolicy"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "RBACService"
+        ],
+        "summary": "Delete deletes a policy",
+        "operationId": "RBACService_RemovePolicy",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "Policy Key is the key of the policy to query",
+            "name": "policyKey",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1alpha1RBACPolicy"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        }
+      }
+    },
     "/api/v1/repocreds": {
       "get": {
         "tags": [
@@ -7893,6 +8016,42 @@
         },
         "tokenRef": {
           "$ref": "#/definitions/v1alpha1SecretRef"
+        }
+      }
+    },
+    "v1alpha1RBACPolicy": {
+      "description": "RBACPolicy represents an RBAC (Role-Based Access Control) policy.",
+      "type": "object",
+      "properties": {
+        "policy": {
+          "type": "string"
+        },
+        "policyKey": {
+          "type": "string"
+        }
+      }
+    },
+    "v1alpha1RBACPolicyList": {
+      "description": "RBACPolicyList is a list of RBACPolicy resources.",
+      "type": "object",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1RBACPolicy"
+          }
+        },
+        "metadata": {
+          "$ref": "#/definitions/v1ListMeta"
+        }
+      }
+    },
+    "v1alpha1RBACPolicyRule": {
+      "description": "RBACPolicyRule represents an RBAC (Role-Based Access Control) policy rule.",
+      "type": "object",
+      "properties": {
+        "policy": {
+          "type": "string"
         }
       }
     },

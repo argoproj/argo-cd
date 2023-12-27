@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
+	rbacpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/rbac"
 	goio "io"
 	"io/fs"
 	"math"
@@ -91,6 +92,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/server/metrics"
 	"github.com/argoproj/argo-cd/v2/server/notification"
 	"github.com/argoproj/argo-cd/v2/server/project"
+	rbacservice "github.com/argoproj/argo-cd/v2/server/rbac"
 	"github.com/argoproj/argo-cd/v2/server/rbacpolicy"
 	"github.com/argoproj/argo-cd/v2/server/repocreds"
 	"github.com/argoproj/argo-cd/v2/server/repository"
@@ -797,6 +799,7 @@ func (a *ArgoCDServer) newGRPCServer() (*grpc.Server, application.AppResourceTre
 	accountpkg.RegisterAccountServiceServer(grpcS, a.serviceSet.AccountService)
 	certificatepkg.RegisterCertificateServiceServer(grpcS, a.serviceSet.CertificateService)
 	gpgkeypkg.RegisterGPGKeyServiceServer(grpcS, a.serviceSet.GpgkeyService)
+	rbacpkg.RegisterRBACServiceServer(grpcS, a.serviceSet.RBACService)
 	// Register reflection service on gRPC server.
 	reflection.Register(grpcS)
 	grpc_prometheus.Register(grpcS)
@@ -819,6 +822,7 @@ type ArgoCDServiceSet struct {
 	CertificateService    *certificate.Server
 	GpgkeyService         *gpgkey.Server
 	VersionService        *version.Server
+	RBACService           *rbacservice.Server
 }
 
 func newArgoCDServiceSet(a *ArgoCDServer) *ArgoCDServiceSet {
@@ -880,6 +884,7 @@ func newArgoCDServiceSet(a *ArgoCDServer) *ArgoCDServiceSet {
 		}
 		return sett.AnonymousUserEnabled, err
 	})
+	rbacService := rbacservice.NewServer(a.enf, a.KubeClientset, a.Namespace, common.ArgoCDRBACConfigMapName)
 
 	return &ArgoCDServiceSet{
 		ClusterService:        clusterService,
@@ -896,6 +901,7 @@ func newArgoCDServiceSet(a *ArgoCDServer) *ArgoCDServiceSet {
 		CertificateService:    certificateService,
 		GpgkeyService:         gpgkeyService,
 		VersionService:        versionService,
+		RBACService:           rbacService,
 	}
 }
 
@@ -1018,6 +1024,7 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandl
 	mustRegisterGWHandler(accountpkg.RegisterAccountServiceHandler, ctx, gwmux, conn)
 	mustRegisterGWHandler(certificatepkg.RegisterCertificateServiceHandler, ctx, gwmux, conn)
 	mustRegisterGWHandler(gpgkeypkg.RegisterGPGKeyServiceHandler, ctx, gwmux, conn)
+	mustRegisterGWHandler(rbacpkg.RegisterRBACServiceHandler, ctx, gwmux, conn)
 
 	// Swagger UI
 	swagger.ServeSwaggerUI(mux, assets.SwaggerJSON, "/swagger-ui", a.RootPath)

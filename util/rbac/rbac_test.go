@@ -111,7 +111,7 @@ func TestPolicyCSV(t *testing.T) {
 func TestBuiltinPolicyEnforcer(t *testing.T) {
 	kubeclientset := fake.NewSimpleClientset()
 	enf := NewEnforcer(kubeclientset, fakeNamespace, fakeConfigMapName, nil)
-	err := enf.syncUpdate(fakeConfigMap(), noOpUpdate)
+	err := enf.SyncUpdate(fakeConfigMap(), noOpUpdate)
 	assert.Nil(t, err)
 
 	// Without setting builtin policy, this should fail
@@ -184,7 +184,7 @@ g, alice, role:foo-readonly
 func TestDefaultRole(t *testing.T) {
 	kubeclientset := fake.NewSimpleClientset()
 	enf := NewEnforcer(kubeclientset, fakeNamespace, fakeConfigMapName, nil)
-	err := enf.syncUpdate(fakeConfigMap(), noOpUpdate)
+	err := enf.SyncUpdate(fakeConfigMap(), noOpUpdate)
 	assert.Nil(t, err)
 	_ = enf.SetBuiltinPolicy(assets.BuiltinPolicyCSV)
 
@@ -198,7 +198,7 @@ func TestDefaultRole(t *testing.T) {
 func TestURLAsObjectName(t *testing.T) {
 	kubeclientset := fake.NewSimpleClientset()
 	enf := NewEnforcer(kubeclientset, fakeNamespace, fakeConfigMapName, nil)
-	err := enf.syncUpdate(fakeConfigMap(), noOpUpdate)
+	err := enf.SyncUpdate(fakeConfigMap(), noOpUpdate)
 	assert.Nil(t, err)
 	policy := `
 p, alice, repositories, *, foo/*, allow
@@ -298,7 +298,7 @@ func TestClaimsEnforcerFunc(t *testing.T) {
 func TestDefaultRoleWithRuntimePolicy(t *testing.T) {
 	kubeclientset := fake.NewSimpleClientset()
 	enf := NewEnforcer(kubeclientset, fakeNamespace, fakeConfigMapName, nil)
-	err := enf.syncUpdate(fakeConfigMap(), noOpUpdate)
+	err := enf.SyncUpdate(fakeConfigMap(), noOpUpdate)
 	assert.Nil(t, err)
 	runtimePolicy := assets.BuiltinPolicyCSV
 	assert.False(t, enf.EnforceRuntimePolicy("", runtimePolicy, "bob", "applications", "get", "foo/bar"))
@@ -311,7 +311,7 @@ func TestDefaultRoleWithRuntimePolicy(t *testing.T) {
 func TestClaimsEnforcerFuncWithRuntimePolicy(t *testing.T) {
 	kubeclientset := fake.NewSimpleClientset()
 	enf := NewEnforcer(kubeclientset, fakeNamespace, fakeConfigMapName, nil)
-	err := enf.syncUpdate(fakeConfigMap(), noOpUpdate)
+	err := enf.SyncUpdate(fakeConfigMap(), noOpUpdate)
 	assert.Nil(t, err)
 	runtimePolicy := assets.BuiltinPolicyCSV
 	claims := jwt.RegisteredClaims{
@@ -329,7 +329,7 @@ func TestInvalidRuntimePolicy(t *testing.T) {
 	cm := fakeConfigMap()
 	kubeclientset := fake.NewSimpleClientset(cm)
 	enf := NewEnforcer(kubeclientset, fakeNamespace, fakeConfigMapName, nil)
-	err := enf.syncUpdate(fakeConfigMap(), noOpUpdate)
+	err := enf.SyncUpdate(fakeConfigMap(), noOpUpdate)
 	assert.Nil(t, err)
 	_ = enf.SetBuiltinPolicy(assets.BuiltinPolicyCSV)
 	assert.True(t, enf.EnforceRuntimePolicy("", "", "admin", "applications", "update", "foo/bar"))
@@ -363,7 +363,7 @@ func TestValidatePolicy(t *testing.T) {
 func TestEnforceErrorMessage(t *testing.T) {
 	kubeclientset := fake.NewSimpleClientset()
 	enf := NewEnforcer(kubeclientset, fakeNamespace, fakeConfigMapName, nil)
-	err := enf.syncUpdate(fakeConfigMap(), noOpUpdate)
+	err := enf.SyncUpdate(fakeConfigMap(), noOpUpdate)
 	assert.Nil(t, err)
 
 	err = enf.EnforceErr("admin", "applications", "get", "foo/bar")
@@ -405,7 +405,7 @@ func TestEnforceErrorMessage(t *testing.T) {
 func TestDefaultGlobMatchMode(t *testing.T) {
 	kubeclientset := fake.NewSimpleClientset()
 	enf := NewEnforcer(kubeclientset, fakeNamespace, fakeConfigMapName, nil)
-	err := enf.syncUpdate(fakeConfigMap(), noOpUpdate)
+	err := enf.SyncUpdate(fakeConfigMap(), noOpUpdate)
 	assert.Nil(t, err)
 	policy := `
 p, alice, clusters, get, "https://github.com/*/*.git", allow
@@ -422,7 +422,7 @@ func TestGlobMatchMode(t *testing.T) {
 	cm.Data[ConfigMapMatchModeKey] = GlobMatchMode
 	kubeclientset := fake.NewSimpleClientset()
 	enf := NewEnforcer(kubeclientset, fakeNamespace, fakeConfigMapName, nil)
-	err := enf.syncUpdate(cm, noOpUpdate)
+	err := enf.SyncUpdate(cm, noOpUpdate)
 	assert.Nil(t, err)
 	policy := `
 p, alice, clusters, get, "https://github.com/*/*.git", allow
@@ -439,7 +439,7 @@ func TestRegexMatchMode(t *testing.T) {
 	cm.Data[ConfigMapMatchModeKey] = RegexMatchMode
 	kubeclientset := fake.NewSimpleClientset()
 	enf := NewEnforcer(kubeclientset, fakeNamespace, fakeConfigMapName, nil)
-	err := enf.syncUpdate(cm, noOpUpdate)
+	err := enf.SyncUpdate(cm, noOpUpdate)
 	assert.Nil(t, err)
 	policy := `
 p, alice, clusters, get, "https://github.com/argo[a-z]{4}/argo-[a-z]+.git", allow

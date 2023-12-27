@@ -246,6 +246,24 @@ data:
 The anonymous access to Argo CD can be enabled using `users.anonymous.enabled` field in `argocd-cm` (see [argocd-cm.yaml](argocd-cm.yaml)).
 The anonymous users get default role permissions specified by `policy.default` in `argocd-rbac-cm.yaml`. For read-only access you'll want `policy.default: role:readonly` as above
 
+## RBAC Configuration using the RBAC REST API Service
+
+It is possible to configure the RBAC Policies using the RBAC REST API Service. This is useful if you want to automate
+the RBAC configuration.
+It writes the updates to the `argocd-rbac-cm` ConfigMap and syncs the updates with the enforcer during runtime.
+
+### Endpoints
+
+There are following endpoints available:
+
+1. `GET /api/v1/rbac/policies` - Returns a list of all policies
+2. `GET /api/v1/rbac/policies/{policyKey}` - Returns a specific policy for a policy key
+3. `PUT /api/v1/rbac/policies/{policyKey}` - Updates a policy for a policy key, if the policy key does not exist it will
+   be created
+4. `DELETE /api/v1/rbac/policies/{policyKey}` - Deletes a policy for a policy key
+
+Refer to the [API docs](../developer-guide/api-docs.md) for more information.
+
 ## Validating and testing your RBAC policies
 
 If you want to ensure that your RBAC policies are working as expected, you can

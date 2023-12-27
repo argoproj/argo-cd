@@ -1479,6 +1479,25 @@ message PullRequestGeneratorGithub {
   repeated string labels = 6;
 }
 
+// RBACPolicy represents an RBAC (Role-Based Access Control) policy.
+message RBACPolicy {
+  optional string policyKey = 1;
+
+  optional string policy = 2;
+}
+
+// RBACPolicyList is a list of RBACPolicy resources.
+message RBACPolicyList {
+  optional k8s.io.apimachinery.pkg.apis.meta.v1.ListMeta metadata = 1;
+
+  repeated RBACPolicy items = 2;
+}
+
+// RBACPolicyRule represents an RBAC (Role-Based Access Control) policy rule.
+message RBACPolicyRule {
+  optional string policy = 1;
+}
+
 message RefTarget {
   optional Repository repo = 1;
 

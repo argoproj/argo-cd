@@ -1,0 +1,58 @@
+syntax = "proto3";
+option go_package = "github.com/argoproj/argo-cd/v2/pkg/apiclient/rbac";
+
+// RBAC Service
+//
+// RBAC Service API performs CRUD actions against RBAC resources
+package rbac;
+
+import "google/api/annotations.proto";
+import "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1/generated.proto";
+
+// Message to query the server for a list of policies
+message RBACPolicyQuery {
+    // Policy Key is the key of the policy to query
+    string policyKey = 1;
+}
+
+// Request to create a new policy
+message RBACPolicyUpdateRequest {
+    // Policy definition
+    github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.RBACPolicyRule policy = 1;
+    string policyKey = 2;
+}
+
+message RBACPolicyUpdateResponse {}
+
+message RBACPolicyListRequest {}
+
+service RBACService {
+    // List returns a list of policies
+    rpc ListPolicies(RBACPolicyListRequest) returns (github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.RBACPolicyList) {
+        option (google.api.http) = {
+            get: "/api/v1/rbac/policies"
+        };
+    }
+
+    // Get returns a policy by name
+    rpc GetPolicy(RBACPolicyQuery) returns (github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.RBACPolicy) {
+        option (google.api.http) = {
+            get: "/api/v1/rbac/policies/{policyKey}"
+        };
+    }
+
+    // Update updates a policy
+    rpc AddPolicy(RBACPolicyUpdateRequest) returns (github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.RBACPolicy) {
+        option (google.api.http) = {
+            put: "/api/v1/rbac/policies/{policyKey}"
+            body: "policy"
+        };
+    }
+
+    // Delete deletes a policy
+    rpc RemovePolicy(RBACPolicyQuery) returns (github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.RBACPolicy) {
+        option (google.api.http) = {
+            delete: "/api/v1/rbac/policies/{policyKey}"
+        };
+    }
+}
