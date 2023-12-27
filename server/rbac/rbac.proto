@@ -30,21 +30,21 @@ service RBACService {
     // List returns a list of policies
     rpc ListPolicies(RBACPolicyListRequest) returns (github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.RBACPolicyList) {
         option (google.api.http) = {
-            get: "/rbac/policies"
+            get: "/api/v1/rbac/policies"
         };
     }
 
     // Get returns a policy by name
     rpc GetPolicy(RBACPolicyQuery) returns (github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.RBACPolicy) {
         option (google.api.http) = {
-            get: "/rbac/policies/{policyKey}"
+            get: "/api/v1/rbac/policies/{policyKey}"
         };
     }
 
     // Update updates a policy
     rpc AddPolicy(RBACPolicyUpdateRequest) returns (github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.RBACPolicy) {
         option (google.api.http) = {
-            put: "/rbac/policies/{policyKey}"
+            put: "/api/v1/rbac/policies/{policyKey}"
             body: "policy"
         };
     }
@@ -52,7 +52,7 @@ service RBACService {
     // Delete deletes a policy
     rpc RemovePolicy(RBACPolicyQuery) returns (github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.RBACPolicy) {
         option (google.api.http) = {
-            delete: "/rbac/policies/{policyKey}"
+            delete: "/api/v1/rbac/policies/{policyKey}"
         };
     }
 }
