@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	rbacpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/rbac"
 	"io"
 	"math"
 	"net"
@@ -103,6 +104,8 @@ type Client interface {
 	NewAccountClient() (io.Closer, accountpkg.AccountServiceClient, error)
 	NewAccountClientOrDie() (io.Closer, accountpkg.AccountServiceClient)
 	WatchApplicationWithRetry(ctx context.Context, appName string, revision string) chan *v1alpha1.ApplicationWatchEvent
+	NewRBACClient() (io.Closer, rbacpkg.RBACServiceClient, error)
+	NewRBACClientOrDie() (io.Closer, rbacpkg.RBACServiceClient)
 }
 
 // ClientOptions hold address, security, and other settings for the API client.
@@ -768,6 +771,23 @@ func (c *client) NewVersionClientOrDie() (io.Closer, versionpkg.VersionServiceCl
 		log.Fatalf("Failed to establish connection to %s: %v", c.ServerAddr, err)
 	}
 	return conn, versionIf
+}
+
+func (c *client) NewRBACClient() (io.Closer, rbacpkg.RBACServiceClient, error) {
+	conn, closer, err := c.newConn()
+	if err != nil {
+		return nil, nil, err
+	}
+	rbacIf := rbacpkg.NewRBACServiceClient(conn)
+	return closer, rbacIf, nil
+}
+
+func (c *client) NewRBACClientOrDie() (io.Closer, rbacpkg.RBACServiceClient) {
+	conn, rbacIf, err := c.NewRBACClient()
+	if err != nil {
+		log.Fatalf("Failed to establish connection to %s: %v", c.ServerAddr, err)
+	}
+	return conn, rbacIf
 }
 
 func (c *client) NewProjectClient() (io.Closer, projectpkg.ProjectServiceClient, error) {

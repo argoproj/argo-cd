@@ -48,7 +48,7 @@ func TestPolicyInformer(t *testing.T) {
 
 	// update the configmap and update policy
 	delete(cm.Data, ConfigMapPolicyCSVKey)
-	err := enf.syncUpdate(cm, noOpUpdate)
+	err := enf.SyncUpdate(cm, noOpUpdate)
 	assert.Nil(t, err)
 	assert.False(t, enf.Enforce("admin", "applications", "delete", "foo/bar"))
 }
