@@ -19,6 +19,7 @@ type MetricsServer struct {
 	redisRequestCounter              *prometheus.CounterVec
 	redisRequestHistogram            *prometheus.HistogramVec
 	queueSizeCounter                 *prometheus.GaugeVec
+	appEventsCounter                 *prometheus.CounterVec
 	erroredEventsCounter             *prometheus.CounterVec
 	cachedIgnoredEventsCounter       *prometheus.CounterVec
 	eventProcessingDurationHistogram *prometheus.HistogramVec
@@ -64,6 +65,13 @@ var (
 		},
 		[]string{"reporter_shard"},
 	)
+	appEventsCounter = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "cf_e_reporter_app_events_size",
+			Help: "Size of specific application events queue of taked shard.",
+		},
+		[]string{"reporter_shard", "application", "got_in_queue"},
+	)
 	erroredEventsCounter = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "cf_e_reporter_errored_events",
@@ -81,10 +89,10 @@ var (
 	eventProcessingDurationHistogram = prometheus.NewHistogramVec(
 		prometheus.HistogramOpts{
 			Name:    "cf_e_reporter_event_processing_duration",
-			Help:    "Event processing duration.",
+			Help:    "Application event processing duration.",
 			Buckets: []float64{0.1, 0.25, .5, 1, 2, 3, 4, 5, 7, 10, 15, 20},
 		},
-		[]string{"reporter_shard", "metric_event_type"},
+		[]string{"reporter_shard", "application", "metric_event_type"},
 	)
 )
 
@@ -103,6 +111,7 @@ func NewMetricsServer(host string, port int) *MetricsServer {
 	registry.MustRegister(redisRequestHistogram)
 
 	registry.MustRegister(queueSizeCounter)
+	registry.MustRegister(appEventsCounter)
 	registry.MustRegister(erroredEventsCounter)
 	registry.MustRegister(cachedIgnoredEventsCounter)
 	registry.MustRegister(eventProcessingDurationHistogram)
@@ -116,6 +125,7 @@ func NewMetricsServer(host string, port int) *MetricsServer {
 		},
 		shard:                            strconv.FormatInt(int64(shard), 10),
 		queueSizeCounter:                 queueSizeCounter,
+		appEventsCounter:                 appEventsCounter,
 		erroredEventsCounter:             erroredEventsCounter,
 		cachedIgnoredEventsCounter:       cachedIgnoredEventsCounter,
 		eventProcessingDurationHistogram: eventProcessingDurationHistogram,
@@ -135,6 +145,10 @@ func (m *MetricsServer) SetQueueSizeCounter(size int) {
 	m.queueSizeCounter.WithLabelValues(m.shard).Set(float64(size))
 }
 
+func (m *MetricsServer) IncAppEventsCounter(application string, gotToProcessingQueue bool) {
+	m.appEventsCounter.WithLabelValues(m.shard, application, strconv.FormatBool(gotToProcessingQueue)).Inc()
+}
+
 func (m *MetricsServer) IncErroredEventsCounter(metricEventType MetricEventType, errorType MetricEventErrorType, application string) {
 	m.erroredEventsCounter.WithLabelValues(m.shard, string(metricEventType), string(errorType), application).Inc()
 }
@@ -143,6 +157,6 @@ func (m *MetricsServer) IncCachedIgnoredEventsCounter(metricEventType MetricEven
 	m.cachedIgnoredEventsCounter.WithLabelValues(m.shard, string(metricEventType), application).Inc()
 }
 
-func (m *MetricsServer) ObserveEventProcessingDurationHistogramDuration(metricEventType MetricEventType, duration time.Duration) {
-	m.eventProcessingDurationHistogram.WithLabelValues(m.shard, string(metricEventType)).Observe(duration.Seconds())
+func (m *MetricsServer) ObserveEventProcessingDurationHistogramDuration(application string, metricEventType MetricEventType, duration time.Duration) {
+	m.eventProcessingDurationHistogram.WithLabelValues(m.shard, application, string(metricEventType)).Observe(duration.Seconds())
 }

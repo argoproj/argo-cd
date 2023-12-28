@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"github.com/argoproj/argo-cd/v2/event_reporter/metrics"
 	"github.com/argoproj/argo-cd/v2/util/io"
+	"github.com/argoproj/gitops-engine/pkg/health"
 	"net/http"
 	"testing"
 	"time"
@@ -458,4 +459,10 @@ func TestAddCommitDetailsToLabels(t *testing.T) {
 		assert.Equal(t, revisionMetadata.Message, labels["app.meta.commit-message"])
 		assert.Equal(t, "http://my-grafana.com/pre-generated-link", result.GetLabels()["link"])
 	})
+}
+
+func TestSetHealthStatusIfMissing(t *testing.T) {
+	resource := appsv1.ResourceStatus{Status: appsv1.SyncStatusCodeSynced}
+	setHealthStatusIfMissing(&resource)
+	assert.Equal(t, resource.Health.Status, health.HealthStatusHealthy)
 }

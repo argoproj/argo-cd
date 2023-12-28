@@ -2,6 +2,7 @@ package reporter
 
 import (
 	argocommon "github.com/argoproj/argo-cd/v2/common"
+	"github.com/argoproj/argo-cd/v2/event_reporter/metrics"
 	"github.com/argoproj/argo-cd/v2/event_reporter/sharding"
 	"github.com/argoproj/argo-cd/v2/util/env"
 	"math"
@@ -40,14 +41,16 @@ type broadcasterHandler struct {
 	subscribers    []*subscriber
 	filter         sharding.ApplicationFilterFunction
 	featureManager *FeatureManager
+	metricsServer  *metrics.MetricsServer
 }
 
-func NewBroadcaster(featureManager *FeatureManager) Broadcaster {
+func NewBroadcaster(featureManager *FeatureManager, metricsServer *metrics.MetricsServer) Broadcaster {
 	// todo: pass real value here
 	filter := getApplicationFilter("")
 	return &broadcasterHandler{
 		filter:         filter,
 		featureManager: featureManager,
+		metricsServer:  metricsServer,
 	}
 }
 
@@ -76,10 +79,14 @@ func (b *broadcasterHandler) notify(event *appv1.ApplicationWatchEvent) {
 		if s.matches(event) {
 			select {
 			case s.ch <- event:
-				log.Infof("adding application '%s' to channel", event.Application.Name)
+				{
+					log.Infof("adding application '%s' to channel", event.Application.Name)
+					b.metricsServer.IncAppEventsCounter(event.Application.Name, true)
+				}
 			default:
 				// drop event if cannot send right away
 				log.WithField("application", event.Application.Name).Warn("unable to send event notification")
+				b.metricsServer.IncAppEventsCounter(event.Application.Name, false)
 			}
 		}
 	}
