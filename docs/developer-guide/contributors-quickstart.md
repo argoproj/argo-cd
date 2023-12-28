@@ -23,14 +23,27 @@ git clone https://github.com/argoproj/argo-cd.git
 
 <https://docs.docker.com/engine/install/>
 
-### Install or Upgrade `kind` (Optional - Should work with any local cluster)
+### Install or Upgrade a Tool for Running Local Clusters (e.g. kind or minikube)
+
+#### Installation guide for kind:
 
 <https://kind.sigs.k8s.io/docs/user/quick-start/>
 
+#### Installation guide for minikube:
+
+<https://minikube.sigs.k8s.io/docs/start/>
+
 ### Start Your Local Cluster
 
+For example, if you are using kind:
 ```shell
 kind create cluster
+```
+
+Or, if you are using minikube:
+
+```shell
+minikube start
 ```
 
 ### Install Argo CD
