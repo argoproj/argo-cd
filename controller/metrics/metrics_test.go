@@ -114,6 +114,37 @@ status:
     status: Degraded
 `
 
+const fakeApp4 = `
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: my-app-4
+  namespace: argocd
+  deletionTimestamp: "2020-03-16T09:17:45Z"
+  labels:
+    team-name: my-team
+    team-bu: bu-id
+    argoproj.io/cluster: test-cluster
+spec:
+  destination:
+    namespace: dummy-namespace
+    server: https://localhost:6443
+  project: important-project
+  source:
+    path: some/path
+    repoURL: https://github.com/argoproj/argocd-example-apps.git
+    targetRevision: feat-fake
+  syncPolicy:
+    automated:
+      selfHeal: true
+      prune: false
+status:
+  sync:
+    status: OutOfSync
+  health:
+    status: Degraded
+`
+
 const fakeDefaultApp = `
 apiVersion: argoproj.io/v1alpha1
 kind: Application
@@ -172,7 +203,7 @@ func newFakeLister(fakeAppYAMLs ...string) (context.CancelFunc, applister.Applic
 
 func testApp(t *testing.T, fakeAppYAMLs []string, expectedResponse string) {
 	t.Helper()
-	testMetricServer(t, fakeAppYAMLs, expectedResponse, []string{})
+	testMetricServer(t, fakeAppYAMLs, expectedResponse, []string{}, []string{"main", "master", "dev*"})
 }
 
 type fakeClusterInfo struct {
@@ -187,15 +218,17 @@ type TestMetricServerConfig struct {
 	FakeAppYAMLs     []string
 	ExpectedResponse string
 	AppLabels        []string
+	AppRevisions     []string
 	ClustersInfo     []gitopsCache.ClusterInfo
 }
 
-func testMetricServer(t *testing.T, fakeAppYAMLs []string, expectedResponse string, appLabels []string) {
+func testMetricServer(t *testing.T, fakeAppYAMLs []string, expectedResponse string, appLabels []string, appRevisions []string) {
 	t.Helper()
 	cfg := TestMetricServerConfig{
 		FakeAppYAMLs:     fakeAppYAMLs,
 		ExpectedResponse: expectedResponse,
 		AppLabels:        appLabels,
+		AppRevisions:     appRevisions,
 		ClustersInfo:     []gitopsCache.ClusterInfo{},
 	}
 	runTest(t, cfg)
@@ -205,7 +238,7 @@ func runTest(t *testing.T, cfg TestMetricServerConfig) {
 	t.Helper()
 	cancel, appLister := newFakeLister(cfg.FakeAppYAMLs...)
 	defer cancel()
-	metricsServ, err := NewMetricsServer("localhost:8082", appLister, appFilter, noOpHealthCheck, cfg.AppLabels)
+	metricsServ, err := NewMetricsServer("localhost:8082", appLister, appFilter, noOpHealthCheck, cfg.AppLabels, cfg.AppRevisions)
 	assert.NoError(t, err)
 
 	if len(cfg.ClustersInfo) > 0 {
@@ -249,6 +282,14 @@ argocd_app_info{autosync_enabled="true",dest_namespace="dummy-namespace",dest_se
 # HELP argocd_app_info Information about application.
 # TYPE argocd_app_info gauge
 argocd_app_info{autosync_enabled="false",dest_namespace="dummy-namespace",dest_server="https://localhost:6443",health_status="Healthy",name="my-app",namespace="argocd",operation="",project="default",repo="https://github.com/argoproj/argocd-example-apps",revision="master",sync_status="Synced"} 1
+`,
+		},
+		{
+			applications: []string{fakeApp4},
+			responseContains: `
+# HELP argocd_app_info Information about application.
+# TYPE argocd_app_info gauge
+argocd_app_info{autosync_enabled="true",dest_namespace="dummy-namespace",dest_server="https://localhost:6443",health_status="Degraded",name="my-app-4",namespace="argocd",operation="delete",project="important-project",repo="https://github.com/argoproj/argocd-example-apps",revision="",sync_status="OutOfSync"} 1
 `,
 		},
 	}
@@ -296,7 +337,7 @@ argocd_app_labels{label_non_existing="",name="my-app-3",namespace="argocd",proje
 	for _, c := range cases {
 		c := c
 		t.Run(c.description, func(t *testing.T) {
-			testMetricServer(t, c.applications, c.responseContains, c.metricLabels)
+			testMetricServer(t, c.applications, c.responseContains, c.metricLabels, []string{})
 		})
 	}
 }
@@ -328,7 +369,7 @@ argocd_app_sync_status{name="my-app",namespace="argocd",project="important-proje
 func TestMetricsSyncCounter(t *testing.T) {
 	cancel, appLister := newFakeLister()
 	defer cancel()
-	metricsServ, err := NewMetricsServer("localhost:8082", appLister, appFilter, noOpHealthCheck, []string{})
+	metricsServ, err := NewMetricsServer("localhost:8082", appLister, appFilter, noOpHealthCheck, []string{}, []string{"master", "main", "develop"})
 	assert.NoError(t, err)
 
 	appSyncTotal := `
@@ -380,7 +421,7 @@ func assertMetricsNotPrinted(t *testing.T, expectedLines, body string) {
 func TestReconcileMetrics(t *testing.T) {
 	cancel, appLister := newFakeLister()
 	defer cancel()
-	metricsServ, err := NewMetricsServer("localhost:8082", appLister, appFilter, noOpHealthCheck, []string{})
+	metricsServ, err := NewMetricsServer("localhost:8082", appLister, appFilter, noOpHealthCheck, []string{}, []string{})
 	assert.NoError(t, err)
 
 	appReconcileMetrics := `
@@ -413,7 +454,7 @@ argocd_app_reconcile_count{dest_server="https://localhost:6443",namespace="argoc
 func TestMetricsReset(t *testing.T) {
 	cancel, appLister := newFakeLister()
 	defer cancel()
-	metricsServ, err := NewMetricsServer("localhost:8082", appLister, appFilter, noOpHealthCheck, []string{})
+	metricsServ, err := NewMetricsServer("localhost:8082", appLister, appFilter, noOpHealthCheck, []string{}, []string{})
 	assert.NoError(t, err)
 
 	appSyncTotal := `
