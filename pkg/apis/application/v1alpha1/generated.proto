@@ -1493,6 +1493,11 @@ message RBACPolicyList {
   repeated RBACPolicy items = 2;
 }
 
+// RBACPolicyRule represents an RBAC (Role-Based Access Control) policy rule.
+message RBACPolicyRule {
+  optional string policy = 1;
+}
+
 message RefTarget {
   optional Repository repo = 1;
 

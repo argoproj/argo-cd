@@ -6,11 +6,17 @@ import (
 	application "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"strings"
 
 	rbacpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/rbac"
 	"github.com/argoproj/argo-cd/v2/util/rbac"
 	apiv1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes"
+)
+
+const (
+	ConfigMapPolicyCSVKey     = "policy.csv"
+	ConfigMapPolicyDefaultKey = "policy.default"
 )
 
 // Server provides a RBAC service
@@ -23,7 +29,8 @@ type Server struct {
 
 // NewServer returns a new instance of the RBAC service
 func NewServer(enf *rbac.Enforcer, kubeClientset kubernetes.Interface, namespace string, configmap string) *Server {
-	return &Server{enf: enf,
+	return &Server{
+		enf:           enf,
 		kubeClientset: kubeClientset,
 		namespace:     namespace,
 		configmap:     configmap,
@@ -43,14 +50,25 @@ func (s *Server) AddPolicy(ctx context.Context, q *rbacpkg.RBACPolicyUpdateReque
 			return nil, err
 		}
 	} else {
-		cm.Data[q.PolicyKey] = q.Policy
-		err = s.enf.SyncUpdate(cm, func(cm *apiv1.ConfigMap) error { return nil })
-		if err != nil {
-			return nil, err
+		if q.PolicyKey == ConfigMapPolicyCSVKey ||
+			q.PolicyKey == ConfigMapPolicyDefaultKey ||
+			(strings.HasPrefix(q.PolicyKey, "policy.") &&
+				strings.HasSuffix(q.PolicyKey, ".csv")) {
+			cm.Data[q.PolicyKey] = q.Policy.Policy
+			// Update the ConfigMap
+			updatedConfigMap, err := s.kubeClientset.CoreV1().ConfigMaps(s.namespace).Update(ctx, cm, metav1.UpdateOptions{})
+			if err != nil {
+				return nil, fmt.Errorf("failed to update configmap: %v", err)
+			}
+			err = s.enf.SyncUpdate(updatedConfigMap, func(cm *apiv1.ConfigMap) error { return nil })
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			return nil, fmt.Errorf("policyKey %s is not valid", q.PolicyKey)
 		}
 	}
-
-	return &application.RBACPolicy{PolicyKey: q.PolicyKey, Policy: q.Policy}, nil
+	return &application.RBACPolicy{PolicyKey: q.PolicyKey, Policy: q.Policy.Policy}, nil
 }
 
 // RemovePolicy removes a policy from the configmap and updates the enforcer
@@ -71,7 +89,11 @@ func (s *Server) RemovePolicy(ctx context.Context, q *rbacpkg.RBACPolicyQuery) (
 			return nil, fmt.Errorf("policyKey %s not found in configmap", q.PolicyKey)
 		}
 		delete(cm.Data, q.PolicyKey)
-		err = s.enf.SyncUpdate(cm, func(cm *apiv1.ConfigMap) error { return nil })
+		updatedConfigMap, err := s.kubeClientset.CoreV1().ConfigMaps(s.namespace).Update(ctx, cm, metav1.UpdateOptions{})
+		if err != nil {
+			return nil, fmt.Errorf("failed to update configmap: %v", err)
+		}
+		err = s.enf.SyncUpdate(updatedConfigMap, func(cm *apiv1.ConfigMap) error { return nil })
 		if err != nil {
 			return nil, err
 		}

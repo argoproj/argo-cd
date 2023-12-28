@@ -452,13 +452,13 @@ func RegisterRBACServiceHandlerClient(ctx context.Context, mux *runtime.ServeMux
 }
 
 var (
-	pattern_RBACService_ListPolicies_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"rbac", "policies"}, "", runtime.AssumeColonVerbOpt(true)))
+	pattern_RBACService_ListPolicies_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3}, []string{"api", "v1", "rbac", "policies"}, "", runtime.AssumeColonVerbOpt(true)))
 
-	pattern_RBACService_GetPolicy_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 4, 1, 5, 2}, []string{"rbac", "policies", "policyKey"}, "", runtime.AssumeColonVerbOpt(true)))
+	pattern_RBACService_GetPolicy_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 1, 0, 4, 1, 5, 4}, []string{"api", "v1", "rbac", "policies", "policyKey"}, "", runtime.AssumeColonVerbOpt(true)))
 
-	pattern_RBACService_AddPolicy_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 4, 1, 5, 2}, []string{"rbac", "policies", "policyKey"}, "", runtime.AssumeColonVerbOpt(true)))
+	pattern_RBACService_AddPolicy_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 1, 0, 4, 1, 5, 4}, []string{"api", "v1", "rbac", "policies", "policyKey"}, "", runtime.AssumeColonVerbOpt(true)))
 
-	pattern_RBACService_RemovePolicy_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 4, 1, 5, 2}, []string{"rbac", "policies", "policyKey"}, "", runtime.AssumeColonVerbOpt(true)))
+	pattern_RBACService_RemovePolicy_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 1, 0, 4, 1, 5, 4}, []string{"api", "v1", "rbac", "policies", "policyKey"}, "", runtime.AssumeColonVerbOpt(true)))
 )
 
 var (
