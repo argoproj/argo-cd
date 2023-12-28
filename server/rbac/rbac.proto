@@ -16,16 +16,19 @@ message RBACPolicyQuery {
 }
 
 // Request to create a new policy
-message RBACPolicyCreateRequest {
+message RBACPolicyUpdateRequest {
     // Policy definition
-    github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.RBACPolicy policy = 1;
+    string policy = 1;
+    string policyKey = 2;
 }
 
-message RBACPolicyCreateResponse {}
+message RBACPolicyUpdateResponse {}
+
+message RBACPolicyListRequest {}
 
 service RBACService {
     // List returns a list of policies
-    rpc ListPolicies(RBACPolicyQuery) returns (github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.RBACPolicyList) {
+    rpc ListPolicies(RBACPolicyListRequest) returns (github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.RBACPolicyList) {
         option (google.api.http) = {
             get: "/rbac/policies"
         };
@@ -39,7 +42,7 @@ service RBACService {
     }
 
     // Update updates a policy
-    rpc AddPolicy(RBACPolicyCreateRequest) returns (github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.RBACPolicyList) {
+    rpc AddPolicy(RBACPolicyUpdateRequest) returns (github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.RBACPolicy) {
         option (google.api.http) = {
             put: "/rbac/policies/{policyKey}"
             body: "policy"
@@ -47,7 +50,7 @@ service RBACService {
     }
 
     // Delete deletes a policy
-    rpc RemovePolicy(RBACPolicyQuery) returns (github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.RBACPolicyList) {
+    rpc RemovePolicy(RBACPolicyQuery) returns (github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.RBACPolicy) {
         option (google.api.http) = {
             delete: "/rbac/policies/{policyKey}"
         };

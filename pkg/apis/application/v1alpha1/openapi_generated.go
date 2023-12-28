@@ -120,6 +120,8 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.PullRequestGeneratorGitLab":              schema_pkg_apis_application_v1alpha1_PullRequestGeneratorGitLab(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.PullRequestGeneratorGitea":               schema_pkg_apis_application_v1alpha1_PullRequestGeneratorGitea(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.PullRequestGeneratorGithub":              schema_pkg_apis_application_v1alpha1_PullRequestGeneratorGithub(ref),
+		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.RBACPolicy":                              schema_pkg_apis_application_v1alpha1_RBACPolicy(ref),
+		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.RBACPolicyList":                          schema_pkg_apis_application_v1alpha1_RBACPolicyList(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.RefTarget":                               schema_pkg_apis_application_v1alpha1_RefTarget(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.RepoCreds":                               schema_pkg_apis_application_v1alpha1_RepoCreds(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.RepoCredsList":                           schema_pkg_apis_application_v1alpha1_RepoCredsList(ref),
@@ -5285,6 +5287,69 @@ func schema_pkg_apis_application_v1alpha1_PullRequestGeneratorGithub(ref common.
 		},
 		Dependencies: []string{
 			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SecretRef"},
+	}
+}
+
+func schema_pkg_apis_application_v1alpha1_RBACPolicy(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "RBACPolicy represents an RBAC (Role-Based Access Control) policy.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"policyKey": {
+						SchemaProps: spec.SchemaProps{
+							Default: "",
+							Type:    []string{"string"},
+							Format:  "",
+						},
+					},
+					"policy": {
+						SchemaProps: spec.SchemaProps{
+							Default: "",
+							Type:    []string{"string"},
+							Format:  "",
+						},
+					},
+				},
+				Required: []string{"policyKey", "policy"},
+			},
+		},
+	}
+}
+
+func schema_pkg_apis_application_v1alpha1_RBACPolicyList(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "RBACPolicyList is a list of RBACPolicy resources.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"metadata": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"),
+						},
+					},
+					"items": {
+						SchemaProps: spec.SchemaProps{
+							Type: []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.RBACPolicy"),
+									},
+								},
+							},
+						},
+					},
+				},
+				Required: []string{"items"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.RBACPolicy", "k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"},
 	}
 }
 
