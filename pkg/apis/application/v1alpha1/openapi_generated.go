@@ -122,6 +122,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.PullRequestGeneratorGithub":              schema_pkg_apis_application_v1alpha1_PullRequestGeneratorGithub(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.RBACPolicy":                              schema_pkg_apis_application_v1alpha1_RBACPolicy(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.RBACPolicyList":                          schema_pkg_apis_application_v1alpha1_RBACPolicyList(ref),
+		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.RBACPolicyRule":                          schema_pkg_apis_application_v1alpha1_RBACPolicyRule(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.RefTarget":                               schema_pkg_apis_application_v1alpha1_RefTarget(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.RepoCreds":                               schema_pkg_apis_application_v1alpha1_RepoCreds(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.RepoCredsList":                           schema_pkg_apis_application_v1alpha1_RepoCredsList(ref),
@@ -5350,6 +5351,27 @@ func schema_pkg_apis_application_v1alpha1_RBACPolicyList(ref common.ReferenceCal
 		},
 		Dependencies: []string{
 			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.RBACPolicy", "k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"},
+	}
+}
+
+func schema_pkg_apis_application_v1alpha1_RBACPolicyRule(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "RBACPolicyRule represents an RBAC (Role-Based Access Control) policy rule.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"policy": {
+						SchemaProps: spec.SchemaProps{
+							Default: "",
+							Type:    []string{"string"},
+							Format:  "",
+						},
+					},
+				},
+				Required: []string{"policy"},
+			},
+		},
 	}
 }
 

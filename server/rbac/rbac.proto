@@ -18,7 +18,7 @@ message RBACPolicyQuery {
 // Request to create a new policy
 message RBACPolicyUpdateRequest {
     // Policy definition
-    string policy = 1;
+    github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.RBACPolicyRule policy = 1;
     string policyKey = 2;
 }
 

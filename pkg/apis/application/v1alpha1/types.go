@@ -3140,3 +3140,8 @@ type RBACPolicyList struct {
 	metav1.ListMeta `json:"metadata,omitempty" protobuf:"bytes,1,opt,name=metadata"`
 	Items           []RBACPolicy `json:"items" protobuf:"bytes,2,rep,name=items"`
 }
+
+// RBACPolicyRule represents an RBAC (Role-Based Access Control) policy rule.
+type RBACPolicyRule struct {
+	Policy string `json:"policy" protobuf:"bytes,1,opt,name=policy"`
+}
