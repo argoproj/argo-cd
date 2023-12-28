@@ -7,6 +7,7 @@ import (
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	rbacpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/rbac"
 	"github.com/argoproj/argo-cd/v2/util/rbac"
 	apiv1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes"
@@ -35,53 +36,52 @@ func (s *Server) fetchConfigMap(ctx context.Context) (*apiv1.ConfigMap, error) {
 }
 
 // AddPolicy adds a policy to the configmap and updates the enforcer
-func (s *Server) AddPolicy(ctx context.Context, policyKey string, policies string) (*application.RBACPolicyList, error) {
+func (s *Server) AddPolicy(ctx context.Context, q *rbacpkg.RBACPolicyUpdateRequest) (*application.RBACPolicy, error) {
 	cm, err := s.fetchConfigMap(ctx)
 	if err != nil {
 		if !apierr.IsNotFound(err) {
 			return nil, err
 		}
 	} else {
-		cm.Data[policyKey] = policies
+		cm.Data[q.PolicyKey] = q.Policy
 		err = s.enf.SyncUpdate(cm, func(cm *apiv1.ConfigMap) error { return nil })
 		if err != nil {
 			return nil, err
 		}
 	}
 
-	policy := []application.RBACPolicy{{PolicyKey: policyKey, Policy: policies}}
-	return &application.RBACPolicyList{Items: policy}, nil
+	return &application.RBACPolicy{PolicyKey: q.PolicyKey, Policy: q.Policy}, nil
 }
 
 // RemovePolicy removes a policy from the configmap and updates the enforcer
-func (s *Server) RemovePolicy(ctx context.Context, policyKey string) (*application.RBACPolicyList, error) {
+func (s *Server) RemovePolicy(ctx context.Context, q *rbacpkg.RBACPolicyQuery) (*application.RBACPolicy, error) {
 	cm, err := s.fetchConfigMap(ctx)
 	if err != nil {
 		if !apierr.IsNotFound(err) {
 			return nil, err
 		}
 	} else {
-		var policy []application.RBACPolicy
-		if val, ok := cm.Data[policyKey]; ok {
-			policy = append(policy, application.RBACPolicy{
-				PolicyKey: policyKey,
+		policy := application.RBACPolicy{}
+		if val, ok := cm.Data[q.PolicyKey]; ok {
+			policy = application.RBACPolicy{
+				PolicyKey: q.PolicyKey,
 				Policy:    val,
-			})
+			}
 		} else {
-			return nil, fmt.Errorf("policyKey %s not found in configmap", policyKey)
+			return nil, fmt.Errorf("policyKey %s not found in configmap", q.PolicyKey)
 		}
-		delete(cm.Data, policyKey)
+		delete(cm.Data, q.PolicyKey)
 		err = s.enf.SyncUpdate(cm, func(cm *apiv1.ConfigMap) error { return nil })
 		if err != nil {
 			return nil, err
 		}
-		return &application.RBACPolicyList{Items: policy}, nil
+		return &policy, nil
 	}
 	return nil, nil
 }
 
 // ListPolicies returns all policies
-func (s *Server) ListPolicies(ctx context.Context) (*application.RBACPolicyList, error) {
+func (s *Server) ListPolicies(ctx context.Context, q *rbacpkg.RBACPolicyListRequest) (*application.RBACPolicyList, error) {
 	cm, err := s.fetchConfigMap(ctx)
 	if err != nil {
 		if !apierr.IsNotFound(err) {
@@ -101,20 +101,20 @@ func (s *Server) ListPolicies(ctx context.Context) (*application.RBACPolicyList,
 }
 
 // GetPolicy returns a policy for a given key
-func (s *Server) GetPolicy(ctx context.Context, policyKey string) (*application.RBACPolicy, error) {
+func (s *Server) GetPolicy(ctx context.Context, q *rbacpkg.RBACPolicyQuery) (*application.RBACPolicy, error) {
 	cm, err := s.fetchConfigMap(ctx)
 	if err != nil {
 		if !apierr.IsNotFound(err) {
 			return nil, err
 		}
 	} else {
-		if val, ok := cm.Data[policyKey]; ok {
+		if val, ok := cm.Data[q.PolicyKey]; ok {
 			return &application.RBACPolicy{
-				PolicyKey: policyKey,
+				PolicyKey: q.PolicyKey,
 				Policy:    val,
 			}, nil
 		} else {
-			return nil, fmt.Errorf("policyKey %s not found in configmap", policyKey)
+			return nil, fmt.Errorf("policyKey %s not found in configmap", q.PolicyKey)
 		}
 	}
 	return nil, nil

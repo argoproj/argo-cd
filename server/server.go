@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
+	rbacpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/rbac"
 	goio "io"
 	"io/fs"
 	"math"
@@ -798,6 +799,7 @@ func (a *ArgoCDServer) newGRPCServer() (*grpc.Server, application.AppResourceTre
 	accountpkg.RegisterAccountServiceServer(grpcS, a.serviceSet.AccountService)
 	certificatepkg.RegisterCertificateServiceServer(grpcS, a.serviceSet.CertificateService)
 	gpgkeypkg.RegisterGPGKeyServiceServer(grpcS, a.serviceSet.GpgkeyService)
+	rbacpkg.RegisterRBACServiceServer(grpcS, a.serviceSet.RBACService)
 	// Register reflection service on gRPC server.
 	reflection.Register(grpcS)
 	grpc_prometheus.Register(grpcS)
@@ -1022,6 +1024,7 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandl
 	mustRegisterGWHandler(accountpkg.RegisterAccountServiceHandler, ctx, gwmux, conn)
 	mustRegisterGWHandler(certificatepkg.RegisterCertificateServiceHandler, ctx, gwmux, conn)
 	mustRegisterGWHandler(gpgkeypkg.RegisterGPGKeyServiceHandler, ctx, gwmux, conn)
+	mustRegisterGWHandler(rbacpkg.RegisterRBACServiceHandler, ctx, gwmux, conn)
 
 	// Swagger UI
 	swagger.ServeSwaggerUI(mux, assets.SwaggerJSON, "/swagger-ui", a.RootPath)
