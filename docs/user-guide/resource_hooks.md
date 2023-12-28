@@ -63,6 +63,7 @@ metadata:
     argocd.argoproj.io/hook: PostSync
     argocd.argoproj.io/hook-delete-policy: HookSucceeded
 ```
+Multiple hook delete policies can be specified as a comma separated list.
 
 The following policies define when the hook will be deleted.
 
