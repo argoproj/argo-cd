@@ -9,6 +9,8 @@ and the [toolchain guide](toolchain-guide.md).
 
 ### Install Go
 
+<https://go.dev/doc/install/>
+
 Install version 1.18 or newer (Verify version by running `go version`)
 
 ### Clone the Argo CD repo
