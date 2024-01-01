@@ -1,8 +1,10 @@
 package commands
 
 import (
+	"errors"
 	"fmt"
 	"os"
+	"os/exec"
 	"testing"
 	"time"
 
@@ -1597,5 +1599,39 @@ func testApp(name, project string, labels map[string]string, annotations map[str
 			},
 			Project: project,
 		},
+	}
+}
+
+func Test_checkForExecError(t *testing.T) {
+	tests := []struct {
+		name        string
+		inputError  error
+		expectError bool
+	}{
+		{
+			name:        "Returns exec error when given an exec error as input",
+			inputError:  &exec.Error{Name: "exec error", Err: errors.New("exec error")},
+			expectError: true,
+		},
+		{
+			name: "Returns nil when given an exec exit error as input",
+			inputError: &exec.ExitError{
+				ProcessState: nil,
+				Stderr:       nil,
+			},
+			expectError: false,
+		},
+		{
+			name:        "Returns nil when given nil as an input",
+			inputError:  nil,
+			expectError: false,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			err := checkForExecError(tc.inputError)
+			assert.Equal(t, tc.expectError, err != nil, "Mismatch in expected and actual error state")
+		})
 	}
 }
