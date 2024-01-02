@@ -3,7 +3,7 @@ title: Neat-enhancement-idea
 authors:
   - "@chetan-rns" # Authors' github accounts here.
 sponsors:
-  - TBD        # List all interested parties here.
+  - "@todaywasawesome"        # List all interested parties here.
 reviewers:
   - "@alexmt"
   - TBD
