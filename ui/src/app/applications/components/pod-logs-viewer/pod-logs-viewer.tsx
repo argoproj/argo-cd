@@ -149,7 +149,7 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
     const logsContent = (width: number, height: number, isWrapped: boolean) => (
         <div ref={logsContainerRef} onScroll={handleScroll} style={{width, height, overflow: 'scroll'}}>
             {logs.map((log, lineNum) => (
-                <div key={lineNum} style={{whiteSpace: isWrapped ? 'normal' : 'pre'}} className='noscroll'>
+                <div key={lineNum} style={{whiteSpace: isWrapped ? 'normal' : 'pre', lineHeight: '16px'}} className='noscroll'>
                     <Ansi>{renderLog(log, lineNum)}</Ansi>
                 </div>
             ))}
