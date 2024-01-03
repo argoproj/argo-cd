@@ -168,10 +168,10 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		return ctrl.Result{}, fmt.Errorf("failed to get current applications for application set: %w", err)
 	}
 
-  err = r.updateResourcesStatus(ctx, logCtx, &applicationSetInfo, currentApplications)
-  if err != nil {
-    return ctrl.Result{}, fmt.Errorf("failed to get update resources status for application set: %w", err)
-  }
+	err = r.updateResourcesStatus(ctx, logCtx, &applicationSetInfo, currentApplications)
+	if err != nil {
+		return ctrl.Result{}, fmt.Errorf("failed to get update resources status for application set: %w", err)
+	}
 
 	// appMap is a name->app collection of Applications in this ApplicationSet.
 	appMap := map[string]argov1alpha1.Application{}
