@@ -67,7 +67,7 @@ metadata:
   name: argocd-cmd-params-cm
 data:
   application.namespaces: app-team-one, app-team-two
-  notificationscontroller.selfservice.enabled: true
+  notificationscontroller.selfservice.enabled: "true"
 ```
 
 To use this feature, you can deploy configmap named `argocd-notifications-cm` and possibly a secret `argocd-notifications-secret` in the namespace where the Argo CD application lives.
