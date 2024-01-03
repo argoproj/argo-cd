@@ -505,28 +505,28 @@ func TestResourceTree(t *testing.T) {
 
 	expectedTree := &appsv1.ApplicationSetTree{
 		Nodes: []appsv1.ResourceNode{
-            {
-                ResourceRef: appsv1.ResourceRef{
-                    Kind:      "Application",
-                    Group:     "argoproj.io",
-                    Version:   "v1alpha1",
-                    Namespace: "default",
-                    Name:      "app1",
-                },
-                ParentRefs: []appsv1.ResourceRef{
-                    {
-                        Kind:      "ApplicationSet",
-                        Group:     "argoproj.io",
-                        Version:   "v1alpha1",
-                        Namespace: "default",
-                        Name:      "AppSet1",
-                    },
-                },
-                Health: &appsv1.HealthStatus{
-                    Status: health.HealthStatusHealthy,
-                    Message: "OK",
-                },
-            },
+			{
+				ResourceRef: appsv1.ResourceRef{
+					Kind:      "Application",
+					Group:     "argoproj.io",
+					Version:   "v1alpha1",
+					Namespace: "default",
+					Name:      "app1",
+				},
+				ParentRefs: []appsv1.ResourceRef{
+					{
+						Kind:      "ApplicationSet",
+						Group:     "argoproj.io",
+						Version:   "v1alpha1",
+						Namespace: "default",
+						Name:      "AppSet1",
+					},
+				},
+				Health: &appsv1.HealthStatus{
+					Status:  health.HealthStatusHealthy,
+					Message: "OK",
+				},
+			},
 		},
 	}
 
