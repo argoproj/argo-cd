@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/argoproj/gitops-engine/pkg/health"
 	"github.com/argoproj/pkg/sync"
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
@@ -473,4 +474,91 @@ func TestUpdateAppSet(t *testing.T) {
 		}, updated.Labels)
 	})
 
+}
+
+func TestResourceTree(t *testing.T) {
+	appSet1 := newTestAppSet(func(appset *appsv1.ApplicationSet) {
+		appset.Name = "AppSet1"
+		appset.Status.Resources = []appsv1.ResourceStatus{
+			{
+				Name:      "app1",
+				Kind:      "Application",
+				Group:     "argoproj.io",
+				Version:   "v1alpha1",
+				Namespace: "default",
+				Health: &appsv1.HealthStatus{
+					Status:  health.HealthStatusHealthy,
+					Message: "OK",
+				},
+				Status: appsv1.SyncStatusCodeSynced,
+			},
+		}
+	})
+
+	appSet2 := newTestAppSet(func(appset *appsv1.ApplicationSet) {
+		appset.Name = "AppSet2"
+	})
+
+	appSet3 := newTestAppSet(func(appset *appsv1.ApplicationSet) {
+		appset.Name = "AppSet3"
+	})
+
+	expectedTree := &appsv1.ApplicationSetTree{
+		Nodes: []appsv1.ResourceNode{
+            {
+                ResourceRef: appsv1.ResourceRef{
+                    Kind:      "Application",
+                    Group:     "argoproj.io",
+                    Version:   "v1alpha1",
+                    Namespace: "default",
+                    Name:      "app1",
+                },
+                ParentRefs: []appsv1.ResourceRef{
+                    {
+                        Kind:      "ApplicationSet",
+                        Group:     "argoproj.io",
+                        Version:   "v1alpha1",
+                        Namespace: "default",
+                        Name:      "AppSet1",
+                    },
+                },
+                Health: &appsv1.HealthStatus{
+                    Status: health.HealthStatusHealthy,
+                    Message: "OK",
+                },
+            },
+		},
+	}
+
+	t.Run("ResourceTree in default namespace", func(t *testing.T) {
+
+		appSetServer := newTestAppSetServer(appSet1, appSet2, appSet3)
+
+		appsetQuery := applicationset.ApplicationSetTreeQuery{Name: "AppSet1"}
+
+		res, err := appSetServer.ResourceTree(context.Background(), &appsetQuery)
+		assert.NoError(t, err)
+		assert.Equal(t, expectedTree, res)
+	})
+
+	t.Run("ResourceTree in named namespace", func(t *testing.T) {
+
+		appSetServer := newTestAppSetServer(appSet1, appSet2, appSet3)
+
+		appsetQuery := applicationset.ApplicationSetTreeQuery{Name: "AppSet1", AppsetNamespace: testNamespace}
+
+		res, err := appSetServer.ResourceTree(context.Background(), &appsetQuery)
+		assert.NoError(t, err)
+		assert.Equal(t, expectedTree, res)
+	})
+
+	t.Run("ResourceTree in not allowed namespace", func(t *testing.T) {
+
+		appSetServer := newTestAppSetServer(appSet1, appSet2, appSet3)
+
+		appsetQuery := applicationset.ApplicationSetTreeQuery{Name: "AppSet1", AppsetNamespace: "NOT-ALLOWED"}
+
+		_, err := appSetServer.ResourceTree(context.Background(), &appsetQuery)
+		assert.Equal(t, "namespace 'NOT-ALLOWED' is not permitted", err.Error())
+	})
 }

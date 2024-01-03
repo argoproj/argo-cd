@@ -1388,10 +1388,14 @@ func buildResourceStatus(statusMap map[string]argov1alpha1.ResourceStatus, apps 
 		appCopy := app
 		appMap[app.Name] = app
 
+        gvk := app.GroupVersionKind()
 		// Create status if it does not exist
 		status, ok := statusMap[app.Name]
 		if !ok {
 			status = argov1alpha1.ResourceStatus{
+				Group:     gvk.Group,
+                Version:   gvk.Version,
+				Kind:      gvk.Kind,
 				Name:      app.Name,
 				Namespace: app.Namespace,
 				Status:    app.Status.Sync.Status,
@@ -1399,6 +1403,9 @@ func buildResourceStatus(statusMap map[string]argov1alpha1.ResourceStatus, apps 
 			}
 		}
 
+		status.Group = gvk.Group
+		status.Version = gvk.Version
+		status.Kind = gvk.Kind
 		status.Name = app.Name
 		status.Namespace = app.Namespace
 		status.Status = app.Status.Sync.Status

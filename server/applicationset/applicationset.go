@@ -9,7 +9,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/argoproj/pkg/sync"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
@@ -304,9 +303,8 @@ func (s *Server) buildApplicationSetTree(ctx context.Context, a *v1alpha1.Applic
 	var tree v1alpha1.ApplicationSetTree
 
 	gvk := v1alpha1.ApplicationSetSchemaGroupVersionKind
-	ownerKey := kube.NewResourceKey(gvk.Group, a.Kind, a.Namespace, a.Name)
 	parentRefs := []v1alpha1.ResourceRef{
-		{Name: a.Name, Kind: a.Kind, Namespace: a.Namespace, Group: ownerKey.Group, Version: gvk.Version, UID: string(a.UID)},
+		{Group: gvk.Group, Version: gvk.Version, Kind: gvk.Kind, Name: a.Name, Namespace: a.Namespace, UID: string(a.UID)},
 	}
 
 	apps := a.Status.Resources
@@ -315,9 +313,9 @@ func (s *Server) buildApplicationSetTree(ctx context.Context, a *v1alpha1.Applic
 			Health: app.Health,
 			ResourceRef: v1alpha1.ResourceRef{
 				Name:      app.Name,
-				Group:     gvk.Group,
-				Version:   gvk.Version,
-				Kind:      v1alpha1.ApplicationSchemaGroupVersionKind.Kind,
+				Group:     app.Group,
+				Version:   app.Version,
+				Kind:      app.Kind,
 				Namespace: a.Namespace,
 			},
 			ParentRefs: parentRefs,
