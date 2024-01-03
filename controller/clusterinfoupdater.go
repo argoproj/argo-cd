@@ -2,8 +2,10 @@ package controller
 
 import (
 	"context"
-	"time"
 	"fmt"
+	"time"
+
+	"github.com/argoproj/argo-cd/v2/util/env"
 	"github.com/argoproj/gitops-engine/pkg/cache"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	log "github.com/sirupsen/logrus"
@@ -19,7 +21,13 @@ import (
 )
 
 const (
-	secretUpdateInterval = 10 * time.Second
+	defaultSecretUpdateInterval = 10 * time.Second
+
+	EnvClusterInfoTimeout = "ARGO_CD_UPDATE_CLUSTER_INFO_TIMEOUT"
+)
+
+var (
+	clusterInfoTimeout = env.ParseDurationFromEnv(EnvClusterInfoTimeout, defaultSecretUpdateInterval, defaultSecretUpdateInterval, 1*time.Minute)
 )
 
 type clusterInfoUpdater struct {
@@ -30,6 +38,7 @@ type clusterInfoUpdater struct {
 	clusterFilter func(cluster *appv1.Cluster) bool
 	projGetter    func(app *appv1.Application) (*appv1.AppProject, error)
 	namespace     string
+	lastUpdated   time.Time
 }
 
 func NewClusterInfoUpdater(
@@ -41,17 +50,17 @@ func NewClusterInfoUpdater(
 	projGetter func(app *appv1.Application) (*appv1.AppProject, error),
 	namespace string) *clusterInfoUpdater {
 
-	return &clusterInfoUpdater{infoSource, db, appLister, cache, clusterFilter, projGetter, namespace}
+	return &clusterInfoUpdater{infoSource, db, appLister, cache, clusterFilter, projGetter, namespace, time.Time{}}
 }
 
 func (c *clusterInfoUpdater) Run(ctx context.Context) {
 	c.updateClusters()
-	ticker := time.NewTicker(secretUpdateInterval)
+	ticker := time.NewTicker(clusterInfoTimeout)
 	for {
 		select {
 		case <-ctx.Done():
 			ticker.Stop()
-			break
+			return
 		case <-ticker.C:
 			c.updateClusters()
 		}
@@ -59,13 +68,23 @@ func (c *clusterInfoUpdater) Run(ctx context.Context) {
 }
 
 func (c *clusterInfoUpdater) updateClusters() {
+	if time.Since(c.lastUpdated) < clusterInfoTimeout {
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), clusterInfoTimeout)
+	defer func() {
+		cancel()
+		c.lastUpdated = time.Now()
+	}()
+
 	infoByServer := make(map[string]*cache.ClusterInfo)
 	clustersInfo := c.infoSource.GetClustersInfo()
 	for i := range clustersInfo {
 		info := clustersInfo[i]
 		infoByServer[info.Server] = &info
 	}
-	clusters, err := c.db.ListClusters(context.Background())
+	clusters, err := c.db.ListClusters(ctx)
 	if err != nil {
 		log.Warnf("Failed to save clusters info: %v", err)
 		return
@@ -82,7 +101,7 @@ func (c *clusterInfoUpdater) updateClusters() {
 	}
 	_ = kube.RunAllAsync(len(clustersFiltered), func(i int) error {
 		cluster := clustersFiltered[i]
-		if err := c.updateClusterInfo(cluster, infoByServer[cluster.Server]); err != nil {
+		if err := c.updateClusterInfo(ctx, cluster, infoByServer[cluster.Server]); err != nil {
 			log.Warnf("Failed to save clusters info: %v", err)
 		}
 		return nil
@@ -90,7 +109,7 @@ func (c *clusterInfoUpdater) updateClusters() {
 	log.Debugf("Successfully saved info of %d clusters", len(clustersFiltered))
 }
 
-func (c *clusterInfoUpdater) updateClusterInfo(cluster appv1.Cluster, info *cache.ClusterInfo) error {
+func (c *clusterInfoUpdater) updateClusterInfo(ctx context.Context, cluster appv1.Cluster, info *cache.ClusterInfo) error {
 	apps, err := c.appLister.List(labels.Everything())
 	if err != nil {
 		return fmt.Errorf("error while fetching the apps list: %w", err)
@@ -103,7 +122,7 @@ func (c *clusterInfoUpdater) updateClusterInfo(cluster appv1.Cluster, info *cach
 				continue
 			}
 		}
-		if err := argo.ValidateDestination(context.Background(), &a.Spec.Destination, c.db); err != nil {
+		if err := argo.ValidateDestination(ctx, &a.Spec.Destination, c.db); err != nil {
 			continue
 		}
 		if a.Spec.Destination.Server == cluster.Server {
@@ -117,7 +136,7 @@ func (c *clusterInfoUpdater) updateClusterInfo(cluster appv1.Cluster, info *cach
 	}
 	if info != nil {
 		clusterInfo.ServerVersion = info.K8SVersion
-		clusterInfo.APIVersions = argo.APIResourcesToStrings(info.APIResources, false)
+		clusterInfo.APIVersions = argo.APIResourcesToStrings(info.APIResources, true)
 		if info.LastCacheSyncTime == nil {
 			clusterInfo.ConnectionState.Status = appv1.ConnectionStatusUnknown
 		} else if info.SyncError == nil {

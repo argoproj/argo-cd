@@ -7,6 +7,13 @@ $pods-per-column: 4;
 $max-rows: 5;
 $num-stats: 2;
 
+$pod-age-icon-clr: #ffce25;
+
+.circle-icon {
+    color: $pod-age-icon-clr;
+    font-size: 10px;
+}
+
 .pod-view {
     &__settings {
         align-items: center;
@@ -67,7 +74,7 @@ $num-stats: 2;
             margin: 1em 0;
             padding: 10px;
             border-radius: 3px;
-            background-color: $argo-color-gray-3;                            
+            background-color: $argo-color-gray-3;
             color: $argo-color-gray-6;
             div {
                 display: flex;
@@ -149,7 +156,7 @@ $num-stats: 2;
             }
             &__new-pod-icon {
                 background: none;
-                color: #FFCE25;
+                color: $pod-age-icon-clr;
                 display: block;
                 left: 20px;
                 margin: 0px;
@@ -238,4 +245,8 @@ $num-stats: 2;
             }
         }
     }
+}
+
+.tippy-content {
+    text-align: left;
 }

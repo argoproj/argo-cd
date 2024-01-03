@@ -10,10 +10,11 @@ import (
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 
 	"github.com/argoproj/pkg/errors"
-	"github.com/ghodss/yaml"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"sigs.k8s.io/yaml"
 )
 
 const (
@@ -33,7 +34,7 @@ spec:
         volumeMounts:
         - name: config-volume
           mountPath: /etc/config
-          readOnly: false	
+          readOnly: false
         resources:
           requests:
             cpu: 2000m
@@ -158,7 +159,7 @@ spec:
           volumeMounts:
           - name: config-volume
             mountPath: /etc/config
-            readOnly: false	
+            readOnly: false
           resources:
             requests:
               cpu: 2000m
@@ -226,6 +227,33 @@ spec:
 		return
 	}
 	assert.Equal(t, "1250M", ram)
+}
+
+func TestNormalize_Duration(t *testing.T) {
+	cert := mustUnmarshalYAML(`
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: my-cert
+spec:
+  duration: 8760h
+`)
+	normalizer, err := NewKnownTypesNormalizer(map[string]v1alpha1.ResourceOverride{
+		"cert-manager.io/Certificate": {
+			KnownTypeFields: []v1alpha1.KnownTypeField{{
+				Type:  "meta/v1/Duration",
+				Field: "spec.duration",
+			}},
+		},
+	})
+	require.NoError(t, err)
+
+	require.NoError(t, normalizer.Normalize(cert))
+
+	duration, ok, err := unstructured.NestedFieldNoCopy(cert.Object, "spec", "duration")
+	require.NoError(t, err)
+	require.True(t, ok)
+	require.Equal(t, "8760h0m0s", duration)
 }
 
 func TestFieldDoesNotExist(t *testing.T) {

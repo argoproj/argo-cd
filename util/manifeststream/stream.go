@@ -9,11 +9,12 @@ import (
 	"io"
 	"os"
 
+	log "github.com/sirupsen/logrus"
+
 	applicationpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/v2/util/io/files"
 	"github.com/argoproj/argo-cd/v2/util/tgzstream"
-	log "github.com/sirupsen/logrus"
 )
 
 // Defines the contract for the application sender, i.e. the CLI
@@ -39,11 +40,11 @@ type RepoStreamReceiver interface {
 // SendApplicationManifestQueryWithFiles compresses a folder and sends it over the stream
 func SendApplicationManifestQueryWithFiles(ctx context.Context, stream ApplicationStreamSender, appName string, appNs string, dir string, inclusions []string) error {
 	f, filesWritten, checksum, err := tgzstream.CompressFiles(dir, inclusions, nil)
-	if filesWritten == 0 {
-		return fmt.Errorf("no files to send")
-	}
 	if err != nil {
 		return fmt.Errorf("failed to compress files: %w", err)
+	}
+	if filesWritten == 0 {
+		return fmt.Errorf("no files to send")
 	}
 
 	err = stream.Send(&applicationpkg.ApplicationManifestQueryWithFilesWrapper{
@@ -183,7 +184,7 @@ func ReceiveManifestFileStream(ctx context.Context, receiver RepoStreamReceiver,
 	if err != nil {
 		return nil, nil, fmt.Errorf("error receiving tgz file: %w", err)
 	}
-	err = files.Untgz(destDir, tgzFile, maxExtractedSize)
+	err = files.Untgz(destDir, tgzFile, maxExtractedSize, false)
 	if err != nil {
 		return nil, nil, fmt.Errorf("error decompressing tgz file: %w", err)
 	}

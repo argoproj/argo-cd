@@ -1,5 +1,4 @@
-function getStatusBasedOnPhase(obj)
-    hs = {}
+function getStatusBasedOnPhase(obj, hs)
     hs.status = "Progressing"
     hs.message = "Waiting for clusters"
     if obj.status ~= nil and obj.status.phase ~= nil then
@@ -15,27 +14,27 @@ function getStatusBasedOnPhase(obj)
     return hs
 end
 
-function getReadyContitionMessage(obj)
+function getReadyContitionStatus(obj, hs)
     if obj.status ~= nil and obj.status.conditions ~= nil then
         for i, condition in ipairs(obj.status.conditions) do
         if condition.type == "Ready" and condition.status == "False" then
-            return condition.message
+            hs.status = "Degraded"
+            hs.message = condition.message
+            return hs
         end
         end
     end
-    return "Condition is unknown"
+    return hs
 end
 
+local hs = {}
 if obj.spec.paused ~= nil and obj.spec.paused then
-    hs = {}
     hs.status = "Suspended"
     hs.message = "Cluster is paused"
     return hs
 end
 
-hs = getStatusBasedOnPhase(obj)
-if hs.status ~= "Healthy" then
-    hs.message = getReadyContitionMessage(obj)
-end
+getStatusBasedOnPhase(obj, hs)
+getReadyContitionStatus(obj, hs)
 
 return hs

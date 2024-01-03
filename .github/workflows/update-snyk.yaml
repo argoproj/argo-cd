@@ -17,7 +17,7 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout code
-        uses: actions/checkout@93ea575cb5d8a053eaa0ac8fa3b40d7e05a33cc8 # v3.1.0
+        uses: actions/checkout@3df4ab11eba7bda6032a0b82a6bb43b11571feac # v4.0.0
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
       - name: Build reports
@@ -31,6 +31,6 @@ jobs:
           git config --global user.email 'ci@argoproj.com'
           git config --global user.name 'CI'
           git add docs/snyk
-          git commit -m "[Bot] Update Snyk reports" --signoff
+          git commit -m "[Bot] docs: Update Snyk reports" --signoff
           git push --set-upstream origin "$pr_branch"
           gh pr create -B master -H "$pr_branch" --title '[Bot] docs: Update Snyk report' --body ''

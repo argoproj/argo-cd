@@ -80,6 +80,7 @@ func TestGetReconcileResults_Refresh(t *testing.T) {
 			Namespace: "default",
 		},
 		Spec: v1alpha1.ApplicationSpec{
+			Source:  &v1alpha1.ApplicationSource{},
 			Project: "default",
 			Destination: v1alpha1.ApplicationDestination{
 				Server:    v1alpha1.KubernetesInternalAPIServerAddr,
@@ -112,6 +113,7 @@ func TestGetReconcileResults_Refresh(t *testing.T) {
 		func(argoDB db.ArgoDB, appInformer cache.SharedIndexInformer, settingsMgr *settings.SettingsManager, server *metrics.MetricsServer) statecache.LiveStateCache {
 			return &liveStateCache
 		},
+		false,
 	)
 
 	if !assert.NoError(t, err) {

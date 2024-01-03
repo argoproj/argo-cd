@@ -4,6 +4,7 @@ metadata:
   name: merge-clusters-and-list
 spec:
   goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
   generators:
     - merge:
         mergeKeys:
