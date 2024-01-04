@@ -16,13 +16,13 @@ func TestGetSignedRequestWithRetry(t *testing.T) {
 		// given
 		t.Parallel()
 		mock := &signedRequestMock{
-			returnFunc: func(m *signedRequestMock) (string, error) {
-				return "token", nil
+			returnFunc: func(m *signedRequestMock) (string, time.Time, error) {
+				return "token", time.Now().Add(time.Minute * 30), nil
 			},
 		}
 
 		// when
-		signed, err := getSignedRequestWithRetry(ctx, time.Second, time.Millisecond, "cluster-name", "", mock.getSignedRequestMock)
+		signed, _, err := getSignedRequestWithRetry(ctx, time.Second, time.Millisecond, "cluster-name", "", mock.getSignedRequestMock)
 
 		// then
 		assert.NoError(t, err)
@@ -32,16 +32,16 @@ func TestGetSignedRequestWithRetry(t *testing.T) {
 		// given
 		t.Parallel()
 		mock := &signedRequestMock{
-			returnFunc: func(m *signedRequestMock) (string, error) {
+			returnFunc: func(m *signedRequestMock) (string, time.Time, error) {
 				if m.getSignedRequestCalls < 3 {
-					return "", fmt.Errorf("some error")
+					return "", time.Time{}, fmt.Errorf("some error")
 				}
-				return "token", nil
+				return "token", time.Now().Add(time.Minute * 30), nil
 			},
 		}
 
 		// when
-		signed, err := getSignedRequestWithRetry(ctx, time.Second, time.Millisecond, "cluster-name", "", mock.getSignedRequestMock)
+		signed, _, err := getSignedRequestWithRetry(ctx, time.Second, time.Millisecond, "cluster-name", "", mock.getSignedRequestMock)
 
 		// then
 		assert.NoError(t, err)
@@ -51,13 +51,13 @@ func TestGetSignedRequestWithRetry(t *testing.T) {
 		// given
 		t.Parallel()
 		mock := &signedRequestMock{
-			returnFunc: func(m *signedRequestMock) (string, error) {
-				return "", fmt.Errorf("some error")
+			returnFunc: func(m *signedRequestMock) (string, time.Time, error) {
+				return "", time.Time{}, fmt.Errorf("some error")
 			},
 		}
 
 		// when
-		signed, err := getSignedRequestWithRetry(ctx, time.Second, time.Millisecond, "cluster-name", "", mock.getSignedRequestMock)
+		signed, _, err := getSignedRequestWithRetry(ctx, time.Second, time.Millisecond, "cluster-name", "", mock.getSignedRequestMock)
 
 		// then
 		assert.Error(t, err)
@@ -67,10 +67,10 @@ func TestGetSignedRequestWithRetry(t *testing.T) {
 
 type signedRequestMock struct {
 	getSignedRequestCalls int
-	returnFunc            func(m *signedRequestMock) (string, error)
+	returnFunc            func(m *signedRequestMock) (string, time.Time, error)
 }
 
-func (m *signedRequestMock) getSignedRequestMock(clusterName, roleARN string) (string, error) {
+func (m *signedRequestMock) getSignedRequestMock(clusterName, roleARN string) (string, time.Time, error) {
 	m.getSignedRequestCalls++
 	return m.returnFunc(m)
 }

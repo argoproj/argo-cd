@@ -43,11 +43,11 @@ func newAWSCommand() *cobra.Command {
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
 
-			presignedURLString, err := getSignedRequestWithRetry(ctx, time.Minute, 5*time.Second, clusterName, roleARN, getSignedRequest)
-			errors.CheckError(err)
+			presignedURLString, sessionExpiresAt, err := getSignedRequestWithRetry(ctx, time.Minute, 5*time.Second, clusterName, roleARN, getSignedRequest)
+			errors.CheckError(fmt.Errorf("error getting signed request: %s", err))
 			token := v1Prefix + base64.RawURLEncoding.EncodeToString([]byte(presignedURLString))
-			// Set token expiration to 1 minute before the presigned URL expires for some cushion
-			tokenExpiration := time.Now().Local().Add(presignedURLExpiration - 1*time.Minute)
+			tokenExpiration, err := getTokenExpirationDate(sessionExpiresAt)
+			errors.CheckError(fmt.Errorf("error getting token expiration date: %s", err))
 			_, _ = fmt.Fprint(os.Stdout, formatJSON(token, tokenExpiration))
 		},
 	}
@@ -56,28 +56,45 @@ func newAWSCommand() *cobra.Command {
 	return command
 }
 
-type getSignedRequestFunc func(clusterName, roleARN string) (string, error)
+type getSignedRequestFunc func(clusterName, roleARN string) (string, time.Time, error)
 
-func getSignedRequestWithRetry(ctx context.Context, timeout, interval time.Duration, clusterName, roleARN string, fn getSignedRequestFunc) (string, error) {
+// getTokenExpirationDate will compare the given sessionExpiresAt with the predefined
+// STS token expiration of 15 minutes. It will return the more recent time minus 1 minute
+// for some cushion. Will return error if sessionExpiresAt is < 1 minute.
+// This will avoid the error "the server has asked for the client to provide credentials"
+// in Argo CD.
+func getTokenExpirationDate(sessionExpiresAt time.Time) (time.Time, error) {
+	sessionExpiresAtSafe := sessionExpiresAt.Add(-time.Minute)
+	if sessionExpiresAtSafe.Before(time.Now()) {
+		return time.Time{}, fmt.Errorf("session expires in less than one minute")
+	}
+	tokenExpiration := time.Now().Local().Add(presignedURLExpiration - 1*time.Minute)
+	if sessionExpiresAtSafe.Before(tokenExpiration) {
+		return sessionExpiresAtSafe, nil
+	}
+	return tokenExpiration, nil
+}
+
+func getSignedRequestWithRetry(ctx context.Context, timeout, interval time.Duration, clusterName, roleARN string, fn getSignedRequestFunc) (string, time.Time, error) {
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 	for {
-		signed, err := fn(clusterName, roleARN)
+		signed, sessionExpiresAt, err := fn(clusterName, roleARN)
 		if err == nil {
-			return signed, nil
+			return signed, sessionExpiresAt, nil
 		}
 		select {
 		case <-ctx.Done():
-			return "", fmt.Errorf("timeout while trying to get signed aws request: last error: %s", err)
+			return "", time.Time{}, fmt.Errorf("timeout while trying to get signed aws request: last error: %s", err)
 		case <-time.After(interval):
 		}
 	}
 }
 
-func getSignedRequest(clusterName, roleARN string) (string, error) {
+func getSignedRequest(clusterName, roleARN string) (string, time.Time, error) {
 	sess, err := session.NewSession()
 	if err != nil {
-		return "", fmt.Errorf("error creating new AWS session: %s", err)
+		return "", time.Time{}, fmt.Errorf("error creating new AWS session: %s", err)
 	}
 	stsAPI := sts.New(sess)
 	if roleARN != "" {
@@ -88,9 +105,15 @@ func getSignedRequest(clusterName, roleARN string) (string, error) {
 	request.HTTPRequest.Header.Add(clusterIDHeader, clusterName)
 	signed, err := request.Presign(requestPresignParam)
 	if err != nil {
-		return "", fmt.Errorf("error presigning AWS request: %s", err)
+		return "", time.Time{}, fmt.Errorf("error presigning AWS request: %s", err)
 	}
-	return signed, nil
+
+	sessionExpiresAt, err := sess.Config.Credentials.ExpiresAt()
+	if err != nil {
+		return "", time.Time{}, fmt.Errorf("error getting AWS session expiration time: %s", err)
+	}
+
+	return signed, sessionExpiresAt, nil
 }
 
 func formatJSON(token string, expiration time.Time) string {
