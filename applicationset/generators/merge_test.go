@@ -449,7 +449,7 @@ func TestMergeModes(t *testing.T) {
 	}{
 		{
 			name: "left-join-uniq",
-			mode: argoprojiov1alpha1.LeftJoinUniq,
+			mode: LeftJoinUniq,
 			firstParamSets: map[string][]map[string]interface{}{
 				`{"key":"a"}`: {{"key": "a", "firstSet": "firstVal"}},
 				`{"key":"b"}`: {{"key": "b"}},
@@ -465,7 +465,7 @@ func TestMergeModes(t *testing.T) {
 		},
 		{
 			name: "left-join with multiple param sets for same merge key",
-			mode: argoprojiov1alpha1.LeftJoin,
+			mode: LeftJoin,
 			firstParamSets: map[string][]map[string]interface{}{
 				`{"key":"a"}`: {{"key": "a", "firstSet": "hello"}, {"key": "a", "firstSet": "bye"}},
 				`{"key":"b"}`: {{"key": "b"}},
@@ -496,7 +496,7 @@ func TestMergeModes(t *testing.T) {
 		},
 		{
 			name: "inner-join-uniq",
-			mode: argoprojiov1alpha1.InnerJoinUniq,
+			mode: InnerJoinUniq,
 			firstParamSets: map[string][]map[string]interface{}{
 				`{"key":"a"}`: {{"key": "a", "firstSet": "firstVal"}},
 				`{"key":"b"}`: {{"key": "b"}},
@@ -511,7 +511,7 @@ func TestMergeModes(t *testing.T) {
 		},
 		{
 			name: "inner-join with multiple param sets for same merge key",
-			mode: argoprojiov1alpha1.InnerJoin,
+			mode: InnerJoin,
 			firstParamSets: map[string][]map[string]interface{}{
 				`{"key":"a"}`: {{"key": "a", "firstSet": "hello"}, {"key": "a", "firstSet": "bye"}},
 				`{"key":"b"}`: {{"key": "b"}},
@@ -526,7 +526,7 @@ func TestMergeModes(t *testing.T) {
 		},
 		{
 			name: "full-join-uniq",
-			mode: argoprojiov1alpha1.FullJoinUniq,
+			mode: FullJoinUniq,
 			firstParamSets: map[string][]map[string]interface{}{
 				`{"key":"a"}`: {{"key": "a", "firstSet": "firstVal"}},
 				`{"key":"b"}`: {{"key": "b"}},
@@ -543,7 +543,7 @@ func TestMergeModes(t *testing.T) {
 		},
 		{
 			name: "full-join with multiple param sets for same merge key",
-			mode: argoprojiov1alpha1.FullJoin,
+			mode: FullJoin,
 			firstParamSets: map[string][]map[string]interface{}{
 				`{"key":"a"}`: {{"key": "a", "firstSet": "hello"}, {"key": "a", "firstSet": "bye"}},
 				`{"key":"b"}`: {{"key": "b"}},
@@ -577,6 +577,73 @@ func TestMergeModes(t *testing.T) {
 				testCaseCopy.firstParamSets,
 				testCaseCopy.secondParamSets,
 				appSet)
+
+			if testCaseCopy.expectedErr != nil {
+				assert.EqualError(t, err, testCaseCopy.expectedErr.Error())
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, testCaseCopy.expected, got)
+			}
+		})
+	}
+}
+
+func TestMergeModeDetection(t *testing.T) {
+	testCases := []struct {
+		name        string
+		joinType    string
+		expectedErr error
+		expected    argoprojiov1alpha1.MergeMode
+	}{
+		{
+			name:     "left-join-uniq",
+			joinType: "left-join-uniq",
+			expected: LeftJoinUniq,
+		},
+		{
+			name:     "left-join",
+			joinType: "left-join",
+			expected: LeftJoin,
+		},
+		{
+			name:     "inner-join-uniq",
+			joinType: "inner-join-uniq",
+			expected: InnerJoinUniq,
+		},
+		{
+			name:     "inner-join",
+			joinType: "inner-join",
+			expected: InnerJoin,
+		},
+		{
+			name:     "full-join-uniq",
+			joinType: "full-join-uniq",
+			expected: FullJoinUniq,
+		},
+		{
+			name:     "full-join",
+			joinType: "full-join",
+			expected: FullJoin,
+		},
+		{
+			name:        "non existing join",
+			joinType:    "my-own-join",
+			expectedErr: fmt.Errorf("incorrect merge mode passed. %s merge mode is not supported", "my-own-join"),
+		},
+		{
+			name:     "no mode passed, should take default join type",
+			joinType: "",
+			expected: LeftJoinUniq,
+		},
+	}
+
+	for _, testCase := range testCases {
+		testCaseCopy := testCase // since tests may run in parallel
+
+		t.Run(testCaseCopy.name, func(t *testing.T) {
+			t.Parallel()
+
+			got, err := getJoinType(testCaseCopy.joinType)
 
 			if testCaseCopy.expectedErr != nil {
 				assert.EqualError(t, err, testCaseCopy.expectedErr.Error())

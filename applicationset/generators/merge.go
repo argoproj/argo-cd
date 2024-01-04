@@ -23,6 +23,17 @@ var (
 	ErrNoCommonMergeKeys            = fmt.Errorf("no merge key was common amongst param sets produced by all generators")
 )
 
+const (
+	LeftJoinUniq  argoprojiov1alpha1.MergeMode = "left-join-uniq"
+	LeftJoin      argoprojiov1alpha1.MergeMode = "left-join"
+	InnerJoinUniq argoprojiov1alpha1.MergeMode = "inner-join-uniq"
+	InnerJoin     argoprojiov1alpha1.MergeMode = "inner-join"
+	FullJoinUniq  argoprojiov1alpha1.MergeMode = "full-join-uniq"
+	FullJoin      argoprojiov1alpha1.MergeMode = "full-join"
+)
+
+const UniqJoinSuffix = "-uniq"
+
 type MergeGenerator struct {
 	// The inner generators supported by the merge generator (cluster, git, list...)
 	supportedGenerators map[string]Generator
@@ -61,11 +72,10 @@ func (m *MergeGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.Appl
 		return nil, ErrLessThanTwoGeneratorsInMerge
 	}
 
-	if appSetGenerator.Merge.Mode == "" {
-		appSetGenerator.Merge.Mode = argoprojiov1alpha1.LeftJoinUniq
+	var joinType, err = getJoinType(appSetGenerator.Merge.Mode)
+	if err != nil {
+		return nil, err
 	}
-
-	// todo: return error if mode is not of one of those types
 
 	paramSetsFromGenerators, err := m.getParamSetsForAllGenerators(appSetGenerator.Merge.Generators, appSet)
 	if err != nil {
@@ -73,7 +83,7 @@ func (m *MergeGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.Appl
 	}
 
 	baseParamSetsByMergeKey := make(map[string][]map[string]interface{})
-	if strings.HasSuffix(string(appSetGenerator.Merge.Mode), argoprojiov1alpha1.UniqJoinSuffix) {
+	if strings.HasSuffix(appSetGenerator.Merge.Mode, UniqJoinSuffix) {
 		baseParamSetsByMergeKey, err = getParamSetsByMergeKey(appSetGenerator.Merge.MergeKeys, paramSetsFromGenerators[0], false)
 	} else {
 		baseParamSetsByMergeKey, err = getParamSetsByMergeKey(appSetGenerator.Merge.MergeKeys, paramSetsFromGenerators[0], true)
@@ -90,7 +100,7 @@ func (m *MergeGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.Appl
 		}
 
 		baseParamSetsByMergeKey, err = combineParamSetsByJoinType(
-			appSetGenerator.Merge.Mode,
+			joinType,
 			baseParamSetsByMergeKey,
 			paramSetsByMergeKey,
 			appSet)
@@ -112,7 +122,7 @@ func combineParamSetsByJoinType(mergeMode argoprojiov1alpha1.MergeMode,
 	var err error
 
 	switch mergeMode {
-	case argoprojiov1alpha1.LeftJoin, argoprojiov1alpha1.LeftJoinUniq, "":
+	case LeftJoin, LeftJoinUniq:
 		for mergeKeyValue, baseParamSetList := range baseParamSetsByMergeKey {
 			if overrideParamSet, exists := paramSetsByMergeKey[mergeKeyValue]; exists {
 				for i, baseParamSet := range baseParamSetList {
@@ -124,7 +134,7 @@ func combineParamSetsByJoinType(mergeMode argoprojiov1alpha1.MergeMode,
 			}
 		}
 
-	case argoprojiov1alpha1.InnerJoin, argoprojiov1alpha1.InnerJoinUniq:
+	case InnerJoin, InnerJoinUniq:
 		for mergeKeyValue, baseParamSetList := range baseParamSetsByMergeKey {
 			if overrideParamSet, exists := paramSetsByMergeKey[mergeKeyValue]; exists {
 				for i, baseParamSet := range baseParamSetList {
@@ -141,7 +151,7 @@ func combineParamSetsByJoinType(mergeMode argoprojiov1alpha1.MergeMode,
 			return nil, ErrNoCommonMergeKeys
 		}
 
-	case argoprojiov1alpha1.FullJoin, argoprojiov1alpha1.FullJoinUniq:
+	case FullJoin, FullJoinUniq:
 		for mergeKeyValue, paramSet := range paramSetsByMergeKey {
 			if baseParamSetList, exists := baseParamSetsByMergeKey[mergeKeyValue]; exists {
 				for i, baseParamSet := range baseParamSetList {
@@ -174,6 +184,22 @@ func overrideParamSets(i int, baseParamSet map[string]interface{}, overrideParam
 		baseParamSetsByMergeKey[mergeKeyValue][i] = utils.ConvertToMapStringInterface(overriddenParamSet)
 	}
 	return baseParamSetsByMergeKey, nil
+}
+
+func getJoinType(joinType string) (argoprojiov1alpha1.MergeMode, error) {
+	// Check if nil?
+	// TODO: Check value of mode when only field passed.
+
+	switch argoprojiov1alpha1.MergeMode(joinType) {
+	case LeftJoin, LeftJoinUniq, InnerJoin, InnerJoinUniq, FullJoin, FullJoinUniq:
+		return argoprojiov1alpha1.MergeMode(joinType), nil
+	case "":
+		// TODO: Can remove this log once stable
+		log.Infof("No merge mode was passed. Using default left-join-uniq")
+		return LeftJoinUniq, nil
+	default:
+		return "", fmt.Errorf("incorrect merge mode passed. %s merge mode is not supported", joinType)
+	}
 }
 
 // getParamSetsByMergeKey converts the given list of parameter sets to a map of parameter sets where the key is the
