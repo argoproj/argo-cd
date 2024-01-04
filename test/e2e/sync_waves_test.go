@@ -108,12 +108,14 @@ func TestSyncPruneOrderWithSyncWaves(t *testing.T) {
 	ctx := Given(t).Timeout(60)
 
 	// remove finalizer to ensure proper cleanup if test fails at early stage
-	defer RunCli("app", "patch-resource", ctx.AppQualifiedName(), 
-		"--kind", "Pod", 
-		"--resource-name", "pod-with-finalizers", 
-		"--patch", `[{"op": "remove", "path": "/metadata/finalizers"}]`,
-		"--patch-type", "application/json-patch+json", "--all",
-	)
+	defer func() {
+		_, _ = RunCli("app", "patch-resource", ctx.AppQualifiedName(),
+			"--kind", "Pod",
+			"--resource-name", "pod-with-finalizers",
+			"--patch", `[{"op": "remove", "path": "/metadata/finalizers"}]`,
+			"--patch-type", "application/json-patch+json", "--all",
+		)
+	}()
 
 	ctx.Path("syncwaves-prune-order").
 		When().
@@ -140,6 +142,6 @@ func TestSyncPruneOrderWithSyncWaves(t *testing.T) {
 		Expect(OperationPhaseIs(OperationSucceeded)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		Expect(HealthIs(health.HealthStatusHealthy)).
-		Expect(NotPod(func(p v1.Pod) bool { return p.Name == "pod-with-finalizers"})).
+		Expect(NotPod(func(p v1.Pod) bool { return p.Name == "pod-with-finalizers" })).
 		Expect(ResourceResultNumbering(4))
 }
