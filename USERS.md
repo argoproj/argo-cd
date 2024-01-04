@@ -128,6 +128,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [IBM](https://www.ibm.com/)
 1. [Ibotta](https://home.ibotta.com)
 1. [IITS-Consulting](https://iits-consulting.de)
+1. [IllumiDesk](https://www.illumidesk.com)
 1. [imaware](https://imaware.health)
 1. [Indeed](https://indeed.com)
 1. [Index Exchange](https://www.indexexchange.com/)
