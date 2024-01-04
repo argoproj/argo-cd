@@ -34,6 +34,7 @@ argocd-repo-server [flags]
       --parallelismlimit int                           Limit on number of concurrent manifests generate requests. Any value less the 1 means no limit.
       --plugin-tar-exclude stringArray                 Globs to filter when sending tarballs to plugins.
       --port int                                       Listen on given port for incoming connections (default 8081)
+      --preserve-dependencies-charts-archives          Preserve dependencies charts archives during refresh
       --redis string                                   Redis server hostname and port (e.g. argocd-redis:6379). 
       --redis-ca-certificate string                    Path to Redis server CA certificate (e.g. /etc/certs/redis/ca.crt). If not specified, system trusted CAs will be used for server certificate validation.
       --redis-client-certificate string                Path to Redis client certificate (e.g. /etc/certs/redis/client.crt).

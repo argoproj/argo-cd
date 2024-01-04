@@ -248,6 +248,10 @@ func (c *Cmd) dependencyBuild() (string, error) {
 	return c.run("dependency", "build")
 }
 
+func (c *Cmd) dependencyList() (string, error) {
+	return c.run("dependency", "list")
+}
+
 func (c *Cmd) inspectValues(values string) (string, error) {
 	return c.run(c.showCommand, "values", values)
 }

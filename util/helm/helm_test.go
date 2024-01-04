@@ -242,3 +242,36 @@ func TestSkipCrds(t *testing.T) {
 		return
 	}
 }
+
+func TestDependencyListSatisfied(t *testing.T) {
+	// chart with no dependencies
+	h, err := NewHelmApp("./testdata/redis", nil, false, "", "", false)
+	assert.NoError(t, err)
+	satisfied, err := h.DependencyListSatisfied()
+	assert.NoError(t, err)
+	assert.True(t, satisfied)
+	// chart with dependencies that are missing ('helm dependency build' wasn't executed yet)
+	h, err = NewHelmApp("./testdata/dependency", nil, false, "", "", false)
+	assert.NoError(t, err)
+	satisfied, err = h.DependencyListSatisfied()
+	assert.NoError(t, err)
+	assert.False(t, satisfied)
+	// mocking helm dependency list output with dependencies that are satisfied ('ok' status)
+	dependencyListMock = func() (string, error) {
+		return `NAME      	VERSION	REPOSITORY                    STATUS
+mongodb   	7.8.10 	https://charts.bitnami.com/bitnami           	ok
+eventstore	0.2.5  	https://eventstore.github.io/EventStore.Charts	ok
+`, nil
+	}
+	defer func() { dependencyListMock = nil }()
+	satisfied, err = h.DependencyListSatisfied()
+	assert.NoError(t, err)
+	assert.True(t, satisfied)
+	// mocking failures
+	dependencyListMock = func() (string, error) {
+		return "", assert.AnError
+	}
+	satisfied, err = h.DependencyListSatisfied()
+	assert.Error(t, err)
+	assert.False(t, satisfied)
+}

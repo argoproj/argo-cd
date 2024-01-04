@@ -48,27 +48,28 @@ var (
 
 func NewCommand() *cobra.Command {
 	var (
-		parallelismLimit                  int64
-		listenPort                        int
-		listenHost                        string
-		metricsPort                       int
-		metricsHost                       string
-		otlpAddress                       string
-		otlpInsecure                      bool
-		otlpHeaders                       map[string]string
-		otlpAttrs                         []string
-		cacheSrc                          func() (*reposervercache.Cache, error)
-		tlsConfigCustomizer               tls.ConfigCustomizer
-		tlsConfigCustomizerSrc            func() (tls.ConfigCustomizer, error)
-		redisClient                       *redis.Client
-		disableTLS                        bool
-		maxCombinedDirectoryManifestsSize string
-		cmpTarExcludedGlobs               []string
-		allowOutOfBoundsSymlinks          bool
-		streamedManifestMaxTarSize        string
-		streamedManifestMaxExtractedSize  string
-		helmManifestMaxExtractedSize      string
-		disableManifestMaxExtractedSize   bool
+		parallelismLimit                   int64
+		listenPort                         int
+		listenHost                         string
+		metricsPort                        int
+		metricsHost                        string
+		otlpAddress                        string
+		otlpInsecure                       bool
+		otlpHeaders                        map[string]string
+		otlpAttrs                          []string
+		cacheSrc                           func() (*reposervercache.Cache, error)
+		tlsConfigCustomizer                tls.ConfigCustomizer
+		tlsConfigCustomizerSrc             func() (tls.ConfigCustomizer, error)
+		redisClient                        *redis.Client
+		disableTLS                         bool
+		maxCombinedDirectoryManifestsSize  string
+		cmpTarExcludedGlobs                []string
+		allowOutOfBoundsSymlinks           bool
+		streamedManifestMaxTarSize         string
+		streamedManifestMaxExtractedSize   string
+		helmManifestMaxExtractedSize       string
+		disableManifestMaxExtractedSize    bool
+		preserveDependenciesChartsArchives bool
 	)
 	var command = cobra.Command{
 		Use:               cliName,
@@ -125,6 +126,7 @@ func NewCommand() *cobra.Command {
 				StreamedManifestMaxExtractedSize:             streamedManifestMaxExtractedSizeQuantity.ToDec().Value(),
 				StreamedManifestMaxTarSize:                   streamedManifestMaxTarSizeQuantity.ToDec().Value(),
 				HelmManifestMaxExtractedSize:                 helmManifestMaxExtractedSizeQuantity.ToDec().Value(),
+				PreserveDependenciesChartsArchives:           preserveDependenciesChartsArchives,
 			}, askPassServer)
 			errors.CheckError(err)
 
@@ -209,6 +211,7 @@ func NewCommand() *cobra.Command {
 	command.Flags().StringVar(&streamedManifestMaxExtractedSize, "streamed-manifest-max-extracted-size", env.StringFromEnv("ARGOCD_REPO_SERVER_STREAMED_MANIFEST_MAX_EXTRACTED_SIZE", "1G"), "Maximum size of streamed manifest archives when extracted")
 	command.Flags().StringVar(&helmManifestMaxExtractedSize, "helm-manifest-max-extracted-size", env.StringFromEnv("ARGOCD_REPO_SERVER_HELM_MANIFEST_MAX_EXTRACTED_SIZE", "1G"), "Maximum size of helm manifest archives when extracted")
 	command.Flags().BoolVar(&disableManifestMaxExtractedSize, "disable-helm-manifest-max-extracted-size", env.ParseBoolFromEnv("ARGOCD_REPO_SERVER_DISABLE_HELM_MANIFEST_MAX_EXTRACTED_SIZE", false), "Disable maximum size of helm manifest archives when extracted")
+	command.Flags().BoolVar(&preserveDependenciesChartsArchives, "preserve-dependencies-charts-archives", env.ParseBoolFromEnv("ARGOCD_REPO_PRESERVE_DEPENDENCIES_CHARTS_ARCHIVES", false), "Preserve dependencies charts archives during refresh")
 	tlsConfigCustomizerSrc = tls.AddTLSFlagsToCmd(&command)
 	cacheSrc = reposervercache.AddCacheFlagsToCmd(&command, cacheutil.Options{
 		OnClientCreated: func(client *redis.Client) {

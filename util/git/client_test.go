@@ -1,7 +1,9 @@
 package git
 
 import (
+	"bytes"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path"
@@ -13,9 +15,13 @@ import (
 )
 
 func runCmd(workingDir string, name string, args ...string) error {
+	return runCmdEx(workingDir, os.Stdout, name, args...)
+}
+
+func runCmdEx(workingDir string, stdoutWriter io.Writer, name string, args ...string) error {
 	cmd := exec.Command(name, args...)
 	cmd.Dir = workingDir
-	cmd.Stdout = os.Stdout
+	cmd.Stdout = stdoutWriter
 	cmd.Stderr = os.Stderr
 	return cmd.Run()
 }
@@ -202,4 +208,138 @@ func TestNewClient_invalidSSHURL(t *testing.T) {
 	client, err := NewClient("ssh://bitbucket.org:org/repo", NopCreds{}, false, false, "")
 	assert.Nil(t, client)
 	assert.ErrorIs(t, err, ErrInvalidRepoURL)
+}
+
+func Test_nativeGitClient_PreserveDependenciesChartsArchives(t *testing.T) {
+	// Preperations phase:
+	// 1. Creating a git repository with two charts: basechart and parentchart
+	// 2. basechart is a dependency of parentchart
+	// 3. Commiting the charts to the git repository
+	// 4. Creating the git client and checkout the repository
+	// 5. Enabling the preserve dependencies charts archives feature
+
+	tempDir, err := os.MkdirTemp("", "")
+	require.NoError(t, err)
+
+	err = runCmd(tempDir, "git", "init")
+	require.NoError(t, err)
+
+	err = runCmd(tempDir, "git", "commit", "-m", "Initial commit", "--allow-empty")
+	require.NoError(t, err)
+
+	// Creating basechart
+	err = runCmd(tempDir, "helm", "create", "basechart")
+	require.NoError(t, err)
+
+	// Creating parentchart
+	err = runCmd(tempDir, "helm", "create", "parentchart")
+	require.NoError(t, err)
+
+	// Adding basechart as a dependency to parentchart
+	err = runCmd(tempDir, "bash", "-c", "echo \"dependencies:\n- name: basechart\n  version: 0.1.0\n  repository: \\\"file://../basechart\\\"\" >> parentchart/Chart.yaml")
+	require.NoError(t, err)
+
+	err = runCmd(tempDir, "git", "add", ".")
+	require.NoError(t, err)
+
+	err = runCmd(tempDir, "git", "commit", "-m", "Added charts", "--allow-empty")
+	require.NoError(t, err)
+
+	client, err := NewClient(fmt.Sprintf("file://%s", tempDir), NopCreds{}, true, false, "")
+	require.NoError(t, err)
+
+	// Enable the preserve dependencies charts archives feature
+	WithPreserveDependenciesChartsArchives()(client.(*nativeGitClient))
+
+	err = client.Init()
+	require.NoError(t, err)
+
+	err = client.Fetch("")
+	assert.NoError(t, err)
+
+	commitSHA, err := client.LsRemote("HEAD")
+	assert.NoError(t, err)
+
+	err = client.Checkout(commitSHA, false)
+	require.NoError(t, err)
+
+	// First phase - pre checkout:
+	// 1. Verify, using `helm dependency list`, that the basechart dependency is missing
+	// 2. Run `helm dependency build` to build the basechart dependency
+	// 3. Verify that the basechart tgz file exists in the parentchart charts directory
+	// 4. Verify, using `helm dependency list`, that the basechart dependency is ok now
+	// 5. Run checkout that will in turn, run the git clean command
+
+	// Verify that `helm dependency list` specifies the basechart dependency is missing
+	stdout := &bytes.Buffer{}
+	err = runCmdEx(client.Root(), stdout, "bash", "-c", "cd parentchart && helm dependency list")
+	require.NoError(t, err)
+	require.Contains(t, stdout.String(), "basechart\t0.1.0  \tfile://../basechart\tmissing")
+
+	// Run `helm dependency build` to build the basechart dependency
+	err = runCmd(client.Root(), "bash", "-c", "cd parentchart && helm dependency build . --skip-refresh")
+	require.NoError(t, err)
+
+	// Check that the basechart tgz file exists in the parentchart charts directory
+	_, err = os.Stat(path.Join(client.Root(), "parentchart/charts/basechart-0.1.0.tgz"))
+	require.NoError(t, err)
+
+	// Verify that `helm dependency list` specifies the basechart dependency is ok
+	stdout.Reset()
+	err = runCmdEx(client.Root(), stdout, "bash", "-c", "cd parentchart && helm dependency list")
+	require.NoError(t, err)
+	require.Contains(t, stdout.String(), "basechart\t0.1.0  \tfile://../basechart\tok")
+
+	// Run Checkout - it runs the git clean command
+	err = client.Checkout(commitSHA, false)
+	require.NoError(t, err)
+
+	// Second phase - post checkout:
+	// 1. Verify that the basechart tgz file exists in the parentchart charts directory - it wasn't deleted by the git clean command
+	// 2. Update the basechart version and the basechart dependency version in the parentchart
+	// 3. Verify that `helm dependency list` specifies the basechart dependency is wrong version
+	// 4. Run `helm dependency build` to build the new version of basechart dependency and delete the old one
+	// 5. Verify that the previous version basechart tgz file does not exist in the parentchart charts directory and the new one does
+	// 6. Verify that `helm dependency list` specifies the new version of basechart dependency is ok
+	// 7. Verify that helm template is running successfully
+
+	// Check that the basechart tgz file still exists in the parentchart charts directory
+	_, err = os.Stat(path.Join(client.Root(), "parentchart/charts/basechart-0.1.0.tgz"))
+	require.NoError(t, err)
+
+	// Bump the basechart version using sed
+	err = runCmd(client.Root(), "bash", "-c", "sed -i 's/version: 0.1.0/version: 0.2.0/g' basechart/Chart.yaml")
+	require.NoError(t, err)
+
+	// Bump the basechart dependency version in the parentchart
+	err = runCmd(client.Root(), "bash", "-c", "sed -i 's/  version: 0.1.0/  version: 0.2.0/g' parentchart/Chart.yaml")
+	require.NoError(t, err)
+
+	// Verify that `helm dependency list` specifies the new version of basechart dependency is wrong version
+	stdout.Reset()
+	err = runCmdEx(client.Root(), stdout, "bash", "-c", "cd parentchart && helm dependency list")
+	require.NoError(t, err)
+	require.Contains(t, stdout.String(), "basechart\t0.2.0  \tfile://../basechart\twrong version")
+
+	// Runn `helm dependency build` to build the new version of basechart dependency and delete the old one
+	err = runCmd(client.Root(), "bash", "-c", "cd parentchart && helm dependency build . --skip-refresh")
+	require.NoError(t, err)
+
+	// check that the previous version basechart tgz file does not exist in the parentchart charts directory
+	_, err = os.Stat(path.Join(client.Root(), "parentchart/charts/basechart-0.1.0.tgz"))
+	require.Error(t, err)
+
+	// check that the new version basechart tgz file exists in the parentchart charts directory
+	_, err = os.Stat(path.Join(client.Root(), "parentchart/charts/basechart-0.2.0.tgz"))
+	require.NoError(t, err)
+
+	// Verify that `helm dependency list` specifies the new version of basechart dependency is ok
+	stdout.Reset()
+	err = runCmdEx(client.Root(), stdout, "bash", "-c", "cd parentchart && helm dependency list")
+	require.NoError(t, err)
+	require.Contains(t, stdout.String(), "basechart\t0.2.0  \tfile://../basechart\tok")
+
+	// Verify that helm template is running successfully
+	err = runCmd(client.Root(), "bash", "-c", "cd parentchart && helm template .")
+	require.NoError(t, err)
 }
