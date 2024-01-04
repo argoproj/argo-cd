@@ -83,7 +83,7 @@ func (m *MergeGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.Appl
 	}
 
 	baseParamSetsByMergeKey := make(map[string][]map[string]interface{})
-	if strings.HasSuffix(appSetGenerator.Merge.Mode, UniqJoinSuffix) {
+	if strings.HasSuffix(string(joinType), UniqJoinSuffix) {
 		baseParamSetsByMergeKey, err = getParamSetsByMergeKey(appSetGenerator.Merge.MergeKeys, paramSetsFromGenerators[0], false)
 	} else {
 		baseParamSetsByMergeKey, err = getParamSetsByMergeKey(appSetGenerator.Merge.MergeKeys, paramSetsFromGenerators[0], true)
@@ -194,8 +194,7 @@ func getJoinType(joinType string) (argoprojiov1alpha1.MergeMode, error) {
 	case LeftJoin, LeftJoinUniq, InnerJoin, InnerJoinUniq, FullJoin, FullJoinUniq:
 		return argoprojiov1alpha1.MergeMode(joinType), nil
 	case "":
-		// TODO: Can remove this log once stable
-		log.Infof("No merge mode was passed. Using default left-join-uniq")
+		// No merge mode passed. Using default left-join-uniq
 		return LeftJoinUniq, nil
 	default:
 		return "", fmt.Errorf("incorrect merge mode passed. %s merge mode is not supported", joinType)

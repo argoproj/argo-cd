@@ -5,12 +5,13 @@ The Merge generator combines parameters produced by the base (first) generator w
 Using a Merge generator is appropriate when a subset of parameter sets require overriding.
 
 The following merge modes are supported
-* left-join
-* inner-join
-* full-join
 * left-join-uniq (default)
+* left-join
 * inner-join-uniq
+* inner-join
 * full-join-uniq
+* full-join
+`left-join-uniq` has been set as the default merge mode in order to preserve backward compatibility.
 
 ## Example: Base Cluster generator + override Cluster generator + List generator 
 
@@ -122,16 +123,17 @@ When merged with the updated base parameters, the `values.redis` value for the p
 ```
 
 ## Duplicate merge keys in the base generator
-By default, all the parameter sets produced by any of the generators under a Merge generator, need to have unique values for the configured merge keys.
+With the `uniq` merge modes (`left-join-uniq`, `inner-join-uniq`, `full-join-uniq`), all the parameter sets produced by any of the generators under a Merge generator, need to have unique values for the configured merge keys.
 
-However, this behaviour can be changed by using any of the merge modes that ends with `uniq`. This will allow more than one parameter sets of the **base generator** to have the same values for the merge keys.
+However, this behaviour can be changed by using any of the merge modes that do not end with `-uniq`. This will allow more than one parameter sets of (only) the **base generator** to have the same values for the merge keys.
 
 Consider the following example:
 ```yaml
 spec:
   generators:
     - merge:
-        # The following line is commented, representing the default 'left-join-uniq' merge mode
+        # The following line is commented, which results in the default
+        # 'left-join-uniq' merge mode being used
         # mode: left-join
 
         mergeKeys:
@@ -166,7 +168,7 @@ However, on uncommenting the `mode` field, it will result in the following param
   server: https://2.4.6.8
   redis: 'true'
 ```
-The same behaviour can be obtained with any of the `uniq` merge modes (`left-join-uniq`, `inner-join-uniq`, `full-join-uniq`)
+The same behaviour can be obtained with any of the non-uniq merge modes (`left-join`, `inner-join`, `full-join`)
 
 
 

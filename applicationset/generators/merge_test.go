@@ -525,6 +525,19 @@ func TestMergeModes(t *testing.T) {
 			},
 		},
 		{
+			name: "inner-join with no common keys among param sets",
+			mode: InnerJoin,
+			firstParamSets: map[string][]map[string]interface{}{
+				`{"key":"a"}`: {{"key": "a", "firstSet": "hello"}, {"key": "a", "firstSet": "bye"}},
+				`{"key":"b"}`: {{"key": "b"}},
+			},
+			secondParamSets: map[string][]map[string]interface{}{
+				`{"key":"d"}`: {{"key": "d", "secondSet": "secondVal"}},
+				`{"key":"c"}`: {{"key": "c", "secondSet": "secondVal2"}},
+			},
+			expectedErr: ErrNoCommonMergeKeys,
+		},
+		{
 			name: "full-join-uniq",
 			mode: FullJoinUniq,
 			firstParamSets: map[string][]map[string]interface{}{
