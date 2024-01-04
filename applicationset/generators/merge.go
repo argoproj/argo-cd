@@ -104,6 +104,10 @@ func (m *MergeGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.Appl
 			baseParamSetsByMergeKey,
 			paramSetsByMergeKey,
 			appSet)
+
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	var mergedParamSets []map[string]interface{}
