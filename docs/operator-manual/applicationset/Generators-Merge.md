@@ -122,7 +122,7 @@ When merged with the updated base parameters, the `values.redis` value for the p
   values.redis: 'true'
 ```
 
-## Duplicate merge keys in the base generator
+## Merge Modes (Join types)
 With the `uniq` merge modes (`left-join-uniq`, `inner-join-uniq`, `full-join-uniq`), all the parameter sets produced by any of the generators under a Merge generator, need to have unique values for the configured merge keys.
 
 However, this behaviour can be changed by using any of the merge modes that do not end with `-uniq`. This will allow more than one parameter sets of (only) the **base generator** to have the same values for the merge keys.
@@ -169,6 +169,7 @@ However, on uncommenting the `mode` field, it will result in the following param
   redis: 'true'
 ```
 The same behaviour can be obtained with any of the non-uniq merge modes (`left-join`, `inner-join`, `full-join`)
+The types of join hold the same meanings as their equivalent SQL joins.
 
 
 

@@ -187,9 +187,6 @@ func overrideParamSets(i int, baseParamSet map[string]interface{}, overrideParam
 }
 
 func getJoinType(joinType string) (argoprojiov1alpha1.MergeMode, error) {
-	// Check if nil?
-	// TODO: Check value of mode when only field passed.
-
 	switch argoprojiov1alpha1.MergeMode(joinType) {
 	case LeftJoin, LeftJoinUniq, InnerJoin, InnerJoinUniq, FullJoin, FullJoinUniq:
 		return argoprojiov1alpha1.MergeMode(joinType), nil
