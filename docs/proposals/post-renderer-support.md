@@ -47,18 +47,21 @@ we can add postRenderers field under the Application spec which is very similar 
 
 ```
   ...
-  spec:
+  source:
     ...
-    postRenderers:
-    - kustomize:
-        patches:
-          - target:
-              kind: Deployment
-            patch: |-
-              - op: replace
-                path: /spec/template/spec/containers/0/ports/0/containerPort
-                value: 443
     ...
+    helm: 
+      ...
+      postRenderers:
+      - kustomize:
+          patches:
+            - target:
+                kind: Deployment
+              patch: |-
+                - op: replace
+                  path: /spec/template/spec/containers/0/ports/0/containerPort
+                  value: 443
+      ...
 ```
 
 `postRenderers` will be a list of postRenderers. 
@@ -133,13 +136,13 @@ spec:
     targetRevision: HEAD
     helm: 
       releaseName: guestbook
-  postRenderers:
-  - kustomize:
-      patches:
-        - target:
-            kind: Deployment
-          patch: |-
-            - op: replace
-              path: /spec/template/spec/containers/0/ports/0/containerPort
-              value: 443
+      postRenderers:
+      - kustomize:
+          patches:
+            - target:
+                kind: Deployment
+              patch: |-
+                - op: replace
+                  path: /spec/template/spec/containers/0/ports/0/containerPort
+                  value: 443
 ```
