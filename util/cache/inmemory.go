@@ -37,6 +37,16 @@ func (i *InMemoryCache) Set(item *Item) error {
 	return nil
 }
 
+func (i *InMemoryCache) Rename(oldKey string, newKey string, expiration time.Duration) error {
+	bufIf, found := i.memCache.Get(oldKey)
+	if !found {
+		return ErrCacheMiss
+	}
+	i.memCache.Set(newKey, bufIf, expiration)
+	i.memCache.Delete(oldKey)
+	return nil
+}
+
 // HasSame returns true if key with the same value already present in cache
 func (i *InMemoryCache) HasSame(key string, obj interface{}) (bool, error) {
 	var buf bytes.Buffer
