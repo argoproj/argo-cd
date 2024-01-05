@@ -12,7 +12,6 @@ import (
 
 	"github.com/argoproj/gitops-engine/pkg/utils/text"
 	"github.com/go-git/go-git/v5/plumbing"
-	"github.com/redis/go-redis/v9"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
@@ -44,7 +43,7 @@ func NewCache(cache *cacheutil.Cache, repoCacheExpiration time.Duration, revisio
 	return &Cache{cache, repoCacheExpiration, revisionCacheExpiration}
 }
 
-func AddCacheFlagsToCmd(cmd *cobra.Command, opts ...func(client *redis.Client)) func() (*Cache, error) {
+func AddCacheFlagsToCmd(cmd *cobra.Command, opts ...cacheutil.Options) func() (*Cache, error) {
 	var repoCacheExpiration time.Duration
 	var revisionCacheExpiration time.Duration
 
@@ -223,6 +222,12 @@ func LogDebugManifestCacheKeyFields(message string, reason string, revision stri
 			"reason":      reason,
 		}).Debug(message)
 	}
+}
+
+func (c *Cache) SetNewRevisionManifests(newRevision string, revision string, appSrc *appv1.ApplicationSource, srcRefs appv1.RefTargetRevisionMapping, clusterInfo ClusterRuntimeInfo, namespace string, trackingMethod string, appLabelKey string, appName string, refSourceCommitSHAs ResolvedRevisions) error {
+	oldKey := manifestCacheKey(revision, appSrc, srcRefs, namespace, trackingMethod, appLabelKey, appName, clusterInfo, refSourceCommitSHAs)
+	newKey := manifestCacheKey(newRevision, appSrc, srcRefs, namespace, trackingMethod, appLabelKey, appName, clusterInfo, refSourceCommitSHAs)
+	return c.cache.RenameItem(oldKey, newKey, c.repoCacheExpiration)
 }
 
 func (c *Cache) GetManifests(revision string, appSrc *appv1.ApplicationSource, srcRefs appv1.RefTargetRevisionMapping, clusterInfo ClusterRuntimeInfo, namespace string, trackingMethod string, appLabelKey string, appName string, res *CachedManifestResponse, refSourceCommitSHAs ResolvedRevisions) error {
