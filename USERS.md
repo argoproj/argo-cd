@@ -216,6 +216,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [Peloton Interactive](https://www.onepeloton.com/)
 1. [Percona](https://percona.com/)
 1. [PGS](https://www.pgs.com)
+1. [PITS Globale Datenrettungsdienste](https://www.pitsdatenrettung.de/)
 1. [Pigment](https://www.gopigment.com/)
 1. [Pipefy](https://www.pipefy.com/)
 1. [Pismo](https://pismo.io/)
