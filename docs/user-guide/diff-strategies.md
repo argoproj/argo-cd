@@ -56,7 +56,13 @@ Application.
 Add the following entry in the argocd-cmd-params-cm configmap:
 
 ```
-controller.diff.server.side: "true"
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-cmd-params-cm
+data:
+  controller.diff.server.side: "true"
+...
 ```
 
 Note: It is necessary to restart the `argocd-application-controller`
