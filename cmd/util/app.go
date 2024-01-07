@@ -64,11 +64,13 @@ type AppOptions struct {
 	jsonnetExtVarCode               []string
 	jsonnetLibs                     []string
 	kustomizeImages                 []string
+	kustomizeReplicas               []string
 	kustomizeVersion                string
 	kustomizeCommonLabels           []string
 	kustomizeCommonAnnotations      []string
 	kustomizeForceCommonLabels      bool
 	kustomizeForceCommonAnnotations bool
+	kustomizeNamespace              string
 	pluginEnvs                      []string
 	Validate                        bool
 	directoryExclude                string
@@ -117,12 +119,14 @@ func AddAppFlags(command *cobra.Command, opts *AppOptions) {
 	command.Flags().StringArrayVar(&opts.jsonnetExtVarCode, "jsonnet-ext-var-code", []string{}, "Jsonnet ext var")
 	command.Flags().StringArrayVar(&opts.jsonnetLibs, "jsonnet-libs", []string{}, "Additional jsonnet libs (prefixed by repoRoot)")
 	command.Flags().StringArrayVar(&opts.kustomizeImages, "kustomize-image", []string{}, "Kustomize images (e.g. --kustomize-image node:8.15.0 --kustomize-image mysql=mariadb,alpine@sha256:24a0c4b4a4c0eb97a1aabb8e29f18e917d05abfe1b7a7c07857230879ce7d3d)")
+	command.Flags().StringArrayVar(&opts.kustomizeReplicas, "kustomize-replica", []string{}, "Kustomize replicas (e.g. --kustomize-replica my-development=2 --kustomize-replica my-statefulset=4)")
 	command.Flags().StringArrayVar(&opts.pluginEnvs, "plugin-env", []string{}, "Additional plugin envs")
 	command.Flags().BoolVar(&opts.Validate, "validate", true, "Validation of repo and cluster")
 	command.Flags().StringArrayVar(&opts.kustomizeCommonLabels, "kustomize-common-label", []string{}, "Set common labels in Kustomize")
 	command.Flags().StringArrayVar(&opts.kustomizeCommonAnnotations, "kustomize-common-annotation", []string{}, "Set common labels in Kustomize")
 	command.Flags().BoolVar(&opts.kustomizeForceCommonLabels, "kustomize-force-common-label", false, "Force common labels in Kustomize")
 	command.Flags().BoolVar(&opts.kustomizeForceCommonAnnotations, "kustomize-force-common-annotation", false, "Force common annotations in Kustomize")
+	command.Flags().StringVar(&opts.kustomizeNamespace, "kustomize-namespace", "", "Kustomize namespace")
 	command.Flags().StringVar(&opts.directoryExclude, "directory-exclude", "", "Set glob expression used to exclude files from application source path")
 	command.Flags().StringVar(&opts.directoryInclude, "directory-include", "", "Set glob expression used to include files from application source path")
 	command.Flags().Int64Var(&opts.retryLimit, "sync-retry-limit", 0, "Max number of allowed sync retries")
@@ -218,8 +222,12 @@ func SetAppSpecOptions(flags *pflag.FlagSet, spec *argoappv1.ApplicationSpec, ap
 			setKustomizeOpt(source, kustomizeOpts{nameSuffix: appOpts.nameSuffix})
 		case "kustomize-image":
 			setKustomizeOpt(source, kustomizeOpts{images: appOpts.kustomizeImages})
+		case "kustomize-replica":
+			setKustomizeOpt(source, kustomizeOpts{replicas: appOpts.kustomizeReplicas})
 		case "kustomize-version":
 			setKustomizeOpt(source, kustomizeOpts{version: appOpts.kustomizeVersion})
+		case "kustomize-namespace":
+			setKustomizeOpt(source, kustomizeOpts{namespace: appOpts.kustomizeNamespace})
 		case "kustomize-common-label":
 			parsedLabels, err := label.Parse(appOpts.kustomizeCommonLabels)
 			errors.CheckError(err)
@@ -287,7 +295,7 @@ func SetAppSpecOptions(flags *pflag.FlagSet, spec *argoappv1.ApplicationSpec, ap
 					Backoff: &argoappv1.Backoff{
 						Duration:    appOpts.retryBackoffDuration.String(),
 						MaxDuration: appOpts.retryBackoffMaxDuration.String(),
-						Factor:      pointer.Int64Ptr(appOpts.retryBackoffFactor),
+						Factor:      pointer.Int64(appOpts.retryBackoffFactor),
 					},
 				}
 			} else if appOpts.retryLimit == 0 {
@@ -328,11 +336,13 @@ type kustomizeOpts struct {
 	namePrefix             string
 	nameSuffix             string
 	images                 []string
+	replicas               []string
 	version                string
 	commonLabels           map[string]string
 	commonAnnotations      map[string]string
 	forceCommonLabels      bool
 	forceCommonAnnotations bool
+	namespace              string
 }
 
 func setKustomizeOpt(src *argoappv1.ApplicationSource, opts kustomizeOpts) {
@@ -347,6 +357,9 @@ func setKustomizeOpt(src *argoappv1.ApplicationSource, opts kustomizeOpts) {
 	}
 	if opts.nameSuffix != "" {
 		src.Kustomize.NameSuffix = opts.nameSuffix
+	}
+	if opts.namespace != "" {
+		src.Kustomize.Namespace = opts.namespace
 	}
 	if opts.commonLabels != nil {
 		src.Kustomize.CommonLabels = opts.commonLabels
@@ -363,6 +376,14 @@ func setKustomizeOpt(src *argoappv1.ApplicationSource, opts kustomizeOpts) {
 	for _, image := range opts.images {
 		src.Kustomize.MergeImage(argoappv1.KustomizeImage(image))
 	}
+	for _, replica := range opts.replicas {
+		r, err := argoappv1.NewKustomizeReplica(replica)
+		if err != nil {
+			log.Fatal(err)
+		}
+		src.Kustomize.MergeReplica(*r)
+	}
+
 	if src.Kustomize.IsZero() {
 		src.Kustomize = nil
 	}
@@ -406,7 +427,10 @@ func setHelmOpt(src *argoappv1.ApplicationSource, opts helmOpts) {
 		src.Helm.IgnoreMissingValueFiles = opts.ignoreMissingValueFiles
 	}
 	if len(opts.values) > 0 {
-		src.Helm.Values = opts.values
+		err := src.Helm.SetValuesString(opts.values)
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 	if opts.releaseName != "" {
 		src.Helm.ReleaseName = opts.releaseName
@@ -576,7 +600,7 @@ func constructAppsBaseOnName(appName string, labels, annotations, args []string,
 		}
 		appName = args[0]
 	}
-	appName, appNs := argo.ParseAppQualifiedName(appName, "")
+	appName, appNs := argo.ParseFromQualifiedName(appName, "")
 	app = &argoappv1.Application{
 		TypeMeta: v1.TypeMeta{
 			Kind:       application.ApplicationKind,
@@ -664,7 +688,7 @@ func setAnnotations(app *argoappv1.Application, annotations []string) {
 	}
 }
 
-// liveObjects deserializes the list of live states into unstructured objects
+// LiveObjects deserializes the list of live states into unstructured objects
 func LiveObjects(resources []*argoappv1.ResourceDiff) ([]*unstructured.Unstructured, error) {
 	objs := make([]*unstructured.Unstructured, len(resources))
 	for i, resState := range resources {

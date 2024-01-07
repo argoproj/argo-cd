@@ -49,39 +49,3 @@ Within ApplicationSet there exist other more powerful generators in addition to 
 To learn more about the ApplicationSet controller, check out [ApplicationSet documentation](../operator-manual/applicationset/index.md) to install the ApplicationSet controller alongside Argo CD.
 
 **Note:** Starting `v2.3` of Argo CD, we don't need to install ApplicationSet Controller separately. It would be instead as part of Argo CD installation.
-
-#### Post Selector all generators
-
-The Selector allows to post-filter based on generated values using the kubernetes common labelSelector format. In the example, the list generator generates a set of two application which then filter by the key value to only select the `env` with value `staging`:
-
-```yaml
-apiVersion: argoproj.io/v1alpha1
-kind: ApplicationSet
-metadata:
-  name: guestbook
-spec:
-  generators:
-  - list:
-      elements:
-        - cluster: engineering-dev
-          url: https://kubernetes.default.svc
-          env: staging
-        - cluster: engineering-prod
-          url: https://kubernetes.default.svc
-          env: prod
-    selector:
-      matchLabels:
-        env: staging
-  template:
-    metadata:
-      name: '{{cluster}}-guestbook'
-    spec:
-      project: default
-      source:
-        repoURL: https://github.com/argoproj-labs/applicationset.git
-        targetRevision: HEAD
-        path: examples/list-generator/guestbook/{{cluster}}
-      destination:
-        server: '{{url}}'
-        namespace: guestbook
-```

@@ -3,7 +3,7 @@ package rbacpolicy
 import (
 	"strings"
 
-	jwt "github.com/golang-jwt/jwt/v4"
+	"github.com/golang-jwt/jwt/v4"
 	log "github.com/sirupsen/logrus"
 
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
@@ -24,6 +24,7 @@ const (
 	ResourceGPGKeys         = "gpgkeys"
 	ResourceLogs            = "logs"
 	ResourceExec            = "exec"
+	ResourceExtensions      = "extensions"
 
 	// please add new items to Actions
 	ActionGet      = "get"
@@ -33,6 +34,7 @@ const (
 	ActionSync     = "sync"
 	ActionOverride = "override"
 	ActionAction   = "action"
+	ActionInvoke   = "invoke"
 )
 
 var (
@@ -152,7 +154,7 @@ func (p *RBACPolicyEnforcer) EnforceClaims(claims jwt.Claims, rvals ...interface
 			}
 		}
 	}
-	logCtx := log.WithField("claims", claims).WithField("rval", rvals)
+	logCtx := log.WithFields(log.Fields{"claims": claims, "rval": rvals, "subject": subject, "groups": groups, "project": projName, "scopes": scopes})
 	logCtx.Debug("enforce failed")
 	return false
 }

@@ -2,7 +2,7 @@ import {AutocompleteField, DropDownMenu, ErrorNotification, FormField, FormSelec
 import * as React from 'react';
 import {FormApi, Text} from 'react-form';
 import {
-    ARGO_WARNING_COLOR,
+    ClipboardText,
     Cluster,
     DataLoader,
     EditablePanel,
@@ -151,7 +151,7 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
         },
         {
             title: 'NAMESPACE',
-            view: app.spec.destination.namespace,
+            view: <ClipboardText text={app.spec.destination.namespace} />,
             edit: (formApi: FormApi) => <FormField formApi={formApi} field='spec.destination.namespace' component={Text} />
         },
         {
@@ -271,7 +271,7 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
         {
             title: 'SYNC OPTIONS',
             view: (
-                <div style={{display: 'flex'}}>
+                <div style={{display: 'flex', flexWrap: 'wrap'}}>
                     {((app.spec.syncPolicy || {}).syncOptions || []).map(opt =>
                         opt.endsWith('=true') || opt.endsWith('=false') ? (
                             <div key={opt} style={{marginRight: '10px'}}>
@@ -319,7 +319,7 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
         {
             title: 'LINKS',
             view: (
-                <DataLoader load={() => services.applications.getLinks(app.metadata.name)} input={app} key='appLinks'>
+                <DataLoader load={() => services.applications.getLinks(app.metadata.name, app.metadata.namespace)} input={app} key='appLinks'>
                     {(links: models.LinksResponse) => <DeepLinks links={links.items} />}
                 </DataLoader>
             )

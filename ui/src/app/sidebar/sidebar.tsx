@@ -1,4 +1,5 @@
 import {Tooltip} from 'argo-ui';
+import {Boundary, Placement} from 'popper.js';
 import {useData} from 'argo-ui/v2';
 import * as React from 'react';
 import {Context} from '../shared/context';
@@ -34,11 +35,11 @@ export const Sidebar = (props: SidebarProps) => {
     const locationPath = context.history.location.pathname;
 
     const tooltipProps = {
-        placement: 'right',
+        placement: 'right' as Placement,
         popperOptions: {
             modifiers: {
                 preventOverflow: {
-                    boundariesElement: 'window'
+                    boundariesElement: 'window' as Boundary
                 }
             }
         }
@@ -63,7 +64,7 @@ export const Sidebar = (props: SidebarProps) => {
                 </div>
 
                 {(props.navItems || []).map(item => (
-                    <Tooltip key={item.path} content={item?.tooltip || item.title} {...tooltipProps}>
+                    <Tooltip key={item.path} content={<div className='sidebar__tooltip'>{item?.tooltip || item.title}</div>} {...tooltipProps}>
                         <div
                             key={item.title}
                             className={`sidebar__nav-item ${locationPath === item.path || locationPath.startsWith(`${item.path}/`) ? 'sidebar__nav-item--active' : ''}`}

@@ -202,7 +202,7 @@ func (repo *Repository) GetGitCreds(store git.CredsStore) git.Creds {
 		return git.NewGitHubAppCreds(repo.GithubAppId, repo.GithubAppInstallationId, repo.GithubAppPrivateKey, repo.GitHubAppEnterpriseBaseURL, repo.Repo, repo.TLSClientCertData, repo.TLSClientCertKey, repo.IsInsecure(), repo.Proxy, store)
 	}
 	if repo.GCPServiceAccountKey != "" {
-		return git.NewGoogleCloudCreds(repo.GCPServiceAccountKey)
+		return git.NewGoogleCloudCreds(repo.GCPServiceAccountKey, store)
 	}
 	return git.NopCreds{}
 }

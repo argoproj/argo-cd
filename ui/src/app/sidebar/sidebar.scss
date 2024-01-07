@@ -15,7 +15,7 @@ $deselected-text: #818d94;
     color: white;
     background-color: #0f2733;
     overflow: auto;
-    z-index: 0;
+    z-index: 2;
 
     &__container {
         padding: 0 5px;
@@ -33,10 +33,11 @@ $deselected-text: #818d94;
         display: flex;
         flex-direction: row-reverse;
         align-items: center;
+        justify-content: flex-end;
         font-size: 24px;
         font-weight: 500;
         margin: 1em 0;
-        margin-left: 7px;
+        margin-left: -7px;
 
         &__character {
             width: 42px;
@@ -50,8 +51,18 @@ $deselected-text: #818d94;
 
     &__version {
         cursor: pointer;
-        width: 100%;
-        text-align: center;
+        width: 110px;
+        text-align: left;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    &__tooltip {
+        max-width: 300px;
+        @media screen and (max-width: 590px) {
+            max-width: 250px;
+        }
     }
 
     &__nav-item {
@@ -77,6 +88,7 @@ $deselected-text: #818d94;
             margin-left: 2px;
             margin-right: -2px;
             margin-top: 12px;
+            width: 32px;           
         }
 
         &--active {
@@ -90,7 +102,7 @@ $deselected-text: #818d94;
     &__collapse-button {
         text-align: center;
         cursor: pointer;
-        margin-left: 15px;
+        margin-left: auto;
         margin-bottom: 1em;
         font-size: 20px;
         color: $deselected-text;

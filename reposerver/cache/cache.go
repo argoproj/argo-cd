@@ -12,7 +12,6 @@ import (
 
 	"github.com/argoproj/gitops-engine/pkg/utils/text"
 	"github.com/go-git/go-git/v5/plumbing"
-	"github.com/go-redis/redis/v8"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
@@ -44,7 +43,7 @@ func NewCache(cache *cacheutil.Cache, repoCacheExpiration time.Duration, revisio
 	return &Cache{cache, repoCacheExpiration, revisionCacheExpiration}
 }
 
-func AddCacheFlagsToCmd(cmd *cobra.Command, opts ...func(client *redis.Client)) func() (*Cache, error) {
+func AddCacheFlagsToCmd(cmd *cobra.Command, opts ...cacheutil.Options) func() (*Cache, error) {
 	var repoCacheExpiration time.Duration
 	var revisionCacheExpiration time.Duration
 
@@ -56,7 +55,7 @@ func AddCacheFlagsToCmd(cmd *cobra.Command, opts ...func(client *redis.Client)) 
 	return func() (*Cache, error) {
 		cache, err := repoFactory()
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("error adding cache flags to cmd: %w", err)
 		}
 		return NewCache(cache, repoCacheExpiration, revisionCacheExpiration), nil
 	}
@@ -225,6 +224,12 @@ func LogDebugManifestCacheKeyFields(message string, reason string, revision stri
 	}
 }
 
+func (c *Cache) SetNewRevisionManifests(newRevision string, revision string, appSrc *appv1.ApplicationSource, srcRefs appv1.RefTargetRevisionMapping, clusterInfo ClusterRuntimeInfo, namespace string, trackingMethod string, appLabelKey string, appName string, refSourceCommitSHAs ResolvedRevisions) error {
+	oldKey := manifestCacheKey(revision, appSrc, srcRefs, namespace, trackingMethod, appLabelKey, appName, clusterInfo, refSourceCommitSHAs)
+	newKey := manifestCacheKey(newRevision, appSrc, srcRefs, namespace, trackingMethod, appLabelKey, appName, clusterInfo, refSourceCommitSHAs)
+	return c.cache.RenameItem(oldKey, newKey, c.repoCacheExpiration)
+}
+
 func (c *Cache) GetManifests(revision string, appSrc *appv1.ApplicationSource, srcRefs appv1.RefTargetRevisionMapping, clusterInfo ClusterRuntimeInfo, namespace string, trackingMethod string, appLabelKey string, appName string, res *CachedManifestResponse, refSourceCommitSHAs ResolvedRevisions) error {
 	err := c.cache.GetItem(manifestCacheKey(revision, appSrc, srcRefs, namespace, trackingMethod, appLabelKey, appName, clusterInfo, refSourceCommitSHAs), res)
 
@@ -302,6 +307,45 @@ func (c *Cache) GetRevisionMetadata(repoURL, revision string) (*appv1.RevisionMe
 
 func (c *Cache) SetRevisionMetadata(repoURL, revision string, item *appv1.RevisionMetadata) error {
 	return c.cache.SetItem(revisionMetadataKey(repoURL, revision), item, c.repoCacheExpiration, false)
+}
+
+func revisionChartDetailsKey(repoURL, chart, revision string) string {
+	return fmt.Sprintf("chartdetails|%s|%s|%s", repoURL, chart, revision)
+}
+
+func (c *Cache) GetRevisionChartDetails(repoURL, chart, revision string) (*appv1.ChartDetails, error) {
+	item := &appv1.ChartDetails{}
+	return item, c.cache.GetItem(revisionChartDetailsKey(repoURL, chart, revision), item)
+}
+
+func (c *Cache) SetRevisionChartDetails(repoURL, chart, revision string, item *appv1.ChartDetails) error {
+	return c.cache.SetItem(revisionChartDetailsKey(repoURL, chart, revision), item, c.repoCacheExpiration, false)
+}
+
+func gitFilesKey(repoURL, revision, pattern string) string {
+	return fmt.Sprintf("gitfiles|%s|%s|%s", repoURL, revision, pattern)
+}
+
+func (c *Cache) SetGitFiles(repoURL, revision, pattern string, files map[string][]byte) error {
+	return c.cache.SetItem(gitFilesKey(repoURL, revision, pattern), &files, c.repoCacheExpiration, false)
+}
+
+func (c *Cache) GetGitFiles(repoURL, revision, pattern string) (map[string][]byte, error) {
+	var item map[string][]byte
+	return item, c.cache.GetItem(gitFilesKey(repoURL, revision, pattern), &item)
+}
+
+func gitDirectoriesKey(repoURL, revision string) string {
+	return fmt.Sprintf("gitdirs|%s|%s", repoURL, revision)
+}
+
+func (c *Cache) SetGitDirectories(repoURL, revision string, directories []string) error {
+	return c.cache.SetItem(gitDirectoriesKey(repoURL, revision), &directories, c.repoCacheExpiration, false)
+}
+
+func (c *Cache) GetGitDirectories(repoURL, revision string) ([]string, error) {
+	var item []string
+	return item, c.cache.GetItem(gitDirectoriesKey(repoURL, revision), &item)
 }
 
 func (cmr *CachedManifestResponse) shallowCopy() *CachedManifestResponse {

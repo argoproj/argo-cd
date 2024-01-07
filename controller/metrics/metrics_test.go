@@ -5,18 +5,17 @@ import (
 	"log"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"strings"
 	"testing"
 	"time"
 
 	gitopsCache "github.com/argoproj/gitops-engine/pkg/cache"
 	"github.com/argoproj/gitops-engine/pkg/sync/common"
-	"github.com/ghodss/yaml"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/cache"
+	"sigs.k8s.io/yaml"
 
 	argoappv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned/fake"
@@ -67,6 +66,10 @@ spec:
   source:
     path: some/path
     repoURL: https://github.com/argoproj/argocd-example-apps.git
+  syncPolicy:
+    automated:
+      selfHeal: false
+      prune: true
 status:
   sync:
     status: Synced
@@ -98,6 +101,10 @@ spec:
   source:
     path: some/path
     repoURL: https://github.com/argoproj/argocd-example-apps.git
+  syncPolicy:
+    automated:
+      selfHeal: true
+      prune: false
 status:
   sync:
     status: OutOfSync
@@ -207,7 +214,7 @@ func runTest(t *testing.T, cfg TestMetricServerConfig) {
 		metricsServ.registry.MustRegister(collector)
 	}
 
-	req, err := http.NewRequest("GET", "/metrics", nil)
+	req, err := http.NewRequest(http.MethodGet, "/metrics", nil)
 	assert.NoError(t, err)
 	rr := httptest.NewRecorder()
 	metricsServ.Handler.ServeHTTP(rr, req)
@@ -228,9 +235,9 @@ func TestMetrics(t *testing.T) {
 			responseContains: `
 # HELP argocd_app_info Information about application.
 # TYPE argocd_app_info gauge
-argocd_app_info{dest_namespace="dummy-namespace",dest_server="https://localhost:6443",health_status="Degraded",name="my-app-3",namespace="argocd",operation="delete",project="important-project",repo="https://github.com/argoproj/argocd-example-apps",sync_status="OutOfSync"} 1
-argocd_app_info{dest_namespace="dummy-namespace",dest_server="https://localhost:6443",health_status="Healthy",name="my-app",namespace="argocd",operation="",project="important-project",repo="https://github.com/argoproj/argocd-example-apps",sync_status="Synced"} 1
-argocd_app_info{dest_namespace="dummy-namespace",dest_server="https://localhost:6443",health_status="Healthy",name="my-app-2",namespace="argocd",operation="sync",project="important-project",repo="https://github.com/argoproj/argocd-example-apps",sync_status="Synced"} 1
+argocd_app_info{autosync_enabled="true",dest_namespace="dummy-namespace",dest_server="https://localhost:6443",health_status="Degraded",name="my-app-3",namespace="argocd",operation="delete",project="important-project",repo="https://github.com/argoproj/argocd-example-apps",sync_status="OutOfSync"} 1
+argocd_app_info{autosync_enabled="false",dest_namespace="dummy-namespace",dest_server="https://localhost:6443",health_status="Healthy",name="my-app",namespace="argocd",operation="",project="important-project",repo="https://github.com/argoproj/argocd-example-apps",sync_status="Synced"} 1
+argocd_app_info{autosync_enabled="true",dest_namespace="dummy-namespace",dest_server="https://localhost:6443",health_status="Healthy",name="my-app-2",namespace="argocd",operation="sync",project="important-project",repo="https://github.com/argoproj/argocd-example-apps",sync_status="Synced"} 1
 `,
 		},
 		{
@@ -238,7 +245,7 @@ argocd_app_info{dest_namespace="dummy-namespace",dest_server="https://localhost:
 			responseContains: `
 # HELP argocd_app_info Information about application.
 # TYPE argocd_app_info gauge
-argocd_app_info{dest_namespace="dummy-namespace",dest_server="https://localhost:6443",health_status="Healthy",name="my-app",namespace="argocd",operation="",project="default",repo="https://github.com/argoproj/argocd-example-apps",sync_status="Synced"} 1
+argocd_app_info{autosync_enabled="false",dest_namespace="dummy-namespace",dest_server="https://localhost:6443",health_status="Healthy",name="my-app",namespace="argocd",operation="",project="default",repo="https://github.com/argoproj/argocd-example-apps",sync_status="Synced"} 1
 `,
 		},
 	}
@@ -292,8 +299,7 @@ argocd_app_labels{label_non_existing="",name="my-app-3",namespace="argocd",proje
 }
 
 func TestLegacyMetrics(t *testing.T) {
-	os.Setenv(EnvVarLegacyControllerMetrics, "true")
-	defer os.Unsetenv(EnvVarLegacyControllerMetrics)
+	t.Setenv(EnvVarLegacyControllerMetrics, "true")
 
 	expectedResponse := `
 # HELP argocd_app_created_time Creation time in unix timestamp for an application.
@@ -337,7 +343,7 @@ argocd_app_sync_total{dest_server="https://localhost:6443",name="my-app",namespa
 	metricsServ.IncSync(fakeApp, &argoappv1.OperationState{Phase: common.OperationSucceeded})
 	metricsServ.IncSync(fakeApp, &argoappv1.OperationState{Phase: common.OperationSucceeded})
 
-	req, err := http.NewRequest("GET", "/metrics", nil)
+	req, err := http.NewRequest(http.MethodGet, "/metrics", nil)
 	assert.NoError(t, err)
 	rr := httptest.NewRecorder()
 	metricsServ.Handler.ServeHTTP(rr, req)
@@ -391,7 +397,7 @@ argocd_app_reconcile_count{dest_server="https://localhost:6443",namespace="argoc
 	fakeApp := newFakeApp(fakeApp)
 	metricsServ.IncReconcile(fakeApp, 5*time.Second)
 
-	req, err := http.NewRequest("GET", "/metrics", nil)
+	req, err := http.NewRequest(http.MethodGet, "/metrics", nil)
 	assert.NoError(t, err)
 	rr := httptest.NewRecorder()
 	metricsServ.Handler.ServeHTTP(rr, req)
@@ -415,7 +421,7 @@ argocd_app_sync_total{dest_server="https://localhost:6443",name="my-app",namespa
 argocd_app_sync_total{dest_server="https://localhost:6443",name="my-app",namespace="argocd",phase="Succeeded",project="important-project"} 2
 `
 
-	req, err := http.NewRequest("GET", "/metrics", nil)
+	req, err := http.NewRequest(http.MethodGet, "/metrics", nil)
 	assert.NoError(t, err)
 	rr := httptest.NewRecorder()
 	metricsServ.Handler.ServeHTTP(rr, req)
@@ -426,7 +432,7 @@ argocd_app_sync_total{dest_server="https://localhost:6443",name="my-app",namespa
 	err = metricsServ.SetExpiration(time.Second)
 	assert.NoError(t, err)
 	time.Sleep(2 * time.Second)
-	req, err = http.NewRequest("GET", "/metrics", nil)
+	req, err = http.NewRequest(http.MethodGet, "/metrics", nil)
 	assert.NoError(t, err)
 	rr = httptest.NewRecorder()
 	metricsServ.Handler.ServeHTTP(rr, req)

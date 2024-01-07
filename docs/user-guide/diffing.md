@@ -60,13 +60,22 @@ To ignore fields owned by specific managers defined in your live resources:
 ```yaml
 spec:
   ignoreDifferences:
-  - group: *
-    kind: *
+  - group: "*"
+    kind: "*"
     managedFieldsManagers:
     - kube-controller-manager
 ```
 
 The above configuration will ignore differences from all fields owned by `kube-controller-manager` for all resources belonging to this application.
+
+If you have a slash `/` in your pointer path, you can use the `~1` character. For example:
+
+```yaml
+spec:
+  ignoreDifferences:
+  - kind: Node
+    jsonPointers: /metadata/labels/node-role.kubernetes.io~1worker
+```
 
 ## System-Level Configuration
 
@@ -172,4 +181,7 @@ data:
       type: core/v1/PodSpec
 ```
 
-The list of supported Kubernetes types is available in [diffing_known_types.txt](https://raw.githubusercontent.com/argoproj/argo-cd/master/util/argo/normalizers/diffing_known_types.txt)
+The list of supported Kubernetes types is available in [diffing_known_types.txt](https://raw.githubusercontent.com/argoproj/argo-cd/master/util/argo/normalizers/diffing_known_types.txt) and additionally:
+
+* `core/Quantity`
+* `meta/v1/duration`

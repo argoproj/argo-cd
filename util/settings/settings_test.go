@@ -121,25 +121,6 @@ func TestGetResourceFilter(t *testing.T) {
 	}, filter)
 }
 
-func TestGetConfigManagementPlugins(t *testing.T) {
-	data := map[string]string{
-		"configManagementPlugins": `
-      - name: kasane
-        init:
-          command: [kasane, update]
-        generate:
-          command: [kasane, show]`,
-	}
-	_, settingsManager := fixtures(data)
-	plugins, err := settingsManager.GetConfigManagementPlugins()
-	assert.NoError(t, err)
-	assert.ElementsMatch(t, []v1alpha1.ConfigManagementPlugin{{
-		Name:     "kasane",
-		Init:     &v1alpha1.Command{Command: []string{"kasane", "update"}},
-		Generate: v1alpha1.Command{Command: []string{"kasane", "show"}},
-	}}, plugins)
-}
-
 func TestInClusterServerAddressEnabled(t *testing.T) {
 	_, settingsManager := fixtures(map[string]string{
 		"cluster.inClusterEnabled": "true",
@@ -204,6 +185,22 @@ func TestGetServerRBACLogEnforceEnableKeyDefaultFalse(t *testing.T) {
 	assert.Equal(t, false, serverRBACLogEnforceEnable)
 }
 
+func TestGetIsIgnoreResourceUpdatesEnabled(t *testing.T) {
+	_, settingsManager := fixtures(map[string]string{
+		"resource.ignoreResourceUpdatesEnabled": "true",
+	})
+	ignoreResourceUpdatesEnabled, err := settingsManager.GetIsIgnoreResourceUpdatesEnabled()
+	assert.NoError(t, err)
+	assert.True(t, ignoreResourceUpdatesEnabled)
+}
+
+func TestGetIsIgnoreResourceUpdatesEnabledDefaultFalse(t *testing.T) {
+	_, settingsManager := fixtures(nil)
+	ignoreResourceUpdatesEnabled, err := settingsManager.GetIsIgnoreResourceUpdatesEnabled()
+	assert.NoError(t, err)
+	assert.False(t, ignoreResourceUpdatesEnabled)
+}
+
 func TestGetServerRBACLogEnforceEnableKey(t *testing.T) {
 	_, settingsManager := fixtures(map[string]string{
 		"server.rbac.log.enforce.enable": "true",
@@ -229,7 +226,12 @@ func TestGetResourceOverrides(t *testing.T) {
         jsonPointers:
         - /webhooks/0/clientConfig/caBundle
         jqPathExpressions:
-        - .webhooks[0].clientConfig.caBundle`,
+        - .webhooks[0].clientConfig.caBundle
+      ignoreResourceUpdates: |
+        jsonPointers:
+        - /webhooks/1/clientConfig/caBundle
+        jqPathExpressions:
+        - .webhooks[1].clientConfig.caBundle`,
 	})
 	overrides, err := settingsManager.GetResourceOverrides()
 	assert.NoError(t, err)
@@ -241,6 +243,10 @@ func TestGetResourceOverrides(t *testing.T) {
 		IgnoreDifferences: v1alpha1.OverrideIgnoreDiff{
 			JSONPointers:      []string{"/webhooks/0/clientConfig/caBundle"},
 			JQPathExpressions: []string{".webhooks[0].clientConfig.caBundle"},
+		},
+		IgnoreResourceUpdates: v1alpha1.OverrideIgnoreDiff{
+			JSONPointers:      []string{"/webhooks/1/clientConfig/caBundle"},
+			JQPathExpressions: []string{".webhooks[1].clientConfig.caBundle"},
 		},
 	}, webHookOverrides)
 
@@ -308,6 +314,24 @@ func TestGetResourceOverrides(t *testing.T) {
 
 }
 
+func TestGetResourceOverridesHealthWithWildcard(t *testing.T) {
+	data := map[string]string{
+		"resource.customizations": `
+    "*.aws.crossplane.io/*":
+      health.lua: |
+        foo`,
+	}
+
+	t.Run("TestResourceHealthOverrideWithWildcard", func(t *testing.T) {
+		_, settingsManager := fixtures(data)
+
+		overrides, err := settingsManager.GetResourceOverrides()
+		assert.NoError(t, err)
+		assert.Equal(t, 2, len(overrides))
+		assert.Equal(t, "foo", overrides["*.aws.crossplane.io/*"].HealthLua)
+	})
+}
+
 func TestSettingsManager_GetResourceOverrides_with_empty_string(t *testing.T) {
 	_, settingsManager := fixtures(map[string]string{
 		resourceCustomizationsKey: "",
@@ -323,6 +347,9 @@ func TestGetResourceOverrides_with_splitted_keys(t *testing.T) {
 		"resource.customizations": `
     admissionregistration.k8s.io/MutatingWebhookConfiguration:
       ignoreDifferences: |
+        jsonPointers:
+        - foo
+      ignoreResourceUpdates: |
         jsonPointers:
         - foo
     certmanager.k8s.io/Certificate:
@@ -347,6 +374,8 @@ func TestGetResourceOverrides_with_splitted_keys(t *testing.T) {
 		assert.Equal(t, 2, len(overrides[crdGK].IgnoreDifferences.JSONPointers))
 		assert.Equal(t, 1, len(overrides["admissionregistration.k8s.io/MutatingWebhookConfiguration"].IgnoreDifferences.JSONPointers))
 		assert.Equal(t, "foo", overrides["admissionregistration.k8s.io/MutatingWebhookConfiguration"].IgnoreDifferences.JSONPointers[0])
+		assert.Equal(t, 1, len(overrides["admissionregistration.k8s.io/MutatingWebhookConfiguration"].IgnoreResourceUpdates.JSONPointers))
+		assert.Equal(t, "foo", overrides["admissionregistration.k8s.io/MutatingWebhookConfiguration"].IgnoreResourceUpdates.JSONPointers[0])
 		assert.Equal(t, "foo\n", overrides["certmanager.k8s.io/Certificate"].HealthLua)
 		assert.Equal(t, true, overrides["certmanager.k8s.io/Certificate"].UseOpenLibs)
 		assert.Equal(t, "foo\n", overrides["cert-manager.io/Certificate"].HealthLua)
@@ -358,6 +387,8 @@ func TestGetResourceOverrides_with_splitted_keys(t *testing.T) {
 		newData := map[string]string{
 			"resource.customizations.health.admissionregistration.k8s.io_MutatingWebhookConfiguration": "bar",
 			"resource.customizations.ignoreDifferences.admissionregistration.k8s.io_MutatingWebhookConfiguration": `jsonPointers:
+        - bar`,
+			"resource.customizations.ignoreResourceUpdates.admissionregistration.k8s.io_MutatingWebhookConfiguration": `jsonPointers:
         - bar`,
 			"resource.customizations.knownTypeFields.admissionregistration.k8s.io_MutatingWebhookConfiguration": `
 - field: foo
@@ -374,9 +405,13 @@ func TestGetResourceOverrides_with_splitted_keys(t *testing.T) {
         - bar`,
 			"resource.customizations.ignoreDifferences.apps_Deployment": `jqPathExpressions:
         - bar`,
-			"resource.customizations.ignoreDifferences.all": `managedFieldsManagers: 
+			"resource.customizations.ignoreDifferences.all": `managedFieldsManagers:
         - kube-controller-manager
         - argo-rollouts`,
+			"resource.customizations.ignoreResourceUpdates.iam-manager.k8s.io_Iamrole": `jsonPointers:
+        - bar`,
+			"resource.customizations.ignoreResourceUpdates.apps_Deployment": `jqPathExpressions:
+        - bar`,
 		}
 		crdGK := "apiextensions.k8s.io/CustomResourceDefinition"
 
@@ -390,6 +425,8 @@ func TestGetResourceOverrides_with_splitted_keys(t *testing.T) {
 		assert.Equal(t, "/spec/preserveUnknownFields", overrides[crdGK].IgnoreDifferences.JSONPointers[1])
 		assert.Equal(t, 1, len(overrides["admissionregistration.k8s.io/MutatingWebhookConfiguration"].IgnoreDifferences.JSONPointers))
 		assert.Equal(t, "bar", overrides["admissionregistration.k8s.io/MutatingWebhookConfiguration"].IgnoreDifferences.JSONPointers[0])
+		assert.Equal(t, 1, len(overrides["admissionregistration.k8s.io/MutatingWebhookConfiguration"].IgnoreResourceUpdates.JSONPointers))
+		assert.Equal(t, "bar", overrides["admissionregistration.k8s.io/MutatingWebhookConfiguration"].IgnoreResourceUpdates.JSONPointers[0])
 		assert.Equal(t, 1, len(overrides["admissionregistration.k8s.io/MutatingWebhookConfiguration"].KnownTypeFields))
 		assert.Equal(t, "bar", overrides["admissionregistration.k8s.io/MutatingWebhookConfiguration"].KnownTypeFields[0].Type)
 		assert.Equal(t, "bar", overrides["admissionregistration.k8s.io/MutatingWebhookConfiguration"].HealthLua)
@@ -407,6 +444,9 @@ func TestGetResourceOverrides_with_splitted_keys(t *testing.T) {
 		assert.Equal(t, 2, len(overrides["*/*"].IgnoreDifferences.ManagedFieldsManagers))
 		assert.Equal(t, "kube-controller-manager", overrides["*/*"].IgnoreDifferences.ManagedFieldsManagers[0])
 		assert.Equal(t, "argo-rollouts", overrides["*/*"].IgnoreDifferences.ManagedFieldsManagers[1])
+		assert.Equal(t, 1, len(overrides["iam-manager.k8s.io/Iamrole"].IgnoreResourceUpdates.JSONPointers))
+		assert.Equal(t, 1, len(overrides["apps/Deployment"].IgnoreResourceUpdates.JQPathExpressions))
+		assert.Equal(t, "bar", overrides["apps/Deployment"].IgnoreResourceUpdates.JQPathExpressions[0])
 	})
 
 	t.Run("SplitKeysCompareOptionsAll", func(t *testing.T) {
@@ -452,6 +492,64 @@ func mergemaps(mapA map[string]string, mapB map[string]string) map[string]string
 	return mapB
 }
 
+func TestGetIgnoreResourceUpdatesOverrides(t *testing.T) {
+	allDefault := v1alpha1.ResourceOverride{IgnoreDifferences: v1alpha1.OverrideIgnoreDiff{
+		JSONPointers: []string{"/metadata/resourceVersion", "/metadata/generation", "/metadata/managedFields"},
+	}}
+	allGK := "*/*"
+
+	testCustomizations := map[string]string{
+		"resource.customizations": `
+    admissionregistration.k8s.io/MutatingWebhookConfiguration:
+      ignoreDifferences: |
+        jsonPointers:
+        - /webhooks/0/clientConfig/caBundle
+        jqPathExpressions:
+        - .webhooks[0].clientConfig.caBundle
+      ignoreResourceUpdates: |
+        jsonPointers:
+        - /webhooks/1/clientConfig/caBundle
+        jqPathExpressions:
+        - .webhooks[1].clientConfig.caBundle`,
+	}
+
+	_, settingsManager := fixtures(testCustomizations)
+	overrides, err := settingsManager.GetIgnoreResourceUpdatesOverrides()
+	assert.NoError(t, err)
+
+	// default overrides should always be present
+	allOverrides := overrides[allGK]
+	assert.NotNil(t, allOverrides)
+	assert.Equal(t, allDefault, allOverrides)
+
+	// without ignoreDifferencesOnResourceUpdates, only ignoreResourceUpdates should be added
+	assert.NotNil(t, overrides["admissionregistration.k8s.io/MutatingWebhookConfiguration"])
+	assert.Equal(t, v1alpha1.ResourceOverride{
+		IgnoreDifferences: v1alpha1.OverrideIgnoreDiff{
+			JSONPointers:      []string{"/webhooks/1/clientConfig/caBundle"},
+			JQPathExpressions: []string{".webhooks[1].clientConfig.caBundle"},
+		},
+		IgnoreResourceUpdates: v1alpha1.OverrideIgnoreDiff{},
+	}, overrides["admissionregistration.k8s.io/MutatingWebhookConfiguration"])
+
+	// with ignoreDifferencesOnResourceUpdates, ignoreDifferences should be added
+	_, settingsManager = fixtures(mergemaps(testCustomizations, map[string]string{
+		"resource.compareoptions": `
+    ignoreDifferencesOnResourceUpdates: true`,
+	}))
+	overrides, err = settingsManager.GetIgnoreResourceUpdatesOverrides()
+	assert.NoError(t, err)
+
+	assert.NotNil(t, overrides["admissionregistration.k8s.io/MutatingWebhookConfiguration"])
+	assert.Equal(t, v1alpha1.ResourceOverride{
+		IgnoreDifferences: v1alpha1.OverrideIgnoreDiff{
+			JSONPointers:      []string{"/webhooks/1/clientConfig/caBundle", "/webhooks/0/clientConfig/caBundle"},
+			JQPathExpressions: []string{".webhooks[1].clientConfig.caBundle", ".webhooks[0].clientConfig.caBundle"},
+		},
+		IgnoreResourceUpdates: v1alpha1.OverrideIgnoreDiff{},
+	}, overrides["admissionregistration.k8s.io/MutatingWebhookConfiguration"])
+}
+
 func TestConvertToOverrideKey(t *testing.T) {
 	key, err := convertToOverrideKey("cert-manager.io_Certificate")
 	assert.NoError(t, err)
@@ -489,6 +587,26 @@ func TestGetResourceCompareOptions(t *testing.T) {
 		assert.False(t, compareOptions.IgnoreAggregatedRoles)
 	}
 
+	// ignoreDifferencesOnResourceUpdates is true
+	{
+		_, settingsManager := fixtures(map[string]string{
+			"resource.compareoptions": "ignoreDifferencesOnResourceUpdates: true",
+		})
+		compareOptions, err := settingsManager.GetResourceCompareOptions()
+		assert.NoError(t, err)
+		assert.True(t, compareOptions.IgnoreDifferencesOnResourceUpdates)
+	}
+
+	// ignoreDifferencesOnResourceUpdates is false
+	{
+		_, settingsManager := fixtures(map[string]string{
+			"resource.compareoptions": "ignoreDifferencesOnResourceUpdates: false",
+		})
+		compareOptions, err := settingsManager.GetResourceCompareOptions()
+		assert.NoError(t, err)
+		assert.False(t, compareOptions.IgnoreDifferencesOnResourceUpdates)
+	}
+
 	// The empty resource.compareoptions should result in default being returned
 	{
 		_, settingsManager := fixtures(map[string]string{
@@ -498,6 +616,7 @@ func TestGetResourceCompareOptions(t *testing.T) {
 		defaultOptions := GetDefaultDiffOptions()
 		assert.NoError(t, err)
 		assert.Equal(t, defaultOptions.IgnoreAggregatedRoles, compareOptions.IgnoreAggregatedRoles)
+		assert.Equal(t, defaultOptions.IgnoreDifferencesOnResourceUpdates, compareOptions.IgnoreDifferencesOnResourceUpdates)
 	}
 
 	// resource.compareoptions not defined - should result in default being returned
@@ -507,6 +626,7 @@ func TestGetResourceCompareOptions(t *testing.T) {
 		defaultOptions := GetDefaultDiffOptions()
 		assert.NoError(t, err)
 		assert.Equal(t, defaultOptions.IgnoreAggregatedRoles, compareOptions.IgnoreAggregatedRoles)
+		assert.Equal(t, defaultOptions.IgnoreDifferencesOnResourceUpdates, compareOptions.IgnoreDifferencesOnResourceUpdates)
 	}
 }
 
@@ -576,7 +696,7 @@ func TestSettingsManager_GetKustomizeBuildOptions(t *testing.T) {
 		})
 
 		got, err := settingsManager.GetKustomizeSettings()
-		assert.EqualError(t, err, "found duplicate kustomize version: v3.2.1")
+		assert.ErrorContains(t, err, "found duplicate kustomize version: v3.2.1")
 		assert.Empty(t, got)
 	})
 
@@ -1121,7 +1241,7 @@ func TestDownloadArgoCDBinaryUrls(t *testing.T) {
 func TestSecretKeyRef(t *testing.T) {
 	data := map[string]string{
 		"oidc.config": `name: Okta
-issuer: https://dev-123456.oktapreview.com
+issuer: $acme:issuerSecret
 clientID: aaaabbbbccccddddeee
 clientSecret: $acme:clientSecret
 # Optional set of OIDC scopes to request. If omitted, defaults to: ["openid", "profile", "email", "groups"]
@@ -1158,6 +1278,7 @@ requestedIDTokenClaims: {"groups": {"essential": true}}`,
 			},
 		},
 		Data: map[string][]byte{
+			"issuerSecret": []byte("https://dev-123456.oktapreview.com"),
 			"clientSecret": []byte("deadbeef"),
 		},
 	}
@@ -1168,6 +1289,7 @@ requestedIDTokenClaims: {"groups": {"essential": true}}`,
 	assert.NoError(t, err)
 
 	oidcConfig := settings.OIDCConfig()
+	assert.Equal(t, oidcConfig.Issuer, "https://dev-123456.oktapreview.com")
 	assert.Equal(t, oidcConfig.ClientSecret, "deadbeef")
 }
 
@@ -1425,4 +1547,19 @@ allowedAudiences: ["aud1", "aud2"]`},
 			assert.ElementsMatch(t, tcc.expected, tcc.settings.OAuth2AllowedAudiences())
 		})
 	}
+}
+
+func TestReplaceStringSecret(t *testing.T) {
+	secretValues := map[string]string{"my-secret-key": "my-secret-value"}
+	result := ReplaceStringSecret("$my-secret-key", secretValues)
+	assert.Equal(t, "my-secret-value", result)
+
+	result = ReplaceStringSecret("$invalid-secret-key", secretValues)
+	assert.Equal(t, "$invalid-secret-key", result)
+
+	result = ReplaceStringSecret("", secretValues)
+	assert.Equal(t, "", result)
+
+	result = ReplaceStringSecret("my-value", secretValues)
+	assert.Equal(t, "my-value", result)
 }

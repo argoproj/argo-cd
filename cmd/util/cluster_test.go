@@ -5,7 +5,13 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/rest"
+	clientcmdapiv1 "k8s.io/client-go/tools/clientcmd/api/v1"
+	"sigs.k8s.io/yaml"
 
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 )
@@ -68,4 +74,110 @@ func Test_newCluster(t *testing.T) {
 	assert.Equal(t, "test-bearer-token", clusterWithBearerToken.Config.BearerToken)
 	assert.Nil(t, clusterWithBearerToken.Labels)
 	assert.Nil(t, clusterWithBearerToken.Annotations)
+}
+
+func TestGetKubePublicEndpoint(t *testing.T) {
+	cases := []struct {
+		name             string
+		clusterInfo      *corev1.ConfigMap
+		expectedEndpoint string
+		expectError      bool
+	}{
+		{
+			name: "has public endpoint",
+			clusterInfo: &corev1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: "kube-public",
+					Name:      "cluster-info",
+				},
+				Data: map[string]string{
+					"kubeconfig": kubeconfigFixture("https://test-cluster:6443"),
+				},
+			},
+			expectedEndpoint: "https://test-cluster:6443",
+		},
+		{
+			name:        "no cluster-info",
+			expectError: true,
+		},
+		{
+			name: "no kubeconfig in cluster-info",
+			clusterInfo: &corev1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: "kube-public",
+					Name:      "cluster-info",
+				},
+				Data: map[string]string{
+					"argo": "the project, not the movie",
+				},
+			},
+			expectError: true,
+		},
+		{
+			name: "no clusters in cluster-info kubeconfig",
+			clusterInfo: &corev1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: "kube-public",
+					Name:      "cluster-info",
+				},
+				Data: map[string]string{
+					"kubeconfig": kubeconfigFixture(""),
+				},
+			},
+			expectError: true,
+		},
+		{
+			name: "can't parse kubeconfig",
+			clusterInfo: &corev1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: "kube-public",
+					Name:      "cluster-info",
+				},
+				Data: map[string]string{
+					"kubeconfig": "this is not valid YAML",
+				},
+			},
+			expectError: true,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			objects := []runtime.Object{}
+			if tc.clusterInfo != nil {
+				objects = append(objects, tc.clusterInfo)
+			}
+			clientset := fake.NewSimpleClientset(objects...)
+			endpoint, err := GetKubePublicEndpoint(clientset)
+			if err != nil && !tc.expectError {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if err == nil && tc.expectError {
+				t.Error("expected error to be returned, received none")
+			}
+			if endpoint != tc.expectedEndpoint {
+				t.Errorf("expected endpoint %s, got %s", tc.expectedEndpoint, endpoint)
+			}
+		})
+	}
+
+}
+
+func kubeconfigFixture(endpoint string) string {
+	kubeconfig := &clientcmdapiv1.Config{}
+	if len(endpoint) > 0 {
+		kubeconfig.Clusters = []clientcmdapiv1.NamedCluster{
+			{
+				Name: "test-kube",
+				Cluster: clientcmdapiv1.Cluster{
+					Server: endpoint,
+				},
+			},
+		}
+	}
+	configYAML, err := yaml.Marshal(kubeconfig)
+	if err != nil {
+		return ""
+	}
+	return string(configYAML)
 }

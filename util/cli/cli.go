@@ -52,6 +52,9 @@ func NewVersionCmd(cliName string) *cobra.Command {
 			fmt.Printf("  GoVersion: %s\n", version.GoVersion)
 			fmt.Printf("  Compiler: %s\n", version.Compiler)
 			fmt.Printf("  Platform: %s\n", version.Platform)
+			if version.ExtraBuildInfo != "" {
+				fmt.Printf("  ExtraBuildInfo: %s\n", version.ExtraBuildInfo)
+			}
 		},
 	}
 	versionCmd.Flags().BoolVar(&short, "short", false, "print just the version number")

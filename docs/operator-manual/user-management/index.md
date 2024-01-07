@@ -3,7 +3,7 @@
 Once installed Argo CD has one built-in `admin` user that has full access to the system. It is recommended to use `admin` user only
 for initial configuration and then switch to local users or configure SSO integration.
 
-## Local users/accounts (v1.5)
+## Local users/accounts
 
 The local users/accounts feature serves two main use-cases:
 
@@ -43,6 +43,24 @@ Each user might have two capabilities:
 
 * apiKey - allows generating authentication tokens for API access
 * login - allows to login using UI
+
+### Delete user
+
+In order to delete a user, you must remove the corresponding entry defined in the `argocd-cm` ConfigMap:
+
+Example:
+
+```bash
+kubectl patch -n argocd cm argocd-cm --type='json' -p='[{"op": "remove", "path": "/data/accounts.alice"}]'
+```
+
+It is recommended to also remove the password entry in the `argocd-secret` Secret:
+
+Example:
+
+```bash
+kubectl patch -n argocd secrets argocd-secret --type='json' -p='[{"op": "remove", "path": "/data/accounts.alice.password"}]'
+```
 
 ### Disable admin user
 
@@ -183,7 +201,7 @@ data:
         id: acme-github
         name: Acme GitHub
         config:
-          hostName: github.acme.com
+          hostName: github.acme.example.com
           clientID: abcdefghijklmnopqrst
           clientSecret: $dex.acme.clientSecret  # Alternatively $<some_K8S_secret>:dex.acme.clientSecret
           orgs:
@@ -224,7 +242,7 @@ data:
         id: oidc
         name: OIDC
         config:
-          issuer: https://example-OIDC-provider.com
+          issuer: https://example-OIDC-provider.example.com
           clientID: aaaabbbbccccddddeee
           clientSecret: $dex.oidc.clientSecret
 ```
@@ -246,7 +264,7 @@ data:
         id: oidc
         name: OIDC
         config:
-          issuer: https://example-OIDC-provider.com
+          issuer: https://example-OIDC-provider.example.com
           clientID: aaaabbbbccccddddeee
           clientSecret: $dex.oidc.clientSecret
           insecureEnableGroups: true
@@ -276,7 +294,7 @@ data:
         id: oidc
         name: OIDC
         config:
-          issuer: https://example-OIDC-provider.com
+          issuer: https://example-OIDC-provider.example.com
           clientID: aaaabbbbccccddddeee
           clientSecret: $dex.oidc.clientSecret
           insecureEnableGroups: true
@@ -303,7 +321,7 @@ data:
     clientSecret: $oidc.okta.clientSecret
     
     # Optional list of allowed aud claims. If omitted or empty, defaults to the clientID value above (and the 
-    # cliCientID, if that is also specified). If you specify a list and want the clientID to be allowed, you must 
+    # cliClientID, if that is also specified). If you specify a list and want the clientID to be allowed, you must 
     # explicitly include it in the list.
     # Token verification will pass if any of the token's audiences matches any of the audiences in this list.
     allowedAudiences:
@@ -326,6 +344,12 @@ data:
     # for the 'localhost' (CLI) client to Dex. This field is optional. If omitted, the CLI will
     # use the same clientID as the Argo CD server
     cliClientID: vvvvwwwwxxxxyyyyzzzz
+
+    # PKCE authentication flow processes authorization flow from browser only - default false
+    # uses the clientID
+    # make sure the Identity Provider (IdP) is public and doesn't need clientSecret
+    # make sure the Identity Provider (IdP) has this redirect URI registered: https://argocd.example.com/pkce/verify
+    enablePKCEAuthentication: true
 ```
 
 !!! note
@@ -363,6 +387,20 @@ For a simple case this can be:
   oidc.config: |
     requestedIDTokenClaims: {"groups": {"essential": true}}
 ```
+
+### Retrieving group claims when not in the token
+
+Some OIDC providers don't return the group information for a user in the ID token, even if explicitly requested using the `requestedIDTokenClaims` setting (Okta for example). They instead provide the groups on the user info endpoint. With the following config, Argo CD queries the user info endpoint during login for groups information of a user:
+
+```yaml
+oidc.config: |
+    enableUserInfoGroups: true
+    userInfoPath: /userinfo
+    userInfoCacheExpiration: "5m"
+```
+
+**Note: If you omit the `userInfoCacheExpiration` setting or if it's greater than the expiration of the ID token, the argocd-server will cache group information as long as the ID token is valid!**
+
 ### Configuring a custom logout URL for your OIDC provider
 
 Optionally, if your OIDC provider exposes a logout API and you wish to configure a custom logout URL for the purposes of invalidating 
@@ -371,18 +409,18 @@ any active session post logout, you can do so by specifying it as follows:
 ```yaml
   oidc.config: |
     name: example-OIDC-provider
-    issuer: https://example-OIDC-provider.com
+    issuer: https://example-OIDC-provider.example.com
     clientID: xxxxxxxxx
     clientSecret: xxxxxxxxx
     requestedScopes: ["openid", "profile", "email", "groups"]
     requestedIDTokenClaims: {"groups": {"essential": true}}
-    logoutURL: https://example-OIDC-provider.com/logout?id_token_hint={{token}}
+    logoutURL: https://example-OIDC-provider.example.com/logout?id_token_hint={{token}}
 ```
 By default, this would take the user to their OIDC provider's login page after logout. If you also wish to redirect the user back to Argo CD after logout, you can specify the logout URL as follows:
 
 ```yaml
 ...
-    logoutURL: https://example-OIDC-provider.com/logout?id_token_hint={{token}}&post_logout_redirect_uri={{logoutRedirectURL}}
+    logoutURL: https://example-OIDC-provider.example.com/logout?id_token_hint={{token}}&post_logout_redirect_uri={{logoutRedirectURL}}
 ```
 
 You are not required to specify a logoutRedirectURL as this is automatically generated by ArgoCD as your base ArgoCD url + Rootpath
@@ -418,7 +456,7 @@ Add a `rootCA` to your `oidc.config` which contains the PEM encoded root certifi
 
 #### Example
 
-SSO `clientSecret` can thus be stored as a kubernetes secret with the following manifests
+SSO `clientSecret` can thus be stored as a Kubernetes secret with the following manifests
 
 `argocd-secret`:
 ```yaml
