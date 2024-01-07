@@ -662,9 +662,9 @@ metadata:
     networking.gke.io/v1beta1.FrontendConfig: argocd-frontend-config
 spec:
   tls:
-    - secretName: secret-yourdomain-com
+    - secretName: secret-example-com
   rules:
-    - host: argocd.yourdomain.com
+    - host: argocd.example.com
       http:
         paths:
         - pathType: ImplementationSpecific
@@ -687,9 +687,9 @@ metadata:
     networking.gke.io/v1beta1.FrontendConfig: argocd-frontend-config
 spec:
   tls:
-    - secretName: secret-yourdomain-com
+    - secretName: secret-example-com
   rules:
-    - host: argocd.yourdomain.com
+    - host: argocd.example.com
       http:
         paths:
         - pathType: Prefix
@@ -701,7 +701,7 @@ spec:
                 number: 80
 ```
 
-As you may know already, it can take some minutes to deploy the load balancer and become ready to accept connections. Once it's ready, get the public IP address for your Load Balancer, go to your DNS server (Google or third party) and point your domain or subdomain (i.e. argocd.yourdomain.com) to that IP address.
+As you may know already, it can take some minutes to deploy the load balancer and become ready to accept connections. Once it's ready, get the public IP address for your Load Balancer, go to your DNS server (Google or third party) and point your domain or subdomain (i.e. argocd.example.com) to that IP address.
 
 You can get that IP address describing the Ingress object like this:
 
