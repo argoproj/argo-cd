@@ -106,9 +106,10 @@ func populateServiceInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 }
 
 func populateReplicaSetInfo(un *unstructured.Unstructured, res *ResourceInfo) {
-	replicas, ok, err := unstructured.NestedInt64(un.Object, "spec", "replicas")
+	// due to https://github.com/kubernetes-sigs/yaml/issues/45, replicas is parsed as a float
+	replicas, ok, err := unstructured.NestedFloat64(un.Object, "spec", "replicas")
 	if err == nil && ok {
-		res.Info = append(res.Info, v1alpha1.InfoItem{Name: "Replicas", Value: fmt.Sprintf("Replicas:%d", replicas)})
+		res.Info = append(res.Info, v1alpha1.InfoItem{Name: "Replicas", Value: fmt.Sprintf("Replicas:%d", int(replicas))})
 	}
 }
 
