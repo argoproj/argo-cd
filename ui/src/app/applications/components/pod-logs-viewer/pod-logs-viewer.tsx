@@ -143,7 +143,7 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
         // show the pod name if there are multiple pods, pad with spaces to align
         (viewPodNames ? (lineNum === 0 || logs[lineNum - 1].podName !== log.podName ? podColor(podName) + log.podName + reset : ' '.repeat(log.podName.length)) + ' ' : '') +
         // show the timestamp if requested, pad with spaces to align
-        (viewTimestamps ? (lineNum === 0 || (logs[lineNum - 1].timeStamp !== log.timeStamp ? log.timeStampStr : '').padEnd(30)) + ' ' : '') +
+        (viewTimestamps ? (((lineNum === 0 || logs[lineNum - 1].timeStamp !== log.timeStamp) ? (log.timeStampStr) : '').padEnd(31)) : '') +
         // show the log content, highlight the filter text
         log.content?.replace(highlight, (substring: string) => whiteOnYellow + substring + reset);
     const logsContent = (width: number, height: number, isWrapped: boolean) => (
