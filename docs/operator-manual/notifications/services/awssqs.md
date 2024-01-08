@@ -4,7 +4,7 @@
 
 This notification service is capable of sending simple messages to AWS SQS queue. 
 
-* `queue` - name of the queue you are intending to send messages to. Can be overwritten with target destination annotation.
+* `queue` - name of the queue you are intending to send messages to. Can be overridden with target destination annotation.
 * `region` - region of the sqs queue can be provided via env variable AWS_DEFAULT_REGION
 * `key` - optional, aws access key must be either referenced from a secret via variable or via env variable AWS_ACCESS_KEY_ID
 * `secret` - optional, aws access secret must be either referenced from a secret via variable or via env variable AWS_SECRET_ACCESS_KEY

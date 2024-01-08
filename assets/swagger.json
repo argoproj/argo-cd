@@ -6143,6 +6143,9 @@
         },
         "template": {
           "$ref": "#/definitions/v1alpha1ApplicationSetTemplate"
+        },
+        "templatePatch": {
+          "type": "string"
         }
       }
     },
@@ -6392,6 +6395,13 @@
           "type": "object",
           "title": "CommonLabels is a list of additional labels to add to rendered manifests",
           "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "components": {
+          "type": "array",
+          "title": "Components specifies a list of kustomize components to add to the kustomization before building",
+          "items": {
             "type": "string"
           }
         },
@@ -8488,6 +8498,9 @@
           "type": "integer",
           "format": "int64",
           "title": "ID is an auto incrementing identifier of the RevisionHistory"
+        },
+        "initiatedBy": {
+          "$ref": "#/definitions/v1alpha1OperationInitiator"
         },
         "revision": {
           "type": "string",
