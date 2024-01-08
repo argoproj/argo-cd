@@ -63,7 +63,7 @@ stringData:
 
 ### Minimal configuration using AWS Env variables
 
-Ensure the following list of environment variables is injected via OIDC, or other method. And assuming SQS is local to the account.
+Ensure the following list of environment variables are injected via OIDC, or another method. And assuming SQS is local to the account.
 You may skip usage of secret for sensitive data and omit other parameters. (Setting parameters via ConfigMap takes precedent.)
 
 Variables:
