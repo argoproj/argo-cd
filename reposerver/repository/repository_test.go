@@ -529,7 +529,7 @@ func TestHelmChartReferencingExternalValues_InvalidRefs(t *testing.T) {
 	}, nil)
 
 	// Empty refsource
-	service := newService(".")
+	service := newService(t, ".")
 
 	refSources, err := argo.GetRefSources(context.Background(), spec, repoDB)
 	require.NoError(t, err)
@@ -541,7 +541,7 @@ func TestHelmChartReferencingExternalValues_InvalidRefs(t *testing.T) {
 	assert.Nil(t, response)
 
 	// Invalid ref
-	service = newService(".")
+	service = newService(t, ".")
 
 	spec.Sources[1].Ref = "Invalid"
 	refSources, err = argo.GetRefSources(context.Background(), spec, repoDB)
@@ -554,7 +554,7 @@ func TestHelmChartReferencingExternalValues_InvalidRefs(t *testing.T) {
 	assert.Nil(t, response)
 
 	// Helm chart as ref (unsupported)
-	service = newService(".")
+	service = newService(t, ".")
 
 	spec.Sources[1].Ref = "ref"
 	spec.Sources[1].Chart = "helm-chart"
@@ -3427,7 +3427,7 @@ func TestErrorUpdateRevisionForPaths(t *testing.T) {
 		want    *apiclient.UpdateRevisionForPathsResponse
 		wantErr assert.ErrorAssertionFunc
 	}{
-		{name: "InvalidRepo", fields: fields{service: newService(".")}, args: args{
+		{name: "InvalidRepo", fields: fields{service: newService(t, ".")}, args: args{
 			ctx: context.TODO(),
 			request: &apiclient.UpdateRevisionForPathsRequest{
 				Repo:           nil,
@@ -3436,7 +3436,7 @@ func TestErrorUpdateRevisionForPaths(t *testing.T) {
 			},
 		}, want: nil, wantErr: assert.Error},
 		{name: "InvalidResolveRevision", fields: fields{service: func() *Service {
-			s, _ := newServiceWithOpt(func(gitClient *gitmocks.Client, helmClient *helmmocks.Client, paths *iomocks.TempPaths) {
+			s, _, _ := newServiceWithOpt(t, func(gitClient *gitmocks.Client, helmClient *helmmocks.Client, paths *iomocks.TempPaths) {
 				gitClient.On("Checkout", mock.Anything, mock.Anything).Return(nil)
 				gitClient.On("LsRemote", mock.Anything).Return("", fmt.Errorf("ah error"))
 				paths.On("GetPath", mock.Anything).Return(".", nil)
@@ -3453,7 +3453,7 @@ func TestErrorUpdateRevisionForPaths(t *testing.T) {
 			},
 		}, want: nil, wantErr: assert.Error},
 		{name: "InvalidResolveSyncedRevision", fields: fields{service: func() *Service {
-			s, _ := newServiceWithOpt(func(gitClient *gitmocks.Client, helmClient *helmmocks.Client, paths *iomocks.TempPaths) {
+			s, _, _ := newServiceWithOpt(t, func(gitClient *gitmocks.Client, helmClient *helmmocks.Client, paths *iomocks.TempPaths) {
 				gitClient.On("Checkout", mock.Anything, mock.Anything).Return(nil)
 				gitClient.On("LsRemote", "HEAD").Once().Return("632039659e542ed7de0c170a4fcc1c571b288fc0", nil)
 				gitClient.On("LsRemote", mock.Anything).Return("", fmt.Errorf("ah error"))
@@ -3505,7 +3505,7 @@ func TestUpdateRevisionForPaths(t *testing.T) {
 		cacheHit *cacheHit
 	}{
 		{name: "NoPathAbort", fields: fields{service: func() *Service {
-			s, _ := newServiceWithOpt(func(gitClient *gitmocks.Client, helmClient *helmmocks.Client, paths *iomocks.TempPaths) {
+			s, _, _ := newServiceWithOpt(t, func(gitClient *gitmocks.Client, helmClient *helmmocks.Client, paths *iomocks.TempPaths) {
 				gitClient.On("Checkout", mock.Anything, mock.Anything).Return(nil)
 			}, ".")
 			return s
@@ -3517,7 +3517,7 @@ func TestUpdateRevisionForPaths(t *testing.T) {
 			},
 		}, want: &apiclient.UpdateRevisionForPathsResponse{}, wantErr: assert.NoError},
 		{name: "SameResolvedRevisionAbort", fields: fields{service: func() *Service {
-			s, _ := newServiceWithOpt(func(gitClient *gitmocks.Client, helmClient *helmmocks.Client, paths *iomocks.TempPaths) {
+			s, _, _ := newServiceWithOpt(t, func(gitClient *gitmocks.Client, helmClient *helmmocks.Client, paths *iomocks.TempPaths) {
 				gitClient.On("Checkout", mock.Anything, mock.Anything).Return(nil)
 				gitClient.On("LsRemote", "HEAD").Once().Return("632039659e542ed7de0c170a4fcc1c571b288fc0", nil)
 				gitClient.On("LsRemote", "SYNCEDHEAD").Once().Return("632039659e542ed7de0c170a4fcc1c571b288fc0", nil)
@@ -3535,7 +3535,7 @@ func TestUpdateRevisionForPaths(t *testing.T) {
 			},
 		}, want: &apiclient.UpdateRevisionForPathsResponse{}, wantErr: assert.NoError},
 		{name: "ChangedFilesDoNothing", fields: fields{service: func() *Service {
-			s, _ := newServiceWithOpt(func(gitClient *gitmocks.Client, helmClient *helmmocks.Client, paths *iomocks.TempPaths) {
+			s, _, _ := newServiceWithOpt(t, func(gitClient *gitmocks.Client, helmClient *helmmocks.Client, paths *iomocks.TempPaths) {
 				gitClient.On("Init").Return(nil)
 				gitClient.On("Fetch", mock.Anything).Return(nil)
 				gitClient.On("Checkout", mock.Anything, mock.Anything).Return(nil)
@@ -3559,7 +3559,7 @@ func TestUpdateRevisionForPaths(t *testing.T) {
 			Changes: true,
 		}, wantErr: assert.NoError},
 		{name: "NoChangesUpdateCache", fields: fields{service: func() *Service {
-			s, _ := newServiceWithOpt(func(gitClient *gitmocks.Client, helmClient *helmmocks.Client, paths *iomocks.TempPaths) {
+			s, _, _ := newServiceWithOpt(t, func(gitClient *gitmocks.Client, helmClient *helmmocks.Client, paths *iomocks.TempPaths) {
 				gitClient.On("Init").Return(nil)
 				gitClient.On("Fetch", mock.Anything).Return(nil)
 				gitClient.On("Checkout", mock.Anything, mock.Anything).Return(nil)
@@ -3592,7 +3592,7 @@ func TestUpdateRevisionForPaths(t *testing.T) {
 			revision:         "632039659e542ed7de0c170a4fcc1c571b288fc0",
 		}},
 		{name: "NoChangesHelmMultiSourceUpdateCache", fields: fields{service: func() *Service {
-			s, _ := newServiceWithOpt(func(gitClient *gitmocks.Client, helmClient *helmmocks.Client, paths *iomocks.TempPaths) {
+			s, _, _ := newServiceWithOpt(t, func(gitClient *gitmocks.Client, helmClient *helmmocks.Client, paths *iomocks.TempPaths) {
 				gitClient.On("Init").Return(nil)
 				gitClient.On("Fetch", mock.Anything).Return(nil)
 				gitClient.On("Checkout", mock.Anything, mock.Anything).Return(nil)
