@@ -6714,12 +6714,19 @@ func schema_pkg_apis_application_v1alpha1_RevisionHistory(ref common.ReferenceCa
 							},
 						},
 					},
+					"initiatedBy": {
+						SchemaProps: spec.SchemaProps{
+							Description: "InitiatedBy contains information about who initiated the operations",
+							Default:     map[string]interface{}{},
+							Ref:         ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.OperationInitiator"),
+						},
+					},
 				},
 				Required: []string{"deployedAt", "id"},
 			},
 		},
 		Dependencies: []string{
-			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSource", "k8s.io/apimachinery/pkg/apis/meta/v1.Time"},
+			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSource", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.OperationInitiator", "k8s.io/apimachinery/pkg/apis/meta/v1.Time"},
 	}
 }
 

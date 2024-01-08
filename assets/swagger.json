@@ -8524,6 +8524,9 @@
           "format": "int64",
           "title": "ID is an auto incrementing identifier of the RevisionHistory"
         },
+        "initiatedBy": {
+          "$ref": "#/definitions/v1alpha1OperationInitiator"
+        },
         "revision": {
           "type": "string",
           "title": "Revision holds the revision the sync was performed against"
