@@ -1221,8 +1221,9 @@ spec:
             drop:
             - ALL
           runAsNonRoot: true
+          runAsUser: 1000
           seccompProfile:
-            type: RuntimeDefault
+            type: RuntimeDefault        
         env:
         - name: SENTINEL_ID_0
           value: 3c0d9c0320bb34888c2df5757c718ce6ca992ce6
@@ -1236,9 +1237,9 @@ spec:
           readOnly: true
         - name: data
           mountPath: /data
+
+
       containers:
-
-
       - name: redis
         image: redis:7.0.14-alpine
         imagePullPolicy: IfNotPresent
@@ -1252,6 +1253,7 @@ spec:
             drop:
             - ALL
           runAsNonRoot: true
+          runAsUser: 1000
           seccompProfile:
             type: RuntimeDefault
         livenessProbe:
@@ -1308,6 +1310,7 @@ spec:
             drop:
             - ALL
           runAsNonRoot: true
+          runAsUser: 1000
           seccompProfile:
             type: RuntimeDefault
         livenessProbe:
@@ -1358,8 +1361,9 @@ spec:
             drop:
             - ALL
           runAsNonRoot: true
+          runAsUser: 1000
           seccompProfile:
-            type: RuntimeDefault
+            type: RuntimeDefault        
         env:
         - name: SENTINEL_ID_0
           value: 3c0d9c0320bb34888c2df5757c718ce6ca992ce6
