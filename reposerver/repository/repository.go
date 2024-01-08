@@ -2677,7 +2677,8 @@ func (s *Service) UpdateRevisionForPaths(_ context.Context, request *apiclient.U
 		return &apiclient.UpdateRevisionForPathsResponse{}, nil
 	}
 
-	gitClient, revision, err := s.newClientResolveRevision(repo, revision, git.WithCache(s.cache, true))
+    gitClientOpts := git.WithCache(s.cache, true)
+	gitClient, revision, err := s.newClientResolveRevision(repo, revision, gitClientOpts)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "unable to resolve git revision %s: %v", revision, err)
 	}
@@ -2713,7 +2714,7 @@ func (s *Service) UpdateRevisionForPaths(_ context.Context, request *apiclient.U
 	if !changed {
 		log.Debugf("no changes found for application %s in repo %s from revision %s to revision %s", request.AppName, repo.Repo, syncedRevision, revision)
 
-		err := s.updateCachedRevision(syncedRevision, revision, request)
+		err := s.updateCachedRevision(syncedRevision, revision, request, gitClientOpts)
 		if err != nil {
 			// Only warn with the error, no need to block anything if there is a caching error.
 			log.Warnf("error updating cached revision for repo %s with revision %s: %v", repo.Repo, revision, err)
@@ -2727,11 +2728,11 @@ func (s *Service) UpdateRevisionForPaths(_ context.Context, request *apiclient.U
 	return &apiclient.UpdateRevisionForPathsResponse{Changes: true}, nil
 }
 
-func (s *Service) updateCachedRevision(oldRev, newRev string, request *apiclient.UpdateRevisionForPathsRequest) error {
+func (s *Service) updateCachedRevision(oldRev, newRev string, request *apiclient.UpdateRevisionForPathsRequest, gitClientOpts git.ClientOpts) error {
 	repoRefs := make(map[string]string)
 	if request.HasMultipleSources && request.ApplicationSource.Helm != nil {
 		var err error
-		repoRefs, err = resolveReferencedSources(true, request.ApplicationSource.Helm, request.RefSources, s.newClientResolveRevision)
+		repoRefs, err = resolveReferencedSources(true, request.ApplicationSource.Helm, request.RefSources, s.newClientResolveRevision, gitClientOpts)
 		if err != nil {
 			return fmt.Errorf("failed to get repo refs for application %s in repo %s from revision %s: %w", request.AppName, request.GetRepo().Repo, request.Revision, err)
 		}
