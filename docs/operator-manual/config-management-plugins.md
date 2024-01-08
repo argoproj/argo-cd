@@ -110,9 +110,9 @@ spec:
       # static parameter announcements list.
       command: [echo, '[{"name": "example-param", "string": "default-string-value"}]']
 
-    # If set to `true` then the plugin receives repository files with original file mode. Dangerous since the repository
-    # might have executable files. Set to true only if you trust the CMP plugin authors.
-    preserveFileMode: false
+  # If set to `true` then the plugin receives repository files with original file mode. Dangerous since the repository
+  # might have executable files. Set to true only if you trust the CMP plugin authors.
+  preserveFileMode: false
 ```
 
 !!! note

@@ -507,6 +507,17 @@ func resolveReferencedSources(hasMultipleSources bool, source *v1alpha1.Applicat
 func (s *Service) GenerateManifest(ctx context.Context, q *apiclient.ManifestRequest) (*apiclient.ManifestResponse, error) {
 	var res *apiclient.ManifestResponse
 	var err error
+
+	// Skip this path for ref only sources
+	if q.HasMultipleSources && q.ApplicationSource.Path == "" && q.ApplicationSource.Chart == "" && q.ApplicationSource.Ref != "" {
+		log.Debugf("Skipping manifest generation for ref only source for application: %s and ref %s", q.AppName, q.ApplicationSource.Ref)
+		_, revision, err := s.newClientResolveRevision(q.Repo, q.Revision, git.WithCache(s.cache, !q.NoRevisionCache && !q.NoCache))
+		res = &apiclient.ManifestResponse{
+			Revision: revision,
+		}
+		return res, err
+	}
+
 	cacheFn := func(cacheKey string, refSourceCommitSHAs cache.ResolvedRevisions, firstInvocation bool) (bool, error) {
 		ok, resp, err := s.getManifestCacheEntry(cacheKey, q, refSourceCommitSHAs, firstInvocation)
 		res = resp
@@ -1021,6 +1032,10 @@ func getHelmDependencyRepos(appPath string) ([]*v1alpha1.Repository, error) {
 		if strings.HasPrefix(r.Repository, "@") {
 			repos = append(repos, &v1alpha1.Repository{
 				Name: r.Repository[1:],
+			})
+		} else if strings.HasPrefix(r.Repository, "alias:") {
+			repos = append(repos, &v1alpha1.Repository{
+				Name: strings.TrimPrefix(r.Repository, "alias:"),
 			})
 		} else if u, err := url.Parse(r.Repository); err == nil && (u.Scheme == "https" || u.Scheme == "oci") {
 			repo := &v1alpha1.Repository{
@@ -2506,6 +2521,7 @@ func (s *Service) GetGitFiles(_ context.Context, request *apiclient.GitFilesRequ
 	repo := request.GetRepo()
 	revision := request.GetRevision()
 	gitPath := request.GetPath()
+	noRevisionCache := request.GetNoRevisionCache()
 	enableNewGitFileGlobbing := request.GetNewGitFileGlobbingEnabled()
 	if gitPath == "" {
 		gitPath = "."
@@ -2515,7 +2531,7 @@ func (s *Service) GetGitFiles(_ context.Context, request *apiclient.GitFilesRequ
 		return nil, status.Error(codes.InvalidArgument, "must pass a valid repo")
 	}
 
-	gitClient, revision, err := s.newClientResolveRevision(repo, revision, git.WithCache(s.cache, true))
+	gitClient, revision, err := s.newClientResolveRevision(repo, revision, git.WithCache(s.cache, !noRevisionCache))
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "unable to resolve git revision %s: %v", revision, err)
 	}
@@ -2568,12 +2584,12 @@ func (s *Service) GetGitFiles(_ context.Context, request *apiclient.GitFilesRequ
 func (s *Service) GetGitDirectories(_ context.Context, request *apiclient.GitDirectoriesRequest) (*apiclient.GitDirectoriesResponse, error) {
 	repo := request.GetRepo()
 	revision := request.GetRevision()
-
+	noRevisionCache := request.GetNoRevisionCache()
 	if repo == nil {
 		return nil, status.Error(codes.InvalidArgument, "must pass a valid repo")
 	}
 
-	gitClient, revision, err := s.newClientResolveRevision(repo, revision, git.WithCache(s.cache, true))
+	gitClient, revision, err := s.newClientResolveRevision(repo, revision, git.WithCache(s.cache, !noRevisionCache))
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "unable to resolve git revision %s: %v", revision, err)
 	}
