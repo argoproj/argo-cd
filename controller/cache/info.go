@@ -54,6 +54,8 @@ func populateNodeInfo(un *unstructured.Unstructured, res *ResourceInfo, customLa
 			populatePodInfo(un, res)
 		case kube.ServiceKind:
 			populateServiceInfo(un, res)
+		case kube.ReplicaSetKind:
+			populateReplicaSetInfo(un, res)
 		case "Node":
 			populateHostNodeInfo(un, res)
 		}
@@ -101,6 +103,13 @@ func populateServiceInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 	}
 
 	res.NetworkingInfo = &v1alpha1.ResourceNetworkingInfo{TargetLabels: targetLabels, Ingress: ingress, ExternalURLs: urls}
+}
+
+func populateReplicaSetInfo(un *unstructured.Unstructured, res *ResourceInfo) {
+	replicas, ok, err := unstructured.NestedInt64(un.Object, "spec", "replicas")
+	if err == nil && ok {
+		res.Info = append(res.Info, v1alpha1.InfoItem{Name: "Replicas", Value: fmt.Sprintf("Replicas:%d", replicas)})
+	}
 }
 
 func getServiceName(backend map[string]interface{}, gvk schema.GroupVersionKind) (string, error) {
