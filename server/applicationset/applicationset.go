@@ -48,7 +48,7 @@ type Server struct {
 	db                db.ArgoDB
 	enf               *rbac.Enforcer
 	k8sClient         kubernetes.Interface
-	dynamicClient     *dynamic.DynamicClient
+	dynamicClient     dynamic.Interface
 	client            client.Client
 	repoClientSet     repoapiclient.Clientset
 	appclientset      appclientset.Interface
@@ -65,8 +65,8 @@ type Server struct {
 func NewServer(
 	db db.ArgoDB,
 	kubeclientset kubernetes.Interface,
-	dynamicClient *dynamic.DynamicClient,
-	client client.Client,
+	dynamicClientset dynamic.Interface,
+	kubeControllerClientset client.Client,
 	enf *rbac.Enforcer,
 	repoClientSet repoapiclient.Clientset,
 	appclientset appclientset.Interface,
@@ -82,8 +82,8 @@ func NewServer(
 		ns:                namespace,
 		db:                db,
 		enf:               enf,
-		dynamicClient:     dynamicClient,
-		client:            client,
+		dynamicClient:     dynamicClientset,
+		client:            kubeControllerClientset,
 		k8sClient:         kubeclientset,
 		repoClientSet:     repoClientSet,
 		appclientset:      appclientset,

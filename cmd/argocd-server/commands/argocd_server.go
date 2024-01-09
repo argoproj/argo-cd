@@ -10,8 +10,10 @@ import (
 	"github.com/redis/go-redis/v9"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	cmdutil "github.com/argoproj/argo-cd/v2/cmd/util"
 	"github.com/argoproj/argo-cd/v2/common"
@@ -127,6 +129,12 @@ func NewCommand() *cobra.Command {
 				StrictValidation: repoServerStrictTLS,
 			}
 
+			dynamicClient := dynamic.NewForConfigOrDie(config)
+
+			controllerClient, err := client.New(config, client.Options{})
+			errors.CheckError(err)
+			controllerClient = client.NewDryRunClient(controllerClient)
+
 			// Load CA information to use for validating connections to the
 			// repository server, if strict TLS validation was requested.
 			if !repoServerPlaintext && repoServerStrictTLS {
@@ -171,31 +179,32 @@ func NewCommand() *cobra.Command {
 			}
 
 			argoCDOpts := server.ArgoCDServerOpts{
-				Insecure:              insecure,
-				ListenPort:            listenPort,
-				ListenHost:            listenHost,
-				MetricsPort:           metricsPort,
-				MetricsHost:           metricsHost,
-				Namespace:             namespace,
-				BaseHRef:              baseHRef,
-				RootPath:              rootPath,
-				Config:                config,
-				KubeClientset:         kubeclientset,
-				AppClientset:          appClientSet,
-				RepoClientset:         repoclientset,
-				DexServerAddr:         dexServerAddress,
-				DexTLSConfig:          dexTlsConfig,
-				DisableAuth:           disableAuth,
-				EnableGZip:            enableGZip,
-				TLSConfigCustomizer:   tlsConfigCustomizer,
-				Cache:                 cache,
-				RepoServerCache:       repoServerCache,
-				XFrameOptions:         frameOptions,
-				ContentSecurityPolicy: contentSecurityPolicy,
-				RedisClient:           redisClient,
-				StaticAssetsDir:       staticAssetsDir,
-				ApplicationNamespaces: applicationNamespaces,
-				EnableProxyExtension:  enableProxyExtension,
+				Insecure:                insecure,
+				ListenPort:              listenPort,
+				ListenHost:              listenHost,
+				MetricsPort:             metricsPort,
+				MetricsHost:             metricsHost,
+				Namespace:               namespace,
+				BaseHRef:                baseHRef,
+				RootPath:                rootPath,
+				DynamicClientset:        dynamicClient,
+				KubeControllerClientset: controllerClient,
+				KubeClientset:           kubeclientset,
+				AppClientset:            appClientSet,
+				RepoClientset:           repoclientset,
+				DexServerAddr:           dexServerAddress,
+				DexTLSConfig:            dexTlsConfig,
+				DisableAuth:             disableAuth,
+				EnableGZip:              enableGZip,
+				TLSConfigCustomizer:     tlsConfigCustomizer,
+				Cache:                   cache,
+				RepoServerCache:         repoServerCache,
+				XFrameOptions:           frameOptions,
+				ContentSecurityPolicy:   contentSecurityPolicy,
+				RedisClient:             redisClient,
+				StaticAssetsDir:         staticAssetsDir,
+				ApplicationNamespaces:   applicationNamespaces,
+				EnableProxyExtension:    enableProxyExtension,
 			}
 
 			stats.RegisterStackDumper()

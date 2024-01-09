@@ -120,7 +120,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -198,31 +197,32 @@ type ArgoCDServer struct {
 }
 
 type ArgoCDServerOpts struct {
-	DisableAuth           bool
-	EnableGZip            bool
-	Insecure              bool
-	StaticAssetsDir       string
-	ListenPort            int
-	ListenHost            string
-	MetricsPort           int
-	MetricsHost           string
-	Namespace             string
-	Config                *rest.Config
-	DexServerAddr         string
-	DexTLSConfig          *dexutil.DexTLSConfig
-	BaseHRef              string
-	RootPath              string
-	KubeClientset         kubernetes.Interface
-	AppClientset          appclientset.Interface
-	RepoClientset         repoapiclient.Clientset
-	Cache                 *servercache.Cache
-	RepoServerCache       *repocache.Cache
-	RedisClient           *redis.Client
-	TLSConfigCustomizer   tlsutil.ConfigCustomizer
-	XFrameOptions         string
-	ContentSecurityPolicy string
-	ApplicationNamespaces []string
-	EnableProxyExtension  bool
+	DisableAuth             bool
+	EnableGZip              bool
+	Insecure                bool
+	StaticAssetsDir         string
+	ListenPort              int
+	ListenHost              string
+	MetricsPort             int
+	MetricsHost             string
+	Namespace               string
+	DexServerAddr           string
+	DexTLSConfig            *dexutil.DexTLSConfig
+	BaseHRef                string
+	RootPath                string
+	DynamicClientset        dynamic.Interface
+	KubeControllerClientset client.Client
+	KubeClientset           kubernetes.Interface
+	AppClientset            appclientset.Interface
+	RepoClientset           repoapiclient.Clientset
+	Cache                   *servercache.Cache
+	RepoServerCache         *repocache.Cache
+	RedisClient             *redis.Client
+	TLSConfigCustomizer     tlsutil.ConfigCustomizer
+	XFrameOptions           string
+	ContentSecurityPolicy   string
+	ApplicationNamespaces   []string
+	EnableProxyExtension    bool
 }
 
 // initializeDefaultProject creates the default project if it does not already exist
@@ -853,16 +853,11 @@ func newArgoCDServiceSet(a *ArgoCDServer) *ArgoCDServiceSet {
 		a.projInformer,
 		a.ApplicationNamespaces)
 
-	dynamicClient := dynamic.NewForConfigOrDie(a.Config)
-	c, err := client.New(a.Config, client.Options{})
-	errorsutil.CheckError(err)
-
-	c = client.NewDryRunClient(c)
 	applicationSetService := applicationset.NewServer(
 		a.db,
 		a.KubeClientset,
-		dynamicClient,
-		c,
+		a.DynamicClientset,
+		a.KubeControllerClientset,
 		a.enf,
 		a.RepoClientset,
 		a.AppClientset,

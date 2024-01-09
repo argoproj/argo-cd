@@ -9,7 +9,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-func GetGenerators(ctx context.Context, c client.Client, k8sClient kubernetes.Interface, namespace string, argoCDService services.Repos, dynamicClient *dynamic.DynamicClient, scmConfig SCMConfig) map[string]Generator {
+func GetGenerators(ctx context.Context, c client.Client, k8sClient kubernetes.Interface, namespace string, argoCDService services.Repos, dynamicClient dynamic.Interface, scmConfig SCMConfig) map[string]Generator {
 	terminalGenerators := map[string]Generator{
 		"List":                    NewListGenerator(),
 		"Clusters":                NewClusterGenerator(c, ctx, k8sClient, namespace),
