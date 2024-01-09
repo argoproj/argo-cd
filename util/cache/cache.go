@@ -199,6 +199,14 @@ func AddCacheFlagsToCmd(cmd *cobra.Command, opts ...Options) func() (*Cache, err
 		}
 		password := os.Getenv(envRedisPassword)
 		username := os.Getenv(envRedisUsername)
+		if opt.FlagPrefix != "" {
+			if val := os.Getenv(opt.getEnvPrefix() + envRedisUsername); val != "" {
+				username = val
+			}
+			if val := os.Getenv(opt.getEnvPrefix() + envRedisPassword); val != "" {
+				password = val
+			}
+		}
 		maxRetries := env.ParseNumFromEnv(envRedisRetryCount, defaultRedisRetryCount, 0, math.MaxInt32)
 		compression, err := CompressionTypeFromString(compressionStr)
 		if err != nil {
