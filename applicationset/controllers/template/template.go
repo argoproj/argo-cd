@@ -1,6 +1,8 @@
 package template
 
 import (
+	"fmt"
+
 	log "github.com/sirupsen/logrus"
 
 	"github.com/argoproj/argo-cd/v2/applicationset/generators"
@@ -42,6 +44,24 @@ func GenerateApplications(logCtx *log.Entry, applicationSetInfo argov1alpha1.App
 					}
 					continue
 				}
+
+				if applicationSetInfo.Spec.TemplatePatch != nil {
+					patchedApplication, err := renderTemplatePatch(app, applicationSetInfo, p)
+
+					if err != nil {
+						log.WithError(err).WithField("params", a.Params).WithField("generator", requestedGenerator).
+							Error("error generating application from params")
+
+						if firstError == nil {
+							firstError = err
+							applicationSetReason = argov1alpha1.ApplicationSetReasonRenderTemplateParamsError
+						}
+						continue
+					}
+
+					app = patchedApplication
+				}
+
 				res = append(res, *app)
 			}
 		}
@@ -51,6 +71,16 @@ func GenerateApplications(logCtx *log.Entry, applicationSetInfo argov1alpha1.App
 	}
 
 	return res, applicationSetReason, firstError
+}
+
+func renderTemplatePatch(r utils.Renderer, app *argov1alpha1.Application, applicationSetInfo argov1alpha1.ApplicationSet, params map[string]interface{}) (*argov1alpha1.Application, error) {
+	replacedTemplate, err := r.Replace(*applicationSetInfo.Spec.TemplatePatch, params, applicationSetInfo.Spec.GoTemplate, applicationSetInfo.Spec.GoTemplateOptions)
+
+	if err != nil {
+		return nil, fmt.Errorf("error replacing values in templatePatch: %w", err)
+	}
+
+	return applyTemplatePatch(app, replacedTemplate)
 }
 
 func GetTempApplication(applicationSetTemplate argov1alpha1.ApplicationSetTemplate) *argov1alpha1.Application {

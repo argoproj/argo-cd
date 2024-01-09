@@ -7,6 +7,7 @@ import (
 	"github.com/argoproj/pkg/sync"
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
+	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes/fake"
@@ -339,6 +340,51 @@ func TestCreateAppSetWrongNamespace(t *testing.T) {
 	_, err := appServer.Create(context.Background(), &createReq)
 
 	assert.Equal(t, "namespace 'NOT-ALLOWED' is not permitted", err.Error())
+}
+
+func TestCreateAppSetDryRun(t *testing.T) {
+	testAppSet := newTestAppSet()
+	appServer := newTestAppSetServer()
+	testAppSet.Spec.Template.Name = "{{name}}"
+	testAppSet.Spec.Generators = []appsv1.ApplicationSetGenerator{
+		appsv1.ApplicationSetGenerator{
+			List: &appsv1.ListGenerator{
+				Elements: []apiextensionsv1.JSON{{Raw: []byte(`{"name": "a"}`)}, {Raw: []byte(`{"name": "b"}`)}},
+			},
+		},
+	}
+	createReq := applicationset.ApplicationSetCreateRequest{
+		Applicationset: testAppSet,
+		DryRun:         true,
+	}
+	result, err := appServer.Create(context.Background(), &createReq)
+
+	assert.Nil(t, err)
+	assert.Equal(t, 2, len(result.Status.ApplicationStatus))
+	assert.Equal(t, "a", result.Status.ApplicationStatus[0].Application)
+	assert.Equal(t, "b", result.Status.ApplicationStatus[1].Application)
+}
+
+func TestCreateAppSetDryRunWithDuplicate(t *testing.T) {
+	testAppSet := newTestAppSet()
+	appServer := newTestAppSetServer()
+	testAppSet.Spec.Template.Name = "{{name}}"
+	testAppSet.Spec.Generators = []appsv1.ApplicationSetGenerator{
+		appsv1.ApplicationSetGenerator{
+			List: &appsv1.ListGenerator{
+				Elements: []apiextensionsv1.JSON{{Raw: []byte(`{"name": "a"}`)}, {Raw: []byte(`{"name": "a"}`)}},
+			},
+		},
+	}
+	createReq := applicationset.ApplicationSetCreateRequest{
+		Applicationset: testAppSet,
+		DryRun:         true,
+	}
+	result, err := appServer.Create(context.Background(), &createReq)
+
+	assert.Nil(t, err)
+	assert.Equal(t, 1, len(result.Status.ApplicationStatus))
+	assert.Equal(t, "a", result.Status.ApplicationStatus[0].Application)
 }
 
 func TestGetAppSet(t *testing.T) {

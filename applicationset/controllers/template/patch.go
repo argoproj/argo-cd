@@ -1,4 +1,4 @@
-package controllers
+package template
 
 import (
 	"encoding/json"

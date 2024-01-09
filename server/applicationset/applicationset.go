@@ -196,9 +196,17 @@ func (s *Server) Create(ctx context.Context, q *applicationset.ApplicationSetCre
 		appset.Status = v1alpha1.ApplicationSetStatus{
 			ApplicationStatus: []v1alpha1.ApplicationSetApplicationStatus{},
 		}
+
+		appNames := map[string]v1alpha1.Application{}
 		for _, app := range apps {
+			// remove duplicates because an applicationSet cannot be generated multiple times
+			if _, exist := appNames[app.Name]; !exist {
+				appNames[app.Name] = app
+			}
+		}
+		for name, _ := range appNames {
 			appset.Status.ApplicationStatus = append(appset.Status.ApplicationStatus, v1alpha1.ApplicationSetApplicationStatus{
-				Application: app.Name,
+				Application: name,
 			})
 		}
 		return appset, nil
