@@ -17,7 +17,11 @@ data:
   redis.db:
 
   # Open-Telemetry collector address: (e.g. "otel-collector:4317")
-  otlp.address:
+  otlp.address: ""
+  # Open-Telemetry collector insecure: (e.g. "true")
+  otlp.insecure: "true"
+  # Open-Telemetry collector headers: (e.g. "key1=value1,key2=value2")
+  otlp.headers: ""
 
   # List of additional namespaces where applications may be created in and
   # reconciled from. The namespace where Argo CD is installed to will always
@@ -64,6 +68,10 @@ data:
   controller.k8sclient.retry.base.backoff: "100"
   # Grace period in seconds for ignoring consecutive errors while communicating with repo server.
   controller.repo.error.grace.period.seconds: "180"
+  # Enables the server side diff feature at the application controller level.
+  # Diff calculation will be done by running a server side apply dryrun (when
+  # diff cache is unavailable).
+  controller.diff.server.side: "false"
 
   ## Server properties
   # Listen on given address for incoming connections (default "0.0.0.0")
@@ -206,3 +214,5 @@ data:
   notificationscontroller.log.level: "info"
   # Set the logging format. One of: text|json (default "text")
   notificationscontroller.log.format: "text"
+  # Enable self-service notifications config. Used in conjunction with apps-in-any-namespace. (default "false")
+  notificationscontroller.selfservice.enabled: "false"
