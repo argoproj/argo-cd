@@ -34,7 +34,7 @@ export const ApplicationsDetailsAppDropdown = (props: {appName: string}) => {
                             }
                         />
                     </li>
-                    <DataLoader load={() => services.applications.list([], {fields: ['items.metadata.name']})}>
+                    <DataLoader load={() => services.applications.list([], ctx, {fields: ['items.metadata.name']})}>
                         {apps =>
                             apps.items
                                 .filter(app => {

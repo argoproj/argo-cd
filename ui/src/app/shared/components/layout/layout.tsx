@@ -1,20 +1,28 @@
 import * as React from 'react';
 import {Sidebar} from '../../../sidebar/sidebar';
-import {ViewPreferences} from '../../services';
+import {ViewPreferences, AppSetViewPreferences} from '../../services';
 
 require('./layout.scss');
 
-export interface LayoutProps {
+export interface AbstractLayoutProps {
     navItems: Array<{path: string; iconClassName: string; title: string}>;
     onVersionClick?: () => void;
     children?: React.ReactNode;
-    pref: ViewPreferences;
+    pref: any;
     isExtension?: boolean;
+}
+
+export interface LayoutProps extends AbstractLayoutProps {
+    pref: ViewPreferences;
+}
+
+export interface AppSetLayoutProps extends AbstractLayoutProps {
+    pref: AppSetViewPreferences;
 }
 
 const getBGColor = (theme: string): string => (theme === 'light' ? '#dee6eb' : '#100f0f');
 
-export const Layout = (props: LayoutProps) => {
+export const Layout = (props: AbstractLayoutProps) => {
     React.useEffect(() => {
         if (props.pref.theme) {
             document.body.style.background = getBGColor(props.pref.theme);

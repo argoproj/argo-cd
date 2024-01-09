@@ -15,7 +15,9 @@ interface ItemsList<T> {
     metadata: models.ListMeta;
 }
 
+export interface AbstractApplicationList extends ItemsList<AbstractApplication> {}
 export interface ApplicationList extends ItemsList<Application> {}
+export interface ApplicationSetList extends ItemsList<ApplicationSet> {}
 
 export interface SyncOperationResource {
     group: string;
@@ -132,14 +134,25 @@ export const AnnotationSyncWaveKey = 'argocd.argoproj.io/sync-wave';
 export const AnnotationDefaultView = 'pref.argocd.argoproj.io/default-view';
 export const AnnotationDefaultPodSort = 'pref.argocd.argoproj.io/default-pod-sort';
 
-export interface Application {
+export interface AbstractApplication {
     apiVersion?: string;
     kind?: string;
     metadata: models.ObjectMeta;
+
+    spec: any; // ApplicationSetSpec | ApplicationSpec;
+    status: any; // ApplicationStatus | ApplicationSetStatus;
+}
+
+export interface Application extends AbstractApplication {
     spec: ApplicationSpec;
     status: ApplicationStatus;
     operation?: Operation;
     isAppOfAppsPattern?: boolean;
+}
+
+export interface ApplicationSet extends AbstractApplication {
+    spec: ApplicationSetSpec;
+    status: ApplicationSetStatus;
 }
 
 export type WatchType = 'ADDED' | 'MODIFIED' | 'DELETED' | 'ERROR';
@@ -147,6 +160,11 @@ export type WatchType = 'ADDED' | 'MODIFIED' | 'DELETED' | 'ERROR';
 export interface ApplicationWatchEvent {
     type: WatchType;
     application: Application;
+}
+
+export interface ApplicationSetWatchEvent {
+    type: WatchType;
+    applicationSet: ApplicationSet;
 }
 
 export interface ComponentParameter {
@@ -300,6 +318,68 @@ export interface RevisionHistory {
     initiatedBy: OperationInitiator;
 }
 
+export interface ApplicationSetSpec {
+    goTemplate: boolean;
+    // generators: ApplicationSetGenerator[];
+    // template: ApplicationSetTemplate;
+    syncPolicy?: ApplicationSetSyncPolicy;
+    // strategy: ApplicationSetStrategy;
+    preservedFields: ApplicationPreservedFields;
+}
+
+export interface ApplicationSetSyncPolicy {
+    preserveResourcesOnDeletion: boolean;
+}
+
+export interface ApplicationPreservedFields {
+    annotations: string[];
+}
+
+export interface ApplicationSetStatus {
+    conditions?: ApplicationSetCondition[];
+    applicationStatus: ApplicationSetApplicationStatus[];
+    resources: ResourceStatus[];
+}
+
+export interface ApplicationSetCondition {
+    type: ApplicationSetConditionType;
+    message: string;
+    lastTransitionTime: models.Time;
+    status: ApplicationSetConditionStatus;
+    reason: string;
+}
+
+export interface ApplicationSetApplicationStatus {
+    application: string;
+    progressiveSyncLastTransitionTime: models.Time;
+    progressiveSyncMessage: string;
+    progressiveSyncStatus: string;
+    progressiveSyncStep: string;
+    createdAt: models.Time;
+    health: HealthStatus;
+    // message: string;
+    // lastTransitionTime: models.Time;
+    // status: string;
+    // step: string;
+}
+
+export type ApplicationSetConditionType = 'ErrorOccurred' | 'ParametersGenerated' | 'ResourcesUpToDate' | 'RolloutProgressing';
+
+export const ApplicationSetConditionTypes: {[key: string]: ApplicationSetConditionType} = {
+    ErrorOccurred: 'ErrorOccurred',
+    ParametersGenerated: 'ParametersGenerated',
+    ResourcesUpToDate: 'ResourcesUpToDate',
+    RolloutProgressing: 'RolloutProgressing'
+};
+
+export type ApplicationSetConditionStatus = 'True' | 'False' | 'Unknown';
+
+export const ApplicationSetConditionStatuses: {[key: string]: ApplicationSetConditionStatus} = {
+    True: 'True',
+    False: 'False',
+    Unknown: 'Unknown'
+};
+
 export type SyncStatusCode = 'Unknown' | 'Synced' | 'OutOfSync';
 
 export const SyncStatuses: {[key: string]: SyncStatusCode} = {
@@ -381,10 +461,18 @@ export interface ResourceNode extends ResourceRef {
     createdAt?: models.Time;
 }
 
-export interface ApplicationTree {
+export interface AbstractApplicationTree {
     nodes: ResourceNode[];
+}
+
+export interface ApplicationTree extends AbstractApplicationTree {
     orphanedNodes: ResourceNode[];
     hosts: Node[];
+}
+
+export interface ApplicationSetTree extends AbstractApplicationTree {
+    // FFU
+    dummyToPlacateLinter: any;
 }
 
 export interface ResourceID {

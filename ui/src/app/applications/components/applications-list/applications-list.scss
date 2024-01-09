@@ -43,6 +43,11 @@
             border-left-color: $argo-success-color;
         }
 
+        // For AppSet
+        &--health-True {
+            border-left-color: $argo-success-color;
+        }
+
         // intermediate statuses
         &--health-Progressing {
             border-left-color: $argo-running-color;
@@ -54,6 +59,11 @@
 
         // failed statuses
         &--health-Degraded {
+            border-left-color: $argo-failed-color;
+        }
+
+        // For AppSet
+        &--health-False {
             border-left-color: $argo-failed-color;
         }
 

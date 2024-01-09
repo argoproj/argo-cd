@@ -50,7 +50,7 @@ export const ApplicationsRefreshPanel = ({show, apps, hide}: {show: boolean; app
                             const refreshActions = [];
                             for (const app of selectedApps) {
                                 const refreshAction = async () => {
-                                    await services.applications.get(app.metadata.name, app.metadata.namespace, params.refreshType).catch(e => {
+                                    await services.applications.get(app.metadata.name, app.metadata.namespace, ctx.history.location.pathname, params.refreshType).catch(e => {
                                         ctx.notifications.show({
                                             content: <ErrorNotification title={`Unable to refresh ${app.metadata.name}`} e={e} />,
                                             type: NotificationType.Error
@@ -95,7 +95,7 @@ export const ApplicationsRefreshPanel = ({show, apps, hide}: {show: boolean; app
                                             ))}
                                         </div>
                                     </div>
-                                    <ApplicationSelector apps={apps} formApi={formApi} />
+                                    <ApplicationSelector apps={apps} formApi={formApi} ctx={ctx} />
                                 </div>
                             </React.Fragment>
                         )}

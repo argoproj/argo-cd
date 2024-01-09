@@ -5,7 +5,7 @@ import {EventsList, YamlEditor} from '../../../shared/components';
 import * as models from '../../../shared/models';
 import {ErrorBoundary} from '../../../shared/components/error-boundary/error-boundary';
 import {Context} from '../../../shared/context';
-import {Application, ApplicationTree, AppSourceType, Event, RepoAppDetails, ResourceNode, State, SyncStatuses} from '../../../shared/models';
+import {AbstractApplication, Application, ApplicationTree, AppSourceType, Event, RepoAppDetails, ResourceNode, State, SyncStatuses} from '../../../shared/models';
 import {services} from '../../../shared/services';
 import {ResourceTabExtension} from '../../../shared/services/extensions-service';
 import {NodeInfo, SelectNode} from '../application-details/application-details';
@@ -21,12 +21,13 @@ import {ResourceIcon} from '../resource-icon';
 import {ResourceLabel} from '../resource-label';
 import * as AppUtils from '../utils';
 import './resource-details.scss';
+import {isApp} from '../utils';
 
 const jsonMergePatch = require('json-merge-patch');
 
 interface ResourceDetailsProps {
     selectedNode: ResourceNode;
-    updateApp: (app: Application, query: {validate?: boolean}) => Promise<any>;
+    updateApp: (app: AbstractApplication, query: {validate?: boolean}) => Promise<any>;
     application: Application;
     isAppSelected: boolean;
     tree: ApplicationTree;
@@ -154,52 +155,55 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
     };
 
     const getApplicationTabs = () => {
-        const tabs: Tab[] = [
-            {
-                title: 'SUMMARY',
-                key: 'summary',
-                content: <ApplicationSummary app={application} updateApp={(app, query: {validate?: boolean}) => updateApp(app, query)} />
-            },
-            {
-                title: 'PARAMETERS',
-                key: 'parameters',
-                content: (
-                    <DataLoader
-                        key='appDetails'
-                        input={application}
-                        load={app =>
-                            services.repos.appDetails(AppUtils.getAppDefaultSource(app), app.metadata.name, app.spec.project).catch(() => ({
-                                type: 'Directory' as AppSourceType,
-                                path: AppUtils.getAppDefaultSource(app).path
-                            }))
-                        }>
-                        {(details: RepoAppDetails) => (
-                            <ApplicationParameters
-                                save={(app: models.Application, query: {validate?: boolean}) => updateApp(app, query)}
-                                application={application}
-                                details={details}
-                            />
-                        )}
-                    </DataLoader>
-                )
-            },
-            {
-                title: 'MANIFEST',
-                key: 'manifest',
-                content: (
-                    <YamlEditor
-                        minHeight={800}
-                        input={application.spec}
-                        onSave={async patch => {
-                            const spec = JSON.parse(JSON.stringify(application.spec));
-                            return services.applications.updateSpec(application.metadata.name, application.metadata.namespace, jsonMergePatch.apply(spec, JSON.parse(patch)));
-                        }}
-                    />
-                )
-            }
-        ];
+        const tabs: Tab[] = [];
+        if (isApp(application)) {
+            tabs.push(
+                {
+                    title: 'SUMMARY',
+                    key: 'summary',
+                    content: <ApplicationSummary app={application} updateApp={(app, query: {validate?: boolean}) => updateApp(app, query)} />
+                },
+                {
+                    title: 'PARAMETERS',
+                    key: 'parameters',
+                    content: (
+                        <DataLoader
+                            key='appDetails'
+                            input={application}
+                            load={app =>
+                                services.repos.appDetails(AppUtils.getAppDefaultSource(app), app.metadata.name, app.spec.project).catch(() => ({
+                                    type: 'Directory' as AppSourceType,
+                                    path: AppUtils.getAppDefaultSource(app).path
+                                }))
+                            }>
+                            {(details: RepoAppDetails) => (
+                                <ApplicationParameters
+                                    save={(app: models.Application, query: {validate?: boolean}) => updateApp(app, query)}
+                                    application={application}
+                                    details={details}
+                                />
+                            )}
+                        </DataLoader>
+                    )
+                }
+            );
+        }
+        tabs.push({
+            title: 'MANIFEST',
+            key: 'manifest',
+            content: (
+                <YamlEditor
+                    minHeight={800}
+                    input={application.spec}
+                    onSave={async patch => {
+                        const spec = JSON.parse(JSON.stringify(application.spec));
+                        return services.applications.updateSpec(application.metadata.name, application.metadata.namespace, jsonMergePatch.apply(spec, JSON.parse(patch)));
+                    }}
+                />
+            )
+        });
 
-        if (application.status.sync.status !== SyncStatuses.Synced) {
+        if (isApp(application) && (application as Application).status.sync.status !== SyncStatuses.Synced) {
             tabs.push({
                 icon: 'fa fa-file-medical',
                 title: 'DIFF',
@@ -208,7 +212,7 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                     <DataLoader
                         key='diff'
                         load={async () =>
-                            await services.applications.managedResources(application.metadata.name, application.metadata.namespace, {
+                            await services.applications.managedResources(application.metadata.name, application.metadata.namespace, appContext.history.location.pathname, {
                                 fields: ['items.normalizedLiveState', 'items.predictedLiveState', 'items.group', 'items.kind', 'items.namespace', 'items.name']
                             })
                         }>
@@ -224,7 +228,7 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
             content: <ApplicationResourceEvents applicationName={application.metadata.name} applicationNamespace={application.metadata.namespace} />
         });
 
-        const extensionTabs = services.extensions.getResourceTabs('argoproj.io', 'Application').map((ext, i) => ({
+        const extensionTabs = services.extensions.getResourceTabs('argoproj.io', application.kind).map((ext, i) => ({
             title: ext.title,
             key: `extension-${i}`,
             content: <ext.component resource={application} tree={tree} application={application} />,
@@ -243,14 +247,19 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                     noLoaderOnInputChange={true}
                     input={selectedNode.resourceVersion}
                     load={async () => {
-                        const managedResources = await services.applications.managedResources(application.metadata.name, application.metadata.namespace, {
-                            id: {
-                                name: selectedNode.name,
-                                namespace: selectedNode.namespace,
-                                kind: selectedNode.kind,
-                                group: selectedNode.group
+                        const managedResources = await services.applications.managedResources(
+                            application.metadata.name,
+                            application.metadata.namespace,
+                            appContext.history.location.pathname,
+                            {
+                                id: {
+                                    name: selectedNode.name,
+                                    namespace: selectedNode.namespace,
+                                    kind: selectedNode.kind,
+                                    group: selectedNode.group
+                                }
                             }
-                        });
+                        );
                         const controlled = managedResources.find(item => AppUtils.isSameNode(selectedNode, item));
                         const summary = application.status.resources.find(item => AppUtils.isSameNode(selectedNode, item));
                         const controlledState = (controlled && summary && {summary, state: controlled}) || null;
@@ -258,7 +267,9 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                         if (controlled && controlled.targetState) {
                             resQuery.version = AppUtils.parseApiVersion(controlled.targetState.apiVersion).version;
                         }
-                        const liveState = await services.applications.getResource(application.metadata.name, application.metadata.namespace, resQuery).catch(() => null);
+                        const liveState = await services.applications
+                            .getResource(application.metadata.name, application.metadata.namespace, appContext.history.location.pathname, resQuery)
+                            .catch(() => null);
                         const events =
                             (liveState &&
                                 (await services.applications.resourceEvents(application.metadata.name, application.metadata.namespace, {
@@ -273,7 +284,9 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                         } else {
                             const childPod = AppUtils.findChildPod(selectedNode, tree);
                             if (childPod) {
-                                podState = await services.applications.getResource(application.metadata.name, application.metadata.namespace, childPod).catch(() => null);
+                                podState = await services.applications
+                                    .getResource(application.metadata.name, application.metadata.namespace, appContext.history.location.pathname, childPod)
+                                    .catch(() => null);
                             }
                         }
 
@@ -307,7 +320,7 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                                     <i className='fa fa-sync-alt' /> <span className='show-for-large'>SYNC</span>
                                 </button>
                                 <button
-                                    onClick={() => AppUtils.deletePopup(appContext, selectedNode, application)}
+                                    onClick={() => AppUtils.deletePopup(appContext, appContext.history, selectedNode, application)}
                                     style={{marginRight: '5px'}}
                                     className='argo-button argo-button--base'>
                                     <i className='fa fa-trash' /> <span className='show-for-large'>DELETE</span>
