@@ -46,7 +46,7 @@ func GenerateApplications(logCtx *log.Entry, applicationSetInfo argov1alpha1.App
 				}
 
 				if applicationSetInfo.Spec.TemplatePatch != nil {
-					patchedApplication, err := renderTemplatePatch(app, applicationSetInfo, p)
+					patchedApplication, err := renderTemplatePatch(renderer, app, applicationSetInfo, p)
 
 					if err != nil {
 						log.WithError(err).WithField("params", a.Params).WithField("generator", requestedGenerator).
