@@ -1401,6 +1401,8 @@ type RevisionHistory struct {
 	Sources ApplicationSources `json:"sources,omitempty" protobuf:"bytes,8,opt,name=sources"`
 	// Revisions holds the revision of each source in sources field the sync was performed against
 	Revisions []string `json:"revisions,omitempty" protobuf:"bytes,9,opt,name=revisions"`
+	// InitiatedBy contains information about who initiated the operations
+	InitiatedBy OperationInitiator `json:"initiatedBy,omitempty" protobuf:"bytes,10,opt,name=initiatedBy"`
 }
 
 // ApplicationWatchEvent contains information about application change.
@@ -2649,6 +2651,18 @@ func (app *Application) IsRefreshRequested() (RefreshType, bool) {
 		refreshType = RefreshTypeHard
 	}
 	return refreshType, true
+}
+
+func (app *Application) HasPostDeleteFinalizer(stage ...string) bool {
+	return getFinalizerIndex(app.ObjectMeta, strings.Join(append([]string{PostDeleteFinalizerName}, stage...), "/")) > -1
+}
+
+func (app *Application) SetPostDeleteFinalizer(stage ...string) {
+	setFinalizer(&app.ObjectMeta, strings.Join(append([]string{PostDeleteFinalizerName}, stage...), "/"), true)
+}
+
+func (app *Application) UnSetPostDeleteFinalizer(stage ...string) {
+	setFinalizer(&app.ObjectMeta, strings.Join(append([]string{PostDeleteFinalizerName}, stage...), "/"), false)
 }
 
 // SetCascadedDeletion will enable cascaded deletion by setting the propagation policy finalizer
