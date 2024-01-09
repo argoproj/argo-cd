@@ -28,7 +28,7 @@ require (
 	github.com/evanphx/json-patch v5.6.0+incompatible
 	github.com/fsnotify/fsnotify v1.6.0
 	github.com/gfleury/go-bitbucket-v1 v0.0.0-20220301131131-8e7ed04b843e
-	github.com/go-git/go-git/v5 v5.8.1
+	github.com/go-git/go-git/v5 v5.10.1
 	github.com/go-logr/logr v1.3.0
 	github.com/go-openapi/loads v0.21.2
 	github.com/go-openapi/runtime v0.26.0
@@ -159,9 +159,8 @@ require (
 	github.com/Masterminds/goutils v1.1.1 // indirect
 	github.com/Microsoft/go-winio v0.6.1 // indirect
 	github.com/PagerDuty/go-pagerduty v1.7.0 // indirect
-	github.com/ProtonMail/go-crypto v0.0.0-20230717121422-5aa5874ade95 // indirect
+	github.com/ProtonMail/go-crypto v0.0.0-20230828082145-3c4c8a2d2371 // indirect
 	github.com/RocketChat/Rocket.Chat.Go.SDK v0.0.0-20210112200207-10ab4d695d60 // indirect
-	github.com/acomagu/bufpipe v1.0.4 // indirect
 	github.com/alicebob/gopher-json v0.0.0-20200520072559-a9ecdc9d1d3a // indirect
 	github.com/asaskevich/govalidator v0.0.0-20230301143203-a9d515a09cc2 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
@@ -184,7 +183,7 @@ require (
 	github.com/ghodss/yaml v1.0.0 // indirect
 	github.com/go-errors/errors v1.4.2 // indirect
 	github.com/go-git/gcfg v1.5.1-0.20230307220236-3a3c6141e376 // indirect
-	github.com/go-git/go-billy/v5 v5.4.1 // indirect
+	github.com/go-git/go-billy/v5 v5.5.0 // indirect
 	github.com/go-jose/go-jose/v3 v3.0.1 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/go-openapi/analysis v0.21.4 // indirect
@@ -251,7 +250,7 @@ require (
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
 	github.com/sergi/go-diff v1.1.0 // indirect
 	github.com/shopspring/decimal v1.2.0 // indirect
-	github.com/skeema/knownhosts v1.2.0 // indirect
+	github.com/skeema/knownhosts v1.2.1 // indirect
 	github.com/slack-go/slack v0.12.2 // indirect
 	github.com/spf13/cast v1.5.1 // indirect
 	github.com/stretchr/objx v0.5.0 // indirect
@@ -268,11 +267,11 @@ require (
 	go.opentelemetry.io/proto/otlp v1.0.0 // indirect
 	go.starlark.net v0.0.0-20220328144851-d1966c6b9fcd // indirect
 	golang.org/x/mod v0.12.0 // indirect
-	golang.org/x/net v0.17.0
+	golang.org/x/net v0.18.0
 	golang.org/x/sys v0.15.0 // indirect
 	golang.org/x/text v0.14.0 // indirect
 	golang.org/x/time v0.3.0
-	golang.org/x/tools v0.12.0 // indirect
+	golang.org/x/tools v0.13.0 // indirect
 	gomodules.xyz/envconfig v1.3.1-0.20190308184047-426f31af0d45 // indirect
 	gomodules.xyz/jsonpatch/v2 v2.2.0 // indirect
 	gomodules.xyz/notify v0.1.1 // indirect
