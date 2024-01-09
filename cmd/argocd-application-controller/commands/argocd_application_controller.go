@@ -6,11 +6,12 @@ import (
 	"math"
 	"time"
 
-	"github.com/argoproj/argo-cd/v2/pkg/ratelimiter"
 	"github.com/argoproj/pkg/stats"
 	"github.com/redis/go-redis/v9"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	kubeerrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 
@@ -20,6 +21,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/controller/sharding"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
+	"github.com/argoproj/argo-cd/v2/pkg/ratelimiter"
 	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
 	cacheutil "github.com/argoproj/argo-cd/v2/util/cache"
 	appstatecache "github.com/argoproj/argo-cd/v2/util/cache/appstate"
@@ -31,8 +33,6 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/settings"
 	"github.com/argoproj/argo-cd/v2/util/tls"
 	"github.com/argoproj/argo-cd/v2/util/trace"
-	kubeerrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 const (
@@ -73,6 +73,7 @@ func NewCommand() *cobra.Command {
 		persistResourceHealth            bool
 		shardingAlgorithm                string
 		enableDynamicClusterDistribution bool
+		serverSideDiff                   bool
 	)
 	var command = cobra.Command{
 		Use:               cliName,
@@ -166,6 +167,7 @@ func NewCommand() *cobra.Command {
 				clusterFilter,
 				applicationNamespaces,
 				&workqueueRateLimit,
+				serverSideDiff,
 			)
 			errors.CheckError(err)
 			cacheutil.CollectMetrics(redisClient, appController.GetMetricsServer())
@@ -224,8 +226,11 @@ func NewCommand() *cobra.Command {
 	command.Flags().DurationVar(&workqueueRateLimit.MaxDelay, "wq-maxdelay-ns", time.Duration(env.ParseInt64FromEnv("WORKQUEUE_MAX_DELAY_NS", time.Second.Nanoseconds(), 1*time.Millisecond.Nanoseconds(), (24*time.Hour).Nanoseconds())), "Set Workqueue Per Item Rate Limiter Max Delay duration in nanoseconds, default 1000000000 (1s)")
 	command.Flags().Float64Var(&workqueueRateLimit.BackoffFactor, "wq-backoff-factor", env.ParseFloat64FromEnv("WORKQUEUE_BACKOFF_FACTOR", 1.5, 0, math.MaxFloat64), "Set Workqueue Per Item Rate Limiter Backoff Factor, default is 1.5")
 	command.Flags().BoolVar(&enableDynamicClusterDistribution, "dynamic-cluster-distribution-enabled", env.ParseBoolFromEnv(common.EnvEnableDynamicClusterDistribution, false), "Enables dynamic cluster distribution.")
-	cacheSource = appstatecache.AddCacheFlagsToCmd(&command, func(client *redis.Client) {
-		redisClient = client
+	command.Flags().BoolVar(&serverSideDiff, "server-side-diff-enabled", env.ParseBoolFromEnv(common.EnvServerSideDiff, false), "Feature flag to enable ServerSide diff. Default (\"false\")")
+	cacheSource = appstatecache.AddCacheFlagsToCmd(&command, cacheutil.Options{
+		OnClientCreated: func(client *redis.Client) {
+			redisClient = client
+		},
 	})
 	return &command
 }

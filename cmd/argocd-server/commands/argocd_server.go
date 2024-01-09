@@ -18,8 +18,10 @@ import (
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
 	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
+	reposervercache "github.com/argoproj/argo-cd/v2/reposerver/cache"
 	"github.com/argoproj/argo-cd/v2/server"
 	servercache "github.com/argoproj/argo-cd/v2/server/cache"
+	cacheutil "github.com/argoproj/argo-cd/v2/util/cache"
 	"github.com/argoproj/argo-cd/v2/util/cli"
 	"github.com/argoproj/argo-cd/v2/util/dex"
 	"github.com/argoproj/argo-cd/v2/util/env"
@@ -64,6 +66,7 @@ func NewCommand() *cobra.Command {
 		enableGZip               bool
 		tlsConfigCustomizerSrc   func() (tls.ConfigCustomizer, error)
 		cacheSrc                 func() (*servercache.Cache, error)
+		repoServerCacheSrc       func() (*reposervercache.Cache, error)
 		frameOptions             string
 		contentSecurityPolicy    string
 		repoServerPlaintext      bool
@@ -104,6 +107,8 @@ func NewCommand() *cobra.Command {
 			tlsConfigCustomizer, err := tlsConfigCustomizerSrc()
 			errors.CheckError(err)
 			cache, err := cacheSrc()
+			errors.CheckError(err)
+			repoServerCache, err := repoServerCacheSrc()
 			errors.CheckError(err)
 
 			kubeclientset := kubernetes.NewForConfigOrDie(config)
@@ -184,6 +189,7 @@ func NewCommand() *cobra.Command {
 				EnableGZip:            enableGZip,
 				TLSConfigCustomizer:   tlsConfigCustomizer,
 				Cache:                 cache,
+				RepoServerCache:       repoServerCache,
 				XFrameOptions:         frameOptions,
 				ContentSecurityPolicy: contentSecurityPolicy,
 				RedisClient:           redisClient,
@@ -255,8 +261,11 @@ func NewCommand() *cobra.Command {
 	command.Flags().StringSliceVar(&applicationNamespaces, "application-namespaces", env.StringsFromEnv("ARGOCD_APPLICATION_NAMESPACES", []string{}, ","), "List of additional namespaces where application resources can be managed in")
 	command.Flags().BoolVar(&enableProxyExtension, "enable-proxy-extension", env.ParseBoolFromEnv("ARGOCD_SERVER_ENABLE_PROXY_EXTENSION", false), "Enable Proxy Extension feature")
 	tlsConfigCustomizerSrc = tls.AddTLSFlagsToCmd(command)
-	cacheSrc = servercache.AddCacheFlagsToCmd(command, func(client *redis.Client) {
-		redisClient = client
+	cacheSrc = servercache.AddCacheFlagsToCmd(command, cacheutil.Options{
+		OnClientCreated: func(client *redis.Client) {
+			redisClient = client
+		},
 	})
+	repoServerCacheSrc = reposervercache.AddCacheFlagsToCmd(command, cacheutil.Options{FlagPrefix: "repo-server-"})
 	return command
 }
