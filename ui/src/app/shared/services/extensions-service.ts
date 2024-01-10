@@ -1,7 +1,7 @@
 import * as React from 'react';
 import * as minimatch from 'minimatch';
 
-import {Application, ApplicationSet, ApplicationTree, State} from '../models';
+import {AbstractApplicationTree, Application, ApplicationSet, State} from '../models';
 
 const extensions = {
     resourceExtentions: new Array<ResourceTabExtension>(),
@@ -106,7 +106,7 @@ export interface Extension {
 
 export interface AbstractExtensionComponentProps {
     resource: State;
-    tree: ApplicationTree;
+    tree: AbstractApplicationTree;
     application: ApplicationSet | Application;
 }
 
@@ -124,7 +124,7 @@ export interface ViewComponentProps extends AbstractViewComponentProps {
 
 export interface AbstractViewComponentProps {
     application: ApplicationSet | Application;
-    tree: ApplicationTree;
+    tree: AbstractApplicationTree;
 }
 
 export interface AppSetViewComponentProps {
@@ -138,7 +138,7 @@ export interface StatusPanelComponentProps {
 
 export interface StatusPanelFlyoutProps {
     application: ApplicationSet | Application;
-    tree: ApplicationTree;
+    tree: AbstractApplicationTree;
 }
 
 export class ExtensionsService {

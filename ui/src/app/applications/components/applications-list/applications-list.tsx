@@ -32,7 +32,6 @@ import {useSidebarTarget} from '../../../sidebar/sidebar';
 
 import './applications-list.scss';
 import './flex-top-bar.scss';
-import {isApp, isInvokedFromAppsPath} from '../utils';
 import {AbstractApplication, Application, ApplicationSet} from '../../../shared/models';
 import {History} from 'history';
 
@@ -81,16 +80,17 @@ function loadApplications(
         history: History<unknown>;
     },
     projects: string[],
-    appNamespace: string
+    appNamespace: string,
+    objectListKind: string
 ): Observable<models.AbstractApplication[]> {
-    const isFromApps = isInvokedFromAppsPath(ctx.history.location.pathname);
-    return from(services.applications.list(projects, ctx, {appNamespace, fields: getAppListFields(isFromApps)})).pipe(
+    const isListOfApplications = objectListKind === "application";
+    return from(services.applications.list(projects, ctx, {appNamespace, fields: getAppListFields(isListOfApplications)})).pipe(
         mergeMap(applicationsList => {
             const applications = applicationsList.items;
             return merge(
                 from([applications]),
                 services.applications
-                    .watch(ctx.history.location.pathname, {projects, resourceVersion: applicationsList.metadata.resourceVersion}, {fields: getAppWatchFields(isFromApps)})
+                    .watch(ctx.history.location.pathname, {projects, resourceVersion: applicationsList.metadata.resourceVersion}, {fields: getAppWatchFields(isListOfApplications)})
                     .pipe(repeat())
                     .pipe(retryWhen(errors => errors.pipe(delay(WATCH_RETRY_TIMEOUT))))
                     // batch events to avoid constant re-rendering and improve UI performance
@@ -119,14 +119,14 @@ function loadApplications(
                         })
                     )
                     .pipe(filter(item => item.updated))
-                    .pipe(map(item => (isApp(applications[0]) ? (item.applications as models.Application[]) : (item.applications as models.ApplicationSet[]))))
+                    .pipe(map(item => item.applications))
+                    // .pipe(map(item => (isApp(applications[0]) ? (item.applications as models.Application[]) : (item.applications as models.ApplicationSet[])))) // Do we need to do this?
             );
         })
     );
 }
 
-const ViewPref = ({children}: {children: (pref: AbstractAppsListPreferences & {page: number; search: string}) => React.ReactNode}) => {
-    const ctx = React.useContext(Context);
+const ViewPref = ({children, objectListKind}: {children: (pref: AbstractAppsListPreferences & {page: number; search: string}) => React.ReactNode, objectListKind: string}) => {
     return (
         <ObservableQuery>
             {q => (
@@ -136,7 +136,7 @@ const ViewPref = ({children}: {children: (pref: AbstractAppsListPreferences & {p
                             map(items => {
                                 const params = items[1];
                                 const viewPref: AbstractAppsListPreferences = {...items[0]};
-                                if (isInvokedFromAppsPath(ctx.history.location.pathname)) {
+                                if (objectListKind === "application") {
                                     // App specific filters
                                     if (params.get('proj') != null) {
                                         (viewPref as AppsListPreferences).projectsFilter = params
@@ -204,11 +204,12 @@ const ViewPref = ({children}: {children: (pref: AbstractAppsListPreferences & {p
 function filterApps(
     applications: AbstractApplication[],
     pref: AbstractAppsListPreferences,
-    search: string
+    search: string,
+    isListOfApplications: boolean,
 ): {filteredApps: AbstractApplication[]; filterResults: AbstractFilteredApp[]} {
     applications = applications.map(app => {
         let isAppOfAppsPattern = false;
-        if (!isApp(applications[0])) {
+        if (!isListOfApplications) {
             // AppSet behaves like an app of apps
             isAppOfAppsPattern = true;
         } else {
@@ -225,7 +226,7 @@ function filterApps(
     const filterResults =
         applications.length === 0
             ? getFilterResults(applications, pref)
-            : isApp(applications[0])
+            : isListOfApplications
             ? getFilterResults(applications as Application[], pref as AppsListPreferences)
             : getFilterResults(applications as ApplicationSet[], pref as AppSetsListPreferences);
     return {
@@ -250,6 +251,7 @@ const SearchBar = (props: {
         history: History<unknown>;
     };
     apps: models.AbstractApplication[];
+    objectListKind: string;
 }) => {
     const {content, ctx, apps} = {...props};
 
@@ -262,7 +264,8 @@ const SearchBar = (props: {
     const [isFocused, setFocus] = React.useState(false);
     const useAuthSettingsCtx = React.useContext(AuthSettingsCtx);
 
-    const placeholderText = isInvokedFromAppsPath(ctx.history.location.pathname) ? 'Search applications...' : 'Search application sets...';
+    // const placeholderText = isInvokedFromAppsPath(ctx.history.location.pathname) ? 'Search applications...' : 'Search application sets...';
+    const placeholderText = props.objectListKind == "application" ? 'Search applications...' : 'Search application sets...';
 
     useKeybinding({
         keys: Key.SLASH,
@@ -373,7 +376,11 @@ const FlexTopBar = (props: {toolbar: Toolbar | Observable<Toolbar>}) => {
     );
 };
 
-export const ApplicationsList = (props: RouteComponentProps<{}>) => {
+interface RouteComponentPropsExtended extends RouteComponentProps {
+    objectListKind: string
+ }
+
+export const ApplicationsList = (props: RouteComponentPropsExtended) => {
     const query = new URLSearchParams(props.location.search);
     const appInput = tryJsonParse(query.get('new'));
     const syncAppsInput = tryJsonParse(query.get('syncApps'));
@@ -385,6 +392,9 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
     const {List, Summary, Tiles} = AppsListViewKey;
 
     const listCtx = React.useContext(Context);
+
+    const objectListKind = props.objectListKind;
+    const isListOfApplications = objectListKind === "application";
 
     function refreshApp(appName: string, appNamespace: string) {
         // app refreshing might be done too quickly so that UI might miss it due to event batching
@@ -406,19 +416,19 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
             '.',
 
             {
-                proj: isInvokedFromAppsPath(listCtx.history.location.pathname) ? (newPref as AppsListPreferences).projectsFilter.join(',') : '',
-                sync: isInvokedFromAppsPath(listCtx.history.location.pathname) ? (newPref as AppsListPreferences).syncFilter.join(',') : '',
-                autoSync: isInvokedFromAppsPath(listCtx.history.location.pathname) ? (newPref as AppsListPreferences).autoSyncFilter.join(',') : '',
+                proj: isListOfApplications ? (newPref as AppsListPreferences).projectsFilter.join(',') : '',
+                sync: isListOfApplications ? (newPref as AppsListPreferences).syncFilter.join(',') : '',
+                autoSync: isListOfApplications ? (newPref as AppsListPreferences).autoSyncFilter.join(',') : '',
                 health: newPref.healthFilter.join(','),
-                namespace: isInvokedFromAppsPath(listCtx.history.location.pathname) ? (newPref as AppsListPreferences).namespacesFilter.join(',') : '',
-                cluster: isInvokedFromAppsPath(listCtx.history.location.pathname) ? (newPref as AppsListPreferences).clustersFilter.join(',') : '',
+                namespace: isListOfApplications ? (newPref as AppsListPreferences).namespacesFilter.join(',') : '',
+                cluster: isListOfApplications ? (newPref as AppsListPreferences).clustersFilter.join(',') : '',
                 labels: newPref.labelsFilter.map(encodeURIComponent).join(',')
             },
             {replace: true}
         );
     }
 
-    const pageTitlePrefix = isInvokedFromAppsPath(listCtx.history.location.pathname) ? 'Applications ' : 'ApplicationSets ';
+    const pageTitlePrefix = isListOfApplications ? 'Applications ' : 'ApplicationSets ';
 
     function getPageTitle(view: string) {
         switch (view) {
@@ -434,7 +444,7 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
 
     const sidebarTarget = useSidebarTarget();
 
-    const getEmptyStateText = isInvokedFromAppsPath(listCtx.history.location.pathname) ? 'No matching applications found' : 'No matching application sets found';
+    const getEmptyStateText = isListOfApplications ? 'No matching applications found' : 'No matching application sets found';
 
     const applicationTilesProps = (data: models.Application[]): ApplicationTilesProps => {
         return {
@@ -442,19 +452,21 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
             syncApplication: (appName, appNamespace) => listCtx.navigation.goto('.', {syncApp: appName, appNamespace}, {replace: true}),
 
             refreshApplication: refreshApp,
-            deleteApplication: (appName, appNamespace) => AppUtils.deleteApplication(appName, appNamespace, listCtx)
+            deleteApplication: (appName, appNamespace) => AppUtils.deleteApplication(appName, appNamespace, listCtx),
+            objectListKind: objectListKind
         };
     };
 
     const applicationSetTilesProps = (data: models.ApplicationSet[]): ApplicationSetTilesProps => {
         return {
             applications: data,
-            deleteApplication: (appName, appNamespace) => AppUtils.deleteApplication(appName, appNamespace, listCtx)
+            deleteApplication: (appName, appNamespace) => AppUtils.deleteApplication(appName, appNamespace, listCtx),
+            objectListKind: objectListKind
         };
     };
 
     const abstractApplicationTilesProps = (applications: models.AbstractApplication[]): AbstractApplicationTilesProps => {
-        if (isApp(applications[0])) {
+        if (isListOfApplications) {
             return applicationTilesProps(applications);
         } else {
             return applicationSetTilesProps(applications);
@@ -462,7 +474,7 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
     };
 
     function getProjectsFilter(pref: AbstractAppsListPreferences): string[] {
-        return isInvokedFromAppsPath(listCtx.history.location.pathname) ? (pref as AppsListPreferences & {page: number; search: string}).projectsFilter : [];
+        return isListOfApplications ? (pref as AppsListPreferences & {page: number; search: string}).projectsFilter : [];
     }
 
     return (
@@ -470,21 +482,21 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
             <KeybindingProvider>
                 <Consumer>
                     {ctx => (
-                        <ViewPref>
+                        <ViewPref objectListKind={objectListKind}>
                             {pref => (
                                 <Page
                                     key={pref.view}
                                     title={getPageTitle(pref.view)}
                                     useTitleOnly={true}
                                     toolbar={
-                                        isInvokedFromAppsPath(ctx.history.location.pathname)
+                                        isListOfApplications
                                             ? {breadcrumbs: [{title: 'Applications', path: '/applications'}]}
                                             : {breadcrumbs: [{title: 'Settings', path: '/settings'}, {title: 'ApplicationSets'}]}
                                     }
                                     hideAuth={true}>
                                     <DataLoader
                                         input={
-                                            isInvokedFromAppsPath(ctx.history.location.pathname)
+                                            isListOfApplications
                                                 ? (pref as AppsListPreferences & {page: number; search: string}).projectsFilter?.join(',')
                                                 : ''
                                         }
@@ -493,10 +505,11 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                             AppUtils.handlePageVisibility(() =>
                                                 loadApplications(
                                                     ctx,
-                                                    isInvokedFromAppsPath(ctx.history.location.pathname)
+                                                    isListOfApplications
                                                         ? (pref as AppsListPreferences & {page: number; search: string}).projectsFilter
                                                         : [],
-                                                    query.get('appNamespace')
+                                                    query.get('appNamespace'),
+                                                    objectListKind
                                                 )
                                             )
                                         }
@@ -508,11 +521,12 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                         {(applications: models.AbstractApplication[]) => {
                                             const healthBarPrefs = pref.statusBarView || ({} as HealthStatusBarPreferences);
                                             const {filteredApps, filterResults} = filterApps(
-                                                isInvokedFromAppsPath(ctx.history.location.pathname) ? (applications as Application[]) : (applications as ApplicationSet[]),
-                                                isInvokedFromAppsPath(ctx.history.location.pathname)
+                                                isListOfApplications ? (applications as Application[]) : (applications as ApplicationSet[]),
+                                                isListOfApplications
                                                     ? (pref as AppsListPreferences & {page: number; search: string})
                                                     : (pref as AppSetsListPreferences & {page: number; search: string}),
-                                                pref.search
+                                                pref.search,
+                                                isListOfApplications
                                             );
                                             return (
                                                 <React.Fragment>
@@ -520,7 +534,7 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                                         toolbar={{
                                                             tools: (
                                                                 <React.Fragment key='app-list-tools'>
-                                                                    <Query>{q => <SearchBar content={q.get('search')} apps={applications} ctx={ctx} />}</Query>
+                                                                    <Query>{q => <SearchBar content={q.get('search')} apps={applications} ctx={ctx} objectListKind={objectListKind}/>}</Query>
                                                                     <Tooltip content='Toggle Health Status Bar'>
                                                                         <button
                                                                             className={`applications-list__accordion argo-button argo-button--base${
@@ -572,7 +586,7 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                                             ),
                                                             actionMenu: {
                                                                 items:
-                                                                    applications.length > 0 && isApp(applications[0])
+                                                                    applications.length > 0 && isListOfApplications
                                                                         ? [
                                                                               {
                                                                                   title: 'New App',
@@ -616,7 +630,7 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                                                                 apps={filterResults}
                                                                                 onChange={newPrefs => onFilterPrefChanged(newPrefs)}
                                                                                 pref={
-                                                                                    isInvokedFromAppsPath(ctx.history.location.pathname)
+                                                                                    isListOfApplications
                                                                                         ? (pref as AppsListPreferences & {page: number; search: string})
                                                                                         : (pref as AppSetsListPreferences)
                                                                                 }
@@ -640,7 +654,7 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                                                                     Change filter criteria or&nbsp;
                                                                                     <a
                                                                                         onClick={() => {
-                                                                                            if (isInvokedFromAppsPath(ctx.history.location.pathname)) {
+                                                                                            if (isListOfApplications) {
                                                                                                 AppsListPreferences.clearFilters(
                                                                                                     pref as AppsListPreferences & {page: number; search: string}
                                                                                                 );
@@ -655,7 +669,7 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                                                             </EmptyState>
                                                                         )}
                                                                         sortOptions={
-                                                                            applications.length > 0 && isApp(applications[0])
+                                                                            applications.length > 0 && isListOfApplications
                                                                                 ? [
                                                                                       {title: 'Name', compare: (a, b) => a.metadata.name.localeCompare(b.metadata.name)},
                                                                                       {
@@ -700,7 +714,7 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                                                 )}
                                                             </>
                                                         )}
-                                                        {applications.length > 0 && isApp(applications[0]) && (
+                                                        {applications.length > 0 && isListOfApplications && (
                                                             <ApplicationsSyncPanel
                                                                 key='syncsPanel'
                                                                 show={syncAppsInput}
@@ -708,7 +722,7 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                                                 apps={filteredApps}
                                                             />
                                                         )}
-                                                        {applications.length > 0 && !isApp(applications[0]) && (
+                                                        {applications.length > 0 && !isListOfApplications && (
                                                             <ApplicationsRefreshPanel
                                                                 key='refreshPanel'
                                                                 show={refreshAppsInput}
@@ -717,7 +731,7 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                                             />
                                                         )}
                                                     </div>
-                                                    {applications.length > 0 && isApp(applications[0]) && (
+                                                    {applications.length > 0 && isListOfApplications && (
                                                         <ObservableQuery>
                                                             {q => (
                                                                 <DataLoader
@@ -751,7 +765,7 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                                         onClose={() => ctx.navigation.goto('.', {new: null}, {replace: true})}
                                                         header={
                                                             <div>
-                                                                {applications.length > 0 && isApp(applications[0]) && (
+                                                                {applications.length > 0 && isListOfApplications && (
                                                                     <button
                                                                         qe-id='applications-list-button-create'
                                                                         className='argo-button argo-button--base'
@@ -769,7 +783,7 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                                                 </button>
                                                             </div>
                                                         }>
-                                                        {appInput && isApp(applications[0]) && (
+                                                        {appInput && isListOfApplications && (
                                                             <ApplicationCreatePanel
                                                                 getFormApi={api => {
                                                                     setCreateApi(api);
