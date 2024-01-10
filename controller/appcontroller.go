@@ -82,7 +82,8 @@ const (
 	// CompareWithLatestForceResolve compares live application state against state defined in latest git revision with
 	// no resolved revision caching. This is the default level when the user manually requests a refresh.
 	CompareWithLatestForceResolve CompareWith = 3
-	// CompareWithLatest compares live application state against state defined in latest git revision.
+	// CompareWithLatest compares live application state against state defined in latest git revision, according
+	// to the git revision cache.
 	CompareWithLatest CompareWith = 2
 	// CompareWithRecent compares the live application state against the state defined using revision of most recent
 	// comparison. This is the default level for resources which are managed by the application, i.e. resources defined
