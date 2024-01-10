@@ -77,8 +77,6 @@ func GetDistributionFunction(clusters clusterAccessor, shardingAlgorithm string,
 	log.Debugf("Using filter function:  %s", shardingAlgorithm)
 	distributionFunction := LegacyDistributionFunction(replicasCount)
 	switch shardingAlgorithm {
-	case common.NoShardingAlgorithm:
-		distributionFunction = NoShardingDistributionFunction()
 	case common.RoundRobinShardingAlgorithm:
 		distributionFunction = RoundRobinDistributionFunction(clusters, replicasCount)
 	case common.LegacyShardingAlgorithm:
@@ -157,8 +155,8 @@ func RoundRobinDistributionFunction(clusters clusterAccessor, replicas int) Dist
 	}
 }
 
-// NoShardingDistributionFunction returns a DistributionFunction that will process all shards
-// the function is created for API compatibility purposes.
+// NoShardingDistributionFunction returns a DistributionFunction that will process all cluster by shard 0
+// the function is created for API compatibility purposes and is not supposed to be activated.
 func NoShardingDistributionFunction() DistributionFunction {
 	return func(c *v1alpha1.Cluster) int { return 0 }
 }

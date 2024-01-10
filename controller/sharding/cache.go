@@ -60,8 +60,6 @@ func (s *ClusterSharding) IsManagedCluster(c *v1alpha1.Cluster) bool {
 	}
 	log.Debugf("Checking if cluster %s with clusterShard %d should be processed by shard %d", c.Server, clusterShard, s.Shard)
 	return clusterShard == s.Shard
-	// If the clusterShard is never equal to sharding.shard accross all shards, we should check that a shard infered
-	// from hostname with value 0 exists
 }
 
 func (sharding *ClusterSharding) Init(clusters *v1alpha1.ClusterList) {
