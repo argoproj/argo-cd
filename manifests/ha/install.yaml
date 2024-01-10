@@ -20348,6 +20348,14 @@ rules:
   verbs:
   - create
   - list
+- apiGroups:
+  - apps
+  resources:
+  - deployments
+  verbs:
+  - get
+  - list
+  - watch
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
