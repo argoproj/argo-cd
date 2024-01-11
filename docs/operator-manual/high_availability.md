@@ -246,10 +246,10 @@ spec:
 
 ### Application Sync Timeout & Jitter
 
-Argo CD uses a default timeout of 5 minutes for application syncs. It will trigger a refresh for each application periodically.
-With a large number of applications, this will cause a spike in the refresh queue and can cause a spike to the repo-server components. To avoid this, you can set a jitter to the sync timeout which will spread out the refreshes and give time to the repo-server to catch up.
+Argo CD has a timeout for application syncs. It will trigger a refresh for each application periodically when the timeout expires.
+With a large number of applications, this will cause a spike in the refresh queue and can cause a spike to the repo-server component. To avoid this, you can set a jitter to the sync timeout which will spread out the refreshes and give time to the repo-server to catch up.
 
-The jitter is a fraction of the sync timeout, so if the sync timeout is 5 minutes and the jitter is 0.2, then the actual timeout will be between 5 and 6 minutes.
+The jitter is the maximum duration that can be added to the sync timeout, so if the sync timeout is 5 minutes and the jitter is 1 minute, then the actual timeout will be between 5 and 6 minutes.
 
 To configure the jitter you can set the following environment variables:
 

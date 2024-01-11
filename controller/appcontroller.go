@@ -119,7 +119,7 @@ type ApplicationController struct {
 	stateCache                    statecache.LiveStateCache
 	statusRefreshTimeout          time.Duration
 	statusHardRefreshTimeout      time.Duration
-	statusRefreshJitter           float64
+	statusRefreshJitter           time.Duration
 	selfHealTimeout               time.Duration
 	repoClientset                 apiclient.Clientset
 	db                            db.ArgoDB
@@ -144,7 +144,7 @@ func NewApplicationController(
 	kubectl kube.Kubectl,
 	appResyncPeriod time.Duration,
 	appHardResyncPeriod time.Duration,
-	appResyncJitter float64,
+	appResyncJitter time.Duration,
 	selfHealTimeout time.Duration,
 	repoErrorGracePeriod time.Duration,
 	metricsPort int,
@@ -2110,7 +2110,7 @@ func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.Shar
 					}
 					if ctrl.statusRefreshJitter != 0 && oldApp.ResourceVersion == newApp.ResourceVersion {
 						// Handler is refreshing the apps, add a random jitter to spread the load and avoid spikes
-						jitter := time.Duration(float64(refreshTimeout) * ctrl.statusRefreshJitter * rand.Float64())
+						jitter := time.Duration(float64(ctrl.statusRefreshJitter) * rand.Float64())
 						delay = &jitter
 					}
 				}
