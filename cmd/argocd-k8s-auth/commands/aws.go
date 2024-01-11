@@ -27,8 +27,9 @@ const (
 	// set this parameter to the actual expiration, and make it configurable.
 	requestPresignParam = 60
 	// The actual token expiration (presigned STS urls are valid for 15 minutes after timestamp in x-amz-date).
-	presignedURLExpiration = 15 * time.Minute
-	v1Prefix               = "k8s-aws-v1."
+	presignedURLExpiration       = 15 * time.Minute
+	v1Prefix                     = "k8s-aws-v1."
+	AWSProviderNotExpirerErrCode = "ProviderNotExpirer"
 )
 
 // newAWSCommand returns a new instance of an aws command that generates k8s auth token
