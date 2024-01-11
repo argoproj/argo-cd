@@ -3,7 +3,7 @@ kind: Deployment
 metadata:
   name: argocd-server
 spec:
-  replicas: 2
+  replicas: 3
   template:
     spec:
       affinity:
@@ -24,6 +24,6 @@ spec:
       - name: argocd-server
         env:
         - name: ARGOCD_API_SERVER_REPLICAS
-          value: '2'
+          value: '3'
         args:
         - /usr/local/bin/argocd-server
