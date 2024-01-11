@@ -244,30 +244,41 @@ spec:
 # ...
 ```
 
+### Application Sync Timeout & Jitter
+
+Argo CD uses a default timeout of 5 minutes for application syncs. It will trigger a refresh for each application periodically.
+With a large number of applications, this will cause a spike in the refresh queue and can cause a spike to the repo-server components. To avoid this, you can set a jitter to the sync timeout which will spread out the refreshes and give time to the repo-server to catch up.
+
+The jitter is a fraction of the sync timeout, so if the sync timeout is 5 minutes and the jitter is 0.2, then the actual timeout will be between 5 and 6 minutes.
+
+To configure the jitter you can set the following environment variables:
+
+* `ARGOCD_RECONCILIATION_JITTER` - The jitter to apply to the sync timeout. Disabled when value is 0. Defaults to 0.
+
 ## Rate Limiting Application Reconciliations
 
-To prevent high controller resource usage or sync loops caused either due to misbehaving apps or other environment specific factors, 
+To prevent high controller resource usage or sync loops caused either due to misbehaving apps or other environment specific factors,
 we can configure rate limits on the workqueues used by the application controller. There are two types of rate limits that can be configured:
 
   * Global rate limits
   * Per item rate limits
 
-The final rate limiter uses a combination of both and calculates the final backoff as `max(globalBackoff, perItemBackoff)`. 
+The final rate limiter uses a combination of both and calculates the final backoff as `max(globalBackoff, perItemBackoff)`.
 
 ### Global rate limits
 
   This is enabled by default, it is a simple bucket based rate limiter that limits the number of items that can be queued per second.
-This is useful to prevent a large number of apps from being queued at the same time. 
-  
+This is useful to prevent a large number of apps from being queued at the same time.
+
 To configure the bucket limiter you can set the following environment variables:
 
   * `WORKQUEUE_BUCKET_SIZE` - The number of items that can be queued in a single burst. Defaults to 500.
   * `WORKQUEUE_BUCKET_QPS` - The number of items that can be queued per second. Defaults to 50.
 
-### Per item rate limits 
+### Per item rate limits
 
-  This by default returns a fixed base delay/backoff value but can be configured to return exponential values, read further to understand it's working. 
-Per item rate limiter limits the number of times a particular item can be queued. This is based on exponential backoff where the backoff time for an item keeps increasing exponentially 
+  This by default returns a fixed base delay/backoff value but can be configured to return exponential values.
+Per item rate limiter limits the number of times a particular item can be queued. This is based on exponential backoff where the backoff time for an item keeps increasing exponentially
 if it is queued multiple times in a short period, but the backoff is reset automatically if a configured `cool down` period has elapsed since the last time the item was queued.
 
 To configure the per item limiter you can set the following environment variables:
@@ -277,16 +288,16 @@ To configure the per item limiter you can set the following environment variable
   * `WORKQUEUE_MAX_DELAY_NS` : The max delay in nanoseconds, this is the max backoff limit. Defaults to 3 * 10^9 (=3s)
   * `WORKQUEUE_BACKOFF_FACTOR` : The backoff factor, this is the factor by which the backoff is increased for each retry. Defaults to 1.5
 
-The formula used to calculate the backoff time for an item, where `numRequeue` is the number of times the item has been queued 
+The formula used to calculate the backoff time for an item, where `numRequeue` is the number of times the item has been queued
 and `lastRequeueTime` is the time at which the item was last queued:
 
 - When `WORKQUEUE_FAILURE_COOLDOWN_NS` != 0 :
 
 ```
-backoff = time.Since(lastRequeueTime) >= WORKQUEUE_FAILURE_COOLDOWN_NS ? 
-          WORKQUEUE_BASE_DELAY_NS : 
+backoff = time.Since(lastRequeueTime) >= WORKQUEUE_FAILURE_COOLDOWN_NS ?
+          WORKQUEUE_BASE_DELAY_NS :
           min(
-              WORKQUEUE_MAX_DELAY_NS, 
+              WORKQUEUE_MAX_DELAY_NS,
               WORKQUEUE_BASE_DELAY_NS * WORKQUEUE_BACKOFF_FACTOR ^ (numRequeue)
               )
 ```
