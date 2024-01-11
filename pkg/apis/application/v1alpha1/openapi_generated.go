@@ -4255,6 +4255,12 @@ func schema_pkg_apis_application_v1alpha1_MergeGenerator(ref common.ReferenceCal
 							Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSetTemplate"),
 						},
 					},
+					"mode": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
 				},
 				Required: []string{"generators", "mergeKeys"},
 			},

@@ -11873,6 +11873,8 @@ spec:
                           items:
                             type: string
                           type: array
+                        mode:
+                          type: string
                         template:
                           properties:
                             metadata:

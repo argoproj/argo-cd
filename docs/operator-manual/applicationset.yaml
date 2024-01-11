@@ -35,4 +35,3 @@ spec:
   - name: some-app
     jqPathExpressions:
     - .spec.source.helm.values
-

@@ -3,6 +3,7 @@ package generators
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/imdario/mergo"
@@ -19,7 +20,19 @@ var (
 	ErrLessThanTwoGeneratorsInMerge = fmt.Errorf("found less than two generators, Merge requires two or more")
 	ErrNoMergeKeys                  = fmt.Errorf("no merge keys were specified, Merge requires at least one")
 	ErrNonUniqueParamSets           = fmt.Errorf("the parameters from a generator were not unique by the given mergeKeys, Merge requires all param sets to be unique")
+	ErrNoCommonMergeKeys            = fmt.Errorf("no merge key was common amongst param sets produced by all generators")
 )
+
+const (
+	LeftJoinUniq  argoprojiov1alpha1.MergeMode = "left-join-uniq"
+	LeftJoin      argoprojiov1alpha1.MergeMode = "left-join"
+	InnerJoinUniq argoprojiov1alpha1.MergeMode = "inner-join-uniq"
+	InnerJoin     argoprojiov1alpha1.MergeMode = "inner-join"
+	FullJoinUniq  argoprojiov1alpha1.MergeMode = "full-join-uniq"
+	FullJoin      argoprojiov1alpha1.MergeMode = "full-join"
+)
+
+const UniqJoinSuffix = "-uniq"
 
 type MergeGenerator struct {
 	// The inner generators supported by the merge generator (cluster, git, list...)
@@ -59,55 +72,140 @@ func (m *MergeGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.Appl
 		return nil, ErrLessThanTwoGeneratorsInMerge
 	}
 
+	var joinType, err = getJoinType(appSetGenerator.Merge.Mode)
+	if err != nil {
+		return nil, err
+	}
+
 	paramSetsFromGenerators, err := m.getParamSetsForAllGenerators(appSetGenerator.Merge.Generators, appSet)
 	if err != nil {
 		return nil, fmt.Errorf("error getting param sets from generators: %w", err)
 	}
 
-	baseParamSetsByMergeKey, err := getParamSetsByMergeKey(appSetGenerator.Merge.MergeKeys, paramSetsFromGenerators[0])
+	baseParamSetsByMergeKey := make(map[string][]map[string]interface{})
+	if strings.HasSuffix(string(joinType), UniqJoinSuffix) {
+		baseParamSetsByMergeKey, err = getParamSetsByMergeKey(appSetGenerator.Merge.MergeKeys, paramSetsFromGenerators[0], false)
+	} else {
+		baseParamSetsByMergeKey, err = getParamSetsByMergeKey(appSetGenerator.Merge.MergeKeys, paramSetsFromGenerators[0], true)
+	}
+
 	if err != nil {
 		return nil, fmt.Errorf("error getting param sets by merge key: %w", err)
 	}
 
 	for _, paramSets := range paramSetsFromGenerators[1:] {
-		paramSetsByMergeKey, err := getParamSetsByMergeKey(appSetGenerator.Merge.MergeKeys, paramSets)
+		paramSetsByMergeKey, err := getParamSetsByMergeKey(appSetGenerator.Merge.MergeKeys, paramSets, false)
 		if err != nil {
 			return nil, fmt.Errorf("error getting param sets by merge key: %w", err)
 		}
 
-		for mergeKeyValue, baseParamSet := range baseParamSetsByMergeKey {
-			if overrideParamSet, exists := paramSetsByMergeKey[mergeKeyValue]; exists {
+		baseParamSetsByMergeKey, err = combineParamSetsByJoinType(
+			joinType,
+			baseParamSetsByMergeKey,
+			paramSetsByMergeKey,
+			appSet)
 
-				if appSet.Spec.GoTemplate {
-					if err := mergo.Merge(&baseParamSet, overrideParamSet, mergo.WithOverride); err != nil {
-						return nil, fmt.Errorf("error merging base param set with override param set: %w", err)
-					}
-					baseParamSetsByMergeKey[mergeKeyValue] = baseParamSet
-				} else {
-					overriddenParamSet, err := utils.CombineStringMapsAllowDuplicates(baseParamSet, overrideParamSet)
-					if err != nil {
-						return nil, fmt.Errorf("error combining string maps: %w", err)
-					}
-					baseParamSetsByMergeKey[mergeKeyValue] = utils.ConvertToMapStringInterface(overriddenParamSet)
-				}
-			}
+		if err != nil {
+			return nil, err
 		}
 	}
 
-	mergedParamSets := make([]map[string]interface{}, len(baseParamSetsByMergeKey))
-	var i = 0
-	for _, mergedParamSet := range baseParamSetsByMergeKey {
-		mergedParamSets[i] = mergedParamSet
-		i += 1
+	var mergedParamSets []map[string]interface{}
+	for _, mergedParamSetList := range baseParamSetsByMergeKey {
+		mergedParamSets = append(mergedParamSets, mergedParamSetList...)
 	}
 
 	return mergedParamSets, nil
 }
 
+func combineParamSetsByJoinType(mergeMode argoprojiov1alpha1.MergeMode,
+	baseParamSetsByMergeKey map[string][]map[string]interface{},
+	paramSetsByMergeKey map[string][]map[string]interface{},
+	appSet *argoprojiov1alpha1.ApplicationSet) (map[string][]map[string]interface{}, error) {
+
+	var err error
+
+	switch mergeMode {
+	case LeftJoin, LeftJoinUniq:
+		for mergeKeyValue, baseParamSetList := range baseParamSetsByMergeKey {
+			if overrideParamSet, exists := paramSetsByMergeKey[mergeKeyValue]; exists {
+				for i, baseParamSet := range baseParamSetList {
+					baseParamSetsByMergeKey, err = overrideParamSets(i, baseParamSet, overrideParamSet[0], mergeKeyValue, baseParamSetsByMergeKey, appSet)
+					if err != nil {
+						return nil, err
+					}
+				}
+			}
+		}
+
+	case InnerJoin, InnerJoinUniq:
+		for mergeKeyValue, baseParamSetList := range baseParamSetsByMergeKey {
+			if overrideParamSet, exists := paramSetsByMergeKey[mergeKeyValue]; exists {
+				for i, baseParamSet := range baseParamSetList {
+					baseParamSetsByMergeKey, err = overrideParamSets(i, baseParamSet, overrideParamSet[0], mergeKeyValue, baseParamSetsByMergeKey, appSet)
+					if err != nil {
+						return nil, err
+					}
+				}
+			} else {
+				delete(baseParamSetsByMergeKey, mergeKeyValue)
+			}
+		}
+		if len(baseParamSetsByMergeKey) == 0 {
+			return nil, ErrNoCommonMergeKeys
+		}
+
+	case FullJoin, FullJoinUniq:
+		for mergeKeyValue, paramSet := range paramSetsByMergeKey {
+			if baseParamSetList, exists := baseParamSetsByMergeKey[mergeKeyValue]; exists {
+				for i, baseParamSet := range baseParamSetList {
+					baseParamSetsByMergeKey, err = overrideParamSets(i, baseParamSet, paramSet[0], mergeKeyValue, baseParamSetsByMergeKey, appSet)
+					if err != nil {
+						return nil, err
+					}
+				}
+			} else {
+				baseParamSetsByMergeKey[mergeKeyValue] = paramSet
+			}
+		}
+	}
+	return baseParamSetsByMergeKey, nil
+}
+
+func overrideParamSets(i int, baseParamSet map[string]interface{}, overrideParamSet map[string]interface{},
+	mergeKeyValue string, baseParamSetsByMergeKey map[string][]map[string]interface{},
+	appSet *argoprojiov1alpha1.ApplicationSet) (map[string][]map[string]interface{}, error) {
+	if appSet.Spec.GoTemplate {
+		if err := mergo.Merge(&baseParamSet, overrideParamSet, mergo.WithOverride); err != nil {
+			return nil, fmt.Errorf("error merging base param set with override param set: %w", err)
+		}
+		baseParamSetsByMergeKey[mergeKeyValue][i] = baseParamSet
+	} else {
+		overriddenParamSet, err := utils.CombineStringMapsAllowDuplicates(baseParamSet, overrideParamSet)
+		if err != nil {
+			return nil, fmt.Errorf("error combining string maps: %w", err)
+		}
+		baseParamSetsByMergeKey[mergeKeyValue][i] = utils.ConvertToMapStringInterface(overriddenParamSet)
+	}
+	return baseParamSetsByMergeKey, nil
+}
+
+func getJoinType(joinType string) (argoprojiov1alpha1.MergeMode, error) {
+	switch argoprojiov1alpha1.MergeMode(joinType) {
+	case LeftJoin, LeftJoinUniq, InnerJoin, InnerJoinUniq, FullJoin, FullJoinUniq:
+		return argoprojiov1alpha1.MergeMode(joinType), nil
+	case "":
+		// No merge mode passed. Using default left-join-uniq
+		return LeftJoinUniq, nil
+	default:
+		return "", fmt.Errorf("incorrect merge mode passed. %s merge mode is not supported", joinType)
+	}
+}
+
 // getParamSetsByMergeKey converts the given list of parameter sets to a map of parameter sets where the key is the
 // unique key of the parameter set as determined by the given mergeKeys. If any two parameter sets share the same merge
-// key, getParamSetsByMergeKey will throw NonUniqueParamSets.
-func getParamSetsByMergeKey(mergeKeys []string, paramSets []map[string]interface{}) (map[string]map[string]interface{}, error) {
+// key, getParamSetsByMergeKey will throw NonUniqueParamSets, if allowDuplicateMergeKey is false
+func getParamSetsByMergeKey(mergeKeys []string, paramSets []map[string]interface{}, allowDuplicateMergeKey bool) (map[string][]map[string]interface{}, error) {
 	if len(mergeKeys) < 1 {
 		return nil, ErrNoMergeKeys
 	}
@@ -117,7 +215,7 @@ func getParamSetsByMergeKey(mergeKeys []string, paramSets []map[string]interface
 		deDuplicatedMergeKeys[mergeKey] = false
 	}
 
-	paramSetsByMergeKey := make(map[string]map[string]interface{}, len(paramSets))
+	paramSetsByMergeKey := make(map[string][]map[string]interface{}, len(paramSets))
 	for _, paramSet := range paramSets {
 		paramSetKey := make(map[string]interface{})
 		for mergeKey := range deDuplicatedMergeKeys {
@@ -128,10 +226,12 @@ func getParamSetsByMergeKey(mergeKeys []string, paramSets []map[string]interface
 			return nil, fmt.Errorf("error marshalling param set key json: %w", err)
 		}
 		paramSetKeyString := string(paramSetKeyJson)
-		if _, exists := paramSetsByMergeKey[paramSetKeyString]; exists {
-			return nil, fmt.Errorf("%w. Duplicate key was %s", ErrNonUniqueParamSets, paramSetKeyString)
+		if !allowDuplicateMergeKey {
+			if _, exists := paramSetsByMergeKey[paramSetKeyString]; exists {
+				return nil, fmt.Errorf("%w. Duplicate key was %s", ErrNonUniqueParamSets, paramSetKeyString)
+			}
 		}
-		paramSetsByMergeKey[paramSetKeyString] = paramSet
+		paramSetsByMergeKey[paramSetKeyString] = append(paramSetsByMergeKey[paramSetKeyString], paramSet)
 	}
 
 	return paramSetsByMergeKey, nil
