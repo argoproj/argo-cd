@@ -119,7 +119,7 @@ spec:
         extVars:
         - name: foo
           value: bar
-          # You can use "code to determine if the value is either string (false, the default) or Jsonnet code (if code is true).
+          # You can use "code" to determine if the value is either string (false, the default) or Jsonnet code (if code is true).
         - code: true
           name: baz
           value: "true"
