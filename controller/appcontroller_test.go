@@ -17,7 +17,9 @@ import (
 
 	"github.com/argoproj/argo-cd/v2/common"
 	statecache "github.com/argoproj/argo-cd/v2/controller/cache"
+	"github.com/argoproj/argo-cd/v2/controller/sharding"
 
+	dbmocks "github.com/argoproj/argo-cd/v2/util/db/mocks"
 	"github.com/argoproj/gitops-engine/pkg/cache/mocks"
 	synccommon "github.com/argoproj/gitops-engine/pkg/sync/common"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
@@ -154,6 +156,10 @@ func newFakeController(data *fakeData, repoErr error) *ApplicationController {
 		nil,
 		false,
 	)
+	db := &dbmocks.ArgoDB{}
+	db.On("GetApplicationControllerReplicas").Return(1)
+	// Setting a default sharding algorithm for the tests where we cannot set it.
+	ctrl.clusterSharding = sharding.NewClusterSharding(db, 0, 1, common.DefaultShardingAlgorithm)
 	if err != nil {
 		panic(err)
 	}
@@ -686,7 +692,6 @@ func TestFinalizeAppDeletion(t *testing.T) {
 		ctrl := newFakeController(&fakeData{apps: []runtime.Object{app, &defaultProj}, managedLiveObjs: map[kube.ResourceKey]*unstructured.Unstructured{
 			kube.GetResourceKey(appObj): appObj,
 		}}, nil)
-
 		patched := false
 		fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
 		defaultReactor := fakeAppCs.ReactionChain[0]
@@ -1809,13 +1814,11 @@ func Test_canProcessApp(t *testing.T) {
 	})
 	t.Run("with cluster filter, good namespace", func(t *testing.T) {
 		app.Namespace = "good"
-		ctrl.clusterFilter = func(_ *v1alpha1.Cluster) bool { return true }
 		canProcess := ctrl.canProcessApp(app)
 		assert.True(t, canProcess)
 	})
 	t.Run("with cluster filter, bad namespace", func(t *testing.T) {
 		app.Namespace = "bad"
-		ctrl.clusterFilter = func(_ *v1alpha1.Cluster) bool { return true }
 		canProcess := ctrl.canProcessApp(app)
 		assert.False(t, canProcess)
 	})
