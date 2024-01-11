@@ -1,0 +1,4 @@
+actionTests:
+  - action: restart
+    inputPath: testdata/kubeadmcontrolplane.yaml
+    expectedOutputPath: testdata/kubeadmcontrolplane-restarted.yaml
