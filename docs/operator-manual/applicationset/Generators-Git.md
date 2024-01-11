@@ -47,16 +47,16 @@ spec:
       - path: applicationset/examples/git-generator-directory/cluster-addons/*
   template:
     metadata:
-      name: '{{.path.basename}}'
+      name: '{{path.basename}}'
     spec:
       project: "my-project"
       source:
         repoURL: https://github.com/argoproj/argo-cd.git
         targetRevision: HEAD
-        path: '{{.path.path}}'
+        path: '{{path}}'
       destination:
         server: https://kubernetes.default.svc
-        namespace: '{{.path.basename}}'
+        namespace: '{{path.basename}}'
       syncPolicy:
         syncOptions:
         - CreateNamespace=true
@@ -65,14 +65,14 @@ spec:
 
 The generator parameters are:
 
-- `{{.path.path}}`: The directory paths within the Git repository that match the `path` wildcard.
-- `{{index .path.segments n}}`: The directory paths within the Git repository that match the `path` wildcard, split into array elements (`n` - array index)
-- `{{.path.basename}}`: For any directory path within the Git repository that matches the `path` wildcard, the right-most path name is extracted (e.g. `/directory/directory2` would produce `directory2`).
-- `{{.path.basenameNormalized}}`: This field is the same as `path.basename` with unsupported characters replaced with `-` (e.g. a `path` of `/directory/directory_2`, and `path.basename` of `directory_2` would produce `directory-2` here).
+- `{{path}}`: The directory paths within the Git repository that match the `path` wildcard.
+- `{{index path.segments n}}`: The directory paths within the Git repository that match the `path` wildcard, split into array elements (`n` - array index)
+- `{{path.basename}}`: For any directory path within the Git repository that matches the `path` wildcard, the right-most path name is extracted (e.g. `/directory/directory2` would produce `directory2`).
+- `{{path.basenameNormalized}}`: This field is the same as `path.basename` with unsupported characters replaced with `-` (e.g. a `path` of `/directory/directory_2`, and `path.basename` of `directory_2` would produce `directory-2` here).
 
-**Note**: The right-most path name always becomes `{{.path.basename}}`. For example, for `- path: /one/two/three/four`, `{{.path.basename}}` is `four`.
+**Note**: The right-most path name always becomes `{{path.basename}}`. For example, for `- path: /one/two/three/four`, `{{path.basename}}` is `four`.
 
-**Note**: If the `pathParamPrefix` option is specified, all `path`-related parameter names above will be prefixed with the specified value and a dot separator. E.g., if `pathParamPrefix` is `myRepo`, then the generated parameter name would be `.myRepo.path` instead of `.path`. Using this option is necessary in a Matrix generator where both child generators are Git generators (to avoid conflicts when merging the child generators’ items).
+**Note**: If the `pathParamPrefix` option is specified, all `path`-related parameter names above will be prefixed with the specified value and a dot separator. E.g., if `pathParamPrefix` is `myRepo`, then the generated parameter name would be `myRepo.path` instead of `path`. Using this option is necessary in a Matrix generator where both child generators are Git generators (to avoid conflicts when merging the child generators’ items).
 
 Whenever a new Helm chart/Kustomize YAML/Application/plain subdirectory is added to the Git repository, the ApplicationSet controller will detect this change and automatically deploy the resulting manifests within new `Application` resources.
 
@@ -103,16 +103,16 @@ spec:
         exclude: true
   template:
     metadata:
-      name: '{{.path.basename}}'
+      name: '{{path.basename}}'
     spec:
       project: "my-project"
       source:
         repoURL: https://github.com/argoproj/argo-cd.git
         targetRevision: HEAD
-        path: '{{.path.path}}'
+        path: '{{path}}'
       destination:
         server: https://kubernetes.default.svc
-        namespace: '{{.path.basename}}'
+        namespace: '{{path.basename}}'
 ```
 (*The full example can be found [here](https://github.com/argoproj/argo-cd/tree/master/applicationset/examples/git-generator-directory/excludes).*)
 
@@ -186,16 +186,16 @@ spec:
         exclude: true
   template:
     metadata:
-      name: '{{.path.basename}}'
+      name: '{{path.basename}}'
     spec:
       project: "my-project"
       source:
         repoURL: https://github.com/example/example-repo.git
         targetRevision: HEAD
-        path: '{{.path.path}}'
+        path: '{{path}}'
       destination:
         server: https://kubernetes.default.svc
-        namespace: '{{.path.basename}}'
+        namespace: '{{path.basename}}'
 ```
 
 ### Pass additional key-value pairs via `values` field
@@ -219,19 +219,19 @@ spec:
       directories:
       - path: '*'
       values:
-        cluster: '{{.branch}}-{{.path.basename}}'
+        cluster: '{{branch}}-{{path.basename}}'
   template:
     metadata:
-      name: '{{.path.basename}}'
+      name: '{{path.basename}}'
     spec:
       project: "my-project"
       source:
         repoURL: https://github.com/example/example-repo.git
         targetRevision: HEAD
-        path: '{{.path.path}}'
+        path: '{{path}}'
       destination:
         server: https://kubernetes.default.svc
-        namespace: '{{.values.cluster}}'
+        namespace: '{{values.cluster}}'
 ```
 
 !!! note
@@ -306,7 +306,7 @@ spec:
       - path: "applicationset/examples/git-generator-files-discovery/cluster-config/**/config.json"
   template:
     metadata:
-      name: '{{.cluster.name}}-guestbook'
+      name: '{{cluster.name}}-guestbook'
     spec:
       project: default
       source:
@@ -314,7 +314,7 @@ spec:
         targetRevision: HEAD
         path: "applicationset/examples/git-generator-files-discovery/apps/guestbook"
       destination:
-        server: '{{.cluster.address}}'
+        server: '{{cluster.address}}'
         namespace: guestbook
 ```
 (*The full example can be found [here](https://github.com/argoproj/argo-cd/tree/master/applicationset/examples/git-generator-files-discovery).*)
@@ -325,15 +325,15 @@ As with other generators, clusters *must* already be defined within Argo CD, in 
 
 In addition to the flattened key/value pairs from the configuration file, the following generator parameters are provided:
 
-- `{{.path.path}}`: The path to the directory containing matching configuration file within the Git repository. Example: `/clusters/clusterA`, if the config file was `/clusters/clusterA/config.json`
-- `{{index .path n}}`: The path to the matching configuration file within the Git repository, split into array elements (`n` - array index). Example: `index .path 0: clusters`, `index .path 1: clusterA`
-- `{{.path.basename}}`: Basename of the path to the directory containing the configuration file (e.g. `clusterA`, with the above example.)
-- `{{.path.basenameNormalized}}`: This field is the same as `.path.basename` with unsupported characters replaced with `-` (e.g. a `path` of `/directory/directory_2`, and `.path.basename` of `directory_2` would produce `directory-2` here).
-- `{{.path.filename}}`: The matched filename. e.g., `config.json` in the above example.
-- `{{.path.filenameNormalized}}`: The matched filename with unsupported characters replaced with `-`.
+- `{{path}}`: The path to the directory containing matching configuration file within the Git repository. Example: `/clusters/clusterA`, if the config file was `/clusters/clusterA/config.json`
+- `{{index path n}}`: The path to the matching configuration file within the Git repository, split into array elements (`n` - array index). Example: `index path 0: clusters`, `index path 1: clusterA`
+- `{{path.basename}}`: Basename of the path to the directory containing the configuration file (e.g. `clusterA`, with the above example.)
+- `{{path.basenameNormalized}}`: This field is the same as `path.basename` with unsupported characters replaced with `-` (e.g. a `path` of `/directory/directory_2`, and `path.basename` of `directory_2` would produce `directory-2` here).
+- `{{path.filename}}`: The matched filename. e.g., `config.json` in the above example.
+- `{{path.filenameNormalized}}`: The matched filename with unsupported characters replaced with `-`.
 
-**Note**: The right-most *directory* name always becomes `{{.path.basename}}`. For example, from `- path: /one/two/three/four/config.json`, `{{.path.basename}}` will be `four`. 
-The filename can always be accessed using `{{.path.filename}}`. 
+**Note**: The right-most *directory* name always becomes `{{path.basename}}`. For example, from `- path: /one/two/three/four/config.json`, `{{path.basename}}` will be `four`. 
+The filename can always be accessed using `{{path.filename}}`. 
 
 **Note**: If the `pathParamPrefix` option is specified, all `path`-related parameter names above will be prefixed with the specified value and a dot separator. E.g., if `pathParamPrefix` is `myRepo`, then the generated parameter name would be `myRepo.path` instead of `path`. Using this option is necessary in a Matrix generator where both child generators are Git generators (to avoid conflicts when merging the child generators’ items).
 
@@ -360,18 +360,18 @@ spec:
       files:
       - path: "applicationset/examples/git-generator-files-discovery/cluster-config/**/config.json"
       values:
-        base_dir: "{{index .path 0}}/{{index .path 1}}/{{index .path 2}}"
+        base_dir: "{{index path 0}}/{{index path 1}}/{{index path 2}}"
   template:
     metadata:
-      name: '{{.cluster.name}}-guestbook'
+      name: '{{cluster.name}}-guestbook'
     spec:
       project: default
       source:
         repoURL: https://github.com/argoproj/argo-cd.git
         targetRevision: HEAD
-        path: "{{.values.base_dir}}/apps/guestbook"
+        path: "{{values.base_dir}}/apps/guestbook"
       destination:
-        server: '{{.cluster.address}}'
+        server: '{{cluster.address}}'
         namespace: guestbook
 ```
 
