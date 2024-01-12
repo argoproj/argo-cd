@@ -1856,6 +1856,9 @@ type AWSAuthConfig struct {
 
 	// RoleARN contains optional role ARN. If set then AWS IAM Authenticator assume a role to perform cluster operations instead of the default AWS credential provider chain.
 	RoleARN string `json:"roleARN,omitempty" protobuf:"bytes,2,opt,name=roleARN"`
+
+	// Profile contains optional role ARN. If set then AWS IAM Authenticator uses the profile to perform cluster operations instead of the default AWS credential provider chain.
+	Profile string `json:"profile,omitempty" protobuf:"bytes,3,opt,name=profile"`
 }
 
 // ExecProviderConfig is config used to call an external command to perform cluster authentication
@@ -2986,6 +2989,9 @@ func (c *Cluster) RawRestConfig() *rest.Config {
 			args := []string{"aws", "--cluster-name", c.Config.AWSAuthConfig.ClusterName}
 			if c.Config.AWSAuthConfig.RoleARN != "" {
 				args = append(args, "--role-arn", c.Config.AWSAuthConfig.RoleARN)
+			}
+			if c.Config.AWSAuthConfig.Profile != "" {
+				args = append(args, "--profile", c.Config.AWSAuthConfig.Profile)
 			}
 			config = &rest.Config{
 				Host:            c.Server,

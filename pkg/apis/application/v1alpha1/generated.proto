@@ -22,6 +22,9 @@ message AWSAuthConfig {
 
   // RoleARN contains optional role ARN. If set then AWS IAM Authenticator assume a role to perform cluster operations instead of the default AWS credential provider chain.
   optional string roleARN = 2;
+
+  // Profile contains optional role ARN. If set then AWS IAM Authenticator uses the profile to perform cluster operations instead of the default AWS credential provider chain.
+  optional string profile = 3;
 }
 
 // AppProject provides a logical grouping of applications, providing controls for:
