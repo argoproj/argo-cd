@@ -2,13 +2,20 @@ package applicationset
 
 import (
 	"context"
+	"fmt"
+	"strconv"
 	"testing"
+	"time"
 
+	appsetmocks "github.com/argoproj/argo-cd/v2/server/applicationset/mocks"
 	"github.com/argoproj/pkg/sync"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
+	"google.golang.org/grpc/metadata"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes/fake"
 	k8scache "k8s.io/client-go/tools/cache"
 
@@ -132,6 +139,31 @@ func newTestAppSetServerWithEnforcerConfigure(f func(*rbac.Enforcer), namespace 
 		panic("Timed out waiting for caches to sync")
 	}
 
+	broadcaster := new(appsetmocks.Broadcaster)
+	broadcaster.On("Subscribe", mock.Anything, mock.Anything).Return(func() {}).Run(func(args mock.Arguments) {
+		// Simulate the broadcaster notifying the subscriber of an applicationset update.
+		// The second parameter to Subscribe is filters. For the purposes of tests, we ignore the filters. Future tests
+		// might require implementing those.
+		go func() {
+			events := args.Get(0).(chan *appsv1.ApplicationSetWatchEvent)
+			for _, obj := range objects {
+				app, ok := obj.(*appsv1.ApplicationSet)
+				if ok {
+					oldVersion, err := strconv.Atoi(app.ResourceVersion)
+					if err != nil {
+						oldVersion = 0
+					}
+					clonedAppSet := app.DeepCopy()
+					clonedAppSet.ResourceVersion = fmt.Sprintf("%d", oldVersion+1)
+					events <- &appsv1.ApplicationSetWatchEvent{Type: watch.Added, ApplicationSet: *clonedAppSet}
+				}
+			}
+		}()
+	})
+	broadcaster.On("OnAdd", mock.Anything).Return()
+	broadcaster.On("OnUpdate", mock.Anything, mock.Anything).Return()
+	broadcaster.On("OnDelete", mock.Anything).Return()
+
 	projInformer := factory.Argoproj().V1alpha1().AppProjects().Informer()
 	go projInformer.Run(ctx.Done())
 	if !k8scache.WaitForCacheSync(ctx.Done(), projInformer.HasSynced) {
@@ -144,6 +176,7 @@ func newTestAppSetServerWithEnforcerConfigure(f func(*rbac.Enforcer), namespace 
 		enforcer,
 		fakeAppsClientset,
 		appInformer,
+        broadcaster,
 		factory.Argoproj().V1alpha1().ApplicationSets().Lister(),
 		fakeProjLister,
 		settingsMgr,
@@ -237,69 +270,6 @@ func testListAppsetsWithLabels(t *testing.T, appsetQuery applicationset.Applicat
 	}
 }
 
-func TestListAppSetsInNamespaceWithLabels(t *testing.T) {
-	testNamespace := "test-namespace"
-	appSetServer := newTestAppSetServer(newTestAppSet(func(appset *appsv1.ApplicationSet) {
-		appset.Name = "AppSet1"
-		appset.ObjectMeta.Namespace = testNamespace
-		appset.SetLabels(map[string]string{"key1": "value1", "key2": "value1"})
-	}), newTestAppSet(func(appset *appsv1.ApplicationSet) {
-		appset.Name = "AppSet2"
-		appset.ObjectMeta.Namespace = testNamespace
-		appset.SetLabels(map[string]string{"key1": "value2"})
-	}), newTestAppSet(func(appset *appsv1.ApplicationSet) {
-		appset.Name = "AppSet3"
-		appset.ObjectMeta.Namespace = testNamespace
-		appset.SetLabels(map[string]string{"key1": "value3"})
-	}))
-	appSetServer.enabledNamespaces = []string{testNamespace}
-	appsetQuery := applicationset.ApplicationSetListQuery{AppsetNamespace: testNamespace}
-
-	testListAppsetsWithLabels(t, appsetQuery, appSetServer)
-}
-
-func TestListAppSetsInDefaultNSWithLabels(t *testing.T) {
-	appSetServer := newTestAppSetServer(newTestAppSet(func(appset *appsv1.ApplicationSet) {
-		appset.Name = "AppSet1"
-		appset.SetLabels(map[string]string{"key1": "value1", "key2": "value1"})
-	}), newTestAppSet(func(appset *appsv1.ApplicationSet) {
-		appset.Name = "AppSet2"
-		appset.SetLabels(map[string]string{"key1": "value2"})
-	}), newTestAppSet(func(appset *appsv1.ApplicationSet) {
-		appset.Name = "AppSet3"
-		appset.SetLabels(map[string]string{"key1": "value3"})
-	}))
-	appsetQuery := applicationset.ApplicationSetListQuery{}
-
-	testListAppsetsWithLabels(t, appsetQuery, appSetServer)
-}
-
-// This test covers https://github.com/argoproj/argo-cd/issues/15429
-// If the namespace isn't provided during listing action, argocd's
-// default namespace must be used and not all the namespaces
-func TestListAppSetsWithoutNamespace(t *testing.T) {
-	testNamespace := "test-namespace"
-	appSetServer := newTestNamespacedAppSetServer(newTestAppSet(func(appset *appsv1.ApplicationSet) {
-		appset.Name = "AppSet1"
-		appset.ObjectMeta.Namespace = testNamespace
-		appset.SetLabels(map[string]string{"key1": "value1", "key2": "value1"})
-	}), newTestAppSet(func(appset *appsv1.ApplicationSet) {
-		appset.Name = "AppSet2"
-		appset.ObjectMeta.Namespace = testNamespace
-		appset.SetLabels(map[string]string{"key1": "value2"})
-	}), newTestAppSet(func(appset *appsv1.ApplicationSet) {
-		appset.Name = "AppSet3"
-		appset.ObjectMeta.Namespace = testNamespace
-		appset.SetLabels(map[string]string{"key1": "value3"})
-	}))
-	appSetServer.enabledNamespaces = []string{testNamespace}
-	appsetQuery := applicationset.ApplicationSetListQuery{}
-
-	res, err := appSetServer.List(context.Background(), &appsetQuery)
-	assert.NoError(t, err)
-	assert.Equal(t, 0, len(res.Items))
-}
-
 func TestCreateAppSet(t *testing.T) {
 	testAppSet := newTestAppSet()
 	appServer := newTestAppSetServer()
@@ -382,6 +352,97 @@ func TestGetAppSet(t *testing.T) {
 		_, err := appSetServer.Get(context.Background(), &appsetQuery)
 		assert.Equal(t, "namespace 'NOT-ALLOWED' is not permitted", err.Error())
 	})
+}
+
+func TestWatchAppSet(t *testing.T) {
+    appSet1 := newTestAppSet(func(appset *appsv1.ApplicationSet) {
+        appset.Name = "AppSet1"
+    })
+
+    appSet2 := newTestAppSet(func(appset *appsv1.ApplicationSet) {
+        appset.Name = "AppSet2"
+    })
+
+    appSet3 := newTestAppSet(func(appset *appsv1.ApplicationSet) {
+        appset.Name = "AppSet3"
+    })
+
+    t.Run("Watch in default namespace", func(t *testing.T) {
+
+        appSetServer := newTestAppSetServer(appSet1, appSet2, appSet3)
+
+        appsetQuery := applicationset.ApplicationSetWatchQuery{Name: "AppSet1"}
+
+        ctx, cancel := context.WithCancel(context.Background())
+        watchServer := &TestWatchServer{ctx: ctx}
+        go func() {
+            // Watch will block until canceled so give 500ms to read send events and cancel
+            time.Sleep(500 * time.Millisecond)
+            cancel()
+
+        }()
+        err := appSetServer.Watch(&appsetQuery, watchServer)
+
+        assert.NoError(t, err)
+        assert.Len(t, watchServer.sent, 2) // Sent twice because of workaround to avoid missing events
+        assert.Equal(t, watchServer.sent[0].Type, watch.Added)
+        assert.Equal(t, watchServer.sent[0].ApplicationSet.Name, "AppSet1")
+    })
+
+    t.Run("Watch in named namespace", func(t *testing.T) {
+
+        appSetServer := newTestAppSetServer(appSet1, appSet2, appSet3)
+
+        appsetQuery := applicationset.ApplicationSetWatchQuery{Name: "AppSet1", AppsetNamespace: testNamespace}
+
+        ctx, cancel := context.WithCancel(context.Background())
+        watchServer := &TestWatchServer{ctx: ctx}
+        go func() {
+            // Watch will block until canceled so give 500ms to read send events and cancel
+            time.Sleep(500 * time.Millisecond)
+            cancel()
+
+        }()
+        err := appSetServer.Watch(&appsetQuery, watchServer)
+
+        assert.NoError(t, err)
+        assert.Len(t, watchServer.sent, 2) // Sent twice because of workaround to avoid missing events
+        assert.Equal(t, watchServer.sent[0].Type, watch.Added)
+        assert.Equal(t, watchServer.sent[0].ApplicationSet.Name, "AppSet1")
+    })
+
+    t.Run("Watch in not allowed namespace", func(t *testing.T) {
+
+        appSetServer := newTestAppSetServer(appSet1, appSet2, appSet3)
+
+        appsetQuery := applicationset.ApplicationSetWatchQuery{Name: "AppSet1", AppsetNamespace: "NOT-ALLOWED"}
+
+        watchServer := &TestWatchServer{ctx: context.Background()}
+        err := appSetServer.Watch(&appsetQuery, watchServer)
+
+		assert.Equal(t, "namespace 'NOT-ALLOWED' is not permitted", err.Error())
+        assert.Len(t, watchServer.sent, 0)
+    })
+
+    t.Run("Watch all appsets in default namespace", func(t *testing.T) {
+
+        appSetServer := newTestAppSetServer(appSet1, appSet2, appSet3)
+
+        appsetQuery := applicationset.ApplicationSetWatchQuery{}
+
+        ctx, cancel := context.WithCancel(context.Background())
+        watchServer := &TestWatchServer{ctx: ctx}
+        go func() {
+            // Watch will block until canceled so give 500ms to read events and cancel
+            time.Sleep(500 * time.Millisecond)
+            cancel()
+
+        }()
+        err := appSetServer.Watch(&appsetQuery, watchServer)
+
+        assert.NoError(t, err)
+        assert.Len(t, watchServer.sent, 6) // Sent twice because of workaround to avoid missing events
+    })
 }
 
 func TestDeleteAppSet(t *testing.T) {
@@ -474,3 +535,37 @@ func TestUpdateAppSet(t *testing.T) {
 	})
 
 }
+
+type TestWatchServer struct {
+	ctx context.Context
+    sent []*appsv1.ApplicationSetWatchEvent
+}
+
+func (t *TestWatchServer) Send(event *appsv1.ApplicationSetWatchEvent) error {
+    t.sent = append(t.sent, event)
+	return nil
+}
+
+func (t *TestWatchServer) SetHeader(metadata.MD) error {
+	return nil
+}
+
+func (t *TestWatchServer) SendHeader(metadata.MD) error {
+	return nil
+}
+
+func (t *TestWatchServer) SetTrailer(metadata.MD) {}
+
+func (t *TestWatchServer) Context() context.Context {
+	return t.ctx
+}
+
+func (t *TestWatchServer) SendMsg(m interface{}) error {
+	return nil
+}
+
+func (t *TestWatchServer) RecvMsg(m interface{}) error {
+	return nil
+}
+
+

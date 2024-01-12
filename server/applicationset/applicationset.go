@@ -65,6 +65,7 @@ func NewServer(
 	enf *rbac.Enforcer,
 	appclientset appclientset.Interface,
 	appsetInformer cache.SharedIndexInformer,
+	appsetBroadcaster Broadcaster,
 	appsetLister applisters.ApplicationSetLister,
 	projLister applisters.AppProjectNamespaceLister,
 	settings *settings.SettingsManager,
@@ -72,7 +73,9 @@ func NewServer(
 	projectLock sync.KeyLock,
 	enabledNamespaces []string,
 ) applicationset.ApplicationSetServiceServer {
-	appsetBroadcaster := &broadcasterHandler{}
+	if appsetBroadcaster == nil {
+		appsetBroadcaster = &broadcasterHandler{}
+	}
 	_, err := appsetInformer.AddEventHandler(appsetBroadcaster)
 	if err != nil {
 		log.Error(err)
