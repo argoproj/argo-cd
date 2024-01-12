@@ -83,7 +83,7 @@ func NewServer(
 		enf:               enf,
 		appclientset:      appclientset,
 		appsetInformer:    appsetInformer,
-        appsetBroadcaster: appsetBroadcaster,
+		appsetBroadcaster: appsetBroadcaster,
 		appsetLister:      appsetLister,
 		projLister:        projLister,
 		settings:          settings,
@@ -164,7 +164,7 @@ func (s *Server) List(ctx context.Context, q *applicationset.ApplicationSetListQ
 }
 
 func (s *Server) Watch(q *applicationset.ApplicationSetWatchQuery, ws applicationset.ApplicationSetService_WatchServer) error {
-    ctx := ws.Context()
+	ctx := ws.Context()
 	namespace := s.appsetNamespaceOrDefault(q.AppsetNamespace)
 
 	if !s.isNamespaceEnabled(namespace) {
