@@ -476,7 +476,11 @@ start: test-tools-image
 
 # Starts a local instance of ArgoCD
 .PHONY: start-local
-start-local: mod-vendor-local dep-ui-local cli-local
+start-local: mod-vendor-local start-local-fast
+
+# Starts a local instance of ArgoCD without vendoring dependencies
+.PHONY: start-local-fast
+start-local-fast: dep-ui-local cli-local
 	# check we can connect to Docker to start Redis
 	killall goreman || true
 	kubectl create ns argocd || true

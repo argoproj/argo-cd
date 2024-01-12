@@ -28,6 +28,20 @@ message ApplicationSetListQuery {
 }
 
 
+message ApplicationSetWatchQuery {
+	// the applicationsets's name
+	string name = 1;
+	// the project names to restrict returned list applicationsets
+	repeated string projects = 2;
+	// the selector to restrict returned list to applicationsets only with matched labels
+	string selector = 3;
+	// The application set namespace. Default empty is argocd control plane namespace
+	string appsetNamespace = 4;
+	// when specified with a watch call, shows changes that occur after that particular version of a resource.
+	string resourceVersion = 5;
+}
+
+
 message ApplicationSetResponse {
 	string project = 1;
 	github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.ApplicationSet applicationset = 2;
@@ -58,6 +72,11 @@ service ApplicationSetService {
 	//List returns list of applicationset
 	rpc List (ApplicationSetListQuery) returns (github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.ApplicationSetList) {
 		option (google.api.http).get = "/api/v1/applicationsets";
+	}
+
+	// Watch returns stream of applicationset change events
+	rpc Watch(ApplicationSetWatchQuery) returns (stream github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.ApplicationSetWatchEvent) {
+		option (google.api.http).get = "/api/v1/stream/applicationsets";
 	}
 
 	//Create creates an applicationset

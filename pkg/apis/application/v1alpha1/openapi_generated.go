@@ -41,6 +41,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSetTemplate":                  schema_pkg_apis_application_v1alpha1_ApplicationSetTemplate(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSetTemplateMeta":              schema_pkg_apis_application_v1alpha1_ApplicationSetTemplateMeta(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSetTerminalGenerator":         schema_pkg_apis_application_v1alpha1_ApplicationSetTerminalGenerator(ref),
+		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSetWatchEvent":                schema_pkg_apis_application_v1alpha1_ApplicationSetWatchEvent(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSource":                       schema_pkg_apis_application_v1alpha1_ApplicationSource(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSourceDirectory":              schema_pkg_apis_application_v1alpha1_ApplicationSourceDirectory(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSourceHelm":                   schema_pkg_apis_application_v1alpha1_ApplicationSourceHelm(ref),
@@ -1541,6 +1542,36 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSetTerminalGenerator(ref co
 		},
 		Dependencies: []string{
 			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ClusterGenerator", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.DuckTypeGenerator", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.GitGenerator", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ListGenerator", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.PluginGenerator", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.PullRequestGenerator", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SCMProviderGenerator", "k8s.io/apimachinery/pkg/apis/meta/v1.LabelSelector"},
+	}
+}
+
+func schema_pkg_apis_application_v1alpha1_ApplicationSetWatchEvent(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "ApplicationSetWatchEvent contains information about applicationset change.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"type": {
+						SchemaProps: spec.SchemaProps{
+							Default: "",
+							Type:    []string{"string"},
+							Format:  "",
+						},
+					},
+					"applicationSet": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ApplicationSet is:\n * If Type is Added or Modified: the new state of the object.\n * If Type is Deleted: the state of the object immediately before deletion.\n * If Type is Error: *api.Status is recommended; other types may make sense\n   depending on context.",
+							Default:     map[string]interface{}{},
+							Ref:         ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSet"),
+						},
+					},
+				},
+				Required: []string{"type", "applicationSet"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSet"},
 	}
 }
 

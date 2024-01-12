@@ -392,6 +392,18 @@ message ApplicationSetTerminalGenerator {
   optional k8s.io.apimachinery.pkg.apis.meta.v1.LabelSelector selector = 8;
 }
 
+// ApplicationSetWatchEvent contains information about applicationset change.
+message ApplicationSetWatchEvent {
+  optional string type = 1;
+
+  // ApplicationSet is:
+  //  * If Type is Added or Modified: the new state of the object.
+  //  * If Type is Deleted: the state of the object immediately before deletion.
+  //  * If Type is Error: *api.Status is recommended; other types may make sense
+  //    depending on context.
+  optional ApplicationSet applicationSet = 2;
+}
+
 // ApplicationSource contains all required information about the source of an application
 message ApplicationSource {
   // RepoURL is the URL to the repository (Git or Helm) that contains the application manifests

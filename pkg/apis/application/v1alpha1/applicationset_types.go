@@ -27,6 +27,7 @@ import (
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/apimachinery/pkg/watch"
 )
 
 // Utility struct for a reference to a secret key.
@@ -832,6 +833,18 @@ type ApplicationSetApplicationStatus struct {
 	Status string `json:"status" protobuf:"bytes,4,opt,name=status"`
 	// Step tracks which step this Application should be updated in
 	Step string `json:"step" protobuf:"bytes,5,opt,name=step"`
+}
+
+// ApplicationSetWatchEvent contains information about applicationset change.
+type ApplicationSetWatchEvent struct {
+	Type watch.EventType `json:"type" protobuf:"bytes,1,opt,name=type,casttype=k8s.io/apimachinery/pkg/watch.EventType"`
+
+	// ApplicationSet is:
+	//  * If Type is Added or Modified: the new state of the object.
+	//  * If Type is Deleted: the state of the object immediately before deletion.
+	//  * If Type is Error: *api.Status is recommended; other types may make sense
+	//    depending on context.
+	ApplicationSet ApplicationSet `json:"applicationSet" protobuf:"bytes,2,opt,name=applicationSet"`
 }
 
 // ApplicationSetList contains a list of ApplicationSet
