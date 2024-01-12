@@ -270,6 +270,69 @@ func testListAppsetsWithLabels(t *testing.T, appsetQuery applicationset.Applicat
 	}
 }
 
+func TestListAppSetsInNamespaceWithLabels(t *testing.T) {
+	testNamespace := "test-namespace"
+	appSetServer := newTestAppSetServer(newTestAppSet(func(appset *appsv1.ApplicationSet) {
+		appset.Name = "AppSet1"
+		appset.ObjectMeta.Namespace = testNamespace
+		appset.SetLabels(map[string]string{"key1": "value1", "key2": "value1"})
+	}), newTestAppSet(func(appset *appsv1.ApplicationSet) {
+		appset.Name = "AppSet2"
+		appset.ObjectMeta.Namespace = testNamespace
+		appset.SetLabels(map[string]string{"key1": "value2"})
+	}), newTestAppSet(func(appset *appsv1.ApplicationSet) {
+		appset.Name = "AppSet3"
+		appset.ObjectMeta.Namespace = testNamespace
+		appset.SetLabels(map[string]string{"key1": "value3"})
+	}))
+	appSetServer.enabledNamespaces = []string{testNamespace}
+	appsetQuery := applicationset.ApplicationSetListQuery{AppsetNamespace: testNamespace}
+
+	testListAppsetsWithLabels(t, appsetQuery, appSetServer)
+}
+
+func TestListAppSetsInDefaultNSWithLabels(t *testing.T) {
+	appSetServer := newTestAppSetServer(newTestAppSet(func(appset *appsv1.ApplicationSet) {
+		appset.Name = "AppSet1"
+		appset.SetLabels(map[string]string{"key1": "value1", "key2": "value1"})
+	}), newTestAppSet(func(appset *appsv1.ApplicationSet) {
+		appset.Name = "AppSet2"
+		appset.SetLabels(map[string]string{"key1": "value2"})
+	}), newTestAppSet(func(appset *appsv1.ApplicationSet) {
+		appset.Name = "AppSet3"
+		appset.SetLabels(map[string]string{"key1": "value3"})
+	}))
+	appsetQuery := applicationset.ApplicationSetListQuery{}
+
+	testListAppsetsWithLabels(t, appsetQuery, appSetServer)
+}
+
+// This test covers https://github.com/argoproj/argo-cd/issues/15429
+// If the namespace isn't provided during listing action, argocd's
+// default namespace must be used and not all the namespaces
+func TestListAppSetsWithoutNamespace(t *testing.T) {
+	testNamespace := "test-namespace"
+	appSetServer := newTestNamespacedAppSetServer(newTestAppSet(func(appset *appsv1.ApplicationSet) {
+		appset.Name = "AppSet1"
+		appset.ObjectMeta.Namespace = testNamespace
+		appset.SetLabels(map[string]string{"key1": "value1", "key2": "value1"})
+	}), newTestAppSet(func(appset *appsv1.ApplicationSet) {
+		appset.Name = "AppSet2"
+		appset.ObjectMeta.Namespace = testNamespace
+		appset.SetLabels(map[string]string{"key1": "value2"})
+	}), newTestAppSet(func(appset *appsv1.ApplicationSet) {
+		appset.Name = "AppSet3"
+		appset.ObjectMeta.Namespace = testNamespace
+		appset.SetLabels(map[string]string{"key1": "value3"})
+	}))
+	appSetServer.enabledNamespaces = []string{testNamespace}
+	appsetQuery := applicationset.ApplicationSetListQuery{}
+
+	res, err := appSetServer.List(context.Background(), &appsetQuery)
+	assert.NoError(t, err)
+	assert.Equal(t, 0, len(res.Items))
+}
+
 func TestCreateAppSet(t *testing.T) {
 	testAppSet := newTestAppSet()
 	appServer := newTestAppSetServer()
