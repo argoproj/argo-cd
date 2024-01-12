@@ -292,6 +292,9 @@ require (
 )
 
 replace (
+
+	// TODO remove once https://github.com/argoproj/gitops-engine/pull/562 is merged
+	github.com/argoproj/gitops-engine => github.com/leoluz/gitops-engine v0.4.1-0.20240112211225-647b2e464528
 	// https://github.com/golang/go/issues/33546#issuecomment-519656923
 	github.com/go-check/check => github.com/go-check/check v0.0.0-20180628173108-788fd7840127
 
