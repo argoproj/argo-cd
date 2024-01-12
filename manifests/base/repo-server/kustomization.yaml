@@ -6,3 +6,5 @@ resources:
 - argocd-repo-server-deployment.yaml
 - argocd-repo-server-service.yaml
 - argocd-repo-server-network-policy.yaml
+- argocd-repo-server-role.yaml
+- argocd-repo-server-role-binding.yaml

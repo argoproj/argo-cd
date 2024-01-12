@@ -83,13 +83,17 @@ func (a *ArgoCDCMPServer) Run() {
 	config := a.initConstants.PluginConfig
 
 	// Listen on the socket address
-	_ = os.Remove(config.Address())
-	listener, err := net.Listen("unix", config.Address())
+	address, addressType := config.Address()
+	if addressType == `unix` {
+		_ = os.Remove(address)
+	}
+	listener, err := net.Listen(addressType, address)
+
 	errors.CheckError(err)
 	log.Infof("argocd-cmp-server %s serving on %s", common.GetVersion(), listener.Addr())
 
 	signal.Notify(a.stopCh, syscall.SIGINT, syscall.SIGTERM)
-	go a.Shutdown(config.Address())
+	go a.Shutdown(address)
 
 	grpcServer, err := a.CreateGRPC()
 	errors.CheckError(err)

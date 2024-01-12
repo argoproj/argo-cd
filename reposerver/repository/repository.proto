@@ -283,8 +283,8 @@ service RepoServerService {
     rpc ListApps(ListAppsRequest) returns (AppList) {
     }
 
-    // ListPlugins returns a list of cmp v2 plugins running as sidecar to reposerver
-    rpc ListPlugins(google.protobuf.Empty) returns (PluginList) {
+	// ListPlugins returns a list of cmp v2 plugins running as sidecar or services to reposerver
+	rpc ListPlugins(google.protobuf.Empty) returns (PluginList) {
     }
 
     // Generate manifest for application in specified repo name and revision

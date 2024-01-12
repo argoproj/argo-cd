@@ -23,6 +23,7 @@ type PluginConfig struct {
 
 type PluginConfigSpec struct {
 	Version          string     `json:"version"`
+	ListenAddress    string     `json:"listenAddress,omitempty"`
 	Init             Command    `json:"init,omitempty"`
 	Generate         Command    `json:"generate"`
 	Discover         Discover   `json:"discover"`
@@ -93,13 +94,17 @@ func ValidatePluginConfig(config PluginConfig) error {
 	return nil
 }
 
-func (cfg *PluginConfig) Address() string {
+// Returns the listen address and whether this is a tcp or unix address
+func (cfg *PluginConfig) Address() (string, string) {
 	var address string
+	if cfg.Spec.ListenAddress != "" {
+		return cfg.Spec.ListenAddress, `tcp`
+	}
 	pluginSockFilePath := common.GetPluginSockFilePath()
 	if cfg.Spec.Version != "" {
 		address = fmt.Sprintf("%s/%s-%s.sock", pluginSockFilePath, cfg.Metadata.Name, cfg.Spec.Version)
 	} else {
 		address = fmt.Sprintf("%s/%s.sock", pluginSockFilePath, cfg.Metadata.Name)
 	}
-	return address
+	return address, `unix`
 }

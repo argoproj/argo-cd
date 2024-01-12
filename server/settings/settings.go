@@ -163,7 +163,7 @@ func (s *Server) plugins(ctx context.Context) ([]*settingspkg.Plugin, error) {
 
 	pluginList, err := client.ListPlugins(ctx, &empty.Empty{})
 	if err != nil {
-		return nil, fmt.Errorf("failed to list sidecar plugins from reposerver: %w", err)
+		return nil, fmt.Errorf("failed to list sidecar and service plugins from reposerver: %w", err)
 	}
 
 	var out []*settingspkg.Plugin

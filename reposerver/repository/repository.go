@@ -91,6 +91,7 @@ type Service struct {
 	newGitClient              func(rawRepoURL string, root string, creds git.Creds, insecure bool, enableLfs bool, proxy string, opts ...git.ClientOpts) (git.Client, error)
 	newHelmClient             func(repoURL string, creds helm.Creds, enableOci bool, proxy string, opts ...helm.ClientOpts) helm.Client
 	initConstants             RepoServerInitConstants
+	discoverer                *discovery.Discoverer
 	// now is usually just time.Now, but may be replaced by unit tests for testing purposes
 	now func() time.Time
 }
@@ -135,6 +136,7 @@ func NewService(metricsServer *metrics.MetricsServer, cache *cache.Cache, initCo
 		gitRepoPaths:       gitRandomizedPaths,
 		chartPaths:         helmRandomizedPaths,
 		gitRepoInitializer: directoryPermissionInitializer,
+		discoverer:         discovery.NewWithServices(),
 		rootDir:            rootDir,
 	}
 }
@@ -220,7 +222,7 @@ func (s *Service) ListApps(ctx context.Context, q *apiclient.ListAppsRequest) (*
 	}
 
 	defer io.Close(closer)
-	apps, err := discovery.Discover(ctx, gitClient.Root(), gitClient.Root(), q.EnabledSourceTypes, s.initConstants.CMPTarExcludedGlobs)
+	apps, err := discovery.Discover(ctx, s.discoverer, gitClient.Root(), gitClient.Root(), q.EnabledSourceTypes, s.initConstants.CMPTarExcludedGlobs)
 	if err != nil {
 		return nil, fmt.Errorf("error discovering applications: %w", err)
 	}
@@ -232,24 +234,16 @@ func (s *Service) ListApps(ctx context.Context, q *apiclient.ListAppsRequest) (*
 	return &res, nil
 }
 
-// ListPlugins lists the contents of a GitHub repo
+// ListPlugins returns a list of cmp v2 plugins running as sidecar or services to reposerver
 func (s *Service) ListPlugins(ctx context.Context, _ *empty.Empty) (*apiclient.PluginList, error) {
-	pluginSockFilePath := common.GetPluginSockFilePath()
-
-	sockFiles, err := os.ReadDir(pluginSockFilePath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get plugins from dir %v, error=%w", pluginSockFilePath, err)
-	}
-
+	pluginNames, err := discovery.GetPluginNames(s.discoverer)
 	var plugins []*apiclient.PluginInfo
-	for _, file := range sockFiles {
-		if file.Type() == os.ModeSocket {
-			plugins = append(plugins, &apiclient.PluginInfo{Name: strings.TrimSuffix(file.Name(), ".sock")})
-		}
+	for _, name := range pluginNames {
+		plugins = append(plugins, &apiclient.PluginInfo{Name: name})
 	}
 
 	res := apiclient.PluginList{Items: plugins}
-	return &res, nil
+	return &res, err
 }
 
 type operationSettings struct {
@@ -794,7 +788,7 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 			}
 		}
 
-		manifestGenResult, err = GenerateManifests(ctx, opContext.appPath, repoRoot, commitSHA, q, false, s.gitCredsStore, s.initConstants.MaxCombinedDirectoryManifestsSize, s.gitRepoPaths, WithCMPTarDoneChannel(ch.tarDoneCh), WithCMPTarExcludedGlobs(s.initConstants.CMPTarExcludedGlobs))
+		manifestGenResult, err = GenerateManifests(ctx, s.discoverer, opContext.appPath, repoRoot, commitSHA, q, false, s.gitCredsStore, s.initConstants.MaxCombinedDirectoryManifestsSize, s.gitRepoPaths, WithCMPTarDoneChannel(ch.tarDoneCh), WithCMPTarExcludedGlobs(s.initConstants.CMPTarExcludedGlobs))
 	}
 	refSourceCommitSHAs := make(map[string]string)
 	if len(repoRefs) > 0 {
@@ -1365,13 +1359,13 @@ func WithCMPTarExcludedGlobs(excludedGlobs []string) GenerateManifestOpt {
 }
 
 // GenerateManifests generates manifests from a path. Overrides are applied as a side effect on the given ApplicationSource.
-func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, q *apiclient.ManifestRequest, isLocal bool, gitCredsStore git.CredsStore, maxCombinedManifestQuantity resource.Quantity, gitRepoPaths io.TempPaths, opts ...GenerateManifestOpt) (*apiclient.ManifestResponse, error) {
+func GenerateManifests(ctx context.Context, discoverer *discovery.Discoverer, appPath, repoRoot, revision string, q *apiclient.ManifestRequest, isLocal bool, gitCredsStore git.CredsStore, maxCombinedManifestQuantity resource.Quantity, gitRepoPaths io.TempPaths, opts ...GenerateManifestOpt) (*apiclient.ManifestResponse, error) {
 	opt := newGenerateManifestOpt(opts...)
 	var targetObjs []*unstructured.Unstructured
 
 	resourceTracking := argo.NewResourceTracking()
 
-	appSourceType, err := GetAppSourceType(ctx, q.ApplicationSource, appPath, repoRoot, q.AppName, q.EnabledSourceTypes, opt.cmpTarExcludedGlobs)
+	appSourceType, err := GetAppSourceType(ctx, discoverer, q.ApplicationSource, appPath, repoRoot, q.AppName, q.EnabledSourceTypes, opt.cmpTarExcludedGlobs)
 	if err != nil {
 		return nil, fmt.Errorf("error getting app source type: %w", err)
 	}
@@ -1397,9 +1391,9 @@ func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, 
 			pluginName = q.ApplicationSource.Plugin.Name
 		}
 		// if pluginName is provided it has to be `<metadata.name>-<spec.version>` or just `<metadata.name>` if plugin version is empty
-		targetObjs, err = runConfigManagementPluginSidecars(ctx, appPath, repoRoot, pluginName, env, q, opt.cmpTarDoneCh, opt.cmpTarExcludedGlobs)
+		targetObjs, err = runConfigManagementPluginSidecars(ctx, discoverer, appPath, repoRoot, pluginName, env, q, opt.cmpTarDoneCh, opt.cmpTarExcludedGlobs)
 		if err != nil {
-			err = fmt.Errorf("plugin sidecar failed. %s", err.Error())
+			err = fmt.Errorf("plugin sidecar/service failed. %s", err.Error())
 		}
 	case v1alpha1.ApplicationSourceTypeDirectory:
 		var directory *v1alpha1.ApplicationSourceDirectory
@@ -1534,7 +1528,7 @@ func mergeSourceParameters(source *v1alpha1.ApplicationSource, path, appName str
 }
 
 // GetAppSourceType returns explicit application source type or examines a directory and determines its application source type
-func GetAppSourceType(ctx context.Context, source *v1alpha1.ApplicationSource, appPath, repoPath, appName string, enableGenerateManifests map[string]bool, tarExcludedGlobs []string) (v1alpha1.ApplicationSourceType, error) {
+func GetAppSourceType(ctx context.Context, discoverer *discovery.Discoverer, source *v1alpha1.ApplicationSource, appPath, repoPath, appName string, enableGenerateManifests map[string]bool, tarExcludedGlobs []string) (v1alpha1.ApplicationSourceType, error) {
 	err := mergeSourceParameters(source, appPath, appName)
 	if err != nil {
 		return "", fmt.Errorf("error while parsing source parameters: %v", err)
@@ -1551,7 +1545,7 @@ func GetAppSourceType(ctx context.Context, source *v1alpha1.ApplicationSource, a
 		}
 		return *appSourceType, nil
 	}
-	appType, err := discovery.AppType(ctx, appPath, repoPath, enableGenerateManifests, tarExcludedGlobs)
+	appType, err := discovery.AppType(ctx, discoverer, appPath, repoPath, enableGenerateManifests, tarExcludedGlobs)
 	if err != nil {
 		return "", fmt.Errorf("error getting app source type: %v", err)
 	}
@@ -1898,7 +1892,7 @@ func getPluginParamEnvs(envVars []string, plugin *v1alpha1.ApplicationSourcePlug
 	return env, nil
 }
 
-func runConfigManagementPluginSidecars(ctx context.Context, appPath, repoPath, pluginName string, envVars *v1alpha1.Env, q *apiclient.ManifestRequest, tarDoneCh chan<- bool, tarExcludedGlobs []string) ([]*unstructured.Unstructured, error) {
+func runConfigManagementPluginSidecars(ctx context.Context, discoverer *discovery.Discoverer, appPath, repoPath, pluginName string, envVars *v1alpha1.Env, q *apiclient.ManifestRequest, tarDoneCh chan<- bool, tarExcludedGlobs []string) ([]*unstructured.Unstructured, error) {
 	// compute variables.
 	env, err := getPluginEnvs(envVars, q)
 	if err != nil {
@@ -1906,7 +1900,7 @@ func runConfigManagementPluginSidecars(ctx context.Context, appPath, repoPath, p
 	}
 
 	// detect config management plugin server
-	conn, cmpClient, err := discovery.DetectConfigManagementPlugin(ctx, appPath, repoPath, pluginName, env, tarExcludedGlobs)
+	conn, cmpClient, err := discovery.DetectConfigManagementPlugin(ctx, discoverer, appPath, repoPath, pluginName, env, tarExcludedGlobs)
 	if err != nil {
 		return nil, err
 	}
@@ -1963,7 +1957,7 @@ func (s *Service) GetAppDetails(ctx context.Context, q *apiclient.RepoServerAppD
 			return err
 		}
 
-		appSourceType, err := GetAppSourceType(ctx, q.Source, opContext.appPath, repoRoot, q.AppName, q.EnabledSourceTypes, s.initConstants.CMPTarExcludedGlobs)
+		appSourceType, err := GetAppSourceType(ctx, s.discoverer, q.Source, opContext.appPath, repoRoot, q.AppName, q.EnabledSourceTypes, s.initConstants.CMPTarExcludedGlobs)
 		if err != nil {
 			return err
 		}
@@ -1980,7 +1974,7 @@ func (s *Service) GetAppDetails(ctx context.Context, q *apiclient.RepoServerAppD
 				return err
 			}
 		case v1alpha1.ApplicationSourceTypePlugin:
-			if err := populatePluginAppDetails(ctx, res, opContext.appPath, repoRoot, q, s.gitCredsStore, s.initConstants.CMPTarExcludedGlobs); err != nil {
+			if err := populatePluginAppDetails(ctx, s.discoverer, res, opContext.appPath, repoRoot, q, s.gitCredsStore, s.initConstants.CMPTarExcludedGlobs); err != nil {
 				return fmt.Errorf("failed to populate plugin app details: %w", err)
 			}
 		}
@@ -2139,7 +2133,7 @@ func populateKustomizeAppDetails(res *apiclient.RepoAppDetailsResponse, q *apicl
 	return nil
 }
 
-func populatePluginAppDetails(ctx context.Context, res *apiclient.RepoAppDetailsResponse, appPath string, repoPath string, q *apiclient.RepoServerAppDetailsQuery, store git.CredsStore, tarExcludedGlobs []string) error {
+func populatePluginAppDetails(ctx context.Context, discoverer *discovery.Discoverer, res *apiclient.RepoAppDetailsResponse, appPath string, repoPath string, q *apiclient.RepoServerAppDetailsQuery, store git.CredsStore, tarExcludedGlobs []string) error {
 	res.Plugin = &apiclient.PluginAppSpec{}
 
 	envVars := []string{
@@ -2159,7 +2153,7 @@ func populatePluginAppDetails(ctx context.Context, res *apiclient.RepoAppDetails
 		pluginName = q.Source.Plugin.Name
 	}
 	// detect config management plugin server (sidecar)
-	conn, cmpClient, err := discovery.DetectConfigManagementPlugin(ctx, appPath, repoPath, pluginName, env, tarExcludedGlobs)
+	conn, cmpClient, err := discovery.DetectConfigManagementPlugin(ctx, discoverer, appPath, repoPath, pluginName, env, tarExcludedGlobs)
 	if err != nil {
 		return fmt.Errorf("failed to detect CMP for app: %w", err)
 	}

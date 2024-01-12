@@ -42,6 +42,7 @@ import (
 	argoappv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	repoapiclient "github.com/argoproj/argo-cd/v2/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/v2/reposerver/repository"
+	"github.com/argoproj/argo-cd/v2/util/app/discovery"
 	"github.com/argoproj/argo-cd/v2/util/argo"
 	argodiff "github.com/argoproj/argo-cd/v2/util/argo/diff"
 	"github.com/argoproj/argo-cd/v2/util/cli"
@@ -318,7 +319,7 @@ func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 	var command = &cobra.Command{
 		Use:   "get APPNAME",
 		Short: "Get application details",
-		Example: templates.Examples(`  
+		Example: templates.Examples(`
   # Get basic details about the application "my-app" in wide format
   argocd app get my-app -o wide
 
@@ -342,7 +343,7 @@ func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 
   # Get application details and display them in a tree format
   argocd app get my-app --output tree
-  
+
   # Get application details and display them in a detailed tree format
   argocd app get my-app --output tree=detailed
   		`),
@@ -431,7 +432,7 @@ func NewApplicationLogsCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	var command = &cobra.Command{
 		Use:   "logs APPNAME",
 		Short: "Get logs of application pods",
-		Example: templates.Examples(`  
+		Example: templates.Examples(`
   # Get logs of pods associated with the application "my-app"
   argocd app logs my-app
 
@@ -716,7 +717,7 @@ func NewApplicationSetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 	var command = &cobra.Command{
 		Use:   "set APPNAME",
 		Short: "Set application parameters",
-		Example: templates.Examples(`  
+		Example: templates.Examples(`
   # Set application parameters for the application "my-app"
   argocd app set my-app --parameter key1=value1 --parameter key2=value2
 
@@ -992,7 +993,7 @@ func getLocalObjects(ctx context.Context, app *argoappv1.Application, proj *argo
 func getLocalObjectsString(ctx context.Context, app *argoappv1.Application, proj *argoappv1.AppProject, local, localRepoRoot, appLabelKey, kubeVersion string, apiVersions []string, kustomizeOptions *argoappv1.KustomizeOptions,
 	trackingMethod string) []string {
 	source := app.Spec.GetSource()
-	res, err := repository.GenerateManifests(ctx, local, localRepoRoot, source.TargetRevision, &repoapiclient.ManifestRequest{
+	res, err := repository.GenerateManifests(ctx, discovery.NewNoServices(), local, localRepoRoot, source.TargetRevision, &repoapiclient.ManifestRequest{
 		Repo:               &argoappv1.Repository{Repo: source.RepoURL},
 		AppLabelKey:        appLabelKey,
 		AppName:            app.Name,
