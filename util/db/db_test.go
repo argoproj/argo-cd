@@ -34,6 +34,7 @@ func getClientset(config map[string]string, objects ...runtime.Object) *fake.Cli
 		Data: map[string][]byte{
 			"admin.password":   []byte("test"),
 			"server.secretkey": []byte("test"),
+			"server.csrfkey":   []byte("12345678901234567890123456789012"),
 		},
 	}
 	cm := v1.ConfigMap{

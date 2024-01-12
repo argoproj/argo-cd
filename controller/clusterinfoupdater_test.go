@@ -63,6 +63,7 @@ func TestClusterSecretUpdater(t *testing.T) {
 		Data: map[string][]byte{
 			"admin.password":   nil,
 			"server.secretkey": nil,
+			"server.csrfkey":   []byte("12345678901234567890123456789012"),
 		},
 	}
 	kubeclientset := fake.NewSimpleClientset(emptyArgoCDConfigMap, argoCDSecret)

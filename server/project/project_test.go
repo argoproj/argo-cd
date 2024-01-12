@@ -53,6 +53,7 @@ func TestProjectServer(t *testing.T) {
 		Data: map[string][]byte{
 			"admin.password":   []byte("test"),
 			"server.secretkey": []byte("test"),
+			"server.csrfkey":   []byte("12345678901234567890123456789012"),
 		},
 	})
 	settingsMgr := settings.NewSettingsManager(context.Background(), kubeclientset, testNamespace)

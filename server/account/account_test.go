@@ -57,6 +57,7 @@ func newTestAccountServerExt(ctx context.Context, enforceFn rbac.ClaimsEnforcerF
 		Data: map[string][]byte{
 			"admin.password":   []byte(bcrypt),
 			"server.secretkey": []byte("test"),
+			"server.csrfkey":   []byte("12345678901234567890123456789012"),
 		},
 	}
 	for i := range opts {

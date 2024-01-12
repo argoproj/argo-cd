@@ -718,6 +718,7 @@ func newFakeClient(ns string) *kubefake.Clientset {
 		},
 		Data: map[string][]byte{
 			"server.secretkey": nil,
+			"server.csrfkey":   []byte("12345678901234567890123456789012"),
 		},
 	})
 }

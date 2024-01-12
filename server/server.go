@@ -24,6 +24,7 @@ import (
 
 	// nolint:staticcheck
 	golang_proto "github.com/golang/protobuf/proto"
+	"github.com/gorilla/csrf"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/selection"
 
@@ -197,6 +198,7 @@ type ArgoCDServer struct {
 
 type ArgoCDServerOpts struct {
 	DisableAuth           bool
+	DisableCsrf           bool
 	EnableGZip            bool
 	Insecure              bool
 	StaticAssetsDir       string
@@ -982,13 +984,28 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandl
 	// golang/protobuf. Which does not support types such as time.Time. gogo/protobuf does support
 	// time.Time, but does not support custom UnmarshalJSON() and MarshalJSON() methods. Therefore
 	// we use our own Marshaler
-	gwMuxOpts := runtime.WithMarshalerOption(runtime.MIMEWildcard, new(grpc_util.JSONMarshaler))
-	gwCookieOpts := runtime.WithForwardResponseOption(a.translateGrpcCookieHeader)
-	gwmux := runtime.NewServeMux(gwMuxOpts, gwCookieOpts)
+	gwOpts := []runtime.ServeMuxOption{
+		runtime.WithMarshalerOption(runtime.MIMEWildcard, new(grpc_util.JSONMarshaler)),
+		runtime.WithForwardResponseOption(a.translateGrpcCookieHeader),
+	}
+	if !a.DisableCsrf {
+		gwOpts = append(gwOpts, runtime.WithForwardResponseOption(func(ctx context.Context, w http.ResponseWriter, resp golang_proto.Message) error {
+			r := http.Request{}
+			token := csrf.Token(r.WithContext(ctx))
+			if token != "" {
+				w.Header().Set("X-CSRF-Token", token)
+			}
+			return nil
+		}))
+	}
+	gwmux := runtime.NewServeMux(gwOpts...)
 
 	var handler http.Handler = gwmux
 	if a.EnableGZip {
 		handler = compressHandler(handler)
+	}
+	if !a.DisableCsrf {
+		handler = csrf.Protect(a.settings.CsrfKey, csrf.Secure(a.useTLS()), csrf.Path("/api/v1"))(handler)
 	}
 	mux.Handle("/api/", handler)
 
@@ -1380,6 +1397,13 @@ func getToken(md metadata.MD) string {
 	return ""
 }
 
+// Add JSON API paths to NoCsrfHeaderPatterns slice that allow unauthenticated
+// GET requests, so that they will not return X-CSRF-Token header on response.
+var NoCsrfHeaderPattern = []*regexp.Regexp{
+	regexp.MustCompile(`/api/version.*`),
+	regexp.MustCompile(`/api/v1/settings.*`),
+}
+
 type handlerSwitcher struct {
 	handler              http.Handler
 	urlToHandler         map[string]http.Handler
@@ -1392,6 +1416,39 @@ func (s *handlerSwitcher) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	} else if contentHandler, ok := s.contentTypeToHandler[r.Header.Get("content-type")]; ok {
 		contentHandler.ServeHTTP(w, r)
 	} else {
+		// If we have a valid authorization header for API access, skip CSRF protection for this request
+		// This is accomplished by setting the key gorilla.csrf.Skip in the request's context.
+		//
+		// We don't validate the JWT token here - this is done at API level. But we make sure that the
+		// request does not carry a cookie named "argocd.token" as sent by the browser. This would
+		// circumvent CSRF protection.
+		//
+		// API access from scripts or other clients therefore MUST always set "Authorization" header
+		// and MUST NOT send the JWT in a cookie (or MUST ALSO send the X-CSRF-Token header along)
+		//
+		// We do allow a POST on /api/v1/session to get a valid JWT token without having to also
+		// supply the X-CSRF-Token header, as long as the argocd.token is not set.
+		//
+		if _, err := r.Cookie(common.AuthCookieName); err != nil {
+			if authHdr := r.Header.Get("Authorization"); strings.HasPrefix(authHdr, "Bearer ") {
+				r = csrf.UnsafeSkipCheck(r)
+			}
+		} else if r.URL.Path == "/api/v1/session" && r.Method == "POST" {
+			r = csrf.UnsafeSkipCheck(r)
+		}
+
+		// We do not want to send X-CSRF-Token on unauthenticated requests, so we skip CSRF checks
+		// on safe requests to our unauthenticated URLs
+		switch strings.ToUpper(r.Method) {
+		case "GET", "HEAD", "OPTIONS", "TRACE":
+			for _, pattern := range NoCsrfHeaderPattern {
+				if pattern.MatchString(r.URL.Path) {
+					r = csrf.UnsafeSkipCheck(r)
+					break
+				}
+			}
+		}
+		// gorilla-csrf takes care that this request is properly protected
 		s.handler.ServeHTTP(w, r)
 	}
 }

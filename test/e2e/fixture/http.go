@@ -7,8 +7,6 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-
-	"github.com/argoproj/argo-cd/v2/common"
 )
 
 // DoHttpRequest executes a http request against the Argo CD API server
@@ -27,7 +25,7 @@ func DoHttpRequest(method string, path string, data ...byte) (*http.Response, er
 	if err != nil {
 		return nil, err
 	}
-	req.AddCookie(&http.Cookie{Name: common.AuthCookieName, Value: token})
+	req.Header.Add("Authorization", "Bearer "+token)
 
 	httpClient := &http.Client{
 		Transport: &http.Transport{

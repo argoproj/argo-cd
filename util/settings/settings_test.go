@@ -22,6 +22,10 @@ import (
 	"k8s.io/client-go/kubernetes/fake"
 )
 
+var (
+	testCSRFKey = []byte("12345678901234567890123456789012")
+)
+
 func fixtures(data map[string]string, opts ...func(secret *v1.Secret)) (*fake.Clientset, *SettingsManager) {
 	cm := &v1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
@@ -160,6 +164,7 @@ func TestInClusterServerAddressEnabledByDefault(t *testing.T) {
 			Data: map[string][]byte{
 				"admin.password":   nil,
 				"server.secretkey": nil,
+				"server.csrfkey":   testCSRFKey,
 			},
 		},
 	)
@@ -839,6 +844,7 @@ func TestSettingsManager_GetSettings(t *testing.T) {
 				},
 				Data: map[string][]byte{
 					"server.secretkey": nil,
+					"server.csrfkey":   testCSRFKey,
 				},
 			},
 		)
@@ -871,6 +877,7 @@ func TestSettingsManager_GetSettings(t *testing.T) {
 				},
 				Data: map[string][]byte{
 					"server.secretkey": nil,
+					"server.csrfkey":   testCSRFKey,
 				},
 			},
 		)
@@ -903,6 +910,7 @@ func TestSettingsManager_GetSettings(t *testing.T) {
 				},
 				Data: map[string][]byte{
 					"server.secretkey": nil,
+					"server.csrfkey":   testCSRFKey,
 				},
 			},
 		)
@@ -938,6 +946,7 @@ func TestGetOIDCConfig(t *testing.T) {
 			Data: map[string][]byte{
 				"admin.password":   nil,
 				"server.secretkey": nil,
+				"server.csrfkey":   testCSRFKey,
 			},
 		},
 	)
@@ -1018,6 +1027,7 @@ func TestGetOIDCSecretTrim(t *testing.T) {
 			Data: map[string][]byte{
 				"admin.password":   nil,
 				"server.secretkey": nil,
+				"server.csrfkey":   testCSRFKey,
 			},
 		},
 	)
@@ -1064,6 +1074,7 @@ func Test_GetTLSConfiguration(t *testing.T) {
 				Data: map[string][]byte{
 					"admin.password":   nil,
 					"server.secretkey": nil,
+					"server.csrfkey":   testCSRFKey,
 				},
 			},
 			&v1.Secret{
@@ -1110,6 +1121,7 @@ func Test_GetTLSConfiguration(t *testing.T) {
 				Data: map[string][]byte{
 					"admin.password":   nil,
 					"server.secretkey": nil,
+					"server.csrfkey":   testCSRFKey,
 					"tls.crt":          []byte(testutil.MustLoadFileToString("../../test/fixture/certs/argocd-e2e-server.crt")),
 					"tls.key":          []byte(testutil.MustLoadFileToString("../../test/fixture/certs/argocd-e2e-server.key")),
 				},
@@ -1157,6 +1169,7 @@ func Test_GetTLSConfiguration(t *testing.T) {
 				Data: map[string][]byte{
 					"admin.password":   nil,
 					"server.secretkey": nil,
+					"server.csrfkey":   testCSRFKey,
 				},
 			},
 			&v1.Secret{
@@ -1201,6 +1214,7 @@ func Test_GetTLSConfiguration(t *testing.T) {
 				Data: map[string][]byte{
 					"admin.password":   nil,
 					"server.secretkey": nil,
+					"server.csrfkey":   testCSRFKey,
 					"tls.crt":          []byte(testutil.MustLoadFileToString("../../test/fixture/certs/argocd-e2e-server.crt")),
 					"tls.key":          []byte(testutil.MustLoadFileToString("../../test/fixture/certs/argocd-e2e-server.key")),
 				},
@@ -1267,6 +1281,7 @@ requestedIDTokenClaims: {"groups": {"essential": true}}`,
 		Data: map[string][]byte{
 			"admin.password":   nil,
 			"server.secretkey": nil,
+			"server.csrfkey":   testCSRFKey,
 		},
 	}
 	secret := &v1.Secret{
@@ -1336,6 +1351,7 @@ func TestGetEnableManifestGeneration(t *testing.T) {
 				Data: map[string][]byte{
 					"admin.password":   nil,
 					"server.secretkey": nil,
+					"server.csrfkey":   testCSRFKey,
 				},
 			}
 
@@ -1394,6 +1410,7 @@ func TestGetHelmSettings(t *testing.T) {
 				Data: map[string][]byte{
 					"admin.password":   nil,
 					"server.secretkey": nil,
+					"server.csrfkey":   testCSRFKey,
 				},
 			}
 			secret := &v1.Secret{
