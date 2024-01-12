@@ -176,7 +176,7 @@ func newTestAppSetServerWithEnforcerConfigure(f func(*rbac.Enforcer), namespace 
 		enforcer,
 		fakeAppsClientset,
 		appInformer,
-        broadcaster,
+		broadcaster,
 		factory.Argoproj().V1alpha1().ApplicationSets().Lister(),
 		fakeProjLister,
 		settingsMgr,
@@ -355,94 +355,94 @@ func TestGetAppSet(t *testing.T) {
 }
 
 func TestWatchAppSet(t *testing.T) {
-    appSet1 := newTestAppSet(func(appset *appsv1.ApplicationSet) {
-        appset.Name = "AppSet1"
-    })
+	appSet1 := newTestAppSet(func(appset *appsv1.ApplicationSet) {
+		appset.Name = "AppSet1"
+	})
 
-    appSet2 := newTestAppSet(func(appset *appsv1.ApplicationSet) {
-        appset.Name = "AppSet2"
-    })
+	appSet2 := newTestAppSet(func(appset *appsv1.ApplicationSet) {
+		appset.Name = "AppSet2"
+	})
 
-    appSet3 := newTestAppSet(func(appset *appsv1.ApplicationSet) {
-        appset.Name = "AppSet3"
-    })
+	appSet3 := newTestAppSet(func(appset *appsv1.ApplicationSet) {
+		appset.Name = "AppSet3"
+	})
 
-    t.Run("Watch in default namespace", func(t *testing.T) {
+	t.Run("Watch in default namespace", func(t *testing.T) {
 
-        appSetServer := newTestAppSetServer(appSet1, appSet2, appSet3)
+		appSetServer := newTestAppSetServer(appSet1, appSet2, appSet3)
 
-        appsetQuery := applicationset.ApplicationSetWatchQuery{Name: "AppSet1"}
+		appsetQuery := applicationset.ApplicationSetWatchQuery{Name: "AppSet1"}
 
-        ctx, cancel := context.WithCancel(context.Background())
-        watchServer := &TestWatchServer{ctx: ctx}
-        go func() {
-            // Watch will block until canceled so give 500ms to read send events and cancel
-            time.Sleep(500 * time.Millisecond)
-            cancel()
+		ctx, cancel := context.WithCancel(context.Background())
+		watchServer := &TestWatchServer{ctx: ctx}
+		go func() {
+			// Watch will block until canceled so give 500ms to read send events and cancel
+			time.Sleep(500 * time.Millisecond)
+			cancel()
 
-        }()
-        err := appSetServer.Watch(&appsetQuery, watchServer)
+		}()
+		err := appSetServer.Watch(&appsetQuery, watchServer)
 
-        assert.NoError(t, err)
-        assert.Len(t, watchServer.sent, 2) // Sent twice because of workaround to avoid missing events
-        assert.Equal(t, watchServer.sent[0].Type, watch.Added)
-        assert.Equal(t, watchServer.sent[0].ApplicationSet.Name, "AppSet1")
-    })
+		assert.NoError(t, err)
+		assert.Len(t, watchServer.sent, 2) // Sent twice because of workaround to avoid missing events
+		assert.Equal(t, watchServer.sent[0].Type, watch.Added)
+		assert.Equal(t, watchServer.sent[0].ApplicationSet.Name, "AppSet1")
+	})
 
-    t.Run("Watch in named namespace", func(t *testing.T) {
+	t.Run("Watch in named namespace", func(t *testing.T) {
 
-        appSetServer := newTestAppSetServer(appSet1, appSet2, appSet3)
+		appSetServer := newTestAppSetServer(appSet1, appSet2, appSet3)
 
-        appsetQuery := applicationset.ApplicationSetWatchQuery{Name: "AppSet1", AppsetNamespace: testNamespace}
+		appsetQuery := applicationset.ApplicationSetWatchQuery{Name: "AppSet1", AppsetNamespace: testNamespace}
 
-        ctx, cancel := context.WithCancel(context.Background())
-        watchServer := &TestWatchServer{ctx: ctx}
-        go func() {
-            // Watch will block until canceled so give 500ms to read send events and cancel
-            time.Sleep(500 * time.Millisecond)
-            cancel()
+		ctx, cancel := context.WithCancel(context.Background())
+		watchServer := &TestWatchServer{ctx: ctx}
+		go func() {
+			// Watch will block until canceled so give 500ms to read send events and cancel
+			time.Sleep(500 * time.Millisecond)
+			cancel()
 
-        }()
-        err := appSetServer.Watch(&appsetQuery, watchServer)
+		}()
+		err := appSetServer.Watch(&appsetQuery, watchServer)
 
-        assert.NoError(t, err)
-        assert.Len(t, watchServer.sent, 2) // Sent twice because of workaround to avoid missing events
-        assert.Equal(t, watchServer.sent[0].Type, watch.Added)
-        assert.Equal(t, watchServer.sent[0].ApplicationSet.Name, "AppSet1")
-    })
+		assert.NoError(t, err)
+		assert.Len(t, watchServer.sent, 2) // Sent twice because of workaround to avoid missing events
+		assert.Equal(t, watchServer.sent[0].Type, watch.Added)
+		assert.Equal(t, watchServer.sent[0].ApplicationSet.Name, "AppSet1")
+	})
 
-    t.Run("Watch in not allowed namespace", func(t *testing.T) {
+	t.Run("Watch in not allowed namespace", func(t *testing.T) {
 
-        appSetServer := newTestAppSetServer(appSet1, appSet2, appSet3)
+		appSetServer := newTestAppSetServer(appSet1, appSet2, appSet3)
 
-        appsetQuery := applicationset.ApplicationSetWatchQuery{Name: "AppSet1", AppsetNamespace: "NOT-ALLOWED"}
+		appsetQuery := applicationset.ApplicationSetWatchQuery{Name: "AppSet1", AppsetNamespace: "NOT-ALLOWED"}
 
-        watchServer := &TestWatchServer{ctx: context.Background()}
-        err := appSetServer.Watch(&appsetQuery, watchServer)
+		watchServer := &TestWatchServer{ctx: context.Background()}
+		err := appSetServer.Watch(&appsetQuery, watchServer)
 
 		assert.Equal(t, "namespace 'NOT-ALLOWED' is not permitted", err.Error())
-        assert.Len(t, watchServer.sent, 0)
-    })
+		assert.Len(t, watchServer.sent, 0)
+	})
 
-    t.Run("Watch all appsets in default namespace", func(t *testing.T) {
+	t.Run("Watch all appsets in default namespace", func(t *testing.T) {
 
-        appSetServer := newTestAppSetServer(appSet1, appSet2, appSet3)
+		appSetServer := newTestAppSetServer(appSet1, appSet2, appSet3)
 
-        appsetQuery := applicationset.ApplicationSetWatchQuery{}
+		appsetQuery := applicationset.ApplicationSetWatchQuery{}
 
-        ctx, cancel := context.WithCancel(context.Background())
-        watchServer := &TestWatchServer{ctx: ctx}
-        go func() {
-            // Watch will block until canceled so give 500ms to read events and cancel
-            time.Sleep(500 * time.Millisecond)
-            cancel()
+		ctx, cancel := context.WithCancel(context.Background())
+		watchServer := &TestWatchServer{ctx: ctx}
+		go func() {
+			// Watch will block until canceled so give 500ms to read events and cancel
+			time.Sleep(500 * time.Millisecond)
+			cancel()
 
-        }()
-        err := appSetServer.Watch(&appsetQuery, watchServer)
+		}()
+		err := appSetServer.Watch(&appsetQuery, watchServer)
 
-        assert.NoError(t, err)
-        assert.Len(t, watchServer.sent, 6) // Sent twice because of workaround to avoid missing events
-    })
+		assert.NoError(t, err)
+		assert.Len(t, watchServer.sent, 6) // Sent twice because of workaround to avoid missing events
+	})
 }
 
 func TestDeleteAppSet(t *testing.T) {
@@ -537,12 +537,12 @@ func TestUpdateAppSet(t *testing.T) {
 }
 
 type TestWatchServer struct {
-	ctx context.Context
-    sent []*appsv1.ApplicationSetWatchEvent
+	ctx  context.Context
+	sent []*appsv1.ApplicationSetWatchEvent
 }
 
 func (t *TestWatchServer) Send(event *appsv1.ApplicationSetWatchEvent) error {
-    t.sent = append(t.sent, event)
+	t.sent = append(t.sent, event)
 	return nil
 }
 
@@ -567,5 +567,3 @@ func (t *TestWatchServer) SendMsg(m interface{}) error {
 func (t *TestWatchServer) RecvMsg(m interface{}) error {
 	return nil
 }
-
-

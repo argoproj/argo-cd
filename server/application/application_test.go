@@ -1,3 +1,7 @@
+package application
+
+import (
+	"context"
 	coreerrors "errors"
 	"fmt"
 	"io"
