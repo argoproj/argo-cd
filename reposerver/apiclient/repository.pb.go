@@ -2585,7 +2585,7 @@ type RepoServerServiceClient interface {
 	ListRefs(ctx context.Context, in *ListRefsRequest, opts ...grpc.CallOption) (*Refs, error)
 	// ListApps returns a list of apps in the repo
 	ListApps(ctx context.Context, in *ListAppsRequest, opts ...grpc.CallOption) (*AppList, error)
-	// ListPlugins returns a list of cmp v2 plugins running as sidecar to reposerver
+	// ListPlugins returns a list of cmp v2 plugins running as sidecar or services to reposerver
 	ListPlugins(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*PluginList, error)
 	// Generate manifest for application in specified repo name and revision
 	GetAppDetails(ctx context.Context, in *RepoServerAppDetailsQuery, opts ...grpc.CallOption) (*RepoAppDetailsResponse, error)
@@ -2776,7 +2776,7 @@ type RepoServerServiceServer interface {
 	ListRefs(context.Context, *ListRefsRequest) (*Refs, error)
 	// ListApps returns a list of apps in the repo
 	ListApps(context.Context, *ListAppsRequest) (*AppList, error)
-	// ListPlugins returns a list of cmp v2 plugins running as sidecar to reposerver
+	// ListPlugins returns a list of cmp v2 plugins running as sidecar or services to reposerver
 	ListPlugins(context.Context, *emptypb.Empty) (*PluginList, error)
 	// Generate manifest for application in specified repo name and revision
 	GetAppDetails(context.Context, *RepoServerAppDetailsQuery) (*RepoAppDetailsResponse, error)

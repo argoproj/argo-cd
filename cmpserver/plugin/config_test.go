@@ -170,9 +170,10 @@ spec:
 
 func Test_PluginConfig_Address(t *testing.T) {
 	testCases := []struct {
-		name     string
-		config   *PluginConfig
-		expected string
+		name         string
+		config       *PluginConfig
+		expected     string
+		expectedType string
 	}{
 		{
 			name: "no version specified",
@@ -184,7 +185,8 @@ func Test_PluginConfig_Address(t *testing.T) {
 					Name: "name",
 				},
 			},
-			expected: "name",
+			expected:     "name",
+			expectedType: "unix",
 		},
 		{
 			name: "version specified",
@@ -199,7 +201,25 @@ func Test_PluginConfig_Address(t *testing.T) {
 					Version: "version",
 				},
 			},
-			expected: "name-version",
+			expected:     "name-version",
+			expectedType: "unix",
+		},
+		{
+			name: "version specified",
+			config: &PluginConfig{
+				TypeMeta: v1.TypeMeta{
+					Kind: ConfigManagementPluginKind,
+				},
+				Metadata: v1.ObjectMeta{
+					Name: "name",
+				},
+				Spec: PluginConfigSpec{
+					Version:       "version",
+					ListenAddress: "0.0.0.0:8080",
+				},
+			},
+			expected:     "0.0.0.0:8080",
+			expectedType: "tcp",
 		},
 	}
 
@@ -207,9 +227,14 @@ func Test_PluginConfig_Address(t *testing.T) {
 		tcc := tc
 		t.Run(tcc.name, func(t *testing.T) {
 			t.Parallel()
-			actual := tcc.config.Address()
-			expectedAddress := fmt.Sprintf("%s/%s.sock", common.GetPluginSockFilePath(), tcc.expected)
-			assert.Equal(t, expectedAddress, actual)
+			actual, addrType := tcc.config.Address()
+			assert.Equal(t, tcc.expectedType, addrType)
+			if tcc.expectedType == `unix` {
+				expectedAddress := fmt.Sprintf("%s/%s.sock", common.GetPluginSockFilePath(), tcc.expected)
+				assert.Equal(t, expectedAddress, actual)
+			} else {
+				assert.Equal(t, tcc.expected, actual)
+			}
 		})
 	}
 }

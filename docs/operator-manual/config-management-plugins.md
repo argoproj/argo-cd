@@ -1,4 +1,3 @@
-
 # Config Management Plugins
 
 Argo CD's "native" config management tools are Helm, Jsonnet, and Kustomize. If you want to use a different config
@@ -19,9 +18,10 @@ The following sections will describe how to create, install, and use plugins. Ch
 
 ## Installing a config management plugin
 
-### Sidecar plugin
+### Sidecar or services plugin
 
-An operator can configure a plugin tool via a sidecar to repo-server. The following changes are required to configure a new plugin:
+An operator can configure a plugin tool via a sidecar to the repo-server, or as a Kubernetes service in the same cluster
+as Argo CD. The following changes are required to configure a new plugin:
 
 #### Write the plugin configuration file
 
@@ -37,6 +37,10 @@ spec:
   # The version of your plugin. Optional. If specified, the Application's spec.source.plugin.name field
   # must be <plugin name>-<plugin version>.
   version: v1.0
+  # The listen address is where your plugin server will listen for connections. Optional. If not given it will listen
+  # on a unix socket, and this is the correct configuration for a sidecar plugin.
+  # To run as a service configure this to listen appropriately for incoming connections and specify a port number.
+  listenAddress: 0.0.0.0:8080
   # The init command runs in the Application source directory at the beginning of each manifest generation. The init
   # command can output anything. A non-zero status code will fail manifest generation.
   init:
@@ -54,18 +58,18 @@ spec:
       - |
         echo "{\"kind\": \"ConfigMap\", \"apiVersion\": \"v1\", \"metadata\": { \"name\": \"$ARGOCD_APP_NAME\", \"namespace\": \"$ARGOCD_APP_NAMESPACE\", \"annotations\": {\"Foo\": \"$ARGOCD_ENV_FOO\", \"KubeVersion\": \"$KUBE_VERSION\", \"KubeApiVersion\": \"$KUBE_API_VERSIONS\",\"Bar\": \"baz\"}}}"
   # The discovery config is applied to a repository. If every configured discovery tool matches, then the plugin may be
-  # used to generate manifests for Applications using the repository. If the discovery config is omitted then the plugin 
-  # will not match any application but can still be invoked explicitly by specifying the plugin name in the app spec. 
-  # Only one of fileName, find.glob, or find.command should be specified. If multiple are specified then only the 
+  # used to generate manifests for Applications using the repository. If the discovery config is omitted then the plugin
+  # will not match any application but can still be invoked explicitly by specifying the plugin name in the app spec.
+  # Only one of fileName, find.glob, or find.command should be specified. If multiple are specified then only the
   # first (in that order) is evaluated.
   discover:
-    # fileName is a glob pattern (https://pkg.go.dev/path/filepath#Glob) that is applied to the Application's source 
+    # fileName is a glob pattern (https://pkg.go.dev/path/filepath#Glob) that is applied to the Application's source
     # directory. If there is a match, this plugin may be used for the Application.
     fileName: "./subdir/s*.yaml"
     find:
-      # This does the same thing as fileName, but it supports double-start (nested directory) glob patterns.
+      # This does the same thing as fileName, but it supports double-star (nested directory) glob patterns.
       glob: "**/Chart.yaml"
-      # The find command runs in the repository's root directory. To match, it must exit with status code 0 _and_ 
+      # The find command runs in the repository's root directory. To match, it must exit with status code 0 _and_
       # produce non-empty output to standard out.
       command: [sh, -c, find . -name env.yaml]
   # The parameters config describes what parameters the UI should display for an Application. It is up to the user to
@@ -73,7 +77,7 @@ spec:
   # inform the "Parameters" tab in the App Details page of the UI.
   parameters:
     # Static parameter announcements are sent to the UI for _all_ Applications handled by this plugin.
-    # Think of the `string`, `array`, and `map` values set here as "defaults". It is up to the plugin author to make 
+    # Think of the `string`, `array`, and `map` values set here as "defaults". It is up to the plugin author to make
     # sure that these default values actually reflect the plugin's behavior if the user doesn't explicitly set different
     # values for those parameters.
     static:
@@ -116,13 +120,13 @@ spec:
 ```
 
 !!! note
-    While the ConfigManagementPlugin _looks like_ a Kubernetes object, it is not actually a custom resource. 
+    While the ConfigManagementPlugin _looks like_ a Kubernetes object, it is not actually a custom resource.
     It only follows kubernetes-style spec conventions.
 
 The `generate` command must print a valid Kubernetes YAML or JSON object stream to stdout. Both `init` and `generate` commands are executed inside the application source directory.
 
 The `discover.fileName` is used as [glob](https://pkg.go.dev/path/filepath#Glob) pattern to determine whether an
-application repository is supported by the plugin or not. 
+application repository is supported by the plugin or not.
 
 ```yaml
   discover:
@@ -134,19 +138,20 @@ If `discover.fileName` is not provided, the `discover.find.command` is executed 
 application repository is supported by the plugin or not. The `find` command should return a non-error exit code
 and produce output to stdout when the application source type is supported.
 
-#### Place the plugin configuration file in the sidecar
+#### Place the plugin configuration file in the plugin's runtime environment
 
-Argo CD expects the plugin configuration file to be located at `/home/argocd/cmp-server/config/plugin.yaml` in the sidecar.
+Argo CD expects the plugin configuration file to be located at `/home/argocd/cmp-server/config/plugin.yaml` in the sidecar
+or pod behind your service.
 
-If you use a custom image for the sidecar, you can add the file directly to that image.
+If you use a custom image for the plugin, you can add the file directly to that image.
 
 ```dockerfile
 WORKDIR /home/argocd/cmp-server/config/
 COPY plugin.yaml ./
 ```
 
-If you use a stock image for the sidecar or would rather maintain the plugin configuration in a ConfigMap, just nest the
-plugin config file in a ConfigMap under the `plugin.yaml` key and mount the ConfigMap in the sidecar (see next section).
+If you use a stock image for the plugin or would rather maintain the plugin configuration in a ConfigMap, just nest the
+plugin config file in a ConfigMap under the `plugin.yaml` key and mount the ConfigMap in the container (see next section).
 
 ```yaml
 apiVersion: v1
@@ -169,16 +174,17 @@ data:
         fileName: "./subdir/s*.yaml"
 ```
 
-#### Register the plugin sidecar
+#### Register the plugin as a sidecar
 
-To install a plugin, patch argocd-repo-server to run the plugin container as a sidecar, with argocd-cmp-server as its 
-entrypoint. You can use either off-the-shelf or custom-built plugin image as sidecar image. For example:
+To install a plugin as a sidecar, patch argocd-repo-server to run the plugin container as a sidecar, with
+argocd-cmp-server as its entrypoint. You can use either an off-the-shelf or custom-built plugin image as sidecar image.
+For example:
 
 ```yaml
 containers:
 - name: my-plugin
   command: [/var/run/argocd/argocd-cmp-server] # Entrypoint should be Argo CD lightweight CMP server i.e. argocd-cmp-server
-  image: ubuntu # This can be off-the-shelf or custom-built image
+  image: ubuntu # This can be an off-the-shelf or custom-built image
   securityContext:
     runAsNonRoot: true
     runAsUser: 999
@@ -191,7 +197,7 @@ containers:
     - mountPath: /home/argocd/cmp-server/config/plugin.yaml
       subPath: plugin.yaml
       name: my-plugin-config
-    # Starting with v2.4, do NOT mount the same tmp volume as the repo-server container. The filesystem separation helps 
+    # Starting with v2.4, do NOT mount the same tmp volume as the repo-server container. The filesystem separation helps
     # mitigate path traversal attacks.
     - mountPath: /tmp
       name: cmp-tmp
@@ -201,18 +207,172 @@ volumes:
   name: my-plugin-config
 - emptyDir: {}
   name: cmp-tmp
-``` 
+```
 
 !!! important "Double-check these items"
     1. Make sure to use `/var/run/argocd/argocd-cmp-server` as an entrypoint. The `argocd-cmp-server` is a lightweight GRPC service that allows Argo CD to interact with the plugin.
     2. Make sure that sidecar container is running as user 999.
     3. Make sure that plugin configuration file is present at `/home/argocd/cmp-server/config/plugin.yaml`. It can either be volume mapped via configmap or baked into image.
 
+#### Register the plugin as a service
+
+Argo CD needs to have access to the cluster to discover services. To do this it uses a standard Kubernetes Service Account token to authenticate
+with the cluster. It also needs a Role or ClusterRole bound to that Service Account to access with the permissions get, list and watch the namespace(s)
+that the services are in. By default (no configuration) the services are looked for in the same namespace as the argocd-repo-server. You can set
+`ARGOCD_SERVICE_PLUGINS_NAMESPACE` to the name of a namespace to change it to look in a different namespace. To look in all
+namespaces set `ARGOCD_SERVICE_PLUGINS_NAMESPACE` to `*`. You cannot configure multiple specific namespaces, just one namespace or all namespaces.
+
+!!! Ensure that:
+    1. The argocd-repo-server deployment has `automountServiceAccountToken: true`
+	2. The argocd-repo-server's service account has a role binding allowing `get`, `list` and `watch` on services.
+
+
+```yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: argocd-repo-server-getsvcs
+  namespace: argocd
+rules:
+- apiGroups:
+    - ""
+  resources:
+    - services
+  verbs:
+    - get
+    - list
+    - watch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: argocd-repo-server-getsvcs
+  namespace: argocd
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: argocd-repo-server-getsvcs
+subjects:
+- kind: ServiceAccount
+  name: argocd-repo-server
+  namespace: argocd
+```
+
+or for cluster wide
+
+```yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: argocd-repo-server-getsvcs
+rules:
+- apiGroups:
+    - ""
+  resources:
+    - services
+  verbs:
+    - get
+    - list
+    - watch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: argocd-repo-server-getsvcs
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: argocd-repo-server-getsvcs
+subjects:
+- kind: ServiceAccount
+  name: argocd-repo-server
+  namespace: argocd
+```
+
+To install a plugin as a service, deploy something running your code. This would usually be a deployment, but Argo CD doesn't
+actually care what is behind the service. You can use either an off-the-shelf or custom-built plugin image as sidecar image. This
+should follow the same rules as for a sidecar.
+
+To advertise the service to Argo CD you must provide a service with the label `argocd.argoproj.io/plugin: true`. Each port in the
+service will be treated as a separate plugin, and the name of the port is the name of the plugin, which will be used by applications
+which specify their plugin by name.
+
+This might look like:
+
+```yaml
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: myplugin
+  namespace: argocd
+  labels:
+    argocd.argoproj.io/plugin: "true"
+spec:
+  ports:
+  - name: myplugin
+    port: 8080
+    protocol: TCP
+    targetPort: cmp
+  selector:
+    k8s-app: myplugin
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    k8s-app: myplugin
+  name: myplugin
+  namespace: argocd
+spec:
+  selector:
+    matchLabels:
+      k8s-app: myplugin
+  template:
+    metadata:
+      labels:
+        k8s-app: myplugin
+    spec:
+      containers:
+      - name: myplugin
+        image: myrepo/myplugin:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8080
+          name: cmp
+          protocol: TCP
+```
+
+!!! important "Double-check these items"
+    1. Make sure to use `argocd-cmp-server` as an entrypoint from the same version of Argo CD. The `argocd-cmp-server` is a lightweight GRPC service that allows Argo CD to interact with the plugin.
+    2. Make sure that sidecar container is running as user 999.
+    3. Make sure that plugin configuration file is present at `/home/argocd/cmp-server/config/plugin.yaml`. It can either be volume mapped via configmap or baked into image.
+	4. The **service** has the label `argocd.argoproj.io/plugin: "true"`
+	5. If you are calling the plugin by name that the **port** name is what you use to call it.
+
+If you'd like to disable this feature do not provide a service account token.
+
+#### Choosing between sidecar and service plugins
+
+If you are debugging your plugin, choose a service to start with. You can then restart the deployments behind the service without
+needing to restart Argo CD. You could also easily develop in an in-cluster development environment this way. If you want to develop
+locally and your cluster can reach your local machine you could even develop using an ExternalName service.
+
+For large mono-repos sidecars will continue to work where services will take longer to transfer the state to the plugin. Argo CD
+doesn't condone large repos anyway. Because the network traffic between the repo-server and the plugin is over a unix socket it is by
+default more secure.
+
+Services allow independent scaling, even using HPAs, installation and upgrading at runtime, and work more like normal services.
+You can add monitoring to both types, but it feels more natural with a service. If you are making your plugin available for public
+consumption you can provide separate deployment manifests (yaml/kustomize/helm chart) to allow easier adoption. Plugin repository
+downtime is less serious in this case; with a sidecar if any one of the containers in the pod is unavailable then your pod will not
+start/restart. You can grant specific cluster permissions to your plugin without granting them to the rest of the repo server.
+
 ### Using environment variables in your plugin
 
 Plugin commands have access to
 
-1. The system environment variables of the sidecar
+1. The system environment variables of the container
 2. [Standard build environment variables](../user-guide/build-environment.md)
 3. Variables in the Application spec (References to system and build variables will get interpolated in the variables' values):
 
@@ -226,9 +386,9 @@ Plugin commands have access to
                   value: bar
                 - name: REV
                   value: test-$ARGOCD_APP_REVISION
-    
-    Before reaching the `init.command`, `generate.command`, and `discover.find.command` commands, Argo CD prefixes all 
-    user-supplied environment variables (#3 above) with `ARGOCD_ENV_`. This prevents users from directly setting 
+
+    Before reaching the `init.command`, `generate.command`, and `discover.find.command` commands, Argo CD prefixes all
+    user-supplied environment variables (#3 above) with `ARGOCD_ENV_`. This prevents users from directly setting
     potentially-sensitive environment variables.
 
 4. Parameters in the Application spec:
@@ -244,43 +404,43 @@ Plugin commands have access to
                - name: helm-parameters
                  map:
                    image.tag: v1.2.3
-   
+
     The parameters are available as JSON in the `ARGOCD_APP_PARAMETERS` environment variable. The example above would
     produce this JSON:
-   
+
         [{"name": "values-files", "array": ["values-dev.yaml"]}, {"name": "helm-parameters", "map": {"image.tag": "v1.2.3"}}]
-   
+
     !!! note
         Parameter announcements, even if they specify defaults, are _not_ sent to the plugin in `ARGOCD_APP_PARAMETERS`.
         Only parameters explicitly set in the Application spec are sent to the plugin. It is up to the plugin to apply
         the same defaults as the ones announced to the UI.
-   
+
     The same parameters are also available as individual environment variables. The names of the environment variables
     follows this convention:
-   
+
            - name: some-string-param
              string: some-string-value
            # PARAM_SOME_STRING_PARAM=some-string-value
-           
+
            - name: some-array-param
              value: [item1, item2]
            # PARAM_SOME_ARRAY_PARAM_0=item1
            # PARAM_SOME_ARRAY_PARAM_1=item2
-           
+
            - name: some-map-param
              map:
                image.tag: v1.2.3
            # PARAM_SOME_MAP_PARAM_IMAGE_TAG=v1.2.3
-   
-!!! warning "Sanitize/escape user input" 
+
+!!! warning "Sanitize/escape user input"
     As part of Argo CD's manifest generation system, config management plugins are treated with a level of trust. Be
     sure to escape user input in your plugin to prevent malicious input from causing unwanted behavior.
 
 ## Using a config management plugin with an Application
 
 You may leave the `name` field
-empty in the `plugin` section for the plugin to be automatically matched with the Application based on its discovery rules. If you do mention the name make sure 
-it is either `<metadata.name>-<spec.version>` if version is mentioned in the `ConfigManagementPlugin` spec or else just `<metadata.name>`. When name is explicitly 
+empty in the `plugin` section for the plugin to be automatically matched with the Application based on its discovery rules. If you do mention the name make sure
+it is either `<metadata.name>-<spec.version>` if version is mentioned in the `ConfigManagementPlugin` spec or else just `<metadata.name>`. When name is explicitly
 specified only that particular plugin will be used iff its discovery pattern/command matches the provided application repo.
 
 ```yaml
@@ -309,22 +469,22 @@ If you don't need to set any environment variables, you can set an empty plugin 
 
 !!! important
     If your CMP command runs too long, the command will be killed, and the UI will show an error. The CMP server
-    respects the timeouts set by the `server.repo.server.timeout.seconds` and `controller.repo.server.timeout.seconds` 
+    respects the timeouts set by the `server.repo.server.timeout.seconds` and `controller.repo.server.timeout.seconds`
     items in `argocd-cm`. Increase their values from the default of 60s.
 
     Each CMP command will also independently timeout on the `ARGOCD_EXEC_TIMEOUT` set for the CMP sidecar. The default
     is 90s. So if you increase the repo server timeout greater than 90s, be sure to set `ARGOCD_EXEC_TIMEOUT` on the
     sidecar.
-    
+
 !!! note
     Each Application can only have one config management plugin configured at a time. If you're converting an existing
-    plugin configured through the `argocd-cm` ConfigMap to a sidecar, make sure to update the plugin name to either `<metadata.name>-<spec.version>` 
-    if version was mentioned in the `ConfigManagementPlugin` spec or else just use `<metadata.name>`. You can also remove the name altogether 
+    plugin configured through the `argocd-cm` ConfigMap to a sidecar, make sure to update the plugin name to either `<metadata.name>-<spec.version>`
+    if version was mentioned in the `ConfigManagementPlugin` spec or else just use `<metadata.name>`. You can also remove the name altogether
     and let the automatic discovery to identify the plugin.
 !!! note
     If a CMP renders blank manfiests, and `prune` is set to `true`, Argo CD will automatically remove resources. CMP plugin authors should ensure errors are part of the exit code. Commonly something like `kustomize build . | cat` won't pass errors because of the pipe. Consider setting `set -o pipefail` so anything piped will pass errors on failure.
 
-## Debugging a CMP
+## Debugging a CMP as a sidecar
 
 If you are actively developing a sidecar-installed CMP, keep a few things in mind:
 
@@ -338,6 +498,9 @@ If you are actively developing a sidecar-installed CMP, keep a few things in min
 4. Verify your sidecar has started properly by viewing the Pod and seeing that two containers are running `kubectl get pod -l app.kubernetes.io/component=repo-server -n argocd`
 5. Write log message to stderr and set the `--loglevel=info` flag in the sidecar. This will print everything written to stderr, even on successfull command execution.
 
+## Debugging a CMP as a service
+
+If you are actively developing a services based CMP then things should be more familiar than as a sidecar. You still need to bear in mind that CMP errors are cached by the repo-server in Redis. Restarting the repo-server Pod will not clear the cache. Always do a "Hard Refresh" when actively developing a CMP so you have the latest output.
 
 ### Other Common Errors
 | Error Message | Cause |
@@ -402,7 +565,7 @@ spec:
     The `lockRepo` key is not relevant for sidecar plugins, because sidecar plugins do not share a single source repo
     directory when generating manifests.
 
-Next, we need to decide how this yaml is going to be added to the sidecar. We can either bake the yaml directly into the image, or we can mount it from a ConfigMap. 
+Next, we need to decide how this yaml is going to be added to the sidecar. We can either bake the yaml directly into the image, or we can mount it from a ConfigMap.
 
 If using a ConfigMap, our example would look like this:
 
@@ -431,14 +594,14 @@ Then this would be mounted in our plugin sidecar.
 
 ### Write discovery rules for your plugin
 
-Sidecar plugins can use either discovery rules or a plugin name to match Applications to plugins. If the discovery rule is omitted 
+Sidecar plugins can use either discovery rules or a plugin name to match Applications to plugins. If the discovery rule is omitted
 then you have to explicitly specify the plugin by name in the app spec or else that particular plugin will not match any app.
 
-If you want to use discovery instead of the plugin name to match applications to your plugin, write rules applicable to 
-your plugin [using the instructions above](#1-write-the-plugin-configuration-file) and add them to your configuration 
+If you want to use discovery instead of the plugin name to match applications to your plugin, write rules applicable to
+your plugin [using the instructions above](#1-write-the-plugin-configuration-file) and add them to your configuration
 file.
 
-To use the name instead of discovery, update the name in your application manifest to `<metadata.name>-<spec.version>` 
+To use the name instead of discovery, update the name in your application manifest to `<metadata.name>-<spec.version>`
 if version was mentioned in the `ConfigManagementPlugin` spec or else just use `<metadata.name>`. For example:
 
 ```yaml
