@@ -37,6 +37,7 @@ var (
 	expectedNonOIDCLogoutURL             = "http://localhost:4000"
 	expectedOIDCLogoutURL                = "https://dev-5695098.okta.com/oauth2/v1/logout?id_token_hint=" + oidcToken + "&post_logout_redirect_uri=" + baseURL
 	expectedOIDCLogoutURLWithRootPath    = "https://dev-5695098.okta.com/oauth2/v1/logout?id_token_hint=" + oidcToken + "&post_logout_redirect_uri=" + baseURL + "/" + rootPath
+	testCSRFKey                          = []byte("12345678901234567890123456789012")
 )
 
 func TestConstructLogoutURL(t *testing.T) {
@@ -114,6 +115,7 @@ func TestHandlerConstructLogoutURL(t *testing.T) {
 			Data: map[string][]byte{
 				"admin.password":   nil,
 				"server.secretkey": nil,
+				"server.csrfkey":   testCSRFKey,
 			},
 		},
 	)
@@ -146,6 +148,7 @@ func TestHandlerConstructLogoutURL(t *testing.T) {
 			Data: map[string][]byte{
 				"admin.password":   nil,
 				"server.secretkey": nil,
+				"server.csrfkey":   testCSRFKey,
 			},
 		},
 	)
@@ -177,6 +180,7 @@ func TestHandlerConstructLogoutURL(t *testing.T) {
 			Data: map[string][]byte{
 				"admin.password":   nil,
 				"server.secretkey": nil,
+				"server.csrfkey":   testCSRFKey,
 			},
 		},
 	)
@@ -204,6 +208,7 @@ func TestHandlerConstructLogoutURL(t *testing.T) {
 			Data: map[string][]byte{
 				"admin.password":   nil,
 				"server.secretkey": nil,
+				"server.csrfkey":   testCSRFKey,
 			},
 		},
 	)

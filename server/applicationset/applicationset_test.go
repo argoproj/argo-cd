@@ -81,6 +81,7 @@ func newTestAppSetServerWithEnforcerConfigure(f func(*rbac.Enforcer), namespace 
 		Data: map[string][]byte{
 			"admin.password":   []byte("test"),
 			"server.secretkey": []byte("test"),
+			"server.csrfkey":   []byte("12345678901234567890123456789012"),
 		},
 	})
 	ctx := context.Background()

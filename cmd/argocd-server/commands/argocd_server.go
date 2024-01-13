@@ -63,6 +63,7 @@ func NewCommand() *cobra.Command {
 		repoServerAddress        string
 		dexServerAddress         string
 		disableAuth              bool
+		disableCsrf              bool
 		enableGZip               bool
 		tlsConfigCustomizerSrc   func() (tls.ConfigCustomizer, error)
 		cacheSrc                 func() (*servercache.Cache, error)
@@ -185,6 +186,7 @@ func NewCommand() *cobra.Command {
 				DexServerAddr:         dexServerAddress,
 				DexTLSConfig:          dexTlsConfig,
 				DisableAuth:           disableAuth,
+				DisableCsrf:           disableCsrf,
 				EnableGZip:            enableGZip,
 				TLSConfigCustomizer:   tlsConfigCustomizer,
 				Cache:                 cache,
@@ -240,6 +242,7 @@ func NewCommand() *cobra.Command {
 	command.Flags().StringVar(&repoServerAddress, "repo-server", env.StringFromEnv("ARGOCD_SERVER_REPO_SERVER", common.DefaultRepoServerAddr), "Repo server address")
 	command.Flags().StringVar(&dexServerAddress, "dex-server", env.StringFromEnv("ARGOCD_SERVER_DEX_SERVER", common.DefaultDexServerAddr), "Dex server address")
 	command.Flags().BoolVar(&disableAuth, "disable-auth", env.ParseBoolFromEnv("ARGOCD_SERVER_DISABLE_AUTH", false), "Disable client authentication")
+	command.Flags().BoolVar(&disableCsrf, "disable-csrf", false, "Disable API CSRF protection")
 	command.Flags().BoolVar(&enableGZip, "enable-gzip", env.ParseBoolFromEnv("ARGOCD_SERVER_ENABLE_GZIP", true), "Enable GZIP compression")
 	command.AddCommand(cli.NewVersionCmd(cliName))
 	command.Flags().StringVar(&listenHost, "address", env.StringFromEnv("ARGOCD_SERVER_LISTEN_ADDRESS", common.DefaultAddressAPIServer), "Listen on given address")

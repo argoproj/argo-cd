@@ -246,6 +246,7 @@ func TestRejectCreationForInClusterWhenDisabled(t *testing.T) {
 		Data: map[string][]byte{
 			"admin.password":   nil,
 			"server.secretkey": nil,
+			"server.csrfkey":   []byte("12345678901234567890123456789012"),
 		},
 	}
 	kubeclientset := fake.NewSimpleClientset(argoCDConfigMapWithInClusterServerAddressDisabled, argoCDSecret)
@@ -332,6 +333,7 @@ func TestListClusters(t *testing.T) {
 		Data: map[string][]byte{
 			"admin.password":   nil,
 			"server.secretkey": nil,
+			"server.csrfkey":   []byte("12345678901234567890123456789012"),
 		},
 	}
 	secretForServerWithInClusterAddr := &v1.Secret{

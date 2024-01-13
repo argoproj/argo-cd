@@ -72,6 +72,7 @@ func getKubeClient(pass string, enabled bool, capabilities ...settings.AccountCa
 		Data: map[string][]byte{
 			"admin.password":   []byte(bcrypt),
 			"server.secretkey": []byte(defaultSecretKey),
+			"server.csrfkey":   []byte("12345678901234567890123456789012"),
 		},
 	})
 }
@@ -581,6 +582,7 @@ func TestFailedAttemptsExpiry(t *testing.T) {
 func getKubeClientWithConfig(config map[string]string, secretConfig map[string][]byte) *fake.Clientset {
 	mergedSecretConfig := map[string][]byte{
 		"server.secretkey": []byte("Hello, world!"),
+		"server.csrfkey":   []byte("12345678901234567890123456789012"),
 	}
 	for key, value := range secretConfig {
 		mergedSecretConfig[key] = value
