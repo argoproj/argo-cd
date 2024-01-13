@@ -993,7 +993,7 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandl
 			r := http.Request{}
 			token := csrf.Token(r.WithContext(ctx))
 			if token != "" {
-				w.Header().Set("X-CSRF-Token", token)
+				w.Header().Set("x-csrf-token", token)
 			}
 			return nil
 		}))
@@ -1429,12 +1429,12 @@ func (s *handlerSwitcher) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		// We do allow a POST on /api/v1/session to get a valid JWT token without having to also
 		// supply the X-CSRF-Token header, as long as the argocd.token is not set.
 		//
-		if _, err := r.Cookie(common.AuthCookieName); err != nil {
-			if authHdr := r.Header.Get("Authorization"); strings.HasPrefix(authHdr, "Bearer ") {
+		if r.URL.Path == "/api/v1/session" && r.Method == "POST" {
+			r = csrf.UnsafeSkipCheck(r)
+		} else if _, err := r.Cookie(common.AuthCookieName); err != nil {
+			if authHdr := r.Header.Get("Authorization"); authHdr != "" {
 				r = csrf.UnsafeSkipCheck(r)
 			}
-		} else if r.URL.Path == "/api/v1/session" && r.Method == "POST" {
-			r = csrf.UnsafeSkipCheck(r)
 		}
 
 		// We do not want to send X-CSRF-Token on unauthenticated requests, so we skip CSRF checks

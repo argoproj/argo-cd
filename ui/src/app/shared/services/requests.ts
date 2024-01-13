@@ -34,7 +34,7 @@ function apiRoot(): string {
     return toAbsURL('/api/v1');
 }
 
-const csrfHeaderName = 'X-Csrf-Token';
+const csrfHeaderName = 'x-csrf-token';
 let crsfToken: string;
 
 function initHandlers(req: agent.Request) {
