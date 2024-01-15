@@ -1,12 +1,12 @@
-import {DataLoader, DropDownMenu, Duration} from 'argo-ui';
-import {InitiatedBy} from './initiated-by';
+import { DataLoader, DropDownMenu, Duration } from 'argo-ui';
+import { InitiatedBy } from './initiated-by';
 import * as moment from 'moment';
 import * as React from 'react';
-import {Revision, Timestamp} from '../../../shared/components';
+import { Revision, Timestamp } from '../../../shared/components';
 import * as models from '../../../shared/models';
-import {services} from '../../../shared/services';
-import {ApplicationParameters} from '../application-parameters/application-parameters';
-import {RevisionMetadataRows} from './revision-metadata-rows';
+import { services } from '../../../shared/services';
+import { ApplicationParameters } from '../application-parameters/application-parameters';
+import { RevisionMetadataRows } from './revision-metadata-rows';
 import './application-deployment-history.scss';
 
 export const ApplicationDeploymentHistory = ({
@@ -24,7 +24,7 @@ export const ApplicationDeploymentHistory = ({
     const recentDeployments = deployments.map((info, i) => {
         const nextDeployedAt = i === 0 ? null : deployments[i - 1].deployedAt;
         const runEnd = nextDeployedAt ? moment(nextDeployedAt) : moment();
-        return {...info, nextDeployedAt, durationMs: runEnd.diff(moment(info.deployedAt)) / 1000};
+        return { ...info, nextDeployedAt, durationMs: runEnd.diff(moment(info.deployedAt)) / 1000 };
     });
     return (
         <div className='application-deployment-history'>
@@ -89,19 +89,19 @@ export const ApplicationDeploymentHistory = ({
                                     <RevisionMetadataRows
                                         applicationName={app.metadata.name}
                                         applicationNamespace={app.metadata.namespace}
-                                        source={{...recentDeployments[index].source, targetRevision: recentDeployments[index].revision}}
+                                        source={{ ...recentDeployments[index].source, targetRevision: recentDeployments[index].revision }}
                                         index={0}
                                         versionId={recentDeployments[index].id}
                                     />
                                     <DataLoader
-                                        input={{...recentDeployments[index].source, targetRevision: recentDeployments[index].revision, appName: app.metadata.name}}
+                                        input={{ ...recentDeployments[index].source, targetRevision: recentDeployments[index].revision, appName: app.metadata.name }}
                                         load={src => services.repos.appDetails(src, src.appName, app.spec.project, 0, recentDeployments[index].id)}>
                                         {(details: models.RepoAppDetails) => (
                                             <div>
                                                 <ApplicationParameters
                                                     application={{
                                                         ...app,
-                                                        spec: {...app.spec, source: recentDeployments[index].source}
+                                                        spec: { ...app.spec, source: recentDeployments[index].source }
                                                     }}
                                                     details={details}
                                                 />
@@ -124,7 +124,7 @@ export const ApplicationDeploymentHistory = ({
                                         <RevisionMetadataRows
                                             applicationName={app.metadata.name}
                                             applicationNamespace={app.metadata.namespace}
-                                            source={{...source, targetRevision: recentDeployments[index].revisions[i]}}
+                                            source={{ ...source, targetRevision: recentDeployments[index].revisions[i] }}
                                             index={i}
                                             versionId={recentDeployments[index].id}
                                         />
@@ -143,7 +143,7 @@ export const ApplicationDeploymentHistory = ({
                                                     <ApplicationParameters
                                                         application={{
                                                             ...app,
-                                                            spec: {...app.spec, source}
+                                                            spec: { ...app.spec, source }
                                                         }}
                                                         details={details}
                                                     />
