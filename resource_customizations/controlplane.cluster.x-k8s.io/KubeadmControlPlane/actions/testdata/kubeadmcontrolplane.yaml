@@ -54,6 +54,31 @@ spec:
     type: RollingUpdate
   version: v1.27.3
 status:
+  conditions:
+  - lastTransitionTime: "2024-01-14T18:15:59Z"
+    status: "True"
+    type: Ready
+  - lastTransitionTime: "2024-01-14T17:59:41Z"
+    status: "True"
+    type: Available
+  - lastTransitionTime: "2024-01-14T17:59:40Z"
+    status: "True"
+    type: CertificatesAvailable
+  - lastTransitionTime: "2024-01-14T17:59:41Z"
+    status: "True"
+    type: ControlPlaneComponentsHealthy
+  - lastTransitionTime: "2024-01-14T18:15:59Z"
+    status: "True"
+    type: EtcdClusterHealthy
+  - lastTransitionTime: "2024-01-14T17:59:41Z"
+    status: "True"
+    type: MachinesCreated
+  - lastTransitionTime: "2024-01-14T17:59:41Z"
+    status: "True"
+    type: MachinesReady
+  - lastTransitionTime: "2024-01-14T18:15:59Z"
+    status: "True"
+    type: Resized
   initialized: true
   observedGeneration: 1
   ready: true

@@ -2,9 +2,8 @@ apiVersion: cluster.x-k8s.io/v1beta1
 kind: MachineDeployment
 metadata:
   annotations:
-    cluster.x-k8s.io/restartedAt: "2024-01-14T18:13:17Z"
+    cluster.x-k8s.io/restartedAt: "0001-01-01T00:00:00Z"
     machinedeployment.clusters.x-k8s.io/revision: "2"
-  creationTimestamp: "2024-01-14T18:09:54Z"
   generation: 2
   labels:
     app.kubernetes.io/instance: test
@@ -17,7 +16,7 @@ spec:
   progressDeadlineSeconds: 600
   replicas: 3
   revisionHistoryLimit: 1
-  rolloutAfter: "2024-01-14T18:13:17Z"
+  rolloutAfter: "0001-01-01T00:00:00Z"
   selector:
     matchLabels:
       cluster.x-k8s.io/cluster-name: test
@@ -48,6 +47,13 @@ spec:
       version: v1.27.3
 status:
   availableReplicas: 3
+  conditions:
+  - lastTransitionTime: "2024-01-14T18:12:31Z"
+    status: "True"
+    type: Ready
+  - lastTransitionTime: "2024-01-14T18:12:31Z"
+    status: "True"
+    type: Available
   observedGeneration: 2
   phase: Running
   readyReplicas: 3

@@ -1,6 +1,8 @@
 apiVersion: controlplane.cluster.x-k8s.io/v1beta1
 kind: KubeadmControlPlane
 metadata:
+  annotations:
+    cluster.x-k8s.io/restartedAt: "0001-01-01T00:00:00Z"
   finalizers:
   - kubeadm.controlplane.cluster.x-k8s.io
   generation: 2
@@ -48,13 +50,41 @@ spec:
       namespace: test
     metadata: {}
   replicas: 3
-  rolloutAfter: "2024-01-14T18:20:22Z"
+  rolloutAfter: "0001-01-01T00:00:00Z"
   rolloutStrategy:
     rollingUpdate:
       maxSurge: 1
     type: RollingUpdate
   version: v1.27.3
 status:
+  conditions:
+  - lastTransitionTime: "2024-01-14T18:21:19Z"
+    status: "True"
+    type: Ready
+  - lastTransitionTime: "2024-01-14T17:59:41Z"
+    status: "True"
+    type: Available
+  - lastTransitionTime: "2024-01-14T17:59:40Z"
+    status: "True"
+    type: CertificatesAvailable
+  - lastTransitionTime: "2024-01-14T18:21:19Z"
+    status: "True"
+    type: ControlPlaneComponentsHealthy
+  - lastTransitionTime: "2024-01-14T18:21:19Z"
+    status: "True"
+    type: EtcdClusterHealthy
+  - lastTransitionTime: "2024-01-14T17:59:41Z"
+    status: "True"
+    type: MachinesCreated
+  - lastTransitionTime: "2024-01-14T18:21:19Z"
+    status: "True"
+    type: MachinesReady
+  - lastTransitionTime: "2024-01-14T18:21:08Z"
+    status: "True"
+    type: MachinesSpecUpToDate
+  - lastTransitionTime: "2024-01-14T18:21:19Z"
+    status: "True"
+    type: Resized
   initialized: true
   observedGeneration: 2
   ready: true

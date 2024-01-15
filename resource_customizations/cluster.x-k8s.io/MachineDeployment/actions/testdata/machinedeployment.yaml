@@ -3,7 +3,6 @@ kind: MachineDeployment
 metadata:
   annotations:
     machinedeployment.clusters.x-k8s.io/revision: "1"
-  creationTimestamp: "2024-01-14T18:09:54Z"
   generation: 1
   labels:
     app.kubernetes.io/instance: test
@@ -46,6 +45,13 @@ spec:
       version: v1.27.3
 status:
   availableReplicas: 3
+  conditions:
+  - lastTransitionTime: "2024-01-14T18:12:31Z"
+    status: "True"
+    type: Ready
+  - lastTransitionTime: "2024-01-14T18:12:31Z"
+    status: "True"
+    type: Available
   observedGeneration: 1
   phase: Running
   readyReplicas: 3
