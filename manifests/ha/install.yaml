@@ -1726,19 +1726,6 @@ spec:
                       description: ID is an auto incrementing identifier of the RevisionHistory
                       format: int64
                       type: integer
-                    initiatedBy:
-                      description: InitiatedBy contains information about who initiated
-                        the operations
-                      properties:
-                        automated:
-                          description: Automated is set to true if operation was initiated
-                            automatically by the application controller.
-                          type: boolean
-                        username:
-                          description: Username contains the name of a user who started
-                            operation
-                          type: string
-                      type: object
                     revision:
                       description: Revision holds the revision the sync was performed
                         against
