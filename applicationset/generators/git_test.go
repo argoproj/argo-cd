@@ -4,173 +4,119 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/argoproj/argo-cd/v2/applicationset/services/mocks"
-	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	"github.com/argoproj/argo-cd/v2/applicationset/services/mocks"
+
+	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 )
 
 func Test_generateParamsFromGitFile(t *testing.T) {
-	defaultContent := []byte(`
+	values := map[string]string{}
+	params, err := (*GitGenerator)(nil).generateParamsFromGitFile("path/dir/file_name.yaml", []byte(`
 foo:
   bar: baz
-`)
-	type args struct {
-		filePath          string
-		fileContent       []byte
-		values            map[string]string
-		useGoTemplate     bool
-		goTemplateOptions []string
-		pathParamPrefix   string
+`), values, false, nil, "")
+	if err != nil {
+		t.Fatal(err)
 	}
-	tests := []struct {
-		name    string
-		args    args
-		want    []map[string]interface{}
-		wantErr bool
-	}{
+	assert.Equal(t, []map[string]interface{}{
 		{
-			name: "empty file returns path parameters",
-			args: args{
-				filePath:      "path/dir/file_name.yaml",
-				fileContent:   []byte(""),
-				values:        map[string]string{},
-				useGoTemplate: false,
-			},
-			want: []map[string]interface{}{
-				{
-					"path":                    "path/dir",
-					"path.basename":           "dir",
-					"path.filename":           "file_name.yaml",
-					"path.basenameNormalized": "dir",
-					"path.filenameNormalized": "file-name.yaml",
-					"path[0]":                 "path",
-					"path[1]":                 "dir",
-				},
-			},
+			"foo.bar":                 "baz",
+			"path":                    "path/dir",
+			"path.basename":           "dir",
+			"path.filename":           "file_name.yaml",
+			"path.basenameNormalized": "dir",
+			"path.filenameNormalized": "file-name.yaml",
+			"path[0]":                 "path",
+			"path[1]":                 "dir",
 		},
-		{
-			name: "invalid json/yaml file returns error",
-			args: args{
-				filePath:      "path/dir/file_name.yaml",
-				fileContent:   []byte("this is not json or yaml"),
-				values:        map[string]string{},
-				useGoTemplate: false,
-			},
-			wantErr: true,
-		},
-		{
-			name: "file parameters are added to params",
-			args: args{
-				filePath:      "path/dir/file_name.yaml",
-				fileContent:   defaultContent,
-				values:        map[string]string{},
-				useGoTemplate: false,
-			},
-			want: []map[string]interface{}{
-				{
-					"foo.bar":                 "baz",
-					"path":                    "path/dir",
-					"path.basename":           "dir",
-					"path.filename":           "file_name.yaml",
-					"path.basenameNormalized": "dir",
-					"path.filenameNormalized": "file-name.yaml",
-					"path[0]":                 "path",
-					"path[1]":                 "dir",
-				},
-			},
-		},
-		{
-			name: "path parameter are prefixed",
-			args: args{
-				filePath:        "path/dir/file_name.yaml",
-				fileContent:     defaultContent,
-				values:          map[string]string{},
-				useGoTemplate:   false,
-				pathParamPrefix: "myRepo",
-			},
-			want: []map[string]interface{}{
-				{
-					"foo.bar":                        "baz",
-					"myRepo.path":                    "path/dir",
-					"myRepo.path.basename":           "dir",
-					"myRepo.path.filename":           "file_name.yaml",
-					"myRepo.path.basenameNormalized": "dir",
-					"myRepo.path.filenameNormalized": "file-name.yaml",
-					"myRepo.path[0]":                 "path",
-					"myRepo.path[1]":                 "dir",
-				},
-			},
-		},
-		{
-			name: "file parameters are added to params with go template",
-			args: args{
-				filePath:      "path/dir/file_name.yaml",
-				fileContent:   defaultContent,
-				values:        map[string]string{},
-				useGoTemplate: true,
-			},
-			want: []map[string]interface{}{
-				{
-					"foo": map[string]interface{}{
-						"bar": "baz",
-					},
-					"path": map[string]interface{}{
-						"path":               "path/dir",
-						"basename":           "dir",
-						"filename":           "file_name.yaml",
-						"basenameNormalized": "dir",
-						"filenameNormalized": "file-name.yaml",
-						"segments": []string{
-							"path",
-							"dir",
-						},
-					},
-				},
-			},
-		},
-		{
-			name: "path parameter are prefixed with go template",
-			args: args{
-				filePath:        "path/dir/file_name.yaml",
-				fileContent:     defaultContent,
-				values:          map[string]string{},
-				useGoTemplate:   true,
-				pathParamPrefix: "myRepo",
-			},
-			want: []map[string]interface{}{
-				{
-					"foo": map[string]interface{}{
-						"bar": "baz",
-					},
-					"myRepo": map[string]interface{}{
-						"path": map[string]interface{}{
-							"path":               "path/dir",
-							"basename":           "dir",
-							"filename":           "file_name.yaml",
-							"basenameNormalized": "dir",
-							"filenameNormalized": "file-name.yaml",
-							"segments": []string{
-								"path",
-								"dir",
-							},
-						},
-					},
-				},
-			},
-		},
+	}, params)
+}
+
+func Test_generatePrefixedParamsFromGitFile(t *testing.T) {
+	values := map[string]string{}
+	params, err := (*GitGenerator)(nil).generateParamsFromGitFile("path/dir/file_name.yaml", []byte(`
+foo:
+  bar: baz
+`), values, false, nil, "myRepo")
+	if err != nil {
+		t.Fatal(err)
 	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			params, err := (*GitGenerator)(nil).generateParamsFromGitFile(tt.args.filePath, tt.args.fileContent, tt.args.values, tt.args.useGoTemplate, tt.args.goTemplateOptions, tt.args.pathParamPrefix)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("GitGenerator.generateParamsFromGitFile() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			assert.Equal(t, tt.want, params)
-		})
+	assert.Equal(t, []map[string]interface{}{
+		{
+			"foo.bar":                        "baz",
+			"myRepo.path":                    "path/dir",
+			"myRepo.path.basename":           "dir",
+			"myRepo.path.filename":           "file_name.yaml",
+			"myRepo.path.basenameNormalized": "dir",
+			"myRepo.path.filenameNormalized": "file-name.yaml",
+			"myRepo.path[0]":                 "path",
+			"myRepo.path[1]":                 "dir",
+		},
+	}, params)
+}
+
+func Test_generateParamsFromGitFileGoTemplate(t *testing.T) {
+	values := map[string]string{}
+	params, err := (*GitGenerator)(nil).generateParamsFromGitFile("path/dir/file_name.yaml", []byte(`
+foo:
+  bar: baz
+`), values, true, nil, "")
+	if err != nil {
+		t.Fatal(err)
 	}
+	assert.Equal(t, []map[string]interface{}{
+		{
+			"foo": map[string]interface{}{
+				"bar": "baz",
+			},
+			"path": map[string]interface{}{
+				"path":               "path/dir",
+				"basename":           "dir",
+				"filename":           "file_name.yaml",
+				"basenameNormalized": "dir",
+				"filenameNormalized": "file-name.yaml",
+				"segments": []string{
+					"path",
+					"dir",
+				},
+			},
+		},
+	}, params)
+}
+
+func Test_generatePrefixedParamsFromGitFileGoTemplate(t *testing.T) {
+	values := map[string]string{}
+	params, err := (*GitGenerator)(nil).generateParamsFromGitFile("path/dir/file_name.yaml", []byte(`
+foo:
+  bar: baz
+`), values, true, nil, "myRepo")
+	if err != nil {
+		t.Fatal(err)
+	}
+	assert.Equal(t, []map[string]interface{}{
+		{
+			"foo": map[string]interface{}{
+				"bar": "baz",
+			},
+			"myRepo": map[string]interface{}{
+				"path": map[string]interface{}{
+					"path":               "path/dir",
+					"basename":           "dir",
+					"filename":           "file_name.yaml",
+					"basenameNormalized": "dir",
+					"filenameNormalized": "file-name.yaml",
+					"segments": []string{
+						"path",
+						"dir",
+					},
+				},
+			},
+		},
+	}, params)
 }
 
 func TestGitGenerateParamsFromDirectories(t *testing.T) {
@@ -305,7 +251,7 @@ func TestGitGenerateParamsFromDirectories(t *testing.T) {
 			repoApps:      []string{},
 			repoError:     fmt.Errorf("error"),
 			expected:      []map[string]interface{}{},
-			expectedError: fmt.Errorf("error generating params from git: error getting directories from repo: error"),
+			expectedError: fmt.Errorf("error"),
 		},
 	}
 
@@ -601,7 +547,7 @@ func TestGitGenerateParamsFromDirectoriesGoTemplate(t *testing.T) {
 			repoApps:      []string{},
 			repoError:     fmt.Errorf("error"),
 			expected:      []map[string]interface{}{},
-			expectedError: fmt.Errorf("error generating params from git: error getting directories from repo: error"),
+			expectedError: fmt.Errorf("error"),
 		},
 	}
 
@@ -796,7 +742,7 @@ func TestGitGenerateParamsFromFiles(t *testing.T) {
 			repoFileContents: map[string][]byte{},
 			repoPathsError:   fmt.Errorf("paths error"),
 			expected:         []map[string]interface{}{},
-			expectedError:    fmt.Errorf("error generating params from git: paths error"),
+			expectedError:    fmt.Errorf("paths error"),
 		},
 		{
 			name:  "test invalid JSON file returns error",
@@ -806,7 +752,7 @@ func TestGitGenerateParamsFromFiles(t *testing.T) {
 			},
 			repoPathsError: nil,
 			expected:       []map[string]interface{}{},
-			expectedError:  fmt.Errorf("error generating params from git: unable to process file 'cluster-config/production/config.json': unable to parse file: error unmarshaling JSON: while decoding JSON: json: cannot unmarshal string into Go value of type map[string]interface {}"),
+			expectedError:  fmt.Errorf("unable to process file 'cluster-config/production/config.json': unable to parse file: error unmarshaling JSON: while decoding JSON: json: cannot unmarshal string into Go value of type map[string]interface {}"),
 		},
 		{
 			name:  "test JSON array",
@@ -1102,7 +1048,7 @@ func TestGitGenerateParamsFromFilesGoTemplate(t *testing.T) {
 			repoFileContents: map[string][]byte{},
 			repoPathsError:   fmt.Errorf("paths error"),
 			expected:         []map[string]interface{}{},
-			expectedError:    fmt.Errorf("error generating params from git: paths error"),
+			expectedError:    fmt.Errorf("paths error"),
 		},
 		{
 			name:  "test invalid JSON file returns error",
@@ -1112,7 +1058,7 @@ func TestGitGenerateParamsFromFilesGoTemplate(t *testing.T) {
 			},
 			repoPathsError: nil,
 			expected:       []map[string]interface{}{},
-			expectedError:  fmt.Errorf("error generating params from git: unable to process file 'cluster-config/production/config.json': unable to parse file: error unmarshaling JSON: while decoding JSON: json: cannot unmarshal string into Go value of type map[string]interface {}"),
+			expectedError:  fmt.Errorf("unable to process file 'cluster-config/production/config.json': unable to parse file: error unmarshaling JSON: while decoding JSON: json: cannot unmarshal string into Go value of type map[string]interface {}"),
 		},
 		{
 			name:  "test JSON array",

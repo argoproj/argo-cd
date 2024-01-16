@@ -5,6 +5,7 @@ import (
 	"math"
 	"net"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/argoproj/pkg/stats"
@@ -35,16 +36,33 @@ import (
 
 const (
 	// CLIName is the name of the CLI
-	cliName = "argocd-repo-server"
+	cliName         = "argocd-repo-server"
+	gnuPGSourcePath = "/app/config/gpg/source"
+
+	defaultPauseGenerationAfterFailedGenerationAttempts = 3
+	defaultPauseGenerationOnFailureForMinutes           = 60
+	defaultPauseGenerationOnFailureForRequests          = 0
 )
 
-var (
-	gnuPGSourcePath                              = env.StringFromEnv(common.EnvGPGDataPath, "/app/config/gpg/source")
-	pauseGenerationAfterFailedGenerationAttempts = env.ParseNumFromEnv(common.EnvPauseGenerationAfterFailedAttempts, 3, 0, math.MaxInt32)
-	pauseGenerationOnFailureForMinutes           = env.ParseNumFromEnv(common.EnvPauseGenerationMinutes, 60, 0, math.MaxInt32)
-	pauseGenerationOnFailureForRequests          = env.ParseNumFromEnv(common.EnvPauseGenerationRequests, 0, 0, math.MaxInt32)
-	gitSubmoduleEnabled                          = env.ParseBoolFromEnv(common.EnvGitSubmoduleEnabled, true)
-)
+func getGnuPGSourcePath() string {
+	return env.StringFromEnv(common.EnvGPGDataPath, gnuPGSourcePath)
+}
+
+func getPauseGenerationAfterFailedGenerationAttempts() int {
+	return env.ParseNumFromEnv(common.EnvPauseGenerationAfterFailedAttempts, defaultPauseGenerationAfterFailedGenerationAttempts, 0, math.MaxInt32)
+}
+
+func getPauseGenerationOnFailureForMinutes() int {
+	return env.ParseNumFromEnv(common.EnvPauseGenerationMinutes, defaultPauseGenerationOnFailureForMinutes, 0, math.MaxInt32)
+}
+
+func getPauseGenerationOnFailureForRequests() int {
+	return env.ParseNumFromEnv(common.EnvPauseGenerationRequests, defaultPauseGenerationOnFailureForRequests, 0, math.MaxInt32)
+}
+
+func getSubmoduleEnabled() bool {
+	return env.ParseBoolFromEnv(common.EnvGitSubmoduleEnabled, true)
+}
 
 func NewCommand() *cobra.Command {
 	var (
@@ -54,9 +72,6 @@ func NewCommand() *cobra.Command {
 		metricsPort                       int
 		metricsHost                       string
 		otlpAddress                       string
-		otlpInsecure                      bool
-		otlpHeaders                       map[string]string
-		otlpAttrs                         []string
 		cacheSrc                          func() (*reposervercache.Cache, error)
 		tlsConfigCustomizer               tls.ConfigCustomizer
 		tlsConfigCustomizerSrc            func() (tls.ConfigCustomizer, error)
@@ -115,10 +130,10 @@ func NewCommand() *cobra.Command {
 			cacheutil.CollectMetrics(redisClient, metricsServer)
 			server, err := reposerver.NewServer(metricsServer, cache, tlsConfigCustomizer, repository.RepoServerInitConstants{
 				ParallelismLimit: parallelismLimit,
-				PauseGenerationAfterFailedGenerationAttempts: pauseGenerationAfterFailedGenerationAttempts,
-				PauseGenerationOnFailureForMinutes:           pauseGenerationOnFailureForMinutes,
-				PauseGenerationOnFailureForRequests:          pauseGenerationOnFailureForRequests,
-				SubmoduleEnabled:                             gitSubmoduleEnabled,
+				PauseGenerationAfterFailedGenerationAttempts: getPauseGenerationAfterFailedGenerationAttempts(),
+				PauseGenerationOnFailureForMinutes:           getPauseGenerationOnFailureForMinutes(),
+				PauseGenerationOnFailureForRequests:          getPauseGenerationOnFailureForRequests(),
+				SubmoduleEnabled:                             getSubmoduleEnabled(),
 				MaxCombinedDirectoryManifestsSize:            maxCombinedDirectoryManifestsQuantity,
 				CMPTarExcludedGlobs:                          cmpTarExcludedGlobs,
 				AllowOutOfBoundsSymlinks:                     allowOutOfBoundsSymlinks,
@@ -131,7 +146,7 @@ func NewCommand() *cobra.Command {
 			if otlpAddress != "" {
 				var closer func()
 				var err error
-				closer, err = traceutil.InitTracer(ctx, "argocd-repo-server", otlpAddress, otlpInsecure, otlpHeaders, otlpAttrs)
+				closer, err = traceutil.InitTracer(ctx, "argocd-repo-server", otlpAddress)
 				if err != nil {
 					log.Fatalf("failed to initialize tracing: %v", err)
 				}
@@ -173,12 +188,12 @@ func NewCommand() *cobra.Command {
 				err = gpg.InitializeGnuPG()
 				errors.CheckError(err)
 
-				log.Infof("Populating GnuPG keyring with keys from %s", gnuPGSourcePath)
-				added, removed, err := gpg.SyncKeyRingFromDirectory(gnuPGSourcePath)
+				log.Infof("Populating GnuPG keyring with keys from %s", getGnuPGSourcePath())
+				added, removed, err := gpg.SyncKeyRingFromDirectory(getGnuPGSourcePath())
 				errors.CheckError(err)
 				log.Infof("Loaded %d (and removed %d) keys from keyring", len(added), len(removed))
 
-				go func() { errors.CheckError(reposerver.StartGPGWatcher(gnuPGSourcePath)) }()
+				go func() { errors.CheckError(reposerver.StartGPGWatcher(getGnuPGSourcePath())) }()
 			}
 
 			log.Infof("argocd-repo-server is listening on %s", listener.Addr())
@@ -190,6 +205,9 @@ func NewCommand() *cobra.Command {
 			return nil
 		},
 	}
+	if cmdutil.LogFormat == "" {
+		cmdutil.LogFormat = os.Getenv("ARGOCD_REPO_SERVER_LOGLEVEL")
+	}
 	command.Flags().StringVar(&cmdutil.LogFormat, "logformat", env.StringFromEnv("ARGOCD_REPO_SERVER_LOGFORMAT", "text"), "Set the logging format. One of: text|json")
 	command.Flags().StringVar(&cmdutil.LogLevel, "loglevel", env.StringFromEnv("ARGOCD_REPO_SERVER_LOGLEVEL", "info"), "Set the logging level. One of: debug|info|warn|error")
 	command.Flags().Int64Var(&parallelismLimit, "parallelismlimit", int64(env.ParseNumFromEnv("ARGOCD_REPO_SERVER_PARALLELISM_LIMIT", 0, 0, math.MaxInt32)), "Limit on number of concurrent manifests generate requests. Any value less the 1 means no limit.")
@@ -198,9 +216,6 @@ func NewCommand() *cobra.Command {
 	command.Flags().StringVar(&metricsHost, "metrics-address", env.StringFromEnv("ARGOCD_REPO_SERVER_METRICS_LISTEN_ADDRESS", common.DefaultAddressRepoServerMetrics), "Listen on given address for metrics")
 	command.Flags().IntVar(&metricsPort, "metrics-port", common.DefaultPortRepoServerMetrics, "Start metrics server on given port")
 	command.Flags().StringVar(&otlpAddress, "otlp-address", env.StringFromEnv("ARGOCD_REPO_SERVER_OTLP_ADDRESS", ""), "OpenTelemetry collector address to send traces to")
-	command.Flags().BoolVar(&otlpInsecure, "otlp-insecure", env.ParseBoolFromEnv("ARGOCD_REPO_SERVER_OTLP_INSECURE", true), "OpenTelemetry collector insecure mode")
-	command.Flags().StringToStringVar(&otlpHeaders, "otlp-headers", env.ParseStringToStringFromEnv("ARGOCD_REPO_OTLP_HEADERS", map[string]string{}, ","), "List of OpenTelemetry collector extra headers sent with traces, headers are comma-separated key-value pairs(e.g. key1=value1,key2=value2)")
-	command.Flags().StringSliceVar(&otlpAttrs, "otlp-attrs", env.StringsFromEnv("ARGOCD_REPO_SERVER_OTLP_ATTRS", []string{}, ","), "List of OpenTelemetry collector extra attrs when send traces, each attribute is separated by a colon(e.g. key:value)")
 	command.Flags().BoolVar(&disableTLS, "disable-tls", env.ParseBoolFromEnv("ARGOCD_REPO_SERVER_DISABLE_TLS", false), "Disable TLS on the gRPC endpoint")
 	command.Flags().StringVar(&maxCombinedDirectoryManifestsSize, "max-combined-directory-manifests-size", env.StringFromEnv("ARGOCD_REPO_SERVER_MAX_COMBINED_DIRECTORY_MANIFESTS_SIZE", "10M"), "Max combined size of manifest files in a directory-type Application")
 	command.Flags().StringArrayVar(&cmpTarExcludedGlobs, "plugin-tar-exclude", env.StringsFromEnv("ARGOCD_REPO_SERVER_PLUGIN_TAR_EXCLUSIONS", []string{}, ";"), "Globs to filter when sending tarballs to plugins.")
@@ -210,10 +225,8 @@ func NewCommand() *cobra.Command {
 	command.Flags().StringVar(&helmManifestMaxExtractedSize, "helm-manifest-max-extracted-size", env.StringFromEnv("ARGOCD_REPO_SERVER_HELM_MANIFEST_MAX_EXTRACTED_SIZE", "1G"), "Maximum size of helm manifest archives when extracted")
 	command.Flags().BoolVar(&disableManifestMaxExtractedSize, "disable-helm-manifest-max-extracted-size", env.ParseBoolFromEnv("ARGOCD_REPO_SERVER_DISABLE_HELM_MANIFEST_MAX_EXTRACTED_SIZE", false), "Disable maximum size of helm manifest archives when extracted")
 	tlsConfigCustomizerSrc = tls.AddTLSFlagsToCmd(&command)
-	cacheSrc = reposervercache.AddCacheFlagsToCmd(&command, cacheutil.Options{
-		OnClientCreated: func(client *redis.Client) {
-			redisClient = client
-		},
+	cacheSrc = reposervercache.AddCacheFlagsToCmd(&command, func(client *redis.Client) {
+		redisClient = client
 	})
 	return &command
 }

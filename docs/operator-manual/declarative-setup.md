@@ -209,7 +209,7 @@ metadata:
     argocd.argoproj.io/secret-type: repository
 stringData:
   type: git
-  url: git@github.com:argoproj/my-private-repository.git
+  url: git@github.com:argoproj/my-private-repository
   sshPrivateKey: |
     -----BEGIN OPENSSH PRIVATE KEY-----
     ...
@@ -266,7 +266,7 @@ metadata:
     argocd.argoproj.io/secret-type: repository
 stringData:
   type: git
-  url: https://source.developers.google.com/p/my-google-project/r/my-repo
+  repo: https://source.developers.google.com/p/my-google-project/r/my-repo
   gcpServiceAccountKey: |
     {
       "type": "service_account",
@@ -490,7 +490,7 @@ stringData:
 
 ### Legacy behaviour
 
-In Argo CD version 2.0 and earlier, repositories were stored as part of the `argocd-cm` config map. For
+In Argo CD version 2.0 and earlier, repositories where stored as part of the `argocd-cm` config map. For
 backward-compatibility, Argo CD will still honor repositories in the config map, but this style of repository
 configuration is deprecated and support for it will be removed in a future version.
 
@@ -549,7 +549,6 @@ bearerToken: string
 awsAuthConfig:
     clusterName: string
     roleARN: string
-    profile: string
 # Configure external command to supply client credentials
 # See https://godoc.org/k8s.io/client-go/tools/clientcmd/api#ExecConfig
 execProviderConfig:
@@ -591,8 +590,8 @@ metadata:
     argocd.argoproj.io/secret-type: cluster
 type: Opaque
 stringData:
-  name: mycluster.example.com
-  server: https://mycluster.example.com
+  name: mycluster.com
+  server: https://mycluster.com
   config: |
     {
       "bearerToken": "<authentication token>",
@@ -616,8 +615,8 @@ metadata:
     argocd.argoproj.io/secret-type: cluster
 type: Opaque
 stringData:
-  name: "mycluster.example.com"
-  server: "https://mycluster.example.com"
+  name: "mycluster.com"
+  server: "https://mycluster.com"
   config: |
     {
       "awsAuthConfig": {
@@ -677,10 +676,8 @@ extended to allow assumption of multiple roles, either as an explicit array of r
   }
 ```
 
-Example service account configs for `argocd-application-controller` and `argocd-server`.
-
-!!! warning
-    Once the annotations have been set on the service accounts, both the application controller and server pods need to be restarted.
+Example service account configs for `argocd-application-controller` and `argocd-server`. Note that once the annotations
+have been set on the service accounts, both the application controller and server pods need to be restarted.
 
 ```yaml
 apiVersion: v1
@@ -745,8 +742,8 @@ metadata:
     argocd.argoproj.io/secret-type: cluster
 type: Opaque
 stringData:
-  name: mycluster.example.com
-  server: https://mycluster.example.com
+  name: mycluster.com
+  server: https://mycluster.com
   config: |
     {
       "execProviderConfig": {
@@ -798,8 +795,8 @@ metadata:
     argocd.argoproj.io/secret-type: cluster
 type: Opaque
 stringData:
-  name: mycluster.example.com
-  server: https://mycluster.example.com
+  name: mycluster.com
+  server: https://mycluster.com
   config: |
     {
       "execProviderConfig": {
@@ -833,8 +830,8 @@ metadata:
     argocd.argoproj.io/secret-type: cluster
 type: Opaque
 stringData:
-  name: mycluster.example.com
-  server: https://mycluster.example.com
+  name: mycluster.com
+  server: https://mycluster.com
   config: |
     {
       "execProviderConfig": {
@@ -955,33 +952,6 @@ Notes:
 * Quote globs in your YAML to avoid parsing errors.
 * Invalid globs result in the whole rule being ignored.
 * If you add a rule that matches existing resources, these will appear in the interface as `OutOfSync`.
-
-## Auto respect RBAC for controller
-
-Argocd controller can be restricted from discovering/syncing specific resources using just controller rbac, without having to manually configure resource exclusions.
-This feature can be enabled by setting `resource.respectRBAC` key in argocd cm, once it is set the controller will automatically stop watching for resources 
-that it does not have the permission to list/access. Possible values for `resource.respectRBAC` are:
-    - `strict` : This setting checks whether the list call made by controller is forbidden/unauthorized and if it is, it will cross-check the permission by making a `SelfSubjectAccessReview` call for the resource.
-    - `normal` : This will only check whether the list call response is forbidden/unauthorized and skip `SelfSubjectAccessReview` call, to minimize any extra api-server calls.
-    - unset/empty (default) : This will disable the feature and controller will continue to monitor all resources.
-
-Users who are comfortable with an increase in kube api-server calls can opt for `strict` option while users who are concerned with higher api calls and are willing to compromise on the accuracy can opt for the `normal` option.
-
-Notes:
-
-* When set to use `strict` mode controller must have rbac permission to `create` a `SelfSubjectAccessReview` resource 
-* The `SelfSubjectAccessReview` request will be only made for the `list` verb, it is assumed that if `list` is allowed for a resource then all other permissions are also available to the controller.
-
-Example argocd cm with `resource.respectRBAC` set to `strict`:
-
-```yaml
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: argocd-cm
-data:
-  resource.respectRBAC: "strict"
-```
 
 ## Resource Custom Labels
 

@@ -16,10 +16,6 @@ func NewInMemoryCache(expiration time.Duration) *InMemoryCache {
 	}
 }
 
-func init() {
-	gob.Register([]interface{}{})
-}
-
 // compile-time validation of adherance of the CacheClient contract
 var _ CacheClient = &InMemoryCache{}
 
@@ -34,16 +30,6 @@ func (i *InMemoryCache) Set(item *Item) error {
 		return err
 	}
 	i.memCache.Set(item.Key, buf, item.Expiration)
-	return nil
-}
-
-func (i *InMemoryCache) Rename(oldKey string, newKey string, expiration time.Duration) error {
-	bufIf, found := i.memCache.Get(oldKey)
-	if !found {
-		return ErrCacheMiss
-	}
-	i.memCache.Set(newKey, bufIf, expiration)
-	i.memCache.Delete(oldKey)
 	return nil
 }
 

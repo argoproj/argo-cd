@@ -20,15 +20,13 @@ import (
 	"sigs.k8s.io/yaml"
 
 	cmdutil "github.com/argoproj/argo-cd/v2/cmd/util"
-	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/controller"
 	"github.com/argoproj/argo-cd/v2/controller/cache"
 	"github.com/argoproj/argo-cd/v2/controller/metrics"
-	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
 	appinformers "github.com/argoproj/argo-cd/v2/pkg/client/informers/externalversions"
-	reposerverclient "github.com/argoproj/argo-cd/v2/reposerver/apiclient"
+	argocdclient "github.com/argoproj/argo-cd/v2/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/v2/util/argo"
 	cacheutil "github.com/argoproj/argo-cd/v2/util/cache"
 	appstatecache "github.com/argoproj/argo-cd/v2/util/cache/appstate"
@@ -41,27 +39,17 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/settings"
 )
 
-func NewAppCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
+func NewAppCommand() *cobra.Command {
 	var command = &cobra.Command{
 		Use:   "app",
 		Short: "Manage applications configuration",
-		Example: `
-# Compare results of two reconciliations and print diff
-argocd admin app diff-reconcile-results APPNAME [flags]
-
-# Generate declarative config for an application
-argocd admin app generate-spec APPNAME
-
-# Reconcile all applications and store reconciliation summary in the specified file
-argocd admin app get-reconcile-results APPNAME
-`,
 		Run: func(c *cobra.Command, args []string) {
 			c.HelpFunc()(c, args)
 		},
 	}
 
 	command.AddCommand(NewGenAppSpecCommand())
-	command.AddCommand(NewReconcileCommand(clientOpts))
+	command.AddCommand(NewReconcileCommand())
 	command.AddCommand(NewDiffReconcileResults())
 	return command
 }
@@ -205,14 +193,14 @@ func diffReconcileResults(res1 reconcileResults, res2 reconcileResults) error {
 	for k, v := range resMap1 {
 		firstUn, err := toUnstructured(v)
 		if err != nil {
-			return fmt.Errorf("error converting first resource to unstructured: %w", err)
+			return err
 		}
 		var secondUn *unstructured.Unstructured
 		second, ok := resMap2[k]
 		if ok {
 			secondUn, err = toUnstructured(second)
 			if err != nil {
-				return fmt.Errorf("error converting second resource to unstructured: %w", err)
+				return err
 			}
 			delete(resMap2, k)
 		}
@@ -236,14 +224,13 @@ func diffReconcileResults(res1 reconcileResults, res2 reconcileResults) error {
 	return nil
 }
 
-func NewReconcileCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
+func NewReconcileCommand() *cobra.Command {
 	var (
 		clientConfig      clientcmd.ClientConfig
 		selector          string
 		repoServerAddress string
 		outputFormat      string
 		refresh           bool
-		serverSideDiff    bool
 	)
 
 	var command = &cobra.Command{
@@ -272,16 +259,15 @@ func NewReconcileCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command 
 				if repoServerAddress == "" {
 					printLine("Repo server is not provided, trying to port-forward to argocd-repo-server pod.")
 					overrides := clientcmd.ConfigOverrides{}
-					repoServerPodLabelSelector := common.LabelKeyAppName + "=" + clientOpts.RepoServerName
-					repoServerPort, err := kubeutil.PortForward(8081, namespace, &overrides, repoServerPodLabelSelector)
+					repoServerPort, err := kubeutil.PortForward(8081, namespace, &overrides, "app.kubernetes.io/name=argocd-repo-server")
 					errors.CheckError(err)
 					repoServerAddress = fmt.Sprintf("localhost:%d", repoServerPort)
 				}
-				repoServerClient := reposerverclient.NewRepoServerClientset(repoServerAddress, 60, reposerverclient.TLSConfiguration{DisableTLS: false, StrictValidation: false})
+				repoServerClient := argocdclient.NewRepoServerClientset(repoServerAddress, 60, argocdclient.TLSConfiguration{DisableTLS: false, StrictValidation: false})
 
 				appClientset := appclientset.NewForConfigOrDie(cfg)
 				kubeClientset := kubernetes.NewForConfigOrDie(cfg)
-				result, err = reconcileApplications(ctx, kubeClientset, appClientset, namespace, repoServerClient, selector, newLiveStateCache, serverSideDiff)
+				result, err = reconcileApplications(ctx, kubeClientset, appClientset, namespace, repoServerClient, selector, newLiveStateCache)
 				errors.CheckError(err)
 			} else {
 				appClientset := appclientset.NewForConfigOrDie(cfg)
@@ -296,7 +282,6 @@ func NewReconcileCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command 
 	command.Flags().StringVar(&selector, "l", "", "Label selector")
 	command.Flags().StringVar(&outputFormat, "o", "yaml", "Output format (yaml|json)")
 	command.Flags().BoolVar(&refresh, "refresh", false, "If set to true then recalculates apps reconciliation")
-	command.Flags().BoolVar(&serverSideDiff, "server-side-diff", false, "If set to \"true\" will use server-side diff while comparing resources. Default (\"false\")")
 
 	return command
 }
@@ -343,10 +328,9 @@ func reconcileApplications(
 	kubeClientset kubernetes.Interface,
 	appClientset appclientset.Interface,
 	namespace string,
-	repoServerClient reposerverclient.Clientset,
+	repoServerClient argocdclient.Clientset,
 	selector string,
 	createLiveStateCache func(argoDB db.ArgoDB, appInformer kubecache.SharedIndexInformer, settingsMgr *settings.SettingsManager, server *metrics.MetricsServer) cache.LiveStateCache,
-	serverSideDiff bool,
 ) ([]appReconcileResult, error) {
 	settingsMgr := settings.NewSettingsManager(ctx, kubeClientset, namespace)
 	argoDB := db.NewDB(namespace, settingsMgr, kubeClientset)
@@ -387,7 +371,7 @@ func reconcileApplications(
 	)
 
 	appStateManager := controller.NewAppStateManager(
-		argoDB, appClientset, repoServerClient, namespace, kubeutil.NewKubectl(), settingsMgr, stateCache, projInformer, server, cache, time.Second, argo.NewResourceTracking(), false, 0, serverSideDiff)
+		argoDB, appClientset, repoServerClient, namespace, kubeutil.NewKubectl(), settingsMgr, stateCache, projInformer, server, cache, time.Second, argo.NewResourceTracking(), false)
 
 	appsList, err := appClientset.ArgoprojV1alpha1().Applications(namespace).List(ctx, v1.ListOptions{LabelSelector: selector})
 	if err != nil {
@@ -422,10 +406,7 @@ func reconcileApplications(
 		sources = append(sources, app.Spec.GetSource())
 		revisions = append(revisions, app.Spec.GetSource().TargetRevision)
 
-		res, err := appStateManager.CompareAppState(&app, proj, revisions, sources, false, false, nil, false)
-		if err != nil {
-			return nil, err
-		}
+		res := appStateManager.CompareAppState(&app, proj, revisions, sources, false, false, nil, false)
 		items = append(items, appReconcileResult{
 			Name:       app.Name,
 			Conditions: app.Status.Conditions,

@@ -58,7 +58,7 @@ func (t testNormalizer) Normalize(un *unstructured.Unstructured) error {
 		if err != nil {
 			return fmt.Errorf("failed to normalize %s: %w", un.GetKind(), err)
 		}
-	case "ExternalSecret", "PushSecret":
+	case "ExternalSecret":
 		err := unstructured.SetNestedStringMap(un.Object, map[string]string{"force-sync": "0001-01-01T00:00:00Z"}, "metadata", "annotations")
 		if err != nil {
 			return fmt.Errorf("failed to normalize %s: %w", un.GetKind(), err)

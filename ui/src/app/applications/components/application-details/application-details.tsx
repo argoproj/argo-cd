@@ -30,7 +30,7 @@ import {ApplicationsDetailsAppDropdown} from './application-details-app-dropdown
 import {useSidebarTarget} from '../../../sidebar/sidebar';
 
 import './application-details.scss';
-import {AppViewExtension, StatusPanelExtension} from '../../../shared/services/extensions-service';
+import {AppViewExtension} from '../../../shared/services/extensions-service';
 
 interface ApplicationDetailsState {
     page: number;
@@ -42,8 +42,6 @@ interface ApplicationDetailsState {
     collapsedNodes?: string[];
     extensions?: AppViewExtension[];
     extensionsMap?: {[key: string]: AppViewExtension};
-    statusExtensions?: StatusPanelExtension[];
-    statusExtensionsMap?: {[key: string]: StatusPanelExtension};
 }
 
 interface FilterInput {
@@ -89,11 +87,6 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
         extensions.forEach(ext => {
             extensionsMap[ext.title] = ext;
         });
-        const statusExtensions = services.extensions.getStatusPanelExtensions();
-        const statusExtensionsMap: {[key: string]: StatusPanelExtension} = {};
-        statusExtensions.forEach(ext => {
-            statusExtensionsMap[ext.id] = ext;
-        });
         this.state = {
             page: 0,
             groupedResources: [],
@@ -102,9 +95,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
             truncateNameOnRight: false,
             collapsedNodes: [],
             extensions,
-            extensionsMap,
-            statusExtensions,
-            statusExtensionsMap
+            extensionsMap
         };
         if (typeof this.props.match.params.appnamespace === 'undefined') {
             this.appNamespace = '';
@@ -149,10 +140,6 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
     private get selectedNodeKey() {
         const nodeContainer = this.selectedNodeInfo;
         return nodeContainer.key;
-    }
-
-    private get selectedExtension() {
-        return new URLSearchParams(this.props.history.location.search).get('extension');
     }
 
     private closeGroupedNodesPanel() {
@@ -366,9 +353,6 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                 name: application.metadata.name,
                                 namespace: application.metadata.namespace
                             });
-
-                            const activeExtension = this.state.statusExtensionsMap[this.selectedExtension];
-
                             return (
                                 <div className={`application-details ${this.props.match.params.name}`}>
                                     <Page
@@ -432,21 +416,125 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                                 </React.Fragment>
                                             )
                                         }}>
-                                        <div className='application-details__wrapper'>
-                                            <div className='application-details__status-panel'>
-                                                <ApplicationStatusPanel
-                                                    application={application}
-                                                    showDiff={() => this.selectNode(appFullName, 0, 'diff')}
-                                                    showOperation={() => this.setOperationStatusVisible(true)}
-                                                    showConditions={() => this.setConditionsStatusVisible(true)}
-                                                    showExtension={id => this.setExtensionPanelVisible(id)}
-                                                    showMetadataInfo={revision => this.setState({...this.state, revision})}
-                                                />
-                                            </div>
-                                            <div className='application-details__tree'>
-                                                {refreshing && <p className='application-details__refreshing-label'>Refreshing</p>}
-                                                {((pref.view === 'tree' || pref.view === 'network') && (
-                                                    <>
+                                        <div className='application-details__status-panel'>
+                                            <ApplicationStatusPanel
+                                                application={application}
+                                                showDiff={() => this.selectNode(appFullName, 0, 'diff')}
+                                                showOperation={() => this.setOperationStatusVisible(true)}
+                                                showConditions={() => this.setConditionsStatusVisible(true)}
+                                                showMetadataInfo={revision => this.setState({...this.state, revision})}
+                                            />
+                                        </div>
+                                        <div className='application-details__tree'>
+                                            {refreshing && <p className='application-details__refreshing-label'>Refreshing</p>}
+                                            {((pref.view === 'tree' || pref.view === 'network') && (
+                                                <>
+                                                    <DataLoader load={() => services.viewPreferences.getPreferences()}>
+                                                        {viewPref => (
+                                                            <ApplicationDetailsFilters
+                                                                pref={pref}
+                                                                tree={tree}
+                                                                onSetFilter={setFilter}
+                                                                onClearFilter={clearFilter}
+                                                                collapsed={viewPref.hideSidebar}
+                                                                resourceNodes={this.state.filteredGraph}
+                                                            />
+                                                        )}
+                                                    </DataLoader>
+                                                    <div className='graph-options-panel'>
+                                                        <a
+                                                            className={`group-nodes-button`}
+                                                            onClick={() => {
+                                                                toggleNameDirection();
+                                                            }}
+                                                            title={this.state.truncateNameOnRight ? 'Truncate resource name right' : 'Truncate resource name left'}>
+                                                            <i
+                                                                className={classNames({
+                                                                    'fa fa-align-right': this.state.truncateNameOnRight,
+                                                                    'fa fa-align-left': !this.state.truncateNameOnRight
+                                                                })}
+                                                            />
+                                                        </a>
+                                                        {(pref.view === 'tree' || pref.view === 'network') && (
+                                                            <Tooltip
+                                                                content={AppUtils.userMsgsList[showToolTip?.msgKey] || 'Group Nodes'}
+                                                                visible={pref.groupNodes && showToolTip !== undefined && !showToolTip?.display}
+                                                                duration={showToolTip?.duration}
+                                                                zIndex={1}>
+                                                                <a
+                                                                    className={`group-nodes-button group-nodes-button${!pref.groupNodes ? '' : '-on'}`}
+                                                                    title={pref.view === 'tree' ? 'Group Nodes' : 'Collapse Pods'}
+                                                                    onClick={() => this.toggleCompactView(application.metadata.name, pref)}>
+                                                                    <i className={classNames('fa fa-object-group fa-fw')} />
+                                                                </a>
+                                                            </Tooltip>
+                                                        )}
+
+                                                        <span className={`separator`} />
+                                                        <a className={`group-nodes-button`} onClick={() => expandAll()} title='Expand all child nodes of all parent nodes'>
+                                                            <i className='fa fa-plus fa-fw' />
+                                                        </a>
+                                                        <a className={`group-nodes-button`} onClick={() => collapseAll()} title='Collapse all child nodes of all parent nodes'>
+                                                            <i className='fa fa-minus fa-fw' />
+                                                        </a>
+                                                        <span className={`separator`} />
+                                                        <span>
+                                                            <a className={`group-nodes-button`} onClick={() => setZoom(0.1)} title='Zoom in'>
+                                                                <i className='fa fa-search-plus fa-fw' />
+                                                            </a>
+                                                            <a className={`group-nodes-button`} onClick={() => setZoom(-0.1)} title='Zoom out'>
+                                                                <i className='fa fa-search-minus fa-fw' />
+                                                            </a>
+                                                            <div className={`zoom-value`}>{zoomNum}%</div>
+                                                        </span>
+                                                    </div>
+                                                    <ApplicationResourceTree
+                                                        nodeFilter={node => this.filterTreeNode(node, treeFilter)}
+                                                        selectedNodeFullName={this.selectedNodeKey}
+                                                        onNodeClick={fullName => this.selectNode(fullName)}
+                                                        nodeMenu={node =>
+                                                            AppUtils.renderResourceMenu(node, application, tree, this.appContext.apis, this.appChanged, () =>
+                                                                this.getApplicationActionMenu(application, false)
+                                                            )
+                                                        }
+                                                        showCompactNodes={pref.groupNodes}
+                                                        userMsgs={pref.userHelpTipMsgs}
+                                                        tree={tree}
+                                                        app={application}
+                                                        showOrphanedResources={pref.orphanedResources}
+                                                        useNetworkingHierarchy={pref.view === 'network'}
+                                                        onClearFilter={clearFilter}
+                                                        onGroupdNodeClick={groupdedNodeIds => openGroupNodeDetails(groupdedNodeIds)}
+                                                        zoom={pref.zoom}
+                                                        podGroupCount={pref.podGroupCount}
+                                                        appContext={this.appContext}
+                                                        nameDirection={this.state.truncateNameOnRight}
+                                                        filters={pref.resourceFilter}
+                                                        setTreeFilterGraph={setFilterGraph}
+                                                        updateUsrHelpTipMsgs={updateHelpTipState}
+                                                        setShowCompactNodes={setShowCompactNodes}
+                                                        setNodeExpansion={(node, isExpanded) => this.setNodeExpansion(node, isExpanded)}
+                                                        getNodeExpansion={node => this.getNodeExpansion(node)}
+                                                    />
+                                                </>
+                                            )) ||
+                                                (pref.view === 'pods' && (
+                                                    <PodView
+                                                        tree={tree}
+                                                        app={application}
+                                                        onItemClick={fullName => this.selectNode(fullName)}
+                                                        nodeMenu={node =>
+                                                            AppUtils.renderResourceMenu(node, application, tree, this.appContext.apis, this.appChanged, () =>
+                                                                this.getApplicationActionMenu(application, false)
+                                                            )
+                                                        }
+                                                        quickStarts={node => AppUtils.renderResourceButtons(node, application, tree, this.appContext.apis, this.appChanged)}
+                                                    />
+                                                )) ||
+                                                (this.state.extensionsMap[pref.view] != null && (
+                                                    <ExtensionView extension={this.state.extensionsMap[pref.view]} application={application} tree={tree} />
+                                                )) || (
+                                                    <div>
                                                         <DataLoader load={() => services.viewPreferences.getPreferences()}>
                                                             {viewPref => (
                                                                 <ApplicationDetailsFilters
@@ -455,149 +543,42 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                                                     onSetFilter={setFilter}
                                                                     onClearFilter={clearFilter}
                                                                     collapsed={viewPref.hideSidebar}
-                                                                    resourceNodes={this.state.filteredGraph}
+                                                                    resourceNodes={filteredRes}
                                                                 />
                                                             )}
                                                         </DataLoader>
-                                                        <div className='graph-options-panel'>
-                                                            <a
-                                                                className={`group-nodes-button`}
-                                                                onClick={() => {
-                                                                    toggleNameDirection();
-                                                                }}
-                                                                title={this.state.truncateNameOnRight ? 'Truncate resource name right' : 'Truncate resource name left'}>
-                                                                <i
-                                                                    className={classNames({
-                                                                        'fa fa-align-right': this.state.truncateNameOnRight,
-                                                                        'fa fa-align-left': !this.state.truncateNameOnRight
-                                                                    })}
-                                                                />
-                                                            </a>
-                                                            {(pref.view === 'tree' || pref.view === 'network') && (
-                                                                <Tooltip
-                                                                    content={AppUtils.userMsgsList[showToolTip?.msgKey] || 'Group Nodes'}
-                                                                    visible={pref.groupNodes && showToolTip !== undefined && !showToolTip?.display}
-                                                                    duration={showToolTip?.duration}
-                                                                    zIndex={1}>
-                                                                    <a
-                                                                        className={`group-nodes-button group-nodes-button${!pref.groupNodes ? '' : '-on'}`}
-                                                                        title={pref.view === 'tree' ? 'Group Nodes' : 'Collapse Pods'}
-                                                                        onClick={() => this.toggleCompactView(application.metadata.name, pref)}>
-                                                                        <i className={classNames('fa fa-object-group fa-fw')} />
-                                                                    </a>
-                                                                </Tooltip>
-                                                            )}
-
-                                                            <span className={`separator`} />
-                                                            <a className={`group-nodes-button`} onClick={() => expandAll()} title='Expand all child nodes of all parent nodes'>
-                                                                <i className='fa fa-plus fa-fw' />
-                                                            </a>
-                                                            <a className={`group-nodes-button`} onClick={() => collapseAll()} title='Collapse all child nodes of all parent nodes'>
-                                                                <i className='fa fa-minus fa-fw' />
-                                                            </a>
-                                                            <span className={`separator`} />
-                                                            <span>
-                                                                <a className={`group-nodes-button`} onClick={() => setZoom(0.1)} title='Zoom in'>
-                                                                    <i className='fa fa-search-plus fa-fw' />
-                                                                </a>
-                                                                <a className={`group-nodes-button`} onClick={() => setZoom(-0.1)} title='Zoom out'>
-                                                                    <i className='fa fa-search-minus fa-fw' />
-                                                                </a>
-                                                                <div className={`zoom-value`}>{zoomNum}%</div>
-                                                            </span>
-                                                        </div>
-                                                        <ApplicationResourceTree
-                                                            nodeFilter={node => this.filterTreeNode(node, treeFilter)}
-                                                            selectedNodeFullName={this.selectedNodeKey}
-                                                            onNodeClick={fullName => this.selectNode(fullName)}
-                                                            nodeMenu={node =>
-                                                                AppUtils.renderResourceMenu(node, application, tree, this.appContext.apis, this.appChanged, () =>
-                                                                    this.getApplicationActionMenu(application, false)
-                                                                )
-                                                            }
-                                                            showCompactNodes={pref.groupNodes}
-                                                            userMsgs={pref.userHelpTipMsgs}
-                                                            tree={tree}
-                                                            app={application}
-                                                            showOrphanedResources={pref.orphanedResources}
-                                                            useNetworkingHierarchy={pref.view === 'network'}
-                                                            onClearFilter={clearFilter}
-                                                            onGroupdNodeClick={groupdedNodeIds => openGroupNodeDetails(groupdedNodeIds)}
-                                                            zoom={pref.zoom}
-                                                            podGroupCount={pref.podGroupCount}
-                                                            appContext={this.appContext}
-                                                            nameDirection={this.state.truncateNameOnRight}
-                                                            filters={pref.resourceFilter}
-                                                            setTreeFilterGraph={setFilterGraph}
-                                                            updateUsrHelpTipMsgs={updateHelpTipState}
-                                                            setShowCompactNodes={setShowCompactNodes}
-                                                            setNodeExpansion={(node, isExpanded) => this.setNodeExpansion(node, isExpanded)}
-                                                            getNodeExpansion={node => this.getNodeExpansion(node)}
-                                                        />
-                                                    </>
-                                                )) ||
-                                                    (pref.view === 'pods' && (
-                                                        <PodView
-                                                            tree={tree}
-                                                            app={application}
-                                                            onItemClick={fullName => this.selectNode(fullName)}
-                                                            nodeMenu={node =>
-                                                                AppUtils.renderResourceMenu(node, application, tree, this.appContext.apis, this.appChanged, () =>
-                                                                    this.getApplicationActionMenu(application, false)
-                                                                )
-                                                            }
-                                                            quickStarts={node => AppUtils.renderResourceButtons(node, application, tree, this.appContext.apis, this.appChanged)}
-                                                        />
-                                                    )) ||
-                                                    (this.state.extensionsMap[pref.view] != null && (
-                                                        <ExtensionView extension={this.state.extensionsMap[pref.view]} application={application} tree={tree} />
-                                                    )) || (
-                                                        <div>
-                                                            <DataLoader load={() => services.viewPreferences.getPreferences()}>
-                                                                {viewPref => (
-                                                                    <ApplicationDetailsFilters
-                                                                        pref={pref}
+                                                        {(filteredRes.length > 0 && (
+                                                            <Paginate
+                                                                page={this.state.page}
+                                                                data={filteredRes}
+                                                                onPageChange={page => this.setState({page})}
+                                                                preferencesKey='application-details'>
+                                                                {data => (
+                                                                    <ApplicationResourceList
+                                                                        onNodeClick={fullName => this.selectNode(fullName)}
+                                                                        resources={data}
+                                                                        nodeMenu={node =>
+                                                                            AppUtils.renderResourceMenu(
+                                                                                {...node, root: node},
+                                                                                application,
+                                                                                tree,
+                                                                                this.appContext.apis,
+                                                                                this.appChanged,
+                                                                                () => this.getApplicationActionMenu(application, false)
+                                                                            )
+                                                                        }
                                                                         tree={tree}
-                                                                        onSetFilter={setFilter}
-                                                                        onClearFilter={clearFilter}
-                                                                        collapsed={viewPref.hideSidebar}
-                                                                        resourceNodes={filteredRes}
                                                                     />
                                                                 )}
-                                                            </DataLoader>
-                                                            {(filteredRes.length > 0 && (
-                                                                <Paginate
-                                                                    page={this.state.page}
-                                                                    data={filteredRes}
-                                                                    onPageChange={page => this.setState({page})}
-                                                                    preferencesKey='application-details'>
-                                                                    {data => (
-                                                                        <ApplicationResourceList
-                                                                            onNodeClick={fullName => this.selectNode(fullName)}
-                                                                            resources={data}
-                                                                            nodeMenu={node =>
-                                                                                AppUtils.renderResourceMenu(
-                                                                                    {...node, root: node},
-                                                                                    application,
-                                                                                    tree,
-                                                                                    this.appContext.apis,
-                                                                                    this.appChanged,
-                                                                                    () => this.getApplicationActionMenu(application, false)
-                                                                                )
-                                                                            }
-                                                                            tree={tree}
-                                                                        />
-                                                                    )}
-                                                                </Paginate>
-                                                            )) || (
-                                                                <EmptyState icon='fa fa-search'>
-                                                                    <h4>No resources found</h4>
-                                                                    <h5>Try to change filter criteria</h5>
-                                                                </EmptyState>
-                                                            )}
-                                                        </div>
-                                                    )}
-                                            </div>
+                                                            </Paginate>
+                                                        )) || (
+                                                            <EmptyState icon='fa fa-search'>
+                                                                <h4>No resources found</h4>
+                                                                <h5>Try to change filter criteria</h5>
+                                                            </EmptyState>
+                                                        )}
+                                                    </div>
+                                                )}
                                         </div>
                                         <SlidingPanel isShown={this.state.groupedResources.length > 0} onClose={() => this.closeGroupedNodesPanel()}>
                                             <div className='application-details__sliding-panel-pagination-wrap'>
@@ -749,13 +730,6 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                                     </DataLoader>
                                                 ))}
                                         </SlidingPanel>
-                                        <SlidingPanel
-                                            isShown={this.selectedExtension !== '' && activeExtension != null && activeExtension.flyout != null}
-                                            onClose={() => this.setExtensionPanelVisible('')}>
-                                            {this.selectedExtension !== '' && activeExtension && activeExtension.flyout && (
-                                                <activeExtension.flyout application={application} tree={tree} />
-                                            )}
-                                        </SlidingPanel>
                                     </Page>
                                 </div>
                             );
@@ -774,12 +748,12 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
         return [
             {
                 iconClassName: 'fa fa-info-circle',
-                title: <ActionMenuItem actionLabel='Details' />,
+                title: <ActionMenuItem actionLabel='App Details' />,
                 action: () => this.selectNode(fullName)
             },
             {
                 iconClassName: 'fa fa-file-medical',
-                title: <ActionMenuItem actionLabel='Diff' />,
+                title: <ActionMenuItem actionLabel='App Diff' />,
                 action: () => this.selectNode(fullName, 0, 'diff'),
                 disabled: app.status.sync.status === appModels.SyncStatuses.Synced
             },
@@ -988,10 +962,6 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
 
     private setRollbackPanelVisible(selectedDeploymentIndex = 0) {
         this.appContext.apis.navigation.goto('.', {rollback: selectedDeploymentIndex}, {replace: true});
-    }
-
-    private setExtensionPanelVisible(selectedExtension = '') {
-        this.appContext.apis.navigation.goto('.', {extension: selectedExtension}, {replace: true});
     }
 
     private selectNode(fullName: string, containerIndex = 0, tab: string = null) {

@@ -1,7 +1,6 @@
 package helm
 
 import (
-	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -269,8 +268,7 @@ type TemplateOpts struct {
 }
 
 var (
-	re                 = regexp.MustCompile(`([^\\]),`)
-	apiVersionsRemover = regexp.MustCompile(`(--api-versions [^ ]+ )+`)
+	re = regexp.MustCompile(`([^\\]),`)
 )
 
 func cleanSetParameters(val string) string {
@@ -317,16 +315,7 @@ func (c *Cmd) template(chartPath string, opts *TemplateOpts) (string, error) {
 		args = append(args, "--include-crds")
 	}
 
-	out, err := c.run(args...)
-	if err != nil {
-		msg := err.Error()
-		if strings.Contains(msg, "--api-versions") {
-			log.Debug(msg)
-			msg = apiVersionsRemover.ReplaceAllString(msg, "<api versions removed> ")
-		}
-		return "", errors.New(msg)
-	}
-	return out, nil
+	return c.run(args...)
 }
 
 func (c *Cmd) Freestyle(args ...string) (string, error) {

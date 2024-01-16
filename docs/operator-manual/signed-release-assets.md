@@ -92,7 +92,7 @@ The attestation payload contains a non-forgeable provenance which is base64 enco
 ```bash
 slsa-verifier verify-image "$IMAGE" \
     --source-uri github.com/argoproj/argo-cd \
-    --source-tag v2.7.0 \
+    --source-tag v2.7.0
     --print-provenance | jq
 ```
 
@@ -142,7 +142,7 @@ A single attestation (`argocd-sbom.intoto.jsonl`) from each release is provided 
 slsa-verifier verify-artifact sbom.tar.gz \
   --provenance-path argocd-sbom.intoto.jsonl \
   --source-uri github.com/argoproj/argo-cd \
-  --source-tag v2.7.0
+  --source-tag v2.8.0
 ```
 
 ***

@@ -3,55 +3,31 @@ package trace
 import (
 	"context"
 	"fmt"
-	"strings"
 
 	log "github.com/sirupsen/logrus"
 	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
 	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.6.1"
-	"google.golang.org/grpc/credentials"
 )
 
 // InitTracer initializes the trace provider and the otel grpc exporter.
-func InitTracer(ctx context.Context, serviceName, otlpAddress string, otlpInsecure bool, otlpHeaders map[string]string, otlpAttrs []string) (func(), error) {
-	attrs := make([]attribute.KeyValue, 0, len(otlpAttrs))
-	for i := range otlpAttrs {
-		attr := otlpAttrs[i]
-		slice := strings.Split(attr, ":")
-		if len(slice) != 2 {
-			log.Warnf("OTLP attr '%s' split with ':' length not 2", attr)
-			continue
-		}
-		attrs = append(attrs, attribute.String(slice[0], slice[1]))
-	}
-
+func InitTracer(ctx context.Context, serviceName, otlpAddress string) (func(), error) {
 	res, err := resource.New(ctx,
 		resource.WithAttributes(
 			semconv.ServiceNameKey.String(serviceName),
 		),
-		resource.WithAttributes(attrs...),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create resource: %w", err)
 	}
 
-	// set up grpc options based on secure/insecure connection
-	var secureOption otlptracegrpc.Option
-	if otlpInsecure {
-		secureOption = otlptracegrpc.WithInsecure()
-	} else {
-		secureOption = otlptracegrpc.WithTLSCredentials(credentials.NewClientTLSFromCert(nil, ""))
-	}
-
-	// set up a trace exporter
+	// Set up a trace exporter
 	exporter, err := otlptracegrpc.New(ctx,
-		secureOption,
+		otlptracegrpc.WithInsecure(),
 		otlptracegrpc.WithEndpoint(otlpAddress),
-		otlptracegrpc.WithHeaders(otlpHeaders),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create trace exporter: %w", err)

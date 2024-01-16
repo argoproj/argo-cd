@@ -22,9 +22,6 @@ message AWSAuthConfig {
 
   // RoleARN contains optional role ARN. If set then AWS IAM Authenticator assume a role to perform cluster operations instead of the default AWS credential provider chain.
   optional string roleARN = 2;
-
-  // Profile contains optional role ARN. If set then AWS IAM Authenticator uses the profile to perform cluster operations instead of the default AWS credential provider chain.
-  optional string profile = 3;
 }
 
 // AppProject provides a logical grouping of applications, providing controls for:
@@ -133,14 +130,14 @@ message ApplicationCondition {
 
 // ApplicationDestination holds information about the application's destination
 message ApplicationDestination {
-  // Server specifies the URL of the target cluster's Kubernetes control plane API. This must be set if Name is not set.
+  // Server specifies the URL of the target cluster and must be set to the Kubernetes control plane API
   optional string server = 1;
 
   // Namespace specifies the target namespace for the application's resources.
   // The namespace will only be set for namespace-scoped resources that have not set a value for .metadata.namespace
   optional string namespace = 2;
 
-  // Name is an alternate way of specifying the target cluster by its symbolic name. This must be set if Server is not set.
+  // Name is an alternate way of specifying the target cluster by its symbolic name
   optional string name = 3;
 }
 
@@ -162,8 +159,6 @@ message ApplicationMatchExpression {
 
 message ApplicationPreservedFields {
   repeated string annotations = 1;
-
-  repeated string labels = 2;
 }
 
 // ApplicationSet is a set of Application resources
@@ -276,19 +271,6 @@ message ApplicationSetNestedGenerator {
   optional PluginGenerator plugin = 10;
 }
 
-// ApplicationSetResourceIgnoreDifferences configures how the ApplicationSet controller will ignore differences in live
-// applications when applying changes from generated applications.
-message ApplicationSetResourceIgnoreDifferences {
-  // Name is the name of the application to ignore differences for. If not specified, the rule applies to all applications.
-  optional string name = 1;
-
-  // JSONPointers is a list of JSON pointers to fields to ignore differences for.
-  repeated string jsonPointers = 2;
-
-  // JQPathExpressions is a list of JQ path expressions to fields to ignore differences for.
-  repeated string jqPathExpressions = 3;
-}
-
 message ApplicationSetRolloutStep {
   repeated ApplicationMatchExpression matchExpressions = 1;
 
@@ -317,10 +299,6 @@ message ApplicationSetSpec {
 
   // ApplyNestedSelectors enables selectors defined within the generators of two level-nested matrix or merge generators
   optional bool applyNestedSelectors = 8;
-
-  repeated ApplicationSetResourceIgnoreDifferences ignoreApplicationDifferences = 9;
-
-  optional string templatePatch = 10;
 }
 
 // ApplicationSetStatus defines the observed state of ApplicationSet
@@ -523,12 +501,6 @@ message ApplicationSourceKustomize {
 
   // Replicas is a list of Kustomize Replicas override specifications
   repeated KustomizeReplica replicas = 11;
-
-  // Patches is a list of Kustomize patches
-  repeated KustomizePatch patches = 12;
-
-  // Components specifies a list of kustomize components to add to the kustomization before building
-  repeated string components = 13;
 }
 
 // ApplicationSourcePlugin holds options specific to config management plugins
@@ -1081,14 +1053,6 @@ message KnownTypeField {
   optional string type = 2;
 }
 
-message KustomizeGvk {
-  optional string group = 1;
-
-  optional string version = 2;
-
-  optional string kind = 3;
-}
-
 // KustomizeOptions are options for kustomize to use when building manifests
 message KustomizeOptions {
   // BuildOptions is a string of build parameters to use when calling `kustomize build`
@@ -1098,38 +1062,12 @@ message KustomizeOptions {
   optional string binaryPath = 2;
 }
 
-message KustomizePatch {
-  optional string path = 1;
-
-  optional string patch = 2;
-
-  optional KustomizeSelector target = 3;
-
-  map<string, bool> options = 4;
-}
-
 message KustomizeReplica {
   // Name of Deployment or StatefulSet
   optional string name = 1;
 
   // Number of replicas
   optional k8s.io.apimachinery.pkg.util.intstr.IntOrString count = 2;
-}
-
-message KustomizeResId {
-  optional KustomizeGvk gvk = 1;
-
-  optional string name = 2;
-
-  optional string namespace = 3;
-}
-
-message KustomizeSelector {
-  optional KustomizeResId resId = 1;
-
-  optional string annotationSelector = 2;
-
-  optional string labelSelector = 3;
 }
 
 // ListGenerator include items info
@@ -1898,9 +1836,6 @@ message RevisionHistory {
 
   // Revisions holds the revision of each source in sources field the sync was performed against
   repeated string revisions = 9;
-
-  // InitiatedBy contains information about who initiated the operations
-  optional OperationInitiator initiatedBy = 10;
 }
 
 // RevisionMetadata contains metadata for a specific revision in a Git repository
@@ -2097,12 +2032,6 @@ message SCMProviderGeneratorGitlab {
 
   // Skips validating the SCM provider's TLS certificate - useful for self-signed certificates.; default: false
   optional bool insecure = 6;
-
-  // When recursing through subgroups, also include shared Projects (true) or scan only the subgroups under same path (false).  Defaults to "true"
-  optional bool includeSharedProjects = 7;
-
-  // Filter repos list based on Gitlab Topic.
-  optional string topic = 8;
 }
 
 // Utility struct for a reference to a secret key.

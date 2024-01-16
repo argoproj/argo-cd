@@ -295,7 +295,7 @@ func SetAppSpecOptions(flags *pflag.FlagSet, spec *argoappv1.ApplicationSpec, ap
 					Backoff: &argoappv1.Backoff{
 						Duration:    appOpts.retryBackoffDuration.String(),
 						MaxDuration: appOpts.retryBackoffMaxDuration.String(),
-						Factor:      pointer.Int64(appOpts.retryBackoffFactor),
+						Factor:      pointer.Int64Ptr(appOpts.retryBackoffFactor),
 					},
 				}
 			} else if appOpts.retryLimit == 0 {
