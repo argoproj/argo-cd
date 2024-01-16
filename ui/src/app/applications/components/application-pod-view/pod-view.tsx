@@ -35,6 +35,7 @@ export interface PodGroup extends Partial<ResourceNode> {
     renderMenu?: () => React.ReactNode;
     renderQuickStarts?: () => React.ReactNode;
     fullName?: string;
+    hostLabels?: {[name: string]: string};
 }
 
 export class PodView extends React.Component<PodViewProps> {
@@ -129,12 +130,23 @@ export class PodView extends React.Component<PodViewProps> {
                                                         </div>
                                                     </div>
                                                     {group.type === 'node' ? (
-                                                        <div className='pod-view__node__info--large'>
-                                                            {(group.info || []).map(item => (
-                                                                <div key={item.name}>
-                                                                    {item.name}: <div>{item.value}</div>
+                                                        <div>
+                                                            <div className='pod-view__node__info--large'>
+                                                                {(group.info || []).map(item => (
+                                                                    <div key={item.name}>
+                                                                        {item.name}: <div>{item.value}</div>
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                            {group.hostLabels && Object.keys(group.hostLabels).length > 0 ? (
+                                                                <div className='pod-view__node__info--large'>
+                                                                    {Object.keys(group.hostLabels || []).map(label => (
+                                                                        <div key={label}>
+                                                                            {label}: <div>{group.hostLabels[label]}</div>
+                                                                        </div>
+                                                                    ))}
                                                                 </div>
-                                                            ))}
+                                                            ) : null}
                                                         </div>
                                                     ) : (
                                                         <div className='pod-view__node__info'>
@@ -254,7 +266,8 @@ export class PodView extends React.Component<PodViewProps> {
                         {name: 'Kernel Version', value: infraNode.systemInfo.kernelVersion},
                         {name: 'OS/Arch', value: `${infraNode.systemInfo.operatingSystem}/${infraNode.systemInfo.architecture}`}
                     ],
-                    hostResourcesInfo: infraNode.resourcesInfo
+                    hostResourcesInfo: infraNode.resourcesInfo,
+                    hostLabels: infraNode.labels
                 };
             });
         }
@@ -324,7 +337,8 @@ export class PodView extends React.Component<PodViewProps> {
                                 {name: 'Kernel Version', value: 'N/A'},
                                 {name: 'OS/Arch', value: 'N/A'}
                             ],
-                            hostResourcesInfo: []
+                            hostResourcesInfo: [],
+                            hostLabels: {}
                         };
                     }
                 }

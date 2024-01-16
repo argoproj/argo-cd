@@ -53,6 +53,7 @@ function reduceGlobal(projs: Project[]): ProjectSpec & {count: number} {
             merged.sourceRepos = merged.sourceRepos.concat(proj.spec.sourceRepos || []);
             merged.destinations = merged.destinations.concat(proj.spec.destinations || []);
             merged.sourceNamespaces = merged.sourceNamespaces.concat(proj.spec.sourceNamespaces || []);
+            merged.allowedNodeLabels = merged.allowedNodeLabels.concat(proj.spec.allowedNodeLabels || []);
 
             merged.sourceRepos = merged.sourceRepos.filter((item, index) => {
                 return (
@@ -125,6 +126,15 @@ function reduceGlobal(projs: Project[]): ProjectSpec & {count: number} {
                     })
                 );
             });
+
+            merged.allowedNodeLabels = merged.allowedNodeLabels.filter((item, index) => {
+                return (
+                    index ===
+                    merged.allowedNodeLabels.findIndex(obj => {
+                        return obj === item;
+                    })
+                );
+            });
             merged.count += 1;
 
             return merged;
@@ -134,6 +144,7 @@ function reduceGlobal(projs: Project[]): ProjectSpec & {count: number} {
             namespaceResourceBlacklist: new Array<GroupKind>(),
             namespaceResourceWhitelist: new Array<GroupKind>(),
             clusterResourceWhitelist: new Array<GroupKind>(),
+            allowedNodeLabels: [],
             sourceRepos: [],
             sourceNamespaces: [],
             signatureKeys: [],
@@ -1079,6 +1090,41 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                             </button>
                         )
                     }
+                    items={[]}
+                />
+
+                <EditablePanel
+                    save={item => this.saveProject(item)}
+                    values={proj}
+                    title={<React.Fragment>ALLOWED NODE LABELS {helpTip('Labels allowed to be visible on node information in the application pod view')}</React.Fragment>}
+                    view={
+                        <React.Fragment>
+                            {proj.spec.allowedNodeLabels
+                                ? proj.spec.allowedNodeLabels.map((label, i) => (
+                                      <div className='row white-box__details-row' key={i}>
+                                          <div className='columns small-12'>{label}</div>
+                                      </div>
+                                  ))
+                                : emptyMessage('allowed node labels')}
+                        </React.Fragment>
+                    }
+                    edit={formApi => (
+                        <React.Fragment>
+                            {(formApi.values.spec.allowedNodeLabels || []).map((_: Project, i: number) => (
+                                <div className='row white-box__details-row' key={i}>
+                                    <div className='columns small-12'>
+                                        <FormField formApi={formApi} field={`spec.allowedNodeLabels[${i}]`} component={AutocompleteField} />
+                                        <i className='fa fa-times' onClick={() => formApi.setValue('spec.allowedNodeLabels', removeEl(formApi.values.spec.allowedNodeLabels, i))} />
+                                    </div>
+                                </div>
+                            ))}
+                            <button
+                                className='argo-button argo-button--short'
+                                onClick={() => formApi.setValue('spec.allowedNodeLabels', (formApi.values.spec.allowedNodeLabels || []).concat(''))}>
+                                ADD LABEL
+                            </button>
+                        </React.Fragment>
+                    )}
                     items={[]}
                 />
 

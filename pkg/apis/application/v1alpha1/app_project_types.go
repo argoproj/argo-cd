@@ -13,9 +13,9 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-
 	"github.com/argoproj/argo-cd/v2/util/git"
 	"github.com/argoproj/argo-cd/v2/util/glob"
+	"k8s.io/apimachinery/pkg/util/validation"
 )
 
 const (
@@ -301,6 +301,19 @@ func (proj *AppProject) ValidateProject() error {
 			return status.Errorf(codes.InvalidArgument, "destinationServiceAccount '%s' already added", key)
 		}
 		destServiceAccts[key] = true
+
+	if p.Spec.AllowedNodeLabels != nil {
+		allowedNodeLabels := make(map[string]bool)
+		for _, label := range p.Spec.AllowedNodeLabels {
+			if errs := validation.IsQualifiedName(label); len(errs) != 0 {
+				return status.Errorf(codes.InvalidArgument, "label '%s' has an invalid format", label)
+			}
+
+			if _, ok := allowedNodeLabels[label]; ok {
+				return status.Errorf(codes.InvalidArgument, "label '%s' already added", label)
+			}
+			allowedNodeLabels[label] = true
+		}
 	}
 
 	return nil
@@ -312,6 +325,7 @@ func (proj *AppProject) AddGroupToRole(roleName, group string) (bool, error) {
 	if err != nil {
 		return false, err
 	}
+
 	for _, roleGroup := range role.Groups {
 		if group == roleGroup {
 			return false, nil
