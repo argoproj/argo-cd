@@ -3,5 +3,4 @@ kind: Kustomization
 
 resources:
 - ./application-controller
-- ./applicationset-controller
 - ./server

@@ -126,7 +126,7 @@ type ApplicationController struct {
 	refreshRequestedAppsMutex     *sync.Mutex
 	metricsServer                 *metrics.MetricsServer
 	kubectlSemaphore              *semaphore.Weighted
-	clusterSharding               sharding.ClusterShardingCache
+	clusterFilter                 func(cluster *appv1.Cluster) bool
 	projByNameCache               sync.Map
 	applicationNamespaces         []string
 }
@@ -149,7 +149,7 @@ func NewApplicationController(
 	metricsApplicationLabels []string,
 	kubectlParallelismLimit int64,
 	persistResourceHealth bool,
-	clusterSharding sharding.ClusterShardingCache,
+	clusterFilter func(cluster *appv1.Cluster) bool,
 	applicationNamespaces []string,
 	rateLimiterConfig *ratelimiter.AppControllerRateLimiterConfig,
 	serverSideDiff bool,
@@ -179,7 +179,7 @@ func NewApplicationController(
 		auditLogger:                   argo.NewAuditLogger(namespace, kubeClientset, common.ApplicationController),
 		settingsMgr:                   settingsMgr,
 		selfHealTimeout:               selfHealTimeout,
-		clusterSharding:               clusterSharding,
+		clusterFilter:                 clusterFilter,
 		projByNameCache:               sync.Map{},
 		applicationNamespaces:         applicationNamespaces,
 	}
@@ -260,7 +260,7 @@ func NewApplicationController(
 			return nil, err
 		}
 	}
-	stateCache := statecache.NewLiveStateCache(db, appInformer, ctrl.settingsMgr, kubectl, ctrl.metricsServer, ctrl.handleObjectUpdated, clusterSharding, argo.NewResourceTracking())
+	stateCache := statecache.NewLiveStateCache(db, appInformer, ctrl.settingsMgr, kubectl, ctrl.metricsServer, ctrl.handleObjectUpdated, clusterFilter, argo.NewResourceTracking())
 	appStateManager := NewAppStateManager(db, applicationClientset, repoClientset, namespace, kubectl, ctrl.settingsMgr, stateCache, projInformer, ctrl.metricsServer, argoCache, ctrl.statusRefreshTimeout, argo.NewResourceTracking(), persistResourceHealth, repoErrorGracePeriod, serverSideDiff)
 	ctrl.appInformer = appInformer
 	ctrl.appLister = appLister
@@ -771,13 +771,6 @@ func (ctrl *ApplicationController) Run(ctx context.Context, statusProcessors int
 	go ctrl.appInformer.Run(ctx.Done())
 	go ctrl.projInformer.Run(ctx.Done())
 	go ctrl.deploymentInformer.Informer().Run(ctx.Done())
-
-	clusters, err := ctrl.db.ListClusters(ctx)
-	if err != nil {
-		log.Warnf("Cannot init sharding. Error while querying clusters list from database: %v", err)
-	} else {
-		ctrl.clusterSharding.Init(clusters)
-	}
 
 	errors.CheckError(ctrl.stateCache.Init())
 
@@ -1983,11 +1976,15 @@ func (ctrl *ApplicationController) canProcessApp(obj interface{}) bool {
 		}
 	}
 
-	cluster, err := ctrl.db.GetCluster(context.Background(), app.Spec.Destination.Server)
-	if err != nil {
-		return ctrl.clusterSharding.IsManagedCluster(nil)
+	if ctrl.clusterFilter != nil {
+		cluster, err := ctrl.db.GetCluster(context.Background(), app.Spec.Destination.Server)
+		if err != nil {
+			return ctrl.clusterFilter(nil)
+		}
+		return ctrl.clusterFilter(cluster)
 	}
-	return ctrl.clusterSharding.IsManagedCluster(cluster)
+
+	return true
 }
 
 func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.SharedIndexInformer, applisters.ApplicationLister) {
@@ -2139,7 +2136,7 @@ func (ctrl *ApplicationController) projectErrorToCondition(err error, app *appv1
 }
 
 func (ctrl *ApplicationController) RegisterClusterSecretUpdater(ctx context.Context) {
-	updater := NewClusterInfoUpdater(ctrl.stateCache, ctrl.db, ctrl.appLister.Applications(""), ctrl.cache, ctrl.clusterSharding.IsManagedCluster, ctrl.getAppProj, ctrl.namespace)
+	updater := NewClusterInfoUpdater(ctrl.stateCache, ctrl.db, ctrl.appLister.Applications(""), ctrl.cache, ctrl.clusterFilter, ctrl.getAppProj, ctrl.namespace)
 	go updater.Run(ctx)
 }
 

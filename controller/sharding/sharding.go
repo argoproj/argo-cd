@@ -40,7 +40,6 @@ const ShardControllerMappingKey = "shardControllerMapping"
 
 type DistributionFunction func(c *v1alpha1.Cluster) int
 type ClusterFilterFunction func(c *v1alpha1.Cluster) bool
-type clusterAccessor func() []*v1alpha1.Cluster
 
 // shardApplicationControllerMapping stores the mapping of Shard Number to Application Controller in ConfigMap.
 // It also stores the heartbeat of last synced time of the application controller.
@@ -54,7 +53,8 @@ type shardApplicationControllerMapping struct {
 // and returns wheter or not the cluster should be processed by a given shard. It calls the distributionFunction
 // to determine which shard will process the cluster, and if the given shard is equal to the calculated shard
 // the function will return true.
-func GetClusterFilter(db db.ArgoDB, distributionFunction DistributionFunction, replicas, shard int) ClusterFilterFunction {
+func GetClusterFilter(db db.ArgoDB, distributionFunction DistributionFunction, shard int) ClusterFilterFunction {
+	replicas := db.GetApplicationControllerReplicas()
 	return func(c *v1alpha1.Cluster) bool {
 		clusterShard := 0
 		if c != nil && c.Shard != nil {
@@ -73,14 +73,14 @@ func GetClusterFilter(db db.ArgoDB, distributionFunction DistributionFunction, r
 
 // GetDistributionFunction returns which DistributionFunction should be used based on the passed algorithm and
 // the current datas.
-func GetDistributionFunction(clusters clusterAccessor, shardingAlgorithm string, replicasCount int) DistributionFunction {
-	log.Debugf("Using filter function:  %s", shardingAlgorithm)
-	distributionFunction := LegacyDistributionFunction(replicasCount)
+func GetDistributionFunction(db db.ArgoDB, shardingAlgorithm string) DistributionFunction {
+	log.Infof("Using filter function:  %s", shardingAlgorithm)
+	distributionFunction := LegacyDistributionFunction(db)
 	switch shardingAlgorithm {
 	case common.RoundRobinShardingAlgorithm:
-		distributionFunction = RoundRobinDistributionFunction(clusters, replicasCount)
+		distributionFunction = RoundRobinDistributionFunction(db)
 	case common.LegacyShardingAlgorithm:
-		distributionFunction = LegacyDistributionFunction(replicasCount)
+		distributionFunction = LegacyDistributionFunction(db)
 	default:
 		log.Warnf("distribution type %s is not supported, defaulting to %s", shardingAlgorithm, common.DefaultShardingAlgorithm)
 	}
@@ -92,20 +92,14 @@ func GetDistributionFunction(clusters clusterAccessor, shardingAlgorithm string,
 // is lightweight and can be distributed easily, however, it does not ensure an homogenous distribution as
 // some shards may get assigned more clusters than others. It is the legacy function distribution that is
 // kept for compatibility reasons
-func LegacyDistributionFunction(replicas int) DistributionFunction {
+func LegacyDistributionFunction(db db.ArgoDB) DistributionFunction {
+	replicas := db.GetApplicationControllerReplicas()
 	return func(c *v1alpha1.Cluster) int {
 		if replicas == 0 {
-			log.Debugf("Replicas count is : %d, returning -1", replicas)
 			return -1
 		}
 		if c == nil {
-			log.Debug("In-cluster: returning 0")
 			return 0
-		}
-		// if Shard is manually set and the assigned value is lower than the number of replicas,
-		// then its value is returned otherwise it is the default calculated value
-		if c.Shard != nil && int(*c.Shard) < replicas {
-			return int(*c.Shard)
 		}
 		id := c.ID
 		log.Debugf("Calculating cluster shard for cluster id: %s", id)
@@ -127,19 +121,14 @@ func LegacyDistributionFunction(replicas int) DistributionFunction {
 // This function ensures an homogenous distribution: each shards got assigned the same number of
 // clusters +/-1 , but with the drawback of a reshuffling of clusters accross shards in case of some changes
 // in the cluster list
-
-func RoundRobinDistributionFunction(clusters clusterAccessor, replicas int) DistributionFunction {
+func RoundRobinDistributionFunction(db db.ArgoDB) DistributionFunction {
+	replicas := db.GetApplicationControllerReplicas()
 	return func(c *v1alpha1.Cluster) int {
 		if replicas > 0 {
 			if c == nil { // in-cluster does not necessarly have a secret assigned. So we are receiving a nil cluster here.
 				return 0
-			}
-			// if Shard is manually set and the assigned value is lower than the number of replicas,
-			// then its value is returned otherwise it is the default calculated value
-			if c.Shard != nil && int(*c.Shard) < replicas {
-				return int(*c.Shard)
 			} else {
-				clusterIndexdByClusterIdMap := createClusterIndexByClusterIdMap(clusters)
+				clusterIndexdByClusterIdMap := createClusterIndexByClusterIdMap(db)
 				clusterIndex, ok := clusterIndexdByClusterIdMap[c.ID]
 				if !ok {
 					log.Warnf("Cluster with id=%s not found in cluster map.", c.ID)
@@ -155,12 +144,6 @@ func RoundRobinDistributionFunction(clusters clusterAccessor, replicas int) Dist
 	}
 }
 
-// NoShardingDistributionFunction returns a DistributionFunction that will process all cluster by shard 0
-// the function is created for API compatibility purposes and is not supposed to be activated.
-func NoShardingDistributionFunction() DistributionFunction {
-	return func(c *v1alpha1.Cluster) int { return 0 }
-}
-
 // InferShard extracts the shard index based on its hostname.
 func InferShard() (int, error) {
 	hostname, err := osHostnameFunction()
@@ -169,29 +152,33 @@ func InferShard() (int, error) {
 	}
 	parts := strings.Split(hostname, "-")
 	if len(parts) == 0 {
-		log.Warnf("hostname should end with shard number separated by '-' but got: %s", hostname)
-		return 0, nil
+		return 0, fmt.Errorf("hostname should ends with shard number separated by '-' but got: %s", hostname)
 	}
 	shard, err := strconv.Atoi(parts[len(parts)-1])
 	if err != nil {
-		log.Warnf("hostname should end with shard number separated by '-' but got: %s", hostname)
-		return 0, nil
+		return 0, fmt.Errorf("hostname should ends with shard number separated by '-' but got: %s", hostname)
 	}
 	return int(shard), nil
 }
 
-func getSortedClustersList(getCluster clusterAccessor) []*v1alpha1.Cluster {
-	clusters := getCluster()
+func getSortedClustersList(db db.ArgoDB) []v1alpha1.Cluster {
+	ctx := context.Background()
+	clustersList, dbErr := db.ListClusters(ctx)
+	if dbErr != nil {
+		log.Warnf("Error while querying clusters list from database: %v", dbErr)
+		return []v1alpha1.Cluster{}
+	}
+	clusters := clustersList.Items
 	sort.Slice(clusters, func(i, j int) bool {
 		return clusters[i].ID < clusters[j].ID
 	})
 	return clusters
 }
 
-func createClusterIndexByClusterIdMap(getCluster clusterAccessor) map[string]int {
-	clusters := getSortedClustersList(getCluster)
+func createClusterIndexByClusterIdMap(db db.ArgoDB) map[string]int {
+	clusters := getSortedClustersList(db)
 	log.Debugf("ClustersList has %d items", len(clusters))
-	clusterById := make(map[string]*v1alpha1.Cluster)
+	clusterById := make(map[string]v1alpha1.Cluster)
 	clusterIndexedByClusterId := make(map[string]int)
 	for i, cluster := range clusters {
 		log.Debugf("Adding cluster with id=%s and name=%s to cluster's map", cluster.ID, cluster.Name)
@@ -207,6 +194,7 @@ func createClusterIndexByClusterIdMap(getCluster clusterAccessor) map[string]int
 // If the shard value passed to this function is -1, that is, the shard was not set as an environment variable,
 // we default the shard number to 0 for computing the default config map.
 func GetOrUpdateShardFromConfigMap(kubeClient *kubernetes.Clientset, settingsMgr *settings.SettingsManager, replicas, shard int) (int, error) {
+
 	hostname, err := osHostnameFunction()
 	if err != nil {
 		return -1, err

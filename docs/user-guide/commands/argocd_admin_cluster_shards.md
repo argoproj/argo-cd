@@ -2,7 +2,7 @@
 
 ## argocd admin cluster shards
 
-Print information about each controller shard and the estimated portion of Kubernetes resources it is responsible for.
+Print information about each controller shard and portion of Kubernetes resources it is responsible for.
 
 ```
 argocd admin cluster shards [flags]
@@ -43,7 +43,6 @@ argocd admin cluster shards [flags]
       --sentinelmaster string                 Redis sentinel master group name. (default "master")
       --server string                         The address and port of the Kubernetes API server
       --shard int                             Cluster shard filter (default -1)
-      --sharding-method string                Sharding method. Defaults: legacy. Supported sharding methods are : [legacy, round-robin]  (default "legacy")
       --tls-server-name string                If provided, this name will be used to validate server certificate. If this is not provided, hostname used to contact the server is used.
       --token string                          Bearer token for authentication to the API server
       --user string                           The name of the kubeconfig user to use

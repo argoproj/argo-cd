@@ -115,9 +115,9 @@ const (
 	LegacyShardingAlgorithm = "legacy"
 	// RoundRobinShardingAlgorithm is a flag value that can be opted for Sharding Algorithm it uses an equal distribution accross all shards
 	RoundRobinShardingAlgorithm = "round-robin"
+	DefaultShardingAlgorithm    = LegacyShardingAlgorithm
 	// AppControllerHeartbeatUpdateRetryCount is the retry count for updating the Shard Mapping to the Shard Mapping ConfigMap used by Application Controller
 	AppControllerHeartbeatUpdateRetryCount = 3
-	DefaultShardingAlgorithm               = LegacyShardingAlgorithm
 )
 
 // Dex related constants

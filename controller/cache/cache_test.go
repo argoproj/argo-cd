@@ -21,11 +21,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"k8s.io/client-go/kubernetes/fake"
 
-	"github.com/argoproj/argo-cd/v2/common"
-	"github.com/argoproj/argo-cd/v2/controller/metrics"
-	"github.com/argoproj/argo-cd/v2/controller/sharding"
 	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	dbmocks "github.com/argoproj/argo-cd/v2/util/db/mocks"
 	argosettings "github.com/argoproj/argo-cd/v2/util/settings"
 )
 
@@ -39,13 +35,11 @@ func TestHandleModEvent_HasChanges(t *testing.T) {
 	clusterCache := &mocks.ClusterCache{}
 	clusterCache.On("Invalidate", mock.Anything, mock.Anything).Return(nil).Once()
 	clusterCache.On("EnsureSynced").Return(nil).Once()
-	db := &dbmocks.ArgoDB{}
-	db.On("GetApplicationControllerReplicas").Return(1)
+
 	clustersCache := liveStateCache{
 		clusters: map[string]cache.ClusterCache{
 			"https://mycluster": clusterCache,
 		},
-		clusterSharding: sharding.NewClusterSharding(db, 0, 1, common.DefaultShardingAlgorithm),
 	}
 
 	clustersCache.handleModEvent(&appv1.Cluster{
@@ -62,22 +56,14 @@ func TestHandleModEvent_ClusterExcluded(t *testing.T) {
 	clusterCache := &mocks.ClusterCache{}
 	clusterCache.On("Invalidate", mock.Anything, mock.Anything).Return(nil).Once()
 	clusterCache.On("EnsureSynced").Return(nil).Once()
-	db := &dbmocks.ArgoDB{}
-	db.On("GetApplicationControllerReplicas").Return(1)
+
 	clustersCache := liveStateCache{
-		db:          nil,
-		appInformer: nil,
-		onObjectUpdated: func(managedByApp map[string]bool, ref v1.ObjectReference) {
+		clusters: map[string]cache.ClusterCache{
+			"https://mycluster": clusterCache,
 		},
-		kubectl:       nil,
-		settingsMgr:   &argosettings.SettingsManager{},
-		metricsServer: &metrics.MetricsServer{},
-		// returns a shard that never process any cluster
-		clusterSharding:  sharding.NewClusterSharding(db, 0, 1, common.DefaultShardingAlgorithm),
-		resourceTracking: nil,
-		clusters:         map[string]cache.ClusterCache{"https://mycluster": clusterCache},
-		cacheSettings:    cacheSettings{},
-		lock:             sync.RWMutex{},
+		clusterFilter: func(cluster *appv1.Cluster) bool {
+			return false
+		},
 	}
 
 	clustersCache.handleModEvent(&appv1.Cluster{
@@ -89,20 +75,18 @@ func TestHandleModEvent_ClusterExcluded(t *testing.T) {
 		Namespaces: []string{"default"},
 	})
 
-	assert.Len(t, clustersCache.clusters, 1)
+	assert.Len(t, clustersCache.clusters, 0)
 }
 
 func TestHandleModEvent_NoChanges(t *testing.T) {
 	clusterCache := &mocks.ClusterCache{}
 	clusterCache.On("Invalidate", mock.Anything).Panic("should not invalidate")
 	clusterCache.On("EnsureSynced").Return(nil).Panic("should not re-sync")
-	db := &dbmocks.ArgoDB{}
-	db.On("GetApplicationControllerReplicas").Return(1)
+
 	clustersCache := liveStateCache{
 		clusters: map[string]cache.ClusterCache{
 			"https://mycluster": clusterCache,
 		},
-		clusterSharding: sharding.NewClusterSharding(db, 0, 1, common.DefaultShardingAlgorithm),
 	}
 
 	clustersCache.handleModEvent(&appv1.Cluster{
@@ -115,11 +99,11 @@ func TestHandleModEvent_NoChanges(t *testing.T) {
 }
 
 func TestHandleAddEvent_ClusterExcluded(t *testing.T) {
-	db := &dbmocks.ArgoDB{}
-	db.On("GetApplicationControllerReplicas").Return(1)
 	clustersCache := liveStateCache{
-		clusters:        map[string]cache.ClusterCache{},
-		clusterSharding: sharding.NewClusterSharding(db, 0, 2, common.DefaultShardingAlgorithm),
+		clusters: map[string]cache.ClusterCache{},
+		clusterFilter: func(cluster *appv1.Cluster) bool {
+			return false
+		},
 	}
 	clustersCache.handleAddEvent(&appv1.Cluster{
 		Server: "https://mycluster",
@@ -134,8 +118,6 @@ func TestHandleDeleteEvent_CacheDeadlock(t *testing.T) {
 		Server: "https://mycluster",
 		Config: appv1.ClusterConfig{Username: "bar"},
 	}
-	db := &dbmocks.ArgoDB{}
-	db.On("GetApplicationControllerReplicas").Return(1)
 	fakeClient := fake.NewSimpleClientset()
 	settingsMgr := argosettings.NewSettingsManager(context.TODO(), fakeClient, "argocd")
 	liveStateCacheLock := sync.RWMutex{}
@@ -144,8 +126,10 @@ func TestHandleDeleteEvent_CacheDeadlock(t *testing.T) {
 		clusters: map[string]cache.ClusterCache{
 			testCluster.Server: gitopsEngineClusterCache,
 		},
-		clusterSharding: sharding.NewClusterSharding(db, 0, 1, common.DefaultShardingAlgorithm),
-		settingsMgr:     settingsMgr,
+		clusterFilter: func(cluster *appv1.Cluster) bool {
+			return true
+		},
+		settingsMgr: settingsMgr,
 		// Set the lock here so we can reference it later
 		// nolint We need to overwrite here to have access to the lock
 		lock: liveStateCacheLock,
