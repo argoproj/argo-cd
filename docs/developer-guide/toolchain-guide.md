@@ -205,11 +205,10 @@ you should edit your `~/.kube/config` and modify the `server` option to point to
 4. Finally, so that you don't have to keep updating your kube-config whenever you spin up a new k3d cluster, add `--api-port $IP:6550` to your **k3d cluster create** command, where $IP is the value from step 1. An example command is provided here:
 
 ```
-k3d cluster create my-cluster --wait --k3s-arg '--disable=traefik@server:*' --api-port $IP:6550 -p 443:443@loadbalancer
+k3d cluster create my-cluster --wait --k3s-server-arg '--disable=traefik' --api-port $IP:6550 -p 443:443@loadbalancer
 ```
 
-!!!note
-For k3d versions less than v5.0.0, the example command flags `--k3s-arg` and `'--disable=traefik@server:*'` should change to `--k3s-server-arg` and `'--disable=traefik'`, respectively.
+Starting from k3d v5.0.0 the example command flags `--k3s-server-arg` and `'--disable=traefik'` would have to be changed to `--k3s-arg` and `'--disable=traefik@server:*'`, respectively. 
 
 ## The development cycle
 

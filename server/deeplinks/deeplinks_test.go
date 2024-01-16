@@ -35,7 +35,7 @@ func TestDeepLinks(t *testing.T) {
 		},
 		Spec: v1alpha1.ApplicationSpec{
 			Destination: v1alpha1.ApplicationDestination{
-				Server:    "test.example.com",
+				Server:    "test.com",
 				Namespace: "testns",
 			},
 		},

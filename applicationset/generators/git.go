@@ -150,9 +150,6 @@ func (g *GitGenerator) generateParamsFromGitFile(filePath string, fileContent []
 			return nil, fmt.Errorf("unable to parse file: %v", err)
 		}
 		objectsFound = append(objectsFound, singleObj)
-	} else if len(objectsFound) == 0 {
-		// If file is valid but empty, add a default empty item
-		objectsFound = append(objectsFound, map[string]interface{}{})
 	}
 
 	res := []map[string]interface{}{}

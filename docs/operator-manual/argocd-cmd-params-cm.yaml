@@ -17,11 +17,7 @@ data:
   redis.db:
 
   # Open-Telemetry collector address: (e.g. "otel-collector:4317")
-  otlp.address: ""
-  # Open-Telemetry collector insecure: (e.g. "true")
-  otlp.insecure: "true"
-  # Open-Telemetry collector headers: (e.g. "key1=value1,key2=value2")
-  otlp.headers: ""
+  otlp.address:
 
   # List of additional namespaces where applications may be created in and
   # reconciled from. The namespace where Argo CD is installed to will always
@@ -62,16 +58,6 @@ data:
   controller.sharding.algorithm: legacy
   # Number of allowed concurrent kubectl fork/execs. Any value less than 1 means no limit.
   controller.kubectl.parallelism.limit: "20"
-  # The maximum number of retries for each request
-  controller.k8sclient.retry.max: "0"
-  # The initial backoff delay on the first retry attempt in ms. Subsequent retries will double this backoff time up to a maximum threshold
-  controller.k8sclient.retry.base.backoff: "100"
-  # Grace period in seconds for ignoring consecutive errors while communicating with repo server.
-  controller.repo.error.grace.period.seconds: "180"
-  # Enables the server side diff feature at the application controller level.
-  # Diff calculation will be done by running a server side apply dryrun (when
-  # diff cache is unavailable).
-  controller.diff.server.side: "false"
 
   ## Server properties
   # Listen on given address for incoming connections (default "0.0.0.0")
@@ -86,10 +72,6 @@ data:
   server.rootpath: ""
   # Directory path that contains additional static assets
   server.staticassets: "/shared/app"
-  # The maximum number of retries for each request
-  server.k8sclient.retry.max: "0"
-  # The initial backoff delay on the first retry attempt in ms. Subsequent retries will double this backoff time up to a maximum threshold
-  server.k8sclient.retry.base.backoff: "100"
 
   # Set the logging format. One of: text|json (default "text")
   server.log.format: "text"
@@ -172,10 +154,6 @@ data:
   reposerver.streamed.manifest.max.extracted.size: "1G"
   # Enable git submodule support
   reposerver.enable.git.submodule: "true"
-  # Number of concurrent git ls-remote requests. Any value less than 1 means no limit.
-  reposerver.git.lsremote.parallelism.limit: "0"
-  # Git requests timeout.
-  reposerver.git.request.timeout: "15s"
 
   # Disable TLS on the HTTP endpoint
   dexserver.disable.tls: "false"
@@ -206,13 +184,9 @@ data:
   # sending secrets from `tokenRef`s to disallowed `api` domains.
   # The url used in the scm generator must exactly match one in the list
   applicationsetcontroller.allowed.scm.providers: "https://git.example.com/,https://gitlab.example.com/"
-  # To disable SCM providers entirely (i.e. disable the SCM and PR generators), set this to "false". Default is "true".
-  applicationsetcontroller.enable.scm.providers: "false"
 
   ## Argo CD Notifications Controller Properties
   # Set the logging level. One of: debug|info|warn|error (default "info")
   notificationscontroller.log.level: "info"
   # Set the logging format. One of: text|json (default "text")
   notificationscontroller.log.format: "text"
-  # Enable self-service notifications config. Used in conjunction with apps-in-any-namespace. (default "false")
-  notificationscontroller.selfservice.enabled: "false"

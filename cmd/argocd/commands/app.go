@@ -50,7 +50,6 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/grpc"
 	argoio "github.com/argoproj/argo-cd/v2/util/io"
 	"github.com/argoproj/argo-cd/v2/util/manifeststream"
-	"github.com/argoproj/argo-cd/v2/util/templates"
 	"github.com/argoproj/argo-cd/v2/util/text/label"
 )
 
@@ -318,35 +317,6 @@ func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 	var command = &cobra.Command{
 		Use:   "get APPNAME",
 		Short: "Get application details",
-		Example: templates.Examples(`  
-  # Get basic details about the application "my-app" in wide format
-  argocd app get my-app -o wide
-
-  # Get detailed information about the application "my-app" in YAML format
-  argocd app get my-app -o yaml
-
-  # Get details of the application "my-app" in JSON format
-  argocd get my-app -o json
-
-  # Get application details and include information about the current operation
-  argocd app get my-app --show-operation
-
-  # Show application parameters and overrides
-  argocd app get my-app --show-params
-
-  # Refresh application data when retrieving
-  argocd app get my-app --refresh
-
-  # Perform a hard refresh, including refreshing application data and target manifests cache
-  argocd app get my-app --hard-refresh
-
-  # Get application details and display them in a tree format
-  argocd app get my-app --output tree
-  
-  # Get application details and display them in a detailed tree format
-  argocd app get my-app --output tree=detailed
-  		`),
-
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
 			if len(args) == 0 {
@@ -431,44 +401,6 @@ func NewApplicationLogsCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	var command = &cobra.Command{
 		Use:   "logs APPNAME",
 		Short: "Get logs of application pods",
-		Example: templates.Examples(`  
-  # Get logs of pods associated with the application "my-app"
-  argocd app logs my-app
-
-  # Get logs of pods associated with the application "my-app" in a specific resource group
-  argocd app logs my-app --group my-group
-
-  # Get logs of pods associated with the application "my-app" in a specific resource kind
-  argocd app logs my-app --kind my-kind
-
-  # Get logs of pods associated with the application "my-app" in a specific namespace
-  argocd app logs my-app --namespace my-namespace
-
-  # Get logs of pods associated with the application "my-app" for a specific resource name
-  argocd app logs my-app --name my-resource
-
-  # Stream logs in real-time for the application "my-app"
-  argocd app logs my-app -f
-
-  # Get the last N lines of logs for the application "my-app"
-  argocd app logs my-app --tail 100
-
-  # Get logs since a specified number of seconds ago
-  argocd app logs my-app --since-seconds 3600
-
-  # Get logs until a specified time (format: "2023-10-10T15:30:00Z")
-  argocd app logs my-app --until-time "2023-10-10T15:30:00Z"
-
-  # Filter logs to show only those containing a specific string
-  argocd app logs my-app --filter "error"
-
-  # Get logs for a specific container within the pods
-  argocd app logs my-app -c my-container
-
-  # Get previously terminated container logs
-  argocd app logs my-app -p
-  		`),
-
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
 
@@ -524,8 +456,8 @@ func NewApplicationLogsCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 					} else {
 						return
 					}
-				} // Done with receive message
-			} // Done with retry
+				} //Done with receive message
+			} //Done with retry
 		},
 	}
 
@@ -716,23 +648,6 @@ func NewApplicationSetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 	var command = &cobra.Command{
 		Use:   "set APPNAME",
 		Short: "Set application parameters",
-		Example: templates.Examples(`  
-  # Set application parameters for the application "my-app"
-  argocd app set my-app --parameter key1=value1 --parameter key2=value2
-
-  # Set and validate application parameters for "my-app"
-  argocd app set my-app --parameter key1=value1 --parameter key2=value2 --validate
-
-  # Set and override application parameters with JSON or YAML file
-  argocd app set my-app --from-file path/to/parameters.json
-
-  # Set and override application parameters with a parameter file
-  argocd app set my-app --parameter-file path/to/parameter-file.yaml
-
-  # Set application parameters and specify the namespace
-  argocd app set my-app --parameter key1=value1 --parameter key2=value2 --namespace my-namespace
-  		`),
-
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
 
@@ -889,7 +804,7 @@ func unset(source *argoappv1.ApplicationSource, opts unsetOpts) (updated bool, n
 			for i, item := range source.Kustomize.Images {
 				if argoappv1.KustomizeImage(kustomizeImage).Match(item) {
 					updated = true
-					// remove i
+					//remove i
 					a := source.Kustomize.Images
 					copy(a[i:], a[i+1:]) // Shift a[i+1:] left one index.
 					a[len(a)-1] = ""     // Erase last element (write zero value).
@@ -1904,7 +1819,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 						Backoff: &argoappv1.Backoff{
 							Duration:    retryBackoffDuration.String(),
 							MaxDuration: retryBackoffMaxDuration.String(),
-							Factor:      pointer.Int64(retryBackoffFactor),
+							Factor:      pointer.Int64Ptr(retryBackoffFactor),
 						},
 					}
 				}
@@ -2143,7 +2058,7 @@ func checkResourceStatus(watch watchOpts, healthStatus string, syncStatus string
 	} else if watch.degraded && watch.health {
 		healthCheckPassed = healthStatus == string(health.HealthStatusHealthy) ||
 			healthStatus == string(health.HealthStatusDegraded)
-		// below are good
+		//below are good
 	} else if watch.suspended && watch.health {
 		healthCheckPassed = healthStatus == string(health.HealthStatusHealthy) ||
 			healthStatus == string(health.HealthStatusSuspended)

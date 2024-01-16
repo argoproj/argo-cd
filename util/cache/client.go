@@ -17,7 +17,6 @@ type Item struct {
 
 type CacheClient interface {
 	Set(item *Item) error
-	Rename(oldKey string, newKey string, expiration time.Duration) error
 	Get(key string, obj interface{}) error
 	Delete(key string) error
 	OnUpdated(ctx context.Context, key string, callback func() error) error

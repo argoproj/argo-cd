@@ -63,27 +63,19 @@ func NewController(
 	registry *controller.MetricsRegistry,
 	secretName string,
 	configMapName string,
-	selfServiceNotificationEnabled bool,
 ) *notificationController {
 	var appClient dynamic.ResourceInterface
-
 	namespaceableAppClient := client.Resource(applications)
 	appClient = namespaceableAppClient
-
 	if len(applicationNamespaces) == 0 {
 		appClient = namespaceableAppClient.Namespace(namespace)
 	}
+
 	appInformer := newInformer(appClient, namespace, applicationNamespaces, appLabelSelector)
 	appProjInformer := newInformer(newAppProjClient(client, namespace), namespace, []string{namespace}, "")
-	var notificationConfigNamespace string
-	if selfServiceNotificationEnabled {
-		notificationConfigNamespace = v1.NamespaceAll
-	} else {
-		notificationConfigNamespace = namespace
-	}
-	secretInformer := k8s.NewSecretInformer(k8sClient, notificationConfigNamespace, secretName)
-	configMapInformer := k8s.NewConfigMapInformer(k8sClient, notificationConfigNamespace, configMapName)
-	apiFactory := api.NewFactory(settings.GetFactorySettings(argocdService, secretName, configMapName, selfServiceNotificationEnabled), namespace, secretInformer, configMapInformer)
+	secretInformer := k8s.NewSecretInformer(k8sClient, namespace, secretName)
+	configMapInformer := k8s.NewConfigMapInformer(k8sClient, namespace, configMapName)
+	apiFactory := api.NewFactory(settings.GetFactorySettings(argocdService, secretName, configMapName), namespace, secretInformer, configMapInformer)
 
 	res := &notificationController{
 		secretInformer:    secretInformer,
@@ -91,30 +83,19 @@ func NewController(
 		appInformer:       appInformer,
 		appProjInformer:   appProjInformer,
 		apiFactory:        apiFactory}
-	skipProcessingOpt := controller.WithSkipProcessing(func(obj v1.Object) (bool, string) {
-		app, ok := (obj).(*unstructured.Unstructured)
-		if !ok {
-			return false, ""
-		}
-		if checkAppNotInAdditionalNamespaces(app, namespace, applicationNamespaces) {
-			return true, "app is not in one of the application-namespaces, nor the notification controller namespace"
-		}
-		return !isAppSyncStatusRefreshed(app, log.WithField("app", obj.GetName())), "sync status out of date"
-	})
-	metricsRegistryOpt := controller.WithMetricsRegistry(registry)
-	alterDestinationsOpt := controller.WithAlterDestinations(res.alterDestinations)
-
-	if !selfServiceNotificationEnabled {
-		res.ctrl = controller.NewController(namespaceableAppClient, appInformer, apiFactory,
-			skipProcessingOpt,
-			metricsRegistryOpt,
-			alterDestinationsOpt)
-	} else {
-		res.ctrl = controller.NewControllerWithNamespaceSupport(namespaceableAppClient, appInformer, apiFactory,
-			skipProcessingOpt,
-			metricsRegistryOpt,
-			alterDestinationsOpt)
-	}
+	res.ctrl = controller.NewController(namespaceableAppClient, appInformer, apiFactory,
+		controller.WithSkipProcessing(func(obj v1.Object) (bool, string) {
+			app, ok := (obj).(*unstructured.Unstructured)
+			if !ok {
+				return false, ""
+			}
+			if checkAppNotInAdditionalNamespaces(app, namespace, applicationNamespaces) {
+				return true, "app is not in one of the application-namespaces, nor the notification controller namespace"
+			}
+			return !isAppSyncStatusRefreshed(app, log.WithField("app", obj.GetName())), "sync status out of date"
+		}),
+		controller.WithMetricsRegistry(registry),
+		controller.WithAlterDestinations(res.alterDestinations))
 	return res
 }
 
@@ -137,7 +118,6 @@ func (c *notificationController) alterDestinations(obj v1.Object, destinations s
 }
 
 func newInformer(resClient dynamic.ResourceInterface, controllerNamespace string, applicationNamespaces []string, selector string) cache.SharedIndexInformer {
-
 	informer := cache.NewSharedIndexInformer(
 		&cache.ListWatch{
 			ListFunc: func(options v1.ListOptions) (runtime.Object, error) {

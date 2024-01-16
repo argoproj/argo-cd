@@ -9,8 +9,6 @@ and the [toolchain guide](toolchain-guide.md).
 
 ### Install Go
 
-<https://go.dev/doc/install/>
-
 Install version 1.18 or newer (Verify version by running `go version`)
 
 ### Clone the Argo CD repo
@@ -25,27 +23,14 @@ git clone https://github.com/argoproj/argo-cd.git
 
 <https://docs.docker.com/engine/install/>
 
-### Install or Upgrade a Tool for Running Local Clusters (e.g. kind or minikube)
-
-#### Installation guide for kind:
+### Install or Upgrade `kind` (Optional - Should work with any local cluster)
 
 <https://kind.sigs.k8s.io/docs/user/quick-start/>
 
-#### Installation guide for minikube:
-
-<https://minikube.sigs.k8s.io/docs/start/>
-
 ### Start Your Local Cluster
 
-For example, if you are using kind:
 ```shell
 kind create cluster
-```
-
-Or, if you are using minikube:
-
-```shell
-minikube start
 ```
 
 ### Install Argo CD

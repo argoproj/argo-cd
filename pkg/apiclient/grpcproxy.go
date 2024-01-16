@@ -116,7 +116,7 @@ func (c *client) startGRPCProxy() (*grpc.Server, net.Listener, error) {
 		grpc.ForceServerCodec(&noopCodec{}),
 		grpc.KeepaliveEnforcementPolicy(
 			keepalive.EnforcementPolicy{
-				MinTime: common.GetGRPCKeepAliveEnforcementMinimum(),
+				MinTime: common.GRPCKeepAliveEnforcementMinimum,
 			},
 		),
 		grpc.UnknownServiceHandler(func(srv interface{}, stream grpc.ServerStream) error {
