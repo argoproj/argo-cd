@@ -1134,6 +1134,30 @@ func TestAppProjectSpec_DestinationClusters(t *testing.T) {
 	}
 }
 
+func TestAppProjectSpec_ValidateAllowedNodeLabels(t *testing.T) {
+	p := newTestProject()
+	err := p.ValidateProject()
+	assert.NoError(t, err)
+	badLabels := []string{
+		"foo bar",
+		"_foo",
+		"abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz01",
+	}
+	for _, badName := range badLabels {
+		p.Spec.AllowedNodeLabels = []string{badName}
+		err = p.ValidateProject()
+		assert.Error(t, err)
+	}
+
+	duplicateLabels := []string{
+		"foo",
+		"foo",
+	}
+	p.Spec.AllowedNodeLabels = duplicateLabels
+	err = p.ValidateProject()
+	assert.Error(t, err)
+}
+
 func TestRepository_HasCredentials(t *testing.T) {
 	tests := []struct {
 		name string

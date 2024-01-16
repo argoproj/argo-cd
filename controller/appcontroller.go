@@ -655,7 +655,7 @@ func (ctrl *ApplicationController) getResourceTree(a *appv1.Application, managed
 	})
 	ts.AddCheckpoint("process_orphaned_resources_ms")
 
-	hosts, err := ctrl.getAppHosts(a, nodes)
+	hosts, err := ctrl.getAppHosts(a, nodes, proj)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get app hosts: %w", err)
 	}
@@ -663,6 +663,7 @@ func (ctrl *ApplicationController) getResourceTree(a *appv1.Application, managed
 	return &appv1.ApplicationTree{Nodes: nodes, OrphanedNodes: orphanedNodes, Hosts: hosts}, nil
 }
 
+<<<<<<< HEAD
 func (ctrl *ApplicationController) getAppHosts(a *appv1.Application, appNodes []appv1.ResourceNode) ([]appv1.HostInfo, error) {
 	ts := stats.NewTimingStats()
 	defer func() {
@@ -673,6 +674,9 @@ func (ctrl *ApplicationController) getAppHosts(a *appv1.Application, appNodes []
 		logCtx = logCtx.WithField("time_ms", time.Since(ts.StartTime).Milliseconds())
 		logCtx.Debug("Finished getting app hosts")
 	}()
+=======
+func (ctrl *ApplicationController) getAppHosts(a *appv1.Application, appNodes []appv1.ResourceNode, proj *argov1alpha.AppProject) ([]appv1.HostInfo, error) {
+>>>>>>> feat: add functionaliy for showing node labels in pod view
 	supportedResourceNames := map[v1.ResourceName]bool{
 		v1.ResourceCPU:     true,
 		v1.ResourceStorage: true,
@@ -756,7 +760,18 @@ func (ctrl *ApplicationController) getAppHosts(a *appv1.Application, appNodes []
 		sort.Slice(resourcesInfo, func(i, j int) bool {
 			return resourcesInfo[i].ResourceName < resourcesInfo[j].ResourceName
 		})
-		hosts = append(hosts, appv1.HostInfo{Name: nodeName, SystemInfo: node.SystemInfo, ResourcesInfo: resourcesInfo})
+
+		nodeLabels := make(map[string]string)
+		if proj.Spec.AllowedNodeLabels != nil {
+			for _, label := range proj.Spec.AllowedNodeLabels {
+				val, ok := node.Labels[label]
+				if ok {
+					nodeLabels[label] = val
+				}
+			}
+		}
+
+		hosts = append(hosts, appv1.HostInfo{Name: nodeName, SystemInfo: node.SystemInfo, ResourcesInfo: resourcesInfo, Labels: nodeLabels})
 	}
 	ts.AddCheckpoint("process_app_pods_by_node_ms")
 	return hosts, nil
