@@ -32,6 +32,12 @@ spec:
              secretKeyRef: 
                key: token
                name: argocd-token
+        - name: ARGOCD_APPLICATION_NAMESPACES
+          valueFrom:
+            configMapKeyRef:
+              name: argocd-cmd-params-cm
+              key: application.namespaces
+              optional: true
         - name: CODEFRESH_URL
           valueFrom:
             configMapKeyRef:

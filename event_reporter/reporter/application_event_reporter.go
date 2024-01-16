@@ -39,6 +39,11 @@ var (
 	resourceEventCacheExpiration = time.Minute * time.Duration(env.ParseNumFromEnv(argocommon.EnvResourceEventCacheDuration, 20, 0, math.MaxInt32))
 )
 
+type AppIdentity struct {
+	name      string
+	namespace string
+}
+
 type applicationEventReporter struct {
 	cache                    *servercache.Cache
 	codefreshClient          codefresh.CodefreshClient
@@ -93,15 +98,43 @@ func (s *applicationEventReporter) shouldSendResourceEvent(a *appv1.Application,
 	return true
 }
 
-func getParentAppName(a *appv1.Application, appInstanceLabelKey string, trackingMethod appv1.TrackingMethod) string {
+const appInstanceNameDelimeter = "_"
+
+// logic connected to /argo-cd/pkg/apis/application/v1alpha1/types.go - InstanceName
+func instanceNameIncludesNs(instanceName string) bool {
+	return strings.Contains(instanceName, appInstanceNameDelimeter)
+}
+
+// logic connected to /argo-cd/pkg/apis/application/v1alpha1/types.go - InstanceName
+func parseInstanceName(appNameString string) AppIdentity {
+	parts := strings.Split(appNameString, appInstanceNameDelimeter)
+	namespace := parts[0]
+	app := parts[1]
+
+	return AppIdentity{
+		name:      app,
+		namespace: namespace,
+	}
+}
+
+func getParentAppIdentity(a *appv1.Application, appInstanceLabelKey string, trackingMethod appv1.TrackingMethod) AppIdentity {
 	resourceTracking := argo.NewResourceTracking()
 	unApp := kube.MustToUnstructured(&a)
 
-	return resourceTracking.GetAppName(unApp, appInstanceLabelKey, trackingMethod)
+	instanceName := resourceTracking.GetAppName(unApp, appInstanceLabelKey, trackingMethod)
+
+	if instanceNameIncludesNs(instanceName) {
+		return parseInstanceName(instanceName)
+	} else {
+		return AppIdentity{
+			name:      instanceName,
+			namespace: "",
+		}
+	}
 }
 
-func isChildApp(parentAppName string) bool {
-	return parentAppName != ""
+func isChildApp(parentApp AppIdentity) bool {
+	return parentApp.name != ""
 }
 
 func getAppAsResource(a *appv1.Application) *appv1.ResourceStatus {
@@ -120,8 +153,9 @@ func getAppAsResource(a *appv1.Application) *appv1.ResourceStatus {
 func (r *applicationEventReporter) getDesiredManifests(ctx context.Context, a *appv1.Application, logCtx *log.Entry) (*apiclient.ManifestResponse, error, bool) {
 	// get the desired state manifests of the application
 	desiredManifests, err := r.applicationServiceClient.GetManifests(ctx, &application.ApplicationManifestQuery{
-		Name:     &a.Name,
-		Revision: &a.Status.Sync.Revision,
+		Name:         &a.Name,
+		AppNamespace: &a.Namespace,
+		Revision:     &a.Status.Sync.Revision,
 	})
 	if err != nil {
 		// if it's manifest generation error we need to still report the actual state
@@ -150,7 +184,7 @@ func (s *applicationEventReporter) StreamApplicationEvents(
 	appTree, err := s.applicationServiceClient.ResourceTree(ctx, &application.ResourcesQuery{
 		ApplicationName: &a.Name,
 		Project:         &a.Spec.Project,
-		Namespace:       &a.Namespace,
+		AppNamespace:    &a.Namespace,
 	})
 	if err != nil {
 		if strings.Contains(err.Error(), "context deadline exceeded") {
@@ -171,12 +205,13 @@ func (s *applicationEventReporter) StreamApplicationEvents(
 
 	logCtx.Info("getting parent application name")
 
-	parentAppName := getParentAppName(a, appInstanceLabelKey, trackingMethod)
+	parentAppIdentity := getParentAppIdentity(a, appInstanceLabelKey, trackingMethod)
 
-	if isChildApp(parentAppName) {
+	if isChildApp(parentAppIdentity) {
 		logCtx.Info("processing as child application")
 		parentApplicationEntity, err := s.applicationServiceClient.Get(ctx, &application.ApplicationQuery{
-			Name: &parentAppName,
+			Name:         &parentAppIdentity.name,
+			AppNamespace: &parentAppIdentity.namespace,
 		})
 		if err != nil {
 			return fmt.Errorf("failed to get parent application entity: %w", err)
@@ -316,6 +351,7 @@ func (s *applicationEventReporter) processResource(
 	// get resource actual state
 	actualState, err := s.applicationServiceClient.GetResource(ctx, &application.ApplicationResourceRequest{
 		Name:         &parentApplication.Name,
+		AppNamespace: &parentApplication.Namespace,
 		Namespace:    &rs.Namespace,
 		ResourceName: &rs.Name,
 		Version:      &rs.Version,
@@ -486,8 +522,9 @@ func getOperationRevision(a *appv1.Application) string {
 
 func (s *applicationEventReporter) getApplicationRevisionDetails(ctx context.Context, a *appv1.Application, revision string) (*appv1.RevisionMetadata, error) {
 	return s.applicationServiceClient.RevisionMetadata(ctx, &application.RevisionMetadataQuery{
-		Name:     &a.Name,
-		Revision: &revision,
+		Name:         &a.Name,
+		AppNamespace: &a.Namespace,
+		Revision:     &revision,
 	})
 }
 

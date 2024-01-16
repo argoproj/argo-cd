@@ -466,3 +466,67 @@ func TestSetHealthStatusIfMissing(t *testing.T) {
 	setHealthStatusIfMissing(&resource)
 	assert.Equal(t, resource.Health.Status, health.HealthStatusHealthy)
 }
+
+func TestGetParentAppIdentityWithinNonControllerNs(t *testing.T) {
+	resourceTracking := argo.NewResourceTracking()
+	annotations := make(map[string]string)
+	constrollerNs := "runtime"
+	expectedName := "guestbook"
+	expectedNamespace := "test-apps"
+
+	guestbookApp := appsv1.Application{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "Application",
+			APIVersion: "argoproj.io/v1alpha1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      expectedName,
+			Namespace: expectedNamespace,
+		},
+	}
+	annotations[common.AnnotationKeyAppInstance] = resourceTracking.BuildAppInstanceValue(argo.AppInstanceValue{
+		Name:            "test",
+		ApplicationName: guestbookApp.InstanceName(constrollerNs),
+		Group:           "group",
+		Kind:            "Rollout",
+		Namespace:       "test-resources",
+	})
+	guestbookApp.Annotations = annotations
+
+	res := getParentAppIdentity(&guestbookApp, common.LabelKeyAppInstance, "annotation")
+
+	assert.Equal(t, expectedName, res.name)
+	assert.Equal(t, expectedNamespace, res.namespace)
+}
+
+func TestGetParentAppIdentityWithinControllerNs(t *testing.T) {
+	resourceTracking := argo.NewResourceTracking()
+	annotations := make(map[string]string)
+	constrollerNs := "runtime"
+	expectedName := "guestbook"
+	expectedNamespace := ""
+
+	guestbookApp := appsv1.Application{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "Application",
+			APIVersion: "argoproj.io/v1alpha1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      expectedName,
+			Namespace: constrollerNs,
+		},
+	}
+	annotations[common.AnnotationKeyAppInstance] = resourceTracking.BuildAppInstanceValue(argo.AppInstanceValue{
+		Name:            "test",
+		ApplicationName: guestbookApp.InstanceName(constrollerNs),
+		Group:           "group",
+		Kind:            "Rollout",
+		Namespace:       "test-resources",
+	})
+	guestbookApp.Annotations = annotations
+
+	res := getParentAppIdentity(&guestbookApp, common.LabelKeyAppInstance, "annotation")
+
+	assert.Equal(t, expectedName, res.name)
+	assert.Equal(t, expectedNamespace, res.namespace)
+}
