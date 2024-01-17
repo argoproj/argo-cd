@@ -1,5 +1,8 @@
 # Microsoft
 
+!!! note ""
+    Entra ID was formerly known as Azure AD.
+
 * [Entra ID SAML Enterprise App Auth using Dex](#entra-id-saml-enterprise-app-auth-using-dex)
 * [Entra ID App Registration Auth using OIDC](#entra-id-app-registration-auth-using-oidc)
 * [Entra ID App Registration Auth using Dex](#entra-id-app-registration-auth-using-dex)
