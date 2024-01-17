@@ -54,7 +54,7 @@ func getLatestVersion() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return fmt.Sprintf("%s-%s-%s", argocdVersion, time.Now().Format("2006.01.02"), commitSha), nil
+	return fmt.Sprintf("%s-%s-%s", argocdVersion, time.Now().Format("2006.1.2"), commitSha), nil
 }
 
 func updateVersion(version string) error {
