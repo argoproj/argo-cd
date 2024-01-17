@@ -7,9 +7,10 @@ import (
 )
 
 type RateLimiterOpts struct {
-	Enabled  bool
-	Rate     time.Duration
-	Capacity int
+	Enabled      bool
+	Rate         time.Duration
+	Capacity     int
+	LearningMode bool
 }
 
 type RateLimiter struct {
@@ -21,9 +22,9 @@ func NewRateLimiter(opts *RateLimiterOpts) *RateLimiter {
 	return &RateLimiter{opts: opts, limiters: make(map[string]*limiters.FixedWindow)}
 }
 
-func (rl *RateLimiter) Limit(applicationName string) (time.Duration, error) {
+func (rl *RateLimiter) Limit(applicationName string) (time.Duration, error, bool) {
 	if !rl.opts.Enabled {
-		return time.Duration(0), nil
+		return time.Duration(0), nil, rl.opts.LearningMode
 	}
 
 	limiter := rl.limiters[applicationName]
@@ -32,5 +33,6 @@ func (rl *RateLimiter) Limit(applicationName string) (time.Duration, error) {
 		rl.limiters[applicationName] = limiter
 	}
 
-	return limiter.Limit(context.Background())
+	duration, err := limiter.Limit(context.Background())
+	return duration, err, rl.opts.LearningMode
 }

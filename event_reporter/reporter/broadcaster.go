@@ -78,23 +78,27 @@ func (b *broadcasterHandler) notify(event *appv1.ApplicationWatchEvent) {
 	for _, s := range subscribers {
 		if s.matches(event) {
 
-			duration, err := b.rateLimiter.Limit(event.Application.Name)
+			duration, err, learningMode := b.rateLimiter.Limit(event.Application.Name)
+			errorInLearningMode := learningMode && err != nil
 			if err != nil {
-				log.Infof("adding application '%s' to channel failed, due to rate limit, duration left %s", event.Application.Name, duration.String())
-				b.metricsServer.IncAppEventsCounter(event.Application.Name, false)
-				continue
+				log.Errorf("adding application '%s' to channel failed, due to rate limit, duration left %s, learningMode %t", event.Application.Name, duration.String(), learningMode)
+				// if learning mode is enabled, we will continue to send events
+				if !learningMode {
+					b.metricsServer.IncAppEventsCounter(event.Application.Name, false, false)
+					continue
+				}
 			}
 
 			select {
 			case s.ch <- event:
 				{
 					log.Infof("adding application '%s' to channel", event.Application.Name)
-					b.metricsServer.IncAppEventsCounter(event.Application.Name, true)
+					b.metricsServer.IncAppEventsCounter(event.Application.Name, true, errorInLearningMode)
 				}
 			default:
 				// drop event if cannot send right away
 				log.WithField("application", event.Application.Name).Warn("unable to send event notification")
-				b.metricsServer.IncAppEventsCounter(event.Application.Name, false)
+				b.metricsServer.IncAppEventsCounter(event.Application.Name, false, errorInLearningMode)
 			}
 		}
 	}

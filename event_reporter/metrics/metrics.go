@@ -70,7 +70,7 @@ var (
 			Name: "cf_e_reporter_app_events_size",
 			Help: "Size of specific application events queue of taked shard.",
 		},
-		[]string{"reporter_shard", "application", "got_in_queue"},
+		[]string{"reporter_shard", "application", "got_in_queue", "error_in_learning_mode"},
 	)
 	erroredEventsCounter = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
@@ -145,8 +145,8 @@ func (m *MetricsServer) SetQueueSizeCounter(size int) {
 	m.queueSizeCounter.WithLabelValues(m.shard).Set(float64(size))
 }
 
-func (m *MetricsServer) IncAppEventsCounter(application string, gotToProcessingQueue bool) {
-	m.appEventsCounter.WithLabelValues(m.shard, application, strconv.FormatBool(gotToProcessingQueue)).Inc()
+func (m *MetricsServer) IncAppEventsCounter(application string, gotToProcessingQueue bool, errorInLearningMode bool) {
+	m.appEventsCounter.WithLabelValues(m.shard, application, strconv.FormatBool(gotToProcessingQueue), strconv.FormatBool(errorInLearningMode)).Inc()
 }
 
 func (m *MetricsServer) IncErroredEventsCounter(metricEventType MetricEventType, errorType MetricEventErrorType, application string) {
