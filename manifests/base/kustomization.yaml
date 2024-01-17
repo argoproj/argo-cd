@@ -4,7 +4,7 @@ kind: Kustomization
 images:
 - name: quay.io/argoproj/argocd
   newName: quay.io/codefresh/argocd
-  newTag: v2.8.1-cap-CR-rollout-skip-step-fix
+  newTag: latest
 resources:
 - ./application-controller
 - ./dex

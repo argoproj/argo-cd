@@ -22425,7 +22425,7 @@ spec:
         - -n
         - /usr/local/bin/argocd
         - /shared/argocd-dex
-        image: quay.io/codefresh/argocd:v2.8.1-cap-CR-rollout-skip-step-fix
+        image: quay.io/codefresh/argocd:latest
         imagePullPolicy: Always
         name: copyutil
         securityContext:
@@ -22754,7 +22754,7 @@ spec:
           value: /helm-working-dir
         - name: HELM_DATA_HOME
           value: /helm-working-dir
-        image: quay.io/codefresh/argocd:v2.8.1-cap-CR-rollout-skip-step-fix
+        image: quay.io/codefresh/argocd:latest
         imagePullPolicy: Always
         livenessProbe:
           failureThreshold: 3
@@ -22806,7 +22806,7 @@ spec:
         - -n
         - /usr/local/bin/argocd
         - /var/run/argocd/argocd-cmp-server
-        image: quay.io/codefresh/argocd:v2.8.1-cap-CR-rollout-skip-step-fix
+        image: quay.io/codefresh/argocd:latest
         name: copyutil
         securityContext:
           allowPrivilegeEscalation: false
@@ -23101,7 +23101,7 @@ spec:
               key: server.enable.proxy.extension
               name: argocd-cmd-params-cm
               optional: true
-        image: quay.io/codefresh/argocd:v2.8.1-cap-CR-rollout-skip-step-fix
+        image: quay.io/codefresh/argocd:latest
         imagePullPolicy: Always
         livenessProbe:
           httpGet:
@@ -23347,7 +23347,7 @@ spec:
               key: controller.kubectl.parallelism.limit
               name: argocd-cmd-params-cm
               optional: true
-        image: quay.io/codefresh/argocd:v2.8.1-cap-CR-rollout-skip-step-fix
+        image: quay.io/codefresh/argocd:latest
         imagePullPolicy: Always
         name: argocd-application-controller
         ports:

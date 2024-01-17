@@ -21627,7 +21627,7 @@ spec:
         - -n
         - /usr/local/bin/argocd
         - /shared/argocd-dex
-        image: quay.io/codefresh/argocd:v2.8.1-cap-CR-rollout-skip-step-fix
+        image: quay.io/codefresh/argocd:latest
         imagePullPolicy: Always
         name: copyutil
         securityContext:
@@ -21905,7 +21905,7 @@ spec:
           value: /helm-working-dir
         - name: HELM_DATA_HOME
           value: /helm-working-dir
-        image: quay.io/codefresh/argocd:v2.8.1-cap-CR-rollout-skip-step-fix
+        image: quay.io/codefresh/argocd:latest
         imagePullPolicy: Always
         livenessProbe:
           failureThreshold: 3
@@ -21957,7 +21957,7 @@ spec:
         - -n
         - /usr/local/bin/argocd
         - /var/run/argocd/argocd-cmp-server
-        image: quay.io/codefresh/argocd:v2.8.1-cap-CR-rollout-skip-step-fix
+        image: quay.io/codefresh/argocd:latest
         name: copyutil
         securityContext:
           allowPrivilegeEscalation: false
@@ -22243,7 +22243,7 @@ spec:
               key: server.enable.proxy.extension
               name: argocd-cmd-params-cm
               optional: true
-        image: quay.io/codefresh/argocd:v2.8.1-cap-CR-rollout-skip-step-fix
+        image: quay.io/codefresh/argocd:latest
         imagePullPolicy: Always
         livenessProbe:
           httpGet:
@@ -22489,7 +22489,7 @@ spec:
               key: controller.kubectl.parallelism.limit
               name: argocd-cmd-params-cm
               optional: true
-        image: quay.io/codefresh/argocd:v2.8.1-cap-CR-rollout-skip-step-fix
+        image: quay.io/codefresh/argocd:latest
         imagePullPolicy: Always
         name: argocd-application-controller
         ports:
@@ -22569,6 +22569,24 @@ spec:
       - args:
         - /usr/local/bin/event-reporter-server
         env:
+        - name: RATE_LIMITER_ENABLED
+          valueFrom:
+            configMapKeyRef:
+              key: event-reporter.rate-limiter.enabled
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: RATE_LIMITER_BUCKET_SIZE
+          valueFrom:
+            configMapKeyRef:
+              key: event-reporter.rate-limiter.bucket-size
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: RATE_LIMITER_DURATION
+          valueFrom:
+            configMapKeyRef:
+              key: event-reporter.rate-limiter.duration
+              name: argocd-cmd-params-cm
+              optional: true
         - name: EVENT_REPORTER_REPLICAS
           value: "5"
         - name: ARGOCD_TOKEN
@@ -22576,6 +22594,12 @@ spec:
             secretKeyRef:
               key: token
               name: argocd-token
+        - name: ARGOCD_APPLICATION_NAMESPACES
+          valueFrom:
+            configMapKeyRef:
+              key: application.namespaces
+              name: argocd-cmd-params-cm
+              optional: true
         - name: CODEFRESH_URL
           valueFrom:
             configMapKeyRef:
@@ -22647,7 +22671,7 @@ spec:
               key: event-reporter.metrics.listen.address
               name: argocd-cmd-params-cm
               optional: true
-        image: quay.io/codefresh/argocd:v2.8.1-cap-CR-rollout-skip-step-fix
+        image: quay.io/codefresh/argocd:latest
         imagePullPolicy: Always
         livenessProbe:
           httpGet:

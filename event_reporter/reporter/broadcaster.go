@@ -4,14 +4,12 @@ import (
 	argocommon "github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/event_reporter/metrics"
 	"github.com/argoproj/argo-cd/v2/event_reporter/sharding"
+	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/util/env"
-	"math"
-	"sync"
-
 	log "github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/watch"
-
-	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"math"
+	"sync"
 )
 
 type subscriber struct {
@@ -42,15 +40,17 @@ type broadcasterHandler struct {
 	filter         sharding.ApplicationFilterFunction
 	featureManager *FeatureManager
 	metricsServer  *metrics.MetricsServer
+	rateLimiter    *RateLimiter
 }
 
-func NewBroadcaster(featureManager *FeatureManager, metricsServer *metrics.MetricsServer) Broadcaster {
+func NewBroadcaster(featureManager *FeatureManager, metricsServer *metrics.MetricsServer, rateLimiterOpts *RateLimiterOpts) Broadcaster {
 	// todo: pass real value here
 	filter := getApplicationFilter("")
 	return &broadcasterHandler{
 		filter:         filter,
 		featureManager: featureManager,
 		metricsServer:  metricsServer,
+		rateLimiter:    NewRateLimiter(rateLimiterOpts),
 	}
 }
 
@@ -77,6 +77,14 @@ func (b *broadcasterHandler) notify(event *appv1.ApplicationWatchEvent) {
 
 	for _, s := range subscribers {
 		if s.matches(event) {
+
+			duration, err := b.rateLimiter.Limit(event.Application.Name)
+			if err != nil {
+				log.Infof("adding application '%s' to channel failed, due to rate limit, duration left %s", event.Application.Name, duration.String())
+				b.metricsServer.IncAppEventsCounter(event.Application.Name, false)
+				continue
+			}
+
 			select {
 			case s.ch <- event:
 				{
