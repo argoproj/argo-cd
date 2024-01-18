@@ -1,5 +1,29 @@
 # Kustomize
 
+## Declarative
+
+You can define a Kustomize application manifest in the declarative GitOps way. Here is an example:
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: sealed-secrets
+  namespace: argocd
+spec:
+  project: default
+  source:
+    chart: sealed-secrets
+    repoURL: https://bitnami-labs.github.io/sealed-secrets
+    path: overlays/prod
+    targetRevision: 1.16.1
+  destination:
+    server: "https://kubernetes.default.svc"
+    namespace: kubeseal
+```
+
+If the `kustomization.yaml` file exists at the location pointed to by `repoURL` and `path`, Argo CD will deploy the application using Kustomize.
+
 The following configuration options are available for Kustomize:
 
 * `namePrefix` is a prefix appended to resources for Kustomize apps
