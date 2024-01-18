@@ -8,5 +8,5 @@ resources:
 - argocd-notifications-controller-deployment.yaml
 - argocd-notifications-secret.yaml
 - argocd-notifications-controller-role.yaml
-- argocd-notifications-controller-metrics-service.yaml
+- argocd-notifications-controller-metrics.yaml
 - argocd-notifications-controller-network-policy.yaml

@@ -3,7 +3,7 @@
 Argo CD exposes different sets of Prometheus metrics per server.
 
 ## Application Controller Metrics
-Metrics about applications. Scraped at the `argocd-metrics:8082/metrics` endpoint.
+Metrics about applications. Scraped at the `argocd-application-controller-metrics:8082/metrics` endpoint.
 
 | Metric | Type | Description |
 |--------|:----:|-------------|
@@ -92,13 +92,14 @@ Add a namespace where Argo CD is installed and change `metadata.labels.release` 
 apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
 metadata:
-  name: argocd-metrics
+  name: argocd-application-controller-metrics
   labels:
     release: prometheus-operator
 spec:
   selector:
     matchLabels:
-      app.kubernetes.io/name: argocd-metrics
+      app.kubernetes.io/name: argocd-application-controller-metrics
+      app.kubernetes.io/component: metrics
   endpoints:
   - port: metrics
 ```
@@ -114,6 +115,7 @@ spec:
   selector:
     matchLabels:
       app.kubernetes.io/name: argocd-server-metrics
+      app.kubernetes.io/component: metrics
   endpoints:
   - port: metrics
 ```
@@ -129,6 +131,7 @@ spec:
   selector:
     matchLabels:
       app.kubernetes.io/name: argocd-repo-server
+      app.kubernetes.io/component: metrics
   endpoints:
   - port: metrics
 ```
@@ -144,6 +147,23 @@ spec:
   selector:
     matchLabels:
       app.kubernetes.io/name: argocd-applicationset-controller
+      app.kubernetes.io/component: metrics
+  endpoints:
+  - port: metrics
+```
+
+```yaml
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: argocd-notifications-controller-metrics
+  labels:
+    release: prometheus-operator
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: argocd-notifications-controller
+      app.kubernetes.io/component: metrics
   endpoints:
   - port: metrics
 ```

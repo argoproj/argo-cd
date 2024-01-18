@@ -4,7 +4,7 @@ metadata:
   labels:
     app.kubernetes.io/name: argocd-server-metrics
     app.kubernetes.io/part-of: argocd
-    app.kubernetes.io/component: server
+    app.kubernetes.io/component: metrics
   name: argocd-server-metrics
 spec:
   ports:

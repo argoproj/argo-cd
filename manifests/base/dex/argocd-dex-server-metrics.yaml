@@ -4,18 +4,15 @@ metadata:
   labels:
     app.kubernetes.io/name: argocd-dex-server
     app.kubernetes.io/part-of: argocd
-    app.kubernetes.io/component: dex-server
-  name: argocd-dex-server
+    app.kubernetes.io/component: metrics
+  name: argocd-dex-server-metrics
 spec:
+  clusterIP: None
   ports:
-  - name: http
-    appProtocol: TCP
+  - name: metrics
+    port: 5558
     protocol: TCP
-    port: 5556
-    targetPort: 5556
-  - name: grpc
-    protocol: TCP
-    port: 5557
-    targetPort: 5557
+    targetPort: 5558
   selector:
     app.kubernetes.io/name: argocd-dex-server
+  type: ClusterIP

@@ -1258,6 +1258,25 @@ apiVersion: v1
 kind: Service
 metadata:
   labels:
+    app.kubernetes.io/component: metrics
+    app.kubernetes.io/name: argocd-application-controller
+    app.kubernetes.io/part-of: argocd
+  name: argocd-application-controller-metrics
+spec:
+  clusterIP: None
+  ports:
+  - name: metrics
+    port: 8082
+    protocol: TCP
+    targetPort: 8082
+  selector:
+    app.kubernetes.io/name: argocd-application-controller
+  type: ClusterIP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
     app.kubernetes.io/component: applicationset-controller
     app.kubernetes.io/name: argocd-applicationset-controller
     app.kubernetes.io/part-of: argocd
@@ -1268,12 +1287,27 @@ spec:
     port: 7000
     protocol: TCP
     targetPort: webhook
+  selector:
+    app.kubernetes.io/name: argocd-applicationset-controller
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app.kubernetes.io/component: metrics
+    app.kubernetes.io/name: argocd-applicationset-controller
+    app.kubernetes.io/part-of: argocd
+  name: argocd-applicationset-controller-metrics
+spec:
+  clusterIP: None
+  ports:
   - name: metrics
     port: 8080
     protocol: TCP
     targetPort: metrics
   selector:
     app.kubernetes.io/name: argocd-applicationset-controller
+  type: ClusterIP
 ---
 apiVersion: v1
 kind: Service
@@ -1294,10 +1328,6 @@ spec:
     port: 5557
     protocol: TCP
     targetPort: 5557
-  - name: metrics
-    port: 5558
-    protocol: TCP
-    targetPort: 5558
   selector:
     app.kubernetes.io/name: argocd-dex-server
 ---
@@ -1306,24 +1336,26 @@ kind: Service
 metadata:
   labels:
     app.kubernetes.io/component: metrics
-    app.kubernetes.io/name: argocd-metrics
+    app.kubernetes.io/name: argocd-dex-server
     app.kubernetes.io/part-of: argocd
-  name: argocd-metrics
+  name: argocd-dex-server-metrics
 spec:
+  clusterIP: None
   ports:
   - name: metrics
-    port: 8082
+    port: 5558
     protocol: TCP
-    targetPort: 8082
+    targetPort: 5558
   selector:
-    app.kubernetes.io/name: argocd-application-controller
+    app.kubernetes.io/name: argocd-dex-server
+  type: ClusterIP
 ---
 apiVersion: v1
 kind: Service
 metadata:
   labels:
-    app.kubernetes.io/component: notifications-controller
-    app.kubernetes.io/name: argocd-notifications-controller-metrics
+    app.kubernetes.io/component: metrics
+    app.kubernetes.io/name: argocd-notifications-controller
     app.kubernetes.io/part-of: argocd
   name: argocd-notifications-controller-metrics
 spec:
@@ -1472,12 +1504,27 @@ spec:
     port: 8081
     protocol: TCP
     targetPort: 8081
+  selector:
+    app.kubernetes.io/name: argocd-repo-server
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app.kubernetes.io/component: metrics
+    app.kubernetes.io/name: argocd-repo-server
+    app.kubernetes.io/part-of: argocd
+  name: argocd-repo-server-metrics
+spec:
+  clusterIP: None
+  ports:
   - name: metrics
     port: 8084
     protocol: TCP
     targetPort: 8084
   selector:
     app.kubernetes.io/name: argocd-repo-server
+  type: ClusterIP
 ---
 apiVersion: v1
 kind: Service
@@ -1504,7 +1551,7 @@ apiVersion: v1
 kind: Service
 metadata:
   labels:
-    app.kubernetes.io/component: server
+    app.kubernetes.io/component: metrics
     app.kubernetes.io/name: argocd-server-metrics
     app.kubernetes.io/part-of: argocd
   name: argocd-server-metrics
