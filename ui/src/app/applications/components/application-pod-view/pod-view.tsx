@@ -131,22 +131,42 @@ export class PodView extends React.Component<PodViewProps> {
                                                     </div>
                                                     {group.type === 'node' ? (
                                                         <div>
-                                                            <div className='pod-view__node__info--large'>
-                                                                {(group.info || []).map(item => (
-                                                                    <div key={item.name}>
-                                                                        {item.name}: <div>{item.value}</div>
-                                                                    </div>
-                                                                ))}
-                                                            </div>
-                                                            {group.hostLabels && Object.keys(group.hostLabels).length > 0 ? (
+                                                            <Tooltip
+                                                                key={group.name}
+                                                                content={
+                                                                    <React.Fragment>
+                                                                        <div>
+                                                                            <div className='row'>
+                                                                                <div className='columns'>
+                                                                                    {group.hostLabels && Object.keys(group.hostLabels).length > 0
+                                                                                        ? 'LABELS:'
+                                                                                        : 'No allowed node labels defined.'}
+                                                                                </div>
+                                                                            </div>
+                                                                            <div>
+                                                                                {Object.keys(group.hostLabels || []).map(label => (
+                                                                                    <div className='row' key={label}>
+                                                                                        <div className='columns' style={{overflow: 'auto', flexGrow: 2}}>
+                                                                                            {label}
+                                                                                        </div>
+                                                                                        <div className='columns' style={{overflow: 'auto', alignSelf: 'flex-end'}}>
+                                                                                            {group.hostLabels[label]}
+                                                                                        </div>
+                                                                                    </div>
+                                                                                ))}
+                                                                            </div>
+                                                                        </div>
+                                                                    </React.Fragment>
+                                                                }
+                                                                maxWidth={'fit-content'}>
                                                                 <div className='pod-view__node__info--large'>
-                                                                    {Object.keys(group.hostLabels || []).map(label => (
-                                                                        <div key={label}>
-                                                                            {label}: <div>{group.hostLabels[label]}</div>
+                                                                    {(group.info || []).map(item => (
+                                                                        <div key={item.name}>
+                                                                            {item.name}: <div>{item.value}</div>
                                                                         </div>
                                                                     ))}
                                                                 </div>
-                                                            ) : null}
+                                                            </Tooltip>
                                                         </div>
                                                     ) : (
                                                         <div className='pod-view__node__info'>

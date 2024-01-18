@@ -379,8 +379,6 @@ spec:
   - karpenter.sh/capacity-type
 ```
 
-![pod view node labels](../assets/pod-view-node-labels.png)
-
 The labels can also be managed with the following commands:
 ```bash
 argocd proj add-node-label <PROJECT> <LABEL>
