@@ -12,7 +12,7 @@ An additional `normalize` function makes any string parameter usable as a valid 
 with hyphens and truncating at 253 characters. This is useful when making parameters safe for things like Application
 names.
 
-Another `slugify` function has been added which, by default, sanitizes and smart truncate (means doesn't cut a word into 2). This function accepts a couple of arguments:
+Another `slugify` function has been added which, by default, sanitizes and smart truncates (it doesn't cut a word into 2). This function accepts a couple of arguments:
 - The first argument (if provided) is an integer specifying the maximum length of the slug.
 - The second argument (if provided) is a boolean indicating whether smart truncation is enabled.
 - The last argument (if provided) is the input name that needs to be slugified.
