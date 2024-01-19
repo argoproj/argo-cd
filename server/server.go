@@ -197,6 +197,7 @@ type ArgoCDServer struct {
 
 type ArgoCDServerOpts struct {
 	DisableAuth           bool
+	ContentTypes          []string
 	EnableGZip            bool
 	Insecure              bool
 	StaticAssetsDir       string
@@ -213,6 +214,7 @@ type ArgoCDServerOpts struct {
 	AppClientset          appclientset.Interface
 	RepoClientset         repoapiclient.Clientset
 	Cache                 *servercache.Cache
+	RepoServerCache       *repocache.Cache
 	RedisClient           *redis.Client
 	TLSConfigCustomizer   tlsutil.ConfigCustomizer
 	XFrameOptions         string
@@ -989,6 +991,9 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandl
 	if a.EnableGZip {
 		handler = compressHandler(handler)
 	}
+	if len(a.ContentTypes) > 0 {
+		handler = enforceContentTypes(handler, a.ContentTypes)
+	}
 	mux.Handle("/api/", handler)
 
 	terminal := application.NewHandler(a.appLister, a.Namespace, a.ApplicationNamespaces, a.db, a.enf, a.Cache, appResourceTreeFn, a.settings.ExecShells, *a.sessionMgr).
@@ -1028,7 +1033,7 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandl
 
 	// Webhook handler for git events (Note: cache timeouts are hardcoded because API server does not write to cache and not really using them)
 	argoDB := db.NewDB(a.Namespace, a.settingsMgr, a.KubeClientset)
-	acdWebhookHandler := webhook.NewHandler(a.Namespace, a.ArgoCDServerOpts.ApplicationNamespaces, a.AppClientset, a.settings, a.settingsMgr, repocache.NewCache(a.Cache.GetCache(), 24*time.Hour, 3*time.Minute), a.Cache, argoDB)
+	acdWebhookHandler := webhook.NewHandler(a.Namespace, a.ArgoCDServerOpts.ApplicationNamespaces, a.AppClientset, a.settings, a.settingsMgr, a.RepoServerCache, a.Cache, argoDB)
 
 	mux.HandleFunc("/api/webhook", acdWebhookHandler.Handler)
 
@@ -1053,6 +1058,20 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandl
 	}
 	mux.Handle("/", assetsHandler)
 	return &httpS
+}
+
+func enforceContentTypes(handler http.Handler, types []string) http.Handler {
+	allowedTypes := map[string]bool{}
+	for _, t := range types {
+		allowedTypes[strings.ToLower(t)] = true
+	}
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet || allowedTypes[strings.ToLower(r.Header.Get("Content-Type"))] {
+			handler.ServeHTTP(w, r)
+		} else {
+			http.Error(w, "Invalid content type", http.StatusUnsupportedMediaType)
+		}
+	})
 }
 
 // registerExtensions will try to register all configured extensions
