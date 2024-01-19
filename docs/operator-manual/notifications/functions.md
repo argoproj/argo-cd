@@ -12,6 +12,11 @@ Golang [Time](https://golang.org/pkg/time/#Time).
 
 Parses specified string using RFC3339 layout. Returns an instance of Golang [Time](https://golang.org/pkg/time/#Time).
 
+<hr>
+**`time.Format(val Time) string`**
+
+Formats specified Golang [Time] using RFC3339 layout. Returns a string.
+
 ### **strings**
 String related functions.
 
