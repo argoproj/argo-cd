@@ -20,9 +20,9 @@ import (
 //	Then, --dest-namespace is created with server side apply
 //		  	application is synced and healthy with resource
 //		  	application resources created with server side apply in the newly created namespace.
-func TestNamespaceAutoCreationWithServerSideApply(t *testing.T) {
+func TestNamespaceCreationWithSSA(t *testing.T) {
 	SkipOnEnv(t, "OPENSHIFT")
-	namespace := "guestbook-ui-with-server-side-apply"
+	namespace := "guestbook-ui-with-ssa"
 	defer func() {
 		if !t.Skipped() {
 			_, err := Run("", "kubectl", "delete", "namespace", namespace)
