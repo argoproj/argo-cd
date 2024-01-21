@@ -6,6 +6,7 @@ import (
 	goerrors "errors"
 	"fmt"
 	"math"
+	"math/rand"
 	"net/http"
 	"reflect"
 	"runtime/debug"
@@ -118,6 +119,7 @@ type ApplicationController struct {
 	stateCache                    statecache.LiveStateCache
 	statusRefreshTimeout          time.Duration
 	statusHardRefreshTimeout      time.Duration
+	statusRefreshJitter           time.Duration
 	selfHealTimeout               time.Duration
 	repoClientset                 apiclient.Clientset
 	db                            db.ArgoDB
@@ -142,6 +144,7 @@ func NewApplicationController(
 	kubectl kube.Kubectl,
 	appResyncPeriod time.Duration,
 	appHardResyncPeriod time.Duration,
+	appResyncJitter time.Duration,
 	selfHealTimeout time.Duration,
 	repoErrorGracePeriod time.Duration,
 	metricsPort int,
@@ -154,7 +157,7 @@ func NewApplicationController(
 	rateLimiterConfig *ratelimiter.AppControllerRateLimiterConfig,
 	serverSideDiff bool,
 ) (*ApplicationController, error) {
-	log.Infof("appResyncPeriod=%v, appHardResyncPeriod=%v", appResyncPeriod, appHardResyncPeriod)
+	log.Infof("appResyncPeriod=%v, appHardResyncPeriod=%v, appResyncJitter=%v", appResyncPeriod, appHardResyncPeriod, appResyncJitter)
 	db := db.NewDB(namespace, settingsMgr, kubeClientset)
 	if rateLimiterConfig == nil {
 		rateLimiterConfig = ratelimiter.GetDefaultAppRateLimiterConfig()
@@ -174,6 +177,7 @@ func NewApplicationController(
 		db:                            db,
 		statusRefreshTimeout:          appResyncPeriod,
 		statusHardRefreshTimeout:      appHardResyncPeriod,
+		statusRefreshJitter:           appResyncJitter,
 		refreshRequestedApps:          make(map[string]CompareWith),
 		refreshRequestedAppsMutex:     &sync.Mutex{},
 		auditLogger:                   argo.NewAuditLogger(namespace, kubeClientset, common.ApplicationController),
@@ -1643,6 +1647,7 @@ func (ctrl *ApplicationController) needRefreshAppStatus(app *appv1.Application, 
 	var reason string
 	compareWith := CompareWithLatest
 	refreshType := appv1.RefreshTypeNormal
+
 	softExpired := app.Status.ReconciledAt == nil || app.Status.ReconciledAt.Add(statusRefreshTimeout).Before(time.Now().UTC())
 	hardExpired := (app.Status.ReconciledAt == nil || app.Status.ReconciledAt.Add(statusHardRefreshTimeout).Before(time.Now().UTC())) && statusHardRefreshTimeout.Seconds() != 0
 
@@ -2095,14 +2100,25 @@ func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.Shar
 				if err != nil {
 					return
 				}
+
 				var compareWith *CompareWith
+				var delay *time.Duration
+
 				oldApp, oldOK := old.(*appv1.Application)
 				newApp, newOK := new.(*appv1.Application)
-				if oldOK && newOK && automatedSyncEnabled(oldApp, newApp) {
-					log.WithField("application", newApp.QualifiedName()).Info("Enabled automated sync")
-					compareWith = CompareWithLatest.Pointer()
+				if oldOK && newOK {
+					if automatedSyncEnabled(oldApp, newApp) {
+						log.WithField("application", newApp.QualifiedName()).Info("Enabled automated sync")
+						compareWith = CompareWithLatest.Pointer()
+					}
+					if ctrl.statusRefreshJitter != 0 && oldApp.ResourceVersion == newApp.ResourceVersion {
+						// Handler is refreshing the apps, add a random jitter to spread the load and avoid spikes
+						jitter := time.Duration(float64(ctrl.statusRefreshJitter) * rand.Float64())
+						delay = &jitter
+					}
 				}
-				ctrl.requestAppRefresh(newApp.QualifiedName(), compareWith, nil)
+
+				ctrl.requestAppRefresh(newApp.QualifiedName(), compareWith, delay)
 				ctrl.appOperationQueue.AddRateLimited(key)
 			},
 			DeleteFunc: func(obj interface{}) {
