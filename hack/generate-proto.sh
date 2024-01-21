@@ -10,9 +10,13 @@ set -o nounset
 set -o pipefail
 
 # shellcheck disable=SC2128
-PROJECT_ROOT=$(cd "$(dirname "${BASH_SOURCE}")"/..; pwd)
+PROJECT_ROOT=$(
+    cd "$(dirname "${BASH_SOURCE}")"/..
+    pwd
+)
 PATH="${PROJECT_ROOT}/dist:${PATH}"
 GOPATH=$(go env GOPATH)
+GOPATH_PROJECT_ROOT="${GOPATH}/src/github.com/argoproj/argo-cd"
 
 # output tool versions
 go version
@@ -41,6 +45,7 @@ APIMACHINERY_PKGS=(
 
 export GO111MODULE=on
 [ -e ./v2 ] || ln -s . v2
+[ -e "${GOPATH_PROJECT_ROOT}" ] || (mkdir -p "$(dirname "${GOPATH_PROJECT_ROOT}")" && ln -s "${PROJECT_ROOT}" "${GOPATH_PROJECT_ROOT}")
 
 # protoc_include is the include directory containing the .proto files distributed with protoc binary
 if [ -d /dist/protoc-include ]; then
@@ -53,10 +58,17 @@ fi
 
 go-to-protobuf \
     --go-header-file="${PROJECT_ROOT}"/hack/custom-boilerplate.go.txt \
-    --packages="$(IFS=, ; echo "${PACKAGES[*]}")" \
-    --apimachinery-packages="$(IFS=, ; echo "${APIMACHINERY_PKGS[*]}")" \
-    --proto-import=./vendor \
-    --proto-import="${protoc_include}"
+    --packages="$(
+        IFS=,
+        echo "${PACKAGES[*]}"
+    )" \
+    --apimachinery-packages="$(
+        IFS=,
+        echo "${APIMACHINERY_PKGS[*]}"
+    )" \
+    --proto-import="${PROJECT_ROOT}"/vendor \
+    --proto-import="${protoc_include}" \
+    --output-base="${GOPATH}/src/"
 
 # Either protoc-gen-go, protoc-gen-gofast, or protoc-gen-gogofast can be used to build
 # server/*/<service>.pb.go from .proto files. golang/protobuf and gogo/protobuf can be used
@@ -86,9 +98,11 @@ for i in ${PROTO_FILES}; do
         --${GOPROTOBINARY}_out=plugins=grpc:"$GOPATH"/src \
         --grpc-gateway_out=logtostderr=true:"$GOPATH"/src \
         --swagger_out=logtostderr=true:. \
-        $i
+        "$i"
 done
-[ -e ./v2 ] && rm -rf v2
+
+[ -L "${GOPATH_PROJECT_ROOT}" ] && rm -rf "${GOPATH_PROJECT_ROOT}"
+[ -L ./v2 ] && rm -rf v2
 
 # collect_swagger gathers swagger files into a subdirectory
 collect_swagger() {
@@ -97,7 +111,7 @@ collect_swagger() {
     PRIMARY_SWAGGER=$(mktemp)
     COMBINED_SWAGGER=$(mktemp)
 
-    cat <<EOF > "${PRIMARY_SWAGGER}"
+    cat <<EOF >"${PRIMARY_SWAGGER}"
 {
   "swagger": "2.0",
   "info": {
@@ -111,7 +125,7 @@ EOF
 
     rm -f "${SWAGGER_OUT}"
 
-    find "${SWAGGER_ROOT}" -name '*.swagger.json' -exec swagger mixin --ignore-conflicts "${PRIMARY_SWAGGER}" '{}' \+ > "${COMBINED_SWAGGER}"
+    find "${SWAGGER_ROOT}" -name '*.swagger.json' -exec swagger mixin --ignore-conflicts "${PRIMARY_SWAGGER}" '{}' \+ >"${COMBINED_SWAGGER}"
     jq -r 'del(.definitions[].properties[]? | select(."$ref"!=null and .description!=null).description) | del(.definitions[].properties[]? | select(."$ref"!=null and .title!=null).title) |
       # The "array" and "map" fields have custom unmarshaling. Modify the swagger to reflect this.
       .definitions.v1alpha1ApplicationSourcePluginParameter.properties.array = {"description":"Array is the value of an array type parameter.","type":"array","items":{"type":"string"}} |
@@ -120,10 +134,10 @@ EOF
       del(.definitions.v1alpha1OptionalMap) |
       # Output for int64 is incorrect, because it is based on proto definitions, where int64 is a string. In our JSON API, we expect int64 to be an integer. https://github.com/grpc-ecosystem/grpc-gateway/issues/219
       (.definitions[]?.properties[]? | select(.type == "string" and .format == "int64")) |= (.type = "integer")
-    ' "${COMBINED_SWAGGER}" | \
-    jq '.definitions.v1Time.type = "string" | .definitions.v1Time.format = "date-time" | del(.definitions.v1Time.properties)' | \
-    jq '.definitions.v1alpha1ResourceNode.allOf = [{"$ref": "#/definitions/v1alpha1ResourceRef"}] | del(.definitions.v1alpha1ResourceNode.properties.resourceRef) ' \
-    > "${SWAGGER_OUT}"
+    ' "${COMBINED_SWAGGER}" |
+        jq '.definitions.v1Time.type = "string" | .definitions.v1Time.format = "date-time" | del(.definitions.v1Time.properties)' |
+        jq '.definitions.v1alpha1ResourceNode.allOf = [{"$ref": "#/definitions/v1alpha1ResourceRef"}] | del(.definitions.v1alpha1ResourceNode.properties.resourceRef) ' \
+            >"${SWAGGER_OUT}"
 
     /bin/rm "${PRIMARY_SWAGGER}" "${COMBINED_SWAGGER}"
 }
@@ -139,4 +153,3 @@ clean_swagger server
 clean_swagger reposerver
 clean_swagger controller
 clean_swagger cmpserver
-
