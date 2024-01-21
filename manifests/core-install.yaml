@@ -21514,6 +21514,12 @@ spec:
               key: timeout.hard.reconciliation
               name: argocd-cm
               optional: true
+        - name: ARGOCD_RECONCILIATION_JITTER
+          valueFrom:
+            configMapKeyRef:
+              key: timeout.reconciliation.jitter
+              name: argocd-cm
+              optional: true
         - name: ARGOCD_REPO_ERROR_GRACE_PERIOD_SECONDS
           valueFrom:
             configMapKeyRef:
