@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"k8s.io/kubectl/pkg/cmd/util"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
@@ -538,25 +537,6 @@ func (s *APIServerMock) newHttpServer(t *testing.T, apiFailuresCount int) *httpt
 		w.Write(output) // nolint:errcheck
 	}))
 	return server
-}
-
-func TestGetDryRunStrategy(t *testing.T) {
-	t.Run("no dry run", func(t *testing.T) {
-		strategy := getDryRunStrategy(false, false)
-		assert.Equal(t, util.DryRunNone, strategy)
-	})
-	t.Run("no dry run with server side apply", func(t *testing.T) {
-		strategy := getDryRunStrategy(true, false)
-		assert.Equal(t, util.DryRunNone, strategy)
-	})
-	t.Run("dry run with server side apply", func(t *testing.T) {
-		strategy := getDryRunStrategy(true, true)
-		assert.Equal(t, util.DryRunServer, strategy)
-	})
-	t.Run("dry run with client side apply", func(t *testing.T) {
-		strategy := getDryRunStrategy(false, true)
-		assert.Equal(t, util.DryRunClient, strategy)
-	})
 }
 
 func TestServerResourcesRetry(t *testing.T) {

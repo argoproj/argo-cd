@@ -903,57 +903,48 @@ func (sc *syncContext) ensureCRDReady(name string) error {
 	})
 }
 
-func getDryRunStrategy(serverSideApply, dryRun bool) cmdutil.DryRunStrategy {
-	if !dryRun {
-		return cmdutil.DryRunNone
-	}
-	if serverSideApply {
-		return cmdutil.DryRunServer
-	}
-	return cmdutil.DryRunClient
-}
-
 func (sc *syncContext) applyObject(t *syncTask, dryRun, force, validate bool) (common.ResultCode, string) {
-	serverSideApply := sc.serverSideApply || resourceutil.HasAnnotationOption(t.targetObj, common.AnnotationSyncOptions, common.SyncOptionServerSideApply)
-
-	dryRunStrategy := getDryRunStrategy(serverSideApply, dryRun)
+	dryRunStrategy := cmdutil.DryRunNone
+	if dryRun {
+		// irrespective of the dry run mode set in the sync context, always run
+		// in client dry run mode as the goal is to validate only the
+		// yaml correctness of the rendered manifests.
+		// running dry-run in server mode breaks the auto create namespace feature
+		// https://github.com/argoproj/argo-cd/issues/13874
+		dryRunStrategy = cmdutil.DryRunClient
+	}
 
 	var err error
 	var message string
 	shouldReplace := sc.replace || resourceutil.HasAnnotationOption(t.targetObj, common.AnnotationSyncOptions, common.SyncOptionReplace)
-	applyFn := func(dryRunStrategy cmdutil.DryRunStrategy) (string, error) {
-		if !shouldReplace {
-			return sc.resourceOps.ApplyResource(context.TODO(), t.targetObj, dryRunStrategy, force, validate, serverSideApply, sc.serverSideApplyManager, false)
-		}
-		if t.liveObj == nil {
-			return sc.resourceOps.CreateResource(context.TODO(), t.targetObj, dryRunStrategy, validate)
-		}
-		// Avoid using `kubectl replace` for CRDs since 'replace' might recreate resource and so delete all CRD instances.
-		// The same thing applies for namespaces, which would delete the namespace as well as everything within it,
-		// so we want to avoid using `kubectl replace` in that case as well.
-		if kube.IsCRD(t.targetObj) || t.targetObj.GetKind() == kubeutil.NamespaceKind {
-			update := t.targetObj.DeepCopy()
-			update.SetResourceVersion(t.liveObj.GetResourceVersion())
-			_, err = sc.resourceOps.UpdateResource(context.TODO(), update, dryRunStrategy)
-			if err != nil {
-				return fmt.Sprintf("error when updating: %v", err.Error()), err
+	// if it is a dry run, disable server side apply, as the goal is to validate only the
+	// yaml correctness of the rendered manifests.
+	// running dry-run in server mode breaks the auto create namespace feature
+	// https://github.com/argoproj/argo-cd/issues/13874
+	serverSideApply := !dryRun && (sc.serverSideApply || resourceutil.HasAnnotationOption(t.targetObj, common.AnnotationSyncOptions, common.SyncOptionServerSideApply))
+	if shouldReplace {
+		if t.liveObj != nil {
+			// Avoid using `kubectl replace` for CRDs since 'replace' might recreate resource and so delete all CRD instances.
+			// The same thing applies for namespaces, which would delete the namespace as well as everything within it,
+			// so we want to avoid using `kubectl replace` in that case as well.
+			if kube.IsCRD(t.targetObj) || t.targetObj.GetKind() == kubeutil.NamespaceKind {
+				update := t.targetObj.DeepCopy()
+				update.SetResourceVersion(t.liveObj.GetResourceVersion())
+				_, err = sc.resourceOps.UpdateResource(context.TODO(), update, dryRunStrategy)
+				if err == nil {
+					message = fmt.Sprintf("%s/%s updated", t.targetObj.GetKind(), t.targetObj.GetName())
+				} else {
+					message = fmt.Sprintf("error when updating: %v", err.Error())
+				}
+			} else {
+				message, err = sc.resourceOps.ReplaceResource(context.TODO(), t.targetObj, dryRunStrategy, force)
 			}
-			return fmt.Sprintf("%s/%s updated", t.targetObj.GetKind(), t.targetObj.GetName()), nil
-
+		} else {
+			message, err = sc.resourceOps.CreateResource(context.TODO(), t.targetObj, dryRunStrategy, validate)
 		}
-		return sc.resourceOps.ReplaceResource(context.TODO(), t.targetObj, dryRunStrategy, force)
+	} else {
+		message, err = sc.resourceOps.ApplyResource(context.TODO(), t.targetObj, dryRunStrategy, force, validate, serverSideApply, sc.serverSideApplyManager, false)
 	}
-
-	message, err = applyFn(dryRunStrategy)
-
-	// DryRunServer fails with "Kind does not support fieldValidation" error for kubernetes server < 1.25
-	// it fails inside apply.go , o.DryRunVerifier.HasSupport(info.Mapping.GroupVersionKind) line
-	// so we retry with DryRunClient that works for all cases, but cause issues with hooks
-	// Details: https://github.com/argoproj/argo-cd/issues/16177
-	if dryRunStrategy == cmdutil.DryRunServer && err != nil {
-		message, err = applyFn(cmdutil.DryRunClient)
-	}
-
 	if err != nil {
 		return common.ResultCodeSyncFailed, err.Error()
 	}
