@@ -64,7 +64,7 @@ func newPluginService() *plugins {
 		go ps.serviceWatcher(c)
 	} else {
 		// This is fine if this is what the user wants
-		log.Warnf("Unable to uses plugins from services, ensure service account token is mounted (%s)", err)
+		log.Warnf("Unable to use plugins from services, ensure service account token is mounted (%s)", err)
 	}
 	return &ps
 }

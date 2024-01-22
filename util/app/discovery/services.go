@@ -57,7 +57,7 @@ func (s *plugins) serviceWatcher(c *kubernetes.Clientset) {
 		},
 	)
 	if err != nil {
-		log.Errorf("Failed to initialise plugin services watcher, plugins as services will not work: %s", err)
+		log.Errorf("Failed to initialize plugin services watcher, plugins as services will not work: %s", err)
 		return
 	}
 
