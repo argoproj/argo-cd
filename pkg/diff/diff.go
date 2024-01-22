@@ -165,17 +165,17 @@ func serverSideDiff(config, live *unstructured.Unstructured, opts ...Option) (*D
 	}
 	predictedLiveStr, err := o.serverSideDryRunner.Run(context.Background(), config, o.manager)
 	if err != nil {
-		return nil, fmt.Errorf("error running server side apply in dryrun mode: %w", err)
+		return nil, fmt.Errorf("error running server side apply in dryrun mode for resource %s/%s: %w", config.GetKind(), config.GetName(), err)
 	}
 	predictedLive, err := jsonStrToUnstructured(predictedLiveStr)
 	if err != nil {
-		return nil, fmt.Errorf("error converting json string to unstructured: %w", err)
+		return nil, fmt.Errorf("error converting json string to unstructured for resource %s/%s: %w", config.GetKind(), config.GetName(), err)
 	}
 
 	if o.ignoreMutationWebhook {
 		predictedLive, err = removeWebhookMutation(predictedLive, live, o.gvkParser, o.manager)
 		if err != nil {
-			return nil, fmt.Errorf("error removing non config mutations: %w", err)
+			return nil, fmt.Errorf("error removing non config mutations for resource %s/%s: %w", config.GetKind(), config.GetName(), err)
 		}
 	}
 
@@ -184,13 +184,13 @@ func serverSideDiff(config, live *unstructured.Unstructured, opts ...Option) (*D
 
 	predictedLiveBytes, err := json.Marshal(predictedLive)
 	if err != nil {
-		return nil, fmt.Errorf("error marshaling predicted live resource: %w", err)
+		return nil, fmt.Errorf("error marshaling predicted live for resource %s/%s: %w", config.GetKind(), config.GetName(), err)
 	}
 
 	unstructured.RemoveNestedField(live.Object, "metadata", "managedFields")
 	liveBytes, err := json.Marshal(live)
 	if err != nil {
-		return nil, fmt.Errorf("error marshaling live resource: %w", err)
+		return nil, fmt.Errorf("error marshaling live resource %s/%s: %w", config.GetKind(), config.GetName(), err)
 	}
 	return buildDiffResult(predictedLiveBytes, liveBytes), nil
 }

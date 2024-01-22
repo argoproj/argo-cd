@@ -55,7 +55,7 @@ type kubectlResourceOperations struct {
 
 type commandExecutor func(f cmdutil.Factory, ioStreams genericclioptions.IOStreams, fileName string) error
 
-func (k *kubectlResourceOperations) runResourceCommand(ctx context.Context, obj *unstructured.Unstructured, dryRunStrategy cmdutil.DryRunStrategy, executor commandExecutor) (string, error) {
+func (k *kubectlResourceOperations) runResourceCommand(ctx context.Context, obj *unstructured.Unstructured, dryRunStrategy cmdutil.DryRunStrategy, serverSideDiff bool, executor commandExecutor) (string, error) {
 	manifestBytes, err := json.Marshal(obj)
 	if err != nil {
 		return "", err
@@ -91,21 +91,14 @@ func (k *kubectlResourceOperations) runResourceCommand(ctx context.Context, obj 
 	}
 
 	var out []string
-	if obj.GetAPIVersion() == "rbac.authorization.k8s.io/v1" {
-		// If it is an RBAC resource, run `kubectl auth reconcile`. This is preferred over
-		// `kubectl apply`, which cannot tolerate changes in roleRef, which is an immutable field.
-		// See: https://github.com/kubernetes/kubernetes/issues/66353
-		// `auth reconcile` will delete and recreate the resource if necessary
-		outReconcile, err := func() (string, error) {
-			cleanup, err := k.processKubectlRun("auth")
-			if err != nil {
-				return "", err
-			}
-			defer cleanup()
-			return k.authReconcile(ctx, obj, manifestFile.Name(), dryRunStrategy)
-		}()
+	// rbac resouces are first applied with auth reconcile kubectl feature.
+	// serverSideDiff should avoid this step as the resources are not being actually
+	// applied but just running in dryrun mode. Also, kubectl auth reconcile doesn't
+	// currently support running dryrun in server mode.
+	if obj.GetAPIVersion() == "rbac.authorization.k8s.io/v1" && !serverSideDiff {
+		outReconcile, err := k.rbacReconcile(ctx, obj, manifestFile.Name(), dryRunStrategy)
 		if err != nil {
-			return "", err
+			return "", fmt.Errorf("error running rbacReconcile: %s", err)
 		}
 		out = append(out, outReconcile)
 		// We still want to fallthrough and run `kubectl apply` in order set the
@@ -131,6 +124,28 @@ func (k *kubectlResourceOperations) runResourceCommand(ctx context.Context, obj 
 	return strings.Join(out, ". "), nil
 }
 
+// rbacReconcile will perform reconciliation for RBAC resources. It will run
+// the following command:
+//
+//	kubectl auth reconcile
+//
+// This is preferred over `kubectl apply`, which cannot tolerate changes in
+// roleRef, which is an immutable field.
+// See: https://github.com/kubernetes/kubernetes/issues/66353
+// `auth reconcile` will delete and recreate the resource if necessary
+func (k *kubectlResourceOperations) rbacReconcile(ctx context.Context, obj *unstructured.Unstructured, fileName string, dryRunStrategy cmdutil.DryRunStrategy) (string, error) {
+	cleanup, err := k.processKubectlRun("auth")
+	if err != nil {
+		return "", fmt.Errorf("error processing kubectl run auth: %w", err)
+	}
+	defer cleanup()
+	outReconcile, err := k.authReconcile(ctx, obj, fileName, dryRunStrategy)
+	if err != nil {
+		return "", fmt.Errorf("error running kubectl auth reconcile: %w", err)
+	}
+	return outReconcile, nil
+}
+
 func kubeCmdFactory(kubeconfig, ns string, config *rest.Config) cmdutil.Factory {
 	kubeConfigFlags := genericclioptions.NewConfigFlags(true)
 	if ns != "" {
@@ -149,7 +164,7 @@ func (k *kubectlResourceOperations) ReplaceResource(ctx context.Context, obj *un
 	span.SetBaggageItem("name", obj.GetName())
 	defer span.Finish()
 	k.log.Info(fmt.Sprintf("Replacing resource %s/%s in cluster: %s, namespace: %s", obj.GetKind(), obj.GetName(), k.config.Host, obj.GetNamespace()))
-	return k.runResourceCommand(ctx, obj, dryRunStrategy, func(f cmdutil.Factory, ioStreams genericclioptions.IOStreams, fileName string) error {
+	return k.runResourceCommand(ctx, obj, dryRunStrategy, false, func(f cmdutil.Factory, ioStreams genericclioptions.IOStreams, fileName string) error {
 		cleanup, err := k.processKubectlRun("replace")
 		if err != nil {
 			return err
@@ -170,7 +185,7 @@ func (k *kubectlResourceOperations) CreateResource(ctx context.Context, obj *uns
 	span.SetBaggageItem("kind", gvk.Kind)
 	span.SetBaggageItem("name", obj.GetName())
 	defer span.Finish()
-	return k.runResourceCommand(ctx, obj, dryRunStrategy, func(f cmdutil.Factory, ioStreams genericclioptions.IOStreams, fileName string) error {
+	return k.runResourceCommand(ctx, obj, dryRunStrategy, false, func(f cmdutil.Factory, ioStreams genericclioptions.IOStreams, fileName string) error {
 		cleanup, err := k.processKubectlRun("create")
 		if err != nil {
 			return err
@@ -230,7 +245,7 @@ func (k *kubectlResourceOperations) ApplyResource(ctx context.Context, obj *unst
 	span.SetBaggageItem("name", obj.GetName())
 	defer span.Finish()
 	k.log.Info(fmt.Sprintf("Applying resource %s/%s in cluster: %s, namespace: %s", obj.GetKind(), obj.GetName(), k.config.Host, obj.GetNamespace()))
-	return k.runResourceCommand(ctx, obj, dryRunStrategy, func(f cmdutil.Factory, ioStreams genericclioptions.IOStreams, fileName string) error {
+	return k.runResourceCommand(ctx, obj, dryRunStrategy, serverSideDiff, func(f cmdutil.Factory, ioStreams genericclioptions.IOStreams, fileName string) error {
 		cleanup, err := k.processKubectlRun("apply")
 		if err != nil {
 			return err
@@ -317,7 +332,7 @@ func (k *kubectlResourceOperations) newApplyOptions(ioStreams genericclioptions.
 	if manager != "" {
 		o.FieldManager = manager
 	}
-	if serverSideApply {
+	if serverSideApply || serverSideDiff {
 		o.ForceConflicts = true
 	}
 	return o, nil
@@ -469,9 +484,8 @@ func (k *kubectlResourceOperations) authReconcile(ctx context.Context, obj *unst
 	}
 	reconcileOpts, err := newReconcileOptions(k.fact, kubeClient, manifestFile, ioStreams, obj.GetNamespace(), dryRunStrategy)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("error calling newReconcileOptions: %w", err)
 	}
-
 	err = reconcileOpts.Validate()
 	if err != nil {
 		return "", errors.New(cleanKubectlOutput(err.Error()))
