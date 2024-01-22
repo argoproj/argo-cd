@@ -18,10 +18,9 @@ The following sections will describe how to create, install, and use plugins. Ch
 
 ## Installing a config management plugin
 
-### Sidecar or services plugin
+### Sidecar or service plugin
 
-An operator can configure a plugin tool via a sidecar to the repo-server, or as a Kubernetes service in the same cluster
-as Argo CD. The following changes are required to configure a new plugin:
+An operator can configure a plugin tool as a repo-server sidecar or as a Kubernetes service. The following changes are required to configure a new plugin:
 
 #### Write the plugin configuration file
 
@@ -217,10 +216,11 @@ volumes:
 #### Register the plugin as a service
 
 Argo CD needs to have access to the cluster to discover services. To do this it uses a standard Kubernetes Service Account token to authenticate
-with the cluster. It also needs a Role or ClusterRole bound to that Service Account to access with the permissions get, list and watch the namespace(s)
+with the cluster. It also needs a Role or ClusterRole bound to that Service Account to access with the permissions `get`, `list` and `watch` the namespace(s)
 that the services are in. By default (no configuration) the services are looked for in the same namespace as the argocd-repo-server. You can set
-`ARGOCD_SERVICE_PLUGINS_NAMESPACE` to the name of a namespace to change it to look in a different namespace. To look in all
-namespaces set `ARGOCD_SERVICE_PLUGINS_NAMESPACE` to `*`. You cannot configure multiple specific namespaces, just one namespace or all namespaces.
+`ARGOCD_SERVICE_PLUGINS_NAMESPACE` on the `argocd-repo-server` to the name of a namespace to change it to look in that namespace instead. To
+look in all namespaces set `ARGOCD_SERVICE_PLUGINS_NAMESPACE` to `*`. You cannot configure multiple specific namespaces, either one specific
+namespace or all namespaces.
 
 !!! Ensure that:
     1. The argocd-repo-server deployment has `automountServiceAccountToken: true`
@@ -290,12 +290,13 @@ subjects:
 ```
 
 To install a plugin as a service, deploy something running your code. This would usually be a deployment, but Argo CD doesn't
-actually care what is behind the service. You can use either an off-the-shelf or custom-built plugin image as sidecar image. This
+actually care what is behind the service. You can use either an off-the-shelf or custom-built plugin image. This
 should follow the same rules as for a sidecar.
 
-To advertise the service to Argo CD you must provide a service with the label `argocd.argoproj.io/plugin: true`. Each port in the
-service will be treated as a separate plugin, and the name of the port is the name of the plugin, which will be used by applications
-which specify their plugin by name.
+To advertise the service to Argo CD you must provide a service with the label `argocd.argoproj.io/plugin: true`.
+* Each port in the service will be treated as a separate plugin.
+* The name of the port is the name of the plugin.
+* Applications can specify a plugin by their plugin name or use plugin discovery.
 
 This might look like:
 
@@ -345,10 +346,10 @@ spec:
 
 !!! important "Double-check these items"
     1. Make sure to use `argocd-cmp-server` as an entrypoint from the same version of Argo CD. The `argocd-cmp-server` is a lightweight GRPC service that allows Argo CD to interact with the plugin.
-    2. Make sure that sidecar container is running as user 999.
+    2. Make sure that container is running as user 999.
     3. Make sure that plugin configuration file is present at `/home/argocd/cmp-server/config/plugin.yaml`. It can either be volume mapped via configmap or baked into image.
-	4. The **service** has the label `argocd.argoproj.io/plugin: "true"`
-	5. If you are calling the plugin by name that the **port** name is what you use to call it.
+    4. The **service** has the label `argocd.argoproj.io/plugin: "true"`
+    5. If you are calling the plugin by name that the **port** name is what you use to call it.
 
 If you'd like to disable this feature do not provide a service account token.
 
@@ -359,8 +360,8 @@ needing to restart Argo CD. You could also easily develop in an in-cluster devel
 locally and your cluster can reach your local machine you could even develop using an ExternalName service.
 
 For large mono-repos sidecars will continue to work where services will take longer to transfer the state to the plugin. Argo CD
-doesn't condone large repos anyway. Because the network traffic between the repo-server and the plugin is over a unix socket it is by
-default more secure.
+doesn't condone large repos. Sidecar plugins (where the repo-server connects over a unix socket) are by
+default more secure than service plugins.
 
 Services allow independent scaling, even using HPAs, installation and upgrading at runtime, and work more like normal services.
 You can add monitoring to both types, but it feels more natural with a service. If you are making your plugin available for public
@@ -500,7 +501,7 @@ If you are actively developing a sidecar-installed CMP, keep a few things in min
 
 ## Debugging a CMP as a service
 
-If you are actively developing a services based CMP then things should be more familiar than as a sidecar. You still need to bear in mind that CMP errors are cached by the repo-server in Redis. Restarting the repo-server Pod will not clear the cache. Always do a "Hard Refresh" when actively developing a CMP so you have the latest output.
+If you are actively developing a service based CMP then things should be more familiar than as a sidecar. You still need to bear in mind that CMP errors are cached by the repo-server in Redis. Restarting the repo-server Pod will not clear the cache. Always do a "Hard Refresh" when actively developing a CMP so you have the latest output.
 
 ### Other Common Errors
 | Error Message | Cause |

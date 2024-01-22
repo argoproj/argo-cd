@@ -22,8 +22,8 @@ type Discoverer struct {
 	plugins *plugins
 }
 
-// NewWithServices provides a fully functioning discoverer, which is
-// expected to be long lived as it run an informer watching for cmp
+// NewWithServices provides a fully functional discoverer, which is
+// expected to be long lived as it runs an informer watching for cmp
 // plugins as services
 func NewWithServices() *Discoverer {
 	return &Discoverer{
