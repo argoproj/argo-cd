@@ -88,7 +88,9 @@ func (c *httpApplicationClient) execute(ctx context.Context, url string, result 
 }
 
 func (c *httpApplicationClient) Get(ctx context.Context, in *appclient.ApplicationQuery, opts ...grpc.CallOption) (*v1alpha1.Application, error) {
-	url := fmt.Sprintf("%s/api/v1/applications/%s", c.baseUrl, *in.Name)
+	params := fmt.Sprintf("?appNamespace=%s",
+		*in.AppNamespace)
+	url := fmt.Sprintf("%s/api/v1/applications/%s%s", c.baseUrl, *in.Name, params)
 	application := &v1alpha1.Application{}
 	err := c.execute(ctx, url, application)
 	if err != nil {
@@ -98,7 +100,10 @@ func (c *httpApplicationClient) Get(ctx context.Context, in *appclient.Applicati
 }
 
 func (c *httpApplicationClient) RevisionMetadata(ctx context.Context, in *appclient.RevisionMetadataQuery, opts ...grpc.CallOption) (*v1alpha1.RevisionMetadata, error) {
-	url := fmt.Sprintf("%s/api/v1/applications/%s/revisions/%s/metadata", c.baseUrl, *in.Name, *in.Revision)
+	params := fmt.Sprintf("?appNamespace=%s&project=%s",
+		*in.AppNamespace,
+		*in.Project)
+	url := fmt.Sprintf("%s/api/v1/applications/%s/revisions/%s/metadata%s", c.baseUrl, *in.Name, *in.Revision, params)
 	revisionMetadata := &v1alpha1.RevisionMetadata{}
 	err := c.execute(ctx, url, revisionMetadata)
 	if err != nil {
@@ -108,7 +113,10 @@ func (c *httpApplicationClient) RevisionMetadata(ctx context.Context, in *appcli
 }
 
 func (c *httpApplicationClient) GetManifests(ctx context.Context, in *appclient.ApplicationManifestQuery, opts ...grpc.CallOption) (*repoapiclient.ManifestResponse, error) {
-	url := fmt.Sprintf("%s/api/v1/applications/%s/manifests", c.baseUrl, *in.Name)
+	params := fmt.Sprintf("?appNamespace=%s&project=%s",
+		*in.AppNamespace,
+		*in.Project)
+	url := fmt.Sprintf("%s/api/v1/applications/%s/manifests%s", c.baseUrl, *in.Name, params)
 
 	manifest := &repoapiclient.ManifestResponse{}
 	err := c.execute(ctx, url, manifest)
@@ -119,7 +127,10 @@ func (c *httpApplicationClient) GetManifests(ctx context.Context, in *appclient.
 }
 
 func (c *httpApplicationClient) ResourceTree(ctx context.Context, in *appclient.ResourcesQuery, opts ...grpc.CallOption) (*v1alpha1.ApplicationTree, error) {
-	url := fmt.Sprintf("%s/api/v1/applications/%s/resource-tree", c.baseUrl, *in.ApplicationName)
+	params := fmt.Sprintf("?appNamespace=%s&project=%s",
+		*in.AppNamespace,
+		*in.Project)
+	url := fmt.Sprintf("%s/api/v1/applications/%s/resource-tree%s", c.baseUrl, *in.ApplicationName, params)
 	tree := &v1alpha1.ApplicationTree{}
 	err := c.execute(ctx, url, tree)
 	if err != nil {
@@ -129,12 +140,14 @@ func (c *httpApplicationClient) ResourceTree(ctx context.Context, in *appclient.
 }
 
 func (c *httpApplicationClient) GetResource(ctx context.Context, in *appclient.ApplicationResourceRequest, opts ...grpc.CallOption) (*appclient.ApplicationResourceResponse, error) {
-	params := fmt.Sprintf("?namespace=%s&resourceName=%s&version=%s&group=%s&kind=%s",
+	params := fmt.Sprintf("?appNamespace=%s&namespace=%s&resourceName=%s&version=%s&group=%s&kind=%s&project=%s",
+		*in.AppNamespace,
 		*in.Namespace,
 		*in.ResourceName,
 		*in.Version,
 		*in.Group,
-		*in.Kind)
+		*in.Kind,
+		*in.Project)
 	url := fmt.Sprintf("%s/api/v1/applications/%s/resource%s", c.baseUrl, *in.Name, params)
 
 	applicationResource := &appclient.ApplicationResourceResponse{}

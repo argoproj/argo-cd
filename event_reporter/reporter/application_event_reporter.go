@@ -156,6 +156,7 @@ func (r *applicationEventReporter) getDesiredManifests(ctx context.Context, a *a
 		Name:         &a.Name,
 		AppNamespace: &a.Namespace,
 		Revision:     &a.Status.Sync.Revision,
+		Project:      &a.Spec.Project,
 	})
 	if err != nil {
 		// if it's manifest generation error we need to still report the actual state
@@ -357,6 +358,7 @@ func (s *applicationEventReporter) processResource(
 		Version:      &rs.Version,
 		Group:        &rs.Group,
 		Kind:         &rs.Kind,
+		Project:      &parentApplication.Spec.Project,
 	})
 	if err != nil {
 		if !strings.Contains(err.Error(), "not found") {
@@ -525,6 +527,7 @@ func (s *applicationEventReporter) getApplicationRevisionDetails(ctx context.Con
 		Name:         &a.Name,
 		AppNamespace: &a.Namespace,
 		Revision:     &revision,
+		Project:      &a.Spec.Project,
 	})
 }
 
