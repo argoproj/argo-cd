@@ -463,10 +463,10 @@ export interface ResourceNode extends ResourceRef {
 
 export interface AbstractApplicationTree {
     nodes: ResourceNode[];
+    orphanedNodes: ResourceNode[];
 }
 
 export interface ApplicationTree extends AbstractApplicationTree {
-    orphanedNodes: ResourceNode[];
     hosts: Node[];
 }
 

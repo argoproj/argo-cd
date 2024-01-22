@@ -119,8 +119,8 @@ function loadApplications(
                         })
                     )
                     .pipe(filter(item => item.updated))
-                    .pipe(map(item => item.applications))
-                    // .pipe(map(item => (isApp(applications[0]) ? (item.applications as models.Application[]) : (item.applications as models.ApplicationSet[])))) // Do we need to do this?
+                    // .pipe(map(item => item.applications))
+                    .pipe(map(item => (isListOfApplications ? (item.applications as models.Application[]) : (item.applications as models.ApplicationSet[])))) // Do we need to do this?
             );
         })
     );
@@ -330,7 +330,11 @@ const SearchBar = (props: {
                 </React.Fragment>
             )}
             onSelect={val => {
-                ctx.navigation.goto(`./${val}`);
+                if (props.objectListKind === "application") {
+                    ctx.navigation.goto(`./${val}`);
+                } else {
+                    ctx.navigation.goto(`${AppUtils.getRootPathByPath(ctx.history.location.pathname)}/${val}`);
+                }
             }}
             onChange={e => ctx.navigation.goto('.', {search: e.target.value}, {replace: true})}
             value={content || ''}
@@ -376,11 +380,11 @@ const FlexTopBar = (props: {toolbar: Toolbar | Observable<Toolbar>}) => {
     );
 };
 
-interface RouteComponentPropsExtended extends RouteComponentProps {
-    objectListKind: string
- }
+// export interface RouteComponentPropsExtended extends RouteComponentProps {
+//     objectListKind: string
+// }
 
-export const ApplicationsList = (props: RouteComponentPropsExtended) => {
+export const ApplicationsList = (props: RouteComponentProps & {objectListKind: string}) => {
     const query = new URLSearchParams(props.location.search);
     const appInput = tryJsonParse(query.get('new'));
     const syncAppsInput = tryJsonParse(query.get('syncApps'));

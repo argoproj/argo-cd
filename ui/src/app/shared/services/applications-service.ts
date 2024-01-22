@@ -24,11 +24,11 @@ function optionsToSearch(options?: QueryOptions) {
 }
 
 function getQuery(projects: string[], isFromApps: boolean, options?: QueryOptions): any {
-    if (isFromApps) {
+    // if (isFromApps) {
         return {projects, ...optionsToSearch(options)};
-    } else {
-        return {...optionsToSearch(options)};
-    }
+    // } else {
+    //     return {...optionsToSearch(options)};
+    // }
 }
 
 export class ApplicationsService {

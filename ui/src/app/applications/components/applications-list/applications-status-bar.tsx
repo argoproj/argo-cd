@@ -74,7 +74,7 @@ export const ApplicationsStatusBar = ({applications}: ApplicationsStatusBarProps
         return total + i.value;
     }, 0);
 
-    console.log(totalItems);
+    console.log("Total items " + totalItems);
 
     return (
         <Consumer>
