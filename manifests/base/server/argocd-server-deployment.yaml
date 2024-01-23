@@ -251,6 +251,12 @@ spec:
                 name: argocd-cmd-params-cm
                 key: server.k8sclient.retry.base.backoff
                 optional: true
+        - name: ARGOCD_API_CONTENT_TYPES
+          valueFrom:
+            configMapKeyRef:
+              name: argocd-cmd-params-cm
+              key: server.api.content.types
+              optional: true
         volumeMounts:
         - name: ssh-known-hosts
           mountPath: /app/config/ssh
