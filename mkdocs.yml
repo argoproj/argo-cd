@@ -37,6 +37,7 @@ nav:
       - Destination: basics/apps/destination.md
       - State: basics/apps/state.md
       - Managing Applications: basics/apps/manage.md
+      - Overriding Parameters: basics/apps/overrides.md
     - Clusters:
       - Overview: basics/clusters/index.md
       - Internal: basics/clusters/internal.md
