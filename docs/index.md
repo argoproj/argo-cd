@@ -73,7 +73,7 @@ details about the different tracking strategies available.
 * [Sync waves](syncing/waves.md) to control order of resource deployment
 * Audit trails for application events and API calls
 * [Prometheus metrics](operations/metrics.md)
-* Parameter overrides for overriding Helm parameters in Git
+* [Parameter overrides for overriding Helm parameters in Git](basics/apps/overrides.md)
 
 
 ## Argo CD Adoption
