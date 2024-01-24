@@ -5,9 +5,9 @@ import (
 	"time"
 
 	log "github.com/sirupsen/logrus"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	utilnet "k8s.io/apimachinery/pkg/util/net"
 	"k8s.io/client-go/rest"
+
+	"github.com/argoproj/argo-cd/v2/util/errors"
 )
 
 type failureRetryRoundTripper struct {
@@ -21,12 +21,11 @@ func shouldRetry(counter int, r *http.Request, response *http.Response, err erro
 	if counter <= 0 {
 		return false
 	}
-	if err != nil {
-		if apierrors.IsInternalError(err) || apierrors.IsTimeout(err) || apierrors.IsServerTimeout(err) ||
-			apierrors.IsTooManyRequests(err) || utilnet.IsProbableEOF(err) || utilnet.IsConnectionReset(err) {
-			return true
-		}
+
+	if errors.IsRetryableError(err) {
+		return true
 	}
+
 	if response != nil && (response.StatusCode == 504 || response.StatusCode == 503) {
 		return true
 	}
