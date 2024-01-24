@@ -107,6 +107,10 @@ func (t *syncTask) successful() bool {
 	return t.operationState.Successful()
 }
 
+func (t *syncTask) pruned() bool {
+	return t.syncStatus == common.ResultCodePruned
+}
+
 func (t *syncTask) hookType() common.HookType {
 	if t.isHook() {
 		return common.HookType(t.phase)
