@@ -22878,6 +22878,12 @@ spec:
               key: server.enable.proxy.extension
               name: argocd-cmd-params-cm
               optional: true
+        - name: ARGOCD_API_CONTENT_TYPES
+          valueFrom:
+            configMapKeyRef:
+              key: server.api.content.types
+              name: argocd-cmd-params-cm
+              optional: true
         image: quay.io/argoproj/argocd:v2.9.5
         imagePullPolicy: Always
         livenessProbe:
