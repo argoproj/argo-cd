@@ -23,44 +23,75 @@ permissions:
   contents: read
 
 jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      backend: ${{ steps.filter.outputs.backend }}
+      frontend: ${{ steps.filter.outputs.frontend }}
+    steps:
+      - uses: actions/checkout@v3
+      - uses: dorny/paths-filter@v2
+        id: filter
+        with:
+          filters: |
+            backend:
+              - '!(ui/**)'
+              - '!(**/*.md)'
+            frontend:
+              - 'ui/**'
   check-go:
     name: Ensure Go modules synchronicity
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout code
+        if: ${{ needs.changes.outputs.backend == 'true' }}
         uses: actions/checkout@3df4ab11eba7bda6032a0b82a6bb43b11571feac # v4.0.0
       - name: Setup Golang
+        if: ${{ needs.changes.outputs.backend == 'true' }}
         uses: actions/setup-go@93397bea11091df50f3d7e59dc26a7711a8bcfbe # v4.0.0
         with:
           go-version: ${{ env.GOLANG_VERSION }}
       - name: Download all Go modules
+        if: ${{ needs.changes.outputs.backend == 'true' }}
         run: |
           go mod download
       - name: Check for tidyness of go.mod and go.sum
+        if: ${{ needs.changes.outputs.backend == 'true' }}
         run: |
           go mod tidy
           git diff --exit-code -- .
+      - if: ${{ needs.changes.outputs.backend == 'false' }}
+        run: |
+          echo "No backend changes detected"
 
   build-go:
     name: Build & cache Go code
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout code
+        if: ${{ needs.changes.outputs.backend == 'true' }}
         uses: actions/checkout@3df4ab11eba7bda6032a0b82a6bb43b11571feac # v4.0.0
       - name: Setup Golang
+        if: ${{ needs.changes.outputs.backend == 'true' }}
         uses: actions/setup-go@93397bea11091df50f3d7e59dc26a7711a8bcfbe # v4.0.0
         with:
           go-version: ${{ env.GOLANG_VERSION }}
       - name: Restore go build cache
+        if: ${{ needs.changes.outputs.backend == 'true' }}
         uses: actions/cache@704facf57e6136b1bc63b828d79edcd491f0ee84 # v3.3.2
         with:
           path: ~/.cache/go-build
           key: ${{ runner.os }}-go-build-v1-${{ github.run_id }}
       - name: Download all Go modules
+        if: ${{ needs.changes.outputs.backend == 'true' }}
         run: |
           go mod download
       - name: Compile all packages
+        if: ${{ needs.changes.outputs.backend == 'true' }}
         run: make build-local
+      - if: ${{ needs.changes.outputs.backend == 'false' }}
+        run: |
+          echo "No backend changes detected"
 
   lint-go:
     permissions:
@@ -70,16 +101,22 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout code
+        if: ${{ needs.changes.outputs.backend == 'true' }}
         uses: actions/checkout@3df4ab11eba7bda6032a0b82a6bb43b11571feac # v4.0.0
       - name: Setup Golang
+        if: ${{ needs.changes.outputs.backend == 'true' }}
         uses: actions/setup-go@93397bea11091df50f3d7e59dc26a7711a8bcfbe # v4.0.0
         with:
           go-version: ${{ env.GOLANG_VERSION }}
       - name: Run golangci-lint
+        if: ${{ needs.changes.outputs.backend == 'true' }}
         uses: golangci/golangci-lint-action@3a919529898de77ec3da873e3063ca4b10e7f5cc # v3.7.0
         with:
           version: v1.54.0
           args: --enable gofmt --timeout 10m --exclude SA5011 --verbose --max-issues-per-linter 0 --max-same-issues 0
+      - if: ${{ needs.changes.outputs.backend == 'false' }}
+        run: |
+          echo "No backend changes detected"
 
   test-go:
     name: Run unit tests for Go packages
@@ -91,62 +128,82 @@ jobs:
       GITLAB_TOKEN: ${{ secrets.E2E_TEST_GITLAB_TOKEN }}      
     steps:
       - name: Create checkout directory
+        if: ${{ needs.changes.outputs.backend == 'true' }}
         run: mkdir -p ~/go/src/github.com/argoproj
       - name: Checkout code
+        if: ${{ needs.changes.outputs.backend == 'true' }}
         uses: actions/checkout@3df4ab11eba7bda6032a0b82a6bb43b11571feac # v4.0.0
       - name: Create symlink in GOPATH
+        if: ${{ needs.changes.outputs.backend == 'true' }}
         run: ln -s $(pwd) ~/go/src/github.com/argoproj/argo-cd
       - name: Setup Golang
+        if: ${{ needs.changes.outputs.backend == 'true' }}
         uses: actions/setup-go@93397bea11091df50f3d7e59dc26a7711a8bcfbe # v4.0.0
         with:
           go-version: ${{ env.GOLANG_VERSION }}
       - name: Install required packages
+        if: ${{ needs.changes.outputs.backend == 'true' }}
         run: |
           sudo apt-get install git -y
       - name: Switch to temporal branch so we re-attach head
+        if: ${{ needs.changes.outputs.backend == 'true' }}
         run: |
           git switch -c temporal-pr-branch
           git status
       - name: Fetch complete history for blame information
+        if: ${{ needs.changes.outputs.backend == 'true' }}
         run: |
           git fetch --prune --no-tags --depth=1 origin +refs/heads/*:refs/remotes/origin/*
       - name: Add ~/go/bin to PATH
+        if: ${{ needs.changes.outputs.backend == 'true' }}
         run: |
           echo "/home/runner/go/bin" >> $GITHUB_PATH
       - name: Add /usr/local/bin to PATH
+        if: ${{ needs.changes.outputs.backend == 'true' }}
         run: |
           echo "/usr/local/bin" >> $GITHUB_PATH
       - name: Restore go build cache
+        if: ${{ needs.changes.outputs.backend == 'true' }}
         uses: actions/cache@704facf57e6136b1bc63b828d79edcd491f0ee84 # v3.3.2
         with:
           path: ~/.cache/go-build
           key: ${{ runner.os }}-go-build-v1-${{ github.run_id }}
       - name: Install all tools required for building & testing
+        if: ${{ needs.changes.outputs.backend == 'true' }}
         run: |
           make install-test-tools-local
         # We install kustomize in the dist directory
       - name: Add dist to PATH
+        if: ${{ needs.changes.outputs.backend == 'true' }}
         run: |
           echo "/home/runner/work/argo-cd/argo-cd/dist" >> $GITHUB_PATH
       - name: Setup git username and email
+        if: ${{ needs.changes.outputs.backend == 'true' }}
         run: |
           git config --global user.name "John Doe"
           git config --global user.email "john.doe@example.com"
       - name: Download and vendor all required packages
+        if: ${{ needs.changes.outputs.backend == 'true' }}
         run: |
           go mod download
       - name: Run all unit tests
+        if: ${{ needs.changes.outputs.backend == 'true' }}
         run: make test-local
       - name: Generate code coverage artifacts
+        if: ${{ needs.changes.outputs.backend == 'true' }}
         uses: actions/upload-artifact@a8a3f3ad30e3422c9c7b888a15615d19a852ae32 # v3.1.3
         with:
           name: code-coverage
           path: coverage.out
       - name: Generate test results artifacts
+        if: ${{ needs.changes.outputs.backend == 'true' }}
         uses: actions/upload-artifact@a8a3f3ad30e3422c9c7b888a15615d19a852ae32 # v3.1.3
         with:
           name: test-results
           path: test-results/
+      - if: ${{ needs.changes.outputs.backend == 'false' }}
+        run: |
+          echo "No backend changes detected"
 
   test-go-race:
     name: Run unit tests with -race for Go packages
@@ -158,94 +215,122 @@ jobs:
       GITLAB_TOKEN: ${{ secrets.E2E_TEST_GITLAB_TOKEN }}  
     steps:
       - name: Create checkout directory
+        if: ${{ needs.changes.outputs.backend == 'true' }}
         run: mkdir -p ~/go/src/github.com/argoproj
       - name: Checkout code
+        if: ${{ needs.changes.outputs.backend == 'true' }}
         uses: actions/checkout@3df4ab11eba7bda6032a0b82a6bb43b11571feac # v4.0.0
       - name: Create symlink in GOPATH
+        if: ${{ needs.changes.outputs.backend == 'true' }}
         run: ln -s $(pwd) ~/go/src/github.com/argoproj/argo-cd
       - name: Setup Golang
+        if: ${{ needs.changes.outputs.backend == 'true' }}
         uses: actions/setup-go@93397bea11091df50f3d7e59dc26a7711a8bcfbe # v4.0.0
         with:
           go-version: ${{ env.GOLANG_VERSION }}
       - name: Install required packages
+        if: ${{ needs.changes.outputs.backend == 'true' }}
         run: |
           sudo apt-get install git -y
       - name: Switch to temporal branch so we re-attach head
+        if: ${{ needs.changes.outputs.backend == 'true' }}
         run: |
           git switch -c temporal-pr-branch
           git status
       - name: Fetch complete history for blame information
+        if: ${{ needs.changes.outputs.backend == 'true' }}
         run: |
           git fetch --prune --no-tags --depth=1 origin +refs/heads/*:refs/remotes/origin/*
       - name: Add ~/go/bin to PATH
+        if: ${{ needs.changes.outputs.backend == 'true' }}
         run: |
           echo "/home/runner/go/bin" >> $GITHUB_PATH
       - name: Add /usr/local/bin to PATH
+        if: ${{ needs.changes.outputs.backend == 'true' }}
         run: |
           echo "/usr/local/bin" >> $GITHUB_PATH
       - name: Restore go build cache
+        if: ${{ needs.changes.outputs.backend == 'true' }}
         uses: actions/cache@704facf57e6136b1bc63b828d79edcd491f0ee84 # v3.3.2
         with:
           path: ~/.cache/go-build
           key: ${{ runner.os }}-go-build-v1-${{ github.run_id }}
       - name: Install all tools required for building & testing
+        if: ${{ needs.changes.outputs.backend == 'true' }}
         run: |
           make install-test-tools-local
         # We install kustomize in the dist directory
       - name: Add dist to PATH
+        if: ${{ needs.changes.outputs.backend == 'true' }}
         run: |
           echo "/home/runner/work/argo-cd/argo-cd/dist" >> $GITHUB_PATH
       - name: Setup git username and email
+        if: ${{ needs.changes.outputs.backend == 'true' }}
         run: |
           git config --global user.name "John Doe"
           git config --global user.email "john.doe@example.com"
       - name: Download and vendor all required packages
+        if: ${{ needs.changes.outputs.backend == 'true' }}
         run: |
           go mod download
       - name: Run all unit tests
+        if: ${{ needs.changes.outputs.backend == 'true' }}
         run: make test-race-local
       - name: Generate test results artifacts
+        if: ${{ needs.changes.outputs.backend == 'true' }}
         uses: actions/upload-artifact@a8a3f3ad30e3422c9c7b888a15615d19a852ae32 # v3.1.3
         with:
           name: race-results
           path: test-results/
+      - if: ${{ needs.changes.outputs.backend == 'false' }}
+        run: |
+          echo "No backend changes detected"
 
   codegen:
     name: Check changes to generated code
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout code
+        if: ${{ needs.changes.outputs.backend == 'true' }}
         uses: actions/checkout@3df4ab11eba7bda6032a0b82a6bb43b11571feac # v4.0.0
       - name: Setup Golang
+        if: ${{ needs.changes.outputs.backend == 'true' }}
         uses: actions/setup-go@93397bea11091df50f3d7e59dc26a7711a8bcfbe # v4.0.0
         with:
           go-version: ${{ env.GOLANG_VERSION }}
       - name: Create symlink in GOPATH
+        if: ${{ needs.changes.outputs.backend == 'true' }}
         run: |
           mkdir -p ~/go/src/github.com/argoproj
           cp -a ../argo-cd ~/go/src/github.com/argoproj
       - name: Add ~/go/bin to PATH
+        if: ${{ needs.changes.outputs.backend == 'true' }}
         run: |
           echo "/home/runner/go/bin" >> $GITHUB_PATH
       - name: Add /usr/local/bin to PATH
+        if: ${{ needs.changes.outputs.backend == 'true' }}
         run: |
           echo "/usr/local/bin" >> $GITHUB_PATH
       - name: Download & vendor dependencies
+        if: ${{ needs.changes.outputs.backend == 'true' }}
         run: |
           # We need to vendor go modules for codegen yet
           go mod download
           go mod vendor -v
         working-directory: /home/runner/go/src/github.com/argoproj/argo-cd
       - name: Install toolchain for codegen
+        if: ${{ needs.changes.outputs.backend == 'true' }}
         run: |
           make install-codegen-tools-local
           make install-go-tools-local
         working-directory: /home/runner/go/src/github.com/argoproj/argo-cd
         # We install kustomize in the dist directory
       - name: Add dist to PATH
+        if: ${{ needs.changes.outputs.backend == 'true' }}
         run: |
           echo "/home/runner/work/argo-cd/argo-cd/dist" >> $GITHUB_PATH
       - name: Run codegen
+        if: ${{ needs.changes.outputs.backend == 'true' }}
         run: |
           set -x
           export GOPATH=$(go env GOPATH)
@@ -253,31 +338,40 @@ jobs:
           make codegen-local
         working-directory: /home/runner/go/src/github.com/argoproj/argo-cd
       - name: Check nothing has changed
+        if: ${{ needs.changes.outputs.backend == 'true' }}
         run: |
           set -xo pipefail
           git diff --exit-code -- . ':!go.sum' ':!go.mod' ':!assets/swagger.json' | tee codegen.patch
         working-directory: /home/runner/go/src/github.com/argoproj/argo-cd
+      - if: ${{ needs.changes.outputs.backend == 'false' }}
+        run: |
+          echo "No backend changes detected"
 
   build-ui:
     name: Build, test & lint UI code
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout code
+        if: ${{ needs.changes.outputs.frontend == 'true' }}
         uses: actions/checkout@3df4ab11eba7bda6032a0b82a6bb43b11571feac # v4.0.0
       - name: Setup NodeJS
+        if: ${{ needs.changes.outputs.frontend == 'true' }}
         uses: actions/setup-node@5e21ff4d9bc1a8cf6de233a3057d20ec6b3fb69d # v3.8.1
         with:
           node-version: '20.7.0'
       - name: Restore node dependency cache
+        if: ${{ needs.changes.outputs.frontend == 'true' }}
         id: cache-dependencies
         uses: actions/cache@704facf57e6136b1bc63b828d79edcd491f0ee84 # v3.3.2
         with:
           path: ui/node_modules
           key: ${{ runner.os }}-node-dep-v2-${{ hashFiles('**/yarn.lock') }}
       - name: Install node dependencies
+        if: ${{ needs.changes.outputs.frontend == 'true' }}
         run: |
           cd ui && yarn install --frozen-lockfile --ignore-optional --non-interactive
       - name: Build UI code
+        if: ${{ needs.changes.outputs.frontend == 'true' }}
         run: |
           yarn test
           yarn build
@@ -287,8 +381,12 @@ jobs:
           HOST_ARCH: amd64
         working-directory: ui/
       - name: Run ESLint
+        if: ${{ needs.changes.outputs.frontend == 'true' }}
         run: yarn lint
         working-directory: ui/
+      - if: ${{ needs.changes.outputs.frontend == 'false' }}
+        run: |
+          echo "No frontend changes detected"
 
   analyze:
     name: Process & analyze test artifacts
@@ -300,31 +398,38 @@ jobs:
       sonar_secret: ${{ secrets.SONAR_TOKEN }}
     steps:
       - name: Checkout code
+        if: ${{ needs.changes.outputs.backend == 'true' || needs.changes.outputs.frontend == 'true' }}
         uses: actions/checkout@3df4ab11eba7bda6032a0b82a6bb43b11571feac # v4.0.0
         with:
           fetch-depth: 0
       - name: Restore node dependency cache
+        if: ${{ needs.changes.outputs.backend == 'true' || needs.changes.outputs.frontend == 'true' }}
         id: cache-dependencies
         uses: actions/cache@704facf57e6136b1bc63b828d79edcd491f0ee84 # v3.3.2
         with:
           path: ui/node_modules
           key: ${{ runner.os }}-node-dep-v2-${{ hashFiles('**/yarn.lock') }}
       - name: Remove other node_modules directory
+        if: ${{ needs.changes.outputs.backend == 'true' || needs.changes.outputs.frontend == 'true' }}
         run: |
           rm -rf ui/node_modules/argo-ui/node_modules
       - name: Create test-results directory
+        if: ${{ needs.changes.outputs.backend == 'true' || needs.changes.outputs.frontend == 'true' }}
         run: |
           mkdir -p test-results
-      - name: Get code coverage artifiact
+      - name: Get code coverage artifact
+        if: ${{ needs.changes.outputs.backend == 'true' || needs.changes.outputs.frontend == 'true' }}
         uses: actions/download-artifact@9bc31d5ccc31df68ecc42ccf4149144866c47d8a # v3.0.2
         with:
           name: code-coverage
       - name: Get test result artifact
+        if: ${{ needs.changes.outputs.backend == 'true' || needs.changes.outputs.frontend == 'true' }}
         uses: actions/download-artifact@9bc31d5ccc31df68ecc42ccf4149144866c47d8a # v3.0.2
         with:
           name: test-results
           path: test-results
       - name: Upload code coverage information to codecov.io
+        if: ${{ needs.changes.outputs.backend == 'true' || needs.changes.outputs.frontend == 'true' }}
         uses: codecov/codecov-action@eaaf4bedf32dbdc6b720b63067d99c4d77d6047d # v3.1.4
         with:
           file: coverage.out
@@ -354,7 +459,10 @@ jobs:
             export NODE_PATH=${PWD}/ui/node_modules
 
             ${SCANNER_PATH}/sonar-scanner-${SCANNER_VERSION}-${OS}/bin/sonar-scanner
-        if: env.sonar_secret != ''
+        if: env.sonar_secret != '' && (needs.changes.outputs.backend == 'true' || needs.changes.outputs.frontend == 'true')
+      - if: ${{ needs.changes.outputs.backend == 'false' && needs.changes.outputs.frontend == 'false' }}
+        run: |
+          echo "No backend or frontend changes detected"
 
   test-e2e:
     name: Run end-to-end tests
@@ -380,15 +488,19 @@ jobs:
       GITLAB_TOKEN: ${{ secrets.E2E_TEST_GITLAB_TOKEN }}  
     steps:
       - name: Checkout code
+        if: ${{ needs.changes.outputs.backend == 'true' }}
         uses: actions/checkout@3df4ab11eba7bda6032a0b82a6bb43b11571feac # v4.0.0
       - name: Setup Golang
+        if: ${{ needs.changes.outputs.backend == 'true' }}
         uses: actions/setup-go@93397bea11091df50f3d7e59dc26a7711a8bcfbe # v4.0.0
         with:
           go-version: ${{ env.GOLANG_VERSION }}
       - name: GH actions workaround - Kill XSP4 process
+        if: ${{ needs.changes.outputs.backend == 'true' }}
         run: |
           sudo pkill mono || true
       - name: Install K3S
+        if: ${{ needs.changes.outputs.backend == 'true' }}
         env:
           INSTALL_K3S_VERSION: ${{ matrix.k3s-version }}+k3s1
         run: |
@@ -401,40 +513,50 @@ jobs:
           sudo chmod go-r $HOME/.kube/config
           kubectl version
       - name: Restore go build cache
+        if: ${{ needs.changes.outputs.backend == 'true' }}
         uses: actions/cache@704facf57e6136b1bc63b828d79edcd491f0ee84 # v3.3.2
         with:
           path: ~/.cache/go-build
           key: ${{ runner.os }}-go-build-v1-${{ github.run_id }}
       - name: Add ~/go/bin to PATH
+        if: ${{ needs.changes.outputs.backend == 'true' }}
         run: |
           echo "/home/runner/go/bin" >> $GITHUB_PATH
       - name: Add /usr/local/bin to PATH
+        if: ${{ needs.changes.outputs.backend == 'true' }}
         run: |
           echo "/usr/local/bin" >> $GITHUB_PATH
       - name: Add ./dist to PATH
+        if: ${{ needs.changes.outputs.backend == 'true' }}
         run: |
           echo "$(pwd)/dist" >> $GITHUB_PATH
       - name: Download Go dependencies
+        if: ${{ needs.changes.outputs.backend == 'true' }}
         run: |
           go mod download
           go install github.com/mattn/goreman@latest
       - name: Install all tools required for building & testing
+        if: ${{ needs.changes.outputs.backend == 'true' }}
         run: |
           make install-test-tools-local
       - name: Setup git username and email
+        if: ${{ needs.changes.outputs.backend == 'true' }}
         run: |
           git config --global user.name "John Doe"
           git config --global user.email "john.doe@example.com"
       - name: Pull Docker image required for tests
+        if: ${{ needs.changes.outputs.backend == 'true' }}
         run: |
           docker pull ghcr.io/dexidp/dex:v2.37.0
           docker pull argoproj/argo-cd-ci-builder:v1.0.0
           docker pull redis:7.0.14-alpine
       - name: Create target directory for binaries in the build-process
+        if: ${{ needs.changes.outputs.backend == 'true' }}
         run: |
           mkdir -p dist
           chown runner dist
       - name: Run E2E server and wait for it being available
+        if: ${{ needs.changes.outputs.backend == 'true' }}
         timeout-minutes: 30
         run: |
           set -x
@@ -453,6 +575,7 @@ jobs:
             count=$((count+1))
           done
       - name: Run E2E testsuite
+        if: ${{ needs.changes.outputs.backend == 'true' }}
         run: |
           set -x
           make test-e2e-local
@@ -462,3 +585,6 @@ jobs:
           name: e2e-server-k8s${{ matrix.k3s-version }}.log
           path: /tmp/e2e-server.log
         if: ${{ failure() }}
+      - if: ${{ needs.changes.outputs.backend == 'false' }}
+        run: |
+          echo "No backend changes detected"
