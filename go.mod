@@ -4,8 +4,6 @@ go 1.21
 
 toolchain go1.21.0
 
-replace github.com/argoproj/gitops-engine => github.com/svghadi/gitops-engine v0.0.0-20240104060750-382d57ba0e6b
-
 require (
 	code.gitea.io/sdk/gitea v0.15.1
 	github.com/Azure/kubelogin v0.0.20
@@ -15,7 +13,7 @@ require (
 	github.com/TomOnTime/utfutil v0.0.0-20180511104225-09c41003ee1d
 	github.com/alicebob/miniredis/v2 v2.30.4
 	github.com/antonmedv/expr v1.15.2
-	github.com/argoproj/gitops-engine v0.7.1-0.20240122213038-792124280fcc
+	github.com/argoproj/gitops-engine v0.7.1-0.20240124052710-5fd9f449e757
 	github.com/argoproj/notifications-engine v0.4.1-0.20231027194313-a8d185ecc0a9
 	github.com/argoproj/pkg v0.13.7-0.20230626144333-d56162821bd1
 	github.com/aws/aws-sdk-go v1.44.317
