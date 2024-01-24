@@ -95,10 +95,6 @@ func (r *redisCache) unmarshal(data []byte, obj interface{}) error {
 	return nil
 }
 
-func (r *redisCache) Rename(oldKey string, newKey string, _ time.Duration) error {
-	return r.client.Rename(context.TODO(), r.getKey(oldKey), r.getKey(newKey)).Err()
-}
-
 func (r *redisCache) Set(item *Item) error {
 	expiration := item.Expiration
 	if expiration == 0 {

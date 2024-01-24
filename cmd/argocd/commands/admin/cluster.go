@@ -632,7 +632,6 @@ func NewGenClusterConfigCommand(pathOpts *clientcmd.PathOptions) *cobra.Command 
 				awsAuthConf = &argoappv1.AWSAuthConfig{
 					ClusterName: clusterOpts.AwsClusterName,
 					RoleARN:     clusterOpts.AwsRoleArn,
-					Profile:     clusterOpts.AwsProfile,
 				}
 			} else if clusterOpts.ExecProviderCommand != "" {
 				execProviderConf = &argoappv1.ExecProviderConfig{
