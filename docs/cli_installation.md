@@ -39,7 +39,7 @@ rm argocd-linux-amd64
 
 #### Download latest stable version
 
-You can download the latest stable release by setting the following `VERSION`
+You can download the latest stable release by executing below steps:
 
 ```bash
 VERSION=$(curl -L -s https://raw.githubusercontent.com/argoproj/argo-cd/stable/VERSION)
