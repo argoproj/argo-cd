@@ -18,7 +18,6 @@ import {hashCode} from './shared/utils';
 import {Banner} from './ui-banner/ui-banner';
 import userInfo from './user-info';
 import {AuthSettings} from './shared/models';
-import {PKCEVerification} from './login/components/pkce-verify';
 
 services.viewPreferences.init();
 const bases = document.getElementsByTagName('base');
@@ -33,8 +32,7 @@ const routes: Routes = {
     '/applications': {component: applications.component},
     '/settings': {component: settings.component},
     '/user-info': {component: userInfo.component},
-    '/help': {component: help.component},
-    '/pkce/verify': {component: PKCEVerification, noLayout: true}
+    '/help': {component: help.component}
 };
 
 interface NavItem {

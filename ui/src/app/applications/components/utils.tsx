@@ -361,7 +361,7 @@ export const deletePopup = async (ctx: ContextApis, resource: ResourceTreeNode, 
                     </label>
                     <input type='radio' name='deleteOptions' value='force' onChange={() => handleStateChange('force')} style={{marginRight: '5px'}} id='force-delete-radio' />
                     <label htmlFor='force-delete-radio' style={{paddingRight: '30px'}}>
-                        Background Delete {helpTip('Performs a forceful "background cascading deletion" of the resource and its dependent resources')}
+                        Force Delete {helpTip('Deletes the resource and its dependent resources in the background')}
                     </label>
                     <input type='radio' name='deleteOptions' value='orphan' onChange={() => handleStateChange('orphan')} style={{marginRight: '5px'}} id='cascade-delete-radio' />
                     <label htmlFor='cascade-delete-radio'>Non-cascading (Orphan) Delete {helpTip('Deletes the resource and orphans the dependent resources')}</label>
@@ -473,8 +473,8 @@ function getActionItems(
     const execAction = services.authService
         .settings()
         .then(async settings => {
-            const execAllowed = settings.execEnabled && (await services.accounts.canI('exec', 'create', application.spec.project + '/' + application.metadata.name));
-            if (resource.kind === 'Pod' && execAllowed) {
+            const execAllowed = await services.accounts.canI('exec', 'create', application.spec.project + '/' + application.metadata.name);
+            if (resource.kind === 'Pod' && settings.execEnabled && execAllowed) {
                 return [
                     {
                         title: 'Exec',

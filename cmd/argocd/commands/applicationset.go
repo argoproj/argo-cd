@@ -67,10 +67,6 @@ func NewApplicationSetGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 	var command = &cobra.Command{
 		Use:   "get APPSETNAME",
 		Short: "Get ApplicationSet details",
-		Example: templates.Examples(`
-	# Get ApplicationSets
-	argocd appset get APPSETNAME
-		`),
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
 

@@ -50,7 +50,6 @@ argocd admin settings rbac can someuser create application 'default/app' --defau
       --cluster string                 The name of the kubeconfig cluster to use
       --context string                 The name of the kubeconfig context to use
       --default-role string            name of the default role to use
-      --disable-compression            If true, opt-out of response compression for all requests to the server
   -h, --help                           help for can
       --insecure-skip-tls-verify       If true, the server's certificate will not be checked for validity. This will make your HTTPS connections insecure
       --kubeconfig string              Path to a kube config. Only required if out-of-cluster

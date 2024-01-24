@@ -59,27 +59,24 @@ A card message can be defined as follows:
 ```yaml
 template.app-sync-succeeded: |
   googlechat:
-    cardsV2: |
+    cards: |
       - header:
           title: ArgoCD Bot Notification
         sections:
           - widgets:
-              - decoratedText:
+              - textParagraph:
                   text: The app {{ .app.metadata.name }} has successfully synced!
           - widgets:
-              - decoratedText:
+              - keyValue:
                   topLabel: Repository
-                  text: {{ call .repo.RepoURLToHTTPS .app.spec.source.repoURL }}
-              - decoratedText:
+                  content: {{ call .repo.RepoURLToHTTPS .app.spec.source.repoURL }}
+              - keyValue:
                   topLabel: Revision
-                  text: {{ .app.spec.source.targetRevision }}
-              - decoratedText:
+                  content: {{ .app.spec.source.targetRevision }}
+              - keyValue:
                   topLabel: Author
-                  text: {{ (call .repo.GetCommitMetadata .app.status.sync.revision).Author }}
+                  content: {{ (call .repo.GetCommitMetadata .app.status.sync.revision).Author }}
 ```
-All [Card fields](https://developers.google.com/chat/api/reference/rest/v1/cards#Card_1) are supported and can be used
-in notifications. It is also possible to use the previous (now deprecated) `cards` key to use the legacy card fields,
-but this is not recommended as Google has deprecated this field and recommends using the newer `cardsV2`.
 
 The card message can be written in JSON too.
 
@@ -89,7 +86,7 @@ It is possible send both simple text and card messages in a chat thread by speci
 
 ```yaml
 template.app-sync-succeeded: |
-  message: The app {{ .app.metadata.name }} has successfully synced!
+  message: The app {{ .app.metadata.name }} has succesfully synced!
   googlechat:
     threadKey: {{ .app.metadata.name }}
 ```

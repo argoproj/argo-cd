@@ -23,7 +23,6 @@ const kustomization2b = "Kustomization"
 const kustomization3 = "force_common"
 const kustomization4 = "custom_version"
 const kustomization5 = "kustomization_yaml_patches"
-const kustomization6 = "kustomization_yaml_components"
 
 func testDataDir(tb testing.TB, testData string) (string, error) {
 	res := tb.TempDir()
@@ -351,27 +350,6 @@ func TestKustomizeCustomVersion(t *testing.T) {
 	content, err := os.ReadFile(envOutputFile)
 	assert.Nil(t, err)
 	assert.Equal(t, "ARGOCD_APP_NAME=argo-cd-tests\n", string(content))
-}
-
-func TestKustomizeBuildComponents(t *testing.T) {
-	appPath, err := testDataDir(t, kustomization6)
-	assert.Nil(t, err)
-	kustomize := NewKustomizeApp(appPath, git.NopCreds{}, "", "")
-
-	kustomizeSource := v1alpha1.ApplicationSourceKustomize{
-		Components: []string{"./components"},
-	}
-	objs, _, err := kustomize.Build(&kustomizeSource, nil, nil)
-	assert.Nil(t, err)
-	obj := objs[0]
-	assert.Equal(t, "nginx-deployment", obj.GetName())
-	assert.Equal(t, map[string]string{
-		"app": "nginx",
-	}, obj.GetLabels())
-	replicas, ok, err := unstructured.NestedInt64(obj.Object, "spec", "replicas")
-	require.NoError(t, err)
-	require.True(t, ok)
-	assert.Equal(t, int64(3), replicas)
 }
 
 func TestKustomizeBuildPatches(t *testing.T) {

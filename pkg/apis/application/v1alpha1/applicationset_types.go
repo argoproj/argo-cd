@@ -65,7 +65,6 @@ type ApplicationSetSpec struct {
 	// ApplyNestedSelectors enables selectors defined within the generators of two level-nested matrix or merge generators
 	ApplyNestedSelectors         bool                            `json:"applyNestedSelectors,omitempty" protobuf:"bytes,8,name=applyNestedSelectors"`
 	IgnoreApplicationDifferences ApplicationSetIgnoreDifferences `json:"ignoreApplicationDifferences,omitempty" protobuf:"bytes,9,name=ignoreApplicationDifferences"`
-	TemplatePatch                *string                         `json:"templatePatch,omitempty" protobuf:"bytes,10,name=templatePatch"`
 }
 
 type ApplicationPreservedFields struct {
@@ -230,7 +229,7 @@ type ApplicationSetTerminalGenerator struct {
 	SCMProvider             *SCMProviderGenerator `json:"scmProvider,omitempty" protobuf:"bytes,4,name=scmProvider"`
 	ClusterDecisionResource *DuckTypeGenerator    `json:"clusterDecisionResource,omitempty" protobuf:"bytes,5,name=clusterDecisionResource"`
 	PullRequest             *PullRequestGenerator `json:"pullRequest,omitempty" protobuf:"bytes,6,name=pullRequest"`
-	Plugin                  *PluginGenerator      `json:"plugin,omitempty" protobuf:"bytes,7,name=plugin"`
+	Plugin                  *PluginGenerator      `json:"plugin,omitempty" protobuf:"bytes,7,name=pullRequest"`
 
 	// Selector allows to post-filter all generator.
 	Selector *metav1.LabelSelector `json:"selector,omitempty" protobuf:"bytes,8,name=selector"`
@@ -433,22 +432,6 @@ type SCMProviderGenerator struct {
 	// Values contains key/value pairs which are passed directly as parameters to the template
 	Values        map[string]string                  `json:"values,omitempty" protobuf:"bytes,11,name=values"`
 	AWSCodeCommit *SCMProviderGeneratorAWSCodeCommit `json:"awsCodeCommit,omitempty" protobuf:"bytes,12,opt,name=awsCodeCommit"`
-	// If you add a new SCM provider, update CustomApiUrl below.
-}
-
-func (g *SCMProviderGenerator) CustomApiUrl() string {
-	if g.Github != nil {
-		return g.Github.API
-	} else if g.Gitlab != nil {
-		return g.Gitlab.API
-	} else if g.Gitea != nil {
-		return g.Gitea.API
-	} else if g.BitbucketServer != nil {
-		return g.BitbucketServer.API
-	} else if g.AzureDevOps != nil {
-		return g.AzureDevOps.API
-	}
-	return ""
 }
 
 // SCMProviderGeneratorGitea defines a connection info specific to Gitea.
@@ -591,29 +574,6 @@ type PullRequestGenerator struct {
 	Bitbucket           *PullRequestGeneratorBitbucket `json:"bitbucket,omitempty" protobuf:"bytes,8,opt,name=bitbucket"`
 	// Additional provider to use and config for it.
 	AzureDevOps *PullRequestGeneratorAzureDevOps `json:"azuredevops,omitempty" protobuf:"bytes,9,opt,name=azuredevops"`
-	// If you add a new SCM provider, update CustomApiUrl below.
-}
-
-func (p *PullRequestGenerator) CustomApiUrl() string {
-	if p.Github != nil {
-		return p.Github.API
-	}
-	if p.GitLab != nil {
-		return p.GitLab.API
-	}
-	if p.Gitea != nil {
-		return p.Gitea.API
-	}
-	if p.BitbucketServer != nil {
-		return p.BitbucketServer.API
-	}
-	if p.Bitbucket != nil {
-		return p.Bitbucket.API
-	}
-	if p.AzureDevOps != nil {
-		return p.AzureDevOps.API
-	}
-	return ""
 }
 
 // PullRequestGeneratorGitea defines connection info specific to Gitea.
