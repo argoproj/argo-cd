@@ -13,6 +13,7 @@ import (
 	"net/url"
 	"os"
 	"os/exec"
+	"os/signal"
 	"path"
 	"path/filepath"
 	"reflect"
@@ -20,6 +21,7 @@ import (
 	go_runtime "runtime"
 	"strings"
 	gosync "sync"
+	"syscall"
 	"time"
 
 	// nolint:staticcheck
@@ -181,8 +183,9 @@ type ArgoCDServer struct {
 	appsetLister   applisters.ApplicationSetLister
 	db             db.ArgoDB
 
-	// stopCh is the channel which when closed, will shutdown the Argo CD server
-	stopCh            chan struct{}
+	// stopCh is the channel which when closed, will gracefully
+	//shutdown the Argo CD server
+	stopCh            chan os.Signal
 	userStateStorage  util_session.UserStateStorage
 	indexDataInit     gosync.Once
 	indexData         []byte
@@ -193,6 +196,7 @@ type ArgoCDServer struct {
 	configMapInformer cache.SharedIndexInformer
 	serviceSet        *ArgoCDServiceSet
 	extensionManager  *extension.Manager
+	Shutdown          func()
 }
 
 type ArgoCDServerOpts struct {
@@ -300,6 +304,10 @@ func NewServer(ctx context.Context, opts ArgoCDServerOpts) *ArgoCDServer {
 	pg := extension.NewDefaultProjectGetter(projLister, dbInstance)
 	em := extension.NewManager(logger, sg, ag, pg, enf)
 
+	noopShutdown := func() {
+		log.Error("API Server Shutdown function called but server is not started yet.")
+	}
+
 	a := &ArgoCDServer{
 		ArgoCDServerOpts:  opts,
 		log:               logger,
@@ -321,6 +329,7 @@ func NewServer(ctx context.Context, opts ArgoCDServerOpts) *ArgoCDServer {
 		secretInformer:    secretInformer,
 		configMapInformer: configMapInformer,
 		extensionManager:  em,
+		Shutdown:          noopShutdown,
 	}
 
 	err = a.logInClusterWarnings()
@@ -563,8 +572,85 @@ func (a *ArgoCDServer) Run(ctx context.Context, listeners *Listeners) {
 		log.Fatal("Timed out waiting for project cache to sync")
 	}
 
-	a.stopCh = make(chan struct{})
-	<-a.stopCh
+	shutdownFunc := func() {
+		log.Info("API Server shutdown initiated. Shutting down servers...")
+		sCtx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+		defer cancel()
+		var wg gosync.WaitGroup
+
+		// Shutdown http server
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			err := httpS.Shutdown(sCtx)
+			if err != nil {
+				log.Errorf("Error shutting down http server: %s", err)
+			}
+		}()
+
+		// Shutdown https server
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			err := httpsS.Shutdown(sCtx)
+			if err != nil {
+				log.Errorf("Error shutting down https server: %s", err)
+			}
+		}()
+
+		// Shutdown gRPC server
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			grpcS.GracefulStop()
+		}()
+
+		// Shutdown metrics server
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			err := metricsServ.Shutdown(sCtx)
+			if err != nil {
+				log.Errorf("Error shutting down metrics server: %s", err)
+			}
+		}()
+
+		// Shutdown tls server
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			tlsm.Close()
+		}()
+
+		// Shutdown tcp server
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			tcpm.Close()
+		}()
+
+		c := make(chan struct{})
+		// This goroutine will wait for all servers to conclude the shutdown
+		// process
+		go func() {
+			defer close(c)
+			wg.Wait()
+		}()
+
+		select {
+		case <-c:
+			log.Info("All servers were gracefully shutdown. Exiting...")
+		case <-sCtx.Done():
+			log.Warn("Graceful shutdown timeout. Exiting...")
+		}
+	}
+	a.Shutdown = shutdownFunc
+
+	a.stopCh = make(chan os.Signal, 1)
+	signal.Notify(a.stopCh, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
+	signal := <-a.stopCh
+	log.Infof("API Server received signal: %s", signal.String())
+	a.Shutdown()
 }
 
 func (a *ArgoCDServer) Initialized() bool {
@@ -574,24 +660,13 @@ func (a *ArgoCDServer) Initialized() bool {
 // checkServeErr checks the error from a .Serve() call to decide if it was a graceful shutdown
 func (a *ArgoCDServer) checkServeErr(name string, err error) {
 	if err != nil {
-		if a.stopCh == nil {
-			// a nil stopCh indicates a graceful shutdown
-			log.Infof("graceful shutdown %s: %v", name, err)
+		if err == http.ErrServerClosed {
+			log.Infof("Graceful shutdown of %s initiated", name)
 		} else {
-			log.Fatalf("%s: %v", name, err)
+			log.Errorf("Error received from server %s: %v", name, err)
 		}
 	} else {
-		log.Infof("graceful shutdown %s", name)
-	}
-}
-
-// Shutdown stops the Argo CD server
-func (a *ArgoCDServer) Shutdown() {
-	log.Info("Shut down requested")
-	stopCh := a.stopCh
-	a.stopCh = nil
-	if stopCh != nil {
-		close(stopCh)
+		log.Infof("Graceful shutdown of %s initiated", name)
 	}
 }
 
