@@ -91,7 +91,7 @@ export const ApplicationResourceList = ({
                                     </div>
                                 </div>
                                 <div className='columns small-2 xxxlarge-1 application-details__item'>
-                                    <span className="application-details__item_text">{res.name}</span>
+                                    <span className='application-details__item_text'>{res.name}</span>
                                     {res.kind === 'Application' && (
                                         <Consumer>
                                             {ctx => (
