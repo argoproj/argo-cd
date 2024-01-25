@@ -171,6 +171,8 @@ func (o *oidcConfig) toExported() *OIDCConfig {
 		LogoutURL:                o.LogoutURL,
 		RootCA:                   o.RootCA,
 		EnablePKCEAuthentication: o.EnablePKCEAuthentication,
+		DeviceURL:                o.DeviceURL,
+		TokenURL:                 o.TokenURL,
 	}
 }
 
@@ -188,6 +190,8 @@ type OIDCConfig struct {
 	LogoutURL                string                 `json:"logoutURL,omitempty"`
 	RootCA                   string                 `json:"rootCA,omitempty"`
 	EnablePKCEAuthentication bool                   `json:"enablePKCEAuthentication,omitempty"`
+	DeviceURL                string                 `json:"deviceURL,omitempty"`
+	TokenURL                 string                 `json:"tokenURL,omitempty"`
 }
 
 // DEPRECATED. Helm repository credentials are now managed using RepoCredentials
