@@ -1,12 +1,16 @@
 package commands
 
 import (
+	"bufio"
 	"context"
 	"crypto/sha256"
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"html"
+	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
@@ -46,6 +50,7 @@ func NewLoginCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 		ssoPort          int
 		skipTestTLS      bool
 		ssoLaunchBrowser bool
+		browserless      bool
 	)
 	command := &cobra.Command{
 		Use:   "login SERVER",
@@ -139,7 +144,11 @@ argocd login cd.argoproj.io --core`,
 					errors.CheckError(err)
 					oauth2conf, provider, err := acdClient.OIDCConfig(ctx, acdSet)
 					errors.CheckError(err)
-					tokenString, refreshToken = oauth2Login(ctx, callback, ssoPort, acdSet.GetOIDCConfig(), oauth2conf, provider, ssoLaunchBrowser, acdSet.GetDexConfig().GetDexAuthConnectorID())
+					if !browserless {
+						tokenString, refreshToken = oauth2Login(ctx, callback, ssoPort, acdSet.GetOIDCConfig(), oauth2conf, provider, ssoLaunchBrowser, acdSet.GetDexConfig().GetDexAuthConnectorID())
+					} else {
+						tokenString, refreshToken = oauth2LoginBrowserless(ctx, acdSet.GetOIDCConfig(), oauth2conf)
+					}
 				}
 				parser := jwt.NewParser(jwt.WithoutClaimsValidation())
 				claims := jwt.MapClaims{}
@@ -185,6 +194,7 @@ argocd login cd.argoproj.io --core`,
 	command.Flags().StringVar(&username, "username", "", "The username of an account to authenticate")
 	command.Flags().StringVar(&password, "password", "", "The password of an account to authenticate")
 	command.Flags().BoolVar(&sso, "sso", false, "Perform SSO login")
+	command.Flags().BoolVar(&browserless, "browserless", false, "Perform SSO login without a browser")
 	command.Flags().IntVar(&ssoPort, "sso-port", DefaultSSOLocalPort, "Port to run local OAuth2 login application")
 	command.Flags().StringVar(&callback, "callback", "", "Scheme, Host and Port for the callback URL")
 	command.Flags().BoolVar(&skipTestTLS, "skip-test-tls", false, "Skip testing whether the server is configured with TLS (this can help when the command hangs for no apparent reason)")
@@ -362,6 +372,82 @@ func oauth2Login(
 	ctx, cancel := context.WithTimeout(ctx, 1*time.Second)
 	defer cancel()
 	_ = srv.Shutdown(ctx)
+	log.Debugf("Token: %s", tokenString)
+	log.Debugf("Refresh Token: %s", refreshToken)
+	return tokenString, refreshToken
+}
+
+func oauth2LoginBrowserless(
+	ctx context.Context,
+	oidcSettings *settingspkg.OIDCConfig,
+	oauth2conf *oauth2.Config,
+) (string, string) {
+	httpClient := &http.Client{}
+	data := url.Values{}
+	data.Set("client_id", oauth2conf.ClientID)
+	deviceCodeRequest, _ := http.NewRequest("POST", oidcSettings.DeviceURL, strings.NewReader(data.Encode()))
+	deviceCodeRequest.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+
+	deviceCodeResponse, err := httpClient.Do(deviceCodeRequest)
+	if err != nil {
+		log.Fatalf("Failed to get a device code: %s", err.Error())
+	}
+
+	if deviceCodeResponse.StatusCode != 200 {
+		log.Fatalf("Failed to get a device code: %s", deviceCodeResponse.Status)
+	}
+
+	deviceCodeResponseBody := oidcutil.OIDCDeviceCodeResponseBody{}
+	decoder := json.NewDecoder(deviceCodeResponse.Body)
+	for {
+		if err := decoder.Decode(&deviceCodeResponseBody); err == io.EOF {
+			break
+		} else if err != nil {
+			log.Fatal(err)
+		}
+	}
+
+	fmt.Printf("Authenticate at the identity provider using the following URL: '%s'\nHit enter when you have authenticated.\n", deviceCodeResponseBody.VerificationUriComplete)
+	_, err = bufio.NewReader(os.Stdin).ReadBytes('\n')
+
+	if err != nil {
+		log.Fatalf("Failed to get a device code: %s", err.Error())
+	}
+
+	data = url.Values{}
+	grant_type := "urn:ietf:params:oauth:grant-type:device_code"
+	data.Set("client_id", oauth2conf.ClientID)
+	data.Set("grant_type", grant_type)
+	data.Set("device_code", deviceCodeResponseBody.DeviceCode)
+
+	tokenRequest, _ := http.NewRequest("POST", oidcSettings.TokenURL, strings.NewReader(data.Encode()))
+	tokenRequest.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+	tokenResponse, err := httpClient.Do(tokenRequest)
+
+	if err != nil {
+		log.Fatalf("Failed to get an access token: %s", err.Error())
+	}
+
+	if tokenResponse.StatusCode != 200 {
+		log.Fatalf("Failed to get an access token: %s", tokenResponse.Status)
+	}
+
+	tokenResponseBody := oidcutil.OIDCTokenResponseBody{}
+	decoder = json.NewDecoder(tokenResponse.Body)
+	for {
+		if err := decoder.Decode(&tokenResponseBody); err == io.EOF {
+			break
+		} else if err != nil {
+			log.Fatal(err)
+		}
+	}
+
+	tokenString := tokenResponseBody.AccessToken
+	refreshToken := tokenResponseBody.RefreshToken
+
+	fmt.Printf("Authentication successful\n")
+	_, cancel := context.WithTimeout(ctx, 1*time.Second)
+	defer cancel()
 	log.Debugf("Token: %s", tokenString)
 	log.Debugf("Refresh Token: %s", refreshToken)
 	return tokenString, refreshToken

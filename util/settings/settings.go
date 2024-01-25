@@ -230,6 +230,8 @@ func (o *oidcConfig) toExported() *OIDCConfig {
 		RootCA:                   o.RootCA,
 		EnablePKCEAuthentication: o.EnablePKCEAuthentication,
 		DomainHint:               o.DomainHint,
+		DeviceURL:                o.DeviceURL,
+		TokenURL:                 o.TokenURL,
 	}
 }
 
@@ -251,6 +253,28 @@ type OIDCConfig struct {
 	DomainHint               string                 `json:"domainHint,omitempty"`
 	Azure                    *AzureOIDCConfig       `json:"azure,omitempty"`
 	RefreshTokenThreshold    string                 `json:"refreshTokenThreshold,omitempty"`
+	DeviceURL                string                 `json:"deviceURL,omitempty"`
+	TokenURL                 string                 `json:"tokenURL,omitempty"`
+}
+
+// DEPRECATED. Helm repository credentials are now managed using RepoCredentials
+type HelmRepoCredentials struct {
+	URL            string                   `json:"url,omitempty"`
+	Name           string                   `json:"name,omitempty"`
+	UsernameSecret *apiv1.SecretKeySelector `json:"usernameSecret,omitempty"`
+	PasswordSecret *apiv1.SecretKeySelector `json:"passwordSecret,omitempty"`
+	CertSecret     *apiv1.SecretKeySelector `json:"certSecret,omitempty"`
+	KeySecret      *apiv1.SecretKeySelector `json:"keySecret,omitempty"`
+}
+
+// KustomizeVersion holds information about additional Kustomize version
+type KustomizeVersion struct {
+	// Name holds Kustomize version name
+	Name string
+	// Path holds corresponding binary path
+	Path string
+	// BuildOptions that are specific to Kustomize version
+	BuildOptions string
 }
 
 type AzureOIDCConfig struct {

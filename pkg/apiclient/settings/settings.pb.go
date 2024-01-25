@@ -708,6 +708,8 @@ type OIDCConfig struct {
 	Scopes                   []string               `protobuf:"bytes,5,rep,name=scopes,proto3" json:"scopes,omitempty"`
 	IDTokenClaims            map[string]*oidc.Claim `protobuf:"bytes,6,rep,name=idTokenClaims,proto3" json:"idTokenClaims,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
 	EnablePKCEAuthentication bool                   `protobuf:"varint,7,opt,name=enablePKCEAuthentication,proto3" json:"enablePKCEAuthentication,omitempty"`
+	DeviceURL                string                 `protobuf:"bytes,8,opt,name=deviceURL,proto3" json:"deviceURL,omitempty"`
+	TokenURL                 string                 `protobuf:"bytes,9,opt,name=tokenURL,proto3" json:"tokenURL,omitempty"`
 	XXX_NoUnkeyedLiteral     struct{}               `json:"-"`
 	XXX_unrecognized         []byte                 `json:"-"`
 	XXX_sizecache            int32                  `json:"-"`
@@ -793,6 +795,20 @@ func (m *OIDCConfig) GetEnablePKCEAuthentication() bool {
 		return m.EnablePKCEAuthentication
 	}
 	return false
+}
+
+func (m *OIDCConfig) GetDeviceURL() string {
+	if m != nil {
+		return m.DeviceURL
+	}
+	return ""
+}
+
+func (m *OIDCConfig) GetTokenURL() string {
+	if m != nil {
+		return m.TokenURL
+	}
+	return ""
 }
 
 func init() {
@@ -1715,6 +1731,20 @@ func (m *OIDCConfig) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 		i -= len(m.XXX_unrecognized)
 		copy(dAtA[i:], m.XXX_unrecognized)
 	}
+	if len(m.TokenURL) > 0 {
+		i -= len(m.TokenURL)
+		copy(dAtA[i:], m.TokenURL)
+		i = encodeVarintSettings(dAtA, i, uint64(len(m.TokenURL)))
+		i--
+		dAtA[i] = 0x4a
+	}
+	if len(m.DeviceURL) > 0 {
+		i -= len(m.DeviceURL)
+		copy(dAtA[i:], m.DeviceURL)
+		i = encodeVarintSettings(dAtA, i, uint64(len(m.DeviceURL)))
+		i--
+		dAtA[i] = 0x42
+	}
 	if m.EnablePKCEAuthentication {
 		i--
 		if m.EnablePKCEAuthentication {
@@ -2128,6 +2158,14 @@ func (m *OIDCConfig) Size() (n int) {
 	}
 	if m.EnablePKCEAuthentication {
 		n += 2
+	}
+	l = len(m.DeviceURL)
+	if l > 0 {
+		n += 1 + l + sovSettings(uint64(l))
+	}
+	l = len(m.TokenURL)
+	if l > 0 {
+		n += 1 + l + sovSettings(uint64(l))
 	}
 	if m.XXX_unrecognized != nil {
 		n += len(m.XXX_unrecognized)
@@ -4363,6 +4401,70 @@ func (m *OIDCConfig) Unmarshal(dAtA []byte) error {
 				}
 			}
 			m.EnablePKCEAuthentication = bool(v != 0)
+		case 8:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field DeviceURL", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowSettings
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthSettings
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthSettings
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.DeviceURL = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 9:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field TokenURL", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowSettings
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthSettings
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthSettings
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.TokenURL = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
 			skippy, err := skipSettings(dAtA[iNdEx:])
