@@ -24,9 +24,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/healthz"
 	"github.com/argoproj/argo-cd/v2/util/profile"
 
-	"k8s.io/component-base/metrics/legacyregistry"
-	// make sure to register workqueue prometheus metrics
-	_ "k8s.io/component-base/metrics/prometheus/workqueue"
+	ctrl_metrics "sigs.k8s.io/controller-runtime/pkg/metrics"
 )
 
 type MetricsServer struct {
@@ -167,8 +165,10 @@ func NewMetricsServer(addr string, appLister applister.ApplicationLister, appFil
 	mux.Handle(MetricsPath, promhttp.HandlerFor(prometheus.Gatherers{
 		// contains app controller specific metrics
 		registry,
-		// contains process, golang and controller workqueues metrics
-		legacyregistry.DefaultGatherer,
+		// contains process and golang metrics
+		prometheus.DefaultGatherer,
+		// contains workqueue metrics
+		ctrl_metrics.Registry,
 	}, promhttp.HandlerOpts{}))
 	profile.RegisterProfiler(mux)
 	healthz.ServeHealthCheck(mux, healthCheck)
