@@ -10,7 +10,6 @@ if obj.status ~= nil then
       end
       --  Let's check if things are healthy with the CRD deployment
       if condition.type == "Ready" and condition.status == "True" then
-        -- Let's check if the Integration phase is in "Running" since the CRD is reporting success
         hs.status = "Healthy"
         hs.message = condition.message
         return hs
