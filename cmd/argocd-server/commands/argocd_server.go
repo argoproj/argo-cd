@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"math"
+	"strings"
 	"time"
 
 	"github.com/argoproj/pkg/stats"
@@ -63,6 +64,7 @@ func NewCommand() *cobra.Command {
 		repoServerAddress        string
 		dexServerAddress         string
 		disableAuth              bool
+		contentTypes             string
 		enableGZip               bool
 		tlsConfigCustomizerSrc   func() (tls.ConfigCustomizer, error)
 		cacheSrc                 func() (*servercache.Cache, error)
@@ -170,6 +172,11 @@ func NewCommand() *cobra.Command {
 				baseHRef = rootPath
 			}
 
+			var contentTypesList []string
+			if contentTypes != "" {
+				contentTypesList = strings.Split(contentTypes, ";")
+			}
+
 			argoCDOpts := server.ArgoCDServerOpts{
 				Insecure:              insecure,
 				ListenPort:            listenPort,
@@ -185,6 +192,7 @@ func NewCommand() *cobra.Command {
 				DexServerAddr:         dexServerAddress,
 				DexTLSConfig:          dexTlsConfig,
 				DisableAuth:           disableAuth,
+				ContentTypes:          contentTypesList,
 				EnableGZip:            enableGZip,
 				TLSConfigCustomizer:   tlsConfigCustomizer,
 				Cache:                 cache,
@@ -240,6 +248,7 @@ func NewCommand() *cobra.Command {
 	command.Flags().StringVar(&repoServerAddress, "repo-server", env.StringFromEnv("ARGOCD_SERVER_REPO_SERVER", common.DefaultRepoServerAddr), "Repo server address")
 	command.Flags().StringVar(&dexServerAddress, "dex-server", env.StringFromEnv("ARGOCD_SERVER_DEX_SERVER", common.DefaultDexServerAddr), "Dex server address")
 	command.Flags().BoolVar(&disableAuth, "disable-auth", env.ParseBoolFromEnv("ARGOCD_SERVER_DISABLE_AUTH", false), "Disable client authentication")
+	command.Flags().StringVar(&contentTypes, "api-content-types", env.StringFromEnv("ARGOCD_API_CONTENT_TYPES", "application/json"), "Semicolon separated list of allowed content types for non GET api requests. Any content type is allowed if empty.")
 	command.Flags().BoolVar(&enableGZip, "enable-gzip", env.ParseBoolFromEnv("ARGOCD_SERVER_ENABLE_GZIP", true), "Enable GZIP compression")
 	command.AddCommand(cli.NewVersionCmd(cliName))
 	command.Flags().StringVar(&listenHost, "address", env.StringFromEnv("ARGOCD_SERVER_LISTEN_ADDRESS", common.DefaultAddressAPIServer), "Listen on given address")
