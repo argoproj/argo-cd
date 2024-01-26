@@ -26,7 +26,7 @@ spec:
 ```
 
 Another example using a public OCI helm chart:
-```
+```yaml
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
