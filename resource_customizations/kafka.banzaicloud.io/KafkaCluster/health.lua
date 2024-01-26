@@ -1,17 +1,22 @@
 local health_status = {}
 if obj.status ~= nil then
   if obj.status.brokersState ~= nil then
-    local numberBrokers = 0
-    local healthyBrokers = 0
-    for _, broker in pairs(obj.status.brokersState) do
-      numberBrokers = numberBrokers + 1
-      if broker.configurationState == "ConfigInSync" then
-        if broker.gracefulActionState.cruiseControlState == "GracefulUpscaleSucceeded" or broker.gracefulActionState.cruiseControlState == "GracefulDownscaleSucceeded" then
-          healthyBrokers = healthyBrokers + 1
+    local counter = 0
+    local brokerReady = 0
+    for i, broker in pairs(obj.status.brokersState) do
+        if (brokerReady <= tonumber(i)) then
+            brokerReady = tonumber(i)+1
+        else
+            brokerReady = brokerReady
         end
-      end
+        if broker.configurationState == "ConfigInSync" and broker.gracefulActionState.cruiseControlState == "GracefulUpscaleSucceeded" then
+          counter = counter + 1
+        end
+        if broker.configurationState == "ConfigInSync" and broker.gracefulActionState.cruiseControlState == "GracefulDownscaleSucceeded" then
+          counter = counter + 1
+        end
     end
-    if numberBrokers == healthyBrokers then
+    if counter == brokerReady then
       if obj.status.cruiseControlTopicStatus == "CruiseControlTopicReady" and obj.status.state == "ClusterRunning" then
         health_status.message = "Kafka Brokers, CruiseControl and cluster are in Healthy State."
         health_status.status = "Healthy"

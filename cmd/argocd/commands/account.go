@@ -26,26 +26,12 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/io"
 	"github.com/argoproj/argo-cd/v2/util/localconfig"
 	sessionutil "github.com/argoproj/argo-cd/v2/util/session"
-	"github.com/argoproj/argo-cd/v2/util/templates"
 )
 
 func NewAccountCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var command = &cobra.Command{
 		Use:   "account",
 		Short: "Manage account settings",
-		Example: templates.Examples(`
-			# List accounts
-			argocd account list
-
-			# Update the current user's password
-			argocd account update-password
-
-			# Can I sync any app?
-			argocd account can-i sync applications '*'
-
-			# Get User information
-			argocd account get-user-info
-		`),
 		Run: func(c *cobra.Command, args []string) {
 			c.HelpFunc()(c, args)
 			os.Exit(1)
@@ -157,13 +143,6 @@ func NewAccountGetUserInfoCommand(clientOpts *argocdclient.ClientOptions) *cobra
 	var command = &cobra.Command{
 		Use:   "get-user-info",
 		Short: "Get user info",
-		Example: templates.Examples(`
-			# Get User information for the currently logged-in user (see 'argocd login')
-			argocd account get-user-info
-
-			# Get User information in yaml format
-			argocd account get-user-info -o yaml
-		`),
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
 

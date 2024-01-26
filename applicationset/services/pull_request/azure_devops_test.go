@@ -206,9 +206,9 @@ func TestBuildURL(t *testing.T) {
 		},
 		{
 			name:         "Provided custom URL and organization",
-			url:          "https://azuredevops.example.com/",
+			url:          "https://azuredevops.mycompany.com/",
 			organization: "myorganization",
-			expected:     "https://azuredevops.example.com/myorganization",
+			expected:     "https://azuredevops.mycompany.com/myorganization",
 		},
 	}
 

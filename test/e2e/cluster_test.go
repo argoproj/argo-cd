@@ -38,7 +38,7 @@ https://kubernetes.default.svc  in-cluster  %v     Successful           `, GetVe
 		When().
 		CreateApp()
 
-	tries := 5
+	tries := 2
 	for i := 0; i <= tries; i += 1 {
 		clusterFixture.GivenWithSameState(t).
 			When().

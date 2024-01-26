@@ -272,7 +272,7 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
         {
             title: 'SYNC OPTIONS',
             view: (
-                <div style={{display: 'flex', flexWrap: 'wrap'}}>
+                <div style={{display: 'flex'}}>
                     {((app.spec.syncPolicy || {}).syncOptions || []).map(opt =>
                         opt.endsWith('=true') || opt.endsWith('=false') ? (
                             <div key={opt} style={{marginRight: '10px'}}>
