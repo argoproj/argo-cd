@@ -60,7 +60,7 @@ data:
             server: https://some-cluster
 ```
 
-Note: There is no need to restart Argo CD Server after modifiying the
+Note: There is no need to restart Argo CD Server after modifying the
 `extension.config` entry in Argo CD configmap. Changes will be
 automatically applied. A new proxy registry will be built making
 all new incoming extensions requests (`<argocd-host>/extensions/*`) to
@@ -120,7 +120,7 @@ Is the address where the extension backend must be available.
 
 If provided, the headers list will be added on all outgoing requests
 for this service config. Existing headers in the incoming request with
-the same name will be overriden by the one in this list. Reserved header
+the same name will be overridden by the one in this list. Reserved header
 names will be ignored (see the [headers](#incoming-request-headers) below).
 
 #### `extensions.backend.services.headers.name` (*string*)

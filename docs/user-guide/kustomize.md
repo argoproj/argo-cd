@@ -11,7 +11,7 @@ The following configuration options are available for Kustomize:
 * `commonAnnotations` is a string map of additional annotations
 * `namespace` is a Kubernetes resources namespace
 * `forceCommonAnnotations` is a boolean value which defines if it's allowed to override existing annotations
-* `commonAnnotationsEnvsubst` is a boolean value which enables env variables substition in annotation  values
+* `commonAnnotationsEnvsubst` is a boolean value which enables env variables substitution in annotation  values
 * `patches` is a list of Kustomize patches that supports inline updates
 * `components` is a list of Kustomize components
 
@@ -180,7 +180,7 @@ argocd app set <appName> --kustomize-version v3.5.4
 
 ## Build Environment
 
-Kustomize apps have access to the [standard build environment](build-environment.md) which can be used in combination with a [config managment plugin](../operator-manual/config-management-plugins.md) to alter the rendered manifests.
+Kustomize apps have access to the [standard build environment](build-environment.md) which can be used in combination with a [config management plugin](../operator-manual/config-management-plugins.md) to alter the rendered manifests.
 
 You can use these build environment variables in your Argo CD Application manifests. You can enable this by setting `.spec.source.kustomize.commonAnnotationsEnvsubst` to `true` in your Application manifest.
 
