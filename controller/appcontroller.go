@@ -6,6 +6,7 @@ import (
 	goerrors "errors"
 	"fmt"
 	"math"
+	"math/rand"
 	"net/http"
 	"reflect"
 	"runtime/debug"
@@ -48,7 +49,6 @@ import (
 	"github.com/argoproj/argo-cd/v2/controller/sharding"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
 	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	argov1alpha "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
 	"github.com/argoproj/argo-cd/v2/pkg/client/informers/externalversions/application/v1alpha1"
 	applisters "github.com/argoproj/argo-cd/v2/pkg/client/listers/application/v1alpha1"
@@ -116,6 +116,7 @@ type ApplicationController struct {
 	stateCache                    statecache.LiveStateCache
 	statusRefreshTimeout          time.Duration
 	statusHardRefreshTimeout      time.Duration
+	statusRefreshJitter           time.Duration
 	selfHealTimeout               time.Duration
 	repoClientset                 apiclient.Clientset
 	db                            db.ArgoDB
@@ -140,6 +141,7 @@ func NewApplicationController(
 	kubectl kube.Kubectl,
 	appResyncPeriod time.Duration,
 	appHardResyncPeriod time.Duration,
+	appResyncJitter time.Duration,
 	selfHealTimeout time.Duration,
 	repoErrorGracePeriod time.Duration,
 	metricsPort int,
@@ -152,7 +154,7 @@ func NewApplicationController(
 	rateLimiterConfig *ratelimiter.AppControllerRateLimiterConfig,
 	serverSideDiff bool,
 ) (*ApplicationController, error) {
-	log.Infof("appResyncPeriod=%v, appHardResyncPeriod=%v", appResyncPeriod, appHardResyncPeriod)
+	log.Infof("appResyncPeriod=%v, appHardResyncPeriod=%v, appResyncJitter=%v", appResyncPeriod, appHardResyncPeriod, appResyncJitter)
 	db := db.NewDB(namespace, settingsMgr, kubeClientset)
 	if rateLimiterConfig == nil {
 		rateLimiterConfig = ratelimiter.GetDefaultAppRateLimiterConfig()
@@ -172,6 +174,7 @@ func NewApplicationController(
 		db:                            db,
 		statusRefreshTimeout:          appResyncPeriod,
 		statusHardRefreshTimeout:      appHardResyncPeriod,
+		statusRefreshJitter:           appResyncJitter,
 		refreshRequestedApps:          make(map[string]CompareWith),
 		refreshRequestedAppsMutex:     &sync.Mutex{},
 		auditLogger:                   argo.NewAuditLogger(namespace, kubeClientset, common.ApplicationController),
@@ -1028,7 +1031,7 @@ func (ctrl *ApplicationController) getPermittedAppLiveObjects(app *appv1.Applica
 	return objsMap, nil
 }
 
-func (ctrl *ApplicationController) isValidDestination(app *appv1.Application) (bool, *argov1alpha.Cluster) {
+func (ctrl *ApplicationController) isValidDestination(app *appv1.Application) (bool, *appv1.Cluster) {
 	// Validate the cluster using the Application destination's `name` field, if applicable,
 	// and set the Server field, if needed.
 	if err := argo.ValidateDestination(context.Background(), &app.Spec.Destination, ctrl.db); err != nil {
@@ -1641,6 +1644,7 @@ func (ctrl *ApplicationController) needRefreshAppStatus(app *appv1.Application, 
 	var reason string
 	compareWith := CompareWithLatest
 	refreshType := appv1.RefreshTypeNormal
+
 	softExpired := app.Status.ReconciledAt == nil || app.Status.ReconciledAt.Add(statusRefreshTimeout).Before(time.Now().UTC())
 	hardExpired := (app.Status.ReconciledAt == nil || app.Status.ReconciledAt.Add(statusHardRefreshTimeout).Before(time.Now().UTC())) && statusHardRefreshTimeout.Seconds() != 0
 
@@ -2096,14 +2100,25 @@ func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.Shar
 				if err != nil {
 					return
 				}
+
 				var compareWith *CompareWith
+				var delay *time.Duration
+
 				oldApp, oldOK := old.(*appv1.Application)
 				newApp, newOK := new.(*appv1.Application)
-				if oldOK && newOK && automatedSyncEnabled(oldApp, newApp) {
-					log.WithField("application", newApp.QualifiedName()).Info("Enabled automated sync")
-					compareWith = CompareWithLatest.Pointer()
+				if oldOK && newOK {
+					if automatedSyncEnabled(oldApp, newApp) {
+						log.WithField("application", newApp.QualifiedName()).Info("Enabled automated sync")
+						compareWith = CompareWithLatest.Pointer()
+					}
+					if ctrl.statusRefreshJitter != 0 && oldApp.ResourceVersion == newApp.ResourceVersion {
+						// Handler is refreshing the apps, add a random jitter to spread the load and avoid spikes
+						jitter := time.Duration(float64(ctrl.statusRefreshJitter) * rand.Float64())
+						delay = &jitter
+					}
 				}
-				ctrl.requestAppRefresh(newApp.QualifiedName(), compareWith, nil)
+
+				ctrl.requestAppRefresh(newApp.QualifiedName(), compareWith, delay)
 				ctrl.appOperationQueue.AddRateLimited(key)
 			},
 			DeleteFunc: func(obj interface{}) {
@@ -2192,12 +2207,12 @@ func (ctrl *ApplicationController) toAppQualifiedName(appName, appNamespace stri
 	return fmt.Sprintf("%s/%s", appNamespace, appName)
 }
 
-type ClusterFilterFunction func(c *argov1alpha.Cluster, distributionFunction sharding.DistributionFunction) bool
+type ClusterFilterFunction func(c *appv1.Cluster, distributionFunction sharding.DistributionFunction) bool
 
 // createAppMergePatch calculates the merge patch for two applications.
 // The main meat of this includes special logic required for handling RawUnstructured fields, which MUST be merged
 // using JSON merges, rather than strategic merges (as is default for other items).
-func createAppMergePatch(orig *argov1alpha.Application, new *argov1alpha.Application) ([]byte, bool, error) {
+func createAppMergePatch(orig *appv1.Application, new *appv1.Application) ([]byte, bool, error) {
 	origValuesObject, newValuesObject, origSourceList, newSourceList, hasRawFields := unsetAndSaveRawFields(orig, new)
 	defer resetRawFields(orig, new, origValuesObject, newValuesObject, origSourceList, newSourceList)
 
@@ -2233,9 +2248,9 @@ func createAppMergePatch(orig *argov1alpha.Application, new *argov1alpha.Applica
 
 // unsetAndSaveRawFields unsets all RawExtension fields, and returns them to be merged separately.
 // This can be undone by using resetRawFields.
-func unsetAndSaveRawFields(orig *argov1alpha.Application, new *argov1alpha.Application) (
+func unsetAndSaveRawFields(orig *appv1.Application, new *appv1.Application) (
 	*apiruntime.RawExtension, *apiruntime.RawExtension,
-	argov1alpha.ApplicationSources, argov1alpha.ApplicationSources,
+	appv1.ApplicationSources, appv1.ApplicationSources,
 	bool) {
 	var origValuesObject, newValuesObject *apiruntime.RawExtension
 	if orig.Status.Sync.ComparedTo.Source.Helm != nil {
@@ -2248,7 +2263,7 @@ func unsetAndSaveRawFields(orig *argov1alpha.Application, new *argov1alpha.Appli
 	}
 
 	// We use full ApplicationSources, so the patch can keep track of indexes. This needs to be reverted later.
-	var origSourceList, newSourceList argov1alpha.ApplicationSources
+	var origSourceList, newSourceList appv1.ApplicationSources
 	if len(orig.Status.Sync.ComparedTo.Sources) > 0 {
 		origSourceList, orig.Status.Sync.ComparedTo.Sources =
 			getHelmValueObjSources(orig.Status.Sync.ComparedTo.Sources)
@@ -2264,9 +2279,9 @@ func unsetAndSaveRawFields(orig *argov1alpha.Application, new *argov1alpha.Appli
 }
 
 // resetRawFields re-sets all RawExtension fields, the opposite of unsetAndSaveRawFields.
-func resetRawFields(orig *argov1alpha.Application, new *argov1alpha.Application,
+func resetRawFields(orig *appv1.Application, new *appv1.Application,
 	origVals *apiruntime.RawExtension, newVals *apiruntime.RawExtension,
-	origSourceList argov1alpha.ApplicationSources, newSourceList argov1alpha.ApplicationSources) {
+	origSourceList appv1.ApplicationSources, newSourceList appv1.ApplicationSources) {
 	if orig.Status.Sync.ComparedTo.Source.Helm != nil && origVals != nil {
 		orig.Status.Sync.ComparedTo.Source.Helm.ValuesObject = origVals
 	}
@@ -2288,12 +2303,12 @@ func resetRawFields(orig *argov1alpha.Application, new *argov1alpha.Application,
 // getHelmValueObjSources takes a list of ApplicationSources, and returns two application sources where one contains
 // only Helm.ValuesObject fields, and the second returns all other fields.
 // This is used for calculating JSON patches.
-func getHelmValueObjSources(in argov1alpha.ApplicationSources) (argov1alpha.ApplicationSources, argov1alpha.ApplicationSources) {
-	helmOnly := make(argov1alpha.ApplicationSources, len(in))
-	others := make(argov1alpha.ApplicationSources, len(in))
+func getHelmValueObjSources(in appv1.ApplicationSources) (appv1.ApplicationSources, appv1.ApplicationSources) {
+	helmOnly := make(appv1.ApplicationSources, len(in))
+	others := make(appv1.ApplicationSources, len(in))
 	for idx, s := range in {
 		if s.Helm != nil && s.Helm.ValuesObject != nil {
-			helmOnly[idx].Helm = &argov1alpha.ApplicationSourceHelm{ValuesObject: s.Helm.ValuesObject}
+			helmOnly[idx].Helm = &appv1.ApplicationSourceHelm{ValuesObject: s.Helm.ValuesObject}
 			s.Helm.ValuesObject = nil
 		}
 		others[idx] = s
@@ -2317,7 +2332,7 @@ func jsonCreateMergePatch(orig, new any) ([]byte, bool, error) {
 }
 
 // createMergePatchValuesObject computes a patch just for the Helm.ValuesObject fields, using jsonpatch.
-func createMergePatchValuesObject(orig, new *apiruntime.RawExtension, origSourceList, newSourceList []argov1alpha.ApplicationSource) ([]byte, bool, error) {
+func createMergePatchValuesObject(orig, new *apiruntime.RawExtension, origSourceList, newSourceList []appv1.ApplicationSource) ([]byte, bool, error) {
 	return jsonCreateMergePatch(
 		&appv1.Application{ObjectMeta: metav1.ObjectMeta{}, Status: appv1.ApplicationStatus{
 			Sync: appv1.SyncStatus{

@@ -221,6 +221,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [Pigment](https://www.gopigment.com/)
 1. [Pipefy](https://www.pipefy.com/)
 1. [Pismo](https://pismo.io/)
+1. [PITS Globale Datenrettungsdienste](https://www.pitsdatenrettung.de/)
 1. [Platform9 Systems](https://platform9.com/)
 1. [Polarpoint.io](https://polarpoint.io)
 1. [PostFinance](https://github.com/postfinance)

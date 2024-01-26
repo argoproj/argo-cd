@@ -146,6 +146,7 @@ func newFakeController(data *fakeData, repoErr error) *ApplicationController {
 		kubectl,
 		time.Minute,
 		time.Hour,
+		time.Second,
 		time.Minute,
 		time.Second*10,
 		common.DefaultPortArgoCDMetrics,
@@ -156,6 +157,7 @@ func newFakeController(data *fakeData, repoErr error) *ApplicationController {
 		nil,
 		data.applicationNamespaces,
 		nil,
+
 		false,
 	)
 	db := &dbmocks.ArgoDB{}
