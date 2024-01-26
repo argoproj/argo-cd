@@ -146,10 +146,12 @@ export class PodView extends React.Component<PodViewProps> {
                                                                             <div>
                                                                                 {Object.keys(group.hostLabels || []).map(label => (
                                                                                     <div className='row' key={label}>
-                                                                                        <div className='columns' style={{overflow: 'auto', flexGrow: 2}}>
+                                                                                        <div className='columns' style={{overflow: 'auto', textOverflow: 'ellipsis', flexGrow: 2}}>
                                                                                             {label}
                                                                                         </div>
-                                                                                        <div className='columns' style={{overflow: 'auto', alignSelf: 'flex-end'}}>
+                                                                                        <div
+                                                                                            className='columns'
+                                                                                            style={{overflow: 'auto', textOverflow: 'ellipsis', alignSelf: 'flex-end'}}>
                                                                                             {group.hostLabels[label]}
                                                                                         </div>
                                                                                     </div>
