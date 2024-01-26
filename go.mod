@@ -281,7 +281,7 @@ require (
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/warnings.v0 v0.1.2 // indirect
 	k8s.io/cli-runtime v0.26.11 // indirect
-	k8s.io/component-base v0.26.11 // indirect
+	k8s.io/component-base v0.26.11
 	k8s.io/component-helpers v0.26.11 // indirect
 	k8s.io/gengo v0.0.0-20220902162205-c0856e24416d // indirect
 	k8s.io/kube-aggregator v0.26.4 // indirect
