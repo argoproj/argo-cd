@@ -779,7 +779,13 @@ func (ctrl *ApplicationController) Run(ctx context.Context, statusProcessors int
 	if err != nil {
 		log.Warnf("Cannot init sharding. Error while querying clusters list from database: %v", err)
 	} else {
-		ctrl.clusterSharding.Init(clusters)
+		appItems, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(ctrl.namespace).List(ctx, metav1.ListOptions{})
+		if err != nil {
+			log.Warnf("Cannot init sharding. Error while querying application list from database: %v", err)
+		} else {
+			log.Info(appItems)
+			ctrl.clusterSharding.Init(clusters, appItems)
+		}
 	}
 
 	errors.CheckError(ctrl.stateCache.Init())
@@ -2089,6 +2095,10 @@ func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.Shar
 					ctrl.appRefreshQueue.AddRateLimited(key)
 					ctrl.appOperationQueue.AddRateLimited(key)
 				}
+				newApp, newOK := obj.(*appv1.Application)
+				if err == nil && newOK {
+					ctrl.clusterSharding.AddApp(newApp)
+				}
 			},
 			UpdateFunc: func(old, new interface{}) {
 				if !ctrl.canProcessApp(new) {
@@ -2119,6 +2129,7 @@ func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.Shar
 
 				ctrl.requestAppRefresh(newApp.QualifiedName(), compareWith, delay)
 				ctrl.appOperationQueue.AddRateLimited(key)
+				ctrl.clusterSharding.UpdateApp(newApp)
 			},
 			DeleteFunc: func(obj interface{}) {
 				if !ctrl.canProcessApp(obj) {
@@ -2130,6 +2141,10 @@ func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.Shar
 				if err == nil {
 					// for deletes, we immediately add to the refresh queue
 					ctrl.appRefreshQueue.Add(key)
+				}
+				delApp, delOK := obj.(*appv1.Application)
+				if err == nil && delOK {
+					ctrl.clusterSharding.DeleteApp(delApp)
 				}
 			},
 		},

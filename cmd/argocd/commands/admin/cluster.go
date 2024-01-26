@@ -86,8 +86,12 @@ func loadClusters(ctx context.Context, kubeClient *kubernetes.Clientset, appClie
 	if err != nil {
 		return nil, err
 	}
+	appItems, err := appClient.ArgoprojV1alpha1().Applications(namespace).List(ctx, v1.ListOptions{})
+	if err != nil {
+		return nil, err
+	}
 	clusterShardingCache := sharding.NewClusterSharding(argoDB, shard, replicas, shardingAlgorithm)
-	clusterShardingCache.Init(clustersList)
+	clusterShardingCache.Init(clustersList, appItems)
 	clusterShards := clusterShardingCache.GetDistribution()
 
 	var cache *appstatecache.Cache
@@ -113,10 +117,6 @@ func loadClusters(ctx context.Context, kubeClient *kubernetes.Clientset, appClie
 		}
 	}
 
-	appItems, err := appClient.ArgoprojV1alpha1().Applications(namespace).List(ctx, v1.ListOptions{})
-	if err != nil {
-		return nil, err
-	}
 	apps := appItems.Items
 	for i, app := range apps {
 		err := argo.ValidateDestination(ctx, &app.Spec.Destination, argoDB)
@@ -146,7 +146,7 @@ func loadClusters(ctx context.Context, kubeClient *kubernetes.Clientset, appClie
 			clusterShard := 0
 			cluster := batch[i]
 			if replicas > 0 {
-				distributionFunction := sharding.GetDistributionFunction(clusterSharding.GetClusterAccessor(), common.DefaultShardingAlgorithm, replicas)
+				distributionFunction := sharding.GetDistributionFunction(clusterSharding.GetClusterAccessor(), clusterSharding.GetAppAccessor(), common.DefaultShardingAlgorithm, replicas)
 				distributionFunction(&cluster)
 				clusterShard := clusterShards[cluster.Server]
 				cluster.Shard = pointer.Int64(int64(clusterShard))
