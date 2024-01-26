@@ -2,6 +2,7 @@ package metrics
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"net/http"
 	"net/http/httptest"
@@ -15,6 +16,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/cache"
+	"k8s.io/client-go/util/workqueue"
 	"sigs.k8s.io/yaml"
 
 	argoappv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
@@ -360,7 +362,7 @@ func assertMetricsPrinted(t *testing.T, expectedLines, body string) {
 		if line == "" {
 			continue
 		}
-		assert.Contains(t, body, line, "expected metrics mismatch")
+		assert.Contains(t, body, line, fmt.Sprintf("expected metrics mismatch for line: %s", line))
 	}
 }
 
@@ -442,4 +444,70 @@ argocd_app_sync_total{dest_server="https://localhost:6443",name="my-app",namespa
 	assertMetricsNotPrinted(t, appSyncTotal, body)
 	err = metricsServ.SetExpiration(time.Second)
 	assert.Error(t, err)
+}
+
+func TestWorkqueueMetrics(t *testing.T) {
+	cancel, appLister := newFakeLister()
+	defer cancel()
+	metricsServ, err := NewMetricsServer("localhost:8082", appLister, appFilter, noOpHealthCheck, []string{})
+	assert.NoError(t, err)
+
+	expectedMetrics := `
+# TYPE workqueue_adds_total counter
+workqueue_adds_total{name="test"}
+
+# TYPE workqueue_depth gauge
+workqueue_depth{name="test"}
+
+# TYPE workqueue_longest_running_processor_seconds gauge
+workqueue_longest_running_processor_seconds{name="test"}
+
+# TYPE workqueue_queue_duration_seconds histogram
+
+# TYPE workqueue_unfinished_work_seconds gauge
+workqueue_unfinished_work_seconds{name="test"}
+
+# TYPE workqueue_work_duration_seconds histogram
+`
+	workqueue.NewNamed("test")
+
+	req, err := http.NewRequest(http.MethodGet, "/metrics", nil)
+	assert.NoError(t, err)
+	rr := httptest.NewRecorder()
+	metricsServ.Handler.ServeHTTP(rr, req)
+	assert.Equal(t, rr.Code, http.StatusOK)
+	body := rr.Body.String()
+	log.Println(body)
+	assertMetricsPrinted(t, expectedMetrics, body)
+}
+
+func TestGoMetrics(t *testing.T) {
+	cancel, appLister := newFakeLister()
+	defer cancel()
+	metricsServ, err := NewMetricsServer("localhost:8082", appLister, appFilter, noOpHealthCheck, []string{})
+	assert.NoError(t, err)
+
+	expectedMetrics := `
+# TYPE go_gc_duration_seconds summary
+go_gc_duration_seconds_sum
+go_gc_duration_seconds_count
+# TYPE go_goroutines gauge
+go_goroutines
+# TYPE go_info gauge
+go_info
+# TYPE go_memstats_alloc_bytes gauge
+go_memstats_alloc_bytes
+# TYPE go_memstats_sys_bytes gauge
+go_memstats_sys_bytes
+# TYPE go_threads gauge
+go_threads
+`
+	req, err := http.NewRequest(http.MethodGet, "/metrics", nil)
+	assert.NoError(t, err)
+	rr := httptest.NewRecorder()
+	metricsServ.Handler.ServeHTTP(rr, req)
+	assert.Equal(t, rr.Code, http.StatusOK)
+	body := rr.Body.String()
+	log.Println(body)
+	assertMetricsPrinted(t, expectedMetrics, body)
 }
