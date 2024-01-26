@@ -810,7 +810,7 @@ func printProjectNames(projects []v1alpha1.AppProject) {
 // Print table of project info
 func printProjectTable(projects []v1alpha1.AppProject) {
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintf(w, "NAME\tDESCRIPTION\tDESTINATIONS\tSOURCES\tCLUSTER-RESOURCE-WHITELIST\tNAMESPACE-RESOURCE-BLACKLIST\tSIGNATURE-KEYS\tORPHANED-RESOURCES\tDESTINATION-SERVICE-ACCOUNTS\n")
+	fmt.Fprintf(w, "NAME\tDESCRIPTION\tDESTINATIONS\tSOURCES\tCLUSTER-RESOURCE-WHITELIST\tNAMESPACE-RESOURCE-BLACKLIST\tSIGNATURE-KEYS\tORPHANED-RESOURCES\tDESTINATION-SERVICE-ACCOUNTS\tALLOWED-NODE-LABELS\n")
 	for _, p := range projects {
 		printProjectLine(w, &p)
 	}
@@ -866,7 +866,7 @@ func formatOrphanedResources(p *v1alpha1.AppProject) string {
 }
 
 func printProjectLine(w io.Writer, p *v1alpha1.AppProject) {
-	var destinations, destinationServiceAccounts, sourceRepos, clusterWhitelist, namespaceBlacklist, signatureKeys string
+	var destinations, destinationServiceAccounts, sourceRepos, clusterWhitelist, namespaceBlacklist, signatureKeys, allowedNodeLabels string
 	switch len(p.Spec.Destinations) {
 	case 0:
 		destinations = "<none>"
@@ -911,7 +911,13 @@ func printProjectLine(w io.Writer, p *v1alpha1.AppProject) {
 	default:
 		signatureKeys = fmt.Sprintf("%d key(s)", len(p.Spec.SignatureKeys))
 	}
-	fmt.Fprintf(w, "%s\t%s\t%v\t%v\t%v\t%v\t%v\t%v\t%v\n", p.Name, p.Spec.Description, destinations, sourceRepos, clusterWhitelist, namespaceBlacklist, signatureKeys, formatOrphanedResources(p), destinationServiceAccounts)
+	switch len(p.Spec.AllowedNodeLabels) {
+	case 0:
+		allowedNodeLabels = "<none>"
+	default:
+		allowedNodeLabels = fmt.Sprintf("%d label(s)", len(p.Spec.AllowedNodeLabels))
+	}
+	fmt.Fprintf(w, "%s\t%s\t%v\t%v\t%v\t%v\t%v\t%v\t%v\t%v\n", p.Name, p.Spec.Description, destinations, sourceRepos, clusterWhitelist, namespaceBlacklist, signatureKeys, formatOrphanedResources(p), destinationServiceAccounts, allowedNodeLabels)
 }
 
 func printProject(p *v1alpha1.AppProject, scopedRepositories []*v1alpha1.Repository, scopedClusters []*v1alpha1.Cluster) {
