@@ -1,0 +1,21 @@
+apiVersion: core.humio.com/v1alpha1
+kind: HumioAction
+metadata:
+  annotations:
+  creationTimestamp: '2022-12-08T02:03:07Z'
+  generation: 1
+  labels:
+    app.kubernetes.io/instance: humio-deploy
+  name: test-action-1
+  namespace: humio
+  resourceVersion: '10768054'
+  uid: f339ddf1-3b3e-49e0-80cc-7f583dce532e
+spec:
+  humioRepositoryProperties:
+    ingestTokenSource:
+      secretKeyRef:
+        key: test-token
+        name: token
+  managedClusterName: example-humiocluster
+  name: trigger_action
+  viewName: example-1
