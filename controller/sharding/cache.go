@@ -26,7 +26,7 @@ type ClusterSharding struct {
 	Replicas        int
 	Shards          map[string]int
 	Clusters        map[string]*v1alpha1.Cluster
-	Apps			map[string]*v1alpha1.Application
+	Apps            map[string]*v1alpha1.Application
 	lock            sync.RWMutex
 	getClusterShard DistributionFunction
 }
@@ -77,7 +77,7 @@ func (sharding *ClusterSharding) Init(clusters *v1alpha1.ClusterList, apps *v1al
 	}
 	sharding.Clusters = newClusters
 	newApps := make(map[string]*v1alpha1.Application, len(apps.Items))
-	for i, _ := range apps.Items {
+	for i := range apps.Items {
 		app := apps.Items[i]
 		newApps[app.Name] = &app
 	}
