@@ -705,7 +705,7 @@ func TestAppAwareCache(t *testing.T) {
 	app6 := createApp("app6", "cluster4")
 	clusterSharding.AddApp(&app6)
 
-	app1Update := createApp("app1","cluster2")
+	app1Update := createApp("app1", "cluster2")
 	clusterSharding.UpdateApp(&app1Update)
 
 	clusterSharding.DeleteApp(&app3)
