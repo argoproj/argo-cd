@@ -18,6 +18,7 @@ type ClusterShardingCache interface {
 	UpdateApp(a *v1alpha1.Application)
 	IsManagedCluster(c *v1alpha1.Cluster) bool
 	GetDistribution() map[string]int
+	GetAppDistribution() map[string]int
 }
 
 type ClusterSharding struct {

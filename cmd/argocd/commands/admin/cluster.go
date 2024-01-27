@@ -134,6 +134,7 @@ func loadClusters(ctx context.Context, kubeClient *kubernetes.Clientset, appClie
 		Replicas: replicas,
 		Shards:   make(map[string]int),
 		Clusters: make(map[string]*v1alpha1.Cluster),
+		Apps:	  make(map[string]*v1alpha1.Application),
 	}
 	for batchNum := 0; batchNum < batchesCount; batchNum++ {
 		batchStart := batchSize * batchNum
