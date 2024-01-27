@@ -686,7 +686,7 @@ func Test_getOrUpdateShardNumberForController(t *testing.T) {
 	}
 }
 
-func Test_getAppDistribution(t *testing.T) {
+func TestAppAwareCache(t *testing.T) {
 	_, db, cluster1, cluster2, cluster3, cluster4, cluster5 := createTestClusters()
 	_, app1, app2, app3, app4, app5 := createTestApps()
 
@@ -701,6 +701,21 @@ func Test_getAppDistribution(t *testing.T) {
 	assert.Equal(t, 2, appDistribution["cluster1"])
 	assert.Equal(t, 2, appDistribution["cluster2"])
 	assert.Equal(t, 1, appDistribution["cluster3"])
+
+	app6 := createApp("app6", "cluster4")
+	clusterSharding.AddApp(&app6)
+
+	app1Update := createApp("app1","cluster2")
+	clusterSharding.UpdateApp(&app1Update)
+
+	clusterSharding.DeleteApp(&app3)
+
+	appDistribution = clusterSharding.GetAppDistribution()
+
+	assert.Equal(t, 1, appDistribution["cluster1"])
+	assert.Equal(t, 2, appDistribution["cluster2"])
+	assert.Equal(t, 1, appDistribution["cluster3"])
+	assert.Equal(t, 1, appDistribution["cluster4"])
 }
 
 func createTestApps() (appAccessor, v1alpha1.Application, v1alpha1.Application, v1alpha1.Application, v1alpha1.Application, v1alpha1.Application) {
