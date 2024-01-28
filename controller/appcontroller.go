@@ -1720,7 +1720,7 @@ func (ctrl *ApplicationController) normalizeApplication(orig, app *appv1.Applica
 	logCtx := log.WithFields(log.Fields{"application": app.QualifiedName()})
 	app.Spec = *argo.NormalizeApplicationSpec(&app.Spec)
 
-	patch, modified, err := diff.CreateTwoWayMergePatch(orig, app, appv1.Application{})
+	patch, modified, err := CreateAppMergePatch(orig, app)
 
 	if err != nil {
 		logCtx.Errorf("error constructing app spec patch: %v", err)
@@ -1755,7 +1755,7 @@ func (ctrl *ApplicationController) persistAppStatus(orig *appv1.Application, new
 	}
 
 	// Only create merge patch for annotations+status.
-	patch, modified, err := createAppMergePatch(
+	patch, modified, err := CreateAppMergePatch(
 		&appv1.Application{ObjectMeta: metav1.ObjectMeta{Annotations: orig.GetAnnotations()}, Status: orig.Status},
 		&appv1.Application{ObjectMeta: metav1.ObjectMeta{Annotations: newAnnotations}, Status: *newStatus})
 	if err != nil {
@@ -2209,10 +2209,10 @@ func (ctrl *ApplicationController) toAppQualifiedName(appName, appNamespace stri
 
 type ClusterFilterFunction func(c *appv1.Cluster, distributionFunction sharding.DistributionFunction) bool
 
-// createAppMergePatch calculates the merge patch for two applications.
+// CreateAppMergePatch calculates the merge patch for two applications.
 // The main meat of this includes special logic required for handling RawUnstructured fields, which MUST be merged
 // using JSON merges, rather than strategic merges (as is default for other items).
-func createAppMergePatch(orig *appv1.Application, new *appv1.Application) ([]byte, bool, error) {
+func CreateAppMergePatch(orig *appv1.Application, new *appv1.Application) ([]byte, bool, error) {
 	origValuesObject, newValuesObject, origSourceList, newSourceList, hasRawFields := unsetAndSaveRawFields(orig, new)
 	defer resetRawFields(orig, new, origValuesObject, newValuesObject, origSourceList, newSourceList)
 

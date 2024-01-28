@@ -1937,7 +1937,7 @@ func Test_SimpleHelmValuesObjectMerge(t *testing.T) {
 	assert.Errorf(t, err, "Basic merge patch should fail")
 
 	// Fancy patch works fine.
-	_, modified, err := createAppMergePatch(origApp, newApp)
+	_, modified, err := CreateAppMergePatch(origApp, newApp)
 	assert.NoError(t, err, "Two-way merge with should not have thrown an error")
 	assert.True(t, modified, "A merge patch should have been created")
 }
@@ -2022,15 +2022,15 @@ func Test_createAppMergePatch(t *testing.T) {
 			origTmp := tt.origApp.DeepCopy()
 			newTmp := tt.newApp.DeepCopy()
 
-			_, modified, err := createAppMergePatch(tt.origApp, tt.newApp)
-			assert.NoError(t, err, fmt.Sprintf("createAppMergePatch(%v, %v) should not have thrown an error", tt.origApp, tt.newApp))
+			_, modified, err := CreateAppMergePatch(tt.origApp, tt.newApp)
+			assert.NoError(t, err, fmt.Sprintf("CreateAppMergePatch(%v, %v) should not have thrown an error", tt.origApp, tt.newApp))
 
 			// Ensure that the object haven't been modified during execution.
-			assert.True(t, reflect.DeepEqual(origTmp, tt.origApp), "createAppMergePatch(%v, %v) should not have modified original app", tt.origApp, tt.newApp)
-			assert.True(t, reflect.DeepEqual(newTmp, tt.newApp), "createAppMergePatch(%v, %v) should not have modified new app", tt.origApp, tt.newApp)
+			assert.True(t, reflect.DeepEqual(origTmp, tt.origApp), "CreateAppMergePatch(%v, %v) should not have modified original app", tt.origApp, tt.newApp)
+			assert.True(t, reflect.DeepEqual(newTmp, tt.newApp), "CreateAppMergePatch(%v, %v) should not have modified new app", tt.origApp, tt.newApp)
 
 			// If objects are different, then we should get a patch.
-			assert.Equal(t, !reflect.DeepEqual(tt.origApp, tt.newApp), modified, "createAppMergePatch(%v, %v) got an unexpected patch result", tt.origApp, tt.newApp)
+			assert.Equal(t, !reflect.DeepEqual(tt.origApp, tt.newApp), modified, "CreateAppMergePatch(%v, %v) got an unexpected patch result", tt.origApp, tt.newApp)
 
 		})
 	}
