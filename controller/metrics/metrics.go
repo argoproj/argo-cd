@@ -181,8 +181,6 @@ func NewMetricsServer(addr string, appLister applister.ApplicationLister, appFil
 	profile.RegisterProfiler(mux)
 	healthz.ServeHealthCheck(mux, healthCheck)
 
-	log.Infof("Metricsssssss prometheus exporting")
-
 	registry.MustRegister(syncCounter)
 	registry.MustRegister(k8sRequestCounter)
 	registry.MustRegister(kubectlExecCounter)
