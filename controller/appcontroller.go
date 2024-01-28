@@ -2213,107 +2213,103 @@ type ClusterFilterFunction func(c *appv1.Cluster, distributionFunction sharding.
 // The main meat of this includes special logic required for handling RawUnstructured fields, which MUST be merged
 // using JSON merges, rather than strategic merges (as is default for other items).
 func CreateAppMergePatch(orig *appv1.Application, new *appv1.Application) ([]byte, bool, error) {
-	origValuesObject, newValuesObject, origSourceList, newSourceList, hasRawFields := unsetAndSaveRawFields(orig, new)
-	defer resetRawFields(orig, new, origValuesObject, newValuesObject, origSourceList, newSourceList)
+	noRawOrig, rawOnlyOrig, hasRawOrig := splitAppRawFields(orig)
+	noRawNew, rawOnlyNew, hasRawNew := splitAppRawFields(new)
 
-	// Create merge patch on the Application, minus any Raw fields (removed above).
-	patch, modified, err := diff.CreateTwoWayMergePatch(orig, new, appv1.Application{})
+	// Create merge patch on the Application, which we has no raw fields.
+	patch, modified, err := diff.CreateTwoWayMergePatch(noRawOrig, noRawNew, appv1.Application{})
 	if err != nil {
-		return nil, false, fmt.Errorf("error constructing app status patch: %w", err)
+		return nil, false, fmt.Errorf("error constructing app patch: %w", err)
 	}
 
-	// If no RawExtension fields to manage, we can return now.
-	if !hasRawFields {
+	// If no there are no RawExtension fields to manage, we can return now.
+	if !(hasRawOrig || hasRawNew) {
 		return patch, modified, nil
 	}
 
-	// Create ValueObject merge patch, set with the correct paths to ensure merge compatibility.
-	valuesObjectPatch, modifiedVals, err := createMergePatchValuesObject(
-		origValuesObject, newValuesObject,
-		origSourceList, newSourceList)
+	// Create raw objects merge patch, set with the correct paths to ensure merge compatibility.
+	rawObjectsPatch, modifiedRaw, err := jsonCreateMergePatch(rawOnlyOrig, rawOnlyNew)
 	if err != nil {
-		return nil, false, fmt.Errorf("error constructing status patch for valuesObject: %w", err)
+		return nil, false, fmt.Errorf("error constructing patch for raw objects: %w", err)
 	}
 
 	// If we generated a merge patch for valueObjects, we now need to merge that patch with the rest of the app patch.
-	if modifiedVals {
-		patch, err = jsonpatch.MergeMergePatches(patch, valuesObjectPatch)
+	if modifiedRaw {
+		patch, err = jsonpatch.MergeMergePatches(patch, rawObjectsPatch)
 		if err != nil {
-			return nil, false, fmt.Errorf("error merging operation state patch: %w", err)
+			return nil, false, fmt.Errorf("error merging operation patch: %w", err)
 		}
 	}
 
-	return patch, modified || modifiedVals, nil
+	return patch, modified || modifiedRaw, nil
 }
 
-// unsetAndSaveRawFields unsets all RawExtension fields, and returns them to be merged separately.
-// This can be undone by using resetRawFields.
-func unsetAndSaveRawFields(orig *appv1.Application, new *appv1.Application) (
-	*apiruntime.RawExtension, *apiruntime.RawExtension,
-	appv1.ApplicationSources, appv1.ApplicationSources,
-	bool) {
-	var origValuesObject, newValuesObject *apiruntime.RawExtension
-	if orig.Status.Sync.ComparedTo.Source.Helm != nil {
-		origValuesObject = orig.Status.Sync.ComparedTo.Source.Helm.ValuesObject
-		orig.Status.Sync.ComparedTo.Source.Helm.ValuesObject = nil
-	}
-	if new.Status.Sync.ComparedTo.Source.Helm != nil {
-		newValuesObject = new.Status.Sync.ComparedTo.Source.Helm.ValuesObject
-		new.Status.Sync.ComparedTo.Source.Helm.ValuesObject = nil
-	}
-
-	// We use full ApplicationSources, so the patch can keep track of indexes. This needs to be reverted later.
-	var origSourceList, newSourceList appv1.ApplicationSources
-	if len(orig.Status.Sync.ComparedTo.Sources) > 0 {
-		origSourceList, orig.Status.Sync.ComparedTo.Sources =
-			getHelmValueObjSources(orig.Status.Sync.ComparedTo.Sources)
-	}
-	if len(new.Status.Sync.ComparedTo.Sources) > 0 {
-		newSourceList, new.Status.Sync.ComparedTo.Sources =
-			getHelmValueObjSources(new.Status.Sync.ComparedTo.Sources)
-	}
-	return origValuesObject, newValuesObject,
-		origSourceList, newSourceList,
-		origValuesObject != nil || newValuesObject != nil || len(origSourceList) != 0 || len(newSourceList) != 0
-
+// appSourceHasRawFields checks if an appv1.ApplicationSource has any RawExtension fields present.
+func appSourceHasRawFields(src *appv1.ApplicationSource) bool {
+	return src != nil && src.Helm != nil && src.Helm.ValuesObject != nil
 }
 
-// resetRawFields re-sets all RawExtension fields, the opposite of unsetAndSaveRawFields.
-func resetRawFields(orig *appv1.Application, new *appv1.Application,
-	origVals *apiruntime.RawExtension, newVals *apiruntime.RawExtension,
-	origSourceList appv1.ApplicationSources, newSourceList appv1.ApplicationSources) {
-	if orig.Status.Sync.ComparedTo.Source.Helm != nil && origVals != nil {
-		orig.Status.Sync.ComparedTo.Source.Helm.ValuesObject = origVals
+// splitAppRawFields takes an appv1.Application and splits it into two application structs:
+// - The first application has all runtime.RawExtension fields set to nil
+// - The second application ONLY has runtime.RawExtension fields
+// The third return value is true if and only if there are non-nil runtime.RawExtension fields to be handled.
+func splitAppRawFields(app *appv1.Application) (*appv1.Application, *appv1.Application, bool) {
+	noRawFields := app.DeepCopy()
+	onlyRawFields := &appv1.Application{}
+	hasRawFields := false
+
+	if src := app.Spec.Source; appSourceHasRawFields(src) {
+		hasRawFields = true
+		onlyRawFields.Spec.Source = &appv1.ApplicationSource{Helm: &appv1.ApplicationSourceHelm{ValuesObject: src.Helm.ValuesObject}}
+		noRawFields.Spec.Source.Helm.ValuesObject = nil
 	}
-	if new.Status.Sync.ComparedTo.Source.Helm != nil && newVals != nil {
-		new.Status.Sync.ComparedTo.Source.Helm.ValuesObject = newVals
+	if src := app.Status.Sync.ComparedTo.Source; appSourceHasRawFields(&src) {
+		hasRawFields = true
+		onlyRawFields.Status.Sync.ComparedTo.Source = appv1.ApplicationSource{Helm: &appv1.ApplicationSourceHelm{ValuesObject: src.Helm.ValuesObject}}
+		noRawFields.Status.Sync.ComparedTo.Source.Helm.ValuesObject = nil
 	}
-	for idx, s := range origSourceList {
-		if s.Helm != nil && s.Helm.ValuesObject != nil {
-			orig.Status.Sync.ComparedTo.Sources[idx].Helm.ValuesObject = s.Helm.ValuesObject
+
+	if srcs := app.Spec.Sources; len(srcs) > 0 {
+		noRaw, rawOnly, changed := splitObjSrcRawFields(srcs)
+		if changed {
+			hasRawFields = true
+			onlyRawFields.Spec.Sources = rawOnly
+			noRawFields.Spec.Sources = noRaw
 		}
 	}
-	for idx, s := range newSourceList {
-		if s.Helm != nil && s.Helm.ValuesObject != nil {
-			new.Status.Sync.ComparedTo.Sources[idx].Helm.ValuesObject = s.Helm.ValuesObject
+
+	if srcs := app.Status.Sync.ComparedTo.Sources; len(srcs) > 0 {
+		noRaw, rawOnly, changed := splitObjSrcRawFields(srcs)
+		if changed {
+			hasRawFields = true
+			onlyRawFields.Status.Sync.ComparedTo.Sources = rawOnly
+			noRawFields.Status.Sync.ComparedTo.Sources = noRaw
 		}
 	}
+
+	return noRawFields, onlyRawFields, hasRawFields
 }
 
-// getHelmValueObjSources takes a list of ApplicationSources, and returns two application sources where one contains
-// only Helm.ValuesObject fields, and the second returns all other fields.
-// This is used for calculating JSON patches.
-func getHelmValueObjSources(in appv1.ApplicationSources) (appv1.ApplicationSources, appv1.ApplicationSources) {
-	helmOnly := make(appv1.ApplicationSources, len(in))
-	others := make(appv1.ApplicationSources, len(in))
-	for idx, s := range in {
+// splitObjSrcRawFields takes an appv1.ApplicationSources, and returns two application sources:
+// - The first applicationSource has all runtime.RawExtension fields set to nil
+// - The second applicationSource ONLY has runtime.RawExtension fields
+// The third return value is true if and only if there are non-nil runtime.RawExtension fields to be handled.
+func splitObjSrcRawFields(in appv1.ApplicationSources) (appv1.ApplicationSources, appv1.ApplicationSources, bool) {
+	rawOnly := make(appv1.ApplicationSources, len(in))
+	noRaw := make(appv1.ApplicationSources, len(in))
+	hasHelmValues := false
+
+	// We copy the input to avoid mutating the caller data
+	for idx, s := range in.DeepCopy() {
 		if s.Helm != nil && s.Helm.ValuesObject != nil {
-			helmOnly[idx].Helm = &appv1.ApplicationSourceHelm{ValuesObject: s.Helm.ValuesObject}
+			rawOnly[idx].Helm = &appv1.ApplicationSourceHelm{ValuesObject: s.Helm.ValuesObject}
 			s.Helm.ValuesObject = nil
+			hasHelmValues = true
 		}
-		others[idx] = s
+		noRaw[idx] = s
 	}
-	return helmOnly, others
+
+	return noRaw, rawOnly, hasHelmValues
 }
 
 // jsonCreateMergePatch is a wrapper func to calculate the diff between two objects
@@ -2329,34 +2325,4 @@ func jsonCreateMergePatch(orig, new any) ([]byte, bool, error) {
 	}
 	patch, err := jsonpatch.CreateMergePatch(origBytes, newBytes)
 	return patch, string(patch) != "{}", err
-}
-
-// createMergePatchValuesObject computes a patch just for the Helm.ValuesObject fields, using jsonpatch.
-func createMergePatchValuesObject(orig, new *apiruntime.RawExtension, origSourceList, newSourceList []appv1.ApplicationSource) ([]byte, bool, error) {
-	return jsonCreateMergePatch(
-		&appv1.Application{ObjectMeta: metav1.ObjectMeta{}, Status: appv1.ApplicationStatus{
-			Sync: appv1.SyncStatus{
-				ComparedTo: appv1.ComparedTo{
-					Source: appv1.ApplicationSource{
-						Helm: &appv1.ApplicationSourceHelm{
-							ValuesObject: orig,
-						},
-					},
-					Sources: origSourceList,
-				},
-			},
-		}},
-		&appv1.Application{ObjectMeta: metav1.ObjectMeta{}, Status: appv1.ApplicationStatus{
-			Sync: appv1.SyncStatus{
-				ComparedTo: appv1.ComparedTo{
-					Source: appv1.ApplicationSource{
-						Helm: &appv1.ApplicationSourceHelm{
-							ValuesObject: new,
-						},
-					},
-					Sources: newSourceList,
-				},
-			},
-		}},
-	)
 }

@@ -1914,14 +1914,17 @@ func TestAddControllerNamespace(t *testing.T) {
 
 func newFakeAppHelmValueObject(input []byte) *argoappsv1.Application {
 	app := newFakeApp()
-	app.Status.Sync.ComparedTo.Source.Helm = &argoappsv1.ApplicationSourceHelm{
+	helmSource := &argoappsv1.ApplicationSourceHelm{
 		ValuesObject: &runtime.RawExtension{Raw: input},
 	}
+	app.Spec.Source.Helm = helmSource
+	app.Status.Sync.ComparedTo.Source.Helm = helmSource
 	return app
 }
 
 func newFakeAppSources(s argoappsv1.ApplicationSources) *argoappsv1.Application {
 	app := newFakeApp()
+	app.Spec.Sources = s
 	app.Status.Sync.ComparedTo.Sources = s
 	return app
 }
