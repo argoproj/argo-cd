@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"regexp"
+	certWatcherMetrics "sigs.k8s.io/controller-runtime/pkg/certwatcher/metrics"
 	"sigs.k8s.io/controller-runtime/pkg/metrics"
 	"strconv"
 	"time"
@@ -165,6 +166,9 @@ func NewMetricsServer(addr string, appLister applister.ApplicationLister, appFil
 
 	// These metrics are already present in the DefaultGatherer
 	metrics.Registry.Unregister(collectors.NewGoCollector())
+	// Remove unwanted metrics
+	metrics.Registry.Unregister(certWatcherMetrics.ReadCertificateTotal)
+	metrics.Registry.Unregister(certWatcherMetrics.ReadCertificateErrors)
 
 	mux.Handle(MetricsPath, promhttp.HandlerFor(prometheus.Gatherers{
 		// contains app controller specific metrics
@@ -179,13 +183,6 @@ func NewMetricsServer(addr string, appLister applister.ApplicationLister, appFil
 
 	log.Infof("Metricsssssss prometheus exporting")
 
-	//registry.MustRegister(depth)
-	//registry.MustRegister(adds)
-	//registry.MustRegister(latency)
-	//registry.MustRegister(workDuration)
-	//registry.MustRegister(unfinished)
-	//registry.MustRegister(longestRunningProcessor)
-	//registry.MustRegister(retries)
 	registry.MustRegister(syncCounter)
 	registry.MustRegister(k8sRequestCounter)
 	registry.MustRegister(kubectlExecCounter)
