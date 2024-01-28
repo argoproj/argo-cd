@@ -190,11 +190,8 @@ func filterFields(input v1alpha1.Application) v1alpha1.Application {
 			Finalizers:  metaCopy.Finalizers,
 		},
 		Spec: v1alpha1.ApplicationSpec{
-			Source: &v1alpha1.ApplicationSource{
-				Path:           spec.GetSource().Path,
-				RepoURL:        spec.GetSource().RepoURL,
-				TargetRevision: spec.GetSource().TargetRevision,
-			},
+			Source:  spec.Source,
+			Sources: spec.Sources,
 			Destination: v1alpha1.ApplicationDestination{
 				Server:    spec.Destination.Server,
 				Name:      spec.Destination.Name,
