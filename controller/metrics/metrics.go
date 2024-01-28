@@ -4,9 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/prometheus/client_golang/prometheus/collectors"
 	"net/http"
 	"os"
 	"regexp"
+	"sigs.k8s.io/controller-runtime/pkg/metrics"
 	"strconv"
 	"time"
 
@@ -160,16 +162,30 @@ func NewMetricsServer(addr string, appLister applister.ApplicationLister, appFil
 
 	mux := http.NewServeMux()
 	registry := NewAppRegistry(appLister, appFilter, appLabels)
-	registry.MustRegister(depth, adds, latency, workDuration, unfinished, longestRunningProcessor, retries)
+
+	// These metrics are already present in the DefaultGatherer
+	metrics.Registry.Unregister(collectors.NewGoCollector())
+
 	mux.Handle(MetricsPath, promhttp.HandlerFor(prometheus.Gatherers{
 		// contains app controller specific metrics
 		registry,
-		// contains process, golang and controller workqueues metrics
+		// contains process and golang metrics
 		prometheus.DefaultGatherer,
+		// controller workqueue metrics
+		metrics.Registry,
 	}, promhttp.HandlerOpts{}))
 	profile.RegisterProfiler(mux)
 	healthz.ServeHealthCheck(mux, healthCheck)
 
+	log.Infof("Metricsssssss prometheus exporting")
+
+	//registry.MustRegister(depth)
+	//registry.MustRegister(adds)
+	//registry.MustRegister(latency)
+	//registry.MustRegister(workDuration)
+	//registry.MustRegister(unfinished)
+	//registry.MustRegister(longestRunningProcessor)
+	//registry.MustRegister(retries)
 	registry.MustRegister(syncCounter)
 	registry.MustRegister(k8sRequestCounter)
 	registry.MustRegister(kubectlExecCounter)
