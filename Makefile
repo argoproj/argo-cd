@@ -9,7 +9,14 @@ GEN_RESOURCES_CLI_NAME=argocd-resources-gen
 HOST_OS:=$(shell go env GOOS)
 HOST_ARCH:=$(shell go env GOARCH)
 
-TARGET_ARCH?=linux/amd64
+LOCAL_ARCH=$(shell uname -m)
+ifeq ($(LOCAL_ARCH), x86_64)
+ TARGET_ARCH=linux/amd64
+else ifeq ($(LOCAL_ARCH), aarch64)
+ TARGET_ARCH=linux/arm64
+else
+ TARGET_ARCH ?= linux/$(LOCAL_ARCH)
+endif
 
 VERSION=$(shell cat ${CURRENT_DIR}/VERSION)
 BUILD_DATE:=$(if $(BUILD_DATE),$(BUILD_DATE),$(shell date -u +'%Y-%m-%dT%H:%M:%SZ'))
@@ -305,10 +312,6 @@ image:
 	DOCKER_BUILDKIT=1 docker build -t $(IMAGE_PREFIX)argocd:$(IMAGE_TAG) --platform=$(TARGET_ARCH) .
 endif
 	@if [ "$(DOCKER_PUSH)" = "true" ] ; then docker push $(IMAGE_PREFIX)argocd:$(IMAGE_TAG) ; fi
-
-.PHONY: armimage
-armimage:
-	docker build -t $(IMAGE_PREFIX)argocd:$(IMAGE_TAG)-arm .
 
 .PHONY: builder-image
 builder-image:
