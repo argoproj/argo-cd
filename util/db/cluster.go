@@ -73,7 +73,7 @@ func (db *db) ListClusters(ctx context.Context) (*appv1.ClusterList, error) {
 			log.Errorf("could not unmarshal cluster secret %s", clusterSecret.Name)
 			continue
 		}
-		if cluster.Server == appv1.KubernetesInternalAPIServerAddr {
+		if strings.HasPrefix(cluster.Server, appv1.KubernetesInternalAPIServerAddr) {
 			if inClusterEnabled {
 				hasInClusterCredentials = true
 				clusterList.Items = append(clusterList.Items, *cluster)
@@ -94,7 +94,7 @@ func (db *db) CreateCluster(ctx context.Context, c *appv1.Cluster) (*appv1.Clust
 	if err != nil {
 		return nil, err
 	}
-	if c.Server == appv1.KubernetesInternalAPIServerAddr && !settings.InClusterEnabled {
+	if strings.HasPrefix(c.Server, appv1.KubernetesInternalAPIServerAddr) && !settings.InClusterEnabled {
 		return nil, status.Errorf(codes.InvalidArgument, "cannot register cluster: in-cluster has been disabled")
 	}
 	secName, err := URIToSecretName("cluster", c.Server)
@@ -153,7 +153,7 @@ func (db *db) WatchClusters(ctx context.Context,
 				log.Errorf("could not unmarshal cluster secret %s", secret.Name)
 				return
 			}
-			if cluster.Server == appv1.KubernetesInternalAPIServerAddr {
+			if strings.HasPrefix(cluster.Server, appv1.KubernetesInternalAPIServerAddr) {
 				// change local cluster event to modified or deleted, since it cannot be re-added or deleted
 				handleModEvent(localCls, cluster)
 				localCls = cluster
@@ -173,14 +173,14 @@ func (db *db) WatchClusters(ctx context.Context,
 				log.Errorf("could not unmarshal cluster secret %s", newSecret.Name)
 				return
 			}
-			if newCluster.Server == appv1.KubernetesInternalAPIServerAddr {
+			if strings.HasPrefix(newCluster.Server, appv1.KubernetesInternalAPIServerAddr) {
 				localCls = newCluster
 			}
 			handleModEvent(oldCluster, newCluster)
 		},
 
 		func(secret *apiv1.Secret) {
-			if string(secret.Data["server"]) == appv1.KubernetesInternalAPIServerAddr {
+			if strings.HasPrefix(string(secret.Data["server"]), appv1.KubernetesInternalAPIServerAddr) {
 				// change local cluster event to modified or deleted, since it cannot be re-added or deleted
 				handleModEvent(localCls, db.getLocalCluster())
 				localCls = db.getLocalCluster()
@@ -220,7 +220,7 @@ func (db *db) GetCluster(_ context.Context, server string) (*appv1.Cluster, erro
 	if len(res) > 0 {
 		return SecretToCluster(res[0].(*apiv1.Secret))
 	}
-	if server == appv1.KubernetesInternalAPIServerAddr {
+	if strings.HasPrefix(server, appv1.KubernetesInternalAPIServerAddr) {
 		return db.getLocalCluster(), nil
 	}
 

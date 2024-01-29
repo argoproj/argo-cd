@@ -397,7 +397,7 @@ func (a *ArgoCDServer) logInClusterWarnings() error {
 		if err != nil {
 			return fmt.Errorf("could not unmarshal cluster secret %q: %w", clusterSecret.Name, err)
 		}
-		if cluster.Server == v1alpha1.KubernetesInternalAPIServerAddr {
+		if strings.HasPrefix(cluster.Server, v1alpha1.KubernetesInternalAPIServerAddr) {
 			inClusterSecrets = append(inClusterSecrets, clusterSecret.Name)
 		}
 	}

@@ -2955,7 +2955,7 @@ func SetK8SConfigDefaults(config *rest.Config) error {
 func (c *Cluster) RawRestConfig() *rest.Config {
 	var config *rest.Config
 	var err error
-	if c.Server == KubernetesInternalAPIServerAddr && env.ParseBoolFromEnv(EnvVarFakeInClusterConfig, false) {
+	if strings.HasPrefix(c.Server, KubernetesInternalAPIServerAddr) && env.ParseBoolFromEnv(EnvVarFakeInClusterConfig, false) {
 		conf, exists := os.LookupEnv("KUBECONFIG")
 		if exists {
 			config, err = clientcmd.BuildConfigFromFlags("", conf)
@@ -2967,9 +2967,9 @@ func (c *Cluster) RawRestConfig() *rest.Config {
 			}
 			config, err = clientcmd.BuildConfigFromFlags("", filepath.Join(homeDir, ".kube", "config"))
 		}
-	} else if c.Server == KubernetesInternalAPIServerAddr && c.Config.Username == "" && c.Config.Password == "" && c.Config.BearerToken == "" {
+	} else if strings.HasPrefix(c.Server, KubernetesInternalAPIServerAddr) && c.Config.Username == "" && c.Config.Password == "" && c.Config.BearerToken == "" {
 		config, err = rest.InClusterConfig()
-	} else if c.Server == KubernetesInternalAPIServerAddr {
+	} else if strings.HasPrefix(c.Server, KubernetesInternalAPIServerAddr) {
 		config, err = rest.InClusterConfig()
 		if err == nil {
 			config.Username = c.Config.Username
