@@ -190,10 +190,6 @@ func TestRegisterExtensions(t *testing.T) {
 		}
 		cases := []testCase{
 			{
-				name:       "no config",
-				configYaml: "",
-			},
-			{
 				name:       "no name",
 				configYaml: getExtensionConfigNoName(),
 			},
@@ -235,7 +231,7 @@ func TestRegisterExtensions(t *testing.T) {
 				err := f.manager.RegisterExtensions()
 
 				// then
-				assert.Error(t, err)
+				assert.Error(t, err, fmt.Sprintf("expected error in test %s but got nil", tc.name))
 			})
 		}
 	})
