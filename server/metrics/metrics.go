@@ -90,9 +90,9 @@ func (m *MetricsServer) ObserveRedisRequestDuration(duration time.Duration) {
 }
 
 func (m *MetricsServer) IncExtensionRequestCounter(extension string, status int) {
-	m.extensionRequestCounter.WithLabelValues(extension, string(status)).Inc()
+	m.extensionRequestCounter.WithLabelValues(extension, strconv.Itoa(status)).Inc()
 }
 
 func (m *MetricsServer) ObserveExtensionRequestDuration(extension string, duration time.Duration) {
-	m.redisRequestHistogram.WithLabelValues(extension).Observe(duration.Seconds())
+	m.extensionRequestDuration.WithLabelValues(extension).Observe(duration.Seconds())
 }

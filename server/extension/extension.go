@@ -499,6 +499,10 @@ func (m *Manager) RegisterExtensions() error {
 	if err != nil {
 		return fmt.Errorf("error getting settings: %s", err)
 	}
+	if settings.ExtensionConfig == "" {
+		m.log.Infof("No extensions configured.")
+		return nil
+	}
 	err = m.UpdateExtensionRegistry(settings)
 	if err != nil {
 		return fmt.Errorf("error updating extension registry: %s", err)
