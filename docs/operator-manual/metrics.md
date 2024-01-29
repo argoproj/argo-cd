@@ -71,7 +71,7 @@ Scraped at the `argocd-server-metrics:8083/metrics` endpoint.
 | `grpc_server_handled_total` | counter | Total number of RPCs completed on the server, regardless of success or failure. |
 | `grpc_server_msg_sent_total` | counter | Total number of gRPC stream messages sent by the server. |
 | `argocd_proxy_extension_request_total` | counter | Number of requests sent to the configured proxy extensions. |
-| `argocd_proxy_extension_request_duration` | histogram | Request duration between the Argo CD API server and the proxy extension backend. |
+| `argocd_proxy_extension_request_duration_seconds` | histogram | Request duration in seconds between the Argo CD API server and the proxy extension backend. |
 
 ## Repo Server Metrics
 Metrics about the Repo Server.
