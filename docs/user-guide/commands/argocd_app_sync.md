@@ -47,7 +47,7 @@ argocd app sync [APPNAME... | -l selector | --project project-name] [flags]
       --info stringArray                      A list of key-value pairs during sync process. These infos will be persisted in app.
       --label stringArray                     Sync only specific resources with a label. This option may be specified repeatedly.
       --local string                          Path to a local directory. When this flag is present no git queries will be made
-      --local-repo-root string                Path to the repository root. Used together with --local allows setting the repository root (default ".")
+      --local-repo-root string                Path to the repository root. Used together with --local allows setting the repository root (default "/")
   -o, --output string                         Output format. One of: json|yaml|wide|tree|tree=detailed (default "wide")
       --preview-changes                       Preview difference against the target and live state before syncing app and wait for user confirmation
       --project stringArray                   Sync apps that belong to the specified projects. This option may be specified repeatedly.
