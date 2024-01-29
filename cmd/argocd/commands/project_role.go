@@ -57,6 +57,30 @@ func NewProjectRoleAddPolicyCommand(clientOpts *argocdclient.ClientOptions) *cob
 	var command = &cobra.Command{
 		Use:   "add-policy PROJECT ROLE-NAME",
 		Short: "Add a policy to a project role",
+		Example: `# Before adding new policy
+$ argocd proj role get test-project test-role
+Role Name:     test-role
+Description:
+Policies:
+p, proj:test-project:test-role, projects, get, test-project, allow
+JWT Tokens:
+ID          ISSUED-AT                                EXPIRES-AT
+1696759698  2023-10-08T11:08:18+01:00 (3 hours ago)  <none>
+
+# Add a new policy to allow update to the project
+$ argocd proj role add-policy test-project test-role -a update -p allow -o project
+
+# Policy should be updated
+$  argocd proj role get test-project test-role
+Role Name:     test-role
+Description:
+Policies:
+p, proj:test-project:test-role, projects, get, test-project, allow
+p, proj:test-project:test-role, applications, update, test-project/project, allow
+JWT Tokens:
+ID          ISSUED-AT                                EXPIRES-AT
+1696759698  2023-10-08T11:08:18+01:00 (3 hours ago)  <none>
+`,
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
 
@@ -94,6 +118,30 @@ func NewProjectRoleRemovePolicyCommand(clientOpts *argocdclient.ClientOptions) *
 	var command = &cobra.Command{
 		Use:   "remove-policy PROJECT ROLE-NAME",
 		Short: "Remove a policy from a role within a project",
+		Example: `List the policy of the test-role before removing a policy
+$ argocd proj role get test-project test-role
+Role Name:     test-role
+Description:
+Policies:
+p, proj:test-project:test-role, projects, get, test-project, allow
+p, proj:test-project:test-role, applications, update, test-project/project, allow
+JWT Tokens:
+ID          ISSUED-AT                                EXPIRES-AT
+1696759698  2023-10-08T11:08:18+01:00 (3 hours ago)  <none>
+
+# Remove the policy to allow update to objects
+$ argocd proj role remove-policy test-project test-role -a update -p allow -o project
+
+# The role should be removed now.
+$ argocd proj role get test-project test-role
+Role Name:     test-role
+Description:
+Policies:
+p, proj:test-project:test-role, projects, get, test-project, allow
+JWT Tokens:
+ID          ISSUED-AT                                EXPIRES-AT
+1696759698  2023-10-08T11:08:18+01:00 (4 hours ago)  <none>
+`,
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
 
@@ -141,6 +189,11 @@ func NewProjectRoleCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 	var command = &cobra.Command{
 		Use:   "create PROJECT ROLE-NAME",
 		Short: "Create a project role",
+		Example: templates.Examples(`  
+  # Create a project role in the "my-project" project with the name "my-role".
+  argocd proj role create my-project my-role --description "My project role description"
+  		`),
+
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
 
@@ -175,13 +228,9 @@ func NewProjectRoleCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 // NewProjectRoleDeleteCommand returns a new instance of an `argocd proj role delete` command
 func NewProjectRoleDeleteCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var command = &cobra.Command{
-		Use:   "delete PROJECT ROLE-NAME",
-		Short: "Delete a project role",
-		Example: templates.Examples(`  
-  # Delete a project role from the "my-project" project with the name "my-role".
-  argocd proj role delete my-project my-role
-  		`),
-
+		Use:     "delete PROJECT ROLE-NAME",
+		Short:   "Delete a project role",
+		Example: `$ argocd proj role delete test-project test-role`,
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
 
@@ -229,8 +278,15 @@ func NewProjectRoleCreateTokenCommand(clientOpts *argocdclient.ClientOptions) *c
 		tokenID         string
 	)
 	var command = &cobra.Command{
-		Use:     "create-token PROJECT ROLE-NAME",
-		Short:   "Create a project token",
+		Use:   "create-token PROJECT ROLE-NAME",
+		Short: "Create a project token",
+		Example: `$ argocd proj role create-token test-project test-role
+Create token succeeded for proj:test-project:test-role.
+  ID: f316c466-40bd-4cfd-8a8c-1392e92255d4
+  Issued At: 2023-10-08T15:21:40+01:00
+  Expires At: Never
+  Token: xxx
+`,
 		Aliases: []string{"token-create"},
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
@@ -294,8 +350,13 @@ func NewProjectRoleListTokensCommand(clientOpts *argocdclient.ClientOptions) *co
 		useUnixTime bool
 	)
 	var command = &cobra.Command{
-		Use:     "list-tokens PROJECT ROLE-NAME",
-		Short:   "List tokens for a given role.",
+		Use:   "list-tokens PROJECT ROLE-NAME",
+		Short: "List tokens for a given role.",
+		Example: `$ argocd proj role list-tokens test-project test-role
+ID                                      ISSUED AT                    EXPIRES AT
+f316c466-40bd-4cfd-8a8c-1392e92255d4    2023-10-08T15:21:40+01:00    Never
+fa9d3517-c52d-434c-9bff-215b38508842    2023-10-08T11:08:18+01:00    Never
+`,
 		Aliases: []string{"list-token", "token-list"},
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
@@ -345,8 +406,35 @@ func NewProjectRoleListTokensCommand(clientOpts *argocdclient.ClientOptions) *co
 // NewProjectRoleDeleteTokenCommand returns a new instance of an `argocd proj role delete-token` command
 func NewProjectRoleDeleteTokenCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var command = &cobra.Command{
-		Use:     "delete-token PROJECT ROLE-NAME ISSUED-AT",
-		Short:   "Delete a project token",
+		Use:   "delete-token PROJECT ROLE-NAME ISSUED-AT",
+		Short: "Delete a project token",
+		Example: `#Create project test-project
+$ argocd proj create test-project
+
+# Create a role associated with test-project
+$ argocd proj role create test-project test-role
+Role 'test-role' created
+
+# Create test-role associated with test-project
+$ argocd proj role create-token test-project test-role
+Create token succeeded for proj:test-project:test-role.
+  ID: c312450e-12e1-4e0d-9f65-fac9cb027b32
+  Issued At: 2023-10-08T13:58:57+01:00
+  Expires At: Never
+  Token: xxx
+
+# Get test-role id to input into the delete-token command below
+$ argocd proj role get test-project test-role
+Role Name:     test-role
+Description:
+Policies:
+p, proj:test-project:test-role, projects, get, test-project, allow
+JWT Tokens:
+ID          ISSUED-AT                                  EXPIRES-AT
+1696769937  2023-10-08T13:58:57+01:00 (6 minutes ago)  <none>
+
+$ argocd proj role delete-token test-project test-role 1696769937
+`,
 		Aliases: []string{"token-delete", "remove-token"},
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
@@ -395,6 +483,15 @@ func NewProjectRoleListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	var command = &cobra.Command{
 		Use:   "list PROJECT",
 		Short: "List all the roles in a project",
+		Example: templates.Examples(`  
+  # This command will list all the roles in argocd-project in a default table format.
+  argocd proj role list PROJECT
+
+  # List the roles in the project in formats like json, yaml, wide, or name.
+  argocd proj role list PROJECT --output json
+
+  		`),
+
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
 
@@ -430,6 +527,16 @@ func NewProjectRoleGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 	var command = &cobra.Command{
 		Use:   "get PROJECT ROLE-NAME",
 		Short: "Get the details of a specific role",
+		Example: `$ argocd proj role get test-project test-role
+Role Name:     test-role
+Description:
+Policies:
+p, proj:test-project:test-role, projects, get, test-project, allow
+JWT Tokens:
+ID          ISSUED-AT                                  EXPIRES-AT
+1696774900  2023-10-08T15:21:40+01:00 (4 minutes ago)  <none>
+1696759698  2023-10-08T11:08:18+01:00 (4 hours ago)    <none>
+`,
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
 

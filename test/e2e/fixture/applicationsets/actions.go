@@ -64,14 +64,14 @@ func (a *Actions) Then() *Consequences {
 	return &Consequences{a.context, a}
 }
 
-func (a *Actions) SwitchToExternalNamespace() *Actions {
-	a.context.useExternalNamespace = true
-	log.Infof("switched to external namespace: %s", utils.ArgoCDExternalNamespace)
+func (a *Actions) SwitchToExternalNamespace(namespace utils.ExternalNamespace) *Actions {
+	a.context.switchToNamespace = namespace
+	log.Infof("switched to external namespace: %s", namespace)
 	return a
 }
 
 func (a *Actions) SwitchToArgoCDNamespace() *Actions {
-	a.context.useExternalNamespace = false
+	a.context.switchToNamespace = ""
 	log.Infof("switched to argocd namespace: %s", utils.ArgoCDNamespace)
 	return a
 }
@@ -216,8 +216,13 @@ func (a *Actions) Create(appSet v1alpha1.ApplicationSet) *Actions {
 
 	var appSetClientSet dynamic.ResourceInterface
 
-	if a.context.useExternalNamespace {
-		appSetClientSet = fixtureClient.ExternalAppSetClientset
+	if a.context.switchToNamespace != "" {
+		externalAppSetClientset, found := fixtureClient.ExternalAppSetClientsets[utils.ExternalNamespace(a.context.switchToNamespace)]
+		if !found {
+			a.lastOutput, a.lastError = "", fmt.Errorf("No external clientset found for %s", a.context.switchToNamespace)
+			return a
+		}
+		appSetClientSet = externalAppSetClientset
 	} else {
 		appSetClientSet = fixtureClient.AppSetClientset
 	}
@@ -390,8 +395,13 @@ func (a *Actions) Delete() *Actions {
 
 	var appSetClientSet dynamic.ResourceInterface
 
-	if a.context.useExternalNamespace {
-		appSetClientSet = fixtureClient.ExternalAppSetClientset
+	if a.context.switchToNamespace != "" {
+		externalAppSetClientset, found := fixtureClient.ExternalAppSetClientsets[utils.ExternalNamespace(a.context.switchToNamespace)]
+		if !found {
+			a.lastOutput, a.lastError = "", fmt.Errorf("No external clientset found for %s", a.context.switchToNamespace)
+			return a
+		}
+		appSetClientSet = externalAppSetClientset
 	} else {
 		appSetClientSet = fixtureClient.AppSetClientset
 	}
@@ -413,8 +423,12 @@ func (a *Actions) get() (*v1alpha1.ApplicationSet, error) {
 
 	var appSetClientSet dynamic.ResourceInterface
 
-	if a.context.useExternalNamespace {
-		appSetClientSet = fixtureClient.ExternalAppSetClientset
+	if a.context.switchToNamespace != "" {
+		externalAppSetClientset, found := fixtureClient.ExternalAppSetClientsets[utils.ExternalNamespace(a.context.switchToNamespace)]
+		if !found {
+			return nil, fmt.Errorf("No external clientset found for %s", a.context.switchToNamespace)
+		}
+		appSetClientSet = externalAppSetClientset
 	} else {
 		appSetClientSet = fixtureClient.AppSetClientset
 	}
@@ -460,8 +474,13 @@ func (a *Actions) Update(toUpdate func(*v1alpha1.ApplicationSet)) *Actions {
 
 			var appSetClientSet dynamic.ResourceInterface
 
-			if a.context.useExternalNamespace {
-				appSetClientSet = fixtureClient.ExternalAppSetClientset
+			if a.context.switchToNamespace != "" {
+				externalAppSetClientset, found := fixtureClient.ExternalAppSetClientsets[utils.ExternalNamespace(a.context.switchToNamespace)]
+				if !found {
+					a.lastOutput, a.lastError = "", fmt.Errorf("No external clientset found for %s", a.context.switchToNamespace)
+					return a
+				}
+				appSetClientSet = externalAppSetClientset
 			} else {
 				appSetClientSet = fixtureClient.AppSetClientset
 			}

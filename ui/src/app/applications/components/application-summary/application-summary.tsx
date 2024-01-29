@@ -15,7 +15,7 @@ import {
     RevisionHelpIcon
 } from '../../../shared/components';
 import {BadgePanel, Spinner} from '../../../shared/components';
-import {Consumer, ContextApis} from '../../../shared/context';
+import {AuthSettingsCtx, Consumer, ContextApis} from '../../../shared/context';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
 
@@ -47,6 +47,7 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
     const source = getAppDefaultSource(app);
     const isHelm = source.hasOwnProperty('chart');
     const initialState = app.spec.destination.server === undefined ? 'NAME' : 'URL';
+    const useAuthSettingsCtx = React.useContext(AuthSettingsCtx);
     const [destFormat, setDestFormat] = React.useState(initialState);
     const [changeSync, setChangeSync] = React.useState(false);
 
@@ -271,7 +272,7 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
         {
             title: 'SYNC OPTIONS',
             view: (
-                <div style={{display: 'flex'}}>
+                <div style={{display: 'flex', flexWrap: 'wrap'}}>
                     {((app.spec.syncPolicy || {}).syncOptions || []).map(opt =>
                         opt.endsWith('=true') || opt.endsWith('=false') ? (
                             <div key={opt} style={{marginRight: '10px'}}>
@@ -589,7 +590,7 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                     </div>
                 )}
             </Consumer>
-            <BadgePanel app={props.app.metadata.name} />
+            <BadgePanel app={props.app.metadata.name} appNamespace={props.app.metadata.namespace} nsEnabled={useAuthSettingsCtx?.appsInAnyNamespaceEnabled} />
             <EditablePanel
                 save={updateApp}
                 values={app}
