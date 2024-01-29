@@ -45,8 +45,8 @@ var (
 	)
 	extensionRequestDuration = prometheus.NewHistogramVec(
 		prometheus.HistogramOpts{
-			Name:    "argocd_proxy_extension_request_duration",
-			Help:    "Request duration between the Argo CD API server and the extension backend.",
+			Name:    "argocd_proxy_extension_request_duration_seconds",
+			Help:    "Request duration in seconds between the Argo CD API server and the extension backend.",
 			Buckets: []float64{0.1, 0.25, .5, 1, 2, 5, 10},
 		},
 		[]string{"extension"},
