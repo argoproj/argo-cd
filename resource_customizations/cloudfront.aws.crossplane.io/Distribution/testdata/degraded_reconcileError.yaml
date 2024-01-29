@@ -1,0 +1,96 @@
+apiVersion: cloudfront.aws.crossplane.io/v1alpha1
+kind: Distribution
+metadata:
+  creationTimestamp: '2024-01-17T07:26:02Z'
+  generation: 2
+  name: crossplane.io
+  resourceVersion: '261942288'
+  uid: 4b50c88b-165c-4176-be8e-aa28fdec0a94
+spec:
+  deletionPolicy: Orphan
+  forProvider:
+    distributionConfig:
+      comment: 'crossplane'
+      customErrorResponses:
+        items: []
+      defaultCacheBehavior:
+        allowedMethods:
+          cachedMethods:
+            items:
+              - HEAD
+              - GET
+          items:
+            - HEAD
+            - GET
+        compress: false
+        defaultTTL: 600
+        fieldLevelEncryptionID: ''
+        forwardedValues:
+          cookies:
+            forward: none
+          headers:
+            items: []
+          queryString: false
+          queryStringCacheKeys: {}
+        functionAssociations: {}
+        lambdaFunctionAssociations: {}
+        maxTTL: 600
+        minTTL: 0
+        smoothStreaming: false
+        targetOriginID: crossplane.io
+        trustedKeyGroups:
+          enabled: false
+        trustedSigners:
+          enabled: false
+        viewerProtocolPolicy: allow-all
+      defaultRootObject: index.html
+      enabled: true
+      httpVersion: http2
+      isIPV6Enabled: true
+      logging:
+        bucket: ''
+        enabled: false
+        includeCookies: false
+        prefix: ''
+      originGroups: {}
+      origins:
+        items:
+          - connectionAttempts: 3
+            connectionTimeout: 10
+            customOriginConfig:
+              httpPort: 8080
+              httpSPort: 443
+              originKeepaliveTimeout: 5
+              originProtocolPolicy: http-only
+              originReadTimeout: 10
+              originSSLProtocols:
+                items:
+                  - TLSv1
+                  - TLSv1.1
+                  - TLSv1.2
+      priceClass: PriceClass_200
+      restrictions:
+        geoRestriction:
+          restrictionType: none
+    region: ap-northeast-2
+  providerConfigRef:
+    name: crossplane
+status:
+  conditions:
+    - lastTransitionTime: '2024-01-17T07:26:02Z'
+      message: >
+        update failed: cannot update Distribution in AWS: InvalidParameter: 2
+        validation error(s) found.
+
+        - missing required field,
+        UpdateDistributionInput.DistributionConfig.Origins.Items[0].DomainName.
+
+        - missing required field,
+        UpdateDistributionInput.DistributionConfig.Origins.Items[0].Id.
+      reason: ReconcileError
+      status: 'False'
+      type: Synced
+    - lastTransitionTime: '2024-01-17T07:26:03Z'
+      reason: Available
+      status: 'True'
+      type: Ready
