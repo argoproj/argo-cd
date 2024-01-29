@@ -1,11 +1,15 @@
 @import 'node_modules/argo-ui/src/styles/config';
+@import 'node_modules/argo-ui/src/styles/theme';
 
 .application-node-info {
     &__manifest {
         overflow-x: auto;
 
         .tabs__content {
-            background-color: white;
+            @include themify($themes) {
+                background-color: themed('background-2');
+                color: themed('text-2');             
+            }
         }
 
         &--raw {
@@ -36,7 +40,9 @@
         text-align: right;
         label {
             padding-right: 2em;
-            color: $argo-color-gray-8;
+            @include themify($themes) {
+                color: themed('text-2');             
+            }
         }
     }
     &__err_msg {
