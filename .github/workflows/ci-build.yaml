@@ -25,7 +25,7 @@ permissions:
 jobs:
   check-go:
     name: Ensure Go modules synchronicity
-    runs-on: ubuntu-22.04
+    runs-on: actuated-arm64-4cpu-16gb
     steps:
       - name: Checkout code
         uses: actions/checkout@3df4ab11eba7bda6032a0b82a6bb43b11571feac # v4.0.0
@@ -43,7 +43,7 @@ jobs:
 
   build-go:
     name: Build & cache Go code
-    runs-on: ubuntu-22.04
+    runs-on: actuated-arm64-4cpu-16gb
     steps:
       - name: Checkout code
         uses: actions/checkout@3df4ab11eba7bda6032a0b82a6bb43b11571feac # v4.0.0
@@ -67,7 +67,7 @@ jobs:
       contents: read  # for actions/checkout to fetch code
       pull-requests: read  # for golangci/golangci-lint-action to fetch pull requests
     name: Lint Go code
-    runs-on: ubuntu-22.04
+    runs-on: actuated-arm64-4cpu-16gb
     steps:
       - name: Checkout code
         uses: actions/checkout@3df4ab11eba7bda6032a0b82a6bb43b11571feac # v4.0.0
@@ -83,7 +83,7 @@ jobs:
 
   test-go:
     name: Run unit tests for Go packages
-    runs-on: ubuntu-22.04
+    runs-on: actuated-arm64-4cpu-16gb
     needs:
       - build-go
     env:
@@ -150,7 +150,7 @@ jobs:
 
   test-go-race:
     name: Run unit tests with -race for Go packages
-    runs-on: ubuntu-22.04
+    runs-on: actuated-arm64-4cpu-16gb
     needs:
       - build-go
     env:
@@ -212,7 +212,7 @@ jobs:
 
   codegen:
     name: Check changes to generated code
-    runs-on: ubuntu-22.04
+    runs-on: actuated-arm64-4cpu-16gb
     steps:
       - name: Checkout code
         uses: actions/checkout@3df4ab11eba7bda6032a0b82a6bb43b11571feac # v4.0.0
@@ -260,7 +260,7 @@ jobs:
 
   build-ui:
     name: Build, test & lint UI code
-    runs-on: ubuntu-22.04
+    runs-on: actuated-arm64-4cpu-16gb
     steps:
       - name: Checkout code
         uses: actions/checkout@3df4ab11eba7bda6032a0b82a6bb43b11571feac # v4.0.0
@@ -292,7 +292,7 @@ jobs:
 
   analyze:
     name: Process & analyze test artifacts
-    runs-on: ubuntu-22.04
+    runs-on: actuated-arm64-4cpu-16gb
     needs:
       - test-go
       - build-ui
@@ -358,7 +358,7 @@ jobs:
 
   test-e2e:
     name: Run end-to-end tests
-    runs-on: actuated-arm64-4cpu-16gb
+    runs-on: ubuntu-22.04
     strategy:
       fail-fast: false
       matrix:
