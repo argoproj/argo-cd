@@ -117,7 +117,7 @@ Example:
 
 - Conditionally set the automated sync policy.
 - Conditionally switch prune boolean to `true`.
-- Conditionally add multiple helm value files.
+- Add multiple helm value files from a list.
 
 The `templatePatch` feature enables advanced templating, with support for `json` and `yaml`.
 
