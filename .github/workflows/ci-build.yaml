@@ -358,7 +358,7 @@ jobs:
 
   test-e2e:
     name: Run end-to-end tests
-    runs-on: ubuntu-22.04
+    runs-on: actuated-arm64-4cpu-16gb
     strategy:
       fail-fast: false
       matrix:
