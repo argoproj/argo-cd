@@ -106,6 +106,37 @@ spec:
         namespace: default
 ```
 
+## Components
+Kustomize [components](https://github.com/kubernetes-sigs/kustomize/blob/master/examples/components.md) encapsulate both resources and patches together. They provide a powerful way to modularize and reuse configuration in Kubernetes applications.
+
+Outside of Argo CD, to utilize components, you must add the following to the `kustomization.yaml` that the Application references. For example:
+```yaml
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+...
+components:
+- ../component
+```
+
+With support added for components in `v2.10.0`, you can now reference a component directly in the Application:
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: application-kustomize-components
+spec:
+  ...
+  source:
+    path: examples/application-kustomize-components/base
+    repoURL: https://github.com/my-user/my-repo
+    targetRevision: main
+    
+    # This!
+    kustomize:
+      components:
+        - ../component  # relative to the kustomization.yaml (`source.path`).
+```
+
 ## Private Remote Bases
 
 If you have remote bases that are either (a) HTTPS and need username/password (b) SSH and need SSH private key, then they'll inherit that from the app's repo.
