@@ -8,7 +8,6 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/go-jose/go-jose/v3"
 	"github.com/golang-jwt/jwt/v4"
 	"github.com/stretchr/testify/require"
 )
@@ -182,13 +181,15 @@ func oidcMockHandler(t *testing.T, url string) func(http.ResponseWriter, *http.R
 		case "/keys":
 			pubKey, err := jwt.ParseRSAPublicKeyFromPEM(Cert)
 			require.NoError(t, err)
-			jwks := jose.JSONWebKeySet{
-				Keys: []jose.JSONWebKey{
-					{
-						Key: pubKey,
-					},
+			keys := []map[string]interface{}{
+				{
+					"key": pubKey,
 				},
 			}
+			jwks := map[string]interface{}{
+				"keys": keys,
+			}
+
 			out, err := json.Marshal(jwks)
 			require.NoError(t, err)
 			_, err = io.WriteString(w, string(out))
