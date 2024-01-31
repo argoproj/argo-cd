@@ -148,6 +148,7 @@ func WithEventHandlers(handlers EventHandlers) ClientOpts {
 	}
 }
 
+// WithPreserveDependenciesChartsArchives sets the flag to preserve dependencies charts archives
 func WithPreserveDependenciesChartsArchives() ClientOpts {
 	return func(c *nativeGitClient) {
 		c.preserveDependenciesChartsArchives = true

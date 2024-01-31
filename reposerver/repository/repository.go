@@ -1402,6 +1402,7 @@ func WithCMPTarExcludedGlobs(excludedGlobs []string) GenerateManifestOpt {
 	}
 }
 
+// WithPreserveDependenciesChartsArchives defines whether to preserve dependencies charts archives
 func WithPreserveDependenciesChartsArchives(val bool) GenerateManifestOpt {
 	return func(o *generateManifestOpt) {
 		o.preserveDependenciesChartsArchives = val
