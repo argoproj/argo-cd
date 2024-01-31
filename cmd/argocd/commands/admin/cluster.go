@@ -129,13 +129,6 @@ func loadClusters(ctx context.Context, kubeClient *kubernetes.Clientset, appClie
 
 	batchSize := 10
 	batchesCount := int(math.Ceil(float64(len(clusters)) / float64(batchSize)))
-	clusterSharding := &sharding.ClusterSharding{
-		Shard:    shard,
-		Replicas: replicas,
-		Shards:   make(map[string]int),
-		Clusters: make(map[string]*v1alpha1.Cluster),
-		Apps:     make(map[string]*v1alpha1.Application),
-	}
 	for batchNum := 0; batchNum < batchesCount; batchNum++ {
 		batchStart := batchSize * batchNum
 		batchEnd := batchSize * (batchNum + 1)
@@ -147,9 +140,7 @@ func loadClusters(ctx context.Context, kubeClient *kubernetes.Clientset, appClie
 			clusterShard := 0
 			cluster := batch[i]
 			if replicas > 0 {
-				distributionFunction := sharding.GetDistributionFunction(clusterSharding.GetClusterAccessor(), clusterSharding.GetAppAccessor(), common.DefaultShardingAlgorithm, replicas)
-				distributionFunction(&cluster)
-				clusterShard := clusterShards[cluster.Server]
+				clusterShard = clusterShards[cluster.Server]
 				cluster.Shard = pointer.Int64(int64(clusterShard))
 				log.Infof("Cluster with uid: %s will be processed by shard %d", cluster.ID, clusterShard)
 			}
