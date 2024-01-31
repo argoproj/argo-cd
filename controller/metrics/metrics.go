@@ -162,12 +162,11 @@ func NewMetricsServer(addr string, appLister applister.ApplicationLister, appFil
 
 	mux := http.NewServeMux()
 	registry := NewAppRegistry(appLister, appFilter, appLabels)
+
 	mux.Handle(MetricsPath, promhttp.HandlerFor(prometheus.Gatherers{
 		// contains app controller specific metrics
 		registry,
-		// contains process and golang metrics
-		prometheus.DefaultGatherer,
-		// contains workqueue metrics
+		// contains workqueue metrics, process and golang metrics
 		ctrl_metrics.Registry,
 	}, promhttp.HandlerOpts{}))
 	profile.RegisterProfiler(mux)
