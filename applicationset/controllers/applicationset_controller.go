@@ -135,7 +135,9 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 				Status:  argov1alpha1.ApplicationSetConditionStatusTrue,
 			}, parametersGenerated,
 		)
-		return ctrl.Result{}, err
+		if len(desiredApplications) < 1 {
+			return ctrl.Result{}, err
+		}
 	}
 
 	parametersGenerated = true
