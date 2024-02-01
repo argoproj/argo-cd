@@ -23,6 +23,8 @@ import (
 	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned/fake"
 	appinformer "github.com/argoproj/argo-cd/v2/pkg/client/informers/externalversions"
 	applister "github.com/argoproj/argo-cd/v2/pkg/client/listers/application/v1alpha1"
+
+	"sigs.k8s.io/controller-runtime/pkg/controller"
 )
 
 const fakeApp = `
@@ -140,6 +142,12 @@ var noOpHealthCheck = func(r *http.Request) error {
 
 var appFilter = func(obj interface{}) bool {
 	return true
+}
+
+func init() {
+	// Create a fake controller so we initialize the internal controller metrics.
+	// https://github.com/kubernetes-sigs/controller-runtime/blob/4000e996a202917ad7d40f02ed8a2079a9ce25e9/pkg/internal/controller/metrics/metrics.go
+	controller.New("test-controller", nil, controller.Options{})
 }
 
 func newFakeApp(fakeAppYAML string) *argoappv1.Application {
@@ -502,6 +510,7 @@ go_memstats_sys_bytes
 # TYPE go_threads gauge
 go_threads
 `
+
 	req, err := http.NewRequest(http.MethodGet, "/metrics", nil)
 	assert.NoError(t, err)
 	rr := httptest.NewRecorder()
