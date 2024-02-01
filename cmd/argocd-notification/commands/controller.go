@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/argoproj/argo-cd/v2/common"
+	"github.com/argoproj/argo-cd/v2/pkg/pprof"
 	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
 
 	"github.com/argoproj/argo-cd/v2/util/env"
@@ -57,6 +58,7 @@ func NewCommand() *cobra.Command {
 		secretName                     string
 		applicationNamespaces          []string
 		selfServiceNotificationEnabled bool
+		pprofAddress                   string
 	)
 	command := cobra.Command{
 		Use:   "controller",
@@ -147,6 +149,20 @@ func NewCommand() *cobra.Command {
 			}
 
 			go ctrl.Run(ctx, processorsCount)
+
+			// run pprof server
+			pprofSrv, err := pprof.NewPprofServer(pprofAddress)
+			if err != nil {
+				log.Error(err, "failed to create pprof handler")
+				os.Exit(1)
+			}
+			go func() {
+				if err := pprofSrv.Start(ctx); err != nil {
+					log.Error(err, "unable to start pprof handler")
+					os.Exit(1)
+				}
+			}()
+
 			<-ctx.Done()
 			return nil
 		},
@@ -165,5 +181,6 @@ func NewCommand() *cobra.Command {
 	command.Flags().StringVar(&secretName, "secret-name", "argocd-notifications-secret", "Set notifications Secret name")
 	command.Flags().StringSliceVar(&applicationNamespaces, "application-namespaces", env.StringsFromEnv("ARGOCD_APPLICATION_NAMESPACES", []string{}, ","), "List of additional namespaces that this controller should send notifications for")
 	command.Flags().BoolVar(&selfServiceNotificationEnabled, "self-service-notification-enabled", env.ParseBoolFromEnv("ARGOCD_NOTIFICATION_CONTROLLER_SELF_SERVICE_NOTIFICATION_ENABLED", false), "Allows the Argo CD notification controller to pull notification config from the namespace that the resource is in. This is useful for self-service notification.")
+	command.Flags().StringVar(&pprofAddress, "pprof-addr", "", "The address the pprof endpoint binds to.")
 	return &command
 }

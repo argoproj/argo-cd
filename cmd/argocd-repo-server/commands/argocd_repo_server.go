@@ -5,6 +5,7 @@ import (
 	"math"
 	"net"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/argoproj/pkg/stats"
@@ -16,6 +17,7 @@ import (
 
 	cmdutil "github.com/argoproj/argo-cd/v2/cmd/util"
 	"github.com/argoproj/argo-cd/v2/common"
+	"github.com/argoproj/argo-cd/v2/pkg/pprof"
 	"github.com/argoproj/argo-cd/v2/reposerver"
 	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/v2/reposerver/askpass"
@@ -71,6 +73,7 @@ func NewCommand() *cobra.Command {
 		helmRegistryMaxIndexSize          string
 		disableManifestMaxExtractedSize   bool
 		includeHiddenDirectories          bool
+		pprofAddress                      string
 	)
 	command := cobra.Command{
 		Use:               cliName,
@@ -189,6 +192,20 @@ func NewCommand() *cobra.Command {
 			}
 
 			log.Infof("argocd-repo-server is listening on %s", listener.Addr())
+
+			// run pprof server
+			pprofSrv, err := pprof.NewPprofServer(pprofAddress)
+			if err != nil {
+				log.Error(err, "failed to create pprof handler")
+				os.Exit(1)
+			}
+			go func() {
+				if err := pprofSrv.Start(ctx); err != nil {
+					log.Error(err, "unable to start pprof handler")
+					os.Exit(1)
+				}
+			}()
+
 			stats.RegisterStackDumper()
 			stats.StartStatsTicker(10 * time.Minute)
 			stats.RegisterHeapDumper("memprofile")
@@ -218,6 +235,7 @@ func NewCommand() *cobra.Command {
 	command.Flags().StringVar(&helmRegistryMaxIndexSize, "helm-registry-max-index-size", env.StringFromEnv("ARGOCD_REPO_SERVER_HELM_MANIFEST_MAX_INDEX_SIZE", "1G"), "Maximum size of registry index file")
 	command.Flags().BoolVar(&disableManifestMaxExtractedSize, "disable-helm-manifest-max-extracted-size", env.ParseBoolFromEnv("ARGOCD_REPO_SERVER_DISABLE_HELM_MANIFEST_MAX_EXTRACTED_SIZE", false), "Disable maximum size of helm manifest archives when extracted")
 	command.Flags().BoolVar(&includeHiddenDirectories, "include-hidden-directories", env.ParseBoolFromEnv("ARGOCD_REPO_SERVER_INCLUDE_HIDDEN_DIRECTORIES", false), "Include hidden directories from Git")
+	command.Flags().StringVar(&pprofAddress, "pprof-addr", "", "The address the pprof endpoint binds to.")
 	tlsConfigCustomizerSrc = tls.AddTLSFlagsToCmd(&command)
 	cacheSrc = reposervercache.AddCacheFlagsToCmd(&command, cacheutil.Options{
 		OnClientCreated: func(client *redis.Client) {

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"math"
+	"os"
 	"strings"
 	"time"
 
@@ -21,6 +22,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
+	"github.com/argoproj/argo-cd/v2/pkg/pprof"
 	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
 	reposervercache "github.com/argoproj/argo-cd/v2/reposerver/cache"
 	"github.com/argoproj/argo-cd/v2/server"
@@ -83,6 +85,7 @@ func NewCommand() *cobra.Command {
 		applicationNamespaces    []string
 		enableProxyExtension     bool
 		webhookParallelism       int
+		pprofAddress             string
 
 		// ApplicationSet
 		enableNewGitFileGlobbing bool
@@ -233,6 +236,19 @@ func NewCommand() *cobra.Command {
 				EnableScmProviders:       enableScmProviders,
 			}
 
+			// run pprof server
+			pprofSrv, err := pprof.NewPprofServer(pprofAddress)
+			if err != nil {
+				log.Error(err, "failed to create pprof handler")
+				os.Exit(1)
+			}
+			go func() {
+				if err := pprofSrv.Start(ctx); err != nil {
+					log.Error(err, "unable to start pprof handler")
+					os.Exit(1)
+				}
+			}()
+
 			stats.RegisterStackDumper()
 			stats.StartStatsTicker(10 * time.Minute)
 			stats.RegisterHeapDumper("memprofile")
@@ -297,6 +313,7 @@ func NewCommand() *cobra.Command {
 	command.Flags().StringSliceVar(&applicationNamespaces, "application-namespaces", env.StringsFromEnv("ARGOCD_APPLICATION_NAMESPACES", []string{}, ","), "List of additional namespaces where application resources can be managed in")
 	command.Flags().BoolVar(&enableProxyExtension, "enable-proxy-extension", env.ParseBoolFromEnv("ARGOCD_SERVER_ENABLE_PROXY_EXTENSION", false), "Enable Proxy Extension feature")
 	command.Flags().IntVar(&webhookParallelism, "webhook-parallelism-limit", env.ParseNumFromEnv("ARGOCD_SERVER_WEBHOOK_PARALLELISM_LIMIT", 50, 1, 1000), "Number of webhook requests processed concurrently")
+	command.Flags().StringVar(&pprofAddress, "pprof-addr", "", "The address the pprof endpoint binds to.")
 
 	// Flags related to the applicationSet component.
 	command.Flags().StringVar(&scmRootCAPath, "appset-scm-root-ca-path", env.StringFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_SCM_ROOT_CA_PATH", ""), "Provide Root CA Path for self-signed TLS Certificates")

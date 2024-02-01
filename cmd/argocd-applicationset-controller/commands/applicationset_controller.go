@@ -38,6 +38,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/applicationset/services"
 	appv1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
+	"github.com/argoproj/argo-cd/v2/pkg/pprof"
 	"github.com/argoproj/argo-cd/v2/util/cli"
 	"github.com/argoproj/argo-cd/v2/util/db"
 	"github.com/argoproj/argo-cd/v2/util/errors"
@@ -52,6 +53,7 @@ func NewCommand() *cobra.Command {
 		metricsAddr                  string
 		probeBindAddr                string
 		webhookAddr                  string
+		pprofAddr                    string
 		enableLeaderElection         bool
 		applicationSetNamespaces     []string
 		argocdRepoServer             string
@@ -217,6 +219,16 @@ func NewCommand() *cobra.Command {
 				os.Exit(1)
 			}
 
+			pprofSrv, err := pprof.NewPprofServer(pprofAddr)
+			if err != nil {
+				log.Error(err, "failed to create pprof handler")
+				os.Exit(1)
+			}
+			if err := mgr.Add(&pprofSrv); err != nil {
+				log.Error(err, "unable to set up pprof handler")
+				os.Exit(1)
+			}
+
 			stats.StartStatsTicker(10 * time.Minute)
 			log.Info("Starting manager")
 			if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
@@ -230,6 +242,7 @@ func NewCommand() *cobra.Command {
 	command.Flags().StringVar(&metricsAddr, "metrics-addr", ":8080", "The address the metric endpoint binds to.")
 	command.Flags().StringVar(&probeBindAddr, "probe-addr", ":8081", "The address the probe endpoint binds to.")
 	command.Flags().StringVar(&webhookAddr, "webhook-addr", ":7000", "The address the webhook endpoint binds to.")
+	command.Flags().StringVar(&pprofAddr, "pprof-addr", "", "The address the pprof endpoint binds to.")
 	command.Flags().BoolVar(&enableLeaderElection, "enable-leader-election", env.ParseBoolFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_LEADER_ELECTION", false),
 		"Enable leader election for controller manager. "+
 			"Enabling this will ensure there is only one active controller manager.")

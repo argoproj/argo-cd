@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"math"
+	"os"
 	"time"
 
 	"github.com/argoproj/pkg/stats"
@@ -19,6 +20,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/controller/sharding"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
+	"github.com/argoproj/argo-cd/v2/pkg/pprof"
 	"github.com/argoproj/argo-cd/v2/pkg/ratelimiter"
 	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/v2/util/argo/normalizers"
@@ -74,6 +76,7 @@ func NewCommand() *cobra.Command {
 		enableDynamicClusterDistribution bool
 		serverSideDiff                   bool
 		ignoreNormalizerOpts             normalizers.IgnoreNormalizerOpts
+		pprofAddress                     string
 	)
 	command := cobra.Command{
 		Use:               cliName,
@@ -176,6 +179,19 @@ func NewCommand() *cobra.Command {
 			errors.CheckError(err)
 			cacheutil.CollectMetrics(redisClient, appController.GetMetricsServer())
 
+			// run pprof server
+			pprofSrv, err := pprof.NewPprofServer(pprofAddress)
+			if err != nil {
+				log.Error(err, "failed to create pprof handler")
+				os.Exit(1)
+			}
+			go func() {
+				if err := pprofSrv.Start(ctx); err != nil {
+					log.Error(err, "unable to start pprof handler")
+					os.Exit(1)
+				}
+			}()
+
 			stats.RegisterStackDumper()
 			stats.StartStatsTicker(10 * time.Minute)
 			stats.RegisterHeapDumper("memprofile")
@@ -233,6 +249,7 @@ func NewCommand() *cobra.Command {
 	command.Flags().BoolVar(&enableDynamicClusterDistribution, "dynamic-cluster-distribution-enabled", env.ParseBoolFromEnv(common.EnvEnableDynamicClusterDistribution, false), "Enables dynamic cluster distribution.")
 	command.Flags().BoolVar(&serverSideDiff, "server-side-diff-enabled", env.ParseBoolFromEnv(common.EnvServerSideDiff, false), "Feature flag to enable ServerSide diff. Default (\"false\")")
 	command.Flags().DurationVar(&ignoreNormalizerOpts.JQExecutionTimeout, "ignore-normalizer-jq-execution-timeout-seconds", env.ParseDurationFromEnv("ARGOCD_IGNORE_NORMALIZER_JQ_TIMEOUT", 0*time.Second, 0, math.MaxInt64), "Set ignore normalizer JQ execution timeout")
+	command.Flags().StringVar(&pprofAddress, "pprof-addr", "", "The address the pprof endpoint binds to.")
 	cacheSource = appstatecache.AddCacheFlagsToCmd(&command, cacheutil.Options{
 		OnClientCreated: func(client *redis.Client) {
 			redisClient = client
