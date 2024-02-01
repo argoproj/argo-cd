@@ -188,8 +188,25 @@ function tryJsonParse(input: string) {
     }
 }
 
-const SearchBar = (props: {content: string; ctx: ContextApis; apps: models.Application[]}) => {
-    const {content, ctx, apps} = {...props};
+function onFilterPrefChanged(ctx: ContextApis, newPref: AppsListPreferences) {
+    services.viewPreferences.updatePreferences({appList: newPref});
+    ctx.navigation.goto(
+        '.',
+        {
+            search: newPref.searchFilter,
+            proj: newPref.projectsFilter.join(','),
+            sync: newPref.syncFilter.join(','),
+            health: newPref.healthFilter.join(','),
+            namespace: newPref.namespacesFilter.join(','),
+            cluster: newPref.clustersFilter.join(','),
+            labels: newPref.labelsFilter.map(encodeURIComponent).join(',')
+        },
+        {replace: true}
+    );
+}
+
+const SearchBar = (props: {pref: AppsListPreferences; content: string; ctx: ContextApis; apps: models.Application[]}) => {
+    const {pref, content, ctx, apps} = {...props};
 
     const searchBar = React.useRef<HTMLDivElement>(null);
 
@@ -265,7 +282,10 @@ const SearchBar = (props: {content: string; ctx: ContextApis; apps: models.Appli
             onSelect={val => {
                 ctx.navigation.goto(`./${val}`);
             }}
-            onChange={e => ctx.navigation.goto('.', {search: e.target.value}, {replace: true})}
+            onChange={e => {
+                pref.searchFilter = e.target.value;
+                onFilterPrefChanged(ctx, pref);
+            }}
             value={content || ''}
             items={apps.map(app => AppUtils.appQualifiedName(app, useAuthSettingsCtx?.appsInAnyNamespaceEnabled))}
         />
@@ -396,7 +416,7 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                                         toolbar={{
                                                             tools: (
                                                                 <React.Fragment key='app-list-tools'>
-                                                                    <Query>{q => <SearchBar content={q.get('search')} apps={applications} ctx={ctx} />}</Query>
+                                                                    <Query>{q => <SearchBar pref={pref} content={q.get('search')} apps={applications} ctx={ctx} />}</Query>
                                                                     <Tooltip content='Toggle Health Status Bar'>
                                                                         <button
                                                                             className={`applications-list__accordion argo-button argo-button--base${
