@@ -362,7 +362,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        k3s-version: [v1.29.0, v1.28.2, v1.27.6, v1.26.9, v1.25.14]
+        k3s-version: [v1.29.1, v1.28.6, v1.27.10, v1.26.13, v1.25.16]
     needs: 
       - build-go
     env:
