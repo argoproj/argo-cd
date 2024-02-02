@@ -74,5 +74,5 @@ apiVersion: argoproj.io/v1alpha1
 kind: Rollout
 metadata:
   annotations:
-    notifications.argoproj.io/subscribe.on-rollout-aborted.pagerdutyv2: "<serviceID for PagerDuty>"
+    notifications.argoproj.io/subscribe.on-rollout-aborted.pagerdutyv2: "<serviceID for Pagerduty>"
 ```

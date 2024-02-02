@@ -3689,7 +3689,6 @@ func (in *RevisionHistory) DeepCopyInto(out *RevisionHistory) {
 		*out = make([]string, len(*in))
 		copy(*out, *in)
 	}
-	out.InitiatedBy = in.InitiatedBy
 	return
 }
 
