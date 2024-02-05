@@ -266,7 +266,7 @@ func getClusterSharding(kubeClient *kubernetes.Clientset, settingsMgr *settings.
 			// If we still see conflicts after the retries, wait for next iteration of heartbeat process.
 			for i := 0; i <= common.AppControllerHeartbeatUpdateRetryCount; i++ {
 				shardNumber, err = sharding.GetOrUpdateShardFromConfigMap(kubeClient, settingsMgr, replicasCount, shardNumber)
-				if !kubeerrors.IsConflict(err) {
+				if err != nil && !kubeerrors.IsConflict(err) {
 					err = fmt.Errorf("unable to get shard due to error updating the sharding config map: %s", err)
 					break
 				}
