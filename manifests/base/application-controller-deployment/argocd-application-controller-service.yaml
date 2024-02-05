@@ -14,7 +14,7 @@ spec:
     targetPort: 8082
   - name: metrics
     protocol: TCP
-    port: 8082
-    targetPort: 8082
+    port: 8084
+    targetPort: 8084
   selector:
     app.kubernetes.io/name: argocd-application-controller
