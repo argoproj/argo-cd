@@ -20,8 +20,6 @@ spec:
       - args:
         - /usr/local/bin/argocd-application-controller
         env:
-        - name: ARGOCD_ENABLE_DYNAMIC_CLUSTER_DISTRIBUTION
-          value: "true"
         - name: ARGOCD_RECONCILIATION_TIMEOUT
           valueFrom:
             configMapKeyRef:
