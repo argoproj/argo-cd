@@ -696,8 +696,8 @@ github.com/apache/thrift v0.16.0/go.mod h1:PHK3hniurgQaNMZYaCLEqXKsYK8upmhPbmdP2
 github.com/appscode/go v0.0.0-20191119085241-0887d8ec2ecc/go.mod h1:OawnOmAL4ZX3YaPdN+8HTNwBveT1jMsqP74moa9XUbE=
 github.com/argoproj/gitops-engine v0.7.1-0.20240124052710-5fd9f449e757 h1:5fKAhTQcTBom0vin56cz/UTPx2GMuvdb+lJRAUOPbHA=
 github.com/argoproj/gitops-engine v0.7.1-0.20240124052710-5fd9f449e757/go.mod h1:gWE8uROi7hIkWGNAVM+8FWkMfo0vZ03SLx/aFw/DBzg=
-github.com/argoproj/notifications-engine v0.4.1-0.20240126143042-84b9f7913604 h1:pMfBao6Vm1Ax0xGIp9BWEia2nKkccHwV0dTEdrsFOpo=
-github.com/argoproj/notifications-engine v0.4.1-0.20240126143042-84b9f7913604/go.mod h1:TsyusmXQWIL0ST7YMRG/ered7WlWDmbmnPpXnS2LJmM=
+github.com/argoproj/notifications-engine v0.4.1-0.20240206192038-2daee6022f41 h1:PQE8LbcbRHdtnQzeEWwVU2QHXACKOA30yS3No5HSoTQ=
+github.com/argoproj/notifications-engine v0.4.1-0.20240206192038-2daee6022f41/go.mod h1:TsyusmXQWIL0ST7YMRG/ered7WlWDmbmnPpXnS2LJmM=
 github.com/argoproj/pkg v0.13.7-0.20230626144333-d56162821bd1 h1:qsHwwOJ21K2Ao0xPju1sNuqphyMnMYkyB3ZLoLtxWpo=
 github.com/argoproj/pkg v0.13.7-0.20230626144333-d56162821bd1/go.mod h1:CZHlkyAD1/+FbEn6cB2DQTj48IoLGvEYsWEvtzP3238=
 github.com/armon/circbuf v0.0.0-20150827004946-bbbad097214e/go.mod h1:3U/XgcO3hCbHZ8TKRvWD2dDTCfh9M9ya+I9JpbB7O8o=

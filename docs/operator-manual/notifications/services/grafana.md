@@ -21,7 +21,7 @@ Available parameters :
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: <config-map-name>
+  name: argocd-notifications-cm
 data:
   service.grafana: |
     apiUrl: https://grafana.example.com/api
