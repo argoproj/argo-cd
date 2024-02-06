@@ -8,6 +8,8 @@ kind: ApplicationSet
 metadata:
   name: myapps
 spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
   generators:
   - pullRequest:
       # When using a Pull Request generator, the ApplicationSet controller polls every `requeueAfterSeconds` interval (defaulting to every 30 minutes) to detect changes.
@@ -33,6 +35,8 @@ kind: ApplicationSet
 metadata:
   name: myapps
 spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
   generators:
   - pullRequest:
       github:
@@ -75,6 +79,8 @@ kind: ApplicationSet
 metadata:
   name: myapps
 spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
   generators:
   - pullRequest:
       gitlab:
@@ -105,7 +111,7 @@ spec:
 * `pullRequestState`: PullRequestState is an additional MRs filter to get only those with a certain state. Default: "" (all states)
 * `insecure`: By default (false) - Skip checking the validity of the SCM's certificate - useful for self-signed TLS certificates.
 
-As a preferable alternative to setting `insecure` to true, you can configure self-signed TLS certificates for Gitlab by [mounting self-signed certificate to the applicationset controller](./Add-self-signed-TLS-Certs.md).
+As a preferable alternative to setting `insecure` to true, you can configure self-signed TLS certificates for Gitlab by [mounting self-signed certificate to the applicationset controller](./Generators-SCM-Provider.md#self-signed-tls-certificates).
 
 ## Gitea
 
@@ -117,6 +123,8 @@ kind: ApplicationSet
 metadata:
   name: myapps
 spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
   generators:
   - pullRequest:
       gitea:
@@ -153,6 +161,8 @@ kind: ApplicationSet
 metadata:
   name: myapps
 spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
   generators:
   - pullRequest:
       bitbucketServer:
@@ -195,6 +205,8 @@ kind: ApplicationSet
 metadata:
   name: myapps
 spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
   generators:
     - pullRequest:
         bitbucket:
@@ -232,7 +244,7 @@ spec:
 - `api`: Optional URL to access the Bitbucket REST API. For the example above, an API request would be made to `https://api.bitbucket.org/2.0/repositories/{workspace}/{repo_slug}/pullrequests`. If not set, defaults to `https://api.bitbucket.org/2.0`
 - `branchMatch`: Optional regexp filter which should match the source branch name. This is an alternative to labels which are not supported by Bitbucket server.
 
-If you want to access a private repository, ArgoCD will need credentials to access repository in Bitbucket Cloud. You can use Bitbucket App Password (generated per user, with access to whole workspace), or Bitbucket App Token (generated per repository, with access limited to repository scope only). If both App Password and App Token are defined, App Token will be used.
+If you want to access a private repository, Argo CD will need credentials to access repository in Bitbucket Cloud. You can use Bitbucket App Password (generated per user, with access to whole workspace), or Bitbucket App Token (generated per repository, with access limited to repository scope only). If both App Password and App Token are defined, App Token will be used.
 
 To use Bitbucket App Password, use `basicAuth` section.
 - `username`: The username to authenticate with. It only needs read access to the relevant repo.
@@ -251,6 +263,8 @@ kind: ApplicationSet
 metadata:
   name: myapps
 spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
   generators:
   - pullRequest:
       azuredevops:
@@ -292,6 +306,8 @@ kind: ApplicationSet
 metadata:
   name: myapps
 spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
   generators:
   - pullRequest:
       # ...
@@ -319,21 +335,23 @@ kind: ApplicationSet
 metadata:
   name: myapps
 spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
   generators:
   - pullRequest:
     # ...
   template:
     metadata:
-      name: 'myapp-{{branch}}-{{number}}'
+      name: 'myapp-{{.branch}}-{{.number}}'
     spec:
       source:
         repoURL: 'https://github.com/myorg/myrepo.git'
-        targetRevision: '{{head_sha}}'
+        targetRevision: '{{.head_sha}}'
         path: kubernetes/
         helm:
           parameters:
           - name: "image.tag"
-            value: "pull-{{head_sha}}"
+            value: "pull-{{.head_sha}}"
       project: "my-project"
       destination:
         server: https://kubernetes.default.svc
@@ -348,23 +366,25 @@ kind: ApplicationSet
 metadata:
   name: myapps
 spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
   generators:
   - pullRequest:
     # ...
   template:
     metadata:
-      name: 'myapp-{{branch}}-{{number}}'
+      name: 'myapp-{{.branch}}-{{.number}}'
     spec:
       source:
         repoURL: 'https://github.com/myorg/myrepo.git'
-        targetRevision: '{{head_sha}}'
+        targetRevision: '{{.head_sha}}'
         path: kubernetes/
         kustomize:
-          nameSuffix: {{branch}}
+          nameSuffix: '{{.branch}}'
           commonLabels:
-            app.kubernetes.io/instance: {{branch}}-{{number}}
+            app.kubernetes.io/instance: '{{.branch}}-{{.number}}'
           images:
-          - ghcr.io/myorg/myrepo:{{head_sha}}
+          - 'ghcr.io/myorg/myrepo:{{.head_sha}}'
       project: "my-project"
       destination:
         server: https://kubernetes.default.svc
@@ -386,6 +406,9 @@ spec:
 When using a Pull Request generator, the ApplicationSet controller polls every `requeueAfterSeconds` interval (defaulting to every 30 minutes) to detect changes. To eliminate this delay from polling, the ApplicationSet webhook server can be configured to receive webhook events, which will trigger Application generation by the Pull Request generator.
 
 The configuration is almost the same as the one described [in the Git generator](Generators-Git.md), but there is one difference: if you want to use the Pull Request Generator as well, additionally configure the following settings.
+
+!!! note
+    The ApplicationSet controller webhook does not use the same webhook as the API server as defined [here](../webhook.md). ApplicationSet exposes a webhook server as a service of type ClusterIP. An ApplicationSet specific Ingress resource needs to be created to expose this service to the webhook source.
 
 ### Github webhook configuration
 

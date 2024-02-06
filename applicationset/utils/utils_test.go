@@ -2,6 +2,7 @@ package utils
 
 import (
 	"crypto/x509"
+	"encoding/json"
 	"os"
 	"path"
 	"testing"
@@ -195,6 +196,113 @@ func TestRenderTemplateParams(t *testing.T) {
 			}
 		})
 	}
+
+}
+
+func TestRenderHelmValuesObjectJson(t *testing.T) {
+
+	params := map[string]interface{}{
+		"test": "Hello world",
+	}
+
+	application := &argoappsv1.Application{
+		ObjectMeta: metav1.ObjectMeta{
+			Annotations:       map[string]string{"annotation-key": "annotation-value", "annotation-key2": "annotation-value2"},
+			Labels:            map[string]string{"label-key": "label-value", "label-key2": "label-value2"},
+			CreationTimestamp: metav1.NewTime(time.Now()),
+			UID:               types.UID("d546da12-06b7-4f9a-8ea2-3adb16a20e2b"),
+			Name:              "application-one",
+			Namespace:         "default",
+		},
+		Spec: argoappsv1.ApplicationSpec{
+			Source: &argoappsv1.ApplicationSource{
+				Path:           "",
+				RepoURL:        "",
+				TargetRevision: "",
+				Chart:          "",
+				Helm: &argoappsv1.ApplicationSourceHelm{
+					ValuesObject: &runtime.RawExtension{
+						Raw: []byte(`{
+								"some": {
+									"string": "{{.test}}"
+								}
+							  }`),
+					},
+				},
+			},
+			Destination: argoappsv1.ApplicationDestination{
+				Server:    "",
+				Namespace: "",
+				Name:      "",
+			},
+			Project: "",
+		},
+	}
+
+	// Render the cloned application, into a new application
+	render := Render{}
+	newApplication, err := render.RenderTemplateParams(application, nil, params, true, []string{})
+
+	assert.NoError(t, err)
+	assert.NotNil(t, newApplication)
+
+	var unmarshaled interface{}
+	err = json.Unmarshal(newApplication.Spec.Source.Helm.ValuesObject.Raw, &unmarshaled)
+
+	assert.NoError(t, err)
+	assert.Equal(t, unmarshaled.(map[string]interface{})["some"].(map[string]interface{})["string"], "Hello world")
+
+}
+
+func TestRenderHelmValuesObjectYaml(t *testing.T) {
+
+	params := map[string]interface{}{
+		"test": "Hello world",
+	}
+
+	application := &argoappsv1.Application{
+		ObjectMeta: metav1.ObjectMeta{
+			Annotations:       map[string]string{"annotation-key": "annotation-value", "annotation-key2": "annotation-value2"},
+			Labels:            map[string]string{"label-key": "label-value", "label-key2": "label-value2"},
+			CreationTimestamp: metav1.NewTime(time.Now()),
+			UID:               types.UID("d546da12-06b7-4f9a-8ea2-3adb16a20e2b"),
+			Name:              "application-one",
+			Namespace:         "default",
+		},
+		Spec: argoappsv1.ApplicationSpec{
+			Source: &argoappsv1.ApplicationSource{
+				Path:           "",
+				RepoURL:        "",
+				TargetRevision: "",
+				Chart:          "",
+				Helm: &argoappsv1.ApplicationSourceHelm{
+					ValuesObject: &runtime.RawExtension{
+						Raw: []byte(`some:
+  string: "{{.test}}"`),
+					},
+				},
+			},
+			Destination: argoappsv1.ApplicationDestination{
+				Server:    "",
+				Namespace: "",
+				Name:      "",
+			},
+			Project: "",
+		},
+	}
+
+	// Render the cloned application, into a new application
+	render := Render{}
+	newApplication, err := render.RenderTemplateParams(application, nil, params, true, []string{})
+
+	assert.NoError(t, err)
+	assert.NotNil(t, newApplication)
+
+	var unmarshaled interface{}
+	err = json.Unmarshal(newApplication.Spec.Source.Helm.ValuesObject.Raw, &unmarshaled)
+
+	assert.NoError(t, err)
+	assert.Equal(t, unmarshaled.(map[string]interface{})["some"].(map[string]interface{})["string"], "Hello world")
 
 }
 
@@ -447,6 +555,64 @@ func TestRenderTemplateParamsGoTemplate(t *testing.T) {
 			templateOptions: []string{"missingkey=error"},
 			errorMessage:    `failed to execute go template --> {{.doesnotexist}} <--: template: :1:6: executing "" at <.doesnotexist>: map has no entry for key "doesnotexist"`,
 		},
+		{
+			name:        "toYaml",
+			fieldVal:    `{{ toYaml . | indent 2 }}`,
+			expectedVal: "  foo:\n    bar:\n      bool: true\n      number: 2\n      str: Hello world",
+			params: map[string]interface{}{
+				"foo": map[string]interface{}{
+					"bar": map[string]interface{}{
+						"bool":   true,
+						"number": 2,
+						"str":    "Hello world",
+					},
+				},
+			},
+		},
+		{
+			name:         "toYaml Error",
+			fieldVal:     `{{ toYaml . | indent 2 }}`,
+			expectedVal:  "  foo:\n    bar:\n      bool: true\n      number: 2\n      str: Hello world",
+			errorMessage: "failed to execute go template {{ toYaml . | indent 2 }}: template: :1:3: executing \"\" at <toYaml .>: error calling toYaml: error marshaling into JSON: json: unsupported type: func(*string)",
+			params: map[string]interface{}{
+				"foo": func(test *string) {
+				},
+			},
+		},
+		{
+			name:        "fromYaml",
+			fieldVal:    `{{ get (fromYaml .value) "hello" }}`,
+			expectedVal: "world",
+			params: map[string]interface{}{
+				"value": "hello: world",
+			},
+		},
+		{
+			name:         "fromYaml error",
+			fieldVal:     `{{ get (fromYaml .value) "hello" }}`,
+			expectedVal:  "world",
+			errorMessage: "failed to execute go template {{ get (fromYaml .value) \"hello\" }}: template: :1:8: executing \"\" at <fromYaml .value>: error calling fromYaml: error unmarshaling JSON: while decoding JSON: json: cannot unmarshal string into Go value of type map[string]interface {}",
+			params: map[string]interface{}{
+				"value": "non\n compliant\n yaml",
+			},
+		},
+		{
+			name:        "fromYamlArray",
+			fieldVal:    `{{ fromYamlArray .value | last }}`,
+			expectedVal: "bonjour tout le monde",
+			params: map[string]interface{}{
+				"value": "- hello world\n- bonjour tout le monde",
+			},
+		},
+		{
+			name:         "fromYamlArray error",
+			fieldVal:     `{{ fromYamlArray .value | last }}`,
+			expectedVal:  "bonjour tout le monde",
+			errorMessage: "failed to execute go template {{ fromYamlArray .value | last }}: template: :1:3: executing \"\" at <fromYamlArray .value>: error calling fromYamlArray: error unmarshaling JSON: while decoding JSON: json: cannot unmarshal string into Go value of type []interface {}",
+			params: map[string]interface{}{
+				"value": "non\n compliant\n yaml",
+			},
+		},
 	}
 
 	for _, test := range tests {
@@ -556,6 +722,14 @@ func TestRenderTemplateKeys(t *testing.T) {
 		require.NoError(t, err)
 		require.Contains(t, newApplication.ObjectMeta.Annotations, "annotation-some-key")
 		assert.Equal(t, newApplication.ObjectMeta.Annotations["annotation-some-key"], "annotation-some-value")
+	})
+}
+
+func Test_Render_Replace_no_panic_on_missing_closing_brace(t *testing.T) {
+	r := &Render{}
+	assert.NotPanics(t, func() {
+		_, err := r.Replace("{{properly.closed}} {{improperly.closed}", nil, false, []string{})
+		assert.Error(t, err)
 	})
 }
 
@@ -1066,6 +1240,43 @@ func TestNormalizeBitbucketBasePath(t *testing.T) {
 	} {
 		result := NormalizeBitbucketBasePath(c.basePath)
 		assert.Equal(t, c.expectedBasePath, result, c.testName)
+	}
+}
+
+func TestSlugify(t *testing.T) {
+	for _, c := range []struct {
+		branch           string
+		smartTruncate    bool
+		length           int
+		expectedBasePath string
+	}{
+		{
+			branch:           "feat/a_really+long_pull_request_name_to_test_argo_slugification_and_branch_name_shortening_feature",
+			smartTruncate:    false,
+			length:           50,
+			expectedBasePath: "feat-a-really-long-pull-request-name-to-test-argo",
+		},
+		{
+			branch:           "feat/a_really+long_pull_request_name_to_test_argo_slugification_and_branch_name_shortening_feature",
+			smartTruncate:    true,
+			length:           53,
+			expectedBasePath: "feat-a-really-long-pull-request-name-to-test-argo",
+		},
+		{
+			branch:           "feat/areallylongpullrequestnametotestargoslugificationandbranchnameshorteningfeature",
+			smartTruncate:    true,
+			length:           50,
+			expectedBasePath: "feat",
+		},
+		{
+			branch:           "feat/areallylongpullrequestnametotestargoslugificationandbranchnameshorteningfeature",
+			smartTruncate:    false,
+			length:           50,
+			expectedBasePath: "feat-areallylongpullrequestnametotestargoslugifica",
+		},
+	} {
+		result := SlugifyName(c.length, c.smartTruncate, c.branch)
+		assert.Equal(t, c.expectedBasePath, result, c.branch)
 	}
 }
 

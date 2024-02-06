@@ -27,6 +27,18 @@ spec:
             - containerPort: 8080
               name: metrics
           env:
+            - name: ARGOCD_APPLICATIONSET_CONTROLLER_GLOBAL_PRESERVED_ANNOTATIONS
+              valueFrom:
+                configMapKeyRef:
+                  key: applicationsetcontroller.global.preserved.annotations
+                  name: argocd-cmd-params-cm
+                  optional: true
+            - name: ARGOCD_APPLICATIONSET_CONTROLLER_GLOBAL_PRESERVED_LABELS
+              valueFrom:
+                configMapKeyRef:
+                  key: applicationsetcontroller.global.preserved.labels
+                  name: argocd-cmd-params-cm
+                  optional: true
             - name: NAMESPACE
               valueFrom:
                 fieldRef:
@@ -132,6 +144,18 @@ spec:
                 configMapKeyRef:
                   key: applicationsetcontroller.scm.root.ca.path
                   name: argocd-cmd-params-cm
+                  optional: true
+            - name: ARGOCD_APPLICATIONSET_CONTROLLER_ALLOWED_SCM_PROVIDERS
+              valueFrom:
+                configMapKeyRef:
+                  name: argocd-cmd-params-cm
+                  key: applicationsetcontroller.allowed.scm.providers
+                  optional: true
+            - name: ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_SCM_PROVIDERS
+              valueFrom:
+                configMapKeyRef:
+                  name: argocd-cmd-params-cm
+                  key: applicationsetcontroller.enable.scm.providers
                   optional: true
           volumeMounts:
             - mountPath: /app/config/ssh

@@ -13,6 +13,7 @@ import (
 	"sync"
 
 	"github.com/Masterminds/semver/v3"
+	"sigs.k8s.io/yaml"
 
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	log "github.com/sirupsen/logrus"
@@ -85,6 +86,40 @@ func mapToEditAddArgs(val map[string]string) []string {
 }
 
 func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOptions *v1alpha1.KustomizeOptions, envVars *v1alpha1.Env) ([]*unstructured.Unstructured, []Image, error) {
+
+	env := os.Environ()
+	if envVars != nil {
+		env = append(env, envVars.Environ()...)
+	}
+
+	closer, environ, err := k.creds.Environ()
+	if err != nil {
+		return nil, nil, err
+	}
+	defer func() { _ = closer.Close() }()
+
+	// If we were passed a HTTPS URL, make sure that we also check whether there
+	// is a custom CA bundle configured for connecting to the server.
+	if k.repo != "" && git.IsHTTPSURL(k.repo) {
+		parsedURL, err := url.Parse(k.repo)
+		if err != nil {
+			log.Warnf("Could not parse URL %s: %v", k.repo, err)
+		} else {
+			caPath, err := certutil.GetCertBundlePathForRepository(parsedURL.Host)
+			if err != nil {
+				// Some error while getting CA bundle
+				log.Warnf("Could not get CA bundle path for %s: %v", parsedURL.Host, err)
+			} else if caPath == "" {
+				// No cert configured
+				log.Debugf("No caCert found for repo %s", parsedURL.Host)
+			} else {
+				// Make Git use CA bundle
+				environ = append(environ, fmt.Sprintf("GIT_SSL_CAINFO=%s", caPath))
+			}
+		}
+	}
+
+	env = append(env, environ...)
 
 	if opts != nil {
 		if opts.NamePrefix != "" {
@@ -189,6 +224,73 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 				return nil, nil, err
 			}
 		}
+
+		if len(opts.Patches) > 0 {
+			kustomizationPath := filepath.Join(k.path, "kustomization.yaml")
+			b, err := os.ReadFile(kustomizationPath)
+			if err != nil {
+				return nil, nil, fmt.Errorf("failed to load kustomization.yaml: %w", err)
+			}
+			var kustomization interface{}
+			err = yaml.Unmarshal(b, &kustomization)
+			if err != nil {
+				return nil, nil, fmt.Errorf("failed to unmarshal kustomization.yaml: %w", err)
+			}
+			kMap, ok := kustomization.(map[string]interface{})
+			if !ok {
+				return nil, nil, fmt.Errorf("expected kustomization.yaml to be type map[string]interface{}, but got %T", kMap)
+			}
+			patches, ok := kMap["patches"]
+			if ok {
+				// The kustomization.yaml already had a patches field, so we need to append to it.
+				patchesList, ok := patches.([]interface{})
+				if !ok {
+					return nil, nil, fmt.Errorf("expected 'patches' field in kustomization.yaml to be []interface{}, but got %T", patches)
+				}
+				// Since the patches from the Application manifest are typed, we need to convert them to a type which
+				// can be appended to the existing list.
+				untypedPatches := make([]interface{}, len(opts.Patches))
+				for i := range opts.Patches {
+					untypedPatches[i] = opts.Patches[i]
+				}
+				patchesList = append(patchesList, untypedPatches...)
+				// Update the kustomization.yaml with the appended patches list.
+				kMap["patches"] = patchesList
+			} else {
+				kMap["patches"] = opts.Patches
+			}
+			updatedKustomization, err := yaml.Marshal(kMap)
+			if err != nil {
+				return nil, nil, fmt.Errorf("failed to marshal kustomization.yaml after adding patches: %w", err)
+			}
+			kustomizationFileInfo, err := os.Stat(kustomizationPath)
+			if err != nil {
+				return nil, nil, fmt.Errorf("failed to stat kustomization.yaml: %w", err)
+			}
+			err = os.WriteFile(kustomizationPath, updatedKustomization, kustomizationFileInfo.Mode())
+			if err != nil {
+				return nil, nil, fmt.Errorf("failed to write kustomization.yaml with updated 'patches' field: %w", err)
+			}
+		}
+
+		if len(opts.Components) > 0 {
+			// components only supported in kustomize >= v3.7.0
+			// https://github.com/kubernetes-sigs/kustomize/blob/master/examples/components.md
+			if getSemverSafe().LessThan(semver.MustParse("v3.7.0")) {
+				return nil, nil, fmt.Errorf("kustomize components require kustomize v3.7.0 and above")
+			}
+
+			// add components
+			args := []string{"edit", "add", "component"}
+			args = append(args, opts.Components...)
+			cmd := exec.Command(k.getBinaryPath(), args...)
+			cmd.Dir = k.path
+			cmd.Env = env
+			_, err := executil.Run(cmd)
+			if err != nil {
+				return nil, nil, err
+			}
+		}
 	}
 
 	var cmd *exec.Cmd
@@ -198,40 +300,7 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 	} else {
 		cmd = exec.Command(k.getBinaryPath(), "build", k.path)
 	}
-
-	env := os.Environ()
-	if envVars != nil {
-		env = append(env, envVars.Environ()...)
-	}
 	cmd.Env = env
-	closer, environ, err := k.creds.Environ()
-	if err != nil {
-		return nil, nil, err
-	}
-	defer func() { _ = closer.Close() }()
-
-	// If we were passed a HTTPS URL, make sure that we also check whether there
-	// is a custom CA bundle configured for connecting to the server.
-	if k.repo != "" && git.IsHTTPSURL(k.repo) {
-		parsedURL, err := url.Parse(k.repo)
-		if err != nil {
-			log.Warnf("Could not parse URL %s: %v", k.repo, err)
-		} else {
-			caPath, err := certutil.GetCertBundlePathForRepository(parsedURL.Host)
-			if err != nil {
-				// Some error while getting CA bundle
-				log.Warnf("Could not get CA bundle path for %s: %v", parsedURL.Host, err)
-			} else if caPath == "" {
-				// No cert configured
-				log.Debugf("No caCert found for repo %s", parsedURL.Host)
-			} else {
-				// Make Git use CA bundle
-				environ = append(environ, fmt.Sprintf("GIT_SSL_CAINFO=%s", caPath))
-			}
-		}
-	}
-
-	cmd.Env = append(cmd.Env, environ...)
 	out, err := executil.Run(cmd)
 	if err != nil {
 		return nil, nil, err
@@ -246,7 +315,7 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 }
 
 func parseKustomizeBuildOptions(path, buildOptions string) []string {
-	return append([]string{"build", path}, strings.Split(buildOptions, " ")...)
+	return append([]string{"build", path}, strings.Fields(buildOptions)...)
 }
 
 var KustomizationNames = []string{"kustomization.yaml", "kustomization.yml", "Kustomization"}

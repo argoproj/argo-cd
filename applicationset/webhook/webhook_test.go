@@ -111,7 +111,7 @@ func TestWebhookHandler(t *testing.T) {
 			expectedRefresh:    false,
 		},
 		{
-			desc:               "WebHook from a GitHub repository via pull_reqeuest opened event",
+			desc:               "WebHook from a GitHub repository via pull_request opened event",
 			headerKey:          "X-GitHub-Event",
 			headerValue:        "pull_request",
 			payloadFile:        "github-pull-request-opened-event.json",
@@ -120,13 +120,22 @@ func TestWebhookHandler(t *testing.T) {
 			expectedRefresh:    true,
 		},
 		{
-			desc:               "WebHook from a GitHub repository via pull_reqeuest assigned event",
+			desc:               "WebHook from a GitHub repository via pull_request assigned event",
 			headerKey:          "X-GitHub-Event",
 			headerValue:        "pull_request",
 			payloadFile:        "github-pull-request-assigned-event.json",
 			effectedAppSets:    []string{"pull-request-github", "matrix-pull-request-github", "matrix-scm-pull-request-github", "merge-pull-request-github", "plugin", "matrix-pull-request-github-plugin"},
 			expectedStatusCode: http.StatusOK,
 			expectedRefresh:    false,
+		},
+		{
+			desc:               "WebHook from a GitHub repository via pull_request labeled event",
+			headerKey:          "X-GitHub-Event",
+			headerValue:        "pull_request",
+			payloadFile:        "github-pull-request-labeled-event.json",
+			effectedAppSets:    []string{"pull-request-github", "matrix-pull-request-github", "matrix-scm-pull-request-github", "merge-pull-request-github", "plugin", "matrix-pull-request-github-plugin"},
+			expectedStatusCode: http.StatusOK,
+			expectedRefresh:    true,
 		},
 		{
 			desc:               "WebHook from a GitLab repository via open merge request event",
@@ -146,6 +155,24 @@ func TestWebhookHandler(t *testing.T) {
 			expectedStatusCode: http.StatusOK,
 			expectedRefresh:    false,
 		},
+		{
+			desc:               "WebHook from a Azure DevOps repository via Commit",
+			headerKey:          "X-Vss-Activityid",
+			headerValue:        "Push Hook",
+			payloadFile:        "azuredevops-push.json",
+			effectedAppSets:    []string{"git-azure-devops", "plugin", "matrix-pull-request-github-plugin"},
+			expectedStatusCode: http.StatusOK,
+			expectedRefresh:    true,
+		},
+		{
+			desc:               "WebHook from a Azure DevOps repository via pull request event",
+			headerKey:          "X-Vss-Activityid",
+			headerValue:        "Pull Request Hook",
+			payloadFile:        "azuredevops-pull-request.json",
+			effectedAppSets:    []string{"pull-request-azure-devops", "plugin", "matrix-pull-request-github-plugin"},
+			expectedStatusCode: http.StatusOK,
+			expectedRefresh:    true,
+		},
 	}
 
 	namespace := "test"
@@ -161,15 +188,17 @@ func TestWebhookHandler(t *testing.T) {
 			fc := fake.NewClientBuilder().WithScheme(scheme).WithObjects(
 				fakeAppWithGitGenerator("git-github", namespace, "https://github.com/org/repo"),
 				fakeAppWithGitGenerator("git-gitlab", namespace, "https://gitlab/group/name"),
-				fakeAppWithGithubPullRequestGenerator("pull-request-github", namespace, "Codertocat", "Hello-World"),
+				fakeAppWithGitGenerator("git-azure-devops", namespace, "https://dev.azure.com/fabrikam-fiber-inc/DefaultCollection/_git/Fabrikam-Fiber-Git"),
+				fakeAppWithGithubPullRequestGenerator("pull-request-github", namespace, "CodErTOcat", "Hello-World"),
 				fakeAppWithGitlabPullRequestGenerator("pull-request-gitlab", namespace, "100500"),
+				fakeAppWithAzureDevOpsPullRequestGenerator("pull-request-azure-devops", namespace, "DefaultCollection", "Fabrikam"),
 				fakeAppWithPluginGenerator("plugin", namespace),
 				fakeAppWithMatrixAndGitGenerator("matrix-git-github", namespace, "https://github.com/org/repo"),
 				fakeAppWithMatrixAndPullRequestGenerator("matrix-pull-request-github", namespace, "Codertocat", "Hello-World"),
 				fakeAppWithMatrixAndScmWithGitGenerator("matrix-scm-git-github", namespace, "org"),
 				fakeAppWithMatrixAndScmWithPullRequestGenerator("matrix-scm-pull-request-github", namespace, "Codertocat"),
 				fakeAppWithMatrixAndNestedGitGenerator("matrix-nested-git-github", namespace, "https://github.com/org/repo"),
-				fakeAppWithMatrixAndPullRequestGeneratorWithPluginGenerator("matrix-pull-request-github-plugin", namespace, "Codertocat", "Hello-World", "plugin-cm"),
+				fakeAppWithMatrixAndPullRequestGeneratorWithPluginGenerator("matrix-pull-request-github-plugin", namespace, "coDErtoCat", "HeLLO-WorLD", "plugin-cm"),
 				fakeAppWithMergeAndGitGenerator("merge-git-github", namespace, "https://github.com/org/repo"),
 				fakeAppWithMergeAndPullRequestGenerator("merge-pull-request-github", namespace, "Codertocat", "Hello-World"),
 				fakeAppWithMergeAndNestedGitGenerator("merge-nested-git-github", namespace, "https://github.com/org/repo"),
@@ -330,6 +359,27 @@ func fakeAppWithGithubPullRequestGenerator(name, namespace, owner, repo string) 
 						Github: &v1alpha1.PullRequestGeneratorGithub{
 							Owner: owner,
 							Repo:  repo,
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+func fakeAppWithAzureDevOpsPullRequestGenerator(name, namespace, project, repo string) *v1alpha1.ApplicationSet {
+	return &v1alpha1.ApplicationSet{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: namespace,
+		},
+		Spec: v1alpha1.ApplicationSetSpec{
+			Generators: []v1alpha1.ApplicationSetGenerator{
+				{
+					PullRequest: &v1alpha1.PullRequestGenerator{
+						AzureDevOps: &v1alpha1.PullRequestGeneratorAzureDevOps{
+							Project: project,
+							Repo:    repo,
 						},
 					},
 				},

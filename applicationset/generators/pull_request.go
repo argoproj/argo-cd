@@ -26,13 +26,17 @@ type PullRequestGenerator struct {
 	selectServiceProviderFunc func(context.Context, *argoprojiov1alpha1.PullRequestGenerator, *argoprojiov1alpha1.ApplicationSet) (pullrequest.PullRequestService, error)
 	auth                      SCMAuthProviders
 	scmRootCAPath             string
+	allowedSCMProviders       []string
+	enableSCMProviders        bool
 }
 
-func NewPullRequestGenerator(client client.Client, auth SCMAuthProviders, scmRootCAPath string) Generator {
+func NewPullRequestGenerator(client client.Client, auth SCMAuthProviders, scmRootCAPath string, allowedScmProviders []string, enableSCMProviders bool) Generator {
 	g := &PullRequestGenerator{
-		client:        client,
-		auth:          auth,
-		scmRootCAPath: scmRootCAPath,
+		client:              client,
+		auth:                auth,
+		scmRootCAPath:       scmRootCAPath,
+		allowedSCMProviders: allowedScmProviders,
+		enableSCMProviders:  enableSCMProviders,
 	}
 	g.selectServiceProviderFunc = g.selectServiceProvider
 	return g
@@ -64,7 +68,7 @@ func (g *PullRequestGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha
 	ctx := context.Background()
 	svc, err := g.selectServiceProviderFunc(ctx, appSetGenerator.PullRequest, applicationSetInfo)
 	if err != nil {
-		return nil, fmt.Errorf("failed to select pull request service provider: %v", err)
+		return nil, fmt.Errorf("failed to select pull request service provider: %w", err)
 	}
 
 	pulls, err := pullrequest.ListPullRequests(ctx, svc, appSetGenerator.PullRequest.Filters)
@@ -119,6 +123,13 @@ func (g *PullRequestGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha
 
 // selectServiceProvider selects the provider to get pull requests from the configuration
 func (g *PullRequestGenerator) selectServiceProvider(ctx context.Context, generatorConfig *argoprojiov1alpha1.PullRequestGenerator, applicationSetInfo *argoprojiov1alpha1.ApplicationSet) (pullrequest.PullRequestService, error) {
+	if !g.enableSCMProviders {
+		return nil, ErrSCMProvidersDisabled
+	}
+	if err := ScmProviderAllowed(applicationSetInfo, generatorConfig, g.allowedSCMProviders); err != nil {
+		return nil, fmt.Errorf("scm provider not allowed: %w", err)
+	}
+
 	if generatorConfig.Github != nil {
 		return g.github(ctx, generatorConfig.Github, applicationSetInfo)
 	}

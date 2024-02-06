@@ -72,6 +72,9 @@ func (np *jqNormalizerPatch) Apply(data []byte) ([]byte, error) {
 	if !ok {
 		return nil, fmt.Errorf("JQ patch did not return any data")
 	}
+	if err, ok = first.(error); ok {
+		return nil, fmt.Errorf("JQ patch returned error: %w", err)
+	}
 	_, ok = iter.Next()
 	if ok {
 		return nil, fmt.Errorf("JQ patch returned multiple objects")
