@@ -8,25 +8,26 @@ metadata:
   name: guestbook
   namespace: argocd
 spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
   generators:
   - list:
       elements:
       - cluster: engineering-dev
         url: https://kubernetes.default.svc
-#     - cluster: engineering-prod
-#       url: https://kubernetes.default.svc
-#       foo: bar
+      - cluster: engineering-prod
+        url: https://kubernetes.default.svc
   template:
     metadata:
-      name: '{{cluster}}-guestbook'
+      name: '{{.cluster}}-guestbook'
     spec:
       project: "my-project"
       source:
         repoURL: https://github.com/argoproj/argo-cd.git
         targetRevision: HEAD
-        path: applicationset/examples/list-generator/guestbook/{{cluster}}
+        path: applicationset/examples/list-generator/guestbook/{{.cluster}}
       destination:
-        server: '{{url}}'
+        server: '{{.url}}'
         namespace: guestbook
 ```
 (*The full example can be found [here](https://github.com/argoproj/argo-cd/tree/master/applicationset/examples/list-generator).*)
@@ -38,16 +39,16 @@ With the ApplicationSet v0.1.0 release, one could *only* specify `url` and `clus
 spec:
   generators:
   - list:
-    elements:
-      # v0.1.0 form - requires cluster/url keys:
-      - cluster: engineering-dev
-        url: https://kubernetes.default.svc
-        values:
-          additional: value
-      # v0.2.0+ form - does not require cluster/URL keys
-      # (but they are still supported).
-      - staging: "true"
-        gitRepo: https://kubernetes.default.svc   
+      elements:
+        # v0.1.0 form - requires cluster/url keys:
+        - cluster: engineering-dev
+          url: https://kubernetes.default.svc
+          values:
+            additional: value
+        # v0.2.0+ form - does not require cluster/URL keys
+        # (but they are still supported).
+        - staging: "true"
+          gitRepo: https://kubernetes.default.svc   
 # (...)
 ```
 
@@ -64,6 +65,7 @@ metadata:
   namespace: argocd
 spec:
   goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
   generators:
   - matrix:
       generators:
@@ -73,7 +75,6 @@ spec:
           files:
           - path: applicationset/examples/list-generator/list-elementsYaml-example.yaml
       - list:
-          elements: []
           elementsYaml: "{{ .key.components | toJson }}"
   template:
     metadata:

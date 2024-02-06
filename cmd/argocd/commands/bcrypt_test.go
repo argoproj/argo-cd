@@ -12,7 +12,7 @@ func TestGeneratePassword(t *testing.T) {
 	bcryptCmd := NewBcryptCmd()
 	bcryptCmd.SetArgs([]string{"--password", "abc"})
 	output := new(bytes.Buffer)
-	bcryptCmd.SetOutput(output)
+	bcryptCmd.SetOut(output)
 	err := bcryptCmd.Execute()
 	if err != nil {
 		return

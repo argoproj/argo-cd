@@ -93,17 +93,7 @@ const config = {
         }),
         new MonacoWebpackPlugin({
             // https://github.com/microsoft/monaco-editor-webpack-plugin#options
-            languages: ['yaml'],
-            customLanguages: [
-                {
-                    label: 'kubernetes',
-                    entry: 'monaco-kubernetes',
-                    worker: {
-                        id: 'monaco-kubernetes/kubernetesWorker',
-                        entry: 'monaco-kubernetes/worker'
-                    }
-                }
-            ]
+            languages: ['yaml']
         })
     ],
     devServer: {

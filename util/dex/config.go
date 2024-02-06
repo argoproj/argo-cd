@@ -63,6 +63,14 @@ func GenerateDexConfigYAML(argocdSettings *settings.ArgoCDSettings, disableTls b
 			redirectURL,
 		},
 	}
+	argoCDPKCEStaticClient := map[string]interface{}{
+		"id":   "argo-cd-pkce",
+		"name": "Argo CD PKCE",
+		"redirectURIs": []string{
+			"http://localhost:4000/pkce/verify",
+		},
+		"public": true,
+	}
 	argoCDCLIStaticClient := map[string]interface{}{
 		"id":     common.ArgoCDCLIClientAppID,
 		"name":   common.ArgoCDCLIClientAppName,
@@ -75,9 +83,9 @@ func GenerateDexConfigYAML(argocdSettings *settings.ArgoCDSettings, disableTls b
 
 	staticClients, ok := dexCfg["staticClients"].([]interface{})
 	if ok {
-		dexCfg["staticClients"] = append([]interface{}{argoCDStaticClient, argoCDCLIStaticClient}, staticClients...)
+		dexCfg["staticClients"] = append([]interface{}{argoCDStaticClient, argoCDCLIStaticClient, argoCDPKCEStaticClient}, staticClients...)
 	} else {
-		dexCfg["staticClients"] = []interface{}{argoCDStaticClient, argoCDCLIStaticClient}
+		dexCfg["staticClients"] = []interface{}{argoCDStaticClient, argoCDCLIStaticClient, argoCDPKCEStaticClient}
 	}
 
 	dexRedirectURL, err := argocdSettings.DexRedirectURL()
@@ -115,7 +123,7 @@ func GenerateDexConfigYAML(argocdSettings *settings.ArgoCDSettings, disableTls b
 // https://dexidp.io/docs/connectors/
 func needsRedirectURI(connectorType string) bool {
 	switch connectorType {
-	case "oidc", "saml", "microsoft", "linkedin", "gitlab", "github", "bitbucket-cloud", "openshift":
+	case "oidc", "saml", "microsoft", "linkedin", "gitlab", "github", "bitbucket-cloud", "openshift", "gitea", "google", "oauth":
 		return true
 	}
 	return false

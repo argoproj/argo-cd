@@ -151,13 +151,6 @@ clientSecret: aaaabbbbccccddddeee`,
 			},
 			containsSummary: "Dex is configured ('url' field is missing)",
 		},
-		"Plugins_ValidConfig": {
-			validator: "plugins",
-			data: map[string]string{
-				"configManagementPlugins": `[{"name": "test1"}, {"name": "test2"}]`,
-			},
-			containsSummary: "2 plugins",
-		},
 		"Kustomize_ModifiedOptions": {
 			validator:       "kustomize",
 			containsSummary: "default options",
@@ -233,6 +226,29 @@ spec:
   replicas: 0`
 )
 
+const (
+	testCustomResourceYAML = `apiVersion: v1
+apiVersion: example.com/v1alpha1
+kind: ExampleResource
+metadata:
+  name: example-resource
+  labels:
+    app: example
+spec:
+  replicas: 0`
+)
+
+const (
+	testCronJobYAML = `apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: hello
+  namespace: test-ns
+  uid: "123"
+spec:
+  schedule: "* * * * *"`
+)
+
 func tempFile(content string) (string, io.Closer, error) {
 	f, err := os.CreateTemp("", "*.yaml")
 	if err != nil {
@@ -281,7 +297,7 @@ func TestResourceOverrideIgnoreDifferences(t *testing.T) {
 			assert.NoError(t, err)
 		})
 		assert.NoError(t, err)
-		assert.Contains(t, out, "No overrides configured")
+		assert.Contains(t, out, "Ignore differences are not configured for 'apps/Deployment'\n")
 	})
 
 	t.Run("DataIgnored", func(t *testing.T) {
@@ -301,7 +317,7 @@ func TestResourceOverrideIgnoreDifferences(t *testing.T) {
 }
 
 func TestResourceOverrideHealth(t *testing.T) {
-	f, closer, err := tempFile(testDeploymentYAML)
+	f, closer, err := tempFile(testCustomResourceYAML)
 	if !assert.NoError(t, err) {
 		return
 	}
@@ -309,19 +325,34 @@ func TestResourceOverrideHealth(t *testing.T) {
 
 	t.Run("NoHealthAssessment", func(t *testing.T) {
 		cmd := NewResourceOverridesCommand(newCmdContext(map[string]string{
-			"resource.customizations": `apps/Deployment: {}`}))
+			"resource.customizations": `example.com/ExampleResource: {}`}))
 		out, err := captureStdout(func() {
 			cmd.SetArgs([]string{"health", f})
 			err := cmd.Execute()
 			assert.NoError(t, err)
 		})
 		assert.NoError(t, err)
-		assert.Contains(t, out, "Health script is not configured")
+		assert.Contains(t, out, "Health script is not configured for 'example.com/ExampleResource'\n")
 	})
 
 	t.Run("HealthAssessmentConfigured", func(t *testing.T) {
 		cmd := NewResourceOverridesCommand(newCmdContext(map[string]string{
-			"resource.customizations": `apps/Deployment:
+			"resource.customizations": `example.com/ExampleResource:
+  health.lua: |
+    return { status = "Progressing" }
+`}))
+		out, err := captureStdout(func() {
+			cmd.SetArgs([]string{"health", f})
+			err := cmd.Execute()
+			assert.NoError(t, err)
+		})
+		assert.NoError(t, err)
+		assert.Contains(t, out, "Progressing")
+	})
+
+	t.Run("HealthAssessmentConfiguredWildcard", func(t *testing.T) {
+		cmd := NewResourceOverridesCommand(newCmdContext(map[string]string{
+			"resource.customizations": `example.com/*:
   health.lua: |
     return { status = "Progressing" }
 `}))
@@ -342,6 +373,12 @@ func TestResourceOverrideAction(t *testing.T) {
 	}
 	defer utils.Close(closer)
 
+	cronJobFile, closer, err := tempFile(testCronJobYAML)
+	if !assert.NoError(t, err) {
+		return
+	}
+	defer utils.Close(closer)
+
 	t.Run("NoActions", func(t *testing.T) {
 		cmd := NewResourceOverridesCommand(newCmdContext(map[string]string{
 			"resource.customizations": `apps/Deployment: {}`}))
@@ -354,7 +391,7 @@ func TestResourceOverrideAction(t *testing.T) {
 		assert.Contains(t, out, "Actions are not configured")
 	})
 
-	t.Run("ActionConfigured", func(t *testing.T) {
+	t.Run("OldStyleActionConfigured", func(t *testing.T) {
 		cmd := NewResourceOverridesCommand(newCmdContext(map[string]string{
 			"resource.customizations": `apps/Deployment:
   actions: |
@@ -383,9 +420,55 @@ func TestResourceOverrideAction(t *testing.T) {
 			assert.NoError(t, err)
 		})
 		assert.NoError(t, err)
-		assert.Contains(t, out, `NAME     ENABLED
+		assert.Contains(t, out, `NAME     DISABLED
 restart  false
 resume   false
 `)
+	})
+
+	t.Run("NewStyleActionConfigured", func(t *testing.T) {
+		cmd := NewResourceOverridesCommand(newCmdContext(map[string]string{
+			"resource.customizations": `batch/CronJob:
+  actions: |
+    discovery.lua: |
+      actions = {}
+      actions["create-a-job"] = {["disabled"] = false}
+      return actions
+    definitions:
+    - name: test
+      action.lua: |
+        job1 = {}
+        job1.apiVersion = "batch/v1"
+        job1.kind = "Job"
+        job1.metadata = {}
+        job1.metadata.name = "hello-1"
+        job1.metadata.namespace = "obj.metadata.namespace"
+        impactedResource1 = {}
+        impactedResource1.operation = "create"
+        impactedResource1.resource = job1
+        result = {}
+        result[1] = impactedResource1
+        return result
+`}))
+		out, err := captureStdout(func() {
+			cmd.SetArgs([]string{"run-action", cronJobFile, "test"})
+			err := cmd.Execute()
+			assert.NoError(t, err)
+		})
+		assert.NoError(t, err)
+		assert.Contains(t, out, "resource was created:")
+		assert.Contains(t, out, "hello-1")
+
+		out, err = captureStdout(func() {
+			cmd.SetArgs([]string{"list-actions", cronJobFile})
+			err := cmd.Execute()
+			assert.NoError(t, err)
+		})
+
+		assert.NoError(t, err)
+		assert.Contains(t, out, "NAME")
+		assert.Contains(t, out, "DISABLED")
+		assert.Contains(t, out, "create-a-job")
+		assert.Contains(t, out, "false")
 	})
 }

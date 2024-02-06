@@ -35,6 +35,10 @@ const (
 	errDestinationMissing = "Destination server missing from app spec"
 )
 
+var (
+	ErrAnotherOperationInProgress = status.Errorf(codes.FailedPrecondition, "another operation is already in progress")
+)
+
 // AugmentSyncMsg enrich the K8s message with user-relevant information
 func AugmentSyncMsg(res common.ResourceSyncResult, apiResourceInfoGetter func() ([]kube.APIResourceInfo, error)) (string, error) {
 	switch res.Message {
@@ -272,12 +276,13 @@ func TestRepoWithKnownType(ctx context.Context, repoClient apiclient.RepoServerS
 // * the repository is accessible
 // * the path contains valid manifests
 // * there are parameters of only one app source type
+//
+// The plugins parameter is no longer used. It is kept for compatibility with the old signature until Argo CD v3.0.
 func ValidateRepo(
 	ctx context.Context,
 	app *argoappv1.Application,
 	repoClientset apiclient.Clientset,
 	db db.ArgoDB,
-	plugins []*argoappv1.ConfigManagementPlugin,
 	kubectl kube.Kubectl,
 	proj *argoappv1.AppProject,
 	settingsMgr *settings.SettingsManager,
@@ -343,7 +348,6 @@ func ValidateRepo(
 		db,
 		app.Spec.GetSources(),
 		repoClient,
-		plugins,
 		permittedHelmRepos,
 		helmOptions,
 		cluster,
@@ -365,7 +369,6 @@ func validateRepo(ctx context.Context,
 	db db.ArgoDB,
 	sources []argoappv1.ApplicationSource,
 	repoClient apiclient.RepoServerServiceClient,
-	plugins []*argoappv1.ConfigManagementPlugin,
 	permittedHelmRepos []*argoappv1.Repository,
 	helmOptions *argoappv1.HelmOptions,
 	cluster *argoappv1.Cluster,
@@ -423,7 +426,6 @@ func validateRepo(ctx context.Context,
 		proj,
 		sources,
 		repoClient,
-		plugins,
 		cluster.ServerVersion,
 		APIResourcesToStrings(apiGroups, true),
 		permittedHelmCredentials,
@@ -587,7 +589,7 @@ func ValidatePermissions(ctx context.Context, spec *argoappv1.ApplicationSpec, p
 		if !permitted {
 			conditions = append(conditions, argoappv1.ApplicationCondition{
 				Type:    argoappv1.ApplicationConditionInvalidSpecError,
-				Message: fmt.Sprintf("application destination {%s %s} is not permitted in project '%s'", spec.Destination.Server, spec.Destination.Namespace, spec.Project),
+				Message: fmt.Sprintf("application destination server '%s' and namespace '%s' do not match any of the allowed destinations in project '%s'", spec.Destination.Server, spec.Destination.Namespace, spec.Project),
 			})
 		}
 		// Ensure the k8s cluster the app is referencing, is configured in Argo CD
@@ -709,7 +711,6 @@ func verifyGenerateManifests(
 	proj *argoappv1.AppProject,
 	sources []argoappv1.ApplicationSource,
 	repoClient apiclient.RepoServerServiceClient,
-	plugins []*argoappv1.ConfigManagementPlugin,
 	kubeVersion string,
 	apiVersions []string,
 	repositoryCredentials []*argoappv1.RepoCreds,
@@ -764,7 +765,6 @@ func verifyGenerateManifests(
 			AppName:            name,
 			Namespace:          dest.Namespace,
 			ApplicationSource:  &source,
-			Plugins:            plugins,
 			KustomizeOptions:   kustomizeOptions,
 			KubeVersion:        kubeVersion,
 			ApiVersions:        apiVersions,
@@ -804,7 +804,7 @@ func SetAppOperation(appIf v1alpha1.ApplicationInterface, appName string, op *ar
 			return nil, fmt.Errorf("error getting application %q: %w", appName, err)
 		}
 		if a.Operation != nil {
-			return nil, status.Errorf(codes.FailedPrecondition, "another operation is already in progress")
+			return nil, ErrAnotherOperationInProgress
 		}
 		a.Operation = op
 		a.Status.OperationState = nil
@@ -855,12 +855,15 @@ func NormalizeApplicationSpec(spec *argoappv1.ApplicationSpec) *argoappv1.Applic
 	if spec.Project == "" {
 		spec.Project = argoappv1.DefaultAppProjectName
 	}
-
+	if spec.SyncPolicy.IsZero() {
+		spec.SyncPolicy = nil
+	}
 	if spec.Sources != nil && len(spec.Sources) > 0 {
 		for _, source := range spec.Sources {
 			NormalizeSource(&source)
 		}
-	} else {
+	} else if spec.Source != nil {
+		// In practice, spec.Source should never be nil.
 		NormalizeSource(spec.Source)
 	}
 	return spec
@@ -1018,8 +1021,8 @@ func GetDifferentPathsBetweenStructs(a, b interface{}) ([]string, error) {
 	return difference, nil
 }
 
-// parseAppName will
-func parseAppName(appName string, defaultNs string, delim string) (string, string) {
+// parseName will
+func parseName(appName string, defaultNs string, delim string) (string, string) {
 	var ns string
 	var name string
 	t := strings.SplitN(appName, delim, 2)
@@ -1036,15 +1039,15 @@ func parseAppName(appName string, defaultNs string, delim string) (string, strin
 // ParseAppNamespacedName parses a namespaced name in the format namespace/name
 // and returns the components. If name wasn't namespaced, defaultNs will be
 // returned as namespace component.
-func ParseAppQualifiedName(appName string, defaultNs string) (string, string) {
-	return parseAppName(appName, defaultNs, "/")
+func ParseFromQualifiedName(appName string, defaultNs string) (string, string) {
+	return parseName(appName, defaultNs, "/")
 }
 
-// ParseAppInstanceName parses a namespaced name in the format namespace_name
+// ParseInstanceName parses a namespaced name in the format namespace_name
 // and returns the components. If name wasn't namespaced, defaultNs will be
 // returned as namespace component.
-func ParseAppInstanceName(appName string, defaultNs string) (string, string) {
-	return parseAppName(appName, defaultNs, "_")
+func ParseInstanceName(appName string, defaultNs string) (string, string) {
+	return parseName(appName, defaultNs, "_")
 }
 
 // AppInstanceName returns the value to be used for app instance labels from
@@ -1057,9 +1060,9 @@ func AppInstanceName(appName, appNs, defaultNs string) string {
 	}
 }
 
-// AppInstanceNameFromQualified returns the value to be used for app
-func AppInstanceNameFromQualified(name string, defaultNs string) string {
-	appName, appNs := ParseAppQualifiedName(name, defaultNs)
+// InstanceNameFromQualified returns the value to be used for app
+func InstanceNameFromQualified(name string, defaultNs string) string {
+	appName, appNs := ParseFromQualifiedName(name, defaultNs)
 	return AppInstanceName(appName, appNs, defaultNs)
 }
 

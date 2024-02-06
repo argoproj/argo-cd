@@ -2,7 +2,7 @@
 
 ## Introduction
 
-ArgoCD is released in a 2 step automated fashion using GitHub actions. The release process takes about 60 minutes,
+Argo CD is released in a 2 step automated fashion using GitHub actions. The release process takes about 60 minutes,
 sometimes a little less, depending on the performance of GitHub Actions runners.
 
 The target release branch must already exist in the GitHub repository. If you for

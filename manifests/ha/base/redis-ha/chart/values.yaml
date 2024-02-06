@@ -11,14 +11,16 @@ redis-ha:
     IPv6:
       enabled: false
     image:
-      tag: 2.6.12-alpine
+      tag: 2.6.14-alpine
     containerSecurityContext: null
     timeout:
       server: 6m
       client: 6m
     checkInterval: 3s
+    metrics:
+      enabled: true
   image:
-    tag: 7.0.11-alpine
+    tag: 7.0.14-alpine
   containerSecurityContext: null
   sentinel:
     bind: "0.0.0.0"

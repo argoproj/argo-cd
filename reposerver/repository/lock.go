@@ -55,7 +55,7 @@ func (r *repositoryLock) Lock(path string, revision string, allowConcurrent bool
 			initCloser, err := init()
 			if err != nil {
 				state.cond.L.Unlock()
-				return nil, err
+				return nil, fmt.Errorf("failed to initialize repository resources: %w", err)
 			}
 			state.initCloser = initCloser
 			state.revision = revision

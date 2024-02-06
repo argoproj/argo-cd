@@ -10,6 +10,7 @@ import * as _ from 'lodash';
 import Moment from 'react-moment';
 import {format} from 'date-fns';
 import {ResourceNode, ResourceRef} from '../../../shared/models';
+import './application-resource-list.scss';
 
 export const ApplicationResourceList = ({
     resources,
@@ -31,35 +32,45 @@ export const ApplicationResourceList = ({
         return null;
     }
     const parentNode = ((resources || []).length > 0 && (getResNode(tree.nodes, nodeKey(resources[0])) as ResourceNode)?.parentRefs?.[0]) || ({} as ResourceRef);
+    const searchParams = new URLSearchParams(window.location.search);
+    const view = searchParams.get('view');
 
+    const ParentRefDetails = () => {
+        return Object.keys(parentNode).length > 0 ? (
+            <div className='resource-parent-node-info-title'>
+                <div>Parent Node Info</div>
+                <div className='resource-parent-node-info-title__label'>
+                    <div>Name:</div>
+                    <div>{parentNode?.name}</div>
+                </div>
+                <div className='resource-parent-node-info-title__label'>
+                    <div>Kind:</div>
+                    <div>{parentNode?.kind}</div>
+                </div>
+            </div>
+        ) : (
+            <div />
+        );
+    };
     return (
         <div>
-            <div className='resource-details__header' style={{paddingTop: '20px'}}>
-                {Object.keys(parentNode).length > 0 && (
-                    <div className='resource-parent-node-info-title'>
-                        <div> Parent Node Info</div>
-                        <div className='resource-parent-node-info-title__label'>
-                            <div>Name:</div>
-                            <div>{parentNode?.name}</div>
-                        </div>
-                        <div className='resource-parent-node-info-title__label'>
-                            <div>Kind:</div>
-                            <div> {parentNode?.kind}</div>
-                        </div>
-                    </div>
-                )}
-            </div>
+            {/* Display only when the view is set to  or network */}
+            {(view === 'tree' || view === 'network') && (
+                <div className='resource-details__header' style={{paddingTop: '20px'}}>
+                    <ParentRefDetails />
+                </div>
+            )}
             <div className='argo-table-list argo-table-list--clickable'>
                 <div className='argo-table-list__head'>
                     <div className='row'>
                         <div className='columns small-1 xxxlarge-1' />
-                        <div className='columns small-2 xxxlarge-2'>NAME</div>
+                        <div className='columns small-2 xxxlarge-1'>NAME</div>
                         <div className='columns small-1 xxxlarge-1'>GROUP/KIND</div>
                         <div className='columns small-1 xxxlarge-1'>SYNC ORDER</div>
-                        <div className='columns small-2 xxxlarge-2'>NAMESPACE</div>
+                        <div className='columns small-2 xxxlarge-1'>NAMESPACE</div>
                         {(parentNode.kind === 'Rollout' || parentNode.kind === 'Deployment') && <div className='columns small-1 xxxlarge-1'>REVISION</div>}
-                        <div className='columns small-2 xxxlarge-2'>CREATED AT</div>
-                        <div className='columns small-2 xxxlarge-2'>STATUS</div>
+                        <div className='columns small-2 xxxlarge-1'>CREATED AT</div>
+                        <div className='columns small-2 xxxlarge-1'>STATUS</div>
                     </div>
                 </div>
                 {resources
@@ -79,13 +90,16 @@ export const ApplicationResourceList = ({
                                         <div>{ResourceLabel({kind: res.kind})}</div>
                                     </div>
                                 </div>
-                                <div className='columns small-2 xxxlarge-2'>
-                                    {res.name}
+                                <div className='columns small-2 xxxlarge-1 application-details__item'>
+                                    <span className='application-details__item_text'>{res.name}</span>
                                     {res.kind === 'Application' && (
                                         <Consumer>
                                             {ctx => (
                                                 <span className='application-details__external_link'>
-                                                    <a href={ctx.baseHref + 'applications/' + res.namespace + '/' + res.name} title='Open application'>
+                                                    <a
+                                                        href={ctx.baseHref + 'applications/' + res.namespace + '/' + res.name}
+                                                        onClick={e => e.stopPropagation()}
+                                                        title='Open application'>
                                                         <i className='fa fa-external-link-alt' />
                                                     </a>
                                                 </span>
@@ -95,7 +109,7 @@ export const ApplicationResourceList = ({
                                 </div>
                                 <div className='columns small-1 xxxlarge-1'>{[res.group, res.kind].filter(item => !!item).join('/')}</div>
                                 <div className='columns small-1 xxxlarge-1'>{res.syncWave || '-'}</div>
-                                <div className='columns small-2 xxxlarge-2'>{res.namespace}</div>
+                                <div className='columns small-2 xxxlarge-1'>{res.namespace}</div>
                                 {res.kind === 'ReplicaSet' &&
                                     ((getResNode(tree.nodes, nodeKey(res)) as ResourceNode).info || [])
                                         .filter(tag => !tag.name.includes('Node'))
@@ -108,7 +122,7 @@ export const ApplicationResourceList = ({
                                             );
                                         })}
 
-                                <div className='columns small-2 xxxlarge-2'>
+                                <div className='columns small-2 xxxlarge-1'>
                                     {res.createdAt && (
                                         <span>
                                             <Moment fromNow={true} ago={true}>
@@ -118,7 +132,7 @@ export const ApplicationResourceList = ({
                                         </span>
                                     )}
                                 </div>
-                                <div className='columns small-2 xxxlarge-2'>
+                                <div className='columns small-2 xxxlarge-1'>
                                     {res.health && (
                                         <React.Fragment>
                                             <HealthStatusIcon state={res.health} /> {res.health.status} &nbsp;

@@ -29,6 +29,7 @@ func getObj(path string) *unstructured.Unstructured {
 	obj := make(map[string]interface{})
 	err = yaml.Unmarshal(yamlBytes, &obj)
 	errors.CheckError(err)
+
 	return &unstructured.Unstructured{Object: obj}
 }
 

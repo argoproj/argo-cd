@@ -55,7 +55,7 @@ func TestValueInterpolation(t *testing.T) {
 	for _, testCase := range testCases {
 
 		t.Run(testCase.name, func(t *testing.T) {
-			err := appendTemplatedValues(testCase.values, testCase.params, false)
+			err := appendTemplatedValues(testCase.values, testCase.params, false, nil)
 			assert.NoError(t, err)
 			assert.EqualValues(t, testCase.expected, testCase.params)
 		})
@@ -117,7 +117,7 @@ func TestValueInterpolationWithGoTemplating(t *testing.T) {
 	for _, testCase := range testCases {
 
 		t.Run(testCase.name, func(t *testing.T) {
-			err := appendTemplatedValues(testCase.values, testCase.params, true)
+			err := appendTemplatedValues(testCase.values, testCase.params, true, nil)
 			assert.NoError(t, err)
 			assert.EqualValues(t, testCase.expected, testCase.params)
 		})

@@ -42,7 +42,7 @@ connectors:
   id: acme-github
   name: Acme GitHub
   config:
-    hostName: github.acme.com
+    hostName: github.acme.example.com
     clientID: abcdefghijklmnopqrst
     clientSecret: $dex.acme.clientSecret
     orgs:
@@ -79,7 +79,7 @@ connectors:
   id: acme-github
   name: Acme GitHub
   config:
-    hostName: github.acme.com
+    hostName: github.acme.example.com
     clientID: abcdefghijklmnopqrst
     clientSecret: $dex.acme.clientSecret
     orgs:
@@ -270,7 +270,7 @@ func Test_GenerateDexConfig(t *testing.T) {
 	})
 
 	t.Run("Redirect config", func(t *testing.T) {
-		types := []string{"oidc", "saml", "microsoft", "linkedin", "gitlab", "github", "bitbucket-cloud"}
+		types := []string{"oidc", "saml", "microsoft", "linkedin", "gitlab", "github", "bitbucket-cloud", "openshift", "gitea", "google", "oauth"}
 		for _, c := range types {
 			assert.True(t, needsRedirectURI(c))
 		}
@@ -293,9 +293,9 @@ func Test_GenerateDexConfig(t *testing.T) {
 		}
 		clients, ok := dexCfg["staticClients"].([]interface{})
 		assert.True(t, ok)
-		assert.Equal(t, 3, len(clients))
+		assert.Equal(t, 4, len(clients))
 
-		customClient := clients[2].(map[string]interface{})
+		customClient := clients[3].(map[string]interface{})
 		assert.Equal(t, "argo-workflow", customClient["id"].(string))
 		assert.Equal(t, 1, len(customClient["redirectURIs"].([]interface{})))
 	})
@@ -315,9 +315,9 @@ func Test_GenerateDexConfig(t *testing.T) {
 		}
 		clients, ok := dexCfg["staticClients"].([]interface{})
 		assert.True(t, ok)
-		assert.Equal(t, 3, len(clients))
+		assert.Equal(t, 4, len(clients))
 
-		customClient := clients[2].(map[string]interface{})
+		customClient := clients[3].(map[string]interface{})
 		assert.Equal(t, "barfoo", customClient["secret"])
 	})
 	t.Run("Override dex oauth2 configuration", func(t *testing.T) {

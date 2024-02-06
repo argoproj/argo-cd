@@ -16,6 +16,7 @@ import (
 	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/applicationset"
 	arogappsetv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/util/argo"
 	"github.com/argoproj/argo-cd/v2/util/cli"
 	"github.com/argoproj/argo-cd/v2/util/errors"
 	"github.com/argoproj/argo-cd/v2/util/grpc"
@@ -66,6 +67,10 @@ func NewApplicationSetGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 	var command = &cobra.Command{
 		Use:   "get APPSETNAME",
 		Short: "Get ApplicationSet details",
+		Example: templates.Examples(`
+	# Get ApplicationSets
+	argocd appset get APPSETNAME
+		`),
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
 
@@ -76,8 +81,10 @@ func NewApplicationSetGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 			acdClient := headless.NewClientOrDie(clientOpts, c)
 			conn, appIf := acdClient.NewApplicationSetClientOrDie()
 			defer argoio.Close(conn)
-			appSetName := args[0]
-			appSet, err := appIf.Get(ctx, &applicationset.ApplicationSetGetQuery{Name: appSetName})
+
+			appSetName, appSetNs := argo.ParseFromQualifiedName(args[0], "")
+
+			appSet, err := appIf.Get(ctx, &applicationset.ApplicationSetGetQuery{Name: appSetName, AppsetNamespace: appSetNs})
 			errors.CheckError(err)
 
 			switch output {
@@ -144,7 +151,7 @@ func NewApplicationSetCreateCommand(clientOpts *argocdclient.ClientOptions) *cob
 				defer argoio.Close(conn)
 
 				// Get app before creating to see if it is being updated or no change
-				existing, err := appIf.Get(ctx, &applicationset.ApplicationSetGetQuery{Name: appset.Name})
+				existing, err := appIf.Get(ctx, &applicationset.ApplicationSetGetQuery{Name: appset.Name, AppsetNamespace: appset.Namespace})
 				if grpc.UnwrapGRPCStatus(err).Code() != codes.NotFound {
 					errors.CheckError(err)
 				}
@@ -176,9 +183,10 @@ func NewApplicationSetCreateCommand(clientOpts *argocdclient.ClientOptions) *cob
 // NewApplicationSetListCommand returns a new instance of an `argocd appset list` command
 func NewApplicationSetListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
-		output   string
-		selector string
-		projects []string
+		output          string
+		selector        string
+		projects        []string
+		appSetNamespace string
 	)
 	var command = &cobra.Command{
 		Use:   "list",
@@ -192,7 +200,7 @@ func NewApplicationSetListCommand(clientOpts *argocdclient.ClientOptions) *cobra
 
 			conn, appIf := headless.NewClientOrDie(clientOpts, c).NewApplicationSetClientOrDie()
 			defer argoio.Close(conn)
-			appsets, err := appIf.List(ctx, &applicationset.ApplicationSetListQuery{Selector: selector, Projects: projects})
+			appsets, err := appIf.List(ctx, &applicationset.ApplicationSetListQuery{Selector: selector, Projects: projects, AppsetNamespace: appSetNamespace})
 			errors.CheckError(err)
 
 			appsetList := appsets.Items
@@ -213,6 +221,7 @@ func NewApplicationSetListCommand(clientOpts *argocdclient.ClientOptions) *cobra
 	command.Flags().StringVarP(&output, "output", "o", "wide", "Output format. One of: wide|name|json|yaml")
 	command.Flags().StringVarP(&selector, "selector", "l", "", "List applicationsets by label")
 	command.Flags().StringArrayVarP(&projects, "project", "p", []string{}, "Filter by project name")
+	command.Flags().StringVarP(&appSetNamespace, "appset-namespace", "N", "", "Only list applicationsets in namespace")
 
 	return command
 }
@@ -245,18 +254,22 @@ func NewApplicationSetDeleteCommand(clientOpts *argocdclient.ClientOptions) *cob
 			if promptFlag.Changed && promptFlag.Value.String() == "true" {
 				noPrompt = true
 			}
-			for _, appsetName := range args {
+			for _, appSetQualifiedName := range args {
+
+				appSetName, appSetNs := argo.ParseFromQualifiedName(appSetQualifiedName, "")
+
 				appsetDeleteReq := applicationset.ApplicationSetDeleteRequest{
-					Name: appsetName,
+					Name:            appSetName,
+					AppsetNamespace: appSetNs,
 				}
 
 				if isTerminal && !noPrompt {
 					var lowercaseAnswer string
 					if numOfApps == 1 {
-						lowercaseAnswer = cli.AskToProceedS("Are you sure you want to delete '" + appsetName + "' and all its Applications? [y/n] ")
+						lowercaseAnswer = cli.AskToProceedS("Are you sure you want to delete '" + appSetQualifiedName + "' and all its Applications? [y/n] ")
 					} else {
 						if !isConfirmAll {
-							lowercaseAnswer = cli.AskToProceedS("Are you sure you want to delete '" + appsetName + "' and all its Applications? [y/n/A] where 'A' is to delete all specified ApplicationSets and their Applications without prompting")
+							lowercaseAnswer = cli.AskToProceedS("Are you sure you want to delete '" + appSetQualifiedName + "' and all its Applications? [y/n/A] where 'A' is to delete all specified ApplicationSets and their Applications without prompting")
 							if lowercaseAnswer == "a" || lowercaseAnswer == "all" {
 								lowercaseAnswer = "y"
 								isConfirmAll = true
@@ -268,9 +281,9 @@ func NewApplicationSetDeleteCommand(clientOpts *argocdclient.ClientOptions) *cob
 					if lowercaseAnswer == "y" || lowercaseAnswer == "yes" {
 						_, err := appIf.Delete(ctx, &appsetDeleteReq)
 						errors.CheckError(err)
-						fmt.Printf("applicationset '%s' deleted\n", appsetName)
+						fmt.Printf("applicationset '%s' deleted\n", appSetQualifiedName)
 					} else {
-						fmt.Println("The command to delete '" + appsetName + "' was cancelled.")
+						fmt.Println("The command to delete '" + appSetQualifiedName + "' was cancelled.")
 					}
 				} else {
 					_, err := appIf.Delete(ctx, &appsetDeleteReq)
@@ -286,7 +299,7 @@ func NewApplicationSetDeleteCommand(clientOpts *argocdclient.ClientOptions) *cob
 // Print simple list of application names
 func printApplicationSetNames(apps []arogappsetv1.ApplicationSet) {
 	for _, app := range apps {
-		fmt.Println(app.Name)
+		fmt.Println(app.QualifiedName())
 	}
 }
 
@@ -294,12 +307,12 @@ func printApplicationSetNames(apps []arogappsetv1.ApplicationSet) {
 func printApplicationSetTable(apps []arogappsetv1.ApplicationSet, output *string) {
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 	var fmtStr string
-	headers := []interface{}{"NAME", "NAMESPACE", "PROJECT", "SYNCPOLICY", "CONDITIONS"}
+	headers := []interface{}{"NAME", "PROJECT", "SYNCPOLICY", "CONDITIONS"}
 	if *output == "wide" {
-		fmtStr = "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n"
+		fmtStr = "%s\t%s\t%s\t%s\t%s\t%s\t%s\n"
 		headers = append(headers, "REPO", "PATH", "TARGET")
 	} else {
-		fmtStr = "%s\t%s\t%s\t%s\t%s\n"
+		fmtStr = "%s\t%s\t%s\t%s\n"
 	}
 	_, _ = fmt.Fprintf(w, fmtStr, headers...)
 	for _, app := range apps {
@@ -310,8 +323,7 @@ func printApplicationSetTable(apps []arogappsetv1.ApplicationSet, output *string
 			}
 		}
 		vals := []interface{}{
-			app.ObjectMeta.Name,
-			app.ObjectMeta.Namespace,
+			app.QualifiedName(),
 			app.Spec.Template.Spec.Project,
 			app.Spec.SyncPolicy,
 			conditions,
@@ -334,7 +346,7 @@ func getServerForAppSet(appSet *arogappsetv1.ApplicationSet) string {
 
 func printAppSetSummaryTable(appSet *arogappsetv1.ApplicationSet) {
 	source := appSet.Spec.Template.Spec.GetSource()
-	fmt.Printf(printOpFmtStr, "Name:", appSet.Name)
+	fmt.Printf(printOpFmtStr, "Name:", appSet.QualifiedName())
 	fmt.Printf(printOpFmtStr, "Project:", appSet.Spec.Template.Spec.GetProject())
 	fmt.Printf(printOpFmtStr, "Server:", getServerForAppSet(appSet))
 	fmt.Printf(printOpFmtStr, "Namespace:", appSet.Spec.Template.Spec.Destination.Namespace)
