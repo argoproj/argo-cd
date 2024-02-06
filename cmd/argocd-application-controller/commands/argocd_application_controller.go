@@ -10,6 +10,7 @@ import (
 	"github.com/redis/go-redis/v9"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	appsv1 "k8s.io/api/apps/v1"
 	kubeerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -170,6 +171,7 @@ func NewCommand() *cobra.Command {
 				applicationNamespaces,
 				&workqueueRateLimit,
 				serverSideDiff,
+				enableDynamicClusterDistribution,
 			)
 			errors.CheckError(err)
 			cacheutil.CollectMetrics(redisClient, appController.GetMetricsServer())
@@ -243,11 +245,19 @@ func getClusterSharding(kubeClient *kubernetes.Clientset, settingsMgr *settings.
 	// StatefulSet mode and Deployment mode uses different default values for shard number.
 	defaultShardNumberValue := 0
 	applicationControllerName := env.StringFromEnv(common.EnvAppControllerName, common.DefaultApplicationControllerName)
-	appControllerDeployment, err := kubeClient.AppsV1().Deployments(settingsMgr.GetNamespace()).Get(context.Background(), applicationControllerName, metav1.GetOptions{})
 
-	// if the application controller deployment was not found, the Get() call returns an empty Deployment object. So, set the variable to nil explicitly
-	if err != nil && kubeerrors.IsNotFound(err) {
-		appControllerDeployment = nil
+	var (
+		appControllerDeployment *appsv1.Deployment
+		err                     error
+	)
+
+	// skip deployment fetching if dynamic sharding is disabled
+	if enableDynamicClusterDistribution {
+		appControllerDeployment, err = kubeClient.AppsV1().Deployments(settingsMgr.GetNamespace()).Get(context.Background(), applicationControllerName, metav1.GetOptions{})
+		// if the application controller deployment was not found, the Get() call returns an empty Deployment object. So, set the variable to nil explicitly
+		if err != nil && kubeerrors.IsNotFound(err) {
+			appControllerDeployment = nil
+		}
 	}
 
 	if enableDynamicClusterDistribution && appControllerDeployment != nil && appControllerDeployment.Spec.Replicas != nil {
