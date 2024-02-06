@@ -66,8 +66,7 @@ func NewConnection(address string, timeoutSeconds int, tlsConfig *TLSConfigurati
 		grpc.WithStreamInterceptor(grpc_retry.StreamClientInterceptor(retryOpts...)),
 		grpc.WithUnaryInterceptor(grpc_middleware.ChainUnaryClient(unaryInterceptors...)),
 		grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(MaxGRPCMessageSize), grpc.MaxCallSendMsgSize(MaxGRPCMessageSize)),
-		grpc.WithUnaryInterceptor(argogrpc.OTELUnaryClientInterceptor()),
-		grpc.WithStreamInterceptor(argogrpc.OTELStreamClientInterceptor()),
+		argogrpc.OTELDialOption(),
 	}
 
 	tlsC := &tls.Config{}

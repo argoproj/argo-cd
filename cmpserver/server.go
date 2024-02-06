@@ -46,19 +46,18 @@ func NewServer(initConstants plugin.CMPServerInitConstants) (*ArgoCDCMPServer, e
 
 	serverLog := log.NewEntry(log.StandardLogger())
 	streamInterceptors := []grpc.StreamServerInterceptor{
-		otelgrpc.StreamServerInterceptor(),
 		grpc_logrus.StreamServerInterceptor(serverLog),
 		grpc_prometheus.StreamServerInterceptor,
 		grpc_util.PanicLoggerStreamServerInterceptor(serverLog),
 	}
 	unaryInterceptors := []grpc.UnaryServerInterceptor{
-		otelgrpc.UnaryServerInterceptor(),
 		grpc_logrus.UnaryServerInterceptor(serverLog),
 		grpc_prometheus.UnaryServerInterceptor,
 		grpc_util.PanicLoggerUnaryServerInterceptor(serverLog),
 	}
 
 	serverOpts := []grpc.ServerOption{
+		grpc.StatsHandler(otelgrpc.NewServerHandler()),
 		grpc.UnaryInterceptor(grpc_middleware.ChainUnaryServer(unaryInterceptors...)),
 		grpc.StreamInterceptor(grpc_middleware.ChainStreamServer(streamInterceptors...)),
 		grpc.MaxRecvMsgSize(apiclient.MaxGRPCMessageSize),

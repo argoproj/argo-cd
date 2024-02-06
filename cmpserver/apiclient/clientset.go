@@ -46,8 +46,7 @@ func NewConnection(address string) (*grpc.ClientConn, error) {
 		grpc.WithStreamInterceptor(grpc_retry.StreamClientInterceptor(retryOpts...)),
 		grpc.WithUnaryInterceptor(grpc_middleware.ChainUnaryClient(unaryInterceptors...)),
 		grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(MaxGRPCMessageSize), grpc.MaxCallSendMsgSize(MaxGRPCMessageSize)),
-		grpc.WithUnaryInterceptor(grpc_util.OTELUnaryClientInterceptor()),
-		grpc.WithStreamInterceptor(grpc_util.OTELStreamClientInterceptor()),
+		grpc_util.OTELDialOption(),
 	}
 
 	dialOpts = append(dialOpts, grpc.WithTransportCredentials(insecure.NewCredentials()))

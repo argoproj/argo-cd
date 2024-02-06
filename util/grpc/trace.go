@@ -8,8 +8,7 @@ import (
 )
 
 var (
-	otelUnaryInterceptor    grpc.UnaryClientInterceptor
-	otelStreamInterceptor   grpc.StreamClientInterceptor
+	otelDialOption          grpc.DialOption
 	interceptorsInitialized = sync.Once{}
 )
 
@@ -17,17 +16,11 @@ var (
 // see https://github.com/open-telemetry/opentelemetry-go-contrib/issues/4226 for details
 func ensureInitialized() {
 	interceptorsInitialized.Do(func() {
-		otelUnaryInterceptor = otelgrpc.UnaryClientInterceptor()
-		otelStreamInterceptor = otelgrpc.StreamClientInterceptor()
+		otelDialOption = grpc.WithStatsHandler(otelgrpc.NewClientHandler())
 	})
 }
 
-func OTELUnaryClientInterceptor() grpc.UnaryClientInterceptor {
+func OTELDialOption() grpc.DialOption {
 	ensureInitialized()
-	return otelUnaryInterceptor
-}
-
-func OTELStreamClientInterceptor() grpc.StreamClientInterceptor {
-	ensureInitialized()
-	return otelStreamInterceptor
+	return otelDialOption
 }
