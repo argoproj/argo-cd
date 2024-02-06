@@ -1,0 +1,56 @@
+apiVersion: rollouts.kruise.io/v1alpha1
+kind: Rollout
+metadata:
+  name: rollouts-demo
+  namespace: default
+  annotations:
+    rollouts.kruise.io/rolling-style: partition
+  generation: 7
+spec:
+  objectRef:
+    workloadRef:
+      apiVersion: apps/v1
+      kind: Deployment
+      name: workload-demo
+  strategy:
+    canary:
+      steps:
+      - replicas: 1
+        pause:
+          duration: 0
+      - replicas: 50%
+        pause:
+          duration: 0
+      - replicas: 100%
+
+status:
+  canaryStatus:
+    canaryReadyReplicas: 10
+    canaryReplicas: 10
+    canaryRevision: 76fd76f75b
+    currentStepIndex: 3
+    currentStepState: Completed
+    lastUpdateTime: '2023-09-23T11:48:58Z'
+    message: BatchRelease is at state Ready, rollout-id , step 3
+    observedWorkloadGeneration: 22
+    podTemplateHash: 76fd76f75b
+    rolloutHash: 77cxd69w47b7bwddwv2w7vxvb4xxdbwcx9x289vw69w788w4w6z4x8dd4vbz2zbw
+    stableRevision: 6bfdfb5bfb
+  conditions:
+    - lastTransitionTime: '2023-09-23T11:44:09Z'
+      lastUpdateTime: '2023-09-23T11:44:09Z'
+      message: Rollout progressing has been completed
+      reason: Completed
+      status: 'False'
+      type: Progressing
+    - lastTransitionTime: '2023-09-23T11:49:01Z'
+      lastUpdateTime: '2023-09-23T11:49:01Z'
+      message: ''
+      reason: ''
+      status: 'True'
+      type: Succeeded
+  message: Rollout progressing has been completed
+  observedGeneration: 7
+  phase: Healthy
+
+

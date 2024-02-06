@@ -1726,6 +1726,19 @@ spec:
                       description: ID is an auto incrementing identifier of the RevisionHistory
                       format: int64
                       type: integer
+                    initiatedBy:
+                      description: InitiatedBy contains information about who initiated
+                        the operations
+                      properties:
+                        automated:
+                          description: Automated is set to true if operation was initiated
+                            automatically by the application controller.
+                          type: boolean
+                        username:
+                          description: Username contains the name of a user who started
+                            operation
+                          type: string
+                      type: object
                     revision:
                       description: Revision holds the revision the sync was performed
                         against
@@ -20582,6 +20595,14 @@ rules:
   verbs:
   - create
   - list
+- apiGroups:
+  - apps
+  resources:
+  - deployments
+  verbs:
+  - get
+  - list
+  - watch
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
@@ -21493,6 +21514,12 @@ spec:
               key: timeout.hard.reconciliation
               name: argocd-cm
               optional: true
+        - name: ARGOCD_RECONCILIATION_JITTER
+          valueFrom:
+            configMapKeyRef:
+              key: timeout.reconciliation.jitter
+              name: argocd-cm
+              optional: true
         - name: ARGOCD_REPO_ERROR_GRACE_PERIOD_SECONDS
           valueFrom:
             configMapKeyRef:
@@ -21641,6 +21668,12 @@ spec:
           valueFrom:
             configMapKeyRef:
               key: controller.k8sclient.retry.base.backoff
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_APPLICATION_CONTROLLER_SERVER_SIDE_DIFF
+          valueFrom:
+            configMapKeyRef:
+              key: controller.diff.server.side
               name: argocd-cmd-params-cm
               optional: true
         image: quay.io/argoproj/argocd:latest
