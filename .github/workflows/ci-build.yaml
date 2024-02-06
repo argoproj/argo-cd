@@ -1,5 +1,5 @@
 name: Integration tests
-on: 
+on:
   push:
     branches:
       - 'master'
@@ -43,6 +43,8 @@ jobs:
     name: Ensure Go modules synchronicity
     if: ${{ needs.changes.outputs.backend == 'true' }}
     runs-on: ubuntu-22.04
+    needs:
+      - changes
     steps:
       - name: Checkout code
         uses: actions/checkout@3df4ab11eba7bda6032a0b82a6bb43b11571feac # v4.0.0
@@ -62,6 +64,8 @@ jobs:
     name: Build & cache Go code
     if: ${{ needs.changes.outputs.backend == 'true' }}
     runs-on: ubuntu-22.04
+    needs:
+      - changes
     steps:
       - name: Checkout code
         uses: actions/checkout@3df4ab11eba7bda6032a0b82a6bb43b11571feac # v4.0.0
@@ -87,6 +91,8 @@ jobs:
     name: Lint Go code
     if: ${{ needs.changes.outputs.backend == 'true' }}
     runs-on: ubuntu-22.04
+    needs:
+      - changes
     steps:
       - name: Checkout code
         uses: actions/checkout@3df4ab11eba7bda6032a0b82a6bb43b11571feac # v4.0.0
@@ -106,9 +112,10 @@ jobs:
     runs-on: ubuntu-22.04
     needs:
       - build-go
+      - changes
     env:
       GITHUB_TOKEN: ${{ secrets.E2E_TEST_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
-      GITLAB_TOKEN: ${{ secrets.E2E_TEST_GITLAB_TOKEN }}      
+      GITLAB_TOKEN: ${{ secrets.E2E_TEST_GITLAB_TOKEN }}
     steps:
       - name: Create checkout directory
         run: mkdir -p ~/go/src/github.com/argoproj
@@ -174,9 +181,10 @@ jobs:
     runs-on: ubuntu-22.04
     needs:
       - build-go
+      - changes
     env:
       GITHUB_TOKEN: ${{ secrets.E2E_TEST_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
-      GITLAB_TOKEN: ${{ secrets.E2E_TEST_GITLAB_TOKEN }}  
+      GITLAB_TOKEN: ${{ secrets.E2E_TEST_GITLAB_TOKEN }}
     steps:
       - name: Create checkout directory
         run: mkdir -p ~/go/src/github.com/argoproj
@@ -235,6 +243,8 @@ jobs:
     name: Check changes to generated code
     if: ${{ needs.changes.outputs.backend == 'true' }}
     runs-on: ubuntu-22.04
+    needs:
+      - changes
     steps:
       - name: Checkout code
         uses: actions/checkout@3df4ab11eba7bda6032a0b82a6bb43b11571feac # v4.0.0
@@ -284,6 +294,8 @@ jobs:
     name: Build, test & lint UI code
     if: ${{ needs.changes.outputs.frontend == 'true' }}
     runs-on: ubuntu-22.04
+    needs:
+      - changes
     steps:
       - name: Checkout code
         uses: actions/checkout@3df4ab11eba7bda6032a0b82a6bb43b11571feac # v4.0.0
@@ -320,6 +332,7 @@ jobs:
     needs:
       - test-go
       - build-ui
+      - changes
     env:
       sonar_secret: ${{ secrets.SONAR_TOKEN }}
     steps:
@@ -360,24 +373,24 @@ jobs:
           SCANNER_PATH: /tmp/cache/scanner
           OS: linux
         run: |
-            # We do not use the provided action, because it does contain an old
-            # version of the scanner, and also takes time to build.
-            set -e
-            mkdir -p ${SCANNER_PATH}
-            export SONAR_USER_HOME=${SCANNER_PATH}/.sonar
-            if [[ ! -x "${SCANNER_PATH}/sonar-scanner-${SCANNER_VERSION}-${OS}/bin/sonar-scanner" ]]; then
-              curl -Ol https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-${SCANNER_VERSION}-${OS}.zip
-              unzip -qq -o sonar-scanner-cli-${SCANNER_VERSION}-${OS}.zip -d ${SCANNER_PATH}
-            fi
-
-            chmod +x ${SCANNER_PATH}/sonar-scanner-${SCANNER_VERSION}-${OS}/bin/sonar-scanner
-            chmod +x ${SCANNER_PATH}/sonar-scanner-${SCANNER_VERSION}-${OS}/jre/bin/java
-
-            # Explicitly set NODE_MODULES
-            export NODE_MODULES=${PWD}/ui/node_modules
-            export NODE_PATH=${PWD}/ui/node_modules
-
-            ${SCANNER_PATH}/sonar-scanner-${SCANNER_VERSION}-${OS}/bin/sonar-scanner
+          # We do not use the provided action, because it does contain an old
+          # version of the scanner, and also takes time to build.
+          set -e
+          mkdir -p ${SCANNER_PATH}
+          export SONAR_USER_HOME=${SCANNER_PATH}/.sonar
+          if [[ ! -x "${SCANNER_PATH}/sonar-scanner-${SCANNER_VERSION}-${OS}/bin/sonar-scanner" ]]; then
+            curl -Ol https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-${SCANNER_VERSION}-${OS}.zip
+            unzip -qq -o sonar-scanner-cli-${SCANNER_VERSION}-${OS}.zip -d ${SCANNER_PATH}
+          fi
+          
+          chmod +x ${SCANNER_PATH}/sonar-scanner-${SCANNER_VERSION}-${OS}/bin/sonar-scanner
+          chmod +x ${SCANNER_PATH}/sonar-scanner-${SCANNER_VERSION}-${OS}/jre/bin/java
+          
+          # Explicitly set NODE_MODULES
+          export NODE_MODULES=${PWD}/ui/node_modules
+          export NODE_PATH=${PWD}/ui/node_modules
+          
+          ${SCANNER_PATH}/sonar-scanner-${SCANNER_VERSION}-${OS}/bin/sonar-scanner
         if: env.sonar_secret != ''
 
   test-e2e:
@@ -388,8 +401,9 @@ jobs:
       fail-fast: false
       matrix:
         k3s-version: [v1.29.1, v1.28.6, v1.27.10, v1.26.13, v1.25.16]
-    needs: 
+    needs:
       - build-go
+      - changes
     env:
       GOPATH: /home/runner/go
       ARGOCD_FAKE_IN_CLUSTER: "true"
@@ -402,7 +416,7 @@ jobs:
       ARGOCD_APPLICATION_NAMESPACES: "argocd-e2e-external,argocd-e2e-external-2"
       ARGOCD_SERVER: "127.0.0.1:8088"
       GITHUB_TOKEN: ${{ secrets.E2E_TEST_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
-      GITLAB_TOKEN: ${{ secrets.E2E_TEST_GITLAB_TOKEN }}  
+      GITLAB_TOKEN: ${{ secrets.E2E_TEST_GITLAB_TOKEN }}
     steps:
       - name: Checkout code
         uses: actions/checkout@3df4ab11eba7bda6032a0b82a6bb43b11571feac # v4.0.0
@@ -499,6 +513,7 @@ jobs:
     if: ${{ always() }}
     needs:
       - test-e2e
+      - changes
     runs-on: ubuntu-22.04
     steps:
       - run: |
