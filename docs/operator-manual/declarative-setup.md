@@ -549,6 +549,7 @@ bearerToken: string
 awsAuthConfig:
     clusterName: string
     roleARN: string
+    profile: string
 # Configure external command to supply client credentials
 # See https://godoc.org/k8s.io/client-go/tools/clientcmd/api#ExecConfig
 execProviderConfig:
@@ -676,8 +677,10 @@ extended to allow assumption of multiple roles, either as an explicit array of r
   }
 ```
 
-Example service account configs for `argocd-application-controller` and `argocd-server`. Note that once the annotations
-have been set on the service accounts, both the application controller and server pods need to be restarted.
+Example service account configs for `argocd-application-controller` and `argocd-server`.
+
+!!! warning
+    Once the annotations have been set on the service accounts, both the application controller and server pods need to be restarted.
 
 ```yaml
 apiVersion: v1

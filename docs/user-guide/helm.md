@@ -25,6 +25,23 @@ spec:
     namespace: kubeseal
 ```
 
+Another example using a public OCI helm chart:
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: nginx
+spec:
+  project: default
+  source:
+    chart: nginx
+    repoURL: registry-1.docker.io/bitnamicharts  # note: the oci:// syntax is not included.
+    targetRevision: 15.9.0
+  destination:
+    name: "in-cluster"
+    namespace: nginx
+```
+
 !!! note "When using multiple ways to provide values"
     Order of precedence is `parameters > valuesObject > values > valueFiles > helm repository values.yaml` (see [Here](./helm.md#helm-value-precedence) for a more detailed example)
 
@@ -210,7 +227,7 @@ is any normal Kubernetes resource annotated with the `helm.sh/hook` annotation.
 Argo CD supports many (most?) Helm hooks by mapping the Helm annotations onto Argo CD's own hook annotations:
 
 | Helm Annotation                 | Notes                                                                                         |
-| ------------------------------- | --------------------------------------------------------------------------------------------- |
+| ------------------------------- |-----------------------------------------------------------------------------------------------|
 | `helm.sh/hook: crd-install`     | Supported as equivalent to `argocd.argoproj.io/hook: PreSync`.                                |
 | `helm.sh/hook: pre-delete`      | Not supported. In Helm stable there are 3 cases used to clean up CRDs and 3 to clean-up jobs. |
 | `helm.sh/hook: pre-rollback`    | Not supported. Never used in Helm stable.                                                     |
@@ -218,7 +235,7 @@ Argo CD supports many (most?) Helm hooks by mapping the Helm annotations onto Ar
 | `helm.sh/hook: pre-upgrade`     | Supported as equivalent to `argocd.argoproj.io/hook: PreSync`.                                |
 | `helm.sh/hook: post-upgrade`    | Supported as equivalent to `argocd.argoproj.io/hook: PostSync`.                               |
 | `helm.sh/hook: post-install`    | Supported as equivalent to `argocd.argoproj.io/hook: PostSync`.                               |
-| `helm.sh/hook: post-delete`     | Not supported. Never used in Helm stable.                                                     |
+| `helm.sh/hook: post-delete`     | Supported as equivalent to `argocd.argoproj.io/hook: PostDelete`.                             |
 | `helm.sh/hook: post-rollback`   | Not supported. Never used in Helm stable.                                                     |
 | `helm.sh/hook: test-success`    | Not supported. No equivalent in Argo CD.                                                      |
 | `helm.sh/hook: test-failure`    | Not supported. No equivalent in Argo CD.                                                      |

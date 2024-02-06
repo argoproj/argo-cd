@@ -17,6 +17,7 @@ argocd-application-controller [flags]
 ```
       --app-hard-resync int                    Time period in seconds for application hard resync.
       --app-resync int                         Time period in seconds for application resync. (default 180)
+      --app-resync-jitter int                  Maximum time period in seconds to add as a delay jitter for application resync.
       --app-state-cache-expiration duration    Cache expiration for app state (default 1h0m0s)
       --application-namespaces strings         List of additional namespaces that applications are allowed to be reconciled from
       --as string                              Username to impersonate for the operation
@@ -67,6 +68,7 @@ argocd-application-controller [flags]
       --sentinel stringArray                   Redis sentinel hostname and port (e.g. argocd-redis-ha-announce-0:6379). 
       --sentinelmaster string                  Redis sentinel master group name. (default "master")
       --server string                          The address and port of the Kubernetes API server
+      --server-side-diff-enabled               Feature flag to enable ServerSide diff. Default ("false")
       --sharding-method string                 Enables choice of sharding method. Supported sharding methods are : [legacy, round-robin]  (default "legacy")
       --status-processors int                  Number of application status processors (default 20)
       --tls-server-name string                 If provided, this name will be used to validate server certificate. If this is not provided, hostname used to contact the server is used.
