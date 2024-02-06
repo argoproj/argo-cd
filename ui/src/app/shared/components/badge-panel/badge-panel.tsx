@@ -6,7 +6,7 @@ import {Context} from '../../context';
 
 require('./badge-panel.scss');
 
-export const BadgePanel = ({app, project}: {app?: string; project?: string}) => {
+export const BadgePanel = ({app, project, appNamespace, nsEnabled}: {app?: string; project?: string; appNamespace?: string; nsEnabled?: boolean}) => {
     const [badgeType, setBadgeType] = React.useState('URL');
     const context = React.useContext(Context);
     if (!app && !project) {
@@ -20,6 +20,9 @@ export const BadgePanel = ({app, project}: {app?: string; project?: string}) => 
         let alt = '';
         if (app) {
             badgeURL = `${root}api/badge?name=${app}&revision=true`;
+            if (nsEnabled) {
+                badgeURL += `&namespace=${appNamespace}`;
+            }
             entityURL = `${root}applications/${app}`;
             alt = 'App Status';
         } else if (project) {
