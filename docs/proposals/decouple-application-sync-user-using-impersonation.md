@@ -14,7 +14,7 @@ approvers:
   - "@jannfis"
 
 creation-date: 2023-06-23
-last-updated: 2024-01-04
+last-updated: 2024-02-06
 ---
 
 # Decouple Application Sync using Impersonation
@@ -41,11 +41,13 @@ kubectl --as <user-to-impersonate> --as-group <group-to-impersonate> ...
 - Can an Application refer to a service account with elevated privileges like say  `cluster-admin`, `admin`, and service accounts used for running the ArgoCD controllers itself ?
 >Yes, this is possible as long as the ArgoCD admin user explicitly allows it through the `AppProject` configuration.
 - Among the destinations configured in the `AppProject`, if there are multiple matches for a given destination, which destination option should be used ?
->If there are more than one matching destination, either with a regex match or an exact match, then we report an error in the sync operation. This is to avoid conflicting destination configurations and to simplify the overhead of choosing the right/closest matching service account.
+>If there are more than one matching destination, either with a glob pattern match or an exact match, then we use the first valid match to determine the service account to be used for the sync operation.
 - Can the kubernetes audit trail events capture the impersonation.
 >Yes, kubernetes audit trail events capture both the actual user and the impersonating user details and hence its possible to track who executed the commands and as which user permissions using the audit trails.
 - Would the Sync hooks be using the impersonation service account.
 >Yes, if the impersonation feature is enabled and customers use Sync hooks, then impersonation service account would be used for executing the hook jobs as well.
+- If application resources have hardcoded namespaces in the git repository, would different service accounts be used for each resource during the sync operation ?
+>The service account to be used for impersonation is determined on a per Application level rather than on per resource level. The value specified in `Application.spec.destination.namespace` would be used to determine the service account to be used for the sync operation of all resources present in the `Application`.
 
 ## Summary
 
@@ -108,18 +110,25 @@ spec:
       defaultServiceAccount: guestbook-stage-deployer
 ```
 
+### Structure of DestinationServiceAccount:
+|Parameter| Type | Required/Optional| Description|
+| ------ | ------ | ------- | -------- |
+| server | string | Required | Server specifies the URL of the target cluster's Kubernetes control plane API. Glob patterns are supported. |
+| namespace | string | Required | Namespace specifies the target namespace for the application's resources. Glob patterns are supported. |
+| defaultServiceAccount | string | Required| DefaultServiceAccount specifies the service account to be impersonated when performing the `Application` sync operation.|
+
+**Note:** Only server URL for the target cluster is supported and target cluster name is not supported.
+
 ### Future enhancements
 
 In a future release, we plan to support overriding of service accounts at the application level. In that case, we would be adding an element called `allowedServiceAccounts` to `AppProject.spec.destinationServiceAccounts[*]`
 
 ### Use cases
 
-Add a list of detailed use cases this enhancement intends to take care of.
-
 #### Use case 1:
 
 As a user, I would like to use kubernetes security constructs to restrict user access for application sync
-So that, I can provide granular permissions based on the principal of least privilege required for syncing an application.
+So that, I can provide granular permissions based on the principle of least privilege required for syncing an application.
 
 #### Use case 2:
 
@@ -166,12 +175,18 @@ Set `ARGOCD_APPLICATION_CONTROLLER_ENABLE_IMPERSONATION=true` in the Application
 - Provide option to add multiple `DestinationServiceAccounts` to an `AppProject` created/updated via the web console.
 - Update the User Guide and other documentation where the CLI option usages are explained.
 
+#### Component: Documentation
+
+- Add note that this is a Beta feature in the documentation.
+- Add a separate section for this feature under user-guide section.
+- Update the ArgoCD  CLI command reference documentation.
+- Update the ArgoCD  UI command reference documentation.
 
 ### Detailed examples
 
 #### Example 1: Service account for application sync specified at the AppProject level for all namespaces
 
-In this specific scenario, service account name `generic-deployer` will get used for the application sync as the namespace `guestbook` matches the regex `*`.
+In this specific scenario, service account name `generic-deployer` will get used for the application sync as the namespace `guestbook` matches the glob pattern `*`.
 
 - Install ArgoCD in the `argocd` namespace.
 ```
@@ -370,9 +385,9 @@ spec:
       server: https://kubernetes.default.svc
       serviceAccountName: guestbook-deployer
   destinationServiceAccounts:
-  - namespace: guestbook
-    server: https://kubernetes.default.svc
-    defaultServiceAccount: guestbook-deployer
+    - namespace: guestbook
+      server: https://kubernetes.default.svc
+      defaultServiceAccount: guestbook-deployer
 ```
 
 #### Example 4: Remote destination with a custom service account for the sync operation
@@ -472,27 +487,32 @@ eg:
 
 #### Multiple matches of destinations
 
-If there are multiple matches for a given destination, the closest match would be used.
+If there are multiple matches for a given destination, the first valid match in the list of `destinationServiceAccounts` would be used.
+
 eg:
 Lets assume that the `AppProject` has the below `destinationServiceAccounts` configured.
 ```
   ...
   destinationServiceAccounts:
     - server: https://kubernetes.default.svc
-      namespace: *
-      defaultServiceAccount: generic-deployer
+      namespace: guestbook-prod
+      defaultServiceAccount: guestbook-prod-deployer
     - server: https://kubernetes.default.svc
       namespace: guestbook-*
       defaultServiceAccount: guestbook-generic-deployer
     - server: https://kubernetes.default.svc
-      namespace: guestbook-prod
-      defaultServiceAccount: guestbook-prod-deployer
+      namespace: *
+      defaultServiceAccount: generic-deployer
   ...
 ```
-- If the application destination namespace is `myns`, then the service account `generic-deployer` would be used as that matches the regex `*` and there aren't any other close matches.
-- If the application destination namespace is `guestbook-dev` or `guestbook-stage`, then both regex `*` and `guestbook-*` matches, however `guestbook-*` is the closest match and hence, the service account `guestbook-generic-deployer` would be used for the impersonation.
-- If the application destination namespace is `guestbook-prod`, then there are three candidates, however the closet match is the one with service account `guestbook-prod-deployer` and that would be used for the impersonation.
+- If the application destination namespace is `myns`, then the service account `generic-deployer` would be used as the first valid match is the glob pattern `*` and there are no other valid matches in the list.
+- If the application destination namespace is `guestbook-dev` or `guestbook-stage`, then both glob patterns `*` and `guestbook-*` are valid matches, however `guestbook-*` pattern appears first and hence, the service account `guestbook-generic-deployer` would be used for the impersonation.
+- If the application destination namespace is `guestbook-prod`, then there are three candidates, however the first valid match in the list is the one with service account `guestbook-prod-deployer` and that would be used for the impersonation.
 
+#### Application resources referring to multiple namespaces
+If application resources have hardcoded namespaces in the git repository, would different service accounts be used for each resource during the sync operation ?
+
+The service account to be used for impersonation is determined on a per Application level rather than on per resource level. The value specified in `Application.spec.destination.namespace` would be used to determine the service account to be used for the sync operation of all resources present in the `Application`.
 
 ### Security Considerations
 
