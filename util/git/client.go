@@ -761,7 +761,6 @@ func (m *nativeGitClient) runCmdOutput(cmd *exec.Cmd, ropts runOpts) (string, er
 			}
 		}
 	}
-
 	cmd.Env = proxy.UpsertEnv(cmd, m.proxy)
 	opts := executil.ExecRunOpts{
 		TimeoutBehavior: argoexec.TimeoutBehavior{
