@@ -1,0 +1,6 @@
+*.swp
+*~
+.vscode
+.idea
+coverage.out
+vendor/
