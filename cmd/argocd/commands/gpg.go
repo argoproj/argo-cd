@@ -14,7 +14,6 @@ import (
 	appsv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/util/errors"
 	argoio "github.com/argoproj/argo-cd/v2/util/io"
-	"github.com/argoproj/argo-cd/v2/util/templates"
 )
 
 // NewGPGCommand returns a new instance of an `argocd repo` command
@@ -43,17 +42,6 @@ func NewGPGListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var command = &cobra.Command{
 		Use:   "list",
 		Short: "List configured GPG public keys",
-		Example: templates.Examples(`
-  # List all configured GPG public keys in wide format (default).
-  argocd gpg list
-		
-  # List all configured GPG public keys in JSON format.
-  argocd gpg list -o json
-		
-  # List all configured GPG public keys in YAML format.
-  argocd gpg list -o yaml
-  		`),
-
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
 
@@ -84,17 +72,6 @@ func NewGPGGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var command = &cobra.Command{
 		Use:   "get KEYID",
 		Short: "Get the GPG public key with ID <KEYID> from the server",
-		Example: templates.Examples(`  
-  # Get a GPG public key with the specified KEYID in wide format (default).
-  argocd gpg get KEYID
-		
-  # Get a GPG public key with the specified KEYID in JSON format.
-  argocd gpg get KEYID -o json
-		
-  # Get a GPG public key with the specified KEYID in YAML format.
-  argocd gpg get KEYID -o yaml
-  		`),
-
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
 
@@ -132,11 +109,6 @@ func NewGPGAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var command = &cobra.Command{
 		Use:   "add",
 		Short: "Adds a GPG public key to the server's keyring",
-		Example: templates.Examples(`
-  # Add a GPG public key to the server's keyring from a file.
-  argocd gpg add --from /path/to/keyfile
-  		`),
-
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
 

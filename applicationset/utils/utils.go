@@ -16,7 +16,6 @@ import (
 	"unsafe"
 
 	"github.com/Masterminds/sprig/v3"
-	"github.com/gosimple/slug"
 	"github.com/valyala/fasttemplate"
 	"sigs.k8s.io/yaml"
 
@@ -33,7 +32,6 @@ func init() {
 	delete(sprigFuncMap, "expandenv")
 	delete(sprigFuncMap, "getHostByName")
 	sprigFuncMap["normalize"] = SanitizeName
-	sprigFuncMap["slugify"] = SlugifyName
 	sprigFuncMap["toYaml"] = toYAML
 	sprigFuncMap["fromYaml"] = fromYAML
 	sprigFuncMap["fromYamlArray"] = fromYAMLArray
@@ -41,7 +39,6 @@ func init() {
 
 type Renderer interface {
 	RenderTemplateParams(tmpl *argoappsv1.Application, syncPolicy *argoappsv1.ApplicationSetSyncPolicy, params map[string]interface{}, useGoTemplate bool, goTemplateOptions []string) (*argoappsv1.Application, error)
-	Replace(tmpl string, replaceMap map[string]interface{}, useGoTemplate bool, goTemplateOptions []string) (string, error)
 }
 
 type Render struct {
@@ -435,54 +432,6 @@ func NormalizeBitbucketBasePath(basePath string) string {
 		return basePath + "/rest"
 	}
 	return basePath
-}
-
-// SlugifyName generates a URL-friendly slug from the provided name and additional options.
-// The slug is generated in accordance with the following rules:
-// 1. The generated slug will be URL-safe and suitable for use in URLs.
-// 2. The maximum length of the slug can be specified using the `maxSize` argument.
-// 3. Smart truncation can be enabled or disabled using the `EnableSmartTruncate` argument.
-// 4. The input name can be any string value that needs to be converted into a slug.
-//
-// Args:
-// - args: A variadic number of arguments where:
-//   - The first argument (if provided) is an integer specifying the maximum length of the slug.
-//   - The second argument (if provided) is a boolean indicating whether smart truncation is enabled.
-//   - The last argument (if provided) is the input name that needs to be slugified.
-//     If no name is provided, an empty string will be used.
-//
-// Returns:
-// - string: The generated URL-friendly slug based on the input name and options.
-func SlugifyName(args ...interface{}) string {
-	// Default values for arguments
-	maxSize := 50
-	EnableSmartTruncate := true
-	name := ""
-
-	// Process the arguments
-	for idx, arg := range args {
-		switch idx {
-		case len(args) - 1:
-			name = arg.(string)
-		case 0:
-			maxSize = arg.(int)
-		case 1:
-			EnableSmartTruncate = arg.(bool)
-		default:
-			log.Errorf("Bad 'slugify' arguments.")
-		}
-	}
-
-	sanitizedName := SanitizeName(name)
-
-	// Configure slug generation options
-	slug.EnableSmartTruncate = EnableSmartTruncate
-	slug.MaxLength = maxSize
-
-	// Generate the slug from the input name
-	urlSlug := slug.Make(sanitizedName)
-
-	return urlSlug
 }
 
 func getTlsConfigWithCACert(scmRootCAPath string) *tls.Config {

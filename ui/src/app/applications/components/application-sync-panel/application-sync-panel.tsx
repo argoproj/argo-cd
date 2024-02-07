@@ -7,14 +7,7 @@ import {Consumer} from '../../../shared/context';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
 import {ApplicationRetryOptions} from '../application-retry-options/application-retry-options';
-import {
-    ApplicationManualSyncFlags,
-    ApplicationSyncOptions,
-    FORCE_WARNING,
-    SyncFlags,
-    REPLACE_WARNING,
-    PRUNE_ALL_WARNING
-} from '../application-sync-options/application-sync-options';
+import {ApplicationManualSyncFlags, ApplicationSyncOptions, FORCE_WARNING, SyncFlags, REPLACE_WARNING} from '../application-sync-options/application-sync-options';
 import {ComparisonStatusIcon, getAppDefaultSource, nodeKey} from '../utils';
 
 import './application-sync-panel.scss';
@@ -64,25 +57,9 @@ export const ApplicationSyncPanel = ({application, selectedResource, hide}: {app
                             })}
                             onSubmit={async (params: any) => {
                                 setPending(true);
-                                let selectedResources = appResources.filter((_, i) => params.resources[i]);
-                                const allResourcesAreSelected = selectedResources.length === appResources.length;
-                                const syncFlags = {...params.syncFlags} as SyncFlags;
-
-                                const allRequirePruning = !selectedResources.some(resource => !resource?.requiresPruning);
-                                if (syncFlags.Prune && allRequirePruning && allResourcesAreSelected) {
-                                    const confirmed = await ctx.popup.confirm('Prune all resources?', () => (
-                                        <div>
-                                            <i className='fa fa-exclamation-triangle' style={{color: ARGO_WARNING_COLOR}} />
-                                            {PRUNE_ALL_WARNING} Are you sure you want to continue?
-                                        </div>
-                                    ));
-                                    if (!confirmed) {
-                                        setPending(false);
-                                        return;
-                                    }
-                                }
-                                if (allResourcesAreSelected) {
-                                    selectedResources = null;
+                                let resources = appResources.filter((_, i) => params.resources[i]);
+                                if (resources.length === appResources.length) {
+                                    resources = null;
                                 }
                                 const replace = params.syncOptions?.findIndex((opt: string) => opt === 'Replace=true') > -1;
                                 if (replace) {
@@ -97,6 +74,7 @@ export const ApplicationSyncPanel = ({application, selectedResource, hide}: {app
                                     }
                                 }
 
+                                const syncFlags = {...params.syncFlags} as SyncFlags;
                                 const force = syncFlags.Force || false;
 
                                 if (syncFlags.ApplyOnly) {
@@ -124,7 +102,7 @@ export const ApplicationSyncPanel = ({application, selectedResource, hide}: {app
                                         syncFlags.Prune || false,
                                         syncFlags.DryRun || false,
                                         syncStrategy,
-                                        selectedResources,
+                                        resources,
                                         params.syncOptions,
                                         params.retryStrategy
                                     );

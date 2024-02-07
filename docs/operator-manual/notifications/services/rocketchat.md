@@ -43,7 +43,7 @@ stringData:
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: argocd-notifications-cm
+  name: <config-map-name>
 data:
   service.rocketchat: |
     email: $rocketchat-email

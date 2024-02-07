@@ -733,11 +733,6 @@ func (in *ApplicationSetSpec) DeepCopyInto(out *ApplicationSetSpec) {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
 	}
-	if in.TemplatePatch != nil {
-		in, out := &in.TemplatePatch, &out.TemplatePatch
-		*out = new(string)
-		**out = **in
-	}
 	return
 }
 
@@ -1107,11 +1102,6 @@ func (in *ApplicationSourceKustomize) DeepCopyInto(out *ApplicationSourceKustomi
 		for i := range *in {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
-	}
-	if in.Components != nil {
-		in, out := &in.Components, &out.Components
-		*out = make([]string, len(*in))
-		copy(*out, *in)
 	}
 	return
 }
@@ -3689,7 +3679,6 @@ func (in *RevisionHistory) DeepCopyInto(out *RevisionHistory) {
 		*out = make([]string, len(*in))
 		copy(*out, *in)
 	}
-	out.InitiatedBy = in.InitiatedBy
 	return
 }
 

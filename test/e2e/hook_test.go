@@ -1,14 +1,12 @@
 package e2e
 
 import (
-	"context"
 	"fmt"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/argoproj/gitops-engine/pkg/health"
 	. "github.com/argoproj/gitops-engine/pkg/sync/common"
@@ -48,24 +46,6 @@ func testHookSuccessful(t *testing.T, hookType HookType) {
 		Expect(ResourceHealthIs("Pod", "pod", health.HealthStatusHealthy)).
 		Expect(ResourceResultNumbering(2)).
 		Expect(ResourceResultIs(ResourceResult{Version: "v1", Kind: "Pod", Namespace: DeploymentNamespace(), Name: "hook", Message: "pod/hook created", HookType: hookType, HookPhase: OperationSucceeded, SyncPhase: SyncPhase(hookType)}))
-}
-
-func TestPostDeleteHook(t *testing.T) {
-	Given(t).
-		Path("post-delete-hook").
-		When().
-		CreateApp().
-		Refresh(RefreshTypeNormal).
-		Delete(true).
-		Then().
-		Expect(DoesNotExist()).
-		AndAction(func() {
-			hooks, err := KubeClientset.CoreV1().Pods(DeploymentNamespace()).List(context.Background(), metav1.ListOptions{})
-			CheckError(err)
-			assert.Len(t, hooks.Items, 1)
-			assert.Equal(t, "hook", hooks.Items[0].Name)
-		})
-
 }
 
 // make sure that that hooks do not appear in "argocd app diff"
