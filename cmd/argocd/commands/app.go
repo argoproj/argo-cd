@@ -1116,6 +1116,7 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 					defer argoio.Close(conn)
 					cluster, err := clusterIf.Get(ctx, &clusterpkg.ClusterQuery{Name: app.Spec.Destination.Name, Server: app.Spec.Destination.Server})
 					errors.CheckError(err)
+
 					diffOption.local = local
 					diffOption.localRepoRoot = localRepoRoot
 					diffOption.cluster = cluster
