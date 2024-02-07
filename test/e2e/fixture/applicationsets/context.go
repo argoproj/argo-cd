@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/argoproj/argo-cd/v2/test/e2e/fixture/applicationsets/utils"
-	. "github.com/argoproj/argo-cd/v2/test/e2e/fixture/applicationsets/utils"
 )
 
 // Context implements the "given" part of given/when/then
@@ -19,7 +18,7 @@ type Context struct {
 }
 
 func Given(t *testing.T) *Context {
-	EnsureCleanState(t)
+	utils.EnsureCleanState(t)
 	return &Context{t: t}
 }
 
