@@ -10,6 +10,7 @@ import (
 
 	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/sirupsen/logrus"
+	"golang.org/x/net/proxy"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
@@ -63,7 +64,7 @@ func BlockingDial(ctx context.Context, network, address string, creds credential
 
 	dialer := func(ctx context.Context, address string) (net.Conn, error) {
 
-		conn, err := (&net.Dialer{Cancel: ctx.Done()}).Dial(network, address)
+		conn, err := proxy.Dial(ctx, network, address)
 		if err != nil {
 			writeResult(err)
 			return nil, err
@@ -88,7 +89,7 @@ func BlockingDial(ctx context.Context, network, address string, creds credential
 			grpc.FailOnNonTempDialError(true),
 			grpc.WithContextDialer(dialer),
 			grpc.WithTransportCredentials(insecure.NewCredentials()), // we are handling TLS, so tell grpc not to
-			grpc.WithKeepaliveParams(keepalive.ClientParameters{Time: common.GRPCKeepAliveTime}),
+			grpc.WithKeepaliveParams(keepalive.ClientParameters{Time: common.GetGRPCKeepAliveTime()}),
 		)
 		conn, err := grpc.DialContext(ctx, address, opts...)
 		var res interface{}

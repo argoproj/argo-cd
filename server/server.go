@@ -178,7 +178,7 @@ type ArgoCDServer struct {
 	appInformer    cache.SharedIndexInformer
 	appLister      applisters.ApplicationLister
 	appsetInformer cache.SharedIndexInformer
-	appsetLister   applisters.ApplicationSetNamespaceLister
+	appsetLister   applisters.ApplicationSetLister
 	db             db.ArgoDB
 
 	// stopCh is the channel which when closed, will shutdown the Argo CD server
@@ -197,6 +197,7 @@ type ArgoCDServer struct {
 
 type ArgoCDServerOpts struct {
 	DisableAuth           bool
+	ContentTypes          []string
 	EnableGZip            bool
 	Insecure              bool
 	StaticAssetsDir       string
@@ -213,12 +214,25 @@ type ArgoCDServerOpts struct {
 	AppClientset          appclientset.Interface
 	RepoClientset         repoapiclient.Clientset
 	Cache                 *servercache.Cache
+	RepoServerCache       *repocache.Cache
 	RedisClient           *redis.Client
 	TLSConfigCustomizer   tlsutil.ConfigCustomizer
 	XFrameOptions         string
 	ContentSecurityPolicy string
 	ApplicationNamespaces []string
 	EnableProxyExtension  bool
+}
+
+// HTTPMetricsRegistry exposes operations to update http metrics in the Argo CD
+// API server.
+type HTTPMetricsRegistry interface {
+	// IncExtensionRequestCounter will increase the request counter for the given
+	// extension with the given status.
+	IncExtensionRequestCounter(extension string, status int)
+	// ObserveExtensionRequestDuration will register the request roundtrip duration
+	// between Argo CD API Server and the extension backend service for the given
+	// extension.
+	ObserveExtensionRequestDuration(extension string, duration time.Duration)
 }
 
 // initializeDefaultProject creates the default project if it does not already exist
@@ -264,7 +278,7 @@ func NewServer(ctx context.Context, opts ArgoCDServerOpts) *ArgoCDServer {
 	appLister := appFactory.Argoproj().V1alpha1().Applications().Lister()
 
 	appsetInformer := appFactory.Argoproj().V1alpha1().ApplicationSets().Informer()
-	appsetLister := appFactory.Argoproj().V1alpha1().ApplicationSets().Lister().ApplicationSets(opts.Namespace)
+	appsetLister := appFactory.Argoproj().V1alpha1().ApplicationSets().Lister()
 
 	userStateStorage := util_session.NewUserStateStorage(opts.RedisClient)
 	sessionMgr := util_session.NewSessionManager(settingsMgr, projLister, opts.DexServerAddr, opts.DexTLSConfig, userStateStorage)
@@ -288,7 +302,7 @@ func NewServer(ctx context.Context, opts ArgoCDServerOpts) *ArgoCDServer {
 	secretInformer := k8s.NewSecretInformer(opts.KubeClientset, opts.Namespace, "argocd-notifications-secret")
 	configMapInformer := k8s.NewConfigMapInformer(opts.KubeClientset, opts.Namespace, "argocd-notifications-cm")
 
-	apiFactory := api.NewFactory(settings_notif.GetFactorySettings(argocdService, "argocd-notifications-secret", "argocd-notifications-cm"), opts.Namespace, secretInformer, configMapInformer)
+	apiFactory := api.NewFactory(settings_notif.GetFactorySettings(argocdService, "argocd-notifications-secret", "argocd-notifications-cm", false), opts.Namespace, secretInformer, configMapInformer)
 
 	dbInstance := db.NewDB(opts.Namespace, settingsMgr, opts.KubeClientset)
 	logger := log.NewEntry(log.StandardLogger())
@@ -471,6 +485,7 @@ func (a *ArgoCDServer) Listen() (*Listeners, error) {
 func (a *ArgoCDServer) Init(ctx context.Context) {
 	go a.projInformer.Run(ctx.Done())
 	go a.appInformer.Run(ctx.Done())
+	go a.appsetInformer.Run(ctx.Done())
 	go a.configMapInformer.Run(ctx.Done())
 	go a.secretInformer.Run(ctx.Done())
 }
@@ -481,6 +496,12 @@ func (a *ArgoCDServer) Init(ctx context.Context) {
 // golang/protobuf).
 func (a *ArgoCDServer) Run(ctx context.Context, listeners *Listeners) {
 	a.userStateStorage.Init(ctx)
+
+	metricsServ := metrics.NewMetricsServer(a.MetricsHost, a.MetricsPort)
+	if a.RedisClient != nil {
+		cacheutil.CollectMetrics(a.RedisClient, metricsServ)
+	}
+
 	svcSet := newArgoCDServiceSet(a)
 	a.serviceSet = svcSet
 	grpcS, appResourceTreeFn := a.newGRPCServer()
@@ -489,9 +510,9 @@ func (a *ArgoCDServer) Run(ctx context.Context, listeners *Listeners) {
 	var httpsS *http.Server
 	if a.useTLS() {
 		httpS = newRedirectServer(a.ListenPort, a.RootPath)
-		httpsS = a.newHTTPServer(ctx, a.ListenPort, grpcWebS, appResourceTreeFn, listeners.GatewayConn)
+		httpsS = a.newHTTPServer(ctx, a.ListenPort, grpcWebS, appResourceTreeFn, listeners.GatewayConn, metricsServ)
 	} else {
-		httpS = a.newHTTPServer(ctx, a.ListenPort, grpcWebS, appResourceTreeFn, listeners.GatewayConn)
+		httpS = a.newHTTPServer(ctx, a.ListenPort, grpcWebS, appResourceTreeFn, listeners.GatewayConn, metricsServ)
 	}
 	if a.RootPath != "" {
 		httpS.Handler = withRootPath(httpS.Handler, a)
@@ -503,11 +524,6 @@ func (a *ArgoCDServer) Run(ctx context.Context, listeners *Listeners) {
 	httpS.Handler = &bug21955Workaround{handler: httpS.Handler}
 	if httpsS != nil {
 		httpsS.Handler = &bug21955Workaround{handler: httpsS.Handler}
-	}
-
-	metricsServ := metrics.NewMetricsServer(a.MetricsHost, a.MetricsPort)
-	if a.RedisClient != nil {
-		cacheutil.CollectMetrics(a.RedisClient, metricsServ)
 	}
 
 	// CMux is used to support servicing gRPC and HTTP1.1+JSON on the same port
@@ -731,7 +747,7 @@ func (a *ArgoCDServer) newGRPCServer() (*grpc.Server, application.AppResourceTre
 		grpc.ConnectionTimeout(300 * time.Second),
 		grpc.KeepaliveEnforcementPolicy(
 			keepalive.EnforcementPolicy{
-				MinTime: common.GRPCKeepAliveEnforcementMinimum,
+				MinTime: common.GetGRPCKeepAliveEnforcementMinimum(),
 			},
 		),
 	}
@@ -852,9 +868,7 @@ func newArgoCDServiceSet(a *ArgoCDServer) *ArgoCDServiceSet {
 		a.db,
 		a.KubeClientset,
 		a.enf,
-		a.Cache,
 		a.AppClientset,
-		a.appLister,
 		a.appsetInformer,
 		a.appsetLister,
 		a.projLister,
@@ -959,7 +973,7 @@ func compressHandler(handler http.Handler) http.Handler {
 
 // newHTTPServer returns the HTTP server to serve HTTP/HTTPS requests. This is implemented
 // using grpc-gateway as a proxy to the gRPC server.
-func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandler http.Handler, appResourceTreeFn application.AppResourceTreeFn, conn *grpc.ClientConn) *http.Server {
+func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandler http.Handler, appResourceTreeFn application.AppResourceTreeFn, conn *grpc.ClientConn, metricsReg HTTPMetricsRegistry) *http.Server {
 	endpoint := fmt.Sprintf("localhost:%d", port)
 	mux := http.NewServeMux()
 	httpS := http.Server{
@@ -990,6 +1004,11 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandl
 	if a.EnableGZip {
 		handler = compressHandler(handler)
 	}
+	if len(a.ContentTypes) > 0 {
+		handler = enforceContentTypes(handler, a.ContentTypes)
+	} else {
+		log.WithField(common.SecurityField, common.SecurityHigh).Warnf("Content-Type enforcement is disabled, which may make your API vulnerable to CSRF attacks")
+	}
 	mux.Handle("/api/", handler)
 
 	terminal := application.NewHandler(a.appLister, a.Namespace, a.ApplicationNamespaces, a.db, a.enf, a.Cache, appResourceTreeFn, a.settings.ExecShells, *a.sessionMgr).
@@ -1003,7 +1022,7 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandl
 		// API server won't panic if extensions fail to register. In
 		// this case an error log will be sent and no extension route
 		// will be added in mux.
-		registerExtensions(mux, a)
+		registerExtensions(mux, a, metricsReg)
 	}
 
 	mustRegisterGWHandler(versionpkg.RegisterVersionServiceHandler, ctx, gwmux, conn)
@@ -1029,7 +1048,7 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandl
 
 	// Webhook handler for git events (Note: cache timeouts are hardcoded because API server does not write to cache and not really using them)
 	argoDB := db.NewDB(a.Namespace, a.settingsMgr, a.KubeClientset)
-	acdWebhookHandler := webhook.NewHandler(a.Namespace, a.ArgoCDServerOpts.ApplicationNamespaces, a.AppClientset, a.settings, a.settingsMgr, repocache.NewCache(a.Cache.GetCache(), 24*time.Hour, 3*time.Minute), a.Cache, argoDB)
+	acdWebhookHandler := webhook.NewHandler(a.Namespace, a.ArgoCDServerOpts.ApplicationNamespaces, a.AppClientset, a.settings, a.settingsMgr, a.RepoServerCache, a.Cache, argoDB)
 
 	mux.HandleFunc("/api/webhook", acdWebhookHandler.Handler)
 
@@ -1056,15 +1075,31 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandl
 	return &httpS
 }
 
+func enforceContentTypes(handler http.Handler, types []string) http.Handler {
+	allowedTypes := map[string]bool{}
+	for _, t := range types {
+		allowedTypes[strings.ToLower(t)] = true
+	}
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet || allowedTypes[strings.ToLower(r.Header.Get("Content-Type"))] {
+			handler.ServeHTTP(w, r)
+		} else {
+			http.Error(w, "Invalid content type", http.StatusUnsupportedMediaType)
+		}
+	})
+}
+
 // registerExtensions will try to register all configured extensions
 // in the given mux. If any error is returned while registering
 // extensions handlers, no route will be added in the given mux.
-func registerExtensions(mux *http.ServeMux, a *ArgoCDServer) {
+func registerExtensions(mux *http.ServeMux, a *ArgoCDServer, metricsReg HTTPMetricsRegistry) {
 	a.log.Info("Registering extensions...")
 	extHandler := http.HandlerFunc(a.extensionManager.CallExtension())
 	authMiddleware := a.sessionMgr.AuthMiddlewareFunc(a.DisableAuth)
 	// auth middleware ensures that requests to all extensions are authenticated first
 	mux.Handle(fmt.Sprintf("%s/", extension.URLPrefix), authMiddleware(extHandler))
+
+	a.extensionManager.AddMetricsRegistry(metricsReg)
 
 	err := a.extensionManager.RegisterExtensions()
 	if err != nil {
@@ -1122,7 +1157,7 @@ func (a *ArgoCDServer) registerDexHandlers(mux *http.ServeMux) {
 	// Run dex OpenID Connect Identity Provider behind a reverse proxy (served at /api/dex)
 	var err error
 	mux.HandleFunc(common.DexAPIEndpoint+"/", dexutil.NewDexHTTPReverseProxy(a.DexServerAddr, a.BaseHRef, a.DexTLSConfig))
-	a.ssoClientApp, err = oidc.NewClientApp(a.settings, a.DexServerAddr, a.DexTLSConfig, a.BaseHRef)
+	a.ssoClientApp, err = oidc.NewClientApp(a.settings, a.DexServerAddr, a.DexTLSConfig, a.BaseHRef, cacheutil.NewRedisCache(a.RedisClient, a.settings.UserInfoCacheExpiration(), cacheutil.RedisCompressionNone))
 	errorsutil.CheckError(err)
 	mux.HandleFunc(common.LoginEndpoint, a.ssoClientApp.HandleLogin)
 	mux.HandleFunc(common.CallbackEndpoint, a.ssoClientApp.HandleCallback)
@@ -1316,7 +1351,35 @@ func (a *ArgoCDServer) getClaims(ctx context.Context) (jwt.Claims, string, error
 	if err != nil {
 		return claims, "", status.Errorf(codes.Unauthenticated, "invalid session: %v", err)
 	}
-	return claims, newToken, nil
+
+	// Some SSO implementations (Okta) require a call to
+	// the OIDC user info path to get attributes like groups
+	// we assume that everywhere in argocd jwt.MapClaims is used as type for interface jwt.Claims
+	// otherwise this would cause a panic
+	var groupClaims jwt.MapClaims
+	if groupClaims, ok = claims.(jwt.MapClaims); !ok {
+		if tmpClaims, ok := claims.(*jwt.MapClaims); ok {
+			groupClaims = *tmpClaims
+		}
+	}
+	iss := jwtutil.StringField(groupClaims, "iss")
+	if iss != util_session.SessionManagerClaimsIssuer && a.settings.UserInfoGroupsEnabled() && a.settings.UserInfoPath() != "" {
+		userInfo, unauthorized, err := a.ssoClientApp.GetUserInfo(groupClaims, a.settings.IssuerURL(), a.settings.UserInfoPath())
+		if unauthorized {
+			log.Errorf("error while quering userinfo endpoint: %v", err)
+			return claims, "", status.Errorf(codes.Unauthenticated, "invalid session")
+		}
+		if err != nil {
+			log.Errorf("error fetching user info endpoint: %v", err)
+			return claims, "", status.Errorf(codes.Internal, "invalid userinfo response")
+		}
+		if groupClaims["sub"] != userInfo["sub"] {
+			return claims, "", status.Error(codes.Unknown, "subject of claims from user info endpoint didn't match subject of idToken, see https://openid.net/specs/openid-connect-core-1_0.html#UserInfo")
+		}
+		groupClaims["groups"] = userInfo["groups"]
+	}
+
+	return groupClaims, newToken, nil
 }
 
 // getToken extracts the token from gRPC metadata or cookie headers
