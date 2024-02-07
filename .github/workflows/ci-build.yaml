@@ -33,10 +33,10 @@ jobs:
       - uses: dorny/paths-filter@4512585405083f25c027a35db413c2b3b9006d50 # v2
         id: filter
         with:
+          # Any file which is not under docs/, ui/ or is not a markdown file is counted as a backend file
           filters: |
             backend:
-              - '!(ui/**)'
-              - '!(**/*.md)'
+              - '!(ui/**|docs/**|**.md|**/*.md)'
             frontend:
               - 'ui/**'
   check-go:
