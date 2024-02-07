@@ -18,6 +18,7 @@ func (v *VersionConfigManager) GetVersionConfig(app *codefresh.ApplicationIdenti
 	appConfig, err := v.cache.GetCfAppConfig(app.Cluster, app.Namespace, app.Name)
 	if err == nil {
 		log.Infof("CfAppConfig cache hit: '%s'", cache.CfAppConfigCacheKey(app.Cluster, app.Namespace, app.Name))
+		log.Infof("CfAppConfig. Use config from cache. File: %s, jsonPath: %s", appConfig.VersionSource.File, appConfig.VersionSource.JsonPath)
 		return &VersionConfig{
 			JsonPath:     appConfig.VersionSource.JsonPath,
 			ResourceName: appConfig.VersionSource.File,
@@ -34,6 +35,7 @@ func (v *VersionConfigManager) GetVersionConfig(app *codefresh.ApplicationIdenti
 		log.Infof("Failed to get application config from API: %v", err)
 		return nil, err
 	}
+	log.Infof("CfAppConfig. Use config from API. File: %s, jsonPath: %s", appConfig.VersionSource.File, appConfig.VersionSource.JsonPath)
 
 	if appConfig != nil {
 		// Set to cache

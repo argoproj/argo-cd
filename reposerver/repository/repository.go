@@ -637,11 +637,13 @@ func (s *Service) GenerateManifest(ctx context.Context, q *apiclient.ManifestReq
 			return nil
 		}
 
+		log.Infof("cfAppConfig. Get version config for cluster: %s, namespace: %s, name: %s", q.ApplicationIdentity.Cluster, q.ApplicationIdentity.Namespace, q.ApplicationIdentity.Name)
 		versionConfig := s.GetVersionConfig(&codefresh.ApplicationIdentity{
 			Cluster:   q.ApplicationIdentity.Cluster,
 			Namespace: q.ApplicationIdentity.Namespace,
 			Name:      q.ApplicationIdentity.Name,
 		})
+		log.Infof("cfAppConfig. Config file: %s, jsonPath: %s", versionConfig.ResourceName, versionConfig.JsonPath)
 		promise = s.runManifestGen(ctx, repoRoot, commitSHA, cacheKey, ctxSrc, q, versionConfig)
 		// The fist channel to send the message will resume this operation.
 		// The main purpose for using channels here is to be able to unlock

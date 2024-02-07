@@ -105,8 +105,10 @@ func getAppVersions(appPath string, resourceName string, jsonPathExpression stri
 	}
 
 	// Get version of root
+	log.Infof("appVersion get from file: %s, jsonPath: %s", filepath.Join(appPath, resourceName), jsonPathExpression)
 	appVersion, err := getVersionFromFile(filepath.Join(appPath, resourceName), jsonPathExpression)
 	if err != nil {
+		log.Errorf("Error in getVersionFromFile. %v", err)
 		return nil, err
 	}
 	log.Infof("appVersion value: %v (appPath=%s)", *appVersion, appPath)
@@ -120,5 +122,6 @@ func getAppVersions(appPath string, resourceName string, jsonPathExpression stri
 	readFileContent(result, appPath, "Chart.yaml", "Deps")
 	readFileContent(result, appPath, "requirements.yaml", "Requirements")
 
+	log.Infof("Return appVersion as: %v", result)
 	return result, nil
 }
