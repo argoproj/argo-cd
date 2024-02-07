@@ -91,6 +91,9 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 	var sources []v1alpha1.ApplicationSource
 	revisions := make([]string, 0)
 
+	var application v1alpha1.Application
+	fmt.Println("APP:", application.Name, "and AppProjectOfApp:", application.Spec.Project)
+
 	if state.Operation.Sync == nil {
 		state.Phase = common.OperationFailed
 		state.Message = "Invalid operation request: no operation specified"
