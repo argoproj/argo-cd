@@ -748,7 +748,7 @@ func TestNamespacedResourceDiffing(t *testing.T) {
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
 		And(func(app *Application) {
-			diffOutput, err := RunCli("app", "diff", ctx.AppQualifiedName(), "--local", "testdata/guestbook")
+			diffOutput, err := RunCli("app", "diff", ctx.AppQualifiedName(), "--local-repo-root", ".", "--local", "testdata/guestbook")
 			assert.Error(t, err)
 			assert.Contains(t, diffOutput, fmt.Sprintf("===== apps/Deployment %s/guestbook-ui ======", DeploymentNamespace()))
 		}).
