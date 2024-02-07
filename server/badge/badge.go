@@ -42,6 +42,17 @@ var (
 	leftTextPattern          = regexp.MustCompile(`id="leftText" [^>]*>([^<]*)`)
 	rightTextPattern         = regexp.MustCompile(`id="rightText" [^>]*>([^<]*)`)
 	revisionTextPattern      = regexp.MustCompile(`id="revisionText" [^>]*>([^<]*)`)
+	titleTextPattern         = regexp.MustCompile(`id="titleText" [^>]*>([^<]*)`)
+	titleRectWidthPattern    = regexp.MustCompile(`(id="titleRect" .* width=)("0")`)
+	rightRectWidthPattern    = regexp.MustCompile(`(id="rightRect" .* width=)("\d*")`)
+	leftRectYCoodPattern     = regexp.MustCompile(`(id="leftRect" .* y=)("\d*")`)
+	rightRectYCoodPattern    = regexp.MustCompile(`(id="rightRect" .* y=)("\d*")`)
+	revisionRectYCoodPattern = regexp.MustCompile(`(id="revisionRect" .* y=)("\d*")`)
+	leftTextYCoodPattern     = regexp.MustCompile(`(id="leftText" .* y=)("\d*")`)
+	rightTextYCoodPattern    = regexp.MustCompile(`(id="rightText" .* y=)("\d*")`)
+	revisionTextYCoodPattern = regexp.MustCompile(`(id="revisionText" .* y=)("\d*")`)
+	svgHeightPattern         = regexp.MustCompile(`^(<svg .* height=)("\d*")`)
+	logoYCoodPattern         = regexp.MustCompile(`(<image .* y=)("\d*")`)
 )
 
 const (
@@ -71,6 +82,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	health := healthutil.HealthStatusUnknown
 	status := appv1.SyncStatusCodeUnknown
 	revision := ""
+	applicationName := ""
 	revisionEnabled := false
 	enabled := false
 	notFound := false
@@ -100,6 +112,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			if app, err := h.appClientset.ArgoprojV1alpha1().Applications(reqNs).Get(context.Background(), name[0], v1.GetOptions{}); err == nil {
 				health = app.Status.Health.Status
 				status = app.Status.Sync.Status
+				applicationName = name[0]
 				if app.Status.OperationState != nil && app.Status.OperationState.SyncResult != nil {
 					revision = app.Status.OperationState.SyncResult.Revision
 				}
@@ -182,6 +195,25 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			shortRevision = shortRevision[:7]
 		}
 		badge = replaceFirstGroupSubMatch(revisionTextPattern, badge, fmt.Sprintf("(%s)", shortRevision))
+	}
+
+	if applicationName != "" {
+		titleRectWidth := len(applicationName) * 6
+		var longerWidth int = max(titleRectWidth, svgWidthWithRevision)
+		rightRectWidth := longerWidth - 77
+		fmt.Println(len(applicationName))
+		badge = titleRectWidthPattern.ReplaceAllString(badge, fmt.Sprintf(`$1"%d"`, longerWidth))
+		badge = rightRectWidthPattern.ReplaceAllString(badge, fmt.Sprintf(`$1"%d"`, rightRectWidth))
+		badge = replaceFirstGroupSubMatch(titleTextPattern, badge, applicationName)
+		badge = leftRectYCoodPattern.ReplaceAllString(badge, fmt.Sprintf(`$1"%d"`, 20))
+		badge = rightRectYCoodPattern.ReplaceAllString(badge, fmt.Sprintf(`$1"%d"`, 20))
+		badge = revisionRectYCoodPattern.ReplaceAllString(badge, fmt.Sprintf(`$1"%d"`, 20))
+		badge = leftTextYCoodPattern.ReplaceAllString(badge, fmt.Sprintf(`$1"%d"`, 330))
+		badge = rightTextYCoodPattern.ReplaceAllString(badge, fmt.Sprintf(`$1"%d"`, 330))
+		badge = revisionTextYCoodPattern.ReplaceAllString(badge, fmt.Sprintf(`$1"%d"`, 330))
+		badge = svgHeightPattern.ReplaceAllString(badge, fmt.Sprintf(`$1"%d"`, 40))
+		badge = logoYCoodPattern.ReplaceAllString(badge, fmt.Sprintf(`$1"%d"`, 22))
+		badge = svgWidthPattern.ReplaceAllString(badge, fmt.Sprintf(`<svg width="%d" $2`, longerWidth))
 	}
 
 	w.Header().Set("Content-Type", "image/svg+xml")
