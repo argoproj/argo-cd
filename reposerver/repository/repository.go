@@ -45,6 +45,8 @@ import (
 
 	pluginclient "github.com/argoproj/argo-cd/v2/cmpserver/apiclient"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/pkg/codefresh"
+	"github.com/argoproj/argo-cd/v2/pkg/version_config_manager"
 	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/v2/reposerver/cache"
 	"github.com/argoproj/argo-cd/v2/reposerver/metrics"
@@ -89,6 +91,8 @@ type Service struct {
 	newGitClient              func(rawRepoURL string, root string, creds git.Creds, insecure bool, enableLfs bool, proxy string, opts ...git.ClientOpts) (git.Client, error)
 	newHelmClient             func(repoURL string, creds helm.Creds, enableOci bool, proxy string, opts ...helm.ClientOpts) helm.Client
 	initConstants             RepoServerInitConstants
+	codefreshClient           codefresh.CodefreshClientInterface
+	versionConfigManager      *version_config_manager.VersionConfigManager
 	// now is usually just time.Now, but may be replaced by unit tests for testing purposes
 	now func() time.Time
 }
@@ -106,6 +110,7 @@ type RepoServerInitConstants struct {
 	StreamedManifestMaxTarSize                   int64
 	HelmManifestMaxExtractedSize                 int64
 	DisableHelmManifestMaxExtractedSize          bool
+	CodefreshConfig                              codefresh.CodefreshConfig
 }
 
 // NewService returns a new instance of the Manifest service
@@ -117,6 +122,11 @@ func NewService(metricsServer *metrics.MetricsServer, cache *cache.Cache, initCo
 	repoLock := NewRepositoryLock()
 	gitRandomizedPaths := io.NewRandomizedTempPaths(rootDir)
 	helmRandomizedPaths := io.NewRandomizedTempPaths(rootDir)
+
+	codefreshClient := codefresh.NewCodefreshClient(&initConstants.CodefreshConfig)
+	codefreshGraphQLRequests := codefresh.NewCodefreshGraphQLRequests(codefreshClient)
+	versionConfigManager := version_config_manager.NewVersionConfigManager(codefreshGraphQLRequests, cache)
+
 	return &Service{
 		parallelismLimitSemaphore: parallelismLimitSemaphore,
 		repoLock:                  repoLock,
@@ -127,13 +137,15 @@ func NewService(metricsServer *metrics.MetricsServer, cache *cache.Cache, initCo
 		newHelmClient: func(repoURL string, creds helm.Creds, enableOci bool, proxy string, opts ...helm.ClientOpts) helm.Client {
 			return helm.NewClientWithLock(repoURL, creds, sync.NewKeyLock(), enableOci, proxy, opts...)
 		},
-		initConstants:      initConstants,
-		now:                time.Now,
-		gitCredsStore:      gitCredsStore,
-		gitRepoPaths:       gitRandomizedPaths,
-		chartPaths:         helmRandomizedPaths,
-		gitRepoInitializer: directoryPermissionInitializer,
-		rootDir:            rootDir,
+		initConstants:        initConstants,
+		now:                  time.Now,
+		gitCredsStore:        gitCredsStore,
+		gitRepoPaths:         gitRandomizedPaths,
+		chartPaths:           helmRandomizedPaths,
+		gitRepoInitializer:   directoryPermissionInitializer,
+		rootDir:              rootDir,
+		codefreshClient:      codefreshClient,
+		versionConfigManager: versionConfigManager,
 	}
 }
 
@@ -591,6 +603,16 @@ func resolveReferencedSources(hasMultipleSources bool, source *v1alpha1.Applicat
 	return repoRefs, nil
 }
 
+func (s *Service) GetVersionConfig(app *codefresh.ApplicationIdentity) *version_config_manager.VersionConfig {
+	versionConfig, err := s.versionConfigManager.GetVersionConfig(app)
+
+	if versionConfig == nil || err != nil {
+		return nil
+	}
+
+	return versionConfig
+}
+
 func (s *Service) GenerateManifest(ctx context.Context, q *apiclient.ManifestRequest) (*apiclient.ManifestResponse, error) {
 	var res *apiclient.ManifestResponse
 	var err error
@@ -615,7 +637,12 @@ func (s *Service) GenerateManifest(ctx context.Context, q *apiclient.ManifestReq
 			return nil
 		}
 
-		promise = s.runManifestGen(ctx, repoRoot, commitSHA, cacheKey, ctxSrc, q)
+		versionConfig := s.GetVersionConfig(&codefresh.ApplicationIdentity{
+			Cluster:   q.ApplicationIdentity.Cluster,
+			Namespace: q.ApplicationIdentity.Namespace,
+			Name:      q.ApplicationIdentity.Name,
+		})
+		promise = s.runManifestGen(ctx, repoRoot, commitSHA, cacheKey, ctxSrc, q, versionConfig)
 		// The fist channel to send the message will resume this operation.
 		// The main purpose for using channels here is to be able to unlock
 		// the repository as soon as the lock in not required anymore. In
@@ -675,7 +702,7 @@ type generateManifestCh struct {
 // - or, the cache does contain a value for this key, but it is an expired manifest generation entry
 // - or, NoCache is true
 // Returns a ManifestResponse, or an error, but not both
-func (s *Service) runManifestGen(ctx context.Context, repoRoot, commitSHA, cacheKey string, opContextSrc operationContextSrc, q *apiclient.ManifestRequest) *ManifestResponsePromise {
+func (s *Service) runManifestGen(ctx context.Context, repoRoot, commitSHA, cacheKey string, opContextSrc operationContextSrc, q *apiclient.ManifestRequest, versionConfig *version_config_manager.VersionConfig) *ManifestResponsePromise {
 
 	responseCh := make(chan *apiclient.ManifestResponse)
 	tarDoneCh := make(chan bool)
@@ -687,7 +714,7 @@ func (s *Service) runManifestGen(ctx context.Context, repoRoot, commitSHA, cache
 		tarDoneCh:  tarDoneCh,
 		errCh:      errCh,
 	}
-	go s.runManifestGenAsync(ctx, repoRoot, commitSHA, cacheKey, opContextSrc, q, channels)
+	go s.runManifestGenAsync(ctx, repoRoot, commitSHA, cacheKey, opContextSrc, q, versionConfig, channels)
 	return responsePromise
 }
 
@@ -700,7 +727,7 @@ type repoRef struct {
 	key string
 }
 
-func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, cacheKey string, opContextSrc operationContextSrc, q *apiclient.ManifestRequest, ch *generateManifestCh) {
+func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, cacheKey string, opContextSrc operationContextSrc, q *apiclient.ManifestRequest, versionConfig *version_config_manager.VersionConfig, ch *generateManifestCh) {
 	defer func() {
 		close(ch.errCh)
 		close(ch.responseCh)
@@ -808,7 +835,7 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 			}
 		}
 
-		manifestGenResult, err = GenerateManifests(ctx, opContext.appPath, repoRoot, commitSHA, q, false, s.gitCredsStore, gitClient, s.initConstants.MaxCombinedDirectoryManifestsSize, s.gitRepoPaths, WithCMPTarDoneChannel(ch.tarDoneCh), WithCMPTarExcludedGlobs(s.initConstants.CMPTarExcludedGlobs))
+		manifestGenResult, err = GenerateManifests(ctx, opContext.appPath, repoRoot, commitSHA, q, versionConfig, false, s.gitCredsStore, gitClient, s.initConstants.MaxCombinedDirectoryManifestsSize, s.gitRepoPaths, WithCMPTarDoneChannel(ch.tarDoneCh), WithCMPTarExcludedGlobs(s.initConstants.CMPTarExcludedGlobs))
 	}
 	refSourceCommitSHAs := make(map[string]string)
 	if len(repoRefs) > 0 {
@@ -1376,7 +1403,7 @@ func getRepoCredential(repoCredentials []*v1alpha1.RepoCreds, repoURL string) *v
 }
 
 // GenerateManifests generates manifests from a path
-func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, q *apiclient.ManifestRequest, isLocal bool, gitCredsStore git.CredsStore, gitClient git.Client, maxCombinedManifestQuantity resource.Quantity, gitRepoPaths io.TempPaths, opts ...GenerateManifestOpt) (*apiclient.ManifestResponse, error) {
+func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, q *apiclient.ManifestRequest, versionConfig *version_config_manager.VersionConfig, isLocal bool, gitCredsStore git.CredsStore, gitClient git.Client, maxCombinedManifestQuantity resource.Quantity, gitRepoPaths io.TempPaths, opts ...GenerateManifestOpt) (*apiclient.ManifestResponse, error) {
 	opt := newGenerateManifestOpt(opts...)
 
 	var (
@@ -1453,7 +1480,7 @@ func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, 
 	}
 
 	if appSourceType == v1alpha1.ApplicationSourceTypeHelm {
-		appVersions, err := getAppVersions(appPath, q.VersionConfig.ResourceName, q.VersionConfig.JsonPath)
+		appVersions, err := getAppVersions(appPath, versionConfig.ResourceName, versionConfig.JsonPath)
 		if err != nil {
 			log.Errorf("failed to retrieve application version, app name: %q: %s", q.AppName, err.Error())
 		} else {

@@ -4,16 +4,17 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
 	"math"
 	"reflect"
 	"strings"
 	"time"
 
+	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
+
 	argocommon "github.com/argoproj/argo-cd/v2/common"
-	"github.com/argoproj/argo-cd/v2/event_reporter/codefresh"
 	"github.com/argoproj/argo-cd/v2/event_reporter/metrics"
 	applisters "github.com/argoproj/argo-cd/v2/pkg/client/listers/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/pkg/codefresh"
 	servercache "github.com/argoproj/argo-cd/v2/server/cache"
 	"github.com/argoproj/argo-cd/v2/util/env"
 
@@ -46,7 +47,7 @@ type AppIdentity struct {
 
 type applicationEventReporter struct {
 	cache                    *servercache.Cache
-	codefreshClient          codefresh.CodefreshClient
+	codefreshClient          codefresh.CodefreshClientInterface
 	appLister                applisters.ApplicationLister
 	applicationServiceClient appclient.ApplicationClient
 	metricsServer            *metrics.MetricsServer
@@ -258,7 +259,7 @@ func (s *applicationEventReporter) StreamApplicationEvents(
 		}
 
 		logWithAppStatus(a, logCtx, ts).Info("sending root application event")
-		if err := s.codefreshClient.Send(ctx, a.Name, appEvent); err != nil {
+		if err := s.codefreshClient.SendEvent(ctx, a.Name, appEvent); err != nil {
 			s.metricsServer.IncErroredEventsCounter(metrics.MetricParentAppEventType, metrics.MetricEventDeliveryErrorType, a.Name)
 			return fmt.Errorf("failed to send event for root application %s/%s: %w", a.Namespace, a.Name, err)
 		}
@@ -407,7 +408,7 @@ func (s *applicationEventReporter) processResource(
 		appName = rs.Name
 	}
 
-	if err := s.codefreshClient.Send(ctx, appName, ev); err != nil {
+	if err := s.codefreshClient.SendEvent(ctx, appName, ev); err != nil {
 		if strings.Contains(err.Error(), "context deadline exceeded") {
 			return fmt.Errorf("failed to send resource event: %w", err)
 		}

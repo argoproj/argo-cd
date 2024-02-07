@@ -773,7 +773,11 @@ func verifyGenerateManifests(
 			NoRevisionCache:    true,
 			HasMultipleSources: hasMultipleSources,
 			RefSources:         refSources,
-			VersionConfig:      apiclient.GetVersionConfig(),
+			ApplicationIdentity: &apiclient.ApplicationIdentity{
+				Cluster:   dest.Server,
+				Namespace: dest.Namespace,
+				Name:      name,
+			},
 		}
 		req.Repo.CopyCredentialsFromRepo(repoRes)
 		req.Repo.CopySettingsFrom(repoRes)
