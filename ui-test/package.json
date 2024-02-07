@@ -27,6 +27,6 @@
     "tslint-config-prettier": "^1.18.0",
     "tslint-plugin-prettier": "^2.0.1",
     "typescript": "^4.0.3",
-    "yarn": "^1.22.10"
+    "yarn": "^1.22.13"
   }
 }
