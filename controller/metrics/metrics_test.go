@@ -147,7 +147,7 @@ var appFilter = func(obj interface{}) bool {
 func init() {
 	// Create a fake controller so we initialize the internal controller metrics.
 	// https://github.com/kubernetes-sigs/controller-runtime/blob/4000e996a202917ad7d40f02ed8a2079a9ce25e9/pkg/internal/controller/metrics/metrics.go
-	controller.New("test-controller", nil, controller.Options{})
+	_, _ = controller.New("test-controller", nil, controller.Options{})
 }
 
 func newFakeApp(fakeAppYAML string) *argoappv1.Application {
