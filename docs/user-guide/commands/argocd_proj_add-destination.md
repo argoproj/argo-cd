@@ -5,7 +5,7 @@
 Add project destination
 
 ```
-argocd proj add-destination PROJECT SERVER/NAME NAMESPACE [flags]
+argocd proj add-destination PROJECT SERVER/NAME NAMESPACE SERVICEACCOUNT [flags]
 ```
 
 ### Examples
