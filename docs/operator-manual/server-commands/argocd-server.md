@@ -70,7 +70,6 @@ argocd-server [flags]
       --otlp-insecure                                   OpenTelemetry collector insecure mode (default true)
       --password string                                 Password for basic authentication to the API server
       --port int                                        Listen on given port (default 8080)
-      --pprof-addr string                               The address the pprof endpoint binds to.
       --proxy-url string                                If provided, this URL will be used to connect via proxy
       --redis string                                    Redis server hostname and port (e.g. argocd-redis:6379). 
       --redis-ca-certificate string                     Path to Redis server CA certificate (e.g. /etc/certs/redis/ca.crt). If not specified, system trusted CAs will be used for server certificate validation.
