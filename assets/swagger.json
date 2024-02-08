@@ -4553,6 +4553,9 @@
             "$ref": "#/definitions/v1alpha1ResourceOverride"
           }
         },
+        "showAppNameInStatusBadge": {
+          "type": "boolean"
+        },
         "statusBadgeEnabled": {
           "type": "boolean"
         },

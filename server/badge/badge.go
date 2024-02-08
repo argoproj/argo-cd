@@ -85,9 +85,11 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	applicationName := ""
 	revisionEnabled := false
 	enabled := false
+	displayAppName := true
 	notFound := false
 	if sets, err := h.settingsMgr.GetSettings(); err == nil {
 		enabled = sets.StatusBadgeEnabled
+		displayAppName = sets.ShowAppNameInStatusBadge
 	}
 
 	reqNs := ""
@@ -197,7 +199,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		badge = replaceFirstGroupSubMatch(revisionTextPattern, badge, fmt.Sprintf("(%s)", shortRevision))
 	}
 
-	if applicationName != "" {
+	if displayAppName && applicationName != "" {
 		titleRectWidth := len(applicationName) * 6
 		var longerWidth int = max(titleRectWidth, svgWidthWithRevision)
 		rightRectWidth := longerWidth - 77
