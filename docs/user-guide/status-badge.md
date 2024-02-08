@@ -13,13 +13,7 @@ The URLs for status image are available on application details page:
 3. Select required template such as URL, Markdown etc.
 for the status image URL in markdown, html, etc are available .
 4. Copy the text and paste it into your README or website.
-  
-The status badge is available for projects too, on enabling the above key. To use the project badge, use the URL format `${argoCdBaseUrl}/api/badge?project=${projectName}`   
-The status indicates the status of applications in the project. If even one is degraded, the project status is shown as degraded.   
-You can get the status badge for multiple projects by using the appropriate query. For e.g., `${argoCdBaseUrl}/api/badge?project=adminProj&project=maintainerProj` to get the status of applications from both the projects `adminProject` and `maintainerProj`.
 
-
-## Displaying Application Name in the Status Badge
-
-By default, the application name is not displayed in the application status badge.   
-This can be enabled by setting the `appNameInStatusBadge.display` to `true` in the `argocd-cm` ConfigMap (see [argocd-cm.yaml](../operator-manual/argocd-cm.yaml)).
+To be able to see the application name in the application status badge use the `?showAppName=true` query parameter.   
+For instance, `${argoCdBaseUrl}/api/badge?name=${appName}&showAppName=true`.   
+Naturally, to remove the application name from the badge, remove the query parameter from the URL or set it to `false`.

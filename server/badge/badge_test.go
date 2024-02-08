@@ -341,12 +341,9 @@ func TestHandlerFeatureIsDisabled(t *testing.T) {
 }
 
 func TestHandlerApplicationNameInBadgeIsEnabled(t *testing.T) {
-	argoCDCmDisabled := argoCDCm.DeepCopy()
-	argoCDCmDisabled.Data["appNameInStatusBadge.display"] = "true"
-
-	settingsMgr := settings.NewSettingsManager(context.Background(), fake.NewSimpleClientset(argoCDCmDisabled, &argoCDSecret), "default")
+	settingsMgr := settings.NewSettingsManager(context.Background(), fake.NewSimpleClientset(&argoCDCm, &argoCDSecret), "default")
 	handler := NewHandler(appclientset.NewSimpleClientset(&testApp), settingsMgr, "default", []string{})
-	req, err := http.NewRequest(http.MethodGet, "/api/badge?name=test-app", nil)
+	req, err := http.NewRequest(http.MethodGet, "/api/badge?name=test-app&showAppName=true", nil)
 	assert.NoError(t, err)
 
 	rr := httptest.NewRecorder()
@@ -363,11 +360,11 @@ func TestHandlerApplicationNameInBadgeIsEnabled(t *testing.T) {
 	assert.NotContains(t, response, "(aa29b85)")
 
 	assert.Equal(t, "test-app", titleTextPattern.FindStringSubmatch(response)[1])
-	assert.Equal(t, "\"40\"", svgHeightPattern.FindStringSubmatch(response)[2])
-	assert.Equal(t, "\"20\"", leftRectYCoodPattern.FindStringSubmatch(response)[2])
-	assert.Equal(t, "\"20\"", rightRectYCoodPattern.FindStringSubmatch(response)[2])
-	assert.Equal(t, "\"20\"", revisionRectYCoodPattern.FindStringSubmatch(response)[2])
-	assert.Equal(t, "\"22\"", logoYCoodPattern.FindStringSubmatch(response)[2])
+	assert.Equal(t, fmt.Sprintf("\"%d\"", svgHeightWithAppName), svgHeightPattern.FindStringSubmatch(response)[2])
+	assert.Equal(t, fmt.Sprintf("\"%d\"", badgeRowHeight), leftRectYCoodPattern.FindStringSubmatch(response)[2])
+	assert.Equal(t, fmt.Sprintf("\"%d\"", badgeRowHeight), rightRectYCoodPattern.FindStringSubmatch(response)[2])
+	assert.Equal(t, fmt.Sprintf("\"%d\"", badgeRowHeight), revisionRectYCoodPattern.FindStringSubmatch(response)[2])
+	assert.Equal(t, fmt.Sprintf("\"%d\"", logoYCoodWithAppName), logoYCoodPattern.FindStringSubmatch(response)[2])
 }
 
 func TestHandlerApplicationNameInBadgeIsDisabled(t *testing.T) {

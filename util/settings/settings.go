@@ -52,8 +52,6 @@ type ArgoCDSettings struct {
 	StatusBadgeEnabled bool `json:"statusBadgeEnable"`
 	// Indicates if status badge custom root URL should be used.
 	StatusBadgeRootUrl string `json:"statusBadgeRootUrl,omitempty"`
-	// Indicates whether to display the application name in the status badge.
-	ShowAppNameInStatusBadge bool `json:"showAppNameInStatusBadge"`
 	// DexConfig contains portions of a dex config yaml
 	DexConfig string `json:"dexConfig,omitempty"`
 	// OIDCConfigRAW holds OIDC configuration as a raw string
@@ -417,8 +415,6 @@ const (
 	statusBadgeEnabledKey = "statusbadge.enabled"
 	// statusBadgeRootUrlKey holds the key for the root badge URL override
 	statusBadgeRootUrlKey = "statusbadge.url"
-	// showAppNameInStatusBadgeKey holds the key that decides whether to display the application name in status badge
-	showAppNameInStatusBadgeKey = "appNameInStatusBadge.display"
 	// settingsWebhookGitHubSecret is the key for the GitHub shared webhook secret
 	settingsWebhookGitHubSecretKey = "webhook.github.secret"
 	// settingsWebhookGitLabSecret is the key for the GitLab shared webhook secret
@@ -1434,7 +1430,6 @@ func updateSettingsFromConfigMap(settings *ArgoCDSettings, argoCDCM *apiv1.Confi
 	settings.KustomizeBuildOptions = argoCDCM.Data[kustomizeBuildOptionsKey]
 	settings.StatusBadgeEnabled = argoCDCM.Data[statusBadgeEnabledKey] == "true"
 	settings.StatusBadgeRootUrl = argoCDCM.Data[statusBadgeRootUrlKey]
-	settings.ShowAppNameInStatusBadge = argoCDCM.Data[showAppNameInStatusBadgeKey] == "true"
 	settings.AnonymousUserEnabled = argoCDCM.Data[anonymousUserEnabledKey] == "true"
 	settings.UiCssURL = argoCDCM.Data[settingUiCssURLKey]
 	settings.UiBannerContent = argoCDCM.Data[settingUiBannerContentKey]
