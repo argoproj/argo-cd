@@ -22,7 +22,6 @@ import (
 	applister "github.com/argoproj/argo-cd/v2/pkg/client/listers/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/util/git"
 	"github.com/argoproj/argo-cd/v2/util/healthz"
-	"github.com/argoproj/argo-cd/v2/util/profile"
 
 	ctrl_metrics "sigs.k8s.io/controller-runtime/pkg/metrics"
 )
@@ -169,7 +168,6 @@ func NewMetricsServer(addr string, appLister applister.ApplicationLister, appFil
 		// contains workqueue metrics, process and golang metrics
 		ctrl_metrics.Registry,
 	}, promhttp.HandlerOpts{}))
-	profile.RegisterProfiler(mux)
 	healthz.ServeHealthCheck(mux, healthCheck)
 
 	registry.MustRegister(syncCounter)

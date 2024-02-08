@@ -76,7 +76,6 @@ func NewCommand() *cobra.Command {
 		enableDynamicClusterDistribution bool
 		serverSideDiff                   bool
 		ignoreNormalizerOpts             normalizers.IgnoreNormalizerOpts
-		pprofAddress                     string
 	)
 	command := cobra.Command{
 		Use:               cliName,
@@ -180,17 +179,19 @@ func NewCommand() *cobra.Command {
 			cacheutil.CollectMetrics(redisClient, appController.GetMetricsServer())
 
 			// run pprof server
-			pprofSrv, err := pprof.NewPprofServer(pprofAddress)
-			if err != nil {
-				log.Error(err, "failed to create pprof handler")
-				os.Exit(1)
-			}
-			go func() {
-				if err := pprofSrv.Start(ctx); err != nil {
-					log.Error(err, "unable to start pprof handler")
+			if pprof.IsEnabled() {
+				pprofSrv, err := pprof.NewPprofServer()
+				if err != nil {
+					log.Error(err, "failed to create pprof handler")
 					os.Exit(1)
 				}
-			}()
+				go func() {
+					if err := pprofSrv.Start(ctx); err != nil {
+						log.Error(err, "unable to start pprof handler")
+						os.Exit(1)
+					}
+				}()
+			}
 
 			stats.RegisterStackDumper()
 			stats.StartStatsTicker(10 * time.Minute)
@@ -249,7 +250,6 @@ func NewCommand() *cobra.Command {
 	command.Flags().BoolVar(&enableDynamicClusterDistribution, "dynamic-cluster-distribution-enabled", env.ParseBoolFromEnv(common.EnvEnableDynamicClusterDistribution, false), "Enables dynamic cluster distribution.")
 	command.Flags().BoolVar(&serverSideDiff, "server-side-diff-enabled", env.ParseBoolFromEnv(common.EnvServerSideDiff, false), "Feature flag to enable ServerSide diff. Default (\"false\")")
 	command.Flags().DurationVar(&ignoreNormalizerOpts.JQExecutionTimeout, "ignore-normalizer-jq-execution-timeout-seconds", env.ParseDurationFromEnv("ARGOCD_IGNORE_NORMALIZER_JQ_TIMEOUT", 0*time.Second, 0, math.MaxInt64), "Set ignore normalizer JQ execution timeout")
-	command.Flags().StringVar(&pprofAddress, "pprof-addr", "", "The address the pprof endpoint binds to.")
 	cacheSource = appstatecache.AddCacheFlagsToCmd(&command, cacheutil.Options{
 		OnClientCreated: func(client *redis.Client) {
 			redisClient = client

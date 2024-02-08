@@ -10,7 +10,6 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
 	"github.com/argoproj/argo-cd/v2/common"
-	"github.com/argoproj/argo-cd/v2/util/profile"
 )
 
 type MetricsServer struct {
@@ -71,8 +70,6 @@ func NewMetricsServer(host string, port int) *MetricsServer {
 		prometheus.DefaultGatherer,
 	}, promhttp.HandlerOpts{}))
 	argoVersion.WithLabelValues(common.GetVersion().Version).Set(1)
-
-	profile.RegisterProfiler(mux)
 
 	registry.MustRegister(redisRequestCounter)
 	registry.MustRegister(redisRequestHistogram)

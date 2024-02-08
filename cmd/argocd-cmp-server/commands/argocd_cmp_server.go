@@ -31,7 +31,6 @@ func NewCommand() *cobra.Command {
 		otlpInsecure   bool
 		otlpHeaders    map[string]string
 		otlpAttrs      []string
-		pprofAddress   string
 	)
 	command := cobra.Command{
 		Use:               cliName,
@@ -74,17 +73,19 @@ func NewCommand() *cobra.Command {
 			errors.CheckError(err)
 
 			// run pprof server
-			pprofSrv, err := pprof.NewPprofServer(pprofAddress)
-			if err != nil {
-				log.Error(err, "failed to create pprof handler")
-				os.Exit(1)
-			}
-			go func() {
-				if err := pprofSrv.Start(ctx); err != nil {
-					log.Error(err, "unable to start pprof handler")
+			if pprof.IsEnabled() {
+				pprofSrv, err := pprof.NewPprofServer()
+				if err != nil {
+					log.Error(err, "failed to create pprof handler")
 					os.Exit(1)
 				}
-			}()
+				go func() {
+					if err := pprofSrv.Start(ctx); err != nil {
+						log.Error(err, "unable to start pprof handler")
+						os.Exit(1)
+					}
+				}()
+			}
 
 			// register dumper
 			stats.RegisterStackDumper()
@@ -105,6 +106,5 @@ func NewCommand() *cobra.Command {
 	command.Flags().BoolVar(&otlpInsecure, "otlp-insecure", env.ParseBoolFromEnv("ARGOCD_CMP_SERVER_OTLP_INSECURE", true), "OpenTelemetry collector insecure mode")
 	command.Flags().StringToStringVar(&otlpHeaders, "otlp-headers", env.ParseStringToStringFromEnv("ARGOCD_CMP_SERVER_OTLP_HEADERS", map[string]string{}, ","), "List of OpenTelemetry collector extra headers sent with traces, headers are comma-separated key-value pairs(e.g. key1=value1,key2=value2)")
 	command.Flags().StringSliceVar(&otlpAttrs, "otlp-attrs", env.StringsFromEnv("ARGOCD_CMP_SERVER_OTLP_ATTRS", []string{}, ","), "List of OpenTelemetry collector extra attrs when send traces, each attribute is separated by a colon(e.g. key:value)")
-	command.Flags().StringVar(&pprofAddress, "pprof-addr", "", "The address the pprof endpoint binds to.")
 	return &command
 }

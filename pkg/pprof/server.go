@@ -7,24 +7,35 @@ import (
 	"net"
 	"net/http"
 	"net/http/pprof"
+	"os"
 	"time"
 
 	log "github.com/sirupsen/logrus"
 )
 
-type server struct {
-	server   *http.Server
-	listener *net.Listener
+var (
+	listener net.Listener
+)
+
+func init() {
+	addr, exist := os.LookupEnv("ARGO_PPROF")
+	if !exist {
+		return
+	}
+	listener, _ = net.Listen("tcp", fmt.Sprintf(":%s", addr))
 }
 
-func NewPprofServer(addr string) (server, error) {
-	if addr == "" || addr == "0" {
-		return server{}, nil
-	}
+func IsEnabled() bool {
+	return listener != nil
+}
 
-	ln, err := net.Listen("tcp", addr)
-	if err != nil {
-		return server{}, fmt.Errorf("error listening on %s: %w", addr, err)
+type pprofServer struct {
+	server *http.Server
+}
+
+func NewPprofServer() (*pprofServer, error) {
+	if listener == nil {
+		return nil, fmt.Errorf("pprof server is disabled")
 	}
 	mux := http.NewServeMux()
 	srv := &http.Server{
@@ -39,15 +50,14 @@ func NewPprofServer(addr string) (server, error) {
 	mux.HandleFunc("/debug/pprof/profile", pprof.Profile)
 	mux.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
 	mux.HandleFunc("/debug/pprof/trace", pprof.Trace)
-	return server{
-		listener: &ln,
-		server:   srv,
+	return &pprofServer{
+		server: srv,
 	}, nil
 }
 
-func (s *server) Start(ctx context.Context) error {
-	if s.listener == nil {
-		return nil
+func (s *pprofServer) Start(ctx context.Context) error {
+	if listener == nil {
+		return fmt.Errorf("pprof server is disabled")
 	}
 	serverShutdown := make(chan struct{})
 	go func() {
@@ -60,7 +70,7 @@ func (s *server) Start(ctx context.Context) error {
 	}()
 
 	log.Info("Starting pprof server")
-	if err := s.server.Serve(*s.listener); err != nil && !errors.Is(err, http.ErrServerClosed) {
+	if err := s.server.Serve(listener); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		return err
 	}
 
@@ -68,6 +78,6 @@ func (s *server) Start(ctx context.Context) error {
 	return nil
 }
 
-func (s *server) NeedLeaderElection() bool {
+func (s *pprofServer) NeedLeaderElection() bool {
 	return false
 }

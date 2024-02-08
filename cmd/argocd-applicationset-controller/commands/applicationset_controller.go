@@ -219,14 +219,17 @@ func NewCommand() *cobra.Command {
 				os.Exit(1)
 			}
 
-			pprofSrv, err := pprof.NewPprofServer(pprofAddr)
-			if err != nil {
-				log.Error(err, "failed to create pprof handler")
-				os.Exit(1)
-			}
-			if err := mgr.Add(&pprofSrv); err != nil {
-				log.Error(err, "unable to set up pprof handler")
-				os.Exit(1)
+			// run pprof server
+			if pprof.IsEnabled() {
+				pprofSrv, err := pprof.NewPprofServer()
+				if err != nil {
+					log.Error(err, "failed to create pprof handler")
+					os.Exit(1)
+				}
+				if err := mgr.Add(pprofSrv); err != nil {
+					log.Error(err, "unable to set up pprof handler")
+					os.Exit(1)
+				}
 			}
 
 			stats.StartStatsTicker(10 * time.Minute)
