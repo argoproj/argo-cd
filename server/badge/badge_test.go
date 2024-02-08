@@ -88,7 +88,7 @@ func TestHandlerFeatureIsEnabled(t *testing.T) {
 	assert.Equal(t, toRGBString(Green), rightRectColorPattern.FindStringSubmatch(response)[1])
 	assert.Equal(t, "Healthy", leftTextPattern.FindStringSubmatch(response)[1])
 	assert.Equal(t, "Synced", rightTextPattern.FindStringSubmatch(response)[1])
-	assert.Equal(t, "test-app", titleTextPattern.FindStringSubmatch(response)[1])
+	assert.NotContains(t, response, "test-app")
 	assert.NotContains(t, response, "(aa29b85)")
 }
 
@@ -149,7 +149,6 @@ func TestHandlerFeatureProjectIsEnabled(t *testing.T) {
 			assert.Equal(t, toRGBString(tt.statusColor), rightRectColorPattern.FindStringSubmatch(response)[1])
 			assert.Equal(t, tt.health, leftTextPattern.FindStringSubmatch(response)[1])
 			assert.Equal(t, tt.status, rightTextPattern.FindStringSubmatch(response)[1])
-			assert.NotContains(t, response, "test-app")
 			assert.Equal(t, "\"20\"", svgHeightPattern.FindStringSubmatch(response)[2])
 		}
 	}
@@ -173,7 +172,7 @@ func TestHandlerNamespacesIsEnabled(t *testing.T) {
 		assert.Equal(t, toRGBString(Green), rightRectColorPattern.FindStringSubmatch(response)[1])
 		assert.Equal(t, "Healthy", leftTextPattern.FindStringSubmatch(response)[1])
 		assert.Equal(t, "Synced", rightTextPattern.FindStringSubmatch(response)[1])
-		assert.Equal(t, "test-app", titleTextPattern.FindStringSubmatch(response)[1])
+		assert.NotContains(t, response, "test-app")
 		assert.NotContains(t, response, "(aa29b85)")
 	})
 
@@ -272,7 +271,7 @@ func TestHandlerFeatureIsEnabledRevisionIsEnabled(t *testing.T) {
 	assert.Equal(t, toRGBString(Green), rightRectColorPattern.FindStringSubmatch(response)[1])
 	assert.Equal(t, "Healthy", leftTextPattern.FindStringSubmatch(response)[1])
 	assert.Equal(t, "Synced", rightTextPattern.FindStringSubmatch(response)[1])
-	assert.Equal(t, "test-app", titleTextPattern.FindStringSubmatch(response)[1])
+	assert.NotContains(t, response, "test-app")
 	assert.Contains(t, response, "(aa29b85)")
 }
 
@@ -296,7 +295,7 @@ func TestHandlerRevisionIsEnabledNoOperationState(t *testing.T) {
 	assert.Equal(t, toRGBString(Green), rightRectColorPattern.FindStringSubmatch(response)[1])
 	assert.Equal(t, "Healthy", leftTextPattern.FindStringSubmatch(response)[1])
 	assert.Equal(t, "Synced", rightTextPattern.FindStringSubmatch(response)[1])
-	assert.Equal(t, "test-app", titleTextPattern.FindStringSubmatch(response)[1])
+	assert.NotContains(t, response, "test-app")
 	assert.NotContains(t, response, "(aa29b85)")
 }
 
@@ -342,7 +341,10 @@ func TestHandlerFeatureIsDisabled(t *testing.T) {
 }
 
 func TestHandlerApplicationNameInBadgeIsEnabled(t *testing.T) {
-	settingsMgr := settings.NewSettingsManager(context.Background(), fake.NewSimpleClientset(&argoCDCm, &argoCDSecret), "default")
+	argoCDCmDisabled := argoCDCm.DeepCopy()
+	argoCDCmDisabled.Data["appNameInStatusBadge.display"] = "true"
+
+	settingsMgr := settings.NewSettingsManager(context.Background(), fake.NewSimpleClientset(argoCDCmDisabled, &argoCDSecret), "default")
 	handler := NewHandler(appclientset.NewSimpleClientset(&testApp), settingsMgr, "default", []string{})
 	req, err := http.NewRequest(http.MethodGet, "/api/badge?name=test-app", nil)
 	assert.NoError(t, err)
@@ -370,10 +372,7 @@ func TestHandlerApplicationNameInBadgeIsEnabled(t *testing.T) {
 
 func TestHandlerApplicationNameInBadgeIsDisabled(t *testing.T) {
 
-	argoCDCmDisabled := argoCDCm.DeepCopy()
-	argoCDCmDisabled.Data["appNameInStatusBadge.display"] = "false"
-
-	settingsMgr := settings.NewSettingsManager(context.Background(), fake.NewSimpleClientset(argoCDCmDisabled, &argoCDSecret), "default")
+	settingsMgr := settings.NewSettingsManager(context.Background(), fake.NewSimpleClientset(&argoCDCm, &argoCDSecret), "default")
 	handler := NewHandler(appclientset.NewSimpleClientset(&testApp), settingsMgr, "default", []string{})
 	req, err := http.NewRequest(http.MethodGet, "/api/badge?name=test-app", nil)
 	assert.NoError(t, err)

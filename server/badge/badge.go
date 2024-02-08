@@ -85,7 +85,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	applicationName := ""
 	revisionEnabled := false
 	enabled := false
-	displayAppName := true
+	displayAppName := false
 	notFound := false
 	if sets, err := h.settingsMgr.GetSettings(); err == nil {
 		enabled = sets.StatusBadgeEnabled

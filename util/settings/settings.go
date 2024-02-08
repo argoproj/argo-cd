@@ -1434,7 +1434,7 @@ func updateSettingsFromConfigMap(settings *ArgoCDSettings, argoCDCM *apiv1.Confi
 	settings.KustomizeBuildOptions = argoCDCM.Data[kustomizeBuildOptionsKey]
 	settings.StatusBadgeEnabled = argoCDCM.Data[statusBadgeEnabledKey] == "true"
 	settings.StatusBadgeRootUrl = argoCDCM.Data[statusBadgeRootUrlKey]
-	settings.ShowAppNameInStatusBadge = argoCDCM.Data[showAppNameInStatusBadgeKey] != "false"
+	settings.ShowAppNameInStatusBadge = argoCDCM.Data[showAppNameInStatusBadgeKey] == "true"
 	settings.AnonymousUserEnabled = argoCDCM.Data[anonymousUserEnabledKey] == "true"
 	settings.UiCssURL = argoCDCM.Data[settingUiCssURLKey]
 	settings.UiBannerContent = argoCDCM.Data[settingUiBannerContentKey]
