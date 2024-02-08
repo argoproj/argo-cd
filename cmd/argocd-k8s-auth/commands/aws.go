@@ -37,13 +37,14 @@ func newAWSCommand() *cobra.Command {
 	var (
 		clusterName string
 		roleARN     string
+		profile     string
 	)
 	var command = &cobra.Command{
 		Use: "aws",
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
 
-			presignedURLString, err := getSignedRequestWithRetry(ctx, time.Minute, 5*time.Second, clusterName, roleARN, getSignedRequest)
+			presignedURLString, err := getSignedRequestWithRetry(ctx, time.Minute, 5*time.Second, clusterName, roleARN, profile, getSignedRequest)
 			errors.CheckError(err)
 			token := v1Prefix + base64.RawURLEncoding.EncodeToString([]byte(presignedURLString))
 			// Set token expiration to 1 minute before the presigned URL expires for some cushion
@@ -53,16 +54,17 @@ func newAWSCommand() *cobra.Command {
 	}
 	command.Flags().StringVar(&clusterName, "cluster-name", "", "AWS Cluster name")
 	command.Flags().StringVar(&roleARN, "role-arn", "", "AWS Role ARN")
+	command.Flags().StringVar(&profile, "profile", "", "AWS Profile")
 	return command
 }
 
-type getSignedRequestFunc func(clusterName, roleARN string) (string, error)
+type getSignedRequestFunc func(clusterName, roleARN string, profile string) (string, error)
 
-func getSignedRequestWithRetry(ctx context.Context, timeout, interval time.Duration, clusterName, roleARN string, fn getSignedRequestFunc) (string, error) {
+func getSignedRequestWithRetry(ctx context.Context, timeout, interval time.Duration, clusterName, roleARN string, profile string, fn getSignedRequestFunc) (string, error) {
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 	for {
-		signed, err := fn(clusterName, roleARN)
+		signed, err := fn(clusterName, roleARN, profile)
 		if err == nil {
 			return signed, nil
 		}
@@ -74,8 +76,10 @@ func getSignedRequestWithRetry(ctx context.Context, timeout, interval time.Durat
 	}
 }
 
-func getSignedRequest(clusterName, roleARN string) (string, error) {
-	sess, err := session.NewSession()
+func getSignedRequest(clusterName, roleARN string, profile string) (string, error) {
+	sess, err := session.NewSessionWithOptions(session.Options{
+		Profile: profile,
+	})
 	if err != nil {
 		return "", fmt.Errorf("error creating new AWS session: %s", err)
 	}
