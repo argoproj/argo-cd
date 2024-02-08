@@ -17,6 +17,7 @@ argocd-application-controller [flags]
 ```
       --app-hard-resync int                    Time period in seconds for application hard resync.
       --app-resync int                         Time period in seconds for application resync. (default 180)
+      --app-resync-jitter int                  Maximum time period in seconds to add as a delay jitter for application resync.
       --app-state-cache-expiration duration    Cache expiration for app state (default 1h0m0s)
       --application-namespaces strings         List of additional namespaces that applications are allowed to be reconciled from
       --as string                              Username to impersonate for the operation
@@ -44,6 +45,8 @@ argocd-application-controller [flags]
       --operation-processors int               Number of application operation processors (default 10)
       --otlp-address string                    OpenTelemetry collector address to send traces to
       --otlp-attrs strings                     List of OpenTelemetry collector extra attrs when send traces, each attribute is separated by a colon(e.g. key:value)
+      --otlp-headers stringToString            List of OpenTelemetry collector extra headers sent with traces, headers are comma-separated key-value pairs(e.g. key1=value1,key2=value2) (default [])
+      --otlp-insecure                          OpenTelemetry collector insecure mode (default true)
       --password string                        Password for basic authentication to the API server
       --persist-resource-health                Enables storing the managed resources health in the Application CRD (default true)
       --proxy-url string                       If provided, this URL will be used to connect via proxy
@@ -55,6 +58,7 @@ argocd-application-controller [flags]
       --redis-insecure-skip-tls-verify         Skip Redis server certificate validation.
       --redis-use-tls                          Use TLS when connecting to Redis. 
       --redisdb int                            Redis database.
+      --repo-error-grace-period-seconds int    Grace period in seconds for ignoring consecutive errors while communicating with repo server. (default 180)
       --repo-server string                     Repo server address. (default "argocd-repo-server:8081")
       --repo-server-plaintext                  Disable TLS on connections to repo server
       --repo-server-strict-tls                 Whether to use strict validation of the TLS cert presented by the repo server
@@ -64,6 +68,7 @@ argocd-application-controller [flags]
       --sentinel stringArray                   Redis sentinel hostname and port (e.g. argocd-redis-ha-announce-0:6379). 
       --sentinelmaster string                  Redis sentinel master group name. (default "master")
       --server string                          The address and port of the Kubernetes API server
+      --server-side-diff-enabled               Feature flag to enable ServerSide diff. Default ("false")
       --sharding-method string                 Enables choice of sharding method. Supported sharding methods are : [legacy, round-robin]  (default "legacy")
       --status-processors int                  Number of application status processors (default 20)
       --tls-server-name string                 If provided, this name will be used to validate server certificate. If this is not provided, hostname used to contact the server is used.

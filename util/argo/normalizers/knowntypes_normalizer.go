@@ -8,6 +8,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
@@ -31,6 +32,9 @@ type knownTypesNormalizer struct {
 func init() {
 	knownTypes["core/Quantity"] = func() interface{} {
 		return &resource.Quantity{}
+	}
+	knownTypes["meta/v1/Duration"] = func() interface{} {
+		return &metav1.Duration{}
 	}
 }
 

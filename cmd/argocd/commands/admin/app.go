@@ -243,6 +243,7 @@ func NewReconcileCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command 
 		repoServerAddress string
 		outputFormat      string
 		refresh           bool
+		serverSideDiff    bool
 	)
 
 	var command = &cobra.Command{
@@ -280,7 +281,7 @@ func NewReconcileCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command 
 
 				appClientset := appclientset.NewForConfigOrDie(cfg)
 				kubeClientset := kubernetes.NewForConfigOrDie(cfg)
-				result, err = reconcileApplications(ctx, kubeClientset, appClientset, namespace, repoServerClient, selector, newLiveStateCache)
+				result, err = reconcileApplications(ctx, kubeClientset, appClientset, namespace, repoServerClient, selector, newLiveStateCache, serverSideDiff)
 				errors.CheckError(err)
 			} else {
 				appClientset := appclientset.NewForConfigOrDie(cfg)
@@ -295,6 +296,7 @@ func NewReconcileCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command 
 	command.Flags().StringVar(&selector, "l", "", "Label selector")
 	command.Flags().StringVar(&outputFormat, "o", "yaml", "Output format (yaml|json)")
 	command.Flags().BoolVar(&refresh, "refresh", false, "If set to true then recalculates apps reconciliation")
+	command.Flags().BoolVar(&serverSideDiff, "server-side-diff", false, "If set to \"true\" will use server-side diff while comparing resources. Default (\"false\")")
 
 	return command
 }
@@ -344,6 +346,7 @@ func reconcileApplications(
 	repoServerClient reposerverclient.Clientset,
 	selector string,
 	createLiveStateCache func(argoDB db.ArgoDB, appInformer kubecache.SharedIndexInformer, settingsMgr *settings.SettingsManager, server *metrics.MetricsServer) cache.LiveStateCache,
+	serverSideDiff bool,
 ) ([]appReconcileResult, error) {
 	settingsMgr := settings.NewSettingsManager(ctx, kubeClientset, namespace)
 	argoDB := db.NewDB(namespace, settingsMgr, kubeClientset)
@@ -384,7 +387,7 @@ func reconcileApplications(
 	)
 
 	appStateManager := controller.NewAppStateManager(
-		argoDB, appClientset, repoServerClient, namespace, kubeutil.NewKubectl(), settingsMgr, stateCache, projInformer, server, cache, time.Second, argo.NewResourceTracking(), false)
+		argoDB, appClientset, repoServerClient, namespace, kubeutil.NewKubectl(), settingsMgr, stateCache, projInformer, server, cache, time.Second, argo.NewResourceTracking(), false, 0, serverSideDiff)
 
 	appsList, err := appClientset.ArgoprojV1alpha1().Applications(namespace).List(ctx, v1.ListOptions{LabelSelector: selector})
 	if err != nil {
@@ -419,7 +422,10 @@ func reconcileApplications(
 		sources = append(sources, app.Spec.GetSource())
 		revisions = append(revisions, app.Spec.GetSource().TargetRevision)
 
-		res := appStateManager.CompareAppState(&app, proj, revisions, sources, false, false, nil, false)
+		res, err := appStateManager.CompareAppState(&app, proj, revisions, sources, false, false, nil, false)
+		if err != nil {
+			return nil, err
+		}
 		items = append(items, appReconcileResult{
 			Name:       app.Name,
 			Conditions: app.Status.Conditions,
