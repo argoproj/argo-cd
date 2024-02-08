@@ -211,9 +211,9 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 
 	rawConfig := clst.RawRestConfig()
 	restConfig := metrics.AddMetricsTransportWrapper(m.metricsServer, app, clst.RESTConfig())
+
 	setImpersonationConfig(rawConfig, app, proj)
 	setImpersonationConfig(restConfig, app, proj)
-	log.Info("Using impersonated service account system:serviceaccount:argocd:testadmin for the sync operation")
 	resourceOverrides, err := m.settingsMgr.GetResourceOverrides()
 	if err != nil {
 		state.Phase = common.OperationError
