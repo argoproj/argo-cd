@@ -70,6 +70,7 @@ data:
     #   redirectURIs:
     #     - https://argo/oauth2/callback
     #   secret: $secretReference
+
   # OIDC configuration as an alternative to dex (optional).
   oidc.config: |
     name: Okta
@@ -80,6 +81,7 @@ data:
     requestedScopes: ["openid", "profile", "email"]
     # Optional set of OIDC claims to request on the ID token.
     requestedIDTokenClaims: {"groups": {"essential": true}}
+
   # Configuration to customize resource behavior (optional) can be configured via splitted sub keys.
   # Keys are in the form: resource.customizations.ignoreDifferences.<group_kind>, resource.customizations.health.<group_kind>
   # resource.customizations.actions.<group_kind>, resource.customizations.knownTypeFields.<group-kind>
@@ -91,6 +93,7 @@ data:
     - .webhooks[0].clientConfig.caBundle
     managedFieldsManagers:
     - kube-controller-manager
+
   # Configuration to define customizations ignoring differences between live and desired states for
   # all resources (GK).
   resource.customizations.ignoreDifferences.all: |
@@ -98,6 +101,7 @@ data:
     - kube-controller-manager
     jsonPointers:
     - /spec/replicas
+
   # Enable resource.customizations.ignoreResourceUpdates rules. If "false," those rules are not applied, and all updates
   # to resources are applied to the cluster cache. Default is false.
   resource.ignoreResourceUpdatesEnabled: "false"
@@ -106,10 +110,12 @@ data:
   resource.customizations.ignoreResourceUpdates.all: |
     jsonPointers:
     - /metadata/resourceVersion
+
   # Configuration to define customizations ignoring differences during watched resource updates can be configured via splitted sub key.
   resource.customizations.ignoreResourceUpdates.argoproj.io_Application: |
     jsonPointers:
     - /status
+
   # jsonPointers and jqPathExpressions can be specified.
   resource.customizations.ignoreResourceUpdates.autoscaling_HorizontalPodAutoscaler: |
     jqPathExpressions:
@@ -122,6 +128,7 @@ data:
     - /metadata/annotations/autoscaling.alpha.kubernetes.io~1conditions
     - /metadata/annotations/autoscaling.alpha.kubernetes.io~1metrics
     - /metadata/annotations/autoscaling.alpha.kubernetes.io~1current-metrics
+
   resource.customizations.health.certmanager.k8s.io-Certificate: |
     hs = {}
     if obj.status ~= nil then
@@ -143,6 +150,7 @@ data:
     hs.status = "Progressing"
     hs.message = "Waiting for certificate"
     return hs
+
   resource.customizations.health.cert-manager.io_Certificate: |
     hs = {}
     if obj.status ~= nil then
@@ -164,6 +172,7 @@ data:
     hs.status = "Progressing"
     hs.message = "Waiting for certificate"
     return hs
+
   # List of Lua Scripts to introduce custom actions
   resource.customizations.actions.apps_Deployment: |
     # Lua Script to indicate which custom actions are available on the resource
@@ -184,6 +193,7 @@ data:
           end
           obj.spec.template.metadata.annotations["kubectl.kubernetes.io/restartedAt"] = os.date("!%Y-%m-%dT%XZ")
           return obj
+
   # Configuration to completely ignore entire classes of resource group/kinds (optional).
   # Excluding high-volume resources improves performance and memory usage, and reduces load and
   # bandwidth to the Kubernetes API server.
@@ -197,6 +207,7 @@ data:
       - Snapshot
       clusters:
       - "*.local"
+
   # By default all resource group/kinds are included. The resource.inclusions setting allows customizing
   # list of included group/kinds.
   resource.inclusions: |
@@ -206,17 +217,20 @@ data:
       - Snapshot
       clusters:
       - "*.local"
+
   # An optional comma-separated list of metadata.labels to observe in the UI.
   resource.customLabels: tier
 
   resource.compareoptions: |
     # if ignoreAggregatedRoles set to true then differences caused by aggregated roles in RBAC resources are ignored.
     ignoreAggregatedRoles: true
+
     # disables status field diffing in specified resource types
     # 'crd' - CustomResourceDefinitions (default)
     # 'all' - all resources
     # 'none' - disabled
     ignoreResourceStatusField: crd
+
   # configuration to instruct controller to only watch for resources that it has permissions to list
   # can be either empty, "normal" or "strict". By default, it is empty i.e. disabled.
   resource.respectRBAC: "normal"
@@ -228,6 +242,7 @@ data:
         command: [kasane, update]
       generate:
         command: [kasane, show]
+
   # A set of settings that allow enabling or disabling the config management tool.
   # If unset, each defaults to "true".
   kustomize.enabled: true
@@ -356,6 +371,7 @@ data:
     - url: https://mycompany.splunk.com?search={{.metadata.namespace}}
       title: Splunk
       if: kind == "Pod" || kind == "Deployment"
+
   extension.config: |
     extensions:
         # Name defines the endpoint that will be used to register
@@ -367,24 +383,29 @@ data:
           # the extension server will wait for a connect to complete.
           # Optional field. Default: 2 seconds
           connectionTimeout: 2s
+
           # KeepAlive specifies the interval between keep-alive probes
           # for an active network connection between the API server and
           # the extension server.
           # Optional field. Default: 15 seconds
           keepAlive: 15s
+
           # IdleConnectionTimeout is the maximum amount of time an idle
           # (keep-alive) connection between the API server and the extension
           # server will remain idle before closing itself.
           # Optional field. Default: 60 seconds
           idleConnectionTimeout: 60s
+
           # MaxIdleConnections controls the maximum number of idle (keep-alive)
           # connections between the API server and the extension server.
           # Optional field. Default: 30
           maxIdleConnections: 30
+
           services:
               # URL is the address where the extension backend must be available.
               # Mandatory field.
             - url: http://httpbin.org
+
               # Cluster if provided, will have to match the application
               # destination name or the destination server to have requests
               # properly forwarded to this service URL.
