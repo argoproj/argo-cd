@@ -8,11 +8,11 @@ import (
 	"time"
 
 	argocommon "github.com/argoproj/argo-cd/v2/common"
+	"github.com/argoproj/argo-cd/v2/event_reporter/codefresh"
 	"github.com/argoproj/argo-cd/v2/event_reporter/metrics"
 	"github.com/argoproj/argo-cd/v2/event_reporter/reporter"
 	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	applisters "github.com/argoproj/argo-cd/v2/pkg/client/listers/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/pkg/codefresh"
 	servercache "github.com/argoproj/argo-cd/v2/server/cache"
 	argoutil "github.com/argoproj/argo-cd/v2/util/argo"
 	"github.com/argoproj/argo-cd/v2/util/env"

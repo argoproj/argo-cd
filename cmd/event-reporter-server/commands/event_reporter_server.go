@@ -9,8 +9,8 @@ import (
 
 	"github.com/argoproj/argo-cd/v2/event_reporter"
 	appclient "github.com/argoproj/argo-cd/v2/event_reporter/application"
+	"github.com/argoproj/argo-cd/v2/event_reporter/codefresh"
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient"
-	"github.com/argoproj/argo-cd/v2/pkg/codefresh"
 
 	"github.com/argoproj/pkg/stats"
 	"github.com/redis/go-redis/v9"

@@ -4,11 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	v1 "k8s.io/api/core/v1"
 	"reflect"
 	"strings"
 	"time"
-
-	v1 "k8s.io/api/core/v1"
 
 	"github.com/argoproj/gitops-engine/pkg/diff"
 	"github.com/argoproj/gitops-engine/pkg/health"
@@ -208,11 +207,7 @@ func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, sources []v1alp
 			RefSources:         refSources,
 			ProjectName:        proj.Name,
 			ProjectSourceRepos: proj.Spec.SourceRepos,
-			ApplicationIdentity: &apiclient.ApplicationIdentity{
-				Cluster:   app.Spec.Destination.Server,
-				Namespace: app.Spec.Destination.Namespace,
-				Name:      app.InstanceName(m.namespace),
-			},
+			VersionConfig:      apiclient.GetVersionConfig(),
 		})
 		if err != nil {
 			return nil, nil, fmt.Errorf("failed to generate manifest for source %d of %d: %w", i+1, len(sources), err)

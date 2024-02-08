@@ -16,10 +16,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
-	"net/url"
-
 	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/pkg/codefresh"
 	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/v2/util/argo"
 	cacheutil "github.com/argoproj/argo-cd/v2/util/cache"
@@ -30,10 +27,9 @@ import (
 var ErrCacheMiss = cacheutil.ErrCacheMiss
 
 type Cache struct {
-	cache                      *cacheutil.Cache
-	repoCacheExpiration        time.Duration
-	revisionCacheExpiration    time.Duration
-	cfAppConfigCacheExpiration time.Duration
+	cache                   *cacheutil.Cache
+	repoCacheExpiration     time.Duration
+	revisionCacheExpiration time.Duration
 }
 
 // ClusterRuntimeInfo holds cluster runtime information
@@ -44,18 +40,16 @@ type ClusterRuntimeInfo interface {
 	GetKubeVersion() string
 }
 
-func NewCache(cache *cacheutil.Cache, repoCacheExpiration time.Duration, revisionCacheExpiration time.Duration, cfAppConfigCacheExpiration time.Duration) *Cache {
-	return &Cache{cache, repoCacheExpiration, revisionCacheExpiration, cfAppConfigCacheExpiration}
+func NewCache(cache *cacheutil.Cache, repoCacheExpiration time.Duration, revisionCacheExpiration time.Duration) *Cache {
+	return &Cache{cache, repoCacheExpiration, revisionCacheExpiration}
 }
 
 func AddCacheFlagsToCmd(cmd *cobra.Command, opts ...func(client *redis.Client)) func() (*Cache, error) {
 	var repoCacheExpiration time.Duration
 	var revisionCacheExpiration time.Duration
-	var cfAppConfigCacheExpiration time.Duration
 
 	cmd.Flags().DurationVar(&repoCacheExpiration, "repo-cache-expiration", env.ParseDurationFromEnv("ARGOCD_REPO_CACHE_EXPIRATION", 24*time.Hour, 0, math.MaxInt64), "Cache expiration for repo state, incl. app lists, app details, manifest generation, revision meta-data")
 	cmd.Flags().DurationVar(&revisionCacheExpiration, "revision-cache-expiration", env.ParseDurationFromEnv("ARGOCD_RECONCILIATION_TIMEOUT", 3*time.Minute, 0, math.MaxInt64), "Cache expiration for cached revision")
-	cmd.Flags().DurationVar(&cfAppConfigCacheExpiration, "cf-app-config-cache-expiration", env.ParseDurationFromEnv("ARGOCD_CF_APP_CONFIG_CACHE_EXPIRATION", 3*time.Minute, 0, math.MaxInt64), "Cache expiration for Codefresh application configs")
 
 	repoFactory := cacheutil.AddCacheFlagsToCmd(cmd, opts...)
 
@@ -64,7 +58,7 @@ func AddCacheFlagsToCmd(cmd *cobra.Command, opts ...func(client *redis.Client)) 
 		if err != nil {
 			return nil, fmt.Errorf("error adding cache flags to cmd: %w", err)
 		}
-		return NewCache(cache, repoCacheExpiration, revisionCacheExpiration, cfAppConfigCacheExpiration), nil
+		return NewCache(cache, repoCacheExpiration, revisionCacheExpiration), nil
 	}
 }
 
@@ -383,19 +377,6 @@ func (cmr *CachedManifestResponse) generateCacheEntryHash() (string, error) {
 	fnvHash := h.Sum(nil)
 	return base64.URLEncoding.EncodeToString(fnvHash), nil
 
-}
-
-func CfAppConfigCacheKey(cluster, namespace, name string) string {
-	return fmt.Sprintf("cf_app_config:%s:%s:%s", namespace, name, url.QueryEscape(cluster))
-}
-
-func (c *Cache) GetCfAppConfig(cluster, namespace, name string) (*codefresh.ApplicationConfiguration, error) {
-	item := &codefresh.ApplicationConfiguration{}
-	return item, c.cache.GetItem(CfAppConfigCacheKey(cluster, namespace, name), item)
-}
-
-func (c *Cache) SetCfAppConfig(cluster, namespace, name string, item *codefresh.ApplicationConfiguration) error {
-	return c.cache.SetItem(CfAppConfigCacheKey(cluster, namespace, name), item, c.cfAppConfigCacheExpiration, false)
 }
 
 // CachedManifestResponse represents a cached result of a previous manifest generation operation, including the caching
