@@ -19,8 +19,6 @@ data:
   # Provide custom URL to override. You must include the trailing forward slash:
   statusbadge.url: "https://cd-status.apps.argoproj.io/"
 
-  appNameInStatusBadge.display: "true"
-
   # Enables anonymous user access. The anonymous users get default role permissions specified argocd-rbac-cm.yaml.
   users.anonymous.enabled: "true"
   # Specifies token expiration duration
