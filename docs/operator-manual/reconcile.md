@@ -65,8 +65,8 @@ To find these logs, search for `"Requesting app refresh caused by object update"
 fields for `api-version` and `kind`.  Counting the number of refreshes triggered, by api-version/kind should
 reveal the high-churn resource kinds.
 
-!!!note 
-    These logs are at the `debug` level. Configure the application-controller's log level to `debug`.
+!!!note
+    These logs are at the `info` level. Configure the application-controller's log level to `info`.
 
 Once you have identified some resources which change often, you can try to determine which fields are changing. Here is
 one approach:

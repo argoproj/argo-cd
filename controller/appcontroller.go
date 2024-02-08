@@ -421,7 +421,7 @@ func (ctrl *ApplicationController) handleObjectUpdated(managedByApp map[string]b
 			"kind":         ref.Kind,
 			"server":       app.Spec.Destination.Server,
 			"cluster-name": app.Spec.Destination.Name,
-		}).Debug("Requesting app refresh caused by object update")
+		}).Info("Requesting app refresh caused by object update")
 
 		ctrl.requestAppRefresh(app.QualifiedName(), &level, nil)
 	}
