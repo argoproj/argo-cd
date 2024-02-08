@@ -50,6 +50,7 @@ func NewCommand() *cobra.Command {
 		clientConfig                     clientcmd.ClientConfig
 		appResyncPeriod                  int64
 		appHardResyncPeriod              int64
+		appResyncJitter                  int64
 		repoErrorGracePeriod             int64
 		repoServerAddress                string
 		repoServerTimeoutSeconds         int
@@ -146,7 +147,7 @@ func NewCommand() *cobra.Command {
 				appController.InvalidateProjectsCache()
 			}))
 			kubectl := kubeutil.NewKubectl()
-			clusterFilter := getClusterFilter(kubeClient, settingsMgr, shardingAlgorithm, enableDynamicClusterDistribution)
+			clusterSharding := getClusterSharding(kubeClient, settingsMgr, shardingAlgorithm, enableDynamicClusterDistribution)
 			appController, err = controller.NewApplicationController(
 				namespace,
 				settingsMgr,
@@ -157,6 +158,7 @@ func NewCommand() *cobra.Command {
 				kubectl,
 				resyncDuration,
 				hardResyncDuration,
+				time.Duration(appResyncJitter)*time.Second,
 				time.Duration(selfHealTimeoutSeconds)*time.Second,
 				time.Duration(repoErrorGracePeriod)*time.Second,
 				metricsPort,
@@ -164,7 +166,7 @@ func NewCommand() *cobra.Command {
 				metricsAplicationLabels,
 				kubectlParallelismLimit,
 				persistResourceHealth,
-				clusterFilter,
+				clusterSharding,
 				applicationNamespaces,
 				&workqueueRateLimit,
 				serverSideDiff,
@@ -194,6 +196,7 @@ func NewCommand() *cobra.Command {
 	clientConfig = cli.AddKubectlFlagsToCmd(&command)
 	command.Flags().Int64Var(&appResyncPeriod, "app-resync", int64(env.ParseDurationFromEnv("ARGOCD_RECONCILIATION_TIMEOUT", defaultAppResyncPeriod*time.Second, 0, math.MaxInt64).Seconds()), "Time period in seconds for application resync.")
 	command.Flags().Int64Var(&appHardResyncPeriod, "app-hard-resync", int64(env.ParseDurationFromEnv("ARGOCD_HARD_RECONCILIATION_TIMEOUT", defaultAppHardResyncPeriod*time.Second, 0, math.MaxInt64).Seconds()), "Time period in seconds for application hard resync.")
+	command.Flags().Int64Var(&appResyncJitter, "app-resync-jitter", int64(env.ParseDurationFromEnv("ARGOCD_RECONCILIATION_JITTER", 0*time.Second, 0, math.MaxInt64).Seconds()), "Maximum time period in seconds to add as a delay jitter for application resync.")
 	command.Flags().Int64Var(&repoErrorGracePeriod, "repo-error-grace-period-seconds", int64(env.ParseDurationFromEnv("ARGOCD_REPO_ERROR_GRACE_PERIOD_SECONDS", defaultAppResyncPeriod*time.Second, 0, math.MaxInt64).Seconds()), "Grace period in seconds for ignoring consecutive errors while communicating with repo server.")
 	command.Flags().StringVar(&repoServerAddress, "repo-server", env.StringFromEnv("ARGOCD_APPLICATION_CONTROLLER_REPO_SERVER", common.DefaultRepoServerAddr), "Repo server address.")
 	command.Flags().IntVar(&repoServerTimeoutSeconds, "repo-server-timeout-seconds", env.ParseNumFromEnv("ARGOCD_APPLICATION_CONTROLLER_REPO_SERVER_TIMEOUT_SECONDS", 60, 0, math.MaxInt64), "Repo server RPC call timeout seconds.")
@@ -235,11 +238,10 @@ func NewCommand() *cobra.Command {
 	return &command
 }
 
-func getClusterFilter(kubeClient *kubernetes.Clientset, settingsMgr *settings.SettingsManager, shardingAlgorithm string, enableDynamicClusterDistribution bool) sharding.ClusterFilterFunction {
-
-	var replicas int
-	shard := env.ParseNumFromEnv(common.EnvControllerShard, -1, -math.MaxInt32, math.MaxInt32)
-
+func getClusterSharding(kubeClient *kubernetes.Clientset, settingsMgr *settings.SettingsManager, shardingAlgorithm string, enableDynamicClusterDistribution bool) sharding.ClusterShardingCache {
+	var replicasCount int
+	// StatefulSet mode and Deployment mode uses different default values for shard number.
+	defaultShardNumberValue := 0
 	applicationControllerName := env.StringFromEnv(common.EnvAppControllerName, common.DefaultApplicationControllerName)
 	appControllerDeployment, err := kubeClient.AppsV1().Deployments(settingsMgr.GetNamespace()).Get(context.Background(), applicationControllerName, metav1.GetOptions{})
 
@@ -249,23 +251,22 @@ func getClusterFilter(kubeClient *kubernetes.Clientset, settingsMgr *settings.Se
 	}
 
 	if enableDynamicClusterDistribution && appControllerDeployment != nil && appControllerDeployment.Spec.Replicas != nil {
-		replicas = int(*appControllerDeployment.Spec.Replicas)
+		replicasCount = int(*appControllerDeployment.Spec.Replicas)
+		defaultShardNumberValue = -1
 	} else {
-		replicas = env.ParseNumFromEnv(common.EnvControllerReplicas, 0, 0, math.MaxInt32)
+		replicasCount = env.ParseNumFromEnv(common.EnvControllerReplicas, 0, 0, math.MaxInt32)
 	}
-
-	var clusterFilter func(cluster *v1alpha1.Cluster) bool
-	if replicas > 1 {
+	shardNumber := env.ParseNumFromEnv(common.EnvControllerShard, defaultShardNumberValue, -math.MaxInt32, math.MaxInt32)
+	if replicasCount > 1 {
 		// check for shard mapping using configmap if application-controller is a deployment
 		// else use existing logic to infer shard from pod name if application-controller is a statefulset
 		if enableDynamicClusterDistribution && appControllerDeployment != nil {
-
 			var err error
 			// retry 3 times if we find a conflict while updating shard mapping configMap.
 			// If we still see conflicts after the retries, wait for next iteration of heartbeat process.
 			for i := 0; i <= common.AppControllerHeartbeatUpdateRetryCount; i++ {
-				shard, err = sharding.GetOrUpdateShardFromConfigMap(kubeClient, settingsMgr, replicas, shard)
-				if !kubeerrors.IsConflict(err) {
+				shardNumber, err = sharding.GetOrUpdateShardFromConfigMap(kubeClient, settingsMgr, replicasCount, shardNumber)
+				if err != nil && !kubeerrors.IsConflict(err) {
 					err = fmt.Errorf("unable to get shard due to error updating the sharding config map: %s", err)
 					break
 				}
@@ -273,19 +274,19 @@ func getClusterFilter(kubeClient *kubernetes.Clientset, settingsMgr *settings.Se
 			}
 			errors.CheckError(err)
 		} else {
-			if shard < 0 {
+			if shardNumber < 0 {
 				var err error
-				shard, err = sharding.InferShard()
+				shardNumber, err = sharding.InferShard()
 				errors.CheckError(err)
 			}
+			if shardNumber > replicasCount {
+				log.Warnf("Calculated shard number %d is greated than the number of replicas count. Defaulting to 0", shardNumber)
+				shardNumber = 0
+			}
 		}
-		log.Infof("Processing clusters from shard %d", shard)
-		db := db.NewDB(settingsMgr.GetNamespace(), settingsMgr, kubeClient)
-		log.Infof("Using filter function:  %s", shardingAlgorithm)
-		distributionFunction := sharding.GetDistributionFunction(db, shardingAlgorithm)
-		clusterFilter = sharding.GetClusterFilter(db, distributionFunction, shard)
 	} else {
 		log.Info("Processing all cluster shards")
 	}
-	return clusterFilter
+	db := db.NewDB(settingsMgr.GetNamespace(), settingsMgr, kubeClient)
+	return sharding.NewClusterSharding(db, shardNumber, replicasCount, shardingAlgorithm)
 }

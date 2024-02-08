@@ -549,6 +549,7 @@ bearerToken: string
 awsAuthConfig:
     clusterName: string
     roleARN: string
+    profile: string
 # Configure external command to supply client credentials
 # See https://godoc.org/k8s.io/client-go/tools/clientcmd/api#ExecConfig
 execProviderConfig:
