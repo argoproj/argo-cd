@@ -37,6 +37,16 @@ function swap(array: any[], a: number, b: number) {
     return array;
 }
 
+function processPath(path: string) {
+    if (path !== null && path !== undefined) {
+        if (path === '.') {
+            return '(root)';
+        }
+        return path;
+    }
+    return '';
+}
+
 export interface ApplicationSummaryProps {
     app: models.Application;
     updateApp: (app: models.Application, query: {validate?: boolean}) => Promise<any>;
@@ -239,7 +249,7 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                       title: 'PATH',
                       view: (
                           <Revision repoUrl={source.repoURL} revision={source.targetRevision || 'HEAD'} path={source.path} isForPath={true}>
-                              {source.path ?? ''}
+                              {processPath(source.path)}
                           </Revision>
                       ),
                       edit: (formApi: FormApi) =>

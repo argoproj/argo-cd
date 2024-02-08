@@ -748,7 +748,7 @@ func TestNamespacedResourceDiffing(t *testing.T) {
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
 		And(func(app *Application) {
-			diffOutput, err := RunCli("app", "diff", ctx.AppQualifiedName(), "--local", "testdata/guestbook")
+			diffOutput, err := RunCli("app", "diff", ctx.AppQualifiedName(), "--local-repo-root", ".", "--local", "testdata/guestbook")
 			assert.Error(t, err)
 			assert.Contains(t, diffOutput, fmt.Sprintf("===== apps/Deployment %s/guestbook-ui ======", DeploymentNamespace()))
 		}).
@@ -761,7 +761,7 @@ func TestNamespacedResourceDiffing(t *testing.T) {
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		And(func(app *Application) {
-			diffOutput, err := RunCli("app", "diff", ctx.AppQualifiedName(), "--local", "testdata/guestbook")
+			diffOutput, err := RunCli("app", "diff", ctx.AppQualifiedName(), "--local-repo-root", ".", "--local", "testdata/guestbook")
 			assert.NoError(t, err)
 			assert.Empty(t, diffOutput)
 		}).
@@ -897,7 +897,7 @@ func testNSEdgeCasesApplicationResources(t *testing.T, appPath string, statusCod
 	expect.
 		Expect(HealthIs(statusCode)).
 		And(func(app *Application) {
-			diffOutput, err := RunCli("app", "diff", ctx.AppQualifiedName(), "--local", path.Join("testdata", appPath))
+			diffOutput, err := RunCli("app", "diff", ctx.AppQualifiedName(), "--local-repo-root", ".", "--local", path.Join("testdata", appPath))
 			assert.Empty(t, diffOutput)
 			assert.NoError(t, err)
 		})
@@ -998,7 +998,7 @@ func TestNamespacedLocalManifestSync(t *testing.T) {
 		Given().
 		LocalPath(guestbookPathLocal).
 		When().
-		Sync().
+		Sync("--local-repo-root", ".").
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		And(func(app *Application) {
@@ -1066,7 +1066,7 @@ func TestNamespacedLocalSyncDryRunWithASEnabled(t *testing.T) {
 			assert.NoError(t, err)
 
 			appBefore := app.DeepCopy()
-			_, err = RunCli("app", "sync", app.QualifiedName(), "--dry-run", "--local", guestbookPathLocal)
+			_, err = RunCli("app", "sync", app.QualifiedName(), "--dry-run", "--local-repo-root", ".", "--local", guestbookPathLocal)
 			assert.NoError(t, err)
 
 			appAfter := app.DeepCopy()
