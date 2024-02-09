@@ -222,12 +222,10 @@ func NewCommand() *cobra.Command {
 			if pprof.IsEnabled() {
 				pprofSrv, err := pprof.NewPprofServer()
 				if err != nil {
-					log.Error(err, "failed to create pprof handler")
-					os.Exit(1)
+					log.Fatal(err, "failed to create pprof handler")
 				}
 				if err := mgr.Add(pprofSrv); err != nil {
-					log.Error(err, "unable to set up pprof handler")
-					os.Exit(1)
+					log.Fatal(err, "unable to set up pprof handler")
 				}
 			}
 

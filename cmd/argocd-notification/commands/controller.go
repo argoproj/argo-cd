@@ -153,13 +153,11 @@ func NewCommand() *cobra.Command {
 			if pprof.IsEnabled() {
 				pprofSrv, err := pprof.NewPprofServer()
 				if err != nil {
-					log.Error(err, "failed to create pprof handler")
-					os.Exit(1)
+					log.Fatal(err, "failed to create pprof handler")
 				}
 				go func() {
 					if err := pprofSrv.Start(ctx); err != nil {
-						log.Error(err, "unable to start pprof handler")
-						os.Exit(1)
+						log.Fatal(err, "unable to start pprof handler")
 					}
 				}()
 			}
