@@ -39,7 +39,7 @@ Here are the current restrictions and limitations of the UI when applications wi
 
 1. The application’s details page (for [example](https://cd.apps.argoproj.io/applications/argocd/guestbook?view=tree&node=argoproj.io%2FApplication%2Fargocd%2Fguestbook%2F0&resource=)) 
 currently shows one ApplicationSource, regardless of whether the application has one source or multiple sources. With the PR 10432 implementation, if the application has multiple sources,
-the UI displays only the first one from the list of sources. Also, in particular, in the Summary tab, the source parameters are non-editable. 
+the UI displays only the first of the sources. Also, in particular, in the Summary tab, the source parameters are non-editable. 
 
 2. History and Rollback is disabled for multi-source applications. The button is disabled. Jorge has submitted a PR for 
 rollback which includes controller and UI changes [here](https://github.com/argoproj/argo-cd/pull/14124).
