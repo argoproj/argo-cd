@@ -42,7 +42,7 @@ currently shows one ApplicationSource, regardless of whether the application has
 the UI displays only the first of the sources. Also, in particular, in the Summary tab, the source parameters are non-editable. 
 
 2. History and Rollback is disabled for multi-source applications. The button is disabled. Jorge has submitted a PR for 
-rollback which includes controller and UI changes [here](https://github.com/argoproj/argo-cd/pull/14124).
+rollback which includes [controller and UI changes](https://github.com/argoproj/argo-cd/pull/14124).
 
    <img height="40%" width="40%" src="images/history-and-rollback-button.png"/>
 
