@@ -35,7 +35,7 @@ The above [original](https://github.com/argoproj/argo-cd/blob/master/docs/propos
 any design changes for the UI to a separate feature or secondary proposal. The proposal implementation that was made in [PR 10432](https://github.com/argoproj/argo-cd/pull/10432) 
 enabled the UI to tolerate multi-source applications with the new Sources field, while still supporting the original Source field. 
 
-Here are currently the restrictions and limitations of the UI when applications with multiple sources are used:
+Here are the current restrictions and limitations of the UI when applications with multiple sources are used:
 
 1. The application’s details page (for example [here](https://cd.apps.argoproj.io/applications/argocd/guestbook?view=tree&node=argoproj.io%2FApplication%2Fargocd%2Fguestbook%2F0&resource=)) 
 currently shows one ApplicationSource, regardless of whether the application has one source or multiple sources. With the PR 10432 implementation, if the application has multiple sources,
