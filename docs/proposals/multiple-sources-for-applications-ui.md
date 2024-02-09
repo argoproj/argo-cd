@@ -121,7 +121,7 @@ selected by the user.
 
 The above points describe how all the sources will be rendered.  However, the Sources tab should be the page to allow 
 users to delete and add sources. (You can currently change the repo URL and path from the Summary tab, or manually edit 
-the application by hand, in the Manifest tab, but this is not considered as ‘guided’ editing).
+the application by hand, in the Manifest tab, but this is not considered as ‘guided’ editing.)
 
 _Current Behavior:_ 
 
