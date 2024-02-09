@@ -62,7 +62,7 @@ points in the summary above are the base or core changes that need to be address
 
 The goals of the proposal are:
 
-- Provide first-class support of multiple sources for applications in the UI (eg. address the aforementioned restrictions)
+- Provide first-class support of multiple sources for applications in the UI (e.g. address the aforementioned restrictions)
 - Outline stages of implementation that will help ease PR review, and reduce the risk of introducing regressions/issues.
 
 
