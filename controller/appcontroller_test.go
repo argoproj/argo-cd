@@ -1154,7 +1154,7 @@ func TestDirtyApplication(t *testing.T) {
 
 	t.Run("application not dirty if it does not contain any version", func(t *testing.T) {
 		app := newFakeApp()
-		ctrl := newFakeController(&fakeData{apps: []runtime.Object{}})
+		ctrl := newFakeController(&fakeData{apps: []runtime.Object{}}, nil)
 
 		dirty := ctrl.isDirtyApplication(app)
 
@@ -1162,7 +1162,7 @@ func TestDirtyApplication(t *testing.T) {
 	})
 	t.Run("application not dirty if it contains another version", func(t *testing.T) {
 		app := newFakeApp()
-		ctrl := newFakeController(&fakeData{apps: []runtime.Object{}})
+		ctrl := newFakeController(&fakeData{apps: []runtime.Object{}}, nil)
 		ctrl.setDirtyApplication(app)
 		app.ResourceVersion = "new-version"
 
@@ -1172,7 +1172,7 @@ func TestDirtyApplication(t *testing.T) {
 	})
 	t.Run("application is dirty if it contains same resource version", func(t *testing.T) {
 		app := newFakeApp()
-		ctrl := newFakeController(&fakeData{apps: []runtime.Object{}})
+		ctrl := newFakeController(&fakeData{apps: []runtime.Object{}}, nil)
 		ctrl.setDirtyApplication(app)
 
 		dirty := ctrl.isDirtyApplication(app)
@@ -1181,7 +1181,7 @@ func TestDirtyApplication(t *testing.T) {
 	})
 	t.Run("reset clear previous versions", func(t *testing.T) {
 		app := newFakeApp()
-		ctrl := newFakeController(&fakeData{apps: []runtime.Object{}})
+		ctrl := newFakeController(&fakeData{apps: []runtime.Object{}}, nil)
 		ctrl.setDirtyApplication(app)
 		dirtyVersion := app.ResourceVersion
 		app.ResourceVersion = "new-version"
@@ -1196,7 +1196,7 @@ func TestDirtyApplication(t *testing.T) {
 		app := newFakeApp()
 		app2 := newFakeApp()
 		app2.Name = "app2"
-		ctrl := newFakeController(&fakeData{apps: []runtime.Object{}})
+		ctrl := newFakeController(&fakeData{apps: []runtime.Object{}}, nil)
 		ctrl.setDirtyApplication(app)
 		ctrl.setDirtyApplication(app2)
 		app.ResourceVersion = "new-version"
@@ -1208,7 +1208,7 @@ func TestDirtyApplication(t *testing.T) {
 	})
 	t.Run("cannot reset versions if dirty", func(t *testing.T) {
 		app := newFakeApp()
-		ctrl := newFakeController(&fakeData{apps: []runtime.Object{}})
+		ctrl := newFakeController(&fakeData{apps: []runtime.Object{}}, nil)
 		ctrl.setDirtyApplication(app)
 
 		wasReset := ctrl.resetDirtyApplication(app)

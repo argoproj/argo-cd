@@ -846,7 +846,7 @@ func (ctrl *ApplicationController) requestAppRefresh(appName string, compareWith
 	}
 }
 
-func (ctrl *ApplicationController) isDirtyApplication(app *argov1alpha.Application) bool {
+func (ctrl *ApplicationController) isDirtyApplication(app *appv1.Application) bool {
 	key := ctrl.toAppKey(app.QualifiedName())
 	ctrl.dirtyAppVersionsMutex.RLock()
 	versions := ctrl.dirtyAppVersions[key]
@@ -854,7 +854,7 @@ func (ctrl *ApplicationController) isDirtyApplication(app *argov1alpha.Applicati
 	return slices.Contains(versions, app.GetResourceVersion())
 }
 
-func (ctrl *ApplicationController) setDirtyApplication(app *argov1alpha.Application) {
+func (ctrl *ApplicationController) setDirtyApplication(app *appv1.Application) {
 	key := ctrl.toAppKey(app.QualifiedName())
 	ctrl.dirtyAppVersionsMutex.Lock()
 	defer ctrl.dirtyAppVersionsMutex.Unlock()
@@ -866,7 +866,7 @@ func (ctrl *ApplicationController) setDirtyApplication(app *argov1alpha.Applicat
 	ctrl.dirtyAppVersions[key] = append(versions, app.GetResourceVersion())
 }
 
-func (ctrl *ApplicationController) resetDirtyApplication(app *argov1alpha.Application) bool {
+func (ctrl *ApplicationController) resetDirtyApplication(app *appv1.Application) bool {
 	key := ctrl.toAppKey(app.QualifiedName())
 	ctrl.dirtyAppVersionsMutex.Lock()
 	defer ctrl.dirtyAppVersionsMutex.Unlock()
@@ -1505,8 +1505,7 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 	}
 	origApp = origApp.DeepCopy()
 	logCtx := log.WithFields(log.Fields{
-		"application":    app.QualifiedName(),
-		"level":          comparisonLevel,
+		"application":    origApp.QualifiedName(),
 		"dest-server":    origApp.Spec.Destination.Server,
 		"dest-name":      origApp.Spec.Destination.Name,
 		"dest-namespace": origApp.Spec.Destination.Namespace,
@@ -1523,6 +1522,9 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 		return
 	}
 	app := origApp.DeepCopy()
+	logCtx = logCtx.WithFields(log.Fields{
+		"level": comparisonLevel,
+	})
 	logCtx.Debugf("Current App status before reconcile is %s. Version %s", origApp.Status.Health.Status, origApp.ResourceVersion)
 
 	startTime := time.Now()
@@ -1818,7 +1820,7 @@ func (ctrl *ApplicationController) persistAppStatus(orig *appv1.Application, new
 	defer func() {
 		patchMs = time.Since(start)
 	}()
-	_, err = ctrl.PatchAppWithWriteBack(context.Background(), orig.Name, orig.Namespace, types.MergePatchType, patch, metav1.PatchOptions{})
+	result, err := ctrl.PatchAppWithWriteBack(context.Background(), orig.Name, orig.Namespace, types.MergePatchType, patch, metav1.PatchOptions{})
 	if err != nil {
 		logCtx.Warnf("Error updating application: %v", err)
 	} else {
