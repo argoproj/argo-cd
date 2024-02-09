@@ -37,7 +37,7 @@ enabled the UI to tolerate multi-source applications with the new Sources field,
 
 Here are the current restrictions and limitations of the UI when applications with multiple sources are used:
 
-1. The application’s details page (for example [here](https://cd.apps.argoproj.io/applications/argocd/guestbook?view=tree&node=argoproj.io%2FApplication%2Fargocd%2Fguestbook%2F0&resource=)) 
+1. The application’s details page (for [example](https://cd.apps.argoproj.io/applications/argocd/guestbook?view=tree&node=argoproj.io%2FApplication%2Fargocd%2Fguestbook%2F0&resource=)) 
 currently shows one ApplicationSource, regardless of whether the application has one source or multiple sources. With the PR 10432 implementation, if the application has multiple sources,
 the UI displays only the first one from the list of sources. Also, in particular, in the Summary tab, the source parameters are non-editable. 
 
