@@ -125,8 +125,8 @@ the application by hand, in the Manifest tab, but this is not considered as ‘g
 
 _Current Behavior:_ 
 
-The current form-based UI doesn’t support deleting a chosen/desired source of a multi-source application. It certainly 
-does not obviously support deleting the only source there is in a single-source application.
+The current form-based UI doesn’t support deleting a chosen/desired source of a multi-source application. It,
+obviously, does not support deleting the only source in a single-source application.
 
 _Proposed Change:_
 
