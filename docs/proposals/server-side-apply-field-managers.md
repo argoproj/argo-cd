@@ -125,6 +125,7 @@ TBD
 #!/usr/bin/env bash
 
 # Create a temporary cluster
+# https://github.com/kubernetes-sigs/kind/
 kind create cluster
 
 # Create the shared resource
