@@ -58,6 +58,7 @@ nav:
   - operator-manual/custom-styles.md
   - operator-manual/ui-customization.md
   - operator-manual/metrics.md
+  - operator-manual/pprof.md
   - operator-manual/web_based_terminal.md
   - operator-manual/config-management-plugins.md
   - operator-manual/deep_links.md
