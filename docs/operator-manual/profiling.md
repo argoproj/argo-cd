@@ -8,7 +8,7 @@ Enable profiling endpoints by setting the environment variable `ARGO_PPROF` with
 
 `pprof` has two modes: interactive and non-interactive. Non-interactive mode generates profiling data for future analysis. Interactive mode launches a web server to visualize the profiling data in real-time.
 
-!! Note "Replace URLs"
+!!! Note
     In the below commands, replace http://localhost:6060 with the appropriate URL of your Argo component.
 
 ### Generate CPU Profile
