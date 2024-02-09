@@ -80,7 +80,7 @@ N/A
 
 1. Like other sync options, add a corresponding text field in the ArgoCD UI to let users specify a field manager for a server-side apply sync. This text field should only be visible when a single resource is being synced.
 
-1. Change the removal behavior for shared resources. When a resource with a custom field manager is "removed", it instead removes only the fields managed by its field manager from the shared resource by sending an empty "fully specified intent" using server-side apply. You can fully delete a shared resource by setting `Prune=true` at the resource level.
+1. Change the removal behavior for shared resources. When a resource with a custom field manager is "removed", it instead removes only the fields managed by its field manager from the shared resource by sending an empty "fully specified intent" using server-side apply. You can fully delete a shared resource by setting `Prune=true` at the resource level. [Demo of this behavior](#removal-demo).
 
 1. Add documentation suggesting that users might want to consider changing the permissions on the ArgoCD role to disallow the `delete` and `update` verbs on shared resources. Server-side apply will always use `patch`, and removing `delete` and `update` helps prevent users from errantly wiping out changes made from other Applications.
 
@@ -117,6 +117,74 @@ TBD
 - Increase in ArgoCD code base complexity.
 - All current sync options are booleans. Adding a `FieldManager` option would be a string.
 
+## Demos
+
+### Removal Demo
+
+```bash
+#!/usr/bin/env bash
+
+# Create a temporary cluster
+kind create cluster
+
+# Create the shared resource
+cat <<EOF > /tmp/base-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx
+  annotations:
+    foo: bar
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: nginx
+  template:
+    metadata:
+      labels:
+        app: nginx
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:latest
+        ports:
+        - containerPort: 80
+EOF
+
+kubectl --context kind-kind apply -f /tmp/base-deployment.yaml --server-side --field-manager base
+kubectl --context kind-kind get deployment nginx -oyaml
+
+# Another app adds an annotation
+cat <<EOF > /tmp/app1-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx
+  annotations:
+    asdf: qwerty
+EOF
+
+kubectl --context kind-kind apply -f /tmp/app1-deployment.yaml --server-side --field-manager app1
+AFTER_APP1_APPLY=$(kubectl --context kind-kind get deployment nginx -oyaml)
+
+# The same app removes only its anntoation 
+cat <<EOF > /tmp/app1-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx
+EOF
+
+kubectl --context kind-kind apply -f /tmp/app1-deployment.yaml --server-side --field-manager app1
+AFTER_APP1_REMOVAL=$(kubectl --context kind-kind get deployment nginx -oyaml)
+
+# Diff before and after removal of a field on a shared resource
+# https://github.com/dandavison/delta
+delta -s <(echo "$AFTER_APP1_APPLY") <(echo "$AFTER_APP1_REMOVAL")
+
+kind delete cluster
+```
 
 [1]: https://kubernetes.io/docs/reference/using-api/server-side-apply/
 [2]: https://kubernetes.io/docs/reference/using-api/server-side-apply/#managers
