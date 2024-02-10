@@ -124,19 +124,19 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	// Log a warning if there are unrecognized generators
 	_ = utils.CheckInvalidGenerators(&applicationSetInfo)
 	// desiredApplications is the main list of all expected Applications from all generators in this appset.
-	desiredApplications, applicationSetReason, err := r.generateApplications(logCtx, applicationSetInfo)
-	if err != nil {
+	desiredApplications, applicationSetReason, generatorsErr := r.generateApplications(logCtx, applicationSetInfo)
+	if generatorsErr != nil {
 		_ = r.setApplicationSetStatusCondition(ctx,
 			&applicationSetInfo,
 			argov1alpha1.ApplicationSetCondition{
 				Type:    argov1alpha1.ApplicationSetConditionErrorOccurred,
-				Message: err.Error(),
+				Message: generatorsErr.Error(),
 				Reason:  string(applicationSetReason),
 				Status:  argov1alpha1.ApplicationSetConditionStatusTrue,
 			}, parametersGenerated,
 		)
 		if len(desiredApplications) < 1 {
-			return ctrl.Result{}, err
+			return ctrl.Result{}, generatorsErr
 		}
 	}
 
@@ -311,7 +311,7 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 
 	requeueAfter := r.getMinRequeueAfter(&applicationSetInfo)
 
-	if len(validateErrors) == 0 {
+	if len(validateErrors) == 0 && generatorsErr == nil {
 		if err := r.setApplicationSetStatusCondition(ctx,
 			&applicationSetInfo,
 			argov1alpha1.ApplicationSetCondition{
