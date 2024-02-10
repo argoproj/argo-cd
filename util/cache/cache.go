@@ -27,10 +27,10 @@ const (
 	envRedisRetryCount = "REDIS_RETRY_COUNT"
 	// defaultRedisRetryCount holds default number of retries
 	defaultRedisRetryCount = 3
-	// envSentinelPassword is an env variable name which stores redis sentinel password
-	envSentinelPassword = "REDIS_SENTINEL_PASSWORD"
-	// envSentinelUsername is an env variable name which stores redis sentinel username
-	envSentinelUsername = "REDIS_SENTINEL_USERNAME"
+	// envRedisSentinelPassword is an env variable name which stores redis sentinel password
+	envRedisSentinelPassword = "REDIS_SENTINEL_PASSWORD"
+	// envRedisSentinelUsername is an env variable name which stores redis sentinel username
+	envRedisSentinelUsername = "REDIS_SENTINEL_USERNAME"
 )
 
 const (
@@ -205,8 +205,8 @@ func AddCacheFlagsToCmd(cmd *cobra.Command, opts ...Options) func() (*Cache, err
 		}
 		password := os.Getenv(envRedisPassword)
 		username := os.Getenv(envRedisUsername)
-		sentinelUsername := os.Getenv(envSentinelUsername)
-		sentinelPassword := os.Getenv(envSentinelPassword)
+		sentinelUsername := os.Getenv(envRedisSentinelUsername)
+		sentinelPassword := os.Getenv(envRedisSentinelPassword)
 		if opt.FlagPrefix != "" {
 			if val := os.Getenv(opt.getEnvPrefix() + envRedisUsername); val != "" {
 				username = val
@@ -214,10 +214,10 @@ func AddCacheFlagsToCmd(cmd *cobra.Command, opts ...Options) func() (*Cache, err
 			if val := os.Getenv(opt.getEnvPrefix() + envRedisPassword); val != "" {
 				password = val
 			}
-			if val := os.Getenv(opt.getEnvPrefix() + envSentinelUsername); val != "" {
+			if val := os.Getenv(opt.getEnvPrefix() + sentinelUsername); val != "" {
 				sentinelUsername = val
 			}
-			if val := os.Getenv(opt.getEnvPrefix() + envSentinelPassword); val != "" {
+			if val := os.Getenv(opt.getEnvPrefix() + sentinelPassword); val != "" {
 				sentinelPassword = val
 			}
 		}
