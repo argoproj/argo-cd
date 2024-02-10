@@ -214,10 +214,10 @@ func AddCacheFlagsToCmd(cmd *cobra.Command, opts ...Options) func() (*Cache, err
 			if val := os.Getenv(opt.getEnvPrefix() + envRedisPassword); val != "" {
 				password = val
 			}
-			if val := os.Getenv(opt.getEnvPrefix() + sentinelUsername); val != "" {
+			if val := os.Getenv(opt.getEnvPrefix() + envRedisSentinelUsername); val != "" {
 				sentinelUsername = val
 			}
-			if val := os.Getenv(opt.getEnvPrefix() + sentinelPassword); val != "" {
+			if val := os.Getenv(opt.getEnvPrefix() + envRedisSentinelPassword); val != "" {
 				sentinelPassword = val
 			}
 		}
