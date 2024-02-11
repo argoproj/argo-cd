@@ -149,7 +149,7 @@ func hasShardingUpdates(old, new *v1alpha1.Cluster) bool {
 	if old == nil || new == nil || (old.Shard == nil && new.Shard == nil) {
 		return false
 	}
-	return old.Shard != new.Shard
+	return int64(*old.Shard) != int64(*new.Shard)
 }
 
 func (d *ClusterSharding) GetClusterAccessor() clusterAccessor {
