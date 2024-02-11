@@ -154,6 +154,8 @@ func hasShardingUpdates(old, new *v1alpha1.Cluster) bool {
 
 func (d *ClusterSharding) GetClusterAccessor() clusterAccessor {
 	return func() []*v1alpha1.Cluster {
+		d.lock.RLock()
+		defer d.lock.RUnlock()
 		clusters := make([]*v1alpha1.Cluster, 0, len(d.Clusters))
 		for _, c := range d.Clusters {
 			clusters = append(clusters, c)
