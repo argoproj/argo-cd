@@ -1324,7 +1324,7 @@ func TestLocalManifestSync(t *testing.T) {
 		Given().
 		LocalPath(guestbookPathLocal).
 		When().
-		Sync().
+		Sync("--local-repo-root", ".").
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		And(func(app *Application) {
@@ -1385,7 +1385,7 @@ func TestLocalSyncDryRunWithAutosyncEnabled(t *testing.T) {
 			assert.NoError(t, err)
 
 			appBefore := app.DeepCopy()
-			_, err = RunCli("app", "sync", app.Name, "--dry-run", "--local", guestbookPathLocal)
+			_, err = RunCli("app", "sync", app.Name, "--dry-run", "--local-repo-root", ".", "--local", guestbookPathLocal)
 			assert.NoError(t, err)
 
 			appAfter := app.DeepCopy()
@@ -1864,7 +1864,7 @@ func TestOrphanedResource(t *testing.T) {
 		ProjectSpec(AppProjectSpec{
 			SourceRepos:       []string{"*"},
 			Destinations:      []ApplicationDestination{{Namespace: "*", Server: "*"}},
-			OrphanedResources: &OrphanedResourcesMonitorSettings{Warn: pointer.Bool(true)},
+			OrphanedResources: &OrphanedResourcesMonitorSettings{Warn: pointer.BoolPtr(true)},
 		}).
 		Path(guestbookPath).
 		When().
@@ -1893,7 +1893,7 @@ func TestOrphanedResource(t *testing.T) {
 		ProjectSpec(AppProjectSpec{
 			SourceRepos:       []string{"*"},
 			Destinations:      []ApplicationDestination{{Namespace: "*", Server: "*"}},
-			OrphanedResources: &OrphanedResourcesMonitorSettings{Warn: pointer.Bool(true), Ignore: []OrphanedResourceKey{{Group: "Test", Kind: "ConfigMap"}}},
+			OrphanedResources: &OrphanedResourcesMonitorSettings{Warn: pointer.BoolPtr(true), Ignore: []OrphanedResourceKey{{Group: "Test", Kind: "ConfigMap"}}},
 		}).
 		When().
 		Refresh(RefreshTypeNormal).
@@ -1908,7 +1908,7 @@ func TestOrphanedResource(t *testing.T) {
 		ProjectSpec(AppProjectSpec{
 			SourceRepos:       []string{"*"},
 			Destinations:      []ApplicationDestination{{Namespace: "*", Server: "*"}},
-			OrphanedResources: &OrphanedResourcesMonitorSettings{Warn: pointer.Bool(true), Ignore: []OrphanedResourceKey{{Kind: "ConfigMap"}}},
+			OrphanedResources: &OrphanedResourcesMonitorSettings{Warn: pointer.BoolPtr(true), Ignore: []OrphanedResourceKey{{Kind: "ConfigMap"}}},
 		}).
 		When().
 		Refresh(RefreshTypeNormal).
@@ -1924,7 +1924,7 @@ func TestOrphanedResource(t *testing.T) {
 		ProjectSpec(AppProjectSpec{
 			SourceRepos:       []string{"*"},
 			Destinations:      []ApplicationDestination{{Namespace: "*", Server: "*"}},
-			OrphanedResources: &OrphanedResourcesMonitorSettings{Warn: pointer.Bool(true), Ignore: []OrphanedResourceKey{{Kind: "ConfigMap", Name: "orphaned-configmap"}}},
+			OrphanedResources: &OrphanedResourcesMonitorSettings{Warn: pointer.BoolPtr(true), Ignore: []OrphanedResourceKey{{Kind: "ConfigMap", Name: "orphaned-configmap"}}},
 		}).
 		When().
 		Refresh(RefreshTypeNormal).
@@ -2133,7 +2133,7 @@ func TestListResource(t *testing.T) {
 		ProjectSpec(AppProjectSpec{
 			SourceRepos:       []string{"*"},
 			Destinations:      []ApplicationDestination{{Namespace: "*", Server: "*"}},
-			OrphanedResources: &OrphanedResourcesMonitorSettings{Warn: pointer.Bool(true)},
+			OrphanedResources: &OrphanedResourcesMonitorSettings{Warn: pointer.BoolPtr(true)},
 		}).
 		Path(guestbookPath).
 		When().
@@ -2208,7 +2208,7 @@ func TestNamespaceAutoCreation(t *testing.T) {
 		CreateApp("--sync-option", "CreateNamespace=true").
 		Then().
 		And(func(app *Application) {
-			// Make sure the namespace we are about to update to does not exist
+			//Make sure the namespace we are about to update to does not exist
 			_, err := Run("", "kubectl", "get", "namespace", updatedNamespace)
 			assert.Error(t, err)
 			assert.Contains(t, err.Error(), "not found")
@@ -2227,7 +2227,7 @@ func TestNamespaceAutoCreation(t *testing.T) {
 		Then().
 		Expect(Success("")).
 		And(func(app *Application) {
-			// Verify delete app does not delete the namespace auto created
+			//Verify delete app does not delete the namespace auto created
 			output, err := Run("", "kubectl", "get", "namespace", updatedNamespace)
 			assert.NoError(t, err)
 			assert.Contains(t, output, updatedNamespace)

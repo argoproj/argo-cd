@@ -9,11 +9,10 @@ The following configuration options are available for Kustomize:
 * `commonLabels` is a string map of additional labels
 * `forceCommonLabels` is a boolean value which defines if it's allowed to override existing labels
 * `commonAnnotations` is a string map of additional annotations
-* `namespace` is a Kubernetes resources namespace
+* `namespace` is a kubernetes resources namespace
 * `forceCommonAnnotations` is a boolean value which defines if it's allowed to override existing annotations
 * `commonAnnotationsEnvsubst` is a boolean value which enables env variables substition in annotation  values
 * `patches` is a list of Kustomize patches that supports inline updates
-* `components` is a list of Kustomize components
 
 To use Kustomize with an overlay, point your path to the overlay.
 
@@ -143,34 +142,6 @@ argocd app set <appName> --kustomize-version v3.5.4
 ## Build Environment
 
 Kustomize apps have access to the [standard build environment](build-environment.md) which can be used in combination with a [config managment plugin](../operator-manual/config-management-plugins.md) to alter the rendered manifests.
-
-You can use these build environment variables in your Argo CD Application manifests. You can enable this by setting `.spec.source.kustomize.commonAnnotationsEnvsubst` to `true` in your Application manifest.
-
-For example, the following Application manifest will set the `app-source` annotation to the name of the Application:
-
-```yaml
-apiVersion: argoproj.io/v1alpha1
-kind: Application
-metadata:
-  name: guestbook-app
-  namespace: argocd
-spec:
-  project: default
-  destination:
-    namespace: demo
-    server: https://kubernetes.default.svc
-  source:
-    path: kustomize-guestbook
-    repoURL: https://github.com/argoproj/argocd-example-apps
-    targetRevision: HEAD
-    kustomize:
-      commonAnnotationsEnvsubst: true
-      commonAnnotations:
-        app-source: ${ARGOCD_APP_NAME}
-  syncPolicy:
-    syncOptions:
-      - CreateNamespace=true
-```
 
 ## Kustomizing Helm charts
 

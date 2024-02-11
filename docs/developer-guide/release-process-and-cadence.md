@@ -78,21 +78,3 @@ The feature PR must include:
 
 If these criteria are not met by the RC date, the feature will be ineligible for inclusion in the RC series or GA for
 that minor release. It will have to wait for the next minor release.
-
-### Security Patch Policy
-
-CVEs in Argo CD code will be patched for all [supported versions](../operator-manual/installation.md#supported-versions). 
-
-### Dependencies Lifecycle Policy
-
-Dependencies are evaluated before being introduced to ensure they:
-
-1) are actively maintained
-2) are maintained by trustworthy maintainers
-
-These evaluations vary from dependency to dependencies.
-
-Dependencies are also scheduled for removal if the project has been deprecated or if the project is no longer maintained.
-
-CVEs in dependencies will be patched for all supported versions if the CVE is applicable and is assessed by Snyk to be
-of high or critical severity. Automation generates a [new Snyk scan weekly](../snyk).

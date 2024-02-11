@@ -197,6 +197,7 @@ type ArgoCDServer struct {
 
 type ArgoCDServerOpts struct {
 	DisableAuth           bool
+	ContentTypes          []string
 	EnableGZip            bool
 	Insecure              bool
 	StaticAssetsDir       string
@@ -732,7 +733,7 @@ func (a *ArgoCDServer) newGRPCServer() (*grpc.Server, application.AppResourceTre
 		grpc.ConnectionTimeout(300 * time.Second),
 		grpc.KeepaliveEnforcementPolicy(
 			keepalive.EnforcementPolicy{
-				MinTime: common.GetGRPCKeepAliveEnforcementMinimum(),
+				MinTime: common.GRPCKeepAliveEnforcementMinimum,
 			},
 		),
 	}
@@ -989,6 +990,11 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandl
 	if a.EnableGZip {
 		handler = compressHandler(handler)
 	}
+	if len(a.ContentTypes) > 0 {
+		handler = enforceContentTypes(handler, a.ContentTypes)
+	} else {
+		log.WithField(common.SecurityField, common.SecurityHigh).Warnf("Content-Type enforcement is disabled, which may make your API vulnerable to CSRF attacks")
+	}
 	mux.Handle("/api/", handler)
 
 	terminal := application.NewHandler(a.appLister, a.Namespace, a.ApplicationNamespaces, a.db, a.enf, a.Cache, appResourceTreeFn, a.settings.ExecShells, *a.sessionMgr).
@@ -1053,6 +1059,20 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandl
 	}
 	mux.Handle("/", assetsHandler)
 	return &httpS
+}
+
+func enforceContentTypes(handler http.Handler, types []string) http.Handler {
+	allowedTypes := map[string]bool{}
+	for _, t := range types {
+		allowedTypes[strings.ToLower(t)] = true
+	}
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet || allowedTypes[strings.ToLower(r.Header.Get("Content-Type"))] {
+			handler.ServeHTTP(w, r)
+		} else {
+			http.Error(w, "Invalid content type", http.StatusUnsupportedMediaType)
+		}
+	})
 }
 
 // registerExtensions will try to register all configured extensions

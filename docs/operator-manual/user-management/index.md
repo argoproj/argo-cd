@@ -344,12 +344,6 @@ data:
     # for the 'localhost' (CLI) client to Dex. This field is optional. If omitted, the CLI will
     # use the same clientID as the Argo CD server
     cliClientID: vvvvwwwwxxxxyyyyzzzz
-
-    # PKCE authentication flow processes authorization flow from browser only - default false
-    # uses the clientID
-    # make sure the Identity Provider (IdP) is public and doesn't need clientSecret
-    # make sure the Identity Provider (IdP) has this redirect URI registered: https://argocd.example.com/pkce/verify
-    enablePKCEAuthentication: true
 ```
 
 !!! note
@@ -442,7 +436,7 @@ Add a `rootCA` to your `oidc.config` which contains the PEM encoded root certifi
 
 #### Example
 
-SSO `clientSecret` can thus be stored as a Kubernetes secret with the following manifests
+SSO `clientSecret` can thus be stored as a kubernetes secret with the following manifests
 
 `argocd-secret`:
 ```yaml

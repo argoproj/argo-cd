@@ -25,10 +25,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
 	"github.com/argoproj/argo-cd/v2/test/e2e/fixture"
-	"github.com/argoproj/argo-cd/v2/util/errors"
 )
-
-type ExternalNamespace string
 
 const (
 	// ArgoCDNamespace is the namespace into which Argo CD and ApplicationSet controller are deployed,
@@ -36,10 +33,7 @@ const (
 	ArgoCDNamespace = "argocd-e2e"
 
 	// ArgoCDExternalNamespace is an external namespace to test additional namespaces
-	ArgoCDExternalNamespace ExternalNamespace = "argocd-e2e-external"
-
-	// ArgoCDExternalNamespace2 is an external namespace to test additional namespaces
-	ArgoCDExternalNamespace2 ExternalNamespace = "argocd-e2e-external-2"
+	ArgoCDExternalNamespace = "argocd-e2e-external"
 
 	// ApplicationsResourcesNamespace is the namespace into which temporary resources (such as Deployments/Pods/etc)
 	// can be deployed, such as using it as the target namespace in an Application resource.
@@ -60,11 +54,11 @@ var (
 
 // E2EFixtureK8sClient contains Kubernetes clients initialized from local k8s configuration
 type E2EFixtureK8sClient struct {
-	KubeClientset            kubernetes.Interface
-	DynamicClientset         dynamic.Interface
-	AppClientset             appclientset.Interface
-	AppSetClientset          dynamic.ResourceInterface
-	ExternalAppSetClientsets map[ExternalNamespace]dynamic.ResourceInterface
+	KubeClientset           kubernetes.Interface
+	DynamicClientset        dynamic.Interface
+	AppClientset            appclientset.Interface
+	AppSetClientset         dynamic.ResourceInterface
+	ExternalAppSetClientset dynamic.ResourceInterface
 }
 
 func GetEnvWithDefault(envName, defaultValue string) string {
@@ -97,11 +91,7 @@ func GetE2EFixtureK8sClient() *E2EFixtureK8sClient {
 		}
 
 		internalClientVars.AppSetClientset = internalClientVars.DynamicClientset.Resource(v1alpha1.SchemeGroupVersion.WithResource("applicationsets")).Namespace(TestNamespace())
-		internalClientVars.ExternalAppSetClientsets = map[ExternalNamespace]dynamic.ResourceInterface{
-			ArgoCDExternalNamespace:  internalClientVars.DynamicClientset.Resource(v1alpha1.SchemeGroupVersion.WithResource("applicationsets")).Namespace(string(ArgoCDExternalNamespace)),
-			ArgoCDExternalNamespace2: internalClientVars.DynamicClientset.Resource(v1alpha1.SchemeGroupVersion.WithResource("applicationsets")).Namespace(string(ArgoCDExternalNamespace2)),
-		}
-
+		internalClientVars.ExternalAppSetClientset = internalClientVars.DynamicClientset.Resource(v1alpha1.SchemeGroupVersion.WithResource("applicationsets")).Namespace(ArgoCDExternalNamespace)
 	})
 	return internalClientVars
 }
@@ -122,15 +112,9 @@ func EnsureCleanState(t *testing.T) {
 	}
 
 	// Delete the argocd-e2e-external namespace, if it exists
-	err2 := fixtureClient.KubeClientset.CoreV1().Namespaces().Delete(context.Background(), string(ArgoCDExternalNamespace), v1.DeleteOptions{PropagationPolicy: &policy})
+	err2 := fixtureClient.KubeClientset.CoreV1().Namespaces().Delete(context.Background(), ArgoCDExternalNamespace, v1.DeleteOptions{PropagationPolicy: &policy})
 	if err2 != nil && !strings.Contains(err2.Error(), "not found") { // 'not found' error is expected
-		CheckError(err2)
-	}
-
-	// Delete the argocd-e2e-external namespace, if it exists
-	err3 := fixtureClient.KubeClientset.CoreV1().Namespaces().Delete(context.Background(), string(ArgoCDExternalNamespace2), v1.DeleteOptions{PropagationPolicy: &policy})
-	if err3 != nil && !strings.Contains(err3.Error(), "not found") { // 'not found' error is expected
-		CheckError(err3)
+		CheckError(err)
 	}
 
 	// delete resources
@@ -193,15 +177,6 @@ func EnsureCleanState(t *testing.T) {
 func waitForExpectedClusterState() error {
 
 	fixtureClient := GetE2EFixtureK8sClient()
-
-	SetProjectSpec(fixtureClient, "default", v1alpha1.AppProjectSpec{
-		OrphanedResources:        nil,
-		SourceRepos:              []string{"*"},
-		Destinations:             []v1alpha1.ApplicationDestination{{Namespace: "*", Server: "*"}},
-		ClusterResourceWhitelist: []v1.GroupKind{{Group: "*", Kind: "*"}},
-		SourceNamespaces:         []string{string(ArgoCDExternalNamespace), string(ArgoCDExternalNamespace2)},
-	})
-
 	// Wait up to 60 seconds for all the ApplicationSets to delete
 	if err := waitForSuccess(func() error {
 		list, err := fixtureClient.AppSetClientset.List(context.Background(), v1.ListOptions{})
@@ -235,45 +210,56 @@ func waitForExpectedClusterState() error {
 	}
 
 	// Wait up to 120 seconds for namespace to not exist
-	for _, namespace := range []string{string(ApplicationsResourcesNamespace), string(ArgoCDExternalNamespace), string(ArgoCDExternalNamespace2)} {
-		// Wait up to 120 seconds for namespace to not exist
-		if err := waitForSuccess(func() error {
-			return cleanUpNamespace(fixtureClient, namespace)
-		}, time.Now().Add(120*time.Second)); err != nil {
-			return err
+	if err := waitForSuccess(func() error {
+		_, err := fixtureClient.KubeClientset.CoreV1().Namespaces().Get(context.Background(), ApplicationsResourcesNamespace, v1.GetOptions{})
+
+		msg := ""
+
+		if err == nil {
+			msg = fmt.Sprintf("namespace '%s' still exists, after delete", ApplicationsResourcesNamespace)
 		}
+
+		if msg == "" && err != nil && strings.Contains(err.Error(), "not found") {
+			// Success is an error containing 'applicationset-e2e' not found.
+			return nil
+		}
+
+		if msg == "" {
+			msg = err.Error()
+		}
+
+		return fmt.Errorf(msg)
+
+	}, time.Now().Add(120*time.Second)); err != nil {
+		return err
+	}
+
+	// Wait up to 120 seconds for namespace to not exist
+	if err := waitForSuccess(func() error {
+		_, err := fixtureClient.KubeClientset.CoreV1().Namespaces().Get(context.Background(), ArgoCDExternalNamespace, v1.GetOptions{})
+
+		msg := ""
+
+		if err == nil {
+			msg = fmt.Sprintf("namespace '%s' still exists, after delete", ArgoCDExternalNamespace)
+		}
+
+		if msg == "" && err != nil && strings.Contains(err.Error(), "not found") {
+			// Success is an error containing 'applicationset-e2e' not found.
+			return nil
+		}
+
+		if msg == "" {
+			msg = err.Error()
+		}
+
+		return fmt.Errorf(msg)
+
+	}, time.Now().Add(120*time.Second)); err != nil {
+		return err
 	}
 
 	return nil
-}
-
-func SetProjectSpec(fixtureClient *E2EFixtureK8sClient, project string, spec v1alpha1.AppProjectSpec) {
-	proj, err := fixtureClient.AppClientset.ArgoprojV1alpha1().AppProjects(TestNamespace()).Get(context.Background(), project, v1.GetOptions{})
-	errors.CheckError(err)
-	proj.Spec = spec
-	_, err = fixtureClient.AppClientset.ArgoprojV1alpha1().AppProjects(TestNamespace()).Update(context.Background(), proj, v1.UpdateOptions{})
-	errors.CheckError(err)
-}
-
-func cleanUpNamespace(fixtureClient *E2EFixtureK8sClient, namespace string) error {
-	_, err := fixtureClient.KubeClientset.CoreV1().Namespaces().Get(context.Background(), namespace, v1.GetOptions{})
-
-	msg := ""
-
-	if err == nil {
-		msg = fmt.Sprintf("namespace '%s' still exists, after delete", namespace)
-	}
-
-	if msg == "" && err != nil && strings.Contains(err.Error(), "not found") {
-		// Success is an error containing 'applicationset-e2e' not found.
-		return nil
-	}
-
-	if msg == "" {
-		msg = err.Error()
-	}
-
-	return fmt.Errorf(msg)
 }
 
 // waitForSuccess waits for the condition to return a non-error value.
