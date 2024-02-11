@@ -111,8 +111,8 @@ func (sharding *ClusterSharding) Update(c *v1alpha1.Cluster) {
 
 func (sharding *ClusterSharding) GetDistribution() map[string]int {
 	sharding.lock.RLock()
+	defer sharding.lock.RUnlock()
 	shards := sharding.Shards
-	sharding.lock.RUnlock()
 
 	distribution := make(map[string]int, len(shards))
 	for k, v := range shards {
