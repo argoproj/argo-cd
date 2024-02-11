@@ -98,35 +98,45 @@ func (a CompareWith) Pointer() *CompareWith {
 }
 
 type CrdMetadata struct {
-	root     *fastjson.Value
-	metadata *fastjson.Value
+	apiVersion string
+	kind       string
+	namespace  string
+	name       string
 }
 
-func NewCrdMetadata(parser *fastjson.Parser, json string) (*CrdMetadata, error) {
+func NewCrdMetadata(parserPool *fastjson.ParserPool, json string) (*CrdMetadata, error) {
+	parser := parserPool.Get()
+	defer parserPool.Put(parser)
 	v, err := parser.Parse(json)
 	if err != nil {
 		return nil, err
 	}
+	if v.Type() == fastjson.TypeNull {
+		return nil, nil
+	}
+	metadata := v.Get("metadata")
 	return &CrdMetadata{
-		root:     v,
-		metadata: v.Get("metadata"),
+		apiVersion: string(v.GetStringBytes("apiVersion")),
+		kind:       string(v.GetStringBytes("kind")),
+		namespace:  string(metadata.GetStringBytes("namespace")),
+		name:       string(metadata.GetStringBytes("name")),
 	}, nil
 }
 
 func (c *CrdMetadata) GetAPIVersion() string {
-	return string(c.root.GetStringBytes("apiVersion"))
+	return c.apiVersion
 }
 
 func (c *CrdMetadata) GetKind() string {
-	return string(c.root.GetStringBytes("kind"))
+	return c.kind
 }
 
 func (c *CrdMetadata) GetNamespace() string {
-	return string(c.metadata.GetStringBytes("namespace"))
+	return c.namespace
 }
 
 func (c *CrdMetadata) GetName() string {
-	return string(c.metadata.GetStringBytes("name"))
+	return c.name
 }
 
 func (c *CrdMetadata) GroupVersionKind() schema.GroupVersionKind {
@@ -541,17 +551,13 @@ func (ctrl *ApplicationController) getResourceTree(a *appv1.Application, managed
 	for i := range managedResources {
 		managedResource := managedResources[i]
 		delete(orphanedNodesMap, kube.NewResourceKey(managedResource.Group, managedResource.Kind, managedResource.Namespace, managedResource.Name))
-		liveParser := ctrl.parserPool.Get()
-		defer ctrl.parserPool.Put(liveParser)
-		live, err := NewCrdMetadata(liveParser, managedResource.LiveState)
+		live, err := NewCrdMetadata(ctrl.parserPool, managedResource.LiveState)
 		if err != nil {
 			return nil, fmt.Errorf("failed to unmarshal live state of managed resources: %w", err)
 		}
 
 		if live == nil {
-			targetParser := ctrl.parserPool.Get()
-			defer ctrl.parserPool.Put(targetParser)
-			target, err := NewCrdMetadata(targetParser, managedResource.TargetState)
+			target, err := NewCrdMetadata(ctrl.parserPool, managedResource.TargetState)
 			if err != nil {
 				return nil, fmt.Errorf("failed to unmarshal target state of managed resources: %w", err)
 			}
