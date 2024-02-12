@@ -234,6 +234,7 @@ func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, sources []v1alp
 	}
 	logCtx = logCtx.WithField("time_ms", time.Since(ts.StartTime).Milliseconds())
 	logCtx.Info("getRepoObjs stats")
+
 	return targetObjs, manifestInfos, nil
 }
 
@@ -655,6 +656,18 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 			// the source object, don't store sync status, and do not affect
 			// overall sync status
 		} else if !isManagedNs && (diffResult.Modified || targetObj == nil || liveObj == nil) {
+
+			// logging for precisely, can be removed in future
+			if diffResult.Modified {
+				logCtx.Infof("Resource %s is out of sync, because diff between live and desired state", resState.Name)
+				logCtx.Infof("Live state: %s", string(diffResult.NormalizedLive))
+				logCtx.Infof("Desired state: %s", string(diffResult.PredictedLive))
+			} else if targetObj == nil {
+				logCtx.Infof("Resource %s is out of sync, because target object is nil", resState.Name)
+			} else if liveObj == nil {
+				logCtx.Infof("Resource %s is out of sync, because live object is nil", resState.Name)
+			}
+
 			// Set resource state to OutOfSync since one of the following is true:
 			// * target and live resource are different
 			// * target resource not defined and live resource is extra
@@ -705,6 +718,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 	if failedToLoadObjs {
 		syncCode = v1alpha1.SyncStatusCodeUnknown
 	} else if app.HasChangedManagedNamespaceMetadata() {
+		logCtx.Infof("Application has changed managedNamespaceMetadata, marking application as out of sync")
 		syncCode = v1alpha1.SyncStatusCodeOutOfSync
 	}
 	var revision string
