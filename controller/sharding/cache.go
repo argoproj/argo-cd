@@ -59,7 +59,7 @@ func (s *ClusterSharding) IsManagedCluster(c *v1alpha1.Cluster) bool {
 		log.Warnf("The cluster %s has no assigned shard.", c.Server)
 	}
 	log.Debugf("Checking if cluster %s with clusterShard %d should be processed by shard %d", c.Server, clusterShard, s.Shard)
-	return s.Shard != nil && clusterShard == int64(*s.Shard)
+	return clusterShard == s.Shard
 }
 
 func (sharding *ClusterSharding) Init(clusters *v1alpha1.ClusterList) {
