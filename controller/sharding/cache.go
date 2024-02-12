@@ -146,10 +146,10 @@ func (sharding *ClusterSharding) updateDistribution() {
 // nil checking is done for the corner case of the in-cluster cluster which may
 // have a nil shard assigned
 func hasShardingUpdates(old, new *v1alpha1.Cluster) bool {
-	if old == nil || new == nil || (old.Shard == nil && new.Shard == nil) {
+	if old == nil || new == nil || old.Shard == nil || new.Shard == nil {
 		return false
 	}
-	return old.Shard == nil || new.Shard == nil || int64(*old.Shard) != int64(*new.Shard)
+	return int64(*old.Shard) != int64(*new.Shard)
 }
 
 func (d *ClusterSharding) GetClusterAccessor() clusterAccessor {
