@@ -2,20 +2,15 @@
 
 ## Developing And Testing
 
-The website is build using `mkdocs` and `mkdocs-material`. 
+The website is built using `mkdocs` and `mkdocs-material`. 
 
 To test:
 
 ```bash
+make build-docs
 make serve-docs
 ```
 Once running, you can view your locally built documentation at [http://0.0.0.0:8000/](http://0.0.0.0:8000/). 
-
-## Deploying
-
-```bash
-make publish-docs
-```
 
 ## Analytics
 
