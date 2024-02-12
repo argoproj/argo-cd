@@ -59,7 +59,7 @@ func (s *ClusterSharding) IsManagedCluster(c *v1alpha1.Cluster) bool {
 		log.Warnf("The cluster %s has no assigned shard.", c.Server)
 	}
 	log.Debugf("Checking if cluster %s with clusterShard %d should be processed by shard %d", c.Server, clusterShard, s.Shard)
-	return clusterShard == s.Shard
+	return s.Shard != nil && clusterShard == int64(*s.Shard)
 }
 
 func (sharding *ClusterSharding) Init(clusters *v1alpha1.ClusterList) {
@@ -146,10 +146,10 @@ func (sharding *ClusterSharding) updateDistribution() {
 // nil checking is done for the corner case of the in-cluster cluster which may
 // have a nil shard assigned
 func hasShardingUpdates(old, new *v1alpha1.Cluster) bool {
-	if old == nil || new == nil || old.Shard == nil || new.Shard == nil {
+	if old == nil || new == nil || (old.Shard == nil && new.Shard == nil) {
 		return false
 	}
-	return int64(*old.Shard) != int64(*new.Shard)
+	return old.Shard == nil || new.Shard == nil || int64(*old.Shard) != int64(*new.Shard)
 }
 
 func (d *ClusterSharding) GetClusterAccessor() clusterAccessor {
