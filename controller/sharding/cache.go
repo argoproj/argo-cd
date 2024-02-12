@@ -111,8 +111,8 @@ func (sharding *ClusterSharding) Update(c *v1alpha1.Cluster) {
 
 func (sharding *ClusterSharding) GetDistribution() map[string]int {
 	sharding.lock.RLock()
+	defer sharding.lock.RUnlock()
 	shards := sharding.Shards
-	sharding.lock.RUnlock()
 
 	distribution := make(map[string]int, len(shards))
 	for k, v := range shards {
@@ -149,7 +149,7 @@ func hasShardingUpdates(old, new *v1alpha1.Cluster) bool {
 	if old == nil || new == nil || (old.Shard == nil && new.Shard == nil) {
 		return false
 	}
-	return int64(*old.Shard) != int64(*new.Shard)
+	return old.Shard == nil || new.Shard == nil || int64(*old.Shard) != int64(*new.Shard)
 }
 
 func (d *ClusterSharding) GetClusterAccessor() clusterAccessor {
