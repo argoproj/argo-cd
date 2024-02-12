@@ -3,12 +3,14 @@ package metrics
 import (
 	"fmt"
 	"net/http"
+	"runtime"
 	"strconv"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
+	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/util/profile"
 )
 
@@ -21,6 +23,14 @@ type MetricsServer struct {
 }
 
 var (
+	buildInfo = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Namespace: metrics.Namespace,
+			Name:      "build_info",
+			Help:      "A metric with a constant '1' value labeled by version from which Argo-CD was built.",
+		},
+		[]string{"version", "goversion", "goarch", "commit"},
+
 	redisRequestCounter = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "argocd_redis_request_total",
@@ -62,6 +72,10 @@ func NewMetricsServer(host string, port int) *MetricsServer {
 		prometheus.DefaultGatherer,
 	}, promhttp.HandlerOpts{}))
 	profile.RegisterProfiler(mux)
+	
+	vers := common.GetVersion()
+	registry.MustRegister(buildInfo)
+	buildInfo.WithLabelValues(vers.Version, runtime.Version(), runtime.GOARCH, vers.GitCommit).Set(1)
 
 	registry.MustRegister(redisRequestCounter)
 	registry.MustRegister(redisRequestHistogram)
