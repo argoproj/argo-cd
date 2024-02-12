@@ -97,6 +97,9 @@ func (a CompareWith) Pointer() *CompareWith {
 }
 
 func (c *CompareWith) String() string {
+	if c == nil {
+		return "Unknown"
+	}
 	switch *c {
 	case CompareWithLatestForceResolve:
 		return "CompareWithLatestForceResolve"
