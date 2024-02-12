@@ -13,7 +13,7 @@
   "dependencies": {
     "@fortawesome/fontawesome-free": "^6.4.0",
     "@types/react-virtualized": "^9.21.21",
-    "@types/superagent": "^4.1.15",
+    "@types/superagent": "^4.1.21",
     "ansi-to-react": "^6.1.6",
     "argo-ui": "git+https://github.com/argoproj/argo-ui.git",
     "buffer": "^6.0.3",
@@ -120,6 +120,6 @@
     "webpack": "^5.84.1",
     "webpack-cli": "^4.9.2",
     "webpack-dev-server": "^4.7.4",
-    "yarn": "^1.22.10"
+    "yarn": "^1.22.21"
   }
 }

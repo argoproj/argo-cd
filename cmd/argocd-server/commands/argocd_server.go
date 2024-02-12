@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"math"
+	"strings"
 	"time"
 
 	"github.com/argoproj/pkg/stats"
@@ -18,8 +19,10 @@ import (
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
 	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
+	reposervercache "github.com/argoproj/argo-cd/v2/reposerver/cache"
 	"github.com/argoproj/argo-cd/v2/server"
 	servercache "github.com/argoproj/argo-cd/v2/server/cache"
+	cacheutil "github.com/argoproj/argo-cd/v2/util/cache"
 	"github.com/argoproj/argo-cd/v2/util/cli"
 	"github.com/argoproj/argo-cd/v2/util/dex"
 	"github.com/argoproj/argo-cd/v2/util/env"
@@ -50,6 +53,8 @@ func NewCommand() *cobra.Command {
 		metricsHost              string
 		metricsPort              int
 		otlpAddress              string
+		otlpInsecure             bool
+		otlpHeaders              map[string]string
 		otlpAttrs                []string
 		glogLevel                int
 		clientConfig             clientcmd.ClientConfig
@@ -59,9 +64,11 @@ func NewCommand() *cobra.Command {
 		repoServerAddress        string
 		dexServerAddress         string
 		disableAuth              bool
+		contentTypes             string
 		enableGZip               bool
 		tlsConfigCustomizerSrc   func() (tls.ConfigCustomizer, error)
 		cacheSrc                 func() (*servercache.Cache, error)
+		repoServerCacheSrc       func() (*reposervercache.Cache, error)
 		frameOptions             string
 		contentSecurityPolicy    string
 		repoServerPlaintext      bool
@@ -102,6 +109,8 @@ func NewCommand() *cobra.Command {
 			tlsConfigCustomizer, err := tlsConfigCustomizerSrc()
 			errors.CheckError(err)
 			cache, err := cacheSrc()
+			errors.CheckError(err)
+			repoServerCache, err := repoServerCacheSrc()
 			errors.CheckError(err)
 
 			kubeclientset := kubernetes.NewForConfigOrDie(config)
@@ -163,6 +172,11 @@ func NewCommand() *cobra.Command {
 				baseHRef = rootPath
 			}
 
+			var contentTypesList []string
+			if contentTypes != "" {
+				contentTypesList = strings.Split(contentTypes, ";")
+			}
+
 			argoCDOpts := server.ArgoCDServerOpts{
 				Insecure:              insecure,
 				ListenPort:            listenPort,
@@ -178,9 +192,11 @@ func NewCommand() *cobra.Command {
 				DexServerAddr:         dexServerAddress,
 				DexTLSConfig:          dexTlsConfig,
 				DisableAuth:           disableAuth,
+				ContentTypes:          contentTypesList,
 				EnableGZip:            enableGZip,
 				TLSConfigCustomizer:   tlsConfigCustomizer,
 				Cache:                 cache,
+				RepoServerCache:       repoServerCache,
 				XFrameOptions:         frameOptions,
 				ContentSecurityPolicy: contentSecurityPolicy,
 				RedisClient:           redisClient,
@@ -200,7 +216,7 @@ func NewCommand() *cobra.Command {
 				var closer func()
 				ctx, cancel := context.WithCancel(ctx)
 				if otlpAddress != "" {
-					closer, err = traceutil.InitTracer(ctx, "argocd-server", otlpAddress, otlpAttrs)
+					closer, err = traceutil.InitTracer(ctx, "argocd-server", otlpAddress, otlpInsecure, otlpHeaders, otlpAttrs)
 					if err != nil {
 						log.Fatalf("failed to initialize tracing: %v", err)
 					}
@@ -232,6 +248,7 @@ func NewCommand() *cobra.Command {
 	command.Flags().StringVar(&repoServerAddress, "repo-server", env.StringFromEnv("ARGOCD_SERVER_REPO_SERVER", common.DefaultRepoServerAddr), "Repo server address")
 	command.Flags().StringVar(&dexServerAddress, "dex-server", env.StringFromEnv("ARGOCD_SERVER_DEX_SERVER", common.DefaultDexServerAddr), "Dex server address")
 	command.Flags().BoolVar(&disableAuth, "disable-auth", env.ParseBoolFromEnv("ARGOCD_SERVER_DISABLE_AUTH", false), "Disable client authentication")
+	command.Flags().StringVar(&contentTypes, "api-content-types", env.StringFromEnv("ARGOCD_API_CONTENT_TYPES", "application/json"), "Semicolon separated list of allowed content types for non GET api requests. Any content type is allowed if empty.")
 	command.Flags().BoolVar(&enableGZip, "enable-gzip", env.ParseBoolFromEnv("ARGOCD_SERVER_ENABLE_GZIP", true), "Enable GZIP compression")
 	command.AddCommand(cli.NewVersionCmd(cliName))
 	command.Flags().StringVar(&listenHost, "address", env.StringFromEnv("ARGOCD_SERVER_LISTEN_ADDRESS", common.DefaultAddressAPIServer), "Listen on given address")
@@ -239,6 +256,8 @@ func NewCommand() *cobra.Command {
 	command.Flags().StringVar(&metricsHost, env.StringFromEnv("ARGOCD_SERVER_METRICS_LISTEN_ADDRESS", "metrics-address"), common.DefaultAddressAPIServerMetrics, "Listen for metrics on given address")
 	command.Flags().IntVar(&metricsPort, "metrics-port", common.DefaultPortArgoCDAPIServerMetrics, "Start metrics on given port")
 	command.Flags().StringVar(&otlpAddress, "otlp-address", env.StringFromEnv("ARGOCD_SERVER_OTLP_ADDRESS", ""), "OpenTelemetry collector address to send traces to")
+	command.Flags().BoolVar(&otlpInsecure, "otlp-insecure", env.ParseBoolFromEnv("ARGOCD_SERVER_OTLP_INSECURE", true), "OpenTelemetry collector insecure mode")
+	command.Flags().StringToStringVar(&otlpHeaders, "otlp-headers", env.ParseStringToStringFromEnv("ARGOCD_SERVER_OTLP_HEADERS", map[string]string{}, ","), "List of OpenTelemetry collector extra headers sent with traces, headers are comma-separated key-value pairs(e.g. key1=value1,key2=value2)")
 	command.Flags().StringSliceVar(&otlpAttrs, "otlp-attrs", env.StringsFromEnv("ARGOCD_SERVER_OTLP_ATTRS", []string{}, ","), "List of OpenTelemetry collector extra attrs when send traces, each attribute is separated by a colon(e.g. key:value)")
 	command.Flags().IntVar(&repoServerTimeoutSeconds, "repo-server-timeout-seconds", env.ParseNumFromEnv("ARGOCD_SERVER_REPO_SERVER_TIMEOUT_SECONDS", 60, 0, math.MaxInt64), "Repo server RPC call timeout seconds.")
 	command.Flags().StringVar(&frameOptions, "x-frame-options", env.StringFromEnv("ARGOCD_SERVER_X_FRAME_OPTIONS", "sameorigin"), "Set X-Frame-Options header in HTTP responses to `value`. To disable, set to \"\".")
@@ -250,8 +269,11 @@ func NewCommand() *cobra.Command {
 	command.Flags().StringSliceVar(&applicationNamespaces, "application-namespaces", env.StringsFromEnv("ARGOCD_APPLICATION_NAMESPACES", []string{}, ","), "List of additional namespaces where application resources can be managed in")
 	command.Flags().BoolVar(&enableProxyExtension, "enable-proxy-extension", env.ParseBoolFromEnv("ARGOCD_SERVER_ENABLE_PROXY_EXTENSION", false), "Enable Proxy Extension feature")
 	tlsConfigCustomizerSrc = tls.AddTLSFlagsToCmd(command)
-	cacheSrc = servercache.AddCacheFlagsToCmd(command, func(client *redis.Client) {
-		redisClient = client
+	cacheSrc = servercache.AddCacheFlagsToCmd(command, cacheutil.Options{
+		OnClientCreated: func(client *redis.Client) {
+			redisClient = client
+		},
 	})
+	repoServerCacheSrc = reposervercache.AddCacheFlagsToCmd(command, cacheutil.Options{FlagPrefix: "repo-server-"})
 	return command
 }
