@@ -73,14 +73,13 @@ func NewMetricsServer(host string, port int) *MetricsServer {
 	}, promhttp.HandlerOpts{}))
 	profile.RegisterProfiler(mux)
 	
-	vers := common.GetVersion()
 	registry.MustRegister(buildInfo)
-	buildInfo.WithLabelValues(vers.Version, runtime.Version(), runtime.GOARCH, vers.GitCommit).Set(1)
-
 	registry.MustRegister(redisRequestCounter)
 	registry.MustRegister(redisRequestHistogram)
 	registry.MustRegister(extensionRequestCounter)
 	registry.MustRegister(extensionRequestDuration)
+
+	recordBuildInfo()
 
 	return &MetricsServer{
 		Server: &http.Server{
@@ -109,4 +108,10 @@ func (m *MetricsServer) IncExtensionRequestCounter(extension string, status int)
 
 func (m *MetricsServer) ObserveExtensionRequestDuration(extension string, duration time.Duration) {
 	m.extensionRequestDuration.WithLabelValues(extension).Observe(duration.Seconds())
+}
+
+// recordBuildInfo publishes information about Argo-CD version and runtime info through an info metric (gauge).
+func recordBuildInfo() {
+	vers := common.GetVersion()
+	buildInfo.WithLabelValues(vers.Version, runtime.Version(), runtime.GOARCH, vers.GitCommit).Set(1)
 }
