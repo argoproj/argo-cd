@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/bmatcuk/doublestar"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -158,10 +159,10 @@ func (t *tgz) tgzFile(path string, fi os.FileInfo, err error) error {
 		return fmt.Errorf("relative path error: %s", err)
 	}
 
-	if t.inclusions != nil && base != "." && !fi.IsDir() {
+	if t.inclusions != nil && len(t.inclusions) > 0 && base != "." && !fi.IsDir() {
 		included := false
 		for _, inclusionPattern := range t.inclusions {
-			found, err := filepath.Match(inclusionPattern, base)
+			found, err := doublestar.Match(inclusionPattern, relativePath)
 			if err != nil {
 				return fmt.Errorf("error verifying inclusion pattern %q: %w", inclusionPattern, err)
 			}
@@ -176,7 +177,7 @@ func (t *tgz) tgzFile(path string, fi os.FileInfo, err error) error {
 	}
 	if t.exclusions != nil {
 		for _, exclusionPattern := range t.exclusions {
-			found, err := filepath.Match(exclusionPattern, relativePath)
+			found, err := doublestar.Match(exclusionPattern, relativePath)
 			if err != nil {
 				return fmt.Errorf("error verifying exclusion pattern %q: %w", exclusionPattern, err)
 			}

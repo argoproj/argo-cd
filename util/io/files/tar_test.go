@@ -51,12 +51,12 @@ func TestTgz(t *testing.T) {
 		filesWritten, err := files.Tgz(getTestAppDir(t), nil, exclusions, f.file)
 
 		// then
-		assert.Equal(t, 3, filesWritten)
+		assert.Equal(t, 6, filesWritten)
 		assert.NoError(t, err)
 		prepareRead(f)
 		files, err := read(f.file)
 		require.NoError(t, err)
-		assert.Equal(t, 8, len(files))
+		assert.Equal(t, 16, len(files))
 		assert.Contains(t, files, "README.md")
 		assert.Contains(t, files, "applicationset/latest/kustomization.yaml")
 		assert.Contains(t, files, "applicationset/stable/kustomization.yaml")
@@ -74,12 +74,12 @@ func TestTgz(t *testing.T) {
 		filesWritten, err := files.Tgz(getTestAppDir(t), nil, exclusions, f.file)
 
 		// then
-		assert.Equal(t, 2, filesWritten)
+		assert.Equal(t, 5, filesWritten)
 		assert.NoError(t, err)
 		prepareRead(f)
 		files, err := read(f.file)
 		require.NoError(t, err)
-		assert.Equal(t, 7, len(files))
+		assert.Equal(t, 15, len(files))
 		assert.Contains(t, files, "applicationset/latest/kustomization.yaml")
 		assert.Contains(t, files, "applicationset/stable/kustomization.yaml")
 	})
@@ -94,13 +94,46 @@ func TestTgz(t *testing.T) {
 		filesWritten, err := files.Tgz(getTestAppDir(t), nil, exclusions, f.file)
 
 		// then
-		assert.Equal(t, 1, filesWritten)
+		assert.Equal(t, 4, filesWritten)
 		assert.NoError(t, err)
 		prepareRead(f)
 		files, err := read(f.file)
 		require.NoError(t, err)
-		assert.Equal(t, 5, len(files))
+		assert.Equal(t, 13, len(files))
 		assert.Contains(t, files, "applicationset/stable/kustomization.yaml")
+	})
+
+	t.Run("will include and exclude files from both inclusion and exclusion lists", func(t *testing.T) {
+		// given
+		t.Parallel()
+		inclusions := []string{
+			"**/*.y*ml",
+			"**/deploy/**",
+		}
+		exclusions := []string{
+			"git/**",
+		}
+		f := setup(t)
+		defer teardown(f)
+
+		// when
+		filesWritten, err := files.Tgz(getTestAppDir(t), inclusions, exclusions, f.file)
+
+		// then
+		assert.Equal(t, 4, filesWritten)
+		assert.NoError(t, err)
+		prepareRead(f)
+
+		files, err := read(f.file)
+		require.NoError(t, err)
+
+		assert.Equal(t, 13, len(files))
+		assert.Contains(t, files, "applicationset/stable/kustomization.yaml")
+		assert.Contains(t, files, "applicationset/stable/kustomization.yaml")
+		assert.NotContains(t, files, "git/index")
+		assert.Contains(t, files, "src/domain/service/deploy/template.tpl")
+		assert.Contains(t, files, "src/domain/service/deploy/helmfile.yaml")
+		assert.NotContains(t, files, "README.md")
 	})
 }
 
@@ -174,7 +207,7 @@ func TestUntgz(t *testing.T) {
 		// then
 		require.NoError(t, err)
 		names := readFiles(t, destDir)
-		assert.Equal(t, 8, len(names))
+		assert.Equal(t, 16, len(names))
 		assert.Contains(t, names, "README.md")
 		assert.Contains(t, names, "applicationset/latest/kustomization.yaml")
 		assert.Contains(t, names, "applicationset/stable/kustomization.yaml")
