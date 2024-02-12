@@ -28,6 +28,7 @@ import (
 type MetricsServer struct {
 	*http.Server
 	syncCounter             *prometheus.CounterVec
+	refreshCounter          *prometheus.CounterVec
 	kubectlExecCounter      *prometheus.CounterVec
 	kubectlExecPendingGauge *prometheus.GaugeVec
 	k8sRequestCounter       *prometheus.CounterVec
@@ -88,6 +89,14 @@ var (
 			Help: "Number of application syncs.",
 		},
 		append(descAppDefaultLabels, "dest_server", "phase"),
+	)
+
+	refreshCounter = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "argocd_app_refresh_total",
+			Help: "Number of application refreshes.",
+		},
+		append(descAppDefaultLabels, "dest_server", "compare_with"),
 	)
 
 	k8sRequestCounter = prometheus.NewCounterVec(
@@ -171,6 +180,7 @@ func NewMetricsServer(addr string, appLister applister.ApplicationLister, appFil
 	healthz.ServeHealthCheck(mux, healthCheck)
 
 	registry.MustRegister(syncCounter)
+	registry.MustRegister(refreshCounter)
 	registry.MustRegister(k8sRequestCounter)
 	registry.MustRegister(kubectlExecCounter)
 	registry.MustRegister(kubectlExecPendingGauge)
@@ -186,6 +196,7 @@ func NewMetricsServer(addr string, appLister applister.ApplicationLister, appFil
 			Handler: mux,
 		},
 		syncCounter:             syncCounter,
+		refreshCounter:          refreshCounter,
 		k8sRequestCounter:       k8sRequestCounter,
 		kubectlExecCounter:      kubectlExecCounter,
 		kubectlExecPendingGauge: kubectlExecPendingGauge,
@@ -227,6 +238,11 @@ func (m *MetricsServer) IncSync(app *argoappv1.Application, state *argoappv1.Ope
 		return
 	}
 	m.syncCounter.WithLabelValues(app.Namespace, app.Name, app.Spec.GetProject(), app.Spec.Destination.Server, string(state.Phase)).Inc()
+}
+
+// IncRefresh increments the refresh counter for an application
+func (m *MetricsServer) IncRefresh(app *argoappv1.Application, compareWithStr string) {
+	m.refreshCounter.WithLabelValues(app.Namespace, app.Name, app.Spec.GetProject(), app.Spec.Destination.Server, compareWithStr).Inc()
 }
 
 func (m *MetricsServer) IncKubectlExec(command string) {
@@ -288,6 +304,7 @@ func (m *MetricsServer) SetExpiration(cacheExpiration time.Duration) error {
 	_, err := m.cron.AddFunc(fmt.Sprintf("@every %s", cacheExpiration), func() {
 		log.Infof("Reset Prometheus metrics based on existing expiration '%v'", cacheExpiration)
 		m.syncCounter.Reset()
+		m.refreshCounter.Reset()
 		m.kubectlExecCounter.Reset()
 		m.kubectlExecPendingGauge.Reset()
 		m.k8sRequestCounter.Reset()

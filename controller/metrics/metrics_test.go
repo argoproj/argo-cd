@@ -374,6 +374,34 @@ func assertMetricsNotPrinted(t *testing.T, expectedLines, body string) {
 	}
 }
 
+func TestMetricsRefreshCounter(t *testing.T) {
+	cancel, appLister := newFakeLister()
+	defer cancel()
+	metricsServ, err := NewMetricsServer("localhost:8082", appLister, appFilter, noOpHealthCheck, []string{})
+	assert.NoError(t, err)
+
+	appRefreshTotal := `
+# HELP argocd_app_refresh_total Number of application refreshes.
+# TYPE argocd_app_refresh_total counter
+argocd_app_refresh_total{compare_with="CompareWithLatest",dest_server="https://localhost:6443",name="my-app",namespace="argocd",project="important-project"} 2
+argocd_app_refresh_total{compare_with="ComparisonWithNothing",dest_server="https://localhost:6443",name="my-app",namespace="argocd",project="important-project"} 1
+`
+
+	fakeApp := newFakeApp(fakeApp)
+	metricsServ.IncRefresh(fakeApp, "ComparisonWithNothing")
+	metricsServ.IncRefresh(fakeApp, "CompareWithLatest")
+	metricsServ.IncRefresh(fakeApp, "CompareWithLatest")
+
+	req, err := http.NewRequest(http.MethodGet, "/metrics", nil)
+	assert.NoError(t, err)
+	rr := httptest.NewRecorder()
+	metricsServ.Handler.ServeHTTP(rr, req)
+	assert.Equal(t, rr.Code, http.StatusOK)
+	body := rr.Body.String()
+	log.Println(body)
+	assertMetricsPrinted(t, appRefreshTotal, body)
+}
+
 func TestReconcileMetrics(t *testing.T) {
 	cancel, appLister := newFakeLister()
 	defer cancel()
@@ -421,6 +449,12 @@ argocd_app_sync_total{dest_server="https://localhost:6443",name="my-app",namespa
 argocd_app_sync_total{dest_server="https://localhost:6443",name="my-app",namespace="argocd",phase="Succeeded",project="important-project"} 2
 `
 
+	appRefreshTotal := `
+# HELP argocd_app_refresh_total Number of application refreshes.
+# TYPE argocd_app_refresh_total counter
+argocd_app_refresh_total{compare_with="CompareWithLatest",dest_server="https://localhost:6443",name="my-app",namespace="argocd",project="important-project"} 2
+argocd_app_refresh_total{compare_with="ComparisonWithNothing",dest_server="https://localhost:6443",name="my-app",namespace="argocd",project="important-project"} 1
+`
 	req, err := http.NewRequest(http.MethodGet, "/metrics", nil)
 	assert.NoError(t, err)
 	rr := httptest.NewRecorder()
@@ -428,6 +462,7 @@ argocd_app_sync_total{dest_server="https://localhost:6443",name="my-app",namespa
 	assert.Equal(t, rr.Code, http.StatusOK)
 	body := rr.Body.String()
 	assertMetricsPrinted(t, appSyncTotal, body)
+	assertMetricsPrinted(t, appRefreshTotal, body)
 
 	err = metricsServ.SetExpiration(time.Second)
 	assert.NoError(t, err)
@@ -440,6 +475,7 @@ argocd_app_sync_total{dest_server="https://localhost:6443",name="my-app",namespa
 	body = rr.Body.String()
 	log.Println(body)
 	assertMetricsNotPrinted(t, appSyncTotal, body)
+	assertMetricsNotPrinted(t, appRefreshTotal, body)
 	err = metricsServ.SetExpiration(time.Second)
 	assert.Error(t, err)
 }

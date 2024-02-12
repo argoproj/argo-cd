@@ -96,6 +96,21 @@ func (a CompareWith) Pointer() *CompareWith {
 	return &a
 }
 
+func (c *CompareWith) String() string {
+	switch *c {
+	case CompareWithLatestForceResolve:
+		return "CompareWithLatestForceResolve"
+	case CompareWithLatest:
+		return "CompareWithLatest"
+	case CompareWithRecent:
+		return "CompareWithRecent"
+	case ComparisonWithNothing:
+		return "ComparisonWithNothing"
+	default:
+		return "Unknown"
+	}
+}
+
 // ApplicationController is the controller for application resources.
 type ApplicationController struct {
 	cache                *appstatecache.Cache
@@ -822,6 +837,12 @@ func (ctrl *ApplicationController) Run(ctx context.Context, statusProcessors int
 // needs to be the qualified name of the application, i.e. <namespace>/<name>.
 func (ctrl *ApplicationController) requestAppRefresh(appName string, compareWith *CompareWith, after *time.Duration) {
 	key := ctrl.toAppKey(appName)
+
+	obj, exists, err := ctrl.appInformer.GetIndexer().GetByKey(key)
+	app, ok := obj.(*appv1.Application)
+	if exists && err == nil && ok {
+		ctrl.metricsServer.IncRefresh(app, compareWith.String())
+	}
 
 	if compareWith != nil && after != nil {
 		ctrl.appComparisonTypeRefreshQueue.AddAfter(fmt.Sprintf("%s/%d", key, compareWith), *after)
