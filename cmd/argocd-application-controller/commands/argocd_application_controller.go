@@ -147,7 +147,8 @@ func NewCommand() *cobra.Command {
 				appController.InvalidateProjectsCache()
 			}))
 			kubectl := kubeutil.NewKubectl()
-			clusterSharding := getClusterSharding(kubeClient, settingsMgr, shardingAlgorithm, enableDynamicClusterDistribution)
+			clusterSharding, err := getClusterSharding(kubeClient, settingsMgr, shardingAlgorithm, enableDynamicClusterDistribution)
+			errors.CheckError(err)
 			appController, err = controller.NewApplicationController(
 				namespace,
 				settingsMgr,
@@ -170,6 +171,7 @@ func NewCommand() *cobra.Command {
 				applicationNamespaces,
 				&workqueueRateLimit,
 				serverSideDiff,
+				enableDynamicClusterDistribution,
 			)
 			errors.CheckError(err)
 			cacheutil.CollectMetrics(redisClient, appController.GetMetricsServer())
@@ -238,18 +240,23 @@ func NewCommand() *cobra.Command {
 	return &command
 }
 
-func getClusterSharding(kubeClient *kubernetes.Clientset, settingsMgr *settings.SettingsManager, shardingAlgorithm string, enableDynamicClusterDistribution bool) sharding.ClusterShardingCache {
+func getClusterSharding(kubeClient *kubernetes.Clientset, settingsMgr *settings.SettingsManager, shardingAlgorithm string, enableDynamicClusterDistribution bool) (sharding.ClusterShardingCache, error) {
 	var replicasCount int
-	applicationControllerName := env.StringFromEnv(common.EnvAppControllerName, common.DefaultApplicationControllerName)
-	appControllerDeployment, err := kubeClient.AppsV1().Deployments(settingsMgr.GetNamespace()).Get(context.Background(), applicationControllerName, metav1.GetOptions{})
+	if enableDynamicClusterDistribution {
+		applicationControllerName := env.StringFromEnv(common.EnvAppControllerName, common.DefaultApplicationControllerName)
+		appControllerDeployment, err := kubeClient.AppsV1().Deployments(settingsMgr.GetNamespace()).Get(context.Background(), applicationControllerName, metav1.GetOptions{})
 
-	// if the application controller deployment was not found, the Get() call returns an empty Deployment object. So, set the variable to nil explicitly
-	if err != nil && kubeerrors.IsNotFound(err) {
-		appControllerDeployment = nil
-	}
+		// if app controller deployment is not found when dynamic cluster distribution is enabled error out
+		if err != nil {
+			return nil, fmt.Errorf("(dymanic cluster distribution) failed to get app controller deployment: %v", err)
+		}
 
-	if enableDynamicClusterDistribution && appControllerDeployment != nil && appControllerDeployment.Spec.Replicas != nil {
-		replicasCount = int(*appControllerDeployment.Spec.Replicas)
+		if appControllerDeployment != nil && appControllerDeployment.Spec.Replicas != nil {
+			replicasCount = int(*appControllerDeployment.Spec.Replicas)
+		} else {
+			return nil, fmt.Errorf("(dymanic cluster distribution) failed to get app controller deployment replica count")
+		}
+
 	} else {
 		replicasCount = env.ParseNumFromEnv(common.EnvControllerReplicas, 0, 0, math.MaxInt32)
 	}
@@ -257,7 +264,7 @@ func getClusterSharding(kubeClient *kubernetes.Clientset, settingsMgr *settings.
 	if replicasCount > 1 {
 		// check for shard mapping using configmap if application-controller is a deployment
 		// else use existing logic to infer shard from pod name if application-controller is a statefulset
-		if enableDynamicClusterDistribution && appControllerDeployment != nil {
+		if enableDynamicClusterDistribution {
 			var err error
 			// retry 3 times if we find a conflict while updating shard mapping configMap.
 			// If we still see conflicts after the retries, wait for next iteration of heartbeat process.
@@ -286,5 +293,5 @@ func getClusterSharding(kubeClient *kubernetes.Clientset, settingsMgr *settings.
 		shardNumber = 0
 	}
 	db := db.NewDB(settingsMgr.GetNamespace(), settingsMgr, kubeClient)
-	return sharding.NewClusterSharding(db, shardNumber, replicasCount, shardingAlgorithm)
+	return sharding.NewClusterSharding(db, shardNumber, replicasCount, shardingAlgorithm), nil
 }
