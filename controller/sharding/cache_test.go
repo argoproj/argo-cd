@@ -174,6 +174,9 @@ func TestClusterSharding_Update(t *testing.T) {
 	assert.Equal(t, 0, distributionA)
 
 	sharding.Update(&v1alpha1.Cluster{
+		ID:     "1",
+		Server: "https://kubernetes.default.svc",
+	}, &v1alpha1.Cluster{
 		ID:     "4",
 		Server: "https://kubernetes.default.svc",
 	})
@@ -184,6 +187,51 @@ func TestClusterSharding_Update(t *testing.T) {
 	distributionA, ok = distributionAfter["https://kubernetes.default.svc"]
 	assert.True(t, ok)
 	assert.Equal(t, 1, distributionA)
+}
+
+func TestClusterSharding_UpdateServerName(t *testing.T) {
+	shard := 1
+	replicas := 2
+	sharding := setupTestSharding(shard, replicas)
+
+	sharding.Init(
+		&v1alpha1.ClusterList{
+			Items: []v1alpha1.Cluster{
+				{
+					ID:     "2",
+					Server: "https://127.0.0.1:6443",
+				},
+				{
+					ID:     "1",
+					Server: "https://kubernetes.default.svc",
+				},
+			},
+		},
+	)
+
+	distributionBefore := sharding.GetDistribution()
+	assert.Equal(t, 2, len(distributionBefore))
+
+	distributionA, ok := distributionBefore["https://kubernetes.default.svc"]
+	assert.True(t, ok)
+	assert.Equal(t, 0, distributionA)
+
+	sharding.Update(&v1alpha1.Cluster{
+		ID:     "1",
+		Server: "https://kubernetes.default.svc",
+	}, &v1alpha1.Cluster{
+		ID:     "1",
+		Server: "https://server2",
+	})
+
+	distributionAfter := sharding.GetDistribution()
+	assert.Equal(t, 2, len(distributionAfter))
+
+	_, ok = distributionAfter["https://kubernetes.default.svc"]
+	assert.False(t, ok) // the old server name should not be present anymore
+
+	_, ok = distributionAfter["https://server2"]
+	assert.True(t, ok) // the new server name should be present
 }
 
 func TestClusterSharding_IsManagedCluster(t *testing.T) {
@@ -399,6 +447,20 @@ func TestHasShardingUpdates(t *testing.T) {
 			new: &v1alpha1.Cluster{
 				ID:     "2",
 				Server: "https://kubernetes.default.svc",
+				Shard:  Int64Ptr(2),
+			},
+			expected: true,
+		},
+		{
+			name: "Server has changed",
+			old: &v1alpha1.Cluster{
+				ID:     "1",
+				Server: "https://server1",
+				Shard:  Int64Ptr(2),
+			},
+			new: &v1alpha1.Cluster{
+				ID:     "1",
+				Server: "https://server2",
 				Shard:  Int64Ptr(2),
 			},
 			expected: true,

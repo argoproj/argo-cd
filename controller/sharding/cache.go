@@ -12,7 +12,7 @@ type ClusterShardingCache interface {
 	Init(clusters *v1alpha1.ClusterList)
 	Add(c *v1alpha1.Cluster)
 	Delete(clusterServer string)
-	Update(c *v1alpha1.Cluster)
+	Update(oldCluster *v1alpha1.Cluster, newCluster *v1alpha1.Cluster)
 	IsManagedCluster(c *v1alpha1.Cluster) bool
 	GetDistribution() map[string]int
 }
@@ -97,13 +97,16 @@ func (sharding *ClusterSharding) Delete(clusterServer string) {
 	}
 }
 
-func (sharding *ClusterSharding) Update(c *v1alpha1.Cluster) {
+func (sharding *ClusterSharding) Update(oldCluster *v1alpha1.Cluster, newCluster *v1alpha1.Cluster) {
 	sharding.lock.Lock()
 	defer sharding.lock.Unlock()
 
-	old, ok := sharding.Clusters[c.Server]
-	sharding.Clusters[c.Server] = c
-	if !ok || hasShardingUpdates(old, c) {
+	if _, ok := sharding.Clusters[oldCluster.Server]; ok && oldCluster.Server != newCluster.Server {
+		delete(sharding.Clusters, oldCluster.Server)
+		delete(sharding.Shards, oldCluster.Server)
+	}
+	sharding.Clusters[newCluster.Server] = newCluster
+	if hasShardingUpdates(oldCluster, newCluster) {
 		sharding.updateDistribution()
 	} else {
 		log.Debugf("Skipping sharding distribution update. No relevant changes")
@@ -156,6 +159,10 @@ func hasShardingUpdates(old, new *v1alpha1.Cluster) bool {
 
 	// returns true if the cluster id has changed because some sharding algorithms depend on it.
 	if old.ID != new.ID {
+		return true
+	}
+
+	if old.Server != new.Server {
 		return true
 	}
 
