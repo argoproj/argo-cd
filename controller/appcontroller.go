@@ -1289,18 +1289,18 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 		logCtx.Infof("Initialized new operation: %v", *app.Operation)
 	}
 
+	// Check whether application is allowed to use project
+	appProject, err := ctrl.getAppProj(app)
+	if err != nil {
+		state.Phase = synccommon.OperationError
+		state.Message = err.Error()
+	}
+
 	if err := argo.ValidateDestination(context.Background(), &app.Spec.Destination, ctrl.db); err != nil {
 		state.Phase = synccommon.OperationFailed
 		state.Message = err.Error()
 	} else {
-		ctrl.appStateManager.SyncAppState(app, state)
-	}
-
-	// Check whether application is allowed to use project
-	_, err := ctrl.getAppProj(app)
-	if err != nil {
-		state.Phase = synccommon.OperationError
-		state.Message = err.Error()
+		ctrl.appStateManager.SyncAppState(appProject, app, state)
 	}
 
 	if state.Phase == synccommon.OperationRunning {

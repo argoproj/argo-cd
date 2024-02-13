@@ -78,21 +78,21 @@ func (m *appStateManager) getResourceOperations(server string) (kube.ResourceOpe
 	return ops, cleanup, nil
 }
 
-func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha1.OperationState) {
+func (m *appStateManager) SyncAppState(appProject *v1alpha1.AppProject, app *v1alpha1.Application, state *v1alpha1.OperationState) {
 	// Sync requests might be requested with ambiguous revisions (e.g. master, HEAD, v1.2.3).
 	// This can change meaning when resuming operations (e.g a hook sync). After calculating a
 	// concrete git commit SHA, the SHA is remembered in the status.operationState.syncResult field.
 	// This ensures that when resuming an operation, we sync to the same revision that we initially
 	// started with.
+	logCtx := log.WithFields(log.Fields{"application": app.Name, "appNamespace": app.Namespace, "project": app.Spec.Project})
+	logCtx.Infof("Entrer dans la fonction: %s", appProject.Name)
 	var revision string
 	var syncOp v1alpha1.SyncOperation
 	var syncRes *v1alpha1.SyncOperationResult
 	var source v1alpha1.ApplicationSource
 	var sources []v1alpha1.ApplicationSource
 	revisions := make([]string, 0)
-
-	var application v1alpha1.Application
-	fmt.Println("APP:", application.Name, "and AppProjectOfApp:", application.Spec.Project)
+	projectSyncOp := appProject.Spec.SyncPolicy.SyncOptions
 
 	if state.Operation.Sync == nil {
 		state.Phase = common.OperationFailed
@@ -101,9 +101,12 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 	}
 	syncOp = *state.Operation.Sync
 
+	logCtx.Infof("In the SyncAppState: %s", appProject.Name)
+	logCtx.Infof("If Argo found SharedFail: %t", projectSyncOp.HasOption("FailOnSharedResource=true"))
+
 	// validates if it should fail the sync if it finds shared resources
 	hasSharedResource, sharedResourceMessage := hasSharedResourceCondition(app)
-	if syncOp.SyncOptions.HasOption("FailOnSharedResource=true") &&
+	if (syncOp.SyncOptions.HasOption("FailOnSharedResource=true") || (projectSyncOp != nil && projectSyncOp.HasOption("FailOnSharedResource=true"))) &&
 		hasSharedResource {
 		state.Phase = common.OperationFailed
 		state.Message = fmt.Sprintf("Shared resource found: %s", sharedResourceMessage)
