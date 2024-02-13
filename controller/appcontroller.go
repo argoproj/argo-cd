@@ -1487,6 +1487,8 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 	}
 	now := metav1.Now()
 
+	logCtx.Infof("Comparing app state (comparisonLevel: %v, revisions: %v)", comparisonLevel, revisions)
+
 	compareResult := ctrl.appStateManager.CompareAppState(app, project, revisions, sources,
 		refreshType == appv1.RefreshTypeHard,
 		comparisonLevel == CompareWithLatestForceResolve, localManifests, hasMultipleSources)
