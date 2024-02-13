@@ -24,15 +24,12 @@ import (
 	cacheutil "github.com/argoproj/argo-cd/v2/util/cache"
 	appstatecache "github.com/argoproj/argo-cd/v2/util/cache/appstate"
 	"github.com/argoproj/argo-cd/v2/util/cli"
-	"github.com/argoproj/argo-cd/v2/util/db"
 	"github.com/argoproj/argo-cd/v2/util/env"
 	"github.com/argoproj/argo-cd/v2/util/errors"
 	kubeutil "github.com/argoproj/argo-cd/v2/util/kube"
 	"github.com/argoproj/argo-cd/v2/util/settings"
 	"github.com/argoproj/argo-cd/v2/util/tls"
 	"github.com/argoproj/argo-cd/v2/util/trace"
-	kubeerrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 const (
@@ -147,7 +144,7 @@ func NewCommand() *cobra.Command {
 				appController.InvalidateProjectsCache()
 			}))
 			kubectl := kubeutil.NewKubectl()
-			clusterSharding, err := getClusterSharding(kubeClient, settingsMgr, shardingAlgorithm, enableDynamicClusterDistribution)
+			clusterSharding, err := sharding.GetClusterSharding(kubeClient, settingsMgr, shardingAlgorithm, enableDynamicClusterDistribution)
 			errors.CheckError(err)
 			appController, err = controller.NewApplicationController(
 				namespace,
@@ -236,65 +233,4 @@ func NewCommand() *cobra.Command {
 		redisClient = client
 	})
 	return &command
-}
-
-func getClusterSharding(kubeClient *kubernetes.Clientset, settingsMgr *settings.SettingsManager, shardingAlgorithm string, enableDynamicClusterDistribution bool) (sharding.ClusterShardingCache, error) {
-	var (
-		replicasCount int
-	)
-	// StatefulSet mode and Deployment mode uses different default values for shard number.
-	defaultShardNumberValue := 0
-
-	if enableDynamicClusterDistribution {
-		applicationControllerName := env.StringFromEnv(common.EnvAppControllerName, common.DefaultApplicationControllerName)
-		appControllerDeployment, err := kubeClient.AppsV1().Deployments(settingsMgr.GetNamespace()).Get(context.Background(), applicationControllerName, metav1.GetOptions{})
-
-		// if app controller deployment is not found when dynamic cluster distribution is enabled error out
-		if err != nil {
-			return nil, fmt.Errorf("(dymanic cluster distribution) failed to get app controller deployment: %v", err)
-		}
-
-		if appControllerDeployment != nil && appControllerDeployment.Spec.Replicas != nil {
-			replicasCount = int(*appControllerDeployment.Spec.Replicas)
-			defaultShardNumberValue = -1
-		} else {
-			return nil, fmt.Errorf("(dymanic cluster distribution) failed to get app controller deployment replica count")
-		}
-
-	} else {
-		replicasCount = env.ParseNumFromEnv(common.EnvControllerReplicas, 0, 0, math.MaxInt32)
-	}
-	shardNumber := env.ParseNumFromEnv(common.EnvControllerShard, defaultShardNumberValue, -math.MaxInt32, math.MaxInt32)
-	if replicasCount > 1 {
-		// check for shard mapping using configmap if application-controller is a deployment
-		// else use existing logic to infer shard from pod name if application-controller is a statefulset
-		if enableDynamicClusterDistribution {
-			var err error
-			// retry 3 times if we find a conflict while updating shard mapping configMap.
-			// If we still see conflicts after the retries, wait for next iteration of heartbeat process.
-			for i := 0; i <= common.AppControllerHeartbeatUpdateRetryCount; i++ {
-				shardNumber, err = sharding.GetOrUpdateShardFromConfigMap(kubeClient, settingsMgr, replicasCount, shardNumber)
-				if err != nil && !kubeerrors.IsConflict(err) {
-					err = fmt.Errorf("unable to get shard due to error updating the sharding config map: %s", err)
-					break
-				}
-				log.Warnf("conflict when getting shard from shard mapping configMap. Retrying (%d/3)", i)
-			}
-			errors.CheckError(err)
-		} else {
-			if shardNumber < 0 {
-				var err error
-				shardNumber, err = sharding.InferShard()
-				errors.CheckError(err)
-			}
-			if shardNumber > replicasCount {
-				log.Warnf("Calculated shard number %d is greated than the number of replicas count. Defaulting to 0", shardNumber)
-				shardNumber = 0
-			}
-		}
-	} else {
-		log.Info("Processing all cluster shards")
-	}
-	db := db.NewDB(settingsMgr.GetNamespace(), settingsMgr, kubeClient)
-	return sharding.NewClusterSharding(db, shardNumber, replicasCount, shardingAlgorithm), nil
 }
