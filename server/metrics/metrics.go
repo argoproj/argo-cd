@@ -25,12 +25,11 @@ type MetricsServer struct {
 var (
 	buildInfo = prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
-			Namespace: metrics.Namespace,
-			Name:      "build_info",
-			Help:      "A metric with a constant '1' value labeled by version from which Argo-CD was built.",
+			Name: "build_info",
+			Help: "A metric with a constant '1' value labeled by version from which Argo-CD was built.",
 		},
 		[]string{"version", "goversion", "goarch", "commit"},
-
+	)
 	redisRequestCounter = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "argocd_redis_request_total",
@@ -72,7 +71,7 @@ func NewMetricsServer(host string, port int) *MetricsServer {
 		prometheus.DefaultGatherer,
 	}, promhttp.HandlerOpts{}))
 	profile.RegisterProfiler(mux)
-	
+
 	registry.MustRegister(buildInfo)
 	registry.MustRegister(redisRequestCounter)
 	registry.MustRegister(redisRequestHistogram)
