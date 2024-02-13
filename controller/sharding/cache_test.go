@@ -9,10 +9,8 @@ import (
 )
 
 func setupTestSharding(shard int, replicas int) *ClusterSharding {
-	shardingAlgorithm := "legacy" // we are using the legacy algorithm as it is deterministic based on the cluster id
-
+	shardingAlgorithm := "legacy" // we are using the legacy algorithm as it is deterministic based on the cluster id which is easier to test
 	db := &dbmocks.ArgoDB{}
-
 	return NewClusterSharding(db, shard, replicas, shardingAlgorithm).(*ClusterSharding)
 }
 
@@ -31,39 +29,39 @@ func TestNewClusterSharding(t *testing.T) {
 func TestClusterSharding_Add(t *testing.T) {
 	shard := 1
 	replicas := 2
-	sharding := setupTestSharding(shard, replicas) // Implement a helper function to setup the test environment
+	sharding := setupTestSharding(shard, replicas)
 
-	cluster := &v1alpha1.Cluster{
+	clusterA := &v1alpha1.Cluster{
 		ID:     "2",
 		Server: "https://127.0.0.1:6443",
 	}
 
-	sharding.Add(cluster)
+	sharding.Add(clusterA)
 
-	myCluster := v1alpha1.Cluster{
+	clusterB := v1alpha1.Cluster{
 		ID:     "1",
 		Server: "https://kubernetes.default.svc",
 	}
 
-	sharding.Add(&myCluster)
+	sharding.Add(&clusterB)
 
 	distribution := sharding.GetDistribution()
 
-	assert.Contains(t, sharding.Clusters, cluster.Server)
-	assert.Contains(t, sharding.Clusters, myCluster.Server)
+	assert.Contains(t, sharding.Clusters, clusterA.Server)
+	assert.Contains(t, sharding.Clusters, clusterB.Server)
 
-	clusterDistribution, ok := distribution[cluster.Server]
+	clusterDistribution, ok := distribution[clusterA.Server]
 	assert.True(t, ok)
 	assert.Equal(t, 1, clusterDistribution)
 
-	myClusterDistribution, ok := distribution[myCluster.Server]
+	myClusterDistribution, ok := distribution[clusterB.Server]
 	assert.True(t, ok)
 	assert.Equal(t, 0, myClusterDistribution)
 
 	assert.Equal(t, 2, len(distribution))
 }
 
-func TestClusterSharding_AddRoundRobin(t *testing.T) {
+func TestClusterSharding_AddRoundRobin_Redistributes(t *testing.T) {
 	shard := 1
 	replicas := 2
 
@@ -71,32 +69,56 @@ func TestClusterSharding_AddRoundRobin(t *testing.T) {
 
 	sharding := NewClusterSharding(db, shard, replicas, "round-robin").(*ClusterSharding)
 
-	firstCluster := &v1alpha1.Cluster{
+	clusterA := &v1alpha1.Cluster{
 		ID:     "1",
 		Server: "https://127.0.0.1:6443",
 	}
-	sharding.Add(firstCluster)
+	sharding.Add(clusterA)
 
-	secondCluster := v1alpha1.Cluster{
-		ID:     "2",
+	clusterB := v1alpha1.Cluster{
+		ID:     "3",
 		Server: "https://kubernetes.default.svc",
 	}
-	sharding.Add(&secondCluster)
+	sharding.Add(&clusterB)
 
-	distribution := sharding.GetDistribution()
+	distributionBefore := sharding.GetDistribution()
 
-	assert.Contains(t, sharding.Clusters, firstCluster.Server)
-	assert.Contains(t, sharding.Clusters, secondCluster.Server)
+	assert.Contains(t, sharding.Clusters, clusterA.Server)
+	assert.Contains(t, sharding.Clusters, clusterB.Server)
 
-	clusterDistribution, ok := distribution[firstCluster.Server]
+	clusterDistributionA, ok := distributionBefore[clusterA.Server]
 	assert.True(t, ok)
-	assert.Equal(t, 0, clusterDistribution)
+	assert.Equal(t, 0, clusterDistributionA)
 
-	myClusterDistribution, ok := distribution[secondCluster.Server]
+	clusterDistributionB, ok := distributionBefore[clusterB.Server]
 	assert.True(t, ok)
-	assert.Equal(t, 1, myClusterDistribution)
+	assert.Equal(t, 1, clusterDistributionB)
 
-	assert.Equal(t, 2, len(distribution))
+	assert.Equal(t, 2, len(distributionBefore))
+
+	clusterC := v1alpha1.Cluster{
+		ID:     "2",
+		Server: "https://1.1.1.1",
+	}
+	sharding.Add(&clusterC)
+
+	distributionAfter := sharding.GetDistribution()
+
+	assert.Contains(t, sharding.Clusters, clusterA.Server)
+	assert.Contains(t, sharding.Clusters, clusterB.Server)
+	assert.Contains(t, sharding.Clusters, clusterC.Server)
+
+	clusterDistributionA, ok = distributionAfter[clusterA.Server]
+	assert.True(t, ok)
+	assert.Equal(t, 0, clusterDistributionA)
+
+	clusterDistributionC, ok := distributionAfter[clusterC.Server]
+	assert.True(t, ok)
+	assert.Equal(t, 1, clusterDistributionC) // will be assigned to shard 1 because the .ID is smaller then the "B" cluster
+
+	clusterDistributionB, ok = distributionAfter[clusterB.Server]
+	assert.True(t, ok)
+	assert.Equal(t, 0, clusterDistributionB) // will be reassigned to shard 0 because the .ID is bigger then the "C" cluster
 }
 
 func TestClusterSharding_Delete(t *testing.T) {
@@ -144,24 +166,24 @@ func TestClusterSharding_Update(t *testing.T) {
 		},
 	)
 
-	distribution := sharding.GetDistribution()
-	assert.Equal(t, 2, len(distribution))
+	distributionBefore := sharding.GetDistribution()
+	assert.Equal(t, 2, len(distributionBefore))
 
-	myClusterDistribution, ok := distribution["https://kubernetes.default.svc"]
+	distributionA, ok := distributionBefore["https://kubernetes.default.svc"]
 	assert.True(t, ok)
-	assert.Equal(t, 0, myClusterDistribution)
+	assert.Equal(t, 0, distributionA)
 
 	sharding.Update(&v1alpha1.Cluster{
 		ID:     "4",
 		Server: "https://kubernetes.default.svc",
 	})
 
-	distribution = sharding.GetDistribution()
-	assert.Equal(t, 2, len(distribution))
+	distributionAfter := sharding.GetDistribution()
+	assert.Equal(t, 2, len(distributionAfter))
 
-	myClusterDistribution, ok = distribution["https://kubernetes.default.svc"]
+	distributionA, ok = distributionAfter["https://kubernetes.default.svc"]
 	assert.True(t, ok)
-	assert.Equal(t, 1, myClusterDistribution)
+	assert.Equal(t, 1, distributionA)
 }
 
 func TestClusterSharding_IsManagedCluster(t *testing.T) {
@@ -222,11 +244,61 @@ func TestClusterSharding_IsManagedCluster(t *testing.T) {
 
 }
 
-func Int64Ptr(i int64) *int64 {
-	return &i
+func TestClusterSharding_ClusterShardOfResourceShouldNotBeChanged(t *testing.T) {
+	shard := 1
+	replicas := 2
+	sharding := setupTestSharding(shard, replicas)
+
+	Int64Ptr := func(i int64) *int64 {
+		return &i
+	}
+
+	clusterWithNil := &v1alpha1.Cluster{
+		ID:     "2",
+		Server: "https://127.0.0.1:6443",
+		Shard:  nil,
+	}
+
+	clusterWithValue := &v1alpha1.Cluster{
+		ID:     "1",
+		Server: "https://kubernetes.default.svc",
+		Shard:  Int64Ptr(1),
+	}
+
+	clusterWithToBigValue := &v1alpha1.Cluster{
+		ID:     "3",
+		Server: "https://1.1.1.1",
+		Shard:  Int64Ptr(999), // shard value is explicitly bigger than the number of replicas
+	}
+
+	sharding.Init(
+		&v1alpha1.ClusterList{
+			Items: []v1alpha1.Cluster{
+				*clusterWithNil,
+				*clusterWithValue,
+				*clusterWithToBigValue,
+			},
+		},
+	)
+	distribution := sharding.GetDistribution()
+	assert.Equal(t, 3, len(distribution))
+
+	assert.Nil(t, sharding.Clusters[clusterWithNil.Server].Shard)
+
+	assert.NotNil(t, sharding.Clusters[clusterWithValue.Server].Shard)
+	assert.Equal(t, int64(1), *sharding.Clusters[clusterWithValue.Server].Shard)
+	assert.Equal(t, 1, distribution[clusterWithValue.Server])
+
+	assert.NotNil(t, sharding.Clusters[clusterWithToBigValue.Server].Shard)
+	assert.Equal(t, int64(999), *sharding.Clusters[clusterWithToBigValue.Server].Shard)
+	assert.Equal(t, 0, distribution[clusterWithToBigValue.Server]) // will be assigned to shard 0 because the value is bigger than the number of replicas
 }
 
 func TestHasShardingUpdates(t *testing.T) {
+	Int64Ptr := func(i int64) *int64 {
+		return &i
+	}
+
 	testCases := []struct {
 		name     string
 		old      *v1alpha1.Cluster
