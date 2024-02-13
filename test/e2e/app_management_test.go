@@ -525,6 +525,10 @@ func TestPatchValuesObject(t *testing.T) {
 		Refresh(RefreshTypeNormal).
 		Sync().
 		Then().
+		Expect(Success("")).
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(NoConditions()).
 		And(func(app *Application) {
 			// Check that the patch was a success.
 			assert.Equal(t, `{"some":{"foo":"bar","new":"field"}}`, string(app.Spec.Source.Helm.ValuesObject.Raw))
