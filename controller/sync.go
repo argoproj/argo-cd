@@ -84,8 +84,6 @@ func (m *appStateManager) SyncAppState(appProject *v1alpha1.AppProject, app *v1a
 	// concrete git commit SHA, the SHA is remembered in the status.operationState.syncResult field.
 	// This ensures that when resuming an operation, we sync to the same revision that we initially
 	// started with.
-	logCtx := log.WithFields(log.Fields{"application": app.Name, "appNamespace": app.Namespace, "project": app.Spec.Project})
-	logCtx.Infof("Entrer dans la fonction: %s", appProject.Name)
 	var revision string
 	var syncOp v1alpha1.SyncOperation
 	var syncRes *v1alpha1.SyncOperationResult
@@ -100,9 +98,6 @@ func (m *appStateManager) SyncAppState(appProject *v1alpha1.AppProject, app *v1a
 		return
 	}
 	syncOp = *state.Operation.Sync
-
-	logCtx.Infof("In the SyncAppState: %s", appProject.Name)
-	logCtx.Infof("If Argo found SharedFail: %t", projectSyncOp.HasOption("FailOnSharedResource=true"))
 
 	// validates if it should fail the sync if it finds shared resources
 	hasSharedResource, sharedResourceMessage := hasSharedResourceCondition(app)
