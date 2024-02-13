@@ -30,8 +30,6 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/settings"
 	"github.com/argoproj/argo-cd/v2/util/tls"
 	"github.com/argoproj/argo-cd/v2/util/trace"
-	kubeerrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 const (
