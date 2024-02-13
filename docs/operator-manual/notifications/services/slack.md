@@ -15,7 +15,6 @@ The Slack notification service configuration includes following settings:
 | `signingSecret`       | False        | `string`       |                 | `8f742231b10e8888abcd99yyyzzz85a5` |
 | `token`              | **True**     | `string`       | The app's OAuth access token. | `xoxb-1234567890-1234567890123-5n38u5ed63fgzqlvuyxvxcx6` |
 | `username`           | False        | `string`       | The app username. | `argocd` |
-| `disableUnfurl`      | False        | `bool`         | Disable slack unfurling links in messages | `true` |
 
 ## Configuration
 
@@ -49,7 +48,7 @@ The Slack notification service configuration includes following settings:
       apiVersion: v1
       kind: ConfigMap
       metadata:
-        name: argocd-notifications-cm
+        name: <config-map-name>
       data:
         service.slack: |
           token: $slack-token

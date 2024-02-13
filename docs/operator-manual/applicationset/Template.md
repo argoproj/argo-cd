@@ -85,7 +85,7 @@ spec:
         spec:
           project: "default"
           source:
-            targetRevision: HEAD
+            revision: HEAD
             repoURL: https://github.com/argoproj/argo-cd.git
             # New path value is generated here:
             path: 'applicationset/examples/template-override/{{cluster}}-override'

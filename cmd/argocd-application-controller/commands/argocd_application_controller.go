@@ -6,12 +6,11 @@ import (
 	"math"
 	"time"
 
+	"github.com/argoproj/argo-cd/v2/pkg/ratelimiter"
 	"github.com/argoproj/pkg/stats"
 	"github.com/redis/go-redis/v9"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
-	kubeerrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 
@@ -21,7 +20,6 @@ import (
 	"github.com/argoproj/argo-cd/v2/controller/sharding"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
-	"github.com/argoproj/argo-cd/v2/pkg/ratelimiter"
 	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
 	cacheutil "github.com/argoproj/argo-cd/v2/util/cache"
 	appstatecache "github.com/argoproj/argo-cd/v2/util/cache/appstate"
@@ -33,6 +31,8 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/settings"
 	"github.com/argoproj/argo-cd/v2/util/tls"
 	"github.com/argoproj/argo-cd/v2/util/trace"
+	kubeerrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 const (
@@ -147,8 +147,7 @@ func NewCommand() *cobra.Command {
 				appController.InvalidateProjectsCache()
 			}))
 			kubectl := kubeutil.NewKubectl()
-			clusterSharding, err := getClusterSharding(kubeClient, settingsMgr, shardingAlgorithm, enableDynamicClusterDistribution)
-			errors.CheckError(err)
+			clusterSharding := getClusterSharding(kubeClient, settingsMgr, shardingAlgorithm, enableDynamicClusterDistribution)
 			appController, err = controller.NewApplicationController(
 				namespace,
 				settingsMgr,
@@ -171,7 +170,6 @@ func NewCommand() *cobra.Command {
 				applicationNamespaces,
 				&workqueueRateLimit,
 				serverSideDiff,
-				enableDynamicClusterDistribution,
 			)
 			errors.CheckError(err)
 			cacheutil.CollectMetrics(redisClient, appController.GetMetricsServer())
@@ -232,37 +230,27 @@ func NewCommand() *cobra.Command {
 	command.Flags().Float64Var(&workqueueRateLimit.BackoffFactor, "wq-backoff-factor", env.ParseFloat64FromEnv("WORKQUEUE_BACKOFF_FACTOR", 1.5, 0, math.MaxFloat64), "Set Workqueue Per Item Rate Limiter Backoff Factor, default is 1.5")
 	command.Flags().BoolVar(&enableDynamicClusterDistribution, "dynamic-cluster-distribution-enabled", env.ParseBoolFromEnv(common.EnvEnableDynamicClusterDistribution, false), "Enables dynamic cluster distribution.")
 	command.Flags().BoolVar(&serverSideDiff, "server-side-diff-enabled", env.ParseBoolFromEnv(common.EnvServerSideDiff, false), "Feature flag to enable ServerSide diff. Default (\"false\")")
-	cacheSource = appstatecache.AddCacheFlagsToCmd(&command, cacheutil.Options{
-		OnClientCreated: func(client *redis.Client) {
-			redisClient = client
-		},
+	cacheSource = appstatecache.AddCacheFlagsToCmd(&command, func(client *redis.Client) {
+		redisClient = client
 	})
 	return &command
 }
 
-func getClusterSharding(kubeClient *kubernetes.Clientset, settingsMgr *settings.SettingsManager, shardingAlgorithm string, enableDynamicClusterDistribution bool) (sharding.ClusterShardingCache, error) {
-	var (
-		replicasCount int
-	)
+func getClusterSharding(kubeClient *kubernetes.Clientset, settingsMgr *settings.SettingsManager, shardingAlgorithm string, enableDynamicClusterDistribution bool) sharding.ClusterShardingCache {
+	var replicasCount int
 	// StatefulSet mode and Deployment mode uses different default values for shard number.
 	defaultShardNumberValue := 0
+	applicationControllerName := env.StringFromEnv(common.EnvAppControllerName, common.DefaultApplicationControllerName)
+	appControllerDeployment, err := kubeClient.AppsV1().Deployments(settingsMgr.GetNamespace()).Get(context.Background(), applicationControllerName, metav1.GetOptions{})
 
-	if enableDynamicClusterDistribution {
-		applicationControllerName := env.StringFromEnv(common.EnvAppControllerName, common.DefaultApplicationControllerName)
-		appControllerDeployment, err := kubeClient.AppsV1().Deployments(settingsMgr.GetNamespace()).Get(context.Background(), applicationControllerName, metav1.GetOptions{})
+	// if the application controller deployment was not found, the Get() call returns an empty Deployment object. So, set the variable to nil explicitly
+	if err != nil && kubeerrors.IsNotFound(err) {
+		appControllerDeployment = nil
+	}
 
-		// if app controller deployment is not found when dynamic cluster distribution is enabled error out
-		if err != nil {
-			return nil, fmt.Errorf("(dymanic cluster distribution) failed to get app controller deployment: %v", err)
-		}
-
-		if appControllerDeployment != nil && appControllerDeployment.Spec.Replicas != nil {
-			replicasCount = int(*appControllerDeployment.Spec.Replicas)
-			defaultShardNumberValue = -1
-		} else {
-			return nil, fmt.Errorf("(dymanic cluster distribution) failed to get app controller deployment replica count")
-		}
-
+	if enableDynamicClusterDistribution && appControllerDeployment != nil && appControllerDeployment.Spec.Replicas != nil {
+		replicasCount = int(*appControllerDeployment.Spec.Replicas)
+		defaultShardNumberValue = -1
 	} else {
 		replicasCount = env.ParseNumFromEnv(common.EnvControllerReplicas, 0, 0, math.MaxInt32)
 	}
@@ -270,7 +258,7 @@ func getClusterSharding(kubeClient *kubernetes.Clientset, settingsMgr *settings.
 	if replicasCount > 1 {
 		// check for shard mapping using configmap if application-controller is a deployment
 		// else use existing logic to infer shard from pod name if application-controller is a statefulset
-		if enableDynamicClusterDistribution {
+		if enableDynamicClusterDistribution && appControllerDeployment != nil {
 			var err error
 			// retry 3 times if we find a conflict while updating shard mapping configMap.
 			// If we still see conflicts after the retries, wait for next iteration of heartbeat process.
@@ -298,5 +286,5 @@ func getClusterSharding(kubeClient *kubernetes.Clientset, settingsMgr *settings.
 		log.Info("Processing all cluster shards")
 	}
 	db := db.NewDB(settingsMgr.GetNamespace(), settingsMgr, kubeClient)
-	return sharding.NewClusterSharding(db, shardNumber, replicasCount, shardingAlgorithm), nil
+	return sharding.NewClusterSharding(db, shardNumber, replicasCount, shardingAlgorithm)
 }

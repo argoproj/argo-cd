@@ -103,7 +103,7 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 	if syncOp.SyncOptions.HasOption("FailOnSharedResource=true") &&
 		hasSharedResource {
 		state.Phase = common.OperationFailed
-		state.Message = fmt.Sprintf("Shared resource found: %s", sharedResourceMessage)
+		state.Message = fmt.Sprintf("Shared resouce found: %s", sharedResourceMessage)
 		return
 	}
 
@@ -391,7 +391,7 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 	logEntry.WithField("duration", time.Since(start)).Info("sync/terminate complete")
 
 	if !syncOp.DryRun && len(syncOp.Resources) == 0 && state.Phase.Successful() {
-		err := m.persistRevisionHistory(app, compareResult.syncStatus.Revision, source, compareResult.syncStatus.Revisions, compareResult.syncStatus.ComparedTo.Sources, app.Spec.HasMultipleSources(), state.StartedAt, state.Operation.InitiatedBy)
+		err := m.persistRevisionHistory(app, compareResult.syncStatus.Revision, source, compareResult.syncStatus.Revisions, compareResult.syncStatus.ComparedTo.Sources, app.Spec.HasMultipleSources(), state.StartedAt)
 		if err != nil {
 			state.Phase = common.OperationError
 			state.Message = fmt.Sprintf("failed to record sync to history: %v", err)

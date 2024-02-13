@@ -157,7 +157,6 @@ func newFakeController(data *fakeData, repoErr error) *ApplicationController {
 		nil,
 
 		false,
-		false,
 	)
 	db := &dbmocks.ArgoDB{}
 	db.On("GetApplicationControllerReplicas").Return(1)

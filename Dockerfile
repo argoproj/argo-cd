@@ -51,7 +51,7 @@ RUN groupadd -g $ARGOCD_USER_ID argocd && \
     apt-get update && \
     apt-get dist-upgrade -y && \
     apt-get install -y \
-    git git-lfs tini gpg tzdata connect-proxy && \
+    git git-lfs tini gpg tzdata && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
@@ -83,7 +83,7 @@ WORKDIR /home/argocd
 ####################################################################################################
 # Argo CD UI stage
 ####################################################################################################
-FROM --platform=$BUILDPLATFORM docker.io/library/node:21.6.1@sha256:abc4a25c8b5a2b460f3144aabfc8941ecd7e4fb721e0b14b635e70394c1899fb AS argocd-ui
+FROM --platform=$BUILDPLATFORM docker.io/library/node:20.6.1@sha256:14bd39208dbc0eb171cbfb26ccb9ac09fa1b2eba04ccd528ab5d12983fd9ee24 AS argocd-ui
 
 WORKDIR /src
 COPY ["ui/package.json", "ui/yarn.lock", "./"]

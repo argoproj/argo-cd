@@ -18,7 +18,7 @@ The Teams notification service send message notifications using Teams bot and re
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: argocd-notifications-cm
+  name: <config-map-name>
 data:
   service.teams: |
     recipientUrls:
