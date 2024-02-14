@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"slices"
 	"strconv"
 
 	log "github.com/sirupsen/logrus"
@@ -226,7 +227,7 @@ func (a *Actions) prepareCreateAppArgs(args []string) []string {
 		"--repo", fixture.RepoURL(a.context.repoURLType),
 	}, args...)
 
-	if a.context.destName != "" {
+	if a.context.destName != "" && a.context.isDestServerInferred && !slices.Contains(args, "--dest-server") {
 		args = append(args, "--dest-name", a.context.destName)
 	} else {
 		args = append(args, "--dest-server", a.context.destServer)
