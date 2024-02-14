@@ -6,6 +6,9 @@
 
         .tabs__content {
             background-color: white;
+            @include themify($themes){
+                background-color: themed('background-1');
+            }
         }
 
         &--raw {
@@ -37,6 +40,9 @@
         label {
             padding-right: 2em;
             color: $argo-color-gray-8;
+            @include themify($themes){
+                color: themed('text-2');
+            }
         }
     }
     &__err_msg {
