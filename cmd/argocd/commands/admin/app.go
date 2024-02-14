@@ -371,7 +371,7 @@ func reconcileApplications(
 		return true
 	}, func(r *http.Request) error {
 		return nil
-	}, []string{})
+	}, []string{}, []string{})
 
 	if err != nil {
 		return nil, err
