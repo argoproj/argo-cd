@@ -32,6 +32,7 @@ argocd app delete APPNAME [flags]
   -h, --help                        help for delete
   -p, --propagation-policy string   Specify propagation policy for deletion of application's resources. One of: foreground|background (default "foreground")
   -l, --selector string             Delete all apps with matching label. Supports '=', '==', '!=', in, notin, exists & not exists. Matching apps must satisfy all of the specified label constraints.
+      --wait                        Wait until deletion of the application(s) completes
   -y, --yes                         Turn off prompting to confirm cascaded deletion of application resources
 ```
 
