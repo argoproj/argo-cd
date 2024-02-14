@@ -4,10 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	v1 "k8s.io/api/core/v1"
 	"reflect"
 	"strings"
 	"time"
+
+	v1 "k8s.io/api/core/v1"
 
 	"github.com/argoproj/gitops-engine/pkg/diff"
 	"github.com/argoproj/gitops-engine/pkg/health"
@@ -186,32 +187,28 @@ func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, sources []v1alp
 		ts.AddCheckpoint("version_ms")
 		log.Debugf("Generating Manifest for source %s revision %s", source, revisions[i])
 		manifestInfo, err := repoClient.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
-			Repo:               repo,
-			Repos:              permittedHelmRepos,
-			Revision:           revisions[i],
-			NoCache:            noCache,
-			NoRevisionCache:    noRevisionCache,
-			AppLabelKey:        appLabelKey,
-			AppName:            app.InstanceName(m.namespace),
-			Namespace:          app.Spec.Destination.Namespace,
-			ApplicationSource:  &source,
-			KustomizeOptions:   kustomizeOptions,
-			KubeVersion:        serverVersion,
-			ApiVersions:        argo.APIResourcesToStrings(apiResources, true),
-			VerifySignature:    verifySignature,
-			HelmRepoCreds:      permittedHelmCredentials,
-			TrackingMethod:     string(argo.GetTrackingMethod(m.settingsMgr)),
-			EnabledSourceTypes: enabledSourceTypes,
-			HelmOptions:        helmOptions,
-			HasMultipleSources: app.Spec.HasMultipleSources(),
-			RefSources:         refSources,
-			ProjectName:        proj.Name,
-			ProjectSourceRepos: proj.Spec.SourceRepos,
-			ApplicationIdentity: &apiclient.ApplicationIdentity{
-				Cluster:   app.Spec.Destination.Server,
-				Namespace: app.GetNamespace(),
-				Name:      app.InstanceName(m.namespace),
-			},
+			Repo:                repo,
+			Repos:               permittedHelmRepos,
+			Revision:            revisions[i],
+			NoCache:             noCache,
+			NoRevisionCache:     noRevisionCache,
+			AppLabelKey:         appLabelKey,
+			AppName:             app.InstanceName(m.namespace),
+			Namespace:           app.Spec.Destination.Namespace,
+			ApplicationSource:   &source,
+			KustomizeOptions:    kustomizeOptions,
+			KubeVersion:         serverVersion,
+			ApiVersions:         argo.APIResourcesToStrings(apiResources, true),
+			VerifySignature:     verifySignature,
+			HelmRepoCreds:       permittedHelmCredentials,
+			TrackingMethod:      string(argo.GetTrackingMethod(m.settingsMgr)),
+			EnabledSourceTypes:  enabledSourceTypes,
+			HelmOptions:         helmOptions,
+			HasMultipleSources:  app.Spec.HasMultipleSources(),
+			RefSources:          refSources,
+			ProjectName:         proj.Name,
+			ProjectSourceRepos:  proj.Spec.SourceRepos,
+			ApplicationMetadata: &app.ObjectMeta,
 		})
 		if err != nil {
 			return nil, nil, fmt.Errorf("failed to generate manifest for source %d of %d: %w", i+1, len(sources), err)

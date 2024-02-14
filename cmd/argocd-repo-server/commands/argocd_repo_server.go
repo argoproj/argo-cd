@@ -70,6 +70,7 @@ func NewCommand() *cobra.Command {
 		disableManifestMaxExtractedSize   bool
 		codefreshUrl                      string
 		codefreshToken                    string
+		codefreshIgnoreVersionConfig      bool
 	)
 	var command = cobra.Command{
 		Use:               cliName,
@@ -126,6 +127,7 @@ func NewCommand() *cobra.Command {
 				StreamedManifestMaxExtractedSize:             streamedManifestMaxExtractedSizeQuantity.ToDec().Value(),
 				StreamedManifestMaxTarSize:                   streamedManifestMaxTarSizeQuantity.ToDec().Value(),
 				HelmManifestMaxExtractedSize:                 helmManifestMaxExtractedSizeQuantity.ToDec().Value(),
+				CodefreshIgnoreVersionConfig:                 codefreshIgnoreVersionConfig,
 				CodefreshConfig: codefresh.CodefreshConfig{
 					BaseURL:   codefreshUrl,
 					AuthToken: codefreshToken,
@@ -212,6 +214,7 @@ func NewCommand() *cobra.Command {
 	command.Flags().StringVar(&streamedManifestMaxExtractedSize, "streamed-manifest-max-extracted-size", env.StringFromEnv("ARGOCD_REPO_SERVER_STREAMED_MANIFEST_MAX_EXTRACTED_SIZE", "1G"), "Maximum size of streamed manifest archives when extracted")
 	command.Flags().StringVar(&codefreshUrl, "codefresh-url", env.StringFromEnv("ARGOCD_REPO_SERVER_CODEFRESH_URL", "https://g.codefresh.io"), "Codefresh API URL")
 	command.Flags().StringVar(&codefreshToken, "codefresh-token", env.StringFromEnv("ARGOCD_REPO_SERVER_CODEFRESH_TOKEN", ""), "Codefresh token")
+	command.Flags().BoolVar(&codefreshIgnoreVersionConfig, "codefresh-ignore-version-config", env.ParseBoolFromEnv("ARGOCD_REPO_SERVER_CODEFRESH_IGNORE_VERSION_CONFIG", false), "Codefresh ignore application version config")
 	command.Flags().StringVar(&helmManifestMaxExtractedSize, "helm-manifest-max-extracted-size", env.StringFromEnv("ARGOCD_REPO_SERVER_HELM_MANIFEST_MAX_EXTRACTED_SIZE", "1G"), "Maximum size of helm manifest archives when extracted")
 	command.Flags().BoolVar(&disableManifestMaxExtractedSize, "disable-helm-manifest-max-extracted-size", env.ParseBoolFromEnv("ARGOCD_REPO_SERVER_DISABLE_HELM_MANIFEST_MAX_EXTRACTED_SIZE", false), "Disable maximum size of helm manifest archives when extracted")
 	tlsConfigCustomizerSrc = tls.AddTLSFlagsToCmd(&command)

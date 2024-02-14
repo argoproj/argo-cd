@@ -321,7 +321,7 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 	if state.Phase == common.OperationTerminating {
 		syncCtx.Terminate()
 	} else {
-		logEntry.Info("Starting sync operation for revision \"%s\"", compareResult.syncStatus.Revision)
+		logEntry.Infof("Starting sync operation for revision \"%s\"", compareResult.syncStatus.Revision)
 		syncCtx.Sync()
 	}
 	var resState []common.ResourceSyncResult

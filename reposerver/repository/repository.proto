@@ -8,12 +8,6 @@ import "k8s.io/apimachinery/pkg/apis/meta/v1/generated.proto";
 import "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1/generated.proto";
 import "google/protobuf/empty.proto";
 
-message ApplicationIdentity {
-    string cluster = 1;
-    string namespace = 2;
-    string name = 3;
-}
-
 // ManifestRequest is a query for manifest generation.
 message ManifestRequest {
     github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.Repository repo = 1;
@@ -40,7 +34,7 @@ message ManifestRequest {
     github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.HelmOptions helmOptions = 21;
     bool hasMultipleSources = 22;
     map<string, github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.RefTarget> refSources = 23;
-    ApplicationIdentity applicationIdentity = 24;
+    k8s.io.apimachinery.pkg.apis.meta.v1.ObjectMeta applicationMetadata = 24;
     // This is used to surface "source not permitted" errors for Helm repositories
     repeated string projectSourceRepos = 25;
     // This is used to surface "source not permitted" errors for Helm repositories

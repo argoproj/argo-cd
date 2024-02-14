@@ -16,8 +16,6 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
-	"net/url"
-
 	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/pkg/codefresh"
 	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
@@ -385,17 +383,17 @@ func (cmr *CachedManifestResponse) generateCacheEntryHash() (string, error) {
 
 }
 
-func CfAppConfigCacheKey(cluster, namespace, name string) string {
-	return fmt.Sprintf("cf_app_config:%s:%s:%s", namespace, name, url.QueryEscape(cluster))
+func CfAppConfigCacheKey(namespace, name string) string {
+	return fmt.Sprintf("cf_app_config:%s:%s", namespace, name)
 }
 
-func (c *Cache) GetCfAppConfig(cluster, namespace, name string) (*codefresh.ApplicationConfiguration, error) {
+func (c *Cache) GetCfAppConfig(namespace, name string) (*codefresh.ApplicationConfiguration, error) {
 	item := &codefresh.ApplicationConfiguration{}
-	return item, c.cache.GetItem(CfAppConfigCacheKey(cluster, namespace, name), item)
+	return item, c.cache.GetItem(CfAppConfigCacheKey(namespace, name), item)
 }
 
-func (c *Cache) SetCfAppConfig(cluster, namespace, name string, item *codefresh.ApplicationConfiguration) error {
-	return c.cache.SetItem(CfAppConfigCacheKey(cluster, namespace, name), item, c.cfAppConfigCacheExpiration, false)
+func (c *Cache) SetCfAppConfig(namespace, name string, item *codefresh.ApplicationConfiguration) error {
+	return c.cache.SetItem(CfAppConfigCacheKey(namespace, name), item, c.cfAppConfigCacheExpiration, false)
 }
 
 // CachedManifestResponse represents a cached result of a previous manifest generation operation, including the caching
