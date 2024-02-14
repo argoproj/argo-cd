@@ -562,6 +562,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 	manifestRevisions := make([]string, 0)
 
 	for _, manifestInfo := range manifestInfos {
+		logCtx.Infof("Manifest for revision %s has been generated", manifestInfo.Revision)
 		manifestRevisions = append(manifestRevisions, manifestInfo.Revision)
 	}
 

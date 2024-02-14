@@ -1443,6 +1443,7 @@ func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, 
 		if q.ApplicationSource.Plugin != nil {
 			pluginName = q.ApplicationSource.Plugin.Name
 		}
+		log.Infof("running plugin sidecar for app %s, revision %s", q.AppName, q.Revision)
 		// if pluginName is provided it has to be `<metadata.name>-<spec.version>` or just `<metadata.name>` if plugin version is empty
 		manifests, err = runConfigManagementPluginSidecars(ctx, appPath, repoRoot, pluginName, env, q, q.Repo.GetGitCreds(gitCredsStore), opt.cmpTarDoneCh, opt.cmpTarExcludedGlobs)
 		if err != nil {

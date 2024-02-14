@@ -592,7 +592,7 @@ func (m *nativeGitClient) lsRemote(revision string) (string, error) {
 		//log.Debugf("%s\t%s", hash, refName)
 		if ref.Name().Short() == revision || refName == revision {
 			if ref.Type() == plumbing.HashReference {
-				log.Debugf("revision '%s' resolved to '%s'", revision, hash)
+				log.Infof("revision '%s' resolved to '%s'", revision, hash)
 				return hash, nil
 			}
 			if ref.Type() == plumbing.SymbolicReference {
