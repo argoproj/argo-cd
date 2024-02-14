@@ -75,6 +75,7 @@ func GivenWithSameState(t *testing.T) *Context {
 	return &Context{
 		t:              t,
 		destServer:     v1alpha1.KubernetesInternalAPIServerAddr,
+		destName:       "e2e-test",
 		repoURLType:    fixture.RepoURLTypeFile,
 		name:           fixture.Name(),
 		timeout:        timeout,
