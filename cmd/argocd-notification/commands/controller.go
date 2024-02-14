@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/argoproj/argo-cd/v2/common"
+	"github.com/argoproj/argo-cd/v2/pkg/pprof"
 	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
 
 	"github.com/argoproj/argo-cd/v2/util/env"
@@ -147,6 +148,20 @@ func NewCommand() *cobra.Command {
 			}
 
 			go ctrl.Run(ctx, processorsCount)
+
+			// run pprof server
+			if pprof.IsEnabled() {
+				pprofSrv, err := pprof.NewPprofServer()
+				if err != nil {
+					log.Fatal(err, "failed to create pprof handler")
+				}
+				go func() {
+					if err := pprofSrv.Start(ctx); err != nil {
+						log.Fatal(err, "unable to start pprof handler")
+					}
+				}()
+			}
+
 			<-ctx.Done()
 			return nil
 		},

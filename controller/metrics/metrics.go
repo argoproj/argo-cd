@@ -22,7 +22,6 @@ import (
 	applister "github.com/argoproj/argo-cd/v2/pkg/client/listers/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/util/git"
 	"github.com/argoproj/argo-cd/v2/util/healthz"
-	"github.com/argoproj/argo-cd/v2/util/profile"
 )
 
 type MetricsServer struct {
@@ -167,7 +166,6 @@ func NewMetricsServer(addr string, appLister applister.ApplicationLister, appFil
 		// contains process, golang and controller workqueues metrics
 		prometheus.DefaultGatherer,
 	}, promhttp.HandlerOpts{}))
-	profile.RegisterProfiler(mux)
 	healthz.ServeHealthCheck(mux, healthCheck)
 
 	registry.MustRegister(syncCounter)
