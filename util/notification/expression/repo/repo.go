@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"net/url"
 	"regexp"
 	"strings"
 
@@ -91,7 +90,6 @@ func NewExprs(argocdService service.Service, app *unstructured.Unstructured) map
 	return map[string]interface{}{
 		"RepoURLToHTTPS":    repoURLToHTTPS,
 		"FullNameByRepoURL": FullNameByRepoURL,
-		"QueryEscape":       url.QueryEscape,
 		"GetCommitMetadata": func(commitSHA string) interface{} {
 			meta, err := getCommitMetadata(commitSHA, app, argocdService)
 			if err != nil {

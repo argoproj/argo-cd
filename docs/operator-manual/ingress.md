@@ -166,43 +166,6 @@ The argocd-server Service needs to be annotated with `projectcontour.io/upstream
 The API server should then be run with TLS disabled. Edit the `argocd-server` deployment to add the
 `--insecure` flag to the argocd-server command, or simply set `server.insecure: "true"` in the `argocd-cmd-params-cm` ConfigMap [as described here](server-commands/additional-configuration-method.md).
 
-Contour httpproxy CRD:
-
-Using a contour httpproxy CRD allows you to use the same hostname for the GRPC and REST api.
-
-```yaml
-apiVersion: projectcontour.io/v1
-kind: HTTPProxy
-metadata:
-  name: argocd-server
-  namespace: argocd
-spec:
-  ingressClassName: contour
-  virtualhost:
-    fqdn: path.to.argocd.io
-    tls:
-      secretName: wildcard-tls
-  routes:
-    - conditions:
-        - prefix: /
-        - header:
-            name: Content-Type
-            contains: application/grpc
-      services:
-        - name: argocd-server
-          port: 80
-          protocol: h2c # allows for unencrypted http2 connections
-      timeoutPolicy:
-        response: 1h
-        idle: 600s
-        idleConnection: 600s
-    - conditions:
-        - prefix: /
-      services:
-        - name: argocd-server
-          port: 80
-```
-
 ## [kubernetes/ingress-nginx](https://github.com/kubernetes/ingress-nginx)
 
 ### Option 1: SSL-Passthrough
@@ -698,9 +661,9 @@ metadata:
     networking.gke.io/v1beta1.FrontendConfig: argocd-frontend-config
 spec:
   tls:
-    - secretName: secret-example-com
+    - secretName: secret-yourdomain-com
   rules:
-    - host: argocd.example.com
+    - host: argocd.yourdomain.com
       http:
         paths:
         - pathType: ImplementationSpecific
@@ -723,9 +686,9 @@ metadata:
     networking.gke.io/v1beta1.FrontendConfig: argocd-frontend-config
 spec:
   tls:
-    - secretName: secret-example-com
+    - secretName: secret-yourdomain-com
   rules:
-    - host: argocd.example.com
+    - host: argocd.yourdomain.com
       http:
         paths:
         - pathType: Prefix
@@ -737,7 +700,7 @@ spec:
                 number: 80
 ```
 
-As you may know already, it can take some minutes to deploy the load balancer and become ready to accept connections. Once it's ready, get the public IP address for your Load Balancer, go to your DNS server (Google or third party) and point your domain or subdomain (i.e. argocd.example.com) to that IP address.
+As you may know already, it can take some minutes to deploy the load balancer and become ready to accept connections. Once it's ready, get the public IP address for your Load Balancer, go to your DNS server (Google or third party) and point your domain or subdomain (i.e. argocd.yourdomain.com) to that IP address.
 
 You can get that IP address describing the Ingress object like this:
 

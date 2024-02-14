@@ -12,7 +12,7 @@ import (
 func TestNotificationsListServices(t *testing.T) {
 	ctx := notifFixture.Given(t)
 	ctx.When().
-		SetParamInNotificationConfigMap("service.webhook.test", "url: https://test.example.com").
+		SetParamInNotificationConfigMap("service.webhook.test", "url: https://test.com").
 		Then().Services(func(services *notification.ServiceList, err error) {
 		assert.Nil(t, err)
 		assert.Equal(t, []*notification.Service{{Name: pointer.String("test")}}, services.Items)

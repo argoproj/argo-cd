@@ -111,7 +111,6 @@ func NewClusterAddCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clie
 				awsAuthConf = &argoappv1.AWSAuthConfig{
 					ClusterName: clusterOpts.AwsClusterName,
 					RoleARN:     clusterOpts.AwsRoleArn,
-					Profile:     clusterOpts.AwsProfile,
 				}
 			} else if clusterOpts.ExecProviderCommand != "" {
 				execProviderConf = &argoappv1.ExecProviderConfig{
@@ -486,23 +485,6 @@ func NewClusterListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comman
 				errors.CheckError(fmt.Errorf("unknown output format: %s", output))
 			}
 		},
-		Example: `
-# List Clusters in Default "Wide" Format
-argocd cluster list
-
-# List Cluster via specifing the server
-argocd cluster list --server <ARGOCD_SERVER_ADDRESS>
-
-# List Clusters in JSON Format
-argocd cluster list -o json --server <ARGOCD_SERVER_ADDRESS>
-
-# List Clusters in YAML Format
-argocd cluster list -o yaml --server <ARGOCD_SERVER_ADDRESS>
-
-# List Clusters that have been added to your Argo CD 
-argocd cluster list -o server <ARGOCD_SERVER_ADDRESS>
-
-`,
 	}
 	command.Flags().StringVarP(&output, "output", "o", "wide", "Output format. One of: json|yaml|wide|server")
 	return command

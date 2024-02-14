@@ -29,7 +29,6 @@ import (
 	"k8s.io/client-go/tools/cache"
 
 	"github.com/argoproj/argo-cd/v2/controller/metrics"
-	"github.com/argoproj/argo-cd/v2/controller/sharding"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
 	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/util/argo"
@@ -169,7 +168,7 @@ func NewLiveStateCache(
 	kubectl kube.Kubectl,
 	metricsServer *metrics.MetricsServer,
 	onObjectUpdated ObjectUpdatedHandler,
-	clusterSharding sharding.ClusterShardingCache,
+	clusterFilter func(cluster *appv1.Cluster) bool,
 	resourceTracking argo.ResourceTracking) LiveStateCache {
 
 	return &liveStateCache{
@@ -180,7 +179,7 @@ func NewLiveStateCache(
 		kubectl:          kubectl,
 		settingsMgr:      settingsMgr,
 		metricsServer:    metricsServer,
-		clusterSharding:  clusterSharding,
+		clusterFilter:    clusterFilter,
 		resourceTracking: resourceTracking,
 	}
 }
@@ -203,7 +202,7 @@ type liveStateCache struct {
 	kubectl          kube.Kubectl
 	settingsMgr      *settings.SettingsManager
 	metricsServer    *metrics.MetricsServer
-	clusterSharding  sharding.ClusterShardingCache
+	clusterFilter    func(cluster *appv1.Cluster) bool
 	resourceTracking argo.ResourceTracking
 
 	clusters      map[string]clustercache.ClusterCache
@@ -723,24 +722,22 @@ func (c *liveStateCache) Run(ctx context.Context) error {
 }
 
 func (c *liveStateCache) canHandleCluster(cluster *appv1.Cluster) bool {
-	return c.clusterSharding.IsManagedCluster(cluster)
+	if c.clusterFilter == nil {
+		return true
+	}
+	return c.clusterFilter(cluster)
 }
 
 func (c *liveStateCache) handleAddEvent(cluster *appv1.Cluster) {
-	c.clusterSharding.Add(cluster)
 	if !c.canHandleCluster(cluster) {
 		log.Infof("Ignoring cluster %s", cluster.Server)
 		return
 	}
+
 	c.lock.Lock()
 	_, ok := c.clusters[cluster.Server]
 	c.lock.Unlock()
 	if !ok {
-		log.Debugf("Checking if cache %v / cluster %v has appInformer %v", c, cluster, c.appInformer)
-		if c.appInformer == nil {
-			log.Warn("Cannot get a cluster appInformer. Cache may not be started this time")
-			return
-		}
 		if c.isClusterHasApps(c.appInformer.GetStore().List(), cluster) {
 			go func() {
 				// warm up cache for cluster with apps
@@ -751,7 +748,6 @@ func (c *liveStateCache) handleAddEvent(cluster *appv1.Cluster) {
 }
 
 func (c *liveStateCache) handleModEvent(oldCluster *appv1.Cluster, newCluster *appv1.Cluster) {
-	c.clusterSharding.Update(oldCluster, newCluster)
 	c.lock.Lock()
 	cluster, ok := c.clusters[newCluster.Server]
 	c.lock.Unlock()
@@ -794,7 +790,6 @@ func (c *liveStateCache) handleModEvent(oldCluster *appv1.Cluster, newCluster *a
 
 func (c *liveStateCache) handleDeleteEvent(clusterServer string) {
 	c.lock.RLock()
-	c.clusterSharding.Delete(clusterServer)
 	cluster, ok := c.clusters[clusterServer]
 	c.lock.RUnlock()
 	if ok {

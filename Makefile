@@ -49,7 +49,7 @@ ARGOCD_E2E_DEX_PORT?=5556
 ARGOCD_E2E_YARN_HOST?=localhost
 ARGOCD_E2E_DISABLE_AUTH?=
 
-ARGOCD_E2E_TEST_TIMEOUT?=90m
+ARGOCD_E2E_TEST_TIMEOUT?=45m
 
 ARGOCD_IN_CI?=false
 ARGOCD_TEST_E2E?=true
@@ -175,21 +175,29 @@ endif
 .PHONY: all
 all: cli image
 
+# We have some legacy requirements for being checked out within $GOPATH.
+# The ensure-gopath target can be used as dependency to ensure we are running
+# within these boundaries.
+.PHONY: ensure-gopath
+ensure-gopath:
+ifneq ("$(PWD)","$(LEGACY_PATH)")
+	@echo "Due to legacy requirements for codegen, repository needs to be checked out within \$$GOPATH"
+	@echo "Location of this repo should be '$(LEGACY_PATH)' but is '$(PWD)'"
+	@exit 1
+endif
+
 .PHONY: gogen
-gogen:
+gogen: ensure-gopath
 	export GO111MODULE=off
 	go generate ./util/argo/...
 
 .PHONY: protogen
-protogen: mod-vendor-local protogen-fast
-
-.PHONY: protogen-fast
-protogen-fast:
+protogen: ensure-gopath mod-vendor-local
 	export GO111MODULE=off
 	./hack/generate-proto.sh
 
 .PHONY: openapigen
-openapigen:
+openapigen: ensure-gopath
 	export GO111MODULE=off
 	./hack/update-openapi.sh
 
@@ -204,21 +212,18 @@ notification-docs:
 
 
 .PHONY: clientgen
-clientgen:
+clientgen: ensure-gopath
 	export GO111MODULE=off
 	./hack/update-codegen.sh
 
 .PHONY: clidocsgen
-clidocsgen:
+clidocsgen: ensure-gopath
 	go run tools/cmd-docs/main.go
 
 
 .PHONY: codegen-local
-codegen-local: mod-vendor-local gogen protogen clientgen openapigen clidocsgen manifests-local notification-docs notification-catalog
+codegen-local: ensure-gopath mod-vendor-local gogen protogen clientgen openapigen clidocsgen manifests-local notification-docs notification-catalog
 	rm -rf vendor/
-
-.PHONY: codegen-local-fast
-codegen-local-fast: gogen protogen-fast clientgen openapigen clidocsgen manifests-local notification-docs notification-catalog
 
 .PHONY: codegen
 codegen: test-tools-image
@@ -381,9 +386,9 @@ test: test-tools-image
 .PHONY: test-local
 test-local:
 	if test "$(TEST_MODULE)" = ""; then \
-		DIST_DIR=${DIST_DIR} RERUN_FAILS=0 PACKAGES=`go list ./... | grep -v 'test/e2e'` ./hack/test.sh -coverprofile=coverage.out; \
+		./hack/test.sh -coverprofile=coverage.out `go list ./... | grep -v 'test/e2e'`; \
 	else \
-		DIST_DIR=${DIST_DIR} RERUN_FAILS=0 PACKAGES="$(TEST_MODULE)" ./hack/test.sh -coverprofile=coverage.out "$(TEST_MODULE)"; \
+		./hack/test.sh -coverprofile=coverage.out "$(TEST_MODULE)"; \
 	fi
 
 .PHONY: test-race
@@ -395,9 +400,9 @@ test-race: test-tools-image
 .PHONY: test-race-local
 test-race-local:
 	if test "$(TEST_MODULE)" = ""; then \
-		DIST_DIR=${DIST_DIR} RERUN_FAILS=0 PACKAGES=`go list ./... | grep -v 'test/e2e'` ./hack/test.sh -race -coverprofile=coverage.out; \
+		./hack/test.sh -race -coverprofile=coverage.out `go list ./... | grep -v 'test/e2e'`; \
 	else \
-		DIST_DIR=${DIST_DIR} RERUN_FAILS=0 PACKAGES="$(TEST_MODULE)" ./hack/test.sh -race -coverprofile=coverage.out; \
+		./hack/test.sh -race -coverprofile=coverage.out "$(TEST_MODULE)"; \
 	fi
 
 # Run the E2E test suite. E2E test servers (see start-e2e target) must be
@@ -411,7 +416,7 @@ test-e2e:
 test-e2e-local: cli-local
 	# NO_PROXY ensures all tests don't go out through a proxy if one is configured on the test system
 	export GO111MODULE=off
-	DIST_DIR=${DIST_DIR} RERUN_FAILS=5 PACKAGES="./test/e2e" ARGOCD_E2E_RECORD=${ARGOCD_E2E_RECORD} ARGOCD_GPG_ENABLED=true NO_PROXY=* ./hack/test.sh -timeout $(ARGOCD_E2E_TEST_TIMEOUT) -v
+	ARGOCD_E2E_RECORD=${ARGOCD_E2E_RECORD} ARGOCD_GPG_ENABLED=true NO_PROXY=* ./hack/test.sh -timeout $(ARGOCD_E2E_TEST_TIMEOUT) -v ./test/e2e
 
 # Spawns a shell in the test server container for debugging purposes
 debug-test-server: test-tools-image
@@ -433,7 +438,6 @@ start-e2e: test-tools-image
 start-e2e-local: mod-vendor-local dep-ui-local cli-local
 	kubectl create ns argocd-e2e || true
 	kubectl create ns argocd-e2e-external || true
-	kubectl create ns argocd-e2e-external-2 || true
 	kubectl config set-context --current --namespace=argocd-e2e
 	kustomize build test/manifests/base | kubectl apply -f -
 	kubectl apply -f https://raw.githubusercontent.com/open-cluster-management/api/a6845f2ebcb186ec26b832f60c988537a58f3859/cluster/v1alpha1/0000_04_clusters.open-cluster-management.io_placementdecisions.crd.yaml
@@ -454,8 +458,8 @@ start-e2e-local: mod-vendor-local dep-ui-local cli-local
 	ARGOCD_ZJWT_FEATURE_FLAG=always \
 	ARGOCD_IN_CI=$(ARGOCD_IN_CI) \
 	BIN_MODE=$(ARGOCD_BIN_MODE) \
-	ARGOCD_APPLICATION_NAMESPACES=argocd-e2e-external,argocd-e2e-external-2 \
-	ARGOCD_APPLICATIONSET_CONTROLLER_NAMESPACES=argocd-e2e-external,argocd-e2e-external-2 \
+	ARGOCD_APPLICATION_NAMESPACES=argocd-e2e-external \
+	ARGOCD_APPLICATIONSET_CONTROLLER_NAMESPACES=argocd-e2e-external \
 	ARGOCD_APPLICATIONSET_CONTROLLER_ALLOWED_SCM_PROVIDERS=http://127.0.0.1:8341,http://127.0.0.1:8342,http://127.0.0.1:8343,http://127.0.0.1:8344 \
 	ARGOCD_E2E_TEST=true \
 		goreman -f $(ARGOCD_PROCFILE) start ${ARGOCD_START}
@@ -487,7 +491,6 @@ start-local: mod-vendor-local dep-ui-local cli-local
 	ARGOCD_ZJWT_FEATURE_FLAG=always \
 	ARGOCD_IN_CI=false \
 	ARGOCD_GPG_ENABLED=$(ARGOCD_GPG_ENABLED) \
-	BIN_MODE=$(ARGOCD_BIN_MODE) \
 	ARGOCD_E2E_TEST=false \
 	ARGOCD_APPLICATION_NAMESPACES=$(ARGOCD_APPLICATION_NAMESPACES) \
 		goreman -f $(ARGOCD_PROCFILE) start ${ARGOCD_START}
@@ -554,7 +557,6 @@ install-tools-local: install-test-tools-local install-codegen-tools-local instal
 install-test-tools-local:
 	./hack/install.sh kustomize
 	./hack/install.sh helm-linux
-	./hack/install.sh gotestsum
 
 # Installs all tools required for running codegen (Linux packages)
 .PHONY: install-codegen-tools-local
