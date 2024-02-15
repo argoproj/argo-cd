@@ -202,8 +202,8 @@ func NewCommand() *cobra.Command {
 	// *** CF specific variables ***
 	command.Flags().StringVar(&codefreshUrl, "codefresh-url", env.StringFromEnv("CODEFRESH_URL", "https://g.codefresh.io"), "Codefresh API URL")
 	command.Flags().StringVar(&codefreshToken, "codefresh-token", env.StringFromEnv("CODEFRESH_TOKEN", ""), "Codefresh token")
-	command.Flags().BoolVar(&codefreshApplicationVersioningEnabled, "codefresh-application-versioning-enabled", env.ParseBoolFromEnv("CODEFRESH_APPLICATION_VERSIONING_ENABLED", true), "Allow Codefresh application versioning")
-	command.Flags().BoolVar(&codefreshUseApplicationConfiguration, "codefresh-use-application-configuration", env.ParseBoolFromEnv("CODEFRESH_USE_APPLICATION_CONFIGURATION", true), "Allow getting application configuration from the Codefresh API")
+	command.Flags().BoolVar(&codefreshApplicationVersioningEnabled, "codefresh-application-version-enabled", env.ParseBoolFromEnv("CODEFRESH_APPVERSION_ENABLED", true), "Allow Codefresh application versioning")
+	command.Flags().BoolVar(&codefreshUseApplicationConfiguration, "codefresh-application-version-use-appconfig", env.ParseBoolFromEnv("CODEFRESH_APPVERSION_USE_APPCONFIG", true), "Allow getting application configuration from the Codefresh API")
 
 	command.Flags().StringVar(&cmdutil.LogFormat, "logformat", env.StringFromEnv("ARGOCD_REPO_SERVER_LOGFORMAT", "text"), "Set the logging format. One of: text|json")
 	command.Flags().StringVar(&cmdutil.LogLevel, "loglevel", env.StringFromEnv("ARGOCD_REPO_SERVER_LOGLEVEL", "info"), "Set the logging level. One of: debug|info|warn|error")
