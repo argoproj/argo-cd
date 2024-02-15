@@ -23,8 +23,11 @@ const RenderContainerState = (props: {container: any}) => {
         <div className='application-node-info__container'>
             <div className='application-node-info__container--name'>
                 {(props.container.state.terminated && props.container.state.terminated?.exitCode !== 0) ||
-                    (lastState && lastState?.exitCode !== 0 && <i className='fa fa-times-circle' style={{color: 'red'}} />)}
-                <span />
+                    (lastState && lastState?.exitCode !== 0 && (
+                        <span style={{marginRight: '4px'}}>
+                            <i className='fa fa-times-circle' style={{color: 'red'}} />
+                        </span>
+                    ))}
                 {props.container.name}
             </div>
             <div>
