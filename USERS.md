@@ -214,6 +214,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [PagerDuty](https://www.pagerduty.com/)
 1. [Pandosearch](https://www.pandosearch.com/en/home)
 1. [Patreon](https://www.patreon.com/)
+1. [PayIt](https://payitgov.com/)
 1. [PayPay](https://paypay.ne.jp/)
 1. [Peloton Interactive](https://www.onepeloton.com/)
 1. [Percona](https://percona.com/)
