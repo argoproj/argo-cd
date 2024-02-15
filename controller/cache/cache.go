@@ -526,6 +526,16 @@ func (c *liveStateCache) getCluster(server string) (clustercache.ClusterCache, e
 			ref = oldRes.Ref
 		}
 
+		if newRes == nil {
+			log.WithFields(log.Fields{
+				"server":      cluster.Server,
+				"namespace":   ref.Namespace,
+				"name":        ref.Name,
+				"api-version": ref.APIVersion,
+				"kind":        ref.Kind,
+			}).Debug("Resource was deleted")
+		}
+
 		c.lock.RLock()
 		cacheSettings := c.cacheSettings
 		c.lock.RUnlock()

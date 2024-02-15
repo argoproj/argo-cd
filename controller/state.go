@@ -473,13 +473,14 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 
 	liveObjByKey, err := m.liveStateCache.GetManagedLiveObjs(app, targetObjs)
 	if err != nil {
+		logCtx.Errorf("Failed to load live state: %v", err)
 		liveObjByKey = make(map[kubeutil.ResourceKey]*unstructured.Unstructured)
 		msg := fmt.Sprintf("Failed to load live state: %s", err.Error())
 		conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: msg, LastTransitionTime: &now})
 		failedToLoadObjs = true
 	}
 
-	logCtx.Debugf("Retrieved live manifests")
+	logCtx.Debugf("Retrieved live manifests, amount of live objects: %d", len(liveObjByKey))
 
 	// filter out all resources which are not permitted in the application project
 	for k, v := range liveObjByKey {
@@ -492,6 +493,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 		})
 
 		if err != nil {
+			logCtx.Infof("Failed to check if live resource %q is permitted in project %q: %v", k.String(), app.Spec.Project, err)
 			msg := fmt.Sprintf("Failed to check if live resource %q is permitted in project %q: %s", k.String(), app.Spec.Project, err.Error())
 			conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: msg, LastTransitionTime: &now})
 			failedToLoadObjs = true
@@ -551,6 +553,8 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 		}
 	}
 
+	logCtx.Debugf("Resources before reconciliation: target %d, live %d", len(targetObjs), len(liveObjByKey))
+
 	reconciliation := sync.Reconcile(targetObjs, liveObjByKey, app.Spec.Destination.Namespace, infoProvider)
 	ts.AddCheckpoint("live_ms")
 
@@ -606,6 +610,9 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 	syncCode := v1alpha1.SyncStatusCodeSynced
 	managedResources := make([]managedResource, len(reconciliation.Target))
 	resourceSummaries := make([]v1alpha1.ResourceStatus, len(reconciliation.Target))
+
+	logCtx.Debugf("Resources after reconciliation: target %d, live %d", len(reconciliation.Target), len(reconciliation.Live))
+
 	for i, targetObj := range reconciliation.Target {
 		liveObj := reconciliation.Live[i]
 		obj := liveObj
@@ -657,13 +664,13 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 
 			// logging for precisely, can be removed in future
 			if diffResult.Modified {
-				logCtx.Infof("Resource %s is out of sync, because diff between live and desired state", resState.Name)
-				logCtx.Infof("Live state: %s", string(diffResult.NormalizedLive))
-				logCtx.Infof("Desired state: %s", string(diffResult.PredictedLive))
+				logCtx.Debugf("Resource %s is out of sync, because diff between live and desired state", resState.Name)
+				logCtx.Debugf("Live state: %s", string(diffResult.NormalizedLive))
+				logCtx.Debugf("Desired state: %s", string(diffResult.PredictedLive))
 			} else if targetObj == nil {
-				logCtx.Infof("Resource %s is out of sync, because target object is nil", resState.Name)
+				logCtx.Debugf("Resource %s is out of sync, because target object is nil", resState.Name)
 			} else if liveObj == nil {
-				logCtx.Infof("Resource %s is out of sync, because live object is nil", resState.Name)
+				logCtx.Debugf("Resource %s is out of sync, because live object is nil", resState.Name)
 			}
 
 			// Set resource state to OutOfSync since one of the following is true:
