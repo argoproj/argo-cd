@@ -1,7 +1,7 @@
 import {DataLoader} from 'argo-ui';
 import * as classNames from 'classnames';
 import * as React from 'react';
-import {useEffect, useState} from 'react';
+import {useEffect, useState, useRef} from 'react';
 import {bufferTime, delay, retryWhen} from 'rxjs/operators';
 
 import {LogEntry} from '../../../shared/models';
@@ -83,6 +83,7 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
     const [highlight, setHighlight] = useState<RegExp>(matchNothing);
     const [scrollToBottom, setScrollToBottom] = useState(true);
     const [logs, setLogs] = useState<LogEntry[]>([]);
+    const logsContainerRef = useRef(null);
 
     useEffect(() => {
         if (viewPodNames) {
@@ -101,6 +102,15 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
     }
 
     useEffect(() => setScrollToBottom(true), [follow]);
+
+    useEffect(() => {
+        if (scrollToBottom) {
+            const element = logsContainerRef.current;
+            if (element) {
+                element.scrollTop = element.scrollHeight;
+            }
+        }
+    }, [logs, scrollToBottom]);
 
     useEffect(() => {
         setLogs([]);
@@ -125,6 +135,10 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
         return () => logsSource.unsubscribe();
     }, [applicationName, applicationNamespace, namespace, podName, group, kind, name, containerName, tail, follow, sinceSeconds, filter, previous]);
 
+    const handleScroll = (event: React.WheelEvent<HTMLDivElement>) => {
+        if (event.deltaY < 0) setScrollToBottom(false);
+    };
+
     const renderLog = (log: LogEntry, lineNum: number) =>
         // show the pod name if there are multiple pods, pad with spaces to align
         (viewPodNames ? (lineNum === 0 || logs[lineNum - 1].podName !== log.podName ? podColor(podName) + log.podName + reset : ' '.repeat(log.podName.length)) + ' ' : '') +
@@ -133,11 +147,11 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
         // show the log content, highlight the filter text
         log.content?.replace(highlight, (substring: string) => whiteOnYellow + substring + reset);
     const logsContent = (width: number, height: number, isWrapped: boolean) => (
-        <div style={{width, height, overflow: 'scroll'}}>
+        <div ref={logsContainerRef} onScroll={handleScroll} style={{width, height, overflow: 'scroll'}}>
             {logs.map((log, lineNum) => (
-                <pre key={lineNum} style={{whiteSpace: isWrapped ? 'normal' : 'pre'}} className='noscroll'>
+                <div key={lineNum} style={{whiteSpace: isWrapped ? 'normal' : 'pre', lineHeight: '16px'}} className='noscroll'>
                     <Ansi>{renderLog(log, lineNum)}</Ansi>
-                </pre>
+                </div>
             ))}
         </div>
     );
@@ -177,11 +191,7 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
                                 <FullscreenButton {...props} />
                             </span>
                         </div>
-                        <div
-                            className={classNames('pod-logs-viewer', {'pod-logs-viewer--inverted': prefs.appDetails.darkMode})}
-                            onWheel={e => {
-                                if (e.deltaY < 0) setScrollToBottom(false);
-                            }}>
+                        <div className={classNames('pod-logs-viewer', {'pod-logs-viewer--inverted': prefs.appDetails.darkMode})} onWheel={handleScroll}>
                             <AutoSizer>{({width, height}: {width: number; height: number}) => logsContent(width, height, prefs.appDetails.wrapLines)}</AutoSizer>
                         </div>
                     </React.Fragment>

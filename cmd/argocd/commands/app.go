@@ -28,6 +28,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	k8swatch "k8s.io/apimachinery/pkg/watch"
 	"k8s.io/utils/pointer"
 	"sigs.k8s.io/yaml"
 
@@ -101,6 +102,7 @@ type watchOpts struct {
 	operation bool
 	suspended bool
 	degraded  bool
+	delete    bool
 }
 
 // NewApplicationCreateCommand returns a new instance of an `argocd app create` command
@@ -318,6 +320,35 @@ func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 	var command = &cobra.Command{
 		Use:   "get APPNAME",
 		Short: "Get application details",
+		Example: templates.Examples(`  
+  # Get basic details about the application "my-app" in wide format
+  argocd app get my-app -o wide
+
+  # Get detailed information about the application "my-app" in YAML format
+  argocd app get my-app -o yaml
+
+  # Get details of the application "my-app" in JSON format
+  argocd get my-app -o json
+
+  # Get application details and include information about the current operation
+  argocd app get my-app --show-operation
+
+  # Show application parameters and overrides
+  argocd app get my-app --show-params
+
+  # Refresh application data when retrieving
+  argocd app get my-app --refresh
+
+  # Perform a hard refresh, including refreshing application data and target manifests cache
+  argocd app get my-app --hard-refresh
+
+  # Get application details and display them in a tree format
+  argocd app get my-app --output tree
+  
+  # Get application details and display them in a detailed tree format
+  argocd app get my-app --output tree=detailed
+  		`),
+
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
 			if len(args) == 0 {
@@ -495,8 +526,8 @@ func NewApplicationLogsCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 					} else {
 						return
 					}
-				} //Done with receive message
-			} //Done with retry
+				} // Done with receive message
+			} // Done with retry
 		},
 	}
 
@@ -860,7 +891,7 @@ func unset(source *argoappv1.ApplicationSource, opts unsetOpts) (updated bool, n
 			for i, item := range source.Kustomize.Images {
 				if argoappv1.KustomizeImage(kustomizeImage).Match(item) {
 					updated = true
-					//remove i
+					// remove i
 					a := source.Kustomize.Images
 					copy(a[i:], a[i+1:]) // Shift a[i+1:] left one index.
 					a[len(a)-1] = ""     // Erase last element (write zero value).
@@ -1091,6 +1122,7 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 					defer argoio.Close(conn)
 					cluster, err := clusterIf.Get(ctx, &clusterpkg.ClusterQuery{Name: app.Spec.Destination.Name, Server: app.Spec.Destination.Server})
 					errors.CheckError(err)
+
 					diffOption.local = local
 					diffOption.localRepoRoot = localRepoRoot
 					diffOption.cluster = cluster
@@ -1255,6 +1287,7 @@ func NewApplicationDeleteCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 		noPrompt          bool
 		propagationPolicy string
 		selector          string
+		wait              bool
 	)
 	var command = &cobra.Command{
 		Use:   "delete APPNAME",
@@ -1278,7 +1311,8 @@ func NewApplicationDeleteCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
-			conn, appIf := headless.NewClientOrDie(clientOpts, c).NewApplicationClientOrDie()
+			acdClient := headless.NewClientOrDie(clientOpts, c)
+			conn, appIf := acdClient.NewApplicationClientOrDie()
 			defer argoio.Close(conn)
 			var isTerminal bool = isatty.IsTerminal(os.Stdout.Fd()) || isatty.IsCygwinTerminal(os.Stdout.Fd())
 			var isConfirmAll bool = false
@@ -1325,6 +1359,9 @@ func NewApplicationDeleteCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 					if lowercaseAnswer == "y" {
 						_, err := appIf.Delete(ctx, &appDeleteReq)
 						errors.CheckError(err)
+						if wait {
+							checkForDeleteEvent(ctx, acdClient, appFullName)
+						}
 						fmt.Printf("application '%s' deleted\n", appFullName)
 					} else {
 						fmt.Println("The command to delete '" + appFullName + "' was cancelled.")
@@ -1332,6 +1369,10 @@ func NewApplicationDeleteCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 				} else {
 					_, err := appIf.Delete(ctx, &appDeleteReq)
 					errors.CheckError(err)
+
+					if wait {
+						checkForDeleteEvent(ctx, acdClient, appFullName)
+					}
 				}
 			}
 		},
@@ -1340,7 +1381,17 @@ func NewApplicationDeleteCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 	command.Flags().StringVarP(&propagationPolicy, "propagation-policy", "p", "foreground", "Specify propagation policy for deletion of application's resources. One of: foreground|background")
 	command.Flags().BoolVarP(&noPrompt, "yes", "y", false, "Turn off prompting to confirm cascaded deletion of application resources")
 	command.Flags().StringVarP(&selector, "selector", "l", "", "Delete all apps with matching label. Supports '=', '==', '!=', in, notin, exists & not exists. Matching apps must satisfy all of the specified label constraints.")
+	command.Flags().BoolVar(&wait, "wait", false, "Wait until deletion of the application(s) completes")
 	return command
+}
+
+func checkForDeleteEvent(ctx context.Context, acdClient argocdclient.Client, appFullName string) {
+	appEventCh := acdClient.WatchApplicationWithRetry(ctx, appFullName, "")
+	for appEvent := range appEventCh {
+		if appEvent.Type == k8swatch.Deleted {
+			return
+		}
+	}
 }
 
 // Print simple list of application names
@@ -1603,7 +1654,7 @@ func NewApplicationWaitCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				list, err := appIf.List(ctx, &application.ApplicationQuery{Selector: pointer.String(selector)})
 				errors.CheckError(err)
 				for _, i := range list.Items {
-					appNames = append(appNames, i.Name)
+					appNames = append(appNames, i.QualifiedName())
 				}
 			}
 			for _, appName := range appNames {
@@ -1616,6 +1667,7 @@ func NewApplicationWaitCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	command.Flags().BoolVar(&watch.health, "health", false, "Wait for health")
 	command.Flags().BoolVar(&watch.suspended, "suspended", false, "Wait for suspended")
 	command.Flags().BoolVar(&watch.degraded, "degraded", false, "Wait for degraded")
+	command.Flags().BoolVar(&watch.delete, "delete", false, "Wait for delete")
 	command.Flags().StringVarP(&selector, "selector", "l", "", "Wait for apps by label. Supports '=', '==', '!=', in, notin, exists & not exists. Matching apps must satisfy all of the specified label constraints.")
 	command.Flags().StringArrayVar(&resources, "resource", []string{}, fmt.Sprintf("Sync only specific resources as GROUP%[1]sKIND%[1]sNAME or %[2]sGROUP%[1]sKIND%[1]sNAME. Fields may be blank and '*' can be used. This option may be specified repeatedly", resourceFieldDelimiter, resourceExcludeIndicator))
 	command.Flags().BoolVar(&watch.operation, "operation", false, "Wait for pending operations")
@@ -1883,7 +1935,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 						Backoff: &argoappv1.Backoff{
 							Duration:    retryBackoffDuration.String(),
 							MaxDuration: retryBackoffMaxDuration.String(),
-							Factor:      pointer.Int64Ptr(retryBackoffFactor),
+							Factor:      pointer.Int64(retryBackoffFactor),
 						},
 					}
 				}
@@ -1974,7 +2026,7 @@ func getAppNamesBySelector(ctx context.Context, appIf application.ApplicationSer
 			return []string{}, fmt.Errorf("no apps match selector %v", selector)
 		}
 		for _, i := range list.Items {
-			appNames = append(appNames, i.Name)
+			appNames = append(appNames, i.QualifiedName())
 		}
 	}
 	return appNames, nil
@@ -2110,6 +2162,9 @@ func groupResourceStates(app *argoappv1.Application, selectedResources []*argoap
 
 // check if resource health, sync and operation statuses matches watch options
 func checkResourceStatus(watch watchOpts, healthStatus string, syncStatus string, operationStatus *argoappv1.Operation) bool {
+	if watch.delete {
+		return false
+	}
 	healthCheckPassed := true
 
 	if watch.suspended && watch.health && watch.degraded {
@@ -2122,7 +2177,7 @@ func checkResourceStatus(watch watchOpts, healthStatus string, syncStatus string
 	} else if watch.degraded && watch.health {
 		healthCheckPassed = healthStatus == string(health.HealthStatusHealthy) ||
 			healthStatus == string(health.HealthStatusDegraded)
-		//below are good
+		// below are good
 	} else if watch.suspended && watch.health {
 		healthCheckPassed = healthStatus == string(health.HealthStatusHealthy) ||
 			healthStatus == string(health.HealthStatusSuspended)
@@ -2262,6 +2317,12 @@ func waitOnApplicationStatus(ctx context.Context, acdClient argocdclient.Client,
 
 		finalOperationState = app.Status.OperationState
 		operationInProgress := false
+
+		if watch.delete && appEvent.Type == k8swatch.Deleted {
+			fmt.Printf("Application '%s' deleted\n", app.QualifiedName())
+			return nil, nil, nil
+		}
+
 		// consider the operation is in progress
 		if app.Operation != nil {
 			// if it just got requested
