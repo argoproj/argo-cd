@@ -197,6 +197,11 @@ func NewCommand() *cobra.Command {
 			return nil
 		},
 	}
+	// *** CF specific variables ***
+	command.Flags().StringVar(&codefreshUrl, "codefresh-url", env.StringFromEnv("CODEFRESH_URL", "https://g.codefresh.io"), "Codefresh API URL")
+	command.Flags().StringVar(&codefreshToken, "codefresh-token", env.StringFromEnv("CODEFRESH_TOKEN", ""), "Codefresh token")
+	command.Flags().BoolVar(&codefreshIgnoreVersionConfig, "codefresh-ignore-version-config", env.ParseBoolFromEnv("CODEFRESH_IGNORE_VERSION_CONFIG", false), "Codefresh ignore application version config")
+
 	command.Flags().StringVar(&cmdutil.LogFormat, "logformat", env.StringFromEnv("ARGOCD_REPO_SERVER_LOGFORMAT", "text"), "Set the logging format. One of: text|json")
 	command.Flags().StringVar(&cmdutil.LogLevel, "loglevel", env.StringFromEnv("ARGOCD_REPO_SERVER_LOGLEVEL", "info"), "Set the logging level. One of: debug|info|warn|error")
 	command.Flags().Int64Var(&parallelismLimit, "parallelismlimit", int64(env.ParseNumFromEnv("ARGOCD_REPO_SERVER_PARALLELISM_LIMIT", 0, 0, math.MaxInt32)), "Limit on number of concurrent manifests generate requests. Any value less the 1 means no limit.")
@@ -212,9 +217,6 @@ func NewCommand() *cobra.Command {
 	command.Flags().BoolVar(&allowOutOfBoundsSymlinks, "allow-oob-symlinks", env.ParseBoolFromEnv("ARGOCD_REPO_SERVER_ALLOW_OUT_OF_BOUNDS_SYMLINKS", false), "Allow out-of-bounds symlinks in repositories (not recommended)")
 	command.Flags().StringVar(&streamedManifestMaxTarSize, "streamed-manifest-max-tar-size", env.StringFromEnv("ARGOCD_REPO_SERVER_STREAMED_MANIFEST_MAX_TAR_SIZE", "100M"), "Maximum size of streamed manifest archives")
 	command.Flags().StringVar(&streamedManifestMaxExtractedSize, "streamed-manifest-max-extracted-size", env.StringFromEnv("ARGOCD_REPO_SERVER_STREAMED_MANIFEST_MAX_EXTRACTED_SIZE", "1G"), "Maximum size of streamed manifest archives when extracted")
-	command.Flags().StringVar(&codefreshUrl, "codefresh-url", env.StringFromEnv("ARGOCD_REPO_SERVER_CODEFRESH_URL", "https://g.codefresh.io"), "Codefresh API URL")
-	command.Flags().StringVar(&codefreshToken, "codefresh-token", env.StringFromEnv("ARGOCD_REPO_SERVER_CODEFRESH_TOKEN", ""), "Codefresh token")
-	command.Flags().BoolVar(&codefreshIgnoreVersionConfig, "codefresh-ignore-version-config", env.ParseBoolFromEnv("ARGOCD_REPO_SERVER_CODEFRESH_IGNORE_VERSION_CONFIG", false), "Codefresh ignore application version config")
 	command.Flags().StringVar(&helmManifestMaxExtractedSize, "helm-manifest-max-extracted-size", env.StringFromEnv("ARGOCD_REPO_SERVER_HELM_MANIFEST_MAX_EXTRACTED_SIZE", "1G"), "Maximum size of helm manifest archives when extracted")
 	command.Flags().BoolVar(&disableManifestMaxExtractedSize, "disable-helm-manifest-max-extracted-size", env.ParseBoolFromEnv("ARGOCD_REPO_SERVER_DISABLE_HELM_MANIFEST_MAX_EXTRACTED_SIZE", false), "Disable maximum size of helm manifest archives when extracted")
 	tlsConfigCustomizerSrc = tls.AddTLSFlagsToCmd(&command)
