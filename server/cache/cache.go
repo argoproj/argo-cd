@@ -6,14 +6,12 @@ import (
 	"math"
 	"time"
 
-	"github.com/go-redis/redis/v8"
 	"github.com/spf13/cobra"
 
 	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	cacheutil "github.com/argoproj/argo-cd/v2/util/cache"
 	appstatecache "github.com/argoproj/argo-cd/v2/util/cache/appstate"
 	"github.com/argoproj/argo-cd/v2/util/env"
-	"github.com/argoproj/argo-cd/v2/util/oidc"
 )
 
 var ErrCacheMiss = appstatecache.ErrCacheMiss
@@ -25,8 +23,6 @@ type Cache struct {
 	loginAttemptsExpiration         time.Duration
 }
 
-var _ oidc.OIDCStateStorage = &Cache{}
-
 func NewCache(
 	cache *appstatecache.Cache,
 	connectionStatusCacheExpiration time.Duration,
@@ -36,7 +32,7 @@ func NewCache(
 	return &Cache{cache, connectionStatusCacheExpiration, oidcCacheExpiration, loginAttemptsExpiration}
 }
 
-func AddCacheFlagsToCmd(cmd *cobra.Command, opts ...func(client *redis.Client)) func() (*Cache, error) {
+func AddCacheFlagsToCmd(cmd *cobra.Command, opts ...cacheutil.Options) func() (*Cache, error) {
 	var connectionStatusCacheExpiration time.Duration
 	var oidcCacheExpiration time.Duration
 	var loginAttemptsExpiration time.Duration
@@ -89,20 +85,6 @@ func (c *Cache) GetClusterInfo(server string, res *appv1.ClusterInfo) error {
 
 func (c *Cache) SetClusterInfo(server string, res *appv1.ClusterInfo) error {
 	return c.cache.SetClusterInfo(server, res)
-}
-
-func oidcStateKey(key string) string {
-	return fmt.Sprintf("oidc|%s", key)
-}
-
-func (c *Cache) GetOIDCState(key string) (*oidc.OIDCState, error) {
-	res := oidc.OIDCState{}
-	err := c.cache.GetItem(oidcStateKey(key), &res)
-	return &res, err
-}
-
-func (c *Cache) SetOIDCState(key string, state *oidc.OIDCState) error {
-	return c.cache.SetItem(oidcStateKey(key), state, c.oidcCacheExpiration, state == nil)
 }
 
 func (c *Cache) GetCache() *cacheutil.Cache {

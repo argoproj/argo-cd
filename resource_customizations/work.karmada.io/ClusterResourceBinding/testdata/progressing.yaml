@@ -1,0 +1,41 @@
+apiVersion: work.karmada.io/v1alpha2
+kind: ClusterResourceBinding
+metadata:
+  finalizers:
+    - karmada.io/binding-controller
+  generation: 5
+  labels:
+    clusterpropagationpolicy.karmada.io/name: service-testk4j5t
+  name: test-service
+  namespace: default
+  ownerReferences:
+    - apiVersion: v1
+      blockOwnerDeletion: true
+      controller: true
+      kind: Service
+      name: test
+      uid: 039b0d1a-05cb-40b4-b43a-438b0de386af
+  resourceVersion: "4106772"
+  uid: 3932ee50-4c2b-4e77-9bfb-45eeb4ec220f
+spec:
+  resource:
+    apiVersion: v1
+    kind: Service
+    name: test
+    namespace: default
+    resourceVersion: "2605059"
+    uid: 039b0d1a-05cb-40b4-b43a-438b0de386af
+status:
+  conditions:
+    - lastTransitionTime: "2022-10-27T07:19:50Z"
+      message: '0/3 clusters are available: 3 cluster(s) didn''t match the placement
+      cluster affinity constraint.'
+      reason: BindingFailedScheduling
+      status: "False"
+      type: Scheduled
+    - lastTransitionTime: "2022-10-27T07:19:52Z"
+      message: Failed to apply all works, see status.aggregatedStatus for details
+      reason: FullyAppliedFailed
+      status: "False"
+      type: FullyApplied
+  schedulerObservedGeneration: 4

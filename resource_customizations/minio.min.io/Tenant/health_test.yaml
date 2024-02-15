@@ -25,8 +25,16 @@ tests:
   inputPath: testdata/another_tenant_exists.yaml
 - healthStatus:
     status: Degraded
+    message: "Tenant credentials are not set properly"
+  inputPath: testdata/incorrect_tenant_credentials.yaml
+- healthStatus:
+    status: Degraded
     message: "Different versions across MinIO Pools"
   inputPath: testdata/versions_mismatch.yaml
+- healthStatus:
+    status: Degraded
+    message: "Pool Decommissioning Not Allowed"
+  inputPath: testdata/pool_decommissioning_not_allowed.yaml
 - healthStatus:
     status: Progressing
     message: "<unknown status message>"

@@ -1,4 +1,5 @@
 import {DataLoader, DropDownMenu, Duration} from 'argo-ui';
+import {InitiatedBy} from './initiated-by';
 import * as moment from 'moment';
 import * as React from 'react';
 import {Revision, Timestamp} from '../../../shared/components';
@@ -6,8 +7,7 @@ import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
 import {ApplicationParameters} from '../application-parameters/application-parameters';
 import {RevisionMetadataRows} from './revision-metadata-rows';
-
-require('./application-deployment-history.scss');
+import './application-deployment-history.scss';
 
 export const ApplicationDeploymentHistory = ({
     app,
@@ -33,15 +33,21 @@ export const ApplicationDeploymentHistory = ({
                 <div className='row application-deployment-history__item' key={info.deployedAt} onClick={() => selectDeployment(index)}>
                     <div className='columns small-3'>
                         <div>
-                            <i className='fa fa-clock' /> Deployed At:
+                            <i className='fa fa-clock' /> <span className='show-for-large'>Deployed At:</span>
                             <br />
                             <Timestamp date={info.deployedAt} />
                         </div>
                         <div>
                             <br />
-                            <i className='fa fa-hourglass-half' /> Time to deploy:
+                            <i className='fa fa-hourglass-half' /> <span className='show-for-large'>Time to deploy:</span>
                             <br />
                             {(info.deployStartedAt && <Duration durationMs={moment(info.deployedAt).diff(moment(info.deployStartedAt)) / 1000} />) || 'Unknown'}
+                        </div>
+                        <div>
+                            <br />
+                            Initiated by:
+                            <br />
+                            <InitiatedBy username={info.initiatedBy.username} automated={info.initiatedBy.automated} />
                         </div>
                         <div>
                             <br />
@@ -76,11 +82,12 @@ export const ApplicationDeploymentHistory = ({
                             <React.Fragment>
                                 <RevisionMetadataRows
                                     applicationName={app.metadata.name}
+                                    applicationNamespace={app.metadata.namespace}
                                     source={{...recentDeployments[index].source, targetRevision: recentDeployments[index].revision}}
                                 />
                                 <DataLoader
                                     input={{...recentDeployments[index].source, targetRevision: recentDeployments[index].revision, appName: app.metadata.name}}
-                                    load={src => services.repos.appDetails(src, src.appName)}>
+                                    load={src => services.repos.appDetails(src, src.appName, app.spec.project)}>
                                     {(details: models.RepoAppDetails) => (
                                         <div>
                                             <ApplicationParameters

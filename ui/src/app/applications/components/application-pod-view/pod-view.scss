@@ -7,6 +7,13 @@ $pods-per-column: 4;
 $max-rows: 5;
 $num-stats: 2;
 
+$pod-age-icon-clr: #ffce25;
+
+.circle-icon {
+    color: $pod-age-icon-clr;
+    font-size: 10px;
+}
+
 .pod-view {
     &__settings {
         align-items: center;
@@ -58,6 +65,7 @@ $num-stats: 2;
             div {
                 border-radius: 3px;
                 background-color: $argo-color-gray-3;
+                color: $argo-color-gray-7;
                 margin-right: 5px;
                 padding: 3px 5px;
             }
@@ -67,6 +75,7 @@ $num-stats: 2;
             padding: 10px;
             border-radius: 3px;
             background-color: $argo-color-gray-3;
+            color: $argo-color-gray-6;
             div {
                 display: flex;
                 & div:last-child {
@@ -145,7 +154,16 @@ $num-stats: 2;
                     background-color: $argo-color-gray-6;
                 }
             }
-
+            &__new-pod-icon {
+                background: none;
+                color: $pod-age-icon-clr;
+                display: block;
+                left: 20px;
+                margin: 0px;
+                position: absolute;
+                top: -4px;
+                font-size: 10px;
+            }
             &__stat-tooltip {
                 text-align: left;
 
@@ -197,6 +215,17 @@ $num-stats: 2;
                 }
             }
         }
+
+        &__quick-start-actions {
+            display: flex;
+            padding-top: 1em;
+            justify-content: center;
+
+            &.disabled {
+                cursor: default !important;
+                color: $argo-color-gray-3 !important;
+            }
+        }
     }
 
     @media screen and (max-width: map-get($breakpoints, large)) {
@@ -216,4 +245,8 @@ $num-stats: 2;
             }
         }
     }
+}
+
+.tippy-content {
+    text-align: left;
 }

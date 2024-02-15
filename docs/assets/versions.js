@@ -9,16 +9,6 @@ setTimeout(function() {
   caret.innerHTML = "<i class='fa fa-caret-down dropdown-caret'></i>"
   caret.classList.add('dropdown-caret')
   div.querySelector('.rst-current-version').appendChild(caret);
-  div.querySelector('.rst-current-version').addEventListener('click', function() {
-      const classes = container.className.split(' ');
-      const index = classes.indexOf('shift-up');
-      if (index === -1) {
-          classes.push('shift-up');
-      } else {
-          classes.splice(index, 1);
-      }
-      container.className = classes.join(' ');
-  });
   }
 
   var CSSLink = document.createElement('link');

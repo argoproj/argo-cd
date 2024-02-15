@@ -1,3 +1,4 @@
+//go:build !race
 // +build !race
 
 package db
@@ -5,6 +6,11 @@ package db
 import (
 	"context"
 	"testing"
+
+	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	"github.com/argoproj/argo-cd/v2/common"
 
 	"github.com/stretchr/testify/assert"
 	"k8s.io/client-go/kubernetes/fake"
@@ -18,8 +24,30 @@ func TestWatchClusters_CreateRemoveCluster(t *testing.T) {
 	// !race:
 	// Intermittent failure when running TestWatchClusters_LocalClusterModifications with -race, likely due to race condition
 	// https://github.com/argoproj/argo-cd/issues/4755
-
-	kubeclientset := fake.NewSimpleClientset()
+	emptyArgoCDConfigMap := &v1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      common.ArgoCDConfigMapName,
+			Namespace: fakeNamespace,
+			Labels: map[string]string{
+				"app.kubernetes.io/part-of": "argocd",
+			},
+		},
+		Data: map[string]string{},
+	}
+	argoCDSecret := &v1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      common.ArgoCDSecretName,
+			Namespace: fakeNamespace,
+			Labels: map[string]string{
+				"app.kubernetes.io/part-of": "argocd",
+			},
+		},
+		Data: map[string][]byte{
+			"admin.password":   nil,
+			"server.secretkey": nil,
+		},
+	}
+	kubeclientset := fake.NewSimpleClientset(emptyArgoCDConfigMap, argoCDSecret)
 	settingsManager := settings.NewSettingsManager(context.Background(), kubeclientset, fakeNamespace)
 	db := NewDB(fakeNamespace, settingsManager, kubeclientset)
 	runWatchTest(t, db, []func(old *v1alpha1.Cluster, new *v1alpha1.Cluster){
@@ -52,8 +80,30 @@ func TestWatchClusters_LocalClusterModifications(t *testing.T) {
 	// !race:
 	// Intermittent failure when running TestWatchClusters_LocalClusterModifications with -race, likely due to race condition
 	// https://github.com/argoproj/argo-cd/issues/4755
-
-	kubeclientset := fake.NewSimpleClientset()
+	emptyArgoCDConfigMap := &v1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      common.ArgoCDConfigMapName,
+			Namespace: fakeNamespace,
+			Labels: map[string]string{
+				"app.kubernetes.io/part-of": "argocd",
+			},
+		},
+		Data: map[string]string{},
+	}
+	argoCDSecret := &v1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      common.ArgoCDSecretName,
+			Namespace: fakeNamespace,
+			Labels: map[string]string{
+				"app.kubernetes.io/part-of": "argocd",
+			},
+		},
+		Data: map[string][]byte{
+			"admin.password":   nil,
+			"server.secretkey": nil,
+		},
+	}
+	kubeclientset := fake.NewSimpleClientset(emptyArgoCDConfigMap, argoCDSecret)
 	settingsManager := settings.NewSettingsManager(context.Background(), kubeclientset, fakeNamespace)
 	db := NewDB(fakeNamespace, settingsManager, kubeclientset)
 	runWatchTest(t, db, []func(old *v1alpha1.Cluster, new *v1alpha1.Cluster){

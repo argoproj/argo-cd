@@ -1,17 +1,17 @@
 package controller
 
 import (
-	"io/ioutil"
+	"os"
 	"testing"
 
 	"github.com/argoproj/gitops-engine/pkg/health"
 	synccommon "github.com/argoproj/gitops-engine/pkg/sync/common"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
-	"github.com/ghodss/yaml"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"sigs.k8s.io/yaml"
 
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
 	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
@@ -29,7 +29,7 @@ func initStatuses(resources []managedResource) []appv1.ResourceStatus {
 }
 
 func resourceFromFile(filePath string) unstructured.Unstructured {
-	yamlBytes, err := ioutil.ReadFile(filePath)
+	yamlBytes, err := os.ReadFile(filePath)
 	if err != nil {
 		panic(err)
 	}
@@ -51,15 +51,33 @@ func TestSetApplicationHealth(t *testing.T) {
 	}}
 	resourceStatuses := initStatuses(resources)
 
-	healthStatus, err := setApplicationHealth(resources, resourceStatuses, lua.ResourceHealthOverrides{}, app)
+	healthStatus, err := setApplicationHealth(resources, resourceStatuses, lua.ResourceHealthOverrides{}, app, true)
 	assert.NoError(t, err)
 	assert.Equal(t, health.HealthStatusDegraded, healthStatus.Status)
 
+	assert.Equal(t, resourceStatuses[0].Health.Status, health.HealthStatusHealthy)
+	assert.Equal(t, resourceStatuses[1].Health.Status, health.HealthStatusDegraded)
+
 	// now mark the job as a hook and retry. it should ignore the hook and consider the app healthy
 	failedJob.SetAnnotations(map[string]string{synccommon.AnnotationKeyHook: "PreSync"})
-	healthStatus, err = setApplicationHealth(resources, resourceStatuses, nil, app)
+	healthStatus, err = setApplicationHealth(resources, resourceStatuses, nil, app, true)
 	assert.NoError(t, err)
 	assert.Equal(t, health.HealthStatusHealthy, healthStatus.Status)
+}
+
+func TestSetApplicationHealth_ResourceHealthNotPersisted(t *testing.T) {
+	failedJob := resourceFromFile("./testdata/job-failed.yaml")
+
+	resources := []managedResource{{
+		Group: "batch", Version: "v1", Kind: "Job", Live: &failedJob,
+	}}
+	resourceStatuses := initStatuses(resources)
+
+	healthStatus, err := setApplicationHealth(resources, resourceStatuses, lua.ResourceHealthOverrides{}, app, false)
+	assert.NoError(t, err)
+	assert.Equal(t, health.HealthStatusDegraded, healthStatus.Status)
+
+	assert.Nil(t, resourceStatuses[0].Health)
 }
 
 func TestSetApplicationHealth_MissingResource(t *testing.T) {
@@ -69,7 +87,7 @@ func TestSetApplicationHealth_MissingResource(t *testing.T) {
 		Group: "", Version: "v1", Kind: "Pod", Target: &pod}, {}}
 	resourceStatuses := initStatuses(resources)
 
-	healthStatus, err := setApplicationHealth(resources, resourceStatuses, lua.ResourceHealthOverrides{}, app)
+	healthStatus, err := setApplicationHealth(resources, resourceStatuses, lua.ResourceHealthOverrides{}, app, true)
 	assert.NoError(t, err)
 	assert.Equal(t, health.HealthStatusMissing, healthStatus.Status)
 }
@@ -82,7 +100,7 @@ func TestSetApplicationHealth_MissingResourceNoBuiltHealthCheck(t *testing.T) {
 	resourceStatuses := initStatuses(resources)
 
 	t.Run("NoOverride", func(t *testing.T) {
-		healthStatus, err := setApplicationHealth(resources, resourceStatuses, lua.ResourceHealthOverrides{}, app)
+		healthStatus, err := setApplicationHealth(resources, resourceStatuses, lua.ResourceHealthOverrides{}, app, true)
 		assert.NoError(t, err)
 		assert.Equal(t, health.HealthStatusHealthy, healthStatus.Status)
 		assert.Equal(t, resourceStatuses[0].Health.Status, health.HealthStatusMissing)
@@ -93,7 +111,7 @@ func TestSetApplicationHealth_MissingResourceNoBuiltHealthCheck(t *testing.T) {
 			lua.GetConfigMapKey(schema.GroupVersionKind{Version: "v1", Kind: "ConfigMap"}): appv1.ResourceOverride{
 				HealthLua: "some health check",
 			},
-		}, app)
+		}, app, true)
 		assert.NoError(t, err)
 		assert.Equal(t, health.HealthStatusMissing, healthStatus.Status)
 	})
@@ -106,7 +124,7 @@ func newAppLiveObj(status health.HealthStatusCode) *unstructured.Unstructured {
 		},
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "argoproj.io/v1alpha1",
-			Kind:       "Application",
+			Kind:       application.ApplicationKind,
 		},
 		Status: appv1.ApplicationStatus{
 			Health: appv1.HealthStatus{
@@ -143,7 +161,7 @@ return hs`,
 			Group: application.Group, Version: "v1alpha1", Kind: application.ApplicationKind, Live: degradedApp}, {}}
 		resourceStatuses := initStatuses(resources)
 
-		healthStatus, err := setApplicationHealth(resources, resourceStatuses, overrides, app)
+		healthStatus, err := setApplicationHealth(resources, resourceStatuses, overrides, app, true)
 		assert.NoError(t, err)
 		assert.Equal(t, health.HealthStatusDegraded, healthStatus.Status)
 	})
@@ -154,7 +172,7 @@ return hs`,
 			Group: application.Group, Version: "v1alpha1", Kind: application.ApplicationKind, Live: degradedApp}, {}}
 		resourceStatuses := initStatuses(resources)
 
-		healthStatus, err := setApplicationHealth(resources, resourceStatuses, overrides, app)
+		healthStatus, err := setApplicationHealth(resources, resourceStatuses, overrides, app, true)
 		assert.NoError(t, err)
 		assert.Equal(t, health.HealthStatusHealthy, healthStatus.Status)
 	})

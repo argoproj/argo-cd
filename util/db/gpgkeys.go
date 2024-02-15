@@ -3,7 +3,6 @@ package db
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"os"
 
 	log "github.com/sirupsen/logrus"
@@ -15,17 +14,22 @@ import (
 
 // Validates a single GnuPG key and returns the key's ID
 func validatePGPKey(keyData string) (*appsv1.GnuPGPublicKey, error) {
-	f, err := ioutil.TempFile("", "gpg-public-key")
+	f, err := os.CreateTemp("", "gpg-public-key")
 	if err != nil {
 		return nil, err
 	}
 	defer os.Remove(f.Name())
 
-	err = ioutil.WriteFile(f.Name(), []byte(keyData), 0600)
+	err = os.WriteFile(f.Name(), []byte(keyData), 0600)
 	if err != nil {
 		return nil, err
 	}
-	defer f.Close()
+	defer func() {
+		err = f.Close()
+		if err != nil {
+			log.Errorf("error closing file %q: %v", f.Name(), err)
+		}
+	}()
 
 	parsed, err := gpg.ValidatePGPKeys(f.Name())
 	if err != nil {

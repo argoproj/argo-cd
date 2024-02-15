@@ -8,13 +8,32 @@ spec:
       app.kubernetes.io/name: argocd-redis-ha
   policyTypes:
   - Ingress
+  - Egress
   ingress:
-    - from:
-      - podSelector:
-          matchLabels:
-            app.kubernetes.io/name: argocd-redis-ha-haproxy
-      # Redis HA server pods need to talk to each other
-      - podSelector:
-          matchLabels:
-            app.kubernetes.io/name: argocd-redis-ha
-
+  - from:
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/name: argocd-redis-ha-haproxy
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/name: argocd-redis-ha
+    ports:
+    - port: 6379
+      protocol: TCP
+    - port: 26379
+      protocol: TCP
+  egress:
+  - to:
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/name: argocd-redis-ha
+    ports:
+    - port: 6379
+      protocol: TCP
+    - port: 26379
+      protocol: TCP
+  - ports:
+    - port: 53
+      protocol: UDP
+    - port: 53
+      protocol: TCP

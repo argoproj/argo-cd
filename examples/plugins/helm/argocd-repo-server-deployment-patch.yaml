@@ -1,0 +1,54 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: argocd-repo-server
+spec:
+  template:
+    spec:
+      initContainers:
+        - name: helm-plugin-setup
+          image: busybox
+          command:
+            - sh
+            - -c
+            - |
+              wget https://get.helm.sh/helm-v3.10.3-linux-amd64.tar.gz -O - | tar xz && mv linux-amd64/helm /tools/helm && chmod +x /tools/helm
+              wget https://github.com/stedolan/jq/releases/download/jq-1.6/jq-linux64 -O /tools/jq && chmod +x /tools/jq
+              wget https://github.com/mikefarah/yq/releases/download/v4.30.6/yq_linux_amd64 -O /tools/yq && chmod +x /tools/yq
+          volumeMounts:
+            - mountPath: /tools
+              name: helm-plugin-tools
+      containers:
+        - name: helm-plugin
+          command: [/var/run/argocd/argocd-cmp-server]
+          args: [--loglevel, debug]
+          image: busybox
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 999
+          volumeMounts:
+            - mountPath: /var/run/argocd
+              name: var-files
+            - mountPath: /home/argocd/cmp-server/plugins
+              name: plugins
+            - mountPath: /helm-working-dir
+              name: helm-plugin-tmp
+            - mountPath: /home/argocd/cmp-server/config/plugin.yaml
+              subPath: plugin.yaml
+              name: helm-plugin-config
+            - mountPath: /var/run/argocd/helm-plugin/generate.sh
+              subPath: generate.sh
+              name: helm-plugin-config
+            - mountPath: /var/run/argocd/helm-plugin/get-parameters.sh
+              subPath: get-parameters.sh
+              name: helm-plugin-config
+            - mountPath: /usr/local/bin
+              name: helm-plugin-tools
+      volumes:
+        - configMap:
+            name: helm-plugin-config
+          name: helm-plugin-config
+        - emptyDir: {}
+          name: helm-plugin-tmp
+        - emptyDir: {}
+          name: helm-plugin-tools

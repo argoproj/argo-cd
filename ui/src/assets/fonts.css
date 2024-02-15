@@ -1,3 +1,8 @@
+@font-face {
+	font-family: "codicon";
+	src: url("./fonts/codicon.ttf") format("truetype");
+}
+
 /* === Heebo - 300 */
 @font-face {
 	font-family: 'Heebo';

@@ -2,7 +2,6 @@ package commands
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path"
 	"strings"
@@ -23,6 +22,14 @@ func NewContextCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 		Use:     "context [CONTEXT]",
 		Aliases: []string{"ctx"},
 		Short:   "Switch between contexts",
+		Example: `# List Argo CD Contexts
+argocd context
+
+# Switch Argo CD context
+argocd context cd.argoproj.io
+
+# Delete Argo CD context
+argocd context cd.argoproj.io --delete`,
 		Run: func(c *cobra.Command, args []string) {
 
 			localCfg, err := localconfig.ReadLocalConfig(clientOpts.ConfigPath)
@@ -50,7 +57,7 @@ func NewContextCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 			prevCtxFile := path.Join(argoCDDir, ".prev-ctx")
 
 			if ctxName == "-" {
-				prevCtxBytes, err := ioutil.ReadFile(prevCtxFile)
+				prevCtxBytes, err := os.ReadFile(prevCtxFile)
 				errors.CheckError(err)
 				ctxName = string(prevCtxBytes)
 			}
@@ -66,7 +73,7 @@ func NewContextCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 
 			err = localconfig.WriteLocalConfig(*localCfg, clientOpts.ConfigPath)
 			errors.CheckError(err)
-			err = ioutil.WriteFile(prevCtxFile, []byte(prevCtx), 0644)
+			err = os.WriteFile(prevCtxFile, []byte(prevCtx), 0644)
 			errors.CheckError(err)
 			fmt.Printf("Switched to context '%s'\n", localCfg.CurrentContext)
 		},

@@ -12,13 +12,14 @@ import (
 	"strings"
 	"time"
 
-	"github.com/coreos/go-oidc"
-	"github.com/dgrijalva/jwt-go/v4"
+	"github.com/coreos/go-oidc/v3/oidc"
+	"github.com/golang-jwt/jwt/v4"
 	log "github.com/sirupsen/logrus"
 	"github.com/skratchdot/open-golang/open"
 	"github.com/spf13/cobra"
 	"golang.org/x/oauth2"
 
+	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/headless"
 	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
 	sessionpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/session"
 	settingspkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/settings"
@@ -35,11 +36,12 @@ import (
 // NewLoginCommand returns a new instance of `argocd login` command
 func NewLoginCommand(globalClientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
-		ctxName  string
-		username string
-		password string
-		sso      bool
-		ssoPort  int
+		ctxName     string
+		username    string
+		password    string
+		sso         bool
+		ssoPort     int
+		skipTestTLS bool
 	)
 	var command = &cobra.Command{
 		Use:   "login SERVER",
@@ -54,6 +56,8 @@ argocd login cd.argoproj.io --sso
 # Configure direct access using Kubernetes API server
 argocd login cd.argoproj.io --core`,
 		Run: func(c *cobra.Command, args []string) {
+			ctx := c.Context()
+
 			var server string
 
 			if len(args) != 1 && !globalClientOpts.PortForward && !globalClientOpts.Core {
@@ -67,21 +71,25 @@ argocd login cd.argoproj.io --core`,
 				server = "kubernetes"
 			} else {
 				server = args[0]
-				tlsTestResult, err := grpc_util.TestTLS(server)
-				errors.CheckError(err)
-				if !tlsTestResult.TLS {
-					if !globalClientOpts.PlainText {
-						if !cli.AskToProceed("WARNING: server is not configured with TLS. Proceed (y/n)? ") {
-							os.Exit(1)
+
+				if !skipTestTLS {
+					dialTime := 30 * time.Second
+					tlsTestResult, err := grpc_util.TestTLS(server, dialTime)
+					errors.CheckError(err)
+					if !tlsTestResult.TLS {
+						if !globalClientOpts.PlainText {
+							if !cli.AskToProceed("WARNING: server is not configured with TLS. Proceed (y/n)? ") {
+								os.Exit(1)
+							}
+							globalClientOpts.PlainText = true
 						}
-						globalClientOpts.PlainText = true
-					}
-				} else if tlsTestResult.InsecureErr != nil {
-					if !globalClientOpts.Insecure {
-						if !cli.AskToProceed(fmt.Sprintf("WARNING: server certificate had error: %s. Proceed insecurely (y/n)? ", tlsTestResult.InsecureErr)) {
-							os.Exit(1)
+					} else if tlsTestResult.InsecureErr != nil {
+						if !globalClientOpts.Insecure {
+							if !cli.AskToProceed(fmt.Sprintf("WARNING: server certificate had error: %s. Proceed insecurely (y/n)? ", tlsTestResult.InsecureErr)) {
+								os.Exit(1)
+							}
+							globalClientOpts.Insecure = true
 						}
-						globalClientOpts.Insecure = true
 					}
 				}
 			}
@@ -97,6 +105,8 @@ argocd login cd.argoproj.io --core`,
 				PortForward:          globalClientOpts.PortForward,
 				PortForwardNamespace: globalClientOpts.PortForwardNamespace,
 				Headers:              globalClientOpts.Headers,
+				KubeOverrides:        globalClientOpts.KubeOverrides,
+				ServerName:           globalClientOpts.ServerName,
 			}
 
 			if ctxName == "" {
@@ -111,13 +121,12 @@ argocd login cd.argoproj.io --core`,
 			var tokenString string
 			var refreshToken string
 			if !globalClientOpts.Core {
-				acdClient := argocdclient.NewClientOrDie(&clientOpts)
+				acdClient := headless.NewClientOrDie(&clientOpts, c)
 				setConn, setIf := acdClient.NewSettingsClientOrDie()
 				defer io.Close(setConn)
 				if !sso {
-					tokenString = passwordLogin(acdClient, username, password)
+					tokenString = passwordLogin(ctx, acdClient, username, password)
 				} else {
-					ctx := context.Background()
 					httpClient, err := acdClient.HTTPClient()
 					errors.CheckError(err)
 					ctx = oidc.ClientContext(ctx, httpClient)
@@ -127,9 +136,7 @@ argocd login cd.argoproj.io --core`,
 					errors.CheckError(err)
 					tokenString, refreshToken = oauth2Login(ctx, ssoPort, acdSet.GetOIDCConfig(), oauth2conf, provider)
 				}
-				parser := &jwt.Parser{
-					ValidationHelper: jwt.NewValidationHelper(jwt.WithoutClaimsValidation(), jwt.WithoutAudienceValidation()),
-				}
+				parser := jwt.NewParser(jwt.WithoutClaimsValidation())
 				claims := jwt.MapClaims{}
 				_, _, err := parser.ParseUnverified(tokenString, &claims)
 				errors.CheckError(err)
@@ -169,11 +176,13 @@ argocd login cd.argoproj.io --core`,
 			fmt.Printf("Context '%s' updated\n", ctxName)
 		},
 	}
-	command.Flags().StringVar(&ctxName, "name", "", "name to use for the context")
-	command.Flags().StringVar(&username, "username", "", "the username of an account to authenticate")
-	command.Flags().StringVar(&password, "password", "", "the password of an account to authenticate")
-	command.Flags().BoolVar(&sso, "sso", false, "perform SSO login")
-	command.Flags().IntVar(&ssoPort, "sso-port", DefaultSSOLocalPort, "port to run local OAuth2 login application")
+	command.Flags().StringVar(&ctxName, "name", "", "Name to use for the context")
+	command.Flags().StringVar(&username, "username", "", "The username of an account to authenticate")
+	command.Flags().StringVar(&password, "password", "", "The password of an account to authenticate")
+	command.Flags().BoolVar(&sso, "sso", false, "Perform SSO login")
+	command.Flags().IntVar(&ssoPort, "sso-port", DefaultSSOLocalPort, "Port to run local OAuth2 login application")
+	command.Flags().
+		BoolVar(&skipTestTLS, "skip-test-tls", false, "Skip testing whether the server is configured with TLS (this can help when the command hangs for no apparent reason)")
 	return command
 }
 
@@ -189,7 +198,13 @@ func userDisplayName(claims jwt.MapClaims) string {
 
 // oauth2Login opens a browser, runs a temporary HTTP server to delegate OAuth2 login flow and
 // returns the JWT token and a refresh token (if supported)
-func oauth2Login(ctx context.Context, port int, oidcSettings *settingspkg.OIDCConfig, oauth2conf *oauth2.Config, provider *oidc.Provider) (string, string) {
+func oauth2Login(
+	ctx context.Context,
+	port int,
+	oidcSettings *settingspkg.OIDCConfig,
+	oauth2conf *oauth2.Config,
+	provider *oidc.Provider,
+) (string, string) {
 	oauth2conf.RedirectURL = fmt.Sprintf("http://localhost:%d/auth/callback", port)
 	oidcConf, err := oidcutil.ParseConfig(provider)
 	errors.CheckError(err)
@@ -202,7 +217,10 @@ func oauth2Login(ctx context.Context, port int, oidcSettings *settingspkg.OIDCCo
 	// completionChan is to signal flow completed. Non-empty string indicates error
 	completionChan := make(chan string)
 	// stateNonce is an OAuth2 state nonce
-	stateNonce := rand.RandString(10)
+	// According to the spec (https://www.rfc-editor.org/rfc/rfc6749#section-10.10), this must be guessable with
+	// probability <= 2^(-128). The following call generates one of 52^24 random strings, ~= 2^136 possibilities.
+	stateNonce, err := rand.String(24)
+	errors.CheckError(err)
 	var tokenString string
 	var refreshToken string
 
@@ -212,7 +230,11 @@ func oauth2Login(ctx context.Context, port int, oidcSettings *settingspkg.OIDCCo
 	}
 
 	// PKCE implementation of https://tools.ietf.org/html/rfc7636
-	codeVerifier := rand.RandStringCharset(43, "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~")
+	codeVerifier, err := rand.StringFromCharset(
+		43,
+		"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~",
+	)
+	errors.CheckError(err)
 	codeChallengeHash := sha256.Sum256([]byte(codeVerifier))
 	codeChallenge := base64.RawURLEncoding.EncodeToString(codeChallengeHash[:])
 
@@ -296,7 +318,8 @@ func oauth2Login(ctx context.Context, port int, oidcSettings *settingspkg.OIDCCo
 		opts = append(opts, oauth2.SetAuthURLParam("code_challenge_method", "S256"))
 		url = oauth2conf.AuthCodeURL(stateNonce, opts...)
 	case oidcutil.GrantTypeImplicit:
-		url = oidcutil.ImplicitFlowURL(oauth2conf, stateNonce, opts...)
+		url, err = oidcutil.ImplicitFlowURL(oauth2conf, stateNonce, opts...)
+		errors.CheckError(err)
 	default:
 		log.Fatalf("Unsupported grant type: %v", grantType)
 	}
@@ -323,7 +346,7 @@ func oauth2Login(ctx context.Context, port int, oidcSettings *settingspkg.OIDCCo
 	return tokenString, refreshToken
 }
 
-func passwordLogin(acdClient argocdclient.Client, username, password string) string {
+func passwordLogin(ctx context.Context, acdClient argocdclient.Client, username, password string) string {
 	username, password = cli.PromptCredentials(username, password)
 	sessConn, sessionIf := acdClient.NewSessionClientOrDie()
 	defer io.Close(sessConn)
@@ -331,7 +354,7 @@ func passwordLogin(acdClient argocdclient.Client, username, password string) str
 		Username: username,
 		Password: password,
 	}
-	createdSession, err := sessionIf.Create(context.Background(), &sessionRequest)
+	createdSession, err := sessionIf.Create(ctx, &sessionRequest)
 	errors.CheckError(err)
 	return createdSession.Token
 }

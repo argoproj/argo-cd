@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/dgrijalva/jwt-go/v4"
+	"github.com/golang-jwt/jwt/v4"
 	log "github.com/sirupsen/logrus"
 
 	"github.com/argoproj/argo-cd/v2/common"
@@ -19,7 +19,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/settings"
 )
 
-//NewHandler creates handler serving to do api/logout endpoint
+// NewHandler creates handler serving to do api/logout endpoint
 func NewHandler(appClientset versioned.Interface, settingsMrg *settings.SettingsManager, sessionMgr *session.SessionManager, rootPath, baseHRef, namespace string) *Handler {
 	return &Handler{
 		appClientset: appClientset,

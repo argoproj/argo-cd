@@ -15,7 +15,7 @@ func TestPruningRequired(t *testing.T) {
 		Prune(false).
 		When().
 		IgnoreErrors().
-		Create().
+		CreateApp().
 		Sync().
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).

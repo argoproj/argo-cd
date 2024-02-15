@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path"
 	"path/filepath"
@@ -88,7 +87,7 @@ func newCommand() *cobra.Command {
 				// Create or update files that are specified in ConfigMap
 				for name, data := range cm.Data {
 					p := path.Join(destPath, name)
-					err := ioutil.WriteFile(p, []byte(data), 0644)
+					err := os.WriteFile(p, []byte(data), 0644)
 					if err != nil {
 						log.Warnf("Failed to create file %s: %v", p, err)
 					}
@@ -98,12 +97,15 @@ func newCommand() *cobra.Command {
 			kubeClient := kubernetes.NewForConfigOrDie(config)
 			factory := informers.NewSharedInformerFactoryWithOptions(kubeClient, 1*time.Minute, informers.WithNamespace(ns))
 			informer := factory.Core().V1().ConfigMaps().Informer()
-			informer.AddEventHandler(cache.ResourceEventHandlerFuncs{
+			_, err = informer.AddEventHandler(cache.ResourceEventHandlerFuncs{
 				AddFunc: handledConfigMap,
 				UpdateFunc: func(oldObj, newObj interface{}) {
 					handledConfigMap(newObj)
 				},
 			})
+			if err != nil {
+				log.Error(err)
+			}
 			informer.Run(context.Background().Done())
 		},
 	}

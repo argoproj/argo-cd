@@ -1,4 +1,0 @@
-actionTests:
-- action: restart
-  inputPath: testdata/deployment.yaml
-  expectedOutputPath: testdata/deployment-restarted.yaml

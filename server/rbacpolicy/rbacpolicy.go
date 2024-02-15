@@ -3,7 +3,7 @@ package rbacpolicy
 import (
 	"strings"
 
-	jwt "github.com/dgrijalva/jwt-go/v4"
+	"github.com/golang-jwt/jwt/v4"
 	log "github.com/sirupsen/logrus"
 
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
@@ -14,13 +14,17 @@ import (
 
 const (
 	// please add new items to Resources
-	ResourceClusters     = "clusters"
-	ResourceProjects     = "projects"
-	ResourceApplications = "applications"
-	ResourceRepositories = "repositories"
-	ResourceCertificates = "certificates"
-	ResourceAccounts     = "accounts"
-	ResourceGPGKeys      = "gpgkeys"
+	ResourceClusters        = "clusters"
+	ResourceProjects        = "projects"
+	ResourceApplications    = "applications"
+	ResourceApplicationSets = "applicationsets"
+	ResourceRepositories    = "repositories"
+	ResourceCertificates    = "certificates"
+	ResourceAccounts        = "accounts"
+	ResourceGPGKeys         = "gpgkeys"
+	ResourceLogs            = "logs"
+	ResourceExec            = "exec"
+	ResourceExtensions      = "extensions"
 
 	// please add new items to Actions
 	ActionGet      = "get"
@@ -30,6 +34,7 @@ const (
 	ActionSync     = "sync"
 	ActionOverride = "override"
 	ActionAction   = "action"
+	ActionInvoke   = "invoke"
 )
 
 var (
@@ -38,8 +43,11 @@ var (
 		ResourceClusters,
 		ResourceProjects,
 		ResourceApplications,
+		ResourceApplicationSets,
 		ResourceRepositories,
 		ResourceCertificates,
+		ResourceLogs,
+		ResourceExec,
 	}
 	Actions = []string{
 		ActionGet,
@@ -146,7 +154,7 @@ func (p *RBACPolicyEnforcer) EnforceClaims(claims jwt.Claims, rvals ...interface
 			}
 		}
 	}
-	logCtx := log.WithField("claims", claims).WithField("rval", rvals)
+	logCtx := log.WithFields(log.Fields{"claims": claims, "rval": rvals, "subject": subject, "groups": groups, "project": projName, "scopes": scopes})
 	logCtx.Debug("enforce failed")
 	return false
 }
@@ -167,8 +175,8 @@ func (p *RBACPolicyEnforcer) getProjectFromRequest(rvals ...interface{}) *v1alph
 	if res, ok := rvals[1].(string); ok {
 		if obj, ok := rvals[3].(string); ok {
 			switch res {
-			case ResourceApplications:
-				if objSplit := strings.Split(obj, "/"); len(objSplit) == 2 {
+			case ResourceApplications, ResourceRepositories, ResourceClusters, ResourceLogs, ResourceExec:
+				if objSplit := strings.Split(obj, "/"); len(objSplit) >= 2 {
 					return getProjectByName(objSplit[0])
 				}
 			case ResourceProjects:

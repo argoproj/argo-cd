@@ -27,23 +27,23 @@ export const ApplicationsSummary = ({applications}: {applications: models.Applic
 
     const attributes = [
         {
-            title: 'APPLICATIONS:',
+            title: 'APPLICATIONS',
             value: applications.length
         },
         {
-            title: 'SYNCED:',
+            title: 'SYNCED',
             value: applications.filter(app => app.status.sync.status === 'Synced').length
         },
         {
-            title: 'HEALTHY:',
+            title: 'HEALTHY',
             value: applications.filter(app => app.status.health.status === 'Healthy').length
         },
         {
-            title: 'CLUSTERS:',
+            title: 'CLUSTERS',
             value: new Set(applications.map(app => app.spec.destination.server)).size
         },
         {
-            title: 'NAMESPACES:',
+            title: 'NAMESPACES',
             value: new Set(applications.map(app => app.spec.destination.namespace)).size
         }
     ];

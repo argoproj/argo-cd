@@ -23,10 +23,16 @@ func TestCmd_template_kubeVersion(t *testing.T) {
 	assert.NotEmpty(t, s)
 }
 
-func TestNewCmd_helmV2(t *testing.T) {
-	cmd, err := NewCmd(".", "v2", "")
+func TestCmd_template_noApiVersionsInError(t *testing.T) {
+	cmd, err := NewCmdWithVersion(".", HelmV3, false, "")
 	assert.NoError(t, err)
-	assert.Equal(t, "helm2", cmd.HelmVer.binaryName)
+	_, err = cmd.template("testdata/chart-does-not-exist", &TemplateOpts{
+		KubeVersion: "1.14",
+		APIVersions: []string{"foo", "bar"},
+	})
+	assert.Error(t, err)
+	assert.NotContains(t, err.Error(), "--api-version")
+	assert.ErrorContains(t, err, "<api versions removed> ")
 }
 
 func TestNewCmd_helmV3(t *testing.T) {

@@ -15,13 +15,13 @@ export VERSION=v1.0.1
 Export to a backup:
 
 ```bash
-docker run -v ~/.kube:/home/argocd/.kube --rm argoproj/argocd:$VERSION argocd admin export > backup.yaml
+docker run -v ~/.kube:/home/argocd/.kube --rm quay.io/argoproj/argocd:$VERSION argocd admin export > backup.yaml
 ```
 
 Import from a backup:
 
 ```bash
-docker run -i -v ~/.kube:/home/argocd/.kube --rm argoproj/argocd:$VERSION argocd admin import - < backup.yaml
+docker run -i -v ~/.kube:/home/argocd/.kube --rm quay.io/argoproj/argocd:$VERSION argocd admin import - < backup.yaml
 ```
 
 !!! note

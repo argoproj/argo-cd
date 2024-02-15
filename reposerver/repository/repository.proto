@@ -3,10 +3,8 @@ option go_package = "github.com/argoproj/argo-cd/v2/reposerver/apiclient";
 
 package repository;
 
-import "gogoproto/gogo.proto";
-import "google/api/annotations.proto";
-import "k8s.io/api/core/v1/generated.proto";
 import "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1/generated.proto";
+import "google/protobuf/empty.proto";
 
 // ManifestRequest is a query for manifest generation.
 message ManifestRequest {
@@ -20,6 +18,7 @@ message ManifestRequest {
     string namespace = 8;
     github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.ApplicationSource applicationSource = 10;
     repeated github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.Repository repos = 11;
+    // Deprecated: use sidecar plugins instead.
     repeated github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.ConfigManagementPlugin plugins = 12;
     github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.KustomizeOptions kustomizeOptions = 13;
     string kubeVersion = 14;
@@ -29,6 +28,33 @@ message ManifestRequest {
     repeated github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.RepoCreds helmRepoCreds = 17;
     bool noRevisionCache = 18;
     string trackingMethod = 19;
+    map<string, bool> enabledSourceTypes = 20;
+    github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.HelmOptions helmOptions = 21;
+    bool hasMultipleSources = 22;
+    map<string, github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.RefTarget> refSources = 23;
+    // This is used to surface "source not permitted" errors for Helm repositories
+    repeated string projectSourceRepos = 24;
+    // This is used to surface "source not permitted" errors for Helm repositories
+    string projectName = 25;
+}
+
+message ManifestRequestWithFiles {
+    oneof part {
+        ManifestRequest request = 1;
+        ManifestFileMetadata metadata = 2;
+        ManifestFileChunk chunk = 3;
+    }
+}
+
+message ManifestFileMetadata {
+    // checksum is used to verify the integrity of the file
+    string checksum = 1;
+    // size relates to the file size in bytes
+    int64 size = 2;
+}
+
+message ManifestFileChunk {
+    bytes chunk = 1;
 }
 
 // TestRepositoryRequest is a query to test repository is valid or not and has valid access.
@@ -40,6 +66,20 @@ message TestRepositoryRequest {
 message TestRepositoryResponse {
     // Request to verify the signature when generating the manifests (only for Git repositories)
     bool verifiedRepository = 1;
+}
+
+// ResolveRevisionRequest
+message ResolveRevisionRequest {
+    github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.Repository repo = 1;
+    github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.Application app = 2;
+    string ambiguousRevision = 3;
+}
+
+// ResolveRevisionResponse
+message ResolveRevisionResponse {
+    // returns the resolved revision
+    string revision = 1;
+    string ambiguousRevision = 2;
 }
 
 message ManifestResponse {
@@ -54,24 +94,34 @@ message ManifestResponse {
 }
 
 message ListRefsRequest {
-  github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.Repository repo = 1;
+    github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.Repository repo = 1;
 }
 
 // A subset of the repository's named refs
 message Refs {
-  repeated string branches = 1;
-  repeated string tags = 2;
+    repeated string branches = 1;
+    repeated string tags = 2;
 }
 
 // ListAppsRequest requests a repository directory structure
 message ListAppsRequest {
     github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.Repository repo = 1;
     string revision = 2;
+    map<string, bool> enabledSourceTypes = 3;
 }
 
 // AppList returns the contents of the repo of a ListApps request
 message AppList {
     map<string, string> apps = 1;
+}
+
+message PluginInfo {
+    string name = 1;
+}
+
+// PluginList returns the list of all cmp v2 plugins running as sidecars
+message PluginList {
+    repeated PluginInfo items = 1;
 }
 
 // RepoServerAppDetailsQuery contains query information for app details request
@@ -84,15 +134,18 @@ message RepoServerAppDetailsQuery {
     bool noCache = 6;
     bool noRevisionCache = 7;
     string trackingMethod = 8;
+    map<string, bool> enabledSourceTypes = 9;
+    github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.HelmOptions helmOptions = 10;
+    map<string, github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.RefTarget> refSources = 11;
 }
 
 // RepoAppDetailsResponse application details
 message RepoAppDetailsResponse {
-	string type = 1;
-	KsonnetAppSpec ksonnet = 2;
-	HelmAppSpec helm = 3;
-	KustomizeAppSpec kustomize = 4;
-	DirectoryAppSpec directory = 5;
+    string type = 1;
+    HelmAppSpec helm = 3;
+    KustomizeAppSpec kustomize = 4;
+    DirectoryAppSpec directory = 5;
+    PluginAppSpec plugin = 6;
 }
 
 message RepoServerRevisionMetadataRequest {
@@ -104,52 +157,65 @@ message RepoServerRevisionMetadataRequest {
     bool checkSignature = 3;
 }
 
-// KsonnetAppSpec contains Ksonnet app response
-// This roughly reflects: ksonnet/ksonnet/metadata/app/schema.go
-message KsonnetAppSpec {
-	string name = 1;
-	map<string, KsonnetEnvironment> environments = 3;
-	repeated github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.KsonnetParameter parameters = 4;
+message RepoServerRevisionChartDetailsRequest {
+    // the repo
+    github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.Repository repo = 1;
+    // the chart
+    string name = 2;
+    // the revision within the chart
+    string revision = 3;
 }
 
 // HelmAppSpec contains helm app name  in source repo
 message HelmAppSpec {
-	string name = 1;
-	repeated string valueFiles = 3;
-	// the output of `helm inspect values`
-	repeated github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.HelmParameter parameters = 4;
-	// the contents of values.yaml
-	string values = 5;
+    string name = 1;
+    repeated string valueFiles = 3;
+    // the output of `helm inspect values`
+    repeated github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.HelmParameter parameters = 4;
+    // the contents of values.yaml
+    string values = 5;
     // helm file parameters
     repeated github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.HelmFileParameter fileParameters = 6;
 }
 
 // KustomizeAppSpec contains kustomize images
 message KustomizeAppSpec {
-	// images is a list of available images.
-	repeated string images = 3;
-}
-
-message KsonnetEnvironment {
-    // Name is the user defined name of an environment
-    string name = 1;
-    // KubernetesVersion is the kubernetes version the targeted cluster is running on.
-    string k8sVersion = 2;
-    // Destination stores the cluster address that this environment points to.
-    KsonnetEnvironmentDestination destination = 4;
-}
-
-message KsonnetEnvironmentDestination {
-    // Server is the Kubernetes server that the cluster is running on.
-    string server = 1;
-    // Namespace is the namespace of the Kubernetes server that targets should be deployed to
-    string namespace = 2;
+    // images is a list of available images.
+    repeated string images = 3;
 }
 
 // DirectoryAppSpec contains directory
 message DirectoryAppSpec {
 }
 
+message ParameterAnnouncement {
+    // name is the name identifying a parameter.
+    string name = 1;
+    // title is a human-readable text of the parameter name.
+    string title = 2;
+    // tooltip is a human-readable description of the parameter.
+    string tooltip = 3;
+    // required defines if this given parameter is mandatory.
+    bool required = 4;
+    // itemType determines the primitive data type represented by the parameter. Parameters are always encoded as
+    // strings, but this field lets them be interpreted as other primitive types.
+    string itemType = 5;
+    // collectionType is the type of value this parameter holds - either a single value (a string) or a collection
+    // (array or map). If collectionType is set, only the field with that type will be used. If collectionType is not
+    // set, `string` is the default. If collectionType is set to an invalid value, a validation error is thrown.
+    string collectionType = 6;
+    // string is the default value of the parameter if the parameter is a string.
+    string string = 7;
+    // array is the default value of the parameter if the parameter is an array.
+    repeated string array = 8;
+    // map is the default value of the parameter if the parameter is a map.
+    map<string, string> map = 9;
+}
+
+// PluginAppSpec contains details about a plugin-type Application
+message PluginAppSpec {
+    repeated ParameterAnnouncement parametersAnnouncement = 1;
+}
 
 message HelmChartsRequest {
     github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.Repository repo = 1;
@@ -164,6 +230,32 @@ message HelmChartsResponse {
     repeated HelmChart items = 1;
 }
 
+message GitFilesRequest {
+    github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.Repository repo = 1;
+    bool submoduleEnabled = 2;
+    string revision = 3;
+    string path = 4;
+    bool NewGitFileGlobbingEnabled = 5;
+    bool noRevisionCache = 6;
+}
+
+message GitFilesResponse {
+    // Map consisting of path of the path to its contents in bytes
+    map<string, bytes> map = 1;
+}
+
+message GitDirectoriesRequest {
+    github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.Repository repo = 1;
+    bool submoduleEnabled = 2;
+    string revision = 3;
+    bool noRevisionCache = 4;
+}
+
+message GitDirectoriesResponse {
+    // A set of directory paths
+    repeated string paths = 1;
+}
+
 // ManifestService
 service RepoServerService {
 
@@ -171,16 +263,28 @@ service RepoServerService {
     rpc GenerateManifest(ManifestRequest) returns (ManifestResponse) {
     }
 
+    // GenerateManifestWithFiles generates manifest for application using provided tarball of files
+    rpc GenerateManifestWithFiles(stream ManifestRequestWithFiles) returns (ManifestResponse) {
+    }
+
     // Returns a bool val if the repository is valid and has proper access
     rpc TestRepository(TestRepositoryRequest) returns (TestRepositoryResponse) {
     }
-    
+
+    // Returns a valid revision
+    rpc ResolveRevision(ResolveRevisionRequest) returns (ResolveRevisionResponse) {
+    }
+
     // Returns a list of refs (e.g. branches and tags) in the repo
     rpc ListRefs(ListRefsRequest) returns (Refs) {
     }
 
     // ListApps returns a list of apps in the repo
     rpc ListApps(ListAppsRequest) returns (AppList) {
+    }
+
+    // ListPlugins returns a list of cmp v2 plugins running as sidecar to reposerver
+    rpc ListPlugins(google.protobuf.Empty) returns (PluginList) {
     }
 
     // Generate manifest for application in specified repo name and revision
@@ -190,8 +294,20 @@ service RepoServerService {
     // Get the meta-data (author, date, tags, message) for a specific revision of the repo
     rpc GetRevisionMetadata(RepoServerRevisionMetadataRequest) returns (github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.RevisionMetadata) {
     }
+    
+    // Get the chart details (author, date, tags, message) for a specific revision of the repo
+    rpc GetRevisionChartDetails(RepoServerRevisionChartDetailsRequest) returns (github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.ChartDetails) {
+    }
 
     // GetHelmCharts returns list of helm charts in the specified repository
     rpc GetHelmCharts(HelmChartsRequest) returns (HelmChartsResponse) {
+    }
+
+    // GetGitFiles returns a set of file paths and their contents for the given repo
+    rpc GetGitFiles(GitFilesRequest) returns (GitFilesResponse) {
+    }
+
+    // GetGitDirectories returns a set of directory paths for the given repo
+    rpc GetGitDirectories(GitDirectoriesRequest) returns (GitDirectoriesResponse) {
     }
 }

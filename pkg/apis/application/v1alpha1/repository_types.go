@@ -1,6 +1,7 @@
 package v1alpha1
 
 import (
+	"fmt"
 	"net/url"
 
 	"github.com/argoproj/argo-cd/v2/util/cert"
@@ -37,6 +38,12 @@ type RepoCreds struct {
 	EnableOCI bool `json:"enableOCI,omitempty" protobuf:"bytes,11,opt,name=enableOCI"`
 	// Type specifies the type of the repoCreds. Can be either "git" or "helm. "git" is assumed if empty or absent.
 	Type string `json:"type,omitempty" protobuf:"bytes,12,opt,name=type"`
+	// GCPServiceAccountKey specifies the service account key in JSON format to be used for getting credentials to Google Cloud Source repos
+	GCPServiceAccountKey string `json:"gcpServiceAccountKey,omitempty" protobuf:"bytes,13,opt,name=gcpServiceAccountKey"`
+	// Proxy specifies the HTTP/HTTPS proxy used to access repos at the repo server
+	Proxy string `json:"proxy,omitempty" protobuf:"bytes,19,opt,name=proxy"`
+	// ForceHttpBasicAuth specifies whether Argo CD should attempt to force basic auth for HTTP connections
+	ForceHttpBasicAuth bool `json:"forceHttpBasicAuth,omitempty" protobuf:"bytes,20,opt,name=forceHttpBasicAuth"`
 }
 
 // Repository is a repository holding application configurations
@@ -82,6 +89,10 @@ type Repository struct {
 	Proxy string `json:"proxy,omitempty" protobuf:"bytes,19,opt,name=proxy"`
 	// Reference between project and repository that allow you automatically to be added as item inside SourceRepos project entity
 	Project string `json:"project,omitempty" protobuf:"bytes,20,opt,name=project"`
+	// GCPServiceAccountKey specifies the service account key in JSON format to be used for getting credentials to Google Cloud Source repos
+	GCPServiceAccountKey string `json:"gcpServiceAccountKey,omitempty" protobuf:"bytes,21,opt,name=gcpServiceAccountKey"`
+	// ForceHttpBasicAuth specifies whether Argo CD should attempt to force basic auth for HTTP connections
+	ForceHttpBasicAuth bool `json:"forceHttpBasicAuth,omitempty" protobuf:"bytes,22,opt,name=forceHttpBasicAuth"`
 }
 
 // IsInsecure returns true if the repository has been configured to skip server verification
@@ -129,6 +140,10 @@ func (repo *Repository) CopyCredentialsFromRepo(source *Repository) {
 		if repo.GitHubAppEnterpriseBaseURL == "" {
 			repo.GitHubAppEnterpriseBaseURL = source.GitHubAppEnterpriseBaseURL
 		}
+		if repo.GCPServiceAccountKey == "" {
+			repo.GCPServiceAccountKey = source.GCPServiceAccountKey
+		}
+		repo.ForceHttpBasicAuth = source.ForceHttpBasicAuth
 	}
 }
 
@@ -162,22 +177,32 @@ func (repo *Repository) CopyCredentialsFrom(source *RepoCreds) {
 		if repo.GitHubAppEnterpriseBaseURL == "" {
 			repo.GitHubAppEnterpriseBaseURL = source.GitHubAppEnterpriseBaseURL
 		}
+		if repo.GCPServiceAccountKey == "" {
+			repo.GCPServiceAccountKey = source.GCPServiceAccountKey
+		}
+		if repo.Proxy == "" {
+			repo.Proxy = source.Proxy
+		}
+		repo.ForceHttpBasicAuth = source.ForceHttpBasicAuth
 	}
 }
 
 // GetGitCreds returns the credentials from a repository configuration used to authenticate at a Git repository
-func (repo *Repository) GetGitCreds() git.Creds {
+func (repo *Repository) GetGitCreds(store git.CredsStore) git.Creds {
 	if repo == nil {
 		return git.NopCreds{}
 	}
 	if repo.Password != "" {
-		return git.NewHTTPSCreds(repo.Username, repo.Password, repo.TLSClientCertData, repo.TLSClientCertKey, repo.IsInsecure(), repo.Proxy)
+		return git.NewHTTPSCreds(repo.Username, repo.Password, repo.TLSClientCertData, repo.TLSClientCertKey, repo.IsInsecure(), repo.Proxy, store, repo.ForceHttpBasicAuth)
 	}
 	if repo.SSHPrivateKey != "" {
-		return git.NewSSHCreds(repo.SSHPrivateKey, getCAPath(repo.Repo), repo.IsInsecure())
+		return git.NewSSHCreds(repo.SSHPrivateKey, getCAPath(repo.Repo), repo.IsInsecure(), store, repo.Proxy)
 	}
 	if repo.GithubAppPrivateKey != "" && repo.GithubAppId != 0 && repo.GithubAppInstallationId != 0 {
-		return git.NewGitHubAppCreds(repo.GithubAppId, repo.GithubAppInstallationId, repo.GithubAppPrivateKey, repo.GitHubAppEnterpriseBaseURL, repo.Repo, repo.TLSClientCertData, repo.TLSClientCertKey, repo.IsInsecure())
+		return git.NewGitHubAppCreds(repo.GithubAppId, repo.GithubAppInstallationId, repo.GithubAppPrivateKey, repo.GitHubAppEnterpriseBaseURL, repo.Repo, repo.TLSClientCertData, repo.TLSClientCertKey, repo.IsInsecure(), repo.Proxy, store)
+	}
+	if repo.GCPServiceAccountKey != "" {
+		return git.NewGoogleCloudCreds(repo.GCPServiceAccountKey, store)
 	}
 	return git.NopCreds{}
 }
@@ -195,20 +220,40 @@ func (repo *Repository) GetHelmCreds() helm.Creds {
 }
 
 func getCAPath(repoURL string) string {
-	if git.IsHTTPSURL(repoURL) {
-		if parsedURL, err := url.Parse(repoURL); err == nil {
-			if caPath, err := cert.GetCertBundlePathForRepository(parsedURL.Host); err == nil {
-				return caPath
-			} else {
-				log.Warnf("Could not get cert bundle path for host '%s'", parsedURL.Host)
-			}
-		} else {
-			// We don't fail if we cannot parse the URL, but log a warning in that
-			// case. And we execute the command in a verbatim way.
-			log.Warnf("Could not parse repo URL '%s'", repoURL)
-		}
+	// For git ssh protocol url without ssh://, url.Parse() will fail to parse.
+	// However, no warn log is output since ssh scheme url is a possible format.
+	if ok, _ := git.IsSSHURL(repoURL); ok {
+		return ""
 	}
-	return ""
+
+	hostname := ""
+	// url.Parse() will happily parse most things thrown at it. When the URL
+	// is either https or oci, we use the parsed hostname to retrieve the cert,
+	// otherwise we'll use the parsed path (OCI repos are often specified as
+	// hostname, without protocol).
+	parsedURL, err := url.Parse(repoURL)
+	if err != nil {
+		log.Warnf("Could not parse repo URL '%s': %v", repoURL, err)
+		return ""
+	}
+	if parsedURL.Scheme == "https" || parsedURL.Scheme == "oci" {
+		hostname = parsedURL.Host
+	} else if parsedURL.Scheme == "" {
+		hostname = parsedURL.Path
+	}
+
+	if hostname == "" {
+		log.Warnf("Could not get hostname for repository '%s'", repoURL)
+		return ""
+	}
+
+	caPath, err := cert.GetCertBundlePathForRepository(hostname)
+	if err != nil {
+		log.Warnf("Could not get cert bundle path for repository '%s': %v", repoURL, err)
+		return ""
+	}
+
+	return caPath
 }
 
 // CopySettingsFrom copies all repository settings from source to receiver
@@ -219,6 +264,14 @@ func (m *Repository) CopySettingsFrom(source *Repository) {
 		m.Insecure = source.Insecure
 		m.InheritedCreds = source.InheritedCreds
 	}
+}
+
+// StringForLogging gets a string representation of the Repository which is safe to log or return to the user.
+func (m *Repository) StringForLogging() string {
+	if m == nil {
+		return ""
+	}
+	return fmt.Sprintf("&Repository{Repo: %q, Type: %q, Name: %q, Project: %q}", m.Repo, m.Type, m.Name, m.Project)
 }
 
 // Repositories defines a list of Repository configurations

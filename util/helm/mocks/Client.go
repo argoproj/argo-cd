@@ -29,7 +29,7 @@ func (_m *Client) CleanChartCache(chart string, version string) error {
 }
 
 // ExtractChart provides a mock function with given fields: chart, version
-func (_m *Client) ExtractChart(chart string, version string, passCredentials bool) (string, io.Closer, error) {
+func (_m *Client) ExtractChart(chart string, version string, passCredentials bool, manifestMaxExtractedSize int64, disableManifestMaxExtractedSize bool) (string, io.Closer, error) {
 	ret := _m.Called(chart, version)
 
 	var r0 string
@@ -74,6 +74,29 @@ func (_m *Client) GetIndex(noCache bool) (*helm.Index, error) {
 	var r1 error
 	if rf, ok := ret.Get(1).(func(bool) error); ok {
 		r1 = rf(noCache)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// GetTags provides a mock function with given fields: noCache
+func (_m *Client) GetTags(chart string, noCache bool) (*helm.TagsList, error) {
+	ret := _m.Called(chart, noCache)
+
+	var r0 *helm.TagsList
+	if rf, ok := ret.Get(0).(func(string, bool) *helm.TagsList); ok {
+		r0 = rf(chart, noCache)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*helm.TagsList)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(string, bool) error); ok {
+		r1 = rf(chart, noCache)
 	} else {
 		r1 = ret.Error(1)
 	}

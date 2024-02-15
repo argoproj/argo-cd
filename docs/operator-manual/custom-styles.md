@@ -1,6 +1,6 @@
 # Custom Styles
 
-Argo CD has imports the majority of its UI stylesheets from the [argo-ui](https://github.com/argoproj/argo-ui) project.
+Argo CD imports the majority of its UI stylesheets from the [argo-ui](https://github.com/argoproj/argo-ui) project.
 Sometimes, it may be desired to customize certain components of the UI for branding purposes or to
 help distinguish between multiple instances of Argo CD running in different environments.
 
@@ -21,7 +21,7 @@ metadata:
   ...
   name: argocd-cm
 data:
-  ui.cssurl: "https://www.myhost.com/my-styles.css"
+  ui.cssurl: "https://www.example.com/my-styles.css"
 ```
 
 ## Adding Styles Via Volume Mounts
@@ -56,7 +56,7 @@ metadata:
   name: argocd-styles-cm
 data:
   my-styles.css: |
-    .nav-bar {
+    .sidebar {
       background: linear-gradient(to bottom, #999, #777, #333, #222, #111);
     }
 ```
@@ -100,7 +100,7 @@ experience, you may wish to build a separate project using the [Argo CD UI dev s
 
 ## Banners
 
-Argo CD can optionally display a banner that can be used to notify your users of upcoming maintenance and operational changes. This feature can be enabled by specifying the banner message using the `ui.bannercontent` field in the `argocd-cm` ConfigMap and Argo CD will display this message at the top of every UI page. You can optionally add a link to this message by setting `ui.bannerurl`.
+Argo CD can optionally display a banner that can be used to notify your users of upcoming maintenance and operational changes. This feature can be enabled by specifying the banner message using the `ui.bannercontent` field in the `argocd-cm` ConfigMap and Argo CD will display this message at the top of every UI page. You can optionally add a link to this message by setting `ui.bannerurl`. You can also make the banner sticky (permanent) by setting `ui.bannerpermanent` to true and change its position to "both" or "bottom" by using `ui.bannerposition: "both"`, allowing the banner to display on both the top and bottom, or `ui.bannerposition: "bottom"` to display it exclusively at the bottom.
 
 ### argocd-cm
 ```yaml
@@ -113,6 +113,8 @@ metadata:
 data:
     ui.bannercontent: "Banner message linked to a URL"
     ui.bannerurl: "www.bannerlink.com"
+    ui.bannerpermanent: "true"
+    ui.bannerposition: "bottom"
 ```
 
 ![banner with link](../assets/banner.png)

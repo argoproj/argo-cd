@@ -1,0 +1,95 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-notifications-cm
+data:
+  # Triggers define the condition when the notification should be sent and list of templates required to generate the message
+  # Recipients can subscribe to the trigger and specify the required message template and destination notification service.
+  trigger.on-sync-status-unknown: |
+    - when: app.status.sync.status == 'Unknown'
+      send: [my-custom-template]
+
+  # Optional 'oncePer' property ensure that notification is sent only once per specified field value
+  # E.g. following is triggered once per sync revision
+  trigger.on-deployed: |
+    - when: app.status.operationState.phase in ['Succeeded'] and app.status.health.status == 'Healthy'
+      oncePer: app.status.sync.revision
+      send: [app-sync-succeeded]
+
+  # Templates are used to generate the notification template message
+  template.my-custom-template: |
+    message: |
+      Application details: {{.context.argocdUrl}}/applications/{{.app.metadata.name}}.
+
+  # Templates might have notification service specific fields. E.g. slack message might include annotations
+  template.my-custom-template-slack-template: |
+    message: |
+      Application {{.app.metadata.name}} sync is {{.app.status.sync.status}}.
+      Application details: {{.context.argocdUrl}}/applications/{{.app.metadata.name}}.
+    email:
+      subject: Application {{.app.metadata.name}} sync status is {{.app.status.sync.status}}
+    slack:
+      attachments: |
+        [{
+          "title": "{{.app.metadata.name}}",
+          "title_link": "{{.context.argocdUrl}}/applications/{{.app.metadata.name}}",
+          "color": "#18be52"
+        }]
+
+  # Holds list of triggers that are used by default if trigger is not specified explicitly in the subscription
+  defaultTriggers: |
+    - on-sync-status-unknown
+
+  # Notification services are used to deliver message.
+  # Service definition might reference values from argocd-notifications-secret Secret using $my-key format
+  # Service format key is: service.<type>.<optional-custom-name>
+  #  Slack
+  service.slack: |
+    token: $slack-token
+    username: <override-username> # optional username
+    icon: <override-icon> # optional icon for the message (supports both emoij and url notation)
+
+  #  Slack based notifier with name mattermost
+  service.slack.mattermost: |
+    apiURL: https://my-mattermost-url.com/api
+    token: $slack-token
+    username: <override-username> # optional username
+    icon: <override-icon> # optional icon for the message (supports both emoij and url notation)
+
+  #  Email
+  service.email: |
+    host: smtp.gmail.com
+    port: 587
+    from: <myemail>@gmail.com
+    username: $email-username
+    password: $email-password
+
+  #  Opsgenie
+  service.opsgenie: |
+    apiUrl: api.opsgenie.com
+    apiKeys:
+      $opsgenie-team-id: $opsgenie-team-api-key
+      ...
+
+  #  Telegram
+  service.telegram: |
+    token: $telegram-token
+
+  # Context holds list of variables that can be referenced in templates
+  context: |
+    argocdUrl: https://cd.apps.argoproj.io/
+
+  # Contains centrally managed global application subscriptions
+  subscriptions: |
+    # subscription for on-sync-status-unknown trigger notifications
+    - recipients:
+      - slack:test2
+      - email:test@gmail.com
+      triggers:
+      - on-sync-status-unknown
+    # subscription restricted to applications with matching labels only
+    - recipients:
+      - slack:test3
+      selector: test=true
+      triggers:
+      - on-sync-status-unknown

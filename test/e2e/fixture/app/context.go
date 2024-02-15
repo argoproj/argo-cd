@@ -9,6 +9,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/test/e2e/fixture/certs"
 	"github.com/argoproj/argo-cd/v2/test/e2e/fixture/gpgkeys"
 	"github.com/argoproj/argo-cd/v2/test/e2e/fixture/repos"
+	"github.com/argoproj/argo-cd/v2/util/argo"
 	"github.com/argoproj/argo-cd/v2/util/env"
 	"github.com/argoproj/argo-cd/v2/util/settings"
 )
@@ -22,7 +23,9 @@ type Context struct {
 	// seconds
 	timeout                int
 	name                   string
+	appNamespace           string
 	destServer             string
+	destName               string
 	env                    string
 	parameters             []string
 	namePrefix             string
@@ -35,21 +38,70 @@ type Context struct {
 	project                string
 	revision               string
 	force                  bool
+	applyOutOfSyncOnly     bool
 	directoryRecurse       bool
 	replace                bool
 	helmPassCredentials    bool
+	helmSkipCrds           bool
+	trackingMethod         v1alpha1.TrackingMethod
+	sources                []v1alpha1.ApplicationSource
 }
 
-func Given(t *testing.T) *Context {
-	fixture.EnsureCleanState(t)
+type ContextArgs struct {
+	AppNamespace string
+}
+
+func Given(t *testing.T, opts ...fixture.TestOption) *Context {
+	fixture.EnsureCleanState(t, opts...)
 	return GivenWithSameState(t)
+}
+
+func GivenWithNamespace(t *testing.T, namespace string) *Context {
+	ctx := Given(t)
+	ctx.appNamespace = namespace
+	return ctx
 }
 
 func GivenWithSameState(t *testing.T) *Context {
 	// ARGOCE_E2E_DEFAULT_TIMEOUT can be used to override the default timeout
 	// for any context.
-	timeout := env.ParseNumFromEnv("ARGOCD_E2E_DEFAULT_TIMEOUT", 10, 0, 180)
-	return &Context{t: t, destServer: v1alpha1.KubernetesInternalAPIServerAddr, repoURLType: fixture.RepoURLTypeFile, name: fixture.Name(), timeout: timeout, project: "default", prune: true}
+	timeout := env.ParseNumFromEnv("ARGOCD_E2E_DEFAULT_TIMEOUT", 20, 0, 180)
+	return &Context{
+		t:              t,
+		destServer:     v1alpha1.KubernetesInternalAPIServerAddr,
+		repoURLType:    fixture.RepoURLTypeFile,
+		name:           fixture.Name(),
+		timeout:        timeout,
+		project:        "default",
+		prune:          true,
+		trackingMethod: argo.TrackingMethodLabel,
+	}
+}
+
+func (c *Context) AppName() string {
+	return c.name
+}
+
+func (c *Context) AppQualifiedName() string {
+	if c.appNamespace != "" {
+		return c.appNamespace + "/" + c.AppName()
+	} else {
+		return c.AppName()
+	}
+}
+
+func (c *Context) AppNamespace() string {
+	if c.appNamespace != "" {
+		return c.appNamespace
+	} else {
+		return fixture.TestNamespace()
+	}
+}
+
+func (c *Context) SetAppNamespace(namespace string) *Context {
+	c.appNamespace = namespace
+	//fixture.SetParamInSettingConfigMap("application.resourceTrackingMethod", "annotation")
+	return c
 }
 
 func (c *Context) GPGPublicKeyAdded() *Context {
@@ -208,6 +260,11 @@ func (c *Context) DestServer(destServer string) *Context {
 	return c
 }
 
+func (c *Context) DestName(destName string) *Context {
+	c.destName = destName
+	return c
+}
+
 func (c *Context) Env(env string) *Context {
 	c.env = env
 	return c
@@ -241,13 +298,6 @@ func (c *Context) ResourceOverrides(overrides map[string]v1alpha1.ResourceOverri
 
 func (c *Context) ResourceFilter(filter settings.ResourcesFilter) *Context {
 	fixture.SetResourceFilter(filter)
-	return c
-}
-
-// this both configures the plugin, but forces use of it
-func (c *Context) ConfigManagementPlugin(plugin v1alpha1.ConfigManagementPlugin) *Context {
-	fixture.SetConfigManagementPlugins(plugin)
-	c.configManagementPlugin = plugin.Name
 	return c
 }
 
@@ -292,7 +342,31 @@ func (c *Context) Force() *Context {
 	return c
 }
 
+func (c *Context) ApplyOutOfSyncOnly() *Context {
+	c.applyOutOfSyncOnly = true
+	return c
+}
+
 func (c *Context) HelmPassCredentials() *Context {
 	c.helmPassCredentials = true
+	return c
+}
+
+func (c *Context) HelmSkipCrds() *Context {
+	c.helmSkipCrds = true
+	return c
+}
+
+func (c *Context) SetTrackingMethod(trackingMethod string) *Context {
+	fixture.SetTrackingMethod(trackingMethod)
+	return c
+}
+
+func (c *Context) GetTrackingMethod() v1alpha1.TrackingMethod {
+	return c.trackingMethod
+}
+
+func (c *Context) Sources(sources []v1alpha1.ApplicationSource) *Context {
+	c.sources = sources
 	return c
 }

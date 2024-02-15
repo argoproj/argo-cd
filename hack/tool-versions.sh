@@ -7,13 +7,12 @@
 # checksum file in ./hack/installers/checksums matching the name of the
 # downloaded binary with a ".sha256" suffix appended, containing the proper
 # SHA256 sum of the binary.
+#
+# Use ./hack/installers/checksums/add-helm-checksums.sh and
+# add-kustomize-checksums.sh to help download checksums.
 ###############################################################################
-helm2_version=2.17.0
-helm3_version=3.7.1
-jq_version=1.6
-ksonnet_version=0.13.1
+helm3_version=3.14.1
 kubectl_version=1.17.8
 kubectx_version=0.6.3
-kustomize4_version=4.2.0
-protoc_version=3.7.1
-swagger_version=0.19.0
+kustomize5_version=5.2.1
+protoc_version=3.17.3

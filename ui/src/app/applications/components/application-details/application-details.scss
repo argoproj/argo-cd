@@ -1,19 +1,23 @@
 @import 'node_modules/argo-ui/src/styles/config';
 @import 'node_modules/foundation-sites/scss/util/util';
+@import 'node_modules/argo-ui/src/styles/theme';
+@import '../../../shared/config.scss';
 
 $header: 120px;
 
 .application-details {
-    &__status-panel {
-        position: fixed;
-        left: 60px;
-        right: 0;
-        z-index: 2;
-        @media screen and (max-width: map-get($breakpoints, xlarge)) {
-            top: 150px;
-        }
-        @media screen and (max-width: map-get($breakpoints, large)) {
-            top: 146px;
+    height: 100vh;
+    width: 100%;
+
+    &__wrapper {
+        display: flex;
+        flex-direction: column;
+        height: calc(100vh - 2 * $top-bar-height);
+        overflow: hidden;
+
+        @media screen and (max-width: map-get($breakpoints, xxlarge)) {
+            height: calc(100vh - 3 * $top-bar-height);
+            margin-top: $top-bar-height;
         }
     }
 
@@ -22,31 +26,35 @@ $header: 120px;
     }
 
     &__tree {
-        position: relative;
         padding: 1em;
+
+        flex: 1;
         overflow-x: auto;
         overflow-y: auto;
-        margin-top: 115px;
-        min-height: calc(100vh - 2 * 50px - 115px);
-        @media screen and (max-width: map-get($breakpoints, xlarge)) {
-            margin-top: 165px;
-        }
+        overscroll-behavior-x: none;
+    }
+
+    &__sliding-panel-pagination-wrap {
+        margin-top: 1.25em;
     }
 
     &__warning {
         font-size: 0.8em;
         color: darken($argo-status-warning-color, 20%);
+        min-height: 1.2rem;
     }
 
     &__refreshing-label {
+        color: $white-color;
         position: fixed;
-        top: $header + 100px;
-        left: 310px;
-        background-color: $argo-color-gray-4;
+        margin-top: -20px;
+        left: 50%;
+        background-color: $argo-color-gray-7;
         border: 1px solid $argo-color-gray-5;
         border-radius: 5px;
-        padding: 0 5px;
+        padding: 5px 5px;
         font-size: 0.6em;
+        z-index: 1;
     }
 
     &__tab-content-full-height {
@@ -145,7 +153,7 @@ $header: 120px;
         }
     }
 
-    @media screen and (max-width: map-get($breakpoints, xlarge)) {
+    @media screen and (max-width: map-get($breakpoints, xxlarge)) {
         .page__content-wrapper {
             min-height: calc(100vh - 3 * 50px);
         }
@@ -196,9 +204,174 @@ $header: 120px;
     .filters-group__panel {
         top: 230px;
     }
-    @include breakpoint(large down) {
-        .filters-group__panel {
-            top: 280px;
+
+    .graph-options-panel {
+        margin-left: 10px;
+        z-index: 1;
+        padding: 5px;
+        display: inline-block;
+        box-shadow: 1px 1px 3px $argo-color-gray-5;
+        position: absolute;
+
+        @include themify($themes) {
+            background: themed('background-2');
+        }
+
+
+        a {
+            padding: 5px;
+            margin: 2px;
+            color: $argo-color-gray-6;
+            border: 1px solid transparent;
+            border-radius: 5px;
+
+            &.group-nodes-button {
+                cursor: pointer;
+                position: relative;
+                display: inline-block;
+                vertical-align: middle;
+                font-weight: 500;
+                line-height: 1.4;
+                text-align: center;
+                user-select: none;
+                transition: background-color 0.2s, border 0.2s, color 0.2s;
+                text-transform: uppercase;
+                &:hover {
+                    background-color: #d1d5d9;
+                }
+                &:active {
+                    transition: background-color 0.2s, border 0.2s, color 0.2s;
+                    border: 1px $argo-color-teal-5 solid;
+                }
+            }
+
+            &.group-nodes-button-on {
+                color: $argo-color-gray-1;
+                background-color: $argo-color-gray-6;
+                border: 3px solid $argo-color-teal-4;
+                font-size: 14px;
+                outline-style: solid;
+                &:hover {
+                    background-color: $argo-color-gray-5;
+                }
+
+            }
+        }
+
+        .separator {
+            @include themify($themes) {
+                border-right: 1px solid themed('border');
+            }
+            padding-top: 6px;
+            padding-bottom: 6px;
+        }
+
+        .zoom-value {
+            user-select: none;
+            margin-top: 5px;
+            margin-right: 6px;
+            margin-left: 4px;
+            font-size: 14px;
+            text-align-last: right;
+            float: right;
+            width: 40px;
+            border: 1px $argo-color-gray-5 solid;
+            background-color: $argo-color-gray-3;
+            padding: 2px;
+            color: $argo-color-gray-7;
+        }
+    }
+
+
+    @media screen and (max-width: map-get($breakpoints, large)) {
+        .sliding-panel__body {
+            padding: 4px !important;
+        }
+        .sliding-panel--is-middle .sliding-panel__wrapper {
+            width: 90% !important;
+        }
+        .sliding-panel--is-middle .sliding-panel__body {
+            padding: 18px !important;
+        }
+        .sliding-panel__close {
+            z-index: 2 !important;
+        }
+        .top-bar__title {
+            display: none;
+        }
+
+        .top-bar__left-side {
+            white-space: normal !important;
+        }
+        .top-bar__left-side > div {
+            display: block !important;
+        }
+        .top-bar__right-side {
+            justify-content: right !important;
+        }
+        .application-status-panel.row {
+            flex-flow: unset;
+        }
+        .application-status-panel__item label {
+            margin-right: 0;
+        }
+        .application-status-panel__item {
+            padding: 5px 10px;
+        }
+
+        .white-box, .tabs__content {
+            padding: 4px !important;
+        }
+        .white-box__details-row .columns.small-3 {
+            overflow-wrap: unset !important;
+            overflow: scroll;
+        }
+        .white-box__details-row .columns.small-9{
+            padding-left: 4px;
+        }
+
+        .resource-details__header h1 {
+            font-size: 16px;
+        }
+        .resource-details__header {
+            margin-top: 30px;
+            padding-right: 4px;
+        }
+
+        .tabs__nav a:first-child, .tabs__nav a {
+            margin-left: 0 !important;
+        }
+
+        .editable-panel__buttons {
+            top: unset;
         }
     }
 }
+
+.resource-parent-node-info-title {
+    flex-direction: column;
+    color: $argo-color-gray-6;
+
+    &__label {
+        display: flex;
+        margin-bottom: 0.25em;
+        flex-shrink: 1;
+        div:first-child {
+            margin-right: 10px;
+            width: 60px;
+            text-align: right;
+        }
+        div:last-child {
+            font-weight: 500;
+            width: 100%;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            text-align: left;
+
+        }
+    }
+}
+
+
+

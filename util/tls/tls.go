@@ -12,7 +12,6 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"math/big"
 	"net"
 	"os"
@@ -124,11 +123,11 @@ func tlsVersionsToStr(versions []uint16) []string {
 func getTLSConfigCustomizer(minVersionStr, maxVersionStr, tlsCiphersStr string) (ConfigCustomizer, error) {
 	minVersion, err := getTLSVersionByString(minVersionStr)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error retrieving TLS version by min version %q: %w", minVersionStr, err)
 	}
 	maxVersion, err := getTLSVersionByString(maxVersionStr)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error retrieving TLS version by max version %q: %w", maxVersionStr, err)
 	}
 	if minVersion > maxVersion {
 		return nil, fmt.Errorf("Minimum TLS version %s must not be higher than maximum TLS version %s", minVersionStr, maxVersionStr)
@@ -154,7 +153,7 @@ func getTLSConfigCustomizer(minVersionStr, maxVersionStr, tlsCiphersStr string) 
 	if tlsCiphersStr != "" {
 		cipherSuites, err = getTLSCipherSuitesByString(tlsCiphersStr)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("error retrieving TLS cipher suites: %w", err)
 		}
 	} else {
 		cipherSuites = make([]uint16, 0)
@@ -248,6 +247,8 @@ func generate(opts CertOptions) ([]byte, crypto.PrivateKey, error) {
 	var validFor time.Duration
 	if opts.ValidFor == 0 {
 		validFor = 365 * 24 * time.Hour
+	} else {
+		validFor = opts.ValidFor
 	}
 	notAfter := notBefore.Add(validFor)
 
@@ -308,7 +309,7 @@ func generatePEM(opts CertOptions) ([]byte, []byte, error) {
 func GenerateX509KeyPair(opts CertOptions) (*tls.Certificate, error) {
 	certpem, keypem, err := generatePEM(opts)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error generating X509 key pair: %w", err)
 	}
 	cert, err := tls.X509KeyPair(certpem, keypem)
 	if err != nil {
@@ -349,7 +350,7 @@ func LoadX509CertPool(paths ...string) (*x509.CertPool, error) {
 			// ...but everything else is considered an error
 			return nil, fmt.Errorf("could not load TLS certificate: %v", err)
 		} else {
-			f, err := ioutil.ReadFile(path)
+			f, err := os.ReadFile(path)
 			if err != nil {
 				return nil, fmt.Errorf("failure to load TLS certificates from %s: %v", path, err)
 			}
@@ -359,6 +360,23 @@ func LoadX509CertPool(paths ...string) (*x509.CertPool, error) {
 		}
 	}
 	return pool, nil
+}
+
+// LoadX509Cert loads PEM data from a file and returns the resulting Certificate
+func LoadX509Cert(path string) (*x509.Certificate, error) {
+	bytes, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("could not read certificate file: %v", err)
+	}
+	block, _ := pem.Decode(bytes)
+	if block == nil {
+		return nil, fmt.Errorf("could not decode PEM")
+	}
+	cert, err := x509.ParseCertificate(block.Bytes)
+	if err != nil {
+		return nil, fmt.Errorf("could not parse certificate: %v", err)
+	}
+	return cert, nil
 }
 
 // CreateServerTLSConfig will provide a TLS configuration for a server. It will
@@ -395,21 +413,21 @@ func CreateServerTLSConfig(tlsCertPath, tlsKeyPath string, hosts []string) (*tls
 	}
 
 	if !tlsCertExists || !tlsKeyExists {
-		log.Infof("Generating self-signed gRPC TLS certificate for this session")
+		log.Infof("Generating self-signed TLS certificate for this session")
 		c, err := GenerateX509KeyPair(CertOptions{
 			Hosts:        hosts,
 			Organization: "Argo CD",
 			IsCA:         false,
 		})
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("error generating X509 key pair: %w", err)
 		}
 		cert = c
 	} else {
-		log.Infof("Loading gRPC TLS configuration from cert=%s and key=%s", tlsCertPath, tlsKeyPath)
+		log.Infof("Loading TLS configuration from cert=%s and key=%s", tlsCertPath, tlsKeyPath)
 		c, err := tls.LoadX509KeyPair(tlsCertPath, tlsKeyPath)
 		if err != nil {
-			return nil, fmt.Errorf("Unable to initalize gRPC TLS configuration with cert=%s and key=%s: %v", tlsCertPath, tlsKeyPath, err)
+			return nil, fmt.Errorf("Unable to initalize TLS configuration with cert=%s and key=%s: %v", tlsCertPath, tlsKeyPath, err)
 		}
 		cert = &c
 	}

@@ -5,6 +5,7 @@ import (
 	"encoding/csv"
 	"errors"
 	"fmt"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -13,10 +14,11 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/glob"
 	jwtutil "github.com/argoproj/argo-cd/v2/util/jwt"
 
-	"github.com/casbin/casbin"
-	"github.com/casbin/casbin/model"
-	"github.com/casbin/casbin/util"
-	jwt "github.com/dgrijalva/jwt-go/v4"
+	"github.com/Knetic/govaluate"
+	"github.com/casbin/casbin/v2"
+	"github.com/casbin/casbin/v2/model"
+	"github.com/casbin/casbin/v2/util"
+	"github.com/golang-jwt/jwt/v4"
 	gocache "github.com/patrickmn/go-cache"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
@@ -44,10 +46,10 @@ const (
 // CasbinEnforcer represents methods that must be implemented by a Casbin enforces
 type CasbinEnforcer interface {
 	EnableLog(bool)
-	Enforce(rvals ...interface{}) bool
+	Enforce(rvals ...interface{}) (bool, error)
 	LoadPolicy() error
 	EnableEnforce(bool)
-	AddFunction(name string, function func(args ...interface{}) (interface{}, error))
+	AddFunction(name string, function govaluate.ExpressionFunction)
 	GetGroupingPolicy() [][]string
 }
 
@@ -110,25 +112,26 @@ func (e *Enforcer) tryGetCabinEnforcer(project string, policy string) (CasbinEnf
 	if cached != nil {
 		return cached.enforcer, nil
 	}
+	matchFunc := globMatchFunc
+	if e.matchMode == RegexMatchMode {
+		matchFunc = util.RegexMatchFunc
+	}
+
 	var err error
 	var enforcer CasbinEnforcer
 	if policy != "" {
-		if enforcer, err = newEnforcerSafe(e.model, newAdapter(e.adapter.builtinPolicy, e.adapter.userDefinedPolicy, policy)); err != nil {
+		if enforcer, err = newEnforcerSafe(matchFunc, e.model, newAdapter(e.adapter.builtinPolicy, e.adapter.userDefinedPolicy, policy)); err != nil {
 			// fallback to default policy if project policy is invalid
 			log.Errorf("Failed to load project '%s' policy", project)
-			enforcer, err = newEnforcerSafe(e.model, e.adapter)
+			enforcer, err = newEnforcerSafe(matchFunc, e.model, e.adapter)
 		}
 	} else {
-		enforcer, err = newEnforcerSafe(e.model, e.adapter)
+		enforcer, err = newEnforcerSafe(matchFunc, e.model, e.adapter)
 	}
 	if err != nil {
 		return nil, err
 	}
 
-	matchFunc := globMatchFunc
-	if e.matchMode == RegexMatchMode {
-		matchFunc = util.RegexMatchFunc
-	}
 	enforcer.AddFunction("globOrRegexMatch", matchFunc)
 	enforcer.EnableLog(e.enableLog)
 	enforcer.EnableEnforce(e.enabled)
@@ -139,19 +142,18 @@ func (e *Enforcer) tryGetCabinEnforcer(project string, policy string) (CasbinEnf
 // ClaimsEnforcerFunc is func template to enforce a JWT claims. The subject is replaced
 type ClaimsEnforcerFunc func(claims jwt.Claims, rvals ...interface{}) bool
 
-func newEnforcerSafe(params ...interface{}) (e CasbinEnforcer, err error) {
+func newEnforcerSafe(matchFunction govaluate.ExpressionFunction, params ...interface{}) (e CasbinEnforcer, err error) {
 	defer func() {
 		if r := recover(); r != nil {
 			err = fmt.Errorf("%v", r)
 			e = nil
 		}
 	}()
-	enfs := casbin.NewCachedEnforcer(params...)
+	enfs, err := casbin.NewCachedEnforcer(params...)
 	if err != nil {
 		return nil, err
 	}
-	// Default glob match mode
-	enfs.AddFunction("globOrRegexMatch", globMatchFunc)
+	enfs.AddFunction("globOrRegexMatch", matchFunction)
 	return enfs, nil
 }
 
@@ -291,7 +293,7 @@ func (e *Enforcer) EnforceWithCustomEnforcer(enf CasbinEnforcer, rvals ...interf
 func enforce(enf CasbinEnforcer, defaultRole string, claimsEnforcerFunc ClaimsEnforcerFunc, rvals ...interface{}) bool {
 	// check the default role
 	if defaultRole != "" && len(rvals) >= 2 {
-		if enf.Enforce(append([]interface{}{defaultRole}, rvals[1:]...)...) {
+		if ok, err := enf.Enforce(append([]interface{}{defaultRole}, rvals[1:]...)...); ok && err == nil {
 			return true
 		}
 	}
@@ -312,7 +314,8 @@ func enforce(enf CasbinEnforcer, defaultRole string, claimsEnforcerFunc ClaimsEn
 	default:
 		rvals = append([]interface{}{""}, rvals[1:]...)
 	}
-	return enf.Enforce(rvals...)
+	ok, err := enf.Enforce(rvals...)
+	return ok && err == nil
 }
 
 // SetBuiltinPolicy sets a built-in policy, which augments any user defined policies
@@ -360,7 +363,7 @@ func (e *Enforcer) RunPolicyLoader(ctx context.Context, onUpdated func(cm *apiv1
 
 func (e *Enforcer) runInformer(ctx context.Context, onUpdated func(cm *apiv1.ConfigMap) error) {
 	cmInformer := e.newInformer()
-	cmInformer.AddEventHandler(
+	_, err := cmInformer.AddEventHandler(
 		cache.ResourceEventHandlerFuncs{
 			AddFunc: func(obj interface{}) {
 				if cm, ok := obj.(*apiv1.ConfigMap); ok {
@@ -387,19 +390,51 @@ func (e *Enforcer) runInformer(ctx context.Context, onUpdated func(cm *apiv1.Con
 			},
 		},
 	)
+	if err != nil {
+		log.Error(err)
+	}
 	log.Info("Starting rbac config informer")
 	cmInformer.Run(ctx.Done())
 	log.Info("rbac configmap informer cancelled")
+}
+
+// PolicyCSV will generate the final policy csv to be used
+// by Argo CD RBAC. It will find entries in the given data
+// that matches the policy key name convention:
+//
+//	policy[.overlay].csv
+func PolicyCSV(data map[string]string) string {
+	var strBuilder strings.Builder
+	// add the main policy first
+	if p, ok := data[ConfigMapPolicyCSVKey]; ok {
+		strBuilder.WriteString(p)
+	}
+
+	keys := make([]string, 0, len(data))
+	for k := range data {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+
+	// append additional policies at the end of the csv
+	for _, key := range keys {
+		value := data[key]
+		if strings.HasPrefix(key, "policy.") &&
+			strings.HasSuffix(key, ".csv") &&
+			key != ConfigMapPolicyCSVKey {
+
+			strBuilder.WriteString("\n")
+			strBuilder.WriteString(value)
+		}
+	}
+	return strBuilder.String()
 }
 
 // syncUpdate updates the enforcer
 func (e *Enforcer) syncUpdate(cm *apiv1.ConfigMap, onUpdated func(cm *apiv1.ConfigMap) error) error {
 	e.SetDefaultRole(cm.Data[ConfigMapPolicyDefaultKey])
 	e.SetMatchMode(cm.Data[ConfigMapMatchModeKey])
-	policyCSV, ok := cm.Data[ConfigMapPolicyCSVKey]
-	if !ok {
-		policyCSV = ""
-	}
+	policyCSV := PolicyCSV(cm.Data)
 	if err := onUpdated(cm); err != nil {
 		return err
 	}
@@ -408,7 +443,7 @@ func (e *Enforcer) syncUpdate(cm *apiv1.ConfigMap, onUpdated func(cm *apiv1.Conf
 
 // ValidatePolicy verifies a policy string is acceptable to casbin
 func ValidatePolicy(policy string) error {
-	_, err := newEnforcerSafe(newBuiltInModel(), newAdapter("", "", policy))
+	_, err := newEnforcerSafe(globMatchFunc, newBuiltInModel(), newAdapter("", "", policy))
 	if err != nil {
 		return fmt.Errorf("policy syntax error: %s", policy)
 	}
@@ -419,7 +454,11 @@ func ValidatePolicy(policy string) error {
 // This is needed because it is not safe to re-use the same casbin Model when instantiating new
 // casbin enforcers.
 func newBuiltInModel() model.Model {
-	return casbin.NewModel(assets.ModelConf)
+	m, err := model.NewModelFromString(assets.ModelConf)
+	if err != nil {
+		panic(err)
+	}
+	return m
 }
 
 // Casbin adapter which satisfies persist.Adapter interface
@@ -462,8 +501,23 @@ func loadPolicyLine(line string, model model.Model) error {
 		return err
 	}
 
+	tokenLen := len(tokens)
+
+	if tokenLen < 1 ||
+		tokens[0] == "" ||
+		(tokens[0] == "g" && tokenLen != 3) ||
+		(tokens[0] == "p" && tokenLen != 6) {
+		return fmt.Errorf("invalid RBAC policy: %s", line)
+	}
+
 	key := tokens[0]
 	sec := key[:1]
+	if _, ok := model[sec]; !ok {
+		return fmt.Errorf("invalid RBAC policy: %s", line)
+	}
+	if _, ok := model[sec][key]; !ok {
+		return fmt.Errorf("invalid RBAC policy: %s", line)
+	}
 	model[sec][key].Policy = append(model[sec][key].Policy, tokens[1:])
 	return nil
 }

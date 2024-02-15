@@ -8,6 +8,7 @@ metadata:
     argocd.argoproj.io/secret-type: repo-creds
 stringData:
   url: https://github.com/argoproj
+  type: helm
   password: my-password
   username: my-username
 ---
@@ -20,6 +21,7 @@ metadata:
     argocd.argoproj.io/secret-type: repo-creds
 stringData:
   url: git@github.com:argoproj-labs
+  type: helm
   sshPrivateKey: |
     -----BEGIN OPENSSH PRIVATE KEY-----
     ...
@@ -34,6 +36,7 @@ metadata:
     argocd.argoproj.io/secret-type: repo-creds
 stringData:
   url: https://github.com/argoproj
+  type: helm
   githubAppID: 1
   githubAppInstallationID: 2
   githubAppPrivateKey: |
@@ -50,6 +53,7 @@ metadata:
     argocd.argoproj.io/secret-type: repo-creds
 stringData:
   url: https://github.com/argoproj
+  type: helm
   githubAppID: 1
   githubAppInstallationID: 2
   githubAppEnterpriseBaseUrl: https://ghe.example.com/api/v3

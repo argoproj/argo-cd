@@ -1,15 +1,16 @@
 package util
 
 import (
-	"io/ioutil"
 	"os"
 	"testing"
 
+	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	argoappv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+
+	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
 func Test_setHelmOpt(t *testing.T) {
@@ -22,6 +23,11 @@ func Test_setHelmOpt(t *testing.T) {
 		src := v1alpha1.ApplicationSource{}
 		setHelmOpt(&src, helmOpts{valueFiles: []string{"foo"}})
 		assert.Equal(t, []string{"foo"}, src.Helm.ValueFiles)
+	})
+	t.Run("IgnoreMissingValueFiles", func(t *testing.T) {
+		src := v1alpha1.ApplicationSource{}
+		setHelmOpt(&src, helmOpts{ignoreMissingValueFiles: true})
+		assert.Equal(t, true, src.Helm.IgnoreMissingValueFiles)
 	})
 	t.Run("ReleaseName", func(t *testing.T) {
 		src := v1alpha1.ApplicationSource{}
@@ -53,6 +59,11 @@ func Test_setHelmOpt(t *testing.T) {
 		setHelmOpt(&src, helmOpts{passCredentials: true})
 		assert.Equal(t, true, src.Helm.PassCredentials)
 	})
+	t.Run("HelmSkipCrds", func(t *testing.T) {
+		src := v1alpha1.ApplicationSource{}
+		setHelmOpt(&src, helmOpts{skipCrds: true})
+		assert.Equal(t, true, src.Helm.SkipCrds)
+	})
 }
 
 func Test_setKustomizeOpt(t *testing.T) {
@@ -76,10 +87,31 @@ func Test_setKustomizeOpt(t *testing.T) {
 		setKustomizeOpt(&src, kustomizeOpts{images: []string{"org/image:v1", "org/image:v2"}})
 		assert.Equal(t, &v1alpha1.ApplicationSourceKustomize{Images: v1alpha1.KustomizeImages{v1alpha1.KustomizeImage("org/image:v2")}}, src.Kustomize)
 	})
+	t.Run("Replicas", func(t *testing.T) {
+		src := v1alpha1.ApplicationSource{}
+		testReplicasString := []string{"my-deployment=2", "my-statefulset=4"}
+		testReplicas := v1alpha1.KustomizeReplicas{
+			{
+				Name:  "my-deployment",
+				Count: intstr.FromInt(2),
+			},
+			{
+				Name:  "my-statefulset",
+				Count: intstr.FromInt(4),
+			},
+		}
+		setKustomizeOpt(&src, kustomizeOpts{replicas: testReplicasString})
+		assert.Equal(t, &v1alpha1.ApplicationSourceKustomize{Replicas: testReplicas}, src.Kustomize)
+	})
 	t.Run("Version", func(t *testing.T) {
 		src := v1alpha1.ApplicationSource{}
 		setKustomizeOpt(&src, kustomizeOpts{version: "v0.1"})
 		assert.Equal(t, &v1alpha1.ApplicationSourceKustomize{Version: "v0.1"}, src.Kustomize)
+	})
+	t.Run("Namespace", func(t *testing.T) {
+		src := v1alpha1.ApplicationSource{}
+		setKustomizeOpt(&src, kustomizeOpts{namespace: "custom-namespace"})
+		assert.Equal(t, &v1alpha1.ApplicationSourceKustomize{Namespace: "custom-namespace"}, src.Kustomize)
 	})
 	t.Run("Common labels", func(t *testing.T) {
 		src := v1alpha1.ApplicationSource{}
@@ -139,7 +171,9 @@ func (f *appOptionsFixture) SetFlag(key, value string) error {
 
 func newAppOptionsFixture() *appOptionsFixture {
 	fixture := &appOptionsFixture{
-		spec:    &v1alpha1.ApplicationSpec{},
+		spec: &v1alpha1.ApplicationSpec{
+			Source: &v1alpha1.ApplicationSource{},
+		},
 		command: &cobra.Command{},
 		options: &AppOptions{},
 	}
@@ -178,6 +212,11 @@ func Test_setAppSpecOptions(t *testing.T) {
 
 		assert.NoError(t, f.SetFlag("sync-retry-limit", "0"))
 		assert.Nil(t, f.spec.SyncPolicy.Retry)
+	})
+	t.Run("Kustomize", func(t *testing.T) {
+		assert.NoError(t, f.SetFlag("kustomize-replica", "my-deployment=2"))
+		assert.NoError(t, f.SetFlag("kustomize-replica", "my-statefulset=4"))
+		assert.Equal(t, f.spec.Source.Kustomize.Replicas, v1alpha1.KustomizeReplicas{{Name: "my-deployment", Count: intstr.FromInt(2)}, {Name: "my-statefulset", Count: intstr.FromInt(4)}})
 	})
 }
 
@@ -243,7 +282,7 @@ spec:
         - values.yaml`
 
 func TestReadAppsFromURI(t *testing.T) {
-	file, err := ioutil.TempFile(os.TempDir(), "")
+	file, err := os.CreateTemp(os.TempDir(), "")
 	if err != nil {
 		panic(err)
 	}
@@ -254,7 +293,7 @@ func TestReadAppsFromURI(t *testing.T) {
 	_, _ = file.WriteString(appsYaml)
 	_ = file.Sync()
 
-	apps := make([]*argoappv1.Application, 0)
+	apps := make([]*v1alpha1.Application, 0)
 	err = readAppsFromURI(file.Name(), &apps)
 	assert.NoError(t, err)
 	assert.Equal(t, 2, len(apps))
@@ -262,4 +301,123 @@ func TestReadAppsFromURI(t *testing.T) {
 	assert.Equal(t, "sth1", apps[0].Name)
 	assert.Equal(t, "sth2", apps[1].Name)
 
+}
+
+func TestConstructAppFromStdin(t *testing.T) {
+	file, err := os.CreateTemp(os.TempDir(), "")
+	if err != nil {
+		panic(err)
+	}
+	defer func() {
+		_ = os.Remove(file.Name())
+	}()
+
+	_, _ = file.WriteString(appsYaml)
+	_ = file.Sync()
+
+	if _, err := file.Seek(0, 0); err != nil {
+		log.Fatal(err)
+	}
+
+	os.Stdin = file
+
+	apps, err := ConstructApps("-", "test", []string{}, []string{}, []string{}, AppOptions{}, nil)
+
+	if err := file.Close(); err != nil {
+		log.Fatal(err)
+	}
+	assert.NoError(t, err)
+	assert.Equal(t, 2, len(apps))
+	assert.Equal(t, "sth1", apps[0].Name)
+	assert.Equal(t, "sth2", apps[1].Name)
+
+}
+
+func TestConstructBasedOnName(t *testing.T) {
+	apps, err := ConstructApps("", "test", []string{}, []string{}, []string{}, AppOptions{}, nil)
+
+	assert.NoError(t, err)
+	assert.Equal(t, 1, len(apps))
+	assert.Equal(t, "test", apps[0].Name)
+}
+
+func TestFilterResources(t *testing.T) {
+
+	t.Run("Filter by ns", func(t *testing.T) {
+
+		resources := []*v1alpha1.ResourceDiff{
+			{
+				LiveState: "{\"apiVersion\":\"v1\",\"kind\":\"Service\",\"metadata\":{\"name\":\"test-helm-guestbook\",\"namespace\":\"argocd\"},\"spec\":{\"selector\":{\"app\":\"helm-guestbook\",\"release\":\"test\"},\"sessionAffinity\":\"None\",\"type\":\"ClusterIP\"},\"status\":{\"loadBalancer\":{}}}",
+			},
+			{
+				LiveState: "{\"apiVersion\":\"v1\",\"kind\":\"Service\",\"metadata\":{\"name\":\"test-helm-guestbook\",\"namespace\":\"ns\"},\"spec\":{\"selector\":{\"app\":\"helm-guestbook\",\"release\":\"test\"},\"sessionAffinity\":\"None\",\"type\":\"ClusterIP\"},\"status\":{\"loadBalancer\":{}}}",
+			},
+		}
+
+		filteredResources, err := FilterResources(false, resources, "g", "Service", "ns", "test-helm-guestbook", true)
+		assert.NoError(t, err)
+		assert.Len(t, filteredResources, 1)
+	})
+
+	t.Run("Filter by kind", func(t *testing.T) {
+
+		resources := []*v1alpha1.ResourceDiff{
+			{
+				LiveState: "{\"apiVersion\":\"v1\",\"kind\":\"Service\",\"metadata\":{\"name\":\"test-helm-guestbook\",\"namespace\":\"argocd\"},\"spec\":{\"selector\":{\"app\":\"helm-guestbook\",\"release\":\"test\"},\"sessionAffinity\":\"None\",\"type\":\"ClusterIP\"},\"status\":{\"loadBalancer\":{}}}",
+			},
+			{
+				LiveState: "{\"apiVersion\":\"v1\",\"kind\":\"Deployment\",\"metadata\":{\"name\":\"test-helm-guestbook\",\"namespace\":\"argocd\"},\"spec\":{\"selector\":{\"app\":\"helm-guestbook\",\"release\":\"test\"},\"sessionAffinity\":\"None\",\"type\":\"ClusterIP\"},\"status\":{\"loadBalancer\":{}}}",
+			},
+		}
+
+		filteredResources, err := FilterResources(false, resources, "g", "Deployment", "argocd", "test-helm-guestbook", true)
+		assert.NoError(t, err)
+		assert.Len(t, filteredResources, 1)
+	})
+
+	t.Run("Filter by name", func(t *testing.T) {
+
+		resources := []*v1alpha1.ResourceDiff{
+			{
+				LiveState: "{\"apiVersion\":\"v1\",\"kind\":\"Service\",\"metadata\":{\"name\":\"test-helm-guestbook\",\"namespace\":\"argocd\"},\"spec\":{\"selector\":{\"app\":\"helm-guestbook\",\"release\":\"test\"},\"sessionAffinity\":\"None\",\"type\":\"ClusterIP\"},\"status\":{\"loadBalancer\":{}}}",
+			},
+			{
+				LiveState: "{\"apiVersion\":\"v1\",\"kind\":\"Service\",\"metadata\":{\"name\":\"test-helm\",\"namespace\":\"argocd\"},\"spec\":{\"selector\":{\"app\":\"helm-guestbook\",\"release\":\"test\"},\"sessionAffinity\":\"None\",\"type\":\"ClusterIP\"},\"status\":{\"loadBalancer\":{}}}",
+			},
+		}
+
+		filteredResources, err := FilterResources(false, resources, "g", "Service", "argocd", "test-helm", true)
+		assert.NoError(t, err)
+		assert.Len(t, filteredResources, 1)
+	})
+
+	t.Run("Filter no result", func(t *testing.T) {
+		resources := []*v1alpha1.ResourceDiff{
+			{
+				LiveState: "{\"apiVersion\":\"v1\",\"kind\":\"Service\",\"metadata\":{\"name\":\"test-helm-guestbook\",\"namespace\":\"argocd\"},\"spec\":{\"selector\":{\"app\":\"helm-guestbook\",\"release\":\"test\"},\"sessionAffinity\":\"None\",\"type\":\"ClusterIP\"},\"status\":{\"loadBalancer\":{}}}",
+			},
+			{
+				LiveState: "{\"apiVersion\":\"v1\",\"kind\":\"Service\",\"metadata\":{\"name\":\"test-helm\",\"namespace\":\"argocd\"},\"spec\":{\"selector\":{\"app\":\"helm-guestbook\",\"release\":\"test\"},\"sessionAffinity\":\"None\",\"type\":\"ClusterIP\"},\"status\":{\"loadBalancer\":{}}}",
+			},
+		}
+
+		filteredResources, err := FilterResources(false, resources, "g", "Service", "argocd-unknown", "test-helm", true)
+		assert.ErrorContains(t, err, "No matching resource found")
+		assert.Nil(t, filteredResources)
+	})
+
+	t.Run("Filter multiple results", func(t *testing.T) {
+		resources := []*v1alpha1.ResourceDiff{
+			{
+				LiveState: "{\"apiVersion\":\"v1\",\"kind\":\"Service\",\"metadata\":{\"name\":\"test-helm\",\"namespace\":\"argocd\"},\"spec\":{\"selector\":{\"app\":\"helm-guestbook\",\"release\":\"test\"},\"sessionAffinity\":\"None\",\"type\":\"ClusterIP\"},\"status\":{\"loadBalancer\":{}}}",
+			},
+			{
+				LiveState: "{\"apiVersion\":\"v1\",\"kind\":\"Service\",\"metadata\":{\"name\":\"test-helm\",\"namespace\":\"argocd\"},\"spec\":{\"selector\":{\"app\":\"helm-guestbook\",\"release\":\"test\"},\"sessionAffinity\":\"None\",\"type\":\"ClusterIP\"},\"status\":{\"loadBalancer\":{}}}",
+			},
+		}
+
+		filteredResources, err := FilterResources(false, resources, "g", "Service", "argocd", "test-helm", false)
+		assert.ErrorContains(t, err, "Use the --all flag")
+		assert.Nil(t, filteredResources)
+	})
 }
