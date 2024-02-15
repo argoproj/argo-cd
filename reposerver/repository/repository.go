@@ -110,7 +110,8 @@ type RepoServerInitConstants struct {
 	StreamedManifestMaxTarSize                   int64
 	HelmManifestMaxExtractedSize                 int64
 	DisableHelmManifestMaxExtractedSize          bool
-	CodefreshIgnoreVersionConfig                 bool
+	CodefreshApplicationVersioningEnabled        bool
+	CodefreshUseApplicationConfiguration         bool
 	CodefreshConfig                              codefresh.CodefreshConfig
 }
 
@@ -639,7 +640,7 @@ func (s *Service) GenerateManifest(ctx context.Context, q *apiclient.ManifestReq
 		}
 
 		var versionConfig *version_config_manager.VersionConfig
-		if !s.initConstants.CodefreshIgnoreVersionConfig {
+		if s.initConstants.CodefreshApplicationVersioningEnabled && s.initConstants.CodefreshUseApplicationConfiguration {
 			log.Infof("cfAppConfig. Get version config for namespace: %s, name: %s", q.ApplicationMetadata.Namespace, q.ApplicationMetadata.Name)
 			versionConfig = s.GetVersionConfig(q.ApplicationMetadata)
 			if versionConfig != nil {
@@ -648,7 +649,7 @@ func (s *Service) GenerateManifest(ctx context.Context, q *apiclient.ManifestReq
 				log.Infof("cfAppConfig. versionConfig is nil. Unable to retrieve version configuration.")
 			}
 		} else {
-			log.Infof("cfAppConfig. Flag CodefreshIgnoreVersionConfig (ARGOCD_REPO_SERVER_CODEFRESH_IGNORE_VERSION_CONFIG) enabled. Skip getting application version config.")
+			log.Infof("cfAppConfig. Flags for application versioning (CODEFRESH_APPLICATION_VERSIONING_ENABLED and CODEFRESH_USE_APPLICATION_CONFIGURATION) disabled. Skip getting application version config.")
 		}
 		promise = s.runManifestGen(ctx, repoRoot, commitSHA, cacheKey, ctxSrc, q, versionConfig)
 		// The fist channel to send the message will resume this operation.
@@ -843,7 +844,7 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 			}
 		}
 
-		manifestGenResult, err = GenerateManifests(ctx, opContext.appPath, repoRoot, commitSHA, q, versionConfig, false, s.gitCredsStore, gitClient, s.initConstants.MaxCombinedDirectoryManifestsSize, s.gitRepoPaths, WithCMPTarDoneChannel(ch.tarDoneCh), WithCMPTarExcludedGlobs(s.initConstants.CMPTarExcludedGlobs))
+		manifestGenResult, err = GenerateManifests(ctx, opContext.appPath, repoRoot, commitSHA, q, s.initConstants.CodefreshApplicationVersioningEnabled, versionConfig, false, s.gitCredsStore, gitClient, s.initConstants.MaxCombinedDirectoryManifestsSize, s.gitRepoPaths, WithCMPTarDoneChannel(ch.tarDoneCh), WithCMPTarExcludedGlobs(s.initConstants.CMPTarExcludedGlobs))
 	}
 	refSourceCommitSHAs := make(map[string]string)
 	if len(repoRefs) > 0 {
@@ -1411,7 +1412,7 @@ func getRepoCredential(repoCredentials []*v1alpha1.RepoCreds, repoURL string) *v
 }
 
 // GenerateManifests generates manifests from a path
-func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, q *apiclient.ManifestRequest, versionConfig *version_config_manager.VersionConfig, isLocal bool, gitCredsStore git.CredsStore, gitClient git.Client, maxCombinedManifestQuantity resource.Quantity, gitRepoPaths io.TempPaths, opts ...GenerateManifestOpt) (*apiclient.ManifestResponse, error) {
+func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, q *apiclient.ManifestRequest, codefreshApplicationVersioningEnabled bool, versionConfig *version_config_manager.VersionConfig, isLocal bool, gitCredsStore git.CredsStore, gitClient git.Client, maxCombinedManifestQuantity resource.Quantity, gitRepoPaths io.TempPaths, opts ...GenerateManifestOpt) (*apiclient.ManifestResponse, error) {
 	opt := newGenerateManifestOpt(opts...)
 
 	var (
@@ -1489,18 +1490,22 @@ func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, 
 	}
 
 	if appSourceType == v1alpha1.ApplicationSourceTypeHelm {
-		appVersions, err := getAppVersions(appPath, versionConfig)
-		if err != nil {
-			log.Errorf("failed to retrieve application version, app name: %q: %s", q.AppName, err.Error())
-		} else {
-			res.ApplicationVersions = &apiclient.ApplicationVersions{
-				AppVersion: appVersions.AppVersion,
-				Dependencies: &apiclient.Dependencies{
-					Lock:         appVersions.Dependencies.Lock,
-					Deps:         appVersions.Dependencies.Deps,
-					Requirements: appVersions.Dependencies.Requirements,
-				},
+		if codefreshApplicationVersioningEnabled {
+			appVersions, err := getAppVersions(appPath, versionConfig)
+			if err != nil {
+				log.Errorf("failed to retrieve application version, app name: %q: %s", q.AppName, err.Error())
+			} else {
+				res.ApplicationVersions = &apiclient.ApplicationVersions{
+					AppVersion: appVersions.AppVersion,
+					Dependencies: &apiclient.Dependencies{
+						Lock:         appVersions.Dependencies.Lock,
+						Deps:         appVersions.Dependencies.Deps,
+						Requirements: appVersions.Dependencies.Requirements,
+					},
+				}
 			}
+		} else {
+			log.Infof("Application versioning disabled by flag (CODEFRESH_APPLICATION_VERSIONING_ENABLED)")
 		}
 	}
 

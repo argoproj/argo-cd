@@ -49,28 +49,29 @@ var (
 
 func NewCommand() *cobra.Command {
 	var (
-		parallelismLimit                  int64
-		listenPort                        int
-		listenHost                        string
-		metricsPort                       int
-		metricsHost                       string
-		otlpAddress                       string
-		otlpAttrs                         []string
-		cacheSrc                          func() (*reposervercache.Cache, error)
-		tlsConfigCustomizer               tls.ConfigCustomizer
-		tlsConfigCustomizerSrc            func() (tls.ConfigCustomizer, error)
-		redisClient                       *redis.Client
-		disableTLS                        bool
-		maxCombinedDirectoryManifestsSize string
-		cmpTarExcludedGlobs               []string
-		allowOutOfBoundsSymlinks          bool
-		streamedManifestMaxTarSize        string
-		streamedManifestMaxExtractedSize  string
-		helmManifestMaxExtractedSize      string
-		disableManifestMaxExtractedSize   bool
-		codefreshUrl                      string
-		codefreshToken                    string
-		codefreshIgnoreVersionConfig      bool
+		parallelismLimit                      int64
+		listenPort                            int
+		listenHost                            string
+		metricsPort                           int
+		metricsHost                           string
+		otlpAddress                           string
+		otlpAttrs                             []string
+		cacheSrc                              func() (*reposervercache.Cache, error)
+		tlsConfigCustomizer                   tls.ConfigCustomizer
+		tlsConfigCustomizerSrc                func() (tls.ConfigCustomizer, error)
+		redisClient                           *redis.Client
+		disableTLS                            bool
+		maxCombinedDirectoryManifestsSize     string
+		cmpTarExcludedGlobs                   []string
+		allowOutOfBoundsSymlinks              bool
+		streamedManifestMaxTarSize            string
+		streamedManifestMaxExtractedSize      string
+		helmManifestMaxExtractedSize          string
+		disableManifestMaxExtractedSize       bool
+		codefreshUrl                          string
+		codefreshToken                        string
+		codefreshApplicationVersioningEnabled bool
+		codefreshUseApplicationConfiguration  bool
 	)
 	var command = cobra.Command{
 		Use:               cliName,
@@ -127,7 +128,8 @@ func NewCommand() *cobra.Command {
 				StreamedManifestMaxExtractedSize:             streamedManifestMaxExtractedSizeQuantity.ToDec().Value(),
 				StreamedManifestMaxTarSize:                   streamedManifestMaxTarSizeQuantity.ToDec().Value(),
 				HelmManifestMaxExtractedSize:                 helmManifestMaxExtractedSizeQuantity.ToDec().Value(),
-				CodefreshIgnoreVersionConfig:                 codefreshIgnoreVersionConfig,
+				CodefreshApplicationVersioningEnabled:        codefreshApplicationVersioningEnabled,
+				CodefreshUseApplicationConfiguration:         codefreshUseApplicationConfiguration,
 				CodefreshConfig: codefresh.CodefreshConfig{
 					BaseURL:   codefreshUrl,
 					AuthToken: codefreshToken,
@@ -200,7 +202,8 @@ func NewCommand() *cobra.Command {
 	// *** CF specific variables ***
 	command.Flags().StringVar(&codefreshUrl, "codefresh-url", env.StringFromEnv("CODEFRESH_URL", "https://g.codefresh.io"), "Codefresh API URL")
 	command.Flags().StringVar(&codefreshToken, "codefresh-token", env.StringFromEnv("CODEFRESH_TOKEN", ""), "Codefresh token")
-	command.Flags().BoolVar(&codefreshIgnoreVersionConfig, "codefresh-ignore-version-config", env.ParseBoolFromEnv("CODEFRESH_IGNORE_VERSION_CONFIG", false), "Codefresh ignore application version config")
+	command.Flags().BoolVar(&codefreshApplicationVersioningEnabled, "codefresh-application-versioning-enabled", env.ParseBoolFromEnv("CODEFRESH_APPLICATION_VERSIONING_ENABLED", true), "Allow Codefresh application versioning")
+	command.Flags().BoolVar(&codefreshUseApplicationConfiguration, "codefresh-use-application-configuration", env.ParseBoolFromEnv("CODEFRESH_USE_APPLICATION_CONFIGURATION", true), "Allow getting application configuration from the Codefresh API")
 
 	command.Flags().StringVar(&cmdutil.LogFormat, "logformat", env.StringFromEnv("ARGOCD_REPO_SERVER_LOGFORMAT", "text"), "Set the logging format. One of: text|json")
 	command.Flags().StringVar(&cmdutil.LogLevel, "loglevel", env.StringFromEnv("ARGOCD_REPO_SERVER_LOGLEVEL", "info"), "Set the logging level. One of: debug|info|warn|error")
