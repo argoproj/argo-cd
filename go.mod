@@ -13,7 +13,7 @@ require (
 	github.com/TomOnTime/utfutil v0.0.0-20180511104225-09c41003ee1d
 	github.com/alicebob/miniredis/v2 v2.30.4
 	github.com/antonmedv/expr v1.15.2
-	github.com/argoproj/gitops-engine v0.7.1-0.20240124052710-5fd9f449e757
+	github.com/argoproj/gitops-engine v0.7.1-0.20240122213038-792124280fcc
 	github.com/argoproj/notifications-engine v0.4.1-0.20231027194313-a8d185ecc0a9
 	github.com/argoproj/pkg v0.13.7-0.20230626144333-d56162821bd1
 	github.com/aws/aws-sdk-go v1.44.317
@@ -25,7 +25,7 @@ require (
 	github.com/coreos/go-oidc/v3 v3.6.0
 	github.com/cyphar/filepath-securejoin v0.2.4
 	github.com/dustin/go-humanize v1.0.1
-	github.com/evanphx/json-patch v5.9.0+incompatible
+	github.com/evanphx/json-patch v5.6.0+incompatible
 	github.com/fsnotify/fsnotify v1.6.0
 	github.com/gfleury/go-bitbucket-v1 v0.0.0-20220301131131-8e7ed04b843e
 	github.com/go-git/go-git/v5 v5.11.0
@@ -81,7 +81,7 @@ require (
 	go.opentelemetry.io/otel v1.21.0
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc v1.21.0
 	go.opentelemetry.io/otel/sdk v1.21.0
-	golang.org/x/crypto v0.17.0
+	golang.org/x/crypto v0.16.0
 	golang.org/x/exp v0.0.0-20230522175609-2e198f4a06a1
 	golang.org/x/oauth2 v0.11.0
 	golang.org/x/sync v0.3.0
@@ -92,7 +92,7 @@ require (
 	gopkg.in/yaml.v2 v2.4.0
 	gopkg.in/yaml.v3 v3.0.1
 	k8s.io/api v0.26.11
-	k8s.io/apiextensions-apiserver v0.26.4
+	k8s.io/apiextensions-apiserver v0.26.10
 	k8s.io/apimachinery v0.26.11
 	k8s.io/apiserver v0.26.11
 	k8s.io/client-go v0.26.11
@@ -103,7 +103,7 @@ require (
 	k8s.io/utils v0.0.0-20230220204549-a5ecb0141aa5
 	layeh.com/gopher-json v0.0.0-20190114024228-97fed8db8427
 	oras.land/oras-go/v2 v2.3.0
-	sigs.k8s.io/controller-runtime v0.14.6
+	sigs.k8s.io/controller-runtime v0.14.7
 	sigs.k8s.io/structured-merge-diff/v4 v4.4.1
 	sigs.k8s.io/yaml v1.3.0
 )
