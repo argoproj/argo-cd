@@ -8,6 +8,7 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/sync/ignore"
 	kubeutil "github.com/argoproj/gitops-engine/pkg/utils/kube"
 	log "github.com/sirupsen/logrus"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
@@ -15,10 +16,27 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/lua"
 )
 
+func getOldTimestamp(statuses []appv1.ResourceStatus, i int) metav1.Time {
+	if len(statuses) == 0 {
+		return metav1.Now()
+	}
+
+	oldTimestamp := statuses[i].Health.Timestamp
+
+	if oldTimestamp.IsZero() {
+		oldTimestamp = metav1.Now()
+	}
+
+	return oldTimestamp
+}
+
 // setApplicationHealth updates the health statuses of all resources performed in the comparison
 func setApplicationHealth(resources []managedResource, statuses []appv1.ResourceStatus, resourceOverrides map[string]appv1.ResourceOverride, app *appv1.Application, persistResourceHealth bool) (*appv1.HealthStatus, error) {
 	var savedErr error
 	var errCount uint
+
+	// All statuses have the same timestamp, so we can safely get the first one
+	oldTimestamp := getOldTimestamp(statuses, 0)
 	appHealth := appv1.HealthStatus{Status: health.HealthStatusHealthy}
 	for i, res := range resources {
 		if res.Target != nil && hookutil.Skip(res.Target) {
@@ -54,7 +72,14 @@ func setApplicationHealth(resources []managedResource, statuses []appv1.Resource
 		}
 
 		if persistResourceHealth {
-			resHealth := appv1.HealthStatus{Status: healthStatus.Status, Message: healthStatus.Message}
+			timestamp := metav1.Now()
+
+			// If the status didn't change, we don't want to update the timestamp
+			if healthStatus.Status == statuses[i].Health.Status {
+				timestamp = getOldTimestamp(statuses, i)
+			}
+
+			resHealth := appv1.HealthStatus{Status: healthStatus.Status, Message: healthStatus.Message, Timestamp: timestamp}
 			statuses[i].Health = &resHealth
 		} else {
 			statuses[i].Health = nil
@@ -72,6 +97,9 @@ func setApplicationHealth(resources []managedResource, statuses []appv1.Resource
 
 		if health.IsWorse(appHealth.Status, healthStatus.Status) {
 			appHealth.Status = healthStatus.Status
+			appHealth.Timestamp = statuses[i].Health.Timestamp
+		} else if healthStatus.Status == health.HealthStatusHealthy {
+			appHealth.Timestamp = oldTimestamp
 		}
 	}
 	if persistResourceHealth {
