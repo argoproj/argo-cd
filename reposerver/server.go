@@ -129,6 +129,7 @@ func (a *ArgoCDRepoServer) CreateGRPC() *grpc.Server {
 
 	// Register reflection service on gRPC server.
 	reflection.Register(server)
+	grpc_prometheus.Register(server)
 
 	return server
 }

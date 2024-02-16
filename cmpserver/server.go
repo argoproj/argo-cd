@@ -119,6 +119,7 @@ func (a *ArgoCDCMPServer) CreateGRPC() (*grpc.Server, error) {
 
 	// Register reflection service on gRPC server.
 	reflection.Register(server)
+	grpc_prometheus.Register(server)
 
 	return server, nil
 }
