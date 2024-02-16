@@ -2207,8 +2207,9 @@ type AppProjectSpec struct {
 	// SourceNamespaces defines the namespaces application resources are allowed to be created in
 	SourceNamespaces []string `json:"sourceNamespaces,omitempty" protobuf:"bytes,12,opt,name=sourceNamespaces"`
 	// PermitOnlyProjectScopedClusters determines whether destinations can only reference clusters which are project-scoped
-	PermitOnlyProjectScopedClusters bool                                   `json:"permitOnlyProjectScopedClusters,omitempty" protobuf:"bytes,13,opt,name=permitOnlyProjectScopedClusters"`
-	DestinationServiceAccounts      []ApplicationDestinationServiceAccount `json:"destinationServiceAccounts,omitempty" protobuf:"bytes,14,name=destinationServiceAccounts"`
+	PermitOnlyProjectScopedClusters bool `json:"permitOnlyProjectScopedClusters,omitempty" protobuf:"bytes,13,opt,name=permitOnlyProjectScopedClusters"`
+	// DestinationServiceAccounts holds information about the service accounts to be impersonated for the application sync operation for each destination.
+	DestinationServiceAccounts []ApplicationDestinationServiceAccount `json:"destinationServiceAccounts,omitempty" protobuf:"bytes,14,name=destinationServiceAccounts"`
 }
 
 // SyncWindows is a collection of sync windows in this project

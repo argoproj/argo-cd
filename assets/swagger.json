@@ -5727,6 +5727,7 @@
           "title": "Description contains optional project description"
         },
         "destinationServiceAccounts": {
+          "description": "DestinationServiceAccounts holds information about the service accounts to be impersonated for the application sync operation for each destination.",
           "type": "array",
           "items": {
             "$ref": "#/definitions/v1alpha1ApplicationDestinationServiceAccount"

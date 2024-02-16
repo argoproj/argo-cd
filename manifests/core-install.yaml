@@ -20423,6 +20423,9 @@ spec:
                 description: Description contains optional project description
                 type: string
               destinationServiceAccounts:
+                description: DestinationServiceAccounts holds information about the
+                  service accounts to be impersonated for the application sync operation
+                  for each destination.
                 items:
                   description: ApplicationDestinationServiceAccount holds information
                     about the service account to be impersonated for the application
