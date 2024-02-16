@@ -73,6 +73,18 @@ func (p *providerImpl) newGoOIDCProvider() (*gooidc.Provider, error) {
 	return prov, nil
 }
 
+type tokenVerificationError struct {
+	errorsByAudience map[string]error
+}
+
+func (t tokenVerificationError) Error() string {
+	var errorStrings []string
+	for aud, err := range t.errorsByAudience {
+		errorStrings = append(errorStrings, fmt.Sprintf("error for aud %q: %v", aud, err))
+	}
+	return fmt.Sprintf("token verification failed for all audiences: %s", strings.Join(errorStrings, ", "))
+}
+
 func (p *providerImpl) Verify(tokenString string, argoSettings *settings.ArgoCDSettings) (*gooidc.IDToken, error) {
 	// According to the JWT spec, the aud claim is optional. The spec also says (emphasis mine):
 	//
@@ -104,6 +116,7 @@ func (p *providerImpl) Verify(tokenString string, argoSettings *settings.ArgoCDS
 		if len(allowedAudiences) == 0 {
 			return nil, errors.New("token has an audience claim, but no allowed audiences are configured")
 		}
+		tokenVerificationErrors := make(map[string]error)
 		// Token must be verified for at least one allowed audience
 		for _, aud := range allowedAudiences {
 			idToken, err = p.verify(aud, tokenString, false)
@@ -117,6 +130,13 @@ func (p *providerImpl) Verify(tokenString string, argoSettings *settings.ArgoCDS
 			if err == nil {
 				break
 			}
+			// We store the error for each audience so that we can return a more detailed error message to the user.
+			// If this gets merged, we'll be able to detect failures unrelated to audiences and short-circuit this loop
+			// to avoid logging irrelevant warnings: https://github.com/coreos/go-oidc/pull/406
+			tokenVerificationErrors[aud] = err
+		}
+		if len(tokenVerificationErrors) > 0 {
+			err = tokenVerificationError{errorsByAudience: tokenVerificationErrors}
 		}
 	}
 

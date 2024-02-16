@@ -19,7 +19,7 @@ The Google Chat notification service send message notifications to a google chat
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: <config-map-name>
+  name: argocd-notifications-cm
 data:
   service.googlechat: |
     webhooks:

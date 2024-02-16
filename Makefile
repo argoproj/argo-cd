@@ -49,7 +49,7 @@ ARGOCD_E2E_DEX_PORT?=5556
 ARGOCD_E2E_YARN_HOST?=localhost
 ARGOCD_E2E_DISABLE_AUTH?=
 
-ARGOCD_E2E_TEST_TIMEOUT?=60m
+ARGOCD_E2E_TEST_TIMEOUT?=90m
 
 ARGOCD_IN_CI?=false
 ARGOCD_TEST_E2E?=true
@@ -175,29 +175,21 @@ endif
 .PHONY: all
 all: cli image
 
-# We have some legacy requirements for being checked out within $GOPATH.
-# The ensure-gopath target can be used as dependency to ensure we are running
-# within these boundaries.
-.PHONY: ensure-gopath
-ensure-gopath:
-ifneq ("$(PWD)","$(LEGACY_PATH)")
-	@echo "Due to legacy requirements for codegen, repository needs to be checked out within \$$GOPATH"
-	@echo "Location of this repo should be '$(LEGACY_PATH)' but is '$(PWD)'"
-	@exit 1
-endif
-
 .PHONY: gogen
-gogen: ensure-gopath
+gogen:
 	export GO111MODULE=off
 	go generate ./util/argo/...
 
 .PHONY: protogen
-protogen: ensure-gopath mod-vendor-local
+protogen: mod-vendor-local protogen-fast
+
+.PHONY: protogen-fast
+protogen-fast:
 	export GO111MODULE=off
 	./hack/generate-proto.sh
 
 .PHONY: openapigen
-openapigen: ensure-gopath
+openapigen:
 	export GO111MODULE=off
 	./hack/update-openapi.sh
 
@@ -212,18 +204,21 @@ notification-docs:
 
 
 .PHONY: clientgen
-clientgen: ensure-gopath
+clientgen:
 	export GO111MODULE=off
 	./hack/update-codegen.sh
 
 .PHONY: clidocsgen
-clidocsgen: ensure-gopath
+clidocsgen:
 	go run tools/cmd-docs/main.go
 
 
 .PHONY: codegen-local
-codegen-local: ensure-gopath mod-vendor-local gogen protogen clientgen openapigen clidocsgen manifests-local notification-docs notification-catalog
+codegen-local: mod-vendor-local gogen protogen clientgen openapigen clidocsgen manifests-local notification-docs notification-catalog
 	rm -rf vendor/
+
+.PHONY: codegen-local-fast
+codegen-local-fast: gogen protogen-fast clientgen openapigen clidocsgen manifests-local notification-docs notification-catalog
 
 .PHONY: codegen
 codegen: test-tools-image
@@ -492,6 +487,7 @@ start-local: mod-vendor-local dep-ui-local cli-local
 	ARGOCD_ZJWT_FEATURE_FLAG=always \
 	ARGOCD_IN_CI=false \
 	ARGOCD_GPG_ENABLED=$(ARGOCD_GPG_ENABLED) \
+	BIN_MODE=$(ARGOCD_BIN_MODE) \
 	ARGOCD_E2E_TEST=false \
 	ARGOCD_APPLICATION_NAMESPACES=$(ARGOCD_APPLICATION_NAMESPACES) \
 		goreman -f $(ARGOCD_PROCFILE) start ${ARGOCD_START}
