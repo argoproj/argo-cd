@@ -87,7 +87,7 @@ patchesJson6902:
 
 resources:
 - ../manifests/crds
-- ../manifests/cluster-rbac/application-controller
+- ../manifests/cluster-rbac
 - ../manifests/base/config
 - ../manifests/base/application-controller
 - ../manifests/base/applicationset-controller
