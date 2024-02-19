@@ -2397,7 +2397,11 @@ func directoryPermissionInitializer(rootPath string) goio.Closer {
 // nolint:unparam
 func (s *Service) checkoutRevision(gitClient git.Client, revision string, submoduleEnabled bool) (goio.Closer, error) {
 	closer := s.gitRepoInitializer(gitClient.Root())
-	return closer, checkoutRevision(gitClient, revision, submoduleEnabled)
+	err := checkoutRevision(gitClient, revision, submoduleEnabled)
+	if err != nil {
+		s.metricsServer.IncGitFetchFail(gitClient.Root(), revision)
+	}
+	return closer, err
 }
 
 func checkoutRevision(gitClient git.Client, revision string, submoduleEnabled bool) error {
