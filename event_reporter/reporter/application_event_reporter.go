@@ -153,11 +153,12 @@ func getAppAsResource(a *appv1.Application) *appv1.ResourceStatus {
 
 func (r *applicationEventReporter) getDesiredManifests(ctx context.Context, a *appv1.Application, logCtx *log.Entry) (*apiclient.ManifestResponse, error, bool) {
 	// get the desired state manifests of the application
+	project := a.Spec.GetProject()
 	desiredManifests, err := r.applicationServiceClient.GetManifests(ctx, &application.ApplicationManifestQuery{
 		Name:         &a.Name,
 		AppNamespace: &a.Namespace,
 		Revision:     &a.Status.Sync.Revision,
-		Project:      &a.Spec.Project,
+		Project:      &project,
 	})
 	if err != nil {
 		// if it's manifest generation error we need to still report the actual state
@@ -183,9 +184,10 @@ func (s *applicationEventReporter) StreamApplicationEvents(
 
 	logCtx.WithField("ignoreResourceCache", ignoreResourceCache).Info("streaming application events")
 
+	project := a.Spec.GetProject()
 	appTree, err := s.applicationServiceClient.ResourceTree(ctx, &application.ResourcesQuery{
 		ApplicationName: &a.Name,
-		Project:         &a.Spec.Project,
+		Project:         &project,
 		AppNamespace:    &a.Namespace,
 	})
 	if err != nil {
@@ -351,6 +353,7 @@ func (s *applicationEventReporter) processResource(
 	desiredState := getResourceDesiredState(&rs, desiredManifests, logCtx)
 
 	// get resource actual state
+	project := parentApplication.Spec.GetProject()
 	actualState, err := s.applicationServiceClient.GetResource(ctx, &application.ApplicationResourceRequest{
 		Name:         &parentApplication.Name,
 		AppNamespace: &parentApplication.Namespace,
@@ -359,7 +362,7 @@ func (s *applicationEventReporter) processResource(
 		Version:      &rs.Version,
 		Group:        &rs.Group,
 		Kind:         &rs.Kind,
-		Project:      &parentApplication.Spec.Project,
+		Project:      &project,
 	})
 	if err != nil {
 		if !strings.Contains(err.Error(), "not found") {
@@ -436,7 +439,7 @@ func (s *applicationEventReporter) ShouldSendApplicationEvent(ae *appv1.Applicat
 	}
 
 	cachedApp.Status.ReconciledAt = ae.Application.Status.ReconciledAt // ignore those in the diff
-	cachedApp.Spec.Project = ae.Application.Spec.Project               //
+	cachedApp.Spec.Project = ae.Application.Spec.Project               // not useing GetProject() so that the comparison will be with the real field values
 	for i := range cachedApp.Status.Conditions {
 		cachedApp.Status.Conditions[i].LastTransitionTime = nil
 	}
@@ -524,11 +527,12 @@ func getOperationRevision(a *appv1.Application) string {
 }
 
 func (s *applicationEventReporter) getApplicationRevisionDetails(ctx context.Context, a *appv1.Application, revision string) (*appv1.RevisionMetadata, error) {
+	project := a.Spec.GetProject()
 	return s.applicationServiceClient.RevisionMetadata(ctx, &application.RevisionMetadataQuery{
 		Name:         &a.Name,
 		AppNamespace: &a.Namespace,
 		Revision:     &revision,
-		Project:      &a.Spec.Project,
+		Project:      &project,
 	})
 }
 

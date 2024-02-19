@@ -149,10 +149,10 @@ func TestGetApplicationLatestRevision(t *testing.T) {
 					Revision: appRevision,
 				},
 				History: []v1alpha1.RevisionHistory{
-					v1alpha1.RevisionHistory{
+					{
 						Revision: history1Revision,
 					},
-					v1alpha1.RevisionHistory{
+					{
 						Revision: history2Revision,
 					},
 				},
@@ -188,10 +188,10 @@ func TestGetLatestAppHistoryId(t *testing.T) {
 		appMock := v1alpha1.Application{
 			Status: v1alpha1.ApplicationStatus{
 				History: []v1alpha1.RevisionHistory{
-					v1alpha1.RevisionHistory{
+					{
 						ID: history1Id,
 					},
-					v1alpha1.RevisionHistory{
+					{
 						ID: history2Id,
 					},
 				},
