@@ -108,14 +108,15 @@ type watchOpts struct {
 // NewApplicationCreateCommand returns a new instance of an `argocd app create` command
 func NewApplicationCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
-		appOpts      cmdutil.AppOptions
-		fileURL      string
-		appName      string
-		upsert       bool
-		labels       []string
-		annotations  []string
-		setFinalizer bool
-		appNamespace string
+		appOpts         cmdutil.AppOptions
+		fileURL         string
+		appName         string
+		upsert          bool
+		labels          []string
+		annotations     []string
+		setFinalizer    bool
+		appNamespace    string
+		multipleSources bool
 	)
 	var command = &cobra.Command{
 		Use:   "create APPNAME",
@@ -134,6 +135,9 @@ func NewApplicationCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 
   # Create a Kustomize app
   argocd app create kustomize-guestbook --repo https://github.com/argoproj/argocd-example-apps.git --path kustomize-guestbook --dest-namespace default --dest-server https://kubernetes.default.svc --kustomize-image gcr.io/heptio-images/ks-guestbook-demo:0.1
+
+  # Create an app with multiple sources
+  argocd app create jsonnet-guestbook --multiple-sources --fileURL https://github.com/argoproj/argocd-example-apps.git
 
   # Create a app using a custom tool:
   argocd app create kasane --repo https://github.com/argoproj/argocd-example-apps.git --path plugins/kasane --dest-namespace default --dest-server https://kubernetes.default.svc --config-management-plugin kasane`,
@@ -194,6 +198,7 @@ func NewApplicationCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 	command.Flags().StringArrayVarP(&labels, "label", "l", []string{}, "Labels to apply to the app")
 	command.Flags().StringArrayVarP(&annotations, "annotations", "", []string{}, "Set metadata annotations (e.g. example=value)")
 	command.Flags().BoolVar(&setFinalizer, "set-finalizer", false, "Sets deletion finalizer on the application, application resources will be cascaded on deletion")
+	command.Flags().BoolVar(&multipleSources, "multiple-sources", false, "Application consists of multiple sources")
 	// Only complete files with appropriate extension.
 	err := command.Flags().SetAnnotation("file", cobra.BashCompFilenameExt, []string{"json", "yaml", "yml"})
 	if err != nil {
@@ -2779,4 +2784,87 @@ func NewApplicationPatchCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
 	command.Flags().StringVar(&patch, "patch", "", "Patch body")
 	command.Flags().StringVar(&patchType, "type", "json", "The type of patch being provided; one of [json merge]")
 	return &command
+}
+
+// NewApplicationAddSourceCommand returns a new instance of an `argocd app add-source` command
+func NewApplicationAddSourceCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
+	var (
+		appOpts      cmdutil.AppOptions
+		appName      string
+		appNamespace string
+	)
+	var command = &cobra.Command{
+		Use:   "add-source APPNAME",
+		Short: "Adds a source to an application",
+		Example: `  # Create a directory app
+  argocd app add-source guestbook --repo https://github.com/argoproj/argocd-example-apps.git --path guestbook --dest-namespace default --dest-server https://kubernetes.default.svc --directory-recurse
+
+  # Create a app using a custom tool:
+  argocd app add-source kasane --repo https://github.com/argoproj/argocd-example-apps.git --path plugins/kasane --dest-namespace default --dest-server https://kubernetes.default.svc --config-management-plugin kasane`,
+		Run: func(c *cobra.Command, args []string) {
+			ctx := c.Context()
+
+			argocdClient := headless.NewClientOrDie(clientOpts, c)
+
+			apps, err := cmdutil.ConstructSource(appName, args, c.Flags())
+			errors.CheckError(err)
+
+			for _, app := range apps {
+				if app.Name == "" {
+					c.HelpFunc()(c, args)
+					os.Exit(1)
+				}
+				if appNamespace != "" {
+					app.Namespace = appNamespace
+				}
+				if setFinalizer {
+					app.Finalizers = append(app.Finalizers, "resources-finalizer.argocd.argoproj.io")
+				}
+				conn, appIf := argocdClient.NewApplicationClientOrDie()
+				defer argoio.Close(conn)
+				appCreateRequest := application.ApplicationCreateRequest{
+					Application: app,
+					Upsert:      &upsert,
+					Validate:    &appOpts.Validate,
+				}
+
+				// Get app before creating to see if it is being updated or no change
+				existing, err := appIf.Get(ctx, &application.ApplicationQuery{Name: &app.Name})
+				unwrappedError := grpc.UnwrapGRPCStatus(err).Code()
+				// As part of the fix for CVE-2022-41354, the API will return Permission Denied when an app does not exist.
+				if unwrappedError != codes.NotFound && unwrappedError != codes.PermissionDenied {
+					errors.CheckError(err)
+				}
+
+				created, err := appIf.Create(ctx, &appCreateRequest)
+				errors.CheckError(err)
+
+				var action string
+				if existing == nil {
+					action = "created"
+				} else if !hasAppChanged(existing, created, upsert) {
+					action = "unchanged"
+				} else {
+					action = "updated"
+				}
+
+				fmt.Printf("application '%s' %s\n", created.ObjectMeta.Name, action)
+			}
+		},
+	}
+	command.Flags().StringVar(&appName, "name", "", "A name for the app, ignored if a file is set (DEPRECATED)")
+	command.Flags().BoolVar(&upsert, "upsert", false, "Allows to override application with the same name even if supplied application spec is different from existing spec")
+	command.Flags().StringVarP(&fileURL, "file", "f", "", "Filename or URL to Kubernetes manifests for the app")
+	command.Flags().StringArrayVarP(&labels, "label", "l", []string{}, "Labels to apply to the app")
+	command.Flags().StringArrayVarP(&annotations, "annotations", "", []string{}, "Set metadata annotations (e.g. example=value)")
+	command.Flags().BoolVar(&setFinalizer, "set-finalizer", false, "Sets deletion finalizer on the application, application resources will be cascaded on deletion")
+	command.Flags().BoolVar(&multipleSources, "multiple-sources", false, "Application consists of multiple sources")
+	// Only complete files with appropriate extension.
+	err := command.Flags().SetAnnotation("file", cobra.BashCompFilenameExt, []string{"json", "yaml", "yml"})
+	if err != nil {
+		log.Fatal(err)
+	}
+	command.Flags().StringVarP(&appNamespace, "app-namespace", "N", "", "Namespace where the application will be created in")
+	cmdutil.AddAppFlags(command, &appOpts)
+	return command
 }
