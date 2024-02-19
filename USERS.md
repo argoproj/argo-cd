@@ -188,6 +188,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [Natura &Co](https://naturaeco.com/)
 1. [Nethopper](https://nethopper.io)
 1. [New Relic](https://newrelic.com/)
+1. [Nextbasket](https://nextbasket.com)
 1. [Nextdoor](https://nextdoor.com/)
 1. [Nikkei](https://www.nikkei.co.jp/nikkeiinfo/en/)
 1. [Nitro](https://gonitro.com)
