@@ -5,6 +5,7 @@ import * as React from 'react';
 
 import {Consumer} from '../../context';
 import {MonacoEditor} from '../monaco-editor';
+import {services} from '../../services';
 
 const jsonMergePatch = require('json-merge-patch');
 require('./yaml-editor.scss');
@@ -21,13 +22,22 @@ export class YamlEditor<T> extends React.Component<
     },
     {
         editing: boolean;
+        theme: string;
     }
 > {
     private model: monacoEditor.editor.ITextModel;
 
     constructor(props: any) {
         super(props);
-        this.state = {editing: props.initialEditMode};
+        this.state = {editing: props.initialEditMode, theme: 'light'};
+    }
+
+    componentDidMount() {
+        services.viewPreferences.init();
+        services.viewPreferences.getPreferences().subscribe(preferences => {
+            this.setState({theme: preferences.theme});
+            monacoEditor.editor.setTheme(preferences.theme === 'dark' ? 'vs-dark' : 'vs');
+        });
     }
 
     public render() {
