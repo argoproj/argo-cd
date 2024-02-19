@@ -81,7 +81,7 @@ func getAppAsResource(a *appv1.Application) *appv1.ResourceStatus {
 	}
 }
 
-func (s *applicationEventReporter) getDesiredManifests(ctx context.Context, a *appv1.Application, logCtx log.FieldLogger) (*apiclient.ManifestResponse, error, bool) {
+func (s *applicationEventReporter) getDesiredManifests(ctx context.Context, a *appv1.Application, logCtx *log.Entry) (*apiclient.ManifestResponse, error, bool) {
 	// get the desired state manifests of the application
 	desiredManifests, err := s.server.GetManifests(ctx, &application.ApplicationManifestQuery{
 		Name:     &a.Name,
@@ -100,7 +100,6 @@ func (s *applicationEventReporter) getDesiredManifests(ctx context.Context, a *a
 
 func (s *applicationEventReporter) streamApplicationEvents(
 	ctx context.Context,
-	logCtx log.FieldLogger,
 	a *appv1.Application,
 	es *events.EventSource,
 	stream events.Eventing_StartEventSourceServer,
@@ -109,6 +108,7 @@ func (s *applicationEventReporter) streamApplicationEvents(
 	appInstanceLabelKey string,
 	trackingMethod appv1.TrackingMethod,
 ) error {
+	logCtx := log.WithField("app", a.Name)
 
 	logCtx.WithField("ignoreResourceCache", ignoreResourceCache).Info("streaming application events")
 
@@ -220,7 +220,7 @@ func (s *applicationEventReporter) processResource(
 	ctx context.Context,
 	rs appv1.ResourceStatus,
 	parentApplication *appv1.Application,
-	logCtx log.FieldLogger,
+	logCtx *log.Entry,
 	ts string,
 	desiredManifests *apiclient.ManifestResponse,
 	stream events.Eventing_StartEventSourceServer,
@@ -368,7 +368,7 @@ func isApp(rs appv1.ResourceStatus) bool {
 	return rs.GroupVersionKind().String() == appv1.ApplicationSchemaGroupVersionKind.String()
 }
 
-func logWithAppStatus(a *appv1.Application, logCtx log.FieldLogger, ts string) *log.Entry {
+func logWithAppStatus(a *appv1.Application, logCtx *log.Entry, ts string) *log.Entry {
 	return logCtx.WithFields(log.Fields{
 		"sync":            a.Status.Sync.Status,
 		"health":          a.Status.Health.Status,
@@ -377,7 +377,7 @@ func logWithAppStatus(a *appv1.Application, logCtx log.FieldLogger, ts string) *
 	})
 }
 
-func logWithResourceStatus(logCtx log.FieldLogger, rs appv1.ResourceStatus) log.FieldLogger {
+func logWithResourceStatus(logCtx *log.Entry, rs appv1.ResourceStatus) *log.Entry {
 	logCtx = logCtx.WithField("sync", rs.Status)
 	if rs.Health != nil {
 		logCtx = logCtx.WithField("health", rs.Health.Status)
@@ -421,14 +421,9 @@ func getOperationRevision(a *appv1.Application) string {
 }
 
 func (s *applicationEventReporter) getApplicationRevisionDetails(ctx context.Context, a *appv1.Application, revision string) (*appv1.RevisionMetadata, error) {
-	name := a.GetName()
-	namespace := a.GetNamespace()
-	project := a.Spec.GetProject()
 	return s.server.RevisionMetadata(ctx, &application.RevisionMetadataQuery{
-		Name:         &name,
-		AppNamespace: &namespace,
-		Project:      &project,
-		Revision:     &revision,
+		Name:     &a.Name,
+		Revision: &revision,
 	})
 }
 
@@ -728,7 +723,7 @@ func (s *applicationEventReporter) getApplicationEventPayload(
 	return &events.Event{Payload: payloadBytes, Name: es.Name}, nil
 }
 
-func getResourceDesiredState(rs *appv1.ResourceStatus, ds *apiclient.ManifestResponse, logger log.FieldLogger) *apiclient.Manifest {
+func getResourceDesiredState(rs *appv1.ResourceStatus, ds *apiclient.ManifestResponse, logger *log.Entry) *apiclient.Manifest {
 	if ds == nil {
 		return &apiclient.Manifest{}
 	}
