@@ -10,7 +10,7 @@ func TestRateLimiter(t *testing.T) {
 		rl := NewRateLimiter(&RateLimiterOpts{
 			Enabled: false,
 		})
-		d, err, _ := rl.Limit("foo")
+		d, err := rl.Limit("foo")
 		if err != nil {
 			t.Errorf("Expected no error, got %v", err)
 		}
@@ -24,7 +24,7 @@ func TestRateLimiter(t *testing.T) {
 			Rate:     time.Second,
 			Capacity: 1,
 		})
-		d, err, _ := rl.Limit("foo")
+		d, err := rl.Limit("foo")
 		if err != nil {
 			t.Errorf("Expected no error, got %v", err)
 		}
@@ -38,7 +38,7 @@ func TestRateLimiter(t *testing.T) {
 			Rate:     time.Second,
 			Capacity: 0,
 		})
-		_, err, _ := rl.Limit("foo")
+		_, err := rl.Limit("foo")
 		if err == nil {
 			t.Errorf("Expected error, got nil")
 		}
