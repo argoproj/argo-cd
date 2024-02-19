@@ -40,17 +40,15 @@ type broadcasterHandler struct {
 	filter         sharding.ApplicationFilterFunction
 	featureManager *FeatureManager
 	metricsServer  *metrics.MetricsServer
-	rateLimiter    *RateLimiter
 }
 
-func NewBroadcaster(featureManager *FeatureManager, metricsServer *metrics.MetricsServer, rateLimiterOpts *RateLimiterOpts) Broadcaster {
+func NewBroadcaster(featureManager *FeatureManager, metricsServer *metrics.MetricsServer) Broadcaster {
 	// todo: pass real value here
 	filter := getApplicationFilter("")
 	return &broadcasterHandler{
 		filter:         filter,
 		featureManager: featureManager,
 		metricsServer:  metricsServer,
-		rateLimiter:    NewRateLimiter(rateLimiterOpts),
 	}
 }
 
@@ -77,13 +75,6 @@ func (b *broadcasterHandler) notify(event *appv1.ApplicationWatchEvent) {
 
 	for _, s := range subscribers {
 		if s.matches(event) {
-
-			duration, err := b.rateLimiter.Limit(event.Application.Name)
-			if err != nil {
-				log.Infof("adding application '%s' to channel failed, due to rate limit, duration left %s", event.Application.Name, duration.String())
-				b.metricsServer.IncAppEventsCounter(event.Application.Name, false)
-				continue
-			}
 
 			select {
 			case s.ch <- event:

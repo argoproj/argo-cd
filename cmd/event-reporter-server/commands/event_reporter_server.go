@@ -3,7 +3,6 @@ package commands
 import (
 	"context"
 	"fmt"
-	"github.com/argoproj/argo-cd/v2/event_reporter/reporter"
 	"math"
 	"time"
 
@@ -176,11 +175,6 @@ func NewCommand() *cobra.Command {
 				CodefreshConfig: &codefresh.CodefreshConfig{
 					BaseURL:   codefreshUrl,
 					AuthToken: codefreshToken,
-				},
-				RateLimiterOpts: &reporter.RateLimiterOpts{
-					Enabled:  rateLimiterEnabled,
-					Rate:     rateLimiterDuration,
-					Capacity: rateLimiterBucketSize,
 				},
 			}
 
