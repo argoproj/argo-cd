@@ -1,14 +1,11 @@
 package repository
 
 import (
-	"encoding/json"
-	"fmt"
 	"os"
 	"path/filepath"
 	"reflect"
 	"strings"
 
-	"github.com/argoproj/argo-cd/v2/pkg/version_config_manager"
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v2"
 	"k8s.io/client-go/util/jsonpath"
@@ -25,35 +22,23 @@ type Result struct {
 	Dependencies DependenciesMap `json:"dependencies"`
 }
 
-func getVersionFromFile(appPath, jsonPathExpression string) (*string, error) {
+func getVersionFromYaml(appPath, jsonPathExpression string) (*string, error) {
 	content, err := os.ReadFile(appPath)
 	if err != nil {
 		return nil, err
 	}
 
-	log.Infof("AppVersion source content was read from %s", appPath)
+	log.Infof("AppVersion source content: %s", string(content))
 
 	var obj interface{}
-	var jsonObj interface{}
+	if err := yaml.Unmarshal(content, &obj); err != nil {
+		return nil, err
+	}
 
-	// Determine the file type and unmarshal accordingly
-	switch filepath.Ext(appPath) {
-	case ".yaml", ".yml":
-		if err := yaml.Unmarshal(content, &obj); err != nil {
-			return nil, err
-		}
-		// Convert YAML to Map[interface{}]interface{}
-		jsonObj, err = convertToJSONCompatible(obj)
-		if err != nil {
-			return nil, err
-		}
-	case ".json":
-		if err := json.Unmarshal(content, &obj); err != nil {
-			return nil, err
-		}
-		jsonObj = obj
-	default:
-		return nil, fmt.Errorf("Unsupported file format of %s", appPath)
+	// Convert YAML to Map[interface{}]interface{}
+	jsonObj, err := convertToJSONCompatible(obj)
+	if err != nil {
+		return nil, err
 	}
 
 	jp := jsonpath.New("jsonpathParser")
@@ -69,7 +54,7 @@ func getVersionFromFile(appPath, jsonPathExpression string) (*string, error) {
 	}
 
 	appVersion := buf.String()
-	log.Infof("Extracted appVersion: %s", appVersion)
+	log.Infof("AppVersion source content appVersion: %s", appVersion)
 	return &appVersion, nil
 }
 
@@ -96,25 +81,18 @@ func readFileContent(result *Result, appPath, fileName, fieldName string) {
 	}
 }
 
-func getAppVersions(appPath string, versionConfig *version_config_manager.VersionConfig) (*Result, error) {
+func getAppVersions(appPath string, resourceName string, jsonPathExpression string) (*Result, error) {
 	// Defaults
-	resourceName := "Chart.yaml"
-	jsonPathExpression := "{.appVersion}"
-
-	if versionConfig != nil {
-		if versionConfig.ResourceName != "" {
-			resourceName = versionConfig.ResourceName
-		}
-		if versionConfig.JsonPath != "" {
-			jsonPathExpression = versionConfig.JsonPath
-		}
+	if resourceName == "" {
+		resourceName = "Chart.yaml"
+	}
+	if jsonPathExpression == "" {
+		jsonPathExpression = "{.appVersion}"
 	}
 
 	// Get version of root
-	log.Infof("appVersion get from file: %s, jsonPath: %s", filepath.Join(appPath, resourceName), jsonPathExpression)
-	appVersion, err := getVersionFromFile(filepath.Join(appPath, resourceName), jsonPathExpression)
+	appVersion, err := getVersionFromYaml(filepath.Join(appPath, resourceName), jsonPathExpression)
 	if err != nil {
-		log.Errorf("Error in getVersionFromFile. %v", err)
 		return nil, err
 	}
 	log.Infof("appVersion value: %v (appPath=%s)", *appVersion, appPath)
@@ -128,6 +106,5 @@ func getAppVersions(appPath string, versionConfig *version_config_manager.Versio
 	readFileContent(result, appPath, "Chart.yaml", "Deps")
 	readFileContent(result, appPath, "requirements.yaml", "Requirements")
 
-	log.Infof("Return appVersion as: %v", result)
 	return result, nil
 }
