@@ -16,7 +16,6 @@ import (
 
 	cmdutil "github.com/argoproj/argo-cd/v2/cmd/util"
 	"github.com/argoproj/argo-cd/v2/common"
-	"github.com/argoproj/argo-cd/v2/pkg/codefresh"
 	"github.com/argoproj/argo-cd/v2/reposerver"
 	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/v2/reposerver/askpass"
@@ -49,29 +48,25 @@ var (
 
 func NewCommand() *cobra.Command {
 	var (
-		parallelismLimit                      int64
-		listenPort                            int
-		listenHost                            string
-		metricsPort                           int
-		metricsHost                           string
-		otlpAddress                           string
-		otlpAttrs                             []string
-		cacheSrc                              func() (*reposervercache.Cache, error)
-		tlsConfigCustomizer                   tls.ConfigCustomizer
-		tlsConfigCustomizerSrc                func() (tls.ConfigCustomizer, error)
-		redisClient                           *redis.Client
-		disableTLS                            bool
-		maxCombinedDirectoryManifestsSize     string
-		cmpTarExcludedGlobs                   []string
-		allowOutOfBoundsSymlinks              bool
-		streamedManifestMaxTarSize            string
-		streamedManifestMaxExtractedSize      string
-		helmManifestMaxExtractedSize          string
-		disableManifestMaxExtractedSize       bool
-		codefreshUrl                          string
-		codefreshToken                        string
-		codefreshApplicationVersioningEnabled bool
-		codefreshUseApplicationConfiguration  bool
+		parallelismLimit                  int64
+		listenPort                        int
+		listenHost                        string
+		metricsPort                       int
+		metricsHost                       string
+		otlpAddress                       string
+		otlpAttrs                         []string
+		cacheSrc                          func() (*reposervercache.Cache, error)
+		tlsConfigCustomizer               tls.ConfigCustomizer
+		tlsConfigCustomizerSrc            func() (tls.ConfigCustomizer, error)
+		redisClient                       *redis.Client
+		disableTLS                        bool
+		maxCombinedDirectoryManifestsSize string
+		cmpTarExcludedGlobs               []string
+		allowOutOfBoundsSymlinks          bool
+		streamedManifestMaxTarSize        string
+		streamedManifestMaxExtractedSize  string
+		helmManifestMaxExtractedSize      string
+		disableManifestMaxExtractedSize   bool
 	)
 	var command = cobra.Command{
 		Use:               cliName,
@@ -128,12 +123,6 @@ func NewCommand() *cobra.Command {
 				StreamedManifestMaxExtractedSize:             streamedManifestMaxExtractedSizeQuantity.ToDec().Value(),
 				StreamedManifestMaxTarSize:                   streamedManifestMaxTarSizeQuantity.ToDec().Value(),
 				HelmManifestMaxExtractedSize:                 helmManifestMaxExtractedSizeQuantity.ToDec().Value(),
-				CodefreshApplicationVersioningEnabled:        codefreshApplicationVersioningEnabled,
-				CodefreshUseApplicationConfiguration:         codefreshUseApplicationConfiguration,
-				CodefreshConfig: codefresh.CodefreshConfig{
-					BaseURL:   codefreshUrl,
-					AuthToken: codefreshToken,
-				},
 			}, askPassServer)
 			errors.CheckError(err)
 
@@ -199,12 +188,6 @@ func NewCommand() *cobra.Command {
 			return nil
 		},
 	}
-	// *** CF specific variables ***
-	command.Flags().StringVar(&codefreshUrl, "codefresh-url", env.StringFromEnv("CODEFRESH_URL", "https://g.codefresh.io"), "Codefresh API URL")
-	command.Flags().StringVar(&codefreshToken, "codefresh-token", env.StringFromEnv("CODEFRESH_TOKEN", ""), "Codefresh token")
-	command.Flags().BoolVar(&codefreshApplicationVersioningEnabled, "codefresh-application-version-enabled", env.ParseBoolFromEnv("CODEFRESH_APPVERSION_ENABLED", true), "Allow Codefresh application versioning")
-	command.Flags().BoolVar(&codefreshUseApplicationConfiguration, "codefresh-application-version-use-appconfig", env.ParseBoolFromEnv("CODEFRESH_APPVERSION_USE_APPCONFIG", true), "Allow getting application configuration from the Codefresh API")
-
 	command.Flags().StringVar(&cmdutil.LogFormat, "logformat", env.StringFromEnv("ARGOCD_REPO_SERVER_LOGFORMAT", "text"), "Set the logging format. One of: text|json")
 	command.Flags().StringVar(&cmdutil.LogLevel, "loglevel", env.StringFromEnv("ARGOCD_REPO_SERVER_LOGLEVEL", "info"), "Set the logging level. One of: debug|info|warn|error")
 	command.Flags().Int64Var(&parallelismLimit, "parallelismlimit", int64(env.ParseNumFromEnv("ARGOCD_REPO_SERVER_PARALLELISM_LIMIT", 0, 0, math.MaxInt32)), "Limit on number of concurrent manifests generate requests. Any value less the 1 means no limit.")

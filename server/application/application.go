@@ -491,23 +491,23 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 		}
 
 		manifestInfo, err = client.GenerateManifest(ctx, &apiclient.ManifestRequest{
-			Repo:                repo,
-			Revision:            revision,
-			AppLabelKey:         appInstanceLabelKey,
-			AppName:             a.InstanceName(s.ns),
-			Namespace:           a.Spec.Destination.Namespace,
-			ApplicationSource:   &source,
-			Repos:               helmRepos,
-			KustomizeOptions:    kustomizeOptions,
-			KubeVersion:         serverVersion,
-			ApiVersions:         argo.APIResourcesToStrings(apiResources, true),
-			HelmRepoCreds:       helmCreds,
-			HelmOptions:         helmOptions,
-			TrackingMethod:      string(argoutil.GetTrackingMethod(s.settingsMgr)),
-			EnabledSourceTypes:  enableGenerateManifests,
-			ProjectName:         proj.Name,
-			ProjectSourceRepos:  proj.Spec.SourceRepos,
-			ApplicationMetadata: &a.ObjectMeta,
+			Repo:               repo,
+			Revision:           revision,
+			AppLabelKey:        appInstanceLabelKey,
+			AppName:            a.InstanceName(s.ns),
+			Namespace:          a.Spec.Destination.Namespace,
+			ApplicationSource:  &source,
+			Repos:              helmRepos,
+			KustomizeOptions:   kustomizeOptions,
+			KubeVersion:        serverVersion,
+			ApiVersions:        argo.APIResourcesToStrings(apiResources, true),
+			HelmRepoCreds:      helmCreds,
+			HelmOptions:        helmOptions,
+			TrackingMethod:     string(argoutil.GetTrackingMethod(s.settingsMgr)),
+			EnabledSourceTypes: enableGenerateManifests,
+			ProjectName:        proj.Name,
+			ProjectSourceRepos: proj.Spec.SourceRepos,
+			VersionConfig:      apiclient.GetVersionConfig(),
 		})
 		if err != nil {
 			return fmt.Errorf("error generating manifests: %w", err)
@@ -1158,8 +1158,8 @@ func (s *Server) StartEventSource(es *events.EventSource, stream events.Eventing
 			{
 				logCtx.Infof("OnAdd channel size is %d", len(onAddEventsChannel))
 				logAppEvent := logCtx.WithFields(log.Fields{
-					"app":  event.Application.Name,
-					"type": event.Type,
+					"app": event.Application.Name,
+					"type":    event.Type,
 				})
 				logAppEvent.Infof("Received application added event")
 				err = s.processEvent(event, logAppEvent, stream, sendIfPermitted)
@@ -1171,8 +1171,8 @@ func (s *Server) StartEventSource(es *events.EventSource, stream events.Eventing
 			{
 				logCtx.Infof("OnDelete channel size is %d", len(onDeleteEventsChannel))
 				logAppEvent := logCtx.WithFields(log.Fields{
-					"app":  event.Application.Name,
-					"type": event.Type,
+					"app": event.Application.Name,
+					"type":    event.Type,
 				})
 				logAppEvent.Infof("Received application deleted event")
 				err = s.processEvent(event, logAppEvent, stream, sendIfPermitted)
@@ -1184,8 +1184,8 @@ func (s *Server) StartEventSource(es *events.EventSource, stream events.Eventing
 			{
 				logCtx.Infof("OnUpdate channel size is %d", len(onUpdateEventsChannel))
 				logAppEvent := logCtx.WithFields(log.Fields{
-					"app":  event.Application.Name,
-					"type": event.Type,
+					"app": event.Application.Name,
+					"type":    event.Type,
 				})
 				logAppEvent.Infof("Received application update event")
 				err = s.processEvent(event, logAppEvent, stream, sendIfPermitted)
@@ -1197,8 +1197,8 @@ func (s *Server) StartEventSource(es *events.EventSource, stream events.Eventing
 			{
 				logCtx.Infof("All events channel size is %d", len(allEventsChannel))
 				logAppEvent := logCtx.WithFields(log.Fields{
-					"app":  event.Application.Name,
-					"type": event.Type,
+					"app": event.Application.Name,
+					"type":    event.Type,
 				})
 				logAppEvent.Infof("Received application event")
 				err = s.processEvent(event, logAppEvent, stream, sendIfPermitted)
