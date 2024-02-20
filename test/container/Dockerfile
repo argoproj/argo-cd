@@ -93,14 +93,18 @@ COPY ./test/container/entrypoint.sh /usr/local/bin
 ARG UID
 
 # Prepare user configuration & build environments
-RUN useradd -l -u ${UID} -d /home/user -s /bin/bash user && \
-    echo "user ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/user && \
-    mkdir -p /home/user/.kube && \
-    mkdir -p /home/user/.cache && \
-    chown -R user /home/user && \
-    chgrp -R user /home/user && \
-    HOME=/home/user git config --global user.name "ArgoCD Test User" && \
-    HOME=/home/user git config --global user.email "noreply@example.com" && \
+RUN HOME=/root && USER=root && \
+    if [ "${UID}" != 0 ]; then \
+        HOME=/home/user && USER=user && \
+        useradd -l -u "${UID}" -d "${HOME}" -s /bin/bash "${USER}" && \
+        echo "user ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/user; \
+    fi && \
+    mkdir -p "${HOME}/.kube" && \
+    mkdir -p "${HOME}/.cache" && \
+    chown -R "${USER}" "${HOME}" && \
+    chgrp -R "${USER}" "${HOME}" && \
+    HOME="${HOME}" git config --global user.name "ArgoCD Test User" && \
+    HOME="${HOME}" git config --global user.email "noreply@example.com" && \
     mkdir -p /go/pkg && \
     mkdir -p /var/run/sshd && \
     mkdir -p /root/.ssh && \

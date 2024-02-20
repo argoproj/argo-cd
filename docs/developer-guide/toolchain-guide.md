@@ -138,6 +138,15 @@ The following steps are required no matter whether you chose to use a virtualize
     export SUDO=sudo
     ```
 
+    On the other hand, if your container runtime does not run as root (rootless
+    mode), containers must run as the "root" user, which is mapped to the 
+    current user by default in this context. To allow that, set the `ROOTLESS`
+    environment variable to `true`:
+
+    ```
+    ROOTLESS=true make sometarget
+    ```
+
 ### Clone the Argo CD repository from your personal fork on GitHub
 
 * `mkdir -p ~/go/src/github.com/argoproj`

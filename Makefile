@@ -67,8 +67,16 @@ DOCKER_SRC_MOUNT="$(PWD):/go/src/github.com/argoproj/argo-cd$(VOLUME_MOUNT)"
 endif
 
 # User and group IDs to map to the test container
+ifeq ("$(ROOTLESS)","true")
+# In rootless mode, the root user is mapped to the current user.
+CONTAINER_UID=0
+CONTAINER_GID=0
+else
 CONTAINER_UID=$(shell id -u)
 CONTAINER_GID=$(shell id -g)
+endif
+
+CONTAINER_HOME=$(intcmp $(CONTAINER_UID),0,,/root,/home/user)
 
 # Set SUDO to sudo to run privileged commands with sudo
 SUDO?=
@@ -80,7 +88,7 @@ define run-in-test-server
 		--name argocd-test-server \
 		-u $(CONTAINER_UID):$(CONTAINER_GID) \
 		-e USER_ID=$(CONTAINER_UID) \
-		-e HOME=/home/user \
+		-e HOME=$(CONTAINER_HOME) \
 		-e GOPATH=/go \
 		-e GOCACHE=/tmp/go-build-cache \
 		-e ARGOCD_IN_CI=$(ARGOCD_IN_CI) \
@@ -95,7 +103,7 @@ define run-in-test-server
 		-v ${DOCKER_SRC_MOUNT} \
 		-v ${GOPATH}/pkg/mod:/go/pkg/mod${VOLUME_MOUNT} \
 		-v ${GOCACHE}:/tmp/go-build-cache${VOLUME_MOUNT} \
-		-v ${HOME}/.kube:/home/user/.kube${VOLUME_MOUNT} \
+		-v ${HOME}/.kube:$(CONTAINER_HOME)/.kube${VOLUME_MOUNT} \
 		-v /tmp:/tmp${VOLUME_MOUNT} \
 		-w ${DOCKER_WORKDIR} \
 		-p ${ARGOCD_E2E_APISERVER_PORT}:8080 \
@@ -110,7 +118,7 @@ define run-in-test-client
 	$(SUDO) docker run --rm -it \
 	  --name argocd-test-client \
 		-u $(CONTAINER_UID):$(CONTAINER_GID) \
-		-e HOME=/home/user \
+		-e HOME=$(CONTAINER_HOME) \
 		-e GOPATH=/go \
 		-e ARGOCD_E2E_K3S=$(ARGOCD_E2E_K3S) \
 		-e GITHUB_TOKEN \
@@ -119,7 +127,7 @@ define run-in-test-client
 		-v ${DOCKER_SRC_MOUNT} \
 		-v ${GOPATH}/pkg/mod:/go/pkg/mod${VOLUME_MOUNT} \
 		-v ${GOCACHE}:/tmp/go-build-cache${VOLUME_MOUNT} \
-		-v ${HOME}/.kube:/home/user/.kube${VOLUME_MOUNT} \
+		-v ${HOME}/.kube:$(CONTAINER_HOME)/.kube${VOLUME_MOUNT} \
 		-v /tmp:/tmp${VOLUME_MOUNT} \
 		-w ${DOCKER_WORKDIR} \
 		$(TEST_TOOLS_PREFIX)$(TEST_TOOLS_IMAGE):$(TEST_TOOLS_TAG) \
