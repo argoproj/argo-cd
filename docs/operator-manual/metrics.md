@@ -171,6 +171,8 @@ apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
 metadata:
   name: argocd-redis-haproxy-metrics
+  labels:
+    release: prometheus-operator
 spec:
   selector:
     matchLabels:
@@ -179,7 +181,7 @@ spec:
   - port: http-exporter-port
 ```
 
-For notifications controller, you need to additionally add following: 
+For notifications controller, you need to additionally add following:
 
 ```yaml
 apiVersion: monitoring.coreos.com/v1
