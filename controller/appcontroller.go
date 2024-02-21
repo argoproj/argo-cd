@@ -24,6 +24,7 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	jsonpatch "github.com/evanphx/json-patch"
 	log "github.com/sirupsen/logrus"
+	fastjson "github.com/valyala/fastjson"
 	"golang.org/x/sync/semaphore"
 	v1 "k8s.io/api/core/v1"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
@@ -96,9 +97,66 @@ func (a CompareWith) Pointer() *CompareWith {
 	return &a
 }
 
+type CrdMetadata struct {
+	apiVersion string
+	kind       string
+	namespace  string
+	name       string
+}
+
+func NewCrdMetadata(parserPool *fastjson.ParserPool, json string) (*CrdMetadata, error) {
+	parser := parserPool.Get()
+	defer parserPool.Put(parser)
+	v, err := parser.Parse(json)
+	if err != nil {
+		return nil, err
+	}
+	if v.Type() == fastjson.TypeNull {
+		return nil, nil
+	}
+	metadata := v.Get("metadata")
+	return &CrdMetadata{
+		apiVersion: string(v.GetStringBytes("apiVersion")),
+		kind:       string(v.GetStringBytes("kind")),
+		namespace:  string(metadata.GetStringBytes("namespace")),
+		name:       string(metadata.GetStringBytes("name")),
+	}, nil
+}
+
+func (c *CrdMetadata) GetAPIVersion() string {
+	return c.apiVersion
+}
+
+func (c *CrdMetadata) GetKind() string {
+	return c.kind
+}
+
+func (c *CrdMetadata) GetNamespace() string {
+	return c.namespace
+}
+
+func (c *CrdMetadata) GetName() string {
+	return c.name
+}
+
+func (c *CrdMetadata) GroupVersionKind() schema.GroupVersionKind {
+	gv, err := schema.ParseGroupVersion(c.GetAPIVersion())
+	if err != nil {
+		return schema.GroupVersionKind{}
+	}
+	gvk := gv.WithKind(c.GetKind())
+	return gvk
+}
+
+func GetResourceKey(obj *CrdMetadata) kube.ResourceKey {
+	gvk := obj.GroupVersionKind()
+	return kube.NewResourceKey(gvk.Group, gvk.Kind, obj.GetNamespace(), obj.GetName())
+}
+
 // ApplicationController is the controller for application resources.
 type ApplicationController struct {
 	cache                *appstatecache.Cache
+	parserPool           *fastjson.ParserPool
 	namespace            string
 	kubeClientset        kubernetes.Interface
 	kubectl              kube.Kubectl
@@ -168,6 +226,7 @@ func NewApplicationController(
 	}
 	ctrl := ApplicationController{
 		cache:                             argoCache,
+		parserPool:                        &fastjson.ParserPool{},
 		namespace:                         namespace,
 		kubeClientset:                     kubeClientset,
 		kubectl:                           kubectl,
@@ -505,18 +564,17 @@ func (ctrl *ApplicationController) getResourceTree(a *appv1.Application, managed
 	for i := range managedResources {
 		managedResource := managedResources[i]
 		delete(orphanedNodesMap, kube.NewResourceKey(managedResource.Group, managedResource.Kind, managedResource.Namespace, managedResource.Name))
-		var live = &unstructured.Unstructured{}
-		err := json.Unmarshal([]byte(managedResource.LiveState), &live)
+		live, err := NewCrdMetadata(ctrl.parserPool, managedResource.LiveState)
 		if err != nil {
 			return nil, fmt.Errorf("failed to unmarshal live state of managed resources: %w", err)
 		}
-		var target = &unstructured.Unstructured{}
-		err = json.Unmarshal([]byte(managedResource.TargetState), &target)
-		if err != nil {
-			return nil, fmt.Errorf("failed to unmarshal target state of managed resources: %w", err)
-		}
 
 		if live == nil {
+			target, err := NewCrdMetadata(ctrl.parserPool, managedResource.TargetState)
+			if err != nil {
+				return nil, fmt.Errorf("failed to unmarshal target state of managed resources: %w", err)
+			}
+
 			nodes = append(nodes, appv1.ResourceNode{
 				ResourceRef: appv1.ResourceRef{
 					Version:   target.GroupVersionKind().Version,
@@ -527,7 +585,7 @@ func (ctrl *ApplicationController) getResourceTree(a *appv1.Application, managed
 				},
 			})
 		} else {
-			err := ctrl.stateCache.IterateHierarchy(a.Spec.Destination.Server, kube.GetResourceKey(live), func(child appv1.ResourceNode, appName string) bool {
+			err := ctrl.stateCache.IterateHierarchy(a.Spec.Destination.Server, GetResourceKey(live), func(child appv1.ResourceNode, appName string) bool {
 				permitted, _ := proj.IsResourcePermitted(schema.GroupKind{Group: child.ResourceRef.Group, Kind: child.ResourceRef.Kind}, child.Namespace, a.Spec.Destination, func(project string) ([]*appv1.Cluster, error) {
 					clusters, err := ctrl.db.GetProjectClusters(context.TODO(), project)
 					if err != nil {

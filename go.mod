@@ -74,6 +74,7 @@ require (
 	github.com/spf13/cobra v1.7.0
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.8.4
+	github.com/valyala/fastjson v1.6.4
 	github.com/valyala/fasttemplate v1.2.2
 	github.com/whilp/git-urls v1.0.0
 	github.com/xanzy/go-gitlab v0.91.1
