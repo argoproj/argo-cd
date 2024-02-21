@@ -83,7 +83,7 @@ func TestSetApplicationHealth(t *testing.T) {
 	healthStatus, err = setApplicationHealth(resources, resourceStatuses, nil, app, true)
 	assert.NoError(t, err)
 	assert.Equal(t, health.HealthStatusHealthy, healthStatus.Status)
-	assert.Equal(t, firstHealthStatusTimestamp, healthStatus.Timestamp)
+	assert.Equal(t, testTimestamp, healthStatus.Timestamp)
 }
 
 func TestSetApplicationHealth_ResourceHealthNotPersisted(t *testing.T) {

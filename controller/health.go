@@ -39,6 +39,7 @@ func setApplicationHealth(resources []managedResource, statuses []appv1.Resource
 	oldTimestamp := getOldTimestamp(statuses, 0)
 	appHealth := appv1.HealthStatus{Status: health.HealthStatusHealthy}
 	for i, res := range resources {
+		timestamp := metav1.Now()
 		if res.Target != nil && hookutil.Skip(res.Target) {
 			continue
 		}
@@ -72,7 +73,6 @@ func setApplicationHealth(resources []managedResource, statuses []appv1.Resource
 		}
 
 		if persistResourceHealth {
-			timestamp := metav1.Now()
 
 			// If the status didn't change, we don't want to update the timestamp
 			if healthStatus.Status == statuses[i].Health.Status {
@@ -97,7 +97,11 @@ func setApplicationHealth(resources []managedResource, statuses []appv1.Resource
 
 		if health.IsWorse(appHealth.Status, healthStatus.Status) {
 			appHealth.Status = healthStatus.Status
-			appHealth.Timestamp = statuses[i].Health.Timestamp
+			if persistResourceHealth {
+				appHealth.Timestamp = statuses[i].Health.Timestamp
+			} else {
+				appHealth.Timestamp = timestamp
+			}
 		} else if healthStatus.Status == health.HealthStatusHealthy {
 			appHealth.Timestamp = oldTimestamp
 		}
