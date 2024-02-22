@@ -195,16 +195,19 @@ func TestListPullRequestPaginationCloud(t *testing.T) {
 	assert.Equal(t, 3, len(pullRequests))
 	assert.Equal(t, PullRequest{
 		Number:  101,
+		Name:    "REPO",
 		Branch:  "feature-101",
 		HeadSHA: "1a8dd249c04a",
 	}, *pullRequests[0])
 	assert.Equal(t, PullRequest{
 		Number:  102,
+		Name:    "REPO",
 		Branch:  "feature-102",
 		HeadSHA: "4cf807e67a6d",
 	}, *pullRequests[1])
 	assert.Equal(t, PullRequest{
 		Number:  103,
+		Name:    "REPO",
 		Branch:  "feature-103",
 		HeadSHA: "6344d9623e3b",
 	}, *pullRequests[2])
