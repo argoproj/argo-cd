@@ -1704,6 +1704,10 @@ spec:
                     description: Status holds the status code of the application or
                       resource
                     type: string
+                  timestamp:
+                    description: Timestamp is the time the HealthStatus was set
+                    format: date-time
+                    type: string
                 type: object
               history:
                 description: History contains information about the application's
@@ -4118,6 +4122,11 @@ spec:
                         status:
                           description: Status holds the status code of the application
                             or resource
+                          type: string
+                        timestamp:
+                          description: Timestamp is the time the HealthStatus was
+                            set
+                          format: date-time
                           type: string
                       type: object
                     hook:
