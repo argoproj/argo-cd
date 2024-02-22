@@ -1029,6 +1029,13 @@ export function getAppDefaultSource(app?: appModels.Application) {
     return app.spec.sources && app.spec.sources.length > 0 ? app.spec.sources[0] : app.spec.source;
 }
 
+export function getAppSources(app?: appModels.Application): appModels.ApplicationSource[] {
+    if (!app) {
+        return null;
+    }
+    return app.spec.sources;
+}
+
 export function getAppSpecDefaultSource(spec: appModels.ApplicationSpec) {
     return spec.sources && spec.sources.length > 0 ? spec.sources[0] : spec.source;
 }

@@ -40,6 +40,7 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
     const tab = new URLSearchParams(appContext.history.location.search).get('tab');
     const selectedNodeInfo = NodeInfo(new URLSearchParams(appContext.history.location.search).get('node'));
     const selectedNodeKey = selectedNodeInfo.key;
+    const [pageNumber, setPageNumber] = React.useState(0);
 
     const getResourceTabs = (
         node: ResourceNode,
@@ -161,23 +162,18 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                 content: <ApplicationSummary app={application} updateApp={(app, query: {validate?: boolean}) => updateApp(app, query)} />
             },
             {
-                title: 'PARAMETERS',
-                key: 'parameters',
+                title: 'INPUTS/SOURCES',
+                key: 'sources',
                 content: (
-                    <DataLoader
-                        key='appDetails'
-                        input={application}
-                        load={app =>
-                            services.repos.appDetails(AppUtils.getAppDefaultSource(app), app.metadata.name, app.spec.project).catch(() => ({
-                                type: 'Directory' as AppSourceType,
-                                path: AppUtils.getAppDefaultSource(app).path
-                            }))
-                        }>
-                        {(details: RepoAppDetails) => (
+                    <DataLoader key='appDetails' input={application} load={app => getSources(app)}>
+                        {(details: RepoAppDetails[]) => (
                             <ApplicationParameters
                                 save={(app: models.Application, query: {validate?: boolean}) => updateApp(app, query)}
                                 application={application}
-                                details={details}
+                                details={details[0]}
+                                detailsList={details}
+                                pageNumber={pageNumber}
+                                setPageNumber={setPageNumber}
                             />
                         )}
                     </DataLoader>
@@ -368,3 +364,32 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
         </div>
     );
 };
+
+// Maintain compatibility with single source field. Remove else block when source field is removed
+async function getSources(app: models.Application) {
+    const listOfDetails = new Array<RepoAppDetails & {type: AppSourceType; path: string}>();
+    const sources: models.ApplicationSource[] = AppUtils.getAppSources(app);
+    if (sources) {
+        const length = sources.length;
+        for (let i = 0; i < length; i++) {
+            const aSource = sources[i];
+            const repoDetail = await services.repos.appDetails(aSource, app.metadata.name, app.spec.project).catch(e => ({
+                type: 'Directory' as AppSourceType,
+                path: aSource.path
+            }));
+            if (repoDetail) {
+                listOfDetails.push(repoDetail);
+            }
+        }
+        return listOfDetails;
+    } else {
+        const repoDetail = await services.repos.appDetails(AppUtils.getAppDefaultSource(app), app.metadata.name, app.spec.project).catch(() => ({
+            type: 'Directory' as AppSourceType,
+            path: AppUtils.getAppDefaultSource(app).path
+        }));
+        if (repoDetail) {
+            listOfDetails.push(repoDetail);
+        }
+        return listOfDetails;
+    }
+}
