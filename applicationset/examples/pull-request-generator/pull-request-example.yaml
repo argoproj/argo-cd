@@ -23,7 +23,7 @@ spec:
         - preview
   template:
     metadata:
-      name: 'myapp-{{ .branch }}-{{ .number }}'
+      name: '{{ .name }}-{{ .branch }}-{{ .number }}'
       labels:
         key1: '{{ index .labels 0 }}'
     spec:
