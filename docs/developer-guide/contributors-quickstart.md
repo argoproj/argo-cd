@@ -11,7 +11,7 @@ and the [toolchain guide](toolchain-guide.md).
 
 <https://go.dev/doc/install/>
 
-Install version 1.18 or newer (Verify version by running `go version`)
+Install Go with a version equal to or greater than the version listed in `go.mod` (verify go version with `go version`). 
 
 ### Clone the Argo CD repo
 

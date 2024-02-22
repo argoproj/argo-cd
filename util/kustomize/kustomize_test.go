@@ -40,7 +40,7 @@ func TestKustomizeBuild(t *testing.T) {
 	namePrefix := "namePrefix-"
 	nameSuffix := "-nameSuffix"
 	namespace := "custom-namespace"
-	kustomize := NewKustomizeApp(appPath, git.NopCreds{}, "", "")
+	kustomize := NewKustomizeApp(appPath, appPath, git.NopCreds{}, "", "")
 	env := &v1alpha1.Env{
 		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_NAME", Value: "argo-cd-tests"},
 	}
@@ -123,7 +123,7 @@ func TestKustomizeBuild(t *testing.T) {
 func TestFailKustomizeBuild(t *testing.T) {
 	appPath, err := testDataDir(t, kustomization1)
 	assert.Nil(t, err)
-	kustomize := NewKustomizeApp(appPath, git.NopCreds{}, "", "")
+	kustomize := NewKustomizeApp(appPath, appPath, git.NopCreds{}, "", "")
 	kustomizeSource := v1alpha1.ApplicationSourceKustomize{
 		Replicas: []v1alpha1.KustomizeReplica{
 			{
@@ -222,7 +222,7 @@ func TestKustomizeBuildForceCommonLabels(t *testing.T) {
 	for _, tc := range testCases {
 		appPath, err := testDataDir(t, tc.TestData)
 		assert.Nil(t, err)
-		kustomize := NewKustomizeApp(appPath, git.NopCreds{}, "", "")
+		kustomize := NewKustomizeApp(appPath, appPath, git.NopCreds{}, "", "")
 		objs, _, err := kustomize.Build(&tc.KustomizeSource, nil, tc.Env)
 		switch tc.ExpectErr {
 		case true:
@@ -314,7 +314,7 @@ func TestKustomizeBuildForceCommonAnnotations(t *testing.T) {
 	for _, tc := range testCases {
 		appPath, err := testDataDir(t, tc.TestData)
 		assert.Nil(t, err)
-		kustomize := NewKustomizeApp(appPath, git.NopCreds{}, "", "")
+		kustomize := NewKustomizeApp(appPath, appPath, git.NopCreds{}, "", "")
 		objs, _, err := kustomize.Build(&tc.KustomizeSource, nil, tc.Env)
 		switch tc.ExpectErr {
 		case true:
@@ -334,7 +334,7 @@ func TestKustomizeCustomVersion(t *testing.T) {
 	kustomizePath, err := testDataDir(t, kustomization4)
 	assert.Nil(t, err)
 	envOutputFile := kustomizePath + "/env_output"
-	kustomize := NewKustomizeApp(appPath, git.NopCreds{}, "", kustomizePath+"/kustomize.special")
+	kustomize := NewKustomizeApp(appPath, appPath, git.NopCreds{}, "", kustomizePath+"/kustomize.special")
 	kustomizeSource := v1alpha1.ApplicationSourceKustomize{
 		Version: "special",
 	}
@@ -356,7 +356,7 @@ func TestKustomizeCustomVersion(t *testing.T) {
 func TestKustomizeBuildComponents(t *testing.T) {
 	appPath, err := testDataDir(t, kustomization6)
 	assert.Nil(t, err)
-	kustomize := NewKustomizeApp(appPath, git.NopCreds{}, "", "")
+	kustomize := NewKustomizeApp(appPath, appPath, git.NopCreds{}, "", "")
 
 	kustomizeSource := v1alpha1.ApplicationSourceKustomize{
 		Components: []string{"./components"},
@@ -377,7 +377,7 @@ func TestKustomizeBuildComponents(t *testing.T) {
 func TestKustomizeBuildPatches(t *testing.T) {
 	appPath, err := testDataDir(t, kustomization5)
 	assert.Nil(t, err)
-	kustomize := NewKustomizeApp(appPath, git.NopCreds{}, "", "")
+	kustomize := NewKustomizeApp(appPath, appPath, git.NopCreds{}, "", "")
 
 	kustomizeSource := v1alpha1.ApplicationSourceKustomize{
 		Patches: []v1alpha1.KustomizePatch{

@@ -23,6 +23,8 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/git"
 	"github.com/argoproj/argo-cd/v2/util/healthz"
 	"github.com/argoproj/argo-cd/v2/util/profile"
+
+	ctrl_metrics "sigs.k8s.io/controller-runtime/pkg/metrics"
 )
 
 type MetricsServer struct {
@@ -160,12 +162,12 @@ func NewMetricsServer(addr string, appLister applister.ApplicationLister, appFil
 
 	mux := http.NewServeMux()
 	registry := NewAppRegistry(appLister, appFilter, appLabels)
-	registry.MustRegister(depth, adds, latency, workDuration, unfinished, longestRunningProcessor, retries)
+
 	mux.Handle(MetricsPath, promhttp.HandlerFor(prometheus.Gatherers{
 		// contains app controller specific metrics
 		registry,
-		// contains process, golang and controller workqueues metrics
-		prometheus.DefaultGatherer,
+		// contains workqueue metrics, process and golang metrics
+		ctrl_metrics.Registry,
 	}, promhttp.HandlerOpts{}))
 	profile.RegisterProfiler(mux)
 	healthz.ServeHealthCheck(mux, healthCheck)

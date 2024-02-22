@@ -564,6 +564,12 @@ func isSourceInHistory(app *v1alpha1.Application, source v1alpha1.ApplicationSou
 	if source.Equals(&appSource) {
 		return true
 	}
+	appSources := app.Spec.GetSources()
+	for _, s := range appSources {
+		if source.Equals(&s) {
+			return true
+		}
+	}
 	// Iterate history. When comparing items in our history, use the actual synced revision to
 	// compare with the supplied source.targetRevision in the request. This is because
 	// history[].source.targetRevision is ambiguous (e.g. HEAD), whereas

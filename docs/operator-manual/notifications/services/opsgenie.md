@@ -13,13 +13,14 @@ To be able to send notifications with argocd-notifications you have to create an
 9. Make sure the checkboxes for "Create and Update Access" and "enable" are selected, disable the other checkboxes to remove unnecessary permissions
 10. Click "Safe Integration" at the bottom
 11. Check your browser for the correct server apiURL. If it is "app.opsgenie.com" then use the US/international api url `api.opsgenie.com` in the next step, otherwise use `api.eu.opsgenie.com` (European API). 
-12. You are finished with configuring opsgenie. Now you need to configure argocd-notifications. Use the apiUrl, the team name and the apiKey to configure the Opsgenie integration in the `argocd-notifications-secret` secret. 
+12. You are finished with configuring Opsgenie. Now you need to configure argocd-notifications. Use the apiUrl, the team name and the apiKey to configure the Opsgenie integration in the `argocd-notifications-secret` secret.
+
 
 ```yaml
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: <config-map-name>
+  name: argocd-notifications-cm
 data:
   service.opsgenie: |
     apiUrl: <api-url>

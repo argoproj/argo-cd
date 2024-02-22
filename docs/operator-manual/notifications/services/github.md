@@ -24,7 +24,7 @@ in `argocd-notifications-cm` ConfigMap
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: <config-map-name>
+  name: argocd-notifications-cm
 data:
   service.github: |
     appID: <app-id>
@@ -76,6 +76,7 @@ template.app-deployed: |
       logURL: "{{.context.argocdUrl}}/applications/{{.app.metadata.name}}?operation=true"
       requiredContexts: []
       autoMerge: true
+      transientEnvironment: false
     pullRequestComment:
       content: |
         Application {{.app.metadata.name}} is now running new version of deployments manifests.
