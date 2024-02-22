@@ -14,6 +14,7 @@ The URLs for status image are available on application details page:
 for the status image URL in markdown, html, etc are available .
 4. Copy the text and paste it into your README or website.
 
-To be able to see the application name in the application status badge use the `?showAppName=true` query parameter.   
-For instance, `${argoCdBaseUrl}/api/badge?name=${appName}&showAppName=true`.   
-Naturally, to remove the application name from the badge, remove the query parameter from the URL or set it to `false`.
+The application name may optionally be displayed in the status badge by adding the `?showAppName=true` query parameter.   
+
+For example, `${argoCdBaseUrl}/api/badge?name=${appName}&showAppName=true`.   
+To remove the application name from the badge, remove the query parameter from the URL or set it to `false`.
