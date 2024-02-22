@@ -60,6 +60,7 @@ func TestPullRequestGithubGenerateParams(t *testing.T) {
 					[]*pullrequest.PullRequest{
 						{
 							Number:       2,
+							Name:         "repo2",
 							Branch:       "feat/areally+long_pull_request_name_to_test_argo_slugification_and_branch_name_shortening_feature",
 							TargetBranch: "feat/anotherreally+long_pull_request_name_to_test_argo_slugification_and_branch_name_shortening_feature",
 							HeadSHA:      "9b34ff5bd418e57d58891eb0aa0728043ca1e8be",
@@ -71,6 +72,7 @@ func TestPullRequestGithubGenerateParams(t *testing.T) {
 			expected: []map[string]interface{}{
 				{
 					"number":             "2",
+					"name":               "repo2",
 					"branch":             "feat/areally+long_pull_request_name_to_test_argo_slugification_and_branch_name_shortening_feature",
 					"branch_slug":        "feat-areally-long-pull-request-name-to-test-argo",
 					"target_branch":      "feat/anotherreally+long_pull_request_name_to_test_argo_slugification_and_branch_name_shortening_feature",
@@ -89,6 +91,7 @@ func TestPullRequestGithubGenerateParams(t *testing.T) {
 					[]*pullrequest.PullRequest{
 						{
 							Number:       1,
+							Name:         "repo3",
 							Branch:       "a-very-short-sha",
 							TargetBranch: "master",
 							HeadSHA:      "abcd",
@@ -100,6 +103,7 @@ func TestPullRequestGithubGenerateParams(t *testing.T) {
 			expected: []map[string]interface{}{
 				{
 					"number":             "1",
+					"name":               "repo3",
 					"branch":             "a-very-short-sha",
 					"branch_slug":        "a-very-short-sha",
 					"target_branch":      "master",
@@ -129,6 +133,7 @@ func TestPullRequestGithubGenerateParams(t *testing.T) {
 					[]*pullrequest.PullRequest{
 						{
 							Number:       1,
+							Name:         "repo4",
 							Branch:       "branch1",
 							TargetBranch: "master",
 							HeadSHA:      "089d92cbf9ff857a39e6feccd32798ca700fb958",
@@ -141,6 +146,7 @@ func TestPullRequestGithubGenerateParams(t *testing.T) {
 			expected: []map[string]interface{}{
 				{
 					"number":             "1",
+					"name":               "repo4",
 					"branch":             "branch1",
 					"branch_slug":        "branch1",
 					"target_branch":      "master",
@@ -166,6 +172,7 @@ func TestPullRequestGithubGenerateParams(t *testing.T) {
 					[]*pullrequest.PullRequest{
 						{
 							Number:       1,
+							Name:         "repo5",
 							Branch:       "branch1",
 							TargetBranch: "master",
 							HeadSHA:      "089d92cbf9ff857a39e6feccd32798ca700fb958",
@@ -178,6 +185,7 @@ func TestPullRequestGithubGenerateParams(t *testing.T) {
 			expected: []map[string]interface{}{
 				{
 					"number":             "1",
+					"name":               "repo5",
 					"branch":             "branch1",
 					"branch_slug":        "branch1",
 					"target_branch":      "master",

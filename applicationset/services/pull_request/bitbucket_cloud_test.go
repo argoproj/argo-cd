@@ -373,11 +373,13 @@ func TestListPullRequestBranchMatchCloud(t *testing.T) {
 	assert.Equal(t, 2, len(pullRequests))
 	assert.Equal(t, PullRequest{
 		Number:  101,
+		Name:    "REPO",
 		Branch:  "feature-101",
 		HeadSHA: "1a8dd249c04a",
 	}, *pullRequests[0])
 	assert.Equal(t, PullRequest{
 		Number:  102,
+		Name:    "REPO",
 		Branch:  "feature-102",
 		HeadSHA: "6344d9623e3b",
 	}, *pullRequests[1])
@@ -394,6 +396,7 @@ func TestListPullRequestBranchMatchCloud(t *testing.T) {
 	assert.Equal(t, 1, len(pullRequests))
 	assert.Equal(t, PullRequest{
 		Number:  102,
+		Name:    "REPO",
 		Branch:  "feature-102",
 		HeadSHA: "6344d9623e3b",
 	}, *pullRequests[0])
