@@ -55,7 +55,8 @@ type Refs struct {
 
 type gitRefCache interface {
 	SetGitReferences(repo string, references []*plumbing.Reference) error
-	GetGitReferences(repo string, references *[]*plumbing.Reference) error
+	GetOrLockGitReferences(repo string, references *[]*plumbing.Reference) (updateCache bool, lockId string, err error)
+	UnlockGitReferences(repo string, lockId string) error
 }
 
 // Client is a generic git client interface
@@ -477,11 +478,28 @@ func (m *nativeGitClient) Checkout(revision string, submoduleEnabled bool) error
 }
 
 func (m *nativeGitClient) getRefs() ([]*plumbing.Reference, error) {
+	// Prevent an additional get call to cache if we know our state isn't stale
+	needsUnlock := true
 	if m.gitRefCache != nil && m.loadRefFromCache {
 		var res []*plumbing.Reference
-		if m.gitRefCache.GetGitReferences(m.repoURL, &res) == nil {
+		isLockOwner, localLockId, err := m.gitRefCache.GetOrLockGitReferences(m.repoURL, &res)
+		if !isLockOwner && err == nil {
+			// Valid value already in cache
 			return res, nil
+		} else if !isLockOwner && err != nil {
+			// Error getting value from cache
+			log.Debugf("Error getting git references from cache: %v", err)
+			return nil, err
 		}
+		// Defer a soft reset of the cache lock, if the value is set this call will be ignored
+		defer func() {
+			if needsUnlock {
+				err := m.gitRefCache.UnlockGitReferences(m.repoURL, localLockId)
+				if err != nil {
+					log.Debugf("Error unlocking git references from cache: %v", err)
+				}
+			}
+		}()
 	}
 
 	if m.OnLsRemote != nil {
@@ -508,6 +526,9 @@ func (m *nativeGitClient) getRefs() ([]*plumbing.Reference, error) {
 	if err == nil && m.gitRefCache != nil {
 		if err := m.gitRefCache.SetGitReferences(m.repoURL, res); err != nil {
 			log.Warnf("Failed to store git references to cache: %v", err)
+		} else {
+			// Since we successfully overwrote the lock with valid data, we don't need to unlock
+			needsUnlock = false
 		}
 		return res, nil
 	}
