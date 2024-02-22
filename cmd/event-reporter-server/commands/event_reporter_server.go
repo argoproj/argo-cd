@@ -3,12 +3,13 @@ package commands
 import (
 	"context"
 	"fmt"
+	"github.com/argoproj/argo-cd/v2/event_reporter/codefresh"
+	"github.com/argoproj/argo-cd/v2/event_reporter/reporter"
 	"math"
 	"time"
 
 	"github.com/argoproj/argo-cd/v2/event_reporter"
 	appclient "github.com/argoproj/argo-cd/v2/event_reporter/application"
-	"github.com/argoproj/argo-cd/v2/event_reporter/codefresh"
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient"
 
 	"github.com/argoproj/pkg/stats"
@@ -94,9 +95,10 @@ func NewCommand() *cobra.Command {
 		rootpath                 string
 		useGrpc                  bool
 
-		rateLimiterEnabled    bool
-		rateLimiterBucketSize int
-		rateLimiterDuration   time.Duration
+		rateLimiterEnabled      bool
+		rateLimiterBucketSize   int
+		rateLimiterDuration     time.Duration
+		rateLimiterLearningMode bool
 	)
 	var command = &cobra.Command{
 		Use:               cliName,
@@ -176,6 +178,12 @@ func NewCommand() *cobra.Command {
 					BaseURL:   codefreshUrl,
 					AuthToken: codefreshToken,
 				},
+				RateLimiterOpts: &reporter.RateLimiterOpts{
+					Enabled:      rateLimiterEnabled,
+					Rate:         rateLimiterDuration,
+					Capacity:     rateLimiterBucketSize,
+					LearningMode: rateLimiterLearningMode,
+				},
 			}
 
 			log.Infof("Starting event reporter server with grpc transport %v", useGrpc)
@@ -225,6 +233,7 @@ func NewCommand() *cobra.Command {
 	command.Flags().BoolVar(&rateLimiterEnabled, "rate-limiter-enabled", env.ParseBoolFromEnv("RATE_LIMITER_ENABLED", false), "Use rate limiter for prevent queue to be overflowed")
 	command.Flags().IntVar(&rateLimiterBucketSize, "rate-limiter-bucket-size", env.ParseNumFromEnv("RATE_LIMITER_BUCKET_SIZE", math.MaxInt, 0, math.MaxInt), "The maximum amount of requests allowed per window.")
 	command.Flags().DurationVar(&rateLimiterDuration, "rate-limiter-period", env.ParseDurationFromEnv("RATE_LIMITER_DURATION", 24*time.Hour, 0, math.MaxInt64), "The rate limit window size.")
+	command.Flags().BoolVar(&rateLimiterLearningMode, "rate-limiter-learning-mode", env.ParseBoolFromEnv("RATE_LIMITER_LEARNING_MODE_ENABLED", false), "The rate limit enabled in learning mode ( not blocking sending to queue but logging it )")
 	cacheSrc = servercache.AddCacheFlagsToCmd(command, func(client *redis.Client) {
 		redisClient = client
 	})

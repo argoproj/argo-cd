@@ -3,12 +3,12 @@ package controller
 import (
 	"context"
 	appclient "github.com/argoproj/argo-cd/v2/event_reporter/application"
+	"github.com/argoproj/argo-cd/v2/event_reporter/codefresh"
 	"math"
 	"strings"
 	"time"
 
 	argocommon "github.com/argoproj/argo-cd/v2/common"
-	"github.com/argoproj/argo-cd/v2/event_reporter/codefresh"
 	"github.com/argoproj/argo-cd/v2/event_reporter/metrics"
 	"github.com/argoproj/argo-cd/v2/event_reporter/reporter"
 	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
@@ -41,8 +41,8 @@ type eventReporterController struct {
 	metricsServer            *metrics.MetricsServer
 }
 
-func NewEventReporterController(appInformer cache.SharedIndexInformer, cache *servercache.Cache, settingsMgr *settings.SettingsManager, applicationServiceClient appclient.ApplicationClient, appLister applisters.ApplicationLister, codefreshConfig *codefresh.CodefreshConfig, metricsServer *metrics.MetricsServer, featureManager *reporter.FeatureManager) EventReporterController {
-	appBroadcaster := reporter.NewBroadcaster(featureManager, metricsServer)
+func NewEventReporterController(appInformer cache.SharedIndexInformer, cache *servercache.Cache, settingsMgr *settings.SettingsManager, applicationServiceClient appclient.ApplicationClient, appLister applisters.ApplicationLister, codefreshConfig *codefresh.CodefreshConfig, metricsServer *metrics.MetricsServer, featureManager *reporter.FeatureManager, rateLimiterOpts *reporter.RateLimiterOpts) EventReporterController {
+	appBroadcaster := reporter.NewBroadcaster(featureManager, metricsServer, rateLimiterOpts)
 	appInformer.AddEventHandler(appBroadcaster)
 	return &eventReporterController{
 		appBroadcaster:           appBroadcaster,
