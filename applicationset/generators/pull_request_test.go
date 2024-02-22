@@ -29,6 +29,7 @@ func TestPullRequestGithubGenerateParams(t *testing.T) {
 					[]*pullrequest.PullRequest{
 						{
 							Number:       1,
+							Name:         "repo1",
 							Branch:       "branch1",
 							TargetBranch: "master",
 							HeadSHA:      "089d92cbf9ff857a39e6feccd32798ca700fb958",
@@ -40,6 +41,7 @@ func TestPullRequestGithubGenerateParams(t *testing.T) {
 			expected: []map[string]interface{}{
 				{
 					"number":             "1",
+					"name":               "repo1",
 					"branch":             "branch1",
 					"branch_slug":        "branch1",
 					"target_branch":      "master",
