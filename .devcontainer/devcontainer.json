@@ -1,0 +1,19 @@
+{
+  "image": "mcr.microsoft.com/vscode/devcontainers/base:ubuntu",
+  "features": {
+    "ghcr.io/devcontainers/features/go:1": {
+      "version": "1.21" // The version needs to match https://github.com/argoproj/argo-cd/blob/master/go.mod#L3
+    },
+    "ghcr.io/devcontainers/features/node:1": {
+      "version": "21.6.1" // The version needs to match https://github.com/argoproj/argo-cd/blob/master/ui/.nvmrc#L1
+    },
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {}
+  },
+  "postCreateCommand": ".devcontainer/postCreateCommand.sh",
+  "workspaceMount": "source=${localWorkspaceFolder},target=/home/vscode/go/src/github.com/argoproj/argo-cd,type=bind",
+  "workspaceFolder": "/home/vscode/go/src/github.com/argoproj/argo-cd",
+  "remoteEnv": {
+    "PATH": "${containerEnv:PATH}:/home/vscode/go/bin:/home/vscode/go/src/github.com/argoproj/argo-cd/dist",
+    "GOPATH": "/home/vscode/go"
+  }
+}
