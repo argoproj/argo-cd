@@ -35,7 +35,7 @@ func GetFreePort() (int, error) {
 	return ln.Addr().(*net.TCPAddr).Port, ln.Close()
 }
 
-// WaitForPortListen waits until the given address is listening on the port
+// WaitForPortListen waits until the given address is listening on the port test
 func WaitForPortListen(addr string, timeout time.Duration) error {
 	ticker := time.NewTicker(100 * time.Millisecond)
 	defer ticker.Stop()
