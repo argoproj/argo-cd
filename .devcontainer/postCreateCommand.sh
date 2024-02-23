@@ -3,6 +3,7 @@
 # install tools
 curl -sLS https://get.arkade.dev | sudo sh
 arkade get kind
+arkade get k3s
 arkade get kubectl
 arkade get helm
 arkade get gh
