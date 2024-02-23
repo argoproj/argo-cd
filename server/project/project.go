@@ -137,6 +137,8 @@ func (s *Server) createToken(ctx context.Context, q *project.ProjectTokenCreateR
 	}
 	id = claims.ID
 
+	prj.NormalizeJWTTokens()
+
 	items := append(prj.Status.JWTTokensByRole[q.Role].Items, v1alpha1.JWTToken{IssuedAt: issuedAt, ExpiresAt: expiresAt, ID: id})
 	if _, found := prj.Status.JWTTokensByRole[q.Role]; found {
 		prj.Status.JWTTokensByRole[q.Role] = v1alpha1.JWTTokens{Items: items}
@@ -145,8 +147,6 @@ func (s *Server) createToken(ctx context.Context, q *project.ProjectTokenCreateR
 		tokensMap[q.Role] = v1alpha1.JWTTokens{Items: items}
 		prj.Status.JWTTokensByRole = tokensMap
 	}
-
-	prj.NormalizeJWTTokens()
 
 	_, err = s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Update(ctx, prj, metav1.UpdateOptions{})
 	if err != nil {
