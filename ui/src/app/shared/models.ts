@@ -140,6 +140,8 @@ export interface Application {
     status: ApplicationStatus;
     operation?: Operation;
     isAppOfAppsPattern?: boolean;
+    childApps?: string[];
+    parentApp?: string;
 }
 
 export type WatchType = 'ADDED' | 'MODIFIED' | 'DELETED' | 'ERROR';
