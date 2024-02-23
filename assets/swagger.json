@@ -6754,6 +6754,10 @@
         "connectionState": {
           "$ref": "#/definitions/v1alpha1ConnectionState"
         },
+        "enableClusterInfoLabels": {
+          "description": "If enabled, cluster labels will automatically be generated for the given cluster. Currently only the k8s version of the cluster is added.",
+          "type": "boolean"
+        },
         "info": {
           "$ref": "#/definitions/v1alpha1ClusterInfo"
         },

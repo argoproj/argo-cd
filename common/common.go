@@ -153,6 +153,8 @@ const (
 	LabelKeyLegacyApplicationName = "applications.argoproj.io/app-name"
 	// LabelKeySecretType contains the type of argocd secret (currently: 'cluster', 'repository', 'repo-config' or 'repo-creds')
 	LabelKeySecretType = "argocd.argoproj.io/secret-type"
+	// LabelKeyClusterKubernetesVersion contains the kubernetes version of the cluster secret if it has been enabled
+	LabelKeyClusterKubernetesVersion = "argocd.argoproj.io/kubernetes-version"
 	// LabelValueSecretTypeCluster indicates a secret type of cluster
 	LabelValueSecretTypeCluster = "cluster"
 	// LabelValueSecretTypeRepository indicates a secret type of repository

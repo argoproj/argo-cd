@@ -3,6 +3,7 @@ package controller
 import (
 	"context"
 	"fmt"
+	"github.com/argoproj/argo-cd/v2/common"
 	"time"
 
 	"github.com/argoproj/argo-cd/v2/util/env"
@@ -101,8 +102,11 @@ func (c *clusterInfoUpdater) updateClusters() {
 	}
 	_ = kube.RunAllAsync(len(clustersFiltered), func(i int) error {
 		cluster := clustersFiltered[i]
-		if err := c.updateClusterInfo(ctx, cluster, infoByServer[cluster.Server]); err != nil {
-			log.Warnf("Failed to save clusters info: %v", err)
+		clusterInfo := infoByServer[cluster.Server]
+		if err := c.updateClusterInfo(ctx, cluster, clusterInfo); err != nil {
+			log.Warnf("Failed to save cluster info: %v", err)
+		} else if err := updateClusterLabels(ctx, clusterInfo, cluster, c.db.UpdateCluster); err != nil {
+			log.Warnf("Failed to update cluster labels: %v", err)
 		}
 		return nil
 	})
@@ -114,6 +118,12 @@ func (c *clusterInfoUpdater) updateClusterInfo(ctx context.Context, cluster appv
 	if err != nil {
 		return fmt.Errorf("error while fetching the apps list: %w", err)
 	}
+
+	updated := c.getUpdatedClusterInfo(ctx, apps, cluster, info, metav1.Now())
+	return c.cache.SetClusterInfo(cluster.Server, &updated)
+}
+
+func (c *clusterInfoUpdater) getUpdatedClusterInfo(ctx context.Context, apps []*appv1.Application, cluster appv1.Cluster, info *cache.ClusterInfo, now metav1.Time) appv1.ClusterInfo {
 	var appCount int64
 	for _, a := range apps {
 		if c.projGetter != nil {
@@ -129,7 +139,6 @@ func (c *clusterInfoUpdater) updateClusterInfo(ctx context.Context, cluster appv
 			appCount += 1
 		}
 	}
-	now := metav1.Now()
 	clusterInfo := appv1.ClusterInfo{
 		ConnectionState:   appv1.ConnectionState{ModifiedAt: &now},
 		ApplicationsCount: appCount,
@@ -156,5 +165,15 @@ func (c *clusterInfoUpdater) updateClusterInfo(ctx context.Context, cluster appv
 		}
 	}
 
-	return c.cache.SetClusterInfo(cluster.Server, &clusterInfo)
+	return clusterInfo
+}
+
+func updateClusterLabels(ctx context.Context, clusterInfo *cache.ClusterInfo, cluster appv1.Cluster, updateCluster func(context.Context, *appv1.Cluster) (*appv1.Cluster, error)) error {
+	if clusterInfo != nil && cluster.EnableClusterInfoLabels && cluster.Labels[common.LabelKeyClusterKubernetesVersion] != clusterInfo.K8SVersion {
+		cluster.Labels[common.LabelKeyClusterKubernetesVersion] = clusterInfo.K8SVersion
+		_, err := updateCluster(ctx, &cluster)
+		return err
+	}
+
+	return nil
 }

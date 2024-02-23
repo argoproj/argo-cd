@@ -316,7 +316,7 @@ func (db *db) DeleteCluster(ctx context.Context, server string) error {
 	return db.settingsMgr.ResyncInformers()
 }
 
-// clusterToData converts a cluster object to string data for serialization to a secret
+// clusterToSecret converts a cluster object to string data for serialization to a secret
 func clusterToSecret(c *appv1.Cluster, secret *apiv1.Secret) error {
 	data := make(map[string][]byte)
 	data["server"] = []byte(strings.TrimRight(c.Server, "/"))
@@ -338,6 +338,9 @@ func clusterToSecret(c *appv1.Cluster, secret *apiv1.Secret) error {
 	}
 	if c.ClusterResources {
 		data["clusterResources"] = []byte("true")
+	}
+	if c.EnableClusterInfoLabels {
+		data["enableClusterInfoLabels"] = []byte("true")
 	}
 	if c.Project != "" {
 		data["project"] = []byte(c.Project)
@@ -412,17 +415,18 @@ func SecretToCluster(s *apiv1.Secret) (*appv1.Cluster, error) {
 	}
 
 	cluster := appv1.Cluster{
-		ID:                 string(s.UID),
-		Server:             strings.TrimRight(string(s.Data["server"]), "/"),
-		Name:               string(s.Data["name"]),
-		Namespaces:         namespaces,
-		ClusterResources:   string(s.Data["clusterResources"]) == "true",
-		Config:             config,
-		RefreshRequestedAt: refreshRequestedAt,
-		Shard:              shard,
-		Project:            string(s.Data["project"]),
-		Labels:             labels,
-		Annotations:        annotations,
+		ID:                      string(s.UID),
+		Server:                  strings.TrimRight(string(s.Data["server"]), "/"),
+		Name:                    string(s.Data["name"]),
+		Namespaces:              namespaces,
+		ClusterResources:        string(s.Data["clusterResources"]) == "true",
+		EnableClusterInfoLabels: string(s.Data["enableClusterInfoLabels"]) == "true",
+		Config:                  config,
+		RefreshRequestedAt:      refreshRequestedAt,
+		Shard:                   shard,
+		Project:                 string(s.Data["project"]),
+		Labels:                  labels,
+		Annotations:             annotations,
 	}
 	return &cluster, nil
 }

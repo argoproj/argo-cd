@@ -743,6 +743,9 @@ message Cluster {
 
   // Annotations for cluster secret metadata
   map<string, string> annotations = 13;
+
+  // If enabled, cluster labels will automatically be generated for the given cluster. Currently only the k8s version of the cluster is added.
+  optional bool enableClusterInfoLabels = 14;
 }
 
 // ClusterCacheInfo contains information about the cluster cache
