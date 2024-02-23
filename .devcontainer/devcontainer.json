@@ -9,7 +9,7 @@
     },
     "ghcr.io/devcontainers/features/docker-in-docker:2": {}
   },
-  "postCreateCommand": ".devcontainer/postCreateCommand.sh",
+  "postCreateCommand": "bash -i .devcontainer/postCreateCommand.sh",
   "workspaceMount": "source=${localWorkspaceFolder},target=/home/vscode/go/src/github.com/argoproj/argo-cd,type=bind",
   "workspaceFolder": "/home/vscode/go/src/github.com/argoproj/argo-cd",
   "remoteEnv": {
