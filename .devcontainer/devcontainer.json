@@ -14,6 +14,7 @@
   "workspaceFolder": "/home/vscode/go/src/github.com/argoproj/argo-cd",
   "remoteEnv": {
     "PATH": "${containerEnv:PATH}:/home/vscode/go/bin:/home/vscode/go/src/github.com/argoproj/argo-cd/dist",
-    "GOPATH": "/home/vscode/go"
+    "GOPATH": "/home/vscode/go",
+    "ARGOCD_REDIS_LOCAL": "true"
   }
 }
