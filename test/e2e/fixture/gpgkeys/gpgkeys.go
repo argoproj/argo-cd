@@ -27,7 +27,7 @@ func AddGPGPublicKey() {
 }
 
 func DeleteGPGPublicKey() {
-	args := []string{"gpg", "rm", fixture.GpgGoodKeyID}
+	args := []string{"gpg", "rm", fixture.GpgGoodKeyID, "--yes"}
 	errors.FailOnErr(fixture.RunCli(args...))
 	if fixture.IsLocal() {
 		errors.CheckError(os.Remove(fmt.Sprintf("%s/app/config/gpg/source/%s", fixture.TmpDir, fixture.GpgGoodKeyID)))
