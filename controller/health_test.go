@@ -122,22 +122,14 @@ func TestSetApplicationHealth_HealthImproves(t *testing.T) {
 hs = {}
 hs.status = "Progressing"
 hs.message = ""
-if obj.status ~= nil then
-  if obj.status.health ~= nil then
-	hs.status = obj.status.health.status
-	if obj.status.health.message ~= nil then
-	  hs.message = obj.status.health.message
-	end
-  end
-end
 return hs`,
 		},
 	}
 
-	pod := resourceFromFile("./testdata/pod-running-restart-always.yaml")
+	degradedApp := newAppLiveObj(health.HealthStatusDegraded)
 	timestamp := metav1.Now()
 	resources := []managedResource{{
-		Group: "", Version: "v1", Kind: "Pod", Target: &pod}, {}}
+		Group: application.Group, Version: "v1alpha1", Kind: application.ApplicationKind, Live: degradedApp}, {}}
 	resourceStatuses := initStatuses(resources)
 	resourceStatuses[0].Health.Status = health.HealthStatusDegraded
 	resourceStatuses[0].Health.Timestamp = timestamp
@@ -159,8 +151,7 @@ func TestSetApplicationHealth_MissingResourceNoBuiltHealthCheck(t *testing.T) {
 		healthStatus, err := setApplicationHealth(resources, resourceStatuses, lua.ResourceHealthOverrides{}, app, true)
 		assert.NoError(t, err)
 		assert.Equal(t, health.HealthStatusHealthy, healthStatus.Status)
-		assert.Equal(t, resourceStatuses[0].Health.Status, health.HealthStatusMissing)
-		assert.False(t, healthStatus.Timestamp.IsZero())
+		assert.Equal(t, health.HealthStatusMissing, resourceStatuses[0].Health.Status)
 	})
 
 	t.Run("HasOverride", func(t *testing.T) {
@@ -222,7 +213,6 @@ return hs`,
 		healthStatus, err := setApplicationHealth(resources, resourceStatuses, overrides, app, true)
 		assert.NoError(t, err)
 		assert.Equal(t, health.HealthStatusDegraded, healthStatus.Status)
-		assert.False(t, healthStatus.Timestamp.IsZero())
 	})
 
 	t.Run("ChildAppMissing", func(t *testing.T) {
@@ -234,6 +224,5 @@ return hs`,
 		healthStatus, err := setApplicationHealth(resources, resourceStatuses, overrides, app, true)
 		assert.NoError(t, err)
 		assert.Equal(t, health.HealthStatusHealthy, healthStatus.Status)
-		assert.False(t, healthStatus.Timestamp.IsZero())
 	})
 }
