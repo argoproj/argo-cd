@@ -3,7 +3,6 @@
 # install tools
 curl -sLS https://get.arkade.dev | sudo sh
 arkade get kind
-arkade get k3s
 arkade get kubectl
 arkade get helm
 arkade get gh
@@ -16,6 +15,8 @@ go install github.com/mattn/goreman@latest
 sudo chown -R vscode:vscode /home/vscode/go
 
 # setup autocomplete for kubectl and alias k
+sudo apt update
+sudo apt install -y bash-completion
 echo "source <(kubectl completion bash)" >> $HOME/.bashrc
 echo "alias k=kubectl" >> $HOME/.bashrc
 echo "complete -F __start_kubectl k" >> $HOME/.bashrc
