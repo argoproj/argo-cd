@@ -17,7 +17,7 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout code
-        uses: actions/checkout@3df4ab11eba7bda6032a0b82a6bb43b11571feac # v4.0.0
+        uses: actions/checkout@b32f140b0c872d58512e0a66172253c302617b90 # v4.0.0
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
       - name: Build reports
