@@ -148,6 +148,8 @@ func (s *Server) createToken(ctx context.Context, q *project.ProjectTokenCreateR
 		prj.Status.JWTTokensByRole = tokensMap
 	}
 
+	prj.NormalizeJWTTokens()
+
 	_, err = s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Update(ctx, prj, metav1.UpdateOptions{})
 	if err != nil {
 		return nil, err
