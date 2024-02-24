@@ -43,18 +43,20 @@ func addK8SFlagsToCmd(cmd *cobra.Command) clientcmd.ClientConfig {
 
 func NewCommand() *cobra.Command {
 	var (
-		clientConfig              clientcmd.ClientConfig
-		processorsCount           int
-		namespace                 string
-		appLabelSelector          string
-		logLevel                  string
-		logFormat                 string
-		metricsPort               int
-		argocdRepoServer          string
-		argocdRepoServerPlaintext bool
-		argocdRepoServerStrictTLS bool
-		configMapName             string
-		secretName                string
+		clientConfig                   clientcmd.ClientConfig
+		processorsCount                int
+		namespace                      string
+		appLabelSelector               string
+		logLevel                       string
+		logFormat                      string
+		metricsPort                    int
+		argocdRepoServer               string
+		argocdRepoServerPlaintext      bool
+		argocdRepoServerStrictTLS      bool
+		configMapName                  string
+		secretName                     string
+		applicationNamespaces          []string
+		selfServiceNotificationEnabled bool
 	)
 	var command = cobra.Command{
 		Use:   "controller",
@@ -74,26 +76,26 @@ func NewCommand() *cobra.Command {
 
 			restConfig, err := clientConfig.ClientConfig()
 			if err != nil {
-				return err
+				return fmt.Errorf("failed to create REST client config: %w", err)
 			}
 			restConfig.UserAgent = fmt.Sprintf("argocd-notifications-controller/%s (%s)", vers.Version, vers.Platform)
 			dynamicClient, err := dynamic.NewForConfig(restConfig)
 			if err != nil {
-				return err
+				return fmt.Errorf("failed to create dynamic client: %w", err)
 			}
 			k8sClient, err := kubernetes.NewForConfig(restConfig)
 			if err != nil {
-				return err
+				return fmt.Errorf("failed to create Kubernetes client: %w", err)
 			}
 			if namespace == "" {
 				namespace, _, err = clientConfig.Namespace()
 				if err != nil {
-					return err
+					return fmt.Errorf("failed to determine controller's host namespace: %w", err)
 				}
 			}
 			level, err := log.ParseLevel(logLevel)
 			if err != nil {
-				return err
+				return fmt.Errorf("failed to parse log level: %w", err)
 			}
 			log.SetLevel(level)
 
@@ -105,7 +107,7 @@ func NewCommand() *cobra.Command {
 					log.SetFormatter(&log.TextFormatter{ForceColors: true})
 				}
 			default:
-				return fmt.Errorf("Unknown log format '%s'", logFormat)
+				return fmt.Errorf("unknown log format '%s'", logFormat)
 			}
 
 			tlsConfig := apiclient.TLSConfiguration{
@@ -118,14 +120,14 @@ func NewCommand() *cobra.Command {
 					fmt.Sprintf("%s/reposerver/tls/ca.crt", env.StringFromEnv(common.EnvAppConfigPath, common.DefaultAppConfigPath)),
 				)
 				if err != nil {
-					return err
+					return fmt.Errorf("failed to load repo-server certificate pool: %w", err)
 				}
 				tlsConfig.Certificates = pool
 			}
 			repoClientset := apiclient.NewRepoServerClientset(argocdRepoServer, 5, tlsConfig)
 			argocdService, err := service.NewArgoCDService(k8sClient, namespace, repoClientset)
 			if err != nil {
-				return err
+				return fmt.Errorf("failed to initialize Argo CD service: %w", err)
 			}
 			defer argocdService.Close()
 
@@ -138,10 +140,10 @@ func NewCommand() *cobra.Command {
 			log.Infof("serving metrics on port %d", metricsPort)
 			log.Infof("loading configuration %d", metricsPort)
 
-			ctrl := notificationscontroller.NewController(k8sClient, dynamicClient, argocdService, namespace, appLabelSelector, registry, secretName, configMapName)
+			ctrl := notificationscontroller.NewController(k8sClient, dynamicClient, argocdService, namespace, applicationNamespaces, appLabelSelector, registry, secretName, configMapName, selfServiceNotificationEnabled)
 			err = ctrl.Init(ctx)
 			if err != nil {
-				return err
+				return fmt.Errorf("failed to initialize controller: %w", err)
 			}
 
 			go ctrl.Run(ctx, processorsCount)
@@ -161,5 +163,7 @@ func NewCommand() *cobra.Command {
 	command.Flags().BoolVar(&argocdRepoServerStrictTLS, "argocd-repo-server-strict-tls", false, "Perform strict validation of TLS certificates when connecting to repo server")
 	command.Flags().StringVar(&configMapName, "config-map-name", "argocd-notifications-cm", "Set notifications ConfigMap name")
 	command.Flags().StringVar(&secretName, "secret-name", "argocd-notifications-secret", "Set notifications Secret name")
+	command.Flags().StringSliceVar(&applicationNamespaces, "application-namespaces", env.StringsFromEnv("ARGOCD_APPLICATION_NAMESPACES", []string{}, ","), "List of additional namespaces that this controller should send notifications for")
+	command.Flags().BoolVar(&selfServiceNotificationEnabled, "self-service-notification-enabled", env.ParseBoolFromEnv("ARGOCD_NOTIFICATION_CONTROLLER_SELF_SERVICE_NOTIFICATION_ENABLED", false), "Allows the Argo CD notification controller to pull notification config from the namespace that the resource is in. This is useful for self-service notification.")
 	return &command
 }

@@ -748,7 +748,7 @@ func TestNamespacedResourceDiffing(t *testing.T) {
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
 		And(func(app *Application) {
-			diffOutput, err := RunCli("app", "diff", ctx.AppQualifiedName(), "--local", "testdata/guestbook")
+			diffOutput, err := RunCli("app", "diff", ctx.AppQualifiedName(), "--local-repo-root", ".", "--local", "testdata/guestbook")
 			assert.Error(t, err)
 			assert.Contains(t, diffOutput, fmt.Sprintf("===== apps/Deployment %s/guestbook-ui ======", DeploymentNamespace()))
 		}).
@@ -761,7 +761,7 @@ func TestNamespacedResourceDiffing(t *testing.T) {
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		And(func(app *Application) {
-			diffOutput, err := RunCli("app", "diff", ctx.AppQualifiedName(), "--local", "testdata/guestbook")
+			diffOutput, err := RunCli("app", "diff", ctx.AppQualifiedName(), "--local-repo-root", ".", "--local", "testdata/guestbook")
 			assert.NoError(t, err)
 			assert.Empty(t, diffOutput)
 		}).
@@ -897,7 +897,7 @@ func testNSEdgeCasesApplicationResources(t *testing.T, appPath string, statusCod
 	expect.
 		Expect(HealthIs(statusCode)).
 		And(func(app *Application) {
-			diffOutput, err := RunCli("app", "diff", ctx.AppQualifiedName(), "--local", path.Join("testdata", appPath))
+			diffOutput, err := RunCli("app", "diff", ctx.AppQualifiedName(), "--local-repo-root", ".", "--local", path.Join("testdata", appPath))
 			assert.Empty(t, diffOutput)
 			assert.NoError(t, err)
 		})
@@ -998,7 +998,7 @@ func TestNamespacedLocalManifestSync(t *testing.T) {
 		Given().
 		LocalPath(guestbookPathLocal).
 		When().
-		Sync().
+		Sync("--local-repo-root", ".").
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		And(func(app *Application) {
@@ -1066,7 +1066,7 @@ func TestNamespacedLocalSyncDryRunWithASEnabled(t *testing.T) {
 			assert.NoError(t, err)
 
 			appBefore := app.DeepCopy()
-			_, err = RunCli("app", "sync", app.QualifiedName(), "--dry-run", "--local", guestbookPathLocal)
+			_, err = RunCli("app", "sync", app.QualifiedName(), "--dry-run", "--local-repo-root", ".", "--local", guestbookPathLocal)
 			assert.NoError(t, err)
 
 			appAfter := app.DeepCopy()
@@ -1179,7 +1179,7 @@ func TestNamespacedPermissions(t *testing.T) {
 		Create()
 
 	sourceError := fmt.Sprintf("application repo %s is not permitted in project 'argo-project'", RepoURL(RepoURLTypeFile))
-	destinationError := fmt.Sprintf("application destination {%s %s} is not permitted in project 'argo-project'", KubernetesInternalAPIServerAddr, DeploymentNamespace())
+	destinationError := fmt.Sprintf("application destination server '%s' and namespace '%s' do not match any of the allowed destinations in project 'argo-project'", KubernetesInternalAPIServerAddr, DeploymentNamespace())
 
 	appCtx.
 		Path("guestbook-logs").
@@ -1483,7 +1483,7 @@ func TestNamespacedOrphanedResource(t *testing.T) {
 		ProjectSpec(AppProjectSpec{
 			SourceRepos:       []string{"*"},
 			Destinations:      []ApplicationDestination{{Namespace: "*", Server: "*"}},
-			OrphanedResources: &OrphanedResourcesMonitorSettings{Warn: pointer.BoolPtr(true)},
+			OrphanedResources: &OrphanedResourcesMonitorSettings{Warn: pointer.Bool(true)},
 			SourceNamespaces:  []string{AppNamespace()},
 		}).
 		SetTrackingMethod("annotation").
@@ -1515,7 +1515,7 @@ func TestNamespacedOrphanedResource(t *testing.T) {
 		ProjectSpec(AppProjectSpec{
 			SourceRepos:       []string{"*"},
 			Destinations:      []ApplicationDestination{{Namespace: "*", Server: "*"}},
-			OrphanedResources: &OrphanedResourcesMonitorSettings{Warn: pointer.BoolPtr(true), Ignore: []OrphanedResourceKey{{Group: "Test", Kind: "ConfigMap"}}},
+			OrphanedResources: &OrphanedResourcesMonitorSettings{Warn: pointer.Bool(true), Ignore: []OrphanedResourceKey{{Group: "Test", Kind: "ConfigMap"}}},
 			SourceNamespaces:  []string{AppNamespace()},
 		}).
 		When().
@@ -1531,7 +1531,7 @@ func TestNamespacedOrphanedResource(t *testing.T) {
 		ProjectSpec(AppProjectSpec{
 			SourceRepos:       []string{"*"},
 			Destinations:      []ApplicationDestination{{Namespace: "*", Server: "*"}},
-			OrphanedResources: &OrphanedResourcesMonitorSettings{Warn: pointer.BoolPtr(true), Ignore: []OrphanedResourceKey{{Kind: "ConfigMap"}}},
+			OrphanedResources: &OrphanedResourcesMonitorSettings{Warn: pointer.Bool(true), Ignore: []OrphanedResourceKey{{Kind: "ConfigMap"}}},
 			SourceNamespaces:  []string{AppNamespace()},
 		}).
 		When().
@@ -1548,7 +1548,7 @@ func TestNamespacedOrphanedResource(t *testing.T) {
 		ProjectSpec(AppProjectSpec{
 			SourceRepos:       []string{"*"},
 			Destinations:      []ApplicationDestination{{Namespace: "*", Server: "*"}},
-			OrphanedResources: &OrphanedResourcesMonitorSettings{Warn: pointer.BoolPtr(true), Ignore: []OrphanedResourceKey{{Kind: "ConfigMap", Name: "orphaned-configmap"}}},
+			OrphanedResources: &OrphanedResourcesMonitorSettings{Warn: pointer.Bool(true), Ignore: []OrphanedResourceKey{{Kind: "ConfigMap", Name: "orphaned-configmap"}}},
 			SourceNamespaces:  []string{AppNamespace()},
 		}).
 		When().
@@ -1770,7 +1770,7 @@ func TestNamespacedListResource(t *testing.T) {
 		ProjectSpec(AppProjectSpec{
 			SourceRepos:       []string{"*"},
 			Destinations:      []ApplicationDestination{{Namespace: "*", Server: "*"}},
-			OrphanedResources: &OrphanedResourcesMonitorSettings{Warn: pointer.BoolPtr(true)},
+			OrphanedResources: &OrphanedResourcesMonitorSettings{Warn: pointer.Bool(true)},
 			SourceNamespaces:  []string{AppNamespace()},
 		}).
 		Path(guestbookPath).
@@ -1863,7 +1863,7 @@ func TestNamespacedNamespaceAutoCreation(t *testing.T) {
 		Then().
 		Expect(Success("")).
 		And(func(app *Application) {
-			//Verify delete app does not delete the namespace auto created
+			// Verify delete app does not delete the namespace auto created
 			output, err := Run("", "kubectl", "get", "namespace", updatedNamespace)
 			assert.NoError(t, err)
 			assert.Contains(t, output, updatedNamespace)
@@ -2089,8 +2089,8 @@ metadata:
 			delete(ns.Annotations, "argocd.argoproj.io/tracking-id")
 			delete(ns.Annotations, "kubectl.kubernetes.io/last-applied-configuration")
 
-			assert.Equal(t, map[string]string{"test": "true", "foo": "bar"}, ns.Labels)
-			assert.Equal(t, map[string]string{"argocd.argoproj.io/sync-options": "ServerSideApply=true", "something": "whatevs", "bar": "bat"}, ns.Annotations)
+			assert.Equal(t, map[string]string{"foo": "bar"}, ns.Labels)
+			assert.Equal(t, map[string]string{"argocd.argoproj.io/sync-options": "ServerSideApply=true", "bar": "bat"}, ns.Annotations)
 		})).
 		When().
 		And(func() {
@@ -2109,7 +2109,7 @@ metadata:
 			delete(ns.Annotations, "kubectl.kubernetes.io/last-applied-configuration")
 			delete(ns.Annotations, "argocd.argoproj.io/tracking-id")
 
-			assert.Equal(t, map[string]string{"test": "true", "foo": "bar"}, ns.Labels)
+			assert.Equal(t, map[string]string{"foo": "bar"}, ns.Labels)
 			assert.Equal(t, map[string]string{"argocd.argoproj.io/sync-options": "ServerSideApply=true", "something": "hmm", "bar": "bat"}, ns.Annotations)
 			assert.Equal(t, map[string]string{"something": "hmm", "bar": "bat"}, app.Spec.SyncPolicy.ManagedNamespaceMetadata.Annotations)
 		})).
@@ -2130,7 +2130,7 @@ metadata:
 			delete(ns.Annotations, "kubectl.kubernetes.io/last-applied-configuration")
 			delete(ns.Annotations, "argocd.argoproj.io/tracking-id")
 
-			assert.Equal(t, map[string]string{"test": "true", "foo": "bar"}, ns.Labels)
+			assert.Equal(t, map[string]string{"foo": "bar"}, ns.Labels)
 			assert.Equal(t, map[string]string{"argocd.argoproj.io/sync-options": "ServerSideApply=true", "bar": "bat"}, ns.Annotations)
 			assert.Equal(t, map[string]string{"bar": "bat"}, app.Spec.SyncPolicy.ManagedNamespaceMetadata.Annotations)
 		})).
@@ -2448,6 +2448,7 @@ func TestNamespacedDisableManifestGeneration(t *testing.T) {
 		}).
 		When().
 		And(func() {
+			time.Sleep(3 * time.Second)
 			SetEnableManifestGeneration(map[ApplicationSourceType]bool{
 				ApplicationSourceTypeKustomize: false,
 			})

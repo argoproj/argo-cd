@@ -109,6 +109,14 @@ rules:
   verbs:
   - create
   - list
+- apiGroups:
+  - apps
+  resources:
+  - deployments
+  verbs:
+  - get
+  - list
+  - watch
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
@@ -792,7 +800,9 @@ data:
     check inter 3s fall 1 rise 1\n  use-server R1 if { srv_is_up(R1) } { nbsrv(check_if_redis_is_master_1)
     ge 2 }\n  server R1 argocd-redis-ha-announce-1:6379 check inter 3s fall 1 rise
     1\n  use-server R2 if { srv_is_up(R2) } { nbsrv(check_if_redis_is_master_2) ge
-    2 }\n  server R2 argocd-redis-ha-announce-2:6379 check inter 3s fall 1 rise 1\n"
+    2 }\n  server R2 argocd-redis-ha-announce-2:6379 check inter 3s fall 1 rise 1\nfrontend
+    stats\n  mode http\n  bind :9101 \n  http-request use-service prometheus-exporter
+    if { path /metrics }\n  stats enable\n  stats uri /stats\n  stats refresh 10s\n"
   haproxy_init.sh: |
     HAPROXY_CONF=/data/haproxy.cfg
     cp /readonly/haproxy.cfg "$HAPROXY_CONF"
@@ -1201,7 +1211,7 @@ data:
     [ssh.github.com]:443 ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQCj7ndNxQowgcQnjshcLrqPEiiphnt+VTTvDP6mHBL9j1aNUkY4Ue1gvwnGLVlOhGeYrnZaMgRK6+PKCUXaDbC7qtbW8gIkhL7aGCsOr/C56SJMy/BCZfxd1nWzAOxSDPgVsmerOBYfNqltV9/hWCqBywINIR+5dIg6JTJ72pcEpEjcYgXkE2YEFXV1JHnsKgbLWNlhScqb2UmyRkQyytRLtL+38TGxkxCflmO+5Z8CSSNY7GidjMIZ7Q4zMjA2n1nGrlTDkzwDCsw+wqFPGQA179cnfGWOWRVruj16z6XyvxvjJwbz0wQZ75XK5tKSb7FNyeIEs4TT4jk+S4dhPeAUC5y+bDYirYgM4GC7uEnztnZyaVWQ7B381AK4Qdrwt51ZqExKbQpTUNn+EjqoTwvqNj4kqx5QUCI0ThS/YkOxJCXmPUWZbhjpCg56i+2aB6CmK2JGhn57K5mj0MNdBXA4/WnwH6XoPWJzK5Nyu2zB3nAZp+S5hpQs+p1vN1/wsjk=
     bitbucket.org ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBPIQmuzMBuKdWeF4+a2sjSSpBK0iqitSQ+5BM9KhpexuGt20JpTVM7u5BDZngncgrqDMbWdxMWWOGtZ9UgbqgZE=
     bitbucket.org ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIazEu89wgQZ4bqs3d63QSMzYVa0MuJ2e2gKTKqu+UUO
-    bitbucket.org ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEAubiN81eDcafrgMeLzaFPsw2kNvEcqTKl/VqLat/MaB33pZy0y3rJZtnqwR2qOOvbwKZYKiEO1O6VqNEBxKvJJelCq0dTXWT5pbO2gDXC6h6QDXCaHo6pOHGPUy+YBaGQRGuSusMEASYiWunYN0vCAI8QaXnWMXNMdFP3jHAJH0eDsoiGnLPBlBp4TNm6rYI74nMzgz3B9IikW4WVK+dc8KZJZWYjAuORU3jc1c/NPskD2ASinf8v3xnfXeukU0sJ5N6m5E8VLjObPEO+mN2t/FZTMZLiFqPWc/ALSqnMnnhwrNi2rbfg/rd/IpL8Le3pSBne8+seeFVBoGqzHM9yXw==
+    bitbucket.org ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQDQeJzhupRu0u0cdegZIa8e86EG2qOCsIsD1Xw0xSeiPDlCr7kq97NLmMbpKTX6Esc30NuoqEEHCuc7yWtwp8dI76EEEB1VqY9QJq6vk+aySyboD5QF61I/1WeTwu+deCbgKMGbUijeXhtfbxSxm6JwGrXrhBdofTsbKRUsrN1WoNgUa8uqN1Vx6WAJw1JHPhglEGGHea6QICwJOAr/6mrui/oB7pkaWKHj3z7d1IC4KWLtY47elvjbaTlkN04Kc/5LFEirorGYVbt15kAUlqGM65pk6ZBxtaO3+30LVlORZkxOh+LKL/BvbZ/iRNhItLqNyieoQj/uh/7Iv4uyH/cV/0b4WDSd3DptigWq84lJubb9t/DnZlrJazxyDCulTmKdOR7vs9gMTo+uoIrPSb8ScTtvw65+odKAlBj59dhnVp9zd7QUojOpXlL62Aw56U4oO+FALuevvMjiWeavKhJqlR7i5n9srYcrNV7ttmDw7kf/97P5zauIhxcjX+xHv4M=
     github.com ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBEmKSENjQEezOmxkZMy7opKgwFB9nkt5YRrYMjNuG5N87uRgg6CLrbo5wAdT/y6v0mKV0U2w0WZ2YB/++Tpockg=
     github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl
     github.com ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQCj7ndNxQowgcQnjshcLrqPEiiphnt+VTTvDP6mHBL9j1aNUkY4Ue1gvwnGLVlOhGeYrnZaMgRK6+PKCUXaDbC7qtbW8gIkhL7aGCsOr/C56SJMy/BCZfxd1nWzAOxSDPgVsmerOBYfNqltV9/hWCqBywINIR+5dIg6JTJ72pcEpEjcYgXkE2YEFXV1JHnsKgbLWNlhScqb2UmyRkQyytRLtL+38TGxkxCflmO+5Z8CSSNY7GidjMIZ7Q4zMjA2n1nGrlTDkzwDCsw+wqFPGQA179cnfGWOWRVruj16z6XyvxvjJwbz0wQZ75XK5tKSb7FNyeIEs4TT4jk+S4dhPeAUC5y+bDYirYgM4GC7uEnztnZyaVWQ7B381AK4Qdrwt51ZqExKbQpTUNn+EjqoTwvqNj4kqx5QUCI0ThS/YkOxJCXmPUWZbhjpCg56i+2aB6CmK2JGhn57K5mj0MNdBXA4/WnwH6XoPWJzK5Nyu2zB3nAZp+S5hpQs+p1vN1/wsjk=
@@ -1275,7 +1285,8 @@ metadata:
   name: argocd-dex-server
 spec:
   ports:
-  - name: http
+  - appProtocol: TCP
+    name: http
     port: 5556
     protocol: TCP
     targetPort: 5556
@@ -1439,6 +1450,10 @@ spec:
     port: 6379
     protocol: TCP
     targetPort: redis
+  - name: http-exporter-port
+    port: 9101
+    protocol: TCP
+    targetPort: metrics-port
   selector:
     app.kubernetes.io/name: argocd-redis-ha-haproxy
   type: ClusterIP
@@ -1523,6 +1538,18 @@ spec:
       - args:
         - /usr/local/bin/argocd-applicationset-controller
         env:
+        - name: ARGOCD_APPLICATIONSET_CONTROLLER_GLOBAL_PRESERVED_ANNOTATIONS
+          valueFrom:
+            configMapKeyRef:
+              key: applicationsetcontroller.global.preserved.annotations
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_APPLICATIONSET_CONTROLLER_GLOBAL_PRESERVED_LABELS
+          valueFrom:
+            configMapKeyRef:
+              key: applicationsetcontroller.global.preserved.labels
+              name: argocd-cmd-params-cm
+              optional: true
         - name: NAMESPACE
           valueFrom:
             fieldRef:
@@ -1623,6 +1650,24 @@ spec:
               key: applicationsetcontroller.namespaces
               name: argocd-cmd-params-cm
               optional: true
+        - name: ARGOCD_APPLICATIONSET_CONTROLLER_SCM_ROOT_CA_PATH
+          valueFrom:
+            configMapKeyRef:
+              key: applicationsetcontroller.scm.root.ca.path
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_APPLICATIONSET_CONTROLLER_ALLOWED_SCM_PROVIDERS
+          valueFrom:
+            configMapKeyRef:
+              key: applicationsetcontroller.allowed.scm.providers
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_SCM_PROVIDERS
+          valueFrom:
+            configMapKeyRef:
+              key: applicationsetcontroller.enable.scm.providers
+              name: argocd-cmd-params-cm
+              optional: true
         image: quay.io/argoproj/argocd:latest
         imagePullPolicy: Always
         name: argocd-applicationset-controller
@@ -1717,7 +1762,7 @@ spec:
               key: dexserver.disable.tls
               name: argocd-cmd-params-cm
               optional: true
-        image: ghcr.io/dexidp/dex:v2.36.0
+        image: ghcr.io/dexidp/dex:v2.38.0
         imagePullPolicy: Always
         name: dex
         ports:
@@ -1816,6 +1861,18 @@ spec:
               key: notificationscontroller.log.level
               name: argocd-cmd-params-cm
               optional: true
+        - name: ARGOCD_APPLICATION_NAMESPACES
+          valueFrom:
+            configMapKeyRef:
+              key: application.namespaces
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_NOTIFICATION_CONTROLLER_SELF_SERVICE_NOTIFICATION_ENABLED
+          valueFrom:
+            configMapKeyRef:
+              key: notificationscontroller.selfservice.enabled
+              name: argocd-cmd-params-cm
+              optional: true
         image: quay.io/argoproj/argocd:latest
         imagePullPolicy: Always
         livenessProbe:
@@ -1874,7 +1931,10 @@ spec:
   template:
     metadata:
       annotations:
-        checksum/config: 718bbb277da8610063a7c0fd810984577c2e8ab215815a71211dfa6e20f67321
+        checksum/config: 492a6adabb741e0cee39be9aa5155c41a4456629f862d0006a2d892dbecfbcae
+        prometheus.io/path: /metrics
+        prometheus.io/port: "9101"
+        prometheus.io/scrape: "true"
       labels:
         app.kubernetes.io/name: argocd-redis-ha-haproxy
       name: argocd-redis-ha-haproxy
@@ -1900,6 +1960,8 @@ spec:
         ports:
         - containerPort: 6379
           name: redis
+        - containerPort: 9101
+          name: metrics-port
         readinessProbe:
           httpGet:
             path: /healthz
@@ -2088,6 +2150,18 @@ spec:
               key: otlp.address
               name: argocd-cmd-params-cm
               optional: true
+        - name: ARGOCD_REPO_SERVER_OTLP_INSECURE
+          valueFrom:
+            configMapKeyRef:
+              key: otlp.insecure
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_REPO_SERVER_OTLP_HEADERS
+          valueFrom:
+            configMapKeyRef:
+              key: otlp.headers
+              name: argocd-cmd-params-cm
+              optional: true
         - name: ARGOCD_REPO_SERVER_MAX_COMBINED_DIRECTORY_MANIFESTS_SIZE
           valueFrom:
             configMapKeyRef:
@@ -2118,10 +2192,34 @@ spec:
               key: reposerver.streamed.manifest.max.extracted.size
               name: argocd-cmd-params-cm
               optional: true
+        - name: ARGOCD_REPO_SERVER_HELM_MANIFEST_MAX_EXTRACTED_SIZE
+          valueFrom:
+            configMapKeyRef:
+              key: reposerver.helm.manifest.max.extracted.size
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_REPO_SERVER_DISABLE_HELM_MANIFEST_MAX_EXTRACTED_SIZE
+          valueFrom:
+            configMapKeyRef:
+              key: reposerver.disable.helm.manifest.max.extracted.size
+              name: argocd-cmd-params-cm
+              optional: true
         - name: ARGOCD_GIT_MODULES_ENABLED
           valueFrom:
             configMapKeyRef:
               key: reposerver.enable.git.submodule
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_GIT_LS_REMOTE_PARALLELISM_LIMIT
+          valueFrom:
+            configMapKeyRef:
+              key: reposerver.git.lsremote.parallelism.limit
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_GIT_REQUEST_TIMEOUT
+          valueFrom:
+            configMapKeyRef:
+              key: reposerver.git.request.timeout
               name: argocd-cmd-params-cm
               optional: true
         - name: HELM_CACHE_HOME
@@ -2459,6 +2557,18 @@ spec:
               key: otlp.address
               name: argocd-cmd-params-cm
               optional: true
+        - name: ARGOCD_SERVER_OTLP_INSECURE
+          valueFrom:
+            configMapKeyRef:
+              key: otlp.insecure
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_SERVER_OTLP_HEADERS
+          valueFrom:
+            configMapKeyRef:
+              key: otlp.headers
+              name: argocd-cmd-params-cm
+              optional: true
         - name: ARGOCD_APPLICATION_NAMESPACES
           valueFrom:
             configMapKeyRef:
@@ -2469,6 +2579,24 @@ spec:
           valueFrom:
             configMapKeyRef:
               key: server.enable.proxy.extension
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_K8SCLIENT_RETRY_MAX
+          valueFrom:
+            configMapKeyRef:
+              key: server.k8sclient.retry.max
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_K8SCLIENT_RETRY_BASE_BACKOFF
+          valueFrom:
+            configMapKeyRef:
+              key: server.k8sclient.retry.base.backoff
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_API_CONTENT_TYPES
+          valueFrom:
+            configMapKeyRef:
+              key: server.api.content.types
               name: argocd-cmd-params-cm
               optional: true
         image: quay.io/argoproj/argocd:latest
@@ -2597,6 +2725,18 @@ spec:
               key: timeout.hard.reconciliation
               name: argocd-cm
               optional: true
+        - name: ARGOCD_RECONCILIATION_JITTER
+          valueFrom:
+            configMapKeyRef:
+              key: timeout.reconciliation.jitter
+              name: argocd-cm
+              optional: true
+        - name: ARGOCD_REPO_ERROR_GRACE_PERIOD_SECONDS
+          valueFrom:
+            configMapKeyRef:
+              key: controller.repo.error.grace.period.seconds
+              name: argocd-cmd-params-cm
+              optional: true
         - name: ARGOCD_APPLICATION_CONTROLLER_REPO_SERVER
           valueFrom:
             configMapKeyRef:
@@ -2699,6 +2839,18 @@ spec:
               key: otlp.address
               name: argocd-cmd-params-cm
               optional: true
+        - name: ARGOCD_APPLICATION_CONTROLLER_OTLP_INSECURE
+          valueFrom:
+            configMapKeyRef:
+              key: otlp.insecure
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_APPLICATION_CONTROLLER_OTLP_HEADERS
+          valueFrom:
+            configMapKeyRef:
+              key: otlp.headers
+              name: argocd-cmd-params-cm
+              optional: true
         - name: ARGOCD_APPLICATION_NAMESPACES
           valueFrom:
             configMapKeyRef:
@@ -2715,6 +2867,24 @@ spec:
           valueFrom:
             configMapKeyRef:
               key: controller.kubectl.parallelism.limit
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_K8SCLIENT_RETRY_MAX
+          valueFrom:
+            configMapKeyRef:
+              key: controller.k8sclient.retry.max
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_K8SCLIENT_RETRY_BASE_BACKOFF
+          valueFrom:
+            configMapKeyRef:
+              key: controller.k8sclient.retry.base.backoff
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_APPLICATION_CONTROLLER_SERVER_SIDE_DIFF
+          valueFrom:
+            configMapKeyRef:
+              key: controller.diff.server.side
               name: argocd-cmd-params-cm
               optional: true
         image: quay.io/argoproj/argocd:latest
@@ -2794,7 +2964,7 @@ spec:
         - /data/conf/redis.conf
         command:
         - redis-server
-        image: redis:7.0.11-alpine
+        image: redis:7.0.14-alpine
         imagePullPolicy: IfNotPresent
         lifecycle:
           preStop:
@@ -2848,7 +3018,7 @@ spec:
         - /data/conf/sentinel.conf
         command:
         - redis-sentinel
-        image: redis:7.0.11-alpine
+        image: redis:7.0.14-alpine
         imagePullPolicy: IfNotPresent
         lifecycle: {}
         livenessProbe:
@@ -2901,7 +3071,7 @@ spec:
           value: 40000915ab58c3fa8fd888fb8b24711944e6cbb4
         - name: SENTINEL_ID_2
           value: 2bbec7894d954a8af3bb54d13eaec53cb024e2ca
-        image: redis:7.0.11-alpine
+        image: redis:7.0.14-alpine
         imagePullPolicy: IfNotPresent
         name: split-brain-fix
         resources: {}
@@ -2931,7 +3101,7 @@ spec:
           value: 40000915ab58c3fa8fd888fb8b24711944e6cbb4
         - name: SENTINEL_ID_2
           value: 2bbec7894d954a8af3bb54d13eaec53cb024e2ca
-        image: redis:7.0.11-alpine
+        image: redis:7.0.14-alpine
         imagePullPolicy: IfNotPresent
         name: config-init
         securityContext:

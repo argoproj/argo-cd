@@ -7,38 +7,50 @@ import (
 	"os"
 	pathpkg "path"
 
+	"github.com/argoproj/argo-cd/v2/applicationset/utils"
+	"github.com/hashicorp/go-retryablehttp"
 	"github.com/xanzy/go-gitlab"
 )
 
 type GitlabProvider struct {
-	client           *gitlab.Client
-	organization     string
-	allBranches      bool
-	includeSubgroups bool
+	client                *gitlab.Client
+	organization          string
+	allBranches           bool
+	includeSubgroups      bool
+	includeSharedProjects bool
+	topic                 string
 }
 
 var _ SCMProviderService = &GitlabProvider{}
 
-func NewGitlabProvider(ctx context.Context, organization string, token string, url string, allBranches, includeSubgroups bool) (*GitlabProvider, error) {
+func NewGitlabProvider(ctx context.Context, organization string, token string, url string, allBranches, includeSubgroups, includeSharedProjects, insecure bool, scmRootCAPath, topic string) (*GitlabProvider, error) {
 	// Undocumented environment variable to set a default token, to be used in testing to dodge anonymous rate limits.
 	if token == "" {
 		token = os.Getenv("GITLAB_TOKEN")
 	}
 	var client *gitlab.Client
+
+	tr := http.DefaultTransport.(*http.Transport).Clone()
+	tr.TLSClientConfig = utils.GetTlsConfig(scmRootCAPath, insecure)
+
+	retryClient := retryablehttp.NewClient()
+	retryClient.HTTPClient.Transport = tr
+
 	if url == "" {
 		var err error
-		client, err = gitlab.NewClient(token)
+		client, err = gitlab.NewClient(token, gitlab.WithHTTPClient(retryClient.HTTPClient))
 		if err != nil {
 			return nil, err
 		}
 	} else {
 		var err error
-		client, err = gitlab.NewClient(token, gitlab.WithBaseURL(url))
+		client, err = gitlab.NewClient(token, gitlab.WithBaseURL(url), gitlab.WithHTTPClient(retryClient.HTTPClient))
 		if err != nil {
 			return nil, err
 		}
 	}
-	return &GitlabProvider{client: client, organization: organization, allBranches: allBranches, includeSubgroups: includeSubgroups}, nil
+
+	return &GitlabProvider{client: client, organization: organization, allBranches: allBranches, includeSubgroups: includeSubgroups, includeSharedProjects: includeSharedProjects, topic: topic}, nil
 }
 
 func (g *GitlabProvider) GetBranches(ctx context.Context, repo *Repository) ([]*Repository, error) {
@@ -66,7 +78,10 @@ func (g *GitlabProvider) ListRepos(ctx context.Context, cloneProtocol string) ([
 	opt := &gitlab.ListGroupProjectsOptions{
 		ListOptions:      gitlab.ListOptions{PerPage: 100},
 		IncludeSubGroups: &g.includeSubgroups,
+		WithShared:       &g.includeSharedProjects,
+		Topic:            &g.topic,
 	}
+
 	repos := []*Repository{}
 	for {
 		gitlabRepos, resp, err := g.client.Groups.ListGroupProjects(g.organization, opt)
@@ -85,12 +100,20 @@ func (g *GitlabProvider) ListRepos(ctx context.Context, cloneProtocol string) ([
 				return nil, fmt.Errorf("unknown clone protocol for Gitlab %v", cloneProtocol)
 			}
 
+			var repoLabels []string
+			if len(gitlabRepo.Topics) == 0 {
+				// fallback to for gitlab prior to 14.5
+				repoLabels = gitlabRepo.TagList
+			} else {
+				repoLabels = gitlabRepo.Topics
+			}
+
 			repos = append(repos, &Repository{
 				Organization: gitlabRepo.Namespace.FullPath,
 				Repository:   gitlabRepo.Path,
 				URL:          url,
 				Branch:       gitlabRepo.DefaultBranch,
-				Labels:       gitlabRepo.TagList,
+				Labels:       repoLabels,
 				RepositoryId: gitlabRepo.ID,
 			})
 		}

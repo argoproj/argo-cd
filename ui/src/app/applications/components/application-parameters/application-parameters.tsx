@@ -26,8 +26,6 @@ import {concatMaps} from '../../../shared/utils';
 import {getAppDefaultSource} from '../utils';
 import * as jsYaml from 'js-yaml';
 
-let isValuesRaw = false;
-
 const TextWithMetadataField = ReactFormField((props: {metadata: {value: string}; fieldApi: FieldApi; className: string}) => {
     const {
         fieldApi: {getValue, setValue}
@@ -128,17 +126,13 @@ export const ApplicationParameters = (props: {
     save?: (application: models.Application, query: {validate?: boolean}) => Promise<any>;
     noReadonlyMode?: boolean;
 }) => {
-    const app = props.application;
+    const app = cloneDeep(props.application);
     const source = getAppDefaultSource(app);
     const [removedOverrides, setRemovedOverrides] = React.useState(new Array<boolean>());
 
     let attributes: EditablePanelItem[] = [];
-    let appValues: string;
-    if (source && source.helm && source.helm.values) {
-        isValuesRaw = typeof source.helm.values !== 'string'; // nolint
-        appValues = isValuesRaw ? jsYaml.safeDump(source.helm.values) : source.helm.values;
-        source.helm.values = appValues;
-    }
+    const isValuesObject = source?.helm?.valuesObject;
+    const helmValues = isValuesObject ? jsYaml.safeDump(source.helm.valuesObject) : source?.helm?.values;
     const [appParamsDeletedState, setAppParamsDeletedState] = React.useState([]);
 
     if (props.details.type === 'Kustomize' && props.details.kustomize) {
@@ -225,16 +219,23 @@ export const ApplicationParameters = (props: {
             title: 'VALUES',
             view: source.helm && (
                 <Expandable>
-                    <pre>{appValues}</pre>
+                    <pre>{helmValues}</pre>
                 </Expandable>
             ),
-            edit: (formApi: FormApi) => (
-                <div>
-                    <pre>
-                        <FormField formApi={formApi} field='spec.source.helm.values' component={TextArea} />
-                    </pre>
-                </div>
-            )
+            edit: (formApi: FormApi) => {
+                // In case source.helm.valuesObject is set, set source.helm.values to its value
+                if (source.helm) {
+                    source.helm.values = helmValues;
+                }
+
+                return (
+                    <div>
+                        <pre>
+                            <FormField formApi={formApi} field='spec.source.helm.values' component={TextArea} />
+                        </pre>
+                    </div>
+                );
+            }
         });
         const paramsByName = new Map<string, models.HelmParameter>();
         (props.details.helm.parameters || []).forEach(param => paramsByName.set(param.name, param));
@@ -527,8 +528,9 @@ export const ApplicationParameters = (props: {
                         params = params.filter(param => !appParamsDeletedState.includes(param.name));
                         input.spec.source.plugin.parameters = params;
                     }
-                    if (input.spec.source.helm && input.spec.source.helm.values && isValuesRaw) {
-                        input.spec.source.helm.values = jsYaml.safeLoad(input.spec.source.helm.values); // Load values as json
+                    if (input.spec.source.helm && input.spec.source.helm.valuesObject) {
+                        input.spec.source.helm.valuesObject = jsYaml.safeLoad(input.spec.source.helm.values); // Deserialize json
+                        input.spec.source.helm.values = '';
                     }
                     await props.save(input, {});
                     setRemovedOverrides(new Array<boolean>());

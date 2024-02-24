@@ -1,20 +1,20 @@
-FROM docker.io/library/redis:7.0.11@sha256:f50031a49f41e493087fb95f96fdb3523bb25dcf6a3f0b07c588ad3cdbe1d0aa as redis
+FROM docker.io/library/redis:7.2.4@sha256:11c3e418c29672341be9a8e3015d96f05b88e5ad58829885d36f8342b4da13c2 as redis
 
 # There are libraries we will want to copy from here in the final stage of the
 # build, but the COPY directive does not have a way to determine system
 # architecture, so we create a symlink here to facilitate copying.
-RUN ln -s /usr/lib/$(uname -m)-linux-gnu /usr/lib/linux-gnu 
+RUN ln -s /usr/lib/$(uname -m)-linux-gnu /usr/lib/linux-gnu
 
 # Please make sure to also check the contained yarn version and update the references below when upgrading this image's version
-FROM docker.io/library/node:20.3.1@sha256:2f0b0c15f97441defa812268ee943bbfaaf666ea6cf7cac62ee3f127906b35c6 as node
+FROM docker.io/library/node:21.6.1@sha256:abc4a25c8b5a2b460f3144aabfc8941ecd7e4fb721e0b14b635e70394c1899fb as node
 
-FROM docker.io/library/golang:1.20.5@sha256:4b1fc02d16fca272e5e6e6adc98396219b43ef663a377eef4a97e881d364393f as golang
+FROM docker.io/library/golang:1.21.3@sha256:02d7116222536a5cf0fcf631f90b507758b669648e0f20186d2dc94a9b419a9b as golang
 
 FROM docker.io/library/registry:2.8@sha256:41f413c22d6156587e2a51f3e80c09808b8c70e82be149b82b5e0196a88d49b4 as registry
 
 FROM docker.io/bitnami/kubectl:1.27@sha256:14ab746e857d96c105df4989cc2bf841292f2d143f7c60f9d7f549ae660eab43 as kubectl
 
-FROM docker.io/library/ubuntu:22.04@sha256:ac58ff7fe25edc58bdf0067ca99df00014dbd032e2246d30a722fa348fd799a5
+FROM docker.io/library/ubuntu:22.04@sha256:0bced47fffa3361afa981854fcabcd4577cd43cebbb808cea2b1f33a3dd7f508
 
 ENV DEBIAN_FRONTEND=noninteractive
 RUN  apt-get update && apt-get install --fix-missing -y \
@@ -72,10 +72,10 @@ COPY --from=redis /usr/local/bin/* /usr/local/bin/
 
 # Copy redis dependencies/shared libraries
 # Ubuntu 22.04+ has moved to OpenSSL3 and no longer provides these libraries
-COPY --from=redis /usr/lib/linux-gnu/libssl.so.1.1 /usr/lib/linux-gnu/
-COPY --from=redis /usr/lib/linux-gnu/libcrypto.so.1.1 /usr/lib/linux-gnu/
-RUN mv /usr/lib/linux-gnu/libssl.so.1.1 /usr/lib/$(uname -m)-linux-gnu/ && \
-    mv /usr/lib/linux-gnu/libcrypto.so.1.1 /usr/lib/$(uname -m)-linux-gnu/ && \
+COPY --from=redis /usr/lib/linux-gnu/libssl.so.3 /usr/lib/linux-gnu/
+COPY --from=redis /usr/lib/linux-gnu/libcrypto.so.3 /usr/lib/linux-gnu/
+RUN mv /usr/lib/linux-gnu/libssl.so.3 /usr/lib/$(uname -m)-linux-gnu/ && \
+    mv /usr/lib/linux-gnu/libcrypto.so.3 /usr/lib/$(uname -m)-linux-gnu/ && \
     rm -rf /usr/lib/linux-gnu/
 
 # Copy registry binaries to the image

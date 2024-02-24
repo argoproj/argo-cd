@@ -1,12 +1,14 @@
 package app
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 
 	log "github.com/sirupsen/logrus"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	client "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	. "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/test/e2e/fixture"
 	"github.com/argoproj/argo-cd/v2/util/errors"
@@ -295,6 +297,28 @@ func (a *Actions) PatchApp(patch string) *Actions {
 	return a
 }
 
+func (a *Actions) PatchAppHttp(patch string) *Actions {
+	a.context.t.Helper()
+	var application Application
+	var patchType = "merge"
+	var appName = a.context.AppQualifiedName()
+	var appNamespace = a.context.AppNamespace()
+	patchRequest := &client.ApplicationPatchRequest{
+		Name:         &appName,
+		PatchType:    &patchType,
+		Patch:        &patch,
+		AppNamespace: &appNamespace,
+	}
+	jsonBytes, err := json.MarshalIndent(patchRequest, "", "  ")
+	errors.CheckError(err)
+	err = fixture.DoHttpJsonRequest("PATCH",
+		fmt.Sprintf("/api/v1/applications/%v", appName),
+		&application,
+		jsonBytes...)
+	errors.CheckError(err)
+	return a
+}
+
 func (a *Actions) AppSet(flags ...string) *Actions {
 	a.context.t.Helper()
 	args := []string{"app", "set", a.context.AppQualifiedName()}
@@ -342,6 +366,10 @@ func (a *Actions) Sync(args ...string) *Actions {
 		args = append(args, "--force")
 	}
 
+	if a.context.applyOutOfSyncOnly {
+		args = append(args, "--apply-out-of-sync-only")
+	}
+
 	if a.context.replace {
 		args = append(args, "--replace")
 	}
@@ -386,6 +414,12 @@ func (a *Actions) Delete(cascade bool) *Actions {
 func (a *Actions) DeleteBySelector(selector string) *Actions {
 	a.context.t.Helper()
 	a.runCli("app", "delete", fmt.Sprintf("--selector=%s", selector), "--yes")
+	return a
+}
+
+func (a *Actions) DeleteBySelectorWithWait(selector string) *Actions {
+	a.context.t.Helper()
+	a.runCli("app", "delete", fmt.Sprintf("--selector=%s", selector), "--yes", "--wait")
 	return a
 }
 

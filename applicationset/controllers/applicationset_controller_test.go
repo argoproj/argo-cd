@@ -19,17 +19,20 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	kubefake "k8s.io/client-go/kubernetes/fake"
+	k8scache "k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/cache"
 	crtclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 
-	"github.com/argoproj/argo-cd/v2/applicationset/generators"
-	"github.com/argoproj/argo-cd/v2/applicationset/utils"
 	"github.com/argoproj/gitops-engine/pkg/health"
 	"github.com/argoproj/gitops-engine/pkg/sync/common"
+
+	"github.com/argoproj/argo-cd/v2/applicationset/generators"
+	"github.com/argoproj/argo-cd/v2/applicationset/utils"
 
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned/fake"
@@ -38,6 +41,34 @@ import (
 
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
 )
+
+type fakeStore struct {
+	k8scache.Store
+}
+
+func (f *fakeStore) Update(obj interface{}) error {
+	return nil
+}
+
+type fakeInformer struct {
+	k8scache.SharedInformer
+}
+
+func (f *fakeInformer) AddIndexers(indexers k8scache.Indexers) error {
+	return nil
+}
+
+func (f *fakeInformer) GetStore() k8scache.Store {
+	return &fakeStore{}
+}
+
+type fakeCache struct {
+	cache.Cache
+}
+
+func (f *fakeCache) GetInformer(ctx context.Context, obj crtclient.Object) (cache.Informer, error) {
+	return &fakeInformer{}, nil
+}
 
 type generatorMock struct {
 	mock.Mock
@@ -53,6 +84,12 @@ func (g *generatorMock) GenerateParams(appSetGenerator *v1alpha1.ApplicationSetG
 	args := g.Called(appSetGenerator)
 
 	return args.Get(0).([]map[string]interface{}), args.Error(1)
+}
+
+func (g *generatorMock) Replace(tmpl string, replaceMap map[string]interface{}, useGoTemplate bool, goTemplateOptions []string) (string, error) {
+	args := g.Called(tmpl, replaceMap, useGoTemplate, goTemplateOptions)
+
+	return args.Get(0).(string), args.Error(1)
 }
 
 type rendererMock struct {
@@ -74,6 +111,12 @@ func (r *rendererMock) RenderTemplateParams(tmpl *v1alpha1.Application, syncPoli
 
 	return args.Get(0).(*v1alpha1.Application), args.Error(1)
 
+}
+
+func (r *rendererMock) Replace(tmpl string, replaceMap map[string]interface{}, useGoTemplate bool, goTemplateOptions []string) (string, error) {
+	args := r.Called(tmpl, replaceMap, useGoTemplate, goTemplateOptions)
+
+	return args.Get(0).(string), args.Error(1)
 }
 
 func TestExtractApplications(t *testing.T) {
@@ -164,9 +207,6 @@ func TestExtractApplications(t *testing.T) {
 			if cc.generateParamsError == nil {
 				for _, p := range cc.params {
 
-					tmpApplication := getTempApplication(cc.template)
-					tmpApplication.Labels[LabelKeyAppSetInstance] = appSet.Name
-
 					if cc.rendererError != nil {
 						rendererMock.On("RenderTemplateParams", getTempApplication(cc.template), p, false, []string(nil)).
 							Return(nil, cc.rendererError)
@@ -187,9 +227,10 @@ func TestExtractApplications(t *testing.T) {
 				},
 				Renderer:      &rendererMock,
 				KubeClientset: kubefake.NewSimpleClientset(),
+				Cache:         &fakeCache{},
 			}
 
-			got, reason, err := r.generateApplications(v1alpha1.ApplicationSet{
+			got, reason, err := r.generateApplications(log.NewEntry(log.StandardLogger()), v1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "name",
 					Namespace: "namespace",
@@ -288,21 +329,7 @@ func TestMergeTemplateApplications(t *testing.T) {
 
 			rendererMock := rendererMock{}
 
-			appSet := &v1alpha1.ApplicationSet{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "name",
-					Namespace: "namespace",
-				},
-				Spec: v1alpha1.ApplicationSetSpec{
-					Generators: []v1alpha1.ApplicationSetGenerator{generator},
-					Template:   cc.template,
-				},
-			}
-
-			tmpApplication := getTempApplication(cc.expectedMerged)
-			tmpApplication.Labels[LabelKeyAppSetInstance] = appSet.Name
-
-			rendererMock.On("RenderTemplateParams", tmpApplication, cc.params[0], false, []string(nil)).
+			rendererMock.On("RenderTemplateParams", getTempApplication(cc.expectedMerged), cc.params[0], false, []string(nil)).
 				Return(&cc.expectedApps[0], nil)
 
 			r := ApplicationSetReconciler{
@@ -316,7 +343,17 @@ func TestMergeTemplateApplications(t *testing.T) {
 				KubeClientset: kubefake.NewSimpleClientset(),
 			}
 
-			got, _, _ := r.generateApplications(*appSet)
+			got, _, _ := r.generateApplications(log.NewEntry(log.StandardLogger()), v1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "name",
+					Namespace: "namespace",
+				},
+				Spec: v1alpha1.ApplicationSetSpec{
+					Generators: []v1alpha1.ApplicationSetGenerator{generator},
+					Template:   cc.template,
+				},
+			},
+			)
 
 			assert.Equal(t, cc.expectedApps, got)
 		})
@@ -372,6 +409,7 @@ func TestCreateOrUpdateInCluster(t *testing.T) {
 						Namespace:       "namespace",
 						ResourceVersion: "1",
 					},
+					Spec: v1alpha1.ApplicationSpec{Project: "default"},
 				},
 			},
 		},
@@ -899,6 +937,350 @@ func TestCreateOrUpdateInCluster(t *testing.T) {
 					},
 				},
 			},
+		}, {
+			name: "Ensure that the app spec is normalized before applying",
+			appSet: v1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "name",
+					Namespace: "namespace",
+				},
+				Spec: v1alpha1.ApplicationSetSpec{
+					Template: v1alpha1.ApplicationSetTemplate{
+						Spec: v1alpha1.ApplicationSpec{
+							Project: "project",
+							Source: &v1alpha1.ApplicationSource{
+								Directory: &v1alpha1.ApplicationSourceDirectory{
+									Jsonnet: v1alpha1.ApplicationSourceJsonnet{},
+								},
+							},
+						},
+					},
+				},
+			},
+			desiredApps: []v1alpha1.Application{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "app1",
+					},
+					Spec: v1alpha1.ApplicationSpec{
+						Project: "project",
+						Source: &v1alpha1.ApplicationSource{
+							Directory: &v1alpha1.ApplicationSourceDirectory{
+								Jsonnet: v1alpha1.ApplicationSourceJsonnet{},
+							},
+						},
+					},
+				},
+			},
+			expected: []v1alpha1.Application{
+				{
+					TypeMeta: metav1.TypeMeta{
+						Kind:       "Application",
+						APIVersion: "argoproj.io/v1alpha1",
+					},
+					ObjectMeta: metav1.ObjectMeta{
+						Name:            "app1",
+						Namespace:       "namespace",
+						ResourceVersion: "1",
+					},
+					Spec: v1alpha1.ApplicationSpec{
+						Project: "project",
+						Source:  &v1alpha1.ApplicationSource{
+							// Directory and jsonnet block are removed
+						},
+					},
+				},
+			},
+		}, {
+			// For this use case: https://github.com/argoproj/argo-cd/issues/9101#issuecomment-1191138278
+			name: "Ensure that ignored targetRevision difference doesn't cause an update, even if another field changes",
+			appSet: v1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "name",
+					Namespace: "namespace",
+				},
+				Spec: v1alpha1.ApplicationSetSpec{
+					IgnoreApplicationDifferences: v1alpha1.ApplicationSetIgnoreDifferences{
+						{JQPathExpressions: []string{".spec.source.targetRevision"}},
+					},
+					Template: v1alpha1.ApplicationSetTemplate{
+						Spec: v1alpha1.ApplicationSpec{
+							Project: "project",
+							Source: &v1alpha1.ApplicationSource{
+								RepoURL:        "https://git.example.com/test-org/test-repo.git",
+								TargetRevision: "foo",
+							},
+						},
+					},
+				},
+			},
+			existingApps: []v1alpha1.Application{
+				{
+					TypeMeta: metav1.TypeMeta{
+						Kind:       "Application",
+						APIVersion: "argoproj.io/v1alpha1",
+					},
+					ObjectMeta: metav1.ObjectMeta{
+						Name:            "app1",
+						Namespace:       "namespace",
+						ResourceVersion: "2",
+					},
+					Spec: v1alpha1.ApplicationSpec{
+						Project: "project",
+						Source: &v1alpha1.ApplicationSource{
+							RepoURL:        "https://git.example.com/test-org/test-repo.git",
+							TargetRevision: "bar",
+						},
+					},
+				},
+			},
+			desiredApps: []v1alpha1.Application{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "app1",
+					},
+					Spec: v1alpha1.ApplicationSpec{
+						Project: "project",
+						Source: &v1alpha1.ApplicationSource{
+							RepoURL: "https://git.example.com/test-org/test-repo.git",
+							// The targetRevision is ignored, so this should not be updated.
+							TargetRevision: "foo",
+							// This should be updated.
+							Helm: &v1alpha1.ApplicationSourceHelm{
+								Parameters: []v1alpha1.HelmParameter{
+									{Name: "hi", Value: "there"},
+								},
+							},
+						},
+					},
+				},
+			},
+			expected: []v1alpha1.Application{
+				{
+					TypeMeta: metav1.TypeMeta{
+						Kind:       "Application",
+						APIVersion: "argoproj.io/v1alpha1",
+					},
+					ObjectMeta: metav1.ObjectMeta{
+						Name:            "app1",
+						Namespace:       "namespace",
+						ResourceVersion: "3",
+					},
+					Spec: v1alpha1.ApplicationSpec{
+						Project: "project",
+						Source: &v1alpha1.ApplicationSource{
+							RepoURL: "https://git.example.com/test-org/test-repo.git",
+							// This is the existing value from the cluster, which should not be updated because the field is ignored.
+							TargetRevision: "bar",
+							// This was missing on the cluster, so it should be added.
+							Helm: &v1alpha1.ApplicationSourceHelm{
+								Parameters: []v1alpha1.HelmParameter{
+									{Name: "hi", Value: "there"},
+								},
+							},
+						},
+					},
+				},
+			},
+		}, {
+			// For this use case: https://github.com/argoproj/argo-cd/pull/14743#issuecomment-1761954799
+			name: "ignore parameters added to a multi-source app in the cluster",
+			appSet: v1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "name",
+					Namespace: "namespace",
+				},
+				Spec: v1alpha1.ApplicationSetSpec{
+					IgnoreApplicationDifferences: v1alpha1.ApplicationSetIgnoreDifferences{
+						{JQPathExpressions: []string{`.spec.sources[] | select(.repoURL | contains("test-repo")).helm.parameters`}},
+					},
+					Template: v1alpha1.ApplicationSetTemplate{
+						Spec: v1alpha1.ApplicationSpec{
+							Project: "project",
+							Sources: []v1alpha1.ApplicationSource{
+								{
+									RepoURL: "https://git.example.com/test-org/test-repo.git",
+									Helm: &v1alpha1.ApplicationSourceHelm{
+										Values: "foo: bar",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			existingApps: []v1alpha1.Application{
+				{
+					TypeMeta: metav1.TypeMeta{
+						Kind:       "Application",
+						APIVersion: "argoproj.io/v1alpha1",
+					},
+					ObjectMeta: metav1.ObjectMeta{
+						Name:            "app1",
+						Namespace:       "namespace",
+						ResourceVersion: "2",
+					},
+					Spec: v1alpha1.ApplicationSpec{
+						Project: "project",
+						Sources: []v1alpha1.ApplicationSource{
+							{
+								RepoURL: "https://git.example.com/test-org/test-repo.git",
+								Helm: &v1alpha1.ApplicationSourceHelm{
+									Values: "foo: bar",
+									Parameters: []v1alpha1.HelmParameter{
+										{Name: "hi", Value: "there"},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			desiredApps: []v1alpha1.Application{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "app1",
+					},
+					Spec: v1alpha1.ApplicationSpec{
+						Project: "project",
+						Sources: []v1alpha1.ApplicationSource{
+							{
+								RepoURL: "https://git.example.com/test-org/test-repo.git",
+								Helm: &v1alpha1.ApplicationSourceHelm{
+									Values: "foo: bar",
+								},
+							},
+						},
+					},
+				},
+			},
+			expected: []v1alpha1.Application{
+				{
+					TypeMeta: metav1.TypeMeta{
+						Kind:       "Application",
+						APIVersion: "argoproj.io/v1alpha1",
+					},
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "app1",
+						Namespace: "namespace",
+						// This should not be updated, because reconciliation shouldn't modify the App.
+						ResourceVersion: "2",
+					},
+					Spec: v1alpha1.ApplicationSpec{
+						Project: "project",
+						Sources: []v1alpha1.ApplicationSource{
+							{
+								RepoURL: "https://git.example.com/test-org/test-repo.git",
+								Helm: &v1alpha1.ApplicationSourceHelm{
+									Values: "foo: bar",
+									Parameters: []v1alpha1.HelmParameter{
+										// This existed only in the cluster, but it shouldn't be removed, because the field is ignored.
+										{Name: "hi", Value: "there"},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		}, {
+			name: "Demonstrate limitation of MergePatch", // Maybe we can fix this in Argo CD 3.0: https://github.com/argoproj/argo-cd/issues/15975
+			appSet: v1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "name",
+					Namespace: "namespace",
+				},
+				Spec: v1alpha1.ApplicationSetSpec{
+					IgnoreApplicationDifferences: v1alpha1.ApplicationSetIgnoreDifferences{
+						{JQPathExpressions: []string{`.spec.sources[] | select(.repoURL | contains("test-repo")).helm.parameters`}},
+					},
+					Template: v1alpha1.ApplicationSetTemplate{
+						Spec: v1alpha1.ApplicationSpec{
+							Project: "project",
+							Sources: []v1alpha1.ApplicationSource{
+								{
+									RepoURL: "https://git.example.com/test-org/test-repo.git",
+									Helm: &v1alpha1.ApplicationSourceHelm{
+										Values: "new: values",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			existingApps: []v1alpha1.Application{
+				{
+					TypeMeta: metav1.TypeMeta{
+						Kind:       "Application",
+						APIVersion: "argoproj.io/v1alpha1",
+					},
+					ObjectMeta: metav1.ObjectMeta{
+						Name:            "app1",
+						Namespace:       "namespace",
+						ResourceVersion: "2",
+					},
+					Spec: v1alpha1.ApplicationSpec{
+						Project: "project",
+						Sources: []v1alpha1.ApplicationSource{
+							{
+								RepoURL: "https://git.example.com/test-org/test-repo.git",
+								Helm: &v1alpha1.ApplicationSourceHelm{
+									Values: "foo: bar",
+									Parameters: []v1alpha1.HelmParameter{
+										{Name: "hi", Value: "there"},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			desiredApps: []v1alpha1.Application{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "app1",
+					},
+					Spec: v1alpha1.ApplicationSpec{
+						Project: "project",
+						Sources: []v1alpha1.ApplicationSource{
+							{
+								RepoURL: "https://git.example.com/test-org/test-repo.git",
+								Helm: &v1alpha1.ApplicationSourceHelm{
+									Values: "new: values",
+								},
+							},
+						},
+					},
+				},
+			},
+			expected: []v1alpha1.Application{
+				{
+					TypeMeta: metav1.TypeMeta{
+						Kind:       "Application",
+						APIVersion: "argoproj.io/v1alpha1",
+					},
+					ObjectMeta: metav1.ObjectMeta{
+						Name:            "app1",
+						Namespace:       "namespace",
+						ResourceVersion: "3",
+					},
+					Spec: v1alpha1.ApplicationSpec{
+						Project: "project",
+						Sources: []v1alpha1.ApplicationSource{
+							{
+								RepoURL: "https://git.example.com/test-org/test-repo.git",
+								Helm: &v1alpha1.ApplicationSourceHelm{
+									Values: "new: values",
+									// The Parameters field got blown away, because the values field changed. MergePatch
+									// doesn't merge list items, it replaces the whole list if an item changes.
+									// If we eventually add a `name` field to Sources, we can use StrategicMergePatch.
+								},
+							},
+						},
+					},
+				},
+			},
 		},
 	} {
 
@@ -912,16 +1294,17 @@ func TestCreateOrUpdateInCluster(t *testing.T) {
 				initObjs = append(initObjs, &a)
 			}
 
-			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(initObjs...).Build()
+			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(initObjs...).WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).Build()
 
 			r := ApplicationSetReconciler{
 				Client:   client,
 				Scheme:   scheme,
 				Recorder: record.NewFakeRecorder(len(initObjs) + len(c.expected)),
+				Cache:    &fakeCache{},
 			}
 
-			err = r.createOrUpdateInCluster(context.TODO(), c.appSet, c.desiredApps)
-			assert.Nil(t, err)
+			err = r.createOrUpdateInCluster(context.TODO(), log.NewEntry(log.StandardLogger()), c.appSet, c.desiredApps)
+			assert.NoError(t, err)
 
 			for _, obj := range c.expected {
 				got := &v1alpha1.Application{}
@@ -931,7 +1314,6 @@ func TestCreateOrUpdateInCluster(t *testing.T) {
 				}, got)
 
 				err = controllerutil.SetControllerReference(&c.appSet, &obj, r.Scheme)
-				assert.Nil(t, err)
 				assert.Equal(t, obj, *got)
 			}
 		})
@@ -1005,7 +1387,7 @@ func TestRemoveFinalizerOnInvalidDestination_FinalizerTypes(t *testing.T) {
 
 			initObjs := []crtclient.Object{&app, &appSet}
 
-			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(initObjs...).Build()
+			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(initObjs...).WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).Build()
 			secret := &corev1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "my-secret",
@@ -1031,6 +1413,7 @@ func TestRemoveFinalizerOnInvalidDestination_FinalizerTypes(t *testing.T) {
 				Scheme:        scheme,
 				Recorder:      record.NewFakeRecorder(10),
 				KubeClientset: kubeclientset,
+				Cache:         &fakeCache{},
 			}
 			//settingsMgr := settings.NewSettingsManager(context.TODO(), kubeclientset, "namespace")
 			//argoDB := db.NewDB("namespace", settingsMgr, r.KubeClientset)
@@ -1166,7 +1549,7 @@ func TestRemoveFinalizerOnInvalidDestination_DestinationTypes(t *testing.T) {
 
 			initObjs := []crtclient.Object{&app, &appSet}
 
-			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(initObjs...).Build()
+			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(initObjs...).WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).Build()
 			secret := &corev1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "my-secret",
@@ -1192,6 +1575,7 @@ func TestRemoveFinalizerOnInvalidDestination_DestinationTypes(t *testing.T) {
 				Scheme:        scheme,
 				Recorder:      record.NewFakeRecorder(10),
 				KubeClientset: kubeclientset,
+				Cache:         &fakeCache{},
 			}
 			// settingsMgr := settings.NewSettingsManager(context.TODO(), kubeclientset, "argocd")
 			// argoDB := db.NewDB("argocd", settingsMgr, r.KubeClientset)
@@ -1221,6 +1605,81 @@ func TestRemoveFinalizerOnInvalidDestination_DestinationTypes(t *testing.T) {
 	}
 }
 
+func TestRemoveOwnerReferencesOnDeleteAppSet(t *testing.T) {
+	scheme := runtime.NewScheme()
+	err := v1alpha1.AddToScheme(scheme)
+	assert.Nil(t, err)
+
+	err = v1alpha1.AddToScheme(scheme)
+	assert.Nil(t, err)
+
+	for _, c := range []struct {
+		// name is human-readable test name
+		name string
+	}{
+		{
+			name: "ownerReferences cleared",
+		},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			appSet := v1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:       "name",
+					Namespace:  "namespace",
+					Finalizers: []string{v1alpha1.ResourcesFinalizerName},
+				},
+				Spec: v1alpha1.ApplicationSetSpec{
+					Template: v1alpha1.ApplicationSetTemplate{
+						Spec: v1alpha1.ApplicationSpec{
+							Project: "project",
+						},
+					},
+				},
+			}
+
+			app := v1alpha1.Application{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "app1",
+					Namespace: "namespace",
+				},
+				Spec: v1alpha1.ApplicationSpec{
+					Project: "project",
+					Source:  &v1alpha1.ApplicationSource{Path: "path", TargetRevision: "revision", RepoURL: "repoURL"},
+					Destination: v1alpha1.ApplicationDestination{
+						Namespace: "namespace",
+						Server:    "https://kubernetes.default.svc",
+					},
+				},
+			}
+
+			err := controllerutil.SetControllerReference(&appSet, &app, scheme)
+			assert.NoError(t, err, "Unexpected error")
+
+			initObjs := []crtclient.Object{&app, &appSet}
+
+			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(initObjs...).WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).Build()
+
+			r := ApplicationSetReconciler{
+				Client:        client,
+				Scheme:        scheme,
+				Recorder:      record.NewFakeRecorder(10),
+				KubeClientset: nil,
+				Cache:         &fakeCache{},
+			}
+
+			err = r.removeOwnerReferencesOnDeleteAppSet(context.Background(), appSet)
+			assert.NoError(t, err, "Unexpected error")
+
+			retrievedApp := v1alpha1.Application{}
+			err = client.Get(context.Background(), crtclient.ObjectKeyFromObject(&app), &retrievedApp)
+			assert.NoError(t, err, "Unexpected error")
+
+			ownerReferencesRemoved := len(retrievedApp.OwnerReferences) == 0
+			assert.True(t, ownerReferencesRemoved)
+		})
+	}
+}
+
 func TestCreateApplications(t *testing.T) {
 
 	scheme := runtime.NewScheme()
@@ -1230,13 +1689,15 @@ func TestCreateApplications(t *testing.T) {
 	err = v1alpha1.AddToScheme(scheme)
 	assert.Nil(t, err)
 
-	for _, c := range []struct {
+	testCases := []struct {
+		name       string
 		appSet     v1alpha1.ApplicationSet
 		existsApps []v1alpha1.Application
 		apps       []v1alpha1.Application
 		expected   []v1alpha1.Application
 	}{
 		{
+			name: "no existing apps",
 			appSet: v1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "name",
@@ -1262,10 +1723,14 @@ func TestCreateApplications(t *testing.T) {
 						Namespace:       "namespace",
 						ResourceVersion: "1",
 					},
+					Spec: v1alpha1.ApplicationSpec{
+						Project: "default",
+					},
 				},
 			},
 		},
 		{
+			name: "existing apps",
 			appSet: v1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "name",
@@ -1323,6 +1788,7 @@ func TestCreateApplications(t *testing.T) {
 			},
 		},
 		{
+			name: "existing apps with different project",
 			appSet: v1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "name",
@@ -1379,39 +1845,43 @@ func TestCreateApplications(t *testing.T) {
 				},
 			},
 		},
-	} {
-		initObjs := []crtclient.Object{&c.appSet}
-		for _, a := range c.existsApps {
-			err = controllerutil.SetControllerReference(&c.appSet, &a, scheme)
-			assert.Nil(t, err)
-			initObjs = append(initObjs, &a)
-		}
-
-		client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(initObjs...).Build()
-
-		r := ApplicationSetReconciler{
-			Client:   client,
-			Scheme:   scheme,
-			Recorder: record.NewFakeRecorder(len(initObjs) + len(c.expected)),
-		}
-
-		err = r.createInCluster(context.TODO(), c.appSet, c.apps)
-		assert.Nil(t, err)
-
-		for _, obj := range c.expected {
-			got := &v1alpha1.Application{}
-			_ = client.Get(context.Background(), crtclient.ObjectKey{
-				Namespace: obj.Namespace,
-				Name:      obj.Name,
-			}, got)
-
-			err = controllerutil.SetControllerReference(&c.appSet, &obj, r.Scheme)
-			assert.Nil(t, err)
-
-			assert.Equal(t, obj, *got)
-		}
 	}
 
+	for _, c := range testCases {
+		t.Run(c.name, func(t *testing.T) {
+			initObjs := []crtclient.Object{&c.appSet}
+			for _, a := range c.existsApps {
+				err = controllerutil.SetControllerReference(&c.appSet, &a, scheme)
+				assert.Nil(t, err)
+				initObjs = append(initObjs, &a)
+			}
+
+			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(initObjs...).WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).Build()
+
+			r := ApplicationSetReconciler{
+				Client:   client,
+				Scheme:   scheme,
+				Recorder: record.NewFakeRecorder(len(initObjs) + len(c.expected)),
+				Cache:    &fakeCache{},
+			}
+
+			err = r.createInCluster(context.TODO(), log.NewEntry(log.StandardLogger()), c.appSet, c.apps)
+			assert.Nil(t, err)
+
+			for _, obj := range c.expected {
+				got := &v1alpha1.Application{}
+				_ = client.Get(context.Background(), crtclient.ObjectKey{
+					Namespace: obj.Namespace,
+					Name:      obj.Name,
+				}, got)
+
+				err = controllerutil.SetControllerReference(&c.appSet, &obj, r.Scheme)
+				assert.Nil(t, err)
+
+				assert.Equal(t, obj, *got)
+			}
+		})
+	}
 }
 
 func TestDeleteInCluster(t *testing.T) {
@@ -1530,7 +2000,7 @@ func TestDeleteInCluster(t *testing.T) {
 			initObjs = append(initObjs, &temp)
 		}
 
-		client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(initObjs...).Build()
+		client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(initObjs...).WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).Build()
 
 		r := ApplicationSetReconciler{
 			Client:        client,
@@ -1539,7 +2009,7 @@ func TestDeleteInCluster(t *testing.T) {
 			KubeClientset: kubefake.NewSimpleClientset(),
 		}
 
-		err = r.deleteInCluster(context.TODO(), c.appSet, c.desiredApps)
+		err = r.deleteInCluster(context.TODO(), log.NewEntry(log.StandardLogger()), c.appSet, c.desiredApps)
 		assert.Nil(t, err)
 
 		// For each of the expected objects, verify they exist on the cluster
@@ -1600,6 +2070,7 @@ func TestGetMinRequeueAfter(t *testing.T) {
 		Client:   client,
 		Scheme:   scheme,
 		Recorder: record.NewFakeRecorder(0),
+		Cache:    &fakeCache{},
 		Generators: map[string]generators.Generator{
 			"List":     &generatorMock10,
 			"Git":      &generatorMock1,
@@ -1813,6 +2284,7 @@ func TestValidateGeneratedApplications(t *testing.T) {
 				Client:           client,
 				Scheme:           scheme,
 				Recorder:         record.NewFakeRecorder(1),
+				Cache:            &fakeCache{},
 				Generators:       map[string]generators.Generator{},
 				ArgoDB:           &argoDBMock,
 				ArgoCDNamespace:  "namespace",
@@ -1855,7 +2327,7 @@ func TestValidateGeneratedApplications(t *testing.T) {
 	}
 }
 
-func TestReconcilerValidationErrorBehaviour(t *testing.T) {
+func TestReconcilerValidationProjectErrorBehaviour(t *testing.T) {
 
 	scheme := runtime.NewScheme()
 	err := v1alpha1.AddToScheme(scheme)
@@ -1863,9 +2335,8 @@ func TestReconcilerValidationErrorBehaviour(t *testing.T) {
 	err = v1alpha1.AddToScheme(scheme)
 	assert.Nil(t, err)
 
-	defaultProject := v1alpha1.AppProject{
-		ObjectMeta: metav1.ObjectMeta{Name: "default", Namespace: "argocd"},
-		Spec:       v1alpha1.AppProjectSpec{SourceRepos: []string{"*"}, Destinations: []v1alpha1.ApplicationDestination{{Namespace: "*", Server: "https://good-cluster"}}},
+	project := v1alpha1.AppProject{
+		ObjectMeta: metav1.ObjectMeta{Name: "good-project", Namespace: "argocd"},
 	}
 	appSet := v1alpha1.ApplicationSet{
 		ObjectMeta: metav1.ObjectMeta{
@@ -1878,22 +2349,22 @@ func TestReconcilerValidationErrorBehaviour(t *testing.T) {
 				{
 					List: &v1alpha1.ListGenerator{
 						Elements: []apiextensionsv1.JSON{{
-							Raw: []byte(`{"cluster": "good-cluster","url": "https://good-cluster"}`),
+							Raw: []byte(`{"project": "good-project"}`),
 						}, {
-							Raw: []byte(`{"cluster": "bad-cluster","url": "https://bad-cluster"}`),
+							Raw: []byte(`{"project": "bad-project"}`),
 						}},
 					},
 				},
 			},
 			Template: v1alpha1.ApplicationSetTemplate{
 				ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{
-					Name:      "{{.cluster}}",
+					Name:      "{{.project}}",
 					Namespace: "argocd",
 				},
 				Spec: v1alpha1.ApplicationSpec{
 					Source:      &v1alpha1.ApplicationSource{RepoURL: "https://github.com/argoproj/argocd-example-apps", Path: "guestbook"},
-					Project:     "default",
-					Destination: v1alpha1.ApplicationDestination{Server: "{{.url}}"},
+					Project:     "{{.project}}",
+					Destination: v1alpha1.ApplicationDestination{Server: "https://kubernetes.default.svc"},
 				},
 			},
 		},
@@ -1901,9 +2372,9 @@ func TestReconcilerValidationErrorBehaviour(t *testing.T) {
 
 	kubeclientset := kubefake.NewSimpleClientset()
 	argoDBMock := dbmocks.ArgoDB{}
-	argoObjs := []runtime.Object{&defaultProject}
+	argoObjs := []runtime.Object{&project}
 
-	client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&appSet).Build()
+	client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&appSet).WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).Build()
 	goodCluster := v1alpha1.Cluster{Server: "https://good-cluster", Name: "good-cluster"}
 	badCluster := v1alpha1.Cluster{Server: "https://bad-cluster", Name: "bad-cluster"}
 	argoDBMock.On("GetCluster", mock.Anything, "https://good-cluster").Return(&goodCluster, nil)
@@ -1917,6 +2388,7 @@ func TestReconcilerValidationErrorBehaviour(t *testing.T) {
 		Scheme:   scheme,
 		Renderer: &utils.Render{},
 		Recorder: record.NewFakeRecorder(1),
+		Cache:    &fakeCache{},
 		Generators: map[string]generators.Generator{
 			"List": generators.NewListGenerator(),
 		},
@@ -1937,17 +2409,17 @@ func TestReconcilerValidationErrorBehaviour(t *testing.T) {
 	// Verify that on validation error, no error is returned, but the object is requeued
 	res, err := r.Reconcile(context.Background(), req)
 	assert.Nil(t, err)
-	assert.True(t, res.RequeueAfter == 0)
+	assert.True(t, res.RequeueAfter == ReconcileRequeueOnValidationError)
 
 	var app v1alpha1.Application
 
 	// make sure good app got created
-	err = r.Client.Get(context.TODO(), crtclient.ObjectKey{Namespace: "argocd", Name: "good-cluster"}, &app)
+	err = r.Client.Get(context.TODO(), crtclient.ObjectKey{Namespace: "argocd", Name: "good-project"}, &app)
 	assert.NoError(t, err)
-	assert.Equal(t, app.Name, "good-cluster")
+	assert.Equal(t, app.Name, "good-project")
 
 	// make sure bad app was not created
-	err = r.Client.Get(context.TODO(), crtclient.ObjectKey{Namespace: "argocd", Name: "bad-cluster"}, &app)
+	err = r.Client.Get(context.TODO(), crtclient.ObjectKey{Namespace: "argocd", Name: "bad-project"}, &app)
 	assert.Error(t, err)
 }
 
@@ -1986,13 +2458,14 @@ func TestSetApplicationSetStatusCondition(t *testing.T) {
 	argoDBMock := dbmocks.ArgoDB{}
 	argoObjs := []runtime.Object{}
 
-	client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&appSet).Build()
+	client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&appSet).WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).Build()
 
 	r := ApplicationSetReconciler{
 		Client:   client,
 		Scheme:   scheme,
 		Renderer: &utils.Render{},
 		Recorder: record.NewFakeRecorder(1),
+		Cache:    &fakeCache{},
 		Generators: map[string]generators.Generator{
 			"List": generators.NewListGenerator(),
 		},
@@ -2055,7 +2528,7 @@ func applicationsUpdateSyncPolicyTest(t *testing.T, applicationsSyncPolicy v1alp
 	argoDBMock := dbmocks.ArgoDB{}
 	argoObjs := []runtime.Object{&defaultProject}
 
-	client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&appSet).Build()
+	client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&appSet).WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).Build()
 	goodCluster := v1alpha1.Cluster{Server: "https://good-cluster", Name: "good-cluster"}
 	argoDBMock.On("GetCluster", mock.Anything, "https://good-cluster").Return(&goodCluster, nil)
 	argoDBMock.On("ListClusters", mock.Anything).Return(&v1alpha1.ClusterList{Items: []v1alpha1.Cluster{
@@ -2067,6 +2540,7 @@ func applicationsUpdateSyncPolicyTest(t *testing.T, applicationsSyncPolicy v1alp
 		Scheme:   scheme,
 		Renderer: &utils.Render{},
 		Recorder: record.NewFakeRecorder(recordBuffer),
+		Cache:    &fakeCache{},
 		Generators: map[string]generators.Generator{
 			"List": generators.NewListGenerator(),
 		},
@@ -2103,7 +2577,7 @@ func applicationsUpdateSyncPolicyTest(t *testing.T, applicationsSyncPolicy v1alp
 	assert.Nil(t, err)
 
 	retrievedApplicationSet.Spec.Template.Annotations = map[string]string{"annotation-key": "annotation-value"}
-	retrievedApplicationSet.Spec.Template.Labels = map[string]string{"argocd.argoproj.io/application-set-name": "name", "label-key": "label-value"}
+	retrievedApplicationSet.Spec.Template.Labels = map[string]string{"label-key": "label-value"}
 
 	retrievedApplicationSet.Spec.Template.Spec.Source.Helm = &v1alpha1.ApplicationSourceHelm{
 		Values: "global.test: test",
@@ -2131,7 +2605,6 @@ func TestUpdateNotPerformedWithSyncPolicyCreateOnly(t *testing.T) {
 
 	assert.Nil(t, app.Spec.Source.Helm)
 	assert.Nil(t, app.ObjectMeta.Annotations)
-	assert.Equal(t, map[string]string{"argocd.argoproj.io/application-set-name": "name"}, app.ObjectMeta.Labels)
 }
 
 func TestUpdateNotPerformedWithSyncPolicyCreateDelete(t *testing.T) {
@@ -2142,7 +2615,6 @@ func TestUpdateNotPerformedWithSyncPolicyCreateDelete(t *testing.T) {
 
 	assert.Nil(t, app.Spec.Source.Helm)
 	assert.Nil(t, app.ObjectMeta.Annotations)
-	assert.Equal(t, map[string]string{"argocd.argoproj.io/application-set-name": "name"}, app.ObjectMeta.Labels)
 }
 
 func TestUpdatePerformedWithSyncPolicyCreateUpdate(t *testing.T) {
@@ -2153,7 +2625,7 @@ func TestUpdatePerformedWithSyncPolicyCreateUpdate(t *testing.T) {
 
 	assert.Equal(t, "global.test: test", app.Spec.Source.Helm.Values)
 	assert.Equal(t, map[string]string{"annotation-key": "annotation-value"}, app.ObjectMeta.Annotations)
-	assert.Equal(t, map[string]string{"argocd.argoproj.io/application-set-name": "name", "label-key": "label-value"}, app.ObjectMeta.Labels)
+	assert.Equal(t, map[string]string{"label-key": "label-value"}, app.ObjectMeta.Labels)
 }
 
 func TestUpdatePerformedWithSyncPolicySync(t *testing.T) {
@@ -2164,7 +2636,7 @@ func TestUpdatePerformedWithSyncPolicySync(t *testing.T) {
 
 	assert.Equal(t, "global.test: test", app.Spec.Source.Helm.Values)
 	assert.Equal(t, map[string]string{"annotation-key": "annotation-value"}, app.ObjectMeta.Annotations)
-	assert.Equal(t, map[string]string{"argocd.argoproj.io/application-set-name": "name", "label-key": "label-value"}, app.ObjectMeta.Labels)
+	assert.Equal(t, map[string]string{"label-key": "label-value"}, app.ObjectMeta.Labels)
 }
 
 func TestUpdatePerformedWithSyncPolicyCreateOnlyAndAllowPolicyOverrideFalse(t *testing.T) {
@@ -2175,7 +2647,7 @@ func TestUpdatePerformedWithSyncPolicyCreateOnlyAndAllowPolicyOverrideFalse(t *t
 
 	assert.Equal(t, "global.test: test", app.Spec.Source.Helm.Values)
 	assert.Equal(t, map[string]string{"annotation-key": "annotation-value"}, app.ObjectMeta.Annotations)
-	assert.Equal(t, map[string]string{"argocd.argoproj.io/application-set-name": "name", "label-key": "label-value"}, app.ObjectMeta.Labels)
+	assert.Equal(t, map[string]string{"label-key": "label-value"}, app.ObjectMeta.Labels)
 }
 
 func applicationsDeleteSyncPolicyTest(t *testing.T, applicationsSyncPolicy v1alpha1.ApplicationsSyncPolicy, recordBuffer int, allowPolicyOverride bool) v1alpha1.ApplicationList {
@@ -2226,7 +2698,7 @@ func applicationsDeleteSyncPolicyTest(t *testing.T, applicationsSyncPolicy v1alp
 	argoDBMock := dbmocks.ArgoDB{}
 	argoObjs := []runtime.Object{&defaultProject}
 
-	client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&appSet).Build()
+	client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&appSet).WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).Build()
 	goodCluster := v1alpha1.Cluster{Server: "https://good-cluster", Name: "good-cluster"}
 	argoDBMock.On("GetCluster", mock.Anything, "https://good-cluster").Return(&goodCluster, nil)
 	argoDBMock.On("ListClusters", mock.Anything).Return(&v1alpha1.ClusterList{Items: []v1alpha1.Cluster{
@@ -2238,6 +2710,7 @@ func applicationsDeleteSyncPolicyTest(t *testing.T, applicationsSyncPolicy v1alp
 		Scheme:   scheme,
 		Renderer: &utils.Render{},
 		Recorder: record.NewFakeRecorder(recordBuffer),
+		Cache:    &fakeCache{},
 		Generators: map[string]generators.Generator{
 			"List": generators.NewListGenerator(),
 		},
@@ -2354,17 +2827,24 @@ func TestGenerateAppsUsingPullRequestGenerator(t *testing.T) {
 		{
 			name: "Generate an application from a go template application set manifest using a pull request generator",
 			params: []map[string]interface{}{{
-				"number":         "1",
-				"branch":         "branch1",
-				"branch_slug":    "branchSlug1",
-				"head_sha":       "089d92cbf9ff857a39e6feccd32798ca700fb958",
-				"head_short_sha": "089d92cb",
-				"labels":         []string{"label1"}}},
+				"number":                                "1",
+				"branch":                                "branch1",
+				"branch_slug":                           "branchSlug1",
+				"head_sha":                              "089d92cbf9ff857a39e6feccd32798ca700fb958",
+				"head_short_sha":                        "089d92cb",
+				"branch_slugify_default":                "feat/a_really+long_pull_request_name_to_test_argo_slugification_and_branch_name_shortening_feature",
+				"branch_slugify_smarttruncate_disabled": "feat/areallylongpullrequestnametotestargoslugificationandbranchnameshorteningfeature",
+				"branch_slugify_smarttruncate_enabled":  "feat/testwithsmarttruncateenabledramdomlonglistofcharacters",
+				"labels":                                []string{"label1"}},
+			},
 			template: v1alpha1.ApplicationSetTemplate{
 				ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{
 					Name: "AppSet-{{.branch}}-{{.number}}",
 					Labels: map[string]string{
-						"app1": "{{index .labels 0}}",
+						"app1":         "{{index .labels 0}}",
+						"branch-test1": "AppSet-{{.branch_slugify_default | slugify }}",
+						"branch-test2": "AppSet-{{.branch_slugify_smarttruncate_disabled | slugify 49 false }}",
+						"branch-test3": "AppSet-{{.branch_slugify_smarttruncate_enabled | slugify 50 true }}",
 					},
 				},
 				Spec: v1alpha1.ApplicationSpec{
@@ -2383,8 +2863,10 @@ func TestGenerateAppsUsingPullRequestGenerator(t *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "AppSet-branch1-1",
 						Labels: map[string]string{
-							"app1":                 "label1",
-							LabelKeyAppSetInstance: "",
+							"app1":         "label1",
+							"branch-test1": "AppSet-feat-a-really-long-pull-request-name-to-test-argo",
+							"branch-test2": "AppSet-feat-areallylongpullrequestnametotestargoslugific",
+							"branch-test3": "AppSet-feat",
 						},
 					},
 					Spec: v1alpha1.ApplicationSpec{
@@ -2419,6 +2901,7 @@ func TestGenerateAppsUsingPullRequestGenerator(t *testing.T) {
 				Client:   client,
 				Scheme:   scheme,
 				Recorder: record.NewFakeRecorder(1),
+				Cache:    &fakeCache{},
 				Generators: map[string]generators.Generator{
 					"PullRequest": &generatorMock,
 				},
@@ -2426,7 +2909,7 @@ func TestGenerateAppsUsingPullRequestGenerator(t *testing.T) {
 				KubeClientset: kubefake.NewSimpleClientset(),
 			}
 
-			gotApp, _, _ := appSetReconciler.generateApplications(v1alpha1.ApplicationSet{
+			gotApp, _, _ := appSetReconciler.generateApplications(log.NewEntry(log.StandardLogger()), v1alpha1.ApplicationSet{
 				Spec: v1alpha1.ApplicationSetSpec{
 					GoTemplate: true,
 					Generators: []v1alpha1.ApplicationSetGenerator{{
@@ -2536,13 +3019,14 @@ func TestPolicies(t *testing.T) {
 				},
 			}
 
-			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&appSet).Build()
+			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&appSet).WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).Build()
 
 			r := ApplicationSetReconciler{
 				Client:   client,
 				Scheme:   scheme,
 				Renderer: &utils.Render{},
 				Recorder: record.NewFakeRecorder(10),
+				Cache:    &fakeCache{},
 				Generators: map[string]generators.Generator{
 					"List": generators.NewListGenerator(),
 				},
@@ -2705,6 +3189,7 @@ func TestSetApplicationSetApplicationStatus(t *testing.T) {
 				Scheme:   scheme,
 				Renderer: &utils.Render{},
 				Recorder: record.NewFakeRecorder(1),
+				Cache:    &fakeCache{},
 				Generators: map[string]generators.Generator{
 					"List": generators.NewListGenerator(),
 				},
@@ -2713,7 +3198,7 @@ func TestSetApplicationSetApplicationStatus(t *testing.T) {
 				KubeClientset:    kubeclientset,
 			}
 
-			err = r.setAppSetApplicationStatus(context.TODO(), &cc.appSet, cc.appStatuses)
+			err = r.setAppSetApplicationStatus(context.TODO(), log.NewEntry(log.StandardLogger()), &cc.appSet, cc.appStatuses)
 			assert.Nil(t, err)
 
 			assert.Equal(t, cc.expectedAppStatuses, cc.appSet.Status.ApplicationStatus)
@@ -3469,13 +3954,14 @@ func TestBuildAppDependencyList(t *testing.T) {
 				Client:           client,
 				Scheme:           scheme,
 				Recorder:         record.NewFakeRecorder(1),
+				Cache:            &fakeCache{},
 				Generators:       map[string]generators.Generator{},
 				ArgoDB:           &argoDBMock,
 				ArgoAppClientset: appclientset.NewSimpleClientset(argoObjs...),
 				KubeClientset:    kubeclientset,
 			}
 
-			appDependencyList, appStepMap, err := r.buildAppDependencyList(context.TODO(), cc.appSet, cc.apps)
+			appDependencyList, appStepMap, err := r.buildAppDependencyList(log.NewEntry(log.StandardLogger()), cc.appSet, cc.apps)
 			assert.Equal(t, err, nil, "expected no errors, but errors occured")
 			assert.Equal(t, cc.expectedList, appDependencyList, "expected appDependencyList did not match actual")
 			assert.Equal(t, cc.expectedStepMap, appStepMap, "expected appStepMap did not match actual")
@@ -4062,6 +4548,7 @@ func TestBuildAppSyncMap(t *testing.T) {
 				Client:           client,
 				Scheme:           scheme,
 				Recorder:         record.NewFakeRecorder(1),
+				Cache:            &fakeCache{},
 				Generators:       map[string]generators.Generator{},
 				ArgoDB:           &argoDBMock,
 				ArgoAppClientset: appclientset.NewSimpleClientset(argoObjs...),
@@ -4721,13 +5208,14 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 				Client:           client,
 				Scheme:           scheme,
 				Recorder:         record.NewFakeRecorder(1),
+				Cache:            &fakeCache{},
 				Generators:       map[string]generators.Generator{},
 				ArgoDB:           &argoDBMock,
 				ArgoAppClientset: appclientset.NewSimpleClientset(argoObjs...),
 				KubeClientset:    kubeclientset,
 			}
 
-			appStatuses, err := r.updateApplicationSetApplicationStatus(context.TODO(), &cc.appSet, cc.apps, cc.appStepMap)
+			appStatuses, err := r.updateApplicationSetApplicationStatus(context.TODO(), log.NewEntry(log.StandardLogger()), &cc.appSet, cc.apps, cc.appStepMap)
 
 			// opt out of testing the LastTransitionTime is accurate
 			for i := range appStatuses {
@@ -5474,13 +5962,14 @@ func TestUpdateApplicationSetApplicationStatusProgress(t *testing.T) {
 				Client:           client,
 				Scheme:           scheme,
 				Recorder:         record.NewFakeRecorder(1),
+				Cache:            &fakeCache{},
 				Generators:       map[string]generators.Generator{},
 				ArgoDB:           &argoDBMock,
 				ArgoAppClientset: appclientset.NewSimpleClientset(argoObjs...),
 				KubeClientset:    kubeclientset,
 			}
 
-			appStatuses, err := r.updateApplicationSetApplicationStatusProgress(context.TODO(), &cc.appSet, cc.appSyncMap, cc.appStepMap, cc.appMap)
+			appStatuses, err := r.updateApplicationSetApplicationStatusProgress(context.TODO(), log.NewEntry(log.StandardLogger()), &cc.appSet, cc.appSyncMap, cc.appStepMap, cc.appMap)
 
 			// opt out of testing the LastTransitionTime is accurate
 			for i := range appStatuses {

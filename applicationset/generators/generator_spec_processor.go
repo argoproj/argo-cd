@@ -4,8 +4,9 @@ import (
 	"fmt"
 	"reflect"
 
-	"github.com/argoproj/argo-cd/v2/applicationset/utils"
 	"github.com/jeremywohl/flatten"
+
+	"github.com/argoproj/argo-cd/v2/applicationset/utils"
 
 	"k8s.io/apimachinery/pkg/labels"
 
@@ -124,7 +125,7 @@ func GetRelevantGenerators(requestedGenerator *argoprojiov1alpha1.ApplicationSet
 func flattenParameters(in map[string]interface{}) (map[string]string, error) {
 	flat, err := flatten.Flatten(in, "", flatten.DotStyle)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error flatenning parameters: %w", err)
 	}
 
 	out := make(map[string]string, len(flat))
@@ -152,7 +153,7 @@ func InterpolateGenerator(requestedGenerator *argoprojiov1alpha1.ApplicationSetG
 	interpolatedGenerator, err := render.RenderGeneratorParams(requestedGenerator, params, useGoTemplate, goTemplateOptions)
 	if err != nil {
 		log.WithError(err).WithField("interpolatedGenerator", interpolatedGenerator).Error("error interpolating generator with other generator's parameter")
-		return *interpolatedGenerator, err
+		return argoprojiov1alpha1.ApplicationSetGenerator{}, err
 	}
 
 	return *interpolatedGenerator, nil
