@@ -1094,6 +1094,193 @@ func TestGenerateHelmWithValues(t *testing.T) {
 		}
 	}
 	assert.True(t, replicasVerified)
+}
+
+func TestGenerateHelmWithMultistageValueManifest(t *testing.T) {
+	service := newService(t, "../../util/helm/testdata/redis")
+
+	res, err := service.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
+		Repo:    &argoappv1.Repository{},
+		AppName: "test",
+		ApplicationSource: &argoappv1.ApplicationSource{
+			Path: ".",
+			Helm: &argoappv1.ApplicationSourceHelm{
+				ValueFiles: []string{"values-production.yaml"},
+				ValueRefs:  []string{"someRef"},
+			},
+		},
+		ProjectName:        "something",
+		ProjectSourceRepos: []string{"*"},
+		ValueRefManifests: map[string]string{
+			"someRef": `cluster: {slaveCount: 10}`,
+		},
+	})
+
+	assert.NoError(t, err)
+
+	replicasVerified := false
+	for _, src := range res.Manifests {
+		obj := unstructured.Unstructured{}
+		err = json.Unmarshal([]byte(src), &obj)
+		assert.NoError(t, err)
+
+		if obj.GetKind() == "Deployment" && obj.GetName() == "test-redis-slave" {
+			var dep v1.Deployment
+			err := runtime.DefaultUnstructuredConverter.FromUnstructured(obj.Object, &dep)
+			assert.NoError(t, err)
+			assert.Equal(t, int32(10), *dep.Spec.Replicas)
+			replicasVerified = true
+		}
+	}
+	assert.True(t, replicasVerified)
+}
+
+func TestGenerateHelmWithMultistageValueManifests(t *testing.T) {
+	service := newService(t, "../../util/helm/testdata/redis")
+
+	res, err := service.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
+		Repo:    &argoappv1.Repository{},
+		AppName: "test",
+		ApplicationSource: &argoappv1.ApplicationSource{
+			Path: ".",
+			Helm: &argoappv1.ApplicationSourceHelm{
+				ValueFiles: []string{"values-production.yaml"},
+				// newRef manifest will take precedence
+				ValueRefs: []string{"someRef", "newRef"},
+			},
+		},
+		ProjectName:        "something",
+		ProjectSourceRepos: []string{"*"},
+		ValueRefManifests: map[string]string{
+			"someRef": `cluster: {slaveCount: 10}`,
+			"newRef":  `cluster: {slaveCount: 11}`,
+		},
+	})
+
+	assert.NoError(t, err)
+
+	replicasVerified := false
+	for _, src := range res.Manifests {
+		obj := unstructured.Unstructured{}
+		err = json.Unmarshal([]byte(src), &obj)
+		assert.NoError(t, err)
+
+		if obj.GetKind() == "Deployment" && obj.GetName() == "test-redis-slave" {
+			var dep v1.Deployment
+			err := runtime.DefaultUnstructuredConverter.FromUnstructured(obj.Object, &dep)
+			assert.NoError(t, err)
+			assert.Equal(t, int32(11), *dep.Spec.Replicas)
+			replicasVerified = true
+		}
+	}
+	assert.True(t, replicasVerified)
+}
+
+func TestHelmMultistageOutputMultipleFiles(t *testing.T) {
+	service := newService(t, "../../util/helm/testdata/redis")
+
+	req := &apiclient.ManifestRequest{
+		Repo:    &argoappv1.Repository{},
+		AppName: "test",
+		ApplicationSource: &argoappv1.ApplicationSource{
+			Path: ".",
+			Helm: &argoappv1.ApplicationSourceHelm{
+				ValueFiles: []string{"values-production.yaml"},
+			},
+		},
+		ProjectName:        "something",
+		ProjectSourceRepos: []string{"*"},
+		IsMultistageSource: true,
+	}
+
+	// Should fail since a chart generating values should only output one file
+	_, err := service.GenerateManifest(context.Background(), req)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "multistage value output does not contain exactly one valid document")
+}
+
+func TestHelmMultistageChartValueGeneration(t *testing.T) {
+	service := newService(t, "../../util/helm/testdata/values-generator")
+
+	req := &apiclient.ManifestRequest{
+		Repo:    &argoappv1.Repository{},
+		AppName: "test",
+		ApplicationSource: &argoappv1.ApplicationSource{
+			Path: ".",
+			Helm: &argoappv1.ApplicationSourceHelm{},
+		},
+		ProjectName:        "something",
+		ProjectSourceRepos: []string{"*"},
+		IsMultistageSource: true,
+	}
+
+	res, err := service.GenerateManifest(context.Background(), req)
+	assert.NoError(t, err)
+
+	assert.Equal(t, len(res.Manifests), int(1))
+	// read in manifest string and decode to map
+	generatedValues := make(map[string]interface{})
+	err = yaml.Unmarshal([]byte(res.Manifests[0]), &generatedValues)
+	assert.NoError(t, err)
+	// make sure the input message is present
+	msg, ok := generatedValues["fromInput"]
+	assert.True(t, ok)
+	assert.NotNil(t, msg)
+	// check the default value for it
+	assert.Equal(t, "generating multistage values!", msg)
+}
+
+func TestHelmMultistageChartValueGenerationOverride(t *testing.T) {
+	service := newService(t, "../../util/helm/testdata/values-generator")
+
+	req := &apiclient.ManifestRequest{
+		Repo:    &argoappv1.Repository{},
+		AppName: "test",
+		ApplicationSource: &argoappv1.ApplicationSource{
+			Path: ".",
+			Helm: &argoappv1.ApplicationSourceHelm{
+				Values: `toGenerate: overriding input for multistage values!`,
+			},
+		},
+		ProjectName:        "something",
+		ProjectSourceRepos: []string{"*"},
+		IsMultistageSource: true,
+	}
+
+	res, err := service.GenerateManifest(context.Background(), req)
+	assert.NoError(t, err)
+	assert.Equal(t, len(res.Manifests), int(1))
+
+	// read in manifest string and decode to map
+	generatedValues := make(map[string]interface{})
+	err = yaml.Unmarshal([]byte(res.Manifests[0]), &generatedValues)
+	assert.NoError(t, err)
+	// make sure the input message is present
+	msg, ok := generatedValues["fromInput"]
+	assert.True(t, ok)
+	assert.NotNil(t, msg)
+	// check the default value for it
+	assert.Equal(t, "overriding input for multistage values!", msg)
+}
+
+func TestHelmNonMultistageChartFailsGeneration(t *testing.T) {
+	service := newService(t, "../../util/helm/testdata/values-generator")
+
+	req := &apiclient.ManifestRequest{
+		Repo:    &argoappv1.Repository{},
+		AppName: "test",
+		ApplicationSource: &argoappv1.ApplicationSource{
+			Path: ".",
+			Helm: &argoappv1.ApplicationSourceHelm{},
+		},
+		ProjectName:        "something",
+		ProjectSourceRepos: []string{"*"},
+	}
+
+	// Should fail since non-multistage outputs are expected to be k8s unstructured objects
+	_, err := service.GenerateManifest(context.Background(), req)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to unmarshal manifest")
 
 }
 

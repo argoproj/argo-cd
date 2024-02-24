@@ -36,6 +36,10 @@ message ManifestRequest {
     repeated string projectSourceRepos = 24;
     // This is used to surface "source not permitted" errors for Helm repositories
     string projectName = 25;
+    // used for looking up generated values from other charts
+    map<string, string> valueRefManifests = 26;
+    // tell the repo-server that we are generating a values file, not kubernetes manifests
+    bool isMultistageSource = 27;
 }
 
 message ManifestRequestWithFiles {
@@ -44,6 +48,13 @@ message ManifestRequestWithFiles {
         ManifestFileMetadata metadata = 2;
         ManifestFileChunk chunk = 3;
     }
+}
+
+message ManifestCacheRef {
+    string cacheKey = 1;
+    github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.ApplicationSource source = 2;
+    repeated github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.RefTarget refSources = 3;
+
 }
 
 message ManifestFileMetadata {
@@ -316,7 +327,7 @@ service RepoServerService {
     // Get the meta-data (author, date, tags, message) for a specific revision of the repo
     rpc GetRevisionMetadata(RepoServerRevisionMetadataRequest) returns (github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.RevisionMetadata) {
     }
-    
+
     // Get the chart details (author, date, tags, message) for a specific revision of the repo
     rpc GetRevisionChartDetails(RepoServerRevisionChartDetailsRequest) returns (github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.ChartDetails) {
     }

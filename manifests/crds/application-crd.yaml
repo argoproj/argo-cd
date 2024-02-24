@@ -288,6 +288,12 @@ spec:
                             items:
                               type: string
                             type: array
+                          valueRefs:
+                            description: ValueRefs is a list of Refs of other sources
+                              whose outputs will serve as values for this helm source
+                            items:
+                              type: string
+                            type: array
                           values:
                             description: Values specifies Helm values to be passed
                               to helm template, typically defined as a block. ValuesObject
@@ -622,6 +628,12 @@ spec:
                             valueFiles:
                               description: ValuesFiles is a list of Helm value files
                                 to use when generating a template
+                              items:
+                                type: string
+                              type: array
+                            valueRefs:
+                              description: ValueRefs is a list of Refs of other sources
+                                whose outputs will serve as values for this helm source
                               items:
                                 type: string
                               type: array
@@ -1078,6 +1090,12 @@ spec:
                         items:
                           type: string
                         type: array
+                      valueRefs:
+                        description: ValueRefs is a list of Refs of other sources
+                          whose outputs will serve as values for this helm source
+                        items:
+                          type: string
+                        type: array
                       values:
                         description: Values specifies Helm values to be passed to
                           helm template, typically defined as a block. ValuesObject
@@ -1403,6 +1421,12 @@ spec:
                         valueFiles:
                           description: ValuesFiles is a list of Helm value files to
                             use when generating a template
+                          items:
+                            type: string
+                          type: array
+                        valueRefs:
+                          description: ValueRefs is a list of Refs of other sources
+                            whose outputs will serve as values for this helm source
                           items:
                             type: string
                           type: array
@@ -1899,6 +1923,12 @@ spec:
                               items:
                                 type: string
                               type: array
+                            valueRefs:
+                              description: ValueRefs is a list of Refs of other sources
+                                whose outputs will serve as values for this helm source
+                              items:
+                                type: string
+                              type: array
                             values:
                               description: Values specifies Helm values to be passed
                                 to helm template, typically defined as a block. ValuesObject
@@ -2236,6 +2266,13 @@ spec:
                               valueFiles:
                                 description: ValuesFiles is a list of Helm value files
                                   to use when generating a template
+                                items:
+                                  type: string
+                                type: array
+                              valueRefs:
+                                description: ValueRefs is a list of Refs of other
+                                  sources whose outputs will serve as values for this
+                                  helm source
                                 items:
                                   type: string
                                 type: array
@@ -2724,6 +2761,13 @@ spec:
                                     items:
                                       type: string
                                     type: array
+                                  valueRefs:
+                                    description: ValueRefs is a list of Refs of other
+                                      sources whose outputs will serve as values for
+                                      this helm source
+                                    items:
+                                      type: string
+                                    type: array
                                   values:
                                     description: Values specifies Helm values to be
                                       passed to helm template, typically defined as
@@ -3079,6 +3123,13 @@ spec:
                                     valueFiles:
                                       description: ValuesFiles is a list of Helm value
                                         files to use when generating a template
+                                      items:
+                                        type: string
+                                      type: array
+                                    valueRefs:
+                                      description: ValueRefs is a list of Refs of
+                                        other sources whose outputs will serve as
+                                        values for this helm source
                                       items:
                                         type: string
                                       type: array
@@ -3557,6 +3608,13 @@ spec:
                                 items:
                                   type: string
                                 type: array
+                              valueRefs:
+                                description: ValueRefs is a list of Refs of other
+                                  sources whose outputs will serve as values for this
+                                  helm source
+                                items:
+                                  type: string
+                                type: array
                               values:
                                 description: Values specifies Helm values to be passed
                                   to helm template, typically defined as a block.
@@ -3906,6 +3964,13 @@ spec:
                                 valueFiles:
                                   description: ValuesFiles is a list of Helm value
                                     files to use when generating a template
+                                  items:
+                                    type: string
+                                  type: array
+                                valueRefs:
+                                  description: ValueRefs is a list of Refs of other
+                                    sources whose outputs will serve as values for
+                                    this helm source
                                   items:
                                     type: string
                                   type: array
@@ -4405,6 +4470,13 @@ spec:
                                 items:
                                   type: string
                                 type: array
+                              valueRefs:
+                                description: ValueRefs is a list of Refs of other
+                                  sources whose outputs will serve as values for this
+                                  helm source
+                                items:
+                                  type: string
+                                type: array
                               values:
                                 description: Values specifies Helm values to be passed
                                   to helm template, typically defined as a block.
@@ -4754,6 +4826,13 @@ spec:
                                 valueFiles:
                                   description: ValuesFiles is a list of Helm value
                                     files to use when generating a template
+                                  items:
+                                    type: string
+                                  type: array
+                                valueRefs:
+                                  description: ValueRefs is a list of Refs of other
+                                    sources whose outputs will serve as values for
+                                    this helm source
                                   items:
                                     type: string
                                   type: array
