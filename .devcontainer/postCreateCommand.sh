@@ -2,7 +2,7 @@
 
 # install ubuntu packages
 sudo apt-get update
-sudo apt-get install -y redis-server gnupg2 bash-completion
+sudo apt-get install -y redis-server bash-completion
 
 # install tools
 curl -sLS https://get.arkade.dev | sudo sh
