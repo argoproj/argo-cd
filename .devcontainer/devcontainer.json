@@ -15,6 +15,7 @@
   "remoteEnv": {
     "PATH": "${containerEnv:PATH}:/home/vscode/go/bin:/home/vscode/go/src/github.com/argoproj/argo-cd/dist",
     "GOPATH": "/home/vscode/go",
-    "ARGOCD_REDIS_LOCAL": "true"
+    "ARGOCD_REDIS_LOCAL": "true",
+    "ARGOCD_GPG_ENABLED": "false"
   }
 }
