@@ -374,13 +374,13 @@ func GetClusterSharding(kubeClient kubernetes.Interface, settingsMgr *settings.S
 
 		// if app controller deployment is not found when dynamic cluster distribution is enabled error out
 		if err != nil {
-			return nil, fmt.Errorf("(dymanic cluster distribution) failed to get app controller deployment: %v", err)
+			return nil, fmt.Errorf("(dynamic cluster distribution) failed to get app controller deployment: %v", err)
 		}
 
 		if appControllerDeployment != nil && appControllerDeployment.Spec.Replicas != nil {
 			replicasCount = int(*appControllerDeployment.Spec.Replicas)
 		} else {
-			return nil, fmt.Errorf("(dymanic cluster distribution) failed to get app controller deployment replica count")
+			return nil, fmt.Errorf("(dynamic cluster distribution) failed to get app controller deployment replica count")
 		}
 
 	} else {
