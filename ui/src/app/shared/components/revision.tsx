@@ -1,11 +1,15 @@
 import * as React from 'react';
 import {revisionUrl} from './urls';
 
-export const Revision = ({repoUrl, revision, path, children}: {repoUrl: string; revision: string; path?: string; children?: React.ReactNode}) => {
+export const Revision = ({repoUrl, revision, path, isForPath, children}: {repoUrl: string; revision: string; path?: string; isForPath?: boolean; children?: React.ReactNode}) => {
+    if (isForPath && !path) {
+        // This source literally has no path, so we won't show one.
+        return <span />;
+    }
     revision = revision || '';
     const hasPath = path && path !== '.';
     let url = revisionUrl(repoUrl, revision, hasPath);
-    if (hasPath) {
+    if (url !== null && hasPath) {
         url += '/' + path;
     }
     const content = children || (isSHA(revision) ? revision.substr(0, 7) : revision);

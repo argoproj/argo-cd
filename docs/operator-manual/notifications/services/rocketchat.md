@@ -43,7 +43,7 @@ stringData:
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: <config-map-name>
+  name: argocd-notifications-cm
 data:
   service.rocketchat: |
     email: $rocketchat-email
@@ -64,7 +64,7 @@ metadata:
 
 ## Templates
 
-Notification templates can be customized with RocketChat [attachments](https://developer.rocket.chat/api/rest-api/methods/chat/postmessage#attachments-detail).
+[Notification templates](../templates.md) can be customized with RocketChat [attachments](https://developer.rocket.chat/api/rest-api/methods/chat/postmessage#attachments-detail).
 
 *Note: Attachments structure in Rocketchat is same with Slack attachments [feature](https://api.slack.com/messaging/composing/layouts).*
 

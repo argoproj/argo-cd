@@ -29,7 +29,7 @@ The app will be out of sync if Argo CD expects a resource to be pruned. You may 
 
 ## Disable Kubectl Validation
 
-For a certain class of objects, it is necessary to `kubectl apply` them using the `--validate=false` flag. Examples of this are kubernetes types which uses `RawExtension`, such as [ServiceCatalog](https://github.com/kubernetes-incubator/service-catalog/blob/master/pkg/apis/servicecatalog/v1beta1/types.go#L497). You can do using this annotations:
+For a certain class of objects, it is necessary to `kubectl apply` them using the `--validate=false` flag. Examples of this are Kubernetes types which uses `RawExtension`, such as [ServiceCatalog](https://github.com/kubernetes-incubator/service-catalog/blob/master/pkg/apis/servicecatalog/v1beta1/types.go#L497). You can do using this annotations:
 
 
 ```yaml
@@ -57,6 +57,18 @@ metadata:
 ```
 
 The dry run will still be executed if the CRD is already present in the cluster.
+
+## No Resource Deletion
+
+For certain resources you might want to retain them even after your application is deleted, for eg. Persistent Volume Claims.
+In such situations you can stop those resources from being cleaned up during app deletion by using the following annotation:
+
+
+```yaml
+metadata:
+  annotations:
+    argocd.argoproj.io/sync-options: Delete=false
+```
 
 ## Selective Sync
 
@@ -258,7 +270,7 @@ spec:
     - RespectIgnoreDifferences=true
 ```
 
-The example above shows how an Argo CD Application can be configured so it will ignore the `spec.replicas` field from the desired state (git) during the sync stage. This is achieve by calculating and pre-patching the desired state before applying it in the cluster. Note that the `RespectIgnoreDifferences` sync option is only effective when the resource is already created in the cluster. If the Application is being created and no live state exists, the desired state is applied as-is.
+The example above shows how an Argo CD Application can be configured so it will ignore the `spec.replicas` field from the desired state (git) during the sync stage. This is achieved by calculating and pre-patching the desired state before applying it in the cluster. Note that the `RespectIgnoreDifferences` sync option is only effective when the resource is already created in the cluster. If the Application is being created and no live state exists, the desired state is applied as-is.
 
 ## Create Namespace
 
@@ -266,13 +278,19 @@ The example above shows how an Argo CD Application can be configured so it will 
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  namespace: test
+  namespace: argocd
 spec:
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: some-namespace
   syncPolicy:
     syncOptions:
     - CreateNamespace=true
 ```
-The example above shows how an Argo CD Application can be configured, so it will create namespaces for the Application resources if the namespaces don't exist already. Without this either declared in the Application manifest or passed in the cli via `--sync-option CreateNamespace=true`, the Application will fail to sync if the resources' namespaces do not exist.
+
+The example above shows how an Argo CD Application can be configured so it will create the namespace specified in `spec.destination.namespace` if it doesn't exist already. Without this either declared in the Application manifest or passed in the CLI via `--sync-option CreateNamespace=true`, the Application will fail to sync if the namespace doesn't exist.
+
+Note that the namespace to be created must be informed in the `spec.destination.namespace` field of the Application resource. The `metadata.namespace` field in the Application's child manifests must match this value, or can be omitted, so resources are created in the proper destination.
 
 ### Namespace Metadata
 
@@ -298,10 +316,10 @@ spec:
     - CreateNamespace=true
 ```
 
-In order for ArgoCD to manage the labels and annotations on the namespace, `CreateNamespace=true` needs to be set as a
+In order for Argo CD to manage the labels and annotations on the namespace, `CreateNamespace=true` needs to be set as a
 sync option, otherwise nothing will happen. If the namespace doesn't already exist, or if it already exists and doesn't
 already have labels and/or annotations set on it, you're good to go. Using `managedNamespaceMetadata` will also set the
-resource tracking label (or annotation) on the namespace, so you can easily track which namespaces are managed by ArgoCD.
+resource tracking label (or annotation) on the namespace, so you can easily track which namespaces are managed by Argo CD.
 
 In the case you do not have any custom annotations or labels but would nonetheless want to have resource tracking set on
 your namespace, that can be done by setting `managedNamespaceMetadata` with an empty `labels` and/or `annotations` map,
@@ -321,53 +339,13 @@ spec:
     - CreateNamespace=true
 ```
 
-In the case where ArgoCD is "adopting" an existing namespace which already has metadata set on it, we rely on using
-Server Side Apply in order not to lose metadata which has already been set. The main implication here is that it takes
-a few extra steps to get rid of an already preexisting field.
+In the case where Argo CD is "adopting" an existing namespace which already has metadata set on it, you should first
+[upgrade the resource to server-side apply](https://kubernetes.io/docs/reference/using-api/server-side-apply/#upgrading-from-client-side-apply-to-server-side-apply)
+before enabling `managedNamespaceMetadata`. Argo CD relies on `kubectl`, which does not support managing 
+client-side-applied resources with server-side-applies. If you do not upgrade the resource to server-side apply, Argo CD
+may remove existing labels/annotations, which may or may not be the desired behavior.
 
-Imagine we have a pre-existing namespace as below:
-
-```yaml
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: foobar
-  annotations:
-    foo: bar
-    abc: "123"
-```
-
-If we want to manage the `foobar` namespace with ArgoCD and to then also remove the `foo: bar` annotation, in
-`managedNamespaceMetadata` we'd need to first rename the `foo` value:
-
-```yaml
-apiVersion: argoproj.io/v1alpha1
-kind: Application
-spec:
-  syncPolicy:
-    managedNamespaceMetadata:
-      annotations:
-        abc: 123 # adding this is informational with SSA; this would be sticking around in any case until we set a new value
-        foo: remove-me
-    syncOptions:
-      - CreateNamespace=true
-```
-
-Once that has been synced, we're ok to remove `foo`
-
-```yaml
-apiVersion: argoproj.io/v1alpha1
-kind: Application
-spec:
-  syncPolicy:
-    managedNamespaceMetadata:
-      annotations:
-        abc: 123 # adding this is informational with SSA; this would be sticking around in any case until we set a new value
-    syncOptions:
-      - CreateNamespace=true
-```
-
-Another thing to keep mind of is that if you have a k8s manifest for the same namespace in your ArgoCD application, that
+Another thing to keep mind of is that if you have a k8s manifest for the same namespace in your Argo CD application, that
 will take precedence and *overwrite whatever values that have been set in `managedNamespaceMetadata`*. In other words, if
 you have an application that sets `managedNamespaceMetadata`
 

@@ -26,12 +26,23 @@ export function repoUrl(url: string): string {
 }
 
 export function revisionUrl(url: string, revision: string, forPath: boolean): string {
-    const parsed = GitUrlParse(url);
+    let parsed;
+    try {
+        parsed = GitUrlParse(url);
+    } catch {
+        return null;
+    }
     let urlSubPath = isSHA(revision) ? 'commit' : 'tree';
 
     if (url.indexOf('bitbucket') >= 0) {
         // The reason for the condition of 'forPath' is that when we build nested path, we need to use 'src'
         urlSubPath = isSHA(revision) && !forPath ? 'commits' : 'src';
+    }
+
+    // Gitlab changed the way urls to commit look like
+    // Ref: https://docs.gitlab.com/ee/update/deprecations.html#legacy-urls-replaced-or-removed
+    if (parsed.source === 'gitlab.com') {
+        urlSubPath = '-/' + urlSubPath;
     }
 
     if (!supportedSource(parsed)) {

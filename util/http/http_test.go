@@ -15,8 +15,16 @@ func TestCookieMaxLength(t *testing.T) {
 
 	// keys will be of format foo, foo-1, foo-2 ..
 	cookies, err = MakeCookieMetadata("foo", strings.Repeat("_", (maxCookieLength-5)*maxCookieNumber))
-	assert.EqualError(t, err, "the authentication token is 40880 characters long and requires 11 cookies but the max number of cookies is 10. Contact your Argo CD administrator to increase the max number of cookies")
+	assert.EqualError(t, err, "the authentication token is 81760 characters long and requires 21 cookies but the max number of cookies is 20. Contact your Argo CD administrator to increase the max number of cookies")
 	assert.Equal(t, 0, len(cookies))
+}
+
+func TestCookieWithAttributes(t *testing.T) {
+	flags := []string{"SameSite=lax", "httpOnly"}
+
+	cookies, err := MakeCookieMetadata("foo", "bar", flags...)
+	assert.NoError(t, err)
+	assert.Equal(t, "foo=bar; SameSite=lax; httpOnly", cookies[0])
 }
 
 func TestSplitCookie(t *testing.T) {
@@ -56,7 +64,7 @@ func (rt TestRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) 
 
 func TestTransportWithHeader(t *testing.T) {
 	client := &http.Client{}
-	req, _ := http.NewRequest("GET", "/foo", nil)
+	req, _ := http.NewRequest(http.MethodGet, "/foo", nil)
 	req.Header.Set("Bar", "req_1")
 	req.Header.Set("Foo", "req_1")
 

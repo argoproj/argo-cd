@@ -2,15 +2,15 @@ package application
 
 import (
 	"context"
-	"fmt"
 	"io"
 	"net/http"
+	"time"
 
+	util_session "github.com/argoproj/argo-cd/v2/util/session"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	log "github.com/sirupsen/logrus"
 	v1 "k8s.io/api/core/v1"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
-	apimachineryvalidation "k8s.io/apimachinery/pkg/api/validation"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
@@ -24,7 +24,9 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/argo"
 	"github.com/argoproj/argo-cd/v2/util/db"
 	"github.com/argoproj/argo-cd/v2/util/rbac"
+	"github.com/argoproj/argo-cd/v2/util/security"
 	sessionmgr "github.com/argoproj/argo-cd/v2/util/session"
+	"github.com/argoproj/argo-cd/v2/util/settings"
 )
 
 type terminalHandler struct {
@@ -35,11 +37,13 @@ type terminalHandler struct {
 	appResourceTreeFn func(ctx context.Context, app *appv1.Application) (*appv1.ApplicationTree, error)
 	allowedShells     []string
 	namespace         string
+	enabledNamespaces []string
+	sessionManager    util_session.SessionManager
 }
 
 // NewHandler returns a new terminal handler.
-func NewHandler(appLister applisters.ApplicationLister, namespace string, db db.ArgoDB, enf *rbac.Enforcer, cache *servercache.Cache,
-	appResourceTree AppResourceTreeFn, allowedShells []string) *terminalHandler {
+func NewHandler(appLister applisters.ApplicationLister, namespace string, enabledNamespaces []string, db db.ArgoDB, enf *rbac.Enforcer, cache *servercache.Cache,
+	appResourceTree AppResourceTreeFn, allowedShells []string, sessionManager util_session.SessionManager) *terminalHandler {
 	return &terminalHandler{
 		appLister:         appLister,
 		db:                db,
@@ -48,6 +52,8 @@ func NewHandler(appLister applisters.ApplicationLister, namespace string, db db.
 		appResourceTreeFn: appResourceTree,
 		allowedShells:     allowedShells,
 		namespace:         namespace,
+		enabledNamespaces: enabledNamespaces,
+		sessionManager:    sessionManager,
 	}
 }
 
@@ -62,35 +68,24 @@ func (s *terminalHandler) getApplicationClusterRawConfig(ctx context.Context, a 
 	return clst.RawRestConfig(), nil
 }
 
-// isValidPodName checks that a podName is valid
-func isValidPodName(name string) bool {
-	// https://github.com/kubernetes/kubernetes/blob/976a940f4a4e84fe814583848f97b9aafcdb083f/pkg/apis/core/validation/validation.go#L241
-	validationErrors := apimachineryvalidation.NameIsDNSSubdomain(name, false)
-	return len(validationErrors) == 0
-}
+type GetSettingsFunc func() (*settings.ArgoCDSettings, error)
 
-func isValidAppName(name string) bool {
-	// app names have the same rules as pods.
-	return isValidPodName(name)
-}
-
-func isValidProjectName(name string) bool {
-	// project names have the same rules as pods.
-	return isValidPodName(name)
-}
-
-// isValidNamespaceName checks that a namespace name is valid
-func isValidNamespaceName(name string) bool {
-	// https://github.com/kubernetes/kubernetes/blob/976a940f4a4e84fe814583848f97b9aafcdb083f/pkg/apis/core/validation/validation.go#L262
-	validationErrors := apimachineryvalidation.ValidateNamespaceName(name, false)
-	return len(validationErrors) == 0
-}
-
-// isValidContainerName checks that a containerName is valid
-func isValidContainerName(name string) bool {
-	// https://github.com/kubernetes/kubernetes/blob/53a9d106c4aabcd550cc32ae4e8004f32fb0ae7b/pkg/api/validation/validation.go#L280
-	validationErrors := apimachineryvalidation.NameIsDNSLabel(name, false)
-	return len(validationErrors) == 0
+// WithFeatureFlagMiddleware is an HTTP middleware to verify if the terminal
+// feature is enabled before invoking the main handler
+func (s *terminalHandler) WithFeatureFlagMiddleware(getSettings GetSettingsFunc) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		argocdSettings, err := getSettings()
+		if err != nil {
+			log.Errorf("error executing WithFeatureFlagMiddleware: error getting settings: %s", err)
+			http.Error(w, "Failed to get settings", http.StatusBadRequest)
+			return
+		}
+		if !argocdSettings.ExecEnabled {
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+		s.ServeHTTP(w, r)
+	})
 }
 
 func (s *terminalHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -107,31 +102,48 @@ func (s *terminalHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if !isValidPodName(podName) {
+	appNamespace := q.Get("appNamespace")
+
+	if !argo.IsValidPodName(podName) {
 		http.Error(w, "Pod name is not valid", http.StatusBadRequest)
 		return
 	}
-	if !isValidContainerName(container) {
+	if !argo.IsValidContainerName(container) {
 		http.Error(w, "Container name is not valid", http.StatusBadRequest)
 		return
 	}
-	if !isValidAppName(app) {
+	if !argo.IsValidAppName(app) {
 		http.Error(w, "App name is not valid", http.StatusBadRequest)
 		return
 	}
-	if !isValidProjectName(project) {
+	if !argo.IsValidProjectName(project) {
 		http.Error(w, "Project name is not valid", http.StatusBadRequest)
 		return
 	}
-	if !isValidNamespaceName(namespace) {
+	if !argo.IsValidNamespaceName(namespace) {
 		http.Error(w, "Namespace name is not valid", http.StatusBadRequest)
 		return
 	}
+	if !argo.IsValidNamespaceName(appNamespace) {
+		http.Error(w, "App namespace name is not valid", http.StatusBadRequest)
+		return
+	}
+
+	ns := appNamespace
+	if ns == "" {
+		ns = s.namespace
+	}
+
+	if !security.IsNamespaceEnabled(ns, s.namespace, s.enabledNamespaces) {
+		http.Error(w, security.NamespaceNotPermittedError(ns).Error(), http.StatusForbidden)
+		return
+	}
+
 	shell := q.Get("shell") // No need to validate. Will only be used if it's in the allow-list.
 
 	ctx := r.Context()
 
-	appRBACName := fmt.Sprintf("%s/%s", project, app)
+	appRBACName := security.RBACName(s.namespace, project, appNamespace, app)
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionGet, appRBACName); err != nil {
 		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return
@@ -143,9 +155,9 @@ func (s *terminalHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	fieldLog := log.WithFields(log.Fields{"application": app, "userName": sessionmgr.Username(ctx), "container": container,
-		"podName": podName, "namespace": namespace, "cluster": project})
+		"podName": podName, "namespace": namespace, "project": project, "appNamespace": appNamespace})
 
-	a, err := s.appLister.Applications(s.namespace).Get(app)
+	a, err := s.appLister.Applications(ns).Get(app)
 	if err != nil {
 		if apierr.IsNotFound(err) {
 			http.Error(w, "App not found", http.StatusNotFound)
@@ -213,12 +225,16 @@ func (s *terminalHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	fieldLog.Info("terminal session starting")
 
-	session, err := newTerminalSession(w, r, nil)
+	session, err := newTerminalSession(w, r, nil, s.sessionManager)
 	if err != nil {
 		http.Error(w, "Failed to start terminal session", http.StatusBadRequest)
 		return
 	}
 	defer session.Done()
+
+	// send pings across the WebSocket channel at regular intervals to keep it alive through
+	// load balancers which may close an idle connection after some period of time
+	go session.StartKeepalives(time.Second * 5)
 
 	if isValidShell(s.allowedShells, shell) {
 		cmd := []string{shell}
@@ -269,6 +285,11 @@ type TerminalMessage struct {
 	Cols      uint16 `json:"cols"`
 }
 
+// TerminalCommand is the struct for websocket commands,For example you need ask client to reconnect
+type TerminalCommand struct {
+	Code int
+}
+
 // startProcess executes specified commands in the container and connects it up with the ptyHandler (a session)
 func startProcess(k8sClient kubernetes.Interface, cfg *rest.Config, namespace, podName, containerName string, cmd []string, ptyHandler PtyHandler) error {
 	req := k8sClient.CoreV1().RESTClient().Post().
@@ -291,7 +312,7 @@ func startProcess(k8sClient kubernetes.Interface, cfg *rest.Config, namespace, p
 		return err
 	}
 
-	return exec.Stream(remotecommand.StreamOptions{
+	return exec.StreamWithContext(context.Background(), remotecommand.StreamOptions{
 		Stdin:             ptyHandler,
 		Stdout:            ptyHandler,
 		Stderr:            ptyHandler,
