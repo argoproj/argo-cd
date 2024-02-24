@@ -301,6 +301,8 @@ type RefTargetRevisionMapping map[string]*RefTarget
 
 // ApplicationSourceHelm holds helm specific options
 type ApplicationSourceHelm struct {
+	// ValueRefs is a list of Refs of other sources whose outputs will serve as values for this helm source
+	ValueRefs []string `json:"valueRefs,omitempty" protobuf:"bytes,1,opt,name=valueFiles"`
 	// ValuesFiles is a list of Helm value files to use when generating a template
 	ValueFiles []string `json:"valueFiles,omitempty" protobuf:"bytes,1,opt,name=valueFiles"`
 	// Parameters is a list of Helm parameters which are passed to the helm template command upon manifest generation

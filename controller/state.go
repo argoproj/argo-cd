@@ -180,7 +180,47 @@ func (m *appStateManager) GetRepoObjs(app *v1alpha1.Application, sources []v1alp
 		return nil, nil, fmt.Errorf("failed to get ref sources: %v", err)
 	}
 
+	// see if any source has the valueRefs field. Only one source can have it, because it needs to go last
+	valueRefIndex := -1 // will be an item in the list if found
+	log.Debugf("MW2: Checking through multiple sources for %s", app.Name)
+
 	for i, source := range sources {
+		log.Debug("MW5: In the sources loop")
+		if source.Helm != nil && len(source.Helm.ValueRefs) > 0 {
+
+			// this can only be set once
+			if valueRefIndex != -1 {
+				return nil, nil, fmt.Errorf("failed to generate Application %s: only once source can have the helm.valueRefs spec", app.Name)
+			} else { // set valueRefDestination if unset
+				valueRefIndex = i
+			}
+		}
+	}
+	log.Debug("MW10: checking for valueRefIndex")
+	// if we do have a valueRefDestination, set it as the last source
+	if valueRefIndex != -1 {
+		log.Debug("MW9: vri found, Seeking to put a source at the end of the list")
+		// put the valueRefIndex element at the end of the list
+		sources = append(sources[:valueRefIndex], append(sources[valueRefIndex+1:], sources[valueRefIndex])...)
+		log.Debug(sources)
+	} else {
+		log.Debug("MW8: No valueRefDestination found")
+	}
+	log.Debug("MW11: beginning main sources loop")
+	// Accumulate the caches for the valueRef destination, so that it can read in value files
+	// We can also see if any ref goes unfulfilled
+	refValueCaches := map[string]string{}
+	if valueRefIndex != -1 {
+		for _, valueRefTag := range sources[len(sources)-1].Helm.ValueRefs {
+			refValueCaches[valueRefTag] = ""
+		}
+	}
+
+	// TODO: A ref chart should return no manifests, but cache its values
+	// Or we just don't seek to apply them if we know it's a ref chart
+	for i, source := range sources {
+		log.Debugf("MW12: Looking at source %s-%s.", source.RepoURL, source.Path)
+
 		if len(revisions) < len(sources) || revisions[i] == "" {
 			revisions[i] = source.TargetRevision
 		}
@@ -194,8 +234,22 @@ func (m *appStateManager) GetRepoObjs(app *v1alpha1.Application, sources []v1alp
 			return nil, nil, fmt.Errorf("failed to get Kustomize options for source %d of %d: %w", i+1, len(sources), err)
 		}
 
+		log.Debug("This is miles wilson")
 		ts.AddCheckpoint("version_ms")
 		log.Debugf("Generating Manifest for source %s revision %s", source, revisions[i])
+
+		//manifestRequest :=
+
+		// TODO: If an app's ref is in the accumulator, we need to store its info so that the final app can use
+		// if this app has a ref, see if it's part of the valueRefs destination
+		if source.Ref != "" {
+			if thisRef, ok := refValueCaches[source.Ref]; ok {
+				// TODO: Need a type that encapsulates all fields needed for a cache lookup, line 818 of repository.go
+				refValueCaches[thisRef] = revisions[i], source.DeepCopy()
+			}
+		}
+
+		// TODO: If we're on the last item in sources (i == valueRefIdx), then make sure all refValueCaches are set
 		manifestInfo, err := repoClient.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
 			Repo:               repo,
 			Repos:              permittedHelmRepos,

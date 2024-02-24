@@ -682,6 +682,8 @@ type ManifestResponse struct {
 	SourceType string `protobuf:"bytes,6,opt,name=sourceType,proto3" json:"sourceType,omitempty"`
 	// Raw response of git verify-commit operation (always the empty string for Helm)
 	VerifyResult         string   `protobuf:"bytes,7,opt,name=verifyResult,proto3" json:"verifyResult,omitempty"`
+	// The cache key to include for ref lookups
+	CacheKey string `protobuf:"bytes, 1,opt,name=cacheKey,proto3" json:"cacheKey,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
