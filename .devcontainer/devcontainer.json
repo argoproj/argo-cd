@@ -1,5 +1,5 @@
 {
-  "image": "mcr.microsoft.com/vscode/devcontainers/base:ubuntu",
+  "image": "mcr.microsoft.com/vscode/devcontainers/base:base:ubuntu-22.04",
   "features": {
     "ghcr.io/devcontainers/features/go:1": {
       "version": "1.21" // The version needs to match https://github.com/argoproj/argo-cd/blob/master/go.mod#L3
