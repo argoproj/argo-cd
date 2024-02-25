@@ -26,19 +26,23 @@ jobs:
   changes:
     runs-on: ubuntu-latest
     outputs:
-      backend: ${{ steps.filter.outputs.backend }}
-      frontend: ${{ steps.filter.outputs.frontend }}
+      backend: ${{ steps.filter.outputs.backend_any_changed }}
+      frontend: ${{ steps.filter.outputs.frontend_any_changed }}
     steps:
       - uses: actions/checkout@3df4ab11eba7bda6032a0b82a6bb43b11571feac # v4.0.0
-      - uses: dorny/paths-filter@4512585405083f25c027a35db413c2b3b9006d50 # v2
+      - uses: tj-actions/changed-files@90a06d6ba9543371ab4df8eeca0be07ca6054959 # v42.0.2
         id: filter
         with:
           # Any file which is not under docs/, ui/ or is not a markdown file is counted as a backend file
-          filters: |
+          files_yaml: |
             backend:
-              - '!(ui/**|docs/**|**.md|**/*.md)'
+              - '!ui/**'
+              - '!**.md'            
+              - '!**/*.md'
+              - '!docs/**'
             frontend:
               - 'ui/**'
+              - Dockerfile
   check-go:
     name: Ensure Go modules synchronicity
     if: ${{ needs.changes.outputs.backend == 'true' }}
@@ -55,7 +59,7 @@ jobs:
       - name: Download all Go modules
         run: |
           go mod download
-      - name: Check for tidyness of go.mod and go.sum
+      - name: Check for tidiness of go.mod and go.sum
         run: |
           go mod tidy
           git diff --exit-code -- .
@@ -466,7 +470,7 @@ jobs:
           git config --global user.email "john.doe@example.com"
       - name: Pull Docker image required for tests
         run: |
-          docker pull ghcr.io/dexidp/dex:v2.37.0
+          docker pull ghcr.io/dexidp/dex:v2.38.0
           docker pull argoproj/argo-cd-ci-builder:v1.0.0
           docker pull redis:7.0.14-alpine
       - name: Create target directory for binaries in the build-process
