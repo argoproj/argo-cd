@@ -8,10 +8,12 @@ extra_javascript:
 - assets/versions.js
 markdown_extensions:
 - markdown_include.include
-- codehilite
+- codehilite:
+    css_class: highlight
 - admonition
 - toc:
     permalink: true
+- pymdownx.superfences
 nav:
 - Overview: index.md
 - understand_the_basics.md
@@ -21,9 +23,13 @@ nav:
   - operator-manual/index.md
   - operator-manual/architecture.md
   - operator-manual/installation.md
+  - operator-manual/core.md
   - operator-manual/declarative-setup.md
   - operator-manual/app-any-namespace.md
   - operator-manual/ingress.md
+  - High Availability:
+    - Overview: operator-manual/high_availability.md
+    - Dynamic Cluster Distribution: operator-manual/dynamic-cluster-distribution.md
   - User Management:
     - operator-manual/user-management/index.md
     - operator-manual/user-management/auth0.md
@@ -33,6 +39,8 @@ nav:
     - operator-manual/user-management/keycloak.md
     - operator-manual/user-management/openunison.md
     - operator-manual/user-management/google.md
+    - operator-manual/user-management/zitadel.md
+    - operator-manual/user-management/identity-center.md
     - operator-manual/rbac.md
   - Security:
     - Overview: operator-manual/security.md
@@ -41,8 +49,8 @@ nav:
   - operator-manual/tls.md
   - operator-manual/cluster-bootstrapping.md
   - operator-manual/secret-management.md
-  - operator-manual/high_availability.md
   - operator-manual/disaster_recovery.md
+  - operator-manual/reconcile.md
   - operator-manual/webhook.md
   - operator-manual/health.md
   - operator-manual/resource_actions.md
@@ -53,7 +61,7 @@ nav:
   - operator-manual/web_based_terminal.md
   - operator-manual/config-management-plugins.md
   - operator-manual/deep_links.md
-  - Notification:
+  - Notifications:
     - Overview: operator-manual/notifications/index.md
     - operator-manual/notifications/triggers.md
     - operator-manual/notifications/templates.md
@@ -66,6 +74,7 @@ nav:
     - operator-manual/notifications/troubleshooting-errors.md
     - Notification Services:
       - operator-manual/notifications/services/alertmanager.md
+      - operator-manual/notifications/services/awssqs.md
       - operator-manual/notifications/services/email.md
       - operator-manual/notifications/services/github.md
       - operator-manual/notifications/services/googlechat.md
@@ -75,6 +84,7 @@ nav:
       - operator-manual/notifications/services/opsgenie.md
       - operator-manual/notifications/services/overview.md
       - operator-manual/notifications/services/pagerduty.md
+      - operator-manual/notifications/services/pagerduty_v2.md
       - operator-manual/notifications/services/pushover.md
       - operator-manual/notifications/services/rocketchat.md
       - operator-manual/notifications/services/slack.md
@@ -100,12 +110,16 @@ nav:
       - operator-manual/applicationset/Generators-Cluster-Decision-Resource.md
       - operator-manual/applicationset/Generators-Pull-Request.md
       - operator-manual/applicationset/Generators-Post-Selector.md
+      - operator-manual/applicationset/Generators-Plugin.md
     - Template fields:
       - operator-manual/applicationset/Template.md
       - operator-manual/applicationset/GoTemplate.md
     - Controlling Resource Modification: operator-manual/applicationset/Controlling-Resource-Modification.md
     - Application Pruning & Resource Deletion: operator-manual/applicationset/Application-Deletion.md
     - Progressive Syncs: operator-manual/applicationset/Progressive-Syncs.md
+    - Git File Generator Globbing: operator-manual/applicationset/Generators-Git-File-Globbing.md
+    - ApplicationSet Specification Reference: operator-manual/applicationset/applicationset-specification.md
+    - ApplicationSet in any namespace: operator-manual/applicationset/Appset-Any-Namespace.md
   - Server Configuration Parameters:
     - operator-manual/server-commands/argocd-server.md
     - operator-manual/server-commands/argocd-application-controller.md
@@ -114,6 +128,10 @@ nav:
     - operator-manual/server-commands/additional-configuration-method.md
   - Upgrading:
     - operator-manual/upgrading/overview.md
+    - operator-manual/upgrading/2.10-2.11.md
+    - operator-manual/upgrading/2.9-2.10.md
+    - operator-manual/upgrading/2.8-2.9.md
+    - operator-manual/upgrading/2.7-2.8.md
     - operator-manual/upgrading/2.6-2.7.md
     - operator-manual/upgrading/2.5-2.6.md
     - operator-manual/upgrading/2.4-2.5.md
@@ -130,6 +148,7 @@ nav:
     - operator-manual/upgrading/1.2-1.3.md
     - operator-manual/upgrading/1.1-1.2.md
     - operator-manual/upgrading/1.0-1.1.md
+  - Project Specification Reference: operator-manual/project-specification.md
 - User Guide:
   - user-guide/index.md
   - user-guide/application_sources.md
@@ -144,7 +163,9 @@ nav:
   - user-guide/multiple_sources.md
   - GnuPG verification: user-guide/gpg-verification.md
   - user-guide/auto_sync.md
-  - user-guide/diffing.md
+  - Diffing:
+    - Diff Strategies: user-guide/diff-strategies.md
+    - Diff Customization: user-guide/diffing.md
   - user-guide/orphaned-resources.md
   - user-guide/compare-options.md
   - user-guide/sync-options.md
@@ -157,6 +178,7 @@ nav:
   - user-guide/selective_sync.md
   - user-guide/sync-waves.md
   - user-guide/sync_windows.md
+  - user-guide/sync-kubectl.md
   - user-guide/skip_reconcile.md
   - Generating Applications with ApplicationSet: user-guide/application-set.md
   - user-guide/ci_automation.md
@@ -164,12 +186,16 @@ nav:
   - user-guide/best_practices.md
   - user-guide/status-badge.md
   - user-guide/external-url.md
+  - user-guide/extra_info.md
   - Notification subscriptions: user-guide/subscriptions.md
+  - user-guide/annotations-and-labels.md
   - Command Reference: user-guide/commands/argocd.md
+  - Application Specification Reference: user-guide/application-specification.md
 - Developer Guide:
   - developer-guide/index.md
   - Architecture:
     - developer-guide/architecture/authz-authn.md
+    - developer-guide/architecture/components.md
   - Code Contribution Guide: developer-guide/code-contributions.md
   - Toolchain Guide: developer-guide/toolchain-guide.md
   - developer-guide/contributors-quickstart.md

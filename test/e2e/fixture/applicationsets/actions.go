@@ -4,9 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/argoproj/argo-cd/v2/test/e2e/fixture"
 	"strings"
 	"time"
+
+	"github.com/argoproj/argo-cd/v2/test/e2e/fixture"
 
 	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
@@ -15,6 +16,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/client-go/dynamic"
 
 	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
@@ -60,6 +62,18 @@ func (a *Actions) And(block func()) *Actions {
 func (a *Actions) Then() *Consequences {
 	a.context.t.Helper()
 	return &Consequences{a.context, a}
+}
+
+func (a *Actions) SwitchToExternalNamespace(namespace utils.ExternalNamespace) *Actions {
+	a.context.switchToNamespace = namespace
+	log.Infof("switched to external namespace: %s", namespace)
+	return a
+}
+
+func (a *Actions) SwitchToArgoCDNamespace() *Actions {
+	a.context.switchToNamespace = ""
+	log.Infof("switched to argocd namespace: %s", utils.ArgoCDNamespace)
+	return a
 }
 
 // CreateClusterSecret creates a faux cluster secret, with the given cluster server and cluster name (this cluster
@@ -176,15 +190,15 @@ func (a *Actions) DeletePlacementDecision(placementDecisionName string) *Actions
 
 // Create a temporary namespace, from utils.ApplicationSet, for use by the test.
 // This namespace will be deleted on subsequent tests.
-func (a *Actions) CreateNamespace() *Actions {
+func (a *Actions) CreateNamespace(namespace string) *Actions {
 	a.context.t.Helper()
 
 	fixtureClient := utils.GetE2EFixtureK8sClient()
 
 	_, err := fixtureClient.KubeClientset.CoreV1().Namespaces().Create(context.Background(),
-		&corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: utils.ApplicationSetNamespace}}, metav1.CreateOptions{})
+		&corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: namespace}}, metav1.CreateOptions{})
 
-	a.describeAction = fmt.Sprintf("creating namespace '%s'", utils.ApplicationSetNamespace)
+	a.describeAction = fmt.Sprintf("creating namespace '%s'", namespace)
 	a.lastOutput, a.lastError = "", err
 	a.verifyAction()
 
@@ -195,17 +209,32 @@ func (a *Actions) CreateNamespace() *Actions {
 func (a *Actions) Create(appSet v1alpha1.ApplicationSet) *Actions {
 	a.context.t.Helper()
 
+	fixtureClient := utils.GetE2EFixtureK8sClient()
+
 	appSet.APIVersion = "argoproj.io/v1alpha1"
 	appSet.Kind = "ApplicationSet"
 
-	fixtureClient := utils.GetE2EFixtureK8sClient()
-	newResource, err := fixtureClient.AppSetClientset.Create(context.Background(), utils.MustToUnstructured(&appSet), metav1.CreateOptions{})
+	var appSetClientSet dynamic.ResourceInterface
+
+	if a.context.switchToNamespace != "" {
+		externalAppSetClientset, found := fixtureClient.ExternalAppSetClientsets[utils.ExternalNamespace(a.context.switchToNamespace)]
+		if !found {
+			a.lastOutput, a.lastError = "", fmt.Errorf("No external clientset found for %s", a.context.switchToNamespace)
+			return a
+		}
+		appSetClientSet = externalAppSetClientset
+	} else {
+		appSetClientSet = fixtureClient.AppSetClientset
+	}
+
+	newResource, err := appSetClientSet.Create(context.Background(), utils.MustToUnstructured(&appSet), metav1.CreateOptions{})
 
 	if err == nil {
 		a.context.name = newResource.GetName()
+		a.context.namespace = newResource.GetNamespace()
 	}
 
-	a.describeAction = fmt.Sprintf("creating ApplicationSet '%s'", appSet.Name)
+	a.describeAction = fmt.Sprintf("creating ApplicationSet '%s/%s'", appSet.Namespace, appSet.Name)
 	a.lastOutput, a.lastError = "", err
 	a.verifyAction()
 
@@ -364,9 +393,22 @@ func (a *Actions) Delete() *Actions {
 
 	fixtureClient := utils.GetE2EFixtureK8sClient()
 
+	var appSetClientSet dynamic.ResourceInterface
+
+	if a.context.switchToNamespace != "" {
+		externalAppSetClientset, found := fixtureClient.ExternalAppSetClientsets[utils.ExternalNamespace(a.context.switchToNamespace)]
+		if !found {
+			a.lastOutput, a.lastError = "", fmt.Errorf("No external clientset found for %s", a.context.switchToNamespace)
+			return a
+		}
+		appSetClientSet = externalAppSetClientset
+	} else {
+		appSetClientSet = fixtureClient.AppSetClientset
+	}
+
 	deleteProp := metav1.DeletePropagationForeground
-	err := fixtureClient.AppSetClientset.Delete(context.Background(), a.context.name, metav1.DeleteOptions{PropagationPolicy: &deleteProp})
-	a.describeAction = fmt.Sprintf("Deleting ApplicationSet '%s' %v", a.context.name, err)
+	err := appSetClientSet.Delete(context.Background(), a.context.name, metav1.DeleteOptions{PropagationPolicy: &deleteProp})
+	a.describeAction = fmt.Sprintf("Deleting ApplicationSet '%s/%s' %v", a.context.namespace, a.context.name, err)
 	a.lastOutput, a.lastError = "", err
 	a.verifyAction()
 
@@ -378,7 +420,20 @@ func (a *Actions) get() (*v1alpha1.ApplicationSet, error) {
 	appSet := v1alpha1.ApplicationSet{}
 
 	fixtureClient := utils.GetE2EFixtureK8sClient()
-	newResource, err := fixtureClient.AppSetClientset.Get(context.Background(), a.context.name, metav1.GetOptions{})
+
+	var appSetClientSet dynamic.ResourceInterface
+
+	if a.context.switchToNamespace != "" {
+		externalAppSetClientset, found := fixtureClient.ExternalAppSetClientsets[utils.ExternalNamespace(a.context.switchToNamespace)]
+		if !found {
+			return nil, fmt.Errorf("No external clientset found for %s", a.context.switchToNamespace)
+		}
+		appSetClientSet = externalAppSetClientset
+	} else {
+		appSetClientSet = fixtureClient.AppSetClientset
+	}
+
+	newResource, err := appSetClientSet.Get(context.Background(), a.context.name, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -413,10 +468,24 @@ func (a *Actions) Update(toUpdate func(*v1alpha1.ApplicationSet)) *Actions {
 		if err == nil {
 			// Keep trying to update until it succeeds, or the test times out
 			toUpdate(appSet)
-			a.describeAction = fmt.Sprintf("updating ApplicationSet '%s'", appSet.Name)
+			a.describeAction = fmt.Sprintf("updating ApplicationSet '%s/%s'", appSet.Namespace, appSet.Name)
 
 			fixtureClient := utils.GetE2EFixtureK8sClient()
-			_, err = fixtureClient.AppSetClientset.Update(context.Background(), utils.MustToUnstructured(&appSet), metav1.UpdateOptions{})
+
+			var appSetClientSet dynamic.ResourceInterface
+
+			if a.context.switchToNamespace != "" {
+				externalAppSetClientset, found := fixtureClient.ExternalAppSetClientsets[utils.ExternalNamespace(a.context.switchToNamespace)]
+				if !found {
+					a.lastOutput, a.lastError = "", fmt.Errorf("No external clientset found for %s", a.context.switchToNamespace)
+					return a
+				}
+				appSetClientSet = externalAppSetClientset
+			} else {
+				appSetClientSet = fixtureClient.AppSetClientset
+			}
+
+			_, err = appSetClientSet.Update(context.Background(), utils.MustToUnstructured(&appSet), metav1.UpdateOptions{})
 
 			if err != nil {
 				mostRecentError = err
@@ -444,5 +513,18 @@ func (a *Actions) verifyAction() {
 	if !a.ignoreErrors {
 		a.Then().Expect(Success(""))
 	}
+}
 
+func (a *Actions) AppSet(appName string, flags ...string) *Actions {
+	a.context.t.Helper()
+	args := []string{"app", "set", appName}
+	args = append(args, flags...)
+	a.runCli(args...)
+	return a
+}
+
+func (a *Actions) runCli(args ...string) {
+	a.context.t.Helper()
+	a.lastOutput, a.lastError = fixture.RunCli(args...)
+	a.verifyAction()
 }

@@ -295,7 +295,7 @@ func SetAppSpecOptions(flags *pflag.FlagSet, spec *argoappv1.ApplicationSpec, ap
 					Backoff: &argoappv1.Backoff{
 						Duration:    appOpts.retryBackoffDuration.String(),
 						MaxDuration: appOpts.retryBackoffMaxDuration.String(),
-						Factor:      pointer.Int64Ptr(appOpts.retryBackoffFactor),
+						Factor:      pointer.Int64(appOpts.retryBackoffFactor),
 					},
 				}
 			} else if appOpts.retryLimit == 0 {
@@ -427,7 +427,10 @@ func setHelmOpt(src *argoappv1.ApplicationSource, opts helmOpts) {
 		src.Helm.IgnoreMissingValueFiles = opts.ignoreMissingValueFiles
 	}
 	if len(opts.values) > 0 {
-		src.Helm.Values = opts.values
+		err := src.Helm.SetValuesString(opts.values)
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 	if opts.releaseName != "" {
 		src.Helm.ReleaseName = opts.releaseName
@@ -597,7 +600,7 @@ func constructAppsBaseOnName(appName string, labels, annotations, args []string,
 		}
 		appName = args[0]
 	}
-	appName, appNs := argo.ParseAppQualifiedName(appName, "")
+	appName, appNs := argo.ParseFromQualifiedName(appName, "")
 	app = &argoappv1.Application{
 		TypeMeta: v1.TypeMeta{
 			Kind:       application.ApplicationKind,

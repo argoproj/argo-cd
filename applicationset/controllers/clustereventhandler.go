@@ -139,7 +139,11 @@ func nestedGeneratorHasClusterGenerator(nested argoprojiov1alpha1.ApplicationSet
 			return false, fmt.Errorf("unable to get nested matrix generator: %w", err)
 		}
 		if nestedMatrix != nil {
-			return nestedGeneratorsHaveClusterGenerator(nestedMatrix.ToMatrixGenerator().Generators)
+			hasClusterGenerator, err := nestedGeneratorsHaveClusterGenerator(nestedMatrix.ToMatrixGenerator().Generators)
+			if err != nil {
+				return false, fmt.Errorf("error evaluating nested matrix generator: %w", err)
+			}
+			return hasClusterGenerator, nil
 		}
 	}
 
@@ -149,7 +153,11 @@ func nestedGeneratorHasClusterGenerator(nested argoprojiov1alpha1.ApplicationSet
 			return false, fmt.Errorf("unable to get nested merge generator: %w", err)
 		}
 		if nestedMerge != nil {
-			return nestedGeneratorsHaveClusterGenerator(nestedMerge.ToMergeGenerator().Generators)
+			hasClusterGenerator, err := nestedGeneratorsHaveClusterGenerator(nestedMerge.ToMergeGenerator().Generators)
+			if err != nil {
+				return false, fmt.Errorf("error evaluating nested merge generator: %w", err)
+			}
+			return hasClusterGenerator, nil
 		}
 	}
 

@@ -90,15 +90,16 @@ var (
 		},
 	}
 	fakeRepo = appsv1.Repository{
-		Repo:      "https://test",
-		Type:      "test",
-		Name:      "test",
-		Username:  "argo",
-		Insecure:  false,
-		EnableLFS: false,
-		EnableOCI: false,
-		Proxy:     "test",
-		Project:   "argocd",
+		Repo:           "https://test",
+		Type:           "test",
+		Name:           "test",
+		Username:       "argo",
+		Insecure:       false,
+		EnableLFS:      false,
+		EnableOCI:      false,
+		Proxy:          "test",
+		Project:        "argocd",
+		InheritedCreds: true,
 	}
 	guestbookApp = &appsv1.Application{
 		TypeMeta: metav1.TypeMeta{
@@ -128,6 +129,96 @@ var (
 						TargetRevision: "HEAD",
 						Helm: &appsv1.ApplicationSourceHelm{
 							ValueFiles: []string{"values-old.yaml"},
+						},
+					},
+				},
+			},
+		},
+	}
+	multiSourceApp001AppName = "msa-two-helm-types"
+	multiSourceApp001        = &appsv1.Application{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       application.ApplicationKind,
+			APIVersion: "argoproj.io/v1alpha1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      multiSourceApp001AppName,
+			Namespace: testNamespace,
+		},
+		Spec: appsv1.ApplicationSpec{
+			Project: "default",
+			Sources: []appsv1.ApplicationSource{
+				{
+					RepoURL:        "https://helm.elastic.co",
+					TargetRevision: "7.7.0",
+					Chart:          "elasticsearch",
+					Helm: &appsv1.ApplicationSourceHelm{
+						ValueFiles: []string{"values.yaml"},
+					},
+				},
+				{
+					RepoURL:        "https://helm.elastic.co",
+					TargetRevision: "7.6.0",
+					Chart:          "elasticsearch",
+					Helm: &appsv1.ApplicationSourceHelm{
+						ValueFiles: []string{"values.yaml"},
+					},
+				},
+			},
+		},
+		Status: appsv1.ApplicationStatus{
+			History: appsv1.RevisionHistories{
+				{
+					Revision: "HEAD",
+					Sources: []appsv1.ApplicationSource{
+						{
+							RepoURL:        "https://helm.elastic.co",
+							TargetRevision: "7.6.0",
+							Helm: &appsv1.ApplicationSourceHelm{
+								ValueFiles: []string{"values-old.yaml"},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+	multiSourceApp002AppName = "msa-one-plugin-one-helm"
+	multiSourceApp002        = &appsv1.Application{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       application.ApplicationKind,
+			APIVersion: "argoproj.io/v1alpha1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      multiSourceApp002AppName,
+			Namespace: testNamespace,
+		},
+		Spec: appsv1.ApplicationSpec{
+			Project: "default",
+			Sources: []appsv1.ApplicationSource{
+				{
+					RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
+					Path:           "sock-shop",
+					TargetRevision: "HEAD",
+				},
+				{
+					RepoURL:        "https://helm.elastic.co",
+					TargetRevision: "7.7.0",
+					Chart:          "elasticsearch",
+					Helm: &appsv1.ApplicationSourceHelm{
+						ValueFiles: []string{"values.yaml"},
+					},
+				},
+			},
+		},
+		Status: appsv1.ApplicationStatus{
+			History: appsv1.RevisionHistories{
+				{
+					Revision: "HEAD",
+					Sources: []appsv1.ApplicationSource{
+						{
+							RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
+							TargetRevision: "1.0.0",
 						},
 					},
 				},
@@ -206,6 +297,33 @@ func TestRepositoryServer(t *testing.T) {
 		})
 		assert.Nil(t, err)
 		assert.Equal(t, repo.Repo, url)
+	})
+
+	t.Run("Test_GetInherited", func(t *testing.T) {
+		repoServerClient := mocks.RepoServerServiceClient{}
+		repoServerClient.On("TestRepository", mock.Anything, mock.Anything).Return(&apiclient.TestRepositoryResponse{}, nil)
+		repoServerClientset := mocks.Clientset{RepoServerServiceClient: &repoServerClient}
+
+		url := "https://test"
+		db := &dbmocks.ArgoDB{}
+		testRepo := &appsv1.Repository{
+			Repo:           url,
+			Type:           "git",
+			Username:       "foo",
+			InheritedCreds: true,
+		}
+		db.On("GetRepository", context.TODO(), url).Return(testRepo, nil)
+		db.On("RepositoryExists", context.TODO(), url).Return(true, nil)
+
+		s := NewServer(&repoServerClientset, db, enforcer, newFixtures().Cache, appLister, projInformer, testNamespace, settingsMgr)
+		repo, err := s.Get(context.TODO(), &repository.RepoQuery{
+			Repo: url,
+		})
+		assert.Nil(t, err)
+
+		testRepo.ConnectionState = repo.ConnectionState // overwrite connection state on our test object to simplify comparison below
+
+		assert.Equal(t, testRepo, repo)
 	})
 
 	t.Run("Test_GetWithErrorShouldReturn403", func(t *testing.T) {
@@ -542,6 +660,85 @@ func TestRepositoryServerGetAppDetails(t *testing.T) {
 		})
 		assert.NoError(t, err)
 		assert.Equal(t, expectedResp, *resp)
+	})
+	t.Run("Test_ExistingMultiSourceApp001", func(t *testing.T) {
+		repoServerClient := mocks.RepoServerServiceClient{}
+		repoServerClientset := mocks.Clientset{RepoServerServiceClient: &repoServerClient}
+		enforcer := newEnforcer(kubeclientset)
+
+		url := "https://helm.elastic.co"
+		helmRepos := []*appsv1.Repository{{Repo: url}, {Repo: url}}
+		db := &dbmocks.ArgoDB{}
+		db.On("ListHelmRepositories", context.TODO(), mock.Anything).Return(helmRepos, nil)
+		db.On("GetRepository", context.TODO(), url).Return(&appsv1.Repository{Repo: url}, nil)
+		db.On("GetProjectRepositories", context.TODO(), "default").Return(nil, nil)
+		db.On("GetProjectClusters", context.TODO(), "default").Return(nil, nil)
+		expectedResp := apiclient.RepoAppDetailsResponse{Type: "Helm"}
+		repoServerClient.On("GetAppDetails", context.TODO(), mock.Anything).Return(&expectedResp, nil)
+		appLister, projLister := newAppAndProjLister(defaultProj, multiSourceApp001)
+
+		s := NewServer(&repoServerClientset, db, enforcer, newFixtures().Cache, appLister, projLister, testNamespace, settingsMgr)
+		sources := multiSourceApp001.Spec.GetSources()
+		assert.Equal(t, 2, len(sources))
+		resp, err := s.GetAppDetails(context.TODO(), &repository.RepoAppDetailsQuery{
+			Source:     &sources[0],
+			AppName:    multiSourceApp001AppName,
+			AppProject: "default",
+		})
+		assert.NoError(t, err)
+		assert.Equal(t, expectedResp, *resp)
+		assert.Equal(t, "Helm", resp.Type)
+		// Next source
+		resp, err = s.GetAppDetails(context.TODO(), &repository.RepoAppDetailsQuery{
+			Source:     &sources[1],
+			AppName:    multiSourceApp001AppName,
+			AppProject: "default",
+		})
+		assert.NoError(t, err)
+		assert.Equal(t, expectedResp, *resp)
+		assert.Equal(t, "Helm", resp.Type)
+	})
+	t.Run("Test_ExistingMultiSourceApp002", func(t *testing.T) {
+		repoServerClient := mocks.RepoServerServiceClient{}
+		repoServerClientset := mocks.Clientset{RepoServerServiceClient: &repoServerClient}
+		enforcer := newEnforcer(kubeclientset)
+
+		url0 := "https://github.com/argoproj/argocd-example-apps.git"
+		url1 := "https://helm.elastic.co"
+		helmRepos := []*appsv1.Repository{{Repo: url0}, {Repo: url1}}
+		db := &dbmocks.ArgoDB{}
+		db.On("ListHelmRepositories", context.TODO(), mock.Anything).Return(helmRepos, nil)
+		db.On("GetRepository", context.TODO(), url0).Return(&appsv1.Repository{Repo: url0}, nil)
+		db.On("GetRepository", context.TODO(), url1).Return(&appsv1.Repository{Repo: url1}, nil)
+		db.On("GetProjectRepositories", context.TODO(), "default").Return(nil, nil)
+		db.On("GetProjectClusters", context.TODO(), "default").Return(nil, nil)
+		expectedResp0 := apiclient.RepoAppDetailsResponse{Type: "Plugin"}
+		expectedResp1 := apiclient.RepoAppDetailsResponse{Type: "Helm"}
+		repoServerClient.On("GetAppDetails", context.TODO(), mock.MatchedBy(func(req *apiclient.RepoServerAppDetailsQuery) bool { return req.Source.RepoURL == url0 })).Return(&expectedResp0, nil)
+		repoServerClient.On("GetAppDetails", context.TODO(), mock.MatchedBy(func(req *apiclient.RepoServerAppDetailsQuery) bool { return req.Source.RepoURL == url1 })).Return(&expectedResp1, nil)
+		appLister, projLister := newAppAndProjLister(defaultProj, multiSourceApp002)
+
+		s := NewServer(&repoServerClientset, db, enforcer, newFixtures().Cache, appLister, projLister, testNamespace, settingsMgr)
+		sources := multiSourceApp002.Spec.GetSources()
+		assert.Equal(t, 2, len(sources))
+
+		resp, err := s.GetAppDetails(context.TODO(), &repository.RepoAppDetailsQuery{
+			Source:     &sources[0],
+			AppName:    multiSourceApp002AppName,
+			AppProject: "default",
+		})
+		assert.NoError(t, err)
+		assert.Equal(t, "Plugin", resp.Type)
+		assert.Equal(t, expectedResp0, *resp)
+		// Next source
+		resp, err = s.GetAppDetails(context.TODO(), &repository.RepoAppDetailsQuery{
+			Source:     &sources[1],
+			AppName:    multiSourceApp002AppName,
+			AppProject: "default",
+		})
+		assert.NoError(t, err)
+		assert.Equal(t, expectedResp1, *resp)
+		assert.Equal(t, "Helm", resp.Type)
 	})
 	t.Run("Test_ExistingAppMismatchedProjectName", func(t *testing.T) {
 		repoServerClient := mocks.RepoServerServiceClient{}

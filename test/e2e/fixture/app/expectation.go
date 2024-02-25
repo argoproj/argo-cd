@@ -216,6 +216,19 @@ func DoesNotExist() Expectation {
 	}
 }
 
+func DoesNotExistNow() Expectation {
+	return func(c *Consequences) (state, string) {
+		_, err := c.get()
+		if err != nil {
+			if apierr.IsNotFound(err) {
+				return succeeded, "app does not exist"
+			}
+			return failed, err.Error()
+		}
+		return failed, "app should not exist"
+	}
+}
+
 func Pod(predicate func(p v1.Pod) bool) Expectation {
 	return func(c *Consequences) (state, string) {
 		pods, err := pods()
@@ -299,13 +312,24 @@ func NamespacedEvent(namespace string, reason string, message string) Expectatio
 	return event(namespace, reason, message)
 }
 
-// asserts that the last command was successful
-func Success(message string) Expectation {
+// Success asserts that the last command was successful and that the output contains the given message.
+func Success(message string, matchers ...func(string, string) bool) Expectation {
+	if len(matchers) == 0 {
+		matchers = append(matchers, strings.Contains)
+	}
+	match := func(actual, expected string) bool {
+		for i := range matchers {
+			if !matchers[i](actual, expected) {
+				return false
+			}
+		}
+		return true
+	}
 	return func(c *Consequences) (state, string) {
 		if c.actions.lastError != nil {
 			return failed, "error"
 		}
-		if !strings.Contains(c.actions.lastOutput, message) {
+		if !match(c.actions.lastOutput, message) {
 			return failed, fmt.Sprintf("output did not contain '%s'", message)
 		}
 		return succeeded, fmt.Sprintf("no error and output contained '%s'", message)
@@ -342,6 +366,13 @@ func Error(message, err string, matchers ...func(string, string) bool) Expectati
 // ErrorRegex asserts that the last command was an error that matches given regex epxression
 func ErrorRegex(messagePattern, err string) Expectation {
 	return Error(messagePattern, err, func(actual, expected string) bool {
+		return regexp.MustCompile(expected).MatchString(actual)
+	})
+}
+
+// SuccessRegex asserts that the last command was successful and output matches given regex expression
+func SuccessRegex(messagePattern string) Expectation {
+	return Success(messagePattern, func(actual, expected string) bool {
 		return regexp.MustCompile(expected).MatchString(actual)
 	})
 }

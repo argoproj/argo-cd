@@ -361,7 +361,7 @@ export const deletePopup = async (ctx: ContextApis, resource: ResourceTreeNode, 
                     </label>
                     <input type='radio' name='deleteOptions' value='force' onChange={() => handleStateChange('force')} style={{marginRight: '5px'}} id='force-delete-radio' />
                     <label htmlFor='force-delete-radio' style={{paddingRight: '30px'}}>
-                        Force Delete {helpTip('Deletes the resource and its dependent resources in the background')}
+                        Background Delete {helpTip('Performs a forceful "background cascading deletion" of the resource and its dependent resources')}
                     </label>
                     <input type='radio' name='deleteOptions' value='orphan' onChange={() => handleStateChange('orphan')} style={{marginRight: '5px'}} id='cascade-delete-radio' />
                     <label htmlFor='cascade-delete-radio'>Non-cascading (Orphan) Delete {helpTip('Deletes the resource and orphans the dependent resources')}</label>
@@ -402,8 +402,9 @@ function getResourceActionsMenuItems(resource: ResourceTreeNode, metadata: model
             return actions.map(
                 action =>
                     ({
-                        title: action.name,
+                        title: action.displayName ?? action.name,
                         disabled: !!action.disabled,
+                        iconClassName: action.iconClass,
                         action: async () => {
                             try {
                                 const confirmed = await apis.popup.confirm(`Execute '${action.name}' action?`, `Are you sure you want to execute '${action.name}' action?`);
@@ -436,14 +437,14 @@ function getActionItems(
         ...((isRoot && [
             {
                 title: 'Sync',
-                iconClassName: 'fa fa-sync',
+                iconClassName: 'fa fa-fw fa-sync',
                 action: () => showDeploy(nodeKey(resource), null, apis)
             }
         ]) ||
             []),
         {
             title: 'Delete',
-            iconClassName: 'fa fa-times-circle',
+            iconClassName: 'fa fa-fw fa-times-circle',
             action: async () => {
                 return deletePopup(apis, resource, application, appChanged);
             }
@@ -452,7 +453,7 @@ function getActionItems(
     if (!isQuickStart) {
         items.unshift({
             title: 'Details',
-            iconClassName: 'fa fa-info-circle',
+            iconClassName: 'fa fa-fw fa-info-circle',
             action: () => apis.navigation.goto('.', {node: nodeKey(resource)})
         });
     }
@@ -460,7 +461,7 @@ function getActionItems(
     if (findChildPod(resource, tree)) {
         items.push({
             title: 'Logs',
-            iconClassName: 'fa fa-align-left',
+            iconClassName: 'fa fa-fw fa-align-left',
             action: () => apis.navigation.goto('.', {node: nodeKey(resource), tab: 'logs'}, {replace: true})
         });
     }
@@ -472,12 +473,12 @@ function getActionItems(
     const execAction = services.authService
         .settings()
         .then(async settings => {
-            const execAllowed = await services.accounts.canI('exec', 'create', application.spec.project + '/' + application.metadata.name);
-            if (resource.kind === 'Pod' && settings.execEnabled && execAllowed) {
+            const execAllowed = settings.execEnabled && (await services.accounts.canI('exec', 'create', application.spec.project + '/' + application.metadata.name));
+            if (resource.kind === 'Pod' && execAllowed) {
                 return [
                     {
                         title: 'Exec',
-                        iconClassName: 'fa fa-terminal',
+                        iconClassName: 'fa fa-fw fa-terminal',
                         action: async () => apis.navigation.goto('.', {node: nodeKey(resource), tab: 'exec'}, {replace: true})
                     } as MenuItem
                 ];
@@ -495,7 +496,7 @@ function getActionItems(
                 link =>
                     ({
                         title: link.title,
-                        iconClassName: `fa ${link.iconClass ? link.iconClass : 'fa-external-link'}`,
+                        iconClassName: `fa fa-fw ${link.iconClass ? link.iconClass : 'fa-external-link'}`,
                         action: () => window.open(link.url, '_blank'),
                         tooltip: link.description
                     } as MenuItem)
@@ -872,7 +873,7 @@ export const OperationState = ({app, quiet}: {app: appModels.Application; quiet?
     );
 };
 
-export function getPodStateReason(pod: appModels.State): {message: string; reason: string} {
+export function getPodStateReason(pod: appModels.State): {message: string; reason: string; netContainerStatuses: any[]} {
     let reason = pod.status.phase;
     let message = '';
     if (pod.status.reason) {
@@ -880,6 +881,10 @@ export function getPodStateReason(pod: appModels.State): {message: string; reaso
     }
 
     let initializing = false;
+
+    let netContainerStatuses = pod.status.initContainerStatuses || [];
+    netContainerStatuses = netContainerStatuses.concat(pod.status.containerStatuses || []);
+
     for (const container of (pod.status.initContainerStatuses || []).slice().reverse()) {
         if (container.state.terminated && container.state.terminated.exitCode === 0) {
             continue;
@@ -939,14 +944,15 @@ export function getPodStateReason(pod: appModels.State): {message: string; reaso
         message = '';
     }
 
-    return {reason, message};
+    return {reason, message, netContainerStatuses};
 }
 
-export const getPodReadinessGatesState = (pod: appModels.State): {nonExistingConditions: string[]; failedConditions: string[]} => {
+export const getPodReadinessGatesState = (pod: appModels.State): {nonExistingConditions: string[]; notPassedConditions: string[]} => {
+    // if pod does not have readiness gates then return empty status
     if (!pod.spec?.readinessGates?.length) {
         return {
             nonExistingConditions: [],
-            failedConditions: []
+            notPassedConditions: []
         };
     }
 
@@ -985,7 +991,7 @@ export const getPodReadinessGatesState = (pod: appModels.State): {nonExistingCon
 
     return {
         nonExistingConditions,
-        failedConditions
+        notPassedConditions: failedConditions
     };
 };
 
@@ -1246,3 +1252,17 @@ export function formatCreationTimestamp(creationTimestamp: string) {
 }
 
 export const selectPostfix = (arr: string[], singular: string, plural: string) => (arr.length > 1 ? plural : singular);
+
+export function getUsrMsgKeyToDisplay(appName: string, msgKey: string, usrMessages: appModels.UserMessages[]) {
+    const usrMsg = usrMessages?.find((msg: appModels.UserMessages) => msg.appName === appName && msg.msgKey === msgKey);
+    if (usrMsg !== undefined) {
+        return {...usrMsg, display: true};
+    } else {
+        return {appName, msgKey, display: false, duration: 1} as appModels.UserMessages;
+    }
+}
+
+export const userMsgsList: {[key: string]: string} = {
+    groupNodes: `Since the number of pods has surpassed the threshold pod count of 15, you will now be switched to the group node view.
+                 If you prefer the tree view, you can simply click on the Group Nodes toolbar button to deselect the current view.`
+};

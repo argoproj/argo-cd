@@ -24,6 +24,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/io/files"
 
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
+	"github.com/cyphar/filepath-securejoin"
 	"github.com/mattn/go-zglob"
 	log "github.com/sirupsen/logrus"
 )
@@ -96,6 +97,14 @@ func runCommand(ctx context.Context, command Command, path string, env []string)
 		<-ctx.Done()
 		// Kill by group ID to make sure child processes are killed. The - tells `kill` that it's a group ID.
 		// Since we didn't set Pgid in SysProcAttr, the group ID is the same as the process ID. https://pkg.go.dev/syscall#SysProcAttr
+
+		// Sending a TERM signal first to allow any potential cleanup if needed, and then sending a KILL signal
+		_ = sysCallTerm(-cmd.Process.Pid)
+
+		// modify cleanup timeout to allow process to cleanup
+		cleanupTimeout := 5 * time.Second
+		time.Sleep(cleanupTimeout)
+
 		_ = sysCallKill(-cmd.Process.Pid)
 	}()
 
@@ -111,11 +120,16 @@ func runCommand(ctx context.Context, command Command, path string, env []string)
 		logCtx.Error(err.Error())
 		return strings.TrimSuffix(output, "\n"), err
 	}
+
+	logCtx = logCtx.WithFields(log.Fields{
+		"stderr":  stderr.String(),
+		"command": command,
+	})
 	if len(output) == 0 {
-		log.WithFields(log.Fields{
-			"stderr":  stderr,
-			"command": command,
-		}).Warn("Plugin command returned zero output")
+		logCtx.Warn("Plugin command returned zero output")
+	} else {
+		// Log stderr even on successfull commands to help develop plugins
+		logCtx.Info("Plugin command successfull")
 	}
 
 	return strings.TrimSuffix(output, "\n"), nil
@@ -182,7 +196,7 @@ func getTempDirMustCleanup(baseDir string) (workDir string, cleanup func(), err 
 		if err := os.RemoveAll(workDir); err != nil {
 			log.WithFields(map[string]interface{}{
 				common.SecurityField:    common.SecurityHigh,
-				common.SecurityCWEField: 459,
+				common.SecurityCWEField: common.SecurityCWEIncompleteCleanup,
 			}).Errorf("Failed to clean up temp directory: %s", err)
 		}
 	}
@@ -302,7 +316,7 @@ func (s *Service) matchRepositoryGeneric(stream MatchRepositoryStream) error {
 		return fmt.Errorf("match repository error receiving stream: %w", err)
 	}
 
-	isSupported, isDiscoveryEnabled, err := s.matchRepository(bufferedCtx, workDir, metadata.GetEnv())
+	isSupported, isDiscoveryEnabled, err := s.matchRepository(bufferedCtx, workDir, metadata.GetEnv(), metadata.GetAppRelPath())
 	if err != nil {
 		return fmt.Errorf("match repository error: %w", err)
 	}
@@ -315,12 +329,20 @@ func (s *Service) matchRepositoryGeneric(stream MatchRepositoryStream) error {
 	return nil
 }
 
-func (s *Service) matchRepository(ctx context.Context, workdir string, envEntries []*apiclient.EnvEntry) (isSupported bool, isDiscoveryEnabled bool, err error) {
+func (s *Service) matchRepository(ctx context.Context, workdir string, envEntries []*apiclient.EnvEntry, appRelPath string) (isSupported bool, isDiscoveryEnabled bool, err error) {
 	config := s.initConstants.PluginConfig
+
+	appPath, err := securejoin.SecureJoin(workdir, appRelPath)
+	if err != nil {
+		log.WithFields(map[string]interface{}{
+			common.SecurityField:    common.SecurityHigh,
+			common.SecurityCWEField: common.SecurityCWEIncompleteCleanup,
+		}).Errorf("error joining workdir %q and appRelPath %q: %v", workdir, appRelPath, err)
+	}
 
 	if config.Spec.Discover.FileName != "" {
 		log.Debugf("config.Spec.Discover.FileName is provided")
-		pattern := filepath.Join(workdir, config.Spec.Discover.FileName)
+		pattern := filepath.Join(appPath, config.Spec.Discover.FileName)
 		matches, err := filepath.Glob(pattern)
 		if err != nil {
 			e := fmt.Errorf("error finding filename match for pattern %q: %w", pattern, err)
@@ -332,7 +354,7 @@ func (s *Service) matchRepository(ctx context.Context, workdir string, envEntrie
 
 	if config.Spec.Discover.Find.Glob != "" {
 		log.Debugf("config.Spec.Discover.Find.Glob is provided")
-		pattern := filepath.Join(workdir, config.Spec.Discover.Find.Glob)
+		pattern := filepath.Join(appPath, config.Spec.Discover.Find.Glob)
 		// filepath.Glob doesn't have '**' support hence selecting third-party lib
 		// https://github.com/golang/go/issues/11862
 		matches, err := zglob.Glob(pattern)
@@ -348,7 +370,7 @@ func (s *Service) matchRepository(ctx context.Context, workdir string, envEntrie
 	if len(config.Spec.Discover.Find.Command.Command) > 0 {
 		log.Debugf("Going to try runCommand.")
 		env := append(os.Environ(), environ(envEntries)...)
-		find, err := runCommand(ctx, config.Spec.Discover.Find.Command, workdir, env)
+		find, err := runCommand(ctx, config.Spec.Discover.Find.Command, appPath, env)
 		if err != nil {
 			return false, true, fmt.Errorf("error running find command: %w", err)
 		}

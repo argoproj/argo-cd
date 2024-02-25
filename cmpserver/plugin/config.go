@@ -37,7 +37,7 @@ type Discover struct {
 }
 
 func (d Discover) IsDefined() bool {
-	return d.FileName != "" || d.Find.Glob == "" || len(d.Find.Command.Command) > 0
+	return d.FileName != "" || d.Find.Glob != "" || len(d.Find.Command.Command) > 0
 }
 
 // Command holds binary path and arguments list

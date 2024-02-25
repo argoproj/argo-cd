@@ -1,0 +1,14 @@
+tests:
+- healthStatus:
+    status: Progressing
+    message: Initializing ClusterIssuer
+  inputPath: testdata/progressing_noStatus.yaml
+- healthStatus:
+    status: Healthy
+    message: The ACME account was registered with the ACME server
+  inputPath: testdata/healthy_registered.yaml
+- healthStatus:
+    status: Degraded
+    message: "Failed to verify ACME account: acme: : 404 page not found\n"
+  inputPath: testdata/degraded_acmeFailed.yaml
+
