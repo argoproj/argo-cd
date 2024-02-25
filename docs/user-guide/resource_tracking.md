@@ -65,6 +65,11 @@ metadata:
 The advantages of using the tracking id annotation is that there are no clashes any
 more with other Kubernetes tools and Argo CD is never confused about the owner of a resource. The `annotation+label` can also be used if you want other tools to understand resources managed by Argo CD.
 
+### Non self-referencing annotations
+When using the tracking method `annotation` or `annotation+label`, Argo CD will consider the resource properties in the annotation (name, namespace, group and kind) to determine whether the resource should be compared against the desired state. If the tracking annotation does not reference the resource it is applied to, the resource will neither affect the application's sync status nor be marked for pruning. 
+
+This allows other kubernetes tools (e.g. [HNC](https://github.com/kubernetes-sigs/hierarchical-namespaces)) to copy a resource to a different namespace without impacting the Argo CD application's sync status. Copied resources will be visible on the UI at top level. They will have no sync status and won't impact the application's sync status.
+
 ## Choosing a tracking method
 
 To actually select your preferred tracking method edit the `resourceTrackingMethod` value contained inside the `argocd-cm` configmap.
