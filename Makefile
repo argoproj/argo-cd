@@ -81,10 +81,16 @@ CONTAINER_GID=$(shell id -g)
 # Set SUDO to sudo to run privileged commands with sudo
 SUDO?=
 
+# Setup extra docker run flags when using kind cluster
+DOCKER_RUN_EXTRA_FLAGS?=
+ifeq (${ARGOCD_E2E_KIND_CLUSTER}, true)
+override DOCKER_RUN_EXTRA_FLAGS += --network kind
+endif
+
 # Runs any command in the argocd-test-utils container in server mode
 # Server mode container will start with uid 0 and drop privileges during runtime
 define run-in-test-server
-	$(SUDO) $(DOCKER) run --rm -it \
+	$(SUDO) $(DOCKER) run $(DOCKER_RUN_EXTRA_FLAGS) --rm -it \
 		--name argocd-test-server \
 		-u $(CONTAINER_UID):$(CONTAINER_GID) \
 		-e USER_ID=$(CONTAINER_UID) \
@@ -116,7 +122,7 @@ endef
 
 # Runs any command in the argocd-test-utils container in client mode
 define run-in-test-client
-	$(SUDO) $(DOCKER) run --rm -it \
+	$(SUDO) $(DOCKER) run  $(DOCKER_RUN_EXTRA_FLAGS) --rm -it \
 	  --name argocd-test-client \
 		-u $(CONTAINER_UID):$(CONTAINER_GID) \
 		-e HOME=/home/user \
