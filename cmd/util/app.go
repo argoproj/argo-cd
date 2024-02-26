@@ -642,6 +642,7 @@ func constructAppsFromFileUrl(fileURL, appName string, labels, annotations, args
 		if app.Name == "" {
 			return nil, fmt.Errorf("app.Name is empty. --name argument can be used to provide app.Name")
 		}
+
 		SetAppSpecOptions(flags, &app.Spec, &appOpts)
 		SetParameterOverrides(app, appOpts.Parameters)
 		mergeLabels(app, labels)
@@ -664,7 +665,7 @@ func ConstructApps(fileURL, appName string, labels, annotations, args []string, 
 	return constructAppsBaseOnName(appName, labels, annotations, args, appOpts, flags)
 }
 
-func ConstructSource(appName string, args []string, appOpts AppOptions, flags *pflag.FlagSet) (*argoappv1.ApplicationSource, error) {
+func ConstructSource(appOpts AppOptions, flags *pflag.FlagSet) (*argoappv1.ApplicationSource, error) {
 	if flags == nil {
 		return nil, fmt.Errorf("ApplicationSource needs atleast repoUrl, path or chart or ref field.")
 	}
@@ -685,7 +686,6 @@ func ConstructSource(appName string, args []string, appOpts AppOptions, flags *p
 			setHelmOpt(source, helmOpts{ignoreMissingValueFiles: appOpts.ignoreMissingValueFiles})
 		case "values-literal-file":
 			var data []byte
-
 			// read uri
 			parsedURL, err := url.ParseRequestURI(appOpts.values)
 			if err != nil || !(parsedURL.Scheme == "http" || parsedURL.Scheme == "https") {
@@ -768,7 +768,6 @@ func ConstructSource(appName string, args []string, appOpts AppOptions, flags *p
 		case "ref":
 			source.Ref = appOpts.ref
 		}
-
 	})
 	return source, nil
 }

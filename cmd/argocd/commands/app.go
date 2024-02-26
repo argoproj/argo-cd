@@ -93,6 +93,8 @@ func NewApplicationCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comman
 	command.AddCommand(NewApplicationResourceActionsCommand(clientOpts))
 	command.AddCommand(NewApplicationListResourcesCommand(clientOpts))
 	command.AddCommand(NewApplicationLogsCommand(clientOpts))
+	command.AddCommand(NewApplicationAddSourceCommand(clientOpts))
+	command.AddCommand(NewApplicationRemoveSourceCommand(clientOpts))
 	return command
 }
 
@@ -308,7 +310,7 @@ func printHeader(acdClient argocdclient.Client, app *argoappv1.Application, ctx 
 		fmt.Println()
 		printOperationResult(app.Status.OperationState)
 	}
-	if showParams {
+	if !app.Spec.HasMultipleSources() && showParams {
 		printParams(app)
 	}
 }
@@ -552,16 +554,21 @@ func NewApplicationLogsCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 }
 
 func printAppSummaryTable(app *argoappv1.Application, appURL string, windows *argoappv1.SyncWindows) {
-	source := app.Spec.GetSource()
+
 	fmt.Printf(printOpFmtStr, "Name:", app.QualifiedName())
 	fmt.Printf(printOpFmtStr, "Project:", app.Spec.GetProject())
 	fmt.Printf(printOpFmtStr, "Server:", getServer(app))
 	fmt.Printf(printOpFmtStr, "Namespace:", app.Spec.Destination.Namespace)
 	fmt.Printf(printOpFmtStr, "URL:", appURL)
-	fmt.Printf(printOpFmtStr, "Repo:", source.RepoURL)
-	fmt.Printf(printOpFmtStr, "Target:", source.TargetRevision)
-	fmt.Printf(printOpFmtStr, "Path:", source.Path)
-	printAppSourceDetails(&source)
+	if !app.Spec.HasMultipleSources() {
+		fmt.Println("Source:")
+
+	} else {
+		fmt.Println("Sources:")
+	}
+	for _, source := range app.Spec.GetSources() {
+		printAppSourceDetails(&source)
+	}
 	var wds []string
 	var status string
 	var allow, deny, inactiveAllows bool
@@ -631,11 +638,19 @@ func printAppSummaryTable(app *argoappv1.Application, appURL string, windows *ar
 }
 
 func printAppSourceDetails(appSrc *argoappv1.ApplicationSource) {
+	fmt.Printf(printOpFmtStr, "- Repo:", appSrc.RepoURL)
+	fmt.Printf(printOpFmtStr, "  Target:", appSrc.TargetRevision)
+	if appSrc.Path != "" {
+		fmt.Printf(printOpFmtStr, "  Path:", appSrc.Path)
+	}
+	if appSrc.Ref != "" {
+		fmt.Printf(printOpFmtStr, "  Ref:", appSrc.Ref)
+	}
 	if appSrc.Helm != nil && len(appSrc.Helm.ValueFiles) > 0 {
-		fmt.Printf(printOpFmtStr, "Helm Values:", strings.Join(appSrc.Helm.ValueFiles, ","))
+		fmt.Printf(printOpFmtStr, "  Helm Values:", strings.Join(appSrc.Helm.ValueFiles, ","))
 	}
 	if appSrc.Kustomize != nil && appSrc.Kustomize.NamePrefix != "" {
-		fmt.Printf(printOpFmtStr, "Name Prefix:", appSrc.Kustomize.NamePrefix)
+		fmt.Printf(printOpFmtStr, "  Name Prefix:", appSrc.Kustomize.NamePrefix)
 	}
 }
 
@@ -2557,7 +2572,11 @@ func printOperationResult(opState *argoappv1.OperationState) {
 	}
 	if opState.SyncResult != nil {
 		fmt.Printf(printOpFmtStr, "Operation:", "Sync")
-		fmt.Printf(printOpFmtStr, "Sync Revision:", opState.SyncResult.Revision)
+		if opState.SyncResult.Sources != nil && opState.SyncResult.Revisions != nil {
+			fmt.Printf(printOpFmtStr, "Sync Revision:", strings.Join(opState.SyncResult.Revisions, ", "))
+		} else {
+			fmt.Printf(printOpFmtStr, "Sync Revision:", opState.SyncResult.Revision)
+		}
 	}
 	fmt.Printf(printOpFmtStr, "Phase:", opState.Phase)
 	fmt.Printf(printOpFmtStr, "Start:", opState.StartedAt)
@@ -2789,82 +2808,115 @@ func NewApplicationPatchCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
 // NewApplicationAddSourceCommand returns a new instance of an `argocd app add-source` command
 func NewApplicationAddSourceCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
-		appOpts      cmdutil.AppOptions
-		appName      string
-		appNamespace string
+		appOpts cmdutil.AppOptions
 	)
 	var command = &cobra.Command{
 		Use:   "add-source APPNAME",
 		Short: "Adds a source to an application",
-		Example: `  # Create a directory app
-  argocd app add-source guestbook --repo https://github.com/argoproj/argocd-example-apps.git --path guestbook --dest-namespace default --dest-server https://kubernetes.default.svc --directory-recurse
-
-  # Create a app using a custom tool:
-  argocd app add-source kasane --repo https://github.com/argoproj/argocd-example-apps.git --path plugins/kasane --dest-namespace default --dest-server https://kubernetes.default.svc --config-management-plugin kasane`,
+		Example: `  # Add a source to the list of sources in the application
+  argocd app add-source guestbook --repo https://github.com/argoproj/argocd-example-apps.git --path guestbook`,
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
+			if len(args) != 1 {
+				c.HelpFunc()(c, args)
+				os.Exit(1)
+			}
 
 			argocdClient := headless.NewClientOrDie(clientOpts, c)
+			conn, appIf := argocdClient.NewApplicationClientOrDie()
+			defer argoio.Close(conn)
 
-			apps, err := cmdutil.ConstructSource(appName, args, c.Flags())
+			appName, appNs := argo.ParseFromQualifiedName(args[0], "")
+
+			app, err := appIf.Get(ctx, &application.ApplicationQuery{
+				Name:         &appName,
+				Refresh:      getRefreshType(false, false),
+				AppNamespace: &appNs,
+			})
+
 			errors.CheckError(err)
 
-			for _, app := range apps {
-				if app.Name == "" {
-					c.HelpFunc()(c, args)
-					os.Exit(1)
-				}
-				if appNamespace != "" {
-					app.Namespace = appNamespace
-				}
-				if setFinalizer {
-					app.Finalizers = append(app.Finalizers, "resources-finalizer.argocd.argoproj.io")
-				}
-				conn, appIf := argocdClient.NewApplicationClientOrDie()
-				defer argoio.Close(conn)
-				appCreateRequest := application.ApplicationCreateRequest{
-					Application: app,
-					Upsert:      &upsert,
-					Validate:    &appOpts.Validate,
-				}
+			appSource, err := cmdutil.ConstructSource(appOpts, c.Flags())
+			errors.CheckError(err)
 
-				// Get app before creating to see if it is being updated or no change
-				existing, err := appIf.Get(ctx, &application.ApplicationQuery{Name: &app.Name})
-				unwrappedError := grpc.UnwrapGRPCStatus(err).Code()
-				// As part of the fix for CVE-2022-41354, the API will return Permission Denied when an app does not exist.
-				if unwrappedError != codes.NotFound && unwrappedError != codes.PermissionDenied {
-					errors.CheckError(err)
-				}
+			if len(app.Spec.Sources) > 0 {
+				app.Spec.Sources = append(app.Spec.Sources, *appSource)
 
-				created, err := appIf.Create(ctx, &appCreateRequest)
+				_, err = appIf.UpdateSpec(ctx, &application.ApplicationUpdateSpecRequest{
+					Name:         &app.Name,
+					Spec:         &app.Spec,
+					Validate:     &appOpts.Validate,
+					AppNamespace: &appNs,
+				})
 				errors.CheckError(err)
 
-				var action string
-				if existing == nil {
-					action = "created"
-				} else if !hasAppChanged(existing, created, upsert) {
-					action = "unchanged"
-				} else {
-					action = "updated"
-				}
-
-				fmt.Printf("application '%s' %s\n", created.ObjectMeta.Name, action)
+				fmt.Printf("application '%s' updated successfully\n", app.ObjectMeta.Name)
+			} else {
+				errors.CheckError(fmt.Errorf("cannot add source: application does not have spec.sources defined"))
 			}
 		},
 	}
-	command.Flags().StringVar(&appName, "name", "", "A name for the app, ignored if a file is set (DEPRECATED)")
-	command.Flags().BoolVar(&upsert, "upsert", false, "Allows to override application with the same name even if supplied application spec is different from existing spec")
-	command.Flags().StringVarP(&fileURL, "file", "f", "", "Filename or URL to Kubernetes manifests for the app")
-	command.Flags().StringArrayVarP(&labels, "label", "l", []string{}, "Labels to apply to the app")
-	command.Flags().StringArrayVarP(&annotations, "annotations", "", []string{}, "Set metadata annotations (e.g. example=value)")
-	command.Flags().BoolVar(&setFinalizer, "set-finalizer", false, "Sets deletion finalizer on the application, application resources will be cascaded on deletion")
-	command.Flags().BoolVar(&multipleSources, "multiple-sources", false, "Application consists of multiple sources")
-	// Only complete files with appropriate extension.
-	err := command.Flags().SetAnnotation("file", cobra.BashCompFilenameExt, []string{"json", "yaml", "yml"})
-	if err != nil {
-		log.Fatal(err)
-	}
-	command.Flags().StringVarP(&appNamespace, "app-namespace", "N", "", "Namespace where the application will be created in")
 	cmdutil.AddAppFlags(command, &appOpts)
+	return command
+}
+
+// NewApplicationRemoveSourceCommand returns a new instance of an `argocd app remove-source` command
+func NewApplicationRemoveSourceCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
+	var (
+		source_index int
+	)
+	command := &cobra.Command{
+		Use:   "remove-source APPNAME",
+		Short: "Remove a source from multiple sources application",
+		Example: `  # Remove the source at index 1 from application's sources
+  argocd app remove-source myapplication --source-index 1`,
+		Run: func(c *cobra.Command, args []string) {
+			ctx := c.Context()
+
+			if len(args) != 1 {
+				c.HelpFunc()(c, args)
+				os.Exit(1)
+			}
+
+			if source_index == -1 {
+				fmt.Println("no source to remove")
+				return
+			}
+
+			argocdClient := headless.NewClientOrDie(clientOpts, c)
+			conn, appIf := argocdClient.NewApplicationClientOrDie()
+			defer argoio.Close(conn)
+
+			appName, appNs := argo.ParseFromQualifiedName(args[0], "")
+
+			app, err := appIf.Get(ctx, &application.ApplicationQuery{
+				Name:         &appName,
+				Refresh:      getRefreshType(false, false),
+				AppNamespace: &appNs,
+			})
+			errors.CheckError(err)
+
+			if !app.Spec.HasMultipleSources() {
+				errors.CheckError(fmt.Errorf("app does not have multiple sources configured"))
+			}
+
+			if len(app.Spec.GetSources()) == 1 {
+				fmt.Printf("cannot remove the only source remaining in the app")
+				os.Exit(1)
+			}
+
+			app.Spec.Sources = append(app.Spec.Sources[:source_index], app.Spec.Sources[source_index+1:]...)
+
+			_, err = appIf.UpdateSpec(ctx, &application.ApplicationUpdateSpecRequest{
+				Name:         &app.Name,
+				Spec:         &app.Spec,
+				AppNamespace: &appNs,
+			})
+			errors.CheckError(err)
+
+			fmt.Printf("application '%s' updated successfully\n", app.ObjectMeta.Name)
+		},
+	}
+	command.Flags().IntVar(&source_index, "source-index", -1, "Index of the source from the list of sources of the app. Index starts from 0.")
 	return command
 }
