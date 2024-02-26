@@ -152,16 +152,15 @@ func Test_ChangedFiles(t *testing.T) {
 	require.NoError(t, err)
 
 	// Invalid commits, error
-	_, err = client.ChangedFiles("", "invalid")
+	_, err = client.ChangedFiles("0000000000000000000000000000000000000000", "1111111111111111111111111111111111111111")
+	require.Error(t, err)
+
+	// Not SHAs, error
+	_, err = client.ChangedFiles(previousSHA, "HEAD")
 	require.Error(t, err)
 
 	// Same commit, no changes
 	changedFiles, err := client.ChangedFiles(commitSHA, commitSHA)
-	require.NoError(t, err)
-	assert.ElementsMatch(t, []string{}, changedFiles)
-
-	// Different ref, no changes
-	changedFiles, err = client.ChangedFiles(commitSHA, "HEAD")
 	require.NoError(t, err)
 	assert.ElementsMatch(t, []string{}, changedFiles)
 

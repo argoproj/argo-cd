@@ -681,6 +681,10 @@ func (m *nativeGitClient) ChangedFiles(revision string, targetRevision string) (
 		return []string{}, nil
 	}
 
+	if !IsCommitSHA(revision) || !IsCommitSHA(targetRevision) {
+		return []string{}, fmt.Errorf("invalid revision provided, must be SHA")
+	}
+
 	out, err := m.runCmd("diff", "--name-only", fmt.Sprintf("%s..%s", revision, targetRevision))
 	if err != nil {
 		return nil, fmt.Errorf("failed to diff %s..%s: %w", revision, targetRevision, err)
