@@ -49,6 +49,7 @@ argocd app wait [APPNAME.. | -l selector] [flags]
       --suspended              Wait for suspended
       --sync                   Wait for sync
       --timeout uint           Time out after this many seconds
+      --watchFlag              watchFlag provides the dynamic view of status of appResources
 ```
 
 ### Options inherited from parent commands
