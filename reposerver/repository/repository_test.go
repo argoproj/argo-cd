@@ -3486,6 +3486,7 @@ func TestErrorUpdateRevisionForPaths(t *testing.T) {
 func TestUpdateRevisionForPaths(t *testing.T) {
 	type fields struct {
 		service *Service
+        cache  *repoCacheMocks
 	}
 	type args struct {
 		ctx     context.Context
@@ -3504,28 +3505,34 @@ func TestUpdateRevisionForPaths(t *testing.T) {
 		wantErr  assert.ErrorAssertionFunc
 		cacheHit *cacheHit
 	}{
-		{name: "NoPathAbort", fields: fields{service: func() *Service {
-			s, _, _ := newServiceWithOpt(t, func(gitClient *gitmocks.Client, helmClient *helmmocks.Client, paths *iomocks.TempPaths) {
+		{name: "NoPathAbort", fields: func() fields {
+			s, _, c := newServiceWithOpt(t, func(gitClient *gitmocks.Client, helmClient *helmmocks.Client, paths *iomocks.TempPaths) {
 				gitClient.On("Checkout", mock.Anything, mock.Anything).Return(nil)
 			}, ".")
-			return s
-		}()}, args: args{
+			return fields {
+                service: s,
+                cache: c,
+            }
+		}(), args: args{
 			ctx: context.TODO(),
 			request: &apiclient.UpdateRevisionForPathsRequest{
 				Repo:  &argoappv1.Repository{Repo: "a-url.com"},
 				Paths: []string{},
 			},
 		}, want: &apiclient.UpdateRevisionForPathsResponse{}, wantErr: assert.NoError},
-		{name: "SameResolvedRevisionAbort", fields: fields{service: func() *Service {
-			s, _, _ := newServiceWithOpt(t, func(gitClient *gitmocks.Client, helmClient *helmmocks.Client, paths *iomocks.TempPaths) {
+		{name: "SameResolvedRevisionAbort", fields: func() fields {
+			s, _, c := newServiceWithOpt(t, func(gitClient *gitmocks.Client, helmClient *helmmocks.Client, paths *iomocks.TempPaths) {
 				gitClient.On("Checkout", mock.Anything, mock.Anything).Return(nil)
 				gitClient.On("LsRemote", "HEAD").Once().Return("632039659e542ed7de0c170a4fcc1c571b288fc0", nil)
 				gitClient.On("LsRemote", "SYNCEDHEAD").Once().Return("632039659e542ed7de0c170a4fcc1c571b288fc0", nil)
 				paths.On("GetPath", mock.Anything).Return(".", nil)
 				paths.On("GetPathIfExists", mock.Anything).Return(".", nil)
 			}, ".")
-			return s
-		}()}, args: args{
+			return fields {
+                service: s,
+                cache: c,
+            }
+		}(), args: args{
 			ctx: context.TODO(),
 			request: &apiclient.UpdateRevisionForPathsRequest{
 				Repo:           &argoappv1.Repository{Repo: "a-url.com"},
@@ -3534,8 +3541,8 @@ func TestUpdateRevisionForPaths(t *testing.T) {
 				Paths:          []string{"."},
 			},
 		}, want: &apiclient.UpdateRevisionForPathsResponse{}, wantErr: assert.NoError},
-		{name: "ChangedFilesDoNothing", fields: fields{service: func() *Service {
-			s, _, _ := newServiceWithOpt(t, func(gitClient *gitmocks.Client, helmClient *helmmocks.Client, paths *iomocks.TempPaths) {
+		{name: "ChangedFilesDoNothing", fields: func() fields {
+			s, _, c := newServiceWithOpt(t, func(gitClient *gitmocks.Client, helmClient *helmmocks.Client, paths *iomocks.TempPaths) {
 				gitClient.On("Init").Return(nil)
 				gitClient.On("Fetch", mock.Anything).Return(nil)
 				gitClient.On("Checkout", mock.Anything, mock.Anything).Return(nil)
@@ -3546,8 +3553,11 @@ func TestUpdateRevisionForPaths(t *testing.T) {
 				gitClient.On("Root").Return("")
 				gitClient.On("ChangedFiles", mock.Anything, mock.Anything).Return([]string{"app.yaml"}, nil)
 			}, ".")
-			return s
-		}()}, args: args{
+			return fields {
+                service: s,
+                cache: c,
+            }
+		}(), args: args{
 			ctx: context.TODO(),
 			request: &apiclient.UpdateRevisionForPathsRequest{
 				Repo:           &argoappv1.Repository{Repo: "a-url.com"},
@@ -3558,8 +3568,8 @@ func TestUpdateRevisionForPaths(t *testing.T) {
 		}, want: &apiclient.UpdateRevisionForPathsResponse{
 			Changes: true,
 		}, wantErr: assert.NoError},
-		{name: "NoChangesUpdateCache", fields: fields{service: func() *Service {
-			s, _, _ := newServiceWithOpt(t, func(gitClient *gitmocks.Client, helmClient *helmmocks.Client, paths *iomocks.TempPaths) {
+		{name: "NoChangesUpdateCache", fields: func() fields {
+			s, _, c := newServiceWithOpt(t, func(gitClient *gitmocks.Client, helmClient *helmmocks.Client, paths *iomocks.TempPaths) {
 				gitClient.On("Init").Return(nil)
 				gitClient.On("Fetch", mock.Anything).Return(nil)
 				gitClient.On("Checkout", mock.Anything, mock.Anything).Return(nil)
@@ -3570,8 +3580,11 @@ func TestUpdateRevisionForPaths(t *testing.T) {
 				gitClient.On("Root").Return("")
 				gitClient.On("ChangedFiles", mock.Anything, mock.Anything).Return([]string{}, nil)
 			}, ".")
-			return s
-		}()}, args: args{
+			return fields {
+                service: s,
+                cache: c,
+            }
+		}(), args: args{
 			ctx: context.TODO(),
 			request: &apiclient.UpdateRevisionForPathsRequest{
 				Repo:           &argoappv1.Repository{Repo: "a-url.com"},
@@ -3587,12 +3600,11 @@ func TestUpdateRevisionForPaths(t *testing.T) {
 				KubeVersion:       "v1.16.0",
 			},
 		}, want: &apiclient.UpdateRevisionForPathsResponse{}, wantErr: assert.NoError, cacheHit: &cacheHit{
-			hit:              true,
 			previousRevision: "1e67a504d03def3a6a1125d934cb511680f72555",
 			revision:         "632039659e542ed7de0c170a4fcc1c571b288fc0",
 		}},
-		{name: "NoChangesHelmMultiSourceUpdateCache", fields: fields{service: func() *Service {
-			s, _, _ := newServiceWithOpt(t, func(gitClient *gitmocks.Client, helmClient *helmmocks.Client, paths *iomocks.TempPaths) {
+		{name: "NoChangesHelmMultiSourceUpdateCache", fields: func() fields {
+			s, _, c := newServiceWithOpt(t, func(gitClient *gitmocks.Client, helmClient *helmmocks.Client, paths *iomocks.TempPaths) {
 				gitClient.On("Init").Return(nil)
 				gitClient.On("Fetch", mock.Anything).Return(nil)
 				gitClient.On("Checkout", mock.Anything, mock.Anything).Return(nil)
@@ -3603,8 +3615,11 @@ func TestUpdateRevisionForPaths(t *testing.T) {
 				gitClient.On("Root").Return("")
 				gitClient.On("ChangedFiles", mock.Anything, mock.Anything).Return([]string{}, nil)
 			}, ".")
-			return s
-		}()}, args: args{
+			return fields {
+                service: s,
+                cache: c,
+            }
+		}(), args: args{
 			ctx: context.TODO(),
 			request: &apiclient.UpdateRevisionForPathsRequest{
 				Repo:           &argoappv1.Repository{Repo: "a-url.com"},
@@ -3622,7 +3637,6 @@ func TestUpdateRevisionForPaths(t *testing.T) {
 				HasMultipleSources: true,
 			},
 		}, want: &apiclient.UpdateRevisionForPathsResponse{}, wantErr: assert.NoError, cacheHit: &cacheHit{
-			hit:              true,
 			previousRevision: "1e67a504d03def3a6a1125d934cb511680f72555",
 			revision:         "632039659e542ed7de0c170a4fcc1c571b288fc0",
 		}},
@@ -3630,15 +3644,10 @@ func TestUpdateRevisionForPaths(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			s := tt.fields.service
-			manifestRequest := tt.args.request
+            cache := tt.fields.cache
 
-			// Set cache
-			if tt.cacheHit != nil && tt.cacheHit.previousRevision != "" {
-				res := &cache.CachedManifestResponse{
-					ManifestResponse: &apiclient.ManifestResponse{},
-				}
-				err := s.cache.SetManifests(tt.cacheHit.previousRevision, manifestRequest.ApplicationSource, manifestRequest.RefSources, manifestRequest, manifestRequest.Namespace, manifestRequest.TrackingMethod, manifestRequest.AppLabelKey, manifestRequest.AppName, res, nil)
-				require.NoError(t, err)
+			if tt.cacheHit != nil {
+                cache.mockCache.On("Rename", tt.cacheHit.previousRevision, tt.cacheHit.revision, mock.Anything).Return(nil)
 			}
 
 			got, err := s.UpdateRevisionForPaths(tt.args.ctx, tt.args.request)
@@ -3647,15 +3656,15 @@ func TestUpdateRevisionForPaths(t *testing.T) {
 			}
 			assert.Equalf(t, tt.want, got, "UpdateRevisionForPaths(%v, %v)", tt.args.ctx, tt.args.request)
 
-			if tt.cacheHit != nil {
-				cachedManifestResponse := &cache.CachedManifestResponse{}
-				err = s.cache.GetManifests(tt.cacheHit.revision, manifestRequest.ApplicationSource, manifestRequest.RefSources, manifestRequest, manifestRequest.Namespace, manifestRequest.TrackingMethod, manifestRequest.AppLabelKey, manifestRequest.AppName, cachedManifestResponse, nil)
-				if tt.cacheHit.hit {
-					require.NoError(t, err)
-				} else {
-					require.ErrorIs(t, err, cache.ErrCacheMiss)
-				}
-			}
+            if tt.cacheHit != nil {
+                cache.mockCache.AssertCacheCalledTimes(t, &repositorymocks.CacheCallCounts{
+                    ExternalRenames: 1,
+                })
+            } else {
+                cache.mockCache.AssertCacheCalledTimes(t, &repositorymocks.CacheCallCounts{
+                    ExternalRenames: 0,
+                })
+            }
 		})
 	}
 }
