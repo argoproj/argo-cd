@@ -72,13 +72,11 @@ Some users may rely on the current behavior emanating from the use of the same f
 
 ## Non-Goals
 
-N/A
+1. A corresponding text field in the ArgoCD UI to let users specify a field manager for a server-side apply sync. Field managers aren't something that should be changed in an ad-hoc manner. They should only be specified directly in the resource's sync options.
 
 ## Proposal
 
 1. Add a new sync option named `FieldManager` that accepts a string up to 128 characters in length. This can only be set on an individual resource. Don't allow this sync option to be set on the Application: accidentally overriding the resource-level field manager may have undesirable side effects like leaving orphaned fields behind. When a sync is performed for a resource and server side-apply is enabled, it uses the `FieldManager` if it is set, otherwise it defaults to the hard-coded `argocd-controller` field manager.
-
-1. Like other sync options, add a corresponding text field in the ArgoCD UI to let users specify a field manager for a server-side apply sync. This text field should only be visible when a single resource is being synced.
 
 1. Change the removal behavior for shared resources. When a resource with a custom field manager is "removed", it instead removes only the fields managed by its field manager from the shared resource by sending an empty "fully specified intent" using server-side apply. You can fully delete a shared resource by setting `Prune=true` at the resource level. [Demo of this behavior](#removal-demo).
 
