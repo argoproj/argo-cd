@@ -3493,7 +3493,6 @@ func TestUpdateRevisionForPaths(t *testing.T) {
 		request *apiclient.UpdateRevisionForPathsRequest
 	}
 	type cacheHit struct {
-		hit              bool
 		revision         string
 		previousRevision string
 	}
