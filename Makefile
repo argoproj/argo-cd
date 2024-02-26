@@ -27,8 +27,8 @@ DOCKER_WORKDIR?=/go/src/github.com/argoproj/argo-cd
 
 ARGOCD_PROCFILE?=Procfile
 
-# pointing to python 3.8 as the oldest version of python supported and compatible with argocd-docs mkdocs/mkdocs-material
-MKDOCS_DOCKER_IMAGE?=python:3.8-alpine
+# pointing to python 3.7 to match https://github.com/argoproj/argo-cd/blob/master/.readthedocs.yml
+MKDOCS_DOCKER_IMAGE?=python:3.7-alpine
 MKDOCS_RUN_ARGS?=
 
 # Configuration for building argocd-test-tools image
