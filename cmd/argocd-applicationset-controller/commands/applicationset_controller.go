@@ -40,10 +40,7 @@ import (
 	argosettings "github.com/argoproj/argo-cd/v2/util/settings"
 )
 
-// TODO: load this using Cobra.
-func getSubmoduleEnabled() bool {
-	return env.ParseBoolFromEnv(common.EnvGitSubmoduleEnabled, true)
-}
+var gitSubmoduleEnabled = env.ParseBoolFromEnv(common.EnvGitSubmoduleEnabled, true)
 
 func NewCommand() *cobra.Command {
 	var (
@@ -65,6 +62,10 @@ func NewCommand() *cobra.Command {
 		repoServerTimeoutSeconds     int
 		maxConcurrentReconciliations int
 		scmRootCAPath                string
+		allowedScmProviders          []string
+		globalPreservedAnnotations   []string
+		globalPreservedLabels        []string
+		enableScmProviders           bool
 	)
 	scheme := runtime.NewScheme()
 	_ = clientgoscheme.AddToScheme(scheme)
@@ -97,7 +98,7 @@ func NewCommand() *cobra.Command {
 
 			policyObj, exists := utils.Policies[policy]
 			if !exists {
-				log.Info("Policy value can be: sync, create-only, create-update, create-delete, default value: sync")
+				log.Error("Policy value can be: sync, create-only, create-update, create-delete, default value: sync")
 				os.Exit(1)
 			}
 
@@ -107,6 +108,9 @@ func NewCommand() *cobra.Command {
 			// If the applicationset-namespaces contains only one namespace it corresponds to the current namespace
 			if len(applicationSetNamespaces) == 1 {
 				watchedNamespace = (applicationSetNamespaces)[0]
+			} else if enableScmProviders && len(allowedScmProviders) == 0 {
+				log.Error("When enabling applicationset in any namespace using applicationset-namespaces, you must either set --enable-scm-providers=false or specify --allowed-scm-providers")
+				os.Exit(1)
 			}
 
 			mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
@@ -152,16 +156,16 @@ func NewCommand() *cobra.Command {
 			}
 
 			repoClientset := apiclient.NewRepoServerClientset(argocdRepoServer, repoServerTimeoutSeconds, tlsConfig)
-			argoCDService, err := services.NewArgoCDService(argoCDDB, getSubmoduleEnabled(), repoClientset, enableNewGitFileGlobbing)
+			argoCDService, err := services.NewArgoCDService(argoCDDB, gitSubmoduleEnabled, repoClientset, enableNewGitFileGlobbing)
 			errors.CheckError(err)
 
 			terminalGenerators := map[string]generators.Generator{
 				"List":                    generators.NewListGenerator(),
 				"Clusters":                generators.NewClusterGenerator(mgr.GetClient(), ctx, k8sClient, namespace),
 				"Git":                     generators.NewGitGenerator(argoCDService),
-				"SCMProvider":             generators.NewSCMProviderGenerator(mgr.GetClient(), scmAuth, scmRootCAPath),
+				"SCMProvider":             generators.NewSCMProviderGenerator(mgr.GetClient(), scmAuth, scmRootCAPath, allowedScmProviders, enableScmProviders),
 				"ClusterDecisionResource": generators.NewDuckTypeGenerator(ctx, dynamicClient, k8sClient, namespace),
-				"PullRequest":             generators.NewPullRequestGenerator(mgr.GetClient(), scmAuth, scmRootCAPath),
+				"PullRequest":             generators.NewPullRequestGenerator(mgr.GetClient(), scmAuth, scmRootCAPath, allowedScmProviders, enableScmProviders),
 				"Plugin":                  generators.NewPluginGenerator(mgr.GetClient(), ctx, k8sClient, namespace),
 			}
 
@@ -199,20 +203,23 @@ func NewCommand() *cobra.Command {
 			}
 
 			if err = (&controllers.ApplicationSetReconciler{
-				Generators:               topLevelGenerators,
-				Client:                   mgr.GetClient(),
-				Scheme:                   mgr.GetScheme(),
-				Recorder:                 mgr.GetEventRecorderFor("applicationset-controller"),
-				Renderer:                 &utils.Render{},
-				Policy:                   policyObj,
-				EnablePolicyOverride:     enablePolicyOverride,
-				ArgoAppClientset:         appSetConfig,
-				KubeClientset:            k8sClient,
-				ArgoDB:                   argoCDDB,
-				ArgoCDNamespace:          namespace,
-				ApplicationSetNamespaces: applicationSetNamespaces,
-				EnableProgressiveSyncs:   enableProgressiveSyncs,
-				SCMRootCAPath:            scmRootCAPath,
+				Generators:                 topLevelGenerators,
+				Client:                     mgr.GetClient(),
+				Scheme:                     mgr.GetScheme(),
+				Recorder:                   mgr.GetEventRecorderFor("applicationset-controller"),
+				Renderer:                   &utils.Render{},
+				Policy:                     policyObj,
+				EnablePolicyOverride:       enablePolicyOverride,
+				ArgoAppClientset:           appSetConfig,
+				KubeClientset:              k8sClient,
+				ArgoDB:                     argoCDDB,
+				ArgoCDNamespace:            namespace,
+				ApplicationSetNamespaces:   applicationSetNamespaces,
+				EnableProgressiveSyncs:     enableProgressiveSyncs,
+				SCMRootCAPath:              scmRootCAPath,
+				GlobalPreservedAnnotations: globalPreservedAnnotations,
+				GlobalPreservedLabels:      globalPreservedLabels,
+				Cache:                      mgr.GetCache(),
 			}).SetupWithManager(mgr, enableProgressiveSyncs, maxConcurrentReconciliations); err != nil {
 				log.Error(err, "unable to create controller", "controller", "ApplicationSet")
 				os.Exit(1)
@@ -241,6 +248,8 @@ func NewCommand() *cobra.Command {
 	command.Flags().BoolVar(&debugLog, "debug", env.ParseBoolFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_DEBUG", false), "Print debug logs. Takes precedence over loglevel")
 	command.Flags().StringVar(&cmdutil.LogFormat, "logformat", env.StringFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_LOGFORMAT", "text"), "Set the logging format. One of: text|json")
 	command.Flags().StringVar(&cmdutil.LogLevel, "loglevel", env.StringFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_LOGLEVEL", "info"), "Set the logging level. One of: debug|info|warn|error")
+	command.Flags().StringSliceVar(&allowedScmProviders, "allowed-scm-providers", env.StringsFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_ALLOWED_SCM_PROVIDERS", []string{}, ","), "The list of allowed custom SCM provider API URLs. This restriction does not apply to SCM or PR generators which do not accept a custom API URL. (Default: Empty = all)")
+	command.Flags().BoolVar(&enableScmProviders, "enable-scm-providers", env.ParseBoolFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_SCM_PROVIDERS", true), "Enable retrieving information from SCM providers, used by the SCM and PR generators (Default: true)")
 	command.Flags().BoolVar(&dryRun, "dry-run", env.ParseBoolFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_DRY_RUN", false), "Enable dry run mode")
 	command.Flags().BoolVar(&enableProgressiveSyncs, "enable-progressive-syncs", env.ParseBoolFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_PROGRESSIVE_SYNCS", false), "Enable use of the experimental progressive syncs feature.")
 	command.Flags().BoolVar(&enableNewGitFileGlobbing, "enable-new-git-file-globbing", env.ParseBoolFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_NEW_GIT_FILE_GLOBBING", false), "Enable new globbing in Git files generator.")
@@ -249,6 +258,8 @@ func NewCommand() *cobra.Command {
 	command.Flags().IntVar(&repoServerTimeoutSeconds, "repo-server-timeout-seconds", env.ParseNumFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_REPO_SERVER_TIMEOUT_SECONDS", 60, 0, math.MaxInt64), "Repo server RPC call timeout seconds.")
 	command.Flags().IntVar(&maxConcurrentReconciliations, "concurrent-reconciliations", env.ParseNumFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_CONCURRENT_RECONCILIATIONS", 10, 1, 100), "Max concurrent reconciliations limit for the controller")
 	command.Flags().StringVar(&scmRootCAPath, "scm-root-ca-path", env.StringFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_SCM_ROOT_CA_PATH", ""), "Provide Root CA Path for self-signed TLS Certificates")
+	command.Flags().StringSliceVar(&globalPreservedAnnotations, "preserved-annotations", env.StringsFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_GLOBAL_PRESERVED_ANNOTATIONS", []string{}, ","), "Sets global preserved field values for annotations")
+	command.Flags().StringSliceVar(&globalPreservedLabels, "preserved-labels", env.StringsFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_GLOBAL_PRESERVED_LABELS", []string{}, ","), "Sets global preserved field values for labels")
 	return &command
 }
 

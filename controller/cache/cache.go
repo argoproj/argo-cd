@@ -29,6 +29,7 @@ import (
 	"k8s.io/client-go/tools/cache"
 
 	"github.com/argoproj/argo-cd/v2/controller/metrics"
+	"github.com/argoproj/argo-cd/v2/controller/sharding"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
 	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/util/argo"
@@ -51,6 +52,9 @@ const (
 
 	// EnvClusterCacheListPageSize is the env variable to control size of the list page size when making K8s queries
 	EnvClusterCacheListPageSize = "ARGOCD_CLUSTER_CACHE_LIST_PAGE_SIZE"
+
+	// EnvClusterCacheListPageBufferSize is the env variable to control the number of pages to buffer when making a K8s query to list resources
+	EnvClusterCacheListPageBufferSize = "ARGOCD_CLUSTER_CACHE_LIST_PAGE_BUFFER_SIZE"
 
 	// EnvClusterCacheListSemaphore is the env variable to control size of the list semaphore
 	// This is used to limit the number of concurrent memory consuming operations on the
@@ -84,6 +88,9 @@ var (
 	// 500 is equal to kubectl's size
 	clusterCacheListPageSize int64 = 500
 
+	// clusterCacheListPageBufferSize is the number of pages to buffer when performing K8s list requests
+	clusterCacheListPageBufferSize int32 = 1
+
 	// clusterCacheRetryLimit sets a retry limit for failed requests during cluster cache sync
 	// If set to 1, retries are disabled.
 	clusterCacheAttemptLimit int32 = 1
@@ -97,8 +104,9 @@ func init() {
 	clusterCacheWatchResyncDuration = env.ParseDurationFromEnv(EnvClusterCacheWatchResyncDuration, clusterCacheWatchResyncDuration, 0, math.MaxInt64)
 	clusterSyncRetryTimeoutDuration = env.ParseDurationFromEnv(EnvClusterSyncRetryTimeoutDuration, clusterSyncRetryTimeoutDuration, 0, math.MaxInt64)
 	clusterCacheListPageSize = env.ParseInt64FromEnv(EnvClusterCacheListPageSize, clusterCacheListPageSize, 0, math.MaxInt64)
+	clusterCacheListPageBufferSize = int32(env.ParseNumFromEnv(EnvClusterCacheListPageBufferSize, int(clusterCacheListPageBufferSize), 1, math.MaxInt32))
 	clusterCacheListSemaphoreSize = env.ParseInt64FromEnv(EnvClusterCacheListSemaphore, clusterCacheListSemaphoreSize, 0, math.MaxInt64)
-	clusterCacheAttemptLimit = int32(env.ParseInt64FromEnv(EnvClusterCacheAttemptLimit, 1, 1, math.MaxInt32))
+	clusterCacheAttemptLimit = int32(env.ParseNumFromEnv(EnvClusterCacheAttemptLimit, int(clusterCacheAttemptLimit), 1, math.MaxInt32))
 	clusterCacheRetryUseBackoff = env.ParseBoolFromEnv(EnvClusterCacheRetryUseBackoff, false)
 }
 
@@ -161,7 +169,7 @@ func NewLiveStateCache(
 	kubectl kube.Kubectl,
 	metricsServer *metrics.MetricsServer,
 	onObjectUpdated ObjectUpdatedHandler,
-	clusterFilter func(cluster *appv1.Cluster) bool,
+	clusterSharding sharding.ClusterShardingCache,
 	resourceTracking argo.ResourceTracking) LiveStateCache {
 
 	return &liveStateCache{
@@ -172,7 +180,7 @@ func NewLiveStateCache(
 		kubectl:          kubectl,
 		settingsMgr:      settingsMgr,
 		metricsServer:    metricsServer,
-		clusterFilter:    clusterFilter,
+		clusterSharding:  clusterSharding,
 		resourceTracking: resourceTracking,
 	}
 }
@@ -195,7 +203,7 @@ type liveStateCache struct {
 	kubectl          kube.Kubectl
 	settingsMgr      *settings.SettingsManager
 	metricsServer    *metrics.MetricsServer
-	clusterFilter    func(cluster *appv1.Cluster) bool
+	clusterSharding  sharding.ClusterShardingCache
 	resourceTracking argo.ResourceTracking
 
 	clusters      map[string]clustercache.ClusterCache
@@ -433,6 +441,11 @@ func (c *liveStateCache) getCluster(server string) (clustercache.ClusterCache, e
 		return nil, fmt.Errorf("error getting custom label: %w", err)
 	}
 
+	respectRBAC, err := c.settingsMgr.RespectRBAC()
+	if err != nil {
+		return nil, fmt.Errorf("error getting value for %v: %w", settings.RespectRBAC, err)
+	}
+
 	clusterCacheConfig := cluster.RESTConfig()
 	// Controller dynamically fetches all resource types available on the cluster
 	// using a discovery API that may contain deprecated APIs.
@@ -450,6 +463,7 @@ func (c *liveStateCache) getCluster(server string) (clustercache.ClusterCache, e
 	clusterCacheOpts := []clustercache.UpdateSettingsFunc{
 		clustercache.SetListSemaphore(semaphore.NewWeighted(clusterCacheListSemaphoreSize)),
 		clustercache.SetListPageSize(clusterCacheListPageSize),
+		clustercache.SetListPageBufferSize(clusterCacheListPageBufferSize),
 		clustercache.SetWatchResyncTimeout(clusterCacheWatchResyncDuration),
 		clustercache.SetClusterSyncRetryTimeout(clusterSyncRetryTimeoutDuration),
 		clustercache.SetResyncTimeout(clusterCacheResyncDuration),
@@ -487,6 +501,7 @@ func (c *liveStateCache) getCluster(server string) (clustercache.ClusterCache, e
 		}),
 		clustercache.SetLogr(logutils.NewLogrusLogger(log.WithField("server", cluster.Server))),
 		clustercache.SetRetryOptions(clusterCacheAttemptLimit, clusterCacheRetryUseBackoff, isRetryableError),
+		clustercache.SetRespectRBAC(respectRBAC),
 	}
 
 	clusterCache = clustercache.NewClusterCache(clusterCacheConfig, clusterCacheOpts...)
@@ -620,7 +635,7 @@ func (c *liveStateCache) GetNamespaceTopLevelResources(server string, namespace 
 func (c *liveStateCache) GetManagedLiveObjs(a *appv1.Application, targetObjs []*unstructured.Unstructured) (map[kube.ResourceKey]*unstructured.Unstructured, error) {
 	clusterInfo, err := c.getSyncedCluster(a.Spec.Destination.Server)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get cluster info for %q: %w", a.Spec.Destination.Server, err)
 	}
 	return clusterInfo.GetManagedLiveObjs(targetObjs, func(r *clustercache.Resource) bool {
 		return resInfo(r).AppName == a.InstanceName(c.settingsMgr.GetNamespace())
@@ -630,7 +645,7 @@ func (c *liveStateCache) GetManagedLiveObjs(a *appv1.Application, targetObjs []*
 func (c *liveStateCache) GetVersionsInfo(serverURL string) (string, []kube.APIResourceInfo, error) {
 	clusterInfo, err := c.getSyncedCluster(serverURL)
 	if err != nil {
-		return "", nil, err
+		return "", nil, fmt.Errorf("failed to get cluster info for %q: %w", serverURL, err)
 	}
 	return clusterInfo.GetServerVersion(), clusterInfo.GetAPIResources(), nil
 }
@@ -708,22 +723,24 @@ func (c *liveStateCache) Run(ctx context.Context) error {
 }
 
 func (c *liveStateCache) canHandleCluster(cluster *appv1.Cluster) bool {
-	if c.clusterFilter == nil {
-		return true
-	}
-	return c.clusterFilter(cluster)
+	return c.clusterSharding.IsManagedCluster(cluster)
 }
 
 func (c *liveStateCache) handleAddEvent(cluster *appv1.Cluster) {
+	c.clusterSharding.Add(cluster)
 	if !c.canHandleCluster(cluster) {
 		log.Infof("Ignoring cluster %s", cluster.Server)
 		return
 	}
-
 	c.lock.Lock()
 	_, ok := c.clusters[cluster.Server]
 	c.lock.Unlock()
 	if !ok {
+		log.Debugf("Checking if cache %v / cluster %v has appInformer %v", c, cluster, c.appInformer)
+		if c.appInformer == nil {
+			log.Warn("Cannot get a cluster appInformer. Cache may not be started this time")
+			return
+		}
 		if c.isClusterHasApps(c.appInformer.GetStore().List(), cluster) {
 			go func() {
 				// warm up cache for cluster with apps
@@ -734,6 +751,7 @@ func (c *liveStateCache) handleAddEvent(cluster *appv1.Cluster) {
 }
 
 func (c *liveStateCache) handleModEvent(oldCluster *appv1.Cluster, newCluster *appv1.Cluster) {
+	c.clusterSharding.Update(oldCluster, newCluster)
 	c.lock.Lock()
 	cluster, ok := c.clusters[newCluster.Server]
 	c.lock.Unlock()
@@ -775,12 +793,15 @@ func (c *liveStateCache) handleModEvent(oldCluster *appv1.Cluster, newCluster *a
 }
 
 func (c *liveStateCache) handleDeleteEvent(clusterServer string) {
-	c.lock.Lock()
-	defer c.lock.Unlock()
+	c.lock.RLock()
+	c.clusterSharding.Delete(clusterServer)
 	cluster, ok := c.clusters[clusterServer]
+	c.lock.RUnlock()
 	if ok {
 		cluster.Invalidate()
+		c.lock.Lock()
 		delete(c.clusters, clusterServer)
+		c.lock.Unlock()
 	}
 }
 
