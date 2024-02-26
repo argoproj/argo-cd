@@ -658,10 +658,6 @@ func ConstructApps(fileURL, appName string, labels, annotations, args []string, 
 		return constructAppsFromFileUrl(fileURL, appName, labels, annotations, args, appOpts, flags)
 	}
 
-	// TODO: check for multiple sources, if yes, return error else continue
-	if flags.Changed("multiple-sources") {
-		return nil, fmt.Errorf("Creating application with multiple sources is only supported with fileURL flag")
-	}
 	return constructAppsBaseOnName(appName, labels, annotations, args, appOpts, flags)
 }
 

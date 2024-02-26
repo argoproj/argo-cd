@@ -110,15 +110,14 @@ type watchOpts struct {
 // NewApplicationCreateCommand returns a new instance of an `argocd app create` command
 func NewApplicationCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
-		appOpts         cmdutil.AppOptions
-		fileURL         string
-		appName         string
-		upsert          bool
-		labels          []string
-		annotations     []string
-		setFinalizer    bool
-		appNamespace    string
-		multipleSources bool
+		appOpts      cmdutil.AppOptions
+		fileURL      string
+		appName      string
+		upsert       bool
+		labels       []string
+		annotations  []string
+		setFinalizer bool
+		appNamespace string
 	)
 	var command = &cobra.Command{
 		Use:   "create APPNAME",
@@ -137,9 +136,6 @@ func NewApplicationCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 
   # Create a Kustomize app
   argocd app create kustomize-guestbook --repo https://github.com/argoproj/argocd-example-apps.git --path kustomize-guestbook --dest-namespace default --dest-server https://kubernetes.default.svc --kustomize-image gcr.io/heptio-images/ks-guestbook-demo:0.1
-
-  # Create an app with multiple sources
-  argocd app create jsonnet-guestbook --multiple-sources --fileURL https://github.com/argoproj/argocd-example-apps.git
 
   # Create a app using a custom tool:
   argocd app create kasane --repo https://github.com/argoproj/argocd-example-apps.git --path plugins/kasane --dest-namespace default --dest-server https://kubernetes.default.svc --config-management-plugin kasane`,
@@ -200,7 +196,6 @@ func NewApplicationCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 	command.Flags().StringArrayVarP(&labels, "label", "l", []string{}, "Labels to apply to the app")
 	command.Flags().StringArrayVarP(&annotations, "annotations", "", []string{}, "Set metadata annotations (e.g. example=value)")
 	command.Flags().BoolVar(&setFinalizer, "set-finalizer", false, "Sets deletion finalizer on the application, application resources will be cascaded on deletion")
-	command.Flags().BoolVar(&multipleSources, "multiple-sources", false, "Application consists of multiple sources")
 	// Only complete files with appropriate extension.
 	err := command.Flags().SetAnnotation("file", cobra.BashCompFilenameExt, []string{"json", "yaml", "yml"})
 	if err != nil {
@@ -2867,7 +2862,7 @@ func NewApplicationRemoveSourceCommand(clientOpts *argocdclient.ClientOptions) *
 	)
 	command := &cobra.Command{
 		Use:   "remove-source APPNAME",
-		Short: "Remove a source from multiple sources application",
+		Short: "Remove a source from multiple sources application. Index starts with 0.",
 		Example: `  # Remove the source at index 1 from application's sources
   argocd app remove-source myapplication --source-index 1`,
 		Run: func(c *cobra.Command, args []string) {
@@ -2902,6 +2897,11 @@ func NewApplicationRemoveSourceCommand(clientOpts *argocdclient.ClientOptions) *
 
 			if len(app.Spec.GetSources()) == 1 {
 				fmt.Printf("cannot remove the only source remaining in the app")
+				os.Exit(1)
+			}
+
+			if len(app.Spec.GetSources()) < source_index {
+				fmt.Printf("application does not have source at %d\n", source_index)
 				os.Exit(1)
 			}
 
