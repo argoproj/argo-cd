@@ -7,6 +7,9 @@
     "ghcr.io/devcontainers/features/node:1": {
       "version": "21.6.1" // The version needs to match https://github.com/argoproj/argo-cd/blob/master/ui/.nvmrc#L1
     },
+    "ghcr.io/devcontainers/features/python:1": {
+      "version": "3.7" // The version needs to match https://github.com/argoproj/argo-cd/blob/master/.readthedocs.yml#L11
+    },
     "ghcr.io/devcontainers/features/docker-in-docker:2": {}
   },
   "postCreateCommand": "bash -i .devcontainer/postCreateCommand.sh",
