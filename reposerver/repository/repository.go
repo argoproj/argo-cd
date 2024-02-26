@@ -2716,19 +2716,19 @@ func (s *Service) UpdateRevisionForPaths(_ context.Context, request *apiclient.U
 	changed := apppathutil.AppFilesHaveChanged(refreshPaths, files)
 
 	if !changed {
-		log.Debugf("no changes found for application %s in repo %s from revision %s to revision %s", request.AppName, repo.Repo, syncedRevision, revision)
+		log.WithFields(log.Fields{"application": request.AppName, "appNamespace": request.Namespace}).Debugf("no changes found for application %s in repo %s from revision %s to revision %s", request.AppName, repo.Repo, syncedRevision, revision)
 
 		err := s.updateCachedRevision(syncedRevision, revision, request, gitClientOpts)
 		if err != nil {
 			// Only warn with the error, no need to block anything if there is a caching error.
-			log.Warnf("error updating cached revision for repo %s with revision %s: %v", repo.Repo, revision, err)
+			log.WithFields(log.Fields{"application": request.AppName, "appNamespace": request.Namespace}).Warnf("error updating cached revision for repo %s with revision %s: %v", repo.Repo, revision, err)
 			return &apiclient.UpdateRevisionForPathsResponse{}, nil
 		}
 
 		return &apiclient.UpdateRevisionForPathsResponse{}, nil
 	}
 
-	log.Debugf("changes found for application %s in repo %s from revision %s to revision %s", request.AppName, repo.Repo, syncedRevision, revision)
+	log.WithFields(log.Fields{"application": request.AppName, "appNamespace": request.Namespace}).Debugf("changes found for application %s in repo %s from revision %s to revision %s", request.AppName, repo.Repo, syncedRevision, revision)
 	return &apiclient.UpdateRevisionForPathsResponse{Changes: true}, nil
 }
 
@@ -2742,16 +2742,6 @@ func (s *Service) updateCachedRevision(oldRev, newRev string, request *apiclient
 		}
 	}
 
-	manifest := &cache.CachedManifestResponse{}
-	err := s.cache.GetManifests(oldRev, request.ApplicationSource, request.RefSources, request, request.Namespace, request.TrackingMethod, request.AppLabelKey, request.AppName, manifest, repoRefs)
-	if err != nil {
-		if err == cache.ErrCacheMiss {
-			log.Debugf("manifest cache miss during comparison for application %s in repo %s from revision %s", request.AppName, request.GetRepo().Repo, oldRev)
-			return nil
-		}
-		return fmt.Errorf("manifest cache set error for %s: %w", request.AppName, err)
-	}
-
 	// Update revision in refSource
 	if request.HasMultipleSources && request.ApplicationSource.Helm != nil {
 		for normalizedURL := range repoRefs {
@@ -2759,11 +2749,15 @@ func (s *Service) updateCachedRevision(oldRev, newRev string, request *apiclient
 		}
 	}
 
-	err = s.cache.SetManifests(newRev, request.ApplicationSource, request.RefSources, request, request.Namespace, request.TrackingMethod, request.AppLabelKey, request.AppName, manifest, repoRefs)
+	err := s.cache.SetNewRevisionManifests(newRev, oldRev, request.ApplicationSource, request.RefSources, request, request.Namespace, request.TrackingMethod, request.AppLabelKey, request.AppName, repoRefs)
 	if err != nil {
-		return fmt.Errorf("manifest cache set error for %s: %w", request.AppName, err)
+		if err == cache.ErrCacheMiss {
+			log.WithFields(log.Fields{"application": request.AppName, "appNamespace": request.Namespace}).Debugf("manifest cache miss during comparison for application %s in repo %s from revision %s", request.AppName, request.GetRepo().Repo, oldRev)
+			return nil
+		}
+		return fmt.Errorf("manifest cache move error for %s: %w", request.AppName, err)
 	}
 
-	log.Debugf("manifest cache updated for application %s in repo %s from revision %s to revision %s", request.AppName, request.GetRepo().Repo, oldRev, newRev)
+	log.WithFields(log.Fields{"application": request.AppName, "appNamespace": request.Namespace}).Debugf("manifest cache updated for application %s in repo %s from revision %s to revision %s", request.AppName, request.GetRepo().Repo, oldRev, newRev)
 	return nil
 }
