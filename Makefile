@@ -27,9 +27,8 @@ DOCKER_WORKDIR?=/go/src/github.com/argoproj/argo-cd
 
 ARGOCD_PROCFILE?=Procfile
 
-# Strict mode has been disabled in latest versions of mkdocs-material.
-# Thus pointing to the older image of mkdocs-material matching the version used by argo-cd.
-MKDOCS_DOCKER_IMAGE?=squidfunk/mkdocs-material:4.1.1
+# pointing to python 3.8 as the oldest version of python supported and compatible with argocd-docs mkdocs/mkdocs-material
+MKDOCS_DOCKER_IMAGE?=python:3.8-alpine
 MKDOCS_RUN_ARGS?=
 
 # Configuration for building argocd-test-tools image
@@ -521,7 +520,7 @@ build-docs-local:
 
 .PHONY: build-docs
 build-docs:
-	docker run ${MKDOCS_RUN_ARGS} --rm -it -v ${CURRENT_DIR}:/docs --entrypoint "" ${MKDOCS_DOCKER_IMAGE} sh -c 'pip install -r docs/requirements.txt; mkdocs build'
+	docker run ${MKDOCS_RUN_ARGS} --rm -it -v ${CURRENT_DIR}:/docs -w /docs --entrypoint "" ${MKDOCS_DOCKER_IMAGE} sh -c 'pip install -r docs/requirements.txt; mkdocs build'
 
 .PHONY: serve-docs-local
 serve-docs-local:
