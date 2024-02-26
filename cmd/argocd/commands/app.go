@@ -2807,8 +2807,8 @@ func NewApplicationAddSourceCommand(clientOpts *argocdclient.ClientOptions) *cob
 	)
 	var command = &cobra.Command{
 		Use:   "add-source APPNAME",
-		Short: "Adds a source to an application",
-		Example: `  # Add a source to the list of sources in the application
+		Short: "Adds a source to the list of sources in the application",
+		Example: `  # Append a source to the list of sources in the application
   argocd app add-source guestbook --repo https://github.com/argoproj/argocd-example-apps.git --path guestbook`,
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
@@ -2874,7 +2874,7 @@ func NewApplicationRemoveSourceCommand(clientOpts *argocdclient.ClientOptions) *
 			}
 
 			if source_index == -1 {
-				fmt.Println("no source to remove")
+				fmt.Println("no source index provided to remove")
 				return
 			}
 

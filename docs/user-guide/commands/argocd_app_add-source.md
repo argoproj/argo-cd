@@ -1,41 +1,24 @@
-# `argocd app create` Command Reference
+# `argocd app add-source` Command Reference
 
-## argocd app create
+## argocd app add-source
 
-Create an application
+Adds a source to the list of sources in the application
 
 ```
-argocd app create APPNAME [flags]
+argocd app add-source APPNAME [flags]
 ```
 
 ### Examples
 
 ```
-  # Create a directory app
-  argocd app create guestbook --repo https://github.com/argoproj/argocd-example-apps.git --path guestbook --dest-namespace default --dest-server https://kubernetes.default.svc --directory-recurse
-
-  # Create a Jsonnet app
-  argocd app create jsonnet-guestbook --repo https://github.com/argoproj/argocd-example-apps.git --path jsonnet-guestbook --dest-namespace default --dest-server https://kubernetes.default.svc --jsonnet-ext-str replicas=2
-
-  # Create a Helm app
-  argocd app create helm-guestbook --repo https://github.com/argoproj/argocd-example-apps.git --path helm-guestbook --dest-namespace default --dest-server https://kubernetes.default.svc --helm-set replicaCount=2
-
-  # Create a Helm app from a Helm repo
-  argocd app create nginx-ingress --repo https://charts.helm.sh/stable --helm-chart nginx-ingress --revision 1.24.3 --dest-namespace default --dest-server https://kubernetes.default.svc
-
-  # Create a Kustomize app
-  argocd app create kustomize-guestbook --repo https://github.com/argoproj/argocd-example-apps.git --path kustomize-guestbook --dest-namespace default --dest-server https://kubernetes.default.svc --kustomize-image gcr.io/heptio-images/ks-guestbook-demo:0.1
-
-  # Create a app using a custom tool:
-  argocd app create kasane --repo https://github.com/argoproj/argocd-example-apps.git --path plugins/kasane --dest-namespace default --dest-server https://kubernetes.default.svc --config-management-plugin kasane
+  # Append a source to the list of sources in the application
+  argocd app add-source guestbook --repo https://github.com/argoproj/argocd-example-apps.git --path guestbook
 ```
 
 ### Options
 
 ```
       --allow-empty                                Set allow zero live resources when sync is automated
-      --annotations stringArray                    Set metadata annotations (e.g. example=value)
-  -N, --app-namespace string                       Namespace where the application will be created in
       --auto-prune                                 Set automatic pruning when sync is automated
       --config-management-plugin string            Config management plugin name
       --dest-name string                           K8s cluster Name (e.g. minikube)
@@ -45,7 +28,6 @@ argocd app create APPNAME [flags]
       --directory-include string                   Set glob expression used to include files from application source path
       --directory-recurse                          Recurse directory
       --env string                                 Application environment to monitor
-  -f, --file string                                Filename or URL to Kubernetes manifests for the app
       --helm-chart string                          Helm Chart name
       --helm-pass-credentials                      Pass credentials to all domain
       --helm-set stringArray                       Helm set values on the command line (can be repeated to set several values: --helm-set key1=val1 --helm-set key2=val2)
@@ -53,7 +35,7 @@ argocd app create APPNAME [flags]
       --helm-set-string stringArray                Helm set STRING values on the command line (can be repeated to set several values: --helm-set-string key1=val1 --helm-set-string key2=val2)
       --helm-skip-crds                             Skip helm crd installation step
       --helm-version string                        Helm version
-  -h, --help                                       help for create
+  -h, --help                                       help for add-source
       --ignore-missing-value-files                 Ignore locally missing valueFiles when setting helm template --values
       --jsonnet-ext-var-code stringArray           Jsonnet ext var
       --jsonnet-ext-var-str stringArray            Jsonnet string ext var
@@ -68,8 +50,6 @@ argocd app create APPNAME [flags]
       --kustomize-namespace string                 Kustomize namespace
       --kustomize-replica stringArray              Kustomize replicas (e.g. --kustomize-replica my-development=2 --kustomize-replica my-statefulset=4)
       --kustomize-version string                   Kustomize version
-  -l, --label stringArray                          Labels to apply to the app
-      --name string                                A name for the app, ignored if a file is set (DEPRECATED)
       --nameprefix string                          Kustomize nameprefix
       --namesuffix string                          Kustomize namesuffix
   -p, --parameter stringArray                      set a parameter override (e.g. -p guestbook=image=example/guestbook:latest)
@@ -82,14 +62,12 @@ argocd app create APPNAME [flags]
       --revision string                            The tracking source branch, tag, commit or Helm chart version the application will sync to
       --revision-history-limit int                 How many items to keep in revision history (default 10)
       --self-heal                                  Set self healing when sync is automated
-      --set-finalizer                              Sets deletion finalizer on the application, application resources will be cascaded on deletion
       --sync-option Prune=false                    Add or remove a sync option, e.g add Prune=false. Remove using `!` prefix, e.g. `!Prune=false`
       --sync-policy string                         Set the sync policy (one of: none, automated (aliases of automated: auto, automatic))
       --sync-retry-backoff-duration duration       Sync retry backoff base duration. Input needs to be a duration (e.g. 2m, 1h) (default 5s)
       --sync-retry-backoff-factor int              Factor multiplies the base duration after each failed sync retry (default 2)
       --sync-retry-backoff-max-duration duration   Max sync retry backoff duration. Input needs to be a duration (e.g. 2m, 1h) (default 3m0s)
       --sync-retry-limit int                       Max number of allowed sync retries
-      --upsert                                     Allows to override application with the same name even if supplied application spec is different from existing spec
       --validate                                   Validation of repo and cluster (default true)
       --values stringArray                         Helm values file(s) to use
       --values-literal-file string                 Filename or URL to import as a literal Helm values block
