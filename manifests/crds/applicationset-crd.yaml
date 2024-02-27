@@ -244,6 +244,8 @@ spec:
                                           additionalProperties:
                                             type: string
                                           type: object
+                                        labelWithoutSelector:
+                                          type: boolean
                                         components:
                                           items:
                                             type: string
@@ -460,6 +462,8 @@ spec:
                                             additionalProperties:
                                               type: string
                                             type: object
+                                          labelWithoutSelector:
+                                            type: boolean
                                           components:
                                             items:
                                               type: string
