@@ -36,6 +36,10 @@ message ManifestRequest {
     repeated string projectSourceRepos = 24;
     // This is used to surface "source not permitted" errors for Helm repositories
     string projectName = 25;
+    // used for looking up generated values from other charts
+    map<string, string> valueRefManifests = 26;
+    // tell the repo-server that we are generating a values file, not kubernetes manifests
+    bool isMultistageSource = 27;
 }
 
 message ManifestRequestWithFiles {

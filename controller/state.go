@@ -209,10 +209,10 @@ func (m *appStateManager) GetRepoObjs(app *v1alpha1.Application, sources []v1alp
 	log.Debug("MW11: beginning main sources loop")
 	// Accumulate the caches for the valueRef destination, so that it can read in value files
 	// We can also see if any ref goes unfulfilled
-	refValueCaches := map[string]string{}
+	refValueStore := map[string]string{}
 	if valueRefIndex != -1 {
 		for _, valueRefTag := range sources[len(sources)-1].Helm.ValueRefs {
-			refValueCaches[valueRefTag] = ""
+			refValueStore[valueRefTag] = ""
 		}
 	}
 
@@ -238,19 +238,14 @@ func (m *appStateManager) GetRepoObjs(app *v1alpha1.Application, sources []v1alp
 		ts.AddCheckpoint("version_ms")
 		log.Debugf("Generating Manifest for source %s revision %s", source, revisions[i])
 
-		//manifestRequest :=
-
-		// TODO: If an app's ref is in the accumulator, we need to store its info so that the final app can use
-		// if this app has a ref, see if it's part of the valueRefs destination
+		isMultistageSource := false // For valueRef sources, we do not want their generated manifests to be directly applied
 		if source.Ref != "" {
-			if thisRef, ok := refValueCaches[source.Ref]; ok {
-				// TODO: Need a type that encapsulates all fields needed for a cache lookup, line 818 of repository.go
-				refValueCaches[thisRef] = revisions[i], source.DeepCopy()
+			if _, ok := refValueStore[source.Ref]; ok {
+				isMultistageSource = true
 			}
 		}
 
-		// TODO: If we're on the last item in sources (i == valueRefIdx), then make sure all refValueCaches are set
-		manifestInfo, err := repoClient.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
+		manifestRequest := &apiclient.ManifestRequest{
 			Repo:               repo,
 			Repos:              permittedHelmRepos,
 			Revision:           revisions[i],
@@ -272,19 +267,46 @@ func (m *appStateManager) GetRepoObjs(app *v1alpha1.Application, sources []v1alp
 			RefSources:         refSources,
 			ProjectName:        proj.Name,
 			ProjectSourceRepos: proj.Spec.SourceRepos,
-		})
+			IsMultistageSource: isMultistageSource,
+		}
+
+		if i == valueRefIndex {
+			log.Debugf("MW15: Adding valueRefStore to final message")
+			log.Debug(refValueStore)
+			manifestRequest.ValueRefManifests = refValueStore
+		}
+
+		// TODO: If we're on the last item in sources (i == valueRefIdx), then make sure all refValueCaches are set
+		manifestInfo, err := repoClient.GenerateManifest(context.Background(), manifestRequest)
 		if err != nil {
+			// TODO: Do we need to change these source index errors since we reorder the sources list?
 			return nil, nil, fmt.Errorf("failed to generate manifest for source %d of %d: %w", i+1, len(sources), err)
 		}
 
-		targetObj, err := unmarshalManifests(manifestInfo.Manifests)
-
-		if err != nil {
-			return nil, nil, fmt.Errorf("failed to unmarshal manifests for source %d of %d: %w", i+1, len(sources), err)
+		// if this app has a ref, see if it's part of the valueRefs accumulation
+		if isMultistageSource {
+			log.Debugf("MW14: GENERAted")
+			log.Debug(manifestInfo.Manifests)
+			// if an app is part of the valueRef accumulation, it should have only returned one file
+			if len(manifestInfo.Manifests) != 1 {
+				return nil, nil, fmt.Errorf("failed to generate manifests for Application %s. Sources configured to be consumed by valueRef should emit exactly one document", app.Name)
+			}
+			log.Debugf("MW 13: STORING valueRef manifest: %s", manifestInfo.Manifests[0])
+			// manifest request is needed for the cache lookup
+			refValueStore[source.Ref] = &manifestInfo.Manifests[0]
 		}
-		targetObjs = append(targetObjs, targetObj...)
 
-		manifestInfos = append(manifestInfos, manifestInfo)
+		// output these manifests as long as this is not a multistage source
+		if !isMultistageSource {
+			targetObj, err := unmarshalManifests(manifestInfo.Manifests)
+
+			if err != nil {
+				return nil, nil, fmt.Errorf("failed to unmarshal manifests for source %d of %d: %w", i+1, len(sources), err)
+			}
+			targetObjs = append(targetObjs, targetObj...)
+
+			manifestInfos = append(manifestInfos, manifestInfo)
+		}
 	}
 
 	ts.AddCheckpoint("unmarshal_ms")
