@@ -451,26 +451,26 @@ type ApplicationSourceKustomize struct {
 	Images KustomizeImages `json:"images,omitempty" protobuf:"bytes,3,opt,name=images"`
 	// CommonLabels is a list of additional labels to add to rendered manifests
 	CommonLabels map[string]string `json:"commonLabels,omitempty" protobuf:"bytes,4,opt,name=commonLabels"`
-	//LabelWithoutSelector specifies whether to apply common labels to resource selectors or not
-	LabelWithoutSelector bool `json:"labelWithoutSelector,omitempty" protobuf:"bytes,5,opt,name=labelWithoutSelector"`
 	// Version controls which version of Kustomize to use for rendering manifests
-	Version string `json:"version,omitempty" protobuf:"bytes,6,opt,name=version"`
+	Version string `json:"version,omitempty" protobuf:"bytes,5,opt,name=version"`
 	// CommonAnnotations is a list of additional annotations to add to rendered manifests
-	CommonAnnotations map[string]string `json:"commonAnnotations,omitempty" protobuf:"bytes,7,opt,name=commonAnnotations"`
+	CommonAnnotations map[string]string `json:"commonAnnotations,omitempty" protobuf:"bytes,6,opt,name=commonAnnotations"`
 	// ForceCommonLabels specifies whether to force applying common labels to resources for Kustomize apps
-	ForceCommonLabels bool `json:"forceCommonLabels,omitempty" protobuf:"bytes,8,opt,name=forceCommonLabels"`
+	ForceCommonLabels bool `json:"forceCommonLabels,omitempty" protobuf:"bytes,7,opt,name=forceCommonLabels"`
 	// ForceCommonAnnotations specifies whether to force applying common annotations to resources for Kustomize apps
-	ForceCommonAnnotations bool `json:"forceCommonAnnotations,omitempty" protobuf:"bytes,9,opt,name=forceCommonAnnotations"`
+	ForceCommonAnnotations bool `json:"forceCommonAnnotations,omitempty" protobuf:"bytes,8,opt,name=forceCommonAnnotations"`
 	// Namespace sets the namespace that Kustomize adds to all resources
-	Namespace string `json:"namespace,omitempty" protobuf:"bytes,10,opt,name=namespace"`
+	Namespace string `json:"namespace,omitempty" protobuf:"bytes,9,opt,name=namespace"`
 	// CommonAnnotationsEnvsubst specifies whether to apply env variables substitution for annotation values
-	CommonAnnotationsEnvsubst bool `json:"commonAnnotationsEnvsubst,omitempty" protobuf:"bytes,11,opt,name=commonAnnotationsEnvsubst"`
+	CommonAnnotationsEnvsubst bool `json:"commonAnnotationsEnvsubst,omitempty" protobuf:"bytes,10,opt,name=commonAnnotationsEnvsubst"`
 	// Replicas is a list of Kustomize Replicas override specifications
-	Replicas KustomizeReplicas `json:"replicas,omitempty" protobuf:"bytes,12,opt,name=replicas"`
+	Replicas KustomizeReplicas `json:"replicas,omitempty" protobuf:"bytes,11,opt,name=replicas"`
 	// Patches is a list of Kustomize patches
-	Patches KustomizePatches `json:"patches,omitempty" protobuf:"bytes,13,opt,name=patches"`
+	Patches KustomizePatches `json:"patches,omitempty" protobuf:"bytes,12,opt,name=patches"`
 	// Components specifies a list of kustomize components to add to the kustomization before building
-	Components []string `json:"components,omitempty" protobuf:"bytes,14,rep,name=components"`
+	Components []string `json:"components,omitempty" protobuf:"bytes,13,rep,name=components"`
+	//LabelWithoutSelector specifies whether to apply common labels to resource selectors or not
+	LabelWithoutSelector bool `json:"labelWithoutSelector,omitempty" protobuf:"bytes,14,opt,name=labelWithoutSelector"`
 }
 
 type KustomizeReplica struct {
