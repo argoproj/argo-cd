@@ -10,7 +10,7 @@ FROM docker.io/library/node:21.6.1@sha256:abc4a25c8b5a2b460f3144aabfc8941ecd7e4f
 
 FROM docker.io/library/golang:1.21.3@sha256:02d7116222536a5cf0fcf631f90b507758b669648e0f20186d2dc94a9b419a9b as golang
 
-FROM docker.io/library/registry:2.8@sha256:b209a41fd10ae95b0c4f19cf2a3f6ad1913dac5f378d24c0c520f603d3a00663 as registry
+FROM docker.io/library/registry:2.8@sha256:f4e1b878d4bc40a1f65532d68c94dcfbab56aa8cba1f00e355a206e7f6cc9111 as registry
 
 FROM docker.io/bitnami/kubectl:1.27@sha256:14ab746e857d96c105df4989cc2bf841292f2d143f7c60f9d7f549ae660eab43 as kubectl
 
