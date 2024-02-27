@@ -206,7 +206,8 @@ func (m *appStateManager) GetRepoObjs(app *v1alpha1.Application, sources []v1alp
 	} else {
 		log.Debug("MW8: No valueRefDestination found")
 	}
-	log.Debug("MW11: beginning main sources loop")
+	log.Debug("Post-sortMW11: beginning main sources loop")
+	log.Debug(sources)
 	// Accumulate the caches for the valueRef destination, so that it can read in value files
 	// We can also see if any ref goes unfulfilled
 	refValueStore := map[string]string{}
@@ -270,7 +271,8 @@ func (m *appStateManager) GetRepoObjs(app *v1alpha1.Application, sources []v1alp
 			IsMultistageSource: isMultistageSource,
 		}
 
-		if i == valueRefIndex {
+		// If we have a valueRefIndex and we're on the last element
+		if valueRefIndex != -1 && i == len(sources)-1 {
 			log.Debugf("MW15: Adding valueRefStore to final message")
 			log.Debug(refValueStore)
 			manifestRequest.ValueRefManifests = refValueStore
@@ -293,8 +295,10 @@ func (m *appStateManager) GetRepoObjs(app *v1alpha1.Application, sources []v1alp
 			}
 			log.Debugf("MW 13: STORING valueRef manifest: %s", manifestInfo.Manifests[0])
 			// manifest request is needed for the cache lookup
-			refValueStore[source.Ref] = &manifestInfo.Manifests[0]
+			refValueStore[source.Ref] = manifestInfo.Manifests[0]
 		}
+		log.Debug("MW16: And it is")
+		log.Debug(refValueStore)
 
 		// output these manifests as long as this is not a multistage source
 		if !isMultistageSource {

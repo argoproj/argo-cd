@@ -1162,23 +1162,38 @@ func runHelmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apic
 
 		templateOpts.Values = resolvedValueFiles
 
-		if !appHelm.ValuesIsEmpty() {
-			rand, err := uuid.NewRandom()
-			if err != nil {
-				return nil, fmt.Errorf("error generating random filename for Helm values file: %w", err)
-			}
-			p := path.Join(os.TempDir(), rand.String())
-			defer func() {
-				// do not remove the directory if it is the source has Ref field set
-				if q.ApplicationSource.Ref == "" {
-					_ = os.RemoveAll(p)
+		filesToClean := make([]string, 0)
+		// clean up any temp values files before this function ends
+		defer func() {
+			// do not remove the directory if it is the source has Ref field set
+			if q.ApplicationSource.Ref == "" {
+				for _, path := range filesToClean {
+					_ = os.RemoveAll(path)
 				}
-			}()
-			err = os.WriteFile(p, appHelm.ValuesYAML(), 0644)
-			if err != nil {
-				return nil, fmt.Errorf("error writing helm values file: %w", err)
 			}
-			templateOpts.Values = append(templateOpts.Values, pathutil.ResolvedFilePath(p))
+		}()
+		if !appHelm.ValuesIsEmpty() {
+			path, err := appendValuesFile([]byte(appHelm.ValuesYAML()), q, templateOpts)
+			filesToClean = append(filesToClean, path)
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		// TODO: not sure if multistage should go before or after values
+		// write multistage manifests so that they can be used by this chart
+		if len(q.ValueRefManifests) > 0 {
+			log.Debugf("MW50: About to write ValueRefManifests - it is")
+			log.Debug(q.ValueRefManifests)
+			for _, manifest := range q.ValueRefManifests {
+				log.Debug("MW52: Writing values bytes to temp")
+				log.Debug(string(manifest))
+				path, err := appendValuesFile([]byte(manifest), q, templateOpts)
+				filesToClean = append(filesToClean, path)
+				if err != nil {
+					return nil, err
+				}
+			}
 		}
 
 		for _, p := range appHelm.Parameters {
@@ -1269,6 +1284,23 @@ func runHelmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apic
 		}
 	}
 	return &out, nil
+}
+
+// write the values bytes to a temp file, append to templateOpts.
+// Files are not removed by this function
+func appendValuesFile(valuesBytes []byte, q *apiclient.ManifestRequest, templateOpts *helm.TemplateOpts) (string, error) {
+	rand, err := uuid.NewRandom()
+	if err != nil {
+		return "", fmt.Errorf("error generating random filename for Helm values file: %w", err)
+	}
+	p := path.Join(os.TempDir(), rand.String())
+
+	err = os.WriteFile(p, valuesBytes, 0644)
+	if err != nil {
+		return p, fmt.Errorf("error writing helm values file: %w", err)
+	}
+	templateOpts.Values = append(templateOpts.Values, pathutil.ResolvedFilePath(p))
+	return p, nil
 }
 
 // ensure that the yamlData contains exactly one valid yaml document - i.e. it is a valid values document
