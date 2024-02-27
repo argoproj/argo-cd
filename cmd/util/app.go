@@ -151,6 +151,9 @@ func SetAppSpecOptions(flags *pflag.FlagSet, spec *argoappv1.ApplicationSpec, ap
 		visited++
 
 		switch f.Name {
+		case "revision-history-limit":
+			i := int64(appOpts.revisionHistoryLimit)
+			spec.RevisionHistoryLimit = &i
 		case "dest-name":
 			spec.Destination.Name = appOpts.destName
 		case "dest-server":
