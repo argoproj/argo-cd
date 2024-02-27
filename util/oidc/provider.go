@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"sync"
 
 	gooidc "github.com/coreos/go-oidc/v3/oidc"
 	log "github.com/sirupsen/logrus"
@@ -31,6 +32,7 @@ type Provider interface {
 }
 
 type providerImpl struct {
+	sync.RWMutex
 	issuerURL      string
 	client         *http.Client
 	goOIDCProvider *gooidc.Provider
@@ -48,13 +50,22 @@ func NewOIDCProvider(issuerURL string, client *http.Client) Provider {
 
 // oidcProvider lazily initializes, memoizes, and returns the OIDC provider.
 func (p *providerImpl) provider() (*gooidc.Provider, error) {
-	if p.goOIDCProvider != nil {
-		return p.goOIDCProvider, nil
+	p.RLock()
+        var err error
+	prov := p.goOIDCProvider
+	p.RUnlock()
+	if prov != nil {
+		return prov, nil
 	}
-	prov, err := p.newGoOIDCProvider()
+	// We don't want to hold the lock during the call.
+	// Hence, this could be executed multiple times, but no harm.
+	prov, err = p.newGoOIDCProvider()
 	if err != nil {
 		return nil, err
 	}
+
+	p.Lock()
+	defer p.Unlock()
 	p.goOIDCProvider = prov
 	return p.goOIDCProvider, nil
 }
