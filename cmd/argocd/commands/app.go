@@ -549,7 +549,6 @@ func NewApplicationLogsCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 }
 
 func printAppSummaryTable(app *argoappv1.Application, appURL string, windows *argoappv1.SyncWindows) {
-
 	fmt.Printf(printOpFmtStr, "Name:", app.QualifiedName())
 	fmt.Printf(printOpFmtStr, "Project:", app.Spec.GetProject())
 	fmt.Printf(printOpFmtStr, "Server:", getServer(app))
@@ -557,7 +556,6 @@ func printAppSummaryTable(app *argoappv1.Application, appURL string, windows *ar
 	fmt.Printf(printOpFmtStr, "URL:", appURL)
 	if !app.Spec.HasMultipleSources() {
 		fmt.Println("Source:")
-
 	} else {
 		fmt.Println("Sources:")
 	}
@@ -2831,10 +2829,13 @@ func NewApplicationAddSourceCommand(clientOpts *argocdclient.ClientOptions) *cob
 
 			errors.CheckError(err)
 
-			appSource, err := cmdutil.ConstructSource(appOpts, c.Flags())
-			errors.CheckError(err)
+			if c.Flags() == nil {
+				errors.CheckError(fmt.Errorf("ApplicationSource needs atleast repoUrl, path or chart or ref field. No source to add."))
+			}
 
 			if len(app.Spec.Sources) > 0 {
+				appSource, _ := cmdutil.ConstructSource(&argoappv1.ApplicationSource{}, appOpts, c.Flags())
+
 				app.Spec.Sources = append(app.Spec.Sources, *appSource)
 
 				_, err = appIf.UpdateSpec(ctx, &application.ApplicationUpdateSpecRequest{
@@ -2873,9 +2874,9 @@ func NewApplicationRemoveSourceCommand(clientOpts *argocdclient.ClientOptions) *
 				os.Exit(1)
 			}
 
-			if source_index == -1 {
-				fmt.Println("no source index provided to remove")
-				return
+			if source_index < 0 {
+				errors.CheckError(fmt.Errorf("index value of source cannot be less than 0"))
+				os.Exit(1)
 			}
 
 			argocdClient := headless.NewClientOrDie(clientOpts, c)

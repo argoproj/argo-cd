@@ -142,74 +142,15 @@ func SetAppSpecOptions(flags *pflag.FlagSet, spec *argoappv1.ApplicationSpec, ap
 	if flags == nil {
 		return visited
 	}
+	source := spec.GetSourcePtr()
+	if source == nil {
+		source = &argoappv1.ApplicationSource{}
+	}
+	source, visited = ConstructSource(source, *appOpts, flags)
 	flags.Visit(func(f *pflag.Flag) {
 		visited++
-		source := spec.GetSourcePtr()
-		if source == nil {
-			source = &argoappv1.ApplicationSource{}
-		}
-		switch f.Name {
-		case "repo":
-			source.RepoURL = appOpts.repoURL
-		case "path":
-			source.Path = appOpts.appPath
-		case "helm-chart":
-			source.Chart = appOpts.chart
-		case "revision":
-			source.TargetRevision = appOpts.revision
-		case "revision-history-limit":
-			i := int64(appOpts.revisionHistoryLimit)
-			spec.RevisionHistoryLimit = &i
-		case "values":
-			setHelmOpt(source, helmOpts{valueFiles: appOpts.valuesFiles})
-		case "ignore-missing-value-files":
-			setHelmOpt(source, helmOpts{ignoreMissingValueFiles: appOpts.ignoreMissingValueFiles})
-		case "values-literal-file":
-			var data []byte
 
-			// read uri
-			parsedURL, err := url.ParseRequestURI(appOpts.values)
-			if err != nil || !(parsedURL.Scheme == "http" || parsedURL.Scheme == "https") {
-				data, err = os.ReadFile(appOpts.values)
-			} else {
-				data, err = config.ReadRemoteFile(appOpts.values)
-			}
-			errors.CheckError(err)
-			setHelmOpt(source, helmOpts{values: string(data)})
-		case "release-name":
-			setHelmOpt(source, helmOpts{releaseName: appOpts.releaseName})
-		case "helm-version":
-			setHelmOpt(source, helmOpts{version: appOpts.helmVersion})
-		case "helm-pass-credentials":
-			setHelmOpt(source, helmOpts{passCredentials: appOpts.helmPassCredentials})
-		case "helm-set":
-			setHelmOpt(source, helmOpts{helmSets: appOpts.helmSets})
-		case "helm-set-string":
-			setHelmOpt(source, helmOpts{helmSetStrings: appOpts.helmSetStrings})
-		case "helm-set-file":
-			setHelmOpt(source, helmOpts{helmSetFiles: appOpts.helmSetFiles})
-		case "helm-skip-crds":
-			setHelmOpt(source, helmOpts{skipCrds: appOpts.helmSkipCrds})
-		case "directory-recurse":
-			if source.Directory != nil {
-				source.Directory.Recurse = appOpts.directoryRecurse
-			} else {
-				source.Directory = &argoappv1.ApplicationSourceDirectory{Recurse: appOpts.directoryRecurse}
-			}
-		case "directory-exclude":
-			if source.Directory != nil {
-				source.Directory.Exclude = appOpts.directoryExclude
-			} else {
-				source.Directory = &argoappv1.ApplicationSourceDirectory{Exclude: appOpts.directoryExclude}
-			}
-		case "directory-include":
-			if source.Directory != nil {
-				source.Directory.Include = appOpts.directoryInclude
-			} else {
-				source.Directory = &argoappv1.ApplicationSourceDirectory{Include: appOpts.directoryInclude}
-			}
-		case "config-management-plugin":
-			source.Plugin = &argoappv1.ApplicationSourcePlugin{Name: appOpts.configManagementPlugin}
+		switch f.Name {
 		case "dest-name":
 			spec.Destination.Name = appOpts.destName
 		case "dest-server":
@@ -218,42 +159,6 @@ func SetAppSpecOptions(flags *pflag.FlagSet, spec *argoappv1.ApplicationSpec, ap
 			spec.Destination.Namespace = appOpts.destNamespace
 		case "project":
 			spec.Project = appOpts.project
-		case "nameprefix":
-			setKustomizeOpt(source, kustomizeOpts{namePrefix: appOpts.namePrefix})
-		case "namesuffix":
-			setKustomizeOpt(source, kustomizeOpts{nameSuffix: appOpts.nameSuffix})
-		case "kustomize-image":
-			setKustomizeOpt(source, kustomizeOpts{images: appOpts.kustomizeImages})
-		case "kustomize-replica":
-			setKustomizeOpt(source, kustomizeOpts{replicas: appOpts.kustomizeReplicas})
-		case "kustomize-version":
-			setKustomizeOpt(source, kustomizeOpts{version: appOpts.kustomizeVersion})
-		case "kustomize-namespace":
-			setKustomizeOpt(source, kustomizeOpts{namespace: appOpts.kustomizeNamespace})
-		case "kustomize-common-label":
-			parsedLabels, err := label.Parse(appOpts.kustomizeCommonLabels)
-			errors.CheckError(err)
-			setKustomizeOpt(source, kustomizeOpts{commonLabels: parsedLabels})
-		case "kustomize-common-annotation":
-			parsedAnnotations, err := label.Parse(appOpts.kustomizeCommonAnnotations)
-			errors.CheckError(err)
-			setKustomizeOpt(source, kustomizeOpts{commonAnnotations: parsedAnnotations})
-		case "kustomize-force-common-label":
-			setKustomizeOpt(source, kustomizeOpts{forceCommonLabels: appOpts.kustomizeForceCommonLabels})
-		case "kustomize-force-common-annotation":
-			setKustomizeOpt(source, kustomizeOpts{forceCommonAnnotations: appOpts.kustomizeForceCommonAnnotations})
-		case "jsonnet-tla-str":
-			setJsonnetOpt(source, appOpts.jsonnetTlaStr, false)
-		case "jsonnet-tla-code":
-			setJsonnetOpt(source, appOpts.jsonnetTlaCode, true)
-		case "jsonnet-ext-var-str":
-			setJsonnetOptExtVar(source, appOpts.jsonnetExtVarStr, false)
-		case "jsonnet-ext-var-code":
-			setJsonnetOptExtVar(source, appOpts.jsonnetExtVarCode, true)
-		case "jsonnet-libs":
-			setJsonnetOptLibs(source, appOpts.jsonnetLibs)
-		case "plugin-env":
-			setPluginOptEnvs(source, appOpts.pluginEnvs)
 		case "sync-policy":
 			switch appOpts.syncPolicy {
 			case "none":
@@ -661,12 +566,10 @@ func ConstructApps(fileURL, appName string, labels, annotations, args []string, 
 	return constructAppsBaseOnName(appName, labels, annotations, args, appOpts, flags)
 }
 
-func ConstructSource(appOpts AppOptions, flags *pflag.FlagSet) (*argoappv1.ApplicationSource, error) {
-	if flags == nil {
-		return nil, fmt.Errorf("ApplicationSource needs atleast repoUrl, path or chart or ref field.")
-	}
-	source := &argoappv1.ApplicationSource{}
+func ConstructSource(source *argoappv1.ApplicationSource, appOpts AppOptions, flags *pflag.FlagSet) (*argoappv1.ApplicationSource, int) {
+	visited := 0
 	flags.Visit(func(f *pflag.Flag) {
+		visited++
 		switch f.Name {
 		case "repo":
 			source.RepoURL = appOpts.repoURL
@@ -765,7 +668,7 @@ func ConstructSource(appOpts AppOptions, flags *pflag.FlagSet) (*argoappv1.Appli
 			source.Ref = appOpts.ref
 		}
 	})
-	return source, nil
+	return source, visited
 }
 
 func mergeLabels(app *argoappv1.Application, labels []string) {
