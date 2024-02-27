@@ -13,6 +13,12 @@
         right: 3em;
     }
 
+    &__collapsible-button {
+        position: absolute;
+        top: 30px;
+        right: 30px;
+    }
+
     .form-field__select {
         line-height: 15px;
         padding: 0;
