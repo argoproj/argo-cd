@@ -93,7 +93,6 @@ type EventReporterServerOpts struct {
 	BaseHRef                 string
 	RootPath                 string
 	CodefreshConfig          *codefresh.CodefreshConfig
-	RateLimiterOpts          *reporter.RateLimiterOpts
 }
 
 type handlerSwitcher struct {
@@ -153,7 +152,7 @@ func (a *EventReporterServer) Init(ctx context.Context) {
 }
 
 func (a *EventReporterServer) RunController(ctx context.Context) {
-	controller := event_reporter.NewEventReporterController(a.appInformer, a.Cache, a.settingsMgr, a.ApplicationServiceClient, a.appLister, a.CodefreshConfig, a.serviceSet.MetricsServer, a.featureManager, a.RateLimiterOpts)
+	controller := event_reporter.NewEventReporterController(a.appInformer, a.Cache, a.settingsMgr, a.ApplicationServiceClient, a.appLister, a.CodefreshConfig, a.serviceSet.MetricsServer, a.featureManager)
 	go controller.Run(ctx)
 }
 
