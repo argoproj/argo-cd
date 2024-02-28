@@ -271,6 +271,7 @@ func (c *Cache) SetManifests(revision string, appSrc *appv1.ApplicationSource, s
 		if err != nil {
 			return fmt.Errorf("Unable to generate hash value: %s", err)
 		}
+		log.Debugf("MW57:Generated hash value %v with res %v", hash, *res)
 		res.CacheEntryHash = hash
 	}
 
