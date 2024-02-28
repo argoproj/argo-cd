@@ -223,7 +223,7 @@ func (c *Cache) TryLockGitRefCache(repo string, lockId string, references *[]*pl
 func (c *Cache) GetGitReferences(repo string, references *[]*plumbing.Reference) (string, error) {
 	var input [][2]string
 	err := c.cache.GetItem(gitRefsKey(repo), &input)
-	valueExists := input != nil && len(input) > 0 && len(input[0]) > 0
+	valueExists := len(input) > 0 && len(input[0]) > 0
 	switch {
 	// Unexpected Error
 	case err != nil && err != ErrCacheMiss:
