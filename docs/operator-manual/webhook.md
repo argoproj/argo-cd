@@ -97,3 +97,27 @@ stringData:
 ```
 
 After saving, the changes should take effect automatically.
+
+## Configuring Webhook Handler's Application Refresh Concurrency
+
+After receiving a webhook event, ArgoCD refreshes all Applications which need to be refreshed. To do this,
+the webhook handler adds the `argocd.argoproj.io/refresh` annotation to the Applications by sending patch
+requests to your control-plane's Kubernetes API server for each Application. If your repository provider limits webhook
+timeout and you have several hundreds or thousands of apps, you can speed up the handler's refresh process by
+configuring how many concurrent patch requests the webhook handler can send to Kubernetes API server using the
+`webhook.maxConcurrentAppRefresh` setting in your `argocd-cm` ConfigMap (`10` by default). Put into consideration your
+Kubernetes API server's ability to handle requests. Setting this setting to a very high number (relative to your
+Kubernetes API server) can potentially overload the Kubernetes API server.
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-cm
+  namespace: argocd
+...
+data:
+  # max concurrent refresh annotation patch requests the webhook handler can send to Kubernetes API server.
+  webhook.maxConcurrentAppRefresh: 10
+...
+```

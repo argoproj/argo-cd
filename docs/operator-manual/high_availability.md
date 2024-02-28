@@ -156,6 +156,7 @@ spec:
 * The `ARGOCD_API_SERVER_REPLICAS` environment variable is used to divide [the limit of concurrent login requests (`ARGOCD_MAX_CONCURRENT_LOGIN_REQUESTS_COUNT`)](./user-management/index.md#failed-logins-rate-limiting) between each replica.
 * The `ARGOCD_GRPC_MAX_SIZE_MB` environment variable allows specifying the max size of the server response message in megabytes.
 The default value is 200. You might need to increase this for an Argo CD instance that manages 3000+ applications.
+* The server's [webhook handler](./webhook.md#configuring-webhook-handlers-application-refresh-concurrency) refreshes apps by patching Applications with the `argocd.argoproj.io/refresh` annotation, sending network-bound requests to the Kubernetes API server. To speed up webhook processing, especially with thousands of applications, you can increase the max number of concurrent requests the webhook handler sends to the Kubernetes API Server using the `webhook.maxConcurrentAppRefresh` setting in your `argocd-cm` ConfigMap (`10` by default). Bear in mind that this might put the API server under heavy load if set too high.
 
 ### argocd-dex-server, argocd-redis
 

@@ -77,6 +77,8 @@ type ArgoCDSettings struct {
 	WebhookAzureDevOpsUsername string `json:"webhookAzureDevOpsUsername,omitempty"`
 	// WebhookAzureDevOpsPassword holds the password for authenticating Azure DevOps webhook events
 	WebhookAzureDevOpsPassword string `json:"webhookAzureDevOpsPassword,omitempty"`
+	// WebhookMaxConcurrentAppRefresh sets the number of concurrent app refreshes run by the webhook handler
+	WebhookMaxConcurrentAppRefresh int `json:"webhookMaxConcurrentAppRefresh,omitempty"`
 	// Secrets holds all secrets in argocd-secret as a map[string]string
 	Secrets map[string]string `json:"secrets,omitempty"`
 	// KustomizeBuildOptions is a string of kustomize build parameters
@@ -504,6 +506,10 @@ const (
 	RespectRBAC            = "resource.respectRBAC"
 	RespectRBACValueStrict = "strict"
 	RespectRBACValueNormal = "normal"
+	// settingsWebhookMaxConcurrentAppRefresh is the key for max concurrent app refresh
+	settingsWebhookMaxConcurrentAppRefreshKey = "webhook.maxConcurrentAppRefresh"
+	// defaultSettingsWebhookMaxConcurrentAppRefresh is the default value for the number of max concurrent app refresh
+	defaultSettingsWebhookMaxConcurrentAppRefresh = 10
 )
 
 var (
@@ -1469,6 +1475,19 @@ func updateSettingsFromConfigMap(settings *ArgoCDSettings, argoCDCM *apiv1.Confi
 	settings.TrackingMethod = argoCDCM.Data[settingsResourceTrackingMethodKey]
 	settings.OIDCTLSInsecureSkipVerify = argoCDCM.Data[oidcTLSInsecureSkipVerifyKey] == "true"
 	settings.ExtensionConfig = argoCDCM.Data[extensionConfig]
+	if webhookMaxConcurrentAppRefresh := argoCDCM.Data[settingsWebhookMaxConcurrentAppRefreshKey]; len(webhookMaxConcurrentAppRefresh) > 0 {
+		i, err := strconv.Atoi(string(webhookMaxConcurrentAppRefresh))
+		if err != nil {
+			log.Warnf("invalid input for %s: %s. Using the default value %d.", settingsWebhookMaxConcurrentAppRefreshKey, err.Error(), defaultSettingsWebhookMaxConcurrentAppRefresh)
+		}
+		if i < 1 {
+			i = defaultSettingsWebhookMaxConcurrentAppRefresh
+			log.Warnf("%s is less than 1. Using the default value %d.", settingsWebhookMaxConcurrentAppRefreshKey, defaultSettingsWebhookMaxConcurrentAppRefresh)
+		}
+		settings.WebhookMaxConcurrentAppRefresh = i
+	} else {
+		settings.WebhookMaxConcurrentAppRefresh = defaultSettingsWebhookMaxConcurrentAppRefresh
+	}
 }
 
 // validateExternalURL ensures the external URL that is set on the configmap is valid

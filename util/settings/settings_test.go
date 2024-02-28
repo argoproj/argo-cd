@@ -169,6 +169,88 @@ func TestInClusterServerAddressEnabledByDefault(t *testing.T) {
 	assert.Equal(t, true, settings.InClusterEnabled)
 }
 
+func TestValidWebhookConfiguration(t *testing.T) {
+	secret := []byte("randomly-strong-secret")
+	uid := []byte("random-uid")
+	kubeClient := fake.NewSimpleClientset(
+		&v1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      common.ArgoCDConfigMapName,
+				Namespace: "default",
+				Labels: map[string]string{
+					"app.kubernetes.io/part-of": "argocd",
+				},
+			},
+			Data: map[string]string{
+				"webhook.maxConcurrentAppRefresh": "25",
+			},
+		},
+		&v1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      common.ArgoCDSecretName,
+				Namespace: "default",
+				Labels: map[string]string{
+					"app.kubernetes.io/part-of": "argocd",
+				},
+			},
+			Data: map[string][]byte{
+				"server.secretkey":               nil,
+				"webhook.github.secret":          secret,
+				"webhook.gitlab.secret":          secret,
+				"webhook.bitbucket.uuid":         uid,
+				"webhook.bitbucketserver.secret": secret,
+				"webhook.gogs.secret":            secret,
+				"webhook.azuredevops.username":   uid,
+				"webhook.azuredevops.password":   secret,
+			},
+		},
+	)
+	settingsManager := NewSettingsManager(context.Background(), kubeClient, "default")
+	settings, err := settingsManager.GetSettings()
+	assert.NoError(t, err)
+	assert.Equal(t, 25, settings.WebhookMaxConcurrentAppRefresh)
+	assert.Equal(t, string(secret), settings.WebhookGitHubSecret)
+	assert.Equal(t, string(secret), settings.WebhookGitLabSecret)
+	assert.Equal(t, string(uid), settings.WebhookBitbucketUUID)
+	assert.Equal(t, string(secret), settings.WebhookBitbucketServerSecret)
+	assert.Equal(t, string(secret), settings.WebhookGogsSecret)
+	assert.Equal(t, string(uid), settings.WebhookAzureDevOpsUsername)
+	assert.Equal(t, string(secret), settings.WebhookAzureDevOpsPassword)
+}
+
+func TestInvalidWebhookConfiguration(t *testing.T) {
+	kubeClient := fake.NewSimpleClientset(
+		&v1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      common.ArgoCDConfigMapName,
+				Namespace: "default",
+				Labels: map[string]string{
+					"app.kubernetes.io/part-of": "argocd",
+				},
+			},
+			Data: map[string]string{
+				"webhook.maxConcurrentAppRefresh": "0",
+			},
+		},
+		&v1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      common.ArgoCDSecretName,
+				Namespace: "default",
+				Labels: map[string]string{
+					"app.kubernetes.io/part-of": "argocd",
+				},
+			},
+			Data: map[string][]byte{
+				"server.secretkey": nil,
+			},
+		},
+	)
+	settingsManager := NewSettingsManager(context.Background(), kubeClient, "default")
+	settings, err := settingsManager.GetSettings()
+	assert.NoError(t, err)
+	assert.Equal(t, 10, settings.WebhookMaxConcurrentAppRefresh)
+}
+
 func TestGetAppInstanceLabelKey(t *testing.T) {
 	_, settingsManager := fixtures(map[string]string{
 		"application.instanceLabelKey": "testLabel",
