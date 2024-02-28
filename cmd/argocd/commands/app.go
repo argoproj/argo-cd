@@ -2501,9 +2501,10 @@ func findRevisionHistory(application *argoappv1.Application, historyId int64) (*
 // NewApplicationRollbackCommand returns a new instance of an `argocd app rollback` command
 func NewApplicationRollbackCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
-		prune   bool
-		timeout uint
-		output  string
+		prune        bool
+		timeout      uint
+		output       string
+		appNamespace string
 	)
 	var command = &cobra.Command{
 		Use:   "rollback APPNAME [ID]",
@@ -2514,7 +2515,7 @@ func NewApplicationRollbackCommand(clientOpts *argocdclient.ClientOptions) *cobr
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
-			appName, appNs := argo.ParseFromQualifiedName(args[0], "")
+			appName, appNs := argo.ParseFromQualifiedName(args[0], appNamespace)
 			var err error
 			depID := -1
 			if len(args) > 1 {
@@ -2550,6 +2551,7 @@ func NewApplicationRollbackCommand(clientOpts *argocdclient.ClientOptions) *cobr
 	command.Flags().BoolVar(&prune, "prune", false, "Allow deleting unexpected resources")
 	command.Flags().UintVar(&timeout, "timeout", defaultCheckTimeoutSeconds, "Time out after this many seconds")
 	command.Flags().StringVarP(&output, "output", "o", "wide", "Output format. One of: json|yaml|wide|tree|tree=detailed")
+	command.Flags().StringVarP(&appNamespace, "app-namespace", "N", "", "Rollback application in namespace")
 	return command
 }
 
