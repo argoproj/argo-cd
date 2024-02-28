@@ -8,7 +8,7 @@ RUN ln -s /usr/lib/$(uname -m)-linux-gnu /usr/lib/linux-gnu
 # Please make sure to also check the contained yarn version and update the references below when upgrading this image's version
 FROM docker.io/library/node:21.6.2@sha256:65998e325b06014d4f1417a8a6afb1540d1ac66521cca76f2221a6953947f9ee as node
 
-FROM docker.io/library/golang:1.21.3@sha256:02d7116222536a5cf0fcf631f90b507758b669648e0f20186d2dc94a9b419a9b as golang
+FROM docker.io/library/golang:1.22.0@sha256:7b297d9abee021bab9046e492506b3c2da8a3722cbf301653186545ecc1e00bb as golang
 
 FROM docker.io/library/registry:2.8@sha256:f4e1b878d4bc40a1f65532d68c94dcfbab56aa8cba1f00e355a206e7f6cc9111 as registry
 
