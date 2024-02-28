@@ -24,6 +24,7 @@ import (
 	"github.com/go-git/go-git/v5/plumbing/transport"
 	githttp "github.com/go-git/go-git/v5/plumbing/transport/http"
 	"github.com/go-git/go-git/v5/storage/memory"
+	"github.com/google/uuid"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/crypto/ssh/knownhosts"
@@ -55,7 +56,7 @@ type Refs struct {
 
 type gitRefCache interface {
 	SetGitReferences(repo string, references []*plumbing.Reference) error
-	GetOrLockGitReferences(repo string, references *[]*plumbing.Reference) (updateCache bool, lockId string, err error)
+	GetOrLockGitReferences(repo string, lockId string, references *[]*plumbing.Reference) (string, error)
 	UnlockGitReferences(repo string, lockId string) error
 }
 
@@ -478,11 +479,19 @@ func (m *nativeGitClient) Checkout(revision string, submoduleEnabled bool) error
 }
 
 func (m *nativeGitClient) getRefs() ([]*plumbing.Reference, error) {
+	myLockUUID, err := uuid.NewRandom()
+	myLockId := ""
+	if err != nil {
+		log.Debug("Error generating git references cache lock id: ", err)
+	} else {
+		myLockId = myLockUUID.String()
+	}
 	// Prevent an additional get call to cache if we know our state isn't stale
 	needsUnlock := true
 	if m.gitRefCache != nil && m.loadRefFromCache {
 		var res []*plumbing.Reference
-		isLockOwner, localLockId, err := m.gitRefCache.GetOrLockGitReferences(m.repoURL, &res)
+		foundLockId, err := m.gitRefCache.GetOrLockGitReferences(m.repoURL, myLockId, &res)
+		isLockOwner := myLockId == foundLockId
 		if !isLockOwner && err == nil {
 			// Valid value already in cache
 			return res, nil
@@ -494,7 +503,7 @@ func (m *nativeGitClient) getRefs() ([]*plumbing.Reference, error) {
 		// Defer a soft reset of the cache lock, if the value is set this call will be ignored
 		defer func() {
 			if needsUnlock {
-				err := m.gitRefCache.UnlockGitReferences(m.repoURL, localLockId)
+				err := m.gitRefCache.UnlockGitReferences(m.repoURL, myLockId)
 				if err != nil {
 					log.Debugf("Error unlocking git references from cache: %v", err)
 				}

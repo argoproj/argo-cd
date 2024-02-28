@@ -79,6 +79,10 @@ type newGitRepoOptions struct {
 }
 
 func newCacheMocks() *repoCacheMocks {
+	return newCacheMocksWithOpts(1*time.Minute, 1*time.Minute, 10*time.Second)
+}
+
+func newCacheMocksWithOpts(repoCacheExpiration time.Duration, revisionCacheExpiration time.Duration, revisionCacheLockTimeout time.Duration) *repoCacheMocks {
 	mockRepoCache := repositorymocks.NewMockRepoCache(&repositorymocks.MockCacheOptions{
 		RepoCacheExpiration:     1 * time.Minute,
 		RevisionCacheExpiration: 1 * time.Minute,
@@ -88,7 +92,7 @@ func newCacheMocks() *repoCacheMocks {
 	cacheutilCache := cacheutil.NewCache(mockRepoCache.RedisClient)
 	return &repoCacheMocks{
 		cacheutilCache: cacheutilCache,
-		cache:          cache.NewCache(cacheutilCache, 1*time.Minute, 1*time.Minute, 10*time.Second),
+		cache:          cache.NewCache(cacheutilCache, repoCacheExpiration, revisionCacheExpiration, revisionCacheLockTimeout),
 		mockCache:      mockRepoCache,
 	}
 }
@@ -3365,6 +3369,41 @@ func Test_getRepoSanitizerRegex(t *testing.T) {
 	assert.Equal(t, "error message containing <path to cached source> and other stuff", msg)
 	msg = r.ReplaceAllString("error message containing /tmp/_argocd-repo/SENSITIVE/with/trailing/path and other stuff", "<path to cached source>")
 	assert.Equal(t, "error message containing <path to cached source>/with/trailing/path and other stuff", msg)
+}
+
+func TestGetRefs_CacheWithLockDisabled(t *testing.T) {
+	// Test that when the lock is disabled the default behavior still works correctly
+	// Also shows the current issue with the git requests due to cache misses
+	dir := t.TempDir()
+	initGitRepo(t, newGitRepoOptions{
+		path:           dir,
+		createPath:     false,
+		remote:         "",
+		addEmptyCommit: true,
+	})
+	// Test in-memory and redis
+	cacheMocks := newCacheMocksWithOpts(1*time.Minute, 1*time.Minute, 0)
+	t.Cleanup(cacheMocks.mockCache.StopRedisCallback)
+	var wg sync.WaitGroup
+	numberOfCallers := 10
+	for i := 0; i < numberOfCallers; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			client, err := git.NewClient(fmt.Sprintf("file://%s", dir), git.NopCreds{}, true, false, "", git.WithCache(cacheMocks.cache, true))
+			require.NoError(t, err)
+			refs, err := client.LsRefs()
+			assert.NoError(t, err)
+			assert.NotNil(t, refs)
+			assert.NotEqual(t, 0, len(refs.Branches), "Expected branches to be populated")
+			assert.NotEmpty(t, refs.Branches[0])
+		}()
+	}
+	wg.Wait()
+	// Unlock should not have been called
+	cacheMocks.mockCache.AssertNumberOfCalls(t, "UnlockGitReferences", 0)
+	// Lock should not have been called
+	cacheMocks.mockCache.AssertNumberOfCalls(t, "TryLockGitRefCache", 0)
 }
 
 func TestGetRefs_CacheDisabled(t *testing.T) {

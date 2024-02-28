@@ -12,7 +12,6 @@ import (
 
 	"github.com/argoproj/gitops-engine/pkg/utils/text"
 	"github.com/go-git/go-git/v5/plumbing"
-	"github.com/google/uuid"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
@@ -26,8 +25,6 @@ import (
 
 var ErrCacheMiss = cacheutil.ErrCacheMiss
 var ErrCacheKeyLocked = cacheutil.ErrCacheKeyLocked
-
-const RevisionCacheLockTimeout = 10 * time.Second
 
 type Cache struct {
 	cache                    *cacheutil.Cache
@@ -51,9 +48,11 @@ func NewCache(cache *cacheutil.Cache, repoCacheExpiration time.Duration, revisio
 func AddCacheFlagsToCmd(cmd *cobra.Command, opts ...cacheutil.Options) func() (*Cache, error) {
 	var repoCacheExpiration time.Duration
 	var revisionCacheExpiration time.Duration
+	var revisionCacheLockTimeout time.Duration
 
 	cmd.Flags().DurationVar(&repoCacheExpiration, "repo-cache-expiration", env.ParseDurationFromEnv("ARGOCD_REPO_CACHE_EXPIRATION", 24*time.Hour, 0, math.MaxInt64), "Cache expiration for repo state, incl. app lists, app details, manifest generation, revision meta-data")
 	cmd.Flags().DurationVar(&revisionCacheExpiration, "revision-cache-expiration", env.ParseDurationFromEnv("ARGOCD_RECONCILIATION_TIMEOUT", 3*time.Minute, 0, math.MaxInt64), "Cache expiration for cached revision")
+	cmd.Flags().DurationVar(&revisionCacheExpiration, "revision-cache-lock-timeout", env.ParseDurationFromEnv("ARGOCD_REVISION_CACHE_LOCK_TIMEOUT", 10*time.Second, 0, math.MaxInt64), "Cache TTL for locks to prevent duplicate requests on revisions, set to 0 to disable")
 
 	repoFactory := cacheutil.AddCacheFlagsToCmd(cmd, opts...)
 
@@ -62,7 +61,7 @@ func AddCacheFlagsToCmd(cmd *cobra.Command, opts ...cacheutil.Options) func() (*
 		if err != nil {
 			return nil, fmt.Errorf("error adding cache flags to cmd: %w", err)
 		}
-		return NewCache(cache, repoCacheExpiration, revisionCacheExpiration, RevisionCacheLockTimeout), nil
+		return NewCache(cache, repoCacheExpiration, revisionCacheExpiration, revisionCacheLockTimeout), nil
 	}
 }
 
@@ -204,80 +203,68 @@ func GitRefCacheItemToReferences(cacheItem [][2]string) *[]*plumbing.Reference {
 	return &res
 }
 
-// TryLockGitRefCache attempts to lock the key for the Git repository references if the key doesn't exist
-func (c *Cache) TryLockGitRefCache(repo string, lockId string) error {
+// TryLockGitRefCache attempts to lock the key for the Git repository references if the key doesn't exist, returns the value of
+// GetGitReferences after calling the SET
+func (c *Cache) TryLockGitRefCache(repo string, lockId string, references *[]*plumbing.Reference) (string, error) {
 	// This try set with DisableOverwrite is important for making sure that only one process is able to claim ownership
 	// A normal get + set, or just set would cause ownership to go to whoever the last writer was, and during race conditions
 	// leads to duplicate requests
 	err := c.cache.SetItem(gitRefsKey(repo), [][2]string{{cacheutil.CacheLockedValue, lockId}}, &cacheutil.CacheActionOpts{
 		Expiration:       c.revisionCacheLockTimeout,
 		DisableOverwrite: true})
-	return err
+	if err != nil {
+		// Log but ignore this error since we'll want to retry, failing to obtain the lock should not throw an error
+		log.Errorf("Error attempting to acquire git references cache lock: %v", err)
+	}
+	return c.GetGitReferences(repo, references)
 }
 
-// Retrieves the cache item for git repo references. Returns lockHolderId, references, error
-func (c *Cache) GetGitReferences(repo string) (string, *[]*plumbing.Reference, error) {
+// Retrieves the cache item for git repo references. Returns foundLockId, error
+func (c *Cache) GetGitReferences(repo string, references *[]*plumbing.Reference) (string, error) {
 	var input [][2]string
 	err := c.cache.GetItem(gitRefsKey(repo), &input)
-	if err == ErrCacheMiss {
-		// Expected
-		return "", nil, nil
-	} else if err == nil && len(input) > 0 && len(input[0]) > 0 {
-		if input[0][0] != cacheutil.CacheLockedValue {
-			// Valid value in cache, convert to plumbing.Reference and return
-			return "", GitRefCacheItemToReferences(input), nil
-		} else {
-			// The key lock is being held
-			return input[0][1], nil, nil
-		}
+	valueExists := input != nil && len(input) > 0 && len(input[0]) > 0
+	switch {
+	// Unexpected Error
+	case err != nil && err != ErrCacheMiss:
+		return "", err
+	// Value is set
+	case valueExists && input[0][0] != cacheutil.CacheLockedValue:
+		fmt.Printf("Input: %v\n", references)
+		*references = *GitRefCacheItemToReferences(input)
+		return "", nil
+	// Key is locked
+	case valueExists:
+		return input[0][1], nil
+	// No key or empty key
+	default:
+		return "", nil
 	}
-	return "", nil, err
 }
 
 // GetOrLockGitReferences retrieves the git references if they exist, otherwise creates a lock and returns so the caller can populate the cache
 // Returns isLockOwner, localLockId, error
-func (c *Cache) GetOrLockGitReferences(repo string, references *[]*plumbing.Reference) (bool, string, error) {
-	myLockUUID, err := uuid.NewRandom()
-	if err != nil {
-		log.Debug("Error generating git references cache lock id: ", err)
-		return false, "", err
-	}
-	// We need to be able to identify that our lock was the successful one, otherwise we'll still have duplicate requests
-	myLockId := myLockUUID.String()
+func (c *Cache) GetOrLockGitReferences(repo string, lockId string, references *[]*plumbing.Reference) (string, error) {
 	// Value matches the ttl on the lock in TryLockGitRefCache
 	waitUntil := time.Now().Add(c.revisionCacheLockTimeout)
 	// Wait only the maximum amount of time configured for the lock
+	// if the configured time is zero then the for loop will never run and instead act as the owner immediately
 	for time.Now().Before(waitUntil) {
-		// Attempt to retrieve the key from local cache only
-		if _, cacheReferences, err := c.GetGitReferences(repo); err != nil || cacheReferences != nil {
-			if cacheReferences != nil {
-				*references = *cacheReferences
-			}
-			return false, myLockId, err
+		// Get current cache state
+		if foundLockId, err := c.GetGitReferences(repo, references); foundLockId == lockId || err != nil || (references != nil && len(*references) > 0) {
+			return foundLockId, err
 		}
-		// Could not get key locally attempt to get the lock
-		err = c.TryLockGitRefCache(repo, myLockId)
-		if err != nil {
-			// Log but ignore this error since we'll want to retry, failing to obtain the lock should not throw an error
-			log.Errorf("Error attempting to acquire git references cache lock: %v", err)
+		if foundLockId, err := c.TryLockGitRefCache(repo, lockId, references); foundLockId == lockId || err != nil || (references != nil && len(*references) > 0) {
+			return foundLockId, err
 		}
-		// Attempt to retrieve the key again to see if we have the lock, or the key was populated
-		if lockOwner, cacheReferences, err := c.GetGitReferences(repo); err != nil || cacheReferences != nil {
-			if cacheReferences != nil {
-				// Someone else populated the key
-				*references = *cacheReferences
-			}
-			return false, myLockId, err
-		} else if lockOwner == myLockId {
-			// We have the lock, populate the key
-			return true, myLockId, nil
-		}
-		// Wait for lock, valid value, or timeout
 		time.Sleep(1 * time.Second)
 	}
+	// If configured time is 0 then this is expected
+	if c.revisionCacheLockTimeout > 0 {
+		log.Debug("Repository cache was unable to acquire lock or valid data within timeout")
+	}
 	// Timeout waiting for lock
-	log.Debug("Repository cache was unable to acquire lock or valid data within timeout")
-	return true, myLockId, nil
+	return lockId, nil
 }
 
 // UnlockGitReferences unlocks the key for the Git repository references if needed
@@ -285,6 +272,7 @@ func (c *Cache) UnlockGitReferences(repo string, lockId string) error {
 	var input [][2]string
 	var err error
 	if err = c.cache.GetItem(gitRefsKey(repo), &input); err == nil &&
+		input != nil &&
 		len(input) > 0 &&
 		len(input[0]) > 1 &&
 		input[0][0] == cacheutil.CacheLockedValue &&
