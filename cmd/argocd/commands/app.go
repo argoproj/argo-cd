@@ -1284,6 +1284,7 @@ func NewApplicationDeleteCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 		propagationPolicy string
 		selector          string
 		wait              bool
+		appNamespace      string
 	)
 	var command = &cobra.Command{
 		Use:   "delete APPNAME",
@@ -1326,7 +1327,7 @@ func NewApplicationDeleteCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 			}
 
 			for _, appFullName := range appNames {
-				appName, appNs := argo.ParseFromQualifiedName(appFullName, "")
+				appName, appNs := argo.ParseFromQualifiedName(appFullName, appNamespace)
 				appDeleteReq := application.ApplicationDeleteRequest{
 					Name:         &appName,
 					AppNamespace: &appNs,
@@ -1378,6 +1379,7 @@ func NewApplicationDeleteCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 	command.Flags().BoolVarP(&noPrompt, "yes", "y", false, "Turn off prompting to confirm cascaded deletion of application resources")
 	command.Flags().StringVarP(&selector, "selector", "l", "", "Delete all apps with matching label. Supports '=', '==', '!=', in, notin, exists & not exists. Matching apps must satisfy all of the specified label constraints.")
 	command.Flags().BoolVar(&wait, "wait", false, "Wait until deletion of the application(s) completes")
+	command.Flags().StringVarP(&appNamespace, "app-namespace", "N", "", "Namespace where the application will be deleted from")
 	return command
 }
 
