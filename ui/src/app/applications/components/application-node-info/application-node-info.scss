@@ -1,7 +1,6 @@
 @import 'node_modules/argo-ui/src/styles/config';
 @import 'node_modules/argo-ui/src/styles/theme';
 
-
 .application-node-info {
     &__manifest {
         overflow-x: auto;
@@ -10,7 +9,6 @@
             background-color: white;
             @include themify($themes){
                 background-color: themed('background-2');
-                ;
             }
         }
 
