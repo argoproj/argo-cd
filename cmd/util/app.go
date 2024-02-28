@@ -238,6 +238,8 @@ func SetAppSpecOptions(flags *pflag.FlagSet, spec *argoappv1.ApplicationSpec, ap
 			parsedAnnotations, err := label.Parse(appOpts.kustomizeCommonAnnotations)
 			errors.CheckError(err)
 			setKustomizeOpt(source, kustomizeOpts{commonAnnotations: parsedAnnotations})
+		case "kustomize-label-without-selector":
+			setKustomizeOpt(source, kustomizeOpts{labelWithoutSelector: appOpts.kustomizeLabelWithoutSelector})
 		case "kustomize-force-common-label":
 			setKustomizeOpt(source, kustomizeOpts{forceCommonLabels: appOpts.kustomizeForceCommonLabels})
 		case "kustomize-force-common-annotation":
