@@ -12,6 +12,32 @@ type Client struct {
 	mock.Mock
 }
 
+// ChangedFiles provides a mock function with given fields: revision, targetRevision
+func (_m *Client) ChangedFiles(revision string, targetRevision string) ([]string, error) {
+	ret := _m.Called(revision, targetRevision)
+
+	var r0 []string
+	var r1 error
+	if rf, ok := ret.Get(0).(func(string, string) ([]string, error)); ok {
+		return rf(revision, targetRevision)
+	}
+	if rf, ok := ret.Get(0).(func(string, string) []string); ok {
+		r0 = rf(revision, targetRevision)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]string)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(string, string) error); ok {
+		r1 = rf(revision, targetRevision)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // Checkout provides a mock function with given fields: revision, submoduleEnabled
 func (_m *Client) Checkout(revision string, submoduleEnabled bool) error {
 	ret := _m.Called(revision, submoduleEnabled)

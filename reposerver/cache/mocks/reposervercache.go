@@ -35,6 +35,7 @@ type CacheCallCounts struct {
 	ExternalSets    int
 	ExternalGets    int
 	ExternalDeletes int
+	ExternalRenames int
 }
 
 // Checks that the cache was called the expected number of times
@@ -42,12 +43,14 @@ func (mockCache *MockRepoCache) AssertCacheCalledTimes(t *testing.T, calls *Cach
 	mockCache.RedisClient.AssertNumberOfCalls(t, "Get", calls.ExternalGets)
 	mockCache.RedisClient.AssertNumberOfCalls(t, "Set", calls.ExternalSets)
 	mockCache.RedisClient.AssertNumberOfCalls(t, "Delete", calls.ExternalDeletes)
+	mockCache.RedisClient.AssertNumberOfCalls(t, "Rename", calls.ExternalRenames)
 }
 
 func (mockCache *MockRepoCache) ConfigureDefaultCallbacks() {
 	mockCache.RedisClient.On("Get", mock.Anything, mock.Anything).Return(nil)
 	mockCache.RedisClient.On("Set", mock.Anything).Return(nil)
 	mockCache.RedisClient.On("Delete", mock.Anything).Return(nil)
+	mockCache.RedisClient.On("Rename", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 }
 
 func NewInMemoryRedis() (*redis.Client, func()) {

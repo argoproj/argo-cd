@@ -52,6 +52,16 @@ func (i *InMemoryCache) HasSame(key string, obj interface{}) (bool, error) {
 	return bytes.Equal(buf.Bytes(), existingBuf.Bytes()), nil
 }
 
+func (i *InMemoryCache) Rename(oldKey string, newKey string, expiration time.Duration) error {
+	bufIf, found := i.memCache.Get(oldKey)
+	if !found {
+		return ErrCacheMiss
+	}
+	i.memCache.Set(newKey, bufIf, expiration)
+	i.memCache.Delete(oldKey)
+	return nil
+}
+
 func (i *InMemoryCache) Get(key string, obj interface{}) error {
 	bufIf, found := i.memCache.Get(key)
 	if !found {

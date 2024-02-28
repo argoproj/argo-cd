@@ -190,3 +190,7 @@ func (c *Cache) OnUpdated(ctx context.Context, key string, callback func() error
 func (c *Cache) NotifyUpdated(key string) error {
 	return c.client.NotifyUpdated(fmt.Sprintf("%s|%s", key, common.CacheVersion))
 }
+
+func (c *Cache) RenameItem(oldKey string, newKey string, expiration time.Duration) error {
+	return c.client.Rename(fmt.Sprintf("%s|%s", oldKey, common.CacheVersion), fmt.Sprintf("%s|%s", newKey, common.CacheVersion), expiration)
+}

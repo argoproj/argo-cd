@@ -73,6 +73,7 @@ type Client interface {
 	RevisionMetadata(revision string) (*RevisionMetadata, error)
 	VerifyCommitSignature(string) (string, error)
 	IsAnnotatedTag(string) bool
+	ChangedFiles(revision string, targetRevision string) ([]string, error)
 }
 
 type EventHandlers struct {
@@ -668,6 +669,29 @@ func (m *nativeGitClient) IsAnnotatedTag(revision string) bool {
 	} else {
 		return false
 	}
+}
+
+// returns the meta-data for the commit
+func (m *nativeGitClient) ChangedFiles(revision string, targetRevision string) ([]string, error) {
+	if revision == targetRevision {
+		return []string{}, nil
+	}
+
+	if !IsCommitSHA(revision) || !IsCommitSHA(targetRevision) {
+		return []string{}, fmt.Errorf("invalid revision provided, must be SHA")
+	}
+
+	out, err := m.runCmd("diff", "--name-only", fmt.Sprintf("%s..%s", revision, targetRevision))
+	if err != nil {
+		return nil, fmt.Errorf("failed to diff %s..%s: %w", revision, targetRevision, err)
+	}
+
+	if out == "" {
+		return []string{}, nil
+	}
+
+	files := strings.Split(out, "\n")
+	return files, nil
 }
 
 // runWrapper runs a custom command with all the semantics of running the Git client

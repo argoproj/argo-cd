@@ -72,6 +72,12 @@ func (c *forwardCacheClient) doLazy(action func(client cache.CacheClient) error)
 	return action(c.client)
 }
 
+func (c *forwardCacheClient) Rename(oldKey string, newKey string, expiration time.Duration) error {
+	return c.doLazy(func(client cache.CacheClient) error {
+		return client.Rename(oldKey, newKey, expiration)
+	})
+}
+
 func (c *forwardCacheClient) Set(item *cache.Item) error {
 	return c.doLazy(func(client cache.CacheClient) error {
 		return client.Set(item)

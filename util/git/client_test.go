@@ -203,3 +203,58 @@ func TestNewClient_invalidSSHURL(t *testing.T) {
 	assert.Nil(t, client)
 	assert.ErrorIs(t, err, ErrInvalidRepoURL)
 }
+
+func Test_ChangedFiles(t *testing.T) {
+	tempDir := t.TempDir()
+
+	client, err := NewClientExt(fmt.Sprintf("file://%s", tempDir), tempDir, NopCreds{}, true, false, "")
+	require.NoError(t, err)
+
+	err = client.Init()
+	require.NoError(t, err)
+
+	err = runCmd(client.Root(), "git", "commit", "-m", "Initial commit", "--allow-empty")
+	require.NoError(t, err)
+
+	// Create a tag to have a second ref
+	err = runCmd(client.Root(), "git", "tag", "some-tag")
+	require.NoError(t, err)
+
+	p := path.Join(client.Root(), "README")
+	f, err := os.Create(p)
+	require.NoError(t, err)
+	_, err = f.WriteString("Hello.")
+	require.NoError(t, err)
+	err = f.Close()
+	require.NoError(t, err)
+
+	err = runCmd(client.Root(), "git", "add", "README")
+	require.NoError(t, err)
+
+	err = runCmd(client.Root(), "git", "commit", "-m", "Changes", "-a")
+	require.NoError(t, err)
+
+	previousSHA, err := client.LsRemote("some-tag")
+	require.NoError(t, err)
+
+	commitSHA, err := client.LsRemote("HEAD")
+	require.NoError(t, err)
+
+	// Invalid commits, error
+	_, err = client.ChangedFiles("0000000000000000000000000000000000000000", "1111111111111111111111111111111111111111")
+	require.Error(t, err)
+
+	// Not SHAs, error
+	_, err = client.ChangedFiles(previousSHA, "HEAD")
+	require.Error(t, err)
+
+	// Same commit, no changes
+	changedFiles, err := client.ChangedFiles(commitSHA, commitSHA)
+	require.NoError(t, err)
+	assert.ElementsMatch(t, []string{}, changedFiles)
+
+	// Different ref, with changes
+	changedFiles, err = client.ChangedFiles(previousSHA, commitSHA)
+	require.NoError(t, err)
+	assert.ElementsMatch(t, []string{"README"}, changedFiles)
+}

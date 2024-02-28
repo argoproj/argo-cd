@@ -60,6 +60,10 @@ func (r *redisCache) getKey(key string) string {
 	}
 }
 
+func (r *redisCache) Rename(oldKey string, newKey string, _ time.Duration) error {
+	return r.client.Rename(context.TODO(), r.getKey(oldKey), r.getKey(newKey)).Err()
+}
+
 func (r *redisCache) marshal(obj interface{}) ([]byte, error) {
 	buf := bytes.NewBuffer([]byte{})
 	var w io.Writer = buf
