@@ -511,13 +511,13 @@ func NewProjectAddSourceCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
 	return command
 }
 
-// NewProjectAddSourceNamespace returns a new instance of an `argocd proj add-source-namespaces` command
+// NewProjectAddSourceNamespace returns a new instance of an `argocd proj add-source-namespace` command
 func NewProjectAddSourceNamespace(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var command = &cobra.Command{
-		Use:   "add-source-namespaces PROJECT NAMESPACE",
-		Short: "Add project source namespaces",
+		Use:   "add-source-namespace PROJECT NAMESPACE",
+		Short: "Add project source namespace",
 		Example: templates.Examples(`
-			# Add Kubernetes namespaces as source namespace where application resources are allowed to be created in.
+			# Add Kubernetes namespace as source namespace where application resources are allowed to be created in.
 			argocd proj add-source-namespaces PROJECT NAMESPACE
 		`),
 		Run: func(c *cobra.Command, args []string) {
@@ -549,14 +549,14 @@ func NewProjectAddSourceNamespace(clientOpts *argocdclient.ClientOptions) *cobra
 	return command
 }
 
-// NewProjectDeleteSourceNamespace returns a new instance of an `argocd proj delete-source-namespaces` command
+// NewProjectDeleteSourceNamespace returns a new instance of an `argocd proj delete-source-namespace` command
 func NewProjectDeleteSourceNamespace(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var command = &cobra.Command{
-		Use:   "delete-source-namespaces PROJECT NAMESPACE",
+		Use:   "delete-source-namespace PROJECT NAMESPACE",
 		Short: "Remove project source namespace",
 		Example: templates.Examples(`
-			# Remove source NAMESPACE in PROJECT (blacklist one or many namespaces for app creation)
-			argocd proj delete-source-namespaces PROJECT NAMESPACE
+			# Remove source NAMESPACE in PROJECT (blacklist namespace for app creation)
+			argocd proj delete-source-namespace PROJECT NAMESPACE
 		`),
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
