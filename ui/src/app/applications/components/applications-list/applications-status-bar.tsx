@@ -5,44 +5,67 @@ import {Consumer} from '../../../shared/context';
 import * as models from '../../../shared/models';
 
 import './applications-status-bar.scss';
+import {getAppSetHealthStatus, isApp} from '../utils';
+import {Application, ApplicationSet} from '../../../shared/models';
 
 export interface ApplicationsStatusBarProps {
-    applications: models.Application[];
+    applications: models.AbstractApplication[];
 }
 
 export const ApplicationsStatusBar = ({applications}: ApplicationsStatusBarProps) => {
-    const readings = [
-        {
-            name: 'Healthy',
-            value: applications.filter(app => app.status.health.status === 'Healthy').length,
-            color: COLORS.health.healthy
-        },
-        {
-            name: 'Progressing',
-            value: applications.filter(app => app.status.health.status === 'Progressing').length,
-            color: COLORS.health.progressing
-        },
-        {
-            name: 'Degraded',
-            value: applications.filter(app => app.status.health.status === 'Degraded').length,
-            color: COLORS.health.degraded
-        },
-        {
-            name: 'Suspended',
-            value: applications.filter(app => app.status.health.status === 'Suspended').length,
-            color: COLORS.health.suspended
-        },
-        {
-            name: 'Missing',
-            value: applications.filter(app => app.status.health.status === 'Missing').length,
-            color: COLORS.health.missing
-        },
-        {
-            name: 'Unknown',
-            value: applications.filter(app => app.status.health.status === 'Unknown').length,
-            color: COLORS.health.unknown
-        }
-    ];
+    const readings: any[] = [];
+    if (isApp(applications[0])) {
+        readings.push(
+            {
+                name: 'Healthy',
+                value: applications.filter(app => (app as Application).status.health.status === 'Healthy').length,
+                color: COLORS.health.healthy
+            },
+            {
+                name: 'Progressing',
+                value: applications.filter(app => (app as Application).status.health.status === 'Progressing').length,
+                color: COLORS.health.progressing
+            },
+            {
+                name: 'Degraded',
+                value: applications.filter(app => (app as Application).status.health.status === 'Degraded').length,
+                color: COLORS.health.degraded
+            },
+            {
+                name: 'Suspended',
+                value: applications.filter(app => (app as Application).status.health.status === 'Suspended').length,
+                color: COLORS.health.suspended
+            },
+            {
+                name: 'Missing',
+                value: applications.filter(app => (app as Application).status.health.status === 'Missing').length,
+                color: COLORS.health.missing
+            },
+            {
+                name: 'Unknown',
+                value: applications.filter(app => (app as Application).status.health.status === 'Unknown').length,
+                color: COLORS.health.unknown
+            }
+        );
+    } else {
+        readings.push(
+            {
+                name: 'True',
+                value: applications.filter(app => getAppSetHealthStatus((app as ApplicationSet).status) === 'True').length,
+                color: COLORS.health.healthy
+            },
+            {
+                name: 'False',
+                value: applications.filter(app => getAppSetHealthStatus((app as ApplicationSet).status) === 'False').length,
+                color: COLORS.health.degraded
+            },
+            {
+                name: 'Unknown',
+                value: applications.filter(app => getAppSetHealthStatus((app as ApplicationSet).status) === 'Unknown').length,
+                color: COLORS.health.unknown
+            }
+        );
+    }
 
     // will sort readings by value greatest to lowest, then by name
     readings.sort((a, b) => (a.value < b.value ? 1 : a.value === b.value ? (a.name > b.name ? 1 : -1) : -1));
@@ -51,11 +74,13 @@ export const ApplicationsStatusBar = ({applications}: ApplicationsStatusBarProps
         return total + i.value;
     }, 0);
 
+    console.log("Total items " + totalItems);
+
     return (
         <Consumer>
             {ctx => (
                 <>
-                    {totalItems > 1 && (
+                    {totalItems > 0 && (
                         <div className='status-bar'>
                             {readings &&
                                 readings.length > 1 &&

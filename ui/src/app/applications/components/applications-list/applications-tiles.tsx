@@ -7,16 +7,27 @@ import {Consumer, Context, AuthSettingsCtx} from '../../../shared/context';
 import * as models from '../../../shared/models';
 import {ApplicationURLs} from '../application-urls';
 import * as AppUtils from '../utils';
-import {getAppDefaultSource, OperationState} from '../utils';
+import {getAppDefaultSource, getAppSetHealthStatus, OperationState} from '../utils';
 import {services} from '../../../shared/services';
 
 import './applications-tiles.scss';
+import {Application, ApplicationSet} from '../../../shared/models';
+import { ResourceIcon } from '../resource-icon';
 
-export interface ApplicationTilesProps {
+export interface ApplicationTilesProps extends AbstractApplicationTilesProps {
     applications: models.Application[];
     syncApplication: (appName: string, appNamespace: string) => any;
     refreshApplication: (appName: string, appNamespace: string) => any;
+}
+
+export interface AbstractApplicationTilesProps {
+    applications: models.AbstractApplication[];
     deleteApplication: (appName: string, appNamespace: string) => any;
+    objectListKind: string;
+}
+
+export interface ApplicationSetTilesProps extends AbstractApplicationTilesProps {
+    applications: models.ApplicationSet[];
 }
 
 const useItemsPerContainer = (itemRef: any, containerRef: any): number => {
@@ -46,8 +57,8 @@ const useItemsPerContainer = (itemRef: any, containerRef: any): number => {
     return itemsPer || 1;
 };
 
-export const ApplicationTiles = ({applications, syncApplication, refreshApplication, deleteApplication}: ApplicationTilesProps) => {
-    const [selectedApp, navApp, reset] = useNav(applications.length);
+export const ApplicationTiles = (tilesProps: AbstractApplicationTilesProps) => {
+    const [selectedApp, navApp, reset] = useNav(tilesProps.applications.length);
 
     const ctxh = React.useContext(Context);
     const appRef = {ref: React.useRef(null), set: false};
@@ -56,6 +67,7 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
     const useAuthSettingsCtx = React.useContext(AuthSettingsCtx);
 
     const {useKeybinding} = React.useContext(KeybindingContext);
+    const isListOfApplications = tilesProps.objectListKind === "application";
 
     useKeybinding({keys: Key.RIGHT, action: () => navApp(1)});
     useKeybinding({keys: Key.LEFT, action: () => navApp(-1)});
@@ -66,7 +78,8 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
         keys: Key.ENTER,
         action: () => {
             if (selectedApp > -1) {
-                ctxh.navigation.goto(`/applications/${applications[selectedApp].metadata.name}`);
+                ctxh.navigation.goto(`${AppUtils.getRootPathByPath(ctxh.history.location.pathname)}/${tilesProps.applications[selectedApp].metadata.name}`);
+                // tilesProps.applications[selectedApp]
                 return true;
             }
             return false;
@@ -108,65 +121,91 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
                             <div
                                 className='applications-tiles argo-table-list argo-table-list--clickable row small-up-1 medium-up-2 large-up-3 xxxlarge-up-4'
                                 ref={appContainerRef}>
-                                {applications.map((app, i) => {
+                                {tilesProps.applications.map((app, i) => {
                                     const source = getAppDefaultSource(app);
                                     return (
                                         <div
                                             key={AppUtils.appInstanceName(app)}
                                             ref={appRef.set ? null : appRef.ref}
-                                            className={`argo-table-list__row applications-list__entry applications-list__entry--health-${app.status.health.status} ${
-                                                selectedApp === i ? 'applications-tiles__selected' : ''
-                                            }`}>
+                                            className={
+                                                isListOfApplications // (app)
+                                                    ? `argo-table-list__row applications-list__entry applications-list__entry--health-${
+                                                          (app as models.Application).status.health.status
+                                                      } ${selectedApp === i ? 'applications-tiles__selected' : ''}`
+                                                    : `argo-table-list__row applications-list__entry applications-list__entry--health-${getAppSetHealthStatus(
+                                                          (app as ApplicationSet).status
+                                                      )} ${selectedApp === i ? 'applications-tiles__selected' : ''}`
+                                            }>
                                             <div
                                                 className='row applications-tiles__wrapper'
                                                 onClick={e =>
-                                                    ctx.navigation.goto(`/applications/${app.metadata.namespace}/${app.metadata.name}`, {view: pref.appDetails.view}, {event: e})
+                                                    ctx.navigation.goto(
+                                                        `${AppUtils.getRootPathByPath(ctx.history.location.pathname)}/${app.metadata.namespace}/${app.metadata.name}`,
+                                                        {view: pref.appDetails.view},
+                                                        {event: e}
+                                                    )
                                                 }>
                                                 <div
                                                     className={`columns small-12 applications-list__info qe-applications-list-${AppUtils.appInstanceName(
                                                         app
                                                     )} applications-tiles__item`}>
-                                                    <div className='row '>
-                                                        <div className={app.status.summary.externalURLs?.length > 0 ? 'columns small-10' : 'columns small-11'}>
-                                                            <i className={'icon argo-icon-' + (source.chart != null ? 'helm' : 'git')} />
-                                                            <Tooltip content={AppUtils.appInstanceName(app)}>
-                                                                <span className='applications-list__title'>
-                                                                    {AppUtils.appQualifiedName(app, useAuthSettingsCtx?.appsInAnyNamespaceEnabled)}
-                                                                </span>
-                                                            </Tooltip>
-                                                        </div>
-                                                        <div className={app.status.summary.externalURLs?.length > 0 ? 'columns small-2' : 'columns small-1'}>
-                                                            <div className='applications-list__external-link'>
-                                                                <ApplicationURLs urls={app.status.summary.externalURLs} />
-                                                                <Tooltip content={favList?.includes(app.metadata.name) ? 'Remove Favorite' : 'Add Favorite'}>
-                                                                    <button
-                                                                        className='large-text-height'
-                                                                        onClick={e => {
-                                                                            e.stopPropagation();
-                                                                            favList?.includes(app.metadata.name)
-                                                                                ? favList.splice(favList.indexOf(app.metadata.name), 1)
-                                                                                : favList.push(app.metadata.name);
-                                                                            services.viewPreferences.updatePreferences({appList: {...pref.appList, favoritesAppList: favList}});
-                                                                        }}>
-                                                                        <i
-                                                                            className={favList?.includes(app.metadata.name) ? 'fas fa-star fa-lg' : 'far fa-star fa-lg'}
-                                                                            style={{
-                                                                                cursor: 'pointer',
-                                                                                marginLeft: '7px',
-                                                                                color: favList?.includes(app.metadata.name) ? '#FFCE25' : '#8fa4b1'
-                                                                            }}
-                                                                        />
-                                                                    </button>
+                                                    <div className='row'>
+                                                        {isListOfApplications && (
+                                                            <div className={app.status.summary.externalURLs?.length > 0 ? 'columns small-10' : 'columns small-11'}>
+                                                                <i className={'icon argo-icon-' + (source.chart != null ? 'helm' : 'git')} />
+                                                                <Tooltip content={AppUtils.appInstanceName(app)}>
+                                                                    <span className='applications-list__title'>
+                                                                        {AppUtils.appQualifiedName(app, useAuthSettingsCtx?.appsInAnyNamespaceEnabled)}
+                                                                    </span>
                                                                 </Tooltip>
                                                             </div>
-                                                        </div>
+                                                        )}
+                                                        {!isListOfApplications && (
+                                                            <div className='columns small-11'>
+                                                                {"{"}<ResourceIcon kind={'Application'} />{"Set}"}
+                                                                <Tooltip content={AppUtils.appInstanceName(app)}>
+                                                                    <span className='applications-list__title'>
+                                                                        {AppUtils.appQualifiedName(app, useAuthSettingsCtx?.appsInAnyNamespaceEnabled)}
+                                                                    </span>
+                                                                </Tooltip>
+                                                            </div>
+                                                        )}                                                        
+                                                        {isListOfApplications && (
+                                                            <div className={app.status.summary.externalURLs?.length > 0 ? 'columns small-2' : 'columns small-1'}>
+                                                                <div className='applications-list__external-link'>
+                                                                    <ApplicationURLs urls={app.status.summary.externalURLs} />
+                                                                    <Tooltip content={favList?.includes(app.metadata.name) ? 'Remove Favorite' : 'Add Favorite'}>
+                                                                        <button
+                                                                            className='large-text-height'
+                                                                            onClick={e => {
+                                                                                e.stopPropagation();
+                                                                                favList?.includes(app.metadata.name)
+                                                                                    ? favList.splice(favList.indexOf(app.metadata.name), 1)
+                                                                                    : favList.push(app.metadata.name);
+                                                                                services.viewPreferences.updatePreferences({appList: {...pref.appList, favoritesAppList: favList}});
+                                                                            }}>
+                                                                            <i
+                                                                                className={favList?.includes(app.metadata.name) ? 'fas fa-star fa-lg' : 'far fa-star fa-lg'}
+                                                                                style={{
+                                                                                    cursor: 'pointer',
+                                                                                    marginLeft: '7px',
+                                                                                    color: favList?.includes(app.metadata.name) ? '#FFCE25' : '#8fa4b1'
+                                                                                }}
+                                                                            />
+                                                                        </button>
+                                                                    </Tooltip>
+                                                                </div>
+                                                            </div>
+                                                        )}
                                                     </div>
-                                                    <div className='row'>
-                                                        <div className='columns small-3' title='Project:'>
-                                                            Project:
+                                                    {isListOfApplications && (
+                                                        <div className='row'>
+                                                            <div className='columns small-3' title='Project:'>
+                                                                Project:
+                                                            </div>
+                                                            <div className='columns small-9'>{app.spec.project}</div>
                                                         </div>
-                                                        <div className='columns small-9'>{app.spec.project}</div>
-                                                    </div>
+                                                    )}
                                                     <div className='row'>
                                                         <div className='columns small-3' title='Labels:'>
                                                             Labels:
@@ -198,30 +237,38 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
                                                             Status:
                                                         </div>
                                                         <div className='columns small-9' qe-id='applications-tiles-health-status'>
-                                                            <AppUtils.HealthStatusIcon state={app.status.health} /> {app.status.health.status}
+                                                            {isListOfApplications && <AppUtils.HealthStatusIcon state={(app as Application).status.health} />}{' '}
+                                                            {isListOfApplications && (app as Application).status.health.status}
+                                                            {!isListOfApplications && <AppUtils.AppSetHealthStatusIcon state={(app as ApplicationSet).status} />}{' '}
+                                                            {!isListOfApplications && getAppSetHealthStatus((app as ApplicationSet).status)}
                                                             &nbsp;
-                                                            <AppUtils.ComparisonStatusIcon status={app.status.sync.status} /> {app.status.sync.status}
+                                                            {isListOfApplications && <AppUtils.ComparisonStatusIcon status={(app as Application).status.sync.status} />}{' '}
+                                                            {isListOfApplications && (app as Application).status.sync.status}
                                                             &nbsp;
-                                                            <OperationState app={app} quiet={true} />
+                                                            {isListOfApplications && <OperationState app={app} quiet={true} />}
                                                         </div>
                                                     </div>
-                                                    <div className='row'>
-                                                        <div className='columns small-3' title='Repository:'>
-                                                            Repository:
+                                                    {isListOfApplications && (
+                                                        <div className='row'>
+                                                            <div className='columns small-3' title='Repository:'>
+                                                                Repository:
+                                                            </div>
+                                                            <div className='columns small-9'>
+                                                                <Tooltip content={source.repoURL} zIndex={4}>
+                                                                    <span>{source.repoURL}</span>
+                                                                </Tooltip>
+                                                            </div>
                                                         </div>
-                                                        <div className='columns small-9'>
-                                                            <Tooltip content={source.repoURL} zIndex={4}>
-                                                                <span>{source.repoURL}</span>
-                                                            </Tooltip>
+                                                    )}
+                                                    {isListOfApplications && (
+                                                        <div className='row'>
+                                                            <div className='columns small-3' title='Target Revision:'>
+                                                                Target Revision:
+                                                            </div>
+                                                            <div className='columns small-9'>{source.targetRevision || 'HEAD'}</div>
                                                         </div>
-                                                    </div>
-                                                    <div className='row'>
-                                                        <div className='columns small-3' title='Target Revision:'>
-                                                            Target Revision:
-                                                        </div>
-                                                        <div className='columns small-9'>{source.targetRevision || 'HEAD'}</div>
-                                                    </div>
-                                                    {source.path && (
+                                                    )}
+                                                    {isListOfApplications && source.path && (
                                                         <div className='row'>
                                                             <div className='columns small-3' title='Path:'>
                                                                 Path:
@@ -229,7 +276,7 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
                                                             <div className='columns small-9'>{source.path}</div>
                                                         </div>
                                                     )}
-                                                    {source.chart && (
+                                                    {isListOfApplications && source.chart && (
                                                         <div className='row'>
                                                             <div className='columns small-3' title='Chart:'>
                                                                 Chart:
@@ -237,71 +284,80 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
                                                             <div className='columns small-9'>{source.chart}</div>
                                                         </div>
                                                     )}
-                                                    <div className='row'>
-                                                        <div className='columns small-3' title='Destination:'>
-                                                            Destination:
+                                                    {isListOfApplications && (
+                                                        <div className='row'>
+                                                            <div className='columns small-3' title='Destination:'>
+                                                                Destination:
+                                                            </div>
+                                                            <div className='columns small-9'>
+                                                                <Cluster server={(app as models.Application).spec.destination.server} name={app.spec.destination.name} />
+                                                            </div>
                                                         </div>
-                                                        <div className='columns small-9'>
-                                                            <Cluster server={app.spec.destination.server} name={app.spec.destination.name} />
+                                                    )}
+                                                    {isListOfApplications && (
+                                                        <div className='row'>
+                                                            <div className='columns small-3' title='Namespace:'>
+                                                                Namespace:
+                                                            </div>
+                                                            <div className='columns small-9'>{(app as models.Application).spec.destination.namespace}</div>
                                                         </div>
-                                                    </div>
-                                                    <div className='row'>
-                                                        <div className='columns small-3' title='Namespace:'>
-                                                            Namespace:
-                                                        </div>
-                                                        <div className='columns small-9'>{app.spec.destination.namespace}</div>
-                                                    </div>
+                                                    )}
                                                     <div className='row'>
                                                         <div className='columns small-3' title='Age:'>
                                                             Created At:
                                                         </div>
                                                         <div className='columns small-9'>{AppUtils.formatCreationTimestamp(app.metadata.creationTimestamp)}</div>
                                                     </div>
-                                                    {app.status.operationState && (
+                                                    {isListOfApplications && (app as models.Application).status.operationState && (
                                                         <div className='row'>
                                                             <div className='columns small-3' title='Last sync:'>
                                                                 Last Sync:
                                                             </div>
                                                             <div className='columns small-9'>
-                                                                {AppUtils.formatCreationTimestamp(app.status.operationState.finishedAt || app.status.operationState.startedAt)}
+                                                                {AppUtils.formatCreationTimestamp(
+                                                                    (app as Application).status.operationState.finishedAt || app.status.operationState.startedAt
+                                                                )}
                                                             </div>
                                                         </div>
                                                     )}
-                                                    <div className='row applications-tiles__actions'>
-                                                        <div className='columns applications-list__entry--actions'>
-                                                            <a
-                                                                className='argo-button argo-button--base'
-                                                                qe-id='applications-tiles-button-sync'
-                                                                onClick={e => {
-                                                                    e.stopPropagation();
-                                                                    syncApplication(app.metadata.name, app.metadata.namespace);
-                                                                }}>
-                                                                <i className='fa fa-sync' /> Sync
-                                                            </a>
-                                                            &nbsp;
-                                                            <a
-                                                                className='argo-button argo-button--base'
-                                                                qe-id='applications-tiles-button-refresh'
-                                                                {...AppUtils.refreshLinkAttrs(app)}
-                                                                onClick={e => {
-                                                                    e.stopPropagation();
-                                                                    refreshApplication(app.metadata.name, app.metadata.namespace);
-                                                                }}>
-                                                                <i className={classNames('fa fa-redo', {'status-icon--spin': AppUtils.isAppRefreshing(app)})} />{' '}
-                                                                <span className='show-for-xxlarge'>Refresh</span>
-                                                            </a>
-                                                            &nbsp;
-                                                            <a
-                                                                className='argo-button argo-button--base'
-                                                                qe-id='applications-tiles-button-delete'
-                                                                onClick={e => {
-                                                                    e.stopPropagation();
-                                                                    deleteApplication(app.metadata.name, app.metadata.namespace);
-                                                                }}>
-                                                                <i className='fa fa-times-circle' /> <span className='show-for-xxlarge'>Delete</span>
-                                                            </a>
+                                                    {isListOfApplications && (
+                                                        <div className='row'>
+                                                            <div className='columns applications-list__entry--actions'>
+                                                                <a
+                                                                    className='argo-button argo-button--base'
+                                                                    qe-id='applications-tiles-button-sync'
+                                                                    onClick={e => {
+                                                                        e.stopPropagation();
+                                                                        (tilesProps as ApplicationTilesProps).syncApplication(app.metadata.name, app.metadata.namespace);
+                                                                    }}>
+                                                                    <i className='fa fa-sync' /> Sync
+                                                                </a>
+                                                                {/* )} */}
+                                                                &nbsp;
+                                                                <a
+                                                                    className='argo-button argo-button--base'
+                                                                    qe-id='applications-tiles-button-refresh'
+                                                                    {...AppUtils.refreshLinkAttrs(app)}
+                                                                    onClick={e => {
+                                                                        e.stopPropagation();
+                                                                        (tilesProps as ApplicationTilesProps).refreshApplication(app.metadata.name, app.metadata.namespace);
+                                                                    }}>
+                                                                    <i className={classNames('fa fa-redo', {'status-icon--spin': AppUtils.isAppRefreshing(app)})} />{' '}
+                                                                    <span className='show-for-xxlarge'>Refresh</span>
+                                                                </a>
+                                                                &nbsp;
+                                                                <a
+                                                                    className='argo-button argo-button--base'
+                                                                    qe-id='applications-tiles-button-delete'
+                                                                    onClick={e => {
+                                                                        e.stopPropagation();
+                                                                        (tilesProps as ApplicationTilesProps).deleteApplication(app.metadata.name, app.metadata.namespace);
+                                                                    }}>
+                                                                    <i className='fa fa-times-circle' /> <span className='show-for-xxlarge'>Delete</span>
+                                                                </a>
+                                                            </div>
                                                         </div>
-                                                    </div>
+                                                    )}
                                                 </div>
                                             </div>
                                         </div>

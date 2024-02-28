@@ -5,6 +5,9 @@ import {map, repeat, retry} from 'rxjs/operators';
 import * as models from '../models';
 import {isValidURL} from '../utils';
 import requests from './requests';
+import {getRootPathByApp, getRootPathByPath, isApp, isInvokedFromAppsPath} from '../../applications/components/utils';
+import {ContextApis} from '../context';
+import {History} from 'history';
 
 interface QueryOptions {
     fields: string[];
@@ -20,30 +23,54 @@ function optionsToSearch(options?: QueryOptions) {
     return {};
 }
 
+function getQuery(projects: string[], isFromApps: boolean, options?: QueryOptions): any {
+    // if (isFromApps) {
+        return {projects, ...optionsToSearch(options)};
+    // } else {
+    //     return {...optionsToSearch(options)};
+    // }
+}
+
 export class ApplicationsService {
-    public list(projects: string[], options?: QueryOptions): Promise<models.ApplicationList> {
+    public list(
+        projects: string[],
+        ctx: ContextApis & {
+            history: History<unknown>;
+        },
+        options?: QueryOptions
+    ): Promise<models.AbstractApplicationList> {
+        const isFromApps = isInvokedFromAppsPath(ctx.history.location.pathname);
         return requests
-            .get('/applications')
-            .query({projects, ...optionsToSearch(options)})
-            .then(res => res.body as models.ApplicationList)
+            .get(getRootPathByPath(ctx.history.location.pathname))
+            .query(getQuery(projects, isFromApps, options))
+            .then(res => {
+                if (isFromApps) {
+                    return res.body as models.ApplicationList;
+                } else {
+                    return res.body as models.ApplicationSetList;
+                }
+            })
             .then(list => {
-                list.items = (list.items || []).map(app => this.parseAppFields(app));
+                list.items = (list.items || []).map(app => this.parseAppFields(app, isFromApps));
+
                 return list;
             });
     }
 
-    public get(name: string, appNamespace: string, refresh?: 'normal' | 'hard'): Promise<models.Application> {
+    public get(name: string, appNamespace: string, pathname: string, refresh?: 'normal' | 'hard'): Promise<models.AbstractApplication> {
         const query: {[key: string]: string} = {};
+        const isFromApps = isInvokedFromAppsPath(pathname);
         if (refresh) {
             query.refresh = refresh;
         }
         if (appNamespace) {
             query.appNamespace = appNamespace;
         }
+
         return requests
-            .get(`/applications/${name}`)
+            .get(`${getRootPathByPath(pathname)}/${name}`)
             .query(query)
-            .then(res => this.parseAppFields(res.body));
+            .then(res => this.parseAppFields(res.body, isFromApps));
     }
 
     public getApplicationSyncWindowState(name: string, appNamespace: string): Promise<models.ApplicationSyncWindowState> {
@@ -67,22 +94,22 @@ export class ApplicationsService {
             .then(res => res.body as models.ChartDetails);
     }
 
-    public resourceTree(name: string, appNamespace: string): Promise<models.ApplicationTree> {
+    public resourceTree(name: string, appNamespace: string, pathname: string): Promise<models.AbstractApplicationTree> {
         return requests
-            .get(`/applications/${name}/resource-tree`)
+            .get(`${getRootPathByPath(pathname)}/${name}/resource-tree`)
             .query({appNamespace})
-            .then(res => res.body as models.ApplicationTree);
+            .then(res => res.body as models.AbstractApplicationTree);
     }
 
-    public watchResourceTree(name: string, appNamespace: string): Observable<models.ApplicationTree> {
+    public watchResourceTree(name: string, appNamespace: string, pathname: string): Observable<models.ApplicationTree> {
         return requests
-            .loadEventSource(`/stream/applications/${name}/resource-tree?appNamespace=${appNamespace}`)
+            .loadEventSource(`/stream${getRootPathByPath(pathname)}/${name}/resource-tree?appNamespace=${appNamespace}`)
             .pipe(map(data => JSON.parse(data).result as models.ApplicationTree));
     }
 
-    public managedResources(name: string, appNamespace: string, options: {id?: models.ResourceID; fields?: string[]} = {}): Promise<models.ResourceDiff[]> {
+    public managedResources(name: string, appNamespace: string, pathname: string, options: {id?: models.ResourceID; fields?: string[]} = {}): Promise<models.ResourceDiff[]> {
         return requests
-            .get(`/applications/${name}/managed-resources`)
+            .get(`${getRootPathByPath(pathname)}/${name}/managed-resources`)
             .query(`appNamespace=${appNamespace.toString()}`)
             .query({...options.id, fields: (options.fields || []).join(',')})
             .then(res => (res.body.items as any[]) || [])
@@ -105,9 +132,9 @@ export class ApplicationsService {
             });
     }
 
-    public getManifest(name: string, appNamespace: string, revision: string): Promise<models.ManifestResponse> {
+    public getManifest(name: string, appNamespace: string, pathname: string, revision: string): Promise<models.ManifestResponse> {
         return requests
-            .get(`/applications/${name}/manifests`)
+            .get(`${getRootPathByPath(pathname)}/${name}/manifests`)
             .query({name, revision, appNamespace})
             .then(res => res.body as models.ManifestResponse);
     }
@@ -120,15 +147,17 @@ export class ApplicationsService {
             .then(res => res.body as models.ApplicationSpec);
     }
 
-    public update(app: models.Application, query: {validate?: boolean} = {}): Promise<models.Application> {
+    public update(app: models.AbstractApplication, query: {validate?: boolean} = {}): Promise<models.AbstractApplication> {
+        const isAnApp = isApp(app);
         return requests
-            .put(`/applications/${app.metadata.name}`)
+            .put(`${getRootPathByApp(app)}/${app.metadata.name}`)
             .query(query)
-            .send(app)
-            .then(res => this.parseAppFields(res.body));
+            .send(isAnApp ? (app as models.Application) : (app as models.ApplicationSet))
+            .then(res => this.parseAppFields(res.body, isAnApp));
     }
 
-    public create(app: models.Application): Promise<models.Application> {
+    public create(app: models.AbstractApplication): Promise<models.AbstractApplication> {
+        const isAnApp = isApp(app);
         // Namespace may be specified in the app name. We need to parse and
         // handle it accordingly.
         if (app.metadata.name.includes('/')) {
@@ -137,9 +166,9 @@ export class ApplicationsService {
             app.metadata.namespace = nns[0];
         }
         return requests
-            .post(`/applications`)
-            .send(app)
-            .then(res => this.parseAppFields(res.body));
+            .post(getRootPathByApp(app))
+            .send(isAnApp ? (app as models.Application) : (app as models.ApplicationSet))
+            .then(res => this.parseAppFields(res.body, isAnApp));
     }
 
     public delete(name: string, appNamespace: string, propagationPolicy: string): Promise<boolean> {
@@ -148,8 +177,9 @@ export class ApplicationsService {
             propagationPolicy = '';
             cascade = false;
         }
+        // let isFromApps = isInvokedFromApps();
         return requests
-            .delete(`/applications/${name}`)
+            .delete(`/applications//${name}`)
             .query({
                 cascade,
                 propagationPolicy,
@@ -159,8 +189,13 @@ export class ApplicationsService {
             .then(() => true);
     }
 
-    public watch(query?: {name?: string; resourceVersion?: string; projects?: string[]; appNamespace?: string}, options?: QueryOptions): Observable<models.ApplicationWatchEvent> {
+    public watch(
+        pathname: string,
+        query?: {name?: string; resourceVersion?: string; projects?: string[]; appNamespace?: string},
+        options?: QueryOptions
+    ): Observable<models.ApplicationWatchEvent> {
         const search = new URLSearchParams();
+        const isFromApps = isInvokedFromAppsPath(pathname);
         if (query) {
             if (query.name) {
                 search.set('name', query.name);
@@ -177,10 +212,12 @@ export class ApplicationsService {
             search.set('fields', searchOptions.fields);
             search.set('selector', searchOptions.selector);
             search.set('appNamespace', searchOptions.appNamespace);
-            query?.projects?.forEach(project => search.append('projects', project));
+            if (isFromApps) {
+                query?.projects?.forEach(project => search.append('projects', project));
+            }
         }
         const searchStr = search.toString();
-        const url = `/stream/applications${(searchStr && '?' + searchStr) || ''}`;
+        const url = `/stream${getRootPathByPath(pathname)}${(searchStr && '?' + searchStr) || ''}`;
         return requests
             .loadEventSource(url)
             .pipe(repeat())
@@ -188,7 +225,7 @@ export class ApplicationsService {
             .pipe(map(data => JSON.parse(data).result as models.ApplicationWatchEvent))
             .pipe(
                 map(watchEvent => {
-                    watchEvent.application = this.parseAppFields(watchEvent.application);
+                    watchEvent.application = this.parseAppFields(watchEvent.application, isFromApps);
                     return watchEvent;
                 })
             );
@@ -283,9 +320,9 @@ export class ApplicationsService {
         });
     }
 
-    public getResource(name: string, appNamespace: string, resource: models.ResourceNode): Promise<models.State> {
+    public getResource(name: string, appNamespace: string, pathname: string, resource: models.ResourceNode): Promise<models.State> {
         return requests
-            .get(`/applications/${name}/resource`)
+            .get(`${getRootPathByPath(pathname)}/${name}/resource`)
             .query({
                 name: resource.name,
                 appNamespace,
@@ -369,6 +406,7 @@ export class ApplicationsService {
     }
 
     public events(applicationName: string, appNamespace: string): Promise<models.Event[]> {
+        // let isFromApps = isInvokedFromApps();
         return requests
             .get(`/applications/${applicationName}/events`)
             .query({appNamespace})
@@ -385,6 +423,7 @@ export class ApplicationsService {
             uid: string;
         }
     ): Promise<models.Event[]> {
+        // let isFromApps = isInvokedFromApps();
         return requests
             .get(`/applications/${applicationName}/events`)
             .query({
@@ -489,22 +528,39 @@ export class ApplicationsService {
         return search;
     }
 
-    private parseAppFields(data: any): models.Application {
-        data = deepMerge(
-            {
-                apiVersion: 'argoproj.io/v1alpha1',
-                kind: 'Application',
-                spec: {
-                    project: 'default'
+    private parseAppFields(data: any, isFromApps: boolean): models.AbstractApplication {
+        if (isFromApps) {
+            data = deepMerge(
+                {
+                    apiVersion: 'argoproj.io/v1alpha1',
+                    kind: 'Application',
+                    spec: {
+                        project: 'default'
+                    },
+                    status: {
+                        resources: [],
+                        summary: {}
+                    }
                 },
-                status: {
-                    resources: [],
-                    summary: {}
-                }
-            },
-            data
-        );
+                data
+            );
 
-        return data as models.Application;
+            return data as models.Application;
+        } else {
+            data = deepMerge(
+                {
+                    apiVersion: 'argoproj.io/v1alpha1',
+                    kind: 'ApplicationSet',
+                    status: {
+                        resources: []
+                    }
+                },
+                data
+            );
+            /* REMOVE ME WHEN FIXED ON BACKEND SIDE*/
+            // (data as models.ApplicationSet).status.resources[0].kind = 'Application';
+            // (data as models.ApplicationSet).status.resources[0].group = 'argoproj.io';
+            return data as models.ApplicationSet;
+        }
     }
 }

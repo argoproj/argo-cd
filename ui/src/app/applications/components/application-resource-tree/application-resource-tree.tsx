@@ -19,6 +19,7 @@ import {
     getAppOverridesCount,
     HealthStatusIcon,
     isAppNode,
+    isApp,
     isYoungerThanXMinutes,
     NodeId,
     nodeKey,
@@ -29,6 +30,7 @@ import {NodeUpdateAnimation} from './node-update-animation';
 import {PodGroup} from '../application-pod-view/pod-view';
 import './application-resource-tree.scss';
 import {ArrowConnector} from './arrow-connector';
+import {Application, ApplicationSet, ApplicationTree} from '../../../shared/models';
 
 function treeNodeKey(node: NodeId & {uid?: string}) {
     return node.uid || nodeKey(node);
@@ -47,9 +49,9 @@ export interface ResourceTreeNode extends models.ResourceNode {
     isExpanded?: boolean;
 }
 
-export interface ApplicationResourceTreeProps {
-    app: models.Application;
-    tree: models.ApplicationTree;
+export interface AbstractApplicationResourceTreeProps {
+    app: models.AbstractApplication;
+    tree: models.AbstractApplicationTree;
     useNetworkingHierarchy: boolean;
     nodeFilter: (node: ResourceTreeNode) => boolean;
     selectedNodeFullName?: string;
@@ -64,12 +66,20 @@ export interface ApplicationResourceTreeProps {
     updateUsrHelpTipMsgs: (userMsgs: models.UserMessages) => void;
     setShowCompactNodes: (showCompactNodes: boolean) => void;
     zoom: number;
-    podGroupCount: number;
     filters?: string[];
     setTreeFilterGraph?: (filterGraph: any[]) => void;
     nameDirection: boolean;
     setNodeExpansion: (node: string, isExpanded: boolean) => any;
     getNodeExpansion: (node: string) => boolean;
+}
+
+export interface ApplicationResourceTreeProps extends AbstractApplicationResourceTreeProps {
+    podGroupCount: number;
+}
+
+export interface ApplicationSetResourceTreeProps extends AbstractApplicationResourceTreeProps {
+    // FFU
+    dummyMemberToPlacateLinter: any;
 }
 
 interface Line {
@@ -249,7 +259,7 @@ export function compareNodes(first: ResourceTreeNode, second: ResourceTreeNode) 
     );
 }
 
-function appNodeKey(app: models.Application) {
+function appNodeKey(app: models.AbstractApplication) {
     return nodeKey({group: 'argoproj.io', kind: app.kind, name: app.metadata.name, namespace: app.metadata.namespace});
 }
 
@@ -412,7 +422,7 @@ function renderPodGroup(props: ApplicationResourceTreeProps, id: string, node: R
     }
     const appNode = isAppNode(node);
     const rootNode = !node.root;
-    const extLinks: string[] = props.app.status.summary.externalURLs;
+    const extLinks: string[] = isApp(props.app) ? (props.app as models.Application).status.summary.externalURLs : [];
     const podGroupChildren = childMap.get(treeNodeKey(node));
     const nonPodChildren = podGroupChildren?.reduce((acc, child) => {
         if (child.kind !== 'Pod') {
@@ -753,7 +763,7 @@ function renderResourceNode(props: ApplicationResourceTreeProps, id: string, nod
     }
     const appNode = isAppNode(node);
     const rootNode = !node.root;
-    const extLinks: string[] = props.app.status.summary.externalURLs;
+    const extLinks: string[] = isApp(props.app) ? (props.app as models.Application).status.summary.externalURLs : [];
     const childCount = nodesHavingChildren.get(node.uid);
     return (
         <div
@@ -880,7 +890,7 @@ function findNetworkTargets(nodes: ResourceTreeNode[], networkingInfo: models.Re
     }
     return result;
 }
-export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => {
+export const ApplicationResourceTree = (props: AbstractApplicationResourceTreeProps) => {
     const graph = new dagre.graphlib.Graph();
     graph.setGraph({nodesep: 25, rankdir: 'LR', marginy: 45, marginx: -100, ranksep: 80});
     graph.setDefaultEdgeLabel(() => ({}));
@@ -893,8 +903,8 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
         group: 'argoproj.io',
         version: '',
         children: Array(),
-        status: props.app.status.sync.status,
-        health: props.app.status.health,
+        status: isApp(props.app) ? props.app.status.sync.status : null,
+        health: isApp(props.app) ? props.app.status.health : props.app.status,
         uid: props.app.kind + '-' + props.app.metadata.namespace + '-' + props.app.metadata.name,
         info:
             overridesCount > 0
@@ -908,11 +918,17 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
     };
 
     const statusByKey = new Map<string, models.ResourceStatus>();
-    props.app.status.resources.forEach(res => statusByKey.set(nodeKey(res), res));
+    if (isApp(props.app)) {
+        (props.app as models.Application).status.resources.forEach(res => statusByKey.set(nodeKey(res), res));
+    } else {
+        // Assuming AppSet. Revisit this if a third type of an AbstractApp is born.
+        (props.app as models.ApplicationSet).status.resources.forEach(res => statusByKey.set(nodeKey(res), res));
+    }
+
     const nodeByKey = new Map<string, ResourceTreeNode>();
     props.tree.nodes
         .map(node => ({...node, orphaned: false}))
-        .concat(((props.showOrphanedResources && props.tree.orphanedNodes) || []).map(node => ({...node, orphaned: true})))
+        .concat(((props.showOrphanedResources && isApp(props.app) ? (props.tree as ApplicationTree).orphanedNodes : []) || []).map(node => ({...node, orphaned: true})))
         .forEach(node => {
             const status = statusByKey.get(nodeKey(node));
             const resourceNode: ResourceTreeNode = {...node};
@@ -940,18 +956,20 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
             props.setTreeFilterGraph(filteredGraph);
         }
     }, [props.filters]);
-    const {podGroupCount, userMsgs, updateUsrHelpTipMsgs, setShowCompactNodes} = props;
-    const podCount = nodes.filter(node => node.kind === 'Pod').length;
 
-    React.useEffect(() => {
-        if (podCount > podGroupCount) {
-            const userMsg = getUsrMsgKeyToDisplay(appNode.name, 'groupNodes', userMsgs);
-            updateUsrHelpTipMsgs(userMsg);
-            if (!userMsg.display) {
-                setShowCompactNodes(true);
+    if (isApp(props.app)) {
+        const podCount = nodes.filter(node => node.kind === 'Pod').length;
+        const {podGroupCount, userMsgs, updateUsrHelpTipMsgs, setShowCompactNodes} = props as ApplicationResourceTreeProps;
+        React.useEffect(() => {
+            if (podCount > podGroupCount) {
+                const userMsg = getUsrMsgKeyToDisplay(appNode.name, 'groupNodes', userMsgs);
+                updateUsrHelpTipMsgs(userMsg);
+                if (!userMsg.display) {
+                    setShowCompactNodes(true);
+                }
             }
-        }
-    }, [podCount]);
+        }, [podCount]);
+    }
 
     function filterGraph(app: models.Application, filteredIndicatorParent: string, graphNodesFilter: dagre.graphlib.Graph, predicate: (node: ResourceTreeNode) => boolean) {
         const appKey = appNodeKey(app);
@@ -978,7 +996,7 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
         }
     }
 
-    if (props.useNetworkingHierarchy) {
+    if (props.useNetworkingHierarchy && isApp(props.app)) {
         // Network view
         const hasParents = new Set<string>();
         const networkNodes = nodes.filter(node => node.networkingInfo);
@@ -1002,7 +1020,7 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
                         hiddenNodes.push(child);
                     }
                 } else {
-                    processPodGroup(parent, child, props);
+                    processPodGroup(parent, child, props as ApplicationResourceTreeProps);
                 }
             });
         });
@@ -1076,8 +1094,10 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
         }
     } else {
         // Tree view
-        const managedKeys = new Set(props.app.status.resources.map(nodeKey));
-        const orphanedKeys = new Set(props.tree.orphanedNodes?.map(nodeKey));
+        const managedKeys = isApp(props.app)
+            ? new Set((props.app as Application).status.resources.map(nodeKey))
+            : new Set((props.app as ApplicationSet).status.resources.map(nodeKey));
+        const orphanedKeys = isApp(props.app) ? new Set((props.tree as ApplicationTree).orphanedNodes?.map(nodeKey)) : new Set();
         const orphans: ResourceTreeNode[] = [];
         let allChildNodes: ResourceTreeNode[] = [];
         nodesHavingChildren.set(appNode.uid, 1);
@@ -1106,7 +1126,9 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
                             }
                         } else {
                             const parentTreeNode = nodeByKey.get(parentId);
-                            processPodGroup(parentTreeNode, node, props);
+                            if (isApp(props.app)) {
+                                processPodGroup(parentTreeNode, node, props as ApplicationResourceTreeProps);
+                            }
                         }
                         if (props.showCompactNodes) {
                             if (childrenMap.has(parentId)) {
@@ -1247,11 +1269,19 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
                         case NODE_TYPES.externalLoadBalancer:
                             return <React.Fragment key={key}>{renderLoadBalancerNode(node as any)}</React.Fragment>;
                         case NODE_TYPES.groupedNodes:
-                            return <React.Fragment key={key}>{renderGroupedNodes(props, node as any)}</React.Fragment>;
+                            return <React.Fragment key={key}>{renderGroupedNodes(props as ApplicationResourceTreeProps, node as any)}</React.Fragment>;
                         case NODE_TYPES.podGroup:
-                            return <React.Fragment key={key}>{renderPodGroup(props, key, node as ResourceTreeNode & dagre.Node, childrenMap)}</React.Fragment>;
+                            return (
+                                <React.Fragment key={key}>
+                                    {renderPodGroup(props as ApplicationResourceTreeProps, key, node as ResourceTreeNode & dagre.Node, childrenMap)}
+                                </React.Fragment>
+                            );
                         default:
-                            return <React.Fragment key={key}>{renderResourceNode(props, key, node as ResourceTreeNode & dagre.Node, nodesHavingChildren)}</React.Fragment>;
+                            return (
+                                <React.Fragment key={key}>
+                                    {renderResourceNode(props as ApplicationResourceTreeProps, key, node as ResourceTreeNode & dagre.Node, nodesHavingChildren)}
+                                </React.Fragment>
+                            );
                     }
                 })}
                 {edges.map(edge => (

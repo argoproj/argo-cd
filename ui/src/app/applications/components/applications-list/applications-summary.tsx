@@ -3,8 +3,10 @@ const PieChart = require('react-svg-piechart').default;
 
 import {COLORS} from '../../../shared/components';
 import * as models from '../../../shared/models';
-import {HealthStatusCode, SyncStatusCode} from '../../../shared/models';
-import {ComparisonStatusIcon, HealthStatusIcon} from '../utils';
+import {Application, ApplicationSet, HealthStatusCode, SyncStatusCode} from '../../../shared/models';
+import {ComparisonStatusIcon, HealthStatusIcon, getAppSetHealthStatus, isInvokedFromAppsPath} from '../utils';
+import {ContextApis} from '../../../shared/context';
+import {History} from 'history';
 
 const healthColors = new Map<models.HealthStatusCode, string>();
 healthColors.set('Unknown', COLORS.health.unknown);
@@ -14,52 +16,96 @@ healthColors.set('Healthy', COLORS.health.healthy);
 healthColors.set('Degraded', COLORS.health.degraded);
 healthColors.set('Missing', COLORS.health.missing);
 
+const appSetHealthColors = new Map<models.ApplicationSetConditionStatus, string>();
+appSetHealthColors.set('Unknown', COLORS.health.unknown);
+appSetHealthColors.set('True', COLORS.health.healthy);
+appSetHealthColors.set('False', COLORS.health.degraded);
+
 const syncColors = new Map<models.SyncStatusCode, string>();
 syncColors.set('Unknown', COLORS.sync.unknown);
 syncColors.set('Synced', COLORS.sync.synced);
 syncColors.set('OutOfSync', COLORS.sync.out_of_sync);
 
-export const ApplicationsSummary = ({applications}: {applications: models.Application[]}) => {
+export const ApplicationsSummary = ({
+    applications,
+    ctx
+}: {
+    applications: models.AbstractApplication[];
+    ctx: ContextApis & {
+        history: History<unknown>;
+    };
+}) => {
     const sync = new Map<string, number>();
-    applications.forEach(app => sync.set(app.status.sync.status, (sync.get(app.status.sync.status) || 0) + 1));
     const health = new Map<string, number>();
-    applications.forEach(app => health.set(app.status.health.status, (health.get(app.status.health.status) || 0) + 1));
 
-    const attributes = [
-        {
-            title: 'APPLICATIONS',
-            value: applications.length
-        },
-        {
-            title: 'SYNCED',
-            value: applications.filter(app => app.status.sync.status === 'Synced').length
-        },
-        {
-            title: 'HEALTHY',
-            value: applications.filter(app => app.status.health.status === 'Healthy').length
-        },
-        {
-            title: 'CLUSTERS',
-            value: new Set(applications.map(app => app.spec.destination.server)).size
-        },
-        {
-            title: 'NAMESPACES',
-            value: new Set(applications.map(app => app.spec.destination.namespace)).size
-        }
-    ];
+    if (isInvokedFromAppsPath(ctx.history.location.pathname)) {
+        applications.forEach(app => sync.set((app as Application).status.sync.status, (sync.get((app as Application).status.sync.status) || 0) + 1));
+        applications.forEach(app => health.set((app as Application).status.health.status, (health.get((app as Application).status.health.status) || 0) + 1));
+    } else {
+        applications.forEach(app =>
+            health.set(getAppSetHealthStatus((app as ApplicationSet).status), (health.get(getAppSetHealthStatus((app as ApplicationSet).status)) || 0) + 1)
+        );
+    }
 
-    const charts = [
-        {
-            title: 'Sync',
-            data: Array.from(sync.keys()).map(key => ({title: key, value: sync.get(key), color: syncColors.get(key as models.SyncStatusCode)})),
-            legend: syncColors as Map<string, string>
-        },
-        {
-            title: 'Health',
-            data: Array.from(health.keys()).map(key => ({title: key, value: health.get(key), color: healthColors.get(key as models.HealthStatusCode)})),
-            legend: healthColors as Map<string, string>
-        }
-    ];
+    const attributes = isInvokedFromAppsPath(ctx.history.location.pathname)
+        ? [
+              {
+                  title: 'APPLICATIONS',
+                  value: applications.length
+              },
+              {
+                  title: 'SYNCED',
+                  value: applications.filter(app => app.status.sync.status === 'Synced').length
+              },
+              {
+                  title: 'HEALTHY',
+                  value: applications.filter(app => app.status.health.status === 'Healthy').length
+              },
+              {
+                  title: 'CLUSTERS',
+                  value: new Set(applications.map(app => app.spec.destination.server)).size
+              },
+              {
+                  title: 'NAMESPACES',
+                  value: new Set(applications.map(app => app.spec.destination.namespace)).size
+              }
+          ]
+        : [
+              {
+                  title: 'APPLICATIONSETS',
+                  value: applications.length
+              },
+              {
+                  title: 'HEALTHY',
+                  value: applications.filter(app => getAppSetHealthStatus((app as ApplicationSet).status) === 'True').length
+              }
+          ];
+
+    const charts = isInvokedFromAppsPath(ctx.history.location.pathname)
+        ? [
+              {
+                  title: 'Sync',
+                  data: Array.from(sync.keys()).map(key => ({title: key, value: sync.get(key), color: syncColors.get(key as models.SyncStatusCode)})),
+                  legend: syncColors as Map<string, string>
+              },
+              {
+                  title: 'Health',
+                  data: Array.from(health.keys()).map(key => ({title: key, value: health.get(key), color: healthColors.get(key as models.HealthStatusCode)})),
+                  legend: healthColors as Map<string, string>
+              }
+          ]
+        : [
+              {
+                  title: 'Health',
+                  data: Array.from(health.keys()).map(key => ({
+                      title: key,
+                      value: health.get(key),
+                      color: appSetHealthColors.get(key as models.ApplicationSetConditionStatus)
+                  })),
+                  legend: appSetHealthColors as Map<string, string>
+              }
+          ];
+
     return (
         <div className='white-box applications-list__summary'>
             <div className='row'>
@@ -95,7 +141,10 @@ export const ApplicationsSummary = ({applications}: {applications: models.Applic
                                                 <ul>
                                                     {Array.from(chart.legend.keys()).map(key => (
                                                         <li style={{listStyle: 'none', whiteSpace: 'nowrap'}} key={key}>
-                                                            {chart.title === 'Health' && <HealthStatusIcon state={{status: key as HealthStatusCode, message: ''}} noSpin={true} />}
+                                                            {isInvokedFromAppsPath(ctx.history.location.pathname) && chart.title === 'Health' && (
+                                                                <HealthStatusIcon state={{status: key as HealthStatusCode, message: ''}} noSpin={true} />
+                                                            )}
+                                                            {/* {chart.title === 'Health' && <AppSetHealthStatusIcon state={{conditions : key as ApplicationSetConditionStatus}} noSpin={true} />}  */}
                                                             {chart.title === 'Sync' && <ComparisonStatusIcon status={key as SyncStatusCode} noSpin={true} />}
                                                             {` ${key} (${getLegendValue(key)})`}
                                                         </li>

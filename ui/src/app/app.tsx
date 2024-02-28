@@ -31,6 +31,7 @@ type Routes = {[path: string]: {component: React.ComponentType<RouteComponentPro
 const routes: Routes = {
     '/login': {component: login.component as any, noLayout: true},
     '/applications': {component: applications.component},
+    '/applicationsets': {component: applications.component},
     '/settings': {component: settings.component},
     '/user-info': {component: userInfo.component},
     '/help': {component: help.component},
@@ -53,7 +54,7 @@ const navItems: NavItem[] = [
     },
     {
         title: 'Settings',
-        tooltip: 'Manage your repositories, projects, settings',
+        tooltip: 'Manage your repositories, projects, settings, application sets',
         path: '/settings',
         iconClassName: 'argo-icon argo-icon-settings'
     },
