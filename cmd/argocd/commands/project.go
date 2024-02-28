@@ -518,7 +518,7 @@ func NewProjectAddSourceNamespace(clientOpts *argocdclient.ClientOptions) *cobra
 		Short: "Add project source namespace",
 		Example: templates.Examples(`
 			# Add Kubernetes namespace as source namespace where application resources are allowed to be created in.
-			argocd proj add-source-namespaces PROJECT NAMESPACE
+			argocd proj add-source-namespace PROJECT NAMESPACE
 		`),
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
