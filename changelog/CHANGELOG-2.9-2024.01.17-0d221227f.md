@@ -1,2 +1,0 @@
-### Event reporter v2.0.3
-1. Implemented a fixed window rate limiter for the event reporter to prevent the application from overflowing the entire reporter queue. This enhancement ensures timely reporting without causing delays for other applications.
