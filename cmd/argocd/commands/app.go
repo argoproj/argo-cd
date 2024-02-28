@@ -1601,11 +1601,12 @@ func getWatchOpts(watch watchOpts) watchOpts {
 // NewApplicationWaitCommand returns a new instance of an `argocd app wait` command
 func NewApplicationWaitCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
-		watch     watchOpts
-		timeout   uint
-		selector  string
-		resources []string
-		output    string
+		watch        watchOpts
+		timeout      uint
+		selector     string
+		resources    []string
+		output       string
+		appNamespace string
 	)
 	var command = &cobra.Command{
 		Use:   "wait [APPNAME.. | -l selector]",
@@ -1654,6 +1655,10 @@ func NewApplicationWaitCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				}
 			}
 			for _, appName := range appNames {
+				// Construct QualifiedName
+				if appNamespace != "" && !strings.Contains(appName, "/") {
+					appName = appNamespace + "/" + appName
+				}
 				_, _, err := waitOnApplicationStatus(ctx, acdClient, appName, timeout, watch, selectedResources, output)
 				errors.CheckError(err)
 			}
@@ -1668,6 +1673,7 @@ func NewApplicationWaitCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	command.Flags().StringArrayVar(&resources, "resource", []string{}, fmt.Sprintf("Sync only specific resources as GROUP%[1]sKIND%[1]sNAME or %[2]sGROUP%[1]sKIND%[1]sNAME. Fields may be blank and '*' can be used. This option may be specified repeatedly", resourceFieldDelimiter, resourceExcludeIndicator))
 	command.Flags().BoolVar(&watch.operation, "operation", false, "Wait for pending operations")
 	command.Flags().UintVar(&timeout, "timeout", defaultCheckTimeoutSeconds, "Time out after this many seconds")
+	command.Flags().StringVarP(&appNamespace, "app-namespace", "N", "", "Only wait for an application  in namespace")
 	command.Flags().StringVarP(&output, "output", "o", "wide", "Output format. One of: json|yaml|wide|tree|tree=detailed")
 	return command
 }
