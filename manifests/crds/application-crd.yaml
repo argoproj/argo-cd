@@ -319,10 +319,6 @@ spec:
                             description: CommonLabels is a list of additional labels
                               to add to rendered manifests
                             type: object
-                          labelWithoutSelector:
-                            description: LabelWithoutSelector specifies whether
-                              to skip applying common labels to selectors and templates
-                            type: boolean
                           components:
                             description: Components specifies a list of kustomize
                               components to add to the kustomization before building
@@ -661,10 +657,6 @@ spec:
                               description: CommonLabels is a list of additional labels
                                 to add to rendered manifests
                               type: object
-                            labelWithoutSelector:
-                              description: LabelWithoutSelector specifies whether
-                                to skip applying common labels to selectors and templates
-                              type: boolean
                             components:
                               description: Components specifies a list of kustomize
                                 components to add to the kustomization before building
