@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"k8s.io/utils/pointer"
 )
 
 func TestParseNumFromEnv(t *testing.T) {
@@ -167,19 +168,25 @@ func TestStringFromEnv(t *testing.T) {
 
 	testCases := []struct {
 		name     string
-		env      string
+		env      *string
 		expected string
 		def      string
+		opts     []StringFromEnvOpts
 	}{
-		{"Some string", "true", "true", def},
-		{"Empty string with default", "", def, def},
-		{"Empty string without default", "", "", ""},
+		{"Some string", pointer.String("true"), "true", def, nil},
+		{"Empty string with default", pointer.String(""), def, def, nil},
+		{"Empty string without default", pointer.String(""), "", "", nil},
+		{"No env variable with default allow empty", nil, "default", "default", []StringFromEnvOpts{{AllowEmpty: true}}},
+		{"Some variable with default allow empty", pointer.String("true"), "true", "default", []StringFromEnvOpts{{AllowEmpty: true}}},
+		{"Empty variable with default allow empty", pointer.String(""), "", "default", []StringFromEnvOpts{{AllowEmpty: true}}},
 	}
 
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
-			t.Setenv(envKey, tt.env)
-			b := StringFromEnv(envKey, tt.def)
+			if tt.env != nil {
+				t.Setenv(envKey, *tt.env)
+			}
+			b := StringFromEnv(envKey, tt.def, tt.opts...)
 			assert.Equal(t, tt.expected, b)
 		})
 	}
