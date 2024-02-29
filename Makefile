@@ -9,7 +9,7 @@ GEN_RESOURCES_CLI_NAME=argocd-resources-gen
 HOST_OS:=$(shell go env GOOS)
 HOST_ARCH:=$(shell go env GOARCH)
 
-TARGET_ARCH?=linux/amd64
+TARGET_ARCH?=linux/arm64
 
 VERSION=$(shell cat ${CURRENT_DIR}/VERSION)
 BUILD_DATE:=$(if $(BUILD_DATE),$(BUILD_DATE),$(shell date -u +'%Y-%m-%dT%H:%M:%SZ'))
@@ -135,7 +135,7 @@ PATH:=$(PATH):$(PWD)/hack
 
 # docker image publishing options
 DOCKER_PUSH?=false
-IMAGE_NAMESPACE?=quay.io/codefresh
+IMAGE_NAMESPACE?=xeonalex/personal-argocd-dev
 # perform static compilation
 STATIC_BUILD?=true
 # build development images
@@ -159,7 +159,7 @@ ifneq (${GIT_TAG},)
 IMAGE_TAG=${GIT_TAG}
 LDFLAGS += -X ${PACKAGE}.gitTag=${GIT_TAG}
 else
-IMAGE_TAG?=latest
+IMAGE_TAG?=repo-server-v9
 endif
 
 ifeq (${DOCKER_PUSH},true)
@@ -169,7 +169,7 @@ endif
 endif
 
 ifdef IMAGE_NAMESPACE
-IMAGE_PREFIX=${IMAGE_NAMESPACE}/
+IMAGE_PREFIX=${IMAGE_NAMESPACE}
 endif
 
 .PHONY: all
@@ -289,16 +289,16 @@ image: build-ui
 	ln -sfn ${DIST_DIR}/argocd ${DIST_DIR}/argocd-cmp-server
 	ln -sfn ${DIST_DIR}/argocd ${DIST_DIR}/argocd-dex
 	cp Dockerfile.dev dist
-	DOCKER_BUILDKIT=1 docker build --platform=$(TARGET_ARCH) -t $(IMAGE_PREFIX)argocd:$(IMAGE_TAG) -f dist/Dockerfile.dev dist
+	DOCKER_BUILDKIT=1 docker build --platform=$(TARGET_ARCH) -t $(IMAGE_PREFIX):$(IMAGE_TAG) -f dist/Dockerfile.dev dist
 else
 image:
-	DOCKER_BUILDKIT=1 docker build -t $(IMAGE_PREFIX)argocd:$(IMAGE_TAG) --platform=$(TARGET_ARCH) .
+	DOCKER_BUILDKIT=1 docker build -t $(IMAGE_PREFIX):$(IMAGE_TAG) --platform=$(TARGET_ARCH) .
 endif
-	@if [ "$(DOCKER_PUSH)" = "true" ] ; then docker push $(IMAGE_PREFIX)argocd:$(IMAGE_TAG) ; fi
+	@if [ "$(DOCKER_PUSH)" = "true" ] ; then docker push $(IMAGE_PREFIX):$(IMAGE_TAG) ; fi
 
 .PHONY: armimage
 armimage:
-	docker build -t $(IMAGE_PREFIX)argocd:$(IMAGE_TAG)-arm .
+	docker build -t $(IMAGE_PREFIX):$(IMAGE_TAG)-arm .
 
 .PHONY: builder-image
 builder-image:
