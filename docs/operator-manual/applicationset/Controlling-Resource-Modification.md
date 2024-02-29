@@ -32,14 +32,14 @@ spec:
 
 ```
 
-- Policy `create-only`: Prevents ApplicationSet controller from modifying or deleting Applications. Prevents Application controller from deleting Applications according to [ownerReferences](https://kubernetes.io/docs/concepts/overview/working-with-objects/owners-dependents/).
-- Policy `create-update`: Prevents ApplicationSet controller from deleting Applications. Update is allowed. Prevents Application controller from deleting Applications according to [ownerReferences](https://kubernetes.io/docs/concepts/overview/working-with-objects/owners-dependents/).
+- Policy `create-only`: Prevents ApplicationSet controller from modifying or deleting Applications. **WARNING**: It doesn't prevent Application controller from deleting Applications according to [ownerReferences](https://kubernetes.io/docs/concepts/overview/working-with-objects/owners-dependents/) when deleting ApplicationSet.
+- Policy `create-update`: Prevents ApplicationSet controller from deleting Applications. Update is allowed. **WARNING**: It doesn't prevent Application controller from deleting Applications according to [ownerReferences](https://kubernetes.io/docs/concepts/overview/working-with-objects/owners-dependents/) when deleting ApplicationSet.
 - Policy `create-delete`: Prevents ApplicationSet controller from modifying Applications. Delete is allowed.
 - Policy `sync`: Update and Delete are allowed.
 
 If the controller parameter `--policy` is set, it takes precedence on the field `applicationsSync`. It is possible to allow per ApplicationSet sync policy by setting variable `ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_POLICY_OVERRIDE` to argocd-cmd-params-cm `applicationsetcontroller.enable.policy.override` or directly with controller parameter `--enable-policy-override` (default to `false`).
 
-### Controller parameter
+### Policy - `create-only`: Prevent ApplicationSet controller from modifying and deleting Applications
 
 To allow the ApplicationSet controller to *create* `Application` resources, but prevent any further modification, such as deletion, or modification of Application fields, add this parameter in the ApplicationSet controller:
 ```
@@ -57,7 +57,7 @@ spec:
     applicationsSync: create-only
 ```
 
-## Policy - `create-update`: Prevent ApplicationSet controller from deleting Applications
+### Policy - `create-update`: Prevent ApplicationSet controller from deleting Applications
 
 To allow the ApplicationSet controller to create or modify `Application` resources, but prevent Applications from being deleted, add the following parameter to the ApplicationSet controller `Deployment`:
 ```
@@ -75,6 +75,22 @@ spec:
   # (...)
   syncPolicy:
     applicationsSync: create-update
+```
+
+### How to prevent Application controller from deleting Applications when deleting ApplicationSet
+
+By default, `create-only` and `create-update` policy isn't effective against preventing deletion of Applications when deleting ApplicationSet.
+You must set the finalizer to ApplicationSet to prevent deletion in such case, and use background cascading deletion.
+If you use foreground cascading deletion, there's no guarantee to preserve applications.
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  finalizers:
+  - resources-finalizer.argocd.argoproj.io
+spec:
+  # (...)
 ```
 
 ## Ignore certain changes to Applications
