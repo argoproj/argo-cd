@@ -45,7 +45,7 @@ If an Application has successfully applied its partial spec to a shared resource
 
 ## Summary
 
-ArgoCD supports server-side apply, but it uses the same field manager, `argocd-controller`, no matter what Application is issuing the sync. Letting users set a field manager, or defaulting to a unique field manager per application would enable users to:
+ArgoCD supports server-side apply, but it uses the same field manager, `argocd-controller`, no matter what Application is issuing the sync. Setting a unique field manager per application would enable users to:
 
 - Manage only specific fields they care about on a shared resource
 - Avoid deleting or overwriting fields that are managed by other Applications
@@ -66,17 +66,13 @@ A common use case of server-side apply is the ability to manage only particular 
 
 A delete operation should undo only the additions or updates it made to a shared resource, unless that resource has `Prune=true`.
 
-#### [G-3] Users can define a field manager as a sync option
-
-Some users may rely on the current behavior emanating from the use of the same field manager across all Applications. The current behavior being that each server side apply sync overwrites all fields on a resource. In other words, "latest sync wins."
-
 ## Non-Goals
 
-1. A corresponding text field in the ArgoCD UI to let users specify a field manager for a server-side apply sync. Field managers aren't something that should be changed in an ad-hoc manner. They should only be specified directly in the resource's sync options.
+1. We don't intend to give users control of this field manager. Letting users change the field manager could lead to situations where fields get left behind on shared objects.
 
 ## Proposal
 
-1. Add a new sync option named `FieldManager` that accepts a string up to 128 characters in length. This can only be set on an individual resource. Don't allow this sync option to be set on the Application: accidentally overriding the resource-level field manager may have undesirable side effects like leaving orphaned fields behind. When a sync is performed for a resource and server side-apply is enabled, it uses the `FieldManager` if it is set, otherwise it defaults to the hard-coded `argocd-controller` field manager.
+1. Each Application uses a field manager that is unique to itself and chosen deterministicly. It never changes for the lifetime of the Application.
 
 1. Change the removal behavior for shared resources. When a resource with a custom field manager is "removed", it instead removes only the fields managed by its field manager from the shared resource by sending an empty "fully specified intent" using server-side apply. You can fully delete a shared resource by setting `Prune=true` at the resource level. [Demo of this behavior](#removal-demo).
 
@@ -92,10 +88,6 @@ The following use cases should be implemented:
 
 Change the Server-Side Apply field manager to be set by a sync option, but default to the constant `ArgoCDSSAManager`.
 
-#### [UC-2]: As a user, I would like explict control of which field manager my Application uses for server-side apply.
-
-Add a sync option named `FieldManager` that can be set via annotation on individual resources that controls which field manager is used.
-
 ### Security Considerations
 
 TBD
@@ -108,7 +100,7 @@ We should trim every field manager to 128 characters.
 
 ### Upgrade / Downgrade
 
-TBD
+- Because ArgoCD uses `--force-conflicts` when issuing a server-side apply, the new field manager will transparently assume ownership of the fields from the existing field manager `argocd-controller`.
 
 ## Drawbacks
 
