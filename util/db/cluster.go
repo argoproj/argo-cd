@@ -339,9 +339,6 @@ func clusterToSecret(c *appv1.Cluster, secret *apiv1.Secret) error {
 	if c.ClusterResources {
 		data["clusterResources"] = []byte("true")
 	}
-	if c.EnableClusterInfoLabels {
-		data["enableClusterInfoLabels"] = []byte("true")
-	}
 	if c.Project != "" {
 		data["project"] = []byte(c.Project)
 	}
@@ -415,18 +412,17 @@ func SecretToCluster(s *apiv1.Secret) (*appv1.Cluster, error) {
 	}
 
 	cluster := appv1.Cluster{
-		ID:                      string(s.UID),
-		Server:                  strings.TrimRight(string(s.Data["server"]), "/"),
-		Name:                    string(s.Data["name"]),
-		Namespaces:              namespaces,
-		ClusterResources:        string(s.Data["clusterResources"]) == "true",
-		EnableClusterInfoLabels: string(s.Data["enableClusterInfoLabels"]) == "true",
-		Config:                  config,
-		RefreshRequestedAt:      refreshRequestedAt,
-		Shard:                   shard,
-		Project:                 string(s.Data["project"]),
-		Labels:                  labels,
-		Annotations:             annotations,
+		ID:                 string(s.UID),
+		Server:             strings.TrimRight(string(s.Data["server"]), "/"),
+		Name:               string(s.Data["name"]),
+		Namespaces:         namespaces,
+		ClusterResources:   string(s.Data["clusterResources"]) == "true",
+		Config:             config,
+		RefreshRequestedAt: refreshRequestedAt,
+		Shard:              shard,
+		Project:            string(s.Data["project"]),
+		Labels:             labels,
+		Annotations:        annotations,
 	}
 	return &cluster, nil
 }

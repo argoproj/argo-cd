@@ -120,9 +120,8 @@ func TestUpdateClusterLabels(t *testing.T) {
 				K8SVersion: "1.28",
 			},
 			v1alpha1.Cluster{
-				Server:                  "kubernetes.svc.local",
-				Labels:                  nil,
-				EnableClusterInfoLabels: false,
+				Server: "kubernetes.svc.local",
+				Labels: nil,
 			},
 			shouldNotBeInvoked,
 			assert.NoError,
@@ -131,9 +130,8 @@ func TestUpdateClusterLabels(t *testing.T) {
 			"clusterInfo = nil",
 			nil,
 			v1alpha1.Cluster{
-				Server:                  "kubernetes.svc.local",
-				Labels:                  nil,
-				EnableClusterInfoLabels: true,
+				Server: "kubernetes.svc.local",
+				Labels: map[string]string{"argocd.argoproj.io/auto-label-cluster-info": "true"},
 			},
 			shouldNotBeInvoked,
 			assert.NoError,
@@ -145,9 +143,8 @@ func TestUpdateClusterLabels(t *testing.T) {
 				K8SVersion: "1.28",
 			},
 			v1alpha1.Cluster{
-				Server:                  "kubernetes.svc.local",
-				Labels:                  map[string]string{"argocd.argoproj.io/kubernetes-version": "1.28"},
-				EnableClusterInfoLabels: true,
+				Server: "kubernetes.svc.local",
+				Labels: map[string]string{"argocd.argoproj.io/kubernetes-version": "1.28", "argocd.argoproj.io/auto-label-cluster-info": "true"},
 			},
 			shouldNotBeInvoked,
 			assert.NoError,
@@ -159,9 +156,8 @@ func TestUpdateClusterLabels(t *testing.T) {
 				K8SVersion: "1.28",
 			},
 			v1alpha1.Cluster{
-				Server:                  "kubernetes.svc.local",
-				Labels:                  map[string]string{"argocd.argoproj.io/kubernetes-version": "1.27"},
-				EnableClusterInfoLabels: true,
+				Server: "kubernetes.svc.local",
+				Labels: map[string]string{"argocd.argoproj.io/kubernetes-version": "1.27", "argocd.argoproj.io/auto-label-cluster-info": "true"},
 			},
 			func(ctx context.Context, cluster *v1alpha1.Cluster) (*v1alpha1.Cluster, error) {
 				assert.Equal(t, cluster.Labels["argocd.argoproj.io/kubernetes-version"], "1.28")
@@ -176,9 +172,8 @@ func TestUpdateClusterLabels(t *testing.T) {
 				K8SVersion: "1.28",
 			},
 			v1alpha1.Cluster{
-				Server:                  "kubernetes.svc.local",
-				Labels:                  map[string]string{"argocd.argoproj.io/kubernetes-version": "1.27"},
-				EnableClusterInfoLabels: true,
+				Server: "kubernetes.svc.local",
+				Labels: map[string]string{"argocd.argoproj.io/kubernetes-version": "1.27", "argocd.argoproj.io/auto-label-cluster-info": "true"},
 			},
 			func(ctx context.Context, cluster *v1alpha1.Cluster) (*v1alpha1.Cluster, error) {
 				assert.Equal(t, cluster.Labels["argocd.argoproj.io/kubernetes-version"], "1.28")

@@ -2671,13 +2671,6 @@ func schema_pkg_apis_application_v1alpha1_Cluster(ref common.ReferenceCallback) 
 							},
 						},
 					},
-					"enableClusterInfoLabels": {
-						SchemaProps: spec.SchemaProps{
-							Description: "If enabled, cluster labels will automatically be generated for the given cluster. Currently only the k8s version of the cluster is added.",
-							Type:        []string{"boolean"},
-							Format:      "",
-						},
-					},
 				},
 				Required: []string{"server", "name", "config"},
 			},

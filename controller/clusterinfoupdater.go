@@ -169,7 +169,7 @@ func (c *clusterInfoUpdater) getUpdatedClusterInfo(ctx context.Context, apps []*
 }
 
 func updateClusterLabels(ctx context.Context, clusterInfo *cache.ClusterInfo, cluster appv1.Cluster, updateCluster func(context.Context, *appv1.Cluster) (*appv1.Cluster, error)) error {
-	if clusterInfo != nil && cluster.EnableClusterInfoLabels && cluster.Labels[common.LabelKeyClusterKubernetesVersion] != clusterInfo.K8SVersion {
+	if clusterInfo != nil && cluster.Labels[common.LabelKeyAutoLabelClusterInfo] == "true" && cluster.Labels[common.LabelKeyClusterKubernetesVersion] != clusterInfo.K8SVersion {
 		cluster.Labels[common.LabelKeyClusterKubernetesVersion] = clusterInfo.K8SVersion
 		_, err := updateCluster(ctx, &cluster)
 		return err

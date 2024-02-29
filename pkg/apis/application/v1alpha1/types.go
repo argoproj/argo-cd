@@ -1771,8 +1771,6 @@ type Cluster struct {
 	Labels map[string]string `json:"labels,omitempty" protobuf:"bytes,12,opt,name=labels"`
 	// Annotations for cluster secret metadata
 	Annotations map[string]string `json:"annotations,omitempty" protobuf:"bytes,13,opt,name=annotations"`
-	// If enabled, cluster labels will automatically be generated for the given cluster. Currently only the k8s version of the cluster is added.
-	EnableClusterInfoLabels bool `json:"enableClusterInfoLabels,omitempty" protobuf:"bytes,14,opt,name=enableClusterInfoLabels"`
 }
 
 // Equals returns true if two cluster objects are considered to be equal
