@@ -1,87 +1,74 @@
 package version_config_manager
 
 import (
-	"errors"
-
+	"github.com/argoproj/argo-cd/v2/pkg/codefresh"
+	"github.com/argoproj/argo-cd/v2/reposerver/cache"
 	log "github.com/sirupsen/logrus"
-)
-
-const (
-	CodefreshAPIProviderType = "CodereshAPI"
-	ConfigMapProviderType    = "ConfigMap"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 type VersionConfig struct {
-	ProductLabel string `json:"productLabel"`
 	JsonPath     string `json:"jsonPath"`
 	ResourceName string `json:"resourceName"`
 }
 
-type ConfigProvider interface {
-	GetConfig() (*VersionConfig, error)
-}
+func (v *VersionConfigManager) GetVersionConfig(app *metav1.ObjectMeta) (*VersionConfig, error) {
+	var appConfig *codefresh.ApplicationConfiguration
 
-type CodereshAPIConfigProvider struct {
-	CodereshAPIEndpoint string
-}
+	// Get from cache
+	appConfig, err := v.cache.GetCfAppConfig(app.Namespace, app.Name)
+	if err == nil {
+		log.Infof("CfAppConfig cache hit: '%s'", cache.CfAppConfigCacheKey(app.Namespace, app.Name))
+		log.Infof("CfAppConfig. Use config from cache.  File: %s, jsonPath: %s", appConfig.VersionSource.File, appConfig.VersionSource.JsonPath)
+		return &VersionConfig{
+			JsonPath:     appConfig.VersionSource.JsonPath,
+			ResourceName: appConfig.VersionSource.File,
+		}, nil
+	}
 
-type ConfigMapProvider struct {
-	ConfigMapPath string
-}
+	if err != nil {
+		log.Errorf("CfAppConfig cache get error for '%s': %v", cache.CfAppConfigCacheKey(app.Namespace, app.Name), err)
+	}
 
-func (codereshAPI *CodereshAPIConfigProvider) GetConfig() (*VersionConfig, error) {
-	// Implement logic to fetch config from the CodereshAPI here.
-	// For this example, we'll just return a mock config.
+	// Get from Codefresh API
+	appConfig, err = v.requests.GetApplicationConfiguration(app)
+	if err != nil {
+		log.Infof("Failed to get application config from API: %v", err)
+		return nil, err
+	}
+
+	if appConfig != nil {
+		log.Infof("CfAppConfig. Use config from API. File: %s, jsonPath: %s", appConfig.VersionSource.File, appConfig.VersionSource.JsonPath)
+		// Set to cache
+		err = v.cache.SetCfAppConfig(app.Namespace, app.Name, appConfig)
+		if err == nil {
+			log.Infof("CfAppConfig saved to cache hit: '%s'", cache.CfAppConfigCacheKey(app.Namespace, app.Name))
+		} else {
+			log.Errorf("CfAppConfig cache set error for '%s': %v", cache.CfAppConfigCacheKey(app.Namespace, app.Name), err)
+		}
+
+		return &VersionConfig{
+			JsonPath:     appConfig.VersionSource.JsonPath,
+			ResourceName: appConfig.VersionSource.File,
+		}, nil
+	}
+
+	// Default value
+	log.Infof("Used default CfAppConfig for: '%s'", cache.CfAppConfigCacheKey(app.Namespace, app.Name))
 	return &VersionConfig{
-		ProductLabel: "ProductLabelName=ProductName",
-		JsonPath:     "{.appVersion}",
-		ResourceName: "Chart.yaml",
-	}, nil
-}
-
-func (cm *ConfigMapProvider) GetConfig() (*VersionConfig, error) {
-	// Implement logic to fetch config from the config map here.
-	// For this example, we'll just return a mock config.
-	return &VersionConfig{
-		ProductLabel: "ProductLabelName=ProductName",
 		JsonPath:     "{.appVersion}",
 		ResourceName: "Chart.yaml",
 	}, nil
 }
 
 type VersionConfigManager struct {
-	provider ConfigProvider
+	requests codefresh.CodefreshGraphQLInterface
+	cache    *cache.Cache
 }
 
-func NewVersionConfigManager(providerType string, source string) (*VersionConfigManager, error) {
-	var provider ConfigProvider
-	switch providerType {
-	case CodefreshAPIProviderType:
-		provider = &CodereshAPIConfigProvider{CodereshAPIEndpoint: source}
-	case ConfigMapProviderType:
-		provider = &ConfigMapProvider{ConfigMapPath: source}
-	default:
-		return nil, errors.New("Invalid provider type")
+func NewVersionConfigManager(requests codefresh.CodefreshGraphQLInterface, cache *cache.Cache) *VersionConfigManager {
+	return &VersionConfigManager{
+		requests,
+		cache,
 	}
-	return &VersionConfigManager{provider: provider}, nil
-}
-
-func (v *VersionConfigManager) ObtainConfig() (*VersionConfig, error) {
-	return v.provider.GetConfig()
-}
-
-func GetVersionConfig() *VersionConfig {
-	versionConfigManager, err := NewVersionConfigManager("ConfigMap", "some-product-cm")
-	if err != nil {
-		log.Errorf("ERROR: Failed to create VersionConfigManager: %v", err)
-		return nil
-	}
-
-	versionConfig, err := versionConfigManager.ObtainConfig()
-	if err != nil {
-		log.Printf("Failed to obtain config: %v", err)
-		return nil
-	}
-
-	return versionConfig
 }

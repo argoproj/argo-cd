@@ -3,12 +3,13 @@ package reporter
 import (
 	"context"
 	"encoding/json"
-	"github.com/argoproj/argo-cd/v2/event_reporter/metrics"
-	"github.com/argoproj/argo-cd/v2/util/io"
-	"github.com/argoproj/gitops-engine/pkg/health"
 	"net/http"
 	"testing"
 	"time"
+
+	"github.com/argoproj/argo-cd/v2/event_reporter/metrics"
+	"github.com/argoproj/argo-cd/v2/util/io"
+	"github.com/argoproj/gitops-engine/pkg/health"
 
 	"github.com/ghodss/yaml"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -33,6 +34,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/events"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/pkg/codefresh"
 	repoApiclient "github.com/argoproj/argo-cd/v2/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/v2/util/argo"
 )
@@ -229,8 +231,12 @@ type MockCodefreshClient struct {
 	httpClient *http.Client
 }
 
-func (cc *MockCodefreshClient) Send(ctx context.Context, appName string, event *events.Event) error {
+func (cc *MockCodefreshClient) SendEvent(ctx context.Context, appName string, event *events.Event) error {
 	return nil
+}
+
+func (cc *MockCodefreshClient) SendGraphQL(query codefresh.GraphQLQuery) (*json.RawMessage, error) {
+	return nil, nil
 }
 
 func fakeReporter() *applicationEventReporter {
