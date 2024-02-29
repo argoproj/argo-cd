@@ -13,13 +13,6 @@ echo "export PATH=\$PATH:/home/vscode/.arkade/bin" >> $HOME/.bashrc
 # Make sure go path is owned by vscode
 sudo chown -R vscode:vscode /home/vscode/go
 
-# install goreman for local development
-cat <<EOT >> $HOME/.bashrc
-if ! command -v goreman >/dev/null; then
-    go install github.com/mattn/goreman@latest
-fi
-EOT
-
 # setup autocomplete for kubectl and alias k
 mkdir $HOME/.kube
 echo "source <(kubectl completion bash)" >> $HOME/.bashrc
