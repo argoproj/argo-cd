@@ -267,13 +267,13 @@ The final rate limiter uses a combination of both and calculates the final backo
 
 ### Global rate limits
 
-  This is enabled by default, it is a simple bucket based rate limiter that limits the number of items that can be queued per second.
+  This is disabled by default, it is a simple bucket based rate limiter that limits the number of items that can be queued per second.
 This is useful to prevent a large number of apps from being queued at the same time.
 
 To configure the bucket limiter you can set the following environment variables:
 
   * `WORKQUEUE_BUCKET_SIZE` - The number of items that can be queued in a single burst. Defaults to 500.
-  * `WORKQUEUE_BUCKET_QPS` - The number of items that can be queued per second. Defaults to 50.
+  * `WORKQUEUE_BUCKET_QPS` - The number of items that can be queued per second. Defaults to MaxFloat64, which disables the limiter.
 
 ### Per item rate limits
 
