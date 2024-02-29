@@ -151,8 +151,17 @@ func ParseDurationFromEnv(env string, defaultValue, min, max time.Duration) time
 	return dur
 }
 
-func StringFromEnv(env string, defaultValue string) string {
-	if str := os.Getenv(env); str != "" {
+type StringFromEnvOpts struct {
+	// AllowEmpty allows the value to be empty as long as the environment variable is set.
+	AllowEmpty bool
+}
+
+func StringFromEnv(env string, defaultValue string, opts ...StringFromEnvOpts) string {
+	opt := StringFromEnvOpts{}
+	for _, o := range opts {
+		opt.AllowEmpty = opt.AllowEmpty || o.AllowEmpty
+	}
+	if str, ok := os.LookupEnv(env); opt.AllowEmpty && ok || str != "" {
 		return str
 	}
 	return defaultValue
