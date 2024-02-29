@@ -553,7 +553,7 @@ func NewProjectAddSourceNamespace(clientOpts *argocdclient.ClientOptions) *cobra
 func NewProjectDeleteSourceNamespace(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var command = &cobra.Command{
 		Use:   "delete-source-namespace PROJECT NAMESPACE",
-		Short: "Remove project source namespace",
+		Short: "Delete project source namespace",
 		Example: templates.Examples(`
 			# Remove source NAMESPACE in PROJECT (blacklist namespace for app creation)
 			argocd proj delete-source-namespace PROJECT NAMESPACE
