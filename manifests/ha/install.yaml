@@ -22389,7 +22389,7 @@ spec:
               key: applicationsetcontroller.enable.scm.providers
               name: argocd-cmd-params-cm
               optional: true
-        image: quay.io/argoproj/argocd:v2.10.1
+        image: quay.io/argoproj/argocd:v2.10.2
         imagePullPolicy: Always
         name: argocd-applicationset-controller
         ports:
@@ -22512,7 +22512,7 @@ spec:
         - -n
         - /usr/local/bin/argocd
         - /shared/argocd-dex
-        image: quay.io/argoproj/argocd:v2.10.1
+        image: quay.io/argoproj/argocd:v2.10.2
         imagePullPolicy: Always
         name: copyutil
         securityContext:
@@ -22594,7 +22594,7 @@ spec:
               key: notificationscontroller.selfservice.enabled
               name: argocd-cmd-params-cm
               optional: true
-        image: quay.io/argoproj/argocd:v2.10.1
+        image: quay.io/argoproj/argocd:v2.10.2
         imagePullPolicy: Always
         livenessProbe:
           tcpSocket:
@@ -22949,7 +22949,7 @@ spec:
           value: /helm-working-dir
         - name: HELM_DATA_HOME
           value: /helm-working-dir
-        image: quay.io/argoproj/argocd:v2.10.1
+        image: quay.io/argoproj/argocd:v2.10.2
         imagePullPolicy: Always
         livenessProbe:
           failureThreshold: 3
@@ -23001,7 +23001,7 @@ spec:
         - -n
         - /usr/local/bin/argocd
         - /var/run/argocd/argocd-cmp-server
-        image: quay.io/argoproj/argocd:v2.10.1
+        image: quay.io/argoproj/argocd:v2.10.2
         name: copyutil
         securityContext:
           allowPrivilegeEscalation: false
@@ -23320,7 +23320,7 @@ spec:
               key: server.api.content.types
               name: argocd-cmd-params-cm
               optional: true
-        image: quay.io/argoproj/argocd:v2.10.1
+        image: quay.io/argoproj/argocd:v2.10.2
         imagePullPolicy: Always
         livenessProbe:
           httpGet:
@@ -23608,7 +23608,7 @@ spec:
               key: controller.diff.server.side
               name: argocd-cmd-params-cm
               optional: true
-        image: quay.io/argoproj/argocd:v2.10.1
+        image: quay.io/argoproj/argocd:v2.10.2
         imagePullPolicy: Always
         name: argocd-application-controller
         ports:
