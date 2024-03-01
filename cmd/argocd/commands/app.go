@@ -318,6 +318,7 @@ func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 		output        string
 		showParams    bool
 		showOperation bool
+		appNamespace  string
 	)
 	var command = &cobra.Command{
 		Use:   "get APPNAME",
@@ -361,7 +362,7 @@ func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 			conn, appIf := acdClient.NewApplicationClientOrDie()
 			defer argoio.Close(conn)
 
-			appName, appNs := argo.ParseFromQualifiedName(args[0], "")
+			appName, appNs := argo.ParseFromQualifiedName(args[0], appNamespace)
 
 			app, err := appIf.Get(ctx, &application.ApplicationQuery{
 				Name:         &appName,
@@ -414,6 +415,7 @@ func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 	command.Flags().BoolVar(&showParams, "show-params", false, "Show application parameters and overrides")
 	command.Flags().BoolVar(&refresh, "refresh", false, "Refresh application data when retrieving")
 	command.Flags().BoolVar(&hardRefresh, "hard-refresh", false, "Refresh application data as well as target manifests cache")
+	command.Flags().StringVarP(&appNamespace, "app-namespace", "N", "", "Only get application from namespace")
 	return command
 }
 
@@ -1072,6 +1074,7 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 		localRepoRoot      string
 		serverSideGenerate bool
 		localIncludes      []string
+		appNamespace       string
 	)
 	shortDesc := "Perform a diff against the target and live state."
 	var command = &cobra.Command{
@@ -1088,7 +1091,7 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			clientset := headless.NewClientOrDie(clientOpts, c)
 			conn, appIf := clientset.NewApplicationClientOrDie()
 			defer argoio.Close(conn)
-			appName, appNs := argo.ParseFromQualifiedName(args[0], "")
+			appName, appNs := argo.ParseFromQualifiedName(args[0], appNamespace)
 			app, err := appIf.Get(ctx, &application.ApplicationQuery{
 				Name:         &appName,
 				Refresh:      getRefreshType(refresh, hardRefresh),
@@ -1152,6 +1155,7 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	command.Flags().StringVar(&localRepoRoot, "local-repo-root", "/", "Path to the repository root. Used together with --local allows setting the repository root")
 	command.Flags().BoolVar(&serverSideGenerate, "server-side-generate", false, "Used with --local, this will send your manifests to the server for diffing")
 	command.Flags().StringArrayVar(&localIncludes, "local-include", []string{"*.yaml", "*.yml", "*.json"}, "Used with --server-side-generate, specify patterns of filenames to send. Matching is based on filename and not path.")
+	command.Flags().StringVarP(&appNamespace, "app-namespace", "N", "", "Only render the difference in namespace")
 	return command
 }
 
@@ -1293,6 +1297,7 @@ func NewApplicationDeleteCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 		propagationPolicy string
 		selector          string
 		wait              bool
+		appNamespace      string
 	)
 	var command = &cobra.Command{
 		Use:   "delete APPNAME",
@@ -1335,7 +1340,7 @@ func NewApplicationDeleteCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 			}
 
 			for _, appFullName := range appNames {
-				appName, appNs := argo.ParseFromQualifiedName(appFullName, "")
+				appName, appNs := argo.ParseFromQualifiedName(appFullName, appNamespace)
 				appDeleteReq := application.ApplicationDeleteRequest{
 					Name:         &appName,
 					AppNamespace: &appNs,
@@ -1387,6 +1392,7 @@ func NewApplicationDeleteCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 	command.Flags().BoolVarP(&noPrompt, "yes", "y", false, "Turn off prompting to confirm cascaded deletion of application resources")
 	command.Flags().StringVarP(&selector, "selector", "l", "", "Delete all apps with matching label. Supports '=', '==', '!=', in, notin, exists & not exists. Matching apps must satisfy all of the specified label constraints.")
 	command.Flags().BoolVar(&wait, "wait", false, "Wait until deletion of the application(s) completes")
+	command.Flags().StringVarP(&appNamespace, "app-namespace", "N", "", "Namespace where the application will be deleted from")
 	return command
 }
 
@@ -1610,11 +1616,12 @@ func getWatchOpts(watch watchOpts) watchOpts {
 // NewApplicationWaitCommand returns a new instance of an `argocd app wait` command
 func NewApplicationWaitCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
-		watch     watchOpts
-		timeout   uint
-		selector  string
-		resources []string
-		output    string
+		watch        watchOpts
+		timeout      uint
+		selector     string
+		resources    []string
+		output       string
+		appNamespace string
 	)
 	var command = &cobra.Command{
 		Use:   "wait [APPNAME.. | -l selector]",
@@ -1663,6 +1670,10 @@ func NewApplicationWaitCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				}
 			}
 			for _, appName := range appNames {
+				// Construct QualifiedName
+				if appNamespace != "" && !strings.Contains(appName, "/") {
+					appName = appNamespace + "/" + appName
+				}
 				_, _, err := waitOnApplicationStatus(ctx, acdClient, appName, timeout, watch, selectedResources, output)
 				errors.CheckError(err)
 			}
@@ -1677,6 +1688,7 @@ func NewApplicationWaitCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	command.Flags().StringArrayVar(&resources, "resource", []string{}, fmt.Sprintf("Sync only specific resources as GROUP%[1]sKIND%[1]sNAME or %[2]sGROUP%[1]sKIND%[1]sNAME. Fields may be blank and '*' can be used. This option may be specified repeatedly", resourceFieldDelimiter, resourceExcludeIndicator))
 	command.Flags().BoolVar(&watch.operation, "operation", false, "Wait for pending operations")
 	command.Flags().UintVar(&timeout, "timeout", defaultCheckTimeoutSeconds, "Time out after this many seconds")
+	command.Flags().StringVarP(&appNamespace, "app-namespace", "N", "", "Only wait for an application  in namespace")
 	command.Flags().StringVarP(&output, "output", "o", "wide", "Output format. One of: json|yaml|wide|tree|tree=detailed")
 	return command
 }
@@ -1734,6 +1746,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 		diffChangesConfirm      bool
 		projects                []string
 		output                  string
+		appNamespace            string
 	)
 	var command = &cobra.Command{
 		Use:   "sync [APPNAME... | -l selector | --project project-name]",
@@ -1778,7 +1791,10 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 
 			appNames := args
 			if selector != "" || len(projects) > 0 {
-				list, err := appIf.List(ctx, &application.ApplicationQuery{Selector: pointer.String(selector), Projects: projects})
+				list, err := appIf.List(ctx, &application.ApplicationQuery{
+					Selector:     pointer.String(selector),
+					AppNamespace: &appNamespace,
+					Projects:     projects})
 				errors.CheckError(err)
 
 				// unlike list, we'd want to fail if nothing was found
@@ -1799,6 +1815,10 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			}
 
 			for _, appQualifiedName := range appNames {
+				// Construct QualifiedName
+				if appNamespace != "" && !strings.Contains(appQualifiedName, "/") {
+					appQualifiedName = appNamespace + "/" + appQualifiedName
+				}
 				appName, appNs := argo.ParseFromQualifiedName(appQualifiedName, "")
 
 				if len(selectedLabels) > 0 {
@@ -2016,6 +2036,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	command.Flags().BoolVar(&diffChanges, "preview-changes", false, "Preview difference against the target and live state before syncing app and wait for user confirmation")
 	command.Flags().StringArrayVar(&projects, "project", []string{}, "Sync apps that belong to the specified projects. This option may be specified repeatedly.")
 	command.Flags().StringVarP(&output, "output", "o", "wide", "Output format. One of: json|yaml|wide|tree|tree=detailed")
+	command.Flags().StringVarP(&appNamespace, "app-namespace", "N", "", "Only sync an application in namespace")
 	return command
 }
 
@@ -2452,7 +2473,8 @@ func printApplicationHistoryTable(revHistory []argoappv1.RevisionHistory) {
 // NewApplicationHistoryCommand returns a new instance of an `argocd app history` command
 func NewApplicationHistoryCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
-		output string
+		output       string
+		appNamespace string
 	)
 	var command = &cobra.Command{
 		Use:   "history APPNAME",
@@ -2466,7 +2488,7 @@ func NewApplicationHistoryCommand(clientOpts *argocdclient.ClientOptions) *cobra
 			}
 			conn, appIf := headless.NewClientOrDie(clientOpts, c).NewApplicationClientOrDie()
 			defer argoio.Close(conn)
-			appName, appNs := argo.ParseFromQualifiedName(args[0], "")
+			appName, appNs := argo.ParseFromQualifiedName(args[0], appNamespace)
 			app, err := appIf.Get(ctx, &application.ApplicationQuery{
 				Name:         &appName,
 				AppNamespace: &appNs,
@@ -2480,6 +2502,7 @@ func NewApplicationHistoryCommand(clientOpts *argocdclient.ClientOptions) *cobra
 			}
 		},
 	}
+	command.Flags().StringVarP(&appNamespace, "app-namespace", "N", "", "Only show application deployment history in namespace")
 	command.Flags().StringVarP(&output, "output", "o", "wide", "Output format. One of: wide|id")
 	return command
 }
@@ -2504,9 +2527,10 @@ func findRevisionHistory(application *argoappv1.Application, historyId int64) (*
 // NewApplicationRollbackCommand returns a new instance of an `argocd app rollback` command
 func NewApplicationRollbackCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
-		prune   bool
-		timeout uint
-		output  string
+		prune        bool
+		timeout      uint
+		output       string
+		appNamespace string
 	)
 	var command = &cobra.Command{
 		Use:   "rollback APPNAME [ID]",
@@ -2517,7 +2541,7 @@ func NewApplicationRollbackCommand(clientOpts *argocdclient.ClientOptions) *cobr
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
-			appName, appNs := argo.ParseFromQualifiedName(args[0], "")
+			appName, appNs := argo.ParseFromQualifiedName(args[0], appNamespace)
 			var err error
 			depID := -1
 			if len(args) > 1 {
@@ -2553,6 +2577,7 @@ func NewApplicationRollbackCommand(clientOpts *argocdclient.ClientOptions) *cobr
 	command.Flags().BoolVar(&prune, "prune", false, "Allow deleting unexpected resources")
 	command.Flags().UintVar(&timeout, "timeout", defaultCheckTimeoutSeconds, "Time out after this many seconds")
 	command.Flags().StringVarP(&output, "output", "o", "wide", "Output format. One of: json|yaml|wide|tree|tree=detailed")
+	command.Flags().StringVarP(&appNamespace, "app-namespace", "N", "", "Rollback application in namespace")
 	return command
 }
 
@@ -2702,6 +2727,7 @@ func NewApplicationTerminateOpCommand(clientOpts *argocdclient.ClientOptions) *c
 }
 
 func NewApplicationEditCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
+	var appNamespace string
 	var command = &cobra.Command{
 		Use:   "edit APPNAME",
 		Short: "Edit application",
@@ -2712,7 +2738,7 @@ func NewApplicationEditCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
-			appName, appNs := argo.ParseFromQualifiedName(args[0], "")
+			appName, appNs := argo.ParseFromQualifiedName(args[0], appNamespace)
 			conn, appIf := headless.NewClientOrDie(clientOpts, c).NewApplicationClientOrDie()
 			defer argoio.Close(conn)
 			app, err := appIf.Get(ctx, &application.ApplicationQuery{
@@ -2752,12 +2778,16 @@ func NewApplicationEditCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			})
 		},
 	}
+	command.Flags().StringVarP(&appNamespace, "app-namespace", "N", "", "Only edit application in namespace")
 	return command
 }
 
 func NewApplicationPatchCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
-	var patch string
-	var patchType string
+	var (
+		patch        string
+		patchType    string
+		appNamespace string
+	)
 
 	command := cobra.Command{
 		Use:   "patch APPNAME",
@@ -2774,7 +2804,7 @@ func NewApplicationPatchCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
-			appName, appNs := argo.ParseFromQualifiedName(args[0], "")
+			appName, appNs := argo.ParseFromQualifiedName(args[0], appNamespace)
 			conn, appIf := headless.NewClientOrDie(clientOpts, c).NewApplicationClientOrDie()
 			defer argoio.Close(conn)
 
@@ -2792,7 +2822,7 @@ func NewApplicationPatchCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
 			fmt.Println(string(yamlBytes))
 		},
 	}
-
+	command.Flags().StringVarP(&appNamespace, "app-namespace", "N", "", "Only patch application in namespace")
 	command.Flags().StringVar(&patch, "patch", "", "Patch body")
 	command.Flags().StringVar(&patchType, "type", "json", "The type of patch being provided; one of [json merge]")
 	return &command
