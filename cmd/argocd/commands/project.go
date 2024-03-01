@@ -549,7 +549,7 @@ func NewProjectAddSourceNamespace(clientOpts *argocdclient.ClientOptions) *cobra
 	return command
 }
 
-// NewProjectDeleteSourceNamespace returns a new instance of an `argocd proj delete-source-namespace` command
+// NewProjectRemoveSourceNamespace returns a new instance of an `argocd proj remove-source-namespace` command
 func NewProjectRemoveSourceNamespace(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var command = &cobra.Command{
 		Use:   "remove-source-namespace PROJECT NAMESPACE",
