@@ -11,7 +11,7 @@ argocd proj remove-source-namespace PROJECT NAMESPACE [flags]
 ### Examples
 
 ```
-  # Remove source NAMESPACE in PROJECT (blacklist namespace for app creation)
+  # Remove source NAMESPACE in PROJECT
   argocd proj remove-source-namespace PROJECT NAMESPACE
 ```
 
