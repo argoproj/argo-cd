@@ -17,6 +17,7 @@ argocd app diff APPNAME [flags]
 ### Options
 
 ```
+  -N, --app-namespace string        Only render the difference in namespace
       --exit-code                   Return non-zero exit code when there is a diff (default true)
       --hard-refresh                Refresh application data as well as target manifests cache
   -h, --help                        help for diff
