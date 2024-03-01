@@ -50,7 +50,8 @@ rollback which includes [controller and UI changes](https://github.com/argoproj/
 
 Thus, multiple source applications are not considered first class citizens in the UI.
 
-Note, see the Open Questions section for concerns regarding the priority or value of some of the above changes.
+Note, see the [Open Questions](https://github.com/argoproj/argo-cd/docs/proposals/multiple-sources-for-applications-ui.md#open-questions) 
+section for concerns regarding the priority or value of some of the above changes.
 
 ## Motivation
 
@@ -146,7 +147,7 @@ for single-source apps, and shows source information as shown in Figure 3.
 
 Figure 3: Source information in History
 
-Jorge has submitted a PR for rollback which includes controller and UI changes [here](https://github.com/argoproj/argo-cd/pull/14124). 
+Jorge has submitted a [PR](https://github.com/argoproj/argo-cd/pull/14124) for rollback which includes controller and UI changes. 
 This can be treated as a separate, independent proposal.
 
 Other related changes pertain to the Last Synced Details. The Sync Details panel needs to be updated to show sync info
