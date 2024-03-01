@@ -104,8 +104,7 @@ We should trim every field manager to 128 characters.
 
 ## Drawbacks
 
-- Increase in ArgoCD code base complexity.
-- All current sync options are booleans. Adding a `FieldManager` option would be a string.
+TBD
 
 ## Demos
 
