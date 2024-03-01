@@ -2,7 +2,7 @@
 
 ## argocd proj add-source-namespace
 
-Add project source namespace
+Add source namespace to the AppProject
 
 ```
 argocd proj add-source-namespace PROJECT NAMESPACE [flags]
@@ -11,14 +11,14 @@ argocd proj add-source-namespace PROJECT NAMESPACE [flags]
 ### Examples
 
 ```
-  # Add Kubernetes namespace as source namespace where application resources are allowed to be created in.
+  # Add Kubernetes namespace as source namespace to the AppProject where application resources are allowed to be created in.
   argocd proj add-source-namespace PROJECT NAMESPACE
 ```
 
 ### Options
 
 ```
-  -h, --help   help for add-destination
+  -h, --help   help for add-source-namespace
 ```
 
 ### Options inherited from parent commands

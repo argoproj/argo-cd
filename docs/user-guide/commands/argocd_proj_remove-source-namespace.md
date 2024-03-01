@@ -1,24 +1,24 @@
-# `argocd proj delete-source-namespace` Command Reference
+# `argocd proj remove-source-namespace` Command Reference
 
-## argocd proj delete-source-namespace
+## argocd proj remove-source-namespace
 
-Delete project source namespace
+Removes the source namespace from the AppProject
 
 ```
-argocd proj delete-source-namespace PROJECT NAMESPACE [flags]
+argocd proj remove-source-namespace PROJECT NAMESPACE [flags]
 ```
 
 ### Examples
 
 ```
   # Remove source NAMESPACE in PROJECT (blacklist namespace for app creation)
-  argocd proj delete-source-namespace PROJECT NAMESPACE
+  argocd proj remove-source-namespace PROJECT NAMESPACE
 ```
 
 ### Options
 
 ```
-  -h, --help   help for add-destination
+  -h, --help   help for remove-source-namespace
 ```
 
 ### Options inherited from parent commands

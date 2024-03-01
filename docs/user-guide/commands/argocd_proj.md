@@ -84,12 +84,11 @@ argocd proj [flags]
 * [argocd proj add-orphaned-ignore](argocd_proj_add-orphaned-ignore.md)	 - Add a resource to orphaned ignore list
 * [argocd proj add-signature-key](argocd_proj_add-signature-key.md)	 - Add GnuPG signature key to project
 * [argocd proj add-source](argocd_proj_add-source.md)	 - Add project source repository
-* [argocd proj add-source-namespace](argocd_proj_add-source-namespace.md)	 - Add project source namespace
+* [argocd proj add-source-namespace](argocd_proj_add-source-namespace.md)	 - Add source namespace to the AppProject
 * [argocd proj allow-cluster-resource](argocd_proj_allow-cluster-resource.md)	 - Adds a cluster-scoped API resource to the allow list and removes it from deny list
 * [argocd proj allow-namespace-resource](argocd_proj_allow-namespace-resource.md)	 - Removes a namespaced API resource from the deny list or add a namespaced API resource to the allow list
 * [argocd proj create](argocd_proj_create.md)	 - Create a project
 * [argocd proj delete](argocd_proj_delete.md)	 - Delete project
-* [argocd proj delete-source-namespace](argocd_proj_delete-source-namespace.md)	 - Delete project source namespace
 * [argocd proj deny-cluster-resource](argocd_proj_deny-cluster-resource.md)	 - Removes a cluster-scoped API resource from the allow list and adds it to deny list
 * [argocd proj deny-namespace-resource](argocd_proj_deny-namespace-resource.md)	 - Adds a namespaced API resource to the deny list or removes a namespaced API resource from the allow list
 * [argocd proj edit](argocd_proj_edit.md)	 - Edit project
@@ -99,6 +98,7 @@ argocd proj [flags]
 * [argocd proj remove-orphaned-ignore](argocd_proj_remove-orphaned-ignore.md)	 - Remove a resource from orphaned ignore list
 * [argocd proj remove-signature-key](argocd_proj_remove-signature-key.md)	 - Remove GnuPG signature key from project
 * [argocd proj remove-source](argocd_proj_remove-source.md)	 - Remove project source repository
+* [argocd proj remove-source-namespace](argocd_proj_remove-source-namespace.md)	 - Removes the source namespace from the AppProject
 * [argocd proj role](argocd_proj_role.md)	 - Manage a project's roles
 * [argocd proj set](argocd_proj_set.md)	 - Set project parameters
 * [argocd proj windows](argocd_proj_windows.md)	 - Manage a project's sync windows

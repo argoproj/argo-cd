@@ -79,7 +79,7 @@ func NewProjectCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	command.AddCommand(NewProjectAddOrphanedIgnoreCommand(clientOpts))
 	command.AddCommand(NewProjectRemoveOrphanedIgnoreCommand(clientOpts))
 	command.AddCommand(NewProjectAddSourceNamespace(clientOpts))
-	command.AddCommand(NewProjectDeleteSourceNamespace(clientOpts))
+	command.AddCommand(NewProjectRemoveSourceNamespace(clientOpts))
 	return command
 }
 
@@ -515,9 +515,9 @@ func NewProjectAddSourceCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
 func NewProjectAddSourceNamespace(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var command = &cobra.Command{
 		Use:   "add-source-namespace PROJECT NAMESPACE",
-		Short: "Add project source namespace",
+		Short: "Add source namespace to the AppProject",
 		Example: templates.Examples(`
-			# Add Kubernetes namespace as source namespace where application resources are allowed to be created in.
+			# Add Kubernetes namespace as source namespace to the AppProject where application resources are allowed to be created in.
 			argocd proj add-source-namespace PROJECT NAMESPACE
 		`),
 		Run: func(c *cobra.Command, args []string) {
@@ -536,7 +536,7 @@ func NewProjectAddSourceNamespace(clientOpts *argocdclient.ClientOptions) *cobra
 			errors.CheckError(err)
 
 			for _, item := range proj.Spec.SourceNamespaces {
-				if item == "*" && item == srcNamespace {
+				if item == "*" || item == srcNamespace {
 					fmt.Printf("Source namespace '*' already allowed in project\n")
 					return
 				}
@@ -550,13 +550,13 @@ func NewProjectAddSourceNamespace(clientOpts *argocdclient.ClientOptions) *cobra
 }
 
 // NewProjectDeleteSourceNamespace returns a new instance of an `argocd proj delete-source-namespace` command
-func NewProjectDeleteSourceNamespace(clientOpts *argocdclient.ClientOptions) *cobra.Command {
+func NewProjectRemoveSourceNamespace(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var command = &cobra.Command{
-		Use:   "delete-source-namespace PROJECT NAMESPACE",
-		Short: "Delete project source namespace",
+		Use:   "remove-source-namespace PROJECT NAMESPACE",
+		Short: "Removes the source namespace from the AppProject",
 		Example: templates.Examples(`
 			# Remove source NAMESPACE in PROJECT (blacklist namespace for app creation)
-			argocd proj delete-source-namespace PROJECT NAMESPACE
+			argocd proj remove-source-namespace PROJECT NAMESPACE
 		`),
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
@@ -575,13 +575,13 @@ func NewProjectDeleteSourceNamespace(clientOpts *argocdclient.ClientOptions) *co
 
 			index := -1
 			for i, item := range proj.Spec.SourceNamespaces {
-				if item == srcNamespace {
+				if item == srcNamespace && item != "*" {
 					index = i
 					break
 				}
 			}
 			if index == -1 {
-				fmt.Printf("Source namespace '%s' does not exist in project\n", srcNamespace)
+				fmt.Printf("Source namespace '%s' does not exist in project or cannot be removed\n", srcNamespace)
 			} else {
 				proj.Spec.SourceNamespaces = append(proj.Spec.SourceNamespaces[:index], proj.Spec.SourceNamespaces[index+1:]...)
 				_, err = projIf.Update(ctx, &projectpkg.ProjectUpdateRequest{Project: proj})
