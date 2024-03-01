@@ -86,7 +86,7 @@ The following use cases should be implemented:
 
 #### [UC-1]: As a user, I would like to manage specific fields on a Kubernetes object shared by other ArgoCD Applications.
 
-Change the Server-Side Apply field manager to be set by a sync option, but default to the constant `ArgoCDSSAManager`.
+Change the Server-Side Apply field manager to be unique and deterministic for each Application.
 
 ### Security Considerations
 
