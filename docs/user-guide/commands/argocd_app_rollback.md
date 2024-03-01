@@ -11,10 +11,11 @@ argocd app rollback APPNAME [ID] [flags]
 ### Options
 
 ```
-  -h, --help            help for rollback
-  -o, --output string   Output format. One of: json|yaml|wide|tree|tree=detailed (default "wide")
-      --prune           Allow deleting unexpected resources
-      --timeout uint    Time out after this many seconds
+  -N, --app-namespace string   Rollback application in namespace
+  -h, --help                   help for rollback
+  -o, --output string          Output format. One of: json|yaml|wide|tree|tree=detailed (default "wide")
+      --prune                  Allow deleting unexpected resources
+      --timeout uint           Time out after this many seconds
 ```
 
 ### Options inherited from parent commands
