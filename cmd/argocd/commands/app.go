@@ -2846,9 +2846,9 @@ func NewApplicationAddSourceCommand(clientOpts *argocdclient.ClientOptions) *cob
 				})
 				errors.CheckError(err)
 
-				fmt.Printf("application '%s' updated successfully\n", app.ObjectMeta.Name)
+				fmt.Printf("Application '%s' updated successfully\n", app.ObjectMeta.Name)
 			} else {
-				errors.CheckError(fmt.Errorf("cannot add source: application does not have spec.sources defined"))
+				errors.CheckError(fmt.Errorf("Cannot add source: application %s does not have spec.sources defined", appName))
 			}
 		},
 	}
@@ -2875,8 +2875,7 @@ func NewApplicationRemoveSourceCommand(clientOpts *argocdclient.ClientOptions) *
 			}
 
 			if source_index < 0 {
-				errors.CheckError(fmt.Errorf("index value of source cannot be less than 0"))
-				os.Exit(1)
+				errors.CheckError(fmt.Errorf("Index value of source cannot be less than 0"))
 			}
 
 			argocdClient := headless.NewClientOrDie(clientOpts, c)
@@ -2893,17 +2892,15 @@ func NewApplicationRemoveSourceCommand(clientOpts *argocdclient.ClientOptions) *
 			errors.CheckError(err)
 
 			if !app.Spec.HasMultipleSources() {
-				errors.CheckError(fmt.Errorf("app does not have multiple sources configured"))
+				errors.CheckError(fmt.Errorf("Application does not have multiple sources configured"))
 			}
 
 			if len(app.Spec.GetSources()) == 1 {
-				fmt.Printf("cannot remove the only source remaining in the app")
-				os.Exit(1)
+				errors.CheckError(fmt.Errorf("Cannot remove the only source remaining in the app"))
 			}
 
 			if len(app.Spec.GetSources()) < source_index {
-				fmt.Printf("application does not have source at %d\n", source_index)
-				os.Exit(1)
+				errors.CheckError(fmt.Errorf("Application does not have source at %d\n", source_index))
 			}
 
 			app.Spec.Sources = append(app.Spec.Sources[:source_index], app.Spec.Sources[source_index+1:]...)
@@ -2915,7 +2912,7 @@ func NewApplicationRemoveSourceCommand(clientOpts *argocdclient.ClientOptions) *
 			})
 			errors.CheckError(err)
 
-			fmt.Printf("application '%s' updated successfully\n", app.ObjectMeta.Name)
+			fmt.Printf("Application '%s' updated successfully\n", app.ObjectMeta.Name)
 		},
 	}
 	command.Flags().IntVar(&source_index, "source-index", -1, "Index of the source from the list of sources of the app. Index starts from 0.")
