@@ -260,6 +260,7 @@ func (c *Cache) RenameItem(oldKey string, newKey string, expiration time.Duratio
 }
 
 func (c *Cache) SetItem(key string, item interface{}, expiration time.Duration, delete bool) error {
+	fmt.Printf("MW58: Setting cache item %v", item)
 	key = fmt.Sprintf("%s|%s", key, common.CacheVersion)
 	if delete {
 		return c.client.Delete(key)

@@ -224,6 +224,10 @@ spec:
                                           items:
                                             type: string
                                           type: array
+                                        valueRefs:
+                                          items:
+                                            type: string
+                                          type: array
                                         values:
                                           type: string
                                         valuesObject:
@@ -435,6 +439,10 @@ spec:
                                           skipCrds:
                                             type: boolean
                                           valueFiles:
+                                            items:
+                                              type: string
+                                            type: array
+                                          valueRefs:
                                             items:
                                               type: string
                                             type: array
@@ -811,6 +819,10 @@ spec:
                                           items:
                                             type: string
                                           type: array
+                                        valueRefs:
+                                          items:
+                                            type: string
+                                          type: array
                                         values:
                                           type: string
                                         valuesObject:
@@ -1022,6 +1034,10 @@ spec:
                                           skipCrds:
                                             type: boolean
                                           valueFiles:
+                                            items:
+                                              type: string
+                                            type: array
+                                          valueRefs:
                                             items:
                                               type: string
                                             type: array
@@ -1402,6 +1418,10 @@ spec:
                                           items:
                                             type: string
                                           type: array
+                                        valueRefs:
+                                          items:
+                                            type: string
+                                          type: array
                                         values:
                                           type: string
                                         valuesObject:
@@ -1613,6 +1633,10 @@ spec:
                                           skipCrds:
                                             type: boolean
                                           valueFiles:
+                                            items:
+                                              type: string
+                                            type: array
+                                          valueRefs:
                                             items:
                                               type: string
                                             type: array
@@ -1973,6 +1997,10 @@ spec:
                                           items:
                                             type: string
                                           type: array
+                                        valueRefs:
+                                          items:
+                                            type: string
+                                          type: array
                                         values:
                                           type: string
                                         valuesObject:
@@ -2184,6 +2212,10 @@ spec:
                                           skipCrds:
                                             type: boolean
                                           valueFiles:
+                                            items:
+                                              type: string
+                                            type: array
+                                          valueRefs:
                                             items:
                                               type: string
                                             type: array
@@ -2568,6 +2600,10 @@ spec:
                                                     items:
                                                       type: string
                                                     type: array
+                                                  valueRefs:
+                                                    items:
+                                                      type: string
+                                                    type: array
                                                   values:
                                                     type: string
                                                   valuesObject:
@@ -2779,6 +2815,10 @@ spec:
                                                     skipCrds:
                                                       type: boolean
                                                     valueFiles:
+                                                      items:
+                                                        type: string
+                                                      type: array
+                                                    valueRefs:
                                                       items:
                                                         type: string
                                                       type: array
@@ -3155,6 +3195,10 @@ spec:
                                                     items:
                                                       type: string
                                                     type: array
+                                                  valueRefs:
+                                                    items:
+                                                      type: string
+                                                    type: array
                                                   values:
                                                     type: string
                                                   valuesObject:
@@ -3366,6 +3410,10 @@ spec:
                                                     skipCrds:
                                                       type: boolean
                                                     valueFiles:
+                                                      items:
+                                                        type: string
+                                                      type: array
+                                                    valueRefs:
                                                       items:
                                                         type: string
                                                       type: array
@@ -3746,6 +3794,10 @@ spec:
                                                     items:
                                                       type: string
                                                     type: array
+                                                  valueRefs:
+                                                    items:
+                                                      type: string
+                                                    type: array
                                                   values:
                                                     type: string
                                                   valuesObject:
@@ -3957,6 +4009,10 @@ spec:
                                                     skipCrds:
                                                       type: boolean
                                                     valueFiles:
+                                                      items:
+                                                        type: string
+                                                      type: array
+                                                    valueRefs:
                                                       items:
                                                         type: string
                                                       type: array
@@ -4317,6 +4373,10 @@ spec:
                                                     items:
                                                       type: string
                                                     type: array
+                                                  valueRefs:
+                                                    items:
+                                                      type: string
+                                                    type: array
                                                   values:
                                                     type: string
                                                   valuesObject:
@@ -4528,6 +4588,10 @@ spec:
                                                     skipCrds:
                                                       type: boolean
                                                     valueFiles:
+                                                      items:
+                                                        type: string
+                                                      type: array
+                                                    valueRefs:
                                                       items:
                                                         type: string
                                                       type: array
@@ -4898,6 +4962,10 @@ spec:
                                                     items:
                                                       type: string
                                                     type: array
+                                                  valueRefs:
+                                                    items:
+                                                      type: string
+                                                    type: array
                                                   values:
                                                     type: string
                                                   valuesObject:
@@ -5109,6 +5177,10 @@ spec:
                                                     skipCrds:
                                                       type: boolean
                                                     valueFiles:
+                                                      items:
+                                                        type: string
+                                                      type: array
+                                                    valueRefs:
                                                       items:
                                                         type: string
                                                       type: array
@@ -5659,6 +5731,10 @@ spec:
                                                     items:
                                                       type: string
                                                     type: array
+                                                  valueRefs:
+                                                    items:
+                                                      type: string
+                                                    type: array
                                                   values:
                                                     type: string
                                                   valuesObject:
@@ -5870,6 +5946,10 @@ spec:
                                                     skipCrds:
                                                       type: boolean
                                                     valueFiles:
+                                                      items:
+                                                        type: string
+                                                      type: array
+                                                    valueRefs:
                                                       items:
                                                         type: string
                                                       type: array
@@ -6415,6 +6495,10 @@ spec:
                                                     items:
                                                       type: string
                                                     type: array
+                                                  valueRefs:
+                                                    items:
+                                                      type: string
+                                                    type: array
                                                   values:
                                                     type: string
                                                   valuesObject:
@@ -6626,6 +6710,10 @@ spec:
                                                     skipCrds:
                                                       type: boolean
                                                     valueFiles:
+                                                      items:
+                                                        type: string
+                                                      type: array
+                                                    valueRefs:
                                                       items:
                                                         type: string
                                                       type: array
@@ -7000,6 +7088,10 @@ spec:
                                           items:
                                             type: string
                                           type: array
+                                        valueRefs:
+                                          items:
+                                            type: string
+                                          type: array
                                         values:
                                           type: string
                                         valuesObject:
@@ -7211,6 +7303,10 @@ spec:
                                           skipCrds:
                                             type: boolean
                                           valueFiles:
+                                            items:
+                                              type: string
+                                            type: array
+                                          valueRefs:
                                             items:
                                               type: string
                                             type: array
@@ -7595,6 +7691,10 @@ spec:
                                                     items:
                                                       type: string
                                                     type: array
+                                                  valueRefs:
+                                                    items:
+                                                      type: string
+                                                    type: array
                                                   values:
                                                     type: string
                                                   valuesObject:
@@ -7806,6 +7906,10 @@ spec:
                                                     skipCrds:
                                                       type: boolean
                                                     valueFiles:
+                                                      items:
+                                                        type: string
+                                                      type: array
+                                                    valueRefs:
                                                       items:
                                                         type: string
                                                       type: array
@@ -8182,6 +8286,10 @@ spec:
                                                     items:
                                                       type: string
                                                     type: array
+                                                  valueRefs:
+                                                    items:
+                                                      type: string
+                                                    type: array
                                                   values:
                                                     type: string
                                                   valuesObject:
@@ -8393,6 +8501,10 @@ spec:
                                                     skipCrds:
                                                       type: boolean
                                                     valueFiles:
+                                                      items:
+                                                        type: string
+                                                      type: array
+                                                    valueRefs:
                                                       items:
                                                         type: string
                                                       type: array
@@ -8773,6 +8885,10 @@ spec:
                                                     items:
                                                       type: string
                                                     type: array
+                                                  valueRefs:
+                                                    items:
+                                                      type: string
+                                                    type: array
                                                   values:
                                                     type: string
                                                   valuesObject:
@@ -8984,6 +9100,10 @@ spec:
                                                     skipCrds:
                                                       type: boolean
                                                     valueFiles:
+                                                      items:
+                                                        type: string
+                                                      type: array
+                                                    valueRefs:
                                                       items:
                                                         type: string
                                                       type: array
@@ -9344,6 +9464,10 @@ spec:
                                                     items:
                                                       type: string
                                                     type: array
+                                                  valueRefs:
+                                                    items:
+                                                      type: string
+                                                    type: array
                                                   values:
                                                     type: string
                                                   valuesObject:
@@ -9555,6 +9679,10 @@ spec:
                                                     skipCrds:
                                                       type: boolean
                                                     valueFiles:
+                                                      items:
+                                                        type: string
+                                                      type: array
+                                                    valueRefs:
                                                       items:
                                                         type: string
                                                       type: array
@@ -9925,6 +10053,10 @@ spec:
                                                     items:
                                                       type: string
                                                     type: array
+                                                  valueRefs:
+                                                    items:
+                                                      type: string
+                                                    type: array
                                                   values:
                                                     type: string
                                                   valuesObject:
@@ -10136,6 +10268,10 @@ spec:
                                                     skipCrds:
                                                       type: boolean
                                                     valueFiles:
+                                                      items:
+                                                        type: string
+                                                      type: array
+                                                    valueRefs:
                                                       items:
                                                         type: string
                                                       type: array
@@ -10686,6 +10822,10 @@ spec:
                                                     items:
                                                       type: string
                                                     type: array
+                                                  valueRefs:
+                                                    items:
+                                                      type: string
+                                                    type: array
                                                   values:
                                                     type: string
                                                   valuesObject:
@@ -10897,6 +11037,10 @@ spec:
                                                     skipCrds:
                                                       type: boolean
                                                     valueFiles:
+                                                      items:
+                                                        type: string
+                                                      type: array
+                                                    valueRefs:
                                                       items:
                                                         type: string
                                                       type: array
@@ -11442,6 +11586,10 @@ spec:
                                                     items:
                                                       type: string
                                                     type: array
+                                                  valueRefs:
+                                                    items:
+                                                      type: string
+                                                    type: array
                                                   values:
                                                     type: string
                                                   valuesObject:
@@ -11653,6 +11801,10 @@ spec:
                                                     skipCrds:
                                                       type: boolean
                                                     valueFiles:
+                                                      items:
+                                                        type: string
+                                                      type: array
+                                                    valueRefs:
                                                       items:
                                                         type: string
                                                       type: array
@@ -12031,6 +12183,10 @@ spec:
                                           items:
                                             type: string
                                           type: array
+                                        valueRefs:
+                                          items:
+                                            type: string
+                                          type: array
                                         values:
                                           type: string
                                         valuesObject:
@@ -12242,6 +12398,10 @@ spec:
                                           skipCrds:
                                             type: boolean
                                           valueFiles:
+                                            items:
+                                              type: string
+                                            type: array
+                                          valueRefs:
                                             items:
                                               type: string
                                             type: array
@@ -12609,6 +12769,10 @@ spec:
                                           items:
                                             type: string
                                           type: array
+                                        valueRefs:
+                                          items:
+                                            type: string
+                                          type: array
                                         values:
                                           type: string
                                         valuesObject:
@@ -12820,6 +12984,10 @@ spec:
                                           skipCrds:
                                             type: boolean
                                           valueFiles:
+                                            items:
+                                              type: string
+                                            type: array
+                                          valueRefs:
                                             items:
                                               type: string
                                             type: array
@@ -13370,6 +13538,10 @@ spec:
                                           items:
                                             type: string
                                           type: array
+                                        valueRefs:
+                                          items:
+                                            type: string
+                                          type: array
                                         values:
                                           type: string
                                         valuesObject:
@@ -13581,6 +13753,10 @@ spec:
                                           skipCrds:
                                             type: boolean
                                           valueFiles:
+                                            items:
+                                              type: string
+                                            type: array
+                                          valueRefs:
                                             items:
                                               type: string
                                             type: array
@@ -14126,6 +14302,10 @@ spec:
                                           items:
                                             type: string
                                           type: array
+                                        valueRefs:
+                                          items:
+                                            type: string
+                                          type: array
                                         values:
                                           type: string
                                         valuesObject:
@@ -14337,6 +14517,10 @@ spec:
                                           skipCrds:
                                             type: boolean
                                           valueFiles:
+                                            items:
+                                              type: string
+                                            type: array
+                                          valueRefs:
                                             items:
                                               type: string
                                             type: array
@@ -14786,6 +14970,10 @@ spec:
                                 items:
                                   type: string
                                 type: array
+                              valueRefs:
+                                items:
+                                  type: string
+                                type: array
                               values:
                                 type: string
                               valuesObject:
@@ -14997,6 +15185,10 @@ spec:
                                 skipCrds:
                                   type: boolean
                                 valueFiles:
+                                  items:
+                                    type: string
+                                  type: array
+                                valueRefs:
                                   items:
                                     type: string
                                   type: array

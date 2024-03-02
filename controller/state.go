@@ -180,7 +180,48 @@ func (m *appStateManager) GetRepoObjs(app *v1alpha1.Application, sources []v1alp
 		return nil, nil, fmt.Errorf("failed to get ref sources: %v", err)
 	}
 
+	// see if any source has the valueRefs field. Only one source can have it, because it needs to go last
+	valueRefIndex := -1 // will be an item in the list if found
+	log.Debugf("MW2: Checking through multiple sources for %s", app.Name)
+
 	for i, source := range sources {
+		log.Debug("MW5: In the sources loop")
+		if source.Helm != nil && len(source.Helm.ValueRefs) > 0 {
+
+			// this can only be set once
+			if valueRefIndex != -1 {
+				return nil, nil, fmt.Errorf("failed to generate Application %s: only once source can have the helm.valueRefs spec", app.Name)
+			} else { // set valueRefDestination if unset
+				valueRefIndex = i
+			}
+		}
+	}
+	log.Debug("MW10: checking for valueRefIndex")
+	// if we do have a valueRefDestination, set it as the last source
+	if valueRefIndex != -1 {
+		log.Debug("MW9: vri found, Seeking to put a source at the end of the list")
+		// put the valueRefIndex element at the end of the list
+		sources = append(sources[:valueRefIndex], append(sources[valueRefIndex+1:], sources[valueRefIndex])...)
+		log.Debug(sources)
+	} else {
+		log.Debug("MW8: No valueRefDestination found")
+	}
+	log.Debug("Post-sortMW11: beginning main sources loop")
+	log.Debug(sources)
+	// Accumulate the caches for the valueRef destination, so that it can read in value files
+	// We can also see if any ref goes unfulfilled
+	refValueStore := map[string]string{}
+	if valueRefIndex != -1 {
+		for _, valueRefTag := range sources[len(sources)-1].Helm.ValueRefs {
+			refValueStore[valueRefTag] = ""
+		}
+	}
+
+	// TODO: A ref chart should return no manifests, but cache its values
+	// Or we just don't seek to apply them if we know it's a ref chart
+	for i, source := range sources {
+		log.Debugf("MW12: Looking at source %s-%s.", source.RepoURL, source.Path)
+
 		if len(revisions) < len(sources) || revisions[i] == "" {
 			revisions[i] = source.TargetRevision
 		}
@@ -194,9 +235,18 @@ func (m *appStateManager) GetRepoObjs(app *v1alpha1.Application, sources []v1alp
 			return nil, nil, fmt.Errorf("failed to get Kustomize options for source %d of %d: %w", i+1, len(sources), err)
 		}
 
+		log.Debug("This is miles wilson")
 		ts.AddCheckpoint("version_ms")
 		log.Debugf("Generating Manifest for source %s revision %s", source, revisions[i])
-		manifestInfo, err := repoClient.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
+
+		isMultistageSource := false // For valueRef sources, we do not want their generated manifests to be directly applied
+		if source.Ref != "" {
+			if _, ok := refValueStore[source.Ref]; ok {
+				isMultistageSource = true
+			}
+		}
+
+		manifestRequest := &apiclient.ManifestRequest{
 			Repo:               repo,
 			Repos:              permittedHelmRepos,
 			Revision:           revisions[i],
@@ -218,19 +268,49 @@ func (m *appStateManager) GetRepoObjs(app *v1alpha1.Application, sources []v1alp
 			RefSources:         refSources,
 			ProjectName:        proj.Name,
 			ProjectSourceRepos: proj.Spec.SourceRepos,
-		})
+			IsMultistageSource: isMultistageSource,
+		}
+
+		// If we have a valueRefIndex and we're on the last element
+		if valueRefIndex != -1 && i == len(sources)-1 {
+			log.Debugf("MW15: Adding valueRefStore to final message")
+			log.Debug(refValueStore)
+			manifestRequest.ValueRefManifests = refValueStore
+		}
+
+		// TODO: If we're on the last item in sources (i == valueRefIdx), then make sure all refValueCaches are set
+		manifestInfo, err := repoClient.GenerateManifest(context.Background(), manifestRequest)
 		if err != nil {
+			// TODO: Do we need to change these source index errors since we reorder the sources list?
 			return nil, nil, fmt.Errorf("failed to generate manifest for source %d of %d: %w", i+1, len(sources), err)
 		}
 
-		targetObj, err := unmarshalManifests(manifestInfo.Manifests)
-
-		if err != nil {
-			return nil, nil, fmt.Errorf("failed to unmarshal manifests for source %d of %d: %w", i+1, len(sources), err)
+		// if this app has a ref, see if it's part of the valueRefs accumulation
+		if isMultistageSource {
+			log.Debugf("MW14: GENERAted")
+			log.Debug(manifestInfo.Manifests)
+			// if an app is part of the valueRef accumulation, it should have only returned one file
+			if len(manifestInfo.Manifests) != 1 {
+				return nil, nil, fmt.Errorf("failed to generate manifests for Application %s. Sources configured to be consumed by valueRef should emit exactly one document", app.Name)
+			}
+			log.Debugf("MW 13: STORING valueRef manifest: %s", manifestInfo.Manifests[0])
+			// manifest request is needed for the cache lookup
+			refValueStore[source.Ref] = manifestInfo.Manifests[0]
 		}
-		targetObjs = append(targetObjs, targetObj...)
+		log.Debug("MW16: And it is")
+		log.Debug(refValueStore)
 
-		manifestInfos = append(manifestInfos, manifestInfo)
+		// output these manifests as long as this is not a multistage source
+		if !isMultistageSource {
+			targetObj, err := unmarshalManifests(manifestInfo.Manifests)
+
+			if err != nil {
+				return nil, nil, fmt.Errorf("failed to unmarshal manifests for source %d of %d: %w", i+1, len(sources), err)
+			}
+			targetObjs = append(targetObjs, targetObj...)
+
+			manifestInfos = append(manifestInfos, manifestInfo)
+		}
 	}
 
 	ts.AddCheckpoint("unmarshal_ms")

@@ -367,6 +367,7 @@ func (c *Cmd) template(chartPath string, opts *TemplateOpts) (string, error) {
 		}
 		return "", errors.New(msg)
 	}
+	fmt.Printf("MW24: IN CMD - out is %s", out)
 	return out, nil
 }
 

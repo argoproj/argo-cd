@@ -69,9 +69,15 @@ func IsMissingDependencyErr(err error) bool {
 
 func (h *helm) Template(templateOpts *TemplateOpts) (string, error) {
 	out, err := h.cmd.template(".", templateOpts)
+	log.Debugf("MW21: IN RAW TEMPLATE: out is %s", out)
 	if err != nil {
+		log.Debugf("MW23: Error is:")
+		log.Debug(err)
 		return "", err
+	} else {
+		log.Debug("MW23.5: no error!")
 	}
+	log.Debug("RETURNING!")
 	return out, nil
 }
 
