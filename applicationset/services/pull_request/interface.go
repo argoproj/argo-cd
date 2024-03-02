@@ -16,6 +16,8 @@ type PullRequest struct {
 	HeadSHA string
 	// Labels of the pull request.
 	Labels []string
+    // Set of changed files
+    ChangeSet []string
 }
 
 type PullRequestService interface {
