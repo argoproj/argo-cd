@@ -22,6 +22,18 @@ func giteaMockHandler(t *testing.T) func(http.ResponseWriter, *http.Request) {
 			if err != nil {
 				t.Fail()
 			}
+		case "https://gitea.com/api/v1/repos/test-argocd/pr-test/pulls/1/files":
+            _, err := io.WriteString(w, `[{
+                "additions": 0,
+                "changes": 0,
+                "contents_url": "string",
+                "deletions": 0,
+                "filename": "emptyFileName",
+                "html_url": "string",
+                "previous_filename": "string",
+                "raw_url": "string",
+                "status": "string"
+            }]`
 		case "/api/v1/repos/test-argocd/pr-test/pulls?limit=0&page=1&state=open":
 			_, err := io.WriteString(w, `[{
 				"id": 50721,
@@ -258,6 +270,7 @@ func TestGiteaList(t *testing.T) {
 	assert.Equal(t, prs[0].Branch, "test")
 	assert.Equal(t, prs[0].TargetBranch, "main")
 	assert.Equal(t, prs[0].HeadSHA, "7bbaf62d92ddfafd9cc8b340c619abaec32bc09f")
+    assert.Equal(t, prs[0].ChangeSet, []string{"emptyFileName"})
 }
 
 func TestGetGiteaPRLabelNames(t *testing.T) {
