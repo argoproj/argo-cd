@@ -22,6 +22,9 @@ message AWSAuthConfig {
 
   // RoleARN contains optional role ARN. If set then AWS IAM Authenticator assume a role to perform cluster operations instead of the default AWS credential provider chain.
   optional string roleARN = 2;
+
+  // Profile contains optional role ARN. If set then AWS IAM Authenticator uses the profile to perform cluster operations instead of the default AWS credential provider chain.
+  optional string profile = 3;
 }
 
 // AppProject provides a logical grouping of applications, providing controls for:
@@ -316,6 +319,8 @@ message ApplicationSetSpec {
   optional bool applyNestedSelectors = 8;
 
   repeated ApplicationSetResourceIgnoreDifferences ignoreApplicationDifferences = 9;
+
+  optional string templatePatch = 10;
 }
 
 // ApplicationSetStatus defines the observed state of ApplicationSet
@@ -1893,6 +1898,9 @@ message RevisionHistory {
 
   // Revisions holds the revision of each source in sources field the sync was performed against
   repeated string revisions = 9;
+
+  // InitiatedBy contains information about who initiated the operations
+  optional OperationInitiator initiatedBy = 10;
 }
 
 // RevisionMetadata contains metadata for a specific revision in a Git repository

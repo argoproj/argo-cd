@@ -70,6 +70,8 @@ Scraped at the `argocd-server-metrics:8083/metrics` endpoint.
 | `argocd_redis_request_total` | counter | Number of Kubernetes requests executed during application reconciliation. |
 | `grpc_server_handled_total` | counter | Total number of RPCs completed on the server, regardless of success or failure. |
 | `grpc_server_msg_sent_total` | counter | Total number of gRPC stream messages sent by the server. |
+| `argocd_proxy_extension_request_total` | counter | Number of requests sent to the configured proxy extensions. |
+| `argocd_proxy_extension_request_duration_seconds` | histogram | Request duration in seconds between the Argo CD API server and the proxy extension backend. |
 
 ## Repo Server Metrics
 Metrics about the Repo Server.
@@ -79,6 +81,7 @@ Scraped at the `argocd-repo-server:8084/metrics` endpoint.
 |--------|:----:|-------------|
 | `argocd_git_request_duration_seconds` | histogram | Git requests duration seconds. |
 | `argocd_git_request_total` | counter | Number of git requests performed by repo server |
+| `argocd_git_fetch_fail_total` | counter | Number of git fetch requests failures by repo server |
 | `argocd_redis_request_duration_seconds` | histogram | Redis requests duration seconds. |
 | `argocd_redis_request_total` | counter | Number of Kubernetes requests executed during application reconciliation. |
 | `argocd_repo_pending_request_total` | gauge | Number of pending requests requiring repository lock |
@@ -86,7 +89,7 @@ Scraped at the `argocd-repo-server:8084/metrics` endpoint.
 ## Prometheus Operator
 
 If using Prometheus Operator, the following ServiceMonitor example manifests can be used.
-Change `metadata.labels.release` to the name of label selected by your Prometheus.
+Add a namespace where Argo CD is installed and change `metadata.labels.release` to the name of label selected by your Prometheus.
 
 ```yaml
 apiVersion: monitoring.coreos.com/v1
@@ -147,6 +150,54 @@ spec:
   endpoints:
   - port: metrics
 ```
+
+```yaml
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: argocd-dex-server
+  labels:
+    release: prometheus-operator
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: argocd-dex-server
+  endpoints:
+    - port: metrics
+```
+
+```yaml
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: argocd-redis-haproxy-metrics
+  labels:
+    release: prometheus-operator
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: argocd-redis-ha-haproxy
+  endpoints:
+  - port: http-exporter-port
+```
+
+For notifications controller, you need to additionally add following:
+
+```yaml
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: argocd-notifications-controller
+  labels:
+    release: prometheus-operator
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: argocd-notifications-controller-metrics
+  endpoints:
+    - port: metrics
+```
+
 
 ## Dashboards
 

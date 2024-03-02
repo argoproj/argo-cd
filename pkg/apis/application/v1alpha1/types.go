@@ -955,6 +955,35 @@ type ApplicationStatus struct {
 	ControllerNamespace string `json:"controllerNamespace,omitempty" protobuf:"bytes,13,opt,name=controllerNamespace"`
 }
 
+// GetRevisions will return the current revision associated with the Application.
+// If app has multisources, it will return all corresponding revisions preserving
+// order from the app.spec.sources. If app has only one source, it will return a
+// single revision in the list.
+func (a *ApplicationStatus) GetRevisions() []string {
+	revisions := []string{}
+	if len(a.Sync.Revisions) > 0 {
+		revisions = a.Sync.Revisions
+	} else if a.Sync.Revision != "" {
+		revisions = append(revisions, a.Sync.Revision)
+	}
+	return revisions
+}
+
+// BuildComparedToStatus will build a ComparedTo object based on the current
+// Application state.
+func (app *Application) BuildComparedToStatus() ComparedTo {
+	ct := ComparedTo{
+		Destination:       app.Spec.Destination,
+		IgnoreDifferences: app.Spec.IgnoreDifferences,
+	}
+	if app.Spec.HasMultipleSources() {
+		ct.Sources = app.Spec.Sources
+	} else {
+		ct.Source = app.Spec.GetSource()
+	}
+	return ct
+}
+
 // JWTTokens represents a list of JWT tokens
 type JWTTokens struct {
 	Items []JWTToken `json:"items,omitempty" protobuf:"bytes,1,opt,name=items"`
@@ -1372,6 +1401,8 @@ type RevisionHistory struct {
 	Sources ApplicationSources `json:"sources,omitempty" protobuf:"bytes,8,opt,name=sources"`
 	// Revisions holds the revision of each source in sources field the sync was performed against
 	Revisions []string `json:"revisions,omitempty" protobuf:"bytes,9,opt,name=revisions"`
+	// InitiatedBy contains information about who initiated the operations
+	InitiatedBy OperationInitiator `json:"initiatedBy,omitempty" protobuf:"bytes,10,opt,name=initiatedBy"`
 }
 
 // ApplicationWatchEvent contains information about application change.
@@ -1825,6 +1856,9 @@ type AWSAuthConfig struct {
 
 	// RoleARN contains optional role ARN. If set then AWS IAM Authenticator assume a role to perform cluster operations instead of the default AWS credential provider chain.
 	RoleARN string `json:"roleARN,omitempty" protobuf:"bytes,2,opt,name=roleARN"`
+
+	// Profile contains optional role ARN. If set then AWS IAM Authenticator uses the profile to perform cluster operations instead of the default AWS credential provider chain.
+	Profile string `json:"profile,omitempty" protobuf:"bytes,3,opt,name=profile"`
 }
 
 // ExecProviderConfig is config used to call an external command to perform cluster authentication
@@ -2622,6 +2656,18 @@ func (app *Application) IsRefreshRequested() (RefreshType, bool) {
 	return refreshType, true
 }
 
+func (app *Application) HasPostDeleteFinalizer(stage ...string) bool {
+	return getFinalizerIndex(app.ObjectMeta, strings.Join(append([]string{PostDeleteFinalizerName}, stage...), "/")) > -1
+}
+
+func (app *Application) SetPostDeleteFinalizer(stage ...string) {
+	setFinalizer(&app.ObjectMeta, strings.Join(append([]string{PostDeleteFinalizerName}, stage...), "/"), true)
+}
+
+func (app *Application) UnSetPostDeleteFinalizer(stage ...string) {
+	setFinalizer(&app.ObjectMeta, strings.Join(append([]string{PostDeleteFinalizerName}, stage...), "/"), false)
+}
+
 // SetCascadedDeletion will enable cascaded deletion by setting the propagation policy finalizer
 func (app *Application) SetCascadedDeletion(finalizer string) {
 	setFinalizer(&app.ObjectMeta, finalizer, true)
@@ -2943,6 +2989,9 @@ func (c *Cluster) RawRestConfig() *rest.Config {
 			args := []string{"aws", "--cluster-name", c.Config.AWSAuthConfig.ClusterName}
 			if c.Config.AWSAuthConfig.RoleARN != "" {
 				args = append(args, "--role-arn", c.Config.AWSAuthConfig.RoleARN)
+			}
+			if c.Config.AWSAuthConfig.Profile != "" {
+				args = append(args, "--profile", c.Config.AWSAuthConfig.Profile)
 			}
 			config = &rest.Config{
 				Host:            c.Server,

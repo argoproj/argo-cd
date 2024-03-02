@@ -35,8 +35,9 @@ type Kustomize interface {
 }
 
 // NewKustomizeApp create a new wrapper to run commands on the `kustomize` command-line tool.
-func NewKustomizeApp(path string, creds git.Creds, fromRepo string, binaryPath string) Kustomize {
+func NewKustomizeApp(repoRoot string, path string, creds git.Creds, fromRepo string, binaryPath string) Kustomize {
 	return &kustomize{
+		repoRoot:   repoRoot,
 		path:       path,
 		creds:      creds,
 		repo:       fromRepo,
@@ -45,6 +46,8 @@ func NewKustomizeApp(path string, creds git.Creds, fromRepo string, binaryPath s
 }
 
 type kustomize struct {
+	// path to the Git repository root
+	repoRoot string
 	// path inside the checked out tree
 	path string
 	// creds structure
@@ -301,6 +304,7 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 		cmd = exec.Command(k.getBinaryPath(), "build", k.path)
 	}
 	cmd.Env = env
+	cmd.Dir = k.repoRoot
 	out, err := executil.Run(cmd)
 	if err != nil {
 		return nil, nil, err
@@ -315,7 +319,7 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 }
 
 func parseKustomizeBuildOptions(path, buildOptions string) []string {
-	return append([]string{"build", path}, strings.Split(buildOptions, " ")...)
+	return append([]string{"build", path}, strings.Fields(buildOptions)...)
 }
 
 var KustomizationNames = []string{"kustomization.yaml", "kustomization.yml", "Kustomization"}

@@ -27,9 +27,8 @@ DOCKER_WORKDIR?=/go/src/github.com/argoproj/argo-cd
 
 ARGOCD_PROCFILE?=Procfile
 
-# Strict mode has been disabled in latest versions of mkdocs-material.
-# Thus pointing to the older image of mkdocs-material matching the version used by argo-cd.
-MKDOCS_DOCKER_IMAGE?=squidfunk/mkdocs-material:4.1.1
+# pointing to python 3.7 to match https://github.com/argoproj/argo-cd/blob/master/.readthedocs.yml
+MKDOCS_DOCKER_IMAGE?=python:3.7-alpine
 MKDOCS_RUN_ARGS?=
 
 # Configuration for building argocd-test-tools image
@@ -49,7 +48,7 @@ ARGOCD_E2E_DEX_PORT?=5556
 ARGOCD_E2E_YARN_HOST?=localhost
 ARGOCD_E2E_DISABLE_AUTH?=
 
-ARGOCD_E2E_TEST_TIMEOUT?=60m
+ARGOCD_E2E_TEST_TIMEOUT?=90m
 
 ARGOCD_IN_CI?=false
 ARGOCD_TEST_E2E?=true
@@ -175,29 +174,21 @@ endif
 .PHONY: all
 all: cli image
 
-# We have some legacy requirements for being checked out within $GOPATH.
-# The ensure-gopath target can be used as dependency to ensure we are running
-# within these boundaries.
-.PHONY: ensure-gopath
-ensure-gopath:
-ifneq ("$(PWD)","$(LEGACY_PATH)")
-	@echo "Due to legacy requirements for codegen, repository needs to be checked out within \$$GOPATH"
-	@echo "Location of this repo should be '$(LEGACY_PATH)' but is '$(PWD)'"
-	@exit 1
-endif
-
 .PHONY: gogen
-gogen: ensure-gopath
+gogen:
 	export GO111MODULE=off
 	go generate ./util/argo/...
 
 .PHONY: protogen
-protogen: ensure-gopath mod-vendor-local
+protogen: mod-vendor-local protogen-fast
+
+.PHONY: protogen-fast
+protogen-fast:
 	export GO111MODULE=off
 	./hack/generate-proto.sh
 
 .PHONY: openapigen
-openapigen: ensure-gopath
+openapigen:
 	export GO111MODULE=off
 	./hack/update-openapi.sh
 
@@ -212,18 +203,21 @@ notification-docs:
 
 
 .PHONY: clientgen
-clientgen: ensure-gopath
+clientgen:
 	export GO111MODULE=off
 	./hack/update-codegen.sh
 
 .PHONY: clidocsgen
-clidocsgen: ensure-gopath
+clidocsgen:
 	go run tools/cmd-docs/main.go
 
 
 .PHONY: codegen-local
-codegen-local: ensure-gopath mod-vendor-local gogen protogen clientgen openapigen clidocsgen manifests-local notification-docs notification-catalog
+codegen-local: mod-vendor-local gogen protogen clientgen openapigen clidocsgen manifests-local notification-docs notification-catalog
 	rm -rf vendor/
+
+.PHONY: codegen-local-fast
+codegen-local-fast: gogen protogen-fast clientgen openapigen clidocsgen manifests-local notification-docs notification-catalog
 
 .PHONY: codegen
 codegen: test-tools-image
@@ -493,6 +487,7 @@ start-local: mod-vendor-local dep-ui-local cli-local
 	ARGOCD_ZJWT_FEATURE_FLAG=always \
 	ARGOCD_IN_CI=false \
 	ARGOCD_GPG_ENABLED=$(ARGOCD_GPG_ENABLED) \
+	BIN_MODE=$(ARGOCD_BIN_MODE) \
 	ARGOCD_E2E_TEST=false \
 	ARGOCD_APPLICATION_NAMESPACES=$(ARGOCD_APPLICATION_NAMESPACES) \
 		goreman -f $(ARGOCD_PROCFILE) start ${ARGOCD_START}
@@ -526,7 +521,7 @@ build-docs-local:
 
 .PHONY: build-docs
 build-docs:
-	docker run ${MKDOCS_RUN_ARGS} --rm -it -v ${CURRENT_DIR}:/docs --entrypoint "" ${MKDOCS_DOCKER_IMAGE} sh -c 'pip install -r docs/requirements.txt; mkdocs build'
+	docker run ${MKDOCS_RUN_ARGS} --rm -it -v ${CURRENT_DIR}:/docs -w /docs --entrypoint "" ${MKDOCS_DOCKER_IMAGE} sh -c 'pip install -r docs/requirements.txt; mkdocs build'
 
 .PHONY: serve-docs-local
 serve-docs-local:

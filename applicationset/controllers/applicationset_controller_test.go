@@ -86,6 +86,12 @@ func (g *generatorMock) GenerateParams(appSetGenerator *v1alpha1.ApplicationSetG
 	return args.Get(0).([]map[string]interface{}), args.Error(1)
 }
 
+func (g *generatorMock) Replace(tmpl string, replaceMap map[string]interface{}, useGoTemplate bool, goTemplateOptions []string) (string, error) {
+	args := g.Called(tmpl, replaceMap, useGoTemplate, goTemplateOptions)
+
+	return args.Get(0).(string), args.Error(1)
+}
+
 type rendererMock struct {
 	mock.Mock
 }
@@ -105,6 +111,12 @@ func (r *rendererMock) RenderTemplateParams(tmpl *v1alpha1.Application, syncPoli
 
 	return args.Get(0).(*v1alpha1.Application), args.Error(1)
 
+}
+
+func (r *rendererMock) Replace(tmpl string, replaceMap map[string]interface{}, useGoTemplate bool, goTemplateOptions []string) (string, error) {
+	args := r.Called(tmpl, replaceMap, useGoTemplate, goTemplateOptions)
+
+	return args.Get(0).(string), args.Error(1)
 }
 
 func TestExtractApplications(t *testing.T) {
@@ -2815,17 +2827,24 @@ func TestGenerateAppsUsingPullRequestGenerator(t *testing.T) {
 		{
 			name: "Generate an application from a go template application set manifest using a pull request generator",
 			params: []map[string]interface{}{{
-				"number":         "1",
-				"branch":         "branch1",
-				"branch_slug":    "branchSlug1",
-				"head_sha":       "089d92cbf9ff857a39e6feccd32798ca700fb958",
-				"head_short_sha": "089d92cb",
-				"labels":         []string{"label1"}}},
+				"number":                                "1",
+				"branch":                                "branch1",
+				"branch_slug":                           "branchSlug1",
+				"head_sha":                              "089d92cbf9ff857a39e6feccd32798ca700fb958",
+				"head_short_sha":                        "089d92cb",
+				"branch_slugify_default":                "feat/a_really+long_pull_request_name_to_test_argo_slugification_and_branch_name_shortening_feature",
+				"branch_slugify_smarttruncate_disabled": "feat/areallylongpullrequestnametotestargoslugificationandbranchnameshorteningfeature",
+				"branch_slugify_smarttruncate_enabled":  "feat/testwithsmarttruncateenabledramdomlonglistofcharacters",
+				"labels":                                []string{"label1"}},
+			},
 			template: v1alpha1.ApplicationSetTemplate{
 				ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{
 					Name: "AppSet-{{.branch}}-{{.number}}",
 					Labels: map[string]string{
-						"app1": "{{index .labels 0}}",
+						"app1":         "{{index .labels 0}}",
+						"branch-test1": "AppSet-{{.branch_slugify_default | slugify }}",
+						"branch-test2": "AppSet-{{.branch_slugify_smarttruncate_disabled | slugify 49 false }}",
+						"branch-test3": "AppSet-{{.branch_slugify_smarttruncate_enabled | slugify 50 true }}",
 					},
 				},
 				Spec: v1alpha1.ApplicationSpec{
@@ -2844,7 +2863,10 @@ func TestGenerateAppsUsingPullRequestGenerator(t *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "AppSet-branch1-1",
 						Labels: map[string]string{
-							"app1": "label1",
+							"app1":         "label1",
+							"branch-test1": "AppSet-feat-a-really-long-pull-request-name-to-test-argo",
+							"branch-test2": "AppSet-feat-areallylongpullrequestnametotestargoslugific",
+							"branch-test3": "AppSet-feat",
 						},
 					},
 					Spec: v1alpha1.ApplicationSpec{
