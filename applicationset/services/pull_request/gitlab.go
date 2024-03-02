@@ -56,9 +56,9 @@ func NewGitLabService(ctx context.Context, token, url, project string, labels []
 func (g *GitLabService) List(ctx context.Context) ([]*PullRequest, error) {
 
 	// Filter the merge requests on labels, if they are specified.
-	var labels *gitlab.Labels
+	var labels *gitlab.LabelOptions
 	if len(g.labels) > 0 {
-		labels = (*gitlab.Labels)(&g.labels)
+		labels = (*gitlab.LabelOptions)(&g.labels)
 	}
 
 	opts := &gitlab.ListProjectMergeRequestsOptions{
@@ -85,7 +85,7 @@ func (g *GitLabService) List(ctx context.Context) ([]*PullRequest, error) {
 				TargetBranch: mr.TargetBranch,
 				HeadSHA:      mr.SHA,
 				Labels:       mr.Labels,
-                ChangeSet:    getGitlabMrChange(mr.Changes),
+                ChangeSet:    getGitlabMRChanges(mr.Changes),
 			})
 		}
 		if resp.NextPage == 0 {
@@ -96,9 +96,10 @@ func (g *GitLabService) List(ctx context.Context) ([]*PullRequest, error) {
 	return pullRequests, nil
 }
 
-func getGitlabMrChanges([]*Gitlab.MergeRequestsDiff) ([]string, error) {
+func getGitlabMRChanges(changedFiles []*gitlab.MergeRequestDiff) []string {
     var changeSet = make([]string, len(changedFiles))
     for i, v := range changedFiles {
         changeSet[i] = v.NewPath
     }
+    return changeSet;
 }

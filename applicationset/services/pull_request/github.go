@@ -54,6 +54,9 @@ func (g *GithubService) List(ctx context.Context) ([]*PullRequest, error) {
 			PerPage: 100,
 		},
 	}
+	fileOpts := &github.ListOptions{
+			Page: -1,
+	}
 	pullRequests := []*PullRequest{}
 	for {
 		pulls, resp, err := g.client.PullRequests.List(ctx, g.owner, g.repo, opts)
@@ -64,7 +67,7 @@ func (g *GithubService) List(ctx context.Context) ([]*PullRequest, error) {
 			if !containLabels(g.labels, pull.Labels) {
 				continue
 			}
-            changedFiles, _, err = g.client.PullRequests.ListFiles(ctx, g.owner, g.repo, pull.Number, opts)
+            changedFiles, _, err := g.client.PullRequests.ListFiles(ctx, g.owner, g.repo, *pull.Number, fileOpts)
             if err != nil {
                 return nil, err
             }
@@ -114,9 +117,10 @@ func getGithubPRLabelNames(gitHubLabels []*github.Label) []string {
 	return labelNames
 }
 
-func getGithubPRChangeSet(changedFiles []*github.CommitFile)  []string {
+func getGithubPRChangeSet(changedFiles []*github.CommitFile) []string {
     var changeSet = make([]string, len(changedFiles))
     for i, v := range changedFiles {
-        changeSet[i] = v.Filename
+        changeSet[i] = *v.Filename
     }
+    return changeSet
 }

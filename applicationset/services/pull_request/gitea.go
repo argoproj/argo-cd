@@ -49,13 +49,18 @@ func (g *GiteaService) List(ctx context.Context) ([]*PullRequest, error) {
 	opts := gitea.ListPullRequestsOptions{
 		State: gitea.StateOpen,
 	}
+	filesOpts := gitea.ListPullRequestFilesOptions{
+        ListOptions: gitea.ListOptions{
+            Page: -1,
+        },
+	}
 	prs, _, err := g.client.ListRepoPullRequests(g.owner, g.repo, opts)
 	if err != nil {
 		return nil, err
 	}
 	list := []*PullRequest{}
 	for _, pr := range prs {
-        changedFiles, _, err := g.client.ListPullRequestFiles(g.owner, g.repo, pr.ID, opts)
+        changedFiles, _, err := g.client.ListPullRequestFiles(g.owner, g.repo, pr.ID, filesOpts)
         if err != nil {
             return nil, err
         }
@@ -86,4 +91,5 @@ func getGiteaPrChangeSet(changedFiles []*gitea.ChangedFile)  []string {
     for i, v := range changedFiles {
         changeSet[i] = v.Filename
     }
+    return changeSet
 }
