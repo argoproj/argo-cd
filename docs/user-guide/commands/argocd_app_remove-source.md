@@ -1,30 +1,25 @@
-# `argocd app patch` Command Reference
+# `argocd app remove-source` Command Reference
 
-## argocd app patch
+## argocd app remove-source
 
-Patch application
+Remove a source from multiple sources application. Index starts with 0.
 
 ```
-argocd app patch APPNAME [flags]
+argocd app remove-source APPNAME [flags]
 ```
 
 ### Examples
 
 ```
-  # Update an application's source path using json patch
-  argocd app patch myapplication --patch='[{"op": "replace", "path": "/spec/source/path", "value": "newPath"}]' --type json
-
-  # Update an application's repository target revision using merge patch
-  argocd app patch myapplication --patch '{"spec": { "source": { "targetRevision": "master" } }}' --type merge
+  # Remove the source at index 1 from application's sources
+  argocd app remove-source myapplication --source-index 1
 ```
 
 ### Options
 
 ```
-  -N, --app-namespace string   Only patch application in namespace
-  -h, --help                   help for patch
-      --patch string           Patch body
-      --type string            The type of patch being provided; one of [json merge] (default "json")
+  -h, --help               help for remove-source
+      --source-index int   Index of the source from the list of sources of the app. Index starts from 0. (default -1)
 ```
 
 ### Options inherited from parent commands
