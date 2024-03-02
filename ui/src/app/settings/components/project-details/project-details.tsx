@@ -17,6 +17,7 @@ import {ProjectRoleEditPanel} from '../project-role-edit-panel/project-role-edit
 import {ProjectSyncWindowsEditPanel} from '../project-sync-windows-edit-panel/project-sync-windows-edit-panel';
 import {ResourceListsPanel} from './resource-lists-panel';
 import {DeepLinks} from '../../../shared/components/deep-links';
+import {trimStringProperties} from '../utils';
 
 require('./project-details.scss');
 
@@ -546,7 +547,9 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
     private async saveProject(updatedProj: Project) {
         try {
             const proj = await services.projects.get(updatedProj.metadata.name);
+            updatedProj.metadata.labels = trimStringProperties(updatedProj.metadata.labels); // trim before updating
             proj.metadata.labels = updatedProj.metadata.labels;
+            updatedProj.spec = trimStringProperties(updatedProj.spec); // trim before updating
             proj.spec = updatedProj.spec;
 
             await services.projects.update(proj);
