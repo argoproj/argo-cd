@@ -85,6 +85,7 @@ func (g *GitLabService) List(ctx context.Context) ([]*PullRequest, error) {
 				TargetBranch: mr.TargetBranch,
 				HeadSHA:      mr.SHA,
 				Labels:       mr.Labels,
+                ChangeSet:    getGitlabMrChange(mr.Changes),
 			})
 		}
 		if resp.NextPage == 0 {
@@ -93,4 +94,11 @@ func (g *GitLabService) List(ctx context.Context) ([]*PullRequest, error) {
 		opts.Page = resp.NextPage
 	}
 	return pullRequests, nil
+}
+
+func getGitlabMrChanges([]*Gitlab.MergeRequestsDiff) ([]string, error) {
+    var changeSet = make([]string, len(changedFiles))
+    for i, v := range changedFiles {
+        changeSet[i] = v.NewPath
+    }
 }
