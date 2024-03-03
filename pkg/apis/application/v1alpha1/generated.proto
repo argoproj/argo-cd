@@ -984,6 +984,9 @@ message HealthStatus {
 
   // Message is a human-readable informational message describing the health status
   optional string message = 2;
+
+  // Timestamp is the time the HealthStatus was set
+  optional k8s.io.apimachinery.pkg.apis.meta.v1.Time timestamp = 3;
 }
 
 // HelmFileParameter is a file parameter that's passed to helm template during manifest generation

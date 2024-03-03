@@ -7160,6 +7160,9 @@
         "status": {
           "type": "string",
           "title": "Status holds the status code of the application or resource"
+        },
+        "timestamp": {
+          "$ref": "#/definitions/v1Time"
         }
       }
     },

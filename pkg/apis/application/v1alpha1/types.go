@@ -1512,6 +1512,8 @@ type HealthStatus struct {
 	Status health.HealthStatusCode `json:"status,omitempty" protobuf:"bytes,1,opt,name=status"`
 	// Message is a human-readable informational message describing the health status
 	Message string `json:"message,omitempty" protobuf:"bytes,2,opt,name=message"`
+	// Timestamp is the time the HealthStatus was set
+	Timestamp metav1.Time `json:"timestamp,omitempty" protobuf:"bytes,3,opt,name=timestamp"`
 }
 
 // InfoItem contains arbitrary, human readable information about an application

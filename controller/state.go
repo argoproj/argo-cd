@@ -375,7 +375,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 					Status:     v1alpha1.SyncStatusCodeUnknown,
 					Revisions:  revisions,
 				},
-				healthStatus: &v1alpha1.HealthStatus{Status: health.HealthStatusUnknown},
+				healthStatus: &v1alpha1.HealthStatus{Status: health.HealthStatusUnknown, Timestamp: metav1.Now()},
 			}, nil
 		} else {
 			return &comparisonResult{
@@ -384,7 +384,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 					Status:     v1alpha1.SyncStatusCodeUnknown,
 					Revision:   revisions[0],
 				},
-				healthStatus: &v1alpha1.HealthStatus{Status: health.HealthStatusUnknown},
+				healthStatus: &v1alpha1.HealthStatus{Status: health.HealthStatusUnknown, Timestamp: metav1.Now()},
 			}, nil
 		}
 	}
@@ -677,6 +677,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 			Kind:            gvk.Kind,
 			Version:         gvk.Version,
 			Group:           gvk.Group,
+			Health:          &app.Status.Health,
 			Hook:            isHook(obj),
 			RequiresPruning: targetObj == nil && liveObj != nil && isSelfReferencedObj,
 		}
