@@ -380,20 +380,17 @@ func TestKustomizeLabelWithoutSelector(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		fmt.Println("beginning")
 		appPath, err := testDataDir(t, tc.TestData)
 		assert.Nil(t, err)
-		fmt.Println(appPath)
 		kustomize := NewKustomizeApp(appPath, appPath, git.NopCreds{}, "", "")
 		objs, _, err := kustomize.Build(&tc.KustomizeSource, nil, tc.Env)
-		fmt.Println("objs: ", len(objs))
+
 		switch tc.ExpectErr {
 		case true:
 			assert.Error(t, err)
 		default:
 			assert.Nil(t, err)
 			if assert.Equal(t, len(objs), 1) {
-				fmt.Println(len(objs))
 				obj := objs[0]
 				sl, found, err := unstructured.NestedStringMap(obj.Object, "spec", "selector", "matchLabels")
 				assert.Nil(t, err)
