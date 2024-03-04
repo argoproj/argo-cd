@@ -1,30 +1,24 @@
-# `argocd app patch` Command Reference
+# `argocd proj add-source-namespace` Command Reference
 
-## argocd app patch
+## argocd proj add-source-namespace
 
-Patch application
+Add source namespace to the AppProject
 
 ```
-argocd app patch APPNAME [flags]
+argocd proj add-source-namespace PROJECT NAMESPACE [flags]
 ```
 
 ### Examples
 
 ```
-  # Update an application's source path using json patch
-  argocd app patch myapplication --patch='[{"op": "replace", "path": "/spec/source/path", "value": "newPath"}]' --type json
-
-  # Update an application's repository target revision using merge patch
-  argocd app patch myapplication --patch '{"spec": { "source": { "targetRevision": "master" } }}' --type merge
+  # Add Kubernetes namespace as source namespace to the AppProject where application resources are allowed to be created in.
+  argocd proj add-source-namespace PROJECT NAMESPACE
 ```
 
 ### Options
 
 ```
-  -N, --app-namespace string   Only patch application in namespace
-  -h, --help                   help for patch
-      --patch string           Patch body
-      --type string            The type of patch being provided; one of [json merge] (default "json")
+  -h, --help   help for add-source-namespace
 ```
 
 ### Options inherited from parent commands
@@ -57,5 +51,5 @@ argocd app patch APPNAME [flags]
 
 ### SEE ALSO
 
-* [argocd app](argocd_app.md)	 - Manage applications
+* [argocd proj](argocd_proj.md)	 - Manage projects
 

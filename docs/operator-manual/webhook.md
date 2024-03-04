@@ -97,3 +97,13 @@ stringData:
 ```
 
 After saving, the changes should take effect automatically.
+
+### Alternative
+
+If you want to store webhook data in **another** Kubernetes `Secret`, instead of `argocd-secret`. ArgoCD knows to check the keys under `data` in your Kubernetes `Secret` starts with `$`, then your Kubernetes `Secret` name and `:` (colon).
+
+Syntax: `$<k8s_secret_name>:<a_key_in_that_k8s_secret>`
+
+> NOTE: Secret must have label `app.kubernetes.io/part-of: argocd`
+
+For more information refer to the corresponding section in the [User Management Documentation](user-management/index.md#alternative).

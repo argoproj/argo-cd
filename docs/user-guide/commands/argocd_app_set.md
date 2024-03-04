@@ -69,6 +69,7 @@ argocd app set APPNAME [flags]
       --path string                                Path in repository to the app directory, ignored if a file is set
       --plugin-env stringArray                     Additional plugin envs
       --project string                             Application project name
+      --ref string                                 Ref is reference to another source within sources field
       --release-name string                        Helm release-name
       --repo string                                Repository URL, ignored if a file is set
       --revision string                            The tracking source branch, tag, commit or Helm chart version the application will sync to
