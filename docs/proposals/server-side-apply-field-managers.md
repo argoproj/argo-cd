@@ -68,11 +68,13 @@ A delete operation should undo only the additions or updates it made to a shared
 
 #### [G-3] Resource tracking logic for labels and annotations support multiple Applications
 
-Multiple Applications can now own a shared resource. The labels and annotations should be able to reflect this shared ownership.
+Multiple Applications can now own a shared resource. The resource tracking annotations should be able to reflect this shared ownership.
 
 ## Non-Goals
 
 1. We don't intend to give users control of this field manager. Letting users change the field manager could lead to situations where fields get left behind on shared objects.
+
+2. We will only support this feature when using annotation resource tracking. Label's 63 character limit will quickly prove too small for multiple Applications.
 
 ## Proposal
 
