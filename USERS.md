@@ -20,6 +20,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [Allianz Direct](https://www.allianzdirect.de/)
 1. [Amadeus IT Group](https://amadeus.com/)
 1. [Ambassador Labs](https://www.getambassador.io/)
+1. [Ancestry](https://www.ancestry.com/)
 1. [ANSTO - Australian Synchrotron](https://www.synchrotron.org.au/)
 1. [Ant Group](https://www.antgroup.com/)
 1. [AppDirect](https://www.appdirect.com)

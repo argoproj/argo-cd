@@ -529,6 +529,9 @@ message ApplicationSourceKustomize {
 
   // Components specifies a list of kustomize components to add to the kustomization before building
   repeated string components = 13;
+
+  // LabelWithoutSelector specifies whether to apply common labels to resource selectors or not
+  optional bool labelWithoutSelector = 14;
 }
 
 // ApplicationSourcePlugin holds options specific to config management plugins
