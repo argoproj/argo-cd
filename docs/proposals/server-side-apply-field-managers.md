@@ -1,4 +1,4 @@
-# Server-Side Apply with Unique Field Managers
+# Server-Side Apply Dynamic Field Managers
 
 This proposal is a follow up on the [original Server-Side Apply proposal](./server-side-apply.md), and seeks to make Argo more flexible and give users the ability to apply changes to shared Kuberentes resources at a granular level. It also considers how to remove field-level changes when an Application is destroyed.
 
