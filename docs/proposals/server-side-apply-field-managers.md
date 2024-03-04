@@ -176,6 +176,94 @@ delta -s <(echo "$AFTER_APP1_APPLY") <(echo "$AFTER_APP1_REMOVAL")
 kind delete cluster
 ```
 
+### Swapping Field Manager Demo
+
+```bash
+#!/usr/bin/env bash
+
+# Create kind cluster
+kind create cluster
+
+# Create service in App1
+cat <<EOF > /tmp/app1-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: nginx-service
+spec:
+  selector:
+    app: nginx
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 8080
+EOF
+
+# Create service in App2
+cat <<EOF > /tmp/app2-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: nginx-service
+spec:
+  ports:
+    - protocol: TCP
+      name: foo
+      port: 1000
+      targetPort: 8080
+EOF
+
+# Sync App1 with argocd-controller
+kubectl --context kind-kind apply -f /tmp/app1-service.yaml --force-conflicts --server-side --field-manager argocd-controller
+
+# Sync App2 with another-manager
+kubectl --context kind-kind apply -f /tmp/app2-service.yaml --force-conflicts --server-side --field-manager another-manager
+
+# Modify App2 service
+cat <<EOF > /tmp/app2-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: nginx-service
+spec:
+  ports:
+    - protocol: TCP
+      name: bar
+      port: 2000
+      targetPort: 8080
+EOF
+
+# Sync App2 with argocd-controller
+kubectl --context kind-kind apply -f /tmp/app2-service.yaml --force-conflicts --server-side --field-manager argocd-controller
+
+# Sync App2 with argocd-controller
+kubectl --context kind-kind apply -f /tmp/app2-service.yaml --force-conflicts --server-side --field-manager argocd-controller
+
+# Modify App2 service
+cat <<EOF > /tmp/app2-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: nginx-service
+spec:
+  type: LoadBalancer
+  ports:
+    - protocol: TCP
+      name: buzz
+      port: 3000
+      targetPort: 8080
+EOF
+
+# Sync App2 with another-manager
+kubectl --context kind-kind apply -f /tmp/app2-service.yaml --force-conflicts --server-side --field-manager another-manager
+
+# Get the service. Notice that the selector is missing.
+kubectl --context kind-kind get service nginx-service -oyaml
+
+# Destroy kind cluster
+kind delete cluster
+```
+
 [1]: https://kubernetes.io/docs/reference/using-api/server-side-apply/
 [2]: https://kubernetes.io/docs/reference/using-api/server-side-apply/#managers
 [3]: https://docs.gitlab.com/ee/ci/review_apps/
