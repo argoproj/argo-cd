@@ -570,6 +570,7 @@ install-test-tools-local:
 	./hack/install.sh kustomize
 	./hack/install.sh helm
 	./hack/install.sh gotestsum
+	go install github.com/mattn/goreman@latest
 
 # Installs all tools required for running codegen (Linux packages)
 .PHONY: install-codegen-tools-local
