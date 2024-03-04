@@ -11,7 +11,7 @@ import (
 
 type AppControllerRateLimiterConfig struct {
 	BucketSize      int64
-	BucketQPS       int64
+	BucketQPS       float64
 	FailureCoolDown time.Duration
 	BaseDelay       time.Duration
 	MaxDelay        time.Duration
@@ -22,7 +22,8 @@ func GetDefaultAppRateLimiterConfig() *AppControllerRateLimiterConfig {
 	return &AppControllerRateLimiterConfig{
 		// global queue rate limit config
 		500,
-		50,
+		// when WORKQUEUE_BUCKET_QPS is MaxFloat64 global bucket limiting is disabled(default)
+		math.MaxFloat64,
 		// individual item rate limit config
 		// when WORKQUEUE_FAILURE_COOLDOWN is 0 per item rate limiting is disabled(default)
 		0,

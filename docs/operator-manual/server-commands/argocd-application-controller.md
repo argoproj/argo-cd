@@ -77,7 +77,7 @@ argocd-application-controller [flags]
       --username string                        Username for basic authentication to the API server
       --wq-backoff-factor float                Set Workqueue Per Item Rate Limiter Backoff Factor, default is 1.5 (default 1.5)
       --wq-basedelay-ns duration               Set Workqueue Per Item Rate Limiter Base Delay duration in nanoseconds, default 1000000 (1ms) (default 1ms)
-      --wq-bucket-qps int                      Set Workqueue Rate Limiter Bucket QPS, default 50 (default 50)
+      --wq-bucket-qps float                    Set Workqueue Rate Limiter Bucket QPS, default set to MaxFloat64 which disables the bucket limiter (default 1.7976931348623157e+308)
       --wq-bucket-size int                     Set Workqueue Rate Limiter Bucket Size, default 500 (default 500)
       --wq-cooldown-ns duration                Set Workqueue Per Item Rate Limiter Cooldown duration in ns, default 0(per item rate limiter disabled)
       --wq-maxdelay-ns duration                Set Workqueue Per Item Rate Limiter Max Delay duration in nanoseconds, default 1000000000 (1s) (default 1s)
