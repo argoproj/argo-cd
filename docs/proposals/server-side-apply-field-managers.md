@@ -66,6 +66,10 @@ A common use case of server-side apply is the ability to manage only particular 
 
 A delete operation should undo only the additions or updates it made to a shared resource, unless that resource has `Prune=true`.
 
+#### [G-3] Resource tracking logic for labels and annotations support multiple Applications
+
+Multiple Applications can now own a shared resource. The labels and annotations should be able to reflect this shared ownership.
+
 ## Non-Goals
 
 1. We don't intend to give users control of this field manager. Letting users change the field manager could lead to situations where fields get left behind on shared objects.
