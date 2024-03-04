@@ -101,6 +101,10 @@ spec:
                       a failed sync. If set to 0, no retries will be performed.
                     format: int64
                     type: integer
+                  refresh:
+                    description: 'Refresh indicates wether a new revision should trigger
+                      a new sync (default: false)'
+                    type: boolean
                 type: object
               sync:
                 description: Sync contains parameters for the operation
@@ -1650,6 +1654,10 @@ spec:
                           a failed sync. If set to 0, no retries will be performed.
                         format: int64
                         type: integer
+                      refresh:
+                        description: 'Refresh indicates wether a new revision should
+                          trigger a new sync (default: false)'
+                        type: boolean
                     type: object
                   syncOptions:
                     description: Options allow you to specify whole app sync-options
@@ -2504,6 +2512,10 @@ spec:
                               be performed.
                             format: int64
                             type: integer
+                          refresh:
+                            description: 'Refresh indicates wether a new revision
+                              should trigger a new sync (default: false)'
+                            type: boolean
                         type: object
                       sync:
                         description: Sync contains parameters for the operation
