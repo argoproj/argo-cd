@@ -1,14 +1,21 @@
 #!/usr/bin/env bash
 
 # install ubuntu packages
-sudo apt-get update
-sudo apt-get install -y redis-server bash-completion
+sudo apt-get update && sudo apt-get install -y redis-server bash-completion
 
-# install tools
-curl -sLS https://get.arkade.dev | sudo sh
-arkade get kind
-arkade get kubectl
-echo "export PATH=\$PATH:/home/vscode/.arkade/bin" >> $HOME/.bashrc
+# For Kubectl AMD64 / x86_64
+[ $(uname -m) = x86_64 ] && curl -sLO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+# For Kubectl ARM64
+[ $(uname -m) = aarch64 ] && curl -sLO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/arm64/kubectl"
+chmod +x ./kubectl
+sudo mv ./kubectl /usr/local/bin/kubectl
+
+# For Kind AMD64 / x86_64
+[ $(uname -m) = x86_64 ] && curl -sLo ./kind https://kind.sigs.k8s.io/dl/v0.22.0/kind-linux-amd64
+# For Kind ARM64
+[ $(uname -m) = aarch64 ] && curl -sLo ./kind https://kind.sigs.k8s.io/dl/v0.22.0/kind-linux-arm64
+chmod +x ./kind
+sudo mv ./kind /usr/local/bin/kind
 
 # Make sure go path is owned by vscode
 sudo chown -R vscode:vscode /home/vscode/go
