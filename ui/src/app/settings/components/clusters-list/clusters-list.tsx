@@ -13,7 +13,21 @@ export const ClustersList = (props: RouteComponentProps<{}>) => {
         <Consumer>
             {ctx => (
                 <React.Fragment>
-                    <Page title='Clusters' toolbar={{breadcrumbs: [{title: 'Settings', path: '/settings'}, {title: 'Clusters'}]}}>
+                    <Page
+                        title='Clusters'
+                        toolbar={{
+                            breadcrumbs: [{title: 'Settings', path: '/settings'}, {title: 'Clusters'}],
+                            actionMenu: {
+                                className: 'fa fa-external-link',
+                                items: [
+                                    {
+                                        title: 'Add new Cluster',
+                                        iconClassName: 'fa fa-external-link',
+                                        action: () => window.open('https://argo-cd.readthedocs.io/en/stable/operator-manual/cluster-management/#adding-a-cluster', '_blank')
+                                    }
+                                ]
+                            }
+                        }}>
                         <div className='repos-list'>
                             <div className='argo-container'>
                                 <DataLoader
@@ -91,7 +105,13 @@ export const ClustersList = (props: RouteComponentProps<{}>) => {
                                         )) || (
                                             <EmptyState icon='argo-icon-hosts'>
                                                 <h4>No clusters connected</h4>
-                                                <h5>Connect more clusters using argocd CLI</h5>
+                                                <button
+                                                    className='argo-button argo-button--base'
+                                                    onClick={() =>
+                                                        window.open('https://argo-cd.readthedocs.io/en/stable/operator-manual/cluster-management/#adding-a-cluster', '_blank')
+                                                    }>
+                                                    Add new Cluster
+                                                </button>
                                             </EmptyState>
                                         )
                                     }
