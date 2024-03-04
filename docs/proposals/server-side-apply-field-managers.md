@@ -92,6 +92,14 @@ The following use cases should be implemented:
 
 Change the Server-Side Apply field manager to be unique and deterministic for each Application.
 
+#### [UC-2]: As a user, I want the transition to unqiue field managers to be transparent when upgrading ArgoCD
+
+Users shouldn't notice the switch to unique field managers in their Kubernetes manifests.
+
+#### [UC-3]: As a user running an Application with a shared resource, I only want to remove the fields my Application owns from the shared resource when I delete my Application.
+
+Change the delete behavior to server-side apply an empty "fully specified intent" instead of deleting a shared resource.
+
 ### Security Considerations
 
 TBD
