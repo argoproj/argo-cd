@@ -42,6 +42,10 @@ func NewCommand() *cobra.Command {
 		},
 		DisableAutoGenTag: true,
 		SilenceUsage:      true,
+		FParseErrWhitelist: cobra.FParseErrWhitelist{
+			// Allow unknown flags for backward-compatibility.
+			UnknownFlags: true,
+		},
 	}
 
 	command.AddCommand(NewCompletionCommand())

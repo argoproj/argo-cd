@@ -33,6 +33,10 @@ func NewCommand() *cobra.Command {
 		Short:             "argocd-dex tools used by Argo CD",
 		Long:              "argocd-dex has internal utility tools used by Argo CD",
 		DisableAutoGenTag: true,
+		FParseErrWhitelist: cobra.FParseErrWhitelist{
+			// Allow unknown flags for backward-compatibility.
+			UnknownFlags: true,
+		},
 		Run: func(c *cobra.Command, args []string) {
 			c.HelpFunc()(c, args)
 		},
