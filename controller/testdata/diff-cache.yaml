@@ -1,0 +1,498 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  annotations:
+    argocd-image-updater.argoproj.io/allow-tags: any
+    argocd-image-updater.argoproj.io/ignore-tags: ""
+    argocd-image-updater.argoproj.io/image-list-disabled-hack: ""
+    argocd-image-updater.argoproj.io/update-strategy: semver
+    argocd-image-updater.argoproj.io/write-back-method: git
+    argocd-image-updater.argoproj.io/write-back-target: kustomization
+    argocd-notif-onDeployed.slack-disabled: ""
+    argocd-notif-onHealthDegraded.slack-disabled: ""
+    argocd-notif-onSyncFailed.slack-disabled: ""
+    argocd-notif-onSyncRunning.slack-disabled: ""
+    argocd-notif-onSyncStatusUnknown.slack-disabled: ""
+    argocd-notif-onSyncSucceeded.slack-disabled: ""
+    argocd.argoproj.io/compare-options: ServerSideDiff=true
+    argocd.argoproj.io/manifest-generate-paths: .;/chart
+  creationTimestamp: "2024-03-04T21:30:33Z"
+  finalizers:
+  - resources-finalizer.argocd.argoproj.io
+  generation: 263
+  labels:
+    cloud_provider: gcp
+    cluster_name: gke-alpha-01-europe-west1
+    foo: bar
+    preview: "true"
+    project: sre
+    service_class: alpha
+    stack: gke-v2
+  name: velero-test
+  namespace: argo-cd
+  ownerReferences:
+  - apiVersion: argoproj.io/v1alpha1
+    blockOwnerDeletion: true
+    controller: true
+    kind: ApplicationSet
+    name: velero
+    uid: 86cdfba4-8697-47b3-8489-71fab7f4a805
+  resourceVersion: "722811357"
+  uid: 94978696-4fd4-40b3-a1de-38d9df9e9316
+spec:
+  destination:
+    name: gke-alpha-01-europe-west1
+    namespace: test-lla
+  project: sre
+  source:
+    path: instances/test
+    plugin:
+      env:
+      - name: RELEASE_NAME
+        value: test-lla
+      - name: CHART_REPOSITORY
+        value: oci://europe-west1-docker.pkg.dev/platform-89be/charts
+      - name: CHART_NAME
+        value: velero
+      - name: PREVIEW
+        value: "false"
+      - name: HELM_VALUES
+        value: |
+          global:
+            app:
+              cluster_name: gke-alpha-01-europe-west1
+              service_class: alpha
+              cloud_provider: gcp
+              cluster_stack: gke-v2
+      - name: HELM_ARGS
+        value: ""
+      name: cmp-helm-v2
+    repoURL: https://github.com/mirakl/manifests-velero.git
+    targetRevision: test-lla
+  syncPolicy:
+    retry:
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
+      limit: 10
+    syncOptions:
+    - CreateNamespace=true
+    - ApplyOutOfSyncOnly=true
+    - RespectIgnoreDifferences=false
+    - ServerSideApply=true
+    - Validate=true
+status:
+  controllerNamespace: argo-cd
+  health:
+    status: Healthy
+  history:
+  - deployStartedAt: "2024-03-04T22:00:05Z"
+    deployedAt: "2024-03-04T22:00:06Z"
+    id: 14
+    revision: ea8759964626a583667a2bfd08f334ec2070040a
+    source:
+      path: instances/test
+      plugin:
+        env:
+        - name: RELEASE_NAME
+          value: test-lla
+        - name: CHART_REPOSITORY
+          value: oci://europe-west1-docker.pkg.dev/platform-89be/charts
+        - name: CHART_NAME
+          value: velero
+        - name: PREVIEW
+          value: "false"
+        - name: HELM_VALUES
+          value: |
+            global:
+              app:
+                cluster_name: gke-alpha-01-europe-west1
+                service_class: alpha
+                cloud_provider: gcp
+                cluster_stack: gke-v2
+        - name: HELM_ARGS
+          value: ""
+        name: cmp-helm-v2
+      repoURL: https://github.com/mirakl/manifests-velero.git
+      targetRevision: test-lla
+  - deployStartedAt: "2024-03-04T22:08:29Z"
+    deployedAt: "2024-03-04T22:08:30Z"
+    id: 15
+    revision: ea8759964626a583667a2bfd08f334ec2070040a
+    source:
+      path: instances/test
+      plugin:
+        env:
+        - name: RELEASE_NAME
+          value: test-lla
+        - name: CHART_REPOSITORY
+          value: oci://europe-west1-docker.pkg.dev/platform-89be/charts
+        - name: CHART_NAME
+          value: velero
+        - name: PREVIEW
+          value: "false"
+        - name: HELM_VALUES
+          value: |
+            global:
+              app:
+                cluster_name: gke-alpha-01-europe-west1
+                service_class: alpha
+                cloud_provider: gcp
+                cluster_stack: gke-v2
+        - name: HELM_ARGS
+          value: ""
+        name: cmp-helm-v2
+      repoURL: https://github.com/mirakl/manifests-velero.git
+      targetRevision: test-lla
+  - deployStartedAt: "2024-03-04T22:09:16Z"
+    deployedAt: "2024-03-04T22:09:16Z"
+    id: 16
+    revision: ea8759964626a583667a2bfd08f334ec2070040a
+    source:
+      path: instances/test
+      plugin:
+        env:
+        - name: RELEASE_NAME
+          value: test-lla
+        - name: CHART_REPOSITORY
+          value: oci://europe-west1-docker.pkg.dev/platform-89be/charts
+        - name: CHART_NAME
+          value: velero
+        - name: PREVIEW
+          value: "false"
+        - name: HELM_VALUES
+          value: |
+            global:
+              app:
+                cluster_name: gke-alpha-01-europe-west1
+                service_class: alpha
+                cloud_provider: gcp
+                cluster_stack: gke-v2
+        - name: HELM_ARGS
+          value: ""
+        name: cmp-helm-v2
+      repoURL: https://github.com/mirakl/manifests-velero.git
+      targetRevision: test-lla
+  - deployStartedAt: "2024-03-04T22:11:41Z"
+    deployedAt: "2024-03-04T22:11:41Z"
+    id: 17
+    revision: ea8759964626a583667a2bfd08f334ec2070040a
+    source:
+      path: instances/test
+      plugin:
+        env:
+        - name: RELEASE_NAME
+          value: test-lla
+        - name: CHART_REPOSITORY
+          value: oci://europe-west1-docker.pkg.dev/platform-89be/charts
+        - name: CHART_NAME
+          value: velero
+        - name: PREVIEW
+          value: "false"
+        - name: HELM_VALUES
+          value: |
+            global:
+              app:
+                cluster_name: gke-alpha-01-europe-west1
+                service_class: alpha
+                cloud_provider: gcp
+                cluster_stack: gke-v2
+        - name: HELM_ARGS
+          value: ""
+        name: cmp-helm-v2
+      repoURL: https://github.com/mirakl/manifests-velero.git
+      targetRevision: test-lla
+  - deployStartedAt: "2024-03-04T22:50:55Z"
+    deployedAt: "2024-03-04T22:50:55Z"
+    id: 18
+    revision: ea8759964626a583667a2bfd08f334ec2070040a
+    source:
+      path: instances/test
+      plugin:
+        env:
+        - name: RELEASE_NAME
+          value: test-lla
+        - name: CHART_REPOSITORY
+          value: oci://europe-west1-docker.pkg.dev/platform-89be/charts
+        - name: CHART_NAME
+          value: velero
+        - name: PREVIEW
+          value: "false"
+        - name: HELM_VALUES
+          value: |
+            global:
+              app:
+                cluster_name: gke-alpha-01-europe-west1
+                service_class: alpha
+                cloud_provider: gcp
+                cluster_stack: gke-v2
+        - name: HELM_ARGS
+          value: ""
+        name: cmp-helm-v2
+      repoURL: https://github.com/mirakl/manifests-velero.git
+      targetRevision: test-lla
+  - deployStartedAt: "2024-03-04T22:52:56Z"
+    deployedAt: "2024-03-04T22:52:56Z"
+    id: 19
+    revision: ea8759964626a583667a2bfd08f334ec2070040a
+    source:
+      path: instances/test
+      plugin:
+        env:
+        - name: RELEASE_NAME
+          value: test-lla
+        - name: CHART_REPOSITORY
+          value: oci://europe-west1-docker.pkg.dev/platform-89be/charts
+        - name: CHART_NAME
+          value: velero
+        - name: PREVIEW
+          value: "false"
+        - name: HELM_VALUES
+          value: |
+            global:
+              app:
+                cluster_name: gke-alpha-01-europe-west1
+                service_class: alpha
+                cloud_provider: gcp
+                cluster_stack: gke-v2
+        - name: HELM_ARGS
+          value: ""
+        name: cmp-helm-v2
+      repoURL: https://github.com/mirakl/manifests-velero.git
+      targetRevision: test-lla
+  - deployStartedAt: "2024-03-04T22:56:15Z"
+    deployedAt: "2024-03-04T22:56:15Z"
+    id: 20
+    revision: ea8759964626a583667a2bfd08f334ec2070040a
+    source:
+      path: instances/test
+      plugin:
+        env:
+        - name: RELEASE_NAME
+          value: test-lla
+        - name: CHART_REPOSITORY
+          value: oci://europe-west1-docker.pkg.dev/platform-89be/charts
+        - name: CHART_NAME
+          value: velero
+        - name: PREVIEW
+          value: "false"
+        - name: HELM_VALUES
+          value: |
+            global:
+              app:
+                cluster_name: gke-alpha-01-europe-west1
+                service_class: alpha
+                cloud_provider: gcp
+                cluster_stack: gke-v2
+        - name: HELM_ARGS
+          value: ""
+        name: cmp-helm-v2
+      repoURL: https://github.com/mirakl/manifests-velero.git
+      targetRevision: test-lla
+  - deployStartedAt: "2024-03-05T07:31:56Z"
+    deployedAt: "2024-03-05T07:31:57Z"
+    id: 21
+    revision: ea8759964626a583667a2bfd08f334ec2070040a
+    source:
+      path: instances/test
+      plugin:
+        env:
+        - name: RELEASE_NAME
+          value: test-lla
+        - name: CHART_REPOSITORY
+          value: oci://europe-west1-docker.pkg.dev/platform-89be/charts
+        - name: CHART_NAME
+          value: velero
+        - name: PREVIEW
+          value: "false"
+        - name: HELM_VALUES
+          value: |
+            global:
+              app:
+                cluster_name: gke-alpha-01-europe-west1
+                service_class: alpha
+                cloud_provider: gcp
+                cluster_stack: gke-v2
+        - name: HELM_ARGS
+          value: ""
+        name: cmp-helm-v2
+      repoURL: https://github.com/mirakl/manifests-velero.git
+      targetRevision: test-lla
+  - deployStartedAt: "2024-03-05T07:32:44Z"
+    deployedAt: "2024-03-05T07:32:44Z"
+    id: 22
+    revision: ea8759964626a583667a2bfd08f334ec2070040a
+    source:
+      path: instances/test
+      plugin:
+        env:
+        - name: RELEASE_NAME
+          value: test-lla
+        - name: CHART_REPOSITORY
+          value: oci://europe-west1-docker.pkg.dev/platform-89be/charts
+        - name: CHART_NAME
+          value: velero
+        - name: PREVIEW
+          value: "false"
+        - name: HELM_VALUES
+          value: |
+            global:
+              app:
+                cluster_name: gke-alpha-01-europe-west1
+                service_class: alpha
+                cloud_provider: gcp
+                cluster_stack: gke-v2
+        - name: HELM_ARGS
+          value: ""
+        name: cmp-helm-v2
+      repoURL: https://github.com/mirakl/manifests-velero.git
+      targetRevision: test-lla
+  - deployStartedAt: "2024-03-05T07:33:03Z"
+    deployedAt: "2024-03-05T07:33:04Z"
+    id: 23
+    revision: ea8759964626a583667a2bfd08f334ec2070040a
+    source:
+      path: instances/test
+      plugin:
+        env:
+        - name: RELEASE_NAME
+          value: test-lla
+        - name: CHART_REPOSITORY
+          value: oci://europe-west1-docker.pkg.dev/platform-89be/charts
+        - name: CHART_NAME
+          value: velero
+        - name: PREVIEW
+          value: "false"
+        - name: HELM_VALUES
+          value: |
+            global:
+              app:
+                cluster_name: gke-alpha-01-europe-west1
+                service_class: alpha
+                cloud_provider: gcp
+                cluster_stack: gke-v2
+        - name: HELM_ARGS
+          value: ""
+        name: cmp-helm-v2
+      repoURL: https://github.com/mirakl/manifests-velero.git
+      targetRevision: test-lla
+  operationState:
+    finishedAt: "2024-03-05T07:33:04Z"
+    message: successfully synced (all tasks run)
+    operation:
+      initiatedBy:
+        username: laurent.lavaud@mirakl.com
+      retry:
+        backoff:
+          duration: 5s
+          factor: 2
+          maxDuration: 3m
+        limit: 10
+      sync:
+        revision: ea8759964626a583667a2bfd08f334ec2070040a
+        syncOptions:
+        - ServerSideApply=true
+        syncStrategy:
+          hook: {}
+    phase: Succeeded
+    startedAt: "2024-03-05T07:33:03Z"
+    syncResult:
+      resources:
+      - group: ""
+        hookPhase: Running
+        kind: Service
+        message: service/test-lla serverside-applied
+        name: test-lla
+        namespace: test-lla
+        status: Synced
+        syncPhase: Sync
+        version: v1
+      - group: apps
+        hookPhase: Running
+        kind: Deployment
+        message: deployment.apps/test-lla serverside-applied
+        name: test-lla
+        namespace: test-lla
+        status: Synced
+        syncPhase: Sync
+        version: v1
+      revision: ea8759964626a583667a2bfd08f334ec2070040a
+      source:
+        path: instances/test
+        plugin:
+          env:
+          - name: RELEASE_NAME
+            value: test-lla
+          - name: CHART_REPOSITORY
+            value: oci://europe-west1-docker.pkg.dev/platform-89be/charts
+          - name: CHART_NAME
+            value: velero
+          - name: PREVIEW
+            value: "false"
+          - name: HELM_VALUES
+            value: |
+              global:
+                app:
+                  cluster_name: gke-alpha-01-europe-west1
+                  service_class: alpha
+                  cloud_provider: gcp
+                  cluster_stack: gke-v2
+          - name: HELM_ARGS
+            value: ""
+          name: cmp-helm-v2
+        repoURL: https://github.com/mirakl/manifests-velero.git
+        targetRevision: test-lla
+  reconciledAt: "2024-03-05T07:33:04Z"
+  resources:
+  - health:
+      status: Healthy
+    kind: Service
+    name: test-lla
+    namespace: test-lla
+    status: Synced
+    version: v1
+  - group: apps
+    health:
+      status: Healthy
+    kind: Deployment
+    name: test-lla
+    namespace: test-lla
+    status: Synced
+    version: v1
+  sourceType: Plugin
+  summary:
+    images:
+    - nginx:latest
+  sync:
+    comparedTo:
+      destination:
+        name: gke-alpha-01-europe-west1
+        namespace: test-lla
+      source:
+        path: instances/test
+        plugin:
+          env:
+          - name: RELEASE_NAME
+            value: test-lla
+          - name: CHART_REPOSITORY
+            value: oci://europe-west1-docker.pkg.dev/platform-89be/charts
+          - name: CHART_NAME
+            value: velero
+          - name: PREVIEW
+            value: "false"
+          - name: HELM_VALUES
+            value: |
+              global:
+                app:
+                  cluster_name: gke-alpha-01-europe-west1
+                  service_class: alpha
+                  cloud_provider: gcp
+                  cluster_stack: gke-v2
+          - name: HELM_ARGS
+            value: ""
+          name: cmp-helm-v2
+        repoURL: https://github.com/mirakl/manifests-velero.git
+        targetRevision: test-lla
+    revision: rev1
+    status: Synced
