@@ -40,15 +40,18 @@ type broadcasterHandler struct {
 	filter         sharding.ApplicationFilterFunction
 	featureManager *FeatureManager
 	metricsServer  *metrics.MetricsServer
+	rateLimiter    *RateLimiter
 }
 
-func NewBroadcaster(featureManager *FeatureManager, metricsServer *metrics.MetricsServer) Broadcaster {
+func NewBroadcaster(featureManager *FeatureManager, metricsServer *metrics.MetricsServer, rateLimiterOpts *RateLimiterOpts) Broadcaster {
 	// todo: pass real value here
 	filter := getApplicationFilter("")
+	rl := NewRateLimiter(rateLimiterOpts)
 	return &broadcasterHandler{
 		filter:         filter,
 		featureManager: featureManager,
 		metricsServer:  metricsServer,
+		rateLimiter:    rl,
 	}
 }
 
@@ -76,16 +79,27 @@ func (b *broadcasterHandler) notify(event *appv1.ApplicationWatchEvent) {
 	for _, s := range subscribers {
 		if s.matches(event) {
 
+			limited, err, learningMode := b.rateLimiter.Limit(event.Application.Name)
+			errorInLearningMode := learningMode && err != nil
+			if err != nil || limited {
+				log.Errorf("adding application '%s' to channel failed, due to rate limit, learningMode %t", event.Application.Name, learningMode)
+				// if learning mode is enabled, we will continue to send events
+				if !learningMode {
+					b.metricsServer.IncAppEventsCounter(event.Application.Name, false, false)
+					continue
+				}
+			}
+
 			select {
 			case s.ch <- event:
 				{
 					log.Infof("adding application '%s' to channel", event.Application.Name)
-					b.metricsServer.IncAppEventsCounter(event.Application.Name, true)
+					b.metricsServer.IncAppEventsCounter(event.Application.Name, true, errorInLearningMode)
 				}
 			default:
 				// drop event if cannot send right away
 				log.WithField("application", event.Application.Name).Warn("unable to send event notification")
-				b.metricsServer.IncAppEventsCounter(event.Application.Name, false)
+				b.metricsServer.IncAppEventsCounter(event.Application.Name, false, errorInLearningMode)
 			}
 		}
 	}
