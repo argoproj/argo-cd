@@ -21,7 +21,7 @@ export const ClustersList = (props: RouteComponentProps<{}>) => {
                                 className: 'fa fa-external-link',
                                 items: [
                                     {
-                                        title: 'Add new Cluster',
+                                        title: 'Docs: Add more Clusters',
                                         iconClassName: 'fa fa-external-link',
                                         action: () => window.open('https://argo-cd.readthedocs.io/en/stable/operator-manual/cluster-management/#adding-a-cluster', '_blank')
                                     }
@@ -110,7 +110,7 @@ export const ClustersList = (props: RouteComponentProps<{}>) => {
                                                     onClick={() =>
                                                         window.open('https://argo-cd.readthedocs.io/en/stable/operator-manual/cluster-management/#adding-a-cluster', '_blank')
                                                     }>
-                                                    Add new Cluster
+                                                    Docs: Add more Clusters
                                                 </button>
                                             </EmptyState>
                                         )
