@@ -196,6 +196,9 @@ message ApplicationSetApplicationStatus {
 
   // Step tracks which step this Application should be updated in
   optional string step = 5;
+
+  // TargetRevision tracks the desired revisions the Application should be synced to.
+  repeated string targetrevisions = 6;
 }
 
 // ApplicationSetCondition contains details about an applicationset condition, which is usally an error or warning

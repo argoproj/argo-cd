@@ -832,6 +832,8 @@ type ApplicationSetApplicationStatus struct {
 	Status string `json:"status" protobuf:"bytes,4,opt,name=status"`
 	// Step tracks which step this Application should be updated in
 	Step string `json:"step" protobuf:"bytes,5,opt,name=step"`
+	// TargetRevision tracks the desired revisions the Application should be synced to.
+	TargetRevisions []string `json:"targetRevisions" protobuf:"bytes,6,opt,name=targetrevisions"`
 }
 
 // ApplicationSetList contains a list of ApplicationSet

@@ -1150,6 +1150,7 @@ func (r *ApplicationSetReconciler) updateApplicationSetApplicationStatus(ctx con
 				Message:            "No Application status found, defaulting status to Waiting.",
 				Status:             "Waiting",
 				Step:               fmt.Sprint(appStepMap[app.Name] + 1),
+				TargetRevisions:    app.Status.GetRevisions(),
 			}
 		} else {
 			// we have an existing AppStatus
@@ -1167,20 +1168,27 @@ func (r *ApplicationSetReconciler) updateApplicationSetApplicationStatus(ctx con
 			currentAppStatus.Status = "Waiting"
 			currentAppStatus.Message = "Application has pending changes, setting status to Waiting."
 			currentAppStatus.Step = fmt.Sprint(appStepMap[currentAppStatus.Application] + 1)
+			currentAppStatus.TargetRevisions = app.Status.GetRevisions()
 		}
 
 		if currentAppStatus.Status == "Pending" {
 			// check for successful syncs started less than 10s before the Application transitioned to Pending
 			// this covers race conditions where syncs initiated by RollingSync miraculously have a sync time before the transition to Pending state occurred (could be a few seconds)
-			if operationPhaseString == "Succeeded" && app.Status.OperationState.StartedAt.Add(time.Duration(10)*time.Second).After(currentAppStatus.LastTransitionTime.Time) {
-				if !app.Status.OperationState.StartedAt.After(currentAppStatus.LastTransitionTime.Time) {
-					logCtx.Warnf("Application %v was synced less than 10s prior to entering Pending status, we'll assume the AppSet controller triggered this sync and update its status to Progressing", app.Name)
+			if operationPhaseString == "Succeeded" {
+				revisions := []string{}
+				if len(app.Status.OperationState.SyncResult.Revisions) > 0 {
+					revisions = app.Status.OperationState.SyncResult.Revisions
+				} else if app.Status.OperationState.SyncResult.Revision != "" {
+					revisions = append(revisions, app.Status.OperationState.SyncResult.Revision)
 				}
-				logCtx.Infof("Application %v has completed a sync successfully, updating its ApplicationSet status to Progressing", app.Name)
-				currentAppStatus.LastTransitionTime = &now
-				currentAppStatus.Status = "Progressing"
-				currentAppStatus.Message = "Application resource completed a sync successfully, updating status from Pending to Progressing."
-				currentAppStatus.Step = fmt.Sprint(appStepMap[currentAppStatus.Application] + 1)
+
+				if reflect.DeepEqual(currentAppStatus.TargetRevisions, revisions) {
+					logCtx.Infof("Application %v has completed a sync successfully, updating its ApplicationSet status to Progressing", app.Name)
+					currentAppStatus.LastTransitionTime = &now
+					currentAppStatus.Status = "Progressing"
+					currentAppStatus.Message = "Application resource completed a sync successfully, updating status from Pending to Progressing."
+					currentAppStatus.Step = fmt.Sprint(appStepMap[currentAppStatus.Application] + 1)
+				}
 			} else if operationPhaseString == "Running" || healthStatusString == "Progressing" {
 				logCtx.Infof("Application %v has entered Progressing status, updating its ApplicationSet status to Progressing", app.Name)
 				currentAppStatus.LastTransitionTime = &now

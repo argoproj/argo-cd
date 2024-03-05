@@ -15301,11 +15301,16 @@ spec:
                       type: string
                     step:
                       type: string
+                    targetRevisions:
+                      items:
+                        type: string
+                      type: array
                   required:
                   - application
                   - message
                   - status
                   - step
+                  - targetRevisions
                   type: object
                 type: array
               conditions:
