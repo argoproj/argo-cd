@@ -139,16 +139,25 @@ func AddAppFlags(command *cobra.Command, opts *AppOptions) {
 	command.Flags().StringVar(&opts.ref, "ref", "", "Ref is reference to another source within sources field")
 }
 
-func SetAppSpecOptions(flags *pflag.FlagSet, spec *argoappv1.ApplicationSpec, appOpts *AppOptions) int {
+func SetAppSpecOptions(flags *pflag.FlagSet, spec *argoappv1.ApplicationSpec, appOpts *AppOptions, index *int) int {
 	visited := 0
 	if flags == nil {
 		return visited
 	}
-	source := spec.GetSourcePtr()
+	source := spec.GetSourcePtr(index)
 	if source == nil {
 		source = &argoappv1.ApplicationSource{}
 	}
 	source, visited = ConstructSource(source, *appOpts, flags)
+	if spec.HasMultipleSources() {
+		if index != nil {
+			spec.Sources[*index] = *source
+		} else {
+			spec.Sources = append(spec.Sources, *source)
+		}
+	} else {
+		spec.Source = source
+	}
 	flags.Visit(func(f *pflag.Flag) {
 		visited++
 
@@ -220,7 +229,6 @@ func SetAppSpecOptions(flags *pflag.FlagSet, spec *argoappv1.ApplicationSpec, ap
 				log.Fatalf("Invalid sync-retry-limit [%d]", appOpts.retryLimit)
 			}
 		}
-		spec.Source = source
 	})
 	if flags.Changed("auto-prune") {
 		if spec.SyncPolicy == nil || spec.SyncPolicy.Automated == nil {
@@ -530,7 +538,7 @@ func constructAppsBaseOnName(appName string, labels, annotations, args []string,
 			Source: &argoappv1.ApplicationSource{},
 		},
 	}
-	SetAppSpecOptions(flags, &app.Spec, &appOpts)
+	SetAppSpecOptions(flags, &app.Spec, &appOpts, nil)
 	SetParameterOverrides(app, appOpts.Parameters)
 	mergeLabels(app, labels)
 	setAnnotations(app, annotations)
@@ -539,7 +547,7 @@ func constructAppsBaseOnName(appName string, labels, annotations, args []string,
 	}, nil
 }
 
-func constructAppsFromFileUrl(fileURL, appName string, labels, annotations, args []string, appOpts AppOptions, flags *pflag.FlagSet) ([]*argoappv1.Application, error) {
+func constructAppsFromFileUrl(fileURL, appName string, labels, annotations, args []string, appOpts AppOptions, flags *pflag.FlagSet, source_index *int) ([]*argoappv1.Application, error) {
 	apps := make([]*argoappv1.Application, 0)
 	// read uri
 	err := readAppsFromURI(fileURL, &apps)
@@ -557,7 +565,7 @@ func constructAppsFromFileUrl(fileURL, appName string, labels, annotations, args
 			return nil, fmt.Errorf("app.Name is empty. --name argument can be used to provide app.Name")
 		}
 
-		SetAppSpecOptions(flags, &app.Spec, &appOpts)
+		SetAppSpecOptions(flags, &app.Spec, &appOpts, source_index)
 		SetParameterOverrides(app, appOpts.Parameters)
 		mergeLabels(app, labels)
 		setAnnotations(app, annotations)
@@ -565,11 +573,11 @@ func constructAppsFromFileUrl(fileURL, appName string, labels, annotations, args
 	return apps, nil
 }
 
-func ConstructApps(fileURL, appName string, labels, annotations, args []string, appOpts AppOptions, flags *pflag.FlagSet) ([]*argoappv1.Application, error) {
+func ConstructApps(fileURL, appName string, labels, annotations, args []string, appOpts AppOptions, flags *pflag.FlagSet, source_index *int) ([]*argoappv1.Application, error) {
 	if fileURL == "-" {
 		return constructAppsFromStdin()
 	} else if fileURL != "" {
-		return constructAppsFromFileUrl(fileURL, appName, labels, annotations, args, appOpts, flags)
+		return constructAppsFromFileUrl(fileURL, appName, labels, annotations, args, appOpts, flags, source_index)
 	}
 
 	return constructAppsBaseOnName(appName, labels, annotations, args, appOpts, flags)

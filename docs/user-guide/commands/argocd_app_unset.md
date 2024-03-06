@@ -36,6 +36,7 @@ argocd app unset APPNAME parameters [flags]
   -p, --parameter stringArray           Unset a parameter override (e.g. -p guestbook=image)
       --pass-credentials                Unset passCredentials
       --plugin-env stringArray          Unset plugin env variables (e.g --plugin-env name)
+      --source-index int                Index of the source from the list of sources of the app. Default index is 0.
       --values stringArray              Unset one or more Helm values files
       --values-literal                  Unset literal Helm values block
 ```

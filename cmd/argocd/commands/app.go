@@ -118,6 +118,7 @@ func NewApplicationCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 		annotations  []string
 		setFinalizer bool
 		appNamespace string
+		source_index int
 	)
 	var command = &cobra.Command{
 		Use:   "create APPNAME",
@@ -142,9 +143,11 @@ func NewApplicationCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
 
+			if source_index < 0 {
+				errors.CheckError(fmt.Errorf("Source index should be greater than 0"))
+			}
 			argocdClient := headless.NewClientOrDie(clientOpts, c)
-
-			apps, err := cmdutil.ConstructApps(fileURL, appName, labels, annotations, args, appOpts, c.Flags())
+			apps, err := cmdutil.ConstructApps(fileURL, appName, labels, annotations, args, appOpts, c.Flags(), &source_index)
 			errors.CheckError(err)
 
 			for _, app := range apps {
@@ -202,6 +205,7 @@ func NewApplicationCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 		log.Fatal(err)
 	}
 	command.Flags().StringVarP(&appNamespace, "app-namespace", "N", "", "Namespace where the application will be created in")
+	command.Flags().IntVar(&source_index, "source-index", 0, "Index of the source from the list of sources of the app. Default index is 0.")
 	cmdutil.AddAppFlags(command, &appOpts)
 	return command
 }
@@ -730,6 +734,7 @@ func NewApplicationSetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 	var (
 		appOpts      cmdutil.AppOptions
 		appNamespace string
+		source_index int
 	)
 	var command = &cobra.Command{
 		Use:   "set APPNAME",
@@ -758,6 +763,9 @@ func NewApplicationSetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
+			if source_index < 0 {
+				errors.CheckError(fmt.Errorf("Source index should be greater than 0"))
+			}
 			appName, appNs := argo.ParseFromQualifiedName(args[0], appNamespace)
 			argocdClient := headless.NewClientOrDie(clientOpts, c)
 			conn, appIf := argocdClient.NewApplicationClientOrDie()
@@ -765,7 +773,7 @@ func NewApplicationSetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 			app, err := appIf.Get(ctx, &application.ApplicationQuery{Name: &appName, AppNamespace: &appNs})
 			errors.CheckError(err)
 
-			visited := cmdutil.SetAppSpecOptions(c.Flags(), &app.Spec, &appOpts)
+			visited := cmdutil.SetAppSpecOptions(c.Flags(), &app.Spec, &appOpts, &source_index)
 			if visited == 0 {
 				log.Error("Please set at least one option to update")
 				c.HelpFunc()(c, args)
@@ -782,6 +790,7 @@ func NewApplicationSetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 			errors.CheckError(err)
 		},
 	}
+	command.Flags().IntVar(&source_index, "source-index", 0, "Index of the source from the list of sources of the app. Default index is 0.")
 	cmdutil.AddAppFlags(command, &appOpts)
 	command.Flags().StringVarP(&appNamespace, "app-namespace", "N", "", "Set application parameters in namespace")
 	return command
@@ -816,6 +825,9 @@ func (o *unsetOpts) KustomizeIsZero() bool {
 
 // NewApplicationUnsetCommand returns a new instance of an `argocd app unset` command
 func NewApplicationUnsetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
+	var (
+		source_index int
+	)
 	appOpts := cmdutil.AppOptions{}
 	opts := unsetOpts{}
 	var appNamespace string
@@ -838,14 +850,21 @@ func NewApplicationUnsetCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
+			if source_index < 0 {
+				errors.CheckError(fmt.Errorf("Source index should be greater than 0"))
+			}
 			appName, appNs := argo.ParseFromQualifiedName(args[0], appNamespace)
 			conn, appIf := headless.NewClientOrDie(clientOpts, c).NewApplicationClientOrDie()
 			defer argoio.Close(conn)
 			app, err := appIf.Get(ctx, &application.ApplicationQuery{Name: &appName, AppNamespace: &appNs})
 			errors.CheckError(err)
 
-			source := app.Spec.GetSource()
-			updated, nothingToUnset := unset(&source, opts)
+			if app.Spec.HasMultipleSources() && len(app.Spec.GetSources()) < source_index {
+				errors.CheckError(fmt.Errorf("Source index should be less than the number of sources in the application"))
+			}
+			source := app.Spec.GetSourcePtr(&source_index)
+
+			updated, nothingToUnset := unset(source, opts)
 			if nothingToUnset {
 				c.HelpFunc()(c, args)
 				os.Exit(1)
@@ -854,7 +873,7 @@ func NewApplicationUnsetCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
 				return
 			}
 
-			cmdutil.SetAppSpecOptions(c.Flags(), &app.Spec, &appOpts)
+			cmdutil.SetAppSpecOptions(c.Flags(), &app.Spec, &appOpts, &source_index)
 			_, err = appIf.UpdateSpec(ctx, &application.ApplicationUpdateSpecRequest{
 				Name:         &app.Name,
 				Spec:         &app.Spec,
@@ -877,6 +896,7 @@ func NewApplicationUnsetCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
 	command.Flags().StringArrayVar(&opts.kustomizeReplicas, "kustomize-replica", []string{}, "Kustomize replicas name (e.g. --kustomize-replica my-deployment --kustomize-replica my-statefulset)")
 	command.Flags().StringArrayVar(&opts.pluginEnvs, "plugin-env", []string{}, "Unset plugin env variables (e.g --plugin-env name)")
 	command.Flags().BoolVar(&opts.passCredentials, "pass-credentials", false, "Unset passCredentials")
+	command.Flags().IntVar(&source_index, "source-index", 0, "Index of the source from the list of sources of the app. Default index is 0.")
 	return command
 }
 
@@ -2731,7 +2751,10 @@ func NewApplicationTerminateOpCommand(clientOpts *argocdclient.ClientOptions) *c
 }
 
 func NewApplicationEditCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
-	var appNamespace string
+	var (
+		appNamespace string
+		source_index int
+	)
 	var command = &cobra.Command{
 		Use:   "edit APPNAME",
 		Short: "Edit application",
@@ -2742,6 +2765,10 @@ func NewApplicationEditCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
+			if source_index < 0 {
+				errors.CheckError(fmt.Errorf("Source index should be greater than 0"))
+			}
+
 			appName, appNs := argo.ParseFromQualifiedName(args[0], appNamespace)
 			conn, appIf := headless.NewClientOrDie(clientOpts, c).NewApplicationClientOrDie()
 			defer argoio.Close(conn)
@@ -2768,7 +2795,7 @@ func NewApplicationEditCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				}
 
 				var appOpts cmdutil.AppOptions
-				cmdutil.SetAppSpecOptions(c.Flags(), &app.Spec, &appOpts)
+				cmdutil.SetAppSpecOptions(c.Flags(), &app.Spec, &appOpts, &source_index)
 				_, err = appIf.UpdateSpec(ctx, &application.ApplicationUpdateSpecRequest{
 					Name:         &appName,
 					Spec:         &updatedSpec,
@@ -2783,6 +2810,7 @@ func NewApplicationEditCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 		},
 	}
 	command.Flags().StringVarP(&appNamespace, "app-namespace", "N", "", "Only edit application in namespace")
+	command.Flags().IntVar(&source_index, "source-index", 0, "Index of the source from the list of sources of the app. Default index is 0.")
 	return command
 }
 
