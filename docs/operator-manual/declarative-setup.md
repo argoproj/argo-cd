@@ -923,6 +923,15 @@ In addition to the environment variables above, argocd-k8s-auth accepts two extr
 
 This is an example of using the [federated workload login flow](https://github.com/Azure/kubelogin#azure-workload-federated-identity-non-interactive).  The federated token file needs to be mounted as a secret into argoCD, so it can be used in the flow.  The location of the token file needs to be set in the environment variable AZURE_FEDERATED_TOKEN_FILE.
 
+If your AKS cluster utilizes the [Mutating Admission Webhook](https://azure.github.io/azure-workload-identity/docs/installation/mutating-admission-webhook.html) from the Azure Workload Identity project, follow these steps to enable the `argocd-application-controller` and `argocd-server` pods to use the federated identity:
+
+1. **Label the Pods**: Add the `azure.workload.identity/use: "true"` label to the `argocd-application-controller` and `argocd-server` pods.
+
+2. **Create Federated Identity Credential**: Generate an Azure federated identity credential for the `argocd-application-controller` and `argocd-server` service accounts. Refer to the [Federated Identity Credential](https://azure.github.io/azure-workload-identity/docs/topics/federated-identity-credential.html) documentation for detailed instructions.
+
+3. **Set the AZURE_CLIENT_ID**: Update the `AZURE_CLIENT_ID` in the cluster secret to match the client id of the newly created federated identity credential.
+
+
 ```yaml
 apiVersion: v1
 kind: Secret
@@ -941,9 +950,9 @@ stringData:
         "env": {
           "AAD_ENVIRONMENT_NAME": "AzurePublicCloud",
           "AZURE_CLIENT_ID": "fill in client id",
-          "AZURE_TENANT_ID": "fill in tenant id",
-          "AZURE_FEDERATED_TOKEN_FILE": "/opt/path/to/federated_file.json",
-          "AZURE_AUTHORITY_HOST": "https://login.microsoftonline.com/",
+          "AZURE_TENANT_ID": "fill in tenant id", # optional, injected by workload identity mutating admission webhook if enabled
+          "AZURE_FEDERATED_TOKEN_FILE": "/opt/path/to/federated_file.json", # optional, injected by workload identity mutating admission webhook if enabled
+          "AZURE_AUTHORITY_HOST": "https://login.microsoftonline.com/", # optional, injected by workload identity mutating admission webhook if enabled
           "AAD_LOGIN_METHOD": "workloadidentity"
         },
         "args": ["azure"],
