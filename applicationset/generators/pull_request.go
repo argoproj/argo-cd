@@ -103,6 +103,7 @@ func (g *PullRequestGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha
 
 		paramMap := map[string]interface{}{
 			"number":             strconv.Itoa(pull.Number),
+			"name":               pull.Name,
 			"branch":             pull.Branch,
 			"branch_slug":        slug.Make(pull.Branch),
 			"target_branch":      pull.TargetBranch,

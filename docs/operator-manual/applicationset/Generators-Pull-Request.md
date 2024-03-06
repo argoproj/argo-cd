@@ -342,7 +342,7 @@ spec:
     # ...
   template:
     metadata:
-      name: 'myapp-{{.branch}}-{{.number}}'
+      name: '{{.name}}-{{.branch}}-{{.number}}'
     spec:
       source:
         repoURL: 'https://github.com/myorg/myrepo.git'
@@ -373,7 +373,7 @@ spec:
     # ...
   template:
     metadata:
-      name: 'myapp-{{.branch}}-{{.number}}'
+      name: '{{.name}}-{{.branch}}-{{.number}}'
     spec:
       source:
         repoURL: 'https://github.com/myorg/myrepo.git'
