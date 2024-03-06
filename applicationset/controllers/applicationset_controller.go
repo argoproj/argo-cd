@@ -117,10 +117,10 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 				return ctrl.Result{}, err
 			}
 			logCtx.Debugf("ownerReferences is deleted from %s", appsetName)
-			controllerutil.RemoveFinalizer(&applicationSetInfo, argov1alpha1.ResourcesFinalizerName)
-			if err := r.Update(ctx, &applicationSetInfo); err != nil {
-				return ctrl.Result{}, err
-			}
+		}
+		controllerutil.RemoveFinalizer(&applicationSetInfo, argov1alpha1.ResourcesFinalizerName)
+		if err := r.Update(ctx, &applicationSetInfo); err != nil {
+			return ctrl.Result{}, err
 		}
 		return ctrl.Result{}, nil
 	}
