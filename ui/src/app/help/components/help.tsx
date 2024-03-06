@@ -71,6 +71,16 @@ export const Help = () => {
                                             </a>
                                         </div>
                                     </div>
+                                    <div className='columns large-4 small-6'>
+                                        <div className='help-box'>
+                                            <p>Want to add new Cluster?</p>
+                                            <a
+                                                className='user-info-panel-buttons argo-button argo-button--base'
+                                                href='https://argo-cd.readthedocs.io/en/stable/operator-manual/cluster-management/#adding-a-cluster'>
+                                                Read the CLI docs
+                                            </a>
+                                        </div>
+                                    </div>
                                 </div>
                             </Page>
                         )}

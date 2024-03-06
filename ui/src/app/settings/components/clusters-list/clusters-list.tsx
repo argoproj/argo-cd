@@ -13,21 +13,7 @@ export const ClustersList = (props: RouteComponentProps<{}>) => {
         <Consumer>
             {ctx => (
                 <React.Fragment>
-                    <Page
-                        title='Clusters'
-                        toolbar={{
-                            breadcrumbs: [{title: 'Settings', path: '/settings'}, {title: 'Clusters'}],
-                            actionMenu: {
-                                className: 'fa fa-external-link',
-                                items: [
-                                    {
-                                        title: 'Docs: Add more Clusters',
-                                        iconClassName: 'fa fa-external-link',
-                                        action: () => window.open('https://argo-cd.readthedocs.io/en/stable/operator-manual/cluster-management/#adding-a-cluster', '_blank')
-                                    }
-                                ]
-                            }
-                        }}>
+                    <Page title='Clusters' toolbar={{breadcrumbs: [{title: 'Settings', path: '/settings'}, {title: 'Clusters'}]}}>
                         <div className='repos-list'>
                             <div className='argo-container'>
                                 <DataLoader
@@ -105,13 +91,7 @@ export const ClustersList = (props: RouteComponentProps<{}>) => {
                                         )) || (
                                             <EmptyState icon='argo-icon-hosts'>
                                                 <h4>No clusters connected</h4>
-                                                <button
-                                                    className='argo-button argo-button--base'
-                                                    onClick={() =>
-                                                        window.open('https://argo-cd.readthedocs.io/en/stable/operator-manual/cluster-management/#adding-a-cluster', '_blank')
-                                                    }>
-                                                    Docs: Add more Clusters
-                                                </button>
+                                                <h5>Connect more clusters using argocd CLI</h5>
                                             </EmptyState>
                                         )
                                     }
