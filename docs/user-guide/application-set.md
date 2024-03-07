@@ -1,6 +1,6 @@
 ### Automating the generation of Argo CD Applications with the ApplicationSet Controller
 
-The [ApplicationSet controller](../operator-manual/applicationset/index.md) adds Application automation and seeks to improve multi-cluster support and cluster multitenant support within Argo CD. Argo CD Applications may be templated from multiple different sources, including from Git or Argo CD's own defined cluster list. 
+The [ApplicationSet controller](../operator-manual/applicationset/index.md) adds Application automation and seeks to improve multi-cluster support and cluster multitenant support within Argo CD. Argo CD Applications may be templated from multiple different sources, including from Git or Argo CD's own defined cluster list.
 
 The set of tools provided by the ApplicationSet controller may also be used to allow developers (without access to the Argo CD namespace) to independently create Applications without cluster-administrator intervention.
 
@@ -17,6 +17,8 @@ kind: ApplicationSet
 metadata:
   name: guestbook
 spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
   generators:
   - list:
       elements:
@@ -28,15 +30,15 @@ spec:
         url: https://9.8.7.6
   template:
     metadata:
-      name: '{{cluster}}-guestbook'
+      name: '{{.cluster}}-guestbook'
     spec:
-      project: default
+      project: my-project
       source:
-        repoURL: https://github.com/argoproj/argo-cd.git
+        repoURL: https://github.com/infra-team/cluster-deployments.git
         targetRevision: HEAD
-        path: applicationset/examples/list-generator/guestbook/{{cluster}}
+        path: guestbook/{{.cluster}}
       destination:
-        server: '{{url}}'
+        server: '{{.url}}'
         namespace: guestbook
 ```
 
