@@ -19,6 +19,7 @@ argocd app add-source APPNAME [flags]
 
 ```
       --allow-empty                                Set allow zero live resources when sync is automated
+  -N, --app-namespace string                       Namespace of the target application where the source will be appended
       --auto-prune                                 Set automatic pruning when sync is automated
       --config-management-plugin string            Config management plugin name
       --dest-name string                           K8s cluster Name (e.g. minikube)
