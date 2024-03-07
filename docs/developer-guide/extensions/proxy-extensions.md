@@ -15,7 +15,7 @@ requests before forwarding to the backend service.
 
 As proxy extension is in [Alpha][1] phase, the feature is disabled by
 default. To enable it, it is necessary to configure the feature flag
-in Argo CD command parameters. The easiest way to to properly enable
+in Argo CD command parameters. The easiest way to properly enable
 this feature flag is by adding the `server.enable.proxy.extension` key
 in the existing `argocd-cmd-params-cm`. For example:
 
