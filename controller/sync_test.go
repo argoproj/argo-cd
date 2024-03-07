@@ -423,7 +423,7 @@ func Test_areDependenciesReady(t *testing.T) {
 		data := fakeData{
 			apps: []runtime.Object{p, d},
 		}
-		ctrl := newFakeController(&data)
+		ctrl := newFakeController(&data, nil)
 		ready := ctrl.appStateManager.(*appStateManager).areDependenciesReady(p, s, syncOp)
 		assert.True(t, ready)
 		assert.Equal(t, common.OperationRunning, s.Phase)
@@ -438,7 +438,7 @@ func Test_areDependenciesReady(t *testing.T) {
 		data := fakeData{
 			apps: []runtime.Object{p, d},
 		}
-		ctrl := newFakeController(&data)
+		ctrl := newFakeController(&data, nil)
 		ready := ctrl.appStateManager.(*appStateManager).areDependenciesReady(p, s, syncOp)
 		assert.False(t, ready)
 		assert.Equal(t, common.OperationRunning, s.Phase)
@@ -457,7 +457,7 @@ func Test_areDependenciesReady(t *testing.T) {
 		data := fakeData{
 			apps: []runtime.Object{p, d},
 		}
-		ctrl := newFakeController(&data)
+		ctrl := newFakeController(&data, nil)
 		ready := ctrl.appStateManager.(*appStateManager).areDependenciesReady(p, s, syncOp)
 		assert.False(t, ready)
 		require.Len(t, s.WaitingFor, 1)
@@ -475,7 +475,7 @@ func Test_areDependenciesReady(t *testing.T) {
 		data := fakeData{
 			apps: []runtime.Object{p},
 		}
-		ctrl := newFakeController(&data)
+		ctrl := newFakeController(&data, nil)
 		ready := ctrl.appStateManager.(*appStateManager).areDependenciesReady(p, s, syncOp)
 		assert.False(t, ready)
 		assert.Equal(t, common.OperationRunning, s.Phase)
@@ -491,7 +491,7 @@ func Test_areDependenciesReady(t *testing.T) {
 		data := fakeData{
 			apps: []runtime.Object{p},
 		}
-		ctrl := newFakeController(&data)
+		ctrl := newFakeController(&data, nil)
 		ready := ctrl.appStateManager.(*appStateManager).areDependenciesReady(p, s, syncOp)
 		assert.False(t, ready)
 		assert.Equal(t, common.OperationFailed, s.Phase)
@@ -507,7 +507,7 @@ func Test_areDependenciesReady(t *testing.T) {
 		data := fakeData{
 			apps: []runtime.Object{p},
 		}
-		ctrl := newFakeController(&data)
+		ctrl := newFakeController(&data, nil)
 		ready := ctrl.appStateManager.(*appStateManager).areDependenciesReady(p, s, syncOp)
 		assert.True(t, ready)
 		assert.Equal(t, common.OperationRunning, s.Phase)
@@ -524,7 +524,7 @@ func Test_areDependenciesReady(t *testing.T) {
 		data := fakeData{
 			apps: []runtime.Object{p},
 		}
-		ctrl := newFakeController(&data)
+		ctrl := newFakeController(&data, nil)
 
 		// Initially, we have a delay
 		ready := ctrl.appStateManager.(*appStateManager).areDependenciesReady(p, s, syncOp)
@@ -550,7 +550,7 @@ func Test_areDependenciesReady(t *testing.T) {
 		data := fakeData{
 			apps: []runtime.Object{p},
 		}
-		ctrl := newFakeController(&data)
+		ctrl := newFakeController(&data, nil)
 
 		ready := ctrl.appStateManager.(*appStateManager).areDependenciesReady(p, s, syncOp)
 		assert.True(t, ready)

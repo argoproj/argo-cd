@@ -1917,7 +1917,7 @@ func Test_shouldRefreshForDependencies(t *testing.T) {
 		app := newFakeApp()
 		ctrl := newFakeController(&fakeData{
 			apps: []runtime.Object{app},
-		})
+		}, nil)
 		assert.False(t, ctrl.shouldRefreshForDependency(app))
 	})
 	t.Run("No refresh, because not waiting for any dependency", func(t *testing.T) {
@@ -1933,7 +1933,7 @@ func Test_shouldRefreshForDependencies(t *testing.T) {
 		}
 		ctrl := newFakeController(&fakeData{
 			apps: []runtime.Object{app},
-		})
+		}, nil)
 		assert.False(t, ctrl.shouldRefreshForDependency(app))
 	})
 
@@ -1951,7 +1951,7 @@ func Test_shouldRefreshForDependencies(t *testing.T) {
 		}
 		ctrl := newFakeController(&fakeData{
 			apps: []runtime.Object{app},
-		})
+		}, nil)
 		assert.False(t, ctrl.shouldRefreshForDependency(app))
 	})
 
@@ -1968,7 +1968,7 @@ func Test_shouldRefreshForDependencies(t *testing.T) {
 		}
 		ctrl := newFakeController(&fakeData{
 			apps: []runtime.Object{app},
-		})
+		}, nil)
 		assert.True(t, ctrl.shouldRefreshForDependency(app))
 	})
 
@@ -1991,7 +1991,7 @@ func Test_shouldRefreshForDependencies(t *testing.T) {
 		}
 		ctrl := newFakeController(&fakeData{
 			apps: []runtime.Object{app, dep},
-		})
+		}, nil)
 		assert.False(t, ctrl.shouldRefreshForDependency(app))
 	})
 
@@ -2014,7 +2014,7 @@ func Test_shouldRefreshForDependencies(t *testing.T) {
 		}
 		ctrl := newFakeController(&fakeData{
 			apps: []runtime.Object{app, dep},
-		})
+		}, nil)
 		assert.True(t, ctrl.shouldRefreshForDependency(app))
 	})
 
@@ -2037,7 +2037,7 @@ func Test_shouldRefreshForDependencies(t *testing.T) {
 		}
 		ctrl := newFakeController(&fakeData{
 			apps: []runtime.Object{app},
-		})
+		}, nil)
 		assert.True(t, ctrl.shouldRefreshForDependency(app))
 	})
 
