@@ -24,11 +24,11 @@ You will need at least the following things in your toolchain in order to develo
 
 * A Kubernetes cluster. You won't need a fully blown multi-master, multi-node cluster, but you will need something like K3S, Minikube or microk8s. You will also need a working Kubernetes client (`kubectl`) configuration in your development environment. The configuration must reside in `~/.kube/config` and the API server URL must point to the IP address of your local machine (or VM), and **not** to `localhost` or `127.0.0.1` if you are using the virtualized development toolchain (see below)
 
-* You will also need a working Docker runtime environment, to be able to build and run images. The Docker version must be 17.05.0 or higher, to support multi-stage builds. 
+* You will also need a working Docker runtime environment, to be able to build and run images. The Docker version must be 17.05.0 or higher, to support multi-stage builds.
 
 * Obviously, you will need a `git` client for pulling source code and pushing back your changes.
 
-* Last but not least, you will need a Go SDK and related tools (such as GNU `make`) installed and working on your development environment. The minimum required Go version for building and testing Argo CD is **v1.17**.
+* Last but not least, you will need a Go SDK and related tools (such as GNU `make`) installed and working on your development environment. The minimum required Go version for building and testing Argo CD is **v1.21**.
 
 * We will assume that your Go workspace is at `~/go`.
 
@@ -264,16 +264,16 @@ If you touched UI code, you should also run the Yarn linter on it:
 
 ## Contributing to Argo CD UI
 
-Argo CD, along with Argo Workflows, uses shared React components from [Argo UI](https://github.com/argoproj/argo-ui). Examples of some of these components include buttons, containers, form controls, 
-and others. Although you can make changes to these files and run them locally, in order to have these changes added to the Argo CD repo, you will need to follow these steps. 
+Argo CD, along with Argo Workflows, uses shared React components from [Argo UI](https://github.com/argoproj/argo-ui). Examples of some of these components include buttons, containers, form controls,
+and others. Although you can make changes to these files and run them locally, in order to have these changes added to the Argo CD repo, you will need to follow these steps.
 
 1. Fork and clone the [Argo UI repository](https://github.com/argoproj/argo-ui).
 
-2. `cd` into your `argo-ui` directory, and then run `yarn install`. 
+2. `cd` into your `argo-ui` directory, and then run `yarn install`.
 
 3. Make your file changes.
 
-4. Run `yarn start` to start a [storybook](https://storybook.js.org/) dev server and view the components in your browser. Make sure all your changes work as expected. 
+4. Run `yarn start` to start a [storybook](https://storybook.js.org/) dev server and view the components in your browser. Make sure all your changes work as expected.
 
 5. Use [yarn link](https://classic.yarnpkg.com/en/docs/cli/link/) to link Argo UI package to your Argo CD repository. (Commands below assume that `argo-ui` and `argo-cd` are both located within the same parent folder)
 
@@ -282,13 +282,13 @@ and others. Although you can make changes to these files and run them locally, i
     * `cd ../argo-cd/ui`
     * `yarn link argo-ui`
 
-    Once `argo-ui` package has been successfully linked, test out changes in your local development environment. 
+    Once `argo-ui` package has been successfully linked, test out changes in your local development environment.
 
-6. Commit changes and open a PR to [Argo UI](https://github.com/argoproj/argo-ui). 
+6. Commit changes and open a PR to [Argo UI](https://github.com/argoproj/argo-ui).
 
-7. Once your PR has been merged in Argo UI, `cd` into your `argo-cd/ui` folder and run `yarn add git+https://github.com/argoproj/argo-ui.git`. This will update the commit SHA in the `ui/yarn.lock` file to use the lastest master commit for argo-ui. 
+7. Once your PR has been merged in Argo UI, `cd` into your `argo-cd/ui` folder and run `yarn add git+https://github.com/argoproj/argo-ui.git`. This will update the commit SHA in the `ui/yarn.lock` file to use the lastest master commit for argo-ui.
 
-8. Submit changes to `ui/yarn.lock`in a PR to Argo CD. 
+8. Submit changes to `ui/yarn.lock`in a PR to Argo CD.
 
 ## Setting up a local toolchain
 
