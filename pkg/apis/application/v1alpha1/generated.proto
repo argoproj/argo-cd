@@ -22,6 +22,9 @@ message AWSAuthConfig {
 
   // RoleARN contains optional role ARN. If set then AWS IAM Authenticator assume a role to perform cluster operations instead of the default AWS credential provider chain.
   optional string roleARN = 2;
+
+  // Profile contains optional role ARN. If set then AWS IAM Authenticator uses the profile to perform cluster operations instead of the default AWS credential provider chain.
+  optional string profile = 3;
 }
 
 // AppProject provides a logical grouping of applications, providing controls for:
@@ -526,6 +529,9 @@ message ApplicationSourceKustomize {
 
   // Components specifies a list of kustomize components to add to the kustomization before building
   repeated string components = 13;
+
+  // LabelWithoutSelector specifies whether to apply common labels to resource selectors or not
+  optional bool labelWithoutSelector = 14;
 }
 
 // ApplicationSourcePlugin holds options specific to config management plugins
@@ -1895,6 +1901,9 @@ message RevisionHistory {
 
   // Revisions holds the revision of each source in sources field the sync was performed against
   repeated string revisions = 9;
+
+  // InitiatedBy contains information about who initiated the operations
+  optional OperationInitiator initiatedBy = 10;
 }
 
 // RevisionMetadata contains metadata for a specific revision in a Git repository
