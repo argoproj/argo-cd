@@ -2936,7 +2936,7 @@ func NewApplicationRemoveSourceCommand(clientOpts *argocdclient.ClientOptions) *
 				errors.CheckError(fmt.Errorf("Cannot remove the only source remaining in the app"))
 			}
 
-			if len(app.Spec.GetSources()) < source_index {
+			if len(app.Spec.GetSources()) <= source_index {
 				errors.CheckError(fmt.Errorf("Application does not have source at %d\n", source_index))
 			}
 
