@@ -12,7 +12,11 @@ make serve-docs
 Once running, you can view your locally built documentation at [http://0.0.0.0:8000/](http://0.0.0.0:8000/).
 Make a change to documentation and the website will rebuild and refresh the view.
 
+<<<<<<< HEAD
 Before submitting a PR build the website, to verify that there are no errors building the site
+=======
+Before submitting a PR build the website, to verify that there are no erros building the site
+>>>>>>> 6a6085792 (feat: Allow mkdocs to livereload when using docker (#17383))
 ```bash
 make build-docs
 ```
