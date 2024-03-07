@@ -27,6 +27,9 @@ A list of things that are good to know before getting started with Application d
 * Syncing an application that is dependent on other apps will not trigger a sync of the dependencies. However, manual sync of a dependent application whose dependencies are not satisfied will block unless force sync is used.
 * Dependencies currently can only be configured in a declarative manner; the UI and CLI do not yet have first class support for configuring dependencies.
 
+!!!warning
+    Using force sync to override application dependencies should only be used as a last resort, as it may break your applications in multiple ways.
+
 ## Configuring Application dependencies
 
 The dependencies of an Application are configured using the field `dependsOn` in the Application's spec. The field `dependsOn` is a complex data type, which lets you define one or more `selectors` to match a set of other Applications that this Application will be dependent upon.
