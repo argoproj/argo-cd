@@ -71,6 +71,7 @@ type managedResource struct {
 type AppStateManager interface {
 	CompareAppState(app *v1alpha1.Application, project *v1alpha1.AppProject, revisions []string, sources []v1alpha1.ApplicationSource, noCache bool, noRevisionCache bool, localObjects []string, hasMultipleSources bool) (*comparisonResult, error)
 	SyncAppState(app *v1alpha1.Application, state *v1alpha1.OperationState)
+	GetRepoObjs(app *v1alpha1.Application, sources []v1alpha1.ApplicationSource, appLabelKey string, revisions []string, noCache, noRevisionCache, verifySignature bool, proj *v1alpha1.AppProject) ([]*unstructured.Unstructured, []*apiclient.ManifestResponse, error)
 }
 
 // comparisonResult holds the state of an application after the reconciliation
@@ -85,8 +86,9 @@ type comparisonResult struct {
 	// appSourceTypes stores the SourceType for each application source under sources field
 	appSourceTypes []v1alpha1.ApplicationSourceType
 	// timings maps phases of comparison to the duration it took to complete (for statistical purposes)
-	timings        map[string]time.Duration
-	diffResultList *diff.DiffResultList
+	timings            map[string]time.Duration
+	diffResultList     *diff.DiffResultList
+	hasPostDeleteHooks bool
 }
 
 func (res *comparisonResult) GetSyncStatus() *v1alpha1.SyncStatus {
@@ -114,9 +116,14 @@ type appStateManager struct {
 	persistResourceHealth bool
 	repoErrorCache        goSync.Map
 	repoErrorGracePeriod  time.Duration
+	serverSideDiff        bool
 }
 
-func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, sources []v1alpha1.ApplicationSource, appLabelKey string, revisions []string, noCache, noRevisionCache, verifySignature bool, proj *v1alpha1.AppProject) ([]*unstructured.Unstructured, []*apiclient.ManifestResponse, error) {
+// GetRepoObjs will generate the manifests for the given application delegating the
+// task to the repo-server. It returns the list of generated manifests as unstructured
+// objects. It also returns the full response from all calls to the repo server as the
+// second argument.
+func (m *appStateManager) GetRepoObjs(app *v1alpha1.Application, sources []v1alpha1.ApplicationSource, appLabelKey string, revisions []string, noCache, noRevisionCache, verifySignature bool, proj *v1alpha1.AppProject) ([]*unstructured.Unstructured, []*apiclient.ManifestResponse, error) {
 	ts := stats.NewTimingStats()
 	helmRepos, err := m.db.ListHelmRepositories(context.Background())
 	if err != nil {
@@ -232,7 +239,7 @@ func (m *appStateManager) getRepoObjs(app *v1alpha1.Application, sources []v1alp
 		logCtx = logCtx.WithField(k, v.Milliseconds())
 	}
 	logCtx = logCtx.WithField("time_ms", time.Since(ts.StartTime).Milliseconds())
-	logCtx.Info("getRepoObjs stats")
+	logCtx.Info("GetRepoObjs stats")
 	return targetObjs, manifestInfos, nil
 }
 
@@ -411,7 +418,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 			}
 		}
 
-		targetObjs, manifestInfos, err = m.getRepoObjs(app, sources, appLabelKey, revisions, noCache, noRevisionCache, verifySignature, project)
+		targetObjs, manifestInfos, err = m.GetRepoObjs(app, sources, appLabelKey, revisions, noCache, noRevisionCache, verifySignature, project)
 		if err != nil {
 			targetObjs = make([]*unstructured.Unstructured, 0)
 			msg := fmt.Sprintf("Failed to load target state: %s", err.Error())
@@ -565,6 +572,12 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 			}
 		}
 	}
+	hasPostDeleteHooks := false
+	for _, obj := range targetObjs {
+		if isPostDeleteHook(obj) {
+			hasPostDeleteHooks = true
+		}
+	}
 
 	reconciliation := sync.Reconcile(targetObjs, liveObjByKey, app.Spec.Destination.Namespace, infoProvider)
 	ts.AddCheckpoint("live_ms")
@@ -580,21 +593,29 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 		manifestRevisions = append(manifestRevisions, manifestInfo.Revision)
 	}
 
-	// restore comparison using cached diff result if previous comparison was performed for the same revision
-	revisionChanged := len(manifestInfos) != len(sources) || !reflect.DeepEqual(app.Status.Sync.Revisions, manifestRevisions)
-	specChanged := !reflect.DeepEqual(app.Status.Sync.ComparedTo, v1alpha1.ComparedTo{Source: app.Spec.GetSource(), Destination: app.Spec.Destination, Sources: sources, IgnoreDifferences: app.Spec.IgnoreDifferences})
+	serverSideDiff := m.serverSideDiff ||
+		resourceutil.HasAnnotationOption(app, common.AnnotationCompareOptions, "ServerSideDiff=true")
 
-	_, refreshRequested := app.IsRefreshRequested()
-	noCache = noCache || refreshRequested || app.Status.Expired(m.statusRefreshTimeout) || specChanged || revisionChanged
+	// This allows turning SSD off for a given app if it is enabled at the
+	// controller level
+	if resourceutil.HasAnnotationOption(app, common.AnnotationCompareOptions, "ServerSideDiff=false") {
+		serverSideDiff = false
+	}
+
+	useDiffCache := useDiffCache(noCache, manifestInfos, sources, app, manifestRevisions, m.statusRefreshTimeout, serverSideDiff, logCtx)
 
 	diffConfigBuilder := argodiff.NewDiffConfigBuilder().
 		WithDiffSettings(app.Spec.IgnoreDifferences, resourceOverrides, compareOptions.IgnoreAggregatedRoles).
 		WithTracking(appLabelKey, string(trackingMethod))
 
-	if noCache {
-		diffConfigBuilder.WithNoCache()
+	if useDiffCache {
+		diffConfigBuilder.WithCache(m.cache, app.InstanceName(m.namespace))
 	} else {
-		diffConfigBuilder.WithCache(m.cache, app.GetName())
+		diffConfigBuilder.WithNoCache()
+	}
+
+	if resourceutil.HasAnnotationOption(app, common.AnnotationCompareOptions, "IncludeMutationWebhook=true") {
+		diffConfigBuilder.WithIgnoreMutationWebhook(false)
 	}
 
 	gvkParser, err := m.getGVKParser(app.Spec.Destination.Server)
@@ -603,6 +624,18 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 	}
 	diffConfigBuilder.WithGVKParser(gvkParser)
 	diffConfigBuilder.WithManager(common.ArgoCDSSAManager)
+
+	diffConfigBuilder.WithServerSideDiff(serverSideDiff)
+
+	if serverSideDiff {
+		resourceOps, cleanup, err := m.getResourceOperations(app.Spec.Destination.Server)
+		if err != nil {
+			log.Errorf("CompareAppState error getting resource operations: %s", err)
+			conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionUnknownError, Message: err.Error(), LastTransitionTime: &now})
+		}
+		defer cleanup()
+		diffConfigBuilder.WithServerSideDryRunner(diff.NewK8sServerSideDryRunner(resourceOps))
+	}
 
 	// enable structured merge diff if application syncs with server-side apply
 	if app.Spec.SyncPolicy != nil && app.Spec.SyncPolicy.SyncOptions.HasOption("ServerSideApply=true") {
@@ -644,7 +677,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 			Kind:            gvk.Kind,
 			Version:         gvk.Version,
 			Group:           gvk.Group,
-			Hook:            hookutil.IsHook(obj),
+			Hook:            isHook(obj),
 			RequiresPruning: targetObj == nil && liveObj != nil && isSelfReferencedObj,
 		}
 		if targetObj != nil {
@@ -777,6 +810,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 		reconciliationResult: reconciliation,
 		diffConfig:           diffConfig,
 		diffResultList:       diffResults,
+		hasPostDeleteHooks:   hasPostDeleteHooks,
 	}
 
 	if hasMultipleSources {
@@ -801,7 +835,61 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 	return &compRes, nil
 }
 
-func (m *appStateManager) persistRevisionHistory(app *v1alpha1.Application, revision string, source v1alpha1.ApplicationSource, revisions []string, sources []v1alpha1.ApplicationSource, hasMultipleSources bool, startedAt metav1.Time) error {
+// useDiffCache will determine if the diff should be calculated based
+// on the existing live state cache or not.
+func useDiffCache(noCache bool, manifestInfos []*apiclient.ManifestResponse, sources []v1alpha1.ApplicationSource, app *v1alpha1.Application, manifestRevisions []string, statusRefreshTimeout time.Duration, serverSideDiff bool, log *log.Entry) bool {
+
+	if noCache {
+		log.WithField("useDiffCache", "false").Debug("noCache is true")
+		return false
+	}
+	refreshType, refreshRequested := app.IsRefreshRequested()
+	if refreshRequested {
+		log.WithField("useDiffCache", "false").Debugf("refresh type %s requested", string(refreshType))
+		return false
+	}
+	// serverSideDiff should still use cache even if status is expired.
+	// This is an attempt to avoid hitting k8s API server too frequently during
+	// app refresh with serverSideDiff is enabled. If there are negative side
+	// effects identified with this approach, the serverSideDiff should be removed
+	// from this condition.
+	if app.Status.Expired(statusRefreshTimeout) && !serverSideDiff {
+		log.WithField("useDiffCache", "false").Debug("app.status.expired")
+		return false
+	}
+
+	if len(manifestInfos) != len(sources) {
+		log.WithField("useDiffCache", "false").Debug("manifestInfos len != sources len")
+		return false
+	}
+
+	revisionChanged := !reflect.DeepEqual(app.Status.GetRevisions(), manifestRevisions)
+	if revisionChanged {
+		log.WithField("useDiffCache", "false").Debug("revisionChanged")
+		return false
+	}
+
+	currentSpec := app.BuildComparedToStatus()
+	specChanged := !reflect.DeepEqual(app.Status.Sync.ComparedTo, currentSpec)
+	if specChanged {
+		log.WithField("useDiffCache", "false").Debug("specChanged")
+		return false
+	}
+
+	log.WithField("useDiffCache", "true").Debug("using diff cache")
+	return true
+}
+
+func (m *appStateManager) persistRevisionHistory(
+	app *v1alpha1.Application,
+	revision string,
+	source v1alpha1.ApplicationSource,
+	revisions []string,
+	sources []v1alpha1.ApplicationSource,
+	hasMultipleSources bool,
+	startedAt metav1.Time,
+	initiatedBy v1alpha1.OperationInitiator,
+) error {
 	var nextID int64
 	if len(app.Status.History) > 0 {
 		nextID = app.Status.History.LastRevisionHistory().ID + 1
@@ -814,6 +902,7 @@ func (m *appStateManager) persistRevisionHistory(app *v1alpha1.Application, revi
 			ID:              nextID,
 			Sources:         sources,
 			Revisions:       revisions,
+			InitiatedBy:     initiatedBy,
 		})
 	} else {
 		app.Status.History = append(app.Status.History, v1alpha1.RevisionHistory{
@@ -822,6 +911,7 @@ func (m *appStateManager) persistRevisionHistory(app *v1alpha1.Application, revi
 			DeployStartedAt: &startedAt,
 			ID:              nextID,
 			Source:          source,
+			InitiatedBy:     initiatedBy,
 		})
 	}
 
@@ -855,6 +945,7 @@ func NewAppStateManager(
 	resourceTracking argo.ResourceTracking,
 	persistResourceHealth bool,
 	repoErrorGracePeriod time.Duration,
+	serverSideDiff bool,
 ) AppStateManager {
 	return &appStateManager{
 		liveStateCache:        liveStateCache,
@@ -871,6 +962,7 @@ func NewAppStateManager(
 		resourceTracking:      resourceTracking,
 		persistResourceHealth: persistResourceHealth,
 		repoErrorGracePeriod:  repoErrorGracePeriod,
+		serverSideDiff:        serverSideDiff,
 	}
 }
 

@@ -1,0 +1,35 @@
+apiVersion: route53.aws.crossplane.io/v1alpha1
+kind: ResourceRecordSet
+metadata:
+  creationTimestamp: '2024-01-11T03:48:32Z'
+  generation: 1
+  name: www-domain
+  resourceVersion: '187731157'
+  selfLink: /apis/route53.aws.crossplane.io/v1alpha1/resourcerecordsets/www-domain
+  uid: c9c85395-0830-4549-b255-e9e426663547
+spec:
+  providerConfigRef:
+    name: crossplane
+  forProvider:
+    resourceRecords:
+      - value: www.crossplane.io
+    setIdentifier: www
+    ttl: 60
+    type: CNAME
+    weight: 0
+    zoneId: ABCDEFGAB07CD
+status:
+  conditions:
+    - lastTransitionTime: '2024-01-11T03:48:57Z'
+      message: >-
+        create failed: failed to create the ResourceRecordSet resource:
+        InvalidChangeBatch: [RRSet of type CNAME with DNS name
+        www.crossplane.io. is not permitted as it conflicts with other
+        records with the same DNS name in zone crossplane.io.]
+      reason: ReconcileError
+      status: 'False'
+      type: Synced
+    - lastTransitionTime: '2024-01-11T03:48:34Z'
+      reason: Creating
+      status: 'False'
+      type: Ready

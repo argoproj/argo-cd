@@ -12,7 +12,7 @@ kind: Deployment
 metadata:
   name: my-svc
   annotations:
-    link.argocd.argoproj.io/external-link: http://my-grafana.com/pre-generated-link
+    link.argocd.argoproj.io/external-link: http://my-grafana.example.com/pre-generated-link
 ```
 ![External link](../assets/external-link.png)
 

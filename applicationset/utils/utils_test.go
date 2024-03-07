@@ -1243,6 +1243,43 @@ func TestNormalizeBitbucketBasePath(t *testing.T) {
 	}
 }
 
+func TestSlugify(t *testing.T) {
+	for _, c := range []struct {
+		branch           string
+		smartTruncate    bool
+		length           int
+		expectedBasePath string
+	}{
+		{
+			branch:           "feat/a_really+long_pull_request_name_to_test_argo_slugification_and_branch_name_shortening_feature",
+			smartTruncate:    false,
+			length:           50,
+			expectedBasePath: "feat-a-really-long-pull-request-name-to-test-argo",
+		},
+		{
+			branch:           "feat/a_really+long_pull_request_name_to_test_argo_slugification_and_branch_name_shortening_feature",
+			smartTruncate:    true,
+			length:           53,
+			expectedBasePath: "feat-a-really-long-pull-request-name-to-test-argo",
+		},
+		{
+			branch:           "feat/areallylongpullrequestnametotestargoslugificationandbranchnameshorteningfeature",
+			smartTruncate:    true,
+			length:           50,
+			expectedBasePath: "feat",
+		},
+		{
+			branch:           "feat/areallylongpullrequestnametotestargoslugificationandbranchnameshorteningfeature",
+			smartTruncate:    false,
+			length:           50,
+			expectedBasePath: "feat-areallylongpullrequestnametotestargoslugifica",
+		},
+	} {
+		result := SlugifyName(c.length, c.smartTruncate, c.branch)
+		assert.Equal(t, c.expectedBasePath, result, c.branch)
+	}
+}
+
 func TestGetTLSConfig(t *testing.T) {
 	// certParsed, err := tls.X509KeyPair(test.Cert, test.PrivateKey)
 	// require.NoError(t, err)

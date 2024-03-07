@@ -1,0 +1,39 @@
+apiVersion: db.atlasgo.io/v1alpha1
+kind: AtlasSchema
+metadata:
+  annotations:
+    kubectl.kubernetes.io/last-applied-configuration: |
+      {"apiVersion":"db.atlasgo.io/v1alpha1","kind":"AtlasSchema","metadata":{"annotations":{},"name":"atlasschema-mysql","namespace":"default"},"spec":{"schema":{"sql":"create table users (\n  id int not null auto_increment,\n  name varchar(255) not null,\n  email varchar(255) unique not null,\n  short_bio varchar(255) not null,\n  primary key (id)\n);\n"},"urlFrom":{"secretKeyRef":{"key":"url","name":"mysql-credentials"}}}}
+  creationTimestamp: "2023-11-15T14:33:18Z"
+  generation: 1
+  name: atlasschema-mysql
+  namespace: default
+  resourceVersion: "46390"
+  uid: 54a4cdfc-e4f9-4c3d-934c-e08b6122e38a
+spec:
+  schema:
+    sql: |
+      create table users (
+        id int not null auto_increment,
+        name varchar(255) not null,
+        email varchar(255) unique not null,
+        short_bio varchar(255) not null,
+        primary key (id)
+      );
+  urlFrom:
+    secretKeyRef:
+      key: url
+      name: mysql-credentials
+status:
+  conditions:
+    - lastTransitionTime: "2023-11-15T14:33:34Z"
+      message: 'The schema has been applied successfully. Apply response: {"Driver":"mysql","URL":{"Scheme":"mysql","Opaque":"","User":{},"Host":"mysql.default:3306","Path":"/myapp","RawPath":"","OmitHost":false,"ForceQuery":false,"RawQuery":"parseTime=true","Fragment":"","RawFragment":"","Schema":"myapp"},"Changes":{"Applied":["CREATE
+      TABLE `users` (\n  `id` int NOT NULL AUTO_INCREMENT,\n  `name` varchar(255)
+      NOT NULL,\n  `email` varchar(255) NOT NULL,\n  `short_bio` varchar(255) NOT
+      NULL,\n  PRIMARY KEY (`id`),\n  UNIQUE INDEX `email` (`email`)\n) CHARSET utf8mb4
+      COLLATE utf8mb4_0900_ai_ci"]}}'
+      reason: Applied
+      status: "True"
+      type: Ready
+  last_applied: 1700058814
+  observed_hash: ddfe666707ddf5c2cc7625c2a0de89da51e54fc7caa6403db307146430d20d85

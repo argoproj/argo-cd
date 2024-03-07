@@ -111,7 +111,7 @@ spec:
 * `tokenRef`: A `Secret` name and key containing the GitLab access token to use for requests. If not specified, will make anonymous requests which have a lower rate limit and can only see public repositories.
 * `insecure`: By default (false) - Skip checking the validity of the SCM's certificate - useful for self-signed TLS certificates.
 
-For label filtering, the repository tags are used.
+For label filtering, the repository topics are used.
 
 Available clone protocols are `ssh` and `https`.
 

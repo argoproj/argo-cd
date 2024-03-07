@@ -1,0 +1,41 @@
+apiVersion: apps.kruise.io/v1beta1
+kind: StatefulSet
+metadata:
+  name: statefulset-test
+  namespace: kruise
+  generation: 2
+  labels:
+    app: sample
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: sample
+  template:
+    metadata:
+      labels:
+        app: sample
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:alpine
+  updateStrategy:
+    rollingUpdate:
+      maxUnavailable: 1
+      minReadySeconds: 0
+      paused: false
+      partition: 0
+      podUpdatePolicy: ReCreate
+    type: RollingUpdate
+        
+status:
+  observedGeneration: 2
+  replicas: 2
+  updatedAvailableReplicas: 2
+  updatedReadyReplicas: 2
+  conditions:
+  - lastTransitionTime: "2021-09-21T22:35:31Z"
+    message: Deployment has minimum availability.
+    reason: MinimumReplicasAvailable
+    status: 'False'
+    type: FailedCreatePod

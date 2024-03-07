@@ -5,6 +5,7 @@ owners:
 approvers:
 - alexec
 - alexmt
+- gdsoumya
 - jannfis
 - jessesuen
 - jgwest
@@ -30,4 +31,3 @@ reviewers:
 - zachaller
 - 34fathombelow
 - alexef
-- gdsoumya

@@ -370,7 +370,7 @@ func TestAppProject_IsDestinationPermitted_PermitOnlyProjectScopedClusters(t *te
 		projDest: []ApplicationDestination{{
 			Server: "https://my-cluster.123.com", Namespace: "default",
 		}},
-		appDest: ApplicationDestination{Server: "https://some-other-cluster.com", Namespace: "default"},
+		appDest: ApplicationDestination{Server: "https://some-other-cluster.example.com", Namespace: "default"},
 		clusters: []*Cluster{{
 			Server: "https://my-cluster.123.com",
 		}},

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"net/url"
 	"regexp"
 	"strings"
 
@@ -22,25 +23,25 @@ var (
 	gitSuffix = regexp.MustCompile(`\.git$`)
 )
 
-func getApplicationSource(obj *unstructured.Unstructured) (*v1alpha1.ApplicationSource, error) {
+func getApplicationSourceAndName(obj *unstructured.Unstructured) (*v1alpha1.ApplicationSource, string, error) {
 	data, err := json.Marshal(obj)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 	application := &v1alpha1.Application{}
 	err = json.Unmarshal(data, application)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
-	return application.Spec.GetSourcePtr(), nil
+	return application.Spec.GetSourcePtr(), application.GetName(), nil
 }
 
 func getAppDetails(app *unstructured.Unstructured, argocdService service.Service) (*shared.AppDetail, error) {
-	appSource, err := getApplicationSource(app)
+	appSource, appName, err := getApplicationSourceAndName(app)
 	if err != nil {
 		return nil, err
 	}
-	appDetail, err := argocdService.GetAppDetails(context.Background(), appSource)
+	appDetail, err := argocdService.GetAppDetails(context.Background(), appSource, appName)
 	if err != nil {
 		return nil, err
 	}
@@ -90,6 +91,7 @@ func NewExprs(argocdService service.Service, app *unstructured.Unstructured) map
 	return map[string]interface{}{
 		"RepoURLToHTTPS":    repoURLToHTTPS,
 		"FullNameByRepoURL": FullNameByRepoURL,
+		"QueryEscape":       url.QueryEscape,
 		"GetCommitMetadata": func(commitSHA string) interface{} {
 			meta, err := getCommitMetadata(commitSHA, app, argocdService)
 			if err != nil {

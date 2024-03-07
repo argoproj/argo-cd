@@ -38,6 +38,7 @@ argocd app sync [APPNAME... | -l selector | --project project-name] [flags]
 ### Options
 
 ```
+  -N, --app-namespace string                  Only sync an application in namespace
       --apply-out-of-sync-only                Sync only out-of-sync resources
       --assumeYes                             Assume yes as answer for all user queries or prompts
       --async                                 Do not wait for application to sync before continuing

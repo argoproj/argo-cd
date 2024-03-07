@@ -1,0 +1,35 @@
+apiVersion: db.atlasgo.io/v1alpha1
+kind: AtlasSchema
+metadata:
+  annotations:
+    kubectl.kubernetes.io/last-applied-configuration: |
+      {"apiVersion":"db.atlasgo.io/v1alpha1","kind":"AtlasSchema","metadata":{"annotations":{},"name":"atlasschema-mysql","namespace":"default"},"spec":{"schema":{"sql":"create table users (\n  id int not null auto_increment,\n  name varchar(255) not null,\n  email varchar(255) unique not null,\n  short_bio varchar(255) not null,\n  primary key (id)\n);\n"},"urlFrom":{"secretKeyRef":{"key":"url","name":"mysql-credentials"}}}}
+  creationTimestamp: "2023-11-15T14:33:18Z"
+  generation: 1
+  name: atlasschema-mysql
+  namespace: default
+  resourceVersion: "46390"
+  uid: 54a4cdfc-e4f9-4c3d-934c-e08b6122e38a
+spec:
+  schema:
+    sql: |
+      create table users (
+        id int not null auto_increment,
+        name varchar(255) not null,
+        email varchar(255) unique not null,
+        short_bio varchar(255) not null,
+        primary key (id)
+      );
+  urlFrom:
+    secretKeyRef:
+      key: url
+      name: mysql-credentials
+status:
+  conditions:
+    - lastTransitionTime: "2023-11-15T14:33:34Z"
+      message: 'Reconciling'
+      reason: Reconciling
+      status: "False"
+      type: Ready
+  last_applied: 1700058814
+  observed_hash: ddfe666707ddf5c2cc7625c2a0de89da51e54fc7caa6403db307146430d20d85

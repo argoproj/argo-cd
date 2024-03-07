@@ -17,16 +17,10 @@ which does not require a restart of the application controller pods.
 
 ## Enabling Dynamic Distribution of Clusters
 
-This feature is disabled by default while it is in alpha. To enable it, you must set the environment `ARGOCD_ENABLE_DYNAMIC_CLUSTER_DISTRIBUTION` to true when running the Application Controller.
-
-In order to utilize the feature, the manifests `manifests/ha/base/controller-deployment/` can be applied as a Kustomize 
-overlay. This overlay sets the StatefulSet replicas to `0` and deploys the application controller as a Deployment. The
-dynamic distribution code automatically kicks in when the controller is deployed as a Deployment.
+This feature is disabled by default while it is in alpha. In order to utilize the feature, the manifests `manifests/ha/base/controller-deployment/` can be applied as a Kustomize overlay. This overlay sets the StatefulSet replicas to `0` and deploys the application controller as a Deployment. Also, you must set the environment `ARGOCD_ENABLE_DYNAMIC_CLUSTER_DISTRIBUTION` to true when running the Application Controller as a deployment.
 
 !!! important
-    The use of a Deployment instead of a StatefulSet is an implementation detail which may change in future versions of
-    this feature. Therefore, the directory name of the Kustomize overlay may change as well. Monitor the release notes
-    to avoid issues.
+    The use of a Deployment instead of a StatefulSet is an implementation detail which may change in future versions of this feature. Therefore, the directory name of the Kustomize overlay may change as well. Monitor the release notes to avoid issues.
 
 Note the introduction of new environment variable `ARGOCD_CONTROLLER_HEARTBEAT_TIME`. The environment variable is explained in [working of Dynamic Distribution Heartbeat Process](#working-of-dynamic-distribution)
 

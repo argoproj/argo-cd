@@ -102,7 +102,7 @@ p, proj:my-project:admin, repositories, update, my-project/*, allow
 This provides extra flexibility so that admin can have stricter rules. e.g.:
 
 ```
-p, proj:my-project:admin, repositories, update, my-project/"https://github.my-company.com/*", allow
+p, proj:my-project:admin, repositories, update, my-project/"https://github.example.com/*", allow
 ```
 
 #### UI/CLI Changes

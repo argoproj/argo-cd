@@ -33,6 +33,6 @@ spec:
   - jsonPointers:
     - /spec/source/targetRevision
   - name: some-app
-    jqExpressions:
+    jqPathExpressions:
     - .spec.source.helm.values
 

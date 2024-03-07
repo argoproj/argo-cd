@@ -119,7 +119,7 @@ spec:
         extVars:
         - name: foo
           value: bar
-          # You can use "code to determine if the value is either string (false, the default) or Jsonnet code (if code is true).
+          # You can use "code" to determine if the value is either string (false, the default) or Jsonnet code (if code is true).
         - code: true
           name: baz
           value: "true"
@@ -189,6 +189,7 @@ spec:
     - PrunePropagationPolicy=foreground # Supported policies are background, foreground and orphan.
     - PruneLast=true # Allow the ability for resource pruning to happen as a final, implicit wave of a sync operation
     - RespectIgnoreDifferences=true # When syncing changes, respect fields ignored by the ignoreDifferences configuration
+    - ApplyOutOfSyncOnly=true # Only sync out-of-sync resources, rather than applying every object in the application
     managedNamespaceMetadata: # Sets the metadata for the application namespace. Only valid if CreateNamespace=true (see above), otherwise it's a no-op.
       labels: # The labels to set on the application namespace
         any: label

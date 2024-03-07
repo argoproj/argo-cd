@@ -1,0 +1,41 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: pod-with-finalizers
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+  # remove this finalizers using container preStop lifecycle hook on delete
+  finalizers:
+  - example.com/block-delete
+spec:
+  serviceAccountName: modify-pods-sa  # sa with permissions to modify pods
+  terminationGracePeriodSeconds: 15
+  containers:
+  - name: container
+    image: nginx:alpine
+    command: ["/bin/sh", "-c"]
+    args: ["sleep 10h"]
+    env:
+      - name: POD_NAME
+        valueFrom:
+          fieldRef:
+            fieldPath: metadata.name
+      - name: NAMESPACE
+        valueFrom:
+          fieldRef:
+            fieldPath: metadata.namespace
+    lifecycle:
+      # remove finalizers for successful delete of pod
+      preStop:
+        exec:
+          command: 
+          - /bin/sh
+          - -c
+          - |
+            set -e
+
+            SERVICE_ACCOUNT_TOKEN=$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)
+            POD_URL="https://kubernetes.default.svc/api/v1/namespaces/$NAMESPACE/pods/$POD_NAME"
+            PATCH_PAYLOAD='[{"op": "remove", "path": "/metadata/finalizers"}]'
+            
+            curl -k -v -H "Authorization: Bearer $SERVICE_ACCOUNT_TOKEN" -H "Content-Type: application/json-patch+json" -X PATCH --data "$PATCH_PAYLOAD" $POD_URL

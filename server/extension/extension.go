@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/felixge/httpsnoop"
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v3"
 
@@ -300,6 +301,19 @@ type Manager struct {
 	project     ProjectGetter
 	rbac        RbacEnforcer
 	registry    ExtensionRegistry
+	metricsReg  ExtensionMetricsRegistry
+}
+
+// ExtensionMetricsRegistry exposes operations to update http metrics in the Argo CD
+// API server.
+type ExtensionMetricsRegistry interface {
+	// IncExtensionRequestCounter will increase the request counter for the given
+	// extension with the given status.
+	IncExtensionRequestCounter(extension string, status int)
+	// ObserveExtensionRequestDuration will register the request roundtrip duration
+	// between Argo CD API Server and the extension backend service for the given
+	// extension.
+	ObserveExtensionRequestDuration(extension string, duration time.Duration)
 }
 
 // NewManager will initialize a new manager.
@@ -423,7 +437,8 @@ func validateConfigs(configs *ExtensionConfigs) error {
 }
 
 // NewProxy will instantiate a new reverse proxy based on the provided
-// targetURL and config.
+// targetURL and config. It will remove sensitive information from the
+// incoming request such as the Authorization and Cookie headers.
 func NewProxy(targetURL string, headers []Header, config ProxyConfig) (*httputil.ReverseProxy, error) {
 	url, err := url.Parse(targetURL)
 	if err != nil {
@@ -483,6 +498,10 @@ func (m *Manager) RegisterExtensions() error {
 	settings, err := m.settings.Get()
 	if err != nil {
 		return fmt.Errorf("error getting settings: %s", err)
+	}
+	if settings.ExtensionConfig == "" {
+		m.log.Infof("No extensions configured.")
+		return nil
 	}
 	err = m.UpdateExtensionRegistry(settings)
 	if err != nil {
@@ -683,13 +702,26 @@ func (m *Manager) CallExtension() func(http.ResponseWriter, *http.Request) {
 
 		prepareRequest(r, extName, app)
 		m.log.Debugf("proxing request for extension %q", extName)
-		proxy.ServeHTTP(w, r)
+		// httpsnoop package is used to properly wrap the responseWriter
+		// and avoid optional intefaces issue:
+		// https://github.com/felixge/httpsnoop#why-this-package-exists
+		// CaptureMetrics will call the proxy and return the metrics from it.
+		metrics := httpsnoop.CaptureMetrics(proxy, w, r)
+
+		go registerMetrics(extName, metrics, m.metricsReg)
 	}
 }
 
-// prepareRequest is reponsible for preparing and cleaning the given
-// request, removing sensitive information before forwarding it to the
-// proxy extension.
+func registerMetrics(extName string, metrics httpsnoop.Metrics, extensionMetricsRegistry ExtensionMetricsRegistry) {
+	if extensionMetricsRegistry != nil {
+		extensionMetricsRegistry.IncExtensionRequestCounter(extName, metrics.Code)
+		extensionMetricsRegistry.ObserveExtensionRequestDuration(extName, metrics.Duration)
+	}
+}
+
+// prepareRequest is reponsible for cleaning the incoming request URL removing
+// the Argo CD extension API section from it. It will set the cluster destination name
+// and cluster destination server in the headers as it is defined in the given app.
 func prepareRequest(r *http.Request, extName string, app *v1alpha1.Application) {
 	r.URL.Path = strings.TrimPrefix(r.URL.Path, fmt.Sprintf("%s/%s", URLPrefix, extName))
 	if app.Spec.Destination.Name != "" {
@@ -698,4 +730,9 @@ func prepareRequest(r *http.Request, extName string, app *v1alpha1.Application) 
 	if app.Spec.Destination.Server != "" {
 		r.Header.Set(HeaderArgoCDTargetClusterURL, app.Spec.Destination.Server)
 	}
+}
+
+// AddMetricsRegistry will associate the given metricsReg in the Manager.
+func (m *Manager) AddMetricsRegistry(metricsReg ExtensionMetricsRegistry) {
+	m.metricsReg = metricsReg
 }

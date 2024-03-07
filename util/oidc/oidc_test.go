@@ -11,8 +11,10 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"time"
 
 	gooidc "github.com/coreos/go-oidc/v3/oidc"
+	"github.com/golang-jwt/jwt/v4"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/oauth2"
@@ -20,6 +22,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/server/settings/oidc"
 	"github.com/argoproj/argo-cd/v2/util"
+	"github.com/argoproj/argo-cd/v2/util/cache"
 	"github.com/argoproj/argo-cd/v2/util/crypto"
 	"github.com/argoproj/argo-cd/v2/util/dex"
 	"github.com/argoproj/argo-cd/v2/util/settings"
@@ -126,7 +129,7 @@ clientID: xxx
 clientSecret: yyy
 requestedScopes: ["oidc"]`, oidcTestServer.URL),
 		}
-		app, err := NewClientApp(cdSettings, dexTestServer.URL, nil, "https://argocd.example.com")
+		app, err := NewClientApp(cdSettings, dexTestServer.URL, nil, "https://argocd.example.com", cache.NewInMemoryCache(24*time.Hour))
 		require.NoError(t, err)
 
 		req := httptest.NewRequest(http.MethodGet, "https://argocd.example.com/auth/login", nil)
@@ -141,7 +144,7 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 
 		cdSettings.OIDCTLSInsecureSkipVerify = true
 
-		app, err = NewClientApp(cdSettings, dexTestServer.URL, nil, "https://argocd.example.com")
+		app, err = NewClientApp(cdSettings, dexTestServer.URL, nil, "https://argocd.example.com", cache.NewInMemoryCache(24*time.Hour))
 		require.NoError(t, err)
 
 		w = httptest.NewRecorder()
@@ -166,7 +169,7 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 		require.NoError(t, err)
 		cdSettings.Certificate = &cert
 
-		app, err := NewClientApp(cdSettings, dexTestServer.URL, nil, "https://argocd.example.com")
+		app, err := NewClientApp(cdSettings, dexTestServer.URL, nil, "https://argocd.example.com", cache.NewInMemoryCache(24*time.Hour))
 		require.NoError(t, err)
 
 		req := httptest.NewRequest(http.MethodGet, "https://argocd.example.com/auth/login", nil)
@@ -179,7 +182,7 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 			t.Fatal("did not receive expected certificate verification failure error")
 		}
 
-		app, err = NewClientApp(cdSettings, dexTestServer.URL, &dex.DexTLSConfig{StrictValidation: false}, "https://argocd.example.com")
+		app, err = NewClientApp(cdSettings, dexTestServer.URL, &dex.DexTLSConfig{StrictValidation: false}, "https://argocd.example.com", cache.NewInMemoryCache(24*time.Hour))
 		require.NoError(t, err)
 
 		w = httptest.NewRecorder()
@@ -211,7 +214,7 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 
 	// The base href (the last argument for NewClientApp) is what HandleLogin will fall back to when no explicit
 	// redirect URL is given.
-	app, err := NewClientApp(cdSettings, "", nil, "/")
+	app, err := NewClientApp(cdSettings, "", nil, "/", cache.NewInMemoryCache(24*time.Hour))
 	require.NoError(t, err)
 
 	w := httptest.NewRecorder()
@@ -254,7 +257,7 @@ clientID: xxx
 clientSecret: yyy
 requestedScopes: ["oidc"]`, oidcTestServer.URL),
 		}
-		app, err := NewClientApp(cdSettings, dexTestServer.URL, nil, "https://argocd.example.com")
+		app, err := NewClientApp(cdSettings, dexTestServer.URL, nil, "https://argocd.example.com", cache.NewInMemoryCache(24*time.Hour))
 		require.NoError(t, err)
 
 		req := httptest.NewRequest(http.MethodGet, "https://argocd.example.com/auth/callback", nil)
@@ -269,7 +272,7 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 
 		cdSettings.OIDCTLSInsecureSkipVerify = true
 
-		app, err = NewClientApp(cdSettings, dexTestServer.URL, nil, "https://argocd.example.com")
+		app, err = NewClientApp(cdSettings, dexTestServer.URL, nil, "https://argocd.example.com", cache.NewInMemoryCache(24*time.Hour))
 		require.NoError(t, err)
 
 		w = httptest.NewRecorder()
@@ -294,7 +297,7 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 		require.NoError(t, err)
 		cdSettings.Certificate = &cert
 
-		app, err := NewClientApp(cdSettings, dexTestServer.URL, nil, "https://argocd.example.com")
+		app, err := NewClientApp(cdSettings, dexTestServer.URL, nil, "https://argocd.example.com", cache.NewInMemoryCache(24*time.Hour))
 		require.NoError(t, err)
 
 		req := httptest.NewRequest(http.MethodGet, "https://argocd.example.com/auth/callback", nil)
@@ -307,7 +310,7 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 			t.Fatal("did not receive expected certificate verification failure error")
 		}
 
-		app, err = NewClientApp(cdSettings, dexTestServer.URL, &dex.DexTLSConfig{StrictValidation: false}, "https://argocd.example.com")
+		app, err = NewClientApp(cdSettings, dexTestServer.URL, &dex.DexTLSConfig{StrictValidation: false}, "https://argocd.example.com", cache.NewInMemoryCache(24*time.Hour))
 		require.NoError(t, err)
 
 		w = httptest.NewRecorder()
@@ -406,7 +409,7 @@ func TestGenerateAppState(t *testing.T) {
 	signature, err := util.MakeSignature(32)
 	require.NoError(t, err)
 	expectedReturnURL := "http://argocd.example.com/"
-	app, err := NewClientApp(&settings.ArgoCDSettings{ServerSignature: signature, URL: expectedReturnURL}, "", nil, "")
+	app, err := NewClientApp(&settings.ArgoCDSettings{ServerSignature: signature, URL: expectedReturnURL}, "", nil, "", cache.NewInMemoryCache(24*time.Hour))
 	require.NoError(t, err)
 	generateResponse := httptest.NewRecorder()
 	state, err := app.generateAppState(expectedReturnURL, generateResponse)
@@ -443,7 +446,7 @@ func TestGenerateAppState_XSS(t *testing.T) {
 			URL:             "https://argocd.example.com",
 			ServerSignature: signature,
 		},
-		"", nil, "",
+		"", nil, "", cache.NewInMemoryCache(24*time.Hour),
 	)
 	require.NoError(t, err)
 
@@ -495,11 +498,278 @@ func TestGenerateAppState_NoReturnURL(t *testing.T) {
 	encrypted, err := crypto.Encrypt([]byte("123"), key)
 	require.NoError(t, err)
 
-	app, err := NewClientApp(cdSettings, "", nil, "/argo-cd")
+	app, err := NewClientApp(cdSettings, "", nil, "/argo-cd", cache.NewInMemoryCache(24*time.Hour))
 	require.NoError(t, err)
 
 	req.AddCookie(&http.Cookie{Name: common.StateCookieName, Value: hex.EncodeToString(encrypted)})
 	returnURL, err := app.verifyAppState(req, httptest.NewRecorder(), "123")
 	assert.NoError(t, err)
 	assert.Equal(t, "/argo-cd", returnURL)
+}
+
+func TestGetUserInfo(t *testing.T) {
+
+	var tests = []struct {
+		name                  string
+		userInfoPath          string
+		expectedOutput        interface{}
+		expectError           bool
+		expectUnauthenticated bool
+		expectedCacheItems    []struct { // items to check in cache after function call
+			key             string
+			value           string
+			expectEncrypted bool
+			expectError     bool
+		}
+		idpHandler func(w http.ResponseWriter, r *http.Request)
+		idpClaims  jwt.MapClaims // as per specification sub and exp are REQUIRED fields
+		cache      cache.CacheClient
+		cacheItems []struct { // items to put in cache before execution
+			key     string
+			value   string
+			encrypt bool
+		}
+	}{
+		{
+			name:                  "call UserInfo with wrong userInfoPath",
+			userInfoPath:          "/user",
+			expectedOutput:        jwt.MapClaims(nil),
+			expectError:           true,
+			expectUnauthenticated: false,
+			expectedCacheItems: []struct {
+				key             string
+				value           string
+				expectEncrypted bool
+				expectError     bool
+			}{
+				{
+					key:         formatUserInfoResponseCacheKey(UserInfoResponseCachePrefix, "randomUser"),
+					expectError: true,
+				},
+			},
+			idpClaims: jwt.MapClaims{"sub": "randomUser", "exp": float64(time.Now().Add(5 * time.Minute).Unix())},
+			idpHandler: func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(http.StatusNotFound)
+			},
+			cache: cache.NewInMemoryCache(24 * time.Hour),
+			cacheItems: []struct {
+				key     string
+				value   string
+				encrypt bool
+			}{
+				{
+					key:     formatAccessTokenCacheKey(AccessTokenCachePrefix, "randomUser"),
+					value:   "FakeAccessToken",
+					encrypt: true,
+				},
+			},
+		},
+		{
+			name:                  "call UserInfo with bad accessToken",
+			userInfoPath:          "/user-info",
+			expectedOutput:        jwt.MapClaims(nil),
+			expectError:           false,
+			expectUnauthenticated: true,
+			expectedCacheItems: []struct {
+				key             string
+				value           string
+				expectEncrypted bool
+				expectError     bool
+			}{
+				{
+					key:         formatUserInfoResponseCacheKey(UserInfoResponseCachePrefix, "randomUser"),
+					expectError: true,
+				},
+			},
+			idpClaims: jwt.MapClaims{"sub": "randomUser", "exp": float64(time.Now().Add(5 * time.Minute).Unix())},
+			idpHandler: func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(http.StatusUnauthorized)
+			},
+			cache: cache.NewInMemoryCache(24 * time.Hour),
+			cacheItems: []struct {
+				key     string
+				value   string
+				encrypt bool
+			}{
+				{
+					key:     formatAccessTokenCacheKey(AccessTokenCachePrefix, "randomUser"),
+					value:   "FakeAccessToken",
+					encrypt: true,
+				},
+			},
+		},
+		{
+			name:                  "call UserInfo with garbage returned",
+			userInfoPath:          "/user-info",
+			expectedOutput:        jwt.MapClaims(nil),
+			expectError:           true,
+			expectUnauthenticated: false,
+			expectedCacheItems: []struct {
+				key             string
+				value           string
+				expectEncrypted bool
+				expectError     bool
+			}{
+				{
+					key:         formatUserInfoResponseCacheKey(UserInfoResponseCachePrefix, "randomUser"),
+					expectError: true,
+				},
+			},
+			idpClaims: jwt.MapClaims{"sub": "randomUser", "exp": float64(time.Now().Add(5 * time.Minute).Unix())},
+			idpHandler: func(w http.ResponseWriter, r *http.Request) {
+				userInfoBytes := `
+			  notevenJsongarbage	
+				`
+				_, err := w.Write([]byte(userInfoBytes))
+				if err != nil {
+					w.WriteHeader(http.StatusInternalServerError)
+					return
+				}
+				w.WriteHeader(http.StatusTeapot)
+			},
+			cache: cache.NewInMemoryCache(24 * time.Hour),
+			cacheItems: []struct {
+				key     string
+				value   string
+				encrypt bool
+			}{
+				{
+					key:     formatAccessTokenCacheKey(AccessTokenCachePrefix, "randomUser"),
+					value:   "FakeAccessToken",
+					encrypt: true,
+				},
+			},
+		},
+		{
+			name:                  "call UserInfo without accessToken in cache",
+			userInfoPath:          "/user-info",
+			expectedOutput:        jwt.MapClaims(nil),
+			expectError:           true,
+			expectUnauthenticated: true,
+			expectedCacheItems: []struct {
+				key             string
+				value           string
+				expectEncrypted bool
+				expectError     bool
+			}{
+				{
+					key:         formatUserInfoResponseCacheKey(UserInfoResponseCachePrefix, "randomUser"),
+					expectError: true,
+				},
+			},
+			idpClaims: jwt.MapClaims{"sub": "randomUser", "exp": float64(time.Now().Add(5 * time.Minute).Unix())},
+			idpHandler: func(w http.ResponseWriter, r *http.Request) {
+				userInfoBytes := `
+				{
+					"groups":["githubOrg:engineers"]
+				}`
+				w.Header().Set("content-type", "application/json")
+				_, err := w.Write([]byte(userInfoBytes))
+				if err != nil {
+					w.WriteHeader(http.StatusInternalServerError)
+					return
+				}
+				w.WriteHeader(http.StatusOK)
+			},
+			cache: cache.NewInMemoryCache(24 * time.Hour),
+		},
+		{
+			name:                  "call UserInfo with valid accessToken in cache",
+			userInfoPath:          "/user-info",
+			expectedOutput:        jwt.MapClaims{"groups": []interface{}{"githubOrg:engineers"}},
+			expectError:           false,
+			expectUnauthenticated: false,
+			expectedCacheItems: []struct {
+				key             string
+				value           string
+				expectEncrypted bool
+				expectError     bool
+			}{
+				{
+					key:             formatUserInfoResponseCacheKey(UserInfoResponseCachePrefix, "randomUser"),
+					value:           "{\"groups\":[\"githubOrg:engineers\"]}",
+					expectEncrypted: true,
+					expectError:     false,
+				},
+			},
+			idpClaims: jwt.MapClaims{"sub": "randomUser", "exp": float64(time.Now().Add(5 * time.Minute).Unix())},
+			idpHandler: func(w http.ResponseWriter, r *http.Request) {
+				userInfoBytes := `
+				{
+					"groups":["githubOrg:engineers"]
+				}`
+				w.Header().Set("content-type", "application/json")
+				_, err := w.Write([]byte(userInfoBytes))
+				if err != nil {
+					w.WriteHeader(http.StatusInternalServerError)
+					return
+				}
+				w.WriteHeader(http.StatusOK)
+			},
+			cache: cache.NewInMemoryCache(24 * time.Hour),
+			cacheItems: []struct {
+				key     string
+				value   string
+				encrypt bool
+			}{
+				{
+					key:     formatAccessTokenCacheKey(AccessTokenCachePrefix, "randomUser"),
+					value:   "FakeAccessToken",
+					encrypt: true,
+				},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ts := httptest.NewServer(http.HandlerFunc(tt.idpHandler))
+			defer ts.Close()
+
+			signature, err := util.MakeSignature(32)
+			require.NoError(t, err)
+			cdSettings := &settings.ArgoCDSettings{ServerSignature: signature}
+			encryptionKey, err := cdSettings.GetServerEncryptionKey()
+			assert.NoError(t, err)
+			a, _ := NewClientApp(cdSettings, "", nil, "/argo-cd", tt.cache)
+
+			for _, item := range tt.cacheItems {
+				var newValue []byte
+				newValue = []byte(item.value)
+				if item.encrypt {
+					newValue, err = crypto.Encrypt([]byte(item.value), encryptionKey)
+					assert.NoError(t, err)
+				}
+				err := a.clientCache.Set(&cache.Item{
+					Key:    item.key,
+					Object: newValue,
+				})
+				require.NoError(t, err)
+			}
+
+			got, unauthenticated, err := a.GetUserInfo(tt.idpClaims, ts.URL, tt.userInfoPath)
+			assert.Equal(t, tt.expectedOutput, got)
+			assert.Equal(t, tt.expectUnauthenticated, unauthenticated)
+			if tt.expectError {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
+			for _, item := range tt.expectedCacheItems {
+				var tmpValue []byte
+				err := a.clientCache.Get(item.key, &tmpValue)
+				if item.expectError {
+					require.Error(t, err)
+				} else {
+					require.NoError(t, err)
+					if item.expectEncrypted {
+						tmpValue, err = crypto.Decrypt(tmpValue, encryptionKey)
+						require.NoError(t, err)
+					}
+					assert.Equal(t, item.value, string(tmpValue))
+				}
+			}
+		})
+	}
+
 }

@@ -152,7 +152,12 @@ func NewServer(
 // If the user does provide a "project," we can respond more specifically. If the user does not have access to the given
 // app name in the given project, we return "permission denied." If the app exists, but the project is different from
 func (s *Server) getAppEnforceRBAC(ctx context.Context, action, project, namespace, name string, getApp func() (*appv1.Application, error)) (*appv1.Application, error) {
+	user := session.Username(ctx)
+	if user == "" {
+		user = "Unknown user"
+	}
 	logCtx := log.WithFields(map[string]interface{}{
+		"user":        user,
 		"application": name,
 		"namespace":   namespace,
 	})
@@ -1752,7 +1757,7 @@ func (s *Server) Sync(ctx context.Context, syncReq *application.ApplicationSyncR
 	if a.DeletionTimestamp != nil {
 		return nil, status.Errorf(codes.FailedPrecondition, "application is deleting")
 	}
-	if a.Spec.SyncPolicy != nil && a.Spec.SyncPolicy.Automated != nil {
+	if a.Spec.SyncPolicy != nil && a.Spec.SyncPolicy.Automated != nil && !syncReq.GetDryRun() {
 		if syncReq.GetRevision() != "" && syncReq.GetRevision() != text.FirstNonEmpty(source.TargetRevision, "HEAD") {
 			return nil, status.Errorf(codes.FailedPrecondition, "Cannot sync to %s: auto-sync currently set to %s", syncReq.GetRevision(), source.TargetRevision)
 		}

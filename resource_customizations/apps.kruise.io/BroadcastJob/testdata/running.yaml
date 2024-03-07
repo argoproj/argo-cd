@@ -1,0 +1,22 @@
+apiVersion: apps.kruise.io/v1alpha1
+kind: BroadcastJob
+metadata:
+  name: download-image
+spec:
+  template:
+    spec:
+      containers:
+        - name: guestbook
+          image: openkruise/guestbook:v3
+          command: ["echo",  "started"] # a dummy command to do nothing
+      restartPolicy: Never
+  completionPolicy:
+    type: Always
+    ttlSecondsAfterFinished: 60 # the job will be deleted after 60 seconds
+status:
+  active: 1
+  desired: 1
+  failed: 0
+  phase: running
+  startTime: '2023-09-17T14:43:30Z'
+  succeeded: 0

@@ -138,7 +138,7 @@ $ argocd admin initial-password reset
 	command.AddCommand(NewRepoCommand())
 	command.AddCommand(NewImportCommand())
 	command.AddCommand(NewExportCommand())
-	command.AddCommand(NewDashboardCommand())
+	command.AddCommand(NewDashboardCommand(clientOpts))
 	command.AddCommand(NewNotificationsCommand())
 	command.AddCommand(NewInitialPasswordCommand())
 

@@ -1,0 +1,35 @@
+apiVersion: apps.kruise.io/v1alpha1
+kind: CloneSet
+metadata:
+  name: cloneset-test
+  namespace: kruise
+  generation: 1
+  labels:
+    app: sample
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: sample
+  template:
+    metadata:
+      labels:
+        app: sample
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:alpine
+  updateStrategy: 
+    paused: false
+
+status:
+  observedGeneration: 1
+  replicas: 2
+  updatedReadyReplicas: 1
+  updatedAvailableReplicas: 1
+  conditions:
+  - lastTransitionTime: "2021-09-21T22:35:31Z"
+    message: Deployment has minimum availability.
+    reason: MinimumReplicasAvailable
+    status: 'True'
+    type: FailedScale

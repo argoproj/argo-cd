@@ -25,9 +25,10 @@ func TestGetDirectories(t *testing.T) {
 		repoServerClientFuncs []func(*repo_mocks.RepoServerServiceClient)
 	}
 	type args struct {
-		ctx      context.Context
-		repoURL  string
-		revision string
+		ctx             context.Context
+		repoURL         string
+		revision        string
+		noRevisionCache bool
 	}
 	tests := []struct {
 		name    string
@@ -88,11 +89,11 @@ func TestGetDirectories(t *testing.T) {
 				submoduleEnabled:    tt.fields.submoduleEnabled,
 				repoServerClientSet: &repo_mocks.Clientset{RepoServerServiceClient: mockRepoClient},
 			}
-			got, err := a.GetDirectories(tt.args.ctx, tt.args.repoURL, tt.args.revision)
-			if !tt.wantErr(t, err, fmt.Sprintf("GetDirectories(%v, %v, %v)", tt.args.ctx, tt.args.repoURL, tt.args.revision)) {
+			got, err := a.GetDirectories(tt.args.ctx, tt.args.repoURL, tt.args.revision, tt.args.noRevisionCache)
+			if !tt.wantErr(t, err, fmt.Sprintf("GetDirectories(%v, %v, %v, %v)", tt.args.ctx, tt.args.repoURL, tt.args.revision, tt.args.noRevisionCache)) {
 				return
 			}
-			assert.Equalf(t, tt.want, got, "GetDirectories(%v, %v, %v)", tt.args.ctx, tt.args.repoURL, tt.args.revision)
+			assert.Equalf(t, tt.want, got, "GetDirectories(%v, %v, %v, %v)", tt.args.ctx, tt.args.repoURL, tt.args.revision, tt.args.noRevisionCache)
 		})
 	}
 }
@@ -105,10 +106,11 @@ func TestGetFiles(t *testing.T) {
 		repoServerClientFuncs []func(*repo_mocks.RepoServerServiceClient)
 	}
 	type args struct {
-		ctx      context.Context
-		repoURL  string
-		revision string
-		pattern  string
+		ctx             context.Context
+		repoURL         string
+		revision        string
+		pattern         string
+		noRevisionCache bool
 	}
 	tests := []struct {
 		name    string
@@ -175,11 +177,11 @@ func TestGetFiles(t *testing.T) {
 				submoduleEnabled:    tt.fields.submoduleEnabled,
 				repoServerClientSet: &repo_mocks.Clientset{RepoServerServiceClient: mockRepoClient},
 			}
-			got, err := a.GetFiles(tt.args.ctx, tt.args.repoURL, tt.args.revision, tt.args.pattern)
-			if !tt.wantErr(t, err, fmt.Sprintf("GetFiles(%v, %v, %v, %v)", tt.args.ctx, tt.args.repoURL, tt.args.revision, tt.args.pattern)) {
+			got, err := a.GetFiles(tt.args.ctx, tt.args.repoURL, tt.args.revision, tt.args.pattern, tt.args.noRevisionCache)
+			if !tt.wantErr(t, err, fmt.Sprintf("GetFiles(%v, %v, %v, %v, %v)", tt.args.ctx, tt.args.repoURL, tt.args.revision, tt.args.pattern, tt.args.noRevisionCache)) {
 				return
 			}
-			assert.Equalf(t, tt.want, got, "GetFiles(%v, %v, %v, %v)", tt.args.ctx, tt.args.repoURL, tt.args.revision, tt.args.pattern)
+			assert.Equalf(t, tt.want, got, "GetFiles(%v, %v, %v, %v, %v)", tt.args.ctx, tt.args.repoURL, tt.args.revision, tt.args.pattern, tt.args.noRevisionCache)
 		})
 	}
 }

@@ -564,11 +564,13 @@ function renderPodGroup(props: ApplicationResourceTreeProps, id: string, node: R
             </div>
             <div className='application-resource-tree__node--lower-section'>
                 {[podGroupHealthy, podGroupDegraded, podGroupInProgress].map((pods, index) => {
-                    return (
-                        <div key={index} className={`application-resource-tree__node--lower-section__pod-group`}>
-                            {renderPodGroupByStatus(props, node, pods, showPodGroupByStatus)}
-                        </div>
-                    );
+                    if (pods.length > 0) {
+                        return (
+                            <div key={index} className={`application-resource-tree__node--lower-section__pod-group`}>
+                                {renderPodGroupByStatus(props, node, pods, showPodGroupByStatus)}
+                            </div>
+                        );
+                    }
                 })}
             </div>
         </div>

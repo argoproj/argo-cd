@@ -43,7 +43,7 @@ useful so that the CLI used in the CI pipeline is always kept in-sync and uses a
 that is always compatible with the Argo CD API server.
 
 ```bash
-export ARGOCD_SERVER=argocd.mycompany.com
+export ARGOCD_SERVER=argocd.example.com
 export ARGOCD_AUTH_TOKEN=<JWT token generated from project>
 curl -sSL -o /usr/local/bin/argocd https://${ARGOCD_SERVER}/download/argocd-linux-amd64
 argocd app sync guestbook
