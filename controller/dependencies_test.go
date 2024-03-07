@@ -71,7 +71,7 @@ func Test_buildDependencyGraph(t *testing.T) {
 			},
 			applicationNamespaces: []string{test.FakeArgoCDNamespace},
 		}
-		c := newFakeController(&data)
+		c := newFakeController(&data, nil)
 		apps := topsort.NewGraph()
 		err := c.appStateManager.(*appStateManager).buildDependencyGraph(&app, apps)
 		assert.NoError(t, err)
@@ -100,7 +100,7 @@ func Test_buildDependencyGraph(t *testing.T) {
 			appWithDependency("app3", test.FakeArgoCDNamespace, "default", map[string]string{"name": "app3"}, nil),
 			&app,
 		}}
-		c := newFakeController(&data)
+		c := newFakeController(&data, nil)
 		apps := topsort.NewGraph()
 		err := c.appStateManager.(*appStateManager).buildDependencyGraph(&app, apps)
 		require.NoError(t, err)
@@ -130,7 +130,7 @@ func Test_buildDependencyGraph(t *testing.T) {
 			appWithDependency("app3", test.FakeArgoCDNamespace, "default", map[string]string{"name": "app3"}, nil),
 			&app,
 		}}
-		c := newFakeController(&data)
+		c := newFakeController(&data, nil)
 		apps := topsort.NewGraph()
 		err := c.appStateManager.(*appStateManager).buildDependencyGraph(&app, apps)
 		require.NoError(t, err)
@@ -163,7 +163,7 @@ func Test_buildDependencyGraph(t *testing.T) {
 			appWithDependency("app3", test.FakeArgoCDNamespace, "default", map[string]string{"name": "app3"}, []map[string]string{{"name": "parent"}}),
 			&app,
 		}}
-		c := newFakeController(&data)
+		c := newFakeController(&data, nil)
 		apps := topsort.NewGraph()
 		err := c.appStateManager.(*appStateManager).buildDependencyGraph(&app, apps)
 		require.NoError(t, err)
@@ -193,7 +193,7 @@ func Test_ResolveDependencies(t *testing.T) {
 			},
 			applicationNamespaces: []string{test.FakeArgoCDNamespace},
 		}
-		c := newFakeController(&data)
+		c := newFakeController(&data, nil)
 		apps, err := c.appStateManager.(*appStateManager).ResolveApplicationDependencies(&app)
 		assert.NoError(t, err)
 		assert.Len(t, apps, 0)
@@ -219,7 +219,7 @@ func Test_ResolveDependencies(t *testing.T) {
 			appWithDependency("app3", test.FakeArgoCDNamespace, "default", map[string]string{"name": "app3"}, nil),
 			&app,
 		}}
-		c := newFakeController(&data)
+		c := newFakeController(&data, nil)
 		apps, err := c.appStateManager.(*appStateManager).ResolveApplicationDependencies(&app)
 		require.NoError(t, err)
 		require.Len(t, apps, 3)
@@ -253,7 +253,7 @@ func Test_ResolveDependencies(t *testing.T) {
 			appWithDependency("app3", test.FakeArgoCDNamespace, "default", map[string]string{"name": "app3"}, nil),
 			&app,
 		}}
-		c := newFakeController(&data)
+		c := newFakeController(&data, nil)
 		apps, err := c.appStateManager.(*appStateManager).ResolveApplicationDependencies(&app)
 		require.NoError(t, err)
 		require.Len(t, apps, 2)
@@ -296,7 +296,7 @@ func Test_ResolveDependencies(t *testing.T) {
 			appWithDependency("app3", test.FakeArgoCDNamespace, "default", map[string]string{"name": "app3"}, nil),
 			&app,
 		}}
-		c := newFakeController(&data)
+		c := newFakeController(&data, nil)
 		apps, err := c.appStateManager.(*appStateManager).ResolveApplicationDependencies(&app)
 		require.NoError(t, err)
 		require.Len(t, apps, 2)
@@ -339,7 +339,7 @@ func Test_ResolveDependencies(t *testing.T) {
 			appWithDependency("app3", test.FakeArgoCDNamespace, "default", map[string]string{"name": "app3"}, nil),
 			&app,
 		}}
-		c := newFakeController(&data)
+		c := newFakeController(&data, nil)
 		apps, err := c.appStateManager.(*appStateManager).ResolveApplicationDependencies(&app)
 		require.NoError(t, err)
 		require.Len(t, apps, 2)
@@ -368,7 +368,7 @@ func Test_ResolveDependencies(t *testing.T) {
 			appWithDependency("app3", test.FakeArgoCDNamespace, "default", map[string]string{"name": "app3"}, nil),
 			&app,
 		}}
-		c := newFakeController(&data)
+		c := newFakeController(&data, nil)
 		apps, err := c.appStateManager.(*appStateManager).ResolveApplicationDependencies(&app)
 		require.NoError(t, err)
 		require.Len(t, apps, 3)
@@ -395,7 +395,7 @@ func Test_ResolveDependencies(t *testing.T) {
 			appWithDependency("app3", test.FakeArgoCDNamespace, "default", map[string]string{"name": "app3"}, []map[string]string{{"name": "parent"}}),
 			&app,
 		}}
-		c := newFakeController(&data)
+		c := newFakeController(&data, nil)
 		apps, err := c.appStateManager.(*appStateManager).ResolveApplicationDependencies(&app)
 		require.ErrorContains(t, err, "Cycle error")
 		require.Len(t, apps, 0)
@@ -420,7 +420,7 @@ func Test_ResolveDependencies(t *testing.T) {
 		data := fakeData{apps: []runtime.Object{
 			&app,
 		}}
-		c := newFakeController(&data)
+		c := newFakeController(&data, nil)
 		apps, err := c.appStateManager.(*appStateManager).ResolveApplicationDependencies(&app)
 		require.ErrorContains(t, err, "Cycle error")
 		require.Len(t, apps, 0)
@@ -443,7 +443,7 @@ func Test_ResolveDependencies(t *testing.T) {
 		data := fakeData{apps: []runtime.Object{
 			&app,
 		}}
-		c := newFakeController(&data)
+		c := newFakeController(&data, nil)
 		apps, err := c.appStateManager.(*appStateManager).ResolveApplicationDependencies(&app)
 		require.ErrorContains(t, err, "Cycle error")
 		require.Len(t, apps, 0)
@@ -469,7 +469,7 @@ func Test_ResolveDependencies(t *testing.T) {
 			appWithDependency("app3", test.FakeArgoCDNamespace, "other", map[string]string{"name": "app3"}, []map[string]string{{"name": "parent"}}),
 			&app,
 		}}
-		c := newFakeController(&data)
+		c := newFakeController(&data, nil)
 		apps, err := c.appStateManager.(*appStateManager).ResolveApplicationDependencies(&app)
 		require.NoError(t, err)
 		require.Len(t, apps, 1)
@@ -498,7 +498,7 @@ func Test_ResolveDependencies(t *testing.T) {
 			},
 			applicationNamespaces: []string{"*"},
 		}
-		c := newFakeController(&data)
+		c := newFakeController(&data, nil)
 		apps, err := c.appStateManager.(*appStateManager).ResolveApplicationDependencies(&app)
 		require.NoError(t, err)
 		require.Len(t, apps, 1)
