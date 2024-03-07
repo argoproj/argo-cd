@@ -138,6 +138,12 @@ func NewApplicationCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.
   # Create a Kustomize app
   argocd app create kustomize-guestbook --repo https://github.com/argoproj/argocd-example-apps.git --path kustomize-guestbook --dest-namespace default --dest-server https://kubernetes.default.svc --kustomize-image gcr.io/heptio-images/ks-guestbook-demo:0.1
 
+  # Create a MultiSource app
+  argocd app create guestbook --file <path-to-yaml-file>
+
+  # Create a MultiSource app while overriding repo of source at index 1 under spec.sources (Indexes start at 0)
+  argocd app create guestbook --file <path-to-yaml-file> --source-index 1 --repo https://github.com/argoproj/argocd-example-apps.git
+
   # Create a app using a custom tool:
   argocd app create kasane --repo https://github.com/argoproj/argocd-example-apps.git --path plugins/kasane --dest-namespace default --dest-server https://kubernetes.default.svc --config-management-plugin kasane`,
 		Run: func(c *cobra.Command, args []string) {
@@ -752,6 +758,9 @@ func NewApplicationSetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
   # Set and override application parameters with a parameter file
   argocd app set my-app --parameter-file path/to/parameter-file.yaml
 
+  # Set and override application parameters for a source at index 1 under spec.sources of app my-app (Indexes start at 0)
+  argocd app set my-app --source-index 1 --repo https://github.com/argoproj/argocd-example-apps.git
+
   # Set application parameters and specify the namespace
   argocd app set my-app --parameter key1=value1 --parameter key2=value2 --namespace my-namespace
   		`),
@@ -810,6 +819,7 @@ type unsetOpts struct {
 	ignoreMissingValueFiles bool
 	pluginEnvs              []string
 	passCredentials         bool
+	ref                     bool
 }
 
 // IsZero returns true when the Application options for kustomize are considered empty
@@ -837,8 +847,11 @@ func NewApplicationUnsetCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
 		Example: `  # Unset kustomize override kustomize image
   argocd app unset my-app --kustomize-image=alpine
 
-  # Unset kustomize override prefix
+  # Unset kustomize override suffix
   argocd app unset my-app --namesuffix
+
+  # Unset kustomize override suffix for source at index 1 under spec.sources of app my-app (Indexes start at 0)
+  argocd app unset my-app --source-index 1 --namesuffix
 
   # Unset parameter override
   argocd app unset my-app -p COMPONENT=PARAM`,
@@ -896,14 +909,23 @@ func NewApplicationUnsetCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
 	command.Flags().StringArrayVar(&opts.kustomizeReplicas, "kustomize-replica", []string{}, "Kustomize replicas name (e.g. --kustomize-replica my-deployment --kustomize-replica my-statefulset)")
 	command.Flags().StringArrayVar(&opts.pluginEnvs, "plugin-env", []string{}, "Unset plugin env variables (e.g --plugin-env name)")
 	command.Flags().BoolVar(&opts.passCredentials, "pass-credentials", false, "Unset passCredentials")
+	command.Flags().BoolVar(&opts.ref, "ref", false, "Unset ref on the source")
 	command.Flags().IntVar(&source_index, "source-index", 0, "Index of the source from the list of sources of the app. Default index is 0.")
 	return command
 }
 
 func unset(source *argoappv1.ApplicationSource, opts unsetOpts) (updated bool, nothingToUnset bool) {
+
+	needToUnsetRef := false
+	if opts.ref && source.Ref != "" {
+		source.Ref = ""
+		updated = true
+		needToUnsetRef = true
+	}
+
 	if source.Kustomize != nil {
 		if opts.KustomizeIsZero() {
-			return false, true
+			return updated, !needToUnsetRef && true
 		}
 
 		if opts.namePrefix && source.Kustomize.NamePrefix != "" {
@@ -953,7 +975,7 @@ func unset(source *argoappv1.ApplicationSource, opts unsetOpts) (updated bool, n
 	}
 	if source.Helm != nil {
 		if len(opts.parameters) == 0 && len(opts.valuesFiles) == 0 && !opts.valuesLiteral && !opts.ignoreMissingValueFiles && !opts.passCredentials {
-			return false, true
+			return updated, !needToUnsetRef && true
 		}
 		for _, paramStr := range opts.parameters {
 			helmParams := source.Helm.Parameters
@@ -990,9 +1012,10 @@ func unset(source *argoappv1.ApplicationSource, opts unsetOpts) (updated bool, n
 			updated = true
 		}
 	}
+
 	if source.Plugin != nil {
 		if len(opts.pluginEnvs) == 0 {
-			return false, true
+			return false, !needToUnsetRef && true
 		}
 		for _, env := range opts.pluginEnvs {
 			err := source.Plugin.RemoveEnvEntry(env)
@@ -1001,7 +1024,7 @@ func unset(source *argoappv1.ApplicationSource, opts unsetOpts) (updated bool, n
 			}
 		}
 	}
-	return updated, false
+	return updated, !needToUnsetRef && false
 }
 
 // targetObjects deserializes the list of target states into unstructured objects

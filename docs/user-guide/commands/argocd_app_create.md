@@ -26,6 +26,12 @@ argocd app create APPNAME [flags]
   # Create a Kustomize app
   argocd app create kustomize-guestbook --repo https://github.com/argoproj/argocd-example-apps.git --path kustomize-guestbook --dest-namespace default --dest-server https://kubernetes.default.svc --kustomize-image gcr.io/heptio-images/ks-guestbook-demo:0.1
 
+  # Create a MultiSource app
+  argocd app create guestbook --file <path-to-yaml-file>
+
+  # Create a MultiSource app while overriding repo of source at index 1 under spec.sources (Indexes start at 0)
+  argocd app create guestbook --file <path-to-yaml-file> --source-index 1 --repo https://github.com/argoproj/argocd-example-apps.git
+
   # Create a app using a custom tool:
   argocd app create kasane --repo https://github.com/argoproj/argocd-example-apps.git --path plugins/kasane --dest-namespace default --dest-server https://kubernetes.default.svc --config-management-plugin kasane
 ```
