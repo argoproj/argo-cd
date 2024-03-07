@@ -40,8 +40,7 @@ data:
             "short": true
           }
           {{range $index, $c := .app.status.conditions}}
-          {{if not $index}},{{end}}
-          {{if $index}},{{end}}
+          ,
           {
             "title": "{{$c.type}}",
             "value": "{{$c.message}}",
@@ -68,8 +67,7 @@ data:
           "value": "{{.app.status.sync.revision}}"
         }
         {{range $index, $c := .app.status.conditions}}
-          {{if not $index}},{{end}}
-          {{if $index}},{{end}}
+          ,
           {
             "name": "{{$c.type}}",
             "value": "{{$c.message}}"
@@ -119,8 +117,7 @@ data:
             "short": true
           }
           {{range $index, $c := .app.status.conditions}}
-          {{if not $index}},{{end}}
-          {{if $index}},{{end}}
+          ,
           {
             "title": "{{$c.type}}",
             "value": "{{$c.message}}",
@@ -143,8 +140,7 @@ data:
           "value": "{{.app.spec.source.repoURL}}"
         }
         {{range $index, $c := .app.status.conditions}}
-          {{if not $index}},{{end}}
-          {{if $index}},{{end}}
+          ,
           {
             "name": "{{$c.type}}",
             "value": "{{$c.message}}"
@@ -194,8 +190,7 @@ data:
             "short": true
           }
           {{range $index, $c := .app.status.conditions}}
-          {{if not $index}},{{end}}
-          {{if $index}},{{end}}
+          ,
           {
             "title": "{{$c.type}}",
             "value": "{{$c.message}}",
@@ -222,8 +217,7 @@ data:
           "value": "{{.app.spec.source.repoURL}}"
         }
         {{range $index, $c := .app.status.conditions}}
-          {{if not $index}},{{end}}
-          {{if $index}},{{end}}
+          ,
           {
             "name": "{{$c.type}}",
             "value": "{{$c.message}}"
@@ -273,8 +267,7 @@ data:
             "short": true
           }
           {{range $index, $c := .app.status.conditions}}
-          {{if not $index}},{{end}}
-          {{if $index}},{{end}}
+          ,
           {
             "title": "{{$c.type}}",
             "value": "{{$c.message}}",
@@ -301,8 +294,7 @@ data:
           "value": "{{.app.spec.source.repoURL}}"
         }
         {{range $index, $c := .app.status.conditions}}
-          {{if not $index}},{{end}}
-          {{if $index}},{{end}}
+          ,
           {
             "name": "{{$c.type}}",
             "value": "{{$c.message}}"
@@ -356,8 +348,7 @@ data:
             "short": true
           }
           {{range $index, $c := .app.status.conditions}}
-          {{if not $index}},{{end}}
-          {{if $index}},{{end}}
+          ,
           {
             "title": "{{$c.type}}",
             "value": "{{$c.message}}",
@@ -380,8 +371,7 @@ data:
           "value": "{{.app.spec.source.repoURL}}"
         }
         {{range $index, $c := .app.status.conditions}}
-          {{if not $index}},{{end}}
-          {{if $index}},{{end}}
+          ,
           {
             "name": "{{$c.type}}",
             "value": "{{$c.message}}"
@@ -430,8 +420,7 @@ data:
             "short": true
           }
           {{range $index, $c := .app.status.conditions}}
-          {{if not $index}},{{end}}
-          {{if $index}},{{end}}
+          ,
           {
             "title": "{{$c.type}}",
             "value": "{{$c.message}}",
@@ -458,8 +447,7 @@ data:
           "value": "{{.app.spec.source.repoURL}}"
         }
         {{range $index, $c := .app.status.conditions}}
-          {{if not $index}},{{end}}
-          {{if $index}},{{end}}
+          ,
           {
             "name": "{{$c.type}}",
             "value": "{{$c.message}}"
