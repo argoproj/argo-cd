@@ -31,6 +31,7 @@ argocd app set APPNAME [flags]
 
 ```
       --allow-empty                                Set allow zero live resources when sync is automated
+  -N, --app-namespace string                       Set application parameters in namespace
       --auto-prune                                 Set automatic pruning when sync is automated
       --config-management-plugin string            Config management plugin name
       --dest-name string                           K8s cluster Name (e.g. minikube)
