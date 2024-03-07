@@ -131,21 +131,21 @@ message ApplicationCondition {
   optional k8s.io.apimachinery.pkg.apis.meta.v1.Time lastTransitionTime = 3;
 }
 
-// ApplicationDependency defines
+// ApplicationDependency specifies dependency settings for an Application
 message ApplicationDependency {
-  // Selectors defines conditions for matching application's dependencies
+  // Selectors specifies conditions for matching application's dependencies
   repeated ApplicationSelector selectors = 1;
 
-  // BlockOnEmpty defines whether to block sync when the list of applications determined by the selector is empty
+  // BlockOnEmpty specifies whether to block sync when the list of applications determined by the selector is empty
   optional bool blockOnEmpty = 2;
 
   // SyncDelay specifies the duration in seconds to wait before starting to sync when dependencies are defined
   optional int64 syncDelay = 3;
 
-  // Timeout defines the maximum duration in seconds to wait on dependencies before the sync fails
+  // Timeout specifies the maximum duration in seconds to wait on dependencies before the sync fails
   optional int64 timeout = 4;
 
-  // RefreshDependencies defines whether all dependencies should be refreshed before starting a sync
+  // RefreshDependencies specifies whether all dependencies should be refreshed before starting a sync
   optional bool refreshDependencies = 5;
 }
 

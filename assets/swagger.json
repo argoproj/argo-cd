@@ -5841,19 +5841,19 @@
     },
     "v1alpha1ApplicationDependency": {
       "type": "object",
-      "title": "ApplicationDependency defines",
+      "title": "ApplicationDependency specifies dependency settings for an Application",
       "properties": {
         "blockOnEmpty": {
           "type": "boolean",
-          "title": "BlockOnEmpty defines whether to block sync when the list of applications determined by the selector is empty"
+          "title": "BlockOnEmpty specifies whether to block sync when the list of applications determined by the selector is empty"
         },
         "refreshDependencies": {
           "type": "boolean",
-          "title": "RefreshDependencies defines whether all dependencies should be refreshed before starting a sync"
+          "title": "RefreshDependencies specifies whether all dependencies should be refreshed before starting a sync"
         },
         "selectors": {
           "type": "array",
-          "title": "Selectors defines conditions for matching application's dependencies",
+          "title": "Selectors specifies conditions for matching application's dependencies",
           "items": {
             "$ref": "#/definitions/v1alpha1ApplicationSelector"
           }
@@ -5866,7 +5866,7 @@
         "timeout": {
           "type": "integer",
           "format": "int64",
-          "title": "Timeout defines the maximum duration in seconds to wait on dependencies before the sync fails"
+          "title": "Timeout specifies the maximum duration in seconds to wait on dependencies before the sync fails"
         }
       }
     },

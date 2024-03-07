@@ -605,12 +605,12 @@ func schema_pkg_apis_application_v1alpha1_ApplicationDependency(ref common.Refer
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "ApplicationDependency defines",
+				Description: "ApplicationDependency specifies dependency settings for an Application",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"selectors": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Selectors defines conditions for matching application's dependencies",
+							Description: "Selectors specifies conditions for matching application's dependencies",
 							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
@@ -624,7 +624,7 @@ func schema_pkg_apis_application_v1alpha1_ApplicationDependency(ref common.Refer
 					},
 					"blockOnEmpty": {
 						SchemaProps: spec.SchemaProps{
-							Description: "BlockOnEmpty defines whether to block sync when the list of applications determined by the selector is empty",
+							Description: "BlockOnEmpty specifies whether to block sync when the list of applications determined by the selector is empty",
 							Type:        []string{"boolean"},
 							Format:      "",
 						},
@@ -638,14 +638,14 @@ func schema_pkg_apis_application_v1alpha1_ApplicationDependency(ref common.Refer
 					},
 					"timeout": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Timeout defines the maximum duration in seconds to wait on dependencies before the sync fails",
+							Description: "Timeout specifies the maximum duration in seconds to wait on dependencies before the sync fails",
 							Type:        []string{"integer"},
 							Format:      "int64",
 						},
 					},
 					"refreshDependencies": {
 						SchemaProps: spec.SchemaProps{
-							Description: "RefreshDependencies defines whether all dependencies should be refreshed before starting a sync",
+							Description: "RefreshDependencies specifies whether all dependencies should be refreshed before starting a sync",
 							Type:        []string{"boolean"},
 							Format:      "",
 						},

@@ -866,15 +866,15 @@ spec:
                 description: DependsOn specifies what this application depends on
                 properties:
                   blockOnEmpty:
-                    description: BlockOnEmpty defines whether to block sync when the
-                      list of applications determined by the selector is empty
+                    description: BlockOnEmpty specifies whether to block sync when
+                      the list of applications determined by the selector is empty
                     type: boolean
                   refreshDependencies:
-                    description: RefreshDependencies defines whether all dependencies
+                    description: RefreshDependencies specifies whether all dependencies
                       should be refreshed before starting a sync
                     type: boolean
                   selectors:
-                    description: Selectors defines conditions for matching application's
+                    description: Selectors specifies conditions for matching application's
                       dependencies
                     items:
                       description: ApplicationSelector specifies which applications
@@ -940,8 +940,8 @@ spec:
                     format: int64
                     type: integer
                   timeout:
-                    description: Timeout defines the maximum duration in seconds to
-                      wait on dependencies before the sync fails
+                    description: Timeout specifies the maximum duration in seconds
+                      to wait on dependencies before the sync fails
                     format: int64
                     type: integer
                 required:

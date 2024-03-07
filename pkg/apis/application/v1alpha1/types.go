@@ -96,17 +96,17 @@ func (id IgnoreDifferences) Equals(other IgnoreDifferences) bool {
 	return reflect.DeepEqual(id, other)
 }
 
-// ApplicationDependency defines
+// ApplicationDependency specifies dependency settings for an Application
 type ApplicationDependency struct {
-	// Selectors defines conditions for matching application's dependencies
+	// Selectors specifies conditions for matching application's dependencies
 	Selectors []ApplicationSelector `json:"selectors" protobuf:"bytes,1,name=selectors"`
-	// BlockOnEmpty defines whether to block sync when the list of applications determined by the selector is empty
+	// BlockOnEmpty specifies whether to block sync when the list of applications determined by the selector is empty
 	BlockOnEmpty *bool `json:"blockOnEmpty,omitempty" protobuf:"bytes,2,opt,name=blockOnEmpty"`
 	// SyncDelay specifies the duration in seconds to wait before starting to sync when dependencies are defined
 	SyncDelay *time.Duration `json:"syncDelay,omitempty" protobuf:"bytes,3,opt,name=syncDelay"`
-	// Timeout defines the maximum duration in seconds to wait on dependencies before the sync fails
+	// Timeout specifies the maximum duration in seconds to wait on dependencies before the sync fails
 	Timeout *time.Duration `json:"timeout,omitempty" protobuf:"bytes,4,opt,name=timeout"`
-	// RefreshDependencies defines whether all dependencies should be refreshed before starting a sync
+	// RefreshDependencies specifies whether all dependencies should be refreshed before starting a sync
 	RefreshDependencies *bool `json:"refreshDependencies,omitempty" protobuf:"bytes,5,opt,name=refreshDependencies"`
 }
 
