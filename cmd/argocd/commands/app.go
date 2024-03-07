@@ -2835,7 +2835,8 @@ func NewApplicationPatchCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
 // NewApplicationAddSourceCommand returns a new instance of an `argocd app add-source` command
 func NewApplicationAddSourceCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
-		appOpts cmdutil.AppOptions
+		appOpts      cmdutil.AppOptions
+		appNamespace string
 	)
 	var command = &cobra.Command{
 		Use:   "add-source APPNAME",
@@ -2853,7 +2854,7 @@ func NewApplicationAddSourceCommand(clientOpts *argocdclient.ClientOptions) *cob
 			conn, appIf := argocdClient.NewApplicationClientOrDie()
 			defer argoio.Close(conn)
 
-			appName, appNs := argo.ParseFromQualifiedName(args[0], "")
+			appName, appNs := argo.ParseFromQualifiedName(args[0], appNamespace)
 
 			app, err := appIf.Get(ctx, &application.ApplicationQuery{
 				Name:         &appName,
@@ -2887,6 +2888,7 @@ func NewApplicationAddSourceCommand(clientOpts *argocdclient.ClientOptions) *cob
 		},
 	}
 	cmdutil.AddAppFlags(command, &appOpts)
+	command.Flags().StringVarP(&appNamespace, "app-namespace", "N", "", "Namespace of the target application where the source will be appended")
 	return command
 }
 
@@ -2894,6 +2896,7 @@ func NewApplicationAddSourceCommand(clientOpts *argocdclient.ClientOptions) *cob
 func NewApplicationRemoveSourceCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
 		source_index int
+		appNamespace string
 	)
 	command := &cobra.Command{
 		Use:   "remove-source APPNAME",
@@ -2916,7 +2919,7 @@ func NewApplicationRemoveSourceCommand(clientOpts *argocdclient.ClientOptions) *
 			conn, appIf := argocdClient.NewApplicationClientOrDie()
 			defer argoio.Close(conn)
 
-			appName, appNs := argo.ParseFromQualifiedName(args[0], "")
+			appName, appNs := argo.ParseFromQualifiedName(args[0], appNamespace)
 
 			app, err := appIf.Get(ctx, &application.ApplicationQuery{
 				Name:         &appName,
@@ -2949,6 +2952,7 @@ func NewApplicationRemoveSourceCommand(clientOpts *argocdclient.ClientOptions) *
 			fmt.Printf("Application '%s' updated successfully\n", app.ObjectMeta.Name)
 		},
 	}
+	command.Flags().StringVarP(&appNamespace, "app-namespace", "N", "", "Namespace of the target application where the source will be appended")
 	command.Flags().IntVar(&source_index, "source-index", -1, "Index of the source from the list of sources of the app. Index starts from 0.")
 	return command
 }
