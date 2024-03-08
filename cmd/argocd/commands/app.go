@@ -149,9 +149,6 @@ func NewApplicationCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
 
-			if source_index < 0 {
-				errors.CheckError(fmt.Errorf("Source index should be greater than 0"))
-			}
 			argocdClient := headless.NewClientOrDie(clientOpts, c)
 			apps, err := cmdutil.ConstructApps(fileURL, appName, labels, annotations, args, appOpts, c.Flags(), &source_index)
 			errors.CheckError(err)
