@@ -185,7 +185,12 @@ export const ApplicationOperationState: React.StatelessComponent<Props> = ({appl
                                             {resource.hookType}
                                         </div>
                                         <div className='columns large-4 small-8' title={resource.message}>
-                                            <div className='application-operation-state__message'>{resource.message}</div>
+                                            <div className='application-operation-state__message'>
+                                                {resource.message.includes('metadata.annotations: Too long: must have at most 262144 bytes')
+                                                    ? `${resource.message}
+                                                    (This error usually means you are applying a very large resource on client-side apply. Consider using Server-side apply or syncing with replace enabled. Note: Syncing with Replace enabled is potentially destructive as it may cause resource deletion and re-creation.)`
+                                                    : resource.message}
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
