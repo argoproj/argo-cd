@@ -73,10 +73,10 @@ const (
 	defaultDeploymentInformerResyncDuration = 10 * time.Second
 	// orphanedIndex contains application which monitor orphaned resources by namespace
 	orphanedIndex = "orphaned"
+	// refreshAfterForDependencies defines the interval for refresh while waiting for dependency application
+	// TODO: Value is a first shot. Should probably be configurable.
+	refreshAfterForDependencies time.Duration = 2 * time.Second
 )
-
-// refreshAfterForDependencies defines the interval for refresh while waiting for dependency application
-var refreshAfterForDependencies time.Duration = 2 * time.Second
 
 type CompareWith int
 
