@@ -13,7 +13,7 @@ argocd app edit APPNAME [flags]
 ```
   -N, --app-namespace string   Only edit application in namespace
   -h, --help                   help for edit
-      --source-index int       Index of the source from the list of sources of the app. Default index is 0.
+      --source-index int       Index of the source from the list of sources of the app. Default index is 0. (default -1)
 ```
 
 ### Options inherited from parent commands
