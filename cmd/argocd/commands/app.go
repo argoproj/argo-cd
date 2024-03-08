@@ -211,7 +211,7 @@ func NewApplicationCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 		log.Fatal(err)
 	}
 	command.Flags().StringVarP(&appNamespace, "app-namespace", "N", "", "Namespace where the application will be created in")
-	command.Flags().IntVar(&source_index, "source-index", 0, "Index of the source from the list of sources of the app. Default index is 0.")
+	command.Flags().IntVar(&source_index, "source-index", -1, "Index of the source from the list of sources of the app. Default index is 0.")
 	cmdutil.AddAppFlags(command, &appOpts)
 	return command
 }
@@ -772,15 +772,21 @@ func NewApplicationSetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
-			if source_index < 0 {
-				errors.CheckError(fmt.Errorf("Source index should be greater than 0"))
-			}
 			appName, appNs := argo.ParseFromQualifiedName(args[0], appNamespace)
 			argocdClient := headless.NewClientOrDie(clientOpts, c)
 			conn, appIf := argocdClient.NewApplicationClientOrDie()
 			defer argoio.Close(conn)
 			app, err := appIf.Get(ctx, &application.ApplicationQuery{Name: &appName, AppNamespace: &appNs})
 			errors.CheckError(err)
+
+			if app.Spec.HasMultipleSources() {
+				if source_index < 0 {
+					errors.CheckError(fmt.Errorf("Source index should be specified and greater than or equal to 0 for applications with multiple sources"))
+				}
+				if len(app.Spec.GetSources()) < source_index {
+					errors.CheckError(fmt.Errorf("Source index should be less than the number of sources in the application"))
+				}
+			}
 
 			visited := cmdutil.SetAppSpecOptions(c.Flags(), &app.Spec, &appOpts, &source_index)
 			if visited == 0 {
@@ -799,7 +805,7 @@ func NewApplicationSetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 			errors.CheckError(err)
 		},
 	}
-	command.Flags().IntVar(&source_index, "source-index", 0, "Index of the source from the list of sources of the app. Default index is 0.")
+	command.Flags().IntVar(&source_index, "source-index", -1, "Index of the source from the list of sources of the app. Default index is 0.")
 	cmdutil.AddAppFlags(command, &appOpts)
 	command.Flags().StringVarP(&appNamespace, "app-namespace", "N", "", "Set application parameters in namespace")
 	return command
@@ -863,17 +869,20 @@ func NewApplicationUnsetCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
-			if source_index < 0 {
-				errors.CheckError(fmt.Errorf("Source index should be greater than 0"))
-			}
+
 			appName, appNs := argo.ParseFromQualifiedName(args[0], appNamespace)
 			conn, appIf := headless.NewClientOrDie(clientOpts, c).NewApplicationClientOrDie()
 			defer argoio.Close(conn)
 			app, err := appIf.Get(ctx, &application.ApplicationQuery{Name: &appName, AppNamespace: &appNs})
 			errors.CheckError(err)
 
-			if app.Spec.HasMultipleSources() && len(app.Spec.GetSources()) < source_index {
-				errors.CheckError(fmt.Errorf("Source index should be less than the number of sources in the application"))
+			if app.Spec.HasMultipleSources() {
+				if source_index < 0 {
+					errors.CheckError(fmt.Errorf("Source index should be specified and greater than or equal to 0 for applications with multiple sources"))
+				}
+				if len(app.Spec.GetSources()) < source_index {
+					errors.CheckError(fmt.Errorf("Source index should be less than the number of sources in the application"))
+				}
 			}
 			source := app.Spec.GetSourcePtr(&source_index)
 
@@ -910,7 +919,7 @@ func NewApplicationUnsetCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
 	command.Flags().StringArrayVar(&opts.pluginEnvs, "plugin-env", []string{}, "Unset plugin env variables (e.g --plugin-env name)")
 	command.Flags().BoolVar(&opts.passCredentials, "pass-credentials", false, "Unset passCredentials")
 	command.Flags().BoolVar(&opts.ref, "ref", false, "Unset ref on the source")
-	command.Flags().IntVar(&source_index, "source-index", 0, "Index of the source from the list of sources of the app. Default index is 0.")
+	command.Flags().IntVar(&source_index, "source-index", -1, "Index of the source from the list of sources of the app. Default index is 0.")
 	return command
 }
 
@@ -2788,9 +2797,6 @@ func NewApplicationEditCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
-			if source_index < 0 {
-				errors.CheckError(fmt.Errorf("Source index should be greater than 0"))
-			}
 
 			appName, appNs := argo.ParseFromQualifiedName(args[0], appNamespace)
 			conn, appIf := headless.NewClientOrDie(clientOpts, c).NewApplicationClientOrDie()
@@ -2800,6 +2806,15 @@ func NewApplicationEditCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				AppNamespace: &appNs,
 			})
 			errors.CheckError(err)
+
+			if app.Spec.HasMultipleSources() {
+				if source_index < 0 {
+					errors.CheckError(fmt.Errorf("Source index should be specified and greater than or equal to 0 for applications with multiple sources"))
+				}
+				if len(app.Spec.GetSources()) < source_index {
+					errors.CheckError(fmt.Errorf("Source index should be less than the number of sources in the application"))
+				}
+			}
 
 			appData, err := json.Marshal(app.Spec)
 			errors.CheckError(err)
@@ -2833,7 +2848,7 @@ func NewApplicationEditCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 		},
 	}
 	command.Flags().StringVarP(&appNamespace, "app-namespace", "N", "", "Only edit application in namespace")
-	command.Flags().IntVar(&source_index, "source-index", 0, "Index of the source from the list of sources of the app. Default index is 0.")
+	command.Flags().IntVar(&source_index, "source-index", -1, "Index of the source from the list of sources of the app. Default index is 0.")
 	return command
 }
 
