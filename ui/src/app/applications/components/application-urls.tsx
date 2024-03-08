@@ -1,6 +1,6 @@
-import {DropDownMenu} from 'argo-ui';
+import { DropDownMenu } from 'argo-ui';
 import * as React from 'react';
-import {isValidURL} from '../../shared/utils';
+import { isValidURL } from '../../shared/utils';
 
 export class InvalidExternalLinkError extends Error {
     constructor(message: string) {
@@ -29,7 +29,7 @@ export class ExternalLink {
     }
 }
 
-export const ApplicationURLs = ({urls}: {urls: string[]}) => {
+export const ApplicationURLs = ({ urls }: { urls: string[] }) => {
     const externalLinks: ExternalLink[] = [];
     for (const url of urls || []) {
         try {
@@ -61,7 +61,7 @@ export const ApplicationURLs = ({urls}: {urls: string[]}) => {
                         e.stopPropagation();
                         window.open(externalLinks[0].ref);
                     }}>
-                    <i className='fa fa-external-link-alt' />{' '}
+                    <a href='#'> <i className='fa fa-external-link-alt' />{' '} </a>
                     {externalLinks.length > 1 && (
                         <DropDownMenu
                             anchor={() => <i className='fa fa-caret-down' />}
