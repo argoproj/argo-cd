@@ -27,6 +27,8 @@ A list of things that are good to know before getting started with Application d
 * Syncing an application that is dependent on other apps will not trigger a sync of the dependencies. However, manual sync of a dependent application whose dependencies are not satisfied will block unless force sync is used.
 * Dependencies currently can only be configured in a declarative manner; the UI and CLI do not yet have first class support for configuring dependencies.
 
+It should be noted that at this time, dependencies will have no effect on Application deletion. That is, Argo CD will allow you to delete an Application which other Applications still depend on. This is likely to change in a future iteration of this feature.
+
 !!!warning
     Using force sync to override application dependencies should only be used as a last resort, as it may break your applications in multiple ways.
 
