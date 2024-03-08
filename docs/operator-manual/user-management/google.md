@@ -211,7 +211,7 @@ Go through the same steps as in [OpenID Connect using Dex](#openid-connect-using
                 defaultMode: 420
                 secretName: argocd-google-groups-json
 
-3. Edit `argocd-cm` and add the following `dex.config` to the data section, replacing `clientID` and `clientSecret` with the values you saved before, `adminEmail` with the address for the admin user you're going to impersonate, and editing `redirectURI` with your Argo CD domain:
+3. Edit `argocd-cm` and add the following `dex.config` to the data section, replacing `clientID` and `clientSecret` with the values you saved before, `adminEmail` with the address for the admin user you're going to impersonate, and editing `redirectURI` with your Argo CD domain (note that the `type` is now `google` instead of `oidc`):
 
         dex.config: |
           connectors:
