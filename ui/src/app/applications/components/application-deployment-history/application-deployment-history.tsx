@@ -26,6 +26,7 @@ export const ApplicationDeploymentHistory = ({
         const runEnd = nextDeployedAt ? moment(nextDeployedAt) : moment();
         return {...info, nextDeployedAt, durationMs: runEnd.diff(moment(info.deployedAt)) / 1000};
     });
+    const [showParameterDetails, setShowParameterDetails] = React.useState(false);
 
     return (
         <div className='application-deployment-history'>
@@ -85,21 +86,34 @@ export const ApplicationDeploymentHistory = ({
                                     applicationNamespace={app.metadata.namespace}
                                     source={{...recentDeployments[index].source, targetRevision: recentDeployments[index].revision}}
                                 />
-                                <DataLoader
-                                    input={{...recentDeployments[index].source, targetRevision: recentDeployments[index].revision, appName: app.metadata.name}}
-                                    load={src => services.repos.appDetails(src, src.appName, app.spec.project)}>
-                                    {(details: models.RepoAppDetails) => (
-                                        <div>
-                                            <ApplicationParameters
-                                                application={{
-                                                    ...app,
-                                                    spec: {...app.spec, source: recentDeployments[index].source}
-                                                }}
-                                                details={details}
-                                            />
-                                        </div>
-                                    )}
-                                </DataLoader>
+
+                                { showParameterDetails ?
+                                    <button className='application-deployment-history__show-parameter-details' onClick={() => setShowParameterDetails(false)}>
+                                        Hide parameters details
+                                    </button>
+                                    :
+                                    <button className='application-deployment-history__show-parameter-details' onClick={() => setShowParameterDetails(true)}>
+                                        Show parameters details
+                                    </button>
+                                }
+
+                                { showParameterDetails &&
+                                    <DataLoader
+                                        input={{...recentDeployments[index].source, targetRevision: recentDeployments[index].revision, appName: app.metadata.name}}
+                                        load={src => services.repos.appDetails(src, src.appName, app.spec.project)}>
+                                        {(details: models.RepoAppDetails) => (
+                                            <div>
+                                                <ApplicationParameters
+                                                    application={{
+                                                        ...app,
+                                                        spec: {...app.spec, source: recentDeployments[index].source}
+                                                    }}
+                                                    details={details}
+                                                />
+                                            </div>
+                                        )}
+                                    </DataLoader>
+                                }
                             </React.Fragment>
                         ) : null}
                     </div>
