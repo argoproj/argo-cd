@@ -137,6 +137,8 @@ func (s *Server) Get(ctx context.Context, q *settingspkg.SettingsQuery) (*settin
 			CLIClientID:              oidcConfig.CLIClientID,
 			Scopes:                   oidcConfig.RequestedScopes,
 			EnablePKCEAuthentication: oidcConfig.EnablePKCEAuthentication,
+			DeviceURL:                oidcConfig.DeviceURL,
+			TokenURL:                 oidcConfig.TokenURL,
 		}
 		if len(argoCDSettings.OIDCConfig().RequestedIDTokenClaims) > 0 {
 			set.OIDCConfig.IDTokenClaims = argoCDSettings.OIDCConfig().RequestedIDTokenClaims

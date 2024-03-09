@@ -35,6 +35,7 @@ argocd login cd.argoproj.io --core
       --sso               Perform SSO login
       --sso-port int      Port to run local OAuth2 login application (default 8085)
       --username string   The username of an account to authenticate
+      --browserless       Perform browserless SSO login
 ```
 
 ### Options inherited from parent commands

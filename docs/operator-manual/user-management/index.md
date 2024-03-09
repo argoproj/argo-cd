@@ -444,6 +444,14 @@ Add a `rootCA` to your `oidc.config` which contains the PEM encoded root certifi
       -----END CERTIFICATE-----
 ```
 
+### Configuring browserless CLI SSO login using the OAuth 2.0 Device Code Authorization Grant
+In case the environment doesn't allow opening a browser to finish the OIDC flow, a URL is printed on the screen that can be opened from elsewhere to finish the authorization process. This can be achieved by specifying it as follows:
+```yaml
+  oidc.config: |
+    ...
+    tokenURL: https://example-OIDC-provider.example.com/token
+    deviceURL: https://example-OIDC-provider.example.com/device
+```
 
 ## SSO Further Reading
 
