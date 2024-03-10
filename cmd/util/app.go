@@ -565,15 +565,6 @@ func constructAppsFromFileUrl(fileURL, appName string, labels, annotations, args
 			return nil, fmt.Errorf("app.Name is empty. --name argument can be used to provide app.Name")
 		}
 
-		if source_index != nil && app.Spec.HasMultipleSources() {
-			if *source_index < 0 {
-				errors.CheckError(fmt.Errorf("Source index should be specified and greater than or equal to 0 for applications with multiple sources"))
-			}
-			if len(app.Spec.GetSources()) < *source_index {
-				errors.CheckError(fmt.Errorf("Source index should be less than the number of sources in the application"))
-			}
-		}
-
 		SetAppSpecOptions(flags, &app.Spec, &appOpts, source_index)
 		SetParameterOverrides(app, appOpts.Parameters)
 		mergeLabels(app, labels)

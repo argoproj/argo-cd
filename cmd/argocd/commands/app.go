@@ -208,7 +208,7 @@ func NewApplicationCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 		log.Fatal(err)
 	}
 	command.Flags().StringVarP(&appNamespace, "app-namespace", "N", "", "Namespace where the application will be created in")
-	command.Flags().IntVar(&source_index, "source-index", -1, "Index of the source from the list of sources of the app. Default index is 0.")
+	command.Flags().IntVar(&source_index, "source-index", 0, "Index of the source from the list of sources of the app. Default index is 0.")
 	cmdutil.AddAppFlags(command, &appOpts)
 	return command
 }
