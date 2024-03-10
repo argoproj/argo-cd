@@ -1543,7 +1543,7 @@ func formatConditionsSummary(app argoappv1.Application) string {
 			items = append(items, cndType)
 		}
 	}
-	summary := "Manual"
+	summary := "<none>"
 	if len(items) > 0 {
 		summary = strings.Join(items, ",")
 	}
