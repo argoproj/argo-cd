@@ -41,6 +41,7 @@ data:
     port 6379
     rename-command FLUSHDB ""
     rename-command FLUSHALL ""
+    bind 0.0.0.0
     maxmemory 0
     maxmemory-policy volatile-lru
     min-replicas-max-lag 5
@@ -53,6 +54,7 @@ data:
   sentinel.conf: |
     dir "/data"
     port 26379
+    bind 0.0.0.0
         sentinel down-after-milliseconds argocd 10000
         sentinel failover-timeout argocd 180000
         maxclients 10000
@@ -618,7 +620,7 @@ data:
       timeout check 2s
 
     listen health_check_http_url
-      bind [::]:8888  v4v6
+      bind :8888  
       mode http
       monitor-uri /healthz
       option      dontlognull
@@ -665,7 +667,7 @@ data:
     # decide redis backend to use
     #master
     frontend ft_redis_master
-      bind [::]:6379 v4v6
+      bind :6379 
       use_backend bk_redis_master
     # Check all redis servers to see if they think they are master
     backend bk_redis_master
@@ -684,6 +686,13 @@ data:
       server R1 argocd-redis-ha-announce-1:6379 check inter 3s fall 1 rise 1
       use-server R2 if { srv_is_up(R2) } { nbsrv(check_if_redis_is_master_2) ge 2 }
       server R2 argocd-redis-ha-announce-2:6379 check inter 3s fall 1 rise 1
+    frontend stats
+      mode http
+      bind :9101 
+      http-request use-service prometheus-exporter if { path /metrics }
+      stats enable
+      stats uri /stats
+      stats refresh 10s
   haproxy_init.sh: |
     HAPROXY_CONF=/data/haproxy.cfg
     cp /readonly/haproxy.cfg "$HAPROXY_CONF"
@@ -1013,6 +1022,10 @@ spec:
     port: 6379
     protocol: TCP
     targetPort: redis
+  - name: http-exporter-port
+    port: 9101
+    protocol: TCP
+    targetPort: metrics-port
   selector:
     release: argocd
     app: redis-ha-haproxy
@@ -1045,7 +1058,10 @@ spec:
         release: argocd
         revision: "1"
       annotations:
-        checksum/config: 1f7a9ffcacb3871ceb9b0741c0714e3f7fa656d426a398c1f727fffb01073f35
+        prometheus.io/port: "9101"
+        prometheus.io/scrape: "true"
+        prometheus.io/path: "/metrics"
+        checksum/config: 492a6adabb741e0cee39be9aa5155c41a4456629f862d0006a2d892dbecfbcae
     spec:
       # Needed when using unmodified rbac-setup.yml
       
@@ -1069,7 +1085,7 @@ spec:
               topologyKey: kubernetes.io/hostname
       initContainers:
       - name: config-init
-        image: haproxy:2.6.2-alpine
+        image: haproxy:2.6.14-alpine
         imagePullPolicy: IfNotPresent
         resources:
           {}
@@ -1078,7 +1094,13 @@ spec:
         args:
         - /readonly/haproxy_init.sh
         securityContext: 
-          null
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          runAsNonRoot: true
+          seccompProfile:
+            type: RuntimeDefault
         volumeMounts:
         - name: config-volume
           mountPath: /readonly
@@ -1087,10 +1109,16 @@ spec:
           mountPath: /data
       containers:
       - name: haproxy
-        image: haproxy:2.6.2-alpine
+        image: haproxy:2.6.14-alpine
         imagePullPolicy: IfNotPresent
         securityContext: 
-          null
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          runAsNonRoot: true
+          seccompProfile:
+            type: RuntimeDefault
         livenessProbe:
           httpGet:
             path: /healthz
@@ -1106,6 +1134,8 @@ spec:
         ports:
         - name: redis
           containerPort: 6379
+        - name: metrics-port
+          containerPort: 9101
         resources:
           {}
         volumeMounts:
@@ -1153,7 +1183,7 @@ spec:
   template:
     metadata:
       annotations:
-        checksum/init-config: 84ccf6a9b8a7fa3ae5b62a8f17d6c65a5197e9605da9b2761179bf942828eefe
+        checksum/init-config: 69130412bda04eacad3530cb7bcf26cf121401e725e15d0959dd71a7380afe75
       labels:
         release: argocd
         app: redis-ha
@@ -1177,7 +1207,7 @@ spec:
       automountServiceAccountToken: false
       initContainers:
       - name: config-init
-        image: redis:7.0.5-alpine
+        image: redis:7.0.14-alpine
         imagePullPolicy: IfNotPresent
         resources:
           {}
@@ -1186,7 +1216,14 @@ spec:
         args:
         - /readonly-config/init.sh
         securityContext: 
-          null        
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          runAsNonRoot: true
+          runAsUser: 1000
+          seccompProfile:
+            type: RuntimeDefault        
         env:
         - name: SENTINEL_ID_0
           value: 3c0d9c0320bb34888c2df5757c718ce6ca992ce6
@@ -1204,14 +1241,21 @@ spec:
 
       containers:
       - name: redis
-        image: redis:7.0.5-alpine
+        image: redis:7.0.14-alpine
         imagePullPolicy: IfNotPresent
         command:
         - redis-server
         args:
         - /data/conf/redis.conf
         securityContext: 
-          null
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          runAsNonRoot: true
+          runAsUser: 1000
+          seccompProfile:
+            type: RuntimeDefault
         livenessProbe:
           initialDelaySeconds: 30
           periodSeconds: 15
@@ -1254,14 +1298,21 @@ spec:
               - /bin/sh
               - /readonly-config/trigger-failover-if-master.sh
       - name: sentinel
-        image: redis:7.0.5-alpine
+        image: redis:7.0.14-alpine
         imagePullPolicy: IfNotPresent
         command:
           - redis-sentinel
         args:
           - /data/conf/sentinel.conf
         securityContext: 
-          null
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          runAsNonRoot: true
+          runAsUser: 1000
+          seccompProfile:
+            type: RuntimeDefault
         livenessProbe:
           initialDelaySeconds: 30
           periodSeconds: 15
@@ -1298,14 +1349,21 @@ spec:
           {}
 
       - name: split-brain-fix
-        image: redis:7.0.5-alpine
+        image: redis:7.0.14-alpine
         imagePullPolicy: IfNotPresent
         command:
           - sh
         args:
           - /readonly-config/fix-split-brain.sh
         securityContext: 
-          null        
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          runAsNonRoot: true
+          runAsUser: 1000
+          seccompProfile:
+            type: RuntimeDefault        
         env:
         - name: SENTINEL_ID_0
           value: 3c0d9c0320bb34888c2df5757c718ce6ca992ce6

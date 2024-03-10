@@ -3,11 +3,11 @@ import * as classNames from 'classnames';
 import * as React from 'react';
 import {Key, KeybindingContext, NumKey, NumKeyToNumber, NumPadKey, useNav} from 'argo-ui/v2';
 import {Cluster} from '../../../shared/components';
-import {Consumer, Context} from '../../../shared/context';
+import {Consumer, Context, AuthSettingsCtx} from '../../../shared/context';
 import * as models from '../../../shared/models';
 import {ApplicationURLs} from '../application-urls';
 import * as AppUtils from '../utils';
-import {OperationState} from '../utils';
+import {getAppDefaultSource, OperationState} from '../utils';
 import {services} from '../../../shared/services';
 
 import './applications-tiles.scss';
@@ -53,6 +53,7 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
     const appRef = {ref: React.useRef(null), set: false};
     const appContainerRef = React.useRef(null);
     const appsPerRow = useItemsPerContainer(appRef.ref, appContainerRef);
+    const useAuthSettingsCtx = React.useContext(AuthSettingsCtx);
 
     const {useKeybinding} = React.useContext(KeybindingContext);
 
@@ -97,7 +98,6 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
             return navApp(NumKeyToNumber(n));
         }
     });
-
     return (
         <Consumer>
             {ctx => (
@@ -105,42 +105,37 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
                     {pref => {
                         const favList = pref.appList.favoritesAppList || [];
                         return (
-                            <div
-                                className='applications-tiles argo-table-list argo-table-list--clickable row small-up-1 medium-up-2 large-up-3 xxxlarge-up-4'
-                                ref={appContainerRef}>
-                                {applications.map((app, i) => (
-                                    <div key={AppUtils.appInstanceName(app)} className='column column-block'>
+                            <div className='applications-tiles argo-table-list argo-table-list--clickable' ref={appContainerRef}>
+                                {applications.map((app, i) => {
+                                    const source = getAppDefaultSource(app);
+                                    return (
                                         <div
+                                            key={AppUtils.appInstanceName(app)}
                                             ref={appRef.set ? null : appRef.ref}
                                             className={`argo-table-list__row applications-list__entry applications-list__entry--health-${app.status.health.status} ${
                                                 selectedApp === i ? 'applications-tiles__selected' : ''
                                             }`}>
                                             <div
-                                                className='row'
+                                                className='row applications-tiles__wrapper'
                                                 onClick={e =>
                                                     ctx.navigation.goto(`/applications/${app.metadata.namespace}/${app.metadata.name}`, {view: pref.appDetails.view}, {event: e})
                                                 }>
-                                                <div className={`columns small-12 applications-list__info qe-applications-list-${AppUtils.appInstanceName(app)}`}>
-                                                    <div className='row'>
-                                                        <div
-                                                            className={
-                                                                AppUtils.getExternalUrls(app.metadata.annotations, app.status.summary.externalURLs)?.length > 0
-                                                                    ? 'columns small-10'
-                                                                    : 'columns small-11'
-                                                            }>
-                                                            <i className={'icon argo-icon-' + (app.spec.source.chart != null ? 'helm' : 'git')} />
+                                                <div
+                                                    className={`columns small-12 applications-list__info qe-applications-list-${AppUtils.appInstanceName(
+                                                        app
+                                                    )} applications-tiles__item`}>
+                                                    <div className='row '>
+                                                        <div className={app.status.summary.externalURLs?.length > 0 ? 'columns small-10' : 'columns small-11'}>
+                                                            <i className={'icon argo-icon-' + (source.chart != null ? 'helm' : 'git')} />
                                                             <Tooltip content={AppUtils.appInstanceName(app)}>
-                                                                <span className='applications-list__title'>{AppUtils.appQualifiedName(app)}</span>
+                                                                <span className='applications-list__title'>
+                                                                    {AppUtils.appQualifiedName(app, useAuthSettingsCtx?.appsInAnyNamespaceEnabled)}
+                                                                </span>
                                                             </Tooltip>
                                                         </div>
-                                                        <div
-                                                            className={
-                                                                AppUtils.getExternalUrls(app.metadata.annotations, app.status.summary.externalURLs)?.length > 0
-                                                                    ? 'columns small-2'
-                                                                    : 'columns small-1'
-                                                            }>
+                                                        <div className={app.status.summary.externalURLs?.length > 0 ? 'columns small-2' : 'columns small-1'}>
                                                             <div className='applications-list__external-link'>
-                                                                <ApplicationURLs urls={AppUtils.getExternalUrls(app.metadata.annotations, app.status.summary.externalURLs)} />
+                                                                <ApplicationURLs urls={app.status.summary.externalURLs} />
                                                                 <Tooltip content={favList?.includes(app.metadata.name) ? 'Remove Favorite' : 'Add Favorite'}>
                                                                     <button
                                                                         className='large-text-height'
@@ -213,8 +208,8 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
                                                             Repository:
                                                         </div>
                                                         <div className='columns small-9'>
-                                                            <Tooltip content={app.spec.source.repoURL} zIndex={4}>
-                                                                <span>{app.spec.source.repoURL}</span>
+                                                            <Tooltip content={source.repoURL} zIndex={4}>
+                                                                <span>{source.repoURL}</span>
                                                             </Tooltip>
                                                         </div>
                                                     </div>
@@ -222,22 +217,22 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
                                                         <div className='columns small-3' title='Target Revision:'>
                                                             Target Revision:
                                                         </div>
-                                                        <div className='columns small-9'>{app.spec.source.targetRevision}</div>
+                                                        <div className='columns small-9'>{source.targetRevision || 'HEAD'}</div>
                                                     </div>
-                                                    {app.spec.source.path && (
+                                                    {source.path && (
                                                         <div className='row'>
                                                             <div className='columns small-3' title='Path:'>
                                                                 Path:
                                                             </div>
-                                                            <div className='columns small-9'>{app.spec.source.path}</div>
+                                                            <div className='columns small-9'>{source.path}</div>
                                                         </div>
                                                     )}
-                                                    {app.spec.source.chart && (
+                                                    {source.chart && (
                                                         <div className='row'>
                                                             <div className='columns small-3' title='Chart:'>
                                                                 Chart:
                                                             </div>
-                                                            <div className='columns small-9'>{app.spec.source.chart}</div>
+                                                            <div className='columns small-9'>{source.chart}</div>
                                                         </div>
                                                     )}
                                                     <div className='row'>
@@ -255,6 +250,22 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
                                                         <div className='columns small-9'>{app.spec.destination.namespace}</div>
                                                     </div>
                                                     <div className='row'>
+                                                        <div className='columns small-3' title='Age:'>
+                                                            Created At:
+                                                        </div>
+                                                        <div className='columns small-9'>{AppUtils.formatCreationTimestamp(app.metadata.creationTimestamp)}</div>
+                                                    </div>
+                                                    {app.status.operationState && (
+                                                        <div className='row'>
+                                                            <div className='columns small-3' title='Last sync:'>
+                                                                Last Sync:
+                                                            </div>
+                                                            <div className='columns small-9'>
+                                                                {AppUtils.formatCreationTimestamp(app.status.operationState.finishedAt || app.status.operationState.startedAt)}
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                    <div className='row applications-tiles__actions'>
                                                         <div className='columns applications-list__entry--actions'>
                                                             <a
                                                                 className='argo-button argo-button--base'
@@ -292,8 +303,8 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
                                                 </div>
                                             </div>
                                         </div>
-                                    </div>
-                                ))}
+                                    );
+                                })}
                             </div>
                         );
                     }}

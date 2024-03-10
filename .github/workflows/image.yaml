@@ -9,90 +9,109 @@ on:
       - master
     types: [ labeled, unlabeled, opened, synchronize, reopened ]
 
-env:
-  GOLANG_VERSION: '1.18'
-
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
-permissions:
-  contents: read
+permissions: {}
 
 jobs:
-  publish:
+  set-vars:
     permissions:
-      contents: write  # for git to push upgrade commit if not already deployed
-      packages: write  # for pushing packages to GHCR, which is used by cd.apps.argoproj.io to avoid polluting Quay with tags
+      contents: read
     if: github.repository == 'argoproj/argo-cd'
     runs-on: ubuntu-22.04
-    env:
-      GOPATH: /home/runner/work/argo-cd/argo-cd
+    outputs:
+      image-tag: ${{ steps.image.outputs.tag}}
+      platforms: ${{ steps.platforms.outputs.platforms }}
     steps:
-      - uses: actions/setup-go@v3
-        with:
-          go-version: ${{ env.GOLANG_VERSION }}
-      - uses: actions/checkout@master
-        with:
-          path: src/github.com/argoproj/argo-cd
+      - uses: actions/checkout@3df4ab11eba7bda6032a0b82a6bb43b11571feac # v4.0.0
 
-      # get image tag
-      - run: echo ::set-output name=tag::$(cat ./VERSION)-${GITHUB_SHA::8}
-        working-directory: ./src/github.com/argoproj/argo-cd
+      - name: Set image tag for ghcr
+        run: echo "tag=$(cat ./VERSION)-${GITHUB_SHA::8}" >> $GITHUB_OUTPUT
         id: image
 
-      # login
-      - run: |
-          docker login ghcr.io --username $USERNAME --password-stdin <<< "$PASSWORD"
-          docker login quay.io --username "$DOCKER_USERNAME" --password-stdin <<< "$DOCKER_TOKEN"
-        if: github.event_name == 'push'
-        env:
-          USERNAME: ${{ github.actor }}
-          PASSWORD: ${{ secrets.GITHUB_TOKEN }}
-          DOCKER_USERNAME: ${{ secrets.RELEASE_QUAY_USERNAME }}
-          DOCKER_TOKEN: ${{ secrets.RELEASE_QUAY_TOKEN }}
-
-      # build
-      - uses: docker/setup-qemu-action@v2
-      - uses: docker/setup-buildx-action@v2
-      - run: |
+      - name: Determine image platforms to use
+        id: platforms
+        run: |
           IMAGE_PLATFORMS=linux/amd64
-          if [[ "${{ github.event_name }}" == "push" || "${{ contains(github.event.pull_request.labels.*.name, 'test-arm-image') }}" == "true" ]]
+          if [[ "${{ github.event_name }}" == "push" || "${{ contains(github.event.pull_request.labels.*.name, 'test-multi-image') }}" == "true" ]]
           then
             IMAGE_PLATFORMS=linux/amd64,linux/arm64,linux/s390x,linux/ppc64le
           fi
           echo "Building image for platforms: $IMAGE_PLATFORMS"
-          docker buildx build --platform $IMAGE_PLATFORMS --push="${{ github.event_name == 'push' }}" \
-            -t ghcr.io/argoproj/argocd:${{ steps.image.outputs.tag }} \
-            -t quay.io/argoproj/argocd:latest .
-        working-directory: ./src/github.com/argoproj/argo-cd
+          echo "platforms=$IMAGE_PLATFORMS" >> $GITHUB_OUTPUT
 
-      # sign container images
-      - name: Install cosign
-        uses: sigstore/cosign-installer@main
-        with:
-          cosign-release: 'v1.13.0'
+  build-only:
+    needs: [set-vars]
+    permissions:
+      contents: read
+      packages: write  # for pushing packages to GHCR, which is used by cd.apps.argoproj.io to avoid polluting Quay with tags
+      id-token: write # for creating OIDC tokens for signing.
+    if: ${{ github.repository == 'argoproj/argo-cd' && github.event_name != 'push' }}
+    uses: ./.github/workflows/image-reuse.yaml
+    with:
+      # Note: cannot use env variables to set go-version (https://docs.github.com/en/actions/using-workflows/reusing-workflows#limitations)
+      go-version: 1.21
+      platforms: ${{ needs.set-vars.outputs.platforms }}
+      push: false
 
-      - name: Sign Argo CD latest image
-        run: |
-          cosign sign --key env://COSIGN_PRIVATE_KEY quay.io/argoproj/argocd:latest
-          # Displays the public key to share.
-          cosign public-key --key env://COSIGN_PRIVATE_KEY
-        env:
-          COSIGN_PRIVATE_KEY: ${{secrets.COSIGN_PRIVATE_KEY}}
-          COSIGN_PASSWORD: ${{secrets.COSIGN_PASSWORD}}
-        if: ${{ github.event_name == 'push' }}
+  build-and-publish:
+    needs: [set-vars]
+    permissions:
+      contents: read
+      packages: write  # for pushing packages to GHCR, which is used by cd.apps.argoproj.io to avoid polluting Quay with tags
+      id-token: write # for creating OIDC tokens for signing.
+    if: ${{ github.repository == 'argoproj/argo-cd' && github.event_name == 'push' }}
+    uses: ./.github/workflows/image-reuse.yaml
+    with:
+      quay_image_name: quay.io/argoproj/argocd:latest
+      ghcr_image_name: ghcr.io/argoproj/argo-cd/argocd:${{ needs.set-vars.outputs.image-tag }}
+      # Note: cannot use env variables to set go-version (https://docs.github.com/en/actions/using-workflows/reusing-workflows#limitations)
+      go-version: 1.21
+      platforms: ${{ needs.set-vars.outputs.platforms }}
+      push: true
+    secrets:
+      quay_username: ${{ secrets.RELEASE_QUAY_USERNAME }}
+      quay_password: ${{ secrets.RELEASE_QUAY_TOKEN }}
+      ghcr_username: ${{ github.actor }}
+      ghcr_password: ${{ secrets.GITHUB_TOKEN }}
 
-      # deploy
+  build-and-publish-provenance: # Push attestations to GHCR, latest image is polluting quay.io
+    needs:
+      - build-and-publish
+    permissions:
+      actions: read # for detecting the Github Actions environment.
+      id-token: write # for creating OIDC tokens for signing.
+      packages: write # for uploading attestations. (https://github.com/slsa-framework/slsa-github-generator/blob/main/internal/builders/container/README.md#known-issues)
+    if: ${{ github.repository == 'argoproj/argo-cd' && github.event_name == 'push' }}
+    # Must be refernced by a tag. https://github.com/slsa-framework/slsa-github-generator/blob/main/internal/builders/container/README.md#referencing-the-slsa-generator
+    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_container_slsa3.yml@v1.9.0
+    with:
+      image: ghcr.io/argoproj/argo-cd/argocd
+      digest: ${{ needs.build-and-publish.outputs.image-digest }}
+      registry-username: ${{ github.actor }}
+    secrets:
+      registry-password: ${{ secrets.GITHUB_TOKEN }}
+
+  Deploy:
+    needs:
+      - build-and-publish
+      - set-vars
+    permissions:
+      contents: write  # for git to push upgrade commit if not already deployed
+      packages: write  # for pushing packages to GHCR, which is used by cd.apps.argoproj.io to avoid polluting Quay with tags
+    if: ${{ github.repository == 'argoproj/argo-cd' && github.event_name == 'push' }}
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@3df4ab11eba7bda6032a0b82a6bb43b11571feac # v4.0.0
       - run: git clone "https://$TOKEN@github.com/argoproj/argoproj-deployments"
-        if: github.event_name == 'push'
         env:
           TOKEN: ${{ secrets.TOKEN }}
       - run: |
-          docker run -u $(id -u):$(id -g) -v $(pwd):/src -w /src --rm -t ghcr.io/argoproj/argocd:${{ steps.image.outputs.tag }} kustomize edit set image quay.io/argoproj/argocd=ghcr.io/argoproj/argocd:${{ steps.image.outputs.tag }}
+          docker run -u $(id -u):$(id -g) -v $(pwd):/src -w /src --rm -t ghcr.io/argoproj/argo-cd/argocd:${{ needs.set-vars.outputs.image-tag }} kustomize edit set image quay.io/argoproj/argocd=ghcr.io/argoproj/argo-cd/argocd:${{ needs.set-vars.outputs.image-tag }}
           git config --global user.email 'ci@argoproj.com'
           git config --global user.name 'CI'
-          git diff --exit-code && echo 'Already deployed' || (git commit -am 'Upgrade argocd to ${{ steps.image.outputs.tag }}' && git push)
-        if: github.event_name == 'push'
+          git diff --exit-code && echo 'Already deployed' || (git commit -am 'Upgrade argocd to ${{ needs.set-vars.outputs.image-tag }}' && git push)
         working-directory: argoproj-deployments/argocd
-      # TODO: clean up old images once github supports it: https://github.community/t5/How-to-use-Git-and-GitHub/Deleting-images-from-GitHub-Package-Registry/m-p/41202/thread-id/9811
+

@@ -5,6 +5,7 @@ import (
 	"encoding/csv"
 	"errors"
 	"fmt"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -17,7 +18,7 @@ import (
 	"github.com/casbin/casbin/v2"
 	"github.com/casbin/casbin/v2/model"
 	"github.com/casbin/casbin/v2/util"
-	jwt "github.com/golang-jwt/jwt/v4"
+	"github.com/golang-jwt/jwt/v4"
 	gocache "github.com/patrickmn/go-cache"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
@@ -362,7 +363,7 @@ func (e *Enforcer) RunPolicyLoader(ctx context.Context, onUpdated func(cm *apiv1
 
 func (e *Enforcer) runInformer(ctx context.Context, onUpdated func(cm *apiv1.ConfigMap) error) {
 	cmInformer := e.newInformer()
-	cmInformer.AddEventHandler(
+	_, err := cmInformer.AddEventHandler(
 		cache.ResourceEventHandlerFuncs{
 			AddFunc: func(obj interface{}) {
 				if cm, ok := obj.(*apiv1.ConfigMap); ok {
@@ -389,19 +390,51 @@ func (e *Enforcer) runInformer(ctx context.Context, onUpdated func(cm *apiv1.Con
 			},
 		},
 	)
+	if err != nil {
+		log.Error(err)
+	}
 	log.Info("Starting rbac config informer")
 	cmInformer.Run(ctx.Done())
 	log.Info("rbac configmap informer cancelled")
+}
+
+// PolicyCSV will generate the final policy csv to be used
+// by Argo CD RBAC. It will find entries in the given data
+// that matches the policy key name convention:
+//
+//	policy[.overlay].csv
+func PolicyCSV(data map[string]string) string {
+	var strBuilder strings.Builder
+	// add the main policy first
+	if p, ok := data[ConfigMapPolicyCSVKey]; ok {
+		strBuilder.WriteString(p)
+	}
+
+	keys := make([]string, 0, len(data))
+	for k := range data {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+
+	// append additional policies at the end of the csv
+	for _, key := range keys {
+		value := data[key]
+		if strings.HasPrefix(key, "policy.") &&
+			strings.HasSuffix(key, ".csv") &&
+			key != ConfigMapPolicyCSVKey {
+
+			strBuilder.WriteString("\n")
+			strBuilder.WriteString(value)
+		}
+	}
+	return strBuilder.String()
 }
 
 // syncUpdate updates the enforcer
 func (e *Enforcer) syncUpdate(cm *apiv1.ConfigMap, onUpdated func(cm *apiv1.ConfigMap) error) error {
 	e.SetDefaultRole(cm.Data[ConfigMapPolicyDefaultKey])
 	e.SetMatchMode(cm.Data[ConfigMapMatchModeKey])
-	policyCSV, ok := cm.Data[ConfigMapPolicyCSVKey]
-	if !ok {
-		policyCSV = ""
-	}
+	policyCSV := PolicyCSV(cm.Data)
 	if err := onUpdated(cm); err != nil {
 		return err
 	}
@@ -468,7 +501,12 @@ func loadPolicyLine(line string, model model.Model) error {
 		return err
 	}
 
-	if len(tokens) < 2 || len(tokens[0]) < 1 {
+	tokenLen := len(tokens)
+
+	if tokenLen < 1 ||
+		tokens[0] == "" ||
+		(tokens[0] == "g" && tokenLen != 3) ||
+		(tokens[0] == "p" && tokenLen != 6) {
 		return fmt.Errorf("invalid RBAC policy: %s", line)
 	}
 

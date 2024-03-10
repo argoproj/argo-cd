@@ -7,12 +7,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net"
 	"time"
 
 	ioutil "github.com/argoproj/argo-cd/v2/util/io"
 
-	rediscache "github.com/go-redis/cache/v8"
-	"github.com/go-redis/redis/v8"
+	rediscache "github.com/go-redis/cache/v9"
+	"github.com/redis/go-redis/v9"
 )
 
 type RedisCompressionType string
@@ -95,6 +96,10 @@ func (r *redisCache) unmarshal(data []byte, obj interface{}) error {
 	return nil
 }
 
+func (r *redisCache) Rename(oldKey string, newKey string, _ time.Duration) error {
+	return r.client.Rename(context.TODO(), r.getKey(oldKey), r.getKey(newKey)).Err()
+}
+
 func (r *redisCache) Set(item *Item) error {
 	expiration := item.Expiration
 	if expiration == 0 {
@@ -155,32 +160,30 @@ type MetricsRegistry interface {
 	ObserveRedisRequestDuration(duration time.Duration)
 }
 
-var metricStartTimeKey = struct{}{}
-
 type redisHook struct {
 	registry MetricsRegistry
 }
 
-func (rh *redisHook) BeforeProcess(ctx context.Context, cmd redis.Cmder) (context.Context, error) {
-	return context.WithValue(ctx, metricStartTimeKey, time.Now()), nil
+func (rh *redisHook) DialHook(next redis.DialHook) redis.DialHook {
+	return func(ctx context.Context, network, addr string) (net.Conn, error) {
+		conn, err := next(ctx, network, addr)
+		return conn, err
+	}
 }
 
-func (rh *redisHook) AfterProcess(ctx context.Context, cmd redis.Cmder) error {
-	cmdErr := cmd.Err()
-	rh.registry.IncRedisRequest(cmdErr != nil && cmdErr != redis.Nil)
+func (rh *redisHook) ProcessHook(next redis.ProcessHook) redis.ProcessHook {
+	return func(ctx context.Context, cmd redis.Cmder) error {
+		startTime := time.Now()
 
-	startTime := ctx.Value(metricStartTimeKey).(time.Time)
-	duration := time.Since(startTime)
-	rh.registry.ObserveRedisRequestDuration(duration)
+		err := next(ctx, cmd)
+		rh.registry.IncRedisRequest(err != nil && err != redis.Nil)
+		rh.registry.ObserveRedisRequestDuration(time.Since(startTime))
 
-	return nil
+		return err
+	}
 }
 
-func (redisHook) BeforeProcessPipeline(ctx context.Context, _ []redis.Cmder) (context.Context, error) {
-	return ctx, nil
-}
-
-func (redisHook) AfterProcessPipeline(_ context.Context, _ []redis.Cmder) error {
+func (redisHook) ProcessPipelineHook(next redis.ProcessPipelineHook) redis.ProcessPipelineHook {
 	return nil
 }
 

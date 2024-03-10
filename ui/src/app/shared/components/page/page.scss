@@ -70,7 +70,7 @@
 .page {
     padding-left: 0 !important;
     &__top-bar {
-        left: $sidebar-width;
+        left: $sidebar-width !important;
     }
 }
 
@@ -85,7 +85,7 @@
 
         .page {
             &__top-bar {
-                left: $collapsed-sidebar-width;
+                left: $collapsed-sidebar-width !important;
             }
         }
 

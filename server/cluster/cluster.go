@@ -1,10 +1,9 @@
 package cluster
 
 import (
+	"context"
 	"net/url"
 	"time"
-
-	"context"
 
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	log "github.com/sirupsen/logrus"
@@ -14,6 +13,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/kubernetes"
 
+	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/cluster"
 	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	servercache "github.com/argoproj/argo-cd/v2/server/cache"
@@ -42,7 +42,7 @@ func NewServer(db db.ArgoDB, enf *rbac.Enforcer, cache *servercache.Cache, kubec
 	}
 }
 
-func createRBACObject(project string, server string) string {
+func CreateClusterRBACObject(project string, server string) string {
 	if project != "" {
 		return project + "/" + server
 	}
@@ -56,9 +56,22 @@ func (s *Server) List(ctx context.Context, q *cluster.ClusterQuery) (*appv1.Clus
 		return nil, err
 	}
 
+	filteredItems := clusterList.Items
+
+	// Filter clusters by id
+	if filteredItems, err = filterClustersById(filteredItems, q.Id); err != nil {
+		return nil, err
+	}
+
+	// Filter clusters by name
+	filteredItems = filterClustersByName(filteredItems, q.Name)
+
+	// Filter clusters by server
+	filteredItems = filterClustersByServer(filteredItems, q.Server)
+
 	items := make([]appv1.Cluster, 0)
-	for _, clust := range clusterList.Items {
-		if s.enf.Enforce(ctx.Value("claims"), rbacpolicy.ResourceClusters, rbacpolicy.ActionGet, createRBACObject(clust.Project, clust.Server)) {
+	for _, clust := range filteredItems {
+		if s.enf.Enforce(ctx.Value("claims"), rbacpolicy.ResourceClusters, rbacpolicy.ActionGet, CreateClusterRBACObject(clust.Project, clust.Server)) {
 			items = append(items, clust)
 		}
 	}
@@ -69,13 +82,67 @@ func (s *Server) List(ctx context.Context, q *cluster.ClusterQuery) (*appv1.Clus
 	if err != nil {
 		return nil, err
 	}
-	clusterList.Items = items
-	return clusterList, nil
+
+	cl := *clusterList
+	cl.Items = items
+
+	return &cl, nil
+}
+
+func filterClustersById(clusters []appv1.Cluster, id *cluster.ClusterID) ([]appv1.Cluster, error) {
+	if id == nil {
+		return clusters, nil
+	}
+
+	var items []appv1.Cluster
+
+	switch id.Type {
+	case "name":
+		items = filterClustersByName(clusters, id.Value)
+	case "name_escaped":
+		nameUnescaped, err := url.QueryUnescape(id.Value)
+		if err != nil {
+			return nil, err
+		}
+		items = filterClustersByName(clusters, nameUnescaped)
+	default:
+		items = filterClustersByServer(clusters, id.Value)
+	}
+
+	return items, nil
+}
+
+func filterClustersByName(clusters []appv1.Cluster, name string) []appv1.Cluster {
+	if name == "" {
+		return clusters
+	}
+	items := make([]appv1.Cluster, 0)
+	for i := 0; i < len(clusters); i++ {
+		if clusters[i].Name == name {
+			items = append(items, clusters[i])
+			return items
+		}
+	}
+	return items
+}
+
+func filterClustersByServer(clusters []appv1.Cluster, server string) []appv1.Cluster {
+	if server == "" {
+		return clusters
+	}
+	items := make([]appv1.Cluster, 0)
+	for i := 0; i < len(clusters); i++ {
+		if clusters[i].Server == server {
+			items = append(items, clusters[i])
+			return items
+		}
+	}
+	return items
 }
 
 // Create creates a cluster
 func (s *Server) Create(ctx context.Context, q *cluster.ClusterCreateRequest) (*appv1.Cluster, error) {
-	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceClusters, rbacpolicy.ActionCreate, createRBACObject(q.Cluster.Project, q.Cluster.Server)); err != nil {
+	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceClusters, rbacpolicy.ActionCreate, CreateClusterRBACObject(q.Cluster.Project, q.Cluster.Server)); err != nil {
 		return nil, err
 	}
 	c := q.Cluster
@@ -125,7 +192,7 @@ func (s *Server) Get(ctx context.Context, q *cluster.ClusterQuery) (*appv1.Clust
 		return nil, err
 	}
 
-	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceClusters, rbacpolicy.ActionGet, createRBACObject(c.Project, q.Server)); err != nil {
+	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceClusters, rbacpolicy.ActionGet, CreateClusterRBACObject(c.Project, q.Server)); err != nil {
 		return nil, err
 	}
 
@@ -135,7 +202,7 @@ func (s *Server) Get(ctx context.Context, q *cluster.ClusterQuery) (*appv1.Clust
 func (s *Server) getClusterWith403IfNotExist(ctx context.Context, q *cluster.ClusterQuery) (*appv1.Cluster, error) {
 	repo, err := s.getCluster(ctx, q)
 	if err != nil || repo == nil {
-		return nil, status.Error(codes.PermissionDenied, "permission denied")
+		return nil, common.PermissionDeniedAPIError
 	}
 	return repo, nil
 }
@@ -221,14 +288,14 @@ func (s *Server) Update(ctx context.Context, q *cluster.ClusterUpdateRequest) (*
 	}
 
 	// verify that user can do update inside project where cluster is located
-	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceClusters, rbacpolicy.ActionUpdate, createRBACObject(c.Project, q.Cluster.Server)); err != nil {
-		return nil, err
+	if !s.enf.Enforce(ctx.Value("claims"), rbacpolicy.ResourceClusters, rbacpolicy.ActionUpdate, CreateClusterRBACObject(c.Project, c.Server)) {
+		return nil, common.PermissionDeniedAPIError
 	}
 
 	if len(q.UpdatedFields) == 0 || sets.NewString(q.UpdatedFields...).Has("project") {
 		// verify that user can do update inside project where cluster will be located
-		if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceClusters, rbacpolicy.ActionUpdate, createRBACObject(q.Cluster.Project, q.Cluster.Server)); err != nil {
-			return nil, err
+		if !s.enf.Enforce(ctx.Value("claims"), rbacpolicy.ResourceClusters, rbacpolicy.ActionUpdate, CreateClusterRBACObject(q.Cluster.Project, c.Server)) {
+			return nil, common.PermissionDeniedAPIError
 		}
 	}
 
@@ -291,7 +358,7 @@ func (s *Server) Delete(ctx context.Context, q *cluster.ClusterQuery) (*cluster.
 }
 
 func enforceAndDelete(s *Server, ctx context.Context, server, project string) error {
-	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceClusters, rbacpolicy.ActionDelete, createRBACObject(project, server)); err != nil {
+	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceClusters, rbacpolicy.ActionDelete, CreateClusterRBACObject(project, server)); err != nil {
 		return err
 	}
 	if err := s.db.DeleteCluster(ctx, server); err != nil {
@@ -314,12 +381,12 @@ func (s *Server) RotateAuth(ctx context.Context, q *cluster.ClusterQuery) (*clus
 			return nil, status.Errorf(codes.NotFound, "failed to get cluster servers by name: %v", err)
 		}
 		for _, server := range servers {
-			if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceClusters, rbacpolicy.ActionUpdate, createRBACObject(clust.Project, server)); err != nil {
+			if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceClusters, rbacpolicy.ActionUpdate, CreateClusterRBACObject(clust.Project, server)); err != nil {
 				return nil, status.Errorf(codes.PermissionDenied, "encountered permissions issue while processing request: %v", err)
 			}
 		}
 	} else {
-		if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceClusters, rbacpolicy.ActionUpdate, createRBACObject(clust.Project, q.Server)); err != nil {
+		if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceClusters, rbacpolicy.ActionUpdate, CreateClusterRBACObject(clust.Project, q.Server)); err != nil {
 			return nil, status.Errorf(codes.PermissionDenied, "encountered permissions issue while processing request: %v", err)
 		}
 		servers = append(servers, q.Server)
@@ -404,7 +471,7 @@ func (s *Server) InvalidateCache(ctx context.Context, q *cluster.ClusterQuery) (
 	if err != nil {
 		return nil, err
 	}
-	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceClusters, rbacpolicy.ActionUpdate, createRBACObject(cls.Project, q.Server)); err != nil {
+	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceClusters, rbacpolicy.ActionUpdate, CreateClusterRBACObject(cls.Project, q.Server)); err != nil {
 		return nil, err
 	}
 	now := v1.Now()

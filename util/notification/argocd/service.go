@@ -10,7 +10,6 @@ import (
 
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
-	repoapiclient "github.com/argoproj/argo-cd/v2/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/v2/util/db"
 	"github.com/argoproj/argo-cd/v2/util/settings"
 )
@@ -19,10 +18,10 @@ import (
 
 type Service interface {
 	GetCommitMetadata(ctx context.Context, repoURL string, commitSHA string) (*shared.CommitMetadata, error)
-	GetAppDetails(ctx context.Context, appSource *v1alpha1.ApplicationSource) (*shared.AppDetail, error)
+	GetAppDetails(ctx context.Context, appSource *v1alpha1.ApplicationSource, appName string) (*shared.AppDetail, error)
 }
 
-func NewArgoCDService(clientset kubernetes.Interface, namespace string, repoClientset repoapiclient.Clientset) (*argoCDService, error) {
+func NewArgoCDService(clientset kubernetes.Interface, namespace string, repoClientset apiclient.Clientset) (*argoCDService, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	settingsMgr := settings.NewSettingsManager(ctx, clientset, namespace)
 	closer, repoClient, err := repoClientset.NewRepoServerClient()
@@ -77,7 +76,7 @@ func (svc *argoCDService) getKustomizeOptions(source *v1alpha1.ApplicationSource
 	return kustomizeSettings.GetOptions(*source)
 }
 
-func (svc *argoCDService) GetAppDetails(ctx context.Context, appSource *v1alpha1.ApplicationSource) (*shared.AppDetail, error) {
+func (svc *argoCDService) GetAppDetails(ctx context.Context, appSource *v1alpha1.ApplicationSource, appName string) (*shared.AppDetail, error) {
 	argocdDB := db.NewDB(svc.namespace, svc.settingsMgr, svc.clientset)
 	repo, err := argocdDB.GetRepository(ctx, appSource.RepoURL)
 	if err != nil {
@@ -96,6 +95,7 @@ func (svc *argoCDService) GetAppDetails(ctx context.Context, appSource *v1alpha1
 		return nil, err
 	}
 	appDetail, err := svc.repoServerClient.GetAppDetails(ctx, &apiclient.RepoServerAppDetailsQuery{
+		AppName:          appName,
 		Repo:             repo,
 		Source:           appSource,
 		Repos:            helmRepos,

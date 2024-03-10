@@ -1,3 +1,5 @@
+# `argocd-repo-server` Command Reference
+
 ## argocd-repo-server
 
 Run ArgoCD Repository Server
@@ -13,15 +15,22 @@ argocd-repo-server [flags]
 ### Options
 
 ```
+      --address string                                 Listen on given address for incoming connections (default "0.0.0.0")
       --allow-oob-symlinks                             Allow out-of-bounds symlinks in repositories (not recommended)
       --default-cache-expiration duration              Cache expiration default (default 24h0m0s)
+      --disable-helm-manifest-max-extracted-size       Disable maximum size of helm manifest archives when extracted
       --disable-tls                                    Disable TLS on the gRPC endpoint
+      --helm-manifest-max-extracted-size string        Maximum size of helm manifest archives when extracted (default "1G")
   -h, --help                                           help for argocd-repo-server
       --logformat string                               Set the logging format. One of: text|json (default "text")
       --loglevel string                                Set the logging level. One of: debug|info|warn|error (default "info")
       --max-combined-directory-manifests-size string   Max combined size of manifest files in a directory-type Application (default "10M")
+      --metrics-address string                         Listen on given address for metrics (default "0.0.0.0")
       --metrics-port int                               Start metrics server on given port (default 8084)
       --otlp-address string                            OpenTelemetry collector address to send traces to
+      --otlp-attrs strings                             List of OpenTelemetry collector extra attrs when send traces, each attribute is separated by a colon(e.g. key:value)
+      --otlp-headers stringToString                    List of OpenTelemetry collector extra headers sent with traces, headers are comma-separated key-value pairs(e.g. key1=value1,key2=value2) (default [])
+      --otlp-insecure                                  OpenTelemetry collector insecure mode (default true)
       --parallelismlimit int                           Limit on number of concurrent manifests generate requests. Any value less the 1 means no limit.
       --plugin-tar-exclude stringArray                 Globs to filter when sending tarballs to plugins.
       --port int                                       Listen on given port for incoming connections (default 8081)
@@ -29,7 +38,7 @@ argocd-repo-server [flags]
       --redis-ca-certificate string                    Path to Redis server CA certificate (e.g. /etc/certs/redis/ca.crt). If not specified, system trusted CAs will be used for server certificate validation.
       --redis-client-certificate string                Path to Redis client certificate (e.g. /etc/certs/redis/client.crt).
       --redis-client-key string                        Path to Redis client key (e.g. /etc/certs/redis/client.crt).
-      --redis-compress string                          Enable compression for data sent to Redis with the required compression algorithm. (possible values: none, gzip) (default "none")
+      --redis-compress string                          Enable compression for data sent to Redis with the required compression algorithm. (possible values: gzip, none) (default "gzip")
       --redis-insecure-skip-tls-verify                 Skip Redis server certificate validation.
       --redis-use-tls                                  Use TLS when connecting to Redis. 
       --redisdb int                                    Redis database.

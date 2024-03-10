@@ -171,7 +171,7 @@ func (s *secretsRepositoryBackend) RepositoryExists(ctx context.Context, repoURL
 			return false, nil
 		}
 
-		return false, err
+		return false, fmt.Errorf("failed to get repository secret for %q: %v", repoURL, err)
 	}
 
 	return secret != nil, nil
@@ -313,6 +313,7 @@ func secretToRepository(secret *corev1.Secret) (*appsv1.Repository, error) {
 		GitHubAppEnterpriseBaseURL: string(secret.Data["githubAppEnterpriseBaseUrl"]),
 		Proxy:                      string(secret.Data["proxy"]),
 		Project:                    string(secret.Data["project"]),
+		GCPServiceAccountKey:       string(secret.Data["gcpServiceAccountKey"]),
 	}
 
 	insecureIgnoreHostKey, err := boolOrFalse(secret, "insecureIgnoreHostKey")
@@ -351,6 +352,12 @@ func secretToRepository(secret *corev1.Secret) (*appsv1.Repository, error) {
 	}
 	repository.GithubAppInstallationId = githubAppInstallationID
 
+	forceBasicAuth, err := boolOrFalse(secret, "forceHttpBasicAuth")
+	if err != nil {
+		return repository, err
+	}
+	repository.ForceHttpBasicAuth = forceBasicAuth
+
 	return repository, nil
 }
 
@@ -377,6 +384,8 @@ func repositoryToSecret(repository *appsv1.Repository, secret *corev1.Secret) {
 	updateSecretBool(secret, "insecure", repository.Insecure)
 	updateSecretBool(secret, "enableLfs", repository.EnableLFS)
 	updateSecretString(secret, "proxy", repository.Proxy)
+	updateSecretString(secret, "gcpServiceAccountKey", repository.GCPServiceAccountKey)
+	updateSecretBool(secret, "forceHttpBasicAuth", repository.ForceHttpBasicAuth)
 	addSecretMetadata(secret, common.LabelValueSecretTypeRepository)
 }
 
@@ -391,6 +400,8 @@ func (s *secretsRepositoryBackend) secretToRepoCred(secret *corev1.Secret) (*app
 		Type:                       string(secret.Data["type"]),
 		GithubAppPrivateKey:        string(secret.Data["githubAppPrivateKey"]),
 		GitHubAppEnterpriseBaseURL: string(secret.Data["githubAppEnterpriseBaseUrl"]),
+		GCPServiceAccountKey:       string(secret.Data["gcpServiceAccountKey"]),
+		Proxy:                      string(secret.Data["proxy"]),
 	}
 
 	enableOCI, err := boolOrFalse(secret, "enableOCI")
@@ -410,6 +421,12 @@ func (s *secretsRepositoryBackend) secretToRepoCred(secret *corev1.Secret) (*app
 		return repository, err
 	}
 	repository.GithubAppInstallationId = githubAppInstallationID
+
+	forceBasicAuth, err := boolOrFalse(secret, "forceHttpBasicAuth")
+	if err != nil {
+		return repository, err
+	}
+	repository.ForceHttpBasicAuth = forceBasicAuth
 
 	return repository, nil
 }
@@ -431,13 +448,16 @@ func repoCredsToSecret(repoCreds *appsv1.RepoCreds, secret *corev1.Secret) {
 	updateSecretInt(secret, "githubAppID", repoCreds.GithubAppId)
 	updateSecretInt(secret, "githubAppInstallationID", repoCreds.GithubAppInstallationId)
 	updateSecretString(secret, "githubAppEnterpriseBaseUrl", repoCreds.GitHubAppEnterpriseBaseURL)
+	updateSecretString(secret, "gcpServiceAccountKey", repoCreds.GCPServiceAccountKey)
+	updateSecretString(secret, "proxy", repoCreds.Proxy)
+	updateSecretBool(secret, "forceHttpBasicAuth", repoCreds.ForceHttpBasicAuth)
 	addSecretMetadata(secret, common.LabelValueSecretTypeRepoCreds)
 }
 
 func (s *secretsRepositoryBackend) getRepositorySecret(repoURL string) (*corev1.Secret, error) {
 	secrets, err := s.db.listSecretsByType(common.LabelValueSecretTypeRepository)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to list repository secrets: %w", err)
 	}
 
 	for _, secret := range secrets {
@@ -469,6 +489,9 @@ func (s *secretsRepositoryBackend) getRepositoryCredentialIndex(repoCredentials 
 	for i, cred := range repoCredentials {
 		credUrl := git.NormalizeGitURL(string(cred.Data["url"]))
 		if strings.HasPrefix(repoURL, credUrl) {
+			if len(credUrl) == max {
+				log.Warnf("Found multiple credentials for repoURL: %s", repoURL)
+			}
 			if len(credUrl) > max {
 				max = len(credUrl)
 				idx = i
