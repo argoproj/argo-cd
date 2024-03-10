@@ -509,7 +509,7 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                         <div className='white-box__details'>
                             <p>SYNC POLICY</p>
                             <div className='row white-box__details-row'>
-                                <div className='columns small-3'>{(app.spec.syncPolicy && app.spec.syncPolicy.automated && <span>AUTOMATED</span>) || <span>NONE</span>}</div>
+                                <div className='columns small-3'>{(app.spec.syncPolicy && app.spec.syncPolicy.automated && <span>AUTOMATED</span>) || <span>Manual</span>}</div>
                                 <div className='columns small-9'>
                                     {(app.spec.syncPolicy && app.spec.syncPolicy.automated && (
                                         <button className='argo-button argo-button--base' onClick={() => unsetAutoSync(ctx)}>
