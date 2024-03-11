@@ -32,7 +32,7 @@ metadata:
   name: kustomize-inline-example
 namespace: test1
 resources:
-  - https://raw.githubusercontent.com/argoproj/argocd-example-apps/master/kustomize-guestbook/
+  - https://github.com/argoproj/argocd-example-apps//kustomize-guestbook/
 patches:
   - target:
       kind: Deployment
