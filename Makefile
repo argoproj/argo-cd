@@ -3,6 +3,7 @@ CURRENT_DIR=$(shell pwd)
 DIST_DIR=${CURRENT_DIR}/dist
 CLI_NAME=argocd
 BIN_NAME=argocd
+CGO_FLAG=0
 
 GEN_RESOURCES_CLI_NAME=argocd-resources-gen
 
@@ -229,11 +230,11 @@ cli: test-tools-image
 
 .PHONY: cli-local
 cli-local: clean-debug
-	CGO_ENABLED=0 GODEBUG="tarinsecurepath=0,zipinsecurepath=0" go build -v -ldflags '${LDFLAGS}' -o ${DIST_DIR}/${CLI_NAME} ./cmd
+	CGO_ENABLED=${CGO_FLAG} GODEBUG="tarinsecurepath=0,zipinsecurepath=0" go build -v -ldflags '${LDFLAGS}' -o ${DIST_DIR}/${CLI_NAME} ./cmd
 
 .PHONY: gen-resources-cli-local
 gen-resources-cli-local: clean-debug
-	CGO_ENABLED=0 GODEBUG="tarinsecurepath=0,zipinsecurepath=0" go build -v -ldflags '${LDFLAGS}' -o ${DIST_DIR}/${GEN_RESOURCES_CLI_NAME} ./hack/gen-resources/cmd
+	CGO_ENABLED=${CGO_FLAG} GODEBUG="tarinsecurepath=0,zipinsecurepath=0" go build -v -ldflags '${LDFLAGS}' -o ${DIST_DIR}/${GEN_RESOURCES_CLI_NAME} ./hack/gen-resources/cmd
 
 .PHONY: release-cli
 release-cli: clean-debug build-ui
@@ -263,19 +264,19 @@ manifests: test-tools-image
 # consolidated binary for cli, util, server, repo-server, controller
 .PHONY: argocd-all
 argocd-all: clean-debug
-	CGO_ENABLED=0 GOOS=${GOOS} GOARCH=${GOARCH} GODEBUG="tarinsecurepath=0,zipinsecurepath=0" go build -v -ldflags '${LDFLAGS}' -o ${DIST_DIR}/${BIN_NAME} ./cmd
+	CGO_ENABLED=${CGO_FLAG} GOOS=${GOOS} GOARCH=${GOARCH} GODEBUG="tarinsecurepath=0,zipinsecurepath=0" go build -v -ldflags '${LDFLAGS}' -o ${DIST_DIR}/${BIN_NAME} ./cmd
 
 .PHONY: server
 server: clean-debug
-	CGO_ENABLED=0 GODEBUG="tarinsecurepath=0,zipinsecurepath=0" go build -v -ldflags '${LDFLAGS}' -o ${DIST_DIR}/argocd-server ./cmd
+	CGO_ENABLED=${CGO_FLAG} GODEBUG="tarinsecurepath=0,zipinsecurepath=0" go build -v -ldflags '${LDFLAGS}' -o ${DIST_DIR}/argocd-server ./cmd
 
 .PHONY: repo-server
 repo-server:
-	CGO_ENABLED=0 GODEBUG="tarinsecurepath=0,zipinsecurepath=0" go build -v -ldflags '${LDFLAGS}' -o ${DIST_DIR}/argocd-repo-server ./cmd
+	CGO_ENABLED=${CGO_FLAG} GODEBUG="tarinsecurepath=0,zipinsecurepath=0" go build -v -ldflags '${LDFLAGS}' -o ${DIST_DIR}/argocd-repo-server ./cmd
 
 .PHONY: controller
 controller:
-	CGO_ENABLED=0 GODEBUG="tarinsecurepath=0,zipinsecurepath=0" go build -v -ldflags '${LDFLAGS}' -o ${DIST_DIR}/argocd-application-controller ./cmd
+	CGO_ENABLED=${CGO_FLAG} GODEBUG="tarinsecurepath=0,zipinsecurepath=0" go build -v -ldflags '${LDFLAGS}' -o ${DIST_DIR}/argocd-application-controller ./cmd
 
 .PHONY: build-ui
 build-ui:
@@ -291,7 +292,7 @@ ifeq ($(DEV_IMAGE), true)
 IMAGE_TAG="dev-$(shell git describe --always --dirty)"
 image: build-ui
 	DOCKER_BUILDKIT=1 docker build --platform=$(TARGET_ARCH) -t argocd-base --target argocd-base .
-	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 GODEBUG="tarinsecurepath=0,zipinsecurepath=0" go build -v -ldflags '${LDFLAGS}' -o ${DIST_DIR}/argocd ./cmd
+	CGO_ENABLED=${CGO_FLAG} GOOS=linux GOARCH=amd64 GODEBUG="tarinsecurepath=0,zipinsecurepath=0" go build -v -ldflags '${LDFLAGS}' -o ${DIST_DIR}/argocd ./cmd
 	ln -sfn ${DIST_DIR}/argocd ${DIST_DIR}/argocd-server
 	ln -sfn ${DIST_DIR}/argocd ${DIST_DIR}/argocd-application-controller
 	ln -sfn ${DIST_DIR}/argocd ${DIST_DIR}/argocd-repo-server
@@ -580,7 +581,7 @@ list:
 
 .PHONY: applicationset-controller
 applicationset-controller:
-	GODEBUG="tarinsecurepath=0,zipinsecurepath=0" CGO_ENABLED=0 go build -v -ldflags '${LDFLAGS}' -o ${DIST_DIR}/argocd-applicationset-controller ./cmd
+	GODEBUG="tarinsecurepath=0,zipinsecurepath=0" CGO_ENABLED=${CGO_FLAG} go build -v -ldflags '${LDFLAGS}' -o ${DIST_DIR}/argocd-applicationset-controller ./cmd
 
 .PHONY: checksums
 checksums:
