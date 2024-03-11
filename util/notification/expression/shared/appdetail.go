@@ -30,7 +30,7 @@ type AppDetail struct {
 }
 
 type CustomHelmAppSpec struct {
-	HelmAppSpec apiclient.HelmAppSpec
+	HelmAppSpec            apiclient.HelmAppSpec
 	HelmParameterOverrides []v1alpha1.HelmParameter
 }
 
@@ -41,7 +41,7 @@ func (has CustomHelmAppSpec) GetParameterValueByName(Name string) string {
 			return has.HelmParameterOverrides[i].Value
 		}
 	}
-	
+
 	for i := range has.HelmAppSpec.Parameters {
 		if has.HelmAppSpec.Parameters[i].Name == Name {
 			return has.HelmAppSpec.Parameters[i].Value
