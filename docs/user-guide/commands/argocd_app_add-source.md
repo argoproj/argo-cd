@@ -65,7 +65,7 @@ argocd app add-source APPNAME [flags]
       --revision-history-limit int                 How many items to keep in revision history (default 10)
       --self-heal                                  Set self healing when sync is automated
       --sync-option Prune=false                    Add or remove a sync option, e.g add Prune=false. Remove using `!` prefix, e.g. `!Prune=false`
-      --sync-policy string                         Set the sync policy (one of: none, automated (aliases of automated: auto, automatic))
+      --sync-policy string                         Set the sync policy (one of: manual (aliases of manual: none), automated (aliases of automated: auto, automatic))
       --sync-retry-backoff-duration duration       Sync retry backoff base duration. Input needs to be a duration (e.g. 2m, 1h) (default 5s)
       --sync-retry-backoff-factor int              Factor multiplies the base duration after each failed sync retry (default 2)
       --sync-retry-backoff-max-duration duration   Max sync retry backoff duration. Input needs to be a duration (e.g. 2m, 1h) (default 3m0s)
