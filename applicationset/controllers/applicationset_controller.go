@@ -112,7 +112,7 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		logCtx.Debugf("DeletionTimestamp is set to %s", appsetName)
 		deleteAllowed := utils.DefaultPolicy(applicationSetInfo.Spec.SyncPolicy, r.Policy, r.EnablePolicyOverride).AllowDelete()
 		if !deleteAllowed {
-			logCtx.Debugf("ApplicationSet policy allows to delete")
+			logCtx.Debugf("ApplicationSet policy does not allows to delete")
 			if err := r.removeOwnerReferencesOnDeleteAppSet(ctx, applicationSetInfo); err != nil {
 				return ctrl.Result{}, err
 			}
