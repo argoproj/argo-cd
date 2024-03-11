@@ -1,0 +1,37 @@
+tests:
+- healthStatus:
+    status: Progressing
+    message: Waiting for distribution to be available
+  inputPath: testdata/progressing_creating.yaml
+- healthStatus:
+    status: Progressing
+    message: Waiting for distribution to be available
+  inputPath: testdata/progressing_noavailable.yaml
+- healthStatus:
+    status: Progressing
+    message: Waiting for distribution to be available
+  inputPath: testdata/progressing.yaml
+- healthStatus:
+    status: Progressing
+    message: Waiting for distribution to be created
+  inputPath: testdata/progressing_noStatus.yaml
+- healthStatus:
+    status: Degraded
+    message: >
+      update failed: cannot update Distribution in AWS: InvalidParameter: 2
+      validation error(s) found.
+
+      - missing required field,
+      UpdateDistributionInput.DistributionConfig.Origins.Items[0].DomainName.
+
+      - missing required field,
+      UpdateDistributionInput.DistributionConfig.Origins.Items[0].Id.
+  inputPath: testdata/degraded_reconcileError.yaml
+- healthStatus:
+    status: Suspended
+    message: ReconcilePaused
+  inputPath: testdata/suspended.yaml
+- healthStatus:
+    status: Healthy
+    message: Available
+  inputPath: testdata/healthy.yaml

@@ -8,9 +8,9 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/go-jose/go-jose/v3"
 	"github.com/golang-jwt/jwt/v4"
 	"github.com/stretchr/testify/require"
-	"gopkg.in/square/go-jose.v2"
 )
 
 // Cert is a certificate for tests. It was generated like this:

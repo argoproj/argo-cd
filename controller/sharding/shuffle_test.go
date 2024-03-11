@@ -3,6 +3,7 @@ package sharding
 import (
 	"fmt"
 	"math"
+	"strconv"
 	"testing"
 
 	"github.com/argoproj/argo-cd/v2/common"
@@ -22,9 +23,11 @@ func TestLargeShuffle(t *testing.T) {
 		clusterList.Items = append(clusterList.Items, cluster)
 	}
 	db.On("ListClusters", mock.Anything).Return(clusterList, nil)
+	clusterAccessor := getClusterAccessor(clusterList.Items)
 	// Test with replicas set to 256
-	t.Setenv(common.EnvControllerReplicas, "256")
-	distributionFunction := RoundRobinDistributionFunction(&db)
+	replicasCount := 256
+	t.Setenv(common.EnvControllerReplicas, strconv.Itoa(replicasCount))
+	distributionFunction := RoundRobinDistributionFunction(clusterAccessor, replicasCount)
 	for i, c := range clusterList.Items {
 		assert.Equal(t, i%2567, distributionFunction(&c))
 	}
@@ -44,10 +47,11 @@ func TestShuffle(t *testing.T) {
 
 	clusterList := &v1alpha1.ClusterList{Items: []v1alpha1.Cluster{cluster1, cluster2, cluster3, cluster4, cluster5, cluster6}}
 	db.On("ListClusters", mock.Anything).Return(clusterList, nil)
-
+	clusterAccessor := getClusterAccessor(clusterList.Items)
 	// Test with replicas set to 3
 	t.Setenv(common.EnvControllerReplicas, "3")
-	distributionFunction := RoundRobinDistributionFunction(&db)
+	replicasCount := 3
+	distributionFunction := RoundRobinDistributionFunction(clusterAccessor, replicasCount)
 	assert.Equal(t, 0, distributionFunction(nil))
 	assert.Equal(t, 0, distributionFunction(&cluster1))
 	assert.Equal(t, 1, distributionFunction(&cluster2))

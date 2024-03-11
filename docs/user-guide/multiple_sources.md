@@ -71,3 +71,6 @@ at that URL. If the `path` field is not set, Argo CD will use the repository sol
 !!! note
     Sources with the `ref` field set must not also specify the `chart` field. Argo CD does not currently support using  
     another Helm chart as a source for value files.
+
+!!! note
+    Even when the `ref` field is configured with the `path` field, `$value` still represents the root of sources with the `ref` field. Consequently, `valueFiles` must be specified as relative paths from the root of sources.

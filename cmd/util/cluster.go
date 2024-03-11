@@ -144,6 +144,7 @@ type ClusterOptions struct {
 	Upsert                  bool
 	ServiceAccount          string
 	AwsRoleArn              string
+	AwsProfile              string
 	AwsClusterName          string
 	SystemNamespace         string
 	Namespaces              []string
@@ -169,6 +170,7 @@ func AddClusterFlags(command *cobra.Command, opts *ClusterOptions) {
 	command.Flags().BoolVar(&opts.InCluster, "in-cluster", false, "Indicates Argo CD resides inside this cluster and should connect using the internal k8s hostname (kubernetes.default.svc)")
 	command.Flags().StringVar(&opts.AwsClusterName, "aws-cluster-name", "", "AWS Cluster name if set then aws cli eks token command will be used to access cluster")
 	command.Flags().StringVar(&opts.AwsRoleArn, "aws-role-arn", "", "Optional AWS role arn. If set then AWS IAM Authenticator assumes a role to perform cluster operations instead of the default AWS credential provider chain.")
+	command.Flags().StringVar(&opts.AwsProfile, "aws-profile", "", "Optional AWS profile. If set then AWS IAM Authenticator uses this profile to perform cluster operations instead of the default AWS credential provider chain.")
 	command.Flags().StringArrayVar(&opts.Namespaces, "namespace", nil, "List of namespaces which are allowed to manage")
 	command.Flags().BoolVar(&opts.ClusterResources, "cluster-resources", false, "Indicates if cluster level resources should be managed. The setting is used only if list of managed namespaces is not empty.")
 	command.Flags().StringVar(&opts.Name, "name", "", "Overwrite the cluster name")

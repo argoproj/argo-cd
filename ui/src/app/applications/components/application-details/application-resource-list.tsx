@@ -10,6 +10,7 @@ import * as _ from 'lodash';
 import Moment from 'react-moment';
 import {format} from 'date-fns';
 import {ResourceNode, ResourceRef} from '../../../shared/models';
+import './application-resource-list.scss';
 
 export const ApplicationResourceList = ({
     resources,
@@ -89,8 +90,8 @@ export const ApplicationResourceList = ({
                                         <div>{ResourceLabel({kind: res.kind})}</div>
                                     </div>
                                 </div>
-                                <div className='columns small-2 xxxlarge-1'>
-                                    {res.name}
+                                <div className='columns small-2 xxxlarge-1 application-details__item'>
+                                    <span className='application-details__item_text'>{res.name}</span>
                                     {res.kind === 'Application' && (
                                         <Consumer>
                                             {ctx => (

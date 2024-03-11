@@ -65,7 +65,8 @@ export const RepoDetails = (props: {repo: models.Repository; save?: (params: New
         enableLfs: repo.enableLfs || false,
         proxy: repo.proxy || '',
         project: repo.project || '',
-        enableOCI: repo.enableOCI || false
+        enableOCI: repo.enableOCI || false,
+        forceHttpBasicAuth: repo.forceHttpBasicAuth || false
     };
 
     return (

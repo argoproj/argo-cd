@@ -71,7 +71,7 @@ that minor release. It will have to wait for the next minor release.
 
 ### Security Patch Policy
 
-CVEs in Argo CD code will be patched for all [supported versions](../operator-manual/installation.md#supported-versions). 
+CVEs in Argo CD code will be patched for all supported versions. Read more about supported versions in the [security policy for Argo CD](https://github.com/argoproj/argo-cd/security/policy#supported-versions).
 
 ### Dependencies Lifecycle Policy
 

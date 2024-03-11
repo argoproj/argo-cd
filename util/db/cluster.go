@@ -316,7 +316,7 @@ func (db *db) DeleteCluster(ctx context.Context, server string) error {
 	return db.settingsMgr.ResyncInformers()
 }
 
-// clusterToData converts a cluster object to string data for serialization to a secret
+// clusterToSecret converts a cluster object to string data for serialization to a secret
 func clusterToSecret(c *appv1.Cluster, secret *apiv1.Secret) error {
 	data := make(map[string][]byte)
 	data["server"] = []byte(strings.TrimRight(c.Server, "/"))

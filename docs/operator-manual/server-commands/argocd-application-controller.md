@@ -17,6 +17,7 @@ argocd-application-controller [flags]
 ```
       --app-hard-resync int                    Time period in seconds for application hard resync.
       --app-resync int                         Time period in seconds for application resync. (default 180)
+      --app-resync-jitter int                  Maximum time period in seconds to add as a delay jitter for application resync.
       --app-state-cache-expiration duration    Cache expiration for app state (default 1h0m0s)
       --application-namespaces strings         List of additional namespaces that applications are allowed to be reconciled from
       --as string                              Username to impersonate for the operation
@@ -67,6 +68,7 @@ argocd-application-controller [flags]
       --sentinel stringArray                   Redis sentinel hostname and port (e.g. argocd-redis-ha-announce-0:6379). 
       --sentinelmaster string                  Redis sentinel master group name. (default "master")
       --server string                          The address and port of the Kubernetes API server
+      --server-side-diff-enabled               Feature flag to enable ServerSide diff. Default ("false")
       --sharding-method string                 Enables choice of sharding method. Supported sharding methods are : [legacy, round-robin]  (default "legacy")
       --status-processors int                  Number of application status processors (default 20)
       --tls-server-name string                 If provided, this name will be used to validate server certificate. If this is not provided, hostname used to contact the server is used.
@@ -75,7 +77,7 @@ argocd-application-controller [flags]
       --username string                        Username for basic authentication to the API server
       --wq-backoff-factor float                Set Workqueue Per Item Rate Limiter Backoff Factor, default is 1.5 (default 1.5)
       --wq-basedelay-ns duration               Set Workqueue Per Item Rate Limiter Base Delay duration in nanoseconds, default 1000000 (1ms) (default 1ms)
-      --wq-bucket-qps int                      Set Workqueue Rate Limiter Bucket QPS, default 50 (default 50)
+      --wq-bucket-qps float                    Set Workqueue Rate Limiter Bucket QPS, default set to MaxFloat64 which disables the bucket limiter (default 1.7976931348623157e+308)
       --wq-bucket-size int                     Set Workqueue Rate Limiter Bucket Size, default 500 (default 500)
       --wq-cooldown-ns duration                Set Workqueue Per Item Rate Limiter Cooldown duration in ns, default 0(per item rate limiter disabled)
       --wq-maxdelay-ns duration                Set Workqueue Per Item Rate Limiter Max Delay duration in nanoseconds, default 1000000000 (1s) (default 1s)

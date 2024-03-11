@@ -68,6 +68,10 @@ data:
   controller.k8sclient.retry.base.backoff: "100"
   # Grace period in seconds for ignoring consecutive errors while communicating with repo server.
   controller.repo.error.grace.period.seconds: "180"
+  # Enables the server side diff feature at the application controller level.
+  # Diff calculation will be done by running a server side apply dryrun (when
+  # diff cache is unavailable).
+  controller.diff.server.side: "false"
 
   ## Server properties
   # Listen on given address for incoming connections (default "0.0.0.0")
@@ -86,6 +90,9 @@ data:
   server.k8sclient.retry.max: "0"
   # The initial backoff delay on the first retry attempt in ms. Subsequent retries will double this backoff time up to a maximum threshold
   server.k8sclient.retry.base.backoff: "100"
+  # Semicolon-separated list of content types allowed on non-GET requests. Set an empty string to allow all. Be aware
+  # that allowing content types besides application/json may make your API more vulnerable to CSRF attacks.
+  server.api.content.types: "application/json"
 
   # Set the logging format. One of: text|json (default "text")
   server.log.format: "text"

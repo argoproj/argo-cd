@@ -86,7 +86,7 @@ jobs:
       packages: write # for uploading attestations. (https://github.com/slsa-framework/slsa-github-generator/blob/main/internal/builders/container/README.md#known-issues)
     if: ${{ github.repository == 'argoproj/argo-cd' && github.event_name == 'push' }}
     # Must be refernced by a tag. https://github.com/slsa-framework/slsa-github-generator/blob/main/internal/builders/container/README.md#referencing-the-slsa-generator
-    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_container_slsa3.yml@v1.7.0
+    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_container_slsa3.yml@v1.9.0
     with:
       image: ghcr.io/argoproj/argo-cd/argocd
       digest: ${{ needs.build-and-publish.outputs.image-digest }}

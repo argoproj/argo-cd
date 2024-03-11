@@ -31,6 +31,7 @@ argocd app set APPNAME [flags]
 
 ```
       --allow-empty                                Set allow zero live resources when sync is automated
+  -N, --app-namespace string                       Set application parameters in namespace
       --auto-prune                                 Set automatic pruning when sync is automated
       --config-management-plugin string            Config management plugin name
       --dest-name string                           K8s cluster Name (e.g. minikube)
@@ -59,6 +60,7 @@ argocd app set APPNAME [flags]
       --kustomize-force-common-annotation          Force common annotations in Kustomize
       --kustomize-force-common-label               Force common labels in Kustomize
       --kustomize-image stringArray                Kustomize images (e.g. --kustomize-image node:8.15.0 --kustomize-image mysql=mariadb,alpine@sha256:24a0c4b4a4c0eb97a1aabb8e29f18e917d05abfe1b7a7c07857230879ce7d3d)
+      --kustomize-label-without-selector           Do not apply common label to selectors or templates
       --kustomize-namespace string                 Kustomize namespace
       --kustomize-replica stringArray              Kustomize replicas (e.g. --kustomize-replica my-development=2 --kustomize-replica my-statefulset=4)
       --kustomize-version string                   Kustomize version
@@ -68,6 +70,7 @@ argocd app set APPNAME [flags]
       --path string                                Path in repository to the app directory, ignored if a file is set
       --plugin-env stringArray                     Additional plugin envs
       --project string                             Application project name
+      --ref string                                 Ref is reference to another source within sources field
       --release-name string                        Helm release-name
       --repo string                                Repository URL, ignored if a file is set
       --revision string                            The tracking source branch, tag, commit or Helm chart version the application will sync to

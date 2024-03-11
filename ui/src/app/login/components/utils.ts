@@ -74,10 +74,6 @@ export const pkceLogin = async (oidcConfig: AuthSettings['oidcConfig'], redirect
         throw new PKCELoginError('No Authorization Server endpoint found');
     }
 
-    if (!authorizationServer?.code_challenge_methods_supported?.includes('S256')) {
-        throw new PKCELoginError('Authorization Server does not support S256 code challenge method');
-    }
-
     const codeVerifier = generateRandomCodeVerifier();
 
     const codeChallange = await calculatePKCECodeChallenge(codeVerifier);

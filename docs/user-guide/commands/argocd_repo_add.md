@@ -17,6 +17,12 @@ argocd repo add REPOURL [flags]
   # Add a Git repository via SSH on a non-default port - need to use ssh:// style URLs here
   argocd repo add ssh://git@git.example.com:2222/repos/repo --ssh-private-key-path ~/id_rsa
 
+  # Add a Git repository via SSH using socks5 proxy with no proxy credentials
+  argocd repo add ssh://git@github.com/argoproj/argocd-example-apps --ssh-private-key-path ~/id_rsa --proxy socks5://your.proxy.server.ip:1080
+
+  # Add a Git repository via SSH using socks5 proxy with proxy credentials
+  argocd repo add ssh://git@github.com/argoproj/argocd-example-apps --ssh-private-key-path ~/id_rsa --proxy socks5://username:password@your.proxy.server.ip:1080
+
   # Add a private Git repository via HTTPS using username/password and TLS client certificates:
   argocd repo add https://git.example.com/repos/repo --username git --password secret --tls-client-cert-path ~/mycert.crt --tls-client-cert-key-path ~/mycert.key
 

@@ -37,7 +37,7 @@ spec:
             type: RuntimeDefault
       containers:
       - name: dex
-        image: ghcr.io/dexidp/dex:v2.37.0
+        image: ghcr.io/dexidp/dex:v2.38.0
         imagePullPolicy: Always
         command: [/shared/argocd-dex, rundex]
         env:
