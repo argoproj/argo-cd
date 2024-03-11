@@ -10,7 +10,7 @@ import {debounceTime, map} from 'rxjs/operators';
 import {AppContext, Context, ContextApis} from '../../shared/context';
 import {ResourceTreeNode} from './application-resource-tree/application-resource-tree';
 
-import {CheckboxField, COLORS, ErrorNotification, Revision} from '../../shared/components';
+import {ARGO_FAILED_COLOR, CheckboxField, COLORS, ErrorNotification, Revision} from '../../shared/components';
 import * as appModels from '../../shared/models';
 import {services} from '../../shared/services';
 
@@ -325,7 +325,12 @@ export const deletePodAction = async (pod: appModels.Pod, appContext: AppContext
 };
 
 export const deletePopup = async (ctx: ContextApis, resource: ResourceTreeNode, application: appModels.Application, appChanged?: BehaviorSubject<appModels.Application>) => {
-    const isManaged = !!resource.status;
+    function isTopLevelResource(res: ResourceTreeNode, app: appModels.Application): boolean {
+        const uniqRes = `/${res.namespace}/${res.group}/${res.version}/${res.kind}/${res.name}`;
+        return app.status.resources.some(resStatus => `/${resStatus.namespace}/${resStatus.group}/${resStatus.version}/${resStatus.kind}/${resStatus.name}` === uniqRes);
+    }
+
+    const isManaged = !!resource.status || isTopLevelResource(resource, application);
     const deleteOptions = {
         option: 'foreground'
     };
@@ -342,6 +347,10 @@ export const deletePopup = async (ctx: ContextApis, resource: ResourceTreeNode, 
                 {isManaged ? (
                     <div className='argo-form-row'>
                         <FormField label={`Please type '${resource.name}' to confirm the deletion of the resource`} formApi={api} field='resourceName' component={Text} />
+                        <div className='caution-message-container'>
+                            <i className='fa fa-exclamation-triangle' style={{color: ARGO_FAILED_COLOR}} />
+                            <span style={{paddingLeft: '5px'}}>The action will delete top-level resource; this could cause OUTAGES in production.</span>
+                        </div>
                     </div>
                 ) : (
                     ''
