@@ -1985,6 +1985,13 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSourceKustomize(ref common.
 							},
 						},
 					},
+					"labelWithoutSelector": {
+						SchemaProps: spec.SchemaProps{
+							Description: "LabelWithoutSelector specifies whether to apply common labels to resource selectors or not",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
 				},
 			},
 		},
