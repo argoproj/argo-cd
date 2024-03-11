@@ -547,7 +547,7 @@ func constructAppsBaseOnName(appName string, labels, annotations, args []string,
 	}, nil
 }
 
-func constructAppsFromFileUrl(fileURL, appName string, labels, annotations, args []string, appOpts AppOptions, flags *pflag.FlagSet, source_index *int) ([]*argoappv1.Application, error) {
+func constructAppsFromFileUrl(fileURL, appName string, labels, annotations, args []string, appOpts AppOptions, flags *pflag.FlagSet) ([]*argoappv1.Application, error) {
 	apps := make([]*argoappv1.Application, 0)
 	// read uri
 	err := readAppsFromURI(fileURL, &apps)
@@ -565,19 +565,22 @@ func constructAppsFromFileUrl(fileURL, appName string, labels, annotations, args
 			return nil, fmt.Errorf("app.Name is empty. --name argument can be used to provide app.Name")
 		}
 
-		SetAppSpecOptions(flags, &app.Spec, &appOpts, source_index)
-		SetParameterOverrides(app, appOpts.Parameters, source_index)
 		mergeLabels(app, labels)
 		setAnnotations(app, annotations)
+
+		if !app.Spec.HasMultipleSources() {
+			SetAppSpecOptions(flags, &app.Spec, &appOpts, nil)
+			SetParameterOverrides(app, appOpts.Parameters, nil)
+		}
 	}
 	return apps, nil
 }
 
-func ConstructApps(fileURL, appName string, labels, annotations, args []string, appOpts AppOptions, flags *pflag.FlagSet, source_index *int) ([]*argoappv1.Application, error) {
+func ConstructApps(fileURL, appName string, labels, annotations, args []string, appOpts AppOptions, flags *pflag.FlagSet) ([]*argoappv1.Application, error) {
 	if fileURL == "-" {
 		return constructAppsFromStdin()
 	} else if fileURL != "" {
-		return constructAppsFromFileUrl(fileURL, appName, labels, annotations, args, appOpts, flags, source_index)
+		return constructAppsFromFileUrl(fileURL, appName, labels, annotations, args, appOpts, flags)
 	}
 
 	return constructAppsBaseOnName(appName, labels, annotations, args, appOpts, flags)

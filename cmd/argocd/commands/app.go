@@ -118,7 +118,6 @@ func NewApplicationCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 		annotations  []string
 		setFinalizer bool
 		appNamespace string
-		source_index int
 	)
 	var command = &cobra.Command{
 		Use:   "create APPNAME",
@@ -150,7 +149,7 @@ func NewApplicationCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 			ctx := c.Context()
 
 			argocdClient := headless.NewClientOrDie(clientOpts, c)
-			apps, err := cmdutil.ConstructApps(fileURL, appName, labels, annotations, args, appOpts, c.Flags(), &source_index)
+			apps, err := cmdutil.ConstructApps(fileURL, appName, labels, annotations, args, appOpts, c.Flags())
 			errors.CheckError(err)
 
 			for _, app := range apps {
@@ -208,7 +207,6 @@ func NewApplicationCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 		log.Fatal(err)
 	}
 	command.Flags().StringVarP(&appNamespace, "app-namespace", "N", "", "Namespace where the application will be created in")
-	command.Flags().IntVar(&source_index, "source-index", 0, "Index of the source from the list of sources of the app. Default index is 0.")
 	cmdutil.AddAppFlags(command, &appOpts)
 	return command
 }
@@ -792,7 +790,7 @@ func NewApplicationSetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 				os.Exit(1)
 			}
 
-			setParameterOverrides(app, appOpts.Parameters)
+			setParameterOverrides(app, appOpts.Parameters, &source_index)
 			_, err = appIf.UpdateSpec(ctx, &application.ApplicationUpdateSpecRequest{
 				Name:         &app.Name,
 				Spec:         &app.Spec,
@@ -2468,11 +2466,11 @@ func waitOnApplicationStatus(ctx context.Context, acdClient argocdclient.Client,
 // setParameterOverrides updates an existing or appends a new parameter override in the application
 // the app is assumed to be a helm app and is expected to be in the form:
 // param=value
-func setParameterOverrides(app *argoappv1.Application, parameters []string) {
+func setParameterOverrides(app *argoappv1.Application, parameters []string, index *int) {
 	if len(parameters) == 0 {
 		return
 	}
-	source := app.Spec.GetSource()
+	source := app.Spec.GetSourcePtr(index)
 	var sourceType argoappv1.ApplicationSourceType
 	if st, _ := source.ExplicitType(); st != nil {
 		sourceType = *st
@@ -2782,7 +2780,6 @@ func NewApplicationTerminateOpCommand(clientOpts *argocdclient.ClientOptions) *c
 func NewApplicationEditCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
 		appNamespace string
-		source_index int
 	)
 	var command = &cobra.Command{
 		Use:   "edit APPNAME",
@@ -2804,15 +2801,6 @@ func NewApplicationEditCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			})
 			errors.CheckError(err)
 
-			if app.Spec.HasMultipleSources() {
-				if source_index < 0 {
-					errors.CheckError(fmt.Errorf("Source index should be specified and greater than or equal to 0 for applications with multiple sources"))
-				}
-				if len(app.Spec.GetSources()) < source_index {
-					errors.CheckError(fmt.Errorf("Source index should be less than the number of sources in the application"))
-				}
-			}
-
 			appData, err := json.Marshal(app.Spec)
 			errors.CheckError(err)
 			appData, err = yaml.JSONToYAML(appData)
@@ -2830,7 +2818,10 @@ func NewApplicationEditCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				}
 
 				var appOpts cmdutil.AppOptions
-				cmdutil.SetAppSpecOptions(c.Flags(), &app.Spec, &appOpts, &source_index)
+
+				if !app.Spec.HasMultipleSources() {
+					cmdutil.SetAppSpecOptions(c.Flags(), &app.Spec, &appOpts, nil)
+				}
 				_, err = appIf.UpdateSpec(ctx, &application.ApplicationUpdateSpecRequest{
 					Name:         &appName,
 					Spec:         &updatedSpec,
@@ -2845,7 +2836,6 @@ func NewApplicationEditCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 		},
 	}
 	command.Flags().StringVarP(&appNamespace, "app-namespace", "N", "", "Only edit application in namespace")
-	command.Flags().IntVar(&source_index, "source-index", -1, "Index of the source from the list of sources of the app. Default index is 0.")
 	return command
 }
 
@@ -2934,7 +2924,11 @@ func NewApplicationAddSourceCommand(clientOpts *argocdclient.ClientOptions) *cob
 			if len(app.Spec.Sources) > 0 {
 				appSource, _ := cmdutil.ConstructSource(&argoappv1.ApplicationSource{}, appOpts, c.Flags())
 
+				// source_index would be the index at which you append the new source to spec.Sources
+				source_index := len(app.Spec.GetSources())
 				app.Spec.Sources = append(app.Spec.Sources, *appSource)
+
+				setParameterOverrides(app, appOpts.Parameters, &source_index)
 
 				_, err = appIf.UpdateSpec(ctx, &application.ApplicationUpdateSpecRequest{
 					Name:         &app.Name,
