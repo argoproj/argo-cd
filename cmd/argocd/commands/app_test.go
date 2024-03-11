@@ -422,8 +422,8 @@ func TestFormatSyncPolicy(t *testing.T) {
 
 		policy := formatSyncPolicy(app)
 
-		if policy != "<none>" {
-			t.Fatalf("Incorrect policy %q, should be <none>", policy)
+		if policy != "Manual" {
+			t.Fatalf("Incorrect policy %q, should be Manual", policy)
 		}
 	})
 
@@ -659,11 +659,110 @@ Project:            default
 Server:             local
 Namespace:          argocd
 URL:                url
-Repo:               test
-Target:             master
-Path:               /test
-Helm Values:        path1,path2
-Name Prefix:        prefix
+Source:
+- Repo:             test
+  Target:           master
+  Path:             /test
+  Helm Values:      path1,path2
+  Name Prefix:      prefix
+SyncWindow:         Sync Denied
+Assigned Windows:   allow:0 0 * * *:24h,deny:0 0 * * *:24h,allow:0 0 * * *:24h
+Sync Policy:        Automated (Prune)
+Sync Status:        OutOfSync from master
+Health Status:      Progressing (health-message)
+`
+	assert.Equalf(t, expectation, output, "Incorrect print app summary output %q, should be %q", output, expectation)
+}
+
+func TestPrintAppSummaryTable_MultipleSources(t *testing.T) {
+	output, _ := captureOutput(func() error {
+		app := &v1alpha1.Application{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "test",
+				Namespace: "argocd",
+			},
+			Spec: v1alpha1.ApplicationSpec{
+				SyncPolicy: &v1alpha1.SyncPolicy{
+					Automated: &v1alpha1.SyncPolicyAutomated{
+						Prune: true,
+					},
+				},
+				Project:     "default",
+				Destination: v1alpha1.ApplicationDestination{Server: "local", Namespace: "argocd"},
+				Sources: v1alpha1.ApplicationSources{
+					{
+						RepoURL:        "test",
+						TargetRevision: "master",
+						Path:           "/test",
+						Helm: &v1alpha1.ApplicationSourceHelm{
+							ValueFiles: []string{"path1", "path2"},
+						},
+						Kustomize: &v1alpha1.ApplicationSourceKustomize{NamePrefix: "prefix"},
+					}, {
+						RepoURL:        "test2",
+						TargetRevision: "master2",
+						Path:           "/test2",
+					},
+				},
+			},
+			Status: v1alpha1.ApplicationStatus{
+				Sync: v1alpha1.SyncStatus{
+					Status: v1alpha1.SyncStatusCodeOutOfSync,
+				},
+				Health: v1alpha1.HealthStatus{
+					Status:  health.HealthStatusProgressing,
+					Message: "health-message",
+				},
+			},
+		}
+
+		windows := &v1alpha1.SyncWindows{
+			{
+				Kind:     "allow",
+				Schedule: "0 0 * * *",
+				Duration: "24h",
+				Applications: []string{
+					"*-prod",
+				},
+				ManualSync: true,
+			},
+			{
+				Kind:     "deny",
+				Schedule: "0 0 * * *",
+				Duration: "24h",
+				Namespaces: []string{
+					"default",
+				},
+			},
+			{
+				Kind:     "allow",
+				Schedule: "0 0 * * *",
+				Duration: "24h",
+				Clusters: []string{
+					"in-cluster",
+					"cluster1",
+				},
+			},
+		}
+
+		printAppSummaryTable(app, "url", windows)
+		return nil
+	})
+
+	expectation := `Name:               argocd/test
+Project:            default
+Server:             local
+Namespace:          argocd
+URL:                url
+Sources:
+- Repo:             test
+  Target:           master
+  Path:             /test
+  Helm Values:      path1,path2
+  Name Prefix:      prefix
+- Repo:             test2
+  Target:           master2
+  Path:             /test2
 SyncWindow:         Sync Denied
 Assigned Windows:   allow:0 0 * * *:24h,deny:0 0 * * *:24h,allow:0 0 * * *:24h
 Sync Policy:        Automated (Prune)
@@ -1329,7 +1428,7 @@ func TestPrintApplicationTableNotWide(t *testing.T) {
 		return nil
 	})
 	assert.NoError(t, err)
-	expectation := "NAME      CLUSTER                NAMESPACE  PROJECT  STATUS     HEALTH   SYNCPOLICY  CONDITIONS\napp-name  http://localhost:8080  default    prj      OutOfSync  Healthy  <none>      <none>\napp-name  http://localhost:8080  default    prj      OutOfSync  Healthy  <none>      <none>\n"
+	expectation := "NAME      CLUSTER                NAMESPACE  PROJECT  STATUS     HEALTH   SYNCPOLICY  CONDITIONS\napp-name  http://localhost:8080  default    prj      OutOfSync  Healthy  Manual      <none>\napp-name  http://localhost:8080  default    prj      OutOfSync  Healthy  Manual      <none>\n"
 	assert.Equal(t, output, expectation)
 }
 
@@ -1365,7 +1464,7 @@ func TestPrintApplicationTableWide(t *testing.T) {
 		return nil
 	})
 	assert.NoError(t, err)
-	expectation := "NAME      CLUSTER                NAMESPACE  PROJECT  STATUS     HEALTH   SYNCPOLICY  CONDITIONS  REPO                                             PATH       TARGET\napp-name  http://localhost:8080  default    prj      OutOfSync  Healthy  <none>      <none>      https://github.com/argoproj/argocd-example-apps  guestbook  123\napp-name  http://localhost:8080  default    prj      OutOfSync  Healthy  <none>      <none>      https://github.com/argoproj/argocd-example-apps  guestbook  123\n"
+	expectation := "NAME      CLUSTER                NAMESPACE  PROJECT  STATUS     HEALTH   SYNCPOLICY  CONDITIONS  REPO                                             PATH       TARGET\napp-name  http://localhost:8080  default    prj      OutOfSync  Healthy  Manual      <none>      https://github.com/argoproj/argocd-example-apps  guestbook  123\napp-name  http://localhost:8080  default    prj      OutOfSync  Healthy  Manual      <none>      https://github.com/argoproj/argocd-example-apps  guestbook  123\n"
 	assert.Equal(t, output, expectation)
 }
 
