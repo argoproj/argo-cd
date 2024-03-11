@@ -422,11 +422,11 @@ func setJsonnetOptLibs(src *argoappv1.ApplicationSource, libs []string) {
 // SetParameterOverrides updates an existing or appends a new parameter override in the application
 // The app is assumed to be a helm app and is expected to be in the form:
 // param=value
-func SetParameterOverrides(app *argoappv1.Application, parameters []string) {
+func SetParameterOverrides(app *argoappv1.Application, parameters []string, index *int) {
 	if len(parameters) == 0 {
 		return
 	}
-	source := app.Spec.GetSource()
+	source := app.Spec.GetSourcePtr(index)
 	var sourceType argoappv1.ApplicationSourceType
 	if st, _ := source.ExplicitType(); st != nil {
 		sourceType = *st
@@ -539,7 +539,7 @@ func constructAppsBaseOnName(appName string, labels, annotations, args []string,
 		},
 	}
 	SetAppSpecOptions(flags, &app.Spec, &appOpts, nil)
-	SetParameterOverrides(app, appOpts.Parameters)
+	SetParameterOverrides(app, appOpts.Parameters, nil)
 	mergeLabels(app, labels)
 	setAnnotations(app, annotations)
 	return []*argoappv1.Application{
@@ -566,7 +566,7 @@ func constructAppsFromFileUrl(fileURL, appName string, labels, annotations, args
 		}
 
 		SetAppSpecOptions(flags, &app.Spec, &appOpts, source_index)
-		SetParameterOverrides(app, appOpts.Parameters)
+		SetParameterOverrides(app, appOpts.Parameters, source_index)
 		mergeLabels(app, labels)
 		setAnnotations(app, annotations)
 	}
