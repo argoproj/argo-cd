@@ -7,7 +7,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <title>Snyk test report</title>
-  <meta name="description" content="6 known vulnerabilities found in 19 vulnerable dependency paths.">
+  <meta name="description" content="3 known vulnerabilities found in 27 vulnerable dependency paths.">
   <base target="_blank">
   <link rel="icon" type="image/png" href="https://res.cloudinary.com/snyk/image/upload/v1468845142/favicon/favicon.png"
     sizes="194x194">
@@ -456,19 +456,20 @@
               <div class="header-wrap">
                   <h1 class="project__header__title">Snyk test report</h1>
     
-                <p class="timestamp">October 29th 2023, 12:21:29 am (UTC+00:00)</p>
+                <p class="timestamp">March 10th 2024, 12:15:48 am (UTC+00:00)</p>
               </div>
               <div class="source-panel">
                 <span>Scanned the following paths:</span>
                 <ul>
-                  <li class="paths">/argo-cd/argoproj/argo-cd/v2 (gomodules)</li><li class="paths">/argo-cd (yarn)</li>
+                  <li class="paths">redis:7.0.14-alpine (apk)</li>
+                  <li class="paths">redis:7.0.14-alpine/tianon/gosu//usr/local/bin/gosu (gomodules)</li>
                 </ul>
               </div>
     
               <div class="meta-counts">
-                <div class="meta-count"><span>6</span> <span>known vulnerabilities</span></div>
-                <div class="meta-count"><span>19 vulnerable dependency paths</span></div>
-                <div class="meta-count"><span>1853</span> <span>dependencies</span></div>
+                <div class="meta-count"><span>3</span> <span>known vulnerabilities</span></div>
+                <div class="meta-count"><span>27 vulnerable dependency paths</span></div>
+                <div class="meta-count"><span>19</span> <span>dependencies</span></div>
               </div><!-- .meta-counts -->
             </div><!-- .layout-container--short -->
           </header><!-- .project__header -->
@@ -477,7 +478,7 @@
     <div class="layout-container" style="padding-top: 35px;">
       <div class="cards--vuln filter--patch filter--ignore">
         <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
-            <h2 class="card__title">LGPL-3.0 license</h2>
+            <h2 class="card__title">Out-of-bounds Write</h2>
             <div class="card__section">
         
                 <div class="label label--medium">
@@ -488,18 +489,18 @@
         
                 <ul class="card__meta">
                     <li class="card__meta__item">
-                        Package Manager: golang
+                        Package Manager: alpine:3.19
                     </li>
                     <li class="card__meta__item">
-                            Module:
+                            Vulnerable module:
         
-                            gopkg.in/retry.v1
+                            openssl/libcrypto3
                     </li>
         
                     <li class="card__meta__item">Introduced through:
         
+                                docker-image|redis@7.0.14-alpine and openssl/libcrypto3@3.1.4-r2
         
-                                    github.com/argoproj/argo-cd/v2@0.0.0, github.com/Azure/kubelogin/pkg/token@0.0.20 and others
                     </li>
                 </ul>
         
@@ -511,11 +512,97 @@
                     <ul class="card__meta__paths">
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                        docker-image|redis@7.0.14-alpine
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/Azure/kubelogin/pkg/token@0.0.20
+                                        openssl/libcrypto3@3.1.4-r2
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|redis@7.0.14-alpine
                                          <span class="list-paths__item__arrow">›</span> 
-                                        gopkg.in/retry.v1@1.0.3
+                                        .redis-rundeps@20231208.201137
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto3@3.1.4-r2
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|redis@7.0.14-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        apk-tools/apk-tools@2.14.0-r5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto3@3.1.4-r2
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|redis@7.0.14-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        busybox/ssl_client@1.36.1-r15
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto3@3.1.4-r2
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|redis@7.0.14-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        .redis-rundeps@20231208.201137
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3@3.1.4-r2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto3@3.1.4-r2
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|redis@7.0.14-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3@3.1.4-r2
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|redis@7.0.14-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        .redis-rundeps@20231208.201137
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3@3.1.4-r2
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|redis@7.0.14-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        apk-tools/apk-tools@2.14.0-r5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3@3.1.4-r2
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|redis@7.0.14-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        busybox/ssl_client@1.36.1-r15
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3@3.1.4-r2
                                         
                                 </span>
         
@@ -526,17 +613,57 @@
         
               <hr/>
               <!-- Overview -->
-              <p>LGPL-3.0 license</p>
+              <h2 id="nvd-description">NVD Description</h2>
+        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>openssl</code> package and not the <code>openssl</code> package as distributed by <code>Alpine</code>.</em>
+        <em>See <code>How to fix?</code> for <code>Alpine:3.19</code> relevant fixed versions and status.</em></p>
+        <p>Issue summary: The POLY1305 MAC (message authentication code) implementation
+        contains a bug that might corrupt the internal state of applications running
+        on PowerPC CPU based platforms if the CPU provides vector instructions.</p>
+        <p>Impact summary: If an attacker can influence whether the POLY1305 MAC
+        algorithm is used, the application state might be corrupted with various
+        application dependent consequences.</p>
+        <p>The POLY1305 MAC (message authentication code) implementation in OpenSSL for
+        PowerPC CPUs restores the contents of vector registers in a different order
+        than they are saved. Thus the contents of some of these vector registers
+        are corrupted when returning to the caller. The vulnerable code is used only
+        on newer PowerPC processors supporting the PowerISA 2.07 instructions.</p>
+        <p>The consequences of this kind of internal application state corruption can
+        be various - from no consequences, if the calling application does not
+        depend on the contents of non-volatile XMM registers at all, to the worst
+        consequences, where the attacker could get complete control of the application
+        process. However unless the compiler uses the vector registers for storing
+        pointers, the most likely consequence, if any, would be an incorrect result
+        of some application dependent calculations or a crash leading to a denial of
+        service.</p>
+        <p>The POLY1305 MAC algorithm is most frequently used as part of the
+        CHACHA20-POLY1305 AEAD (authenticated encryption with associated data)
+        algorithm. The most common usage of this AEAD cipher is with TLS protocol
+        versions 1.2 and 1.3. If this cipher is enabled on the server a malicious
+        client can influence whether this AEAD cipher is used. This implies that
+        TLS server applications using OpenSSL can be potentially impacted. However
+        we are currently not aware of any concrete application that would be affected
+        by this issue therefore we consider this a Low severity security issue.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>Alpine:3.19</code> <code>openssl</code> to version 3.1.4-r3 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://github.com/openssl/openssl/commit/050d26383d4e264966fb83428e72d5d48f402d35">openssl-security@openssl.org</a></li>
+        <li><a href="https://github.com/openssl/openssl/commit/5b139f95c9a47a55a0c54100f3837b1eee942b04">openssl-security@openssl.org</a></li>
+        <li><a href="https://github.com/openssl/openssl/commit/f3fc5808fe9ff74042d639839610d03b8fdcc015">openssl-security@openssl.org</a></li>
+        <li><a href="https://www.openssl.org/news/secadv/20240109.txt">openssl-security@openssl.org</a></li>
+        <li><a href="http://www.openwall.com/lists/oss-security/2024/01/09/1">openssl-security@openssl.org</a></li>
+        <li><a href="https://security.netapp.com/advisory/ntap-20240216-0009/">openssl-security@openssl.org</a></li>
+        </ul>
         
               <hr/>
         
             <div class="cta card__cta">
-                <p><a href="https://snyk.io/vuln/snyk:lic:golang:gopkg.in:retry.v1:LGPL-3.0">More about this vulnerability</a></p>
+                <p><a href="https://snyk.io/vuln/SNYK-ALPINE319-OPENSSL-6148881">More about this vulnerability</a></p>
             </div>
         
         </div><!-- .card -->
         <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
-            <h2 class="card__title">MPL-2.0 license</h2>
+            <h2 class="card__title">CVE-2024-0727</h2>
             <div class="card__section">
         
                 <div class="label label--medium">
@@ -547,17 +674,17 @@
         
                 <ul class="card__meta">
                     <li class="card__meta__item">
-                        Package Manager: golang
+                        Package Manager: alpine:3.19
                     </li>
                     <li class="card__meta__item">
-                            Module:
+                            Vulnerable module:
         
-                            github.com/r3labs/diff
+                            openssl/libcrypto3
                     </li>
         
                     <li class="card__meta__item">Introduced through:
         
-                                github.com/argoproj/argo-cd/v2@0.0.0 and github.com/r3labs/diff@1.1.0
+                                docker-image|redis@7.0.14-alpine and openssl/libcrypto3@3.1.4-r2
         
                     </li>
                 </ul>
@@ -570,9 +697,97 @@
                     <ul class="card__meta__paths">
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                        docker-image|redis@7.0.14-alpine
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/r3labs/diff@1.1.0
+                                        openssl/libcrypto3@3.1.4-r2
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|redis@7.0.14-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        .redis-rundeps@20231208.201137
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto3@3.1.4-r2
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|redis@7.0.14-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        apk-tools/apk-tools@2.14.0-r5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto3@3.1.4-r2
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|redis@7.0.14-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        busybox/ssl_client@1.36.1-r15
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto3@3.1.4-r2
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|redis@7.0.14-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        .redis-rundeps@20231208.201137
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3@3.1.4-r2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto3@3.1.4-r2
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|redis@7.0.14-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3@3.1.4-r2
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|redis@7.0.14-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        .redis-rundeps@20231208.201137
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3@3.1.4-r2
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|redis@7.0.14-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        apk-tools/apk-tools@2.14.0-r5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3@3.1.4-r2
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|redis@7.0.14-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        busybox/ssl_client@1.36.1-r15
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3@3.1.4-r2
                                         
                                 </span>
         
@@ -583,97 +798,68 @@
         
               <hr/>
               <!-- Overview -->
-              <p>MPL-2.0 license</p>
+              <h2 id="nvd-description">NVD Description</h2>
+        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>openssl</code> package and not the <code>openssl</code> package as distributed by <code>Alpine</code>.</em>
+        <em>See <code>How to fix?</code> for <code>Alpine:3.19</code> relevant fixed versions and status.</em></p>
+        <p>Issue summary: Processing a maliciously formatted PKCS12 file may lead OpenSSL
+        to crash leading to a potential Denial of Service attack</p>
+        <p>Impact summary: Applications loading files in the PKCS12 format from untrusted
+        sources might terminate abruptly.</p>
+        <p>A file in PKCS12 format can contain certificates and keys and may come from an
+        untrusted source. The PKCS12 specification allows certain fields to be NULL, but
+        OpenSSL does not correctly check for this case. This can lead to a NULL pointer
+        dereference that results in OpenSSL crashing. If an application processes PKCS12
+        files from an untrusted source using the OpenSSL APIs then that application will
+        be vulnerable to this issue.</p>
+        <p>OpenSSL APIs that are vulnerable to this are: PKCS12_parse(),
+        PKCS12_unpack_p7data(), PKCS12_unpack_p7encdata(), PKCS12_unpack_authsafes()
+        and PKCS12_newpass().</p>
+        <p>We have also fixed a similar issue in SMIME_write_PKCS7(). However since this
+        function is related to writing data we do not consider it security significant.</p>
+        <p>The FIPS modules in 3.2, 3.1 and 3.0 are not affected by this issue.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>Alpine:3.19</code> <code>openssl</code> to version 3.1.4-r5 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://github.com/openssl/openssl/commit/09df4395b5071217b76dc7d3d2e630eb8c5a79c2">openssl-security@openssl.org</a></li>
+        <li><a href="https://github.com/openssl/openssl/commit/775acfdbd0c6af9ac855f34969cdab0c0c90844a">openssl-security@openssl.org</a></li>
+        <li><a href="https://github.com/openssl/openssl/commit/d135eeab8a5dbf72b3da5240bab9ddb7678dbd2c">openssl-security@openssl.org</a></li>
+        <li><a href="https://github.openssl.org/openssl/extended-releases/commit/03b3941d60c4bce58fab69a0c22377ab439bc0e8">openssl-security@openssl.org</a></li>
+        <li><a href="https://github.openssl.org/openssl/extended-releases/commit/aebaa5883e31122b404e450732dc833dc9dee539">openssl-security@openssl.org</a></li>
+        <li><a href="https://www.openssl.org/news/secadv/20240125.txt">openssl-security@openssl.org</a></li>
+        <li><a href="https://security.netapp.com/advisory/ntap-20240208-0006/">openssl-security@openssl.org</a></li>
+        </ul>
         
               <hr/>
         
             <div class="cta card__cta">
-                <p><a href="https://snyk.io/vuln/snyk:lic:golang:github.com:r3labs:diff:MPL-2.0">More about this vulnerability</a></p>
+                <p><a href="https://snyk.io/vuln/SNYK-ALPINE319-OPENSSL-6191693">More about this vulnerability</a></p>
             </div>
         
         </div><!-- .card -->
-        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
-            <h2 class="card__title">MPL-2.0 license</h2>
+        <div class="card card--vuln  disclosure--not-new severity--low" data-snyk-test="low">
+            <h2 class="card__title">CVE-2023-6237</h2>
             <div class="card__section">
         
-                <div class="label label--medium">
-                    <span class="label__text">medium severity</span>
+                <div class="label label--low">
+                    <span class="label__text">low severity</span>
                 </div>
         
                 <hr/>
         
                 <ul class="card__meta">
                     <li class="card__meta__item">
-                        Package Manager: golang
+                        Package Manager: alpine:3.19
                     </li>
                     <li class="card__meta__item">
-                            Module:
+                            Vulnerable module:
         
-                            github.com/hashicorp/go-version
+                            openssl/libcrypto3
                     </li>
         
                     <li class="card__meta__item">Introduced through:
         
-        
-                                    github.com/argoproj/argo-cd/v2@0.0.0, code.gitea.io/sdk/gitea@0.15.1 and others
-                    </li>
-                </ul>
-        
-                <hr/>
-        
-        
-                        <h3 class="card__section__title">Detailed paths</h3>
-        
-                    <ul class="card__meta__paths">
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v2@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        code.gitea.io/sdk/gitea@0.15.1
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/hashicorp/go-version@1.2.1
-                                        
-                                </span>
-        
-                            </li>
-                    </ul><!-- .list-paths -->
-        
-            </div><!-- .card__section -->
-        
-              <hr/>
-              <!-- Overview -->
-              <p>MPL-2.0 license</p>
-        
-              <hr/>
-        
-            <div class="cta card__cta">
-                <p><a href="https://snyk.io/vuln/snyk:lic:golang:github.com:hashicorp:go-version:MPL-2.0">More about this vulnerability</a></p>
-            </div>
-        
-        </div><!-- .card -->
-        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
-            <h2 class="card__title">MPL-2.0 license</h2>
-            <div class="card__section">
-        
-                <div class="label label--medium">
-                    <span class="label__text">medium severity</span>
-                </div>
-        
-                <hr/>
-        
-                <ul class="card__meta">
-                    <li class="card__meta__item">
-                        Package Manager: golang
-                    </li>
-                    <li class="card__meta__item">
-                            Module:
-        
-                            github.com/hashicorp/go-retryablehttp
-                    </li>
-        
-                    <li class="card__meta__item">Introduced through:
-        
-                                github.com/argoproj/argo-cd/v2@0.0.0 and github.com/hashicorp/go-retryablehttp@0.7.4
+                                docker-image|redis@7.0.14-alpine and openssl/libcrypto3@3.1.4-r2
         
                     </li>
                 </ul>
@@ -686,97 +872,97 @@
                     <ul class="card__meta__paths">
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                        docker-image|redis@7.0.14-alpine
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/hashicorp/go-retryablehttp@0.7.4
+                                        openssl/libcrypto3@3.1.4-r2
                                         
                                 </span>
         
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                        docker-image|redis@7.0.14-alpine
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/xanzy/go-gitlab@0.86.0
+                                        .redis-rundeps@20231208.201137
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/hashicorp/go-retryablehttp@0.7.4
+                                        openssl/libcrypto3@3.1.4-r2
                                         
                                 </span>
         
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                        docker-image|redis@7.0.14-alpine
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/services@#3446d4ae8520
+                                        apk-tools/apk-tools@2.14.0-r5
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/opsgenie/opsgenie-go-sdk-v2/client@1.0.5
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/hashicorp/go-retryablehttp@0.7.4
+                                        openssl/libcrypto3@3.1.4-r2
                                         
                                 </span>
         
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                        docker-image|redis@7.0.14-alpine
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/cmd@#3446d4ae8520
+                                        busybox/ssl_client@1.36.1-r15
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/services@#3446d4ae8520
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/opsgenie/opsgenie-go-sdk-v2/client@1.0.5
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/hashicorp/go-retryablehttp@0.7.4
+                                        openssl/libcrypto3@3.1.4-r2
                                         
                                 </span>
         
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                        docker-image|redis@7.0.14-alpine
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/subscriptions@#3446d4ae8520
+                                        .redis-rundeps@20231208.201137
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/services@#3446d4ae8520
+                                        openssl/libssl3@3.1.4-r2
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/opsgenie/opsgenie-go-sdk-v2/client@1.0.5
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/hashicorp/go-retryablehttp@0.7.4
+                                        openssl/libcrypto3@3.1.4-r2
                                         
                                 </span>
         
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                        docker-image|redis@7.0.14-alpine
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/api@#3446d4ae8520
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/subscriptions@#3446d4ae8520
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/services@#3446d4ae8520
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/opsgenie/opsgenie-go-sdk-v2/client@1.0.5
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/hashicorp/go-retryablehttp@0.7.4
+                                        openssl/libssl3@3.1.4-r2
                                         
                                 </span>
         
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                        docker-image|redis@7.0.14-alpine
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/controller@#3446d4ae8520
+                                        .redis-rundeps@20231208.201137
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/subscriptions@#3446d4ae8520
+                                        openssl/libssl3@3.1.4-r2
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|redis@7.0.14-alpine
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/services@#3446d4ae8520
+                                        apk-tools/apk-tools@2.14.0-r5
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/opsgenie/opsgenie-go-sdk-v2/client@1.0.5
+                                        openssl/libssl3@3.1.4-r2
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|redis@7.0.14-alpine
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/hashicorp/go-retryablehttp@0.7.4
+                                        busybox/ssl_client@1.36.1-r15
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3@3.1.4-r2
                                         
                                 </span>
         
@@ -787,239 +973,15 @@
         
               <hr/>
               <!-- Overview -->
-              <p>MPL-2.0 license</p>
+              <h2 id="nvd-description">NVD Description</h2>
+        <p><em>This vulnerability has not been analyzed by NVD yet.</em></p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>Alpine:3.19</code> <code>openssl</code> to version 3.1.4-r4 or higher.</p>
         
               <hr/>
         
             <div class="cta card__cta">
-                <p><a href="https://snyk.io/vuln/snyk:lic:golang:github.com:hashicorp:go-retryablehttp:MPL-2.0">More about this vulnerability</a></p>
-            </div>
-        
-        </div><!-- .card -->
-        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
-            <h2 class="card__title">MPL-2.0 license</h2>
-            <div class="card__section">
-        
-                <div class="label label--medium">
-                    <span class="label__text">medium severity</span>
-                </div>
-        
-                <hr/>
-        
-                <ul class="card__meta">
-                    <li class="card__meta__item">
-                        Package Manager: golang
-                    </li>
-                    <li class="card__meta__item">
-                            Module:
-        
-                            github.com/hashicorp/go-cleanhttp
-                    </li>
-        
-                    <li class="card__meta__item">Introduced through:
-        
-        
-                                    github.com/argoproj/argo-cd/v2@0.0.0, github.com/hashicorp/go-retryablehttp@0.7.4 and others
-                    </li>
-                </ul>
-        
-                <hr/>
-        
-        
-                        <h3 class="card__section__title">Detailed paths</h3>
-        
-                    <ul class="card__meta__paths">
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v2@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/hashicorp/go-retryablehttp@0.7.4
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/hashicorp/go-cleanhttp@0.5.2
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v2@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/xanzy/go-gitlab@0.86.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/hashicorp/go-cleanhttp@0.5.2
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v2@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/xanzy/go-gitlab@0.86.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/hashicorp/go-retryablehttp@0.7.4
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/hashicorp/go-cleanhttp@0.5.2
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v2@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/services@#3446d4ae8520
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/opsgenie/opsgenie-go-sdk-v2/client@1.0.5
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/hashicorp/go-retryablehttp@0.7.4
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/hashicorp/go-cleanhttp@0.5.2
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v2@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/cmd@#3446d4ae8520
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/services@#3446d4ae8520
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/opsgenie/opsgenie-go-sdk-v2/client@1.0.5
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/hashicorp/go-retryablehttp@0.7.4
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/hashicorp/go-cleanhttp@0.5.2
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v2@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/subscriptions@#3446d4ae8520
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/services@#3446d4ae8520
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/opsgenie/opsgenie-go-sdk-v2/client@1.0.5
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/hashicorp/go-retryablehttp@0.7.4
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/hashicorp/go-cleanhttp@0.5.2
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v2@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/api@#3446d4ae8520
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/subscriptions@#3446d4ae8520
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/services@#3446d4ae8520
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/opsgenie/opsgenie-go-sdk-v2/client@1.0.5
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/hashicorp/go-retryablehttp@0.7.4
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/hashicorp/go-cleanhttp@0.5.2
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v2@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/controller@#3446d4ae8520
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/subscriptions@#3446d4ae8520
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/services@#3446d4ae8520
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/opsgenie/opsgenie-go-sdk-v2/client@1.0.5
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/hashicorp/go-retryablehttp@0.7.4
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/hashicorp/go-cleanhttp@0.5.2
-                                        
-                                </span>
-        
-                            </li>
-                    </ul><!-- .list-paths -->
-        
-            </div><!-- .card__section -->
-        
-              <hr/>
-              <!-- Overview -->
-              <p>MPL-2.0 license</p>
-        
-              <hr/>
-        
-            <div class="cta card__cta">
-                <p><a href="https://snyk.io/vuln/snyk:lic:golang:github.com:hashicorp:go-cleanhttp:MPL-2.0">More about this vulnerability</a></p>
-            </div>
-        
-        </div><!-- .card -->
-        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
-            <h2 class="card__title">MPL-2.0 license</h2>
-            <div class="card__section">
-        
-                <div class="label label--medium">
-                    <span class="label__text">medium severity</span>
-                </div>
-        
-                <hr/>
-        
-                <ul class="card__meta">
-                    <li class="card__meta__item">
-                        Package Manager: golang
-                    </li>
-                    <li class="card__meta__item">
-                            Module:
-        
-                            github.com/gosimple/slug
-                    </li>
-        
-                    <li class="card__meta__item">Introduced through:
-        
-                                github.com/argoproj/argo-cd/v2@0.0.0 and github.com/gosimple/slug@1.13.1
-        
-                    </li>
-                </ul>
-        
-                <hr/>
-        
-        
-                        <h3 class="card__section__title">Detailed paths</h3>
-        
-                    <ul class="card__meta__paths">
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v2@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/gosimple/slug@1.13.1
-                                        
-                                </span>
-        
-                            </li>
-                    </ul><!-- .list-paths -->
-        
-            </div><!-- .card__section -->
-        
-              <hr/>
-              <!-- Overview -->
-              <p>MPL-2.0 license</p>
-        
-              <hr/>
-        
-            <div class="cta card__cta">
-                <p><a href="https://snyk.io/vuln/snyk:lic:golang:github.com:gosimple:slug:MPL-2.0">More about this vulnerability</a></p>
+                <p><a href="https://snyk.io/vuln/SNYK-ALPINE319-OPENSSL-6159994">More about this vulnerability</a></p>
             </div>
         
         </div><!-- .card -->
