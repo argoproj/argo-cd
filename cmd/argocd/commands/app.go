@@ -2820,6 +2820,7 @@ func NewApplicationEditCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				var appOpts cmdutil.AppOptions
 
 				if !app.Spec.HasMultipleSources() {
+					// do not allow overrides for applications with multiple sources
 					cmdutil.SetAppSpecOptions(c.Flags(), &app.Spec, &appOpts, nil)
 				}
 				_, err = appIf.UpdateSpec(ctx, &application.ApplicationUpdateSpecRequest{

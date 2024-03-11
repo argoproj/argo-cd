@@ -569,6 +569,7 @@ func constructAppsFromFileUrl(fileURL, appName string, labels, annotations, args
 		setAnnotations(app, annotations)
 
 		if !app.Spec.HasMultipleSources() {
+			// do not allow overrides for applications with multiple sources
 			SetAppSpecOptions(flags, &app.Spec, &appOpts, nil)
 			SetParameterOverrides(app, appOpts.Parameters, nil)
 		}

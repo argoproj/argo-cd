@@ -377,7 +377,7 @@ func TestConstructAppFromStdin(t *testing.T) {
 
 	os.Stdin = file
 
-	apps, err := ConstructApps("-", "test", []string{}, []string{}, []string{}, AppOptions{}, nil, nil)
+	apps, err := ConstructApps("-", "test", []string{}, []string{}, []string{}, AppOptions{}, nil)
 
 	if err := file.Close(); err != nil {
 		log.Fatal(err)
@@ -390,7 +390,7 @@ func TestConstructAppFromStdin(t *testing.T) {
 }
 
 func TestConstructBasedOnName(t *testing.T) {
-	apps, err := ConstructApps("", "test", []string{}, []string{}, []string{}, AppOptions{}, nil, nil)
+	apps, err := ConstructApps("", "test", []string{}, []string{}, []string{}, AppOptions{}, nil)
 
 	assert.NoError(t, err)
 	assert.Equal(t, 1, len(apps))
