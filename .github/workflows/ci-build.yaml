@@ -1,5 +1,5 @@
 name: Integration tests
-on: 
+on:
   push:
     branches:
       - 'master'
@@ -23,9 +23,32 @@ permissions:
   contents: read
 
 jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      backend: ${{ steps.filter.outputs.backend_any_changed }}
+      frontend: ${{ steps.filter.outputs.frontend_any_changed }}
+    steps:
+      - uses: actions/checkout@3df4ab11eba7bda6032a0b82a6bb43b11571feac # v4.0.0
+      - uses: tj-actions/changed-files@90a06d6ba9543371ab4df8eeca0be07ca6054959 # v42.0.2
+        id: filter
+        with:
+          # Any file which is not under docs/, ui/ or is not a markdown file is counted as a backend file
+          files_yaml: |
+            backend:
+              - '!ui/**'
+              - '!**.md'            
+              - '!**/*.md'
+              - '!docs/**'
+            frontend:
+              - 'ui/**'
+              - Dockerfile
   check-go:
     name: Ensure Go modules synchronicity
+    if: ${{ needs.changes.outputs.backend == 'true' }}
     runs-on: ubuntu-22.04
+    needs:
+      - changes
     steps:
       - name: Checkout code
         uses: actions/checkout@3df4ab11eba7bda6032a0b82a6bb43b11571feac # v4.0.0
@@ -36,14 +59,17 @@ jobs:
       - name: Download all Go modules
         run: |
           go mod download
-      - name: Check for tidyness of go.mod and go.sum
+      - name: Check for tidiness of go.mod and go.sum
         run: |
           go mod tidy
           git diff --exit-code -- .
 
   build-go:
     name: Build & cache Go code
+    if: ${{ needs.changes.outputs.backend == 'true' }}
     runs-on: ubuntu-22.04
+    needs:
+      - changes
     steps:
       - name: Checkout code
         uses: actions/checkout@3df4ab11eba7bda6032a0b82a6bb43b11571feac # v4.0.0
@@ -67,7 +93,10 @@ jobs:
       contents: read  # for actions/checkout to fetch code
       pull-requests: read  # for golangci/golangci-lint-action to fetch pull requests
     name: Lint Go code
+    if: ${{ needs.changes.outputs.backend == 'true' }}
     runs-on: ubuntu-22.04
+    needs:
+      - changes
     steps:
       - name: Checkout code
         uses: actions/checkout@3df4ab11eba7bda6032a0b82a6bb43b11571feac # v4.0.0
@@ -83,12 +112,14 @@ jobs:
 
   test-go:
     name: Run unit tests for Go packages
+    if: ${{ needs.changes.outputs.backend == 'true' }}
     runs-on: ubuntu-22.04
     needs:
       - build-go
+      - changes
     env:
       GITHUB_TOKEN: ${{ secrets.E2E_TEST_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
-      GITLAB_TOKEN: ${{ secrets.E2E_TEST_GITLAB_TOKEN }}      
+      GITLAB_TOKEN: ${{ secrets.E2E_TEST_GITLAB_TOKEN }}
     steps:
       - name: Create checkout directory
         run: mkdir -p ~/go/src/github.com/argoproj
@@ -150,12 +181,14 @@ jobs:
 
   test-go-race:
     name: Run unit tests with -race for Go packages
+    if: ${{ needs.changes.outputs.backend == 'true' }}
     runs-on: ubuntu-22.04
     needs:
       - build-go
+      - changes
     env:
       GITHUB_TOKEN: ${{ secrets.E2E_TEST_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
-      GITLAB_TOKEN: ${{ secrets.E2E_TEST_GITLAB_TOKEN }}  
+      GITLAB_TOKEN: ${{ secrets.E2E_TEST_GITLAB_TOKEN }}
     steps:
       - name: Create checkout directory
         run: mkdir -p ~/go/src/github.com/argoproj
@@ -212,7 +245,10 @@ jobs:
 
   codegen:
     name: Check changes to generated code
+    if: ${{ needs.changes.outputs.backend == 'true' }}
     runs-on: ubuntu-22.04
+    needs:
+      - changes
     steps:
       - name: Checkout code
         uses: actions/checkout@3df4ab11eba7bda6032a0b82a6bb43b11571feac # v4.0.0
@@ -260,14 +296,17 @@ jobs:
 
   build-ui:
     name: Build, test & lint UI code
+    if: ${{ needs.changes.outputs.frontend == 'true' }}
     runs-on: ubuntu-22.04
+    needs:
+      - changes
     steps:
       - name: Checkout code
         uses: actions/checkout@3df4ab11eba7bda6032a0b82a6bb43b11571feac # v4.0.0
       - name: Setup NodeJS
         uses: actions/setup-node@5e21ff4d9bc1a8cf6de233a3057d20ec6b3fb69d # v3.8.1
         with:
-          node-version: '20.7.0'
+          node-version: '21.6.1'
       - name: Restore node dependency cache
         id: cache-dependencies
         uses: actions/cache@704facf57e6136b1bc63b828d79edcd491f0ee84 # v3.3.2
@@ -292,10 +331,12 @@ jobs:
 
   analyze:
     name: Process & analyze test artifacts
+    if: ${{ needs.changes.outputs.backend == 'true' || needs.changes.outputs.frontend == 'true' }}
     runs-on: ubuntu-22.04
     needs:
       - test-go
       - build-ui
+      - changes
     env:
       sonar_secret: ${{ secrets.SONAR_TOKEN }}
     steps:
@@ -315,7 +356,7 @@ jobs:
       - name: Create test-results directory
         run: |
           mkdir -p test-results
-      - name: Get code coverage artifiact
+      - name: Get code coverage artifact
         uses: actions/download-artifact@9bc31d5ccc31df68ecc42ccf4149144866c47d8a # v3.0.2
         with:
           name: code-coverage
@@ -336,35 +377,37 @@ jobs:
           SCANNER_PATH: /tmp/cache/scanner
           OS: linux
         run: |
-            # We do not use the provided action, because it does contain an old
-            # version of the scanner, and also takes time to build.
-            set -e
-            mkdir -p ${SCANNER_PATH}
-            export SONAR_USER_HOME=${SCANNER_PATH}/.sonar
-            if [[ ! -x "${SCANNER_PATH}/sonar-scanner-${SCANNER_VERSION}-${OS}/bin/sonar-scanner" ]]; then
-              curl -Ol https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-${SCANNER_VERSION}-${OS}.zip
-              unzip -qq -o sonar-scanner-cli-${SCANNER_VERSION}-${OS}.zip -d ${SCANNER_PATH}
-            fi
-
-            chmod +x ${SCANNER_PATH}/sonar-scanner-${SCANNER_VERSION}-${OS}/bin/sonar-scanner
-            chmod +x ${SCANNER_PATH}/sonar-scanner-${SCANNER_VERSION}-${OS}/jre/bin/java
-
-            # Explicitly set NODE_MODULES
-            export NODE_MODULES=${PWD}/ui/node_modules
-            export NODE_PATH=${PWD}/ui/node_modules
-
-            ${SCANNER_PATH}/sonar-scanner-${SCANNER_VERSION}-${OS}/bin/sonar-scanner
+          # We do not use the provided action, because it does contain an old
+          # version of the scanner, and also takes time to build.
+          set -e
+          mkdir -p ${SCANNER_PATH}
+          export SONAR_USER_HOME=${SCANNER_PATH}/.sonar
+          if [[ ! -x "${SCANNER_PATH}/sonar-scanner-${SCANNER_VERSION}-${OS}/bin/sonar-scanner" ]]; then
+            curl -Ol https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-${SCANNER_VERSION}-${OS}.zip
+            unzip -qq -o sonar-scanner-cli-${SCANNER_VERSION}-${OS}.zip -d ${SCANNER_PATH}
+          fi
+          
+          chmod +x ${SCANNER_PATH}/sonar-scanner-${SCANNER_VERSION}-${OS}/bin/sonar-scanner
+          chmod +x ${SCANNER_PATH}/sonar-scanner-${SCANNER_VERSION}-${OS}/jre/bin/java
+          
+          # Explicitly set NODE_MODULES
+          export NODE_MODULES=${PWD}/ui/node_modules
+          export NODE_PATH=${PWD}/ui/node_modules
+          
+          ${SCANNER_PATH}/sonar-scanner-${SCANNER_VERSION}-${OS}/bin/sonar-scanner
         if: env.sonar_secret != ''
 
   test-e2e:
     name: Run end-to-end tests
+    if: ${{ needs.changes.outputs.backend == 'true' }}
     runs-on: ubuntu-22.04
     strategy:
       fail-fast: false
       matrix:
-        k3s-version: [v1.28.2, v1.27.6, v1.26.9, v1.25.14]
-    needs: 
+        k3s-version: [v1.29.1, v1.28.6, v1.27.10, v1.26.13, v1.25.16]
+    needs:
       - build-go
+      - changes
     env:
       GOPATH: /home/runner/go
       ARGOCD_FAKE_IN_CLUSTER: "true"
@@ -377,7 +420,7 @@ jobs:
       ARGOCD_APPLICATION_NAMESPACES: "argocd-e2e-external,argocd-e2e-external-2"
       ARGOCD_SERVER: "127.0.0.1:8088"
       GITHUB_TOKEN: ${{ secrets.E2E_TEST_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
-      GITLAB_TOKEN: ${{ secrets.E2E_TEST_GITLAB_TOKEN }}  
+      GITLAB_TOKEN: ${{ secrets.E2E_TEST_GITLAB_TOKEN }}
     steps:
       - name: Checkout code
         uses: actions/checkout@3df4ab11eba7bda6032a0b82a6bb43b11571feac # v4.0.0
@@ -427,7 +470,7 @@ jobs:
           git config --global user.email "john.doe@example.com"
       - name: Pull Docker image required for tests
         run: |
-          docker pull ghcr.io/dexidp/dex:v2.37.0
+          docker pull ghcr.io/dexidp/dex:v2.38.0
           docker pull argoproj/argo-cd-ci-builder:v1.0.0
           docker pull redis:7.0.14-alpine
       - name: Create target directory for binaries in the build-process
@@ -462,3 +505,26 @@ jobs:
           name: e2e-server-k8s${{ matrix.k3s-version }}.log
           path: /tmp/e2e-server.log
         if: ${{ failure() }}
+
+  # workaround for status checks -- check this one job instead of each individual E2E job in the matrix
+  # this allows us to skip the entire matrix when it doesn't need to run while still having accurate status checks
+  # see:
+  # https://github.com/argoproj/argo-workflows/pull/12006
+  # https://github.com/orgs/community/discussions/9141#discussioncomment-2296809
+  # https://github.com/orgs/community/discussions/26822#discussioncomment-3305794
+  test-e2e-composite-result:
+    name: E2E Tests - Composite result
+    if: ${{ always() }}
+    needs:
+      - test-e2e
+      - changes
+    runs-on: ubuntu-22.04
+    steps:
+      - run: |
+          result="${{ needs.test-e2e.result }}"
+          # mark as successful even if skipped
+          if [[ $result == "success" || $result == "skipped" ]]; then
+            exit 0
+          else
+            exit 1
+          fi

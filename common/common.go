@@ -115,9 +115,9 @@ const (
 	LegacyShardingAlgorithm = "legacy"
 	// RoundRobinShardingAlgorithm is a flag value that can be opted for Sharding Algorithm it uses an equal distribution accross all shards
 	RoundRobinShardingAlgorithm = "round-robin"
-	DefaultShardingAlgorithm    = LegacyShardingAlgorithm
 	// AppControllerHeartbeatUpdateRetryCount is the retry count for updating the Shard Mapping to the Shard Mapping ConfigMap used by Application Controller
 	AppControllerHeartbeatUpdateRetryCount = 3
+	DefaultShardingAlgorithm               = LegacyShardingAlgorithm
 )
 
 // Dex related constants
@@ -149,10 +149,14 @@ const (
 	LabelKeyAppInstance = "app.kubernetes.io/instance"
 	// LabelKeyAppName is the label key to use to uniquely identify the name of the Kubernetes application
 	LabelKeyAppName = "app.kubernetes.io/name"
+	// LabelKeyAutoLabelClusterInfo if set to true will automatically add extra labels from the cluster info (currently it only adds a k8s version label)
+	LabelKeyAutoLabelClusterInfo = "argocd.argoproj.io/auto-label-cluster-info"
 	// LabelKeyLegacyApplicationName is the legacy label (v0.10 and below) and is superseded by 'app.kubernetes.io/instance'
 	LabelKeyLegacyApplicationName = "applications.argoproj.io/app-name"
 	// LabelKeySecretType contains the type of argocd secret (currently: 'cluster', 'repository', 'repo-config' or 'repo-creds')
 	LabelKeySecretType = "argocd.argoproj.io/secret-type"
+	// LabelKeyClusterKubernetesVersion contains the kubernetes version of the cluster secret if it has been enabled
+	LabelKeyClusterKubernetesVersion = "argocd.argoproj.io/kubernetes-version"
 	// LabelValueSecretTypeCluster indicates a secret type of cluster
 	LabelValueSecretTypeCluster = "cluster"
 	// LabelValueSecretTypeRepository indicates a secret type of repository
