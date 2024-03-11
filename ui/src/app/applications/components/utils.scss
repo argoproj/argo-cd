@@ -27,3 +27,15 @@
 .radio-button {
     margin-right: 0.1em;       
 }
+
+.caution-message-container {
+    display: flex;
+    align-items: center;
+    margin: 10px 0;
+    font-size: .9em;
+    font-weight: 500;
+
+    .fa {
+        font-size: 1.2em;
+    }
+}
