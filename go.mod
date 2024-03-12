@@ -112,6 +112,7 @@ require (
 	github.com/Azure/azure-sdk-for-go/sdk/azidentity v1.1.0 // indirect
 	github.com/Azure/azure-sdk-for-go/sdk/internal v1.0.0 // indirect
 	github.com/AzureAD/microsoft-authentication-library-for-go v0.5.2 // indirect
+	github.com/PaesslerAG/gval v1.0.0 // indirect
 	github.com/aws/aws-sdk-go-v2 v1.17.6 // indirect
 	github.com/aws/aws-sdk-go-v2/config v1.18.17 // indirect
 	github.com/aws/aws-sdk-go-v2/credentials v1.13.17 // indirect
@@ -157,6 +158,7 @@ require (
 	github.com/MakeNowJust/heredoc v0.0.0-20170808103936-bb23615498cd // indirect
 	github.com/Masterminds/goutils v1.1.1 // indirect
 	github.com/Microsoft/go-winio v0.6.1 // indirect
+	github.com/PaesslerAG/jsonpath v0.1.1
 	github.com/PagerDuty/go-pagerduty v1.7.0 // indirect
 	github.com/ProtonMail/go-crypto v0.0.0-20230717121422-5aa5874ade95 // indirect
 	github.com/RocketChat/Rocket.Chat.Go.SDK v0.0.0-20210112200207-10ab4d695d60 // indirect
