@@ -20,7 +20,7 @@ argocd app remove-source APPNAME [flags]
 ```
   -N, --app-namespace string   Namespace of the target application where the source will be appended
   -h, --help                   help for remove-source
-      --source-index int       Index of the source from the list of sources of the app. Index starts from 0. (default -1)
+      --source-index int       Index of the source from the list of sources of the app. Index starts from 1. (default -1)
 ```
 
 ### Options inherited from parent commands

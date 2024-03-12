@@ -139,7 +139,7 @@ func AddAppFlags(command *cobra.Command, opts *AppOptions) {
 	command.Flags().StringVar(&opts.ref, "ref", "", "Ref is reference to another source within sources field")
 }
 
-func SetAppSpecOptions(flags *pflag.FlagSet, spec *argoappv1.ApplicationSpec, appOpts *AppOptions, index *int) int {
+func SetAppSpecOptions(flags *pflag.FlagSet, spec *argoappv1.ApplicationSpec, appOpts *AppOptions, index int) int {
 	visited := 0
 	if flags == nil {
 		return visited
@@ -150,8 +150,8 @@ func SetAppSpecOptions(flags *pflag.FlagSet, spec *argoappv1.ApplicationSpec, ap
 	}
 	source, visited = ConstructSource(source, *appOpts, flags)
 	if spec.HasMultipleSources() {
-		if index != nil {
-			spec.Sources[*index] = *source
+		if index > 0 {
+			spec.Sources[index-1] = *source
 		} else {
 			spec.Sources = append(spec.Sources, *source)
 		}
@@ -422,7 +422,7 @@ func setJsonnetOptLibs(src *argoappv1.ApplicationSource, libs []string) {
 // SetParameterOverrides updates an existing or appends a new parameter override in the application
 // The app is assumed to be a helm app and is expected to be in the form:
 // param=value
-func SetParameterOverrides(app *argoappv1.Application, parameters []string, index *int) {
+func SetParameterOverrides(app *argoappv1.Application, parameters []string, index int) {
 	if len(parameters) == 0 {
 		return
 	}
@@ -538,8 +538,8 @@ func constructAppsBaseOnName(appName string, labels, annotations, args []string,
 			Source: &argoappv1.ApplicationSource{},
 		},
 	}
-	SetAppSpecOptions(flags, &app.Spec, &appOpts, nil)
-	SetParameterOverrides(app, appOpts.Parameters, nil)
+	SetAppSpecOptions(flags, &app.Spec, &appOpts, 0)
+	SetParameterOverrides(app, appOpts.Parameters, 0)
 	mergeLabels(app, labels)
 	setAnnotations(app, annotations)
 	return []*argoappv1.Application{
@@ -568,10 +568,10 @@ func constructAppsFromFileUrl(fileURL, appName string, labels, annotations, args
 		mergeLabels(app, labels)
 		setAnnotations(app, annotations)
 
+		// do not allow overrides for applications with multiple sources
 		if !app.Spec.HasMultipleSources() {
-			// do not allow overrides for applications with multiple sources
-			SetAppSpecOptions(flags, &app.Spec, &appOpts, nil)
-			SetParameterOverrides(app, appOpts.Parameters, nil)
+			SetAppSpecOptions(flags, &app.Spec, &appOpts, 0)
+			SetParameterOverrides(app, appOpts.Parameters, 0)
 		}
 	}
 	return apps, nil

@@ -40,7 +40,7 @@ argocd app unset APPNAME parameters [flags]
       --pass-credentials                Unset passCredentials
       --plugin-env stringArray          Unset plugin env variables (e.g --plugin-env name)
       --ref                             Unset ref on the source
-      --source-index int                Index of the source from the list of sources of the app. Default index is 0. (default -1)
+      --source-index int                Index of the source from the list of sources of the app. Default index is -1. (default -1)
       --values stringArray              Unset one or more Helm values files
       --values-literal                  Unset literal Helm values block
 ```
