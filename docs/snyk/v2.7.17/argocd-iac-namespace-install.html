@@ -456,17 +456,17 @@
               <div class="header-wrap">
                   <h1 class="project__header__title">Snyk test report</h1>
     
-                <p class="timestamp">October 29th 2023, 12:30:07 am (UTC+00:00)</p>
+                <p class="timestamp">March 10th 2024, 12:24:09 am (UTC+00:00)</p>
               </div>
                 <div class="source-panel">
                   <span>Scanned the following path:</span>
                   <ul>
-                    <li class="paths">/argo-cd/manifests/install.yaml (Kubernetes)</li>
+                    <li class="paths">/argo-cd/manifests/namespace-install.yaml (Kubernetes)</li>
                   </ul>
                 </div>
     
                 <div class="meta-counts">
-                  <div class="meta-count"><span>41</span> <span>total issues</span></div>
+                  <div class="meta-count"><span>39</span> <span>total issues</span></div>
                 </div><!-- .meta-counts -->
             </div><!-- .layout-container--short -->
           </header><!-- .project__header -->
@@ -475,15 +475,153 @@
         <section class="layout-container">
             <table class="metatable">
                 <tbody>
-                <tr class="meta-row"><th class="meta-row-label">Project</th> <td class="meta-row-value">manifests/install.yaml</td></tr>
-                <tr class="meta-row"><th class="meta-row-label">Path</th> <td class="meta-row-value">/argo-cd/manifests/install.yaml</td></tr>
+                <tr class="meta-row"><th class="meta-row-label">Project</th> <td class="meta-row-value">manifests/namespace-install.yaml</td></tr>
+                <tr class="meta-row"><th class="meta-row-label">Path</th> <td class="meta-row-value">/argo-cd/manifests/namespace-install.yaml</td></tr>
                 <tr class="meta-row"><th class="meta-row-label">Project Type</th> <td class="meta-row-value">Kubernetes</td></tr>
                 </tbody>
             </table>
         </section>        <div class="layout-container" style="padding-top: 35px;">
           <div class="cards--vuln filter--patch filter--ignore">
               <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
-                  <h2 class="card__title">Role with dangerous permissions</h2>
+                  <h2 class="card__title">Role or ClusterRole with dangerous permissions</h2>
+                  <div class="card__section">
+              
+                      <div class="label label--medium">
+                          <span class="label__text">medium severity</span>
+                      </div>
+              
+                      <hr/>
+              
+                      <ul class="card__meta">
+                          <li class="card__meta__item">
+                              Public ID: <a href="https://security.snyk.io/rules/cloud/SNYK-CC-K8S-47">SNYK-CC-K8S-47</a> 
+                          </li>
+              
+                          <li class="card__meta__item">Introduced through:
+                                  [DocId: 7]
+                                   <span class="list-paths__item__arrow">›</span> 
+                                  rules[0]
+                                   <span class="list-paths__item__arrow">›</span> 
+                                  resources
+                                  
+                          </li>
+              
+                          <li class="card__meta__item">
+                              Line number: 77
+                          </li>
+                      </ul>
+              
+                      <hr/>
+              
+                          <h2>Impact</h2>
+                          <p>Using this role grants dangerous permissions. For a ClusterRole this would be considered high severity.</p>
+              
+                          <h2>Remediation</h2>
+                          <p>Consider removing these permissions</p>
+              
+              
+                          <hr/>
+                  </div><!-- .card__section -->
+              
+                  <div class="cta card__cta">
+                      <p><a href="https://security.snyk.io/rules/cloud/SNYK-CC-K8S-47">More about this issue</a></p>
+                  </div>
+              
+              </div><!-- .card -->
+              <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
+                  <h2 class="card__title">Role or ClusterRole with dangerous permissions</h2>
+                  <div class="card__section">
+              
+                      <div class="label label--medium">
+                          <span class="label__text">medium severity</span>
+                      </div>
+              
+                      <hr/>
+              
+                      <ul class="card__meta">
+                          <li class="card__meta__item">
+                              Public ID: <a href="https://security.snyk.io/rules/cloud/SNYK-CC-K8S-47">SNYK-CC-K8S-47</a> 
+                          </li>
+              
+                          <li class="card__meta__item">Introduced through:
+                                  [DocId: 8]
+                                   <span class="list-paths__item__arrow">›</span> 
+                                  rules[4]
+                                   <span class="list-paths__item__arrow">›</span> 
+                                  resources
+                                  
+                          </li>
+              
+                          <li class="card__meta__item">
+                              Line number: 154
+                          </li>
+                      </ul>
+              
+                      <hr/>
+              
+                          <h2>Impact</h2>
+                          <p>Using this role grants dangerous permissions. For a ClusterRole this would be considered high severity.</p>
+              
+                          <h2>Remediation</h2>
+                          <p>Consider removing these permissions</p>
+              
+              
+                          <hr/>
+                  </div><!-- .card__section -->
+              
+                  <div class="cta card__cta">
+                      <p><a href="https://security.snyk.io/rules/cloud/SNYK-CC-K8S-47">More about this issue</a></p>
+                  </div>
+              
+              </div><!-- .card -->
+              <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
+                  <h2 class="card__title">Role or ClusterRole with dangerous permissions</h2>
+                  <div class="card__section">
+              
+                      <div class="label label--medium">
+                          <span class="label__text">medium severity</span>
+                      </div>
+              
+                      <hr/>
+              
+                      <ul class="card__meta">
+                          <li class="card__meta__item">
+                              Public ID: <a href="https://security.snyk.io/rules/cloud/SNYK-CC-K8S-47">SNYK-CC-K8S-47</a> 
+                          </li>
+              
+                          <li class="card__meta__item">Introduced through:
+                                  [DocId: 9]
+                                   <span class="list-paths__item__arrow">›</span> 
+                                  rules[0]
+                                   <span class="list-paths__item__arrow">›</span> 
+                                  resources
+                                  
+                          </li>
+              
+                          <li class="card__meta__item">
+                              Line number: 182
+                          </li>
+                      </ul>
+              
+                      <hr/>
+              
+                          <h2>Impact</h2>
+                          <p>Using this role grants dangerous permissions. For a ClusterRole this would be considered high severity.</p>
+              
+                          <h2>Remediation</h2>
+                          <p>Consider removing these permissions</p>
+              
+              
+                          <hr/>
+                  </div><!-- .card__section -->
+              
+                  <div class="cta card__cta">
+                      <p><a href="https://security.snyk.io/rules/cloud/SNYK-CC-K8S-47">More about this issue</a></p>
+                  </div>
+              
+              </div><!-- .card -->
+              <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
+                  <h2 class="card__title">Role or ClusterRole with dangerous permissions</h2>
                   <div class="card__section">
               
                       <div class="label label--medium">
@@ -500,24 +638,24 @@
                           <li class="card__meta__item">Introduced through:
                                   [DocId: 10]
                                    <span class="list-paths__item__arrow">›</span> 
-                                  rules[0]
+                                  rules[1]
                                    <span class="list-paths__item__arrow">›</span> 
                                   resources
                                   
                           </li>
               
                           <li class="card__meta__item">
-                              Line number: 15180
+                              Line number: 212
                           </li>
                       </ul>
               
                       <hr/>
               
                           <h2>Impact</h2>
-                          <p>Using this role grants dangerous permissions</p>
+                          <p>Using this role grants dangerous permissions. For a ClusterRole this would be considered high severity.</p>
               
                           <h2>Remediation</h2>
-                          <p>Consider removing this permissions</p>
+                          <p>Consider removing these permissions</p>
               
               
                           <hr/>
@@ -529,7 +667,53 @@
               
               </div><!-- .card -->
               <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
-                  <h2 class="card__title">Role with dangerous permissions</h2>
+                  <h2 class="card__title">Role or ClusterRole with dangerous permissions</h2>
+                  <div class="card__section">
+              
+                      <div class="label label--medium">
+                          <span class="label__text">medium severity</span>
+                      </div>
+              
+                      <hr/>
+              
+                      <ul class="card__meta">
+                          <li class="card__meta__item">
+                              Public ID: <a href="https://security.snyk.io/rules/cloud/SNYK-CC-K8S-47">SNYK-CC-K8S-47</a> 
+                          </li>
+              
+                          <li class="card__meta__item">Introduced through:
+                                  [DocId: 10]
+                                   <span class="list-paths__item__arrow">›</span> 
+                                  rules[3]
+                                   <span class="list-paths__item__arrow">›</span> 
+                                  resources
+                                  
+                          </li>
+              
+                          <li class="card__meta__item">
+                              Line number: 230
+                          </li>
+                      </ul>
+              
+                      <hr/>
+              
+                          <h2>Impact</h2>
+                          <p>Using this role grants dangerous permissions. For a ClusterRole this would be considered high severity.</p>
+              
+                          <h2>Remediation</h2>
+                          <p>Consider removing these permissions</p>
+              
+              
+                          <hr/>
+                  </div><!-- .card__section -->
+              
+                  <div class="cta card__cta">
+                      <p><a href="https://security.snyk.io/rules/cloud/SNYK-CC-K8S-47">More about this issue</a></p>
+                  </div>
+              
+              </div><!-- .card -->
+              <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
+                  <h2 class="card__title">Role or ClusterRole with dangerous permissions</h2>
                   <div class="card__section">
               
                       <div class="label label--medium">
@@ -546,52 +730,6 @@
                           <li class="card__meta__item">Introduced through:
                                   [DocId: 11]
                                    <span class="list-paths__item__arrow">›</span> 
-                                  rules[4]
-                                   <span class="list-paths__item__arrow">›</span> 
-                                  resources
-                                  
-                          </li>
-              
-                          <li class="card__meta__item">
-                              Line number: 15257
-                          </li>
-                      </ul>
-              
-                      <hr/>
-              
-                          <h2>Impact</h2>
-                          <p>Using this role grants dangerous permissions</p>
-              
-                          <h2>Remediation</h2>
-                          <p>Consider removing this permissions</p>
-              
-              
-                          <hr/>
-                  </div><!-- .card__section -->
-              
-                  <div class="cta card__cta">
-                      <p><a href="https://security.snyk.io/rules/cloud/SNYK-CC-K8S-47">More about this issue</a></p>
-                  </div>
-              
-              </div><!-- .card -->
-              <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
-                  <h2 class="card__title">Role with dangerous permissions</h2>
-                  <div class="card__section">
-              
-                      <div class="label label--medium">
-                          <span class="label__text">medium severity</span>
-                      </div>
-              
-                      <hr/>
-              
-                      <ul class="card__meta">
-                          <li class="card__meta__item">
-                              Public ID: <a href="https://security.snyk.io/rules/cloud/SNYK-CC-K8S-47">SNYK-CC-K8S-47</a> 
-                          </li>
-              
-                          <li class="card__meta__item">Introduced through:
-                                  [DocId: 12]
-                                   <span class="list-paths__item__arrow">›</span> 
                                   rules[0]
                                    <span class="list-paths__item__arrow">›</span> 
                                   resources
@@ -599,155 +737,17 @@
                           </li>
               
                           <li class="card__meta__item">
-                              Line number: 15285
+                              Line number: 246
                           </li>
                       </ul>
               
                       <hr/>
               
                           <h2>Impact</h2>
-                          <p>Using this role grants dangerous permissions</p>
+                          <p>Using this role grants dangerous permissions. For a ClusterRole this would be considered high severity.</p>
               
                           <h2>Remediation</h2>
-                          <p>Consider removing this permissions</p>
-              
-              
-                          <hr/>
-                  </div><!-- .card__section -->
-              
-                  <div class="cta card__cta">
-                      <p><a href="https://security.snyk.io/rules/cloud/SNYK-CC-K8S-47">More about this issue</a></p>
-                  </div>
-              
-              </div><!-- .card -->
-              <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
-                  <h2 class="card__title">Role with dangerous permissions</h2>
-                  <div class="card__section">
-              
-                      <div class="label label--medium">
-                          <span class="label__text">medium severity</span>
-                      </div>
-              
-                      <hr/>
-              
-                      <ul class="card__meta">
-                          <li class="card__meta__item">
-                              Public ID: <a href="https://security.snyk.io/rules/cloud/SNYK-CC-K8S-47">SNYK-CC-K8S-47</a> 
-                          </li>
-              
-                          <li class="card__meta__item">Introduced through:
-                                  [DocId: 13]
-                                   <span class="list-paths__item__arrow">›</span> 
-                                  rules[3]
-                                   <span class="list-paths__item__arrow">›</span> 
-                                  resources
-                                  
-                          </li>
-              
-                          <li class="card__meta__item">
-                              Line number: 15329
-                          </li>
-                      </ul>
-              
-                      <hr/>
-              
-                          <h2>Impact</h2>
-                          <p>Using this role grants dangerous permissions</p>
-              
-                          <h2>Remediation</h2>
-                          <p>Consider removing this permissions</p>
-              
-              
-                          <hr/>
-                  </div><!-- .card__section -->
-              
-                  <div class="cta card__cta">
-                      <p><a href="https://security.snyk.io/rules/cloud/SNYK-CC-K8S-47">More about this issue</a></p>
-                  </div>
-              
-              </div><!-- .card -->
-              <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
-                  <h2 class="card__title">Role with dangerous permissions</h2>
-                  <div class="card__section">
-              
-                      <div class="label label--medium">
-                          <span class="label__text">medium severity</span>
-                      </div>
-              
-                      <hr/>
-              
-                      <ul class="card__meta">
-                          <li class="card__meta__item">
-                              Public ID: <a href="https://security.snyk.io/rules/cloud/SNYK-CC-K8S-47">SNYK-CC-K8S-47</a> 
-                          </li>
-              
-                          <li class="card__meta__item">Introduced through:
-                                  [DocId: 13]
-                                   <span class="list-paths__item__arrow">›</span> 
-                                  rules[1]
-                                   <span class="list-paths__item__arrow">›</span> 
-                                  resources
-                                  
-                          </li>
-              
-                          <li class="card__meta__item">
-                              Line number: 15311
-                          </li>
-                      </ul>
-              
-                      <hr/>
-              
-                          <h2>Impact</h2>
-                          <p>Using this role grants dangerous permissions</p>
-              
-                          <h2>Remediation</h2>
-                          <p>Consider removing this permissions</p>
-              
-              
-                          <hr/>
-                  </div><!-- .card__section -->
-              
-                  <div class="cta card__cta">
-                      <p><a href="https://security.snyk.io/rules/cloud/SNYK-CC-K8S-47">More about this issue</a></p>
-                  </div>
-              
-              </div><!-- .card -->
-              <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
-                  <h2 class="card__title">Role with dangerous permissions</h2>
-                  <div class="card__section">
-              
-                      <div class="label label--medium">
-                          <span class="label__text">medium severity</span>
-                      </div>
-              
-                      <hr/>
-              
-                      <ul class="card__meta">
-                          <li class="card__meta__item">
-                              Public ID: <a href="https://security.snyk.io/rules/cloud/SNYK-CC-K8S-47">SNYK-CC-K8S-47</a> 
-                          </li>
-              
-                          <li class="card__meta__item">Introduced through:
-                                  [DocId: 14]
-                                   <span class="list-paths__item__arrow">›</span> 
-                                  rules[0]
-                                   <span class="list-paths__item__arrow">›</span> 
-                                  resources
-                                  
-                          </li>
-              
-                          <li class="card__meta__item">
-                              Line number: 15345
-                          </li>
-                      </ul>
-              
-                      <hr/>
-              
-                          <h2>Impact</h2>
-                          <p>Using this role grants dangerous permissions</p>
-              
-                          <h2>Remediation</h2>
-                          <p>Consider removing this permissions</p>
+                          <p>Consider removing these permissions</p>
               
               
                           <hr/>
@@ -774,7 +774,7 @@
                           </li>
               
                           <li class="card__meta__item">Introduced through:
-                                  [DocId: 46]
+                                  [DocId: 39]
                                    <span class="list-paths__item__arrow">›</span> 
                                   spec
                                    <span class="list-paths__item__arrow">›</span> 
@@ -789,7 +789,7 @@
                           </li>
               
                           <li class="card__meta__item">
-                              Line number: 16361
+                              Line number: 1197
                           </li>
                       </ul>
               
@@ -826,7 +826,7 @@
                           </li>
               
                           <li class="card__meta__item">Introduced through:
-                                  [DocId: 42]
+                                  [DocId: 35]
                                    <span class="list-paths__item__arrow">›</span> 
                                   input
                                    <span class="list-paths__item__arrow">›</span> 
@@ -847,7 +847,7 @@
                           </li>
               
                           <li class="card__meta__item">
-                              Line number: 15812
+                              Line number: 640
                           </li>
                       </ul>
               
@@ -884,7 +884,7 @@
                           </li>
               
                           <li class="card__meta__item">Introduced through:
-                                  [DocId: 43]
+                                  [DocId: 36]
                                    <span class="list-paths__item__arrow">›</span> 
                                   input
                                    <span class="list-paths__item__arrow">›</span> 
@@ -905,7 +905,7 @@
                           </li>
               
                           <li class="card__meta__item">
-                              Line number: 15985
+                              Line number: 812
                           </li>
                       </ul>
               
@@ -942,7 +942,7 @@
                           </li>
               
                           <li class="card__meta__item">Introduced through:
-                                  [DocId: 43]
+                                  [DocId: 36]
                                    <span class="list-paths__item__arrow">›</span> 
                                   input
                                    <span class="list-paths__item__arrow">›</span> 
@@ -963,7 +963,7 @@
                           </li>
               
                           <li class="card__meta__item">
-                              Line number: 15951
+                              Line number: 778
                           </li>
                       </ul>
               
@@ -1000,7 +1000,7 @@
                           </li>
               
                           <li class="card__meta__item">Introduced through:
-                                  [DocId: 44]
+                                  [DocId: 37]
                                    <span class="list-paths__item__arrow">›</span> 
                                   input
                                    <span class="list-paths__item__arrow">›</span> 
@@ -1021,7 +1021,7 @@
                           </li>
               
                           <li class="card__meta__item">
-                              Line number: 16041
+                              Line number: 872
                           </li>
                       </ul>
               
@@ -1058,7 +1058,7 @@
                           </li>
               
                           <li class="card__meta__item">Introduced through:
-                                  [DocId: 45]
+                                  [DocId: 38]
                                    <span class="list-paths__item__arrow">›</span> 
                                   input
                                    <span class="list-paths__item__arrow">›</span> 
@@ -1079,7 +1079,7 @@
                           </li>
               
                           <li class="card__meta__item">
-                              Line number: 16115
+                              Line number: 953
                           </li>
                       </ul>
               
@@ -1116,7 +1116,7 @@
                           </li>
               
                           <li class="card__meta__item">Introduced through:
-                                  [DocId: 46]
+                                  [DocId: 39]
                                    <span class="list-paths__item__arrow">›</span> 
                                   input
                                    <span class="list-paths__item__arrow">›</span> 
@@ -1137,7 +1137,7 @@
                           </li>
               
                           <li class="card__meta__item">
-                              Line number: 16361
+                              Line number: 1197
                           </li>
                       </ul>
               
@@ -1174,7 +1174,7 @@
                           </li>
               
                           <li class="card__meta__item">Introduced through:
-                                  [DocId: 46]
+                                  [DocId: 39]
                                    <span class="list-paths__item__arrow">›</span> 
                                   input
                                    <span class="list-paths__item__arrow">›</span> 
@@ -1195,7 +1195,7 @@
                           </li>
               
                           <li class="card__meta__item">
-                              Line number: 16171
+                              Line number: 1009
                           </li>
                       </ul>
               
@@ -1232,7 +1232,7 @@
                           </li>
               
                           <li class="card__meta__item">Introduced through:
-                                  [DocId: 47]
+                                  [DocId: 40]
                                    <span class="list-paths__item__arrow">›</span> 
                                   input
                                    <span class="list-paths__item__arrow">›</span> 
@@ -1253,7 +1253,7 @@
                           </li>
               
                           <li class="card__meta__item">
-                              Line number: 16446
+                              Line number: 1282
                           </li>
                       </ul>
               
@@ -1290,7 +1290,7 @@
                           </li>
               
                           <li class="card__meta__item">Introduced through:
-                                  [DocId: 48]
+                                  [DocId: 41]
                                    <span class="list-paths__item__arrow">›</span> 
                                   input
                                    <span class="list-paths__item__arrow">›</span> 
@@ -1311,7 +1311,7 @@
                           </li>
               
                           <li class="card__meta__item">
-                              Line number: 16750
+                              Line number: 1592
                           </li>
                       </ul>
               
@@ -1348,7 +1348,7 @@
                           </li>
               
                           <li class="card__meta__item">Introduced through:
-                                  [DocId: 43]
+                                  [DocId: 36]
                                    <span class="list-paths__item__arrow">›</span> 
                                   spec
                                    <span class="list-paths__item__arrow">›</span> 
@@ -1363,7 +1363,7 @@
                           </li>
               
                           <li class="card__meta__item">
-                              Line number: 15965
+                              Line number: 792
                           </li>
                       </ul>
               
@@ -1400,7 +1400,7 @@
                           </li>
               
                           <li class="card__meta__item">Introduced through:
-                                  [DocId: 45]
+                                  [DocId: 38]
                                    <span class="list-paths__item__arrow">›</span> 
                                   spec
                                    <span class="list-paths__item__arrow">›</span> 
@@ -1417,7 +1417,7 @@
                           </li>
               
                           <li class="card__meta__item">
-                              Line number: 16125
+                              Line number: 963
                           </li>
                       </ul>
               
@@ -1454,7 +1454,7 @@
                           </li>
               
                           <li class="card__meta__item">Introduced through:
-                                  [DocId: 42]
+                                  [DocId: 35]
                                    <span class="list-paths__item__arrow">›</span> 
                                   spec
                                    <span class="list-paths__item__arrow">›</span> 
@@ -1469,7 +1469,7 @@
                           </li>
               
                           <li class="card__meta__item">
-                              Line number: 15812
+                              Line number: 640
                           </li>
                       </ul>
               
@@ -1506,59 +1506,7 @@
                           </li>
               
                           <li class="card__meta__item">Introduced through:
-                                  [DocId: 43]
-                                   <span class="list-paths__item__arrow">›</span> 
-                                  spec
-                                   <span class="list-paths__item__arrow">›</span> 
-                                  template
-                                   <span class="list-paths__item__arrow">›</span> 
-                                  spec
-                                   <span class="list-paths__item__arrow">›</span> 
-                                  initContainers[copyutil]
-                                   <span class="list-paths__item__arrow">›</span> 
-                                  livenessProbe
-                                  
-                          </li>
-              
-                          <li class="card__meta__item">
-                              Line number: 15985
-                          </li>
-                      </ul>
-              
-                      <hr/>
-              
-                          <h2>Impact</h2>
-                          <p>Kubernetes will not be able to detect if application is able to service requests, and will not restart unhealthy pods</p>
-              
-                          <h2>Remediation</h2>
-                          <p>Add &#x60;livenessProbe&#x60; attribute</p>
-              
-              
-                          <hr/>
-                  </div><!-- .card__section -->
-              
-                  <div class="cta card__cta">
-                      <p><a href="https://security.snyk.io/rules/cloud/SNYK-CC-K8S-41">More about this issue</a></p>
-                  </div>
-              
-              </div><!-- .card -->
-              <div class="card card--vuln  disclosure--not-new severity--low" data-snyk-test="low">
-                  <h2 class="card__title">Container is running without liveness probe</h2>
-                  <div class="card__section">
-              
-                      <div class="label label--low">
-                          <span class="label__text">low severity</span>
-                      </div>
-              
-                      <hr/>
-              
-                      <ul class="card__meta">
-                          <li class="card__meta__item">
-                              Public ID: <a href="https://security.snyk.io/rules/cloud/SNYK-CC-K8S-41">SNYK-CC-K8S-41</a> 
-                          </li>
-              
-                          <li class="card__meta__item">Introduced through:
-                                  [DocId: 43]
+                                  [DocId: 36]
                                    <span class="list-paths__item__arrow">›</span> 
                                   spec
                                    <span class="list-paths__item__arrow">›</span> 
@@ -1573,7 +1521,7 @@
                           </li>
               
                           <li class="card__meta__item">
-                              Line number: 15951
+                              Line number: 778
                           </li>
                       </ul>
               
@@ -1610,7 +1558,7 @@
                           </li>
               
                           <li class="card__meta__item">Introduced through:
-                                  [DocId: 45]
+                                  [DocId: 38]
                                    <span class="list-paths__item__arrow">›</span> 
                                   spec
                                    <span class="list-paths__item__arrow">›</span> 
@@ -1625,59 +1573,7 @@
                           </li>
               
                           <li class="card__meta__item">
-                              Line number: 16115
-                          </li>
-                      </ul>
-              
-                      <hr/>
-              
-                          <h2>Impact</h2>
-                          <p>Kubernetes will not be able to detect if application is able to service requests, and will not restart unhealthy pods</p>
-              
-                          <h2>Remediation</h2>
-                          <p>Add &#x60;livenessProbe&#x60; attribute</p>
-              
-              
-                          <hr/>
-                  </div><!-- .card__section -->
-              
-                  <div class="cta card__cta">
-                      <p><a href="https://security.snyk.io/rules/cloud/SNYK-CC-K8S-41">More about this issue</a></p>
-                  </div>
-              
-              </div><!-- .card -->
-              <div class="card card--vuln  disclosure--not-new severity--low" data-snyk-test="low">
-                  <h2 class="card__title">Container is running without liveness probe</h2>
-                  <div class="card__section">
-              
-                      <div class="label label--low">
-                          <span class="label__text">low severity</span>
-                      </div>
-              
-                      <hr/>
-              
-                      <ul class="card__meta">
-                          <li class="card__meta__item">
-                              Public ID: <a href="https://security.snyk.io/rules/cloud/SNYK-CC-K8S-41">SNYK-CC-K8S-41</a> 
-                          </li>
-              
-                          <li class="card__meta__item">Introduced through:
-                                  [DocId: 46]
-                                   <span class="list-paths__item__arrow">›</span> 
-                                  spec
-                                   <span class="list-paths__item__arrow">›</span> 
-                                  template
-                                   <span class="list-paths__item__arrow">›</span> 
-                                  spec
-                                   <span class="list-paths__item__arrow">›</span> 
-                                  initContainers[copyutil]
-                                   <span class="list-paths__item__arrow">›</span> 
-                                  livenessProbe
-                                  
-                          </li>
-              
-                          <li class="card__meta__item">
-                              Line number: 16361
+                              Line number: 953
                           </li>
                       </ul>
               
@@ -1714,7 +1610,7 @@
                           </li>
               
                           <li class="card__meta__item">Introduced through:
-                                  [DocId: 42]
+                                  [DocId: 35]
                                    <span class="list-paths__item__arrow">›</span> 
                                   input
                                    <span class="list-paths__item__arrow">›</span> 
@@ -1735,7 +1631,7 @@
                           </li>
               
                           <li class="card__meta__item">
-                              Line number: 15812
+                              Line number: 640
                           </li>
                       </ul>
               
@@ -1772,7 +1668,7 @@
                           </li>
               
                           <li class="card__meta__item">Introduced through:
-                                  [DocId: 43]
+                                  [DocId: 36]
                                    <span class="list-paths__item__arrow">›</span> 
                                   input
                                    <span class="list-paths__item__arrow">›</span> 
@@ -1793,7 +1689,7 @@
                           </li>
               
                           <li class="card__meta__item">
-                              Line number: 15951
+                              Line number: 778
                           </li>
                       </ul>
               
@@ -1830,7 +1726,7 @@
                           </li>
               
                           <li class="card__meta__item">Introduced through:
-                                  [DocId: 43]
+                                  [DocId: 36]
                                    <span class="list-paths__item__arrow">›</span> 
                                   input
                                    <span class="list-paths__item__arrow">›</span> 
@@ -1851,7 +1747,7 @@
                           </li>
               
                           <li class="card__meta__item">
-                              Line number: 15985
+                              Line number: 812
                           </li>
                       </ul>
               
@@ -1888,7 +1784,7 @@
                           </li>
               
                           <li class="card__meta__item">Introduced through:
-                                  [DocId: 44]
+                                  [DocId: 37]
                                    <span class="list-paths__item__arrow">›</span> 
                                   input
                                    <span class="list-paths__item__arrow">›</span> 
@@ -1909,7 +1805,7 @@
                           </li>
               
                           <li class="card__meta__item">
-                              Line number: 16041
+                              Line number: 872
                           </li>
                       </ul>
               
@@ -1946,7 +1842,7 @@
                           </li>
               
                           <li class="card__meta__item">Introduced through:
-                                  [DocId: 45]
+                                  [DocId: 38]
                                    <span class="list-paths__item__arrow">›</span> 
                                   input
                                    <span class="list-paths__item__arrow">›</span> 
@@ -1967,7 +1863,7 @@
                           </li>
               
                           <li class="card__meta__item">
-                              Line number: 16115
+                              Line number: 953
                           </li>
                       </ul>
               
@@ -2004,7 +1900,7 @@
                           </li>
               
                           <li class="card__meta__item">Introduced through:
-                                  [DocId: 46]
+                                  [DocId: 39]
                                    <span class="list-paths__item__arrow">›</span> 
                                   input
                                    <span class="list-paths__item__arrow">›</span> 
@@ -2025,7 +1921,7 @@
                           </li>
               
                           <li class="card__meta__item">
-                              Line number: 16361
+                              Line number: 1197
                           </li>
                       </ul>
               
@@ -2062,7 +1958,7 @@
                           </li>
               
                           <li class="card__meta__item">Introduced through:
-                                  [DocId: 46]
+                                  [DocId: 39]
                                    <span class="list-paths__item__arrow">›</span> 
                                   input
                                    <span class="list-paths__item__arrow">›</span> 
@@ -2083,7 +1979,7 @@
                           </li>
               
                           <li class="card__meta__item">
-                              Line number: 16171
+                              Line number: 1009
                           </li>
                       </ul>
               
@@ -2120,7 +2016,7 @@
                           </li>
               
                           <li class="card__meta__item">Introduced through:
-                                  [DocId: 47]
+                                  [DocId: 40]
                                    <span class="list-paths__item__arrow">›</span> 
                                   input
                                    <span class="list-paths__item__arrow">›</span> 
@@ -2141,7 +2037,7 @@
                           </li>
               
                           <li class="card__meta__item">
-                              Line number: 16446
+                              Line number: 1282
                           </li>
                       </ul>
               
@@ -2178,7 +2074,7 @@
                           </li>
               
                           <li class="card__meta__item">Introduced through:
-                                  [DocId: 48]
+                                  [DocId: 41]
                                    <span class="list-paths__item__arrow">›</span> 
                                   input
                                    <span class="list-paths__item__arrow">›</span> 
@@ -2199,7 +2095,7 @@
                           </li>
               
                           <li class="card__meta__item">
-                              Line number: 16750
+                              Line number: 1592
                           </li>
                       </ul>
               
@@ -2236,7 +2132,7 @@
                           </li>
               
                           <li class="card__meta__item">Introduced through:
-                                  [DocId: 42]
+                                  [DocId: 35]
                                    <span class="list-paths__item__arrow">›</span> 
                                   input
                                    <span class="list-paths__item__arrow">›</span> 
@@ -2255,7 +2151,7 @@
                           </li>
               
                           <li class="card__meta__item">
-                              Line number: 15888
+                              Line number: 715
                           </li>
                       </ul>
               
@@ -2292,7 +2188,7 @@
                           </li>
               
                           <li class="card__meta__item">Introduced through:
-                                  [DocId: 43]
+                                  [DocId: 36]
                                    <span class="list-paths__item__arrow">›</span> 
                                   input
                                    <span class="list-paths__item__arrow">›</span> 
@@ -2311,7 +2207,7 @@
                           </li>
               
                           <li class="card__meta__item">
-                              Line number: 15993
+                              Line number: 820
                           </li>
                       </ul>
               
@@ -2348,7 +2244,7 @@
                           </li>
               
                           <li class="card__meta__item">Introduced through:
-                                  [DocId: 43]
+                                  [DocId: 36]
                                    <span class="list-paths__item__arrow">›</span> 
                                   input
                                    <span class="list-paths__item__arrow">›</span> 
@@ -2367,7 +2263,7 @@
                           </li>
               
                           <li class="card__meta__item">
-                              Line number: 15968
+                              Line number: 795
                           </li>
                       </ul>
               
@@ -2404,7 +2300,7 @@
                           </li>
               
                           <li class="card__meta__item">Introduced through:
-                                  [DocId: 44]
+                                  [DocId: 37]
                                    <span class="list-paths__item__arrow">›</span> 
                                   input
                                    <span class="list-paths__item__arrow">›</span> 
@@ -2423,7 +2319,7 @@
                           </li>
               
                           <li class="card__meta__item">
-                              Line number: 16049
+                              Line number: 887
                           </li>
                       </ul>
               
@@ -2460,7 +2356,7 @@
                           </li>
               
                           <li class="card__meta__item">Introduced through:
-                                  [DocId: 45]
+                                  [DocId: 38]
                                    <span class="list-paths__item__arrow">›</span> 
                                   input
                                    <span class="list-paths__item__arrow">›</span> 
@@ -2479,7 +2375,7 @@
                           </li>
               
                           <li class="card__meta__item">
-                              Line number: 16125
+                              Line number: 963
                           </li>
                       </ul>
               
@@ -2516,7 +2412,7 @@
                           </li>
               
                           <li class="card__meta__item">Introduced through:
-                                  [DocId: 46]
+                                  [DocId: 39]
                                    <span class="list-paths__item__arrow">›</span> 
                                   input
                                    <span class="list-paths__item__arrow">›</span> 
@@ -2535,7 +2431,7 @@
                           </li>
               
                           <li class="card__meta__item">
-                              Line number: 16368
+                              Line number: 1204
                           </li>
                       </ul>
               
@@ -2572,7 +2468,7 @@
                           </li>
               
                           <li class="card__meta__item">Introduced through:
-                                  [DocId: 46]
+                                  [DocId: 39]
                                    <span class="list-paths__item__arrow">›</span> 
                                   input
                                    <span class="list-paths__item__arrow">›</span> 
@@ -2591,7 +2487,7 @@
                           </li>
               
                           <li class="card__meta__item">
-                              Line number: 16334
+                              Line number: 1170
                           </li>
                       </ul>
               
@@ -2628,7 +2524,7 @@
                           </li>
               
                           <li class="card__meta__item">Introduced through:
-                                  [DocId: 47]
+                                  [DocId: 40]
                                    <span class="list-paths__item__arrow">›</span> 
                                   input
                                    <span class="list-paths__item__arrow">›</span> 
@@ -2647,7 +2543,7 @@
                           </li>
               
                           <li class="card__meta__item">
-                              Line number: 16660
+                              Line number: 1502
                           </li>
                       </ul>
               
@@ -2684,7 +2580,7 @@
                           </li>
               
                           <li class="card__meta__item">Introduced through:
-                                  [DocId: 48]
+                                  [DocId: 41]
                                    <span class="list-paths__item__arrow">›</span> 
                                   input
                                    <span class="list-paths__item__arrow">›</span> 
@@ -2703,7 +2599,7 @@
                           </li>
               
                           <li class="card__meta__item">
-                              Line number: 16886
+                              Line number: 1734
                           </li>
                       </ul>
               

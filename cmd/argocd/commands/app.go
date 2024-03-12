@@ -611,7 +611,7 @@ func printAppSummaryTable(app *argoappv1.Application, appURL string, windows *ar
 			syncPolicy += " (Prune)"
 		}
 	} else {
-		syncPolicy = "<none>"
+		syncPolicy = "Manual"
 	}
 	fmt.Printf(printOpFmtStr, "Sync Policy:", syncPolicy)
 	syncStatusStr := string(app.Status.Sync.Status)
@@ -1516,7 +1516,7 @@ func NewApplicationListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 
 func formatSyncPolicy(app argoappv1.Application) string {
 	if app.Spec.SyncPolicy == nil || app.Spec.SyncPolicy.Automated == nil {
-		return "<none>"
+		return "Manual"
 	}
 	policy := "Auto"
 	if app.Spec.SyncPolicy.Automated.Prune {
