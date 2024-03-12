@@ -2813,6 +2813,109 @@ func TestDeletePerformedWithSyncPolicyCreateOnlyAndAllowPolicyOverrideFalse(t *t
 	assert.Equal(t, 0, len(apps.Items))
 }
 
+// Test app generation from a go template application set using a gitlab environment generator
+func TestGenerateAppsUsingGitlabEnvironmentGenerator(t *testing.T) {
+	scheme := runtime.NewScheme()
+	client := fake.NewClientBuilder().WithScheme(scheme).Build()
+
+	for _, cases := range []struct {
+		name        string
+		params      []map[string]interface{}
+		template    v1alpha1.ApplicationSetTemplate
+		expectedApp []v1alpha1.Application
+	}{
+		{
+			name: "Generate an application from a go template application set manifest using a gitlab environment generator",
+			params: []map[string]interface{}{{
+				"api":              "https://gitlab.com",
+				"id":               "1",
+				"name":             "review-app",
+				"state":            "available",
+				"tier":             "staging",
+				"environment_slug": "review-app-dfjre3",
+				"environment_url":  "review-app.example.com"}},
+			template: v1alpha1.ApplicationSetTemplate{
+				ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{
+					Name: "env-{{.name}}",
+					Labels: map[string]string{
+						"url": "{{.environment_url}}"},
+				},
+				Spec: v1alpha1.ApplicationSpec{
+					Source: &v1alpha1.ApplicationSource{
+						RepoURL:        "https://testurl/testRepo",
+						TargetRevision: "HEAD",
+					},
+					Destination: v1alpha1.ApplicationDestination{
+						Server:    "https://kubernetes.default.svc",
+						Namespace: "review-apps-{{.tier}}",
+					},
+				},
+			},
+			expectedApp: []v1alpha1.Application{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "env-review-app",
+						Labels: map[string]string{
+							"url": "review-app.example.com",
+						},
+					},
+					Spec: v1alpha1.ApplicationSpec{
+						Source: &v1alpha1.ApplicationSource{
+							RepoURL:        "https://testurl/testRepo",
+							TargetRevision: "HEAD",
+						},
+						Destination: v1alpha1.ApplicationDestination{
+							Server:    "https://kubernetes.default.svc",
+							Namespace: "review-apps-staging",
+						},
+					},
+				},
+			},
+		},
+	} {
+
+		t.Run(cases.name, func(t *testing.T) {
+
+			generatorMock := generatorMock{}
+			generator := v1alpha1.ApplicationSetGenerator{
+				GitlabEnvironment: &v1alpha1.GitlabEnvironmentGenerator{},
+			}
+
+			generatorMock.On("GenerateParams", &generator).
+				Return(cases.params, nil)
+
+			generatorMock.On("GetTemplate", &generator).
+				Return(&cases.template, nil)
+
+			appSetReconciler := ApplicationSetReconciler{
+				Client:   client,
+				Scheme:   scheme,
+				Recorder: record.NewFakeRecorder(1),
+				Generators: map[string]generators.Generator{
+					"GitlabEnvironment": &generatorMock,
+				},
+				Renderer:      &utils.Render{},
+				KubeClientset: kubefake.NewSimpleClientset(),
+			}
+
+			gotApp, _, _ := appSetReconciler.generateApplications(log.NewEntry(log.StandardLogger()), v1alpha1.ApplicationSet{
+				Spec: v1alpha1.ApplicationSetSpec{
+					GoTemplate: true,
+					Generators: []v1alpha1.ApplicationSetGenerator{{
+						GitlabEnvironment: &v1alpha1.GitlabEnvironmentGenerator{},
+					}},
+					Template: cases.template,
+				},
+			},
+			)
+			assert.EqualValues(t, cases.expectedApp[0].ObjectMeta.Name, gotApp[0].ObjectMeta.Name)
+			assert.EqualValues(t, cases.expectedApp[0].Spec.Source.TargetRevision, gotApp[0].Spec.Source.TargetRevision)
+			assert.EqualValues(t, cases.expectedApp[0].Spec.Destination.Namespace, gotApp[0].Spec.Destination.Namespace)
+			assert.True(t, collections.StringMapsEqual(cases.expectedApp[0].ObjectMeta.Labels, gotApp[0].ObjectMeta.Labels))
+		})
+	}
+}
+
 // Test app generation from a go template application set using a pull request generator
 func TestGenerateAppsUsingPullRequestGenerator(t *testing.T) {
 	scheme := runtime.NewScheme()
