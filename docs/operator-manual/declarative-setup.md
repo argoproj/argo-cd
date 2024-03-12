@@ -359,7 +359,9 @@ The following keys are valid to refer to credential secrets:
 
 You can manage the TLS certificates used to verify the authenticity of your repository servers in a ConfigMap object named `argocd-tls-certs-cm`. The data section should contain a map, with the repository server's hostname part (not the complete URL) as key, and the certificate(s) in PEM format as data. So, if you connect to a repository with the URL `https://server.example.com/repos/my-repo`, you should use `server.example.com` as key. The certificate data should be either the server's certificate (in case of self-signed certificate) or the certificate of the CA that was used to sign the server's certificate. You can configure multiple certificates for each server, e.g. if you are having a certificate roll-over planned.
 
-If there are no dedicated certificates configured for a repository server, the system's default trust store is used for validating the server's repository. This should be good enough for most (if not all) public Git repository services such as GitLab, GitHub and Bitbucket as well as most privately hosted sites which use certificates from well-known CAs, including Let's Encrypt certificates.
+You can use the special `_default_ca_fallback_` key to add a custom CA certificate that will be used as a fallback whenever the FQDN certificate is not found. Note that if you add the `_default_ca_fallback_` fallback, the system's default trust store will be ignored as every server will match the fallback key.
+
+If there are no dedicated certificates configured for a repository server, and no default fallback (via the special `_default_ca_fallback_` key), the system's default trust store is used for validating the server's repository. This should be good enough for most (if not all) public Git repository services such as GitLab, GitHub and Bitbucket as well as most privately hosted sites which use certificates from well-known CAs, including Let's Encrypt certificates.
 
 An example ConfigMap object:
 
@@ -407,6 +409,31 @@ data:
     9w6CwG32pRlm0c8kkiQ7FXA6BYCqOsDI8f1VGQv331OpR2Ck+FTv+L7DAmg6l37W
     +LB9LGh4OAp68ImTjqf6ioGKG0RBSznwME+r4nXtT1S/qLR6ASWUS4ViWRhbRlNK
     XWyb96wrUlv+E8I=
+    -----END CERTIFICATE-----
+  _default_ca_fallback_: |
+    -----BEGIN CERTIFICATE-----
+    MIIEATCCAumgAwIBAgIUFNUQWnJGbptqV5+onB6UWeS0OUkwDQYJKoZIhvcNAQEL
+    BQAwgY8xCzAJBgNVBAYTAlVTMRMwEQYDVQQIDApDYWxpZm9ybmlhMRAwDgYDVQQH
+    DAdBbnl0b3duMRAwDgYDVQQKDAdBcmdvIENEMRAwDgYDVQQLDAdUZXN0IENBMRYw
+    FAYDVQQDDA1UZXN0IENBIFJvb3QxMR0wGwYJKoZIhvcNAQkBFg5hcmdvQGFyZ28u
+    YXJnbzAeFw0yNDAyMjQxMzU0MTdaFw0yNTAyMjMxMzU0MTdaMIGPMQswCQYDVQQG
+    EwJVUzETMBEGA1UECAwKQ2FsaWZvcm5pYTEQMA4GA1UEBwwHQW55dG93bjEQMA4G
+    A1UECgwHQXJnbyBDRDEQMA4GA1UECwwHVGVzdCBDQTEWMBQGA1UEAwwNVGVzdCBD
+    QSBSb290MTEdMBsGCSqGSIb3DQEJARYOYXJnb0BhcmdvLmFyZ28wggEiMA0GCSqG
+    SIb3DQEBAQUAA4IBDwAwggEKAoIBAQDodIqDINtl/CN9jGipZropY32Vw0X4wD5H
+    zhIed307CE4mQmCgIqe3ltWekFgqiEei7WQEcxFIZBZXRYFGNZWrhH6rdYjp4Mqc
+    YNbsdcSA/EufQjH9n0Iz3OjCQXbU2BdOGirR2UZ3jiY7j6jB23I+X2VgA9qkLcVW
+    QQ6Ax4SUsWiFBCDdvyHutkqA2S2X7MLUI7upABRo0fXHw+jHf+TpQKUX3+E+2x78
+    2Nvfy/FZGCHOI+7KDNc6AiaYW31/wf98rHNoWz3QqxidkbgxYcExBkCp3769Qgn2
+    VrUkLqaRbBb8IEMZ19Us+M5qdHAfxeZG9uU7599tzFXkCPssneeTAgMBAAGjUzBR
+    MB0GA1UdDgQWBBTpR2CQqUwXn/918Y1xaA8gdCArLjAfBgNVHSMEGDAWgBTpR2CQ
+    qUwXn/918Y1xaA8gdCArLjAPBgNVHRMBAf8EBTADAQH/MA0GCSqGSIb3DQEBCwUA
+    A4IBAQDOYxJrL/1/V9EwrnsKtPYLd9uoEJsYAE0ylWJV17I3xPM5igsd1khuRwb4
+    DrFOBE/FBXKzLbew1aYj2iOMr4cEMfongGsvYSQihtEeRf+Me7AaMqJGHwsIp3aj
+    qb4W8r4Lqaom7ocRI+jvKdEQHriKRLdERe+NkowQnqaoPUwhPO6WM9nf/WLw7Flk
+    kHHqDg8+weTE5IDSsvjb5eR+CnPRJ8BN5Hxi2RbMl9PKrcQ0fY5CStycA+sSiqaO
+    n4HXCH787HUDANzktU43Sv/YgrSSFUkIJyhEMvTBACQ5J8f9lOih1rBNyl8+JrAn
+    T5VXDFMnYPMgszFBMEAMjkKJmcrR
     -----END CERTIFICATE-----
 
 ```
