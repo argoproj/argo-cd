@@ -393,6 +393,7 @@ func Test_ValidHostnames(t *testing.T) {
 		".localhost":                         false,
 		"local_host":                         true,
 		"localhost.local_domain":             true,
+		"_default_ca_fallback_":              true,
 	}
 
 	for hostName, valid := range hostNames {
@@ -417,6 +418,7 @@ func Test_ValidFQDNs(t *testing.T) {
 		"local_host":                         false,
 		"localhost.local_domain":             false,
 		"localhost.local_domain.":            false,
+		"_default_ca_fallback_":              false,
 	}
 
 	for hostName, valid := range hostNames {
@@ -505,6 +507,22 @@ func TestGetCertificateForConnect(t *testing.T) {
 		assert.Contains(t, err.Error(), "no certificates found")
 	})
 
+	t.Run("Success with the default certificate", func(t *testing.T) {
+		temppath := t.TempDir()
+		cert, err := os.ReadFile("../../test/fixture/certs/argocd-test-server.crt")
+		if err != nil {
+			panic(err)
+		}
+		err = os.WriteFile(path.Join(temppath, "_default_ca_fallback_"), cert, 0666)
+		if err != nil {
+			panic(err)
+		}
+		t.Setenv(common.EnvVarTLSDataPath, temppath)
+		certs, err := GetCertificateForConnect("127.0.0.1")
+		assert.NoError(t, err)
+		assert.Len(t, certs, 1)
+	})
+
 }
 
 func TestGetCertBundlePathForRepository(t *testing.T) {
@@ -542,6 +560,41 @@ func TestGetCertBundlePathForRepository(t *testing.T) {
 		certpath, err := GetCertBundlePathForRepository("127.0.0.1")
 		assert.NoError(t, err)
 		assert.Empty(t, certpath)
+	})
+	t.Run("Success with default cert and no per-server cert", func(t *testing.T) {
+		temppath := t.TempDir()
+		cert, err := os.ReadFile("../../test/fixture/certs/argocd-test-server.crt")
+		if err != nil {
+			panic(err)
+		}
+		err = os.WriteFile(path.Join(temppath, "_default_ca_fallback_"), cert, 0666)
+		if err != nil {
+			panic(err)
+		}
+		t.Setenv(common.EnvVarTLSDataPath, temppath)
+		certpath, err := GetCertBundlePathForRepository("127.0.0.1")
+		assert.NoError(t, err)
+		assert.Equal(t, certpath, path.Join(temppath, "_default_ca_fallback_"))
+	})
+
+	t.Run("Success with per-server cert and default cert (returns per-server cert)", func(t *testing.T) {
+		temppath := t.TempDir()
+		cert, err := os.ReadFile("../../test/fixture/certs/argocd-test-server.crt")
+		if err != nil {
+			panic(err)
+		}
+		err = os.WriteFile(path.Join(temppath, "127.0.0.1"), cert, 0666)
+		if err != nil {
+			panic(err)
+		}
+		err = os.WriteFile(path.Join(temppath, "_"), cert, 0666)
+		if err != nil {
+			panic(err)
+		}
+		t.Setenv(common.EnvVarTLSDataPath, temppath)
+		certpath, err := GetCertBundlePathForRepository("127.0.0.1")
+		assert.NoError(t, err)
+		assert.Equal(t, certpath, path.Join(temppath, "127.0.0.1"))
 	})
 
 }
