@@ -82,13 +82,8 @@ func (m *MergeGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.Appl
 		return nil, fmt.Errorf("error getting param sets from generators: %w", err)
 	}
 
-	baseParamSetsByMergeKey := make(map[string][]map[string]interface{})
-	if strings.HasSuffix(string(joinType), UniqJoinSuffix) {
-		baseParamSetsByMergeKey, err = getParamSetsByMergeKey(appSetGenerator.Merge.MergeKeys, paramSetsFromGenerators[0], false)
-	} else {
-		baseParamSetsByMergeKey, err = getParamSetsByMergeKey(appSetGenerator.Merge.MergeKeys, paramSetsFromGenerators[0], true)
-	}
-
+	isUniqueJoin := strings.HasSuffix(string(joinType), UniqJoinSuffix)
+	baseParamSetsByMergeKey, err := getParamSetsByMergeKey(appSetGenerator.Merge.MergeKeys, paramSetsFromGenerators[0], !isUniqueJoin)
 	if err != nil {
 		return nil, fmt.Errorf("error getting param sets by merge key: %w", err)
 	}
