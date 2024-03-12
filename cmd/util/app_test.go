@@ -251,8 +251,8 @@ func newMultiSourceAppOptionsFixture() *appOptionsFixture {
 
 func Test_setAppSpecOptionsMultiSourceApp(t *testing.T) {
 	f := newMultiSourceAppOptionsFixture()
-	index1 := 0
-	index2 := 1
+	index1 := 1
+	index2 := 2
 	t.Run("SyncPolicy", func(t *testing.T) {
 		assert.NoError(t, f.SetFlagWithSourceIndex("sync-policy", "automated", index1))
 		assert.NotNil(t, f.spec.SyncPolicy.Automated)
@@ -263,16 +263,16 @@ func Test_setAppSpecOptionsMultiSourceApp(t *testing.T) {
 	})
 	t.Run("Kustomize", func(t *testing.T) {
 		assert.NoError(t, f.SetFlagWithSourceIndex("kustomize-replica", "my-deployment=2", index1))
-		assert.Equal(t, f.spec.Sources[index1].Kustomize.Replicas, v1alpha1.KustomizeReplicas{{Name: "my-deployment", Count: intstr.FromInt(2)}})
+		assert.Equal(t, f.spec.Sources[index1-1].Kustomize.Replicas, v1alpha1.KustomizeReplicas{{Name: "my-deployment", Count: intstr.FromInt(2)}})
 		assert.NoError(t, f.SetFlagWithSourceIndex("kustomize-replica", "my-deployment=4", index2))
-		assert.Equal(t, f.spec.Sources[index2].Kustomize.Replicas, v1alpha1.KustomizeReplicas{{Name: "my-deployment", Count: intstr.FromInt(4)}})
+		assert.Equal(t, f.spec.Sources[index2-1].Kustomize.Replicas, v1alpha1.KustomizeReplicas{{Name: "my-deployment", Count: intstr.FromInt(4)}})
 	})
 	t.Run("Helm", func(t *testing.T) {
 		assert.NoError(t, f.SetFlagWithSourceIndex("helm-version", "v2", index1))
 		assert.NoError(t, f.SetFlagWithSourceIndex("helm-version", "v3", index2))
 		assert.Equal(t, len(f.spec.GetSources()), 2)
-		assert.Equal(t, f.spec.GetSources()[index1].Helm.Version, "v2")
-		assert.Equal(t, f.spec.GetSources()[index2].Helm.Version, "v3")
+		assert.Equal(t, f.spec.GetSources()[index1-1].Helm.Version, "v2")
+		assert.Equal(t, f.spec.GetSources()[index2-1].Helm.Version, "v3")
 	})
 }
 
