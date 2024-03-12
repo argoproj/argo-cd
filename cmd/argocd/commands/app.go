@@ -773,7 +773,7 @@ func NewApplicationSetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 
 			if app.Spec.HasMultipleSources() {
 				if sourceIndex <= 0 {
-					errors.CheckError(fmt.Errorf("Source index should be specified and greater than or equal to 0 for applications with multiple sources"))
+					errors.CheckError(fmt.Errorf("Source index should be specified and greater than 0 for applications with multiple sources"))
 				}
 				if len(app.Spec.GetSources()) < sourceIndex {
 					errors.CheckError(fmt.Errorf("Source index should be less than the number of sources in the application"))
