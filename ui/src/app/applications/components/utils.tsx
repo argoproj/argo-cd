@@ -349,7 +349,9 @@ export const deletePopup = async (ctx: ContextApis, resource: ResourceTreeNode, 
                         <FormField label={`Please type '${resource.name}' to confirm the deletion of the resource`} formApi={api} field='resourceName' component={Text} />
                         <div className='caution-message-container'>
                             <i className='fa fa-exclamation-triangle' style={{color: ARGO_FAILED_COLOR}} />
-                            <span style={{paddingLeft: '5px'}}>The action will delete top-level resource; this could cause OUTAGES in production.</span>
+                            <span style={{paddingLeft: '5px'}}>
+                                This action will delete a top-level resource and could cause a production <b>OUTAGES</b>.
+                            </span>
                         </div>
                     </div>
                 ) : (
