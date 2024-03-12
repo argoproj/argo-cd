@@ -55,14 +55,14 @@ func TestRequeueAfter(t *testing.T) {
 		},
 	}
 	fakeDynClient := dynfake.NewSimpleDynamicClientWithCustomListKinds(runtime.NewScheme(), gvrToListKind, duckType)
-
+	scmConfig := generators.NewSCMConfig("", []string{""}, true, nil)
 	terminalGenerators := map[string]generators.Generator{
 		"List":                    generators.NewListGenerator(),
 		"Clusters":                generators.NewClusterGenerator(k8sClient, ctx, appClientset, "argocd"),
 		"Git":                     generators.NewGitGenerator(mockServer),
-		"SCMProvider":             generators.NewSCMProviderGenerator(fake.NewClientBuilder().WithObjects(&corev1.Secret{}).Build(), generators.SCMAuthProviders{}, "", []string{""}, true),
+		"SCMProvider":             generators.NewSCMProviderGenerator(fake.NewClientBuilder().WithObjects(&corev1.Secret{}).Build(), scmConfig),
 		"ClusterDecisionResource": generators.NewDuckTypeGenerator(ctx, fakeDynClient, appClientset, "argocd"),
-		"PullRequest":             generators.NewPullRequestGenerator(k8sClient, generators.SCMAuthProviders{}, "", []string{""}, true),
+		"PullRequest":             generators.NewPullRequestGenerator(k8sClient, scmConfig),
 	}
 
 	nestedGenerators := map[string]generators.Generator{

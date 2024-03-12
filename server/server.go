@@ -27,36 +27,6 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/selection"
 
-	"github.com/argoproj/notifications-engine/pkg/api"
-	"github.com/argoproj/pkg/sync"
-	"github.com/golang-jwt/jwt/v4"
-	"github.com/gorilla/handlers"
-	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
-	grpc_auth "github.com/grpc-ecosystem/go-grpc-middleware/auth"
-	grpc_logrus "github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
-	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
-	"github.com/grpc-ecosystem/grpc-gateway/runtime"
-	"github.com/improbable-eng/grpc-web/go/grpcweb"
-	"github.com/redis/go-redis/v9"
-	log "github.com/sirupsen/logrus"
-	"github.com/soheilhy/cmux"
-	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/credentials"
-	"google.golang.org/grpc/credentials/insecure"
-	"google.golang.org/grpc/keepalive"
-	"google.golang.org/grpc/metadata"
-	"google.golang.org/grpc/reflection"
-	"google.golang.org/grpc/status"
-	"gopkg.in/yaml.v2"
-	v1 "k8s.io/api/core/v1"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/wait"
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/cache"
-
 	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient"
 	accountpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/account"
@@ -121,6 +91,37 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/swagger"
 	tlsutil "github.com/argoproj/argo-cd/v2/util/tls"
 	"github.com/argoproj/argo-cd/v2/util/webhook"
+	"github.com/argoproj/notifications-engine/pkg/api"
+	"github.com/argoproj/pkg/sync"
+	"github.com/golang-jwt/jwt/v4"
+	"github.com/gorilla/handlers"
+	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
+	grpc_auth "github.com/grpc-ecosystem/go-grpc-middleware/auth"
+	grpc_logrus "github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
+	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
+	"github.com/grpc-ecosystem/grpc-gateway/runtime"
+	"github.com/improbable-eng/grpc-web/go/grpcweb"
+	"github.com/redis/go-redis/v9"
+	log "github.com/sirupsen/logrus"
+	"github.com/soheilhy/cmux"
+	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/keepalive"
+	"google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/reflection"
+	"google.golang.org/grpc/status"
+	"gopkg.in/yaml.v2"
+	v1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/client-go/dynamic"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/tools/cache"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 const maxConcurrentLoginRequestsCountEnv = "ARGOCD_MAX_CONCURRENT_LOGIN_REQUESTS_COUNT"
@@ -196,31 +197,33 @@ type ArgoCDServer struct {
 }
 
 type ArgoCDServerOpts struct {
-	DisableAuth           bool
-	ContentTypes          []string
-	EnableGZip            bool
-	Insecure              bool
-	StaticAssetsDir       string
-	ListenPort            int
-	ListenHost            string
-	MetricsPort           int
-	MetricsHost           string
-	Namespace             string
-	DexServerAddr         string
-	DexTLSConfig          *dexutil.DexTLSConfig
-	BaseHRef              string
-	RootPath              string
-	KubeClientset         kubernetes.Interface
-	AppClientset          appclientset.Interface
-	RepoClientset         repoapiclient.Clientset
-	Cache                 *servercache.Cache
-	RepoServerCache       *repocache.Cache
-	RedisClient           *redis.Client
-	TLSConfigCustomizer   tlsutil.ConfigCustomizer
-	XFrameOptions         string
-	ContentSecurityPolicy string
-	ApplicationNamespaces []string
-	EnableProxyExtension  bool
+	DisableAuth             bool
+	ContentTypes            []string
+	EnableGZip              bool
+	Insecure                bool
+	StaticAssetsDir         string
+	ListenPort              int
+	ListenHost              string
+	MetricsPort             int
+	MetricsHost             string
+	Namespace               string
+	DexServerAddr           string
+	DexTLSConfig            *dexutil.DexTLSConfig
+	BaseHRef                string
+	RootPath                string
+	DynamicClientset        dynamic.Interface
+	KubeControllerClientset client.Client
+	KubeClientset           kubernetes.Interface
+	AppClientset            appclientset.Interface
+	RepoClientset           repoapiclient.Clientset
+	Cache                   *servercache.Cache
+	RepoServerCache         *repocache.Cache
+	RedisClient             *redis.Client
+	TLSConfigCustomizer     tlsutil.ConfigCustomizer
+	XFrameOptions           string
+	ContentSecurityPolicy   string
+	ApplicationNamespaces   []string
+	EnableProxyExtension    bool
 }
 
 // HTTPMetricsRegistry exposes operations to update http metrics in the Argo CD
@@ -867,7 +870,10 @@ func newArgoCDServiceSet(a *ArgoCDServer) *ArgoCDServiceSet {
 	applicationSetService := applicationset.NewServer(
 		a.db,
 		a.KubeClientset,
+		a.DynamicClientset,
+		a.KubeControllerClientset,
 		a.enf,
+		a.RepoClientset,
 		a.AppClientset,
 		a.appsetInformer,
 		a.appsetLister,

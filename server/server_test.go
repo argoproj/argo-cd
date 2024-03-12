@@ -19,6 +19,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/metadata"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes/fake"
 	"sigs.k8s.io/yaml"
 
@@ -39,6 +40,8 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/rbac"
 	settings_util "github.com/argoproj/argo-cd/v2/util/settings"
 	testutil "github.com/argoproj/argo-cd/v2/util/test"
+	dynfake "k8s.io/client-go/dynamic/fake"
+	clientfake "sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
 
 type FakeArgoCDServer struct {
@@ -52,10 +55,12 @@ func fakeServer(t *testing.T) (*FakeArgoCDServer, func()) {
 	kubeclientset := fake.NewSimpleClientset(cm, secret)
 	appClientSet := apps.NewSimpleClientset()
 	redis, closer := test.NewInMemoryRedis()
-	port, err := test.GetFreePort()
 	mockRepoClient := &mocks.Clientset{RepoServerServiceClient: &mocks.RepoServerServiceClient{}}
 	tmpAssetsDir := t.TempDir()
+	dynamicClient := dynfake.NewSimpleDynamicClient(runtime.NewScheme())
+	fakeClient := clientfake.NewClientBuilder().Build()
 
+	port, err := test.GetFreePort()
 	if err != nil {
 		panic(err)
 	}
@@ -78,9 +83,11 @@ func fakeServer(t *testing.T) (*FakeArgoCDServer, func()) {
 			1*time.Minute,
 			1*time.Minute,
 		),
-		RedisClient:     redis,
-		RepoClientset:   mockRepoClient,
-		StaticAssetsDir: tmpAssetsDir,
+		RedisClient:             redis,
+		RepoClientset:           mockRepoClient,
+		StaticAssetsDir:         tmpAssetsDir,
+		DynamicClientset:        dynamicClient,
+		KubeControllerClientset: fakeClient,
 	}
 	srv := NewServer(context.Background(), argoCDOpts)
 	fakeSrv := &FakeArgoCDServer{srv, tmpAssetsDir}

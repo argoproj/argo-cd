@@ -18,8 +18,9 @@ argocd appset create [flags]
 ### Options
 
 ```
-  -h, --help     help for create
-      --upsert   Allows to override ApplicationSet with the same name even if supplied ApplicationSet spec is different from existing spec
+      --dry-run   Allows to evaluate the ApplicationSet template on the server to get a preview of the applications that would be created
+  -h, --help      help for create
+      --upsert    Allows to override ApplicationSet with the same name even if supplied ApplicationSet spec is different from existing spec
 ```
 
 ### Options inherited from parent commands

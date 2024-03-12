@@ -174,7 +174,7 @@ func TestSCMProviderGenerateParams(t *testing.T) {
 			mockProvider := &scm_provider.MockProvider{
 				Repos: testCaseCopy.repos,
 			}
-			scmGenerator := &SCMProviderGenerator{overrideProvider: mockProvider, enableSCMProviders: true}
+			scmGenerator := &SCMProviderGenerator{overrideProvider: mockProvider, SCMConfig: SCMConfig{enableSCMProviders: true}}
 			applicationSetInfo := argoprojiov1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "set",
@@ -261,14 +261,16 @@ func TestAllowedSCMProvider(t *testing.T) {
 			t.Parallel()
 
 			scmGenerator := &SCMProviderGenerator{
-				allowedSCMProviders: []string{
-					"github.myorg.com",
-					"gitlab.myorg.com",
-					"gitea.myorg.com",
-					"bitbucket.myorg.com",
-					"azuredevops.myorg.com",
+				SCMConfig: SCMConfig{
+					allowedSCMProviders: []string{
+						"github.myorg.com",
+						"gitlab.myorg.com",
+						"gitea.myorg.com",
+						"bitbucket.myorg.com",
+						"azuredevops.myorg.com",
+					},
+					enableSCMProviders: true,
 				},
-				enableSCMProviders: true,
 			}
 
 			applicationSetInfo := argoprojiov1alpha1.ApplicationSet{
@@ -291,7 +293,7 @@ func TestAllowedSCMProvider(t *testing.T) {
 }
 
 func TestSCMProviderDisabled_SCMGenerator(t *testing.T) {
-	generator := &SCMProviderGenerator{enableSCMProviders: false}
+	generator := &SCMProviderGenerator{SCMConfig: SCMConfig{enableSCMProviders: false}}
 
 	applicationSetInfo := argoprojiov1alpha1.ApplicationSet{
 		ObjectMeta: metav1.ObjectMeta{

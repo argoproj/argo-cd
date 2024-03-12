@@ -41,6 +41,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
+	"github.com/argoproj/argo-cd/v2/applicationset/controllers/template"
 	"github.com/argoproj/argo-cd/v2/applicationset/generators"
 	"github.com/argoproj/argo-cd/v2/applicationset/utils"
 	"github.com/argoproj/argo-cd/v2/common"
@@ -124,7 +125,7 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	// Log a warning if there are unrecognized generators
 	_ = utils.CheckInvalidGenerators(&applicationSetInfo)
 	// desiredApplications is the main list of all expected Applications from all generators in this appset.
-	desiredApplications, applicationSetReason, err := r.generateApplications(logCtx, applicationSetInfo)
+	desiredApplications, applicationSetReason, err := template.GenerateApplications(logCtx, applicationSetInfo, r.Generators, r.Renderer)
 	if err != nil {
 		_ = r.setApplicationSetStatusCondition(ctx,
 			&applicationSetInfo,
@@ -485,91 +486,6 @@ func (r *ApplicationSetReconciler) getMinRequeueAfter(applicationSetInfo *argov1
 	}
 
 	return res
-}
-
-func getTempApplication(applicationSetTemplate argov1alpha1.ApplicationSetTemplate) *argov1alpha1.Application {
-	var tmplApplication argov1alpha1.Application
-	tmplApplication.Annotations = applicationSetTemplate.Annotations
-	tmplApplication.Labels = applicationSetTemplate.Labels
-	tmplApplication.Namespace = applicationSetTemplate.Namespace
-	tmplApplication.Name = applicationSetTemplate.Name
-	tmplApplication.Spec = applicationSetTemplate.Spec
-	tmplApplication.Finalizers = applicationSetTemplate.Finalizers
-
-	return &tmplApplication
-}
-
-func (r *ApplicationSetReconciler) generateApplications(logCtx *log.Entry, applicationSetInfo argov1alpha1.ApplicationSet) ([]argov1alpha1.Application, argov1alpha1.ApplicationSetReasonType, error) {
-	var res []argov1alpha1.Application
-
-	var firstError error
-	var applicationSetReason argov1alpha1.ApplicationSetReasonType
-
-	for _, requestedGenerator := range applicationSetInfo.Spec.Generators {
-		t, err := generators.Transform(requestedGenerator, r.Generators, applicationSetInfo.Spec.Template, &applicationSetInfo, map[string]interface{}{})
-		if err != nil {
-			logCtx.WithError(err).WithField("generator", requestedGenerator).
-				Error("error generating application from params")
-			if firstError == nil {
-				firstError = err
-				applicationSetReason = argov1alpha1.ApplicationSetReasonApplicationParamsGenerationError
-			}
-			continue
-		}
-
-		for _, a := range t {
-			tmplApplication := getTempApplication(a.Template)
-
-			for _, p := range a.Params {
-				app, err := r.Renderer.RenderTemplateParams(tmplApplication, applicationSetInfo.Spec.SyncPolicy, p, applicationSetInfo.Spec.GoTemplate, applicationSetInfo.Spec.GoTemplateOptions)
-
-				if err != nil {
-					logCtx.WithError(err).WithField("params", a.Params).WithField("generator", requestedGenerator).
-						Error("error generating application from params")
-
-					if firstError == nil {
-						firstError = err
-						applicationSetReason = argov1alpha1.ApplicationSetReasonRenderTemplateParamsError
-					}
-					continue
-				}
-
-				if applicationSetInfo.Spec.TemplatePatch != nil {
-					patchedApplication, err := r.applyTemplatePatch(app, applicationSetInfo, p)
-
-					if err != nil {
-						log.WithError(err).WithField("params", a.Params).WithField("generator", requestedGenerator).
-							Error("error generating application from params")
-
-						if firstError == nil {
-							firstError = err
-							applicationSetReason = argov1alpha1.ApplicationSetReasonRenderTemplateParamsError
-						}
-						continue
-					}
-
-					app = patchedApplication
-				}
-
-				res = append(res, *app)
-			}
-		}
-
-		logCtx.WithField("generator", requestedGenerator).Infof("generated %d applications", len(res))
-		logCtx.WithField("generator", requestedGenerator).Debugf("apps from generator: %+v", res)
-	}
-
-	return res, applicationSetReason, firstError
-}
-
-func (r *ApplicationSetReconciler) applyTemplatePatch(app *argov1alpha1.Application, applicationSetInfo argov1alpha1.ApplicationSet, params map[string]interface{}) (*argov1alpha1.Application, error) {
-	replacedTemplate, err := r.Renderer.Replace(*applicationSetInfo.Spec.TemplatePatch, params, applicationSetInfo.Spec.GoTemplate, applicationSetInfo.Spec.GoTemplateOptions)
-
-	if err != nil {
-		return nil, fmt.Errorf("error replacing values in templatePatch: %w", err)
-	}
-
-	return applyTemplatePatch(app, replacedTemplate)
 }
 
 func ignoreNotAllowedNamespaces(namespaces []string) predicate.Predicate {

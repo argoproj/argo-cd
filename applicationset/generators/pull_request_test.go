@@ -324,13 +324,13 @@ func TestAllowedSCMProviderPullRequest(t *testing.T) {
 		t.Run(testCaseCopy.name, func(t *testing.T) {
 			t.Parallel()
 
-			pullRequestGenerator := NewPullRequestGenerator(nil, SCMAuthProviders{}, "", []string{
+			pullRequestGenerator := NewPullRequestGenerator(nil, NewSCMConfig("", []string{
 				"github.myorg.com",
 				"gitlab.myorg.com",
 				"gitea.myorg.com",
 				"bitbucket.myorg.com",
 				"azuredevops.myorg.com",
-			}, true)
+			}, true, nil))
 
 			applicationSetInfo := argoprojiov1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
@@ -352,7 +352,7 @@ func TestAllowedSCMProviderPullRequest(t *testing.T) {
 }
 
 func TestSCMProviderDisabled_PRGenerator(t *testing.T) {
-	generator := NewPullRequestGenerator(nil, SCMAuthProviders{}, "", []string{}, false)
+	generator := NewPullRequestGenerator(nil, NewSCMConfig("", []string{}, false, nil))
 
 	applicationSetInfo := argoprojiov1alpha1.ApplicationSet{
 		ObjectMeta: metav1.ObjectMeta{
