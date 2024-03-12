@@ -17,7 +17,7 @@ argocd app unset APPNAME parameters [flags]
   # Unset kustomize override suffix
   argocd app unset my-app --namesuffix
 
-  # Unset kustomize override suffix for source at index 1 under spec.sources of app my-app (Indexes start at 0)
+  # Unset kustomize override suffix for source at index 1 under spec.sources of app my-app
   argocd app unset my-app --source-index 1 --namesuffix
 
   # Unset parameter override

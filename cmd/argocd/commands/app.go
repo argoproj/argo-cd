@@ -750,7 +750,7 @@ func NewApplicationSetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
   # Set and override application parameters with a parameter file
   argocd app set my-app --parameter-file path/to/parameter-file.yaml
 
-  # Set and override application parameters for a source at index 1 under spec.sources of app my-app (Indexes start at 0)
+  # Set and override application parameters for a source at index 1 under spec.sources of app my-app
   argocd app set my-app --source-index 1 --repo https://github.com/argoproj/argocd-example-apps.git
 
   # Set application parameters and specify the namespace
@@ -850,7 +850,7 @@ func NewApplicationUnsetCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
   # Unset kustomize override suffix
   argocd app unset my-app --namesuffix
 
-  # Unset kustomize override suffix for source at index 1 under spec.sources of app my-app (Indexes start at 0)
+  # Unset kustomize override suffix for source at index 1 under spec.sources of app my-app
   argocd app unset my-app --source-index 1 --namesuffix
 
   # Unset parameter override

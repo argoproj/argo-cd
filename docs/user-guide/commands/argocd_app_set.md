@@ -23,7 +23,7 @@ argocd app set APPNAME [flags]
   # Set and override application parameters with a parameter file
   argocd app set my-app --parameter-file path/to/parameter-file.yaml
   
-  # Set and override application parameters for a source at index 1 under spec.sources of app my-app (Indexes start at 0)
+  # Set and override application parameters for a source at index 1 under spec.sources of app my-app
   argocd app set my-app --source-index 1 --repo https://github.com/argoproj/argocd-example-apps.git
   
   # Set application parameters and specify the namespace
