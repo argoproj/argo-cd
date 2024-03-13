@@ -3,6 +3,8 @@ kind: ApplicationSet
 metadata:
   name: guestbook
 spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
   generators:
     - git:
         repoURL: https://github.com/argoproj/argo-cd.git
@@ -11,7 +13,7 @@ spec:
         - path: "applicationset/examples/git-generator-files-discovery/cluster-config/**/config.json"
   template:
     metadata:
-      name: '{{cluster.name}}-guestbook'
+      name: '{{.cluster.name}}-guestbook'
     spec:
       project: default
       source:
@@ -20,5 +22,5 @@ spec:
         path: "applicationset/examples/git-generator-files-discovery/apps/guestbook"
       destination:
         server: https://kubernetes.default.svc
-        #server: '{{cluster.address}}'
+        #server: '{{.cluster.address}}'
         namespace: guestbook

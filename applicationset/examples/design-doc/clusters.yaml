@@ -19,15 +19,15 @@ spec:
         project: default
   template:
     metadata:
-      name: '{{name}}-guestbook'
+      name: '{{.name}}-guestbook'
       labels:
-        environment: '{{metadata.labels.environment}}'
+        environment: '{{.metadata.labels.environment}}'
     spec:
-      project: '{{values.project}}'
+      project: '{{.values.project}}'
       source:
         repoURL: https://github.com/infra-team/cluster-deployments.git
         targetRevision: HEAD
         chart: guestbook
       destination:
-        server: '{{server}}'
+        server: '{{.server}}'
         namespace: guestbook

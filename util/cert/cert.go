@@ -16,6 +16,7 @@ import (
 	"regexp"
 	"strings"
 
+	log "github.com/sirupsen/logrus"
 	"golang.org/x/crypto/ssh"
 
 	"github.com/argoproj/argo-cd/v2/common"
@@ -130,7 +131,14 @@ func ParseTLSCertificatesFromPath(sourceFile string) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer fileHandle.Close()
+	defer func() {
+		if err = fileHandle.Close(); err != nil {
+			log.WithFields(log.Fields{
+				common.SecurityField:    common.SecurityMedium,
+				common.SecurityCWEField: common.SecurityCWEMissingReleaseOfFileDescriptor,
+			}).Errorf("error closing file %q: %v", fileHandle.Name(), err)
+		}
+	}()
 	return ParseTLSCertificatesFromStream(fileHandle)
 }
 
@@ -187,7 +195,14 @@ func ParseSSHKnownHostsFromPath(sourceFile string) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer fileHandle.Close()
+	defer func() {
+		if err = fileHandle.Close(); err != nil {
+			log.WithFields(log.Fields{
+				common.SecurityField:    common.SecurityMedium,
+				common.SecurityCWEField: common.SecurityCWEMissingReleaseOfFileDescriptor,
+			}).Errorf("error closing file %q: %v", fileHandle.Name(), err)
+		}
+	}()
 	return ParseSSHKnownHostsFromStream(fileHandle)
 }
 

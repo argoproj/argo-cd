@@ -1,4 +1,5 @@
 @import 'node_modules/argo-ui/src/styles/config';
+@import 'node_modules/argo-ui/src/styles/theme';
 
 .application-summary {
     &__labels {
@@ -47,7 +48,9 @@
 
     .white-box__details p {
         font-weight: 500;
-        color: $argo-color-gray-7;
+        @include themify($themes) {            
+            color: themed('text-1');
+        }
     }
 
     .white-box__details-row .row {

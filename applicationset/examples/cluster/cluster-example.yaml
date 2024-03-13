@@ -3,11 +3,13 @@ kind: ApplicationSet
 metadata:
   name: guestbook
 spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
   generators:
   - clusters: {}
   template:
     metadata:
-      name: '{{name}}-guestbook'
+      name: '{{.name}}-guestbook'
     spec:
       project: "default"
       source:
@@ -15,5 +17,5 @@ spec:
         targetRevision: HEAD
         path: guestbook
       destination:
-        server: '{{server}}'
+        server: '{{.server}}'
         namespace: guestbook

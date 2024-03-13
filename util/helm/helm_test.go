@@ -1,9 +1,10 @@
 package helm
 
 import (
-	"fmt"
-	"os"
+	"path/filepath"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 
 	"github.com/argoproj/argo-cd/v2/util/io/path"
 
@@ -53,11 +54,16 @@ func TestHelmTemplateParams(t *testing.T) {
 }
 
 func TestHelmTemplateValues(t *testing.T) {
-	h, err := NewHelmApp("./testdata/redis", []HelmRepository{}, false, "", "", false)
+	repoRoot := "./testdata/redis"
+	repoRootAbs, err := filepath.Abs(repoRoot)
+	require.NoError(t, err)
+	h, err := NewHelmApp(repoRootAbs, []HelmRepository{}, false, "", "", false)
 	assert.NoError(t, err)
+	valuesPath, _, err := path.ResolveValueFilePathOrUrl(repoRootAbs, repoRootAbs, "values-production.yaml", nil)
+	require.NoError(t, err)
 	opts := TemplateOpts{
 		Name:   "test",
-		Values: []path.ResolvedFilePath{"values-production.yaml"},
+		Values: []path.ResolvedFilePath{valuesPath},
 	}
 	objs, err := template(h, &opts)
 	assert.Nil(t, err)
@@ -74,54 +80,48 @@ func TestHelmTemplateValues(t *testing.T) {
 }
 
 func TestHelmGetParams(t *testing.T) {
-	h, err := NewHelmApp("./testdata/redis", nil, false, "", "", false)
+	repoRoot := "./testdata/redis"
+	repoRootAbs, err := filepath.Abs(repoRoot)
+	require.NoError(t, err)
+	h, err := NewHelmApp(repoRootAbs, nil, false, "", "", false)
 	assert.NoError(t, err)
-	params, err := h.GetParameters(nil)
+	params, err := h.GetParameters(nil, repoRootAbs, repoRootAbs)
 	assert.Nil(t, err)
 
 	slaveCountParam := params["cluster.slaveCount"]
-	assert.Equal(t, slaveCountParam, "1")
+	assert.Equal(t, "1", slaveCountParam)
 }
 
 func TestHelmGetParamsValueFiles(t *testing.T) {
-	h, err := NewHelmApp("./testdata/redis", nil, false, "", "", false)
+	repoRoot := "./testdata/redis"
+	repoRootAbs, err := filepath.Abs(repoRoot)
+	require.NoError(t, err)
+	h, err := NewHelmApp(repoRootAbs, nil, false, "", "", false)
 	assert.NoError(t, err)
-	params, err := h.GetParameters([]path.ResolvedFilePath{"values-production.yaml"})
+	valuesPath, _, err := path.ResolveValueFilePathOrUrl(repoRootAbs, repoRootAbs, "values-production.yaml", nil)
+	require.NoError(t, err)
+	params, err := h.GetParameters([]path.ResolvedFilePath{valuesPath}, repoRootAbs, repoRootAbs)
 	assert.Nil(t, err)
 
 	slaveCountParam := params["cluster.slaveCount"]
-	assert.Equal(t, slaveCountParam, "3")
+	assert.Equal(t, "3", slaveCountParam)
 }
 
 func TestHelmGetParamsValueFilesThatExist(t *testing.T) {
-	h, err := NewHelmApp("./testdata/redis", nil, false, "", "", false)
+	repoRoot := "./testdata/redis"
+	repoRootAbs, err := filepath.Abs(repoRoot)
+	require.NoError(t, err)
+	h, err := NewHelmApp(repoRootAbs, nil, false, "", "", false)
 	assert.NoError(t, err)
-	params, err := h.GetParameters([]path.ResolvedFilePath{"values-missing.yaml", "values-production.yaml"})
+	valuesMissingPath, _, err := path.ResolveValueFilePathOrUrl(repoRootAbs, repoRootAbs, "values-missing.yaml", nil)
+	require.NoError(t, err)
+	valuesProductionPath, _, err := path.ResolveValueFilePathOrUrl(repoRootAbs, repoRootAbs, "values-production.yaml", nil)
+	require.NoError(t, err)
+	params, err := h.GetParameters([]path.ResolvedFilePath{valuesMissingPath, valuesProductionPath}, repoRootAbs, repoRootAbs)
 	assert.Nil(t, err)
 
 	slaveCountParam := params["cluster.slaveCount"]
-	assert.Equal(t, slaveCountParam, "3")
-}
-
-func TestHelmDependencyBuild(t *testing.T) {
-	helmRepos := []HelmRepository{{Name: "bitnami", Repo: "https://charts.bitnami.com/bitnami"}}
-	chart := "dependency"
-	clean := func() {
-		_ = os.RemoveAll("./testdata/dependency/charts")
-		_ = os.RemoveAll("./testdata/dependency/Chart.lock")
-	}
-	clean()
-	defer clean()
-	h, err := NewHelmApp(fmt.Sprintf("./testdata/%s", chart), helmRepos, false, "", "", false)
-	assert.NoError(t, err)
-	err = h.Init()
-	assert.NoError(t, err)
-	_, err = h.Template(&TemplateOpts{Name: "wordpress"})
-	assert.Error(t, err)
-	err = h.DependencyBuild()
-	assert.NoError(t, err)
-	_, err = h.Template(&TemplateOpts{Name: "wordpress"})
-	assert.NoError(t, err)
+	assert.Equal(t, "3", slaveCountParam)
 }
 
 func TestHelmTemplateReleaseNameOverwrite(t *testing.T) {
@@ -165,6 +165,7 @@ func TestHelmArgCleaner(t *testing.T) {
 		`bar`:        `bar`,
 		`not, clean`: `not\, clean`,
 		`a\,b,c`:     `a\,b\,c`,
+		`{a,b,c}`:    `{a,b,c}`,
 	} {
 		cleaned := cleanSetParameters(input)
 		assert.Equal(t, expected, cleaned)

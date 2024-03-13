@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/http"
 	"os"
 
 	"github.com/google/go-github/v35/github"
@@ -47,7 +48,7 @@ func (g *GithubProvider) GetBranches(ctx context.Context, repo *Repository) ([]*
 	repos := []*Repository{}
 	branches, err := g.listBranches(ctx, repo)
 	if err != nil {
-		return nil, fmt.Errorf("error listing branches for %s/%s: %v", repo.Organization, repo.Repository, err)
+		return nil, fmt.Errorf("error listing branches for %s/%s: %w", repo.Organization, repo.Repository, err)
 	}
 
 	for _, branch := range branches {
@@ -72,7 +73,7 @@ func (g *GithubProvider) ListRepos(ctx context.Context, cloneProtocol string) ([
 	for {
 		githubRepos, resp, err := g.client.Repositories.ListByOrg(ctx, g.organization, opt)
 		if err != nil {
-			return nil, fmt.Errorf("error listing repositories for %s: %v", g.organization, err)
+			return nil, fmt.Errorf("error listing repositories for %s: %w", g.organization, err)
 		}
 		for _, githubRepo := range githubRepos {
 			var url string
@@ -123,7 +124,7 @@ func (g *GithubProvider) listBranches(ctx context.Context, repo *Repository) ([]
 		if err != nil {
 			var githubErrorResponse *github.ErrorResponse
 			if errors.As(err, &githubErrorResponse) {
-				if githubErrorResponse.Response.StatusCode == 404 {
+				if githubErrorResponse.Response.StatusCode == http.StatusNotFound {
 					// Default branch doesn't exist, so the repo is empty.
 					return []github.Branch{}, nil
 				}

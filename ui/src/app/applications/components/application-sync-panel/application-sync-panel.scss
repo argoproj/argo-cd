@@ -8,6 +8,10 @@
         display: inline-block;
         margin-right: 0.3em;
 
+        label {
+            cursor: pointer;
+        }
+
         label::before,
         label::after {
             vertical-align: middle;

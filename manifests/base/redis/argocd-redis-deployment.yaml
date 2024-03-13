@@ -18,10 +18,12 @@ spec:
       securityContext:
         runAsNonRoot: true
         runAsUser: 999
+        seccompProfile:
+          type: RuntimeDefault
       serviceAccountName: argocd-redis        
       containers:
       - name: redis
-        image: redis:7.0.0-alpine
+        image: redis:7.0.14-alpine
         imagePullPolicy: Always
         args:
         - "--save"
@@ -31,10 +33,11 @@ spec:
         ports:
         - containerPort: 6379
         securityContext:
+          readOnlyRootFilesystem: true
           allowPrivilegeEscalation: false
           capabilities:
             drop:
-            - all
+            - ALL
       affinity:
         podAntiAffinity:
           preferredDuringSchedulingIgnoredDuringExecution:

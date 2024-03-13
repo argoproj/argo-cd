@@ -7,16 +7,18 @@ kind: ApplicationSet
 metadata:
   name: guestbook
 spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
   generators:
   - clusters: {}
   template:
     metadata:
-      name: '{{name}}-guestbook'
+      name: '{{.name}}-guestbook'
     spec:
       source:
         repoURL: https://github.com/infra-team/cluster-deployments.git
         targetRevision: HEAD
         chart: guestbook
       destination:
-        server: '{{server}}'
+        server: '{{.server}}'
         namespace: guestbook

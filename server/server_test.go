@@ -7,11 +7,12 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
-	"github.com/ghodss/yaml"
 	"github.com/golang-jwt/jwt/v4"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
@@ -19,30 +20,48 @@ import (
 	"google.golang.org/grpc/metadata"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
+	"sigs.k8s.io/yaml"
 
 	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient"
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/session"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	apps "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned/fake"
+	"github.com/argoproj/argo-cd/v2/reposerver/apiclient/mocks"
 	servercache "github.com/argoproj/argo-cd/v2/server/cache"
 	"github.com/argoproj/argo-cd/v2/server/rbacpolicy"
 	"github.com/argoproj/argo-cd/v2/test"
 	"github.com/argoproj/argo-cd/v2/util/assets"
+	"github.com/argoproj/argo-cd/v2/util/cache"
 	cacheutil "github.com/argoproj/argo-cd/v2/util/cache"
 	appstatecache "github.com/argoproj/argo-cd/v2/util/cache/appstate"
+	"github.com/argoproj/argo-cd/v2/util/oidc"
 	"github.com/argoproj/argo-cd/v2/util/rbac"
 	settings_util "github.com/argoproj/argo-cd/v2/util/settings"
+	testutil "github.com/argoproj/argo-cd/v2/util/test"
 )
 
-func fakeServer() (*ArgoCDServer, func()) {
+type FakeArgoCDServer struct {
+	*ArgoCDServer
+	TmpAssetsDir string
+}
+
+func fakeServer(t *testing.T) (*FakeArgoCDServer, func()) {
 	cm := test.NewFakeConfigMap()
 	secret := test.NewFakeSecret()
 	kubeclientset := fake.NewSimpleClientset(cm, secret)
 	appClientSet := apps.NewSimpleClientset()
 	redis, closer := test.NewInMemoryRedis()
+	port, err := test.GetFreePort()
+	mockRepoClient := &mocks.Clientset{RepoServerServiceClient: &mocks.RepoServerServiceClient{}}
+	tmpAssetsDir := t.TempDir()
+
+	if err != nil {
+		panic(err)
+	}
 
 	argoCDOpts := ArgoCDServerOpts{
+		ListenPort:            port,
 		Namespace:             test.FakeArgoCDNamespace,
 		KubeClientset:         kubeclientset,
 		AppClientset:          appClientSet,
@@ -59,9 +78,13 @@ func fakeServer() (*ArgoCDServer, func()) {
 			1*time.Minute,
 			1*time.Minute,
 		),
-		RedisClient: redis,
+		RedisClient:     redis,
+		RepoClientset:   mockRepoClient,
+		StaticAssetsDir: tmpAssetsDir,
 	}
-	return NewServer(context.Background(), argoCDOpts), closer
+	srv := NewServer(context.Background(), argoCDOpts)
+	fakeSrv := &FakeArgoCDServer{srv, tmpAssetsDir}
+	return fakeSrv, closer
 }
 
 func TestEnforceProjectToken(t *testing.T) {
@@ -92,9 +115,10 @@ func TestEnforceProjectToken(t *testing.T) {
 	cm := test.NewFakeConfigMap()
 	secret := test.NewFakeSecret()
 	kubeclientset := fake.NewSimpleClientset(cm, secret)
+	mockRepoClient := &mocks.Clientset{RepoServerServiceClient: &mocks.RepoServerServiceClient{}}
 
 	t.Run("TestEnforceProjectTokenSuccessful", func(t *testing.T) {
-		s := NewServer(context.Background(), ArgoCDServerOpts{Namespace: test.FakeArgoCDNamespace, KubeClientset: kubeclientset, AppClientset: apps.NewSimpleClientset(&existingProj)})
+		s := NewServer(context.Background(), ArgoCDServerOpts{Namespace: test.FakeArgoCDNamespace, KubeClientset: kubeclientset, AppClientset: apps.NewSimpleClientset(&existingProj), RepoClientset: mockRepoClient})
 		cancel := test.StartInformer(s.projInformer)
 		defer cancel()
 		claims := jwt.MapClaims{"sub": defaultSub, "iat": defaultIssuedAt}
@@ -103,21 +127,21 @@ func TestEnforceProjectToken(t *testing.T) {
 	})
 
 	t.Run("TestEnforceProjectTokenWithDiffCreateAtFailure", func(t *testing.T) {
-		s := NewServer(context.Background(), ArgoCDServerOpts{Namespace: test.FakeArgoCDNamespace, KubeClientset: kubeclientset, AppClientset: apps.NewSimpleClientset(&existingProj)})
+		s := NewServer(context.Background(), ArgoCDServerOpts{Namespace: test.FakeArgoCDNamespace, KubeClientset: kubeclientset, AppClientset: apps.NewSimpleClientset(&existingProj), RepoClientset: mockRepoClient})
 		diffCreateAt := defaultIssuedAt + 1
 		claims := jwt.MapClaims{"sub": defaultSub, "iat": diffCreateAt}
 		assert.False(t, s.enf.Enforce(claims, "applications", "get", defaultTestObject))
 	})
 
 	t.Run("TestEnforceProjectTokenIncorrectSubFormatFailure", func(t *testing.T) {
-		s := NewServer(context.Background(), ArgoCDServerOpts{Namespace: test.FakeArgoCDNamespace, KubeClientset: kubeclientset, AppClientset: apps.NewSimpleClientset(&existingProj)})
+		s := NewServer(context.Background(), ArgoCDServerOpts{Namespace: test.FakeArgoCDNamespace, KubeClientset: kubeclientset, AppClientset: apps.NewSimpleClientset(&existingProj), RepoClientset: mockRepoClient})
 		invalidSub := "proj:test"
 		claims := jwt.MapClaims{"sub": invalidSub, "iat": defaultIssuedAt}
 		assert.False(t, s.enf.Enforce(claims, "applications", "get", defaultTestObject))
 	})
 
 	t.Run("TestEnforceProjectTokenNoTokenFailure", func(t *testing.T) {
-		s := NewServer(context.Background(), ArgoCDServerOpts{Namespace: test.FakeArgoCDNamespace, KubeClientset: kubeclientset, AppClientset: apps.NewSimpleClientset(&existingProj)})
+		s := NewServer(context.Background(), ArgoCDServerOpts{Namespace: test.FakeArgoCDNamespace, KubeClientset: kubeclientset, AppClientset: apps.NewSimpleClientset(&existingProj), RepoClientset: mockRepoClient})
 		nonExistentToken := "fake-token"
 		invalidSub := fmt.Sprintf(subFormat, projectName, nonExistentToken)
 		claims := jwt.MapClaims{"sub": invalidSub, "iat": defaultIssuedAt}
@@ -127,7 +151,7 @@ func TestEnforceProjectToken(t *testing.T) {
 	t.Run("TestEnforceProjectTokenNotJWTTokenFailure", func(t *testing.T) {
 		proj := existingProj.DeepCopy()
 		proj.Spec.Roles[0].JWTTokens = nil
-		s := NewServer(context.Background(), ArgoCDServerOpts{Namespace: test.FakeArgoCDNamespace, KubeClientset: kubeclientset, AppClientset: apps.NewSimpleClientset(proj)})
+		s := NewServer(context.Background(), ArgoCDServerOpts{Namespace: test.FakeArgoCDNamespace, KubeClientset: kubeclientset, AppClientset: apps.NewSimpleClientset(proj), RepoClientset: mockRepoClient})
 		claims := jwt.MapClaims{"sub": defaultSub, "iat": defaultIssuedAt}
 		assert.False(t, s.enf.Enforce(claims, "applications", "get", defaultTestObject))
 	})
@@ -140,7 +164,7 @@ func TestEnforceProjectToken(t *testing.T) {
 		proj := existingProj.DeepCopy()
 		proj.Spec.Roles[0] = role
 
-		s := NewServer(context.Background(), ArgoCDServerOpts{Namespace: test.FakeArgoCDNamespace, KubeClientset: kubeclientset, AppClientset: apps.NewSimpleClientset(proj)})
+		s := NewServer(context.Background(), ArgoCDServerOpts{Namespace: test.FakeArgoCDNamespace, KubeClientset: kubeclientset, AppClientset: apps.NewSimpleClientset(proj), RepoClientset: mockRepoClient})
 		cancel := test.StartInformer(s.projInformer)
 		defer cancel()
 		claims := jwt.MapClaims{"sub": defaultSub, "iat": defaultIssuedAt}
@@ -151,7 +175,7 @@ func TestEnforceProjectToken(t *testing.T) {
 	})
 
 	t.Run("TestEnforceProjectTokenWithIdSuccessful", func(t *testing.T) {
-		s := NewServer(context.Background(), ArgoCDServerOpts{Namespace: test.FakeArgoCDNamespace, KubeClientset: kubeclientset, AppClientset: apps.NewSimpleClientset(&existingProj)})
+		s := NewServer(context.Background(), ArgoCDServerOpts{Namespace: test.FakeArgoCDNamespace, KubeClientset: kubeclientset, AppClientset: apps.NewSimpleClientset(&existingProj), RepoClientset: mockRepoClient})
 		cancel := test.StartInformer(s.projInformer)
 		defer cancel()
 		claims := jwt.MapClaims{"sub": defaultSub, "jti": defaultId}
@@ -160,7 +184,7 @@ func TestEnforceProjectToken(t *testing.T) {
 	})
 
 	t.Run("TestEnforceProjectTokenWithInvalidIdFailure", func(t *testing.T) {
-		s := NewServer(context.Background(), ArgoCDServerOpts{Namespace: test.FakeArgoCDNamespace, KubeClientset: kubeclientset, AppClientset: apps.NewSimpleClientset(&existingProj)})
+		s := NewServer(context.Background(), ArgoCDServerOpts{Namespace: test.FakeArgoCDNamespace, KubeClientset: kubeclientset, AppClientset: apps.NewSimpleClientset(&existingProj), RepoClientset: mockRepoClient})
 		invalidId := "invalidId"
 		claims := jwt.MapClaims{"sub": defaultSub, "jti": defaultId}
 		res := s.enf.Enforce(claims, "applications", "get", invalidId)
@@ -236,10 +260,13 @@ func TestInitializingExistingDefaultProject(t *testing.T) {
 	}
 	appClientSet := apps.NewSimpleClientset(defaultProj)
 
+	mockRepoClient := &mocks.Clientset{RepoServerServiceClient: &mocks.RepoServerServiceClient{}}
+
 	argoCDOpts := ArgoCDServerOpts{
 		Namespace:     test.FakeArgoCDNamespace,
 		KubeClientset: kubeclientset,
 		AppClientset:  appClientSet,
+		RepoClientset: mockRepoClient,
 	}
 
 	argocd := NewServer(context.Background(), argoCDOpts)
@@ -256,11 +283,13 @@ func TestInitializingNotExistingDefaultProject(t *testing.T) {
 	secret := test.NewFakeSecret()
 	kubeclientset := fake.NewSimpleClientset(cm, secret)
 	appClientSet := apps.NewSimpleClientset()
+	mockRepoClient := &mocks.Clientset{RepoServerServiceClient: &mocks.RepoServerServiceClient{}}
 
 	argoCDOpts := ArgoCDServerOpts{
 		Namespace:     test.FakeArgoCDNamespace,
 		KubeClientset: kubeclientset,
 		AppClientset:  appClientSet,
+		RepoClientset: mockRepoClient,
 	}
 
 	argocd := NewServer(context.Background(), argoCDOpts)
@@ -303,8 +332,9 @@ func TestEnforceProjectGroups(t *testing.T) {
 			},
 		},
 	}
+	mockRepoClient := &mocks.Clientset{RepoServerServiceClient: &mocks.RepoServerServiceClient{}}
 	kubeclientset := fake.NewSimpleClientset(test.NewFakeConfigMap(), test.NewFakeSecret())
-	s := NewServer(context.Background(), ArgoCDServerOpts{Namespace: test.FakeArgoCDNamespace, KubeClientset: kubeclientset, AppClientset: apps.NewSimpleClientset(&existingProj)})
+	s := NewServer(context.Background(), ArgoCDServerOpts{Namespace: test.FakeArgoCDNamespace, KubeClientset: kubeclientset, AppClientset: apps.NewSimpleClientset(&existingProj), RepoClientset: mockRepoClient})
 	cancel := test.StartInformer(s.projInformer)
 	defer cancel()
 	claims := jwt.MapClaims{
@@ -338,6 +368,7 @@ func TestRevokedToken(t *testing.T) {
 	defaultSub := fmt.Sprintf(subFormat, projectName, roleName)
 	defaultPolicy := fmt.Sprintf(policyTemplate, defaultSub, projectName, defaultObject, defaultEffect)
 	kubeclientset := fake.NewSimpleClientset(test.NewFakeConfigMap(), test.NewFakeSecret())
+	mockRepoClient := &mocks.Clientset{RepoServerServiceClient: &mocks.RepoServerServiceClient{}}
 
 	jwtTokenByRole := make(map[string]v1alpha1.JWTTokens)
 	jwtTokenByRole[roleName] = v1alpha1.JWTTokens{Items: []v1alpha1.JWTToken{{IssuedAt: defaultIssuedAt}}}
@@ -365,7 +396,7 @@ func TestRevokedToken(t *testing.T) {
 		},
 	}
 
-	s := NewServer(context.Background(), ArgoCDServerOpts{Namespace: test.FakeArgoCDNamespace, KubeClientset: kubeclientset, AppClientset: apps.NewSimpleClientset(&existingProj)})
+	s := NewServer(context.Background(), ArgoCDServerOpts{Namespace: test.FakeArgoCDNamespace, KubeClientset: kubeclientset, AppClientset: apps.NewSimpleClientset(&existingProj), RepoClientset: mockRepoClient})
 	cancel := test.StartInformer(s.projInformer)
 	defer cancel()
 	claims := jwt.MapClaims{"sub": defaultSub, "iat": defaultIssuedAt}
@@ -374,7 +405,7 @@ func TestRevokedToken(t *testing.T) {
 }
 
 func TestCertsAreNotGeneratedInInsecureMode(t *testing.T) {
-	s, closer := fakeServer()
+	s, closer := fakeServer(t)
 	defer closer()
 	assert.True(t, s.Insecure)
 	assert.Nil(t, s.settings.Certificate)
@@ -413,10 +444,12 @@ func TestAuthenticate(t *testing.T) {
 			secret := test.NewFakeSecret()
 			kubeclientset := fake.NewSimpleClientset(cm, secret)
 			appClientSet := apps.NewSimpleClientset()
+			mockRepoClient := &mocks.Clientset{RepoServerServiceClient: &mocks.RepoServerServiceClient{}}
 			argoCDOpts := ArgoCDServerOpts{
 				Namespace:     test.FakeArgoCDNamespace,
 				KubeClientset: kubeclientset,
 				AppClientset:  appClientSet,
+				RepoClientset: mockRepoClient,
 			}
 			argocd := NewServer(context.Background(), argoCDOpts)
 			ctx := context.Background()
@@ -497,12 +530,12 @@ func dexMockHandler(t *testing.T, url string) func(http.ResponseWriter, *http.Re
 				t.Fail()
 			}
 		default:
-			w.WriteHeader(404)
+			w.WriteHeader(http.StatusNotFound)
 		}
 	}
 }
 
-func getTestServer(t *testing.T, anonymousEnabled bool, withFakeSSO bool) (argocd *ArgoCDServer, dexURL string) {
+func getTestServer(t *testing.T, anonymousEnabled bool, withFakeSSO bool, useDexForSSO bool, additionalOIDCConfig settings_util.OIDCConfig) (argocd *ArgoCDServer, oidcURL string) {
 	cm := test.NewFakeConfigMap()
 	if anonymousEnabled {
 		cm.Data["users.anonymous.enabled"] = "true"
@@ -513,9 +546,14 @@ func getTestServer(t *testing.T, anonymousEnabled bool, withFakeSSO bool) (argoc
 	ts.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		dexMockHandler(t, ts.URL)(w, r)
 	})
+	oidcServer := ts
+	if !useDexForSSO {
+		oidcServer = testutil.GetOIDCTestServer(t)
+	}
 	if withFakeSSO {
 		cm.Data["url"] = ts.URL
-		cm.Data["dex.config"] = `
+		if useDexForSSO {
+			cm.Data["dex.config"] = `
 connectors:
   # OIDC
   - type: OIDC
@@ -525,36 +563,155 @@ connectors:
     issuer: https://auth.example.gom
     clientID: test-client
     clientSecret: $dex.oidc.clientSecret`
+		} else {
+			// override required oidc config fields but keep other configs as passed in
+			additionalOIDCConfig.Name = "Okta"
+			additionalOIDCConfig.Issuer = oidcServer.URL
+			additionalOIDCConfig.ClientID = "argo-cd"
+			additionalOIDCConfig.ClientSecret = "$oidc.okta.clientSecret"
+			oidcConfigString, err := yaml.Marshal(additionalOIDCConfig)
+			require.NoError(t, err)
+			cm.Data["oidc.config"] = string(oidcConfigString)
+			// Avoid bothering with certs for local tests.
+			cm.Data["oidc.tls.insecure.skip.verify"] = "true"
+		}
 	}
 	secret := test.NewFakeSecret()
 	kubeclientset := fake.NewSimpleClientset(cm, secret)
 	appClientSet := apps.NewSimpleClientset()
+	mockRepoClient := &mocks.Clientset{RepoServerServiceClient: &mocks.RepoServerServiceClient{}}
 	argoCDOpts := ArgoCDServerOpts{
 		Namespace:     test.FakeArgoCDNamespace,
 		KubeClientset: kubeclientset,
 		AppClientset:  appClientSet,
+		RepoClientset: mockRepoClient,
 	}
-	if withFakeSSO {
+	if withFakeSSO && useDexForSSO {
 		argoCDOpts.DexServerAddr = ts.URL
 	}
 	argocd = NewServer(context.Background(), argoCDOpts)
-	return argocd, ts.URL
+	var err error
+	argocd.ssoClientApp, err = oidc.NewClientApp(argocd.settings, argocd.DexServerAddr, argocd.DexTLSConfig, argocd.BaseHRef, cache.NewInMemoryCache(24*time.Hour))
+	require.NoError(t, err)
+	return argocd, oidcServer.URL
+}
+
+func TestGetClaims(t *testing.T) {
+
+	defaultExpiry := jwt.NewNumericDate(time.Now().Add(time.Hour * 24))
+	defaultExpiryUnix := float64(defaultExpiry.Unix())
+
+	type testData struct {
+		test                  string
+		claims                jwt.MapClaims
+		expectedErrorContains string
+		expectedClaims        jwt.MapClaims
+		expectNewToken        bool
+		additionalOIDCConfig  settings_util.OIDCConfig
+	}
+	var tests = []testData{
+		{
+			test: "GetClaims",
+			claims: jwt.MapClaims{
+				"aud": "argo-cd",
+				"exp": defaultExpiry,
+				"sub": "randomUser",
+			},
+			expectedErrorContains: "",
+			expectedClaims: jwt.MapClaims{
+				"aud": "argo-cd",
+				"exp": defaultExpiryUnix,
+				"sub": "randomUser",
+			},
+			expectNewToken:       false,
+			additionalOIDCConfig: settings_util.OIDCConfig{},
+		},
+		{
+			// note: a passing test with user info groups can never be achieved since the user never logged in properly
+			// therefore the oidcClient's cache contains no accessToken for the user info endpoint
+			// and since the oidcClient cache is unexported (for good reasons) we can't mock this behaviour
+			test: "GetClaimsWithUserInfoGroupsEnabled",
+			claims: jwt.MapClaims{
+				"aud": common.ArgoCDClientAppID,
+				"exp": defaultExpiry,
+				"sub": "randomUser",
+			},
+			expectedErrorContains: "invalid session",
+			expectedClaims: jwt.MapClaims{
+				"aud": common.ArgoCDClientAppID,
+				"exp": defaultExpiryUnix,
+				"sub": "randomUser",
+			},
+			expectNewToken: false,
+			additionalOIDCConfig: settings_util.OIDCConfig{
+				EnableUserInfoGroups:    true,
+				UserInfoPath:            "/userinfo",
+				UserInfoCacheExpiration: "5m",
+			},
+		},
+	}
+
+	for _, testData := range tests {
+		testDataCopy := testData
+
+		t.Run(testDataCopy.test, func(t *testing.T) {
+			t.Parallel()
+
+			// Must be declared here to avoid race.
+			ctx := context.Background() //nolint:ineffassign,staticcheck
+
+			argocd, oidcURL := getTestServer(t, false, true, false, testDataCopy.additionalOIDCConfig)
+
+			// create new JWT and store it on the context to simulate an incoming request
+			testDataCopy.claims["iss"] = oidcURL
+			testDataCopy.expectedClaims["iss"] = oidcURL
+			token := jwt.NewWithClaims(jwt.SigningMethodRS512, testDataCopy.claims)
+			key, err := jwt.ParseRSAPrivateKeyFromPEM(testutil.PrivateKey)
+			require.NoError(t, err)
+			tokenString, err := token.SignedString(key)
+			require.NoError(t, err)
+			ctx = metadata.NewIncomingContext(context.Background(), metadata.Pairs(apiclient.MetaDataTokenKey, tokenString))
+
+			gotClaims, newToken, err := argocd.getClaims(ctx)
+
+			// Note: testutil.oidcMockHandler currently doesn't implement reissuing expired tokens
+			// so newToken will always be empty
+			if testDataCopy.expectNewToken {
+				assert.NotEmpty(t, newToken)
+			}
+			if testDataCopy.expectedClaims == nil {
+				assert.Nil(t, gotClaims)
+			} else {
+				assert.Equal(t, testDataCopy.expectedClaims, gotClaims)
+			}
+			if testDataCopy.expectedErrorContains != "" {
+				assert.ErrorContains(t, err, testDataCopy.expectedErrorContains, "getClaims should have thrown an error and return an error")
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
 }
 
 func TestAuthenticate_3rd_party_JWTs(t *testing.T) {
+	// Marshaling single strings to strings is typical, so we test for this relatively common behavior.
+	jwt.MarshalSingleStringAsArray = false
+
 	type testData struct {
 		test                  string
 		anonymousEnabled      bool
 		claims                jwt.RegisteredClaims
 		expectedErrorContains string
 		expectedClaims        interface{}
+		useDex                bool
 	}
 	var tests = []testData{
+		// Dex
 		{
 			test:                  "anonymous disabled, no audience",
 			anonymousEnabled:      false,
-			claims:                jwt.RegisteredClaims{},
-			expectedErrorContains: "no audience found in the token",
+			claims:                jwt.RegisteredClaims{ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 24))},
+			expectedErrorContains: common.TokenVerificationError,
 			expectedClaims:        nil,
 		},
 		{
@@ -567,30 +724,94 @@ func TestAuthenticate_3rd_party_JWTs(t *testing.T) {
 		{
 			test:                  "anonymous disabled, unexpired token, admin claim",
 			anonymousEnabled:      false,
-			claims:                jwt.RegisteredClaims{Audience: jwt.ClaimStrings{"test-client"}, Subject: "admin", ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 24))},
-			expectedErrorContains: "id token signed with unsupported algorithm",
+			claims:                jwt.RegisteredClaims{Audience: jwt.ClaimStrings{common.ArgoCDClientAppID}, Subject: "admin", ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 24))},
+			expectedErrorContains: common.TokenVerificationError,
 			expectedClaims:        nil,
 		},
 		{
 			test:                  "anonymous enabled, unexpired token, admin claim",
 			anonymousEnabled:      true,
-			claims:                jwt.RegisteredClaims{Audience: jwt.ClaimStrings{"test-client"}, Subject: "admin", ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 24))},
+			claims:                jwt.RegisteredClaims{Audience: jwt.ClaimStrings{common.ArgoCDClientAppID}, Subject: "admin", ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 24))},
 			expectedErrorContains: "",
 			expectedClaims:        "",
 		},
 		{
 			test:                  "anonymous disabled, expired token, admin claim",
 			anonymousEnabled:      false,
-			claims:                jwt.RegisteredClaims{Audience: jwt.ClaimStrings{"test-client"}, Subject: "admin", ExpiresAt: jwt.NewNumericDate(time.Now())},
-			expectedErrorContains: "token is expired",
-			expectedClaims:        jwt.RegisteredClaims{Issuer:"sso"},
+			claims:                jwt.RegisteredClaims{Audience: jwt.ClaimStrings{common.ArgoCDClientAppID}, Subject: "admin", ExpiresAt: jwt.NewNumericDate(time.Now())},
+			expectedErrorContains: common.TokenVerificationError,
+			expectedClaims:        jwt.RegisteredClaims{Issuer: "sso"},
 		},
 		{
 			test:                  "anonymous enabled, expired token, admin claim",
 			anonymousEnabled:      true,
-			claims:                jwt.RegisteredClaims{Audience: jwt.ClaimStrings{"test-client"}, Subject: "admin", ExpiresAt: jwt.NewNumericDate(time.Now())},
+			claims:                jwt.RegisteredClaims{Audience: jwt.ClaimStrings{common.ArgoCDClientAppID}, Subject: "admin", ExpiresAt: jwt.NewNumericDate(time.Now())},
 			expectedErrorContains: "",
 			expectedClaims:        "",
+		},
+		{
+			test:                  "anonymous disabled, unexpired token, admin claim, incorrect audience",
+			anonymousEnabled:      false,
+			claims:                jwt.RegisteredClaims{Audience: jwt.ClaimStrings{"incorrect-audience"}, Subject: "admin", ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 24))},
+			expectedErrorContains: common.TokenVerificationError,
+			expectedClaims:        nil,
+		},
+		// External OIDC (not bundled Dex)
+		{
+			test:                  "external OIDC: anonymous disabled, no audience",
+			anonymousEnabled:      false,
+			claims:                jwt.RegisteredClaims{ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 24))},
+			useDex:                true,
+			expectedErrorContains: common.TokenVerificationError,
+			expectedClaims:        nil,
+		},
+		{
+			test:                  "external OIDC: anonymous enabled, no audience",
+			anonymousEnabled:      true,
+			claims:                jwt.RegisteredClaims{},
+			useDex:                true,
+			expectedErrorContains: "",
+			expectedClaims:        "",
+		},
+		{
+			test:                  "external OIDC: anonymous disabled, unexpired token, admin claim",
+			anonymousEnabled:      false,
+			claims:                jwt.RegisteredClaims{Audience: jwt.ClaimStrings{common.ArgoCDClientAppID}, Subject: "admin", ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 24))},
+			useDex:                true,
+			expectedErrorContains: common.TokenVerificationError,
+			expectedClaims:        nil,
+		},
+		{
+			test:                  "external OIDC: anonymous enabled, unexpired token, admin claim",
+			anonymousEnabled:      true,
+			claims:                jwt.RegisteredClaims{Audience: jwt.ClaimStrings{common.ArgoCDClientAppID}, Subject: "admin", ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 24))},
+			useDex:                true,
+			expectedErrorContains: "",
+			expectedClaims:        "",
+		},
+		{
+			test:                  "external OIDC: anonymous disabled, expired token, admin claim",
+			anonymousEnabled:      false,
+			claims:                jwt.RegisteredClaims{Audience: jwt.ClaimStrings{common.ArgoCDClientAppID}, Subject: "admin", ExpiresAt: jwt.NewNumericDate(time.Now())},
+			useDex:                true,
+			expectedErrorContains: common.TokenVerificationError,
+			expectedClaims:        jwt.RegisteredClaims{Issuer: "sso"},
+		},
+		{
+			test:                  "external OIDC: anonymous enabled, expired token, admin claim",
+			anonymousEnabled:      true,
+			claims:                jwt.RegisteredClaims{Audience: jwt.ClaimStrings{common.ArgoCDClientAppID}, Subject: "admin", ExpiresAt: jwt.NewNumericDate(time.Now())},
+			useDex:                true,
+			expectedErrorContains: "",
+			expectedClaims:        "",
+		},
+		{
+			test:                  "external OIDC: anonymous disabled, unexpired token, admin claim, incorrect audience",
+			anonymousEnabled:      false,
+			claims:                jwt.RegisteredClaims{Audience: jwt.ClaimStrings{"incorrect-audience"}, Subject: "admin", ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 24))},
+			useDex:                true,
+			expectedErrorContains: common.TokenVerificationError,
+			expectedClaims:        nil,
 		},
 	}
 
@@ -601,10 +822,15 @@ func TestAuthenticate_3rd_party_JWTs(t *testing.T) {
 			t.Parallel()
 
 			// Must be declared here to avoid race.
-			ctx := context.Background()  //nolint:ineffassign,staticcheck
+			ctx := context.Background() //nolint:ineffassign,staticcheck
 
-			argocd, dexURL := getTestServer(t, testDataCopy.anonymousEnabled, true)
-			testDataCopy.claims.Issuer = fmt.Sprintf("%s/api/dex", dexURL)
+			argocd, oidcURL := getTestServer(t, testDataCopy.anonymousEnabled, true, testDataCopy.useDex, settings_util.OIDCConfig{})
+
+			if testDataCopy.useDex {
+				testDataCopy.claims.Issuer = fmt.Sprintf("%s/api/dex", oidcURL)
+			} else {
+				testDataCopy.claims.Issuer = oidcURL
+			}
 			token := jwt.NewWithClaims(jwt.SigningMethodHS256, testDataCopy.claims)
 			tokenString, err := token.SignedString([]byte("key"))
 			require.NoError(t, err)
@@ -654,7 +880,7 @@ func TestAuthenticate_no_request_metadata(t *testing.T) {
 		t.Run(testDataCopy.test, func(t *testing.T) {
 			t.Parallel()
 
-			argocd, _ := getTestServer(t, testDataCopy.anonymousEnabled, true)
+			argocd, _ := getTestServer(t, testDataCopy.anonymousEnabled, true, true, settings_util.OIDCConfig{})
 			ctx := context.Background()
 
 			ctx, err := argocd.Authenticate(ctx)
@@ -698,9 +924,9 @@ func TestAuthenticate_no_SSO(t *testing.T) {
 			t.Parallel()
 
 			// Must be declared here to avoid race.
-			ctx := context.Background()  //nolint:ineffassign,staticcheck
+			ctx := context.Background() //nolint:ineffassign,staticcheck
 
-			argocd, dexURL := getTestServer(t, testDataCopy.anonymousEnabled, false)
+			argocd, dexURL := getTestServer(t, testDataCopy.anonymousEnabled, false, true, settings_util.OIDCConfig{})
 			token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.RegisteredClaims{Issuer: fmt.Sprintf("%s/api/dex", dexURL)})
 			tokenString, err := token.SignedString([]byte("key"))
 			require.NoError(t, err)
@@ -773,7 +999,7 @@ func TestAuthenticate_bad_request_metadata(t *testing.T) {
 			test:                 "anonymous disabled, bad auth header",
 			anonymousEnabled:     false,
 			metadata:             metadata.MD{"authorization": []string{"Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhZG1pbiJ9.TGGTTHuuGpEU8WgobXxkrBtW3NiR3dgw5LR-1DEW3BQ"}},
-			expectedErrorMessage: "no audience found in the token",
+			expectedErrorMessage: common.TokenVerificationError,
 			expectedClaims:       nil,
 		},
 		{
@@ -787,7 +1013,7 @@ func TestAuthenticate_bad_request_metadata(t *testing.T) {
 			test:                 "anonymous disabled, bad auth cookie",
 			anonymousEnabled:     false,
 			metadata:             metadata.MD{"grpcgateway-cookie": []string{"argocd.token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhZG1pbiJ9.TGGTTHuuGpEU8WgobXxkrBtW3NiR3dgw5LR-1DEW3BQ"}},
-			expectedErrorMessage: "no audience found in the token",
+			expectedErrorMessage: common.TokenVerificationError,
 			expectedClaims:       nil,
 		},
 		{
@@ -799,15 +1025,16 @@ func TestAuthenticate_bad_request_metadata(t *testing.T) {
 		},
 	}
 
-	ctx := context.Background()
-
 	for _, testData := range tests {
 		testDataCopy := testData
 
 		t.Run(testDataCopy.test, func(t *testing.T) {
 			t.Parallel()
 
-			argocd, _ := getTestServer(t, testDataCopy.anonymousEnabled, true)
+			// Must be declared here to avoid race.
+			ctx := context.Background() //nolint:ineffassign,staticcheck
+
+			argocd, _ := getTestServer(t, testDataCopy.anonymousEnabled, true, true, settings_util.OIDCConfig{})
 			ctx = metadata.NewIncomingContext(context.Background(), testDataCopy.metadata)
 
 			ctx, err := argocd.Authenticate(ctx)
@@ -845,6 +1072,7 @@ func TestTranslateGrpcCookieHeader(t *testing.T) {
 		Namespace:     test.FakeArgoCDNamespace,
 		KubeClientset: fake.NewSimpleClientset(test.NewFakeConfigMap(), test.NewFakeSecret()),
 		AppClientset:  apps.NewSimpleClientset(),
+		RepoClientset: &mocks.Clientset{RepoServerServiceClient: &mocks.RepoServerServiceClient{}},
 	}
 	argocd := NewServer(context.Background(), argoCDOpts)
 
@@ -884,6 +1112,7 @@ func TestInitializeDefaultProject_ProjectDoesNotExist(t *testing.T) {
 		Namespace:     test.FakeArgoCDNamespace,
 		KubeClientset: fake.NewSimpleClientset(test.NewFakeConfigMap(), test.NewFakeSecret()),
 		AppClientset:  apps.NewSimpleClientset(),
+		RepoClientset: &mocks.Clientset{RepoServerServiceClient: &mocks.RepoServerServiceClient{}},
 	}
 
 	err := initializeDefaultProject(argoCDOpts)
@@ -921,6 +1150,7 @@ func TestInitializeDefaultProject_ProjectAlreadyInitialized(t *testing.T) {
 		Namespace:     test.FakeArgoCDNamespace,
 		KubeClientset: fake.NewSimpleClientset(test.NewFakeConfigMap(), test.NewFakeSecret()),
 		AppClientset:  apps.NewSimpleClientset(&existingDefaultProject),
+		RepoClientset: &mocks.Clientset{RepoServerServiceClient: &mocks.RepoServerServiceClient{}},
 	}
 
 	err := initializeDefaultProject(argoCDOpts)
@@ -1064,39 +1294,39 @@ func TestOIDCConfigChangeDetection_NoChange(t *testing.T) {
 }
 
 func TestIsMainJsBundle(t *testing.T) {
-	testCases := []struct{
+	testCases := []struct {
 		name           string
 		url            string
 		isMainJsBundle bool
 	}{
 		{
-			name: "localhost with valid main bundle",
-			url: "https://localhost:8080/main.e4188e5adc97bbfc00c3.js",
+			name:           "localhost with valid main bundle",
+			url:            "https://localhost:8080/main.e4188e5adc97bbfc00c3.js",
 			isMainJsBundle: true,
 		},
 		{
-			name: "localhost and deep path with valid main bundle",
-			url: "https://localhost:8080/some/argo-cd-instance/main.e4188e5adc97bbfc00c3.js",
+			name:           "localhost and deep path with valid main bundle",
+			url:            "https://localhost:8080/some/argo-cd-instance/main.e4188e5adc97bbfc00c3.js",
 			isMainJsBundle: true,
 		},
 		{
-			name: "font file",
-			url: "https://localhost:8080/assets/fonts/google-fonts/Heebo-Bols.woff2",
+			name:           "font file",
+			url:            "https://localhost:8080/assets/fonts/google-fonts/Heebo-Bols.woff2",
 			isMainJsBundle: false,
 		},
 		{
-			name: "no dot after main",
-			url: "https://localhost:8080/main/e4188e5adc97bbfc00c3.js",
+			name:           "no dot after main",
+			url:            "https://localhost:8080/main/e4188e5adc97bbfc00c3.js",
 			isMainJsBundle: false,
 		},
 		{
-			name: "wrong extension character",
-			url: "https://localhost:8080/main.e4188e5adc97bbfc00c3/js",
+			name:           "wrong extension character",
+			url:            "https://localhost:8080/main.e4188e5adc97bbfc00c3/js",
 			isMainJsBundle: false,
 		},
 		{
-			name: "wrong hash length",
-			url: "https://localhost:8080/main.e4188e5adc97bbfc00c3abcdefg.js",
+			name:           "wrong hash length",
+			url:            "https://localhost:8080/main.e4188e5adc97bbfc00c3abcdefg.js",
 			isMainJsBundle: false,
 		},
 	}
@@ -1109,4 +1339,233 @@ func TestIsMainJsBundle(t *testing.T) {
 			assert.Equal(t, testCaseCopy.isMainJsBundle, isMainJsBundle)
 		})
 	}
+}
+
+func TestCacheControlHeaders(t *testing.T) {
+	testCases := []struct {
+		name                        string
+		filename                    string
+		createFile                  bool
+		expectedStatus              int
+		expectedCacheControlHeaders []string
+	}{
+		{
+			name:                        "file exists",
+			filename:                    "exists.html",
+			createFile:                  true,
+			expectedStatus:              200,
+			expectedCacheControlHeaders: nil,
+		},
+		{
+			name:                        "file does not exist",
+			filename:                    "missing.html",
+			createFile:                  false,
+			expectedStatus:              404,
+			expectedCacheControlHeaders: nil,
+		},
+		{
+			name:                        "main js bundle exists",
+			filename:                    "main.e4188e5adc97bbfc00c3.js",
+			createFile:                  true,
+			expectedStatus:              200,
+			expectedCacheControlHeaders: []string{"public, max-age=31536000, immutable"},
+		},
+		{
+			name:                        "main js bundle does not exists",
+			filename:                    "main.e4188e5adc97bbfc00c0.js",
+			createFile:                  false,
+			expectedStatus:              404,
+			expectedCacheControlHeaders: []string{"no-cache"},
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			argocd, closer := fakeServer(t)
+			defer closer()
+
+			handler := argocd.newStaticAssetsHandler()
+
+			rr := httptest.NewRecorder()
+			req := httptest.NewRequest("", fmt.Sprintf("/%s", testCase.filename), nil)
+
+			fp := filepath.Join(argocd.TmpAssetsDir, testCase.filename)
+
+			if testCase.createFile {
+				tmpFile, err := os.Create(fp)
+				assert.NoError(t, err)
+				err = tmpFile.Close()
+				assert.NoError(t, err)
+			}
+
+			handler(rr, req)
+
+			assert.Equal(t, testCase.expectedStatus, rr.Code)
+
+			cacheControl := rr.Result().Header["Cache-Control"]
+			assert.Equal(t, testCase.expectedCacheControlHeaders, cacheControl)
+		})
+	}
+}
+func TestReplaceBaseHRef(t *testing.T) {
+	testCases := []struct {
+		name        string
+		data        string
+		expected    string
+		replaceWith string
+	}{
+		{
+			name: "non-root basepath",
+			data: `<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Argo CD</title>
+    <base href="/">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel='icon' type='image/png' href='assets/favicon/favicon-32x32.png' sizes='32x32'/>
+    <link rel='icon' type='image/png' href='assets/favicon/favicon-16x16.png' sizes='16x16'/>
+    <link href="assets/fonts.css" rel="stylesheet">
+</head>
+
+<body>
+    <noscript>
+        <p>
+        Your browser does not support JavaScript. Please enable JavaScript to view the site.
+        Alternatively, Argo CD can be used with the <a href="https://argoproj.github.io/argo-cd/cli_installation/">Argo CD CLI</a>.
+        </p>
+    </noscript>
+    <div id="app"></div>
+</body>
+
+</html>`,
+			expected: `<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Argo CD</title>
+    <base href="/path1/path2/path3/">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel='icon' type='image/png' href='assets/favicon/favicon-32x32.png' sizes='32x32'/>
+    <link rel='icon' type='image/png' href='assets/favicon/favicon-16x16.png' sizes='16x16'/>
+    <link href="assets/fonts.css" rel="stylesheet">
+</head>
+
+<body>
+    <noscript>
+        <p>
+        Your browser does not support JavaScript. Please enable JavaScript to view the site.
+        Alternatively, Argo CD can be used with the <a href="https://argoproj.github.io/argo-cd/cli_installation/">Argo CD CLI</a>.
+        </p>
+    </noscript>
+    <div id="app"></div>
+</body>
+
+</html>`,
+			replaceWith: `<base href="/path1/path2/path3/">`,
+		},
+		{
+			name: "root basepath",
+			data: `<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Argo CD</title>
+    <base href="/any/path/test/">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel='icon' type='image/png' href='assets/favicon/favicon-32x32.png' sizes='32x32'/>
+    <link rel='icon' type='image/png' href='assets/favicon/favicon-16x16.png' sizes='16x16'/>
+    <link href="assets/fonts.css" rel="stylesheet">
+</head>
+
+<body>
+    <noscript>
+        <p>
+        Your browser does not support JavaScript. Please enable JavaScript to view the site.
+        Alternatively, Argo CD can be used with the <a href="https://argoproj.github.io/argo-cd/cli_installation/">Argo CD CLI</a>.
+        </p>
+    </noscript>
+    <div id="app"></div>
+</body>
+
+</html>`,
+			expected: `<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Argo CD</title>
+    <base href="/">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel='icon' type='image/png' href='assets/favicon/favicon-32x32.png' sizes='32x32'/>
+    <link rel='icon' type='image/png' href='assets/favicon/favicon-16x16.png' sizes='16x16'/>
+    <link href="assets/fonts.css" rel="stylesheet">
+</head>
+
+<body>
+    <noscript>
+        <p>
+        Your browser does not support JavaScript. Please enable JavaScript to view the site.
+        Alternatively, Argo CD can be used with the <a href="https://argoproj.github.io/argo-cd/cli_installation/">Argo CD CLI</a>.
+        </p>
+    </noscript>
+    <div id="app"></div>
+</body>
+
+</html>`,
+			replaceWith: `<base href="/">`,
+		},
+	}
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			result := replaceBaseHRef(testCase.data, testCase.replaceWith)
+			assert.Equal(t, testCase.expected, result)
+		})
+	}
+}
+
+func Test_enforceContentTypes(t *testing.T) {
+	getBaseHandler := func(t *testing.T, allow bool) http.Handler {
+		return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+			assert.True(t, allow, "http handler was hit when it should have been blocked by content type enforcement")
+			writer.WriteHeader(200)
+		})
+	}
+
+	t.Parallel()
+
+	t.Run("GET - not providing a content type, should still succeed", func(t *testing.T) {
+		handler := enforceContentTypes(getBaseHandler(t, true), []string{"application/json"}).(http.HandlerFunc)
+		req := httptest.NewRequest("GET", "/", nil)
+		w := httptest.NewRecorder()
+		handler(w, req)
+		resp := w.Result()
+		assert.Equal(t, 200, resp.StatusCode)
+	})
+
+	t.Run("POST", func(t *testing.T) {
+		handler := enforceContentTypes(getBaseHandler(t, true), []string{"application/json"}).(http.HandlerFunc)
+		req := httptest.NewRequest("POST", "/", nil)
+		w := httptest.NewRecorder()
+		handler(w, req)
+		resp := w.Result()
+		assert.Equal(t, 415, resp.StatusCode, "didn't provide a content type, should have gotten an error")
+
+		req = httptest.NewRequest("POST", "/", nil)
+		req.Header = map[string][]string{"Content-Type": {"application/json"}}
+		w = httptest.NewRecorder()
+		handler(w, req)
+		resp = w.Result()
+		assert.Equal(t, 200, resp.StatusCode, "should have passed, since an allowed content type was provided")
+
+		req = httptest.NewRequest("POST", "/", nil)
+		req.Header = map[string][]string{"Content-Type": {"not-allowed"}}
+		w = httptest.NewRecorder()
+		handler(w, req)
+		resp = w.Result()
+		assert.Equal(t, 415, resp.StatusCode, "should not have passed, since a disallowed content type was provided")
+	})
 }

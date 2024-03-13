@@ -1,10 +1,11 @@
 package db
 
 import (
+	"context"
+	"fmt"
 	"strings"
 
 	log "github.com/sirupsen/logrus"
-	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	apiv1 "k8s.io/api/core/v1"
@@ -35,7 +36,7 @@ func (l *legacyRepositoryBackend) CreateRepository(ctx context.Context, r *appsv
 func (l *legacyRepositoryBackend) GetRepository(ctx context.Context, repoURL string) (*appsv1.Repository, error) {
 	repository, err := l.tryGetRepository(repoURL)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("unable to get repository: %w", err)
 	}
 	return repository, nil
 }
@@ -129,7 +130,7 @@ func (l *legacyRepositoryBackend) DeleteRepository(ctx context.Context, repoURL 
 func (l *legacyRepositoryBackend) RepositoryExists(ctx context.Context, repoURL string) (bool, error) {
 	repos, err := l.db.settingsMgr.GetRepositories()
 	if err != nil {
-		return false, err
+		return false, fmt.Errorf("unable to get repositories: %w", err)
 	}
 
 	index := l.getRepositoryIndex(repos, repoURL)
@@ -261,6 +262,7 @@ func (l *legacyRepositoryBackend) updateRepositorySecrets(repoInfo *settings.Rep
 	repoInfo.TLSClientCertDataSecret = l.setSecretData(repoSecretPrefix, r.Repo, secretsData, repoInfo.TLSClientCertDataSecret, r.TLSClientCertData, tlsClientCertData)
 	repoInfo.TLSClientCertKeySecret = l.setSecretData(repoSecretPrefix, r.Repo, secretsData, repoInfo.TLSClientCertKeySecret, r.TLSClientCertKey, tlsClientCertKey)
 	repoInfo.GithubAppPrivateKeySecret = l.setSecretData(repoSecretPrefix, r.Repo, secretsData, repoInfo.GithubAppPrivateKeySecret, r.GithubAppPrivateKey, githubAppPrivateKey)
+	repoInfo.GCPServiceAccountKey = l.setSecretData(repoSecretPrefix, r.Repo, secretsData, repoInfo.GCPServiceAccountKey, r.GCPServiceAccountKey, gcpServiceAccountKey)
 	for k, v := range secretsData {
 		err := l.upsertSecret(k, v)
 		if err != nil {
@@ -282,6 +284,7 @@ func (l *legacyRepositoryBackend) updateCredentialsSecret(credsInfo *settings.Re
 		GithubAppId:                c.GithubAppId,
 		GithubAppInstallationId:    c.GithubAppInstallationId,
 		GitHubAppEnterpriseBaseURL: c.GitHubAppEnterpriseBaseURL,
+		GCPServiceAccountKey:       c.GCPServiceAccountKey,
 	}
 	secretsData := make(map[string]map[string][]byte)
 
@@ -291,6 +294,7 @@ func (l *legacyRepositoryBackend) updateCredentialsSecret(credsInfo *settings.Re
 	credsInfo.TLSClientCertDataSecret = l.setSecretData(credSecretPrefix, r.Repo, secretsData, credsInfo.TLSClientCertDataSecret, r.TLSClientCertData, tlsClientCertData)
 	credsInfo.TLSClientCertKeySecret = l.setSecretData(credSecretPrefix, r.Repo, secretsData, credsInfo.TLSClientCertKeySecret, r.TLSClientCertKey, tlsClientCertKey)
 	credsInfo.GithubAppPrivateKeySecret = l.setSecretData(repoSecretPrefix, r.Repo, secretsData, credsInfo.GithubAppPrivateKeySecret, r.GithubAppPrivateKey, githubAppPrivateKey)
+	credsInfo.GCPServiceAccountKey = l.setSecretData(repoSecretPrefix, r.Repo, secretsData, credsInfo.GCPServiceAccountKey, r.GCPServiceAccountKey, gcpServiceAccountKey)
 	for k, v := range secretsData {
 		err := l.upsertSecret(k, v)
 		if err != nil {
@@ -384,12 +388,13 @@ func (l *legacyRepositoryBackend) credentialsToRepository(repoInfo settings.Repo
 		Proxy:                      repoInfo.Proxy,
 	}
 	err := l.db.unmarshalFromSecretsStr(map[*SecretMaperValidation]*apiv1.SecretKeySelector{
-		&SecretMaperValidation{Dest: &repo.Username, Transform: StripCRLFCharacter}:            repoInfo.UsernameSecret,
-		&SecretMaperValidation{Dest: &repo.Password, Transform: StripCRLFCharacter}:            repoInfo.PasswordSecret,
-		&SecretMaperValidation{Dest: &repo.SSHPrivateKey, Transform: StripCRLFCharacter}:       repoInfo.SSHPrivateKeySecret,
-		&SecretMaperValidation{Dest: &repo.TLSClientCertData, Transform: StripCRLFCharacter}:   repoInfo.TLSClientCertDataSecret,
-		&SecretMaperValidation{Dest: &repo.TLSClientCertKey, Transform: StripCRLFCharacter}:    repoInfo.TLSClientCertKeySecret,
-		&SecretMaperValidation{Dest: &repo.GithubAppPrivateKey, Transform: StripCRLFCharacter}: repoInfo.GithubAppPrivateKeySecret,
+		{Dest: &repo.Username, Transform: StripCRLFCharacter}:             repoInfo.UsernameSecret,
+		{Dest: &repo.Password, Transform: StripCRLFCharacter}:             repoInfo.PasswordSecret,
+		{Dest: &repo.SSHPrivateKey, Transform: StripCRLFCharacter}:        repoInfo.SSHPrivateKeySecret,
+		{Dest: &repo.TLSClientCertData, Transform: StripCRLFCharacter}:    repoInfo.TLSClientCertDataSecret,
+		{Dest: &repo.TLSClientCertKey, Transform: StripCRLFCharacter}:     repoInfo.TLSClientCertKeySecret,
+		{Dest: &repo.GithubAppPrivateKey, Transform: StripCRLFCharacter}:  repoInfo.GithubAppPrivateKeySecret,
+		{Dest: &repo.GCPServiceAccountKey, Transform: StripCRLFCharacter}: repoInfo.GCPServiceAccountKey,
 	}, make(map[string]*apiv1.Secret))
 	return repo, err
 }
@@ -403,12 +408,13 @@ func (l *legacyRepositoryBackend) credentialsToRepositoryCredentials(repoInfo se
 		EnableOCI:                  repoInfo.EnableOCI,
 	}
 	err := l.db.unmarshalFromSecretsStr(map[*SecretMaperValidation]*apiv1.SecretKeySelector{
-		&SecretMaperValidation{Dest: &creds.Username}:            repoInfo.UsernameSecret,
-		&SecretMaperValidation{Dest: &creds.Password}:            repoInfo.PasswordSecret,
-		&SecretMaperValidation{Dest: &creds.SSHPrivateKey}:       repoInfo.SSHPrivateKeySecret,
-		&SecretMaperValidation{Dest: &creds.TLSClientCertData}:   repoInfo.TLSClientCertDataSecret,
-		&SecretMaperValidation{Dest: &creds.TLSClientCertKey}:    repoInfo.TLSClientCertKeySecret,
-		&SecretMaperValidation{Dest: &creds.GithubAppPrivateKey}: repoInfo.GithubAppPrivateKeySecret,
+		{Dest: &creds.Username}:             repoInfo.UsernameSecret,
+		{Dest: &creds.Password}:             repoInfo.PasswordSecret,
+		{Dest: &creds.SSHPrivateKey}:        repoInfo.SSHPrivateKeySecret,
+		{Dest: &creds.TLSClientCertData}:    repoInfo.TLSClientCertDataSecret,
+		{Dest: &creds.TLSClientCertKey}:     repoInfo.TLSClientCertKeySecret,
+		{Dest: &creds.GithubAppPrivateKey}:  repoInfo.GithubAppPrivateKeySecret,
+		{Dest: &creds.GCPServiceAccountKey}: repoInfo.GCPServiceAccountKey,
 	}, make(map[string]*apiv1.Secret))
 	return creds, err
 }

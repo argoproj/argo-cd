@@ -5,8 +5,9 @@ import (
 	"compress/gzip"
 	"fmt"
 	"io"
-	"io/ioutil"
+	"math"
 	"os"
+	"path"
 	"path/filepath"
 	"testing"
 
@@ -24,7 +25,7 @@ func TestTgz(t *testing.T) {
 	setup := func(t *testing.T) *fixture {
 		t.Helper()
 		testDir := getTestDataDir(t)
-		f, err := ioutil.TempFile(testDir, "")
+		f, err := os.CreateTemp(testDir, "")
 		require.NoError(t, err)
 		return &fixture{
 			file: f,
@@ -47,9 +48,10 @@ func TestTgz(t *testing.T) {
 		defer teardown(f)
 
 		// when
-		err := files.Tgz(getTestAppDir(t), exclusions, f.file)
+		filesWritten, err := files.Tgz(getTestAppDir(t), nil, exclusions, f.file)
 
 		// then
+		assert.Equal(t, 3, filesWritten)
 		assert.NoError(t, err)
 		prepareRead(f)
 		files, err := read(f.file)
@@ -69,9 +71,10 @@ func TestTgz(t *testing.T) {
 		defer teardown(f)
 
 		// when
-		err := files.Tgz(getTestAppDir(t), exclusions, f.file)
+		filesWritten, err := files.Tgz(getTestAppDir(t), nil, exclusions, f.file)
 
 		// then
+		assert.Equal(t, 2, filesWritten)
 		assert.NoError(t, err)
 		prepareRead(f)
 		files, err := read(f.file)
@@ -88,9 +91,10 @@ func TestTgz(t *testing.T) {
 		defer teardown(f)
 
 		// when
-		err := files.Tgz(getTestAppDir(t), exclusions, f.file)
+		filesWritten, err := files.Tgz(getTestAppDir(t), nil, exclusions, f.file)
 
 		// then
+		assert.Equal(t, 1, filesWritten)
 		assert.NoError(t, err)
 		prepareRead(f)
 		files, err := read(f.file)
@@ -103,7 +107,7 @@ func TestTgz(t *testing.T) {
 func TestUntgz(t *testing.T) {
 	createTmpDir := func(t *testing.T) string {
 		t.Helper()
-		tmpDir, err := ioutil.TempDir(getTestDataDir(t), "")
+		tmpDir, err := os.MkdirTemp(getTestDataDir(t), "")
 		if err != nil {
 			t.Fatalf("error creating tmpDir: %s", err)
 		}
@@ -118,11 +122,11 @@ func TestUntgz(t *testing.T) {
 	}
 	createTgz := func(t *testing.T, fromDir, destDir string) *os.File {
 		t.Helper()
-		f, err := ioutil.TempFile(destDir, "")
+		f, err := os.CreateTemp(destDir, "")
 		if err != nil {
 			t.Fatalf("error creating tmpFile in %q: %s", destDir, err)
 		}
-		err = files.Tgz(fromDir, []string{}, f)
+		_, err = files.Tgz(fromDir, nil, nil, f)
 		if err != nil {
 			t.Fatalf("error during Tgz: %s", err)
 		}
@@ -165,7 +169,7 @@ func TestUntgz(t *testing.T) {
 		destDir := filepath.Join(tmpDir, "untgz1")
 
 		// when
-		err := files.Untgz(destDir, tgzFile)
+		err := files.Untgz(destDir, tgzFile, math.MaxInt64, false)
 
 		// then
 		require.NoError(t, err)
@@ -188,11 +192,31 @@ func TestUntgz(t *testing.T) {
 		destDir := filepath.Join(tmpDir, "untgz2")
 
 		// when
-		err := files.Untgz(destDir, tgzFile)
+		err := files.Untgz(destDir, tgzFile, math.MaxInt64, false)
 
 		// then
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "illegal filepath in symlink")
+	})
+
+	t.Run("preserves file mode", func(t *testing.T) {
+		// given
+		tmpDir := createTmpDir(t)
+		defer deleteTmpDir(t, tmpDir)
+		tgzFile := createTgz(t, filepath.Join(getTestDataDir(t), "executable"), tmpDir)
+		defer tgzFile.Close()
+
+		destDir := filepath.Join(tmpDir, "untgz1")
+
+		// when
+		err := files.Untgz(destDir, tgzFile, math.MaxInt64, false)
+		require.NoError(t, err)
+
+		// then
+
+		scriptFileInfo, err := os.Stat(path.Join(destDir, "script.sh"))
+		require.NoError(t, err)
+		assert.Equal(t, os.FileMode(0644), scriptFileInfo.Mode())
 	})
 }
 

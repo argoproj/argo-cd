@@ -11,11 +11,10 @@ import (
 	"time"
 
 	humanize "github.com/dustin/go-humanize"
-	"github.com/ghodss/yaml"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/yaml"
 
 	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/headless"
 	cmdutil "github.com/argoproj/argo-cd/v2/cmd/util"
@@ -27,6 +26,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/git"
 	"github.com/argoproj/argo-cd/v2/util/gpg"
 	argoio "github.com/argoproj/argo-cd/v2/util/io"
+	"github.com/argoproj/argo-cd/v2/util/templates"
 )
 
 type policyOpts struct {
@@ -40,6 +40,19 @@ func NewProjectCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var command = &cobra.Command{
 		Use:   "proj",
 		Short: "Manage projects",
+		Example: templates.Examples(`
+			# List all available projects
+			argocd proj list
+
+			# Create a new project with name PROJECT
+			argocd proj create PROJECT
+
+			# Delete the project with name PROJECT
+			argocd proj delete PROJECT
+
+			# Edit the information on project with name PROJECT
+			argocd proj edit PROJECT
+		`),
 		Run: func(c *cobra.Command, args []string) {
 			c.HelpFunc()(c, args)
 			os.Exit(1)
@@ -65,6 +78,8 @@ func NewProjectCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	command.AddCommand(NewProjectWindowsCommand(clientOpts))
 	command.AddCommand(NewProjectAddOrphanedIgnoreCommand(clientOpts))
 	command.AddCommand(NewProjectRemoveOrphanedIgnoreCommand(clientOpts))
+	command.AddCommand(NewProjectAddSourceNamespace(clientOpts))
+	command.AddCommand(NewProjectRemoveSourceNamespace(clientOpts))
 	return command
 }
 
@@ -89,13 +104,22 @@ func NewProjectCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comm
 	var command = &cobra.Command{
 		Use:   "create PROJECT",
 		Short: "Create a project",
+		Example: templates.Examples(`
+			# Create a new project with name PROJECT
+			argocd proj create PROJECT
+
+			# Create a new project with name PROJECT from a file or URL to a Kubernetes manifest
+			argocd proj create PROJECT -f FILE|URL
+		`),
 		Run: func(c *cobra.Command, args []string) {
+			ctx := c.Context()
+
 			proj, err := cmdutil.ConstructAppProj(fileURL, args, opts, c)
 			errors.CheckError(err)
 
 			conn, projIf := headless.NewClientOrDie(clientOpts, c).NewProjectClientOrDie()
 			defer argoio.Close(conn)
-			_, err = projIf.Create(context.Background(), &projectpkg.ProjectCreateRequest{Project: proj, Upsert: upsert})
+			_, err = projIf.Create(ctx, &projectpkg.ProjectCreateRequest{Project: proj, Upsert: upsert})
 			errors.CheckError(err)
 		},
 	}
@@ -117,7 +141,16 @@ func NewProjectSetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 	var command = &cobra.Command{
 		Use:   "set PROJECT",
 		Short: "Set project parameters",
+		Example: templates.Examples(`
+			# Set project parameters with some allowed cluster resources [RES1,RES2,...] for project with name PROJECT
+			argocd proj set PROJECT --allow-cluster-resource [RES1,RES2,...]
+
+			# Set project parameters with some denied namespaced resources [RES1,RES2,...] for project with name PROJECT
+			argocd proj set PROJECT ---deny-namespaced-resource [RES1,RES2,...]
+		`),
 		Run: func(c *cobra.Command, args []string) {
+			ctx := c.Context()
+
 			if len(args) == 0 {
 				c.HelpFunc()(c, args)
 				os.Exit(1)
@@ -126,7 +159,7 @@ func NewProjectSetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 			conn, projIf := headless.NewClientOrDie(clientOpts, c).NewProjectClientOrDie()
 			defer argoio.Close(conn)
 
-			proj, err := projIf.Get(context.Background(), &projectpkg.ProjectQuery{Name: projName})
+			proj, err := projIf.Get(ctx, &projectpkg.ProjectQuery{Name: projName})
 			errors.CheckError(err)
 
 			if visited := cmdutil.SetProjSpecOptions(c.Flags(), &proj.Spec, &opts); visited == 0 {
@@ -135,7 +168,7 @@ func NewProjectSetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 				os.Exit(1)
 			}
 
-			_, err = projIf.Update(context.Background(), &projectpkg.ProjectUpdateRequest{Project: proj})
+			_, err = projIf.Update(ctx, &projectpkg.ProjectUpdateRequest{Project: proj})
 			errors.CheckError(err)
 		},
 	}
@@ -148,7 +181,13 @@ func NewProjectAddSignatureKeyCommand(clientOpts *argocdclient.ClientOptions) *c
 	var command = &cobra.Command{
 		Use:   "add-signature-key PROJECT KEY-ID",
 		Short: "Add GnuPG signature key to project",
+		Example: templates.Examples(`
+			# Add GnuPG signature key KEY-ID to project PROJECT
+			argocd proj add-signature-key PROJECT KEY-ID
+		`),
 		Run: func(c *cobra.Command, args []string) {
+			ctx := c.Context()
+
 			if len(args) != 2 {
 				c.HelpFunc()(c, args)
 				os.Exit(1)
@@ -163,7 +202,7 @@ func NewProjectAddSignatureKeyCommand(clientOpts *argocdclient.ClientOptions) *c
 			conn, projIf := headless.NewClientOrDie(clientOpts, c).NewProjectClientOrDie()
 			defer argoio.Close(conn)
 
-			proj, err := projIf.Get(context.Background(), &projectpkg.ProjectQuery{Name: projName})
+			proj, err := projIf.Get(ctx, &projectpkg.ProjectQuery{Name: projName})
 			errors.CheckError(err)
 
 			for _, key := range proj.Spec.SignatureKeys {
@@ -172,7 +211,7 @@ func NewProjectAddSignatureKeyCommand(clientOpts *argocdclient.ClientOptions) *c
 				}
 			}
 			proj.Spec.SignatureKeys = append(proj.Spec.SignatureKeys, v1alpha1.SignatureKey{KeyID: signatureKey})
-			_, err = projIf.Update(context.Background(), &projectpkg.ProjectUpdateRequest{Project: proj})
+			_, err = projIf.Update(ctx, &projectpkg.ProjectUpdateRequest{Project: proj})
 			errors.CheckError(err)
 		},
 	}
@@ -184,7 +223,13 @@ func NewProjectRemoveSignatureKeyCommand(clientOpts *argocdclient.ClientOptions)
 	var command = &cobra.Command{
 		Use:   "remove-signature-key PROJECT KEY-ID",
 		Short: "Remove GnuPG signature key from project",
+		Example: templates.Examples(`
+			# Remove GnuPG signature key KEY-ID from project PROJECT
+			argocd proj remove-signature-key PROJECT KEY-ID
+		`),
 		Run: func(c *cobra.Command, args []string) {
+			ctx := c.Context()
+
 			if len(args) != 2 {
 				c.HelpFunc()(c, args)
 				os.Exit(1)
@@ -195,7 +240,7 @@ func NewProjectRemoveSignatureKeyCommand(clientOpts *argocdclient.ClientOptions)
 			conn, projIf := headless.NewClientOrDie(clientOpts, c).NewProjectClientOrDie()
 			defer argoio.Close(conn)
 
-			proj, err := projIf.Get(context.Background(), &projectpkg.ProjectQuery{Name: projName})
+			proj, err := projIf.Get(ctx, &projectpkg.ProjectQuery{Name: projName})
 			errors.CheckError(err)
 
 			index := -1
@@ -209,7 +254,7 @@ func NewProjectRemoveSignatureKeyCommand(clientOpts *argocdclient.ClientOptions)
 				log.Fatal("Specified signature key is not configured for project")
 			} else {
 				proj.Spec.SignatureKeys = append(proj.Spec.SignatureKeys[:index], proj.Spec.SignatureKeys[index+1:]...)
-				_, err = projIf.Update(context.Background(), &projectpkg.ProjectUpdateRequest{Project: proj})
+				_, err = projIf.Update(ctx, &projectpkg.ProjectUpdateRequest{Project: proj})
 				errors.CheckError(err)
 			}
 		},
@@ -232,7 +277,16 @@ func NewProjectAddDestinationCommand(clientOpts *argocdclient.ClientOptions) *co
 	var command = &cobra.Command{
 		Use:   "add-destination PROJECT SERVER/NAME NAMESPACE",
 		Short: "Add project destination",
+		Example: templates.Examples(`
+			# Add project destination using a server URL (SERVER) in the specified namespace (NAMESPACE) on the project with name PROJECT
+			argocd proj add-destination PROJECT SERVER NAMESPACE
+
+			# Add project destination using a server name (NAME) in the specified namespace (NAMESPACE) on the project with name PROJECT
+			argocd proj add-destination PROJECT NAME NAMESPACE --name
+		`),
 		Run: func(c *cobra.Command, args []string) {
+			ctx := c.Context()
+
 			if len(args) != 3 {
 				c.HelpFunc()(c, args)
 				os.Exit(1)
@@ -243,7 +297,7 @@ func NewProjectAddDestinationCommand(clientOpts *argocdclient.ClientOptions) *co
 			conn, projIf := headless.NewClientOrDie(clientOpts, c).NewProjectClientOrDie()
 			defer argoio.Close(conn)
 
-			proj, err := projIf.Get(context.Background(), &projectpkg.ProjectQuery{Name: projName})
+			proj, err := projIf.Get(ctx, &projectpkg.ProjectQuery{Name: projName})
 			errors.CheckError(err)
 
 			for _, dest := range proj.Spec.Destinations {
@@ -254,7 +308,7 @@ func NewProjectAddDestinationCommand(clientOpts *argocdclient.ClientOptions) *co
 				}
 			}
 			proj.Spec.Destinations = append(proj.Spec.Destinations, destination)
-			_, err = projIf.Update(context.Background(), &projectpkg.ProjectUpdateRequest{Project: proj})
+			_, err = projIf.Update(ctx, &projectpkg.ProjectUpdateRequest{Project: proj})
 			errors.CheckError(err)
 		},
 	}
@@ -267,7 +321,13 @@ func NewProjectRemoveDestinationCommand(clientOpts *argocdclient.ClientOptions) 
 	var command = &cobra.Command{
 		Use:   "remove-destination PROJECT SERVER NAMESPACE",
 		Short: "Remove project destination",
+		Example: templates.Examples(`
+			# Remove the destination (SERVER) from the specified namespace (NAMESPACE) on the project with name PROJECT
+			argocd proj remove-destination PROJECT SERVER NAMESPACE
+		`),
 		Run: func(c *cobra.Command, args []string) {
+			ctx := c.Context()
+
 			if len(args) != 3 {
 				c.HelpFunc()(c, args)
 				os.Exit(1)
@@ -278,7 +338,7 @@ func NewProjectRemoveDestinationCommand(clientOpts *argocdclient.ClientOptions) 
 			conn, projIf := headless.NewClientOrDie(clientOpts, c).NewProjectClientOrDie()
 			defer argoio.Close(conn)
 
-			proj, err := projIf.Get(context.Background(), &projectpkg.ProjectQuery{Name: projName})
+			proj, err := projIf.Get(ctx, &projectpkg.ProjectQuery{Name: projName})
 			errors.CheckError(err)
 
 			index := -1
@@ -292,7 +352,7 @@ func NewProjectRemoveDestinationCommand(clientOpts *argocdclient.ClientOptions) 
 				log.Fatal("Specified destination does not exist in project")
 			} else {
 				proj.Spec.Destinations = append(proj.Spec.Destinations[:index], proj.Spec.Destinations[index+1:]...)
-				_, err = projIf.Update(context.Background(), &projectpkg.ProjectUpdateRequest{Project: proj})
+				_, err = projIf.Update(ctx, &projectpkg.ProjectUpdateRequest{Project: proj})
 				errors.CheckError(err)
 			}
 		},
@@ -309,7 +369,16 @@ func NewProjectAddOrphanedIgnoreCommand(clientOpts *argocdclient.ClientOptions) 
 	var command = &cobra.Command{
 		Use:   "add-orphaned-ignore PROJECT GROUP KIND",
 		Short: "Add a resource to orphaned ignore list",
+		Example: templates.Examples(`
+		# Add a resource of the specified GROUP and KIND to orphaned ignore list on the project with name PROJECT
+		argocd proj add-orphaned-ignore PROJECT GROUP KIND
+
+		# Add resources of the specified GROUP and KIND using a NAME pattern to orphaned ignore list on the project with name PROJECT
+		argocd proj add-orphaned-ignore PROJECT GROUP KIND --name NAME
+		`),
 		Run: func(c *cobra.Command, args []string) {
+			ctx := c.Context()
+
 			if len(args) != 3 {
 				c.HelpFunc()(c, args)
 				os.Exit(1)
@@ -320,7 +389,7 @@ func NewProjectAddOrphanedIgnoreCommand(clientOpts *argocdclient.ClientOptions) 
 			conn, projIf := headless.NewClientOrDie(clientOpts, c).NewProjectClientOrDie()
 			defer argoio.Close(conn)
 
-			proj, err := projIf.Get(context.Background(), &projectpkg.ProjectQuery{Name: projName})
+			proj, err := projIf.Get(ctx, &projectpkg.ProjectQuery{Name: projName})
 			errors.CheckError(err)
 
 			if proj.Spec.OrphanedResources == nil {
@@ -336,7 +405,7 @@ func NewProjectAddOrphanedIgnoreCommand(clientOpts *argocdclient.ClientOptions) 
 				}
 				proj.Spec.OrphanedResources.Ignore = append(proj.Spec.OrphanedResources.Ignore, v1alpha1.OrphanedResourceKey{Group: group, Kind: kind, Name: name})
 			}
-			_, err = projIf.Update(context.Background(), &projectpkg.ProjectUpdateRequest{Project: proj})
+			_, err = projIf.Update(ctx, &projectpkg.ProjectUpdateRequest{Project: proj})
 			errors.CheckError(err)
 		},
 	}
@@ -350,9 +419,18 @@ func NewProjectRemoveOrphanedIgnoreCommand(clientOpts *argocdclient.ClientOption
 		name string
 	)
 	var command = &cobra.Command{
-		Use:   "remove-orphaned-ignore PROJECT GROUP KIND NAME",
+		Use:   "remove-orphaned-ignore PROJECT GROUP KIND",
 		Short: "Remove a resource from orphaned ignore list",
+		Example: templates.Examples(`
+		# Remove a resource of the specified GROUP and KIND from orphaned ignore list on the project with name PROJECT
+		argocd proj remove-orphaned-ignore PROJECT GROUP KIND
+
+		# Remove resources of the specified GROUP and KIND using a NAME pattern from orphaned ignore list on the project with name PROJECT
+		argocd proj remove-orphaned-ignore PROJECT GROUP KIND --name NAME
+		`),
 		Run: func(c *cobra.Command, args []string) {
+			ctx := c.Context()
+
 			if len(args) != 3 {
 				c.HelpFunc()(c, args)
 				os.Exit(1)
@@ -363,7 +441,7 @@ func NewProjectRemoveOrphanedIgnoreCommand(clientOpts *argocdclient.ClientOption
 			conn, projIf := headless.NewClientOrDie(clientOpts, c).NewProjectClientOrDie()
 			defer argoio.Close(conn)
 
-			proj, err := projIf.Get(context.Background(), &projectpkg.ProjectQuery{Name: projName})
+			proj, err := projIf.Get(ctx, &projectpkg.ProjectQuery{Name: projName})
 			errors.CheckError(err)
 
 			if proj.Spec.OrphanedResources == nil {
@@ -382,7 +460,7 @@ func NewProjectRemoveOrphanedIgnoreCommand(clientOpts *argocdclient.ClientOption
 				log.Fatal("Specified resource does not exist in the orphaned ignore of project")
 			} else {
 				proj.Spec.OrphanedResources.Ignore = append(proj.Spec.OrphanedResources.Ignore[:index], proj.Spec.OrphanedResources.Ignore[index+1:]...)
-				_, err = projIf.Update(context.Background(), &projectpkg.ProjectUpdateRequest{Project: proj})
+				_, err = projIf.Update(ctx, &projectpkg.ProjectUpdateRequest{Project: proj})
 				errors.CheckError(err)
 			}
 		},
@@ -396,7 +474,13 @@ func NewProjectAddSourceCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
 	var command = &cobra.Command{
 		Use:   "add-source PROJECT URL",
 		Short: "Add project source repository",
+		Example: templates.Examples(`
+			# Add a source repository (URL) to the project with name PROJECT
+			argocd proj add-source PROJECT URL
+		`),
 		Run: func(c *cobra.Command, args []string) {
+			ctx := c.Context()
+
 			if len(args) != 2 {
 				c.HelpFunc()(c, args)
 				os.Exit(1)
@@ -406,7 +490,7 @@ func NewProjectAddSourceCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
 			conn, projIf := headless.NewClientOrDie(clientOpts, c).NewProjectClientOrDie()
 			defer argoio.Close(conn)
 
-			proj, err := projIf.Get(context.Background(), &projectpkg.ProjectQuery{Name: projName})
+			proj, err := projIf.Get(ctx, &projectpkg.ProjectQuery{Name: projName})
 			errors.CheckError(err)
 
 			for _, item := range proj.Spec.SourceRepos {
@@ -420,10 +504,92 @@ func NewProjectAddSourceCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
 				}
 			}
 			proj.Spec.SourceRepos = append(proj.Spec.SourceRepos, url)
-			_, err = projIf.Update(context.Background(), &projectpkg.ProjectUpdateRequest{Project: proj})
+			_, err = projIf.Update(ctx, &projectpkg.ProjectUpdateRequest{Project: proj})
 			errors.CheckError(err)
 		},
 	}
+	return command
+}
+
+// NewProjectAddSourceNamespace returns a new instance of an `argocd proj add-source-namespace` command
+func NewProjectAddSourceNamespace(clientOpts *argocdclient.ClientOptions) *cobra.Command {
+	var command = &cobra.Command{
+		Use:   "add-source-namespace PROJECT NAMESPACE",
+		Short: "Add source namespace to the AppProject",
+		Example: templates.Examples(`
+			# Add Kubernetes namespace as source namespace to the AppProject where application resources are allowed to be created in.
+			argocd proj add-source-namespace PROJECT NAMESPACE
+		`),
+		Run: func(c *cobra.Command, args []string) {
+			ctx := c.Context()
+
+			if len(args) != 2 {
+				c.HelpFunc()(c, args)
+				os.Exit(1)
+			}
+			projName := args[0]
+			srcNamespace := args[1]
+			conn, projIf := headless.NewClientOrDie(clientOpts, c).NewProjectClientOrDie()
+			defer argoio.Close(conn)
+
+			proj, err := projIf.Get(ctx, &projectpkg.ProjectQuery{Name: projName})
+			errors.CheckError(err)
+
+			for _, item := range proj.Spec.SourceNamespaces {
+				if item == "*" || item == srcNamespace {
+					fmt.Printf("Source namespace '*' already allowed in project\n")
+					return
+				}
+			}
+			proj.Spec.SourceNamespaces = append(proj.Spec.SourceNamespaces, srcNamespace)
+			_, err = projIf.Update(ctx, &projectpkg.ProjectUpdateRequest{Project: proj})
+			errors.CheckError(err)
+		},
+	}
+	return command
+}
+
+// NewProjectRemoveSourceNamespace returns a new instance of an `argocd proj remove-source-namespace` command
+func NewProjectRemoveSourceNamespace(clientOpts *argocdclient.ClientOptions) *cobra.Command {
+	var command = &cobra.Command{
+		Use:   "remove-source-namespace PROJECT NAMESPACE",
+		Short: "Removes the source namespace from the AppProject",
+		Example: templates.Examples(`
+			# Remove source NAMESPACE in PROJECT 
+			argocd proj remove-source-namespace PROJECT NAMESPACE
+		`),
+		Run: func(c *cobra.Command, args []string) {
+			ctx := c.Context()
+
+			if len(args) != 2 {
+				c.HelpFunc()(c, args)
+				os.Exit(1)
+			}
+			projName := args[0]
+			srcNamespace := args[1]
+			conn, projIf := headless.NewClientOrDie(clientOpts, c).NewProjectClientOrDie()
+			defer argoio.Close(conn)
+
+			proj, err := projIf.Get(ctx, &projectpkg.ProjectQuery{Name: projName})
+			errors.CheckError(err)
+
+			index := -1
+			for i, item := range proj.Spec.SourceNamespaces {
+				if item == srcNamespace && item != "*" {
+					index = i
+					break
+				}
+			}
+			if index == -1 {
+				fmt.Printf("Source namespace '%s' does not exist in project or cannot be removed\n", srcNamespace)
+			} else {
+				proj.Spec.SourceNamespaces = append(proj.Spec.SourceNamespaces[:index], proj.Spec.SourceNamespaces[index+1:]...)
+				_, err = projIf.Update(ctx, &projectpkg.ProjectUpdateRequest{Project: proj})
+				errors.CheckError(err)
+			}
+		},
+	}
+
 	return command
 }
 
@@ -436,7 +602,7 @@ func modifyResourcesList(list *[]metav1.GroupKind, add bool, listDesc string, gr
 			}
 		}
 		fmt.Printf("Group '%s' and kind '%s' is added to %s resources\n", group, kind, listDesc)
-		*list = append(*list, v1.GroupKind{Group: group, Kind: kind})
+		*list = append(*list, metav1.GroupKind{Group: group, Kind: kind})
 		return true
 	} else {
 		index := -1
@@ -456,7 +622,7 @@ func modifyResourcesList(list *[]metav1.GroupKind, add bool, listDesc string, gr
 	}
 }
 
-func modifyResourceListCmd(cmdUse, cmdDesc string, clientOpts *argocdclient.ClientOptions, allow bool, namespacedList bool) *cobra.Command {
+func modifyResourceListCmd(cmdUse, cmdDesc, examples string, clientOpts *argocdclient.ClientOptions, allow bool, namespacedList bool) *cobra.Command {
 	var (
 		listType    string
 		defaultList string
@@ -467,9 +633,12 @@ func modifyResourceListCmd(cmdUse, cmdDesc string, clientOpts *argocdclient.Clie
 		defaultList = "allow"
 	}
 	var command = &cobra.Command{
-		Use:   cmdUse,
-		Short: cmdDesc,
+		Use:     cmdUse,
+		Short:   cmdDesc,
+		Example: templates.Examples(examples),
 		Run: func(c *cobra.Command, args []string) {
+			ctx := c.Context()
+
 			if len(args) != 3 {
 				c.HelpFunc()(c, args)
 				os.Exit(1)
@@ -478,7 +647,7 @@ func modifyResourceListCmd(cmdUse, cmdDesc string, clientOpts *argocdclient.Clie
 			conn, projIf := headless.NewClientOrDie(clientOpts, c).NewProjectClientOrDie()
 			defer argoio.Close(conn)
 
-			proj, err := projIf.Get(context.Background(), &projectpkg.ProjectQuery{Name: projName})
+			proj, err := projIf.Get(ctx, &projectpkg.ProjectQuery{Name: projName})
 			errors.CheckError(err)
 			var list, allowList, denyList *[]metav1.GroupKind
 			var listAction, listDesc string
@@ -502,7 +671,7 @@ func modifyResourceListCmd(cmdUse, cmdDesc string, clientOpts *argocdclient.Clie
 			}
 
 			if modifyResourcesList(list, add, listAction+" "+listDesc, group, kind) {
-				_, err = projIf.Update(context.Background(), &projectpkg.ProjectUpdateRequest{Project: proj})
+				_, err = projIf.Update(ctx, &projectpkg.ProjectUpdateRequest{Project: proj})
 				errors.CheckError(err)
 			}
 		},
@@ -515,28 +684,44 @@ func modifyResourceListCmd(cmdUse, cmdDesc string, clientOpts *argocdclient.Clie
 func NewProjectAllowNamespaceResourceCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	use := "allow-namespace-resource PROJECT GROUP KIND"
 	desc := "Removes a namespaced API resource from the deny list or add a namespaced API resource to the allow list"
-	return modifyResourceListCmd(use, desc, clientOpts, true, true)
+	examples := `
+	# Removes a namespaced API resource with specified GROUP and KIND from the deny list or add a namespaced API resource to the allow list for project PROJECT
+	argocd proj allow-namespace-resource PROJECT GROUP KIND
+	`
+	return modifyResourceListCmd(use, desc, examples, clientOpts, true, true)
 }
 
 // NewProjectDenyNamespaceResourceCommand returns a new instance of an `argocd proj deny-namespace-resource` command
 func NewProjectDenyNamespaceResourceCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	use := "deny-namespace-resource PROJECT GROUP KIND"
 	desc := "Adds a namespaced API resource to the deny list or removes a namespaced API resource from the allow list"
-	return modifyResourceListCmd(use, desc, clientOpts, false, true)
+	examples := `
+	# Adds a namespaced API resource with specified GROUP and KIND from the deny list or removes a namespaced API resource from the allow list for project PROJECT
+	argocd proj deny-namespace-resource PROJECT GROUP KIND
+	`
+	return modifyResourceListCmd(use, desc, examples, clientOpts, false, true)
 }
 
 // NewProjectDenyClusterResourceCommand returns a new instance of an `deny-cluster-resource` command
 func NewProjectDenyClusterResourceCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	use := "deny-cluster-resource PROJECT GROUP KIND"
 	desc := "Removes a cluster-scoped API resource from the allow list and adds it to deny list"
-	return modifyResourceListCmd(use, desc, clientOpts, false, false)
+	examples := `
+	# Removes a cluster-scoped API resource with specified GROUP and KIND from the allow list and adds it to deny list for project PROJECT
+	argocd proj deny-cluster-resource PROJECT GROUP KIND
+	`
+	return modifyResourceListCmd(use, desc, examples, clientOpts, false, false)
 }
 
 // NewProjectAllowClusterResourceCommand returns a new instance of an `argocd proj allow-cluster-resource` command
 func NewProjectAllowClusterResourceCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	use := "allow-cluster-resource PROJECT GROUP KIND"
 	desc := "Adds a cluster-scoped API resource to the allow list and removes it from deny list"
-	return modifyResourceListCmd(use, desc, clientOpts, true, false)
+	examples := `
+	# Adds a cluster-scoped API resource with specified GROUP and KIND to the allow list and removes it from deny list for project PROJECT
+	argocd proj allow-cluster-resource PROJECT GROUP KIND
+	`
+	return modifyResourceListCmd(use, desc, examples, clientOpts, true, false)
 }
 
 // NewProjectRemoveSourceCommand returns a new instance of an `argocd proj remove-src` command
@@ -544,7 +729,13 @@ func NewProjectRemoveSourceCommand(clientOpts *argocdclient.ClientOptions) *cobr
 	var command = &cobra.Command{
 		Use:   "remove-source PROJECT URL",
 		Short: "Remove project source repository",
+		Example: templates.Examples(`
+			# Remove URL source repository to project PROJECT
+			argocd proj remove-source PROJECT URL
+		`),
 		Run: func(c *cobra.Command, args []string) {
+			ctx := c.Context()
+
 			if len(args) != 2 {
 				c.HelpFunc()(c, args)
 				os.Exit(1)
@@ -554,7 +745,7 @@ func NewProjectRemoveSourceCommand(clientOpts *argocdclient.ClientOptions) *cobr
 			conn, projIf := headless.NewClientOrDie(clientOpts, c).NewProjectClientOrDie()
 			defer argoio.Close(conn)
 
-			proj, err := projIf.Get(context.Background(), &projectpkg.ProjectQuery{Name: projName})
+			proj, err := projIf.Get(ctx, &projectpkg.ProjectQuery{Name: projName})
 			errors.CheckError(err)
 
 			index := -1
@@ -568,7 +759,7 @@ func NewProjectRemoveSourceCommand(clientOpts *argocdclient.ClientOptions) *cobr
 				fmt.Printf("Source repository '%s' does not exist in project\n", url)
 			} else {
 				proj.Spec.SourceRepos = append(proj.Spec.SourceRepos[:index], proj.Spec.SourceRepos[index+1:]...)
-				_, err = projIf.Update(context.Background(), &projectpkg.ProjectUpdateRequest{Project: proj})
+				_, err = projIf.Update(ctx, &projectpkg.ProjectUpdateRequest{Project: proj})
 				errors.CheckError(err)
 			}
 		},
@@ -582,7 +773,13 @@ func NewProjectDeleteCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comm
 	var command = &cobra.Command{
 		Use:   "delete PROJECT",
 		Short: "Delete project",
+		Example: templates.Examples(`
+			# Delete the project with name PROJECT
+			argocd proj delete PROJECT
+		`),
 		Run: func(c *cobra.Command, args []string) {
+			ctx := c.Context()
+
 			if len(args) == 0 {
 				c.HelpFunc()(c, args)
 				os.Exit(1)
@@ -590,7 +787,7 @@ func NewProjectDeleteCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comm
 			conn, projIf := headless.NewClientOrDie(clientOpts, c).NewProjectClientOrDie()
 			defer argoio.Close(conn)
 			for _, name := range args {
-				_, err := projIf.Delete(context.Background(), &projectpkg.ProjectQuery{Name: name})
+				_, err := projIf.Delete(ctx, &projectpkg.ProjectQuery{Name: name})
 				errors.CheckError(err)
 			}
 		},
@@ -623,10 +820,19 @@ func NewProjectListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comman
 	var command = &cobra.Command{
 		Use:   "list",
 		Short: "List projects",
+		Example: templates.Examples(`
+			# List all available projects
+			argocd proj list
+
+			# List all available projects in yaml format
+			argocd proj list -o yaml
+		`),
 		Run: func(c *cobra.Command, args []string) {
+			ctx := c.Context()
+
 			conn, projIf := headless.NewClientOrDie(clientOpts, c).NewProjectClientOrDie()
 			defer argoio.Close(conn)
-			projects, err := projIf.List(context.Background(), &projectpkg.ProjectQuery{})
+			projects, err := projIf.List(ctx, &projectpkg.ProjectQuery{})
 			errors.CheckError(err)
 			switch output {
 			case "yaml", "json":
@@ -786,16 +992,23 @@ func NewProjectGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 	var command = &cobra.Command{
 		Use:   "get PROJECT",
 		Short: "Get project details",
+		Example: templates.Examples(`
+			# Get details from project PROJECT
+			argocd proj get PROJECT
+
+			# Get details from project PROJECT in yaml format
+			argocd proj get PROJECT -o yaml
+
+		`),
 		Run: func(c *cobra.Command, args []string) {
+			ctx := c.Context()
+
 			if len(args) != 1 {
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
 			projName := args[0]
-			conn, projIf := headless.NewClientOrDie(clientOpts, c).NewProjectClientOrDie()
-			defer argoio.Close(conn)
-			detailedProject, err := projIf.GetDetailedProject(context.Background(), &projectpkg.ProjectQuery{Name: projName})
-			errors.CheckError(err)
+			detailedProject := getProject(c, clientOpts, ctx, projName)
 
 			switch output {
 			case "yaml", "json":
@@ -812,11 +1025,25 @@ func NewProjectGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 	return command
 }
 
+func getProject(c *cobra.Command, clientOpts *argocdclient.ClientOptions, ctx context.Context, projName string) *projectpkg.DetailedProjectsResponse {
+	conn, projIf := headless.NewClientOrDie(clientOpts, c).NewProjectClientOrDie()
+	defer argoio.Close(conn)
+	detailedProject, err := projIf.GetDetailedProject(ctx, &projectpkg.ProjectQuery{Name: projName})
+	errors.CheckError(err)
+	return detailedProject
+}
+
 func NewProjectEditCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var command = &cobra.Command{
 		Use:   "edit PROJECT",
 		Short: "Edit project",
+		Example: templates.Examples(`
+			# Edit the information on project with name PROJECT
+			argocd proj edit PROJECT
+		`),
 		Run: func(c *cobra.Command, args []string) {
+			ctx := c.Context()
+
 			if len(args) != 1 {
 				c.HelpFunc()(c, args)
 				os.Exit(1)
@@ -824,7 +1051,7 @@ func NewProjectEditCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comman
 			projName := args[0]
 			conn, projIf := headless.NewClientOrDie(clientOpts, c).NewProjectClientOrDie()
 			defer argoio.Close(conn)
-			proj, err := projIf.Get(context.Background(), &projectpkg.ProjectQuery{Name: projName})
+			proj, err := projIf.Get(ctx, &projectpkg.ProjectQuery{Name: projName})
 			errors.CheckError(err)
 			projData, err := json.Marshal(proj.Spec)
 			errors.CheckError(err)
@@ -834,23 +1061,23 @@ func NewProjectEditCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comman
 			cli.InteractiveEdit(fmt.Sprintf("%s-*-edit.yaml", projName), projData, func(input []byte) error {
 				input, err = yaml.YAMLToJSON(input)
 				if err != nil {
-					return err
+					return fmt.Errorf("error converting YAML to JSON: %w", err)
 				}
 				updatedSpec := v1alpha1.AppProjectSpec{}
 				err = json.Unmarshal(input, &updatedSpec)
 				if err != nil {
-					return err
+					return fmt.Errorf("error unmarshaling input into application spec: %w", err)
 				}
-				proj, err := projIf.Get(context.Background(), &projectpkg.ProjectQuery{Name: projName})
+				proj, err := projIf.Get(ctx, &projectpkg.ProjectQuery{Name: projName})
 				if err != nil {
-					return err
+					return fmt.Errorf("could not get project by project name: %w", err)
 				}
 				proj.Spec = updatedSpec
-				_, err = projIf.Update(context.Background(), &projectpkg.ProjectUpdateRequest{Project: proj})
+				_, err = projIf.Update(ctx, &projectpkg.ProjectUpdateRequest{Project: proj})
 				if err != nil {
-					return fmt.Errorf("Failed to update project:\n%v", err)
+					return fmt.Errorf("failed to update project:\n%w", err)
 				}
-				return err
+				return nil
 			})
 		},
 	}

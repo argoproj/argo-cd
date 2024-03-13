@@ -12,7 +12,7 @@ There are several ways how Ingress can be configured.
 
 The Ambassador Edge Stack can be used as a Kubernetes ingress controller with [automatic TLS termination](https://www.getambassador.io/docs/latest/topics/running/tls/#host) and routing capabilities for both the CLI and the UI.
 
-The API server should be run with TLS disabled. Edit the `argocd-server` deployment to add the `--insecure` flag to the argocd-server command. Given the `argocd` CLI includes the port number in the request `host` header, 2 Mappings are required.
+The API server should be run with TLS disabled. Edit the `argocd-server` deployment to add the `--insecure` flag to the argocd-server command, or simply set `server.insecure: "true"` in the `argocd-cmd-params-cm` ConfigMap [as described here](server-commands/additional-configuration-method.md). Given the `argocd` CLI includes the port number in the request `host` header, 2 Mappings are required.
 
 ### Option 1: Mapping CRD for Host-based Routing
 ```yaml
@@ -72,7 +72,7 @@ argocd login <host>:<port> --grpc-web-root-path /argo-cd
 ## [Contour](https://projectcontour.io/)
 The Contour ingress controller can terminate TLS ingress traffic at the edge.
 
-The Argo CD API server should be run with TLS disabled. Edit the `argocd-server` Deployment to add the `--insecure` flag to the argocd-server container command.
+The Argo CD API server should be run with TLS disabled. Edit the `argocd-server` Deployment to add the `--insecure` flag to the argocd-server container command, or simply set `server.insecure: "true"` in the `argocd-cmd-params-cm` ConfigMap [as described here](server-commands/additional-configuration-method.md).
 
 It is also possible to provide an internal-only ingress path and an external-only ingress path by deploying two instances of Contour: one behind a private-subnet LoadBalancer service and one behind a public-subnet LoadBalancer service. The private Contour deployment will pick up Ingresses annotated with `kubernetes.io/ingress.class: contour-internal` and the public Contour deployment will pick up Ingresses annotated with `kubernetes.io/ingress.class: contour-external`.
 
@@ -164,19 +164,43 @@ spec:
 The argocd-server Service needs to be annotated with `projectcontour.io/upstream-protocol.h2c: "https,443"` to wire up the gRPC protocol proxying.
 
 The API server should then be run with TLS disabled. Edit the `argocd-server` deployment to add the
-`--insecure` flag to the argocd-server command:
+`--insecure` flag to the argocd-server command, or simply set `server.insecure: "true"` in the `argocd-cmd-params-cm` ConfigMap [as described here](server-commands/additional-configuration-method.md).
+
+Contour httpproxy CRD:
+
+Using a contour httpproxy CRD allows you to use the same hostname for the GRPC and REST api.
 
 ```yaml
+apiVersion: projectcontour.io/v1
+kind: HTTPProxy
+metadata:
+  name: argocd-server
+  namespace: argocd
 spec:
-  template:
-    spec:
-      containers:
-      - name: argocd-server
-        command:
-        - /argocd-server
-        - --repo-server
-        - argocd-repo-server:8081
-        - --insecure
+  ingressClassName: contour
+  virtualhost:
+    fqdn: path.to.argocd.io
+    tls:
+      secretName: wildcard-tls
+  routes:
+    - conditions:
+        - prefix: /
+        - header:
+            name: Content-Type
+            contains: application/grpc
+      services:
+        - name: argocd-server
+          port: 80
+          protocol: h2c # allows for unencrypted http2 connections
+      timeoutPolicy:
+        response: 1h
+        idle: 600s
+        idleConnection: 600s
+    - conditions:
+        - prefix: /
+      services:
+        - name: argocd-server
+          port: 80
 ```
 
 ## [kubernetes/ingress-nginx](https://github.com/kubernetes/ingress-nginx)
@@ -199,10 +223,10 @@ metadata:
   name: argocd-server-ingress
   namespace: argocd
   annotations:
-    kubernetes.io/ingress.class: nginx
     nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
     nginx.ingress.kubernetes.io/ssl-passthrough: "true"
 spec:
+  ingressClassName: nginx
   rules:
   - host: argocd.example.com
     http:
@@ -231,14 +255,13 @@ metadata:
   namespace: argocd
   annotations:
     cert-manager.io/cluster-issuer: letsencrypt-prod
-    kubernetes.io/ingress.class: nginx
-    kubernetes.io/tls-acme: "true"
     nginx.ingress.kubernetes.io/ssl-passthrough: "true"
     # If you encounter a redirect loop or are getting a 307 response code
     # then you need to force the nginx ingress to connect to the backend using HTTPS.
     #
     nginx.ingress.kubernetes.io/backend-protocol: "HTTPS"
 spec:
+  ingressClassName: nginx
   rules:
   - host: argocd.example.com
     http:
@@ -253,13 +276,14 @@ spec:
   tls:
   - hosts:
     - argocd.example.com
-    secretName: argocd-secret # do not change, this is provided by Argo CD
+    secretName: argocd-server-tls # as expected by argocd-server
 ```
 
-### Option 2: Multiple Ingress Objects And Hosts
+### Option 2: SSL Termination at Ingress Controller
 
-Since ingress-nginx Ingress supports only a single protocol per Ingress object, an alternative
-way would be to define two Ingress objects. One for HTTP/HTTPS, and the other for gRPC:
+An alternative approach is to perform the SSL termination at the Ingress. Since an `ingress-nginx` Ingress supports only a single protocol per Ingress object, two Ingress objects need to be defined using the `nginx.ingress.kubernetes.io/backend-protocol` annotation, one for HTTP/HTTPS and the other for gRPC.
+
+Each ingress will be for a different domain (`argocd.example.com` and `grpc.argocd.example.com`). This requires that the Ingress resources use different TLS `secretName`s to avoid unexpected behavior.
 
 HTTP/HTTPS Ingress:
 ```yaml
@@ -269,10 +293,10 @@ metadata:
   name: argocd-server-http-ingress
   namespace: argocd
   annotations:
-    kubernetes.io/ingress.class: "nginx"
     nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
     nginx.ingress.kubernetes.io/backend-protocol: "HTTP"
 spec:
+  ingressClassName: nginx
   rules:
   - http:
       paths:
@@ -287,7 +311,7 @@ spec:
   tls:
   - hosts:
     - argocd.example.com
-    secretName: argocd-secret # do not change, this is provided by Argo CD
+    secretName: argocd-ingress-http
 ```
 
 gRPC Ingress:
@@ -298,9 +322,9 @@ metadata:
   name: argocd-server-grpc-ingress
   namespace: argocd
   annotations:
-    kubernetes.io/ingress.class: "nginx"
     nginx.ingress.kubernetes.io/backend-protocol: "GRPC"
 spec:
+  ingressClassName: nginx
   rules:
   - http:
       paths:
@@ -315,24 +339,11 @@ spec:
   tls:
   - hosts:
     - grpc.argocd.example.com
-    secretName: argocd-secret # do not change, this is provided by Argo CD
+    secretName: argocd-ingress-grpc
 ```
 
 The API server should then be run with TLS disabled. Edit the `argocd-server` deployment to add the
-`--insecure` flag to the argocd-server command:
-
-```yaml
-spec:
-  template:
-    spec:
-      containers:
-      - name: argocd-server
-        command:
-        - argocd-server
-        - --repo-server
-        - argocd-repo-server:8081
-        - --insecure
-```
+`--insecure` flag to the argocd-server command, or simply set `server.insecure: "true"` in the `argocd-cmd-params-cm` ConfigMap [as described here](server-commands/additional-configuration-method.md).
 
 The obvious disadvantage to this approach is that this technique requires two separate hostnames for
 the API server -- one for gRPC and the other for HTTP/HTTPS. However it allows TLS termination to
@@ -345,7 +356,7 @@ Traefik can be used as an edge router and provide [TLS](https://docs.traefik.io/
 
 It currently has an advantage over NGINX in that it can terminate both TCP and HTTP connections _on the same port_ meaning you do not require multiple hosts or paths.
 
-The API server should be run with TLS disabled. Edit the `argocd-server` deployment to add the `--insecure` flag to the argocd-server command.
+The API server should be run with TLS disabled. Edit the `argocd-server` deployment to add the `--insecure` flag to the argocd-server command or set `server.insecure: "true"` in the `argocd-cmd-params-cm` ConfigMap [as described here](server-commands/additional-configuration-method.md).
 
 ### IngressRoute CRD
 ```yaml
@@ -427,18 +438,144 @@ Once we create this service, we can configure the Ingress to conditionally route
               name: argogrpc
               port:
                 number: 443
-          pathType: ImplementationSpecific
+          pathType: Prefix
         - path: /
           backend:
             service:
               name: argocd-server
               port:
                 number: 443
-          pathType: ImplementationSpecific
+          pathType: Prefix
     tls:
     - hosts:
       - argocd.argoproj.io
 ```
+
+## [Istio](https://www.istio.io)
+You can put Argo CD behind Istio using following configurations. Here we will achive both serving Argo CD behind istio and using subpath on Istio
+
+First we need to make sure that we can run Argo CD with subpath (ie /argocd). For this we have used install.yaml from argocd project as is
+
+```bash
+curl -kLs -o install.yaml https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+```
+
+save following file as kustomization.yml
+
+```yaml
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+- ./install.yaml
+
+patches:
+- path: ./patch.yml
+``` 
+
+And following lines as patch.yml
+
+```yaml
+# Use --insecure so Ingress can send traffic with HTTP
+# --bashref /argocd is the subpath like https://IP/argocd
+# env was added because of https://github.com/argoproj/argo-cd/issues/3572 error
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+ name: argocd-server
+spec:
+ template:
+   spec:
+     containers:
+     - args:
+       - /usr/local/bin/argocd-server
+       - --staticassets
+       - /shared/app
+       - --redis
+       - argocd-redis-ha-haproxy:6379
+       - --insecure
+       - --basehref
+       - /argocd
+       - --rootpath
+       - /argocd
+       name: argocd-server
+       env:
+       - name: ARGOCD_MAX_CONCURRENT_LOGIN_REQUESTS_COUNT
+         value: "0"
+```
+
+After that install Argo CD  (there should be only 3 yml file defined above in current directory )
+
+```bash
+kubectl apply -k ./ -n argocd --wait=true
+```
+
+Be sure you create secret for Isito ( in our case secretname is argocd-server-tls on argocd Namespace). After that we create Istio Resources
+
+```yaml
+apiVersion: networking.istio.io/v1alpha3
+kind: Gateway
+metadata:
+  name: argocd-gateway
+  namespace: argocd
+spec:
+  selector:
+    istio: ingressgateway
+  servers:
+  - port:
+      number: 80
+      name: http
+      protocol: HTTP
+    hosts:
+    - "*"
+    tls:
+     httpsRedirect: true
+  - port:
+      number: 443
+      name: https
+      protocol: HTTPS
+    hosts:
+    - "*"
+    tls:
+      credentialName: argocd-server-tls
+      maxProtocolVersion: TLSV1_3
+      minProtocolVersion: TLSV1_2
+      mode: SIMPLE
+      cipherSuites:
+        - ECDHE-ECDSA-AES128-GCM-SHA256
+        - ECDHE-RSA-AES128-GCM-SHA256
+        - ECDHE-ECDSA-AES128-SHA
+        - AES128-GCM-SHA256
+        - AES128-SHA
+        - ECDHE-ECDSA-AES256-GCM-SHA384
+        - ECDHE-RSA-AES256-GCM-SHA384
+        - ECDHE-ECDSA-AES256-SHA
+        - AES256-GCM-SHA384
+        - AES256-SHA
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: argocd-virtualservice
+  namespace: argocd
+spec:
+  hosts:
+  - "*"
+  gateways:
+  - argocd-gateway
+  http:
+  - match:
+    - uri:
+        prefix: /argocd
+    route:
+    - destination:
+        host: argocd-server
+        port:
+          number: 80
+```
+
+And now we can browse http://{{ IP }}/argocd (it will be rewritten to https://{{ IP }}/argocd
+
 
 ## Google Cloud load balancers with Kubernetes Ingress
 
@@ -455,26 +592,9 @@ If you need detail for all the options available for these Google integrations, 
 
 ### Disable internal TLS
 
-First, to avoid internal redirection loops from HTTP to HTTPS, the API server should be run with TLS disabled. Edit the argocd-server deployment to add the --insecure flag to the argocd-server command. For this you can edit your resource live with `kubectl -n argocd edit deployments.apps argocd-server` or use a kustomize patch before installing Argo CD.
+First, to avoid internal redirection loops from HTTP to HTTPS, the API server should be run with TLS disabled.
 
-The container command should change from:
-```yaml
-      containers:
-      - command:
-        - argocd-server
-        - --staticassets
-        - /shared/app
-```
-
-To:
-```yaml
-      containers:
-      - command:
-        - argocd-server
-        - --insecure
-        - --staticassets
-        - /shared/app
-```
+Edit the `--insecure` flag in the `argocd-server` command of the argocd-server deployment, or simply set `server.insecure: "true"` in the `argocd-cmd-params-cm` ConfigMap [as described here](server-commands/additional-configuration-method.md).
 
 ### Creating a service
 
@@ -578,18 +698,18 @@ metadata:
     networking.gke.io/v1beta1.FrontendConfig: argocd-frontend-config
 spec:
   tls:
-    - secretName: secret-yourdomain-com
+    - secretName: secret-example-com
   rules:
-    - host: argocd.yourdomain.com
-    http:
-      paths:
-      - pathType: ImplementationSpecific
-        path: "/*"   # "*" is needed. Without this, the UI Javascript and CSS will not load properly
-        backend:
-          service:
-            name: argocd-server
-            port:
-              number: 80
+    - host: argocd.example.com
+      http:
+        paths:
+        - pathType: ImplementationSpecific
+          path: "/*"   # "*" is needed. Without this, the UI Javascript and CSS will not load properly
+          backend:
+            service:
+              name: argocd-server
+              port:
+                number: 80
 ```
 
 If you use the version `1.21.3-gke.1600` or later, you should use the following Ingress resource:
@@ -603,21 +723,21 @@ metadata:
     networking.gke.io/v1beta1.FrontendConfig: argocd-frontend-config
 spec:
   tls:
-    - secretName: secret-yourdomain-com
+    - secretName: secret-example-com
   rules:
-    - host: argocd.yourdomain.com
-    http:
-      paths:
-      - pathType: Prefix
-        path: "/"
-        backend:
-          service:
-            name: argocd-server
-            port:
-              number: 80
+    - host: argocd.example.com
+      http:
+        paths:
+        - pathType: Prefix
+          path: "/"
+          backend:
+            service:
+              name: argocd-server
+              port:
+                number: 80
 ```
 
-As you may know already, it can take some minutes to deploy the load balancer and become ready to accept connections. Once it's ready, get the public IP address for your Load Balancer, go to your DNS server (Google or third party) and point your domain or subdomain (i.e. argocd.yourdomain.com) to that IP address.
+As you may know already, it can take some minutes to deploy the load balancer and become ready to accept connections. Once it's ready, get the public IP address for your Load Balancer, go to your DNS server (Google or third party) and point your domain or subdomain (i.e. argocd.example.com) to that IP address.
 
 You can get that IP address describing the Ingress object like this:
 
@@ -629,7 +749,7 @@ Once the DNS change is propagated, you're ready to use Argo with your Google Clo
 
 ## Authenticating through multiple layers of authenticating reverse proxies
 
-ArgoCD endpoints may be protected by one or more reverse proxies layers, in that case, you can provide additional headers through the `argocd` CLI `--header` parameter to authenticate through those layers.
+Argo CD endpoints may be protected by one or more reverse proxies layers, in that case, you can provide additional headers through the `argocd` CLI `--header` parameter to authenticate through those layers.
 
 ```shell
 $ argocd login <host>:<port> --header 'x-token1:foo' --header 'x-token2:bar' # can be repeated multiple times
@@ -637,7 +757,7 @@ $ argocd login <host>:<port> --header 'x-token1:foo,x-token2:bar' # headers can 
 ```
 ## ArgoCD Server and UI Root Path (v1.5.3)
 
-ArgoCD server and UI can be configured to be available under a non-root path (e.g. `/argo-cd`).
+Argo CD server and UI can be configured to be available under a non-root path (e.g. `/argo-cd`).
 To do this, add the `--rootpath` flag into the `argocd-server` deployment command:
 
 ```yaml

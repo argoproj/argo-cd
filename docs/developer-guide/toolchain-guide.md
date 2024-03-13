@@ -24,8 +24,7 @@ You will need at least the following things in your toolchain in order to develo
 
 * A Kubernetes cluster. You won't need a fully blown multi-master, multi-node cluster, but you will need something like K3S, Minikube or microk8s. You will also need a working Kubernetes client (`kubectl`) configuration in your development environment. The configuration must reside in `~/.kube/config` and the API server URL must point to the IP address of your local machine (or VM), and **not** to `localhost` or `127.0.0.1` if you are using the virtualized development toolchain (see below)
 
-* You will also need a working Docker runtime environment, to be able to build and run images.
-The Docker version must be fairly recent, and support multi-stage builds. You should not work as root. Make your local user a member of the `docker` group to be able to control the Docker service on your machine.
+* You will also need a working Docker runtime environment, to be able to build and run images. The Docker version must be 17.05.0 or higher, to support multi-stage builds. 
 
 * Obviously, you will need a `git` client for pulling source code and pushing back your changes.
 
@@ -54,7 +53,7 @@ The following read will help you to submit a PR that meets the standards of our 
 
 Please use a meaningful and concise title for your PR. This will help us to pick PRs for review quickly, and the PR title will also end up in the Changelog.
 
-We use the [Semantic PR title checker](https://github.com/zeke/semantic-pull-requests) to categorize your PR into one of the following categories:
+We use [PR title checker](https://github.com/marketplace/actions/pr-title-checker) to categorize your PR into one of the following categories:
 
 * `fix` - Your PR contains one or more code bug fixes
 * `feat` - Your PR contains a new feature
@@ -118,6 +117,35 @@ The Docker container for the virtualized toolchain will use the following local 
 
 The following steps are required no matter whether you chose to use a virtualized or a local toolchain.
 
+!!!note "Docker privileges"
+    If you opt in to use the virtualized toolchain, you will need to have the
+    appropriate privileges to interact with the Docker daemon. It is not
+    recommended to work as the root user, and if your user does not have the
+    permissions to talk to the Docker user, but you have `sudo` setup on your
+    system, you can set the environment variable `SUDO` to `sudo` in order to
+    have the build scripts make any calls to the `docker` CLI using sudo,
+    without affecting the other parts of the build scripts (which should be
+    executed with your normal user privileges).
+
+    You can either set this before calling `make`, like so for example:
+
+    ```
+    SUDO=sudo make sometarget
+    ```
+
+    Or you can opt to export this permanently to your environment, for example
+    ```
+    export SUDO=sudo
+    ```
+
+    If you have podman installed, you can also leverage its rootless mode. In
+    order to use podman for running and testing Argo CD locally, set the
+    `DOCKER` environment variable to `podman` before you run `make`, e.g.
+
+    ```
+    DOCKER=podman make start
+    ```
+
 ### Clone the Argo CD repository from your personal fork on GitHub
 
 * `mkdir -p ~/go/src/github.com/argoproj`
@@ -137,9 +165,9 @@ Make sure you fulfill the pre-requisites above and run some preliminary tests. N
 * Run `docker version`
 * Run `go version`
 
-### Build (or pull) the required Docker image
+### Build the required Docker image
 
-Build the required Docker image by running `make test-tools-image` or pull the latest version by issuing `docker pull argoproj/argocd-test-tools`.
+Build the required Docker image by running `make test-tools-image`. This image offers the environment of the virtualized toolchain.
 
 The `Dockerfile` used to build these images can be found at `test/container/Dockerfile`.
 
@@ -158,7 +186,7 @@ you should edit your `~/.kube/config` and modify the `server` option to point to
 
 ### Using k3d
 
-[k3d](https://github.com/rancher/k3d) is a lightweight wrapper to run [k3s](https://github.com/rancher/k3s), a minimal Kubernetes distribution, in docker. Because it's running in a docker container, you're dealing with docker's internal networking rules when using k3d. A typical Kubernetes cluster running on your local machine is part of the same network that you're on so you can access it using **kubectl**. However, a Kubernetes cluster running within a docker container (in this case, the one launched by make) cannot access 0.0.0.0 from inside the container itself, when 0.0.0.0 is a network resource outside the container itself (and/or the container's network). This is the cost of a fully self-contained, disposable Kubernetes cluster. The following steps should help with a successful `make verify-kube-connect` execution.
+[k3d](https://github.com/rancher/k3d) is a lightweight wrapper to run [k3s](https://github.com/rancher/k3s), a minimal Kubernetes distribution, in docker. Because it's running in a docker container, you're dealing with docker's internal networking rules when using k3d. A typical Kubernetes cluster running on your local machine is part of the same network that you're on, so you can access it using **kubectl**. However, a Kubernetes cluster running within a docker container (in this case, the one launched by make) cannot access 0.0.0.0 from inside the container itself, when 0.0.0.0 is a network resource outside the container itself (and/or the container's network). This is the cost of a fully self-contained, disposable Kubernetes cluster. The following steps should help with a successful `make verify-kube-connect` execution.
 
 1. Find your host IP by executing `ifconfig` on Mac/Linux and `ipconfig` on Windows. For most users, the following command works to find the IP address.
 
@@ -185,10 +213,11 @@ you should edit your `~/.kube/config` and modify the `server` option to point to
 4. Finally, so that you don't have to keep updating your kube-config whenever you spin up a new k3d cluster, add `--api-port $IP:6550` to your **k3d cluster create** command, where $IP is the value from step 1. An example command is provided here:
 
 ```
-k3d cluster create my-cluster --wait --k3s-server-arg '--disable=traefik' --api-port $IP:6550 -p 443:443@loadbalancer
+k3d cluster create my-cluster --wait --k3s-arg '--disable=traefik@server:*' --api-port $IP:6550 -p 443:443@loadbalancer
 ```
 
-Starting from k3d v5.0.0 the example command flags `--k3s-server-arg` and `'--disable=traefik'` would have to be changed to `--k3s-arg` and `'--disable=traefik@server:*'`, respectively. 
+!!!note
+For k3d versions less than v5.0.0, the example command flags `--k3s-arg` and `'--disable=traefik@server:*'` should change to `--k3s-server-arg` and `'--disable=traefik'`, respectively.
 
 ## The development cycle
 
@@ -283,7 +312,7 @@ For installing the tools required to build and test Argo CD on your local system
 You can change the target location by setting the `BIN` environment before running the installer scripts. For example, you can install the binaries into `~/go/bin` (which should then be the first component in your `PATH` environment, i.e. `export PATH=~/go/bin:$PATH`):
 
 ```shell
-make BIN=~/go/bin install-tools-local
+BIN=~/go/bin make install-tools-local
 ```
 
 Additionally, you have to install at least the following tools via your OS's package manager (this list might not be always up-to-date):
@@ -315,7 +344,7 @@ The next thing is to make sure that unit tests are running correctly on your sys
 
 ### Run end-to-end tests
 
-The final step is running the End-to-End testsuite, which makes sure that your Kubernetes dependencies are working properly. This will involve starting all of the Argo CD components locally on your computer. The end-to-end tests consists of two parts: a server component, and a client component.
+The final step is running the End-to-End testsuite, which makes sure that your Kubernetes dependencies are working properly. This will involve starting all the Argo CD components locally on your computer. The end-to-end tests consists of two parts: a server component, and a client component.
 
 * First, start the End-to-End server: `make start-e2e-local`. This will spawn a number of processes and services on your system.
 * When all components have started, run `make test-e2e-local` to run the end-to-end tests against your local services.

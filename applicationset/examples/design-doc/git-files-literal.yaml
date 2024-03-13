@@ -50,6 +50,8 @@ kind: ApplicationSet
 metadata:
   name: guestbook
 spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
   generators:
   - git:
       repoURL: https://github.com/infra-team/cluster-deployments.git
@@ -57,12 +59,12 @@ spec:
       - path: config/clusters.json
   template:
     metadata:
-      name: '{{cluster.name}}-guestbook'
+      name: '{{.cluster.name}}-guestbook'
     spec:
       source:
         repoURL: https://github.com/infra-team/cluster-deployments.git
         targetRevision: HEAD
-        path: apps/guestbook/{{appVersions.guestbook}}
+        path: apps/guestbook/{{.appVersions.guestbook}}
       destination:
         server: http://kubernetes.default.svc
         namespace: guestbook

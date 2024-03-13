@@ -4,7 +4,7 @@ import {COLORS} from '../../../shared/components';
 import {Consumer} from '../../../shared/context';
 import * as models from '../../../shared/models';
 
-require('./applications-status-bar.scss');
+import './applications-status-bar.scss';
 
 export interface ApplicationsStatusBarProps {
     applications: models.Application[];

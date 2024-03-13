@@ -1,3 +1,5 @@
+//go:build !windows
+
 package localconfig
 
 import (
@@ -72,7 +74,9 @@ func TestFilePermission(t *testing.T) {
 
 			f, err := os.Create(filePath)
 			require.NoError(t, err, "Could not write  create config file: %v", err)
-			defer f.Close()
+			defer func() {
+				assert.NoError(t, f.Close())
+			}()
 
 			err = f.Chmod(c.perm)
 			require.NoError(t, err, "Could not change the file permission to %s: %v", c.perm, err)
@@ -83,7 +87,7 @@ func TestFilePermission(t *testing.T) {
 			if err := getFilePermission(fi); err != nil {
 				assert.EqualError(t, err, c.expectedError.Error())
 			} else {
-				require.Nil(t, err)
+				require.Nil(t, c.expectedError)
 			}
 		})
 	}

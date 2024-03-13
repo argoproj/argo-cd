@@ -37,6 +37,8 @@ kind: ApplicationSet
 metadata:
   name: guestbook
 spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
   generators:
   - git:
       repoURL: https://github.com/infra-team/cluster-deployments.git
@@ -44,12 +46,12 @@ spec:
       - path: "**/config.json"
   template:
     metadata:
-      name: '{{cluster.name}}-guestbook'
+      name: '{{.cluster.name}}-guestbook'
     spec:
       source:
         repoURL: https://github.com/infra-team/cluster-deployments.git
         targetRevision: HEAD
         path: apps/guestbook
       destination:
-        server: '{{cluster.address}}'
+        server: '{{.cluster.address}}'
         namespace: guestbook

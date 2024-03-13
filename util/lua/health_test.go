@@ -1,16 +1,15 @@
 package lua
 
 import (
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/argoproj/gitops-engine/pkg/health"
-	"github.com/ghodss/yaml"
 	"github.com/stretchr/testify/assert"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"sigs.k8s.io/yaml"
 
 	"github.com/argoproj/argo-cd/v2/util/errors"
 )
@@ -25,11 +24,12 @@ type IndividualTest struct {
 }
 
 func getObj(path string) *unstructured.Unstructured {
-	yamlBytes, err := ioutil.ReadFile(path)
+	yamlBytes, err := os.ReadFile(path)
 	errors.CheckError(err)
 	obj := make(map[string]interface{})
 	err = yaml.Unmarshal(yamlBytes, &obj)
 	errors.CheckError(err)
+
 	return &unstructured.Unstructured{Object: obj}
 }
 
@@ -40,7 +40,7 @@ func TestLuaHealthScript(t *testing.T) {
 		}
 		errors.CheckError(err)
 		dir := filepath.Dir(path)
-		yamlBytes, err := ioutil.ReadFile(dir + "/health_test.yaml")
+		yamlBytes, err := os.ReadFile(dir + "/health_test.yaml")
 		errors.CheckError(err)
 		var resourceTest TestStructure
 		err = yaml.Unmarshal(yamlBytes, &resourceTest)

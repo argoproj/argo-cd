@@ -5,7 +5,9 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"strings"
 
+	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/util/clusterauth"
 	"k8s.io/client-go/kubernetes"
@@ -43,10 +45,10 @@ func (a *Actions) Create(args ...string) *Actions {
 		Cluster: &v1alpha1.Cluster{
 			Server:             a.context.server,
 			Name:               a.context.name,
-			Config:             v1alpha1.ClusterConfig{},
+			Config:             v1alpha1.ClusterConfig{BearerToken: a.context.bearerToken},
 			ConnectionState:    v1alpha1.ConnectionState{},
 			ServerVersion:      "",
-			Namespaces:         nil,
+			Namespaces:         a.context.namespaces,
 			RefreshRequestedAt: nil,
 			Info:               v1alpha1.ClusterInfo{},
 			Shard:              nil,
@@ -81,7 +83,7 @@ func (a *Actions) CreateWithRBAC(args ...string) *Actions {
 	}
 	client := kubernetes.NewForConfigOrDie(conf)
 
-	_, err = clusterauth.InstallClusterManagerRBAC(client, "kube-system", []string{})
+	_, err = clusterauth.InstallClusterManagerRBAC(client, "kube-system", []string{}, common.BearerTokenTimeout)
 	if err != nil {
 		a.lastError = err
 		return a
@@ -102,17 +104,29 @@ func (a *Actions) Get() *Actions {
 	return a
 }
 
+func (a *Actions) GetByName(name string) *Actions {
+	a.context.t.Helper()
+	a.runCli("cluster", "get", name)
+	return a
+}
+
+func (a *Actions) SetNamespaces() *Actions {
+	a.context.t.Helper()
+	a.runCli("cluster", "set", a.context.name, "--namespace", strings.Join(a.context.namespaces, ","))
+	return a
+}
+
 func (a *Actions) DeleteByName() *Actions {
 	a.context.t.Helper()
 
-	a.runCli("cluster", "rm", a.context.name)
+	a.runCli("cluster", "rm", a.context.name, "--yes")
 	return a
 }
 
 func (a *Actions) DeleteByServer() *Actions {
 	a.context.t.Helper()
 
-	a.runCli("cluster", "rm", a.context.server)
+	a.runCli("cluster", "rm", a.context.server, "--yes")
 	return a
 }
 

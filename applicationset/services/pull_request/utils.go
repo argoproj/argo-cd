@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"regexp"
 
-	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/applicationset/v1alpha1"
+	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 )
 
 func compileFilters(filters []argoprojiov1alpha1.PullRequestGeneratorFilter) ([]*Filter, error) {
@@ -19,6 +19,12 @@ func compileFilters(filters []argoprojiov1alpha1.PullRequestGeneratorFilter) ([]
 				return nil, fmt.Errorf("error compiling BranchMatch regexp %q: %v", *filter.BranchMatch, err)
 			}
 		}
+		if filter.TargetBranchMatch != nil {
+			outFilter.TargetBranchMatch, err = regexp.Compile(*filter.TargetBranchMatch)
+			if err != nil {
+				return nil, fmt.Errorf("error compiling TargetBranchMatch regexp %q: %v", *filter.TargetBranchMatch, err)
+			}
+		}
 		outFilters = append(outFilters, outFilter)
 	}
 	return outFilters, nil
@@ -26,6 +32,9 @@ func compileFilters(filters []argoprojiov1alpha1.PullRequestGeneratorFilter) ([]
 
 func matchFilter(pullRequest *PullRequest, filter *Filter) bool {
 	if filter.BranchMatch != nil && !filter.BranchMatch.MatchString(pullRequest.Branch) {
+		return false
+	}
+	if filter.TargetBranchMatch != nil && !filter.TargetBranchMatch.MatchString(pullRequest.TargetBranch) {
 		return false
 	}
 

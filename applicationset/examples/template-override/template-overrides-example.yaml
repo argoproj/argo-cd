@@ -7,6 +7,8 @@ kind: ApplicationSet
 metadata:
   name: guestbook
 spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
   generators:
   - list:
       elements:
@@ -19,12 +21,12 @@ spec:
           source:
             targetRevision: HEAD
             repoURL: https://github.com/argoproj/argo-cd.git
-            path: 'applicationset/examples/template-override/{{cluster}}-override'
+            path: 'applicationset/examples/template-override/{{.cluster}}-override'
           destination: {}
 
   template:
     metadata:
-      name: '{{cluster}}-guestbook'
+      name: '{{.cluster}}-guestbook'
     spec:
       project: "default"
       source:
@@ -32,5 +34,5 @@ spec:
         targetRevision: HEAD
         path: applicationset/examples/template-override/default
       destination:
-        server: '{{url}}'
+        server: '{{.url}}'
         namespace: guestbook

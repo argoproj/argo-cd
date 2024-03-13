@@ -4,16 +4,19 @@ import * as models from '../../../shared/models';
 import * as React from 'react';
 import './pod-terminal-viewer.scss';
 import 'xterm/css/xterm.css';
-import * as AppUtils from '../utils';
-import {useCallback, useEffect, useState} from 'react';
+import {useCallback, useEffect} from 'react';
 import {debounceTime, takeUntil} from 'rxjs/operators';
 import {fromEvent, ReplaySubject, Subject} from 'rxjs';
 import {Context} from '../../../shared/context';
 import {ErrorNotification, NotificationType} from 'argo-ui';
 export interface PodTerminalViewerProps {
     applicationName: string;
+    applicationNamespace: string;
+    projectName: string;
     selectedNode: models.ResourceNode;
     podState: models.State;
+    containerName: string;
+    onClickContainer?: (group: any, i: number, tab: string) => any;
 }
 export interface ShellFrame {
     operation: string;
@@ -22,14 +25,21 @@ export interface ShellFrame {
     cols?: number;
 }
 
-export const PodTerminalViewer: React.FC<PodTerminalViewerProps> = ({selectedNode, applicationName, podState}) => {
+export const PodTerminalViewer: React.FC<PodTerminalViewerProps> = ({
+    selectedNode,
+    applicationName,
+    applicationNamespace,
+    projectName,
+    podState,
+    containerName,
+    onClickContainer
+}) => {
     const terminalRef = React.useRef(null);
     const appContext = React.useContext(Context); // used to show toast
     const fitAddon = new FitAddon();
     let terminal: Terminal;
     let webSocket: WebSocket;
     const keyEvent = new ReplaySubject<KeyboardEvent>(2);
-    const [activeContainer, setActiveContainer] = useState(0);
     let connSubject = new ReplaySubject<ShellFrame>(100);
     let incommingMessage = new Subject<ShellFrame>();
     const unsubscribe = new Subject<void>();
@@ -62,7 +72,13 @@ export const PodTerminalViewer: React.FC<PodTerminalViewerProps> = ({selectedNod
 
     const onConnectionMessage = (e: MessageEvent) => {
         const msg = JSON.parse(e.data);
-        connSubject.next(msg);
+        if (!msg?.Code) {
+            connSubject.next(msg);
+        } else {
+            // Do reconnect due to refresh token event
+            onConnectionClose();
+            setupConnection();
+        }
     };
 
     const onConnectionOpen = () => {
@@ -140,11 +156,11 @@ export const PodTerminalViewer: React.FC<PodTerminalViewerProps> = ({selectedNod
 
     function setupConnection() {
         const {name = '', namespace = ''} = selectedNode || {};
+        const url = `${location.host}${appContext.baseHref}`.replace(/\/$/, '');
         webSocket = new WebSocket(
-            `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/terminal?pod=${name}&container=${AppUtils.getContainerName(
-                podState,
-                activeContainer
-            )}&appName=${applicationName}&namespace=${namespace}`
+            `${
+                location.protocol === 'https:' ? 'wss' : 'ws'
+            }://${url}/terminal?pod=${name}&container=${containerName}&appName=${applicationName}&appNamespace=${applicationNamespace}&projectName=${projectName}&namespace=${namespace}`
         );
         webSocket.onopen = onConnectionOpen;
         webSocket.onclose = onConnectionClose;
@@ -169,7 +185,7 @@ export const PodTerminalViewer: React.FC<PodTerminalViewerProps> = ({selectedNod
             // Save a reference to the node
             terminalRef.current = node;
         },
-        [activeContainer]
+        [containerName]
     );
 
     useEffect(() => {
@@ -200,7 +216,7 @@ export const PodTerminalViewer: React.FC<PodTerminalViewerProps> = ({selectedNod
 
             incommingMessage.complete();
         };
-    }, [activeContainer]);
+    }, [containerName]);
 
     const containerGroups = [
         {
@@ -226,12 +242,12 @@ export const PodTerminalViewer: React.FC<PodTerminalViewerProps> = ({selectedNod
                                 className='application-details__container'
                                 key={container.name}
                                 onClick={() => {
-                                    if (group.offset + i !== activeContainer) {
+                                    if (container.name !== containerName) {
                                         disconnect();
-                                        setActiveContainer(group.offset + i);
+                                        onClickContainer(group, i, 'exec');
                                     }
                                 }}>
-                                {group.offset + i === activeContainer && <i className='fa fa-angle-right' />}
+                                {container.name === containerName && <i className='fa fa-angle-right negative-space-arrow' />}
                                 <span title={container.name}>{container.name}</span>
                             </div>
                         ))}

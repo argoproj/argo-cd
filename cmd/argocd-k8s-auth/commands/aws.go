@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -36,20 +37,14 @@ func newAWSCommand() *cobra.Command {
 	var (
 		clusterName string
 		roleARN     string
+		profile     string
 	)
 	var command = &cobra.Command{
 		Use: "aws",
 		Run: func(c *cobra.Command, args []string) {
-			sess, err := session.NewSession()
-			errors.CheckError(err)
-			stsAPI := sts.New(sess)
-			if roleARN != "" {
-				creds := stscreds.NewCredentials(sess, roleARN)
-				stsAPI = sts.New(sess, &aws.Config{Credentials: creds})
-			}
-			request, _ := stsAPI.GetCallerIdentityRequest(&sts.GetCallerIdentityInput{})
-			request.HTTPRequest.Header.Add(clusterIDHeader, clusterName)
-			presignedURLString, err := request.Presign(requestPresignParam)
+			ctx := c.Context()
+
+			presignedURLString, err := getSignedRequestWithRetry(ctx, time.Minute, 5*time.Second, clusterName, roleARN, profile, getSignedRequest)
 			errors.CheckError(err)
 			token := v1Prefix + base64.RawURLEncoding.EncodeToString([]byte(presignedURLString))
 			// Set token expiration to 1 minute before the presigned URL expires for some cushion
@@ -59,7 +54,47 @@ func newAWSCommand() *cobra.Command {
 	}
 	command.Flags().StringVar(&clusterName, "cluster-name", "", "AWS Cluster name")
 	command.Flags().StringVar(&roleARN, "role-arn", "", "AWS Role ARN")
+	command.Flags().StringVar(&profile, "profile", "", "AWS Profile")
 	return command
+}
+
+type getSignedRequestFunc func(clusterName, roleARN string, profile string) (string, error)
+
+func getSignedRequestWithRetry(ctx context.Context, timeout, interval time.Duration, clusterName, roleARN string, profile string, fn getSignedRequestFunc) (string, error) {
+	ctx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+	for {
+		signed, err := fn(clusterName, roleARN, profile)
+		if err == nil {
+			return signed, nil
+		}
+		select {
+		case <-ctx.Done():
+			return "", fmt.Errorf("timeout while trying to get signed aws request: last error: %s", err)
+		case <-time.After(interval):
+		}
+	}
+}
+
+func getSignedRequest(clusterName, roleARN string, profile string) (string, error) {
+	sess, err := session.NewSessionWithOptions(session.Options{
+		Profile: profile,
+	})
+	if err != nil {
+		return "", fmt.Errorf("error creating new AWS session: %s", err)
+	}
+	stsAPI := sts.New(sess)
+	if roleARN != "" {
+		creds := stscreds.NewCredentials(sess, roleARN)
+		stsAPI = sts.New(sess, &aws.Config{Credentials: creds})
+	}
+	request, _ := stsAPI.GetCallerIdentityRequest(&sts.GetCallerIdentityInput{})
+	request.HTTPRequest.Header.Add(clusterIDHeader, clusterName)
+	signed, err := request.Presign(requestPresignParam)
+	if err != nil {
+		return "", fmt.Errorf("error presigning AWS request: %s", err)
+	}
+	return signed, nil
 }
 
 func formatJSON(token string, expiration time.Time) string {

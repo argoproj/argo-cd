@@ -1,11 +1,10 @@
 package commands
 
 import (
-	"context"
 	"fmt"
 	"os"
 
-	"github.com/coreos/go-oidc"
+	"github.com/coreos/go-oidc/v3/oidc"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
@@ -29,6 +28,8 @@ func NewReloginCommand(globalClientOpts *argocdclient.ClientOptions) *cobra.Comm
 		Short: "Refresh an expired authenticate token",
 		Long:  "Refresh an expired authenticate token",
 		Run: func(c *cobra.Command, args []string) {
+			ctx := c.Context()
+
 			if len(args) != 0 {
 				c.HelpFunc()(c, args)
 				os.Exit(1)
@@ -59,12 +60,11 @@ func NewReloginCommand(globalClientOpts *argocdclient.ClientOptions) *cobra.Comm
 			errors.CheckError(err)
 			if claims.Issuer == session.SessionManagerClaimsIssuer {
 				fmt.Printf("Relogging in as '%s'\n", localconfig.GetUsername(claims.Subject))
-				tokenString = passwordLogin(acdClient, localconfig.GetUsername(claims.Subject), password)
+				tokenString = passwordLogin(ctx, acdClient, localconfig.GetUsername(claims.Subject), password)
 			} else {
 				fmt.Println("Reinitiating SSO login")
 				setConn, setIf := acdClient.NewSettingsClientOrDie()
 				defer argoio.Close(setConn)
-				ctx := context.Background()
 				httpClient, err := acdClient.HTTPClient()
 				errors.CheckError(err)
 				ctx = oidc.ClientContext(ctx, httpClient)
@@ -84,8 +84,20 @@ func NewReloginCommand(globalClientOpts *argocdclient.ClientOptions) *cobra.Comm
 			errors.CheckError(err)
 			fmt.Printf("Context '%s' updated\n", localCfg.CurrentContext)
 		},
+		Example: `  
+# Reinitiates the login with previous contexts
+argocd relogin
+
+# Reinitiates the login with password
+argocd relogin --password YOUR_PASSWORD
+
+# Configure direct access using Kubernetes API server
+argocd login cd.argoproj.io --core
+
+# If user logged in with - "argocd login cd.argoproj.io" with sso login
+# The command - "argocd relogin" will Reinitiates SSO login and updates the server context`,
 	}
-	command.Flags().StringVar(&password, "password", "", "the password of an account to authenticate")
-	command.Flags().IntVar(&ssoPort, "sso-port", DefaultSSOLocalPort, "port to run local OAuth2 login application")
+	command.Flags().StringVar(&password, "password", "", "The password of an account to authenticate")
+	command.Flags().IntVar(&ssoPort, "sso-port", DefaultSSOLocalPort, "Port to run local OAuth2 login application")
 	return command
 }

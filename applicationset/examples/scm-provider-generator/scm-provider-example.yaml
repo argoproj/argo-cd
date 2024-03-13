@@ -3,6 +3,8 @@ kind: ApplicationSet
 metadata:
   name: guestbook
 spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
   generators:
   - scmProvider:
       github:
@@ -12,12 +14,12 @@ spec:
       - repositoryMatch: example-apps
   template:
     metadata:
-      name: '{{ repository }}-guestbook'
+      name: '{{ .repository }}-guestbook'
     spec:
       project: "default"
       source:
-        repoURL: '{{ url }}'
-        targetRevision: '{{ branch }}'
+        repoURL: '{{ .url }}'
+        targetRevision: '{{ .branch }}'
         path: guestbook
       destination:
         server: https://kubernetes.default.svc

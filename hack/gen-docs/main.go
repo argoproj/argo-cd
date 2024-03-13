@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"io/ioutil"
 	"log"
 	"os"
 	"sort"
@@ -26,7 +25,7 @@ func generateNotificationsDocs() {
 		log.Fatal(err)
 	}
 	if files != nil {
-		if e := updateMkDocsNav("Operator Manual", "Notification", "Notification Services", files); e != nil {
+		if e := updateMkDocsNav("Operator Manual", "Notifications", "Notification Services", files); e != nil {
 			log.Fatal(e)
 		}
 	}
@@ -35,7 +34,7 @@ func generateNotificationsDocs() {
 func updateMkDocsNav(parent string, child string, subchild string, files []string) error {
 	trimPrefixes(files, "docs/")
 	sort.Strings(files)
-	data, err := ioutil.ReadFile("mkdocs.yml")
+	data, err := os.ReadFile("mkdocs.yml")
 	if err != nil {
 		return err
 	}
@@ -50,6 +49,9 @@ func updateMkDocsNav(parent string, child string, subchild string, files []strin
 	}
 	rootnavitemmap := rootitem.(map[interface{}]interface{})
 	childnav, _ := findNavItem(rootnavitemmap[parent].([]interface{}), child)
+	if childnav == nil {
+		return fmt.Errorf("Can't find '%s' chile item under '%s' parent item in mkdoc.yml", child, parent)
+	}
 
 	childnavmap := childnav.(map[interface{}]interface{})
 	childnavitems := childnavmap[child].([]interface{})
@@ -62,7 +64,7 @@ func updateMkDocsNav(parent string, child string, subchild string, files []strin
 	if err != nil {
 		return err
 	}
-	return ioutil.WriteFile("mkdocs.yml", newmkdocs, 0644)
+	return os.WriteFile("mkdocs.yml", newmkdocs, 0644)
 }
 
 func trimPrefixes(files []string, prefix string) {

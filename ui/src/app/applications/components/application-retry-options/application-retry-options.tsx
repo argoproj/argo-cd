@@ -5,7 +5,7 @@ import {omit} from 'lodash-es';
 import {NumberField} from '../../../shared/components';
 import * as models from '../../../shared/models';
 
-require('./application-retry-options.scss');
+import './application-retry-options.scss';
 
 const durationRegex = /^([\d\.]+[HMS])+$/i;
 const durationRegexError = 'Should be 1h10m10s/10h10m/10m/10s';
@@ -84,13 +84,15 @@ export const ApplicationRetryOptions = ({
     initValues,
     field = 'retryStrategy',
     retry,
-    setRetry
+    setRetry,
+    id
 }: {
     formApi: FormApi;
     field?: string;
     initValues?: models.RetryStrategy;
     retry?: boolean;
     setRetry?: (value: boolean) => any;
+    id?: string;
 }) => {
     const [retryInternal, setRetryInternal] = React.useState(!!initValues);
 
@@ -118,8 +120,8 @@ export const ApplicationRetryOptions = ({
     const isChecked = setRetry != null ? retry : retryInternal;
     return (
         <div className='application-retry-options'>
-            <Checkbox id='retry' checked={isChecked} onChange={val => toggleRetry(val)} />
-            <label htmlFor='retry'>Retry</label>
+            <Checkbox id={`retry-${id}`} checked={isChecked} onChange={val => toggleRetry(val)} />
+            <label htmlFor={`retry-${id}`}>Retry</label>
             {isChecked && <ApplicationRetryForm initValues={initValues} field={field} />}
         </div>
     );

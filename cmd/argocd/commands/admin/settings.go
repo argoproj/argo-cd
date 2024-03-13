@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"reflect"
 	"sort"
@@ -13,7 +12,6 @@ import (
 	"text/tabwriter"
 
 	healthutil "github.com/argoproj/gitops-engine/pkg/health"
-	"github.com/ghodss/yaml"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	corev1 "k8s.io/api/core/v1"
@@ -22,6 +20,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/tools/clientcmd"
+	"sigs.k8s.io/yaml"
 
 	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
@@ -40,7 +39,7 @@ type settingsOpts struct {
 }
 
 type commandContext interface {
-	createSettingsManager() (*settings.SettingsManager, error)
+	createSettingsManager(context.Context) (*settings.SettingsManager, error)
 }
 
 func collectLogs(callback func()) string {
@@ -62,7 +61,7 @@ func setSettingsMeta(obj v1.Object) {
 	obj.SetLabels(labels)
 }
 
-func (opts *settingsOpts) createSettingsManager() (*settings.SettingsManager, error) {
+func (opts *settingsOpts) createSettingsManager(ctx context.Context) (*settings.SettingsManager, error) {
 	var argocdCM *corev1.ConfigMap
 	if opts.argocdCMPath == "" && !opts.loadClusterSettings {
 		return nil, fmt.Errorf("either --argocd-cm-path must be provided or --load-cluster-settings must be set to true")
@@ -72,12 +71,12 @@ func (opts *settingsOpts) createSettingsManager() (*settings.SettingsManager, er
 			return nil, err
 		}
 
-		argocdCM, err = realClientset.CoreV1().ConfigMaps(ns).Get(context.Background(), common.ArgoCDConfigMapName, v1.GetOptions{})
+		argocdCM, err = realClientset.CoreV1().ConfigMaps(ns).Get(ctx, common.ArgoCDConfigMapName, v1.GetOptions{})
 		if err != nil {
 			return nil, err
 		}
 	} else {
-		data, err := ioutil.ReadFile(opts.argocdCMPath)
+		data, err := os.ReadFile(opts.argocdCMPath)
 		if err != nil {
 			return nil, err
 		}
@@ -90,7 +89,7 @@ func (opts *settingsOpts) createSettingsManager() (*settings.SettingsManager, er
 
 	var argocdSecret *corev1.Secret
 	if opts.argocdSecretPath != "" {
-		data, err := ioutil.ReadFile(opts.argocdSecretPath)
+		data, err := os.ReadFile(opts.argocdSecretPath)
 		if err != nil {
 			return nil, err
 		}
@@ -104,7 +103,7 @@ func (opts *settingsOpts) createSettingsManager() (*settings.SettingsManager, er
 		if err != nil {
 			return nil, err
 		}
-		argocdSecret, err = realClientset.CoreV1().Secrets(ns).Get(context.Background(), common.ArgoCDSecretName, v1.GetOptions{})
+		argocdSecret, err = realClientset.CoreV1().Secrets(ns).Get(ctx, common.ArgoCDSecretName, v1.GetOptions{})
 		if err != nil {
 			return nil, err
 		}
@@ -122,7 +121,7 @@ func (opts *settingsOpts) createSettingsManager() (*settings.SettingsManager, er
 	setSettingsMeta(argocdSecret)
 	clientset := fake.NewSimpleClientset(argocdSecret, argocdCM)
 
-	manager := settings.NewSettingsManager(context.Background(), clientset, "default")
+	manager := settings.NewSettingsManager(ctx, clientset, "default")
 	errors.CheckError(manager.ResyncInformers())
 
 	return manager, nil
@@ -207,7 +206,7 @@ var validatorsByGroup = map[string]settingValidator{
 			}
 			ssoProvider = "Dex"
 		} else if general.OIDCConfigRAW != "" {
-			if _, err := settings.UnmarshalOIDCConfig(general.OIDCConfigRAW); err != nil {
+			if err := settings.ValidateOIDCConfig(general.OIDCConfigRAW); err != nil {
 				return "", fmt.Errorf("invalid oidc.config: %v", err)
 			}
 			ssoProvider = "OIDC"
@@ -234,13 +233,6 @@ var validatorsByGroup = map[string]settingValidator{
 		_, err := manager.GetGoogleAnalytics()
 		return "", err
 	}),
-	"plugins": func(manager *settings.SettingsManager) (string, error) {
-		plugins, err := manager.GetConfigManagementPlugins()
-		if err != nil {
-			return "", err
-		}
-		return fmt.Sprintf("%d plugins", len(plugins)), nil
-	},
 	"kustomize": func(manager *settings.SettingsManager) (string, error) {
 		opts, err := manager.GetKustomizeSettings()
 		if err != nil {
@@ -308,7 +300,9 @@ argocd admin settings validate --argocd-cm-path ./argocd-cm.yaml
 #Validates accounts and plugins settings in Kubernetes cluster of current kubeconfig context
 argocd admin settings validate --group accounts --group plugins --load-cluster-settings`,
 		Run: func(c *cobra.Command, args []string) {
-			settingsManager, err := cmdCtx.createSettingsManager()
+			ctx := c.Context()
+
+			settingsManager, err := cmdCtx.createSettingsManager(ctx)
 			errors.CheckError(err)
 
 			if len(groups) == 0 {
@@ -355,23 +349,45 @@ func NewResourceOverridesCommand(cmdCtx commandContext) *cobra.Command {
 		},
 	}
 	command.AddCommand(NewResourceIgnoreDifferencesCommand(cmdCtx))
+	command.AddCommand(NewResourceIgnoreResourceUpdatesCommand(cmdCtx))
 	command.AddCommand(NewResourceActionListCommand(cmdCtx))
 	command.AddCommand(NewResourceActionRunCommand(cmdCtx))
 	command.AddCommand(NewResourceHealthCommand(cmdCtx))
 	return command
 }
 
-func executeResourceOverrideCommand(cmdCtx commandContext, args []string, callback func(res unstructured.Unstructured, override v1alpha1.ResourceOverride, overrides map[string]v1alpha1.ResourceOverride)) {
-	data, err := ioutil.ReadFile(args[0])
+func executeResourceOverrideCommand(ctx context.Context, cmdCtx commandContext, args []string, callback func(res unstructured.Unstructured, override v1alpha1.ResourceOverride, overrides map[string]v1alpha1.ResourceOverride)) {
+	data, err := os.ReadFile(args[0])
 	errors.CheckError(err)
 
 	res := unstructured.Unstructured{}
 	errors.CheckError(yaml.Unmarshal(data, &res))
 
-	settingsManager, err := cmdCtx.createSettingsManager()
+	settingsManager, err := cmdCtx.createSettingsManager(ctx)
 	errors.CheckError(err)
 
 	overrides, err := settingsManager.GetResourceOverrides()
+	errors.CheckError(err)
+	gvk := res.GroupVersionKind()
+	key := gvk.Kind
+	if gvk.Group != "" {
+		key = fmt.Sprintf("%s/%s", gvk.Group, gvk.Kind)
+	}
+	override := overrides[key]
+	callback(res, override, overrides)
+}
+
+func executeIgnoreResourceUpdatesOverrideCommand(ctx context.Context, cmdCtx commandContext, args []string, callback func(res unstructured.Unstructured, override v1alpha1.ResourceOverride, overrides map[string]v1alpha1.ResourceOverride)) {
+	data, err := os.ReadFile(args[0])
+	errors.CheckError(err)
+
+	res := unstructured.Unstructured{}
+	errors.CheckError(yaml.Unmarshal(data, &res))
+
+	settingsManager, err := cmdCtx.createSettingsManager(ctx)
+	errors.CheckError(err)
+
+	overrides, err := settingsManager.GetIgnoreResourceUpdatesOverrides()
 	errors.CheckError(err)
 	gvk := res.GroupVersionKind()
 	key := gvk.Kind
@@ -394,12 +410,14 @@ func NewResourceIgnoreDifferencesCommand(cmdCtx commandContext) *cobra.Command {
 		Example: `
 argocd admin settings resource-overrides ignore-differences ./deploy.yaml --argocd-cm-path ./argocd-cm.yaml`,
 		Run: func(c *cobra.Command, args []string) {
+			ctx := c.Context()
+
 			if len(args) < 1 {
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
 
-			executeResourceOverrideCommand(cmdCtx, args, func(res unstructured.Unstructured, override v1alpha1.ResourceOverride, overrides map[string]v1alpha1.ResourceOverride) {
+			executeResourceOverrideCommand(ctx, cmdCtx, args, func(res unstructured.Unstructured, override v1alpha1.ResourceOverride, overrides map[string]v1alpha1.ResourceOverride) {
 				gvk := res.GroupVersionKind()
 				if len(override.IgnoreDifferences.JSONPointers) == 0 && len(override.IgnoreDifferences.JQPathExpressions) == 0 {
 					_, _ = fmt.Printf("Ignore differences are not configured for '%s/%s'\n", gvk.Group, gvk.Kind)
@@ -434,6 +452,52 @@ argocd admin settings resource-overrides ignore-differences ./deploy.yaml --argo
 	return command
 }
 
+func NewResourceIgnoreResourceUpdatesCommand(cmdCtx commandContext) *cobra.Command {
+	var command = &cobra.Command{
+		Use:   "ignore-resource-updates RESOURCE_YAML_PATH",
+		Short: "Renders fields excluded from resource updates",
+		Long:  "Renders ignored fields using the 'ignoreResourceUpdates' setting specified in the 'resource.customizations' field of 'argocd-cm' ConfigMap",
+		Example: `
+argocd admin settings resource-overrides ignore-resource-updates ./deploy.yaml --argocd-cm-path ./argocd-cm.yaml`,
+		Run: func(c *cobra.Command, args []string) {
+			ctx := c.Context()
+
+			if len(args) < 1 {
+				c.HelpFunc()(c, args)
+				os.Exit(1)
+			}
+
+			executeIgnoreResourceUpdatesOverrideCommand(ctx, cmdCtx, args, func(res unstructured.Unstructured, override v1alpha1.ResourceOverride, overrides map[string]v1alpha1.ResourceOverride) {
+				gvk := res.GroupVersionKind()
+				if len(override.IgnoreResourceUpdates.JSONPointers) == 0 && len(override.IgnoreResourceUpdates.JQPathExpressions) == 0 {
+					_, _ = fmt.Printf("Ignore resource updates are not configured for '%s/%s'\n", gvk.Group, gvk.Kind)
+					return
+				}
+
+				normalizer, err := normalizers.NewIgnoreNormalizer(nil, overrides)
+				errors.CheckError(err)
+
+				normalizedRes := res.DeepCopy()
+				logs := collectLogs(func() {
+					errors.CheckError(normalizer.Normalize(normalizedRes))
+				})
+				if logs != "" {
+					_, _ = fmt.Println(logs)
+				}
+
+				if reflect.DeepEqual(&res, normalizedRes) {
+					_, _ = fmt.Printf("No fields are ignored by ignoreResourceUpdates settings: \n%s\n", override.IgnoreResourceUpdates)
+					return
+				}
+
+				_, _ = fmt.Printf("Following fields are ignored:\n\n")
+				_ = cli.PrintDiff(res.GetName(), &res, normalizedRes)
+			})
+		},
+	}
+	return command
+}
+
 func NewResourceHealthCommand(cmdCtx commandContext) *cobra.Command {
 	var command = &cobra.Command{
 		Use:   "health RESOURCE_YAML_PATH",
@@ -442,23 +506,25 @@ func NewResourceHealthCommand(cmdCtx commandContext) *cobra.Command {
 		Example: `
 argocd admin settings resource-overrides health ./deploy.yaml --argocd-cm-path ./argocd-cm.yaml`,
 		Run: func(c *cobra.Command, args []string) {
+			ctx := c.Context()
+
 			if len(args) < 1 {
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
 
-			executeResourceOverrideCommand(cmdCtx, args, func(res unstructured.Unstructured, override v1alpha1.ResourceOverride, overrides map[string]v1alpha1.ResourceOverride) {
+			executeResourceOverrideCommand(ctx, cmdCtx, args, func(res unstructured.Unstructured, override v1alpha1.ResourceOverride, overrides map[string]v1alpha1.ResourceOverride) {
 				gvk := res.GroupVersionKind()
-				if override.HealthLua == "" {
-					_, _ = fmt.Printf("Health script is not configured for '%s/%s'\n", gvk.Group, gvk.Kind)
-					return
-				}
-
 				resHealth, err := healthutil.GetResourceHealth(&res, lua.ResourceHealthOverrides(overrides))
-				errors.CheckError(err)
 
-				_, _ = fmt.Printf("STATUS: %s\n", resHealth.Status)
-				_, _ = fmt.Printf("MESSAGE: %s\n", resHealth.Message)
+				if err != nil {
+					errors.CheckError(err)
+				} else if resHealth == nil {
+					fmt.Printf("Health script is not configured for '%s/%s'\n", gvk.Group, gvk.Kind)
+				} else {
+					_, _ = fmt.Printf("STATUS: %s\n", resHealth.Status)
+					_, _ = fmt.Printf("MESSAGE: %s\n", resHealth.Message)
+				}
 			})
 		},
 	}
@@ -473,12 +539,14 @@ func NewResourceActionListCommand(cmdCtx commandContext) *cobra.Command {
 		Example: `
 argocd admin settings resource-overrides action list /tmp/deploy.yaml --argocd-cm-path ./argocd-cm.yaml`,
 		Run: func(c *cobra.Command, args []string) {
+			ctx := c.Context()
+
 			if len(args) < 1 {
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
 
-			executeResourceOverrideCommand(cmdCtx, args, func(res unstructured.Unstructured, override v1alpha1.ResourceOverride, overrides map[string]v1alpha1.ResourceOverride) {
+			executeResourceOverrideCommand(ctx, cmdCtx, args, func(res unstructured.Unstructured, override v1alpha1.ResourceOverride, overrides map[string]v1alpha1.ResourceOverride) {
 				gvk := res.GroupVersionKind()
 				if override.Actions == "" {
 					_, _ = fmt.Printf("Actions are not configured for '%s/%s'\n", gvk.Group, gvk.Kind)
@@ -496,7 +564,7 @@ argocd admin settings resource-overrides action list /tmp/deploy.yaml --argocd-c
 				})
 
 				w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-				_, _ = fmt.Fprintf(w, "NAME\tENABLED\n")
+				_, _ = fmt.Fprintf(w, "NAME\tDISABLED\n")
 				for _, action := range availableActions {
 					_, _ = fmt.Fprintf(w, "%s\t%s\n", action.Name, strconv.FormatBool(action.Disabled))
 				}
@@ -516,13 +584,15 @@ func NewResourceActionRunCommand(cmdCtx commandContext) *cobra.Command {
 		Example: `
 argocd admin settings resource-overrides action run /tmp/deploy.yaml restart --argocd-cm-path ./argocd-cm.yaml`,
 		Run: func(c *cobra.Command, args []string) {
+			ctx := c.Context()
+
 			if len(args) < 2 {
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
 			action := args[1]
 
-			executeResourceOverrideCommand(cmdCtx, args, func(res unstructured.Unstructured, override v1alpha1.ResourceOverride, overrides map[string]v1alpha1.ResourceOverride) {
+			executeResourceOverrideCommand(ctx, cmdCtx, args, func(res unstructured.Unstructured, override v1alpha1.ResourceOverride, overrides map[string]v1alpha1.ResourceOverride) {
 				gvk := res.GroupVersionKind()
 				if override.Actions == "" {
 					_, _ = fmt.Printf("Actions are not configured for '%s/%s'\n", gvk.Group, gvk.Kind)
@@ -536,13 +606,26 @@ argocd admin settings resource-overrides action run /tmp/deploy.yaml restart --a
 				modifiedRes, err := luaVM.ExecuteResourceAction(&res, action.ActionLua)
 				errors.CheckError(err)
 
-				if reflect.DeepEqual(&res, modifiedRes) {
-					_, _ = fmt.Printf("No fields had been changed by action: \n%s\n", action.Name)
-					return
+				for _, impactedResource := range modifiedRes {
+					result := impactedResource.UnstructuredObj
+					switch impactedResource.K8SOperation {
+					// No default case since a not supported operation would have failed upon unmarshaling earlier
+					case lua.PatchOperation:
+						if reflect.DeepEqual(&res, modifiedRes) {
+							_, _ = fmt.Printf("No fields had been changed by action: \n%s\n", action.Name)
+							return
+						}
+
+						_, _ = fmt.Printf("Following fields have been changed:\n\n")
+						_ = cli.PrintDiff(res.GetName(), &res, result)
+					case lua.CreateOperation:
+						yamlBytes, err := yaml.Marshal(impactedResource.UnstructuredObj)
+						errors.CheckError(err)
+						fmt.Println("Following resource was created:")
+						fmt.Println(bytes.NewBuffer(yamlBytes).String())
+					}
 				}
 
-				_, _ = fmt.Printf("Following fields have been changed:\n\n")
-				_ = cli.PrintDiff(res.GetName(), &res, modifiedRes)
 			})
 		},
 	}

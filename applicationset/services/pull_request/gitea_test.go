@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"code.gitea.io/sdk/gitea"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -243,6 +244,7 @@ func giteaMockHandler(t *testing.T) func(http.ResponseWriter, *http.Request) {
 		}
 	}
 }
+
 func TestGiteaList(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		giteaMockHandler(t)(w, r)
@@ -254,5 +256,35 @@ func TestGiteaList(t *testing.T) {
 	assert.Equal(t, len(prs), 1)
 	assert.Equal(t, prs[0].Number, 1)
 	assert.Equal(t, prs[0].Branch, "test")
+	assert.Equal(t, prs[0].TargetBranch, "main")
 	assert.Equal(t, prs[0].HeadSHA, "7bbaf62d92ddfafd9cc8b340c619abaec32bc09f")
+}
+
+func TestGetGiteaPRLabelNames(t *testing.T) {
+	Tests := []struct {
+		Name           string
+		PullLabels     []*gitea.Label
+		ExpectedResult []string
+	}{
+		{
+			Name: "PR has labels",
+			PullLabels: []*gitea.Label{
+				{Name: "label1"},
+				{Name: "label2"},
+				{Name: "label3"},
+			},
+			ExpectedResult: []string{"label1", "label2", "label3"},
+		},
+		{
+			Name:           "PR does not have labels",
+			PullLabels:     []*gitea.Label{},
+			ExpectedResult: nil,
+		},
+	}
+	for _, test := range Tests {
+		t.Run(test.Name, func(t *testing.T) {
+			labels := getGiteaPRLabelNames(test.PullLabels)
+			assert.Equal(t, test.ExpectedResult, labels)
+		})
+	}
 }

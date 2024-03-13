@@ -4,11 +4,9 @@ import (
 	"bufio"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"strings"
 
-	"github.com/ghodss/yaml"
 	"github.com/spf13/cobra"
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -17,6 +15,7 @@ import (
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/tools/clientcmd"
+	"sigs.k8s.io/yaml"
 
 	"github.com/argoproj/argo-cd/v2/util/errors"
 
@@ -29,6 +28,8 @@ import (
 	_ "k8s.io/client-go/plugin/pkg/client/auth/oidc"
 	// load the azure plugin (required to authenticate with AKS clusters).
 	_ "k8s.io/client-go/plugin/pkg/client/auth/azure"
+
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
 )
 
 // NewProjectAllowListGenCommand generates a project from clusterRole
@@ -40,6 +41,8 @@ func NewProjectAllowListGenCommand() *cobra.Command {
 	var command = &cobra.Command{
 		Use:   "generate-allow-list CLUSTERROLE_PATH PROJ_NAME",
 		Short: "Generates project allow list from the specified clusterRole file",
+		Example: `# Generates project allow list from the specified clusterRole file
+argocd admin proj generate-allow-list /path/to/clusterrole.yaml my-project`,
 		Run: func(c *cobra.Command, args []string) {
 			if len(args) != 2 {
 				c.HelpFunc()(c, args)
@@ -99,7 +102,7 @@ func getResourceList(clientConfig clientcmd.ClientConfig) ([]*metav1.APIResource
 }
 
 func generateProjectAllowList(serverResources []*metav1.APIResourceList, clusterRoleFileName string, projName string) (*v1alpha1.AppProject, error) {
-	yamlBytes, err := ioutil.ReadFile(clusterRoleFileName)
+	yamlBytes, err := os.ReadFile(clusterRoleFileName)
 	if err != nil {
 		return nil, fmt.Errorf("error reading cluster role file: %s", err)
 	}
@@ -152,7 +155,7 @@ func generateProjectAllowList(serverResources []*metav1.APIResourceList, cluster
 	}
 	globalProj := v1alpha1.AppProject{
 		TypeMeta: metav1.TypeMeta{
-			Kind:       "AppProject",
+			Kind:       application.AppProjectKind,
 			APIVersion: "argoproj.io/v1alpha1",
 		},
 		ObjectMeta: metav1.ObjectMeta{Name: projName},

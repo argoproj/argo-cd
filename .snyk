@@ -24,9 +24,17 @@ ignore:
           Argo CD uses go-restful as a transitive dependency of kube-openapi. kube-openapi is used to generate openapi
           specs. We do not use go-restul at runtime and are therefore not vulnerable to this CORS misconfiguration
           issue in go-restful.
-  SNYK-GOLANG-GOPKGINYAMLV2-2840885:
+  SNYK-JS-FORMIDABLE-2838956:
     - '*':
         reason: >-
-          The package is used to parse configuration provided by the administrator and hence cannot cause DoS.
+          Code is only run client-side. No risk of arbitrary file upload.
+  SNYK-JS-PARSEPATH-2936439:
+    - '*':
+        reason: >-
+          The issue is that, for specific URLs, parse-path may incorrectly identify the "resource" (domain name)
+          portion. For example, in "http://127.0.0.1#@example.com", it identifies "example.com" as the "resource".
+
+          We use parse-path on the client side, but permissions for git URLs are checked server-side. This is a
+          potential usability issue, but it is not a security issue.
 patch: {}
 

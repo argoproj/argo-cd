@@ -1,6 +1,7 @@
 import * as React from 'react';
 
 import * as monacoEditor from 'monaco-editor';
+import {services} from '../services';
 
 export interface EditorInput {
     text: string;
@@ -9,6 +10,7 @@ export interface EditorInput {
 
 export interface MonacoProps {
     minHeight?: number;
+    vScrollBar: boolean;
     editor?: {
         options?: monacoEditor.editor.IEditorOptions;
         input: EditorInput;
@@ -24,10 +26,18 @@ const DEFAULT_LINE_HEIGHT = 18;
 
 const MonacoEditorLazy = React.lazy(() =>
     import('monaco-editor').then(monaco => {
-        require('monaco-editor/esm/vs/basic-languages/yaml/yaml.contribution.js');
-
-        const component = (props: MonacoProps) => {
+        const Component = (props: MonacoProps) => {
             const [height, setHeight] = React.useState(0);
+
+            React.useEffect(() => {
+                const subscription = services.viewPreferences.getPreferences().subscribe(preferences => {
+                    monaco.editor.setTheme(preferences.theme === 'dark' ? 'vs-dark' : 'vs');
+                });
+
+                return () => {
+                    subscription.unsubscribe();
+                };
+            }, []);
 
             return (
                 <div
@@ -45,10 +55,10 @@ const MonacoEditorLazy = React.lazy(() =>
                                 if (!container.editorApi) {
                                     const editor = monaco.editor.create(el, {
                                         ...props.editor.options,
-                                        scrollBeyondLastLine: false,
+                                        scrollBeyondLastLine: props.vScrollBar,
                                         scrollbar: {
                                             handleMouseWheel: false,
-                                            vertical: 'hidden'
+                                            vertical: props.vScrollBar ? 'visible' : 'hidden'
                                         }
                                     });
 
@@ -76,7 +86,7 @@ const MonacoEditorLazy = React.lazy(() =>
         };
 
         return {
-            default: component
+            default: Component
         };
     })
 );

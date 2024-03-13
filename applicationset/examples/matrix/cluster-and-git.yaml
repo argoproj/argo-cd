@@ -7,6 +7,8 @@ kind: ApplicationSet
 metadata:
   name: cluster-git
 spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
   generators:
   - matrix:
       generators:
@@ -21,13 +23,13 @@ spec:
                 argocd.argoproj.io/secret-type: cluster
   template:
     metadata:
-      name: '{{path.basename}}-{{name}}'
+      name: '{{.path.basename}}-{{.name}}'
     spec:
-      project: '{{metadata.labels.environment}}'
+      project: '{{.metadata.labels.environment}}'
       source:
         repoURL: https://github.com/argoproj/argo-cd.git
         targetRevision: HEAD
-        path: '{{path}}'
+        path: '{{.path.path}}'
       destination:
-        server: '{{server}}'
-        namespace: '{{path.basename}}'
+        server: '{{.server}}'
+        namespace: '{{.path.basename}}'

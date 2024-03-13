@@ -2,11 +2,11 @@ package localconfig
 
 import (
 	"fmt"
-	"github.com/golang-jwt/jwt/v4"
 	"os"
-	"os/user"
 	"path"
 	"strings"
+
+	"github.com/golang-jwt/jwt/v4"
 
 	configUtil "github.com/argoproj/argo-cd/v2/util/config"
 )
@@ -281,14 +281,10 @@ func DefaultConfigDir() (string, error) {
 }
 
 func getHomeDir() (string, error) {
-	homeDir := os.Getenv("HOME")
-	if homeDir == "" {
-		usr, err := user.Current()
-		if err != nil {
-			return "", err
-		}
+	homeDir, err := os.UserHomeDir()
 
-		homeDir = usr.HomeDir
+	if err != nil {
+		return "", err
 	}
 
 	return homeDir, nil
@@ -310,12 +306,4 @@ func GetUsername(subject string) string {
 		return parts[0]
 	}
 	return subject
-}
-
-func getFilePermission(fi os.FileInfo) error {
-	if fi.Mode().Perm() == 0600 || fi.Mode().Perm() == 0400 {
-		return nil
-	}
-	return fmt.Errorf("config file has incorrect permission flags:%s."+
-		"change the file permission either to 0400 or 0600.", fi.Mode().Perm().String())
 }

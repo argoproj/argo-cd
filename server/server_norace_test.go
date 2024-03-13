@@ -6,8 +6,8 @@ package server
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"net/http"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -27,27 +27,24 @@ func TestUserAgent(t *testing.T) {
 	// the data race, it APPEARS to be intentional, but in any case it's nothing we are doing in Argo CD
 	// that is causing this issue.
 
-	s, closer := fakeServer()
+	s, closer := fakeServer(t)
 	defer closer()
+	lns, err := s.Listen()
+	assert.NoError(t, err)
+
 	cancelInformer := test.StartInformer(s.projInformer)
 	defer cancelInformer()
-	port, err := test.GetFreePort()
-	assert.NoError(t, err)
-	metricsPort, err := test.GetFreePort()
-	assert.NoError(t, err)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	go s.Run(ctx, port, metricsPort)
+	s.Init(ctx)
+	go s.Run(ctx, lns)
 	defer func() { time.Sleep(3 * time.Second) }()
-
-	err = test.WaitForPortListen(fmt.Sprintf("127.0.0.1:%d", port), 10*time.Second)
-	assert.NoError(t, err)
 
 	type testData struct {
 		userAgent string
 		errorMsg  string
 	}
-	currentVersionBytes, err := ioutil.ReadFile("../VERSION")
+	currentVersionBytes, err := os.ReadFile("../VERSION")
 	assert.NoError(t, err)
 	currentVersion := strings.TrimSpace(string(currentVersionBytes))
 	var tests = []testData{
@@ -72,7 +69,7 @@ func TestUserAgent(t *testing.T) {
 
 	for _, test := range tests {
 		opts := apiclient.ClientOptions{
-			ServerAddr: fmt.Sprintf("localhost:%d", port),
+			ServerAddr: fmt.Sprintf("localhost:%d", s.ListenPort),
 			PlainText:  true,
 			UserAgent:  test.userAgent,
 		}
@@ -97,28 +94,24 @@ func Test_StaticHeaders(t *testing.T) {
 
 	// Test default policy "sameorigin" and "frame-ancestors 'self';"
 	{
-		s, closer := fakeServer()
+		s, closer := fakeServer(t)
 		defer closer()
+		lns, err := s.Listen()
+		assert.NoError(t, err)
 		cancelInformer := test.StartInformer(s.projInformer)
 		defer cancelInformer()
-		port, err := test.GetFreePort()
-		assert.NoError(t, err)
-		metricsPort, err := test.GetFreePort()
-		assert.NoError(t, err)
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
-		go s.Run(ctx, port, metricsPort)
+		s.Init(ctx)
+		go s.Run(ctx, lns)
 		defer func() { time.Sleep(3 * time.Second) }()
-
-		err = test.WaitForPortListen(fmt.Sprintf("127.0.0.1:%d", port), 10*time.Second)
-		assert.NoError(t, err)
 
 		// Allow server startup
 		time.Sleep(1 * time.Second)
 
 		client := http.Client{}
-		url := fmt.Sprintf("http://127.0.0.1:%d/test.html", port)
-		req, err := http.NewRequest("GET", url, nil)
+		url := fmt.Sprintf("http://127.0.0.1:%d/test.html", s.ListenPort)
+		req, err := http.NewRequest(http.MethodGet, url, nil)
 		assert.NoError(t, err)
 		resp, err := client.Do(req)
 		assert.NoError(t, err)
@@ -128,30 +121,26 @@ func Test_StaticHeaders(t *testing.T) {
 
 	// Test custom policy for X-Frame-Options and Content-Security-Policy
 	{
-		s, closer := fakeServer()
+		s, closer := fakeServer(t)
 		defer closer()
 		s.XFrameOptions = "deny"
 		s.ContentSecurityPolicy = "frame-ancestors 'none';"
 		cancelInformer := test.StartInformer(s.projInformer)
 		defer cancelInformer()
-		port, err := test.GetFreePort()
-		assert.NoError(t, err)
-		metricsPort, err := test.GetFreePort()
+		lns, err := s.Listen()
 		assert.NoError(t, err)
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
-		go s.Run(ctx, port, metricsPort)
+		s.Init(ctx)
+		go s.Run(ctx, lns)
 		defer func() { time.Sleep(3 * time.Second) }()
-
-		err = test.WaitForPortListen(fmt.Sprintf("127.0.0.1:%d", port), 10*time.Second)
-		assert.NoError(t, err)
 
 		// Allow server startup
 		time.Sleep(1 * time.Second)
 
 		client := http.Client{}
-		url := fmt.Sprintf("http://127.0.0.1:%d/test.html", port)
-		req, err := http.NewRequest("GET", url, nil)
+		url := fmt.Sprintf("http://127.0.0.1:%d/test.html", s.ListenPort)
+		req, err := http.NewRequest(http.MethodGet, url, nil)
 		assert.NoError(t, err)
 		resp, err := client.Do(req)
 		assert.NoError(t, err)
@@ -161,30 +150,29 @@ func Test_StaticHeaders(t *testing.T) {
 
 	// Test disabled X-Frame-Options and Content-Security-Policy
 	{
-		s, closer := fakeServer()
+		s, closer := fakeServer(t)
 		defer closer()
 		s.XFrameOptions = ""
 		s.ContentSecurityPolicy = ""
 		cancelInformer := test.StartInformer(s.projInformer)
 		defer cancelInformer()
-		port, err := test.GetFreePort()
-		assert.NoError(t, err)
-		metricsPort, err := test.GetFreePort()
+		lns, err := s.Listen()
 		assert.NoError(t, err)
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
-		go s.Run(ctx, port, metricsPort)
+		s.Init(ctx)
+		go s.Run(ctx, lns)
 		defer func() { time.Sleep(3 * time.Second) }()
 
-		err = test.WaitForPortListen(fmt.Sprintf("127.0.0.1:%d", port), 10*time.Second)
+		err = test.WaitForPortListen(fmt.Sprintf("127.0.0.1:%d", s.ListenPort), 10*time.Second)
 		assert.NoError(t, err)
 
 		// Allow server startup
 		time.Sleep(1 * time.Second)
 
 		client := http.Client{}
-		url := fmt.Sprintf("http://127.0.0.1:%d/test.html", port)
-		req, err := http.NewRequest("GET", url, nil)
+		url := fmt.Sprintf("http://127.0.0.1:%d/test.html", s.ListenPort)
+		req, err := http.NewRequest(http.MethodGet, url, nil)
 		assert.NoError(t, err)
 		resp, err := client.Do(req)
 		assert.NoError(t, err)

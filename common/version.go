@@ -3,6 +3,8 @@ package common
 import (
 	"fmt"
 	"runtime"
+
+	log "github.com/sirupsen/logrus"
 )
 
 // Version information set by link flags during build. We fall back to these sane
@@ -14,6 +16,7 @@ var (
 	gitTag         = ""                     // output from `git describe --exact-match --tags HEAD` (if clean tree state)
 	gitTreeState   = ""                     // determined from `git status --porcelain`. either 'clean' or 'dirty'
 	kubectlVersion = ""                     // determined from go.mod file
+	extraBuildInfo = ""                     // extra build information for vendors to populate during build
 )
 
 // Version contains Argo version information
@@ -27,10 +30,21 @@ type Version struct {
 	Compiler       string
 	Platform       string
 	KubectlVersion string
+	ExtraBuildInfo string
 }
 
 func (v Version) String() string {
 	return v.Version
+}
+
+func (v Version) LogStartupInfo(componentName string, fields map[string]any) {
+	if fields == nil {
+		fields = map[string]any{}
+	}
+	fields["version"] = v.Version
+	fields["commit"] = v.GitCommit
+	fields["built"] = v.BuildDate
+	log.WithFields(log.Fields(fields)).Infof("%s is starting", componentName)
 }
 
 // GetVersion returns the version information
@@ -54,6 +68,7 @@ func GetVersion() Version {
 			versionStr += "+unknown"
 		}
 	}
+
 	return Version{
 		Version:        versionStr,
 		BuildDate:      buildDate,
@@ -64,5 +79,6 @@ func GetVersion() Version {
 		Compiler:       runtime.Compiler,
 		Platform:       fmt.Sprintf("%s/%s", runtime.GOOS, runtime.GOARCH),
 		KubectlVersion: kubectlVersion,
+		ExtraBuildInfo: extraBuildInfo,
 	}
 }

@@ -3,6 +3,8 @@ kind: ApplicationSet
 metadata:
   name: myapp
 spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
   generators:
   - pullRequest:
       github:
@@ -21,20 +23,22 @@ spec:
         - preview
   template:
     metadata:
-      name: 'myapp-{{ branch }}-{{ number }}'
+      name: 'myapp-{{ .branch }}-{{ .number }}'
+      labels:
+        key1: '{{ index .labels 0 }}'
     spec:
       source:
         repoURL: 'https://github.com/myorg/myrepo.git'
-        targetRevision: '{{ head_sha }}'
+        targetRevision: '{{ .head_sha }}'
         path: helm-guestbook
         helm:
           parameters:
           - name: "image.tag"
-            value: "pull-{{ head_sha }}"
+            value: "pull-{{ .head_sha }}"
       project: default
       destination:
         server: https://kubernetes.default.svc
-        namespace: "{{ branch }}-{{ number }}"
+        namespace: "{{ .branch }}-{{ .number }}"
       syncPolicy:
         syncOptions:
         - CreateNamespace=true

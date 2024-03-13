@@ -3,8 +3,6 @@ package generators
 import (
 	"context"
 	"fmt"
-	"regexp"
-	"strings"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -17,7 +15,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/argoproj/argo-cd/v2/applicationset/utils"
-	argoappsetv1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/applicationset/v1alpha1"
+	argoappsetv1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 )
 
 const (
@@ -37,6 +35,8 @@ type ClusterGenerator struct {
 	settingsManager *settings.SettingsManager
 }
 
+var render = &utils.Render{}
+
 func NewClusterGenerator(c client.Client, ctx context.Context, clientset kubernetes.Interface, namespace string) Generator {
 
 	settingsManager := settings.NewSettingsManager(ctx, clientset, namespace)
@@ -51,6 +51,8 @@ func NewClusterGenerator(c client.Client, ctx context.Context, clientset kuberne
 	return g
 }
 
+// GetRequeueAfter never requeue the cluster generator because the `clusterSecretEventHandler` will requeue the appsets
+// when the cluster secrets change
 func (g *ClusterGenerator) GetRequeueAfter(appSetGenerator *argoappsetv1alpha1.ApplicationSetGenerator) time.Duration {
 	return NoRequeueAfter
 }
@@ -59,8 +61,7 @@ func (g *ClusterGenerator) GetTemplate(appSetGenerator *argoappsetv1alpha1.Appli
 	return &appSetGenerator.Clusters.Template
 }
 
-func (g *ClusterGenerator) GenerateParams(
-	appSetGenerator *argoappsetv1alpha1.ApplicationSetGenerator, _ *argoappsetv1alpha1.ApplicationSet) ([]map[string]string, error) {
+func (g *ClusterGenerator) GenerateParams(appSetGenerator *argoappsetv1alpha1.ApplicationSetGenerator, appSet *argoappsetv1alpha1.ApplicationSet) ([]map[string]interface{}, error) {
 
 	if appSetGenerator == nil {
 		return nil, EmptyAppSetGeneratorError
@@ -77,7 +78,7 @@ func (g *ClusterGenerator) GenerateParams(
 	// ListCluster from Argo CD's util/db package will include the local cluster in the list of clusters
 	clustersFromArgoCD, err := utils.ListClusters(g.ctx, g.clientset, g.namespace)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error listing clusters: %w", err)
 	}
 
 	if clustersFromArgoCD == nil {
@@ -89,7 +90,7 @@ func (g *ClusterGenerator) GenerateParams(
 		return nil, err
 	}
 
-	res := []map[string]string{}
+	res := []map[string]interface{}{}
 
 	secretsFound := []corev1.Secret{}
 
@@ -102,38 +103,59 @@ func (g *ClusterGenerator) GenerateParams(
 
 		} else if !ignoreLocalClusters {
 			// If there is no secret for the cluster, it's the local cluster, so handle it here.
-			params := map[string]string{}
+			params := map[string]interface{}{}
 			params["name"] = cluster.Name
+			params["nameNormalized"] = cluster.Name
 			params["server"] = cluster.Server
 
-			for key, value := range appSetGenerator.Clusters.Values {
-				params[fmt.Sprintf("values.%s", key)] = value
+			err = appendTemplatedValues(appSetGenerator.Clusters.Values, params, appSet.Spec.GoTemplate, appSet.Spec.GoTemplateOptions)
+			if err != nil {
+				return nil, err
 			}
 
-			log.WithField("cluster", "local cluster").Info("matched local cluster")
-
 			res = append(res, params)
+
+			log.WithField("cluster", "local cluster").Info("matched local cluster")
 		}
 	}
 
 	// For each matching cluster secret (non-local clusters only)
 	for _, cluster := range secretsFound {
-		params := map[string]string{}
+		params := map[string]interface{}{}
+
 		params["name"] = string(cluster.Data["name"])
-		params["nameNormalized"] = sanitizeName(string(cluster.Data["name"]))
+		params["nameNormalized"] = utils.SanitizeName(string(cluster.Data["name"]))
 		params["server"] = string(cluster.Data["server"])
-		for key, value := range cluster.ObjectMeta.Annotations {
-			params[fmt.Sprintf("metadata.annotations.%s", key)] = value
+
+		if appSet.Spec.GoTemplate {
+			meta := map[string]interface{}{}
+
+			if len(cluster.ObjectMeta.Annotations) > 0 {
+				meta["annotations"] = cluster.ObjectMeta.Annotations
+			}
+			if len(cluster.ObjectMeta.Labels) > 0 {
+				meta["labels"] = cluster.ObjectMeta.Labels
+			}
+
+			params["metadata"] = meta
+		} else {
+			for key, value := range cluster.ObjectMeta.Annotations {
+				params[fmt.Sprintf("metadata.annotations.%s", key)] = value
+			}
+
+			for key, value := range cluster.ObjectMeta.Labels {
+				params[fmt.Sprintf("metadata.labels.%s", key)] = value
+			}
 		}
-		for key, value := range cluster.ObjectMeta.Labels {
-			params[fmt.Sprintf("metadata.labels.%s", key)] = value
+
+		err = appendTemplatedValues(appSetGenerator.Clusters.Values, params, appSet.Spec.GoTemplate, appSet.Spec.GoTemplateOptions)
+		if err != nil {
+			return nil, err
 		}
-		for key, value := range appSetGenerator.Clusters.Values {
-			params[fmt.Sprintf("values.%s", key)] = value
-		}
-		log.WithField("cluster", cluster.Name).Info("matched cluster secret")
 
 		res = append(res, params)
+
+		log.WithField("cluster", cluster.Name).Info("matched cluster secret")
 	}
 
 	return res, nil
@@ -164,21 +186,4 @@ func (g *ClusterGenerator) getSecretsByClusterName(appSetGenerator *argoappsetv1
 
 	return res, nil
 
-}
-
-// sanitize the name in accordance with the below rules
-// 1. contain no more than 253 characters
-// 2. contain only lowercase alphanumeric characters, '-' or '.'
-// 3. start and end with an alphanumeric character
-func sanitizeName(name string) string {
-	invalidDNSNameChars := regexp.MustCompile("[^-a-z0-9.]")
-	maxDNSNameLength := 253
-
-	name = strings.ToLower(name)
-	name = invalidDNSNameChars.ReplaceAllString(name, "-")
-	if len(name) > maxDNSNameLength {
-		name = name[:maxDNSNameLength]
-	}
-
-	return strings.Trim(name, "-.")
 }

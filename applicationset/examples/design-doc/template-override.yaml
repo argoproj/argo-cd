@@ -7,6 +7,8 @@ kind: ApplicationSet
 metadata:
   name: guestbook
 spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
   generators:
   - list:
       elements:
@@ -18,7 +20,7 @@ spec:
           project: "project"
           source:
             repoURL: https://github.com/infra-team/cluster-deployments.git
-            path: '{{cluster}}-override'
+            path: '{{.cluster}}-override'
           destination: {}
 
   - list:
@@ -31,18 +33,18 @@ spec:
           project: "project2"
           source:
             repoURL: https://github.com/infra-team/cluster-deployments.git
-            path: '{{cluster}}-override2'
+            path: '{{.cluster}}-override2'
           destination: {}
 
   template:
     metadata:
-      name: '{{cluster}}-guestbook'
+      name: '{{.cluster}}-guestbook'
     spec:
       project: "project"
       source:
         repoURL: https://github.com/infra-team/cluster-deployments.git
         targetRevision: HEAD
-        path: guestbook/{{cluster}}
+        path: guestbook/{{.cluster}}
       destination:
-        server: '{{url}}'
+        server: '{{.url}}'
         namespace: guestbook

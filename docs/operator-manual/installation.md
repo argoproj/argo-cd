@@ -32,7 +32,7 @@ Not recommended for production use. This type of installation is typically used 
   > Note: Argo CD CRDs are not included into [namespace-install.yaml](https://github.com/argoproj/argo-cd/blob/master/manifests/namespace-install.yaml).
   > and have to be installed separately. The CRD manifests are located in the [manifests/crds](https://github.com/argoproj/argo-cd/blob/master/manifests/crds) directory.
   > Use the following command to install them:
-  > ```bash
+  > ```
   > kubectl apply -k https://github.com/argoproj/argo-cd/manifests/crds\?ref\=stable
   > ```
 
@@ -48,19 +48,17 @@ High Availability installation is recommended for production use. This bundle in
 
 ## Core
 
-The core installation is most suitable for cluster administrators who independently use Argo CD and don't need multi-tenancy features. This installation
-includes fewer components and is easier to setup. The bundle does not include the API server or UI, and installs the lightweight (non-HA) version of each component.
+The Argo CD Core installation is primarily used to deploy Argo CD in
+headless mode. This type of installation is most suitable for cluster
+administrators who independently use Argo CD and don't need
+multi-tenancy features. This installation includes fewer components
+and is easier to setup. The bundle does not include the API server or
+UI, and installs the lightweight (non-HA) version of each component.
 
-The end-users need Kubernetes access to manage Argo CD. The `argocd` CLI has to be configured using the following commands:
+Installation manifest is available at [core-install.yaml](https://github.com/argoproj/argo-cd/blob/master/manifests/core-install.yaml).
 
-```bash
-kubectl config set-context --current --namespace=argocd # change current kube context to argocd namespace
-argocd login --core
-```
-
-The Web UI is also available and can be started using the `argocd admin dashboard` command.
-
-Installation manifests are available at [core-install.yaml](https://github.com/argoproj/argo-cd/blob/master/manifests/core-install.yaml).
+For more details about Argo CD Core please refer to the [official
+documentation](./core.md)
 
 ## Kustomize
 
@@ -74,10 +72,23 @@ kind: Kustomization
 
 namespace: argocd
 resources:
-- https://raw.githubusercontent.com/argoproj/argo-cd/v2.0.4/manifests/ha/install.yaml
+- https://raw.githubusercontent.com/argoproj/argo-cd/v2.7.2/manifests/install.yaml
 ```
+
+For an example of this, see the [kustomization.yaml](https://github.com/argoproj/argoproj-deployments/blob/master/argocd/kustomization.yaml)
+used to deploy the [Argoproj CI/CD infrastructure](https://github.com/argoproj/argoproj-deployments#argoproj-deployments).
 
 ## Helm
 
 The Argo CD can be installed using [Helm](https://helm.sh/). The Helm chart is currently community maintained and available at
-[argo-helm/charts/argo-cd](https://github.com/argoproj/argo-helm/tree/master/charts/argo-cd).
+[argo-helm/charts/argo-cd](https://github.com/argoproj/argo-helm/tree/main/charts/argo-cd).
+
+## Supported versions
+
+For detailed information regarding Argo CD's version support policy, please refer to the [Release Process and Cadence documentation](https://argo-cd.readthedocs.io/en/stable/developer-guide/release-process-and-cadence/).
+
+## Tested versions
+
+The following table shows the versions of Kubernetes that are tested with each version of Argo CD.
+
+{!docs/operator-manual/tested-kubernetes-versions.md!}

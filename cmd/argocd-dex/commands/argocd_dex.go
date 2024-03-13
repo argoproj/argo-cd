@@ -1,26 +1,26 @@
 package commands
 
 import (
-	"context"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"syscall"
 
 	"github.com/argoproj/argo-cd/v2/common"
 
-	"github.com/ghodss/yaml"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
+	"sigs.k8s.io/yaml"
 
 	cmdutil "github.com/argoproj/argo-cd/v2/cmd/util"
 	"github.com/argoproj/argo-cd/v2/util/cli"
 	"github.com/argoproj/argo-cd/v2/util/dex"
+	"github.com/argoproj/argo-cd/v2/util/env"
 	"github.com/argoproj/argo-cd/v2/util/errors"
 	"github.com/argoproj/argo-cd/v2/util/settings"
+	"github.com/argoproj/argo-cd/v2/util/tls"
 )
 
 const (
@@ -46,24 +46,50 @@ func NewCommand() *cobra.Command {
 func NewRunDexCommand() *cobra.Command {
 	var (
 		clientConfig clientcmd.ClientConfig
+		disableTLS   bool
 	)
 	var command = cobra.Command{
 		Use:   "rundex",
 		Short: "Runs dex generating a config using settings from the Argo CD configmap and secret",
 		RunE: func(c *cobra.Command, args []string) error {
+			ctx := c.Context()
+
+			vers := common.GetVersion()
+			namespace, _, err := clientConfig.Namespace()
+			errors.CheckError(err)
+			vers.LogStartupInfo(
+				"ArgoCD Dex Server",
+				map[string]any{
+					"namespace": namespace,
+				},
+			)
+
 			cli.SetLogFormat(cmdutil.LogFormat)
 			cli.SetLogLevel(cmdutil.LogLevel)
-			_, err := exec.LookPath("dex")
+			_, err = exec.LookPath("dex")
 			errors.CheckError(err)
 			config, err := clientConfig.ClientConfig()
 			errors.CheckError(err)
-			vers := common.GetVersion()
 			config.UserAgent = fmt.Sprintf("argocd-dex/%s (%s)", vers.Version, vers.Platform)
-			namespace, _, err := clientConfig.Namespace()
-			errors.CheckError(err)
 			kubeClientset := kubernetes.NewForConfigOrDie(config)
 
-			settingsMgr := settings.NewSettingsManager(context.Background(), kubeClientset, namespace)
+			if !disableTLS {
+				config, err := tls.CreateServerTLSConfig("/tls/tls.crt", "/tls/tls.key", []string{"localhost", "dexserver"})
+				if err != nil {
+					log.Fatalf("could not create TLS config: %v", err)
+				}
+				certPem, keyPem := tls.EncodeX509KeyPair(config.Certificates[0])
+				err = os.WriteFile("/tmp/tls.crt", certPem, 0600)
+				if err != nil {
+					log.Fatalf("could not write TLS certificate: %v", err)
+				}
+				err = os.WriteFile("/tmp/tls.key", keyPem, 0600)
+				if err != nil {
+					log.Fatalf("could not write TLS key: %v", err)
+				}
+			}
+
+			settingsMgr := settings.NewSettingsManager(ctx, kubeClientset, namespace)
 			prevSettings, err := settingsMgr.GetSettings()
 			errors.CheckError(err)
 			updateCh := make(chan *settings.ArgoCDSettings, 1)
@@ -71,12 +97,12 @@ func NewRunDexCommand() *cobra.Command {
 
 			for {
 				var cmd *exec.Cmd
-				dexCfgBytes, err := dex.GenerateDexConfigYAML(prevSettings)
+				dexCfgBytes, err := dex.GenerateDexConfigYAML(prevSettings, disableTLS)
 				errors.CheckError(err)
 				if len(dexCfgBytes) == 0 {
 					log.Infof("dex is not configured")
 				} else {
-					err = ioutil.WriteFile("/tmp/dex.yaml", dexCfgBytes, 0644)
+					err = os.WriteFile("/tmp/dex.yaml", dexCfgBytes, 0644)
 					errors.CheckError(err)
 					log.Debug(redactor(string(dexCfgBytes)))
 					cmd = exec.Command("dex", "serve", "/tmp/dex.yaml")
@@ -89,7 +115,7 @@ func NewRunDexCommand() *cobra.Command {
 				// loop until the dex config changes
 				for {
 					newSettings := <-updateCh
-					newDexCfgBytes, err := dex.GenerateDexConfigYAML(newSettings)
+					newDexCfgBytes, err := dex.GenerateDexConfigYAML(newSettings, disableTLS)
 					errors.CheckError(err)
 					if string(newDexCfgBytes) != string(dexCfgBytes) {
 						prevSettings = newSettings
@@ -112,6 +138,7 @@ func NewRunDexCommand() *cobra.Command {
 	clientConfig = cli.AddKubectlFlagsToCmd(&command)
 	command.Flags().StringVar(&cmdutil.LogFormat, "logformat", "text", "Set the logging format. One of: text|json")
 	command.Flags().StringVar(&cmdutil.LogLevel, "loglevel", "info", "Set the logging level. One of: debug|info|warn|error")
+	command.Flags().BoolVar(&disableTLS, "disable-tls", env.ParseBoolFromEnv("ARGOCD_DEX_SERVER_DISABLE_TLS", false), "Disable TLS on the HTTP endpoint")
 	return &command
 }
 
@@ -119,22 +146,26 @@ func NewGenDexConfigCommand() *cobra.Command {
 	var (
 		clientConfig clientcmd.ClientConfig
 		out          string
+		disableTLS   bool
 	)
 	var command = cobra.Command{
 		Use:   "gendexcfg",
 		Short: "Generates a dex config from Argo CD settings",
 		RunE: func(c *cobra.Command, args []string) error {
+			ctx := c.Context()
+
 			cli.SetLogFormat(cmdutil.LogFormat)
 			cli.SetLogLevel(cmdutil.LogLevel)
+
 			config, err := clientConfig.ClientConfig()
 			errors.CheckError(err)
 			namespace, _, err := clientConfig.Namespace()
 			errors.CheckError(err)
 			kubeClientset := kubernetes.NewForConfigOrDie(config)
-			settingsMgr := settings.NewSettingsManager(context.Background(), kubeClientset, namespace)
+			settingsMgr := settings.NewSettingsManager(ctx, kubeClientset, namespace)
 			settings, err := settingsMgr.GetSettings()
 			errors.CheckError(err)
-			dexCfgBytes, err := dex.GenerateDexConfigYAML(settings)
+			dexCfgBytes, err := dex.GenerateDexConfigYAML(settings, disableTLS)
 			errors.CheckError(err)
 			if len(dexCfgBytes) == 0 {
 				log.Infof("dex is not configured")
@@ -165,7 +196,7 @@ func NewGenDexConfigCommand() *cobra.Command {
 				errors.CheckError(err)
 				fmt.Print(string(maskedDexCfgBytes))
 			} else {
-				err = ioutil.WriteFile(out, dexCfgBytes, 0644)
+				err = os.WriteFile(out, dexCfgBytes, 0644)
 				errors.CheckError(err)
 			}
 			return nil
@@ -176,6 +207,7 @@ func NewGenDexConfigCommand() *cobra.Command {
 	command.Flags().StringVar(&cmdutil.LogFormat, "logformat", "text", "Set the logging format. One of: text|json")
 	command.Flags().StringVar(&cmdutil.LogLevel, "loglevel", "info", "Set the logging level. One of: debug|info|warn|error")
 	command.Flags().StringVarP(&out, "out", "o", "", "Output to the specified file instead of stdout")
+	command.Flags().BoolVar(&disableTLS, "disable-tls", env.ParseBoolFromEnv("ARGOCD_DEX_SERVER_DISABLE_TLS", false), "Disable TLS on the HTTP endpoint")
 	return &command
 }
 
