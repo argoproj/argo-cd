@@ -1438,6 +1438,27 @@ func TestCreateAppWithDestName(t *testing.T) {
 	assert.Equal(t, app.Spec.Destination.Server, "https://cluster-api.com")
 }
 
+// TestCreateAppWithOperation tests that an application created with an operation is created with the operation removed.
+// Avoids regressions of https://github.com/argoproj/argo-cd/security/advisories/GHSA-g623-jcgg-mhmm
+func TestCreateAppWithOperation(t *testing.T) {
+	appServer := newTestAppServer(t)
+	testApp := newTestAppWithDestName()
+	testApp.Operation = &appsv1.Operation{
+		Sync: &appsv1.SyncOperation{
+			Manifests: []string{
+				"test",
+			},
+		},
+	}
+	createReq := application.ApplicationCreateRequest{
+		Application: testApp,
+	}
+	app, err := appServer.Create(context.Background(), &createReq)
+	require.NoError(t, err)
+	require.NotNil(t, app)
+	assert.Nil(t, app.Operation)
+}
+
 func TestUpdateApp(t *testing.T) {
 	testApp := newTestApp()
 	appServer := newTestAppServer(t, testApp)
