@@ -1,9 +1,6 @@
 # Applications in any namespace
 
-**Current feature state**: Beta
-
-!!! warning
-    Please read this documentation carefully before you enable this feature. Misconfiguration could lead to potential security issues.
+**Current feature state**: Stable
 
 ## Introduction
 
