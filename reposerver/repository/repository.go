@@ -16,16 +16,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/golang/protobuf/ptypes/empty"
-
-	kubeyaml "k8s.io/apimachinery/pkg/util/yaml"
-
-	"k8s.io/apimachinery/pkg/api/resource"
-
-	"github.com/argoproj/argo-cd/v2/common"
-	"github.com/argoproj/argo-cd/v2/util/io/files"
-	"github.com/argoproj/argo-cd/v2/util/manifeststream"
-
 	"github.com/Masterminds/semver/v3"
 	"github.com/TomOnTime/utfutil"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
@@ -33,6 +23,7 @@ import (
 	"github.com/argoproj/pkg/sync"
 	jsonpatch "github.com/evanphx/json-patch"
 	gogit "github.com/go-git/go-git/v5"
+	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/google/go-jsonnet"
 	"github.com/google/uuid"
 	grpc_retry "github.com/grpc-ecosystem/go-grpc-middleware/retry"
@@ -40,12 +31,15 @@ import (
 	"golang.org/x/sync/semaphore"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	kubeyaml "k8s.io/apimachinery/pkg/util/yaml"
 	"sigs.k8s.io/yaml"
 
 	pluginclient "github.com/argoproj/argo-cd/v2/cmpserver/apiclient"
+	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/v2/reposerver/cache"
@@ -54,14 +48,17 @@ import (
 	argopath "github.com/argoproj/argo-cd/v2/util/app/path"
 	"github.com/argoproj/argo-cd/v2/util/argo"
 	"github.com/argoproj/argo-cd/v2/util/cmp"
+	"github.com/argoproj/argo-cd/v2/util/env"
 	"github.com/argoproj/argo-cd/v2/util/git"
 	"github.com/argoproj/argo-cd/v2/util/glob"
 	"github.com/argoproj/argo-cd/v2/util/gpg"
 	"github.com/argoproj/argo-cd/v2/util/grpc"
 	"github.com/argoproj/argo-cd/v2/util/helm"
 	"github.com/argoproj/argo-cd/v2/util/io"
+	"github.com/argoproj/argo-cd/v2/util/io/files"
 	pathutil "github.com/argoproj/argo-cd/v2/util/io/path"
 	"github.com/argoproj/argo-cd/v2/util/kustomize"
+	"github.com/argoproj/argo-cd/v2/util/manifeststream"
 	"github.com/argoproj/argo-cd/v2/util/text"
 )
 
@@ -74,7 +71,12 @@ const (
 	ociPrefix                      = "oci://"
 )
 
-var ErrExceededMaxCombinedManifestFileSize = errors.New("exceeded max combined manifest file size")
+var (
+	ErrExceededMaxCombinedManifestFileSize = errors.New("exceeded max combined manifest file size")
+	// helmConcurrencyDefault if true then helm concurrent manifest generation is enabled
+	// TODO: remove env variable and usage of .argocd-allow-concurrency once we are sure that it is safe to enable it by default
+	helmConcurrencyDefault = env.ParseBoolFromEnv("ARGOCD_HELM_ALLOW_CONCURRENCY", false)
+)
 
 // Service implements ManifestService interface
 type Service struct {
@@ -1096,7 +1098,7 @@ func isSourcePermitted(url string, repos []string) bool {
 }
 
 func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclient.ManifestRequest, isLocal bool, gitRepoPaths io.TempPaths) ([]*unstructured.Unstructured, error) {
-	concurrencyAllowed := isConcurrencyAllowed(appPath)
+	concurrencyAllowed := helmConcurrencyDefault || isConcurrencyAllowed(appPath)
 	if !concurrencyAllowed {
 		manifestGenerateLock.Lock(appPath)
 		defer manifestGenerateLock.Unlock(appPath)
