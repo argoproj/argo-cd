@@ -2423,6 +2423,91 @@ func TestReconcilerValidationProjectErrorBehaviour(t *testing.T) {
 	assert.Error(t, err)
 }
 
+func TestReconcilerCreateAppsRecoveringRenderError(t *testing.T) {
+
+	scheme := runtime.NewScheme()
+	err := v1alpha1.AddToScheme(scheme)
+	assert.Nil(t, err)
+	err = v1alpha1.AddToScheme(scheme)
+	assert.Nil(t, err)
+
+	project := v1alpha1.AppProject{
+		ObjectMeta: metav1.ObjectMeta{Name: "default", Namespace: "argocd"},
+	}
+	appSet := v1alpha1.ApplicationSet{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "name",
+			Namespace: "argocd",
+		},
+		Spec: v1alpha1.ApplicationSetSpec{
+			GoTemplate: true,
+			Generators: []v1alpha1.ApplicationSetGenerator{
+				{
+					List: &v1alpha1.ListGenerator{
+						Elements: []apiextensionsv1.JSON{{
+							Raw: []byte(`{"name": "very-good-app"}`),
+						}, {
+							Raw: []byte(`{"name": "bad-app"}`),
+						}},
+					},
+				},
+			},
+			Template: v1alpha1.ApplicationSetTemplate{
+				ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{
+					Name:      "{{ index (splitList \"-\" .name ) 2 }}",
+					Namespace: "argocd",
+				},
+				Spec: v1alpha1.ApplicationSpec{
+					Source:      &v1alpha1.ApplicationSource{RepoURL: "https://github.com/argoproj/argocd-example-apps", Path: "guestbook"},
+					Project:     "default",
+					Destination: v1alpha1.ApplicationDestination{Server: "https://kubernetes.default.svc"},
+				},
+			},
+		},
+	}
+
+	kubeclientset := kubefake.NewSimpleClientset()
+	argoDBMock := dbmocks.ArgoDB{}
+	argoObjs := []runtime.Object{&project}
+
+	client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&appSet).WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).Build()
+
+	r := ApplicationSetReconciler{
+		Client:   client,
+		Scheme:   scheme,
+		Renderer: &utils.Render{},
+		Recorder: record.NewFakeRecorder(1),
+		Cache:    &fakeCache{},
+		Generators: map[string]generators.Generator{
+			"List": generators.NewListGenerator(),
+		},
+		ArgoDB:           &argoDBMock,
+		ArgoAppClientset: appclientset.NewSimpleClientset(argoObjs...),
+		KubeClientset:    kubeclientset,
+		Policy:           v1alpha1.ApplicationsSyncPolicySync,
+		ArgoCDNamespace:  "argocd",
+	}
+
+	req := ctrl.Request{
+		NamespacedName: types.NamespacedName{
+			Namespace: "argocd",
+			Name:      "name",
+		},
+	}
+
+	// Verify that on generatorsError, no error is returned, but the object is requeued
+	res, err := r.Reconcile(context.Background(), req)
+	assert.Nil(t, err)
+	assert.True(t, res.RequeueAfter == ReconcileRequeueOnValidationError)
+
+	var app v1alpha1.Application
+
+	// make sure good app got created
+	err = r.Client.Get(context.TODO(), crtclient.ObjectKey{Namespace: "argocd", Name: "app"}, &app)
+	assert.NoError(t, err)
+	assert.Equal(t, app.Name, "app")
+}
+
 func TestSetApplicationSetStatusCondition(t *testing.T) {
 	scheme := runtime.NewScheme()
 	err := v1alpha1.AddToScheme(scheme)
