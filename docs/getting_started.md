@@ -32,6 +32,12 @@ Do one of:
 * Configure the client OS to trust the self signed certificate.
 * Use the --insecure flag on all Argo CD CLI operations in this guide.
 
+!!! note 
+    Default namespace for `kubectl` config must be set to `argocd`.
+    This is only needed for the following commands since the previous commands have -n argocd already:
+    `kubectl config set-context --current --namespace=argocd`
+    
+
 Use `argocd login --core` to [configure](./user-guide/commands/argocd_login.md) CLI access and skip steps 3-5.
 
 ## 2. Download Argo CD CLI
