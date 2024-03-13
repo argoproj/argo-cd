@@ -236,7 +236,7 @@ func (c *nativeHelmChart) GetIndex(noCache bool) (*Index, error) {
 
 	var data []byte
 	if !noCache && c.indexCache != nil {
-		if err := c.indexCache.GetHelmIndex(c.repoURL, &data); err != nil && err != cache.ErrCacheMiss {
+		if err := c.indexCache.GetHelmIndex(c.repoURL, &data); err != nil && !errors.Is(err, cache.ErrCacheMiss) {
 			log.Warnf("Failed to load index cache for repo: %s: %v", c.repoURL, err)
 		}
 	}
@@ -414,7 +414,7 @@ func (c *nativeHelmChart) GetTags(chart string, noCache bool) (*TagsList, error)
 
 	var data []byte
 	if !noCache && c.indexCache != nil {
-		if err := c.indexCache.GetHelmIndex(tagsURL, &data); err != nil && err != cache.ErrCacheMiss {
+		if err := c.indexCache.GetHelmIndex(tagsURL, &data); err != nil && !errors.Is(err, cache.ErrCacheMiss) {
 			log.Warnf("Failed to load index cache for repo: %s: %v", tagsURL, err)
 		}
 	}

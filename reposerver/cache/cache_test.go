@@ -31,16 +31,16 @@ func TestCache_GetRevisionMetadata(t *testing.T) {
 	cache := newFixtures().Cache
 	// cache miss
 	_, err := cache.GetRevisionMetadata("my-repo-url", "my-revision")
-	assert.Equal(t, ErrCacheMiss, err)
+	assert.ErrorIs(t, err, ErrCacheMiss)
 	// populate cache
 	err = cache.SetRevisionMetadata("my-repo-url", "my-revision", &RevisionMetadata{Message: "my-message"})
 	assert.NoError(t, err)
 	// cache miss
 	_, err = cache.GetRevisionMetadata("other-repo-url", "my-revision")
-	assert.Equal(t, ErrCacheMiss, err)
+	assert.ErrorIs(t, err, ErrCacheMiss)
 	// cache miss
 	_, err = cache.GetRevisionMetadata("my-repo-url", "other-revision")
-	assert.Equal(t, ErrCacheMiss, err)
+	assert.ErrorIs(t, err, ErrCacheMiss)
 	// cache hit
 	value, err := cache.GetRevisionMetadata("my-repo-url", "my-revision")
 	assert.NoError(t, err)
@@ -51,16 +51,16 @@ func TestCache_ListApps(t *testing.T) {
 	cache := newFixtures().Cache
 	// cache miss
 	_, err := cache.ListApps("my-repo-url", "my-revision")
-	assert.Equal(t, ErrCacheMiss, err)
+	assert.ErrorIs(t, err, ErrCacheMiss)
 	// populate cache
 	err = cache.SetApps("my-repo-url", "my-revision", map[string]string{"foo": "bar"})
 	assert.NoError(t, err)
 	// cache miss
 	_, err = cache.ListApps("other-repo-url", "my-revision")
-	assert.Equal(t, ErrCacheMiss, err)
+	assert.ErrorIs(t, err, ErrCacheMiss)
 	// cache miss
 	_, err = cache.ListApps("my-repo-url", "other-revision")
-	assert.Equal(t, ErrCacheMiss, err)
+	assert.ErrorIs(t, err, ErrCacheMiss)
 	// cache hit
 	value, err := cache.ListApps("my-repo-url", "my-revision")
 	assert.NoError(t, err)
@@ -73,34 +73,34 @@ func TestCache_GetManifests(t *testing.T) {
 	q := &apiclient.ManifestRequest{}
 	value := &CachedManifestResponse{}
 	err := cache.GetManifests("my-revision", &ApplicationSource{}, q.RefSources, q, "my-namespace", "", "my-app-label-key", "my-app-label-value", value, nil)
-	assert.Equal(t, ErrCacheMiss, err)
+	assert.ErrorIs(t, err, ErrCacheMiss)
 	// populate cache
 	res := &CachedManifestResponse{ManifestResponse: &apiclient.ManifestResponse{SourceType: "my-source-type"}}
 	err = cache.SetManifests("my-revision", &ApplicationSource{}, q.RefSources, q, "my-namespace", "", "my-app-label-key", "my-app-label-value", res, nil)
 	assert.NoError(t, err)
 	t.Run("expect cache miss because of changed revision", func(t *testing.T) {
 		err = cache.GetManifests("other-revision", &ApplicationSource{}, q.RefSources, q, "my-namespace", "", "my-app-label-key", "my-app-label-value", value, nil)
-		assert.Equal(t, ErrCacheMiss, err)
+		assert.ErrorIs(t, err, ErrCacheMiss)
 	})
 	t.Run("expect cache miss because of changed path", func(t *testing.T) {
 		err = cache.GetManifests("my-revision", &ApplicationSource{Path: "other-path"}, q.RefSources, q, "my-namespace", "", "my-app-label-key", "my-app-label-value", value, nil)
-		assert.Equal(t, ErrCacheMiss, err)
+		assert.ErrorIs(t, err, ErrCacheMiss)
 	})
 	t.Run("expect cache miss because of changed namespace", func(t *testing.T) {
 		err = cache.GetManifests("my-revision", &ApplicationSource{}, q.RefSources, q, "other-namespace", "", "my-app-label-key", "my-app-label-value", value, nil)
-		assert.Equal(t, ErrCacheMiss, err)
+		assert.ErrorIs(t, err, ErrCacheMiss)
 	})
 	t.Run("expect cache miss because of changed app label key", func(t *testing.T) {
 		err = cache.GetManifests("my-revision", &ApplicationSource{}, q.RefSources, q, "my-namespace", "", "other-app-label-key", "my-app-label-value", value, nil)
-		assert.Equal(t, ErrCacheMiss, err)
+		assert.ErrorIs(t, err, ErrCacheMiss)
 	})
 	t.Run("expect cache miss because of changed app label value", func(t *testing.T) {
 		err = cache.GetManifests("my-revision", &ApplicationSource{}, q.RefSources, q, "my-namespace", "", "my-app-label-key", "other-app-label-value", value, nil)
-		assert.Equal(t, ErrCacheMiss, err)
+		assert.ErrorIs(t, err, ErrCacheMiss)
 	})
 	t.Run("expect cache miss because of changed referenced source", func(t *testing.T) {
 		err = cache.GetManifests("my-revision", &ApplicationSource{}, q.RefSources, q, "my-namespace", "", "my-app-label-key", "other-app-label-value", value, map[string]string{"my-referenced-source": "my-referenced-revision"})
-		assert.Equal(t, ErrCacheMiss, err)
+		assert.ErrorIs(t, err, ErrCacheMiss)
 	})
 	t.Run("expect cache hit", func(t *testing.T) {
 		err = cache.GetManifests("my-revision", &ApplicationSource{}, q.RefSources, q, "my-namespace", "", "my-app-label-key", "my-app-label-value", value, nil)
@@ -115,16 +115,16 @@ func TestCache_GetAppDetails(t *testing.T) {
 	value := &apiclient.RepoAppDetailsResponse{}
 	emptyRefSources := map[string]*RefTarget{}
 	err := cache.GetAppDetails("my-revision", &ApplicationSource{}, emptyRefSources, value, "", nil)
-	assert.Equal(t, ErrCacheMiss, err)
+	assert.ErrorIs(t, err, ErrCacheMiss)
 	res := &apiclient.RepoAppDetailsResponse{Type: "my-type"}
 	err = cache.SetAppDetails("my-revision", &ApplicationSource{}, emptyRefSources, res, "", nil)
 	assert.NoError(t, err)
 	//cache miss
 	err = cache.GetAppDetails("other-revision", &ApplicationSource{}, emptyRefSources, value, "", nil)
-	assert.Equal(t, ErrCacheMiss, err)
+	assert.ErrorIs(t, err, ErrCacheMiss)
 	//cache miss
 	err = cache.GetAppDetails("my-revision", &ApplicationSource{Path: "other-path"}, emptyRefSources, value, "", nil)
-	assert.Equal(t, ErrCacheMiss, err)
+	assert.ErrorIs(t, err, ErrCacheMiss)
 	// cache hit
 	err = cache.GetAppDetails("my-revision", &ApplicationSource{}, emptyRefSources, value, "", nil)
 	assert.NoError(t, err)
@@ -221,7 +221,7 @@ func TestCachedManifestResponse_HashBehavior(t *testing.T) {
 	retrievedVal = &CachedManifestResponse{}
 	err = repoCache.GetManifests(response.Revision, appSrc, q.RefSources, q, response.Namespace, "", appKey, appValue, retrievedVal, nil)
 
-	assert.True(t, err == cacheutil.ErrCacheMiss)
+	assert.ErrorIs(t, err, cacheutil.ErrCacheMiss)
 
 	// Verify that the hash mismatch item has been deleted
 	items := getInMemoryCacheContents(t, inMemCache)

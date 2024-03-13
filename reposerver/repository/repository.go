@@ -816,7 +816,7 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 			// rather than a copy of the cache that occurred before (a potentially lengthy) manifest generation.
 			innerRes := &cache.CachedManifestResponse{}
 			cacheErr := s.cache.GetManifests(cacheKey, appSourceCopy, q.RefSources, q, q.Namespace, q.TrackingMethod, q.AppLabelKey, q.AppName, innerRes, refSourceCommitSHAs)
-			if cacheErr != nil && cacheErr != cache.ErrCacheMiss {
+			if cacheErr != nil && !errors.Is(cacheErr, cache.ErrCacheMiss) {
 				logCtx.Warnf("manifest cache get error %s: %v", appSourceCopy.String(), cacheErr)
 				ch.errCh <- cacheErr
 				return
@@ -951,7 +951,7 @@ func (s *Service) getManifestCacheEntry(cacheKey string, q *apiclient.ManifestRe
 		return true, res.ManifestResponse, nil
 	}
 
-	if err != cache.ErrCacheMiss {
+	if !errors.Is(err, cache.ErrCacheMiss) {
 		log.Warnf("manifest cache error %s: %v", q.ApplicationSource.String(), err)
 	} else {
 		log.Infof("manifest cache miss: %s/%s", q.ApplicationSource.String(), cacheKey)
@@ -2002,7 +2002,7 @@ func (s *Service) createGetAppDetailsCacheHandler(res *apiclient.RepoAppDetailsR
 			return true, nil
 		}
 
-		if err != cache.ErrCacheMiss {
+		if !errors.Is(err, cache.ErrCacheMiss) {
 			log.Warnf("app details cache error %s: %v", revision, q.Source)
 		} else {
 			log.Infof("app details cache miss: %s/%s", revision, q.Source)
@@ -2207,7 +2207,7 @@ func (s *Service) GetRevisionMetadata(ctx context.Context, q *apiclient.RepoServ
 			return metadata, nil
 		}
 	} else {
-		if err != cache.ErrCacheMiss {
+		if !errors.Is(err, cache.ErrCacheMiss) {
 			log.Warnf("revision metadata cache error %s/%s: %v", q.Repo.Repo, q.Revision, err)
 		} else {
 			log.Infof("revision metadata cache miss: %s/%s", q.Repo.Repo, q.Revision)
@@ -2270,7 +2270,7 @@ func (s *Service) GetRevisionChartDetails(ctx context.Context, q *apiclient.Repo
 		log.Infof("revision chart details cache hit: %s/%s/%s", q.Repo.Repo, q.Name, q.Revision)
 		return details, nil
 	} else {
-		if err == cache.ErrCacheMiss {
+		if errors.Is(err, cache.ErrCacheMiss) {
 			log.Infof("revision metadata cache miss: %s/%s/%s", q.Repo.Repo, q.Name, q.Revision)
 		} else {
 			log.Warnf("revision metadata cache error %s/%s/%s: %v", q.Repo.Repo, q.Name, q.Revision, err)

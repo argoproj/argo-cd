@@ -290,7 +290,7 @@ func (mgr *SessionManager) GetLoginFailures() map[string]LoginAttempts {
 	var failures map[string]LoginAttempts
 	err := mgr.storage.GetLoginAttempts(&failures)
 	if err != nil {
-		if err != appstate.ErrCacheMiss {
+		if !errors.Is(err, appstate.ErrCacheMiss) {
 			log.Errorf("Could not retrieve login attempts: %v", err)
 		}
 		failures = make(map[string]LoginAttempts)

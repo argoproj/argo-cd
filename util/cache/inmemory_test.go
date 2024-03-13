@@ -17,7 +17,7 @@ func TestInMemoryCache(t *testing.T) {
 	obj := &foo{}
 	// cache miss
 	err := cache.Get("my-key", obj)
-	assert.Equal(t, ErrCacheMiss, err)
+	assert.ErrorIs(t, err, ErrCacheMiss)
 	// cache hit
 	err = cache.Set(&Item{Key: "my-key", Object: &foo{Bar: "bar"}})
 	assert.NoError(t, err)

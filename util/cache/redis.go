@@ -125,7 +125,7 @@ func (r *redisCache) Get(key string, obj interface{}) error {
 		err = ErrCacheMiss
 	}
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to get cache item for key %q: %w", key, err)
 	}
 	return r.unmarshal(data, obj)
 }

@@ -16,7 +16,7 @@ func TestCache(t *testing.T) {
 	c := NewInMemoryCache(time.Hour)
 	var obj testStruct
 	err := c.Get("key", &obj)
-	assert.Equal(t, err, ErrCacheMiss)
+	assert.ErrorIs(t, err, ErrCacheMiss)
 	cacheObj := testStruct{
 		Foo: "foo",
 		Bar: []byte("bar"),
@@ -34,5 +34,5 @@ func TestCache(t *testing.T) {
 	err = c.Delete("key")
 	assert.Nil(t, err)
 	err = c.Get("key", &obj)
-	assert.Equal(t, err, ErrCacheMiss)
+	assert.ErrorIs(t, err, ErrCacheMiss)
 }

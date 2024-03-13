@@ -1482,6 +1482,7 @@ func (s *Server) ManagedResources(ctx context.Context, q *application.ResourcesQ
 		return s.cache.GetAppManagedResources(a.InstanceName(s.ns), &items)
 	})
 	if err != nil {
+		log.WithFields(log.Fields{"application": q.GetApplicationName(), "appNamespace": q.GetAppNamespace()}).Errorf("error getting cached app managed resources: %v", err)
 		return nil, fmt.Errorf("error getting cached app managed resources: %w", err)
 	}
 	res := &application.ManagedResourcesResponse{}
