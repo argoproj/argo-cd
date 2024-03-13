@@ -3,6 +3,7 @@ package grpc
 import (
 	"context"
 	"crypto/tls"
+	"fmt"
 	"net"
 	"runtime/debug"
 	"strings"
@@ -67,13 +68,13 @@ func BlockingDial(ctx context.Context, network, address string, creds credential
 		conn, err := proxy.Dial(ctx, network, address)
 		if err != nil {
 			writeResult(err)
-			return nil, err
+			return nil, fmt.Errorf("error dial proxy: %s", err)
 		}
 		if creds != nil {
 			conn, _, err = creds.ClientHandshake(ctx, address, conn)
 			if err != nil {
 				writeResult(err)
-				return nil, err
+				return nil, fmt.Errorf("error creating connection: %s", err)
 			}
 		}
 		return conn, nil
