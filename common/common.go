@@ -242,7 +242,7 @@ const (
 	EnvLogFormat = "ARGOCD_LOG_FORMAT"
 	// EnvLogLevel log level that is defined by `--loglevel` option
 	EnvLogLevel = "ARGOCD_LOG_LEVEL"
-	// EnvLogFormatEnableFullTimestamp is used to indicate whether or not to enable the FullTimestamp option in logs
+	// EnvLogFormatEnableFullTimestamp enables the FullTimestamp option in logs
 	EnvLogFormatEnableFullTimestamp = "ARGOCD_LOG_FORMAT_ENABLE_FULL_TIMESTAMP"
 	// EnvMaxCookieNumber max number of chunks a cookie can be broken into
 	EnvMaxCookieNumber = "ARGOCD_MAX_COOKIE_NUMBER"
