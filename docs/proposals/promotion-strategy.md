@@ -219,10 +219,6 @@ spec:
       # The prod branch disables auto-merge because a developer is expected to manually click the "merge" button for 
       # prod changes.
       autoMerge: false
-  
-  # This field is optional and defaults to "-next". It specifies what branches will be monitored for new "proposed 
-  # commits."
-  proposedBranchSuffix: '-next'
 status:
   # The PromotionStrategy controller monitors activeCommitStatuses and proposedCommitStatuses associated with each 
   # environment and stores that information here.
