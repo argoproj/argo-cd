@@ -38,7 +38,9 @@ argocd app wait [APPNAME.. | -l selector] [flags]
 ### Options
 
 ```
+  -N, --app-namespace string   Only wait for an application  in namespace
       --degraded               Wait for degraded
+      --delete                 Wait for delete
       --health                 Wait for health
   -h, --help                   help for wait
       --operation              Wait for pending operations
