@@ -8,6 +8,8 @@ kind: ApplicationSet
 metadata:
   name: myapps
 spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
   generators:
   - pullRequest:
       # When using a Pull Request generator, the ApplicationSet controller polls every `requeueAfterSeconds` interval (defaulting to every 30 minutes) to detect changes.
@@ -33,6 +35,8 @@ kind: ApplicationSet
 metadata:
   name: myapps
 spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
   generators:
   - pullRequest:
       github:
@@ -75,11 +79,13 @@ kind: ApplicationSet
 metadata:
   name: myapps
 spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
   generators:
   - pullRequest:
       gitlab:
-        # The GitLab project.
-        project: myproject
+        # The GitLab project ID.
+        project: "12341234"
         # For self-hosted GitLab (optional)
         api: https://git.example.com/
         # Reference to a Secret containing an access token. (optional)
@@ -98,14 +104,14 @@ spec:
   # ...
 ```
 
-* `project`: Required name of the GitLab project.
+* `project`: Required project ID of the GitLab project.
 * `api`: If using self-hosted GitLab, the URL to access it. (Optional)
 * `tokenRef`: A `Secret` name and key containing the GitLab access token to use for requests. If not specified, will make anonymous requests which have a lower rate limit and can only see public repositories. (Optional)
 * `labels`: Labels is used to filter the MRs that you want to target. (Optional)
 * `pullRequestState`: PullRequestState is an additional MRs filter to get only those with a certain state. Default: "" (all states)
 * `insecure`: By default (false) - Skip checking the validity of the SCM's certificate - useful for self-signed TLS certificates.
 
-As a preferable alternative to setting `insecure` to true, you can configure self-signed TLS certificates for Gitlab by [mounting self-signed certificate to the applicationset controller](./Add-self-signed-TLS-Certs.md).
+As a preferable alternative to setting `insecure` to true, you can configure self-signed TLS certificates for Gitlab by [mounting self-signed certificate to the applicationset controller](./Generators-SCM-Provider.md#self-signed-tls-certificates).
 
 ## Gitea
 
@@ -117,6 +123,8 @@ kind: ApplicationSet
 metadata:
   name: myapps
 spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
   generators:
   - pullRequest:
       gitea:
@@ -153,6 +161,8 @@ kind: ApplicationSet
 metadata:
   name: myapps
 spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
   generators:
   - pullRequest:
       bitbucketServer:
@@ -195,6 +205,8 @@ kind: ApplicationSet
 metadata:
   name: myapps
 spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
   generators:
     - pullRequest:
         bitbucket:
@@ -251,6 +263,8 @@ kind: ApplicationSet
 metadata:
   name: myapps
 spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
   generators:
   - pullRequest:
       azuredevops:
@@ -292,6 +306,8 @@ kind: ApplicationSet
 metadata:
   name: myapps
 spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
   generators:
   - pullRequest:
       # ...
@@ -319,21 +335,23 @@ kind: ApplicationSet
 metadata:
   name: myapps
 spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
   generators:
   - pullRequest:
     # ...
   template:
     metadata:
-      name: 'myapp-{{branch}}-{{number}}'
+      name: 'myapp-{{.branch}}-{{.number}}'
     spec:
       source:
         repoURL: 'https://github.com/myorg/myrepo.git'
-        targetRevision: '{{head_sha}}'
+        targetRevision: '{{.head_sha}}'
         path: kubernetes/
         helm:
           parameters:
           - name: "image.tag"
-            value: "pull-{{head_sha}}"
+            value: "pull-{{.head_sha}}"
       project: "my-project"
       destination:
         server: https://kubernetes.default.svc
@@ -348,23 +366,25 @@ kind: ApplicationSet
 metadata:
   name: myapps
 spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
   generators:
   - pullRequest:
     # ...
   template:
     metadata:
-      name: 'myapp-{{branch}}-{{number}}'
+      name: 'myapp-{{.branch}}-{{.number}}'
     spec:
       source:
         repoURL: 'https://github.com/myorg/myrepo.git'
-        targetRevision: '{{head_sha}}'
+        targetRevision: '{{.head_sha}}'
         path: kubernetes/
         kustomize:
-          nameSuffix: {{branch}}
+          nameSuffix: '{{.branch}}'
           commonLabels:
-            app.kubernetes.io/instance: {{branch}}-{{number}}
+            app.kubernetes.io/instance: '{{.branch}}-{{.number}}'
           images:
-          - ghcr.io/myorg/myrepo:{{head_sha}}
+          - 'ghcr.io/myorg/myrepo:{{.head_sha}}'
       project: "my-project"
       destination:
         server: https://kubernetes.default.svc
@@ -386,6 +406,9 @@ spec:
 When using a Pull Request generator, the ApplicationSet controller polls every `requeueAfterSeconds` interval (defaulting to every 30 minutes) to detect changes. To eliminate this delay from polling, the ApplicationSet webhook server can be configured to receive webhook events, which will trigger Application generation by the Pull Request generator.
 
 The configuration is almost the same as the one described [in the Git generator](Generators-Git.md), but there is one difference: if you want to use the Pull Request Generator as well, additionally configure the following settings.
+
+!!! note
+    The ApplicationSet controller webhook does not use the same webhook as the API server as defined [here](../webhook.md). ApplicationSet exposes a webhook server as a service of type ClusterIP. An ApplicationSet specific Ingress resource needs to be created to expose this service to the webhook source.
 
 ### Github webhook configuration
 

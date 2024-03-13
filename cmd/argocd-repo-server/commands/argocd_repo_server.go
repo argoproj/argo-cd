@@ -54,6 +54,9 @@ func NewCommand() *cobra.Command {
 		metricsPort                       int
 		metricsHost                       string
 		otlpAddress                       string
+		otlpInsecure                      bool
+		otlpHeaders                       map[string]string
+		otlpAttrs                         []string
 		cacheSrc                          func() (*reposervercache.Cache, error)
 		tlsConfigCustomizer               tls.ConfigCustomizer
 		tlsConfigCustomizerSrc            func() (tls.ConfigCustomizer, error)
@@ -64,6 +67,8 @@ func NewCommand() *cobra.Command {
 		allowOutOfBoundsSymlinks          bool
 		streamedManifestMaxTarSize        string
 		streamedManifestMaxExtractedSize  string
+		helmManifestMaxExtractedSize      string
+		disableManifestMaxExtractedSize   bool
 	)
 	var command = cobra.Command{
 		Use:               cliName,
@@ -102,6 +107,9 @@ func NewCommand() *cobra.Command {
 			streamedManifestMaxExtractedSizeQuantity, err := resource.ParseQuantity(streamedManifestMaxExtractedSize)
 			errors.CheckError(err)
 
+			helmManifestMaxExtractedSizeQuantity, err := resource.ParseQuantity(helmManifestMaxExtractedSize)
+			errors.CheckError(err)
+
 			askPassServer := askpass.NewServer()
 			metricsServer := metrics.NewMetricsServer()
 			cacheutil.CollectMetrics(redisClient, metricsServer)
@@ -116,13 +124,14 @@ func NewCommand() *cobra.Command {
 				AllowOutOfBoundsSymlinks:                     allowOutOfBoundsSymlinks,
 				StreamedManifestMaxExtractedSize:             streamedManifestMaxExtractedSizeQuantity.ToDec().Value(),
 				StreamedManifestMaxTarSize:                   streamedManifestMaxTarSizeQuantity.ToDec().Value(),
+				HelmManifestMaxExtractedSize:                 helmManifestMaxExtractedSizeQuantity.ToDec().Value(),
 			}, askPassServer)
 			errors.CheckError(err)
 
 			if otlpAddress != "" {
 				var closer func()
 				var err error
-				closer, err = traceutil.InitTracer(ctx, "argocd-repo-server", otlpAddress)
+				closer, err = traceutil.InitTracer(ctx, "argocd-repo-server", otlpAddress, otlpInsecure, otlpHeaders, otlpAttrs)
 				if err != nil {
 					log.Fatalf("failed to initialize tracing: %v", err)
 				}
@@ -189,15 +198,22 @@ func NewCommand() *cobra.Command {
 	command.Flags().StringVar(&metricsHost, "metrics-address", env.StringFromEnv("ARGOCD_REPO_SERVER_METRICS_LISTEN_ADDRESS", common.DefaultAddressRepoServerMetrics), "Listen on given address for metrics")
 	command.Flags().IntVar(&metricsPort, "metrics-port", common.DefaultPortRepoServerMetrics, "Start metrics server on given port")
 	command.Flags().StringVar(&otlpAddress, "otlp-address", env.StringFromEnv("ARGOCD_REPO_SERVER_OTLP_ADDRESS", ""), "OpenTelemetry collector address to send traces to")
+	command.Flags().BoolVar(&otlpInsecure, "otlp-insecure", env.ParseBoolFromEnv("ARGOCD_REPO_SERVER_OTLP_INSECURE", true), "OpenTelemetry collector insecure mode")
+	command.Flags().StringToStringVar(&otlpHeaders, "otlp-headers", env.ParseStringToStringFromEnv("ARGOCD_REPO_OTLP_HEADERS", map[string]string{}, ","), "List of OpenTelemetry collector extra headers sent with traces, headers are comma-separated key-value pairs(e.g. key1=value1,key2=value2)")
+	command.Flags().StringSliceVar(&otlpAttrs, "otlp-attrs", env.StringsFromEnv("ARGOCD_REPO_SERVER_OTLP_ATTRS", []string{}, ","), "List of OpenTelemetry collector extra attrs when send traces, each attribute is separated by a colon(e.g. key:value)")
 	command.Flags().BoolVar(&disableTLS, "disable-tls", env.ParseBoolFromEnv("ARGOCD_REPO_SERVER_DISABLE_TLS", false), "Disable TLS on the gRPC endpoint")
 	command.Flags().StringVar(&maxCombinedDirectoryManifestsSize, "max-combined-directory-manifests-size", env.StringFromEnv("ARGOCD_REPO_SERVER_MAX_COMBINED_DIRECTORY_MANIFESTS_SIZE", "10M"), "Max combined size of manifest files in a directory-type Application")
 	command.Flags().StringArrayVar(&cmpTarExcludedGlobs, "plugin-tar-exclude", env.StringsFromEnv("ARGOCD_REPO_SERVER_PLUGIN_TAR_EXCLUSIONS", []string{}, ";"), "Globs to filter when sending tarballs to plugins.")
 	command.Flags().BoolVar(&allowOutOfBoundsSymlinks, "allow-oob-symlinks", env.ParseBoolFromEnv("ARGOCD_REPO_SERVER_ALLOW_OUT_OF_BOUNDS_SYMLINKS", false), "Allow out-of-bounds symlinks in repositories (not recommended)")
 	command.Flags().StringVar(&streamedManifestMaxTarSize, "streamed-manifest-max-tar-size", env.StringFromEnv("ARGOCD_REPO_SERVER_STREAMED_MANIFEST_MAX_TAR_SIZE", "100M"), "Maximum size of streamed manifest archives")
 	command.Flags().StringVar(&streamedManifestMaxExtractedSize, "streamed-manifest-max-extracted-size", env.StringFromEnv("ARGOCD_REPO_SERVER_STREAMED_MANIFEST_MAX_EXTRACTED_SIZE", "1G"), "Maximum size of streamed manifest archives when extracted")
+	command.Flags().StringVar(&helmManifestMaxExtractedSize, "helm-manifest-max-extracted-size", env.StringFromEnv("ARGOCD_REPO_SERVER_HELM_MANIFEST_MAX_EXTRACTED_SIZE", "1G"), "Maximum size of helm manifest archives when extracted")
+	command.Flags().BoolVar(&disableManifestMaxExtractedSize, "disable-helm-manifest-max-extracted-size", env.ParseBoolFromEnv("ARGOCD_REPO_SERVER_DISABLE_HELM_MANIFEST_MAX_EXTRACTED_SIZE", false), "Disable maximum size of helm manifest archives when extracted")
 	tlsConfigCustomizerSrc = tls.AddTLSFlagsToCmd(&command)
-	cacheSrc = reposervercache.AddCacheFlagsToCmd(&command, func(client *redis.Client) {
-		redisClient = client
+	cacheSrc = reposervercache.AddCacheFlagsToCmd(&command, cacheutil.Options{
+		OnClientCreated: func(client *redis.Client) {
+			redisClient = client
+		},
 	})
 	return &command
 }

@@ -35,11 +35,11 @@ import (
 	"k8s.io/client-go/tools/clientcmd/api"
 	"sigs.k8s.io/yaml"
 
-	"github.com/argoproj/argo-cd/v2/util/env"
-
 	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/util/collections"
+	"github.com/argoproj/argo-cd/v2/util/env"
 	"github.com/argoproj/argo-cd/v2/util/helm"
+	utilhttp "github.com/argoproj/argo-cd/v2/util/http"
 	"github.com/argoproj/argo-cd/v2/util/security"
 )
 
@@ -465,6 +465,12 @@ type ApplicationSourceKustomize struct {
 	CommonAnnotationsEnvsubst bool `json:"commonAnnotationsEnvsubst,omitempty" protobuf:"bytes,10,opt,name=commonAnnotationsEnvsubst"`
 	// Replicas is a list of Kustomize Replicas override specifications
 	Replicas KustomizeReplicas `json:"replicas,omitempty" protobuf:"bytes,11,opt,name=replicas"`
+	// Patches is a list of Kustomize patches
+	Patches KustomizePatches `json:"patches,omitempty" protobuf:"bytes,12,opt,name=patches"`
+	// Components specifies a list of kustomize components to add to the kustomization before building
+	Components []string `json:"components,omitempty" protobuf:"bytes,13,rep,name=components"`
+	//LabelWithoutSelector specifies whether to apply common labels to resource selectors or not
+	LabelWithoutSelector bool `json:"labelWithoutSelector,omitempty" protobuf:"bytes,14,opt,name=labelWithoutSelector"`
 }
 
 type KustomizeReplica struct {
@@ -509,6 +515,43 @@ func NewKustomizeReplica(text string) (*KustomizeReplica, error) {
 	return kr, nil
 }
 
+type KustomizePatches []KustomizePatch
+
+type KustomizePatch struct {
+	Path    string             `json:"path,omitempty" yaml:"path,omitempty" protobuf:"bytes,1,opt,name=path"`
+	Patch   string             `json:"patch,omitempty" yaml:"patch,omitempty" protobuf:"bytes,2,opt,name=patch"`
+	Target  *KustomizeSelector `json:"target,omitempty" yaml:"target,omitempty" protobuf:"bytes,3,opt,name=target"`
+	Options map[string]bool    `json:"options,omitempty" yaml:"options,omitempty" protobuf:"bytes,4,opt,name=options"`
+}
+
+// Copied from: https://github.com/kubernetes-sigs/kustomize/blob/cd7ba1744eadb793ab7cd056a76ee8a5ca725db9/api/types/patch.go
+func (p *KustomizePatch) Equals(o KustomizePatch) bool {
+	targetEqual := (p.Target == o.Target) ||
+		(p.Target != nil && o.Target != nil && *p.Target == *o.Target)
+	return p.Path == o.Path &&
+		p.Patch == o.Patch &&
+		targetEqual &&
+		reflect.DeepEqual(p.Options, o.Options)
+}
+
+type KustomizeSelector struct {
+	KustomizeResId     `json:",inline,omitempty" yaml:",inline,omitempty" protobuf:"bytes,1,opt,name=resId"`
+	AnnotationSelector string `json:"annotationSelector,omitempty" yaml:"annotationSelector,omitempty" protobuf:"bytes,2,opt,name=annotationSelector"`
+	LabelSelector      string `json:"labelSelector,omitempty" yaml:"labelSelector,omitempty" protobuf:"bytes,3,opt,name=labelSelector"`
+}
+
+type KustomizeResId struct {
+	KustomizeGvk `json:",inline,omitempty" yaml:",inline,omitempty" protobuf:"bytes,1,opt,name=gvk"`
+	Name         string `json:"name,omitempty" yaml:"name,omitempty" protobuf:"bytes,2,opt,name=name"`
+	Namespace    string `json:"namespace,omitempty" yaml:"namespace,omitempty" protobuf:"bytes,3,opt,name=namespace"`
+}
+
+type KustomizeGvk struct {
+	Group   string `json:"group,omitempty" yaml:"group,omitempty" protobuf:"bytes,1,opt,name=group"`
+	Version string `json:"version,omitempty" yaml:"version,omitempty" protobuf:"bytes,2,opt,name=version"`
+	Kind    string `json:"kind,omitempty" yaml:"kind,omitempty" protobuf:"bytes,3,opt,name=kind"`
+}
+
 // AllowsConcurrentProcessing returns true if multiple processes can run Kustomize builds on the same source at the same time
 func (k *ApplicationSourceKustomize) AllowsConcurrentProcessing() bool {
 	return len(k.Images) == 0 &&
@@ -516,7 +559,9 @@ func (k *ApplicationSourceKustomize) AllowsConcurrentProcessing() bool {
 		len(k.CommonAnnotations) == 0 &&
 		k.NamePrefix == "" &&
 		k.Namespace == "" &&
-		k.NameSuffix == ""
+		k.NameSuffix == "" &&
+		len(k.Patches) == 0 &&
+		len(k.Components) == 0
 }
 
 // IsZero returns true when the Kustomize options are considered empty
@@ -529,7 +574,9 @@ func (k *ApplicationSourceKustomize) IsZero() bool {
 			len(k.Images) == 0 &&
 			len(k.Replicas) == 0 &&
 			len(k.CommonLabels) == 0 &&
-			len(k.CommonAnnotations) == 0
+			len(k.CommonAnnotations) == 0 &&
+			len(k.Patches) == 0 &&
+			len(k.Components) == 0
 }
 
 // MergeImage merges a new Kustomize image identifier in to a list of images
@@ -910,6 +957,35 @@ type ApplicationStatus struct {
 	ControllerNamespace string `json:"controllerNamespace,omitempty" protobuf:"bytes,13,opt,name=controllerNamespace"`
 }
 
+// GetRevisions will return the current revision associated with the Application.
+// If app has multisources, it will return all corresponding revisions preserving
+// order from the app.spec.sources. If app has only one source, it will return a
+// single revision in the list.
+func (a *ApplicationStatus) GetRevisions() []string {
+	revisions := []string{}
+	if len(a.Sync.Revisions) > 0 {
+		revisions = a.Sync.Revisions
+	} else if a.Sync.Revision != "" {
+		revisions = append(revisions, a.Sync.Revision)
+	}
+	return revisions
+}
+
+// BuildComparedToStatus will build a ComparedTo object based on the current
+// Application state.
+func (app *Application) BuildComparedToStatus() ComparedTo {
+	ct := ComparedTo{
+		Destination:       app.Spec.Destination,
+		IgnoreDifferences: app.Spec.IgnoreDifferences,
+	}
+	if app.Spec.HasMultipleSources() {
+		ct.Sources = app.Spec.Sources
+	} else {
+		ct.Source = app.Spec.GetSource()
+	}
+	return ct
+}
+
 // JWTTokens represents a list of JWT tokens
 type JWTTokens struct {
 	Items []JWTToken `json:"items,omitempty" protobuf:"bytes,1,opt,name=items"`
@@ -1094,11 +1170,12 @@ type SyncPolicy struct {
 	Retry *RetryStrategy `json:"retry,omitempty" protobuf:"bytes,3,opt,name=retry"`
 	// ManagedNamespaceMetadata controls metadata in the given namespace (if CreateNamespace=true)
 	ManagedNamespaceMetadata *ManagedNamespaceMetadata `json:"managedNamespaceMetadata,omitempty" protobuf:"bytes,4,opt,name=managedNamespaceMetadata"`
+	// If you add a field here, be sure to update IsZero.
 }
 
 // IsZero returns true if the sync policy is empty
 func (p *SyncPolicy) IsZero() bool {
-	return p == nil || (p.Automated == nil && len(p.SyncOptions) == 0 && p.Retry == nil)
+	return p == nil || (p.Automated == nil && len(p.SyncOptions) == 0 && p.Retry == nil && p.ManagedNamespaceMetadata == nil)
 }
 
 // RetryStrategy contains information about the strategy to apply when a sync failed
@@ -1326,6 +1403,8 @@ type RevisionHistory struct {
 	Sources ApplicationSources `json:"sources,omitempty" protobuf:"bytes,8,opt,name=sources"`
 	// Revisions holds the revision of each source in sources field the sync was performed against
 	Revisions []string `json:"revisions,omitempty" protobuf:"bytes,9,opt,name=revisions"`
+	// InitiatedBy contains information about who initiated the operations
+	InitiatedBy OperationInitiator `json:"initiatedBy,omitempty" protobuf:"bytes,10,opt,name=initiatedBy"`
 }
 
 // ApplicationWatchEvent contains information about application change.
@@ -1779,6 +1858,9 @@ type AWSAuthConfig struct {
 
 	// RoleARN contains optional role ARN. If set then AWS IAM Authenticator assume a role to perform cluster operations instead of the default AWS credential provider chain.
 	RoleARN string `json:"roleARN,omitempty" protobuf:"bytes,2,opt,name=roleARN"`
+
+	// Profile contains optional role ARN. If set then AWS IAM Authenticator uses the profile to perform cluster operations instead of the default AWS credential provider chain.
+	Profile string `json:"profile,omitempty" protobuf:"bytes,3,opt,name=profile"`
 }
 
 // ExecProviderConfig is config used to call an external command to perform cluster authentication
@@ -2576,6 +2658,18 @@ func (app *Application) IsRefreshRequested() (RefreshType, bool) {
 	return refreshType, true
 }
 
+func (app *Application) HasPostDeleteFinalizer(stage ...string) bool {
+	return getFinalizerIndex(app.ObjectMeta, strings.Join(append([]string{PostDeleteFinalizerName}, stage...), "/")) > -1
+}
+
+func (app *Application) SetPostDeleteFinalizer(stage ...string) {
+	setFinalizer(&app.ObjectMeta, strings.Join(append([]string{PostDeleteFinalizerName}, stage...), "/"), true)
+}
+
+func (app *Application) UnSetPostDeleteFinalizer(stage ...string) {
+	setFinalizer(&app.ObjectMeta, strings.Join(append([]string{PostDeleteFinalizerName}, stage...), "/"), false)
+}
+
 // SetCascadedDeletion will enable cascaded deletion by setting the propagation policy finalizer
 func (app *Application) SetCascadedDeletion(finalizer string) {
 	setFinalizer(&app.ObjectMeta, finalizer, true)
@@ -2850,6 +2944,12 @@ func SetK8SConfigDefaults(config *rest.Config) error {
 	config.Timeout = K8sServerSideTimeout
 
 	config.Transport = tr
+	maxRetries := env.ParseInt64FromEnv(utilhttp.EnvRetryMax, 0, 1, math.MaxInt64)
+	if maxRetries > 0 {
+		backoffDurationMS := env.ParseInt64FromEnv(utilhttp.EnvRetryBaseBackoff, 100, 1, math.MaxInt64)
+		backoffDuration := time.Duration(backoffDurationMS) * time.Millisecond
+		config.WrapTransport = utilhttp.WithRetry(maxRetries, backoffDuration)
+	}
 	return nil
 }
 
@@ -2891,6 +2991,9 @@ func (c *Cluster) RawRestConfig() *rest.Config {
 			args := []string{"aws", "--cluster-name", c.Config.AWSAuthConfig.ClusterName}
 			if c.Config.AWSAuthConfig.RoleARN != "" {
 				args = append(args, "--role-arn", c.Config.AWSAuthConfig.RoleARN)
+			}
+			if c.Config.AWSAuthConfig.Profile != "" {
+				args = append(args, "--profile", c.Config.AWSAuthConfig.Profile)
 			}
 			config = &rest.Config{
 				Host:            c.Server,

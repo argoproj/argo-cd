@@ -1,3 +1,4 @@
+
 # Config Management Plugins
 
 Argo CD's "native" config management tools are Helm, Jsonnet, and Kustomize. If you want to use a different config
@@ -33,6 +34,8 @@ metadata:
   # The name of the plugin must be unique within a given Argo CD instance.
   name: my-plugin
 spec:
+  # The version of your plugin. Optional. If specified, the Application's spec.source.plugin.name field
+  # must be <plugin name>-<plugin version>.
   version: v1.0
   # The init command runs in the Application source directory at the beginning of each manifest generation. The init
   # command can output anything. A non-zero status code will fail manifest generation.
@@ -43,6 +46,7 @@ spec:
     args: [-c, 'echo "Initializing..."']
   # The generate command runs in the Application source directory each time manifests are generated. Standard output
   # must be ONLY valid Kubernetes Objects in either YAML or JSON. A non-zero exit code will fail manifest generation.
+  # To write log messages from the command, write them to stderr, it will always be displayed.
   # Error output will be sent to the UI, so avoid printing sensitive information (such as secrets).
   generate:
     command: [sh, -c]
@@ -106,9 +110,9 @@ spec:
       # static parameter announcements list.
       command: [echo, '[{"name": "example-param", "string": "default-string-value"}]']
 
-    # If set to `true` then the plugin receives repository files with original file mode. Dangerous since the repository
-    # might have executable files. Set to true only if you trust the CMP plugin authors.
-    preserveFileMode: false
+  # If set to `true` then the plugin receives repository files with original file mode. Dangerous since the repository
+  # might have executable files. Set to true only if you trust the CMP plugin authors.
+  preserveFileMode: false
 ```
 
 !!! note
@@ -317,6 +321,8 @@ If you don't need to set any environment variables, you can set an empty plugin 
     plugin configured through the `argocd-cm` ConfigMap to a sidecar, make sure to update the plugin name to either `<metadata.name>-<spec.version>` 
     if version was mentioned in the `ConfigManagementPlugin` spec or else just use `<metadata.name>`. You can also remove the name altogether 
     and let the automatic discovery to identify the plugin.
+!!! note
+    If a CMP renders blank manfiests, and `prune` is set to `true`, Argo CD will automatically remove resources. CMP plugin authors should ensure errors are part of the exit code. Commonly something like `kustomize build . | cat` won't pass errors because of the pipe. Consider setting `set -o pipefail` so anything piped will pass errors on failure.
 
 ## Debugging a CMP
 
@@ -329,6 +335,14 @@ If you are actively developing a sidecar-installed CMP, keep a few things in min
    image. If you're using a different, static tag, set `imagePullPolicy: Always` on the CMP's sidecar container.
 3. CMP errors are cached by the repo-server in Redis. Restarting the repo-server Pod will not clear the cache. Always
    do a "Hard Refresh" when actively developing a CMP so you have the latest output.
+4. Verify your sidecar has started properly by viewing the Pod and seeing that two containers are running `kubectl get pod -l app.kubernetes.io/component=repo-server -n argocd`
+5. Write log message to stderr and set the `--loglevel=info` flag in the sidecar. This will print everything written to stderr, even on successfull command execution.
+
+
+### Other Common Errors
+| Error Message | Cause |
+| -- | -- |
+| `no matches for kind "ConfigManagementPlugin" in version "argoproj.io/v1alpha1"` | The `ConfigManagementPlugin` CRD was deprecated in Argo CD 2.4 and removed in 2.8. This error means you've tried to put the configuration for your plugin directly into Kubernetes as a CRD. Refer to this [section of documentation](#write-the-plugin-configuration-file) for how to write the plugin configuration file and place it properly in the sidecar. |
 
 ## Plugin tar stream exclusions
 
@@ -347,10 +361,9 @@ them with semicolons.
 
 ## Migrating from argocd-cm plugins
 
-Installing plugins by modifying the argocd-cm ConfigMap is deprecated as of v2.4. Support will be completely removed in
-a future release.
+Installing plugins by modifying the argocd-cm ConfigMap is deprecated as of v2.4 and has been completely removed starting in v2.8.
 
-The following will show how to convert an argocd-cm plugin to a sidecar plugin.
+CMP plugins work by adding a sidecar to `argocd-repo-server` along with a configuration in that sidecar located at `/home/argocd/cmp-server/config/plugin.yaml`. A argocd-cm plugin can be easily converted with the following steps.
 
 ### Convert the ConfigMap entry into a config file
 
@@ -389,6 +402,33 @@ spec:
     The `lockRepo` key is not relevant for sidecar plugins, because sidecar plugins do not share a single source repo
     directory when generating manifests.
 
+Next, we need to decide how this yaml is going to be added to the sidecar. We can either bake the yaml directly into the image, or we can mount it from a ConfigMap. 
+
+If using a ConfigMap, our example would look like this:
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: pluginName
+  namespace: argocd
+data:
+  pluginName.yaml: |
+    apiVersion: argoproj.io/v1alpha1
+    kind: ConfigManagementPlugin
+    metadata:
+      name: pluginName
+    spec:
+      init:                          # Optional command to initialize application source directory
+        command: ["sample command"]
+        args: ["sample args"]
+      generate:                      # Command to generate Kubernetes Objects in either YAML or JSON
+        command: ["sample command"]
+        args: ["sample args"]
+```
+
+Then this would be mounted in our plugin sidecar.
+
 ### Write discovery rules for your plugin
 
 Sidecar plugins can use either discovery rules or a plugin name to match Applications to plugins. If the discovery rule is omitted 
@@ -418,8 +458,8 @@ Plugins configured with argocd-cm ran on the Argo CD image. This gave it access 
 image by default (see the [Dockerfile](https://github.com/argoproj/argo-cd/blob/master/Dockerfile) for base image and
 installed tools).
 
-You can either use a stock image (like busybox) or design your own base image with the tools your plugin needs. For
-security, avoid using image with more binaries installed than what your plugin actually needs.
+You can either use a stock image (like busybox, or alpine/k8s) or design your own base image with the tools your plugin needs. For
+security, avoid using images with more binaries installed than what your plugin actually needs.
 
 ### Test the plugin
 

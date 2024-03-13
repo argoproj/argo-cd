@@ -1,4 +1,4 @@
-hs = {}
+local hs = {}
 if obj.status ~= nil then
   if obj.status.availableNodes ~= nil then
     local sum = 0

@@ -26,7 +26,7 @@ mkdir -p $GOBIN
 #go_mod_install github.com/gogo/protobuf/protoc-gen-gogo
 go_mod_install github.com/gogo/protobuf/protoc-gen-gogofast
 
-# protoc-gen-grpc-gateway is used to build <service>.pb.gw.go files from from .proto files
+# protoc-gen-grpc-gateway is used to build <service>.pb.gw.go files from .proto files
 go_mod_install github.com/grpc-ecosystem/grpc-gateway/protoc-gen-grpc-gateway
 
 # # protoc-gen-swagger is used to build swagger.json
