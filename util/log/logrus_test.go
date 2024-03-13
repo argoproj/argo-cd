@@ -32,7 +32,7 @@ func TestCreateFormatter(t *testing.T) {
             assert.Equal(t, &logrus.TextFormatter{FullTimestamp: true}, result)
         })
         t.Run(fmt.Sprintf("%s != 1", common.EnvLogFormatEnableFullTimestamp), func(t *testing.T) {
-            os.Setenv(common.EnvLogFormatEnableFullTimestamp, "0")
+            t.Setenv(common.EnvLogFormatEnableFullTimestamp, "0")
             result := CreateFormatter("text")
             assert.Equal(t, &logrus.TextFormatter{}, result)
         })
