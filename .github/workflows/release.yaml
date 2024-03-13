@@ -87,6 +87,14 @@ jobs:
           echo "KUBECTL_VERSION=$(go list -m k8s.io/client-go | head -n 1 | rev | cut -d' ' -f1 | rev)" >> $GITHUB_ENV
           echo "GIT_TREE_STATE=$(if [ -z "`git status --porcelain`" ]; then echo "clean" ; else echo "dirty"; fi)" >> $GITHUB_ENV
 
+      - name: Free Disk Space (Ubuntu)
+        uses: jlumbroso/free-disk-space@4d9e71b726748f254fe64fa44d273194bd18ec91
+        with:
+          large-packages: false
+          docker-images: false
+          swap-storage: false
+          tool-cache: false
+
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@7ec5c2b0c6cdda6e8bbb49444bc797dd33d74dd8 # v5.0.0
         id: run-goreleaser

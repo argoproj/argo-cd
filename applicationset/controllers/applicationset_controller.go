@@ -108,16 +108,14 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 
 	// Do not attempt to further reconcile the ApplicationSet if it is being deleted.
 	if applicationSetInfo.ObjectMeta.DeletionTimestamp != nil {
-		if controllerutil.ContainsFinalizer(&applicationSetInfo, argov1alpha1.ResourcesFinalizerName) {
-			deleteAllowed := utils.DefaultPolicy(applicationSetInfo.Spec.SyncPolicy, r.Policy, r.EnablePolicyOverride).AllowDelete()
-			if !deleteAllowed {
-				if err := r.removeOwnerReferencesOnDeleteAppSet(ctx, applicationSetInfo); err != nil {
-					return ctrl.Result{}, err
-				}
-				controllerutil.RemoveFinalizer(&applicationSetInfo, argov1alpha1.ResourcesFinalizerName)
-				if err := r.Update(ctx, &applicationSetInfo); err != nil {
-					return ctrl.Result{}, err
-				}
+		deleteAllowed := utils.DefaultPolicy(applicationSetInfo.Spec.SyncPolicy, r.Policy, r.EnablePolicyOverride).AllowDelete()
+		if !deleteAllowed {
+			if err := r.removeOwnerReferencesOnDeleteAppSet(ctx, applicationSetInfo); err != nil {
+				return ctrl.Result{}, err
+			}
+			controllerutil.RemoveFinalizer(&applicationSetInfo, argov1alpha1.ResourcesFinalizerName)
+			if err := r.Update(ctx, &applicationSetInfo); err != nil {
+				return ctrl.Result{}, err
 			}
 		}
 		return ctrl.Result{}, nil
@@ -126,18 +124,20 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	// Log a warning if there are unrecognized generators
 	_ = utils.CheckInvalidGenerators(&applicationSetInfo)
 	// desiredApplications is the main list of all expected Applications from all generators in this appset.
-	desiredApplications, applicationSetReason, err := r.generateApplications(logCtx, applicationSetInfo)
-	if err != nil {
+	desiredApplications, applicationSetReason, generatorsErr := r.generateApplications(logCtx, applicationSetInfo)
+	if generatorsErr != nil {
 		_ = r.setApplicationSetStatusCondition(ctx,
 			&applicationSetInfo,
 			argov1alpha1.ApplicationSetCondition{
 				Type:    argov1alpha1.ApplicationSetConditionErrorOccurred,
-				Message: err.Error(),
+				Message: generatorsErr.Error(),
 				Reason:  string(applicationSetReason),
 				Status:  argov1alpha1.ApplicationSetConditionStatusTrue,
 			}, parametersGenerated,
 		)
-		return ctrl.Result{}, err
+		if len(desiredApplications) < 1 {
+			return ctrl.Result{}, generatorsErr
+		}
 	}
 
 	parametersGenerated = true
@@ -311,7 +311,7 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 
 	requeueAfter := r.getMinRequeueAfter(&applicationSetInfo)
 
-	if len(validateErrors) == 0 {
+	if len(validateErrors) == 0 && generatorsErr == nil {
 		if err := r.setApplicationSetStatusCondition(ctx,
 			&applicationSetInfo,
 			argov1alpha1.ApplicationSetCondition{

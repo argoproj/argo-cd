@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	log "github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/client-go/tools/cache"
@@ -82,6 +83,15 @@ func YamlToUnstructured(yamlStr string) *unstructured.Unstructured {
 		panic(err)
 	}
 	return &unstructured.Unstructured{Object: obj}
+}
+
+func YamlToApplication(yamlStr string) *v1alpha1.Application {
+	app := v1alpha1.Application{}
+	err := yaml.Unmarshal([]byte(yamlStr), &app)
+	if err != nil {
+		panic(err)
+	}
+	return &app
 }
 
 // ToMap converts any object to a map[string]interface{}
