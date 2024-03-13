@@ -8,7 +8,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 
 	azureMock "github.com/argoproj/argo-cd/v2/applicationset/services/scm_provider/azure_devops/git/mocks"
 	"github.com/microsoft/azure-devops-go-api/azuredevops"
@@ -16,7 +16,7 @@ import (
 )
 
 func s(input string) *string {
-	return pointer.String(input)
+	return ptr.To(input)
 }
 
 func TestAzureDevopsRepoHasPath(t *testing.T) {
