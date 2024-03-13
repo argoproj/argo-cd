@@ -151,8 +151,17 @@ func ParseDurationFromEnv(env string, defaultValue, min, max time.Duration) time
 	return dur
 }
 
-func StringFromEnv(env string, defaultValue string) string {
-	if str := os.Getenv(env); str != "" {
+type StringFromEnvOpts struct {
+	// AllowEmpty allows the value to be empty as long as the environment variable is set.
+	AllowEmpty bool
+}
+
+func StringFromEnv(env string, defaultValue string, opts ...StringFromEnvOpts) string {
+	opt := StringFromEnvOpts{}
+	for _, o := range opts {
+		opt.AllowEmpty = opt.AllowEmpty || o.AllowEmpty
+	}
+	if str, ok := os.LookupEnv(env); opt.AllowEmpty && ok || str != "" {
 		return str
 	}
 	return defaultValue
@@ -185,4 +194,31 @@ func ParseBoolFromEnv(envVar string, defaultValue bool) bool {
 		}
 	}
 	return defaultValue
+}
+
+// ParseStringToStringVar parses given value from the environment as a map of string.
+// Returns default value if envVar is not set.
+func ParseStringToStringFromEnv(envVar string, defaultValue map[string]string, seperator string) map[string]string {
+	str := os.Getenv(envVar)
+	str = strings.TrimSpace(str)
+	if str == "" {
+		return defaultValue
+	}
+
+	parsed := make(map[string]string)
+	for _, pair := range strings.Split(str, seperator) {
+		keyvalue := strings.Split(pair, "=")
+		if len(keyvalue) != 2 {
+			log.Warnf("Invalid key-value pair when parsing environment '%s' as a string map", str)
+			return defaultValue
+		}
+		key := strings.TrimSpace(keyvalue[0])
+		value := strings.TrimSpace(keyvalue[1])
+		if _, ok := parsed[key]; ok {
+			log.Warnf("Duplicate key '%s' when parsing environment '%s' as a string map", key, str)
+			return defaultValue
+		}
+		parsed[key] = value
+	}
+	return parsed
 }

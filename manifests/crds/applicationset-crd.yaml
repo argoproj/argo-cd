@@ -244,6 +244,10 @@ spec:
                                           additionalProperties:
                                             type: string
                                           type: object
+                                        components:
+                                          items:
+                                            type: string
+                                          type: array
                                         forceCommonAnnotations:
                                           type: boolean
                                         forceCommonLabels:
@@ -252,6 +256,8 @@ spec:
                                           items:
                                             type: string
                                           type: array
+                                        labelWithoutSelector:
+                                          type: boolean
                                         namePrefix:
                                           type: string
                                         nameSuffix:
@@ -454,6 +460,10 @@ spec:
                                             additionalProperties:
                                               type: string
                                             type: object
+                                          components:
+                                            items:
+                                              type: string
+                                            type: array
                                           forceCommonAnnotations:
                                             type: boolean
                                           forceCommonLabels:
@@ -462,6 +472,8 @@ spec:
                                             items:
                                               type: string
                                             type: array
+                                          labelWithoutSelector:
+                                            type: boolean
                                           namePrefix:
                                             type: string
                                           nameSuffix:
@@ -823,6 +835,10 @@ spec:
                                           additionalProperties:
                                             type: string
                                           type: object
+                                        components:
+                                          items:
+                                            type: string
+                                          type: array
                                         forceCommonAnnotations:
                                           type: boolean
                                         forceCommonLabels:
@@ -831,6 +847,8 @@ spec:
                                           items:
                                             type: string
                                           type: array
+                                        labelWithoutSelector:
+                                          type: boolean
                                         namePrefix:
                                           type: string
                                         nameSuffix:
@@ -1033,6 +1051,10 @@ spec:
                                             additionalProperties:
                                               type: string
                                             type: object
+                                          components:
+                                            items:
+                                              type: string
+                                            type: array
                                           forceCommonAnnotations:
                                             type: boolean
                                           forceCommonLabels:
@@ -1041,6 +1063,8 @@ spec:
                                             items:
                                               type: string
                                             type: array
+                                          labelWithoutSelector:
+                                            type: boolean
                                           namePrefix:
                                             type: string
                                           nameSuffix:
@@ -1406,6 +1430,10 @@ spec:
                                           additionalProperties:
                                             type: string
                                           type: object
+                                        components:
+                                          items:
+                                            type: string
+                                          type: array
                                         forceCommonAnnotations:
                                           type: boolean
                                         forceCommonLabels:
@@ -1414,6 +1442,8 @@ spec:
                                           items:
                                             type: string
                                           type: array
+                                        labelWithoutSelector:
+                                          type: boolean
                                         namePrefix:
                                           type: string
                                         nameSuffix:
@@ -1616,6 +1646,10 @@ spec:
                                             additionalProperties:
                                               type: string
                                             type: object
+                                          components:
+                                            items:
+                                              type: string
+                                            type: array
                                           forceCommonAnnotations:
                                             type: boolean
                                           forceCommonLabels:
@@ -1624,6 +1658,8 @@ spec:
                                             items:
                                               type: string
                                             type: array
+                                          labelWithoutSelector:
+                                            type: boolean
                                           namePrefix:
                                             type: string
                                           nameSuffix:
@@ -1969,6 +2005,10 @@ spec:
                                           additionalProperties:
                                             type: string
                                           type: object
+                                        components:
+                                          items:
+                                            type: string
+                                          type: array
                                         forceCommonAnnotations:
                                           type: boolean
                                         forceCommonLabels:
@@ -1977,6 +2017,8 @@ spec:
                                           items:
                                             type: string
                                           type: array
+                                        labelWithoutSelector:
+                                          type: boolean
                                         namePrefix:
                                           type: string
                                         nameSuffix:
@@ -2179,6 +2221,10 @@ spec:
                                             additionalProperties:
                                               type: string
                                             type: object
+                                          components:
+                                            items:
+                                              type: string
+                                            type: array
                                           forceCommonAnnotations:
                                             type: boolean
                                           forceCommonLabels:
@@ -2187,6 +2233,8 @@ spec:
                                             items:
                                               type: string
                                             type: array
+                                          labelWithoutSelector:
+                                            type: boolean
                                           namePrefix:
                                             type: string
                                           nameSuffix:
@@ -2556,6 +2604,10 @@ spec:
                                                     additionalProperties:
                                                       type: string
                                                     type: object
+                                                  components:
+                                                    items:
+                                                      type: string
+                                                    type: array
                                                   forceCommonAnnotations:
                                                     type: boolean
                                                   forceCommonLabels:
@@ -2564,6 +2616,8 @@ spec:
                                                     items:
                                                       type: string
                                                     type: array
+                                                  labelWithoutSelector:
+                                                    type: boolean
                                                   namePrefix:
                                                     type: string
                                                   nameSuffix:
@@ -2766,6 +2820,10 @@ spec:
                                                       additionalProperties:
                                                         type: string
                                                       type: object
+                                                    components:
+                                                      items:
+                                                        type: string
+                                                      type: array
                                                     forceCommonAnnotations:
                                                       type: boolean
                                                     forceCommonLabels:
@@ -2774,6 +2832,8 @@ spec:
                                                       items:
                                                         type: string
                                                       type: array
+                                                    labelWithoutSelector:
+                                                      type: boolean
                                                     namePrefix:
                                                       type: string
                                                     nameSuffix:
@@ -3135,6 +3195,10 @@ spec:
                                                     additionalProperties:
                                                       type: string
                                                     type: object
+                                                  components:
+                                                    items:
+                                                      type: string
+                                                    type: array
                                                   forceCommonAnnotations:
                                                     type: boolean
                                                   forceCommonLabels:
@@ -3143,6 +3207,8 @@ spec:
                                                     items:
                                                       type: string
                                                     type: array
+                                                  labelWithoutSelector:
+                                                    type: boolean
                                                   namePrefix:
                                                     type: string
                                                   nameSuffix:
@@ -3345,6 +3411,10 @@ spec:
                                                       additionalProperties:
                                                         type: string
                                                       type: object
+                                                    components:
+                                                      items:
+                                                        type: string
+                                                      type: array
                                                     forceCommonAnnotations:
                                                       type: boolean
                                                     forceCommonLabels:
@@ -3353,6 +3423,8 @@ spec:
                                                       items:
                                                         type: string
                                                       type: array
+                                                    labelWithoutSelector:
+                                                      type: boolean
                                                     namePrefix:
                                                       type: string
                                                     nameSuffix:
@@ -3718,6 +3790,10 @@ spec:
                                                     additionalProperties:
                                                       type: string
                                                     type: object
+                                                  components:
+                                                    items:
+                                                      type: string
+                                                    type: array
                                                   forceCommonAnnotations:
                                                     type: boolean
                                                   forceCommonLabels:
@@ -3726,6 +3802,8 @@ spec:
                                                     items:
                                                       type: string
                                                     type: array
+                                                  labelWithoutSelector:
+                                                    type: boolean
                                                   namePrefix:
                                                     type: string
                                                   nameSuffix:
@@ -3928,6 +4006,10 @@ spec:
                                                       additionalProperties:
                                                         type: string
                                                       type: object
+                                                    components:
+                                                      items:
+                                                        type: string
+                                                      type: array
                                                     forceCommonAnnotations:
                                                       type: boolean
                                                     forceCommonLabels:
@@ -3936,6 +4018,8 @@ spec:
                                                       items:
                                                         type: string
                                                       type: array
+                                                    labelWithoutSelector:
+                                                      type: boolean
                                                     namePrefix:
                                                       type: string
                                                     nameSuffix:
@@ -4281,6 +4365,10 @@ spec:
                                                     additionalProperties:
                                                       type: string
                                                     type: object
+                                                  components:
+                                                    items:
+                                                      type: string
+                                                    type: array
                                                   forceCommonAnnotations:
                                                     type: boolean
                                                   forceCommonLabels:
@@ -4289,6 +4377,8 @@ spec:
                                                     items:
                                                       type: string
                                                     type: array
+                                                  labelWithoutSelector:
+                                                    type: boolean
                                                   namePrefix:
                                                     type: string
                                                   nameSuffix:
@@ -4491,6 +4581,10 @@ spec:
                                                       additionalProperties:
                                                         type: string
                                                       type: object
+                                                    components:
+                                                      items:
+                                                        type: string
+                                                      type: array
                                                     forceCommonAnnotations:
                                                       type: boolean
                                                     forceCommonLabels:
@@ -4499,6 +4593,8 @@ spec:
                                                       items:
                                                         type: string
                                                       type: array
+                                                    labelWithoutSelector:
+                                                      type: boolean
                                                     namePrefix:
                                                       type: string
                                                     nameSuffix:
@@ -4854,6 +4950,10 @@ spec:
                                                     additionalProperties:
                                                       type: string
                                                     type: object
+                                                  components:
+                                                    items:
+                                                      type: string
+                                                    type: array
                                                   forceCommonAnnotations:
                                                     type: boolean
                                                   forceCommonLabels:
@@ -4862,6 +4962,8 @@ spec:
                                                     items:
                                                       type: string
                                                     type: array
+                                                  labelWithoutSelector:
+                                                    type: boolean
                                                   namePrefix:
                                                     type: string
                                                   nameSuffix:
@@ -5064,6 +5166,10 @@ spec:
                                                       additionalProperties:
                                                         type: string
                                                       type: object
+                                                    components:
+                                                      items:
+                                                        type: string
+                                                      type: array
                                                     forceCommonAnnotations:
                                                       type: boolean
                                                     forceCommonLabels:
@@ -5072,6 +5178,8 @@ spec:
                                                       items:
                                                         type: string
                                                       type: array
+                                                    labelWithoutSelector:
+                                                      type: boolean
                                                     namePrefix:
                                                       type: string
                                                     nameSuffix:
@@ -5607,6 +5715,10 @@ spec:
                                                     additionalProperties:
                                                       type: string
                                                     type: object
+                                                  components:
+                                                    items:
+                                                      type: string
+                                                    type: array
                                                   forceCommonAnnotations:
                                                     type: boolean
                                                   forceCommonLabels:
@@ -5615,6 +5727,8 @@ spec:
                                                     items:
                                                       type: string
                                                     type: array
+                                                  labelWithoutSelector:
+                                                    type: boolean
                                                   namePrefix:
                                                     type: string
                                                   nameSuffix:
@@ -5817,6 +5931,10 @@ spec:
                                                       additionalProperties:
                                                         type: string
                                                       type: object
+                                                    components:
+                                                      items:
+                                                        type: string
+                                                      type: array
                                                     forceCommonAnnotations:
                                                       type: boolean
                                                     forceCommonLabels:
@@ -5825,6 +5943,8 @@ spec:
                                                       items:
                                                         type: string
                                                       type: array
+                                                    labelWithoutSelector:
+                                                      type: boolean
                                                     namePrefix:
                                                       type: string
                                                     nameSuffix:
@@ -6355,6 +6475,10 @@ spec:
                                                     additionalProperties:
                                                       type: string
                                                     type: object
+                                                  components:
+                                                    items:
+                                                      type: string
+                                                    type: array
                                                   forceCommonAnnotations:
                                                     type: boolean
                                                   forceCommonLabels:
@@ -6363,6 +6487,8 @@ spec:
                                                     items:
                                                       type: string
                                                     type: array
+                                                  labelWithoutSelector:
+                                                    type: boolean
                                                   namePrefix:
                                                     type: string
                                                   nameSuffix:
@@ -6565,6 +6691,10 @@ spec:
                                                       additionalProperties:
                                                         type: string
                                                       type: object
+                                                    components:
+                                                      items:
+                                                        type: string
+                                                      type: array
                                                     forceCommonAnnotations:
                                                       type: boolean
                                                     forceCommonLabels:
@@ -6573,6 +6703,8 @@ spec:
                                                       items:
                                                         type: string
                                                       type: array
+                                                    labelWithoutSelector:
+                                                      type: boolean
                                                     namePrefix:
                                                       type: string
                                                     nameSuffix:
@@ -6932,6 +7064,10 @@ spec:
                                           additionalProperties:
                                             type: string
                                           type: object
+                                        components:
+                                          items:
+                                            type: string
+                                          type: array
                                         forceCommonAnnotations:
                                           type: boolean
                                         forceCommonLabels:
@@ -6940,6 +7076,8 @@ spec:
                                           items:
                                             type: string
                                           type: array
+                                        labelWithoutSelector:
+                                          type: boolean
                                         namePrefix:
                                           type: string
                                         nameSuffix:
@@ -7142,6 +7280,10 @@ spec:
                                             additionalProperties:
                                               type: string
                                             type: object
+                                          components:
+                                            items:
+                                              type: string
+                                            type: array
                                           forceCommonAnnotations:
                                             type: boolean
                                           forceCommonLabels:
@@ -7150,6 +7292,8 @@ spec:
                                             items:
                                               type: string
                                             type: array
+                                          labelWithoutSelector:
+                                            type: boolean
                                           namePrefix:
                                             type: string
                                           nameSuffix:
@@ -7519,6 +7663,10 @@ spec:
                                                     additionalProperties:
                                                       type: string
                                                     type: object
+                                                  components:
+                                                    items:
+                                                      type: string
+                                                    type: array
                                                   forceCommonAnnotations:
                                                     type: boolean
                                                   forceCommonLabels:
@@ -7527,6 +7675,8 @@ spec:
                                                     items:
                                                       type: string
                                                     type: array
+                                                  labelWithoutSelector:
+                                                    type: boolean
                                                   namePrefix:
                                                     type: string
                                                   nameSuffix:
@@ -7729,6 +7879,10 @@ spec:
                                                       additionalProperties:
                                                         type: string
                                                       type: object
+                                                    components:
+                                                      items:
+                                                        type: string
+                                                      type: array
                                                     forceCommonAnnotations:
                                                       type: boolean
                                                     forceCommonLabels:
@@ -7737,6 +7891,8 @@ spec:
                                                       items:
                                                         type: string
                                                       type: array
+                                                    labelWithoutSelector:
+                                                      type: boolean
                                                     namePrefix:
                                                       type: string
                                                     nameSuffix:
@@ -8098,6 +8254,10 @@ spec:
                                                     additionalProperties:
                                                       type: string
                                                     type: object
+                                                  components:
+                                                    items:
+                                                      type: string
+                                                    type: array
                                                   forceCommonAnnotations:
                                                     type: boolean
                                                   forceCommonLabels:
@@ -8106,6 +8266,8 @@ spec:
                                                     items:
                                                       type: string
                                                     type: array
+                                                  labelWithoutSelector:
+                                                    type: boolean
                                                   namePrefix:
                                                     type: string
                                                   nameSuffix:
@@ -8308,6 +8470,10 @@ spec:
                                                       additionalProperties:
                                                         type: string
                                                       type: object
+                                                    components:
+                                                      items:
+                                                        type: string
+                                                      type: array
                                                     forceCommonAnnotations:
                                                       type: boolean
                                                     forceCommonLabels:
@@ -8316,6 +8482,8 @@ spec:
                                                       items:
                                                         type: string
                                                       type: array
+                                                    labelWithoutSelector:
+                                                      type: boolean
                                                     namePrefix:
                                                       type: string
                                                     nameSuffix:
@@ -8681,6 +8849,10 @@ spec:
                                                     additionalProperties:
                                                       type: string
                                                     type: object
+                                                  components:
+                                                    items:
+                                                      type: string
+                                                    type: array
                                                   forceCommonAnnotations:
                                                     type: boolean
                                                   forceCommonLabels:
@@ -8689,6 +8861,8 @@ spec:
                                                     items:
                                                       type: string
                                                     type: array
+                                                  labelWithoutSelector:
+                                                    type: boolean
                                                   namePrefix:
                                                     type: string
                                                   nameSuffix:
@@ -8891,6 +9065,10 @@ spec:
                                                       additionalProperties:
                                                         type: string
                                                       type: object
+                                                    components:
+                                                      items:
+                                                        type: string
+                                                      type: array
                                                     forceCommonAnnotations:
                                                       type: boolean
                                                     forceCommonLabels:
@@ -8899,6 +9077,8 @@ spec:
                                                       items:
                                                         type: string
                                                       type: array
+                                                    labelWithoutSelector:
+                                                      type: boolean
                                                     namePrefix:
                                                       type: string
                                                     nameSuffix:
@@ -9244,6 +9424,10 @@ spec:
                                                     additionalProperties:
                                                       type: string
                                                     type: object
+                                                  components:
+                                                    items:
+                                                      type: string
+                                                    type: array
                                                   forceCommonAnnotations:
                                                     type: boolean
                                                   forceCommonLabels:
@@ -9252,6 +9436,8 @@ spec:
                                                     items:
                                                       type: string
                                                     type: array
+                                                  labelWithoutSelector:
+                                                    type: boolean
                                                   namePrefix:
                                                     type: string
                                                   nameSuffix:
@@ -9454,6 +9640,10 @@ spec:
                                                       additionalProperties:
                                                         type: string
                                                       type: object
+                                                    components:
+                                                      items:
+                                                        type: string
+                                                      type: array
                                                     forceCommonAnnotations:
                                                       type: boolean
                                                     forceCommonLabels:
@@ -9462,6 +9652,8 @@ spec:
                                                       items:
                                                         type: string
                                                       type: array
+                                                    labelWithoutSelector:
+                                                      type: boolean
                                                     namePrefix:
                                                       type: string
                                                     nameSuffix:
@@ -9817,6 +10009,10 @@ spec:
                                                     additionalProperties:
                                                       type: string
                                                     type: object
+                                                  components:
+                                                    items:
+                                                      type: string
+                                                    type: array
                                                   forceCommonAnnotations:
                                                     type: boolean
                                                   forceCommonLabels:
@@ -9825,6 +10021,8 @@ spec:
                                                     items:
                                                       type: string
                                                     type: array
+                                                  labelWithoutSelector:
+                                                    type: boolean
                                                   namePrefix:
                                                     type: string
                                                   nameSuffix:
@@ -10027,6 +10225,10 @@ spec:
                                                       additionalProperties:
                                                         type: string
                                                       type: object
+                                                    components:
+                                                      items:
+                                                        type: string
+                                                      type: array
                                                     forceCommonAnnotations:
                                                       type: boolean
                                                     forceCommonLabels:
@@ -10035,6 +10237,8 @@ spec:
                                                       items:
                                                         type: string
                                                       type: array
+                                                    labelWithoutSelector:
+                                                      type: boolean
                                                     namePrefix:
                                                       type: string
                                                     nameSuffix:
@@ -10570,6 +10774,10 @@ spec:
                                                     additionalProperties:
                                                       type: string
                                                     type: object
+                                                  components:
+                                                    items:
+                                                      type: string
+                                                    type: array
                                                   forceCommonAnnotations:
                                                     type: boolean
                                                   forceCommonLabels:
@@ -10578,6 +10786,8 @@ spec:
                                                     items:
                                                       type: string
                                                     type: array
+                                                  labelWithoutSelector:
+                                                    type: boolean
                                                   namePrefix:
                                                     type: string
                                                   nameSuffix:
@@ -10780,6 +10990,10 @@ spec:
                                                       additionalProperties:
                                                         type: string
                                                       type: object
+                                                    components:
+                                                      items:
+                                                        type: string
+                                                      type: array
                                                     forceCommonAnnotations:
                                                       type: boolean
                                                     forceCommonLabels:
@@ -10788,6 +11002,8 @@ spec:
                                                       items:
                                                         type: string
                                                       type: array
+                                                    labelWithoutSelector:
+                                                      type: boolean
                                                     namePrefix:
                                                       type: string
                                                     nameSuffix:
@@ -11318,6 +11534,10 @@ spec:
                                                     additionalProperties:
                                                       type: string
                                                     type: object
+                                                  components:
+                                                    items:
+                                                      type: string
+                                                    type: array
                                                   forceCommonAnnotations:
                                                     type: boolean
                                                   forceCommonLabels:
@@ -11326,6 +11546,8 @@ spec:
                                                     items:
                                                       type: string
                                                     type: array
+                                                  labelWithoutSelector:
+                                                    type: boolean
                                                   namePrefix:
                                                     type: string
                                                   nameSuffix:
@@ -11528,6 +11750,10 @@ spec:
                                                       additionalProperties:
                                                         type: string
                                                       type: object
+                                                    components:
+                                                      items:
+                                                        type: string
+                                                      type: array
                                                     forceCommonAnnotations:
                                                       type: boolean
                                                     forceCommonLabels:
@@ -11536,6 +11762,8 @@ spec:
                                                       items:
                                                         type: string
                                                       type: array
+                                                    labelWithoutSelector:
+                                                      type: boolean
                                                     namePrefix:
                                                       type: string
                                                     nameSuffix:
@@ -11899,6 +12127,10 @@ spec:
                                           additionalProperties:
                                             type: string
                                           type: object
+                                        components:
+                                          items:
+                                            type: string
+                                          type: array
                                         forceCommonAnnotations:
                                           type: boolean
                                         forceCommonLabels:
@@ -11907,6 +12139,8 @@ spec:
                                           items:
                                             type: string
                                           type: array
+                                        labelWithoutSelector:
+                                          type: boolean
                                         namePrefix:
                                           type: string
                                         nameSuffix:
@@ -12109,6 +12343,10 @@ spec:
                                             additionalProperties:
                                               type: string
                                             type: object
+                                          components:
+                                            items:
+                                              type: string
+                                            type: array
                                           forceCommonAnnotations:
                                             type: boolean
                                           forceCommonLabels:
@@ -12117,6 +12355,8 @@ spec:
                                             items:
                                               type: string
                                             type: array
+                                          labelWithoutSelector:
+                                            type: boolean
                                           namePrefix:
                                             type: string
                                           nameSuffix:
@@ -12469,6 +12709,10 @@ spec:
                                           additionalProperties:
                                             type: string
                                           type: object
+                                        components:
+                                          items:
+                                            type: string
+                                          type: array
                                         forceCommonAnnotations:
                                           type: boolean
                                         forceCommonLabels:
@@ -12477,6 +12721,8 @@ spec:
                                           items:
                                             type: string
                                           type: array
+                                        labelWithoutSelector:
+                                          type: boolean
                                         namePrefix:
                                           type: string
                                         nameSuffix:
@@ -12679,6 +12925,10 @@ spec:
                                             additionalProperties:
                                               type: string
                                             type: object
+                                          components:
+                                            items:
+                                              type: string
+                                            type: array
                                           forceCommonAnnotations:
                                             type: boolean
                                           forceCommonLabels:
@@ -12687,6 +12937,8 @@ spec:
                                             items:
                                               type: string
                                             type: array
+                                          labelWithoutSelector:
+                                            type: boolean
                                           namePrefix:
                                             type: string
                                           nameSuffix:
@@ -13222,6 +13474,10 @@ spec:
                                           additionalProperties:
                                             type: string
                                           type: object
+                                        components:
+                                          items:
+                                            type: string
+                                          type: array
                                         forceCommonAnnotations:
                                           type: boolean
                                         forceCommonLabels:
@@ -13230,6 +13486,8 @@ spec:
                                           items:
                                             type: string
                                           type: array
+                                        labelWithoutSelector:
+                                          type: boolean
                                         namePrefix:
                                           type: string
                                         nameSuffix:
@@ -13432,6 +13690,10 @@ spec:
                                             additionalProperties:
                                               type: string
                                             type: object
+                                          components:
+                                            items:
+                                              type: string
+                                            type: array
                                           forceCommonAnnotations:
                                             type: boolean
                                           forceCommonLabels:
@@ -13440,6 +13702,8 @@ spec:
                                             items:
                                               type: string
                                             type: array
+                                          labelWithoutSelector:
+                                            type: boolean
                                           namePrefix:
                                             type: string
                                           nameSuffix:
@@ -13970,6 +14234,10 @@ spec:
                                           additionalProperties:
                                             type: string
                                           type: object
+                                        components:
+                                          items:
+                                            type: string
+                                          type: array
                                         forceCommonAnnotations:
                                           type: boolean
                                         forceCommonLabels:
@@ -13978,6 +14246,8 @@ spec:
                                           items:
                                             type: string
                                           type: array
+                                        labelWithoutSelector:
+                                          type: boolean
                                         namePrefix:
                                           type: string
                                         nameSuffix:
@@ -14180,6 +14450,10 @@ spec:
                                             additionalProperties:
                                               type: string
                                             type: object
+                                          components:
+                                            items:
+                                              type: string
+                                            type: array
                                           forceCommonAnnotations:
                                             type: boolean
                                           forceCommonLabels:
@@ -14188,6 +14462,8 @@ spec:
                                             items:
                                               type: string
                                             type: array
+                                          labelWithoutSelector:
+                                            type: boolean
                                           namePrefix:
                                             type: string
                                           nameSuffix:
@@ -14622,6 +14898,10 @@ spec:
                                 additionalProperties:
                                   type: string
                                 type: object
+                              components:
+                                items:
+                                  type: string
+                                type: array
                               forceCommonAnnotations:
                                 type: boolean
                               forceCommonLabels:
@@ -14630,6 +14910,8 @@ spec:
                                 items:
                                   type: string
                                 type: array
+                              labelWithoutSelector:
+                                type: boolean
                               namePrefix:
                                 type: string
                               nameSuffix:
@@ -14832,6 +15114,10 @@ spec:
                                   additionalProperties:
                                     type: string
                                   type: object
+                                components:
+                                  items:
+                                    type: string
+                                  type: array
                                 forceCommonAnnotations:
                                   type: boolean
                                 forceCommonLabels:
@@ -14840,6 +15126,8 @@ spec:
                                   items:
                                     type: string
                                   type: array
+                                labelWithoutSelector:
+                                  type: boolean
                                 namePrefix:
                                   type: string
                                 nameSuffix:
@@ -14991,6 +15279,8 @@ spec:
                 - metadata
                 - spec
                 type: object
+              templatePatch:
+                type: string
             required:
             - generators
             - template

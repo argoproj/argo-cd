@@ -29,7 +29,7 @@ The app will be out of sync if Argo CD expects a resource to be pruned. You may 
 
 ## Disable Kubectl Validation
 
-For a certain class of objects, it is necessary to `kubectl apply` them using the `--validate=false` flag. Examples of this are kubernetes types which uses `RawExtension`, such as [ServiceCatalog](https://github.com/kubernetes-incubator/service-catalog/blob/master/pkg/apis/servicecatalog/v1beta1/types.go#L497). You can do using this annotations:
+For a certain class of objects, it is necessary to `kubectl apply` them using the `--validate=false` flag. Examples of this are Kubernetes types which uses `RawExtension`, such as [ServiceCatalog](https://github.com/kubernetes-incubator/service-catalog/blob/master/pkg/apis/servicecatalog/v1beta1/types.go#L497). You can do using this annotations:
 
 
 ```yaml
@@ -270,7 +270,7 @@ spec:
     - RespectIgnoreDifferences=true
 ```
 
-The example above shows how an Argo CD Application can be configured so it will ignore the `spec.replicas` field from the desired state (git) during the sync stage. This is achieve by calculating and pre-patching the desired state before applying it in the cluster. Note that the `RespectIgnoreDifferences` sync option is only effective when the resource is already created in the cluster. If the Application is being created and no live state exists, the desired state is applied as-is.
+The example above shows how an Argo CD Application can be configured so it will ignore the `spec.replicas` field from the desired state (git) during the sync stage. This is achieved by calculating and pre-patching the desired state before applying it in the cluster. Note that the `RespectIgnoreDifferences` sync option is only effective when the resource is already created in the cluster. If the Application is being created and no live state exists, the desired state is applied as-is.
 
 ## Create Namespace
 

@@ -35,6 +35,8 @@ kind: ApplicationSet
 metadata:
   name: myapps
 spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
   generators:
   - scmProvider:
       gitea:
@@ -70,7 +72,7 @@ data:
     The allow-list only applies to SCM providers for which the user may configure a custom `api`. Where an SCM or PR
     generator does not accept a custom API URL, the provider is implicitly allowed.
 
-If you do not intend to allow users to use the SCM or PR generators, you can disable them entirely by setting the environment variable `ARGOCD_APPLICATIONSET_CONTROLLER_ALLOW_SCM_PROVIDERS` to argocd-cmd-params-cm `applicationsetcontroller.allow.scm.providers` to `false`.
+If you do not intend to allow users to use the SCM or PR generators, you can disable them entirely by setting the environment variable `ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_SCM_PROVIDERS` to argocd-cmd-params-cm `applicationsetcontroller.enable.scm.providers` to `false`.
 
 ### Overview
 
@@ -137,17 +139,19 @@ metadata:
   name: team-one-product-one
   namespace: team-one-cd
 spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
   generators:
     list:
-    - id: infra
+    - name: infra
       project: infra-project
-    - id: team-two
+    - name: team-two
       project: team-two-project
-    template:
-      metadata:
-        name: '{{name}}-escalation'
-      spec:
-        project: "{{project}}"
+  template:
+    metadata:
+      name: '{{.name}}-escalation'
+    spec:
+      project: "{{.project}}"
 ```
   
 ### ApplicationSet names

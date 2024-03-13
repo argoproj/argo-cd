@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"k8s.io/utils/pointer"
 )
 
 func TestParseNumFromEnv(t *testing.T) {
@@ -167,19 +168,25 @@ func TestStringFromEnv(t *testing.T) {
 
 	testCases := []struct {
 		name     string
-		env      string
+		env      *string
 		expected string
 		def      string
+		opts     []StringFromEnvOpts
 	}{
-		{"Some string", "true", "true", def},
-		{"Empty string with default", "", def, def},
-		{"Empty string without default", "", "", ""},
+		{"Some string", pointer.String("true"), "true", def, nil},
+		{"Empty string with default", pointer.String(""), def, def, nil},
+		{"Empty string without default", pointer.String(""), "", "", nil},
+		{"No env variable with default allow empty", nil, "default", "default", []StringFromEnvOpts{{AllowEmpty: true}}},
+		{"Some variable with default allow empty", pointer.String("true"), "true", "default", []StringFromEnvOpts{{AllowEmpty: true}}},
+		{"Empty variable with default allow empty", pointer.String(""), "", "default", []StringFromEnvOpts{{AllowEmpty: true}}},
 	}
 
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
-			t.Setenv(envKey, tt.env)
-			b := StringFromEnv(envKey, tt.def)
+			if tt.env != nil {
+				t.Setenv(envKey, *tt.env)
+			}
+			b := StringFromEnv(envKey, tt.def, tt.opts...)
 			assert.Equal(t, tt.expected, b)
 		})
 	}
@@ -207,6 +214,44 @@ func TestStringsFromEnv(t *testing.T) {
 			t.Setenv(envKey, tt.env)
 			ss := StringsFromEnv(envKey, tt.def, tt.sep)
 			assert.Equal(t, tt.expected, ss)
+		})
+	}
+}
+
+func TestParseStringToStringFromEnv(t *testing.T) {
+	envKey := "SOMEKEY"
+	def := map[string]string{}
+
+	testCases := []struct {
+		name     string
+		env      string
+		expected map[string]string
+		def      map[string]string
+		sep      string
+	}{
+		{"success, no key-value", "", map[string]string{}, def, ","},
+		{"success, one key, no value", "key1=", map[string]string{"key1": ""}, def, ","},
+		{"success, one key, no value, with spaces", "key1 = ", map[string]string{"key1": ""}, def, ","},
+		{"success, one pair", "key1=value1", map[string]string{"key1": "value1"}, def, ","},
+		{"success, one pair with spaces", "key1 = value1", map[string]string{"key1": "value1"}, def, ","},
+		{"success, one pair with spaces and no value", "key1 = ", map[string]string{"key1": ""}, def, ","},
+		{"success, two keys, no value", "key1=,key2=", map[string]string{"key1": "", "key2": ""}, def, ","},
+		{"success, two keys, no value, with spaces", "key1 = , key2 = ", map[string]string{"key1": "", "key2": ""}, def, ","},
+		{"success, two pairs", "key1=value1,key2=value2", map[string]string{"key1": "value1", "key2": "value2"}, def, ","},
+		{"success, two pairs with semicolon as seperator", "key1=value1;key2=value2", map[string]string{"key1": "value1", "key2": "value2"}, def, ";"},
+		{"success, two pairs with spaces", "key1 = value1, key2 = value2", map[string]string{"key1": "value1", "key2": "value2"}, def, ","},
+		{"failure, one key", "key1", map[string]string{}, def, ","},
+		{"failure, duplicate keys", "key1=value1,key1=value2", map[string]string{}, def, ","},
+		{"failure, one key ending with two successive equals to", "key1==", map[string]string{}, def, ","},
+		{"failure, one valid pair and invalid one key", "key1=value1,key2", map[string]string{}, def, ","},
+		{"failure, two valid pairs and invalid two keys", "key1=value1,key2=value2,key3,key4", map[string]string{}, def, ","},
+	}
+
+	for _, tt := range testCases {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Setenv(envKey, tt.env)
+			got := ParseStringToStringFromEnv(envKey, tt.def, tt.sep)
+			assert.Equal(t, tt.expected, got)
 		})
 	}
 }

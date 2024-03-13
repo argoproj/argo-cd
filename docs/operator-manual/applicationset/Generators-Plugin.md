@@ -22,6 +22,8 @@ kind: ApplicationSet
 metadata:
   name: myplugin
 spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
   generators:
     - plugin:
         # Specify the configMap where the plugin configuration is located.
@@ -51,10 +53,10 @@ spec:
     metadata:
       name: myplugin
       annotations:
-        example.from.input.parameters: "{{ generator.input.parameters.map.key1 }}"
-        example.from.values: "{{ values.value1 }}"
+        example.from.input.parameters: "{{ index .generator.input.parameters.map "key1" }}"
+        example.from.values: "{{ .values.value1 }}"
         # The plugin determines what else it produces.
-        example.from.plugin.output: "{{ something.from.the.plugin }}"
+        example.from.plugin.output: "{{ .something.from.the.plugin }}"
 ```
 
 - `configMapRef.name`: A `ConfigMap` name containing the plugin configuration to use for RPC call.
@@ -230,6 +232,7 @@ metadata:
   name: fb-matrix
 spec:
   goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
   generators:
     - matrix:
         generators:

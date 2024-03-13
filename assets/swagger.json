@@ -4462,6 +4462,9 @@
         "clientID": {
           "type": "string"
         },
+        "enablePKCEAuthentication": {
+          "type": "boolean"
+        },
         "idTokenClaims": {
           "type": "object",
           "additionalProperties": {
@@ -5661,6 +5664,10 @@
           "type": "string",
           "title": "ClusterName contains AWS cluster name"
         },
+        "profile": {
+          "description": "Profile contains optional role ARN. If set then AWS IAM Authenticator uses the profile to perform cluster operations instead of the default AWS credential provider chain.",
+          "type": "string"
+        },
         "roleARN": {
           "description": "RoleARN contains optional role ARN. If set then AWS IAM Authenticator assume a role to perform cluster operations instead of the default AWS credential provider chain.",
           "type": "string"
@@ -6140,6 +6147,9 @@
         },
         "template": {
           "$ref": "#/definitions/v1alpha1ApplicationSetTemplate"
+        },
+        "templatePatch": {
+          "type": "string"
         }
       }
     },
@@ -6392,6 +6402,13 @@
             "type": "string"
           }
         },
+        "components": {
+          "type": "array",
+          "title": "Components specifies a list of kustomize components to add to the kustomization before building",
+          "items": {
+            "type": "string"
+          }
+        },
         "forceCommonAnnotations": {
           "type": "boolean",
           "title": "ForceCommonAnnotations specifies whether to force applying common annotations to resources for Kustomize apps"
@@ -6406,6 +6423,10 @@
           "items": {
             "type": "string"
           }
+        },
+        "labelWithoutSelector": {
+          "type": "boolean",
+          "title": "LabelWithoutSelector specifies whether to apply common labels to resource selectors or not"
         },
         "namePrefix": {
           "type": "string",
@@ -8485,6 +8506,9 @@
           "type": "integer",
           "format": "int64",
           "title": "ID is an auto incrementing identifier of the RevisionHistory"
+        },
+        "initiatedBy": {
+          "$ref": "#/definitions/v1alpha1OperationInitiator"
         },
         "revision": {
           "type": "string",
