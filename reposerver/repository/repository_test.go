@@ -3421,6 +3421,7 @@ func TestGenerateManifestManagedByLabel(t *testing.T) {
 			"{\"apiVersion\":\"v1\",\"kind\":\"Namespace\",\"metadata\":{\"labels\":{\"app.kubernetes.io/managed-by\":\"argocd\"},\"name\":\"app\"}}",
 			res.Manifests[0])
 	})
+}
 
 func TestGetRevisionChartDetails(t *testing.T) {
 	t.Run("Test revision semvar", func(t *testing.T) {
