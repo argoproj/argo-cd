@@ -4,9 +4,9 @@ import (
     "fmt"
 	"testing"
 
+        "github.com/argoproj/argo-cd/v2/common"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
-	"github.com/argoproj/argo-cd/v2/common"
 )
 
 func TestCreateFormatter(t *testing.T) {
