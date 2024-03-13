@@ -2,7 +2,6 @@ package log
 
 import (
     "fmt"
-    "os"
 	"testing"
 
 	"github.com/sirupsen/logrus"
