@@ -24,6 +24,7 @@ argocd app unset APPNAME parameters [flags]
 ### Options
 
 ```
+  -N, --app-namespace string            Unset application parameters in namespace
   -h, --help                            help for unset
       --ignore-missing-value-files      Unset the helm ignore-missing-value-files option (revert to false)
       --kustomize-image stringArray     Kustomize images name (e.g. --kustomize-image node --kustomize-image mysql)

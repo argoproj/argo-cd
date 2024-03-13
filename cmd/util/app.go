@@ -68,6 +68,7 @@ type AppOptions struct {
 	kustomizeVersion                string
 	kustomizeCommonLabels           []string
 	kustomizeCommonAnnotations      []string
+	kustomizeLabelWithoutSelector   bool
 	kustomizeForceCommonLabels      bool
 	kustomizeForceCommonAnnotations bool
 	kustomizeNamespace              string
@@ -104,7 +105,7 @@ func AddAppFlags(command *cobra.Command, opts *AppOptions) {
 	command.Flags().StringArrayVar(&opts.helmSetFiles, "helm-set-file", []string{}, "Helm set values from respective files specified via the command line (can be repeated to set several values: --helm-set-file key1=path1 --helm-set-file key2=path2)")
 	command.Flags().BoolVar(&opts.helmSkipCrds, "helm-skip-crds", false, "Skip helm crd installation step")
 	command.Flags().StringVar(&opts.project, "project", "", "Application project name")
-	command.Flags().StringVar(&opts.syncPolicy, "sync-policy", "", "Set the sync policy (one of: none, automated (aliases of automated: auto, automatic))")
+	command.Flags().StringVar(&opts.syncPolicy, "sync-policy", "", "Set the sync policy (one of: manual (aliases of manual: none), automated (aliases of automated: auto, automatic))")
 	command.Flags().StringArrayVar(&opts.syncOptions, "sync-option", []string{}, "Add or remove a sync option, e.g add `Prune=false`. Remove using `!` prefix, e.g. `!Prune=false`")
 	command.Flags().BoolVar(&opts.autoPrune, "auto-prune", false, "Set automatic pruning when sync is automated")
 	command.Flags().BoolVar(&opts.selfHeal, "self-heal", false, "Set self healing when sync is automated")
@@ -125,6 +126,7 @@ func AddAppFlags(command *cobra.Command, opts *AppOptions) {
 	command.Flags().BoolVar(&opts.Validate, "validate", true, "Validation of repo and cluster")
 	command.Flags().StringArrayVar(&opts.kustomizeCommonLabels, "kustomize-common-label", []string{}, "Set common labels in Kustomize")
 	command.Flags().StringArrayVar(&opts.kustomizeCommonAnnotations, "kustomize-common-annotation", []string{}, "Set common labels in Kustomize")
+	command.Flags().BoolVar(&opts.kustomizeLabelWithoutSelector, "kustomize-label-without-selector", false, "Do not apply common label to selectors or templates")
 	command.Flags().BoolVar(&opts.kustomizeForceCommonLabels, "kustomize-force-common-label", false, "Force common labels in Kustomize")
 	command.Flags().BoolVar(&opts.kustomizeForceCommonAnnotations, "kustomize-force-common-annotation", false, "Force common annotations in Kustomize")
 	command.Flags().StringVar(&opts.kustomizeNamespace, "kustomize-namespace", "", "Kustomize namespace")
@@ -164,7 +166,7 @@ func SetAppSpecOptions(flags *pflag.FlagSet, spec *argoappv1.ApplicationSpec, ap
 			spec.Project = appOpts.project
 		case "sync-policy":
 			switch appOpts.syncPolicy {
-			case "none":
+			case "none", "manual":
 				if spec.SyncPolicy != nil {
 					spec.SyncPolicy.Automated = nil
 				}
@@ -250,6 +252,7 @@ type kustomizeOpts struct {
 	version                string
 	commonLabels           map[string]string
 	commonAnnotations      map[string]string
+	labelWithoutSelector   bool
 	forceCommonLabels      bool
 	forceCommonAnnotations bool
 	namespace              string
@@ -276,6 +279,9 @@ func setKustomizeOpt(src *argoappv1.ApplicationSource, opts kustomizeOpts) {
 	}
 	if opts.commonAnnotations != nil {
 		src.Kustomize.CommonAnnotations = opts.commonAnnotations
+	}
+	if opts.labelWithoutSelector {
+		src.Kustomize.LabelWithoutSelector = opts.labelWithoutSelector
 	}
 	if opts.forceCommonLabels {
 		src.Kustomize.ForceCommonLabels = opts.forceCommonLabels
@@ -651,6 +657,8 @@ func ConstructSource(source *argoappv1.ApplicationSource, appOpts AppOptions, fl
 			parsedAnnotations, err := label.Parse(appOpts.kustomizeCommonAnnotations)
 			errors.CheckError(err)
 			setKustomizeOpt(source, kustomizeOpts{commonAnnotations: parsedAnnotations})
+		case "kustomize-label-without-selector":
+			setKustomizeOpt(source, kustomizeOpts{labelWithoutSelector: appOpts.kustomizeLabelWithoutSelector})
 		case "kustomize-force-common-label":
 			setKustomizeOpt(source, kustomizeOpts{forceCommonLabels: appOpts.kustomizeForceCommonLabels})
 		case "kustomize-force-common-annotation":
