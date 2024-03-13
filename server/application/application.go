@@ -149,7 +149,7 @@ func (s *Server) List(ctx context.Context, q *application.ApplicationQuery) (*ap
 		return nil, fmt.Errorf("error filtering applications by name: %w", err)
 	}
 
-	// Filter applications by project
+	// Filter applications by projects
 	newItems = argoutil.FilterByProjects(newItems, q.Projects)
 
 	// Filter applications by source repo URL
