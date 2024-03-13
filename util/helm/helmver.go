@@ -6,15 +6,6 @@ import (
 )
 
 var (
-	// HelmV2 represents helm V2 specific settings
-	HelmV2 = HelmVer{
-		binaryName:           "helm2",
-		templateNameArg:      "--name",
-		kubeVersionSupported: true,
-		showCommand:          "inspect",
-		pullCommand:          "fetch",
-		initSupported:        true,
-	}
 	// HelmV3 represents helm V3 specific settings
 	HelmV3 = HelmVer{
 		binaryName:                   "helm",
@@ -24,7 +15,7 @@ var (
 		pullCommand:                  "pull",
 		initSupported:                false,
 		getPostTemplateCallback:      cleanupChartLockFile,
-		additionalTemplateArgs:       []string{"--include-crds"},
+		includeCrds:                  true,
 		insecureSkipVerifySupported:  true,
 		helmPassCredentialsSupported: true,
 	}
@@ -59,7 +50,7 @@ type HelmVer struct {
 	pullCommand                  string
 	kubeVersionSupported         bool
 	getPostTemplateCallback      func(chartPath string) (func(), error)
-	additionalTemplateArgs       []string
+	includeCrds                  bool
 	insecureSkipVerifySupported  bool
 	helmPassCredentialsSupported bool
 }

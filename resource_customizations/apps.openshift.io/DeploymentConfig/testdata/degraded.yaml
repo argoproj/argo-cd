@@ -133,10 +133,10 @@ spec:
 status:
   latestVersion: 1
   observedGeneration: 1
-  replicas: 0
-  updatedReplicas: 0
+  replicas: 10
+  updatedReplicas: 10
   availableReplicas: 0
-  unavailableReplicas: 0
+  unavailableReplicas: 10
   details:
     message: config change
     causes:

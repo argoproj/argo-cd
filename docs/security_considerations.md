@@ -13,7 +13,7 @@ related features in [Security](./operator-manual/security.md) section.
 ## Overview of past and current issues
 
 The following table gives a general overview about past and present issues known
-to the ArgoCD project. See in the [Known Issues](#known-issues-and-workarounds)
+to the Argo CD project. See in the [Known Issues](#known-issues-and-workarounds)
 section if there is a work-around available if you cannot update or if there is
 no fix yet.
 
@@ -45,7 +45,7 @@ Most of the issues are related to the built-in user management implementation.
 **Details:**
 
 PyYAML library susceptible to arbitrary code execution when it processes untrusted YAML files.
-We do not believe ArgoCD is affected by this vulnerability, because the impact of CVE-2020-1747 and CVE-2020-14343 is limited to usage of awscli.
+We do not believe Argo CD is affected by this vulnerability, because the impact of CVE-2020-1747 and CVE-2020-14343 is limited to usage of awscli.
 The `awscli` only used for AWS IAM authentication, and the endpoint is the AWS API.
 
 ### CVE-2020-5260 - Possible Git credential leak
@@ -58,13 +58,13 @@ The `awscli` only used for AWS IAM authentication, and the endpoint is the AWS A
 
 **Details:**
 
-ArgoCD relies on Git for many of its operations. The Git project released a
+Argo CD relies on Git for many of its operations. The Git project released a
 [security advisory](https://github.com/git/git/security/advisories/GHSA-qm7j-c969-7j4q)
 on 2020-04-14, describing a serious vulnerability in Git which can lead to credential
 leakage through credential helpers by feeding malicious URLs to the `git clone`
 operation.
 
-We do not believe ArgoCD is affected by this vulnerability, because ArgoCD does neither
+We do not believe Argo CD is affected by this vulnerability, because ArgoCD does neither
 make use of Git credential helpers nor does it use `git clone` for repository operations.
 However, we do not know whether our users might have configured Git credential helpers on
 their own and chose to release new images which contain the bug fix for Git.

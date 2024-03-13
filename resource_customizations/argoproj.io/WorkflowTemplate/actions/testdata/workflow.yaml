@@ -1,0 +1,16 @@
+- k8sOperation: create
+  unstructuredObj:
+    apiVersion: argoproj.io/v1alpha1
+    kind: Workflow
+    metadata:
+      labels:
+        workflows.argoproj.io/workflow-template: workflow-template-submittable
+      name: workflow-template-submittable-202306221735
+      namespace: default
+      ownerReferences:
+        - apiVersion: argoproj.io/v1alpha1
+          kind: WorkflowTemplate
+          name: workflow-template-submittable
+    spec:
+      workflowTemplateRef:
+        name: workflow-template-submittable

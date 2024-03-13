@@ -40,8 +40,7 @@ data:
             "short": true
           }
           {{range $index, $c := .app.status.conditions}}
-          {{if not $index}},{{end}}
-          {{if $index}},{{end}}
+          ,
           {
             "title": "{{$c.type}}",
             "value": "{{$c.message}}",
@@ -50,6 +49,7 @@ data:
           {{end}}
           ]
         }]
+      deliveryPolicy: Post
       groupingKey: ""
       notifyBroadcast: false
     teams:
@@ -67,8 +67,7 @@ data:
           "value": "{{.app.status.sync.revision}}"
         }
         {{range $index, $c := .app.status.conditions}}
-          {{if not $index}},{{end}}
-          {{if $index}},{{end}}
+          ,
           {
             "name": "{{$c.type}}",
             "value": "{{$c.message}}"
@@ -118,8 +117,7 @@ data:
             "short": true
           }
           {{range $index, $c := .app.status.conditions}}
-          {{if not $index}},{{end}}
-          {{if $index}},{{end}}
+          ,
           {
             "title": "{{$c.type}}",
             "value": "{{$c.message}}",
@@ -128,6 +126,7 @@ data:
           {{end}}
           ]
         }]
+      deliveryPolicy: Post
       groupingKey: ""
       notifyBroadcast: false
     teams:
@@ -141,8 +140,7 @@ data:
           "value": "{{.app.spec.source.repoURL}}"
         }
         {{range $index, $c := .app.status.conditions}}
-          {{if not $index}},{{end}}
-          {{if $index}},{{end}}
+          ,
           {
             "name": "{{$c.type}}",
             "value": "{{$c.message}}"
@@ -192,8 +190,7 @@ data:
             "short": true
           }
           {{range $index, $c := .app.status.conditions}}
-          {{if not $index}},{{end}}
-          {{if $index}},{{end}}
+          ,
           {
             "title": "{{$c.type}}",
             "value": "{{$c.message}}",
@@ -202,6 +199,7 @@ data:
           {{end}}
           ]
         }]
+      deliveryPolicy: Post
       groupingKey: ""
       notifyBroadcast: false
     teams:
@@ -219,8 +217,7 @@ data:
           "value": "{{.app.spec.source.repoURL}}"
         }
         {{range $index, $c := .app.status.conditions}}
-          {{if not $index}},{{end}}
-          {{if $index}},{{end}}
+          ,
           {
             "name": "{{$c.type}}",
             "value": "{{$c.message}}"
@@ -270,8 +267,7 @@ data:
             "short": true
           }
           {{range $index, $c := .app.status.conditions}}
-          {{if not $index}},{{end}}
-          {{if $index}},{{end}}
+          ,
           {
             "title": "{{$c.type}}",
             "value": "{{$c.message}}",
@@ -280,6 +276,7 @@ data:
           {{end}}
           ]
         }]
+      deliveryPolicy: Post
       groupingKey: ""
       notifyBroadcast: false
     teams:
@@ -297,8 +294,7 @@ data:
           "value": "{{.app.spec.source.repoURL}}"
         }
         {{range $index, $c := .app.status.conditions}}
-          {{if not $index}},{{end}}
-          {{if $index}},{{end}}
+          ,
           {
             "name": "{{$c.type}}",
             "value": "{{$c.message}}"
@@ -352,8 +348,7 @@ data:
             "short": true
           }
           {{range $index, $c := .app.status.conditions}}
-          {{if not $index}},{{end}}
-          {{if $index}},{{end}}
+          ,
           {
             "title": "{{$c.type}}",
             "value": "{{$c.message}}",
@@ -362,6 +357,7 @@ data:
           {{end}}
           ]
         }]
+      deliveryPolicy: Post
       groupingKey: ""
       notifyBroadcast: false
     teams:
@@ -375,8 +371,7 @@ data:
           "value": "{{.app.spec.source.repoURL}}"
         }
         {{range $index, $c := .app.status.conditions}}
-          {{if not $index}},{{end}}
-          {{if $index}},{{end}}
+          ,
           {
             "name": "{{$c.type}}",
             "value": "{{$c.message}}"
@@ -425,8 +420,7 @@ data:
             "short": true
           }
           {{range $index, $c := .app.status.conditions}}
-          {{if not $index}},{{end}}
-          {{if $index}},{{end}}
+          ,
           {
             "title": "{{$c.type}}",
             "value": "{{$c.message}}",
@@ -435,6 +429,7 @@ data:
           {{end}}
           ]
         }]
+      deliveryPolicy: Post
       groupingKey: ""
       notifyBroadcast: false
     teams:
@@ -452,8 +447,7 @@ data:
           "value": "{{.app.spec.source.repoURL}}"
         }
         {{range $index, $c := .app.status.conditions}}
-          {{if not $index}},{{end}}
-          {{if $index}},{{end}}
+          ,
           {
             "name": "{{$c.type}}",
             "value": "{{$c.message}}"
@@ -493,11 +487,11 @@ data:
       when: app.metadata.deletionTimestamp != nil
   trigger.on-deployed: |
     - description: Application is synced and healthy. Triggered once per commit.
-      oncePer: app.status.operationState.syncResult.revision
+      oncePer: app.status.operationState?.syncResult?.revision
       send:
       - app-deployed
-      when: app.status.operationState.phase in ['Succeeded'] and app.status.health.status
-        == 'Healthy'
+      when: app.status.operationState != nil and app.status.operationState.phase in ['Succeeded']
+        and app.status.health.status == 'Healthy'
   trigger.on-health-degraded: |
     - description: Application has degraded
       send:
@@ -507,12 +501,13 @@ data:
     - description: Application syncing has failed
       send:
       - app-sync-failed
-      when: app.status.operationState.phase in ['Error', 'Failed']
+      when: app.status.operationState != nil and app.status.operationState.phase in ['Error',
+        'Failed']
   trigger.on-sync-running: |
     - description: Application is being synced
       send:
       - app-sync-running
-      when: app.status.operationState.phase in ['Running']
+      when: app.status.operationState != nil and app.status.operationState.phase in ['Running']
   trigger.on-sync-status-unknown: |
     - description: Application status is 'Unknown'
       send:
@@ -522,7 +517,7 @@ data:
     - description: Application syncing has succeeded
       send:
       - app-sync-succeeded
-      when: app.status.operationState.phase in ['Succeeded']
+      when: app.status.operationState != nil and app.status.operationState.phase in ['Succeeded']
 kind: ConfigMap
 metadata:
   creationTimestamp: null

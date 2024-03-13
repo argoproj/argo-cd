@@ -4,7 +4,7 @@
 
 The Argo CD project continuously grows, both in terms of features and community size. It gets adopted by more and more organisations which entrust Argo CD to handle their critical production workloads. Thus, we need to take great care with any changes that affect compatibility, performance, scalability, stability and security of Argo CD. For this reason, every new feature or larger enhancement must be properly designed and discussed before it gets accepted into the code base.
 
-We do welcome and encourage everyone to participate in the Argo CD project, but please understand that we can't accept each and every contribution from the community, for various reasons. 
+We do welcome and encourage everyone to participate in the Argo CD project, but please understand that we can't accept each and every contribution from the community, for various reasons.
 
 If you want to submit code for a great new feature or enhancement, we kindly ask you to take a look at the
 enhancement process outlined below before you start to write code or submit a PR. This will ensure that your idea is well aligned with the project's strategy and technical requirements, and it will help greatly in getting your code merged into our code base.
@@ -39,7 +39,7 @@ If you want a quick start contributing to Argo CD, take a look at issues that ar
 or
 [good first issue](https://github.com/argoproj/argo-cd/issues?q=is%3Aopen+is%3Aissue+label%3A%22good+first+issue%22).
 
-These are issues that were already triaged and accepted. 
+These are issues that were already triaged and accepted.
 
 If the issue is already attached to next
 [version milestone](https://github.com/argoproj/argo-cd/milestones),
@@ -49,7 +49,7 @@ We encourage our community to pick up issues that are labeled in this way *and* 
 
 ## Triage process
 
-### Overview 
+### Overview
 
 Our triage process for enhancements proposals ensures that we take a look at all incoming enhancements to determine whether we will accept code submissions to implement them.
 
@@ -73,9 +73,9 @@ We aim to triage at least 10 proposals a week. Depending on our available time, 
 
 ### Accepted proposals
 
-When a proposal is considered _Accepted_, it was decided that this enhancement would be valuable to the community at large and fits into the overall strategic roadmap of the project. 
+When a proposal is considered _Accepted_, it was decided that this enhancement would be valuable to the community at large and fits into the overall strategic roadmap of the project.
 
-Implementation of the issue may be started, either by the proposal's creator or another community member (including maintainers of the project). 
+Implementation of the issue may be started, either by the proposal's creator or another community member (including maintainers of the project).
 
 The issue should be refined enough by now to contain any concerns and guidelines to be taken into consideration during implementation.
 
@@ -95,7 +95,7 @@ Also, issues that we find to require a more formal design document will be moved
 
 ## Design documents
 
-For some enhancement proposals (especially those that will change behavior of Argo CD substantially, are attached with some caveats or where upgrade/downgrade paths are not clear), a more formal design document will be required in order to fully discuss and understand the enhancement in the broader community. This requirement is usually determined during triage. If you submitted an enhancement proposal, we may ask you to provide this more formal write down, along with some concerns or topics that need to be adressed.
+For some enhancement proposals (especially those that will change behavior of Argo CD substantially, are attached with some caveats or where upgrade/downgrade paths are not clear), a more formal design document will be required in order to fully discuss and understand the enhancement in the broader community. This requirement is usually determined during triage. If you submitted an enhancement proposal, we may ask you to provide this more formal write down, along with some concerns or topics that need to be addressed.
 
 Design documents are usually submitted as PR and use [this template](https://github.com/argoproj/argo-cd/blob/master/docs/proposals/001-proposal-template.md) as a guide what kind of information we're looking for. Discussion will take place in the review process. When a design document gets merged, we consider it as approved and code can be written and submitted to implement this specific design.
 
@@ -103,10 +103,10 @@ Design documents are usually submitted as PR and use [this template](https://git
 
 Our community regularly meets virtually to discuss issues, ideas and enhancements around Argo CD. We do invite you to join this virtual meetings if you want to bring up certain things (including your enhancement proposals), participate in our triaging or just want to get to know other contributors.
 
-The current cadence of our meetings is weekly, every Thursday at 4pm UTC (9am Pacific, 12pm Eastern, 6pm Central European, 9:30pm Indian). We use Zoom to conduct these meetings.
+The current cadence of our meetings is weekly, every Thursday at 4:15pm UTC (8:15am Pacific, 11:15am Eastern, 5:15pm Central European, 9:45pm Indian). We use Zoom to conduct these meetings.
 
 * [Agenda document (Google Docs, includes Zoom link)](https://docs.google.com/document/d/1xkoFkVviB70YBzSEa4bDnu-rUZ1sIFtwKKG1Uw8XsY8)
 
 If you want to discuss something, we kindly ask you to put your item on the
 [agenda](https://docs.google.com/document/d/1xkoFkVviB70YBzSEa4bDnu-rUZ1sIFtwKKG1Uw8XsY8)
-for one of the upcoming meetings so that we can plan in the time for discussing about it.
+for one of the upcoming meetings so that we can plan in the time for discussing it.

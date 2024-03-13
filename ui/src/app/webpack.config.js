@@ -4,7 +4,6 @@ const MonacoWebpackPlugin = require('monaco-editor-webpack-plugin');
 const CopyWebpackPlugin = require('copy-webpack-plugin');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
 const webpack = require('webpack');
-const path = require('path');
 
 const isProd = process.env.NODE_ENV === 'production';
 
@@ -18,55 +17,52 @@ const proxyConf = {
 const config = {
     entry: './src/app/index.tsx',
     output: {
-        filename: '[name].[hash].js',
-        chunkFilename: '[name].[hash].chunk.js',
+        filename: '[name].[contenthash].js',
+        chunkFilename: '[name].[contenthash].chunk.js',
         path: __dirname + '/../../dist/app'
     },
 
-    devtool: isProd ? '' : 'source-map',
-
     resolve: {
         extensions: ['.ts', '.tsx', '.js', '.json'],
-        alias: { react: require.resolve('react') }
+        alias: { react: require.resolve('react') },
+        fallback: { fs: false }
     },
-
+    ignoreWarnings: [{
+        module: new RegExp('/node_modules/argo-ui/.*')
+    }],
     module: {
-        rules: [{
+        rules: [
+            {
                 test: /\.tsx?$/,
-                loaders: `esbuild-loader?allowTsInNodeModules=true&configFile=${path.resolve('./src/app/tsconfig.json')}`,
+                loader: 'esbuild-loader',
                 options: {
                     loader: 'tsx',
-                    target: 'es2015'
+                    target: 'es2015',
+                    tsconfigRaw: require('./tsconfig.json')
                 }
             },
             {
                 enforce: 'pre',
                 exclude: [/node_modules\/react-paginate/, /node_modules\/monaco-editor/],
                 test: /\.js$/,
-                loaders: 'esbuild-loader',
-                options: {
-                    loader: 'jsx',
-                    target: 'es2015'
-                }
+                use: ['esbuild-loader'],
             },
             {
                 test: /\.scss$/,
-                loader: 'style-loader!raw-loader!sass-loader'
+                use: ['style-loader', 'raw-loader', 'sass-loader']
             },
             {
                 test: /\.css$/,
-                loader: 'style-loader!raw-loader'
+                use: ['style-loader', 'raw-loader']
             }
         ]
-    },
-    node: {
-        fs: 'empty'
     },
     plugins: [
         new webpack.DefinePlugin({
             'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV || 'development'),
             'process.env.NODE_ONLINE_ENV': JSON.stringify(process.env.NODE_ONLINE_ENV || 'offline'),
             'process.env.HOST_ARCH': JSON.stringify(process.env.HOST_ARCH || 'amd64'),
+            'process.platform': JSON.stringify('browser'),
             'SYSTEM_INFO': JSON.stringify({
                 version: process.env.ARGO_VERSION || 'latest'
             })
@@ -88,6 +84,10 @@ const config = {
                 {
                     from: 'node_modules/redoc/bundles/redoc.standalone.js',
                     to: 'assets/scripts/redoc.standalone.js'
+                },
+                {
+                    from: 'node_modules/monaco-editor/min/vs/base/browser/ui/codicons/codicon',
+                    to: 'assets/fonts'
                 }
             ]
         }),
@@ -97,6 +97,7 @@ const config = {
         })
     ],
     devServer: {
+        compress: false,
         historyApiFallback: {
             disableDotRule: true
         },
@@ -106,10 +107,18 @@ const config = {
             '/extensions': proxyConf,
             '/api': proxyConf,
             '/auth': proxyConf,
+            '/terminal': {
+              target: process.env.ARGOCD_API_URL || 'ws://localhost:8080',
+              ws: true,
+            },
             '/swagger-ui': proxyConf,
             '/swagger.json': proxyConf
         }
     }
 };
+
+if (! isProd) {
+    config.devtool = 'eval-source-map';
+}
 
 module.exports = config;

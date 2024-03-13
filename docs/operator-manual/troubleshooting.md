@@ -25,7 +25,7 @@ argocd admin settings resource-overrides ignore-differences ./deploy.yaml --argo
 
 **Health Assessment**
 
-Argo CD provides built-in [health assessment](./health.md) for several kubernetes resources which can be further
+Argo CD provides built-in [health assessment](./health.md) for several Kubernetes resources which can be further
 customized by writing your own health checks in [Lua](https://www.lua.org/).
 The health checks are configured in the `resource.customizations` field of `argocd-cm` ConfigMap.
 

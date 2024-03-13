@@ -1,19 +1,20 @@
-import {DataLoader, DropDown, DropDownMenu, MenuItem, NotificationType, Tooltip} from 'argo-ui';
+import {DataLoader, DropDown, DropDownMenu, MenuItem, Tooltip} from 'argo-ui';
 import * as PropTypes from 'prop-types';
 import * as React from 'react';
 import Moment from 'react-moment';
 
 import {AppContext} from '../../../shared/context';
-import {CheckboxField, EmptyState, ErrorNotification} from '../../../shared/components';
+import {EmptyState} from '../../../shared/components';
 import {Application, ApplicationTree, HostResourceInfo, InfoItem, Node, Pod, ResourceName, ResourceNode, ResourceStatus} from '../../../shared/models';
 import {PodViewPreferences, services, ViewPreferences} from '../../../shared/services';
 
 import {ResourceTreeNode} from '../application-resource-tree/application-resource-tree';
 import {ResourceIcon} from '../resource-icon';
 import {ResourceLabel} from '../resource-label';
-import {ComparisonStatusIcon, isYoungerThanXMinutes, HealthStatusIcon, nodeKey, PodHealthIcon} from '../utils';
+import {ComparisonStatusIcon, isYoungerThanXMinutes, HealthStatusIcon, nodeKey, PodHealthIcon, deletePodAction} from '../utils';
 
 import './pod-view.scss';
+import {PodTooltip} from './pod-tooltip';
 
 interface PodViewProps {
     tree: ApplicationTree;
@@ -25,7 +26,7 @@ interface PodViewProps {
 
 export type PodGroupType = 'topLevelResource' | 'parentResource' | 'node';
 
-interface PodGroup extends Partial<ResourceNode> {
+export interface PodGroup extends Partial<ResourceNode> {
     type: PodGroupType;
     pods: Pod[];
     info?: InfoItem[];
@@ -45,40 +46,13 @@ export class PodView extends React.Component<PodViewProps> {
         apis: PropTypes.object
     };
 
-    deleteAction = async (pod: Pod) => {
-        this.appContext.apis.popup.prompt(
-            'Delete pod',
-            () => (
-                <div>
-                    <p>Are you sure you want to delete Pod '{pod.name}'?</p>
-                    <div className='argo-form-row' style={{paddingLeft: '30px'}}>
-                        <CheckboxField id='force-delete-checkbox' field='force' />
-                        <label htmlFor='force-delete-checkbox'>Force delete</label>
-                    </div>
-                </div>
-            ),
-            {
-                submit: async (vals, _, close) => {
-                    try {
-                        await services.applications.deleteResource(this.props.app.metadata.name, pod, !!vals.force, false);
-                        close();
-                    } catch (e) {
-                        this.appContext.apis.notifications.show({
-                            content: <ErrorNotification title='Unable to delete resource' e={e} />,
-                            type: NotificationType.Error
-                        });
-                    }
-                }
-            }
-        );
-    };
-
     public render() {
         return (
             <DataLoader load={() => services.viewPreferences.getPreferences()}>
                 {prefs => {
                     const podPrefs = prefs.appDetails.podView || ({} as PodViewPreferences);
                     const groups = this.processTree(podPrefs.sortMode, this.props.tree.hosts || []) || [];
+
                     return (
                         <React.Fragment>
                             <div className='pod-view__settings'>
@@ -134,7 +108,9 @@ export class PodView extends React.Component<PodViewProps> {
                                                                 <div>
                                                                     {group.resourceStatus.health && <HealthStatusIcon state={group.resourceStatus.health} />}
                                                                     &nbsp;
-                                                                    {group.resourceStatus.status && <ComparisonStatusIcon status={group.resourceStatus.status} />}
+                                                                    {group.resourceStatus.status && (
+                                                                        <ComparisonStatusIcon status={group.resourceStatus.status} resource={group.resourceStatus} />
+                                                                    )}
                                                                 </div>
                                                             )}
                                                         </div>
@@ -188,21 +164,7 @@ export class PodView extends React.Component<PodViewProps> {
                                                                     key={pod.uid}
                                                                     anchor={() => (
                                                                         <Tooltip
-                                                                            content={
-                                                                                <div>
-                                                                                    {pod.metadata.name}
-                                                                                    <div>Health: {pod.health}</div>
-                                                                                    {pod.createdAt && (
-                                                                                        <span>
-                                                                                            <span>Created: </span>
-                                                                                            <Moment fromNow={true} ago={true}>
-                                                                                                {pod.createdAt}
-                                                                                            </Moment>
-                                                                                            <span> ago ({<Moment local={true}>{pod.createdAt}</Moment>})</span>
-                                                                                        </span>
-                                                                                    )}
-                                                                                </div>
-                                                                            }
+                                                                            content={<PodTooltip pod={pod} />}
                                                                             popperOptions={{
                                                                                 modifiers: {
                                                                                     preventOverflow: {
@@ -219,7 +181,7 @@ export class PodView extends React.Component<PodViewProps> {
                                                                             key={pod.metadata.name}>
                                                                             <div style={{position: 'relative'}}>
                                                                                 {isYoungerThanXMinutes(pod, 30) && (
-                                                                                    <i className='fas fa-star pod-view__node__pod pod-view__node__pod__star-icon' />
+                                                                                    <i className='fas fa-circle pod-view__node__pod pod-view__node__pod__new-pod-icon' />
                                                                                 )}
                                                                                 <div className={`pod-view__node__pod pod-view__node__pod--${pod.health.toLowerCase()}`}>
                                                                                     <PodHealthIcon state={{status: pod.health, message: ''}} />
@@ -249,11 +211,26 @@ export class PodView extends React.Component<PodViewProps> {
                                                                         {
                                                                             title: (
                                                                                 <React.Fragment>
+                                                                                    <i className='fa fa-terminal' /> Exec
+                                                                                </React.Fragment>
+                                                                            ),
+                                                                            action: () => {
+                                                                                this.appContext.apis.navigation.goto('.', {node: pod.fullName, tab: 'exec'}, {replace: true});
+                                                                            }
+                                                                        },
+                                                                        {
+                                                                            title: (
+                                                                                <React.Fragment>
                                                                                     <i className='fa fa-times-circle' /> Delete
                                                                                 </React.Fragment>
                                                                             ),
                                                                             action: () => {
-                                                                                this.deleteAction(pod);
+                                                                                deletePodAction(
+                                                                                    pod,
+                                                                                    this.appContext,
+                                                                                    this.props.app.metadata.name,
+                                                                                    this.props.app.metadata.namespace
+                                                                                );
                                                                             }
                                                                         }
                                                                     ]}
@@ -292,6 +269,7 @@ export class PodView extends React.Component<PodViewProps> {
                 </React.Fragment>
             ),
             action: () => {
+                this.appContext.apis.navigation.goto('.', {podSortMode: mode});
                 services.viewPreferences.updatePreferences({appDetails: {...prefs.appDetails, podView: {...podPrefs, sortMode: mode}}});
             }
         }));
@@ -325,6 +303,7 @@ export class PodView extends React.Component<PodViewProps> {
 
         const statusByKey = new Map<string, ResourceStatus>();
         this.props.app.status?.resources?.forEach(res => statusByKey.set(nodeKey(res), res));
+
         (tree.nodes || []).forEach((rnode: ResourceTreeNode) => {
             // make sure each node has not null/undefined parentRefs field
             rnode.parentRefs = rnode.parentRefs || [];
@@ -333,6 +312,7 @@ export class PodView extends React.Component<PodViewProps> {
                 parentsFor[rnode.uid] = rnode.parentRefs as PodGroup[];
                 const fullName = nodeKey(rnode);
                 const status = statusByKey.get(fullName);
+
                 if ((rnode.parentRefs || []).length === 0) {
                     rnode.root = rnode;
                 }
@@ -343,7 +323,7 @@ export class PodView extends React.Component<PodViewProps> {
                     ...rnode,
                     info: (rnode.info || []).filter(i => !i.name.includes('Resource.')),
                     createdAt: rnode.createdAt,
-                    resourceStatus: {health: rnode.health, status: status ? status.status : null},
+                    resourceStatus: {health: rnode.health, status: status ? status.status : null, requiresPruning: status && status.requiresPruning ? true : false},
                     renderMenu: () => this.props.nodeMenu(rnode),
                     renderQuickStarts: () => this.props.quickStarts(rnode)
                 };

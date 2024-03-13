@@ -11,5 +11,3 @@ spec:
   discover:
     find:
       glob: "**/*/main.jsonnet"
-  allowConcurrency: false
-  lockRepo: false

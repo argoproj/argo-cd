@@ -4,6 +4,7 @@ import {Consumer} from '../../shared/context';
 import {combineLatest} from 'rxjs';
 import {services} from '../../shared/services';
 import {map} from 'rxjs/operators';
+import classNames from 'classnames';
 
 require('./help.scss');
 
@@ -37,38 +38,35 @@ export const Help = () => {
                                         <div className='help-box'>
                                             <p>Want to download the CLI tool?</p>
                                             <a href={`download/argocd-linux-${process.env.HOST_ARCH}`} className='user-info-panel-buttons argo-button argo-button--base'>
-                                                <i className='fab fa-linux' /> Linux (amd64)
+                                                <i className='fab fa-linux' /> Linux ({process.env.HOST_ARCH})
                                             </a>
                                             &nbsp;
-                                            {binaryUrls.hasOwnProperty('linux-arm64') && (
-                                                <a href={`${binaryUrls['linux-arm64']}`} className='user-info-panel-buttons argo-button argo-button--base'>
-                                                    <i className='fab fa-linux' /> Linux (arm64)
-                                                </a>
-                                            )}
-                                            &nbsp;
-                                            {binaryUrls.hasOwnProperty('darwin-amd64') && (
-                                                <a href={`${binaryUrls['darwin-amd64']}`} className='user-info-panel-buttons argo-button argo-button--base'>
-                                                    <i className='fab fa-apple' /> MacOS (amd64)
-                                                </a>
-                                            )}
-                                            &nbsp;
-                                            {binaryUrls.hasOwnProperty('darwin-arm64') && (
-                                                <a href={`${binaryUrls['darwin-arm64']}`} className='user-info-panel-buttons argo-button argo-button--base'>
-                                                    <i className='fab fa-apple' /> MacOS (arm64)
-                                                </a>
-                                            )}
-                                            &nbsp;
-                                            {binaryUrls.hasOwnProperty('windows-amd64') && (
-                                                <a href={`${binaryUrls['windows-amd64']}`} className='user-info-panel-buttons argo-button argo-button--base'>
-                                                    <i className='fab fa-windows' /> Windows
-                                                </a>
-                                            )}
+                                            {Object.keys(binaryUrls || {}).map(binaryName => {
+                                                const url = binaryUrls[binaryName];
+                                                const match = binaryName.match(/.*(darwin|windows|linux)-(amd64|arm64|ppc64le|s390x)/);
+                                                const [platform, arch] = match ? match.slice(1) : ['', ''];
+                                                return (
+                                                    <>
+                                                        &nbsp;
+                                                        <a key={binaryName} href={url} className='user-info-panel-buttons argo-button argo-button--base'>
+                                                            <i
+                                                                className={classNames('fab', {
+                                                                    'fa-windows': platform === 'windows',
+                                                                    'fa-apple': platform === 'darwin',
+                                                                    'fa-linux': platform === 'linux'
+                                                                })}
+                                                            />
+                                                            {` ${platform}`} {arch && `(${arch})`}
+                                                        </a>
+                                                    </>
+                                                );
+                                            })}
                                         </div>
                                     </div>
                                     <div className='columns large-4 small-6'>
                                         <div className='help-box'>
                                             <p>You want to develop against Argo CD's API?</p>
-                                            <a className='user-info-panel-buttons argo-button argo-button--base' href='/swagger-ui'>
+                                            <a className='user-info-panel-buttons argo-button argo-button--base' href='swagger-ui'>
                                                 Open the API docs
                                             </a>
                                         </div>

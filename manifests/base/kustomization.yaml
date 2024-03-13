@@ -14,3 +14,4 @@ resources:
 - ./config
 - ./redis
 - ./notification
+- ./applicationset-controller

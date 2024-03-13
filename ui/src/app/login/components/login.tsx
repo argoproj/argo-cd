@@ -1,4 +1,4 @@
-import {FormField} from 'argo-ui';
+import {FormField, NotificationType} from 'argo-ui';
 import * as PropTypes from 'prop-types';
 import * as React from 'react';
 import {Form, Text} from 'react-form';
@@ -7,6 +7,7 @@ import {RouteComponentProps} from 'react-router';
 import {AppContext} from '../../shared/context';
 import {AuthSettings} from '../../shared/models';
 import {services} from '../../shared/services';
+import {getPKCERedirectURI, pkceLogin} from './utils';
 
 require('./login.scss');
 
@@ -20,7 +21,7 @@ interface State {
     loginError: string;
     loginInProgress: boolean;
     returnUrl: string;
-    ssoLoginError: string;
+    hasSsoLoginError: boolean;
 }
 
 export class Login extends React.Component<RouteComponentProps<{}>, State> {
@@ -31,13 +32,13 @@ export class Login extends React.Component<RouteComponentProps<{}>, State> {
     public static getDerivedStateFromProps(props: RouteComponentProps<{}>): Partial<State> {
         const search = new URLSearchParams(props.history.location.search);
         const returnUrl = search.get('return_url') || '';
-        const ssoLoginError = search.get('sso_error') || '';
-        return {ssoLoginError, returnUrl};
+        const hasSsoLoginError = search.get('has_sso_error') === 'true';
+        return {hasSsoLoginError, returnUrl};
     }
 
     constructor(props: RouteComponentProps<{}>) {
         super(props);
-        this.state = {authSettings: null, loginError: null, returnUrl: null, ssoLoginError: null, loginInProgress: false};
+        this.state = {authSettings: null, loginError: null, returnUrl: null, hasSsoLoginError: false, loginInProgress: false};
     }
 
     public async componentDidMount() {
@@ -61,7 +62,19 @@ export class Login extends React.Component<RouteComponentProps<{}>, State> {
                     </div>
                     {ssoConfigured && (
                         <div className='login__box_saml width-control'>
-                            <a href={`auth/login?return_url=${encodeURIComponent(this.state.returnUrl)}`}>
+                            <a
+                                {...(authSettings?.oidcConfig?.enablePKCEAuthentication
+                                    ? {
+                                          onClick: async () => {
+                                              pkceLogin(authSettings.oidcConfig, getPKCERedirectURI().toString()).catch(err => {
+                                                  this.appContext.apis.notifications.show({
+                                                      type: NotificationType.Error,
+                                                      content: err?.message || JSON.stringify(err)
+                                                  });
+                                              });
+                                          }
+                                      }
+                                    : {href: `auth/login?return_url=${encodeURIComponent(this.state.returnUrl)}`})}>
                                 <button className='argo-button argo-button--base argo-button--full-width argo-button--xlg'>
                                     {(authSettings.oidcConfig && <span>Log in via {authSettings.oidcConfig.name}</span>) ||
                                         (authSettings.dexConfig.connectors.length === 1 && <span>Log in via {authSettings.dexConfig.connectors[0].name}</span>) || (
@@ -69,7 +82,7 @@ export class Login extends React.Component<RouteComponentProps<{}>, State> {
                                         )}
                                 </button>
                             </a>
-                            {this.state.ssoLoginError && <div className='argo-form-row__error-msg'>{this.state.ssoLoginError}</div>}
+                            {this.state.hasSsoLoginError && <div className='argo-form-row__error-msg'>Login failed.</div>}
                             {authSettings && !authSettings.userLoginsDisabled && (
                                 <div className='login__saml-separator'>
                                     <span>or</span>

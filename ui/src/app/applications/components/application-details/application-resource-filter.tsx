@@ -1,11 +1,12 @@
 import * as React from 'react';
-import {Checkbox} from 'argo-ui';
-import {ApplicationTree, HealthStatusCode, SyncStatusCode} from '../../../shared/models';
+import {Checkbox} from 'argo-ui/v2';
+import {ApplicationTree, HealthStatusCode, HealthStatuses, SyncStatusCode, SyncStatuses} from '../../../shared/models';
 import {AppDetailsPreferences, services} from '../../../shared/services';
 import {Context} from '../../../shared/context';
 import {Filter, FiltersGroup} from '../filter/filter';
 import {ComparisonStatusIcon, HealthStatusIcon} from '../utils';
 import {resources} from '../resources';
+import * as models from '../../../shared/models';
 
 const uniq = (value: string, index: number, self: string[]) => self.indexOf(value) === index;
 
@@ -13,13 +14,17 @@ function toOption(label: string) {
     return {label};
 }
 
-export const Filters = (props: {
+export interface FiltersProps {
     children?: React.ReactNode;
     pref: AppDetailsPreferences;
     tree: ApplicationTree;
+    resourceNodes: models.ResourceStatus[];
     onSetFilter: (items: string[]) => void;
     onClearFilter: () => void;
-}) => {
+    collapsed?: boolean;
+}
+
+export const Filters = (props: FiltersProps) => {
     const ctx = React.useContext(Context);
 
     const {pref, tree, onSetFilter} = props;
@@ -28,9 +33,6 @@ export const Filters = (props: {
         setLoading(true);
         props.onClearFilter();
     };
-
-    const shown = pref.hideFilters;
-    const setShown = (val: boolean) => services.viewPreferences.updatePreferences({appDetails: {...pref, hideFilters: val}});
 
     const resourceFilter = pref.resourceFilter || [];
     const removePrefix = (prefix: string) => (v: string) => v.replace(prefix + ':', '');
@@ -105,15 +107,38 @@ export const Filters = (props: {
         return groupedFilters[prefix] ? groupedFilters[prefix].split(',').map(removePrefix(prefix)) : [];
     };
 
+    const getOptionCount = (label: string, filterType: string): number => {
+        switch (filterType) {
+            case 'Sync':
+                return props.resourceNodes.filter(res => res.status === SyncStatuses[label]).length;
+            case 'Health':
+                return props.resourceNodes.filter(res => res.health?.status === HealthStatuses[label]).length;
+            case 'Kind':
+                return props.resourceNodes.filter(res => res.kind === label).length;
+            default:
+                return 0;
+        }
+    };
+
     return (
-        <FiltersGroup content={props.children} appliedFilter={pref.resourceFilter} onClearFilter={onClearFilter} setShown={setShown} expanded={shown}>
+        <FiltersGroup content={props.children} appliedFilter={pref.resourceFilter} onClearFilter={onClearFilter} collapsed={props.collapsed}>
             {ResourceFilter({label: 'NAME', prefix: 'name', options: names.map(toOption), field: true})}
-            {ResourceFilter({label: 'KINDS', prefix: 'kind', options: kinds.map(toOption), abbreviations: resources, field: true})}
+            {ResourceFilter({
+                label: 'KINDS',
+                prefix: 'kind',
+                options: kinds.map(label => ({
+                    label,
+                    count: getOptionCount(label, 'Kind')
+                })),
+                abbreviations: resources,
+                field: true
+            })}
             {ResourceFilter({
                 label: 'SYNC STATUS',
                 prefix: 'sync',
                 options: ['Synced', 'OutOfSync'].map(label => ({
                     label,
+                    count: getOptionCount(label, 'Sync'),
                     icon: <ComparisonStatusIcon status={label as SyncStatusCode} noSpin={true} />
                 }))
             })}
@@ -122,21 +147,25 @@ export const Filters = (props: {
                 prefix: 'health',
                 options: ['Healthy', 'Progressing', 'Degraded', 'Suspended', 'Missing', 'Unknown'].map(label => ({
                     label,
+                    count: getOptionCount(label, 'Health'),
                     icon: <HealthStatusIcon state={{status: label as HealthStatusCode, message: ''}} noSpin={true} />
                 }))
             })}
             {namespaces.length > 1 && ResourceFilter({label: 'NAMESPACES', prefix: 'namespace', options: (namespaces || []).filter(l => l && l !== '').map(toOption), field: true})}
             {(tree.orphanedNodes || []).length > 0 && (
-                <div className='filter'>
+                <div className={`filter filter__item ${pref.orphanedResources ? 'filter__item--selected' : ''}`}>
                     <Checkbox
-                        checked={!!pref.orphanedResources}
-                        id='orphanedFilter'
+                        value={!!pref.orphanedResources}
                         onChange={val => {
                             ctx.navigation.goto('.', {orphaned: val}, {replace: true});
                             services.viewPreferences.updatePreferences({appDetails: {...pref, orphanedResources: val}});
                         }}
-                    />{' '}
-                    <label htmlFor='orphanedFilter'>SHOW ORPHANED</label>
+                        style={{
+                            marginRight: '8px',
+                            marginLeft: '8px'
+                        }}
+                    />
+                    <div className='filter__item__label'>Show Orphaned</div>
                 </div>
             )}
         </FiltersGroup>

@@ -24,6 +24,12 @@ func (c *Consequences) And(block func(account *account.Account, err error)) *Con
 	return c
 }
 
+func (c *Consequences) AndCLIOutput(block func(output string, err error)) *Consequences {
+	c.context.t.Helper()
+	block(c.actions.lastOutput, c.actions.lastError)
+	return c
+}
+
 func (c *Consequences) CurrentUser(block func(user *session.GetUserInfoResponse, err error)) *Consequences {
 	c.context.t.Helper()
 	block(c.getCurrentUser())

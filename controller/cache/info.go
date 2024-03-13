@@ -3,12 +3,14 @@ package cache
 import (
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/argoproj/gitops-engine/pkg/utils/text"
+	"github.com/cespare/xxhash/v2"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -16,39 +18,23 @@ import (
 
 	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/util/argo/normalizers"
 	"github.com/argoproj/argo-cd/v2/util/resource"
 )
 
-func populateNodeInfo(un *unstructured.Unstructured, res *ResourceInfo) {
+func populateNodeInfo(un *unstructured.Unstructured, res *ResourceInfo, customLabels []string) {
 	gvk := un.GroupVersionKind()
 	revision := resource.GetRevision(un)
 	if revision > 0 {
 		res.Info = append(res.Info, v1alpha1.InfoItem{Name: "Revision", Value: fmt.Sprintf("Rev:%v", revision)})
 	}
-	switch gvk.Group {
-	case "":
-		switch gvk.Kind {
-		case kube.PodKind:
-			populatePodInfo(un, res)
-			return
-		case kube.ServiceKind:
-			populateServiceInfo(un, res)
-			return
-		case "Node":
-			populateHostNodeInfo(un, res)
-			return
-		}
-	case "extensions", "networking.k8s.io":
-		switch gvk.Kind {
-		case kube.IngressKind:
-			populateIngressInfo(un, res)
-			return
-		}
-	case "networking.istio.io":
-		switch gvk.Kind {
-		case "VirtualService":
-			populateIstioVirtualServiceInfo(un, res)
-			return
+	if len(customLabels) > 0 {
+		if labels := un.GetLabels(); labels != nil {
+			for _, customLabel := range customLabels {
+				if value, ok := labels[customLabel]; ok {
+					res.Info = append(res.Info, v1alpha1.InfoItem{Name: customLabel, Value: value})
+				}
+			}
 		}
 	}
 
@@ -58,6 +44,28 @@ func populateNodeInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 				res.NetworkingInfo = &v1alpha1.ResourceNetworkingInfo{}
 			}
 			res.NetworkingInfo.ExternalURLs = append(res.NetworkingInfo.ExternalURLs, v)
+		}
+	}
+
+	switch gvk.Group {
+	case "":
+		switch gvk.Kind {
+		case kube.PodKind:
+			populatePodInfo(un, res)
+		case kube.ServiceKind:
+			populateServiceInfo(un, res)
+		case "Node":
+			populateHostNodeInfo(un, res)
+		}
+	case "extensions", "networking.k8s.io":
+		switch gvk.Kind {
+		case kube.IngressKind:
+			populateIngressInfo(un, res)
+		}
+	case "networking.istio.io":
+		switch gvk.Kind {
+		case "VirtualService":
+			populateIstioVirtualServiceInfo(un, res)
 		}
 	}
 }
@@ -86,7 +94,13 @@ func populateServiceInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 	if serviceType, ok, err := unstructured.NestedString(un.Object, "spec", "type"); ok && err == nil && serviceType == string(v1.ServiceTypeLoadBalancer) {
 		ingress = getIngress(un)
 	}
-	res.NetworkingInfo = &v1alpha1.ResourceNetworkingInfo{TargetLabels: targetLabels, Ingress: ingress}
+
+	var urls []string
+	if res.NetworkingInfo != nil {
+		urls = res.NetworkingInfo.ExternalURLs
+	}
+
+	res.NetworkingInfo = &v1alpha1.ResourceNetworkingInfo{TargetLabels: targetLabels, Ingress: ingress, ExternalURLs: urls}
 }
 
 func getServiceName(backend map[string]interface{}, gvk schema.GroupVersionKind) (string, error) {
@@ -256,7 +270,12 @@ func populateIstioVirtualServiceInfo(un *unstructured.Unstructured, res *Resourc
 		targets = append(targets, target)
 	}
 
-	res.NetworkingInfo = &v1alpha1.ResourceNetworkingInfo{TargetRefs: targets}
+	var urls []string
+	if res.NetworkingInfo != nil {
+		urls = res.NetworkingInfo.ExternalURLs
+	}
+
+	res.NetworkingInfo = &v1alpha1.ResourceNetworkingInfo{TargetRefs: targets, ExternalURLs: urls}
 }
 
 func populatePodInfo(un *unstructured.Unstructured, res *ResourceInfo) {
@@ -367,7 +386,13 @@ func populatePodInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 	if restarts > 0 {
 		res.Info = append(res.Info, v1alpha1.InfoItem{Name: "Restart Count", Value: fmt.Sprintf("%d", restarts)})
 	}
-	res.NetworkingInfo = &v1alpha1.ResourceNetworkingInfo{Labels: un.GetLabels()}
+
+	var urls []string
+	if res.NetworkingInfo != nil {
+		urls = res.NetworkingInfo.ExternalURLs
+	}
+
+	res.NetworkingInfo = &v1alpha1.ResourceNetworkingInfo{Labels: un.GetLabels(), ExternalURLs: urls}
 }
 
 func populateHostNodeInfo(un *unstructured.Unstructured, res *ResourceInfo) {
@@ -381,4 +406,28 @@ func populateHostNodeInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 		Capacity:   node.Status.Capacity,
 		SystemInfo: node.Status.NodeInfo,
 	}
+}
+
+func generateManifestHash(un *unstructured.Unstructured, ignores []v1alpha1.ResourceIgnoreDifferences, overrides map[string]v1alpha1.ResourceOverride) (string, error) {
+	normalizer, err := normalizers.NewIgnoreNormalizer(ignores, overrides)
+	if err != nil {
+		return "", fmt.Errorf("error creating normalizer: %w", err)
+	}
+
+	resource := un.DeepCopy()
+	err = normalizer.Normalize(resource)
+	if err != nil {
+		return "", fmt.Errorf("error normalizing resource: %w", err)
+	}
+
+	data, err := resource.MarshalJSON()
+	if err != nil {
+		return "", fmt.Errorf("error marshaling resource: %w", err)
+	}
+	hash := hash(data)
+	return hash, nil
+}
+
+func hash(data []byte) string {
+	return strconv.FormatUint(xxhash.Sum64(data), 16)
 }

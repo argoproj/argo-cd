@@ -18,7 +18,7 @@ The Teams notification service send message notifications using Teams bot and re
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: <config-map-name>
+  name: argocd-notifications-cm
 data:
   service.teams: |
     recipientUrls:
@@ -48,7 +48,7 @@ metadata:
 
 ![](https://user-images.githubusercontent.com/18019529/114271500-9d2b8880-9a4c-11eb-85c1-f6935f0431d5.png)
 
-Notification templates can be customized to leverage teams message sections, facts, themeColor, summary and potentialAction [feature](https://docs.microsoft.com/en-us/microsoftteams/platform/webhooks-and-connectors/how-to/connectors-using).
+[Notification templates](../templates.md) can be customized to leverage teams message sections, facts, themeColor, summary and potentialAction [feature](https://docs.microsoft.com/en-us/microsoftteams/platform/webhooks-and-connectors/how-to/connectors-using).
 
 ```yaml
 template.app-sync-succeeded: |
@@ -113,7 +113,7 @@ template.app-sync-succeeded: |
 
 ### summary field
 
-You can set a summary of the message that will be shown on Notifcation & Activity Feed 
+You can set a summary of the message that will be shown on Notification & Activity Feed 
 
 ![](https://user-images.githubusercontent.com/6957724/116587921-84c4d480-a94d-11eb-9da4-f365151a12e7.jpg)
 

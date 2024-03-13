@@ -3,13 +3,16 @@ import * as classNames from 'classnames';
 import * as React from 'react';
 import * as ReactForm from 'react-form';
 
-require('./application-sync-options.scss');
+import './application-sync-options.scss';
 
 export const REPLACE_WARNING = `The resources will be synced using 'kubectl replace/create' command that is a potentially destructive action and might cause resources recreation.`;
+export const FORCE_WARNING = `The resources will be synced using '--force' that is a potentially destructive action and will immediately remove resources from the API and bypasses graceful deletion. Immediate deletion of some resources may result in inconsistency or data loss.`;
+export const PRUNE_ALL_WARNING = `The resources will be synced using '--prune', and all resources are marked to be pruned. Only continue if you want to delete all of the Application's resources.`;
 
 export interface ApplicationSyncOptionProps {
     options: string[];
     onChanged: (updatedOptions: string[]) => any;
+    id?: string;
 }
 
 function selectOption(name: string, label: string, defaultVal: string, values: string[], props: ApplicationSyncOptionProps) {
@@ -46,7 +49,7 @@ function booleanOption(name: string, label: string, defaultVal: boolean, props: 
     return (
         <React.Fragment>
             <Checkbox
-                id={`sync-option-${name}`}
+                id={`sync-option-${name}-${props.id}`}
                 checked={checked}
                 onChange={(val: boolean) => {
                     if (index < 0) {
@@ -57,7 +60,7 @@ function booleanOption(name: string, label: string, defaultVal: boolean, props: 
                     }
                 }}
             />
-            <label htmlFor={`sync-option-${name}`}>{label}</label>{' '}
+            <label htmlFor={`sync-option-${name}-${props.id}`}>{label}</label>{' '}
             {warning && (
                 <>
                     <Tooltip content={warning}>
@@ -89,6 +92,8 @@ const syncOptions: Array<(props: ApplicationSyncOptionProps) => React.ReactNode>
     props => booleanOption('CreateNamespace', 'Auto-Create Namespace', false, props, false),
     props => booleanOption('PruneLast', 'Prune Last', false, props, false),
     props => booleanOption('ApplyOutOfSyncOnly', 'Apply Out of Sync Only', false, props, false),
+    props => booleanOption('RespectIgnoreDifferences', 'Respect Ignore Differences', false, props, false),
+    props => booleanOption('ServerSideApply', 'Server-Side Apply', false, props, false),
     props => selectOption('PrunePropagationPolicy', 'Prune Propagation Policy', 'foreground', ['foreground', 'background', 'orphan'], props)
 ];
 
@@ -112,7 +117,7 @@ export const ApplicationSyncOptions = (props: ApplicationSyncOptionProps) => (
     </div>
 );
 
-export const ApplicationManualSyncFlags = ReactForm.FormField((props: {fieldApi: ReactForm.FieldApi}) => {
+export const ApplicationManualSyncFlags = ReactForm.FormField((props: {fieldApi: ReactForm.FieldApi; id?: string}) => {
     const {
         fieldApi: {getValue, setValue, setTouched}
     } = props;
@@ -122,7 +127,7 @@ export const ApplicationManualSyncFlags = ReactForm.FormField((props: {fieldApi:
             {Object.keys(ManualSyncFlags).map(flag => (
                 <React.Fragment key={flag}>
                     <Checkbox
-                        id={`sync-option-${flag}`}
+                        id={`sync-option-${flag}-${props.id}`}
                         checked={val[flag]}
                         onChange={(newVal: boolean) => {
                             setTouched(true);
@@ -131,7 +136,7 @@ export const ApplicationManualSyncFlags = ReactForm.FormField((props: {fieldApi:
                             setValue(update);
                         }}
                     />
-                    <label htmlFor={`sync-option-${flag}`}>{ManualSyncFlags[flag as keyof typeof ManualSyncFlags]}</label>{' '}
+                    <label htmlFor={`sync-option-${flag}-${props.id}`}>{ManualSyncFlags[flag as keyof typeof ManualSyncFlags]}</label>{' '}
                 </React.Fragment>
             ))}
         </div>

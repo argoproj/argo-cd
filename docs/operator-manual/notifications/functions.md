@@ -46,7 +46,17 @@ Transforms given GIT URL into HTTPs format.
 <hr>
 **`repo.FullNameByRepoURL(url string) string`**
 
-Returns repository URL full name `(<owner>/<repoName>)`. Currently supports only Github, Gitlab and Bitbucket.
+Returns repository URL full name `(<owner>/<repoName>)`. Currently supports only Github, GitLab and Bitbucket.
+
+<hr>
+**`repo.QueryEscape(s string) string`**
+
+QueryEscape escapes the string, so it can be safely placed inside a URL
+
+Example:
+```
+/projects/{{ call .repo.QueryEscape (call .repo.FullNameByRepoURL .app.status.RepoURL) }}/merge_requests
+```
 
 <hr>
 **`repo.GetCommitMetadata(sha string) CommitMetadata`**
@@ -55,7 +65,7 @@ Returns commit metadata. The commit must belong to the application source reposi
 
 * `Message string` commit message
 * `Author string` - commit author
-* `Date time.Time` - commit creation date  
+* `Date time.Time` - commit creation date
 * `Tags []string` - Associated tags
 
 <hr>
@@ -74,6 +84,6 @@ Returns application details. `AppDetail` fields:
   * Methods :
     * `GetParameterValueByName(Name string)` Retrieve value by name in Parameters field
     * `GetFileParameterPathByName(Name string)` Retrieve path by name in FileParameters field
-* `Ksonnet *apiclient.KsonnetAppSpec` - Ksonnet details
+*
 * `Kustomize *apiclient.KustomizeAppSpec` - Kustomize details
 * `Directory *apiclient.DirectoryAppSpec` - Directory details

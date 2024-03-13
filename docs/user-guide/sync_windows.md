@@ -7,7 +7,7 @@ of both manual and automated syncs but allow an override for manual syncs which 
 in preventing automated syncs or if you need to temporarily override a window to perform a sync.
 
 The windows work in the following way. If there are no windows matching an application then all syncs are allowed. If there
-are any `allow` windows matching an application then syncs will only be allowed when there is an active `allow` windows. If there
+are any `allow` windows matching an application then syncs will only be allowed when there is an active `allow` window. If there
 are any `deny` windows matching an application then all syncs will be denied when the `deny` windows are active. If there is an
 active matching `allow` and an active matching `deny` then syncs will be denied as `deny` windows override `allow` windows. The
 UI and the CLI will both display the state of the sync windows. The UI has a panel which will display different colours depending
@@ -64,15 +64,16 @@ spec:
     manualSync: true
   - kind: deny
     schedule: '0 22 * * *'
+    timeZone: "Europe/Amsterdam"
     duration: 1h
     namespaces:
     - default
-   - kind: allow
-     schedule: '0 23 * * *'
-     duration: 1h
-     clusters:
-     - in-cluster
-     - cluster1
+  - kind: allow
+    schedule: '0 23 * * *'
+    duration: 1h
+    clusters:
+    - in-cluster
+    - cluster1
 ```
 
 In order to perform a sync when syncs are being prevented by a window, you can configure the window to allow manual syncs

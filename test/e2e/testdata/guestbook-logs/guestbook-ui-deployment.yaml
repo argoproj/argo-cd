@@ -14,13 +14,8 @@ spec:
         app: guestbook-ui
     spec:
       containers:
-      - image: busybox
+      - image: quay.io/argoprojlabs/argocd-e2e-container:0.1
         imagePullPolicy: IfNotPresent
         name: guestbook-ui
-        command:
-          - sh
-        args:
-           - -c
-           - "echo \"Hi\" && tail -f /dev/null"
         ports:
         - containerPort: 80

@@ -1,6 +1,6 @@
 import * as path from 'path';
-import * as superagent from 'superagent';
-const superagentPromise = require('superagent-promise');
+import * as agent from 'superagent';
+
 import {BehaviorSubject, Observable, Observer} from 'rxjs';
 import {filter} from 'rxjs/operators';
 
@@ -22,11 +22,9 @@ enum ReadyState {
     DONE = 4
 }
 
-const agent: superagent.SuperAgentStatic = superagentPromise(superagent, global.Promise);
-
 let baseHRef = '/';
 
-const onError = new BehaviorSubject<superagent.ResponseError>(null);
+const onError = new BehaviorSubject<agent.ResponseError>(null);
 
 function toAbsURL(val: string): string {
     return path.join(baseHRef, val);
@@ -36,7 +34,7 @@ function apiRoot(): string {
     return toAbsURL('/api/v1');
 }
 
-function initHandlers(req: superagent.Request) {
+function initHandlers(req: agent.Request) {
     req.on('error', err => onError.next(err));
     return req;
 }
@@ -53,19 +51,19 @@ export default {
     },
 
     post(url: string) {
-        return initHandlers(agent.post(`${apiRoot()}${url}`));
+        return initHandlers(agent.post(`${apiRoot()}${url}`)).set('Content-Type', 'application/json');
     },
 
     put(url: string) {
-        return initHandlers(agent.put(`${apiRoot()}${url}`));
+        return initHandlers(agent.put(`${apiRoot()}${url}`)).set('Content-Type', 'application/json');
     },
 
     patch(url: string) {
-        return initHandlers(agent.patch(`${apiRoot()}${url}`));
+        return initHandlers(agent.patch(`${apiRoot()}${url}`)).set('Content-Type', 'application/json');
     },
 
     delete(url: string) {
-        return initHandlers(agent.del(`${apiRoot()}${url}`));
+        return initHandlers(agent.del(`${apiRoot()}${url}`)).set('Content-Type', 'application/json');
     },
 
     loadEventSource(url: string): Observable<string> {

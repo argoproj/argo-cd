@@ -22,7 +22,7 @@ spec:
     spec:
       containers:
       - name: nginx
-        image: nginx:1.17.4-alpine
+        image: quay.io/argoprojlabs/argocd-e2e-container:0.1
         imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 80
@@ -39,7 +39,7 @@ spec:
   restartPolicy: Never
   containers:
   - name: main
-    image: alpine:3.10.2
+    image: quay.io/argoprojlabs/argocd-e2e-container:0.1
     imagePullPolicy: IfNotPresent
     command: [sh, -c, "sleep 10"]
 
@@ -56,6 +56,6 @@ spec:
   restartPolicy: Never
   containers:
   - name: main
-    image: alpine:3.10.2
+    image: quay.io/argoprojlabs/argocd-e2e-container:0.1
     imagePullPolicy: IfNotPresent
     command: [sh, -c, "sleep 10"]

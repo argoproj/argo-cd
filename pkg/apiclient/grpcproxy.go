@@ -13,9 +13,11 @@ import (
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/keepalive"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 
+	"github.com/argoproj/argo-cd/v2/common"
 	argocderrors "github.com/argoproj/argo-cd/v2/util/errors"
 	argoio "github.com/argoproj/argo-cd/v2/util/io"
 	"github.com/argoproj/argo-cd/v2/util/rand"
@@ -38,8 +40,8 @@ func (noopCodec) Unmarshal(data []byte, v interface{}) error {
 	return nil
 }
 
-func (noopCodec) String() string {
-	return "bytes"
+func (noopCodec) Name() string {
+	return "proto"
 }
 
 func toFrame(msg []byte) []byte {
@@ -86,7 +88,7 @@ func (c *client) executeRequest(fullMethodName string, msg []byte, md metadata.M
 	}
 	var code codes.Code
 	if statusStr := resp.Header.Get("Grpc-Status"); statusStr != "" {
-		statusInt, err := strconv.Atoi(statusStr)
+		statusInt, err := strconv.ParseUint(statusStr, 10, 32)
 		if err != nil {
 			code = codes.Unknown
 		} else {
@@ -100,14 +102,23 @@ func (c *client) executeRequest(fullMethodName string, msg []byte, md metadata.M
 }
 
 func (c *client) startGRPCProxy() (*grpc.Server, net.Listener, error) {
-	serverAddr := fmt.Sprintf("%s/argocd-%s.sock", os.TempDir(), rand.RandString(16))
+	randSuffix, err := rand.String(16)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to generate random socket filename: %w", err)
+	}
+	serverAddr := fmt.Sprintf("%s/argocd-%s.sock", os.TempDir(), randSuffix)
 	ln, err := net.Listen("unix", serverAddr)
 
 	if err != nil {
 		return nil, nil, err
 	}
 	proxySrv := grpc.NewServer(
-		grpc.CustomCodec(&noopCodec{}),
+		grpc.ForceServerCodec(&noopCodec{}),
+		grpc.KeepaliveEnforcementPolicy(
+			keepalive.EnforcementPolicy{
+				MinTime: common.GetGRPCKeepAliveEnforcementMinimum(),
+			},
+		),
 		grpc.UnknownServiceHandler(func(srv interface{}, stream grpc.ServerStream) error {
 			fullMethodName, ok := grpc.MethodFromServerStream(stream)
 			if !ok {
@@ -120,13 +131,13 @@ func (c *client) startGRPCProxy() (*grpc.Server, net.Listener, error) {
 			}
 
 			md, _ := metadata.FromIncomingContext(stream.Context())
+			headersMD, err := parseGRPCHeaders(c.Headers)
 
-			for _, kv := range c.Headers {
-				if len(strings.Split(kv, ":"))%2 == 1 {
-					return fmt.Errorf("additional headers key/values must be separated by a colon(:): %s", kv)
-				}
-				md.Append(strings.Split(kv, ":")[0], strings.Split(kv, ":")[1])
+			if err != nil {
+				return err
 			}
+
+			md = metadata.Join(md, headersMD)
 
 			resp, err := c.executeRequest(fullMethodName, msg, md)
 			if err != nil {
@@ -204,4 +215,17 @@ func (c *client) useGRPCProxy() (net.Addr, io.Closer, error) {
 		}
 		return nil
 	}), nil
+}
+
+func parseGRPCHeaders(headerStrings []string) (metadata.MD, error) {
+	md := metadata.New(map[string]string{})
+	for _, kv := range headerStrings {
+		i := strings.IndexByte(kv, ':')
+		// zero means meaningless empty header name
+		if i <= 0 {
+			return nil, fmt.Errorf("additional headers must be colon(:)-separated: %s", kv)
+		}
+		md.Append(kv[0:i], kv[i+1:])
+	}
+	return md, nil
 }

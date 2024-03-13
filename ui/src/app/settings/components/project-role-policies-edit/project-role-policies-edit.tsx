@@ -23,7 +23,7 @@ export const ProjectRolePoliciesEdit = (props: ProjectRolePoliciesProps) => (
     <DataLoader load={() => services.applications.list([props.projName], {fields: ['items.metadata.name']}).then(list => list.items)}>
         {applications => (
             <React.Fragment>
-                <h4>Policy Rules</h4>
+                <p>POLICY RULES</p>
                 <div>Manage this role's permissions to applications</div>
                 <div className='argo-table-list'>
                     <div className='argo-table-list__head'>
@@ -50,6 +50,7 @@ export const ProjectRolePoliciesEdit = (props: ProjectRolePoliciesProps) => (
                         <div className='row'>
                             <div className='columns small-4'>
                                 <a
+                                    className='argo-button argo-button--base'
                                     onClick={() => {
                                         const newPolicy = generatePolicy(props.projName, props.roleName);
                                         props.formApi.setValue('policies', (props.formApi.values.policies || []).concat(newPolicy));

@@ -1,0 +1,9 @@
+apiVersion: cloudfunctions.cnrm.cloud.google.com/v1beta1
+kind: CloudFunctionsFunction
+status:
+  conditions:
+    - lastTransitionTime: '2022-05-09T08:49:18Z'
+      message: The resource is up to date
+      reason: UpToDate
+      status: 'True'
+      type: Ready

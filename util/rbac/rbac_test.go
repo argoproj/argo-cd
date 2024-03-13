@@ -3,12 +3,14 @@ package rbac
 import (
 	"context"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
-	"github.com/dgrijalva/jwt-go/v4"
+	"github.com/golang-jwt/jwt/v4"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	apiv1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
@@ -40,6 +42,69 @@ func fakeConfigMap() *apiv1.ConfigMap {
 		Data: make(map[string]string),
 	}
 	return &cm
+}
+
+func TestPolicyCSV(t *testing.T) {
+	t.Run("will return empty string if data has no csv entries", func(t *testing.T) {
+		// given
+		data := make(map[string]string)
+
+		// when
+		policy := PolicyCSV(data)
+
+		// then
+		assert.Equal(t, "", policy)
+	})
+	t.Run("will return just policy defined with default key", func(t *testing.T) {
+		// given
+		data := make(map[string]string)
+		expectedPolicy := "policy1\npolicy2"
+		data[ConfigMapPolicyCSVKey] = expectedPolicy
+		data["UnrelatedKey"] = "unrelated value"
+
+		// when
+		policy := PolicyCSV(data)
+
+		// then
+		assert.Equal(t, expectedPolicy, policy)
+	})
+	t.Run("will return composed policy provided by multiple policy keys", func(t *testing.T) {
+		// given
+		data := make(map[string]string)
+		data[ConfigMapPolicyCSVKey] = "policy1"
+		data["UnrelatedKey"] = "unrelated value"
+		data["policy.overlay1.csv"] = "policy2"
+		data["policy.overlay2.csv"] = "policy3"
+
+		// when
+		policy := PolicyCSV(data)
+
+		// then
+		assert.Regexp(t, "^policy1", policy)
+		assert.Contains(t, policy, "policy2")
+		assert.Contains(t, policy, "policy3")
+	})
+	t.Run("will return composed policy in a deterministic order", func(t *testing.T) {
+		// given
+		data := make(map[string]string)
+		data["UnrelatedKey"] = "unrelated value"
+		data["policy.B.csv"] = "policyb"
+		data["policy.A.csv"] = "policya"
+		data["policy.C.csv"] = "policyc"
+		data[ConfigMapPolicyCSVKey] = "policy1"
+
+		// when
+		policy := PolicyCSV(data)
+
+		// then
+		result := strings.Split(policy, "\n")
+		assert.Len(t, result, 4)
+		assert.Equal(t, "policy1", result[0])
+		assert.Equal(t, "policya", result[1])
+		assert.Equal(t, "policyb", result[2])
+		assert.Equal(t, "policyc", result[3])
+	})
+
 }
 
 // TestBuiltinPolicyEnforcer tests the builtin policy rules
@@ -167,7 +232,7 @@ p, mike, *, get, foo/obj, deny
 	assert.False(t, enf.Enforce("mike", "applications", "get", "foo/obj"))
 	assert.False(t, enf.Enforce("mike", "applications/resources", "delete", "foo/obj"))
 	assert.False(t, enf.Enforce(nil, "applications/resources", "delete", "foo/obj"))
-	assert.False(t, enf.Enforce(&jwt.StandardClaims{}, "applications/resources", "delete", "foo/obj"))
+	assert.False(t, enf.Enforce(&jwt.RegisteredClaims{}, "applications/resources", "delete", "foo/obj"))
 
 	enf.EnableEnforce(false)
 	assert.True(t, enf.Enforce("alice", "applications", "get", "foo/obj"))
@@ -175,7 +240,7 @@ p, mike, *, get, foo/obj, deny
 	assert.True(t, enf.Enforce("mike", "applications", "get", "foo/obj"))
 	assert.True(t, enf.Enforce("mike", "applications/resources", "delete", "foo/obj"))
 	assert.True(t, enf.Enforce(nil, "applications/resources", "delete", "foo/obj"))
-	assert.True(t, enf.Enforce(&jwt.StandardClaims{}, "applications/resources", "delete", "foo/obj"))
+	assert.True(t, enf.Enforce(&jwt.RegisteredClaims{}, "applications/resources", "delete", "foo/obj"))
 }
 
 func TestUpdatePolicy(t *testing.T) {
@@ -218,7 +283,7 @@ func TestNoPolicy(t *testing.T) {
 func TestClaimsEnforcerFunc(t *testing.T) {
 	kubeclientset := fake.NewSimpleClientset()
 	enf := NewEnforcer(kubeclientset, fakeNamespace, fakeConfigMapName, nil)
-	claims := jwt.StandardClaims{
+	claims := jwt.RegisteredClaims{
 		Subject: "foo",
 	}
 	assert.False(t, enf.Enforce(&claims, "applications", "get", "foo/bar"))
@@ -249,7 +314,7 @@ func TestClaimsEnforcerFuncWithRuntimePolicy(t *testing.T) {
 	err := enf.syncUpdate(fakeConfigMap(), noOpUpdate)
 	assert.Nil(t, err)
 	runtimePolicy := assets.BuiltinPolicyCSV
-	claims := jwt.StandardClaims{
+	claims := jwt.RegisteredClaims{
 		Subject: "foo",
 	}
 	assert.False(t, enf.EnforceRuntimePolicy("", runtimePolicy, claims, "applications", "get", "foo/bar"))
@@ -310,7 +375,7 @@ func TestEnforceErrorMessage(t *testing.T) {
 	assert.Equal(t, "rpc error: code = PermissionDenied desc = permission denied", err.Error())
 
 	// nolint:staticcheck
-	ctx := context.WithValue(context.Background(), "claims", &jwt.StandardClaims{Subject: "proj:default:admin"})
+	ctx := context.WithValue(context.Background(), "claims", &jwt.RegisteredClaims{Subject: "proj:default:admin"})
 	err = enf.EnforceErr(ctx.Value("claims"), "project")
 	assert.Error(t, err)
 	assert.Equal(t, "rpc error: code = PermissionDenied desc = permission denied: project, sub: proj:default:admin", err.Error())
@@ -318,19 +383,19 @@ func TestEnforceErrorMessage(t *testing.T) {
 	iat := time.Unix(int64(1593035962), 0).Format(time.RFC3339)
 	exp := fmt.Sprintf("rpc error: code = PermissionDenied desc = permission denied: project, sub: proj:default:admin, iat: %s", iat)
 	// nolint:staticcheck
-	ctx = context.WithValue(context.Background(), "claims", &jwt.StandardClaims{Subject: "proj:default:admin", IssuedAt: jwt.NewTime(1593035962)})
+	ctx = context.WithValue(context.Background(), "claims", &jwt.RegisteredClaims{Subject: "proj:default:admin", IssuedAt: jwt.NewNumericDate(time.Unix(int64(1593035962), 0))})
 	err = enf.EnforceErr(ctx.Value("claims"), "project")
 	assert.Error(t, err)
 	assert.Equal(t, exp, err.Error())
 
 	// nolint:staticcheck
-	ctx = context.WithValue(context.Background(), "claims", &jwt.StandardClaims{ExpiresAt: jwt.NewTime(1)})
+	ctx = context.WithValue(context.Background(), "claims", &jwt.RegisteredClaims{ExpiresAt: jwt.NewNumericDate(time.Now())})
 	err = enf.EnforceErr(ctx.Value("claims"), "project")
 	assert.Error(t, err)
 	assert.Equal(t, "rpc error: code = PermissionDenied desc = permission denied: project", err.Error())
 
 	// nolint:staticcheck
-	ctx = context.WithValue(context.Background(), "claims", &jwt.StandardClaims{Subject: "proj:default:admin", IssuedAt: nil})
+	ctx = context.WithValue(context.Background(), "claims", &jwt.RegisteredClaims{Subject: "proj:default:admin", IssuedAt: nil})
 	err = enf.EnforceErr(ctx.Value("claims"), "project")
 	assert.Error(t, err)
 	assert.Equal(t, "rpc error: code = PermissionDenied desc = permission denied: project, sub: proj:default:admin", err.Error())
@@ -398,4 +463,61 @@ func TestGlobMatchFunc(t *testing.T) {
 
 	ok, _ = globMatchFunc("arg/123", "arg/*")
 	assert.True(t, ok.(bool))
+}
+
+func TestLoadPolicyLine(t *testing.T) {
+	t.Run("Valid permission line", func(t *testing.T) {
+		policy := `p, role:Myrole, applications, *, myproj/*, allow`
+		model := newBuiltInModel()
+		err := loadPolicyLine(policy, model)
+		require.NoError(t, err)
+	})
+	t.Run("Valid grant line", func(t *testing.T) {
+		policy := `g, your-github-org:your-team, role:org-admin`
+		model := newBuiltInModel()
+		err := loadPolicyLine(policy, model)
+		require.NoError(t, err)
+	})
+	t.Run("Empty policy line", func(t *testing.T) {
+		policy := ""
+		model := newBuiltInModel()
+		err := loadPolicyLine(policy, model)
+		require.NoError(t, err)
+	})
+	t.Run("Comment policy line", func(t *testing.T) {
+		policy := "# Some comment"
+		model := newBuiltInModel()
+		err := loadPolicyLine(policy, model)
+		require.NoError(t, err)
+	})
+	t.Run("Invalid policy line: single token", func(t *testing.T) {
+		policy := "p"
+		model := newBuiltInModel()
+		err := loadPolicyLine(policy, model)
+		require.Error(t, err)
+	})
+	t.Run("Invalid policy line: plain text", func(t *testing.T) {
+		policy := "Some comment"
+		model := newBuiltInModel()
+		err := loadPolicyLine(policy, model)
+		require.Error(t, err)
+	})
+	t.Run("Invalid policy line", func(t *testing.T) {
+		policy := "agh, foo, bar"
+		model := newBuiltInModel()
+		err := loadPolicyLine(policy, model)
+		require.Error(t, err)
+	})
+	t.Run("Invalid policy line missing comma", func(t *testing.T) {
+		policy := "p, role:Myrole, applications, *, myproj/* allow"
+		model := newBuiltInModel()
+		err := loadPolicyLine(policy, model)
+		require.Error(t, err)
+	})
+	t.Run("Invalid policy line missing policy type", func(t *testing.T) {
+		policy := ", role:Myrole, applications, *, myproj/*, allow"
+		model := newBuiltInModel()
+		err := loadPolicyLine(policy, model)
+		require.Error(t, err)
+	})
 }

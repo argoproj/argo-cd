@@ -1,9 +1,8 @@
 package admin
 
 import (
+	"context"
 	"testing"
-
-	"github.com/argoproj/argo-cd/v2/test"
 
 	clustermocks "github.com/argoproj/gitops-engine/pkg/cache/mocks"
 	"github.com/argoproj/gitops-engine/pkg/health"
@@ -21,13 +20,16 @@ import (
 	"github.com/argoproj/argo-cd/v2/controller/metrics"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	appfake "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned/fake"
-	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
+	argocdclient "github.com/argoproj/argo-cd/v2/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/v2/reposerver/apiclient/mocks"
+	"github.com/argoproj/argo-cd/v2/test"
 	"github.com/argoproj/argo-cd/v2/util/db"
 	"github.com/argoproj/argo-cd/v2/util/settings"
 )
 
 func TestGetReconcileResults(t *testing.T) {
+	ctx := context.Background()
+
 	appClientset := appfake.NewSimpleClientset(&v1alpha1.Application{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test",
@@ -39,7 +41,7 @@ func TestGetReconcileResults(t *testing.T) {
 		},
 	})
 
-	result, err := getReconcileResults(appClientset, "default", "")
+	result, err := getReconcileResults(ctx, appClientset, "default", "")
 	if !assert.NoError(t, err) {
 		return
 	}
@@ -53,6 +55,8 @@ func TestGetReconcileResults(t *testing.T) {
 }
 
 func TestGetReconcileResults_Refresh(t *testing.T) {
+	ctx := context.Background()
+
 	cm := corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "argocd-cm",
@@ -76,6 +80,7 @@ func TestGetReconcileResults_Refresh(t *testing.T) {
 			Namespace: "default",
 		},
 		Spec: v1alpha1.ApplicationSpec{
+			Source:  &v1alpha1.ApplicationSource{},
 			Project: "default",
 			Destination: v1alpha1.ApplicationDestination{
 				Server:    v1alpha1.KubernetesInternalAPIServerAddr,
@@ -89,8 +94,9 @@ func TestGetReconcileResults_Refresh(t *testing.T) {
 	kubeClientset := kubefake.NewSimpleClientset(deployment, &cm)
 	clusterCache := clustermocks.ClusterCache{}
 	clusterCache.On("IsNamespaced", mock.Anything).Return(true, nil)
+	clusterCache.On("GetGVKParser", mock.Anything).Return(nil)
 	repoServerClient := mocks.RepoServerServiceClient{}
-	repoServerClient.On("GenerateManifest", mock.Anything, mock.Anything).Return(&apiclient.ManifestResponse{
+	repoServerClient.On("GenerateManifest", mock.Anything, mock.Anything).Return(&argocdclient.ManifestResponse{
 		Manifests: []string{test.DeploymentManifest},
 	}, nil)
 	repoServerClientset := mocks.Clientset{RepoServerServiceClient: &repoServerClient}
@@ -103,10 +109,11 @@ func TestGetReconcileResults_Refresh(t *testing.T) {
 	liveStateCache.On("GetClusterCache", mock.Anything).Return(&clusterCache, nil)
 	liveStateCache.On("IsNamespaced", mock.Anything, mock.Anything).Return(true, nil)
 
-	result, err := reconcileApplications(kubeClientset, appClientset, "default", &repoServerClientset, "",
+	result, err := reconcileApplications(ctx, kubeClientset, appClientset, "default", &repoServerClientset, "",
 		func(argoDB db.ArgoDB, appInformer cache.SharedIndexInformer, settingsMgr *settings.SettingsManager, server *metrics.MetricsServer) statecache.LiveStateCache {
 			return &liveStateCache
 		},
+		false,
 	)
 
 	if !assert.NoError(t, err) {

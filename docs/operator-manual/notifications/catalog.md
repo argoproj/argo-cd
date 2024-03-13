@@ -62,8 +62,7 @@ slack:
         "short": true
       }
       {{range $index, $c := .app.status.conditions}}
-      {{if not $index}},{{end}}
-      {{if $index}},{{end}}
+      ,
       {
         "title": "{{$c.type}}",
         "value": "{{$c.message}}",
@@ -72,6 +71,7 @@ slack:
       {{end}}
       ]
     }]
+  deliveryPolicy: Post
   groupingKey: ""
   notifyBroadcast: false
 teams:
@@ -89,8 +89,7 @@ teams:
       "value": "{{.app.status.sync.revision}}"
     }
     {{range $index, $c := .app.status.conditions}}
-      {{if not $index}},{{end}}
-      {{if $index}},{{end}}
+      ,
       {
         "name": "{{$c.type}}",
         "value": "{{$c.message}}"
@@ -144,8 +143,7 @@ slack:
         "short": true
       }
       {{range $index, $c := .app.status.conditions}}
-      {{if not $index}},{{end}}
-      {{if $index}},{{end}}
+      ,
       {
         "title": "{{$c.type}}",
         "value": "{{$c.message}}",
@@ -154,6 +152,7 @@ slack:
       {{end}}
       ]
     }]
+  deliveryPolicy: Post
   groupingKey: ""
   notifyBroadcast: false
 teams:
@@ -167,8 +166,7 @@ teams:
       "value": "{{.app.spec.source.repoURL}}"
     }
     {{range $index, $c := .app.status.conditions}}
-      {{if not $index}},{{end}}
-      {{if $index}},{{end}}
+      ,
       {
         "name": "{{$c.type}}",
         "value": "{{$c.message}}"
@@ -222,8 +220,7 @@ slack:
         "short": true
       }
       {{range $index, $c := .app.status.conditions}}
-      {{if not $index}},{{end}}
-      {{if $index}},{{end}}
+      ,
       {
         "title": "{{$c.type}}",
         "value": "{{$c.message}}",
@@ -232,6 +229,7 @@ slack:
       {{end}}
       ]
     }]
+  deliveryPolicy: Post
   groupingKey: ""
   notifyBroadcast: false
 teams:
@@ -249,8 +247,7 @@ teams:
       "value": "{{.app.spec.source.repoURL}}"
     }
     {{range $index, $c := .app.status.conditions}}
-      {{if not $index}},{{end}}
-      {{if $index}},{{end}}
+      ,
       {
         "name": "{{$c.type}}",
         "value": "{{$c.message}}"
@@ -304,8 +301,7 @@ slack:
         "short": true
       }
       {{range $index, $c := .app.status.conditions}}
-      {{if not $index}},{{end}}
-      {{if $index}},{{end}}
+      ,
       {
         "title": "{{$c.type}}",
         "value": "{{$c.message}}",
@@ -314,6 +310,7 @@ slack:
       {{end}}
       ]
     }]
+  deliveryPolicy: Post
   groupingKey: ""
   notifyBroadcast: false
 teams:
@@ -331,8 +328,7 @@ teams:
       "value": "{{.app.spec.source.repoURL}}"
     }
     {{range $index, $c := .app.status.conditions}}
-      {{if not $index}},{{end}}
-      {{if $index}},{{end}}
+      ,
       {
         "name": "{{$c.type}}",
         "value": "{{$c.message}}"
@@ -390,8 +386,7 @@ slack:
         "short": true
       }
       {{range $index, $c := .app.status.conditions}}
-      {{if not $index}},{{end}}
-      {{if $index}},{{end}}
+      ,
       {
         "title": "{{$c.type}}",
         "value": "{{$c.message}}",
@@ -400,6 +395,7 @@ slack:
       {{end}}
       ]
     }]
+  deliveryPolicy: Post
   groupingKey: ""
   notifyBroadcast: false
 teams:
@@ -413,8 +409,7 @@ teams:
       "value": "{{.app.spec.source.repoURL}}"
     }
     {{range $index, $c := .app.status.conditions}}
-      {{if not $index}},{{end}}
-      {{if $index}},{{end}}
+      ,
       {
         "name": "{{$c.type}}",
         "value": "{{$c.message}}"
@@ -467,8 +462,7 @@ slack:
         "short": true
       }
       {{range $index, $c := .app.status.conditions}}
-      {{if not $index}},{{end}}
-      {{if $index}},{{end}}
+      ,
       {
         "title": "{{$c.type}}",
         "value": "{{$c.message}}",
@@ -477,6 +471,7 @@ slack:
       {{end}}
       ]
     }]
+  deliveryPolicy: Post
   groupingKey: ""
   notifyBroadcast: false
 teams:
@@ -494,8 +489,7 @@ teams:
       "value": "{{.app.spec.source.repoURL}}"
     }
     {{range $index, $c := .app.status.conditions}}
-      {{if not $index}},{{end}}
-      {{if $index}},{{end}}
+      ,
       {
         "name": "{{$c.type}}",
         "value": "{{$c.message}}"

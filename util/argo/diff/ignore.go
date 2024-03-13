@@ -40,13 +40,17 @@ func NewIgnoreDiffConfig(ignores []v1alpha1.ResourceIgnoreDifferences, overrides
 // will be returned taking precedence over Application specific ignore difference
 // configurations.
 func (i *IgnoreDiffConfig) HasIgnoreDifference(group, kind, name, namespace string) (bool, *IgnoreDifference) {
+	result := &IgnoreDifference{}
+	found := false
 	ro, ok := i.overrides[fmt.Sprintf("%s/%s", group, kind)]
 	if ok {
-		return ok, overrideToIgnoreDifference(ro)
+		mergeIgnoreDifferences(overrideToIgnoreDifference(ro), result)
+		found = true
 	}
 	wildOverride, ok := i.overrides["*/*"]
 	if ok {
-		return ok, overrideToIgnoreDifference(wildOverride)
+		mergeIgnoreDifferences(overrideToIgnoreDifference(wildOverride), result)
+		found = true
 	}
 
 	for _, ignore := range i.ignores {
@@ -55,10 +59,15 @@ func (i *IgnoreDiffConfig) HasIgnoreDifference(group, kind, name, namespace stri
 			(ignore.Name == "" || ignore.Name == name) &&
 			(ignore.Namespace == "" || ignore.Namespace == namespace) {
 
-			return true, resourceToIgnoreDifference(ignore)
+			mergeIgnoreDifferences(resourceToIgnoreDifference(ignore), result)
+			found = true
 		}
 	}
-	return false, nil
+	if !found {
+		return found, nil
+	}
+
+	return found, result
 }
 
 func overrideToIgnoreDifference(override v1alpha1.ResourceOverride) *IgnoreDifference {
@@ -75,4 +84,33 @@ func resourceToIgnoreDifference(resource v1alpha1.ResourceIgnoreDifferences) *Ig
 		JQPathExpressions:     resource.JQPathExpressions,
 		ManagedFieldsManagers: resource.ManagedFieldsManagers,
 	}
+}
+
+// mergeIgnoreDifferences will merge all ignores in the given from in target
+// skipping repeated configs.
+func mergeIgnoreDifferences(from *IgnoreDifference, target *IgnoreDifference) {
+	for _, jqPath := range from.JQPathExpressions {
+		if !contains(target.JQPathExpressions, jqPath) {
+			target.JQPathExpressions = append(target.JQPathExpressions, jqPath)
+		}
+	}
+	for _, jsonPointer := range from.JSONPointers {
+		if !contains(target.JSONPointers, jsonPointer) {
+			target.JSONPointers = append(target.JSONPointers, jsonPointer)
+		}
+	}
+	for _, manager := range from.ManagedFieldsManagers {
+		if !contains(target.ManagedFieldsManagers, manager) {
+			target.ManagedFieldsManagers = append(target.ManagedFieldsManagers, manager)
+		}
+	}
+}
+
+func contains(slice []string, e string) bool {
+	for _, s := range slice {
+		if s == e {
+			return true
+		}
+	}
+	return false
 }

@@ -5,7 +5,7 @@ import {omit} from 'lodash-es';
 import {NumberField} from '../../../shared/components';
 import * as models from '../../../shared/models';
 
-require('./application-retry-options.scss');
+import './application-retry-options.scss';
 
 const durationRegex = /^([\d\.]+[HMS])+$/i;
 const durationRegexError = 'Should be 1h10m10s/10h10m/10m/10s';
@@ -27,11 +27,11 @@ const retryOptions: Array<(formApi: FormApi) => React.ReactNode> = [
 ];
 
 const defaultInitialValues = {
-    limit: '',
+    limit: 2,
     backoff: {
-        duration: '',
-        maxDuration: '',
-        factor: ''
+        duration: '5s',
+        maxDuration: '3m0s',
+        factor: 2
     }
 };
 
@@ -79,8 +79,22 @@ export const ApplicationRetryForm = ({initValues, field = 'retryStrategy'}: {ini
     );
 };
 
-export const ApplicationRetryOptions = ({formApi, initValues, field = 'retryStrategy'}: {formApi: FormApi; field?: string; initValues?: models.RetryStrategy}) => {
-    const [retry, setRetry] = React.useState(!!initValues);
+export const ApplicationRetryOptions = ({
+    formApi,
+    initValues,
+    field = 'retryStrategy',
+    retry,
+    setRetry,
+    id
+}: {
+    formApi: FormApi;
+    field?: string;
+    initValues?: models.RetryStrategy;
+    retry?: boolean;
+    setRetry?: (value: boolean) => any;
+    id?: string;
+}) => {
+    const [retryInternal, setRetryInternal] = React.useState(!!initValues);
 
     const toggleRetry = (value: boolean) => {
         if (!value) {
@@ -97,15 +111,18 @@ export const ApplicationRetryOptions = ({formApi, initValues, field = 'retryStra
                 errors: newErrors
             });
         }
-
-        setRetry(value);
+        if (setRetry != null) {
+            setRetry(value);
+        } else {
+            setRetryInternal(value);
+        }
     };
-
+    const isChecked = setRetry != null ? retry : retryInternal;
     return (
         <div className='application-retry-options'>
-            <Checkbox id='retry' checked={retry} onChange={val => toggleRetry(val)} />
-            <label htmlFor='retry'>Retry</label>
-            {retry && <ApplicationRetryForm initValues={initValues} field={field} />}
+            <Checkbox id={`retry-${id}`} checked={isChecked} onChange={val => toggleRetry(val)} />
+            <label htmlFor={`retry-${id}`}>Retry</label>
+            {isChecked && <ApplicationRetryForm initValues={initValues} field={field} />}
         </div>
     );
 };

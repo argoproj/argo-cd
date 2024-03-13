@@ -7,7 +7,6 @@ import (
 	"bytes"
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path"
@@ -53,6 +52,9 @@ func NewVersionCmd(cliName string) *cobra.Command {
 			fmt.Printf("  GoVersion: %s\n", version.GoVersion)
 			fmt.Printf("  Compiler: %s\n", version.Compiler)
 			fmt.Printf("  Platform: %s\n", version.Platform)
+			if version.ExtraBuildInfo != "" {
+				fmt.Printf("  ExtraBuildInfo: %s\n", version.ExtraBuildInfo)
+			}
 		},
 	}
 	versionCmd.Flags().BoolVar(&short, "short", false, "print just the version number")
@@ -112,7 +114,7 @@ func PromptPassword(password string) string {
 }
 
 // AskToProceed prompts the user with a message (typically a yes or no question) and returns whether
-// or not they responded in the affirmative or negative.
+// they responded in the affirmative or negative.
 func AskToProceed(message string) bool {
 	for {
 		fmt.Print(message)
@@ -124,6 +126,25 @@ func AskToProceed(message string) bool {
 			return true
 		case "n", "no":
 			return false
+		}
+	}
+}
+
+// AskToProceedS prompts the user with a message (typically a yes, no or all question) and returns string
+// "a", "y" or "n".
+func AskToProceedS(message string) string {
+	for {
+		fmt.Print(message)
+		reader := bufio.NewReader(os.Stdin)
+		proceedRaw, err := reader.ReadString('\n')
+		errors.CheckError(err)
+		switch strings.ToLower(strings.TrimSpace(proceedRaw)) {
+		case "y", "yes":
+			return "y"
+		case "n", "no":
+			return "n"
+		case "a", "all":
+			return "a"
 		}
 	}
 }
@@ -180,7 +201,7 @@ func SetGLogLevel(glogLevel int) {
 }
 
 func writeToTempFile(pattern string, data []byte) string {
-	f, err := ioutil.TempFile("", pattern)
+	f, err := os.CreateTemp("", pattern)
 	errors.CheckError(err)
 	defer io.Close(f)
 	_, err = f.Write(data)
@@ -252,10 +273,10 @@ func InteractiveEdit(filePattern string, data []byte, save func(input []byte) er
 		err := (term.TTY{In: os.Stdin, TryDev: true}).Safe(cmd.Run)
 		errors.CheckError(err)
 
-		updated, err := ioutil.ReadFile(tempFile)
+		updated, err := os.ReadFile(tempFile)
 		errors.CheckError(err)
 		if string(updated) == "" || string(updated) == string(data) {
-			errors.CheckError(fmt.Errorf("Edit cancelled, no valid changes were saved."))
+			errors.CheckError(fmt.Errorf("edit cancelled, no valid changes were saved"))
 			break
 		} else {
 			data = stripComments(updated)
@@ -272,7 +293,7 @@ func InteractiveEdit(filePattern string, data []byte, save func(input []byte) er
 // PrintDiff prints a diff between two unstructured objects to stdout using an external diff utility
 // Honors the diff utility set in the KUBECTL_EXTERNAL_DIFF environment variable
 func PrintDiff(name string, live *unstructured.Unstructured, target *unstructured.Unstructured) error {
-	tempDir, err := ioutil.TempDir("", "argocd-diff")
+	tempDir, err := os.MkdirTemp("", "argocd-diff")
 	if err != nil {
 		return err
 	}
@@ -284,7 +305,7 @@ func PrintDiff(name string, live *unstructured.Unstructured, target *unstructure
 			return err
 		}
 	}
-	err = ioutil.WriteFile(targetFile, targetData, 0644)
+	err = os.WriteFile(targetFile, targetData, 0644)
 	if err != nil {
 		return err
 	}
@@ -296,7 +317,7 @@ func PrintDiff(name string, live *unstructured.Unstructured, target *unstructure
 			return err
 		}
 	}
-	err = ioutil.WriteFile(liveFile, liveData, 0644)
+	err = os.WriteFile(liveFile, liveData, 0644)
 	if err != nil {
 		return err
 	}

@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"strings"
@@ -11,15 +10,16 @@ import (
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
 
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
-	"github.com/ghodss/yaml"
 	extensionsobj "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"sigs.k8s.io/yaml"
 )
 
 var (
 	kindToCRDPath = map[string]string{
-		application.ApplicationFullName: "manifests/crds/application-crd.yaml",
-		application.AppProjectFullName:  "manifests/crds/appproject-crd.yaml",
+		application.ApplicationFullName:    "manifests/crds/application-crd.yaml",
+		application.AppProjectFullName:     "manifests/crds/appproject-crd.yaml",
+		application.ApplicationSetFullName: "manifests/crds/applicationset-crd.yaml",
 	}
 )
 
@@ -38,6 +38,7 @@ func getCustomResourceDefinitions() map[string]*extensionsobj.CustomResourceDefi
 	deleteFile("config/webhook")
 	deleteFile("config/argoproj.io_applications.yaml")
 	deleteFile("config/argoproj.io_appprojects.yaml")
+	deleteFile("config/argoproj.io_applicationsets.yaml")
 	deleteFile("config")
 
 	objs, err := kube.SplitYAML(crdYamlBytes)
@@ -54,7 +55,7 @@ func getCustomResourceDefinitions() map[string]*extensionsobj.CustomResourceDefi
 			removeValidation(un, "status")
 		}
 
-		crd := toCRD(un)
+		crd := toCRD(un, un.GetName() == "applicationsets.argoproj.io")
 		crd.Labels = map[string]string{
 			"app.kubernetes.io/name":    crd.Name,
 			"app.kubernetes.io/part-of": "argocd",
@@ -81,7 +82,10 @@ func removeValidation(un *unstructured.Unstructured, path string) {
 	unstructured.RemoveNestedField(un.Object, schemaPath...)
 }
 
-func toCRD(un *unstructured.Unstructured) *extensionsobj.CustomResourceDefinition {
+func toCRD(un *unstructured.Unstructured, removeDesc bool) *extensionsobj.CustomResourceDefinition {
+	if removeDesc {
+		removeDescription(un.Object)
+	}
 	unBytes, err := json.Marshal(un)
 	checkErr(err)
 
@@ -92,6 +96,25 @@ func toCRD(un *unstructured.Unstructured) *extensionsobj.CustomResourceDefinitio
 	return &crd
 }
 
+func removeDescription(v interface{}) {
+	switch v := v.(type) {
+	case []interface{}:
+		for _, v := range v {
+			removeDescription(v)
+		}
+	case map[string]interface{}:
+		if _, ok := v["description"]; ok {
+			_, ok := v["description"].(string)
+			if ok {
+				delete(v, "description")
+			}
+		}
+		for _, v := range v {
+			removeDescription(v)
+		}
+	}
+}
+
 func checkErr(err error) {
 	if err != nil {
 		panic(err)
@@ -99,30 +122,33 @@ func checkErr(err error) {
 }
 
 func main() {
-	crds := getCustomResourceDefinitions()
+	crdsapp := getCustomResourceDefinitions()
 	for kind, path := range kindToCRDPath {
-		crd := crds[kind]
+		crd := crdsapp[kind]
 		if crd == nil {
 			panic(fmt.Sprintf("CRD of kind %s was not generated", kind))
 		}
-
-		jsonBytes, err := json.Marshal(crd)
-		checkErr(err)
-
-		var r unstructured.Unstructured
-		err = json.Unmarshal(jsonBytes, &r.Object)
-		checkErr(err)
-
-		// clean up crd yaml before marshalling
-		unstructured.RemoveNestedField(r.Object, "status")
-		unstructured.RemoveNestedField(r.Object, "metadata", "creationTimestamp")
-		jsonBytes, err = json.MarshalIndent(r.Object, "", "    ")
-		checkErr(err)
-
-		yamlBytes, err := yaml.JSONToYAML(jsonBytes)
-		checkErr(err)
-
-		err = ioutil.WriteFile(path, yamlBytes, 0644)
-		checkErr(err)
+		writeCRDintoFile(crd, path)
 	}
+}
+
+func writeCRDintoFile(crd *extensionsobj.CustomResourceDefinition, path string) {
+	jsonBytes, err := json.Marshal(crd)
+	checkErr(err)
+
+	var r unstructured.Unstructured
+	err = json.Unmarshal(jsonBytes, &r.Object)
+	checkErr(err)
+
+	// clean up crd yaml before marshalling
+	unstructured.RemoveNestedField(r.Object, "status")
+	unstructured.RemoveNestedField(r.Object, "metadata", "creationTimestamp")
+	jsonBytes, err = json.MarshalIndent(r.Object, "", "    ")
+	checkErr(err)
+
+	yamlBytes, err := yaml.JSONToYAML(jsonBytes)
+	checkErr(err)
+
+	err = os.WriteFile(path, yamlBytes, 0644)
+	checkErr(err)
 }
