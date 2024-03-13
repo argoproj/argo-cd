@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	goio "io"
+	"os"
 	"regexp"
 	"sort"
 	"strings"
@@ -1104,4 +1106,32 @@ func IsValidContainerName(name string) bool {
 	// https://github.com/kubernetes/kubernetes/blob/53a9d106c4aabcd550cc32ae4e8004f32fb0ae7b/pkg/api/validation/validation.go#L280
 	validationErrors := apimachineryvalidation.NameIsDNSLabel(name, false)
 	return len(validationErrors) == 0
+}
+
+// CopyFile has os.filemode, because despite currently (PR12508) we only need to
+// copy files from appsrc repo to repo, being restricted to non-exec files,
+// later it could be used to replace copying the cmp server with /bin/cp,
+// therefore removing the dependency on one of the cli tools (going distroless)
+func CopyFile(srcFile string, dstFile string, perm os.FileMode) error {
+	log.WithFields(log.Fields{
+		"srcFile": srcFile,
+		"dstFile": dstFile,
+		"perm":    perm,
+	}).Debugf("CopyFile called")
+	src, err := os.OpenFile(srcFile, os.O_RDONLY, 0644)
+	if err != nil {
+		return err
+	}
+	defer src.Close()
+
+	// we're adding O_TRUNC, because if the file already exists, it needs
+	// to be truncated
+	dst, err := os.OpenFile(dstFile, os.O_WRONLY|os.O_CREATE|os.O_EXCL|os.O_TRUNC, perm)
+	if err != nil {
+		return err
+	}
+	defer dst.Close()
+
+	_, err = goio.Copy(dst, src)
+	return err
 }

@@ -190,6 +190,20 @@ spec:
                                         recurse:
                                           type: boolean
                                       type: object
+                                    from:
+                                      items:
+                                        properties:
+                                          destinationPath:
+                                            type: string
+                                          failOnOutOfBoundsSymlink:
+                                            type: boolean
+                                          sourcePath:
+                                            type: string
+                                        required:
+                                        - destinationPath
+                                        - sourcePath
+                                        type: object
+                                      type: array
                                     helm:
                                       properties:
                                         fileParameters:
@@ -406,6 +420,20 @@ spec:
                                           recurse:
                                             type: boolean
                                         type: object
+                                      from:
+                                        items:
+                                          properties:
+                                            destinationPath:
+                                              type: string
+                                            failOnOutOfBoundsSymlink:
+                                              type: boolean
+                                            sourcePath:
+                                              type: string
+                                          required:
+                                          - destinationPath
+                                          - sourcePath
+                                          type: object
+                                        type: array
                                       helm:
                                         properties:
                                           fileParameters:
@@ -781,6 +809,20 @@ spec:
                                         recurse:
                                           type: boolean
                                       type: object
+                                    from:
+                                      items:
+                                        properties:
+                                          destinationPath:
+                                            type: string
+                                          failOnOutOfBoundsSymlink:
+                                            type: boolean
+                                          sourcePath:
+                                            type: string
+                                        required:
+                                        - destinationPath
+                                        - sourcePath
+                                        type: object
+                                      type: array
                                     helm:
                                       properties:
                                         fileParameters:
@@ -997,6 +1039,20 @@ spec:
                                           recurse:
                                             type: boolean
                                         type: object
+                                      from:
+                                        items:
+                                          properties:
+                                            destinationPath:
+                                              type: string
+                                            failOnOutOfBoundsSymlink:
+                                              type: boolean
+                                            sourcePath:
+                                              type: string
+                                          required:
+                                          - destinationPath
+                                          - sourcePath
+                                          type: object
+                                        type: array
                                       helm:
                                         properties:
                                           fileParameters:
@@ -1376,6 +1432,20 @@ spec:
                                         recurse:
                                           type: boolean
                                       type: object
+                                    from:
+                                      items:
+                                        properties:
+                                          destinationPath:
+                                            type: string
+                                          failOnOutOfBoundsSymlink:
+                                            type: boolean
+                                          sourcePath:
+                                            type: string
+                                        required:
+                                        - destinationPath
+                                        - sourcePath
+                                        type: object
+                                      type: array
                                     helm:
                                       properties:
                                         fileParameters:
@@ -1592,6 +1662,20 @@ spec:
                                           recurse:
                                             type: boolean
                                         type: object
+                                      from:
+                                        items:
+                                          properties:
+                                            destinationPath:
+                                              type: string
+                                            failOnOutOfBoundsSymlink:
+                                              type: boolean
+                                            sourcePath:
+                                              type: string
+                                          required:
+                                          - destinationPath
+                                          - sourcePath
+                                          type: object
+                                        type: array
                                       helm:
                                         properties:
                                           fileParameters:
@@ -1951,6 +2035,20 @@ spec:
                                         recurse:
                                           type: boolean
                                       type: object
+                                    from:
+                                      items:
+                                        properties:
+                                          destinationPath:
+                                            type: string
+                                          failOnOutOfBoundsSymlink:
+                                            type: boolean
+                                          sourcePath:
+                                            type: string
+                                        required:
+                                        - destinationPath
+                                        - sourcePath
+                                        type: object
+                                      type: array
                                     helm:
                                       properties:
                                         fileParameters:
@@ -2167,6 +2265,20 @@ spec:
                                           recurse:
                                             type: boolean
                                         type: object
+                                      from:
+                                        items:
+                                          properties:
+                                            destinationPath:
+                                              type: string
+                                            failOnOutOfBoundsSymlink:
+                                              type: boolean
+                                            sourcePath:
+                                              type: string
+                                          required:
+                                          - destinationPath
+                                          - sourcePath
+                                          type: object
+                                        type: array
                                       helm:
                                         properties:
                                           fileParameters:
@@ -2548,6 +2660,20 @@ spec:
                                                   recurse:
                                                     type: boolean
                                                 type: object
+                                              from:
+                                                items:
+                                                  properties:
+                                                    destinationPath:
+                                                      type: string
+                                                    failOnOutOfBoundsSymlink:
+                                                      type: boolean
+                                                    sourcePath:
+                                                      type: string
+                                                  required:
+                                                  - destinationPath
+                                                  - sourcePath
+                                                  type: object
+                                                type: array
                                               helm:
                                                 properties:
                                                   fileParameters:
@@ -2764,6 +2890,20 @@ spec:
                                                     recurse:
                                                       type: boolean
                                                   type: object
+                                                from:
+                                                  items:
+                                                    properties:
+                                                      destinationPath:
+                                                        type: string
+                                                      failOnOutOfBoundsSymlink:
+                                                        type: boolean
+                                                      sourcePath:
+                                                        type: string
+                                                    required:
+                                                    - destinationPath
+                                                    - sourcePath
+                                                    type: object
+                                                  type: array
                                                 helm:
                                                   properties:
                                                     fileParameters:
@@ -3139,6 +3279,20 @@ spec:
                                                   recurse:
                                                     type: boolean
                                                 type: object
+                                              from:
+                                                items:
+                                                  properties:
+                                                    destinationPath:
+                                                      type: string
+                                                    failOnOutOfBoundsSymlink:
+                                                      type: boolean
+                                                    sourcePath:
+                                                      type: string
+                                                  required:
+                                                  - destinationPath
+                                                  - sourcePath
+                                                  type: object
+                                                type: array
                                               helm:
                                                 properties:
                                                   fileParameters:
@@ -3355,6 +3509,20 @@ spec:
                                                     recurse:
                                                       type: boolean
                                                   type: object
+                                                from:
+                                                  items:
+                                                    properties:
+                                                      destinationPath:
+                                                        type: string
+                                                      failOnOutOfBoundsSymlink:
+                                                        type: boolean
+                                                      sourcePath:
+                                                        type: string
+                                                    required:
+                                                    - destinationPath
+                                                    - sourcePath
+                                                    type: object
+                                                  type: array
                                                 helm:
                                                   properties:
                                                     fileParameters:
@@ -3734,6 +3902,20 @@ spec:
                                                   recurse:
                                                     type: boolean
                                                 type: object
+                                              from:
+                                                items:
+                                                  properties:
+                                                    destinationPath:
+                                                      type: string
+                                                    failOnOutOfBoundsSymlink:
+                                                      type: boolean
+                                                    sourcePath:
+                                                      type: string
+                                                  required:
+                                                  - destinationPath
+                                                  - sourcePath
+                                                  type: object
+                                                type: array
                                               helm:
                                                 properties:
                                                   fileParameters:
@@ -3950,6 +4132,20 @@ spec:
                                                     recurse:
                                                       type: boolean
                                                   type: object
+                                                from:
+                                                  items:
+                                                    properties:
+                                                      destinationPath:
+                                                        type: string
+                                                      failOnOutOfBoundsSymlink:
+                                                        type: boolean
+                                                      sourcePath:
+                                                        type: string
+                                                    required:
+                                                    - destinationPath
+                                                    - sourcePath
+                                                    type: object
+                                                  type: array
                                                 helm:
                                                   properties:
                                                     fileParameters:
@@ -4309,6 +4505,20 @@ spec:
                                                   recurse:
                                                     type: boolean
                                                 type: object
+                                              from:
+                                                items:
+                                                  properties:
+                                                    destinationPath:
+                                                      type: string
+                                                    failOnOutOfBoundsSymlink:
+                                                      type: boolean
+                                                    sourcePath:
+                                                      type: string
+                                                  required:
+                                                  - destinationPath
+                                                  - sourcePath
+                                                  type: object
+                                                type: array
                                               helm:
                                                 properties:
                                                   fileParameters:
@@ -4525,6 +4735,20 @@ spec:
                                                     recurse:
                                                       type: boolean
                                                   type: object
+                                                from:
+                                                  items:
+                                                    properties:
+                                                      destinationPath:
+                                                        type: string
+                                                      failOnOutOfBoundsSymlink:
+                                                        type: boolean
+                                                      sourcePath:
+                                                        type: string
+                                                    required:
+                                                    - destinationPath
+                                                    - sourcePath
+                                                    type: object
+                                                  type: array
                                                 helm:
                                                   properties:
                                                     fileParameters:
@@ -4892,6 +5116,20 @@ spec:
                                                   recurse:
                                                     type: boolean
                                                 type: object
+                                              from:
+                                                items:
+                                                  properties:
+                                                    destinationPath:
+                                                      type: string
+                                                    failOnOutOfBoundsSymlink:
+                                                      type: boolean
+                                                    sourcePath:
+                                                      type: string
+                                                  required:
+                                                  - destinationPath
+                                                  - sourcePath
+                                                  type: object
+                                                type: array
                                               helm:
                                                 properties:
                                                   fileParameters:
@@ -5108,6 +5346,20 @@ spec:
                                                     recurse:
                                                       type: boolean
                                                   type: object
+                                                from:
+                                                  items:
+                                                    properties:
+                                                      destinationPath:
+                                                        type: string
+                                                      failOnOutOfBoundsSymlink:
+                                                        type: boolean
+                                                      sourcePath:
+                                                        type: string
+                                                    required:
+                                                    - destinationPath
+                                                    - sourcePath
+                                                    type: object
+                                                  type: array
                                                 helm:
                                                   properties:
                                                     fileParameters:
@@ -5657,6 +5909,20 @@ spec:
                                                   recurse:
                                                     type: boolean
                                                 type: object
+                                              from:
+                                                items:
+                                                  properties:
+                                                    destinationPath:
+                                                      type: string
+                                                    failOnOutOfBoundsSymlink:
+                                                      type: boolean
+                                                    sourcePath:
+                                                      type: string
+                                                  required:
+                                                  - destinationPath
+                                                  - sourcePath
+                                                  type: object
+                                                type: array
                                               helm:
                                                 properties:
                                                   fileParameters:
@@ -5873,6 +6139,20 @@ spec:
                                                     recurse:
                                                       type: boolean
                                                   type: object
+                                                from:
+                                                  items:
+                                                    properties:
+                                                      destinationPath:
+                                                        type: string
+                                                      failOnOutOfBoundsSymlink:
+                                                        type: boolean
+                                                      sourcePath:
+                                                        type: string
+                                                    required:
+                                                    - destinationPath
+                                                    - sourcePath
+                                                    type: object
+                                                  type: array
                                                 helm:
                                                   properties:
                                                     fileParameters:
@@ -6417,6 +6697,20 @@ spec:
                                                   recurse:
                                                     type: boolean
                                                 type: object
+                                              from:
+                                                items:
+                                                  properties:
+                                                    destinationPath:
+                                                      type: string
+                                                    failOnOutOfBoundsSymlink:
+                                                      type: boolean
+                                                    sourcePath:
+                                                      type: string
+                                                  required:
+                                                  - destinationPath
+                                                  - sourcePath
+                                                  type: object
+                                                type: array
                                               helm:
                                                 properties:
                                                   fileParameters:
@@ -6633,6 +6927,20 @@ spec:
                                                     recurse:
                                                       type: boolean
                                                   type: object
+                                                from:
+                                                  items:
+                                                    properties:
+                                                      destinationPath:
+                                                        type: string
+                                                      failOnOutOfBoundsSymlink:
+                                                        type: boolean
+                                                      sourcePath:
+                                                        type: string
+                                                    required:
+                                                    - destinationPath
+                                                    - sourcePath
+                                                    type: object
+                                                  type: array
                                                 helm:
                                                   properties:
                                                     fileParameters:
@@ -7006,6 +7314,20 @@ spec:
                                         recurse:
                                           type: boolean
                                       type: object
+                                    from:
+                                      items:
+                                        properties:
+                                          destinationPath:
+                                            type: string
+                                          failOnOutOfBoundsSymlink:
+                                            type: boolean
+                                          sourcePath:
+                                            type: string
+                                        required:
+                                        - destinationPath
+                                        - sourcePath
+                                        type: object
+                                      type: array
                                     helm:
                                       properties:
                                         fileParameters:
@@ -7222,6 +7544,20 @@ spec:
                                           recurse:
                                             type: boolean
                                         type: object
+                                      from:
+                                        items:
+                                          properties:
+                                            destinationPath:
+                                              type: string
+                                            failOnOutOfBoundsSymlink:
+                                              type: boolean
+                                            sourcePath:
+                                              type: string
+                                          required:
+                                          - destinationPath
+                                          - sourcePath
+                                          type: object
+                                        type: array
                                       helm:
                                         properties:
                                           fileParameters:
@@ -7605,6 +7941,20 @@ spec:
                                                   recurse:
                                                     type: boolean
                                                 type: object
+                                              from:
+                                                items:
+                                                  properties:
+                                                    destinationPath:
+                                                      type: string
+                                                    failOnOutOfBoundsSymlink:
+                                                      type: boolean
+                                                    sourcePath:
+                                                      type: string
+                                                  required:
+                                                  - destinationPath
+                                                  - sourcePath
+                                                  type: object
+                                                type: array
                                               helm:
                                                 properties:
                                                   fileParameters:
@@ -7821,6 +8171,20 @@ spec:
                                                     recurse:
                                                       type: boolean
                                                   type: object
+                                                from:
+                                                  items:
+                                                    properties:
+                                                      destinationPath:
+                                                        type: string
+                                                      failOnOutOfBoundsSymlink:
+                                                        type: boolean
+                                                      sourcePath:
+                                                        type: string
+                                                    required:
+                                                    - destinationPath
+                                                    - sourcePath
+                                                    type: object
+                                                  type: array
                                                 helm:
                                                   properties:
                                                     fileParameters:
@@ -8196,6 +8560,20 @@ spec:
                                                   recurse:
                                                     type: boolean
                                                 type: object
+                                              from:
+                                                items:
+                                                  properties:
+                                                    destinationPath:
+                                                      type: string
+                                                    failOnOutOfBoundsSymlink:
+                                                      type: boolean
+                                                    sourcePath:
+                                                      type: string
+                                                  required:
+                                                  - destinationPath
+                                                  - sourcePath
+                                                  type: object
+                                                type: array
                                               helm:
                                                 properties:
                                                   fileParameters:
@@ -8412,6 +8790,20 @@ spec:
                                                     recurse:
                                                       type: boolean
                                                   type: object
+                                                from:
+                                                  items:
+                                                    properties:
+                                                      destinationPath:
+                                                        type: string
+                                                      failOnOutOfBoundsSymlink:
+                                                        type: boolean
+                                                      sourcePath:
+                                                        type: string
+                                                    required:
+                                                    - destinationPath
+                                                    - sourcePath
+                                                    type: object
+                                                  type: array
                                                 helm:
                                                   properties:
                                                     fileParameters:
@@ -8791,6 +9183,20 @@ spec:
                                                   recurse:
                                                     type: boolean
                                                 type: object
+                                              from:
+                                                items:
+                                                  properties:
+                                                    destinationPath:
+                                                      type: string
+                                                    failOnOutOfBoundsSymlink:
+                                                      type: boolean
+                                                    sourcePath:
+                                                      type: string
+                                                  required:
+                                                  - destinationPath
+                                                  - sourcePath
+                                                  type: object
+                                                type: array
                                               helm:
                                                 properties:
                                                   fileParameters:
@@ -9007,6 +9413,20 @@ spec:
                                                     recurse:
                                                       type: boolean
                                                   type: object
+                                                from:
+                                                  items:
+                                                    properties:
+                                                      destinationPath:
+                                                        type: string
+                                                      failOnOutOfBoundsSymlink:
+                                                        type: boolean
+                                                      sourcePath:
+                                                        type: string
+                                                    required:
+                                                    - destinationPath
+                                                    - sourcePath
+                                                    type: object
+                                                  type: array
                                                 helm:
                                                   properties:
                                                     fileParameters:
@@ -9366,6 +9786,20 @@ spec:
                                                   recurse:
                                                     type: boolean
                                                 type: object
+                                              from:
+                                                items:
+                                                  properties:
+                                                    destinationPath:
+                                                      type: string
+                                                    failOnOutOfBoundsSymlink:
+                                                      type: boolean
+                                                    sourcePath:
+                                                      type: string
+                                                  required:
+                                                  - destinationPath
+                                                  - sourcePath
+                                                  type: object
+                                                type: array
                                               helm:
                                                 properties:
                                                   fileParameters:
@@ -9582,6 +10016,20 @@ spec:
                                                     recurse:
                                                       type: boolean
                                                   type: object
+                                                from:
+                                                  items:
+                                                    properties:
+                                                      destinationPath:
+                                                        type: string
+                                                      failOnOutOfBoundsSymlink:
+                                                        type: boolean
+                                                      sourcePath:
+                                                        type: string
+                                                    required:
+                                                    - destinationPath
+                                                    - sourcePath
+                                                    type: object
+                                                  type: array
                                                 helm:
                                                   properties:
                                                     fileParameters:
@@ -9949,6 +10397,20 @@ spec:
                                                   recurse:
                                                     type: boolean
                                                 type: object
+                                              from:
+                                                items:
+                                                  properties:
+                                                    destinationPath:
+                                                      type: string
+                                                    failOnOutOfBoundsSymlink:
+                                                      type: boolean
+                                                    sourcePath:
+                                                      type: string
+                                                  required:
+                                                  - destinationPath
+                                                  - sourcePath
+                                                  type: object
+                                                type: array
                                               helm:
                                                 properties:
                                                   fileParameters:
@@ -10165,6 +10627,20 @@ spec:
                                                     recurse:
                                                       type: boolean
                                                   type: object
+                                                from:
+                                                  items:
+                                                    properties:
+                                                      destinationPath:
+                                                        type: string
+                                                      failOnOutOfBoundsSymlink:
+                                                        type: boolean
+                                                      sourcePath:
+                                                        type: string
+                                                    required:
+                                                    - destinationPath
+                                                    - sourcePath
+                                                    type: object
+                                                  type: array
                                                 helm:
                                                   properties:
                                                     fileParameters:
@@ -10714,6 +11190,20 @@ spec:
                                                   recurse:
                                                     type: boolean
                                                 type: object
+                                              from:
+                                                items:
+                                                  properties:
+                                                    destinationPath:
+                                                      type: string
+                                                    failOnOutOfBoundsSymlink:
+                                                      type: boolean
+                                                    sourcePath:
+                                                      type: string
+                                                  required:
+                                                  - destinationPath
+                                                  - sourcePath
+                                                  type: object
+                                                type: array
                                               helm:
                                                 properties:
                                                   fileParameters:
@@ -10930,6 +11420,20 @@ spec:
                                                     recurse:
                                                       type: boolean
                                                   type: object
+                                                from:
+                                                  items:
+                                                    properties:
+                                                      destinationPath:
+                                                        type: string
+                                                      failOnOutOfBoundsSymlink:
+                                                        type: boolean
+                                                      sourcePath:
+                                                        type: string
+                                                    required:
+                                                    - destinationPath
+                                                    - sourcePath
+                                                    type: object
+                                                  type: array
                                                 helm:
                                                   properties:
                                                     fileParameters:
@@ -11474,6 +11978,20 @@ spec:
                                                   recurse:
                                                     type: boolean
                                                 type: object
+                                              from:
+                                                items:
+                                                  properties:
+                                                    destinationPath:
+                                                      type: string
+                                                    failOnOutOfBoundsSymlink:
+                                                      type: boolean
+                                                    sourcePath:
+                                                      type: string
+                                                  required:
+                                                  - destinationPath
+                                                  - sourcePath
+                                                  type: object
+                                                type: array
                                               helm:
                                                 properties:
                                                   fileParameters:
@@ -11690,6 +12208,20 @@ spec:
                                                     recurse:
                                                       type: boolean
                                                   type: object
+                                                from:
+                                                  items:
+                                                    properties:
+                                                      destinationPath:
+                                                        type: string
+                                                      failOnOutOfBoundsSymlink:
+                                                        type: boolean
+                                                      sourcePath:
+                                                        type: string
+                                                    required:
+                                                    - destinationPath
+                                                    - sourcePath
+                                                    type: object
+                                                  type: array
                                                 helm:
                                                   properties:
                                                     fileParameters:
@@ -12067,6 +12599,20 @@ spec:
                                         recurse:
                                           type: boolean
                                       type: object
+                                    from:
+                                      items:
+                                        properties:
+                                          destinationPath:
+                                            type: string
+                                          failOnOutOfBoundsSymlink:
+                                            type: boolean
+                                          sourcePath:
+                                            type: string
+                                        required:
+                                        - destinationPath
+                                        - sourcePath
+                                        type: object
+                                      type: array
                                     helm:
                                       properties:
                                         fileParameters:
@@ -12283,6 +12829,20 @@ spec:
                                           recurse:
                                             type: boolean
                                         type: object
+                                      from:
+                                        items:
+                                          properties:
+                                            destinationPath:
+                                              type: string
+                                            failOnOutOfBoundsSymlink:
+                                              type: boolean
+                                            sourcePath:
+                                              type: string
+                                          required:
+                                          - destinationPath
+                                          - sourcePath
+                                          type: object
+                                        type: array
                                       helm:
                                         properties:
                                           fileParameters:
@@ -12649,6 +13209,20 @@ spec:
                                         recurse:
                                           type: boolean
                                       type: object
+                                    from:
+                                      items:
+                                        properties:
+                                          destinationPath:
+                                            type: string
+                                          failOnOutOfBoundsSymlink:
+                                            type: boolean
+                                          sourcePath:
+                                            type: string
+                                        required:
+                                        - destinationPath
+                                        - sourcePath
+                                        type: object
+                                      type: array
                                     helm:
                                       properties:
                                         fileParameters:
@@ -12865,6 +13439,20 @@ spec:
                                           recurse:
                                             type: boolean
                                         type: object
+                                      from:
+                                        items:
+                                          properties:
+                                            destinationPath:
+                                              type: string
+                                            failOnOutOfBoundsSymlink:
+                                              type: boolean
+                                            sourcePath:
+                                              type: string
+                                          required:
+                                          - destinationPath
+                                          - sourcePath
+                                          type: object
+                                        type: array
                                       helm:
                                         properties:
                                           fileParameters:
@@ -13414,6 +14002,20 @@ spec:
                                         recurse:
                                           type: boolean
                                       type: object
+                                    from:
+                                      items:
+                                        properties:
+                                          destinationPath:
+                                            type: string
+                                          failOnOutOfBoundsSymlink:
+                                            type: boolean
+                                          sourcePath:
+                                            type: string
+                                        required:
+                                        - destinationPath
+                                        - sourcePath
+                                        type: object
+                                      type: array
                                     helm:
                                       properties:
                                         fileParameters:
@@ -13630,6 +14232,20 @@ spec:
                                           recurse:
                                             type: boolean
                                         type: object
+                                      from:
+                                        items:
+                                          properties:
+                                            destinationPath:
+                                              type: string
+                                            failOnOutOfBoundsSymlink:
+                                              type: boolean
+                                            sourcePath:
+                                              type: string
+                                          required:
+                                          - destinationPath
+                                          - sourcePath
+                                          type: object
+                                        type: array
                                       helm:
                                         properties:
                                           fileParameters:
@@ -14174,6 +14790,20 @@ spec:
                                         recurse:
                                           type: boolean
                                       type: object
+                                    from:
+                                      items:
+                                        properties:
+                                          destinationPath:
+                                            type: string
+                                          failOnOutOfBoundsSymlink:
+                                            type: boolean
+                                          sourcePath:
+                                            type: string
+                                        required:
+                                        - destinationPath
+                                        - sourcePath
+                                        type: object
+                                      type: array
                                     helm:
                                       properties:
                                         fileParameters:
@@ -14390,6 +15020,20 @@ spec:
                                           recurse:
                                             type: boolean
                                         type: object
+                                      from:
+                                        items:
+                                          properties:
+                                            destinationPath:
+                                              type: string
+                                            failOnOutOfBoundsSymlink:
+                                              type: boolean
+                                            sourcePath:
+                                              type: string
+                                          required:
+                                          - destinationPath
+                                          - sourcePath
+                                          type: object
+                                        type: array
                                       helm:
                                         properties:
                                           fileParameters:
@@ -14838,6 +15482,20 @@ spec:
                               recurse:
                                 type: boolean
                             type: object
+                          from:
+                            items:
+                              properties:
+                                destinationPath:
+                                  type: string
+                                failOnOutOfBoundsSymlink:
+                                  type: boolean
+                                sourcePath:
+                                  type: string
+                              required:
+                              - destinationPath
+                              - sourcePath
+                              type: object
+                            type: array
                           helm:
                             properties:
                               fileParameters:
@@ -15054,6 +15712,20 @@ spec:
                                 recurse:
                                   type: boolean
                               type: object
+                            from:
+                              items:
+                                properties:
+                                  destinationPath:
+                                    type: string
+                                  failOnOutOfBoundsSymlink:
+                                    type: boolean
+                                  sourcePath:
+                                    type: string
+                                required:
+                                - destinationPath
+                                - sourcePath
+                                type: object
+                              type: array
                             helm:
                               properties:
                                 fileParameters:
