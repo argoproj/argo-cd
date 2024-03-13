@@ -108,6 +108,7 @@ type RepoServerInitConstants struct {
 	StreamedManifestMaxTarSize                   int64
 	HelmManifestMaxExtractedSize                 int64
 	DisableHelmManifestMaxExtractedSize          bool
+	PreserveDependenciesChartsArchives           bool
 }
 
 // NewService returns a new instance of the Manifest service
@@ -794,7 +795,7 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 			}
 		}
 
-		manifestGenResult, err = GenerateManifests(ctx, opContext.appPath, repoRoot, commitSHA, q, false, s.gitCredsStore, s.initConstants.MaxCombinedDirectoryManifestsSize, s.gitRepoPaths, WithCMPTarDoneChannel(ch.tarDoneCh), WithCMPTarExcludedGlobs(s.initConstants.CMPTarExcludedGlobs))
+		manifestGenResult, err = GenerateManifests(ctx, opContext.appPath, repoRoot, commitSHA, q, false, s.gitCredsStore, s.initConstants.MaxCombinedDirectoryManifestsSize, s.gitRepoPaths, WithCMPTarDoneChannel(ch.tarDoneCh), WithCMPTarExcludedGlobs(s.initConstants.CMPTarExcludedGlobs), WithPreserveDependenciesChartsArchives(s.initConstants.PreserveDependenciesChartsArchives))
 	}
 	refSourceCommitSHAs := make(map[string]string)
 	if len(repoRefs) > 0 {
@@ -1095,7 +1096,43 @@ func isSourcePermitted(url string, repos []string) bool {
 	return p.IsSourcePermitted(v1alpha1.ApplicationSource{RepoURL: url})
 }
 
-func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclient.ManifestRequest, isLocal bool, gitRepoPaths io.TempPaths) ([]*unstructured.Unstructured, error) {
+func runHelmTemplate(h helm.Helm, templateOpts *helm.TemplateOpts, preserveDependencyChartsArchives bool) (string, error) {
+	if preserveDependencyChartsArchives {
+		// only if preserve dependencies charts archives is enabled (disabled by default),
+		// need to check if helm dependencies are satisfied because 'helm template' succeed also
+		// in case the dependency tgz exists in the wrong version
+		dependenciesSatisfied, err := h.DependencyListSatisfied()
+		if err != nil {
+			return "", fmt.Errorf("error checking if helm dependencies are satisfied: %w", err)
+		}
+
+		if !dependenciesSatisfied {
+			// need to rebuild first
+			return "", nil
+		}
+
+		// dependencies are satisfied, so we can run 'helm template' without rebuilding
+	}
+
+	// if git preserve dependencies charts archives is disabled (which is the default),
+	// there are no tgz files in the first place so if there are no dependency,
+	// 'helm template' will succeed and save the build time
+	templateOutput, err := h.Template(templateOpts)
+	if err != nil {
+		if helm.IsMissingDependencyErr(err) {
+			// 'helm template' failed because of missing dependencies - rebuild needed
+			return "", nil
+		}
+
+		// 'helm template' failed due to other error, failing
+		return "", err
+	}
+
+	// 'helm template' succeeded
+	return templateOutput, nil
+}
+
+func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclient.ManifestRequest, isLocal bool, gitRepoPaths io.TempPaths, preserveDependencyChartsArchives bool) ([]*unstructured.Unstructured, error) {
 	concurrencyAllowed := isConcurrencyAllowed(appPath)
 	if !concurrencyAllowed {
 		manifestGenerateLock.Lock(appPath)
@@ -1203,12 +1240,12 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 		return nil, fmt.Errorf("error initializing helm app: %w", err)
 	}
 
-	out, err := h.Template(templateOpts)
+	templateOutput, err := runHelmTemplate(h, templateOpts, preserveDependencyChartsArchives)
 	if err != nil {
-		if !helm.IsMissingDependencyErr(err) {
-			return nil, err
-		}
+		return nil, err
+	}
 
+	if templateOutput == "" {
 		if concurrencyAllowed {
 			err = runHelmBuild(appPath, h)
 		} else {
@@ -1237,12 +1274,12 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 			return nil, err
 		}
 
-		out, err = h.Template(templateOpts)
+		templateOutput, err = h.Template(templateOpts)
 		if err != nil {
 			return nil, err
 		}
 	}
-	return kube.SplitYAML([]byte(out))
+	return kube.SplitYAML([]byte(templateOutput))
 }
 
 func getResolvedValueFiles(
@@ -1335,8 +1372,9 @@ func getRepoCredential(repoCredentials []*v1alpha1.RepoCreds, repoURL string) *v
 
 type GenerateManifestOpt func(*generateManifestOpt)
 type generateManifestOpt struct {
-	cmpTarDoneCh        chan<- bool
-	cmpTarExcludedGlobs []string
+	cmpTarDoneCh                       chan<- bool
+	cmpTarExcludedGlobs                []string
+	preserveDependenciesChartsArchives bool
 }
 
 func newGenerateManifestOpt(opts ...GenerateManifestOpt) *generateManifestOpt {
@@ -1364,6 +1402,13 @@ func WithCMPTarExcludedGlobs(excludedGlobs []string) GenerateManifestOpt {
 	}
 }
 
+// WithPreserveDependenciesChartsArchives defines whether to preserve dependencies charts archives
+func WithPreserveDependenciesChartsArchives(val bool) GenerateManifestOpt {
+	return func(o *generateManifestOpt) {
+		o.preserveDependenciesChartsArchives = val
+	}
+}
+
 // GenerateManifests generates manifests from a path. Overrides are applied as a side effect on the given ApplicationSource.
 func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, q *apiclient.ManifestRequest, isLocal bool, gitCredsStore git.CredsStore, maxCombinedManifestQuantity resource.Quantity, gitRepoPaths io.TempPaths, opts ...GenerateManifestOpt) (*apiclient.ManifestResponse, error) {
 	opt := newGenerateManifestOpt(opts...)
@@ -1383,7 +1428,7 @@ func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, 
 
 	switch appSourceType {
 	case v1alpha1.ApplicationSourceTypeHelm:
-		targetObjs, err = helmTemplate(appPath, repoRoot, env, q, isLocal, gitRepoPaths)
+		targetObjs, err = helmTemplate(appPath, repoRoot, env, q, isLocal, gitRepoPaths, opt.preserveDependenciesChartsArchives)
 	case v1alpha1.ApplicationSourceTypeKustomize:
 		kustomizeBinary := ""
 		if q.KustomizeOptions != nil {
@@ -2315,6 +2360,9 @@ func (s *Service) newClient(repo *v1alpha1.Repository, opts ...git.ClientOpts) (
 		return nil, err
 	}
 	opts = append(opts, git.WithEventHandlers(metrics.NewGitClientEventHandlers(s.metricsServer)))
+	if s.initConstants.PreserveDependenciesChartsArchives {
+		opts = append(opts, git.WithPreserveDependenciesChartsArchives())
+	}
 	return s.newGitClient(repo.Repo, repoPath, repo.GetGitCreds(s.gitCredsStore), repo.IsInsecure(), repo.EnableLFS, repo.Proxy, opts...)
 }
 

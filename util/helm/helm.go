@@ -21,6 +21,11 @@ const (
 	ResourcePolicyKeep       = "keep"
 )
 
+// for testing purposes
+type dependencyListType func() (string, error)
+
+var dependencyListMock dependencyListType
+
 type HelmRepository struct {
 	Creds
 	Name      string
@@ -36,6 +41,8 @@ type Helm interface {
 	GetParameters(valuesFiles []pathutil.ResolvedFilePath, appPath, repoRoot string) (map[string]string, error)
 	// DependencyBuild runs `helm dependency build` to download a chart's dependencies
 	DependencyBuild() error
+	// DependencyListVerifier runs `helm dependency list` to verify that all dependencies are present with status `ok` or `unpacked`
+	DependencyListSatisfied() (bool, error)
 	// Init runs `helm init --client-only`
 	Init() error
 	// Dispose deletes temp resources
@@ -107,6 +114,37 @@ func (h *helm) DependencyBuild() error {
 	h.repos = nil
 	_, err := h.cmd.dependencyBuild()
 	return err
+}
+
+func (h *helm) DependencyListSatisfied() (bool, error) {
+	out, err := h.dependencyList()
+	if err != nil {
+		return false, err
+	}
+	for i, line := range strings.Split(out, "\n") {
+		if i == 0 {
+			if strings.Contains(line, "WARNING: no dependencies") || // helm3
+				strings.Contains(line, "WARNING: no requirements") { // helm2
+				return true, nil
+			}
+			continue
+		}
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		if !strings.HasSuffix(line, "ok") && !strings.HasSuffix(line, "unpacked") {
+			return false, nil
+		}
+	}
+	return true, nil
+}
+
+func (h *helm) dependencyList() (string, error) {
+	if dependencyListMock != nil {
+		return dependencyListMock()
+	}
+	return h.cmd.dependencyList()
 }
 
 func (h *helm) Init() error {

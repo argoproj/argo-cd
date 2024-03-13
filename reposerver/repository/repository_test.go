@@ -3406,3 +3406,55 @@ func TestGetRevisionChartDetails(t *testing.T) {
 		assert.Equal(t, []string{"test-maintainer"}, chartDetails.Maintainers)
 	})
 }
+
+func Test_runHelmTemplate(t *testing.T) {
+	t.Run("git clean exlude disabled - template succeeds", func(t *testing.T) {
+		h := &helmmocks.Helm{}
+		h.On("Template", mock.Anything).Return("template output", nil)
+		templateOutput, err := runHelmTemplate(h, &helm.TemplateOpts{}, false)
+		assert.NoError(t, err)
+		assert.Equal(t, "template output", templateOutput)
+	})
+
+	t.Run("git clean exlude disabled - template dependency missing error", func(t *testing.T) {
+		h := &helmmocks.Helm{}
+		h.On("Template", mock.Anything).Return("", fmt.Errorf("found in Chart.yaml, but missing in charts/ directory"))
+		templateOutput, err := runHelmTemplate(h, &helm.TemplateOpts{}, false)
+		assert.NoError(t, err)
+		assert.Equal(t, "", templateOutput)
+	})
+
+	t.Run("git clean exlude disabled - template general error", func(t *testing.T) {
+		h := &helmmocks.Helm{}
+		h.On("Template", mock.Anything).Return("", assert.AnError)
+		templateOutput, err := runHelmTemplate(h, &helm.TemplateOpts{}, false)
+		assert.Error(t, err)
+		assert.Equal(t, "", templateOutput)
+	})
+
+	t.Run("git clean exlude enabled - dependencies satisfied", func(t *testing.T) {
+		h := &helmmocks.Helm{}
+		h.On("DependencyListSatisfied").Return(true, nil)
+		h.On("Template", mock.Anything).Return("template output", nil)
+		templateOutput, err := runHelmTemplate(h, &helm.TemplateOpts{}, true)
+		assert.NoError(t, err)
+		assert.Equal(t, "template output", templateOutput)
+	})
+
+	t.Run("git clean exlude enabled - dependencies not satisfied", func(t *testing.T) {
+		h := &helmmocks.Helm{}
+		h.On("DependencyListSatisfied").Return(false, nil)
+		h.On("Template", mock.Anything).Return("", nil)
+		templateOutput, err := runHelmTemplate(h, &helm.TemplateOpts{}, true)
+		assert.NoError(t, err)
+		assert.Equal(t, "", templateOutput)
+	})
+
+	t.Run("git clean exlude enabled - dependencies check error", func(t *testing.T) {
+		h := &helmmocks.Helm{}
+		h.On("DependencyListSatisfied").Return(false, assert.AnError)
+		templateOutput, err := runHelmTemplate(h, &helm.TemplateOpts{}, true)
+		assert.Error(t, err)
+		assert.Equal(t, "", templateOutput)
+	})
+}

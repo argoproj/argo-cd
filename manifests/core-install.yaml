@@ -21490,6 +21490,12 @@ spec:
               key: reposerver.disable.helm.manifest.max.extracted.size
               name: argocd-cmd-params-cm
               optional: true
+        - name: ARGOCD_REPO_PRESERVE_DEPENDENCIES_CHARTS_ARCHIVES
+          valueFrom:
+            configMapKeyRef:
+              key: reposerver.preserve.dependencies.charts.archives
+              name: argocd-cmd-params-cm
+              optional: true
         - name: ARGOCD_GIT_MODULES_ENABLED
           valueFrom:
             configMapKeyRef:

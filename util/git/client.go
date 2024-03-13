@@ -100,6 +100,8 @@ type nativeGitClient struct {
 	loadRefFromCache bool
 	// HTTP/HTTPS proxy used to access repository
 	proxy string
+	// preserve dependencies charts archives enabled
+	preserveDependenciesChartsArchives bool
 }
 
 type runOpts struct {
@@ -143,6 +145,13 @@ func WithCache(cache gitRefCache, loadRefFromCache bool) ClientOpts {
 func WithEventHandlers(handlers EventHandlers) ClientOpts {
 	return func(c *nativeGitClient) {
 		c.EventHandlers = handlers
+	}
+}
+
+// WithPreserveDependenciesChartsArchives sets the flag to preserve dependencies charts archives
+func WithPreserveDependenciesChartsArchives() ClientOpts {
+	return func(c *nativeGitClient) {
+		c.preserveDependenciesChartsArchives = true
 	}
 }
 
@@ -470,7 +479,15 @@ func (m *nativeGitClient) Checkout(revision string, submoduleEnabled bool) error
 	// `git clean` to delete untracked files and directories, and the second “f”
 	// tells it to clean untractked nested Git repositories (for example a
 	// submodule which has since been removed).
-	if _, err := m.runCmd("clean", "-ffdx"); err != nil {
+	args := []string{"clean", "-ffdx"}
+	// NOTE
+	// If preserve dependencies charts archives is enabled (disabled by default), we need to add the
+	// exclude pattern to the arguments. If enabled, the default exclude pattern is to keep
+	// the dependency charts tgz files
+	if m.preserveDependenciesChartsArchives {
+		args = append(args, "-e", "**/charts/**/*.tgz")
+	}
+	if _, err := m.runCmd(args...); err != nil {
 		return err
 	}
 	return nil
