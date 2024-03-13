@@ -38,14 +38,14 @@ func CreateFormatter(logFormat string) logrus.Formatter {
 	case JsonFormat:
 		formatType = &logrus.JSONFormatter{}
 	case TextFormat:
-		formatType = &logrus.TextFormatter {
-            ForceColors:   checkForceLogColors(),
-        	FullTimestamp: checkEnableFullTimestamp(),
-        }
+		formatType = &logrus.TextFormatter{
+			ForceColors:   checkForceLogColors(),
+			FullTimestamp: checkEnableFullTimestamp(),
+		}
 	default:
-        formatType = &logrus.TextFormatter {
-            FullTimestamp: checkEnableFullTimestamp(),
-        }
+		formatType = &logrus.TextFormatter{
+			FullTimestamp: checkEnableFullTimestamp(),
+		}
 	}
 
 	return formatType
