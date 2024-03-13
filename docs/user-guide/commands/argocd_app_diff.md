@@ -21,7 +21,7 @@ argocd app diff APPNAME [flags]
       --exit-code                   Return non-zero exit code when there is a diff (default true)
       --hard-refresh                Refresh application data as well as target manifests cache
   -h, --help                        help for diff
-      --local string                Compare live app to a local manifests
+      --local string                Compare live app to a local manifests. If --server-side-generate is not used, this can be a relative path; if it is, this must be an absolute path
       --local-include stringArray   Used with --server-side-generate, specify patterns of filenames to send. Matching is based on filename and not path. (default [*.yaml,*.yml,*.json])
       --local-repo-root string      Path to the repository root. Used together with --local allows setting the repository root (default "/")
       --refresh                     Refresh application data when retrieving
