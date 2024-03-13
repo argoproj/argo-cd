@@ -2,7 +2,7 @@
 title: GitOps Promotion/Rollback Tool
 authors:
   - "@crenshaw-dev"
-  - "@zaller"
+  - "@zachaller"
 sponsors:
   -
 reviewers:
