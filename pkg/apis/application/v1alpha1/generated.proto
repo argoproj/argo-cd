@@ -539,6 +539,9 @@ message ApplicationSourceKustomize {
 
   // Components specifies a list of kustomize components to add to the kustomization before building
   repeated string components = 13;
+
+  // LabelWithoutSelector specifies whether to apply common labels to resource selectors or not
+  optional bool labelWithoutSelector = 14;
 }
 
 // ApplicationSourcePlugin holds options specific to config management plugins
@@ -1144,6 +1147,7 @@ message KustomizeSelector {
 
 // ListGenerator include items info
 message ListGenerator {
+  // +kubebuilder:validation:Optional
   repeated k8s.io.apiextensions_apiserver.pkg.apis.apiextensions.v1.JSON elements = 1;
 
   optional ApplicationSetTemplate template = 2;
