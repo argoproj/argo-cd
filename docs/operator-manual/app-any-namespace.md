@@ -1,6 +1,6 @@
 # Applications in any namespace
 
-**Current feature state**: Stable
+**Current feature state**: 
 
 ## Introduction
 
