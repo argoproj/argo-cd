@@ -308,14 +308,22 @@ data:
   # have either a permanent banner or a regular closeable banner, and NOT both. eg. A user can't dismiss a
   # notification message (closeable) banner, to then immediately see a permanent banner.
   # ui.bannerpermanent: "true"
-  # An option to specify the position of the banner, either the top or bottom of the page. The default is at the top.
-  # Uncomment to make the banner appear at the bottom of the page. Any value other than "bottom" will make the banner appear at the top.
+  # An option to specify the position of the banner, either the top or bottom of the page, or both. The valid values
+  # are: "top", "bottom" and "both".  The default (if the option is not provided), is "top". If "both" is specified, then
+  # the content appears both at the top and the bottom of the page. Uncomment the following line to make the banner appear
+  # at the bottom of the page. Change the value as needed.
   # ui.bannerposition: "bottom"
 
   # Application reconciliation timeout is the max amount of time required to discover if a new manifests version got
   # published to the repository. Reconciliation by timeout is disabled if timeout is set to 0. Three minutes by default.
   # > Note: argocd-repo-server deployment must be manually restarted after changing the setting.
   timeout.reconciliation: 180s
+  # With a large number of applications, the periodic refresh for each application can cause a spike in the refresh queue
+  # and can cause a spike in the repo-server component. To avoid this, you can set a jitter to the sync timeout, which will
+  # spread out the refreshes and give time to the repo-server to catch up. The jitter is the maximum duration that can be
+  # added to the sync timeout. So, if the sync timeout is 3 minutes and the jitter is 1 minute, then the actual timeout will
+  # be between 3 and 4 minutes. Disabled when the value is 0, defaults to 0.
+  timeout.reconciliation.jitter: 0
 
   # cluster.inClusterEnabled indicates whether to allow in-cluster server address. This is enabled by default.
   cluster.inClusterEnabled: "true"

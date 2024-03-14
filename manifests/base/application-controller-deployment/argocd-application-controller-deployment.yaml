@@ -20,8 +20,6 @@ spec:
       - args:
         - /usr/local/bin/argocd-application-controller
         env:
-        - name: ARGOCD_CONTROLLER_REPLICAS
-          value: "1"
         - name: ARGOCD_RECONCILIATION_TIMEOUT
           valueFrom:
             configMapKeyRef:
@@ -33,6 +31,12 @@ spec:
             configMapKeyRef:
               name: argocd-cm
               key: timeout.hard.reconciliation
+              optional: true
+        - name: ARGOCD_RECONCILIATION_JITTER
+          valueFrom:
+            configMapKeyRef:
+              key: timeout.reconciliation.jitter
+              name: argocd-cm
               optional: true
         - name: ARGOCD_REPO_ERROR_GRACE_PERIOD_SECONDS
           valueFrom:

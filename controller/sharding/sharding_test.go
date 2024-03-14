@@ -1,6 +1,7 @@
 package sharding
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -12,10 +13,14 @@ import (
 	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	dbmocks "github.com/argoproj/argo-cd/v2/util/db/mocks"
+	"github.com/argoproj/argo-cd/v2/util/settings"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	kubefake "k8s.io/client-go/kubernetes/fake"
 )
 
 func TestGetShardByID_NotEmptyID(t *testing.T) {
@@ -678,6 +683,190 @@ func Test_getOrUpdateShardNumberForController(t *testing.T) {
 			shard, shardMappingData := getOrUpdateShardNumberForController(tc.shardApplicationControllerMapping, tc.hostname, tc.replicas, tc.shard)
 			assert.Equal(t, tc.expectedShard, shard)
 			assert.Equal(t, tc.expectedShardMappingData, shardMappingData)
+		})
+	}
+}
+
+func TestGetClusterSharding(t *testing.T) {
+	IntPtr := func(i int32) *int32 {
+		return &i
+	}
+
+	deployment := &appsv1.Deployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      common.DefaultApplicationControllerName,
+			Namespace: "argocd",
+		},
+		Spec: appsv1.DeploymentSpec{
+			Replicas: IntPtr(1),
+		},
+	}
+
+	deploymentMultiReplicas := &appsv1.Deployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "argocd-application-controller-multi-replicas",
+			Namespace: "argocd",
+		},
+		Spec: appsv1.DeploymentSpec{
+			Replicas: IntPtr(3),
+		},
+	}
+
+	objects := append([]runtime.Object{}, deployment, deploymentMultiReplicas)
+	kubeclientset := kubefake.NewSimpleClientset(objects...)
+
+	settingsMgr := settings.NewSettingsManager(context.TODO(), kubeclientset, "argocd", settings.WithRepoOrClusterChangedHandler(func() {
+	}))
+
+	testCases := []struct {
+		name               string
+		useDynamicSharding bool
+		envsSetter         func(t *testing.T)
+		cleanup            func()
+		expectedShard      int
+		expectedReplicas   int
+		expectedErr        error
+	}{
+		{
+			name: "Default sharding with statefulset",
+			envsSetter: func(t *testing.T) {
+				t.Setenv(common.EnvControllerReplicas, "1")
+			},
+			cleanup:            func() {},
+			useDynamicSharding: false,
+			expectedShard:      0,
+			expectedReplicas:   1,
+			expectedErr:        nil,
+		},
+		{
+			name: "Default sharding with deployment",
+			envsSetter: func(t *testing.T) {
+				t.Setenv(common.EnvAppControllerName, common.DefaultApplicationControllerName)
+			},
+			cleanup:            func() {},
+			useDynamicSharding: true,
+			expectedShard:      0,
+			expectedReplicas:   1,
+			expectedErr:        nil,
+		},
+		{
+			name: "Default sharding with deployment and multiple replicas",
+			envsSetter: func(t *testing.T) {
+				t.Setenv(common.EnvAppControllerName, "argocd-application-controller-multi-replicas")
+			},
+			cleanup:            func() {},
+			useDynamicSharding: true,
+			expectedShard:      0,
+			expectedReplicas:   3,
+			expectedErr:        nil,
+		},
+		{
+			name: "Statefulset multiple replicas",
+			envsSetter: func(t *testing.T) {
+				t.Setenv(common.EnvControllerReplicas, "3")
+				osHostnameFunction = func() (string, error) { return "example-shard-3", nil }
+			},
+			cleanup: func() {
+				osHostnameFunction = os.Hostname
+			},
+			useDynamicSharding: false,
+			expectedShard:      3,
+			expectedReplicas:   3,
+			expectedErr:        nil,
+		},
+		{
+			name: "Explicit shard with statefulset and 1 replica",
+			envsSetter: func(t *testing.T) {
+				t.Setenv(common.EnvControllerReplicas, "1")
+				t.Setenv(common.EnvControllerShard, "3")
+			},
+			cleanup:            func() {},
+			useDynamicSharding: false,
+			expectedShard:      0,
+			expectedReplicas:   1,
+			expectedErr:        nil,
+		},
+		{
+			name: "Explicit shard with statefulset and 2 replica - and to high shard",
+			envsSetter: func(t *testing.T) {
+				t.Setenv(common.EnvControllerReplicas, "2")
+				t.Setenv(common.EnvControllerShard, "3")
+			},
+			cleanup:            func() {},
+			useDynamicSharding: false,
+			expectedShard:      0,
+			expectedReplicas:   2,
+			expectedErr:        nil,
+		},
+		{
+			name: "Explicit shard with statefulset and 2 replica",
+			envsSetter: func(t *testing.T) {
+				t.Setenv(common.EnvControllerReplicas, "2")
+				t.Setenv(common.EnvControllerShard, "1")
+			},
+			cleanup:            func() {},
+			useDynamicSharding: false,
+			expectedShard:      1,
+			expectedReplicas:   2,
+			expectedErr:        nil,
+		},
+		{
+			name: "Explicit shard with deployment",
+			envsSetter: func(t *testing.T) {
+				t.Setenv(common.EnvControllerShard, "3")
+			},
+			cleanup:            func() {},
+			useDynamicSharding: true,
+			expectedShard:      0,
+			expectedReplicas:   1,
+			expectedErr:        nil,
+		},
+		{
+			name: "Explicit shard with deployment and multiple replicas will read from configmap",
+			envsSetter: func(t *testing.T) {
+				t.Setenv(common.EnvAppControllerName, "argocd-application-controller-multi-replicas")
+				t.Setenv(common.EnvControllerShard, "3")
+			},
+			cleanup:            func() {},
+			useDynamicSharding: true,
+			expectedShard:      0,
+			expectedReplicas:   3,
+			expectedErr:        nil,
+		},
+		{
+			name: "Dynamic sharding but missing deployment",
+			envsSetter: func(t *testing.T) {
+				t.Setenv(common.EnvAppControllerName, "missing-deployment")
+			},
+			cleanup:            func() {},
+			useDynamicSharding: true,
+			expectedShard:      0,
+			expectedReplicas:   1,
+			expectedErr:        fmt.Errorf("(dynamic cluster distribution) failed to get app controller deployment: deployments.apps \"missing-deployment\" not found"),
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			tc.envsSetter(t)
+			defer tc.cleanup()
+			shardingCache, err := GetClusterSharding(kubeclientset, settingsMgr, "round-robin", tc.useDynamicSharding)
+
+			if shardingCache != nil {
+				clusterSharding := shardingCache.(*ClusterSharding)
+				assert.Equal(t, tc.expectedShard, clusterSharding.Shard)
+				assert.Equal(t, tc.expectedReplicas, clusterSharding.Replicas)
+			}
+
+			if tc.expectedErr != nil {
+				if err != nil {
+					assert.Equal(t, tc.expectedErr.Error(), err.Error())
+				} else {
+					t.Errorf("Expected error %v but got nil", tc.expectedErr)
+				}
+			} else {
+				assert.Nil(t, err)
+			}
 		})
 	}
 }

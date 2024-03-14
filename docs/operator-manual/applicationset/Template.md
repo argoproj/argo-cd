@@ -85,7 +85,7 @@ spec:
         spec:
           project: "default"
           source:
-            revision: HEAD
+            targetRevision: HEAD
             repoURL: https://github.com/argoproj/argo-cd.git
             # New path value is generated here:
             path: 'applicationset/examples/template-override/{{cluster}}-override'
@@ -111,16 +111,15 @@ In this example, the ApplicationSet controller will generate an `Application` re
 
 ## Template Patch
 
-Templating is only available on string type. However, some uses cases may require to apply templating on other types.
+Templating is only available on string type. However, some use cases may require applying templating on other types.
 
 Example:
 
-- Set the automated sync policy
-- Switch prune boolean to true
-- Add multiple helm value files
+- Conditionally set the automated sync policy.
+- Conditionally switch prune boolean to `true`.
+- Add multiple helm value files from a list.
 
-Argo CD has a `templatePatch` feature to allow advanced templating. It supports both json and yaml.
-
+The `templatePatch` feature enables advanced templating, with support for `json` and `yaml`.
 
 ```yaml
 apiVersion: argoproj.io/v1alpha1
@@ -174,3 +173,6 @@ spec:
 
     The `spec.project` field is not supported in `templatePatch`. If you need to change the project, you can use the
     `spec.project` field in the `template` field.
+
+!!! important
+    When writing a `templatePatch`, you're crafting a patch. So, if the patch includes an empty `spec: # nothing in here`, it will effectively clear out existing fields. See [#17040](https://github.com/argoproj/argo-cd/issues/17040) for an example of this behavior.

@@ -36,7 +36,7 @@ which might cause health check to return `Progressing` state instead of `Healthy
 As workaround Argo CD allows providing [health check](operator-manual/health.md) customization which overrides default
 behavior.
 
-If you are using Traefik for your Ingress, you can update the Traefik config to publish the loadBalancer IP using [publishedservice](https://doc.traefik.io/traefik/providers/kubernetes-ingress/#publishedservice), which will resolve this issue. 
+If you are using Traefik for your Ingress, you can update the Traefik config to publish the loadBalancer IP using [publishedservice](https://doc.traefik.io/traefik/providers/kubernetes-ingress/#publishedservice), which will resolve this issue.
 
 ```yaml
 providers:
@@ -97,7 +97,7 @@ data:
 
 ## After deploying my Helm application with Argo CD I cannot see it with `helm ls` and other Helm commands
 
-When deploying a Helm application Argo CD is using Helm 
+When deploying a Helm application Argo CD is using Helm
 only as a template mechanism. It runs `helm template` and
 then deploys the resulting manifests on the cluster instead of doing `helm install`. This means that you cannot use any Helm command
 to view/verify the application. It is fully managed by Argo CD.
@@ -140,15 +140,15 @@ Argo CD automatically sets the `app.kubernetes.io/instance` label and uses it to
 If the tool does this too, this causes confusion. You can change this label by setting
 the `application.instanceLabelKey` value in the `argocd-cm`. We recommend that you use `argocd.argoproj.io/instance`.
 
-!!! note 
+!!! note
     When you make this change your applications will become out of sync and will need re-syncing.
 
 See [#1482](https://github.com/argoproj/argo-cd/issues/1482).
 
 ## How often does Argo CD check for changes to my Git or Helm repository ?
 
-The default polling interval is 3 minutes (180 seconds). 
-You can change the setting by updating the `timeout.reconciliation` value in the [argocd-cm](https://github.com/argoproj/argo-cd/blob/2d6ce088acd4fb29271ffb6f6023dbb27594d59b/docs/operator-manual/argocd-cm.yaml#L279-L282) config map. If there are any Git changes, Argo CD will only update applications with the [auto-sync setting](user-guide/auto_sync.md) enabled. If you set it to `0` then Argo CD will stop polling Git repositories automatically and you can only use alternative methods such as [webhooks](operator-manual/webhook.md) and/or manual syncs for deploying applications.
+The default polling interval is 3 minutes (180 seconds) with a configurable jitter.
+You can change the setting by updating the `timeout.reconciliation` value and the `timeout.reconciliation.jitter` in the [argocd-cm](https://github.com/argoproj/argo-cd/blob/2d6ce088acd4fb29271ffb6f6023dbb27594d59b/docs/operator-manual/argocd-cm.yaml#L279-L282) config map. If there are any Git changes, Argo CD will only update applications with the [auto-sync setting](user-guide/auto_sync.md) enabled. If you set it to `0` then Argo CD will stop polling Git repositories automatically and you can only use alternative methods such as [webhooks](operator-manual/webhook.md) and/or manual syncs for deploying applications.
 
 
 ## Why Are My Resource Limits `Out Of Sync`?
@@ -250,7 +250,7 @@ There are two parts to the message:
 
     > map[name:**KEY_BC** value:150] map[name:**KEY_BC** value:500] map[name:**KEY_BD** value:250] map[name:**KEY_BD** value:500] map[name:KEY_BI value:something]
 
-    You'll want to identify the keys that are duplicated -- you can focus on the first part, as each duplicated key will appear, once for each of its value with its value in the first list. The second list is really just 
+    You'll want to identify the keys that are duplicated -- you can focus on the first part, as each duplicated key will appear, once for each of its value with its value in the first list. The second list is really just
 
    `]`
 
@@ -259,7 +259,7 @@ There are two parts to the message:
     This includes all of the keys. It's included for debugging purposes -- you don't need to pay much attention to it. It will give you a hint about the precise location in the list for the duplicated keys:
 
     > map[name:KEY_AA] map[name:KEY_AB] map[name:KEY_AC] map[name:KEY_AD] map[name:KEY_AE] map[name:KEY_AF] map[name:KEY_AG] map[name:KEY_AH] map[name:KEY_AI] map[name:KEY_AJ] map[name:KEY_AK] map[name:KEY_AL] map[name:KEY_AM] map[name:KEY_AN] map[name:KEY_AO] map[name:KEY_AP] map[name:KEY_AQ] map[name:KEY_AR] map[name:KEY_AS] map[name:KEY_AT] map[name:KEY_AU] map[name:KEY_AV] map[name:KEY_AW] map[name:KEY_AX] map[name:KEY_AY] map[name:KEY_AZ] map[name:KEY_BA] map[name:KEY_BB] map[name:**KEY_BC**] map[name:**KEY_BD**] map[name:KEY_BE] map[name:KEY_BF] map[name:KEY_BG] map[name:KEY_BH] map[name:KEY_BI] map[name:**KEY_BC**] map[name:**KEY_BD**]
-   
+
    `]`
 
 In this case, the duplicated keys have been **emphasized** to help you identify the problematic keys. Many editors have the ability to highlight all instances of a string, using such an editor can help with such problems.

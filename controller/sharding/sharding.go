@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"hash/fnv"
+	"math"
 	"os"
 	"sort"
 	"strconv"
@@ -20,6 +21,7 @@ import (
 
 	"github.com/argoproj/argo-cd/v2/util/db"
 	"github.com/argoproj/argo-cd/v2/util/env"
+	"github.com/argoproj/argo-cd/v2/util/errors"
 	"github.com/argoproj/argo-cd/v2/util/settings"
 	log "github.com/sirupsen/logrus"
 	kubeerrors "k8s.io/apimachinery/pkg/api/errors"
@@ -206,7 +208,7 @@ func createClusterIndexByClusterIdMap(getCluster clusterAccessor) map[string]int
 // The function takes the shard number from the environment variable (default value -1, if not set) and passes it to this function.
 // If the shard value passed to this function is -1, that is, the shard was not set as an environment variable,
 // we default the shard number to 0 for computing the default config map.
-func GetOrUpdateShardFromConfigMap(kubeClient *kubernetes.Clientset, settingsMgr *settings.SettingsManager, replicas, shard int) (int, error) {
+func GetOrUpdateShardFromConfigMap(kubeClient kubernetes.Interface, settingsMgr *settings.SettingsManager, replicas, shard int) (int, error) {
 	hostname, err := osHostnameFunction()
 	if err != nil {
 		return -1, err
@@ -362,4 +364,60 @@ func getDefaultShardMappingData(replicas int) []shardApplicationControllerMappin
 		shardMappingData = append(shardMappingData, mapping)
 	}
 	return shardMappingData
+}
+
+func GetClusterSharding(kubeClient kubernetes.Interface, settingsMgr *settings.SettingsManager, shardingAlgorithm string, enableDynamicClusterDistribution bool) (ClusterShardingCache, error) {
+	var replicasCount int
+	if enableDynamicClusterDistribution {
+		applicationControllerName := env.StringFromEnv(common.EnvAppControllerName, common.DefaultApplicationControllerName)
+		appControllerDeployment, err := kubeClient.AppsV1().Deployments(settingsMgr.GetNamespace()).Get(context.Background(), applicationControllerName, metav1.GetOptions{})
+
+		// if app controller deployment is not found when dynamic cluster distribution is enabled error out
+		if err != nil {
+			return nil, fmt.Errorf("(dynamic cluster distribution) failed to get app controller deployment: %v", err)
+		}
+
+		if appControllerDeployment != nil && appControllerDeployment.Spec.Replicas != nil {
+			replicasCount = int(*appControllerDeployment.Spec.Replicas)
+		} else {
+			return nil, fmt.Errorf("(dynamic cluster distribution) failed to get app controller deployment replica count")
+		}
+
+	} else {
+		replicasCount = env.ParseNumFromEnv(common.EnvControllerReplicas, 0, 0, math.MaxInt32)
+	}
+	shardNumber := env.ParseNumFromEnv(common.EnvControllerShard, -1, -math.MaxInt32, math.MaxInt32)
+	if replicasCount > 1 {
+		// check for shard mapping using configmap if application-controller is a deployment
+		// else use existing logic to infer shard from pod name if application-controller is a statefulset
+		if enableDynamicClusterDistribution {
+			var err error
+			// retry 3 times if we find a conflict while updating shard mapping configMap.
+			// If we still see conflicts after the retries, wait for next iteration of heartbeat process.
+			for i := 0; i <= common.AppControllerHeartbeatUpdateRetryCount; i++ {
+				shardNumber, err = GetOrUpdateShardFromConfigMap(kubeClient, settingsMgr, replicasCount, shardNumber)
+				if err != nil && !kubeerrors.IsConflict(err) {
+					err = fmt.Errorf("unable to get shard due to error updating the sharding config map: %s", err)
+					break
+				}
+				log.Warnf("conflict when getting shard from shard mapping configMap. Retrying (%d/3)", i)
+			}
+			errors.CheckError(err)
+		} else {
+			if shardNumber < 0 {
+				var err error
+				shardNumber, err = InferShard()
+				errors.CheckError(err)
+			}
+			if shardNumber > replicasCount {
+				log.Warnf("Calculated shard number %d is greated than the number of replicas count. Defaulting to 0", shardNumber)
+				shardNumber = 0
+			}
+		}
+	} else {
+		log.Info("Processing all cluster shards")
+		shardNumber = 0
+	}
+	db := db.NewDB(settingsMgr.GetNamespace(), settingsMgr, kubeClient)
+	return NewClusterSharding(db, shardNumber, replicasCount, shardingAlgorithm), nil
 }

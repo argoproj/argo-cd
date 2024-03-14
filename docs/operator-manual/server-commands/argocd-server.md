@@ -26,6 +26,7 @@ argocd-server [flags]
 
 ```
       --address string                                  Listen on given address (default "0.0.0.0")
+      --api-content-types string                        Semicolon separated list of allowed content types for non GET api requests. Any content type is allowed if empty. (default "application/json")
       --app-state-cache-expiration duration             Cache expiration for app state (default 1h0m0s)
       --application-namespaces strings                  List of additional namespaces where application resources can be managed in
       --as string                                       Username to impersonate for the operation

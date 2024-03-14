@@ -26,7 +26,6 @@ import (
 	"github.com/argoproj/argo-cd/v2/controller/sharding"
 	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	argoappv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
 	"github.com/argoproj/argo-cd/v2/util/argo"
 	cacheutil "github.com/argoproj/argo-cd/v2/util/cache"
@@ -72,7 +71,7 @@ argocd admin cluster namespaces my-cluster `,
 }
 
 type ClusterWithInfo struct {
-	argoappv1.Cluster
+	v1alpha1.Cluster
 	// Shard holds controller shard number that handles the cluster
 	Shard int
 	// Namespaces holds list of namespaces managed by Argo CD in the cluster
@@ -626,15 +625,16 @@ func NewGenClusterConfigCommand(pathOpts *clientcmd.PathOptions) *cobra.Command 
 			errors.CheckError(err)
 			kubeClientset := fake.NewSimpleClientset()
 
-			var awsAuthConf *argoappv1.AWSAuthConfig
-			var execProviderConf *argoappv1.ExecProviderConfig
+			var awsAuthConf *v1alpha1.AWSAuthConfig
+			var execProviderConf *v1alpha1.ExecProviderConfig
 			if clusterOpts.AwsClusterName != "" {
-				awsAuthConf = &argoappv1.AWSAuthConfig{
+				awsAuthConf = &v1alpha1.AWSAuthConfig{
 					ClusterName: clusterOpts.AwsClusterName,
 					RoleARN:     clusterOpts.AwsRoleArn,
+					Profile:     clusterOpts.AwsProfile,
 				}
 			} else if clusterOpts.ExecProviderCommand != "" {
-				execProviderConf = &argoappv1.ExecProviderConfig{
+				execProviderConf = &v1alpha1.ExecProviderConfig{
 					Command:     clusterOpts.ExecProviderCommand,
 					Args:        clusterOpts.ExecProviderArgs,
 					Env:         clusterOpts.ExecProviderEnv,
@@ -658,7 +658,7 @@ func NewGenClusterConfigCommand(pathOpts *clientcmd.PathOptions) *cobra.Command 
 
 			clst := cmdutil.NewCluster(contextName, clusterOpts.Namespaces, clusterOpts.ClusterResources, conf, bearerToken, awsAuthConf, execProviderConf, labelsMap, annotationsMap)
 			if clusterOpts.InClusterEndpoint() {
-				clst.Server = argoappv1.KubernetesInternalAPIServerAddr
+				clst.Server = v1alpha1.KubernetesInternalAPIServerAddr
 			}
 			if clusterOpts.ClusterEndpoint == string(cmdutil.KubePublicEndpoint) {
 				// Ignore `kube-public` cluster endpoints, since this command is intended to run without invoking any network connections.
