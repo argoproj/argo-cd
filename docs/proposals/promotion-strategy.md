@@ -352,7 +352,7 @@ This CRD will be created by other controllers, an example being an Argo CD speci
 
 ##### Relationship to PromotionStrategy
 
-A CommitStatus by has no direct relationship to any PromotionStrategy (described below). To have any effect on promotion, the CommitStatus must be referenced (via a key selector) by a PromotionStrategy or a ProposedCommit which, in turn, is referenced by a PromotionStrategy. CommitStatus is meant to simply be an abstraction of the SCMs' commit strategy concepts. On its own, this abstraction should have no awareness of change promotion, GitOps, etc.
+A CommitStatus by has no direct relationship to any PromotionStrategy (described below). To have any effect on promotion, the CommitStatus must be referenced (via a key selector) by a PromotionStrategy or a ProposedCommit which, in turn, is referenced by a PromotionStrategy. CommitStatus is meant to simply be an abstraction of the SCMs' commit status concepts. On its own, this abstraction should have no awareness of change promotion, GitOps, etc.
 
 ##### Example
 
