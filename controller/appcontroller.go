@@ -113,7 +113,6 @@ type ApplicationController struct {
 	appInformer                   cache.SharedIndexInformer
 	appLister                     applisters.ApplicationLister
 	projInformer                  cache.SharedIndexInformer
-	deploymentInformer            informerv1.DeploymentInformer
 	appStateManager               AppStateManager
 	stateCache                    statecache.LiveStateCache
 	statusRefreshTimeout          time.Duration
@@ -130,6 +129,10 @@ type ApplicationController struct {
 	clusterSharding               sharding.ClusterShardingCache
 	projByNameCache               sync.Map
 	applicationNamespaces         []string
+
+	// dynamicClusterDistributionEnabled if disabled deploymentInformer is never initialized
+	dynamicClusterDistributionEnabled bool
+	deploymentInformer                informerv1.DeploymentInformer
 }
 
 // NewApplicationController creates new instance of ApplicationController.
@@ -155,6 +158,7 @@ func NewApplicationController(
 	applicationNamespaces []string,
 	rateLimiterConfig *ratelimiter.AppControllerRateLimiterConfig,
 	serverSideDiff bool,
+	dynamicClusterDistributionEnabled bool,
 ) (*ApplicationController, error) {
 	log.Infof("appResyncPeriod=%v, appHardResyncPeriod=%v, appResyncJitter=%v", appResyncPeriod, appHardResyncPeriod, appResyncJitter)
 	db := db.NewDB(namespace, settingsMgr, kubeClientset)
@@ -163,28 +167,29 @@ func NewApplicationController(
 		log.Info("Using default workqueue rate limiter config")
 	}
 	ctrl := ApplicationController{
-		cache:                         argoCache,
-		namespace:                     namespace,
-		kubeClientset:                 kubeClientset,
-		kubectl:                       kubectl,
-		applicationClientset:          applicationClientset,
-		repoClientset:                 repoClientset,
-		appRefreshQueue:               workqueue.NewNamedRateLimitingQueue(ratelimiter.NewCustomAppControllerRateLimiter(rateLimiterConfig), "app_reconciliation_queue"),
-		appOperationQueue:             workqueue.NewNamedRateLimitingQueue(ratelimiter.NewCustomAppControllerRateLimiter(rateLimiterConfig), "app_operation_processing_queue"),
-		projectRefreshQueue:           workqueue.NewNamedRateLimitingQueue(ratelimiter.NewCustomAppControllerRateLimiter(rateLimiterConfig), "project_reconciliation_queue"),
-		appComparisonTypeRefreshQueue: workqueue.NewRateLimitingQueue(ratelimiter.NewCustomAppControllerRateLimiter(rateLimiterConfig)),
-		db:                            db,
-		statusRefreshTimeout:          appResyncPeriod,
-		statusHardRefreshTimeout:      appHardResyncPeriod,
-		statusRefreshJitter:           appResyncJitter,
-		refreshRequestedApps:          make(map[string]CompareWith),
-		refreshRequestedAppsMutex:     &sync.Mutex{},
-		auditLogger:                   argo.NewAuditLogger(namespace, kubeClientset, common.ApplicationController),
-		settingsMgr:                   settingsMgr,
-		selfHealTimeout:               selfHealTimeout,
-		clusterSharding:               clusterSharding,
-		projByNameCache:               sync.Map{},
-		applicationNamespaces:         applicationNamespaces,
+		cache:                             argoCache,
+		namespace:                         namespace,
+		kubeClientset:                     kubeClientset,
+		kubectl:                           kubectl,
+		applicationClientset:              applicationClientset,
+		repoClientset:                     repoClientset,
+		appRefreshQueue:                   workqueue.NewNamedRateLimitingQueue(ratelimiter.NewCustomAppControllerRateLimiter(rateLimiterConfig), "app_reconciliation_queue"),
+		appOperationQueue:                 workqueue.NewNamedRateLimitingQueue(ratelimiter.NewCustomAppControllerRateLimiter(rateLimiterConfig), "app_operation_processing_queue"),
+		projectRefreshQueue:               workqueue.NewNamedRateLimitingQueue(ratelimiter.NewCustomAppControllerRateLimiter(rateLimiterConfig), "project_reconciliation_queue"),
+		appComparisonTypeRefreshQueue:     workqueue.NewRateLimitingQueue(ratelimiter.NewCustomAppControllerRateLimiter(rateLimiterConfig)),
+		db:                                db,
+		statusRefreshTimeout:              appResyncPeriod,
+		statusHardRefreshTimeout:          appHardResyncPeriod,
+		statusRefreshJitter:               appResyncJitter,
+		refreshRequestedApps:              make(map[string]CompareWith),
+		refreshRequestedAppsMutex:         &sync.Mutex{},
+		auditLogger:                       argo.NewAuditLogger(namespace, kubeClientset, common.ApplicationController),
+		settingsMgr:                       settingsMgr,
+		selfHealTimeout:                   selfHealTimeout,
+		clusterSharding:                   clusterSharding,
+		projByNameCache:                   sync.Map{},
+		applicationNamespaces:             applicationNamespaces,
+		dynamicClusterDistributionEnabled: dynamicClusterDistributionEnabled,
 	}
 	if kubectlParallelismLimit > 0 {
 		ctrl.kubectlSemaphore = semaphore.NewWeighted(kubectlParallelismLimit)
@@ -227,25 +232,33 @@ func NewApplicationController(
 	}
 
 	factory := informers.NewSharedInformerFactoryWithOptions(ctrl.kubeClientset, defaultDeploymentInformerResyncDuration, informers.WithNamespace(settingsMgr.GetNamespace()))
-	deploymentInformer := factory.Apps().V1().Deployments()
+
+	var deploymentInformer informerv1.DeploymentInformer
+
+	// only initialize deployment informer if dynamic distribution is enabled
+	if dynamicClusterDistributionEnabled {
+		deploymentInformer = factory.Apps().V1().Deployments()
+	}
 
 	readinessHealthCheck := func(r *http.Request) error {
-		applicationControllerName := env.StringFromEnv(common.EnvAppControllerName, common.DefaultApplicationControllerName)
-		appControllerDeployment, err := deploymentInformer.Lister().Deployments(settingsMgr.GetNamespace()).Get(applicationControllerName)
-		if err != nil {
-			if kubeerrors.IsNotFound(err) {
-				appControllerDeployment = nil
-			} else {
-				return fmt.Errorf("error retrieving Application Controller Deployment: %s", err)
+		if dynamicClusterDistributionEnabled {
+			applicationControllerName := env.StringFromEnv(common.EnvAppControllerName, common.DefaultApplicationControllerName)
+			appControllerDeployment, err := deploymentInformer.Lister().Deployments(settingsMgr.GetNamespace()).Get(applicationControllerName)
+			if err != nil {
+				if kubeerrors.IsNotFound(err) {
+					appControllerDeployment = nil
+				} else {
+					return fmt.Errorf("error retrieving Application Controller Deployment: %s", err)
+				}
 			}
-		}
-		if appControllerDeployment != nil {
-			if appControllerDeployment.Spec.Replicas != nil && int(*appControllerDeployment.Spec.Replicas) <= 0 {
-				return fmt.Errorf("application controller deployment replicas is not set or is less than 0, replicas: %d", appControllerDeployment.Spec.Replicas)
-			}
-			shard := env.ParseNumFromEnv(common.EnvControllerShard, -1, -math.MaxInt32, math.MaxInt32)
-			if _, err := sharding.GetOrUpdateShardFromConfigMap(kubeClientset.(*kubernetes.Clientset), settingsMgr, int(*appControllerDeployment.Spec.Replicas), shard); err != nil {
-				return fmt.Errorf("error while updating the heartbeat for to the Shard Mapping ConfigMap: %s", err)
+			if appControllerDeployment != nil {
+				if appControllerDeployment.Spec.Replicas != nil && int(*appControllerDeployment.Spec.Replicas) <= 0 {
+					return fmt.Errorf("application controller deployment replicas is not set or is less than 0, replicas: %d", appControllerDeployment.Spec.Replicas)
+				}
+				shard := env.ParseNumFromEnv(common.EnvControllerShard, -1, -math.MaxInt32, math.MaxInt32)
+				if _, err := sharding.GetOrUpdateShardFromConfigMap(kubeClientset.(*kubernetes.Clientset), settingsMgr, int(*appControllerDeployment.Spec.Replicas), shard); err != nil {
+					return fmt.Errorf("error while updating the heartbeat for to the Shard Mapping ConfigMap: %s", err)
+				}
 			}
 		}
 		return nil
@@ -497,13 +510,13 @@ func (ctrl *ApplicationController) getResourceTree(a *appv1.Application, managed
 		if err != nil {
 			return nil, fmt.Errorf("failed to unmarshal live state of managed resources: %w", err)
 		}
-		var target = &unstructured.Unstructured{}
-		err = json.Unmarshal([]byte(managedResource.TargetState), &target)
-		if err != nil {
-			return nil, fmt.Errorf("failed to unmarshal target state of managed resources: %w", err)
-		}
 
 		if live == nil {
+			var target = &unstructured.Unstructured{}
+			err = json.Unmarshal([]byte(managedResource.TargetState), &target)
+			if err != nil {
+				return nil, fmt.Errorf("failed to unmarshal target state of managed resources: %w", err)
+			}
 			nodes = append(nodes, appv1.ResourceNode{
 				ResourceRef: appv1.ResourceRef{
 					Version:   target.GroupVersionKind().Version,
@@ -773,13 +786,23 @@ func (ctrl *ApplicationController) Run(ctx context.Context, statusProcessors int
 
 	go ctrl.appInformer.Run(ctx.Done())
 	go ctrl.projInformer.Run(ctx.Done())
-	go ctrl.deploymentInformer.Informer().Run(ctx.Done())
+
+	if ctrl.dynamicClusterDistributionEnabled {
+		// only start deployment informer if dynamic distribution is enabled
+		go ctrl.deploymentInformer.Informer().Run(ctx.Done())
+	}
 
 	clusters, err := ctrl.db.ListClusters(ctx)
 	if err != nil {
 		log.Warnf("Cannot init sharding. Error while querying clusters list from database: %v", err)
 	} else {
-		ctrl.clusterSharding.Init(clusters)
+		appItems, err := ctrl.getAppList(metav1.ListOptions{})
+
+		if err != nil {
+			log.Warnf("Cannot init sharding. Error while querying application list from database: %v", err)
+		} else {
+			ctrl.clusterSharding.Init(clusters, appItems)
+		}
 	}
 
 	errors.CheckError(ctrl.stateCache.Init())
@@ -2089,6 +2112,10 @@ func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.Shar
 					ctrl.appRefreshQueue.AddRateLimited(key)
 					ctrl.appOperationQueue.AddRateLimited(key)
 				}
+				newApp, newOK := obj.(*appv1.Application)
+				if err == nil && newOK {
+					ctrl.clusterSharding.AddApp(newApp)
+				}
 			},
 			UpdateFunc: func(old, new interface{}) {
 				if !ctrl.canProcessApp(new) {
@@ -2119,6 +2146,7 @@ func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.Shar
 
 				ctrl.requestAppRefresh(newApp.QualifiedName(), compareWith, delay)
 				ctrl.appOperationQueue.AddRateLimited(key)
+				ctrl.clusterSharding.UpdateApp(newApp)
 			},
 			DeleteFunc: func(obj interface{}) {
 				if !ctrl.canProcessApp(obj) {
@@ -2130,6 +2158,10 @@ func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.Shar
 				if err == nil {
 					// for deletes, we immediately add to the refresh queue
 					ctrl.appRefreshQueue.Add(key)
+				}
+				delApp, delOK := obj.(*appv1.Application)
+				if err == nil && delOK {
+					ctrl.clusterSharding.DeleteApp(delApp)
 				}
 			},
 		},
@@ -2204,6 +2236,28 @@ func (ctrl *ApplicationController) toAppKey(appName string) string {
 
 func (ctrl *ApplicationController) toAppQualifiedName(appName, appNamespace string) string {
 	return fmt.Sprintf("%s/%s", appNamespace, appName)
+}
+
+func (ctrl *ApplicationController) getAppList(options metav1.ListOptions) (*appv1.ApplicationList, error) {
+	watchNamespace := ctrl.namespace
+	// If we have at least one additional namespace configured, we need to
+	// watch on them all.
+	if len(ctrl.applicationNamespaces) > 0 {
+		watchNamespace = ""
+	}
+
+	appList, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(watchNamespace).List(context.TODO(), options)
+	if err != nil {
+		return nil, err
+	}
+	newItems := []appv1.Application{}
+	for _, app := range appList.Items {
+		if ctrl.isAppNamespaceAllowed(&app) {
+			newItems = append(newItems, app)
+		}
+	}
+	appList.Items = newItems
+	return appList, nil
 }
 
 type ClusterFilterFunction func(c *appv1.Cluster, distributionFunction sharding.DistributionFunction) bool

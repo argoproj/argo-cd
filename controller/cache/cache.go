@@ -372,7 +372,12 @@ func isRetryableError(err error) bool {
 		isResourceQuotaConflictErr(err) ||
 		isTransientNetworkErr(err) ||
 		isExceededQuotaErr(err) ||
+		isHTTP2GoawayErr(err) ||
 		errors.Is(err, syscall.ECONNRESET)
+}
+
+func isHTTP2GoawayErr(err error) bool {
+	return strings.Contains(err.Error(), "http2: server sent GOAWAY and closed the connection")
 }
 
 func isExceededQuotaErr(err error) bool {
@@ -751,7 +756,7 @@ func (c *liveStateCache) handleAddEvent(cluster *appv1.Cluster) {
 }
 
 func (c *liveStateCache) handleModEvent(oldCluster *appv1.Cluster, newCluster *appv1.Cluster) {
-	c.clusterSharding.Update(newCluster)
+	c.clusterSharding.Update(oldCluster, newCluster)
 	c.lock.Lock()
 	cluster, ok := c.clusters[newCluster.Server]
 	c.lock.Unlock()

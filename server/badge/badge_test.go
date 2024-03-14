@@ -88,6 +88,7 @@ func TestHandlerFeatureIsEnabled(t *testing.T) {
 	assert.Equal(t, toRGBString(Green), rightRectColorPattern.FindStringSubmatch(response)[1])
 	assert.Equal(t, "Healthy", leftTextPattern.FindStringSubmatch(response)[1])
 	assert.Equal(t, "Synced", rightTextPattern.FindStringSubmatch(response)[1])
+	assert.NotContains(t, response, "test-app")
 	assert.NotContains(t, response, "(aa29b85)")
 }
 
@@ -148,6 +149,7 @@ func TestHandlerFeatureProjectIsEnabled(t *testing.T) {
 			assert.Equal(t, toRGBString(tt.statusColor), rightRectColorPattern.FindStringSubmatch(response)[1])
 			assert.Equal(t, tt.health, leftTextPattern.FindStringSubmatch(response)[1])
 			assert.Equal(t, tt.status, rightTextPattern.FindStringSubmatch(response)[1])
+			assert.Equal(t, "\"20\"", svgHeightPattern.FindStringSubmatch(response)[2])
 		}
 	}
 }
@@ -170,6 +172,7 @@ func TestHandlerNamespacesIsEnabled(t *testing.T) {
 		assert.Equal(t, toRGBString(Green), rightRectColorPattern.FindStringSubmatch(response)[1])
 		assert.Equal(t, "Healthy", leftTextPattern.FindStringSubmatch(response)[1])
 		assert.Equal(t, "Synced", rightTextPattern.FindStringSubmatch(response)[1])
+		assert.NotContains(t, response, "test-app")
 		assert.NotContains(t, response, "(aa29b85)")
 	})
 
@@ -268,6 +271,7 @@ func TestHandlerFeatureIsEnabledRevisionIsEnabled(t *testing.T) {
 	assert.Equal(t, toRGBString(Green), rightRectColorPattern.FindStringSubmatch(response)[1])
 	assert.Equal(t, "Healthy", leftTextPattern.FindStringSubmatch(response)[1])
 	assert.Equal(t, "Synced", rightTextPattern.FindStringSubmatch(response)[1])
+	assert.NotContains(t, response, "test-app")
 	assert.Contains(t, response, "(aa29b85)")
 }
 
@@ -291,6 +295,7 @@ func TestHandlerRevisionIsEnabledNoOperationState(t *testing.T) {
 	assert.Equal(t, toRGBString(Green), rightRectColorPattern.FindStringSubmatch(response)[1])
 	assert.Equal(t, "Healthy", leftTextPattern.FindStringSubmatch(response)[1])
 	assert.Equal(t, "Synced", rightTextPattern.FindStringSubmatch(response)[1])
+	assert.NotContains(t, response, "test-app")
 	assert.NotContains(t, response, "(aa29b85)")
 }
 
@@ -331,4 +336,59 @@ func TestHandlerFeatureIsDisabled(t *testing.T) {
 	assert.Equal(t, toRGBString(Purple), rightRectColorPattern.FindStringSubmatch(response)[1])
 	assert.Equal(t, "Unknown", leftTextPattern.FindStringSubmatch(response)[1])
 	assert.Equal(t, "Unknown", rightTextPattern.FindStringSubmatch(response)[1])
+	assert.NotContains(t, response, "test-app")
+	assert.Equal(t, "\"20\"", svgHeightPattern.FindStringSubmatch(response)[2])
+}
+
+func TestHandlerApplicationNameInBadgeIsEnabled(t *testing.T) {
+	settingsMgr := settings.NewSettingsManager(context.Background(), fake.NewSimpleClientset(&argoCDCm, &argoCDSecret), "default")
+	handler := NewHandler(appclientset.NewSimpleClientset(&testApp), settingsMgr, "default", []string{})
+	req, err := http.NewRequest(http.MethodGet, "/api/badge?name=test-app&showAppName=true", nil)
+	assert.NoError(t, err)
+
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+
+	assert.Equal(t, "private, no-store", rr.Header().Get("Cache-Control"))
+	assert.Equal(t, "*", rr.Header().Get("Access-Control-Allow-Origin"))
+
+	response := rr.Body.String()
+	assert.Equal(t, toRGBString(Green), leftRectColorPattern.FindStringSubmatch(response)[1])
+	assert.Equal(t, toRGBString(Green), rightRectColorPattern.FindStringSubmatch(response)[1])
+	assert.Equal(t, "Healthy", leftTextPattern.FindStringSubmatch(response)[1])
+	assert.Equal(t, "Synced", rightTextPattern.FindStringSubmatch(response)[1])
+	assert.NotContains(t, response, "(aa29b85)")
+
+	assert.Equal(t, "test-app", titleTextPattern.FindStringSubmatch(response)[1])
+	assert.Equal(t, fmt.Sprintf("\"%d\"", svgHeightWithAppName), svgHeightPattern.FindStringSubmatch(response)[2])
+	assert.Equal(t, fmt.Sprintf("\"%d\"", badgeRowHeight), leftRectYCoodPattern.FindStringSubmatch(response)[2])
+	assert.Equal(t, fmt.Sprintf("\"%d\"", badgeRowHeight), rightRectYCoodPattern.FindStringSubmatch(response)[2])
+	assert.Equal(t, fmt.Sprintf("\"%d\"", badgeRowHeight), revisionRectYCoodPattern.FindStringSubmatch(response)[2])
+	assert.Equal(t, fmt.Sprintf("\"%d\"", logoYCoodWithAppName), logoYCoodPattern.FindStringSubmatch(response)[2])
+}
+
+func TestHandlerApplicationNameInBadgeIsDisabled(t *testing.T) {
+
+	settingsMgr := settings.NewSettingsManager(context.Background(), fake.NewSimpleClientset(&argoCDCm, &argoCDSecret), "default")
+	handler := NewHandler(appclientset.NewSimpleClientset(&testApp), settingsMgr, "default", []string{})
+	req, err := http.NewRequest(http.MethodGet, "/api/badge?name=test-app", nil)
+	assert.NoError(t, err)
+
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+
+	assert.Equal(t, "private, no-store", rr.Header().Get("Cache-Control"))
+	assert.Equal(t, "*", rr.Header().Get("Access-Control-Allow-Origin"))
+
+	response := rr.Body.String()
+	assert.Equal(t, toRGBString(Green), leftRectColorPattern.FindStringSubmatch(response)[1])
+	assert.Equal(t, toRGBString(Green), rightRectColorPattern.FindStringSubmatch(response)[1])
+	assert.Equal(t, "Healthy", leftTextPattern.FindStringSubmatch(response)[1])
+	assert.Equal(t, "Synced", rightTextPattern.FindStringSubmatch(response)[1])
+	assert.Equal(t, "\"20\"", svgHeightPattern.FindStringSubmatch(response)[2])
+	assert.Equal(t, "\"0\"", leftRectYCoodPattern.FindStringSubmatch(response)[2])
+	assert.Equal(t, "\"0\"", rightRectYCoodPattern.FindStringSubmatch(response)[2])
+	assert.Equal(t, "\"0\"", revisionRectYCoodPattern.FindStringSubmatch(response)[2])
+	assert.Equal(t, "\"2\"", logoYCoodPattern.FindStringSubmatch(response)[2])
+	assert.NotContains(t, response, "test-app")
 }
