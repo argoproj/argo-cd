@@ -2463,13 +2463,13 @@ func printApplicationHistoryIds(revHistory []argoappv1.RevisionHistory) {
 // Print a history table for an application.
 func printApplicationHistoryTable(revHistory []argoappv1.RevisionHistory) {
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	_, _ = fmt.Fprintf(w, "ID\tDATE\tREVISION\n")
+	type history struct {
+		id       int64
+		date     string
+		revision string
+	}
+	varHistory := map[string][]history{}
 	for _, depInfo := range revHistory {
-		rev := depInfo.Source.TargetRevision
-		if len(depInfo.Revision) >= 7 {
-			rev = fmt.Sprintf("%s (%s)", rev, depInfo.Revision[0:7])
-		}
-		_, _ = fmt.Fprintf(w, "%d\t%s\t%s\n", depInfo.ID, depInfo.DeployedAt, rev)
 		if depInfo.Source.RepoURL != "" {
 			rev := depInfo.Source.TargetRevision
 			if len(depInfo.Revision) >= 7 {
