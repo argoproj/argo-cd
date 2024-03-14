@@ -2477,7 +2477,7 @@ func printApplicationHistoryTable(revHistory []argoappv1.RevisionHistory) {
 			}
 			varHistory[depInfo.Source.RepoURL] = append(varHistory[depInfo.Source.RepoURL], history{
 				id:       depInfo.ID,
-				date:     fmt.Sprintf("%s", depInfo.DeployedAt),
+				date:     depInfo.DeployedAt.String(),
 				revision: rev,
 			})
 		}
@@ -2489,7 +2489,7 @@ func printApplicationHistoryTable(revHistory []argoappv1.RevisionHistory) {
 				}
 				varHistory[sourceInfo.RepoURL] = append(varHistory[sourceInfo.RepoURL], history{
 					id:       depInfo.ID,
-					date:     fmt.Sprintf("%s", depInfo.DeployedAt),
+					date:     depInfo.DeployedAt.String(),
 					revision: rev,
 				})
 			}
