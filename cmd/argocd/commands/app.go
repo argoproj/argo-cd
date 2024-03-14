@@ -2484,7 +2484,7 @@ func printApplicationHistoryTable(revHistory []argoappv1.RevisionHistory) {
 		if depInfo.Sources != nil {
 			for i, sourceInfo := range depInfo.Sources {
 				rev := sourceInfo.TargetRevision
-				if len(depInfo.Revisions[i]) >= 7 {
+				if len(depInfo.Revisions) == len(depInfo.Sources) && len(depInfo.Revisions[i]) >= 7 {
 					rev = fmt.Sprintf("%s (%s)", rev, depInfo.Revisions[i][0:7])
 				}
 				varHistory[sourceInfo.RepoURL] = append(varHistory[sourceInfo.RepoURL], history{
