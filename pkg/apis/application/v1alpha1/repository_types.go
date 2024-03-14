@@ -236,7 +236,7 @@ func getCAPath(repoURL string) string {
 		log.Warnf("Could not parse repo URL '%s': %v", repoURL, err)
 		return ""
 	}
-	if parsedURL.Scheme == "https" || parsedURL.Scheme == "oci" {
+	if parsedURL.Scheme == "https" || parsedURL.Scheme == "oci" || parsedURL.Scheme == "http" {
 		hostname = parsedURL.Host
 	} else if parsedURL.Scheme == "" {
 		hostname = parsedURL.Path

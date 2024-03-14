@@ -107,6 +107,7 @@ type RepoServerInitConstants struct {
 	StreamedManifestMaxExtractedSize             int64
 	StreamedManifestMaxTarSize                   int64
 	HelmManifestMaxExtractedSize                 int64
+	HelmRegistryMaxIndexSize                 int64
 	DisableHelmManifestMaxExtractedSize          bool
 }
 
