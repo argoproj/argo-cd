@@ -387,7 +387,7 @@ status:
 
 A PullRequest represents a PR in some SCM.
 
-For the purposes of environment promotion, this resource will be created by the ProposedCommit controller.
+For the purposes of environment promotion, this resource will be created by the ProposedCommit and RevertCommit controllers.
 
 ```yaml
 apiVersion: promoter.argoproj.io/v1alpha1
