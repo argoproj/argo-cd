@@ -56,7 +56,7 @@ func (v *VersionConfigManager) GetVersionConfig(app *metav1.ObjectMeta) (*Versio
 	// Default value
 	log.Infof("Used default CfAppConfig for: '%s'", cache.CfAppConfigCacheKey(app.Namespace, app.Name))
 	return &VersionConfig{
-		JsonPath:     "{.appVersion}",
+		JsonPath:     "$.appVersion",
 		ResourceName: "Chart.yaml",
 	}, nil
 }

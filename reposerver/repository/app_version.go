@@ -130,7 +130,7 @@ func readFileContent(result *Result, appPath, fileName, fieldName string) {
 func getAppVersions(appPath string, versionConfig *version_config_manager.VersionConfig) (*Result, error) {
 	// Defaults
 	resourceName := "Chart.yaml"
-	jsonPathExpression := "{.appVersion}"
+	jsonPathExpression := "$.appVersion"
 
 	if versionConfig != nil {
 		if versionConfig.ResourceName != "" {
