@@ -581,7 +581,7 @@ func TestPrintApplicationHistoryTable(t *testing.T) {
 		return nil
 	})
 
-	expectation := "SOURCE  test\nID      DATE                           REVISION\n1       0001-01-01 00:00:00 +0000 UTC  1\n2       0001-01-01 00:00:00 +0000 UTC  2\n3       0001-01-01 00:00:00 +0000 UTC  3\n\n"
+	expectation := "\nSOURCE  test\nID      DATE                           REVISION\n1       0001-01-01 00:00:00 +0000 UTC  1\n2       0001-01-01 00:00:00 +0000 UTC  2\n3       0001-01-01 00:00:00 +0000 UTC  3\n"
 
 	if output != expectation {
 		t.Fatalf("Incorrect print operation output %q, should be %q", output, expectation)
@@ -648,7 +648,7 @@ func TestPrintApplicationHistoryTableWithMultipleSources(t *testing.T) {
 		return nil
 	})
 
-	expectation := "SOURCE  test-1\nID      DATE                           REVISION\n1       0001-01-01 00:00:00 +0000 UTC  1a\n2       0001-01-01 00:00:00 +0000 UTC  2a\n3       0001-01-01 00:00:00 +0000 UTC  3a\n\nSOURCE  test-2\nID      DATE                           REVISION\n1       0001-01-01 00:00:00 +0000 UTC  1b\n2       0001-01-01 00:00:00 +0000 UTC  2b\n3       0001-01-01 00:00:00 +0000 UTC  3b\n\n"
+	expectation := "\nSOURCE  test-1\nID      DATE                           REVISION\n1       0001-01-01 00:00:00 +0000 UTC  1a\n2       0001-01-01 00:00:00 +0000 UTC  2a\n3       0001-01-01 00:00:00 +0000 UTC  3a\n\nSOURCE  test-2\nID      DATE                           REVISION\n1       0001-01-01 00:00:00 +0000 UTC  1b\n2       0001-01-01 00:00:00 +0000 UTC  2b\n3       0001-01-01 00:00:00 +0000 UTC  3b\n"
 
 	if output != expectation {
 		t.Fatalf("Incorrect print operation output %q, should be %q", output, expectation)

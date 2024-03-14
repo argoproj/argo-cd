@@ -2496,12 +2496,11 @@ func printApplicationHistoryTable(revHistory []argoappv1.RevisionHistory) {
 		}
 	}
 	for source, historyEntries := range varHistory {
-		_, _ = fmt.Fprintf(w, "SOURCE\t%s\n", source)
+		_, _ = fmt.Fprintf(w, "\nSOURCE\t%s\n", source)
 		_, _ = fmt.Fprintf(w, "ID\tDATE\tREVISION\n")
 		for _, history := range historyEntries {
 			_, _ = fmt.Fprintf(w, "%d\t%s\t%s\n", history.id, history.date, history.revision)
 		}
-		_, _ = fmt.Fprintf(w, "\n")
 	}
 	_ = w.Flush()
 }
