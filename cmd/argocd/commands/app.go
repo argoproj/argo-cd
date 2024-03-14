@@ -2470,6 +2470,38 @@ func printApplicationHistoryTable(revHistory []argoappv1.RevisionHistory) {
 			rev = fmt.Sprintf("%s (%s)", rev, depInfo.Revision[0:7])
 		}
 		_, _ = fmt.Fprintf(w, "%d\t%s\t%s\n", depInfo.ID, depInfo.DeployedAt, rev)
+		if depInfo.Source.RepoURL != "" {
+			rev := depInfo.Source.TargetRevision
+			if len(depInfo.Revision) >= 7 {
+				rev = fmt.Sprintf("%s (%s)", rev, depInfo.Revision[0:7])
+			}
+			varHistory[depInfo.Source.RepoURL] = append(varHistory[depInfo.Source.RepoURL], history{
+				id:       depInfo.ID,
+				date:     fmt.Sprintf("%s", depInfo.DeployedAt),
+				revision: rev,
+			})
+		}
+		if depInfo.Sources != nil {
+			for i, sourceInfo := range depInfo.Sources {
+				rev := sourceInfo.TargetRevision
+				if len(depInfo.Revisions) == len(depInfo.Sources) && len(depInfo.Revisions[i]) >= 7 {
+					rev = fmt.Sprintf("%s (%s)", rev, depInfo.Revisions[i][0:7])
+				}
+				varHistory[sourceInfo.RepoURL] = append(varHistory[sourceInfo.RepoURL], history{
+					id:       depInfo.ID,
+					date:     fmt.Sprintf("%s", depInfo.DeployedAt),
+					revision: rev,
+				})
+			}
+		}
+	}
+	for source, historyEntries := range varHistory {
+		_, _ = fmt.Fprintf(w, "SOURCE\t%s\n", source)
+		_, _ = fmt.Fprintf(w, "ID\tDATE\tREVISION\n")
+		for _, history := range historyEntries {
+			_, _ = fmt.Fprintf(w, "%d\t%s\t%s\n", history.id, history.date, history.revision)
+		}
+		_, _ = fmt.Fprintf(w, "\n")
 	}
 	_ = w.Flush()
 }
