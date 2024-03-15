@@ -31,7 +31,7 @@ func TestCliAppCommand(t *testing.T) {
 			output, err := RunCli("app", "list")
 			assert.NoError(t, err)
 			expected := Tmpl(
-				`{{.Name}} https://kubernetes.default.svc {{.Namespace}} default Synced Healthy <none> <none>`,
+				`{{.Name}} https://kubernetes.default.svc {{.Namespace}} default Synced Healthy Manual <none>`,
 				map[string]interface{}{"Name": Name(), "Namespace": DeploymentNamespace()})
 			assert.Contains(t, NormalizeOutput(output), expected)
 		})
