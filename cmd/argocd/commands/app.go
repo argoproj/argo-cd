@@ -2470,17 +2470,7 @@ func printApplicationHistoryTable(revHistory []argoappv1.RevisionHistory) {
 	}
 	varHistory := map[string][]history{}
 	for _, depInfo := range revHistory {
-		if depInfo.Source.RepoURL != "" {
-			rev := depInfo.Source.TargetRevision
-			if len(depInfo.Revision) >= 7 {
-				rev = fmt.Sprintf("%s (%s)", rev, depInfo.Revision[0:7])
-			}
-			varHistory[depInfo.Source.RepoURL] = append(varHistory[depInfo.Source.RepoURL], history{
-				id:       depInfo.ID,
-				date:     depInfo.DeployedAt.String(),
-				revision: rev,
-			})
-		}
+
 		if depInfo.Sources != nil {
 			for i, sourceInfo := range depInfo.Sources {
 				rev := sourceInfo.TargetRevision
@@ -2493,6 +2483,16 @@ func printApplicationHistoryTable(revHistory []argoappv1.RevisionHistory) {
 					revision: rev,
 				})
 			}
+		} else {
+			rev := depInfo.Source.TargetRevision
+			if len(depInfo.Revision) >= 7 {
+				rev = fmt.Sprintf("%s (%s)", rev, depInfo.Revision[0:7])
+			}
+			varHistory[depInfo.Source.RepoURL] = append(varHistory[depInfo.Source.RepoURL], history{
+				id:       depInfo.ID,
+				date:     depInfo.DeployedAt.String(),
+				revision: rev,
+			})
 		}
 	}
 	for source, historyEntries := range varHistory {
