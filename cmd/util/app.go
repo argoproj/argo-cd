@@ -150,7 +150,9 @@ func SetAppSpecOptions(flags *pflag.FlagSet, spec *argoappv1.ApplicationSpec, ap
 	}
 	source, visited = ConstructSource(source, *appOpts, flags)
 	if spec.HasMultipleSources() {
-		if index > 0 {
+		if index == 0 {
+			spec.Sources[index] = *source
+		} else if index > 0 {
 			spec.Sources[index-1] = *source
 		} else {
 			spec.Sources = append(spec.Sources, *source)

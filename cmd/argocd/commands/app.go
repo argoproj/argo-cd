@@ -750,7 +750,7 @@ func NewApplicationSetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
   # Set and override application parameters with a parameter file
   argocd app set my-app --parameter-file path/to/parameter-file.yaml
 
-  # Set and override application parameters for a source at index 1 under spec.sources of app my-app
+  # Set and override application parameters for a source at index 1 under spec.sources of app my-app. source-index starts at 1.
   argocd app set my-app --source-index 1 --repo https://github.com/argoproj/argocd-example-apps.git
 
   # Set application parameters and specify the namespace
@@ -799,7 +799,7 @@ func NewApplicationSetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 			errors.CheckError(err)
 		},
 	}
-	command.Flags().IntVar(&sourceIndex, "source-index", -1, "Index of the source from the list of sources of the app. Default index is -1.")
+	command.Flags().IntVar(&sourceIndex, "source-index", -1, "Index of the source from the list of sources of the app. Index starts at 1.")
 	cmdutil.AddAppFlags(command, &appOpts)
 	command.Flags().StringVarP(&appNamespace, "app-namespace", "N", "", "Set application parameters in namespace")
 	return command
@@ -850,7 +850,7 @@ func NewApplicationUnsetCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
   # Unset kustomize override suffix
   argocd app unset my-app --namesuffix
 
-  # Unset kustomize override suffix for source at index 1 under spec.sources of app my-app
+  # Unset kustomize override suffix for source at index 1 under spec.sources of app my-app. source-index starts at 1.
   argocd app unset my-app --source-index 1 --namesuffix
 
   # Unset parameter override
@@ -914,7 +914,7 @@ func NewApplicationUnsetCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
 	command.Flags().StringArrayVar(&opts.pluginEnvs, "plugin-env", []string{}, "Unset plugin env variables (e.g --plugin-env name)")
 	command.Flags().BoolVar(&opts.passCredentials, "pass-credentials", false, "Unset passCredentials")
 	command.Flags().BoolVar(&opts.ref, "ref", false, "Unset ref on the source")
-	command.Flags().IntVar(&sourceIndex, "source-index", -1, "Index of the source from the list of sources of the app. Default index is -1.")
+	command.Flags().IntVar(&sourceIndex, "source-index", -1, "Index of the source from the list of sources of the app. Index starts at 1.")
 	return command
 }
 
@@ -2957,8 +2957,8 @@ func NewApplicationRemoveSourceCommand(clientOpts *argocdclient.ClientOptions) *
 	)
 	command := &cobra.Command{
 		Use:   "remove-source APPNAME",
-		Short: "Remove a source from multiple sources application. Index starts with 0.",
-		Example: `  # Remove the source at index 1 from application's sources
+		Short: "Remove a source from multiple sources application. Index starts with 1. Default value is -1.",
+		Example: `  # Remove the source at index 1 from application's sources. Index starts at 1.
   argocd app remove-source myapplication --source-index 1`,
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()

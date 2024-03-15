@@ -251,6 +251,7 @@ func newMultiSourceAppOptionsFixture() *appOptionsFixture {
 
 func Test_setAppSpecOptionsMultiSourceApp(t *testing.T) {
 	f := newMultiSourceAppOptionsFixture()
+	index := 0
 	index1 := 1
 	index2 := 2
 	t.Run("SyncPolicy", func(t *testing.T) {
@@ -260,6 +261,11 @@ func Test_setAppSpecOptionsMultiSourceApp(t *testing.T) {
 		f.spec.SyncPolicy = nil
 		assert.NoError(t, f.SetFlagWithSourceIndex("sync-policy", "automatic", index1))
 		assert.NotNil(t, f.spec.SyncPolicy.Automated)
+	})
+	t.Run("Helm - Index 0", func(t *testing.T) {
+		assert.NoError(t, f.SetFlagWithSourceIndex("helm-version", "v2", index))
+		assert.Equal(t, len(f.spec.GetSources()), 2)
+		assert.Equal(t, f.spec.GetSources()[index].Helm.Version, "v2")
 	})
 	t.Run("Kustomize", func(t *testing.T) {
 		assert.NoError(t, f.SetFlagWithSourceIndex("kustomize-replica", "my-deployment=2", index1))
