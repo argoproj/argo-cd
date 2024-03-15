@@ -1,6 +1,7 @@
 # Applications in any namespace
 
-**Current feature state**:
+!!! warning
+    Please read this documentation carefully before you enable this feature. Misconfiguration could lead to potential security issues.
 
 ## Introduction
 
