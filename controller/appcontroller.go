@@ -1247,6 +1247,8 @@ func (ctrl *ApplicationController) setAppCondition(app *appv1.Application, condi
 	}
 }
 
+// refreshDependencies refreshes the dependencies for a given application
+// and persists the results in the application's spec.
 func (ctrl *ApplicationController) refreshDependencies(app *appv1.Application, state *appv1.OperationState) {
 	logCtx := log.WithField("application", app.QualifiedName())
 	for i, dep := range state.WaitingFor {
@@ -1257,6 +1259,9 @@ func (ctrl *ApplicationController) refreshDependencies(app *appv1.Application, s
 			continue
 		}
 
+		// For now, we need to ensure that the dependencies and the dependant
+		// belong to the same AppProject. This will likely change in a future
+		// iteration.
 		if app.Spec.GetProject() != a.Spec.GetProject() {
 			logCtx.Infof("Not refreshing dependency app %s because AppProject does not match: is %s, must be %s", a.QualifiedName(), a.Spec.GetProject(), app.Spec.GetProject())
 			continue
@@ -1269,6 +1274,7 @@ func (ctrl *ApplicationController) refreshDependencies(app *appv1.Application, s
 			continue
 		}
 
+		// If the dependency has never refreshed, refresh it now
 		if dep.RefreshedAt.IsZero() {
 			logCtx.Infof("Requesting refresh for app %s to check dependencies", dep.QualifiedName())
 			ctrl.requestAppRefresh(dep.QualifiedName(), CompareWithLatest.Pointer(), nil)
@@ -1280,6 +1286,7 @@ func (ctrl *ApplicationController) refreshDependencies(app *appv1.Application, s
 		state.WaitingFor[i] = dep
 	}
 
+	// Persist the dependencies' states in the resource
 	ctrl.setOperationState(app, state)
 }
 
@@ -1764,6 +1771,13 @@ func (ctrl *ApplicationController) shouldRefreshForDependency(app *appv1.Applica
 			}
 		}
 
+		// Project of dependency must match
+		if app.Spec.GetProject() != depApp.Spec.GetProject() {
+			continue
+		}
+
+		// If there was a state change for one of the dependencies, we want to
+		// trigger a refresh.
 		if depApp.Status.Health.Status == health.HealthStatusHealthy && depApp.Status.Sync.Status == appv1.SyncStatusCodeSynced {
 			logCtx.Debugf("Sync dependency %s has become healthy and synced", syncDep.QualifiedName())
 			needRefresh = true
