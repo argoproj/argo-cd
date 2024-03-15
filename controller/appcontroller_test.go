@@ -1995,6 +1995,23 @@ func Test_shouldRefreshForDependencies(t *testing.T) {
 		assert.False(t, ctrl.shouldRefreshForDependency(app))
 	})
 
+	t.Run("No refresh for dependency because AppProject differs", func(t *testing.T) {
+		app := newFakeApp()
+		dep := newFakeApp()
+		dep.ObjectMeta.Name = "dep"
+		app.Spec.Project = "thisproject"
+		dep.Spec.Project = "someproject"
+		app.Spec.DependsOn = &v1alpha1.ApplicationDependency{
+			Selectors: []v1alpha1.ApplicationSelector{
+				{NamePattern: []string{"*"}},
+			},
+		}
+		ctrl := newFakeController(&fakeData{
+			apps: []runtime.Object{app, dep},
+		}, nil)
+		assert.False(t, ctrl.shouldRefreshForDependency(app))
+	})
+
 	t.Run("Refresh because a dependency we are waiting for became ready", func(t *testing.T) {
 		app := newFakeApp()
 		dep := newFakeApp()
