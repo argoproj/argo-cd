@@ -2462,6 +2462,7 @@ func printApplicationHistoryIds(revHistory []argoappv1.RevisionHistory) {
 
 // Print a history table for an application.
 func printApplicationHistoryTable(revHistory []argoappv1.RevisionHistory) {
+	MAX_ALLOWED_REVISIONS := 7
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 	type history struct {
 		id       int64
@@ -2474,8 +2475,8 @@ func printApplicationHistoryTable(revHistory []argoappv1.RevisionHistory) {
 		if depInfo.Sources != nil {
 			for i, sourceInfo := range depInfo.Sources {
 				rev := sourceInfo.TargetRevision
-				if len(depInfo.Revisions) == len(depInfo.Sources) && len(depInfo.Revisions[i]) >= 7 {
-					rev = fmt.Sprintf("%s (%s)", rev, depInfo.Revisions[i][0:7])
+				if len(depInfo.Revisions) == len(depInfo.Sources) && len(depInfo.Revisions[i]) >= MAX_ALLOWED_REVISIONS {
+					rev = fmt.Sprintf("%s (%s)", rev, depInfo.Revisions[i][0:MAX_ALLOWED_REVISIONS])
 				}
 				varHistory[sourceInfo.RepoURL] = append(varHistory[sourceInfo.RepoURL], history{
 					id:       depInfo.ID,
@@ -2485,8 +2486,8 @@ func printApplicationHistoryTable(revHistory []argoappv1.RevisionHistory) {
 			}
 		} else {
 			rev := depInfo.Source.TargetRevision
-			if len(depInfo.Revision) >= 7 {
-				rev = fmt.Sprintf("%s (%s)", rev, depInfo.Revision[0:7])
+			if len(depInfo.Revision) >= MAX_ALLOWED_REVISIONS {
+				rev = fmt.Sprintf("%s (%s)", rev, depInfo.Revision[0:MAX_ALLOWED_REVISIONS])
 			}
 			varHistory[depInfo.Source.RepoURL] = append(varHistory[depInfo.Source.RepoURL], history{
 				id:       depInfo.ID,
