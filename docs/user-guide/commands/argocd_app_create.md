@@ -65,6 +65,7 @@ argocd app create APPNAME [flags]
       --kustomize-force-common-annotation          Force common annotations in Kustomize
       --kustomize-force-common-label               Force common labels in Kustomize
       --kustomize-image stringArray                Kustomize images (e.g. --kustomize-image node:8.15.0 --kustomize-image mysql=mariadb,alpine@sha256:24a0c4b4a4c0eb97a1aabb8e29f18e917d05abfe1b7a7c07857230879ce7d3d)
+      --kustomize-label-without-selector           Do not apply common label to selectors or templates
       --kustomize-namespace string                 Kustomize namespace
       --kustomize-replica stringArray              Kustomize replicas (e.g. --kustomize-replica my-development=2 --kustomize-replica my-statefulset=4)
       --kustomize-version string                   Kustomize version
@@ -84,7 +85,7 @@ argocd app create APPNAME [flags]
       --self-heal                                  Set self healing when sync is automated
       --set-finalizer                              Sets deletion finalizer on the application, application resources will be cascaded on deletion
       --sync-option Prune=false                    Add or remove a sync option, e.g add Prune=false. Remove using `!` prefix, e.g. `!Prune=false`
-      --sync-policy string                         Set the sync policy (one of: none, automated (aliases of automated: auto, automatic))
+      --sync-policy string                         Set the sync policy (one of: manual (aliases of manual: none), automated (aliases of automated: auto, automatic))
       --sync-retry-backoff-duration duration       Sync retry backoff base duration. Input needs to be a duration (e.g. 2m, 1h) (default 5s)
       --sync-retry-backoff-factor int              Factor multiplies the base duration after each failed sync retry (default 2)
       --sync-retry-backoff-max-duration duration   Max sync retry backoff duration. Input needs to be a duration (e.g. 2m, 1h) (default 3m0s)
