@@ -2011,6 +2011,42 @@
         }
       }
     },
+    "/api/v1/applicationsets/{name}/events": {
+      "get": {
+        "tags": [
+          "ApplicationSetService"
+        ],
+        "summary": "ListResourceEvents returns a list of event resources",
+        "operationId": "ApplicationSetService_ListResourceEvents",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "name",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "name": "appsetNamespace",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1EventList"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        }
+      }
+    },
     "/api/v1/certificates": {
       "get": {
         "tags": [

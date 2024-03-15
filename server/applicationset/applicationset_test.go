@@ -51,7 +51,17 @@ func newTestAppSetServer(objects ...runtime.Object) *Server {
 		enf.SetDefaultRole("role:admin")
 	}
 	scopedNamespaces := ""
-	return newTestAppSetServerWithEnforcerConfigure(f, scopedNamespaces, objects...)
+	return newTestAppSetServerWithEnforcerConfigure(f, scopedNamespaces, []runtime.Object{}, objects...)
+}
+
+// return an ApplicationServiceServer which returns fake data
+func newTestAppSetServerWithKubeObjects(kubeObjects []runtime.Object, objects ...runtime.Object) *Server {
+	f := func(enf *rbac.Enforcer) {
+		_ = enf.SetBuiltinPolicy(assets.BuiltinPolicyCSV)
+		enf.SetDefaultRole("role:admin")
+	}
+	scopedNamespaces := ""
+	return newTestAppSetServerWithEnforcerConfigure(f, scopedNamespaces, kubeObjects, objects...)
 }
 
 // return an ApplicationServiceServer which returns fake data
@@ -61,11 +71,11 @@ func newTestNamespacedAppSetServer(objects ...runtime.Object) *Server {
 		enf.SetDefaultRole("role:admin")
 	}
 	scopedNamespaces := "argocd"
-	return newTestAppSetServerWithEnforcerConfigure(f, scopedNamespaces, objects...)
+	return newTestAppSetServerWithEnforcerConfigure(f, scopedNamespaces, []runtime.Object{}, objects...)
 }
 
-func newTestAppSetServerWithEnforcerConfigure(f func(*rbac.Enforcer), namespace string, objects ...runtime.Object) *Server {
-	kubeclientset := fake.NewSimpleClientset(&v1.ConfigMap{
+func newTestAppSetServerWithEnforcerConfigure(f func(*rbac.Enforcer), namespace string, kubeObjects []runtime.Object, objects ...runtime.Object) *Server {
+	kubeObjects = append(kubeObjects, &v1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: testNamespace,
 			Name:      "argocd-cm",
@@ -83,6 +93,7 @@ func newTestAppSetServerWithEnforcerConfigure(f func(*rbac.Enforcer), namespace 
 			"server.secretkey": []byte("test"),
 		},
 	})
+	kubeclientset := fake.NewSimpleClientset(kubeObjects...)
 	ctx := context.Background()
 	db := db.NewDB(testNamespace, settings.NewSettingsManager(ctx, kubeclientset, testNamespace), kubeclientset)
 	_, err := db.CreateRepository(ctx, fakeRepo())
@@ -473,4 +484,68 @@ func TestUpdateAppSet(t *testing.T) {
 		}, updated.Labels)
 	})
 
+}
+
+func TestListResourceEventsAppSet(t *testing.T) {
+	appSet := newTestAppSet(func(appset *appsv1.ApplicationSet) {
+		appset.Name = "AppSet1"
+	})
+
+	event1 := &v1.Event{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "event1",
+			Namespace: testNamespace,
+		},
+		InvolvedObject: v1.ObjectReference{
+			Name:      appSet.Name,
+			Namespace: testNamespace,
+			UID:       appSet.UID,
+		},
+	}
+
+	event2 := &v1.Event{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "event2",
+			Namespace: "other-namespace",
+		},
+		InvolvedObject: v1.ObjectReference{
+			Name:      appSet.Name,
+			Namespace: "other-namespace",
+			UID:       appSet.UID,
+		},
+	}
+
+	t.Run("List events in default namespace", func(t *testing.T) {
+
+		appSetServer := newTestAppSetServerWithKubeObjects([]runtime.Object{event1, event2}, appSet)
+
+		q := applicationset.ApplicationSetResourceEventsQuery{Name: "AppSet1"}
+
+		res, err := appSetServer.ListResourceEvents(context.Background(), &q)
+		assert.NoError(t, err)
+		assert.Len(t, res.Items, 1)
+		assert.Equal(t, res.Items[0].Message, event1.Message)
+	})
+
+	t.Run("List events in named namespace", func(t *testing.T) {
+
+		appSetServer := newTestAppSetServerWithKubeObjects([]runtime.Object{event1, event2}, appSet)
+
+		q := applicationset.ApplicationSetResourceEventsQuery{Name: "AppSet1", AppsetNamespace: testNamespace}
+
+		res, err := appSetServer.ListResourceEvents(context.Background(), &q)
+		assert.NoError(t, err)
+		assert.Len(t, res.Items, 1)
+		assert.Equal(t, res.Items[0].Message, event1.Message)
+	})
+
+	t.Run("List events in not allowed namespace", func(t *testing.T) {
+
+		appSetServer := newTestAppSetServerWithKubeObjects([]runtime.Object{event1, event2}, appSet)
+
+		q := applicationset.ApplicationSetResourceEventsQuery{Name: "AppSet1", AppsetNamespace: "NOT-ALLOWED"}
+
+		_, err := appSetServer.ListResourceEvents(context.Background(), &q)
+		assert.Equal(t, "namespace 'NOT-ALLOWED' is not permitted", err.Error())
+	})
 }

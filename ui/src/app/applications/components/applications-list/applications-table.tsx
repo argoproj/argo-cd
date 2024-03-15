@@ -7,14 +7,15 @@ import {Consumer, Context} from '../../../shared/context';
 import * as models from '../../../shared/models';
 import {ApplicationURLs} from '../application-urls';
 import * as AppUtils from '../utils';
-import {getAppDefaultSource, OperationState} from '../utils';
+import {getAppDefaultSource, getAppSetHealthStatus, isApp, OperationState} from '../utils';
 import {ApplicationsLabels} from './applications-labels';
 import {ApplicationsSource} from './applications-source';
 import {services} from '../../../shared/services';
 import './applications-table.scss';
+import {Application, ApplicationSet} from '../../../shared/models';
 
 export const ApplicationsTable = (props: {
-    applications: models.Application[];
+    applications: models.AbstractApplication[];
     syncApplication: (appName: string, appNamespace: string) => any;
     refreshApplication: (appName: string, appNamespace: string) => any;
     deleteApplication: (appName: string, appNamespace: string) => any;
@@ -37,7 +38,7 @@ export const ApplicationsTable = (props: {
         keys: Key.ENTER,
         action: () => {
             if (selectedApp > -1) {
-                ctxh.navigation.goto(`/applications/${props.applications[selectedApp].metadata.name}`);
+                ctxh.navigation.goto(`${AppUtils.getRootPathByPath(ctxh.history.location.pathname)}/${props.applications[selectedApp].metadata.name}`);
                 return true;
             }
             return false;
@@ -56,10 +57,18 @@ export const ApplicationsTable = (props: {
                                     <div
                                         key={AppUtils.appInstanceName(app)}
                                         className={`argo-table-list__row
-                applications-list__entry applications-list__entry--health-${app.status.health.status} ${selectedApp === i ? 'applications-tiles__selected' : ''}`}>
+                applications-list__entry applications-list__entry--health-${
+                    isApp(app) ? (app as models.Application).status.health.status : getAppSetHealthStatus((app as ApplicationSet).status)
+                } ${selectedApp === i ? 'applications-tiles__selected' : ''}`}>
                                         <div
                                             className={`row applications-list__table-row`}
-                                            onClick={e => ctx.navigation.goto(`/applications/${app.metadata.namespace}/${app.metadata.name}`, {}, {event: e})}>
+                                            onClick={e =>
+                                                ctx.navigation.goto(
+                                                    `${AppUtils.getRootPathByPath(ctx.history.location.pathname)}/${app.metadata.namespace}/${app.metadata.name}`,
+                                                    {},
+                                                    {event: e}
+                                                )
+                                            }>
                                             <div className='columns small-4'>
                                                 <div className='row'>
                                                     <div className=' columns small-2'>
@@ -83,11 +92,11 @@ export const ApplicationsTable = (props: {
                                                                     />
                                                                 </button>
                                                             </Tooltip>
-                                                            <ApplicationURLs urls={app.status.summary.externalURLs} />
+                                                            {isApp(app) && <ApplicationURLs urls={(app as models.Application).status.summary.externalURLs} />}
                                                         </div>
                                                     </div>
-                                                    <div className='show-for-xxlarge columns small-4'>Project:</div>
-                                                    <div className='columns small-12 xxlarge-6'>{app.spec.project}</div>
+                                                    {isApp(app) && <div className='show-for-xxlarge columns small-4'>Project:</div>}
+                                                    {isApp(app) && <div className='columns small-12 xxlarge-6'>{(app as models.Application).spec.project}</div>}
                                                 </div>
                                                 <div className='row'>
                                                     <div className=' columns small-2' />
@@ -109,42 +118,50 @@ export const ApplicationsTable = (props: {
                                                 </div>
                                             </div>
 
-                                            <div className='columns small-6'>
-                                                <div className='row'>
-                                                    <div className='show-for-xxlarge columns small-2'>Source:</div>
-                                                    <div className='columns small-12 xxlarge-10 applications-table-source' style={{position: 'relative'}}>
-                                                        <div className='applications-table-source__link'>
-                                                            <ApplicationsSource source={getAppDefaultSource(app)} />
+                                            {isApp(app) && (
+                                                <div className='columns small-6'>
+                                                    <div className='row'>
+                                                        <div className='show-for-xxlarge columns small-2'>Source:</div>
+                                                        <div className='columns small-12 xxlarge-10 applications-table-source' style={{position: 'relative'}}>
+                                                            <div className='applications-table-source__link'>
+                                                                <ApplicationsSource source={getAppDefaultSource(app as models.Application)} />
+                                                            </div>
+                                                            <div className='applications-table-source__labels'>
+                                                                <ApplicationsLabels app={app as models.Application} />
+                                                            </div>
                                                         </div>
-                                                        <div className='applications-table-source__labels'>
-                                                            <ApplicationsLabels app={app} />
+                                                    </div>
+                                                    <div className='row'>
+                                                        <div className='show-for-xxlarge columns small-2'>Destination:</div>
+                                                        <div className='columns small-12 xxlarge-10'>
+                                                            <Cluster server={(app as Application).spec.destination.server} name={(app as Application).spec.destination.name} />/
+                                                            {(app as Application).spec.destination.namespace}
                                                         </div>
                                                     </div>
                                                 </div>
-                                                <div className='row'>
-                                                    <div className='show-for-xxlarge columns small-2'>Destination:</div>
-                                                    <div className='columns small-12 xxlarge-10'>
-                                                        <Cluster server={app.spec.destination.server} name={app.spec.destination.name} />/{app.spec.destination.namespace}
-                                                    </div>
-                                                </div>
-                                            </div>
-
+                                            )}
                                             <div className='columns small-2'>
-                                                <AppUtils.HealthStatusIcon state={app.status.health} /> <span>{app.status.health.status}</span> <br />
-                                                <AppUtils.ComparisonStatusIcon status={app.status.sync.status} />
-                                                <span>{app.status.sync.status}</span> <OperationState app={app} quiet={true} />
-                                                <DropDownMenu
-                                                    anchor={() => (
-                                                        <button className='argo-button argo-button--light argo-button--lg argo-button--short'>
-                                                            <i className='fa fa-ellipsis-v' />
-                                                        </button>
-                                                    )}
-                                                    items={[
-                                                        {title: 'Sync', action: () => props.syncApplication(app.metadata.name, app.metadata.namespace)},
-                                                        {title: 'Refresh', action: () => props.refreshApplication(app.metadata.name, app.metadata.namespace)},
-                                                        {title: 'Delete', action: () => props.deleteApplication(app.metadata.name, app.metadata.namespace)}
-                                                    ]}
-                                                />
+                                                {isApp(app) && <AppUtils.HealthStatusIcon state={(app as Application).status.health} />}{' '}
+                                                {isApp(app) && <span>{(app as Application).status.health.status}</span>} {isApp(app) && <br />}
+                                                {!isApp(app) && <AppUtils.AppSetHealthStatusIcon state={(app as ApplicationSet).status} />}{' '}
+                                                {!isApp(app) && <span>{getAppSetHealthStatus((app as ApplicationSet).status)}</span>} {!isApp(app) && <br />}
+                                                {isApp(app) && <AppUtils.ComparisonStatusIcon status={(app as Application).status.sync.status} />}
+                                                {isApp(app) && <span>{(app as Application).status.sync.status}</span>}{' '}
+                                                {isApp(app) && <OperationState app={app as Application} quiet={true} />}
+                                                {isApp(app) && (
+                                                    <DropDownMenu
+                                                        anchor={() => (
+                                                            <button className='argo-button argo-button--light argo-button--lg argo-button--short'>
+                                                                <i className='fa fa-ellipsis-v' />
+                                                            </button>
+                                                        )}
+                                                        items={[
+                                                            {title: 'Sync', action: () => props.syncApplication(app.metadata.name, app.metadata.namespace)},
+                                                            {title: 'Refresh', action: () => props.refreshApplication(app.metadata.name, app.metadata.namespace)},
+                                                            {title: 'Delete', action: () => props.deleteApplication(app.metadata.name, app.metadata.namespace)}
+                                                        ]}
+                                                    />
+                                                )}
                                             </div>
                                         </div>
                                     </div>

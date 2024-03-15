@@ -1,10 +1,10 @@
 import * as React from 'react';
 import {Checkbox} from 'argo-ui/v2';
-import {ApplicationTree, HealthStatusCode, HealthStatuses, SyncStatusCode, SyncStatuses} from '../../../shared/models';
-import {AppDetailsPreferences, services} from '../../../shared/services';
+import {AbstractApplicationTree, ApplicationTree, HealthStatusCode, HealthStatuses, SyncStatusCode, SyncStatuses} from '../../../shared/models';
+import {AppDetailsPreferences, AppSetDetailsPreferences, services} from '../../../shared/services';
 import {Context} from '../../../shared/context';
 import {Filter, FiltersGroup} from '../filter/filter';
-import {ComparisonStatusIcon, HealthStatusIcon} from '../utils';
+import {ComparisonStatusIcon, HealthStatusIcon, isInvokedFromAppsPath} from '../utils';
 import {resources} from '../resources';
 import * as models from '../../../shared/models';
 
@@ -14,17 +14,26 @@ function toOption(label: string) {
     return {label};
 }
 
-export interface FiltersProps {
+export interface AbstractFiltersProps {
     children?: React.ReactNode;
-    pref: AppDetailsPreferences;
-    tree: ApplicationTree;
+    pref: AppDetailsPreferences | AppSetDetailsPreferences;
+    tree: AbstractApplicationTree; // | ApplicationSetTree;
     resourceNodes: models.ResourceStatus[];
     onSetFilter: (items: string[]) => void;
     onClearFilter: () => void;
     collapsed?: boolean;
 }
 
-export const Filters = (props: FiltersProps) => {
+export interface FiltersProps extends AbstractFiltersProps {
+    pref: AppDetailsPreferences;
+    tree: ApplicationTree;
+}
+
+export interface AppSetFiltersProps extends AbstractFiltersProps {
+    pref: AppSetDetailsPreferences;
+}
+
+export const Filters = (props: AbstractFiltersProps) => {
     const ctx = React.useContext(Context);
 
     const {pref, tree, onSetFilter} = props;
@@ -152,7 +161,7 @@ export const Filters = (props: FiltersProps) => {
                 }))
             })}
             {namespaces.length > 1 && ResourceFilter({label: 'NAMESPACES', prefix: 'namespace', options: (namespaces || []).filter(l => l && l !== '').map(toOption), field: true})}
-            {(tree.orphanedNodes || []).length > 0 && (
+            {((isInvokedFromAppsPath(ctx.history.location.pathname) ? (tree as ApplicationTree).orphanedNodes : []) || []).length > 0 && (
                 <div className={`filter filter__item ${pref.orphanedResources ? 'filter__item--selected' : ''}`}>
                     <Checkbox
                         value={!!pref.orphanedResources}
