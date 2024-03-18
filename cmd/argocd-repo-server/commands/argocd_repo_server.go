@@ -127,7 +127,7 @@ func NewCommand() *cobra.Command {
 				StreamedManifestMaxExtractedSize:             streamedManifestMaxExtractedSizeQuantity.ToDec().Value(),
 				StreamedManifestMaxTarSize:                   streamedManifestMaxTarSizeQuantity.ToDec().Value(),
 				HelmManifestMaxExtractedSize:                 helmManifestMaxExtractedSizeQuantity.ToDec().Value(),
-				HelmRegistryMaxIndexSize: helmRegistryMaxIndexSizeQuantity.ToDec().Value(),
+				HelmRegistryMaxIndexSize:                     helmRegistryMaxIndexSizeQuantity.ToDec().Value(),
 			}, askPassServer)
 			errors.CheckError(err)
 
