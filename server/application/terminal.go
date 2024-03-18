@@ -38,12 +38,12 @@ type terminalHandler struct {
 	allowedShells     []string
 	namespace         string
 	enabledNamespaces []string
-	sessionManager    util_session.SessionManager
+	sessionManager    *util_session.SessionManager
 }
 
 // NewHandler returns a new terminal handler.
 func NewHandler(appLister applisters.ApplicationLister, namespace string, enabledNamespaces []string, db db.ArgoDB, enf *rbac.Enforcer, cache *servercache.Cache,
-	appResourceTree AppResourceTreeFn, allowedShells []string, sessionManager util_session.SessionManager) *terminalHandler {
+	appResourceTree AppResourceTreeFn, allowedShells []string, sessionManager *util_session.SessionManager) *terminalHandler {
 	return &terminalHandler{
 		appLister:         appLister,
 		db:                db,

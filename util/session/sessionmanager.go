@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/coreos/go-oidc/v3/oidc"
@@ -41,6 +42,7 @@ type SessionManager struct {
 	storage                       UserStateStorage
 	sleep                         func(d time.Duration)
 	verificationDelayNoiseEnabled bool
+	failedLock                    sync.RWMutex
 }
 
 // LoginAttempts is a timestamped counter for failed login attempts
@@ -284,7 +286,7 @@ func (mgr *SessionManager) Parse(tokenString string) (jwt.Claims, string, error)
 	return token.Claims, newToken, nil
 }
 
-// GetLoginFailures retrieves the login failure information from the cache
+// GetLoginFailures retrieves the login failure information from the cache. Any modifications to the LoginAttemps map must be done in a thread-safe manner.
 func (mgr *SessionManager) GetLoginFailures() map[string]LoginAttempts {
 	// Get failures from the cache
 	var failures map[string]LoginAttempts
@@ -299,12 +301,12 @@ func (mgr *SessionManager) GetLoginFailures() map[string]LoginAttempts {
 	return failures
 }
 
-func expireOldFailedAttempts(maxAge time.Duration, failures *map[string]LoginAttempts) int {
+func expireOldFailedAttempts(maxAge time.Duration, failures map[string]LoginAttempts) int {
 	expiredCount := 0
-	for key, attempt := range *failures {
+	for key, attempt := range failures {
 		if time.Since(attempt.LastFailed) > maxAge*time.Second {
 			expiredCount += 1
-			delete(*failures, key)
+			delete(failures, key)
 		}
 	}
 	return expiredCount
@@ -328,12 +330,14 @@ func pickRandomNonAdminLoginFailure(failures map[string]LoginAttempts, username 
 
 // Updates the failure count for a given username. If failed is true, increases the counter. Otherwise, sets counter back to 0.
 func (mgr *SessionManager) updateFailureCount(username string, failed bool) {
+	mgr.failedLock.Lock()
+	defer mgr.failedLock.Unlock()
 
 	failures := mgr.GetLoginFailures()
 
 	// Expire old entries in the cache if we have a failure window defined.
 	if window := getLoginFailureWindow(); window > 0 {
-		count := expireOldFailedAttempts(window, &failures)
+		count := expireOldFailedAttempts(window, failures)
 		if count > 0 {
 			log.Infof("Expired %d entries from session cache due to max age reached", count)
 		}
@@ -380,6 +384,8 @@ func (mgr *SessionManager) updateFailureCount(username string, failed bool) {
 
 // Get the current login failure attempts for given username
 func (mgr *SessionManager) getFailureCount(username string) LoginAttempts {
+	mgr.failedLock.RLock()
+	defer mgr.failedLock.RUnlock()
 	failures := mgr.GetLoginFailures()
 	attempt, ok := failures[username]
 	if !ok {
