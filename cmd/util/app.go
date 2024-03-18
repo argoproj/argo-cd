@@ -139,16 +139,27 @@ func AddAppFlags(command *cobra.Command, opts *AppOptions) {
 	command.Flags().StringVar(&opts.ref, "ref", "", "Ref is reference to another source within sources field")
 }
 
-func SetAppSpecOptions(flags *pflag.FlagSet, spec *argoappv1.ApplicationSpec, appOpts *AppOptions) int {
+func SetAppSpecOptions(flags *pflag.FlagSet, spec *argoappv1.ApplicationSpec, appOpts *AppOptions, index int) int {
 	visited := 0
 	if flags == nil {
 		return visited
 	}
-	source := spec.GetSourcePtr()
+	source := spec.GetSourcePtr(index)
 	if source == nil {
 		source = &argoappv1.ApplicationSource{}
 	}
 	source, visited = ConstructSource(source, *appOpts, flags)
+	if spec.HasMultipleSources() {
+		if index == 0 {
+			spec.Sources[index] = *source
+		} else if index > 0 {
+			spec.Sources[index-1] = *source
+		} else {
+			spec.Sources = append(spec.Sources, *source)
+		}
+	} else {
+		spec.Source = source
+	}
 	flags.Visit(func(f *pflag.Flag) {
 		visited++
 
@@ -220,7 +231,6 @@ func SetAppSpecOptions(flags *pflag.FlagSet, spec *argoappv1.ApplicationSpec, ap
 				log.Fatalf("Invalid sync-retry-limit [%d]", appOpts.retryLimit)
 			}
 		}
-		spec.Source = source
 	})
 	if flags.Changed("auto-prune") {
 		if spec.SyncPolicy == nil || spec.SyncPolicy.Automated == nil {
@@ -414,11 +424,11 @@ func setJsonnetOptLibs(src *argoappv1.ApplicationSource, libs []string) {
 // SetParameterOverrides updates an existing or appends a new parameter override in the application
 // The app is assumed to be a helm app and is expected to be in the form:
 // param=value
-func SetParameterOverrides(app *argoappv1.Application, parameters []string) {
+func SetParameterOverrides(app *argoappv1.Application, parameters []string, index int) {
 	if len(parameters) == 0 {
 		return
 	}
-	source := app.Spec.GetSource()
+	source := app.Spec.GetSourcePtr(index)
 	var sourceType argoappv1.ApplicationSourceType
 	if st, _ := source.ExplicitType(); st != nil {
 		sourceType = *st
@@ -530,8 +540,8 @@ func constructAppsBaseOnName(appName string, labels, annotations, args []string,
 			Source: &argoappv1.ApplicationSource{},
 		},
 	}
-	SetAppSpecOptions(flags, &app.Spec, &appOpts)
-	SetParameterOverrides(app, appOpts.Parameters)
+	SetAppSpecOptions(flags, &app.Spec, &appOpts, 0)
+	SetParameterOverrides(app, appOpts.Parameters, 0)
 	mergeLabels(app, labels)
 	setAnnotations(app, annotations)
 	return []*argoappv1.Application{
@@ -557,10 +567,14 @@ func constructAppsFromFileUrl(fileURL, appName string, labels, annotations, args
 			return nil, fmt.Errorf("app.Name is empty. --name argument can be used to provide app.Name")
 		}
 
-		SetAppSpecOptions(flags, &app.Spec, &appOpts)
-		SetParameterOverrides(app, appOpts.Parameters)
 		mergeLabels(app, labels)
 		setAnnotations(app, annotations)
+
+		// do not allow overrides for applications with multiple sources
+		if !app.Spec.HasMultipleSources() {
+			SetAppSpecOptions(flags, &app.Spec, &appOpts, 0)
+			SetParameterOverrides(app, appOpts.Parameters, 0)
+		}
 	}
 	return apps, nil
 }
