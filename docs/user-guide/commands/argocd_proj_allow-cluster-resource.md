@@ -8,6 +8,13 @@ Adds a cluster-scoped API resource to the allow list and removes it from deny li
 argocd proj allow-cluster-resource PROJECT GROUP KIND [flags]
 ```
 
+### Examples
+
+```
+  # Adds a cluster-scoped API resource with specified GROUP and KIND to the allow list and removes it from deny list for project PROJECT
+  argocd proj allow-cluster-resource PROJECT GROUP KIND
+```
+
 ### Options
 
 ```

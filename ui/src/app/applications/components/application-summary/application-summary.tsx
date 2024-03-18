@@ -15,7 +15,7 @@ import {
     RevisionHelpIcon
 } from '../../../shared/components';
 import {BadgePanel, Spinner} from '../../../shared/components';
-import {Consumer, ContextApis} from '../../../shared/context';
+import {AuthSettingsCtx, Consumer, ContextApis} from '../../../shared/context';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
 
@@ -30,6 +30,7 @@ import {EditAnnotations} from './edit-annotations';
 
 import './application-summary.scss';
 import {DeepLinks} from '../../../shared/components/deep-links';
+import {ExternalLinks} from '../application-urls';
 
 function swap(array: any[], a: number, b: number) {
     array = array.slice();
@@ -47,6 +48,7 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
     const source = getAppDefaultSource(app);
     const isHelm = source.hasOwnProperty('chart');
     const initialState = app.spec.destination.server === undefined ? 'NAME' : 'URL';
+    const useAuthSettingsCtx = React.useContext(AuthSettingsCtx);
     const [destFormat, setDestFormat] = React.useState(initialState);
     const [changeSync, setChangeSync] = React.useState(false);
 
@@ -271,7 +273,7 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
         {
             title: 'SYNC OPTIONS',
             view: (
-                <div style={{display: 'flex'}}>
+                <div style={{display: 'flex', flexWrap: 'wrap'}}>
                     {((app.spec.syncPolicy || {}).syncOptions || []).map(opt =>
                         opt.endsWith('=true') || opt.endsWith('=false') ? (
                             <div key={opt} style={{marginRight: '10px'}}>
@@ -325,20 +327,19 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
             )
         }
     ];
-
-    const urls = app.status.summary.externalURLs || [];
+    const urls = ExternalLinks(app.status.summary.externalURLs);
     if (urls.length > 0) {
         attributes.push({
             title: 'URLs',
             view: (
                 <React.Fragment>
-                    {urls
-                        .map(item => item.split('|'))
-                        .map((parts, i) => (
-                            <a key={i} href={parts.length > 1 ? parts[1] : parts[0]} target='__blank'>
-                                {parts[0]} &nbsp;
+                    {urls.map((url, i) => {
+                        return (
+                            <a key={i} href={url.ref} target='__blank'>
+                                {url.title} &nbsp;
                             </a>
-                        ))}
+                        );
+                    })}
                 </React.Fragment>
             )
         });
@@ -589,7 +590,7 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                     </div>
                 )}
             </Consumer>
-            <BadgePanel app={props.app.metadata.name} />
+            <BadgePanel app={props.app.metadata.name} appNamespace={props.app.metadata.namespace} nsEnabled={useAuthSettingsCtx?.appsInAnyNamespaceEnabled} />
             <EditablePanel
                 save={updateApp}
                 values={app}

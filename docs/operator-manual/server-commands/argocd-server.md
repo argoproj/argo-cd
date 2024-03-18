@@ -12,10 +12,21 @@ The API server is a gRPC/REST server which exposes the API consumed by the Web U
 argocd-server [flags]
 ```
 
+### Examples
+
+```
+  # Start the Argo CD API server with default settings
+  $ argocd-server
+  
+  # Start the Argo CD API server on a custom port and enable tracing
+  $ argocd-server --port 8888 --otlp-address localhost:4317
+```
+
 ### Options
 
 ```
       --address string                                Listen on given address (default "0.0.0.0")
+      --api-content-types string                      Semicolon separated list of allowed content types for non GET api requests. Any content type is allowed if empty. (default "application/json")
       --app-state-cache-expiration duration           Cache expiration for app state (default 1h0m0s)
       --application-namespaces strings                List of additional namespaces where application resources can be managed in
       --as string                                     Username to impersonate for the operation
@@ -34,6 +45,7 @@ argocd-server [flags]
       --dex-server-plaintext                          Use a plaintext client (non-TLS) to connect to dex server
       --dex-server-strict-tls                         Perform strict validation of TLS certificates when connecting to dex server
       --disable-auth                                  Disable client authentication
+      --disable-compression                           If true, opt-out of response compression for all requests to the server
       --enable-gzip                                   Enable GZIP compression (default true)
       --enable-proxy-extension                        Enable Proxy Extension feature
       --gloglevel int                                 Set the glog logging level
@@ -50,6 +62,8 @@ argocd-server [flags]
       --oidc-cache-expiration duration                Cache expiration for OIDC state (default 3m0s)
       --otlp-address string                           OpenTelemetry collector address to send traces to
       --otlp-attrs strings                            List of OpenTelemetry collector extra attrs when send traces, each attribute is separated by a colon(e.g. key:value)
+      --otlp-headers stringToString                   List of OpenTelemetry collector extra headers sent with traces, headers are comma-separated key-value pairs(e.g. key1=value1,key2=value2) (default [])
+      --otlp-insecure                                 OpenTelemetry collector insecure mode (default true)
       --password string                               Password for basic authentication to the API server
       --port int                                      Listen on given port (default 8080)
       --proxy-url string                              If provided, this URL will be used to connect via proxy

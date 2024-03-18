@@ -189,7 +189,6 @@ argocd admin settings rbac can someuser create application 'default/app' --defau
 			}
 		},
 	}
-
 	clientConfig = cli.AddKubectlFlagsToCmd(command)
 	command.Flags().StringVar(&policyFile, "policy-file", "", "path to the policy file to use")
 	command.Flags().StringVar(&defaultRole, "default-role", "", "name of the default role to use")
@@ -202,24 +201,55 @@ argocd admin settings rbac can someuser create application 'default/app' --defau
 // NewRBACValidateCommand returns a new rbac validate command
 func NewRBACValidateCommand() *cobra.Command {
 	var (
-		policyFile string
+		policyFile   string
+		namespace    string
+		clientConfig clientcmd.ClientConfig
 	)
 
 	var command = &cobra.Command{
-		Use:   "validate --policy-file=POLICYFILE",
+		Use:   "validate [--policy-file POLICYFILE] [--namespace NAMESPACE]",
 		Short: "Validate RBAC policy",
 		Long: `
 Validates an RBAC policy for being syntactically correct. The policy must be
-a local file, and in either CSV or K8s ConfigMap format.
+a local file or a K8s ConfigMap in the provided namespace, and in either CSV or K8s ConfigMap format.
+`,
+		Example: `
+# Check whether a given policy file is valid using a local policy.csv file.
+argocd admin settings rbac validate --policy-file policy.csv
+
+# Policy file can also be K8s config map with data keys like argocd-rbac-cm,
+# i.e. 'policy.csv' and (optionally) 'policy.default'
+argocd admin settings rbac validate --policy-file argocd-rbac-cm.yaml
+
+# If --policy-file is not given, and instead --namespace is giventhe ConfigMap 'argocd-rbac-cm' 
+# from K8s is used. 
+argocd admin settings rbac validate --namespace argocd
+
+# Either --policy-file or --namespace must be given.
 `,
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
 
-			if policyFile == "" {
+			if len(args) > 0 {
 				c.HelpFunc()(c, args)
-				log.Fatalf("Please specify policy to validate using --policy-file")
+				log.Fatalf("too many arguments")
 			}
-			userPolicy, _, _ := getPolicy(ctx, policyFile, nil, "")
+
+			if (namespace == "" && policyFile == "") || (namespace != "" && policyFile != "") {
+				c.HelpFunc()(c, args)
+				log.Fatalf("please provide exactly one of --policy-file or --namespace")
+			}
+
+			restConfig, err := clientConfig.ClientConfig()
+			if err != nil {
+				log.Fatalf("could not get config to create k8s client: %v", err)
+			}
+			realClientset, err := kubernetes.NewForConfig(restConfig)
+			if err != nil {
+				log.Fatalf("could not create k8s client: %v", err)
+			}
+
+			userPolicy, _, _ := getPolicy(ctx, policyFile, realClientset, namespace)
 			if userPolicy != "" {
 				if err := rbac.ValidatePolicy(userPolicy); err == nil {
 					fmt.Printf("Policy is valid.\n")
@@ -228,11 +258,15 @@ a local file, and in either CSV or K8s ConfigMap format.
 					fmt.Printf("Policy is invalid: %v\n", err)
 					os.Exit(1)
 				}
+			} else {
+				log.Fatalf("Policy is empty or could not be loaded.")
 			}
 		},
 	}
-
+	clientConfig = cli.AddKubectlFlagsToCmd(command)
 	command.Flags().StringVar(&policyFile, "policy-file", "", "path to the policy file to use")
+	command.Flags().StringVar(&namespace, "namespace", "", "namespace to get argo rbac configmap from")
+
 	return command
 }
 

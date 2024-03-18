@@ -1085,7 +1085,7 @@ spec:
               topologyKey: kubernetes.io/hostname
       initContainers:
       - name: config-init
-        image: quay.io/codefresh/haproxy:2.6.2-alpine
+        image: public.ecr.aws/docker/library/haproxy:2.6.14-alpine
         imagePullPolicy: IfNotPresent
         resources:
           {}
@@ -1109,7 +1109,7 @@ spec:
           mountPath: /data
       containers:
       - name: haproxy
-        image: quay.io/codefresh/haproxy:2.6.2-alpine
+        image: public.ecr.aws/docker/library/haproxy:2.6.14-alpine
         imagePullPolicy: IfNotPresent
         securityContext: 
           allowPrivilegeEscalation: false
@@ -1207,7 +1207,7 @@ spec:
       automountServiceAccountToken: false
       initContainers:
       - name: config-init
-        image: quay.io/codefresh/redis:7.0.11-alpine
+        image: public.ecr.aws/docker/library/redis:7.0.14-alpine
         imagePullPolicy: IfNotPresent
         resources:
           {}
@@ -1223,7 +1223,7 @@ spec:
           runAsNonRoot: true
           runAsUser: 1000
           seccompProfile:
-            type: RuntimeDefault        
+            type: RuntimeDefault
         env:
         - name: SENTINEL_ID_0
           value: 3c0d9c0320bb34888c2df5757c718ce6ca992ce6
@@ -1241,7 +1241,7 @@ spec:
 
       containers:
       - name: redis
-        image: quay.io/codefresh/redis:7.0.11-alpine
+        image: public.ecr.aws/docker/library/redis:7.0.14-alpine
         imagePullPolicy: IfNotPresent
         command:
         - redis-server
@@ -1298,7 +1298,7 @@ spec:
               - /bin/sh
               - /readonly-config/trigger-failover-if-master.sh
       - name: sentinel
-        image: quay.io/codefresh/redis:7.0.11-alpine
+        image: public.ecr.aws/docker/library/redis:7.0.14-alpine
         imagePullPolicy: IfNotPresent
         command:
           - redis-sentinel
@@ -1349,7 +1349,7 @@ spec:
           {}
 
       - name: split-brain-fix
-        image: quay.io/codefresh/redis:7.0.11-alpine
+        image: public.ecr.aws/docker/library/redis:7.0.14-alpine
         imagePullPolicy: IfNotPresent
         command:
           - sh
@@ -1363,7 +1363,7 @@ spec:
           runAsNonRoot: true
           runAsUser: 1000
           seccompProfile:
-            type: RuntimeDefault        
+            type: RuntimeDefault
         env:
         - name: SENTINEL_ID_0
           value: 3c0d9c0320bb34888c2df5757c718ce6ca992ce6

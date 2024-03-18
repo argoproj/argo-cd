@@ -3,6 +3,7 @@ package commands
 import (
 	"fmt"
 	"os"
+	"text/tabwriter"
 
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 
@@ -19,8 +20,6 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/argo"
 	"github.com/argoproj/argo-cd/v2/util/errors"
 	argoio "github.com/argoproj/argo-cd/v2/util/io"
-
-	"text/tabwriter"
 )
 
 func NewApplicationPatchResourceCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
@@ -31,6 +30,7 @@ func NewApplicationPatchResourceCommand(clientOpts *argocdclient.ClientOptions) 
 	var kind string
 	var group string
 	var all bool
+	var project string
 	command := &cobra.Command{
 		Use:   "patch-resource APPNAME",
 		Short: "Patch resource in an application",
@@ -47,6 +47,7 @@ func NewApplicationPatchResourceCommand(clientOpts *argocdclient.ClientOptions) 
 	command.Flags().StringVar(&group, "group", "", "Group")
 	command.Flags().StringVar(&namespace, "namespace", "", "Namespace")
 	command.Flags().BoolVar(&all, "all", false, "Indicates whether to patch multiple matching of resources")
+	command.Flags().StringVar(&project, "project", "", `The name of the application's project - specifying this allows the command to report "not found" instead of "permission denied" if the app does not exist`)
 	command.Run = func(c *cobra.Command, args []string) {
 		ctx := c.Context()
 
@@ -78,6 +79,7 @@ func NewApplicationPatchResourceCommand(clientOpts *argocdclient.ClientOptions) 
 				Kind:         pointer.String(gvk.Kind),
 				Patch:        pointer.String(patch),
 				PatchType:    pointer.String(patchType),
+				Project:      pointer.String(project),
 			})
 			errors.CheckError(err)
 			log.Infof("Resource '%s' patched", obj.GetName())
@@ -95,6 +97,7 @@ func NewApplicationDeleteResourceCommand(clientOpts *argocdclient.ClientOptions)
 	var force bool
 	var orphan bool
 	var all bool
+	var project string
 	command := &cobra.Command{
 		Use:   "delete-resource APPNAME",
 		Short: "Delete resource in an application",
@@ -109,6 +112,7 @@ func NewApplicationDeleteResourceCommand(clientOpts *argocdclient.ClientOptions)
 	command.Flags().BoolVar(&force, "force", false, "Indicates whether to orphan the dependents of the deleted resource")
 	command.Flags().BoolVar(&orphan, "orphan", false, "Indicates whether to force delete the resource")
 	command.Flags().BoolVar(&all, "all", false, "Indicates whether to patch multiple matching of resources")
+	command.Flags().StringVar(&project, "project", "", `The name of the application's project - specifying this allows the command to report "not found" instead of "permission denied" if the app does not exist`)
 	command.Run = func(c *cobra.Command, args []string) {
 		ctx := c.Context()
 
@@ -140,6 +144,7 @@ func NewApplicationDeleteResourceCommand(clientOpts *argocdclient.ClientOptions)
 				Kind:         pointer.String(gvk.Kind),
 				Force:        &force,
 				Orphan:       &orphan,
+				Project:      pointer.String(project),
 			})
 			errors.CheckError(err)
 			log.Infof("Resource '%s' deleted", obj.GetName())
@@ -173,6 +178,7 @@ func printResources(listAll bool, orphaned bool, appResourceTree *v1alpha1.Appli
 func NewApplicationListResourcesCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var orphaned bool
 	var output string
+	var project string
 	var command = &cobra.Command{
 		Use:   "resources APPNAME",
 		Short: "List resource of application",
@@ -189,6 +195,7 @@ func NewApplicationListResourcesCommand(clientOpts *argocdclient.ClientOptions) 
 			appResourceTree, err := appIf.ResourceTree(ctx, &applicationpkg.ResourcesQuery{
 				ApplicationName: &appName,
 				AppNamespace:    &appNs,
+				Project:         &project,
 			})
 			errors.CheckError(err)
 			printResources(listAll, orphaned, appResourceTree, output)
@@ -196,5 +203,6 @@ func NewApplicationListResourcesCommand(clientOpts *argocdclient.ClientOptions) 
 	}
 	command.Flags().BoolVar(&orphaned, "orphaned", false, "Lists only orphaned resources")
 	command.Flags().StringVar(&output, "output", "", "Provides the tree view of the resources")
+	command.Flags().StringVar(&project, "project", "", `The name of the application's project - specifying this allows the command to report "not found" instead of "permission denied" if the app does not exist`)
 	return command
 }

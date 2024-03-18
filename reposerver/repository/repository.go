@@ -457,6 +457,7 @@ func (s *Service) runRepoOperation(
 				return err
 			}
 		}
+
 		// Here commitSHA refers to the SHA of the actual commit, whereas revision refers to the branch/tag name etc
 		// We use the commitSHA to generate manifests and store them in cache, and revision to retrieve them from cache
 		return operation(gitClient.Root(), commitSHA, cacheKey, func() (*operationContext, error) {
@@ -482,37 +483,6 @@ func (s *Service) runRepoOperation(
 			}
 			return &operationContext{appPath, signature}, nil
 		})
-	}
-}
-
-type GenerateManifestOpt func(*generateManifestOpt)
-type generateManifestOpt struct {
-	cmpTarDoneCh        chan<- bool
-	cmpTarExcludedGlobs []string
-}
-
-func newGenerateManifestOpt(opts ...GenerateManifestOpt) *generateManifestOpt {
-	o := &generateManifestOpt{}
-	for _, opt := range opts {
-		opt(o)
-	}
-	return o
-}
-
-// WithCMPTarDoneChannel defines the channel to be used to signalize when the tarball
-// generation is concluded when generating manifests with the CMP server. This is used
-// to unlock the git repo as soon as possible.
-func WithCMPTarDoneChannel(ch chan<- bool) GenerateManifestOpt {
-	return func(o *generateManifestOpt) {
-		o.cmpTarDoneCh = ch
-	}
-}
-
-// WithCMPTarExcludedGlobs defines globs for files to filter out when streaming the tarball
-// to a CMP sidecar.
-func WithCMPTarExcludedGlobs(excludedGlobs []string) GenerateManifestOpt {
-	return func(o *generateManifestOpt) {
-		o.cmpTarExcludedGlobs = excludedGlobs
 	}
 }
 
@@ -619,6 +589,17 @@ func (s *Service) GetVersionConfig(app *metav1.ObjectMeta) *version_config_manag
 func (s *Service) GenerateManifest(ctx context.Context, q *apiclient.ManifestRequest) (*apiclient.ManifestResponse, error) {
 	var res *apiclient.ManifestResponse
 	var err error
+
+	// Skip this path for ref only sources
+	if q.HasMultipleSources && q.ApplicationSource.Path == "" && q.ApplicationSource.Chart == "" && q.ApplicationSource.Ref != "" {
+		log.Debugf("Skipping manifest generation for ref only source for application: %s and ref %s", q.AppName, q.ApplicationSource.Ref)
+		_, revision, err := s.newClientResolveRevision(q.Repo, q.Revision, git.WithCache(s.cache, !q.NoRevisionCache && !q.NoCache))
+		res = &apiclient.ManifestResponse{
+			Revision: revision,
+		}
+		return res, err
+	}
+
 	cacheFn := func(cacheKey string, refSourceCommitSHAs cache.ResolvedRevisions, firstInvocation bool) (bool, error) {
 		ok, resp, err := s.getManifestCacheEntry(cacheKey, q, refSourceCommitSHAs, firstInvocation)
 		res = resp
@@ -1084,6 +1065,10 @@ func getHelmDependencyRepos(appPath string) ([]*v1alpha1.Repository, error) {
 			repos = append(repos, &v1alpha1.Repository{
 				Name: r.Repository[1:],
 			})
+		} else if strings.HasPrefix(r.Repository, "alias:") {
+			repos = append(repos, &v1alpha1.Repository{
+				Name: strings.TrimPrefix(r.Repository, "alias:"),
+			})
 		} else if u, err := url.Parse(r.Repository); err == nil && (u.Scheme == "https" || u.Scheme == "oci") {
 			repo := &v1alpha1.Repository{
 				// trimming oci:// prefix since it is currently not supported by Argo CD (OCI repos just have no scheme)
@@ -1412,6 +1397,37 @@ func getRepoCredential(repoCredentials []*v1alpha1.RepoCreds, repoURL string) *v
 	return nil
 }
 
+type GenerateManifestOpt func(*generateManifestOpt)
+type generateManifestOpt struct {
+	cmpTarDoneCh        chan<- bool
+	cmpTarExcludedGlobs []string
+}
+
+func newGenerateManifestOpt(opts ...GenerateManifestOpt) *generateManifestOpt {
+	o := &generateManifestOpt{}
+	for _, opt := range opts {
+		opt(o)
+	}
+	return o
+}
+
+// WithCMPTarDoneChannel defines the channel to be used to signalize when the tarball
+// generation is concluded when generating manifests with the CMP server. This is used
+// to unlock the git repo as soon as possible.
+func WithCMPTarDoneChannel(ch chan<- bool) GenerateManifestOpt {
+	return func(o *generateManifestOpt) {
+		o.cmpTarDoneCh = ch
+	}
+}
+
+// WithCMPTarExcludedGlobs defines globs for files to filter out when streaming the tarball
+// to a CMP sidecar.
+func WithCMPTarExcludedGlobs(excludedGlobs []string) GenerateManifestOpt {
+	return func(o *generateManifestOpt) {
+		o.cmpTarExcludedGlobs = excludedGlobs
+	}
+}
+
 // GenerateManifests generates manifests from a path
 func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, q *apiclient.ManifestRequest, codefreshApplicationVersioningEnabled bool, versionConfig *version_config_manager.VersionConfig, isLocal bool, gitCredsStore git.CredsStore, gitClient git.Client, maxCombinedManifestQuantity resource.Quantity, gitRepoPaths io.TempPaths, opts ...GenerateManifestOpt) (*apiclient.ManifestResponse, error) {
 	opt := newGenerateManifestOpt(opts...)
@@ -1427,7 +1443,6 @@ func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, 
 	if err != nil {
 		return nil, fmt.Errorf("error getting app source type: %w", err)
 	}
-
 	repoURL := ""
 	if q.Repo != nil {
 		repoURL = q.Repo.Repo
@@ -1438,7 +1453,12 @@ func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, 
 	case v1alpha1.ApplicationSourceTypeHelm:
 		manifests, err = helmTemplate(appPath, repoRoot, env, q, isLocal, gitRepoPaths)
 	case v1alpha1.ApplicationSourceTypeKustomize:
-		manifests, err = kustomizeBuild(repoURL, repoRoot, appPath, q.Repo.GetGitCreds(gitCredsStore), q.ApplicationSource.Kustomize, q.KustomizeOptions, env, q.Namespace)
+		kustomizeBinary := ""
+		if q.KustomizeOptions != nil {
+			kustomizeBinary = q.KustomizeOptions.BinaryPath
+		}
+		k := kustomize.NewKustomizeApp(repoRoot, appPath, q.Repo.GetGitCreds(gitCredsStore), repoURL, kustomizeBinary)
+		manifests, err = kustomizeBuild(k, repoRoot, appPath, q.ApplicationSource.Kustomize, q.KustomizeOptions, env, q.Namespace)
 	case v1alpha1.ApplicationSourceTypePlugin:
 		// if the named plugin was not found in argocd-cm try sidecar plugin
 		pluginName := ""
@@ -1447,7 +1467,7 @@ func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, 
 		}
 		log.Infof("running plugin sidecar for app %s, revision %s", q.AppName, q.Revision)
 		// if pluginName is provided it has to be `<metadata.name>-<spec.version>` or just `<metadata.name>` if plugin version is empty
-		manifests, err = runConfigManagementPluginSidecars(ctx, appPath, repoRoot, pluginName, env, q, q.Repo.GetGitCreds(gitCredsStore), opt.cmpTarDoneCh, opt.cmpTarExcludedGlobs)
+		manifests, err = runConfigManagementPluginSidecars(ctx, appPath, repoRoot, pluginName, env, q, opt.cmpTarDoneCh, opt.cmpTarExcludedGlobs)
 		if err != nil {
 			err = fmt.Errorf("plugin sidecar failed. %s", err.Error())
 		}
@@ -1650,27 +1670,21 @@ func isNullList(obj *unstructured.Unstructured) bool {
 }
 
 func kustomizeBuild(
-	repoURL string,
+	k Kustomize,
 	repoRoot string,
 	appPath string,
-	gitCreds git.Creds,
 	opts *v1alpha1.ApplicationSourceKustomize,
 	kustomizeOptions *v1alpha1.KustomizeOptions,
 	env *v1alpha1.Env,
 	namespace string,
 ) ([]manifest, error) {
 	var targetObjs []*unstructured.Unstructured
-	kustomizeBinary := ""
-	if kustomizeOptions != nil {
-		kustomizeBinary = kustomizeOptions.BinaryPath
-	}
+
 	rawBytes, err := os.ReadFile(filepath.Join(appPath, "kustomization.yaml"))
 	if err != nil {
 		return nil, err
 	}
 	relPath, _ := filepath.Rel(repoRoot, appPath)
-
-	k := kustomize.NewKustomizeApp(appPath, gitCreds, repoURL, kustomizeBinary)
 	targetObjs, _, err = k.Build(opts, kustomizeOptions, env, namespace)
 	if err != nil {
 		return nil, err
@@ -1693,7 +1707,6 @@ func kustomizeBuild(
 
 	return manifests, nil
 }
-
 var manifestFile = regexp.MustCompile(`^.*\.(yaml|yml|json|jsonnet)$`)
 
 // / findManifests looks at all yaml files in a directory and unmarshals them into a list of unstructured objects
@@ -1971,6 +1984,7 @@ func getPotentiallyValidManifests(logCtx *log.Entry, appPath string, repoRoot st
 		// Not wrapping, because this error should be wrapped by the caller.
 		return nil, err
 	}
+
 	return potentiallyValidManifests, nil
 }
 
@@ -2078,7 +2092,7 @@ func getPluginParamEnvs(envVars []string, plugin *v1alpha1.ApplicationSourcePlug
 	return env, nil
 }
 
-func runConfigManagementPluginSidecars(ctx context.Context, appPath, repoPath, pluginName string, envVars *v1alpha1.Env, q *apiclient.ManifestRequest, creds git.Creds, tarDoneCh chan<- bool, tarExcludedGlobs []string) ([]manifest, error) {
+func runConfigManagementPluginSidecars(ctx context.Context, appPath, repoPath, pluginName string, envVars *v1alpha1.Env, q *apiclient.ManifestRequest, tarDoneCh chan<- bool, tarExcludedGlobs []string) ([]manifest, error) {
 	// compute variables.
 	env, err := getPluginEnvs(envVars, q)
 	if err != nil {
@@ -2123,7 +2137,6 @@ func runConfigManagementPluginSidecars(ctx context.Context, appPath, repoPath, p
 			})
 		}
 	}
-
 	return manifests, nil
 }
 
@@ -2170,7 +2183,7 @@ func (s *Service) GetAppDetails(ctx context.Context, q *apiclient.RepoServerAppD
 				return err
 			}
 		case v1alpha1.ApplicationSourceTypeKustomize:
-			if err := populateKustomizeAppDetails(res, q, opContext.appPath, commitSHA, s.gitCredsStore); err != nil {
+			if err := populateKustomizeAppDetails(res, q, repoRoot, opContext.appPath, commitSHA, s.gitCredsStore); err != nil {
 				return err
 			}
 		case v1alpha1.ApplicationSourceTypePlugin:
@@ -2207,12 +2220,13 @@ func (s *Service) createGetAppDetailsCacheHandler(res *apiclient.RepoAppDetailsR
 
 func populateHelmAppDetails(res *apiclient.RepoAppDetailsResponse, appPath string, repoRoot string, q *apiclient.RepoServerAppDetailsQuery, gitRepoPaths io.TempPaths) error {
 	var selectedValueFiles []string
+	var availableValueFiles []string
 
 	if q.Source.Helm != nil {
 		selectedValueFiles = q.Source.Helm.ValueFiles
 	}
 
-	availableValueFiles, err := findHelmValueFilesInPath(appPath)
+	err := filepath.Walk(appPath, walkHelmValueFilesInPath(appPath, &availableValueFiles))
 	if err != nil {
 		return err
 	}
@@ -2289,35 +2303,34 @@ func loadFileIntoIfExists(path pathutil.ResolvedFilePath, destination *string) e
 	return nil
 }
 
-func findHelmValueFilesInPath(path string) ([]string, error) {
-	var result []string
+func walkHelmValueFilesInPath(root string, valueFiles *[]string) filepath.WalkFunc {
+	return func(path string, info os.FileInfo, err error) error {
 
-	files, err := os.ReadDir(path)
-	if err != nil {
-		return result, fmt.Errorf("error reading helm values file from %s: %w", path, err)
-	}
-
-	for _, f := range files {
-		if f.IsDir() {
-			continue
+		if err != nil {
+			return fmt.Errorf("error reading helm values file from %s: %w", path, err)
 		}
-		filename := f.Name()
-		fileNameExt := strings.ToLower(filepath.Ext(filename))
+
+		filename := info.Name()
+		fileNameExt := strings.ToLower(filepath.Ext(path))
 		if strings.Contains(filename, "values") && (fileNameExt == ".yaml" || fileNameExt == ".yml") {
-			result = append(result, filename)
+			relPath, err := filepath.Rel(root, path)
+			if err != nil {
+				return fmt.Errorf("error traversing path from %s to %s: %w", root, path, err)
+			}
+			*valueFiles = append(*valueFiles, relPath)
 		}
-	}
 
-	return result, nil
+		return nil
+	}
 }
 
-func populateKustomizeAppDetails(res *apiclient.RepoAppDetailsResponse, q *apiclient.RepoServerAppDetailsQuery, appPath string, reversion string, credsStore git.CredsStore) error {
+func populateKustomizeAppDetails(res *apiclient.RepoAppDetailsResponse, q *apiclient.RepoServerAppDetailsQuery, repoRoot string, appPath string, reversion string, credsStore git.CredsStore) error {
 	res.Kustomize = &apiclient.KustomizeAppSpec{}
 	kustomizeBinary := ""
 	if q.KustomizeOptions != nil {
 		kustomizeBinary = q.KustomizeOptions.BinaryPath
 	}
-	k := kustomize.NewKustomizeApp(appPath, q.Repo.GetGitCreds(credsStore), q.Repo.Repo, kustomizeBinary)
+	k := kustomize.NewKustomizeApp(repoRoot, appPath, q.Repo.GetGitCreds(credsStore), q.Repo.Repo, kustomizeBinary)
 	fakeManifestRequest := apiclient.ManifestRequest{
 		AppName:           q.AppName,
 		Namespace:         "", // FIXME: omit it for now
@@ -2715,6 +2728,7 @@ func (s *Service) GetGitFiles(_ context.Context, request *apiclient.GitFilesRequ
 	repo := request.GetRepo()
 	revision := request.GetRevision()
 	gitPath := request.GetPath()
+	noRevisionCache := request.GetNoRevisionCache()
 	enableNewGitFileGlobbing := request.GetNewGitFileGlobbingEnabled()
 	if gitPath == "" {
 		gitPath = "."
@@ -2724,7 +2738,7 @@ func (s *Service) GetGitFiles(_ context.Context, request *apiclient.GitFilesRequ
 		return nil, status.Error(codes.InvalidArgument, "must pass a valid repo")
 	}
 
-	gitClient, revision, err := s.newClientResolveRevision(repo, revision, git.WithCache(s.cache, true))
+	gitClient, revision, err := s.newClientResolveRevision(repo, revision, git.WithCache(s.cache, !noRevisionCache))
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "unable to resolve git revision %s: %v", revision, err)
 	}
@@ -2777,12 +2791,12 @@ func (s *Service) GetGitFiles(_ context.Context, request *apiclient.GitFilesRequ
 func (s *Service) GetGitDirectories(_ context.Context, request *apiclient.GitDirectoriesRequest) (*apiclient.GitDirectoriesResponse, error) {
 	repo := request.GetRepo()
 	revision := request.GetRevision()
-
+	noRevisionCache := request.GetNoRevisionCache()
 	if repo == nil {
 		return nil, status.Error(codes.InvalidArgument, "must pass a valid repo")
 	}
 
-	gitClient, revision, err := s.newClientResolveRevision(repo, revision, git.WithCache(s.cache, true))
+	gitClient, revision, err := s.newClientResolveRevision(repo, revision, git.WithCache(s.cache, !noRevisionCache))
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "unable to resolve git revision %s: %v", revision, err)
 	}

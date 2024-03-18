@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net"
 	"time"
 
 	ioutil "github.com/argoproj/argo-cd/v2/util/io"
@@ -159,41 +160,27 @@ type MetricsRegistry interface {
 	ObserveRedisRequestDuration(duration time.Duration)
 }
 
-var metricStartTimeKey = struct{}{}
-
 type redisHook struct {
 	registry MetricsRegistry
 }
 
-func (rh *redisHook) BeforeProcess(ctx context.Context, cmd redis.Cmder) (context.Context, error) {
-	return context.WithValue(ctx, metricStartTimeKey, time.Now()), nil
+func (rh *redisHook) DialHook(next redis.DialHook) redis.DialHook {
+	return func(ctx context.Context, network, addr string) (net.Conn, error) {
+		conn, err := next(ctx, network, addr)
+		return conn, err
+	}
 }
 
-func (rh *redisHook) AfterProcess(ctx context.Context, cmd redis.Cmder) error {
-	cmdErr := cmd.Err()
-	rh.registry.IncRedisRequest(cmdErr != nil && cmdErr != redis.Nil)
+func (rh *redisHook) ProcessHook(next redis.ProcessHook) redis.ProcessHook {
+	return func(ctx context.Context, cmd redis.Cmder) error {
+		startTime := time.Now()
 
-	startTime := ctx.Value(metricStartTimeKey).(time.Time)
-	duration := time.Since(startTime)
-	rh.registry.ObserveRedisRequestDuration(duration)
+		err := next(ctx, cmd)
+		rh.registry.IncRedisRequest(err != nil && err != redis.Nil)
+		rh.registry.ObserveRedisRequestDuration(time.Since(startTime))
 
-	return nil
-}
-
-func (redisHook) BeforeProcessPipeline(ctx context.Context, _ []redis.Cmder) (context.Context, error) {
-	return ctx, nil
-}
-
-func (redisHook) AfterProcessPipeline(_ context.Context, _ []redis.Cmder) error {
-	return nil
-}
-
-func (redisHook) DialHook(next redis.DialHook) redis.DialHook {
-	return nil
-}
-
-func (redisHook) ProcessHook(next redis.ProcessHook) redis.ProcessHook {
-	return nil
+		return err
+	}
 }
 
 func (redisHook) ProcessPipelineHook(next redis.ProcessPipelineHook) redis.ProcessPipelineHook {

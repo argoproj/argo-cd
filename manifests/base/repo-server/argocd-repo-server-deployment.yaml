@@ -73,28 +73,28 @@ spec:
                   optional: true
           - name: ARGOCD_TLS_MAX_VERSION
             valueFrom:
-              configMapKeyRef:
-                name: argocd-cmd-params-cm
-                key: reposerver.tls.maxversion
-                optional: true
+                configMapKeyRef:
+                  name: argocd-cmd-params-cm
+                  key: reposerver.tls.maxversion
+                  optional: true
           - name: ARGOCD_TLS_CIPHERS
             valueFrom:
-              configMapKeyRef:
-                name: argocd-cmd-params-cm
-                key: reposerver.tls.ciphers
-                optional: true
+                configMapKeyRef:
+                  name: argocd-cmd-params-cm
+                  key: reposerver.tls.ciphers
+                  optional: true
           - name: ARGOCD_REPO_CACHE_EXPIRATION
             valueFrom:
-              configMapKeyRef:
-                name: argocd-cmd-params-cm
-                key: reposerver.repo.cache.expiration
-                optional: true
+                configMapKeyRef:
+                  name: argocd-cmd-params-cm
+                  key: reposerver.repo.cache.expiration
+                  optional: true
           - name: REDIS_SERVER
             valueFrom:
-              configMapKeyRef:
-                name: argocd-cmd-params-cm
-                key: redis.server
-                optional: true
+                configMapKeyRef:
+                  name: argocd-cmd-params-cm
+                  key: redis.server
+                  optional: true
           - name: REDIS_COMPRESSION
             valueFrom:
               configMapKeyRef:
@@ -109,16 +109,28 @@ spec:
                   optional: true
           - name: ARGOCD_DEFAULT_CACHE_EXPIRATION
             valueFrom:
-              configMapKeyRef:
-                name: argocd-cmd-params-cm
-                key: reposerver.default.cache.expiration
-                optional: true
+                configMapKeyRef:
+                  name: argocd-cmd-params-cm
+                  key: reposerver.default.cache.expiration
+                  optional: true
           - name: ARGOCD_REPO_SERVER_OTLP_ADDRESS
             valueFrom:
-              configMapKeyRef:
-                name: argocd-cmd-params-cm
-                key: otlp.address
-                optional: true
+                configMapKeyRef:
+                  name: argocd-cmd-params-cm
+                  key: otlp.address
+                  optional: true
+          - name: ARGOCD_REPO_SERVER_OTLP_INSECURE
+            valueFrom:
+                configMapKeyRef:
+                  name: argocd-cmd-params-cm
+                  key: otlp.insecure
+                  optional: true
+          - name: ARGOCD_REPO_SERVER_OTLP_HEADERS
+            valueFrom:
+                configMapKeyRef:
+                  name: argocd-cmd-params-cm
+                  key: otlp.headers
+                  optional: true
           - name: ARGOCD_REPO_SERVER_MAX_COMBINED_DIRECTORY_MANIFESTS_SIZE
             valueFrom:
               configMapKeyRef:
@@ -165,6 +177,18 @@ spec:
             valueFrom:
               configMapKeyRef:
                 key: reposerver.enable.git.submodule
+                name: argocd-cmd-params-cm
+                optional: true
+          - name: ARGOCD_GIT_LS_REMOTE_PARALLELISM_LIMIT
+            valueFrom:
+              configMapKeyRef:
+                key: reposerver.git.lsremote.parallelism.limit
+                name: argocd-cmd-params-cm
+                optional: true
+          - name: ARGOCD_GIT_REQUEST_TIMEOUT
+            valueFrom:
+              configMapKeyRef:
+                key: reposerver.git.request.timeout
                 name: argocd-cmd-params-cm
                 optional: true
           - name: HELM_CACHE_HOME
@@ -257,12 +281,12 @@ spec:
             secretName: argocd-repo-server-tls
             optional: true
             items:
-              - key: tls.crt
-                path: tls.crt
-              - key: tls.key
-                path: tls.key
-              - key: ca.crt
-                path: ca.crt
+            - key: tls.crt
+              path: tls.crt
+            - key: tls.key
+              path: tls.key
+            - key: ca.crt
+              path: ca.crt
         - emptyDir: {}
           name: var-files
         - emptyDir: {}
@@ -270,15 +294,15 @@ spec:
       affinity:
         podAntiAffinity:
           preferredDuringSchedulingIgnoredDuringExecution:
-            - weight: 100
-              podAffinityTerm:
-                labelSelector:
-                  matchLabels:
-                    app.kubernetes.io/name: argocd-repo-server
-                topologyKey: kubernetes.io/hostname
-            - weight: 5
-              podAffinityTerm:
-                labelSelector:
-                  matchLabels:
-                    app.kubernetes.io/part-of: argocd
-                topologyKey: kubernetes.io/hostname
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchLabels:
+                  app.kubernetes.io/name: argocd-repo-server
+              topologyKey: kubernetes.io/hostname
+          - weight: 5
+            podAffinityTerm:
+              labelSelector:
+                matchLabels:
+                  app.kubernetes.io/part-of: argocd
+              topologyKey: kubernetes.io/hostname

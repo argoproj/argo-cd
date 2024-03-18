@@ -128,8 +128,11 @@ func NewServer(
 	if appBroadcaster == nil {
 		appBroadcaster = &broadcasterHandler{}
 	}
-	appInformer.AddEventHandler(appBroadcaster)
-	server := &Server{
+	_, err := appInformer.AddEventHandler(appBroadcaster)
+	if err != nil {
+		log.Error(err)
+	}
+	s := &Server{
 		ns:                namespace,
 		appclientset:      appclientset,
 		appLister:         appLister,
@@ -147,9 +150,9 @@ func NewServer(
 		projInformer:      projInformer,
 		enabledNamespaces: enabledNamespaces,
 	}
-	server.applicationEventReporter = NewApplicationEventReporter(server)
+	s.applicationEventReporter = NewApplicationEventReporter(server)
 
-	return server, server.getAppResources
+	return s, s.getAppResources
 }
 
 func (s *Server) GetManifestsWithFiles(stream application.ApplicationService_GetManifestsWithFilesServer) error {
@@ -167,7 +170,12 @@ func (s *Server) GetManifestsWithFiles(stream application.ApplicationService_Get
 // If the user does provide a "project," we can respond more specifically. If the user does not have access to the given
 // app name in the given project, we return "permission denied." If the app exists, but the project is different from
 func (s *Server) getAppEnforceRBAC(ctx context.Context, action, project, namespace, name string, getApp func() (*appv1.Application, error)) (*appv1.Application, error) {
+	user := session.Username(ctx)
+	if user == "" {
+		user = "Unknown user"
+	}
 	logCtx := log.WithFields(map[string]interface{}{
+		"user":        user,
 		"application": name,
 		"namespace":   namespace,
 	})
@@ -341,6 +349,15 @@ func (s *Server) Create(ctx context.Context, q *application.ApplicationCreateReq
 
 	if !s.isNamespaceEnabled(appNs) {
 		return nil, security.NamespaceNotPermittedError(appNs)
+	}
+
+	// Don't let the app creator set the operation explicitly. Those requests should always go through the Sync API.
+	if a.Operation != nil {
+		log.WithFields(log.Fields{
+			"application":            a.Name,
+			argocommon.SecurityField: argocommon.SecurityLow,
+		}).Warn("User attempted to set operation on application creation. This could have allowed them to bypass branch protection rules by setting manifests directly. Ignoring the set operation.")
+		a.Operation = nil
 	}
 
 	created, err := s.appclientset.ArgoprojV1alpha1().Applications(appNs).Create(ctx, a, metav1.CreateOptions{})
@@ -1419,9 +1436,9 @@ func (s *Server) getCachedAppState(ctx context.Context, a *appv1.Application, ge
 			return errors.New(argoutil.FormatAppConditions(conditions))
 		}
 		_, err = s.Get(ctx, &application.ApplicationQuery{
-			Name:         pointer.StringPtr(a.GetName()),
-			AppNamespace: pointer.StringPtr(a.GetNamespace()),
-			Refresh:      pointer.StringPtr(string(appv1.RefreshTypeNormal)),
+			Name:         pointer.String(a.GetName()),
+			AppNamespace: pointer.String(a.GetNamespace()),
+			Refresh:      pointer.String(string(appv1.RefreshTypeNormal)),
 		})
 		if err != nil {
 			return fmt.Errorf("error getting application by query: %w", err)
@@ -1952,7 +1969,7 @@ func (s *Server) Sync(ctx context.Context, syncReq *application.ApplicationSyncR
 	if a.DeletionTimestamp != nil {
 		return nil, status.Errorf(codes.FailedPrecondition, "application is deleting")
 	}
-	if a.Spec.SyncPolicy != nil && a.Spec.SyncPolicy.Automated != nil {
+	if a.Spec.SyncPolicy != nil && a.Spec.SyncPolicy.Automated != nil && !syncReq.GetDryRun() {
 		if syncReq.GetRevision() != "" && syncReq.GetRevision() != text.FirstNonEmpty(source.TargetRevision, "HEAD") {
 			return nil, status.Errorf(codes.FailedPrecondition, "Cannot sync to %s: auto-sync currently set to %s", syncReq.GetRevision(), source.TargetRevision)
 		}

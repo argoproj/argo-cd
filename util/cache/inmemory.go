@@ -16,6 +16,10 @@ func NewInMemoryCache(expiration time.Duration) *InMemoryCache {
 	}
 }
 
+func init() {
+	gob.Register([]interface{}{})
+}
+
 // compile-time validation of adherance of the CacheClient contract
 var _ CacheClient = &InMemoryCache{}
 

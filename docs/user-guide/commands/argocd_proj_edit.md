@@ -8,6 +8,13 @@ Edit project
 argocd proj edit PROJECT [flags]
 ```
 
+### Examples
+
+```
+  # Edit the information on project with name PROJECT
+  argocd proj edit PROJECT
+```
+
 ### Options
 
 ```

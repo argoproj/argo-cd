@@ -4,6 +4,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/argoproj/argo-cd/v2/test/e2e/fixture/applicationsets/utils"
 	. "github.com/argoproj/argo-cd/v2/test/e2e/fixture/applicationsets/utils"
 )
 
@@ -12,9 +13,9 @@ type Context struct {
 	t *testing.T
 
 	// name is the ApplicationSet's name, created by a Create action
-	name                 string
-	namespace            string
-	useExternalNamespace bool
+	name              string
+	namespace         string
+	switchToNamespace utils.ExternalNamespace
 }
 
 func Given(t *testing.T) *Context {

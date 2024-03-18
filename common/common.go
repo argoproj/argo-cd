@@ -57,6 +57,7 @@ const (
 	DefaultPortArgoCDMetrics              = 8082
 	DefaultPortArgoCDAPIServerMetrics     = 8083
 	DefaultPortRepoServerMetrics          = 8084
+
 	DefaultPortEventReporterServerMetrics = 8087
 	DefaultPortEventReporterServer        = 8088
 )
@@ -68,6 +69,7 @@ const (
 	DefaultAddressAPIServerMetrics           = "0.0.0.0"
 	DefaultAddressRepoServer                 = "0.0.0.0"
 	DefaultAddressRepoServerMetrics          = "0.0.0.0"
+
 	DefaultAddressEventReporterServer        = "0.0.0.0"
 	DefaultAddressEventReporterServerMetrics = "0.0.0.0"
 )
@@ -120,9 +122,9 @@ const (
 	LegacyShardingAlgorithm = "legacy"
 	// RoundRobinShardingAlgorithm is a flag value that can be opted for Sharding Algorithm it uses an equal distribution accross all shards
 	RoundRobinShardingAlgorithm = "round-robin"
-	DefaultShardingAlgorithm    = LegacyShardingAlgorithm
 	// AppControllerHeartbeatUpdateRetryCount is the retry count for updating the Shard Mapping to the Shard Mapping ConfigMap used by Application Controller
 	AppControllerHeartbeatUpdateRetryCount = 3
+	DefaultShardingAlgorithm               = LegacyShardingAlgorithm
 )
 
 // Dex related constants
@@ -247,10 +249,6 @@ const (
 	EnvMaxCookieNumber = "ARGOCD_MAX_COOKIE_NUMBER"
 	// EnvPluginSockFilePath allows to override the pluginSockFilePath for repo server and cmp server
 	EnvPluginSockFilePath = "ARGOCD_PLUGINSOCKFILEPATH"
-	// EnvApplicationEventCacheDuration controls the expiration of application events cache
-	EnvApplicationEventCacheDuration = "ARGOCD_APP_EVENTS_CACHE_DURATION"
-	// EnvResourceEventCacheDuration controls the expiration of resource events cache
-	EnvResourceEventCacheDuration = "ARGOCD_RESOURCE_EVENTS_CACHE_DURATION"
 	// EnvCMPChunkSize defines the chunk size in bytes used when sending files to the cmp server
 	EnvCMPChunkSize = "ARGOCD_CMP_CHUNK_SIZE"
 	// EnvCMPWorkDir defines the full path of the work directory used by the CMP server
@@ -267,6 +265,16 @@ const (
 	EnvRedisName = "ARGOCD_REDIS_NAME"
 	// EnvRedisHaProxyName is the name of the Argo CD Redis HA proxy component, as specified by the value under the LabelKeyAppName label key.
 	EnvRedisHaProxyName = "ARGOCD_REDIS_HAPROXY_NAME"
+	// EnvGRPCKeepAliveMin defines the GRPCKeepAliveEnforcementMinimum, used in the grpc.KeepaliveEnforcementPolicy. Expects a "Duration" format (e.g. 10s).
+	EnvGRPCKeepAliveMin = "ARGOCD_GRPC_KEEP_ALIVE_MIN"
+	// EnvServerSideDiff defines the env var used to enable ServerSide Diff feature.
+	// If defined, value must be "true" or "false".
+	EnvServerSideDiff = "ARGOCD_APPLICATION_CONTROLLER_SERVER_SIDE_DIFF"
+
+	// EnvApplicationEventCacheDuration controls the expiration of application events cache
+	EnvApplicationEventCacheDuration = "ARGOCD_APP_EVENTS_CACHE_DURATION"
+	// EnvResourceEventCacheDuration controls the expiration of resource events cache
+	EnvResourceEventCacheDuration = "ARGOCD_RESOURCE_EVENTS_CACHE_DURATION"
 	// EnvEventReporterShardingAlgorithm is the distribution sharding algorithm to be used: legacy
 	EnvEventReporterShardingAlgorithm = "EVENT_REPORTER_SHARDING_ALGORITHM"
 	// EnvEventReporterReplicas is the number of EventReporter replicas
@@ -366,10 +374,25 @@ const (
 
 // gRPC settings
 const (
-	GRPCKeepAliveEnforcementMinimum = 10 * time.Second
-	// GRPCKeepAliveTime is 2x enforcement minimum to ensure network jitter does not introduce ENHANCE_YOUR_CALM errors
-	GRPCKeepAliveTime = 2 * GRPCKeepAliveEnforcementMinimum
+	defaultGRPCKeepAliveEnforcementMinimum = 10 * time.Second
 )
+
+func GetGRPCKeepAliveEnforcementMinimum() time.Duration {
+	if GRPCKeepAliveMinStr := os.Getenv(EnvGRPCKeepAliveMin); GRPCKeepAliveMinStr != "" {
+		GRPCKeepAliveMin, err := time.ParseDuration(GRPCKeepAliveMinStr)
+		if err != nil {
+			logrus.Warnf("invalid env var value for %s: cannot parse: %s. Default value %s will be used.", EnvGRPCKeepAliveMin, err, defaultGRPCKeepAliveEnforcementMinimum)
+			return defaultGRPCKeepAliveEnforcementMinimum
+		}
+		return GRPCKeepAliveMin
+	}
+	return defaultGRPCKeepAliveEnforcementMinimum
+}
+
+func GetGRPCKeepAliveTime() time.Duration {
+	// GRPCKeepAliveTime is 2x enforcement minimum to ensure network jitter does not introduce ENHANCE_YOUR_CALM errors
+	return 2 * GetGRPCKeepAliveEnforcementMinimum()
+}
 
 // Security severity logging
 const (
@@ -392,7 +415,7 @@ var TokenVerificationErr = errors.New(TokenVerificationError)
 
 var PermissionDeniedAPIError = status.Error(codes.PermissionDenied, "permission denied")
 
-// Event reporter constants
+// CF Event reporter constants
 const (
 	EventReporterLegacyShardingAlgorithm  = "legacy"
 	DefaultEventReporterShardingAlgorithm = EventReporterLegacyShardingAlgorithm

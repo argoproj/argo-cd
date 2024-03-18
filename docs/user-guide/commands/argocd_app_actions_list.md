@@ -8,6 +8,13 @@ Lists available actions on a resource
 argocd app actions list APPNAME [flags]
 ```
 
+### Examples
+
+```
+  # List all the available actions for an application
+  argocd app actions list APPNAME
+```
+
 ### Options
 
 ```

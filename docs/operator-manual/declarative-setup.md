@@ -490,7 +490,7 @@ stringData:
 
 ### Legacy behaviour
 
-In Argo CD version 2.0 and earlier, repositories where stored as part of the `argocd-cm` config map. For
+In Argo CD version 2.0 and earlier, repositories were stored as part of the `argocd-cm` config map. For
 backward-compatibility, Argo CD will still honor repositories in the config map, but this style of repository
 configuration is deprecated and support for it will be removed in a future version.
 
@@ -590,8 +590,8 @@ metadata:
     argocd.argoproj.io/secret-type: cluster
 type: Opaque
 stringData:
-  name: mycluster.com
-  server: https://mycluster.com
+  name: mycluster.example.com
+  server: https://mycluster.example.com
   config: |
     {
       "bearerToken": "<authentication token>",
@@ -615,8 +615,8 @@ metadata:
     argocd.argoproj.io/secret-type: cluster
 type: Opaque
 stringData:
-  name: "mycluster.com"
-  server: "https://mycluster.com"
+  name: "mycluster.example.com"
+  server: "https://mycluster.example.com"
   config: |
     {
       "awsAuthConfig": {
@@ -676,8 +676,10 @@ extended to allow assumption of multiple roles, either as an explicit array of r
   }
 ```
 
-Example service account configs for `argocd-application-controller` and `argocd-server`. Note that once the annotations
-have been set on the service accounts, both the application controller and server pods need to be restarted.
+Example service account configs for `argocd-application-controller` and `argocd-server`.
+
+!!! warning
+    Once the annotations have been set on the service accounts, both the application controller and server pods need to be restarted.
 
 ```yaml
 apiVersion: v1
@@ -742,8 +744,8 @@ metadata:
     argocd.argoproj.io/secret-type: cluster
 type: Opaque
 stringData:
-  name: mycluster.com
-  server: https://mycluster.com
+  name: mycluster.example.com
+  server: https://mycluster.example.com
   config: |
     {
       "execProviderConfig": {
@@ -795,8 +797,8 @@ metadata:
     argocd.argoproj.io/secret-type: cluster
 type: Opaque
 stringData:
-  name: mycluster.com
-  server: https://mycluster.com
+  name: mycluster.example.com
+  server: https://mycluster.example.com
   config: |
     {
       "execProviderConfig": {
@@ -830,8 +832,8 @@ metadata:
     argocd.argoproj.io/secret-type: cluster
 type: Opaque
 stringData:
-  name: mycluster.com
-  server: https://mycluster.com
+  name: mycluster.example.com
+  server: https://mycluster.example.com
   config: |
     {
       "execProviderConfig": {

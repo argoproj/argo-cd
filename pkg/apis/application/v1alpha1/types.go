@@ -35,11 +35,11 @@ import (
 	"k8s.io/client-go/tools/clientcmd/api"
 	"sigs.k8s.io/yaml"
 
-	"github.com/argoproj/argo-cd/v2/util/env"
-
 	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/util/collections"
+	"github.com/argoproj/argo-cd/v2/util/env"
 	"github.com/argoproj/argo-cd/v2/util/helm"
+	utilhttp "github.com/argoproj/argo-cd/v2/util/http"
 	"github.com/argoproj/argo-cd/v2/util/security"
 )
 
@@ -556,12 +556,12 @@ type KustomizeGvk struct {
 func (k *ApplicationSourceKustomize) AllowsConcurrentProcessing() bool {
 	return len(k.Images) == 0 &&
 		len(k.CommonLabels) == 0 &&
-		len(k.Components) == 0 &&
 		len(k.CommonAnnotations) == 0 &&
 		k.NamePrefix == "" &&
 		k.Namespace == "" &&
 		k.NameSuffix == "" &&
-		len(k.Patches) == 0
+		len(k.Patches) == 0 &&
+		len(k.Components) == 0
 }
 
 // IsZero returns true when the Kustomize options are considered empty
@@ -575,8 +575,8 @@ func (k *ApplicationSourceKustomize) IsZero() bool {
 			len(k.Replicas) == 0 &&
 			len(k.CommonLabels) == 0 &&
 			len(k.CommonAnnotations) == 0 &&
-			len(k.Components) == 0 &&
 			len(k.Patches) == 0 &&
+			len(k.Components) == 0 &&
 			!k.ForceNamespace
 }
 
@@ -2705,6 +2705,18 @@ func (app *Application) IsRefreshRequested() (RefreshType, bool) {
 	return refreshType, true
 }
 
+func (app *Application) HasPostDeleteFinalizer(stage ...string) bool {
+	return getFinalizerIndex(app.ObjectMeta, strings.Join(append([]string{PostDeleteFinalizerName}, stage...), "/")) > -1
+}
+
+func (app *Application) SetPostDeleteFinalizer(stage ...string) {
+	setFinalizer(&app.ObjectMeta, strings.Join(append([]string{PostDeleteFinalizerName}, stage...), "/"), true)
+}
+
+func (app *Application) UnSetPostDeleteFinalizer(stage ...string) {
+	setFinalizer(&app.ObjectMeta, strings.Join(append([]string{PostDeleteFinalizerName}, stage...), "/"), false)
+}
+
 // SetCascadedDeletion will enable cascaded deletion by setting the propagation policy finalizer
 func (app *Application) SetCascadedDeletion(finalizer string) {
 	setFinalizer(&app.ObjectMeta, finalizer, true)
@@ -2979,6 +2991,12 @@ func SetK8SConfigDefaults(config *rest.Config) error {
 	config.Timeout = K8sServerSideTimeout
 
 	config.Transport = tr
+	maxRetries := env.ParseInt64FromEnv(utilhttp.EnvRetryMax, 0, 1, math.MaxInt64)
+	if maxRetries > 0 {
+		backoffDurationMS := env.ParseInt64FromEnv(utilhttp.EnvRetryBaseBackoff, 100, 1, math.MaxInt64)
+		backoffDuration := time.Duration(backoffDurationMS) * time.Millisecond
+		config.WrapTransport = utilhttp.WithRetry(maxRetries, backoffDuration)
+	}
 	return nil
 }
 
