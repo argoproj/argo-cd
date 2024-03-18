@@ -2,6 +2,7 @@ package argo
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -21,6 +22,7 @@ const (
 
 var WrongResourceTrackingFormat = fmt.Errorf("wrong resource tracking format, should be <application-name>:<group>/<kind>:<namespace>/<name>")
 var LabelMaxLength = 63
+var nonAlphanumericSuffixRegex = regexp.MustCompile("[^a-zA-Z0-9]+$")
 
 // ResourceTracking defines methods which allow setup and retrieve tracking information to resource
 type ResourceTracking interface {
@@ -153,9 +155,7 @@ func (rt *resourceTracking) SetAppInstance(un *unstructured.Unstructured, key, v
 		if err != nil {
 			return err
 		}
-		if len(val) > LabelMaxLength {
-			val = val[:LabelMaxLength]
-		}
+		val = truncateLabelValue(val)
 		err = argokube.SetAppInstanceLabel(un, key, val)
 		if err != nil {
 			return fmt.Errorf("failed to set app instance label: %w", err)
@@ -238,4 +238,17 @@ func (rt *resourceTracking) Normalize(config, live *unstructured.Unstructured, l
 	}
 
 	return nil
+}
+
+// truncateLabelValue truncates input label value string to a valid Kubernetes label value
+// Which is limited to 63 characters and must end with alphanumeric characters
+// https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/#syntax-and-character-set
+func truncateLabelValue(str string) string {
+	if len(str) > LabelMaxLength {
+		str = str[:LabelMaxLength]
+	}
+
+	// Remove non-alphanumeric characters at the end of the string
+	str = nonAlphanumericSuffixRegex.ReplaceAllString(str, "")
+	return str
 }
