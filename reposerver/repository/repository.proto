@@ -32,7 +32,11 @@ message ManifestRequest {
     github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.HelmOptions helmOptions = 21;
     bool hasMultipleSources = 22;
     map<string, github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.RefTarget> refSources = 23;
-    string previousRevision = 25;
+    // This is used to surface "source not permitted" errors for Helm repositories
+    repeated string projectSourceRepos = 24;
+    // This is used to surface "source not permitted" errors for Helm repositories
+    string projectName = 25;
+    string previousRevision = 26;
 }
 
 message ManifestRequestWithFiles {
@@ -233,6 +237,7 @@ message GitFilesRequest {
     string revision = 3;
     string path = 4;
     bool NewGitFileGlobbingEnabled = 5;
+    bool noRevisionCache = 6;
 }
 
 message GitFilesResponse {
@@ -244,6 +249,7 @@ message GitDirectoriesRequest {
     github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.Repository repo = 1;
     bool submoduleEnabled = 2;
     string revision = 3;
+    bool noRevisionCache = 4;
 }
 
 message GitDirectoriesResponse {

@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
@@ -241,10 +242,11 @@ type SSHCreds struct {
 	caPath        string
 	insecure      bool
 	store         CredsStore
+	proxy         string
 }
 
-func NewSSHCreds(sshPrivateKey string, caPath string, insecureIgnoreHostKey bool, store CredsStore) SSHCreds {
-	return SSHCreds{sshPrivateKey, caPath, insecureIgnoreHostKey, store}
+func NewSSHCreds(sshPrivateKey string, caPath string, insecureIgnoreHostKey bool, store CredsStore, proxy string) SSHCreds {
+	return SSHCreds{sshPrivateKey, caPath, insecureIgnoreHostKey, store, proxy}
 }
 
 type sshPrivateKeyFile string
@@ -303,7 +305,25 @@ func (c SSHCreds) Environ() (io.Closer, []string, error) {
 		knownHostsFile := certutil.GetSSHKnownHostsDataPath()
 		args = append(args, "-o", "StrictHostKeyChecking=yes", "-o", fmt.Sprintf("UserKnownHostsFile=%s", knownHostsFile))
 	}
+	// Handle SSH socks5 proxy settings
+	proxyEnv := []string{}
+	if c.proxy != "" {
+		parsedProxyURL, err := url.Parse(c.proxy)
+		if err != nil {
+			return nil, nil, fmt.Errorf("failed to set environment variables related to socks5 proxy, could not parse proxy URL '%s': %w", c.proxy, err)
+		}
+		args = append(args, "-o", fmt.Sprintf("ProxyCommand='connect-proxy -S %s:%s -5 %%h %%p'",
+			parsedProxyURL.Hostname(),
+			parsedProxyURL.Port()))
+		if parsedProxyURL.User != nil {
+			proxyEnv = append(proxyEnv, fmt.Sprintf("SOCKS5_USER=%s", parsedProxyURL.User.Username()))
+			if socks5_passwd, isPasswdSet := parsedProxyURL.User.Password(); isPasswdSet {
+				proxyEnv = append(proxyEnv, fmt.Sprintf("SOCKS5_PASSWD=%s", socks5_passwd))
+			}
+		}
+	}
 	env = append(env, []string{fmt.Sprintf("GIT_SSH_COMMAND=%s", strings.Join(args, " "))}...)
+	env = append(env, proxyEnv...)
 	return sshPrivateKeyFile(file.Name()), env, nil
 }
 

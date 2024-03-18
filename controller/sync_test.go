@@ -41,7 +41,7 @@ func TestPersistRevisionHistory(t *testing.T) {
 		},
 		managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
 	}
-	ctrl := newFakeController(&data)
+	ctrl := newFakeController(&data, nil)
 
 	// Sync with source unspecified
 	opState := &v1alpha1.OperationState{Operation: v1alpha1.Operation{
@@ -87,7 +87,7 @@ func TestPersistManagedNamespaceMetadataState(t *testing.T) {
 		},
 		managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
 	}
-	ctrl := newFakeController(&data)
+	ctrl := newFakeController(&data, nil)
 
 	// Sync with source unspecified
 	opState := &v1alpha1.OperationState{Operation: v1alpha1.Operation{
@@ -118,7 +118,7 @@ func TestPersistRevisionHistoryRollback(t *testing.T) {
 		},
 		managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
 	}
-	ctrl := newFakeController(&data)
+	ctrl := newFakeController(&data, nil)
 
 	// Sync with source specified
 	source := v1alpha1.ApplicationSource{
@@ -172,7 +172,7 @@ func TestSyncComparisonError(t *testing.T) {
 		},
 		managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
 	}
-	ctrl := newFakeController(&data)
+	ctrl := newFakeController(&data, nil)
 
 	// Sync with source unspecified
 	opState := &v1alpha1.OperationState{Operation: v1alpha1.Operation{
@@ -217,7 +217,7 @@ func TestAppStateManager_SyncAppState(t *testing.T) {
 			},
 			managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
 		}
-		ctrl := newFakeController(&data)
+		ctrl := newFakeController(&data, nil)
 
 		return &fixture{
 			project:     project,

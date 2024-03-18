@@ -475,7 +475,7 @@ func TestPluginGenerateParams(t *testing.T) {
 					},
 				},
 			},
-			expectedError: fmt.Errorf("error fetching Secret token: error fetching secret default/argocd-secret: secrets \"argocd-secret\" not found"),
+			expectedError: fmt.Errorf("error getting plugin from generator: error fetching Secret token: error fetching secret default/argocd-secret: secrets \"argocd-secret\" not found"),
 		},
 		{
 			name:      "no configmap",
@@ -522,7 +522,7 @@ func TestPluginGenerateParams(t *testing.T) {
 					},
 				},
 			},
-			expectedError: fmt.Errorf("error fetching ConfigMap: configmaps \"\" not found"),
+			expectedError: fmt.Errorf("error getting plugin from generator: error fetching ConfigMap: configmaps \"\" not found"),
 		},
 		{
 			name: "no baseUrl",
@@ -577,7 +577,7 @@ func TestPluginGenerateParams(t *testing.T) {
 					},
 				},
 			},
-			expectedError: fmt.Errorf("error fetching ConfigMap: baseUrl not found in ConfigMap"),
+			expectedError: fmt.Errorf("error getting plugin from generator: error fetching ConfigMap: baseUrl not found in ConfigMap"),
 		},
 		{
 			name: "no token",
@@ -624,7 +624,7 @@ func TestPluginGenerateParams(t *testing.T) {
 					},
 				},
 			},
-			expectedError: fmt.Errorf("error fetching ConfigMap: token not found in ConfigMap"),
+			expectedError: fmt.Errorf("error getting plugin from generator: error fetching ConfigMap: token not found in ConfigMap"),
 		},
 	}
 
