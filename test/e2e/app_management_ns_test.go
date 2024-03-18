@@ -686,14 +686,21 @@ func TestNamespacedAppWithSecrets(t *testing.T) {
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
 		And(func(app *Application) {
+			// regular (server-side) diff should hide secret contents
 			diffOutput, err := RunCli("app", "diff", ctx.AppQualifiedName())
 			assert.Error(t, err)
 			assert.Contains(t, diffOutput, "username: ++++++++")
 			assert.Contains(t, diffOutput, "password: ++++++++++++")
+			assert.NotContains(t, diffOutput, "username: test-username")        // from "testdata/secrets/secrets.yaml"
+			assert.NotContains(t, diffOutput, "password: dGVzdC1wYXNzd29yZA==") // from "testdata/secrets/secrets.yaml"
 
-			// local diff should ignore secrets
-			diffOutput = FailOnErr(RunCli("app", "diff", ctx.AppQualifiedName(), "--local", "testdata/secrets")).(string)
-			assert.Empty(t, diffOutput)
+			// local diff should also hide secrets
+			diffOutput, err = RunCli("app", "diff", ctx.AppQualifiedName(), "--local", "testdata/secrets")
+			assert.Error(t, err)
+			assert.Contains(t, diffOutput, "username: ++++++++")
+			assert.Contains(t, diffOutput, "password: ++++++++++++")
+			assert.NotContains(t, diffOutput, "username: test-username")        // from "testdata/secrets/secrets.yaml"
+			assert.NotContains(t, diffOutput, "password: dGVzdC1wYXNzd29yZA==") // from "testdata/secrets/secrets.yaml"
 
 			// ignore missing field and make sure diff shows no difference
 			app.Spec.IgnoreDifferences = []ResourceIgnoreDifferences{{
