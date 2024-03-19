@@ -150,7 +150,7 @@ func NewServer(
 		projInformer:      projInformer,
 		enabledNamespaces: enabledNamespaces,
 	}
-	s.applicationEventReporter = NewApplicationEventReporter(server)
+	s.applicationEventReporter = NewApplicationEventReporter(s)
 
 	return s, s.getAppResources
 }
