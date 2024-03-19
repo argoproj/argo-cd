@@ -162,11 +162,6 @@ func newService(t *testing.T, root string) *Service {
 	return service
 }
 
-func newServiceWithSignature(t *testing.T, root string) *Service {
-	service, _, _ := newServiceWithMocks(t, root)
-	return service
-}
-
 func newServiceWithCommitSHA(t *testing.T, root, revision string) *Service {
 	var revisionErr error
 
