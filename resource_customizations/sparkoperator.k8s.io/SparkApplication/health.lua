@@ -1,10 +1,10 @@
-health_status = {}
+local health_status = {}
 -- Can't use standard lib, math.huge equivalent
-infinity = 2^1024-1
+local infinity = 2^1024-1
 
 local function executor_range_api()
-  min_executor_instances = 0
-  max_executor_instances = infinity
+  local min_executor_instances = 0
+  local max_executor_instances = infinity
   if obj.spec.dynamicAllocation.maxExecutors then
     max_executor_instances = obj.spec.dynamicAllocation.maxExecutors
   end
@@ -15,8 +15,8 @@ local function executor_range_api()
 end
 
 local function maybe_executor_range_spark_conf()
-  min_executor_instances = 0
-  max_executor_instances = infinity
+  local min_executor_instances = 0
+  local max_executor_instances = infinity
   if obj.spec.sparkConf["spark.streaming.dynamicAllocation.enabled"] ~= nil and
      obj.spec.sparkConf["spark.streaming.dynamicAllocation.enabled"] == "true" then
     if(obj.spec.sparkConf["spark.streaming.dynamicAllocation.maxExecutors"] ~= nil) then
@@ -78,7 +78,7 @@ if obj.status ~= nil then
           health_status.message = "SparkApplication is Running"
           return health_status
         elseif maybe_executor_range() then
-          min_executor_instances, max_executor_instances = maybe_executor_range()
+          local min_executor_instances, max_executor_instances = maybe_executor_range()
           if count >= min_executor_instances and count <= max_executor_instances then
             health_status.status = "Healthy"
             health_status.message = "SparkApplication is Running"

@@ -1,3 +1,5 @@
+# `argocd completion` Command Reference
+
 ## argocd completion
 
 output shell completion code for the specified shell (bash or zsh)
@@ -22,6 +24,18 @@ compinit
 
 ```
 argocd completion SHELL [flags]
+```
+
+### Examples
+
+```
+# For bash
+$ source <(argocd completion bash)
+
+# For zsh
+$ argocd completion zsh > _argocd
+$ source _argocd
+
 ```
 
 ### Options

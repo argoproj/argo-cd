@@ -1,3 +1,5 @@
+# `argocd cluster set` Command Reference
+
 ## argocd cluster set
 
 Set cluster information

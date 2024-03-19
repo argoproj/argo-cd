@@ -10,7 +10,7 @@ Here are some ways people are doing GitOps secrets:
 * [Bitnami Sealed Secrets](https://github.com/bitnami-labs/sealed-secrets)
 * [External Secrets Operator](https://github.com/external-secrets/external-secrets)
 * [Hashicorp Vault](https://www.vaultproject.io)
-* [Bank-Vaults]((https://bank-vaults.dev/))
+* [Bank-Vaults](https://bank-vaults.dev/)
 * [Helm Secrets](https://github.com/jkroepke/helm-secrets)
 * [Kustomize secret generator plugins](https://github.com/kubernetes-sigs/kustomize/blob/fd7a353df6cece4629b8e8ad56b71e30636f38fc/examples/kvSourceGoPlugin.md#secret-values-from-anywhere)
 * [aws-secret-operator](https://github.com/mumoshu/aws-secret-operator)
@@ -18,6 +18,7 @@ Here are some ways people are doing GitOps secrets:
 * [argocd-vault-plugin](https://github.com/argoproj-labs/argocd-vault-plugin)
 * [argocd-vault-replacer](https://github.com/crumbhole/argocd-vault-replacer)
 * [Kubernetes Secrets Store CSI Driver](https://github.com/kubernetes-sigs/secrets-store-csi-driver)
+* [Vals-Operator](https://github.com/digitalis-io/vals-operator)
 
 For discussion, see [#1364](https://github.com/argoproj/argo-cd/issues/1364)
 

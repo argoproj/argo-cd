@@ -1,9 +1,18 @@
+# `argocd proj deny-namespace-resource` Command Reference
+
 ## argocd proj deny-namespace-resource
 
 Adds a namespaced API resource to the deny list or removes a namespaced API resource from the allow list
 
 ```
 argocd proj deny-namespace-resource PROJECT GROUP KIND [flags]
+```
+
+### Examples
+
+```
+  # Adds a namespaced API resource with specified GROUP and KIND from the deny list or removes a namespaced API resource from the allow list for project PROJECT
+  argocd proj deny-namespace-resource PROJECT GROUP KIND
 ```
 
 ### Options

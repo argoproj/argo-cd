@@ -1,3 +1,5 @@
+# `argocd appset delete` Command Reference
+
 ## argocd appset delete
 
 Delete one or more ApplicationSets

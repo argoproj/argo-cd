@@ -1,9 +1,18 @@
+# `argocd proj remove-destination` Command Reference
+
 ## argocd proj remove-destination
 
 Remove project destination
 
 ```
 argocd proj remove-destination PROJECT SERVER NAMESPACE [flags]
+```
+
+### Examples
+
+```
+  # Remove the destination (SERVER) from the specified namespace (NAMESPACE) on the project with name PROJECT
+  argocd proj remove-destination PROJECT SERVER NAMESPACE
 ```
 
 ### Options

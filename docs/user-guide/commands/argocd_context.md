@@ -1,9 +1,24 @@
+# `argocd context` Command Reference
+
 ## argocd context
 
 Switch between contexts
 
 ```
 argocd context [CONTEXT] [flags]
+```
+
+### Examples
+
+```
+# List Argo CD Contexts
+argocd context
+
+# Switch Argo CD context
+argocd context cd.argoproj.io
+
+# Delete Argo CD context
+argocd context cd.argoproj.io --delete
 ```
 
 ### Options

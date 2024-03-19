@@ -1,9 +1,18 @@
+# `argocd proj role create` Command Reference
+
 ## argocd proj role create
 
 Create a project role
 
 ```
 argocd proj role create PROJECT ROLE-NAME [flags]
+```
+
+### Examples
+
+```
+  # Create a project role in the "my-project" project with the name "my-role".
+  argocd proj role create my-project my-role --description "My project role description"
 ```
 
 ### Options

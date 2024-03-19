@@ -1,3 +1,5 @@
+# `argocd admin app diff-reconcile-results` Command Reference
+
 ## argocd admin app diff-reconcile-results
 
 Compare results of two reconciliations and print diff.

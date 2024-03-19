@@ -325,7 +325,12 @@ export const deletePodAction = async (pod: appModels.Pod, appContext: AppContext
 };
 
 export const deletePopup = async (ctx: ContextApis, resource: ResourceTreeNode, application: appModels.Application, appChanged?: BehaviorSubject<appModels.Application>) => {
-    const isManaged = !!resource.status;
+    function isTopLevelResource(res: ResourceTreeNode, app: appModels.Application): boolean {
+        const uniqRes = `/${res.namespace}/${res.group}/${res.kind}/${res.name}`;
+        return app.status.resources.some(resStatus => `/${resStatus.namespace}/${resStatus.group}/${resStatus.kind}/${resStatus.name}` === uniqRes);
+    }
+
+    const isManaged = isTopLevelResource(resource, application);
     const deleteOptions = {
         option: 'foreground'
     };
@@ -361,7 +366,7 @@ export const deletePopup = async (ctx: ContextApis, resource: ResourceTreeNode, 
                     </label>
                     <input type='radio' name='deleteOptions' value='force' onChange={() => handleStateChange('force')} style={{marginRight: '5px'}} id='force-delete-radio' />
                     <label htmlFor='force-delete-radio' style={{paddingRight: '30px'}}>
-                        Force Delete {helpTip('Deletes the resource and its dependent resources in the background')}
+                        Background Delete {helpTip('Performs a forceful "background cascading deletion" of the resource and its dependent resources')}
                     </label>
                     <input type='radio' name='deleteOptions' value='orphan' onChange={() => handleStateChange('orphan')} style={{marginRight: '5px'}} id='cascade-delete-radio' />
                     <label htmlFor='cascade-delete-radio'>Non-cascading (Orphan) Delete {helpTip('Deletes the resource and orphans the dependent resources')}</label>
@@ -473,8 +478,8 @@ function getActionItems(
     const execAction = services.authService
         .settings()
         .then(async settings => {
-            const execAllowed = await services.accounts.canI('exec', 'create', application.spec.project + '/' + application.metadata.name);
-            if (resource.kind === 'Pod' && settings.execEnabled && execAllowed) {
+            const execAllowed = settings.execEnabled && (await services.accounts.canI('exec', 'create', application.spec.project + '/' + application.metadata.name));
+            if (resource.kind === 'Pod' && execAllowed) {
                 return [
                     {
                         title: 'Exec',

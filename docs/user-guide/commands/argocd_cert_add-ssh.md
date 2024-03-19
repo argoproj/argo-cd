@@ -1,3 +1,5 @@
+# `argocd cert add-ssh` Command Reference
+
 ## argocd cert add-ssh
 
 Add SSH known host entries for repository servers

@@ -1,3 +1,5 @@
+# `argocd admin repo generate-spec` Command Reference
+
 ## argocd admin repo generate-spec
 
 Generate declarative config for a repo

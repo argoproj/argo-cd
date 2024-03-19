@@ -1,9 +1,21 @@
+# `argocd proj get` Command Reference
+
 ## argocd proj get
 
 Get project details
 
 ```
 argocd proj get PROJECT [flags]
+```
+
+### Examples
+
+```
+  # Get details from project PROJECT
+  argocd proj get PROJECT
+  
+  # Get details from project PROJECT in yaml format
+  argocd proj get PROJECT -o yaml
 ```
 
 ### Options

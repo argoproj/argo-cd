@@ -1,9 +1,40 @@
+# `argocd proj role remove-policy` Command Reference
+
 ## argocd proj role remove-policy
 
 Remove a policy from a role within a project
 
 ```
 argocd proj role remove-policy PROJECT ROLE-NAME [flags]
+```
+
+### Examples
+
+```
+List the policy of the test-role before removing a policy
+$ argocd proj role get test-project test-role
+Role Name:     test-role
+Description:
+Policies:
+p, proj:test-project:test-role, projects, get, test-project, allow
+p, proj:test-project:test-role, applications, update, test-project/project, allow
+JWT Tokens:
+ID          ISSUED-AT                                EXPIRES-AT
+1696759698  2023-10-08T11:08:18+01:00 (3 hours ago)  <none>
+
+# Remove the policy to allow update to objects
+$ argocd proj role remove-policy test-project test-role -a update -p allow -o project
+
+# The role should be removed now.
+$ argocd proj role get test-project test-role
+Role Name:     test-role
+Description:
+Policies:
+p, proj:test-project:test-role, projects, get, test-project, allow
+JWT Tokens:
+ID          ISSUED-AT                                EXPIRES-AT
+1696759698  2023-10-08T11:08:18+01:00 (4 hours ago)  <none>
+
 ```
 
 ### Options

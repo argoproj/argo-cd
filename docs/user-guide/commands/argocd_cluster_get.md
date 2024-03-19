@@ -1,3 +1,5 @@
+# `argocd cluster get` Command Reference
+
 ## argocd cluster get
 
 Get cluster information
