@@ -2,6 +2,7 @@ package git
 
 import (
 	"crypto/tls"
+	"errors"
 	"fmt"
 	"math"
 	"net/http"
@@ -15,6 +16,8 @@ import (
 	"strings"
 	"syscall"
 	"time"
+
+	"github.com/Masterminds/semver/v3"
 
 	argoexec "github.com/argoproj/pkg/exec"
 	"github.com/bmatcuk/doublestar/v4"
@@ -576,11 +579,11 @@ func (m *nativeGitClient) LsRefs() (*Refs, error) {
 	return sortedRefs, nil
 }
 
-// LsRemote resolves the commit SHA of a specific branch, tag, or HEAD. If the supplied revision
-// does not resolve, and "looks" like a 7+ hexadecimal commit SHA, it return the revision string.
-// Otherwise, it returns an error indicating that the revision could not be resolved. This method
-// runs with in-memory storage and is safe to run concurrently, or to be run without a git
-// repository locally cloned.
+// LsRemote resolves the commit SHA of a specific branch, tag (with semantic versioning or not),
+// or HEAD. If the supplied revision does not resolve, and "looks" like a 7+ hexadecimal commit SHA,
+// it will return the revision string. Otherwise, it returns an error indicating that the revision could
+// not be resolved. This method runs with in-memory storage and is safe to run concurrently,
+// or to be run without a git repository locally cloned.
 func (m *nativeGitClient) LsRemote(revision string) (res string, err error) {
 	for attempt := 0; attempt < maxAttemptsCount; attempt++ {
 		res, err = m.lsRemote(revision)
@@ -607,19 +610,27 @@ func (m *nativeGitClient) lsRemote(revision string) (string, error) {
 	}
 
 	refs, err := m.getRefs()
-
 	if err != nil {
 		return "", err
 	}
+
 	if revision == "" {
 		revision = "HEAD"
 	}
+
+	semverSha, ok := m.resolveSemverRevision(revision, refs)
+	if ok {
+		return semverSha, nil
+	}
+
 	// refToHash keeps a maps of remote refs to their hash
 	// (e.g. refs/heads/master -> a67038ae2e9cb9b9b16423702f98b41e36601001)
 	refToHash := make(map[string]string)
+
 	// refToResolve remembers ref name of the supplied revision if we determine the revision is a
 	// symbolic reference (like HEAD), in which case we will resolve it from the refToHash map
 	refToResolve := ""
+
 	for _, ref := range refs {
 		refName := ref.Name().String()
 		hash := ref.Hash().String()
@@ -637,6 +648,7 @@ func (m *nativeGitClient) lsRemote(revision string) (string, error) {
 			}
 		}
 	}
+
 	if refToResolve != "" {
 		// If refToResolve is non-empty, we are resolving symbolic reference (e.g. HEAD).
 		// It should exist in our refToHash map
@@ -645,14 +657,63 @@ func (m *nativeGitClient) lsRemote(revision string) (string, error) {
 			return hash, nil
 		}
 	}
+
 	// We support the ability to use a truncated commit-SHA (e.g. first 7 characters of a SHA)
 	if IsTruncatedCommitSHA(revision) {
 		log.Debugf("revision '%s' assumed to be commit sha", revision)
 		return revision, nil
 	}
+
 	// If we get here, revision string had non hexadecimal characters (indicating its a branch, tag,
 	// or symbolic ref) and we were unable to resolve it to a commit SHA.
 	return "", fmt.Errorf("Unable to resolve '%s' to a commit SHA", revision)
+}
+
+func (m *nativeGitClient) resolveSemverRevision(revision string, refs []*plumbing.Reference) (string, bool) {
+	constraint, err := semver.NewConstraint(revision)
+	if err != nil {
+		return "", false
+	}
+
+	versions := make(map[string]*semver.Version)
+	for _, ref := range refs {
+		if !ref.Name().IsTag() {
+			continue
+		}
+
+		tag := ref.Name().Short()
+		version, err := semver.NewVersion(tag)
+		if err != nil {
+			if errors.Is(err, semver.ErrInvalidSemVer) {
+				log.Debugf("Invalid semantic version: %s", tag)
+				continue
+			}
+
+			log.Debugf("invalid constraint in tags: %s", err.Error())
+
+			return "", false
+		}
+
+		if constraint.Check(version) {
+			versions[ref.Hash().String()] = version
+		}
+	}
+
+	// Only if versions has items we're going to iterate, otherwise it'll follow the normal flow.
+	if len(versions) != 0 {
+		maxVersion := semver.New(0, 0, 0, "", "")
+		maxVersionHash := plumbing.ZeroHash.String()
+		for hash, version := range versions {
+			if version.GreaterThan(maxVersion) {
+				maxVersion = version
+				maxVersionHash = hash
+			}
+		}
+
+		return maxVersionHash, true
+	}
+
+	return "", false
 }
 
 // CommitSHA returns current commit sha from `git rev-parse HEAD`
