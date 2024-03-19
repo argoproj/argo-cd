@@ -1173,3 +1173,42 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 		assert.ErrorIs(t, err, common.TokenVerificationErr)
 	})
 }
+
+func Test_PickFailureAttemptWhenOverflowed(t *testing.T) {
+	t.Run("Not pick admin user from the queue", func(t *testing.T) {
+		failures := map[string]LoginAttempts{
+			"admin": {
+				FailCount: 1,
+			},
+			"test2": {
+				FailCount: 1,
+			},
+		}
+
+		// inside pickRandomNonAdminLoginFailure, it uses random, so we need to test it multiple times
+		for i := 0; i < 1000; i++ {
+			user := pickRandomNonAdminLoginFailure(failures, "test")
+			assert.Equal(t, "test2", *user)
+		}
+	})
+
+	t.Run("Not pick admin user and current user from the queue", func(t *testing.T) {
+		failures := map[string]LoginAttempts{
+			"test": {
+				FailCount: 1,
+			},
+			"admin": {
+				FailCount: 1,
+			},
+			"test2": {
+				FailCount: 1,
+			},
+		}
+
+		// inside pickRandomNonAdminLoginFailure, it uses random, so we need to test it multiple times
+		for i := 0; i < 1000; i++ {
+			user := pickRandomNonAdminLoginFailure(failures, "test")
+			assert.Equal(t, "test2", *user)
+		}
+	})
+}
