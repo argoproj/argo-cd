@@ -24,7 +24,7 @@ argocd cluster list -o json --server <ARGOCD_SERVER_ADDRESS>
 # List Clusters in YAML Format
 argocd cluster list -o yaml --server <ARGOCD_SERVER_ADDRESS>
 
-# List Clusters that have been added to your Argo CD 
+# List Clusters that have been added to your Argo CD
 argocd cluster list -o server <ARGOCD_SERVER_ADDRESS>
 
 

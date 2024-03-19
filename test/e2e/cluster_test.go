@@ -256,7 +256,7 @@ func TestClusterDeleteDenied(t *testing.T) {
 		DeleteByName().
 		Then().
 		AndCLIOutput(func(output string, err error) {
-			assert.True(t, strings.Contains(err.Error(), "PermissionDenied desc = permission denied: clusters, delete"))
+			assert.Contains(t, err.Error(), "PermissionDenied desc = permission denied: clusters, delete")
 		})
 
 	// Attempt to remove cluster creds by server
@@ -270,7 +270,7 @@ func TestClusterDeleteDenied(t *testing.T) {
 		DeleteByServer().
 		Then().
 		AndCLIOutput(func(output string, err error) {
-			assert.True(t, strings.Contains(err.Error(), "PermissionDenied desc = permission denied: clusters, delete"))
+			assert.Contains(t, err.Error(), "PermissionDenied desc = permission denied: clusters, delete")
 		})
 }
 
@@ -344,4 +344,34 @@ func TestClusterDelete(t *testing.T) {
 	if err == nil {
 		t.Errorf("Expected error from not finding clusterrolebinding argocd-manager-role-binding but got:\n%s", output)
 	}
+}
+
+func TestClusterDeleteInternalDenied(t *testing.T) {
+	accountFixture.Given(t).
+		Name("test-account").
+		Project(ProjectName).
+		When().
+		Create().
+		Login().
+		SetPermissions([]fixture.ACL{
+			{
+				Resource: "clusters",
+				Action:   "delete",
+				Scope:    ProjectName + "/*",
+			},
+		}, "org-admin")
+
+	clusterFixture.
+		GivenWithSameState(t).
+		Name("test-account").
+		Project(ProjectName).
+		Upsert(true).
+		Server(KubernetesInternalAPIServerAddr).
+		When().
+		Get().
+		DeleteByName().
+		Then().
+		AndCLIOutput(func(output string, err error) {
+			assert.Contains(t, err.Error(), "The 'in-cluster' cannot be removed. To disable it, set 'cluster.inClusterEnabled: \"false\"' in the argocd-cm ConfigMap.")
+		})
 }
