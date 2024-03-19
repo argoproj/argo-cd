@@ -142,6 +142,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.RetryStrategy":                           schema_pkg_apis_application_v1alpha1_RetryStrategy(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.RevisionHistory":                         schema_pkg_apis_application_v1alpha1_RevisionHistory(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.RevisionMetadata":                        schema_pkg_apis_application_v1alpha1_RevisionMetadata(ref),
+		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.RevisionSignatureInfo":                   schema_pkg_apis_application_v1alpha1_RevisionSignatureInfo(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SCMProviderGenerator":                    schema_pkg_apis_application_v1alpha1_SCMProviderGenerator(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SCMProviderGeneratorAWSCodeCommit":       schema_pkg_apis_application_v1alpha1_SCMProviderGeneratorAWSCodeCommit(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SCMProviderGeneratorAzureDevOps":         schema_pkg_apis_application_v1alpha1_SCMProviderGeneratorAzureDevOps(ref),
@@ -153,6 +154,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SCMProviderGeneratorGitlab":              schema_pkg_apis_application_v1alpha1_SCMProviderGeneratorGitlab(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SecretRef":                               schema_pkg_apis_application_v1alpha1_SecretRef(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SignatureKey":                            schema_pkg_apis_application_v1alpha1_SignatureKey(ref),
+		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SourceVerificationPolicy":                schema_pkg_apis_application_v1alpha1_SourceVerificationPolicy(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SyncOperation":                           schema_pkg_apis_application_v1alpha1_SyncOperation(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SyncOperationResource":                   schema_pkg_apis_application_v1alpha1_SyncOperationResource(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SyncOperationResult":                     schema_pkg_apis_application_v1alpha1_SyncOperationResult(ref),
@@ -6695,6 +6697,28 @@ func schema_pkg_apis_application_v1alpha1_RevisionHistory(ref common.ReferenceCa
 							Description: "InitiatedBy contains information about who initiated the operations",
 							Default:     map[string]interface{}{},
 							Ref:         ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.OperationInitiator"),
+						},
+					},
+					"revisionSignature": {
+						SchemaProps: spec.SchemaProps{
+							Description: "RevisionSignature is a signature of the Revision field",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"revisionSignatures": {
+						SchemaProps: spec.SchemaProps{
+							Description: "RevisionSignatures is a signature of the Revisions field",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
 						},
 					},
 				},

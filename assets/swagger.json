@@ -8900,7 +8900,7 @@
       "properties": {
         "bootstrapPeriod": {
           "description": "BootstraPeriod defines the period in which an app may bootstrap when at progressive level. 0 to disable.",
-          "type": "string",
+          "type": "integer",
           "format": "int64"
         },
         "repositoryPattern": {

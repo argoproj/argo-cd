@@ -3697,6 +3697,11 @@ func (in *RevisionHistory) DeepCopyInto(out *RevisionHistory) {
 		copy(*out, *in)
 	}
 	out.InitiatedBy = in.InitiatedBy
+	if in.RevisionSignatures != nil {
+		in, out := &in.RevisionSignatures, &out.RevisionSignatures
+		*out = make([]string, len(*in))
+		copy(*out, *in)
+	}
 	return
 }
 

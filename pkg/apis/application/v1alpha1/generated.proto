@@ -1908,6 +1908,12 @@ message RevisionHistory {
 
   // InitiatedBy contains information about who initiated the operations
   optional OperationInitiator initiatedBy = 10;
+
+  // RevisionSignature is a signature of the Revision field
+  optional string revisionSignature = 11;
+
+  // RevisionSignatures is a signature of the Revisions field
+  repeated string revisionSignatures = 12;
 }
 
 // RevisionMetadata contains metadata for a specific revision in a Git repository
