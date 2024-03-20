@@ -23,6 +23,14 @@ KUBECTL_VERSION=$(shell go list -m k8s.io/client-go | head -n 1 | rev | cut -d' 
 GOPATH?=$(shell if test -x `which go`; then go env GOPATH; else echo "$(HOME)/go"; fi)
 GOCACHE?=$(HOME)/.cache/go-build
 
+# Docker command to use
+DOCKER?=docker
+ifeq ($(DOCKER),podman)
+PODMAN_ARGS=--userns keep-id
+else
+PODMAN_ARGS=
+endif
+
 DOCKER_SRCDIR?=$(GOPATH)/src
 DOCKER_WORKDIR?=/go/src/github.com/argoproj/argo-cd
 
@@ -76,7 +84,7 @@ SUDO?=
 # Runs any command in the argocd-test-utils container in server mode
 # Server mode container will start with uid 0 and drop privileges during runtime
 define run-in-test-server
-	$(SUDO) docker run --rm -it \
+	$(SUDO) $(DOCKER) run --rm -it \
 		--name argocd-test-server \
 		-u $(CONTAINER_UID):$(CONTAINER_GID) \
 		-e USER_ID=$(CONTAINER_UID) \
@@ -101,13 +109,14 @@ define run-in-test-server
 		-p ${ARGOCD_E2E_APISERVER_PORT}:8080 \
 		-p 4000:4000 \
 		-p 5000:5000 \
+		$(PODMAN_ARGS) \
 		$(TEST_TOOLS_PREFIX)$(TEST_TOOLS_IMAGE):$(TEST_TOOLS_TAG) \
 		bash -c "$(1)"
 endef
 
 # Runs any command in the argocd-test-utils container in client mode
 define run-in-test-client
-	$(SUDO) docker run --rm -it \
+	$(SUDO) $(DOCKER) run --rm -it \
 	  --name argocd-test-client \
 		-u $(CONTAINER_UID):$(CONTAINER_GID) \
 		-e HOME=/home/user \
@@ -122,13 +131,14 @@ define run-in-test-client
 		-v ${HOME}/.kube:/home/user/.kube${VOLUME_MOUNT} \
 		-v /tmp:/tmp${VOLUME_MOUNT} \
 		-w ${DOCKER_WORKDIR} \
+		$(PODMAN_ARGS) \
 		$(TEST_TOOLS_PREFIX)$(TEST_TOOLS_IMAGE):$(TEST_TOOLS_TAG) \
 		bash -c "$(1)"
 endef
 
 #
 define exec-in-test-server
-	$(SUDO) docker exec -it -u $(CONTAINER_UID):$(CONTAINER_GID) -e ARGOCD_E2E_RECORD=$(ARGOCD_E2E_RECORD) -e ARGOCD_E2E_K3S=$(ARGOCD_E2E_K3S) argocd-test-server $(1)
+	$(SUDO) $(DOCKER) exec -it -u $(CONTAINER_UID):$(CONTAINER_GID) -e ARGOCD_E2E_RECORD=$(ARGOCD_E2E_RECORD) -e ARGOCD_E2E_K3S=$(ARGOCD_E2E_K3S) argocd-test-server $(1)
 endef
 
 PATH:=$(PATH):$(PWD)/hack
@@ -249,8 +259,8 @@ release-cli: clean-debug build-ui
 .PHONY: test-tools-image
 test-tools-image:
 ifndef SKIP_TEST_TOOLS_IMAGE
-	$(SUDO) docker build --build-arg UID=$(CONTAINER_UID) -t $(TEST_TOOLS_PREFIX)$(TEST_TOOLS_IMAGE) -f test/container/Dockerfile .
-	$(SUDO) docker tag $(TEST_TOOLS_PREFIX)$(TEST_TOOLS_IMAGE) $(TEST_TOOLS_PREFIX)$(TEST_TOOLS_IMAGE):$(TEST_TOOLS_TAG)
+	$(SUDO) $(DOCKER) build --build-arg UID=$(CONTAINER_UID) -t $(TEST_TOOLS_PREFIX)$(TEST_TOOLS_IMAGE) -f test/container/Dockerfile .
+	$(SUDO) $(DOCKER) tag $(TEST_TOOLS_PREFIX)$(TEST_TOOLS_IMAGE) $(TEST_TOOLS_PREFIX)$(TEST_TOOLS_IMAGE):$(TEST_TOOLS_TAG)
 endif
 
 .PHONY: manifests-local
@@ -280,9 +290,9 @@ controller:
 
 .PHONY: build-ui
 build-ui:
-	DOCKER_BUILDKIT=1 docker build -t argocd-ui --platform=$(TARGET_ARCH) --target argocd-ui .
+	DOCKER_BUILDKIT=1 $(DOCKER) build -t argocd-ui --platform=$(TARGET_ARCH) --target argocd-ui .
 	find ./ui/dist -type f -not -name gitkeep -delete
-	docker run -v ${CURRENT_DIR}/ui/dist/app:/tmp/app --rm -t argocd-ui sh -c 'cp -r ./dist/app/* /tmp/app/'
+	$(DOCKER) run -v ${CURRENT_DIR}/ui/dist/app:/tmp/app --rm -t argocd-ui sh -c 'cp -r ./dist/app/* /tmp/app/'
 
 .PHONY: image
 ifeq ($(DEV_IMAGE), true)
@@ -291,7 +301,7 @@ ifeq ($(DEV_IMAGE), true)
 # the dist directory is under .dockerignore.
 IMAGE_TAG="dev-$(shell git describe --always --dirty)"
 image: build-ui
-	DOCKER_BUILDKIT=1 docker build --platform=$(TARGET_ARCH) -t argocd-base --target argocd-base .
+	DOCKER_BUILDKIT=1 $(DOCKER) build --platform=$(TARGET_ARCH) -t argocd-base --target argocd-base .
 	CGO_ENABLED=${CGO_FLAG} GOOS=linux GOARCH=amd64 GODEBUG="tarinsecurepath=0,zipinsecurepath=0" go build -v -ldflags '${LDFLAGS}' -o ${DIST_DIR}/argocd ./cmd
 	ln -sfn ${DIST_DIR}/argocd ${DIST_DIR}/argocd-server
 	ln -sfn ${DIST_DIR}/argocd ${DIST_DIR}/argocd-application-controller
@@ -299,21 +309,21 @@ image: build-ui
 	ln -sfn ${DIST_DIR}/argocd ${DIST_DIR}/argocd-cmp-server
 	ln -sfn ${DIST_DIR}/argocd ${DIST_DIR}/argocd-dex
 	cp Dockerfile.dev dist
-	DOCKER_BUILDKIT=1 docker build --platform=$(TARGET_ARCH) -t $(IMAGE_PREFIX)argocd:$(IMAGE_TAG) -f dist/Dockerfile.dev dist
+	DOCKER_BUILDKIT=1 $(DOCKER) build --platform=$(TARGET_ARCH) -t $(IMAGE_PREFIX)argocd:$(IMAGE_TAG) -f dist/Dockerfile.dev dist
 else
 image:
-	DOCKER_BUILDKIT=1 docker build -t $(IMAGE_PREFIX)argocd:$(IMAGE_TAG) --platform=$(TARGET_ARCH) .
+	DOCKER_BUILDKIT=1 $(DOCKER) build -t $(IMAGE_PREFIX)argocd:$(IMAGE_TAG) --platform=$(TARGET_ARCH) .
 endif
-	@if [ "$(DOCKER_PUSH)" = "true" ] ; then docker push $(IMAGE_PREFIX)argocd:$(IMAGE_TAG) ; fi
+	@if [ "$(DOCKER_PUSH)" = "true" ] ; then $(DOCKER) push $(IMAGE_PREFIX)argocd:$(IMAGE_TAG) ; fi
 
 .PHONY: armimage
 armimage:
-	docker build -t $(IMAGE_PREFIX)argocd:$(IMAGE_TAG)-arm .
+	$(DOCKER) build -t $(IMAGE_PREFIX)argocd:$(IMAGE_TAG)-arm .
 
 .PHONY: builder-image
 builder-image:
-	docker build  -t $(IMAGE_PREFIX)argo-cd-ci-builder:$(IMAGE_TAG) --target builder .
-	@if [ "$(DOCKER_PUSH)" = "true" ] ; then docker push $(IMAGE_PREFIX)argo-cd-ci-builder:$(IMAGE_TAG) ; fi
+	$(DOCKER) build  -t $(IMAGE_PREFIX)argo-cd-ci-builder:$(IMAGE_TAG) --target builder .
+	@if [ "$(DOCKER_PUSH)" = "true" ] ; then $(DOCKER) push $(IMAGE_PREFIX)argo-cd-ci-builder:$(IMAGE_TAG) ; fi
 
 .PHONY: mod-download
 mod-download: test-tools-image
@@ -424,7 +434,7 @@ debug-test-client: test-tools-image
 # Starts e2e server in a container
 .PHONY: start-e2e
 start-e2e: test-tools-image
-	docker version
+	$(DOCKER) version
 	mkdir -p ${GOCACHE}
 	$(call run-in-test-server,make ARGOCD_PROCFILE=test/container/Procfile start-e2e-local)
 
@@ -471,7 +481,7 @@ clean: clean-debug
 
 .PHONY: start
 start: test-tools-image
-	docker version
+	$(DOCKER) version
 	$(call run-in-test-server,make ARGOCD_PROCFILE=test/container/Procfile start-local ARGOCD_START=${ARGOCD_START})
 
 # Starts a local instance of ArgoCD
@@ -521,7 +531,7 @@ build-docs-local:
 
 .PHONY: build-docs
 build-docs:
-	docker run ${MKDOCS_RUN_ARGS} --rm -it -v ${CURRENT_DIR}:/docs -w /docs --entrypoint "" ${MKDOCS_DOCKER_IMAGE} sh -c 'pip install -r docs/requirements.txt; mkdocs build'
+	$(DOCKER) run ${MKDOCS_RUN_ARGS} --rm -it -v ${CURRENT_DIR}:/docs -w /docs --entrypoint "" ${MKDOCS_DOCKER_IMAGE} sh -c 'pip install -r docs/requirements.txt; mkdocs build'
 
 .PHONY: serve-docs-local
 serve-docs-local:
@@ -529,7 +539,7 @@ serve-docs-local:
 
 .PHONY: serve-docs
 serve-docs:
-	docker run ${MKDOCS_RUN_ARGS} --rm -it -p 8000:8000 -v ${CURRENT_DIR}:/docs -w /docs --entrypoint "" ${MKDOCS_DOCKER_IMAGE} sh -c 'pip install -r docs/requirements.txt; mkdocs serve -a $$(ip route get 1 | awk '\''{print $$7}'\''):8000'
+	$(DOCKER) run ${MKDOCS_RUN_ARGS} --rm -it -p 8000:8000 -v ${CURRENT_DIR}:/docs -w /docs --entrypoint "" ${MKDOCS_DOCKER_IMAGE} sh -c 'pip install -r docs/requirements.txt; mkdocs serve -a $$(ip route get 1 | awk '\''{print $$7}'\''):8000'
 
 # Verify that kubectl can connect to your K8s cluster from Docker
 .PHONY: verify-kube-connect
