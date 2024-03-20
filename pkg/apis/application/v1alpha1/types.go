@@ -230,9 +230,12 @@ func (a *ApplicationSpec) HasMultipleSources() bool {
 	return a.Sources != nil && len(a.Sources) > 0
 }
 
-func (a *ApplicationSpec) GetSourcePtr() *ApplicationSource {
+func (a *ApplicationSpec) GetSourcePtr(index int) *ApplicationSource {
 	// if Application has multiple sources, return the first source in sources
 	if a.HasMultipleSources() {
+		if index > 0 {
+			return &a.Sources[index-1]
+		}
 		return &a.Sources[0]
 	}
 	return a.Source
@@ -469,6 +472,8 @@ type ApplicationSourceKustomize struct {
 	Patches KustomizePatches `json:"patches,omitempty" protobuf:"bytes,12,opt,name=patches"`
 	// Components specifies a list of kustomize components to add to the kustomization before building
 	Components []string `json:"components,omitempty" protobuf:"bytes,13,rep,name=components"`
+	//LabelWithoutSelector specifies whether to apply common labels to resource selectors or not
+	LabelWithoutSelector bool `json:"labelWithoutSelector,omitempty" protobuf:"bytes,14,opt,name=labelWithoutSelector"`
 }
 
 type KustomizeReplica struct {

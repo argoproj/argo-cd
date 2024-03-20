@@ -8,7 +8,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	executil "github.com/argoproj/argo-cd/v2/util/exec"
 	"io"
 	"net/http"
 	"net/url"
@@ -18,6 +17,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	executil "github.com/argoproj/argo-cd/v2/util/exec"
 
 	"github.com/argoproj/pkg/sync"
 	log "github.com/sirupsen/logrus"
@@ -34,6 +35,8 @@ import (
 var (
 	globalLock = sync.NewKeyLock()
 	indexLock  = sync.NewKeyLock()
+
+	OCINotEnabledErr = errors.New("could not perform the action when oci is not enabled")
 )
 
 type Creds struct {
@@ -401,6 +404,10 @@ func getIndexURL(rawURL string) (string, error) {
 }
 
 func (c *nativeHelmChart) GetTags(chart string, noCache bool) (*TagsList, error) {
+	if !c.enableOci {
+		return nil, OCINotEnabledErr
+	}
+
 	tagsURL := strings.Replace(fmt.Sprintf("%s/%s", c.repoURL, chart), "https://", "", 1)
 	indexLock.Lock(tagsURL)
 	defer indexLock.Unlock(tagsURL)
@@ -428,10 +435,12 @@ func (c *nativeHelmChart) GetTags(chart string, noCache bool) (*TagsList, error)
 			TLSClientConfig:   tlsConf,
 			DisableKeepAlives: true,
 		}}
+
+		repoHost, _, _ := strings.Cut(tagsURL, "/")
 		repo.Client = &auth.Client{
 			Client: client,
 			Cache:  nil,
-			Credential: auth.StaticCredential(c.repoURL, auth.Credential{
+			Credential: auth.StaticCredential(repoHost, auth.Credential{
 				Username: c.creds.Username,
 				Password: c.creds.Password,
 			}),
