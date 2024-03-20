@@ -422,8 +422,8 @@ func TestFormatSyncPolicy(t *testing.T) {
 
 		policy := formatSyncPolicy(app)
 
-		if policy != "<none>" {
-			t.Fatalf("Incorrect policy %q, should be <none>", policy)
+		if policy != "Manual" {
+			t.Fatalf("Incorrect policy %q, should be Manual", policy)
 		}
 	})
 
@@ -1428,7 +1428,7 @@ func TestPrintApplicationTableNotWide(t *testing.T) {
 		return nil
 	})
 	assert.NoError(t, err)
-	expectation := "NAME      CLUSTER                NAMESPACE  PROJECT  STATUS     HEALTH   SYNCPOLICY  CONDITIONS\napp-name  http://localhost:8080  default    prj      OutOfSync  Healthy  <none>      <none>\napp-name  http://localhost:8080  default    prj      OutOfSync  Healthy  <none>      <none>\n"
+	expectation := "NAME      CLUSTER                NAMESPACE  PROJECT  STATUS     HEALTH   SYNCPOLICY  CONDITIONS\napp-name  http://localhost:8080  default    prj      OutOfSync  Healthy  Manual      <none>\napp-name  http://localhost:8080  default    prj      OutOfSync  Healthy  Manual      <none>\n"
 	assert.Equal(t, output, expectation)
 }
 
@@ -1464,7 +1464,7 @@ func TestPrintApplicationTableWide(t *testing.T) {
 		return nil
 	})
 	assert.NoError(t, err)
-	expectation := "NAME      CLUSTER                NAMESPACE  PROJECT  STATUS     HEALTH   SYNCPOLICY  CONDITIONS  REPO                                             PATH       TARGET\napp-name  http://localhost:8080  default    prj      OutOfSync  Healthy  <none>      <none>      https://github.com/argoproj/argocd-example-apps  guestbook  123\napp-name  http://localhost:8080  default    prj      OutOfSync  Healthy  <none>      <none>      https://github.com/argoproj/argocd-example-apps  guestbook  123\n"
+	expectation := "NAME      CLUSTER                NAMESPACE  PROJECT  STATUS     HEALTH   SYNCPOLICY  CONDITIONS  REPO                                             PATH       TARGET\napp-name  http://localhost:8080  default    prj      OutOfSync  Healthy  Manual      <none>      https://github.com/argoproj/argocd-example-apps  guestbook  123\napp-name  http://localhost:8080  default    prj      OutOfSync  Healthy  Manual      <none>      https://github.com/argoproj/argocd-example-apps  guestbook  123\n"
 	assert.Equal(t, output, expectation)
 }
 
