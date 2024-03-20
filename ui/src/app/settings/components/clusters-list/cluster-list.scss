@@ -1,0 +1,25 @@
+@import 'node_modules/argo-ui/src/styles/config';
+@import 'node_modules/argo-ui/src/styles/theme';
+
+
+.help-text {
+    color: $argo-color-gray-8;
+    @include themify($themes) {
+        color: themed('text-2');
+    }
+    a {
+        color: #007bff; /* Blue color for the link */
+        @include themify($themes) {
+            color: themed('light-argo-teal-7');
+        }
+        text-decoration: none; /* Remove default underline */
+        transition: color 0.3s ease; /* Smooth transition for color change */
+
+        &:hover {
+            color: #0056b3; /* Darker blue color on hover */
+            @include themify($themes) {
+                color: themed('light-argo-teal-5');
+            }
+        }
+    }
+}
