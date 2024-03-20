@@ -1,0 +1,32 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ttyd
+  labels:
+      app.kubernetes.io/managed-by: Bunnyshell
+spec:
+    selector:
+      matchLabels:
+        app.kubernetes.io/name: ttyd
+    template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: ttyd
+        spec:
+          containers:
+          - name: ttyd
+            image: argocd-ttyd-image
+            command:
+              - /bin/bash
+            args:
+              - -c
+              - "./login.sh && ttyd -p 80 -c admin:$ARGOCD_PASS --check-origin bash"
+            env:
+              - name: ARGOCD_PASS
+                value: %ARGOCD_PASS%
+              - name: ARGOCD_INITIAL_PASS
+                value: %ARGOCD_INITIAL_PASS%
+              - name: ARGOCD_SERVER
+                value: %ARGOCD_SERVER%
+            ports:
+              - containerPort: 80
