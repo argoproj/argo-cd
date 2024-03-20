@@ -95,6 +95,7 @@ func mapToEditAddArgs(val map[string]string) []string {
 }
 
 func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOptions *v1alpha1.KustomizeOptions, envVars *v1alpha1.Env, namespace string) ([]*unstructured.Unstructured, []Image, error) {
+
 	env := os.Environ()
 	if envVars != nil {
 		env = append(env, envVars.Environ()...)
@@ -137,40 +138,6 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 			return nil, nil, err
 		}
 	}
-
-	env := os.Environ()
-	if envVars != nil {
-		env = append(env, envVars.Environ()...)
-	}
-
-	closer, environ, err := k.creds.Environ()
-	if err != nil {
-		return nil, nil, err
-	}
-	defer func() { _ = closer.Close() }()
-
-	// If we were passed a HTTPS URL, make sure that we also check whether there
-	// is a custom CA bundle configured for connecting to the server.
-	if k.repo != "" && git.IsHTTPSURL(k.repo) {
-		parsedURL, err := url.Parse(k.repo)
-		if err != nil {
-			log.Warnf("Could not parse URL %s: %v", k.repo, err)
-		} else {
-			caPath, err := certutil.GetCertBundlePathForRepository(parsedURL.Host)
-			if err != nil {
-				// Some error while getting CA bundle
-				log.Warnf("Could not get CA bundle path for %s: %v", parsedURL.Host, err)
-			} else if caPath == "" {
-				// No cert configured
-				log.Debugf("No caCert found for repo %s", parsedURL.Host)
-			} else {
-				// Make Git use CA bundle
-				environ = append(environ, fmt.Sprintf("GIT_SSL_CAINFO=%s", caPath))
-			}
-		}
-	}
-
-	env = append(env, environ...)
 
 	if opts != nil {
 		if opts.ForceNamespace && namespace != "" {
@@ -285,29 +252,6 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 			}
 		}
 
-		if len(opts.Components) > 0 {
-			// components only supported in kustomize >= v3.7.0
-			// https://github.com/kubernetes-sigs/kustomize/blob/master/examples/components.md
-			if getSemverSafe().LessThan(semver.MustParse("v3.7.0")) {
-				return nil, nil, fmt.Errorf("kustomize components require kustomize v3.7.0 and above")
-			}
-
-			// add components
-			args := []string{"edit", "add", "component"}
-			args = append(args, opts.Components...)
-			cmd := exec.Command(k.getBinaryPath(), args...)
-			cmd.Dir = k.path
-			cmd.Env = env
-			_, err := executil.Run(cmd)
-			if err != nil {
-				return nil, nil, err
-			}
-
-			data, _ := os.ReadFile(k.path + "/" + "kustomization.yaml")
-
-			log.Info("****", string(data), "****")
-		}
-
 		if len(opts.Patches) > 0 {
 			kustomizationPath := filepath.Join(k.path, "kustomization.yaml")
 			b, err := os.ReadFile(kustomizationPath)
@@ -383,40 +327,7 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 	} else {
 		cmd = exec.Command(k.getBinaryPath(), "build", k.path)
 	}
-
-	env = os.Environ()
-	if envVars != nil {
-		env = append(env, envVars.Environ()...)
-	}
 	cmd.Env = env
-	closer, environ, err = k.creds.Environ()
-	if err != nil {
-		return nil, nil, err
-	}
-	defer func() { _ = closer.Close() }()
-
-	// If we were passed a HTTPS URL, make sure that we also check whether there
-	// is a custom CA bundle configured for connecting to the server.
-	if k.repo != "" && git.IsHTTPSURL(k.repo) {
-		parsedURL, err := url.Parse(k.repo)
-		if err != nil {
-			log.Warnf("Could not parse URL %s: %v", k.repo, err)
-		} else {
-			caPath, err := certutil.GetCertBundlePathForRepository(parsedURL.Host)
-			if err != nil {
-				// Some error while getting CA bundle
-				log.Warnf("Could not get CA bundle path for %s: %v", parsedURL.Host, err)
-			} else if caPath == "" {
-				// No cert configured
-				log.Debugf("No caCert found for repo %s", parsedURL.Host)
-			} else {
-				// Make Git use CA bundle
-				environ = append(environ, fmt.Sprintf("GIT_SSL_CAINFO=%s", caPath))
-			}
-		}
-	}
-
-	cmd.Env = append(cmd.Env, environ...)
 	cmd.Dir = k.repoRoot
 	out, err := executil.Run(cmd)
 	if err != nil {
@@ -529,8 +440,7 @@ func getSemver() (*semver.Version, error) {
 
 // getSemverSafe returns parsed kustomize version;
 // if version cannot be parsed assumes that "kustomize version" output format changed again
-//
-//	and fallback to latest ( v99.99.99 )
+// and fallback to latest ( v99.99.99 )
 func getSemverSafe() *semver.Version {
 	if semVer == nil {
 		semVerLock.Lock()
