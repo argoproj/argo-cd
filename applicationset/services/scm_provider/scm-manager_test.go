@@ -137,7 +137,7 @@ func TestScmManagerListRepos(t *testing.T) {
 	defer ts.Close()
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			provider, _ := NewScmManagerProvider(context.Background(), "", ts.URL, c.allBranches, false)
+			provider, _ := NewScmManagerProvider(context.Background(), "", ts.URL, c.allBranches, false, "")
 			rawRepos, err := ListRepos(context.Background(), provider, c.filters, c.proto)
 			if c.hasError {
 				assert.NotNil(t, err)
@@ -166,7 +166,7 @@ func TestScmManagerHasPath(t *testing.T) {
 		scmManagerMockHandler(t)(w, r)
 	}))
 	defer ts.Close()
-	host, _ := NewScmManagerProvider(context.Background(), "", ts.URL, false, false)
+	host, _ := NewScmManagerProvider(context.Background(), "", ts.URL, false, false, "")
 	repo := &Repository{
 		Organization: "test-argocd",
 		Repository:   "pr-test",

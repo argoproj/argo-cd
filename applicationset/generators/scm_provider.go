@@ -228,7 +228,7 @@ func (g *SCMProviderGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha
 		if err != nil {
 			return nil, fmt.Errorf("error fetching SCM-Manager token: %v", err)
 		}
-		provider, err = scm_provider.NewScmManagerProvider(ctx, token, providerConfig.ScmManager.API, providerConfig.ScmManager.AllBranches, providerConfig.ScmManager.Insecure)
+		provider, err = scm_provider.NewScmManagerProvider(ctx, token, providerConfig.ScmManager.API, providerConfig.ScmManager.AllBranches, providerConfig.ScmManager.Insecure, g.scmRootCAPath)
 		if err != nil {
 			return nil, fmt.Errorf("error initializing SCM-Manager provider: %v", err)
 		}
