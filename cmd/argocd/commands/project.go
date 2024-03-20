@@ -999,8 +999,8 @@ func printProject(p *v1alpha1.AppProject, scopedRepositories []*v1alpha1.Reposit
 		destServiceAccounts = fmt.Sprintf("%s,%s,%s", p.Spec.DestinationServiceAccounts[0].Server, p.Spec.DestinationServiceAccounts[0].Namespace, p.Spec.DestinationServiceAccounts[0].DefaultServiceAccount)
 	}
 	fmt.Printf(printProjFmtStr, "DestinationServiceAccounts:", destServiceAccounts)
-	for i := 1; i < len(p.Spec.Destinations); i++ {
-		fmt.Printf(printProjFmtStr, "", fmt.Sprintf("%s,%s", p.Spec.DestinationServiceAccounts[i].Server, p.Spec.DestinationServiceAccounts[i].Namespace, p.Spec.DestinationServiceAccounts[i].DefaultServiceAccount))
+	for i := 1; i < len(p.Spec.DestinationServiceAccounts); i++ {
+		fmt.Printf(printProjFmtStr, "", fmt.Sprintf("%s,%s,%s", p.Spec.DestinationServiceAccounts[i].Server, p.Spec.DestinationServiceAccounts[i].Namespace, p.Spec.DestinationServiceAccounts[i].DefaultServiceAccount))
 	}
 
 }
