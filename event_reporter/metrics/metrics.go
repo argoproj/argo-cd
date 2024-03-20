@@ -124,6 +124,8 @@ func NewMetricsServer(host string, port int) *MetricsServer {
 			Handler: mux,
 		},
 		shard:                            strconv.FormatInt(int64(shard), 10),
+		redisRequestCounter:              redisRequestCounter,
+		redisRequestHistogram:            redisRequestHistogram,
 		queueSizeCounter:                 queueSizeCounter,
 		appEventsCounter:                 appEventsCounter,
 		erroredEventsCounter:             erroredEventsCounter,
