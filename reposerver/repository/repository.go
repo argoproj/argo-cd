@@ -508,7 +508,7 @@ func (s *Service) getCacheKeyWithKustomizeComponents(
 		return "", err
 	}
 
-	k := kustomize.NewKustomizeApp(appPath, repo.GetGitCreds(s.gitCredsStore), repo.Repo, source.Kustomize.Version)
+	k := kustomize.NewKustomizeApp(gitClient.Root(), appPath, repo.GetGitCreds(s.gitCredsStore), repo.Repo, source.Kustomize.Version)
 
 	resolveRevisionFunc := func(repoURL, revision string, creds git.Creds) (string, error) {
 		cloneRepo := *repo
@@ -1670,7 +1670,7 @@ func isNullList(obj *unstructured.Unstructured) bool {
 }
 
 func kustomizeBuild(
-	k Kustomize,
+	k kustomize.Kustomize,
 	repoRoot string,
 	appPath string,
 	opts *v1alpha1.ApplicationSourceKustomize,
@@ -1707,6 +1707,7 @@ func kustomizeBuild(
 
 	return manifests, nil
 }
+
 var manifestFile = regexp.MustCompile(`^.*\.(yaml|yml|json|jsonnet)$`)
 
 // / findManifests looks at all yaml files in a directory and unmarshals them into a list of unstructured objects
