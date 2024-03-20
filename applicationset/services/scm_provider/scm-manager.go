@@ -2,11 +2,10 @@ package scm_provider
 
 import (
 	"context"
-	"crypto/tls"
 	"errors"
 	"fmt"
+	"github.com/argoproj/argo-cd/v2/applicationset/utils"
 	"net/http"
-	"net/http/cookiejar"
 	"os"
 
 	scmm "github.com/scm-manager/goscm"
@@ -19,25 +18,23 @@ type ScmManagerProvider struct {
 
 var _ SCMProviderService = &ScmManagerProvider{}
 
-func NewScmManagerProvider(ctx context.Context, token, url string, allBranches, insecure bool) (*ScmManagerProvider, error) {
+func NewScmManagerProvider(ctx context.Context, token, url string, allBranches, insecure bool, scmRootCAPath string) (*ScmManagerProvider, error) {
 	if token == "" {
 		token = os.Getenv("SCMM_TOKEN")
 	}
 	httpClient := &http.Client{}
-	if insecure {
-		cookieJar, _ := cookiejar.New(nil)
+	tr := http.DefaultTransport.(*http.Transport).Clone()
+	tr.TLSClientConfig = utils.GetTlsConfig(scmRootCAPath, insecure)
+	httpClient.Transport = tr
 
-		httpClient = &http.Client{
-			Jar: cookieJar,
-			Transport: &http.Transport{
-				TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-			}}
-	}
 	client, err := scmm.NewClient(url, token)
+
 	if err != nil {
 		return nil, fmt.Errorf("error creating a new SCM-Manager client: %w", err)
 	}
+
 	client.SetHttpClient(httpClient)
+
 	return &ScmManagerProvider{
 		client:      client,
 		allBranches: allBranches,
