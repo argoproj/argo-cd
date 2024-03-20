@@ -18,6 +18,7 @@ import (
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes/fake"
 )
 
@@ -128,12 +129,20 @@ func TestHandlerFeatureProjectIsEnabled(t *testing.T) {
 			http.StatusBadRequest, "/api/badge?name=foo_bar", "default", "Unknown", "Unknown", Purple, Purple},
 		{createApplications([]string{"Unknown:Unknown", "Unknown:Unknown"}, []string{"test-project", "default"}, "default"),
 			http.StatusOK, "/api/badge?name=foobar", "default", "Not Found", "", Purple, Purple},
+		{createApplicationsWithName([]string{"Healthy:Synced"}, []string{"default"}, "test", "test.application"),
+			http.StatusOK, "/api/badge?name=test.application-0", "test", "Healthy", "Synced", Green, Green},
+		{createApplicationsWithName([]string{"Healthy:Synced"}, []string{"default"}, "test", "test.invalid_name"),
+			http.StatusBadRequest, "/api/badge?name=test.invalid_name-0", "test", "Healthy", "Synced", Green, Green},
 	}
 	for _, tt := range projectTests {
 		argoCDCm.ObjectMeta.Namespace = tt.namespace
 		argoCDSecret.ObjectMeta.Namespace = tt.namespace
 		settingsMgr := settings.NewSettingsManager(context.Background(), fake.NewSimpleClientset(&argoCDCm, &argoCDSecret), tt.namespace)
-		handler := NewHandler(appclientset.NewSimpleClientset(&testProject, tt.testApp[0], tt.testApp[1]), settingsMgr, tt.namespace, []string{})
+		objects := []runtime.Object{&testProject}
+		for _, v := range tt.testApp {
+			objects = append(objects, v)
+		}
+		handler := NewHandler(appclientset.NewSimpleClientset(objects...), settingsMgr, tt.namespace, []string{})
 		rr := httptest.NewRecorder()
 		req, err := http.NewRequest(http.MethodGet, tt.apiEndPoint, nil)
 		assert.NoError(t, err)
@@ -221,6 +230,10 @@ func createApplicationFeatureProjectIsEnabled(healthStatus health.HealthStatusCo
 }
 
 func createApplications(appCombo, projectName []string, namespace string) []*v1alpha1.Application {
+	return createApplicationsWithName(appCombo, projectName, namespace, "app")
+}
+
+func createApplicationsWithName(appCombo, projectName []string, namespace string, namePrefix string) []*v1alpha1.Application {
 	apps := make([]*v1alpha1.Application, len(appCombo))
 	healthStatus := func(healthType string) health.HealthStatusCode {
 		switch healthType {
@@ -246,7 +259,7 @@ func createApplications(appCombo, projectName []string, namespace string) []*v1a
 		a := strings.Split(v, ":")
 		healthApp := healthStatus(a[0])
 		syncApp := syncStatus(a[1])
-		appName := fmt.Sprintf("App %v", k)
+		appName := fmt.Sprintf("%s-%v", namePrefix, k)
 		apps[k] = createApplicationFeatureProjectIsEnabled(healthApp, syncApp, appName, projectName[k], namespace)
 	}
 	return apps
