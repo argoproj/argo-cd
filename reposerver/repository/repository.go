@@ -108,6 +108,7 @@ type RepoServerInitConstants struct {
 	AllowOutOfBoundsSymlinks                     bool
 	StreamedManifestMaxExtractedSize             int64
 	StreamedManifestMaxTarSize                   int64
+	ManagedByArgo                                bool
 	HelmManifestMaxExtractedSize                 int64
 	DisableHelmManifestMaxExtractedSize          bool
 }
@@ -796,7 +797,7 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 			}
 		}
 
-		manifestGenResult, err = GenerateManifests(ctx, opContext.appPath, repoRoot, commitSHA, q, false, s.gitCredsStore, s.initConstants.MaxCombinedDirectoryManifestsSize, s.gitRepoPaths, WithCMPTarDoneChannel(ch.tarDoneCh), WithCMPTarExcludedGlobs(s.initConstants.CMPTarExcludedGlobs))
+		manifestGenResult, err = GenerateManifests(ctx, opContext.appPath, repoRoot, commitSHA, q, false, s.gitCredsStore, s.initConstants.MaxCombinedDirectoryManifestsSize, s.gitRepoPaths, WithCMPTarDoneChannel(ch.tarDoneCh), WithCMPTarExcludedGlobs(s.initConstants.CMPTarExcludedGlobs), WithManagedByArgo(s.initConstants.ManagedByArgo))
 	}
 	refSourceCommitSHAs := make(map[string]string)
 	if len(repoRefs) > 0 {
@@ -1339,6 +1340,7 @@ type GenerateManifestOpt func(*generateManifestOpt)
 type generateManifestOpt struct {
 	cmpTarDoneCh        chan<- bool
 	cmpTarExcludedGlobs []string
+	managedByArgo       bool
 }
 
 func newGenerateManifestOpt(opts ...GenerateManifestOpt) *generateManifestOpt {
@@ -1363,6 +1365,13 @@ func WithCMPTarDoneChannel(ch chan<- bool) GenerateManifestOpt {
 func WithCMPTarExcludedGlobs(excludedGlobs []string) GenerateManifestOpt {
 	return func(o *generateManifestOpt) {
 		o.cmpTarExcludedGlobs = excludedGlobs
+	}
+}
+
+// WithManagedByArgo sets the flag for overwriting managed-by label
+func WithManagedByArgo(managedBy bool) GenerateManifestOpt {
+	return func(o *generateManifestOpt) {
+		o.managedByArgo = managedBy
 	}
 }
 
@@ -1447,6 +1456,11 @@ func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, 
 					return nil, fmt.Errorf("failed to set app instance tracking info on manifest: %w", err)
 				}
 			}
+
+			if opt.managedByArgo {
+				addManagedByArgo(target)
+			}
+
 			manifestStr, err := json.Marshal(target.Object)
 			if err != nil {
 				return nil, err
@@ -1475,6 +1489,16 @@ func newEnv(q *apiclient.ManifestRequest, revision string) *v1alpha1.Env {
 		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_SOURCE_PATH", Value: q.ApplicationSource.Path},
 		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_SOURCE_TARGET_REVISION", Value: q.ApplicationSource.TargetRevision},
 	}
+}
+
+func addManagedByArgo(target *unstructured.Unstructured) {
+	labels := target.GetLabels()
+	if labels == nil {
+		labels = make(map[string]string, 1)
+	}
+
+	labels["app.kubernetes.io/managed-by"] = "argocd"
+	target.SetLabels(labels)
 }
 
 // mergeSourceParameters merges parameter overrides from one or more files in

@@ -2846,3 +2846,25 @@ func TestAnnotationTrackingExtraResources(t *testing.T) {
 		Expect(HealthIs(health.HealthStatusHealthy))
 
 }
+
+func TestAppManagedByArgo(t *testing.T) {
+	Given(t).
+		Path(guestbookPath).
+		When().
+		CreateApp().
+		Sync().
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		And(func(app *Application) {
+			manifests, err := RunCli("app", "manifests", app.Name, "--source", "live")
+			assert.NoError(t, err)
+			resources, err := kube.SplitYAML([]byte(manifests))
+			assert.NoError(t, err)
+
+			for i := range resources {
+				value, exists := resources[i].GetLabels()["app.kubernetes.io/managed-by"]
+				assert.True(t, exists)
+				assert.Equal(t, "argocd", value)
+			}
+		})
+}
