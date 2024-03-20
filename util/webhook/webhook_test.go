@@ -479,6 +479,9 @@ func Test_getAppRefreshPrefix(t *testing.T) {
 		{"file two relative paths, multi source - matching", getMultiSourceApp("./README.md;../shared/my-deployment.yaml", "my-app", "other-path"), []string{"shared/my-deployment.yaml"}, true},
 		{"file two relative paths - not matching", getApp(".README.md;../shared/my-deployment.yaml", "my-app"), []string{"kustomization.yaml"}, false},
 		{"file two relative paths, multi source - not matching", getMultiSourceApp(".README.md;../shared/my-deployment.yaml", "my-app", "other-path"), []string{"kustomization.yaml"}, false},
+		{"empty changed files", getApp(".", "source/path"), []string{}, false},
+		{"empty changed files, multi source", getMultiSourceApp(".", "source/path", "other/path"), []string{}, false},
+		{"empty changed files, no annotations", &v1alpha1.Application{}, []string{}, true},
 	}
 	for _, tt := range tests {
 		ttc := tt
