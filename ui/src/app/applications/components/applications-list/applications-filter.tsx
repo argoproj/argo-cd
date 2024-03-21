@@ -39,7 +39,7 @@ export function getFilterResults(applications: Application[], pref: AppsListPref
             autosync: pref.autoSyncFilter.length === 0 || pref.autoSyncFilter.includes(getAutoSyncStatus(app.spec.syncPolicy)),
             health: pref.healthFilter.length === 0 || pref.healthFilter.includes(app.status.health.status),
             namespaces: pref.namespacesFilter.length === 0 || pref.namespacesFilter.some(ns => app.spec.destination.namespace && minimatch(app.spec.destination.namespace, ns)),
-            favourite: !pref.showFavorites || (pref.favoritesAppList && pref.favoritesAppList.includes(app.metadata.name)),
+            favourite: !pref.showFavorites || (pref.favoritesAppList && pref.favoritesAppList.includes(`${app.metadata.namespace}/${app.metadata.name}`)),
             clusters:
                 pref.clustersFilter.length === 0 ||
                 pref.clustersFilter.some(filterString => {
