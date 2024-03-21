@@ -1,13 +1,19 @@
 @import 'node_modules/argo-ui/src/styles/config';
+@import 'node_modules/argo-ui/src/styles/theme';
 
 .pod-logs-viewer {
     height: 90%;
     font-size: 14px;
-    line-height: 1.5em;
+    font-family: monospace;
     background-color: white;
-    padding: 15px;
-    padding-left: 5px;
+    @include themify($themes){
+        background-color: themed('background-2');
+    }
+    padding: 0;
     color: black;
+    @include themify($themes){
+        color: themed('text-2');
+    }
 
     &--inverted {
         background-color: black;
@@ -224,6 +230,10 @@ code {
     font-family: inherit;
     font-weight: inherit;
     color: inherit;
+}
+
+.ReactVirtualized__Grid__innerScrollContainer {
+    overflow: initial !important;
 }
 
 /* Hide scrollbar for Chrome, Safari and Opera */

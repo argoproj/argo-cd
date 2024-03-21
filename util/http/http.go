@@ -1,25 +1,36 @@
 package http
 
 import (
+	"bytes"
 	"fmt"
+	"io"
 	"math"
 	"net/http"
 	"net/http/httputil"
 	"strconv"
 	"strings"
-
-	"github.com/argoproj/argo-cd/v2/util/env"
-
-	"github.com/argoproj/argo-cd/v2/common"
+	"time"
 
 	log "github.com/sirupsen/logrus"
+	"k8s.io/client-go/transport"
+
+	"github.com/argoproj/argo-cd/v2/common"
+	"github.com/argoproj/argo-cd/v2/util/env"
 )
 
-const maxCookieLength = 4093
+const (
+	maxCookieLength = 4093
+
+	// limit size of the resp to 512KB
+	respReadLimit       = int64(524288)
+	retryWaitMax        = time.Duration(10) * time.Second
+	EnvRetryMax         = "ARGOCD_K8SCLIENT_RETRY_MAX"
+	EnvRetryBaseBackoff = "ARGOCD_K8SCLIENT_RETRY_BASE_BACKOFF"
+)
 
 // max number of chunks a cookie can be broken into. To be compatible with
-// widest range of browsers, we shouldn't create more than 30 cookies per domain
-var maxCookieNumber = env.ParseNumFromEnv(common.EnvMaxCookieNumber, 10, 0, 30)
+// widest range of browsers, you shouldn't create more than 30 cookies per domain
+var maxCookieNumber = env.ParseNumFromEnv(common.EnvMaxCookieNumber, 20, 0, math.MaxInt)
 
 // MakeCookieMetadata generates a string representing a Web cookie.  Yum!
 func MakeCookieMetadata(key, value string, flags ...string) ([]string, error) {
@@ -159,4 +170,72 @@ func (rt *TransportWithHeader) RoundTrip(r *http.Request) (*http.Response, error
 		r.Header = headers
 	}
 	return rt.RoundTripper.RoundTrip(r)
+}
+
+func WithRetry(maxRetries int64, baseRetryBackoff time.Duration) transport.WrapperFunc {
+	return func(rt http.RoundTripper) http.RoundTripper {
+		return &retryTransport{
+			inner:      rt,
+			maxRetries: maxRetries,
+			backoff:    baseRetryBackoff,
+		}
+	}
+}
+
+type retryTransport struct {
+	inner      http.RoundTripper
+	maxRetries int64
+	backoff    time.Duration
+}
+
+func isRetriable(resp *http.Response) bool {
+	if resp == nil {
+		return false
+	}
+	if resp.StatusCode == http.StatusTooManyRequests {
+		return true
+	}
+	if resp.StatusCode == 0 || (resp.StatusCode >= 500 && resp.StatusCode != http.StatusNotImplemented) {
+		return true
+	}
+	return false
+}
+
+func (t *retryTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	var resp *http.Response
+	var err error
+	backoff := t.backoff
+	var bodyBytes []byte
+	if req.Body != nil {
+		bodyBytes, _ = io.ReadAll(req.Body)
+	}
+	for i := 0; i <= int(t.maxRetries); i++ {
+		req.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
+		resp, err = t.inner.RoundTrip(req)
+		if i < int(t.maxRetries) && (err != nil || isRetriable(resp)) {
+			if resp != nil && resp.Body != nil {
+				drainBody(resp.Body)
+			}
+			if backoff > retryWaitMax {
+				backoff = retryWaitMax
+			}
+			select {
+			case <-time.After(backoff):
+			case <-req.Context().Done():
+				return nil, req.Context().Err()
+			}
+			backoff *= 2
+			continue
+		}
+		break
+	}
+	return resp, err
+}
+
+func drainBody(body io.ReadCloser) {
+	defer body.Close()
+	_, err := io.Copy(io.Discard, io.LimitReader(body, respReadLimit))
+	if err != nil {
+		log.Warnf("error reading response body: %s", err.Error())
+	}
 }

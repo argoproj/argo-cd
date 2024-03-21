@@ -1,4 +1,4 @@
 #!/bin/bash
 set -eux -o pipefail
 
-GO111MODULE=on go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.51.0
+GO111MODULE=on go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.54.0

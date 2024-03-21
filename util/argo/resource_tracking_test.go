@@ -89,6 +89,19 @@ func TestParseAppInstanceValue(t *testing.T) {
 	assert.Equal(t, appInstanceValue.Name, "<name>")
 }
 
+func TestParseAppInstanceValueColon(t *testing.T) {
+	resourceTracking := NewResourceTracking()
+	appInstanceValue, err := resourceTracking.ParseAppInstanceValue("app:<group>/<kind>:<namespace>/<name>:<colon>")
+	if !assert.NoError(t, err) {
+		t.Fatal()
+	}
+	assert.Equal(t, appInstanceValue.ApplicationName, "app")
+	assert.Equal(t, appInstanceValue.Group, "<group>")
+	assert.Equal(t, appInstanceValue.Kind, "<kind>")
+	assert.Equal(t, appInstanceValue.Namespace, "<namespace>")
+	assert.Equal(t, appInstanceValue.Name, "<name>:<colon>")
+}
+
 func TestParseAppInstanceValueWrongFormat1(t *testing.T) {
 	resourceTracking := NewResourceTracking()
 	_, err := resourceTracking.ParseAppInstanceValue("app")

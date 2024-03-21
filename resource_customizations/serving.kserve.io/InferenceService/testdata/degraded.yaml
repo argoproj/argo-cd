@@ -1,0 +1,30 @@
+apiVersion: serving.kserve.io/v1beta1
+kind: InferenceService
+metadata:
+  name: helloworld
+  namespace: default
+spec: {}
+status:
+  conditions:
+  - lastTransitionTime: "2022-06-14T03:45:38Z"
+    reason: Predictor ingress not created
+    status: "False"
+    type: IngressReady
+  - lastTransitionTime: "2022-06-14T03:45:38Z"
+    message: 'Revision "helloworld-00002" failed with message: Container failed with: container exited with no error.'
+    reason: RevisionFailed
+    status: "False"
+    type: PredictorConfigurationReady
+  - lastTransitionTime: "2022-06-14T03:45:38Z"
+    message: 'Revision "helloworld-00002" failed with message: Container failed with: container exited with no error.'
+    reason: RevisionFailed
+    status: "False"
+    type: PredictorReady
+  - lastTransitionTime: "2022-06-14T03:45:38Z"
+    severity: Info
+    status: "True"
+    type: PredictorRouteReady
+  - lastTransitionTime: "2022-06-14T03:45:38Z"
+    reason: Predictor ingress not created
+    status: "False"
+    type: Ready

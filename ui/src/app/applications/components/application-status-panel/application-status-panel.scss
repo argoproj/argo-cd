@@ -70,6 +70,7 @@
         }
         display: flex;
         flex-direction: column;
+        justify-content: flex-start;
         flex-shrink: 0;
         flex-grow: 0;
 
@@ -100,7 +101,9 @@
         }
 
         &:not(:first-child) {
-            border-left: 1px solid $argo-color-gray-3;
+            @include themify($themes) {
+                border-left: 1px solid themed('border');
+            }
         }
 
         & {
@@ -134,7 +137,7 @@
 
     &__item-value {
         display: flex;
-        align-items: flex-end;
+        align-items: center;
         margin-bottom: 0.5em;
         font-weight: 500;
         .fa {

@@ -93,7 +93,7 @@ func DetectConfigManagementPlugin(ctx context.Context, appPath, repoPath, plugin
 	pluginSockFilePath := common.GetPluginSockFilePath()
 	log.WithFields(log.Fields{
 		common.SecurityField:    common.SecurityLow,
-		common.SecurityCWEField: 775,
+		common.SecurityCWEField: common.SecurityCWEMissingReleaseOfFileDescriptor,
 	}).Debugf("pluginSockFilePath is: %s", pluginSockFilePath)
 
 	if pluginName != "" {
@@ -160,7 +160,7 @@ func cmpSupports(ctx context.Context, pluginSockFilePath, appPath, repoPath, fil
 	if err != nil {
 		log.WithFields(log.Fields{
 			common.SecurityField:    common.SecurityMedium,
-			common.SecurityCWEField: 775,
+			common.SecurityCWEField: common.SecurityCWEMissingReleaseOfFileDescriptor,
 		}).Errorf("error dialing to cmp-server for plugin %s, %v", fileName, err)
 		return nil, nil, false
 	}
@@ -169,7 +169,7 @@ func cmpSupports(ctx context.Context, pluginSockFilePath, appPath, repoPath, fil
 	if err != nil {
 		log.WithFields(log.Fields{
 			common.SecurityField:    common.SecurityMedium,
-			common.SecurityCWEField: 775,
+			common.SecurityCWEField: common.SecurityCWEMissingReleaseOfFileDescriptor,
 		}).Errorf("repository %s is not the match because %v", repoPath, err)
 		io.Close(conn)
 		return nil, nil, false
@@ -182,7 +182,7 @@ func cmpSupports(ctx context.Context, pluginSockFilePath, appPath, repoPath, fil
 		}
 		log.WithFields(log.Fields{
 			common.SecurityField:    common.SecurityLow,
-			common.SecurityCWEField: 775,
+			common.SecurityCWEField: common.SecurityCWEMissingReleaseOfFileDescriptor,
 		}).Debugf("Reponse from socket file %s does not support %v", fileName, repoPath)
 		io.Close(conn)
 		return nil, nil, false

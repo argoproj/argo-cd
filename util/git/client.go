@@ -72,6 +72,7 @@ type Client interface {
 	CommitSHA() (string, error)
 	RevisionMetadata(revision string) (*RevisionMetadata, error)
 	VerifyCommitSignature(string) (string, error)
+	IsAnnotatedTag(string) bool
 }
 
 type EventHandlers struct {
@@ -99,6 +100,11 @@ type nativeGitClient struct {
 	loadRefFromCache bool
 	// HTTP/HTTPS proxy used to access repository
 	proxy string
+}
+
+type runOpts struct {
+	SkipErrorLogging bool
+	CaptureStderr    bool
 }
 
 var (
@@ -168,6 +174,10 @@ func NewClientExt(rawRepoURL string, root string, creds Creds, insecure bool, en
 	return client, nil
 }
 
+var (
+	gitClientTimeout = env.ParseDurationFromEnv("ARGOCD_GIT_REQUEST_TIMEOUT", 15*time.Second, 0, math.MaxInt64)
+)
+
 // Returns a HTTP client object suitable for go-git to use using the following
 // pattern:
 //   - If insecure is true, always returns a client with certificate verification
@@ -179,8 +189,8 @@ func NewClientExt(rawRepoURL string, root string, creds Creds, insecure bool, en
 func GetRepoHTTPClient(repoURL string, insecure bool, creds Creds, proxyURL string) *http.Client {
 	// Default HTTP client
 	var customHTTPClient = &http.Client{
-		// 15 second timeout
-		Timeout: 15 * time.Second,
+		// 15 second timeout by default
+		Timeout: gitClientTimeout,
 		// don't follow redirect
 		CheckRedirect: func(req *http.Request, via []*http.Request) error {
 			return http.ErrUseLastResponse
@@ -653,17 +663,28 @@ func (m *nativeGitClient) VerifyCommitSignature(revision string) (string, error)
 	return out, nil
 }
 
+// IsAnnotatedTag returns true if the revision points to an annotated tag
+func (m *nativeGitClient) IsAnnotatedTag(revision string) bool {
+	cmd := exec.Command("git", "describe", "--exact-match", revision)
+	out, err := m.runCmdOutput(cmd, runOpts{SkipErrorLogging: true})
+	if out != "" && err == nil {
+		return true
+	} else {
+		return false
+	}
+}
+
 // runWrapper runs a custom command with all the semantics of running the Git client
 func (m *nativeGitClient) runGnuPGWrapper(wrapper string, args ...string) (string, error) {
 	cmd := exec.Command(wrapper, args...)
 	cmd.Env = append(cmd.Env, fmt.Sprintf("GNUPGHOME=%s", common.GetGnuPGHomePath()), "LANG=C")
-	return m.runCmdOutput(cmd)
+	return m.runCmdOutput(cmd, runOpts{})
 }
 
 // runCmd is a convenience function to run a command in a given directory and return its output
 func (m *nativeGitClient) runCmd(args ...string) (string, error) {
 	cmd := exec.Command("git", args...)
-	return m.runCmdOutput(cmd)
+	return m.runCmdOutput(cmd, runOpts{})
 }
 
 // runCredentialedCmd is a convenience function to run a git command with username/password credentials
@@ -685,11 +706,11 @@ func (m *nativeGitClient) runCredentialedCmd(args ...string) error {
 
 	cmd := exec.Command("git", args...)
 	cmd.Env = append(cmd.Env, environ...)
-	_, err = m.runCmdOutput(cmd)
+	_, err = m.runCmdOutput(cmd, runOpts{})
 	return err
 }
 
-func (m *nativeGitClient) runCmdOutput(cmd *exec.Cmd) (string, error) {
+func (m *nativeGitClient) runCmdOutput(cmd *exec.Cmd, ropts runOpts) (string, error) {
 	cmd.Dir = m.root
 	cmd.Env = append(os.Environ(), cmd.Env...)
 	// Set $HOME to nowhere, so we can be execute Git regardless of any external
@@ -720,13 +741,14 @@ func (m *nativeGitClient) runCmdOutput(cmd *exec.Cmd) (string, error) {
 			}
 		}
 	}
-
 	cmd.Env = proxy.UpsertEnv(cmd, m.proxy)
 	opts := executil.ExecRunOpts{
 		TimeoutBehavior: argoexec.TimeoutBehavior{
 			Signal:     syscall.SIGTERM,
 			ShouldWait: true,
 		},
+		SkipErrorLogging: ropts.SkipErrorLogging,
+		CaptureStderr:    ropts.CaptureStderr,
 	}
 	return executil.RunWithExecRunOpts(cmd, opts)
 }

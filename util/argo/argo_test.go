@@ -414,7 +414,7 @@ func TestValidateRepo(t *testing.T) {
 	kubeClient := fake.NewSimpleClientset(&cm)
 	settingsMgr := settings.NewSettingsManager(context.Background(), kubeClient, test.FakeArgoCDNamespace)
 
-	conditions, err := ValidateRepo(context.Background(), app, repoClientSet, db, nil, &kubetest.MockKubectlCmd{Version: kubeVersion, APIResources: apiResources}, proj, settingsMgr)
+	conditions, err := ValidateRepo(context.Background(), app, repoClientSet, db, &kubetest.MockKubectlCmd{Version: kubeVersion, APIResources: apiResources}, proj, settingsMgr)
 
 	assert.NoError(t, err)
 	assert.Empty(t, conditions)
@@ -1183,7 +1183,7 @@ func Test_ParseAppQualifiedName(t *testing.T) {
 
 	for _, tt := range testcases {
 		t.Run(tt.name, func(t *testing.T) {
-			appName, appNs := ParseAppQualifiedName(tt.input, tt.implicitNs)
+			appName, appNs := ParseFromQualifiedName(tt.input, tt.implicitNs)
 			assert.Equal(t, tt.appName, appName)
 			assert.Equal(t, tt.appNs, appNs)
 		})
@@ -1207,7 +1207,7 @@ func Test_ParseAppInstanceName(t *testing.T) {
 
 	for _, tt := range testcases {
 		t.Run(tt.name, func(t *testing.T) {
-			appName, appNs := ParseAppInstanceName(tt.input, tt.implicitNs)
+			appName, appNs := ParseInstanceName(tt.input, tt.implicitNs)
 			assert.Equal(t, tt.appName, appName)
 			assert.Equal(t, tt.appNs, appNs)
 		})
@@ -1251,7 +1251,7 @@ func Test_AppInstanceNameFromQualified(t *testing.T) {
 
 	for _, tt := range testcases {
 		t.Run(tt.name, func(t *testing.T) {
-			result := AppInstanceNameFromQualified(tt.appName, tt.defaultNs)
+			result := InstanceNameFromQualified(tt.appName, tt.defaultNs)
 			assert.Equal(t, tt.result, result)
 		})
 	}
@@ -1278,7 +1278,7 @@ func Test_GetRefSources(t *testing.T) {
 			{RepoURL: fmt.Sprintf("file://%s", repoPath)},
 		})
 
-		refSources, err := GetRefSources(context.TODO(), *argoSpec, repoDB)
+		refSources, err := GetRefSources(context.Background(), *argoSpec, repoDB)
 
 		expectedRefSource := argoappv1.RefTargetRevisionMapping{
 			"$source-1_2": &argoappv1.RefTarget{
@@ -1298,7 +1298,7 @@ func Test_GetRefSources(t *testing.T) {
 			{RepoURL: "file://does-not-exist", Ref: "source1"},
 		})
 
-		refSources, err := GetRefSources(context.TODO(), *argoSpec, repoDB)
+		refSources, err := GetRefSources(context.Background(), *argoSpec, repoDB)
 
 		assert.Error(t, err)
 		assert.Empty(t, refSources)

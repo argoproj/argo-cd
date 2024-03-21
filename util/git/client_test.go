@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
 	"testing"
 
@@ -68,6 +69,50 @@ func Test_nativeGitClient_Fetch_Prune(t *testing.T) {
 
 	err = client.Fetch("")
 	assert.NoError(t, err)
+}
+
+func Test_IsAnnotatedTag(t *testing.T) {
+	tempDir := t.TempDir()
+	client, err := NewClient(fmt.Sprintf("file://%s", tempDir), NopCreds{}, true, false, "")
+	require.NoError(t, err)
+
+	err = client.Init()
+	require.NoError(t, err)
+
+	p := path.Join(client.Root(), "README")
+	f, err := os.Create(p)
+	require.NoError(t, err)
+	_, err = f.WriteString("Hello.")
+	require.NoError(t, err)
+	err = f.Close()
+	require.NoError(t, err)
+
+	err = runCmd(client.Root(), "git", "add", "README")
+	require.NoError(t, err)
+
+	err = runCmd(client.Root(), "git", "commit", "-m", "Initial commit", "-a")
+	require.NoError(t, err)
+
+	atag := client.IsAnnotatedTag("master")
+	assert.False(t, atag)
+
+	err = runCmd(client.Root(), "git", "tag", "some-tag", "-a", "-m", "Create annotated tag")
+	require.NoError(t, err)
+	atag = client.IsAnnotatedTag("some-tag")
+	assert.True(t, atag)
+
+	// Tag effectually points to HEAD, so it's considered the same
+	atag = client.IsAnnotatedTag("HEAD")
+	assert.True(t, atag)
+
+	err = runCmd(client.Root(), "git", "rm", "README")
+	assert.NoError(t, err)
+	err = runCmd(client.Root(), "git", "commit", "-m", "remove README", "-a")
+	assert.NoError(t, err)
+
+	// We moved on, so tag doesn't point to HEAD anymore
+	atag = client.IsAnnotatedTag("HEAD")
+	assert.False(t, atag)
 }
 
 func Test_nativeGitClient_Submodule(t *testing.T) {

@@ -14,6 +14,8 @@ import "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1/generated.p
 message ApplicationSetGetQuery {
 	// the applicationsets's name
 	string name = 1;
+	// The application set namespace. Default empty is argocd control plane namespace
+	string appsetNamespace = 2;
 }
 
 message ApplicationSetListQuery {
@@ -21,6 +23,8 @@ message ApplicationSetListQuery {
 	repeated string projects = 1;
 	// the selector to restrict returned list to applications only with matched labels
 	string selector = 2;
+	// The application set namespace. Default empty is argocd control plane namespace
+	string appsetNamespace = 3;
 }
 
 
@@ -38,6 +42,8 @@ message ApplicationSetCreateRequest {
 
 message ApplicationSetDeleteRequest {
 	string name = 1;
+	// The application set namespace. Default empty is argocd control plane namespace
+	string appsetNamespace = 2;
 }
 
 

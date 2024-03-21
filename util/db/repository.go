@@ -78,11 +78,11 @@ func (db *db) CreateRepository(ctx context.Context, r *appsv1.Repository) (*apps
 func (db *db) GetRepository(ctx context.Context, repoURL string) (*appsv1.Repository, error) {
 	repository, err := db.getRepository(ctx, repoURL)
 	if err != nil {
-		return repository, err
+		return repository, fmt.Errorf("unable to get repository %q: %v", repoURL, err)
 	}
 
 	if err := db.enrichCredsToRepo(ctx, repository); err != nil {
-		return repository, err
+		return repository, fmt.Errorf("unable to enrich repository %q info with credentials: %v", repoURL, err)
 	}
 
 	return repository, err
@@ -123,17 +123,25 @@ func (db *db) getRepository(ctx context.Context, repoURL string) (*appsv1.Reposi
 	secretsBackend := db.repoBackend()
 	exists, err := secretsBackend.RepositoryExists(ctx, repoURL)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("unable to check if repository %q exists from secrets backend: %v", repoURL, err)
 	} else if exists {
-		return secretsBackend.GetRepository(ctx, repoURL)
+		repository, err := secretsBackend.GetRepository(ctx, repoURL)
+		if err != nil {
+			return nil, fmt.Errorf("unable to get repository %q from secrets backend: %v", repoURL, err)
+		}
+		return repository, nil
 	}
 
 	legacyBackend := db.legacyRepoBackend()
 	exists, err = legacyBackend.RepositoryExists(ctx, repoURL)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("unable to check if repository %q exists from legacy backend: %v", repoURL, err)
 	} else if exists {
-		return legacyBackend.GetRepository(ctx, repoURL)
+		repository, err := legacyBackend.GetRepository(ctx, repoURL)
+		if err != nil {
+			return nil, fmt.Errorf("unable to get repository %q from legacy backend: %v", repoURL, err)
+		}
+		return repository, nil
 	}
 
 	return &appsv1.Repository{Repo: repoURL}, nil
@@ -229,17 +237,25 @@ func (db *db) GetRepositoryCredentials(ctx context.Context, repoURL string) (*ap
 	secretsBackend := db.repoBackend()
 	exists, err := secretsBackend.RepoCredsExists(ctx, repoURL)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("unable to check if repository credentials for %q exists from secrets backend: %w", repoURL, err)
 	} else if exists {
-		return secretsBackend.GetRepoCreds(ctx, repoURL)
+		creds, err := secretsBackend.GetRepoCreds(ctx, repoURL)
+		if err != nil {
+			return nil, fmt.Errorf("unable to get repository credentials for %q from secrets backend: %w", repoURL, err)
+		}
+		return creds, nil
 	}
 
 	legacyBackend := db.legacyRepoBackend()
 	exists, err = legacyBackend.RepoCredsExists(ctx, repoURL)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("unable to check if repository credentials for %q exists from legacy backend: %w", repoURL, err)
 	} else if exists {
-		return legacyBackend.GetRepoCreds(ctx, repoURL)
+		creds, err := legacyBackend.GetRepoCreds(ctx, repoURL)
+		if err != nil {
+			return nil, fmt.Errorf("unable to get repository credentials for %q from legacy backend: %w", repoURL, err)
+		}
+		return creds, nil
 	}
 
 	return nil, nil
@@ -252,12 +268,12 @@ func (db *db) GetAllHelmRepositoryCredentials(ctx context.Context) ([]*appsv1.Re
 
 	secretRepoCreds, err := db.repoBackend().GetAllHelmRepoCreds(ctx)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get all Helm repo creds: %w", err)
 	}
 
 	legacyRepoCreds, err := db.legacyRepoBackend().GetAllHelmRepoCreds(ctx)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get all legacy Helm repo creds: %w", err)
 	}
 
 	return append(secretRepoCreds, legacyRepoCreds...), nil
@@ -353,7 +369,7 @@ func (db *db) enrichCredsToRepo(ctx context.Context, repository *appsv1.Reposito
 				repository.InheritedCreds = true
 			}
 		} else {
-			return err
+			return fmt.Errorf("failed to get repository credentials for %q: %w", repository.Repo, err)
 		}
 	} else {
 		log.Debugf("%s has credentials", repository.Repo)

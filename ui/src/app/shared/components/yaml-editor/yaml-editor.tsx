@@ -5,7 +5,6 @@ import * as React from 'react';
 
 import {Consumer} from '../../context';
 import {MonacoEditor} from '../monaco-editor';
-import {DEFAULT_EDITOR_CONFIG, EditorConfig} from './yaml-config';
 
 const jsonMergePatch = require('json-merge-patch');
 require('./yaml-editor.scss');
@@ -19,7 +18,6 @@ export class YamlEditor<T> extends React.Component<
         onSave?: (patch: string, patchType: string) => Promise<any>;
         onCancel?: () => any;
         minHeight?: number;
-        config?: EditorConfig;
     },
     {
         editing: boolean;
@@ -35,7 +33,6 @@ export class YamlEditor<T> extends React.Component<
     public render() {
         const props = this.props;
         const yaml = props.input ? jsYaml.safeDump(props.input) : '';
-        const config = props.config ?? DEFAULT_EDITOR_CONFIG;
 
         return (
             <div className='yaml-editor'>
@@ -100,8 +97,8 @@ export class YamlEditor<T> extends React.Component<
                     minHeight={props.minHeight}
                     vScrollBar={props.vScrollbar}
                     editor={{
-                        input: {text: yaml, language: config.useKubernetesEditor ? 'kubernetes' : 'yaml'},
-                        options: {readOnly: !this.state.editing, minimap: {enabled: false}, settings: config.settings},
+                        input: {text: yaml, language: 'yaml'},
+                        options: {readOnly: !this.state.editing, minimap: {enabled: false}},
                         getApi: api => {
                             this.model = api.getModel() as monacoEditor.editor.ITextModel;
                         }

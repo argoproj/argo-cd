@@ -50,10 +50,10 @@ const (
 // ValidateDestination checks:
 // if we used destination name we infer the server url
 // if we used both name and server then we return an invalid spec error
-func ValidateDestination(ctx context.Context, dest *appv1.ApplicationDestination, clientset kubernetes.Interface, namespace string) error {
+func ValidateDestination(ctx context.Context, dest *appv1.ApplicationDestination, clientset kubernetes.Interface, argoCDNamespace string) error {
 	if dest.Name != "" {
 		if dest.Server == "" {
-			server, err := getDestinationServer(ctx, dest.Name, clientset, namespace)
+			server, err := getDestinationServer(ctx, dest.Name, clientset, argoCDNamespace)
 			if err != nil {
 				return fmt.Errorf("unable to find destination server: %v", err)
 			}
@@ -70,11 +70,11 @@ func ValidateDestination(ctx context.Context, dest *appv1.ApplicationDestination
 	return nil
 }
 
-func getDestinationServer(ctx context.Context, clusterName string, clientset kubernetes.Interface, namespace string) (string, error) {
+func getDestinationServer(ctx context.Context, clusterName string, clientset kubernetes.Interface, argoCDNamespace string) (string, error) {
 	// settingsMgr := settings.NewSettingsManager(context.TODO(), clientset, namespace)
 	// argoDB := db.NewDB(namespace, settingsMgr, clientset)
 	// clusterList, err := argoDB.ListClusters(ctx)
-	clusterList, err := ListClusters(ctx, clientset, namespace)
+	clusterList, err := ListClusters(ctx, clientset, argoCDNamespace)
 	if err != nil {
 		return "", err
 	}
@@ -180,7 +180,7 @@ func secretToCluster(s *corev1.Secret) (*appv1.Cluster, error) {
 		if val, err := strconv.Atoi(string(shardStr)); err != nil {
 			log.Warnf("Error while parsing shard in cluster secret '%s': %v", s.Name, err)
 		} else {
-			shard = pointer.Int64Ptr(int64(val))
+			shard = pointer.Int64(int64(val))
 		}
 	}
 	cluster := appv1.Cluster{
