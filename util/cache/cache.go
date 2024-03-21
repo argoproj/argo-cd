@@ -50,6 +50,8 @@ func buildRedisClient(redisAddress, password, username string, redisDB, maxRetri
 		MaxRetries: maxRetries,
 		TLSConfig:  tlsConfig,
 		Username:   username,
+		// Increase external redis write timeout to cater for Network call latency. The default 3 seconds is too small for external redis writes.
+		WriteTimeout: 10 * time.Second,
 	}
 
 	client := redis.NewClient(opts)
