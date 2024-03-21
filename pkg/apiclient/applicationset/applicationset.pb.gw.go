@@ -142,7 +142,6 @@ func local_request_ApplicationSetService_List_0(ctx context.Context, marshaler r
 }
 
 var (
-<<<<<<< HEAD
 	filter_ApplicationSetService_ListResourceEvents_0 = &utilities.DoubleArray{Encoding: map[string]int{"name": 0}, Base: []int{1, 1, 0}, Check: []int{0, 1, 2}}
 )
 
@@ -211,7 +210,10 @@ func local_request_ApplicationSetService_ListResourceEvents_0(ctx context.Contex
 
 	msg, err := server.ListResourceEvents(ctx, &protoReq)
 	return msg, metadata, err
-=======
+
+}
+
+var (
 	filter_ApplicationSetService_Watch_0 = &utilities.DoubleArray{Encoding: map[string]int{}, Base: []int(nil), Check: []int(nil)}
 )
 
@@ -236,7 +238,6 @@ func request_ApplicationSetService_Watch_0(ctx context.Context, marshaler runtim
 	}
 	metadata.HeaderMD = header
 	return stream, metadata, nil
->>>>>>> appset-watch
 
 }
 
@@ -416,7 +417,6 @@ func RegisterApplicationSetServiceHandlerServer(ctx context.Context, mux *runtim
 
 	})
 
-<<<<<<< HEAD
 	mux.Handle("GET", pattern_ApplicationSetService_ListResourceEvents_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
@@ -438,13 +438,13 @@ func RegisterApplicationSetServiceHandlerServer(ctx context.Context, mux *runtim
 
 		forward_ApplicationSetService_ListResourceEvents_0(ctx, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
 
-=======
+	})
+
 	mux.Handle("GET", pattern_ApplicationSetService_Watch_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		err := status.Error(codes.Unimplemented, "streaming calls are not yet supported in the in-process transport")
 		_, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
 		runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 		return
->>>>>>> appset-watch
 	})
 
 	mux.Handle("POST", pattern_ApplicationSetService_Create_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
@@ -574,11 +574,7 @@ func RegisterApplicationSetServiceHandlerClient(ctx context.Context, mux *runtim
 
 	})
 
-<<<<<<< HEAD
 	mux.Handle("GET", pattern_ApplicationSetService_ListResourceEvents_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
-=======
-	mux.Handle("GET", pattern_ApplicationSetService_Watch_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
->>>>>>> appset-watch
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
@@ -587,22 +583,34 @@ func RegisterApplicationSetServiceHandlerClient(ctx context.Context, mux *runtim
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
-<<<<<<< HEAD
 		resp, md, err := request_ApplicationSetService_ListResourceEvents_0(rctx, inboundMarshaler, client, req, pathParams)
-=======
-		resp, md, err := request_ApplicationSetService_Watch_0(rctx, inboundMarshaler, client, req, pathParams)
->>>>>>> appset-watch
 		ctx = runtime.NewServerMetadataContext(ctx, md)
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
 
-<<<<<<< HEAD
 		forward_ApplicationSetService_ListResourceEvents_0(ctx, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
-=======
+
+	})
+
+	mux.Handle("GET", pattern_ApplicationSetService_Watch_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+		ctx, cancel := context.WithCancel(req.Context())
+		defer cancel()
+		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
+		rctx, err := runtime.AnnotateContext(ctx, mux, req)
+		if err != nil {
+			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
+			return
+		}
+		resp, md, err := request_ApplicationSetService_Watch_0(rctx, inboundMarshaler, client, req, pathParams)
+		ctx = runtime.NewServerMetadataContext(ctx, md)
+		if err != nil {
+			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
+			return
+		}
+
 		forward_ApplicationSetService_Watch_0(ctx, mux, outboundMarshaler, w, req, func() (proto.Message, error) { return resp.Recv() }, mux.GetForwardResponseOptions()...)
->>>>>>> appset-watch
 
 	})
 
@@ -654,11 +662,9 @@ var (
 
 	pattern_ApplicationSetService_List_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"api", "v1", "applicationsets"}, "", runtime.AssumeColonVerbOpt(true)))
 
-<<<<<<< HEAD
 	pattern_ApplicationSetService_ListResourceEvents_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3, 2, 4}, []string{"api", "v1", "applicationsets", "name", "events"}, "", runtime.AssumeColonVerbOpt(true)))
-=======
+
 	pattern_ApplicationSetService_Watch_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3}, []string{"api", "v1", "stream", "applicationsets"}, "", runtime.AssumeColonVerbOpt(true)))
->>>>>>> appset-watch
 
 	pattern_ApplicationSetService_Create_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"api", "v1", "applicationsets"}, "", runtime.AssumeColonVerbOpt(true)))
 
@@ -670,11 +676,9 @@ var (
 
 	forward_ApplicationSetService_List_0 = runtime.ForwardResponseMessage
 
-<<<<<<< HEAD
 	forward_ApplicationSetService_ListResourceEvents_0 = runtime.ForwardResponseMessage
-=======
+
 	forward_ApplicationSetService_Watch_0 = runtime.ForwardResponseStream
->>>>>>> appset-watch
 
 	forward_ApplicationSetService_Create_0 = runtime.ForwardResponseMessage
 

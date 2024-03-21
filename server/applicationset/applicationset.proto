@@ -29,12 +29,12 @@ message ApplicationSetListQuery {
 }
 
 
-<<<<<<< HEAD
 // ApplicationSetEventsQuery is a query for applicationset resource events
 message ApplicationSetResourceEventsQuery {
 	string name = 1;
 	string appsetNamespace = 5;
-=======
+}
+
 message ApplicationSetWatchQuery {
 	// the applicationsets's name
 	string name = 1;
@@ -46,7 +46,6 @@ message ApplicationSetWatchQuery {
 	string appsetNamespace = 4;
 	// when specified with a watch call, shows changes that occur after that particular version of a resource.
 	string resourceVersion = 5;
->>>>>>> appset-watch
 }
 
 
@@ -82,15 +81,14 @@ service ApplicationSetService {
 		option (google.api.http).get = "/api/v1/applicationsets";
 	}
 
-<<<<<<< HEAD
 	// ListResourceEvents returns a list of event resources
 	rpc ListResourceEvents(ApplicationSetResourceEventsQuery) returns (k8s.io.api.core.v1.EventList) {
 		option (google.api.http).get = "/api/v1/applicationsets/{name}/events";
-=======
+	}
+
 	// Watch returns stream of applicationset change events
 	rpc Watch(ApplicationSetWatchQuery) returns (stream github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.ApplicationSetWatchEvent) {
 		option (google.api.http).get = "/api/v1/stream/applicationsets";
->>>>>>> appset-watch
 	}
 
 	//Create creates an applicationset
