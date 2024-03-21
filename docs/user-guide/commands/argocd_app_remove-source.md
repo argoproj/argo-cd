@@ -2,7 +2,7 @@
 
 ## argocd app remove-source
 
-Remove a source from multiple sources application. Index starts with 0.
+Remove a source from multiple sources application. Index starts with 1. Default value is -1.
 
 ```
 argocd app remove-source APPNAME [flags]
@@ -11,7 +11,7 @@ argocd app remove-source APPNAME [flags]
 ### Examples
 
 ```
-  # Remove the source at index 1 from application's sources
+  # Remove the source at index 1 from application's sources. Index starts at 1.
   argocd app remove-source myapplication --source-index 1
 ```
 
@@ -20,7 +20,7 @@ argocd app remove-source APPNAME [flags]
 ```
   -N, --app-namespace string   Namespace of the target application where the source will be appended
   -h, --help                   help for remove-source
-      --source-index int       Index of the source from the list of sources of the app. Index starts from 0. (default -1)
+      --source-index int       Index of the source from the list of sources of the app. Index starts from 1. (default -1)
 ```
 
 ### Options inherited from parent commands
