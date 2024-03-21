@@ -1,4 +1,4 @@
-hs = {}
+local hs = {}
 if obj.status ~= nil then
 
   if obj.status.state == "initializing" then
@@ -27,7 +27,7 @@ if obj.status ~= nil then
 
   if obj.status.state == "error" then
     hs.status = "Degraded"
-    hs.message = "Cluster is on error: " .. table.concat(obj.status.messages, ", ")
+    hs.message = "Cluster is on error: " .. table.concat(obj.status.message, ", ")
     return hs
   end
 

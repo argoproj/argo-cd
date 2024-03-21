@@ -1,3 +1,5 @@
+# `argocd app sync` Command Reference
+
 ## argocd app sync
 
 Sync an application to its target state
@@ -36,6 +38,7 @@ argocd app sync [APPNAME... | -l selector | --project project-name] [flags]
 ### Options
 
 ```
+  -N, --app-namespace string                  Only sync an application in namespace
       --apply-out-of-sync-only                Sync only out-of-sync resources
       --assumeYes                             Assume yes as answer for all user queries or prompts
       --async                                 Do not wait for application to sync before continuing
@@ -46,6 +49,7 @@ argocd app sync [APPNAME... | -l selector | --project project-name] [flags]
       --label stringArray                     Sync only specific resources with a label. This option may be specified repeatedly.
       --local string                          Path to a local directory. When this flag is present no git queries will be made
       --local-repo-root string                Path to the repository root. Used together with --local allows setting the repository root (default "/")
+  -o, --output string                         Output format. One of: json|yaml|wide|tree|tree=detailed (default "wide")
       --preview-changes                       Preview difference against the target and live state before syncing app and wait for user confirmation
       --project stringArray                   Sync apps that belong to the specified projects. This option may be specified repeatedly.
       --prune                                 Allow deleting unexpected resources

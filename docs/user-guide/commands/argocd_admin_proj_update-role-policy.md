@@ -1,3 +1,5 @@
+# `argocd admin proj update-role-policy` Command Reference
+
 ## argocd admin proj update-role-policy
 
 Implement bulk project role update. Useful to back-fill existing project policies or remove obsolete actions.
@@ -28,6 +30,7 @@ argocd admin proj update-role-policy PROJECT_GLOB MODIFICATION ACTION [flags]
       --client-key string              Path to a client key file for TLS
       --cluster string                 The name of the kubeconfig cluster to use
       --context string                 The name of the kubeconfig context to use
+      --disable-compression            If true, opt-out of response compression for all requests to the server
       --dry-run                        Dry run (default true)
   -h, --help                           help for update-role-policy
       --insecure-skip-tls-verify       If true, the server's certificate will not be checked for validity. This will make your HTTPS connections insecure

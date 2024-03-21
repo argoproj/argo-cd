@@ -1,9 +1,18 @@
+# `argocd app actions run` Command Reference
+
 ## argocd app actions run
 
 Runs an available action on resource(s)
 
 ```
 argocd app actions run APPNAME ACTION [flags]
+```
+
+### Examples
+
+```
+  # Run an available action for an application
+  argocd app actions run APPNAME ACTION --kind KIND [--resource-name RESOURCE] [--namespace NAMESPACE] [--group GROUP]
 ```
 
 ### Options

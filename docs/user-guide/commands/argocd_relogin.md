@@ -1,3 +1,5 @@
+# `argocd relogin` Command Reference
+
 ## argocd relogin
 
 Refresh an expired authenticate token
@@ -8,6 +10,23 @@ Refresh an expired authenticate token
 
 ```
 argocd relogin [flags]
+```
+
+### Examples
+
+```
+  
+# Reinitiates the login with previous contexts
+argocd relogin
+
+# Reinitiates the login with password
+argocd relogin --password YOUR_PASSWORD
+
+# Configure direct access using Kubernetes API server
+argocd login cd.argoproj.io --core
+
+# If user logged in with - "argocd login cd.argoproj.io" with sso login
+# The command - "argocd relogin" will Reinitiates SSO login and updates the server context
 ```
 
 ### Options

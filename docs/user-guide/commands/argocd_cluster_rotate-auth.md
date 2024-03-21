@@ -1,3 +1,5 @@
+# `argocd cluster rotate-auth` Command Reference
+
 ## argocd cluster rotate-auth
 
 argocd cluster rotate-auth SERVER/NAME

@@ -173,9 +173,9 @@ func TestSCMProviderGeneratorGitlab_WillIncludeSharedProjects(t *testing.T) {
 	settings := SCMProviderGeneratorGitlab{}
 	assert.True(t, settings.WillIncludeSharedProjects())
 
-	settings.IncludeSharedProjects = pointer.BoolPtr(false)
+	settings.IncludeSharedProjects = pointer.Bool(false)
 	assert.False(t, settings.WillIncludeSharedProjects())
 
-	settings.IncludeSharedProjects = pointer.BoolPtr(true)
+	settings.IncludeSharedProjects = pointer.Bool(true)
 	assert.True(t, settings.WillIncludeSharedProjects())
 }

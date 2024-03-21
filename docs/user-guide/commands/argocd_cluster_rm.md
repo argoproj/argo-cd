@@ -1,3 +1,5 @@
+# `argocd cluster rm` Command Reference
+
 ## argocd cluster rm
 
 Remove cluster credentials

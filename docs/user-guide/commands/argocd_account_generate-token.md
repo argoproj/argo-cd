@@ -1,3 +1,5 @@
+# `argocd account generate-token` Command Reference
+
 ## argocd account generate-token
 
 Generate account token

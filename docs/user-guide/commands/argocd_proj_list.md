@@ -1,9 +1,21 @@
+# `argocd proj list` Command Reference
+
 ## argocd proj list
 
 List projects
 
 ```
 argocd proj list [flags]
+```
+
+### Examples
+
+```
+  # List all available projects
+  argocd proj list
+  
+  # List all available projects in yaml format
+  argocd proj list -o yaml
 ```
 
 ### Options

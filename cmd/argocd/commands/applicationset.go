@@ -67,6 +67,10 @@ func NewApplicationSetGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 	var command = &cobra.Command{
 		Use:   "get APPSETNAME",
 		Short: "Get ApplicationSet details",
+		Example: templates.Examples(`
+	# Get ApplicationSets
+	argocd appset get APPSETNAME
+		`),
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
 
@@ -147,7 +151,7 @@ func NewApplicationSetCreateCommand(clientOpts *argocdclient.ClientOptions) *cob
 				defer argoio.Close(conn)
 
 				// Get app before creating to see if it is being updated or no change
-				existing, err := appIf.Get(ctx, &applicationset.ApplicationSetGetQuery{Name: appset.Name})
+				existing, err := appIf.Get(ctx, &applicationset.ApplicationSetGetQuery{Name: appset.Name, AppsetNamespace: appset.Namespace})
 				if grpc.UnwrapGRPCStatus(err).Code() != codes.NotFound {
 					errors.CheckError(err)
 				}
@@ -346,9 +350,11 @@ func printAppSetSummaryTable(appSet *arogappsetv1.ApplicationSet) {
 	fmt.Printf(printOpFmtStr, "Project:", appSet.Spec.Template.Spec.GetProject())
 	fmt.Printf(printOpFmtStr, "Server:", getServerForAppSet(appSet))
 	fmt.Printf(printOpFmtStr, "Namespace:", appSet.Spec.Template.Spec.Destination.Namespace)
-	fmt.Printf(printOpFmtStr, "Repo:", source.RepoURL)
-	fmt.Printf(printOpFmtStr, "Target:", source.TargetRevision)
-	fmt.Printf(printOpFmtStr, "Path:", source.Path)
+	if !appSet.Spec.Template.Spec.HasMultipleSources() {
+		fmt.Println("Source:")
+	} else {
+		fmt.Println("Sources:")
+	}
 	printAppSourceDetails(&source)
 
 	var (

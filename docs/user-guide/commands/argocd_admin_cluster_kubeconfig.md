@@ -1,9 +1,28 @@
+# `argocd admin cluster kubeconfig` Command Reference
+
 ## argocd admin cluster kubeconfig
 
 Generates kubeconfig for the specified cluster
 
 ```
 argocd admin cluster kubeconfig CLUSTER_URL OUTPUT_PATH [flags]
+```
+
+### Examples
+
+```
+
+#Generate a kubeconfig for a cluster named "my-cluster" on console
+argocd admin cluster kubeconfig my-cluster
+
+#Listing available kubeconfigs for clusters managed by argocd
+argocd admin cluster kubeconfig
+
+#Removing a specific kubeconfig file 
+argocd admin cluster kubeconfig my-cluster --delete
+
+#Generate a Kubeconfig for a Cluster with TLS Verification Disabled
+argocd admin cluster kubeconfig https://cluster-api-url:6443 /path/to/output/kubeconfig.yaml --insecure-skip-tls-verify
 ```
 
 ### Options
@@ -17,6 +36,7 @@ argocd admin cluster kubeconfig CLUSTER_URL OUTPUT_PATH [flags]
       --client-key string              Path to a client key file for TLS
       --cluster string                 The name of the kubeconfig cluster to use
       --context string                 The name of the kubeconfig context to use
+      --disable-compression            If true, opt-out of response compression for all requests to the server
   -h, --help                           help for kubeconfig
       --insecure-skip-tls-verify       If true, the server's certificate will not be checked for validity. This will make your HTTPS connections insecure
       --kubeconfig string              Path to a kube config. Only required if out-of-cluster

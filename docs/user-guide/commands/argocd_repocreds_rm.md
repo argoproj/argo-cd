@@ -1,9 +1,18 @@
+# `argocd repocreds rm` Command Reference
+
 ## argocd repocreds rm
 
 Remove repository credentials
 
 ```
 argocd repocreds rm CREDSURL [flags]
+```
+
+### Examples
+
+```
+  # Remove credentials for the repositories with URL https://git.example.com/repos
+  argocd repocreds rm https://git.example.com/repos/
 ```
 
 ### Options

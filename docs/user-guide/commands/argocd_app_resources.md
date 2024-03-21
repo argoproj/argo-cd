@@ -1,3 +1,5 @@
+# `argocd app resources` Command Reference
+
 ## argocd app resources
 
 List resource of application
@@ -9,8 +11,10 @@ argocd app resources APPNAME [flags]
 ### Options
 
 ```
-  -h, --help       help for resources
-      --orphaned   Lists only orphaned resources
+  -h, --help             help for resources
+      --orphaned         Lists only orphaned resources
+      --output string    Provides the tree view of the resources
+      --project string   The name of the application's project - specifying this allows the command to report "not found" instead of "permission denied" if the app does not exist
 ```
 
 ### Options inherited from parent commands

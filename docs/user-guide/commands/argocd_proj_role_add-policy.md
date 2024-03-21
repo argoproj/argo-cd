@@ -1,9 +1,40 @@
+# `argocd proj role add-policy` Command Reference
+
 ## argocd proj role add-policy
 
 Add a policy to a project role
 
 ```
 argocd proj role add-policy PROJECT ROLE-NAME [flags]
+```
+
+### Examples
+
+```
+# Before adding new policy
+$ argocd proj role get test-project test-role
+Role Name:     test-role
+Description:
+Policies:
+p, proj:test-project:test-role, projects, get, test-project, allow
+JWT Tokens:
+ID          ISSUED-AT                                EXPIRES-AT
+1696759698  2023-10-08T11:08:18+01:00 (3 hours ago)  <none>
+
+# Add a new policy to allow update to the project
+$ argocd proj role add-policy test-project test-role -a update -p allow -o project
+
+# Policy should be updated
+$  argocd proj role get test-project test-role
+Role Name:     test-role
+Description:
+Policies:
+p, proj:test-project:test-role, projects, get, test-project, allow
+p, proj:test-project:test-role, applications, update, test-project/project, allow
+JWT Tokens:
+ID          ISSUED-AT                                EXPIRES-AT
+1696759698  2023-10-08T11:08:18+01:00 (3 hours ago)  <none>
+
 ```
 
 ### Options

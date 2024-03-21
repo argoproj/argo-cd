@@ -1,3 +1,5 @@
+# `argocd app edit` Command Reference
+
 ## argocd app edit
 
 Edit application
@@ -9,7 +11,8 @@ argocd app edit APPNAME [flags]
 ### Options
 
 ```
-  -h, --help   help for edit
+  -N, --app-namespace string   Only edit application in namespace
+  -h, --help                   help for edit
 ```
 
 ### Options inherited from parent commands

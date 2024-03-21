@@ -1,3 +1,5 @@
+# `argocd repocreds add` Command Reference
+
 ## argocd repocreds add
 
 Add git repository connection parameters
