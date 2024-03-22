@@ -670,9 +670,9 @@ extended to allow assumption of multiple roles, either as an explicit array of r
     "Statement" : {
       "Effect" : "Allow",
       "Action" : "sts:AssumeRole",
-      "Principal" : {
-        "AWS" : "<arn:aws:iam::<AWS_ACCOUNT_ID>:role/<IAM_ROLE_NAME>"
-      }
+      "Resource" : [
+        "<arn:aws:iam::<AWS_ACCOUNT_ID>:role/<IAM_ROLE_NAME>"
+      ]
     }
   }
 ```
@@ -1145,7 +1145,7 @@ Example of `kustomization.yaml`:
 ```yaml
 # additional resources like ingress rules, cluster and repository secrets.
 resources:
-- github.com/argoproj/argo-cd//manifests/cluster-install?ref=v1.0.1
+- github.com/argoproj/argo-cd//manifests/cluster-install?ref=stable
 - clusters-secrets.yaml
 - repos-secrets.yaml
 

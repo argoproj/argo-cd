@@ -26,6 +26,9 @@ argocd app create APPNAME [flags]
   # Create a Kustomize app
   argocd app create kustomize-guestbook --repo https://github.com/argoproj/argocd-example-apps.git --path kustomize-guestbook --dest-namespace default --dest-server https://kubernetes.default.svc --kustomize-image gcr.io/heptio-images/ks-guestbook-demo:0.1
 
+  # Create a MultiSource app while yaml file contains an application with multiple sources
+  argocd app create guestbook --file <path-to-yaml-file>
+
   # Create a app using a custom tool:
   argocd app create kasane --repo https://github.com/argoproj/argocd-example-apps.git --path plugins/kasane --dest-namespace default --dest-server https://kubernetes.default.svc --config-management-plugin kasane
 ```
@@ -85,7 +88,7 @@ argocd app create APPNAME [flags]
       --self-heal                                  Set self healing when sync is automated
       --set-finalizer                              Sets deletion finalizer on the application, application resources will be cascaded on deletion
       --sync-option Prune=false                    Add or remove a sync option, e.g add Prune=false. Remove using `!` prefix, e.g. `!Prune=false`
-      --sync-policy string                         Set the sync policy (one of: none, automated (aliases of automated: auto, automatic))
+      --sync-policy string                         Set the sync policy (one of: manual (aliases of manual: none), automated (aliases of automated: auto, automatic))
       --sync-retry-backoff-duration duration       Sync retry backoff base duration. Input needs to be a duration (e.g. 2m, 1h) (default 5s)
       --sync-retry-backoff-factor int              Factor multiplies the base duration after each failed sync retry (default 2)
       --sync-retry-backoff-max-duration duration   Max sync retry backoff duration. Input needs to be a duration (e.g. 2m, 1h) (default 3m0s)
