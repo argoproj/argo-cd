@@ -312,7 +312,7 @@ func expireOldFailedAttempts(maxAge time.Duration, failures map[string]LoginAtte
 	return expiredCount
 }
 
-// Protect admin user from login attempt reset caused by attempts to overflow cache in a brute force attack. Instead remove random non-admin to make room in cache. 
+// Protect admin user from login attempt reset caused by attempts to overflow cache in a brute force attack. Instead remove random non-admin to make room in cache.
 func pickRandomNonAdminLoginFailure(failures map[string]LoginAttempts, username string) *string {
 	idx := rand.Intn(len(failures) - 1)
 	i := 0
