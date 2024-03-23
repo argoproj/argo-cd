@@ -272,6 +272,10 @@ func TestIsRetryableError(t *testing.T) {
 }
 
 func Test_asResourceNode_owner_refs(t *testing.T) {
+
+	clusterCache := &mocks.ClusterCache{}
+	clusterCache.On("IsNamespaced", mock.Anything).Return(true, nil)
+
 	resNode := asResourceNode(&cache.Resource{
 		ResourceVersion: "",
 		Ref: v1.ObjectReference{
@@ -292,7 +296,7 @@ func Test_asResourceNode_owner_refs(t *testing.T) {
 		CreationTimestamp: nil,
 		Info:              nil,
 		Resource:          nil,
-	})
+	}, clusterCache)
 	expected := appv1.ResourceNode{
 		ResourceRef: appv1.ResourceRef{
 			Version: "v1",
@@ -439,5 +443,60 @@ func TestSkipResourceUpdate(t *testing.T) {
 				Message: "different",
 			},
 		}))
+
+	})
+}
+
+func TestAsResourceNode(t *testing.T) {
+	r := &cache.Resource{
+		Ref: v1.ObjectReference{
+			Kind:       "Sample",
+			APIVersion: "sample/v1",
+			Name:       "sample-resource",
+			UID:        "1",
+		},
+		OwnerRefs: []metav1.OwnerReference{
+			{
+				APIVersion: "apps/v1",
+				Kind:       "Deployment",
+				Name:       "test-owner",
+				UID:        "2",
+			},
+		},
+	}
+
+	want := appv1.ResourceNode{
+		ResourceRef: appv1.ResourceRef{
+			Group:   "sample",
+			Version: "v1",
+			Name:    "sample-resource",
+			UID:     "1",
+			Kind:    "Sample",
+		},
+		ParentRefs: []appv1.ResourceRef{
+			{
+				Group: "apps",
+				Kind:  "Deployment",
+				UID:   "2",
+				Name:  "test-owner",
+			},
+		},
+	}
+
+	clusterCache := &mocks.ClusterCache{}
+	clusterCache.On("IsNamespaced", mock.Anything).Return(true, nil)
+	testNamespace := "test"
+
+	t.Run("Namespace scoped resource", func(t *testing.T) {
+		r.Ref.Namespace = testNamespace
+		want.ResourceRef.Namespace = testNamespace
+		want.ParentRefs[0].Namespace = testNamespace
+		got := asResourceNode(r, clusterCache)
+		assert.Equal(t, want, got)
+	})
+
+	t.Run("Cluster scoped resource", func(t *testing.T) {
+		got := asResourceNode(r, clusterCache)
+		assert.Equal(t, want, got)
 	})
 }
