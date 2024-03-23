@@ -227,6 +227,7 @@ func (c *Cache) GetGitReferences(repo string, references *[]*plumbing.Reference)
 	switch {
 	// Unexpected Error
 	case err != nil && err != ErrCacheMiss:
+		log.Errorf("Error attempting to retrieve git references from cache: %v", err)
 		return "", err
 	// Value is set
 	case valueExists && input[0][0] != cacheutil.CacheLockedValue:
