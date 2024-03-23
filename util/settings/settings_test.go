@@ -459,7 +459,7 @@ func TestGetResourceOverrides_with_splitted_keys(t *testing.T) {
 
 		overrides, err := settingsManager.GetResourceOverrides()
 		assert.NoError(t, err)
-		assert.Equal(t, 5, len(overrides))
+		assert.Equal(t, 6, len(overrides))
 		assert.Equal(t, 1, len(overrides["*/*"].IgnoreDifferences.JSONPointers))
 		assert.Equal(t, 1, len(overrides["admissionregistration.k8s.io/MutatingWebhookConfiguration"].IgnoreDifferences.JSONPointers))
 		assert.Equal(t, "foo\n", overrides["certmanager.k8s.io/Certificate"].HealthLua)
