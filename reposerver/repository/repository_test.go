@@ -82,7 +82,7 @@ func newCacheMocks() *repoCacheMocks {
 	return newCacheMocksWithOpts(1*time.Minute, 1*time.Minute, 10*time.Second)
 }
 
-func newCacheMocksWithOpts(repoCacheExpiration time.Duration, revisionCacheExpiration time.Duration, revisionCacheLockTimeout time.Duration) *repoCacheMocks {
+func newCacheMocksWithOpts(repoCacheExpiration, revisionCacheExpiration, revisionCacheLockTimeout time.Duration) *repoCacheMocks {
 	mockRepoCache := repositorymocks.NewMockRepoCache(&repositorymocks.MockCacheOptions{
 		RepoCacheExpiration:     1 * time.Minute,
 		RevisionCacheExpiration: 1 * time.Minute,
