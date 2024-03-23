@@ -1,5 +1,3 @@
-apiVersion: argoproj.io/v1alpha1
-kind: ConfigManagementPlugin
 metadata:
   name: cmp-fileName
 spec:

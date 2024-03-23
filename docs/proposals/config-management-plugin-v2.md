@@ -151,8 +151,6 @@ It only follows kubernetes-style spec conventions.
 
 ```bash
 # metadata file is in the root and shell executor knows about it
-apiVersion: argoproj.io/v1alpha1
-kind: ConfigManagementPlugin
 metadata:
   name: cdk8s
 spec:
@@ -300,8 +298,6 @@ However following are few minor drawbacks,
 1. ConfigManagementPlugin as CRD. Have a CR which the human operator creates:
 
 ```bash
-apiVersion: argoproj.io/v1alpha1
-kind: ConfigManagementPlugin
 metadata:
   name: cdk8s
 spec:

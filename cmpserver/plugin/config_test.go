@@ -100,19 +100,8 @@ metadata:
 			expectedErr: "invalid plugin configuration file. metadata.name should be non-empty.",
 		},
 		{
-			name: "invalid kind",
-			fileContents: `
-kind: invalid
-metadata:	
-  name: name
-`,
-			expected:    nil,
-			expectedErr: "invalid plugin configuration file. kind should be ConfigManagementPlugin, found invalid",
-		},
-		{
 			name: "empty generate command",
 			fileContents: `
-kind: ConfigManagementPlugin
 metadata:
   name: name
 `,
@@ -122,7 +111,6 @@ metadata:
 		{
 			name: "valid config",
 			fileContents: `
-kind: ConfigManagementPlugin
 metadata:
   name: name
 spec:
@@ -130,9 +118,6 @@ spec:
     command: [command]
 `,
 			expected: &PluginConfig{
-				TypeMeta: v1.TypeMeta{
-					Kind: ConfigManagementPluginKind,
-				},
 				Metadata: v1.ObjectMeta{
 					Name: "name",
 				},
@@ -177,9 +162,6 @@ func Test_PluginConfig_Address(t *testing.T) {
 		{
 			name: "no version specified",
 			config: &PluginConfig{
-				TypeMeta: v1.TypeMeta{
-					Kind: ConfigManagementPluginKind,
-				},
 				Metadata: v1.ObjectMeta{
 					Name: "name",
 				},
@@ -189,9 +171,6 @@ func Test_PluginConfig_Address(t *testing.T) {
 		{
 			name: "version specified",
 			config: &PluginConfig{
-				TypeMeta: v1.TypeMeta{
-					Kind: ConfigManagementPluginKind,
-				},
 				Metadata: v1.ObjectMeta{
 					Name: "name",
 				},
