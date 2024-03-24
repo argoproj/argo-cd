@@ -588,14 +588,25 @@ func TestPrintApplicationHistoryTable(t *testing.T) {
 	}
 }
 
-func TestPrintApplicationHistoryTableForWhenBothSourcesAndSourceFiledsExist(t *testing.T) {
+func TestPrintApplicationHistoryTableWithMultipleSources(t *testing.T) {
 	histories := []v1alpha1.RevisionHistory{
 		{
-
+			ID: 0,
+			Source: v1alpha1.ApplicationSource{
+				TargetRevision: "0",
+				RepoURL:        "test",
+			},
+		},
+		{
 			ID: 1,
 			Revisions: []string{
 				"1a",
 				"1b",
+			},
+			//added Source just for testing the fuction
+			Source: v1alpha1.ApplicationSource{
+				TargetRevision: "-1",
+				RepoURL:        "ignore",
 			},
 			Sources: v1alpha1.ApplicationSources{
 				v1alpha1.ApplicationSource{
@@ -649,7 +660,7 @@ func TestPrintApplicationHistoryTableForWhenBothSourcesAndSourceFiledsExist(t *t
 		return nil
 	})
 
-	expectation := "\nSOURCE  test-1\nID      DATE                           REVISION\n1       0001-01-01 00:00:00 +0000 UTC  1a\n2       0001-01-01 00:00:00 +0000 UTC  2a\n3       0001-01-01 00:00:00 +0000 UTC  3a\n\nSOURCE  test-2\nID      DATE                           REVISION\n1       0001-01-01 00:00:00 +0000 UTC  1b\n2       0001-01-01 00:00:00 +0000 UTC  2b\n3       0001-01-01 00:00:00 +0000 UTC  3b\n"
+	expectation := "\nSOURCE  test\nID      DATE                           REVISION\n0       0001-01-01 00:00:00 +0000 UTC  0\n\nSOURCE  test-1\nID      DATE                           REVISION\n1       0001-01-01 00:00:00 +0000 UTC  1a\n2       0001-01-01 00:00:00 +0000 UTC  2a\n3       0001-01-01 00:00:00 +0000 UTC  3a\n\nSOURCE  test-2\nID      DATE                           REVISION\n1       0001-01-01 00:00:00 +0000 UTC  1b\n2       0001-01-01 00:00:00 +0000 UTC  2b\n3       0001-01-01 00:00:00 +0000 UTC  3b\n"
 
 	if output != expectation {
 		t.Fatalf("Incorrect print operation output %q, should be %q", output, expectation)
