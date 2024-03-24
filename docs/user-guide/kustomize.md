@@ -7,6 +7,7 @@ The following configuration options are available for Kustomize:
 * `images` is a list of Kustomize image overrides
 * `replicas` is a list of Kustomize replica overrides
 * `commonLabels` is a string map of additional labels
+* `labelWithoutSelector` is a boolean value which defines if the common label(s) should be applied to resource selectors and templates.
 * `forceCommonLabels` is a boolean value which defines if it's allowed to override existing labels
 * `commonAnnotations` is a string map of additional annotations
 * `namespace` is a Kubernetes resources namespace
@@ -31,7 +32,7 @@ metadata:
   name: kustomize-inline-example
 namespace: test1
 resources:
-  - https://raw.githubusercontent.com/argoproj/argocd-example-apps/master/kustomize-guestbook/
+  - https://github.com/argoproj/argocd-example-apps//kustomize-guestbook/
 patches:
   - target:
       kind: Deployment
@@ -104,6 +105,37 @@ spec:
       destination:
         name: 'in-cluster'
         namespace: default
+```
+
+## Components
+Kustomize [components](https://github.com/kubernetes-sigs/kustomize/blob/master/examples/components.md) encapsulate both resources and patches together. They provide a powerful way to modularize and reuse configuration in Kubernetes applications.
+
+Outside of Argo CD, to utilize components, you must add the following to the `kustomization.yaml` that the Application references. For example:
+```yaml
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+...
+components:
+- ../component
+```
+
+With support added for components in `v2.10.0`, you can now reference a component directly in the Application:
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: application-kustomize-components
+spec:
+  ...
+  source:
+    path: examples/application-kustomize-components/base
+    repoURL: https://github.com/my-user/my-repo
+    targetRevision: main
+    
+    # This!
+    kustomize:
+      components:
+        - ../component  # relative to the kustomization.yaml (`source.path`).
 ```
 
 ## Private Remote Bases

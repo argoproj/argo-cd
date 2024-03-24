@@ -90,6 +90,9 @@ data:
   server.k8sclient.retry.max: "0"
   # The initial backoff delay on the first retry attempt in ms. Subsequent retries will double this backoff time up to a maximum threshold
   server.k8sclient.retry.base.backoff: "100"
+  # Semicolon-separated list of content types allowed on non-GET requests. Set an empty string to allow all. Be aware
+  # that allowing content types besides application/json may make your API more vulnerable to CSRF attacks.
+  server.api.content.types: "application/json"
 
   # Set the logging format. One of: text|json (default "text")
   server.log.format: "text"

@@ -102,7 +102,7 @@ func NewServer(metricsServer *metrics.MetricsServer, cache *reposervercache.Cach
 	}
 	repoService := repository.NewService(metricsServer, cache, initConstants, argo.NewResourceTracking(), gitCredsStore, filepath.Join(os.TempDir(), "_argocd-repo"))
 	if err := repoService.Init(); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to initialize the repo service: %w", err)
 	}
 
 	return &ArgoCDRepoServer{

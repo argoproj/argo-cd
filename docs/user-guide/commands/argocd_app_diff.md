@@ -9,6 +9,7 @@ Perform a diff against the target and live state.
 Perform a diff against the target and live state.
 Uses 'diff' to render the difference. KUBECTL_EXTERNAL_DIFF environment variable can be used to select your own diff tool.
 Returns the following exit codes: 2 on general errors, 1 when a diff is found, and 0 when no diff is found
+Kubernetes Secrets are ignored from this diff.
 
 ```
 argocd app diff APPNAME [flags]
@@ -17,6 +18,7 @@ argocd app diff APPNAME [flags]
 ### Options
 
 ```
+  -N, --app-namespace string        Only render the difference in namespace
       --exit-code                   Return non-zero exit code when there is a diff (default true)
       --hard-refresh                Refresh application data as well as target manifests cache
   -h, --help                        help for diff

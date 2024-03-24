@@ -1526,3 +1526,46 @@ func TestReplaceBaseHRef(t *testing.T) {
 		})
 	}
 }
+
+func Test_enforceContentTypes(t *testing.T) {
+	getBaseHandler := func(t *testing.T, allow bool) http.Handler {
+		return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+			assert.True(t, allow, "http handler was hit when it should have been blocked by content type enforcement")
+			writer.WriteHeader(200)
+		})
+	}
+
+	t.Parallel()
+
+	t.Run("GET - not providing a content type, should still succeed", func(t *testing.T) {
+		handler := enforceContentTypes(getBaseHandler(t, true), []string{"application/json"}).(http.HandlerFunc)
+		req := httptest.NewRequest("GET", "/", nil)
+		w := httptest.NewRecorder()
+		handler(w, req)
+		resp := w.Result()
+		assert.Equal(t, 200, resp.StatusCode)
+	})
+
+	t.Run("POST", func(t *testing.T) {
+		handler := enforceContentTypes(getBaseHandler(t, true), []string{"application/json"}).(http.HandlerFunc)
+		req := httptest.NewRequest("POST", "/", nil)
+		w := httptest.NewRecorder()
+		handler(w, req)
+		resp := w.Result()
+		assert.Equal(t, 415, resp.StatusCode, "didn't provide a content type, should have gotten an error")
+
+		req = httptest.NewRequest("POST", "/", nil)
+		req.Header = map[string][]string{"Content-Type": {"application/json"}}
+		w = httptest.NewRecorder()
+		handler(w, req)
+		resp = w.Result()
+		assert.Equal(t, 200, resp.StatusCode, "should have passed, since an allowed content type was provided")
+
+		req = httptest.NewRequest("POST", "/", nil)
+		req.Header = map[string][]string{"Content-Type": {"not-allowed"}}
+		w = httptest.NewRecorder()
+		handler(w, req)
+		resp = w.Result()
+		assert.Equal(t, 415, resp.StatusCode, "should not have passed, since a disallowed content type was provided")
+	})
+}
