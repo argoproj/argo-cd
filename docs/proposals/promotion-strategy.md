@@ -16,7 +16,7 @@ last-updated: 2024-03-12
 
 # Proposal: GitOps Promotion/Rollback Tool
 
-This proposal describes an opinioned set of API/tools to manage change promotion and reversion in a GitOps environment.
+This proposal describes an opinionated set of API/tools to manage change promotion and reversion in a GitOps environment.
 
 ## Open Questions
 
@@ -94,6 +94,7 @@ We propose a pattern and tooling to implement promotion and reversion based on c
     * No waiting around for the system to communicate its state
 * There must be no intentional drift between hydrated branches and the cluster
 * The tool must be usable by non-Argo GitOps tools - e.g. Flux should be able to integrate with this system without using esoteric adapters
+* We must focus on providing a declarative, eventually-consistent experience rather than a "pipeline-driven" experience
 
 ### Non-Goals
 
@@ -106,6 +107,8 @@ We propose a pattern and tooling to implement promotion and reversion based on c
 This proposal introduces a system of push-by-pr-merge. Instead of representing the change promotion state in some external system, it is represented as PRs against environment branches containing "hydrated" (or "rendered") manifests. The "wait" stages of the promotion process (performance tests, manual approvals, etc.) are represented as commit statuses blocking PR merges. The state of the entire system is visible in the git/SCM interface. This system is generalizable to many organizations, relying on near-ubiquitous SCM concepts, allowing the promotion tool to be open-sourced.
 
 ![Diagram showing the promote-by-pr-merge strategy. Changes originate as PRs against the main (DRY) branch. A tool then generates PRs for each environment with the hydrated manifests. The tool merges the PRs in the designated order. Changes are immediately synced out to the cluster on PR merge.](images/promote-by-pr-merge.png)
+
+**IMPORTANT:** "Environment branches" here refers only to the machine-generated branches and their machine-generated contents. Directories are a much better "write" user interface, so directories in a single branch should be used for users to declare their intent (via Helm, Kustomize, etc.). Only the automated tooling should interact with the environment branches. Using a branch per environment allows us to easily model "one change to one environment" as a PR without dealing with complex merge scenarios against a single branch. It also provides a readable, intuitive "history of this environment" interface via the SCM's commit history page.
 
 #### Reversion
 
@@ -451,3 +454,10 @@ This tool will not be responsible for checking that no secrets are being written
     * Is IaC-agnostic (supports Terraform, etc.)
     * Does not rely on the "rendered (hydrated) manifest" pattern, which has some drawbacks (no full manifest history)
     * No 1st-class Argo CD integration (they work together nicely, but it's not quite a fully-integrated experience)
+
+## TODO:
+
+- [ ] Define a new GitRepo API and design an adapter to the Argo CD repo secret standard
+- [ ] Document how Argo CD is meant to enable the PromotionStrategy controller to do its job
+- [ ] Write a proposal for the change preview feature
+- [ ] Describe how DORA metrics will work (do we need provenance of upstream changes, like app change -> image bump in manifest?)
