@@ -402,7 +402,7 @@ func TestSimpleClusterGeneratorAddingCluster(t *testing.T) {
 
 		// Update the ApplicationSet template namespace, and verify it updates the Applications
 		When().
-		CreateClusterSecret("my-secret2", "cluster2", "https://kubernetes.default.svc").
+		CreateClusterSecret("my-secret2", "cluster2", "https://kubernetes.default.svc.cluster.local").
 		Then().Expect(ApplicationsExist([]argov1alpha1.Application{expectedAppCluster1, expectedAppCluster2})).
 
 		// Delete the ApplicationSet, and verify it deletes the Applications
@@ -448,7 +448,7 @@ func TestSimpleClusterGeneratorDeletingCluster(t *testing.T) {
 		// Create a ClusterGenerator-based ApplicationSet
 		When().
 		CreateClusterSecret("my-secret", "cluster1", "https://kubernetes.default.svc").
-		CreateClusterSecret("my-secret2", "cluster2", "https://kubernetes.default.svc").
+		CreateClusterSecret("my-secret2", "cluster2", "https://kubernetes.default.svc.cluster.local").
 		Create(v1alpha1.ApplicationSet{ObjectMeta: metav1.ObjectMeta{
 			Name: "simple-cluster-generator",
 		},

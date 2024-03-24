@@ -85,7 +85,7 @@ func (g *ClusterGenerator) GenerateParams(appSetGenerator *argoappsetv1alpha1.Ap
 		return nil, nil
 	}
 
-	clusterSecrets, err := g.getSecretsByClusterName(appSetGenerator)
+	clusterSecrets, err := g.getSecretsByServer(appSetGenerator)
 	if err != nil {
 		return nil, err
 	}
@@ -98,7 +98,7 @@ func (g *ClusterGenerator) GenerateParams(appSetGenerator *argoappsetv1alpha1.Ap
 
 		// If there is a secret for this cluster, then it's a non-local cluster, so it will be
 		// handled by the next step.
-		if secretForCluster, exists := clusterSecrets[cluster.Name]; exists {
+		if secretForCluster, exists := clusterSecrets[cluster.Server]; exists {
 			secretsFound = append(secretsFound, secretForCluster)
 
 		} else if !ignoreLocalClusters {
@@ -161,7 +161,7 @@ func (g *ClusterGenerator) GenerateParams(appSetGenerator *argoappsetv1alpha1.Ap
 	return res, nil
 }
 
-func (g *ClusterGenerator) getSecretsByClusterName(appSetGenerator *argoappsetv1alpha1.ApplicationSetGenerator) (map[string]corev1.Secret, error) {
+func (g *ClusterGenerator) getSecretsByServer(appSetGenerator *argoappsetv1alpha1.ApplicationSetGenerator) (map[string]corev1.Secret, error) {
 	// List all Clusters:
 	clusterSecretList := &corev1.SecretList{}
 
@@ -179,7 +179,7 @@ func (g *ClusterGenerator) getSecretsByClusterName(appSetGenerator *argoappsetv1
 	res := map[string]corev1.Secret{}
 
 	for _, cluster := range clusterSecretList.Items {
-		clusterName := string(cluster.Data["name"])
+		clusterName := string(cluster.Data["server"])
 
 		res[clusterName] = cluster
 	}
