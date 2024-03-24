@@ -48,29 +48,28 @@
     }
 }
 
-.login-logout-button {
-    border-radius: 3px;
-    @include themify($themes) {
-        color: themed('light-argo-teal-7');
-    }
-    padding: 3px;
-    cursor: pointer;
-
-    &:focus {
-        color: $argo-color-teal-5;
-        box-shadow: 0 0 0 0.1em $argo-color-teal-5;
-    }
-    &:hover {
-        @include themify($themes) {
-            color: themed('light-argo-teal-5');
-        }
-    }
-}
-
 .page {
     padding-left: 0 !important;
     &__top-bar {
         left: $sidebar-width !important;
+    }
+
+    &__button {
+        border-radius: 5px;
+        color: white;
+        padding: 7px 14px;
+        cursor: pointer;
+        font-size: 14px;
+        font-weight: 600;
+        text-align: center;
+        background-color: $argo-color-gray-6;
+        &:hover {
+            background-color: $argo-success-color;
+        }
+
+        .fa-right-to-bracket {
+            margin-right: 3px;
+        }
     }
 }
 
@@ -93,4 +92,9 @@
             left: $collapsed-sidebar-width;
         }
     }
+}
+
+.toolbar {
+    display: flex;
+    width: 100%;
 }
