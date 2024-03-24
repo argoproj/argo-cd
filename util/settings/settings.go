@@ -7,8 +7,10 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"math/big"
+	"net/http"
 	"net/url"
 	"path"
 	"reflect"
@@ -48,6 +50,9 @@ type ArgoCDSettings struct {
 	// URL is the externally facing URL users will visit to reach Argo CD.
 	// The value here is used when configuring SSO. Omitting this value will disable SSO.
 	URL string `json:"url,omitempty"`
+	// URLs is a list of externally facing URLs users will visit to reach Argo CD.
+	// The value here is used when configuring SSO reachable from multiple domains.
+	URLs []string `json:"urls,omitempty"`
 	// Indicates if status badge is enabled or not.
 	StatusBadgeEnabled bool `json:"statusBadgeEnable"`
 	// Indicates if status badge custom root URL should be used.
@@ -401,6 +406,8 @@ const (
 	settingServerPrivateKey = "tls.key"
 	// settingURLKey designates the key where Argo CD's external URL is set
 	settingURLKey = "url"
+	// settingURLsKey designates the key where Argo CD's external URLs is set
+	settingURLsKey = "urls"
 	// repositoriesKey designates the key where ArgoCDs repositories list is set
 	repositoriesKey = "repositories"
 	// repositoryCredentialsKey designates the key where ArgoCDs repositories credentials list is set
@@ -1444,6 +1451,16 @@ func updateSettingsFromConfigMap(settings *ArgoCDSettings, argoCDCM *apiv1.Confi
 	if err := validateExternalURL(argoCDCM.Data[settingUiBannerURLKey]); err != nil {
 		log.Warnf("Failed to validate UI banner URL in configmap: %v", err)
 	}
+	if argoCDCM.Data[settingURLsKey] != "" {
+		if err := yaml.Unmarshal([]byte(argoCDCM.Data[settingURLsKey]), &settings.URLs); err != nil {
+			log.Warnf("Failed decode all UI banner URLs in configmap: %v", err)
+		}
+	}
+	for _, url := range settings.URLs {
+		if err := validateExternalURL(url); err != nil {
+			log.Warnf("Failed to validate UI banner URL in configmap: %v", err)
+		}
+	}
 	settings.UiBannerURL = argoCDCM.Data[settingUiBannerURLKey]
 	settings.UserSessionDuration = time.Hour * 24
 	if userSessionDurationStr, ok := argoCDCM.Data[userSessionDurationKey]; ok {
@@ -1750,7 +1767,7 @@ func (a *ArgoCDSettings) IsSSOConfigured() bool {
 }
 
 func (a *ArgoCDSettings) IsDexConfigured() bool {
-	if a.URL == "" {
+	if a.URL == "" && len(a.URLs) == 0 {
 		return false
 	}
 	dexCfg, err := UnmarshalDexConfig(a.DexConfig)
@@ -1961,6 +1978,31 @@ func appendURLPath(inputURL string, inputPath string) (string, error) {
 
 func (a *ArgoCDSettings) RedirectURL() (string, error) {
 	return appendURLPath(a.URL, common.CallbackEndpoint)
+}
+
+func (a *ArgoCDSettings) ArgoURLForRequest(r *http.Request) (string, error) {
+	if a == nil {
+		return "", errors.New("nil argocd settings")
+	}
+
+	for _, candidateURL := range append([]string{a.URL}, a.URLs...) {
+		u, err := url.Parse(candidateURL)
+		if err != nil {
+			return "", err
+		}
+		if u.Host == r.Host && strings.HasPrefix(r.URL.RequestURI(), u.RequestURI()) {
+			return candidateURL, nil
+		}
+	}
+	return a.URL, nil
+}
+
+func (a *ArgoCDSettings) RedirectURLForRequest(r *http.Request) (string, error) {
+	base, err := a.ArgoURLForRequest(r)
+	if err != nil {
+		return "", err
+	}
+	return appendURLPath(base, common.CallbackEndpoint)
 }
 
 func (a *ArgoCDSettings) DexRedirectURL() (string, error) {
