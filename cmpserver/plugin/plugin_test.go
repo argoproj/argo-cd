@@ -358,14 +358,14 @@ func TestRunCommandContextTimeout(t *testing.T) {
 		Args:    []string{"sleep 5"},
 	}
 	before := time.Now()
-	_, err := runCommand(ctx, command, "", []string{})
+	_, err := runCommand(ctx, command, "This should not be seen", "", []string{})
 	after := time.Now()
 	assert.Error(t, err) // The command should time out, causing an error.
 	assert.Less(t, after.Sub(before), 1*time.Second)
 }
 
 func TestRunCommandEmptyCommand(t *testing.T) {
-	_, err := runCommand(context.Background(), Command{}, "", nil)
+	_, err := runCommand(context.Background(), Command{}, "This should not be seen", "", nil)
 	assert.ErrorContains(t, err, "Command is empty")
 }
 
@@ -382,7 +382,7 @@ func TestRunCommandContextTimeoutWithCleanup(t *testing.T) {
 	}
 
 	before := time.Now()
-	output, err := runCommand(ctx, command, "", []string{})
+	output, err := runCommand(ctx, command, "This should not be seen", "", []string{})
 	after := time.Now()
 
 	assert.Error(t, err) // The command should time out, causing an error.
