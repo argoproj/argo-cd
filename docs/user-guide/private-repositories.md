@@ -3,7 +3,7 @@
 !!!note
     Some Git hosters - notably GitLab and possibly on-premise GitLab instances as well - require you to
     specify the `.git` suffix in the repository URL, otherwise they will send a HTTP 301 redirect to the
-    repository URL suffixed with `.git`. ArgoCD will **not** follow these redirects, so you have to
+    repository URL suffixed with `.git`. Argo CD will **not** follow these redirects, so you have to
     adapt your repository URL to be suffixed with `.git`.
 
 ## Credentials
@@ -52,7 +52,7 @@ Then, connect the repository using any non-empty string as username and the acce
 
 ### TLS Client Certificates for HTTPS repositories
 
-If your repository server requires you to use TLS client certificates for authentication, you can configure ArgoCD repositories to make use of them. For this purpose, `--tls-client-cert-path` and `--tls-client-cert-key-path` switches to the `argocd repo add` command can be used to specify the files on your local system containing client certificate and the corresponding key, respectively:
+If your repository server requires you to use TLS client certificates for authentication, you can configure Argo CD repositories to make use of them. For this purpose, `--tls-client-cert-path` and `--tls-client-cert-key-path` switches to the `argocd repo add` command can be used to specify the files on your local system containing client certificate and the corresponding key, respectively:
 
 ```
 argocd repo add https://repo.example.com/repo.git --tls-client-cert-path ~/mycert.crt --tls-client-cert-key-path ~/mycert.key
@@ -63,7 +63,7 @@ Of course, you can also use this in combination with the `--username` and `--pas
 Your TLS client certificate and corresponding key can also be configured using the UI, see instructions for adding Git repos using HTTPS.
 
 !!! note
-    Your client certificate and key data must be in PEM format, other formats (such as PKCS12) are not understood. Also make sure that your certificate's key is not password protected, otherwise it cannot be used by ArgoCD.
+    Your client certificate and key data must be in PEM format, other formats (such as PKCS12) are not understood. Also make sure that your certificate's key is not password protected, otherwise it cannot be used by Argo CD.
 
 !!! note
     When pasting TLS client certificate and key in the text areas in the web UI, make sure they contain no unintended line breaks or additional characters.
@@ -169,7 +169,7 @@ To set up a credential template using the Web UI, simply fill in all relevant cr
 
 To manage credential templates using the CLI, use the `repocreds` sub-command, for example `argocd repocreds add https://github.com/argoproj --username youruser --password yourpass` would setup a credential template for the URL prefix `https://github.com/argoproj` using the specified username/password combination. Similar to the `repo` sub-command, you can also list and remove repository credentials using the `argocd repocreds list` and `argocd repocreds rm` commands, respectively.
 
-In order for ArgoCD to use a credential template for any given repository, the following conditions must be met:
+In order for Argo CD to use a credential template for any given repository, the following conditions must be met:
 
 * The repository must either not be configured at all, or if configured, must not contain any credential information 
 * The URL configured for a credential template (e.g. `https://github.com/argoproj`) must match as prefix for the repository URL (e.g. `https://github.com/argoproj/argocd-example-apps`). 
@@ -204,7 +204,7 @@ FATA[0000] rpc error: code = Unknown desc = authentication required
 
 ## Self-signed & Untrusted TLS Certificates
 
-If you are connecting a repository on a HTTPS server using a self-signed certificate, or a certificate signed by a custom Certificate Authority (CA) which are not known to ArgoCD, the repository will not be added due to security reasons. This is indicated by an error message such as `x509: certificate signed by unknown authority`.
+If you are connecting a repository on a HTTPS server using a self-signed certificate, or a certificate signed by a custom Certificate Authority (CA) which are not known to Argo CD, the repository will not be added due to security reasons. This is indicated by an error message such as `x509: certificate signed by unknown authority`.
 
 1. You can let ArgoCD connect the repository in an insecure way, without verifying the server's certificate at all. This can be accomplished by using the `--insecure-skip-server-verification` flag when adding the repository with the `argocd` CLI utility. However, this should be done only for non-production setups, as it imposes a serious security issue through possible man-in-the-middle attacks.
 
@@ -279,7 +279,7 @@ It is possible to add and remove TLS certificates using the ArgoCD web UI:
 
 ### Managing TLS certificates using declarative configuration
 
-You can also manage TLS certificates in a declarative, self-managed ArgoCD setup. All TLS certificates are stored in the ConfigMap object `argocd-tls-cert-cm`.
+You can also manage TLS certificates in a declarative, self-managed ArgoCD setup. All TLS certificates are stored in the ConfigMap object `argocd-tls-certs-cm`.
 Please refer to the [Operator Manual](../../operator-manual/declarative-setup/#repositories-using-self-signed-tls-certificates-or-are-signed-by-custom-ca) for more information.
 
 ## Unknown SSH Hosts

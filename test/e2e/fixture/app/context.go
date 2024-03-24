@@ -38,6 +38,7 @@ type Context struct {
 	project                string
 	revision               string
 	force                  bool
+	applyOutOfSyncOnly     bool
 	directoryRecurse       bool
 	replace                bool
 	helmPassCredentials    bool
@@ -64,7 +65,7 @@ func GivenWithNamespace(t *testing.T, namespace string) *Context {
 func GivenWithSameState(t *testing.T) *Context {
 	// ARGOCE_E2E_DEFAULT_TIMEOUT can be used to override the default timeout
 	// for any context.
-	timeout := env.ParseNumFromEnv("ARGOCD_E2E_DEFAULT_TIMEOUT", 10, 0, 180)
+	timeout := env.ParseNumFromEnv("ARGOCD_E2E_DEFAULT_TIMEOUT", 20, 0, 180)
 	return &Context{
 		t:              t,
 		destServer:     v1alpha1.KubernetesInternalAPIServerAddr,
@@ -338,6 +339,11 @@ func (c *Context) Project(project string) *Context {
 
 func (c *Context) Force() *Context {
 	c.force = true
+	return c
+}
+
+func (c *Context) ApplyOutOfSyncOnly() *Context {
+	c.applyOutOfSyncOnly = true
 	return c
 }
 

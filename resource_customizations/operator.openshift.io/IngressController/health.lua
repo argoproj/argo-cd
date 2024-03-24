@@ -1,5 +1,5 @@
 -- healthcheck for IngressController resources
-hs = {}
+local hs = {}
 if obj.status ~= nil then
   if obj.status.conditions ~= nil then
       -- if the status conditions are present, iterate over them and check their status

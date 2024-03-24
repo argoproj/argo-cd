@@ -369,6 +369,28 @@ func TestRunCommandEmptyCommand(t *testing.T) {
 	assert.ErrorContains(t, err, "Command is empty")
 }
 
+// TestRunCommandContextTimeoutWithGracefulTermination makes sure that the process is given enough time to cleanup before sending SIGKILL.
+func TestRunCommandContextTimeoutWithCleanup(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 900*time.Millisecond)
+	defer cancel()
+
+	// Use a subshell so there's a child command.
+	// This command sleeps for 4 seconds which is currently less than the 5 second delay between SIGTERM and SIGKILL signal and then exits successfully.
+	command := Command{
+		Command: []string{"sh", "-c"},
+		Args:    []string{`(trap 'echo "cleanup completed"; exit' TERM; sleep 4)`},
+	}
+
+	before := time.Now()
+	output, err := runCommand(ctx, command, "", []string{})
+	after := time.Now()
+
+	assert.Error(t, err) // The command should time out, causing an error.
+	assert.Less(t, after.Sub(before), 1*time.Second)
+	// The command should still have completed the cleanup after termination.
+	assert.Contains(t, output, "cleanup completed")
+}
+
 func Test_getParametersAnnouncement_empty_command(t *testing.T) {
 	staticYAML := `
 - name: static-a

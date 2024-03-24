@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"math"
+	"net/url"
 	"os"
 	"strings"
 	"testing"
@@ -71,7 +73,7 @@ func TestIndex(t *testing.T) {
 
 func Test_nativeHelmChart_ExtractChart(t *testing.T) {
 	client := NewClient("https://argoproj.github.io/argo-helm", Creds{}, false, "")
-	path, closer, err := client.ExtractChart("argo-cd", "0.7.1", false)
+	path, closer, err := client.ExtractChart("argo-cd", "0.7.1", false, math.MaxInt64, true)
 	assert.NoError(t, err)
 	defer io.Close(closer)
 	info, err := os.Stat(path)
@@ -79,9 +81,15 @@ func Test_nativeHelmChart_ExtractChart(t *testing.T) {
 	assert.True(t, info.IsDir())
 }
 
+func Test_nativeHelmChart_ExtractChartWithLimiter(t *testing.T) {
+	client := NewClient("https://argoproj.github.io/argo-helm", Creds{}, false, "")
+	_, _, err := client.ExtractChart("argo-cd", "0.7.1", false, 100, false)
+	assert.Error(t, err, "error while iterating on tar reader: unexpected EOF")
+}
+
 func Test_nativeHelmChart_ExtractChart_insecure(t *testing.T) {
 	client := NewClient("https://argoproj.github.io/argo-helm", Creds{InsecureSkipVerify: true}, false, "")
-	path, closer, err := client.ExtractChart("argo-cd", "0.7.1", false)
+	path, closer, err := client.ExtractChart("argo-cd", "0.7.1", false, math.MaxInt64, true)
 	assert.NoError(t, err)
 	defer io.Close(closer)
 	info, err := os.Stat(path)
@@ -152,41 +160,129 @@ func TestGetIndexURL(t *testing.T) {
 }
 
 func TestGetTagsFromUrl(t *testing.T) {
+	t.Run("should return tags correctly while following the link header", func(t *testing.T) {
+		server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			t.Logf("called %s", r.URL.Path)
+			responseTags := TagsList{}
+			w.Header().Set("Content-Type", "application/json")
+			if !strings.Contains(r.URL.String(), "token") {
+				w.Header().Set("Link", fmt.Sprintf("<https://%s%s?token=next-token>; rel=next", r.Host, r.URL.Path))
+				responseTags.Tags = []string{"first"}
+			} else {
+				responseTags.Tags = []string{
+					"second",
+					"2.8.0",
+					"2.8.0-prerelease",
+					"2.8.0_build",
+					"2.8.0-prerelease_build",
+					"2.8.0-prerelease.1_build.1234",
+				}
+			}
+			w.WriteHeader(http.StatusOK)
+			err := json.NewEncoder(w).Encode(responseTags)
+			if err != nil {
+				t.Fatal(err)
+			}
+		}))
+
+		client := NewClient(server.URL, Creds{InsecureSkipVerify: true}, true, "")
+
+		tags, err := client.GetTags("mychart", true)
+		assert.NoError(t, err)
+		assert.ElementsMatch(t, tags.Tags, []string{
+			"first",
+			"second",
+			"2.8.0",
+			"2.8.0-prerelease",
+			"2.8.0+build",
+			"2.8.0-prerelease+build",
+			"2.8.0-prerelease.1+build.1234",
+		})
+	})
+
+	t.Run("should return an error not when oci is not enabled", func(t *testing.T) {
+		client := NewClient("example.com", Creds{}, false, "")
+
+		_, err := client.GetTags("my-chart", true)
+		assert.ErrorIs(t, OCINotEnabledErr, err)
+	})
+}
+
+func TestGetTagsFromURLPrivateRepoAuthentication(t *testing.T) {
 	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		t.Logf("called %s", r.URL.Path)
-		responseTags := TagsList{}
-		w.Header().Set("Content-Type", "application/json")
-		if !strings.Contains(r.URL.String(), "token") {
-			w.Header().Set("Link", fmt.Sprintf("<https://%s%s?token=next-token>; rel=next", r.Host, r.URL.Path))
-			responseTags.Tags = []string{"first"}
-		} else {
-			responseTags.Tags = []string{
-				"second",
+
+		authorization := r.Header.Get("Authorization")
+		if authorization == "" {
+			w.Header().Set("WWW-Authenticate", `Basic realm="helm repo to get tags"`)
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+
+		t.Logf("authorization received %s", authorization)
+
+		responseTags := TagsList{
+			Tags: []string{
 				"2.8.0",
 				"2.8.0-prerelease",
 				"2.8.0_build",
 				"2.8.0-prerelease_build",
 				"2.8.0-prerelease.1_build.1234",
-			}
+			},
 		}
+
+		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		err := json.NewEncoder(w).Encode(responseTags)
 		if err != nil {
 			t.Fatal(err)
 		}
 	}))
+	t.Cleanup(server.Close)
 
-	client := NewClient(server.URL, Creds{InsecureSkipVerify: true}, true, "")
-
-	tags, err := client.GetTags("mychart", true)
+	serverURL, err := url.Parse(server.URL)
 	assert.NoError(t, err)
-	assert.ElementsMatch(t, tags.Tags, []string{
-		"first",
-		"second",
-		"2.8.0",
-		"2.8.0-prerelease",
-		"2.8.0+build",
-		"2.8.0-prerelease+build",
-		"2.8.0-prerelease.1+build.1234",
-	})
+
+	testCases := []struct {
+		name    string
+		repoURL string
+	}{
+		{
+			name:    "should login correctly when the repo path is in the server root with http scheme",
+			repoURL: server.URL,
+		},
+		{
+			name:    "should login correctly when the repo path is not in the server root with http scheme",
+			repoURL: fmt.Sprintf("%s/my-repo", server.URL),
+		},
+		{
+			name:    "should login correctly when the repo path is in the server root without http scheme",
+			repoURL: serverURL.Host,
+		},
+		{
+			name:    "should login correctly when the repo path is not in the server root without http scheme",
+			repoURL: fmt.Sprintf("%s/my-repo", serverURL.Host),
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			client := NewClient(testCase.repoURL, Creds{
+				InsecureSkipVerify: true,
+				Username:           "my-username",
+				Password:           "my-password",
+			}, true, "")
+
+			tags, err := client.GetTags("mychart", true)
+
+			assert.NoError(t, err)
+			assert.ElementsMatch(t, tags.Tags, []string{
+				"2.8.0",
+				"2.8.0-prerelease",
+				"2.8.0+build",
+				"2.8.0-prerelease+build",
+				"2.8.0-prerelease.1+build.1234",
+			})
+		})
+	}
 }

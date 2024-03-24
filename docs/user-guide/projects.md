@@ -3,8 +3,8 @@
 Projects provide a logical grouping of applications, which is useful when Argo CD is used by multiple
 teams. Projects provide the following features:
 
-* restrict *what* may be deployed (trusted Git source repositories)
-* restrict *where* apps may be deployed to (destination clusters and namespaces)
+* restrict what may be deployed (trusted Git source repositories)
+* restrict where apps may be deployed to (destination clusters and namespaces)
 * restrict what kinds of objects may or may not be deployed (e.g. RBAC, CRDs, DaemonSets, NetworkPolicy etc...)
 * defining project roles to provide application RBAC (bound to OIDC groups and/or JWT tokens)
 
@@ -271,15 +271,15 @@ projectName: `proj-global-test` should be replaced with your own global project 
 
 ## Project scoped Repositories and Clusters
 
-Normally, an ArgoCD admin creates a project and decides in advance which clusters and Git repositories
+Normally, an Argo CD admin creates a project and decides in advance which clusters and Git repositories
 it defines. However, this creates a problem in scenarios where a developer wants to add a repository or cluster
-after the initial creation of the project. This forces the developer to contact their ArgoCD admin again to update the project definition.
+after the initial creation of the project. This forces the developer to contact their Argo CD admin again to update the project definition.
 
 It is possible to offer a self-service process for developers so that they can add a repository and/or cluster in a project on their own even after the initial creation of the project.
 
-For this purpose ArgoCD supports project-scoped repositories and clusters.
+For this purpose Argo CD supports project-scoped repositories and clusters.
 
-To begin the process, ArgoCD admins must configure RBAC security to allow this self-service behavior.
+To begin the process, Argo CD admins must configure RBAC security to allow this self-service behavior.
 For example, to allow users to add project scoped repositories and admin would have to add
 the following RBAC rules:
 
@@ -292,7 +292,7 @@ p, proj:my-project:admin, repositories, update, my-project/*, allow
 This provides extra flexibility so that admins can have stricter rules. e.g.:
 
 ```
-p, proj:my-project:admin, repositories, update, my-project/https://github.my-company.com/*, allow
+p, proj:my-project:admin, repositories, update, my-project/https://github.example.com/*, allow
 ```
 
 Once the appropriate RBAC rules are in place, developers can create their own Git repositories and (assuming 
@@ -320,6 +320,28 @@ stringData:
 ```
 
 All the examples above talk about Git repositories, but the same principles apply to clusters as well.
+
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: mycluster-secret
+  labels:
+    argocd.argoproj.io/secret-type: cluster
+type: Opaque
+stringData:
+  name: mycluster.example.com
+  project: my-project1 # Project scoped 
+  server: https://mycluster.example.com
+  config: |
+    {
+      "bearerToken": "<authentication token>",
+      "tlsClientConfig": {
+        "insecure": false,
+        "caData": "<base64 encoded certificate>"
+      }
+    }
+```
 
 With project-scoped clusters we can also restrict projects to only allow applications whose destinations belong to the 
 same project. The default behavior allows for applications to be installed onto clusters which are not a part of the same 

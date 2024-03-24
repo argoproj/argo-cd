@@ -370,7 +370,7 @@ func TestAppProject_IsDestinationPermitted_PermitOnlyProjectScopedClusters(t *te
 		projDest: []ApplicationDestination{{
 			Server: "https://my-cluster.123.com", Namespace: "default",
 		}},
-		appDest: ApplicationDestination{Server: "https://some-other-cluster.com", Namespace: "default"},
+		appDest: ApplicationDestination{Server: "https://some-other-cluster.example.com", Namespace: "default"},
 		clusters: []*Cluster{{
 			Server: "https://my-cluster.123.com",
 		}},
@@ -646,7 +646,7 @@ func TestAppProject_ValidateDestinations(t *testing.T) {
 	err = p.ValidateProject()
 	assert.NoError(t, err)
 
-	//no duplicates allowed
+	// no duplicates allowed
 	p.Spec.Destinations = []ApplicationDestination{validDestination, validDestination}
 	err = p.ValidateProject()
 	assert.Error(t, err)
@@ -2966,7 +2966,7 @@ func TestRetryStrategy_NextRetryAtCustomBackoff(t *testing.T) {
 	retry := RetryStrategy{
 		Backoff: &Backoff{
 			Duration:    "2s",
-			Factor:      pointer.Int64Ptr(3),
+			Factor:      pointer.Int64(3),
 			MaxDuration: "1m",
 		},
 	}
@@ -2998,6 +2998,16 @@ func TestSourceAllowsConcurrentProcessing_KustomizeParams(t *testing.T) {
 	t.Run("Has CommonAnnotations", func(t *testing.T) {
 		src := ApplicationSource{Path: ".", Kustomize: &ApplicationSourceKustomize{
 			CommonAnnotations: map[string]string{"foo": "bar"},
+		}}
+
+		assert.False(t, src.AllowsConcurrentProcessing())
+	})
+
+	t.Run("Has Patches", func(t *testing.T) {
+		src := ApplicationSource{Path: ".", Kustomize: &ApplicationSourceKustomize{
+			Patches: KustomizePatches{{
+				Path: "test",
+			}},
 		}}
 
 		assert.False(t, src.AllowsConcurrentProcessing())
@@ -3065,10 +3075,10 @@ func TestOrphanedResourcesMonitorSettings_IsWarn(t *testing.T) {
 	settings := OrphanedResourcesMonitorSettings{}
 	assert.False(t, settings.IsWarn())
 
-	settings.Warn = pointer.BoolPtr(false)
+	settings.Warn = pointer.Bool(false)
 	assert.False(t, settings.IsWarn())
 
-	settings.Warn = pointer.BoolPtr(true)
+	settings.Warn = pointer.Bool(true)
 	assert.True(t, settings.IsWarn())
 }
 

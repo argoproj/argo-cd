@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"sigs.k8s.io/yaml"
 
@@ -251,4 +252,23 @@ func TestNormalizeExpectedErrorAreSilenced(t *testing.T) {
 
 	assert.True(t, shouldLogError(fmt.Errorf("An error that should not be ignored")))
 
+}
+
+func TestJQPathExpressionReturnsHelpfulError(t *testing.T) {
+	normalizer, err := NewIgnoreNormalizer([]v1alpha1.ResourceIgnoreDifferences{{
+		Kind: "ConfigMap",
+		// This is a really wild expression, but it does trigger the desired error.
+		JQPathExpressions: []string{`.nothing) | .data["config.yaml"] |= (fromjson | del(.auth) | tojson`},
+	}}, nil)
+
+	assert.NoError(t, err)
+
+	configMap := test.NewConfigMap()
+	require.NoError(t, err)
+
+	out := test.CaptureLogEntries(func() {
+		err = normalizer.Normalize(configMap)
+		require.NoError(t, err)
+	})
+	assert.Contains(t, out, "fromjson cannot be applied")
 }

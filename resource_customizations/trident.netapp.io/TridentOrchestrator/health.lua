@@ -1,4 +1,4 @@
-hs = {}
+local hs = {}
 if obj.status ~= nil then
   if obj.status.status == "Installed" then
     hs.status = "Healthy"

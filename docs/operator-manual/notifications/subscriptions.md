@@ -9,13 +9,13 @@ metadata:
     notifications.argoproj.io/subscribe.on-sync-succeeded.slack: my-channel1;my-channel2
 ```
 
-Annotation key consists of following parts:
+The annotation key consists of following parts:
 
 * `on-sync-succeeded` - trigger name
 * `slack` - notification service name
 * `my-channel1;my-channel2` - a semicolon separated list of recipients
 
-You can create subscriptions for all applications of the Argo CD project by adding the same annotation to AppProject CRD:
+You can create subscriptions for all applications of an Argo CD project by adding the same annotation to the AppProject resource:
 
 ```yaml
 apiVersion: argoproj.io/v1alpha1
@@ -27,7 +27,7 @@ metadata:
 
 ## Default Subscriptions
 
-The subscriptions might be configured globally in the `argocd-notifications-cm` ConfigMap using `subscriptions` field. The default subscriptions
+The subscriptions might be configured globally in the `argocd-notifications-cm` ConfigMap using the `subscriptions` field. The default subscriptions
 are applied to all applications. The trigger and applications might be configured using the
 `triggers` and `selector` fields:
 
@@ -53,7 +53,7 @@ data:
       - on-sync-status-unknown
 ```
 
-If you want to use webhook in subscriptions, you need to store the custom name to recipients.
+If you want to use webhook in subscriptions, you need to store the custom webhook name in the subscription's `recipients` field.
 
 ```yaml
 apiVersion: v1
