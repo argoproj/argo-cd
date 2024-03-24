@@ -131,13 +131,13 @@ func (c *client) startGRPCProxy() (*grpc.Server, net.Listener, error) {
 			}
 
 			md, _ := metadata.FromIncomingContext(stream.Context())
+			headersMD, err := parseGRPCHeaders(c.Headers)
 
-			for _, kv := range c.Headers {
-				if len(strings.Split(kv, ":"))%2 == 1 {
-					return fmt.Errorf("additional headers key/values must be separated by a colon(:): %s", kv)
-				}
-				md.Append(strings.Split(kv, ":")[0], strings.Split(kv, ":")[1])
+			if err != nil {
+				return err
 			}
+
+			md = metadata.Join(md, headersMD)
 
 			resp, err := c.executeRequest(fullMethodName, msg, md)
 			if err != nil {
@@ -215,4 +215,17 @@ func (c *client) useGRPCProxy() (net.Addr, io.Closer, error) {
 		}
 		return nil
 	}), nil
+}
+
+func parseGRPCHeaders(headerStrings []string) (metadata.MD, error) {
+	md := metadata.New(map[string]string{})
+	for _, kv := range headerStrings {
+		i := strings.IndexByte(kv, ':')
+		// zero means meaningless empty header name
+		if i <= 0 {
+			return nil, fmt.Errorf("additional headers must be colon(:)-separated: %s", kv)
+		}
+		md.Append(kv[0:i], kv[i+1:])
+	}
+	return md, nil
 }

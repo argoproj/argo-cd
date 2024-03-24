@@ -68,6 +68,7 @@ type AppOptions struct {
 	kustomizeVersion                string
 	kustomizeCommonLabels           []string
 	kustomizeCommonAnnotations      []string
+	kustomizeLabelWithoutSelector   bool
 	kustomizeForceCommonLabels      bool
 	kustomizeForceCommonAnnotations bool
 	kustomizeNamespace              string
@@ -104,7 +105,7 @@ func AddAppFlags(command *cobra.Command, opts *AppOptions) {
 	command.Flags().StringArrayVar(&opts.helmSetFiles, "helm-set-file", []string{}, "Helm set values from respective files specified via the command line (can be repeated to set several values: --helm-set-file key1=path1 --helm-set-file key2=path2)")
 	command.Flags().BoolVar(&opts.helmSkipCrds, "helm-skip-crds", false, "Skip helm crd installation step")
 	command.Flags().StringVar(&opts.project, "project", "", "Application project name")
-	command.Flags().StringVar(&opts.syncPolicy, "sync-policy", "", "Set the sync policy (one of: none, automated (aliases of automated: auto, automatic))")
+	command.Flags().StringVar(&opts.syncPolicy, "sync-policy", "", "Set the sync policy (one of: manual (aliases of manual: none), automated (aliases of automated: auto, automatic))")
 	command.Flags().StringArrayVar(&opts.syncOptions, "sync-option", []string{}, "Add or remove a sync option, e.g add `Prune=false`. Remove using `!` prefix, e.g. `!Prune=false`")
 	command.Flags().BoolVar(&opts.autoPrune, "auto-prune", false, "Set automatic pruning when sync is automated")
 	command.Flags().BoolVar(&opts.selfHeal, "self-heal", false, "Set self healing when sync is automated")
@@ -125,6 +126,7 @@ func AddAppFlags(command *cobra.Command, opts *AppOptions) {
 	command.Flags().BoolVar(&opts.Validate, "validate", true, "Validation of repo and cluster")
 	command.Flags().StringArrayVar(&opts.kustomizeCommonLabels, "kustomize-common-label", []string{}, "Set common labels in Kustomize")
 	command.Flags().StringArrayVar(&opts.kustomizeCommonAnnotations, "kustomize-common-annotation", []string{}, "Set common labels in Kustomize")
+	command.Flags().BoolVar(&opts.kustomizeLabelWithoutSelector, "kustomize-label-without-selector", false, "Do not apply common label to selectors or templates")
 	command.Flags().BoolVar(&opts.kustomizeForceCommonLabels, "kustomize-force-common-label", false, "Force common labels in Kustomize")
 	command.Flags().BoolVar(&opts.kustomizeForceCommonAnnotations, "kustomize-force-common-annotation", false, "Force common annotations in Kustomize")
 	command.Flags().StringVar(&opts.kustomizeNamespace, "kustomize-namespace", "", "Kustomize namespace")
@@ -137,16 +139,27 @@ func AddAppFlags(command *cobra.Command, opts *AppOptions) {
 	command.Flags().StringVar(&opts.ref, "ref", "", "Ref is reference to another source within sources field")
 }
 
-func SetAppSpecOptions(flags *pflag.FlagSet, spec *argoappv1.ApplicationSpec, appOpts *AppOptions) int {
+func SetAppSpecOptions(flags *pflag.FlagSet, spec *argoappv1.ApplicationSpec, appOpts *AppOptions, index int) int {
 	visited := 0
 	if flags == nil {
 		return visited
 	}
-	source := spec.GetSourcePtr()
+	source := spec.GetSourcePtr(index)
 	if source == nil {
 		source = &argoappv1.ApplicationSource{}
 	}
 	source, visited = ConstructSource(source, *appOpts, flags)
+	if spec.HasMultipleSources() {
+		if index == 0 {
+			spec.Sources[index] = *source
+		} else if index > 0 {
+			spec.Sources[index-1] = *source
+		} else {
+			spec.Sources = append(spec.Sources, *source)
+		}
+	} else {
+		spec.Source = source
+	}
 	flags.Visit(func(f *pflag.Flag) {
 		visited++
 
@@ -164,7 +177,7 @@ func SetAppSpecOptions(flags *pflag.FlagSet, spec *argoappv1.ApplicationSpec, ap
 			spec.Project = appOpts.project
 		case "sync-policy":
 			switch appOpts.syncPolicy {
-			case "none":
+			case "none", "manual":
 				if spec.SyncPolicy != nil {
 					spec.SyncPolicy.Automated = nil
 				}
@@ -218,7 +231,6 @@ func SetAppSpecOptions(flags *pflag.FlagSet, spec *argoappv1.ApplicationSpec, ap
 				log.Fatalf("Invalid sync-retry-limit [%d]", appOpts.retryLimit)
 			}
 		}
-		spec.Source = source
 	})
 	if flags.Changed("auto-prune") {
 		if spec.SyncPolicy == nil || spec.SyncPolicy.Automated == nil {
@@ -250,6 +262,7 @@ type kustomizeOpts struct {
 	version                string
 	commonLabels           map[string]string
 	commonAnnotations      map[string]string
+	labelWithoutSelector   bool
 	forceCommonLabels      bool
 	forceCommonAnnotations bool
 	namespace              string
@@ -276,6 +289,9 @@ func setKustomizeOpt(src *argoappv1.ApplicationSource, opts kustomizeOpts) {
 	}
 	if opts.commonAnnotations != nil {
 		src.Kustomize.CommonAnnotations = opts.commonAnnotations
+	}
+	if opts.labelWithoutSelector {
+		src.Kustomize.LabelWithoutSelector = opts.labelWithoutSelector
 	}
 	if opts.forceCommonLabels {
 		src.Kustomize.ForceCommonLabels = opts.forceCommonLabels
@@ -408,11 +424,11 @@ func setJsonnetOptLibs(src *argoappv1.ApplicationSource, libs []string) {
 // SetParameterOverrides updates an existing or appends a new parameter override in the application
 // The app is assumed to be a helm app and is expected to be in the form:
 // param=value
-func SetParameterOverrides(app *argoappv1.Application, parameters []string) {
+func SetParameterOverrides(app *argoappv1.Application, parameters []string, index int) {
 	if len(parameters) == 0 {
 		return
 	}
-	source := app.Spec.GetSource()
+	source := app.Spec.GetSourcePtr(index)
 	var sourceType argoappv1.ApplicationSourceType
 	if st, _ := source.ExplicitType(); st != nil {
 		sourceType = *st
@@ -524,8 +540,8 @@ func constructAppsBaseOnName(appName string, labels, annotations, args []string,
 			Source: &argoappv1.ApplicationSource{},
 		},
 	}
-	SetAppSpecOptions(flags, &app.Spec, &appOpts)
-	SetParameterOverrides(app, appOpts.Parameters)
+	SetAppSpecOptions(flags, &app.Spec, &appOpts, 0)
+	SetParameterOverrides(app, appOpts.Parameters, 0)
 	mergeLabels(app, labels)
 	setAnnotations(app, annotations)
 	return []*argoappv1.Application{
@@ -551,10 +567,14 @@ func constructAppsFromFileUrl(fileURL, appName string, labels, annotations, args
 			return nil, fmt.Errorf("app.Name is empty. --name argument can be used to provide app.Name")
 		}
 
-		SetAppSpecOptions(flags, &app.Spec, &appOpts)
-		SetParameterOverrides(app, appOpts.Parameters)
 		mergeLabels(app, labels)
 		setAnnotations(app, annotations)
+
+		// do not allow overrides for applications with multiple sources
+		if !app.Spec.HasMultipleSources() {
+			SetAppSpecOptions(flags, &app.Spec, &appOpts, 0)
+			SetParameterOverrides(app, appOpts.Parameters, 0)
+		}
 	}
 	return apps, nil
 }
@@ -651,6 +671,8 @@ func ConstructSource(source *argoappv1.ApplicationSource, appOpts AppOptions, fl
 			parsedAnnotations, err := label.Parse(appOpts.kustomizeCommonAnnotations)
 			errors.CheckError(err)
 			setKustomizeOpt(source, kustomizeOpts{commonAnnotations: parsedAnnotations})
+		case "kustomize-label-without-selector":
+			setKustomizeOpt(source, kustomizeOpts{labelWithoutSelector: appOpts.kustomizeLabelWithoutSelector})
 		case "kustomize-force-common-label":
 			setKustomizeOpt(source, kustomizeOpts{forceCommonLabels: appOpts.kustomizeForceCommonLabels})
 		case "kustomize-force-common-annotation":
