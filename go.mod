@@ -5,7 +5,7 @@ go 1.21
 toolchain go1.21.0
 
 require (
-	code.gitea.io/sdk/gitea v0.15.1
+	code.gitea.io/sdk/gitea v0.17.1
 	github.com/Azure/kubelogin v0.0.20
 	github.com/Knetic/govaluate v3.0.1-0.20171022003610-9aa49832a739+incompatible
 	github.com/Masterminds/semver/v3 v3.2.1
@@ -76,7 +76,7 @@ require (
 	github.com/stretchr/testify v1.8.4
 	github.com/valyala/fasttemplate v1.2.2
 	github.com/whilp/git-urls v1.0.0
-	github.com/xanzy/go-gitlab v0.91.1
+	github.com/xanzy/go-gitlab v0.98.0
 	github.com/yuin/gopher-lua v1.1.0
 	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.42.0
 	go.opentelemetry.io/otel v1.21.0
@@ -129,6 +129,8 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/ssooidc v1.21.7 // indirect
 	github.com/aws/aws-sdk-go-v2/service/sts v1.26.7 // indirect
 	github.com/aws/smithy-go v1.19.0 // indirect
+	github.com/davidmz/go-pageant v1.0.2 // indirect
+	github.com/go-fed/httpsig v1.1.0 // indirect
 	github.com/golang-jwt/jwt v3.2.2+incompatible // indirect
 	github.com/google/s2a-go v0.1.4 // indirect
 	github.com/googleapis/enterprise-certificate-proxy v0.2.5 // indirect
@@ -208,7 +210,7 @@ require (
 	github.com/gregjones/httpcache v0.0.0-20190611155906-901d90724c79 // indirect
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.16.0 // indirect
 	github.com/hashicorp/go-cleanhttp v0.5.2 // indirect
-	github.com/hashicorp/go-version v1.2.1 // indirect
+	github.com/hashicorp/go-version v1.6.0 // indirect
 	github.com/huandu/xstrings v1.3.3 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/itchyny/timefmt-go v0.1.5 // indirect
