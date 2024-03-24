@@ -209,7 +209,7 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                         key='diff'
                         load={async () =>
                             await services.applications.managedResources(application.metadata.name, application.metadata.namespace, {
-                                fields: ['items.normalizedLiveState', 'items.predictedLiveState', 'items.group', 'items.kind', 'items.namespace', 'items.name']
+                                fields: ['items.normalizedLiveState', 'items.predictedLiveState', 'items.hook', 'items.group', 'items.kind', 'items.namespace', 'items.name']
                             })
                         }>
                         {managedResources => <ApplicationResourcesDiff states={managedResources} />}
