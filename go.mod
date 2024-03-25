@@ -57,6 +57,7 @@ require (
 	github.com/improbable-eng/grpc-web v0.15.0
 	github.com/itchyny/gojq v0.12.13
 	github.com/jeremywohl/flatten v1.0.1
+	github.com/karlseguin/ccache/v3 v3.0.5
 	github.com/kballard/go-shellquote v0.0.0-20180428030007-95032a82bc51
 	github.com/ktrysmt/go-bitbucket v0.9.67
 	github.com/mattn/go-isatty v0.0.19
