@@ -24,19 +24,53 @@ type Clientset interface {
 	NewConfigManagementPluginClient() (io.Closer, ConfigManagementPluginServiceClient, error)
 }
 
+type ClientType int
+
+const (
+	Sidecar ClientType = iota
+	Service
+)
+
+func (ct *ClientType) addrType() string {
+	switch *ct {
+	case Sidecar:
+		return "unix"
+	case Service:
+		return "tcp"
+	default:
+		return ""
+	}
+}
+
+func (ct *ClientType) String() string {
+	switch *ct {
+	case Sidecar:
+		return "sidecar"
+	case Service:
+		return "service"
+	default:
+		return "unknown"
+	}
+}
+
 type clientSet struct {
-	address string
+	address    string
+	clientType ClientType
+}
+
+func (c *clientSet) addrType() string {
+	return c.clientType.addrType()
 }
 
 func (c *clientSet) NewConfigManagementPluginClient() (io.Closer, ConfigManagementPluginServiceClient, error) {
-	conn, err := NewConnection(c.address)
+	conn, err := c.newConnection()
 	if err != nil {
 		return nil, nil, err
 	}
 	return conn, NewConfigManagementPluginServiceClient(conn), nil
 }
 
-func NewConnection(address string) (*grpc.ClientConn, error) {
+func (c *clientSet) newConnection() (*grpc.ClientConn, error) {
 	retryOpts := []grpc_retry.CallOption{
 		grpc_retry.WithMax(3),
 		grpc_retry.WithBackoff(grpc_retry.BackoffLinear(1000 * time.Millisecond)),
@@ -51,15 +85,15 @@ func NewConnection(address string) (*grpc.ClientConn, error) {
 	}
 
 	dialOpts = append(dialOpts, grpc.WithTransportCredentials(insecure.NewCredentials()))
-	conn, err := grpc_util.BlockingDial(context.Background(), "unix", address, nil, dialOpts...)
+	conn, err := grpc_util.BlockingDial(context.Background(), c.addrType(), c.address, nil, dialOpts...)
 	if err != nil {
-		log.Errorf("Unable to connect to config management plugin service with address %s", address)
+		log.Errorf("Unable to connect to config management plugin with address %s (type %s)", c.address, c.clientType.String())
 		return nil, err
 	}
 	return conn, nil
 }
 
 // NewConfigManagementPluginClientSet creates new instance of config management plugin server Clientset
-func NewConfigManagementPluginClientSet(address string) Clientset {
-	return &clientSet{address: address}
+func NewConfigManagementPluginClientSet(address string, clientType ClientType) Clientset {
+	return &clientSet{address: address, clientType: clientType}
 }

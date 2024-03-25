@@ -20816,6 +20816,20 @@ rules:
   - watch
 ---
 apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: argocd-repo-server-getsvcs
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - services
+  verbs:
+  - get
+  - list
+  - watch
+---
+apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
   labels:
@@ -20866,6 +20880,19 @@ roleRef:
 subjects:
 - kind: ServiceAccount
   name: argocd-applicationset-controller
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: argocd-repo-server-getsvcs
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: argocd-repo-server-getsvcs
+subjects:
+- kind: ServiceAccount
+  name: argocd-repo-server
+  namespace: argocd
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
@@ -21329,7 +21356,6 @@ spec:
                   app.kubernetes.io/part-of: argocd
               topologyKey: kubernetes.io/hostname
             weight: 5
-      automountServiceAccountToken: false
       containers:
       - args:
         - /usr/local/bin/argocd-repo-server
