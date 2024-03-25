@@ -2516,13 +2516,16 @@ func printApplicationHistoryTable(revHistory []argoappv1.RevisionHistory) {
 		revision string
 	}
 	varHistory := map[string][]history{}
+	varHistoryKeys := []string{}
 	for _, depInfo := range revHistory {
-
 		if depInfo.Sources != nil {
 			for i, sourceInfo := range depInfo.Sources {
 				rev := sourceInfo.TargetRevision
 				if len(depInfo.Revisions) == len(depInfo.Sources) && len(depInfo.Revisions[i]) >= MAX_ALLOWED_REVISIONS {
 					rev = fmt.Sprintf("%s (%s)", rev, depInfo.Revisions[i][0:MAX_ALLOWED_REVISIONS])
+				}
+				if _, ok := varHistory[sourceInfo.RepoURL]; !ok {
+					varHistoryKeys = append(varHistoryKeys, sourceInfo.RepoURL)
 				}
 				varHistory[sourceInfo.RepoURL] = append(varHistory[sourceInfo.RepoURL], history{
 					id:       depInfo.ID,
@@ -2535,6 +2538,9 @@ func printApplicationHistoryTable(revHistory []argoappv1.RevisionHistory) {
 			if len(depInfo.Revision) >= MAX_ALLOWED_REVISIONS {
 				rev = fmt.Sprintf("%s (%s)", rev, depInfo.Revision[0:MAX_ALLOWED_REVISIONS])
 			}
+			if _, ok := varHistory[depInfo.Source.RepoURL]; !ok {
+				varHistoryKeys = append(varHistoryKeys, depInfo.Source.RepoURL)
+			}
 			varHistory[depInfo.Source.RepoURL] = append(varHistory[depInfo.Source.RepoURL], history{
 				id:       depInfo.ID,
 				date:     depInfo.DeployedAt.String(),
@@ -2542,11 +2548,15 @@ func printApplicationHistoryTable(revHistory []argoappv1.RevisionHistory) {
 			})
 		}
 	}
-	for source, historyEntries := range varHistory {
-		_, _ = fmt.Fprintf(w, "\nSOURCE\t%s\n", source)
+	for i, key := range varHistoryKeys {
+		_, _ = fmt.Fprintf(w, "SOURCE\t%s\n", key)
 		_, _ = fmt.Fprintf(w, "ID\tDATE\tREVISION\n")
-		for _, history := range historyEntries {
+		for _, history := range varHistory[key] {
 			_, _ = fmt.Fprintf(w, "%d\t%s\t%s\n", history.id, history.date, history.revision)
+		}
+		// Add a newline if it's not the last iteration
+		if i < len(varHistoryKeys)-1 {
+			_, _ = fmt.Fprintf(w, "\n")
 		}
 	}
 	_ = w.Flush()
