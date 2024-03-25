@@ -399,9 +399,11 @@ func (a *ClientApp) HandleCallback(w http.ResponseWriter, r *http.Request) {
 	}
 	sub := jwtutil.StringField(claims, "sub")
 	err = a.clientCache.Set(&cache.Item{
-		Key:        formatAccessTokenCacheKey(AccessTokenCachePrefix, sub),
-		Object:     encToken,
-		Expiration: getTokenExpiration(claims),
+		Key:    formatAccessTokenCacheKey(AccessTokenCachePrefix, sub),
+		Object: encToken,
+		CacheActionOpts: cache.CacheActionOpts{
+			Expiration: getTokenExpiration(claims),
+		},
 	})
 	if err != nil {
 		claimsJSON, _ := json.Marshal(claims)
@@ -655,9 +657,11 @@ func (a *ClientApp) GetUserInfo(actualClaims jwt.MapClaims, issuerURL, userInfoP
 	}
 
 	err = a.clientCache.Set(&cache.Item{
-		Key:        clientCacheKey,
-		Object:     encClaims,
-		Expiration: cacheExpiry,
+		Key:    clientCacheKey,
+		Object: encClaims,
+		CacheActionOpts: cache.CacheActionOpts{
+			Expiration: cacheExpiry,
+		},
 	})
 	if err != nil {
 		return claims, false, fmt.Errorf("couldn't put item to cache: %w", err)
