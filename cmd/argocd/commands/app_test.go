@@ -557,18 +557,21 @@ func TestPrintApplicationHistoryTable(t *testing.T) {
 			ID: 1,
 			Source: v1alpha1.ApplicationSource{
 				TargetRevision: "1",
+				RepoURL:        "test",
 			},
 		},
 		{
 			ID: 2,
 			Source: v1alpha1.ApplicationSource{
 				TargetRevision: "2",
+				RepoURL:        "test",
 			},
 		},
 		{
 			ID: 3,
 			Source: v1alpha1.ApplicationSource{
 				TargetRevision: "3",
+				RepoURL:        "test",
 			},
 		},
 	}
@@ -578,7 +581,86 @@ func TestPrintApplicationHistoryTable(t *testing.T) {
 		return nil
 	})
 
-	expectation := "ID  DATE                           REVISION\n1   0001-01-01 00:00:00 +0000 UTC  1\n2   0001-01-01 00:00:00 +0000 UTC  2\n3   0001-01-01 00:00:00 +0000 UTC  3\n"
+	expectation := "\nSOURCE  test\nID      DATE                           REVISION\n1       0001-01-01 00:00:00 +0000 UTC  1\n2       0001-01-01 00:00:00 +0000 UTC  2\n3       0001-01-01 00:00:00 +0000 UTC  3\n"
+
+	if output != expectation {
+		t.Fatalf("Incorrect print operation output %q, should be %q", output, expectation)
+	}
+}
+
+func TestPrintApplicationHistoryTableWithMultipleSources(t *testing.T) {
+	histories := []v1alpha1.RevisionHistory{
+		{
+			ID: 0,
+			Source: v1alpha1.ApplicationSource{
+				TargetRevision: "0",
+				RepoURL:        "test",
+			},
+		},
+		{
+			ID: 1,
+			Revisions: []string{
+				"1a",
+				"1b",
+			},
+			//added Source just for testing the fuction
+			Source: v1alpha1.ApplicationSource{
+				TargetRevision: "-1",
+				RepoURL:        "ignore",
+			},
+			Sources: v1alpha1.ApplicationSources{
+				v1alpha1.ApplicationSource{
+					RepoURL:        "test-1",
+					TargetRevision: "1a",
+				},
+				v1alpha1.ApplicationSource{
+					RepoURL:        "test-2",
+					TargetRevision: "1b",
+				},
+			},
+		},
+		{
+			ID: 2,
+			Revisions: []string{
+				"2a",
+				"2b",
+			},
+			Sources: v1alpha1.ApplicationSources{
+				v1alpha1.ApplicationSource{
+					RepoURL:        "test-1",
+					TargetRevision: "2a",
+				},
+				v1alpha1.ApplicationSource{
+					RepoURL:        "test-2",
+					TargetRevision: "2b",
+				},
+			},
+		},
+		{
+			ID: 3,
+			Revisions: []string{
+				"3a",
+				"3b",
+			},
+			Sources: v1alpha1.ApplicationSources{
+				v1alpha1.ApplicationSource{
+					RepoURL:        "test-1",
+					TargetRevision: "3a",
+				},
+				v1alpha1.ApplicationSource{
+					RepoURL:        "test-2",
+					TargetRevision: "3b",
+				},
+			},
+		},
+	}
+
+	output, _ := captureOutput(func() error {
+		printApplicationHistoryTable(histories)
+		return nil
+	})
+
+	expectation := "\nSOURCE  test\nID      DATE                           REVISION\n0       0001-01-01 00:00:00 +0000 UTC  0\n\nSOURCE  test-1\nID      DATE                           REVISION\n1       0001-01-01 00:00:00 +0000 UTC  1a\n2       0001-01-01 00:00:00 +0000 UTC  2a\n3       0001-01-01 00:00:00 +0000 UTC  3a\n\nSOURCE  test-2\nID      DATE                           REVISION\n1       0001-01-01 00:00:00 +0000 UTC  1b\n2       0001-01-01 00:00:00 +0000 UTC  2b\n3       0001-01-01 00:00:00 +0000 UTC  3b\n"
 
 	if output != expectation {
 		t.Fatalf("Incorrect print operation output %q, should be %q", output, expectation)
