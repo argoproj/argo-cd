@@ -63,6 +63,16 @@ Argo CD's model of using Secrets to represent repositories has problems:
 
 This seems like a good opportunity to define a new repo interface which has a clear and specific API and can be easily used by other tools.
 
+### How should the system handle change contention?
+
+To keep things simple, we think new changes should always supersede old changes.
+
+Consider a PromotionStrategy covering dev, test, and prod. If the test environment has an open PR against the hydrated branch (pending change), and someone pushes another commit to the main (DRY) branch, the PR will be updated to include the new changes, and the PR will wait for the dev environment to finish deploying and verifying that new commit.
+
+It's possible that a high-churn low environment could block merges on higher environments. So far, we think that's an acceptable tradeoff. Our recommendation will be that teams move as much of the change validation as possible to the pre-commit stage so that changes can be promoted relatively quickly through environments, and high-churn low environments won't block promotions to higher environments.
+
+Of course, for hot-fixes, manually hitting the "merge" button on a higher environment is always an option to overcome contention.
+
 ## Motivation
 
 Promoting and reverting changes in a GitOps environment is often toilsome and error-prone. In an effort to avoid toil, many adopt GitOps anti-patterns. We believe that these problems are the result of a lack of a clear GitOps promotion/reversion pattern and the necessary tooling to accompany that pattern.
