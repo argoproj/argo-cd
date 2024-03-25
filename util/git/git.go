@@ -33,6 +33,14 @@ func IsTruncatedCommitSHA(sha string) bool {
 	return truncatedCommitSHARegex.MatchString(sha)
 }
 
+func ShortCommitSHA(rev string) string {
+	if len(rev) >= 7 {
+		return rev[0:7]
+	} else {
+		return rev
+	}
+}
+
 // SameURL returns whether or not the two repository URLs are equivalent in location
 func SameURL(leftRepo, rightRepo string) bool {
 	normalLeft := NormalizeGitURL(leftRepo)

@@ -343,3 +343,16 @@ type GnuPGPublicKeyList struct {
 	metav1.ListMeta `json:"metadata,omitempty" protobuf:"bytes,1,opt,name=metadata"`
 	Items           []GnuPGPublicKey `json:"items" protobuf:"bytes,2,rep,name=items"`
 }
+
+type RevisionSignatureInfo struct {
+	// CommitSHA (or tag name)
+	CommitSHA string `json:"commitSHA,omitempty" protobuf:"bytes,1,opt,name=commitSHA"`
+	// Raw result of the verification (one letter)
+	VerificationResult string `json:"verificationResult,omitempty" protobuf:"bytes,2,opt,name=verificationResult"`
+	// ID of the key the signature was made with
+	KeyID string `json:"keyID,omitempty" protobuf:"bytes,3,opt,name=keyID"`
+	// Date of the commit
+	Date string `json:"date,omitempty" protobuf:"bytes,4,opt,name=date"`
+	// Email associated with the commit
+	Identity string `json:"identity,omitempty" protobuf:"bytes,5,opt,name=identity"`
+}

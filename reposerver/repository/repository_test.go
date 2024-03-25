@@ -41,6 +41,7 @@ import (
 	dbmocks "github.com/argoproj/argo-cd/v2/util/db/mocks"
 	"github.com/argoproj/argo-cd/v2/util/git"
 	gitmocks "github.com/argoproj/argo-cd/v2/util/git/mocks"
+	"github.com/argoproj/argo-cd/v2/util/gpg"
 	"github.com/argoproj/argo-cd/v2/util/helm"
 	helmmocks "github.com/argoproj/argo-cd/v2/util/helm/mocks"
 	"github.com/argoproj/argo-cd/v2/util/io"
@@ -91,7 +92,7 @@ func newCacheMocks() *repoCacheMocks {
 	}
 }
 
-func newServiceWithMocks(t *testing.T, root string, signed bool) (*Service, *gitmocks.Client, *repoCacheMocks) {
+func newServiceWithMocks(t *testing.T, root string) (*Service, *gitmocks.Client, *repoCacheMocks) {
 	root, err := filepath.Abs(root)
 	if err != nil {
 		panic(err)
@@ -103,13 +104,6 @@ func newServiceWithMocks(t *testing.T, root string, signed bool) (*Service, *git
 		gitClient.On("LsRemote", mock.Anything).Return(mock.Anything, nil)
 		gitClient.On("CommitSHA").Return(mock.Anything, nil)
 		gitClient.On("Root").Return(root)
-		gitClient.On("IsAnnotatedTag").Return(false)
-		if signed {
-			gitClient.On("VerifyCommitSignature", mock.Anything).Return(testSignature, nil)
-		} else {
-			gitClient.On("VerifyCommitSignature", mock.Anything).Return("", nil)
-		}
-
 		chart := "my-chart"
 		oobChart := "out-of-bounds-chart"
 		version := "1.1.0"
@@ -151,13 +145,20 @@ func newServiceWithOpt(t *testing.T, cf clientFunc, root string) (*Service, *git
 	return service, gitClient, cacheMocks
 }
 
-func newService(t *testing.T, root string) *Service {
-	service, _, _ := newServiceWithMocks(t, root, false)
-	return service
+func newServiceWithHeadVerification(t *testing.T, root string, annotatedTag bool) (*Service, *gitmocks.Client) {
+	service, client, _ := newServiceWithMocks(t, root)
+	client.On("IsAnnotatedTag", mock.Anything).Return(annotatedTag)
+	return service, client
 }
 
-func newServiceWithSignature(t *testing.T, root string) *Service {
-	service, _, _ := newServiceWithMocks(t, root, true)
+func newServiceWithFullVerification(t *testing.T, root string, annotatedTag bool) (*Service, *gitmocks.Client) {
+	service, client, _ := newServiceWithMocks(t, root)
+	client.On("IsAnnotatedTag", mock.Anything).Return(annotatedTag)
+	return service, client
+}
+
+func newService(t *testing.T, root string) *Service {
+	service, _, _ := newServiceWithMocks(t, root)
 	return service
 }
 
@@ -313,7 +314,7 @@ func TestGenerateManifests_K8SAPIResetCache(t *testing.T) {
 }
 
 func TestGenerateManifests_EmptyCache(t *testing.T) {
-	service, gitMocks, mockCache := newServiceWithMocks(t, "../../manifests/base", false)
+	service, gitMocks, mockCache := newServiceWithMocks(t, "../../manifests/base")
 
 	src := argoappv1.ApplicationSource{Path: "."}
 	q := apiclient.ManifestRequest{
@@ -463,7 +464,7 @@ func TestGenerateManifestsHelmWithRefs_CachedNoLsRemote(t *testing.T) {
 // ensure we can use a semver constraint range (>= 1.0.0) and get back the correct chart (1.0.0)
 func TestHelmManifestFromChartRepo(t *testing.T) {
 	root := t.TempDir()
-	service, gitMocks, mockCache := newServiceWithMocks(t, root, false)
+	service, gitMocks, mockCache := newServiceWithMocks(t, root)
 	source := &argoappv1.ApplicationSource{Chart: "my-chart", TargetRevision: ">= 1.0.0"}
 	request := &apiclient.ManifestRequest{Repo: &argoappv1.Repository{}, ApplicationSource: source, NoCache: true, ProjectName: "something",
 		ProjectSourceRepos: []string{"*"}}
@@ -548,7 +549,7 @@ func TestHelmChartReferencingExternalValues_OutOfBounds_Symlink(t *testing.T) {
 }
 
 func TestGenerateManifestsUseExactRevision(t *testing.T) {
-	service, gitClient, _ := newServiceWithMocks(t, ".", false)
+	service, gitClient, _ := newServiceWithMocks(t, ".")
 
 	src := argoappv1.ApplicationSource{Path: "./testdata/recurse", Directory: &argoappv1.ApplicationSourceDirectory{Recurse: true}}
 
@@ -1592,7 +1593,7 @@ func TestGetHelmCharts(t *testing.T) {
 }
 
 func TestGetRevisionMetadata(t *testing.T) {
-	service, gitClient, _ := newServiceWithMocks(t, "../..", false)
+	service, gitClient, _ := newServiceWithMocks(t, "../..")
 	now := time.Now()
 
 	gitClient.On("RevisionMetadata", mock.Anything).Return(&git.RevisionMetadata{
@@ -1600,6 +1601,10 @@ func TestGetRevisionMetadata(t *testing.T) {
 		Author:  "author",
 		Date:    now,
 		Tags:    []string{"tag1", "tag2"},
+	}, nil)
+
+	lsr := gitClient.On("LsRevisions", mock.Anything, mock.Anything).Return([]git.RevisionSignatureInfo{
+		{CommitSHA: "c0b400fc458875d925171398f9ba9eabd5529923", VerificationResult: gpg.VerificationResultGood, KeyID: "ABC"},
 	}, nil)
 
 	res, err := service.GetRevisionMetadata(context.Background(), &apiclient.RepoServerRevisionMetadataRequest{
@@ -1613,7 +1618,7 @@ func TestGetRevisionMetadata(t *testing.T) {
 	assert.Equal(t, now, res.Date.Time)
 	assert.Equal(t, "author", res.Author)
 	assert.EqualValues(t, []string{"tag1", "tag2"}, res.Tags)
-	assert.NotEmpty(t, res.SignatureInfo)
+	assert.Contains(t, res.SignatureInfo, "GOOD")
 
 	// Check for truncated revision value
 	res, err = service.GetRevisionMetadata(context.Background(), &apiclient.RepoServerRevisionMetadataRequest{
@@ -1627,7 +1632,17 @@ func TestGetRevisionMetadata(t *testing.T) {
 	assert.Equal(t, now, res.Date.Time)
 	assert.Equal(t, "author", res.Author)
 	assert.EqualValues(t, []string{"tag1", "tag2"}, res.Tags)
-	assert.NotEmpty(t, res.SignatureInfo)
+	assert.Contains(t, res.SignatureInfo, "GOOD")
+
+	// Check for invalid truncated revision value
+	res, err = service.GetRevisionMetadata(context.Background(), &apiclient.RepoServerRevisionMetadataRequest{
+		Repo:           &argoappv1.Repository{},
+		Revision:       "c0b401f",
+		CheckSignature: true,
+	})
+
+	assert.Error(t, err)
+	assert.Nil(t, res)
 
 	// Cache hit - signature info should not be in result
 	res, err = service.GetRevisionMetadata(context.Background(), &apiclient.RepoServerRevisionMetadataRequest{
@@ -1637,6 +1652,12 @@ func TestGetRevisionMetadata(t *testing.T) {
 	})
 	assert.NoError(t, err)
 	assert.Empty(t, res.SignatureInfo)
+
+	// Unregister the LsRevisions mock callback before modifying it
+	lsr.Unset()
+	gitClient.On("LsRevisions", mock.Anything, mock.Anything).Return([]git.RevisionSignatureInfo{
+		{CommitSHA: "da52afd3b2df1ec49470603d8bbb46954dab1091", VerificationResult: gpg.VerificationResultBad, KeyID: "ABC"},
+	}, nil)
 
 	// Enforce cache miss - signature info should not be in result
 	res, err = service.GetRevisionMetadata(context.Background(), &apiclient.RepoServerRevisionMetadataRequest{
@@ -1654,63 +1675,154 @@ func TestGetRevisionMetadata(t *testing.T) {
 		CheckSignature: true,
 	})
 	assert.NoError(t, err)
-	assert.NotEmpty(t, res.SignatureInfo)
+	assert.Contains(t, res.SignatureInfo, "BAD")
 }
 
 func TestGetSignatureVerificationResult(t *testing.T) {
-	// Commit with signature and verification requested
-	{
-		service := newServiceWithSignature(t, "../../manifests/base")
+	svpOff := &argoappv1.SourceVerificationPolicy{VerificationLevel: "off"}
+	svpHead := &argoappv1.SourceVerificationPolicy{VerificationLevel: "head"}
+	// svpLax := &argoappv1.SourceVerificationPolicy{VerificationMode: "lax"}
+	svpStrict := &argoappv1.SourceVerificationPolicy{VerificationLevel: "strict"}
+	t.Run("Commit with signature and verification requested", func(t *testing.T) {
+		service, client := newServiceWithFullVerification(t, "../../manifests/base", false)
+		client.On("LsRevisions", mock.Anything, mock.Anything).Return(
+			[]git.RevisionSignatureInfo{
+				{CommitSHA: "da52afd3b2df1ec49470603d8bbb46954dab1091", VerificationResult: gpg.VerificationResultGood, KeyID: "ABC"},
+			}, nil,
+		)
 
 		src := argoappv1.ApplicationSource{Path: "."}
 		q := apiclient.ManifestRequest{
 			Repo:               &argoappv1.Repository{},
 			ApplicationSource:  &src,
-			VerifySignature:    true,
-			ProjectName:        "something",
-			ProjectSourceRepos: []string{"*"},
+			VerificationPolicy: svpHead,
+			Revision:           "some-tag",
 		}
 
 		res, err := service.GenerateManifest(context.Background(), &q)
-		assert.NoError(t, err)
-		assert.Equal(t, testSignature, res.VerifyResult)
-	}
-	// Commit with signature and verification not requested
-	{
-		service := newServiceWithSignature(t, "../../manifests/base")
+		require.NoError(t, err)
+		require.NotNil(t, res)
+		assert.Len(t, res.VerificationResult, 1)
+		assert.Equal(t, "da52afd3b2df1ec49470603d8bbb46954dab1091", res.VerificationResult[0].CommitSHA)
+		assert.Equal(t, gpg.VerificationResultGood, res.VerificationResult[0].VerificationResult)
+		assert.Equal(t, "ABC", res.VerificationResult[0].KeyID)
+		// assert.Equal(t, "some-tag", res.VerificationResult[0].CommitSHA)
+		// assert.Equal(t, gpg.VerificationResultGood, res.VerificationResult[0].VerificationResult)
+		// assert.Equal(t, "4AEE18F83AFDEB23", res.VerificationResult[0].KeyID)
+	})
+
+	t.Run("Tag with signature and head verification requested", func(t *testing.T) {
+		service, client := newServiceWithFullVerification(t, "../../manifests/base", true)
+		client.On("LsRevisions", "", mock.Anything).Return(
+			[]git.RevisionSignatureInfo{
+				{CommitSHA: "da52afd3b2df1ec49470603d8bbb46954dab1091", VerificationResult: gpg.VerificationResultNoSignature, KeyID: ""},
+			}, nil,
+		)
+		client.On("VerifyTag", "some-tag").Return(testSignature, nil)
+
+		src := argoappv1.ApplicationSource{Path: "."}
+		q := apiclient.ManifestRequest{
+			Repo:               &argoappv1.Repository{},
+			ApplicationSource:  &src,
+			VerificationPolicy: svpHead,
+			Revision:           "some-tag",
+		}
+
+		res, err := service.GenerateManifest(context.Background(), &q)
+		require.NoError(t, err)
+		require.NotNil(t, res)
+		require.Len(t, res.VerificationResult, 1)
+		assert.Equal(t, "some-tag", res.VerificationResult[0].CommitSHA)
+		assert.Equal(t, gpg.VerificationResultGood, res.VerificationResult[0].VerificationResult)
+		assert.Equal(t, "4AEE18F83AFDEB23", res.VerificationResult[0].KeyID)
+		// assert.Equal(t, "some-tag", res.VerificationResult[0].CommitSHA)
+		// assert.Equal(t, gpg.VerificationResultGood, res.VerificationResult[0].VerificationResult)
+		// assert.Equal(t, "4AEE18F83AFDEB23", res.VerificationResult[0].KeyID)
+	})
+
+	t.Run("Tag with signature and full verification requested", func(t *testing.T) {
+		service, client := newServiceWithFullVerification(t, "../../manifests/base", true)
+		client.On("LsRevisions", "other-revision", mock.Anything).Return(
+			[]git.RevisionSignatureInfo{
+				{CommitSHA: "da52afd3b2df1ec49470603d8bbb46954dab1091", VerificationResult: gpg.VerificationResultNoSignature, KeyID: ""},
+			}, nil,
+		)
+		client.On("VerifyTag", "some-tag").Return(testSignature, nil)
+
+		src := argoappv1.ApplicationSource{Path: "."}
+		q := apiclient.ManifestRequest{
+			Repo:               &argoappv1.Repository{},
+			ApplicationSource:  &src,
+			VerificationPolicy: svpStrict,
+			Revision:           "some-tag",
+			PreviousRevision:   "other-revision",
+		}
+
+		res, err := service.GenerateManifest(context.Background(), &q)
+		require.NoError(t, err)
+		require.NotNil(t, res)
+		require.Len(t, res.VerificationResult, 2)
+		assert.Equal(t, "some-tag", res.VerificationResult[0].CommitSHA)
+		assert.Equal(t, gpg.VerificationResultGood, res.VerificationResult[0].VerificationResult)
+		assert.Equal(t, "4AEE18F83AFDEB23", res.VerificationResult[0].KeyID)
+		assert.Equal(t, "da52afd3b2df1ec49470603d8bbb46954dab1091", res.VerificationResult[1].CommitSHA)
+		assert.Equal(t, gpg.VerificationResultNoSignature, res.VerificationResult[1].VerificationResult)
+		assert.Equal(t, "", res.VerificationResult[1].KeyID)
+	})
+
+	t.Run("Commit with signature and verification not requested", func(t *testing.T) {
+		service, client := newServiceWithHeadVerification(t, "../../manifests/base", false)
+		client.On("LsRevisions", mock.Anything, mock.Anything).Return(
+			[]git.RevisionSignatureInfo{
+				{CommitSHA: "da52afd3b2df1ec49470603d8bbb46954dab1091", VerificationResult: gpg.VerificationResultBad, KeyID: "ABC"},
+			}, nil,
+		)
 
 		src := argoappv1.ApplicationSource{Path: "."}
 		q := apiclient.ManifestRequest{Repo: &argoappv1.Repository{}, ApplicationSource: &src, ProjectName: "something",
 			ProjectSourceRepos: []string{"*"}}
 
 		res, err := service.GenerateManifest(context.Background(), &q)
-		assert.NoError(t, err)
-		assert.Empty(t, res.VerifyResult)
-	}
-	// Commit without signature and verification requested
-	{
-		service := newService(t, "../../manifests/base")
+		require.NoError(t, err)
+		require.NotNil(t, res)
+		assert.Len(t, res.VerificationResult, 0)
+	})
+
+	t.Run("Commit without signature and verification requested", func(t *testing.T) {
+		service, client := newServiceWithFullVerification(t, "../../manifests/base", false)
+		client.On("LsRevisions", mock.Anything, mock.Anything).Return(
+			[]git.RevisionSignatureInfo{
+				{CommitSHA: "da52afd3b2df1ec49470603d8bbb46954dab1091", VerificationResult: gpg.VerificationResultNoSignature, KeyID: "ABC"},
+			},
+			nil,
+		)
 
 		src := argoappv1.ApplicationSource{Path: "."}
-		q := apiclient.ManifestRequest{Repo: &argoappv1.Repository{}, ApplicationSource: &src, VerifySignature: true, ProjectName: "something",
-			ProjectSourceRepos: []string{"*"}}
+		q := apiclient.ManifestRequest{Repo: &argoappv1.Repository{}, ApplicationSource: &src, VerificationPolicy: svpHead}
 
 		res, err := service.GenerateManifest(context.Background(), &q)
-		assert.NoError(t, err)
-		assert.Empty(t, res.VerifyResult)
-	}
-	// Commit without signature and verification not requested
-	{
-		service := newService(t, "../../manifests/base")
+		require.NoError(t, err)
+		require.NotNil(t, res)
+		require.Len(t, res.VerificationResult, 1)
+		assert.Equal(t, "da52afd3b2df1ec49470603d8bbb46954dab1091", res.VerificationResult[0].CommitSHA)
+		assert.Equal(t, gpg.VerificationResultNoSignature, res.VerificationResult[0].VerificationResult)
+	})
+
+	t.Run("Commit without signature and verification not requested", func(t *testing.T) {
+		service, client := newServiceWithFullVerification(t, "../../manifests/base", false)
+		client.On("LsRevisions", mock.Anything, mock.Anything).Return(
+			[]git.RevisionSignatureInfo{},
+			nil,
+		)
 
 		src := argoappv1.ApplicationSource{Path: "."}
-		q := apiclient.ManifestRequest{Repo: &argoappv1.Repository{}, ApplicationSource: &src, VerifySignature: true, ProjectName: "something",
-			ProjectSourceRepos: []string{"*"}}
+		q := apiclient.ManifestRequest{Repo: &argoappv1.Repository{}, ApplicationSource: &src, VerificationPolicy: svpOff}
 
 		res, err := service.GenerateManifest(context.Background(), &q)
-		assert.NoError(t, err)
-		assert.Empty(t, res.VerifyResult)
-	}
+		require.NoError(t, err)
+		require.NotNil(t, res)
+		assert.Len(t, res.VerificationResult, 0)
+	})
 }
 
 func Test_newEnv(t *testing.T) {

@@ -297,7 +297,7 @@ func TestCachedManifestResponse_ShallowCopyExpectedFields(t *testing.T) {
 	}
 
 	expectedFields := []string{"cacheEntryHash", "manifestResponse", "mostRecentError", "firstFailureTimestamp",
-		"numberOfConsecutiveFailures", "numberOfCachedResponsesReturned"}
+		"numberOfConsecutiveFailures", "numberOfCachedResponsesReturned", "verificationPolicy"}
 
 	assert.Equal(t, len(jsonMap), len(expectedFields))
 

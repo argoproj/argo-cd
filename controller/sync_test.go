@@ -164,11 +164,11 @@ func TestSyncComparisonError(t *testing.T) {
 	data := fakeData{
 		apps: []runtime.Object{app, defaultProject},
 		manifestResponse: &apiclient.ManifestResponse{
-			Manifests:    []string{},
-			Namespace:    test.FakeDestNamespace,
-			Server:       test.FakeClusterURL,
-			Revision:     "abc123",
-			VerifyResult: "something went wrong",
+			Manifests:          []string{},
+			Namespace:          test.FakeDestNamespace,
+			Server:             test.FakeClusterURL,
+			Revision:           "abc123",
+			VerificationResult: []*v1alpha1.RevisionSignatureInfo{},
 		},
 		managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
 	}
@@ -181,7 +181,7 @@ func TestSyncComparisonError(t *testing.T) {
 	t.Setenv("ARGOCD_GPG_ENABLED", "true")
 	ctrl.appStateManager.SyncAppState(app, opState)
 
-	conditions := app.Status.GetConditions(map[v1alpha1.ApplicationConditionType]bool{v1alpha1.ApplicationConditionComparisonError: true})
+	conditions := app.Status.GetConditions(map[v1alpha1.ApplicationConditionType]bool{v1alpha1.ApplicationConditionSourceVerificationError: true})
 	assert.NotEmpty(t, conditions)
 	assert.Equal(t, "abc123", opState.SyncResult.Revision)
 }

@@ -12,6 +12,19 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/gpg"
 )
 
+// untypedPublicKeyToTypedPublicKey converts an untyped public key to a typed
+// one to use with gRPC.
+func untypedPublicKeyToTypedPublicKey(k *gpg.PublicKey) *appsv1.GnuPGPublicKey {
+	return &appsv1.GnuPGPublicKey{
+		KeyID:       k.KeyID,
+		Fingerprint: k.Fingerprint,
+		Owner:       k.Owner,
+		Trust:       k.Trust,
+		SubType:     k.SubType,
+		KeyData:     k.KeyData,
+	}
+}
+
 // Validates a single GnuPG key and returns the key's ID
 func validatePGPKey(keyData string) (*appsv1.GnuPGPublicKey, error) {
 	f, err := os.CreateTemp("", "gpg-public-key")
@@ -38,20 +51,20 @@ func validatePGPKey(keyData string) (*appsv1.GnuPGPublicKey, error) {
 
 	// Each key/value pair in the config map must exactly contain one public key, with the (short) GPG key ID as key
 	if len(parsed) != 1 {
-		return nil, fmt.Errorf("More than one key found in input data")
+		return nil, fmt.Errorf("more than one key found in input data")
 	}
 
 	var retKey *appsv1.GnuPGPublicKey = nil
 	// Is there a better way to get the first element from a map without knowing its key?
 	for _, k := range parsed {
-		retKey = k
+		retKey = untypedPublicKeyToTypedPublicKey(k)
 		break
 	}
 	if retKey != nil {
 		retKey.KeyData = keyData
 		return retKey, nil
 	} else {
-		return nil, fmt.Errorf("Could not find the GPG key")
+		return nil, fmt.Errorf("could not find the GPG key")
 	}
 }
 
@@ -72,14 +85,14 @@ func (db *db) ListConfiguredGPGPublicKeys(ctx context.Context) (map[string]*apps
 		if expectedKeyID := gpg.KeyID(k); expectedKeyID != "" {
 			parsedKey, err := validatePGPKey(p)
 			if err != nil {
-				return nil, fmt.Errorf("Could not parse GPG key for entry '%s': %s", expectedKeyID, err.Error())
+				return nil, fmt.Errorf("could not parse GPG key for entry '%s': %s", expectedKeyID, err.Error())
 			}
 			if expectedKeyID != parsedKey.KeyID {
-				return nil, fmt.Errorf("Key parsed for entry with key ID '%s' had different key ID '%s'", expectedKeyID, parsedKey.KeyID)
+				return nil, fmt.Errorf("key parsed for entry with key ID '%s' had different key ID '%s'", expectedKeyID, parsedKey.KeyID)
 			}
 			result[parsedKey.KeyID] = parsedKey
 		} else {
-			return nil, fmt.Errorf("Found entry with key '%s' in ConfigMap, but this is not a valid PGP key ID", k)
+			return nil, fmt.Errorf("found entry with key '%s' in ConfigMap, but this is not a valid PGP key ID", k)
 		}
 	}
 
@@ -110,7 +123,7 @@ func (db *db) AddGPGPublicKey(ctx context.Context, keyData string) (map[string]*
 			skipped = append(skipped, kid)
 			log.Debugf("Not adding incoming key with kid=%s because it is configured already", kid)
 		} else {
-			result[kid] = key
+			result[kid] = untypedPublicKeyToTypedPublicKey(key)
 			keysCM.Data[kid] = key.KeyData
 			log.Debugf("Adding incoming key with kid=%s to database", kid)
 		}
@@ -132,11 +145,11 @@ func (db *db) DeleteGPGPublicKey(ctx context.Context, keyID string) error {
 	}
 
 	if keysCM.Data == nil {
-		return fmt.Errorf("No such key configured: %s", keyID)
+		return fmt.Errorf("no such key configured: %s", keyID)
 	}
 
 	if _, ok := keysCM.Data[keyID]; !ok {
-		return fmt.Errorf("No such key configured: %s", keyID)
+		return fmt.Errorf("no such key configured: %s", keyID)
 	}
 
 	delete(keysCM.Data, keyID)

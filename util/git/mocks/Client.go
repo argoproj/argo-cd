@@ -78,13 +78,13 @@ func (_m *Client) Init() error {
 	return r0
 }
 
-// IsAnnotatedTag provides a mock function with given fields: _a0
-func (_m *Client) IsAnnotatedTag(_a0 string) bool {
-	ret := _m.Called(_a0)
+// IsAnnotatedTag provides a mock function with given fields: revision
+func (_m *Client) IsAnnotatedTag(revision string) bool {
+	ret := _m.Called(revision)
 
 	var r0 bool
 	if rf, ok := ret.Get(0).(func(string) bool); ok {
-		r0 = rf(_a0)
+		r0 = rf(revision)
 	} else {
 		r0 = ret.Get(0).(bool)
 	}
@@ -194,6 +194,32 @@ func (_m *Client) LsRemote(revision string) (string, error) {
 	return r0, r1
 }
 
+// LsRevisions provides a mock function with given fields: then, now
+func (_m *Client) LsRevisions(then string, now string) ([]git.RevisionSignatureInfo, error) {
+	ret := _m.Called(then, now)
+
+	var r0 []git.RevisionSignatureInfo
+	var r1 error
+	if rf, ok := ret.Get(0).(func(string, string) ([]git.RevisionSignatureInfo, error)); ok {
+		return rf(then, now)
+	}
+	if rf, ok := ret.Get(0).(func(string, string) []git.RevisionSignatureInfo); ok {
+		r0 = rf(then, now)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]git.RevisionSignatureInfo)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(string, string) error); ok {
+		r1 = rf(then, now)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // RevisionMetadata provides a mock function with given fields: revision
 func (_m *Client) RevisionMetadata(revision string) (*git.RevisionMetadata, error) {
 	ret := _m.Called(revision)
@@ -248,23 +274,23 @@ func (_m *Client) Submodule() error {
 	return r0
 }
 
-// VerifyCommitSignature provides a mock function with given fields: _a0
-func (_m *Client) VerifyCommitSignature(_a0 string) (string, error) {
-	ret := _m.Called(_a0)
+// VerifyTag provides a mock function with given fields: tagName
+func (_m *Client) VerifyTag(tagName string) (string, error) {
+	ret := _m.Called(tagName)
 
 	var r0 string
 	var r1 error
 	if rf, ok := ret.Get(0).(func(string) (string, error)); ok {
-		return rf(_a0)
+		return rf(tagName)
 	}
 	if rf, ok := ret.Get(0).(func(string) string); ok {
-		r0 = rf(_a0)
+		r0 = rf(tagName)
 	} else {
 		r0 = ret.Get(0).(string)
 	}
 
 	if rf, ok := ret.Get(1).(func(string) error); ok {
-		r1 = rf(_a0)
+		r1 = rf(tagName)
 	} else {
 		r1 = ret.Error(1)
 	}

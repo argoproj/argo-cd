@@ -40,6 +40,60 @@ func Test_nativeGitClient_Fetch(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+func Test_CommitSignatures(t *testing.T) {
+	client, err := NewClient("https://github.com/argoproj/argo-cd", NopCreds{}, true, false, "")
+	require.NoError(t, err)
+	err = client.Init()
+	require.NoError(t, err)
+	err = client.Fetch("")
+	require.NoError(t, err)
+	err = client.Checkout("master", false)
+	require.NoError(t, err)
+	t.Run("Well known list of commits", func(t *testing.T) {
+		commits, err := client.LsRevisions("f6904245fe9a39e95bf69a49494193ecd1efa0cd", "ed7ea039f10a53f885f23e2b73f0396c73613bdf")
+		assert.NoError(t, err)
+		assert.Len(t, commits, 6)
+
+		expected := []RevisionSignatureInfo{
+			{"ed7ea039f10a53f885f23e2b73f0396c73613bdf", "E", "95AE9BEA7206422B", "Fri, 16 Feb 2018 17:34:13 -0800", "Jesse Suen <Jesse_Suen@intuit.com>"},
+			{"c7767976bdb33c51411983fbc9a66619e89685a8", "E", "95AE9BEA7206422B", "Fri, 16 Feb 2018 16:13:58 -0800", "Jesse Suen <Jesse_Suen@intuit.com>"},
+			{"c2379a3e8baacb250c53205cc08b393ccf17b1cf", "E", "95AE9BEA7206422B", "Fri, 16 Feb 2018 15:18:37 -0800", "Jesse Suen <Jesse_Suen@intuit.com>"},
+			{"70f6c37ca00fe13e6420b9b57c5bdc38c2026b4c", "E", "95AE9BEA7206422B", "Fri, 16 Feb 2018 14:03:27 -0800", "Jesse Suen <Jesse_Suen@intuit.com>"},
+			{"2ef524d8d42a65f19d026885fd73eff6a292e923", "E", "95AE9BEA7206422B", "Fri, 16 Feb 2018 13:39:13 -0800", "Jesse Suen <Jesse_Suen@intuit.com>"},
+			{"ec3b3dc83b24964f660656a42f1511445a536953", "E", "4AEE18F83AFDEB23", "Fri, 16 Feb 2018 12:58:02 -0800", "Alexander Matyushentsev <AMatyushentsev@gmail.com>"},
+		}
+
+		for i, r := range commits {
+			t.Run(fmt.Sprintf("Checking commit %s", expected[i].CommitSHA), func(t *testing.T) {
+				assert.Equal(t, expected[i].CommitSHA, r.CommitSHA)
+				assert.Equal(t, expected[i].VerificationResult, r.VerificationResult)
+				assert.Equal(t, expected[i].KeyID, r.KeyID)
+				assert.Equal(t, expected[i].Date, r.Date)
+				assert.Equal(t, expected[i].Identity, r.Identity)
+			})
+		}
+	})
+	t.Run("No commit returned", func(t *testing.T) {
+		commits, err := client.LsRevisions("ed7ea039f10a53f885f23e2b73f0396c73613bdf", "f6904245fe9a39e95bf69a49494193ecd1efa0cd")
+		assert.NoError(t, err)
+		assert.Len(t, commits, 0)
+	})
+
+	t.Run("Single commit returned", func(t *testing.T) {
+		commits, err := client.LsRevisions("f6904245fe9a39e95bf69a49494193ecd1efa0cd", "f6904245fe9a39e95bf69a49494193ecd1efa0cd")
+		assert.NoError(t, err)
+		require.Len(t, commits, 1)
+		assert.Equal(t, "f6904245fe9a39e95bf69a49494193ecd1efa0cd", commits[0].CommitSHA)
+	})
+
+	t.Run("Invalid revisions specified", func(t *testing.T) {
+		commits, err := client.LsRevisions("idonot", "exist")
+		assert.Error(t, err)
+		assert.Len(t, commits, 0)
+	})
+
+}
+
 func Test_nativeGitClient_Fetch_Prune(t *testing.T) {
 	tempDir, err := os.MkdirTemp("", "")
 	require.NoError(t, err)
