@@ -188,6 +188,9 @@ const (
 	// AnnotationKeyAppSkipReconcile tells the Application to skip the Application controller reconcile.
 	// Skip reconcile when the value is "true" or any other string values that can be strconv.ParseBool() to be true.
 	AnnotationKeyAppSkipReconcile = "argocd.argoproj.io/skip-reconcile"
+
+	LabelKeyComponentRepoServer   = "app.kubernetes.io/component"
+	LabelValueComponentRepoServer = "repo-server"
 )
 
 // Environment variables for tuning and debugging Argo CD
