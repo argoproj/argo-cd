@@ -18,6 +18,8 @@ last-updated: 2024-03-12
 
 This proposal describes an opinionated set of API/tools to manage change promotion and reversion in a GitOps environment.
 
+This talk from ArgoCon Europe 2024 provides an overview of the proposal: https://www.youtube.com/watch?v=p5EPKY3vM-E
+
 ## Open Questions
 
 ### Where will the code reside?
