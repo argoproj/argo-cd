@@ -417,6 +417,12 @@ func (a *Actions) DeleteBySelector(selector string) *Actions {
 	return a
 }
 
+func (a *Actions) DeleteBySelectorWithWait(selector string) *Actions {
+	a.context.t.Helper()
+	a.runCli("app", "delete", fmt.Sprintf("--selector=%s", selector), "--yes", "--wait")
+	return a
+}
+
 func (a *Actions) Wait(args ...string) *Actions {
 	a.context.t.Helper()
 	args = append([]string{"app", "wait"}, args...)

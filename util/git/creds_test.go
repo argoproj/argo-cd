@@ -205,7 +205,7 @@ func Test_SSHCreds_Environ(t *testing.T) {
 		caFile := path.Join(tempDir, "caFile")
 		err := os.WriteFile(caFile, []byte(""), os.FileMode(0600))
 		require.NoError(t, err)
-		creds := NewSSHCreds("sshPrivateKey", caFile, insecureIgnoreHostKey, &NoopCredsStore{})
+		creds := NewSSHCreds("sshPrivateKey", caFile, insecureIgnoreHostKey, &NoopCredsStore{}, "")
 		closer, env, err := creds.Environ()
 		require.NoError(t, err)
 		require.Len(t, env, 2)
@@ -222,6 +222,76 @@ func Test_SSHCreds_Environ(t *testing.T) {
 			hostsPath := cert.GetSSHKnownHostsDataPath()
 			assert.Contains(t, env[1], fmt.Sprintf("-o UserKnownHostsFile=%s", hostsPath))
 		}
+
+		envRegex := regexp.MustCompile("-i ([^ ]+)")
+		assert.Regexp(t, envRegex, env[1])
+		privateKeyFile := envRegex.FindStringSubmatch(env[1])[1]
+		assert.FileExists(t, privateKeyFile)
+		io.Close(closer)
+		assert.NoFileExists(t, privateKeyFile)
+	}
+}
+
+func Test_SSHCreds_Environ_WithProxy(t *testing.T) {
+	for _, insecureIgnoreHostKey := range []bool{false, true} {
+		tempDir := t.TempDir()
+		caFile := path.Join(tempDir, "caFile")
+		err := os.WriteFile(caFile, []byte(""), os.FileMode(0600))
+		require.NoError(t, err)
+		creds := NewSSHCreds("sshPrivateKey", caFile, insecureIgnoreHostKey, &NoopCredsStore{}, "socks5://127.0.0.1:1080")
+		closer, env, err := creds.Environ()
+		require.NoError(t, err)
+		require.Len(t, env, 2)
+
+		assert.Equal(t, fmt.Sprintf("GIT_SSL_CAINFO=%s/caFile", tempDir), env[0], "CAINFO env var must be set")
+
+		assert.True(t, strings.HasPrefix(env[1], "GIT_SSH_COMMAND="))
+
+		if insecureIgnoreHostKey {
+			assert.Contains(t, env[1], "-o StrictHostKeyChecking=no")
+			assert.Contains(t, env[1], "-o UserKnownHostsFile=/dev/null")
+		} else {
+			assert.Contains(t, env[1], "-o StrictHostKeyChecking=yes")
+			hostsPath := cert.GetSSHKnownHostsDataPath()
+			assert.Contains(t, env[1], fmt.Sprintf("-o UserKnownHostsFile=%s", hostsPath))
+		}
+		assert.Contains(t, env[1], "-o ProxyCommand='connect-proxy -S 127.0.0.1:1080 -5 %h %p'")
+
+		envRegex := regexp.MustCompile("-i ([^ ]+)")
+		assert.Regexp(t, envRegex, env[1])
+		privateKeyFile := envRegex.FindStringSubmatch(env[1])[1]
+		assert.FileExists(t, privateKeyFile)
+		io.Close(closer)
+		assert.NoFileExists(t, privateKeyFile)
+	}
+}
+
+func Test_SSHCreds_Environ_WithProxyUserNamePassword(t *testing.T) {
+	for _, insecureIgnoreHostKey := range []bool{false, true} {
+		tempDir := t.TempDir()
+		caFile := path.Join(tempDir, "caFile")
+		err := os.WriteFile(caFile, []byte(""), os.FileMode(0600))
+		require.NoError(t, err)
+		creds := NewSSHCreds("sshPrivateKey", caFile, insecureIgnoreHostKey, &NoopCredsStore{}, "socks5://user:password@127.0.0.1:1080")
+		closer, env, err := creds.Environ()
+		require.NoError(t, err)
+		require.Len(t, env, 4)
+
+		assert.Equal(t, fmt.Sprintf("GIT_SSL_CAINFO=%s/caFile", tempDir), env[0], "CAINFO env var must be set")
+
+		assert.True(t, strings.HasPrefix(env[1], "GIT_SSH_COMMAND="))
+		assert.Equal(t, "SOCKS5_USER=user", env[2], "SOCKS5 user env var must be set")
+		assert.Equal(t, "SOCKS5_PASSWD=password", env[3], "SOCKS5 password env var must be set")
+
+		if insecureIgnoreHostKey {
+			assert.Contains(t, env[1], "-o StrictHostKeyChecking=no")
+			assert.Contains(t, env[1], "-o UserKnownHostsFile=/dev/null")
+		} else {
+			assert.Contains(t, env[1], "-o StrictHostKeyChecking=yes")
+			hostsPath := cert.GetSSHKnownHostsDataPath()
+			assert.Contains(t, env[1], fmt.Sprintf("-o UserKnownHostsFile=%s", hostsPath))
+		}
+		assert.Contains(t, env[1], "-o ProxyCommand='connect-proxy -S 127.0.0.1:1080 -5 %h %p'")
 
 		envRegex := regexp.MustCompile("-i ([^ ]+)")
 		assert.Regexp(t, envRegex, env[1])

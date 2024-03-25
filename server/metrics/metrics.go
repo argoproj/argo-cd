@@ -14,8 +14,10 @@ import (
 
 type MetricsServer struct {
 	*http.Server
-	redisRequestCounter   *prometheus.CounterVec
-	redisRequestHistogram *prometheus.HistogramVec
+	redisRequestCounter      *prometheus.CounterVec
+	redisRequestHistogram    *prometheus.HistogramVec
+	extensionRequestCounter  *prometheus.CounterVec
+	extensionRequestDuration *prometheus.HistogramVec
 }
 
 var (
@@ -34,6 +36,21 @@ var (
 		},
 		[]string{"initiator"},
 	)
+	extensionRequestCounter = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "argocd_proxy_extension_request_total",
+			Help: "Number of requests sent to configured proxy extensions.",
+		},
+		[]string{"extension", "status"},
+	)
+	extensionRequestDuration = prometheus.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Name:    "argocd_proxy_extension_request_duration_seconds",
+			Help:    "Request duration in seconds between the Argo CD API server and the extension backend.",
+			Buckets: []float64{0.1, 0.25, .5, 1, 2, 5, 10},
+		},
+		[]string{"extension"},
+	)
 )
 
 // NewMetricsServer returns a new prometheus server which collects api server metrics
@@ -48,14 +65,18 @@ func NewMetricsServer(host string, port int) *MetricsServer {
 
 	registry.MustRegister(redisRequestCounter)
 	registry.MustRegister(redisRequestHistogram)
+	registry.MustRegister(extensionRequestCounter)
+	registry.MustRegister(extensionRequestDuration)
 
 	return &MetricsServer{
 		Server: &http.Server{
 			Addr:    fmt.Sprintf("%s:%d", host, port),
 			Handler: mux,
 		},
-		redisRequestCounter:   redisRequestCounter,
-		redisRequestHistogram: redisRequestHistogram,
+		redisRequestCounter:      redisRequestCounter,
+		redisRequestHistogram:    redisRequestHistogram,
+		extensionRequestCounter:  extensionRequestCounter,
+		extensionRequestDuration: extensionRequestDuration,
 	}
 }
 
@@ -66,4 +87,12 @@ func (m *MetricsServer) IncRedisRequest(failed bool) {
 // ObserveRedisRequestDuration observes redis request duration
 func (m *MetricsServer) ObserveRedisRequestDuration(duration time.Duration) {
 	m.redisRequestHistogram.WithLabelValues("argocd-server").Observe(duration.Seconds())
+}
+
+func (m *MetricsServer) IncExtensionRequestCounter(extension string, status int) {
+	m.extensionRequestCounter.WithLabelValues(extension, strconv.Itoa(status)).Inc()
+}
+
+func (m *MetricsServer) ObserveExtensionRequestDuration(extension string, duration time.Duration) {
+	m.extensionRequestDuration.WithLabelValues(extension).Observe(duration.Seconds())
 }
