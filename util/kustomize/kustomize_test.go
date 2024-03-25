@@ -364,7 +364,7 @@ func TestKustomizeBuildComponents(t *testing.T) {
 	kustomizeSource := v1alpha1.ApplicationSourceKustomize{
 		Components: []string{"./components"},
 	}
-	objs, _, err := kustomize.Build(&kustomizeSource, nil, nil)
+	objs, _, err := kustomize.Build(&kustomizeSource, nil, nil, "")
 	assert.Nil(t, err)
 	obj := objs[0]
 	assert.Equal(t, "nginx-deployment", obj.GetName())

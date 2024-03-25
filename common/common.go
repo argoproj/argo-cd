@@ -52,11 +52,11 @@ const (
 
 // Default listener ports for ArgoCD components
 const (
-	DefaultPortAPIServer                  = 8080
-	DefaultPortRepoServer                 = 8081
-	DefaultPortArgoCDMetrics              = 8082
-	DefaultPortArgoCDAPIServerMetrics     = 8083
-	DefaultPortRepoServerMetrics          = 8084
+	DefaultPortAPIServer              = 8080
+	DefaultPortRepoServer             = 8081
+	DefaultPortArgoCDMetrics          = 8082
+	DefaultPortArgoCDAPIServerMetrics = 8083
+	DefaultPortRepoServerMetrics      = 8084
 
 	DefaultPortEventReporterServerMetrics = 8087
 	DefaultPortEventReporterServer        = 8088
@@ -64,11 +64,11 @@ const (
 
 // DefaultAddressAPIServer for ArgoCD components
 const (
-	DefaultAddressAdminDashboard             = "localhost"
-	DefaultAddressAPIServer                  = "0.0.0.0"
-	DefaultAddressAPIServerMetrics           = "0.0.0.0"
-	DefaultAddressRepoServer                 = "0.0.0.0"
-	DefaultAddressRepoServerMetrics          = "0.0.0.0"
+	DefaultAddressAdminDashboard    = "localhost"
+	DefaultAddressAPIServer         = "0.0.0.0"
+	DefaultAddressAPIServerMetrics  = "0.0.0.0"
+	DefaultAddressRepoServer        = "0.0.0.0"
+	DefaultAddressRepoServerMetrics = "0.0.0.0"
 
 	DefaultAddressEventReporterServer        = "0.0.0.0"
 	DefaultAddressEventReporterServerMetrics = "0.0.0.0"

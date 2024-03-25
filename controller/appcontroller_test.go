@@ -848,7 +848,11 @@ func TestFinalizeAppDeletion(t *testing.T) {
 		app.Spec.Destination.Namespace = test.FakeArgoCDNamespace
 		ctrl := newFakeController(&fakeData{
 			manifestResponses: []*apiclient.ManifestResponse{{
-				Manifests: []string{fakePostDeleteHook},
+				Manifests: []*apiclient.Manifest{
+					{
+						CompiledManifest: fakePostDeleteHook,
+					},
+				},
 			}},
 			apps:            []runtime.Object{app, &defaultProj},
 			managedLiveObjs: map[kube.ResourceKey]*unstructured.Unstructured{}}, nil)
@@ -883,7 +887,11 @@ func TestFinalizeAppDeletion(t *testing.T) {
 		require.NoError(t, unstructured.SetNestedField(liveHook.Object, "Succeeded", "status", "phase"))
 		ctrl := newFakeController(&fakeData{
 			manifestResponses: []*apiclient.ManifestResponse{{
-				Manifests: []string{fakePostDeleteHook},
+				Manifests: []*apiclient.Manifest{
+					{
+						CompiledManifest: fakePostDeleteHook,
+					},
+				},
 			}},
 			apps: []runtime.Object{app, &defaultProj},
 			managedLiveObjs: map[kube.ResourceKey]*unstructured.Unstructured{
@@ -917,7 +925,11 @@ func TestFinalizeAppDeletion(t *testing.T) {
 		require.NoError(t, unstructured.SetNestedField(liveHook.Object, "Succeeded", "status", "phase"))
 		ctrl := newFakeController(&fakeData{
 			manifestResponses: []*apiclient.ManifestResponse{{
-				Manifests: []string{fakePostDeleteHook},
+				Manifests: []*apiclient.Manifest{
+					{
+						CompiledManifest: fakePostDeleteHook,
+					},
+				},
 			}},
 			apps: []runtime.Object{app, &defaultProj},
 			managedLiveObjs: map[kube.ResourceKey]*unstructured.Unstructured{

@@ -49,27 +49,27 @@ var (
 
 func NewCommand() *cobra.Command {
 	var (
-		parallelismLimit                  int64
-		listenPort                        int
-		listenHost                        string
-		metricsPort                       int
-		metricsHost                       string
-		otlpAddress                       string
-		otlpInsecure                      bool
-		otlpHeaders                       map[string]string
-		otlpAttrs                         []string
-		cacheSrc                          func() (*reposervercache.Cache, error)
-		tlsConfigCustomizer               tls.ConfigCustomizer
-		tlsConfigCustomizerSrc            func() (tls.ConfigCustomizer, error)
-		redisClient                       *redis.Client
-		disableTLS                        bool
-		maxCombinedDirectoryManifestsSize string
-		cmpTarExcludedGlobs               []string
-		allowOutOfBoundsSymlinks          bool
-		streamedManifestMaxTarSize        string
-		streamedManifestMaxExtractedSize  string
-		helmManifestMaxExtractedSize      string
-		disableManifestMaxExtractedSize   bool
+		parallelismLimit                      int64
+		listenPort                            int
+		listenHost                            string
+		metricsPort                           int
+		metricsHost                           string
+		otlpAddress                           string
+		otlpInsecure                          bool
+		otlpHeaders                           map[string]string
+		otlpAttrs                             []string
+		cacheSrc                              func() (*reposervercache.Cache, error)
+		tlsConfigCustomizer                   tls.ConfigCustomizer
+		tlsConfigCustomizerSrc                func() (tls.ConfigCustomizer, error)
+		redisClient                           *redis.Client
+		disableTLS                            bool
+		maxCombinedDirectoryManifestsSize     string
+		cmpTarExcludedGlobs                   []string
+		allowOutOfBoundsSymlinks              bool
+		streamedManifestMaxTarSize            string
+		streamedManifestMaxExtractedSize      string
+		helmManifestMaxExtractedSize          string
+		disableManifestMaxExtractedSize       bool
 		codefreshUrl                          string
 		codefreshToken                        string
 		codefreshApplicationVersioningEnabled bool

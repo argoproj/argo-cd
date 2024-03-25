@@ -43,7 +43,10 @@ type eventReporterController struct {
 
 func NewEventReporterController(appInformer cache.SharedIndexInformer, cache *servercache.Cache, settingsMgr *settings.SettingsManager, applicationServiceClient appclient.ApplicationClient, appLister applisters.ApplicationLister, codefreshConfig *codefresh.CodefreshConfig, metricsServer *metrics.MetricsServer, featureManager *reporter.FeatureManager, rateLimiterOpts *reporter.RateLimiterOpts) EventReporterController {
 	appBroadcaster := reporter.NewBroadcaster(featureManager, metricsServer, rateLimiterOpts)
-	appInformer.AddEventHandler(appBroadcaster)
+	_, err := appInformer.AddEventHandler(appBroadcaster)
+	if err != nil {
+		log.Error(err)
+	}
 	return &eventReporterController{
 		appBroadcaster:           appBroadcaster,
 		applicationEventReporter: reporter.NewApplicationEventReporter(cache, applicationServiceClient, appLister, codefreshConfig, metricsServer),

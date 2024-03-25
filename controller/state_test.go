@@ -157,122 +157,6 @@ func TestCompareAppStateNamespaceMetadataDiffersToManifest(t *testing.T) {
 			kube.GetResourceKey(ns): ns,
 		},
 	}
-	ctrl := newFakeController(&data)
-	sources := make([]argoappv1.ApplicationSource, 0)
-	sources = append(sources, app.Spec.GetSource())
-	revisions := make([]string, 0)
-	revisions = append(revisions, "")
-	compRes := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false)
-	assert.NotNil(t, compRes)
-	assert.NotNil(t, compRes.syncStatus)
-	assert.Equal(t, argoappv1.SyncStatusCodeOutOfSync, compRes.syncStatus.Status)
-	assert.Len(t, compRes.resources, 1)
-	assert.Len(t, compRes.managedResources, 1)
-	assert.NotNil(t, compRes.diffResultList)
-	assert.Len(t, compRes.diffResultList.Diffs, 1)
-
-	result := NewNamespace()
-	assert.NoError(t, json.Unmarshal(compRes.diffResultList.Diffs[0].PredictedLive, result))
-
-	labels := result.GetLabels()
-	delete(labels, "kubernetes.io/metadata.name")
-
-	assert.Equal(t, map[string]string{}, labels)
-	// Manifests override definitions in managedNamespaceMetadata
-	assert.Equal(t, map[string]string{"bar": "bat"}, result.GetAnnotations())
-	assert.Len(t, app.Status.Conditions, 0)
-}
-
-// TestCompareAppStateNamespaceMetadata tests comparison when managed namespace metadata differs to live
-func TestCompareAppStateNamespaceMetadata(t *testing.T) {
-	ns := NewNamespace()
-	ns.SetName(test.FakeDestNamespace)
-	ns.SetNamespace(test.FakeDestNamespace)
-	ns.SetAnnotations(map[string]string{"bar": "bat"})
-
-	app := newFakeApp()
-	app.Spec.SyncPolicy.ManagedNamespaceMetadata = &argoappv1.ManagedNamespaceMetadata{
-		Labels: map[string]string{
-			"foo": "bar",
-		},
-		Annotations: map[string]string{
-			"foo": "bar",
-		},
-	}
-	app.Status.OperationState = &argoappv1.OperationState{
-		SyncResult: &argoappv1.SyncOperationResult{},
-	}
-
-	data := fakeData{
-		manifestResponse: &apiclient.ManifestResponse{
-			Manifests: []*apiclient.Manifest{},
-			Namespace: test.FakeDestNamespace,
-			Server:    test.FakeClusterURL,
-			Revision:  "abc123",
-		},
-		managedLiveObjs: map[kube.ResourceKey]*unstructured.Unstructured{
-			kube.GetResourceKey(ns): ns,
-		},
-	}
-	ctrl := newFakeController(&data)
-	sources := make([]argoappv1.ApplicationSource, 0)
-	sources = append(sources, app.Spec.GetSource())
-	revisions := make([]string, 0)
-	revisions = append(revisions, "")
-	compRes := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false)
-	assert.NotNil(t, compRes)
-	assert.NotNil(t, compRes.syncStatus)
-	assert.Equal(t, argoappv1.SyncStatusCodeOutOfSync, compRes.syncStatus.Status)
-	assert.Len(t, compRes.resources, 1)
-	assert.Len(t, compRes.managedResources, 1)
-	assert.NotNil(t, compRes.diffResultList)
-	assert.Len(t, compRes.diffResultList.Diffs, 1)
-
-	result := NewNamespace()
-	assert.NoError(t, json.Unmarshal(compRes.diffResultList.Diffs[0].PredictedLive, result))
-
-	labels := result.GetLabels()
-	delete(labels, "kubernetes.io/metadata.name")
-
-	assert.Equal(t, map[string]string{"foo": "bar"}, labels)
-	assert.Equal(t, map[string]string{"argocd.argoproj.io/sync-options": "ServerSideApply=true", "bar": "bat", "foo": "bar"}, result.GetAnnotations())
-	assert.Len(t, app.Status.Conditions, 0)
-}
-
-// TestCompareAppStateNamespaceMetadataDiffers tests comparison when managed namespace metadata differs to live and manifest ns
-func TestCompareAppStateNamespaceMetadataDiffersToManifest(t *testing.T) {
-	ns := NewNamespace()
-	ns.SetName(test.FakeDestNamespace)
-	ns.SetNamespace(test.FakeDestNamespace)
-	ns.SetAnnotations(map[string]string{"bar": "bat"})
-
-	app := newFakeApp()
-	app.Spec.SyncPolicy.ManagedNamespaceMetadata = &argoappv1.ManagedNamespaceMetadata{
-		Labels: map[string]string{
-			"foo": "bar",
-		},
-		Annotations: map[string]string{
-			"foo": "bar",
-		},
-	}
-	app.Status.OperationState = &argoappv1.OperationState{
-		SyncResult: &argoappv1.SyncOperationResult{},
-	}
-
-	liveNs := ns.DeepCopy()
-	liveNs.SetAnnotations(nil)
-
-	data := fakeData{
-		manifestResponse: &apiclient.ManifestResponse{
-			Manifests: []string{toJSON(t, liveNs)},
-			Namespace: test.FakeDestNamespace,
-			Server:    test.FakeClusterURL,
-			Revision:  "abc123",
-		},
-		managedLiveObjs: map[kube.ResourceKey]*unstructured.Unstructured{
-			kube.GetResourceKey(ns): ns,
-		},
-	}
 	ctrl := newFakeController(&data, nil)
 	sources := make([]argoappv1.ApplicationSource, 0)
 	sources = append(sources, app.Spec.GetSource())
@@ -322,7 +206,7 @@ func TestCompareAppStateNamespaceMetadata(t *testing.T) {
 
 	data := fakeData{
 		manifestResponse: &apiclient.ManifestResponse{
-			Manifests: []string{},
+			Manifests: []*apiclient.Manifest{},
 			Namespace: test.FakeDestNamespace,
 			Server:    test.FakeClusterURL,
 			Revision:  "abc123",
@@ -811,11 +695,12 @@ func TestCompareAppStateWithManifestGeneratePath(t *testing.T) {
 		updateRevisionForPathsResponse: &apiclient.UpdateRevisionForPathsResponse{},
 	}
 
-	ctrl := newFakeController(&data)
+	ctrl := newFakeController(&data, nil)
 	revisions := make([]string, 0)
 	revisions = append(revisions, "abc123")
-	compRes := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, app.Spec.GetSources(), false, false, nil, false)
+	compRes, err := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, app.Spec.GetSources(), false, false, nil, false)
 
+	assert.Nil(t, err)
 	assert.NotNil(t, compRes)
 	assert.Equal(t, argoappv1.SyncStatusCodeSynced, compRes.syncStatus.Status)
 	assert.Equal(t, "abc123", compRes.syncStatus.Revision)
@@ -1373,7 +1258,6 @@ func TestSignedResponseSignatureRequired(t *testing.T) {
 		assert.Len(t, compRes.managedResources, 0)
 		assert.Len(t, app.Status.Conditions, 0)
 	}
-
 }
 
 func TestComparisonResult_GetHealthStatus(t *testing.T) {
@@ -1587,9 +1471,9 @@ func TestUseDiffCache(t *testing.T) {
 	manifestInfos := func(revision string) []*apiclient.ManifestResponse {
 		return []*apiclient.ManifestResponse{
 			{
-				Manifests: []string{
-					"{\"apiVersion\":\"v1\",\"kind\":\"Service\",\"metadata\":{\"labels\":{\"app.kubernetes.io/instance\":\"httpbin\"},\"name\":\"httpbin-svc\",\"namespace\":\"httpbin\"},\"spec\":{\"ports\":[{\"name\":\"http-port\",\"port\":7777,\"targetPort\":80},{\"name\":\"test\",\"port\":333}],\"selector\":{\"app\":\"httpbin\"}}}",
-					"{\"apiVersion\":\"apps/v1\",\"kind\":\"Deployment\",\"metadata\":{\"labels\":{\"app.kubernetes.io/instance\":\"httpbin\"},\"name\":\"httpbin-deployment\",\"namespace\":\"httpbin\"},\"spec\":{\"replicas\":2,\"selector\":{\"matchLabels\":{\"app\":\"httpbin\"}},\"template\":{\"metadata\":{\"labels\":{\"app\":\"httpbin\"}},\"spec\":{\"containers\":[{\"image\":\"kennethreitz/httpbin\",\"imagePullPolicy\":\"Always\",\"name\":\"httpbin\",\"ports\":[{\"containerPort\":80}]}]}}}}",
+				Manifests: []*apiclient.Manifest{
+					{CompiledManifest: "{\"apiVersion\":\"v1\",\"kind\":\"Service\",\"metadata\":{\"labels\":{\"app.kubernetes.io/instance\":\"httpbin\"},\"name\":\"httpbin-svc\",\"namespace\":\"httpbin\"},\"spec\":{\"ports\":[{\"name\":\"http-port\",\"port\":7777,\"targetPort\":80},{\"name\":\"test\",\"port\":333}],\"selector\":{\"app\":\"httpbin\"}}}"},
+					{CompiledManifest: "{\"apiVersion\":\"apps/v1\",\"kind\":\"Deployment\",\"metadata\":{\"labels\":{\"app.kubernetes.io/instance\":\"httpbin\"},\"name\":\"httpbin-deployment\",\"namespace\":\"httpbin\"},\"spec\":{\"replicas\":2,\"selector\":{\"matchLabels\":{\"app\":\"httpbin\"}},\"template\":{\"metadata\":{\"labels\":{\"app\":\"httpbin\"}},\"spec\":{\"containers\":[{\"image\":\"kennethreitz/httpbin\",\"imagePullPolicy\":\"Always\",\"name\":\"httpbin\",\"ports\":[{\"containerPort\":80}]}]}}}}"},
 				},
 				Namespace:    "",
 				Server:       "",
