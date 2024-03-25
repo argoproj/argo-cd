@@ -753,9 +753,14 @@ func TestNamespacedResourceDiffing(t *testing.T) {
 			assert.Contains(t, diffOutput, fmt.Sprintf("===== apps/Deployment %s/guestbook-ui ======", DeploymentNamespace()))
 		}).
 		Given().
-		ResourceOverrides(map[string]ResourceOverride{"apps/Deployment": {
-			IgnoreDifferences: OverrideIgnoreDiff{JSONPointers: []string{"/spec/template/spec/containers/0/image"}},
-		}}).
+		ResourceOverrides(map[string]ResourceOverride{
+			"apps/Deployment": {
+				IgnoreDifferences: OverrideIgnoreDiff{JSONPointers: []string{"/spec/template/spec/containers/0/image", "/metadata/labels/app.kubernetes.io~1managed-by"}},
+			},
+			"Service": {
+				IgnoreDifferences: OverrideIgnoreDiff{JSONPointers: []string{"/metadata/labels/app.kubernetes.io~1managed-by"}},
+			},
+		}).
 		When().
 		Refresh(RefreshTypeNormal).
 		Then().
@@ -890,6 +895,16 @@ func testNSEdgeCasesApplicationResources(t *testing.T, appPath string, statusCod
 		Sync().
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Given().
+		ResourceOverrides(map[string]ResourceOverride{
+			"ConfigMap": {
+				IgnoreDifferences: OverrideIgnoreDiff{JSONPointers: []string{"/metadata/labels/app.kubernetes.io~1managed-by"}},
+			},
+		}).
+		When().
+		Refresh(RefreshTypeNormal).
+		Then().
 		Expect(SyncStatusIs(SyncStatusCodeSynced))
 	for i := range message {
 		expect = expect.Expect(Success(message[i]))
@@ -2004,6 +2019,7 @@ func TestNamespacedNamespaceAutoCreationWithMetadataAndNsManifest(t *testing.T) 
 			delete(ns.Labels, "kubernetes.io/metadata.name")
 			delete(ns.Labels, "argocd.argoproj.io/tracking-id")
 			delete(ns.Labels, "kubectl.kubernetes.io/last-applied-configuration")
+			delete(ns.Labels, "app.kubernetes.io/managed-by")
 			delete(ns.Annotations, "argocd.argoproj.io/tracking-id")
 			delete(ns.Annotations, "kubectl.kubernetes.io/last-applied-configuration")
 

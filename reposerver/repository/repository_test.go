@@ -3365,6 +3365,63 @@ func Test_getRepoSanitizerRegex(t *testing.T) {
 	assert.Equal(t, "error message containing <path to cached source>/with/trailing/path and other stuff", msg)
 }
 
+func TestGenerateManifestManagedByLabel(t *testing.T) {
+	t.Run("managed-by set no overwrite", func(t *testing.T) {
+		q := apiclient.ManifestRequest{
+			Repo:              &argoappv1.Repository{},
+			ApplicationSource: &argoappv1.ApplicationSource{},
+		}
+
+		res, err := GenerateManifests(context.Background(), "./testdata/managed-by", "/", "", &q, false, &git.NoopCredsStore{}, resource.MustParse("0"), nil, WithManagedByArgo(false))
+		assert.NoError(t, err)
+		assert.Equal(t, 1, len(res.Manifests))
+		assert.Equal(t,
+			"{\"apiVersion\":\"v1\",\"kind\":\"Namespace\",\"metadata\":{\"labels\":{\"app.kubernetes.io/managed-by\":\"another-tool\"},\"name\":\"app\"}}",
+			res.Manifests[0])
+	})
+
+	t.Run("managed-by missing no overwrite", func(t *testing.T) {
+		q := apiclient.ManifestRequest{
+			Repo:              &argoappv1.Repository{},
+			ApplicationSource: &argoappv1.ApplicationSource{},
+		}
+
+		res, err := GenerateManifests(context.Background(), "./testdata/managed-by-missing", "/", "", &q, false, &git.NoopCredsStore{}, resource.MustParse("0"), nil, WithManagedByArgo(false))
+		assert.NoError(t, err)
+		assert.Equal(t, 1, len(res.Manifests))
+		assert.Equal(t,
+			"{\"apiVersion\":\"v1\",\"kind\":\"Namespace\",\"metadata\":{\"name\":\"app\"}}",
+			res.Manifests[0])
+	})
+
+	t.Run("managed-by set with overwrite", func(t *testing.T) {
+		q := apiclient.ManifestRequest{
+			Repo:              &argoappv1.Repository{},
+			ApplicationSource: &argoappv1.ApplicationSource{},
+		}
+
+		res, err := GenerateManifests(context.Background(), "./testdata/managed-by", "/", "", &q, false, &git.NoopCredsStore{}, resource.MustParse("0"), nil, WithManagedByArgo(true))
+		assert.NoError(t, err)
+		assert.Equal(t, 1, len(res.Manifests))
+		assert.Equal(t,
+			"{\"apiVersion\":\"v1\",\"kind\":\"Namespace\",\"metadata\":{\"labels\":{\"app.kubernetes.io/managed-by\":\"argocd\"},\"name\":\"app\"}}",
+			res.Manifests[0])
+	})
+
+	t.Run("managed-by missing with overwrite", func(t *testing.T) {
+		q := apiclient.ManifestRequest{
+			Repo:              &argoappv1.Repository{},
+			ApplicationSource: &argoappv1.ApplicationSource{},
+		}
+
+		res, err := GenerateManifests(context.Background(), "./testdata/managed-by-missing", "/", "", &q, false, &git.NoopCredsStore{}, resource.MustParse("0"), nil, WithManagedByArgo(true))
+		assert.NoError(t, err)
+		assert.Equal(t, 1, len(res.Manifests))
+		assert.Equal(t,
+			"{\"apiVersion\":\"v1\",\"kind\":\"Namespace\",\"metadata\":{\"labels\":{\"app.kubernetes.io/managed-by\":\"argocd\"},\"name\":\"app\"}}",
+			res.Manifests[0])
+	})
+
 func TestGetRevisionChartDetails(t *testing.T) {
 	t.Run("Test revision semvar", func(t *testing.T) {
 		root := t.TempDir()

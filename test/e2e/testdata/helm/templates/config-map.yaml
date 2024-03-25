@@ -2,5 +2,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: my-map
+  labels:
+    app.kubernetes.io/managed-by: argocd
 data:
   foo: bar
