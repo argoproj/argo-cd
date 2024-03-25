@@ -38,6 +38,9 @@ argocd admin cluster namespaces disable-namespaced-mode PATTERN [flags]
 ### Options inherited from parent commands
 
 ```
+      --argocd-context string           The name of the Argo-CD server context to use
+      --as string                       Username to impersonate for the operation
+      --as-group stringArray            Group to impersonate for the operation, this flag can be repeated to specify multiple groups.
       --auth-token string               Authentication token
       --client-crt string               Client certificate file
       --client-crt-key string           Client certificate key file
