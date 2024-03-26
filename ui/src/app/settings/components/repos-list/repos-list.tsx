@@ -453,7 +453,7 @@ export class ReposList extends React.Component<
                                                 <div className='white-box'>
                                                     <p>CONNECT REPO USING HTTPS</p>
                                                     <div className='argo-form-row'>
-                                                        <FormField formApi={formApi} label='Type' field='type' component={FormSelect} componentProps={{options: ['git', 'helm']}} />
+                                                        <FormField formApi={formApi} label='Type' field='type' component={FormSelect} componentProps={{options: ['git', 'helm', 'oci']}} />
                                                     </div>
                                                     {formApi.getFormState().values.type === 'helm' && (
                                                         <div className='argo-form-row'>
@@ -508,14 +508,19 @@ export class ReposList extends React.Component<
                                                     <div className='argo-form-row'>
                                                         <FormField formApi={formApi} label='Proxy (optional)' field='proxy' component={Text} />
                                                     </div>
-                                                    <div className='argo-form-row'>
-                                                        <FormField formApi={formApi} label='Enable OCI' field='enableOCI' component={CheckboxField} />
-                                                    </div>
+
+                                                        <div className='argo-form-row'>
+                                                            {formApi.getFormState().values.type !== 'oci' ?
+                                                            <FormField formApi={formApi} label='Enable OCI'
+                                                                       field='enableOCI' component={CheckboxField}/>
+                                                                :<FormField formApi={formApi} label='Insecure HTTP Only'
+                                                                   field='insecureHttpOnly' component={CheckboxField}/>}
+                                                        </div>
                                                 </div>
                                             )}
                                             {this.state.method === ConnectionMethod.GITHUBAPP && (
                                                 <div className='white-box'>
-                                                    <p>CONNECT REPO USING GITHUB APP</p>
+                                                <p>CONNECT REPO USING GITHUB APP</p>
                                                     <div className='argo-form-row'>
                                                         <FormField
                                                             formApi={formApi}
