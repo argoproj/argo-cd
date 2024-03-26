@@ -457,11 +457,11 @@ This tool will not be responsible for checking that no secrets are being written
 
 ## Alternatives
 
-* Kargo
+* [Kargo](https://github.com/akuity/kargo)
     * Relies on many new concepts (Freight, Warehouse, etc.) instead of existing git/SCM concepts - i.e. requires training for developers to use
     * Currently focuses on promote-by-sync and promote-by-push (which have drawbacks, as described in [Motivation](#motivation))
     * Could be adapted to implement promote-by-pr-merge, but this is just one mode of many
-* Telefonistka
+* [Telefonistka](https://github.com/wayfair-incubator/telefonistka)
     * Very close in principle to this proposal
     * Is IaC-agnostic (supports Terraform, etc.)
     * Does not rely on the "rendered (hydrated) manifest" pattern, which has some drawbacks (no full manifest history)
