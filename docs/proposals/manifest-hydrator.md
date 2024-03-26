@@ -71,6 +71,7 @@ spec:
       # This is because every change to the manifests must have a 
       # corresponding dry commit.
     writeTo:
+      # repoURL is optional. If not specified, it's assumed to be the same as drySources[0].repoURL.
       repoURL: https://github.com/argoproj/argocd-example-apps
       targetBranch: environments/e2e-next
       path: .
@@ -78,6 +79,7 @@ spec:
     # In this example, we write to a "staging" branch and then rely on an external promotion system to move the change 
     # to the configured hydratedSource.
     hydratedSource:
+      # repoURL is optional. If not specified, it's assumed to be the same as drySources[0].repoURL.
       repoURL: https://github.com/argoproj/argocd-example-apps
       targetBranch: environments/e2e
       # The path is assumed to be the same as that in writeTo.
@@ -92,6 +94,100 @@ Argo CD will then group those sources by the configured `writeTo` repoURL and ta
 Then Argo CD will loop over the apps in each group. For each group, it will run manifest hydration on the configured `drySources[0].path` and write the result to the configured `writeTo.path`. After looping over all apps in the group and writing all their manifests, it will commit the changes to the configured `writeTo` repoURL and targetBranch. Finally, it will push those changes to git. Then it will repeat this process for the remaining groups. 
 
 The actual push operation should be delegated to some system outside the application controller. Communication may occur via some shared DB (maybe Redis) or via network, e.g. gRPC.
+
+To understand how this would work for a simple dev/test/prod setup with two regions, consider this example:
+
+```yaml
+### DEV APPS ###
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: dev-west
+spec:
+  sourceHydrator:
+    drySources:
+    - repoURL: https://github.com/argoproj/argocd-example-apps
+      targetRevision: main
+      path: environments/dev/west
+    writeTo:
+      targetBranch: environments/dev
+      path: west
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: dev-east
+spec:
+  sourceHydrator:
+    drySources:
+      - repoURL: https://github.com/argoproj/argocd-example-apps
+        targetRevision: main
+        path: environments/dev/east
+    writeTo:
+      targetBranch: environments/dev
+      path: east
+---
+### TEST APPS ###
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: test-west
+spec:
+  sourceHydrator:
+    drySources:
+      - repoURL: https://github.com/argoproj/argocd-example-apps
+        targetRevision: main
+        path: environments/test/west
+    writeTo:
+      targetBranch: environments/test
+      path: west
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: test-east
+spec:
+  sourceHydrator:
+    drySources:
+      - repoURL: https://github.com/argoproj/argocd-example-apps
+        targetRevision: main
+        path: environments/test/east
+    writeTo:
+      targetBranch: environments/prod
+      path: east
+---
+### PROD APPS ###
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: prod-west
+spec:
+  sourceHydrator:
+    drySources:
+      - repoURL: https://github.com/argoproj/argocd-example-apps
+        targetRevision: main
+        path: environments/prod/west
+    writeTo:
+      targetBranch: environments/prod
+      path: west
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: prod-east
+spec:
+  sourceHydrator:
+    drySources:
+      - repoURL: https://github.com/argoproj/argocd-example-apps
+        targetRevision: main
+        path: environments/prod/east
+    writeTo:
+      targetBranch: environments/prod
+      path: east
+---
+```
+
+Each commit to the dry branch will result in a commit to up to three branches. Each commit to an environment branch will contain changes for west, east, or both (depending on which is affected). Changes originating from a single dry commit are always grouped into a single hydrated commit.
 
 ### Use cases
 
