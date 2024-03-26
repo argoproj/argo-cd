@@ -1354,6 +1354,10 @@ spec:
     port: 26379
     protocol: TCP
     targetPort: sentinel
+  - name: http-exporter-port
+    port: 9121
+    protocol: TCP
+    targetPort: exporter-port
   selector:
     app.kubernetes.io/name: argocd-redis-ha
   type: ClusterIP
@@ -1378,6 +1382,10 @@ spec:
     port: 26379
     protocol: TCP
     targetPort: sentinel
+  - name: http-exporter
+    port: 9121
+    protocol: TCP
+    targetPort: exporter-port
   publishNotReadyAddresses: true
   selector:
     app.kubernetes.io/name: argocd-redis-ha
@@ -1404,6 +1412,10 @@ spec:
     port: 26379
     protocol: TCP
     targetPort: sentinel
+  - name: http-exporter
+    port: 9121
+    protocol: TCP
+    targetPort: exporter-port
   publishNotReadyAddresses: true
   selector:
     app.kubernetes.io/name: argocd-redis-ha
@@ -1430,6 +1442,10 @@ spec:
     port: 26379
     protocol: TCP
     targetPort: sentinel
+  - name: http-exporter
+    port: 9121
+    protocol: TCP
+    targetPort: exporter-port
   publishNotReadyAddresses: true
   selector:
     app.kubernetes.io/name: argocd-redis-ha
@@ -2954,6 +2970,9 @@ spec:
     metadata:
       annotations:
         checksum/init-config: 69130412bda04eacad3530cb7bcf26cf121401e725e15d0959dd71a7380afe75
+        prometheus.io/path: /metrics
+        prometheus.io/port: "9121"
+        prometheus.io/scrape: "true"
       labels:
         app.kubernetes.io/name: argocd-redis-ha
     spec:
@@ -3095,6 +3114,32 @@ spec:
           readOnly: true
         - mountPath: /data
           name: data
+      - args: null
+        env:
+        - name: REDIS_ADDR
+          value: redis://localhost:6379
+        image: oliver006/redis_exporter:v1.58.0
+        imagePullPolicy: IfNotPresent
+        livenessProbe:
+          httpGet:
+            path: /metrics
+            port: 9121
+          initialDelaySeconds: 15
+          periodSeconds: 15
+          timeoutSeconds: 3
+        name: redis-exporter
+        ports:
+        - containerPort: 9121
+          name: exporter-port
+        readinessProbe:
+          httpGet:
+            path: /metrics
+            port: 9121
+          initialDelaySeconds: 15
+          periodSeconds: 15
+          timeoutSeconds: 3
+        resources: {}
+        volumeMounts: null
       initContainers:
       - args:
         - /readonly-config/init.sh
