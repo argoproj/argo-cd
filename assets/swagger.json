@@ -4577,6 +4577,9 @@
         "uiCssURL": {
           "type": "string"
         },
+        "uiTitle": {
+          "type": "string"
+        },
         "url": {
           "type": "string"
         },
