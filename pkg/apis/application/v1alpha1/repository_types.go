@@ -2,6 +2,7 @@ package v1alpha1
 
 import (
 	"fmt"
+	"github.com/argoproj/argo-cd/v2/util/oci"
 	"net/url"
 
 	"github.com/argoproj/argo-cd/v2/util/cert"
@@ -93,6 +94,8 @@ type Repository struct {
 	GCPServiceAccountKey string `json:"gcpServiceAccountKey,omitempty" protobuf:"bytes,21,opt,name=gcpServiceAccountKey"`
 	// ForceHttpBasicAuth specifies whether Argo CD should attempt to force basic auth for HTTP connections
 	ForceHttpBasicAuth bool `json:"forceHttpBasicAuth,omitempty" protobuf:"bytes,22,opt,name=forceHttpBasicAuth"`
+	// InsecureHttpOnly specifies whether the connection to the repository uses TLS at _all_. If true, no TLS. Applicable for OCI repos only atm.
+	InsecureHttpOnly bool `json:"insecureHttpOnly,omitempty" protobuf:"bytes,23,opt,name=insecureHttpOnly"`
 }
 
 // IsInsecure returns true if the repository has been configured to skip server verification
@@ -216,6 +219,19 @@ func (repo *Repository) GetHelmCreds() helm.Creds {
 		CertData:           []byte(repo.TLSClientCertData),
 		KeyData:            []byte(repo.TLSClientCertKey),
 		InsecureSkipVerify: repo.Insecure,
+	}
+}
+
+// GetHelmCreds returns the credentials from a repository configuration used to authenticate at a Helm repository
+func (repo *Repository) GetOciCreds() oci.Creds {
+	return oci.Creds{
+		Username:           repo.Username,
+		Password:           repo.Password,
+		CAPath:             getCAPath(repo.Repo),
+		CertData:           []byte(repo.TLSClientCertData),
+		KeyData:            []byte(repo.TLSClientCertKey),
+		InsecureSkipVerify: repo.Insecure,
+		InsecureHttpOnly:   repo.InsecureHttpOnly,
 	}
 }
 
