@@ -19,6 +19,7 @@ import {Banner} from './ui-banner/ui-banner';
 import userInfo from './user-info';
 import {AuthSettings} from './shared/models';
 import {PKCEVerification} from './login/components/pkce-verify';
+import {Theme} from './shared/components/theme/theme';
 
 services.viewPreferences.init();
 const bases = document.getElementsByTagName('base');
@@ -220,7 +221,7 @@ export class App extends React.Component<
                 <PageContext.Provider value={{title: 'Argo CD'}}>
                     <Provider value={{history, popup: this.popupManager, notifications: this.notificationsManager, navigation: this.navigationManager, baseHref: base}}>
                         <DataLoader load={() => services.viewPreferences.getPreferences()}>
-                            {pref => <div className={pref.theme ? 'theme-' + pref.theme : 'theme-light'}>{this.state.popupProps && <Popup {...this.state.popupProps} />}</div>}
+                            {pref => <Theme pref={pref}>{this.state.popupProps && <Popup {...this.state.popupProps} />}</Theme>}
                         </DataLoader>
                         <AuthSettingsCtx.Provider value={this.state.authSettings}>
                             <Router history={history}>
