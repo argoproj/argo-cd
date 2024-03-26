@@ -1,0 +1,14 @@
+[
+  {
+    "id": 1,
+    "name": "review/fix-foo",
+    "slug": "review-fix-foo-dfjre3",
+    "external_url": "https://review-fix-foo-dfjre3.gitlab.example.com",
+    "state": "available",
+    "tier": "development",
+    "created_at": "2019-05-25T18:55:13.252Z",
+    "updated_at": "2019-05-27T18:55:13.252Z",
+    "enable_advanced_logs_querying": false,
+    "logs_api_path": "/project/-/logs/k8s.json?environment_name=review%2Ffix-foo"
+  }
+]

@@ -180,19 +180,20 @@ type ApplicationSetTemplateMeta struct {
 
 // ApplicationSetGenerator represents a generator at the top level of an ApplicationSet.
 type ApplicationSetGenerator struct {
-	List                    *ListGenerator        `json:"list,omitempty" protobuf:"bytes,1,name=list"`
-	Clusters                *ClusterGenerator     `json:"clusters,omitempty" protobuf:"bytes,2,name=clusters"`
-	Git                     *GitGenerator         `json:"git,omitempty" protobuf:"bytes,3,name=git"`
-	SCMProvider             *SCMProviderGenerator `json:"scmProvider,omitempty" protobuf:"bytes,4,name=scmProvider"`
-	ClusterDecisionResource *DuckTypeGenerator    `json:"clusterDecisionResource,omitempty" protobuf:"bytes,5,name=clusterDecisionResource"`
-	PullRequest             *PullRequestGenerator `json:"pullRequest,omitempty" protobuf:"bytes,6,name=pullRequest"`
-	Matrix                  *MatrixGenerator      `json:"matrix,omitempty" protobuf:"bytes,7,name=matrix"`
-	Merge                   *MergeGenerator       `json:"merge,omitempty" protobuf:"bytes,8,name=merge"`
+	List                    *ListGenerator              `json:"list,omitempty" protobuf:"bytes,1,name=list"`
+	Clusters                *ClusterGenerator           `json:"clusters,omitempty" protobuf:"bytes,2,name=clusters"`
+	Git                     *GitGenerator               `json:"git,omitempty" protobuf:"bytes,3,name=git"`
+	SCMProvider             *SCMProviderGenerator       `json:"scmProvider,omitempty" protobuf:"bytes,4,name=scmProvider"`
+	ClusterDecisionResource *DuckTypeGenerator          `json:"clusterDecisionResource,omitempty" protobuf:"bytes,5,name=clusterDecisionResource"`
+	PullRequest             *PullRequestGenerator       `json:"pullRequest,omitempty" protobuf:"bytes,6,name=pullRequest"`
+	GitlabEnvironment       *GitlabEnvironmentGenerator `json:"gitlabEnvironment,omitempty" protobuf:"bytes,7,name=gitlabEnvironment"`
+	Matrix                  *MatrixGenerator            `json:"matrix,omitempty" protobuf:"bytes,8,name=matrix"`
+	Merge                   *MergeGenerator             `json:"merge,omitempty" protobuf:"bytes,9,name=merge"`
 
 	// Selector allows to post-filter all generator.
-	Selector *metav1.LabelSelector `json:"selector,omitempty" protobuf:"bytes,9,name=selector"`
+	Selector *metav1.LabelSelector `json:"selector,omitempty" protobuf:"bytes,10,name=selector"`
 
-	Plugin *PluginGenerator `json:"plugin,omitempty" protobuf:"bytes,10,name=plugin"`
+	Plugin *PluginGenerator `json:"plugin,omitempty" protobuf:"bytes,11,name=plugin"`
 }
 
 // ApplicationSetNestedGenerator represents a generator nested within a combination-type generator (MatrixGenerator or
@@ -615,6 +616,23 @@ func (p *PullRequestGenerator) CustomApiUrl() string {
 		return p.AzureDevOps.API
 	}
 	return ""
+}
+
+// GitlabEnvironmentGenerator defines a generator that scrapes a Environment API to find candidate pull envs.
+type GitlabEnvironmentGenerator struct {
+	// Standard parameters.
+	RequeueAfterSeconds *int64                 `json:"requeueAfterSeconds,omitempty" protobuf:"varint,1,opt,name=requeueAfterSeconds"`
+	Template            ApplicationSetTemplate `json:"template,omitempty" protobuf:"bytes,2,opt,name=template"`
+	// GitLab project to scan. Required.
+	Project string `json:"project" protobuf:"bytes,3,opt,name=project"`
+	// The GitLab API URL to talk to. If blank, uses https://gitlab.com/.
+	API string `json:"api,omitempty" protobuf:"bytes,4,opt,name=api"`
+	// Authentication token reference.
+	TokenRef *SecretRef `json:"tokenRef,omitempty" protobuf:"bytes,5,opt,name=tokenRef"`
+	// EnvironmentState is an additional MRs filter to get only those with a certain state. Default: "" (all states)
+	EnvironmentState string `json:"environmentState,omitempty" protobuf:"bytes,6,rep,name=environmentState"`
+	// Skips validating the SCM provider's TLS certificate - useful for self-signed certificates.; default: false
+	Insecure bool `json:"insecure,omitempty" protobuf:"varint,7,opt,name=insecure"`
 }
 
 // PullRequestGeneratorGitea defines connection info specific to Gitea.
