@@ -157,7 +157,7 @@ So that, I can use a generic convention of naming service accounts and avoid ass
 
 #### Component: ArgoCD Application Controller
 
-- Provide a configuration in `argocd-cm`  which can be modified to enable the Impersonation feature. Set `applicationcontroller.enable.impersonation: true` in the Argo CD ConfigMap. Default value of `applicationcontroller.enable.impersonation` would be `false` and user has to explicitly override it to use this feature.
+- Provide a configuration in `argocd-cm`  which can be modified to enable the Impersonation feature. Set `application.enable.impersonation: true` in the Argo CD ConfigMap. Default value of `application.enable.impersonation` would be `false` and user has to explicitly override it to use this feature.
 - Provide an option to override the Impersonation feature using environment variables.
 Set `ARGOCD_APPLICATION_CONTROLLER_ENABLE_IMPERSONATION=true` in the Application controller environment variables. Default value of the environment variable must be `false` and user has to explicitly set it to `true` to use this feature.
 - Provide an option to enable this feature using a command line flag `--enable-impersonation`. This new argument option needs to be added to the Application controller args.
@@ -383,7 +383,6 @@ spec:
   destinations:
     - namespace: guestbook
       server: https://kubernetes.default.svc
-      serviceAccountName: guestbook-deployer
   destinationServiceAccounts:
     - namespace: guestbook
       server: https://kubernetes.default.svc

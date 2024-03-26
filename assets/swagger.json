@@ -4526,6 +4526,9 @@
         "help": {
           "$ref": "#/definitions/clusterHelp"
         },
+        "impersonationEnabled": {
+          "type": "boolean"
+        },
         "kustomizeOptions": {
           "$ref": "#/definitions/v1alpha1KustomizeOptions"
         },
