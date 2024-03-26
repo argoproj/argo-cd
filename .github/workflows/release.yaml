@@ -225,9 +225,9 @@ jobs:
           cache-to: type=gha,mode=max,scope=v${{ env.TARGET_VERSION }}
 
       - name: Install cosign
-        uses: sigstore/cosign-installer@6e04d228eb30da1757ee4e1dd75a0ec73a653e06 # v3.1.1
+        uses: sigstore/cosign-installer@6e04d228eb30da1757ee4e1dd75a0ec73a653e06 # v3.3.0
         with:
-          cosign-release: 'v2.1.1'
+          cosign-release: 'v2.2.2'
 
       - name: Sign container image
         run: |
