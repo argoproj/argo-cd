@@ -451,64 +451,70 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 		return nil, err
 	}
 
-	source := a.Spec.GetSource()
-
 	if !s.isNamespaceEnabled(a.Namespace) {
 		return nil, security.NamespaceNotPermittedError(a.Namespace)
 	}
 
-	var manifestInfo *apiclient.ManifestResponse
+	manifestInfos := make([]*apiclient.ManifestResponse, 0)
 	err = s.queryRepoServer(ctx, a, func(
 		client apiclient.RepoServerServiceClient, repo *appv1.Repository, helmRepos []*appv1.Repository, helmCreds []*appv1.RepoCreds, helmOptions *appv1.HelmOptions, kustomizeOptions *appv1.KustomizeOptions, enableGenerateManifests map[string]bool) error {
-		revision := source.TargetRevision
-		if q.GetRevision() != "" {
-			revision = q.GetRevision()
-		}
-		appInstanceLabelKey, err := s.settingsMgr.GetAppInstanceLabelKey()
-		if err != nil {
-			return fmt.Errorf("error getting app instance label key from settings: %w", err)
-		}
+		for i, source := range a.Spec.GetSources() {
+			revision := source.TargetRevision
+			if q.GetRevisionSourceMappings() != nil && len(q.GetRevisionSourceMappings()) > 0 {
+				if val, ok := q.GetRevisionSourceMappings()[int64(i)]; ok {
+					revision = val
+				}
+			} else if q.GetRevision() != "" {
+				revision = q.GetRevision()
+			}
+			appInstanceLabelKey, err := s.settingsMgr.GetAppInstanceLabelKey()
+			if err != nil {
+				return fmt.Errorf("error getting app instance label key from settings: %w", err)
+			}
 
-		config, err := s.getApplicationClusterConfig(ctx, a)
-		if err != nil {
-			return fmt.Errorf("error getting application cluster config: %w", err)
-		}
+			config, err := s.getApplicationClusterConfig(ctx, a)
+			if err != nil {
+				return fmt.Errorf("error getting application cluster config: %w", err)
+			}
 
-		serverVersion, err := s.kubectl.GetServerVersion(config)
-		if err != nil {
-			return fmt.Errorf("error getting server version: %w", err)
-		}
+			serverVersion, err := s.kubectl.GetServerVersion(config)
+			if err != nil {
+				return fmt.Errorf("error getting server version: %w", err)
+			}
 
-		apiResources, err := s.kubectl.GetAPIResources(config, false, kubecache.NewNoopSettings())
-		if err != nil {
-			return fmt.Errorf("error getting API resources: %w", err)
-		}
+			apiResources, err := s.kubectl.GetAPIResources(config, false, kubecache.NewNoopSettings())
+			if err != nil {
+				return fmt.Errorf("error getting API resources: %w", err)
+			}
 
-		proj, err := argo.GetAppProject(a, applisters.NewAppProjectLister(s.projInformer.GetIndexer()), s.ns, s.settingsMgr, s.db, ctx)
-		if err != nil {
-			return fmt.Errorf("error getting app project: %w", err)
-		}
+			proj, err := argo.GetAppProject(a, applisters.NewAppProjectLister(s.projInformer.GetIndexer()), s.ns, s.settingsMgr, s.db, ctx)
+			if err != nil {
+				return fmt.Errorf("error getting app project: %w", err)
+			}
 
-		manifestInfo, err = client.GenerateManifest(ctx, &apiclient.ManifestRequest{
-			Repo:               repo,
-			Revision:           revision,
-			AppLabelKey:        appInstanceLabelKey,
-			AppName:            a.InstanceName(s.ns),
-			Namespace:          a.Spec.Destination.Namespace,
-			ApplicationSource:  &source,
-			Repos:              helmRepos,
-			KustomizeOptions:   kustomizeOptions,
-			KubeVersion:        serverVersion,
-			ApiVersions:        argo.APIResourcesToStrings(apiResources, true),
-			HelmRepoCreds:      helmCreds,
-			HelmOptions:        helmOptions,
-			TrackingMethod:     string(argoutil.GetTrackingMethod(s.settingsMgr)),
-			EnabledSourceTypes: enableGenerateManifests,
-			ProjectName:        proj.Name,
-			ProjectSourceRepos: proj.Spec.SourceRepos,
-		})
-		if err != nil {
-			return fmt.Errorf("error generating manifests: %w", err)
+			manifestInfo, err := client.GenerateManifest(ctx, &apiclient.ManifestRequest{
+				Repo:               repo,
+				Revision:           revision,
+				AppLabelKey:        appInstanceLabelKey,
+				AppName:            a.InstanceName(s.ns),
+				Namespace:          a.Spec.Destination.Namespace,
+				ApplicationSource:  &source,
+				Repos:              helmRepos,
+				KustomizeOptions:   kustomizeOptions,
+				KubeVersion:        serverVersion,
+				ApiVersions:        argo.APIResourcesToStrings(apiResources, true),
+				HelmRepoCreds:      helmCreds,
+				HelmOptions:        helmOptions,
+				TrackingMethod:     string(argoutil.GetTrackingMethod(s.settingsMgr)),
+				EnabledSourceTypes: enableGenerateManifests,
+				ProjectName:        proj.Name,
+				ProjectSourceRepos: proj.Spec.SourceRepos,
+			})
+			if err != nil {
+				return fmt.Errorf("error generating manifests: %w", err)
+			}
+
+			manifestInfos = append(manifestInfos, manifestInfo)
 		}
 		return nil
 	})
@@ -517,26 +523,29 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 		return nil, err
 	}
 
-	for i, manifest := range manifestInfo.Manifests {
-		obj := &unstructured.Unstructured{}
-		err = json.Unmarshal([]byte(manifest), obj)
-		if err != nil {
-			return nil, fmt.Errorf("error unmarshaling manifest into unstructured: %w", err)
-		}
-		if obj.GetKind() == kube.SecretKind && obj.GroupVersionKind().Group == "" {
-			obj, _, err = diff.HideSecretData(obj, nil)
+	manifests := &apiclient.ManifestResponse{}
+	for _, manifestInfo := range manifestInfos {
+		for i, manifest := range manifestInfo.Manifests {
+			obj := &unstructured.Unstructured{}
+			err = json.Unmarshal([]byte(manifest), obj)
 			if err != nil {
-				return nil, fmt.Errorf("error hiding secret data: %w", err)
+				return nil, fmt.Errorf("error unmarshaling manifest into unstructured: %w", err)
 			}
-			data, err := json.Marshal(obj)
-			if err != nil {
-				return nil, fmt.Errorf("error marshaling manifest: %w", err)
+			if obj.GetKind() == kube.SecretKind && obj.GroupVersionKind().Group == "" {
+				obj, _, err = diff.HideSecretData(obj, nil)
+				if err != nil {
+					return nil, fmt.Errorf("error hiding secret data: %w", err)
+				}
+				data, err := json.Marshal(obj)
+				if err != nil {
+					return nil, fmt.Errorf("error marshaling manifest: %w", err)
+				}
+				manifests.Manifests[i] = string(data)
 			}
-			manifestInfo.Manifests[i] = string(data)
 		}
 	}
 
-	return manifestInfo, nil
+	return manifests, nil
 }
 
 func (s *Server) GetManifestsWithFiles(stream application.ApplicationService_GetManifestsWithFilesServer) error {
