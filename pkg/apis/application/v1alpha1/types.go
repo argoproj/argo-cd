@@ -294,6 +294,10 @@ func (source *ApplicationSource) AllowsConcurrentProcessing() bool {
 	return true
 }
 
+func (a *ApplicationSource) IsOci() bool {
+	return strings.HasPrefix(a.RepoURL, "oci://")
+}
+
 // IsRef returns true when the application source is of type Ref
 func (source *ApplicationSource) IsRef() bool {
 	return source.Ref != ""
