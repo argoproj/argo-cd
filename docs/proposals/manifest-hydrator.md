@@ -73,13 +73,25 @@ spec:
     writeTo:
       repoURL: https://github.com/argoproj/argocd-example-apps
       targetBranch: environments/e2e-next
+      path: .
     # The hydratedSource field is optional. If omitted, the `writeTo` repo/branch is used.
     # In this example, we write to a "staging" branch and then rely on an external promotion system to move the change 
     # to the configured hydratedSource.
     hydratedSource:
       repoURL: https://github.com/argoproj/argocd-example-apps
       targetBranch: environments/e2e
+      # The path is assumed to be the same as that in writeTo.
 ```
+
+When the Argo CD application controller detects a new commit on the first source listed under `drySources`, it will start the hydration process.
+
+First, Argo CD will collect all Applications which have the same `drySources[0]` repo and targetRevision.
+
+Argo CD will then group those sources by the configured `writeTo` repoURL and targetBranch.
+
+Then Argo CD will loop over the apps in each group. For each group, it will run manifest hydration on the configured `drySources[0].path` and write the result to the configured `writeTo.path`. After looping over all apps in the group and writing all their manifests, it will commit the changes to the configured `writeTo` repoURL and targetBranch. Finally, it will push those changes to git. Then it will repeat this process for the remaining groups. 
+
+The actual push operation should be delegated to some system outside the application controller. Communication may occur via some shared DB (maybe Redis) or via network, e.g. gRPC.
 
 ### Use cases
 
