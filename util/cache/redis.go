@@ -101,7 +101,7 @@ func (r *redisCache) Rename(oldKey string, newKey string, _ time.Duration) error
 }
 
 func (r *redisCache) Set(item *Item) error {
-	expiration := item.Expiration
+	expiration := item.CacheActionOpts.Expiration
 	if expiration == 0 {
 		expiration = r.expiration
 	}
@@ -115,6 +115,7 @@ func (r *redisCache) Set(item *Item) error {
 		Key:   r.getKey(item.Key),
 		Value: val,
 		TTL:   expiration,
+		SetNX: item.CacheActionOpts.DisableOverwrite,
 	})
 }
 
