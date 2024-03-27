@@ -1,5 +1,24 @@
 # Running Argo CD locally
 
+## Running Argo CD with Skaffold (optional)
+
+For development purposes we have a [Skaffold](https://skaffold.dev/) configuration which can be used to quickly (after 
+the initial `docker build`) stand up an Argo CD instance which is incrementally compiled on every code change.   
+
+If you followed the [Toolchain Guide](toolchain-guide.md) in setting up your toolchain, and after 
+[installing Skaffold](https://skaffold.dev/docs/install/), you can build and deploy Argo CD to your local cluster (make
+sure you're on the right kube context first) by running
+
+```shell
+make skaffold
+```
+
+Alternatively, you can also run the command `skaffold dev` if you're certain that you have a preexisting `argocd` namespace 
+(`make skaffold` will create the `argocd` namespace if it doesn't already exist, otherwise the two commands are equivalent).  
+Once Argo CD's up and running, you can access it on (http://localhost:4000)[http://localhost:4000] (the user is `admin` 
+and the password is simply `password`. If you need to make any adjustments to the k8s configuration(s), the 
+`kustomization.yaml` for Skaffold can be found under the `skaffold` directory. 
+
 ## Run Argo CD outside of Kubernetes
 
 During development, it might be viable to run Argo CD outside a Kubernetes cluster. This will greatly speed up development, as you don't have to constantly build, push and install new Argo CD Docker images with your latest changes.
