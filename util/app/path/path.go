@@ -6,7 +6,9 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/util/io/files"
+	"github.com/argoproj/argo-cd/v2/util/security"
 )
 
 func Path(root, path string) (string, error) {
@@ -87,4 +89,66 @@ func CheckOutOfBoundsSymlinks(basePath string) error {
 		}
 		return nil
 	})
+}
+
+// GetAppRefreshPaths returns the list of paths that should trigger a refresh for an application
+func GetAppRefreshPaths(app *v1alpha1.Application) []string {
+	var paths []string
+	if val, ok := app.Annotations[v1alpha1.AnnotationKeyManifestGeneratePaths]; ok && val != "" {
+		for _, item := range strings.Split(val, ";") {
+			if item == "" {
+				continue
+			}
+			if filepath.IsAbs(item) {
+				paths = append(paths, item[1:])
+			} else {
+				for _, source := range app.Spec.GetSources() {
+					paths = append(paths, filepath.Clean(filepath.Join(source.Path, item)))
+				}
+			}
+		}
+	}
+	return paths
+}
+
+// AppFilesHaveChanged returns true if any of the changed files are under the given refresh paths
+// If refreshPaths is empty, it will always return true
+func AppFilesHaveChanged(refreshPaths []string, changedFiles []string) bool {
+	// empty slice means there was no changes to any files
+	// so we should not refresh
+	if len(changedFiles) == 0 {
+		return false
+	}
+
+	if len(refreshPaths) == 0 {
+		// Apps without a given refreshed paths always be refreshed, regardless of changed files
+		// this is the "default" behavior
+		return true
+	}
+
+	// At last one changed file must be under refresh path
+	for _, f := range changedFiles {
+		f = ensureAbsPath(f)
+		for _, item := range refreshPaths {
+			item = ensureAbsPath(item)
+			changed := false
+			if f == item {
+				changed = true
+			} else if _, err := security.EnforceToCurrentRoot(item, f); err == nil {
+				changed = true
+			}
+			if changed {
+				return true
+			}
+		}
+	}
+
+	return false
+}
+
+func ensureAbsPath(input string) string {
+	if !filepath.IsAbs(input) {
+		return string(filepath.Separator) + input
+	}
+	return input
 }
