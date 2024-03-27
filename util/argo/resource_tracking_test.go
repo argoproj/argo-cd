@@ -47,19 +47,31 @@ func TestSetAppInstanceAnnotation(t *testing.T) {
 }
 
 func TestSetAppInstanceAnnotationAndLabel(t *testing.T) {
-	yamlBytes, err := os.ReadFile("testdata/svc.yaml")
-	assert.Nil(t, err)
-	var obj unstructured.Unstructured
-	err = yaml.Unmarshal(yamlBytes, &obj)
-	assert.Nil(t, err)
+	testScenarios := map[string]string{
+		"my-app": "my-app",
+		"my-app-with-very-long-app-name-that-will-get-truncated-correctly-1234":         "my-app-with-very-long-app-name-that-will-get-truncated-correctl",
+		"my-app-with-veryvery-long-app-name-that-will-not-get-truncated-correctly-1234": "my-app-with-veryvery-long-app-name-that-will-not-get-truncated",
+		"my-app-with-a-bunch-of-hyphens-------------------------------------------1234": "my-app-with-a-bunch-of-hyphens",
+	}
 
-	resourceTracking := NewResourceTracking()
+	for inputAppName, expectedLabelValue := range testScenarios {
+		yamlBytes, err := os.ReadFile("testdata/svc.yaml")
+		assert.Nil(t, err)
 
-	err = resourceTracking.SetAppInstance(&obj, common.LabelKeyAppInstance, "my-app", "", TrackingMethodAnnotationAndLabel)
-	assert.Nil(t, err)
+		var obj unstructured.Unstructured
+		err = yaml.Unmarshal(yamlBytes, &obj)
+		assert.Nil(t, err)
 
-	app := resourceTracking.GetAppName(&obj, common.LabelKeyAppInstance, TrackingMethodAnnotationAndLabel)
-	assert.Equal(t, "my-app", app)
+		resourceTracking := NewResourceTracking()
+		err = resourceTracking.SetAppInstance(&obj, common.LabelKeyAppInstance, inputAppName, "", TrackingMethodAnnotationAndLabel)
+		assert.Nil(t, err)
+
+		actualAppName := resourceTracking.GetAppName(&obj, common.LabelKeyAppInstance, TrackingMethodAnnotationAndLabel)
+		assert.Equal(t, inputAppName, actualAppName)
+
+		actualLabelValue := obj.GetLabels()[common.LabelKeyAppInstance]
+		assert.Equal(t, expectedLabelValue, actualLabelValue)
+	}
 }
 
 func TestSetAppInstanceAnnotationNotFound(t *testing.T) {
