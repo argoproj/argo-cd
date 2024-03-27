@@ -270,18 +270,26 @@ func NewReconcileCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command 
 
 			var result []appReconcileResult
 			if refresh {
+				appClientset := appclientset.NewForConfigOrDie(cfg)
+				kubeClientset := kubernetes.NewForConfigOrDie(cfg)
 				if repoServerAddress == "" {
 					printLine("Repo server is not provided, trying to port-forward to argocd-repo-server pod.")
 					overrides := clientcmd.ConfigOverrides{}
-					repoServerPodLabelSelector := common.LabelKeyAppName + "=" + clientOpts.RepoServerName
+					repoServerName := clientOpts.RepoServerName
+					repoServererviceLabelSelector := common.LabelKeyComponentRepoServer + "=" + common.LabelValueComponentRepoServer
+					repoServerServices, err := kubeClientset.CoreV1().Services(namespace).List(context.Background(), v1.ListOptions{LabelSelector: repoServererviceLabelSelector})
+					errors.CheckError(err)
+					if len(repoServerServices.Items) > 0 {
+						if repoServerServicelabel, ok := repoServerServices.Items[0].Labels[common.LabelKeyAppName]; ok && repoServerServicelabel != "" {
+							repoServerName = repoServerServicelabel
+						}
+					}
+					repoServerPodLabelSelector := common.LabelKeyAppName + "=" + repoServerName
 					repoServerPort, err := kubeutil.PortForward(8081, namespace, &overrides, repoServerPodLabelSelector)
 					errors.CheckError(err)
 					repoServerAddress = fmt.Sprintf("localhost:%d", repoServerPort)
 				}
 				repoServerClient := reposerverclient.NewRepoServerClientset(repoServerAddress, 60, reposerverclient.TLSConfiguration{DisableTLS: false, StrictValidation: false})
-
-				appClientset := appclientset.NewForConfigOrDie(cfg)
-				kubeClientset := kubernetes.NewForConfigOrDie(cfg)
 				result, err = reconcileApplications(ctx, kubeClientset, appClientset, namespace, repoServerClient, selector, newLiveStateCache, serverSideDiff)
 				errors.CheckError(err)
 			} else {
