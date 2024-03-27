@@ -4,8 +4,8 @@ import {
     authorizationCodeGrantRequest,
     calculatePKCECodeChallenge,
     discoveryRequest,
-    expectNoState,
     generateRandomCodeVerifier,
+    generateRandomState,
     isOAuth2Error,
     parseWwwAuthenticateChallenges,
     processAuthorizationCodeOpenIDResponse,
@@ -20,6 +20,11 @@ export const PKCECodeVerifier = {
     get: () => sessionStorage.getItem(window.btoa('code_verifier')),
     set: (codeVerifier: string) => sessionStorage.setItem(window.btoa('code_verifier'), codeVerifier),
     unset: () => sessionStorage.removeItem(window.btoa('code_verifier'))
+};
+
+export const PKCEState = {
+    get: () => sessionStorage.getItem('pkce_session_id'),
+    set: (sessionId: string) => sessionStorage.setItem('pkce_session_id', sessionId)
 };
 
 export const getPKCERedirectURI = () => {
@@ -74,6 +79,8 @@ export const pkceLogin = async (oidcConfig: AuthSettings['oidcConfig'], redirect
         throw new PKCELoginError('No Authorization Server endpoint found');
     }
 
+    const state = generateRandomState();
+
     const codeVerifier = generateRandomCodeVerifier();
 
     const codeChallange = await calculatePKCECodeChallenge(codeVerifier);
@@ -86,8 +93,10 @@ export const pkceLogin = async (oidcConfig: AuthSettings['oidcConfig'], redirect
     authorizationServerConsentScreen.searchParams.set('redirect_uri', redirectURI);
     authorizationServerConsentScreen.searchParams.set('response_type', 'code');
     authorizationServerConsentScreen.searchParams.set('scope', oidcConfig.scopes.join(' '));
+    authorizationServerConsentScreen.searchParams.set('state', state);
 
     PKCECodeVerifier.set(codeVerifier);
+    PKCEState.set(state);
 
     window.location.replace(authorizationServerConsentScreen.toString());
 };
@@ -110,10 +119,6 @@ export const pkceCallback = async (queryParams: string, oidcConfig: AuthSettings
         throw new PKCELoginError('No code in query parameters');
     }
 
-    if (callbackQueryParams.get('state') === '') {
-        callbackQueryParams.delete('state');
-    }
-
     const {authorizationServer} = await validateAndGetOIDCForPKCE(oidcConfig);
 
     const client: Client = {
@@ -121,7 +126,9 @@ export const pkceCallback = async (queryParams: string, oidcConfig: AuthSettings
         token_endpoint_auth_method: 'none'
     };
 
-    const params = validateAuthResponse(authorizationServer, client, callbackQueryParams, expectNoState);
+    const expectedState = PKCEState.get();
+
+    const params = validateAuthResponse(authorizationServer, client, callbackQueryParams, expectedState);
 
     if (isOAuth2Error(params)) {
         throw new PKCELoginError('Error validating auth response');
