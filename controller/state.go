@@ -32,6 +32,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/controller/metrics"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
+	applisters "github.com/argoproj/argo-cd/v2/pkg/client/listers/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/v2/util/argo"
 	argodiff "github.com/argoproj/argo-cd/v2/util/argo/diff"
@@ -106,6 +107,7 @@ type appStateManager struct {
 	settingsMgr           *settings.SettingsManager
 	appclientset          appclientset.Interface
 	projInformer          cache.SharedIndexInformer
+	appLister             applisters.ApplicationLister
 	kubectl               kubeutil.Kubectl
 	repoClientset         apiclient.Clientset
 	liveStateCache        statecache.LiveStateCache
@@ -939,6 +941,7 @@ func NewAppStateManager(
 	settingsMgr *settings.SettingsManager,
 	liveStateCache statecache.LiveStateCache,
 	projInformer cache.SharedIndexInformer,
+	appLister applisters.ApplicationLister,
 	metricsServer *metrics.MetricsServer,
 	cache *appstatecache.Cache,
 	statusRefreshTimeout time.Duration,
@@ -957,6 +960,7 @@ func NewAppStateManager(
 		namespace:             namespace,
 		settingsMgr:           settingsMgr,
 		projInformer:          projInformer,
+		appLister:             appLister,
 		metricsServer:         metricsServer,
 		statusRefreshTimeout:  statusRefreshTimeout,
 		resourceTracking:      resourceTracking,

@@ -387,7 +387,7 @@ func reconcileApplications(
 	)
 
 	appStateManager := controller.NewAppStateManager(
-		argoDB, appClientset, repoServerClient, namespace, kubeutil.NewKubectl(), settingsMgr, stateCache, projInformer, server, cache, time.Second, argo.NewResourceTracking(), false, 0, serverSideDiff)
+		argoDB, appClientset, repoServerClient, namespace, kubeutil.NewKubectl(), settingsMgr, stateCache, projInformer, appLister, server, cache, time.Second, argo.NewResourceTracking(), false, 0, serverSideDiff)
 
 	appsList, err := appClientset.ArgoprojV1alpha1().Applications(namespace).List(ctx, v1.ListOptions{LabelSelector: selector})
 	if err != nil {

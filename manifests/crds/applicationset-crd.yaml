@@ -89,6 +89,53 @@ spec:
                               type: object
                             spec:
                               properties:
+                                dependsOn:
+                                  properties:
+                                    blockOnEmpty:
+                                      type: boolean
+                                    refreshDependencies:
+                                      type: boolean
+                                    selectors:
+                                      items:
+                                        properties:
+                                          labelSelector:
+                                            properties:
+                                              matchExpressions:
+                                                items:
+                                                  properties:
+                                                    key:
+                                                      type: string
+                                                    operator:
+                                                      type: string
+                                                    values:
+                                                      items:
+                                                        type: string
+                                                      type: array
+                                                  required:
+                                                  - key
+                                                  - operator
+                                                  type: object
+                                                type: array
+                                              matchLabels:
+                                                additionalProperties:
+                                                  type: string
+                                                type: object
+                                            type: object
+                                          namePattern:
+                                            items:
+                                              type: string
+                                            type: array
+                                        type: object
+                                      type: array
+                                    syncDelay:
+                                      format: int64
+                                      type: integer
+                                    timeout:
+                                      format: int64
+                                      type: integer
+                                  required:
+                                  - selectors
+                                  type: object
                                 destination:
                                   properties:
                                     name:
@@ -680,6 +727,53 @@ spec:
                               type: object
                             spec:
                               properties:
+                                dependsOn:
+                                  properties:
+                                    blockOnEmpty:
+                                      type: boolean
+                                    refreshDependencies:
+                                      type: boolean
+                                    selectors:
+                                      items:
+                                        properties:
+                                          labelSelector:
+                                            properties:
+                                              matchExpressions:
+                                                items:
+                                                  properties:
+                                                    key:
+                                                      type: string
+                                                    operator:
+                                                      type: string
+                                                    values:
+                                                      items:
+                                                        type: string
+                                                      type: array
+                                                  required:
+                                                  - key
+                                                  - operator
+                                                  type: object
+                                                type: array
+                                              matchLabels:
+                                                additionalProperties:
+                                                  type: string
+                                                type: object
+                                            type: object
+                                          namePattern:
+                                            items:
+                                              type: string
+                                            type: array
+                                        type: object
+                                      type: array
+                                    syncDelay:
+                                      format: int64
+                                      type: integer
+                                    timeout:
+                                      format: int64
+                                      type: integer
+                                  required:
+                                  - selectors
+                                  type: object
                                 destination:
                                   properties:
                                     name:
@@ -1275,6 +1369,53 @@ spec:
                               type: object
                             spec:
                               properties:
+                                dependsOn:
+                                  properties:
+                                    blockOnEmpty:
+                                      type: boolean
+                                    refreshDependencies:
+                                      type: boolean
+                                    selectors:
+                                      items:
+                                        properties:
+                                          labelSelector:
+                                            properties:
+                                              matchExpressions:
+                                                items:
+                                                  properties:
+                                                    key:
+                                                      type: string
+                                                    operator:
+                                                      type: string
+                                                    values:
+                                                      items:
+                                                        type: string
+                                                      type: array
+                                                  required:
+                                                  - key
+                                                  - operator
+                                                  type: object
+                                                type: array
+                                              matchLabels:
+                                                additionalProperties:
+                                                  type: string
+                                                type: object
+                                            type: object
+                                          namePattern:
+                                            items:
+                                              type: string
+                                            type: array
+                                        type: object
+                                      type: array
+                                    syncDelay:
+                                      format: int64
+                                      type: integer
+                                    timeout:
+                                      format: int64
+                                      type: integer
+                                  required:
+                                  - selectors
+                                  type: object
                                 destination:
                                   properties:
                                     name:
@@ -1850,6 +1991,53 @@ spec:
                               type: object
                             spec:
                               properties:
+                                dependsOn:
+                                  properties:
+                                    blockOnEmpty:
+                                      type: boolean
+                                    refreshDependencies:
+                                      type: boolean
+                                    selectors:
+                                      items:
+                                        properties:
+                                          labelSelector:
+                                            properties:
+                                              matchExpressions:
+                                                items:
+                                                  properties:
+                                                    key:
+                                                      type: string
+                                                    operator:
+                                                      type: string
+                                                    values:
+                                                      items:
+                                                        type: string
+                                                      type: array
+                                                  required:
+                                                  - key
+                                                  - operator
+                                                  type: object
+                                                type: array
+                                              matchLabels:
+                                                additionalProperties:
+                                                  type: string
+                                                type: object
+                                            type: object
+                                          namePattern:
+                                            items:
+                                              type: string
+                                            type: array
+                                        type: object
+                                      type: array
+                                    syncDelay:
+                                      format: int64
+                                      type: integer
+                                    timeout:
+                                      format: int64
+                                      type: integer
+                                  required:
+                                  - selectors
+                                  type: object
                                 destination:
                                   properties:
                                     name:
@@ -2447,6 +2635,53 @@ spec:
                                         type: object
                                       spec:
                                         properties:
+                                          dependsOn:
+                                            properties:
+                                              blockOnEmpty:
+                                                type: boolean
+                                              refreshDependencies:
+                                                type: boolean
+                                              selectors:
+                                                items:
+                                                  properties:
+                                                    labelSelector:
+                                                      properties:
+                                                        matchExpressions:
+                                                          items:
+                                                            properties:
+                                                              key:
+                                                                type: string
+                                                              operator:
+                                                                type: string
+                                                              values:
+                                                                items:
+                                                                  type: string
+                                                                type: array
+                                                            required:
+                                                            - key
+                                                            - operator
+                                                            type: object
+                                                          type: array
+                                                        matchLabels:
+                                                          additionalProperties:
+                                                            type: string
+                                                          type: object
+                                                      type: object
+                                                    namePattern:
+                                                      items:
+                                                        type: string
+                                                      type: array
+                                                  type: object
+                                                type: array
+                                              syncDelay:
+                                                format: int64
+                                                type: integer
+                                              timeout:
+                                                format: int64
+                                                type: integer
+                                            required:
+                                            - selectors
+                                            type: object
                                           destination:
                                             properties:
                                               name:
@@ -3038,6 +3273,53 @@ spec:
                                         type: object
                                       spec:
                                         properties:
+                                          dependsOn:
+                                            properties:
+                                              blockOnEmpty:
+                                                type: boolean
+                                              refreshDependencies:
+                                                type: boolean
+                                              selectors:
+                                                items:
+                                                  properties:
+                                                    labelSelector:
+                                                      properties:
+                                                        matchExpressions:
+                                                          items:
+                                                            properties:
+                                                              key:
+                                                                type: string
+                                                              operator:
+                                                                type: string
+                                                              values:
+                                                                items:
+                                                                  type: string
+                                                                type: array
+                                                            required:
+                                                            - key
+                                                            - operator
+                                                            type: object
+                                                          type: array
+                                                        matchLabels:
+                                                          additionalProperties:
+                                                            type: string
+                                                          type: object
+                                                      type: object
+                                                    namePattern:
+                                                      items:
+                                                        type: string
+                                                      type: array
+                                                  type: object
+                                                type: array
+                                              syncDelay:
+                                                format: int64
+                                                type: integer
+                                              timeout:
+                                                format: int64
+                                                type: integer
+                                            required:
+                                            - selectors
+                                            type: object
                                           destination:
                                             properties:
                                               name:
@@ -3633,6 +3915,53 @@ spec:
                                         type: object
                                       spec:
                                         properties:
+                                          dependsOn:
+                                            properties:
+                                              blockOnEmpty:
+                                                type: boolean
+                                              refreshDependencies:
+                                                type: boolean
+                                              selectors:
+                                                items:
+                                                  properties:
+                                                    labelSelector:
+                                                      properties:
+                                                        matchExpressions:
+                                                          items:
+                                                            properties:
+                                                              key:
+                                                                type: string
+                                                              operator:
+                                                                type: string
+                                                              values:
+                                                                items:
+                                                                  type: string
+                                                                type: array
+                                                            required:
+                                                            - key
+                                                            - operator
+                                                            type: object
+                                                          type: array
+                                                        matchLabels:
+                                                          additionalProperties:
+                                                            type: string
+                                                          type: object
+                                                      type: object
+                                                    namePattern:
+                                                      items:
+                                                        type: string
+                                                      type: array
+                                                  type: object
+                                                type: array
+                                              syncDelay:
+                                                format: int64
+                                                type: integer
+                                              timeout:
+                                                format: int64
+                                                type: integer
+                                            required:
+                                            - selectors
+                                            type: object
                                           destination:
                                             properties:
                                               name:
@@ -4208,6 +4537,53 @@ spec:
                                         type: object
                                       spec:
                                         properties:
+                                          dependsOn:
+                                            properties:
+                                              blockOnEmpty:
+                                                type: boolean
+                                              refreshDependencies:
+                                                type: boolean
+                                              selectors:
+                                                items:
+                                                  properties:
+                                                    labelSelector:
+                                                      properties:
+                                                        matchExpressions:
+                                                          items:
+                                                            properties:
+                                                              key:
+                                                                type: string
+                                                              operator:
+                                                                type: string
+                                                              values:
+                                                                items:
+                                                                  type: string
+                                                                type: array
+                                                            required:
+                                                            - key
+                                                            - operator
+                                                            type: object
+                                                          type: array
+                                                        matchLabels:
+                                                          additionalProperties:
+                                                            type: string
+                                                          type: object
+                                                      type: object
+                                                    namePattern:
+                                                      items:
+                                                        type: string
+                                                      type: array
+                                                  type: object
+                                                type: array
+                                              syncDelay:
+                                                format: int64
+                                                type: integer
+                                              timeout:
+                                                format: int64
+                                                type: integer
+                                            required:
+                                            - selectors
+                                            type: object
                                           destination:
                                             properties:
                                               name:
@@ -4791,6 +5167,53 @@ spec:
                                         type: object
                                       spec:
                                         properties:
+                                          dependsOn:
+                                            properties:
+                                              blockOnEmpty:
+                                                type: boolean
+                                              refreshDependencies:
+                                                type: boolean
+                                              selectors:
+                                                items:
+                                                  properties:
+                                                    labelSelector:
+                                                      properties:
+                                                        matchExpressions:
+                                                          items:
+                                                            properties:
+                                                              key:
+                                                                type: string
+                                                              operator:
+                                                                type: string
+                                                              values:
+                                                                items:
+                                                                  type: string
+                                                                type: array
+                                                            required:
+                                                            - key
+                                                            - operator
+                                                            type: object
+                                                          type: array
+                                                        matchLabels:
+                                                          additionalProperties:
+                                                            type: string
+                                                          type: object
+                                                      type: object
+                                                    namePattern:
+                                                      items:
+                                                        type: string
+                                                      type: array
+                                                  type: object
+                                                type: array
+                                              syncDelay:
+                                                format: int64
+                                                type: integer
+                                              timeout:
+                                                format: int64
+                                                type: integer
+                                            required:
+                                            - selectors
+                                            type: object
                                           destination:
                                             properties:
                                               name:
@@ -5556,6 +5979,53 @@ spec:
                                         type: object
                                       spec:
                                         properties:
+                                          dependsOn:
+                                            properties:
+                                              blockOnEmpty:
+                                                type: boolean
+                                              refreshDependencies:
+                                                type: boolean
+                                              selectors:
+                                                items:
+                                                  properties:
+                                                    labelSelector:
+                                                      properties:
+                                                        matchExpressions:
+                                                          items:
+                                                            properties:
+                                                              key:
+                                                                type: string
+                                                              operator:
+                                                                type: string
+                                                              values:
+                                                                items:
+                                                                  type: string
+                                                                type: array
+                                                            required:
+                                                            - key
+                                                            - operator
+                                                            type: object
+                                                          type: array
+                                                        matchLabels:
+                                                          additionalProperties:
+                                                            type: string
+                                                          type: object
+                                                      type: object
+                                                    namePattern:
+                                                      items:
+                                                        type: string
+                                                      type: array
+                                                  type: object
+                                                type: array
+                                              syncDelay:
+                                                format: int64
+                                                type: integer
+                                              timeout:
+                                                format: int64
+                                                type: integer
+                                            required:
+                                            - selectors
+                                            type: object
                                           destination:
                                             properties:
                                               name:
@@ -6316,6 +6786,53 @@ spec:
                                         type: object
                                       spec:
                                         properties:
+                                          dependsOn:
+                                            properties:
+                                              blockOnEmpty:
+                                                type: boolean
+                                              refreshDependencies:
+                                                type: boolean
+                                              selectors:
+                                                items:
+                                                  properties:
+                                                    labelSelector:
+                                                      properties:
+                                                        matchExpressions:
+                                                          items:
+                                                            properties:
+                                                              key:
+                                                                type: string
+                                                              operator:
+                                                                type: string
+                                                              values:
+                                                                items:
+                                                                  type: string
+                                                                type: array
+                                                            required:
+                                                            - key
+                                                            - operator
+                                                            type: object
+                                                          type: array
+                                                        matchLabels:
+                                                          additionalProperties:
+                                                            type: string
+                                                          type: object
+                                                      type: object
+                                                    namePattern:
+                                                      items:
+                                                        type: string
+                                                      type: array
+                                                  type: object
+                                                type: array
+                                              syncDelay:
+                                                format: int64
+                                                type: integer
+                                              timeout:
+                                                format: int64
+                                                type: integer
+                                            required:
+                                            - selectors
+                                            type: object
                                           destination:
                                             properties:
                                               name:
@@ -6905,6 +7422,53 @@ spec:
                               type: object
                             spec:
                               properties:
+                                dependsOn:
+                                  properties:
+                                    blockOnEmpty:
+                                      type: boolean
+                                    refreshDependencies:
+                                      type: boolean
+                                    selectors:
+                                      items:
+                                        properties:
+                                          labelSelector:
+                                            properties:
+                                              matchExpressions:
+                                                items:
+                                                  properties:
+                                                    key:
+                                                      type: string
+                                                    operator:
+                                                      type: string
+                                                    values:
+                                                      items:
+                                                        type: string
+                                                      type: array
+                                                  required:
+                                                  - key
+                                                  - operator
+                                                  type: object
+                                                type: array
+                                              matchLabels:
+                                                additionalProperties:
+                                                  type: string
+                                                type: object
+                                            type: object
+                                          namePattern:
+                                            items:
+                                              type: string
+                                            type: array
+                                        type: object
+                                      type: array
+                                    syncDelay:
+                                      format: int64
+                                      type: integer
+                                    timeout:
+                                      format: int64
+                                      type: integer
+                                  required:
+                                  - selectors
+                                  type: object
                                 destination:
                                   properties:
                                     name:
@@ -7504,6 +8068,53 @@ spec:
                                         type: object
                                       spec:
                                         properties:
+                                          dependsOn:
+                                            properties:
+                                              blockOnEmpty:
+                                                type: boolean
+                                              refreshDependencies:
+                                                type: boolean
+                                              selectors:
+                                                items:
+                                                  properties:
+                                                    labelSelector:
+                                                      properties:
+                                                        matchExpressions:
+                                                          items:
+                                                            properties:
+                                                              key:
+                                                                type: string
+                                                              operator:
+                                                                type: string
+                                                              values:
+                                                                items:
+                                                                  type: string
+                                                                type: array
+                                                            required:
+                                                            - key
+                                                            - operator
+                                                            type: object
+                                                          type: array
+                                                        matchLabels:
+                                                          additionalProperties:
+                                                            type: string
+                                                          type: object
+                                                      type: object
+                                                    namePattern:
+                                                      items:
+                                                        type: string
+                                                      type: array
+                                                  type: object
+                                                type: array
+                                              syncDelay:
+                                                format: int64
+                                                type: integer
+                                              timeout:
+                                                format: int64
+                                                type: integer
+                                            required:
+                                            - selectors
+                                            type: object
                                           destination:
                                             properties:
                                               name:
@@ -8095,6 +8706,53 @@ spec:
                                         type: object
                                       spec:
                                         properties:
+                                          dependsOn:
+                                            properties:
+                                              blockOnEmpty:
+                                                type: boolean
+                                              refreshDependencies:
+                                                type: boolean
+                                              selectors:
+                                                items:
+                                                  properties:
+                                                    labelSelector:
+                                                      properties:
+                                                        matchExpressions:
+                                                          items:
+                                                            properties:
+                                                              key:
+                                                                type: string
+                                                              operator:
+                                                                type: string
+                                                              values:
+                                                                items:
+                                                                  type: string
+                                                                type: array
+                                                            required:
+                                                            - key
+                                                            - operator
+                                                            type: object
+                                                          type: array
+                                                        matchLabels:
+                                                          additionalProperties:
+                                                            type: string
+                                                          type: object
+                                                      type: object
+                                                    namePattern:
+                                                      items:
+                                                        type: string
+                                                      type: array
+                                                  type: object
+                                                type: array
+                                              syncDelay:
+                                                format: int64
+                                                type: integer
+                                              timeout:
+                                                format: int64
+                                                type: integer
+                                            required:
+                                            - selectors
+                                            type: object
                                           destination:
                                             properties:
                                               name:
@@ -8690,6 +9348,53 @@ spec:
                                         type: object
                                       spec:
                                         properties:
+                                          dependsOn:
+                                            properties:
+                                              blockOnEmpty:
+                                                type: boolean
+                                              refreshDependencies:
+                                                type: boolean
+                                              selectors:
+                                                items:
+                                                  properties:
+                                                    labelSelector:
+                                                      properties:
+                                                        matchExpressions:
+                                                          items:
+                                                            properties:
+                                                              key:
+                                                                type: string
+                                                              operator:
+                                                                type: string
+                                                              values:
+                                                                items:
+                                                                  type: string
+                                                                type: array
+                                                            required:
+                                                            - key
+                                                            - operator
+                                                            type: object
+                                                          type: array
+                                                        matchLabels:
+                                                          additionalProperties:
+                                                            type: string
+                                                          type: object
+                                                      type: object
+                                                    namePattern:
+                                                      items:
+                                                        type: string
+                                                      type: array
+                                                  type: object
+                                                type: array
+                                              syncDelay:
+                                                format: int64
+                                                type: integer
+                                              timeout:
+                                                format: int64
+                                                type: integer
+                                            required:
+                                            - selectors
+                                            type: object
                                           destination:
                                             properties:
                                               name:
@@ -9265,6 +9970,53 @@ spec:
                                         type: object
                                       spec:
                                         properties:
+                                          dependsOn:
+                                            properties:
+                                              blockOnEmpty:
+                                                type: boolean
+                                              refreshDependencies:
+                                                type: boolean
+                                              selectors:
+                                                items:
+                                                  properties:
+                                                    labelSelector:
+                                                      properties:
+                                                        matchExpressions:
+                                                          items:
+                                                            properties:
+                                                              key:
+                                                                type: string
+                                                              operator:
+                                                                type: string
+                                                              values:
+                                                                items:
+                                                                  type: string
+                                                                type: array
+                                                            required:
+                                                            - key
+                                                            - operator
+                                                            type: object
+                                                          type: array
+                                                        matchLabels:
+                                                          additionalProperties:
+                                                            type: string
+                                                          type: object
+                                                      type: object
+                                                    namePattern:
+                                                      items:
+                                                        type: string
+                                                      type: array
+                                                  type: object
+                                                type: array
+                                              syncDelay:
+                                                format: int64
+                                                type: integer
+                                              timeout:
+                                                format: int64
+                                                type: integer
+                                            required:
+                                            - selectors
+                                            type: object
                                           destination:
                                             properties:
                                               name:
@@ -9848,6 +10600,53 @@ spec:
                                         type: object
                                       spec:
                                         properties:
+                                          dependsOn:
+                                            properties:
+                                              blockOnEmpty:
+                                                type: boolean
+                                              refreshDependencies:
+                                                type: boolean
+                                              selectors:
+                                                items:
+                                                  properties:
+                                                    labelSelector:
+                                                      properties:
+                                                        matchExpressions:
+                                                          items:
+                                                            properties:
+                                                              key:
+                                                                type: string
+                                                              operator:
+                                                                type: string
+                                                              values:
+                                                                items:
+                                                                  type: string
+                                                                type: array
+                                                            required:
+                                                            - key
+                                                            - operator
+                                                            type: object
+                                                          type: array
+                                                        matchLabels:
+                                                          additionalProperties:
+                                                            type: string
+                                                          type: object
+                                                      type: object
+                                                    namePattern:
+                                                      items:
+                                                        type: string
+                                                      type: array
+                                                  type: object
+                                                type: array
+                                              syncDelay:
+                                                format: int64
+                                                type: integer
+                                              timeout:
+                                                format: int64
+                                                type: integer
+                                            required:
+                                            - selectors
+                                            type: object
                                           destination:
                                             properties:
                                               name:
@@ -10613,6 +11412,53 @@ spec:
                                         type: object
                                       spec:
                                         properties:
+                                          dependsOn:
+                                            properties:
+                                              blockOnEmpty:
+                                                type: boolean
+                                              refreshDependencies:
+                                                type: boolean
+                                              selectors:
+                                                items:
+                                                  properties:
+                                                    labelSelector:
+                                                      properties:
+                                                        matchExpressions:
+                                                          items:
+                                                            properties:
+                                                              key:
+                                                                type: string
+                                                              operator:
+                                                                type: string
+                                                              values:
+                                                                items:
+                                                                  type: string
+                                                                type: array
+                                                            required:
+                                                            - key
+                                                            - operator
+                                                            type: object
+                                                          type: array
+                                                        matchLabels:
+                                                          additionalProperties:
+                                                            type: string
+                                                          type: object
+                                                      type: object
+                                                    namePattern:
+                                                      items:
+                                                        type: string
+                                                      type: array
+                                                  type: object
+                                                type: array
+                                              syncDelay:
+                                                format: int64
+                                                type: integer
+                                              timeout:
+                                                format: int64
+                                                type: integer
+                                            required:
+                                            - selectors
+                                            type: object
                                           destination:
                                             properties:
                                               name:
@@ -11373,6 +12219,53 @@ spec:
                                         type: object
                                       spec:
                                         properties:
+                                          dependsOn:
+                                            properties:
+                                              blockOnEmpty:
+                                                type: boolean
+                                              refreshDependencies:
+                                                type: boolean
+                                              selectors:
+                                                items:
+                                                  properties:
+                                                    labelSelector:
+                                                      properties:
+                                                        matchExpressions:
+                                                          items:
+                                                            properties:
+                                                              key:
+                                                                type: string
+                                                              operator:
+                                                                type: string
+                                                              values:
+                                                                items:
+                                                                  type: string
+                                                                type: array
+                                                            required:
+                                                            - key
+                                                            - operator
+                                                            type: object
+                                                          type: array
+                                                        matchLabels:
+                                                          additionalProperties:
+                                                            type: string
+                                                          type: object
+                                                      type: object
+                                                    namePattern:
+                                                      items:
+                                                        type: string
+                                                      type: array
+                                                  type: object
+                                                type: array
+                                              syncDelay:
+                                                format: int64
+                                                type: integer
+                                              timeout:
+                                                format: int64
+                                                type: integer
+                                            required:
+                                            - selectors
+                                            type: object
                                           destination:
                                             properties:
                                               name:
@@ -11966,6 +12859,53 @@ spec:
                               type: object
                             spec:
                               properties:
+                                dependsOn:
+                                  properties:
+                                    blockOnEmpty:
+                                      type: boolean
+                                    refreshDependencies:
+                                      type: boolean
+                                    selectors:
+                                      items:
+                                        properties:
+                                          labelSelector:
+                                            properties:
+                                              matchExpressions:
+                                                items:
+                                                  properties:
+                                                    key:
+                                                      type: string
+                                                    operator:
+                                                      type: string
+                                                    values:
+                                                      items:
+                                                        type: string
+                                                      type: array
+                                                  required:
+                                                  - key
+                                                  - operator
+                                                  type: object
+                                                type: array
+                                              matchLabels:
+                                                additionalProperties:
+                                                  type: string
+                                                type: object
+                                            type: object
+                                          namePattern:
+                                            items:
+                                              type: string
+                                            type: array
+                                        type: object
+                                      type: array
+                                    syncDelay:
+                                      format: int64
+                                      type: integer
+                                    timeout:
+                                      format: int64
+                                      type: integer
+                                  required:
+                                  - selectors
+                                  type: object
                                 destination:
                                   properties:
                                     name:
@@ -12548,6 +13488,53 @@ spec:
                               type: object
                             spec:
                               properties:
+                                dependsOn:
+                                  properties:
+                                    blockOnEmpty:
+                                      type: boolean
+                                    refreshDependencies:
+                                      type: boolean
+                                    selectors:
+                                      items:
+                                        properties:
+                                          labelSelector:
+                                            properties:
+                                              matchExpressions:
+                                                items:
+                                                  properties:
+                                                    key:
+                                                      type: string
+                                                    operator:
+                                                      type: string
+                                                    values:
+                                                      items:
+                                                        type: string
+                                                      type: array
+                                                  required:
+                                                  - key
+                                                  - operator
+                                                  type: object
+                                                type: array
+                                              matchLabels:
+                                                additionalProperties:
+                                                  type: string
+                                                type: object
+                                            type: object
+                                          namePattern:
+                                            items:
+                                              type: string
+                                            type: array
+                                        type: object
+                                      type: array
+                                    syncDelay:
+                                      format: int64
+                                      type: integer
+                                    timeout:
+                                      format: int64
+                                      type: integer
+                                  required:
+                                  - selectors
+                                  type: object
                                 destination:
                                   properties:
                                     name:
@@ -13313,6 +14300,53 @@ spec:
                               type: object
                             spec:
                               properties:
+                                dependsOn:
+                                  properties:
+                                    blockOnEmpty:
+                                      type: boolean
+                                    refreshDependencies:
+                                      type: boolean
+                                    selectors:
+                                      items:
+                                        properties:
+                                          labelSelector:
+                                            properties:
+                                              matchExpressions:
+                                                items:
+                                                  properties:
+                                                    key:
+                                                      type: string
+                                                    operator:
+                                                      type: string
+                                                    values:
+                                                      items:
+                                                        type: string
+                                                      type: array
+                                                  required:
+                                                  - key
+                                                  - operator
+                                                  type: object
+                                                type: array
+                                              matchLabels:
+                                                additionalProperties:
+                                                  type: string
+                                                type: object
+                                            type: object
+                                          namePattern:
+                                            items:
+                                              type: string
+                                            type: array
+                                        type: object
+                                      type: array
+                                    syncDelay:
+                                      format: int64
+                                      type: integer
+                                    timeout:
+                                      format: int64
+                                      type: integer
+                                  required:
+                                  - selectors
+                                  type: object
                                 destination:
                                   properties:
                                     name:
@@ -14073,6 +15107,53 @@ spec:
                               type: object
                             spec:
                               properties:
+                                dependsOn:
+                                  properties:
+                                    blockOnEmpty:
+                                      type: boolean
+                                    refreshDependencies:
+                                      type: boolean
+                                    selectors:
+                                      items:
+                                        properties:
+                                          labelSelector:
+                                            properties:
+                                              matchExpressions:
+                                                items:
+                                                  properties:
+                                                    key:
+                                                      type: string
+                                                    operator:
+                                                      type: string
+                                                    values:
+                                                      items:
+                                                        type: string
+                                                      type: array
+                                                  required:
+                                                  - key
+                                                  - operator
+                                                  type: object
+                                                type: array
+                                              matchLabels:
+                                                additionalProperties:
+                                                  type: string
+                                                type: object
+                                            type: object
+                                          namePattern:
+                                            items:
+                                              type: string
+                                            type: array
+                                        type: object
+                                      type: array
+                                    syncDelay:
+                                      format: int64
+                                      type: integer
+                                    timeout:
+                                      format: int64
+                                      type: integer
+                                  required:
+                                  - selectors
+                                  type: object
                                 destination:
                                   properties:
                                     name:
@@ -14737,6 +15818,53 @@ spec:
                     type: object
                   spec:
                     properties:
+                      dependsOn:
+                        properties:
+                          blockOnEmpty:
+                            type: boolean
+                          refreshDependencies:
+                            type: boolean
+                          selectors:
+                            items:
+                              properties:
+                                labelSelector:
+                                  properties:
+                                    matchExpressions:
+                                      items:
+                                        properties:
+                                          key:
+                                            type: string
+                                          operator:
+                                            type: string
+                                          values:
+                                            items:
+                                              type: string
+                                            type: array
+                                        required:
+                                        - key
+                                        - operator
+                                        type: object
+                                      type: array
+                                    matchLabels:
+                                      additionalProperties:
+                                        type: string
+                                      type: object
+                                  type: object
+                                namePattern:
+                                  items:
+                                    type: string
+                                  type: array
+                              type: object
+                            type: array
+                          syncDelay:
+                            format: int64
+                            type: integer
+                          timeout:
+                            format: int64
+                            type: integer
+                        required:
+                        - selectors
+                        type: object
                       destination:
                         properties:
                           name:
