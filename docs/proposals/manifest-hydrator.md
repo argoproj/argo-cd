@@ -191,7 +191,7 @@ Each commit to the dry branch will result in a commit to up to three branches. E
 
 Each output directory should contain two files: manifest.yaml and README.md. manifest.yaml should contain the plain hydrated manifests. The resources should be sorted by namespace, name, group, and kind (in that order).
 
-The README should contain the following:
+The README will be built using the following template:
 
 ````gotemplate
 {{ if eq (len .applications) 1 }}
