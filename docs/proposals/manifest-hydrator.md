@@ -189,6 +189,66 @@ spec:
 
 Each commit to the dry branch will result in a commit to up to three branches. Each commit to an environment branch will contain changes for west, east, or both (depending on which is affected). Changes originating from a single dry commit are always grouped into a single hydrated commit.
 
+Each output directory should contain two files: manifest.yaml and README.md. manifest.yaml should contain the plain hydrated manifests. The resources should be sorted by namespace, name, group, and kind (in that order).
+
+The README should contain the following:
+
+````gotemplate
+{{ if eq (len .applications) 1 }}
+{{ $appName := (index .applications 0).metadata.name }}
+# {{ $appName }} Manifests
+
+[manifest.yaml](./manifest.yaml) contains the hydrated manifests for the {{ $appName }} application.
+{{ end }}
+{{ if gt (len .applications) 1 }}
+{{ $appName := (index .applications 0).metadata.name }}
+# Manifests for {{ len .applications }} Applications
+
+[manifest.yaml](./manifest.yaml) contains the hydrated manifests for these applications:
+{{ range $i, $app := .applications }}
+- {{ $app.name }}
+{{ end }}
+{{ end }}
+
+These are the details of the most recent change;
+* Author: {{ .commitAuthor }}
+* Message: {{ .commitMessage }}
+* Time: {{ .commitTime }}
+
+To reproduce the manifest hydration, do the following:
+
+```
+git clone {{ .repoURL }}
+cd {{ .repoName }}
+git checkout {{ .dryShortSHA }}
+{{ .command }}
+```
+````
+
+This template should be admin-configurable.
+
+Example output might look like this:
+
+````markdown
+# dev-west Manifests
+
+[manifest.yaml](./manifest.yaml) contains the hydrated manifests for the dev-west application.
+
+These are the details of the most recent change;
+* Author: Michael Crenshaw <michael@example.com>
+* Message: chore: bumped image tag to v0.0.2
+* Time: 2024-03-27 10:32:04 UTC
+
+To reproduce the manifest hydration, do the following:
+
+```
+git clone https://github.com/argoproj/argocd-example-apps
+cd argocd-example-apps
+git checkout ab2382f
+kustomize build environments/dev/west
+```
+````
+
 ### Use cases
 
 #### Use case 1:
