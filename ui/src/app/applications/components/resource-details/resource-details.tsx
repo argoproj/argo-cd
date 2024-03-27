@@ -5,7 +5,7 @@ import {EventsList, YamlEditor} from '../../../shared/components';
 import * as models from '../../../shared/models';
 import {ErrorBoundary} from '../../../shared/components/error-boundary/error-boundary';
 import {Context} from '../../../shared/context';
-import {Application, ApplicationTree, AppSourceType, Event, RepoAppDetails, ResourceNode, State, SyncStatuses} from '../../../shared/models';
+import {Application, ApplicationTree, Event, ResourceNode, State, SyncStatuses} from '../../../shared/models';
 import {services} from '../../../shared/services';
 import {ResourceTabExtension} from '../../../shared/services/extensions-service';
 import {NodeInfo, SelectNode} from '../application-details/application-details';
@@ -40,6 +40,13 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
     const tab = new URLSearchParams(appContext.history.location.search).get('tab');
     const selectedNodeInfo = NodeInfo(new URLSearchParams(appContext.history.location.search).get('node'));
     const selectedNodeKey = selectedNodeInfo.key;
+    const [pageNumber, setPageNumber] = React.useState(0);
+    const [collapsedSources, setCollapsedSources] = React.useState(new Array<boolean>()); // For Sources tab to save collapse states
+    const handleCollapse = (i: number, isCollapsed: boolean) => {
+        const v = collapsedSources.slice();
+        v[i] = isCollapsed;
+        setCollapsedSources(v);
+    };
 
     const getResourceTabs = (
         node: ResourceNode,
@@ -161,26 +168,17 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                 content: <ApplicationSummary app={application} updateApp={(app, query: {validate?: boolean}) => updateApp(app, query)} />
             },
             {
-                title: 'PARAMETERS',
+                title: application.spec.sources === undefined ? 'PARAMETERS' : 'SOURCES',
                 key: 'parameters',
                 content: (
-                    <DataLoader
-                        key='appDetails'
-                        input={application}
-                        load={app =>
-                            services.repos.appDetails(AppUtils.getAppDefaultSource(app), app.metadata.name, app.spec.project).catch(() => ({
-                                type: 'Directory' as AppSourceType,
-                                path: AppUtils.getAppDefaultSource(app).path
-                            }))
-                        }>
-                        {(details: RepoAppDetails) => (
-                            <ApplicationParameters
-                                save={(app: models.Application, query: {validate?: boolean}) => updateApp(app, query)}
-                                application={application}
-                                details={details}
-                            />
-                        )}
-                    </DataLoader>
+                    <ApplicationParameters
+                        save={(app: models.Application, query: {validate?: boolean}) => updateApp(app, query)}
+                        application={application}
+                        pageNumber={pageNumber}
+                        setPageNumber={setPageNumber}
+                        collapsedSources={collapsedSources}
+                        handleCollapse={handleCollapse}
+                    />
                 )
             },
             {
