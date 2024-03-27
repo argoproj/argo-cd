@@ -30,7 +30,7 @@ import (
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes/fake"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 )
 
 func newServerInMemoryCache() *servercache.Cache {
@@ -278,7 +278,7 @@ func TestUpdateCluster_FieldsPathSet(t *testing.T) {
 	_, err := server.Update(context.Background(), &clusterapi.ClusterUpdateRequest{
 		Cluster: &v1alpha1.Cluster{
 			Server: "https://127.0.0.1",
-			Shard:  pointer.Int64(1),
+			Shard:  ptr.To(int64(1)),
 		},
 		UpdatedFields: []string{"shard"},
 	})
