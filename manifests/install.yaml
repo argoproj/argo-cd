@@ -21642,8 +21642,8 @@ spec:
               key: applicationsetcontroller.enable.scm.providers
               name: argocd-cmd-params-cm
               optional: true
-        image: quay.io/argoproj/argocd:latest
-        imagePullPolicy: Always
+        image: argocd:latest
+        imagePullPolicy: IfNotPresent
         name: argocd-applicationset-controller
         ports:
         - containerPort: 7000
@@ -21765,8 +21765,8 @@ spec:
         - -n
         - /usr/local/bin/argocd
         - /shared/argocd-dex
-        image: quay.io/argoproj/argocd:latest
-        imagePullPolicy: Always
+        image: argocd:latest
+        imagePullPolicy: IfNotPresent
         name: copyutil
         securityContext:
           allowPrivilegeEscalation: false
@@ -21847,8 +21847,8 @@ spec:
               key: notificationscontroller.selfservice.enabled
               name: argocd-cmd-params-cm
               optional: true
-        image: quay.io/argoproj/argocd:latest
-        imagePullPolicy: Always
+        image: argocd:latest
+        imagePullPolicy: IfNotPresent
         livenessProbe:
           tcpSocket:
             port: 9001
@@ -22159,8 +22159,8 @@ spec:
           value: /helm-working-dir
         - name: HELM_DATA_HOME
           value: /helm-working-dir
-        image: quay.io/argoproj/argocd:latest
-        imagePullPolicy: Always
+        image: argocd:latest
+        imagePullPolicy: IfNotPresent
         livenessProbe:
           failureThreshold: 3
           httpGet:
@@ -22211,7 +22211,8 @@ spec:
         - -n
         - /usr/local/bin/argocd
         - /var/run/argocd/argocd-cmp-server
-        image: quay.io/argoproj/argocd:latest
+        image: argocd:latest
+        imagePullPolicy: IfNotPresent
         name: copyutil
         securityContext:
           allowPrivilegeEscalation: false
@@ -22528,8 +22529,8 @@ spec:
               key: server.api.content.types
               name: argocd-cmd-params-cm
               optional: true
-        image: quay.io/argoproj/argocd:latest
-        imagePullPolicy: Always
+        image: argocd:latest
+        imagePullPolicy: IfNotPresent
         livenessProbe:
           httpGet:
             path: /healthz?full=true
@@ -22816,8 +22817,8 @@ spec:
               key: controller.diff.server.side
               name: argocd-cmd-params-cm
               optional: true
-        image: quay.io/argoproj/argocd:latest
-        imagePullPolicy: Always
+        image: argocd:latest
+        imagePullPolicy: IfNotPresent
         name: argocd-application-controller
         ports:
         - containerPort: 8082
