@@ -1,8 +1,10 @@
 package config
 
 import (
+	"encoding/csv"
 	"errors"
 	"os"
+	"strconv"
 	"strings"
 
 	"github.com/kballard/go-shellquote"
@@ -46,8 +48,8 @@ func loadFlags() error {
 	// pkg shellquota doesn't recognize `=` so that the opts in format `foo=bar` could not work.
 	// issue ref: https://github.com/argoproj/argo-cd/issues/6822
 	for k, v := range flags {
-		if strings.Contains(k, "=") && strings.Count(k, "=") == 1 && v == "true" {
-			kv := strings.Split(k, "=")
+		if strings.Contains(k, "=") && v == "true" {
+			kv := strings.SplitN(k, "=", 2)
 			actualKey, actualValue := kv[0], kv[1]
 			if _, ok := flags[actualKey]; !ok {
 				flags[actualKey] = actualValue
@@ -67,4 +69,35 @@ func GetFlag(key, fallback string) string {
 
 func GetBoolFlag(key string) bool {
 	return GetFlag(key, "false") == "true"
+}
+
+func GetIntFlag(key string, fallback int) int {
+	val, ok := flags[key]
+	if !ok {
+		return fallback
+	}
+
+	v, err := strconv.Atoi(val)
+	if err != nil {
+		log.Fatal(err)
+	}
+	return v
+}
+
+func GetStringSliceFlag(key string, fallback []string) []string {
+	val, ok := flags[key]
+	if !ok {
+		return fallback
+	}
+
+	if val == "" {
+		return []string{}
+	}
+	stringReader := strings.NewReader(val)
+	csvReader := csv.NewReader(stringReader)
+	v, err := csvReader.Read()
+	if err != nil {
+		log.Fatal(err)
+	}
+	return v
 }
