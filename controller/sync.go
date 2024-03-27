@@ -6,9 +6,7 @@ import (
 	goerrors "errors"
 	"fmt"
 	"os"
-	"regexp"
 	"strconv"
-	"strings"
 	"sync/atomic"
 	"time"
 
@@ -31,6 +29,7 @@ import (
 	listersv1alpha1 "github.com/argoproj/argo-cd/v2/pkg/client/listers/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/util/argo"
 	"github.com/argoproj/argo-cd/v2/util/argo/diff"
+	"github.com/argoproj/argo-cd/v2/util/glob"
 	logutils "github.com/argoproj/argo-cd/v2/util/log"
 	"github.com/argoproj/argo-cd/v2/util/lua"
 	"github.com/argoproj/argo-cd/v2/util/rand"
@@ -42,8 +41,6 @@ const (
 	// EnvVarSyncWaveDelay is an environment variable which controls the delay in seconds between
 	// each sync-wave
 	EnvVarSyncWaveDelay = "ARGOCD_SYNC_WAVE_DELAY"
-
-	EnvImpersonationFeatureFlag = "ARGOCD_APPLICATION_CONTROLLER_ENABLE_IMPERSONATION"
 )
 
 func (m *appStateManager) getOpenAPISchema(server string) (openapi.Resources, error) {
@@ -212,8 +209,11 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 	rawConfig := clst.RawRestConfig()
 	restConfig := metrics.AddMetricsTransportWrapper(m.metricsServer, app, clst.RESTConfig())
 
-	setImpersonationConfig(rawConfig, app, proj)
-	setImpersonationConfig(restConfig, app, proj)
+	if m.settingsMgr.GetIsImpersonationEnabled() {
+		setImpersonationConfig(rawConfig, app, proj)
+		setImpersonationConfig(restConfig, app, proj)
+	}
+
 	resourceOverrides, err := m.settingsMgr.GetResourceOverrides()
 	if err != nil {
 		state.Phase = common.OperationError
@@ -586,54 +586,23 @@ const defaultServiceAccountName = "default"
 
 // setImpersonationConfig sets the impersonation config if the feature is enabled via environment variable explicitly.
 func setImpersonationConfig(cfg *rest.Config, app *v1alpha1.Application, proj *v1alpha1.AppProject) {
-	envValue, ok := os.LookupEnv(EnvImpersonationFeatureFlag)
-	if !ok {
-		log.Info("Skipping Impersonation config as environment variable is not set")
-		return
-	}
-	enabled, err := strconv.ParseBool(envValue)
-	if err != nil {
-		log.Info("Skipping Impersonation config as it is not enabled")
-		return
-	}
-	if enabled {
-		serviceAccountName := "default"
-		// if not set in Application, take the value set it AppProject
-		if serviceAccountName == "" {
-			serviceAccountName = deriveServiceAccountName(proj, app)
-		}
-		// if not set in both Application and AppProject, use the default service account
-		if serviceAccountName == "" {
-			serviceAccountName = defaultServiceAccountName
-		}
-		cfg.Impersonate = rest.ImpersonationConfig{
-			UserName: fmt.Sprintf(impersonateUserNameFormat, app.Namespace, serviceAccountName),
-		}
+	serviceAccountName := deriveServiceAccountName(proj, app)
+	cfg.Impersonate = rest.ImpersonationConfig{
+		UserName: fmt.Sprintf(impersonateUserNameFormat, app.Namespace, serviceAccountName),
 	}
 }
 
+// deriveServiceAccountName determines the service account to be used for impersonation for the application sync operation.
 func deriveServiceAccountName(project *v1alpha1.AppProject, application *v1alpha1.Application) string {
-	serviceAccountName := ""
-
-	// Loop through the destinations and see if there is any destination that is an exact match
+	// Loop through the destinationServiceAccounts and see if there is any destination that is an exact match
 	// if so, return the service account specified for that destination.
-	for _, destinationServiceAccount := range project.Spec.DestinationServiceAccounts {
-		if strings.Compare(destinationServiceAccount.Server, application.Spec.Destination.Server) == 0 {
-			return destinationServiceAccount.DefaultServiceAccount
+	for _, item := range project.Spec.DestinationServiceAccounts {
+		dstServerMatched := item.Server == "*" || glob.Match(item.Server, application.Spec.Destination.Server)
+		dstNamespaceMatched := item.Namespace == "*" || glob.Match(item.Namespace, application.Spec.Destination.Namespace)
+		if dstServerMatched && dstNamespaceMatched {
+			return item.DefaultServiceAccount
 		}
 	}
-
-	// Loop through the destinations and see if there is any regex pattern that matches
-	// if so, return the service account specified for that destination.
-	for _, destinationServiceAccount := range project.Spec.DestinationServiceAccounts {
-		regex, err := regexp.Compile(destinationServiceAccount.Server)
-		if err != nil {
-			log.Errorf("Error parsing regex pattern for destination server %s", destinationServiceAccount.Server)
-			continue
-		}
-		if regex.Match([]byte(application.Spec.Destination.Server)) {
-			return destinationServiceAccount.DefaultServiceAccount
-		}
-	}
-	return serviceAccountName
+	// if there is no match found in the AppProject.Spec.DestinationServiceAccounts, use the default service account of the destination namespace.
+	return defaultServiceAccountName
 }

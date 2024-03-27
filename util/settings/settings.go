@@ -2203,3 +2203,12 @@ func (mgr *SettingsManager) GetResourceCustomLabels() ([]string, error) {
 	}
 	return []string{}, nil
 }
+
+// GetIsImpersonationEnabled returns true if application sync with impersonation feature is enabled in argocd-cm configmap
+func (mgr *SettingsManager) GetIsImpersonationEnabled() bool {
+	cm, err := mgr.getConfigMap()
+	if err != nil {
+		return false
+	}
+	return cm.Data[impersonationEnabledKey] == "true"
+}
