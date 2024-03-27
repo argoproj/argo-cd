@@ -46,6 +46,11 @@ message ApplicationSetDeleteRequest {
 	string appsetNamespace = 2;
 }
 
+message ApplicationSetTreeQuery {
+	string name = 1;
+	// The application set namespace. Default empty is argocd control plane namespace
+	string appsetNamespace = 2;
+}
 
 // ApplicationSetService
 service ApplicationSetService {
@@ -72,5 +77,10 @@ service ApplicationSetService {
 	rpc Delete(ApplicationSetDeleteRequest) returns (ApplicationSetResponse) {
 		option (google.api.http).delete = "/api/v1/applicationsets/{name}";
 	}
+
+  // ResourceTree returns resource tree
+  rpc ResourceTree(ApplicationSetTreeQuery) returns (github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.ApplicationSetTree) {
+    option (google.api.http).get = "/api/v1/applicationsets/{name}/resource-tree";
+  }
 
 }

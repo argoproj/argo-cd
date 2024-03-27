@@ -280,6 +280,52 @@ func (s *Server) Delete(ctx context.Context, q *applicationset.ApplicationSetDel
 
 }
 
+func (s *Server) ResourceTree(ctx context.Context, q *applicationset.ApplicationSetTreeQuery) (*v1alpha1.ApplicationSetTree, error) {
+	namespace := s.appsetNamespaceOrDefault(q.AppsetNamespace)
+
+	if !s.isNamespaceEnabled(namespace) {
+		return nil, security.NamespaceNotPermittedError(namespace)
+	}
+
+	a, err := s.appclientset.ArgoprojV1alpha1().ApplicationSets(namespace).Get(ctx, q.Name, metav1.GetOptions{})
+
+	if err != nil {
+		return nil, fmt.Errorf("error getting ApplicationSet: %w", err)
+	}
+	if err = s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplicationSets, rbacpolicy.ActionGet, a.RBACName(s.ns)); err != nil {
+		return nil, err
+	}
+
+	return s.buildApplicationSetTree(ctx, a)
+}
+
+func (s *Server) buildApplicationSetTree(ctx context.Context, a *v1alpha1.ApplicationSet) (*v1alpha1.ApplicationSetTree, error) {
+	var tree v1alpha1.ApplicationSetTree
+
+	gvk := v1alpha1.ApplicationSetSchemaGroupVersionKind
+	parentRefs := []v1alpha1.ResourceRef{
+		{Group: gvk.Group, Version: gvk.Version, Kind: gvk.Kind, Name: a.Name, Namespace: a.Namespace, UID: string(a.UID)},
+	}
+
+	apps := a.Status.Resources
+	for _, app := range apps {
+		tree.Nodes = append(tree.Nodes, v1alpha1.ResourceNode{
+			Health: app.Health,
+			ResourceRef: v1alpha1.ResourceRef{
+				Name:      app.Name,
+				Group:     app.Group,
+				Version:   app.Version,
+				Kind:      app.Kind,
+				Namespace: a.Namespace,
+			},
+			ParentRefs: parentRefs,
+		})
+	}
+	tree.Normalize()
+
+	return &tree, nil
+}
+
 func (s *Server) validateAppSet(ctx context.Context, appset *v1alpha1.ApplicationSet) (string, error) {
 	if appset == nil {
 		return "", fmt.Errorf("ApplicationSet cannot be validated for nil value")
