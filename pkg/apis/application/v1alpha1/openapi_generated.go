@@ -852,8 +852,23 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSetApplicationStatus(ref co
 							Format:      "",
 						},
 					},
+					"targetRevisions": {
+						SchemaProps: spec.SchemaProps{
+							Description: "TargetRevision tracks the desired revisions the Application should be synced to.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
 				},
-				Required: []string{"application", "message", "status", "step"},
+				Required: []string{"application", "message", "status", "step", "targetRevisions"},
 			},
 		},
 		Dependencies: []string{

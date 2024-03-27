@@ -5943,6 +5943,13 @@
         "step": {
           "type": "string",
           "title": "Step tracks which step this Application should be updated in"
+        },
+        "targetrevisions": {
+          "description": "TargetRevision tracks the desired revisions the Application should be synced to.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
         }
       }
     },
