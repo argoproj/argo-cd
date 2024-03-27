@@ -204,6 +204,10 @@ export const OperationPhaseIcon = ({app}: {app: appModels.Application}) => {
             className = 'fa fa-check-circle';
             color = COLORS.operation.success;
             break;
+        case appModels.OperationPhases.Warning:
+            className = 'fa fa-check-circle';
+            color = COLORS.operation.warning;
+            break;
         case appModels.OperationPhases.Error:
             className = 'fa fa-times-circle';
             color = COLORS.operation.error;
@@ -768,6 +772,10 @@ export const ResourceResultIcon = ({resource}: {resource: appModels.ResourceResu
             case appModels.ResultCodes.PruneSkipped:
                 icon = 'fa-heart';
                 break;
+            case appModels.ResultCodes.SyncedWithWarning:
+                color = COLORS.sync_result.SyncedWithWarning;
+                icon = 'fa-heart-broken';
+                break;
         }
         let title: string = resource.message;
         if (resource.message) {
@@ -797,6 +805,10 @@ export const ResourceResultIcon = ({resource}: {resource: appModels.ResourceResu
             case appModels.OperationPhases.Terminating:
                 color = COLORS.operation.terminating;
                 className = 'fa fa-circle-notch fa-spin';
+                break;
+            case appModels.OperationPhases.Warning:
+                color = COLORS.operation.warning;
+                className = 'fa fa-heart-broken';
                 break;
         }
         let title: string = resource.message;
@@ -857,6 +869,8 @@ const getOperationStateTitle = (app: appModels.Application) => {
                     return 'Sync OK';
                 case 'Terminating':
                     return 'Terminated';
+                case 'Warning':
+                    return 'Sync warning';
             }
     }
     return 'Unknown';
@@ -867,7 +881,7 @@ export const OperationState = ({app, quiet}: {app: appModels.Application; quiet?
     if (appOperationState === undefined) {
         return <React.Fragment />;
     }
-    if (quiet && [appModels.OperationPhases.Running, appModels.OperationPhases.Failed, appModels.OperationPhases.Error].indexOf(appOperationState.phase) === -1) {
+    if (quiet && [appModels.OperationPhases.Running, appModels.OperationPhases.Failed, appModels.OperationPhases.Error, appModels.OperationPhases.Warning].indexOf(appOperationState.phase) === -1) {
         return <React.Fragment />;
     }
 
