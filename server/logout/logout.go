@@ -109,14 +109,19 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	issuer := jwtutil.StringField(mapClaims, "iss")
 	id := jwtutil.StringField(mapClaims, "jti")
+	// Workaround for Dex token, because does not have jti.
+	if id == "" {
+		id = jwtutil.StringField(mapClaims, "at_hash")
+	}
+
 	if exp, err := jwtutil.ExpirationTime(mapClaims); err == nil && id != "" {
 		if err := h.revokeToken(context.Background(), id, time.Until(exp)); err != nil {
 			log.Warnf("failed to invalidate token '%s': %v", id, err)
 		}
 	}
 
+	issuer := jwtutil.StringField(mapClaims, "iss")
 	if argoCDSettings.OIDCConfig() == nil || argoCDSettings.OIDCConfig().LogoutURL == "" || issuer == session.SessionManagerClaimsIssuer {
 		http.Redirect(w, r, logoutRedirectURL, http.StatusSeeOther)
 	} else {

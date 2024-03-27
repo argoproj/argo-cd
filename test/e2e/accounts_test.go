@@ -6,12 +6,10 @@ import (
 	"testing"
 
 	"github.com/argoproj/pkg/errors"
-	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/headless"
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/account"
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/session"
 	. "github.com/argoproj/argo-cd/v2/test/e2e/fixture"
@@ -134,17 +132,12 @@ test   true     login, apiKey`, output)
 	token, err := RunCli("account", "generate-token", "--account", "test")
 	errors.CheckError(err)
 
-	clientOpts := ArgoCDClientset.ClientOptions()
-	clientOpts.AuthToken = token
-	testAccountClientset := headless.NewClientOrDie(&clientOpts, &cobra.Command{})
+	assert.NotEmpty(t, token)
 
-	closer, client := testAccountClientset.NewSessionClientOrDie()
-	defer io.Close(closer)
+	name, err := RunCli("account", "get", "--account", "test", "--output", "name")
+	errors.CheckError(err)
 
-	info, err := client.GetUserInfo(context.Background(), &session.GetUserInfoRequest{})
-	assert.NoError(t, err)
-
-	assert.Equal(t, info.Username, "test")
+	assert.Equal(t, "test", name)
 }
 
 func TestLoginBadCredentials(t *testing.T) {
