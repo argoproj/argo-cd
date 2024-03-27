@@ -16,40 +16,7 @@ Instead, an error message is persisted in the CommitStatus's `status` field indi
 
 The CommitStatus Controller supports BitBucket, GitHub, and GitLab "out of the box".
 
-Support for other SCMs may be achieved by implementing a plugin. The CommitStatus controller uses the Hashicorp go
-plugin utility. The "out of the box" plugins act as canonical examples.
-
-### Using a Plugin
-
-To use a plugin, add a name, a URL, and a SHA hash to the commit-status-controller-cm ConfigMap.
-
-```yaml
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: commit-status-controller-cm
-  namespace: commit-status-controller
-data:
-  scm-plugins: |
-    - name: bitbucket
-      url: /commit-status-controller/bitbucket-plugin-v0.0.1
-      hash: example-hash-here
-    - name: github
-      url: /commit-status-controller/github-plugin-v0.0.1
-      hash: example-hash-here
-    - name: gitlab
-      url: /commit-status-controller/gitlab-plugin-v0.0.1
-      hash: example-hash-here
-    
-    # Add your plugin here, after the default plugins. You can either specify a web URL or mount the file locally.
-    - name: your-plugin
-      url: /plugins/your-plugin-v0.0.1
-      hash: example-hash-here
-```
-
-Plugins are hot-reloaded if anything under the `scm-plugins` config key changes.
-
-### Implementing a Plugin
+We could add support for other SCMs later via a plugin interface, similar to Argo Rollouts traffic routers and metrics providers. For now, we'll start with hard-coded support for GitHub and GitLab.
 
 ## Generalization of Fields
 
@@ -117,12 +84,12 @@ status:
   description:
   phase:
   url:
-  # These fields represent the internal information the plugin requires to maintain its state.
-  plugin:
+  # These fields represent the internal information the provider requires to maintain its state.
+  provider:
     gitlab:
     github:
       checkRunId: # Optional int
-    # others can store their status here
+    # If we add plugin support later, those plugins' statuses will get their own fields here.
 ```
 
 ## Reusing CommitStatus Resources

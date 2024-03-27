@@ -249,6 +249,14 @@ kustomize build environments/dev/west
 ```
 ````
 
+The hydrator will also write a `hydrator.metadata` file containing a JSON representation of all the values available for README templating. This metadata can be used by external systems (e.g. a PR-based promoter system) to generate contextual information about the hydrated manifest's provenance.
+
+```json
+{
+  
+}
+```
+
 To request a commit to the hydrated branch, the application controller will make a gRPC call to the CommitManifests service.
 
 A single call will bundle all the changes destined for a given targetBranch.
