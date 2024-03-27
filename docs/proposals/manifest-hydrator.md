@@ -249,6 +249,30 @@ kustomize build environments/dev/west
 ```
 ````
 
+To request a commit to the hydrated branch, the application controller will make a gRPC call to the CommitManifests service.
+
+A single call will bundle all the changes destined for a given targetBranch.
+
+It's the application controller's job to ensure that the user has write access to the repo before making the call.
+
+```protobuf
+message CommitManifestsFromDryCommit {
+  required string repoURL = 1;
+  required string targetBranch = 2;
+  required string drySHA = 3;
+  required string commitAuthor = 4;
+  required string commitMessage = 5;
+  required string commitTime = 6;
+  repeated CommitManifestDetails details = 7;
+}
+
+message CommitManifestDetails {
+  required string path = 1;
+  repeated string manifests = 2;
+  string readme = 3;
+}
+```
+
 ### Use cases
 
 #### Use case 1:
