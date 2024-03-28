@@ -116,7 +116,7 @@ export const Banner = (props: React.Props<any>) => {
                         chatUrl = 'invalid-url';
                     }
                 }
-                const shouldRenderTop = position === 'top' || position === 'both';
+                const shouldRenderTop = position === 'top' || position === 'both' || (!position && content);
                 const shouldRenderBottom = position === 'bottom' || position === 'both';
                 return (
                     <React.Fragment>
