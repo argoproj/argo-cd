@@ -18,6 +18,7 @@ import (
 	"github.com/redis/go-redis/v9"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/pflag"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/kubernetes"
 	cache2 "k8s.io/client-go/tools/cache"
@@ -115,6 +116,7 @@ type forwardRepoClientset struct {
 	repoClientset  repoapiclient.Clientset
 	err            error
 	repoServerName string
+	kubeClientset  kubernetes.Interface
 }
 
 func (c *forwardRepoClientset) NewRepoServerClient() (io.Closer, repoapiclient.RepoServerServiceClient, error) {
@@ -122,7 +124,19 @@ func (c *forwardRepoClientset) NewRepoServerClient() (io.Closer, repoapiclient.R
 		overrides := clientcmd.ConfigOverrides{
 			CurrentContext: c.context,
 		}
-		repoServerPodLabelSelector := common.LabelKeyAppName + "=" + c.repoServerName
+		repoServerName := c.repoServerName
+		repoServererviceLabelSelector := common.LabelKeyComponentRepoServer + "=" + common.LabelValueComponentRepoServer
+		repoServerServices, err := c.kubeClientset.CoreV1().Services(c.namespace).List(context.Background(), v1.ListOptions{LabelSelector: repoServererviceLabelSelector})
+		if err != nil {
+			c.err = err
+			return
+		}
+		if len(repoServerServices.Items) > 0 {
+			if repoServerServicelabel, ok := repoServerServices.Items[0].Labels[common.LabelKeyAppName]; ok && repoServerServicelabel != "" {
+				repoServerName = repoServerServicelabel
+			}
+		}
+		repoServerPodLabelSelector := common.LabelKeyAppName + "=" + repoServerName
 		repoServerPort, err := kubeutil.PortForward(8081, c.namespace, &overrides, repoServerPodLabelSelector)
 		if err != nil {
 			c.err = err
@@ -237,7 +251,7 @@ func MaybeStartLocalServer(ctx context.Context, clientOpts *apiclient.ClientOpti
 		KubeClientset:        kubeClientset,
 		Insecure:             true,
 		ListenHost:           *address,
-		RepoClientset:        &forwardRepoClientset{namespace: namespace, context: ctxStr, repoServerName: clientOpts.RepoServerName},
+		RepoClientset:        &forwardRepoClientset{namespace: namespace, context: ctxStr, repoServerName: clientOpts.RepoServerName, kubeClientset: kubeClientset},
 		EnableProxyExtension: false,
 	})
 	srv.Init(ctx)
