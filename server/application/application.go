@@ -473,7 +473,7 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 
 		sources := make([]appv1.ApplicationSource, 0)
 		if a.Spec.HasMultipleSources() {
-			for i, _ := range a.Spec.GetSources() {
+			for i := range a.Spec.GetSources() {
 				source := a.Spec.GetSources()[i]
 				if q.GetRevisionSourceMappings() != nil && len(q.GetRevisionSourceMappings()) > 0 {
 					if val, ok := q.GetRevisionSourceMappings()[int64(i+1)]; ok {
