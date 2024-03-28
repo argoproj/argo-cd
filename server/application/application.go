@@ -380,11 +380,9 @@ func (s *Server) Create(ctx context.Context, q *application.ApplicationCreateReq
 
 func (s *Server) queryRepoServer(ctx context.Context, a *appv1.Application, action func(
 	client apiclient.RepoServerServiceClient,
-	repo *appv1.Repository,
 	helmRepos []*appv1.Repository,
 	helmCreds []*appv1.RepoCreds,
 	helmOptions *appv1.HelmOptions,
-	kustomizeOptions *appv1.KustomizeOptions,
 	enabledSourceTypes map[string]bool,
 ) error) error {
 
@@ -393,18 +391,7 @@ func (s *Server) queryRepoServer(ctx context.Context, a *appv1.Application, acti
 		return fmt.Errorf("error creating repo server client: %w", err)
 	}
 	defer ioutil.Close(closer)
-	repo, err := s.db.GetRepository(ctx, a.Spec.GetSource().RepoURL)
-	if err != nil {
-		return fmt.Errorf("error getting repository: %w", err)
-	}
-	kustomizeSettings, err := s.settingsMgr.GetKustomizeSettings()
-	if err != nil {
-		return fmt.Errorf("error getting kustomize settings: %w", err)
-	}
-	kustomizeOptions, err := kustomizeSettings.GetOptions(a.Spec.GetSource())
-	if err != nil {
-		return fmt.Errorf("error getting kustomize settings options: %w", err)
-	}
+
 	proj, err := argo.GetAppProject(a, applisters.NewAppProjectLister(s.projInformer.GetIndexer()), s.ns, s.settingsMgr, s.db, ctx)
 	if err != nil {
 		if apierr.IsNotFound(err) {
@@ -438,7 +425,7 @@ func (s *Server) queryRepoServer(ctx context.Context, a *appv1.Application, acti
 	if err != nil {
 		return fmt.Errorf("error getting settings enabled source types: %w", err)
 	}
-	return action(client, repo, permittedHelmRepos, permittedHelmCredentials, helmOptions, kustomizeOptions, enabledSourceTypes)
+	return action(client, permittedHelmRepos, permittedHelmCredentials, helmOptions, enabledSourceTypes)
 }
 
 // GetManifests returns application manifests
@@ -455,46 +442,84 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 		return nil, security.NamespaceNotPermittedError(a.Namespace)
 	}
 
+	log.Info("---------------------------Here 1-------------------------------------")
 	manifestInfos := make([]*apiclient.ManifestResponse, 0)
 	err = s.queryRepoServer(ctx, a, func(
-		client apiclient.RepoServerServiceClient, repo *appv1.Repository, helmRepos []*appv1.Repository, helmCreds []*appv1.RepoCreds, helmOptions *appv1.HelmOptions, kustomizeOptions *appv1.KustomizeOptions, enableGenerateManifests map[string]bool) error {
-		for i, source := range a.Spec.GetSources() {
-			revision := source.TargetRevision
-			if q.GetRevisionSourceMappings() != nil && len(q.GetRevisionSourceMappings()) > 0 {
-				if val, ok := q.GetRevisionSourceMappings()[int64(i)]; ok {
-					revision = val
+		client apiclient.RepoServerServiceClient, helmRepos []*appv1.Repository, helmCreds []*appv1.RepoCreds, helmOptions *appv1.HelmOptions, enableGenerateManifests map[string]bool) error {
+
+		appInstanceLabelKey, err := s.settingsMgr.GetAppInstanceLabelKey()
+		if err != nil {
+			return fmt.Errorf("error getting app instance label key from settings: %w", err)
+		}
+
+		config, err := s.getApplicationClusterConfig(ctx, a)
+		if err != nil {
+			return fmt.Errorf("error getting application cluster config: %w", err)
+		}
+
+		serverVersion, err := s.kubectl.GetServerVersion(config)
+		if err != nil {
+			return fmt.Errorf("error getting server version: %w", err)
+		}
+
+		apiResources, err := s.kubectl.GetAPIResources(config, false, kubecache.NewNoopSettings())
+		if err != nil {
+			return fmt.Errorf("error getting API resources: %w", err)
+		}
+
+		proj, err := argo.GetAppProject(a, applisters.NewAppProjectLister(s.projInformer.GetIndexer()), s.ns, s.settingsMgr, s.db, ctx)
+		if err != nil {
+			return fmt.Errorf("error getting app project: %w", err)
+		}
+
+		sources := make([]appv1.ApplicationSource, 0)
+		if a.Spec.HasMultipleSources() {
+			fmt.Println(q.GetRevisionSourceMappings())
+			for i, _ := range a.Spec.GetSources() {
+				source := a.Spec.GetSources()[i]
+				fmt.Println(i, "source: ", source.RepoURL)
+				if q.GetRevisionSourceMappings() != nil && len(q.GetRevisionSourceMappings()) > 0 {
+					if val, ok := q.GetRevisionSourceMappings()[int64(i+1)]; ok {
+						source.TargetRevision = val
+						log.Infof("Found in GetRevisionSourceMappings %d:%s", i, source.TargetRevision)
+						a.Spec.GetSources()[i] = source
+					}
 				}
-			} else if q.GetRevision() != "" {
-				revision = q.GetRevision()
 			}
-			appInstanceLabelKey, err := s.settingsMgr.GetAppInstanceLabelKey()
+			sources = a.Spec.GetSources()
+		} else {
+			source := a.Spec.GetSource()
+			if q.GetRevision() != "" {
+				source.TargetRevision = q.GetRevision()
+			}
+			sources = append(sources, source)
+		}
+
+		// Store the map of all sources having ref field into a map for applications with sources field
+		refSources, err := argo.GetRefSources(context.Background(), a.Spec, s.db)
+		if err != nil {
+			return fmt.Errorf("failed to get ref sources: %v", err)
+		}
+
+		for _, source := range sources {
+			repo, err := s.db.GetRepository(ctx, source.RepoURL)
 			if err != nil {
-				return fmt.Errorf("error getting app instance label key from settings: %w", err)
+				return fmt.Errorf("error getting repository: %w", err)
 			}
 
-			config, err := s.getApplicationClusterConfig(ctx, a)
+			kustomizeSettings, err := s.settingsMgr.GetKustomizeSettings()
 			if err != nil {
-				return fmt.Errorf("error getting application cluster config: %w", err)
+				return fmt.Errorf("error getting kustomize settings: %w", err)
 			}
 
-			serverVersion, err := s.kubectl.GetServerVersion(config)
+			kustomizeOptions, err := kustomizeSettings.GetOptions(source)
 			if err != nil {
-				return fmt.Errorf("error getting server version: %w", err)
-			}
-
-			apiResources, err := s.kubectl.GetAPIResources(config, false, kubecache.NewNoopSettings())
-			if err != nil {
-				return fmt.Errorf("error getting API resources: %w", err)
-			}
-
-			proj, err := argo.GetAppProject(a, applisters.NewAppProjectLister(s.projInformer.GetIndexer()), s.ns, s.settingsMgr, s.db, ctx)
-			if err != nil {
-				return fmt.Errorf("error getting app project: %w", err)
+				return fmt.Errorf("error getting kustomize settings options: %w", err)
 			}
 
 			manifestInfo, err := client.GenerateManifest(ctx, &apiclient.ManifestRequest{
 				Repo:               repo,
-				Revision:           revision,
+				Revision:           source.TargetRevision,
 				AppLabelKey:        appInstanceLabelKey,
 				AppName:            a.InstanceName(s.ns),
 				Namespace:          a.Spec.Destination.Namespace,
@@ -509,11 +534,12 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 				EnabledSourceTypes: enableGenerateManifests,
 				ProjectName:        proj.Name,
 				ProjectSourceRepos: proj.Spec.SourceRepos,
+				HasMultipleSources: a.Spec.HasMultipleSources(),
+				RefSources:         refSources,
 			})
 			if err != nil {
 				return fmt.Errorf("error generating manifests: %w", err)
 			}
-
 			manifestInfos = append(manifestInfos, manifestInfo)
 		}
 		return nil
@@ -540,9 +566,10 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 				if err != nil {
 					return nil, fmt.Errorf("error marshaling manifest: %w", err)
 				}
-				manifests.Manifests[i] = string(data)
+				manifestInfo.Manifests[i] = string(data)
 			}
 		}
+		manifests.Manifests = manifestInfo.Manifests
 	}
 
 	return manifests, nil
@@ -567,7 +594,7 @@ func (s *Server) GetManifestsWithFiles(stream application.ApplicationService_Get
 
 	var manifestInfo *apiclient.ManifestResponse
 	err = s.queryRepoServer(ctx, a, func(
-		client apiclient.RepoServerServiceClient, repo *appv1.Repository, helmRepos []*appv1.Repository, helmCreds []*appv1.RepoCreds, helmOptions *appv1.HelmOptions, kustomizeOptions *appv1.KustomizeOptions, enableGenerateManifests map[string]bool) error {
+		client apiclient.RepoServerServiceClient, helmRepos []*appv1.Repository, helmCreds []*appv1.RepoCreds, helmOptions *appv1.HelmOptions, enableGenerateManifests map[string]bool) error {
 
 		appInstanceLabelKey, err := s.settingsMgr.GetAppInstanceLabelKey()
 		if err != nil {
@@ -594,6 +621,20 @@ func (s *Server) GetManifestsWithFiles(stream application.ApplicationService_Get
 		proj, err := argo.GetAppProject(a, applisters.NewAppProjectLister(s.projInformer.GetIndexer()), s.ns, s.settingsMgr, s.db, ctx)
 		if err != nil {
 			return fmt.Errorf("error getting app project: %w", err)
+		}
+
+		repo, err := s.db.GetRepository(ctx, a.Spec.GetSource().RepoURL)
+		if err != nil {
+			return fmt.Errorf("error getting repository: %w", err)
+		}
+
+		kustomizeSettings, err := s.settingsMgr.GetKustomizeSettings()
+		if err != nil {
+			return fmt.Errorf("error getting kustomize settings: %w", err)
+		}
+		kustomizeOptions, err := kustomizeSettings.GetOptions(a.Spec.GetSource())
+		if err != nil {
+			return fmt.Errorf("error getting kustomize settings options: %w", err)
 		}
 
 		req := &apiclient.ManifestRequest{
@@ -710,15 +751,25 @@ func (s *Server) Get(ctx context.Context, q *application.ApplicationQuery) (*app
 		// force refresh cached application details
 		if err := s.queryRepoServer(ctx, a, func(
 			client apiclient.RepoServerServiceClient,
-			repo *appv1.Repository,
 			helmRepos []*appv1.Repository,
 			_ []*appv1.RepoCreds,
 			helmOptions *appv1.HelmOptions,
-			kustomizeOptions *appv1.KustomizeOptions,
 			enabledSourceTypes map[string]bool,
 		) error {
 			source := app.Spec.GetSource()
-			_, err := client.GetAppDetails(ctx, &apiclient.RepoServerAppDetailsQuery{
+			repo, err := s.db.GetRepository(ctx, a.Spec.GetSource().RepoURL)
+			if err != nil {
+				return fmt.Errorf("error getting repository: %w", err)
+			}
+			kustomizeSettings, err := s.settingsMgr.GetKustomizeSettings()
+			if err != nil {
+				return fmt.Errorf("error getting kustomize settings: %w", err)
+			}
+			kustomizeOptions, err := kustomizeSettings.GetOptions(a.Spec.GetSource())
+			if err != nil {
+				return fmt.Errorf("error getting kustomize settings options: %w", err)
+			}
+			_, err = client.GetAppDetails(ctx, &apiclient.RepoServerAppDetailsQuery{
 				Repo:               repo,
 				Source:             &source,
 				AppName:            appName,
