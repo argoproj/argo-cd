@@ -10,6 +10,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	"github.com/argoproj/argo-cd/v2/controller"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/test/e2e/fixture/applicationsets/utils"
 )
@@ -145,14 +146,12 @@ func pods(namespace string) (*corev1.PodList, error) {
 
 // getDiff returns a string containing a comparison result of two applications (for test output/debug purposes)
 func getDiff(orig, new v1alpha1.Application) (string, error) {
-
-	bytes, _, err := diff.CreateTwoWayMergePatch(orig, new, orig)
+	bytes, _, err := controller.CreateAppMergePatch(&orig, &new)
 	if err != nil {
 		return "", err
 	}
 
 	return string(bytes), nil
-
 }
 
 // getConditionDiff returns a string containing a comparison result of two ApplicationSetCondition (for test output/debug purposes)
@@ -191,11 +190,8 @@ func filterFields(input v1alpha1.Application) v1alpha1.Application {
 			Finalizers:  metaCopy.Finalizers,
 		},
 		Spec: v1alpha1.ApplicationSpec{
-			Source: &v1alpha1.ApplicationSource{
-				Path:           spec.GetSource().Path,
-				RepoURL:        spec.GetSource().RepoURL,
-				TargetRevision: spec.GetSource().TargetRevision,
-			},
+			Source:  spec.Source,
+			Sources: spec.Sources,
 			Destination: v1alpha1.ApplicationDestination{
 				Server:    spec.Destination.Server,
 				Name:      spec.Destination.Name,
