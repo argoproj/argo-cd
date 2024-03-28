@@ -325,6 +325,15 @@ func (s *Server) Create(ctx context.Context, q *application.ApplicationCreateReq
 		return nil, security.NamespaceNotPermittedError(appNs)
 	}
 
+	// Don't let the app creator set the operation explicitly. Those requests should always go through the Sync API.
+	if a.Operation != nil {
+		log.WithFields(log.Fields{
+			"application":            a.Name,
+			argocommon.SecurityField: argocommon.SecurityLow,
+		}).Warn("User attempted to set operation on application creation. This could have allowed them to bypass branch protection rules by setting manifests directly. Ignoring the set operation.")
+		a.Operation = nil
+	}
+
 	created, err := s.appclientset.ArgoprojV1alpha1().Applications(appNs).Create(ctx, a, metav1.CreateOptions{})
 	if err == nil {
 		s.logAppEvent(created, ctx, argo.EventReasonResourceCreated, "created application")
