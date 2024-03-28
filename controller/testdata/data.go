@@ -14,4 +14,10 @@ var (
 
 	//go:embed diff-cache.yaml
 	DiffCacheYaml string
+
+	//go:embed live-httpproxy.yaml
+	LiveHTTPProxy string
+
+	//go:embed target-httpproxy.yaml
+	TargetHTTPProxy string
 )

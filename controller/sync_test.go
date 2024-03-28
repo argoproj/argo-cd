@@ -2,6 +2,7 @@ package controller
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/argoproj/gitops-engine/pkg/sync"
@@ -454,4 +455,81 @@ func TestNormalizeTargetResources(t *testing.T) {
 		require.True(t, ok)
 		assert.Equal(t, 2, len(containers))
 	})
+
+	setupHttpProxy := func(t *testing.T, ignores []v1alpha1.ResourceIgnoreDifferences) *fixture {
+		t.Helper()
+		dc, err := diff.NewDiffConfigBuilder().
+			WithDiffSettings(ignores, nil, true).
+			WithNoCache().
+			Build()
+		require.NoError(t, err)
+		live := test.YamlToUnstructured(testdata.LiveHTTPProxy)
+		target := test.YamlToUnstructured(testdata.TargetHTTPProxy)
+		return &fixture{
+			&comparisonResult{
+				reconciliationResult: sync.ReconciliationResult{
+					Live:   []*unstructured.Unstructured{live},
+					Target: []*unstructured.Unstructured{target},
+				},
+				diffConfig: dc,
+			},
+		}
+	}
+
+	t.Run("will properly ignore nested fields within arrays", func(t *testing.T) {
+		// given
+		ignores := []v1alpha1.ResourceIgnoreDifferences{
+			{
+				Group:             "projectcontour.io",
+				Kind:              "HTTPProxy",
+				JQPathExpressions: []string{".spec.routes[]"},
+				//JSONPointers: []string{"/spec/routes"},
+			},
+		}
+		f := setupHttpProxy(t, ignores)
+		target := test.YamlToUnstructured(testdata.TargetHTTPProxy)
+		f.comparisonResult.reconciliationResult.Target = []*unstructured.Unstructured{target}
+
+		// when
+		patchedTargets, err := normalizeTargetResources(f.comparisonResult)
+
+		// then
+		require.NoError(t, err)
+		require.Equal(t, 1, len(f.comparisonResult.reconciliationResult.Live))
+		require.Equal(t, 1, len(f.comparisonResult.reconciliationResult.Target))
+		require.Equal(t, 1, len(patchedTargets))
+
+		// live should have 1 entry
+		require.Equal(t, 1, len(dig[[]any](f.comparisonResult.reconciliationResult.Live[0].Object, []interface{}{"spec", "routes", 15, "rateLimitPolicy", "global", "descriptors"})))
+		// assert some arbitrary field to show `entries[0]` is not an empty object
+		require.Equal(t, "x-gw-ims-user-id", dig[string](f.comparisonResult.reconciliationResult.Live[0].Object, []interface{}{"spec", "routes", 15, "rateLimitPolicy", "global", "descriptors", 0, "entries", 0, "requestHeader", "headerName"}))
+
+		// target has 2 entries
+		require.Equal(t, 2, len(dig[[]any](f.comparisonResult.reconciliationResult.Target[0].Object, []interface{}{"spec", "routes", 15, "rateLimitPolicy", "global", "descriptors", 0, "entries"})))
+		// assert some arbitrary field to show `entries[0]` is not an empty object
+		require.Equal(t, "x-gw-ims-user-id", dig[string](f.comparisonResult.reconciliationResult.Target[0].Object, []interface{}{"spec", "routes", 15, "rateLimitPolicy", "global", "descriptors", 0, "entries", 0, "requestHeaderValueMatch", "headers", 0, "name"}))
+
+		// THESE ASSERTIONS ARE WRONG! It should be *2* entries in the array, and it should NOT equal an empty object
+		require.Equal(t, 1, len(dig[[]any](patchedTargets[0].Object, []interface{}{"spec", "routes", 15, "rateLimitPolicy", "global", "descriptors"})))
+		require.Equal(t, map[string]interface{}{}, dig[any](patchedTargets[0].Object, []interface{}{"spec", "routes", 15, "rateLimitPolicy", "global", "descriptors", 0, "entries", 0}))
+
+		fmt.Println("fifty")
+	})
+}
+
+func dig[T any](obj interface{}, path []interface{}) T {
+	i := obj
+
+	for _, segment := range path {
+		switch segment.(type) {
+		case int:
+			i = i.([]interface{})[segment.(int)]
+		case string:
+			i = i.(map[string]interface{})[segment.(string)]
+		default:
+			panic("invalid path for object")
+		}
+	}
+
+	return i.(T)
 }
