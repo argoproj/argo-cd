@@ -30,7 +30,7 @@ in one of the following ways:
 ## Authorization
 
 Authorization is performed by iterating the list of group membership in a user's JWT groups claims,
-and comparing each group against the roles/rules in the [RBAC](../rbac) policy. Any matched rule
+and comparing each group against the roles/rules in the [RBAC](../rbac.md) policy. Any matched rule
 permits access to the API request.
 
 ## TLS
