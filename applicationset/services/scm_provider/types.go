@@ -29,15 +29,8 @@ type Filter struct {
 	PathsDoNotExist []string
 	LabelMatch      *regexp.Regexp
 	BranchMatch     *regexp.Regexp
-	FilterType      FilterType
+	// FilterTypeRepo are filters that apply to the repo itself (name, labels)
+	FilterTypeRepo bool
+	// FilterTypeBranch are filters that apply to the repo content (path, branch)
+	FilterTypeBranch bool
 }
-
-// A convenience type for indicating where to apply a filter
-type FilterType int64
-
-// The enum of filter types
-const (
-	FilterTypeUndefined FilterType = iota
-	FilterTypeBranch
-	FilterTypeRepo
-)
