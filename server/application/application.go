@@ -442,7 +442,6 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 		return nil, security.NamespaceNotPermittedError(a.Namespace)
 	}
 
-	log.Info("---------------------------Here 1-------------------------------------")
 	manifestInfos := make([]*apiclient.ManifestResponse, 0)
 	err = s.queryRepoServer(ctx, a, func(
 		client apiclient.RepoServerServiceClient, helmRepos []*appv1.Repository, helmCreds []*appv1.RepoCreds, helmOptions *appv1.HelmOptions, enableGenerateManifests map[string]bool) error {
@@ -474,14 +473,11 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 
 		sources := make([]appv1.ApplicationSource, 0)
 		if a.Spec.HasMultipleSources() {
-			fmt.Println(q.GetRevisionSourceMappings())
 			for i, _ := range a.Spec.GetSources() {
 				source := a.Spec.GetSources()[i]
-				fmt.Println(i, "source: ", source.RepoURL)
 				if q.GetRevisionSourceMappings() != nil && len(q.GetRevisionSourceMappings()) > 0 {
 					if val, ok := q.GetRevisionSourceMappings()[int64(i+1)]; ok {
 						source.TargetRevision = val
-						log.Infof("Found in GetRevisionSourceMappings %d:%s", i, source.TargetRevision)
 						a.Spec.GetSources()[i] = source
 					}
 				}
