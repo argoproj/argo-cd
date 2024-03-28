@@ -235,14 +235,6 @@ data:
   # can be either empty, "normal" or "strict". By default, it is empty i.e. disabled.
   resource.respectRBAC: "normal"
 
-  # Configuration to add a config management plugin.
-  configManagementPlugins: |
-    - name: kasane
-      init:
-        command: [kasane, update]
-      generate:
-        command: [kasane, show]
-
   # A set of settings that allow enabling or disabling the config management tool.
   # If unset, each defaults to "true".
   kustomize.enabled: true

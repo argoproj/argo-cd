@@ -170,8 +170,8 @@ Argo CD repo server maintains one repository clone locally and uses it for appli
 Argo CD determines if manifest generation might change local files in the local repository clone based on the config management tool and application settings.
 If the manifest generation has no side effects then requests are processed in parallel without a performance penalty. The following are known cases that might cause slowness and their workarounds:
 
-  * **Multiple Helm based applications pointing to the same directory in one Git repository:** ensure that your Helm chart doesn't have conditional
-[dependencies](https://helm.sh/docs/chart_best_practices/dependencies/#conditions-and-tags) and create `.argocd-allow-concurrency` file in the chart directory.
+  * **Multiple Helm based applications pointing to the same directory in one Git repository:** for historical reasons Argo CD generates Helm manifests sequentially.  To enable parallel generation set `ARGOCD_HELM_ALLOW_CONCURRENCY=true` to `argocd-repo-server` deployment or create `.argocd-allow-concurrency` file.
+    Future versions of Argo CD will enable this by default.
 
   * **Multiple Custom plugin based applications:** avoid creating temporal files during manifest generation and create `.argocd-allow-concurrency` file in the app directory, or use the sidecar plugin option, which processes each application using a temporary copy of the repository.
 
@@ -269,13 +269,13 @@ The final rate limiter uses a combination of both and calculates the final backo
 
 ### Global rate limits
 
-  This is enabled by default, it is a simple bucket based rate limiter that limits the number of items that can be queued per second.
+  This is disabled by default, it is a simple bucket based rate limiter that limits the number of items that can be queued per second.
 This is useful to prevent a large number of apps from being queued at the same time.
 
 To configure the bucket limiter you can set the following environment variables:
 
   * `WORKQUEUE_BUCKET_SIZE` - The number of items that can be queued in a single burst. Defaults to 500.
-  * `WORKQUEUE_BUCKET_QPS` - The number of items that can be queued per second. Defaults to 50.
+  * `WORKQUEUE_BUCKET_QPS` - The number of items that can be queued per second. Defaults to MaxFloat64, which disables the limiter.
 
 ### Per item rate limits
 
