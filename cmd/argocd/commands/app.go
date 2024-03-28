@@ -1140,6 +1140,11 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				c.HelpFunc()(c, args)
 				os.Exit(2)
 			}
+
+			if len(revisions) != len(sourceIndexes) {
+				errors.CheckError(fmt.Errorf("While using revisions and source-indexes, length of values for both flags should be same."))
+			}
+
 			clientset := headless.NewClientOrDie(clientOpts, c)
 			conn, appIf := clientset.NewApplicationClientOrDie()
 			defer argoio.Close(conn)
