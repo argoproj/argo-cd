@@ -107,6 +107,7 @@ type RepoServerInitConstants struct {
 	StreamedManifestMaxExtractedSize             int64
 	StreamedManifestMaxTarSize                   int64
 	HelmManifestMaxExtractedSize                 int64
+	HelmRegistryMaxIndexSize                     int64
 	DisableHelmManifestMaxExtractedSize          bool
 }
 
@@ -2356,7 +2357,7 @@ func (s *Service) newHelmClientResolveRevision(repo *v1alpha1.Repository, revisi
 		return helmClient, version.String(), nil
 	}
 
-	index, err := helmClient.GetIndex(noRevisionCache)
+	index, err := helmClient.GetIndex(noRevisionCache, s.initConstants.HelmRegistryMaxIndexSize)
 	if err != nil {
 		return nil, "", err
 	}
@@ -2434,7 +2435,7 @@ func checkoutRevision(gitClient git.Client, revision string, submoduleEnabled bo
 }
 
 func (s *Service) GetHelmCharts(ctx context.Context, q *apiclient.HelmChartsRequest) (*apiclient.HelmChartsResponse, error) {
-	index, err := s.newHelmClient(q.Repo.Repo, q.Repo.GetHelmCreds(), q.Repo.EnableOCI, q.Repo.Proxy, helm.WithChartPaths(s.chartPaths)).GetIndex(true)
+	index, err := s.newHelmClient(q.Repo.Repo, q.Repo.GetHelmCreds(), q.Repo.EnableOCI, q.Repo.Proxy, helm.WithChartPaths(s.chartPaths)).GetIndex(true, s.initConstants.HelmRegistryMaxIndexSize)
 	if err != nil {
 		return nil, err
 	}
@@ -2469,7 +2470,7 @@ func (s *Service) TestRepository(ctx context.Context, q *apiclient.TestRepositor
 				_, err := helm.NewClient(repo.Repo, repo.GetHelmCreds(), repo.EnableOCI, repo.Proxy).TestHelmOCI()
 				return err
 			} else {
-				_, err := helm.NewClient(repo.Repo, repo.GetHelmCreds(), repo.EnableOCI, repo.Proxy).GetIndex(false)
+				_, err := helm.NewClient(repo.Repo, repo.GetHelmCreds(), repo.EnableOCI, repo.Proxy).GetIndex(false, s.initConstants.HelmRegistryMaxIndexSize)
 				return err
 			}
 		},
