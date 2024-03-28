@@ -15,10 +15,17 @@ argocd logout CONTEXT [flags]
 ### Examples
 
 ```
-# To log out of argocd
-$ argocd logout
-# This can be helpful for security reasons or when you want to switch between different Argo CD contexts or accounts.
-
+  # Basic Logout from contexts or accounts
+  argocd logout
+  
+  # Logout from a Specific Server
+  argocd logout --server https://argocd-server.example.com
+  
+  # Logout via Skipping Certificate Validation
+  argocd logout --insecure
+  
+  # Logout from a Specific Context
+  argocd logout my-argocd-context
 ```
 
 ### Options
