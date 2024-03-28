@@ -69,6 +69,7 @@ message ApplicationManifestQuery {
 	optional string revision = 2;
 	optional string appNamespace = 3;
 	optional string project = 4;
+	map<int64, string> revisionSourceMappings = 5;
 }
 
 message FileChunk {
