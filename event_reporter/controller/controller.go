@@ -98,7 +98,7 @@ func (c *eventReporterController) Run(ctx context.Context) {
 			return
 		case event := <-eventsChannel:
 			logCtx.Infof("channel size is %d", len(eventsChannel))
-			c.metricsServer.SetQueueSizeCounter(len(eventsChannel))
+			c.metricsServer.SetQueueSizeGauge(len(eventsChannel))
 			shouldProcess, ignoreResourceCache := c.applicationEventReporter.ShouldSendApplicationEvent(event)
 			if !shouldProcess {
 				logCtx.Infof("Skipping event %s/%s", event.Application.Name, event.Type)

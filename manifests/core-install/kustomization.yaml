@@ -12,4 +12,4 @@ resources:
 images:
 - name: quay.io/argoproj/argocd
   newName: quay.io/codefresh/argocd
-  newTag: v2.10-2024.3.14-6cca9ccf8
+  newTag: latest

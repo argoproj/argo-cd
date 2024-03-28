@@ -15,11 +15,13 @@ import (
 
 type MetricsServer struct {
 	*http.Server
-	shard                            string
-	redisRequestCounter              *prometheus.CounterVec
-	redisRequestHistogram            *prometheus.HistogramVec
-	queueSizeCounter                 *prometheus.GaugeVec
-	appEventsCounter                 *prometheus.CounterVec
+	shard string
+
+	queueSizeGauge *prometheus.GaugeVec
+
+	enqueuedEventsCounter *prometheus.CounterVec
+	droppedEventsCounter  *prometheus.CounterVec
+
 	erroredEventsCounter             *prometheus.CounterVec
 	cachedIgnoredEventsCounter       *prometheus.CounterVec
 	eventProcessingDurationHistogram *prometheus.HistogramVec
@@ -43,56 +45,53 @@ const (
 )
 
 var (
-	redisRequestCounter = prometheus.NewCounterVec(
-		prometheus.CounterOpts{
-			Name: "argocd_redis_request_total",
-			Help: "Number of kubernetes requests executed during application reconciliation.",
-		},
-		[]string{"initiator", "failed"},
-	)
-	redisRequestHistogram = prometheus.NewHistogramVec(
-		prometheus.HistogramOpts{
-			Name:    "argocd_redis_request_duration",
-			Help:    "Redis requests duration.",
-			Buckets: []float64{0.1, 0.25, .5, 1, 2},
-		},
-		[]string{"initiator"},
-	)
-	queueSizeCounter = prometheus.NewGaugeVec(
+	queueSizeGauge = prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
-			Name: "cf_e_reporter_queue_size",
-			Help: "Size of application events queue of taked shard.",
+			Name: "codefresh_event_reporter_queue_size",
+			Help: "Size of application events queue of a particular shard.",
 		},
 		[]string{"reporter_shard"},
 	)
-	appEventsCounter = prometheus.NewCounterVec(
+
+	enqueuedEventsCounter = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
-			Name: "cf_e_reporter_app_events_size",
-			Help: "Size of specific application events queue of taked shard.",
+			Name: "codefresh_event_reporter_enqueued_events_total",
+			Help: "Amount of application events not accepted into the queue of a particular shard.",
 		},
-		[]string{"reporter_shard", "application", "got_in_queue", "error_in_learning_mode"},
+		[]string{"reporter_shard", "application", "error_in_learning_mode"},
 	)
+
+	droppedEventsCounter = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "codefresh_event_reporter_dropped_events_total",
+			Help: "Amount of dropped application events queue of taken shard.",
+		},
+		[]string{"reporter_shard", "application", "error_in_learning_mode"},
+	)
+
 	erroredEventsCounter = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
-			Name: "cf_e_reporter_errored_events",
-			Help: "Total amount of errored events.",
+			Name: "codefresh_event_reporter_errored_events_total",
+			Help: "Amount of application events not accepted into the queue of a particular shard.",
 		},
 		[]string{"reporter_shard", "metric_event_type", "error_type", "application"},
 	)
+
+	eventProcessingDurationHistogram = prometheus.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Name:    "codefresh_event_reporter_event_processing_duration",
+			Help:    "Application event processing duration.",
+			Buckets: []float64{0.25, .5, 1, 2, 5, 10, 20},
+		},
+		[]string{"reporter_shard", "application", "metric_event_type"},
+	)
+
 	cachedIgnoredEventsCounter = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
-			Name: "cf_e_reporter_cached_ignored_events",
+			Name: "codefresh_event_reporter_cached_ignored_events",
 			Help: "Total number of ignored events because of cache.",
 		},
 		[]string{"reporter_shard", "metric_event_type", "application"},
-	)
-	eventProcessingDurationHistogram = prometheus.NewHistogramVec(
-		prometheus.HistogramOpts{
-			Name:    "cf_e_reporter_event_processing_duration",
-			Help:    "Application event processing duration.",
-			Buckets: []float64{0.1, 0.25, .5, 1, 2, 3, 4, 5, 7, 10, 15, 20},
-		},
-		[]string{"reporter_shard", "application", "metric_event_type"},
 	)
 )
 
@@ -107,12 +106,12 @@ func NewMetricsServer(host string, port int) *MetricsServer {
 	}, promhttp.HandlerOpts{}))
 	profile.RegisterProfiler(mux)
 
-	registry.MustRegister(redisRequestCounter)
-	registry.MustRegister(redisRequestHistogram)
+	registry.MustRegister(queueSizeGauge)
 
-	registry.MustRegister(queueSizeCounter)
-	registry.MustRegister(appEventsCounter)
+	registry.MustRegister(enqueuedEventsCounter)
+	registry.MustRegister(droppedEventsCounter)
 	registry.MustRegister(erroredEventsCounter)
+
 	registry.MustRegister(cachedIgnoredEventsCounter)
 	registry.MustRegister(eventProcessingDurationHistogram)
 
@@ -124,31 +123,25 @@ func NewMetricsServer(host string, port int) *MetricsServer {
 			Handler: mux,
 		},
 		shard:                            strconv.FormatInt(int64(shard), 10),
-		redisRequestCounter:              redisRequestCounter,
-		redisRequestHistogram:            redisRequestHistogram,
-		queueSizeCounter:                 queueSizeCounter,
-		appEventsCounter:                 appEventsCounter,
+		queueSizeGauge:                   queueSizeGauge,
+		enqueuedEventsCounter:            enqueuedEventsCounter,
+		droppedEventsCounter:             droppedEventsCounter,
 		erroredEventsCounter:             erroredEventsCounter,
 		cachedIgnoredEventsCounter:       cachedIgnoredEventsCounter,
 		eventProcessingDurationHistogram: eventProcessingDurationHistogram,
 	}
 }
 
-func (m *MetricsServer) IncRedisRequest(failed bool) {
-	m.redisRequestCounter.WithLabelValues("argocd-server", strconv.FormatBool(failed)).Inc()
+func (m *MetricsServer) SetQueueSizeGauge(size int) {
+	m.queueSizeGauge.WithLabelValues(m.shard).Set(float64(size))
 }
 
-// ObserveRedisRequestDuration observes redis request duration
-func (m *MetricsServer) ObserveRedisRequestDuration(duration time.Duration) {
-	m.redisRequestHistogram.WithLabelValues("argocd-server").Observe(duration.Seconds())
+func (m *MetricsServer) IncEnqueuedEventsCounter(application string, errorInLearningMode bool) {
+	m.enqueuedEventsCounter.WithLabelValues(m.shard, application, strconv.FormatBool(errorInLearningMode)).Inc()
 }
 
-func (m *MetricsServer) SetQueueSizeCounter(size int) {
-	m.queueSizeCounter.WithLabelValues(m.shard).Set(float64(size))
-}
-
-func (m *MetricsServer) IncAppEventsCounter(application string, gotToProcessingQueue bool, errorInLearningMode bool) {
-	m.appEventsCounter.WithLabelValues(m.shard, application, strconv.FormatBool(gotToProcessingQueue), strconv.FormatBool(errorInLearningMode)).Inc()
+func (m *MetricsServer) IncDroppedEventsCounter(application string, errorInLearningMode bool) {
+	m.droppedEventsCounter.WithLabelValues(m.shard, application, strconv.FormatBool(errorInLearningMode)).Inc()
 }
 
 func (m *MetricsServer) IncErroredEventsCounter(metricEventType MetricEventType, errorType MetricEventErrorType, application string) {

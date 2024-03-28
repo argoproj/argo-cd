@@ -85,7 +85,7 @@ func (b *broadcasterHandler) notify(event *appv1.ApplicationWatchEvent) {
 				log.Errorf("adding application '%s' to channel failed, due to rate limit, learningMode %t", event.Application.Name, learningMode)
 				// if learning mode is enabled, we will continue to send events
 				if !learningMode {
-					b.metricsServer.IncAppEventsCounter(event.Application.Name, false, false)
+					b.metricsServer.IncDroppedEventsCounter(event.Application.Name, false)
 					continue
 				}
 			}
@@ -94,12 +94,12 @@ func (b *broadcasterHandler) notify(event *appv1.ApplicationWatchEvent) {
 			case s.ch <- event:
 				{
 					log.Infof("adding application '%s' to channel", event.Application.Name)
-					b.metricsServer.IncAppEventsCounter(event.Application.Name, true, errorInLearningMode)
+					b.metricsServer.IncEnqueuedEventsCounter(event.Application.Name, errorInLearningMode)
 				}
 			default:
 				// drop event if cannot send right away
 				log.WithField("application", event.Application.Name).Warn("unable to send event notification")
-				b.metricsServer.IncAppEventsCounter(event.Application.Name, false, errorInLearningMode)
+				b.metricsServer.IncDroppedEventsCounter(event.Application.Name, errorInLearningMode)
 			}
 		}
 	}

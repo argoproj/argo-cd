@@ -25,7 +25,6 @@ import (
 	"github.com/argoproj/argo-cd/v2/server/rbacpolicy"
 	"github.com/argoproj/argo-cd/v2/server/repository"
 	"github.com/argoproj/argo-cd/v2/util/assets"
-	cacheutil "github.com/argoproj/argo-cd/v2/util/cache"
 	"github.com/argoproj/argo-cd/v2/util/db"
 	errorsutil "github.com/argoproj/argo-cd/v2/util/errors"
 	"github.com/argoproj/argo-cd/v2/util/healthz"
@@ -294,9 +293,6 @@ func NewEventReporterServer(ctx context.Context, opts EventReporterServerOpts) *
 func newEventReporterServiceSet(a *EventReporterServer) *EventReporterServerSet {
 	repoService := repository.NewServer(a.RepoClientset, a.db, a.enf, a.Cache, a.appLister, a.projInformer, a.Namespace, a.settingsMgr)
 	metricsServer := metrics.NewMetricsServer(a.MetricsHost, a.MetricsPort)
-	if a.RedisClient != nil {
-		cacheutil.CollectMetrics(a.RedisClient, metricsServer)
-	}
 
 	return &EventReporterServerSet{
 		RepoService:   repoService,

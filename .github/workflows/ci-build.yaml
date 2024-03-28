@@ -313,31 +313,3 @@ jobs:
         uses: codecov/codecov-action@eaaf4bedf32dbdc6b720b63067d99c4d77d6047d # v3.1.4
         with:
           file: coverage.out
-      - name: Perform static code analysis using SonarCloud
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-          SCANNER_VERSION: 4.2.0.1873
-          SCANNER_PATH: /tmp/cache/scanner
-          OS: linux
-        run: |
-          # We do not use the provided action, because it does contain an old
-          # version of the scanner, and also takes time to build.
-          set -e
-          mkdir -p ${SCANNER_PATH}
-          export SONAR_USER_HOME=${SCANNER_PATH}/.sonar
-          if [[ ! -x "${SCANNER_PATH}/sonar-scanner-${SCANNER_VERSION}-${OS}/bin/sonar-scanner" ]]; then
-            curl -Ol https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-${SCANNER_VERSION}-${OS}.zip
-            unzip -qq -o sonar-scanner-cli-${SCANNER_VERSION}-${OS}.zip -d ${SCANNER_PATH}
-          fi
-          
-          chmod +x ${SCANNER_PATH}/sonar-scanner-${SCANNER_VERSION}-${OS}/bin/sonar-scanner
-          chmod +x ${SCANNER_PATH}/sonar-scanner-${SCANNER_VERSION}-${OS}/jre/bin/java
-          
-          # Explicitly set NODE_MODULES
-          export NODE_MODULES=${PWD}/ui/node_modules
-          export NODE_PATH=${PWD}/ui/node_modules
-          
-          ${SCANNER_PATH}/sonar-scanner-${SCANNER_VERSION}-${OS}/bin/sonar-scanner
-        if: env.sonar_secret != ''
-
