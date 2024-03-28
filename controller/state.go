@@ -196,12 +196,17 @@ func (m *appStateManager) GetRepoObjs(app *v1alpha1.Application, sources []v1alp
 		}
 
 		val, ok := app.Annotations[v1alpha1.AnnotationKeyManifestGeneratePaths]
-		if app.Status.Sync.Revision != "" && ok && val != "" {
+		if !source.IsHelm() && app.Status.Sync.Revision != "" && ok && val != "" {
+			syncedRevision := app.Status.Sync.Revision
+			if app.Spec.HasMultipleSources() {
+				syncedRevision = app.Status.Sync.Revisions[i]
+			}
+
 			// Validate the manifest-generate-path annotation to avoid generating manifests if it has not changed.
 			_, err = repoClient.UpdateRevisionForPaths(context.Background(), &apiclient.UpdateRevisionForPathsRequest{
 				Repo:               repo,
 				Revision:           revisions[i],
-				SyncedRevision:     app.Status.Sync.Revision,
+				SyncedRevision:     syncedRevision,
 				Paths:              path.GetAppRefreshPaths(app),
 				AppLabelKey:        appLabelKey,
 				AppName:            app.InstanceName(m.namespace),
