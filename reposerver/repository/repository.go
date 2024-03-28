@@ -295,8 +295,6 @@ func (s *Service) runRepoOperation(
 	hasMultipleSources bool,
 	refSources map[string]*v1alpha1.RefTarget) error {
 
-	fmt.Println(repo.Repo)
-	fmt.Println(revision)
 	if sanitizer, ok := grpc.SanitizerFromContext(ctx); ok {
 		// make sure a randomized path replaced with '.' in the error message
 		sanitizer.AddRegexReplacement(getRepoSanitizerRegex(s.rootDir), "<path to cached source>")

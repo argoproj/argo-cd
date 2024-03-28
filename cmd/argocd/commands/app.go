@@ -1159,11 +1159,12 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			errors.CheckError(err)
 			diffOption := &DifferenceOption{}
 			if app.Spec.HasMultipleSources() && len(revisions) > 0 && len(sourceIndexes) > 0 {
-				fmt.Printf("Revisions:  %s \n", strings.Join(revisions, ", "))
-				fmt.Printf("Source Indexes:  %d \n", sourceIndexes)
 
 				revisionSourceMappings := make(map[int64]string, 0)
 				for i, index := range sourceIndexes {
+					if index < 0 {
+						errors.CheckError(fmt.Errorf("source-index cannot be less than or equal to 0. Index starts at 1."))
+					}
 					revisionSourceMappings[index] = revisions[i]
 				}
 
@@ -1173,8 +1174,8 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 					RevisionSourceMappings: revisionSourceMappings,
 				}
 				res, err := appIf.GetManifests(ctx, &q)
-
 				errors.CheckError(err)
+
 				diffOption.res = res
 				diffOption.revisionSourceMappings = &revisionSourceMappings
 			} else if revision != "" {
@@ -2752,21 +2753,16 @@ func NewApplicationManifestsCommand(clientOpts *argocdclient.ClientOptions) *cob
 				errors.CheckError(fmt.Errorf("While using revisions and source-indexes, length of values for both flags should be same."))
 			}
 
-			log.Info("Reached")
-
 			appName, appNs := argo.ParseFromQualifiedName(args[0], "")
 			clientset := headless.NewClientOrDie(clientOpts, c)
 			conn, appIf := clientset.NewApplicationClientOrDie()
 			defer argoio.Close(conn)
 
-			log.Info("Reached 1")
 			resources, err := appIf.ManagedResources(ctx, &application.ResourcesQuery{
 				ApplicationName: &appName,
 				AppNamespace:    &appNs,
 			})
 			errors.CheckError(err)
-
-			log.Info("Reached 2")
 
 			var unstructureds []*unstructured.Unstructured
 			switch source {
@@ -2787,26 +2783,13 @@ func NewApplicationManifestsCommand(clientOpts *argocdclient.ClientOptions) *cob
 
 					proj := getProject(c, clientOpts, ctx, app.Spec.Project)
 					unstructureds = getLocalObjects(context.Background(), app, proj.Project, local, localRepoRoot, argoSettings.AppLabelKey, cluster.ServerVersion, cluster.Info.APIVersions, argoSettings.KustomizeOptions, argoSettings.TrackingMethod)
-				} else if revision != "" {
-					q := application.ApplicationManifestQuery{
-						Name:         &appName,
-						AppNamespace: &appNs,
-						Revision:     pointer.String(revision),
-					}
-					res, err := appIf.GetManifests(ctx, &q)
-					errors.CheckError(err)
-
-					for _, mfst := range res.Manifests {
-						obj, err := argoappv1.UnmarshalToUnstructured(mfst)
-						errors.CheckError(err)
-						unstructureds = append(unstructureds, obj)
-					}
 				} else if len(revisions) > 0 && len(sourceIndexes) > 0 {
-					fmt.Printf("Revisions:  %s \n", strings.Join(revisions, ", "))
-					fmt.Printf("Source Indexes:  %d \n", sourceIndexes)
 
 					revisionSourceMappings := make(map[int64]string, 0)
 					for i, index := range sourceIndexes {
+						if index < 0 {
+							errors.CheckError(fmt.Errorf("source-index cannot be less than or equal to 0, Index starts at 1"))
+						}
 						revisionSourceMappings[index] = revisions[i]
 					}
 
@@ -2819,7 +2802,20 @@ func NewApplicationManifestsCommand(clientOpts *argocdclient.ClientOptions) *cob
 					res, err := appIf.GetManifests(ctx, &q)
 					errors.CheckError(err)
 
-					fmt.Println(res)
+					for _, mfst := range res.Manifests {
+						obj, err := argoappv1.UnmarshalToUnstructured(mfst)
+						errors.CheckError(err)
+						unstructureds = append(unstructureds, obj)
+					}
+				} else if revision != "" {
+					q := application.ApplicationManifestQuery{
+						Name:         &appName,
+						AppNamespace: &appNs,
+						Revision:     pointer.String(revision),
+					}
+					res, err := appIf.GetManifests(ctx, &q)
+					errors.CheckError(err)
+
 					for _, mfst := range res.Manifests {
 						obj, err := argoappv1.UnmarshalToUnstructured(mfst)
 						errors.CheckError(err)
@@ -2838,7 +2834,6 @@ func NewApplicationManifestsCommand(clientOpts *argocdclient.ClientOptions) *cob
 				log.Fatalf("Unknown source type '%s'", source)
 			}
 
-			log.Info("Reached 3")
 			for _, obj := range unstructureds {
 				fmt.Println("---")
 				yamlBytes, err := yaml.Marshal(obj)
