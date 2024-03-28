@@ -25,136 +25,136 @@ spec:
         env:
         - name: ARGOCD_SERVER_INSECURE
           valueFrom:
-              configMapKeyRef:
-                name: argocd-cmd-params-cm
-                key: server.insecure
-                optional: true
+            configMapKeyRef:
+              name: argocd-cmd-params-cm
+              key: server.insecure
+              optional: true
         - name: ARGOCD_SERVER_BASEHREF
           valueFrom:
-              configMapKeyRef:
-                name: argocd-cmd-params-cm
-                key: server.basehref
-                optional: true
+            configMapKeyRef:
+              name: argocd-cmd-params-cm
+              key: server.basehref
+              optional: true
         - name: ARGOCD_SERVER_ROOTPATH
           valueFrom:
-              configMapKeyRef:
-                name: argocd-cmd-params-cm
-                key: server.rootpath
-                optional: true
+            configMapKeyRef:
+              name: argocd-cmd-params-cm
+              key: server.rootpath
+              optional: true
         - name: ARGOCD_SERVER_LOGFORMAT
           valueFrom:
-              configMapKeyRef:
-                name: argocd-cmd-params-cm
-                key: server.log.format
-                optional: true
+            configMapKeyRef:
+              name: argocd-cmd-params-cm
+              key: server.log.format
+              optional: true
         - name: ARGOCD_SERVER_LOG_LEVEL
           valueFrom:
-              configMapKeyRef:
-                name: argocd-cmd-params-cm
-                key: server.log.level
-                optional: true
+            configMapKeyRef:
+              name: argocd-cmd-params-cm
+              key: server.log.level
+              optional: true
         - name: ARGOCD_SERVER_REPO_SERVER
           valueFrom:
-              configMapKeyRef:
-                name: argocd-cmd-params-cm
-                key: repo.server
-                optional: true
+            configMapKeyRef:
+              name: argocd-cmd-params-cm
+              key: repo.server
+              optional: true
         - name: ARGOCD_SERVER_DEX_SERVER
           valueFrom:
-              configMapKeyRef:
-                name: argocd-cmd-params-cm
-                key: server.dex.server
-                optional: true
+            configMapKeyRef:
+              name: argocd-cmd-params-cm
+              key: server.dex.server
+              optional: true
         - name: ARGOCD_SERVER_DISABLE_AUTH
           valueFrom:
-              configMapKeyRef:
-                name: argocd-cmd-params-cm
-                key: server.disable.auth
-                optional: true
+            configMapKeyRef:
+              name: argocd-cmd-params-cm
+              key: server.disable.auth
+              optional: true
         - name: ARGOCD_SERVER_ENABLE_GZIP
           valueFrom:
-              configMapKeyRef:
-                name: argocd-cmd-params-cm
-                key: server.enable.gzip
-                optional: true
+            configMapKeyRef:
+              name: argocd-cmd-params-cm
+              key: server.enable.gzip
+              optional: true
         - name: ARGOCD_SERVER_REPO_SERVER_TIMEOUT_SECONDS
           valueFrom:
-              configMapKeyRef:
-                name: argocd-cmd-params-cm
-                key: server.repo.server.timeout.seconds
-                optional: true
+            configMapKeyRef:
+              name: argocd-cmd-params-cm
+              key: server.repo.server.timeout.seconds
+              optional: true
         - name: ARGOCD_SERVER_X_FRAME_OPTIONS
           valueFrom:
-              configMapKeyRef:
-                name: argocd-cmd-params-cm
-                key: server.x.frame.options
-                optional: true
+            configMapKeyRef:
+              name: argocd-cmd-params-cm
+              key: server.x.frame.options
+              optional: true
         - name: ARGOCD_SERVER_CONTENT_SECURITY_POLICY
           valueFrom:
-              configMapKeyRef:
-                name: argocd-cmd-params-cm
-                key: server.content.security.policy
-                optional: true
+            configMapKeyRef:
+              name: argocd-cmd-params-cm
+              key: server.content.security.policy
+              optional: true
         - name: ARGOCD_SERVER_REPO_SERVER_PLAINTEXT
           valueFrom:
-              configMapKeyRef:
-                name: argocd-cmd-params-cm
-                key: server.repo.server.plaintext
-                optional: true
+            configMapKeyRef:
+              name: argocd-cmd-params-cm
+              key: server.repo.server.plaintext
+              optional: true
         - name: ARGOCD_SERVER_REPO_SERVER_STRICT_TLS
           valueFrom:
-              configMapKeyRef:
-                name: argocd-cmd-params-cm
-                key: server.repo.server.strict.tls
-                optional: true
+            configMapKeyRef:
+              name: argocd-cmd-params-cm
+              key: server.repo.server.strict.tls
+              optional: true
         - name: ARGOCD_SERVER_DEX_SERVER_PLAINTEXT
           valueFrom:
-              configMapKeyRef:
-                name: argocd-cmd-params-cm
-                key: server.dex.server.plaintext
-                optional: true
+            configMapKeyRef:
+              name: argocd-cmd-params-cm
+              key: server.dex.server.plaintext
+              optional: true
         - name: ARGOCD_SERVER_DEX_SERVER_STRICT_TLS
           valueFrom:
-              configMapKeyRef:
-                name: argocd-cmd-params-cm
-                key: server.dex.server.strict.tls
-                optional: true
+            configMapKeyRef:
+              name: argocd-cmd-params-cm
+              key: server.dex.server.strict.tls
+              optional: true
         - name: ARGOCD_TLS_MIN_VERSION
           valueFrom:
-              configMapKeyRef:
-                name: argocd-cmd-params-cm
-                key: server.tls.minversion
-                optional: true
+            configMapKeyRef:
+              name: argocd-cmd-params-cm
+              key: server.tls.minversion
+              optional: true
         - name: ARGOCD_TLS_MAX_VERSION
           valueFrom:
-              configMapKeyRef:
-                name: argocd-cmd-params-cm
-                key: server.tls.maxversion
-                optional: true
+            configMapKeyRef:
+              name: argocd-cmd-params-cm
+              key: server.tls.maxversion
+              optional: true
         - name: ARGOCD_TLS_CIPHERS
           valueFrom:
-              configMapKeyRef:
-                name: argocd-cmd-params-cm
-                key: server.tls.ciphers
-                optional: true
+            configMapKeyRef:
+              name: argocd-cmd-params-cm
+              key: server.tls.ciphers
+              optional: true
         - name: ARGOCD_SERVER_CONNECTION_STATUS_CACHE_EXPIRATION
           valueFrom:
-              configMapKeyRef:
-                name: argocd-cmd-params-cm
-                key: server.connection.status.cache.expiration
-                optional: true
+            configMapKeyRef:
+              name: argocd-cmd-params-cm
+              key: server.connection.status.cache.expiration
+              optional: true
         - name: ARGOCD_SERVER_OIDC_CACHE_EXPIRATION
           valueFrom:
-              configMapKeyRef:
-                name: argocd-cmd-params-cm
-                key: server.oidc.cache.expiration
-                optional: true
+            configMapKeyRef:
+              name: argocd-cmd-params-cm
+              key: server.oidc.cache.expiration
+              optional: true
         - name: ARGOCD_SERVER_LOGIN_ATTEMPTS_EXPIRATION
           valueFrom:
-              configMapKeyRef:
-                name: argocd-cmd-params-cm
-                key: server.login.attempts.expiration
-                optional: true
+            configMapKeyRef:
+              name: argocd-cmd-params-cm
+              key: server.login.attempts.expiration
+              optional: true
         - name: ARGOCD_SERVER_STATIC_ASSETS
           valueFrom:
             configMapKeyRef:
@@ -163,16 +163,16 @@ spec:
               optional: true
         - name: ARGOCD_APP_STATE_CACHE_EXPIRATION
           valueFrom:
-              configMapKeyRef:
-                name: argocd-cmd-params-cm
-                key: server.app.state.cache.expiration
-                optional: true
+            configMapKeyRef:
+              name: argocd-cmd-params-cm
+              key: server.app.state.cache.expiration
+              optional: true
         - name: REDIS_SERVER
           valueFrom:
-              configMapKeyRef:
-                name: argocd-cmd-params-cm
-                key: redis.server
-                optional: true
+            configMapKeyRef:
+              name: argocd-cmd-params-cm
+              key: redis.server
+              optional: true
         - name: REDIS_COMPRESSION
           valueFrom:
             configMapKeyRef:
@@ -181,76 +181,82 @@ spec:
               optional: true
         - name: REDISDB
           valueFrom:
-              configMapKeyRef:
-                name: argocd-cmd-params-cm
-                key: redis.db
-                optional: true
+            configMapKeyRef:
+              name: argocd-cmd-params-cm
+              key: redis.db
+              optional: true
         - name: ARGOCD_DEFAULT_CACHE_EXPIRATION
           valueFrom:
-              configMapKeyRef:
-                name: argocd-cmd-params-cm
-                key: server.default.cache.expiration
-                optional: true
+            configMapKeyRef:
+              name: argocd-cmd-params-cm
+              key: server.default.cache.expiration
+              optional: true
         - name: ARGOCD_MAX_COOKIE_NUMBER
           valueFrom:
-              configMapKeyRef:
-                name: argocd-cmd-params-cm
-                key: server.http.cookie.maxnumber
-                optional: true
+            configMapKeyRef:
+              name: argocd-cmd-params-cm
+              key: server.http.cookie.maxnumber
+              optional: true
         - name: ARGOCD_SERVER_LISTEN_ADDRESS
           valueFrom:
-              configMapKeyRef:
-                name: argocd-cmd-params-cm
-                key: server.listen.address
-                optional: true
+            configMapKeyRef:
+              name: argocd-cmd-params-cm
+              key: server.listen.address
+              optional: true
         - name: ARGOCD_SERVER_METRICS_LISTEN_ADDRESS
           valueFrom:
-              configMapKeyRef:
-                name: argocd-cmd-params-cm
-                key: server.metrics.listen.address
-                optional: true
+            configMapKeyRef:
+              name: argocd-cmd-params-cm
+              key: server.metrics.listen.address
+              optional: true
         - name: ARGOCD_SERVER_OTLP_ADDRESS
           valueFrom:
-              configMapKeyRef:
-                name: argocd-cmd-params-cm
-                key: otlp.address
-                optional: true
+            configMapKeyRef:
+              name: argocd-cmd-params-cm
+              key: otlp.address
+              optional: true
         - name: ARGOCD_SERVER_OTLP_INSECURE
           valueFrom:
-              configMapKeyRef:
-                name: argocd-cmd-params-cm
-                key: otlp.insecure
-                optional: true
+            configMapKeyRef:
+              name: argocd-cmd-params-cm
+              key: otlp.insecure
+              optional: true
         - name: ARGOCD_SERVER_OTLP_HEADERS
           valueFrom:
-              configMapKeyRef:
-                name: argocd-cmd-params-cm
-                key: otlp.headers
-                optional: true
+            configMapKeyRef:
+              name: argocd-cmd-params-cm
+              key: otlp.headers
+              optional: true
         - name: ARGOCD_APPLICATION_NAMESPACES
           valueFrom:
-              configMapKeyRef:
-                name: argocd-cmd-params-cm
-                key: application.namespaces
-                optional: true
+            configMapKeyRef:
+              name: argocd-cmd-params-cm
+              key: application.namespaces
+              optional: true
         - name: ARGOCD_SERVER_ENABLE_PROXY_EXTENSION
           valueFrom:
-              configMapKeyRef:
-                name: argocd-cmd-params-cm
-                key: server.enable.proxy.extension
-                optional: true
+            configMapKeyRef:
+              name: argocd-cmd-params-cm
+              key: server.enable.proxy.extension
+              optional: true
         - name: ARGOCD_K8SCLIENT_RETRY_MAX
           valueFrom:
-              configMapKeyRef:
-                name: argocd-cmd-params-cm
-                key: server.k8sclient.retry.max
-                optional: true
+            configMapKeyRef:
+              name: argocd-cmd-params-cm
+              key: server.k8sclient.retry.max
+              optional: true
         - name: ARGOCD_K8SCLIENT_RETRY_BASE_BACKOFF
           valueFrom:
-              configMapKeyRef:
-                name: argocd-cmd-params-cm
-                key: server.k8sclient.retry.base.backoff
-                optional: true
+            configMapKeyRef:
+              name: argocd-cmd-params-cm
+              key: server.k8sclient.retry.base.backoff
+              optional: true
+        - name: ARGOCD_API_CONTENT_TYPES
+          valueFrom:
+            configMapKeyRef:
+              name: argocd-cmd-params-cm
+              key: server.api.content.types
+              optional: true
         volumeMounts:
         - name: ssh-known-hosts
           mountPath: /app/config/ssh
