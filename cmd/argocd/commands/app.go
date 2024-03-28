@@ -1158,7 +1158,7 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			argoSettings, err := settingsIf.Get(ctx, &settings.SettingsQuery{})
 			errors.CheckError(err)
 			diffOption := &DifferenceOption{}
-			if app.HasMultipleSources() && len(revisions) > 0 && len(sourceIndexes) > 0 {
+			if app.Spec.HasMultipleSources() && len(revisions) > 0 && len(sourceIndexes) > 0 {
 				fmt.Printf("Revisions:  %s \n", strings.Join(revisions, ", "))
 				fmt.Printf("Source Indexes:  %d \n", sourceIndexes)
 
@@ -1170,17 +1170,13 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				q := application.ApplicationManifestQuery{
 					Name:                   &appName,
 					AppNamespace:           &appNs,
-					Revision:               pointer.String(revision),
 					RevisionSourceMappings: revisionSourceMappings,
 				}
 				res, err := appIf.GetManifests(ctx, &q)
-				errors.CheckError(err)
 
-				for _, mfst := range res.Manifests {
-					obj, err := argoappv1.UnmarshalToUnstructured(mfst)
-					errors.CheckError(err)
-					unstructureds = append(unstructureds, obj)
-				}
+				errors.CheckError(err)
+				diffOption.res = res
+				diffOption.revisionSourceMappings = &revisionSourceMappings
 			} else if revision != "" {
 				q := application.ApplicationManifestQuery{
 					Name:         &appName,
@@ -1238,12 +1234,13 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 
 // DifferenceOption struct to store diff options
 type DifferenceOption struct {
-	local         string
-	localRepoRoot string
-	revision      string
-	cluster       *argoappv1.Cluster
-	res           *repoapiclient.ManifestResponse
-	serversideRes *repoapiclient.ManifestResponse
+	local                  string
+	localRepoRoot          string
+	revision               string
+	cluster                *argoappv1.Cluster
+	res                    *repoapiclient.ManifestResponse
+	serversideRes          *repoapiclient.ManifestResponse
+	revisionSourceMappings *map[int64]string
 }
 
 // findandPrintDiff ... Prints difference between application current state and state stored in git or locally, returns boolean as true if difference is found else returns false
@@ -1255,7 +1252,7 @@ func findandPrintDiff(ctx context.Context, app *argoappv1.Application, proj *arg
 	if diffOptions.local != "" {
 		localObjs := groupObjsByKey(getLocalObjects(ctx, app, proj, diffOptions.local, diffOptions.localRepoRoot, argoSettings.AppLabelKey, diffOptions.cluster.Info.ServerVersion, diffOptions.cluster.Info.APIVersions, argoSettings.KustomizeOptions, argoSettings.TrackingMethod), liveObjs, app.Spec.Destination.Namespace)
 		items = groupObjsForDiff(resources, localObjs, items, argoSettings, app.InstanceName(argoSettings.ControllerNamespace), app.Spec.Destination.Namespace)
-	} else if diffOptions.revision != "" {
+	} else if diffOptions.revision != "" || (diffOptions.revisionSourceMappings != nil) {
 		var unstructureds []*unstructured.Unstructured
 		for _, mfst := range diffOptions.res.Manifests {
 			obj, err := argoappv1.UnmarshalToUnstructured(mfst)
@@ -2755,15 +2752,21 @@ func NewApplicationManifestsCommand(clientOpts *argocdclient.ClientOptions) *cob
 				errors.CheckError(fmt.Errorf("While using revisions and source-indexes, length of values for both flags should be same."))
 			}
 
+			log.Info("Reached")
+
 			appName, appNs := argo.ParseFromQualifiedName(args[0], "")
 			clientset := headless.NewClientOrDie(clientOpts, c)
 			conn, appIf := clientset.NewApplicationClientOrDie()
 			defer argoio.Close(conn)
+
+			log.Info("Reached 1")
 			resources, err := appIf.ManagedResources(ctx, &application.ResourcesQuery{
 				ApplicationName: &appName,
 				AppNamespace:    &appNs,
 			})
 			errors.CheckError(err)
+
+			log.Info("Reached 2")
 
 			var unstructureds []*unstructured.Unstructured
 			switch source {
@@ -2816,6 +2819,7 @@ func NewApplicationManifestsCommand(clientOpts *argocdclient.ClientOptions) *cob
 					res, err := appIf.GetManifests(ctx, &q)
 					errors.CheckError(err)
 
+					fmt.Println(res)
 					for _, mfst := range res.Manifests {
 						obj, err := argoappv1.UnmarshalToUnstructured(mfst)
 						errors.CheckError(err)
@@ -2834,6 +2838,7 @@ func NewApplicationManifestsCommand(clientOpts *argocdclient.ClientOptions) *cob
 				log.Fatalf("Unknown source type '%s'", source)
 			}
 
+			log.Info("Reached 3")
 			for _, obj := range unstructureds {
 				fmt.Println("---")
 				yamlBytes, err := yaml.Marshal(obj)
