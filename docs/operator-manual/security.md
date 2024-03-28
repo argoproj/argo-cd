@@ -144,7 +144,7 @@ argocd cluster rm https://your-kubernetes-cluster-addr
 
 ## Cluster RBAC
 
-By default, Argo CD uses a [clusteradmin level role](https://github.com/argoproj/argo-cd/blob/master/manifests/base/application-controller/argocd-application-controller-role.yaml)
+By default, Argo CD uses a [clusteradmin level role](https://github.com/argoproj/argo-cd/blob/master/manifests/base/application-controller-roles/argocd-application-controller-role.yaml)
 in order to:
 
 1. watch & operate on cluster state
