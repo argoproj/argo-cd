@@ -34,6 +34,10 @@ func TestMatrixGenerate(t *testing.T) {
 		Elements: []apiextensionsv1.JSON{{Raw: []byte(`{"cluster": "Cluster","url": "Url", "templated": "test-{{path.basenameNormalized}}"}`)}},
 	}
 
+	listGenerator1 := &argoprojiov1alpha1.ListGenerator{
+		Elements: []apiextensionsv1.JSON{{Raw: []byte(`{"templated1": "test-{{path.basenameNormalized}}"}`)}},
+	}
+
 	testCases := []struct {
 		name           string
 		baseGenerators []argoprojiov1alpha1.ApplicationSetNestedGenerator
@@ -49,10 +53,13 @@ func TestMatrixGenerate(t *testing.T) {
 				{
 					List: listGenerator,
 				},
+				{
+					List: listGenerator1,
+				},
 			},
 			expected: []map[string]interface{}{
-				{"path": "app1", "path.basename": "app1", "path.basenameNormalized": "app1", "cluster": "Cluster", "url": "Url", "templated": "test-app1"},
-				{"path": "app2", "path.basename": "app2", "path.basenameNormalized": "app2", "cluster": "Cluster", "url": "Url", "templated": "test-app2"},
+				{"path": "app1", "path.basename": "app1", "path.basenameNormalized": "app1", "cluster": "Cluster", "url": "Url", "templated": "test-app1", "templated1": "test-app1"},
+				{"path": "app2", "path.basename": "app2", "path.basenameNormalized": "app2", "cluster": "Cluster", "url": "Url", "templated": "test-app2", "templated1": "test-app2"},
 			},
 		},
 		{
@@ -83,6 +90,45 @@ func TestMatrixGenerate(t *testing.T) {
 			},
 		},
 		{
+			name: "happy flow - generate params from three lists",
+			baseGenerators: []argoprojiov1alpha1.ApplicationSetNestedGenerator{
+				{
+					List: &argoprojiov1alpha1.ListGenerator{
+						Elements: []apiextensionsv1.JSON{
+							{Raw: []byte(`{"a": "1"}`)},
+							{Raw: []byte(`{"a": "2"}`)},
+						},
+					},
+				},
+				{
+					List: &argoprojiov1alpha1.ListGenerator{
+						Elements: []apiextensionsv1.JSON{
+							{Raw: []byte(`{"b": "1"}`)},
+							{Raw: []byte(`{"b": "2"}`)},
+						},
+					},
+				},
+				{
+					List: &argoprojiov1alpha1.ListGenerator{
+						Elements: []apiextensionsv1.JSON{
+							{Raw: []byte(`{"c": "1"}`)},
+							{Raw: []byte(`{"c": "2"}`)},
+						},
+					},
+				},
+			},
+			expected: []map[string]interface{}{
+				{"a": "1", "b": "1", "c": "1"},
+				{"a": "1", "b": "1", "c": "2"},
+				{"a": "1", "b": "2", "c": "1"},
+				{"a": "1", "b": "2", "c": "2"},
+				{"a": "2", "b": "1", "c": "1"},
+				{"a": "2", "b": "1", "c": "2"},
+				{"a": "2", "b": "2", "c": "1"},
+				{"a": "2", "b": "2", "c": "2"},
+			},
+		},
+		{
 			name: "returns error if there is less than two base generators",
 			baseGenerators: []argoprojiov1alpha1.ApplicationSetNestedGenerator{
 				{
@@ -90,21 +136,6 @@ func TestMatrixGenerate(t *testing.T) {
 				},
 			},
 			expectedErr: ErrLessThanTwoGenerators,
-		},
-		{
-			name: "returns error if there is more than two base generators",
-			baseGenerators: []argoprojiov1alpha1.ApplicationSetNestedGenerator{
-				{
-					List: listGenerator,
-				},
-				{
-					List: listGenerator,
-				},
-				{
-					List: listGenerator,
-				},
-			},
-			expectedErr: ErrMoreThanTwoGenerators,
 		},
 		{
 			name: "returns error if there is more than one inner generator in the first base generator",
@@ -173,7 +204,7 @@ func TestMatrixGenerate(t *testing.T) {
 				map[string]Generator{
 					"Git":  genMock,
 					"List": &ListGenerator{},
-				},
+				}, 0,
 			)
 
 			got, err := matrixGenerator.GenerateParams(&argoprojiov1alpha1.ApplicationSetGenerator{
@@ -207,6 +238,10 @@ func TestMatrixGenerateGoTemplate(t *testing.T) {
 		Elements: []apiextensionsv1.JSON{{Raw: []byte(`{"cluster": "Cluster","url": "Url"}`)}},
 	}
 
+	listGenerator1 := &argoprojiov1alpha1.ListGenerator{
+		Elements: []apiextensionsv1.JSON{{Raw: []byte(`{"templated": "test-{{.path.basenameNormalized}}"}`)}},
+	}
+
 	testCases := []struct {
 		name           string
 		baseGenerators []argoprojiov1alpha1.ApplicationSetNestedGenerator
@@ -222,6 +257,9 @@ func TestMatrixGenerateGoTemplate(t *testing.T) {
 				{
 					List: listGenerator,
 				},
+				{
+					List: listGenerator1,
+				},
 			},
 			expected: []map[string]interface{}{
 				{
@@ -230,8 +268,9 @@ func TestMatrixGenerateGoTemplate(t *testing.T) {
 						"basename":           "app1",
 						"basenameNormalized": "app1",
 					},
-					"cluster": "Cluster",
-					"url":     "Url",
+					"cluster":   "Cluster",
+					"url":       "Url",
+					"templated": "test-app1",
 				},
 				{
 					"path": map[string]string{
@@ -239,8 +278,9 @@ func TestMatrixGenerateGoTemplate(t *testing.T) {
 						"basename":           "app2",
 						"basenameNormalized": "app2",
 					},
-					"cluster": "Cluster",
-					"url":     "Url",
+					"cluster":   "Cluster",
+					"url":       "Url",
+					"templated": "test-app2",
 				},
 			},
 		},
@@ -269,6 +309,45 @@ func TestMatrixGenerateGoTemplate(t *testing.T) {
 				{"a": "1", "b": "2"},
 				{"a": "2", "b": "1"},
 				{"a": "2", "b": "2"},
+			},
+		},
+		{
+			name: "happy flow - generate params from three lists",
+			baseGenerators: []argoprojiov1alpha1.ApplicationSetNestedGenerator{
+				{
+					List: &argoprojiov1alpha1.ListGenerator{
+						Elements: []apiextensionsv1.JSON{
+							{Raw: []byte(`{"a": "1"}`)},
+							{Raw: []byte(`{"a": "2"}`)},
+						},
+					},
+				},
+				{
+					List: &argoprojiov1alpha1.ListGenerator{
+						Elements: []apiextensionsv1.JSON{
+							{Raw: []byte(`{"b": "1"}`)},
+							{Raw: []byte(`{"b": "2"}`)},
+						},
+					},
+				},
+				{
+					List: &argoprojiov1alpha1.ListGenerator{
+						Elements: []apiextensionsv1.JSON{
+							{Raw: []byte(`{"c": "1"}`)},
+							{Raw: []byte(`{"c": "2"}`)},
+						},
+					},
+				},
+			},
+			expected: []map[string]interface{}{
+				{"a": "1", "b": "1", "c": "1"},
+				{"a": "1", "b": "1", "c": "2"},
+				{"a": "1", "b": "2", "c": "1"},
+				{"a": "1", "b": "2", "c": "2"},
+				{"a": "2", "b": "1", "c": "1"},
+				{"a": "2", "b": "1", "c": "2"},
+				{"a": "2", "b": "2", "c": "1"},
+				{"a": "2", "b": "2", "c": "2"},
 			},
 		},
 		{
@@ -301,21 +380,6 @@ func TestMatrixGenerateGoTemplate(t *testing.T) {
 				},
 			},
 			expectedErr: ErrLessThanTwoGenerators,
-		},
-		{
-			name: "returns error if there is more than two base generators",
-			baseGenerators: []argoprojiov1alpha1.ApplicationSetNestedGenerator{
-				{
-					List: listGenerator,
-				},
-				{
-					List: listGenerator,
-				},
-				{
-					List: listGenerator,
-				},
-			},
-			expectedErr: ErrMoreThanTwoGenerators,
 		},
 		{
 			name: "returns error if there is more than one inner generator in the first base generator",
@@ -390,7 +454,7 @@ func TestMatrixGenerateGoTemplate(t *testing.T) {
 				map[string]Generator{
 					"Git":  genMock,
 					"List": &ListGenerator{},
-				},
+				}, 0,
 			)
 
 			got, err := matrixGenerator.GenerateParams(&argoprojiov1alpha1.ApplicationSetGenerator{
@@ -537,7 +601,7 @@ func TestMatrixGetRequeueAfter(t *testing.T) {
 					"PullRequest":             &PullRequestGenerator{},
 					"SCMProvider":             &SCMProviderGenerator{},
 					"ClusterDecisionResource": &DuckTypeGenerator{},
-				},
+				}, 0,
 			)
 
 			got := matrixGenerator.GetRequeueAfter(&argoprojiov1alpha1.ApplicationSetGenerator{
@@ -682,7 +746,7 @@ func TestInterpolatedMatrixGenerate(t *testing.T) {
 				map[string]Generator{
 					"Git":      genMock,
 					"Clusters": clusterGenerator,
-				},
+				}, 0,
 			)
 
 			got, err := matrixGenerator.GenerateParams(&argoprojiov1alpha1.ApplicationSetGenerator{
@@ -870,7 +934,7 @@ func TestInterpolatedMatrixGenerateGoTemplate(t *testing.T) {
 				map[string]Generator{
 					"Git":      genMock,
 					"Clusters": clusterGenerator,
-				},
+				}, 0,
 			)
 
 			got, err := matrixGenerator.GenerateParams(&argoprojiov1alpha1.ApplicationSetGenerator{
@@ -1036,7 +1100,105 @@ func TestMatrixGenerateListElementsYaml(t *testing.T) {
 				map[string]Generator{
 					"Git":  genMock,
 					"List": &ListGenerator{},
+				}, 0,
+			)
+
+			got, err := matrixGenerator.GenerateParams(&argoprojiov1alpha1.ApplicationSetGenerator{
+				Matrix: &argoprojiov1alpha1.MatrixGenerator{
+					Generators: testCaseCopy.baseGenerators,
+					Template:   argoprojiov1alpha1.ApplicationSetTemplate{},
 				},
+			}, appSet)
+
+			if testCaseCopy.expectedErr != nil {
+				assert.ErrorIs(t, err, testCaseCopy.expectedErr)
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, testCaseCopy.expected, got)
+			}
+
+		})
+
+	}
+}
+
+func TestMatrixMaxGenerators(t *testing.T) {
+	testCases := []struct {
+		name           string
+		baseGenerators []argoprojiov1alpha1.ApplicationSetNestedGenerator
+		maxChildren    int
+		expectedErr    error
+		expected       []map[string]interface{}
+	}{
+		{
+			name: "happy flow - num generators is equal to max",
+			baseGenerators: []argoprojiov1alpha1.ApplicationSetNestedGenerator{
+				{
+					List: &argoprojiov1alpha1.ListGenerator{},
+				},
+				{
+					List: &argoprojiov1alpha1.ListGenerator{},
+				},
+			},
+			maxChildren: 2,
+			expected:    []map[string]interface{}{},
+		},
+		{
+			name: "happy flow - unlimited num generators",
+			baseGenerators: []argoprojiov1alpha1.ApplicationSetNestedGenerator{
+				{
+					List: &argoprojiov1alpha1.ListGenerator{},
+				},
+				{
+					List: &argoprojiov1alpha1.ListGenerator{},
+				},
+				{
+					List: &argoprojiov1alpha1.ListGenerator{},
+				},
+				{
+					List: &argoprojiov1alpha1.ListGenerator{},
+				},
+				{
+					List: &argoprojiov1alpha1.ListGenerator{},
+				},
+			},
+			maxChildren: 0,
+			expected:    []map[string]interface{}{},
+		},
+		{
+			name: "returns error if num generators is greater than max",
+			baseGenerators: []argoprojiov1alpha1.ApplicationSetNestedGenerator{
+				{
+					List: &argoprojiov1alpha1.ListGenerator{},
+				},
+				{
+					List: &argoprojiov1alpha1.ListGenerator{},
+				},
+				{
+					List: &argoprojiov1alpha1.ListGenerator{},
+				},
+			},
+			maxChildren: 2,
+			expectedErr: ErrMoreThanMaxGenerators,
+		},
+	}
+
+	for _, testCase := range testCases {
+		testCaseCopy := testCase // Since tests may run in parallel
+
+		t.Run(testCaseCopy.name, func(t *testing.T) {
+			appSet := &argoprojiov1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "set",
+				},
+				Spec: argoprojiov1alpha1.ApplicationSetSpec{},
+			}
+
+			var matrixGenerator = NewMatrixGenerator(
+				map[string]Generator{
+					"List": &ListGenerator{},
+				},
+				testCaseCopy.maxChildren,
 			)
 
 			got, err := matrixGenerator.GenerateParams(&argoprojiov1alpha1.ApplicationSetGenerator{
@@ -1116,7 +1278,7 @@ func TestGitGenerator_GenerateParams_list_x_git_matrix_generator(t *testing.T) {
 	matrixGenerator := NewMatrixGenerator(map[string]Generator{
 		"List": listGeneratorMock,
 		"Git":  gitGenerator,
-	})
+	}, 0)
 
 	matrixGeneratorSpec := &argoprojiov1alpha1.MatrixGenerator{
 		Generators: []argoprojiov1alpha1.ApplicationSetNestedGenerator{

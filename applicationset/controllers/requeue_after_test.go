@@ -72,7 +72,7 @@ func TestRequeueAfter(t *testing.T) {
 		"SCMProvider":             terminalGenerators["SCMProvider"],
 		"ClusterDecisionResource": terminalGenerators["ClusterDecisionResource"],
 		"PullRequest":             terminalGenerators["PullRequest"],
-		"Matrix":                  generators.NewMatrixGenerator(terminalGenerators),
+		"Matrix":                  generators.NewMatrixGenerator(terminalGenerators, 0),
 		"Merge":                   generators.NewMergeGenerator(terminalGenerators),
 	}
 
@@ -83,7 +83,7 @@ func TestRequeueAfter(t *testing.T) {
 		"SCMProvider":             terminalGenerators["SCMProvider"],
 		"ClusterDecisionResource": terminalGenerators["ClusterDecisionResource"],
 		"PullRequest":             terminalGenerators["PullRequest"],
-		"Matrix":                  generators.NewMatrixGenerator(nestedGenerators),
+		"Matrix":                  generators.NewMatrixGenerator(nestedGenerators, 0),
 		"Merge":                   generators.NewMergeGenerator(nestedGenerators),
 	}
 
