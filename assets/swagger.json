@@ -7405,6 +7405,7 @@
       "properties": {
         "elements": {
           "type": "array",
+          "title": "+kubebuilder:validation:Optional",
           "items": {
             "$ref": "#/definitions/v1JSON"
           }
