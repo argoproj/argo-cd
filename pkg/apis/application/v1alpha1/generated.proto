@@ -1072,6 +1072,7 @@ message KustomizeReplica {
 
 // ListGenerator include items info
 message ListGenerator {
+  // +kubebuilder:validation:Optional
   repeated k8s.io.apiextensions_apiserver.pkg.apis.apiextensions.v1.JSON elements = 1;
 
   optional ApplicationSetTemplate template = 2;
