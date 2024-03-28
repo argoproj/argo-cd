@@ -276,8 +276,8 @@ func NewReconcileCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command 
 					printLine("Repo server is not provided, trying to port-forward to argocd-repo-server pod.")
 					overrides := clientcmd.ConfigOverrides{}
 					repoServerName := clientOpts.RepoServerName
-					repoServererviceLabelSelector := common.LabelKeyComponentRepoServer + "=" + common.LabelValueComponentRepoServer
-					repoServerServices, err := kubeClientset.CoreV1().Services(namespace).List(context.Background(), v1.ListOptions{LabelSelector: repoServererviceLabelSelector})
+					repoServerServiceLabelSelector := common.LabelKeyComponentRepoServer + "=" + common.LabelValueComponentRepoServer
+					repoServerServices, err := kubeClientset.CoreV1().Services(namespace).List(context.Background(), v1.ListOptions{LabelSelector: repoServerServiceLabelSelector})
 					errors.CheckError(err)
 					if len(repoServerServices.Items) > 0 {
 						if repoServerServicelabel, ok := repoServerServices.Items[0].Labels[common.LabelKeyAppName]; ok && repoServerServicelabel != "" {
