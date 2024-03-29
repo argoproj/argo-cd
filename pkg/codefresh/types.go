@@ -6,6 +6,6 @@ type VersionSource struct {
 	JsonPath string `json:"jsonPath"`
 }
 
-type ApplicationConfiguration struct {
+type PromotionTemplate struct {
 	VersionSource VersionSource `json:"versionSource"`
 }

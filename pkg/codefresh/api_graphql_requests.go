@@ -11,19 +11,19 @@ type CodefreshGraphQLRequests struct {
 }
 
 type CodefreshGraphQLInterface interface {
-	GetApplicationConfiguration(app *metav1.ObjectMeta) (*ApplicationConfiguration, error)
+	GetPromotionTemplate(app *metav1.ObjectMeta) (*PromotionTemplate, error)
 }
 
-// GetApplicationConfiguration method to get application configuration
-func (r *CodefreshGraphQLRequests) GetApplicationConfiguration(app *metav1.ObjectMeta) (*ApplicationConfiguration, error) {
+// GetPromotionTemplate method to get application configuration
+func (r *CodefreshGraphQLRequests) GetPromotionTemplate(app *metav1.ObjectMeta) (*PromotionTemplate, error) {
 	type ResponseData struct {
-		ApplicationConfigurationByRuntime ApplicationConfiguration `json:"applicationConfigurationByRuntime"`
+		PromotionTemplateByRuntime PromotionTemplate `json:"promotionTemplateByRuntime"`
 	}
 
 	query := GraphQLQuery{
 		Query: `
 		query ($applicationMetadata: Object!) {
-		  applicationConfigurationByRuntime(applicationMetadata: $applicationMetadata) {
+			promotionTemplateByRuntime(applicationMetadata: $applicationMetadata) {
 			versionSource {
 			  file
 			  jsonPath
@@ -46,7 +46,7 @@ func (r *CodefreshGraphQLRequests) GetApplicationConfiguration(app *metav1.Objec
 		return nil, err
 	}
 
-	return &responseData.ApplicationConfigurationByRuntime, nil
+	return &responseData.PromotionTemplateByRuntime, nil
 }
 
 func NewCodefreshGraphQLRequests(client CodefreshClientInterface) CodefreshGraphQLInterface {

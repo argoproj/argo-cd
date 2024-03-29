@@ -13,7 +13,7 @@ type VersionConfig struct {
 }
 
 func (v *VersionConfigManager) GetVersionConfig(app *metav1.ObjectMeta) (*VersionConfig, error) {
-	var appConfig *codefresh.ApplicationConfiguration
+	var appConfig *codefresh.PromotionTemplate
 
 	// Get from cache
 	appConfig, err := v.cache.GetCfAppConfig(app.Namespace, app.Name)
@@ -31,7 +31,7 @@ func (v *VersionConfigManager) GetVersionConfig(app *metav1.ObjectMeta) (*Versio
 	}
 
 	// Get from Codefresh API
-	appConfig, err = v.requests.GetApplicationConfiguration(app)
+	appConfig, err = v.requests.GetPromotionTemplate(app)
 	if err != nil {
 		log.Infof("Failed to get application config from API: %v", err)
 		return nil, err
