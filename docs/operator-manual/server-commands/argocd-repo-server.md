@@ -21,6 +21,7 @@ argocd-repo-server [flags]
       --disable-helm-manifest-max-extracted-size       Disable maximum size of helm manifest archives when extracted
       --disable-tls                                    Disable TLS on the gRPC endpoint
       --helm-manifest-max-extracted-size string        Maximum size of helm manifest archives when extracted (default "1G")
+      --helm-registry-max-index-size string            Maximum size of registry index file (default "1G")
   -h, --help                                           help for argocd-repo-server
       --logformat string                               Set the logging format. One of: text|json (default "text")
       --loglevel string                                Set the logging level. One of: debug|info|warn|error (default "info")
@@ -53,4 +54,3 @@ argocd-repo-server [flags]
       --tlsmaxversion string                           The maximum SSL/TLS version that is acceptable (one of: 1.0|1.1|1.2|1.3) (default "1.3")
       --tlsminversion string                           The minimum SSL/TLS version that is acceptable (one of: 1.0|1.1|1.2|1.3) (default "1.2")
 ```
-
