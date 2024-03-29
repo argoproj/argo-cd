@@ -13,6 +13,7 @@ import (
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	"sigs.k8s.io/yaml"
 
 	"github.com/argoproj/argo-cd/v2/controller/testdata"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
@@ -455,7 +456,12 @@ func TestNormalizeTargetResources(t *testing.T) {
 		require.True(t, ok)
 		assert.Equal(t, 2, len(containers))
 	})
+}
 
+func TestNormalizeTargetResourcesWithList(t *testing.T) {
+	type fixture struct {
+		comparisonResult *comparisonResult
+	}
 	setupHttpProxy := func(t *testing.T, ignores []v1alpha1.ResourceIgnoreDifferences) *fixture {
 		t.Helper()
 		dc, err := diff.NewDiffConfigBuilder().
@@ -488,6 +494,8 @@ func TestNormalizeTargetResources(t *testing.T) {
 		}
 		f := setupHttpProxy(t, ignores)
 		target := test.YamlToUnstructured(testdata.TargetHTTPProxy)
+		y, _ := yaml.Marshal(target.Object)
+		fmt.Printf("\n--- target ---\n%s", string(y))
 		f.comparisonResult.reconciliationResult.Target = []*unstructured.Unstructured{target}
 
 		// when
@@ -496,24 +504,30 @@ func TestNormalizeTargetResources(t *testing.T) {
 		// then
 		require.NoError(t, err)
 		require.Equal(t, 1, len(f.comparisonResult.reconciliationResult.Live))
+		y, _ = yaml.Marshal(f.comparisonResult.reconciliationResult.Live[0].Object)
+		fmt.Printf("\n--- live ---\n%s", string(y))
 		require.Equal(t, 1, len(f.comparisonResult.reconciliationResult.Target))
+		y, _ = yaml.Marshal(f.comparisonResult.reconciliationResult.Target[0].Object)
+		fmt.Printf("\n--- normalized ---\n%s", string(y))
 		require.Equal(t, 1, len(patchedTargets))
+		y, _ = yaml.Marshal(patchedTargets[0].Object)
+		fmt.Printf("\n--- patched ---\n%s", string(y))
 
 		// live should have 1 entry
-		require.Equal(t, 1, len(dig[[]any](f.comparisonResult.reconciliationResult.Live[0].Object, []interface{}{"spec", "routes", 15, "rateLimitPolicy", "global", "descriptors"})))
+		require.Equal(t, 1, len(dig[[]any](f.comparisonResult.reconciliationResult.Live[0].Object, []interface{}{"spec", "routes", 0, "rateLimitPolicy", "global", "descriptors"})))
 		// assert some arbitrary field to show `entries[0]` is not an empty object
-		require.Equal(t, "x-gw-ims-user-id", dig[string](f.comparisonResult.reconciliationResult.Live[0].Object, []interface{}{"spec", "routes", 15, "rateLimitPolicy", "global", "descriptors", 0, "entries", 0, "requestHeader", "headerName"}))
+		require.Equal(t, "x-gw-ims-user-id", dig[string](f.comparisonResult.reconciliationResult.Live[0].Object, []interface{}{"spec", "routes", 0, "rateLimitPolicy", "global", "descriptors", 0, "entries", 0, "requestHeader", "headerName"}))
 
 		// target has 2 entries
-		require.Equal(t, 2, len(dig[[]any](f.comparisonResult.reconciliationResult.Target[0].Object, []interface{}{"spec", "routes", 15, "rateLimitPolicy", "global", "descriptors", 0, "entries"})))
+		require.Equal(t, 2, len(dig[[]any](f.comparisonResult.reconciliationResult.Target[0].Object, []interface{}{"spec", "routes", 0, "rateLimitPolicy", "global", "descriptors", 0, "entries"})))
 		// assert some arbitrary field to show `entries[0]` is not an empty object
-		require.Equal(t, "x-gw-ims-user-id", dig[string](f.comparisonResult.reconciliationResult.Target[0].Object, []interface{}{"spec", "routes", 15, "rateLimitPolicy", "global", "descriptors", 0, "entries", 0, "requestHeaderValueMatch", "headers", 0, "name"}))
+		require.Equal(t, "x-gw-ims-user-id", dig[string](f.comparisonResult.reconciliationResult.Target[0].Object, []interface{}{"spec", "routes", 0, "rateLimitPolicy", "global", "descriptors", 0, "entries", 0, "requestHeaderValueMatch", "headers", 0, "name"}))
 
-		// THESE ASSERTIONS ARE WRONG! It should be *2* entries in the array, and it should NOT equal an empty object
-		require.Equal(t, 1, len(dig[[]any](patchedTargets[0].Object, []interface{}{"spec", "routes", 15, "rateLimitPolicy", "global", "descriptors"})))
-		require.Equal(t, map[string]interface{}{}, dig[any](patchedTargets[0].Object, []interface{}{"spec", "routes", 15, "rateLimitPolicy", "global", "descriptors", 0, "entries", 0}))
+		// It should be *2* entries in the array
+		require.Equal(t, 2, len(dig[[]any](patchedTargets[0].Object, []interface{}{"spec", "routes", 0, "rateLimitPolicy", "global", "descriptors"})))
+		// and it should NOT equal an empty object
+		require.Len(t, dig[any](patchedTargets[0].Object, []interface{}{"spec", "routes", 0, "rateLimitPolicy", "global", "descriptors", 0, "entries", 0}), 1)
 
-		fmt.Println("fifty")
 	})
 }
 
