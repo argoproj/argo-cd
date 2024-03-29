@@ -21924,7 +21924,7 @@ spec:
         - ""
         - --appendonly
         - "no"
-        image: redis:7.0.14-alpine
+        image: redis:7.0.15-alpine
         imagePullPolicy: Always
         name: redis
         ports:
