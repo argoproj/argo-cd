@@ -24,6 +24,7 @@ const kustomization3 = "force_common"
 const kustomization4 = "custom_version"
 const kustomization5 = "kustomization_yaml_patches"
 const kustomization6 = "kustomization_yaml_components"
+const kustomization7 = "label_without_selector"
 
 func testDataDir(tb testing.TB, testData string) (string, error) {
 	res := tb.TempDir()
@@ -326,6 +327,84 @@ func TestKustomizeBuildForceCommonAnnotations(t *testing.T) {
 			}
 		}
 	}
+}
+
+func TestKustomizeLabelWithoutSelector(t *testing.T) {
+	type testCase struct {
+		TestData               string
+		KustomizeSource        v1alpha1.ApplicationSourceKustomize
+		ExpectedMetadataLabels map[string]string
+		ExpectedSelectorLabels map[string]string
+		ExpectedTemplateLabels map[string]string
+		ExpectErr              bool
+		Env                    *v1alpha1.Env
+	}
+	testCases := []testCase{
+		{
+			TestData: kustomization7,
+			KustomizeSource: v1alpha1.ApplicationSourceKustomize{
+				CommonLabels: map[string]string{
+					"foo": "bar",
+				},
+				LabelWithoutSelector: true,
+			},
+			ExpectedMetadataLabels: map[string]string{"app": "nginx", "managed-by": "helm", "foo": "bar"},
+			ExpectedSelectorLabels: map[string]string{"app": "nginx"},
+			ExpectedTemplateLabels: map[string]string{"app": "nginx"},
+			Env: &v1alpha1.Env{
+				&v1alpha1.EnvEntry{
+					Name:  "ARGOCD_APP_NAME",
+					Value: "argo-cd-tests",
+				},
+			},
+		},
+		{
+			TestData: kustomization7,
+			KustomizeSource: v1alpha1.ApplicationSourceKustomize{
+				CommonLabels: map[string]string{
+					"managed-by": "argocd",
+				},
+				LabelWithoutSelector: true,
+				ForceCommonLabels:    true,
+			},
+			ExpectedMetadataLabels: map[string]string{"app": "nginx", "managed-by": "argocd"},
+			ExpectedSelectorLabels: map[string]string{"app": "nginx"},
+			ExpectedTemplateLabels: map[string]string{"app": "nginx"},
+			Env: &v1alpha1.Env{
+				&v1alpha1.EnvEntry{
+					Name:  "ARGOCD_APP_NAME",
+					Value: "argo-cd-tests",
+				},
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		appPath, err := testDataDir(t, tc.TestData)
+		assert.Nil(t, err)
+		kustomize := NewKustomizeApp(appPath, appPath, git.NopCreds{}, "", "")
+		objs, _, err := kustomize.Build(&tc.KustomizeSource, nil, tc.Env)
+
+		switch tc.ExpectErr {
+		case true:
+			assert.Error(t, err)
+		default:
+			assert.Nil(t, err)
+			if assert.Equal(t, len(objs), 1) {
+				obj := objs[0]
+				sl, found, err := unstructured.NestedStringMap(obj.Object, "spec", "selector", "matchLabels")
+				assert.Nil(t, err)
+				assert.Equal(t, found, true)
+				tl, found, err := unstructured.NestedStringMap(obj.Object, "spec", "template", "metadata", "labels")
+				assert.Nil(t, err)
+				assert.Equal(t, found, true)
+				assert.Equal(t, tc.ExpectedMetadataLabels, obj.GetLabels())
+				assert.Equal(t, tc.ExpectedSelectorLabels, sl)
+				assert.Equal(t, tc.ExpectedTemplateLabels, tl)
+			}
+		}
+	}
+
 }
 
 func TestKustomizeCustomVersion(t *testing.T) {

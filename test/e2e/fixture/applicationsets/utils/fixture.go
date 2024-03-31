@@ -106,7 +106,7 @@ func GetE2EFixtureK8sClient() *E2EFixtureK8sClient {
 	return internalClientVars
 }
 
-// EnsureCleanSlate ensures that the Kubernetes resources on the cluster are are in a 'clean' state, before a test is run.
+// EnsureCleanSlate ensures that the Kubernetes resources on the cluster are in a 'clean' state, before a test is run.
 func EnsureCleanState(t *testing.T) {
 
 	start := time.Now()

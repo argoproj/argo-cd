@@ -6442,6 +6442,10 @@
             "type": "string"
           }
         },
+        "labelWithoutSelector": {
+          "type": "boolean",
+          "title": "LabelWithoutSelector specifies whether to apply common labels to resource selectors or not"
+        },
         "namePrefix": {
           "type": "string",
           "title": "NamePrefix is a prefix appended to resources for Kustomize apps"
@@ -7427,6 +7431,7 @@
       "properties": {
         "elements": {
           "type": "array",
+          "title": "+kubebuilder:validation:Optional",
           "items": {
             "$ref": "#/definitions/v1JSON"
           }
