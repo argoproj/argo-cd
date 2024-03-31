@@ -2208,6 +2208,10 @@ type AppProjectSpec struct {
 	SourceNamespaces []string `json:"sourceNamespaces,omitempty" protobuf:"bytes,12,opt,name=sourceNamespaces"`
 	// PermitOnlyProjectScopedClusters determines whether destinations can only reference clusters which are project-scoped
 	PermitOnlyProjectScopedClusters bool `json:"permitOnlyProjectScopedClusters,omitempty" protobuf:"bytes,13,opt,name=permitOnlyProjectScopedClusters"`
+	// ClusterResourceReadWhitelist contains list of whitelisted cluster level resources
+	ClusterResourceReadWhitelist []metav1.GroupKind `json:"clusterResourceReadWhitelist,omitempty" protobuf:"bytes,14,opt,name=clusterResourceReadWhitelist"`
+	// NamespaceResourceReadWhitelist contains list of whitelisted namespace level resources
+	NamespaceResourceReadWhitelist []metav1.GroupKind `json:"namespaceResourceReadWhitelist,omitempty" protobuf:"bytes,15,opt,name=namespaceResourceReadWhitelist"`
 }
 
 // SyncWindows is a collection of sync windows in this project
