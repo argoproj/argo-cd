@@ -528,7 +528,7 @@ func (ctrl *ApplicationController) getResourceTree(a *appv1.Application, managed
 			})
 		} else {
 			err := ctrl.stateCache.IterateHierarchy(a.Spec.Destination.Server, kube.GetResourceKey(live), func(child appv1.ResourceNode, appName string) bool {
-				permitted, _ := proj.IsResourcePermitted(schema.GroupKind{Group: child.ResourceRef.Group, Kind: child.ResourceRef.Kind}, child.Namespace, a.Spec.Destination, func(project string) ([]*appv1.Cluster, error) {
+				permitted, _ := proj.IsResourceReadPermitted(schema.GroupKind{Group: child.ResourceRef.Group, Kind: child.ResourceRef.Kind}, child.Namespace, a.Spec.Destination, func(project string) ([]*appv1.Cluster, error) {
 					clusters, err := ctrl.db.GetProjectClusters(context.TODO(), project)
 					if err != nil {
 						return nil, fmt.Errorf("failed to get project clusters: %w", err)
@@ -548,7 +548,7 @@ func (ctrl *ApplicationController) getResourceTree(a *appv1.Application, managed
 	}
 	orphanedNodes := make([]appv1.ResourceNode, 0)
 	for k := range orphanedNodesMap {
-		if k.Namespace != "" && proj.IsGroupKindPermitted(k.GroupKind(), true) && !isKnownOrphanedResourceExclusion(k, proj) {
+		if k.Namespace != "" && proj.IsGroupKindReadPermitted(k.GroupKind(), true) && !isKnownOrphanedResourceExclusion(k, proj) {
 			err := ctrl.stateCache.IterateHierarchy(a.Spec.Destination.Server, k, func(child appv1.ResourceNode, appName string) bool {
 				belongToAnotherApp := false
 				if appName != "" {
@@ -562,7 +562,7 @@ func (ctrl *ApplicationController) getResourceTree(a *appv1.Application, managed
 					return false
 				}
 
-				permitted, _ := proj.IsResourcePermitted(schema.GroupKind{Group: child.ResourceRef.Group, Kind: child.ResourceRef.Kind}, child.Namespace, a.Spec.Destination, func(project string) ([]*appv1.Cluster, error) {
+				permitted, _ := proj.IsResourceReadPermitted(schema.GroupKind{Group: child.ResourceRef.Group, Kind: child.ResourceRef.Kind}, child.Namespace, a.Spec.Destination, func(project string) ([]*appv1.Cluster, error) {
 					return ctrl.db.GetProjectClusters(context.TODO(), project)
 				})
 
