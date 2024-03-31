@@ -20,14 +20,23 @@ func runCmd(workingDir string, name string, args ...string) error {
 	return cmd.Run()
 }
 
-func Test_nativeGitClient_Fetch(t *testing.T) {
+func _createEmptyGitRepo() (string, error) {
 	tempDir, err := os.MkdirTemp("", "")
-	require.NoError(t, err)
+	if err != nil {
+		return tempDir, err
+	}
 
 	err = runCmd(tempDir, "git", "init")
-	require.NoError(t, err)
+	if err != nil {
+		return tempDir, err
+	}
 
 	err = runCmd(tempDir, "git", "commit", "-m", "Initial commit", "--allow-empty")
+	return tempDir, err
+}
+
+func Test_nativeGitClient_Fetch(t *testing.T) {
+	tempDir, err := _createEmptyGitRepo()
 	require.NoError(t, err)
 
 	client, err := NewClient(fmt.Sprintf("file://%s", tempDir), NopCreds{}, true, false, "")
@@ -41,13 +50,7 @@ func Test_nativeGitClient_Fetch(t *testing.T) {
 }
 
 func Test_nativeGitClient_Fetch_Prune(t *testing.T) {
-	tempDir, err := os.MkdirTemp("", "")
-	require.NoError(t, err)
-
-	err = runCmd(tempDir, "git", "init")
-	require.NoError(t, err)
-
-	err = runCmd(tempDir, "git", "commit", "-m", "Initial commit", "--allow-empty")
+	tempDir, err := _createEmptyGitRepo()
 	require.NoError(t, err)
 
 	client, err := NewClient(fmt.Sprintf("file://%s", tempDir), NopCreds{}, true, false, "")
