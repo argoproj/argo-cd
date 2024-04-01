@@ -1,8 +1,8 @@
 apiVersion: projectcontour.io/v1
 kind: HTTPProxy
 metadata:
-  name: firefly--firefly-api-dev-base-route
-  namespace: ns-team-firefly--firefly-api-deploy--ffd95da3--namesp-ed34d692
+  name: my-http-proxy
+  namespace: default
 spec:
   routes:
     - rateLimitPolicy:
@@ -10,5 +10,5 @@ spec:
           descriptors:
             - entries:
                 - requestHeader:
-                    descriptorKey: ims_user_id
-                    headerName: x-gw-ims-user-id
+                    descriptorKey: sample-key
+                    headerName: sample-header

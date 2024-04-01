@@ -2,7 +2,6 @@ package controller
 
 import (
 	"context"
-	"fmt"
 	"testing"
 
 	"github.com/argoproj/gitops-engine/pkg/sync"
@@ -13,7 +12,6 @@ import (
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
-	"sigs.k8s.io/yaml"
 
 	"github.com/argoproj/argo-cd/v2/controller/testdata"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
@@ -494,8 +492,6 @@ func TestNormalizeTargetResourcesWithList(t *testing.T) {
 		}
 		f := setupHttpProxy(t, ignores)
 		target := test.YamlToUnstructured(testdata.TargetHTTPProxy)
-		y, _ := yaml.Marshal(target.Object)
-		fmt.Printf("\n--- target ---\n%s", string(y))
 		f.comparisonResult.reconciliationResult.Target = []*unstructured.Unstructured{target}
 
 		// when
@@ -504,30 +500,146 @@ func TestNormalizeTargetResourcesWithList(t *testing.T) {
 		// then
 		require.NoError(t, err)
 		require.Equal(t, 1, len(f.comparisonResult.reconciliationResult.Live))
-		y, _ = yaml.Marshal(f.comparisonResult.reconciliationResult.Live[0].Object)
-		fmt.Printf("\n--- live ---\n%s", string(y))
 		require.Equal(t, 1, len(f.comparisonResult.reconciliationResult.Target))
-		y, _ = yaml.Marshal(f.comparisonResult.reconciliationResult.Target[0].Object)
-		fmt.Printf("\n--- normalized ---\n%s", string(y))
 		require.Equal(t, 1, len(patchedTargets))
-		y, _ = yaml.Marshal(patchedTargets[0].Object)
-		fmt.Printf("\n--- patched ---\n%s", string(y))
 
 		// live should have 1 entry
 		require.Equal(t, 1, len(dig[[]any](f.comparisonResult.reconciliationResult.Live[0].Object, []interface{}{"spec", "routes", 0, "rateLimitPolicy", "global", "descriptors"})))
 		// assert some arbitrary field to show `entries[0]` is not an empty object
-		require.Equal(t, "x-gw-ims-user-id", dig[string](f.comparisonResult.reconciliationResult.Live[0].Object, []interface{}{"spec", "routes", 0, "rateLimitPolicy", "global", "descriptors", 0, "entries", 0, "requestHeader", "headerName"}))
+		require.Equal(t, "sample-header", dig[string](f.comparisonResult.reconciliationResult.Live[0].Object, []interface{}{"spec", "routes", 0, "rateLimitPolicy", "global", "descriptors", 0, "entries", 0, "requestHeader", "headerName"}))
 
 		// target has 2 entries
 		require.Equal(t, 2, len(dig[[]any](f.comparisonResult.reconciliationResult.Target[0].Object, []interface{}{"spec", "routes", 0, "rateLimitPolicy", "global", "descriptors", 0, "entries"})))
 		// assert some arbitrary field to show `entries[0]` is not an empty object
-		require.Equal(t, "x-gw-ims-user-id", dig[string](f.comparisonResult.reconciliationResult.Target[0].Object, []interface{}{"spec", "routes", 0, "rateLimitPolicy", "global", "descriptors", 0, "entries", 0, "requestHeaderValueMatch", "headers", 0, "name"}))
+		require.Equal(t, "sample-header", dig[string](f.comparisonResult.reconciliationResult.Target[0].Object, []interface{}{"spec", "routes", 0, "rateLimitPolicy", "global", "descriptors", 0, "entries", 0, "requestHeaderValueMatch", "headers", 0, "name"}))
 
-		// It should be *2* entries in the array
-		require.Equal(t, 2, len(dig[[]any](patchedTargets[0].Object, []interface{}{"spec", "routes", 0, "rateLimitPolicy", "global", "descriptors"})))
+		// It should be *1* entries in the array
+		require.Equal(t, 1, len(dig[[]any](patchedTargets[0].Object, []interface{}{"spec", "routes", 0, "rateLimitPolicy", "global", "descriptors"})))
 		// and it should NOT equal an empty object
 		require.Len(t, dig[any](patchedTargets[0].Object, []interface{}{"spec", "routes", 0, "rateLimitPolicy", "global", "descriptors", 0, "entries", 0}), 1)
 
+	})
+	t.Run("will correctly set array entries if new entries have been added", func(t *testing.T) {
+		// given
+		ignores := []v1alpha1.ResourceIgnoreDifferences{
+			{
+				Group:             "apps",
+				Kind:              "Deployment",
+				JQPathExpressions: []string{".spec.template.spec.containers[].env[] | select(.name == \"SOME_ENV_VAR\")"},
+			},
+		}
+		f := setupHttpProxy(t, ignores)
+		live := test.YamlToUnstructured(testdata.LiveDeploymentEnvVarsYaml)
+		target := test.YamlToUnstructured(testdata.TargetDeploymentEnvVarsYaml)
+		f.comparisonResult.reconciliationResult.Live = []*unstructured.Unstructured{live}
+		f.comparisonResult.reconciliationResult.Target = []*unstructured.Unstructured{target}
+
+		// when
+		targets, err := normalizeTargetResources(f.comparisonResult)
+
+		// then
+		require.NoError(t, err)
+		require.Equal(t, 1, len(targets))
+		containers, ok, err := unstructured.NestedSlice(targets[0].Object, "spec", "template", "spec", "containers")
+		require.NoError(t, err)
+		require.True(t, ok)
+		assert.Equal(t, 1, len(containers))
+
+		ports := containers[0].(map[string]interface{})["ports"].([]interface{})
+		assert.Equal(t, 1, len(ports))
+
+		env := containers[0].(map[string]interface{})["env"].([]interface{})
+		assert.Equal(t, 3, len(env))
+
+		first := env[0]
+		second := env[1]
+		third := env[2]
+
+		// Currently the defined order at this time is the insertion order of the target manifest.
+		assert.Equal(t, "SOME_ENV_VAR", first.(map[string]interface{})["name"])
+		assert.Equal(t, "some_value", first.(map[string]interface{})["value"])
+
+		assert.Equal(t, "SOME_OTHER_ENV_VAR", second.(map[string]interface{})["name"])
+		assert.Equal(t, "some_other_value", second.(map[string]interface{})["value"])
+
+		assert.Equal(t, "YET_ANOTHER_ENV_VAR", third.(map[string]interface{})["name"])
+		assert.Equal(t, "yet_another_value", third.(map[string]interface{})["value"])
+	})
+
+	t.Run("ignore-deployment-image-replicas-changes-additive", func(t *testing.T) {
+		// given
+
+		ignores := []v1alpha1.ResourceIgnoreDifferences{
+			{
+				Group:        "apps",
+				Kind:         "Deployment",
+				JSONPointers: []string{"/spec/replicas"},
+			}, {
+				Group:             "apps",
+				Kind:              "Deployment",
+				JQPathExpressions: []string{".spec.template.spec.containers[].image"},
+			},
+		}
+		f := setupHttpProxy(t, ignores)
+		live := test.YamlToUnstructured(testdata.MinimalImageReplicaDeploymentYaml)
+		target := test.YamlToUnstructured(testdata.AdditionalImageReplicaDeploymentYaml)
+		f.comparisonResult.reconciliationResult.Live = []*unstructured.Unstructured{live}
+		f.comparisonResult.reconciliationResult.Target = []*unstructured.Unstructured{target}
+
+		// when
+		targets, err := normalizeTargetResources(f.comparisonResult)
+
+		// then
+		require.NoError(t, err)
+		require.Equal(t, 1, len(targets))
+		metadata, ok, err := unstructured.NestedMap(targets[0].Object, "metadata")
+		require.NoError(t, err)
+		require.True(t, ok)
+		labels, ok := metadata["labels"].(map[string]interface{})
+		require.True(t, ok)
+		assert.Equal(t, 2, len(labels))
+		assert.Equal(t, "web", labels["appProcess"])
+
+		spec, ok, err := unstructured.NestedMap(targets[0].Object, "spec")
+		require.NoError(t, err)
+		require.True(t, ok)
+
+		assert.Equal(t, int64(1), spec["replicas"])
+
+		template, ok := spec["template"].(map[string]interface{})
+		require.True(t, ok)
+
+		tMetadata, ok := template["metadata"].(map[string]interface{})
+		require.True(t, ok)
+		tLabels, ok := tMetadata["labels"].(map[string]interface{})
+		require.True(t, ok)
+		assert.Equal(t, 2, len(tLabels))
+		assert.Equal(t, "web", tLabels["appProcess"])
+
+		tSpec, ok := template["spec"].(map[string]interface{})
+		require.True(t, ok)
+		containers, ok, err := unstructured.NestedSlice(tSpec, "containers")
+		require.NoError(t, err)
+		require.True(t, ok)
+		assert.Equal(t, 1, len(containers))
+
+		first := containers[0].(map[string]interface{})
+		assert.Equal(t, "alpine:3", first["image"])
+
+		resources, ok := first["resources"].(map[string]interface{})
+		require.True(t, ok)
+		requests, ok := resources["requests"].(map[string]interface{})
+		require.True(t, ok)
+		assert.Equal(t, "400m", requests["cpu"])
+
+		env, ok, err := unstructured.NestedSlice(first, "env")
+		require.NoError(t, err)
+		require.True(t, ok)
+		assert.Equal(t, 1, len(env))
+
+		env0 := env[0].(map[string]interface{})
+		assert.Equal(t, "EV", env0["name"])
+		assert.Equal(t, "here", env0["value"])
 	})
 }
 
