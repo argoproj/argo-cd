@@ -5715,6 +5715,13 @@
             "$ref": "#/definitions/v1GroupKind"
           }
         },
+        "clusterResourceReadWhitelist": {
+          "type": "array",
+          "title": "ClusterResourceReadWhitelist contains list of whitelisted cluster level resources for read operations",
+          "items": {
+            "$ref": "#/definitions/v1GroupKind"
+          }
+        },
         "clusterResourceWhitelist": {
           "type": "array",
           "title": "ClusterResourceWhitelist contains list of whitelisted cluster level resources",
@@ -5736,6 +5743,13 @@
         "namespaceResourceBlacklist": {
           "type": "array",
           "title": "NamespaceResourceBlacklist contains list of blacklisted namespace level resources",
+          "items": {
+            "$ref": "#/definitions/v1GroupKind"
+          }
+        },
+        "namespaceResourceReadWhitelist": {
+          "type": "array",
+          "title": "NamespaceResourceReadWhitelist contains list of whitelisted namespace level resources for read operations",
           "items": {
             "$ref": "#/definitions/v1GroupKind"
           }

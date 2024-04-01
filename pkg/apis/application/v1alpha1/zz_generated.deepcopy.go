@@ -156,6 +156,16 @@ func (in *AppProjectSpec) DeepCopyInto(out *AppProjectSpec) {
 		*out = make([]string, len(*in))
 		copy(*out, *in)
 	}
+	if in.ClusterResourceReadWhitelist != nil {
+		in, out := &in.ClusterResourceReadWhitelist, &out.ClusterResourceReadWhitelist
+		*out = make([]v1.GroupKind, len(*in))
+		copy(*out, *in)
+	}
+	if in.NamespaceResourceReadWhitelist != nil {
+		in, out := &in.NamespaceResourceReadWhitelist, &out.NamespaceResourceReadWhitelist
+		*out = make([]v1.GroupKind, len(*in))
+		copy(*out, *in)
+	}
 	return
 }
 

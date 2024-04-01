@@ -469,6 +469,34 @@ func schema_pkg_apis_application_v1alpha1_AppProjectSpec(ref common.ReferenceCal
 							Format:      "",
 						},
 					},
+					"clusterResourceReadWhitelist": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ClusterResourceReadWhitelist contains list of whitelisted cluster level resources for read operations",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("k8s.io/apimachinery/pkg/apis/meta/v1.GroupKind"),
+									},
+								},
+							},
+						},
+					},
+					"namespaceResourceReadWhitelist": {
+						SchemaProps: spec.SchemaProps{
+							Description: "NamespaceResourceReadWhitelist contains list of whitelisted namespace level resources for read operations",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("k8s.io/apimachinery/pkg/apis/meta/v1.GroupKind"),
+									},
+								},
+							},
+						},
+					},
 				},
 			},
 		},
