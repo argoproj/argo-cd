@@ -145,6 +145,16 @@ spec:
     kind: Deployment
   - group: 'apps'
     kind: StatefulSet
+  # Allow read access to Pod resources in addition to read/write access controlled by whitelist and blacklist above
+  namespaceResourceReadWhitelist:
+  - group: ''
+    kind: 'Pod'
+  # Allow read access to ClusterRole and ClusterRoleBinding resources in addition to read/write access controlled by cluster scoped whitelist and blacklist above
+  clusterResourceReadWhitelist:
+  - group: 'rbac'
+    kind: ClusterRole
+  - group: 'rbac'
+    kind: ClusterRoleBinding
   roles:
   # A role which provides read-only access to all applications in the project
   - name: read-only

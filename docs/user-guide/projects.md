@@ -245,8 +245,10 @@ Projects, which match `matchExpressions` specified in `argocd-cm` ConfigMap, inh
 
 * namespaceResourceBlacklist
 * namespaceResourceWhitelist
+* namespaceResourceReadWhitelist
 * clusterResourceBlacklist
 * clusterResourceWhitelist
+* clusterResourceReadWhitelist
 * SyncWindows
 * SourceRepos
 * Destinations
