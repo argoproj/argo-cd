@@ -81,6 +81,34 @@ var DeploymentManifest = `
 }
 `
 
+var PodManifest = `
+{
+  "apiVersion": "v1",
+  "kind": "Pod",
+  "metadata": {
+    "name": "nginx-deployment-pod-123",
+		"namespace": "default",
+    "labels": {
+      "app": "nginx"
+    }
+  },
+  "spec": {
+    "containers": [
+      {
+        "name": "nginx",
+        "image": "nginx:1.15.4",
+        "ports": [
+          {
+            "containerPort": 80
+          }
+        ]
+      }
+    ],
+    "restartPolicy": "Always"
+  }
+}
+`
+
 func NewDeployment() *unstructured.Unstructured {
 	return testing.Unstructured(DeploymentManifest)
 }

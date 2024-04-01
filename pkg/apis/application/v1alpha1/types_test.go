@@ -552,6 +552,18 @@ func TestIsGroupKindReadPermitted(t *testing.T) {
 	}
 	assert.True(t, proj8.IsGroupKindReadPermitted(schema.GroupKind{Group: "", Kind: "Namespace"}, false))
 
+	proj9 := AppProject{
+		Spec: AppProjectSpec{
+			NamespaceResourceWhitelist: []metav1.GroupKind{{Group: "apps", Kind: "Deployment"}},
+		},
+	}
+	assert.False(t, proj9.IsGroupKindReadPermitted(schema.GroupKind{Group: "", Kind: "Pod"}, true))
+
+	proj10 := AppProject{
+		Spec: AppProjectSpec{},
+	}
+	assert.True(t, proj10.IsGroupKindReadPermitted(schema.GroupKind{Group: "", Kind: "Namespace"}, false))
+
 }
 
 func TestAppProject_GetRoleByName(t *testing.T) {

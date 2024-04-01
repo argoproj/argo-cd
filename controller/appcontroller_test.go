@@ -1101,6 +1101,46 @@ func TestGetResourceTree_HasOrphanedResources(t *testing.T) {
 	assert.Equal(t, tree.OrphanedNodes, []v1alpha1.ResourceNode{orphanedDeploy1, orphanedDeploy2})
 }
 
+func TestGetResourceTree_HasAdditionalReadAccess(t *testing.T) {
+	app := newFakeApp()
+	proj := defaultProj.DeepCopy()
+	proj.Spec.NamespaceResourceWhitelist = []metav1.GroupKind{{Group: "apps", Kind: "Deployment"}}
+	proj.Spec.NamespaceResourceReadWhitelist = []metav1.GroupKind{{Group: "", Kind: "Pod"}}
+
+	managedDeploy := v1alpha1.ResourceNode{
+		ResourceRef: v1alpha1.ResourceRef{Group: "apps", Kind: "Deployment", Namespace: "default", Name: "nginx-deployment", Version: "v1"},
+	}
+	managedPod := v1alpha1.ResourceNode{
+		ResourceRef: v1alpha1.ResourceRef{Group: "", Kind: "Pod", Namespace: "default", Name: "nginx-deployment-pod-123"},
+	}
+
+	ctrl := newFakeController(&fakeData{
+		apps: []runtime.Object{app, proj},
+		namespacedResources: map[kube.ResourceKey]namespacedResource{
+			kube.NewResourceKey("apps", "Deployment", "default", "nginx-deployment"): {ResourceNode: managedDeploy},
+			kube.NewResourceKey("", "Pod", "default", "nginx-deployment-pod-123"):    {ResourceNode: managedPod},
+		},
+	}, nil)
+	tree, err := ctrl.getResourceTree(app, []*v1alpha1.ResourceDiff{{
+		Namespace:   "default",
+		Name:        "nginx-deployment",
+		Kind:        "Deployment",
+		Group:       "apps",
+		LiveState:   "null",
+		TargetState: test.DeploymentManifest,
+	}, {
+		Namespace:   "default",
+		Name:        "nginx-deployment-pod-123",
+		Kind:        "Pod",
+		Group:       "",
+		LiveState:   test.PodManifest,
+		TargetState: test.PodManifest,
+	}})
+
+	assert.NoError(t, err)
+	assert.Equal(t, tree.Nodes, []v1alpha1.ResourceNode{managedDeploy, managedPod})
+}
+
 func TestSetOperationStateOnDeletedApp(t *testing.T) {
 	ctrl := newFakeController(&fakeData{apps: []runtime.Object{}}, nil)
 	fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
