@@ -1167,7 +1167,7 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 
 				revisionSourceMappings := make(map[int64]string, 0)
 				for i, index := range sourceIndexes {
-					if index < 0 {
+					if index <= 0 {
 						errors.CheckError(fmt.Errorf("source-index cannot be less than or equal to 0. Index starts at 1."))
 					}
 					revisionSourceMappings[index] = revisions[i]
@@ -2792,7 +2792,7 @@ func NewApplicationManifestsCommand(clientOpts *argocdclient.ClientOptions) *cob
 
 					revisionSourceMappings := make(map[int64]string, 0)
 					for i, index := range sourceIndexes {
-						if index < 0 {
+						if index <= 0 {
 							errors.CheckError(fmt.Errorf("source-index cannot be less than or equal to 0, Index starts at 1"))
 						}
 						revisionSourceMappings[index] = revisions[i]
