@@ -41,7 +41,10 @@ If the controller parameter `--policy` is set, it takes precedence on the field 
 
 ### Policy - `create-only`: Prevent ApplicationSet controller from modifying and deleting Applications
 
-To allow the ApplicationSet controller to *create* `Application` resources, but prevent any further modification, such as deletion, or modification of Application fields, add this parameter in the ApplicationSet controller:
+To allow the ApplicationSet controller to *create* `Application` resources, but prevent any further modification, such as *deletion*, or modification of Application fields, add this parameter in the ApplicationSet controller:
+
+**WARNING**: "*deletion*" indicates the case as the result of comparing generated Application between before and after, there are Applications which no longer exist. It doesn't indicate the case Applications are deleted according to ownerReferences to ApplicationSet. See [How to prevent Application controller from deleting Applications when deleting ApplicationSet](#how-to-prevent-application-controller-from-deleting-applications-when-deleting-applicationset)
+
 ```
 --policy create-only
 ```
@@ -60,6 +63,9 @@ spec:
 ### Policy - `create-update`: Prevent ApplicationSet controller from deleting Applications
 
 To allow the ApplicationSet controller to create or modify `Application` resources, but prevent Applications from being deleted, add the following parameter to the ApplicationSet controller `Deployment`:
+
+**WARNING**: "*deletion*" indicates the case as the result of comparing generated Application between before and after, there are Applications which no longer exist. It doesn't indicate the case Applications are deleted according to ownerReferences to ApplicationSet. See [How to prevent Application controller from deleting Applications when deleting ApplicationSet](#how-to-prevent-application-controller-from-deleting-applications-when-deleting-applicationset)
+
 ```
 --policy create-update
 ```
