@@ -3,6 +3,7 @@ package broadcast
 import (
 	"sync"
 
+	log "github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/watch"
 )
 
@@ -50,7 +51,7 @@ func (b *broadcasterHandler[T, E]) notify(event *E) {
 			case s.ch <- event:
 			default:
 				// drop event if cannot send right away
-				// log.WithField("applicationset", event.ApplicationSet.Name).Warn("unable to send event notification")
+				log.Warn("unable to send event notification")
 			}
 		}
 	}
