@@ -234,6 +234,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [QuintoAndar](https://quintoandar.com.br)
 1. [Quipper](https://www.quipper.com/)
 1. [RapidAPI](https://www.rapidapi.com/)
+1. [rebuy](https://www.rebuy.de/)
 1. [Recreation.gov](https://www.recreation.gov/)
 1. [Red Hat](https://www.redhat.com/)
 1. [Redpill Linpro](https://www.redpill-linpro.com/)

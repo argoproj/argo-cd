@@ -64,7 +64,7 @@ function stringHashCode(str: string) {
 
 // ansi color for pod name
 function podColor(podName: string) {
-    return colors[stringHashCode(podName) % colors.length];
+    return colors[Math.abs(stringHashCode(podName) % colors.length)];
 }
 
 // https://2ality.com/2012/09/empty-regexp.html
