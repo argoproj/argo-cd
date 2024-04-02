@@ -413,7 +413,7 @@ spec:
   sourceBranch:
   targetBranch:
 status:
-  plugin:
+  provider:
     github:
       id:
     gitlab:

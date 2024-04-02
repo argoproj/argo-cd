@@ -22,12 +22,13 @@ This proposal describes a feature to make manifest hydration (i.e. the "rendered
 
 * The `sourceHydrator` field is mutually exclusive with the `source` and the `sources` field. Should we throw an error if they're both configured, or should we just pick one and ignore the others?
 * How will/should this feature relate to the image updater? Is there an opportunity to share code, since both tools involve pushing to git?
+* Should we enforce a naming convention for hydrated manifest branches, e.g. `argo/...`? This would make it easier to recommend branch protection rules, for example, only allow pushes to `argo/*` from the argo bot.
 
 ## Summary
 
 Manifest hydration tools like Helm and Kustomize are indispensable in GitOps. These tools transform "dry" (Don't Repeat Yourself) sources into plain Kubernetes manifests. The effects of a change to dry sources are not always obvious. So storing only dry sources in git leaves the user with an incomplete and confusing history of their application. This undercuts some of the main benefits of GitOps.
 
-The "rendered manifests" pattern has emerged as a way to mitigate the downsides of using hydration tools in GitOps. Today, developers use CI tools to automatically hydrate manifests and push to separate branches. They then configure Argo CD to deploy from the hydrated branches.
+The "rendered manifests" pattern has emerged as a way to mitigate the downsides of using hydration tools in GitOps. Today, developers use CI tools to automatically hydrate manifests and push to separate branches. They then configure Argo CD to deploy from the hydrated branches. (For more information, see the awesome [blog post](https://akuity.io/blog/the-rendered-manifests-pattern/) and [ArgoCon talk](https://www.youtube.com/watch?v=TonN-369Qfo) by Nicholas Morey.)
 
 This proposal describes manifest hydration and pushing to git as a first-class feature of Argo CD.
 
@@ -48,6 +49,12 @@ Many organizations have implemented their own manifest hydration system. By impl
 
 ## Proposal
 
+Today, Argo CD watches one or more git repositories (configured in the `spec.source` or `spec.sources` field). When a new commit appears, Argo CD updates the desired state by rendering the manifests with the configured manifest hydration tool. If auto-sync is enabled, Argo CD applies the new manifests to the cluster.
+
+With the introduction of this change, Argo CD will watch two revisions in the same git repository: the first is the "dry source", i.e. the git repo/revision where the un-rendered manifests reside, and the second is the "hydrated source," where the rendered manifests are places and retrieved for syncing to the cluster.
+
+### New `spec.sourceHydrator` Application Field
+
 A `sourceHydrator` field will be added to the Argo CD Application spec:
 
 ```yaml
@@ -64,36 +71,51 @@ spec:
       targetRevision: main
       # This assumes the Application's environments are modeled as directories.
       path: environments/e2e
-      #chart: my-chart # if it’s a Helm chart
+      #chart: my-chart # if it’s a Helm chart, but the first source is only allowed to be a git repo
       # Hydrator-specific fields like “helm,” “kustomize,” “directory,” and
       # “plugin” are not available here. Those source details must be in git,
       # in a .argocd-source.yaml file.
       # This is because every change to the manifests must have a 
       # corresponding dry commit.
     writeTo:
-      # repoURL is optional. If not specified, it's assumed to be the same as drySources[0].repoURL.
-      repoURL: https://github.com/argoproj/argocd-example-apps
       targetBranch: environments/e2e-next
       path: .
     # The hydratedSource field is optional. If omitted, the `writeTo` repo/branch is used.
     # In this example, we write to a "staging" branch and then rely on an external promotion system to move the change 
     # to the configured hydratedSource.
     hydratedSource:
-      # repoURL is optional. If not specified, it's assumed to be the same as drySources[0].repoURL.
-      repoURL: https://github.com/argoproj/argocd-example-apps
       targetBranch: environments/e2e
       # The path is assumed to be the same as that in writeTo.
 ```
 
-When the Argo CD application controller detects a new commit on the first source listed under `drySources`, it will start the hydration process.
+When the Argo CD application controller detects a new commit on the first source listed under `drySources`, it queue up the hydration process.
 
-First, Argo CD will collect all Applications which have the same `drySources[0]` repo and targetRevision.
+### Processing a New Dry Commit
 
-Argo CD will then group those sources by the configured `writeTo` repoURL and targetBranch.
+On noticing a new dry commit, Argo CD will first collect all Applications which have the same `drySources[0]` repo and targetRevision.
+
+Argo CD will then group those sources by the configured `writeTo` targetBranch.
+
+```go
+package hydrator
+
+import "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+
+type DrySource struct {
+	repoURL        string
+	targetRevision string
+}
+
+type HydratedSource struct {
+	targetBranch string
+}
+
+var appGroups map[DrySource]map[HydratedSource][]v1alpha1.Application
+```
 
 Then Argo CD will loop over the apps in each group. For each group, it will run manifest hydration on the configured `drySources[0].path` and write the result to the configured `writeTo.path`. After looping over all apps in the group and writing all their manifests, it will commit the changes to the configured `writeTo` repoURL and targetBranch. Finally, it will push those changes to git. Then it will repeat this process for the remaining groups. 
 
-The actual push operation should be delegated to some system outside the application controller. Communication may occur via some shared DB (maybe Redis) or via network, e.g. gRPC.
+The actual push operation should be delegated to the [commit server](./manifest-hydrator/commit-server/README.md).
 
 To understand how this would work for a simple dev/test/prod setup with two regions, consider this example:
 
@@ -189,6 +211,8 @@ spec:
 
 Each commit to the dry branch will result in a commit to up to three branches. Each commit to an environment branch will contain changes for west, east, or both (depending on which is affected). Changes originating from a single dry commit are always grouped into a single hydrated commit.
 
+### Commit Metadata
+
 Each output directory should contain two files: manifest.yaml and README.md. manifest.yaml should contain the plain hydrated manifests. The resources should be sorted by namespace, name, group, and kind (in that order).
 
 The README will be built using the following template:
@@ -253,7 +277,11 @@ The hydrator will also write a `hydrator.metadata` file containing a JSON repres
 
 ```json
 {
-  
+  "command": "kustomize build .",
+  "drySHA": "ab2382f",
+  "commitAuthor": "Michael Crenshaw <michael@example.com>",
+  "commitMessage": "chore: bump Helm dependency chart to 32.1.12",
+  "repoURL": "https://github.com/argoproj/argocd-example-apps"
 }
 ```
 
@@ -264,26 +292,124 @@ A single call will bundle all the changes destined for a given targetBranch.
 It's the application controller's job to ensure that the user has write access to the repo before making the call.
 
 ```protobuf
-message CommitManifestsFromDryCommit {
+// CommitManifests represents the caller's request for some Kubernetes manifests to be pushed to a git repository.
+message CommitManifests {
+  // repoURL is the URL of the repo we're pushing to. HTTPS or SSH URLs are acceptable.
   required string repoURL = 1;
+  // targetBranch is the name of the branch we're pushing to.
   required string targetBranch = 2;
+  // drySHA is the full SHA256 hash of the "dry commit" from which the manifests were hydrated.
   required string drySHA = 3;
+  // commitAuthor is the name of the author of the dry commit.
   required string commitAuthor = 4;
+  // commitMessage is the short commit message from the dry commit.
   required string commitMessage = 5;
+  // commitTime is the dry commit timestamp.
   required string commitTime = 6;
-  repeated CommitManifestDetails details = 7;
+  // details holds the information about the actual hydrated manifests.
+  repeated CommitPathDetails details = 7;
 }
 
-message CommitManifestDetails {
+// CommitManifestDetails represents the details about a 
+message CommitPathDetails {
+  // path is the path to the directory to which these manifests should be written.
   required string path = 1;
+  // manifests is a list of JSON documents representing the Kubernetes manifests.
   repeated string manifests = 2;
-  string readme = 3;
+  // readme is a string which will be written to a README.md alongside the manifest.yaml. 
+  required string readme = 3;
+}
+
+message CommitManifestsResponse {
 }
 ```
+
+#### CLI/UI Support
+
+It should be easy to enable manifest hydration via the CLI or the UI. 
+
+Consider the following app:
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: dev-west
+spec:
+  sources:
+  - repoURL: https://github.com/argoproj/argocd-example-apps
+    helm:
+      valueFiles:
+        - $values/values-dev.yaml
+  - repoURL: https://github.com/argoproj/argocd-example-apps-values
+    targetRevision: main
+    path: environments/dev/west
+    ref: values
+```
+
+```bash
+argocd app dev-west enable-hydrator --target-branch environments/prd --target-path west --primary-source-index 1
+```
+
+The `--primary-source-index 1` is necessary to make the Helm values repo the primary source of truth for the app, i.e. we will track that branch as the source of new dry commits for hydration.
+
+The command will need to print the following instructions before actually making the change:
+
+```text
+To finish enabling manifest hydration, you will need to commit changes to git. In the meantime, auto-sync should be disabled.
+
+This Application is managed by an ApplicationSet. If you have not configured the ApplicationSet to ignore the auto-sync setting, auto-sync may be re-enabled automatically.
+
+Continue to disable auto-sync (we will re-enable it later)? [Y/n] Y
+
+Waiting one second to make sure the change applied... success, auto-sync is disabled!
+
+Before finalizing the change, please commit the following to the `.argocd-source` file in https://github.com/argoproj/argocd-example-apps-values under the `environments/dev/west` directory (if multiple apps use that directory, you can use `.argocd-source-dev-west`).
+
+sources:
+- ref: values
+- helm:
+    valueFiles:
+    - $values/values-dev.yaml
+
+These settings can no longer be managed in the Application CR and must instead be committed to git.
+
+After committing the change, confirm to continue. If you choose to cancel, we will pause to re-enable auto-sync. [Y/n] Y
+
+Updating the Application CR to use manifest hydration. The Application may appear unhealthy for a moment while the manifests are initially hydrated and pushed to the environments/dev branch...
+
+The Application has been updated and is now synced to environments/dev. Waiting for the Application to become healthy...
+
+The Application is healthy, and migration is complete!
+```
+
+The CLI should have a mode to do the git push bit on the user's behalf to avoid the interactive mode.
+
+The final Application manifest should look like this:
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: dev-west
+spec:
+  sourceHydrator:
+    drySources:
+    - repoURL: https://github.com/argoproj/argocd-example-apps
+      targetRevision: main
+      path: environments/dev/west
+    writeTo:
+      targetBranch: environments/dev
+      path: west
+```
+
+A similar user experience should be made available via the UI.
 
 ### Use cases
 
 #### Use case 1:
+
+An organization with strong requirements around change auditing might enable manifest hydration in order to generate a full history of changes.
 
 #### Use case 2:
 
