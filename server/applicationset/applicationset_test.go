@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	appsetmocks "github.com/argoproj/argo-cd/v2/server/applicationset/mocks"
+	broadcastermocks "github.com/argoproj/argo-cd/v2/util/broadcast/mocks"
 	"github.com/argoproj/pkg/sync"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -150,7 +150,7 @@ func newTestAppSetServerWithEnforcerConfigure(f func(*rbac.Enforcer), namespace 
 		panic("Timed out waiting for caches to sync")
 	}
 
-	broadcaster := new(appsetmocks.Broadcaster)
+	broadcaster := new(broadcastermocks.Broadcaster[appsv1.ApplicationSetWatchEvent])
 	broadcaster.On("Subscribe", mock.Anything, mock.Anything).Return(func() {}).Run(func(args mock.Arguments) {
 		// Simulate the broadcaster notifying the subscriber of an applicationset update.
 		// The second parameter to Subscribe is filters. For the purposes of tests, we ignore the filters. Future tests

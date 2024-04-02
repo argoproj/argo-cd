@@ -47,12 +47,12 @@ import (
 	appinformer "github.com/argoproj/argo-cd/v2/pkg/client/informers/externalversions"
 	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/v2/reposerver/apiclient/mocks"
-	appmocks "github.com/argoproj/argo-cd/v2/server/application/mocks"
 	servercache "github.com/argoproj/argo-cd/v2/server/cache"
 	"github.com/argoproj/argo-cd/v2/server/rbacpolicy"
 	"github.com/argoproj/argo-cd/v2/test"
 	"github.com/argoproj/argo-cd/v2/util/argo"
 	"github.com/argoproj/argo-cd/v2/util/assets"
+	broadcastermocks "github.com/argoproj/argo-cd/v2/util/broadcast/mocks"
 	"github.com/argoproj/argo-cd/v2/util/cache"
 	cacheutil "github.com/argoproj/argo-cd/v2/util/cache"
 	"github.com/argoproj/argo-cd/v2/util/cache/appstate"
@@ -221,7 +221,7 @@ func newTestAppServerWithEnforcerConfigure(f func(*rbac.Enforcer), t *testing.T,
 		panic("Timed out waiting for caches to sync")
 	}
 
-	broadcaster := new(appmocks.Broadcaster)
+	broadcaster := new(broadcastermocks.Broadcaster[appsv1.ApplicationWatchEvent])
 	broadcaster.On("Subscribe", mock.Anything, mock.Anything).Return(func() {}).Run(func(args mock.Arguments) {
 		// Simulate the broadcaster notifying the subscriber of an application update.
 		// The second parameter to Subscribe is filters. For the purposes of tests, we ignore the filters. Future tests
@@ -401,7 +401,7 @@ func newTestAppServerWithEnforcerConfigureWithBenchmark(f func(*rbac.Enforcer), 
 		panic("Timed out waiting for caches to sync")
 	}
 
-	broadcaster := new(appmocks.Broadcaster)
+	broadcaster := new(broadcastermocks.Broadcaster[appsv1.ApplicationWatchEvent])
 	broadcaster.On("Subscribe", mock.Anything, mock.Anything).Return(func() {}).Run(func(args mock.Arguments) {
 		// Simulate the broadcaster notifying the subscriber of an application update.
 		// The second parameter to Subscribe is filters. For the purposes of tests, we ignore the filters. Future tests
