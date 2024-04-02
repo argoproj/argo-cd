@@ -2136,7 +2136,12 @@ func (s *Server) getUnstructuredLiveResourceOrApp(ctx context.Context, rbacReque
 		if err != nil {
 			return nil, nil, nil, nil, fmt.Errorf("error getting application cluster config: %w", err)
 		}
+		app.TypeMeta = metav1.TypeMeta{
+			Kind:       applicationType.ApplicationKind,
+			APIVersion: "argoproj.io/v1alpha1",
+		}
 		obj, err = kube.ToUnstructured(app)
+
 	} else {
 		res, config, app, err = s.getAppLiveResource(ctx, rbacRequest, q)
 		if err != nil {

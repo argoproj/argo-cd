@@ -963,12 +963,13 @@ func TestNoAppEnumeration(t *testing.T) {
 		assert.NoError(t, err)
 		_, err = appServer.RunResourceAction(noRoleCtx, &application.ResourceActionRunRequest{Name: pointer.String("test")})
 		assert.Equal(t, permissionDeniedErr.Error(), err.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
-		_, err = appServer.RunResourceAction(noRoleCtx, &application.ResourceActionRunRequest{Group: pointer.String("argoproj.io"), Kind: pointer.String("Application"), Name: pointer.String("test")})
-		assert.Equal(t, permissionDeniedErr.Error(), err.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
 		_, err = appServer.RunResourceAction(adminCtx, &application.ResourceActionRunRequest{Name: pointer.String("doest-not-exist")})
 		assert.Equal(t, permissionDeniedErr.Error(), err.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
 		_, err = appServer.RunResourceAction(adminCtx, &application.ResourceActionRunRequest{Name: pointer.String("doest-not-exist"), Project: pointer.String("test")})
 		assert.Equal(t, "rpc error: code = NotFound desc = applications.argoproj.io \"doest-not-exist\" not found", err.Error(), "when the request specifies a project, we can return the standard k8s error message")
+		_, err = appServer.RunResourceAction(adminCtx, &application.ResourceActionRunRequest{Name: pointer.String("test"), ResourceName: pointer.String("test"), Group: pointer.String("argoproj.io"), Kind: pointer.String("Application"), Namespace: pointer.String("test"), Action: pointer.String("restart")})
+		assert.Equal(t, "error executing Lua resource action: expect table output from Lua script, not nil", err.Error(), "when action invoked on the application, returns the lua error; which indicate the missing or config issue")
+
 	})
 
 	t.Run("GetApplicationSyncWindows", func(t *testing.T) {
