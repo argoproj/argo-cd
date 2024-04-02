@@ -245,7 +245,9 @@ To reproduce the manifest hydration, do the following:
 git clone {{ .repoURL }}
 cd {{ .repoName }}
 git checkout {{ .dryShortSHA }}
-{{ .command }}
+{{ range $i, $command := .commands }}
+{{ $command }}
+{{ end }}
 ```
 ````
 
@@ -269,6 +271,7 @@ To reproduce the manifest hydration, do the following:
 git clone https://github.com/argoproj/argocd-example-apps
 cd argocd-example-apps
 git checkout ab2382f
+kustomize edit set image my-app:v0.0.2
 kustomize build environments/dev/west
 ```
 ````
@@ -277,7 +280,7 @@ The hydrator will also write a `hydrator.metadata` file containing a JSON repres
 
 ```json
 {
-  "command": "kustomize build .",
+  "commands": ["kustomize edit set image my-app:v0.0.2", "kustomize build ."],
   "drySHA": "ab2382f",
   "commitAuthor": "Michael Crenshaw <michael@example.com>",
   "commitMessage": "chore: bump Helm dependency chart to 32.1.12",
