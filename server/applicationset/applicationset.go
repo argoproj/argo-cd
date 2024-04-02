@@ -31,6 +31,7 @@ import (
 	applisters "github.com/argoproj/argo-cd/v2/pkg/client/listers/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/server/rbacpolicy"
 	"github.com/argoproj/argo-cd/v2/util/argo"
+	"github.com/argoproj/argo-cd/v2/util/broadcast"
 	"github.com/argoproj/argo-cd/v2/util/collections"
 	"github.com/argoproj/argo-cd/v2/util/db"
 	"github.com/argoproj/argo-cd/v2/util/env"
@@ -76,7 +77,9 @@ func NewServer(
 	enabledNamespaces []string,
 ) applicationset.ApplicationSetServiceServer {
 	if appsetBroadcaster == nil {
-		appsetBroadcaster = &broadcasterHandler{}
+		appsetBroadcaster = broadcast.NewHandler(func(appset *v1alpha1.ApplicationSet, eventType watch.EventType) *v1alpha1.ApplicationSetWatchEvent {
+			return &v1alpha1.ApplicationSetWatchEvent{ApplicationSet: *appset, Type: eventType}
+		})
 	}
 	_, err := appsetInformer.AddEventHandler(appsetBroadcaster)
 	if err != nil {
@@ -247,7 +250,9 @@ func (s *Server) Watch(q *applicationset.ApplicationSetWatchQuery, ws applicatio
 }
 
 func (s *Server) isApplicationSetPermitted(selector labels.Selector, minVersion int, claims any, appsetName, appsetNs string, projects map[string]bool, a v1alpha1.ApplicationSet) bool {
+	logCtx := log.WithField("applicationset", appsetName)
 	if len(projects) > 0 && !projects[a.Spec.Template.Spec.GetProject()] {
+		logCtx.Debugf("Project %s is not permitted.", a.Spec.Template.Spec.GetProject())
 		return false
 	}
 
@@ -264,7 +269,7 @@ func (s *Server) isApplicationSetPermitted(selector labels.Selector, minVersion 
 	}
 
 	if !s.enf.Enforce(claims, rbacpolicy.ResourceApplicationSets, rbacpolicy.ActionGet, a.RBACName(s.ns)) {
-		// do not emit appsets user does not have accessing
+		// do not emit appsets user does not have access
 		return false
 	}
 
