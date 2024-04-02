@@ -195,13 +195,17 @@ func (m *appStateManager) GetRepoObjs(app *v1alpha1.Application, sources []v1alp
 			return nil, nil, fmt.Errorf("failed to get Kustomize options for source %d of %d: %w", i+1, len(sources), err)
 		}
 
-		val, ok := app.Annotations[v1alpha1.AnnotationKeyManifestGeneratePaths]
-		if !source.IsHelm() && app.Status.Sync.Revision != "" && ok && val != "" {
-			syncedRevision := app.Status.Sync.Revision
-			if app.Spec.HasMultipleSources() {
+		syncedRevision := app.Status.Sync.Revision
+		if app.Spec.HasMultipleSources() {
+			if i < len(app.Status.Sync.Revisions) {
 				syncedRevision = app.Status.Sync.Revisions[i]
+			} else {
+				syncedRevision = ""
 			}
+		}
 
+		val, ok := app.Annotations[v1alpha1.AnnotationKeyManifestGeneratePaths]
+		if !source.IsHelm() && syncedRevision != "" && ok && val != "" {
 			// Validate the manifest-generate-path annotation to avoid generating manifests if it has not changed.
 			_, err = repoClient.UpdateRevisionForPaths(context.Background(), &apiclient.UpdateRevisionForPathsRequest{
 				Repo:               repo,
