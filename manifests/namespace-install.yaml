@@ -857,7 +857,7 @@ spec:
               key: dexserver.disable.tls
               name: argocd-cmd-params-cm
               optional: true
-        image: ghcr.io/dexidp/dex:v2.37.0
+        image: ghcr.io/dexidp/dex:v2.38.0
         imagePullPolicy: Always
         name: dex
         ports:
@@ -1248,6 +1248,12 @@ spec:
           valueFrom:
             configMapKeyRef:
               key: reposerver.disable.helm.manifest.max.extracted.size
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_REVISION_CACHE_LOCK_TIMEOUT
+          valueFrom:
+            configMapKeyRef:
+              key: reposerver.revision.cache.lock.timeout
               name: argocd-cmd-params-cm
               optional: true
         - name: ARGOCD_GIT_MODULES_ENABLED

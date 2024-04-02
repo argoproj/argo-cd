@@ -286,7 +286,7 @@ export const ApplicationParameters = (props: {
     } else if (props.details.type === 'Plugin') {
         attributes.push({
             title: 'NAME',
-            view: <div style={{marginTop: 15, marginBottom: 5}}>{ValueEditor(app.spec.source.plugin && app.spec.source.plugin.name, null)}</div>,
+            view: <div style={{marginTop: 15, marginBottom: 5}}>{ValueEditor(app.spec.source?.plugin?.name, null)}</div>,
             edit: (formApi: FormApi) => (
                 <DataLoader load={() => services.authService.plugins()}>
                     {(plugins: Plugin[]) => (
@@ -299,12 +299,11 @@ export const ApplicationParameters = (props: {
             title: 'ENV',
             view: (
                 <div style={{marginTop: 15}}>
-                    {app.spec.source.plugin &&
-                        (app.spec.source.plugin.env || []).map(val => (
-                            <span key={val.name} style={{display: 'block', marginBottom: 5}}>
-                                {NameValueEditor(val, null)}
-                            </span>
-                        ))}
+                    {(app.spec.source?.plugin?.env || []).map(val => (
+                        <span key={val.name} style={{display: 'block', marginBottom: 5}}>
+                            {NameValueEditor(val, null)}
+                        </span>
+                    ))}
                 </div>
             ),
             edit: (formApi: FormApi) => <FormField field='spec.source.plugin.env' formApi={formApi} component={ArrayInputField} />
@@ -315,7 +314,7 @@ export const ApplicationParameters = (props: {
                 parametersSet.add(announcement.name);
             }
         }
-        if (app.spec.source.plugin?.parameters) {
+        if (app.spec.source?.plugin?.parameters) {
             for (const appParameter of app.spec.source.plugin.parameters) {
                 parametersSet.add(appParameter.name);
             }
@@ -326,7 +325,7 @@ export const ApplicationParameters = (props: {
         }
         parametersSet.forEach(name => {
             const announcement = props.details.plugin.parametersAnnouncement?.find(param => param.name === name);
-            const liveParam = app.spec.source.plugin?.parameters?.find(param => param.name === name);
+            const liveParam = app.spec.source?.plugin?.parameters?.find(param => param.name === name);
             const pluginIcon =
                 announcement && liveParam ? 'This parameter has been provided by plugin, but is overridden in application manifest.' : 'This parameter is provided by the plugin.';
             const isPluginPar = !!announcement;
