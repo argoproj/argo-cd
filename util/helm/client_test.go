@@ -37,12 +37,12 @@ func (f *fakeIndexCache) GetHelmIndex(_ string, indexData *[]byte) error {
 func TestIndex(t *testing.T) {
 	t.Run("Invalid", func(t *testing.T) {
 		client := NewClient("", Creds{}, false, "")
-		_, err := client.GetIndex(false)
+		_, err := client.GetIndex(false, 10000)
 		assert.Error(t, err)
 	})
 	t.Run("Stable", func(t *testing.T) {
 		client := NewClient("https://argoproj.github.io/argo-helm", Creds{}, false, "")
-		index, err := client.GetIndex(false)
+		index, err := client.GetIndex(false, 10000)
 		assert.NoError(t, err)
 		assert.NotNil(t, index)
 	})
@@ -51,7 +51,7 @@ func TestIndex(t *testing.T) {
 			Username: "my-password",
 			Password: "my-username",
 		}, false, "")
-		index, err := client.GetIndex(false)
+		index, err := client.GetIndex(false, 10000)
 		assert.NoError(t, err)
 		assert.NotNil(t, index)
 	})
@@ -63,12 +63,18 @@ func TestIndex(t *testing.T) {
 		require.NoError(t, err)
 
 		client := NewClient("https://argoproj.github.io/argo-helm", Creds{}, false, "", WithIndexCache(&fakeIndexCache{data: data.Bytes()}))
-		index, err := client.GetIndex(false)
+		index, err := client.GetIndex(false, 10000)
 
 		assert.NoError(t, err)
 		assert.Equal(t, fakeIndex, *index)
 	})
 
+	t.Run("Limited", func(t *testing.T) {
+		client := NewClient("https://argoproj.github.io/argo-helm", Creds{}, false, "")
+		_, err := client.GetIndex(false, 100)
+
+		assert.ErrorContains(t, err, "unexpected end of stream")
+	})
 }
 
 func Test_nativeHelmChart_ExtractChart(t *testing.T) {
