@@ -32,7 +32,7 @@ message ApplicationSetListQuery {
 // ApplicationSetEventsQuery is a query for applicationset resource events
 message ApplicationSetResourceEventsQuery {
 	string name = 1;
-	string appsetNamespace = 5;
+	string appsetNamespace = 2;
 }
 
 message ApplicationSetWatchQuery {
