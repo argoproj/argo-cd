@@ -83,7 +83,7 @@ type Server struct {
 	appclientset      appclientset.Interface
 	appLister         applisters.ApplicationLister
 	appInformer       cache.SharedIndexInformer
-	appBroadcaster    Broadcaster
+	appBroadcaster    broadcast.Broadcaster[appv1.ApplicationWatchEvent]
 	repoClientset     apiclient.Clientset
 	kubectl           kube.Kubectl
 	db                db.ArgoDB
@@ -103,7 +103,7 @@ func NewServer(
 	appclientset appclientset.Interface,
 	appLister applisters.ApplicationLister,
 	appInformer cache.SharedIndexInformer,
-	appBroadcaster Broadcaster,
+	appBroadcaster broadcast.Broadcaster[appv1.ApplicationWatchEvent],
 	repoClientset apiclient.Clientset,
 	cache *servercache.Cache,
 	kubectl kube.Kubectl,

@@ -52,7 +52,7 @@ type Server struct {
 	kubeclientset     kubernetes.Interface
 	appclientset      appclientset.Interface
 	appsetInformer    cache.SharedIndexInformer
-	appsetBroadcaster Broadcaster
+	appsetBroadcaster broadcast.Broadcaster[v1alpha1.ApplicationSetWatchEvent]
 	appsetLister      applisters.ApplicationSetLister
 	projLister        applisters.AppProjectNamespaceLister
 	auditLogger       *argo.AuditLogger
@@ -68,7 +68,7 @@ func NewServer(
 	enf *rbac.Enforcer,
 	appclientset appclientset.Interface,
 	appsetInformer cache.SharedIndexInformer,
-	appsetBroadcaster Broadcaster,
+	appsetBroadcaster broadcast.Broadcaster[v1alpha1.ApplicationSetWatchEvent],
 	appsetLister applisters.ApplicationSetLister,
 	projLister applisters.AppProjectNamespaceLister,
 	settings *settings.SettingsManager,
@@ -172,9 +172,13 @@ func (s *Server) List(ctx context.Context, q *applicationset.ApplicationSetListQ
 
 }
 
+// Watch returns stream of applicationset change events
 func (s *Server) Watch(q *applicationset.ApplicationSetWatchQuery, ws applicationset.ApplicationSetService_WatchServer) error {
 	ctx := ws.Context()
+	logCtx := log.NewEntry(log.New())
+
 	namespace := s.appsetNamespaceOrDefault(q.AppsetNamespace)
+	logCtx = logCtx.WithField("namespace", namespace)
 
 	if !s.isNamespaceEnabled(namespace) {
 		return security.NamespaceNotPermittedError(namespace)
@@ -191,9 +195,8 @@ func (s *Server) Watch(q *applicationset.ApplicationSetWatchQuery, ws applicatio
 		return fmt.Errorf("error parsing the selector: %w", err)
 	}
 
-	logCtx := log.NewEntry(log.New())
 	if q.Name != "" {
-		logCtx = logCtx.WithField("application", q.GetName())
+		logCtx = logCtx.WithField("applicationset", q.GetName())
 	}
 
 	minVersion := 0
@@ -252,23 +255,28 @@ func (s *Server) Watch(q *applicationset.ApplicationSetWatchQuery, ws applicatio
 func (s *Server) isApplicationSetPermitted(selector labels.Selector, minVersion int, claims any, appsetName, appsetNs string, projects map[string]bool, a v1alpha1.ApplicationSet) bool {
 	logCtx := log.WithField("applicationset", appsetName)
 	if len(projects) > 0 && !projects[a.Spec.Template.Spec.GetProject()] {
-		logCtx.Debugf("Project %s is not permitted.", a.Spec.Template.Spec.GetProject())
+		logCtx.Debugf("Project %s is not watched.", a.Spec.Template.Spec.GetProject())
 		return false
 	}
 
 	if appVersion, err := strconv.Atoi(a.ResourceVersion); err == nil && appVersion < minVersion {
+		logCtx.Debugf("Version is lower than minimum version (%d < %d).", appVersion, minVersion)
 		return false
 	}
+
 	matchedEvent := (appsetName == "" || (a.Name == appsetName && a.Namespace == appsetNs)) && selector.Matches(labels.Set(a.Labels))
 	if !matchedEvent {
+		logCtx.Debugf("Event does not match selectors.")
 		return false
 	}
 
 	if !s.isNamespaceEnabled(a.Namespace) {
+		logCtx.Debugf("Namespace %s is not enabled.", a.Namespace)
 		return false
 	}
 
 	if !s.enf.Enforce(claims, rbacpolicy.ResourceApplicationSets, rbacpolicy.ActionGet, a.RBACName(s.ns)) {
+		logCtx.Debugf("User does not have access to the ApplicationSet.")
 		// do not emit appsets user does not have access
 		return false
 	}
