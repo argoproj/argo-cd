@@ -75,7 +75,7 @@ require (
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.8.4
 	github.com/valyala/fasttemplate v1.2.2
-	github.com/whilp/git-urls v1.0.0
+	github.com/chainguard-dev/git-urls v1.0.2
 	github.com/xanzy/go-gitlab v0.91.1
 	github.com/yuin/gopher-lua v1.1.0
 	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.42.0
