@@ -242,6 +242,10 @@ cli: test-tools-image
 cli-local: clean-debug
 	CGO_ENABLED=${CGO_FLAG} GODEBUG="tarinsecurepath=0,zipinsecurepath=0" go build -v -ldflags '${LDFLAGS}' -o ${DIST_DIR}/${CLI_NAME} ./cmd
 
+.PHONY: cli-local-install
+cli-local-install: cli-local
+	cp ${DIST_DIR}/${CLI_NAME} ${GOPATH}/bin
+
 .PHONY: gen-resources-cli-local
 gen-resources-cli-local: clean-debug
 	CGO_ENABLED=${CGO_FLAG} GODEBUG="tarinsecurepath=0,zipinsecurepath=0" go build -v -ldflags '${LDFLAGS}' -o ${DIST_DIR}/${GEN_RESOURCES_CLI_NAME} ./hack/gen-resources/cmd
