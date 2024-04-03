@@ -207,37 +207,9 @@ Each commit to the dry branch will result in a commit to up to three branches. E
 
 ### Handling External Values Files
 
-Argo CD's support for multiple sources and especially external values files is very popular, so this proposal must provide satisfactory support for that feature.
+Since only one source may be used in as the dry source, the multi-source approach to external Helm values files will not work here. Instead, we'll recommend that users use the umbrella chart approach. The main reasons for multi-source as an alternative were convenience (no need to maintain the parent chart) and resolving issues with authentication to dependency charts. We believe the simplification is worth the cost of convenience, and we can address the auth issues as standalone bugs.
 
-Suppose a user has an application defined like this:
-
-```yaml
-apiVersion: argoproj.io/v1alpha1
-kind: Application
-spec:
-  sources:
-  - repoURL: 'https://prometheus-community.github.io/helm-charts'
-    chart: prometheus
-    targetRevision: 15.7.1
-    helm:
-      valueFiles:
-      - $values/charts/prometheus/values.yaml
-  - repoURL: 'https://git.example.com/org/value-files.git'
-    targetRevision: dev
-    ref: values
-```
-
-The equivalent hydrated-source manifest would look like this:
-
-```yaml
-apiVersion: argoproj.io/v1alpha1
-kind: Application
-spec:
-  sourceHydrator:
-    drySource:
-      repoURL: 'https://git.example.com/org/value-files.git'
-      targetRevision: dev
-```
+An earlier iteration of this proposal attempted to preserve the multi-source style of external value file inclusion by introducing a "magic" `.argocd-hydrator.yaml` file containing `additionalSources` to reference the Helm chart. In the end, it felt like we were re-implementing Helm's dependencies feature or git submodules. It's better to just rely on one of those existing tools.
 
 ### Commit Metadata
 
