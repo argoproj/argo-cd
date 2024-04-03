@@ -66,17 +66,11 @@ spec:
   # The sourceHydrator field is mutually-exclusive with `source` and with `sources`. If this field is configured, we 
   # should either throw an error or ignore the other two.
   sourceHydrator:
-    drySources:
-    - repoURL: https://github.com/argoproj/argocd-example-apps
+    drySource:
+      repoURL: https://github.com/argoproj/argocd-example-apps
       targetRevision: main
       # This assumes the Application's environments are modeled as directories.
       path: environments/e2e
-      #chart: my-chart # if it’s a Helm chart, but the first source is only allowed to be a git repo
-      # Hydrator-specific fields like “helm,” “kustomize,” “directory,” and
-      # “plugin” are not available here. Those source details must be in git,
-      # in a .argocd-source.yaml file.
-      # This is because every change to the manifests must have a 
-      # corresponding dry commit.
     writeTo:
       targetBranch: environments/e2e-next
       path: .
@@ -127,8 +121,8 @@ metadata:
   name: dev-west
 spec:
   sourceHydrator:
-    drySources:
-    - repoURL: https://github.com/argoproj/argocd-example-apps
+    drySource:
+      repoURL: https://github.com/argoproj/argocd-example-apps
       targetRevision: main
       path: environments/dev/west
     writeTo:
@@ -141,10 +135,10 @@ metadata:
   name: dev-east
 spec:
   sourceHydrator:
-    drySources:
-      - repoURL: https://github.com/argoproj/argocd-example-apps
-        targetRevision: main
-        path: environments/dev/east
+    drySource:
+      repoURL: https://github.com/argoproj/argocd-example-apps
+      targetRevision: main
+      path: environments/dev/east
     writeTo:
       targetBranch: environments/dev
       path: east
@@ -156,10 +150,10 @@ metadata:
   name: test-west
 spec:
   sourceHydrator:
-    drySources:
-      - repoURL: https://github.com/argoproj/argocd-example-apps
-        targetRevision: main
-        path: environments/test/west
+    drySource:
+      repoURL: https://github.com/argoproj/argocd-example-apps
+      targetRevision: main
+      path: environments/test/west
     writeTo:
       targetBranch: environments/test
       path: west
@@ -170,10 +164,10 @@ metadata:
   name: test-east
 spec:
   sourceHydrator:
-    drySources:
-      - repoURL: https://github.com/argoproj/argocd-example-apps
-        targetRevision: main
-        path: environments/test/east
+    drySource:
+      repoURL: https://github.com/argoproj/argocd-example-apps
+      targetRevision: main
+      path: environments/test/east
     writeTo:
       targetBranch: environments/prod
       path: east
@@ -185,10 +179,10 @@ metadata:
   name: prod-west
 spec:
   sourceHydrator:
-    drySources:
-      - repoURL: https://github.com/argoproj/argocd-example-apps
-        targetRevision: main
-        path: environments/prod/west
+    drySource:
+      repoURL: https://github.com/argoproj/argocd-example-apps
+      targetRevision: main
+      path: environments/prod/west
     writeTo:
       targetBranch: environments/prod
       path: west
@@ -199,10 +193,10 @@ metadata:
   name: prod-east
 spec:
   sourceHydrator:
-    drySources:
-      - repoURL: https://github.com/argoproj/argocd-example-apps
-        targetRevision: main
-        path: environments/prod/east
+    drySource:
+      repoURL: https://github.com/argoproj/argocd-example-apps
+      targetRevision: main
+      path: environments/prod/east
     writeTo:
       targetBranch: environments/prod
       path: east
@@ -210,6 +204,40 @@ spec:
 ```
 
 Each commit to the dry branch will result in a commit to up to three branches. Each commit to an environment branch will contain changes for west, east, or both (depending on which is affected). Changes originating from a single dry commit are always grouped into a single hydrated commit.
+
+### Handling External Values Files
+
+Argo CD's support for multiple sources and especially external values files is very popular, so this proposal must provide satisfactory support for that feature.
+
+Suppose a user has an application defined like this:
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+spec:
+  sources:
+  - repoURL: 'https://prometheus-community.github.io/helm-charts'
+    chart: prometheus
+    targetRevision: 15.7.1
+    helm:
+      valueFiles:
+      - $values/charts/prometheus/values.yaml
+  - repoURL: 'https://git.example.com/org/value-files.git'
+    targetRevision: dev
+    ref: values
+```
+
+The equivalent hydrated-source manifest would look like this:
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+spec:
+  sourceHydrator:
+    drySource:
+      repoURL: 'https://git.example.com/org/value-files.git'
+      targetRevision: dev
+```
 
 ### Commit Metadata
 
@@ -397,7 +425,7 @@ metadata:
   name: dev-west
 spec:
   sourceHydrator:
-    drySources:
+    drySource:
     - repoURL: https://github.com/argoproj/argocd-example-apps
       targetRevision: main
       path: environments/dev/west
