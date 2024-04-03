@@ -379,11 +379,9 @@ func (s *Server) Create(ctx context.Context, q *application.ApplicationCreateReq
 
 func (s *Server) queryRepoServer(ctx context.Context, a *appv1.Application, action func(
 	client apiclient.RepoServerServiceClient,
-	repo *appv1.Repository,
 	helmRepos []*appv1.Repository,
 	helmCreds []*appv1.RepoCreds,
 	helmOptions *appv1.HelmOptions,
-	kustomizeOptions *appv1.KustomizeOptions,
 	enabledSourceTypes map[string]bool,
 ) error) error {
 
@@ -392,18 +390,7 @@ func (s *Server) queryRepoServer(ctx context.Context, a *appv1.Application, acti
 		return fmt.Errorf("error creating repo server client: %w", err)
 	}
 	defer ioutil.Close(closer)
-	repo, err := s.db.GetRepository(ctx, a.Spec.GetSource().RepoURL)
-	if err != nil {
-		return fmt.Errorf("error getting repository: %w", err)
-	}
-	kustomizeSettings, err := s.settingsMgr.GetKustomizeSettings()
-	if err != nil {
-		return fmt.Errorf("error getting kustomize settings: %w", err)
-	}
-	kustomizeOptions, err := kustomizeSettings.GetOptions(a.Spec.GetSource())
-	if err != nil {
-		return fmt.Errorf("error getting kustomize settings options: %w", err)
-	}
+
 	proj, err := argo.GetAppProject(a, applisters.NewAppProjectLister(s.projInformer.GetIndexer()), s.ns, s.settingsMgr, s.db, ctx)
 	if err != nil {
 		if apierr.IsNotFound(err) {
@@ -437,7 +424,7 @@ func (s *Server) queryRepoServer(ctx context.Context, a *appv1.Application, acti
 	if err != nil {
 		return fmt.Errorf("error getting settings enabled source types: %w", err)
 	}
-	return action(client, repo, permittedHelmRepos, permittedHelmCredentials, helmOptions, kustomizeOptions, enabledSourceTypes)
+	return action(client, permittedHelmRepos, permittedHelmCredentials, helmOptions, enabledSourceTypes)
 }
 
 // GetManifests returns application manifests
@@ -450,19 +437,14 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 		return nil, err
 	}
 
-	source := a.Spec.GetSource()
-
 	if !s.isNamespaceEnabled(a.Namespace) {
 		return nil, security.NamespaceNotPermittedError(a.Namespace)
 	}
 
-	var manifestInfo *apiclient.ManifestResponse
+	manifestInfos := make([]*apiclient.ManifestResponse, 0)
 	err = s.queryRepoServer(ctx, a, func(
-		client apiclient.RepoServerServiceClient, repo *appv1.Repository, helmRepos []*appv1.Repository, helmCreds []*appv1.RepoCreds, helmOptions *appv1.HelmOptions, kustomizeOptions *appv1.KustomizeOptions, enableGenerateManifests map[string]bool) error {
-		revision := source.TargetRevision
-		if q.GetRevision() != "" {
-			revision = q.GetRevision()
-		}
+		client apiclient.RepoServerServiceClient, helmRepos []*appv1.Repository, helmCreds []*appv1.RepoCreds, helmOptions *appv1.HelmOptions, enableGenerateManifests map[string]bool) error {
+
 		appInstanceLabelKey, err := s.settingsMgr.GetAppInstanceLabelKey()
 		if err != nil {
 			return fmt.Errorf("error getting app instance label key from settings: %w", err)
@@ -488,26 +470,72 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 			return fmt.Errorf("error getting app project: %w", err)
 		}
 
-		manifestInfo, err = client.GenerateManifest(ctx, &apiclient.ManifestRequest{
-			Repo:               repo,
-			Revision:           revision,
-			AppLabelKey:        appInstanceLabelKey,
-			AppName:            a.InstanceName(s.ns),
-			Namespace:          a.Spec.Destination.Namespace,
-			ApplicationSource:  &source,
-			Repos:              helmRepos,
-			KustomizeOptions:   kustomizeOptions,
-			KubeVersion:        serverVersion,
-			ApiVersions:        argo.APIResourcesToStrings(apiResources, true),
-			HelmRepoCreds:      helmCreds,
-			HelmOptions:        helmOptions,
-			TrackingMethod:     string(argoutil.GetTrackingMethod(s.settingsMgr)),
-			EnabledSourceTypes: enableGenerateManifests,
-			ProjectName:        proj.Name,
-			ProjectSourceRepos: proj.Spec.SourceRepos,
-		})
+		sources := make([]appv1.ApplicationSource, 0)
+		if a.Spec.HasMultipleSources() {
+			for i := range a.Spec.GetSources() {
+				source := a.Spec.GetSources()[i]
+				if q.GetRevisionSourceMappings() != nil && len(q.GetRevisionSourceMappings()) > 0 {
+					if val, ok := q.GetRevisionSourceMappings()[int64(i+1)]; ok {
+						source.TargetRevision = val
+						a.Spec.GetSources()[i] = source
+					}
+				}
+			}
+			sources = a.Spec.GetSources()
+		} else {
+			source := a.Spec.GetSource()
+			if q.GetRevision() != "" {
+				source.TargetRevision = q.GetRevision()
+			}
+			sources = append(sources, source)
+		}
+
+		// Store the map of all sources having ref field into a map for applications with sources field
+		refSources, err := argo.GetRefSources(context.Background(), a.Spec, s.db)
 		if err != nil {
-			return fmt.Errorf("error generating manifests: %w", err)
+			return fmt.Errorf("failed to get ref sources: %v", err)
+		}
+
+		for _, source := range sources {
+			repo, err := s.db.GetRepository(ctx, source.RepoURL)
+			if err != nil {
+				return fmt.Errorf("error getting repository: %w", err)
+			}
+
+			kustomizeSettings, err := s.settingsMgr.GetKustomizeSettings()
+			if err != nil {
+				return fmt.Errorf("error getting kustomize settings: %w", err)
+			}
+
+			kustomizeOptions, err := kustomizeSettings.GetOptions(source)
+			if err != nil {
+				return fmt.Errorf("error getting kustomize settings options: %w", err)
+			}
+
+			manifestInfo, err := client.GenerateManifest(ctx, &apiclient.ManifestRequest{
+				Repo:               repo,
+				Revision:           source.TargetRevision,
+				AppLabelKey:        appInstanceLabelKey,
+				AppName:            a.InstanceName(s.ns),
+				Namespace:          a.Spec.Destination.Namespace,
+				ApplicationSource:  &source,
+				Repos:              helmRepos,
+				KustomizeOptions:   kustomizeOptions,
+				KubeVersion:        serverVersion,
+				ApiVersions:        argo.APIResourcesToStrings(apiResources, true),
+				HelmRepoCreds:      helmCreds,
+				HelmOptions:        helmOptions,
+				TrackingMethod:     string(argoutil.GetTrackingMethod(s.settingsMgr)),
+				EnabledSourceTypes: enableGenerateManifests,
+				ProjectName:        proj.Name,
+				ProjectSourceRepos: proj.Spec.SourceRepos,
+				HasMultipleSources: a.Spec.HasMultipleSources(),
+				RefSources:         refSources,
+			})
+			if err != nil {
+				return fmt.Errorf("error generating manifests: %w", err)
+			}
+			manifestInfos = append(manifestInfos, manifestInfo)
 		}
 		return nil
 	})
@@ -516,26 +544,30 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 		return nil, err
 	}
 
-	for i, manifest := range manifestInfo.Manifests {
-		obj := &unstructured.Unstructured{}
-		err = json.Unmarshal([]byte(manifest), obj)
-		if err != nil {
-			return nil, fmt.Errorf("error unmarshaling manifest into unstructured: %w", err)
-		}
-		if obj.GetKind() == kube.SecretKind && obj.GroupVersionKind().Group == "" {
-			obj, _, err = diff.HideSecretData(obj, nil)
+	manifests := &apiclient.ManifestResponse{}
+	for _, manifestInfo := range manifestInfos {
+		for i, manifest := range manifestInfo.Manifests {
+			obj := &unstructured.Unstructured{}
+			err = json.Unmarshal([]byte(manifest), obj)
 			if err != nil {
-				return nil, fmt.Errorf("error hiding secret data: %w", err)
+				return nil, fmt.Errorf("error unmarshaling manifest into unstructured: %w", err)
 			}
-			data, err := json.Marshal(obj)
-			if err != nil {
-				return nil, fmt.Errorf("error marshaling manifest: %w", err)
+			if obj.GetKind() == kube.SecretKind && obj.GroupVersionKind().Group == "" {
+				obj, _, err = diff.HideSecretData(obj, nil)
+				if err != nil {
+					return nil, fmt.Errorf("error hiding secret data: %w", err)
+				}
+				data, err := json.Marshal(obj)
+				if err != nil {
+					return nil, fmt.Errorf("error marshaling manifest: %w", err)
+				}
+				manifestInfo.Manifests[i] = string(data)
 			}
-			manifestInfo.Manifests[i] = string(data)
 		}
+		manifests.Manifests = manifestInfo.Manifests
 	}
 
-	return manifestInfo, nil
+	return manifests, nil
 }
 
 func (s *Server) GetManifestsWithFiles(stream application.ApplicationService_GetManifestsWithFilesServer) error {
@@ -557,7 +589,7 @@ func (s *Server) GetManifestsWithFiles(stream application.ApplicationService_Get
 
 	var manifestInfo *apiclient.ManifestResponse
 	err = s.queryRepoServer(ctx, a, func(
-		client apiclient.RepoServerServiceClient, repo *appv1.Repository, helmRepos []*appv1.Repository, helmCreds []*appv1.RepoCreds, helmOptions *appv1.HelmOptions, kustomizeOptions *appv1.KustomizeOptions, enableGenerateManifests map[string]bool) error {
+		client apiclient.RepoServerServiceClient, helmRepos []*appv1.Repository, helmCreds []*appv1.RepoCreds, helmOptions *appv1.HelmOptions, enableGenerateManifests map[string]bool) error {
 
 		appInstanceLabelKey, err := s.settingsMgr.GetAppInstanceLabelKey()
 		if err != nil {
@@ -584,6 +616,20 @@ func (s *Server) GetManifestsWithFiles(stream application.ApplicationService_Get
 		proj, err := argo.GetAppProject(a, applisters.NewAppProjectLister(s.projInformer.GetIndexer()), s.ns, s.settingsMgr, s.db, ctx)
 		if err != nil {
 			return fmt.Errorf("error getting app project: %w", err)
+		}
+
+		repo, err := s.db.GetRepository(ctx, a.Spec.GetSource().RepoURL)
+		if err != nil {
+			return fmt.Errorf("error getting repository: %w", err)
+		}
+
+		kustomizeSettings, err := s.settingsMgr.GetKustomizeSettings()
+		if err != nil {
+			return fmt.Errorf("error getting kustomize settings: %w", err)
+		}
+		kustomizeOptions, err := kustomizeSettings.GetOptions(a.Spec.GetSource())
+		if err != nil {
+			return fmt.Errorf("error getting kustomize settings options: %w", err)
 		}
 
 		req := &apiclient.ManifestRequest{
@@ -700,15 +746,25 @@ func (s *Server) Get(ctx context.Context, q *application.ApplicationQuery) (*app
 		// force refresh cached application details
 		if err := s.queryRepoServer(ctx, a, func(
 			client apiclient.RepoServerServiceClient,
-			repo *appv1.Repository,
 			helmRepos []*appv1.Repository,
 			_ []*appv1.RepoCreds,
 			helmOptions *appv1.HelmOptions,
-			kustomizeOptions *appv1.KustomizeOptions,
 			enabledSourceTypes map[string]bool,
 		) error {
 			source := app.Spec.GetSource()
-			_, err := client.GetAppDetails(ctx, &apiclient.RepoServerAppDetailsQuery{
+			repo, err := s.db.GetRepository(ctx, a.Spec.GetSource().RepoURL)
+			if err != nil {
+				return fmt.Errorf("error getting repository: %w", err)
+			}
+			kustomizeSettings, err := s.settingsMgr.GetKustomizeSettings()
+			if err != nil {
+				return fmt.Errorf("error getting kustomize settings: %w", err)
+			}
+			kustomizeOptions, err := kustomizeSettings.GetOptions(a.Spec.GetSource())
+			if err != nil {
+				return fmt.Errorf("error getting kustomize settings options: %w", err)
+			}
+			_, err = client.GetAppDetails(ctx, &apiclient.RepoServerAppDetailsQuery{
 				Repo:               repo,
 				Source:             &source,
 				AppName:            appName,

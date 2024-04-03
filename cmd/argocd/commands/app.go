@@ -1125,6 +1125,8 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 		serverSideGenerate bool
 		localIncludes      []string
 		appNamespace       string
+		revisions          []string
+		sourceIndexes      []int64
 	)
 	shortDesc := "Perform a diff against the target and live state."
 	var command = &cobra.Command{
@@ -1138,6 +1140,11 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				c.HelpFunc()(c, args)
 				os.Exit(2)
 			}
+
+			if len(revisions) != len(sourceIndexes) {
+				errors.CheckError(fmt.Errorf("While using revisions and source-indexes, length of values for both flags should be same."))
+			}
+
 			clientset := headless.NewClientOrDie(clientOpts, c)
 			conn, appIf := clientset.NewApplicationClientOrDie()
 			defer argoio.Close(conn)
@@ -1156,7 +1163,27 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			argoSettings, err := settingsIf.Get(ctx, &settings.SettingsQuery{})
 			errors.CheckError(err)
 			diffOption := &DifferenceOption{}
-			if revision != "" {
+			if app.Spec.HasMultipleSources() && len(revisions) > 0 && len(sourceIndexes) > 0 {
+
+				revisionSourceMappings := make(map[int64]string, 0)
+				for i, index := range sourceIndexes {
+					if index <= 0 {
+						errors.CheckError(fmt.Errorf("source-index cannot be less than or equal to 0. Index starts at 1."))
+					}
+					revisionSourceMappings[index] = revisions[i]
+				}
+
+				q := application.ApplicationManifestQuery{
+					Name:                   &appName,
+					AppNamespace:           &appNs,
+					RevisionSourceMappings: revisionSourceMappings,
+				}
+				res, err := appIf.GetManifests(ctx, &q)
+				errors.CheckError(err)
+
+				diffOption.res = res
+				diffOption.revisionSourceMappings = &revisionSourceMappings
+			} else if revision != "" {
 				q := application.ApplicationManifestQuery{
 					Name:         &appName,
 					Revision:     &revision,
@@ -1206,17 +1233,20 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	command.Flags().BoolVar(&serverSideGenerate, "server-side-generate", false, "Used with --local, this will send your manifests to the server for diffing")
 	command.Flags().StringArrayVar(&localIncludes, "local-include", []string{"*.yaml", "*.yml", "*.json"}, "Used with --server-side-generate, specify patterns of filenames to send. Matching is based on filename and not path.")
 	command.Flags().StringVarP(&appNamespace, "app-namespace", "N", "", "Only render the difference in namespace")
+	command.Flags().StringArrayVar(&revisions, "revisions", []string{}, "Show manifests at specific revisions for the index of sources in source-indexes")
+	command.Flags().Int64SliceVar(&sourceIndexes, "source-indexes", []int64{}, "List of source indexes. Default is empty array. Indexes start at 1.")
 	return command
 }
 
 // DifferenceOption struct to store diff options
 type DifferenceOption struct {
-	local         string
-	localRepoRoot string
-	revision      string
-	cluster       *argoappv1.Cluster
-	res           *repoapiclient.ManifestResponse
-	serversideRes *repoapiclient.ManifestResponse
+	local                  string
+	localRepoRoot          string
+	revision               string
+	cluster                *argoappv1.Cluster
+	res                    *repoapiclient.ManifestResponse
+	serversideRes          *repoapiclient.ManifestResponse
+	revisionSourceMappings *map[int64]string
 }
 
 // findandPrintDiff ... Prints difference between application current state and state stored in git or locally, returns boolean as true if difference is found else returns false
@@ -1228,7 +1258,7 @@ func findandPrintDiff(ctx context.Context, app *argoappv1.Application, proj *arg
 	if diffOptions.local != "" {
 		localObjs := groupObjsByKey(getLocalObjects(ctx, app, proj, diffOptions.local, diffOptions.localRepoRoot, argoSettings.AppLabelKey, diffOptions.cluster.Info.ServerVersion, diffOptions.cluster.Info.APIVersions, argoSettings.KustomizeOptions, argoSettings.TrackingMethod), liveObjs, app.Spec.Destination.Namespace)
 		items = groupObjsForDiff(resources, localObjs, items, argoSettings, app.InstanceName(argoSettings.ControllerNamespace), app.Spec.Destination.Namespace)
-	} else if diffOptions.revision != "" {
+	} else if diffOptions.revision != "" || (diffOptions.revisionSourceMappings != nil) {
 		var unstructureds []*unstructured.Unstructured
 		for _, mfst := range diffOptions.res.Manifests {
 			obj, err := argoappv1.UnmarshalToUnstructured(mfst)
@@ -2708,12 +2738,24 @@ func NewApplicationManifestsCommand(clientOpts *argocdclient.ClientOptions) *cob
 	var (
 		source        string
 		revision      string
+		revisions     []string
+		sourceIndexes []int64
 		local         string
 		localRepoRoot string
 	)
 	var command = &cobra.Command{
 		Use:   "manifests APPNAME",
 		Short: "Print manifests of an application",
+		Example: templates.Examples(`
+  # Get manifests for an application
+  argocd app manifests my-app
+
+  # Get manifests for an application at a specific revision
+  argocd app manifests my-app --revision 0.0.1
+
+  # Get manifests for a multi-source application at specific revisions for specific sources
+  argocd app manifests my-app --revisions 0.0.1 --source-indexes 1 --revisions 0.0.2 --source-indexes 2
+  		`),
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
 
@@ -2721,10 +2763,16 @@ func NewApplicationManifestsCommand(clientOpts *argocdclient.ClientOptions) *cob
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
+
+			if len(revisions) != len(sourceIndexes) {
+				errors.CheckError(fmt.Errorf("While using revisions and source-indexes, length of values for both flags should be same."))
+			}
+
 			appName, appNs := argo.ParseFromQualifiedName(args[0], "")
 			clientset := headless.NewClientOrDie(clientOpts, c)
 			conn, appIf := clientset.NewApplicationClientOrDie()
 			defer argoio.Close(conn)
+
 			resources, err := appIf.ManagedResources(ctx, &application.ResourcesQuery{
 				ApplicationName: &appName,
 				AppNamespace:    &appNs,
@@ -2750,6 +2798,30 @@ func NewApplicationManifestsCommand(clientOpts *argocdclient.ClientOptions) *cob
 
 					proj := getProject(c, clientOpts, ctx, app.Spec.Project)
 					unstructureds = getLocalObjects(context.Background(), app, proj.Project, local, localRepoRoot, argoSettings.AppLabelKey, cluster.ServerVersion, cluster.Info.APIVersions, argoSettings.KustomizeOptions, argoSettings.TrackingMethod)
+				} else if len(revisions) > 0 && len(sourceIndexes) > 0 {
+
+					revisionSourceMappings := make(map[int64]string, 0)
+					for i, index := range sourceIndexes {
+						if index <= 0 {
+							errors.CheckError(fmt.Errorf("source-index cannot be less than or equal to 0, Index starts at 1"))
+						}
+						revisionSourceMappings[index] = revisions[i]
+					}
+
+					q := application.ApplicationManifestQuery{
+						Name:                   &appName,
+						AppNamespace:           &appNs,
+						Revision:               pointer.String(revision),
+						RevisionSourceMappings: revisionSourceMappings,
+					}
+					res, err := appIf.GetManifests(ctx, &q)
+					errors.CheckError(err)
+
+					for _, mfst := range res.Manifests {
+						obj, err := argoappv1.UnmarshalToUnstructured(mfst)
+						errors.CheckError(err)
+						unstructureds = append(unstructureds, obj)
+					}
 				} else if revision != "" {
 					q := application.ApplicationManifestQuery{
 						Name:         &appName,
@@ -2787,6 +2859,8 @@ func NewApplicationManifestsCommand(clientOpts *argocdclient.ClientOptions) *cob
 	}
 	command.Flags().StringVar(&source, "source", "git", "Source of manifests. One of: live|git")
 	command.Flags().StringVar(&revision, "revision", "", "Show manifests at a specific revision")
+	command.Flags().StringArrayVar(&revisions, "revisions", []string{}, "Show manifests at specific revisions for the index of sources in source-indexes")
+	command.Flags().Int64SliceVar(&sourceIndexes, "source-indexes", []int64{}, "List of source indexes. Default is empty array. Indexes start at 1.")
 	command.Flags().StringVar(&local, "local", "", "If set, show locally-generated manifests. Value is the absolute path to app manifests within the manifest repo. Example: '/home/username/apps/env/app-1'.")
 	command.Flags().StringVar(&localRepoRoot, "local-repo-root", ".", "Path to the local repository root. Used together with --local allows setting the repository root. Example: '/home/username/apps'.")
 	return command
