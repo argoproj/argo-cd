@@ -174,6 +174,12 @@ spec:
                 name: argocd-cmd-params-cm
                 key: reposerver.disable.helm.manifest.max.extracted.size
                 optional: true
+          - name: ARGOCD_REVISION_CACHE_LOCK_TIMEOUT
+            valueFrom:
+              configMapKeyRef:
+                key: reposerver.revision.cache.lock.timeout
+                name: argocd-cmd-params-cm
+                optional: true
           - name: ARGOCD_GIT_MODULES_ENABLED
             valueFrom:
               configMapKeyRef:

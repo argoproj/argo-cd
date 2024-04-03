@@ -21,6 +21,7 @@ argocd-repo-server [flags]
       --disable-helm-manifest-max-extracted-size       Disable maximum size of helm manifest archives when extracted
       --disable-tls                                    Disable TLS on the gRPC endpoint
       --helm-manifest-max-extracted-size string        Maximum size of helm manifest archives when extracted (default "1G")
+      --helm-registry-max-index-size string            Maximum size of registry index file (default "1G")
   -h, --help                                           help for argocd-repo-server
       --logformat string                               Set the logging format. One of: text|json (default "text")
       --loglevel string                                Set the logging level. One of: debug|info|warn|error (default "info")
@@ -44,6 +45,7 @@ argocd-repo-server [flags]
       --redisdb int                                    Redis database.
       --repo-cache-expiration duration                 Cache expiration for repo state, incl. app lists, app details, manifest generation, revision meta-data (default 24h0m0s)
       --revision-cache-expiration duration             Cache expiration for cached revision (default 3m0s)
+      --revision-cache-lock-timeout duration           Cache TTL for locks to prevent duplicate requests on revisions, set to 0 to disable (default 10s)
       --sentinel stringArray                           Redis sentinel hostname and port (e.g. argocd-redis-ha-announce-0:6379). 
       --sentinelmaster string                          Redis sentinel master group name. (default "master")
       --streamed-manifest-max-extracted-size string    Maximum size of streamed manifest archives when extracted (default "1G")
