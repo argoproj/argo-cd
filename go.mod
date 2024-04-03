@@ -22,6 +22,7 @@ require (
 	github.com/bradleyfalzon/ghinstallation/v2 v2.6.0
 	github.com/casbin/casbin/v2 v2.77.2
 	github.com/cespare/xxhash/v2 v2.2.0
+	github.com/chainguard-dev/git-urls v1.0.2
 	github.com/coreos/go-oidc/v3 v3.6.0
 	github.com/cyphar/filepath-securejoin v0.2.4
 	github.com/dustin/go-humanize v1.0.1
@@ -75,7 +76,6 @@ require (
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.8.4
 	github.com/valyala/fasttemplate v1.2.2
-	github.com/chainguard-dev/git-urls v1.0.2
 	github.com/xanzy/go-gitlab v0.91.1
 	github.com/yuin/gopher-lua v1.1.0
 	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.42.0
@@ -138,6 +138,7 @@ require (
 	github.com/tidwall/gjson v1.14.4 // indirect
 	github.com/tidwall/match v1.1.1 // indirect
 	github.com/tidwall/pretty v1.2.0 // indirect
+	github.com/whilp/git-urls v0.0.0-20191001220047-6db9661140c0 // indirect
 	go.opencensus.io v0.24.0 // indirect
 	google.golang.org/api v0.132.0 // indirect
 	google.golang.org/genproto v0.0.0-20230822172742-b8732ec3820d // indirect
