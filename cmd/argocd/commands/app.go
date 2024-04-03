@@ -1233,7 +1233,7 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	command.Flags().BoolVar(&serverSideGenerate, "server-side-generate", false, "Used with --local, this will send your manifests to the server for diffing")
 	command.Flags().StringArrayVar(&localIncludes, "local-include", []string{"*.yaml", "*.yml", "*.json"}, "Used with --server-side-generate, specify patterns of filenames to send. Matching is based on filename and not path.")
 	command.Flags().StringVarP(&appNamespace, "app-namespace", "N", "", "Only render the difference in namespace")
-	command.Flags().StringArrayVar(&revisions, "revisions", []string{}, "Show manifests at specific revisions (comma-separated) for the index of sources in source-indexes")
+	command.Flags().StringArrayVar(&revisions, "revisions", []string{}, "Show manifests at specific revisions for the index of sources in source-indexes")
 	command.Flags().Int64SliceVar(&sourceIndexes, "source-indexes", []int64{}, "List of source indexes. Default is empty array. Indexes start at 1.")
 	return command
 }
@@ -2746,6 +2746,16 @@ func NewApplicationManifestsCommand(clientOpts *argocdclient.ClientOptions) *cob
 	var command = &cobra.Command{
 		Use:   "manifests APPNAME",
 		Short: "Print manifests of an application",
+		Example: templates.Examples(`
+  # Get manifests for an application
+  argocd app manifests my-app
+
+  # Get manifests for an application at a specific revision
+  argocd app manifests my-app --revision 0.0.1
+
+  # Get manifests for a multi-source application at specific revisions for specific sources
+  argocd app manifests my-app --revisions 0.0.1 --source-indexes 1 --revisions 0.0.2 --source-indexes 2
+  		`),
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
 
@@ -2849,7 +2859,7 @@ func NewApplicationManifestsCommand(clientOpts *argocdclient.ClientOptions) *cob
 	}
 	command.Flags().StringVar(&source, "source", "git", "Source of manifests. One of: live|git")
 	command.Flags().StringVar(&revision, "revision", "", "Show manifests at a specific revision")
-	command.Flags().StringArrayVar(&revisions, "revisions", []string{}, "Show manifests at specific revisions (comma-separated) for the index of sources in source-indexes")
+	command.Flags().StringArrayVar(&revisions, "revisions", []string{}, "Show manifests at specific revisions for the index of sources in source-indexes")
 	command.Flags().Int64SliceVar(&sourceIndexes, "source-indexes", []int64{}, "List of source indexes. Default is empty array. Indexes start at 1.")
 	command.Flags().StringVar(&local, "local", "", "If set, show locally-generated manifests. Value is the absolute path to app manifests within the manifest repo. Example: '/home/username/apps/env/app-1'.")
 	command.Flags().StringVar(&localRepoRoot, "local-repo-root", ".", "Path to the local repository root. Used together with --local allows setting the repository root. Example: '/home/username/apps'.")
