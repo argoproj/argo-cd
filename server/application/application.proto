@@ -282,6 +282,8 @@ message ResourcesQuery {
 	optional string kind = 6;
 	optional string appNamespace = 7;
 	optional string project = 8;
+	// If the response returns resource hooks
+	optional bool includeResourceHook = 9;
 }
 
 message ManagedResourcesResponse {

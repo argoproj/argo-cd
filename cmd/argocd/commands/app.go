@@ -325,7 +325,7 @@ func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 	var command = &cobra.Command{
 		Use:   "get APPNAME",
 		Short: "Get application details",
-		Example: templates.Examples(`  
+		Example: templates.Examples(`
   # Get basic details about the application "my-app" in wide format
   argocd app get my-app -o wide
 
@@ -349,7 +349,7 @@ func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 
   # Get application details and display them in a tree format
   argocd app get my-app --output tree
-  
+
   # Get application details and display them in a detailed tree format
   argocd app get my-app --output tree=detailed
   		`),
@@ -439,7 +439,7 @@ func NewApplicationLogsCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	var command = &cobra.Command{
 		Use:   "logs APPNAME",
 		Short: "Get logs of application pods",
-		Example: templates.Examples(`  
+		Example: templates.Examples(`
   # Get logs of pods associated with the application "my-app"
   argocd app logs my-app
 
@@ -737,7 +737,7 @@ func NewApplicationSetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 	var command = &cobra.Command{
 		Use:   "set APPNAME",
 		Short: "Set application parameters",
-		Example: templates.Examples(`  
+		Example: templates.Examples(`
   # Set application parameters for the application "my-app"
   argocd app set my-app --parameter key1=value1 --parameter key2=value2
 
@@ -1087,7 +1087,7 @@ func (p *resourceInfoProvider) IsNamespaced(gk schema.GroupKind) (bool, error) {
 	return p.namespacedByGk[gk], nil
 }
 
-func groupObjsByKey(localObs []*unstructured.Unstructured, liveObjs []*unstructured.Unstructured, appNamespace string) map[kube.ResourceKey]*unstructured.Unstructured {
+func groupObjsByKey(localObs []*unstructured.Unstructured, liveObjs []*unstructured.Unstructured, appNamespace string, includeResourceHook bool) map[kube.ResourceKey]*unstructured.Unstructured {
 	namespacedByGk := make(map[schema.GroupKind]bool)
 	for i := range liveObjs {
 		if liveObjs[i] != nil {
@@ -1100,7 +1100,7 @@ func groupObjsByKey(localObs []*unstructured.Unstructured, liveObjs []*unstructu
 	objByKey := make(map[kube.ResourceKey]*unstructured.Unstructured)
 	for i := range localObs {
 		obj := localObs[i]
-		if !(hook.IsHook(obj) || ignore.Ignore(obj)) {
+		if !((hook.IsHook(obj) && !includeResourceHook) || ignore.Ignore(obj)) {
 			objByKey[kube.GetResourceKey(obj)] = obj
 		}
 	}
@@ -1116,15 +1116,16 @@ type objKeyLiveTarget struct {
 // NewApplicationDiffCommand returns a new instance of an `argocd app diff` command
 func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
-		refresh            bool
-		hardRefresh        bool
-		exitCode           bool
-		local              string
-		revision           string
-		localRepoRoot      string
-		serverSideGenerate bool
-		localIncludes      []string
-		appNamespace       string
+		refresh             bool
+		hardRefresh         bool
+		exitCode            bool
+		includeResourceHook bool
+		local               string
+		revision            string
+		localRepoRoot       string
+		serverSideGenerate  bool
+		localIncludes       []string
+		appNamespace        string
 	)
 	shortDesc := "Perform a diff against the target and live state."
 	var command = &cobra.Command{
@@ -1149,7 +1150,8 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			})
 			errors.CheckError(err)
 
-			resources, err := appIf.ManagedResources(ctx, &application.ResourcesQuery{ApplicationName: &appName, AppNamespace: &appNs})
+			resources, err := appIf.ManagedResources(ctx,
+				&application.ResourcesQuery{ApplicationName: &appName, AppNamespace: &appNs, IncludeResourceHook: &includeResourceHook})
 			errors.CheckError(err)
 			conn, settingsIf := clientset.NewSettingsClientOrDie()
 			defer argoio.Close(conn)
@@ -1166,7 +1168,9 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				errors.CheckError(err)
 				diffOption.res = res
 				diffOption.revision = revision
+				diffOption.includeResourceHook = includeResourceHook
 			} else if local != "" {
+				diffOption.includeResourceHook = includeResourceHook
 				if serverSideGenerate {
 					client, err := appIf.GetManifestsWithFiles(ctx, grpc_retry.Disable())
 					errors.CheckError(err)
@@ -1200,6 +1204,7 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	command.Flags().BoolVar(&refresh, "refresh", false, "Refresh application data when retrieving")
 	command.Flags().BoolVar(&hardRefresh, "hard-refresh", false, "Refresh application data as well as target manifests cache")
 	command.Flags().BoolVar(&exitCode, "exit-code", true, "Return non-zero exit code when there is a diff")
+	command.Flags().BoolVar(&includeResourceHook, "include-resource-hook", false, "Display the diff of resource hooks. Used together with --local or --revision")
 	command.Flags().StringVar(&local, "local", "", "Compare live app to a local manifests")
 	command.Flags().StringVar(&revision, "revision", "", "Compare live app to a particular revision")
 	command.Flags().StringVar(&localRepoRoot, "local-repo-root", "/", "Path to the repository root. Used together with --local allows setting the repository root")
@@ -1211,12 +1216,13 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 
 // DifferenceOption struct to store diff options
 type DifferenceOption struct {
-	local         string
-	localRepoRoot string
-	revision      string
-	cluster       *argoappv1.Cluster
-	res           *repoapiclient.ManifestResponse
-	serversideRes *repoapiclient.ManifestResponse
+	local               string
+	localRepoRoot       string
+	revision            string
+	includeResourceHook bool
+	cluster             *argoappv1.Cluster
+	res                 *repoapiclient.ManifestResponse
+	serversideRes       *repoapiclient.ManifestResponse
 }
 
 // findandPrintDiff ... Prints difference between application current state and state stored in git or locally, returns boolean as true if difference is found else returns false
@@ -1226,7 +1232,7 @@ func findandPrintDiff(ctx context.Context, app *argoappv1.Application, proj *arg
 	errors.CheckError(err)
 	items := make([]objKeyLiveTarget, 0)
 	if diffOptions.local != "" {
-		localObjs := groupObjsByKey(getLocalObjects(ctx, app, proj, diffOptions.local, diffOptions.localRepoRoot, argoSettings.AppLabelKey, diffOptions.cluster.Info.ServerVersion, diffOptions.cluster.Info.APIVersions, argoSettings.KustomizeOptions, argoSettings.TrackingMethod), liveObjs, app.Spec.Destination.Namespace)
+		localObjs := groupObjsByKey(getLocalObjects(ctx, app, proj, diffOptions.local, diffOptions.localRepoRoot, argoSettings.AppLabelKey, diffOptions.cluster.Info.ServerVersion, diffOptions.cluster.Info.APIVersions, argoSettings.KustomizeOptions, argoSettings.TrackingMethod), liveObjs, app.Spec.Destination.Namespace, diffOptions.includeResourceHook)
 		items = groupObjsForDiff(resources, localObjs, items, argoSettings, app.InstanceName(argoSettings.ControllerNamespace), app.Spec.Destination.Namespace)
 	} else if diffOptions.revision != "" {
 		var unstructureds []*unstructured.Unstructured
@@ -1235,7 +1241,7 @@ func findandPrintDiff(ctx context.Context, app *argoappv1.Application, proj *arg
 			errors.CheckError(err)
 			unstructureds = append(unstructureds, obj)
 		}
-		groupedObjs := groupObjsByKey(unstructureds, liveObjs, app.Spec.Destination.Namespace)
+		groupedObjs := groupObjsByKey(unstructureds, liveObjs, app.Spec.Destination.Namespace, diffOptions.includeResourceHook)
 		items = groupObjsForDiff(resources, groupedObjs, items, argoSettings, app.InstanceName(argoSettings.ControllerNamespace), app.Spec.Destination.Namespace)
 	} else if diffOptions.serversideRes != nil {
 		var unstructureds []*unstructured.Unstructured
@@ -1244,7 +1250,7 @@ func findandPrintDiff(ctx context.Context, app *argoappv1.Application, proj *arg
 			errors.CheckError(err)
 			unstructureds = append(unstructureds, obj)
 		}
-		groupedObjs := groupObjsByKey(unstructureds, liveObjs, app.Spec.Destination.Namespace)
+		groupedObjs := groupObjsByKey(unstructureds, liveObjs, app.Spec.Destination.Namespace, diffOptions.includeResourceHook)
 		items = groupObjsForDiff(resources, groupedObjs, items, argoSettings, app.InstanceName(argoSettings.ControllerNamespace), app.Spec.Destination.Namespace)
 	} else {
 		for i := range resources.Items {
@@ -1262,7 +1268,8 @@ func findandPrintDiff(ctx context.Context, app *argoappv1.Application, proj *arg
 	}
 
 	for _, item := range items {
-		if item.target != nil && hook.IsHook(item.target) || item.live != nil && hook.IsHook(item.live) {
+		if (item.target != nil && hook.IsHook(item.target) && !diffOptions.includeResourceHook) ||
+			(item.live != nil && hook.IsHook(item.live) && !diffOptions.includeResourceHook) {
 			continue
 		}
 		overrides := make(map[string]argoappv1.ResourceOverride)
@@ -1336,6 +1343,7 @@ func groupObjsForDiff(resources *application.ManagedResourcesResponse, objs map[
 		}
 		items = append(items, objKeyLiveTarget{key, nil, local})
 	}
+
 	return items
 }
 

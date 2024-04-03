@@ -83,6 +83,45 @@ func TestHookDiff(t *testing.T) {
 		})
 }
 
+// make sure that that hooks appear in "argocd app diff --include-resource-hook"
+func TestHookDiffWithResourceHook(t *testing.T) {
+	Given(t).
+		Path("hook").
+		When().
+		CreateApp().
+		Then().
+		And(func(_ *Application) {
+			output, err := RunCli("app", "diff", Name(), "--include-resource-hook", "--revision", "HEAD")
+			assert.Error(t, err)
+			assert.Contains(t, output, "name: pod")
+			assert.Contains(t, output, "name: hook")
+		}).
+		When().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		// Then, we patch the manifest to see diff.
+		When().
+		PatchFile("hook.yaml", `[{"op": "replace", "path": "/spec/containers/0/command", "value": ["false"]}]`).
+		Refresh(RefreshTypeHard).
+		Then().
+		// Expected diff is following:
+		// ===== /Pod argocd-e2e--test-hook-diff-with-resource-hook-ycsky/hook ======
+		// 83c83
+		// <     - "true"
+		// ---
+		// >     - "false"
+		And(func(_ *Application) {
+			output, err := RunCli("app", "diff", Name(), "--include-resource-hook", "--revision", "HEAD")
+			assert.Error(t, err)
+			fmt.Println(output)
+			assert.Contains(t, output, "hook")
+			assert.Contains(t, output, "true")
+			assert.Contains(t, output, "false")
+		})
+}
+
 // make sure that if pre-sync fails, we fail the app and we do not create the pod
 func TestPreSyncHookFailure(t *testing.T) {
 	Given(t).
