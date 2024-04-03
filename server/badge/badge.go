@@ -101,7 +101,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	reqNs := ""
 	if ns, ok := r.URL.Query()["namespace"]; ok && enabled {
-		if errs := validation.NameIsDNSSubdomain(strings.ToLower(ns[0]), false); len(errs) == 0 {
+		if argo.IsValidNamespaceName(ns[0]) {
 			if security.IsNamespaceEnabled(ns[0], h.namespace, h.enabledNamespaces) {
 				reqNs = ns[0]
 			} else {
@@ -117,7 +117,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	//Sample url: http://localhost:8080/api/badge?name=123
 	if name, ok := r.URL.Query()["name"]; ok && enabled && !notFound {
-		if errs := validation.NameIsDNSLabel(strings.ToLower(name[0]), false); len(errs) == 0 {
+		if argo.IsValidAppName(name[0]) {
 			if app, err := h.appClientset.ArgoprojV1alpha1().Applications(reqNs).Get(context.Background(), name[0], v1.GetOptions{}); err == nil {
 				health = app.Status.Health.Status
 				status = app.Status.Sync.Status
