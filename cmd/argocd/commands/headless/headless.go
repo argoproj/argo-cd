@@ -18,6 +18,7 @@ import (
 	"github.com/redis/go-redis/v9"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/pflag"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/kubernetes"
 	cache2 "k8s.io/client-go/tools/cache"
@@ -78,6 +79,12 @@ func (c *forwardCacheClient) Set(item *cache.Item) error {
 	})
 }
 
+func (c *forwardCacheClient) Rename(oldKey string, newKey string, expiration time.Duration) error {
+	return c.doLazy(func(client cache.CacheClient) error {
+		return client.Rename(oldKey, newKey, expiration)
+	})
+}
+
 func (c *forwardCacheClient) Get(key string, obj interface{}) error {
 	return c.doLazy(func(client cache.CacheClient) error {
 		return client.Get(key, obj)
@@ -109,6 +116,7 @@ type forwardRepoClientset struct {
 	repoClientset  repoapiclient.Clientset
 	err            error
 	repoServerName string
+	kubeClientset  kubernetes.Interface
 }
 
 func (c *forwardRepoClientset) NewRepoServerClient() (io.Closer, repoapiclient.RepoServerServiceClient, error) {
@@ -116,7 +124,19 @@ func (c *forwardRepoClientset) NewRepoServerClient() (io.Closer, repoapiclient.R
 		overrides := clientcmd.ConfigOverrides{
 			CurrentContext: c.context,
 		}
-		repoServerPodLabelSelector := common.LabelKeyAppName + "=" + c.repoServerName
+		repoServerName := c.repoServerName
+		repoServererviceLabelSelector := common.LabelKeyComponentRepoServer + "=" + common.LabelValueComponentRepoServer
+		repoServerServices, err := c.kubeClientset.CoreV1().Services(c.namespace).List(context.Background(), v1.ListOptions{LabelSelector: repoServererviceLabelSelector})
+		if err != nil {
+			c.err = err
+			return
+		}
+		if len(repoServerServices.Items) > 0 {
+			if repoServerServicelabel, ok := repoServerServices.Items[0].Labels[common.LabelKeyAppName]; ok && repoServerServicelabel != "" {
+				repoServerName = repoServerServicelabel
+			}
+		}
+		repoServerPodLabelSelector := common.LabelKeyAppName + "=" + repoServerName
 		repoServerPort, err := kubeutil.PortForward(8081, c.namespace, &overrides, repoServerPodLabelSelector)
 		if err != nil {
 			c.err = err
@@ -153,9 +173,11 @@ func testAPI(ctx context.Context, clientOpts *apiclient.ClientOptions) error {
 //
 // If the clientOpts enables core mode, but the local config does not have core mode enabled, this function will
 // not start the local server.
-func MaybeStartLocalServer(ctx context.Context, clientOpts *apiclient.ClientOptions, ctxStr string, port *int, address *string, compression cache.RedisCompressionType) error {
-	flags := pflag.NewFlagSet("tmp", pflag.ContinueOnError)
-	clientConfig := cli.AddKubectlFlagsToSet(flags)
+func MaybeStartLocalServer(ctx context.Context, clientOpts *apiclient.ClientOptions, ctxStr string, port *int, address *string, compression cache.RedisCompressionType, clientConfig clientcmd.ClientConfig) error {
+	if clientConfig == nil {
+		flags := pflag.NewFlagSet("tmp", pflag.ContinueOnError)
+		clientConfig = cli.AddKubectlFlagsToSet(flags)
+	}
 	startInProcessAPI := clientOpts.Core
 	if !startInProcessAPI {
 		// Core mode is enabled on client options. Check the local config to see if we should start the API server.
@@ -229,7 +251,7 @@ func MaybeStartLocalServer(ctx context.Context, clientOpts *apiclient.ClientOpti
 		KubeClientset:        kubeClientset,
 		Insecure:             true,
 		ListenHost:           *address,
-		RepoClientset:        &forwardRepoClientset{namespace: namespace, context: ctxStr, repoServerName: clientOpts.RepoServerName},
+		RepoClientset:        &forwardRepoClientset{namespace: namespace, context: ctxStr, repoServerName: clientOpts.RepoServerName, kubeClientset: kubeClientset},
 		EnableProxyExtension: false,
 	})
 	srv.Init(ctx)
@@ -244,6 +266,7 @@ func MaybeStartLocalServer(ctx context.Context, clientOpts *apiclient.ClientOpti
 	if !cache2.WaitForCacheSync(ctx.Done(), srv.Initialized) {
 		log.Fatal("Timed out waiting for project cache to sync")
 	}
+
 	tries := 5
 	for i := 0; i < tries; i++ {
 		err = testAPI(ctx, clientOpts)
@@ -265,7 +288,7 @@ func NewClientOrDie(opts *apiclient.ClientOptions, c *cobra.Command) apiclient.C
 	ctxStr := initialize.RetrieveContextIfChanged(c.Flag("context"))
 	// If we're in core mode, start the API server on the fly and configure the client `opts` to use it.
 	// If we're not in core mode, this function call will do nothing.
-	err := MaybeStartLocalServer(ctx, opts, ctxStr, nil, nil, cache.RedisCompressionNone)
+	err := MaybeStartLocalServer(ctx, opts, ctxStr, nil, nil, cache.RedisCompressionNone, nil)
 	if err != nil {
 		log.Fatal(err)
 	}

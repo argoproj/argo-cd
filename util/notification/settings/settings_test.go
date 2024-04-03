@@ -27,7 +27,7 @@ func TestInitGetVars(t *testing.T) {
 		},
 		Data: map[string]string{
 			"context":              fmt.Sprintf("%s: %s", testContextKey, testContextKeyValue),
-			"service.webhook.test": "url: https://test.com",
+			"service.webhook.test": "url: https://test.example.com",
 			"template.app-created": "email:\n  subject: Application {{.app.metadata.name}} has been created.\nmessage: Application {{.app.metadata.name}} has been created.\nteams:\n  title: Application {{.app.metadata.name}} has been created.\n",
 			"trigger.on-created":   "- description: Application is created.\n  oncePer: app.metadata.name\n  send:\n  - app-created\n  when: \"true\"\n",
 		},

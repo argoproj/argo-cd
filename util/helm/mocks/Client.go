@@ -59,7 +59,7 @@ func (_m *Client) ExtractChart(chart string, version string, passCredentials boo
 }
 
 // GetIndex provides a mock function with given fields: noCache
-func (_m *Client) GetIndex(noCache bool) (*helm.Index, error) {
+func (_m *Client) GetIndex(noCache bool, maxIndexSize int64) (*helm.Index, error) {
 	ret := _m.Called(noCache)
 
 	var r0 *helm.Index

@@ -11,14 +11,15 @@ argocd proj windows add PROJECT [flags]
 ### Examples
 
 ```
-# Add a 1 hour allow sync window
+
+#Add a 1 hour allow sync window
 argocd proj windows add PROJECT \
     --kind allow \
     --schedule "0 22 * * *" \
     --duration 1h \
     --applications "*"
 
-# Add a deny sync window with the ability to manually sync.
+#Add a deny sync window with the ability to manually sync.
 argocd proj windows add PROJECT \
     --kind deny \
     --schedule "30 10 * * *" \
