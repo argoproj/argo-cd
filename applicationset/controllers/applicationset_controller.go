@@ -1174,8 +1174,6 @@ func (r *ApplicationSetReconciler) updateApplicationSetApplicationStatus(ctx con
 		}
 
 		if currentAppStatus.Status == "Pending" {
-			// check for successful syncs started less than 10s before the Application transitioned to Pending
-			// this covers race conditions where syncs initiated by RollingSync miraculously have a sync time before the transition to Pending state occurred (could be a few seconds)
 			if operationPhaseString == "Succeeded" {
 				revisions := []string{}
 				if len(app.Status.OperationState.SyncResult.Revisions) > 0 {
