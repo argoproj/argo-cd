@@ -42,6 +42,8 @@ Many organizations have implemented their own manifest hydration system. By impl
 
 1) Make manifest hydration easy and intuitive for Argo CD users
 2) Make it possible to implement a promotion system which relies on the manifest hydration's push-to-stage mode
+3) Emphasize maintaining as much of the system's state as possible in git rather than in the Application CR (e.g. source hydrator config values, such as Helm values)
+4) Every deployed change must have a corresponding dry commit - i.e. git is always the source of any changes
 
 ### Non-Goals
 
@@ -210,6 +212,12 @@ Each commit to the dry branch will result in a commit to up to three branches. E
 Since only one source may be used in as the dry source, the multi-source approach to external Helm values files will not work here. Instead, we'll recommend that users use the umbrella chart approach. The main reasons for multi-source as an alternative were convenience (no need to maintain the parent chart) and resolving issues with authentication to dependency charts. We believe the simplification is worth the cost of convenience, and we can address the auth issues as standalone bugs.
 
 An earlier iteration of this proposal attempted to preserve the multi-source style of external value file inclusion by introducing a "magic" `.argocd-hydrator.yaml` file containing `additionalSources` to reference the Helm chart. In the end, it felt like we were re-implementing Helm's dependencies feature or git submodules. It's better to just rely on one of those existing tools.
+
+### `.argocd-source.yaml` Support
+
+The `spec.sourceHydrator.drySource` field contains only three fields: `repoURL`, `targetRevision`, and `path`.
+
+`spec.source` contains a number of fields for configuring manifest hydration tools (`helm`, `kustomize`, and `directory`). That functionality is still available for `spec.sourceHydrator`. But instead of being configured in the Application CR, those values are set in `.argocd-source.yaml`, an existing "override" mechanism for `spec.source`. By requiring that this configuration be set in `.argocd-source.yaml`, we respect the principle that all changes must be made in git instead of in the Application CR.
 
 ### Commit Metadata
 
