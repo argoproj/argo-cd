@@ -315,7 +315,7 @@ func (s *Server) GetAppDetails(ctx context.Context, q *repositorypkg.RepoAppDeta
 			return nil, errPermissionDenied
 		}
 		// verify caller is not making a request with arbitrary source values which were not in our history
-		if !isSourceInHistory(app, *q.Source) {
+		if !isSourceInHistory(app, *q.Source, q.SourceIndex, q.VersionId) {
 			return nil, errPermissionDenied
 		}
 	}
@@ -600,16 +600,35 @@ func (s *Server) isRepoPermittedInProject(ctx context.Context, repo string, proj
 
 // isSourceInHistory checks if the supplied application source is either our current application
 // source, or was something which we synced to previously.
-func isSourceInHistory(app *v1alpha1.Application, source v1alpha1.ApplicationSource) bool {
+func isSourceInHistory(app *v1alpha1.Application, source v1alpha1.ApplicationSource, index int32, versionId int32) bool {
+
+	if app.Spec.HasMultipleSources() {
+		appSources := app.Spec.GetSources()
+		for _, s := range appSources {
+			if source.Equals(&s) {
+				return true
+			}
+		}
+
+		// In case of multi source apps, we have to check the specific versionID because users
+		// could have removed/added new sources and we cannot check all the versions due to that
+		for _, h := range app.Status.History {
+			if h.ID == int64(versionId) {
+				if h.Revisions == nil {
+					continue
+				}
+				h.Sources[index].TargetRevision = h.Revisions[index]
+				if source.Equals(&h.Sources[index]) {
+					return true
+				}
+			}
+		}
+		return false
+	}
+
 	appSource := app.Spec.GetSource()
 	if source.Equals(&appSource) {
 		return true
-	}
-	appSources := app.Spec.GetSources()
-	for _, s := range appSources {
-		if source.Equals(&s) {
-			return true
-		}
 	}
 	// Iterate history. When comparing items in our history, use the actual synced revision to
 	// compare with the supplied source.targetRevision in the request. This is because
@@ -621,5 +640,6 @@ func isSourceInHistory(app *v1alpha1.Application, source v1alpha1.ApplicationSou
 			return true
 		}
 	}
+
 	return false
 }

@@ -214,8 +214,12 @@ type RevisionMetadataQuery struct {
 	// the revision of the app
 	Revision *string `protobuf:"bytes,2,req,name=revision" json:"revision,omitempty"`
 	// the application's namespace
-	AppNamespace         *string  `protobuf:"bytes,3,opt,name=appNamespace" json:"appNamespace,omitempty"`
-	Project              *string  `protobuf:"bytes,4,opt,name=project" json:"project,omitempty"`
+	AppNamespace *string `protobuf:"bytes,3,opt,name=appNamespace" json:"appNamespace,omitempty"`
+	Project      *string `protobuf:"bytes,4,opt,name=project" json:"project,omitempty"`
+	// source index (for multi source apps)
+	SourceIndex *int32 `protobuf:"varint,5,opt,name=sourceIndex" json:"sourceIndex,omitempty"`
+	// versionId from historical data (for multi source apps)
+	VersionId            *int32   `protobuf:"varint,6,opt,name=versionId" json:"versionId,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -280,6 +284,20 @@ func (m *RevisionMetadataQuery) GetProject() string {
 		return *m.Project
 	}
 	return ""
+}
+
+func (m *RevisionMetadataQuery) GetSourceIndex() int32 {
+	if m != nil && m.SourceIndex != nil {
+		return *m.SourceIndex
+	}
+	return 0
+}
+
+func (m *RevisionMetadataQuery) GetVersionId() int32 {
+	if m != nil && m.VersionId != nil {
+		return *m.VersionId
+	}
+	return 0
 }
 
 // ApplicationEventsQuery is a query for application resource events
@@ -4373,6 +4391,16 @@ func (m *RevisionMetadataQuery) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 		i -= len(m.XXX_unrecognized)
 		copy(dAtA[i:], m.XXX_unrecognized)
 	}
+	if m.VersionId != nil {
+		i = encodeVarintApplication(dAtA, i, uint64(*m.VersionId))
+		i--
+		dAtA[i] = 0x30
+	}
+	if m.SourceIndex != nil {
+		i = encodeVarintApplication(dAtA, i, uint64(*m.SourceIndex))
+		i--
+		dAtA[i] = 0x28
+	}
 	if m.Project != nil {
 		i -= len(*m.Project)
 		copy(dAtA[i:], *m.Project)
@@ -6714,6 +6742,12 @@ func (m *RevisionMetadataQuery) Size() (n int) {
 		l = len(*m.Project)
 		n += 1 + l + sovApplication(uint64(l))
 	}
+	if m.SourceIndex != nil {
+		n += 1 + sovApplication(uint64(*m.SourceIndex))
+	}
+	if m.VersionId != nil {
+		n += 1 + sovApplication(uint64(*m.VersionId))
+	}
 	if m.XXX_unrecognized != nil {
 		n += len(m.XXX_unrecognized)
 	}
@@ -8332,6 +8366,46 @@ func (m *RevisionMetadataQuery) Unmarshal(dAtA []byte) error {
 			s := string(dAtA[iNdEx:postIndex])
 			m.Project = &s
 			iNdEx = postIndex
+		case 5:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field SourceIndex", wireType)
+			}
+			var v int32
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowApplication
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				v |= int32(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			m.SourceIndex = &v
+		case 6:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field VersionId", wireType)
+			}
+			var v int32
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowApplication
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				v |= int32(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			m.VersionId = &v
 		default:
 			iNdEx = preIndex
 			skippy, err := skipApplication(dAtA[iNdEx:])

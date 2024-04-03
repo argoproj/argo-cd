@@ -163,12 +163,16 @@ func (m *AppInfo) GetPath() string {
 
 // RepoAppDetailsQuery contains query information for app details request
 type RepoAppDetailsQuery struct {
-	Source               *v1alpha1.ApplicationSource `protobuf:"bytes,1,opt,name=source,proto3" json:"source,omitempty"`
-	AppName              string                      `protobuf:"bytes,2,opt,name=appName,proto3" json:"appName,omitempty"`
-	AppProject           string                      `protobuf:"bytes,3,opt,name=appProject,proto3" json:"appProject,omitempty"`
-	XXX_NoUnkeyedLiteral struct{}                    `json:"-"`
-	XXX_unrecognized     []byte                      `json:"-"`
-	XXX_sizecache        int32                       `json:"-"`
+	Source     *v1alpha1.ApplicationSource `protobuf:"bytes,1,opt,name=source,proto3" json:"source,omitempty"`
+	AppName    string                      `protobuf:"bytes,2,opt,name=appName,proto3" json:"appName,omitempty"`
+	AppProject string                      `protobuf:"bytes,3,opt,name=appProject,proto3" json:"appProject,omitempty"`
+	// source index (for multi source apps)
+	SourceIndex int32 `protobuf:"varint,4,opt,name=sourceIndex,proto3" json:"sourceIndex,omitempty"`
+	// versionId from historical data (for multi source apps)
+	VersionId            int32    `protobuf:"varint,5,opt,name=versionId,proto3" json:"versionId,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
 func (m *RepoAppDetailsQuery) Reset()         { *m = RepoAppDetailsQuery{} }
@@ -223,6 +227,20 @@ func (m *RepoAppDetailsQuery) GetAppProject() string {
 		return m.AppProject
 	}
 	return ""
+}
+
+func (m *RepoAppDetailsQuery) GetSourceIndex() int32 {
+	if m != nil {
+		return m.SourceIndex
+	}
+	return 0
+}
+
+func (m *RepoAppDetailsQuery) GetVersionId() int32 {
+	if m != nil {
+		return m.VersionId
+	}
+	return 0
 }
 
 // RepoAppsResponse contains applications of specified repository
@@ -1485,6 +1503,16 @@ func (m *RepoAppDetailsQuery) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 		i -= len(m.XXX_unrecognized)
 		copy(dAtA[i:], m.XXX_unrecognized)
 	}
+	if m.VersionId != 0 {
+		i = encodeVarintRepository(dAtA, i, uint64(m.VersionId))
+		i--
+		dAtA[i] = 0x28
+	}
+	if m.SourceIndex != 0 {
+		i = encodeVarintRepository(dAtA, i, uint64(m.SourceIndex))
+		i--
+		dAtA[i] = 0x20
+	}
 	if len(m.AppProject) > 0 {
 		i -= len(m.AppProject)
 		copy(dAtA[i:], m.AppProject)
@@ -1973,6 +2001,12 @@ func (m *RepoAppDetailsQuery) Size() (n int) {
 	l = len(m.AppProject)
 	if l > 0 {
 		n += 1 + l + sovRepository(uint64(l))
+	}
+	if m.SourceIndex != 0 {
+		n += 1 + sovRepository(uint64(m.SourceIndex))
+	}
+	if m.VersionId != 0 {
+		n += 1 + sovRepository(uint64(m.VersionId))
 	}
 	if m.XXX_unrecognized != nil {
 		n += len(m.XXX_unrecognized)
@@ -2579,6 +2613,44 @@ func (m *RepoAppDetailsQuery) Unmarshal(dAtA []byte) error {
 			}
 			m.AppProject = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
+		case 4:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field SourceIndex", wireType)
+			}
+			m.SourceIndex = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowRepository
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.SourceIndex |= int32(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 5:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field VersionId", wireType)
+			}
+			m.VersionId = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowRepository
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.VersionId |= int32(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
 		default:
 			iNdEx = preIndex
 			skippy, err := skipRepository(dAtA[iNdEx:])

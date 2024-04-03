@@ -38,6 +38,7 @@ import (
 
 	argocommon "github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
 	applisters "github.com/argoproj/argo-cd/v2/pkg/client/listers/application/v1alpha1"
@@ -1498,7 +1499,32 @@ func (s *Server) RevisionMetadata(ctx context.Context, q *application.RevisionMe
 		return nil, err
 	}
 
-	source := a.Spec.GetSource()
+	var source *v1alpha1.ApplicationSource
+	if a.Spec.HasMultipleSources() {
+		// If the historical data is empty (because the app hasn't been sysnced yet)
+		// we can use the source, if not (the app has been synced at least once)
+		// we have to use the history because sources can be added/removed
+		if len(a.Status.History) == 0 {
+			source = &a.Spec.Sources[*q.SourceIndex]
+		} else {
+			// the source count can change during the time, we cannot just trust in .status.sync
+			// because if a source has been added/removed, the revisions there won't match
+			// as this is only used for the UI and not internally, we can use the historical data
+			// using the specific revisionId
+			for _, h := range a.Status.History {
+				if h.ID == int64(*q.VersionId) {
+					source = &h.Sources[*q.SourceIndex]
+				}
+			}
+		}
+		if source == nil {
+			return nil, fmt.Errorf("revision not found: %w", err)
+		}
+	} else {
+		s := a.Spec.GetSource()
+		source = &s
+	}
+
 	repo, err := s.db.GetRepository(ctx, source.RepoURL, proj.Name)
 	if err != nil {
 		return nil, fmt.Errorf("error getting repository by URL: %w", err)
@@ -1521,10 +1547,29 @@ func (s *Server) RevisionChartDetails(ctx context.Context, q *application.Revisi
 	if err != nil {
 		return nil, err
 	}
-	if a.Spec.Source.Chart == "" {
-		return nil, fmt.Errorf("no chart found for application: %v", a.QualifiedName())
+
+	var source *v1alpha1.ApplicationSource
+	if a.Spec.HasMultipleSources() {
+		// the source count can change during the time, we cannot just trust in .status.sync
+		// because if a source has been added/removed, the revisions there won't match
+		// as this is only used for the UI and not internally, we can use the historical data
+		// using the specific revisionId
+		for _, h := range a.Status.History {
+			if h.ID == int64(*q.VersionId) {
+				source = &h.Sources[*q.SourceIndex]
+			}
+		}
+		if source == nil {
+			return nil, fmt.Errorf("revision not found: %w", err)
+		}
+	} else {
+		source = a.Spec.Source
 	}
-	repo, err := s.db.GetRepository(ctx, a.Spec.Source.RepoURL, a.Spec.Project)
+
+	if source.Chart == "" {
+		return nil, fmt.Errorf("no chart found for application: %v", q.GetName())
+	}
+	repo, err := s.db.GetRepository(ctx, source.RepoURL, a.Spec.Project)
 	if err != nil {
 		return nil, fmt.Errorf("error getting repository by URL: %w", err)
 	}
@@ -1535,7 +1580,7 @@ func (s *Server) RevisionChartDetails(ctx context.Context, q *application.Revisi
 	defer ioutil.Close(conn)
 	return repoClient.GetRevisionChartDetails(ctx, &apiclient.RepoServerRevisionChartDetailsRequest{
 		Repo:     repo,
-		Name:     a.Spec.Source.Chart,
+		Name:     source.Chart,
 		Revision: q.GetRevision(),
 	})
 }
@@ -1970,9 +2015,10 @@ func (s *Server) Rollback(ctx context.Context, rollbackReq *application.Applicat
 	if deploymentInfo == nil {
 		return nil, status.Errorf(codes.InvalidArgument, "application %s does not have deployment with id %v", a.QualifiedName(), rollbackReq.GetId())
 	}
-	if deploymentInfo.Source.IsZero() {
+	if deploymentInfo.Source.IsZero() && deploymentInfo.Sources.IsZero() {
 		// Since source type was introduced to history starting with v0.12, and is now required for
 		// rollback, we cannot support rollback to revisions deployed using Argo CD v0.11 or below
+		// As multi source doesn't use app.Source, we need to check to the Sources length
 		return nil, status.Errorf(codes.FailedPrecondition, "cannot rollback to revision deployed with Argo CD v0.11 or lower. sync to revision instead.")
 	}
 
@@ -1985,11 +2031,13 @@ func (s *Server) Rollback(ctx context.Context, rollbackReq *application.Applicat
 	op := appv1.Operation{
 		Sync: &appv1.SyncOperation{
 			Revision:     deploymentInfo.Revision,
+			Revisions:    deploymentInfo.Revisions,
 			DryRun:       rollbackReq.GetDryRun(),
 			Prune:        rollbackReq.GetPrune(),
 			SyncOptions:  syncOptions,
 			SyncStrategy: &appv1.SyncStrategy{Apply: &appv1.SyncStrategyApply{}},
 			Source:       &deploymentInfo.Source,
+			Sources:      deploymentInfo.Sources,
 		},
 		InitiatedBy: appv1.OperationInitiator{Username: session.Username(ctx)},
 	}
