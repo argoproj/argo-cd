@@ -305,6 +305,9 @@ replace (
 	// Avoid CVE-2022-28948
 	gopkg.in/yaml.v3 => gopkg.in/yaml.v3 v3.0.1
 
+	// Avoid 
+	github.com/whilp/git-urls  v1.0.0 => github.com/chainguard-dev/git-urls  master
+
 	k8s.io/api => k8s.io/api v0.26.11
 	k8s.io/apiextensions-apiserver => k8s.io/apiextensions-apiserver v0.26.11
 	k8s.io/apimachinery => k8s.io/apimachinery v0.26.11
