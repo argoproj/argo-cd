@@ -68,26 +68,10 @@ Thus in the self-service use case, administrators desire to only allow some fiel
 
 Fortunately, the ApplicationSet controller presents an alternative solution to this use case: cluster administrators may safely create an `ApplicationSet` resource containing a Git generator that restricts deployment of application resources to fixed values with the `template` field, while allowing customization of 'safe' fields by developers, at will.
 
-The `config.json` files contain information describing the app.
-
-```json
-{
-  (...)
-  "app": {
-    "source": "https://github.com/argoproj/argo-cd",
-    "revision": "HEAD",
-    "path": "applicationset/examples/git-generator-files-discovery/apps/guestbook"
-  }
-  (...)
-}
-```
-
 ```yaml
 kind: ApplicationSet
 # (...)
 spec:
-  goTemplate: true
-  goTemplateOptions: ["missingkey=error"]
   generators:
   - git:
       repoURL: https://github.com/argoproj/argo-cd.git
@@ -98,9 +82,9 @@ spec:
       project: dev-team-one # project is restricted
       source:
         # developers may customize app details using JSON files from above repo URL
-        repoURL: {{.app.source}}
-        targetRevision: {{.app.revision}}
-        path: {{.app.path}}
+        repoURL: {{app.source}}
+        targetRevision: {{app.revision}}
+        path: {{app.path}}
       destination:
         name: production-cluster # cluster is restricted
         namespace: dev-team-one # namespace is restricted

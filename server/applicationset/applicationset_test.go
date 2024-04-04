@@ -38,7 +38,7 @@ func fakeRepo() *appsv1.Repository {
 
 func fakeCluster() *appsv1.Cluster {
 	return &appsv1.Cluster{
-		Server: "https://cluster-api.example.com",
+		Server: "https://cluster-api.com",
 		Name:   "fake-cluster",
 		Config: appsv1.ClusterConfig{},
 	}

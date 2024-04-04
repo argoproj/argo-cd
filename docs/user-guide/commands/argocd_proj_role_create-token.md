@@ -8,18 +8,6 @@ Create a project token
 argocd proj role create-token PROJECT ROLE-NAME [flags]
 ```
 
-### Examples
-
-```
-$ argocd proj role create-token test-project test-role
-Create token succeeded for proj:test-project:test-role.
-  ID: f316c466-40bd-4cfd-8a8c-1392e92255d4
-  Issued At: 2023-10-08T15:21:40+01:00
-  Expires At: Never
-  Token: xxx
-
-```
-
 ### Options
 
 ```

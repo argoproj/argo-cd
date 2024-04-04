@@ -115,9 +115,9 @@ const (
 	LegacyShardingAlgorithm = "legacy"
 	// RoundRobinShardingAlgorithm is a flag value that can be opted for Sharding Algorithm it uses an equal distribution accross all shards
 	RoundRobinShardingAlgorithm = "round-robin"
+	DefaultShardingAlgorithm    = LegacyShardingAlgorithm
 	// AppControllerHeartbeatUpdateRetryCount is the retry count for updating the Shard Mapping to the Shard Mapping ConfigMap used by Application Controller
 	AppControllerHeartbeatUpdateRetryCount = 3
-	DefaultShardingAlgorithm               = LegacyShardingAlgorithm
 )
 
 // Dex related constants
@@ -149,14 +149,10 @@ const (
 	LabelKeyAppInstance = "app.kubernetes.io/instance"
 	// LabelKeyAppName is the label key to use to uniquely identify the name of the Kubernetes application
 	LabelKeyAppName = "app.kubernetes.io/name"
-	// LabelKeyAutoLabelClusterInfo if set to true will automatically add extra labels from the cluster info (currently it only adds a k8s version label)
-	LabelKeyAutoLabelClusterInfo = "argocd.argoproj.io/auto-label-cluster-info"
 	// LabelKeyLegacyApplicationName is the legacy label (v0.10 and below) and is superseded by 'app.kubernetes.io/instance'
 	LabelKeyLegacyApplicationName = "applications.argoproj.io/app-name"
 	// LabelKeySecretType contains the type of argocd secret (currently: 'cluster', 'repository', 'repo-config' or 'repo-creds')
 	LabelKeySecretType = "argocd.argoproj.io/secret-type"
-	// LabelKeyClusterKubernetesVersion contains the kubernetes version of the cluster secret if it has been enabled
-	LabelKeyClusterKubernetesVersion = "argocd.argoproj.io/kubernetes-version"
 	// LabelValueSecretTypeCluster indicates a secret type of cluster
 	LabelValueSecretTypeCluster = "cluster"
 	// LabelValueSecretTypeRepository indicates a secret type of repository
@@ -188,10 +184,6 @@ const (
 	// AnnotationKeyAppSkipReconcile tells the Application to skip the Application controller reconcile.
 	// Skip reconcile when the value is "true" or any other string values that can be strconv.ParseBool() to be true.
 	AnnotationKeyAppSkipReconcile = "argocd.argoproj.io/skip-reconcile"
-	// LabelKeyComponentRepoServer is the label key to identify the component as repo-server
-	LabelKeyComponentRepoServer = "app.kubernetes.io/component"
-	// LabelValueComponentRepoServer is the label value for the repo-server component
-	LabelValueComponentRepoServer = "repo-server"
 )
 
 // Environment variables for tuning and debugging Argo CD
@@ -246,8 +238,6 @@ const (
 	EnvLogFormat = "ARGOCD_LOG_FORMAT"
 	// EnvLogLevel log level that is defined by `--loglevel` option
 	EnvLogLevel = "ARGOCD_LOG_LEVEL"
-	// EnvLogFormatEnableFullTimestamp enables the FullTimestamp option in logs
-	EnvLogFormatEnableFullTimestamp = "ARGOCD_LOG_FORMAT_ENABLE_FULL_TIMESTAMP"
 	// EnvMaxCookieNumber max number of chunks a cookie can be broken into
 	EnvMaxCookieNumber = "ARGOCD_MAX_COOKIE_NUMBER"
 	// EnvPluginSockFilePath allows to override the pluginSockFilePath for repo server and cmp server
@@ -268,11 +258,6 @@ const (
 	EnvRedisName = "ARGOCD_REDIS_NAME"
 	// EnvRedisHaProxyName is the name of the Argo CD Redis HA proxy component, as specified by the value under the LabelKeyAppName label key.
 	EnvRedisHaProxyName = "ARGOCD_REDIS_HAPROXY_NAME"
-	// EnvGRPCKeepAliveMin defines the GRPCKeepAliveEnforcementMinimum, used in the grpc.KeepaliveEnforcementPolicy. Expects a "Duration" format (e.g. 10s).
-	EnvGRPCKeepAliveMin = "ARGOCD_GRPC_KEEP_ALIVE_MIN"
-	// EnvServerSideDiff defines the env var used to enable ServerSide Diff feature.
-	// If defined, value must be "true" or "false".
-	EnvServerSideDiff = "ARGOCD_APPLICATION_CONTROLLER_SERVER_SIDE_DIFF"
 )
 
 // Config Management Plugin related constants
@@ -366,25 +351,10 @@ const (
 
 // gRPC settings
 const (
-	defaultGRPCKeepAliveEnforcementMinimum = 10 * time.Second
-)
-
-func GetGRPCKeepAliveEnforcementMinimum() time.Duration {
-	if GRPCKeepAliveMinStr := os.Getenv(EnvGRPCKeepAliveMin); GRPCKeepAliveMinStr != "" {
-		GRPCKeepAliveMin, err := time.ParseDuration(GRPCKeepAliveMinStr)
-		if err != nil {
-			logrus.Warnf("invalid env var value for %s: cannot parse: %s. Default value %s will be used.", EnvGRPCKeepAliveMin, err, defaultGRPCKeepAliveEnforcementMinimum)
-			return defaultGRPCKeepAliveEnforcementMinimum
-		}
-		return GRPCKeepAliveMin
-	}
-	return defaultGRPCKeepAliveEnforcementMinimum
-}
-
-func GetGRPCKeepAliveTime() time.Duration {
+	GRPCKeepAliveEnforcementMinimum = 10 * time.Second
 	// GRPCKeepAliveTime is 2x enforcement minimum to ensure network jitter does not introduce ENHANCE_YOUR_CALM errors
-	return 2 * GetGRPCKeepAliveEnforcementMinimum()
-}
+	GRPCKeepAliveTime = 2 * GRPCKeepAliveEnforcementMinimum
+)
 
 // Security severity logging
 const (
