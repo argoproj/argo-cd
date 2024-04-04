@@ -1029,7 +1029,7 @@ func (in *ApplicationSourceHelm) DeepCopyInto(out *ApplicationSourceHelm) {
 	}
 	if in.ValuesObject != nil {
 		in, out := &in.ValuesObject, &out.ValuesObject
-		*out = make([]byte, len(*in))
+		*out = make(json.RawMessage, len(*in))
 		copy(*out, *in)
 	}
 	return

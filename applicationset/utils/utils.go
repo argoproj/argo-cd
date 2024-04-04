@@ -131,7 +131,12 @@ func (r *Render) deeplyReplace(copy, original reflect.Value, replaceMap map[stri
 			// specific case time
 			if currentType == "time.Time" {
 				copy.Field(i).Set(original.Field(i))
-			} else if currentType == "Raw.k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1" || currentType == "Raw.k8s.io/apimachinery/pkg/runtime" {
+
+			} else if currentType == "Raw.k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1" ||
+				currentType == "Raw.k8s.io/apimachinery/pkg/runtime" ||
+				currentType == "ValuesObject.github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1" {
+				// Note: We add any raw "[]byte" fields that need to have their contents replaced; eg for valuesObject.
+
 				var unmarshaled interface{}
 				originalBytes := original.Field(i).Bytes()
 				convertedToJson, err := ConvertYAMLToJSON(string(originalBytes))

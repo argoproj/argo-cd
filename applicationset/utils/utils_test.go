@@ -245,7 +245,7 @@ func TestRenderHelmValuesObjectJson(t *testing.T) {
 	assert.NotNil(t, newApplication)
 
 	var unmarshaled interface{}
-	err = json.Unmarshal(newApplication.Spec.Source.Helm.ValuesObject.Raw, &unmarshaled)
+	err = json.Unmarshal(newApplication.Spec.Source.Helm.ValuesObject, &unmarshaled)
 
 	assert.NoError(t, err)
 	assert.Equal(t, "Hello world", unmarshaled.(map[string]interface{})["some"].(map[string]interface{})["string"])
@@ -274,10 +274,8 @@ func TestRenderHelmValuesObjectYaml(t *testing.T) {
 				TargetRevision: "",
 				Chart:          "",
 				Helm: &argoappsv1.ApplicationSourceHelm{
-					ValuesObject: &argoappsv1.UnstructuredObject{
-						Raw: []byte(`some:
+					ValuesObject: []byte(`some:
   string: "{{.test}}"`),
-					},
 				},
 			},
 			Destination: argoappsv1.ApplicationDestination{
@@ -297,7 +295,7 @@ func TestRenderHelmValuesObjectYaml(t *testing.T) {
 	assert.NotNil(t, newApplication)
 
 	var unmarshaled interface{}
-	err = json.Unmarshal(newApplication.Spec.Source.Helm.ValuesObject.Raw, &unmarshaled)
+	err = json.Unmarshal(newApplication.Spec.Source.Helm.ValuesObject, &unmarshaled)
 
 	assert.NoError(t, err)
 	assert.Equal(t, "Hello world", unmarshaled.(map[string]interface{})["some"].(map[string]interface{})["string"])

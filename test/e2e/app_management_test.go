@@ -507,11 +507,7 @@ func TestPatchValuesObject(t *testing.T) {
 		// app should be auto-synced once created
 		CreateFromFile(func(app *Application) {
 			app.Spec.Source.Helm = &ApplicationSourceHelm{
-				ValuesObject: &UnstructuredObject{
-					// Setup by using nested YAML objects, which is what causes the patch error:
-					// "unable to find api field in struct RawExtension for the json field "some""
-					Raw: []byte(`{"some": {"foo": "bar"}}`),
-				},
+				ValuesObject: []byte(`{"some": {"foo": "bar"}}`),
 			}
 		}).
 		Then().
@@ -530,7 +526,7 @@ func TestPatchValuesObject(t *testing.T) {
 		Expect(NoConditions()).
 		And(func(app *Application) {
 			// Check that the patch was a success.
-			assert.Equal(t, `{"some":{"foo":"bar","new":"field"}}`, string(app.Spec.Source.Helm.ValuesObject.Raw))
+			assert.Equal(t, `{"some":{"foo":"bar","new":"field"}}`, string(app.Spec.Source.Helm.ValuesObject))
 		})
 
 }

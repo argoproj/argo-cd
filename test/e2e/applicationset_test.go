@@ -635,12 +635,7 @@ func TestRenderHelmValuesObject(t *testing.T) {
 				TargetRevision: "HEAD",
 				Path:           "helm-guestbook",
 				Helm: &argov1alpha1.ApplicationSourceHelm{
-					ValuesObject: &argov1alpha1.UnstructuredObject{
-						Object: v1alpha1.Object{
-							// This will always be converted as yaml
-							Raw: []byte(`{"some":{"string":"Hello world"}}`),
-						},
-					},
+					ValuesObject: []byte(`{"some":{"string":"Hello world"}}`),
 				},
 			},
 			Destination: argov1alpha1.ApplicationDestination{
@@ -666,11 +661,7 @@ func TestRenderHelmValuesObject(t *testing.T) {
 						TargetRevision: "HEAD",
 						Path:           "helm-guestbook",
 						Helm: &argov1alpha1.ApplicationSourceHelm{
-							ValuesObject: &argov1alpha1.UnstructuredObject{
-								Object: v1alpha1.Object{
-									Raw: []byte(`{"some":{"string":"{{.test}}"}}`),
-								},
-							},
+							ValuesObject: []byte(`{"some":{"string":"{{.test}}"}}`),
 						},
 					},
 					Destination: argov1alpha1.ApplicationDestination{
@@ -714,12 +705,7 @@ func TestUpdateHelmValuesObject(t *testing.T) {
 				TargetRevision: "HEAD",
 				Path:           "helm-guestbook",
 				Helm: &argov1alpha1.ApplicationSourceHelm{
-					ValuesObject: &argov1alpha1.UnstructuredObject{
-						Object: v1alpha1.Object{
-							// This will always be converted as yaml
-							Raw: []byte(`{"some":{"foo":"bar"}}`),
-						},
-					},
+					ValuesObject: []byte(`{"some":{"foo":"bar"}}`),
 				},
 			},
 			Destination: argov1alpha1.ApplicationDestination{
@@ -745,11 +731,7 @@ func TestUpdateHelmValuesObject(t *testing.T) {
 						TargetRevision: "HEAD",
 						Path:           "helm-guestbook",
 						Helm: &argov1alpha1.ApplicationSourceHelm{
-							ValuesObject: &argov1alpha1.UnstructuredObject{
-								Object: v1alpha1.Object{
-									Raw: []byte(`{"some":{"string":"{{.test}}"}}`),
-								},
-							},
+							ValuesObject: []byte(`{"some":{"string":"{{.test}}"}}`),
 						},
 					},
 					Destination: argov1alpha1.ApplicationDestination{
@@ -773,11 +755,7 @@ func TestUpdateHelmValuesObject(t *testing.T) {
 		When().
 		// Update the app spec with some knew ValuesObject to force a merge
 		Update(func(as *argov1alpha1.ApplicationSet) {
-			as.Spec.Template.Spec.Source.Helm.ValuesObject = &argov1alpha1.UnstructuredObject{
-				Object: v1alpha1.Object{
-					Raw: []byte(`{"some":{"foo":"bar"}}`),
-				},
-			}
+			as.Spec.Template.Spec.Source.Helm.ValuesObject = []byte(`{"some":{"foo":"bar"}}`)
 		}).
 		Then().
 		Expect(ApplicationsExist([]argov1alpha1.Application{expectedApp})).
