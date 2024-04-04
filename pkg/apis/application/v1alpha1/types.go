@@ -323,6 +323,7 @@ type ApplicationSourceHelm struct {
 	// SkipCrds skips custom resource definition installation step (Helm's --skip-crds)
 	SkipCrds bool `json:"skipCrds,omitempty" protobuf:"bytes,9,opt,name=skipCrds"`
 	// ValuesObject specifies Helm values to be passed to helm template, defined as a map. This takes precedence over Values.
+	// +kubebuilder:pruning:PreserveUnknownFields
 	ValuesObject *UnstructuredObject `json:"valuesObject,omitempty" protobuf:"bytes,10,opt,name=valuesObject"`
 }
 
