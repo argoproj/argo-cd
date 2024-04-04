@@ -221,7 +221,7 @@ func TestRenderHelmValuesObjectJson(t *testing.T) {
 				TargetRevision: "",
 				Chart:          "",
 				Helm: &argoappsv1.ApplicationSourceHelm{
-					ValuesObject: &runtime.RawExtension{
+					ValuesObject: &argoappsv1.UnstructuredObject{
 						Raw: []byte(`{
 								"some": {
 									"string": "{{.test}}"
@@ -276,7 +276,7 @@ func TestRenderHelmValuesObjectYaml(t *testing.T) {
 				TargetRevision: "",
 				Chart:          "",
 				Helm: &argoappsv1.ApplicationSourceHelm{
-					ValuesObject: &runtime.RawExtension{
+					ValuesObject: &argoappsv1.UnstructuredObject{
 						Raw: []byte(`some:
   string: "{{.test}}"`),
 					},

@@ -19,14 +19,12 @@ import (
 	"testing"
 	"time"
 
-	cacheutil "github.com/argoproj/argo-cd/v2/util/cache"
 	log "github.com/sirupsen/logrus"
-	"k8s.io/apimachinery/pkg/api/resource"
-
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	v1 "k8s.io/api/apps/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/yaml"
@@ -40,6 +38,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/reposerver/metrics"
 	fileutil "github.com/argoproj/argo-cd/v2/test/fixture/path"
 	"github.com/argoproj/argo-cd/v2/util/argo"
+	cacheutil "github.com/argoproj/argo-cd/v2/util/cache"
 	dbmocks "github.com/argoproj/argo-cd/v2/util/db/mocks"
 	"github.com/argoproj/argo-cd/v2/util/git"
 	gitmocks "github.com/argoproj/argo-cd/v2/util/git/mocks"
@@ -1015,7 +1014,7 @@ func TestGenerateHelmWithValues(t *testing.T) {
 			Path: ".",
 			Helm: &argoappv1.ApplicationSourceHelm{
 				ValueFiles:   []string{"values-production.yaml"},
-				ValuesObject: &runtime.RawExtension{Raw: []byte(`cluster: {slaveCount: 2}`)},
+				ValuesObject: &v1alpha1.UnstructuredObject{Raw: []byte(`cluster: {slaveCount: 2}`)},
 			},
 		},
 		ProjectName:        "something",
@@ -1116,7 +1115,7 @@ func TestGenerateHelmWithValuesDirectoryTraversal(t *testing.T) {
 			Path: "./redis",
 			Helm: &argoappv1.ApplicationSourceHelm{
 				ValueFiles:   []string{"../minio/values.yaml"},
-				ValuesObject: &runtime.RawExtension{Raw: []byte(`cluster: {slaveCount: 2}`)},
+				ValuesObject: &v1alpha1.UnstructuredObject{Raw: []byte(`cluster: {slaveCount: 2}`)},
 			},
 		},
 		ProjectName:        "something",
@@ -1218,7 +1217,7 @@ func TestGenerateHelmWithURL(t *testing.T) {
 			Path: ".",
 			Helm: &argoappv1.ApplicationSourceHelm{
 				ValueFiles:   []string{"https://raw.githubusercontent.com/argoproj/argocd-example-apps/master/helm-guestbook/values.yaml"},
-				ValuesObject: &runtime.RawExtension{Raw: []byte(`cluster: {slaveCount: 2}`)},
+				ValuesObject: &v1alpha1.UnstructuredObject{Raw: []byte(`cluster: {slaveCount: 2}`)},
 			},
 		},
 		ProjectName:        "something",
@@ -1240,7 +1239,7 @@ func TestGenerateHelmWithValuesDirectoryTraversalOutsideRepo(t *testing.T) {
 				Path: ".",
 				Helm: &argoappv1.ApplicationSourceHelm{
 					ValueFiles:   []string{"../minio/values.yaml"},
-					ValuesObject: &runtime.RawExtension{Raw: []byte(`cluster: {slaveCount: 2}`)},
+					ValuesObject: &v1alpha1.UnstructuredObject{Raw: []byte(`cluster: {slaveCount: 2}`)},
 				},
 			},
 			ProjectName:        "something",
@@ -1259,7 +1258,7 @@ func TestGenerateHelmWithValuesDirectoryTraversalOutsideRepo(t *testing.T) {
 				Path: "./my-chart",
 				Helm: &argoappv1.ApplicationSourceHelm{
 					ValueFiles:   []string{"../my-chart/my-chart-values.yaml"},
-					ValuesObject: &runtime.RawExtension{Raw: []byte(`cluster: {slaveCount: 2}`)},
+					ValuesObject: &v1alpha1.UnstructuredObject{Raw: []byte(`cluster: {slaveCount: 2}`)},
 				},
 			},
 			ProjectName:        "something",
@@ -1277,7 +1276,7 @@ func TestGenerateHelmWithValuesDirectoryTraversalOutsideRepo(t *testing.T) {
 				Path: "./my-chart",
 				Helm: &argoappv1.ApplicationSourceHelm{
 					ValueFiles:   []string{"/my-chart/my-chart-values.yaml"},
-					ValuesObject: &runtime.RawExtension{Raw: []byte(`cluster: {slaveCount: 2}`)},
+					ValuesObject: &v1alpha1.UnstructuredObject{Raw: []byte(`cluster: {slaveCount: 2}`)},
 				},
 			},
 			ProjectName:        "something",
@@ -1295,7 +1294,7 @@ func TestGenerateHelmWithValuesDirectoryTraversalOutsideRepo(t *testing.T) {
 				Path: "./my-chart",
 				Helm: &argoappv1.ApplicationSourceHelm{
 					ValueFiles:   []string{"/../../../my-chart-values.yaml"},
-					ValuesObject: &runtime.RawExtension{Raw: []byte(`cluster: {slaveCount: 2}`)},
+					ValuesObject: &v1alpha1.UnstructuredObject{Raw: []byte(`cluster: {slaveCount: 2}`)},
 				},
 			},
 			ProjectName:        "something",
@@ -1314,7 +1313,7 @@ func TestGenerateHelmWithValuesDirectoryTraversalOutsideRepo(t *testing.T) {
 				Path: "./my-chart",
 				Helm: &argoappv1.ApplicationSourceHelm{
 					ValueFiles:   []string{"file://../../../../my-chart-values.yaml"},
-					ValuesObject: &runtime.RawExtension{Raw: []byte(`cluster: {slaveCount: 2}`)},
+					ValuesObject: &v1alpha1.UnstructuredObject{Raw: []byte(`cluster: {slaveCount: 2}`)},
 				},
 			},
 			ProjectName:        "something",
@@ -1369,7 +1368,7 @@ func TestGenerateHelmWithAbsoluteFileParameter(t *testing.T) {
 			Path: "./util/helm/testdata/redis",
 			Helm: &argoappv1.ApplicationSourceHelm{
 				ValueFiles:   []string{"values-production.yaml"},
-				ValuesObject: &runtime.RawExtension{Raw: []byte(`cluster: {slaveCount: 2}`)},
+				ValuesObject: &v1alpha1.UnstructuredObject{Raw: []byte(`cluster: {slaveCount: 2}`)},
 				FileParameters: []argoappv1.HelmFileParameter{{
 					Name: "passwordContent",
 					Path: externalSecretPath,
@@ -1397,7 +1396,7 @@ func TestGenerateHelmWithFileParameter(t *testing.T) {
 			Helm: &argoappv1.ApplicationSourceHelm{
 				ValueFiles:   []string{"values-production.yaml"},
 				Values:       `cluster: {slaveCount: 10}`,
-				ValuesObject: &runtime.RawExtension{Raw: []byte(`cluster: {slaveCount: 2}`)},
+				ValuesObject: &v1alpha1.UnstructuredObject{Raw: []byte(`cluster: {slaveCount: 2}`)},
 				FileParameters: []argoappv1.HelmFileParameter{{
 					Name: "passwordContent",
 					Path: "../external/external-secret.txt",

@@ -165,6 +165,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SyncWindow":                              schema_pkg_apis_application_v1alpha1_SyncWindow(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.TLSClientConfig":                         schema_pkg_apis_application_v1alpha1_TLSClientConfig(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.TagFilter":                               schema_pkg_apis_application_v1alpha1_TagFilter(ref),
+		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.UnstructuredObject":                      schema_pkg_apis_application_v1alpha1_UnstructuredObject(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.objectMeta":                              schema_pkg_apis_application_v1alpha1_objectMeta(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.rawResourceOverride":                     schema_pkg_apis_application_v1alpha1_rawResourceOverride(ref),
 	}
@@ -1770,14 +1771,14 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSourceHelm(ref common.Refer
 					"valuesObject": {
 						SchemaProps: spec.SchemaProps{
 							Description: "ValuesObject specifies Helm values to be passed to helm template, defined as a map. This takes precedence over Values.",
-							Ref:         ref("k8s.io/apimachinery/pkg/runtime.RawExtension"),
+							Ref:         ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.UnstructuredObject"),
 						},
 					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.HelmFileParameter", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.HelmParameter", "k8s.io/apimachinery/pkg/runtime.RawExtension"},
+			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.HelmFileParameter", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.HelmParameter", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.UnstructuredObject"},
 	}
 }
 
@@ -7938,6 +7939,17 @@ func schema_pkg_apis_application_v1alpha1_TagFilter(ref common.ReferenceCallback
 					},
 				},
 				Required: []string{"key"},
+			},
+		},
+	}
+}
+
+func schema_pkg_apis_application_v1alpha1_UnstructuredObject(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "UnstructuredObject is used to represent any raw unstructured YAML/JSON objects, such as valuesObject.",
+				Type:        []string{"object"},
 			},
 		},
 	}

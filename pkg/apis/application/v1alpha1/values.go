@@ -3,10 +3,9 @@ package v1alpha1
 import (
 	"encoding/json"
 	"fmt"
-	reflect "reflect"
+	"reflect"
 	"strings"
 
-	runtime "k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/yaml"
 )
 
@@ -31,7 +30,7 @@ func (h *ApplicationSourceHelm) SetValuesString(value string) error {
 		default:
 			return fmt.Errorf("invalid type %q", reflect.TypeOf(v))
 		}
-		h.ValuesObject = &runtime.RawExtension{Raw: data}
+		h.ValuesObject = &UnstructuredObject{Raw: data}
 		h.Values = ""
 	}
 	return nil

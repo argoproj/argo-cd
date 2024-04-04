@@ -35,7 +35,6 @@ import (
 	"golang.org/x/oauth2"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	k8swatch "k8s.io/apimachinery/pkg/watch"
 )
@@ -1068,7 +1067,7 @@ func Test_unset(t *testing.T) {
 				},
 			},
 			PassCredentials: true,
-			ValuesObject:    &runtime.RawExtension{Raw: []byte("some: yaml")},
+			ValuesObject:    &v1alpha1.UnstructuredObject{Raw: []byte("some: yaml")},
 			ValueFiles: []string{
 				"values-1.yaml",
 				"values-2.yaml",

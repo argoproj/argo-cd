@@ -13,7 +13,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	argov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
@@ -636,7 +635,7 @@ func TestRenderHelmValuesObject(t *testing.T) {
 				TargetRevision: "HEAD",
 				Path:           "helm-guestbook",
 				Helm: &argov1alpha1.ApplicationSourceHelm{
-					ValuesObject: &runtime.RawExtension{
+					ValuesObject: &argov1alpha1.UnstructuredObject{
 						// This will always be converted as yaml
 						Raw: []byte(`{"some":{"string":"Hello world"}}`),
 					},
@@ -665,7 +664,7 @@ func TestRenderHelmValuesObject(t *testing.T) {
 						TargetRevision: "HEAD",
 						Path:           "helm-guestbook",
 						Helm: &argov1alpha1.ApplicationSourceHelm{
-							ValuesObject: &runtime.RawExtension{
+							ValuesObject: &argov1alpha1.UnstructuredObject{
 								Raw: []byte(`{"some":{"string":"{{.test}}"}}`),
 							},
 						},
@@ -711,7 +710,7 @@ func TestUpdateHelmValuesObject(t *testing.T) {
 				TargetRevision: "HEAD",
 				Path:           "helm-guestbook",
 				Helm: &argov1alpha1.ApplicationSourceHelm{
-					ValuesObject: &runtime.RawExtension{
+					ValuesObject: &argov1alpha1.UnstructuredObject{
 						// This will always be converted as yaml
 						Raw: []byte(`{"some":{"foo":"bar"}}`),
 					},
@@ -740,7 +739,7 @@ func TestUpdateHelmValuesObject(t *testing.T) {
 						TargetRevision: "HEAD",
 						Path:           "helm-guestbook",
 						Helm: &argov1alpha1.ApplicationSourceHelm{
-							ValuesObject: &runtime.RawExtension{
+							ValuesObject: &argov1alpha1.UnstructuredObject{
 								Raw: []byte(`{"some":{"string":"{{.test}}"}}`),
 							},
 						},
@@ -766,7 +765,7 @@ func TestUpdateHelmValuesObject(t *testing.T) {
 		When().
 		// Update the app spec with some knew ValuesObject to force a merge
 		Update(func(as *argov1alpha1.ApplicationSet) {
-			as.Spec.Template.Spec.Source.Helm.ValuesObject = &runtime.RawExtension{
+			as.Spec.Template.Spec.Source.Helm.ValuesObject = &argov1alpha1.UnstructuredObject{
 				Raw: []byte(`{"some":{"foo":"bar"}}`),
 			}
 		}).

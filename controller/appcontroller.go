@@ -1743,7 +1743,7 @@ func (ctrl *ApplicationController) normalizeApplication(orig, app *appv1.Applica
 	logCtx := log.WithFields(log.Fields{"application": app.QualifiedName()})
 	app.Spec = *argo.NormalizeApplicationSpec(&app.Spec)
 
-	patch, modified, err := CreateAppMergePatch(orig, app)
+	patch, modified, err := diff.CreateTwoWayMergePatch(orig, app, appv1.Application{})
 
 	if err != nil {
 		logCtx.Errorf("error constructing app spec patch: %v", err)
@@ -1778,9 +1778,10 @@ func (ctrl *ApplicationController) persistAppStatus(orig *appv1.Application, new
 	}
 
 	// Only create merge patch for annotations+status.
-	patch, modified, err := CreateAppMergePatch(
+	patch, modified, err := diff.CreateTwoWayMergePatch(
 		&appv1.Application{ObjectMeta: metav1.ObjectMeta{Annotations: orig.GetAnnotations()}, Status: orig.Status},
-		&appv1.Application{ObjectMeta: metav1.ObjectMeta{Annotations: newAnnotations}, Status: *newStatus})
+		&appv1.Application{ObjectMeta: metav1.ObjectMeta{Annotations: newAnnotations}, Status: *newStatus},
+		appv1.Application{})
 	if err != nil {
 		logCtx.Errorf("Error constructing app status patch: %v", err)
 		return
@@ -2262,121 +2263,3 @@ func (ctrl *ApplicationController) getAppList(options metav1.ListOptions) (*appv
 }
 
 type ClusterFilterFunction func(c *appv1.Cluster, distributionFunction sharding.DistributionFunction) bool
-
-// CreateAppMergePatch calculates the merge patch for two applications.
-// The main meat of this includes special logic required for handling RawUnstructured fields, which MUST be merged
-// using JSON merges, rather than strategic merges (as is default for other items).
-func CreateAppMergePatch(orig *appv1.Application, new *appv1.Application) ([]byte, bool, error) {
-	noRawOrig, rawOnlyOrig, hasRawOrig := splitAppRawFields(orig)
-	noRawNew, rawOnlyNew, hasRawNew := splitAppRawFields(new)
-
-	// Create merge patch on the Application, which we has no raw fields.
-	patch, modified, err := diff.CreateTwoWayMergePatch(noRawOrig, noRawNew, appv1.Application{})
-	if err != nil {
-		return nil, false, fmt.Errorf("error constructing app patch: %w", err)
-	}
-
-	// If no there are no RawExtension fields to manage, we can return now.
-	if !(hasRawOrig || hasRawNew) {
-		return patch, modified, nil
-	}
-
-	// Create raw objects merge patch, set with the correct paths to ensure merge compatibility.
-	rawObjectsPatch, modifiedRaw, err := jsonCreateMergePatch(rawOnlyOrig, rawOnlyNew)
-	if err != nil {
-		return nil, false, fmt.Errorf("error constructing patch for raw objects: %w", err)
-	}
-
-	// If we generated a merge patch for valueObjects, we now need to merge that patch with the rest of the app patch.
-	if modifiedRaw {
-		patch, err = jsonpatch.MergeMergePatches(patch, rawObjectsPatch)
-		if err != nil {
-			return nil, false, fmt.Errorf("error merging operation patch: %w", err)
-		}
-	}
-
-	return patch, modified || modifiedRaw, nil
-}
-
-// appSourceHasRawFields checks if an appv1.ApplicationSource has any RawExtension fields present.
-func appSourceHasRawFields(src *appv1.ApplicationSource) bool {
-	return src != nil && src.Helm != nil && src.Helm.ValuesObject != nil
-}
-
-// splitAppRawFields takes an appv1.Application and splits it into two application structs:
-// - The first application has all runtime.RawExtension fields set to nil
-// - The second application ONLY has runtime.RawExtension fields
-// The third return value is true if and only if there are non-nil runtime.RawExtension fields to be handled.
-func splitAppRawFields(app *appv1.Application) (*appv1.Application, *appv1.Application, bool) {
-	noRawFields := app.DeepCopy()
-	onlyRawFields := &appv1.Application{}
-	hasRawFields := false
-
-	if src := app.Spec.Source; appSourceHasRawFields(src) {
-		hasRawFields = true
-		onlyRawFields.Spec.Source = &appv1.ApplicationSource{Helm: &appv1.ApplicationSourceHelm{ValuesObject: src.Helm.ValuesObject}}
-		noRawFields.Spec.Source.Helm.ValuesObject = nil
-	}
-	if src := app.Status.Sync.ComparedTo.Source; appSourceHasRawFields(&src) {
-		hasRawFields = true
-		onlyRawFields.Status.Sync.ComparedTo.Source = appv1.ApplicationSource{Helm: &appv1.ApplicationSourceHelm{ValuesObject: src.Helm.ValuesObject}}
-		noRawFields.Status.Sync.ComparedTo.Source.Helm.ValuesObject = nil
-	}
-
-	if srcs := app.Spec.Sources; len(srcs) > 0 {
-		noRaw, rawOnly, changed := splitObjSrcRawFields(srcs)
-		if changed {
-			hasRawFields = true
-			onlyRawFields.Spec.Sources = rawOnly
-			noRawFields.Spec.Sources = noRaw
-		}
-	}
-
-	if srcs := app.Status.Sync.ComparedTo.Sources; len(srcs) > 0 {
-		noRaw, rawOnly, changed := splitObjSrcRawFields(srcs)
-		if changed {
-			hasRawFields = true
-			onlyRawFields.Status.Sync.ComparedTo.Sources = rawOnly
-			noRawFields.Status.Sync.ComparedTo.Sources = noRaw
-		}
-	}
-
-	return noRawFields, onlyRawFields, hasRawFields
-}
-
-// splitObjSrcRawFields takes an appv1.ApplicationSources, and returns two application sources:
-// - The first applicationSource has all runtime.RawExtension fields set to nil
-// - The second applicationSource ONLY has runtime.RawExtension fields
-// The third return value is true if and only if there are non-nil runtime.RawExtension fields to be handled.
-func splitObjSrcRawFields(in appv1.ApplicationSources) (appv1.ApplicationSources, appv1.ApplicationSources, bool) {
-	rawOnly := make(appv1.ApplicationSources, len(in))
-	noRaw := make(appv1.ApplicationSources, len(in))
-	hasHelmValues := false
-
-	// We copy the input to avoid mutating the caller data
-	for idx, s := range in.DeepCopy() {
-		if s.Helm != nil && s.Helm.ValuesObject != nil {
-			rawOnly[idx].Helm = &appv1.ApplicationSourceHelm{ValuesObject: s.Helm.ValuesObject}
-			s.Helm.ValuesObject = nil
-			hasHelmValues = true
-		}
-		noRaw[idx] = s
-	}
-
-	return noRaw, rawOnly, hasHelmValues
-}
-
-// jsonCreateMergePatch is a wrapper func to calculate the diff between two objects
-// instead of bytes.
-func jsonCreateMergePatch(orig, new any) ([]byte, bool, error) {
-	origBytes, err := json.Marshal(orig)
-	if err != nil {
-		return nil, false, err
-	}
-	newBytes, err := json.Marshal(new)
-	if err != nil {
-		return nil, false, err
-	}
-	patch, err := jsonpatch.CreateMergePatch(origBytes, newBytes)
-	return patch, string(patch) != "{}", err
-}

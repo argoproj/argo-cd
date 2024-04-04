@@ -473,8 +473,7 @@ message ApplicationSourceHelm {
   optional bool skipCrds = 9;
 
   // ValuesObject specifies Helm values to be passed to helm template, defined as a map. This takes precedence over Values.
-  // +kubebuilder:pruning:PreserveUnknownFields
-  optional k8s.io.apimachinery.pkg.runtime.RawExtension valuesObject = 10;
+  optional UnstructuredObject valuesObject = 10;
 }
 
 // ApplicationSourceJsonnet holds options specific to applications of type Jsonnet
@@ -2312,5 +2311,11 @@ message TagFilter {
   optional string key = 1;
 
   optional string value = 2;
+}
+
+// UnstructuredObject is used to represent any raw unstructured YAML/JSON objects, such as valuesObject.
+message UnstructuredObject {
+  // Raw is the underlying serialization of this object.
+  optional bytes raw = 1;
 }
 

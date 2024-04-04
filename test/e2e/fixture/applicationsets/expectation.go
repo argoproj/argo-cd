@@ -10,7 +10,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/argoproj/argo-cd/v2/controller"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/test/e2e/fixture/applicationsets/utils"
 )
@@ -146,7 +145,7 @@ func pods(namespace string) (*corev1.PodList, error) {
 
 // getDiff returns a string containing a comparison result of two applications (for test output/debug purposes)
 func getDiff(orig, new v1alpha1.Application) (string, error) {
-	bytes, _, err := controller.CreateAppMergePatch(&orig, &new)
+	bytes, _, err := diff.CreateTwoWayMergePatch(&orig, &new, v1alpha1.Application{})
 	if err != nil {
 		return "", err
 	}

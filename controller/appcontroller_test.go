@@ -1916,7 +1916,7 @@ func TestAddControllerNamespace(t *testing.T) {
 func newFakeAppHelmValueObject(input []byte) *argoappsv1.Application {
 	app := newFakeApp()
 	helmSource := &argoappsv1.ApplicationSourceHelm{
-		ValuesObject: &runtime.RawExtension{Raw: input},
+		ValuesObject: &v1alpha1.UnstructuredObject{Raw: input},
 	}
 	app.Spec.Source.Helm = helmSource
 	app.Status.Sync.ComparedTo.Source.Helm = helmSource
@@ -1941,12 +1941,12 @@ func Test_SimpleHelmValuesObjectMerge(t *testing.T) {
 	assert.Errorf(t, err, "Basic merge patch should fail")
 
 	// Fancy patch works fine.
-	_, modified, err := CreateAppMergePatch(origApp, newApp)
+	_, modified, err := diff.CreateTwoWayMergePatch(origApp, newApp, appv1.Application{})
 	assert.NoError(t, err, "Two-way merge with should not have thrown an error")
 	assert.True(t, modified, "A merge patch should have been created")
 }
 
-func Test_createAppMergePatch(t *testing.T) {
+func Test_createUnstructuredAppMergePatch(t *testing.T) {
 	tests := []struct {
 		name    string
 		origApp *argoappsv1.Application
@@ -1973,14 +1973,14 @@ func Test_createAppMergePatch(t *testing.T) {
 			origApp: newFakeAppSources([]argoappsv1.ApplicationSource{
 				{
 					Helm: &argoappsv1.ApplicationSourceHelm{
-						ValuesObject: &runtime.RawExtension{Raw: []byte(`{"foo": {"bar": "2"}}`)},
+						ValuesObject: &v1alpha1.UnstructuredObject{Raw: []byte(`{"foo": {"bar": "2"}}`)},
 					},
 				},
 			}),
 			newApp: newFakeAppSources([]argoappsv1.ApplicationSource{
 				{
 					Helm: &argoappsv1.ApplicationSourceHelm{
-						ValuesObject: &runtime.RawExtension{Raw: []byte(`{"foo": {"bar": 3}}`)},
+						ValuesObject: &v1alpha1.UnstructuredObject{Raw: []byte(`{"foo": {"bar": 3}}`)},
 					},
 				},
 			}),
@@ -1990,7 +1990,7 @@ func Test_createAppMergePatch(t *testing.T) {
 				{Kustomize: &argoappsv1.ApplicationSourceKustomize{}},
 				{
 					Helm: &argoappsv1.ApplicationSourceHelm{
-						ValuesObject: &runtime.RawExtension{Raw: []byte(`{"foo": {"bar": "2"}}`)},
+						ValuesObject: &v1alpha1.UnstructuredObject{Raw: []byte(`{"foo": {"bar": "2"}}`)},
 					},
 				},
 			}),
@@ -1998,7 +1998,7 @@ func Test_createAppMergePatch(t *testing.T) {
 				{Kustomize: &argoappsv1.ApplicationSourceKustomize{}},
 				{
 					Helm: &argoappsv1.ApplicationSourceHelm{
-						ValuesObject: &runtime.RawExtension{Raw: []byte(`{"foo": {"bar": 3}}`)},
+						ValuesObject: &v1alpha1.UnstructuredObject{Raw: []byte(`{"foo": {"bar": 3}}`)},
 					},
 				},
 			}),
@@ -2007,7 +2007,7 @@ func Test_createAppMergePatch(t *testing.T) {
 			origApp: newFakeAppSources([]argoappsv1.ApplicationSource{
 				{
 					Helm: &argoappsv1.ApplicationSourceHelm{
-						ValuesObject: &runtime.RawExtension{Raw: []byte(`{"foo": {"bar": "2"}}`)},
+						ValuesObject: &v1alpha1.UnstructuredObject{Raw: []byte(`{"foo": {"bar": "2"}}`)},
 					},
 				},
 			}),
@@ -2015,7 +2015,7 @@ func Test_createAppMergePatch(t *testing.T) {
 				{Kustomize: &argoappsv1.ApplicationSourceKustomize{}},
 				{
 					Helm: &argoappsv1.ApplicationSourceHelm{
-						ValuesObject: &runtime.RawExtension{Raw: []byte(`{"foo": {"bar": 3}}`)},
+						ValuesObject: &v1alpha1.UnstructuredObject{Raw: []byte(`{"foo": {"bar": 3}}`)},
 					},
 				},
 			}),
@@ -2026,16 +2026,15 @@ func Test_createAppMergePatch(t *testing.T) {
 			origTmp := tt.origApp.DeepCopy()
 			newTmp := tt.newApp.DeepCopy()
 
-			_, modified, err := CreateAppMergePatch(tt.origApp, tt.newApp)
-			assert.NoError(t, err, fmt.Sprintf("CreateAppMergePatch(%v, %v) should not have thrown an error", tt.origApp, tt.newApp))
+			_, modified, err := diff.CreateTwoWayMergePatch(tt.origApp, tt.newApp, appv1.Application{})
+			assert.NoError(t, err, fmt.Sprintf("CreateTwoWayMergePatch(%v, %v, appv1.Application{}) should not have thrown an error", tt.origApp, tt.newApp))
 
 			// Ensure that the object haven't been modified during execution.
-			assert.True(t, reflect.DeepEqual(origTmp, tt.origApp), "CreateAppMergePatch(%v, %v) should not have modified original app", tt.origApp, tt.newApp)
-			assert.True(t, reflect.DeepEqual(newTmp, tt.newApp), "CreateAppMergePatch(%v, %v) should not have modified new app", tt.origApp, tt.newApp)
+			assert.True(t, reflect.DeepEqual(origTmp, tt.origApp), "CreateTwoWayMergePatch(%v, %v, appv1.Application{}) should not have modified original app", tt.origApp, tt.newApp)
+			assert.True(t, reflect.DeepEqual(newTmp, tt.newApp), "CreateTwoWayMergePatch(%v, %v, appv1.Application{}) should not have modified new app", tt.origApp, tt.newApp)
 
 			// If objects are different, then we should get a patch.
-			assert.Equal(t, !reflect.DeepEqual(tt.origApp, tt.newApp), modified, "CreateAppMergePatch(%v, %v) got an unexpected patch result", tt.origApp, tt.newApp)
-
+			assert.Equal(t, !reflect.DeepEqual(tt.origApp, tt.newApp), modified, "CreateTwoWayMergePatch(%v, %v, appv1.Application{}) got an unexpected patch result", tt.origApp, tt.newApp)
 		})
 	}
 }

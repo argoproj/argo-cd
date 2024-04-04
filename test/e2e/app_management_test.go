@@ -21,7 +21,6 @@ import (
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -508,7 +507,7 @@ func TestPatchValuesObject(t *testing.T) {
 		// app should be auto-synced once created
 		CreateFromFile(func(app *Application) {
 			app.Spec.Source.Helm = &ApplicationSourceHelm{
-				ValuesObject: &runtime.RawExtension{
+				ValuesObject: &UnstructuredObject{
 					// Setup by using nested YAML objects, which is what causes the patch error:
 					// "unable to find api field in struct RawExtension for the json field "some""
 					Raw: []byte(`{"some": {"foo": "bar"}}`),
