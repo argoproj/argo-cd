@@ -1,6 +1,6 @@
 # API Docs
 
-You can find the Swagger docs by setting the path to `/swagger-ui` in your Argo CD UI. E.g. [http://localhost:8080/swagger-ui](http://localhost:8080/swagger-ui).
+You can find the Swagger docs by setting the path to `/swagger-ui` in your Argo CD UI's. E.g. [http://localhost:8080/swagger-ui](http://localhost:8080/swagger-ui).
 
 ## Authorization
 
@@ -17,16 +17,4 @@ Then pass using the HTTP `Authorization` header, prefixing with `Bearer `:
 $ curl $ARGOCD_SERVER/api/v1/applications -H "Authorization: Bearer $ARGOCD_TOKEN" 
 {"metadata":{"selfLink":"/apis/argoproj.io/v1alpha1/namespaces/argocd/applications","resourceVersion":"37755"},"items":...}
 ```
-
-## Services
-
-### Applications API
-
-#### How to Avoid 403 Errors for Missing Applications
-
-All endpoints of the Applications API accept an optional `project` query string parameter. If the parameter 
-is specified, and the specified Application does not exist, the API will return a `404` error.
-
-Additionally, if the `project` query string parameter is specified and the Application exists but is not in 
-the given `project`, the API will return a `403` error. This is to prevent leaking information about the 
-existence of Applications to users who do not have access to them.
+ 

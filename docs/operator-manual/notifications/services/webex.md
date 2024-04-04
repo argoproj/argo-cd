@@ -24,7 +24,7 @@ The Webex Teams notification service configuration includes following settings:
     apiVersion: v1
     kind: ConfigMap
     metadata:
-    name: argocd-notifications-cm
+    name: <config-map-name>
     data:
     service.webex: |
         token: $webex-token

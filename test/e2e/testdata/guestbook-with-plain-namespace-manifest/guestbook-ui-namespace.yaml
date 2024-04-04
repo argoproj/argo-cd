@@ -1,9 +1,0 @@
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: guestbook-ui-with-namespace-manifest
-  labels:
-    test: "true"
-  annotations:
-    foo: bar
-    something: else

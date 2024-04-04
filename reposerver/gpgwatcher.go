@@ -19,13 +19,9 @@ func StartGPGWatcher(sourcePath string) error {
 	forceSync := false
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
-		return fmt.Errorf("failed to create fsnotify Watcher: %w", err)
+		return err
 	}
-	defer func(watcher *fsnotify.Watcher) {
-		if err = watcher.Close(); err != nil {
-			log.Errorf("Error closing watcher: %v", err)
-		}
-	}(watcher)
+	defer watcher.Close()
 
 	done := make(chan bool)
 	go func() {
@@ -83,7 +79,7 @@ func StartGPGWatcher(sourcePath string) error {
 
 	err = watcher.Add(sourcePath)
 	if err != nil {
-		return fmt.Errorf("failed to add a new source to the watcher: %w", err)
+		return err
 	}
 	<-done
 	return fmt.Errorf("Abnormal termination of GPG watcher, refusing to continue.")

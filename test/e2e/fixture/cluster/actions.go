@@ -45,10 +45,10 @@ func (a *Actions) Create(args ...string) *Actions {
 		Cluster: &v1alpha1.Cluster{
 			Server:             a.context.server,
 			Name:               a.context.name,
-			Config:             v1alpha1.ClusterConfig{BearerToken: a.context.bearerToken},
+			Config:             v1alpha1.ClusterConfig{},
 			ConnectionState:    v1alpha1.ConnectionState{},
 			ServerVersion:      "",
-			Namespaces:         a.context.namespaces,
+			Namespaces:         nil,
 			RefreshRequestedAt: nil,
 			Info:               v1alpha1.ClusterInfo{},
 			Shard:              nil,

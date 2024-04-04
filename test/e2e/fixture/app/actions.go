@@ -78,12 +78,6 @@ func (a *Actions) AddTag(name string) *Actions {
 	return a
 }
 
-func (a *Actions) RemoveSubmodule() *Actions {
-	a.context.t.Helper()
-	fixture.RemoveSubmodule()
-	return a
-}
-
 func (a *Actions) CreateFromPartialFile(data string, flags ...string) *Actions {
 	a.context.t.Helper()
 	tmpFile, err := os.CreateTemp("", "")
@@ -366,10 +360,6 @@ func (a *Actions) Sync(args ...string) *Actions {
 		args = append(args, "--force")
 	}
 
-	if a.context.applyOutOfSyncOnly {
-		args = append(args, "--apply-out-of-sync-only")
-	}
-
 	if a.context.replace {
 		args = append(args, "--replace")
 	}
@@ -414,12 +404,6 @@ func (a *Actions) Delete(cascade bool) *Actions {
 func (a *Actions) DeleteBySelector(selector string) *Actions {
 	a.context.t.Helper()
 	a.runCli("app", "delete", fmt.Sprintf("--selector=%s", selector), "--yes")
-	return a
-}
-
-func (a *Actions) DeleteBySelectorWithWait(selector string) *Actions {
-	a.context.t.Helper()
-	a.runCli("app", "delete", fmt.Sprintf("--selector=%s", selector), "--yes", "--wait")
 	return a
 }
 

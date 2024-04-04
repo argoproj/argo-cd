@@ -3,7 +3,6 @@ package normalizers
 import (
 	"encoding/json"
 	"fmt"
-	"strings"
 
 	"github.com/argoproj/gitops-engine/pkg/diff"
 	jsonpatch "github.com/evanphx/json-patch"
@@ -71,9 +70,6 @@ func (np *jqNormalizerPatch) Apply(data []byte) ([]byte, error) {
 	first, ok := iter.Next()
 	if !ok {
 		return nil, fmt.Errorf("JQ patch did not return any data")
-	}
-	if err, ok = first.(error); ok {
-		return nil, fmt.Errorf("JQ patch returned error: %w", err)
 	}
 	_, ok = iter.Next()
 	if ok {
@@ -183,9 +179,7 @@ func (n *ignoreNormalizer) Normalize(un *unstructured.Unstructured) error {
 	for _, patch := range matched {
 		patchedDocData, err := patch.Apply(docData)
 		if err != nil {
-			if shouldLogError(err) {
-				log.Debugf("Failed to apply normalization: %v", err)
-			}
+			log.Debugf("Failed to apply normalization: %v", err)
 			continue
 		}
 		docData = patchedDocData
@@ -196,14 +190,4 @@ func (n *ignoreNormalizer) Normalize(un *unstructured.Unstructured) error {
 		return err
 	}
 	return nil
-}
-
-func shouldLogError(e error) bool {
-	if strings.Contains(e.Error(), "Unable to remove nonexistent key") {
-		return false
-	}
-	if strings.Contains(e.Error(), "remove operation does not apply: doc is missing path") {
-		return false
-	}
-	return true
 }

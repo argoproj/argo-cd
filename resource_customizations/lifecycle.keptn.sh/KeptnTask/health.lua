@@ -1,4 +1,4 @@
-local hs = {}
+hs = {}
 if obj.status.status == "Succeeded" then
     hs.status = "Healthy"
     hs.message = "KeptnTask is healthy"

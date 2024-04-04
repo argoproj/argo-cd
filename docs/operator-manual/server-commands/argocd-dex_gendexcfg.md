@@ -1,5 +1,3 @@
-# `argocd-dex gendexcfg` Command Reference
-
 ## argocd-dex gendexcfg
 
 Generates a dex config from Argo CD settings
@@ -19,7 +17,6 @@ argocd-dex gendexcfg [flags]
       --client-key string              Path to a client key file for TLS
       --cluster string                 The name of the kubeconfig cluster to use
       --context string                 The name of the kubeconfig context to use
-      --disable-compression            If true, opt-out of response compression for all requests to the server
       --disable-tls                    Disable TLS on the HTTP endpoint
   -h, --help                           help for gendexcfg
       --insecure-skip-tls-verify       If true, the server's certificate will not be checked for validity. This will make your HTTPS connections insecure

@@ -12,9 +12,9 @@ spec:
             - sh
             - -c
             - |
-              wget https://get.helm.sh/helm-v3.10.3-linux-amd64.tar.gz -O - | tar xz && mv linux-amd64/helm /tools/helm && chmod +x /tools/helm
+              wget https://get.helm.sh/helm-v3.8.2-linux-amd64.tar.gz -O - | tar xz && mv linux-amd64/helm /tools/helm && chmod +x /tools/helm
               wget https://github.com/stedolan/jq/releases/download/jq-1.6/jq-linux64 -O /tools/jq && chmod +x /tools/jq
-              wget https://github.com/mikefarah/yq/releases/download/v4.30.6/yq_linux_amd64 -O /tools/yq && chmod +x /tools/yq
+              wget https://github.com/mikefarah/yq/releases/download/v4.24.5/yq_linux_amd64 -O /tools/yq && chmod +x /tools/yq
           volumeMounts:
             - mountPath: /tools
               name: helm-plugin-tools

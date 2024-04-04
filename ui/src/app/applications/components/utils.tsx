@@ -325,12 +325,7 @@ export const deletePodAction = async (pod: appModels.Pod, appContext: AppContext
 };
 
 export const deletePopup = async (ctx: ContextApis, resource: ResourceTreeNode, application: appModels.Application, appChanged?: BehaviorSubject<appModels.Application>) => {
-    function isTopLevelResource(res: ResourceTreeNode, app: appModels.Application): boolean {
-        const uniqRes = `/${res.namespace}/${res.group}/${res.kind}/${res.name}`;
-        return app.status.resources.some(resStatus => `/${resStatus.namespace}/${resStatus.group}/${resStatus.kind}/${resStatus.name}` === uniqRes);
-    }
-
-    const isManaged = isTopLevelResource(resource, application);
+    const isManaged = !!resource.status;
     const deleteOptions = {
         option: 'foreground'
     };
@@ -366,7 +361,7 @@ export const deletePopup = async (ctx: ContextApis, resource: ResourceTreeNode, 
                     </label>
                     <input type='radio' name='deleteOptions' value='force' onChange={() => handleStateChange('force')} style={{marginRight: '5px'}} id='force-delete-radio' />
                     <label htmlFor='force-delete-radio' style={{paddingRight: '30px'}}>
-                        Background Delete {helpTip('Performs a forceful "background cascading deletion" of the resource and its dependent resources')}
+                        Force Delete {helpTip('Deletes the resource and its dependent resources in the background')}
                     </label>
                     <input type='radio' name='deleteOptions' value='orphan' onChange={() => handleStateChange('orphan')} style={{marginRight: '5px'}} id='cascade-delete-radio' />
                     <label htmlFor='cascade-delete-radio'>Non-cascading (Orphan) Delete {helpTip('Deletes the resource and orphans the dependent resources')}</label>
@@ -407,9 +402,8 @@ function getResourceActionsMenuItems(resource: ResourceTreeNode, metadata: model
             return actions.map(
                 action =>
                     ({
-                        title: action.displayName ?? action.name,
+                        title: action.name,
                         disabled: !!action.disabled,
-                        iconClassName: action.iconClass,
                         action: async () => {
                             try {
                                 const confirmed = await apis.popup.confirm(`Execute '${action.name}' action?`, `Are you sure you want to execute '${action.name}' action?`);
@@ -442,14 +436,14 @@ function getActionItems(
         ...((isRoot && [
             {
                 title: 'Sync',
-                iconClassName: 'fa fa-fw fa-sync',
+                iconClassName: 'fa fa-sync',
                 action: () => showDeploy(nodeKey(resource), null, apis)
             }
         ]) ||
             []),
         {
             title: 'Delete',
-            iconClassName: 'fa fa-fw fa-times-circle',
+            iconClassName: 'fa fa-times-circle',
             action: async () => {
                 return deletePopup(apis, resource, application, appChanged);
             }
@@ -458,7 +452,7 @@ function getActionItems(
     if (!isQuickStart) {
         items.unshift({
             title: 'Details',
-            iconClassName: 'fa fa-fw fa-info-circle',
+            iconClassName: 'fa fa-info-circle',
             action: () => apis.navigation.goto('.', {node: nodeKey(resource)})
         });
     }
@@ -466,7 +460,7 @@ function getActionItems(
     if (findChildPod(resource, tree)) {
         items.push({
             title: 'Logs',
-            iconClassName: 'fa fa-fw fa-align-left',
+            iconClassName: 'fa fa-align-left',
             action: () => apis.navigation.goto('.', {node: nodeKey(resource), tab: 'logs'}, {replace: true})
         });
     }
@@ -478,12 +472,12 @@ function getActionItems(
     const execAction = services.authService
         .settings()
         .then(async settings => {
-            const execAllowed = settings.execEnabled && (await services.accounts.canI('exec', 'create', application.spec.project + '/' + application.metadata.name));
-            if (resource.kind === 'Pod' && execAllowed) {
+            const execAllowed = await services.accounts.canI('exec', 'create', application.spec.project + '/' + application.metadata.name);
+            if (resource.kind === 'Pod' && settings.execEnabled && execAllowed) {
                 return [
                     {
                         title: 'Exec',
-                        iconClassName: 'fa fa-fw fa-terminal',
+                        iconClassName: 'fa fa-terminal',
                         action: async () => apis.navigation.goto('.', {node: nodeKey(resource), tab: 'exec'}, {replace: true})
                     } as MenuItem
                 ];
@@ -501,7 +495,7 @@ function getActionItems(
                 link =>
                     ({
                         title: link.title,
-                        iconClassName: `fa fa-fw ${link.iconClass ? link.iconClass : 'fa-external-link'}`,
+                        iconClassName: `fa ${link.iconClass ? link.iconClass : 'fa-external-link'}`,
                         action: () => window.open(link.url, '_blank'),
                         tooltip: link.description
                     } as MenuItem)
@@ -878,7 +872,7 @@ export const OperationState = ({app, quiet}: {app: appModels.Application; quiet?
     );
 };
 
-export function getPodStateReason(pod: appModels.State): {message: string; reason: string; netContainerStatuses: any[]} {
+export function getPodStateReason(pod: appModels.State): {message: string; reason: string} {
     let reason = pod.status.phase;
     let message = '';
     if (pod.status.reason) {
@@ -886,10 +880,6 @@ export function getPodStateReason(pod: appModels.State): {message: string; reaso
     }
 
     let initializing = false;
-
-    let netContainerStatuses = pod.status.initContainerStatuses || [];
-    netContainerStatuses = netContainerStatuses.concat(pod.status.containerStatuses || []);
-
     for (const container of (pod.status.initContainerStatuses || []).slice().reverse()) {
         if (container.state.terminated && container.state.terminated.exitCode === 0) {
             continue;
@@ -949,7 +939,7 @@ export function getPodStateReason(pod: appModels.State): {message: string; reaso
         message = '';
     }
 
-    return {reason, message, netContainerStatuses};
+    return {reason, message};
 }
 
 export const getPodReadinessGatesState = (pod: appModels.State): {nonExistingConditions: string[]; notPassedConditions: string[]} => {
@@ -1257,17 +1247,3 @@ export function formatCreationTimestamp(creationTimestamp: string) {
 }
 
 export const selectPostfix = (arr: string[], singular: string, plural: string) => (arr.length > 1 ? plural : singular);
-
-export function getUsrMsgKeyToDisplay(appName: string, msgKey: string, usrMessages: appModels.UserMessages[]) {
-    const usrMsg = usrMessages?.find((msg: appModels.UserMessages) => msg.appName === appName && msg.msgKey === msgKey);
-    if (usrMsg !== undefined) {
-        return {...usrMsg, display: true};
-    } else {
-        return {appName, msgKey, display: false, duration: 1} as appModels.UserMessages;
-    }
-}
-
-export const userMsgsList: {[key: string]: string} = {
-    groupNodes: `Since the number of pods has surpassed the threshold pod count of 15, you will now be switched to the group node view.
-                 If you prefer the tree view, you can simply click on the Group Nodes toolbar button to deselect the current view.`
-};

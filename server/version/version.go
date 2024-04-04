@@ -2,7 +2,6 @@ package version
 
 import (
 	"context"
-
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/google/go-jsonnet"
 
@@ -68,7 +67,6 @@ func (s *Server) Version(ctx context.Context, _ *empty.Empty) (*version.VersionM
 		HelmVersion:      s.helmVersion,
 		JsonnetVersion:   s.jsonnetVersion,
 		KubectlVersion:   vers.KubectlVersion,
-		ExtraBuildInfo:   vers.ExtraBuildInfo,
 	}, nil
 }
 

@@ -1,7 +1,6 @@
 package shared
 
 import (
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"time"
 
 	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
@@ -29,32 +28,24 @@ type AppDetail struct {
 	Directory *apiclient.DirectoryAppSpec
 }
 
-type CustomHelmAppSpec struct {
-	HelmAppSpec            apiclient.HelmAppSpec
-	HelmParameterOverrides []v1alpha1.HelmParameter
-}
+type CustomHelmAppSpec apiclient.HelmAppSpec
 
 func (has CustomHelmAppSpec) GetParameterValueByName(Name string) string {
-	// Check in overrides first
-	for i := range has.HelmParameterOverrides {
-		if has.HelmParameterOverrides[i].Name == Name {
-			return has.HelmParameterOverrides[i].Value
+	var value string
+	for i := range has.Parameters {
+		if has.Parameters[i].Name == Name {
+			value = has.Parameters[i].Value
+			break
 		}
 	}
-
-	for i := range has.HelmAppSpec.Parameters {
-		if has.HelmAppSpec.Parameters[i].Name == Name {
-			return has.HelmAppSpec.Parameters[i].Value
-		}
-	}
-	return ""
+	return value
 }
 
 func (has CustomHelmAppSpec) GetFileParameterPathByName(Name string) string {
 	var path string
-	for i := range has.HelmAppSpec.FileParameters {
-		if has.HelmAppSpec.FileParameters[i].Name == Name {
-			path = has.HelmAppSpec.FileParameters[i].Path
+	for i := range has.FileParameters {
+		if has.FileParameters[i].Name == Name {
+			path = has.FileParameters[i].Path
 			break
 		}
 	}

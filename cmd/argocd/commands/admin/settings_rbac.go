@@ -6,13 +6,13 @@ import (
 	"os"
 	"strings"
 
+	"github.com/ghodss/yaml"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
-	"sigs.k8s.io/yaml"
 
 	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/server/rbacpolicy"
@@ -23,40 +23,38 @@ import (
 
 // Provide a mapping of short-hand resource names to their RBAC counterparts
 var resourceMap map[string]string = map[string]string{
-	"account":         rbacpolicy.ResourceAccounts,
-	"app":             rbacpolicy.ResourceApplications,
-	"apps":            rbacpolicy.ResourceApplications,
-	"application":     rbacpolicy.ResourceApplications,
-	"applicationsets": rbacpolicy.ResourceApplicationSets,
-	"cert":            rbacpolicy.ResourceCertificates,
-	"certs":           rbacpolicy.ResourceCertificates,
-	"certificate":     rbacpolicy.ResourceCertificates,
-	"cluster":         rbacpolicy.ResourceClusters,
-	"gpgkey":          rbacpolicy.ResourceGPGKeys,
-	"key":             rbacpolicy.ResourceGPGKeys,
-	"log":             rbacpolicy.ResourceLogs,
-	"logs":            rbacpolicy.ResourceLogs,
-	"exec":            rbacpolicy.ResourceExec,
-	"proj":            rbacpolicy.ResourceProjects,
-	"projs":           rbacpolicy.ResourceProjects,
-	"project":         rbacpolicy.ResourceProjects,
-	"repo":            rbacpolicy.ResourceRepositories,
-	"repos":           rbacpolicy.ResourceRepositories,
-	"repository":      rbacpolicy.ResourceRepositories,
+	"account":     rbacpolicy.ResourceAccounts,
+	"app":         rbacpolicy.ResourceApplications,
+	"apps":        rbacpolicy.ResourceApplications,
+	"application": rbacpolicy.ResourceApplications,
+	"cert":        rbacpolicy.ResourceCertificates,
+	"certs":       rbacpolicy.ResourceCertificates,
+	"certificate": rbacpolicy.ResourceCertificates,
+	"cluster":     rbacpolicy.ResourceClusters,
+	"gpgkey":      rbacpolicy.ResourceGPGKeys,
+	"key":         rbacpolicy.ResourceGPGKeys,
+	"log":         rbacpolicy.ResourceLogs,
+	"logs":        rbacpolicy.ResourceLogs,
+	"exec":        rbacpolicy.ResourceExec,
+	"proj":        rbacpolicy.ResourceProjects,
+	"projs":       rbacpolicy.ResourceProjects,
+	"project":     rbacpolicy.ResourceProjects,
+	"repo":        rbacpolicy.ResourceRepositories,
+	"repos":       rbacpolicy.ResourceRepositories,
+	"repository":  rbacpolicy.ResourceRepositories,
 }
 
 // List of allowed RBAC resources
 var validRBACResources map[string]bool = map[string]bool{
-	rbacpolicy.ResourceAccounts:        true,
-	rbacpolicy.ResourceApplications:    true,
-	rbacpolicy.ResourceApplicationSets: true,
-	rbacpolicy.ResourceCertificates:    true,
-	rbacpolicy.ResourceClusters:        true,
-	rbacpolicy.ResourceGPGKeys:         true,
-	rbacpolicy.ResourceLogs:            true,
-	rbacpolicy.ResourceExec:            true,
-	rbacpolicy.ResourceProjects:        true,
-	rbacpolicy.ResourceRepositories:    true,
+	rbacpolicy.ResourceAccounts:     true,
+	rbacpolicy.ResourceApplications: true,
+	rbacpolicy.ResourceCertificates: true,
+	rbacpolicy.ResourceClusters:     true,
+	rbacpolicy.ResourceGPGKeys:      true,
+	rbacpolicy.ResourceLogs:         true,
+	rbacpolicy.ResourceExec:         true,
+	rbacpolicy.ResourceProjects:     true,
+	rbacpolicy.ResourceRepositories: true,
 }
 
 // List of allowed RBAC actions
@@ -189,6 +187,7 @@ argocd admin settings rbac can someuser create application 'default/app' --defau
 			}
 		},
 	}
+
 	clientConfig = cli.AddKubectlFlagsToCmd(command)
 	command.Flags().StringVar(&policyFile, "policy-file", "", "path to the policy file to use")
 	command.Flags().StringVar(&defaultRole, "default-role", "", "name of the default role to use")
@@ -201,55 +200,24 @@ argocd admin settings rbac can someuser create application 'default/app' --defau
 // NewRBACValidateCommand returns a new rbac validate command
 func NewRBACValidateCommand() *cobra.Command {
 	var (
-		policyFile   string
-		namespace    string
-		clientConfig clientcmd.ClientConfig
+		policyFile string
 	)
 
 	var command = &cobra.Command{
-		Use:   "validate [--policy-file POLICYFILE] [--namespace NAMESPACE]",
+		Use:   "validate --policy-file=POLICYFILE",
 		Short: "Validate RBAC policy",
 		Long: `
 Validates an RBAC policy for being syntactically correct. The policy must be
-a local file or a K8s ConfigMap in the provided namespace, and in either CSV or K8s ConfigMap format.
-`,
-		Example: `
-# Check whether a given policy file is valid using a local policy.csv file.
-argocd admin settings rbac validate --policy-file policy.csv
-
-# Policy file can also be K8s config map with data keys like argocd-rbac-cm,
-# i.e. 'policy.csv' and (optionally) 'policy.default'
-argocd admin settings rbac validate --policy-file argocd-rbac-cm.yaml
-
-# If --policy-file is not given, and instead --namespace is giventhe ConfigMap 'argocd-rbac-cm' 
-# from K8s is used. 
-argocd admin settings rbac validate --namespace argocd
-
-# Either --policy-file or --namespace must be given.
+a local file, and in either CSV or K8s ConfigMap format.
 `,
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
 
-			if len(args) > 0 {
+			if policyFile == "" {
 				c.HelpFunc()(c, args)
-				log.Fatalf("too many arguments")
+				log.Fatalf("Please specify policy to validate using --policy-file")
 			}
-
-			if (namespace == "" && policyFile == "") || (namespace != "" && policyFile != "") {
-				c.HelpFunc()(c, args)
-				log.Fatalf("please provide exactly one of --policy-file or --namespace")
-			}
-
-			restConfig, err := clientConfig.ClientConfig()
-			if err != nil {
-				log.Fatalf("could not get config to create k8s client: %v", err)
-			}
-			realClientset, err := kubernetes.NewForConfig(restConfig)
-			if err != nil {
-				log.Fatalf("could not create k8s client: %v", err)
-			}
-
-			userPolicy, _, _ := getPolicy(ctx, policyFile, realClientset, namespace)
+			userPolicy, _, _ := getPolicy(ctx, policyFile, nil, "")
 			if userPolicy != "" {
 				if err := rbac.ValidatePolicy(userPolicy); err == nil {
 					fmt.Printf("Policy is valid.\n")
@@ -258,15 +226,11 @@ argocd admin settings rbac validate --namespace argocd
 					fmt.Printf("Policy is invalid: %v\n", err)
 					os.Exit(1)
 				}
-			} else {
-				log.Fatalf("Policy is empty or could not be loaded.")
 			}
 		},
 	}
-	clientConfig = cli.AddKubectlFlagsToCmd(command)
-	command.Flags().StringVar(&policyFile, "policy-file", "", "path to the policy file to use")
-	command.Flags().StringVar(&namespace, "namespace", "", "namespace to get argo rbac configmap from")
 
+	command.Flags().StringVar(&policyFile, "policy-file", "", "path to the policy file to use")
 	return command
 }
 
@@ -329,9 +293,11 @@ func getPolicyFromConfigMap(cm *corev1.ConfigMap) (string, string, string) {
 	if !ok {
 		userPolicy = ""
 	}
-	defaultRole, ok = cm.Data[rbac.ConfigMapPolicyDefaultKey]
-	if !ok {
-		defaultRole = ""
+	if defaultRole == "" {
+		defaultRole, ok = cm.Data[rbac.ConfigMapPolicyDefaultKey]
+		if !ok {
+			defaultRole = ""
+		}
 	}
 
 	return userPolicy, defaultRole, cm.Data[rbac.ConfigMapMatchModeKey]

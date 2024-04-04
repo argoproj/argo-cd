@@ -247,7 +247,7 @@ export const PodTerminalViewer: React.FC<PodTerminalViewerProps> = ({
                                         onClickContainer(group, i, 'exec');
                                     }
                                 }}>
-                                {container.name === containerName && <i className='fa fa-angle-right negative-space-arrow' />}
+                                {container.name === containerName && <i className='fa fa-angle-right' />}
                                 <span title={container.name}>{container.name}</span>
                             </div>
                         ))}

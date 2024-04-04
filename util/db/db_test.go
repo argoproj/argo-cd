@@ -9,7 +9,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	appv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -749,28 +748,4 @@ func TestGetClusterServersByName_InClusterConfigured(t *testing.T) {
 	servers, err := db.GetClusterServersByName(context.Background(), "in-cluster-renamed")
 	assert.NoError(t, err)
 	assert.ElementsMatch(t, []string{v1alpha1.KubernetesInternalAPIServerAddr}, servers)
-}
-
-func TestGetApplicationControllerReplicas(t *testing.T) {
-	clientset := getClientset(nil)
-	expectedReplicas := int32(2)
-	t.Setenv(common.EnvControllerReplicas, "2")
-	db := NewDB(testNamespace, settings.NewSettingsManager(context.Background(), clientset, testNamespace), clientset)
-	replicas := db.GetApplicationControllerReplicas()
-	assert.Equal(t, int(expectedReplicas), replicas)
-
-	expectedReplicas = int32(3)
-	clientset = getClientset(nil, &appv1.Deployment{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      common.ApplicationController,
-			Namespace: testNamespace,
-		},
-		Spec: appv1.DeploymentSpec{
-			Replicas: &expectedReplicas,
-		},
-	})
-	t.Setenv(common.EnvControllerReplicas, "2")
-	db = NewDB(testNamespace, settings.NewSettingsManager(context.Background(), clientset, testNamespace), clientset)
-	replicas = db.GetApplicationControllerReplicas()
-	assert.Equal(t, int(expectedReplicas), replicas)
 }

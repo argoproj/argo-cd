@@ -2,7 +2,6 @@ package generators
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -10,12 +9,9 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	log "github.com/sirupsen/logrus"
-
 	"github.com/argoproj/argo-cd/v2/applicationset/services/github_app_auth"
 	"github.com/argoproj/argo-cd/v2/applicationset/services/scm_provider"
 	"github.com/argoproj/argo-cd/v2/applicationset/utils"
-	"github.com/argoproj/argo-cd/v2/common"
 	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 )
 
@@ -30,28 +26,22 @@ type SCMProviderGenerator struct {
 	// Testing hooks.
 	overrideProvider scm_provider.SCMProviderService
 	SCMAuthProviders
-	scmRootCAPath       string
-	allowedSCMProviders []string
-	enableSCMProviders  bool
 }
 
 type SCMAuthProviders struct {
 	GitHubApps github_app_auth.Credentials
 }
 
-func NewSCMProviderGenerator(client client.Client, providers SCMAuthProviders, scmRootCAPath string, allowedSCMProviders []string, enableSCMProviders bool) Generator {
+func NewSCMProviderGenerator(client client.Client, providers SCMAuthProviders) Generator {
 	return &SCMProviderGenerator{
-		client:              client,
-		SCMAuthProviders:    providers,
-		scmRootCAPath:       scmRootCAPath,
-		allowedSCMProviders: allowedSCMProviders,
-		enableSCMProviders:  enableSCMProviders,
+		client:           client,
+		SCMAuthProviders: providers,
 	}
 }
 
 // Testing generator
 func NewTestSCMProviderGenerator(overrideProvider scm_provider.SCMProviderService) Generator {
-	return &SCMProviderGenerator{overrideProvider: overrideProvider, enableSCMProviders: true}
+	return &SCMProviderGenerator{overrideProvider: overrideProvider}
 }
 
 func (g *SCMProviderGenerator) GetRequeueAfter(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator) time.Duration {
@@ -68,46 +58,6 @@ func (g *SCMProviderGenerator) GetTemplate(appSetGenerator *argoprojiov1alpha1.A
 	return &appSetGenerator.SCMProvider.Template
 }
 
-var ErrSCMProvidersDisabled = errors.New("scm providers are disabled")
-
-type ErrDisallowedSCMProvider struct {
-	Provider string
-	Allowed  []string
-}
-
-func NewErrDisallowedSCMProvider(provider string, allowed []string) ErrDisallowedSCMProvider {
-	return ErrDisallowedSCMProvider{
-		Provider: provider,
-		Allowed:  allowed,
-	}
-}
-
-func (e ErrDisallowedSCMProvider) Error() string {
-	return fmt.Sprintf("scm provider %q not allowed, must use one of the following: %s", e.Provider, strings.Join(e.Allowed, ", "))
-}
-
-func ScmProviderAllowed(applicationSetInfo *argoprojiov1alpha1.ApplicationSet, generator SCMGeneratorWithCustomApiUrl, allowedScmProviders []string) error {
-	url := generator.CustomApiUrl()
-
-	if url == "" || len(allowedScmProviders) == 0 {
-		return nil
-	}
-
-	for _, allowedScmProvider := range allowedScmProviders {
-		if url == allowedScmProvider {
-			return nil
-		}
-	}
-
-	log.WithFields(log.Fields{
-		common.SecurityField: common.SecurityMedium,
-		"applicationset":     applicationSetInfo.Name,
-		"appSetNamespace":    applicationSetInfo.Namespace,
-	}).Debugf("attempted to use disallowed SCM %q, must use one of the following: %s", url, strings.Join(allowedScmProviders, ", "))
-
-	return NewErrDisallowedSCMProvider(url, allowedScmProviders)
-}
-
 func (g *SCMProviderGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator, applicationSetInfo *argoprojiov1alpha1.ApplicationSet) ([]map[string]interface{}, error) {
 	if appSetGenerator == nil {
 		return nil, EmptyAppSetGeneratorError
@@ -117,18 +67,10 @@ func (g *SCMProviderGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha
 		return nil, EmptyAppSetGeneratorError
 	}
 
-	if !g.enableSCMProviders {
-		return nil, ErrSCMProvidersDisabled
-	}
+	ctx := context.Background()
 
 	// Create the SCM provider helper.
 	providerConfig := appSetGenerator.SCMProvider
-
-	if err := ScmProviderAllowed(applicationSetInfo, providerConfig, g.allowedSCMProviders); err != nil {
-		return nil, fmt.Errorf("scm provider not allowed: %w", err)
-	}
-
-	ctx := context.Background()
 	var provider scm_provider.SCMProviderService
 	if g.overrideProvider != nil {
 		provider = g.overrideProvider
@@ -143,7 +85,7 @@ func (g *SCMProviderGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha
 		if err != nil {
 			return nil, fmt.Errorf("error fetching Gitlab token: %v", err)
 		}
-		provider, err = scm_provider.NewGitlabProvider(ctx, providerConfig.Gitlab.Group, token, providerConfig.Gitlab.API, providerConfig.Gitlab.AllBranches, providerConfig.Gitlab.IncludeSubgroups, providerConfig.Gitlab.WillIncludeSharedProjects(), providerConfig.Gitlab.Insecure, g.scmRootCAPath, providerConfig.Gitlab.Topic)
+		provider, err = scm_provider.NewGitlabProvider(ctx, providerConfig.Gitlab.Group, token, providerConfig.Gitlab.API, providerConfig.Gitlab.AllBranches, providerConfig.Gitlab.IncludeSubgroups)
 		if err != nil {
 			return nil, fmt.Errorf("error initializing Gitlab service: %v", err)
 		}
@@ -189,12 +131,6 @@ func (g *SCMProviderGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha
 		if err != nil {
 			return nil, fmt.Errorf("error initializing Bitbucket cloud service: %v", err)
 		}
-	} else if providerConfig.AWSCodeCommit != nil {
-		var awsErr error
-		provider, awsErr = scm_provider.NewAWSCodeCommitProvider(ctx, providerConfig.AWSCodeCommit.TagFilters, providerConfig.AWSCodeCommit.Role, providerConfig.AWSCodeCommit.Region, providerConfig.AWSCodeCommit.AllBranches)
-		if awsErr != nil {
-			return nil, fmt.Errorf("error initializing AWS codecommit service: %v", awsErr)
-		}
 	} else {
 		return nil, fmt.Errorf("no SCM provider implementation configured")
 	}
@@ -204,40 +140,26 @@ func (g *SCMProviderGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha
 	if err != nil {
 		return nil, fmt.Errorf("error listing repos: %v", err)
 	}
-	paramsArray := make([]map[string]interface{}, 0, len(repos))
+	params := make([]map[string]interface{}, 0, len(repos))
 	var shortSHALength int
-	var shortSHALength7 int
 	for _, repo := range repos {
 		shortSHALength = 8
 		if len(repo.SHA) < 8 {
 			shortSHALength = len(repo.SHA)
 		}
 
-		shortSHALength7 = 7
-		if len(repo.SHA) < 7 {
-			shortSHALength7 = len(repo.SHA)
-		}
-
-		params := map[string]interface{}{
+		params = append(params, map[string]interface{}{
 			"organization":     repo.Organization,
 			"repository":       repo.Repository,
 			"url":              repo.URL,
 			"branch":           repo.Branch,
 			"sha":              repo.SHA,
 			"short_sha":        repo.SHA[:shortSHALength],
-			"short_sha_7":      repo.SHA[:shortSHALength7],
 			"labels":           strings.Join(repo.Labels, ","),
 			"branchNormalized": utils.SanitizeName(repo.Branch),
-		}
-
-		err := appendTemplatedValues(appSetGenerator.SCMProvider.Values, params, applicationSetInfo.Spec.GoTemplate, applicationSetInfo.Spec.GoTemplateOptions)
-		if err != nil {
-			return nil, fmt.Errorf("failed to append templated values: %w", err)
-		}
-
-		paramsArray = append(paramsArray, params)
+		})
 	}
-	return paramsArray, nil
+	return params, nil
 }
 
 func (g *SCMProviderGenerator) getSecretRef(ctx context.Context, ref *argoprojiov1alpha1.SecretRef, namespace string) (string, error) {

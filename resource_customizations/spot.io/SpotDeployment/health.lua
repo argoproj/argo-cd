@@ -1,4 +1,4 @@
-local hs = {}
+hs = {}
 
 if obj.status == nil or obj.status.conditions == nil then
   return hs

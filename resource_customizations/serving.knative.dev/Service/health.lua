@@ -1,10 +1,10 @@
-local health_status = {}
+health_status = {}
 health_status.status = "Progressing"
 health_status.message = "Waiting for status update."
 if obj.status ~= nil and obj.status.conditions ~= nil then
-  local status_true = 0
-  local status_false = 0
-  local status_unknown = 0
+  status_true = 0
+  status_false = 0
+  status_unknown = 0
   health_status.message = ""
   for i, condition in pairs(obj.status.conditions) do
     if condition.status == "True" and (condition.type == "ConfigurationsReady" or condition.type == "RoutesReady" or condition.type == "Ready") then

@@ -1,14 +1,11 @@
 package normalizers
 
 import (
-	"encoding/json"
-	"fmt"
 	"testing"
 
+	"github.com/ghodss/yaml"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"sigs.k8s.io/yaml"
 
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/test"
@@ -221,54 +218,4 @@ func TestNormalizeJQPathExpressionWithError(t *testing.T) {
 	normalizedDeployment, err := deployment.MarshalJSON()
 	assert.Nil(t, err)
 	assert.Equal(t, originalDeployment, normalizedDeployment)
-}
-
-func TestNormalizeExpectedErrorAreSilenced(t *testing.T) {
-	normalizer, err := NewIgnoreNormalizer([]v1alpha1.ResourceIgnoreDifferences{}, map[string]v1alpha1.ResourceOverride{
-		"*/*": {
-			IgnoreDifferences: v1alpha1.OverrideIgnoreDiff{
-				JSONPointers: []string{"/invalid", "/invalid/json/path"},
-			},
-		},
-	})
-	assert.Nil(t, err)
-
-	ignoreNormalizer := normalizer.(*ignoreNormalizer)
-	assert.Len(t, ignoreNormalizer.patches, 2)
-	jsonPatch := ignoreNormalizer.patches[0]
-	jqPatch := ignoreNormalizer.patches[1]
-
-	deployment := test.NewDeployment()
-	deploymentData, err := json.Marshal(deployment)
-	assert.Nil(t, err)
-
-	// Error: "error in remove for path: '/invalid': Unable to remove nonexistent key: invalid: missing value"
-	_, err = jsonPatch.Apply(deploymentData)
-	assert.False(t, shouldLogError(err))
-
-	// Error: "remove operation does not apply: doc is missing path: \"/invalid/json/path\": missing value"
-	_, err = jqPatch.Apply(deploymentData)
-	assert.False(t, shouldLogError(err))
-
-	assert.True(t, shouldLogError(fmt.Errorf("An error that should not be ignored")))
-
-}
-
-func TestJQPathExpressionReturnsHelpfulError(t *testing.T) {
-	normalizer, err := NewIgnoreNormalizer([]v1alpha1.ResourceIgnoreDifferences{{
-		Kind: "ConfigMap",
-		// This is a really wild expression, but it does trigger the desired error.
-		JQPathExpressions: []string{`.nothing) | .data["config.yaml"] |= (fromjson | del(.auth) | tojson`},
-	}}, nil)
-
-	assert.NoError(t, err)
-
-	configMap := test.NewConfigMap()
-	require.NoError(t, err)
-
-	out := test.CaptureLogEntries(func() {
-		err = normalizer.Normalize(configMap)
-		require.NoError(t, err)
-	})
-	assert.Contains(t, out, "fromjson cannot be applied")
 }

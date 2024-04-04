@@ -4,8 +4,9 @@ import (
 	"context"
 
 	"github.com/alicebob/miniredis/v2"
-	"github.com/argoproj/gitops-engine/pkg/utils/testing"
 	"github.com/redis/go-redis/v9"
+
+	"github.com/argoproj/gitops-engine/pkg/utils/testing"
 	apiv1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -83,22 +84,6 @@ var DeploymentManifest = `
 
 func NewDeployment() *unstructured.Unstructured {
 	return testing.Unstructured(DeploymentManifest)
-}
-
-var ConfigMapManifest = `
-{	
-  "apiVersion": "v1",
-  "kind": "ConfigMap",
-  "metadata": {
-    "name": "my-configmap",
-  },
-  "data": {
-    "config.yaml": "auth: token\nconfig:field"
-  }
-}`
-
-func NewConfigMap() *unstructured.Unstructured {
-	return testing.Unstructured(ConfigMapManifest)
 }
 
 func NewFakeConfigMap() *apiv1.ConfigMap {

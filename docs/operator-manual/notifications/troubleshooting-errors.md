@@ -36,6 +36,6 @@ You need to check your argocd-notifications controller version. For instance, th
 
 ## Failed to notify recipient
 
-### notification service 'xxxx' is not supported
+### notification service 'xxxx' is not supported"
 
 You have not defined `xxxx` in `argocd-notifications-cm` or to fail to parse settings.

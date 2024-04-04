@@ -3,7 +3,6 @@ package grpc
 import (
 	"context"
 	"crypto/tls"
-	"fmt"
 	"net"
 	"runtime/debug"
 	"strings"
@@ -11,7 +10,6 @@ import (
 
 	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/sirupsen/logrus"
-	"golang.org/x/net/proxy"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
@@ -65,16 +63,16 @@ func BlockingDial(ctx context.Context, network, address string, creds credential
 
 	dialer := func(ctx context.Context, address string) (net.Conn, error) {
 
-		conn, err := proxy.Dial(ctx, network, address)
+		conn, err := (&net.Dialer{Cancel: ctx.Done()}).Dial(network, address)
 		if err != nil {
 			writeResult(err)
-			return nil, fmt.Errorf("error dial proxy: %w", err)
+			return nil, err
 		}
 		if creds != nil {
 			conn, _, err = creds.ClientHandshake(ctx, address, conn)
 			if err != nil {
 				writeResult(err)
-				return nil, fmt.Errorf("error creating connection: %w", err)
+				return nil, err
 			}
 		}
 		return conn, nil
@@ -90,7 +88,7 @@ func BlockingDial(ctx context.Context, network, address string, creds credential
 			grpc.FailOnNonTempDialError(true),
 			grpc.WithContextDialer(dialer),
 			grpc.WithTransportCredentials(insecure.NewCredentials()), // we are handling TLS, so tell grpc not to
-			grpc.WithKeepaliveParams(keepalive.ClientParameters{Time: common.GetGRPCKeepAliveTime()}),
+			grpc.WithKeepaliveParams(keepalive.ClientParameters{Time: common.GRPCKeepAliveTime}),
 		)
 		conn, err := grpc.DialContext(ctx, address, opts...)
 		var res interface{}

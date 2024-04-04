@@ -88,8 +88,7 @@ spec:
                   properties:
                     name:
                       description: Name is an alternate way of specifying the target
-                        cluster by its symbolic name. This must be set if Server is
-                        not set.
+                        cluster by its symbolic name
                       type: string
                     namespace:
                       description: Namespace specifies the target namespace for the
@@ -97,9 +96,8 @@ spec:
                         namespace-scoped resources that have not set a value for .metadata.namespace
                       type: string
                     server:
-                      description: Server specifies the URL of the target cluster's
-                        Kubernetes control plane API. This must be set if Name is
-                        not set.
+                      description: Server specifies the URL of the target cluster
+                        and must be set to the Kubernetes control plane API
                       type: string
                   type: object
                 type: array

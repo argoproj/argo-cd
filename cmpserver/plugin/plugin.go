@@ -120,16 +120,11 @@ func runCommand(ctx context.Context, command Command, path string, env []string)
 		logCtx.Error(err.Error())
 		return strings.TrimSuffix(output, "\n"), err
 	}
-
-	logCtx = logCtx.WithFields(log.Fields{
-		"stderr":  stderr.String(),
-		"command": command,
-	})
 	if len(output) == 0 {
-		logCtx.Warn("Plugin command returned zero output")
-	} else {
-		// Log stderr even on successfull commands to help develop plugins
-		logCtx.Info("Plugin command successfull")
+		log.WithFields(log.Fields{
+			"stderr":  stderr.String(),
+			"command": command,
+		}).Warn("Plugin command returned zero output")
 	}
 
 	return strings.TrimSuffix(output, "\n"), nil

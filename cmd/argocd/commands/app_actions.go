@@ -4,17 +4,16 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/argoproj/argo-cd/v2/util/templates"
 	"os"
 	"strconv"
 	"text/tabwriter"
 
 	"github.com/argoproj/argo-cd/v2/cmd/util"
 
+	"github.com/ghodss/yaml"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"k8s.io/utils/pointer"
-	"sigs.k8s.io/yaml"
 
 	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/headless"
 	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
@@ -34,22 +33,11 @@ type DisplayedAction struct {
 	Disabled bool
 }
 
-var (
-	appActionExample = templates.Examples(`
-	# List all the available actions for an application
-	argocd app actions list APPNAME
-
-	# Run an available action for an application
-	argocd app actions run APPNAME ACTION --kind KIND [--resource-name RESOURCE] [--namespace NAMESPACE] [--group GROUP]
-	`)
-)
-
 // NewApplicationResourceActionsCommand returns a new instance of an `argocd app actions` command
 func NewApplicationResourceActionsCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var command = &cobra.Command{
-		Use:     "actions",
-		Short:   "Manage Resource actions",
-		Example: appActionExample,
+		Use:   "actions",
+		Short: "Manage Resource actions",
 		Run: func(c *cobra.Command, args []string) {
 			c.HelpFunc()(c, args)
 			os.Exit(1)
@@ -70,10 +58,6 @@ func NewApplicationResourceActionsListCommand(clientOpts *argocdclient.ClientOpt
 	var command = &cobra.Command{
 		Use:   "list APPNAME",
 		Short: "Lists available actions on a resource",
-		Example: templates.Examples(`
-	# List all the available actions for an application
-	argocd app actions list APPNAME
-	`),
 	}
 	command.Run = func(c *cobra.Command, args []string) {
 		ctx := c.Context()
@@ -82,7 +66,7 @@ func NewApplicationResourceActionsListCommand(clientOpts *argocdclient.ClientOpt
 			c.HelpFunc()(c, args)
 			os.Exit(1)
 		}
-		appName, appNs := argo.ParseFromQualifiedName(args[0], "")
+		appName, appNs := argo.ParseAppQualifiedName(args[0], "")
 		conn, appIf := headless.NewClientOrDie(clientOpts, c).NewApplicationClientOrDie()
 		defer io.Close(conn)
 		resources, err := getActionableResourcesForApplication(appIf, ctx, &appNs, &appName)
@@ -152,10 +136,6 @@ func NewApplicationResourceActionsRunCommand(clientOpts *argocdclient.ClientOpti
 	var command = &cobra.Command{
 		Use:   "run APPNAME ACTION",
 		Short: "Runs an available action on resource(s)",
-		Example: templates.Examples(`
-	# Run an available action for an application
-	argocd app actions run APPNAME ACTION --kind KIND [--resource-name RESOURCE] [--namespace NAMESPACE] [--group GROUP]
-	`),
 	}
 
 	command.Flags().StringVar(&resourceName, "resource-name", "", "Name of resource")
@@ -172,7 +152,7 @@ func NewApplicationResourceActionsRunCommand(clientOpts *argocdclient.ClientOpti
 			c.HelpFunc()(c, args)
 			os.Exit(1)
 		}
-		appName, appNs := argo.ParseFromQualifiedName(args[0], "")
+		appName, appNs := argo.ParseAppQualifiedName(args[0], "")
 		actionName := args[1]
 
 		conn, appIf := headless.NewClientOrDie(clientOpts, c).NewApplicationClientOrDie()

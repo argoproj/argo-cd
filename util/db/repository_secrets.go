@@ -171,7 +171,7 @@ func (s *secretsRepositoryBackend) RepositoryExists(ctx context.Context, repoURL
 			return false, nil
 		}
 
-		return false, fmt.Errorf("failed to get repository secret for %q: %v", repoURL, err)
+		return false, err
 	}
 
 	return secret != nil, nil
@@ -457,7 +457,7 @@ func repoCredsToSecret(repoCreds *appsv1.RepoCreds, secret *corev1.Secret) {
 func (s *secretsRepositoryBackend) getRepositorySecret(repoURL string) (*corev1.Secret, error) {
 	secrets, err := s.db.listSecretsByType(common.LabelValueSecretTypeRepository)
 	if err != nil {
-		return nil, fmt.Errorf("failed to list repository secrets: %w", err)
+		return nil, err
 	}
 
 	for _, secret := range secrets {
@@ -489,9 +489,6 @@ func (s *secretsRepositoryBackend) getRepositoryCredentialIndex(repoCredentials 
 	for i, cred := range repoCredentials {
 		credUrl := git.NormalizeGitURL(string(cred.Data["url"]))
 		if strings.HasPrefix(repoURL, credUrl) {
-			if len(credUrl) == max {
-				log.Warnf("Found multiple credentials for repoURL: %s", repoURL)
-			}
 			if len(credUrl) > max {
 				max = len(credUrl)
 				idx = i

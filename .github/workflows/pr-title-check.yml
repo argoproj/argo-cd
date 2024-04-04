@@ -2,11 +2,15 @@ name: "Lint PR"
 
 on:
   pull_request_target:
-    types: [opened, edited, reopened, synchronize]
+    types:
+      - opened
+      - edited
+      - synchronize
 
 # IMPORTANT: No checkout actions, scripts, or builds should be added to this workflow. Permissions should always be used
-# with extreme caution. https://docs.github.com/en/actions/using-workflows/events-that-trigger-workflows#pull_request_target
-permissions: {}
+# with extreme caution.
+permissions:
+  contents: read
 
 # PR updates can happen in quick succession leading to this
 # workflow being trigger a number of times. This limits it
@@ -14,16 +18,24 @@ permissions: {}
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
 
-
 jobs:
-  validate:
+  main:
     permissions:
-      contents: read
-      pull-requests: read
-    name: Validate PR Title
+      pull-requests: read  # for amannn/action-semantic-pull-request to analyze PRs
+      statuses: write  # for amannn/action-semantic-pull-request to mark status of analyzed PR
+    name: Validate PR title
     runs-on: ubuntu-latest
     steps:
-      - uses: thehanimo/pr-title-checker@0cf5902181e78341bb97bb06646396e5bd354b3f # v1.4.0
+      # IMPORTANT: Carefully review changes when updating this action. Using the pull_request_target event requires caution.
+      - uses: amannn/action-semantic-pull-request@b6bca70dcd3e56e896605356ce09b76f7e1e0d39 # v5.1.0
         with:
+          types: |
+            feat
+            fix
+            docs
+            test
+            ci
+            chore
+            [Bot] docs
+        env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          configuration_path: ".github/pr-title-checker-config.json"

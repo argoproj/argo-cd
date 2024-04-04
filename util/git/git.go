@@ -14,6 +14,14 @@ func ensurePrefix(s, prefix string) string {
 	return s
 }
 
+// removeSuffix idempotently removes a given suffix
+func removeSuffix(s, suffix string) string {
+	if strings.HasSuffix(s, suffix) {
+		return s[0 : len(s)-len(suffix)]
+	}
+	return s
+}
+
 var (
 	commitSHARegex = regexp.MustCompile("^[0-9A-Fa-f]{40}$")
 	sshURLRegex    = regexp.MustCompile("^(ssh://)?([^/:]*?)@[^@]+$")
@@ -54,7 +62,7 @@ func NormalizeGitURL(repo string) string {
 			repo = ensurePrefix(repo, "ssh://")
 		}
 	}
-	repo = strings.TrimSuffix(repo, ".git")
+	repo = removeSuffix(repo, ".git")
 	repoURL, err := url.Parse(repo)
 	if err != nil {
 		return ""

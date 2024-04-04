@@ -38,7 +38,6 @@ metadata:
 
 ## Service Types
 
-* [AwsSqs](./awssqs.md)
 * [Email](./email.md)
 * [GitHub](./github.md)
 * [Slack](./slack.md)

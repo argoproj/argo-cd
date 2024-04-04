@@ -294,7 +294,7 @@ func (s *Server) GetAppDetails(ctx context.Context, q *repositorypkg.RepoAppDeta
 	if err := s.enf.EnforceErr(claims, rbacpolicy.ResourceRepositories, rbacpolicy.ActionGet, createRBACObject(repo.Project, repo.Repo)); err != nil {
 		return nil, err
 	}
-	appName, appNs := argo.ParseFromQualifiedName(q.AppName, s.settings.GetNamespace())
+	appName, appNs := argo.ParseAppQualifiedName(q.AppName, s.settings.GetNamespace())
 	app, err := s.appLister.Applications(appNs).Get(appName)
 	appRBACObj := createRBACObject(q.AppProject, q.AppName)
 	// ensure caller has read privileges to app
@@ -563,12 +563,6 @@ func isSourceInHistory(app *v1alpha1.Application, source v1alpha1.ApplicationSou
 	appSource := app.Spec.GetSource()
 	if source.Equals(&appSource) {
 		return true
-	}
-	appSources := app.Spec.GetSources()
-	for _, s := range appSources {
-		if source.Equals(&s) {
-			return true
-		}
 	}
 	// Iterate history. When comparing items in our history, use the actual synced revision to
 	// compare with the supplied source.targetRevision in the request. This is because

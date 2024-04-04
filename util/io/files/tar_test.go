@@ -216,7 +216,7 @@ func TestUntgz(t *testing.T) {
 
 		scriptFileInfo, err := os.Stat(path.Join(destDir, "script.sh"))
 		require.NoError(t, err)
-		assert.Equal(t, os.FileMode(0644), scriptFileInfo.Mode())
+		assert.Equal(t, os.FileMode(0755), scriptFileInfo.Mode())
 	})
 }
 

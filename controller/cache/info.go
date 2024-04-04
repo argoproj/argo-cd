@@ -3,14 +3,12 @@ package cache
 import (
 	"errors"
 	"fmt"
-	"strconv"
 	"strings"
 
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/argoproj/gitops-engine/pkg/utils/text"
-	"github.com/cespare/xxhash/v2"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -18,7 +16,6 @@ import (
 
 	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/util/argo/normalizers"
 	"github.com/argoproj/argo-cd/v2/util/resource"
 )
 
@@ -37,16 +34,6 @@ func populateNodeInfo(un *unstructured.Unstructured, res *ResourceInfo, customLa
 			}
 		}
 	}
-
-	for k, v := range un.GetAnnotations() {
-		if strings.HasPrefix(k, common.AnnotationKeyLinkPrefix) {
-			if res.NetworkingInfo == nil {
-				res.NetworkingInfo = &v1alpha1.ResourceNetworkingInfo{}
-			}
-			res.NetworkingInfo.ExternalURLs = append(res.NetworkingInfo.ExternalURLs, v)
-		}
-	}
-
 	switch gvk.Group {
 	case "":
 		switch gvk.Kind {
@@ -66,6 +53,15 @@ func populateNodeInfo(un *unstructured.Unstructured, res *ResourceInfo, customLa
 		switch gvk.Kind {
 		case "VirtualService":
 			populateIstioVirtualServiceInfo(un, res)
+		}
+	}
+
+	for k, v := range un.GetAnnotations() {
+		if strings.HasPrefix(k, common.AnnotationKeyLinkPrefix) {
+			if res.NetworkingInfo == nil {
+				res.NetworkingInfo = &v1alpha1.ResourceNetworkingInfo{}
+			}
+			res.NetworkingInfo.ExternalURLs = append(res.NetworkingInfo.ExternalURLs, v)
 		}
 	}
 }
@@ -94,13 +90,7 @@ func populateServiceInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 	if serviceType, ok, err := unstructured.NestedString(un.Object, "spec", "type"); ok && err == nil && serviceType == string(v1.ServiceTypeLoadBalancer) {
 		ingress = getIngress(un)
 	}
-
-	var urls []string
-	if res.NetworkingInfo != nil {
-		urls = res.NetworkingInfo.ExternalURLs
-	}
-
-	res.NetworkingInfo = &v1alpha1.ResourceNetworkingInfo{TargetLabels: targetLabels, Ingress: ingress, ExternalURLs: urls}
+	res.NetworkingInfo = &v1alpha1.ResourceNetworkingInfo{TargetLabels: targetLabels, Ingress: ingress}
 }
 
 func getServiceName(backend map[string]interface{}, gvk schema.GroupVersionKind) (string, error) {
@@ -270,12 +260,7 @@ func populateIstioVirtualServiceInfo(un *unstructured.Unstructured, res *Resourc
 		targets = append(targets, target)
 	}
 
-	var urls []string
-	if res.NetworkingInfo != nil {
-		urls = res.NetworkingInfo.ExternalURLs
-	}
-
-	res.NetworkingInfo = &v1alpha1.ResourceNetworkingInfo{TargetRefs: targets, ExternalURLs: urls}
+	res.NetworkingInfo = &v1alpha1.ResourceNetworkingInfo{TargetRefs: targets}
 }
 
 func populatePodInfo(un *unstructured.Unstructured, res *ResourceInfo) {
@@ -386,13 +371,7 @@ func populatePodInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 	if restarts > 0 {
 		res.Info = append(res.Info, v1alpha1.InfoItem{Name: "Restart Count", Value: fmt.Sprintf("%d", restarts)})
 	}
-
-	var urls []string
-	if res.NetworkingInfo != nil {
-		urls = res.NetworkingInfo.ExternalURLs
-	}
-
-	res.NetworkingInfo = &v1alpha1.ResourceNetworkingInfo{Labels: un.GetLabels(), ExternalURLs: urls}
+	res.NetworkingInfo = &v1alpha1.ResourceNetworkingInfo{Labels: un.GetLabels()}
 }
 
 func populateHostNodeInfo(un *unstructured.Unstructured, res *ResourceInfo) {
@@ -406,28 +385,4 @@ func populateHostNodeInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 		Capacity:   node.Status.Capacity,
 		SystemInfo: node.Status.NodeInfo,
 	}
-}
-
-func generateManifestHash(un *unstructured.Unstructured, ignores []v1alpha1.ResourceIgnoreDifferences, overrides map[string]v1alpha1.ResourceOverride) (string, error) {
-	normalizer, err := normalizers.NewIgnoreNormalizer(ignores, overrides)
-	if err != nil {
-		return "", fmt.Errorf("error creating normalizer: %w", err)
-	}
-
-	resource := un.DeepCopy()
-	err = normalizer.Normalize(resource)
-	if err != nil {
-		return "", fmt.Errorf("error normalizing resource: %w", err)
-	}
-
-	data, err := resource.MarshalJSON()
-	if err != nil {
-		return "", fmt.Errorf("error marshaling resource: %w", err)
-	}
-	hash := hash(data)
-	return hash, nil
-}
-
-func hash(data []byte) string {
-	return strconv.FormatUint(xxhash.Sum64(data), 16)
 }

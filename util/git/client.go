@@ -17,14 +17,12 @@ import (
 	"time"
 
 	argoexec "github.com/argoproj/pkg/exec"
-	"github.com/bmatcuk/doublestar/v4"
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/config"
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/transport"
 	githttp "github.com/go-git/go-git/v5/plumbing/transport/http"
 	"github.com/go-git/go-git/v5/storage/memory"
-	"github.com/google/uuid"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/crypto/ssh/knownhosts"
@@ -56,8 +54,7 @@ type Refs struct {
 
 type gitRefCache interface {
 	SetGitReferences(repo string, references []*plumbing.Reference) error
-	GetOrLockGitReferences(repo string, lockId string, references *[]*plumbing.Reference) (string, error)
-	UnlockGitReferences(repo string, lockId string) error
+	GetGitReferences(repo string, references *[]*plumbing.Reference) error
 }
 
 // Client is a generic git client interface
@@ -69,7 +66,7 @@ type Client interface {
 	Checkout(revision string, submoduleEnabled bool) error
 	LsRefs() (*Refs, error)
 	LsRemote(revision string) (string, error)
-	LsFiles(path string, enableNewGitFileGlobbing bool) ([]string, error)
+	LsFiles(path string) ([]string, error)
 	LsLargeFiles() ([]string, error)
 	CommitSHA() (string, error)
 	RevisionMetadata(revision string) (*RevisionMetadata, error)
@@ -176,10 +173,6 @@ func NewClientExt(rawRepoURL string, root string, creds Creds, insecure bool, en
 	return client, nil
 }
 
-var (
-	gitClientTimeout = env.ParseDurationFromEnv("ARGOCD_GIT_REQUEST_TIMEOUT", 15*time.Second, 0, math.MaxInt64)
-)
-
 // Returns a HTTP client object suitable for go-git to use using the following
 // pattern:
 //   - If insecure is true, always returns a client with certificate verification
@@ -191,8 +184,8 @@ var (
 func GetRepoHTTPClient(repoURL string, insecure bool, creds Creds, proxyURL string) *http.Client {
 	// Default HTTP client
 	var customHTTPClient = &http.Client{
-		// 15 second timeout by default
-		Timeout: gitClientTimeout,
+		// 15 second timeout
+		Timeout: 15 * time.Second,
 		// don't follow redirect
 		CheckRedirect: func(req *http.Request, via []*http.Request) error {
 			return http.ErrUseLastResponse
@@ -347,9 +340,9 @@ func (m *nativeGitClient) IsLFSEnabled() bool {
 func (m *nativeGitClient) fetch(revision string) error {
 	var err error
 	if revision != "" {
-		err = m.runCredentialedCmd("fetch", "origin", revision, "--tags", "--force", "--prune")
+		err = m.runCredentialedCmd("git", "fetch", "origin", revision, "--tags", "--force", "--prune")
 	} else {
-		err = m.runCredentialedCmd("fetch", "origin", "--tags", "--force", "--prune")
+		err = m.runCredentialedCmd("git", "fetch", "origin", "--tags", "--force", "--prune")
 	}
 	return err
 }
@@ -367,7 +360,7 @@ func (m *nativeGitClient) Fetch(revision string) error {
 	if err == nil && m.IsLFSEnabled() {
 		largeFiles, err := m.LsLargeFiles()
 		if err == nil && len(largeFiles) > 0 {
-			err = m.runCredentialedCmd("lfs", "fetch", "--all")
+			err = m.runCredentialedCmd("git", "lfs", "fetch", "--all")
 			if err != nil {
 				return err
 			}
@@ -378,44 +371,14 @@ func (m *nativeGitClient) Fetch(revision string) error {
 }
 
 // LsFiles lists the local working tree, including only files that are under source control
-func (m *nativeGitClient) LsFiles(path string, enableNewGitFileGlobbing bool) ([]string, error) {
-	if enableNewGitFileGlobbing {
-		// This is the new way with safer globbing
-		err := os.Chdir(m.root)
-		if err != nil {
-			return nil, err
-		}
-		all_files, err := doublestar.FilepathGlob(path)
-		if err != nil {
-			return nil, err
-		}
-		var files []string
-		for _, file := range all_files {
-			link, err := filepath.EvalSymlinks(file)
-			if err != nil {
-				return nil, err
-			}
-			absPath, err := filepath.Abs(link)
-			if err != nil {
-				return nil, err
-			}
-			if strings.HasPrefix(absPath, m.root) {
-				files = append(files, file)
-			} else {
-				log.Warnf("Absolute path for %s is outside of repository, removing it", file)
-			}
-		}
-		return files, nil
-	} else {
-		// This is the old and default way
-		out, err := m.runCmd("ls-files", "--full-name", "-z", "--", path)
-		if err != nil {
-			return nil, err
-		}
-		// remove last element, which is blank regardless of whether we're using nullbyte or newline
-		ss := strings.Split(out, "\000")
-		return ss[:len(ss)-1], nil
+func (m *nativeGitClient) LsFiles(path string) ([]string, error) {
+	out, err := m.runCmd("ls-files", "--full-name", "-z", "--", path)
+	if err != nil {
+		return nil, err
 	}
+	// remove last element, which is blank regardless of whether we're using nullbyte or newline
+	ss := strings.Split(out, "\000")
+	return ss[:len(ss)-1], nil
 }
 
 // LsLargeFiles lists all files that have references to LFS storage
@@ -430,10 +393,10 @@ func (m *nativeGitClient) LsLargeFiles() ([]string, error) {
 
 // Submodule embed other repositories into this repository
 func (m *nativeGitClient) Submodule() error {
-	if err := m.runCredentialedCmd("submodule", "sync", "--recursive"); err != nil {
+	if err := m.runCredentialedCmd("git", "submodule", "sync", "--recursive"); err != nil {
 		return err
 	}
-	if err := m.runCredentialedCmd("submodule", "update", "--init", "--recursive"); err != nil {
+	if err := m.runCredentialedCmd("git", "submodule", "update", "--init", "--recursive"); err != nil {
 		return err
 	}
 	return nil
@@ -467,48 +430,18 @@ func (m *nativeGitClient) Checkout(revision string, submoduleEnabled bool) error
 			}
 		}
 	}
-	// NOTE
-	// The double “f” in the arguments is not a typo: the first “f” tells
-	// `git clean` to delete untracked files and directories, and the second “f”
-	// tells it to clean untractked nested Git repositories (for example a
-	// submodule which has since been removed).
-	if _, err := m.runCmd("clean", "-ffdx"); err != nil {
+	if _, err := m.runCmd("clean", "-fdx"); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (m *nativeGitClient) getRefs() ([]*plumbing.Reference, error) {
-	myLockUUID, err := uuid.NewRandom()
-	myLockId := ""
-	if err != nil {
-		log.Debug("Error generating git references cache lock id: ", err)
-	} else {
-		myLockId = myLockUUID.String()
-	}
-	// Prevent an additional get call to cache if we know our state isn't stale
-	needsUnlock := true
 	if m.gitRefCache != nil && m.loadRefFromCache {
 		var res []*plumbing.Reference
-		foundLockId, err := m.gitRefCache.GetOrLockGitReferences(m.repoURL, myLockId, &res)
-		isLockOwner := myLockId == foundLockId
-		if !isLockOwner && err == nil {
-			// Valid value already in cache
+		if m.gitRefCache.GetGitReferences(m.repoURL, &res) == nil {
 			return res, nil
-		} else if !isLockOwner && err != nil {
-			// Error getting value from cache
-			log.Debugf("Error getting git references from cache: %v", err)
-			return nil, err
 		}
-		// Defer a soft reset of the cache lock, if the value is set this call will be ignored
-		defer func() {
-			if needsUnlock {
-				err := m.gitRefCache.UnlockGitReferences(m.repoURL, myLockId)
-				if err != nil {
-					log.Debugf("Error unlocking git references from cache: %v", err)
-				}
-			}
-		}()
 	}
 
 	if m.OnLsRemote != nil {
@@ -535,9 +468,6 @@ func (m *nativeGitClient) getRefs() ([]*plumbing.Reference, error) {
 	if err == nil && m.gitRefCache != nil {
 		if err := m.gitRefCache.SetGitReferences(m.repoURL, res); err != nil {
 			log.Warnf("Failed to store git references to cache: %v", err)
-		} else {
-			// Since we successfully overwrote the lock with valid data, we don't need to unlock
-			needsUnlock = false
 		}
 		return res, nil
 	}
@@ -719,7 +649,7 @@ func (m *nativeGitClient) runCmd(args ...string) (string, error) {
 
 // runCredentialedCmd is a convenience function to run a git command with username/password credentials
 // nolint:unparam
-func (m *nativeGitClient) runCredentialedCmd(args ...string) error {
+func (m *nativeGitClient) runCredentialedCmd(command string, args ...string) error {
 	closer, environ, err := m.creds.Environ()
 	if err != nil {
 		return err
@@ -734,7 +664,7 @@ func (m *nativeGitClient) runCredentialedCmd(args ...string) error {
 		}
 	}
 
-	cmd := exec.Command("git", args...)
+	cmd := exec.Command(command, args...)
 	cmd.Env = append(cmd.Env, environ...)
 	_, err = m.runCmdOutput(cmd, runOpts{})
 	return err
@@ -771,6 +701,7 @@ func (m *nativeGitClient) runCmdOutput(cmd *exec.Cmd, ropts runOpts) (string, er
 			}
 		}
 	}
+
 	cmd.Env = proxy.UpsertEnv(cmd, m.proxy)
 	opts := executil.ExecRunOpts{
 		TimeoutBehavior: argoexec.TimeoutBehavior{

@@ -13,7 +13,6 @@ core/v1/CephFSPersistentVolumeSource
 core/v1/CephFSVolumeSource
 core/v1/CinderPersistentVolumeSource
 core/v1/CinderVolumeSource
-core/v1/ClaimSource
 core/v1/ClientIPConfig
 core/v1/ComponentCondition
 core/v1/ComponentStatus
@@ -134,8 +133,6 @@ core/v1/PodOS
 core/v1/PodPortForwardOptions
 core/v1/PodProxyOptions
 core/v1/PodReadinessGate
-core/v1/PodResourceClaim
-core/v1/PodSchedulingGate
 core/v1/PodSecurityContext
 core/v1/PodSignature
 core/v1/PodSpec
@@ -161,7 +158,6 @@ core/v1/ReplicationControllerCondition
 core/v1/ReplicationControllerList
 core/v1/ReplicationControllerSpec
 core/v1/ReplicationControllerStatus
-core/v1/ResourceClaim
 core/v1/ResourceFieldSelector
 core/v1/ResourceList
 core/v1/ResourceQuota
@@ -204,7 +200,6 @@ core/v1/TopologySelectorLabelRequirement
 core/v1/TopologySelectorTerm
 core/v1/TopologySpreadConstraint
 core/v1/TypedLocalObjectReference
-core/v1/TypedObjectReference
 core/v1/Volume
 core/v1/VolumeDevice
 core/v1/VolumeMount

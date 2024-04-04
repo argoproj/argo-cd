@@ -37,7 +37,7 @@ type terminalSession struct {
 	tty            bool
 	readLock       sync.Mutex
 	writeLock      sync.Mutex
-	sessionManager *util_session.SessionManager
+	sessionManager util_session.SessionManager
 	token          *string
 }
 
@@ -48,7 +48,7 @@ func getToken(r *http.Request) (string, error) {
 }
 
 // newTerminalSession create terminalSession
-func newTerminalSession(w http.ResponseWriter, r *http.Request, responseHeader http.Header, sessionManager *util_session.SessionManager) (*terminalSession, error) {
+func newTerminalSession(w http.ResponseWriter, r *http.Request, responseHeader http.Header, sessionManager util_session.SessionManager) (*terminalSession, error) {
 	token, err := getToken(r)
 	if err != nil {
 		return nil, err
@@ -72,23 +72,6 @@ func newTerminalSession(w http.ResponseWriter, r *http.Request, responseHeader h
 // Done close the done channel.
 func (t *terminalSession) Done() {
 	close(t.doneChan)
-}
-
-func (t *terminalSession) StartKeepalives(dur time.Duration) {
-	ticker := time.NewTicker(dur)
-	defer ticker.Stop()
-	for {
-		select {
-		case <-ticker.C:
-			err := t.Ping()
-			if err != nil {
-				log.Errorf("ping error: %v", err)
-				return
-			}
-		case <-t.doneChan:
-			return
-		}
-	}
 }
 
 // Next called in a loop from remotecommand as long as the process is running
@@ -156,17 +139,6 @@ func (t *terminalSession) Read(p []byte) (int, error) {
 	default:
 		return copy(p, EndOfTransmission), fmt.Errorf("unknown message type %s", msg.Operation)
 	}
-}
-
-// Ping called periodically to ensure connection stays alive through load balancers
-func (t *terminalSession) Ping() error {
-	t.writeLock.Lock()
-	err := t.wsConn.WriteMessage(websocket.PingMessage, []byte("ping"))
-	t.writeLock.Unlock()
-	if err != nil {
-		log.Errorf("ping message err: %v", err)
-	}
-	return err
 }
 
 // Write called from remotecommand whenever there is any output

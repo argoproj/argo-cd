@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	argoappv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
@@ -123,11 +124,6 @@ func Test_setKustomizeOpt(t *testing.T) {
 		setKustomizeOpt(&src, kustomizeOpts{commonAnnotations: map[string]string{"foo1": "bar1", "foo2": "bar2"}})
 		assert.Equal(t, &v1alpha1.ApplicationSourceKustomize{CommonAnnotations: map[string]string{"foo1": "bar1", "foo2": "bar2"}}, src.Kustomize)
 	})
-	t.Run("Label Without Selector", func(t *testing.T) {
-		src := v1alpha1.ApplicationSource{}
-		setKustomizeOpt(&src, kustomizeOpts{commonLabels: map[string]string{"foo1": "bar1", "foo2": "bar2"}, labelWithoutSelector: true})
-		assert.Equal(t, &v1alpha1.ApplicationSourceKustomize{CommonLabels: map[string]string{"foo1": "bar1", "foo2": "bar2"}, LabelWithoutSelector: true}, src.Kustomize)
-	})
 }
 
 func Test_setJsonnetOpt(t *testing.T) {
@@ -170,16 +166,7 @@ func (f *appOptionsFixture) SetFlag(key, value string) error {
 	if err != nil {
 		return err
 	}
-	_ = SetAppSpecOptions(f.command.Flags(), f.spec, f.options, 0)
-	return err
-}
-
-func (f *appOptionsFixture) SetFlagWithSourceIndex(key, value string, index int) error {
-	err := f.command.Flags().Set(key, value)
-	if err != nil {
-		return err
-	}
-	_ = SetAppSpecOptions(f.command.Flags(), f.spec, f.options, index)
+	_ = SetAppSpecOptions(f.command.Flags(), f.spec, f.options)
 	return err
 }
 
@@ -230,55 +217,7 @@ func Test_setAppSpecOptions(t *testing.T) {
 	t.Run("Kustomize", func(t *testing.T) {
 		assert.NoError(t, f.SetFlag("kustomize-replica", "my-deployment=2"))
 		assert.NoError(t, f.SetFlag("kustomize-replica", "my-statefulset=4"))
-		assert.Equal(t, f.spec.Source.Kustomize.Replicas, v1alpha1.KustomizeReplicas{{Name: "my-deployment", Count: intstr.FromInt(2)}, {Name: "my-statefulset", Count: intstr.FromInt(4)}})
-	})
-}
-
-func newMultiSourceAppOptionsFixture() *appOptionsFixture {
-	fixture := &appOptionsFixture{
-		spec: &v1alpha1.ApplicationSpec{
-			Sources: v1alpha1.ApplicationSources{
-				v1alpha1.ApplicationSource{},
-				v1alpha1.ApplicationSource{},
-			},
-		},
-		command: &cobra.Command{},
-		options: &AppOptions{},
-	}
-	AddAppFlags(fixture.command, fixture.options)
-	return fixture
-}
-
-func Test_setAppSpecOptionsMultiSourceApp(t *testing.T) {
-	f := newMultiSourceAppOptionsFixture()
-	index := 0
-	index1 := 1
-	index2 := 2
-	t.Run("SyncPolicy", func(t *testing.T) {
-		assert.NoError(t, f.SetFlagWithSourceIndex("sync-policy", "automated", index1))
-		assert.NotNil(t, f.spec.SyncPolicy.Automated)
-
-		f.spec.SyncPolicy = nil
-		assert.NoError(t, f.SetFlagWithSourceIndex("sync-policy", "automatic", index1))
-		assert.NotNil(t, f.spec.SyncPolicy.Automated)
-	})
-	t.Run("Helm - Index 0", func(t *testing.T) {
-		assert.NoError(t, f.SetFlagWithSourceIndex("helm-version", "v2", index))
-		assert.Equal(t, len(f.spec.GetSources()), 2)
-		assert.Equal(t, f.spec.GetSources()[index].Helm.Version, "v2")
-	})
-	t.Run("Kustomize", func(t *testing.T) {
-		assert.NoError(t, f.SetFlagWithSourceIndex("kustomize-replica", "my-deployment=2", index1))
-		assert.Equal(t, f.spec.Sources[index1-1].Kustomize.Replicas, v1alpha1.KustomizeReplicas{{Name: "my-deployment", Count: intstr.FromInt(2)}})
-		assert.NoError(t, f.SetFlagWithSourceIndex("kustomize-replica", "my-deployment=4", index2))
-		assert.Equal(t, f.spec.Sources[index2-1].Kustomize.Replicas, v1alpha1.KustomizeReplicas{{Name: "my-deployment", Count: intstr.FromInt(4)}})
-	})
-	t.Run("Helm", func(t *testing.T) {
-		assert.NoError(t, f.SetFlagWithSourceIndex("helm-version", "v2", index1))
-		assert.NoError(t, f.SetFlagWithSourceIndex("helm-version", "v3", index2))
-		assert.Equal(t, len(f.spec.GetSources()), 2)
-		assert.Equal(t, f.spec.GetSources()[index1-1].Helm.Version, "v2")
-		assert.Equal(t, f.spec.GetSources()[index2-1].Helm.Version, "v3")
+		assert.Equal(t, f.spec.Source.Kustomize.Replicas, argoappv1.KustomizeReplicas{{Name: "my-deployment", Count: intstr.FromInt(2)}, {Name: "my-statefulset", Count: intstr.FromInt(4)}})
 	})
 }
 
@@ -355,7 +294,7 @@ func TestReadAppsFromURI(t *testing.T) {
 	_, _ = file.WriteString(appsYaml)
 	_ = file.Sync()
 
-	apps := make([]*v1alpha1.Application, 0)
+	apps := make([]*argoappv1.Application, 0)
 	err = readAppsFromURI(file.Name(), &apps)
 	assert.NoError(t, err)
 	assert.Equal(t, 2, len(apps))

@@ -1,4 +1,4 @@
-FROM docker.io/library/node:21.7.1@sha256:b9ccc4aca32eebf124e0ca0fd573dacffba2b9236987a1d4d2625ce3c162ecc8 as node
+FROM docker.io/library/node:18.15.0@sha256:8d9a875ee427897ef245302e31e2319385b092f1c3368b497e89790f240368f5 AS node
 
 RUN apt-get update && apt-get install --no-install-recommends -y \
     software-properties-common 

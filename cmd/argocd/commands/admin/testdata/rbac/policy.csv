@@ -5,8 +5,6 @@ p, role:user, applications, get, *, allow
 p, role:user, applications, create, */*, allow
 p, role:user, applications, delete, *, allow
 p, role:user, applications, delete, */guestbook, deny
-p, role:user, applicationsets, create, */*, allow
-p, role:user, applicationsets, delete, */*, allow
 p, role:test, certificates, get, *, allow
 p, role:test, logs, get, */*, allow
 p, role:test, exec, create, */*, allow

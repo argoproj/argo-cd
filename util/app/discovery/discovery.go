@@ -31,11 +31,11 @@ func IsManifestGenerationEnabled(sourceType v1alpha1.ApplicationSourceType, enab
 	return enabled
 }
 
-func Discover(ctx context.Context, appPath, repoPath string, enableGenerateManifests map[string]bool, tarExcludedGlobs []string, env []string) (map[string]string, error) {
+func Discover(ctx context.Context, appPath, repoPath string, enableGenerateManifests map[string]bool, tarExcludedGlobs []string) (map[string]string, error) {
 	apps := make(map[string]string)
 
 	// Check if it is CMP
-	conn, _, err := DetectConfigManagementPlugin(ctx, appPath, repoPath, "", env, tarExcludedGlobs)
+	conn, _, err := DetectConfigManagementPlugin(ctx, appPath, repoPath, "", []string{}, tarExcludedGlobs)
 	if err == nil {
 		// Found CMP
 		io.Close(conn)
@@ -67,8 +67,8 @@ func Discover(ctx context.Context, appPath, repoPath string, enableGenerateManif
 	return apps, err
 }
 
-func AppType(ctx context.Context, appPath, repoPath string, enableGenerateManifests map[string]bool, tarExcludedGlobs []string, env []string) (string, error) {
-	apps, err := Discover(ctx, appPath, repoPath, enableGenerateManifests, tarExcludedGlobs, env)
+func AppType(ctx context.Context, appPath, repoPath string, enableGenerateManifests map[string]bool, tarExcludedGlobs []string) (string, error) {
+	apps, err := Discover(ctx, appPath, repoPath, enableGenerateManifests, tarExcludedGlobs)
 	if err != nil {
 		return "", err
 	}
@@ -100,7 +100,7 @@ func DetectConfigManagementPlugin(ctx context.Context, appPath, repoPath, plugin
 		// check if the given plugin supports the repo
 		conn, cmpClient, connFound = cmpSupports(ctx, pluginSockFilePath, appPath, repoPath, fmt.Sprintf("%v.sock", pluginName), env, tarExcludedGlobs, true)
 		if !connFound {
-			return nil, nil, fmt.Errorf("couldn't find cmp-server plugin with name %q supporting the given repository", pluginName)
+			return nil, nil, fmt.Errorf("couldn't find cmp-server plugin with name %v supporting the given repository", pluginName)
 		}
 	} else {
 		fileList, err := os.ReadDir(pluginSockFilePath)

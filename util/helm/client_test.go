@@ -5,13 +5,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
-	"net/url"
 	"os"
 	"strings"
 	"testing"
 
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -37,12 +37,12 @@ func (f *fakeIndexCache) GetHelmIndex(_ string, indexData *[]byte) error {
 func TestIndex(t *testing.T) {
 	t.Run("Invalid", func(t *testing.T) {
 		client := NewClient("", Creds{}, false, "")
-		_, err := client.GetIndex(false, 10000)
+		_, err := client.GetIndex(false)
 		assert.Error(t, err)
 	})
 	t.Run("Stable", func(t *testing.T) {
 		client := NewClient("https://argoproj.github.io/argo-helm", Creds{}, false, "")
-		index, err := client.GetIndex(false, 10000)
+		index, err := client.GetIndex(false)
 		assert.NoError(t, err)
 		assert.NotNil(t, index)
 	})
@@ -51,7 +51,7 @@ func TestIndex(t *testing.T) {
 			Username: "my-password",
 			Password: "my-username",
 		}, false, "")
-		index, err := client.GetIndex(false, 10000)
+		index, err := client.GetIndex(false)
 		assert.NoError(t, err)
 		assert.NotNil(t, index)
 	})
@@ -63,18 +63,12 @@ func TestIndex(t *testing.T) {
 		require.NoError(t, err)
 
 		client := NewClient("https://argoproj.github.io/argo-helm", Creds{}, false, "", WithIndexCache(&fakeIndexCache{data: data.Bytes()}))
-		index, err := client.GetIndex(false, 10000)
+		index, err := client.GetIndex(false)
 
 		assert.NoError(t, err)
 		assert.Equal(t, fakeIndex, *index)
 	})
 
-	t.Run("Limited", func(t *testing.T) {
-		client := NewClient("https://argoproj.github.io/argo-helm", Creds{}, false, "")
-		_, err := client.GetIndex(false, 100)
-
-		assert.ErrorContains(t, err, "unexpected end of stream")
-	})
 }
 
 func Test_nativeHelmChart_ExtractChart(t *testing.T) {
@@ -166,129 +160,82 @@ func TestGetIndexURL(t *testing.T) {
 }
 
 func TestGetTagsFromUrl(t *testing.T) {
-	t.Run("should return tags correctly while following the link header", func(t *testing.T) {
-		server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			t.Logf("called %s", r.URL.Path)
-			responseTags := TagsList{}
-			w.Header().Set("Content-Type", "application/json")
-			if !strings.Contains(r.URL.String(), "token") {
-				w.Header().Set("Link", fmt.Sprintf("<https://%s%s?token=next-token>; rel=next", r.Host, r.URL.Path))
-				responseTags.Tags = []string{"first"}
-			} else {
-				responseTags.Tags = []string{
-					"second",
-					"2.8.0",
-					"2.8.0-prerelease",
-					"2.8.0_build",
-					"2.8.0-prerelease_build",
-					"2.8.0-prerelease.1_build.1234",
-				}
-			}
-			w.WriteHeader(http.StatusOK)
-			err := json.NewEncoder(w).Encode(responseTags)
-			if err != nil {
-				t.Fatal(err)
-			}
-		}))
-
-		client := NewClient(server.URL, Creds{InsecureSkipVerify: true}, true, "")
-
-		tags, err := client.GetTags("mychart", true)
-		assert.NoError(t, err)
-		assert.ElementsMatch(t, tags.Tags, []string{
-			"first",
-			"second",
-			"2.8.0",
-			"2.8.0-prerelease",
-			"2.8.0+build",
-			"2.8.0-prerelease+build",
-			"2.8.0-prerelease.1+build.1234",
-		})
-	})
-
-	t.Run("should return an error not when oci is not enabled", func(t *testing.T) {
-		client := NewClient("example.com", Creds{}, false, "")
-
-		_, err := client.GetTags("my-chart", true)
-		assert.ErrorIs(t, OCINotEnabledErr, err)
-	})
-}
-
-func TestGetTagsFromURLPrivateRepoAuthentication(t *testing.T) {
 	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		t.Logf("called %s", r.URL.Path)
-
-		authorization := r.Header.Get("Authorization")
-		if authorization == "" {
-			w.Header().Set("WWW-Authenticate", `Basic realm="helm repo to get tags"`)
-			w.WriteHeader(http.StatusUnauthorized)
-			return
-		}
-
-		t.Logf("authorization received %s", authorization)
-
-		responseTags := TagsList{
-			Tags: []string{
-				"2.8.0",
-				"2.8.0-prerelease",
-				"2.8.0_build",
-				"2.8.0-prerelease_build",
-				"2.8.0-prerelease.1_build.1234",
-			},
-		}
-
+		responseTags := TagsList{}
 		w.Header().Set("Content-Type", "application/json")
+		if !strings.Contains(r.URL.String(), "token") {
+			w.Header().Set("Link", fmt.Sprintf("<https://%s%s?token=next-token>; rel=next", r.Host, r.URL.Path))
+			responseTags.Tags = []string{"first"}
+		} else {
+			responseTags.Tags = []string{"second"}
+		}
 		w.WriteHeader(http.StatusOK)
 		err := json.NewEncoder(w).Encode(responseTags)
 		if err != nil {
 			t.Fatal(err)
 		}
 	}))
-	t.Cleanup(server.Close)
 
-	serverURL, err := url.Parse(server.URL)
+	client := NewClient(server.URL, Creds{InsecureSkipVerify: true}, true, "")
+
+	tags, err := client.GetTags("mychart", true)
+	assert.NoError(t, err)
+	assert.Equal(t, tags.Tags[0], "first")
+	assert.Equal(t, tags.Tags[1], "second")
+}
+
+func Test_getNextUrl(t *testing.T) {
+	baseUrl, err := url.Parse("https://my.repo.com/v2/chart/tags/list")
+	if err != nil {
+		t.Errorf("failed to parse url in test case: %v", err)
+	}
+	resp := &http.Response{
+		Request: &http.Request{
+			URL: baseUrl,
+		},
+	}
+	nextUrl, err := getNextUrl(resp)
+	assert.Equal(t, nextUrl, "")
 	assert.NoError(t, err)
 
-	testCases := []struct {
-		name    string
-		repoURL string
-	}{
-		{
-			name:    "should login correctly when the repo path is in the server root with http scheme",
-			repoURL: server.URL,
-		},
-		{
-			name:    "should login correctly when the repo path is not in the server root with http scheme",
-			repoURL: fmt.Sprintf("%s/my-repo", server.URL),
-		},
-		{
-			name:    "should login correctly when the repo path is in the server root without http scheme",
-			repoURL: serverURL.Host,
-		},
-		{
-			name:    "should login correctly when the repo path is not in the server root without http scheme",
-			repoURL: fmt.Sprintf("%s/my-repo", serverURL.Host),
-		},
+	var nextUrlAbsolute = "https://my.repo.com/v2/chart/tags/list?n=123&orderby="
+	resp.Header = http.Header{
+		"Link": []string{fmt.Sprintf(`<%s>; rel="next"`, nextUrlAbsolute)},
 	}
+	nextUrl, err = getNextUrl(resp)
+	assert.NoError(t, err)
+	assert.Equal(t, nextUrl, nextUrlAbsolute)
 
-	for _, testCase := range testCases {
-		t.Run(testCase.name, func(t *testing.T) {
-			client := NewClient(testCase.repoURL, Creds{
-				InsecureSkipVerify: true,
-				Username:           "my-username",
-				Password:           "my-password",
-			}, true, "")
-
-			tags, err := client.GetTags("mychart", true)
-
-			assert.NoError(t, err)
-			assert.ElementsMatch(t, tags.Tags, []string{
-				"2.8.0",
-				"2.8.0-prerelease",
-				"2.8.0+build",
-				"2.8.0-prerelease+build",
-				"2.8.0-prerelease.1+build.1234",
-			})
-		})
+	var nextUrlRelative = "/v2/chart/tags/list?n=123&orderby="
+	resp.Header = http.Header{
+		"Link": []string{fmt.Sprintf(`<%s>; rel="next"`, nextUrlRelative)},
 	}
+	nextUrl, err = getNextUrl(resp)
+	assert.NoError(t, err)
+	assert.Equal(t, nextUrl, "https://my.repo.com/v2/chart/tags/list?n=123&orderby=")
+}
+
+func Test_getTagsListURL(t *testing.T) {
+	tagsListURL, err := getTagsListURL("account.dkr.ecr.eu-central-1.amazonaws.com", "dss")
+	assert.Nil(t, err)
+	assert.Equal(t, tagsListURL, "https://account.dkr.ecr.eu-central-1.amazonaws.com/v2/dss/tags/list")
+
+	tagsListURL, err = getTagsListURL("http://account.dkr.ecr.eu-central-1.amazonaws.com", "dss")
+	assert.Nil(t, err)
+	assert.Equal(t, tagsListURL, "https://account.dkr.ecr.eu-central-1.amazonaws.com/v2/dss/tags/list")
+
+	// with trailing /
+	tagsListURL, err = getTagsListURL("https://account.dkr.ecr.eu-central-1.amazonaws.com/", "dss")
+	assert.Nil(t, err)
+	assert.Equal(t, tagsListURL, "https://account.dkr.ecr.eu-central-1.amazonaws.com/v2/dss/tags/list")
+
+	// with unescaped characters allowed by https://www.rfc-editor.org/rfc/rfc3986#page-50
+	tagsListURL, err = getTagsListURL("https://account.dkr.ecr.eu-central-1.amazonaws.com/", "charts.-_~$&+=:@dss")
+	assert.Nil(t, err)
+	assert.Equal(t, tagsListURL, "https://account.dkr.ecr.eu-central-1.amazonaws.com/v2/charts.-_~$&+=:@dss/tags/list")
+
+	// with escaped characters not allowed in path by https://www.rfc-editor.org/rfc/rfc3986#page-50
+	tagsListURL, err = getTagsListURL("https://account.dkr.ecr.eu-central-1.amazonaws.com/", "charts%/dss")
+	assert.Nil(t, err)
+	assert.Equal(t, tagsListURL, "https://account.dkr.ecr.eu-central-1.amazonaws.com/v2/charts%25%2Fdss/tags/list")
 }
