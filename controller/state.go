@@ -134,7 +134,7 @@ func (m *appStateManager) GetRepoObjs(app *v1alpha1.Application, sources []v1alp
 		return nil, nil, fmt.Errorf("failed to get permitted Helm repositories for project %q: %w", proj.Name, err)
 	}
 
-	ts.AddCheckpoint("repo_ms")
+	//ts.AddCheckpoint("repo_ms")
 	helmRepositoryCredentials, err := m.db.GetAllHelmRepositoryCredentials(context.Background())
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to get Helm credentials: %w", err)
@@ -144,23 +144,24 @@ func (m *appStateManager) GetRepoObjs(app *v1alpha1.Application, sources []v1alp
 		return nil, nil, fmt.Errorf("failed to get permitted Helm credentials for project %q: %w", proj.Name, err)
 	}
 
+	helmOptions, err := m.settingsMgr.GetHelmSettings()
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to get Helm settings: %w", err)
+	}
+
+	ts.AddCheckpoint("helm_ms")
 	enabledSourceTypes, err := m.settingsMgr.GetEnabledSourceTypes()
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to get enabled source types: %w", err)
 	}
-	ts.AddCheckpoint("plugins_ms")
+	//ts.AddCheckpoint("plugins_ms")
 
 	kustomizeSettings, err := m.settingsMgr.GetKustomizeSettings()
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to get Kustomize settings: %w", err)
 	}
 
-	helmOptions, err := m.settingsMgr.GetHelmSettings()
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to get Helm settings: %w", err)
-	}
-
-	ts.AddCheckpoint("build_options_ms")
+	//ts.AddCheckpoint("build_options_ms")
 	serverVersion, apiResources, err := m.liveStateCache.GetVersionsInfo(app.Spec.Destination.Server)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to get cluster version for cluster %q: %w", app.Spec.Destination.Server, err)
@@ -184,7 +185,7 @@ func (m *appStateManager) GetRepoObjs(app *v1alpha1.Application, sources []v1alp
 		if len(revisions) < len(sources) || revisions[i] == "" {
 			revisions[i] = source.TargetRevision
 		}
-		ts.AddCheckpoint("helm_ms")
+		//ts.AddCheckpoint("helm_ms")
 		repo, err := m.db.GetRepository(context.Background(), source.RepoURL)
 		if err != nil {
 			return nil, nil, fmt.Errorf("failed to get repo %q: %w", source.RepoURL, err)
@@ -194,7 +195,7 @@ func (m *appStateManager) GetRepoObjs(app *v1alpha1.Application, sources []v1alp
 			return nil, nil, fmt.Errorf("failed to get Kustomize options for source %d of %d: %w", i+1, len(sources), err)
 		}
 
-		ts.AddCheckpoint("version_ms")
+		//ts.AddCheckpoint("version_ms")
 		log.Debugf("Generating Manifest for source %s revision %s", source, revisions[i])
 		manifestInfo, err := repoClient.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
 			Repo:               repo,
@@ -233,7 +234,7 @@ func (m *appStateManager) GetRepoObjs(app *v1alpha1.Application, sources []v1alp
 		manifestInfos = append(manifestInfos, manifestInfo)
 	}
 
-	ts.AddCheckpoint("unmarshal_ms")
+	//ts.AddCheckpoint("unmarshal_ms")
 	logCtx := log.WithField("application", app.QualifiedName())
 	for k, v := range ts.Timings() {
 		logCtx = logCtx.WithField(k, v.Milliseconds())
