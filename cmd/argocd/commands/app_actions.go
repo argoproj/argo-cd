@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/argoproj/argo-cd/v2/util/templates"
 	"os"
 	"strconv"
 	"text/tabwriter"
@@ -34,22 +33,11 @@ type DisplayedAction struct {
 	Disabled bool
 }
 
-var (
-	appActionExample = templates.Examples(`
-	# List all the available actions for an application
-	argocd app actions list APPNAME
-
-	# Run an available action for an application
-	argocd app actions run APPNAME ACTION --kind KIND [--resource-name RESOURCE] [--namespace NAMESPACE] [--group GROUP]
-	`)
-)
-
 // NewApplicationResourceActionsCommand returns a new instance of an `argocd app actions` command
 func NewApplicationResourceActionsCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var command = &cobra.Command{
-		Use:     "actions",
-		Short:   "Manage Resource actions",
-		Example: appActionExample,
+		Use:   "actions",
+		Short: "Manage Resource actions",
 		Run: func(c *cobra.Command, args []string) {
 			c.HelpFunc()(c, args)
 			os.Exit(1)
@@ -70,10 +58,6 @@ func NewApplicationResourceActionsListCommand(clientOpts *argocdclient.ClientOpt
 	var command = &cobra.Command{
 		Use:   "list APPNAME",
 		Short: "Lists available actions on a resource",
-		Example: templates.Examples(`
-	# List all the available actions for an application
-	argocd app actions list APPNAME
-	`),
 	}
 	command.Run = func(c *cobra.Command, args []string) {
 		ctx := c.Context()
@@ -152,10 +136,6 @@ func NewApplicationResourceActionsRunCommand(clientOpts *argocdclient.ClientOpti
 	var command = &cobra.Command{
 		Use:   "run APPNAME ACTION",
 		Short: "Runs an available action on resource(s)",
-		Example: templates.Examples(`
-	# Run an available action for an application
-	argocd app actions run APPNAME ACTION --kind KIND [--resource-name RESOURCE] [--namespace NAMESPACE] [--group GROUP]
-	`),
 	}
 
 	command.Flags().StringVar(&resourceName, "resource-name", "", "Name of resource")

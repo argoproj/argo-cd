@@ -18,7 +18,6 @@ argocd app delete-resource APPNAME [flags]
       --kind string            Kind
       --namespace string       Namespace
       --orphan                 Indicates whether to force delete the resource
-      --project string         The name of the application's project - specifying this allows the command to report "not found" instead of "permission denied" if the app does not exist
       --resource-name string   Name of resource
 ```
 

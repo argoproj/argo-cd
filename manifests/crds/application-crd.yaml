@@ -319,12 +319,6 @@ spec:
                             description: CommonLabels is a list of additional labels
                               to add to rendered manifests
                             type: object
-                          components:
-                            description: Components specifies a list of kustomize
-                              components to add to the kustomization before building
-                            items:
-                              type: string
-                            type: array
                           forceCommonAnnotations:
                             description: ForceCommonAnnotations specifies whether
                               to force applying common annotations to resources for
@@ -342,10 +336,6 @@ spec:
                                 definition in the format [old_image_name=]<image_name>:<image_tag>
                               type: string
                             type: array
-                          labelWithoutSelector:
-                            description: LabelWithoutSelector specifies whether to
-                              apply common labels to resource selectors or not
-                            type: boolean
                           namePrefix:
                             description: NamePrefix is a prefix appended to resources
                               for Kustomize apps
@@ -657,12 +647,6 @@ spec:
                               description: CommonLabels is a list of additional labels
                                 to add to rendered manifests
                               type: object
-                            components:
-                              description: Components specifies a list of kustomize
-                                components to add to the kustomization before building
-                              items:
-                                type: string
-                              type: array
                             forceCommonAnnotations:
                               description: ForceCommonAnnotations specifies whether
                                 to force applying common annotations to resources
@@ -681,10 +665,6 @@ spec:
                                   image definition in the format [old_image_name=]<image_name>:<image_tag>
                                 type: string
                               type: array
-                            labelWithoutSelector:
-                              description: LabelWithoutSelector specifies whether
-                                to apply common labels to resource selectors or not
-                              type: boolean
                             namePrefix:
                               description: NamePrefix is a prefix appended to resources
                                 for Kustomize apps
@@ -1112,12 +1092,6 @@ spec:
                         description: CommonLabels is a list of additional labels to
                           add to rendered manifests
                         type: object
-                      components:
-                        description: Components specifies a list of kustomize components
-                          to add to the kustomization before building
-                        items:
-                          type: string
-                        type: array
                       forceCommonAnnotations:
                         description: ForceCommonAnnotations specifies whether to force
                           applying common annotations to resources for Kustomize apps
@@ -1134,10 +1108,6 @@ spec:
                             definition in the format [old_image_name=]<image_name>:<image_tag>
                           type: string
                         type: array
-                      labelWithoutSelector:
-                        description: LabelWithoutSelector specifies whether to apply
-                          common labels to resource selectors or not
-                        type: boolean
                       namePrefix:
                         description: NamePrefix is a prefix appended to resources
                           for Kustomize apps
@@ -1440,12 +1410,6 @@ spec:
                           description: CommonLabels is a list of additional labels
                             to add to rendered manifests
                           type: object
-                        components:
-                          description: Components specifies a list of kustomize components
-                            to add to the kustomization before building
-                          items:
-                            type: string
-                          type: array
                         forceCommonAnnotations:
                           description: ForceCommonAnnotations specifies whether to
                             force applying common annotations to resources for Kustomize
@@ -1463,10 +1427,6 @@ spec:
                               definition in the format [old_image_name=]<image_name>:<image_tag>
                             type: string
                           type: array
-                        labelWithoutSelector:
-                          description: LabelWithoutSelector specifies whether to apply
-                            common labels to resource selectors or not
-                          type: boolean
                         namePrefix:
                           description: NamePrefix is a prefix appended to resources
                             for Kustomize apps
@@ -1741,19 +1701,6 @@ spec:
                       description: ID is an auto incrementing identifier of the RevisionHistory
                       format: int64
                       type: integer
-                    initiatedBy:
-                      description: InitiatedBy contains information about who initiated
-                        the operations
-                      properties:
-                        automated:
-                          description: Automated is set to true if operation was initiated
-                            automatically by the application controller.
-                          type: boolean
-                        username:
-                          description: Username contains the name of a user who started
-                            operation
-                          type: string
-                      type: object
                     revision:
                       description: Revision holds the revision the sync was performed
                         against
@@ -1934,12 +1881,6 @@ spec:
                               description: CommonLabels is a list of additional labels
                                 to add to rendered manifests
                               type: object
-                            components:
-                              description: Components specifies a list of kustomize
-                                components to add to the kustomization before building
-                              items:
-                                type: string
-                              type: array
                             forceCommonAnnotations:
                               description: ForceCommonAnnotations specifies whether
                                 to force applying common annotations to resources
@@ -1958,10 +1899,6 @@ spec:
                                   image definition in the format [old_image_name=]<image_name>:<image_tag>
                                 type: string
                               type: array
-                            labelWithoutSelector:
-                              description: LabelWithoutSelector specifies whether
-                                to apply common labels to resource selectors or not
-                              type: boolean
                             namePrefix:
                               description: NamePrefix is a prefix appended to resources
                                 for Kustomize apps
@@ -2276,12 +2213,6 @@ spec:
                                 description: CommonLabels is a list of additional
                                   labels to add to rendered manifests
                                 type: object
-                              components:
-                                description: Components specifies a list of kustomize
-                                  components to add to the kustomization before building
-                                items:
-                                  type: string
-                                type: array
                               forceCommonAnnotations:
                                 description: ForceCommonAnnotations specifies whether
                                   to force applying common annotations to resources
@@ -2300,11 +2231,6 @@ spec:
                                     image definition in the format [old_image_name=]<image_name>:<image_tag>
                                   type: string
                                 type: array
-                              labelWithoutSelector:
-                                description: LabelWithoutSelector specifies whether
-                                  to apply common labels to resource selectors or
-                                  not
-                                type: boolean
                               namePrefix:
                                 description: NamePrefix is a prefix appended to resources
                                   for Kustomize apps
@@ -2763,13 +2689,6 @@ spec:
                                     description: CommonLabels is a list of additional
                                       labels to add to rendered manifests
                                     type: object
-                                  components:
-                                    description: Components specifies a list of kustomize
-                                      components to add to the kustomization before
-                                      building
-                                    items:
-                                      type: string
-                                    type: array
                                   forceCommonAnnotations:
                                     description: ForceCommonAnnotations specifies
                                       whether to force applying common annotations
@@ -2788,11 +2707,6 @@ spec:
                                         image definition in the format [old_image_name=]<image_name>:<image_tag>
                                       type: string
                                     type: array
-                                  labelWithoutSelector:
-                                    description: LabelWithoutSelector specifies whether
-                                      to apply common labels to resource selectors
-                                      or not
-                                    type: boolean
                                   namePrefix:
                                     description: NamePrefix is a prefix appended to
                                       resources for Kustomize apps
@@ -3124,13 +3038,6 @@ spec:
                                       description: CommonLabels is a list of additional
                                         labels to add to rendered manifests
                                       type: object
-                                    components:
-                                      description: Components specifies a list of
-                                        kustomize components to add to the kustomization
-                                        before building
-                                      items:
-                                        type: string
-                                      type: array
                                     forceCommonAnnotations:
                                       description: ForceCommonAnnotations specifies
                                         whether to force applying common annotations
@@ -3149,11 +3056,6 @@ spec:
                                           image definition in the format [old_image_name=]<image_name>:<image_tag>
                                         type: string
                                       type: array
-                                    labelWithoutSelector:
-                                      description: LabelWithoutSelector specifies
-                                        whether to apply common labels to resource
-                                        selectors or not
-                                      type: boolean
                                     namePrefix:
                                       description: NamePrefix is a prefix appended
                                         to resources for Kustomize apps
@@ -3600,12 +3502,6 @@ spec:
                                 description: CommonLabels is a list of additional
                                   labels to add to rendered manifests
                                 type: object
-                              components:
-                                description: Components specifies a list of kustomize
-                                  components to add to the kustomization before building
-                                items:
-                                  type: string
-                                type: array
                               forceCommonAnnotations:
                                 description: ForceCommonAnnotations specifies whether
                                   to force applying common annotations to resources
@@ -3624,11 +3520,6 @@ spec:
                                     image definition in the format [old_image_name=]<image_name>:<image_tag>
                                   type: string
                                 type: array
-                              labelWithoutSelector:
-                                description: LabelWithoutSelector specifies whether
-                                  to apply common labels to resource selectors or
-                                  not
-                                type: boolean
                               namePrefix:
                                 description: NamePrefix is a prefix appended to resources
                                   for Kustomize apps
@@ -3953,13 +3844,6 @@ spec:
                                   description: CommonLabels is a list of additional
                                     labels to add to rendered manifests
                                   type: object
-                                components:
-                                  description: Components specifies a list of kustomize
-                                    components to add to the kustomization before
-                                    building
-                                  items:
-                                    type: string
-                                  type: array
                                 forceCommonAnnotations:
                                   description: ForceCommonAnnotations specifies whether
                                     to force applying common annotations to resources
@@ -3978,11 +3862,6 @@ spec:
                                       image definition in the format [old_image_name=]<image_name>:<image_tag>
                                     type: string
                                   type: array
-                                labelWithoutSelector:
-                                  description: LabelWithoutSelector specifies whether
-                                    to apply common labels to resource selectors or
-                                    not
-                                  type: boolean
                                 namePrefix:
                                   description: NamePrefix is a prefix appended to
                                     resources for Kustomize apps
@@ -4451,12 +4330,6 @@ spec:
                                 description: CommonLabels is a list of additional
                                   labels to add to rendered manifests
                                 type: object
-                              components:
-                                description: Components specifies a list of kustomize
-                                  components to add to the kustomization before building
-                                items:
-                                  type: string
-                                type: array
                               forceCommonAnnotations:
                                 description: ForceCommonAnnotations specifies whether
                                   to force applying common annotations to resources
@@ -4475,11 +4348,6 @@ spec:
                                     image definition in the format [old_image_name=]<image_name>:<image_tag>
                                   type: string
                                 type: array
-                              labelWithoutSelector:
-                                description: LabelWithoutSelector specifies whether
-                                  to apply common labels to resource selectors or
-                                  not
-                                type: boolean
                               namePrefix:
                                 description: NamePrefix is a prefix appended to resources
                                   for Kustomize apps
@@ -4804,13 +4672,6 @@ spec:
                                   description: CommonLabels is a list of additional
                                     labels to add to rendered manifests
                                   type: object
-                                components:
-                                  description: Components specifies a list of kustomize
-                                    components to add to the kustomization before
-                                    building
-                                  items:
-                                    type: string
-                                  type: array
                                 forceCommonAnnotations:
                                   description: ForceCommonAnnotations specifies whether
                                     to force applying common annotations to resources
@@ -4829,11 +4690,6 @@ spec:
                                       image definition in the format [old_image_name=]<image_name>:<image_tag>
                                     type: string
                                   type: array
-                                labelWithoutSelector:
-                                  description: LabelWithoutSelector specifies whether
-                                    to apply common labels to resource selectors or
-                                    not
-                                  type: boolean
                                 namePrefix:
                                   description: NamePrefix is a prefix appended to
                                     resources for Kustomize apps

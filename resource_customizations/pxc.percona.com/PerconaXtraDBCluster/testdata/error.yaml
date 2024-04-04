@@ -12,7 +12,7 @@ status:
   pmm: {}
   proxysql: {}
   pxc:
-    image: ""
+    image: ''
     ready: 1
     size: 2
     status: error
@@ -20,5 +20,5 @@ status:
   ready: 1
   size: 2
   state: error
-  message:
-    - we lost node
+  messages:
+  - we lost node

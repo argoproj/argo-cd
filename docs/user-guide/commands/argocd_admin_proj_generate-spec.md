@@ -8,19 +8,6 @@ Generate declarative config for a project
 argocd admin proj generate-spec PROJECT [flags]
 ```
 
-### Examples
-
-```
-  # Generate a YAML configuration for a project named "myproject"
-  argocd admin projects generate-spec myproject
-  
-  # Generate a JSON configuration for a project named "anotherproject" and specify an output file
-  argocd admin projects generate-spec anotherproject --output json --file config.json
-  
-  # Generate a YAML configuration for a project named "someproject" and write it back to the input file
-  argocd admin projects generate-spec someproject --inline
-```
-
 ### Options
 
 ```

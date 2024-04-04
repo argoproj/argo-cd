@@ -34,8 +34,6 @@ metadata:
   # The name of the plugin must be unique within a given Argo CD instance.
   name: my-plugin
 spec:
-  # The version of your plugin. Optional. If specified, the Application's spec.source.plugin.name field
-  # must be <plugin name>-<plugin version>.
   version: v1.0
   # The init command runs in the Application source directory at the beginning of each manifest generation. The init
   # command can output anything. A non-zero status code will fail manifest generation.
@@ -110,9 +108,9 @@ spec:
       # static parameter announcements list.
       command: [echo, '[{"name": "example-param", "string": "default-string-value"}]']
 
-  # If set to `true` then the plugin receives repository files with original file mode. Dangerous since the repository
-  # might have executable files. Set to true only if you trust the CMP plugin authors.
-  preserveFileMode: false
+    # If set to `true` then the plugin receives repository files with original file mode. Dangerous since the repository
+    # might have executable files. Set to true only if you trust the CMP plugin authors.
+    preserveFileMode: false
 ```
 
 !!! note

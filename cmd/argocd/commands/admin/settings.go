@@ -373,7 +373,11 @@ func executeResourceOverrideCommand(ctx context.Context, cmdCtx commandContext, 
 	if gvk.Group != "" {
 		key = fmt.Sprintf("%s/%s", gvk.Group, gvk.Kind)
 	}
-	override := overrides[key]
+	override, hasOverride := overrides[key]
+	if !hasOverride {
+		_, _ = fmt.Printf("No overrides configured for '%s/%s'\n", gvk.Group, gvk.Kind)
+		return
+	}
 	callback(res, override, overrides)
 }
 
@@ -515,16 +519,16 @@ argocd admin settings resource-overrides health ./deploy.yaml --argocd-cm-path .
 
 			executeResourceOverrideCommand(ctx, cmdCtx, args, func(res unstructured.Unstructured, override v1alpha1.ResourceOverride, overrides map[string]v1alpha1.ResourceOverride) {
 				gvk := res.GroupVersionKind()
-				resHealth, err := healthutil.GetResourceHealth(&res, lua.ResourceHealthOverrides(overrides))
-
-				if err != nil {
-					errors.CheckError(err)
-				} else if resHealth == nil {
-					fmt.Printf("Health script is not configured for '%s/%s'\n", gvk.Group, gvk.Kind)
-				} else {
-					_, _ = fmt.Printf("STATUS: %s\n", resHealth.Status)
-					_, _ = fmt.Printf("MESSAGE: %s\n", resHealth.Message)
+				if override.HealthLua == "" {
+					_, _ = fmt.Printf("Health script is not configured for '%s/%s'\n", gvk.Group, gvk.Kind)
+					return
 				}
+
+				resHealth, err := healthutil.GetResourceHealth(&res, lua.ResourceHealthOverrides(overrides))
+				errors.CheckError(err)
+
+				_, _ = fmt.Printf("STATUS: %s\n", resHealth.Status)
+				_, _ = fmt.Printf("MESSAGE: %s\n", resHealth.Message)
 			})
 		},
 	}

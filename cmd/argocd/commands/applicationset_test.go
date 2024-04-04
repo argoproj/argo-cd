@@ -180,9 +180,9 @@ func TestPrintAppSetSummaryTable(t *testing.T) {
 Project:            default
 Server:             
 Namespace:          
-Source:
-- Repo:             
-  Target:           
+Repo:               
+Target:             
+Path:               
 SyncPolicy:         <none>
 `,
 		},
@@ -193,9 +193,9 @@ SyncPolicy:         <none>
 Project:            default
 Server:             
 Namespace:          
-Source:
-- Repo:             
-  Target:           
+Repo:               
+Target:             
+Path:               
 SyncPolicy:         Automated
 `,
 		},
@@ -206,9 +206,9 @@ SyncPolicy:         Automated
 Project:            default
 Server:             
 Namespace:          
-Source:
-- Repo:             
-  Target:           
+Repo:               
+Target:             
+Path:               
 SyncPolicy:         Automated
 `,
 		},
