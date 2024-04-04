@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
-	"sync"
 	"testing"
 
 	"github.com/sirupsen/logrus/hooks/test"
@@ -190,6 +189,10 @@ func TestRegisterExtensions(t *testing.T) {
 		}
 		cases := []testCase{
 			{
+				name:       "no config",
+				configYaml: "",
+			},
+			{
 				name:       "no name",
 				configYaml: getExtensionConfigNoName(),
 			},
@@ -231,7 +234,7 @@ func TestRegisterExtensions(t *testing.T) {
 				err := f.manager.RegisterExtensions()
 
 				// then
-				assert.Error(t, err, fmt.Sprintf("expected error in test %s but got nil", tc.name))
+				assert.Error(t, err)
 			})
 		}
 	})
@@ -244,7 +247,6 @@ func TestCallExtension(t *testing.T) {
 		settingsGetterMock *mocks.SettingsGetter
 		rbacMock           *mocks.RbacEnforcer
 		projMock           *mocks.ProjectGetter
-		metricsMock        *mocks.ExtensionMetricsRegistry
 		manager            *extension.Manager
 	}
 	defaultProjectName := "project-name"
@@ -254,12 +256,10 @@ func TestCallExtension(t *testing.T) {
 		settMock := &mocks.SettingsGetter{}
 		rbacMock := &mocks.RbacEnforcer{}
 		projMock := &mocks.ProjectGetter{}
-		metricsMock := &mocks.ExtensionMetricsRegistry{}
 
 		logger, _ := test.NewNullLogger()
 		logEntry := logger.WithContext(context.Background())
 		m := extension.NewManager(logEntry, settMock, appMock, projMock, rbacMock)
-		m.AddMetricsRegistry(metricsMock)
 
 		mux := http.NewServeMux()
 		extHandler := http.HandlerFunc(m.CallExtension())
@@ -271,7 +271,6 @@ func TestCallExtension(t *testing.T) {
 			settingsGetterMock: settMock,
 			rbacMock:           rbacMock,
 			projMock:           projMock,
-			metricsMock:        metricsMock,
 			manager:            m,
 		}
 	}
@@ -327,11 +326,6 @@ func TestCallExtension(t *testing.T) {
 
 	withProject := func(prj *v1alpha1.AppProject, f *fixture) {
 		f.projMock.On("Get", prj.GetName()).Return(prj, nil)
-	}
-
-	withMetrics := func(f *fixture) {
-		f.metricsMock.On("IncExtensionRequestCounter", mock.Anything, mock.Anything)
-		f.metricsMock.On("ObserveExtensionRequestDuration", mock.Anything, mock.Anything)
 	}
 
 	withRbac := func(f *fixture, allowApp, allowExt bool) {
@@ -412,18 +406,6 @@ func TestCallExtension(t *testing.T) {
 		proj := getProjectWithDestinations("project-name", nil, []string{clusterURL})
 		f.appGetterMock.On("Get", mock.Anything, mock.Anything).Return(app, nil)
 		withProject(proj, f)
-		var wg sync.WaitGroup
-		wg.Add(2)
-		f.metricsMock.
-			On("IncExtensionRequestCounter", mock.Anything, mock.Anything).
-			Run(func(args mock.Arguments) {
-				wg.Done()
-			})
-		f.metricsMock.
-			On("ObserveExtensionRequestDuration", mock.Anything, mock.Anything).
-			Run(func(args mock.Arguments) {
-				wg.Done()
-			})
 
 		// when
 		resp, err := http.DefaultClient.Do(r)
@@ -438,13 +420,6 @@ func TestCallExtension(t *testing.T) {
 		assert.Equal(t, backendResponse, actual)
 		assert.Equal(t, clusterURL, resp.Header.Get(extension.HeaderArgoCDTargetClusterURL))
 		assert.Equal(t, "Bearer some-bearer-token", resp.Header.Get("Authorization"))
-
-		// waitgroup is necessary to make sure assertions aren't executed before
-		// the goroutine initiated by extension.CallExtension concludes which would
-		// lead to flaky test.
-		wg.Wait()
-		f.metricsMock.AssertCalled(t, "IncExtensionRequestCounter", backendEndpoint, http.StatusOK)
-		f.metricsMock.AssertCalled(t, "ObserveExtensionRequestDuration", backendEndpoint, mock.Anything)
 	})
 	t.Run("proxy will return 404 if extension endpoint not registered", func(t *testing.T) {
 		// given
@@ -452,7 +427,6 @@ func TestCallExtension(t *testing.T) {
 		f := setup()
 		withExtensionConfig(getExtensionConfigString(), f)
 		withRbac(f, true, true)
-		withMetrics(f)
 		cluster1Name := "cluster1"
 		f.appGetterMock.On("Get", "namespace", "app-name").Return(getApp(cluster1Name, "", defaultProjectName), nil)
 		withProject(getProjectWithDestinations("project-name", []string{cluster1Name}, []string{"some-url"}), f)
@@ -492,7 +466,6 @@ func TestCallExtension(t *testing.T) {
 		withRbac(f, true, true)
 		withExtensionConfig(getExtensionConfigWith2Backends(extName, beSrv1.URL, cluster1Name, beSrv2.URL, cluster2URL), f)
 		withProject(getProjectWithDestinations("project-name", []string{cluster1Name}, []string{cluster2URL}), f)
-		withMetrics(f)
 
 		ts := startTestServer(t, f)
 		defer ts.Close()
@@ -538,7 +511,6 @@ func TestCallExtension(t *testing.T) {
 		extName := "some-extension"
 		withRbac(f, allowApp, allowExtension)
 		withExtensionConfig(getExtensionConfig(extName, "http://fake"), f)
-		withMetrics(f)
 		ts := startTestServer(t, f)
 		defer ts.Close()
 		r := newExtensionRequest(t, "Get", fmt.Sprintf("%s/extensions/%s/", ts.URL, extName))
@@ -561,7 +533,6 @@ func TestCallExtension(t *testing.T) {
 		extName := "some-extension"
 		withRbac(f, allowApp, allowExtension)
 		withExtensionConfig(getExtensionConfig(extName, "http://fake"), f)
-		withMetrics(f)
 		ts := startTestServer(t, f)
 		defer ts.Close()
 		r := newExtensionRequest(t, "Get", fmt.Sprintf("%s/extensions/%s/", ts.URL, extName))
@@ -585,7 +556,6 @@ func TestCallExtension(t *testing.T) {
 		noCluster := []string{}
 		withRbac(f, allowApp, allowExtension)
 		withExtensionConfig(getExtensionConfig(extName, "http://fake"), f)
-		withMetrics(f)
 		ts := startTestServer(t, f)
 		defer ts.Close()
 		r := newExtensionRequest(t, "Get", fmt.Sprintf("%s/extensions/%s/", ts.URL, extName))
@@ -610,7 +580,6 @@ func TestCallExtension(t *testing.T) {
 		extName := "some-extension"
 		withRbac(f, allowApp, allowExtension)
 		withExtensionConfig(getExtensionConfig(extName, "http://fake"), f)
-		withMetrics(f)
 		ts := startTestServer(t, f)
 		defer ts.Close()
 		r := newExtensionRequest(t, "Get", fmt.Sprintf("%s/extensions/%s/", ts.URL, extName))
@@ -635,7 +604,6 @@ func TestCallExtension(t *testing.T) {
 		differentProject := "differentProject"
 		withRbac(f, allowApp, allowExtension)
 		withExtensionConfig(getExtensionConfig(extName, "http://fake"), f)
-		withMetrics(f)
 		ts := startTestServer(t, f)
 		defer ts.Close()
 		r := newExtensionRequest(t, "Get", fmt.Sprintf("%s/extensions/%s/", ts.URL, extName))
@@ -666,7 +634,6 @@ func TestCallExtension(t *testing.T) {
 		withRbac(f, true, true)
 		withExtensionConfig(getExtensionConfigWith2Backends(extName, "url1", "clusterName", "url2", "clusterURL"), f)
 		withProject(getProjectWithDestinations("project-name", nil, []string{"srv1", destinationServer}), f)
-		withMetrics(f)
 
 		ts := startTestServer(t, f)
 		defer ts.Close()
@@ -699,7 +666,6 @@ func TestCallExtension(t *testing.T) {
 		differentProject := "differentProject"
 		withRbac(f, allowApp, allowExtension)
 		withExtensionConfig(getExtensionConfig(extName, "http://fake"), f)
-		withMetrics(f)
 		ts := startTestServer(t, f)
 		defer ts.Close()
 		r := newExtensionRequest(t, "Get", fmt.Sprintf("%s/extensions/", ts.URL))

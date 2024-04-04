@@ -38,16 +38,6 @@ function swap(array: any[], a: number, b: number) {
     return array;
 }
 
-function processPath(path: string) {
-    if (path !== null && path !== undefined) {
-        if (path === '.') {
-            return '(root)';
-        }
-        return path;
-    }
-    return '';
-}
-
 export interface ApplicationSummaryProps {
     app: models.Application;
     updateApp: (app: models.Application, query: {validate?: boolean}) => Promise<any>;
@@ -250,7 +240,7 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                       title: 'PATH',
                       view: (
                           <Revision repoUrl={source.repoURL} revision={source.targetRevision || 'HEAD'} path={source.path} isForPath={true}>
-                              {processPath(source.path)}
+                              {source.path ?? ''}
                           </Revision>
                       ),
                       edit: (formApi: FormApi) =>
@@ -267,12 +257,7 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
             view: app.spec.revisionHistoryLimit,
             edit: (formApi: FormApi) => (
                 <div style={{position: 'relative'}}>
-                    <FormField
-                        formApi={formApi}
-                        field='spec.revisionHistoryLimit'
-                        componentProps={{style: {paddingRight: '1em', width: '97%'}, placeholder: '10'}}
-                        component={NumberField}
-                    />
+                    <FormField formApi={formApi} field='spec.revisionHistoryLimit' componentProps={{style: {paddingRight: '1em'}, placeholder: '10'}} component={NumberField} />
                     <div style={{position: 'absolute', right: '0', top: '0'}}>
                         <HelpIcon
                             title='This limits the number of items kept in the apps revision history.
@@ -509,7 +494,7 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                         <div className='white-box__details'>
                             <p>SYNC POLICY</p>
                             <div className='row white-box__details-row'>
-                                <div className='columns small-3'>{(app.spec.syncPolicy && app.spec.syncPolicy.automated && <span>AUTOMATED</span>) || <span>MANUAL</span>}</div>
+                                <div className='columns small-3'>{(app.spec.syncPolicy && app.spec.syncPolicy.automated && <span>AUTOMATED</span>) || <span>NONE</span>}</div>
                                 <div className='columns small-9'>
                                     {(app.spec.syncPolicy && app.spec.syncPolicy.automated && (
                                         <button className='argo-button argo-button--base' onClick={() => unsetAutoSync(ctx)}>
