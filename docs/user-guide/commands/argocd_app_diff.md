@@ -27,7 +27,9 @@ argocd app diff APPNAME [flags]
       --local-repo-root string      Path to the repository root. Used together with --local allows setting the repository root (default "/")
       --refresh                     Refresh application data when retrieving
       --revision string             Compare live app to a particular revision
+      --revisions stringArray       Show manifests at specific revisions for the index of sources in source-indexes
       --server-side-generate        Used with --local, this will send your manifests to the server for diffing
+      --source-indexes int64Slice   List of source indexes. Default is empty array. Indexes start at 1. (default [])
 ```
 
 ### Options inherited from parent commands
