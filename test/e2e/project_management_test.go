@@ -324,6 +324,7 @@ func TestUseJWTToken(t *testing.T) {
 	projectName := "proj-" + strconv.FormatInt(time.Now().Unix(), 10)
 	appName := "app-" + strconv.FormatInt(time.Now().Unix(), 10)
 	roleName := "roleTest"
+	roleName2 := "roleTest2"
 	testApp := &v1alpha1.Application{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: appName,
@@ -363,6 +364,15 @@ func TestUseJWTToken(t *testing.T) {
 	assert.True(t, strings.HasSuffix(roleGetResult, "ID  ISSUED-AT  EXPIRES-AT"))
 
 	_, err = fixture.RunCli("proj", "role", "create-token", projectName, roleName)
+	assert.NoError(t, err)
+
+	// Create second role with kubectl, to test that it will not affect 1st role
+	_, err = fixture.Run("", "kubectl", "patch", "appproject", projectName, "--type", "merge",
+		"-n", fixture.TestNamespace(),
+		"-p", fmt.Sprintf(`{"spec":{"roles":[{"name":"%s"},{"name":"%s"}]}}`, roleName, roleName2))
+	assert.NoError(t, err)
+
+	_, err = fixture.RunCli("proj", "role", "create-token", projectName, roleName2)
 	assert.NoError(t, err)
 
 	for _, action := range []string{"get", "update", "sync", "create", "override", "*"} {
