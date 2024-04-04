@@ -27,7 +27,7 @@ import {ImageTagFieldEditor} from './kustomize';
 import * as kustomize from './kustomize-image';
 import {VarsInputField} from './vars-input-field';
 import {concatMaps} from '../../../shared/utils';
-import {getAppDefaultSource, getAppSources, helpTip} from '../utils';
+import {getAppDefaultSource, helpTip} from '../utils';
 import * as jsYaml from 'js-yaml';
 import {RevisionFormField} from '../revision-form-field/revision-form-field';
 
@@ -146,7 +146,7 @@ export const ApplicationParameters = (props: {
 }) => {
     const app = cloneDeep(props.application);
     const source = getAppDefaultSource(app); // For source field
-    const appSources = getAppSources(app);
+    const appSources = app?.spec.sources;
     const [removedOverrides, setRemovedOverrides] = React.useState(new Array<boolean>());
 
     let attributes: EditablePanelItem[] = [];
@@ -154,7 +154,7 @@ export const ApplicationParameters = (props: {
 
     const [appParamsDeletedState, setAppParamsDeletedState] = React.useState([]);
 
-    if (props.detailsList && props.detailsList.length > 1) {
+    if (appSources && props.detailsList && props.detailsList.length > 1) {
         for (let i: number = 0; i < props.detailsList.length; i++) {
             multipleAttributes.push(
                 gatherDetails(props.detailsList[i], attributes, appSources[i], app, setRemovedOverrides, removedOverrides, appParamsDeletedState, setAppParamsDeletedState)
@@ -199,11 +199,13 @@ export const ApplicationParameters = (props: {
         if (sources.length > 1) {
             if (repoAppDetails.type === models.AppSource.Directory) {
                 floatingTitle = 'TYPE=' + repoAppDetails.type + ', URL=' + src.repoURL;
-                descriptionCollapsed = 'TYPE=' + repoAppDetails.type + (src.path ? ', PATH=' + src.path : '' + (src.targetRevision ? ', TARGET REVISION=' + src.targetRevision : ''));
+                descriptionCollapsed =
+                    'TYPE=' + repoAppDetails.type + (src.path ? ', PATH=' + src.path : '' + (src.targetRevision ? ', TARGET REVISION=' + src.targetRevision : ''));
             } else if (repoAppDetails.type === models.AppSource.Helm) {
                 floatingTitle = 'TYPE=' + repoAppDetails.type + ', URL=' + src.repoURL + (src.chart ? ', CHART=' + src.chart + ':' + src.targetRevision : '');
                 descriptionCollapsed =
-                    'TYPE=' + repoAppDetails.type +
+                    'TYPE=' +
+                    repoAppDetails.type +
                     (src.chart ? ', CHART=' + src.chart + ':' + src.targetRevision : '') +
                     (src.path ? ', PATH=' + src.path : '') +
                     (src.helm && src.helm.valueFiles ? ', VALUES=' + src.helm.valueFiles[0] : '');
@@ -211,8 +213,15 @@ export const ApplicationParameters = (props: {
                 floatingTitle = 'TYPE=' + repoAppDetails.type + ', URL=' + src.repoURL;
                 descriptionCollapsed = 'TYPE=' + repoAppDetails.type + ', VERSION=' + src.kustomize.version + (src.path ? ', PATH=' + src.path : '');
             } else if (repoAppDetails.type === models.AppSource.Plugin) {
-                floatingTitle = 'TYPE=' + repoAppDetails.type + ', URL=' + src.repoURL + (src.path ? ', PATH=' + src.path : '') + (src.targetRevision ? ', TARGET REVISION=' + src.targetRevision : '');
-                descriptionCollapsed = 'TYPE=' + repoAppDetails.type + '' + (src.path ? ', PATH=' + src.path : '') + (src.targetRevision ? ', TARGET REVISION=' + src.targetRevision : '');
+                floatingTitle =
+                    'TYPE=' +
+                    repoAppDetails.type +
+                    ', URL=' +
+                    src.repoURL +
+                    (src.path ? ', PATH=' + src.path : '') +
+                    (src.targetRevision ? ', TARGET REVISION=' + src.targetRevision : '');
+                descriptionCollapsed =
+                    'TYPE=' + repoAppDetails.type + '' + (src.path ? ', PATH=' + src.path : '') + (src.targetRevision ? ', TARGET REVISION=' + src.targetRevision : '');
             }
         }
         return (

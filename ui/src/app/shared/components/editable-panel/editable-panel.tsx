@@ -74,11 +74,7 @@ export class EditablePanel<T = {}> extends React.Component<EditablePanelProps<T>
                         </div>
                     ) : (
                         <div className={classNames('white-box editable-panel', {'editable-panel--disabled': this.state.saving})}>
-                            {this.props.floatingTitle && (
-                                <div className="white-box--additional-top-space editable-panel__sticky-title">
-                                    {this.props.floatingTitle}
-                                </div>
-                            )}
+                            {this.props.floatingTitle && <div className='white-box--additional-top-space editable-panel__sticky-title'>{this.props.floatingTitle}</div>}
                             <div className='white-box__details'>
                                 {!this.props.noReadonlyMode && this.props.save && (
                                     <div className='editable-panel__buttons' style={{right: this.props.collapsible ? '5em' : '3em'}}>

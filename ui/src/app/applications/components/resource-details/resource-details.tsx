@@ -368,7 +368,7 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
 // Maintain compatibility with single source field. Remove else block when source field is removed
 async function getSources(app: models.Application) {
     const listOfDetails = new Array<RepoAppDetails & {type: AppSourceType; path: string}>();
-    const sources: models.ApplicationSource[] = AppUtils.getAppSources(app);
+    const sources: models.ApplicationSource[] = app.spec.sources;
     if (sources) {
         const length = sources.length;
         for (let i = 0; i < length; i++) {
