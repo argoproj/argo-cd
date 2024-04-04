@@ -100,6 +100,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.MergeGenerator":                          schema_pkg_apis_application_v1alpha1_MergeGenerator(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.NestedMatrixGenerator":                   schema_pkg_apis_application_v1alpha1_NestedMatrixGenerator(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.NestedMergeGenerator":                    schema_pkg_apis_application_v1alpha1_NestedMergeGenerator(ref),
+		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.Object":                                  schema_pkg_apis_application_v1alpha1_Object(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.Operation":                               schema_pkg_apis_application_v1alpha1_Operation(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.OperationInitiator":                      schema_pkg_apis_application_v1alpha1_OperationInitiator(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.OperationState":                          schema_pkg_apis_application_v1alpha1_OperationState(ref),
@@ -1771,14 +1772,15 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSourceHelm(ref common.Refer
 					"valuesObject": {
 						SchemaProps: spec.SchemaProps{
 							Description: "ValuesObject specifies Helm values to be passed to helm template, defined as a map. This takes precedence over Values.",
-							Ref:         ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.UnstructuredObject"),
+							Type:        []string{"string"},
+							Format:      "byte",
 						},
 					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.HelmFileParameter", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.HelmParameter", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.UnstructuredObject"},
+			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.HelmFileParameter", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.HelmParameter"},
 	}
 }
 
@@ -4348,6 +4350,18 @@ func schema_pkg_apis_application_v1alpha1_NestedMergeGenerator(ref common.Refere
 		},
 		Dependencies: []string{
 			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSetTerminalGenerator"},
+	}
+}
+
+func schema_pkg_apis_application_v1alpha1_Object(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "Object is used to represent any raw unstructured YAML/JSON objects, such as valuesObject.",
+				Type:        Object{}.OpenAPISchemaType(),
+				Format:      Object{}.OpenAPISchemaFormat(),
+			},
+		},
 	}
 }
 
@@ -7948,7 +7962,7 @@ func schema_pkg_apis_application_v1alpha1_UnstructuredObject(ref common.Referenc
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "UnstructuredObject is used to represent any raw unstructured YAML/JSON objects, such as valuesObject.",
+				Description: "UnstructuredObject is an Object with exactly one key",
 				Type:        []string{"object"},
 			},
 		},

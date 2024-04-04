@@ -602,7 +602,7 @@ func TestPrintApplicationHistoryTableWithMultipleSources(t *testing.T) {
 				"1a",
 				"1b",
 			},
-			//added Source just for testing the fuction
+			// added Source just for testing the fuction
 			Source: v1alpha1.ApplicationSource{
 				TargetRevision: "-1",
 				RepoURL:        "ignore",
@@ -1067,7 +1067,7 @@ func Test_unset(t *testing.T) {
 				},
 			},
 			PassCredentials: true,
-			ValuesObject:    &v1alpha1.UnstructuredObject{Raw: []byte("some: yaml")},
+			ValuesObject:    []byte("some: yaml"),
 			ValueFiles: []string{
 				"values-1.yaml",
 				"values-2.yaml",

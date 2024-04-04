@@ -6334,7 +6334,9 @@
           "title": "Values specifies Helm values to be passed to helm template, typically defined as a block. ValuesObject takes precedence over Values, so use one or the other.\n+patchStrategy=replace"
         },
         "valuesObject": {
-          "$ref": "#/definitions/v1alpha1UnstructuredObject"
+          "type": "string",
+          "format": "byte",
+          "title": "ValuesObject specifies Helm values to be passed to helm template, defined as a map. This takes precedence over Values.\n+kubebuilder:pruning:PreserveUnknownFields"
         },
         "version": {
           "type": "string",
@@ -9130,17 +9132,6 @@
         },
         "value": {
           "type": "string"
-        }
-      }
-    },
-    "v1alpha1UnstructuredObject": {
-      "description": "UnstructuredObject is used to represent any raw unstructured YAML/JSON objects, such as valuesObject.",
-      "type": "object",
-      "properties": {
-        "raw": {
-          "description": "Raw is the underlying serialization of this object.",
-          "type": "string",
-          "format": "byte"
         }
       }
     },

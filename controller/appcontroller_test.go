@@ -1916,7 +1916,7 @@ func TestAddControllerNamespace(t *testing.T) {
 func newFakeAppHelmValueObject(input []byte) *argoappsv1.Application {
 	app := newFakeApp()
 	helmSource := &argoappsv1.ApplicationSourceHelm{
-		ValuesObject: &v1alpha1.UnstructuredObject{Raw: input},
+		ValuesObject: input,
 	}
 	app.Spec.Source.Helm = helmSource
 	app.Status.Sync.ComparedTo.Source.Helm = helmSource
@@ -1928,22 +1928,6 @@ func newFakeAppSources(s argoappsv1.ApplicationSources) *argoappsv1.Application 
 	app.Spec.Sources = s
 	app.Status.Sync.ComparedTo.Sources = s
 	return app
-}
-
-func Test_SimpleHelmValuesObjectMerge(t *testing.T) {
-	origApp := newFakeAppHelmValueObject([]byte(`{"foo": {"bar": "2"}}`))
-	newApp := newFakeAppHelmValueObject([]byte(`{"foo": {"bar": 3}}`))
-
-	// "basic" patch throws error.
-	_, _, err := diff.CreateTwoWayMergePatch(
-		&appv1.Application{ObjectMeta: metav1.ObjectMeta{Annotations: origApp.GetAnnotations()}, Status: origApp.Status},
-		&appv1.Application{ObjectMeta: metav1.ObjectMeta{Annotations: newApp.GetAnnotations()}, Status: newApp.Status}, appv1.Application{})
-	assert.Errorf(t, err, "Basic merge patch should fail")
-
-	// Fancy patch works fine.
-	_, modified, err := diff.CreateTwoWayMergePatch(origApp, newApp, appv1.Application{})
-	assert.NoError(t, err, "Two-way merge with should not have thrown an error")
-	assert.True(t, modified, "A merge patch should have been created")
 }
 
 func Test_createUnstructuredAppMergePatch(t *testing.T) {
@@ -1973,14 +1957,14 @@ func Test_createUnstructuredAppMergePatch(t *testing.T) {
 			origApp: newFakeAppSources([]argoappsv1.ApplicationSource{
 				{
 					Helm: &argoappsv1.ApplicationSourceHelm{
-						ValuesObject: &v1alpha1.UnstructuredObject{Raw: []byte(`{"foo": {"bar": "2"}}`)},
+						ValuesObject: []byte(`{"foo": {"bar": "2"}}`),
 					},
 				},
 			}),
 			newApp: newFakeAppSources([]argoappsv1.ApplicationSource{
 				{
 					Helm: &argoappsv1.ApplicationSourceHelm{
-						ValuesObject: &v1alpha1.UnstructuredObject{Raw: []byte(`{"foo": {"bar": 3}}`)},
+						ValuesObject: []byte(`{"foo": {"bar": 3}}`),
 					},
 				},
 			}),
@@ -1990,7 +1974,7 @@ func Test_createUnstructuredAppMergePatch(t *testing.T) {
 				{Kustomize: &argoappsv1.ApplicationSourceKustomize{}},
 				{
 					Helm: &argoappsv1.ApplicationSourceHelm{
-						ValuesObject: &v1alpha1.UnstructuredObject{Raw: []byte(`{"foo": {"bar": "2"}}`)},
+						ValuesObject: []byte(`{"foo": {"bar": "2"}}`),
 					},
 				},
 			}),
@@ -1998,7 +1982,7 @@ func Test_createUnstructuredAppMergePatch(t *testing.T) {
 				{Kustomize: &argoappsv1.ApplicationSourceKustomize{}},
 				{
 					Helm: &argoappsv1.ApplicationSourceHelm{
-						ValuesObject: &v1alpha1.UnstructuredObject{Raw: []byte(`{"foo": {"bar": 3}}`)},
+						ValuesObject: []byte(`{"foo": {"bar": 3}}`),
 					},
 				},
 			}),
@@ -2007,7 +1991,7 @@ func Test_createUnstructuredAppMergePatch(t *testing.T) {
 			origApp: newFakeAppSources([]argoappsv1.ApplicationSource{
 				{
 					Helm: &argoappsv1.ApplicationSourceHelm{
-						ValuesObject: &v1alpha1.UnstructuredObject{Raw: []byte(`{"foo": {"bar": "2"}}`)},
+						ValuesObject: []byte(`{"foo": {"bar": "2"}}`),
 					},
 				},
 			}),
@@ -2015,7 +1999,7 @@ func Test_createUnstructuredAppMergePatch(t *testing.T) {
 				{Kustomize: &argoappsv1.ApplicationSourceKustomize{}},
 				{
 					Helm: &argoappsv1.ApplicationSourceHelm{
-						ValuesObject: &v1alpha1.UnstructuredObject{Raw: []byte(`{"foo": {"bar": 3}}`)},
+						ValuesObject: []byte(`{"foo": {"bar": 3}}`),
 					},
 				},
 			}),

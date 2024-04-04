@@ -636,8 +636,10 @@ func TestRenderHelmValuesObject(t *testing.T) {
 				Path:           "helm-guestbook",
 				Helm: &argov1alpha1.ApplicationSourceHelm{
 					ValuesObject: &argov1alpha1.UnstructuredObject{
-						// This will always be converted as yaml
-						Raw: []byte(`{"some":{"string":"Hello world"}}`),
+						Object: v1alpha1.Object{
+							// This will always be converted as yaml
+							Raw: []byte(`{"some":{"string":"Hello world"}}`),
+						},
 					},
 				},
 			},
@@ -665,7 +667,9 @@ func TestRenderHelmValuesObject(t *testing.T) {
 						Path:           "helm-guestbook",
 						Helm: &argov1alpha1.ApplicationSourceHelm{
 							ValuesObject: &argov1alpha1.UnstructuredObject{
-								Raw: []byte(`{"some":{"string":"{{.test}}"}}`),
+								Object: v1alpha1.Object{
+									Raw: []byte(`{"some":{"string":"{{.test}}"}}`),
+								},
 							},
 						},
 					},
@@ -711,8 +715,10 @@ func TestUpdateHelmValuesObject(t *testing.T) {
 				Path:           "helm-guestbook",
 				Helm: &argov1alpha1.ApplicationSourceHelm{
 					ValuesObject: &argov1alpha1.UnstructuredObject{
-						// This will always be converted as yaml
-						Raw: []byte(`{"some":{"foo":"bar"}}`),
+						Object: v1alpha1.Object{
+							// This will always be converted as yaml
+							Raw: []byte(`{"some":{"foo":"bar"}}`),
+						},
 					},
 				},
 			},
@@ -740,7 +746,9 @@ func TestUpdateHelmValuesObject(t *testing.T) {
 						Path:           "helm-guestbook",
 						Helm: &argov1alpha1.ApplicationSourceHelm{
 							ValuesObject: &argov1alpha1.UnstructuredObject{
-								Raw: []byte(`{"some":{"string":"{{.test}}"}}`),
+								Object: v1alpha1.Object{
+									Raw: []byte(`{"some":{"string":"{{.test}}"}}`),
+								},
 							},
 						},
 					},
@@ -766,7 +774,9 @@ func TestUpdateHelmValuesObject(t *testing.T) {
 		// Update the app spec with some knew ValuesObject to force a merge
 		Update(func(as *argov1alpha1.ApplicationSet) {
 			as.Spec.Template.Spec.Source.Helm.ValuesObject = &argov1alpha1.UnstructuredObject{
-				Raw: []byte(`{"some":{"foo":"bar"}}`),
+				Object: v1alpha1.Object{
+					Raw: []byte(`{"some":{"foo":"bar"}}`),
+				},
 			}
 		}).
 		Then().

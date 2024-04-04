@@ -324,14 +324,47 @@ type ApplicationSourceHelm struct {
 	SkipCrds bool `json:"skipCrds,omitempty" protobuf:"bytes,9,opt,name=skipCrds"`
 	// ValuesObject specifies Helm values to be passed to helm template, defined as a map. This takes precedence over Values.
 	// +kubebuilder:pruning:PreserveUnknownFields
-	ValuesObject *UnstructuredObject `json:"valuesObject,omitempty" protobuf:"bytes,10,opt,name=valuesObject"`
+	ValuesObject []byte `json:"valuesObject,omitempty" protobuf:"bytes,10,opt,name=valuesObject"`
 }
 
-// UnstructuredObject is used to represent any raw unstructured YAML/JSON objects, such as valuesObject.
+// UnstructuredObject is an Object with exactly one key
 type UnstructuredObject struct {
-	// Raw is the underlying serialization of this object.
-	Raw []byte `json:"-" protobuf:"bytes,1,opt,name=raw"`
+	Object `json:",inline" protobuf:"bytes,1,opt,name=object"`
 }
+
+// UnmarshalJSON unmarshalls the Plugin from JSON, and also validates that it is a map exactly one key
+func (u *UnstructuredObject) UnmarshalJSON(value []byte) error {
+	if err := u.Object.UnmarshalJSON(value); err != nil {
+		return err
+	}
+	// by validating the structure in UnmarshallJSON, we prevent bad data entering the system at the point of
+	// parsing, which means we do not need validate
+	m := map[string]interface{}{}
+	if err := json.Unmarshal(u.Object.Raw, &m); err != nil {
+		return err
+	}
+	return nil
+}
+
+// Object is used to represent any raw unstructured YAML/JSON objects, such as valuesObject.
+// +kubebuilder:validation:Type=object
+type Object struct {
+	Raw json.RawMessage `json:"-" protobuf:"bytes,1,opt,name=raw,casttype=encoding/json.RawMessage"`
+}
+
+func (i *Object) UnmarshalJSON(value []byte) error {
+	return i.Raw.UnmarshalJSON(value)
+}
+
+func (i Object) MarshalJSON() ([]byte, error) {
+	return i.Raw.MarshalJSON()
+}
+
+func (i Object) OpenAPISchemaType() []string {
+	return []string{"object"}
+}
+
+func (i Object) OpenAPISchemaFormat() string { return "" }
 
 // HelmParameter is a parameter that's passed to helm template during manifest generation
 type HelmParameter struct {

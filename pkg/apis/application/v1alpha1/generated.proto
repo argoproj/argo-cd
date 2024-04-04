@@ -473,7 +473,8 @@ message ApplicationSourceHelm {
   optional bool skipCrds = 9;
 
   // ValuesObject specifies Helm values to be passed to helm template, defined as a map. This takes precedence over Values.
-  optional UnstructuredObject valuesObject = 10;
+  // +kubebuilder:pruning:PreserveUnknownFields
+  optional bytes valuesObject = 10;
 }
 
 // ApplicationSourceJsonnet holds options specific to applications of type Jsonnet
@@ -1198,6 +1199,12 @@ message NestedMergeGenerator {
   repeated ApplicationSetTerminalGenerator generators = 1;
 
   repeated string mergeKeys = 2;
+}
+
+// Object is used to represent any raw unstructured YAML/JSON objects, such as valuesObject.
+// +kubebuilder:validation:Type=object
+message Object {
+  optional bytes raw = 1;
 }
 
 // Operation contains information about a requested or running operation
@@ -2313,9 +2320,8 @@ message TagFilter {
   optional string value = 2;
 }
 
-// UnstructuredObject is used to represent any raw unstructured YAML/JSON objects, such as valuesObject.
+// UnstructuredObject is an Object with exactly one key
 message UnstructuredObject {
-  // Raw is the underlying serialization of this object.
-  optional bytes raw = 1;
+  optional Object object = 1;
 }
 

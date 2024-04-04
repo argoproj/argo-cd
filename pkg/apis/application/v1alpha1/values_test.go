@@ -1,7 +1,6 @@
 package v1alpha1
 
 import (
-	"encoding/json"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -69,9 +68,9 @@ func TestValues_SetString(t *testing.T) {
 
 			if !testCase.expectError {
 				assert.Equal(t, testCase.expectValue, source.ValuesString())
-				data, err := json.Marshal(source.ValuesObject)
+				data, err := source.ValuesObject.MarshalJSON()
 				assert.NoError(t, err)
-				err = json.Unmarshal(data, &source.ValuesObject)
+				err = source.ValuesObject.UnmarshalJSON(data)
 				assert.NoError(t, err)
 				assert.Equal(t, testCase.expectValue, source.ValuesString())
 			} else {

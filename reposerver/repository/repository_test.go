@@ -1014,7 +1014,7 @@ func TestGenerateHelmWithValues(t *testing.T) {
 			Path: ".",
 			Helm: &argoappv1.ApplicationSourceHelm{
 				ValueFiles:   []string{"values-production.yaml"},
-				ValuesObject: &v1alpha1.UnstructuredObject{Raw: []byte(`cluster: {slaveCount: 2}`)},
+				ValuesObject: []byte(`cluster: {slaveCount: 2}`),
 			},
 		},
 		ProjectName:        "something",
@@ -1115,7 +1115,7 @@ func TestGenerateHelmWithValuesDirectoryTraversal(t *testing.T) {
 			Path: "./redis",
 			Helm: &argoappv1.ApplicationSourceHelm{
 				ValueFiles:   []string{"../minio/values.yaml"},
-				ValuesObject: &v1alpha1.UnstructuredObject{Raw: []byte(`cluster: {slaveCount: 2}`)},
+				ValuesObject: []byte(`cluster: {slaveCount: 2}`),
 			},
 		},
 		ProjectName:        "something",
@@ -1217,7 +1217,7 @@ func TestGenerateHelmWithURL(t *testing.T) {
 			Path: ".",
 			Helm: &argoappv1.ApplicationSourceHelm{
 				ValueFiles:   []string{"https://raw.githubusercontent.com/argoproj/argocd-example-apps/master/helm-guestbook/values.yaml"},
-				ValuesObject: &v1alpha1.UnstructuredObject{Raw: []byte(`cluster: {slaveCount: 2}`)},
+				ValuesObject: []byte(`cluster: {slaveCount: 2}`),
 			},
 		},
 		ProjectName:        "something",
@@ -1239,7 +1239,7 @@ func TestGenerateHelmWithValuesDirectoryTraversalOutsideRepo(t *testing.T) {
 				Path: ".",
 				Helm: &argoappv1.ApplicationSourceHelm{
 					ValueFiles:   []string{"../minio/values.yaml"},
-					ValuesObject: &v1alpha1.UnstructuredObject{Raw: []byte(`cluster: {slaveCount: 2}`)},
+					ValuesObject: []byte(`cluster: {slaveCount: 2}`),
 				},
 			},
 			ProjectName:        "something",
@@ -1258,7 +1258,7 @@ func TestGenerateHelmWithValuesDirectoryTraversalOutsideRepo(t *testing.T) {
 				Path: "./my-chart",
 				Helm: &argoappv1.ApplicationSourceHelm{
 					ValueFiles:   []string{"../my-chart/my-chart-values.yaml"},
-					ValuesObject: &v1alpha1.UnstructuredObject{Raw: []byte(`cluster: {slaveCount: 2}`)},
+					ValuesObject: []byte(`cluster: {slaveCount: 2}`),
 				},
 			},
 			ProjectName:        "something",
@@ -1276,7 +1276,7 @@ func TestGenerateHelmWithValuesDirectoryTraversalOutsideRepo(t *testing.T) {
 				Path: "./my-chart",
 				Helm: &argoappv1.ApplicationSourceHelm{
 					ValueFiles:   []string{"/my-chart/my-chart-values.yaml"},
-					ValuesObject: &v1alpha1.UnstructuredObject{Raw: []byte(`cluster: {slaveCount: 2}`)},
+					ValuesObject: []byte(`cluster: {slaveCount: 2}`),
 				},
 			},
 			ProjectName:        "something",
@@ -1294,7 +1294,7 @@ func TestGenerateHelmWithValuesDirectoryTraversalOutsideRepo(t *testing.T) {
 				Path: "./my-chart",
 				Helm: &argoappv1.ApplicationSourceHelm{
 					ValueFiles:   []string{"/../../../my-chart-values.yaml"},
-					ValuesObject: &v1alpha1.UnstructuredObject{Raw: []byte(`cluster: {slaveCount: 2}`)},
+					ValuesObject: []byte(`cluster: {slaveCount: 2}`),
 				},
 			},
 			ProjectName:        "something",
@@ -1313,7 +1313,7 @@ func TestGenerateHelmWithValuesDirectoryTraversalOutsideRepo(t *testing.T) {
 				Path: "./my-chart",
 				Helm: &argoappv1.ApplicationSourceHelm{
 					ValueFiles:   []string{"file://../../../../my-chart-values.yaml"},
-					ValuesObject: &v1alpha1.UnstructuredObject{Raw: []byte(`cluster: {slaveCount: 2}`)},
+					ValuesObject: []byte(`cluster: {slaveCount: 2}`),
 				},
 			},
 			ProjectName:        "something",
@@ -1368,7 +1368,7 @@ func TestGenerateHelmWithAbsoluteFileParameter(t *testing.T) {
 			Path: "./util/helm/testdata/redis",
 			Helm: &argoappv1.ApplicationSourceHelm{
 				ValueFiles:   []string{"values-production.yaml"},
-				ValuesObject: &v1alpha1.UnstructuredObject{Raw: []byte(`cluster: {slaveCount: 2}`)},
+				ValuesObject: []byte(`cluster: {slaveCount: 2}`),
 				FileParameters: []argoappv1.HelmFileParameter{{
 					Name: "passwordContent",
 					Path: externalSecretPath,
@@ -1396,7 +1396,7 @@ func TestGenerateHelmWithFileParameter(t *testing.T) {
 			Helm: &argoappv1.ApplicationSourceHelm{
 				ValueFiles:   []string{"values-production.yaml"},
 				Values:       `cluster: {slaveCount: 10}`,
-				ValuesObject: &v1alpha1.UnstructuredObject{Raw: []byte(`cluster: {slaveCount: 2}`)},
+				ValuesObject: []byte(`cluster: {slaveCount: 2}`),
 				FileParameters: []argoappv1.HelmFileParameter{{
 					Name: "passwordContent",
 					Path: "../external/external-secret.txt",

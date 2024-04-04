@@ -30,17 +30,17 @@ func (h *ApplicationSourceHelm) SetValuesString(value string) error {
 		default:
 			return fmt.Errorf("invalid type %q", reflect.TypeOf(v))
 		}
-		h.ValuesObject = &UnstructuredObject{Raw: data}
+		h.ValuesObject = data
 		h.Values = ""
 	}
 	return nil
 }
 
 func (h *ApplicationSourceHelm) ValuesYAML() []byte {
-	if h.ValuesObject == nil || h.ValuesObject.Raw == nil {
+	if h.ValuesObject == nil {
 		return []byte(h.Values)
 	}
-	b, err := yaml.JSONToYAML(h.ValuesObject.Raw)
+	b, err := yaml.JSONToYAML(h.ValuesObject)
 	if err != nil {
 		// This should be impossible, because rawValue isn't set directly.
 		return []byte{}
@@ -53,7 +53,7 @@ func (h *ApplicationSourceHelm) ValuesIsEmpty() bool {
 }
 
 func (h *ApplicationSourceHelm) ValuesString() string {
-	if h.ValuesObject == nil || h.ValuesObject.Raw == nil {
+	if h.ValuesObject == nil {
 		return h.Values
 	}
 	return strings.TrimSuffix(string(h.ValuesYAML()), "\n")
