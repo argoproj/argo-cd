@@ -54,6 +54,7 @@ func Test_GetRefSources(t *testing.T) {
 
 		argoSpec := getMultiSourceAppSpec(argoappv1.ApplicationSources{
 			{RepoURL: "file://does-not-exist", Ref: "source1"},
+			{RepoURL: fmt.Sprintf("file://%s", repoPath)},
 		})
 
 		refSources, err := GetRefSources(context.Background(), GetRefSourcesOptions{
@@ -90,6 +91,23 @@ func Test_GetRefSources(t *testing.T) {
 		})
 
 		assert.Error(t, err)
+		assert.Empty(t, refSources)
+	})
+
+	t.Run("target ref does not fail when single source", func(t *testing.T) {
+		repoDB := &dbmocks.ArgoDB{}
+		repoDB.On("GetRepository", context.Background(), repo.Repo).Return(repo, nil)
+
+		argoSpec := getMultiSourceAppSpec(argoappv1.ApplicationSources{
+			{RepoURL: fmt.Sprintf("file://%s", repoPath)},
+		})
+
+		refSources, err := GetRefSources(context.Background(), GetRefSourcesOptions{
+			Sources: argoSpec.Sources,
+			Db:      repoDB,
+		})
+
+		assert.NoError(t, err)
 		assert.Empty(t, refSources)
 	})
 }
