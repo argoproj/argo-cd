@@ -176,15 +176,17 @@ func NewLiveStateCache(
 	resourceTracking argo.ResourceTracking) LiveStateCache {
 
 	return &liveStateCache{
-		appInformer:      appInformer,
-		db:               db,
-		clusters:         make(map[string]clustercache.ClusterCache),
-		onObjectUpdated:  onObjectUpdated,
-		kubectl:          kubectl,
-		settingsMgr:      settingsMgr,
-		metricsServer:    metricsServer,
-		clusterSharding:  clusterSharding,
-		resourceTracking: resourceTracking,
+		appInformer:         appInformer,
+		db:                  db,
+		clusters:            make(map[string]clustercache.ClusterCache),
+		clusterStatusCancel: make(map[string]context.CancelFunc),
+		onObjectUpdated:     onObjectUpdated,
+		kubectl:             kubectl,
+		settingsMgr:         settingsMgr,
+		metricsServer:       metricsServer,
+		clusterSharding:     clusterSharding,
+		clusterFilter:       clusterFilter,
+		resourceTracking:    resourceTracking,
 	}
 }
 
@@ -210,9 +212,10 @@ type liveStateCache struct {
 	resourceTracking     argo.ResourceTracking
 	ignoreNormalizerOpts normalizers.IgnoreNormalizerOpts
 
-	clusters      map[string]clustercache.ClusterCache
-	cacheSettings cacheSettings
-	lock          sync.RWMutex
+	clusterStatusCancel map[string]context.CancelFunc
+	clusters            map[string]clustercache.ClusterCache
+	cacheSettings       cacheSettings
+	lock                sync.RWMutex
 }
 
 func (c *liveStateCache) loadCacheSettings() (*cacheSettings, error) {
@@ -520,11 +523,20 @@ func (c *liveStateCache) getCluster(server string) (clustercache.ClusterCache, e
 		clustercache.SetLogr(logutils.NewLogrusLogger(log.WithField("server", cluster.Server))),
 		clustercache.SetRetryOptions(clusterCacheAttemptLimit, clusterCacheRetryUseBackoff, isRetryableError),
 		clustercache.SetRespectRBAC(respectRBAC),
+		clustercache.SetClusterStatusRetryFunc(isTransientNetworkErr),
+		clustercache.SetClusterConnectionInterval(10 * time.Second),
 	}
 
 	clusterCache = clustercache.NewClusterCache(clusterCacheConfig, clusterCacheOpts...)
 
-	clusterCache.StartClusterConnectionStatusMonitoring(context.Background())
+	// Make sure to check if the monitoring interval is disabled
+
+	ctx, cancel := context.WithCancel(context.Background())
+	if c.clusterStatusCancel == nil {
+		c.clusterStatusCancel = make(map[string]context.CancelFunc)
+	}
+	c.clusterStatusCancel[server] = cancel
+	clusterCache.StartClusterConnectionStatusMonitoring(ctx)
 
 	_ = clusterCache.OnResourceUpdated(func(newRes *clustercache.Resource, oldRes *clustercache.Resource, namespaceResources map[kube.ResourceKey]*clustercache.Resource) {
 		toNotify := make(map[string]bool)
@@ -779,6 +791,12 @@ func (c *liveStateCache) handleModEvent(oldCluster *appv1.Cluster, newCluster *a
 		if !c.canHandleCluster(newCluster) {
 			cluster.Invalidate()
 			c.lock.Lock()
+			cancel, ok := c.clusterStatusCancel[newCluster.Server]
+			if ok {
+				// stop the cluster status monitoring goroutine
+				cancel()
+				delete(c.clusterStatusCancel, newCluster.Server)
+			}
 			delete(c.clusters, newCluster.Server)
 			c.lock.Unlock()
 			return
@@ -820,6 +838,12 @@ func (c *liveStateCache) handleDeleteEvent(clusterServer string) {
 	if ok {
 		cluster.Invalidate()
 		c.lock.Lock()
+		cancel, ok := c.clusterStatusCancel[clusterServer]
+		if ok {
+			// stop the cluster status monitoring goroutine
+			cancel()
+			delete(c.clusterStatusCancel, clusterServer)
+		}
 		delete(c.clusters, clusterServer)
 		c.lock.Unlock()
 	}
