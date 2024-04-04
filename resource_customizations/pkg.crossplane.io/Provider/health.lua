@@ -1,8 +1,8 @@
-local hs = {}
+hs = {}
 if obj.status ~= nil then
   if obj.status.conditions ~= nil then
-    local installed = false
-    local healthy = false
+    installed = false
+    healthy = false
     for i, condition in ipairs(obj.status.conditions) do
       if condition.type == "Installed" then
         installed = condition.status == "True"

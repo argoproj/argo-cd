@@ -258,8 +258,8 @@ func Test_AddGPGPublicKey(t *testing.T) {
 
 func Test_DeleteGPGPublicKey(t *testing.T) {
 	defer os.Setenv("GNUPGHOME", "")
-
-	t.Run("good case", func(t *testing.T) {
+	// Good case
+	{
 		clientset := getGPGKeysClientset(gpgCMMultiGoodPubkey)
 		settings := settings.NewSettingsManager(context.Background(), clientset, testNamespace)
 		db := NewDB(testNamespace, settings, clientset)
@@ -289,9 +289,10 @@ func Test_DeleteGPGPublicKey(t *testing.T) {
 		n, err = db.ListConfiguredGPGPublicKeys(context.Background())
 		assert.NoError(t, err)
 		assert.Len(t, n, 0)
-	})
 
-	t.Run("bad case - empty ConfigMap", func(t *testing.T) {
+	}
+	// Bad case - empty ConfigMap
+	{
 		clientset := getGPGKeysClientset(gpgCMEmpty)
 		settings := settings.NewSettingsManager(context.Background(), clientset, testNamespace)
 		db := NewDB(testNamespace, settings, clientset)
@@ -299,5 +300,5 @@ func Test_DeleteGPGPublicKey(t *testing.T) {
 		// Key should be removed
 		err := db.DeleteGPGPublicKey(context.Background(), "F7842A5CEAA9C0B1")
 		assert.Error(t, err)
-	})
+	}
 }

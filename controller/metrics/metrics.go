@@ -17,14 +17,11 @@ import (
 	log "github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/labels"
 
-	"github.com/argoproj/argo-cd/v2/common"
 	argoappv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	applister "github.com/argoproj/argo-cd/v2/pkg/client/listers/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/util/git"
 	"github.com/argoproj/argo-cd/v2/util/healthz"
 	"github.com/argoproj/argo-cd/v2/util/profile"
-
-	ctrl_metrics "sigs.k8s.io/controller-runtime/pkg/metrics"
 )
 
 type MetricsServer struct {
@@ -59,7 +56,7 @@ var (
 	descAppInfo = prometheus.NewDesc(
 		"argocd_app_info",
 		"Information about application.",
-		append(descAppDefaultLabels, "autosync_enabled", "repo", "dest_server", "dest_namespace", "sync_status", "health_status", "operation"),
+		append(descAppDefaultLabels, "repo", "dest_server", "dest_namespace", "sync_status", "health_status", "operation"),
 		nil,
 	)
 	// DEPRECATED
@@ -162,12 +159,12 @@ func NewMetricsServer(addr string, appLister applister.ApplicationLister, appFil
 
 	mux := http.NewServeMux()
 	registry := NewAppRegistry(appLister, appFilter, appLabels)
-
+	registry.MustRegister(depth, adds, latency, workDuration, unfinished, longestRunningProcessor, retries)
 	mux.Handle(MetricsPath, promhttp.HandlerFor(prometheus.Gatherers{
 		// contains app controller specific metrics
 		registry,
-		// contains workqueue metrics, process and golang metrics
-		ctrl_metrics.Registry,
+		// contains process, golang and controller workqueues metrics
+		prometheus.DefaultGatherer,
 	}, promhttp.HandlerOpts{}))
 	profile.RegisterProfiler(mux)
 	healthz.ServeHealthCheck(mux, healthCheck)
@@ -263,12 +260,12 @@ func (m *MetricsServer) IncKubernetesRequest(app *argoappv1.Application, server,
 }
 
 func (m *MetricsServer) IncRedisRequest(failed bool) {
-	m.redisRequestCounter.WithLabelValues(m.hostname, common.ApplicationController, strconv.FormatBool(failed)).Inc()
+	m.redisRequestCounter.WithLabelValues(m.hostname, "argocd-application-controller", strconv.FormatBool(failed)).Inc()
 }
 
 // ObserveRedisRequestDuration observes redis request duration
 func (m *MetricsServer) ObserveRedisRequestDuration(duration time.Duration) {
-	m.redisRequestHistogram.WithLabelValues(m.hostname, common.ApplicationController).Observe(duration.Seconds())
+	m.redisRequestHistogram.WithLabelValues(m.hostname, "argocd-application-controller").Observe(duration.Seconds())
 }
 
 // IncReconcile increments the reconcile counter for an application
@@ -384,9 +381,7 @@ func (c *appCollector) collectApps(ch chan<- prometheus.Metric, app *argoappv1.A
 		healthStatus = health.HealthStatusUnknown
 	}
 
-	autoSyncEnabled := app.Spec.SyncPolicy != nil && app.Spec.SyncPolicy.Automated != nil
-
-	addGauge(descAppInfo, 1, strconv.FormatBool(autoSyncEnabled), git.NormalizeGitURL(app.Spec.GetSource().RepoURL), app.Spec.Destination.Server, app.Spec.Destination.Namespace, string(syncStatus), string(healthStatus), operation)
+	addGauge(descAppInfo, 1, git.NormalizeGitURL(app.Spec.GetSource().RepoURL), app.Spec.Destination.Server, app.Spec.Destination.Namespace, string(syncStatus), string(healthStatus), operation)
 
 	if len(c.appLabels) > 0 {
 		labelValues := []string{}

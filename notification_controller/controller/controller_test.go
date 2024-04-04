@@ -110,30 +110,26 @@ func TestInit(t *testing.T) {
 	k8sClient := k8sfake.NewSimpleClientset()
 	appLabelSelector := "app=test"
 
-	selfServiceNotificationEnabledFlags := []bool{false, true}
-	for _, selfServiceNotificationEnabled := range selfServiceNotificationEnabledFlags {
-		nc := NewController(
-			k8sClient,
-			dynamicClient,
-			nil,
-			"default",
-			[]string{},
-			appLabelSelector,
-			nil,
-			"my-secret",
-			"my-configmap",
-			selfServiceNotificationEnabled,
-		)
+	nc := NewController(
+		k8sClient,
+		dynamicClient,
+		nil,
+		"default",
+		[]string{},
+		appLabelSelector,
+		nil,
+		"my-secret",
+		"my-configmap",
+	)
 
-		assert.NotNil(t, nc)
+	assert.NotNil(t, nc)
 
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		defer cancel()
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
 
-		err = nc.Init(ctx)
+	err = nc.Init(ctx)
 
-		assert.NoError(t, err)
-	}
+	assert.NoError(t, err)
 }
 
 func TestInitTimeout(t *testing.T) {
@@ -156,7 +152,6 @@ func TestInitTimeout(t *testing.T) {
 		nil,
 		"my-secret",
 		"my-configmap",
-		false,
 	)
 
 	assert.NotNil(t, nc)

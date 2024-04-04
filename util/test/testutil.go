@@ -8,9 +8,9 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/go-jose/go-jose/v3"
 	"github.com/golang-jwt/jwt/v4"
 	"github.com/stretchr/testify/require"
+	"gopkg.in/square/go-jose.v2"
 )
 
 // Cert is a certificate for tests. It was generated like this:
@@ -168,16 +168,6 @@ func oidcMockHandler(t *testing.T, url string) func(http.ResponseWriter, *http.R
   "token_endpoint_auth_methods_supported": ["client_secret_basic", "client_secret_post"],
   "claims_supported": ["sub", "aud", "exp"]
 }`, url))
-			require.NoError(t, err)
-		case "/userinfo":
-			w.Header().Set("content-type", "application/json")
-			_, err := io.WriteString(w, fmt.Sprintf(`
-{
-	"groups":["githubOrg:engineers"],
-	"iss": "%[1]s",
-	"sub": "randomUser"
-}`, url))
-
 			require.NoError(t, err)
 		case "/keys":
 			pubKey, err := jwt.ParseRSAPublicKeyFromPEM(Cert)

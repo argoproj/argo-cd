@@ -67,10 +67,6 @@ func NewApplicationSetGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 	var command = &cobra.Command{
 		Use:   "get APPSETNAME",
 		Short: "Get ApplicationSet details",
-		Example: templates.Examples(`
-	# Get ApplicationSets
-	argocd appset get APPSETNAME
-		`),
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
 
@@ -350,11 +346,9 @@ func printAppSetSummaryTable(appSet *arogappsetv1.ApplicationSet) {
 	fmt.Printf(printOpFmtStr, "Project:", appSet.Spec.Template.Spec.GetProject())
 	fmt.Printf(printOpFmtStr, "Server:", getServerForAppSet(appSet))
 	fmt.Printf(printOpFmtStr, "Namespace:", appSet.Spec.Template.Spec.Destination.Namespace)
-	if !appSet.Spec.Template.Spec.HasMultipleSources() {
-		fmt.Println("Source:")
-	} else {
-		fmt.Println("Sources:")
-	}
+	fmt.Printf(printOpFmtStr, "Repo:", source.RepoURL)
+	fmt.Printf(printOpFmtStr, "Target:", source.TargetRevision)
+	fmt.Printf(printOpFmtStr, "Path:", source.Path)
 	printAppSourceDetails(&source)
 
 	var (

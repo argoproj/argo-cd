@@ -1,7 +1,6 @@
 package helm
 
 import (
-	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -89,28 +88,6 @@ func (c *Cmd) RegistryLogin(repo string, creds Creds) (string, error) {
 
 	if creds.Password != "" {
 		args = append(args, "--password", creds.Password)
-	}
-
-	if creds.CAPath != "" {
-		args = append(args, "--ca-file", creds.CAPath)
-	}
-
-	if len(creds.CertData) > 0 {
-		filePath, closer, err := writeToTmp(creds.CertData)
-		if err != nil {
-			return "", err
-		}
-		defer argoio.Close(closer)
-		args = append(args, "--cert-file", filePath)
-	}
-
-	if len(creds.KeyData) > 0 {
-		filePath, closer, err := writeToTmp(creds.KeyData)
-		if err != nil {
-			return "", err
-		}
-		defer argoio.Close(closer)
-		args = append(args, "--key-file", filePath)
 	}
 
 	if creds.InsecureSkipVerify {
@@ -260,25 +237,6 @@ func (c *Cmd) PullOCI(repo string, chart string, version string, destination str
 	if creds.CAPath != "" {
 		args = append(args, "--ca-file", creds.CAPath)
 	}
-
-	if len(creds.CertData) > 0 {
-		filePath, closer, err := writeToTmp(creds.CertData)
-		if err != nil {
-			return "", err
-		}
-		defer argoio.Close(closer)
-		args = append(args, "--cert-file", filePath)
-	}
-
-	if len(creds.KeyData) > 0 {
-		filePath, closer, err := writeToTmp(creds.KeyData)
-		if err != nil {
-			return "", err
-		}
-		defer argoio.Close(closer)
-		args = append(args, "--key-file", filePath)
-	}
-
 	if creds.InsecureSkipVerify && c.insecureSkipVerifySupported {
 		args = append(args, "--insecure-skip-tls-verify")
 	}
@@ -310,8 +268,7 @@ type TemplateOpts struct {
 }
 
 var (
-	re                 = regexp.MustCompile(`([^\\]),`)
-	apiVersionsRemover = regexp.MustCompile(`(--api-versions [^ ]+ )+`)
+	re = regexp.MustCompile(`([^\\]),`)
 )
 
 func cleanSetParameters(val string) string {
@@ -358,16 +315,7 @@ func (c *Cmd) template(chartPath string, opts *TemplateOpts) (string, error) {
 		args = append(args, "--include-crds")
 	}
 
-	out, err := c.run(args...)
-	if err != nil {
-		msg := err.Error()
-		if strings.Contains(msg, "--api-versions") {
-			log.Debug(msg)
-			msg = apiVersionsRemover.ReplaceAllString(msg, "<api versions removed> ")
-		}
-		return "", errors.New(msg)
-	}
-	return out, nil
+	return c.run(args...)
 }
 
 func (c *Cmd) Freestyle(args ...string) (string, error) {

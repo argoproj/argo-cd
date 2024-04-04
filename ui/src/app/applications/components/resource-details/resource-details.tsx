@@ -280,7 +280,7 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                         const settings = await services.authService.settings();
                         const execEnabled = settings.execEnabled;
                         const logsAllowed = await services.accounts.canI('logs', 'get', application.spec.project + '/' + application.metadata.name);
-                        const execAllowed = execEnabled && (await services.accounts.canI('exec', 'create', application.spec.project + '/' + application.metadata.name));
+                        const execAllowed = await services.accounts.canI('exec', 'create', application.spec.project + '/' + application.metadata.name);
                         const links = await services.applications.getResourceLinks(application.metadata.name, application.metadata.namespace, selectedNode).catch(() => null);
                         return {controlledState, liveState, events, podState, execEnabled, execAllowed, logsAllowed, links};
                     }}>

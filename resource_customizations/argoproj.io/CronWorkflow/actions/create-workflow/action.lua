@@ -32,7 +32,7 @@ function deepCopy(object)
     return _copy(object)
 end
 
-local workflow = {}
+workflow = {}
 workflow.apiVersion = "argoproj.io/v1alpha1"
 workflow.kind = "Workflow"
 
@@ -63,7 +63,7 @@ if (obj.spec.workflowMetadata ~= nil and obj.spec.workflowMetadata.finalizers ~=
     end
 end
 
-local ownerRef = {}
+ownerRef = {}
 ownerRef.apiVersion = obj.apiVersion
 ownerRef.kind = obj.kind
 ownerRef.name = obj.metadata.name
@@ -73,10 +73,10 @@ workflow.metadata.ownerReferences[1] = ownerRef
 
 workflow.spec = deepCopy(obj.spec.workflowSpec)
 
-local impactedResource = {}
+impactedResource = {}
 impactedResource.operation = "create"
 impactedResource.resource = workflow
-local result = {}
+result = {}
 result[1] = impactedResource
 
 return result

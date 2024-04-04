@@ -9,7 +9,16 @@ import (
 )
 
 func getChartDetails(chartYAML string) (*v1alpha1.ChartDetails, error) {
-	var chart Chart
+	// see: https://helm.sh/docs/topics/charts/ for more details
+	var chart struct {
+		Description string `yaml:"description,omitempty"`
+		Home        string `yaml:"home,omitempty"`
+		Maintainers []struct {
+			Name  string `yaml:"name,omitempty"`
+			Email string `yaml:"email,omitempty"`
+			Url   string `yaml:"url,omitempty"`
+		} `yaml:"maintainers,omitempty"`
+	}
 	err := yaml.Unmarshal([]byte(chartYAML), &chart)
 	if err != nil {
 		return nil, fmt.Errorf("failed to unmarshal chart: %w", err)

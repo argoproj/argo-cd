@@ -17,8 +17,6 @@ kind: ApplicationSet
 metadata:
   name: cluster-git
 spec:
-  goTemplate: true
-  goTemplateOptions: ["missingkey=error"]
   generators:
     # merge 'parent' generator
     - merge:
@@ -43,9 +41,9 @@ spec:
                   values.redis: 'true'
   template:
     metadata:
-      name: '{{.name}}'
+      name: '{{name}}'
     spec:
-      project: '{{index .metadata.labels "environment"}}'
+      project: '{{metadata.labels.environment}}'
       source:
         repoURL: https://github.com/argoproj/argo-cd.git
         targetRevision: HEAD
@@ -53,11 +51,11 @@ spec:
         helm:
           parameters:
             - name: kafka
-              value: '{{.values.kafka}}'
+              value: '{{values.kafka}}'
             - name: redis
-              value: '{{.values.redis}}'
+              value: '{{values.redis}}'
       destination:
-        server: '{{.server}}'
+        server: '{{server}}'
         namespace: default
 ```
 
@@ -124,8 +122,6 @@ kind: ApplicationSet
 metadata:
   name: cluster-git
 spec:
-  goTemplate: true
-  goTemplateOptions: ["missingkey=error"]
   generators:
     # merge 'parent' generator:
     # Use the selector set by both child generators to combine them.
@@ -139,7 +135,7 @@ spec:
           # Set the selector to this location.
           - clusters:
               values:
-                selector: '{{index .metadata.labels "location"}}'
+                selector: '{{ metadata.labels.location }}'
           # The git repo may have different directories which correspond to the
           # cluster locations, using these as a selector.
           - git:
@@ -148,19 +144,19 @@ spec:
               directories:
               - path: '*'
               values:
-                selector: '{{.path.path}}'
+                selector: '{{ path }}'
   template:
     metadata:
-      name: '{{.name}}'
+      name: '{{name}}'
     spec:
-      project: '{{index .metadata.labels "environment"}}'
+      project: '{{metadata.labels.environment}}'
       source:
         repoURL: https://github.com/argoproj/argocd-example-apps/
         # The cluster values field for each generator will be substituted here:
         targetRevision: HEAD
-        path: '{{.path.path}}'
+        path: '{{path}}'
       destination:
-        server: '{{.server}}'
+        server: '{{server}}'
         namespace: default
 ```
 
@@ -220,7 +216,7 @@ Assuming a cluster named `germany01` with the label `metadata.labels.location=Ge
               mergeKeys:
                 - values.merge
 
-1. When using a Merge generator nested inside another Matrix or Merge generator, [Post Selectors](Generators-Post-Selector.md) for this nested generator's generators will only be applied when enabled via `spec.applyNestedSelectors`.
+1. When using a Merge generator nested inside another Matrix or Merge generator, [Post Selectors](../../user-guide/application-set.md#post-selector-all-generators) for this nested generator's generators will only be applied when enabled via `spec.applyNestedSelectors`.
 
         - merge:
             generators:

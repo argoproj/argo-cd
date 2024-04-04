@@ -1,25 +1,9 @@
-# `argocd admin cluster stats` Command Reference
-
 ## argocd admin cluster stats
 
 Prints information cluster statistics and inferred shard number
 
 ```
 argocd admin cluster stats [flags]
-```
-
-### Examples
-
-```
-
-#Display stats and shards for clusters 
-argocd admin cluster stats
-
-#Display Cluster Statistics for a Specific Shard
-argocd admin cluster stats --shard=1
-
-#In a multi-cluster environment to print stats for a specific cluster say(target-cluster)
-argocd admin cluster stats target-cluster
 ```
 
 ### Options
@@ -35,7 +19,6 @@ argocd admin cluster stats target-cluster
       --cluster string                        The name of the kubeconfig cluster to use
       --context string                        The name of the kubeconfig context to use
       --default-cache-expiration duration     Cache expiration default (default 24h0m0s)
-      --disable-compression                   If true, opt-out of response compression for all requests to the server
   -h, --help                                  help for stats
       --insecure-skip-tls-verify              If true, the server's certificate will not be checked for validity. This will make your HTTPS connections insecure
       --kubeconfig string                     Path to a kube config. Only required if out-of-cluster
@@ -57,7 +40,6 @@ argocd admin cluster stats target-cluster
       --sentinelmaster string                 Redis sentinel master group name. (default "master")
       --server string                         The address and port of the Kubernetes API server
       --shard int                             Cluster shard filter (default -1)
-      --sharding-method string                Sharding method. Defaults: legacy. Supported sharding methods are : [legacy, round-robin]  (default "legacy")
       --tls-server-name string                If provided, this name will be used to validate server certificate. If this is not provided, hostname used to contact the server is used.
       --token string                          Bearer token for authentication to the API server
       --user string                           The name of the kubeconfig user to use
@@ -71,7 +53,6 @@ argocd admin cluster stats target-cluster
       --client-crt string               Client certificate file
       --client-crt-key string           Client certificate key file
       --config string                   Path to Argo CD config (default "/home/user/.config/argocd/config")
-      --controller-name string          Name of the Argo CD Application controller; set this or the ARGOCD_APPLICATION_CONTROLLER_NAME environment variable when the controller's name label differs from the default, for example when installing via the Helm chart (default "argocd-application-controller")
       --core                            If set to true then CLI talks directly to Kubernetes instead of talking to Argo CD API server
       --grpc-web                        Enables gRPC-web protocol. Useful if Argo CD server is behind proxy which does not support HTTP2.
       --grpc-web-root-path string       Enables gRPC-web protocol. Useful if Argo CD server is behind proxy which does not support HTTP2. Set web root.
@@ -84,11 +65,7 @@ argocd admin cluster stats target-cluster
       --plaintext                       Disable TLS
       --port-forward                    Connect to a random argocd-server port using port forwarding
       --port-forward-namespace string   Namespace name which should be used for port forwarding
-      --redis-haproxy-name string       Name of the Redis HA Proxy; set this or the ARGOCD_REDIS_HAPROXY_NAME environment variable when the HA Proxy's name label differs from the default, for example when installing via the Helm chart (default "argocd-redis-ha-haproxy")
-      --redis-name string               Name of the Redis deployment; set this or the ARGOCD_REDIS_NAME environment variable when the Redis's name label differs from the default, for example when installing via the Helm chart (default "argocd-redis")
-      --repo-server-name string         Name of the Argo CD Repo server; set this or the ARGOCD_REPO_SERVER_NAME environment variable when the server's name label differs from the default, for example when installing via the Helm chart (default "argocd-repo-server")
       --server-crt string               Server certificate file
-      --server-name string              Name of the Argo CD API server; set this or the ARGOCD_SERVER_NAME environment variable when the server's name label differs from the default, for example when installing via the Helm chart (default "argocd-server")
 ```
 
 ### SEE ALSO

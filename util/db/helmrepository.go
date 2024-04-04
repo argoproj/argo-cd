@@ -36,10 +36,10 @@ func (db *db) getHelmRepo(repoURL string, helmRepositories []settings.HelmRepoCr
 		Name: repoInfo.Name,
 	}
 	err := db.unmarshalFromSecretsStr(map[*SecretMaperValidation]*v1.SecretKeySelector{
-		{Dest: &repo.Username, Transform: StripCRLFCharacter}:          repoInfo.UsernameSecret,
-		{Dest: &repo.Password, Transform: StripCRLFCharacter}:          repoInfo.PasswordSecret,
-		{Dest: &repo.TLSClientCertData, Transform: StripCRLFCharacter}: repoInfo.CertSecret,
-		{Dest: &repo.TLSClientCertKey, Transform: StripCRLFCharacter}:  repoInfo.KeySecret,
+		&SecretMaperValidation{Dest: &repo.Username, Transform: StripCRLFCharacter}:          repoInfo.UsernameSecret,
+		&SecretMaperValidation{Dest: &repo.Password, Transform: StripCRLFCharacter}:          repoInfo.PasswordSecret,
+		&SecretMaperValidation{Dest: &repo.TLSClientCertData, Transform: StripCRLFCharacter}: repoInfo.CertSecret,
+		&SecretMaperValidation{Dest: &repo.TLSClientCertKey, Transform: StripCRLFCharacter}:  repoInfo.KeySecret,
 	}, make(map[string]*v1.Secret))
 	return repo, err
 }
@@ -59,7 +59,7 @@ func (db *db) ListHelmRepositories(ctx context.Context) ([]*v1alpha1.Repository,
 		}
 		result[i] = repo
 	}
-	repos, err := db.listRepositories(ctx, pointer.String("helm"))
+	repos, err := db.listRepositories(ctx, pointer.StringPtr("helm"))
 	if err != nil {
 		return nil, fmt.Errorf("failed to list Helm repositories: %w", err)
 	}

@@ -18,7 +18,6 @@ import {hashCode} from './shared/utils';
 import {Banner} from './ui-banner/ui-banner';
 import userInfo from './user-info';
 import {AuthSettings} from './shared/models';
-import {PKCEVerification} from './login/components/pkce-verify';
 
 services.viewPreferences.init();
 const bases = document.getElementsByTagName('base');
@@ -33,8 +32,7 @@ const routes: Routes = {
     '/applications': {component: applications.component},
     '/settings': {component: settings.component},
     '/user-info': {component: userInfo.component},
-    '/help': {component: help.component},
-    '/pkce/verify': {component: PKCEVerification, noLayout: true}
+    '/help': {component: help.component}
 };
 
 interface NavItem {
@@ -219,9 +217,7 @@ export class App extends React.Component<
                 </Helmet>
                 <PageContext.Provider value={{title: 'Argo CD'}}>
                     <Provider value={{history, popup: this.popupManager, notifications: this.notificationsManager, navigation: this.navigationManager, baseHref: base}}>
-                        <DataLoader load={() => services.viewPreferences.getPreferences()}>
-                            {pref => <div className={pref.theme ? 'theme-' + pref.theme : 'theme-light'}>{this.state.popupProps && <Popup {...this.state.popupProps} />}</div>}
-                        </DataLoader>
+                        {this.state.popupProps && <Popup {...this.state.popupProps} />}
                         <AuthSettingsCtx.Provider value={this.state.authSettings}>
                             <Router history={history}>
                                 <Switch>
