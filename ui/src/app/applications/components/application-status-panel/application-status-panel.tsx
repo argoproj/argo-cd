@@ -62,8 +62,7 @@ export const ApplicationStatusPanel = ({application, showDiff, showOperation, sh
 
     const statusExtensions = services.extensions.getStatusPanelExtensions();
 
-    let revision = getAppDefaultSyncRevision(application)
-    
+    let revision = getAppDefaultSyncRevision(application);
     const infos = cntByCategory.get('info');
     const warnings = cntByCategory.get('warning');
     const errors = cntByCategory.get('error');
