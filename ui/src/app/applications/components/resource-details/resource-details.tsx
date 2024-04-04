@@ -162,7 +162,7 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                 content: <ApplicationSummary app={application} updateApp={(app, query: {validate?: boolean}) => updateApp(app, query)} />
             },
             {
-                title: 'INPUTS/SOURCES',
+                title: 'SOURCES',
                 key: 'sources',
                 content: (
                     <DataLoader key='appDetails' input={application} load={app => getSources(app)}>
