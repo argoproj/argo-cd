@@ -67,8 +67,12 @@ func Test_GetRefSources(t *testing.T) {
 	})
 
 	t.Run("invalid ref", func(t *testing.T) {
+		repoDB := &dbmocks.ArgoDB{}
+		repoDB.On("GetRepository", context.Background(), repo.Repo).Return(repo, nil)
+
 		argoSpec := getMultiSourceAppSpec(argoappv1.ApplicationSources{
 			{RepoURL: "file://does-not-exist", Ref: "%invalid-name%"},
+			{RepoURL: fmt.Sprintf("file://%s", repoPath)},
 		})
 
 		refSources, err := GetRefSources(context.TODO(), GetRefSourcesOptions{
