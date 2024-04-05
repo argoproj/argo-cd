@@ -23,8 +23,8 @@ argocd app set APPNAME [flags]
   # Set and override application parameters with a parameter file
   argocd app set my-app --parameter-file path/to/parameter-file.yaml
   
-  # Set and override application parameters for a source at index 1 under spec.sources of app my-app. source-index starts at 1.
-  argocd app set my-app --source-index 1 --repo https://github.com/argoproj/argocd-example-apps.git
+  # Set and override application parameters for a source at position 1 under spec.sources of app my-app. source-position starts at 1.
+  argocd app set my-app --source-position 1 --repo https://github.com/argoproj/argocd-example-apps.git
   
   # Set application parameters and specify the namespace
   argocd app set my-app --parameter key1=value1 --parameter key2=value2 --namespace my-namespace
@@ -79,7 +79,7 @@ argocd app set APPNAME [flags]
       --revision string                            The tracking source branch, tag, commit or Helm chart version the application will sync to
       --revision-history-limit int                 How many items to keep in revision history (default 10)
       --self-heal                                  Set self healing when sync is automated
-      --source-index int                           Index of the source from the list of sources of the app. Index starts at 1. (default -1)
+      --source-position int                        Position of the source from the list of sources of the app. Counting starts at 1. (default -1)
       --sync-option Prune=false                    Add or remove a sync option, e.g add Prune=false. Remove using `!` prefix, e.g. `!Prune=false`
       --sync-policy string                         Set the sync policy (one of: manual (aliases of manual: none), automated (aliases of automated: auto, automatic))
       --sync-retry-backoff-duration duration       Sync retry backoff base duration. Input needs to be a duration (e.g. 2m, 1h) (default 5s)
