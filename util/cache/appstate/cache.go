@@ -49,7 +49,7 @@ func (c *Cache) GetItem(key string, item interface{}) error {
 }
 
 func (c *Cache) SetItem(key string, item interface{}, expiration time.Duration, delete bool) error {
-	return c.Cache.SetItem(key, item, expiration, delete)
+	return c.Cache.SetItem(key, item, &cacheutil.CacheActionOpts{Expiration: expiration, Delete: delete})
 }
 
 func appManagedResourcesKey(appName string) string {
