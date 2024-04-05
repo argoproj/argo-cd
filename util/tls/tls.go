@@ -28,7 +28,7 @@ const (
 	DefaultRSABits = 2048
 	// The default TLS cipher suites to provide to clients - see https://cipherlist.eu for updates
 	// Note that for TLS v1.3, cipher suites are not configurable and will be chosen automatically.
-	DefaultTLSCipherSuite = "TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384:TLS_RSA_WITH_AES_256_GCM_SHA384"
+	DefaultTLSCipherSuite = "TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384"
 	// The default minimum TLS version to provide to clients
 	DefaultTLSMinVersion = "1.2"
 	// The default maximum TLS version to provide to clients
@@ -130,7 +130,7 @@ func getTLSConfigCustomizer(minVersionStr, maxVersionStr, tlsCiphersStr string) 
 		return nil, fmt.Errorf("error retrieving TLS version by max version %q: %w", maxVersionStr, err)
 	}
 	if minVersion > maxVersion {
-		return nil, fmt.Errorf("Minimum TLS version %s must not be higher than maximum TLS version %s", minVersionStr, maxVersionStr)
+		return nil, fmt.Errorf("minimum TLS version %s must not be higher than maximum TLS version %s", minVersionStr, maxVersionStr)
 	}
 
 	// Cipher suites for TLSv1.3 are not configurable
@@ -232,7 +232,7 @@ func generate(opts CertOptions) ([]byte, crypto.PrivateKey, error) {
 	case "P521":
 		privateKey, err = ecdsa.GenerateKey(elliptic.P521(), rand.Reader)
 	default:
-		return nil, nil, fmt.Errorf("Unrecognized elliptic curve: %q", opts.ECDSACurve)
+		return nil, nil, fmt.Errorf("unrecognized elliptic curve: %q", opts.ECDSACurve)
 	}
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to generate private key: %s", err)
@@ -289,7 +289,7 @@ func generate(opts CertOptions) ([]byte, crypto.PrivateKey, error) {
 
 	certBytes, err := x509.CreateCertificate(rand.Reader, &template, &template, publicKey(privateKey), privateKey)
 	if err != nil {
-		return nil, nil, fmt.Errorf("Failed to create certificate: %s", err)
+		return nil, nil, fmt.Errorf("failed to create certificate: %s", err)
 	}
 	return certBytes, privateKey, nil
 }
@@ -427,7 +427,7 @@ func CreateServerTLSConfig(tlsCertPath, tlsKeyPath string, hosts []string) (*tls
 		log.Infof("Loading TLS configuration from cert=%s and key=%s", tlsCertPath, tlsKeyPath)
 		c, err := tls.LoadX509KeyPair(tlsCertPath, tlsKeyPath)
 		if err != nil {
-			return nil, fmt.Errorf("Unable to initalize TLS configuration with cert=%s and key=%s: %v", tlsCertPath, tlsKeyPath, err)
+			return nil, fmt.Errorf("unable to initalize TLS configuration with cert=%s and key=%s: %v", tlsCertPath, tlsKeyPath, err)
 		}
 		cert = &c
 	}
