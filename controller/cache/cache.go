@@ -372,7 +372,12 @@ func isRetryableError(err error) bool {
 		isResourceQuotaConflictErr(err) ||
 		isTransientNetworkErr(err) ||
 		isExceededQuotaErr(err) ||
+		isHTTP2GoawayErr(err) ||
 		errors.Is(err, syscall.ECONNRESET)
+}
+
+func isHTTP2GoawayErr(err error) bool {
+	return strings.Contains(err.Error(), "http2: server sent GOAWAY and closed the connection")
 }
 
 func isExceededQuotaErr(err error) bool {
@@ -430,6 +435,10 @@ func (c *liveStateCache) getCluster(server string) (clustercache.ClusterCache, e
 	cluster, err := c.db.GetCluster(context.Background(), server)
 	if err != nil {
 		return nil, fmt.Errorf("error getting cluster: %w", err)
+	}
+
+	if c.clusterSharding == nil {
+		return nil, fmt.Errorf("unable to handle cluster %s: cluster sharding is not configured", cluster.Server)
 	}
 
 	if !c.canHandleCluster(cluster) {

@@ -53,14 +53,15 @@ type namespacedResource struct {
 }
 
 type fakeData struct {
-	apps                   []runtime.Object
-	manifestResponse       *apiclient.ManifestResponse
-	manifestResponses      []*apiclient.ManifestResponse
-	managedLiveObjs        map[kube.ResourceKey]*unstructured.Unstructured
-	namespacedResources    map[kube.ResourceKey]namespacedResource
-	configMapData          map[string]string
-	metricsCacheExpiration time.Duration
-	applicationNamespaces  []string
+	apps                           []runtime.Object
+	manifestResponse               *apiclient.ManifestResponse
+	manifestResponses              []*apiclient.ManifestResponse
+	managedLiveObjs                map[kube.ResourceKey]*unstructured.Unstructured
+	namespacedResources            map[kube.ResourceKey]namespacedResource
+	configMapData                  map[string]string
+	metricsCacheExpiration         time.Duration
+	applicationNamespaces          []string
+	updateRevisionForPathsResponse *apiclient.UpdateRevisionForPathsResponse
 }
 
 type MockKubectl struct {
@@ -105,6 +106,8 @@ func newFakeController(data *fakeData, repoErr error) *ApplicationController {
 			mockRepoClient.On("GenerateManifest", mock.Anything, mock.Anything).Return(data.manifestResponse, nil).Once()
 		}
 	}
+
+	mockRepoClient.On("UpdateRevisionForPaths", mock.Anything, mock.Anything).Return(data.updateRevisionForPathsResponse, nil)
 
 	mockRepoClientset := mockrepoclient.Clientset{RepoServerServiceClient: &mockRepoClient}
 

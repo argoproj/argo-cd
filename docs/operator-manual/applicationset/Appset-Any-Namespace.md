@@ -72,7 +72,7 @@ data:
     The allow-list only applies to SCM providers for which the user may configure a custom `api`. Where an SCM or PR
     generator does not accept a custom API URL, the provider is implicitly allowed.
 
-If you do not intend to allow users to use the SCM or PR generators, you can disable them entirely by setting the environment variable `ARGOCD_APPLICATIONSET_CONTROLLER_ALLOW_SCM_PROVIDERS` to argocd-cmd-params-cm `applicationsetcontroller.allow.scm.providers` to `false`.
+If you do not intend to allow users to use the SCM or PR generators, you can disable them entirely by setting the environment variable `ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_SCM_PROVIDERS` to argocd-cmd-params-cm `applicationsetcontroller.enable.scm.providers` to `false`.
 
 ### Overview
 

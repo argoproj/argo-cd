@@ -18,18 +18,22 @@ import (
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes/fake"
 )
 
-var (
-	argoCDSecret = corev1.Secret{
+func argoCDSecret() *corev1.Secret {
+	return &corev1.Secret{
 		ObjectMeta: v1.ObjectMeta{Name: "argocd-secret", Namespace: "default"},
 		Data: map[string][]byte{
 			"admin.password":   []byte("test"),
 			"server.secretkey": []byte("test"),
 		},
 	}
-	argoCDCm = corev1.ConfigMap{
+}
+
+func argoCDCm() *corev1.ConfigMap {
+	return &corev1.ConfigMap{
 		ObjectMeta: v1.ObjectMeta{
 			Name:      "argocd-cm",
 			Namespace: "default",
@@ -41,7 +45,10 @@ var (
 			"statusbadge.enabled": "true",
 		},
 	}
-	testApp = v1alpha1.Application{
+}
+
+func testApp() *v1alpha1.Application {
+	return &v1alpha1.Application{
 		ObjectMeta: v1.ObjectMeta{Name: "test-app", Namespace: "default"},
 		Status: v1alpha1.ApplicationStatus{
 			Sync:   v1alpha1.SyncStatus{Status: v1alpha1.SyncStatusCodeSynced},
@@ -53,7 +60,9 @@ var (
 			},
 		},
 	}
-	testApp2 = v1alpha1.Application{
+}
+func testApp2() *v1alpha1.Application {
+	return &v1alpha1.Application{
 		ObjectMeta: v1.ObjectMeta{Name: "test-app", Namespace: "argocd-test"},
 		Status: v1alpha1.ApplicationStatus{
 			Sync:   v1alpha1.SyncStatus{Status: v1alpha1.SyncStatusCodeSynced},
@@ -65,15 +74,17 @@ var (
 			},
 		},
 	}
-	testProject = v1alpha1.AppProject{
+}
+func testProject() *v1alpha1.AppProject {
+	return &v1alpha1.AppProject{
 		ObjectMeta: v1.ObjectMeta{Name: "test-project", Namespace: "default"},
 		Spec:       v1alpha1.AppProjectSpec{},
 	}
-)
+}
 
 func TestHandlerFeatureIsEnabled(t *testing.T) {
-	settingsMgr := settings.NewSettingsManager(context.Background(), fake.NewSimpleClientset(&argoCDCm, &argoCDSecret), "default")
-	handler := NewHandler(appclientset.NewSimpleClientset(&testApp), settingsMgr, "default", []string{})
+	settingsMgr := settings.NewSettingsManager(context.Background(), fake.NewSimpleClientset(argoCDCm(), argoCDSecret()), "default")
+	handler := NewHandler(appclientset.NewSimpleClientset(testApp()), settingsMgr, "default", []string{})
 	req, err := http.NewRequest(http.MethodGet, "/api/badge?name=test-app", nil)
 	assert.NoError(t, err)
 
@@ -88,6 +99,7 @@ func TestHandlerFeatureIsEnabled(t *testing.T) {
 	assert.Equal(t, toRGBString(Green), rightRectColorPattern.FindStringSubmatch(response)[1])
 	assert.Equal(t, "Healthy", leftTextPattern.FindStringSubmatch(response)[1])
 	assert.Equal(t, "Synced", rightTextPattern.FindStringSubmatch(response)[1])
+	assert.NotContains(t, response, "test-app")
 	assert.NotContains(t, response, "(aa29b85)")
 }
 
@@ -128,12 +140,23 @@ func TestHandlerFeatureProjectIsEnabled(t *testing.T) {
 			http.StatusBadRequest, "/api/badge?name=foo_bar", "default", "Unknown", "Unknown", Purple, Purple},
 		{createApplications([]string{"Unknown:Unknown", "Unknown:Unknown"}, []string{"test-project", "default"}, "default"),
 			http.StatusOK, "/api/badge?name=foobar", "default", "Not Found", "", Purple, Purple},
+		{createApplicationsWithName([]string{"Healthy:Synced"}, []string{"default"}, "test", "test.application"),
+			http.StatusOK, "/api/badge?name=test.application-0", "test", "Healthy", "Synced", Green, Green},
+		{createApplicationsWithName([]string{"Healthy:Synced"}, []string{"default"}, "test", "test.invalid_name"),
+			http.StatusBadRequest, "/api/badge?name=test.invalid_name-0", "test", "Healthy", "Synced", Green, Green},
 	}
 	for _, tt := range projectTests {
+		argoCDCm := argoCDCm()
+		argoCDSecret := argoCDSecret()
 		argoCDCm.ObjectMeta.Namespace = tt.namespace
 		argoCDSecret.ObjectMeta.Namespace = tt.namespace
-		settingsMgr := settings.NewSettingsManager(context.Background(), fake.NewSimpleClientset(&argoCDCm, &argoCDSecret), tt.namespace)
-		handler := NewHandler(appclientset.NewSimpleClientset(&testProject, tt.testApp[0], tt.testApp[1]), settingsMgr, tt.namespace, []string{})
+
+		settingsMgr := settings.NewSettingsManager(context.Background(), fake.NewSimpleClientset(argoCDCm, argoCDSecret), tt.namespace)
+		objects := []runtime.Object{testProject()}
+		for _, v := range tt.testApp {
+			objects = append(objects, v)
+		}
+		handler := NewHandler(appclientset.NewSimpleClientset(objects...), settingsMgr, tt.namespace, []string{})
 		rr := httptest.NewRecorder()
 		req, err := http.NewRequest(http.MethodGet, tt.apiEndPoint, nil)
 		assert.NoError(t, err)
@@ -148,14 +171,15 @@ func TestHandlerFeatureProjectIsEnabled(t *testing.T) {
 			assert.Equal(t, toRGBString(tt.statusColor), rightRectColorPattern.FindStringSubmatch(response)[1])
 			assert.Equal(t, tt.health, leftTextPattern.FindStringSubmatch(response)[1])
 			assert.Equal(t, tt.status, rightTextPattern.FindStringSubmatch(response)[1])
+			assert.Equal(t, "\"20\"", svgHeightPattern.FindStringSubmatch(response)[2])
 		}
 	}
 }
 
 func TestHandlerNamespacesIsEnabled(t *testing.T) {
 	t.Run("Application in allowed namespace", func(t *testing.T) {
-		settingsMgr := settings.NewSettingsManager(context.Background(), fake.NewSimpleClientset(&argoCDCm, &argoCDSecret), "default")
-		handler := NewHandler(appclientset.NewSimpleClientset(&testApp2), settingsMgr, "default", []string{"argocd-test"})
+		settingsMgr := settings.NewSettingsManager(context.Background(), fake.NewSimpleClientset(argoCDCm(), argoCDSecret()), "default")
+		handler := NewHandler(appclientset.NewSimpleClientset(testApp2()), settingsMgr, "default", []string{"argocd-test"})
 		req, err := http.NewRequest(http.MethodGet, "/api/badge?name=test-app&namespace=argocd-test", nil)
 		assert.NoError(t, err)
 
@@ -170,19 +194,20 @@ func TestHandlerNamespacesIsEnabled(t *testing.T) {
 		assert.Equal(t, toRGBString(Green), rightRectColorPattern.FindStringSubmatch(response)[1])
 		assert.Equal(t, "Healthy", leftTextPattern.FindStringSubmatch(response)[1])
 		assert.Equal(t, "Synced", rightTextPattern.FindStringSubmatch(response)[1])
+		assert.NotContains(t, response, "test-app")
 		assert.NotContains(t, response, "(aa29b85)")
 	})
 
 	t.Run("Application in disallowed namespace", func(t *testing.T) {
-		settingsMgr := settings.NewSettingsManager(context.Background(), fake.NewSimpleClientset(&argoCDCm, &argoCDSecret), "default")
-		handler := NewHandler(appclientset.NewSimpleClientset(&testApp2), settingsMgr, "default", []string{"argocd-test"})
+		settingsMgr := settings.NewSettingsManager(context.Background(), fake.NewSimpleClientset(argoCDCm(), argoCDSecret()), "default")
+		handler := NewHandler(appclientset.NewSimpleClientset(testApp2()), settingsMgr, "default", []string{"argocd-test"})
 		req, err := http.NewRequest(http.MethodGet, "/api/badge?name=test-app&namespace=kube-system", nil)
 		assert.NoError(t, err)
 
 		rr := httptest.NewRecorder()
 		handler.ServeHTTP(rr, req)
 
-		assert.Equal(t, http.StatusOK, rr.Result().StatusCode)
+		require.Equal(t, http.StatusOK, rr.Result().StatusCode)
 		response := rr.Body.String()
 		assert.Equal(t, toRGBString(Purple), leftRectColorPattern.FindStringSubmatch(response)[1])
 		assert.Equal(t, toRGBString(Purple), rightRectColorPattern.FindStringSubmatch(response)[1])
@@ -192,15 +217,15 @@ func TestHandlerNamespacesIsEnabled(t *testing.T) {
 	})
 
 	t.Run("Request with illegal namespace", func(t *testing.T) {
-		settingsMgr := settings.NewSettingsManager(context.Background(), fake.NewSimpleClientset(&argoCDCm, &argoCDSecret), "default")
-		handler := NewHandler(appclientset.NewSimpleClientset(&testApp2), settingsMgr, "default", []string{"argocd-test"})
+		settingsMgr := settings.NewSettingsManager(context.Background(), fake.NewSimpleClientset(argoCDCm(), argoCDSecret()), "default")
+		handler := NewHandler(appclientset.NewSimpleClientset(testApp2()), settingsMgr, "default", []string{"argocd-test"})
 		req, err := http.NewRequest(http.MethodGet, "/api/badge?name=test-app&namespace=kube()system", nil)
 		assert.NoError(t, err)
 
 		rr := httptest.NewRecorder()
 		handler.ServeHTTP(rr, req)
 
-		assert.Equal(t, http.StatusBadRequest, rr.Result().StatusCode)
+		require.Equal(t, http.StatusBadRequest, rr.Result().StatusCode)
 	})
 }
 
@@ -221,6 +246,10 @@ func createApplicationFeatureProjectIsEnabled(healthStatus health.HealthStatusCo
 }
 
 func createApplications(appCombo, projectName []string, namespace string) []*v1alpha1.Application {
+	return createApplicationsWithName(appCombo, projectName, namespace, "app")
+}
+
+func createApplicationsWithName(appCombo, projectName []string, namespace string, namePrefix string) []*v1alpha1.Application {
 	apps := make([]*v1alpha1.Application, len(appCombo))
 	healthStatus := func(healthType string) health.HealthStatusCode {
 		switch healthType {
@@ -246,14 +275,14 @@ func createApplications(appCombo, projectName []string, namespace string) []*v1a
 		a := strings.Split(v, ":")
 		healthApp := healthStatus(a[0])
 		syncApp := syncStatus(a[1])
-		appName := fmt.Sprintf("App %v", k)
+		appName := fmt.Sprintf("%s-%v", namePrefix, k)
 		apps[k] = createApplicationFeatureProjectIsEnabled(healthApp, syncApp, appName, projectName[k], namespace)
 	}
 	return apps
 }
 func TestHandlerFeatureIsEnabledRevisionIsEnabled(t *testing.T) {
-	settingsMgr := settings.NewSettingsManager(context.Background(), fake.NewSimpleClientset(&argoCDCm, &argoCDSecret), "default")
-	handler := NewHandler(appclientset.NewSimpleClientset(&testApp), settingsMgr, "default", []string{})
+	settingsMgr := settings.NewSettingsManager(context.Background(), fake.NewSimpleClientset(argoCDCm(), argoCDSecret()), "default")
+	handler := NewHandler(appclientset.NewSimpleClientset(testApp()), settingsMgr, "default", []string{})
 	req, err := http.NewRequest(http.MethodGet, "/api/badge?name=test-app&revision=true", nil)
 	assert.NoError(t, err)
 
@@ -268,14 +297,15 @@ func TestHandlerFeatureIsEnabledRevisionIsEnabled(t *testing.T) {
 	assert.Equal(t, toRGBString(Green), rightRectColorPattern.FindStringSubmatch(response)[1])
 	assert.Equal(t, "Healthy", leftTextPattern.FindStringSubmatch(response)[1])
 	assert.Equal(t, "Synced", rightTextPattern.FindStringSubmatch(response)[1])
+	assert.NotContains(t, response, "test-app")
 	assert.Contains(t, response, "(aa29b85)")
 }
 
 func TestHandlerRevisionIsEnabledNoOperationState(t *testing.T) {
-	app := testApp.DeepCopy()
+	app := testApp()
 	app.Status.OperationState = nil
 
-	settingsMgr := settings.NewSettingsManager(context.Background(), fake.NewSimpleClientset(&argoCDCm, &argoCDSecret), "default")
+	settingsMgr := settings.NewSettingsManager(context.Background(), fake.NewSimpleClientset(argoCDCm(), argoCDSecret()), "default")
 	handler := NewHandler(appclientset.NewSimpleClientset(app), settingsMgr, "default", []string{})
 	req, err := http.NewRequest(http.MethodGet, "/api/badge?name=test-app&revision=true", nil)
 	assert.NoError(t, err)
@@ -291,14 +321,15 @@ func TestHandlerRevisionIsEnabledNoOperationState(t *testing.T) {
 	assert.Equal(t, toRGBString(Green), rightRectColorPattern.FindStringSubmatch(response)[1])
 	assert.Equal(t, "Healthy", leftTextPattern.FindStringSubmatch(response)[1])
 	assert.Equal(t, "Synced", rightTextPattern.FindStringSubmatch(response)[1])
+	assert.NotContains(t, response, "test-app")
 	assert.NotContains(t, response, "(aa29b85)")
 }
 
 func TestHandlerRevisionIsEnabledShortCommitSHA(t *testing.T) {
-	app := testApp.DeepCopy()
+	app := testApp()
 	app.Status.OperationState.SyncResult.Revision = "abc"
 
-	settingsMgr := settings.NewSettingsManager(context.Background(), fake.NewSimpleClientset(&argoCDCm, &argoCDSecret), "default")
+	settingsMgr := settings.NewSettingsManager(context.Background(), fake.NewSimpleClientset(argoCDCm(), argoCDSecret()), "default")
 	handler := NewHandler(appclientset.NewSimpleClientset(app), settingsMgr, "default", []string{})
 	req, err := http.NewRequest(http.MethodGet, "/api/badge?name=test-app&revision=true", nil)
 	assert.NoError(t, err)
@@ -312,11 +343,11 @@ func TestHandlerRevisionIsEnabledShortCommitSHA(t *testing.T) {
 
 func TestHandlerFeatureIsDisabled(t *testing.T) {
 
-	argoCDCmDisabled := argoCDCm.DeepCopy()
+	argoCDCmDisabled := argoCDCm()
 	delete(argoCDCmDisabled.Data, "statusbadge.enabled")
 
-	settingsMgr := settings.NewSettingsManager(context.Background(), fake.NewSimpleClientset(argoCDCmDisabled, &argoCDSecret), "default")
-	handler := NewHandler(appclientset.NewSimpleClientset(&testApp), settingsMgr, "default", []string{})
+	settingsMgr := settings.NewSettingsManager(context.Background(), fake.NewSimpleClientset(argoCDCmDisabled, argoCDSecret()), "default")
+	handler := NewHandler(appclientset.NewSimpleClientset(testApp()), settingsMgr, "default", []string{})
 	req, err := http.NewRequest(http.MethodGet, "/api/badge?name=test-app", nil)
 	assert.NoError(t, err)
 
@@ -331,4 +362,59 @@ func TestHandlerFeatureIsDisabled(t *testing.T) {
 	assert.Equal(t, toRGBString(Purple), rightRectColorPattern.FindStringSubmatch(response)[1])
 	assert.Equal(t, "Unknown", leftTextPattern.FindStringSubmatch(response)[1])
 	assert.Equal(t, "Unknown", rightTextPattern.FindStringSubmatch(response)[1])
+	assert.NotContains(t, response, "test-app")
+	assert.Equal(t, "\"20\"", svgHeightPattern.FindStringSubmatch(response)[2])
+}
+
+func TestHandlerApplicationNameInBadgeIsEnabled(t *testing.T) {
+	settingsMgr := settings.NewSettingsManager(context.Background(), fake.NewSimpleClientset(argoCDCm(), argoCDSecret()), "default")
+	handler := NewHandler(appclientset.NewSimpleClientset(testApp()), settingsMgr, "default", []string{})
+	req, err := http.NewRequest(http.MethodGet, "/api/badge?name=test-app&showAppName=true", nil)
+	assert.NoError(t, err)
+
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+
+	assert.Equal(t, "private, no-store", rr.Header().Get("Cache-Control"))
+	assert.Equal(t, "*", rr.Header().Get("Access-Control-Allow-Origin"))
+
+	response := rr.Body.String()
+	assert.Equal(t, toRGBString(Green), leftRectColorPattern.FindStringSubmatch(response)[1])
+	assert.Equal(t, toRGBString(Green), rightRectColorPattern.FindStringSubmatch(response)[1])
+	assert.Equal(t, "Healthy", leftTextPattern.FindStringSubmatch(response)[1])
+	assert.Equal(t, "Synced", rightTextPattern.FindStringSubmatch(response)[1])
+	assert.NotContains(t, response, "(aa29b85)")
+
+	assert.Equal(t, "test-app", titleTextPattern.FindStringSubmatch(response)[1])
+	assert.Equal(t, fmt.Sprintf("\"%d\"", svgHeightWithAppName), svgHeightPattern.FindStringSubmatch(response)[2])
+	assert.Equal(t, fmt.Sprintf("\"%d\"", badgeRowHeight), leftRectYCoodPattern.FindStringSubmatch(response)[2])
+	assert.Equal(t, fmt.Sprintf("\"%d\"", badgeRowHeight), rightRectYCoodPattern.FindStringSubmatch(response)[2])
+	assert.Equal(t, fmt.Sprintf("\"%d\"", badgeRowHeight), revisionRectYCoodPattern.FindStringSubmatch(response)[2])
+	assert.Equal(t, fmt.Sprintf("\"%d\"", logoYCoodWithAppName), logoYCoodPattern.FindStringSubmatch(response)[2])
+}
+
+func TestHandlerApplicationNameInBadgeIsDisabled(t *testing.T) {
+
+	settingsMgr := settings.NewSettingsManager(context.Background(), fake.NewSimpleClientset(argoCDCm(), argoCDSecret()), "default")
+	handler := NewHandler(appclientset.NewSimpleClientset(testApp()), settingsMgr, "default", []string{})
+	req, err := http.NewRequest(http.MethodGet, "/api/badge?name=test-app", nil)
+	assert.NoError(t, err)
+
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+
+	assert.Equal(t, "private, no-store", rr.Header().Get("Cache-Control"))
+	assert.Equal(t, "*", rr.Header().Get("Access-Control-Allow-Origin"))
+
+	response := rr.Body.String()
+	assert.Equal(t, toRGBString(Green), leftRectColorPattern.FindStringSubmatch(response)[1])
+	assert.Equal(t, toRGBString(Green), rightRectColorPattern.FindStringSubmatch(response)[1])
+	assert.Equal(t, "Healthy", leftTextPattern.FindStringSubmatch(response)[1])
+	assert.Equal(t, "Synced", rightTextPattern.FindStringSubmatch(response)[1])
+	assert.Equal(t, "\"20\"", svgHeightPattern.FindStringSubmatch(response)[2])
+	assert.Equal(t, "\"0\"", leftRectYCoodPattern.FindStringSubmatch(response)[2])
+	assert.Equal(t, "\"0\"", rightRectYCoodPattern.FindStringSubmatch(response)[2])
+	assert.Equal(t, "\"0\"", revisionRectYCoodPattern.FindStringSubmatch(response)[2])
+	assert.Equal(t, "\"2\"", logoYCoodPattern.FindStringSubmatch(response)[2])
+	assert.NotContains(t, response, "test-app")
 }
