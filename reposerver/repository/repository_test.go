@@ -3570,9 +3570,7 @@ func TestUpdateRevisionForPaths(t *testing.T) {
 				SyncedRevision: "SYNCEDHEAD",
 				Paths:          []string{"."},
 			},
-		}, want: &apiclient.UpdateRevisionForPathsResponse{
-			Changes: true,
-		}, wantErr: assert.NoError},
+		}, want: &apiclient.UpdateRevisionForPathsResponse{}, wantErr: assert.NoError},
 		{name: "NoChangesUpdateCache", fields: func() fields {
 			s, _, c := newServiceWithOpt(t, func(gitClient *gitmocks.Client, helmClient *helmmocks.Client, paths *iomocks.TempPaths) {
 				gitClient.On("Init").Return(nil)

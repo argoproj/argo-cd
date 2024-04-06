@@ -2747,7 +2747,7 @@ func (s *Service) UpdateRevisionForPaths(_ context.Context, request *apiclient.U
 	}
 
 	logCtx.Debugf("changes found for application %s in repo %s from revision %s to revision %s", request.AppName, repo.Repo, syncedRevision, revision)
-	return &apiclient.UpdateRevisionForPathsResponse{Changes: true}, nil
+	return &apiclient.UpdateRevisionForPathsResponse{}, nil
 }
 
 func (s *Service) updateCachedRevision(logCtx *log.Entry, oldRev string, newRev string, request *apiclient.UpdateRevisionForPathsRequest, gitClientOpts git.ClientOpts) error {
@@ -2758,10 +2758,8 @@ func (s *Service) updateCachedRevision(logCtx *log.Entry, oldRev string, newRev 
 		if err != nil {
 			return fmt.Errorf("failed to get repo refs for application %s in repo %s from revision %s: %w", request.AppName, request.GetRepo().Repo, request.Revision, err)
 		}
-	}
 
-	// Update revision in refSource
-	if request.HasMultipleSources && request.ApplicationSource.Helm != nil {
+		// Update revision in refSource
 		for normalizedURL := range repoRefs {
 			repoRefs[normalizedURL] = newRev
 		}
