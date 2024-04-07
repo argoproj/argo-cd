@@ -492,7 +492,7 @@ spec:
        - --staticassets
        - /shared/app
        - --redis
-       - argocd-redis-ha-haproxy:6379
+       - argocd-redis:6379
        - --insecure
        - --basehref
        - /argocd
@@ -510,7 +510,7 @@ After that install Argo CD  (there should be only 3 yml file defined above in cu
 kubectl apply -k ./ -n argocd --wait=true
 ```
 
-Be sure you create secret for Isito ( in our case secretname is argocd-server-tls on argocd Namespace). After that we create Istio Resources
+Be sure you create secret for Istio ( in our case secretname is argocd-server-tls on argocd Namespace). After that we create Istio Resources
 
 ```yaml
 apiVersion: networking.istio.io/v1alpha3
