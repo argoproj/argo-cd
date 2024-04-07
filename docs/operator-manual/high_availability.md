@@ -187,6 +187,8 @@ The `argocd.argoproj.io/manifest-generate-paths` annotation contains a semicolon
 
 Installations that use a different repository for each application are **not** subject to this behavior and will likely get no benefit from using these annotations.
 
+Similarly, applications referencing an external Helm values file will not get the benefits of this feature when an unrelated change happens in the external source.
+
 For webhooks, the comparison is done using the files specified in the webhook event payload instead.
 
 !!! note
