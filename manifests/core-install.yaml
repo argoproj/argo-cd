@@ -21749,6 +21749,12 @@ spec:
               key: controller.resource.health.persist
               name: argocd-cmd-params-cm
               optional: true
+        - name: ARGOCD_APPLICATION_CONTROLLER_NO_SHARED_RESOURCE
+          valueFrom:
+            configMapKeyRef:
+              key: controller.resource.noShared
+              name: argocd-cmd-params-cm
+              optional: false
         - name: ARGOCD_APP_STATE_CACHE_EXPIRATION
           valueFrom:
             configMapKeyRef:

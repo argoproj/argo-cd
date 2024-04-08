@@ -155,6 +155,7 @@ func newFakeController(data *fakeData, repoErr error) *ApplicationController {
 		[]string{},
 		0,
 		true,
+		false,
 		nil,
 		data.applicationNamespaces,
 		nil,

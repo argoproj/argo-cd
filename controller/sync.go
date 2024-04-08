@@ -101,11 +101,17 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 
 	// validates if it should fail the sync if it finds shared resources
 	hasSharedResource, sharedResourceMessage := hasSharedResourceCondition(app)
-	if syncOp.SyncOptions.HasOption("FailOnSharedResource=true") &&
-		hasSharedResource {
-		state.Phase = common.OperationFailed
-		state.Message = fmt.Sprintf("Shared resource found: %s", sharedResourceMessage)
-		return
+	if hasSharedResource {
+		if m.enforceNoSharedResource {
+			state.Phase = common.OperationFailed
+			state.Message = fmt.Sprintf("Shared resource found while enforce-no-shared-resource is true: %s", sharedResourceMessage)
+			return
+		}
+		if syncOp.SyncOptions.HasOption("FailOnSharedResource=true") {
+			state.Phase = common.OperationFailed
+			state.Message = fmt.Sprintf("Shared resource found: %s", sharedResourceMessage)
+			return
+		}
 	}
 
 	if syncOp.Source == nil || (syncOp.Sources != nil && len(syncOp.Sources) > 0) {

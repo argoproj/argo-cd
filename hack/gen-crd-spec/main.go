@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/sirupsen/logrus"
 	"os"
 	"os/exec"
 	"strings"
@@ -117,6 +118,7 @@ func removeDescription(v interface{}) {
 
 func checkErr(err error) {
 	if err != nil {
+		logrus.Error(err)
 		panic(err)
 	}
 }
