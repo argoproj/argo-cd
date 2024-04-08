@@ -690,6 +690,7 @@ func (c *clusterCache) watchEvents(ctx context.Context, api kube.APIResourceInfo
 							c.deleteAPIResource(resources[i])
 						}
 					} else {
+						c.log.Info("Updating Kubernetes APIs, watches, and Open API schemas due to CRD event", "eventType", event.Type, "groupKind", crd.GroupVersionKind().GroupKind().String())
 						// add new CRD's groupkind to c.apigroups
 						if event.Type == watch.Added {
 							for i := range resources {
