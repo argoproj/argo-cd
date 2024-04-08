@@ -13,14 +13,14 @@ Here is the template subfield from a Cluster generator:
 # (...)
  template:
    metadata:
-     name: '{{cluster}}-guestbook'
+     name: '{{ .nameNormalized }}-guestbook'
    spec:
      source:
        repoURL: https://github.com/infra-team/cluster-deployments.git
        targetRevision: HEAD
-       path: guestbook/{{cluster}}
+       path: guestbook/{{ .nameNormalized }}
      destination:
-       server: '{{url}}'
+       server: '{{ .server }}'
        namespace: guestbook
 ```
 
@@ -53,7 +53,7 @@ template as a Helm string literal. For example:
 
 ```yaml
     metadata:
-      name: '{{`{{.cluster}}`}}-guestbook'
+      name: '{{`{{ .nameNormalized }}`}}-guestbook'
 ```
 
 This _only_ applies if you use Helm to deploy your ApplicationSet resources.
@@ -88,12 +88,12 @@ spec:
             targetRevision: HEAD
             repoURL: https://github.com/argoproj/argo-cd.git
             # New path value is generated here:
-            path: 'applicationset/examples/template-override/{{cluster}}-override'
+            path: 'applicationset/examples/template-override/{{ .nameNormalized }}-override'
           destination: {}
 
   template:
     metadata:
-      name: '{{cluster}}-guestbook'
+      name: '{{ .nameNormalized }}-guestbook'
     spec:
       project: "default"
       source:
@@ -102,7 +102,7 @@ spec:
         # This 'default' value is not used: it is replaced by the generator's template path, above
         path: applicationset/examples/template-override/default
       destination:
-        server: '{{url}}'
+        server: '{{ .server }}'
         namespace: guestbook
 ```
 (*The full example can be found [here](https://github.com/argoproj/argo-cd/tree/master/applicationset/examples/template-override).*)
@@ -140,15 +140,15 @@ spec:
             - values.debug.yaml
   template:
     metadata:
-      name: '{{.cluster}}-deployment'
+      name: '{{ .nameNormalized }}-deployment'
     spec:
       project: "default"
       source:
         repoURL: https://github.com/infra-team/cluster-deployments.git
         targetRevision: HEAD
-        path: guestbook/{{ .cluster }}
+        path: guestbook/{{ .nameNormalized }}
       destination:
-        server: '{{.url}}'
+        server: '{{ .server }}'
         namespace: guestbook
   templatePatch: |
     spec:
