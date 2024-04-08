@@ -298,6 +298,9 @@ replace (
 	github.com/golang/protobuf => github.com/golang/protobuf v1.4.2
 	github.com/grpc-ecosystem/grpc-gateway => github.com/grpc-ecosystem/grpc-gateway v1.16.0
 
+	// Avoid  CVE-2023-46402
+	github.com/whilp/git-urls => github.com/chainguard-dev/git-urls v1.0.2
+
 	// Avoid CVE-2022-3064
 	gopkg.in/yaml.v2 => gopkg.in/yaml.v2 v2.4.0
 
