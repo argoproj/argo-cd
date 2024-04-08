@@ -2,13 +2,20 @@ package applicationset
 
 import (
 	"context"
+	"fmt"
+	"strconv"
 	"testing"
+	"time"
 
+	broadcastermocks "github.com/argoproj/argo-cd/v2/util/broadcast/mocks"
 	"github.com/argoproj/pkg/sync"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
+	"google.golang.org/grpc/metadata"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes/fake"
 	k8scache "k8s.io/client-go/tools/cache"
 
@@ -51,7 +58,17 @@ func newTestAppSetServer(objects ...runtime.Object) *Server {
 		enf.SetDefaultRole("role:admin")
 	}
 	scopedNamespaces := ""
-	return newTestAppSetServerWithEnforcerConfigure(f, scopedNamespaces, objects...)
+	return newTestAppSetServerWithEnforcerConfigure(f, scopedNamespaces, []runtime.Object{}, objects...)
+}
+
+// return an ApplicationServiceServer which returns fake data
+func newTestAppSetServerWithKubeObjects(kubeObjects []runtime.Object, objects ...runtime.Object) *Server {
+	f := func(enf *rbac.Enforcer) {
+		_ = enf.SetBuiltinPolicy(assets.BuiltinPolicyCSV)
+		enf.SetDefaultRole("role:admin")
+	}
+	scopedNamespaces := ""
+	return newTestAppSetServerWithEnforcerConfigure(f, scopedNamespaces, kubeObjects, objects...)
 }
 
 // return an ApplicationServiceServer which returns fake data
@@ -61,11 +78,11 @@ func newTestNamespacedAppSetServer(objects ...runtime.Object) *Server {
 		enf.SetDefaultRole("role:admin")
 	}
 	scopedNamespaces := "argocd"
-	return newTestAppSetServerWithEnforcerConfigure(f, scopedNamespaces, objects...)
+	return newTestAppSetServerWithEnforcerConfigure(f, scopedNamespaces, []runtime.Object{}, objects...)
 }
 
-func newTestAppSetServerWithEnforcerConfigure(f func(*rbac.Enforcer), namespace string, objects ...runtime.Object) *Server {
-	kubeclientset := fake.NewSimpleClientset(&v1.ConfigMap{
+func newTestAppSetServerWithEnforcerConfigure(f func(*rbac.Enforcer), namespace string, kubeObjects []runtime.Object, objects ...runtime.Object) *Server {
+	kubeObjects = append(kubeObjects, &v1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: testNamespace,
 			Name:      "argocd-cm",
@@ -83,6 +100,7 @@ func newTestAppSetServerWithEnforcerConfigure(f func(*rbac.Enforcer), namespace 
 			"server.secretkey": []byte("test"),
 		},
 	})
+	kubeclientset := fake.NewSimpleClientset(kubeObjects...)
 	ctx := context.Background()
 	db := db.NewDB(testNamespace, settings.NewSettingsManager(ctx, kubeclientset, testNamespace), kubeclientset)
 	_, err := db.CreateRepository(ctx, fakeRepo())
@@ -132,6 +150,31 @@ func newTestAppSetServerWithEnforcerConfigure(f func(*rbac.Enforcer), namespace 
 		panic("Timed out waiting for caches to sync")
 	}
 
+	broadcaster := new(broadcastermocks.Broadcaster[appsv1.ApplicationSetWatchEvent])
+	broadcaster.On("Subscribe", mock.Anything, mock.Anything).Return(func() {}).Run(func(args mock.Arguments) {
+		// Simulate the broadcaster notifying the subscriber of an applicationset update.
+		// The second parameter to Subscribe is filters. For the purposes of tests, we ignore the filters. Future tests
+		// might require implementing those.
+		go func() {
+			events := args.Get(0).(chan *appsv1.ApplicationSetWatchEvent)
+			for _, obj := range objects {
+				app, ok := obj.(*appsv1.ApplicationSet)
+				if ok {
+					oldVersion, err := strconv.Atoi(app.ResourceVersion)
+					if err != nil {
+						oldVersion = 0
+					}
+					clonedAppSet := app.DeepCopy()
+					clonedAppSet.ResourceVersion = fmt.Sprintf("%d", oldVersion+1)
+					events <- &appsv1.ApplicationSetWatchEvent{Type: watch.Added, ApplicationSet: *clonedAppSet}
+				}
+			}
+		}()
+	})
+	broadcaster.On("OnAdd", mock.Anything).Return()
+	broadcaster.On("OnUpdate", mock.Anything, mock.Anything).Return()
+	broadcaster.On("OnDelete", mock.Anything).Return()
+
 	projInformer := factory.Argoproj().V1alpha1().AppProjects().Informer()
 	go projInformer.Run(ctx.Done())
 	if !k8scache.WaitForCacheSync(ctx.Done(), projInformer.HasSynced) {
@@ -144,6 +187,7 @@ func newTestAppSetServerWithEnforcerConfigure(f func(*rbac.Enforcer), namespace 
 		enforcer,
 		fakeAppsClientset,
 		appInformer,
+		broadcaster,
 		factory.Argoproj().V1alpha1().ApplicationSets().Lister(),
 		fakeProjLister,
 		settingsMgr,
@@ -384,6 +428,97 @@ func TestGetAppSet(t *testing.T) {
 	})
 }
 
+func TestWatchAppSet(t *testing.T) {
+	appSet1 := newTestAppSet(func(appset *appsv1.ApplicationSet) {
+		appset.Name = "AppSet1"
+	})
+
+	appSet2 := newTestAppSet(func(appset *appsv1.ApplicationSet) {
+		appset.Name = "AppSet2"
+	})
+
+	appSet3 := newTestAppSet(func(appset *appsv1.ApplicationSet) {
+		appset.Name = "AppSet3"
+	})
+
+	t.Run("Watch in default namespace", func(t *testing.T) {
+
+		appSetServer := newTestAppSetServer(appSet1, appSet2, appSet3)
+
+		appsetQuery := applicationset.ApplicationSetWatchQuery{Name: "AppSet1"}
+
+		ctx, cancel := context.WithCancel(context.Background())
+		watchServer := &TestWatchServer{ctx: ctx}
+		go func() {
+			// Watch will block until canceled so give 500ms to read send events and cancel
+			time.Sleep(500 * time.Millisecond)
+			cancel()
+
+		}()
+		err := appSetServer.Watch(&appsetQuery, watchServer)
+
+		assert.NoError(t, err)
+		assert.Len(t, watchServer.sent, 2) // Sent twice because of workaround to avoid missing events
+		assert.Equal(t, watchServer.sent[0].Type, watch.Added)
+		assert.Equal(t, watchServer.sent[0].ApplicationSet.Name, "AppSet1")
+	})
+
+	t.Run("Watch in named namespace", func(t *testing.T) {
+
+		appSetServer := newTestAppSetServer(appSet1, appSet2, appSet3)
+
+		appsetQuery := applicationset.ApplicationSetWatchQuery{Name: "AppSet1", AppsetNamespace: testNamespace}
+
+		ctx, cancel := context.WithCancel(context.Background())
+		watchServer := &TestWatchServer{ctx: ctx}
+		go func() {
+			// Watch will block until canceled so give 500ms to read send events and cancel
+			time.Sleep(500 * time.Millisecond)
+			cancel()
+
+		}()
+		err := appSetServer.Watch(&appsetQuery, watchServer)
+
+		assert.NoError(t, err)
+		assert.Len(t, watchServer.sent, 2) // Sent twice because of workaround to avoid missing events
+		assert.Equal(t, watchServer.sent[0].Type, watch.Added)
+		assert.Equal(t, watchServer.sent[0].ApplicationSet.Name, "AppSet1")
+	})
+
+	t.Run("Watch in not allowed namespace", func(t *testing.T) {
+
+		appSetServer := newTestAppSetServer(appSet1, appSet2, appSet3)
+
+		appsetQuery := applicationset.ApplicationSetWatchQuery{Name: "AppSet1", AppsetNamespace: "NOT-ALLOWED"}
+
+		watchServer := &TestWatchServer{ctx: context.Background()}
+		err := appSetServer.Watch(&appsetQuery, watchServer)
+
+		assert.Equal(t, "namespace 'NOT-ALLOWED' is not permitted", err.Error())
+		assert.Len(t, watchServer.sent, 0)
+	})
+
+	t.Run("Watch all appsets in default namespace", func(t *testing.T) {
+
+		appSetServer := newTestAppSetServer(appSet1, appSet2, appSet3)
+
+		appsetQuery := applicationset.ApplicationSetWatchQuery{}
+
+		ctx, cancel := context.WithCancel(context.Background())
+		watchServer := &TestWatchServer{ctx: ctx}
+		go func() {
+			// Watch will block until canceled so give 500ms to read events and cancel
+			time.Sleep(500 * time.Millisecond)
+			cancel()
+
+		}()
+		err := appSetServer.Watch(&appsetQuery, watchServer)
+
+		assert.NoError(t, err)
+		assert.Len(t, watchServer.sent, 6) // Sent twice because of workaround to avoid missing events
+	})
+}
+
 func TestDeleteAppSet(t *testing.T) {
 	appSet1 := newTestAppSet(func(appset *appsv1.ApplicationSet) {
 		appset.Name = "AppSet1"
@@ -473,4 +608,100 @@ func TestUpdateAppSet(t *testing.T) {
 		}, updated.Labels)
 	})
 
+}
+
+func TestListResourceEventsAppSet(t *testing.T) {
+	appSet := newTestAppSet(func(appset *appsv1.ApplicationSet) {
+		appset.Name = "AppSet1"
+	})
+
+	event1 := &v1.Event{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "event1",
+			Namespace: testNamespace,
+		},
+		InvolvedObject: v1.ObjectReference{
+			Name:      appSet.Name,
+			Namespace: testNamespace,
+			UID:       appSet.UID,
+		},
+	}
+
+	event2 := &v1.Event{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "event2",
+			Namespace: "other-namespace",
+		},
+		InvolvedObject: v1.ObjectReference{
+			Name:      appSet.Name,
+			Namespace: "other-namespace",
+			UID:       appSet.UID,
+		},
+	}
+
+	t.Run("List events in default namespace", func(t *testing.T) {
+
+		appSetServer := newTestAppSetServerWithKubeObjects([]runtime.Object{event1, event2}, appSet)
+
+		q := applicationset.ApplicationSetResourceEventsQuery{Name: "AppSet1"}
+
+		res, err := appSetServer.ListResourceEvents(context.Background(), &q)
+		assert.NoError(t, err)
+		assert.Len(t, res.Items, 1)
+		assert.Equal(t, res.Items[0].Message, event1.Message)
+	})
+
+	t.Run("List events in named namespace", func(t *testing.T) {
+
+		appSetServer := newTestAppSetServerWithKubeObjects([]runtime.Object{event1, event2}, appSet)
+
+		q := applicationset.ApplicationSetResourceEventsQuery{Name: "AppSet1", AppsetNamespace: testNamespace}
+
+		res, err := appSetServer.ListResourceEvents(context.Background(), &q)
+		assert.NoError(t, err)
+		assert.Len(t, res.Items, 1)
+		assert.Equal(t, res.Items[0].Message, event1.Message)
+	})
+
+	t.Run("List events in not allowed namespace", func(t *testing.T) {
+
+		appSetServer := newTestAppSetServerWithKubeObjects([]runtime.Object{event1, event2}, appSet)
+
+		q := applicationset.ApplicationSetResourceEventsQuery{Name: "AppSet1", AppsetNamespace: "NOT-ALLOWED"}
+
+		_, err := appSetServer.ListResourceEvents(context.Background(), &q)
+		assert.Equal(t, "namespace 'NOT-ALLOWED' is not permitted", err.Error())
+	})
+}
+
+type TestWatchServer struct {
+	ctx  context.Context
+	sent []*appsv1.ApplicationSetWatchEvent
+}
+
+func (t *TestWatchServer) Send(event *appsv1.ApplicationSetWatchEvent) error {
+	t.sent = append(t.sent, event)
+	return nil
+}
+
+func (t *TestWatchServer) SetHeader(metadata.MD) error {
+	return nil
+}
+
+func (t *TestWatchServer) SendHeader(metadata.MD) error {
+	return nil
+}
+
+func (t *TestWatchServer) SetTrailer(metadata.MD) {}
+
+func (t *TestWatchServer) Context() context.Context {
+	return t.ctx
+}
+
+func (t *TestWatchServer) SendMsg(m interface{}) error {
+	return nil
+}
+
+func (t *TestWatchServer) RecvMsg(m interface{}) error {
+	return nil
 }

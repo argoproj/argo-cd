@@ -47,6 +47,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/server/rbacpolicy"
 	"github.com/argoproj/argo-cd/v2/util/argo"
 	argoutil "github.com/argoproj/argo-cd/v2/util/argo"
+	"github.com/argoproj/argo-cd/v2/util/broadcast"
 	"github.com/argoproj/argo-cd/v2/util/collections"
 	"github.com/argoproj/argo-cd/v2/util/db"
 	"github.com/argoproj/argo-cd/v2/util/env"
@@ -81,7 +82,7 @@ type Server struct {
 	appclientset      appclientset.Interface
 	appLister         applisters.ApplicationLister
 	appInformer       cache.SharedIndexInformer
-	appBroadcaster    Broadcaster
+	appBroadcaster    broadcast.Broadcaster[appv1.ApplicationWatchEvent]
 	repoClientset     apiclient.Clientset
 	kubectl           kube.Kubectl
 	db                db.ArgoDB
@@ -101,7 +102,7 @@ func NewServer(
 	appclientset appclientset.Interface,
 	appLister applisters.ApplicationLister,
 	appInformer cache.SharedIndexInformer,
-	appBroadcaster Broadcaster,
+	appBroadcaster broadcast.Broadcaster[appv1.ApplicationWatchEvent],
 	repoClientset apiclient.Clientset,
 	cache *servercache.Cache,
 	kubectl kube.Kubectl,
@@ -113,7 +114,9 @@ func NewServer(
 	enabledNamespaces []string,
 ) (application.ApplicationServiceServer, AppResourceTreeFn) {
 	if appBroadcaster == nil {
-		appBroadcaster = &broadcasterHandler{}
+		appBroadcaster = broadcast.NewHandler(func(app *appv1.Application, eventType watch.EventType) *appv1.ApplicationWatchEvent {
+			return &appv1.ApplicationWatchEvent{Application: *app, Type: eventType}
+		})
 	}
 	_, err := appInformer.AddEventHandler(appBroadcaster)
 	if err != nil {
