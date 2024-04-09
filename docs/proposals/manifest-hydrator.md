@@ -44,6 +44,7 @@ Many organizations have implemented their own manifest hydration system. By impl
 2) Make it possible to implement a promotion system which relies on the manifest hydration's push-to-stage mode
 3) Emphasize maintaining as much of the system's state as possible in git rather than in the Application CR (e.g. source hydrator config values, such as Helm values)
 4) Every deployed change must have a corresponding dry commit - i.e. git is always the source of any changes
+5) Developers should be able to easily reproduce the manifest hydration process locally, i.e. by running some commands
 
 ### Non-Goals
 
@@ -84,11 +85,13 @@ spec:
       # The path is assumed to be the same as that in writeTo.
 ```
 
-When the Argo CD application controller detects a new commit on the first source listed under `drySources`, it queue up the hydration process.
+When the Argo CD application controller detects a new commit on the `drySource`, it queue up the hydration process.
+
+When the application controller detects a new (hydrated) commit on the `writeTo.targetBranch` or 
 
 ### Processing a New Dry Commit
 
-On noticing a new dry commit, Argo CD will first collect all Applications which have the same `drySources[0]` repo and targetRevision.
+On noticing a new dry commit, Argo CD will first collect all Applications which have the same `drySource` repo and targetRevision.
 
 Argo CD will then group those sources by the configured `writeTo` targetBranch.
 
@@ -109,7 +112,7 @@ type HydratedSource struct {
 var appGroups map[DrySource]map[HydratedSource][]v1alpha1.Application
 ```
 
-Then Argo CD will loop over the apps in each group. For each group, it will run manifest hydration on the configured `drySources[0].path` and write the result to the configured `writeTo.path`. After looping over all apps in the group and writing all their manifests, it will commit the changes to the configured `writeTo` repoURL and targetBranch. Finally, it will push those changes to git. Then it will repeat this process for the remaining groups.
+Then Argo CD will loop over the apps in each group. For each group, it will run manifest hydration on the configured `drySource.path` and write the result to the configured `writeTo.path`. After looping over all apps in the group and writing all their manifests, it will commit the changes to the configured `writeTo` repoURL and targetBranch. Finally, it will push those changes to git. Then it will repeat this process for the remaining groups.
 
 The actual push operation should be delegated to the [commit server](./manifest-hydrator/commit-server/README.md).
 
@@ -296,7 +299,9 @@ The hydrator will also write a `hydrator.metadata` file containing a JSON repres
 }
 ```
 
-To request a commit to the hydrated branch, the application controller will make a gRPC call to the CommitManifests service.
+To request a commit to the hydrated branch, the application controller will make a call to the CommitManifests service.
+
+**Note**: for the purposes of explaining the feature, the CommitManifests service is described as an external gRPC service. It could also be implemented in-process in an existing Argo CD component.
 
 A single call will bundle all the changes destined for a given targetBranch.
 
