@@ -303,9 +303,7 @@ replace (
 	github.com/go-check/check => github.com/go-check/check v0.0.0-20180628173108-788fd7840127
 
 	github.com/golang/protobuf => github.com/golang/protobuf v1.4.2
-
 	github.com/grpc-ecosystem/grpc-gateway => github.com/grpc-ecosystem/grpc-gateway v1.16.0
-	google.golang.org/grpc => google.golang.org/grpc v1.56.2
 
 	// Avoid CVE-2022-3064
 	gopkg.in/yaml.v2 => gopkg.in/yaml.v2 v2.4.0
