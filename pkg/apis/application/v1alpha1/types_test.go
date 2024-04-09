@@ -3094,6 +3094,11 @@ func Test_isValidPolicy(t *testing.T) {
 			isValid: true,
 		},
 		{
+			name:    "policy with specified project",
+			policy:  "some-project/some-application",
+			isValid: true,
+		},
+		{
 			name:    "policy with full wildcard namespace and application",
 			policy:  "some-project/*/*",
 			isValid: true,
