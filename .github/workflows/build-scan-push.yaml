@@ -1,6 +1,7 @@
 name: Build, Scan, and Push ArgoCD to ghcr.io
 
 on:
+  workflow_dispatch:
   push:
     branches:
       - master
