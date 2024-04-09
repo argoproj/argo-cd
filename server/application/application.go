@@ -1501,7 +1501,7 @@ func (s *Server) RevisionMetadata(ctx context.Context, q *application.RevisionMe
 
 	var source *v1alpha1.ApplicationSource
 	if a.Spec.HasMultipleSources() {
-                // If the historical data is empty (because the app hasn't been synced yet)
+		// If the historical data is empty (because the app hasn't been synced yet)
 		// we can use the source, if not (the app has been synced at least once)
 		// we have to use the history because sources can be added/removed
 		if len(a.Status.History) == 0 {
