@@ -453,6 +453,7 @@ func (a *ArgoCDServer) Listen() (*Listeners, error) {
 		return nil, err
 	}
 	var dOpts []grpc.DialOption
+	dOpts = append(dOpts, grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(apiclient.MaxGRPCMessageSize)))
 	dOpts = append(dOpts, grpc.WithStatsHandler(otelgrpc.NewClientHandler()))
 	dOpts = append(dOpts, grpc.WithUserAgent(fmt.Sprintf("%s/%s", common.ArgoCDUserAgentName, common.GetVersion().Version)))
 	if a.useTLS() {
@@ -737,6 +738,7 @@ func (a *ArgoCDServer) newGRPCServer() (*grpc.Server, application.AppResourceTre
 	}
 
 	sOpts := []grpc.ServerOption{
+		grpc.StatsHandler(otelgrpc.NewServerHandler()),
 		// Set the both send and receive the bytes limit to be 100MB
 		// The proper way to achieve high performance is to have pagination
 		// while we work toward that, we can have high limit first
@@ -769,7 +771,6 @@ func (a *ArgoCDServer) newGRPCServer() (*grpc.Server, application.AppResourceTre
 	// NOTE: notice we do not configure the gRPC server here with TLS (e.g. grpc.Creds(creds))
 	// This is because TLS handshaking occurs in cmux handling
 	sOpts = append(sOpts, grpc.StreamInterceptor(grpc_middleware.ChainStreamServer(
-		//otelgrpc.StreamServerInterceptor(),
 		grpc_logrus.StreamServerInterceptor(a.log),
 		grpc_prometheus.StreamServerInterceptor,
 		grpc_auth.StreamServerInterceptor(a.Authenticate),
