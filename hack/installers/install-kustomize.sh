@@ -9,9 +9,9 @@ PATH="${INSTALL_PATH}:${PATH}"
 [ -d $INSTALL_PATH ] || mkdir -p $INSTALL_PATH
 
 mkdir -p /tmp/kustomize && cd /tmp/kustomize
-curl -LO https://github.com/voidspooks/kustomize/releases/download/v${kustomize5_version}/kustomize
-chmod +x kustomize
-cp kustomize $INSTALL_PATH/kustomize
+curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh"  | bash
+#chmod +x kustomize
+#cp kustomize $INSTALL_PATH/kustomize
 kustomize version
 
 # KUSTOMIZE_VERSION=${KUSTOMIZE_VERSION:-$kustomize5_version}

@@ -35,7 +35,10 @@ RUN INSTALL_PATH=/usr/local/bin ./install.sh kustomize
 RUN ./install.sh kubectl-linux
 
 RUN curl -fsSL "https://github.com/voidspooks/sops/releases/download/v${SOPS_VERSION}/sops" \
-    -o /usr/local/bin/sops && chmod +x /usr/local/bin/sops
+
+RUN curl -LO https://github.com/getsops/sops/releases/download/v3.8.1/sops-v3.8.1.linux.amd64 \
+  && mv sops-v3.8.1.linux.amd64 /usr/local/bin/sops \
+  && chmod +x /usr/local/bin/sops
 
 ####################################################################################################
 # Argo CD Base - used as the base for both the release and dev argocd images

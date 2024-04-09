@@ -9,8 +9,11 @@ set -eux -o pipefail
 # $(dirname $0)/compare-chksum.sh
 # mkdir -p /tmp/helm && tar -C /tmp/helm -xf $DOWNLOADS/${TARGET_FILE}
 # sudo install -m 0755 /tmp/helm/linux-$ARCHITECTURE/helm $BIN/helm
+
 mkdir -p /tmp/helm && cd /tmp/helm
-curl -LO https://github.com/voidspooks/helm/releases/download/v3.12.4/helm
+curl -LO https://get.helm.sh/helm-v3.14.3-linux-amd64.tar.gz
+tar zxf helm-v3.14.3-linux-amd64.tar.gz
+cd helm-v3.14.3-linux-amd64
 chmod +x helm
 cp helm $BIN/helm
 helm version --client
