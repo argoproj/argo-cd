@@ -3094,7 +3094,7 @@ func Test_isValidPolicy(t *testing.T) {
 			isValid: true,
 		},
 		{
-			name:    "policy with specified project",
+			name:    "policy with specified project and application",
 			policy:  "some-project/some-application",
 			isValid: true,
 		},
