@@ -109,9 +109,7 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 		return
 	}
 
-	rollback := syncOp.Source != nil && !app.Spec.HasMultipleSources() ||
-		syncOp.Sources != nil && app.Spec.HasMultipleSources()
-
+	rollback := len(syncOp.Sources) > 0 || syncOp.Source != nil
 	if rollback {
 		// rollback case
 		if app.Spec.HasMultipleSources() {

@@ -26,7 +26,7 @@ func GetRefSources(ctx context.Context, opts GetRefSourcesOptions) (argoappv1.Re
 		// Validate first to avoid unnecessary DB calls.
 		refKeys := make(map[string]bool)
 		for _, source := range opts.Sources {
-			if source.Ref != "" {
+			if source.IsRef() {
 				isValidRefKey := regexp.MustCompile(`^[a-zA-Z0-9_-]+$`).MatchString
 				if !isValidRefKey(source.Ref) {
 					return nil, fmt.Errorf("sources.ref %s cannot contain any special characters except '_' and '-'", source.Ref)
@@ -40,7 +40,7 @@ func GetRefSources(ctx context.Context, opts GetRefSourcesOptions) (argoappv1.Re
 		}
 		// Get Repositories for all sources before generating Manifests
 		for i, source := range opts.Sources {
-			if source.Ref != "" {
+			if source.IsRef() {
 				repo, err := opts.Db.GetRepository(ctx, source.RepoURL)
 				if err != nil {
 					return nil, fmt.Errorf("failed to get repository %s: %v", source.RepoURL, err)
