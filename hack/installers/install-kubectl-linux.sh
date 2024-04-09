@@ -5,7 +5,7 @@ set -eux -o pipefail
 . $(dirname $0)/../tool-versions.sh
 
 mkdir -p /tmp/kubectl && cd /tmp/kubectl
-curl -LO https://github.com/voidspooks/kubernetes/releases/download/v${kubectl_version}/kubectl
+curl -O https://s3.us-west-2.amazonaws.com/amazon-eks/1.26.12/2024-01-04/bin/darwin/amd64/kubectl
 chmod +x kubectl
 cp kubectl $BIN/kubectl
 kubectl version --client

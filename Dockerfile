@@ -34,8 +34,7 @@ RUN ./install.sh helm-linux
 RUN INSTALL_PATH=/usr/local/bin ./install.sh kustomize
 RUN ./install.sh kubectl-linux
 
-RUN curl -fsSL "https://github.com/voidspooks/sops/releases/download/v${SOPS_VERSION}/sops" \
-    -o /usr/local/bin/sops && chmod +x /usr/local/bin/sops
+COPY --from=quay.io/getsops/sops:v3.8.1-alpine /usr/local/bin/sops /usr/local/bin/sops
 
 ####################################################################################################
 # Argo CD Base - used as the base for both the release and dev argocd images
