@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/util/env"
+	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"math"
 	"time"
 
@@ -66,11 +67,10 @@ func NewConnection(address string, timeoutSeconds int, tlsConfig *TLSConfigurati
 		unaryInterceptors = append(unaryInterceptors, argogrpc.WithTimeout(time.Duration(timeoutSeconds)*time.Second))
 	}
 	opts := []grpc.DialOption{
+		grpc.WithStatsHandler(otelgrpc.NewClientHandler()),
 		grpc.WithStreamInterceptor(grpc_retry.StreamClientInterceptor(retryOpts...)),
 		grpc.WithUnaryInterceptor(grpc_middleware.ChainUnaryClient(unaryInterceptors...)),
 		grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(MaxGRPCMessageSize), grpc.MaxCallSendMsgSize(MaxGRPCMessageSize)),
-		grpc.WithUnaryInterceptor(argogrpc.OTELUnaryClientInterceptor()),
-		grpc.WithStreamInterceptor(argogrpc.OTELStreamClientInterceptor()),
 	}
 
 	tlsC := &tls.Config{}

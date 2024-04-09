@@ -4,6 +4,7 @@ import (
 	"context"
 	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/util/env"
+	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"math"
 	"time"
 
@@ -46,11 +47,10 @@ func NewConnection(address string) (*grpc.ClientConn, error) {
 	}
 	unaryInterceptors := []grpc.UnaryClientInterceptor{grpc_retry.UnaryClientInterceptor(retryOpts...)}
 	dialOpts := []grpc.DialOption{
+		grpc.WithStatsHandler(otelgrpc.NewClientHandler()),
 		grpc.WithStreamInterceptor(grpc_retry.StreamClientInterceptor(retryOpts...)),
 		grpc.WithUnaryInterceptor(grpc_middleware.ChainUnaryClient(unaryInterceptors...)),
 		grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(MaxGRPCMessageSize), grpc.MaxCallSendMsgSize(MaxGRPCMessageSize)),
-		grpc.WithUnaryInterceptor(grpc_util.OTELUnaryClientInterceptor()),
-		grpc.WithStreamInterceptor(grpc_util.OTELStreamClientInterceptor()),
 	}
 
 	dialOpts = append(dialOpts, grpc.WithTransportCredentials(insecure.NewCredentials()))

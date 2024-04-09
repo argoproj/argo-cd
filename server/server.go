@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
+	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	goio "io"
 	"io/fs"
 	"math"
@@ -40,7 +41,6 @@ import (
 	"github.com/redis/go-redis/v9"
 	log "github.com/sirupsen/logrus"
 	"github.com/soheilhy/cmux"
-	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
@@ -453,10 +453,8 @@ func (a *ArgoCDServer) Listen() (*Listeners, error) {
 		return nil, err
 	}
 	var dOpts []grpc.DialOption
-	dOpts = append(dOpts, grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(apiclient.MaxGRPCMessageSize)))
+	dOpts = append(dOpts, grpc.WithStatsHandler(otelgrpc.NewClientHandler()))
 	dOpts = append(dOpts, grpc.WithUserAgent(fmt.Sprintf("%s/%s", common.ArgoCDUserAgentName, common.GetVersion().Version)))
-	dOpts = append(dOpts, grpc.WithUnaryInterceptor(grpc_util.OTELUnaryClientInterceptor()))
-	dOpts = append(dOpts, grpc.WithStreamInterceptor(grpc_util.OTELStreamClientInterceptor()))
 	if a.useTLS() {
 		// The following sets up the dial Options for grpc-gateway to talk to gRPC server over TLS.
 		// grpc-gateway is just translating HTTP/HTTPS requests as gRPC requests over localhost,
@@ -771,7 +769,7 @@ func (a *ArgoCDServer) newGRPCServer() (*grpc.Server, application.AppResourceTre
 	// NOTE: notice we do not configure the gRPC server here with TLS (e.g. grpc.Creds(creds))
 	// This is because TLS handshaking occurs in cmux handling
 	sOpts = append(sOpts, grpc.StreamInterceptor(grpc_middleware.ChainStreamServer(
-		otelgrpc.StreamServerInterceptor(),
+		//otelgrpc.StreamServerInterceptor(),
 		grpc_logrus.StreamServerInterceptor(a.log),
 		grpc_prometheus.StreamServerInterceptor,
 		grpc_auth.StreamServerInterceptor(a.Authenticate),
@@ -785,7 +783,6 @@ func (a *ArgoCDServer) newGRPCServer() (*grpc.Server, application.AppResourceTre
 	)))
 	sOpts = append(sOpts, grpc.UnaryInterceptor(grpc_middleware.ChainUnaryServer(
 		bug21955WorkaroundInterceptor,
-		otelgrpc.UnaryServerInterceptor(),
 		grpc_logrus.UnaryServerInterceptor(a.log),
 		grpc_prometheus.UnaryServerInterceptor,
 		grpc_auth.UnaryServerInterceptor(a.Authenticate),
