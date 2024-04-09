@@ -158,7 +158,7 @@ FROM argocd-final AS argocd
 
 FROM amazon/aws-cli:2.11.19 AS awscli
 
-FROM registry1.dso.mil/ironbank/opensource/alpinelinux/alpine:3.18.3
+FROM registry1.dso.mil/ironbank/opensource/alpinelinux/alpine:3.19
 
 ARG HELM_SECRETS_VERSION="4.4.2"
 
