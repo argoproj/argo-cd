@@ -74,26 +74,26 @@ spec:
       targetRevision: main
       # This assumes the Application's environments are modeled as directories.
       path: environments/e2e
-    writeTo:
-      targetBranch: environments/e2e-next
-      path: .
-    # The hydratedSource field is optional. If omitted, the `writeTo` repo/branch is used.
-    # In this example, we write to a "staging" branch and then rely on an external promotion system to move the change 
-    # to the configured hydratedSource.
-    hydratedSource:
+    syncSource:
       targetBranch: environments/e2e
-      # The path is assumed to be the same as that in writeTo.
+      path: .
+    # The hydrateTo field is optional. If specified, Argo CD will write hydrated manifests to this branch instead of the
+    # syncSource.targetBranch. This allows the user to "stage" a hydrated commit before actually deploying the changes
+    # by merging them into the syncSource branch. A complete change promotion system can be built around this feature. 
+    hydrateTo:
+      targetBranch: environments/e2e-next
+      # The path is assumed to be the same as that in syncSource.
 ```
 
 When the Argo CD application controller detects a new commit on the `drySource`, it queue up the hydration process.
 
-When the application controller detects a new (hydrated) commit on the `writeTo.targetBranch` or 
+When the application controller detects a new (hydrated) commit on the `syncSource.targetBranch` or 
 
 ### Processing a New Dry Commit
 
 On noticing a new dry commit, Argo CD will first collect all Applications which have the same `drySource` repo and targetRevision.
 
-Argo CD will then group those sources by the configured `writeTo` targetBranch.
+Argo CD will then group those sources by the configured `syncSource` targetBranch.
 
 ```go
 package hydrator
@@ -105,14 +105,14 @@ type DrySource struct {
 	targetRevision string
 }
 
-type HydratedSource struct {
+type SyncSource struct {
 	targetBranch string
 }
 
-var appGroups map[DrySource]map[HydratedSource][]v1alpha1.Application
+var appGroups map[DrySource]map[SyncSource][]v1alpha1.Application
 ```
 
-Then Argo CD will loop over the apps in each group. For each group, it will run manifest hydration on the configured `drySource.path` and write the result to the configured `writeTo.path`. After looping over all apps in the group and writing all their manifests, it will commit the changes to the configured `writeTo` repoURL and targetBranch. Finally, it will push those changes to git. Then it will repeat this process for the remaining groups.
+Then Argo CD will loop over the apps in each group. For each group, it will run manifest hydration on the configured `drySource.path` and write the result to the configured `syncSource.path`. After looping over all apps in the group and writing all their manifests, it will commit the changes to the configured `syncSource` repoURL and targetBranch (or, if configured, the `hydratedTo` targetBranch). Finally, it will push those changes to git. Then it will repeat this process for the remaining groups.
 
 The actual push operation should be delegated to the [commit server](./manifest-hydrator/commit-server/README.md).
 
@@ -130,7 +130,7 @@ spec:
       repoURL: https://github.com/argoproj/argocd-example-apps
       targetRevision: main
       path: environments/dev/west
-    writeTo:
+    syncSource:
       targetBranch: environments/dev
       path: west
 ---
@@ -144,7 +144,7 @@ spec:
       repoURL: https://github.com/argoproj/argocd-example-apps
       targetRevision: main
       path: environments/dev/east
-    writeTo:
+    syncSource:
       targetBranch: environments/dev
       path: east
 ---
@@ -159,7 +159,7 @@ spec:
       repoURL: https://github.com/argoproj/argocd-example-apps
       targetRevision: main
       path: environments/test/west
-    writeTo:
+    syncSource:
       targetBranch: environments/test
       path: west
 ---
@@ -173,7 +173,7 @@ spec:
       repoURL: https://github.com/argoproj/argocd-example-apps
       targetRevision: main
       path: environments/test/east
-    writeTo:
+    syncSource:
       targetBranch: environments/prod
       path: east
 ---
@@ -188,7 +188,7 @@ spec:
       repoURL: https://github.com/argoproj/argocd-example-apps
       targetRevision: main
       path: environments/prod/west
-    writeTo:
+    syncSource:
       targetBranch: environments/prod
       path: west
 ---
@@ -202,7 +202,7 @@ spec:
       repoURL: https://github.com/argoproj/argocd-example-apps
       targetRevision: main
       path: environments/prod/east
-    writeTo:
+    syncSource:
       targetBranch: environments/prod
       path: east
 ---
