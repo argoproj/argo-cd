@@ -1809,6 +1809,8 @@ func printTreeViewDetailed(nodeMapping map[string]argoappv1.ResourceNode, parent
 func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
 		revision                string
+		revisions               []string
+		sourcePositions         []int64
 		resources               []string
 		labels                  []string
 		selector                string
@@ -1869,6 +1871,23 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			if len(args) > 1 && selector != "" {
 				log.Fatal("Cannot use selector option when application name(s) passed as argument(s)")
 			}
+
+			if len(args) != 1 && (len(revisions) > 0 || len(sourcePositions) > 0) {
+				log.Fatal("Cannot use --revisions and --source-positions options when 0 or more than 1 application names are passed as argument(s)")
+			}
+
+			if len(revisions) != len(sourcePositions) {
+				log.Fatal("While using --revisions and --source-positions, length of values for both flags should be same.")
+			}
+
+			revisionSourceMappings := make(map[int64]string, 0)
+			for i, pos := range sourcePositions {
+				if pos <= 0 {
+					errors.CheckError(fmt.Errorf("source-position cannot be less than or equal to 0, Counting starts at 1"))
+				}
+				revisionSourceMappings[pos] = revisions[i]
+			}
+
 			acdClient := headless.NewClientOrDie(clientOpts, c)
 			conn, appIf := acdClient.NewApplicationClientOrDie()
 			defer argoio.Close(conn)
@@ -1910,9 +1929,10 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 
 				if len(selectedLabels) > 0 {
 					q := application.ApplicationManifestQuery{
-						Name:         &appName,
-						AppNamespace: &appNs,
-						Revision:     &revision,
+						Name:                   &appName,
+						AppNamespace:           &appNs,
+						Revision:               &revision,
+						RevisionSourceMappings: revisionSourceMappings,
 					}
 
 					res, err := appIf.GetManifests(ctx, &q)
@@ -1955,7 +1975,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 
 				if app.Spec.HasMultipleSources() {
 					if revision != "" {
-						log.Fatal("argocd cli does not work on multi-source app with --revision flag")
+						log.Fatal("argocd cli does not work on multi-source app with --revision flag. Use --revisions and --source-position instead.")
 						return
 					}
 
@@ -2125,6 +2145,8 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	command.Flags().StringVarP(&output, "output", "o", "wide", "Output format. One of: json|yaml|wide|tree|tree=detailed")
 	command.Flags().StringVarP(&appNamespace, "app-namespace", "N", "", "Only sync an application in namespace")
 	command.Flags().DurationVar(&ignoreNormalizerOpts.JQExecutionTimeout, "ignore-normalizer-jq-execution-timeout", normalizers.DefaultJQExecutionTimeout, "Set ignore normalizer JQ execution timeout")
+	command.Flags().StringArrayVar(&revisions, "revisions", []string{}, "Show manifests at specific revisions for source position in source-positions")
+	command.Flags().Int64SliceVar(&sourcePositions, "source-positions", []int64{}, "List of source positions. Default is empty array. Counting start at 1.")
 	return command
 }
 
