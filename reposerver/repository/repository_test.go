@@ -2585,7 +2585,7 @@ func Test_getPotentiallyValidManifests(t *testing.T) {
 		// The file is 35 bytes.
 		manifests, err := getPotentiallyValidManifests(logCtx, appPath, repoRoot, false, "", "", resource.MustParse("34"))
 		assert.Empty(t, manifests)
-		assert.ErrorIs(t, err, ErrExceededMaxCombinedManifestFileSize)
+		assert.Equal(t, err.Error(), "exceeded max combined manifest file size 34. set ARGOCD_REPO_SERVER_MAX_COMBINED_DIRECTORY_MANIFESTS_SIZE to increase")
 	})
 
 	t.Run("group of files should be limited at precisely the sum of their size", func(t *testing.T) {
@@ -2596,7 +2596,7 @@ func Test_getPotentiallyValidManifests(t *testing.T) {
 
 		manifests, err = getPotentiallyValidManifests(logCtx, "./testdata/several-files", "./testdata/several-files", false, "", "", resource.MustParse("100"))
 		assert.Empty(t, manifests)
-		assert.ErrorIs(t, err, ErrExceededMaxCombinedManifestFileSize)
+		assert.Equal(t, err.Error(), "exceeded max combined manifest file size 34. set ARGOCD_REPO_SERVER_MAX_COMBINED_DIRECTORY_MANIFESTS_SIZE to increase")
 	})
 }
 
@@ -2685,7 +2685,7 @@ func Test_findManifests(t *testing.T) {
 		// The file is 35 bytes.
 		manifests, err := findManifests(logCtx, appPath, repoRoot, nil, noRecurse, nil, resource.MustParse("34"))
 		assert.Empty(t, manifests)
-		assert.ErrorIs(t, err, ErrExceededMaxCombinedManifestFileSize)
+		assert.Equal(t, err.Error(), "failed to get potentially valid manifests: exceeded max combined manifest file size 34. set ARGOCD_REPO_SERVER_MAX_COMBINED_DIRECTORY_MANIFESTS_SIZE to increase")
 	})
 
 	t.Run("group of files should be limited at precisely the sum of their size", func(t *testing.T) {
@@ -2696,7 +2696,7 @@ func Test_findManifests(t *testing.T) {
 
 		manifests, err = findManifests(logCtx, "./testdata/several-files", "./testdata/several-files", nil, noRecurse, nil, resource.MustParse("364"))
 		assert.Empty(t, manifests)
-		assert.ErrorIs(t, err, ErrExceededMaxCombinedManifestFileSize)
+		assert.Equal(t, err.Error(), "failed to get potentially valid manifests: exceeded max combined manifest file size 364. set ARGOCD_REPO_SERVER_MAX_COMBINED_DIRECTORY_MANIFESTS_SIZE to increase")
 	})
 
 	t.Run("jsonnet isn't counted against size limit", func(t *testing.T) {
@@ -2707,7 +2707,7 @@ func Test_findManifests(t *testing.T) {
 
 		manifests, err = findManifests(logCtx, "./testdata/jsonnet-and-json", "./testdata/jsonnet-and-json", nil, noRecurse, nil, resource.MustParse("35"))
 		assert.Empty(t, manifests)
-		assert.ErrorIs(t, err, ErrExceededMaxCombinedManifestFileSize)
+		assert.Equal(t, err.Error(), "failed to get potentially valid manifests: exceeded max combined manifest file size 35. set ARGOCD_REPO_SERVER_MAX_COMBINED_DIRECTORY_MANIFESTS_SIZE to increase")
 	})
 
 	t.Run("partially valid YAML file throws an error", func(t *testing.T) {

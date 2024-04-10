@@ -73,7 +73,6 @@ const (
 )
 
 var (
-	ErrExceededMaxCombinedManifestFileSize = errors.New("exceeded max combined manifest file size")
 	// helmConcurrencyDefault if true then helm concurrent manifest generation is enabled
 	// TODO: remove env variable and usage of .argocd-allow-concurrency once we are sure that it is safe to enable it by default
 	helmConcurrencyDefault = env.ParseBoolFromEnv("ARGOCD_HELM_ALLOW_CONCURRENCY", false)
@@ -1821,7 +1820,7 @@ func getPotentiallyValidManifests(logCtx *log.Entry, appPath string, repoRoot st
 			// non-regular file) because .Size() behavior is platform-specific for non-regular files.
 			currentCombinedManifestFileSize += realFileInfo.Size()
 			if maxCombinedManifestFileSize != 0 && currentCombinedManifestFileSize > maxCombinedManifestFileSize {
-				return ErrExceededMaxCombinedManifestFileSize
+				return fmt.Errorf("exceeded max combined manifest file size %d. set ARGOCD_REPO_SERVER_MAX_COMBINED_DIRECTORY_MANIFESTS_SIZE to increase", maxCombinedManifestFileSize)
 			}
 		}
 		potentiallyValidManifests = append(potentiallyValidManifests, potentiallyValidManifest{path: path, fileInfo: f})
