@@ -18,11 +18,10 @@ last-updated: 2024-03-26
 
 This proposal describes a feature to make manifest hydration (i.e. the "rendered manifest pattern") a first-class feature of Argo CD.
 
-## Open Questions
+## Terms
 
-* The `sourceHydrator` field is mutually exclusive with the `source` and the `sources` field. Should we throw an error if they're both configured, or should we just pick one and ignore the others?
-* How will/should this feature relate to the image updater? Is there an opportunity to share code, since both tools involve pushing to git?
-* Should we enforce a naming convention for hydrated manifest branches, e.g. `argo/...`? This would make it easier to recommend branch protection rules, for example, only allow pushes to `argo/*` from the argo bot.
+* dry manifests: DRY or Don't Repeat Yourself - things like Kustomize overlays and Helm charts that produce Kubernetes manifests but are not themselves Kubernetes Manifests
+* hydrated manifests: the output from dry manifest tools, i.e. plain Kubernetes manifests
 
 ## Summary
 
@@ -33,6 +32,37 @@ The "rendered manifests" pattern has emerged as a way to mitigate the downsides 
 This proposal describes manifest hydration and pushing to git as a first-class feature of Argo CD.
 
 It offers two modes of operation: push-to-deploy and push-to-stage. In push-to-deploy, hydrated manifests are pushed to the same branch from which Argo CD deploys. In push-to-stage, manifests are pushed to a different branch, and Argo CD relies on some external system to move changes to the deployment branch; this provides an integration point for automated environment promotion systems.
+
+### Opinions
+
+This proposal is opinionated. It is based on the belief that, in order to reap the full benefits of GitOps, every change to an application's desired state must originate from a commit to a single GitOps repository. In other words, the full history of the application's desired state must be visible as the commit history on a git repository.
+
+This requirement is incompatible with tooling which injects nondeterministic configuration into the desired state before it is deployed by the GitOps controller. Examples of nondeterministic external configuration are:
+
+1) Helm chart dependencies on unpinned chart versions
+2) Kustomize remote bases to unpinned git revisions
+3) Config tool parameter overrides in the Argo CD Application `spec.source` fields
+
+Injecting nondeterministic configuration makes it impossible to know the complete history of an application by looking at a git branch history. Even if the nondeterministic output is databased (for example, in a hydrated source branch in git), it is impossible for developers to confidently make changes to desired state, because they cannot know ahead of time what other configuration will be injected at deploy time.
+
+We believe that the problems of injecting external configuration are best solved by asking these two questions:
+
+1) Does the configuration belong in the developer's interface (i.e. the dry manifests)?
+2) Does the configuration need to be mutable at runtime, or only at deploy time?
+
+If the configuration belongs in the developer's interface, write a tool to push the information to git. Image tags are a good example of such configuration, and the Argo CD Image Updater is a good example of such tooling.
+
+If the configuration doesn't belong in the developer's interface, and it needs to be updated at runtime, write a controller. The developer shouldn't be expected to maintain configuration which is not an immediate part of their desired state. An example would be an auto-sizing controller which eliminates the need for the developer to manage their own autoscaler config.
+
+If the configuration doesn't belong in the developer's interface and doesn't need to be updated at runtime (only at deploy time), write a mutating webhook. This is a great option for injecting cluster-specific configuration that the developer doesn't need to directly control.
+
+With these three options available (git-pushers, controllers, and mutating webhooks), we believe that it is not generally necessary to inject nondeterministic configuration into the manifest hydration process. Instead, we can have a full history of the developer's minimal intent (dry branch) and the full expression of that intent (hydrated branch) completely recorded in a series of commits on a git branch.
+
+By respecting these limitations, we unlock the ability to manage change promotion/reversion entirely via git. Change lineage is fully represented as a series of dry commit hashes. This makes it possible to write reliable rules around how these hashes are promoted to different environments and how they are reverted (i.e. we can meaningfully say "`prod` may never be more than one dry hash ahead of `test`"). If information about the lineage of an application is scattered among multiple sources, it is difficult or even impossible to meaningfully define rules about how one environment's lineage must relate to that of another environment.
+
+Being opinionated unlocks the full benefits of GitOps as well as the ability to build a reasonable, reliable preview/promotion/reversion system. 
+
+These opinions will lock out use cases where configuration injection cannot be avoided by writing git-pushers, controllers, or mutating webhooks. We believe that the benefits of making an opinionated system outweigh the costs of compromising those opinions.
 
 ## Motivation
 
@@ -49,6 +79,12 @@ Many organizations have implemented their own manifest hydration system. By impl
 ### Non-Goals
 
 1) Implementing a change promotion system
+
+## Open Questions
+
+* The `sourceHydrator` field is mutually exclusive with the `source` and the `sources` field. Should we throw an error if they're both configured, or should we just pick one and ignore the others?
+* How will/should this feature relate to the image updater? Is there an opportunity to share code, since both tools involve pushing to git?
+* Should we enforce a naming convention for hydrated manifest branches, e.g. `argo/...`? This would make it easier to recommend branch protection rules, for example, only allow pushes to `argo/*` from the argo bot.
 
 ## Proposal
 
