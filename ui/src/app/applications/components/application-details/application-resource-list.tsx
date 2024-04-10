@@ -12,17 +12,14 @@ import {format} from 'date-fns';
 import {ResourceNode, ResourceRef} from '../../../shared/models';
 import './application-resource-list.scss';
 
-export const ApplicationResourceList = ({
-    resources,
-    onNodeClick,
-    nodeMenu,
-    tree
-}: {
+export interface ApplicationResourceListProps {
     resources: models.ResourceStatus[];
     onNodeClick?: (fullName: string) => any;
     nodeMenu?: (node: models.ResourceNode) => React.ReactNode;
     tree?: models.ApplicationTree;
-}) => {
+}
+
+export const ApplicationResourceList = (props: ApplicationResourceListProps) => {
     function getResNode(nodes: ResourceNode[], nodeId: string): models.ResourceNode {
         for (const node of nodes) {
             if (nodeKey(node) === nodeId) {
@@ -31,7 +28,7 @@ export const ApplicationResourceList = ({
         }
         return null;
     }
-    const parentNode = ((resources || []).length > 0 && (getResNode(tree.nodes, nodeKey(resources[0])) as ResourceNode)?.parentRefs?.[0]) || ({} as ResourceRef);
+    const parentNode = ((props.resources || []).length > 0 && (getResNode(props.tree.nodes, nodeKey(props.resources[0])) as ResourceNode)?.parentRefs?.[0]) || ({} as ResourceRef);
     const searchParams = new URLSearchParams(window.location.search);
     const view = searchParams.get('view');
 
@@ -73,7 +70,7 @@ export const ApplicationResourceList = ({
                         <div className='columns small-2 xxxlarge-1'>STATUS</div>
                     </div>
                 </div>
-                {resources
+                {props.resources
                     .sort((first, second) => -createdOrNodeKey(first).localeCompare(createdOrNodeKey(second)))
                     .map(res => (
                         <div
@@ -81,7 +78,7 @@ export const ApplicationResourceList = ({
                             className={classNames('argo-table-list__row', {
                                 'application-resource-tree__node--orphaned': res.orphaned
                             })}
-                            onClick={() => onNodeClick(nodeKey(res))}>
+                            onClick={() => props.onNodeClick && props.onNodeClick(nodeKey(res))}>
                             <div className='row'>
                                 <div className='columns small-1 xxxlarge-1'>
                                     <div className='application-details__resource-icon'>
@@ -111,7 +108,7 @@ export const ApplicationResourceList = ({
                                 <div className='columns small-1 xxxlarge-1'>{res.syncWave || '-'}</div>
                                 <div className='columns small-2 xxxlarge-1'>{res.namespace}</div>
                                 {res.kind === 'ReplicaSet' &&
-                                    ((getResNode(tree.nodes, nodeKey(res)) as ResourceNode).info || [])
+                                    ((getResNode(props.tree.nodes, nodeKey(res)) as ResourceNode).info || [])
                                         .filter(tag => !tag.name.includes('Node'))
                                         .slice(0, 4)
                                         .map((tag, i) => {
@@ -140,27 +137,31 @@ export const ApplicationResourceList = ({
                                     )}
                                     {res.status && <ComparisonStatusIcon status={res.status} resource={res} label={true} />}
                                     {res.hook && <i title='Resource lifecycle hook' className='fa fa-anchor' />}
-                                    <div className='application-details__node-menu'>
-                                        <DropDown
-                                            isMenu={true}
-                                            anchor={() => (
-                                                <button className='argo-button argo-button--light argo-button--lg argo-button--short'>
-                                                    <i className='fa fa-ellipsis-v' />
-                                                </button>
-                                            )}>
-                                            {nodeMenu({
-                                                name: res.name,
-                                                version: res.version,
-                                                kind: res.kind,
-                                                namespace: res.namespace,
-                                                group: res.group,
-                                                info: null,
-                                                uid: '',
-                                                resourceVersion: null,
-                                                parentRefs: []
-                                            })}
-                                        </DropDown>
-                                    </div>
+                                    {props.nodeMenu && (
+                                        <div className='application-details__node-menu'>
+                                            <DropDown
+                                                isMenu={true}
+                                                anchor={() => (
+                                                    <button className='argo-button argo-button--light argo-button--lg argo-button--short'>
+                                                        <i className='fa fa-ellipsis-v' />
+                                                    </button>
+                                                )}>
+                                                {() =>
+                                                    props.nodeMenu({
+                                                        name: res.name,
+                                                        version: res.version,
+                                                        kind: res.kind,
+                                                        namespace: res.namespace,
+                                                        group: res.group,
+                                                        info: null,
+                                                        uid: '',
+                                                        resourceVersion: null,
+                                                        parentRefs: []
+                                                    })
+                                                }
+                                            </DropDown>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         </div>

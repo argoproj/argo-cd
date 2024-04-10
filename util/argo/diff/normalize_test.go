@@ -10,6 +10,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/test"
 	"github.com/argoproj/argo-cd/v2/util/argo/diff"
+	"github.com/argoproj/argo-cd/v2/util/argo/normalizers"
 	"github.com/argoproj/argo-cd/v2/util/argo/testdata"
 )
 
@@ -22,7 +23,7 @@ func TestNormalize(t *testing.T) {
 	setup := func(t *testing.T, ignores []v1alpha1.ResourceIgnoreDifferences) *fixture {
 		t.Helper()
 		dc, err := diff.NewDiffConfigBuilder().
-			WithDiffSettings(ignores, nil, true).
+			WithDiffSettings(ignores, nil, true, normalizers.IgnoreNormalizerOpts{}).
 			WithNoCache().
 			Build()
 		require.NoError(t, err)
