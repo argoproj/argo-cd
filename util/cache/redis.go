@@ -97,7 +97,12 @@ func (r *redisCache) unmarshal(data []byte, obj interface{}) error {
 }
 
 func (r *redisCache) Rename(oldKey string, newKey string, _ time.Duration) error {
-	return r.client.Rename(context.TODO(), r.getKey(oldKey), r.getKey(newKey)).Err()
+	err := r.client.Rename(context.TODO(), r.getKey(oldKey), r.getKey(newKey)).Err()
+	if err != nil && err.Error() == "ERR no such key" {
+		err = ErrCacheMiss
+	}
+
+	return err
 }
 
 func (r *redisCache) Set(item *Item) error {
