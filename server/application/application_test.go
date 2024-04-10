@@ -43,6 +43,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	appsv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	apps "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned/fake"
 	appinformer "github.com/argoproj/argo-cd/v2/pkg/client/informers/externalversions"
 	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
@@ -2719,4 +2720,127 @@ func TestAppNamespaceRestrictions(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, 0, len(links.Items))
 	})
+}
+
+func TestGetAmbiguousRevision_MultiSource(t *testing.T) {
+	app := &appv1.Application{
+		Spec: appv1.ApplicationSpec{
+			Sources: []appv1.ApplicationSource{
+				{
+					TargetRevision: "revision1",
+				},
+				{
+					TargetRevision: "revision2",
+				},
+			},
+		},
+	}
+	syncReq := &application.ApplicationSyncRequest{
+		SourcePositions: []int64{0, 1},
+		Revisions:       []string{"rev1", "rev2"},
+	}
+
+	sourceIndex := 0
+	expected := "rev1"
+	result := getAmbiguousRevision(app, syncReq, sourceIndex)
+	if result != expected {
+		t.Errorf("Expected ambiguous revision to be %s, but got %s", expected, result)
+	}
+
+	sourceIndex = 1
+	expected = "rev2"
+	result = getAmbiguousRevision(app, syncReq, sourceIndex)
+	if result != expected {
+		t.Errorf("Expected ambiguous revision to be %s, but got %s", expected, result)
+	}
+
+	// Test when app.Spec.HasMultipleSources() is false
+	app.Spec = appv1.ApplicationSpec{
+		Source: &appv1.ApplicationSource{
+			TargetRevision: "revision3",
+		},
+		Sources: nil,
+	}
+	syncReq = &application.ApplicationSyncRequest{
+		Revision: strToPtr("revision3"),
+	}
+	expected = "revision3"
+	result = getAmbiguousRevision(app, syncReq, sourceIndex)
+	if result != expected {
+		t.Errorf("Expected ambiguous revision to be %s, but got %s", expected, result)
+	}
+}
+
+func TestGetAmbiguousRevision_SingleSource(t *testing.T) {
+	app := &appv1.Application{
+		Spec: appv1.ApplicationSpec{
+			Source: &appv1.ApplicationSource{
+				TargetRevision: "revision1",
+			},
+		},
+	}
+	syncReq := &application.ApplicationSyncRequest{
+		Revision: strToPtr("rev1"),
+	}
+
+	// Test when app.Spec.HasMultipleSources() is true
+	sourceIndex := 1
+	expected := "rev1"
+	result := getAmbiguousRevision(app, syncReq, sourceIndex)
+	if result != expected {
+		t.Errorf("Expected ambiguous revision to be %s, but got %s", expected, result)
+	}
+}
+
+func TestServer_ResolveSourceRevisions_MultiSource(t *testing.T) {
+	s := newTestAppServer(t)
+
+	ctx := context.Background()
+	a := &appv1.Application{
+		Spec: appv1.ApplicationSpec{
+			Sources: []appv1.ApplicationSource{
+				{
+					RepoURL: "https://github.com/example/repo.git",
+				},
+			},
+		},
+	}
+
+	syncReq := &application.ApplicationSyncRequest{
+		SourcePositions: []int64{1},
+		Revisions:       []string{"HEAD"},
+	}
+
+	revision, displayRevision, sourceRevisions, displayRevisions, err := s.resolveSourceRevisions(ctx, a, syncReq)
+
+	assert.NoError(t, err)
+	assert.Equal(t, "", revision)
+	assert.Equal(t, "", displayRevision)
+	assert.Equal(t, []string{fakeResolveRevisionResponse().Revision}, sourceRevisions)
+	assert.Equal(t, []string{fakeResolveRevisionResponse().AmbiguousRevision}, displayRevisions)
+}
+
+func TestServer_ResolveSourceRevisions_SingleSource(t *testing.T) {
+	s := newTestAppServer(t)
+
+	ctx := context.Background()
+	a := &appv1.Application{
+		Spec: appv1.ApplicationSpec{
+			Source: &appv1.ApplicationSource{
+				RepoURL: "https://github.com/example/repo.git",
+			},
+		},
+	}
+
+	syncReq := &application.ApplicationSyncRequest{
+		Revision: strToPtr("HEAD"),
+	}
+
+	revision, displayRevision, sourceRevisions, displayRevisions, err := s.resolveSourceRevisions(ctx, a, syncReq)
+
+	assert.NoError(t, err)
+	assert.Equal(t, fakeResolveRevisionResponse().Revision, revision)
+	assert.Equal(t, fakeResolveRevisionResponse().AmbiguousRevision, displayRevision)
+	assert.Equal(t, ([]string)(nil), sourceRevisions)
+	assert.Equal(t, ([]string)(nil), displayRevisions)
 }
