@@ -2,6 +2,7 @@ package argo
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -155,6 +156,12 @@ func (rt *resourceTracking) SetAppInstance(un *unstructured.Unstructured, key, v
 		}
 		if len(val) > LabelMaxLength {
 			val = val[:LabelMaxLength]
+			// Trim the string until the last valid alphanumeric character
+			reg := regexp.MustCompile(`[^a-z0-9A-Z]*$`)
+			match := reg.FindString(val)
+			if match != "" {
+				val = strings.TrimRight(val, match)
+			}
 		}
 		err = argokube.SetAppInstanceLabel(un, key, val)
 		if err != nil {

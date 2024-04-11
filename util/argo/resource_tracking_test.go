@@ -62,6 +62,21 @@ func TestSetAppInstanceAnnotationAndLabel(t *testing.T) {
 	assert.Equal(t, "my-app", app)
 }
 
+func TestSetAppInstanceAnnotationAndLabelTrimming(t *testing.T) {
+	yamlBytes, err := os.ReadFile("testdata/svc.yaml")
+	assert.Nil(t, err)
+
+	var obj unstructured.Unstructured
+	err = yaml.Unmarshal(yamlBytes, &obj)
+	assert.Nil(t, err)
+
+	rt := NewResourceTracking()
+	err = rt.SetAppInstance(&obj, common.LabelKeyAppInstance, "this-is-a-very-long-resource-name-needs-to-be-sanitized-to-not-be-invalid", "", TrackingMethodAnnotationAndLabel)
+	assert.Nil(t, err)
+
+	assert.Equal(t, "this-is-a-very-long-resource-name-needs-to-be-sanitized-to-not", obj.GetLabels()[common.LabelKeyAppInstance])
+}
+
 func TestSetAppInstanceAnnotationNotFound(t *testing.T) {
 	yamlBytes, err := os.ReadFile("testdata/svc.yaml")
 	assert.Nil(t, err)
