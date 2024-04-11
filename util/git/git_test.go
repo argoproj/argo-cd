@@ -237,8 +237,18 @@ func TestLsRemote(t *testing.T) {
 			expectedCommit: "d7c04ae24c16f8ec611b0331596fbc595537abe9",
 		},
 		{
+			name:           "should resolve a pined tag with semantic versioning without the 'v' prefix",
+			revision:       "0.8.0",
+			expectedCommit: "d7c04ae24c16f8ec611b0331596fbc595537abe9",
+		},
+		{
 			name:           "should resolve a range tag with semantic versioning",
 			revision:       "v0.8.*", // it should resolve to v0.8.2
+			expectedCommit: "e5eefa2b943ae14a3e4491d4e35ef082e1c2a3f4",
+		},
+		{
+			name:           "should resolve a range tag with semantic versioning without the 'v' prefix",
+			revision:       "0.8.*", // it should resolve to v0.8.2
 			expectedCommit: "e5eefa2b943ae14a3e4491d4e35ef082e1c2a3f4",
 		},
 		{
