@@ -50,6 +50,8 @@ var projectScoped = map[string]bool{
 	rbacpolicy.ResourceApplicationSets: true,
 	rbacpolicy.ResourceLogs:            true,
 	rbacpolicy.ResourceExec:            true,
+	rbacpolicy.ResourceClusters:        true,
+	rbacpolicy.ResourceRepositories:    true,
 }
 
 // List of allowed RBAC resources
