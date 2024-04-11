@@ -4275,6 +4275,19 @@
         "revision": {
           "type": "string"
         },
+        "revisions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "sourcePositions": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "int64"
+          }
+        },
         "strategy": {
           "$ref": "#/definitions/v1alpha1SyncStrategy"
         },

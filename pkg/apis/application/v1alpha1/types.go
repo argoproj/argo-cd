@@ -230,11 +230,11 @@ func (a *ApplicationSpec) HasMultipleSources() bool {
 	return a.Sources != nil && len(a.Sources) > 0
 }
 
-func (a *ApplicationSpec) GetSourcePtr(index int) *ApplicationSource {
+func (a *ApplicationSpec) GetSourcePtr(sourcePosition int) *ApplicationSource {
 	// if Application has multiple sources, return the first source in sources
 	if a.HasMultipleSources() {
-		if index > 0 {
-			return &a.Sources[index-1]
+		if sourcePosition > 0 {
+			return &a.Sources[sourcePosition-1]
 		}
 		return &a.Sources[0]
 	}

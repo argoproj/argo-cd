@@ -1880,12 +1880,10 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				log.Fatal("While using --revisions and --source-positions, length of values for both flags should be same.")
 			}
 
-			revisionSourceMappings := make(map[int64]string, 0)
-			for i, pos := range sourcePositions {
+			for _, pos := range sourcePositions {
 				if pos <= 0 {
-					errors.CheckError(fmt.Errorf("source-position cannot be less than or equal to 0, Counting starts at 1"))
+					log.Fatal("source-position cannot be less than or equal to 0, Counting starts at 1")
 				}
-				revisionSourceMappings[pos] = revisions[i]
 			}
 
 			acdClient := headless.NewClientOrDie(clientOpts, c)
@@ -1929,10 +1927,11 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 
 				if len(selectedLabels) > 0 {
 					q := application.ApplicationManifestQuery{
-						Name:                   &appName,
-						AppNamespace:           &appNs,
-						Revision:               &revision,
-						RevisionSourceMappings: revisionSourceMappings,
+						Name:            &appName,
+						AppNamespace:    &appNs,
+						Revision:        &revision,
+						Revisions:       revisions,
+						SourcePositions: sourcePositions,
 					}
 
 					res, err := appIf.GetManifests(ctx, &q)
@@ -2040,15 +2039,17 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				}
 
 				syncReq := application.ApplicationSyncRequest{
-					Name:         &appName,
-					AppNamespace: &appNs,
-					DryRun:       &dryRun,
-					Revision:     &revision,
-					Resources:    filteredResources,
-					Prune:        &prune,
-					Manifests:    localObjsStrings,
-					Infos:        getInfos(infos),
-					SyncOptions:  syncOptionsFactory(),
+					Name:            &appName,
+					AppNamespace:    &appNs,
+					DryRun:          &dryRun,
+					Revision:        &revision,
+					Resources:       filteredResources,
+					Prune:           &prune,
+					Manifests:       localObjsStrings,
+					Infos:           getInfos(infos),
+					SyncOptions:     syncOptionsFactory(),
+					Revisions:       revisions,
+					SourcePositions: sourcePositions,
 				}
 
 				switch strategy {
