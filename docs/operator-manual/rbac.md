@@ -393,6 +393,31 @@ data:
     g, my-org:team-qa, role:tester
 ```
 
+It is also  possible to provide multiple configmaps by labeling those
+configmaps with `argocd.argoproj.io/cm-type=policy-csv`. These extra
+configmaps use the same rules for keys as the main `argocd-rbac-cm`
+configmap. The output CSVs of these configmaps, along with the main
+configmap, will be concatenated in alphabetical order of the configmap
+name.
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: another-rbac-cm
+  namespace: argocd
+  labels:
+    argocd.argoproj.io/cm-type: policy-csv
+data:
+  policy.yet-another.csv: |
+    p, role:another-tester, applications, *, */*, allow
+    p, role:another-tester, projects, *, *, allow
+    g, my-org:team-qa-2, role:another-tester
+```
+
+This can be used to create policies which exceed the size limit of a single configmap, which
+may occurr in larger multi-tenant environments.
+
 ## Validating and testing your RBAC policies
 
 If you want to ensure that your RBAC policies are working as expected, you can

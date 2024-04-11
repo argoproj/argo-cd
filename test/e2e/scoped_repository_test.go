@@ -1,6 +1,7 @@
 package e2e
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/argoproj/argo-cd/v2/test/e2e/fixture"
@@ -127,6 +128,49 @@ func TestDeleteRepositoryRbacAllowed(t *testing.T) {
 		Then().
 		AndCLIOutput(func(output string, err error) {
 			assert.Contains(t, output, "Repository 'https://github.com/argoproj/argo-cd.git' removed")
+		})
+}
+
+func TestDeleteRepositoryRbacAllowedExtraConfigMap(t *testing.T) {
+	accountFixture.Given(t).
+		Name("test").
+		When().
+		Create().
+		Login().
+		SetExtraPermissions([]fixture.ACL{
+			{
+				Resource: "repositories",
+				Action:   "create",
+				Scope:    "argo-project/*",
+			},
+			{
+				Resource: "repositories",
+				Action:   "delete",
+				Scope:    "argo-project/*",
+			},
+			{
+				Resource: "repositories",
+				Action:   "get",
+				Scope:    "argo-project/*",
+			},
+		}, "org-admin")
+
+	path := "https://github.com/argoproj/argo-cd.git"
+	repoFixture.Given(t, true).
+		When().
+		Path(path).
+		Project("argo-project").
+		Create().
+		Then().
+		And(func(r *Repository, err error) {
+			assert.Equal(t, path, r.Repo)
+			assert.Equal(t, "argo-project", r.Project)
+		}).
+		When().
+		Delete().
+		Then().
+		AndCLIOutput(func(output string, err error) {
+			assert.True(t, strings.Contains(output, "Repository 'https://github.com/argoproj/argo-cd.git' removed"))
 		})
 }
 

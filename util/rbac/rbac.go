@@ -5,6 +5,7 @@ import (
 	"encoding/csv"
 	"errors"
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -33,12 +34,15 @@ import (
 )
 
 const (
-	ConfigMapPolicyCSVKey     = "policy.csv"
-	ConfigMapPolicyDefaultKey = "policy.default"
-	ConfigMapScopesKey        = "scopes"
-	ConfigMapMatchModeKey     = "policy.matchMode"
-	GlobMatchMode             = "glob"
-	RegexMatchMode            = "regex"
+	ConfigMapPolicyCSVKey       = "policy.csv"
+	ConfigMapPolicyDefaultKey   = "policy.default"
+	ConfigMapScopesKey          = "scopes"
+	ConfigMapMatchModeKey       = "policy.matchMode"
+	GlobMatchMode               = "glob"
+	RegexMatchMode              = "regex"
+	ExtraConfigMapLabelKey      = "argocd.argoproj.io/cm-type"
+	ExtraConfigMapLabelValue    = "policy-csv"
+	ExtraConfigMapLabelSelector = ExtraConfigMapLabelKey + "=" + ExtraConfigMapLabelValue
 
 	defaultRBACSyncPeriod = 10 * time.Minute
 )
@@ -72,6 +76,8 @@ type Enforcer struct {
 	model              model.Model
 	defaultRole        string
 	matchMode          string
+	// map from configmap name -> key -> value
+	policyCSVCache map[string]map[string]string
 }
 
 // cachedEnforcer holds the Casbin enforcer instances and optional custom project policy
@@ -169,6 +175,7 @@ func NewEnforcer(clientset kubernetes.Interface, namespace, configmap string, cl
 		model:              builtInModel,
 		claimsEnforcerFunc: claimsEnforcer,
 		enabled:            true,
+		policyCSVCache:     map[string]map[string]string{},
 	}
 }
 
@@ -334,11 +341,21 @@ func (e *Enforcer) SetUserPolicy(policy string) error {
 	return e.LoadPolicy()
 }
 
-// newInformers returns an informer which watches updates on the rbac configmap
+// newInformer returns an informer which watches updates on the rbac configmap
 func (e *Enforcer) newInformer() cache.SharedIndexInformer {
 	tweakConfigMap := func(options *metav1.ListOptions) {
 		cmFieldSelector := fields.ParseSelectorOrDie(fmt.Sprintf("metadata.name=%s", e.configmap))
 		options.FieldSelector = cmFieldSelector.String()
+	}
+	indexers := cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}
+	return v1.NewFilteredConfigMapInformer(e.clientset, e.namespace, defaultRBACSyncPeriod, indexers, tweakConfigMap)
+}
+
+// newInformer returns an informer which watches updates on the extra rbac configmaps
+func (e *Enforcer) newExtraInformer() cache.SharedIndexInformer {
+	tweakConfigMap := func(options *metav1.ListOptions) {
+		cmLabelSelector := fields.ParseSelectorOrDie(ExtraConfigMapLabelSelector)
+		options.LabelSelector = cmLabelSelector.String()
 	}
 	indexers := cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}
 	return v1.NewFilteredConfigMapInformer(e.clientset, e.namespace, defaultRBACSyncPeriod, indexers, tweakConfigMap)
@@ -363,48 +380,68 @@ func (e *Enforcer) RunPolicyLoader(ctx context.Context, onUpdated func(cm *apiv1
 
 func (e *Enforcer) runInformer(ctx context.Context, onUpdated func(cm *apiv1.ConfigMap) error) {
 	cmInformer := e.newInformer()
-	_, err := cmInformer.AddEventHandler(
-		cache.ResourceEventHandlerFuncs{
-			AddFunc: func(obj interface{}) {
-				if cm, ok := obj.(*apiv1.ConfigMap); ok {
-					err := e.syncUpdate(cm, onUpdated)
-					if err != nil {
-						log.Error(err)
-					} else {
-						log.Infof("RBAC ConfigMap '%s' added", e.configmap)
-					}
-				}
-			},
-			UpdateFunc: func(old, new interface{}) {
-				oldCM := old.(*apiv1.ConfigMap)
-				newCM := new.(*apiv1.ConfigMap)
-				if oldCM.ResourceVersion == newCM.ResourceVersion {
-					return
-				}
-				err := e.syncUpdate(newCM, onUpdated)
+	extraCMInformer := e.newExtraInformer()
+	funcs := cache.ResourceEventHandlerFuncs{
+		AddFunc: func(obj interface{}) {
+			if cm, ok := obj.(*apiv1.ConfigMap); ok {
+				err := e.syncUpdate(cm, onUpdated)
 				if err != nil {
 					log.Error(err)
 				} else {
-					log.Infof("RBAC ConfigMap '%s' updated", e.configmap)
+					log.Infof("RBAC ConfigMap '%s' added", cm.Name)
 				}
-			},
+			}
 		},
-	)
+		UpdateFunc: func(old, new interface{}) {
+			oldCM := old.(*apiv1.ConfigMap)
+			newCM := new.(*apiv1.ConfigMap)
+			if oldCM.ResourceVersion == newCM.ResourceVersion {
+				return
+			}
+			err := e.syncUpdate(newCM, onUpdated)
+			if err != nil {
+				log.Error(err)
+			} else {
+				log.Infof("RBAC ConfigMap '%s' updated", newCM.Name)
+			}
+		},
+		DeleteFunc: func(obj interface{}) {
+			if cm, ok := obj.(*apiv1.ConfigMap); ok {
+				err := e.syncRemove(cm, onUpdated)
+				if err != nil {
+					log.Error(err)
+				} else {
+					log.Infof("RBAC ConfigMap '%s' removed", cm.Name)
+				}
+			}
+		},
+	}
+	_, err := cmInformer.AddEventHandler(funcs)
 	if err != nil {
 		log.Error(err)
 	}
-	log.Info("Starting rbac config informer")
-	cmInformer.Run(ctx.Done())
-	log.Info("rbac configmap informer cancelled")
+	_, err = extraCMInformer.AddEventHandler(funcs)
+	if err != nil {
+		log.Error(err)
+	}
+	var wait sync.WaitGroup
+	wait.Add(2)
+	go func() {
+		defer wait.Done()
+		log.Info("Starting rbac config informer")
+		cmInformer.Run(ctx.Done())
+		log.Info("rbac configmap informer cancelled")
+	}()
+	go func() {
+		defer wait.Done()
+		log.Info("Starting extra rbac config informer")
+		extraCMInformer.Run(ctx.Done())
+		log.Info("extra rbac configmap informer cancelled")
+	}()
+	wait.Wait()
 }
 
-// PolicyCSV will generate the final policy csv to be used
-// by Argo CD RBAC. It will find entries in the given data
-// that matches the policy key name convention:
-//
-//	policy[.overlay].csv
-func PolicyCSV(data map[string]string) string {
-	var strBuilder strings.Builder
+func policyCSV(strBuilder *strings.Builder, data map[string]string) {
 	// add the main policy first
 	if p, ok := data[ConfigMapPolicyCSVKey]; ok {
 		strBuilder.WriteString(p)
@@ -426,18 +463,79 @@ func PolicyCSV(data map[string]string) string {
 			strBuilder.WriteString(value)
 		}
 	}
+}
+
+// PolicyCSV will generate the final policy csv to be used
+// by Argo CD RBAC from a single configmap. It will find entries
+// in the given data that matches the policy key name convention:
+//
+//	policy[.overlay].csv
+func PolicyCSV(data map[string]string) string {
+	var strBuilder strings.Builder
+	policyCSV(&strBuilder, data)
 	return strBuilder.String()
 }
 
-// syncUpdate updates the enforcer
-func (e *Enforcer) syncUpdate(cm *apiv1.ConfigMap, onUpdated func(cm *apiv1.ConfigMap) error) error {
-	e.SetDefaultRole(cm.Data[ConfigMapPolicyDefaultKey])
-	e.SetMatchMode(cm.Data[ConfigMapMatchModeKey])
-	policyCSV := PolicyCSV(cm.Data)
+// PolicyCSV will generate the final policy csv to be used
+// by Argo CD RBAC from many configmaps. It will find entries
+// in the given data that matches the policy key name convention:
+//
+//	policy[.overlay].csv
+func PolicyCSVMany(datas []map[string]string) string {
+	var strBuilder strings.Builder
+	// add the main policy first
+	first := true
+	for _, data := range datas {
+		if _, ok := data[ConfigMapPolicyCSVKey]; ok && !first {
+			strBuilder.WriteString("\n")
+		}
+		first = false
+
+		policyCSV(&strBuilder, data)
+	}
+	return strBuilder.String()
+}
+
+// sync updates the enforcer after a configmap has been upserted or removed
+func (e *Enforcer) sync(cm *apiv1.ConfigMap, onUpdated func(cm *apiv1.ConfigMap) error) error {
+	cmNames := make([]string, 0, len(e.policyCSVCache))
+	for key := range e.policyCSVCache {
+		cmNames = append(cmNames, key)
+	}
+	slices.Sort(cmNames)
+	datas := make([]map[string]string, len(cmNames))
+	for ix, name := range cmNames {
+		datas[ix] = e.policyCSVCache[name]
+	}
+
+	policyCSV := PolicyCSVMany(datas)
 	if err := onUpdated(cm); err != nil {
 		return err
 	}
 	return e.SetUserPolicy(policyCSV)
+}
+
+// syncUpdate updates the enforcer to upsert a configmap
+func (e *Enforcer) syncUpdate(cm *apiv1.ConfigMap, onUpdated func(cm *apiv1.ConfigMap) error) error {
+	if cm.Name == e.configmap {
+		e.SetDefaultRole(cm.Data[ConfigMapPolicyDefaultKey])
+		e.SetMatchMode(cm.Data[ConfigMapMatchModeKey])
+	}
+	e.policyCSVCache[cm.Name] = cm.Data
+
+	return e.sync(cm, onUpdated)
+}
+
+// syncUpdate updates the enforcer to remove a configmap
+func (e *Enforcer) syncRemove(cm *apiv1.ConfigMap, onUpdated func(cm *apiv1.ConfigMap) error) error {
+	if cm.Name == e.configmap {
+		// This should never happen?
+		// Assume this is user error and ignore it
+		return nil
+	}
+	delete(e.policyCSVCache, cm.Name)
+
+	return e.sync(cm, onUpdated)
 }
 
 // ValidatePolicy verifies a policy string is acceptable to casbin

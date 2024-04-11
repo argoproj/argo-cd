@@ -128,6 +128,40 @@ https://kubernetes.default.svc  test-cluster-add-allowed  %v     Successful     
 		})
 }
 
+func TestClusterAddAllowedExtraConfigMap(t *testing.T) {
+	accountFixture.Given(t).
+		Name("test").
+		When().
+		Create().
+		Login().
+		SetExtraPermissions([]fixture.ACL{
+			{
+				Resource: "clusters",
+				Action:   "create",
+				Scope:    ProjectName + "/*",
+			},
+			{
+				Resource: "clusters",
+				Action:   "get",
+				Scope:    ProjectName + "/*",
+			},
+		}, "org-admin")
+
+	clusterFixture.
+		GivenWithSameState(t).
+		Project(ProjectName).
+		Upsert(true).
+		Server(KubernetesInternalAPIServerAddr).
+		When().
+		Create().
+		List().
+		Then().
+		AndCLIOutput(func(output string, err error) {
+			assert.Equal(t, fmt.Sprintf(`SERVER                          NAME                                       VERSION  STATUS      MESSAGE  PROJECT
+https://kubernetes.default.svc  test-cluster-add-allowed-extra-config-map  %v     Successful           argo-project`, GetVersions().ServerVersion), output)
+		})
+}
+
 func TestClusterListDenied(t *testing.T) {
 	accountFixture.Given(t).
 		Name("test").

@@ -19,8 +19,9 @@ import (
 )
 
 const (
-	fakeConfigMapName = "fake-cm"
-	fakeNamespace     = "fake-ns"
+	fakeConfigMapName      = "fake-cm"
+	fakeExtraConfigMapName = "fake-cm-extra"
+	fakeNamespace          = "fake-ns"
 )
 
 var noOpUpdate = func(cm *apiv1.ConfigMap) error {
@@ -42,13 +43,31 @@ func fakeConfigMap() *apiv1.ConfigMap {
 	return &cm
 }
 
-func TestPolicyCSV(t *testing.T) {
+func fakeExtraConfigMap() *apiv1.ConfigMap {
+	cm := apiv1.ConfigMap{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "ConfigMap",
+			APIVersion: "v1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      fakeExtraConfigMapName,
+			Namespace: fakeNamespace,
+			Labels: map[string]string{
+				"argocd.argoproj.io/cm-type": "policy-csv",
+			},
+		},
+		Data: make(map[string]string),
+	}
+	return &cm
+}
+
+func TestPolicyCSVMany(t *testing.T) {
 	t.Run("will return empty string if data has no csv entries", func(t *testing.T) {
 		// given
 		data := make(map[string]string)
 
 		// when
-		policy := PolicyCSV(data)
+		policy := PolicyCSVMany([]map[string]string{data})
 
 		// then
 		assert.Equal(t, "", policy)
@@ -61,7 +80,7 @@ func TestPolicyCSV(t *testing.T) {
 		data["UnrelatedKey"] = "unrelated value"
 
 		// when
-		policy := PolicyCSV(data)
+		policy := PolicyCSVMany([]map[string]string{data})
 
 		// then
 		assert.Equal(t, expectedPolicy, policy)
@@ -75,12 +94,37 @@ func TestPolicyCSV(t *testing.T) {
 		data["policy.overlay2.csv"] = "policy3"
 
 		// when
-		policy := PolicyCSV(data)
+		policy := PolicyCSVMany([]map[string]string{data})
 
 		// then
 		assert.Regexp(t, "^policy1", policy)
 		assert.Contains(t, policy, "policy2")
 		assert.Contains(t, policy, "policy3")
+	})
+	t.Run("will return composed policy provided by multiple policy keys from multiple configmaps", func(t *testing.T) {
+		// given
+		data := make(map[string]string)
+		data[ConfigMapPolicyCSVKey] = "policy1"
+		data["UnrelatedKey"] = "unrelated value"
+		data["policy.overlay1.csv"] = "policy2"
+		data["policy.overlay2.csv"] = "policy3"
+
+		data2 := make(map[string]string)
+		data2[ConfigMapPolicyCSVKey] = "policy4"
+		data2["UnrelatedKey"] = "unrelated value"
+		data2["policy.overlay1.csv"] = "policy5"
+		data2["policy.overlay3.csv"] = "policy6"
+
+		// when
+		policy := PolicyCSVMany([]map[string]string{data, data2})
+
+		// then
+		assert.Regexp(t, "^policy1", policy)
+		assert.Contains(t, policy, "policy2")
+		assert.Contains(t, policy, "policy3")
+		assert.Contains(t, policy, "policy4")
+		assert.Contains(t, policy, "policy5")
+		assert.Contains(t, policy, "policy6")
 	})
 	t.Run("will return composed policy in a deterministic order", func(t *testing.T) {
 		// given
@@ -92,7 +136,7 @@ func TestPolicyCSV(t *testing.T) {
 		data[ConfigMapPolicyCSVKey] = "policy1"
 
 		// when
-		policy := PolicyCSV(data)
+		policy := PolicyCSVMany([]map[string]string{data})
 
 		// then
 		result := strings.Split(policy, "\n")
@@ -102,6 +146,37 @@ func TestPolicyCSV(t *testing.T) {
 		assert.Equal(t, "policyb", result[2])
 		assert.Equal(t, "policyc", result[3])
 	})
+	t.Run("will return composed policy from multiple configmaps in a deterministic order", func(t *testing.T) {
+		// given
+		data := make(map[string]string)
+		data["UnrelatedKey"] = "unrelated value"
+		data["policy.B.csv"] = "policyb"
+		data["policy.A.csv"] = "policya"
+		data["policy.C.csv"] = "policyc"
+		data[ConfigMapPolicyCSVKey] = "policy1"
+
+		data2 := make(map[string]string)
+		data2["UnrelatedKey"] = "unrelated value"
+		data2["policy.C.csv"] = "policy2c"
+		data2["policy.A.csv"] = "policy2a"
+		data2["policy.E.csv"] = "policy2e"
+		data2[ConfigMapPolicyCSVKey] = "policy2"
+
+		// when
+		policy := PolicyCSVMany([]map[string]string{data, data2})
+
+		// then
+		result := strings.Split(policy, "\n")
+		assert.Len(t, result, 8)
+		assert.Equal(t, "policy1", result[0])
+		assert.Equal(t, "policya", result[1])
+		assert.Equal(t, "policyb", result[2])
+		assert.Equal(t, "policyc", result[3])
+		assert.Equal(t, "policy2", result[4])
+		assert.Equal(t, "policy2a", result[5])
+		assert.Equal(t, "policy2c", result[6])
+		assert.Equal(t, "policy2e", result[7])
+	})
 }
 
 // TestBuiltinPolicyEnforcer tests the builtin policy rules
@@ -109,6 +184,7 @@ func TestBuiltinPolicyEnforcer(t *testing.T) {
 	kubeclientset := fake.NewSimpleClientset()
 	enf := NewEnforcer(kubeclientset, fakeNamespace, fakeConfigMapName, nil)
 	require.NoError(t, enf.syncUpdate(fakeConfigMap(), noOpUpdate))
+	require.NoError(t, enf.syncUpdate(fakeExtraConfigMap(), noOpUpdate))
 
 	// Without setting builtin policy, this should fail
 	assert.False(t, enf.Enforce("admin", "applications", "get", "foo/bar"))
@@ -181,6 +257,7 @@ func TestDefaultRole(t *testing.T) {
 	kubeclientset := fake.NewSimpleClientset()
 	enf := NewEnforcer(kubeclientset, fakeNamespace, fakeConfigMapName, nil)
 	require.NoError(t, enf.syncUpdate(fakeConfigMap(), noOpUpdate))
+	require.NoError(t, enf.syncUpdate(fakeExtraConfigMap(), noOpUpdate))
 	_ = enf.SetBuiltinPolicy(assets.BuiltinPolicyCSV)
 
 	assert.False(t, enf.Enforce("bob", "applications", "get", "foo/bar"))
@@ -432,6 +509,22 @@ p, alice, clusters, get, "https://github.com/argo[a-z]{4}/argo-[a-z]+.git", allo
 
 	assert.True(t, enf.Enforce("alice", "clusters", "get", "https://github.com/argoproj/argo-cd.git"))
 	assert.False(t, enf.Enforce("alice", "clusters", "get", "https://github.com/argoproj/1argo-cd.git"))
+}
+
+func TestPolicyRemovedOnExtraConfigMapDelete(t *testing.T) {
+	policy1 := `p, alice, clusters, get, "https://github.com/*/*.git", allow`
+	policy2 := `p, bob, clusters, get, "https://github.com/*/*.git", allow`
+	cm := fakeConfigMap()
+	cm.Data[ConfigMapPolicyCSVKey] = policy1
+	cm2 := fakeExtraConfigMap()
+	cm2.Data[ConfigMapPolicyCSVKey] = policy2
+	kubeclientset := fake.NewSimpleClientset()
+	enf := NewEnforcer(kubeclientset, fakeNamespace, fakeConfigMapName, nil)
+	require.NoError(t, enf.syncUpdate(cm, noOpUpdate))
+	require.NoError(t, enf.syncUpdate(cm2, noOpUpdate))
+	assert.Equal(t, policy1+"\n"+policy2, enf.adapter.userDefinedPolicy)
+	require.NoError(t, enf.syncRemove(cm2, noOpUpdate))
+	assert.Equal(t, policy1, enf.adapter.userDefinedPolicy)
 }
 
 func TestGlobMatchFunc(t *testing.T) {
