@@ -5,6 +5,7 @@ import (
 )
 
 var (
+	// TempDir is set to '/dev/shm' if exists, otherwise is "", which defaults to os.TempDir() when passed to os.CreateTemp()
 	TempDir string
 )
 

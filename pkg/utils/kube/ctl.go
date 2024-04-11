@@ -291,6 +291,7 @@ func (k *KubectlCmd) ManageResources(config *rest.Config, openAPISchema openapi.
 	_ = f.Close()
 	err = WriteKubeConfig(config, "", f.Name())
 	if err != nil {
+		utils.DeleteFile(f.Name())
 		return nil, nil, fmt.Errorf("failed to write kubeconfig: %v", err)
 	}
 	fact := kubeCmdFactory(f.Name(), "", config)

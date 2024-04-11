@@ -64,13 +64,13 @@ func (k *kubectlResourceOperations) runResourceCommand(ctx context.Context, obj 
 	if err != nil {
 		return "", fmt.Errorf("Failed to generate temp file for manifest: %v", err)
 	}
+	defer io.DeleteFile(manifestFile.Name())
 	if _, err = manifestFile.Write(manifestBytes); err != nil {
 		return "", fmt.Errorf("Failed to write manifest: %v", err)
 	}
 	if err = manifestFile.Close(); err != nil {
 		return "", fmt.Errorf("Failed to close manifest: %v", err)
 	}
-	defer io.DeleteFile(manifestFile.Name())
 
 	// log manifest
 	if k.log.V(1).Enabled() {
