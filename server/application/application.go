@@ -472,13 +472,12 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 
 		sources := make([]appv1.ApplicationSource, 0)
 		if a.Spec.HasMultipleSources() {
-			for i := range a.Spec.GetSources() {
-				source := a.Spec.GetSources()[i]
-				if q.GetRevisionSourceMappings() != nil && len(q.GetRevisionSourceMappings()) > 0 {
-					if val, ok := q.GetRevisionSourceMappings()[int64(i+1)]; ok {
-						source.TargetRevision = val
-						a.Spec.GetSources()[i] = source
-					}
+			numOfSources := int64(len(a.Spec.GetSources()))
+			for i, pos := range q.SourcePositions {
+				if pos <= numOfSources {
+					a.Spec.Sources[pos-1].TargetRevision = q.Revisions[i]
+				} else {
+					return fmt.Errorf("source position cannot be greater than number of sources in the application")
 				}
 			}
 			sources = a.Spec.GetSources()
