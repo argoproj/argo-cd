@@ -41,9 +41,6 @@ go_mod_install k8s.io/code-generator/cmd/defaulter-gen
 go_mod_install k8s.io/code-generator/cmd/informer-gen
 go_mod_install k8s.io/code-generator/cmd/lister-gen
 
-# We still install openapi-gen from go.mod since upstream does not utilize release tags
-go_mod_install k8s.io/kube-openapi/cmd/openapi-gen
-
 # controller-gen is run by ./hack/gen-crd-spec to generate the CRDs
 go install sigs.k8s.io/controller-tools/cmd/controller-gen@v0.14.0
 

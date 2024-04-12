@@ -224,7 +224,7 @@ clidocsgen:
 
 
 .PHONY: codegen-local
-codegen-local: mod-vendor-local gogen protogen clientgen openapigen clidocsgen manifests-local notification-docs notification-catalog
+codegen-local: mod-vendor-local gogen protogen clientgen clidocsgen manifests-local notification-docs notification-catalog
 	rm -rf vendor/
 
 .PHONY: codegen-local-fast
