@@ -1164,25 +1164,25 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			errors.CheckError(err)
 			diffOption := &DifferenceOption{}
 			if app.Spec.HasMultipleSources() && len(revisions) > 0 && len(sourcePositions) > 0 {
-
-				revisionSourceMappings := make(map[int64]string, 0)
-				for i, pos := range sourcePositions {
-					if pos <= 0 {
-						errors.CheckError(fmt.Errorf("source-position cannot be less than or equal to 0. Counting starts at 1."))
+				numOfSources := int64(len(app.Spec.GetSources()))
+				for _, pos := range sourcePositions {
+					if pos <= 0 || pos > numOfSources {
+						log.Fatal("source-position cannot be less than 1 or more than number of sources in the app. Counting starts at 1.")
 					}
-					revisionSourceMappings[pos] = revisions[i]
 				}
 
 				q := application.ApplicationManifestQuery{
-					Name:                   &appName,
-					AppNamespace:           &appNs,
-					RevisionSourceMappings: revisionSourceMappings,
+					Name:            &appName,
+					AppNamespace:    &appNs,
+					Revisions:       revisions,
+					SourcePositions: sourcePositions,
 				}
 				res, err := appIf.GetManifests(ctx, &q)
 				errors.CheckError(err)
 
 				diffOption.res = res
-				diffOption.revisionSourceMappings = &revisionSourceMappings
+				diffOption.revisions = revisions
+				diffOption.sourcePositions = sourcePositions
 			} else if revision != "" {
 				q := application.ApplicationManifestQuery{
 					Name:         &appName,
@@ -1240,13 +1240,14 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 
 // DifferenceOption struct to store diff options
 type DifferenceOption struct {
-	local                  string
-	localRepoRoot          string
-	revision               string
-	cluster                *argoappv1.Cluster
-	res                    *repoapiclient.ManifestResponse
-	serversideRes          *repoapiclient.ManifestResponse
-	revisionSourceMappings *map[int64]string
+	local           string
+	localRepoRoot   string
+	revision        string
+	cluster         *argoappv1.Cluster
+	res             *repoapiclient.ManifestResponse
+	serversideRes   *repoapiclient.ManifestResponse
+	revisions       []string
+	sourcePositions []int64
 }
 
 // findandPrintDiff ... Prints difference between application current state and state stored in git or locally, returns boolean as true if difference is found else returns false
@@ -1258,7 +1259,7 @@ func findandPrintDiff(ctx context.Context, app *argoappv1.Application, proj *arg
 	if diffOptions.local != "" {
 		localObjs := groupObjsByKey(getLocalObjects(ctx, app, proj, diffOptions.local, diffOptions.localRepoRoot, argoSettings.AppLabelKey, diffOptions.cluster.Info.ServerVersion, diffOptions.cluster.Info.APIVersions, argoSettings.KustomizeOptions, argoSettings.TrackingMethod), liveObjs, app.Spec.Destination.Namespace)
 		items = groupObjsForDiff(resources, localObjs, items, argoSettings, app.InstanceName(argoSettings.ControllerNamespace), app.Spec.Destination.Namespace)
-	} else if diffOptions.revision != "" || (diffOptions.revisionSourceMappings != nil) {
+	} else if diffOptions.revision != "" || (diffOptions.revisions != nil && len(diffOptions.revisions) > 0) {
 		var unstructureds []*unstructured.Unstructured
 		for _, mfst := range diffOptions.res.Manifests {
 			obj, err := argoappv1.UnmarshalToUnstructured(mfst)
@@ -2768,6 +2769,12 @@ func NewApplicationManifestsCommand(clientOpts *argocdclient.ClientOptions) *cob
 				errors.CheckError(fmt.Errorf("While using revisions and source-positions, length of values for both flags should be same."))
 			}
 
+			for _, pos := range sourcePositions {
+				if pos <= 0 {
+					log.Fatal("source-position cannot be less than or equal to 0, Counting starts at 1")
+				}
+			}
+
 			appName, appNs := argo.ParseFromQualifiedName(args[0], "")
 			clientset := headless.NewClientOrDie(clientOpts, c)
 			conn, appIf := clientset.NewApplicationClientOrDie()
@@ -2800,19 +2807,12 @@ func NewApplicationManifestsCommand(clientOpts *argocdclient.ClientOptions) *cob
 					unstructureds = getLocalObjects(context.Background(), app, proj.Project, local, localRepoRoot, argoSettings.AppLabelKey, cluster.ServerVersion, cluster.Info.APIVersions, argoSettings.KustomizeOptions, argoSettings.TrackingMethod)
 				} else if len(revisions) > 0 && len(sourcePositions) > 0 {
 
-					revisionSourceMappings := make(map[int64]string, 0)
-					for i, pos := range sourcePositions {
-						if pos <= 0 {
-							errors.CheckError(fmt.Errorf("source-position cannot be less than or equal to 0, Counting starts at 1"))
-						}
-						revisionSourceMappings[pos] = revisions[i]
-					}
-
 					q := application.ApplicationManifestQuery{
-						Name:                   &appName,
-						AppNamespace:           &appNs,
-						Revision:               pointer.String(revision),
-						RevisionSourceMappings: revisionSourceMappings,
+						Name:            &appName,
+						AppNamespace:    &appNs,
+						Revision:        pointer.String(revision),
+						Revisions:       revisions,
+						SourcePositions: sourcePositions,
 					}
 					res, err := appIf.GetManifests(ctx, &q)
 					errors.CheckError(err)
