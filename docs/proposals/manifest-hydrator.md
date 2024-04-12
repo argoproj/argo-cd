@@ -258,6 +258,75 @@ The `spec.sourceHydrator.drySource` field contains only three fields: `repoURL`,
 
 `spec.source` contains a number of fields for configuring manifest hydration tools (`helm`, `kustomize`, and `directory`). That functionality is still available for `spec.sourceHydrator`. But instead of being configured in the Application CR, those values are set in `.argocd-source.yaml`, an existing "override" mechanism for `spec.source`. By requiring that this configuration be set in `.argocd-source.yaml`, we respect the principle that all changes must be made in git instead of in the Application CR.
 
+### `spec.destination.namespace` Behavior
+
+The Application `spec.destination.namespace` field is used to set the `metadata.namespace` field of any namespace resources for which that field is not set in the manifests.
+
+The hydrator will not inject `metadata.namespace` into the hydrated manifests pushed to git. Instead, Argo CD's behavior of injecting that value immediately before applying to the cluster will continue to be used with the `spec.sourceHydrator.syncSource`.
+
+### Build Environment Support
+
+For sources specified in `spec.source` or `spec.sources`, Argo CD [sets certain environment variables](https://argo-cd.readthedocs.io/en/stable/user-guide/build-environment/) before running the manifest hydration tool.
+
+Some of these environment variables may change independently of the dry source and therefore break the reproducibility of manifest hydration (see the [Opinions](#opinions) section). Therefore, only some environment variables will be populated for the `spec.sourceHydrator` source.
+
+These environment variables will **not** be set:
+
+* `ARGOCD_APP_NAME`
+* `ARGOCD_APP_NAMESPACE`
+* `KUBE_VERSION`
+* `KUBE_API_VERSIONS`
+
+These environment variables will be set because they are commit SHAs and are directly and immutably tied to the dry manifest commit:
+
+* `ARGOCD_APP_REVISION`
+* `ARGOCD_APP_REVISION_SHORT`
+
+These environment variables will be set because they are inherently tied to the manifest hydrator configuration. If these fields set in `spec.sourceHydrator.drySource` change, we are breaking the connection to the original hydrator configuration anyway.
+
+* `ARGOCD_APP_SOURCE_PATH`
+* `ARGOCD_APP_SOURCE_REPO_URL`
+* `ARGOCD_APP_SOURCE_TARGET_REVISION`
+
+### Support for Helm-Specific Features
+
+#### App Name / Release Name
+
+By default, Argo CD's `source` and `sources` fields use the Application's name as the release name when hydrating Helm manifests.
+
+To centralize the source of truth when using `spec.sourceHydrator`, the default release name will be an empty string, and any different release name should be specified in the `helm.releaseName` field in `.argocd-source.yaml`.
+
+#### Kube API Versions
+
+`helm install` supports dynamically reading Kube API versions from the destination cluster to adjust manifest output. `helm template` accepts a list of Kube API versions to simulate the same behavior, and Argo CD's `spec.source` and `spec.sources` fields set those API versions when running `helm template`.
+
+To centralize the source of truth when using `spec.sourceHydrator`, the Kube API versions will not be populated by default.
+
+Instead, a new field will be added to the Application's `spec.source.helm` field:
+
+```yaml
+kind: Application
+spec:
+  source:
+    helm:
+      apiVersions:
+        - admissionregistration.k8s.io/v1/MutatingWebhookConfiguration
+        - admissionregistration.k8s.io/v1/ValidatingWebhookConfiguration
+        - ... etc.
+```
+
+That field will also be available in `.argocd-source.yaml`:
+
+```yaml
+helm:
+  apiVersions:
+    - admissionregistration.k8s.io/v1/MutatingWebhookConfiguration
+    - admissionregistration.k8s.io/v1/ValidatingWebhookConfiguration
+    - ... etc.
+```
+
+So the appropriate way to set Kube API versions for the source hydrator will be to populate the `.argocd-source.yaml` file.
+
 ### Commit Metadata
 
 Each output directory should contain two files: manifest.yaml and README.md. manifest.yaml should contain the plain hydrated manifests. The resources should be sorted by namespace, name, group, and kind (in that order).
