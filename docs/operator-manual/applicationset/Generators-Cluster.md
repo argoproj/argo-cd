@@ -136,6 +136,29 @@ However, if you do wish to target both local and non-local clusters, while also 
 
 These steps might seem counterintuitive, but the act of changing one of the default values for the local cluster causes the Argo CD Web UI to create a new secret for this cluster. In the Argo CD namespace, you should now see a Secret resource named `cluster-(cluster suffix)` with label `argocd.argoproj.io/secret-type": "cluster"`. You may also create a local [cluster secret declaratively](../../declarative-setup/#clusters), or with the CLI using `argocd cluster add "(context name)" --in-cluster`, rather than through the Web UI.
 
+### Fetch clusters based on their K8s version
+
+There is also the possibility to fetch clusters based upon their Kubernetes version. To do this, the label `argocd.argoproj.io/auto-label-cluster-info` needs to be set to `true` on the cluster secret. 
+Once that has been set, the controller will dynamically label the cluster secret with the Kubernetes version it is running on. To retrieve that value, you need to use the
+`argocd.argoproj.io/kubernetes-version`, as the example below demonstrates:
+
+```yaml
+spec:
+  goTemplate: true
+  generators:
+  - clusters:
+      selector:
+        matchLabels:
+          argocd.argoproj.io/kubernetes-version: 1.28
+        # matchExpressions are also supported.
+        #matchExpressions:
+        #  - key: argocd.argoproj.io/kubernetes-version
+        #    operator: In
+        #    values:
+        #      - "1.27"
+        #      - "1.28"
+```
+
 ### Pass additional key-value pairs via `values` field
 
 You may pass additional, arbitrary string key-value pairs via the `values` field of the cluster generator. Values added via the `values` field are added as `values.(field)`
