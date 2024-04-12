@@ -27,7 +27,7 @@ The Slack notification service configuration includes following settings:
 ![3](![alt text](image.png)
 1. `OAuth & Permission` > `OAuth Tokens for Your Workspace` > `Install to Workspace`
 ![4](https://private-user-images.githubusercontent.com/11594858/322147111-fbbf7f88-6291-4eeb-aa9f-b72f9325b789.png?jwt=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJnaXRodWIuY29tIiwiYXVkIjoicmF3LmdpdGh1YnVzZXJjb250ZW50LmNvbSIsImtleSI6ImtleTUiLCJleHAiOjE3MTI5NTk0MjcsIm5iZiI6MTcxMjk1OTEyNywicGF0aCI6Ii8xMTU5NDg1OC8zMjIxNDcxMTEtZmJiZjdmODgtNjI5MS00ZWViLWFhOWYtYjcyZjkzMjViNzg5LnBuZz9YLUFtei1BbGdvcml0aG09QVdTNC1ITUFDLVNIQTI1NiZYLUFtei1DcmVkZW50aWFsPUFLSUFWQ09EWUxTQTUzUFFLNFpBJTJGMjAyNDA0MTIlMkZ1cy1lYXN0LTElMkZzMyUyRmF3czRfcmVxdWVzdCZYLUFtei1EYXRlPTIwMjQwNDEyVDIxNTg0N1omWC1BbXotRXhwaXJlcz0zMDAmWC1BbXotU2lnbmF0dXJlPWM4MGNlYjVmZWZjMjliNTM0OTFkNjk5ZWExYzFjZGZhYWI5YjYwYjQ1ZDdkZjgwYmU3YmFkNWE1OGZmZGNmNWMmWC1BbXotU2lnbmVkSGVhZGVycz1ob3N0JmFjdG9yX2lkPTAma2V5X2lkPTAmcmVwb19pZD0wIn0.PvnGP2_txLwhXlHMBKC3tSfhHDr_s1HpAor1pTEEvL4)
-1. Once installation is completed copy the OAuth token.
+1. Once installation is completed copy the OAuth token from `OAuth Tokens for Your Workspace`.
 ![5](https://user-images.githubusercontent.com/426437/73604312-4d495b80-4543-11ea-832b-a9d9d5e4bc29.png)
 
 1. Create a public or private channel, for this example `my_channel`
