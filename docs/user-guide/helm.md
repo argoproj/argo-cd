@@ -25,8 +25,27 @@ spec:
     namespace: kubeseal
 ```
 
+Another example using a public OCI helm chart:
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: nginx
+spec:
+  project: default
+  source:
+    chart: nginx
+    repoURL: registry-1.docker.io/bitnamicharts  # note: the oci:// syntax is not included.
+    targetRevision: 15.9.0
+  destination:
+    name: "in-cluster"
+    namespace: nginx
+```
+
 !!! note "When using multiple ways to provide values"
     Order of precedence is `parameters > valuesObject > values > valueFiles > helm repository values.yaml` (see [Here](./helm.md#helm-value-precedence) for a more detailed example)
+
+See [here](../operator-manual/declarative-setup.md#helm-chart-repositories) for more info about how to configure private Helm repositories.
 
 ## Values Files
 
@@ -142,7 +161,7 @@ Precedence of valueFiles themselves is the order they are defined in
 ```
 if we have
 
-valuesFile:
+valueFiles:
   - values-file-2.yaml
   - values-file-1.yaml
 
@@ -178,7 +197,7 @@ values: |
 the result will be param1=value5
 ```
 
-!!! note "When valuesFiles or values is used"
+!!! note "When valueFiles or values is used"
     The list of parameters seen in the ui is not what is used for resources, rather it is the values/valuesObject merged with parameters (see [this issue](https://github.com/argoproj/argo-cd/issues/9213) incase it has been resolved)
     As a workaround using parameters instead of values/valuesObject will provide a better overview of what will be used for resources
 

@@ -975,6 +975,25 @@
             "type": "string",
             "name": "project",
             "in": "query"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "int64"
+            },
+            "collectionFormat": "multi",
+            "name": "sourcePositions",
+            "in": "query"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi",
+            "name": "revisions",
+            "in": "query"
           }
         ],
         "responses": {
@@ -5664,6 +5683,10 @@
           "type": "string",
           "title": "ClusterName contains AWS cluster name"
         },
+        "profile": {
+          "description": "Profile contains optional role ARN. If set then AWS IAM Authenticator uses the profile to perform cluster operations instead of the default AWS credential provider chain.",
+          "type": "string"
+        },
         "roleARN": {
           "description": "RoleARN contains optional role ARN. If set then AWS IAM Authenticator assume a role to perform cluster operations instead of the default AWS credential provider chain.",
           "type": "string"
@@ -6419,6 +6442,10 @@
           "items": {
             "type": "string"
           }
+        },
+        "labelWithoutSelector": {
+          "type": "boolean",
+          "title": "LabelWithoutSelector specifies whether to apply common labels to resource selectors or not"
         },
         "namePrefix": {
           "type": "string",
@@ -7405,6 +7432,7 @@
       "properties": {
         "elements": {
           "type": "array",
+          "title": "+kubebuilder:validation:Optional",
           "items": {
             "$ref": "#/definitions/v1JSON"
           }

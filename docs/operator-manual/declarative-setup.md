@@ -549,6 +549,7 @@ bearerToken: string
 awsAuthConfig:
     clusterName: string
     roleARN: string
+    profile: string
 # Configure external command to supply client credentials
 # See https://godoc.org/k8s.io/client-go/tools/clientcmd/api#ExecConfig
 execProviderConfig:
@@ -669,9 +670,9 @@ extended to allow assumption of multiple roles, either as an explicit array of r
     "Statement" : {
       "Effect" : "Allow",
       "Action" : "sts:AssumeRole",
-      "Principal" : {
-        "AWS" : "<arn:aws:iam::<AWS_ACCOUNT_ID>:role/<IAM_ROLE_NAME>"
-      }
+      "Resource" : [
+        "<arn:aws:iam::<AWS_ACCOUNT_ID>:role/<IAM_ROLE_NAME>"
+      ]
     }
   }
 ```
@@ -731,6 +732,140 @@ data:
       "rolearn": "<arn:aws:iam::<AWS_ACCOUNT_ID>:role/<IAM_ROLE_NAME>"
       "username": "<some-username>"
 ```
+
+#### Alternative EKS Authentication Methods
+In some scenarios it may not be possible to use IRSA, such as when the Argo CD cluster is running on a different cloud
+provider's platform. In this case, there are two options:
+1. Use `execProviderConfig` to call the AWS authentication mechanism which enables the injection of environment variables to supply credentials
+2. Leverage the new AWS profile option available in Argo CD release 2.10
+
+Both of these options will require the steps involving IAM and the `aws-auth` config map (defined above) to provide the 
+principal with access to the cluster.
+
+##### Using execProviderConfig with Environment Variables
+```yaml
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: mycluster-secret
+  labels:
+    argocd.argoproj.io/secret-type: cluster
+type: Opaque
+stringData:
+  name: mycluster
+  server: https://mycluster.example.com
+  namespaces: "my,managed,namespaces"
+  clusterResources: "true"
+  config: |
+    {
+      "execProviderConfig": {
+        "command": "argocd-k8s-auth",
+        "args": ["aws", "--cluster-name", "my-eks-cluster"],
+        "apiVersion": "client.authentication.k8s.io/v1beta1",
+        "env": {
+          "AWS_REGION": "xx-east-1",
+          "AWS_ACCESS_KEY_ID": "{{ .aws_key_id }}",
+          "AWS_SECRET_ACCESS_KEY": "{{ .aws_key_secret }}",
+          "AWS_SESSION_TOKEN": "{{ .aws_token }}"
+        }
+      },
+      "tlsClientConfig": {
+        "insecure": false,
+        "caData": "{{ .cluster_cert }}"
+      }
+    }
+```
+
+This example assumes that the role being attached to the credentials that have been supplied, if this is not the case
+the role can be appended to the `args` section like so:
+
+```yaml
+...
+    "args": ["aws", "--cluster-name", "my-eks-cluster", "--roleARN", "arn:aws:iam::<AWS_ACCOUNT_ID>:role/<IAM_ROLE_NAME>"],
+...
+```
+This construct can be used in conjunction with something like the External Secrets Operator to avoid storing the keys in
+plain text and additionally helps to provide a foundation for key rotation.
+
+##### Using An AWS Profile For Authentication
+The option to use profiles, added in release 2.10, provides a method for supplying credentials while still using the
+standard Argo CD EKS cluster declaration with an additional command flag that points to an AWS credentials file:
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: mycluster-secret
+  labels:
+    argocd.argoproj.io/secret-type: cluster
+type: Opaque
+stringData:
+  name: "mycluster.com"
+  server: "https://mycluster.com"
+  config: |
+    {
+      "awsAuthConfig": {
+        "clusterName": "my-eks-cluster-name",
+        "roleARN": "arn:aws:iam::<AWS_ACCOUNT_ID>:role/<IAM_ROLE_NAME>",
+        "profile": "/mount/path/to/my-profile-file"
+      },
+      "tlsClientConfig": {
+        "insecure": false,
+        "caData": "<base64 encoded certificate>"
+      }        
+    }
+```
+This will instruct ArgoCD to read the file at the provided path and use the credentials defined within to authenticate to
+AWS. The profile must be mounted in order for this to work. For example, the following values can be defined in a Helm
+based ArgoCD deployment:
+
+```yaml
+controller:
+  extraVolumes:
+    - name: my-profile-volume
+      secret:
+        secretName: my-aws-profile
+        items:
+          - key: my-profile-file
+            path: my-profile-file
+  extraVolumeMounts:
+    - name: my-profile-mount
+      mountPath: /mount/path/to
+      readOnly: true
+
+server:
+  extraVolumes:
+    - name: my-profile-volume
+      secret:
+        secretName: my-aws-profile
+        items:
+          - key: my-profile-file
+            path: my-profile-file
+  extraVolumeMounts:
+    - name: my-profile-mount
+      mountPath: /mount/path/to
+      readOnly: true
+```
+
+Where the secret is defined as follows:
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-aws-profile
+type: Opaque
+stringData:
+  my-profile-file: |
+    [default]
+    region = <aws_region>
+    aws_access_key_id = <aws_access_key_id>
+    aws_secret_access_key = <aws_secret_access_key>
+    aws_session_token = <aws_session_token>
+```
+
+> ⚠️ Secret mounts are updated on an interval, not real time. If rotation is a requirement ensure the token lifetime outlives the mount update interval and the rotation process doesn't immediately invalidate the existing token
+
+
 ### GKE
 
 GKE cluster secret example using argocd-k8s-auth and [Workload Identity](https://cloud.google.com/kubernetes-engine/docs/how-to/workload-identity):
@@ -788,6 +923,15 @@ In addition to the environment variables above, argocd-k8s-auth accepts two extr
 
 This is an example of using the [federated workload login flow](https://github.com/Azure/kubelogin#azure-workload-federated-identity-non-interactive).  The federated token file needs to be mounted as a secret into argoCD, so it can be used in the flow.  The location of the token file needs to be set in the environment variable AZURE_FEDERATED_TOKEN_FILE.
 
+If your AKS cluster utilizes the [Mutating Admission Webhook](https://azure.github.io/azure-workload-identity/docs/installation/mutating-admission-webhook.html) from the Azure Workload Identity project, follow these steps to enable the `argocd-application-controller` and `argocd-server` pods to use the federated identity:
+
+1. **Label the Pods**: Add the `azure.workload.identity/use: "true"` label to the `argocd-application-controller` and `argocd-server` pods.
+
+2. **Create Federated Identity Credential**: Generate an Azure federated identity credential for the `argocd-application-controller` and `argocd-server` service accounts. Refer to the [Federated Identity Credential](https://azure.github.io/azure-workload-identity/docs/topics/federated-identity-credential.html) documentation for detailed instructions.
+
+3. **Set the AZURE_CLIENT_ID**: Update the `AZURE_CLIENT_ID` in the cluster secret to match the client id of the newly created federated identity credential.
+
+
 ```yaml
 apiVersion: v1
 kind: Secret
@@ -806,9 +950,9 @@ stringData:
         "env": {
           "AAD_ENVIRONMENT_NAME": "AzurePublicCloud",
           "AZURE_CLIENT_ID": "fill in client id",
-          "AZURE_TENANT_ID": "fill in tenant id",
-          "AZURE_FEDERATED_TOKEN_FILE": "/opt/path/to/federated_file.json",
-          "AZURE_AUTHORITY_HOST": "https://login.microsoftonline.com/",
+          "AZURE_TENANT_ID": "fill in tenant id", # optional, injected by workload identity mutating admission webhook if enabled
+          "AZURE_FEDERATED_TOKEN_FILE": "/opt/path/to/federated_file.json", # optional, injected by workload identity mutating admission webhook if enabled
+          "AZURE_AUTHORITY_HOST": "https://login.microsoftonline.com/", # optional, injected by workload identity mutating admission webhook if enabled
           "AAD_LOGIN_METHOD": "workloadidentity"
         },
         "args": ["azure"],
@@ -1001,7 +1145,7 @@ Example of `kustomization.yaml`:
 ```yaml
 # additional resources like ingress rules, cluster and repository secrets.
 resources:
-- github.com/argoproj/argo-cd//manifests/cluster-install?ref=v1.0.1
+- github.com/argoproj/argo-cd//manifests/cluster-install?ref=stable
 - clusters-secrets.yaml
 - repos-secrets.yaml
 
