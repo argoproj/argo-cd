@@ -1500,29 +1500,59 @@ func (s *Server) RevisionMetadata(ctx context.Context, q *application.RevisionMe
 	}
 
 	var source *v1alpha1.ApplicationSource
-	if a.Spec.HasMultipleSources() {
-		// If the historical data is empty (because the app hasn't been synced yet)
-		// we can use the source, if not (the app has been synced at least once)
-		// we have to use the history because sources can be added/removed
-		if len(a.Status.History) == 0 {
+
+	// To support changes between single source and multi source revisions
+	// we have to calculate if the operation has to be done as multisource or not.
+	// There are 2 different scenarios, checking current revision and historic revision
+	// - Current revision (VersionId is nil or 0):
+	// 		- The application is multi source and required version too -> multi source
+	// 		- The application is single source and the required version too -> single source
+	// 		- The application is multi source and the required version is single source -> single source
+	// 		- The application is single source and the required version is multi source -> multi source
+	// - Historic revision:
+	// 		- The application is multi source and the previous one too -> multi source
+	// 		- The application is single source and the previous one too -> single source
+	// 		- The application is multi source and the previous one is single source -> multi source
+	// 		- The application is single source and the previous one is multi source -> single source
+	isRevisionMultiSource := a.Spec.HasMultipleSources()
+	emptyHistory := len(a.Status.History) == 0
+	if !emptyHistory {
+		for _, h := range a.Status.History {
+			if h.ID == int64(*q.VersionId) {
+				isRevisionMultiSource = len(h.Revisions) > 0
+				break
+			}
+		}
+	}
+
+	// If the historical data is empty (because the app hasn't been synced yet)
+	// we can use the source, if not (the app has been synced at least once)
+	// we have to use the history because sources can be added/removed
+	if emptyHistory {
+		if isRevisionMultiSource {
 			source = &a.Spec.Sources[*q.SourceIndex]
 		} else {
-			// the source count can change during the time, we cannot just trust in .status.sync
-			// because if a source has been added/removed, the revisions there won't match
-			// as this is only used for the UI and not internally, we can use the historical data
-			// using the specific revisionId
-			for _, h := range a.Status.History {
-				if h.ID == int64(*q.VersionId) {
+			s := a.Spec.GetSource()
+			source = &s
+		}
+	} else {
+		// the source count can change during the time, we cannot just trust in .status.sync
+		// because if a source has been added/removed, the revisions there won't match
+		// as this is only used for the UI and not internally, we can use the historical data
+		// using the specific revisionId
+		for _, h := range a.Status.History {
+			if h.ID == int64(*q.VersionId) {
+				h := h
+				if isRevisionMultiSource {
 					source = &h.Sources[*q.SourceIndex]
+				} else {
+					source = &h.Source
 				}
 			}
 		}
-		if source == nil {
-			return nil, fmt.Errorf("revision not found: %w", err)
-		}
-	} else {
-		s := a.Spec.GetSource()
-		source = &s
+	}
+	if source == nil {
+		return nil, fmt.Errorf("revision not found: %w", err)
 	}
 
 	repo, err := s.db.GetRepository(ctx, source.RepoURL, proj.Name)

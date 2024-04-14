@@ -345,6 +345,11 @@ func (s *Server) GetAppDetails(ctx context.Context, q *repositorypkg.RepoAppDeta
 	if err != nil {
 		return nil, err
 	}
+	refSources, err := s.getRefSourcesFromHistory(app, *q.Source, q.SourceIndex, q.VersionId)
+	if err != nil {
+		return nil, err
+	}
+
 	return repoClient.GetAppDetails(ctx, &apiclient.RepoServerAppDetailsQuery{
 		Repo:             repo,
 		Source:           q.Source,
@@ -352,6 +357,7 @@ func (s *Server) GetAppDetails(ctx context.Context, q *repositorypkg.RepoAppDeta
 		KustomizeOptions: kustomizeOptions,
 		HelmOptions:      helmOptions,
 		AppName:          q.AppName,
+		RefSources:       refSources,
 	})
 }
 
@@ -601,7 +607,8 @@ func (s *Server) isRepoPermittedInProject(ctx context.Context, repo string, proj
 // isSourceInHistory checks if the supplied application source is either our current application
 // source, or was something which we synced to previously.
 func isSourceInHistory(app *v1alpha1.Application, source v1alpha1.ApplicationSource, index int32, versionId int32) bool {
-
+	// We have to check if the spec is within the source or sources split
+	// and then iterate over the historical
 	if app.Spec.HasMultipleSources() {
 		appSources := app.Spec.GetSources()
 		for _, s := range appSources {
@@ -609,10 +616,22 @@ func isSourceInHistory(app *v1alpha1.Application, source v1alpha1.ApplicationSou
 				return true
 			}
 		}
+	} else {
+		appSource := app.Spec.GetSource()
+		if source.Equals(&appSource) {
+			return true
+		}
+	}
 
-		// In case of multi source apps, we have to check the specific versionID because users
-		// could have removed/added new sources and we cannot check all the versions due to that
-		for _, h := range app.Status.History {
+	// Iterate history. When comparing items in our history, use the actual synced revision to
+	// compare with the supplied source.targetRevision in the request. This is because
+	// history[].source.targetRevision is ambiguous (e.g. HEAD), whereas
+	// history[].revision will contain the explicit SHA
+	// In case of multi source apps, we have to check the specific versionID because users
+	// could have removed/added new sources and we cannot check all the versions due to that
+	for _, h := range app.Status.History {
+		// multi source revision
+		if len(h.Sources) > 0 {
 			if h.ID == int64(versionId) {
 				if h.Revisions == nil {
 					continue
@@ -622,24 +641,41 @@ func isSourceInHistory(app *v1alpha1.Application, source v1alpha1.ApplicationSou
 					return true
 				}
 			}
-		}
-		return false
-	}
-
-	appSource := app.Spec.GetSource()
-	if source.Equals(&appSource) {
-		return true
-	}
-	// Iterate history. When comparing items in our history, use the actual synced revision to
-	// compare with the supplied source.targetRevision in the request. This is because
-	// history[].source.targetRevision is ambiguous (e.g. HEAD), whereas
-	// history[].revision will contain the explicit SHA
-	for _, h := range app.Status.History {
-		h.Source.TargetRevision = h.Revision
-		if source.Equals(&h.Source) {
-			return true
+		} else { // single source revision
+			h.Source.TargetRevision = h.Revision
+			if source.Equals(&h.Source) {
+				return true
+			}
 		}
 	}
 
 	return false
+}
+
+// getRefSourcesFromHistory returns the RefSources based on the historical data
+func (s *Server) getRefSourcesFromHistory(app *v1alpha1.Application, source v1alpha1.ApplicationSource, index int32, versionId int32) (v1alpha1.RefTargetRevisionMapping, error) {
+	for _, h := range app.Status.History {
+		// As RefSources are only available for multisource apps,
+		// single source apps are discarded
+		if len(h.Sources) > 0 {
+			if h.ID == int64(versionId) {
+				if h.Revisions == nil {
+					continue
+				}
+				revisionSource := &h.Sources[index]
+				revisionSource.TargetRevision = h.Revisions[index]
+				if !source.Equals(revisionSource) {
+					continue
+				}
+				return argo.GetRefSources(context.Background(), argo.GetRefSourcesOptions{
+					Sources:    h.Sources,
+					Db:         s.db,
+					Revisions:  h.Revisions,
+					IsRollback: true,
+				})
+			}
+		}
+	}
+
+	return nil, nil
 }
