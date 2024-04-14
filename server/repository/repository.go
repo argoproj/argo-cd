@@ -345,10 +345,6 @@ func (s *Server) GetAppDetails(ctx context.Context, q *repositorypkg.RepoAppDeta
 	if err != nil {
 		return nil, err
 	}
-	refSources, err := s.getRefSourcesFromHistory(app, *q.Source, q.SourceIndex, q.VersionId)
-	if err != nil {
-		return nil, err
-	}
 
 	return repoClient.GetAppDetails(ctx, &apiclient.RepoServerAppDetailsQuery{
 		Repo:             repo,
@@ -357,7 +353,6 @@ func (s *Server) GetAppDetails(ctx context.Context, q *repositorypkg.RepoAppDeta
 		KustomizeOptions: kustomizeOptions,
 		HelmOptions:      helmOptions,
 		AppName:          q.AppName,
-		RefSources:       refSources,
 	})
 }
 
@@ -650,32 +645,4 @@ func isSourceInHistory(app *v1alpha1.Application, source v1alpha1.ApplicationSou
 	}
 
 	return false
-}
-
-// getRefSourcesFromHistory returns the RefSources based on the historical data
-func (s *Server) getRefSourcesFromHistory(app *v1alpha1.Application, source v1alpha1.ApplicationSource, index int32, versionId int32) (v1alpha1.RefTargetRevisionMapping, error) {
-	for _, h := range app.Status.History {
-		// As RefSources are only available for multisource apps,
-		// single source apps are discarded
-		if len(h.Sources) > 0 {
-			if h.ID == int64(versionId) {
-				if h.Revisions == nil {
-					continue
-				}
-				revisionSource := &h.Sources[index]
-				revisionSource.TargetRevision = h.Revisions[index]
-				if !source.Equals(revisionSource) {
-					continue
-				}
-				return argo.GetRefSources(context.Background(), argo.GetRefSourcesOptions{
-					Sources:    h.Sources,
-					Db:         s.db,
-					Revisions:  h.Revisions,
-					IsRollback: true,
-				})
-			}
-		}
-	}
-
-	return nil, nil
 }
