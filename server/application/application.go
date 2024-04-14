@@ -1499,6 +1499,11 @@ func (s *Server) RevisionMetadata(ctx context.Context, q *application.RevisionMe
 		return nil, err
 	}
 
+	var versionId int64 = 0
+	if q.VersionId != nil {
+		versionId = int64(*q.VersionId)
+	}
+
 	var source *v1alpha1.ApplicationSource
 
 	// To support changes between single source and multi source revisions
@@ -1518,7 +1523,7 @@ func (s *Server) RevisionMetadata(ctx context.Context, q *application.RevisionMe
 	emptyHistory := len(a.Status.History) == 0
 	if !emptyHistory {
 		for _, h := range a.Status.History {
-			if h.ID == int64(*q.VersionId) {
+			if h.ID == versionId {
 				isRevisionMultiSource = len(h.Revisions) > 0
 				break
 			}
@@ -1541,7 +1546,7 @@ func (s *Server) RevisionMetadata(ctx context.Context, q *application.RevisionMe
 		// as this is only used for the UI and not internally, we can use the historical data
 		// using the specific revisionId
 		for _, h := range a.Status.History {
-			if h.ID == int64(*q.VersionId) {
+			if h.ID == versionId {
 				h := h
 				if isRevisionMultiSource {
 					source = &h.Sources[*q.SourceIndex]
