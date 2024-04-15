@@ -3333,7 +3333,7 @@ func TestSetApplicationSetApplicationStatus(t *testing.T) {
 
 		t.Run(cc.name, func(t *testing.T) {
 
-			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&cc.appSet).Build()
+			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&cc.appSet).WithStatusSubresource(&cc.appSet).Build()
 
 			r := ApplicationSetReconciler{
 				Client:   client,
@@ -5353,7 +5353,7 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 			argoDBMock := dbmocks.ArgoDB{}
 			argoObjs := []runtime.Object{}
 
-			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&cc.appSet).Build()
+			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&cc.appSet).WithStatusSubresource(&cc.appSet).Build()
 
 			r := ApplicationSetReconciler{
 				Client:           client,
@@ -6107,7 +6107,7 @@ func TestUpdateApplicationSetApplicationStatusProgress(t *testing.T) {
 			argoDBMock := dbmocks.ArgoDB{}
 			argoObjs := []runtime.Object{}
 
-			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&cc.appSet).Build()
+			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&cc.appSet).WithStatusSubresource(&cc.appSet).Build()
 
 			r := ApplicationSetReconciler{
 				Client:           client,
