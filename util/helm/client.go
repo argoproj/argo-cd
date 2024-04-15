@@ -8,7 +8,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	executil "github.com/argoproj/argo-cd/v2/util/exec"
 	"io"
 	"net/http"
 	"net/url"
@@ -18,6 +17,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	executil "github.com/argoproj/argo-cd/v2/util/exec"
 
 	"github.com/argoproj/pkg/sync"
 	log "github.com/sirupsen/logrus"
@@ -34,6 +35,8 @@ import (
 var (
 	globalLock = sync.NewKeyLock()
 	indexLock  = sync.NewKeyLock()
+
+	OCINotEnabledErr = errors.New("could not perform the action when oci is not enabled")
 )
 
 type Creds struct {
@@ -53,7 +56,7 @@ type indexCache interface {
 type Client interface {
 	CleanChartCache(chart string, version string) error
 	ExtractChart(chart string, version string, passCredentials bool, manifestMaxExtractedSize int64, disableManifestMaxExtractedSize bool) (string, argoio.Closer, error)
-	GetIndex(noCache bool) (*Index, error)
+	GetIndex(noCache bool, maxIndexSize int64) (*Index, error)
 	GetTags(chart string, noCache bool) (*TagsList, error)
 	TestHelmOCI() (bool, error)
 }
@@ -227,7 +230,7 @@ func (c *nativeHelmChart) ExtractChart(chart string, version string, passCredent
 	}), nil
 }
 
-func (c *nativeHelmChart) GetIndex(noCache bool) (*Index, error) {
+func (c *nativeHelmChart) GetIndex(noCache bool, maxIndexSize int64) (*Index, error) {
 	indexLock.Lock(c.repoURL)
 	defer indexLock.Unlock(c.repoURL)
 
@@ -241,7 +244,7 @@ func (c *nativeHelmChart) GetIndex(noCache bool) (*Index, error) {
 	if len(data) == 0 {
 		start := time.Now()
 		var err error
-		data, err = c.loadRepoIndex()
+		data, err = c.loadRepoIndex(maxIndexSize)
 		if err != nil {
 			return nil, err
 		}
@@ -294,7 +297,7 @@ func (c *nativeHelmChart) TestHelmOCI() (bool, error) {
 	return true, nil
 }
 
-func (c *nativeHelmChart) loadRepoIndex() ([]byte, error) {
+func (c *nativeHelmChart) loadRepoIndex(maxIndexSize int64) ([]byte, error) {
 	indexURL, err := getIndexURL(c.repoURL)
 	if err != nil {
 		return nil, err
@@ -329,7 +332,7 @@ func (c *nativeHelmChart) loadRepoIndex() ([]byte, error) {
 	if resp.StatusCode != http.StatusOK {
 		return nil, errors.New("failed to get index: " + resp.Status)
 	}
-	return io.ReadAll(resp.Body)
+	return io.ReadAll(io.LimitReader(resp.Body, maxIndexSize))
 }
 
 func newTLSConfig(creds Creds) (*tls.Config, error) {
@@ -401,6 +404,10 @@ func getIndexURL(rawURL string) (string, error) {
 }
 
 func (c *nativeHelmChart) GetTags(chart string, noCache bool) (*TagsList, error) {
+	if !c.enableOci {
+		return nil, OCINotEnabledErr
+	}
+
 	tagsURL := strings.Replace(fmt.Sprintf("%s/%s", c.repoURL, chart), "https://", "", 1)
 	indexLock.Lock(tagsURL)
 	defer indexLock.Unlock(tagsURL)
@@ -428,10 +435,12 @@ func (c *nativeHelmChart) GetTags(chart string, noCache bool) (*TagsList, error)
 			TLSClientConfig:   tlsConf,
 			DisableKeepAlives: true,
 		}}
+
+		repoHost, _, _ := strings.Cut(tagsURL, "/")
 		repo.Client = &auth.Client{
 			Client: client,
 			Cache:  nil,
-			Credential: auth.StaticCredential(c.repoURL, auth.Credential{
+			Credential: auth.StaticCredential(repoHost, auth.Credential{
 				Username: c.creds.Username,
 				Password: c.creds.Password,
 			}),

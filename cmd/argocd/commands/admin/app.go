@@ -24,6 +24,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/controller"
 	"github.com/argoproj/argo-cd/v2/controller/cache"
 	"github.com/argoproj/argo-cd/v2/controller/metrics"
+	"github.com/argoproj/argo-cd/v2/controller/sharding"
 	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
@@ -269,18 +270,26 @@ func NewReconcileCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command 
 
 			var result []appReconcileResult
 			if refresh {
+				appClientset := appclientset.NewForConfigOrDie(cfg)
+				kubeClientset := kubernetes.NewForConfigOrDie(cfg)
 				if repoServerAddress == "" {
 					printLine("Repo server is not provided, trying to port-forward to argocd-repo-server pod.")
 					overrides := clientcmd.ConfigOverrides{}
-					repoServerPodLabelSelector := common.LabelKeyAppName + "=" + clientOpts.RepoServerName
+					repoServerName := clientOpts.RepoServerName
+					repoServerServiceLabelSelector := common.LabelKeyComponentRepoServer + "=" + common.LabelValueComponentRepoServer
+					repoServerServices, err := kubeClientset.CoreV1().Services(namespace).List(context.Background(), v1.ListOptions{LabelSelector: repoServerServiceLabelSelector})
+					errors.CheckError(err)
+					if len(repoServerServices.Items) > 0 {
+						if repoServerServicelabel, ok := repoServerServices.Items[0].Labels[common.LabelKeyAppName]; ok && repoServerServicelabel != "" {
+							repoServerName = repoServerServicelabel
+						}
+					}
+					repoServerPodLabelSelector := common.LabelKeyAppName + "=" + repoServerName
 					repoServerPort, err := kubeutil.PortForward(8081, namespace, &overrides, repoServerPodLabelSelector)
 					errors.CheckError(err)
 					repoServerAddress = fmt.Sprintf("localhost:%d", repoServerPort)
 				}
 				repoServerClient := reposerverclient.NewRepoServerClientset(repoServerAddress, 60, reposerverclient.TLSConfiguration{DisableTLS: false, StrictValidation: false})
-
-				appClientset := appclientset.NewForConfigOrDie(cfg)
-				kubeClientset := kubernetes.NewForConfigOrDie(cfg)
 				result, err = reconcileApplications(ctx, kubeClientset, appClientset, namespace, repoServerClient, selector, newLiveStateCache, serverSideDiff)
 				errors.CheckError(err)
 			} else {
@@ -437,5 +446,5 @@ func reconcileApplications(
 }
 
 func newLiveStateCache(argoDB db.ArgoDB, appInformer kubecache.SharedIndexInformer, settingsMgr *settings.SettingsManager, server *metrics.MetricsServer) cache.LiveStateCache {
-	return cache.NewLiveStateCache(argoDB, appInformer, settingsMgr, kubeutil.NewKubectl(), server, func(managedByApp map[string]bool, ref apiv1.ObjectReference) {}, nil, argo.NewResourceTracking())
+	return cache.NewLiveStateCache(argoDB, appInformer, settingsMgr, kubeutil.NewKubectl(), server, func(managedByApp map[string]bool, ref apiv1.ObjectReference) {}, &sharding.ClusterSharding{}, argo.NewResourceTracking())
 }

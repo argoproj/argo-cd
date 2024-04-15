@@ -1,20 +1,20 @@
-FROM docker.io/library/redis:7.0.11@sha256:f50031a49f41e493087fb95f96fdb3523bb25dcf6a3f0b07c588ad3cdbe1d0aa as redis
+FROM docker.io/library/redis:7.2.4@sha256:7dd707032d90c6eaafd566f62a00f5b0116ae08fd7d6cbbb0f311b82b47171a2 as redis
 
 # There are libraries we will want to copy from here in the final stage of the
 # build, but the COPY directive does not have a way to determine system
 # architecture, so we create a symlink here to facilitate copying.
-RUN ln -s /usr/lib/$(uname -m)-linux-gnu /usr/lib/linux-gnu 
+RUN ln -s /usr/lib/$(uname -m)-linux-gnu /usr/lib/linux-gnu
 
 # Please make sure to also check the contained yarn version and update the references below when upgrading this image's version
-FROM docker.io/library/node:20.7.0@sha256:f08c20b9f9c55dd47b1841793f0ee480c5395aa165cd02edfd68b068ed64bfb5 as node
+FROM docker.io/library/node:21.7.1@sha256:b9ccc4aca32eebf124e0ca0fd573dacffba2b9236987a1d4d2625ce3c162ecc8 as node
 
-FROM docker.io/library/golang:1.21.3@sha256:02d7116222536a5cf0fcf631f90b507758b669648e0f20186d2dc94a9b419a9b as golang
+FROM docker.io/library/golang:1.21.9@sha256:7d0dcbe5807b1ad7272a598fbf9d7af15b5e2bed4fd6c4c2b5b3684df0b317dd as golang
 
-FROM docker.io/library/registry:2.8@sha256:41f413c22d6156587e2a51f3e80c09808b8c70e82be149b82b5e0196a88d49b4 as registry
+FROM docker.io/library/registry:2.8@sha256:fb9c9aef62af3955f6014613456551c92e88a67dcf1fc51f5f91bcbd1832813f as registry
 
-FROM docker.io/bitnami/kubectl:1.27@sha256:670fe3f50d45c0511bb0f2af018e2fc082ac8cdfaea02dba4e32866296036926 as kubectl
+FROM docker.io/bitnami/kubectl:1.27@sha256:14ab746e857d96c105df4989cc2bf841292f2d143f7c60f9d7f549ae660eab43 as kubectl
 
-FROM docker.io/library/ubuntu:22.04@sha256:0bced47fffa3361afa981854fcabcd4577cd43cebbb808cea2b1f33a3dd7f508
+FROM docker.io/library/ubuntu:22.04@sha256:77906da86b60585ce12215807090eb327e7386c8fafb5402369e421f44eff17e
 
 ENV DEBIAN_FRONTEND=noninteractive
 RUN  apt-get update && apt-get install --fix-missing -y \
@@ -49,7 +49,7 @@ ENV GOPATH /go
 COPY hack/install.sh hack/tool-versions.sh go.* ./
 COPY hack/installers installers
 
-RUN ./install.sh helm-linux && \
+RUN ./install.sh helm && \
     ./install.sh kustomize && \
     ./install.sh codegen-tools && \
     ./install.sh codegen-go-tools && \
@@ -72,10 +72,10 @@ COPY --from=redis /usr/local/bin/* /usr/local/bin/
 
 # Copy redis dependencies/shared libraries
 # Ubuntu 22.04+ has moved to OpenSSL3 and no longer provides these libraries
-COPY --from=redis /usr/lib/linux-gnu/libssl.so.1.1 /usr/lib/linux-gnu/
-COPY --from=redis /usr/lib/linux-gnu/libcrypto.so.1.1 /usr/lib/linux-gnu/
-RUN mv /usr/lib/linux-gnu/libssl.so.1.1 /usr/lib/$(uname -m)-linux-gnu/ && \
-    mv /usr/lib/linux-gnu/libcrypto.so.1.1 /usr/lib/$(uname -m)-linux-gnu/ && \
+COPY --from=redis /usr/lib/linux-gnu/libssl.so.3 /usr/lib/linux-gnu/
+COPY --from=redis /usr/lib/linux-gnu/libcrypto.so.3 /usr/lib/linux-gnu/
+RUN mv /usr/lib/linux-gnu/libssl.so.3 /usr/lib/$(uname -m)-linux-gnu/ && \
+    mv /usr/lib/linux-gnu/libcrypto.so.3 /usr/lib/$(uname -m)-linux-gnu/ && \
     rm -rf /usr/lib/linux-gnu/
 
 # Copy registry binaries to the image

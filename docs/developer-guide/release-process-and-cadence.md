@@ -13,7 +13,7 @@ These are the upcoming releases dates:
 | v2.8    | Monday, Jun. 26, 2023 | Monday, Aug. 7, 2023 | [Keith Chong](https://github.com/keithchong)          | [Keith Chong](https://github.com/keithchong)          | [checklist](https://github.com/argoproj/argo-cd/issues/13742) |
 | v2.9    | Monday, Sep. 18, 2023 | Monday, Nov. 6, 2023 | [Leonardo Almeida](https://github.com/leoluz)         | [Leonardo Almeida](https://github.com/leoluz)         | [checklist](https://github.com/argoproj/argo-cd/issues/14078) |
 | v2.10   | Monday, Dec. 18, 2023 | Monday, Feb. 5, 2024 | [Katie Lamkin](https://github.com/kmlamkin9)          |                                                       | [checklist](https://github.com/argoproj/argo-cd/issues/16339) |
-| v2.11   | Monday, Mar. 18, 2024 | Monday, May 6, 2024  | 
+| v2.11   | Friday, Apr. 5,  2024 | Monday, May 6, 2024  | [Pavel Kostohrys](https://github.com/pasha-codefresh) | [Pavel Kostohrys](https://github.com/pasha-codefresh) | [checklist](https://github.com/argoproj/argo-cd/issues/17726) |
 | v2.12   | Monday, Jun. 17, 2024 | Monday, Aug. 5, 2024 | 
 
 Actual release dates might differ from the plan by a few days.
@@ -71,7 +71,7 @@ that minor release. It will have to wait for the next minor release.
 
 ### Security Patch Policy
 
-CVEs in Argo CD code will be patched for all [supported versions](../operator-manual/installation.md#supported-versions). 
+CVEs in Argo CD code will be patched for all supported versions. Read more about supported versions in the [security policy for Argo CD](https://github.com/argoproj/argo-cd/security/policy#supported-versions).
 
 ### Dependencies Lifecycle Policy
 

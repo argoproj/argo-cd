@@ -42,10 +42,28 @@ var (
 	leftTextPattern          = regexp.MustCompile(`id="leftText" [^>]*>([^<]*)`)
 	rightTextPattern         = regexp.MustCompile(`id="rightText" [^>]*>([^<]*)`)
 	revisionTextPattern      = regexp.MustCompile(`id="revisionText" [^>]*>([^<]*)`)
+	titleTextPattern         = regexp.MustCompile(`id="titleText" [^>]*>([^<]*)`)
+	titleRectWidthPattern    = regexp.MustCompile(`(id="titleRect" .* width=)("0")`)
+	rightRectWidthPattern    = regexp.MustCompile(`(id="rightRect" .* width=)("\d*")`)
+	leftRectYCoodPattern     = regexp.MustCompile(`(id="leftRect" .* y=)("\d*")`)
+	rightRectYCoodPattern    = regexp.MustCompile(`(id="rightRect" .* y=)("\d*")`)
+	revisionRectYCoodPattern = regexp.MustCompile(`(id="revisionRect" .* y=)("\d*")`)
+	leftTextYCoodPattern     = regexp.MustCompile(`(id="leftText" .* y=)("\d*")`)
+	rightTextYCoodPattern    = regexp.MustCompile(`(id="rightText" .* y=)("\d*")`)
+	revisionTextYCoodPattern = regexp.MustCompile(`(id="revisionText" .* y=)("\d*")`)
+	svgHeightPattern         = regexp.MustCompile(`^(<svg .* height=)("\d*")`)
+	logoYCoodPattern         = regexp.MustCompile(`(<image .* y=)("\d*")`)
 )
 
 const (
-	svgWidthWithRevision = 192
+	svgWidthWithRevision      = 192
+	svgWidthWithoutRevision   = 131
+	svgHeightWithAppName      = 40
+	badgeRowHeight            = 20
+	statusRowYCoodWithAppName = 330
+	logoYCoodWithAppName      = 22
+	leftRectWidth             = 77
+	widthPerChar              = 6
 )
 
 func replaceFirstGroupSubMatch(re *regexp.Regexp, str string, repl string) string {
@@ -71,16 +89,19 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	health := healthutil.HealthStatusUnknown
 	status := appv1.SyncStatusCodeUnknown
 	revision := ""
+	applicationName := ""
 	revisionEnabled := false
 	enabled := false
+	displayAppName := false
 	notFound := false
+	svgWidth := svgWidthWithoutRevision
 	if sets, err := h.settingsMgr.GetSettings(); err == nil {
 		enabled = sets.StatusBadgeEnabled
 	}
 
 	reqNs := ""
 	if ns, ok := r.URL.Query()["namespace"]; ok && enabled {
-		if errs := validation.NameIsDNSSubdomain(strings.ToLower(ns[0]), false); len(errs) == 0 {
+		if argo.IsValidNamespaceName(ns[0]) {
 			if security.IsNamespaceEnabled(ns[0], h.namespace, h.enabledNamespaces) {
 				reqNs = ns[0]
 			} else {
@@ -96,10 +117,11 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	//Sample url: http://localhost:8080/api/badge?name=123
 	if name, ok := r.URL.Query()["name"]; ok && enabled && !notFound {
-		if errs := validation.NameIsDNSLabel(strings.ToLower(name[0]), false); len(errs) == 0 {
+		if argo.IsValidAppName(name[0]) {
 			if app, err := h.appClientset.ArgoprojV1alpha1().Applications(reqNs).Get(context.Background(), name[0], v1.GetOptions{}); err == nil {
 				health = app.Status.Health.Status
 				status = app.Status.Sync.Status
+				applicationName = name[0]
 				if app.Status.OperationState != nil && app.Status.OperationState.SyncResult != nil {
 					revision = app.Status.OperationState.SyncResult.Revision
 				}
@@ -175,6 +197,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if !notFound && revisionEnabled && revision != "" {
 		// Increase width of SVG and enable display of revision components
 		badge = svgWidthPattern.ReplaceAllString(badge, fmt.Sprintf(`<svg width="%d" $2`, svgWidthWithRevision))
+		svgWidth = svgWidthWithRevision
 		badge = displayNonePattern.ReplaceAllString(badge, `display="inline"`)
 		badge = revisionRectColorPattern.ReplaceAllString(badge, fmt.Sprintf(`id="revisionRect" fill="%s" $2`, rightColorString))
 		shortRevision := revision
@@ -182,6 +205,29 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			shortRevision = shortRevision[:7]
 		}
 		badge = replaceFirstGroupSubMatch(revisionTextPattern, badge, fmt.Sprintf("(%s)", shortRevision))
+	}
+
+	if showAppNameParam, ok := r.URL.Query()["showAppName"]; ok && enabled && strings.EqualFold(showAppNameParam[0], "true") {
+		displayAppName = true
+	}
+
+	if displayAppName && applicationName != "" {
+		titleRectWidth := len(applicationName) * widthPerChar
+		var longerWidth int = max(titleRectWidth, svgWidth)
+		rightRectWidth := longerWidth - leftRectWidth
+		fmt.Println(len(applicationName))
+		badge = titleRectWidthPattern.ReplaceAllString(badge, fmt.Sprintf(`$1"%d"`, longerWidth))
+		badge = rightRectWidthPattern.ReplaceAllString(badge, fmt.Sprintf(`$1"%d"`, rightRectWidth))
+		badge = replaceFirstGroupSubMatch(titleTextPattern, badge, applicationName)
+		badge = leftRectYCoodPattern.ReplaceAllString(badge, fmt.Sprintf(`$1"%d"`, badgeRowHeight))
+		badge = rightRectYCoodPattern.ReplaceAllString(badge, fmt.Sprintf(`$1"%d"`, badgeRowHeight))
+		badge = revisionRectYCoodPattern.ReplaceAllString(badge, fmt.Sprintf(`$1"%d"`, badgeRowHeight))
+		badge = leftTextYCoodPattern.ReplaceAllString(badge, fmt.Sprintf(`$1"%d"`, statusRowYCoodWithAppName))
+		badge = rightTextYCoodPattern.ReplaceAllString(badge, fmt.Sprintf(`$1"%d"`, statusRowYCoodWithAppName))
+		badge = revisionTextYCoodPattern.ReplaceAllString(badge, fmt.Sprintf(`$1"%d"`, statusRowYCoodWithAppName))
+		badge = svgHeightPattern.ReplaceAllString(badge, fmt.Sprintf(`$1"%d"`, svgHeightWithAppName))
+		badge = logoYCoodPattern.ReplaceAllString(badge, fmt.Sprintf(`$1"%d"`, logoYCoodWithAppName))
+		badge = svgWidthPattern.ReplaceAllString(badge, fmt.Sprintf(`<svg width="%d" $2`, longerWidth))
 	}
 
 	w.Header().Set("Content-Type", "image/svg+xml")
