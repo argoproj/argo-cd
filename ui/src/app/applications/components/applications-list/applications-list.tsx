@@ -4,7 +4,7 @@ import * as React from 'react';
 import * as ReactDOM from 'react-dom';
 import {Key, KeybindingContext, KeybindingProvider} from 'argo-ui/v2';
 import {RouteComponentProps} from 'react-router';
-import {combineLatest, from, merge, Observable} from 'rxjs';
+import {combineLatest, from, fromEvent, merge, Observable} from 'rxjs';
 import {bufferTime, debounceTime, delay, filter, map, mergeMap, repeat, retryWhen} from 'rxjs/operators';
 import {AddAuthToToolbar, ClusterCtx, DataLoader, EmptyState, ObservableQuery, Page, Paginate, Query, Spinner} from '../../../shared/components';
 import {AuthSettingsCtx, Consumer, Context, ContextApis} from '../../../shared/context';
@@ -224,17 +224,17 @@ const SearchBar = (props: {content: string; ctx: ContextApis; apps: models.Appli
         }
     });
 
-    useEffect(() => {
-      fromEvent(inputRef.current, 'input')
+    React.useEffect(() => {
+      fromEvent(searchBarInput.current, 'input')
           .pipe(debounceTime(500))
-          .subscribe(() => {
-              ctx.navigation.goto('.', {search: searchBarInput.current.target.value}, {replace: true})
+          .subscribe(res => {
+              ctx.navigation.goto('.', {search: res.target.value}, {replace: true})
            });
     }, []);
 
     return (
         <Autocomplete
-            ref={(ac) => { seachBarInput = ac.refs.input; }}
+            ref={(ac) => { searchBarInput = ac.refs.input; }}
             filterSuggestions={true}
             renderInput={inputProps => (
                 <div className='applications-list__search'>
