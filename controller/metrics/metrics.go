@@ -363,6 +363,9 @@ func boolFloat64(b bool) float64 {
 }
 
 func (c *appCollector) normalizeAppTargetRevision(in string) string {
+	if len(in) == 0 {
+		in = "head"
+	}
 	if glob.MatchStringInList(c.appRevisions, in, false) {
 		return in
 	}
