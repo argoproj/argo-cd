@@ -13,8 +13,13 @@ import {ResourceTreeNode} from './application-resource-tree/application-resource
 import {CheckboxField, COLORS, ErrorNotification, Revision} from '../../shared/components';
 import * as appModels from '../../shared/models';
 import {services} from '../../shared/services';
+import {ApplicationSetConditionStatus, ApplicationSetStatus, ApplicationTree} from '../../shared/models';
+
+import {History} from 'history';
 
 require('./utils.scss');
+
+// const ctx = React.useContext(Context);
 
 export interface NodeId {
     kind: string;
@@ -330,7 +335,13 @@ export const deletePodAction = async (pod: appModels.Pod, appContext: AppContext
     );
 };
 
-export const deletePopup = async (ctx: ContextApis, resource: ResourceTreeNode, application: appModels.Application, appChanged?: BehaviorSubject<appModels.Application>) => {
+export const deletePopup = async (
+    ctx: ContextApis,
+    history: History<unknown>,
+    resource: ResourceTreeNode,
+    application: appModels.Application,
+    appChanged?: BehaviorSubject<appModels.Application>
+) => {
     function isTopLevelResource(res: ResourceTreeNode, app: appModels.Application): boolean {
         const uniqRes = `/${res.namespace}/${res.group}/${res.kind}/${res.name}`;
         return app.status.resources.some(resStatus => `/${resStatus.namespace}/${resStatus.group}/${resStatus.kind}/${resStatus.name}` === uniqRes);
@@ -394,7 +405,7 @@ export const deletePopup = async (ctx: ContextApis, resource: ResourceTreeNode, 
                 try {
                     await services.applications.deleteResource(application.metadata.name, application.metadata.namespace, resource, !!force, !!orphan);
                     if (appChanged) {
-                        appChanged.next(await services.applications.get(application.metadata.name, application.metadata.namespace));
+                        appChanged.next(await services.applications.get(application.metadata.name, application.metadata.namespace, history.location.pathname));
                     }
                     close();
                 } catch (e) {
@@ -441,10 +452,11 @@ function getResourceActionsMenuItems(resource: ResourceTreeNode, metadata: model
 
 function getActionItems(
     resource: ResourceTreeNode,
-    application: appModels.Application,
-    tree: appModels.ApplicationTree,
+    application: appModels.AbstractApplication,
+    tree: appModels.AbstractApplicationTree,
     apis: ContextApis,
-    appChanged: BehaviorSubject<appModels.Application>,
+    history: History<unknown>,
+    appChanged: BehaviorSubject<appModels.AbstractApplication>,
     isQuickStart: boolean
 ): Observable<ActionMenuItem[]> {
     const isRoot = resource.root && nodeKey(resource.root) === nodeKey(resource);
@@ -461,7 +473,7 @@ function getActionItems(
             title: 'Delete',
             iconClassName: 'fa fa-fw fa-times-circle',
             action: async () => {
-                return deletePopup(apis, resource, application, appChanged);
+                return deletePopup(apis, history, resource, application, appChanged);
             }
         }
     ];
@@ -472,13 +484,14 @@ function getActionItems(
             action: () => apis.navigation.goto('.', {node: nodeKey(resource)})
         });
     }
-
-    if (findChildPod(resource, tree)) {
-        items.push({
-            title: 'Logs',
-            iconClassName: 'fa fa-fw fa-align-left',
-            action: () => apis.navigation.goto('.', {node: nodeKey(resource), tab: 'logs'}, {replace: true})
-        });
+    if (isApp(application)) {
+        if (findChildPod(resource, tree as ApplicationTree)) {
+            items.push({
+                title: 'Logs',
+                iconClassName: 'fa fa-fw fa-align-left',
+                action: () => apis.navigation.goto('.', {node: nodeKey(resource), tab: 'logs'}, {replace: true})
+            });
+        }
     }
 
     if (isQuickStart) {
@@ -529,10 +542,11 @@ function getActionItems(
 
 export function renderResourceMenu(
     resource: ResourceTreeNode,
-    application: appModels.Application,
-    tree: appModels.ApplicationTree,
+    application: appModels.AbstractApplication,
+    tree: appModels.AbstractApplicationTree,
     apis: ContextApis,
-    appChanged: BehaviorSubject<appModels.Application>,
+    history: History<unknown>,
+    appChanged: BehaviorSubject<appModels.AbstractApplication>,
     getApplicationActionMenu: () => any
 ): React.ReactNode {
     let menuItems: Observable<ActionMenuItem[]>;
@@ -540,7 +554,7 @@ export function renderResourceMenu(
     if (isAppNode(resource) && resource.name === application.metadata.name) {
         menuItems = from([getApplicationActionMenu()]);
     } else {
-        menuItems = getActionItems(resource, application, tree, apis, appChanged, false);
+        menuItems = getActionItems(resource, application, tree, apis, history, appChanged, false);
     }
     return (
         <DataLoader load={() => menuItems}>
@@ -608,10 +622,11 @@ export function renderResourceButtons(
     application: appModels.Application,
     tree: appModels.ApplicationTree,
     apis: ContextApis,
-    appChanged: BehaviorSubject<appModels.Application>
+    history: History<unknown>,
+    appChanged: BehaviorSubject<appModels.AbstractApplication>
 ): React.ReactNode {
     let menuItems: Observable<ActionMenuItem[]>;
-    menuItems = getActionItems(resource, application, tree, apis, appChanged, true);
+    menuItems = getActionItems(resource, application, tree, apis, history, appChanged, true);
     return (
         <DataLoader load={() => menuItems}>
             {items => (
@@ -708,6 +723,34 @@ export const HealthStatusIcon = ({state, noSpin}: {state: appModels.HealthStatus
     if (state.message) {
         title = `${state.status}: ${state.message}`;
     }
+    return <i qe-id='utils-health-status-title' title={title} className={'fa ' + icon} style={{color}} />;
+};
+
+/** from above */
+export const AppSetHealthStatusIcon = ({state, noSpin}: {state: appModels.ApplicationSetStatus; noSpin?: boolean}) => {
+    let color = COLORS.health.unknown;
+    let icon = 'fa-question-circle';
+
+    switch (state.conditions && getAppSetHealthStatus(state)) {
+        case appModels.ApplicationSetConditionStatuses.True:
+            color = COLORS.health.healthy;
+            icon = 'fa-heart';
+            break;
+        case appModels.ApplicationSetConditionStatuses.False:
+            color = COLORS.health.degraded;
+            icon = 'fa-heart-broken';
+            break;
+        case appModels.ApplicationSetConditionStatuses.Unknown:
+            color = COLORS.health.missing;
+            icon = 'fa-ghost';
+            break;
+    }
+    let title: string = state.conditions && getAppSetHealthMessage(state);
+
+    if (state.conditions && getAppSetHealthMessage(state)) {
+        title = `${getAppSetHealthStatus(state)}: ${getAppSetHealthMessage(state)}`;
+    }
+
     return <i qe-id='utils-health-status-title' title={title} className={'fa ' + icon} style={{color}} />;
 };
 
@@ -1020,11 +1063,28 @@ export function getConditionCategory(condition: appModels.ApplicationCondition):
     }
 }
 
+export function getAppSetConditionCategory(condition: appModels.ApplicationSetCondition): 'error' | 'warning' | 'info' {
+    if (condition.type.endsWith('Error')) {
+        return 'error';
+    } else if (condition.type.endsWith('Warning')) {
+        return 'warning';
+    } else {
+        return 'info';
+    }
+}
+
 export function isAppNode(node: appModels.ResourceNode) {
     return node.kind === 'Application' && node.group === 'argoproj.io';
 }
 
-export function getAppOverridesCount(app: appModels.Application) {
+export function getAppOverridesCount(app: appModels.AbstractApplication) {
+    let isApplicationSet = true;
+    if ('resource' in app.status) {
+        isApplicationSet = false;
+    }
+    if (isApplicationSet) {
+        return 0;
+    }
     const source = getAppDefaultSource(app);
     if (source.kustomize && source.kustomize.images) {
         return source.kustomize.images.length;
@@ -1150,7 +1210,6 @@ export const ApplicationSyncWindowStatusIcon = ({project, state}: {project: stri
     }
 
     const ctx = React.useContext(Context);
-
     return (
         <a href={`${ctx.baseHref}settings/projects/${project}?tab=windows`} style={{color}}>
             <i className={className} style={{color}} /> SyncWindow
@@ -1241,12 +1300,40 @@ export const urlPattern = new RegExp(
     )
 );
 
-export function appQualifiedName(app: appModels.Application, nsEnabled: boolean): string {
+export function appQualifiedName(app: appModels.AbstractApplication, nsEnabled: boolean): string {
     return (nsEnabled ? app.metadata.namespace + '/' : '') + app.metadata.name;
 }
 
-export function appInstanceName(app: appModels.Application): string {
+export function appInstanceName(app: appModels.AbstractApplication): string {
     return app.metadata.namespace + '_' + app.metadata.name;
+}
+
+// This function determines whether an AbstractApp is an Application or an AppSet (by looking at it's kind).
+// If an Application, it returns it casted to Application.
+export function isApp(abstractApp: appModels.AbstractApplication): abstractApp is appModels.Application {
+    return abstractApp.kind === 'Application';
+}
+
+export function isInvokedFromAppsPath(pathname: string): boolean {
+    return pathname.includes('applicationsets') ? false : true;
+}
+
+// Calculated as the last AppSet condition status - not sure this is the correct way to calculate
+export function getAppSetHealthStatus(status: ApplicationSetStatus): ApplicationSetConditionStatus {
+    return status.conditions ? status.conditions[status.conditions.length - 1].status : null;
+}
+
+// Calculated as the last AppSet condition message - not sure this is the correct way to calculate
+export function getAppSetHealthMessage(status: ApplicationSetStatus): string {
+    return status.conditions[status.conditions.length - 1].message;
+}
+
+export function getRootPathByPath(pathname: string) {
+    return isInvokedFromAppsPath(pathname) ? '/applications' : '/applicationsets';
+}
+
+export function getRootPathByApp(abstractApp: appModels.AbstractApplication) {
+    return isApp(abstractApp) ? '/applications' : '/applicationsets';
 }
 
 export function formatCreationTimestamp(creationTimestamp: string) {

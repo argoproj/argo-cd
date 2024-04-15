@@ -1,16 +1,20 @@
-package application
+package broadcast
 
 import (
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"k8s.io/apimachinery/pkg/watch"
 
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 )
 
 func TestBroadcasterHandler_SubscribeUnsubscribe(t *testing.T) {
-	broadcaster := broadcasterHandler{}
+	broadcaster := NewHandler(func(app *v1alpha1.Application, eventType watch.EventType) *v1alpha1.ApplicationWatchEvent {
+		return &v1alpha1.ApplicationWatchEvent{Application: *app, Type: eventType}
+	})
 
 	subscriber := make(chan *appv1.ApplicationWatchEvent)
 	unsubscribe := broadcaster.Subscribe(subscriber)
@@ -22,7 +26,9 @@ func TestBroadcasterHandler_SubscribeUnsubscribe(t *testing.T) {
 }
 
 func TestBroadcasterHandler_ReceiveEvents(t *testing.T) {
-	broadcaster := broadcasterHandler{}
+	broadcaster := NewHandler(func(app *v1alpha1.Application, eventType watch.EventType) *v1alpha1.ApplicationWatchEvent {
+		return &v1alpha1.ApplicationWatchEvent{Application: *app, Type: eventType}
+	})
 
 	subscriber1 := make(chan *appv1.ApplicationWatchEvent, 1000)
 	subscriber2 := make(chan *appv1.ApplicationWatchEvent, 1000)

@@ -3,6 +3,7 @@ package applicationset
 import (
 	"context"
 	"fmt"
+	"math"
 	"reflect"
 	"sort"
 	"strconv"
@@ -16,31 +17,42 @@ import (
 	v1 "k8s.io/api/core/v1"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 
 	appsetutils "github.com/argoproj/argo-cd/v2/applicationset/utils"
+	argocommon "github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/applicationset"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
 	applisters "github.com/argoproj/argo-cd/v2/pkg/client/listers/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/server/rbacpolicy"
 	"github.com/argoproj/argo-cd/v2/util/argo"
+	"github.com/argoproj/argo-cd/v2/util/broadcast"
 	"github.com/argoproj/argo-cd/v2/util/collections"
 	"github.com/argoproj/argo-cd/v2/util/db"
+	"github.com/argoproj/argo-cd/v2/util/env"
 	"github.com/argoproj/argo-cd/v2/util/rbac"
 	"github.com/argoproj/argo-cd/v2/util/security"
 	"github.com/argoproj/argo-cd/v2/util/session"
 	"github.com/argoproj/argo-cd/v2/util/settings"
 )
 
+var (
+	watchAPIBufferSize = env.ParseNumFromEnv(argocommon.EnvWatchAPIBufferSize, 1000, 0, math.MaxInt32)
+)
+
 type Server struct {
 	ns                string
 	db                db.ArgoDB
 	enf               *rbac.Enforcer
+	kubeclientset     kubernetes.Interface
 	appclientset      appclientset.Interface
 	appsetInformer    cache.SharedIndexInformer
+	appsetBroadcaster broadcast.Broadcaster[v1alpha1.ApplicationSetWatchEvent]
 	appsetLister      applisters.ApplicationSetLister
 	projLister        applisters.AppProjectNamespaceLister
 	auditLogger       *argo.AuditLogger
@@ -56,6 +68,7 @@ func NewServer(
 	enf *rbac.Enforcer,
 	appclientset appclientset.Interface,
 	appsetInformer cache.SharedIndexInformer,
+	appsetBroadcaster broadcast.Broadcaster[v1alpha1.ApplicationSetWatchEvent],
 	appsetLister applisters.ApplicationSetLister,
 	projLister applisters.AppProjectNamespaceLister,
 	settings *settings.SettingsManager,
@@ -63,12 +76,23 @@ func NewServer(
 	projectLock sync.KeyLock,
 	enabledNamespaces []string,
 ) applicationset.ApplicationSetServiceServer {
+	if appsetBroadcaster == nil {
+		appsetBroadcaster = broadcast.NewHandler(func(appset *v1alpha1.ApplicationSet, eventType watch.EventType) *v1alpha1.ApplicationSetWatchEvent {
+			return &v1alpha1.ApplicationSetWatchEvent{ApplicationSet: *appset, Type: eventType}
+		})
+	}
+	_, err := appsetInformer.AddEventHandler(appsetBroadcaster)
+	if err != nil {
+		log.Error(err)
+	}
 	s := &Server{
 		ns:                namespace,
 		db:                db,
 		enf:               enf,
+		kubeclientset:     kubeclientset,
 		appclientset:      appclientset,
 		appsetInformer:    appsetInformer,
+		appsetBroadcaster: appsetBroadcaster,
 		appsetLister:      appsetLister,
 		projLister:        projLister,
 		settings:          settings,
@@ -146,6 +170,118 @@ func (s *Server) List(ctx context.Context, q *applicationset.ApplicationSetListQ
 	}
 	return appsetList, nil
 
+}
+
+// Watch returns stream of applicationset change events
+func (s *Server) Watch(q *applicationset.ApplicationSetWatchQuery, ws applicationset.ApplicationSetService_WatchServer) error {
+	ctx := ws.Context()
+	logCtx := log.NewEntry(log.New())
+
+	namespace := s.appsetNamespaceOrDefault(q.AppsetNamespace)
+	logCtx = logCtx.WithField("namespace", namespace)
+
+	if !s.isNamespaceEnabled(namespace) {
+		return security.NamespaceNotPermittedError(namespace)
+	}
+
+	projects := map[string]bool{}
+	for _, project := range q.GetProjects() {
+		projects[project] = true
+	}
+
+	claims := ws.Context().Value("claims")
+	selector, err := labels.Parse(q.GetSelector())
+	if err != nil {
+		return fmt.Errorf("error parsing the selector: %w", err)
+	}
+
+	if q.Name != "" {
+		logCtx = logCtx.WithField("applicationset", q.GetName())
+	}
+
+	minVersion := 0
+	if q.GetResourceVersion() != "" {
+		if minVersion, err = strconv.Atoi(q.GetResourceVersion()); err != nil {
+			minVersion = 0
+		}
+	}
+
+	// sendIfPermitted is a helper to send the applicationset to the client's streaming channel if the
+	// caller has RBAC privileges permissions to view it
+	sendIfPermitted := func(ctx context.Context, a v1alpha1.ApplicationSet, eventType watch.EventType) {
+		if !s.isApplicationSetPermitted(selector, minVersion, claims, q.GetName(), namespace, projects, a) {
+			return
+		}
+
+		err := ws.Send(&v1alpha1.ApplicationSetWatchEvent{
+			Type:           eventType,
+			ApplicationSet: a,
+		})
+		if err != nil {
+			logCtx.Warnf("Unable to send stream message: %v", err)
+			return
+		}
+	}
+
+	events := make(chan *v1alpha1.ApplicationSetWatchEvent, watchAPIBufferSize)
+	// Mimic watch API behavior: send ADDED events if no resource version provided
+	// If watch API is executed for one application when emit event even if resource version is provided
+	// This is required since single app watch API is used for during operations like app syncing and it is
+	// critical to never miss events.
+	if q.GetResourceVersion() == "" || q.GetName() != "" {
+		appsets, err := s.appsetLister.List(selector)
+		if err != nil {
+			return fmt.Errorf("error listing appssets with selector: %w", err)
+		}
+		sort.Slice(appsets, func(i, j int) bool {
+			return appsets[i].QualifiedName() < appsets[j].QualifiedName()
+		})
+		for i := range appsets {
+			sendIfPermitted(ctx, *appsets[i], watch.Added)
+		}
+	}
+	unsubscribe := s.appsetBroadcaster.Subscribe(events)
+	defer unsubscribe()
+	for {
+		select {
+		case event := <-events:
+			sendIfPermitted(ctx, event.ApplicationSet, event.Type)
+		case <-ws.Context().Done():
+			return nil
+		}
+	}
+}
+
+func (s *Server) isApplicationSetPermitted(selector labels.Selector, minVersion int, claims any, appsetName, appsetNs string, projects map[string]bool, a v1alpha1.ApplicationSet) bool {
+	logCtx := log.WithField("applicationset", appsetName)
+	if len(projects) > 0 && !projects[a.Spec.Template.Spec.GetProject()] {
+		logCtx.Debugf("Project %s is not watched.", a.Spec.Template.Spec.GetProject())
+		return false
+	}
+
+	if appVersion, err := strconv.Atoi(a.ResourceVersion); err == nil && appVersion < minVersion {
+		logCtx.Debugf("Version is lower than minimum version (%d < %d).", appVersion, minVersion)
+		return false
+	}
+
+	matchedEvent := (appsetName == "" || (a.Name == appsetName && a.Namespace == appsetNs)) && selector.Matches(labels.Set(a.Labels))
+	if !matchedEvent {
+		logCtx.Debugf("Event does not match selectors.")
+		return false
+	}
+
+	if !s.isNamespaceEnabled(a.Namespace) {
+		logCtx.Debugf("Namespace %s is not enabled.", a.Namespace)
+		return false
+	}
+
+	if !s.enf.Enforce(claims, rbacpolicy.ResourceApplicationSets, rbacpolicy.ActionGet, a.RBACName(s.ns)) {
+		logCtx.Debugf("User does not have access to the ApplicationSet.")
+		// do not emit appsets user does not have access
+		return false
+	}
+
+	return true
 }
 
 func (s *Server) Create(ctx context.Context, q *applicationset.ApplicationSetCreateRequest) (*v1alpha1.ApplicationSet, error) {
@@ -278,6 +414,38 @@ func (s *Server) Delete(ctx context.Context, q *applicationset.ApplicationSetDel
 	s.logAppSetEvent(appset, ctx, argo.EventReasonResourceDeleted, "deleted ApplicationSets")
 	return &applicationset.ApplicationSetResponse{}, nil
 
+}
+
+// ListResourceEvents returns a list of event resources
+func (s *Server) ListResourceEvents(ctx context.Context, q *applicationset.ApplicationSetResourceEventsQuery) (*v1.EventList, error) {
+	namespace := s.appsetNamespaceOrDefault(q.AppsetNamespace)
+
+	if !s.isNamespaceEnabled(namespace) {
+		return nil, security.NamespaceNotPermittedError(namespace)
+	}
+
+	a, err := s.appclientset.ArgoprojV1alpha1().ApplicationSets(namespace).Get(ctx, q.Name, metav1.GetOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("error getting ApplicationSet: %w", err)
+	}
+
+	if err = s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplicationSets, rbacpolicy.ActionGet, a.RBACName(s.ns)); err != nil {
+		return nil, err
+	}
+
+	fieldSelector := fields.SelectorFromSet(map[string]string{
+		"involvedObject.name":      a.Name,
+		"involvedObject.uid":       string(a.UID),
+		"involvedObject.namespace": a.Namespace,
+	}).String()
+
+	log.Infof("Querying for resource events with field selector: %s", fieldSelector)
+	opts := metav1.ListOptions{FieldSelector: fieldSelector}
+	list, err := s.kubeclientset.CoreV1().Events(namespace).List(ctx, opts)
+	if err != nil {
+		return nil, fmt.Errorf("error listing resource events: %w", err)
+	}
+	return list, nil
 }
 
 func (s *Server) validateAppSet(ctx context.Context, appset *v1alpha1.ApplicationSet) (string, error) {
