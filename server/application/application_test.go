@@ -244,7 +244,7 @@ func newTestAppServerWithEnforcerConfigure(f func(*rbac.Enforcer), t *testing.T,
 			}
 		}()
 	})
-	broadcaster.On("OnAdd", mock.Anything).Return()
+	broadcaster.On("OnAdd", mock.Anything, mock.Anything).Return()
 	broadcaster.On("OnUpdate", mock.Anything, mock.Anything).Return()
 	broadcaster.On("OnDelete", mock.Anything).Return()
 
@@ -424,7 +424,7 @@ func newTestAppServerWithEnforcerConfigureWithBenchmark(f func(*rbac.Enforcer), 
 			}
 		}()
 	})
-	broadcaster.On("OnAdd", mock.Anything).Return()
+	broadcaster.On("OnAdd", mock.Anything, mock.Anything).Return()
 	broadcaster.On("OnUpdate", mock.Anything, mock.Anything).Return()
 	broadcaster.On("OnDelete", mock.Anything).Return()
 
