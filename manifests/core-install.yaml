@@ -21020,7 +21020,7 @@ spec:
               key: applicationsetcontroller.enable.scm.providers
               name: argocd-cmd-params-cm
               optional: true
-        image: quay.io/argoproj/argocd:v2.10.7
+        image: quay.io/argoproj/argocd:latest
         imagePullPolicy: Always
         name: argocd-applicationset-controller
         ports:
@@ -21344,7 +21344,7 @@ spec:
           value: /helm-working-dir
         - name: HELM_DATA_HOME
           value: /helm-working-dir
-        image: quay.io/argoproj/argocd:v2.10.7
+        image: quay.io/argoproj/argocd:latest
         imagePullPolicy: Always
         livenessProbe:
           failureThreshold: 3
@@ -21396,7 +21396,7 @@ spec:
         - -n
         - /usr/local/bin/argocd
         - /var/run/argocd/argocd-cmp-server
-        image: quay.io/argoproj/argocd:v2.10.7
+        image: quay.io/argoproj/argocd:latest
         name: copyutil
         securityContext:
           allowPrivilegeEscalation: false
@@ -21657,7 +21657,7 @@ spec:
               key: controller.diff.server.side
               name: argocd-cmd-params-cm
               optional: true
-        image: quay.io/argoproj/argocd:v2.10.7
+        image: quay.io/argoproj/argocd:latest
         imagePullPolicy: Always
         name: argocd-application-controller
         ports:
