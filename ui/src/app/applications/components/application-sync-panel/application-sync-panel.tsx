@@ -7,8 +7,15 @@ import {Consumer} from '../../../shared/context';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
 import {ApplicationRetryOptions} from '../application-retry-options/application-retry-options';
-import {ApplicationManualSyncFlags, ApplicationSyncOptions, FORCE_WARNING, SyncFlags, REPLACE_WARNING} from '../application-sync-options/application-sync-options';
-import {ComparisonStatusIcon, nodeKey} from '../utils';
+import {
+    ApplicationManualSyncFlags,
+    ApplicationSyncOptions,
+    FORCE_WARNING,
+    SyncFlags,
+    REPLACE_WARNING,
+    PRUNE_ALL_WARNING
+} from '../application-sync-options/application-sync-options';
+import {ComparisonStatusIcon, getAppDefaultSource, nodeKey} from '../utils';
 
 import './application-sync-panel.scss';
 
@@ -21,6 +28,7 @@ export const ApplicationSyncPanel = ({application, selectedResource, hide}: {app
     const syncResIndex = appResources.findIndex(item => nodeKey(item) === selectedResource);
     const syncStrategy = {} as models.SyncStrategy;
     const [isPending, setPending] = React.useState(false);
+    const source = getAppDefaultSource(application);
 
     return (
         <Consumer>
@@ -47,7 +55,7 @@ export const ApplicationSyncPanel = ({application, selectedResource, hide}: {app
                     {isVisible && (
                         <Form
                             defaultValues={{
-                                revision: application.spec.source.targetRevision || 'HEAD',
+                                revision: new URLSearchParams(ctx.history.location.search).get('revision') || source.targetRevision || 'HEAD',
                                 resources: appResources.map((_, i) => i === syncResIndex || syncResIndex === -1),
                                 syncOptions: application.spec.syncPolicy ? application.spec.syncPolicy.syncOptions : []
                             }}
@@ -56,9 +64,25 @@ export const ApplicationSyncPanel = ({application, selectedResource, hide}: {app
                             })}
                             onSubmit={async (params: any) => {
                                 setPending(true);
-                                let resources = appResources.filter((_, i) => params.resources[i]);
-                                if (resources.length === appResources.length) {
-                                    resources = null;
+                                let selectedResources = appResources.filter((_, i) => params.resources[i]);
+                                const allResourcesAreSelected = selectedResources.length === appResources.length;
+                                const syncFlags = {...params.syncFlags} as SyncFlags;
+
+                                const allRequirePruning = !selectedResources.some(resource => !resource?.requiresPruning);
+                                if (syncFlags.Prune && allRequirePruning && allResourcesAreSelected) {
+                                    const confirmed = await ctx.popup.confirm('Prune all resources?', () => (
+                                        <div>
+                                            <i className='fa fa-exclamation-triangle' style={{color: ARGO_WARNING_COLOR}} />
+                                            {PRUNE_ALL_WARNING} Are you sure you want to continue?
+                                        </div>
+                                    ));
+                                    if (!confirmed) {
+                                        setPending(false);
+                                        return;
+                                    }
+                                }
+                                if (allResourcesAreSelected) {
+                                    selectedResources = null;
                                 }
                                 const replace = params.syncOptions?.findIndex((opt: string) => opt === 'Replace=true') > -1;
                                 if (replace) {
@@ -73,7 +97,6 @@ export const ApplicationSyncPanel = ({application, selectedResource, hide}: {app
                                     }
                                 }
 
-                                const syncFlags = {...params.syncFlags} as SyncFlags;
                                 const force = syncFlags.Force || false;
 
                                 if (syncFlags.ApplyOnly) {
@@ -101,14 +124,14 @@ export const ApplicationSyncPanel = ({application, selectedResource, hide}: {app
                                         syncFlags.Prune || false,
                                         syncFlags.DryRun || false,
                                         syncStrategy,
-                                        resources,
+                                        selectedResources,
                                         params.syncOptions,
                                         params.retryStrategy
                                     );
                                     hide();
                                 } catch (e) {
                                     ctx.notifications.show({
-                                        content: <ErrorNotification title='Unable to deploy revision' e={e} />,
+                                        content: <ErrorNotification title='Unable to sync' e={e} />,
                                         type: NotificationType.Error
                                     });
                                 } finally {
@@ -119,7 +142,7 @@ export const ApplicationSyncPanel = ({application, selectedResource, hide}: {app
                             {formApi => (
                                 <form role='form' className='width-control' onSubmit={formApi.submitForm}>
                                     <h6>
-                                        Synchronizing application manifests from <a href={application.spec.source.repoURL}>{application.spec.source.repoURL}</a>
+                                        Synchronizing application manifests from <a href={source.repoURL}>{source.repoURL}</a>
                                     </h6>
                                     <div className='argo-form-row'>
                                         <FormField formApi={formApi} label='Revision' field='revision' component={Text} />

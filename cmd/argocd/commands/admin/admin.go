@@ -3,7 +3,6 @@ package admin
 import (
 	"reflect"
 
-	"github.com/ghodss/yaml"
 	"github.com/spf13/cobra"
 	apiv1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -12,11 +11,15 @@ import (
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
+	"sigs.k8s.io/yaml"
 
 	cmdutil "github.com/argoproj/argo-cd/v2/cmd/util"
 	"github.com/argoproj/argo-cd/v2/common"
+	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
 	"github.com/argoproj/argo-cd/v2/util/errors"
 	"github.com/argoproj/argo-cd/v2/util/settings"
+
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
 )
 
 const (
@@ -27,13 +30,13 @@ const (
 var (
 	configMapResource       = schema.GroupVersionResource{Group: "", Version: "v1", Resource: "configmaps"}
 	secretResource          = schema.GroupVersionResource{Group: "", Version: "v1", Resource: "secrets"}
-	applicationsResource    = schema.GroupVersionResource{Group: "argoproj.io", Version: "v1alpha1", Resource: "applications"}
-	appprojectsResource     = schema.GroupVersionResource{Group: "argoproj.io", Version: "v1alpha1", Resource: "appprojects"}
-	appplicationSetResource = schema.GroupVersionResource{Group: "argoproj.io", Version: "v1alpha1", Resource: "applicationsets"}
+	applicationsResource    = schema.GroupVersionResource{Group: application.Group, Version: "v1alpha1", Resource: application.ApplicationPlural}
+	appprojectsResource     = schema.GroupVersionResource{Group: application.Group, Version: "v1alpha1", Resource: application.AppProjectPlural}
+	appplicationSetResource = schema.GroupVersionResource{Group: application.Group, Version: "v1alpha1", Resource: application.ApplicationSetPlural}
 )
 
 // NewAdminCommand returns a new instance of an argocd command
-func NewAdminCommand() *cobra.Command {
+func NewAdminCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
 		pathOpts = clientcmd.NewDefaultPathOptions()
 	)
@@ -45,16 +48,97 @@ func NewAdminCommand() *cobra.Command {
 		Run: func(c *cobra.Command, args []string) {
 			c.HelpFunc()(c, args)
 		},
+		Example: `# List all clusters
+$ argocd admin cluster list
+
+# Add a new cluster
+$ argocd admin cluster add my-cluster --name my-cluster --in-cluster-context
+
+# Remove a cluster
+argocd admin cluster remove my-cluster
+
+# List all projects
+$ argocd admin project list
+
+# Create a new project
+$argocd admin project create my-project --src-namespace my-source-namespace --dest-namespace my-dest-namespace
+
+# Update a project
+$ argocd admin project update my-project --src-namespace my-updated-source-namespace --dest-namespace my-updated-dest-namespace
+
+# Delete a project
+$ argocd admin project delete my-project
+
+# List all settings
+$ argocd admin settings list
+
+# Get the current settings
+$ argocd admin settings get
+
+# Update settings
+$ argocd admin settings update --repository.resync --value 15
+
+# List all applications
+$ argocd admin app list
+
+# Get application details
+$ argocd admin app get my-app
+
+# Sync an application
+$ argocd admin app sync my-app
+
+# Pause an application
+$ argocd admin app pause my-app
+
+# Resume an application
+$ argocd admin app resume my-app
+
+# List all repositories
+$ argocd admin repo list
+
+# Add a repository
+$ argocd admin repo add https://github.com/argoproj/my-repo.git
+
+# Remove a repository
+$ argocd admin repo remove https://github.com/argoproj/my-repo.git
+
+# Import an application from a YAML file
+$ argocd admin app import -f my-app.yaml
+
+# Export an application to a YAML file
+$ argocd admin app export my-app -o my-exported-app.yaml
+
+# Access the Argo CD web UI
+$ argocd admin dashboard
+
+# List notifications
+$ argocd admin notification list
+
+# Get notification details
+$ argocd admin notification get my-notification
+
+# Create a new notification
+$ argocd admin notification create my-notification -f notification-config.yaml
+
+# Update a notification
+$ argocd admin notification update my-notification -f updated-notification-config.yaml
+
+# Delete a notification
+$ argocd admin notification delete my-notification
+
+# Reset the initial admin password
+$ argocd admin initial-password reset
+`,
 	}
 
-	command.AddCommand(NewClusterCommand(pathOpts))
+	command.AddCommand(NewClusterCommand(clientOpts, pathOpts))
 	command.AddCommand(NewProjectsCommand())
 	command.AddCommand(NewSettingsCommand())
-	command.AddCommand(NewAppCommand())
+	command.AddCommand(NewAppCommand(clientOpts))
 	command.AddCommand(NewRepoCommand())
 	command.AddCommand(NewImportCommand())
 	command.AddCommand(NewExportCommand())
-	command.AddCommand(NewDashboardCommand())
+	command.AddCommand(NewDashboardCommand(clientOpts))
 	command.AddCommand(NewNotificationsCommand())
 	command.AddCommand(NewInitialPasswordCommand())
 
@@ -193,11 +277,11 @@ func specsEqual(left, right unstructured.Unstructured) bool {
 		leftData, _, _ := unstructured.NestedMap(left.Object, "data")
 		rightData, _, _ := unstructured.NestedMap(right.Object, "data")
 		return reflect.DeepEqual(leftData, rightData)
-	case "AppProject":
+	case application.AppProjectKind:
 		leftSpec, _, _ := unstructured.NestedMap(left.Object, "spec")
 		rightSpec, _, _ := unstructured.NestedMap(right.Object, "spec")
 		return reflect.DeepEqual(leftSpec, rightSpec)
-	case "Application":
+	case application.ApplicationKind:
 		leftSpec, _, _ := unstructured.NestedMap(left.Object, "spec")
 		rightSpec, _, _ := unstructured.NestedMap(right.Object, "spec")
 		leftStatus, _, _ := unstructured.NestedMap(left.Object, "status")

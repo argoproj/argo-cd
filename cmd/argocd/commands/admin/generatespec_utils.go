@@ -8,8 +8,8 @@ import (
 	"os"
 
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
-	"github.com/ghodss/yaml"
 	v1 "k8s.io/api/core/v1"
+	"sigs.k8s.io/yaml"
 
 	ioutil "github.com/argoproj/argo-cd/v2/util/io"
 )

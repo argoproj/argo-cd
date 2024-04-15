@@ -1,7 +1,7 @@
 tests:
 - healthStatus:
     status: Progressing
-    message: 'Condition is unknown'
+    message: 'Waiting for clusters'
   inputPath: testdata/progressing_provisioning.yaml
 - healthStatus:
     status: Degraded
@@ -15,3 +15,7 @@ tests:
     status: Healthy
     message: 'Cluster is running'
   inputPath: testdata/healthy_provisioned.yaml
+- healthStatus:
+    status: Degraded
+    message: 'Post "https://tvc01.foo.bar/sdk": host "tvc01.foo.bar:443" thumbprint does not match "0A:21:BD:FC:71:40:BD:96"'
+  inputPath: testdata/error_provisioned.yaml

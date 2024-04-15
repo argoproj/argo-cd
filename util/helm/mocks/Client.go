@@ -29,7 +29,7 @@ func (_m *Client) CleanChartCache(chart string, version string) error {
 }
 
 // ExtractChart provides a mock function with given fields: chart, version
-func (_m *Client) ExtractChart(chart string, version string, passCredentials bool) (string, io.Closer, error) {
+func (_m *Client) ExtractChart(chart string, version string, passCredentials bool, manifestMaxExtractedSize int64, disableManifestMaxExtractedSize bool) (string, io.Closer, error) {
 	ret := _m.Called(chart, version)
 
 	var r0 string
@@ -59,7 +59,7 @@ func (_m *Client) ExtractChart(chart string, version string, passCredentials boo
 }
 
 // GetIndex provides a mock function with given fields: noCache
-func (_m *Client) GetIndex(noCache bool) (*helm.Index, error) {
+func (_m *Client) GetIndex(noCache bool, maxIndexSize int64) (*helm.Index, error) {
 	ret := _m.Called(noCache)
 
 	var r0 *helm.Index

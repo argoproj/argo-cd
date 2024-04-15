@@ -3,9 +3,9 @@
 ## Overview
 Argo CD provides built-in health assessment for several standard Kubernetes types, which is then
 surfaced to the overall Application health status as a whole. The following checks are made for
-specific types of kubernetes resources:
+specific types of Kubernetes resources:
 
-### Deployment, ReplicaSet, StatefulSet DaemonSet
+### Deployment, ReplicaSet, StatefulSet, DaemonSet
 * Observed generation is equal to desired generation.
 * Number of **updated** replicas equals the number of desired replicas.
 
@@ -16,6 +16,8 @@ with at least one value for `hostname` or `IP`.
 ### Ingress
 * The `status.loadBalancer.ingress` list is non-empty, with at least one value for `hostname` or `IP`.
 
+### Job
+* If job `.spec.suspended` is set to 'true', then the job and app health will be marked as suspended.
 ### PersistentVolumeClaim
 * The `status.phase` is `Bound`
 
@@ -38,7 +40,7 @@ metadata:
 data:
   resource.customizations: |
     argoproj.io/Application:
-      health.lua: |  
+      health.lua: |
         hs = {}
         hs.status = "Progressing"
         hs.message = ""
@@ -64,11 +66,11 @@ There are two ways to configure a custom health check. The next two sections des
 
 ### Way 1. Define a Custom Health Check in `argocd-cm` ConfigMap
 
-Custom health checks can be defined in 
+Custom health checks can be defined in
 ```yaml
   resource.customizations: |
     <group/kind>:
-      health.lua: | 
+      health.lua: |
 ```
 field of `argocd-cm`. If you are using argocd-operator, this is overridden by [the argocd-operator resourceCustomizations](https://argocd-operator.readthedocs.io/en/latest/reference/argocd/#resource-customizations).
 
@@ -101,14 +103,24 @@ data:
         hs.message = "Waiting for certificate"
         return hs
 ```
-In order to prevent duplication of the same custom health check for potentially multiple resources, it is also possible to specify a wildcard in the resource kind, like this:
+In order to prevent duplication of the custom health check for potentially multiple resources, it is also possible to specify a wildcard in the resource kind, and anywhere in the resource group, like this:
 
 ```yaml
   resource.customizations: |
     ec2.aws.crossplane.io/*:
+      health.lua: |
+        ...
+```
+
+```yaml
+  resource.customizations: |
+    "*.aws.crossplane.io/*":
       health.lua: | 
         ...
 ```
+
+!!!important
+    Please note the required quotes in the resource customization health section, if the wildcard starts with `*`.
 
 The `obj` is a global variable which contains the resource. The script must return an object with status and optional message field.
 The custom health check might return one of the following health statuses:
@@ -125,9 +137,11 @@ setting `resource.customizations.useOpenLibs.<group_kind>`. In the following exa
 
 ```yaml
 data:
-  resource.customizations.useOpenLibs.cert-manager.io_Certificate: "true"
-  resource.customizations.health.cert-manager.io_Certificate:
-    -- Lua standard libraries are enabled for this script
+  resource.customizations: |
+    cert-manager.io/Certificate:
+      health.lua.useOpenLibs: true
+      health.lua: |
+        # Lua standard libraries are enabled for this script
 ```
 
 ### Way 2. Contribute a Custom Health Check
@@ -159,3 +173,36 @@ To test the implemented custom health checks, run `go test -v ./util/lua/`.
 The [PR#1139](https://github.com/argoproj/argo-cd/pull/1139) is an example of Cert Manager CRDs custom health check.
 
 Please note that bundled health checks with wildcards are not supported.
+
+## Health Checks
+
+An Argo CD App's health is inferred from the health of its immediate child resources (the resources represented in 
+source control). 
+
+But the health of a resource is not inherited from child resources - it is calculated using only information about the 
+resource itself. A resource's status field may or may not contain information about the health of a child resource, and 
+the resource's health check may or may not take that information into account.
+
+The lack of inheritance is by design. A resource's health can't be inferred from its children because the health of a
+child resource may not be relevant to the health of the parent resource. For example, a Deployment's health is not
+necessarily affected by the health of its Pods. 
+
+```
+App (healthy)
+└── Deployment (healthy)
+    └── ReplicaSet (healthy)
+        └── Pod (healthy)
+    └── ReplicaSet (unhealthy)
+        └── Pod (unhealthy)
+```
+
+If you want the health of a child resource to affect the health of its parent, you need to configure the parent's health
+check to take the child's health into account. Since only the parent resource's state is available to the health check,
+the parent resource's controller needs to make the child resource's health available in the parent resource's status 
+field.
+
+```
+App (healthy)
+└── CustomResource (healthy) <- This resource's health check needs to be fixed to mark the App as unhealthy
+    └── CustomChildResource (unhealthy)
+```

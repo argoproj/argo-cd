@@ -6,7 +6,7 @@ import {FormApi, Text} from 'react-form';
 import {RouteComponentProps} from 'react-router';
 
 import {BadgePanel, CheckboxField, DataLoader, EditablePanel, ErrorNotification, MapInputField, Page, Query} from '../../../shared/components';
-import {AppContext, Consumer} from '../../../shared/context';
+import {AppContext, Consumer, AuthSettingsCtx} from '../../../shared/context';
 import {GroupKind, Groups, Project, DetailedProjectsResponse, ProjectSpec, ResourceKinds} from '../../../shared/models';
 import {CreateJWTTokenParams, DeleteJWTTokenParams, ProjectRoleParams, services} from '../../../shared/services';
 
@@ -16,6 +16,7 @@ import {ProjectEvents} from '../project-events/project-events';
 import {ProjectRoleEditPanel} from '../project-role-edit-panel/project-role-edit-panel';
 import {ProjectSyncWindowsEditPanel} from '../project-sync-windows-edit-panel/project-sync-windows-edit-panel';
 import {ResourceListsPanel} from './resource-lists-panel';
+import {DeepLinks} from '../../../shared/components/deep-links';
 
 require('./project-details.scss');
 
@@ -51,6 +52,7 @@ function reduceGlobal(projs: Project[]): ProjectSpec & {count: number} {
             merged.namespaceResourceWhitelist = merged.namespaceResourceWhitelist.concat(proj.spec.namespaceResourceWhitelist || []);
             merged.sourceRepos = merged.sourceRepos.concat(proj.spec.sourceRepos || []);
             merged.destinations = merged.destinations.concat(proj.spec.destinations || []);
+            merged.sourceNamespaces = merged.sourceNamespaces.concat(proj.spec.sourceNamespaces || []);
 
             merged.sourceRepos = merged.sourceRepos.filter((item, index) => {
                 return (
@@ -105,6 +107,15 @@ function reduceGlobal(projs: Project[]): ProjectSpec & {count: number} {
                     })
                 );
             });
+
+            merged.sourceNamespaces = merged.sourceNamespaces.filter((item, index) => {
+                return (
+                    index ===
+                    merged.sourceNamespaces.findIndex(obj => {
+                        return obj === item;
+                    })
+                );
+            });
             merged.count += 1;
 
             return merged;
@@ -115,6 +126,7 @@ function reduceGlobal(projs: Project[]): ProjectSpec & {count: number} {
             namespaceResourceWhitelist: new Array<GroupKind>(),
             clusterResourceWhitelist: new Array<GroupKind>(),
             sourceRepos: [],
+            sourceNamespaces: [],
             signatureKeys: [],
             destinations: [],
             description: '',
@@ -575,6 +587,14 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                                 .map(label => `${label}=${proj.metadata.labels[label]}`)
                                 .join(' '),
                             edit: (formApi: FormApi) => <FormField formApi={formApi} field='metadata.labels' component={MapInputField} />
+                        },
+                        {
+                            title: 'LINKS',
+                            view: (
+                                <div style={{margin: '8px 0'}}>
+                                    <DataLoader load={() => services.projects.getLinks(proj.metadata.name)}>{links => <DeepLinks links={links.items} />}</DataLoader>
+                                </div>
+                            )
                         }
                     ]}
                 />
@@ -639,7 +659,51 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                     }
                     items={[]}
                 />
-
+                <AuthSettingsCtx.Consumer>
+                    {authCtx =>
+                        authCtx.appsInAnyNamespaceEnabled && (
+                            <EditablePanel
+                                save={item => this.saveProject(item)}
+                                values={proj}
+                                title={
+                                    <React.Fragment>SOURCE NAMESPACES {helpTip('Kubernetes namespaces where application resources are allowed to be created in')}</React.Fragment>
+                                }
+                                view={
+                                    <React.Fragment>
+                                        {proj.spec.sourceNamespaces
+                                            ? proj.spec.sourceNamespaces.map((namespace, i) => (
+                                                  <div className='row white-box__details-row' key={i}>
+                                                      <div className='columns small-12'>{namespace}</div>
+                                                  </div>
+                                              ))
+                                            : emptyMessage('source namespaces')}
+                                    </React.Fragment>
+                                }
+                                edit={formApi => (
+                                    <React.Fragment>
+                                        {(formApi.values.spec.sourceNamespaces || []).map((_: Project, i: number) => (
+                                            <div className='row white-box__details-row' key={i}>
+                                                <div className='columns small-12'>
+                                                    <FormField formApi={formApi} field={`spec.sourceNamespaces[${i}]`} component={AutocompleteField} />
+                                                    <i
+                                                        className='fa fa-times'
+                                                        onClick={() => formApi.setValue('spec.sourceNamespaces', removeEl(formApi.values.spec.sourceNamespaces, i))}
+                                                    />
+                                                </div>
+                                            </div>
+                                        ))}
+                                        <button
+                                            className='argo-button argo-button--short'
+                                            onClick={() => formApi.setValue('spec.sourceNamespaces', (formApi.values.spec.sourceNamespaces || []).concat('*'))}>
+                                            ADD SOURCE
+                                        </button>
+                                    </React.Fragment>
+                                )}
+                                items={[]}
+                            />
+                        )
+                    }
+                </AuthSettingsCtx.Consumer>
                 <EditablePanel
                     save={item => this.saveProject(item)}
                     values={proj}

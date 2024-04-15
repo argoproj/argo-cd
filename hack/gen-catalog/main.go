@@ -16,12 +16,12 @@ import (
 	"github.com/argoproj/notifications-engine/pkg/services"
 	"github.com/argoproj/notifications-engine/pkg/triggers"
 	"github.com/argoproj/notifications-engine/pkg/util/misc"
-	"github.com/ghodss/yaml"
 	"github.com/olekukonko/tablewriter"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/yaml"
 )
 
 func main() {
@@ -150,7 +150,7 @@ func generateBuiltInTriggersDocs(out io.Writer, triggers map[string][]triggers.C
 }
 
 func generateCommandsDocs(out io.Writer) error {
-    // create parents so that CommandPath() is correctly resolved
+	// create parents so that CommandPath() is correctly resolved
 	mainCmd := &cobra.Command{Use: "argocd"}
 	adminCmd := &cobra.Command{Use: "admin"}
 	toolCmd := admin.NewNotificationsCommand()

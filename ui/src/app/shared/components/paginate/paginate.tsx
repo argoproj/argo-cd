@@ -6,6 +6,11 @@ import {services} from '../../services';
 
 require('./paginate.scss');
 
+export interface SortOption<T> {
+    title: string;
+    compare: (a: T, b: T) => number;
+}
+
 export interface PaginateProps<T> {
     page: number;
     onPageChange: (page: number) => any;
@@ -15,14 +20,16 @@ export interface PaginateProps<T> {
     preferencesKey?: string;
     header?: React.ReactNode;
     showHeader?: boolean;
+    sortOptions?: SortOption<T>[];
 }
 
-export function Paginate<T>({page, onPageChange, children, data, emptyState, preferencesKey, header, showHeader}: PaginateProps<T>) {
+export function Paginate<T>({page, onPageChange, children, data, emptyState, preferencesKey, header, showHeader, sortOptions}: PaginateProps<T>) {
     return (
         <DataLoader load={() => services.viewPreferences.getPreferences()}>
             {pref => {
                 preferencesKey = preferencesKey || 'default';
                 const pageSize = pref.pageSizes[preferencesKey] || 10;
+                const sortOption = sortOptions ? (pref.sortOptions && pref.sortOptions[preferencesKey]) || sortOptions[0].title : '';
                 const pageCount = pageSize === -1 ? 1 : Math.ceil(data.length / pageSize);
                 if (pageCount <= page) {
                     page = pageCount - 1;
@@ -43,6 +50,29 @@ export function Paginate<T>({page, onPageChange, children, data, emptyState, pre
                                     />
                                 )}
                                 <div className='paginate__size-menu'>
+                                    {sortOptions && (
+                                        <DropDownMenu
+                                            anchor={() => (
+                                                <>
+                                                    <a>
+                                                        Sort: {sortOption.toLowerCase()} <i className='fa fa-caret-down' />
+                                                    </a>
+                                                    &nbsp;
+                                                </>
+                                            )}
+                                            items={sortOptions.map(so => ({
+                                                title: so.title,
+                                                action: () => {
+                                                    // sortOptions might not be set in the browser storage
+                                                    if (!pref.sortOptions) {
+                                                        pref.sortOptions = {};
+                                                    }
+                                                    pref.sortOptions[preferencesKey] = so.title;
+                                                    services.viewPreferences.updatePreferences(pref);
+                                                }
+                                            }))}
+                                        />
+                                    )}
                                     <DropDownMenu
                                         anchor={() => (
                                             <a>
@@ -63,7 +93,13 @@ export function Paginate<T>({page, onPageChange, children, data, emptyState, pre
                         </div>
                     );
                 }
-
+                if (sortOption) {
+                    sortOptions
+                        .filter(o => o.title === sortOption)
+                        .forEach(so => {
+                            data.sort(so.compare);
+                        });
+                }
                 return (
                     <React.Fragment>
                         <div className='paginate'>{paginator()}</div>
