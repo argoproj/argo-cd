@@ -467,7 +467,7 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 		if err != nil {
 			return fmt.Errorf("error getting API resources: %w", err)
 		}
-		
+
 		sources := make([]appv1.ApplicationSource, 0)
 		if a.Spec.HasMultipleSources() {
 			numOfSources := int64(len(a.Spec.GetSources()))
