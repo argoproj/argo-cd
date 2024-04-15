@@ -547,7 +547,7 @@ func TestInvalidAppProject(t *testing.T) {
 		Then().
 		// We're not allowed to infer whether the project exists based on this error message. Instead, we get a generic
 		// permission denied error.
-		Expect(Error("", "permission denied"))
+		Expect(Error("", "is not allowed"))
 }
 
 func TestAppDeletion(t *testing.T) {
