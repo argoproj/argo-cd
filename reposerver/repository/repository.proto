@@ -74,6 +74,8 @@ message ResolveRevisionRequest {
     github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.Application app = 2;
     string ambiguousRevision = 3;
     int64 sourceIndex = 4;
+    repeated github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.Repository repos = 6;
+    repeated github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.RepoCreds helmRepoCreds = 7;
 }
 
 // ResolveRevisionResponse
@@ -165,6 +167,8 @@ message RepoServerRevisionChartDetailsRequest {
     string name = 2;
     // the revision within the chart
     string revision = 3;
+    repeated github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.Repository repos = 4;
+    repeated github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.RepoCreds helmRepoCreds = 5;
 }
 
 // HelmAppSpec contains helm app name  in source repo
