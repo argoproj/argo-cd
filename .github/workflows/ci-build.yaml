@@ -43,6 +43,8 @@ jobs:
             frontend:
               - 'ui/**'
               - Dockerfile
+            docs:
+              - 'docs/**'
   check-go:
     name: Ensure Go modules synchronicity
     if: ${{ needs.changes.outputs.backend == 'true' }}
@@ -245,7 +247,7 @@ jobs:
 
   codegen:
     name: Check changes to generated code
-    if: ${{ needs.changes.outputs.backend == 'true' }}
+    if: ${{ needs.changes.outputs.backend == 'true' || needs.changes.outputs.docs == 'true'}}
     runs-on: ubuntu-22.04
     needs:
       - changes
