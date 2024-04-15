@@ -87,7 +87,7 @@ func GetDistributionFunction(clusters clusterAccessor, apps appAccessor, shardin
 	case common.LegacyShardingAlgorithm:
 		distributionFunction = LegacyDistributionFunction(replicasCount)
 	case common.ConsistentHashingWithBoundedLoadsAlgorithm:
-		distributionFunction = ConsistentHashingWithBoundedLoadsDistributionFunction(clusters, replicasCount)
+		distributionFunction = ConsistentHashingWithBoundedLoadsDistributionFunction(clusters, apps, replicasCount)
 	default:
 		log.Warnf("distribution type %s is not supported, defaulting to %s", shardingAlgorithm, common.DefaultShardingAlgorithm)
 	}
@@ -166,7 +166,7 @@ func RoundRobinDistributionFunction(clusters clusterAccessor, replicas int) Dist
 // for a given cluster the function will return the shard number based on a consistent hashing with bounded loads algorithm.
 // This function ensures an almost homogenous distribution: each shards got assigned the fairly similar number of
 // clusters +/-10% , but with it is resilient to sharding and/or number of clusters changes.
-func ConsistentHashingWithBoundedLoadsDistributionFunction(clusters clusterAccessor, replicas int) DistributionFunction {
+func ConsistentHashingWithBoundedLoadsDistributionFunction(clusters clusterAccessor, apps appAccessor, replicas int) DistributionFunction {
 	return func(c *v1alpha1.Cluster) int {
 		if replicas > 0 {
 			if c == nil { // in-cluster does not necessarly have a secret assigned. So we are receiving a nil cluster here.
@@ -184,15 +184,10 @@ func ConsistentHashingWithBoundedLoadsDistributionFunction(clusters clusterAcces
 					log.Warnf("Cluster with id=%s not found in cluster map.", c.ID)
 					return -1
 				}
-				consistentHashing := createConsistentHashingWithBoundLoads(replicas)
-				clusterIndex, err := consistentHashing.Get(c.ID)
-				if err != nil {
+				shardIndexedByCluster := createConsistentHashingWithBoundLoads(replicas, clusters, apps)
+				shard, ok := shardIndexedByCluster[c.ID]
+				if !ok {
 					log.Warnf("Cluster with id=%s not found in cluster map.", c.ID)
-					return -1
-				}
-				shard, err := strconv.Atoi(clusterIndex)
-				if err != nil {
-					log.Errorf("Consistent Hashing was supposed to return a shard index but it returned %d", err)
 					return -1
 				}
 				log.Debugf("Cluster with id=%s will be processed by shard %d", c.ID, shard)
@@ -204,15 +199,53 @@ func ConsistentHashingWithBoundedLoadsDistributionFunction(clusters clusterAcces
 	}
 }
 
-func createConsistentHashingWithBoundLoads(replicas int) *consistent.Consistent {
+func createConsistentHashingWithBoundLoads(replicas int, getCluster clusterAccessor, getApp appAccessor) map[string]int {
+	clusters := getSortedClustersList(getCluster)
+	appDistribution := getAppDistribution(getCluster, getApp)
+	shardIndexedByCluster := make(map[string]int)
+	appsIndexedByShard := make(map[string]int64)
 	consistentHashing := consistent.New()
 	// Adding a shard with id "-1" as a reserved value for clusters that does not have an assigned shard
 	// this happens for clusters that are removed for the clusters list
 	//consistentHashing.Add("-1")
 	for i := 0; i < replicas; i++ {
-		consistentHashing.Add(strconv.Itoa(i))
+		shard := strconv.Itoa(i)
+		consistentHashing.Add(shard)
+		appsIndexedByShard[shard] = 0
 	}
-	return consistentHashing
+
+	for _, c := range clusters {
+		clusterIndex, err := consistentHashing.GetLeast(c.ID)
+		if err != nil {
+			log.Warnf("Cluster with id=%s not found in cluster map.", c.ID)
+		}
+		shardIndexedByCluster[c.ID], err = strconv.Atoi(clusterIndex)
+		if err != nil {
+			log.Errorf("Consistent Hashing was supposed to return a shard index but it returned %d", err)
+		}
+		numApps, ok := appDistribution[c.Server]
+		if !ok {
+			numApps = 0
+		}
+		appsIndexedByShard[clusterIndex] += numApps
+		consistentHashing.UpdateLoad(clusterIndex, appsIndexedByShard[clusterIndex])
+	}
+
+	return shardIndexedByCluster
+}
+
+func getAppDistribution(getCluster clusterAccessor, getApps appAccessor) map[string]int64 {
+	apps := getApps()
+	clusters := getCluster()
+	appDistribution := make(map[string]int64, len(clusters))
+
+	for _, a := range apps {
+		if _, ok := appDistribution[a.Spec.Destination.Server]; !ok {
+			appDistribution[a.Spec.Destination.Server] = 0
+		}
+		appDistribution[a.Spec.Destination.Server]++
+	}
+	return appDistribution
 }
 
 // NoShardingDistributionFunction returns a DistributionFunction that will process all cluster by shard 0

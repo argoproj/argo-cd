@@ -287,12 +287,13 @@ func TestConsistentHashingWhenClusterIsAddedAndRemoved(t *testing.T) {
 		clusters = append(clusters, createCluster(cluster, id))
 	}
 	clusterAccessor := getClusterAccessor(clusters)
+	appAccessor, _, _, _, _, _ := createTestApps()
 	clusterList := &v1alpha1.ClusterList{Items: clusters}
 	db.On("ListClusters", mock.Anything).Return(clusterList, nil)
 	// Test with replicas set to 3
 	replicasCount := 3
 	db.On("GetApplicationControllerReplicas").Return(replicasCount)
-	distributionFunction := ConsistentHashingWithBoundedLoadsDistributionFunction(clusterAccessor, replicasCount)
+	distributionFunction := ConsistentHashingWithBoundedLoadsDistributionFunction(clusterAccessor, appAccessor, replicasCount)
 	assert.Equal(t, 0, distributionFunction(nil))
 	distributionMap := map[int]int{}
 	assignementMap := map[string]int{}
@@ -327,7 +328,7 @@ func TestConsistentHashingWhenClusterIsAddedAndRemoved(t *testing.T) {
 
 	// Now we will decrease the number of replicas to 2, and we should see only clusters that were attached to shard 2 to be reassigned
 	replicasCount = 2
-	distributionFunction = ConsistentHashingWithBoundedLoadsDistributionFunction(getClusterAccessor(clusterList.Items), replicasCount)
+	distributionFunction = ConsistentHashingWithBoundedLoadsDistributionFunction(getClusterAccessor(clusterList.Items), appAccessor, replicasCount)
 	removedCluster := clusterList.Items[len(clusterList.Items)-1]
 	for i := 0; i < clusterCount; i++ {
 		c := &clusters[i]
@@ -338,11 +339,10 @@ func TestConsistentHashingWhenClusterIsAddedAndRemoved(t *testing.T) {
 			t.Fail()
 		}
 	}
-
 	// Now, we remove the last added cluster, it should be unassigned
 	removedCluster = clusterList.Items[len(clusterList.Items)-1]
 	clusterList.Items = clusterList.Items[:len(clusterList.Items)-1]
-	distributionFunction = ConsistentHashingWithBoundedLoadsDistributionFunction(getClusterAccessor(clusterList.Items), replicasCount)
+	distributionFunction = ConsistentHashingWithBoundedLoadsDistributionFunction(getClusterAccessor(clusterList.Items), appAccessor, replicasCount)
 	assert.Equal(t, -1, distributionFunction(&removedCluster))
 }
 
@@ -352,11 +352,11 @@ func TestConsistentHashingWhenClusterWithZeroReplicas(t *testing.T) {
 	clusterAccessor := getClusterAccessor(clusters)
 	clusterList := &v1alpha1.ClusterList{Items: clusters}
 	db.On("ListClusters", mock.Anything).Return(clusterList, nil)
-
+	appAccessor, _, _, _, _, _ := createTestApps()
 	// Test with replicas set to 0
 	replicasCount := 0
 	db.On("GetApplicationControllerReplicas").Return(replicasCount)
-	distributionFunction := ConsistentHashingWithBoundedLoadsDistributionFunction(clusterAccessor, replicasCount)
+	distributionFunction := ConsistentHashingWithBoundedLoadsDistributionFunction(clusterAccessor, appAccessor, replicasCount)
 	assert.Equal(t, -1, distributionFunction(nil))
 }
 
@@ -373,7 +373,8 @@ func TestConsistentHashingWhenClusterWithFixedShard(t *testing.T) {
 	// Test with replicas set to 5
 	replicasCount := 5
 	db.On("GetApplicationControllerReplicas").Return(replicasCount)
-	distributionFunction := ConsistentHashingWithBoundedLoadsDistributionFunction(clusterAccessor, replicasCount)
+	appAccessor, _, _, _, _, _ := createTestApps()
+	distributionFunction := ConsistentHashingWithBoundedLoadsDistributionFunction(clusterAccessor, appAccessor, replicasCount)
 	assert.Equal(t, fixedShard, int64(distributionFunction(cluster)))
 
 }

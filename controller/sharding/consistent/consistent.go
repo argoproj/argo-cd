@@ -116,47 +116,32 @@ func (c *Consistent) GetLeast(client string) (string, error) {
 	if c.clients.Len() == 0 {
 		return "", ErrNoHosts
 	}
-
 	h := c.hash(client)
-	idx := c.search(h)
-
-	i := idx
 	for {
-		x := item{uint64(i)}
-		key := c.clients.Get(x)
+		var foundItem btree.Item
+		c.clients.AscendGreaterOrEqual(item{h}, func(bItem btree.Item) bool {
+			if h != bItem.(item).value {
+				foundItem = bItem
+				return false // stop the iteration
+			}
+			return true
+		})
+
+		if foundItem == nil {
+			// If no host found, wrap around to the first one.
+			foundItem = c.clients.Min()
+		}
+		key := c.clients.Get(foundItem)
 		if key != nil {
-			host := c.servers[key.(*item).value]
+			host := c.servers[key.(item).value]
 			if c.loadOK(host) {
 				return host, nil
 			}
-			i++
-			if i >= c.clients.Len() {
-				i = 0
-			}
+			h = key.(item).value
 		} else {
 			return client, nil
 		}
 	}
-}
-
-func (c *Consistent) search(key uint64) int {
-	idx := 0
-	found := false
-
-	c.clients.Ascend(func(i btree.Item) bool {
-		if i.(item).value >= key {
-			found = true
-			return false // stop the iteration
-		}
-		idx++
-		return true
-	})
-
-	if !found {
-		idx = 0
-	}
-
-	return idx
 }
 
 // Sets the load of `server` to the given `load`
