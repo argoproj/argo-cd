@@ -2843,7 +2843,7 @@ func NewApplicationManifestsCommand(clientOpts *argocdclient.ClientOptions) *cob
 					q := application.ApplicationManifestQuery{
 						Name:            &appName,
 						AppNamespace:    &appNs,
-						Revision:        pointer.String(revision),
+						Revision:        ptr.To(revision),
 						Revisions:       revisions,
 						SourcePositions: sourcePositions,
 					}

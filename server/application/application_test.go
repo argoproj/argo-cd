@@ -1998,7 +1998,7 @@ func TestMaxPodLogsRender(t *testing.T) {
 	appServer, adminCtx := createAppServerWithMaxLodLogs(t, podNumber)
 
 	t.Run("PodLogs", func(t *testing.T) {
-		err := appServer.PodLogs(&application.ApplicationPodLogsQuery{Name: pointer.String("test")}, &TestPodLogsServer{ctx: adminCtx})
+		err := appServer.PodLogs(&application.ApplicationPodLogsQuery{Name: ptr.To("test")}, &TestPodLogsServer{ctx: adminCtx})
 		statusCode, _ := status.FromError(err)
 		assert.Equal(t, codes.OK, statusCode.Code())
 	})
@@ -2008,7 +2008,7 @@ func TestMaxPodLogsRender(t *testing.T) {
 	appServer, adminCtx = createAppServerWithMaxLodLogs(t, podNumber)
 
 	t.Run("PodLogs", func(t *testing.T) {
-		err := appServer.PodLogs(&application.ApplicationPodLogsQuery{Name: pointer.String("test")}, &TestPodLogsServer{ctx: adminCtx})
+		err := appServer.PodLogs(&application.ApplicationPodLogsQuery{Name: ptr.To("test")}, &TestPodLogsServer{ctx: adminCtx})
 		assert.NotNil(t, err)
 		statusCode, _ := status.FromError(err)
 		assert.Equal(t, codes.InvalidArgument, statusCode.Code())
@@ -2021,7 +2021,7 @@ func TestMaxPodLogsRender(t *testing.T) {
 	appServer, adminCtx = createAppServerWithMaxLodLogs(t, podNumber, customMaxPodLogsToRender)
 
 	t.Run("PodLogs", func(t *testing.T) {
-		err := appServer.PodLogs(&application.ApplicationPodLogsQuery{Name: pointer.String("test")}, &TestPodLogsServer{ctx: adminCtx})
+		err := appServer.PodLogs(&application.ApplicationPodLogsQuery{Name: ptr.To("test")}, &TestPodLogsServer{ctx: adminCtx})
 		statusCode, _ := status.FromError(err)
 		assert.Equal(t, codes.OK, statusCode.Code())
 	})
@@ -2032,7 +2032,7 @@ func TestMaxPodLogsRender(t *testing.T) {
 	appServer, adminCtx = createAppServerWithMaxLodLogs(t, podNumber, customMaxPodLogsToRender)
 
 	t.Run("PodLogs", func(t *testing.T) {
-		err := appServer.PodLogs(&application.ApplicationPodLogsQuery{Name: pointer.String("test")}, &TestPodLogsServer{ctx: adminCtx})
+		err := appServer.PodLogs(&application.ApplicationPodLogsQuery{Name: ptr.To("test")}, &TestPodLogsServer{ctx: adminCtx})
 		assert.NotNil(t, err)
 		statusCode, _ := status.FromError(err)
 		assert.Equal(t, codes.InvalidArgument, statusCode.Code())
