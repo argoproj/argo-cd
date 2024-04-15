@@ -56,13 +56,13 @@ func TestDeclarativeInvalidProject(t *testing.T) {
 		Expect(SyncStatusIs(SyncStatusCodeUnknown)).
 		Expect(Condition(ApplicationConditionInvalidSpecError, "Application referencing project garbage which does not exist"))
 
-		// TODO: you can`t delete application with invalid project due to enforcment that was recently added, 
-		// in https://github.com/argoproj/argo-cd/security/advisories/GHSA-2gvw-w6fj-7m3c
-		//When().
-		//Delete(false).
-		//Then().
-		//Expect(Success("")).
-		//Expect(DoesNotExist())
+	// TODO: you can`t delete application with invalid project due to enforcment that was recently added,
+	// in https://github.com/argoproj/argo-cd/security/advisories/GHSA-2gvw-w6fj-7m3c
+	//When().
+	//Delete(false).
+	//Then().
+	//Expect(Success("")).
+	//Expect(DoesNotExist())
 }
 
 func TestDeclarativeInvalidRepoURL(t *testing.T) {
