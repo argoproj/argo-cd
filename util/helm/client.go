@@ -41,8 +41,6 @@ var (
 	OCINotEnabledErr = errors.New("could not perform the action when oci is not enabled")
 )
 
-//go:generate go run github.com/vektra/mockery/v2@v2.25.1 --name=Client
-
 type Creds struct {
 	Username           string
 	Password           string
