@@ -35,6 +35,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [BCDevExchange DevOps Platform](https://bcdevexchange.org/DevOpsPlatform)
 1. [Beat](https://thebeat.co/en/)
 1. [Beez Innovation Labs](https://www.beezlabs.com/)
+1. [Bedag Informatik AG](https://www.bedag.ch/)
 1. [Beleza Na Web](https://www.belezanaweb.com.br/)
 1. [BigPanda](https://bigpanda.io)
 1. [BioBox Analytics](https://biobox.io)
