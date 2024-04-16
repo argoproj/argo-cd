@@ -1207,7 +1207,7 @@ spec:
       automountServiceAccountToken: false
       initContainers:
       - name: config-init
-        image: redis:7.0.14-alpine
+        image: redis:7.0.15-alpine
         imagePullPolicy: IfNotPresent
         resources:
           {}
@@ -1241,7 +1241,7 @@ spec:
 
       containers:
       - name: redis
-        image: redis:7.0.14-alpine
+        image: redis:7.0.15-alpine
         imagePullPolicy: IfNotPresent
         command:
         - redis-server
@@ -1298,7 +1298,7 @@ spec:
               - /bin/sh
               - /readonly-config/trigger-failover-if-master.sh
       - name: sentinel
-        image: redis:7.0.14-alpine
+        image: redis:7.0.15-alpine
         imagePullPolicy: IfNotPresent
         command:
           - redis-sentinel
@@ -1349,7 +1349,7 @@ spec:
           {}
 
       - name: split-brain-fix
-        image: redis:7.0.14-alpine
+        image: redis:7.0.15-alpine
         imagePullPolicy: IfNotPresent
         command:
           - sh
