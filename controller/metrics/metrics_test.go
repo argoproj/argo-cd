@@ -213,7 +213,7 @@ func newFakeLister(fakeAppYAMLs ...string) (context.CancelFunc, applister.Applic
 
 func testApp(t *testing.T, fakeAppYAMLs []string, expectedResponse string) {
 	t.Helper()
-	testMetricServer(t, fakeAppYAMLs, expectedResponse, []string{}, []string{"head", "main", "master", "dev*"})
+	testMetricServer(t, fakeAppYAMLs, expectedResponse, []string{}, []string{"HEAD", "main", "MASTER", "Dev*"})
 }
 
 type fakeClusterInfo struct {
@@ -282,7 +282,7 @@ func TestMetrics(t *testing.T) {
 # HELP argocd_app_info Information about application.
 # TYPE argocd_app_info gauge
 argocd_app_info{autosync_enabled="true",dest_namespace="dummy-namespace",dest_server="https://localhost:6443",health_status="Degraded",name="my-app-3",namespace="argocd",operation="delete",project="important-project",repo="https://github.com/argoproj/argocd-example-apps",revision="develop",sync_status="OutOfSync"} 1
-argocd_app_info{autosync_enabled="false",dest_namespace="dummy-namespace",dest_server="https://localhost:6443",health_status="Healthy",name="my-app",namespace="argocd",operation="",project="important-project",repo="https://github.com/argoproj/argocd-example-apps",revision="head",sync_status="Synced"} 1
+argocd_app_info{autosync_enabled="false",dest_namespace="dummy-namespace",dest_server="https://localhost:6443",health_status="Healthy",name="my-app",namespace="argocd",operation="",project="important-project",repo="https://github.com/argoproj/argocd-example-apps",revision="HEAD",sync_status="Synced"} 1
 argocd_app_info{autosync_enabled="true",dest_namespace="dummy-namespace",dest_server="https://localhost:6443",health_status="Healthy",name="my-app-2",namespace="argocd",operation="sync",project="important-project",repo="https://github.com/argoproj/argocd-example-apps",revision="master",sync_status="Synced"} 1
 `,
 		},

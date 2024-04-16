@@ -8,6 +8,7 @@ import (
 	"os"
 	"regexp"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/argoproj/gitops-engine/pkg/health"
@@ -316,6 +317,10 @@ type appCollector struct {
 
 // NewAppCollector returns a prometheus collector for application metrics
 func NewAppCollector(appLister applister.ApplicationLister, appFilter func(obj interface{}) bool, appLabels []string, appRevisions []string) prometheus.Collector {
+	for i, s := range appRevisions {
+		appRevisions[i] = strings.ToLower(s)
+	}
+
 	return &appCollector{
 		store:        appLister,
 		appFilter:    appFilter,
@@ -364,9 +369,9 @@ func boolFloat64(b bool) float64 {
 
 func (c *appCollector) normalizeAppTargetRevision(in string) string {
 	if len(in) == 0 {
-		in = "head"
+		in = "HEAD"
 	}
-	if glob.MatchStringInList(c.appRevisions, in, false) {
+	if glob.MatchStringInList(c.appRevisions, strings.ToLower(in), false) {
 		return in
 	}
 
