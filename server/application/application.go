@@ -1826,8 +1826,10 @@ func (s *Server) Sync(ctx context.Context, syncReq *application.ApplicationSyncR
 	var revision string
 	var displayRevision string
 	var sourceRevisions []string
+	var displayRevisions []string
 	if a.Spec.HasMultipleSources() {
 		sourceRevisions = make([]string, 0)
+		displayRevisions = make([]string, 0)
 		numOfSources := int64(len(a.Spec.GetSources()))
 		sources := a.Spec.GetSources()
 		for i, pos := range syncReq.SourcePositions {
@@ -1843,10 +1845,12 @@ func (s *Server) Sync(ctx context.Context, syncReq *application.ApplicationSyncR
 					return nil, status.Errorf(codes.FailedPrecondition, "Cannot sync source %s to %s: auto-sync currently set to %s", source.RepoURL, syncReq.GetRevision(), source.TargetRevision)
 				}
 			}
-			revision, displayRevision, err = s.resolveRevision(ctx, a, syncReq, index)
+			revision, displayRevision, err := s.resolveRevision(ctx, a, syncReq, index)
 			if err != nil {
 				return nil, status.Errorf(codes.FailedPrecondition, err.Error())
 			}
+			sourceRevisions[index] = revision
+			displayRevisions[index] = displayRevision
 		}
 	} else {
 		source := a.Spec.GetSource()
@@ -1917,7 +1921,12 @@ func (s *Server) Sync(ctx context.Context, syncReq *application.ApplicationSyncR
 	if len(syncReq.Resources) > 0 {
 		partial = "partial "
 	}
-	reason := fmt.Sprintf("initiated %ssync to %s", partial, displayRevision)
+	var reason string
+	if a.Spec.HasMultipleSources() {
+		reason = fmt.Sprintf("initiated %ssync to %s", partial, strings.Join(displayRevisions, ","))
+	} else {
+		reason = fmt.Sprintf("initiated %ssync to %s", partial, displayRevision)
+	}
 	if syncReq.Manifests != nil {
 		reason = fmt.Sprintf("initiated %ssync locally", partial)
 	}

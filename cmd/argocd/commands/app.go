@@ -1169,7 +1169,7 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			if app.Spec.HasMultipleSources() && len(revisions) > 0 && len(sourcePositions) > 0 {
 				numOfSources := int64(len(app.Spec.GetSources()))
 				for _, pos := range sourcePositions {
-					if pos <= 0 || pos > numOfSources {
+					if pos <= 0 || pos >= numOfSources {
 						log.Fatal("source-position cannot be less than 1 or more than number of sources in the app. Counting starts at 1.")
 					}
 				}
