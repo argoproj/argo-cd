@@ -197,11 +197,11 @@ export const ApplicationParameters = (props: {
         let descriptionCollapsed: string;
         let floatingTitle: string;
         if (sources.length > 1) {
-            if (repoAppDetails.type === "Directory") {
+            if (repoAppDetails.type === 'Directory') {
                 floatingTitle = 'TYPE=' + repoAppDetails.type + ', URL=' + src.repoURL;
                 descriptionCollapsed =
                     'TYPE=' + repoAppDetails.type + (src.path ? ', PATH=' + src.path : '' + (src.targetRevision ? ', TARGET REVISION=' + src.targetRevision : ''));
-            } else if (repoAppDetails.type === "Helm") {
+            } else if (repoAppDetails.type === 'Helm') {
                 floatingTitle = 'TYPE=' + repoAppDetails.type + ', URL=' + src.repoURL + (src.chart ? ', CHART=' + src.chart + ':' + src.targetRevision : '');
                 descriptionCollapsed =
                     'TYPE=' +
@@ -209,10 +209,10 @@ export const ApplicationParameters = (props: {
                     (src.chart ? ', CHART=' + src.chart + ':' + src.targetRevision : '') +
                     (src.path ? ', PATH=' + src.path : '') +
                     (src.helm && src.helm.valueFiles ? ', VALUES=' + src.helm.valueFiles[0] : '');
-            } else if (repoAppDetails.type === "Kustomize") {
+            } else if (repoAppDetails.type === 'Kustomize') {
                 floatingTitle = 'TYPE=' + repoAppDetails.type + ', URL=' + src.repoURL;
                 descriptionCollapsed = 'TYPE=' + repoAppDetails.type + ', VERSION=' + src.kustomize.version + (src.path ? ', PATH=' + src.path : '');
-            } else if (repoAppDetails.type === "Plugin") {
+            } else if (repoAppDetails.type === 'Plugin') {
                 floatingTitle =
                     'TYPE=' +
                     repoAppDetails.type +
