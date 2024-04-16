@@ -22,6 +22,7 @@ type MockResourceOps struct {
 	lastValidate           bool
 	serverSideApply        bool
 	serverSideApplyManager string
+	lastForce              bool
 
 	recordLock sync.RWMutex
 
@@ -73,6 +74,19 @@ func (r *MockResourceOps) SetLastServerSideApplyManager(manager string) {
 	r.recordLock.Unlock()
 }
 
+func (r *MockResourceOps) SetLastForce(force bool) {
+	r.recordLock.Lock()
+	r.lastForce = force
+	r.recordLock.Unlock()
+}
+
+func (r *MockResourceOps) GetLastForce() bool {
+	r.recordLock.RLock()
+	force := r.lastForce
+	r.recordLock.RUnlock()
+	return force
+}
+
 func (r *MockResourceOps) SetLastResourceCommand(key kube.ResourceKey, cmd string) {
 	r.recordLock.Lock()
 	if r.lastCommandPerResource == nil {
@@ -95,6 +109,7 @@ func (r *MockResourceOps) ApplyResource(ctx context.Context, obj *unstructured.U
 	r.SetLastValidate(validate)
 	r.SetLastServerSideApply(serverSideApply)
 	r.SetLastServerSideApplyManager(manager)
+	r.SetLastForce(force)
 	r.SetLastResourceCommand(kube.GetResourceKey(obj), "apply")
 	command, ok := r.Commands[obj.GetName()]
 	if !ok {
@@ -105,9 +120,9 @@ func (r *MockResourceOps) ApplyResource(ctx context.Context, obj *unstructured.U
 }
 
 func (r *MockResourceOps) ReplaceResource(ctx context.Context, obj *unstructured.Unstructured, dryRunStrategy cmdutil.DryRunStrategy, force bool) (string, error) {
+	r.SetLastForce(force)
 	command, ok := r.Commands[obj.GetName()]
 	r.SetLastResourceCommand(kube.GetResourceKey(obj), "replace")
-
 	if !ok {
 		return "", nil
 	}

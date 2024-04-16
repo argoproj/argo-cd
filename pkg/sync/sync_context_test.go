@@ -840,6 +840,52 @@ func TestSync_ServerSideApply(t *testing.T) {
 	}
 }
 
+func withForceAnnotation(un *unstructured.Unstructured) *unstructured.Unstructured {
+	un.SetAnnotations(map[string]string{synccommon.AnnotationSyncOptions: synccommon.SyncOptionForce})
+	return un
+}
+
+func withForceAndReplaceAnnotations(un *unstructured.Unstructured) *unstructured.Unstructured {
+	un.SetAnnotations(map[string]string{synccommon.AnnotationSyncOptions: "Force=true,Replace=true"})
+	return un
+}
+
+func TestSync_Force(t *testing.T) {
+	testCases := []struct {
+		name        string
+		target      *unstructured.Unstructured
+		live        *unstructured.Unstructured
+		commandUsed string
+		force       bool
+	}{
+		{"NoAnnotation", NewPod(), NewPod(), "apply", false},
+		{"ForceApplyAnnotationIsSet", withForceAnnotation(NewPod()), NewPod(), "apply", true},
+		{"ForceReplaceAnnotationIsSet", withForceAndReplaceAnnotations(NewPod()), NewPod(), "replace", true},
+		{"LiveObjectMissing", withReplaceAnnotation(NewPod()), nil, "create", false},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			syncCtx := newTestSyncCtx(nil)
+
+			tc.target.SetNamespace(FakeArgoCDNamespace)
+			if tc.live != nil {
+				tc.live.SetNamespace(FakeArgoCDNamespace)
+			}
+			syncCtx.resources = groupResources(ReconciliationResult{
+				Live:   []*unstructured.Unstructured{tc.live},
+				Target: []*unstructured.Unstructured{tc.target},
+			})
+
+			syncCtx.Sync()
+
+			resourceOps, _ := syncCtx.resourceOps.(*kubetest.MockResourceOps)
+			assert.Equal(t, tc.commandUsed, resourceOps.GetLastResourceCommand(kube.GetResourceKey(tc.target)))
+			assert.Equal(t, tc.force, resourceOps.GetLastForce())
+		})
+	}
+}
+
 func TestSelectiveSyncOnly(t *testing.T) {
 	pod1 := NewPod()
 	pod1.SetName("pod-1")
@@ -1771,11 +1817,11 @@ func TestWaveReorderingOfPruneTasks(t *testing.T) {
 			// no change in wave order
 			expectedWaveOrder: map[string]int{
 				// new wave 		// original wave
-				ns.GetName():   0, 	// 0
-				pod1.GetName(): 1, 	// 1
-				pod2.GetName(): 2, 	// 2
-				pod3.GetName(): 3, 	// 3
-				pod4.GetName(): 4, 	// 4
+				ns.GetName():   0, // 0
+				pod1.GetName(): 1, // 1
+				pod2.GetName(): 2, // 2
+				pod3.GetName(): 3, // 3
+				pod4.GetName(): 4, // 4
 			},
 		},
 		{
@@ -1785,11 +1831,11 @@ func TestWaveReorderingOfPruneTasks(t *testing.T) {
 			// change in prune wave order
 			expectedWaveOrder: map[string]int{
 				// new wave 		// original wave
-				ns.GetName():   4, 	// 0
-				pod1.GetName(): 3, 	// 1
-				pod2.GetName(): 2, 	// 2
-				pod3.GetName(): 1, 	// 3
-				pod4.GetName(): 0, 	// 4
+				ns.GetName():   4, // 0
+				pod1.GetName(): 3, // 1
+				pod2.GetName(): 2, // 2
+				pod3.GetName(): 1, // 3
+				pod4.GetName(): 0, // 4
 			},
 		},
 		{
@@ -1799,13 +1845,13 @@ func TestWaveReorderingOfPruneTasks(t *testing.T) {
 			// change in prune wave order
 			expectedWaveOrder: map[string]int{
 				// new wave 		// original wave
-				pod1.GetName(): 4, 	// 1
-				pod3.GetName(): 3, 	// 3
-				pod4.GetName(): 1, 	// 4
+				pod1.GetName(): 4, // 1
+				pod3.GetName(): 3, // 3
+				pod4.GetName(): 1, // 4
 
 				// no change since non prune tasks
-				ns.GetName():   0, 	// 0
-				pod2.GetName(): 2, 	// 2
+				ns.GetName():   0, // 0
+				pod2.GetName(): 2, // 2
 			},
 		},
 	}
@@ -1830,13 +1876,13 @@ func TestWaveReorderingOfPruneTasks(t *testing.T) {
 			// change in prune wave order
 			expectedWaveOrder: map[string]int{
 				// new wave 		// original wave
-				pod1.GetName(): 5, 	// 1
-				pod2.GetName(): 5, 	// 2
-				pod3.GetName(): 5, 	// 3
-				pod4.GetName(): 5, 	// 4
+				pod1.GetName(): 5, // 1
+				pod2.GetName(): 5, // 2
+				pod3.GetName(): 5, // 3
+				pod4.GetName(): 5, // 4
 
 				// no change since non prune tasks
-				ns.GetName(): 0, 	// 0
+				ns.GetName(): 0, // 0
 			},
 		},
 		{
@@ -1847,13 +1893,13 @@ func TestWaveReorderingOfPruneTasks(t *testing.T) {
 			// change in wave order
 			expectedWaveOrder: map[string]int{
 				// new wave 		// original wave
-				pod1.GetName(): 4, 	// 1
-				pod2.GetName(): 5, 	// 2
-				pod3.GetName(): 2, 	// 3
-				pod4.GetName(): 1, 	// 4
+				pod1.GetName(): 4, // 1
+				pod2.GetName(): 5, // 2
+				pod3.GetName(): 2, // 3
+				pod4.GetName(): 1, // 4
 
 				// no change since non prune tasks
-				ns.GetName(): 0, 	// 0
+				ns.GetName(): 0, // 0
 			},
 		},
 	}
@@ -1877,11 +1923,11 @@ func TestWaveReorderingOfPruneTasks(t *testing.T) {
 			// change in prune wave order
 			expectedWaveOrder: map[string]int{
 				// new wave 		// original wave
-				pod1.GetName(): 5, 	// 1
-				pod3.GetName(): 4, 	// 3
-				pod4.GetName(): 4, 	// 3
-				pod5.GetName(): 3, 	// 4
-				pod7.GetName(): 1, 	// 5
+				pod1.GetName(): 5, // 1
+				pod3.GetName(): 4, // 3
+				pod4.GetName(): 4, // 3
+				pod5.GetName(): 3, // 4
+				pod7.GetName(): 1, // 5
 
 				// no change since non prune tasks
 				ns.GetName():   -1, // -1
@@ -1941,8 +1987,8 @@ func TestWaitForCleanUpBeforeNextWave(t *testing.T) {
 
 	// simulate successful delete of pod3
 	syncCtx.resources = groupResources(ReconciliationResult{
-		Target: []*unstructured.Unstructured{nil, nil, },
-		Live:   []*unstructured.Unstructured{pod1, pod2, },
+		Target: []*unstructured.Unstructured{nil, nil},
+		Live:   []*unstructured.Unstructured{pod1, pod2},
 	})
 
 	// next sync should prune only pod2
@@ -1966,8 +2012,8 @@ func TestWaitForCleanUpBeforeNextWave(t *testing.T) {
 
 	// simulate successful delete of pod2
 	syncCtx.resources = groupResources(ReconciliationResult{
-		Target: []*unstructured.Unstructured{nil, },
-		Live:   []*unstructured.Unstructured{pod1, },
+		Target: []*unstructured.Unstructured{nil},
+		Live:   []*unstructured.Unstructured{pod1},
 	})
 
 	// next sync should proceed with next wave
