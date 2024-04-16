@@ -419,7 +419,7 @@ func GenerateNewClusterManagerSecret(clientset kubernetes.Interface, claims *Ser
 		return nil, err
 	}
 
-	err = wait.PollUntilContextTimeout(context.Background(), 500*time.Millisecond, 30*time.Second, true, func(ctx context.Context) (bool, error) {
+	err = wait.PollUntilContextTimeout(context.Background(), 500*time.Millisecond, 30*time.Second, false, func(ctx context.Context) (bool, error) {
 		created, err = secretsClient.Get(ctx, created.Name, metav1.GetOptions{})
 		if err != nil {
 			return false, err
@@ -430,7 +430,7 @@ func GenerateNewClusterManagerSecret(clientset kubernetes.Interface, claims *Ser
 		return true, nil
 	})
 	if err != nil {
-		return nil, fmt.Errorf("Timed out waiting for secret to generate new token")
+		return nil, fmt.Errorf("Timed out waiting for secret to generate new token: err %w", err)
 	}
 	return created, nil
 }

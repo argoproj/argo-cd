@@ -85,7 +85,7 @@ func (a *Actions) CreateClusterSecret(secretName string, clusterName string, clu
 	var serviceAccountName string
 
 	// Look for a service account matching '*application-controller*'
-	err := wait.PollUntilContextTimeout(context.Background(), 500*time.Millisecond, 30*time.Second, true, func(ctx context.Context) (bool, error) {
+	err := wait.PollUntilContextTimeout(context.Background(), 500*time.Millisecond, 30*time.Second, false, func(ctx context.Context) (bool, error) {
 
 		serviceAccountList, err := fixtureClient.KubeClientset.CoreV1().ServiceAccounts(fixture.TestNamespace()).List(ctx, metav1.ListOptions{})
 		if err != nil {
