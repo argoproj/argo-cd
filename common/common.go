@@ -188,6 +188,10 @@ const (
 	// AnnotationKeyAppSkipReconcile tells the Application to skip the Application controller reconcile.
 	// Skip reconcile when the value is "true" or any other string values that can be strconv.ParseBool() to be true.
 	AnnotationKeyAppSkipReconcile = "argocd.argoproj.io/skip-reconcile"
+	// LabelKeyComponentRepoServer is the label key to identify the component as repo-server
+	LabelKeyComponentRepoServer = "app.kubernetes.io/component"
+	// LabelValueComponentRepoServer is the label value for the repo-server component
+	LabelValueComponentRepoServer = "repo-server"
 )
 
 // Environment variables for tuning and debugging Argo CD
@@ -269,6 +273,8 @@ const (
 	// EnvServerSideDiff defines the env var used to enable ServerSide Diff feature.
 	// If defined, value must be "true" or "false".
 	EnvServerSideDiff = "ARGOCD_APPLICATION_CONTROLLER_SERVER_SIDE_DIFF"
+	// EnvGRPCMaxSizeMB is the environment variable to look for a max GRPC message size
+	EnvGRPCMaxSizeMB = "ARGOCD_GRPC_MAX_SIZE_MB"
 )
 
 // Config Management Plugin related constants
