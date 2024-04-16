@@ -1831,7 +1831,7 @@ func (s *Server) Sync(ctx context.Context, syncReq *application.ApplicationSyncR
 		numOfSources := int64(len(a.Spec.GetSources()))
 		sources := a.Spec.GetSources()
 		for i, pos := range syncReq.SourcePositions {
-			if pos < numOfSources {
+			if pos <= numOfSources {
 				sources[pos-1].TargetRevision = syncReq.Revisions[i]
 			} else {
 				return nil, fmt.Errorf("source position cannot be greater than number of sources in the application")
@@ -2114,7 +2114,7 @@ func (s *Server) resolveRevision(ctx context.Context, app *appv1.Application, sy
 			ambiguousRevision = app.Spec.Sources[sourceIndex].TargetRevision
 		}
 	} else {
-		ambiguousRevision := syncReq.GetRevision()
+		ambiguousRevision = syncReq.GetRevision()
 		if ambiguousRevision == "" {
 			ambiguousRevision = app.Spec.GetSource().TargetRevision
 		}
