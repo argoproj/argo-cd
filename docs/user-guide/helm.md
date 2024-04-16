@@ -161,7 +161,7 @@ Precedence of valueFiles themselves is the order they are defined in
 ```
 if we have
 
-valuesFile:
+valueFiles:
   - values-file-2.yaml
   - values-file-1.yaml
 
@@ -197,7 +197,7 @@ values: |
 the result will be param1=value5
 ```
 
-!!! note "When valuesFiles or values is used"
+!!! note "When valueFiles or values is used"
     The list of parameters seen in the ui is not what is used for resources, rather it is the values/valuesObject merged with parameters (see [this issue](https://github.com/argoproj/argo-cd/issues/9213) incase it has been resolved)
     As a workaround using parameters instead of values/valuesObject will provide a better overview of what will be used for resources
 

@@ -93,6 +93,7 @@ argocd-server [flags]
       --repo-server-timeout-seconds int                 Repo server RPC call timeout seconds. (default 60)
       --request-timeout string                          The length of time to wait before giving up on a single server request. Non-zero values should contain a corresponding time unit (e.g. 1s, 2m, 3h). A value of zero means don't timeout requests. (default "0")
       --revision-cache-expiration duration              Cache expiration for cached revision (default 3m0s)
+      --revision-cache-lock-timeout duration            Cache TTL for locks to prevent duplicate requests on revisions, set to 0 to disable (default 10s)
       --rootpath string                                 Used if Argo CD is running behind reverse proxy under subpath different from /
       --sentinel stringArray                            Redis sentinel hostname and port (e.g. argocd-redis-ha-announce-0:6379). 
       --sentinelmaster string                           Redis sentinel master group name. (default "master")
