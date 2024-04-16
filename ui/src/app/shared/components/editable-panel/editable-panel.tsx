@@ -87,7 +87,7 @@ export class EditablePanel<T = {}> extends React.Component<EditablePanelProps<T>
                                                 disabled={this.props.hasMultipleSources}
                                                 className='argo-button argo-button--base'>
                                                 {this.props.hasMultipleSources &&
-                                                    helpTip('Parameters are not editable for applications with multiple sources. You can edit them in the "Manifest" tab.')}{' '}
+                                                    helpTip('Sources are not editable for applications with multiple sources. You can edit them in the "Manifest" tab.')}{' '}
                                                 Edit
                                             </button>
                                         )}

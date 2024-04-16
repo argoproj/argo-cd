@@ -197,6 +197,8 @@ export interface ApplicationSource {
     plugin?: ApplicationSourcePlugin;
 
     directory?: ApplicationSourceDirectory;
+
+    ref?: string;
 }
 
 export interface ApplicationSourceHelm {
@@ -585,13 +587,6 @@ export interface HelmChart {
 }
 
 export type AppSourceType = 'Helm' | 'Kustomize' | 'Directory' | 'Plugin';
-
-export enum AppSource {
-    Helm = 'Helm',
-    Kustomize = 'Kustomize',
-    Directory = 'Directory',
-    Plugin = 'Plugin'
-}
 
 export interface RepoAppDetails {
     type: AppSourceType;
