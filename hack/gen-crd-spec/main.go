@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -117,6 +118,10 @@ func removeDescription(v interface{}) {
 
 func checkErr(err error) {
 	if err != nil {
+		var execError *exec.ExitError
+		if errors.As(err, &execError) {
+			fmt.Println(string(execError.Stderr))
+		}
 		panic(err)
 	}
 }
