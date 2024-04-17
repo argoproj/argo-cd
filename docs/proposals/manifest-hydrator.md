@@ -76,6 +76,34 @@ Many organizations have implemented their own manifest hydration system. By impl
 4) Every deployed change must have a corresponding dry commit - i.e. git is always the source of any changes
 5) Developers should be able to easily reproduce the manifest hydration process locally, i.e. by running some commands
 
+#### Hydration Reproducibility
+
+One goal of this proposal is to make hydration reproducibility easy. Reproducibility brings a couple benefits: easy iteration/debugging and reliable previews.
+
+##### Easy Iteration/Debugging
+
+The hydration system should enable developers to easily reproduce the hydration process locally. The developer should be able to run a short series of commands and perform the exact same tasks that Argo CD would take to hydrate their manifests. This allows the developer to verify that Argo CD is behaving as expected and to quickly tweak inputs and see the results. This lets them iterate quickly and improves developer satisfaction and change velocity.
+
+To provide this experience, the hydrator needs to provide the developer with a few pieces of information:
+
+1) The input repo URL, path, and commit SHA
+2) The hydration tool CLI version(s) (for example, the version of the Helm CLI used for hydration)
+3) A series of commands and arguments which the developer can run locally
+
+Equipped with this information, the developer can perform the exact same steps as Argo CD and be confident that their dry manifest changes will produce the desired output.
+
+Ensuring that hydration is deterministic assures the developer that the output for a given dry state will be the same next week as it is today.
+
+###### Avoiding Esoteric Behavior
+
+We should avoid the developer needing to know Argo CD-specific behavior in order to reproduce hydration. Tools like Helm, Kustimize, etc. have excellent public-facing documentation which the developer should be able to take advantage of without needing to know quirks of Argo CD.
+
+##### Reliable Previews
+
+Deterministic hydration output allows Argo CD to produce a reliable change preview when a developer proposes a change to the dry manifests via a PR.
+
+If output is not deterministic, then a preview generated today might not be valid/correct a week, day, or even hour later. Non-determinism makes it so that developers can't trust that the change they review will be the change actually applied.
+
 ### Non-Goals
 
 1) Implementing a change promotion system
@@ -326,6 +354,22 @@ helm:
 ```
 
 So the appropriate way to set Kube API versions for the source hydrator will be to populate the `.argocd-source.yaml` file.
+
+#### Hydrated Environment Branches
+
+Representing the dry manifests of environments as branches has well-documented downsides for developer experience. Specifically, it's toilsome for developers to manage moving changes from one branch to another and avoid drift.
+
+So environments-as-directories has emerged as the standard for good GitOps practices. Change management across directories in a single branch is much easier to perform and reason about.
+
+**This proposal does not suggest using branches to represent the dry manifests of environments.** As a matter of fact, this proposal codifies the current best practice of representing the dry manifests as directories in a single branch.
+
+This proposal recommends using different branches for the _hydrated_ representation of environments only. Using different branches has some benefits:
+
+1) Intuitive grouping of "changes to ship at once" - for example, if you have app-1-east and app-1-west, it makes sense to merge a single hydrated PR to deploy to both of those apps at once
+2) Easy-to-read history of a single environment via the commits history
+3) Easy comparison between environments using the SCMs' "compare" interfaces
+
+In other words, branches make a very nice _read_ interface for _hydrated_ manifests while preserving the best-practice of using _directories_ for the _write_ interface.
 
 ### Commit Metadata
 
