@@ -203,6 +203,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [Objective](https://www.objective.com.br/)
 1. [OCCMundial](https://occ.com.mx)
 1. [Octadesk](https://octadesk.com)
+1. [Octopus Deploy](https://octopus.com)
 1. [Olfeo](https://www.olfeo.com/)
 1. [omegaUp](https://omegaUp.com)
 1. [Omni](https://omni.se/)
