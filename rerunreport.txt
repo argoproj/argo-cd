@@ -1,2 +1,0 @@
-github.com/argoproj/argo-cd/v2/test/e2e.TestGitGeneratorPrivateRepo: 6 runs, 6 failures
-github.com/argoproj/argo-cd/v2/test/e2e.TestMultiSourceAppWithHelmExternalValueFiles: 6 runs, 6 failures
