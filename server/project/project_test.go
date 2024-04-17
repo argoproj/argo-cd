@@ -585,7 +585,7 @@ p, role:admin, projects, update, *, allow`)
 		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projWithRole), enforcer, sync.NewKeyLock(), nil, nil, projInformer, settingsMgr, argoDB)
 		request := &project.ProjectUpdateRequest{Project: projWithRole}
 		_, err := projectServer.Update(context.Background(), request)
-		assert.Contains(t, err.Error(), "object must be of form 'test/*' or 'test/<APPNAME>'")
+		assert.Contains(t, err.Error(), "object must be of form 'test/*', 'test[/<NAMESPACE>]/<APPNAME>' or 'test/<APPNAME>'")
 	})
 
 	t.Run("TestValidateProjectIncorrectProjectInRoleFailure", func(t *testing.T) {

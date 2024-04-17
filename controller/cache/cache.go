@@ -437,6 +437,10 @@ func (c *liveStateCache) getCluster(server string) (clustercache.ClusterCache, e
 		return nil, fmt.Errorf("error getting cluster: %w", err)
 	}
 
+	if c.clusterSharding == nil {
+		return nil, fmt.Errorf("unable to handle cluster %s: cluster sharding is not configured", cluster.Server)
+	}
+
 	if !c.canHandleCluster(cluster) {
 		return nil, fmt.Errorf("controller is configured to ignore cluster %s", cluster.Server)
 	}
