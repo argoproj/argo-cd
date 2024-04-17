@@ -30,7 +30,6 @@ import {EditAnnotations} from './edit-annotations';
 
 import './application-summary.scss';
 import {DeepLinks} from '../../../shared/components/deep-links';
-import {ExternalLinks} from '../application-urls';
 
 function swap(array: any[], a: number, b: number) {
     array = array.slice();
@@ -173,12 +172,7 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
         !hasMultipleSources && {
             title: 'REPO URL',
             view: <Repo url={source.repoURL} />,
-            edit: (formApi: FormApi) =>
-                hasMultipleSources ? (
-                    helpTip('REPO URL is not editable for applications with multiple sources. You can edit them in the "Manifest" tab.')
-                ) : (
-                    <FormField formApi={formApi} field='spec.source.repoURL' component={Text} />
-                )
+            edit: (formApi: FormApi) => <FormField formApi={formApi} field='spec.source.repoURL' component={Text} />
         },
         ...(!hasMultipleSources
             ? isHelm
@@ -268,12 +262,7 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
             view: app.spec.revisionHistoryLimit,
             edit: (formApi: FormApi) => (
                 <div style={{position: 'relative'}}>
-                    <FormField
-                        formApi={formApi}
-                        field='spec.revisionHistoryLimit'
-                        componentProps={{style: {paddingRight: '1em', width: '97%'}, placeholder: '10'}}
-                        component={NumberField}
-                    />
+                    <FormField formApi={formApi} field='spec.revisionHistoryLimit' componentProps={{style: {paddingRight: '1em'}, placeholder: '10'}} component={NumberField} />
                     <div style={{position: 'absolute', right: '0', top: '0'}}>
                         <HelpIcon
                             title='This limits the number of items kept in the apps revision history.
@@ -343,19 +332,20 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
             )
         }
     ];
-    const urls = ExternalLinks(app.status.summary.externalURLs);
+
+    const urls = app.status.summary.externalURLs || [];
     if (urls.length > 0) {
         attributes.push({
             title: 'URLs',
             view: (
                 <React.Fragment>
-                    {urls.map((url, i) => {
-                        return (
-                            <a key={i} href={url.ref} target='__blank'>
-                                {url.title} &nbsp;
+                    {urls
+                        .map(item => item.split('|'))
+                        .map((parts, i) => (
+                            <a key={i} href={parts.length > 1 ? parts[1] : parts[0]} target='__blank'>
+                                {parts[0]} &nbsp;
                             </a>
-                        );
-                    })}
+                        ))}
                 </React.Fragment>
             )
         });
@@ -494,6 +484,7 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
         <div className='application-summary'>
             <EditablePanel
                 save={updateApp}
+                view={hasMultipleSources ? <>This is a multi-source app, see the Sources tab for repository URLs and source-related information.</> : <></>}
                 validate={input => ({
                     'spec.project': !input.spec.project && 'Project name is required',
                     'spec.destination.server': !input.spec.destination.server && input.spec.destination.hasOwnProperty('server') && 'Cluster server is required',
@@ -510,7 +501,7 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                         <div className='white-box__details'>
                             <p>SYNC POLICY</p>
                             <div className='row white-box__details-row'>
-                                <div className='columns small-3'>{(app.spec.syncPolicy && app.spec.syncPolicy.automated && <span>AUTOMATED</span>) || <span>MANUAL</span>}</div>
+                                <div className='columns small-3'>{(app.spec.syncPolicy && app.spec.syncPolicy.automated && <span>AUTOMATED</span>) || <span>NONE</span>}</div>
                                 <div className='columns small-9'>
                                     {(app.spec.syncPolicy && app.spec.syncPolicy.automated && (
                                         <button className='argo-button argo-button--base' onClick={() => unsetAutoSync(ctx)}>
