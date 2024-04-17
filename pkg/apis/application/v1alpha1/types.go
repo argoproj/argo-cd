@@ -2321,6 +2321,43 @@ func (w *SyncWindow) scheduleOffsetByTimeZone() time.Duration {
 	return time.Duration(tzOffset) * time.Second
 }
 
+// RemoveWhitespace removes whitespace from string fields in the AppProjectSpec struct
+func RemoveWhiteSpace(spec *AppProjectSpec) {
+
+	spec.Description = strings.TrimSpace(spec.Description)
+
+	for i := range spec.Roles {
+		spec.Roles[i].Name = strings.TrimSpace(spec.Roles[i].Name)
+		spec.Roles[i].Description = strings.TrimSpace(spec.Roles[i].Description)
+	}
+
+	removeWhitespaceFromGroupKindList(spec.ClusterResourceWhitelist)
+
+	removeWhitespaceFromGroupKindList(spec.ClusterResourceBlacklist)
+
+	for i := range spec.Destinations {
+		dest := &spec.Destinations[i]
+		dest.Name = strings.TrimSpace(dest.Name)
+		dest.Namespace = strings.TrimSpace(dest.Namespace)
+		dest.Server = strings.TrimSpace(dest.Server)
+	}
+
+	for i := range spec.SourceRepos {
+		spec.SourceRepos[i] = strings.TrimSpace(spec.SourceRepos[i])
+	}
+
+	for i := range spec.SourceNamespaces {
+		spec.SourceNamespaces[i] = strings.TrimSpace(spec.SourceNamespaces[i])
+	}
+}
+
+func removeWhitespaceFromGroupKindList(list []metav1.GroupKind) {
+	for i := range list {
+		list[i].Group = strings.TrimSpace(list[i].Group)
+		list[i].Kind = strings.TrimSpace(list[i].Kind)
+	}
+}
+
 // AddWindow adds a sync window with the given parameters to the AppProject
 func (s *AppProjectSpec) AddWindow(knd string, sch string, dur string, app []string, ns []string, cl []string, ms bool, timeZone string) error {
 	if len(knd) == 0 || len(sch) == 0 || len(dur) == 0 {

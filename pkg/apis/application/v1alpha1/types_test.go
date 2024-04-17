@@ -896,6 +896,62 @@ func TestAppDestinationEquality_InferredServerURL(t *testing.T) {
 	assert.True(t, right.Equals(left))
 }
 
+func TestRemoveWhiteSpace(t *testing.T) {
+	spec := &AppProjectSpec{
+		Description: "  Project description with whitespace  ",
+		Roles: []ProjectRole{
+			{Name: "  Role 1  ", Description: "  Role 1 description  "},
+			{Name: "  Role 2  ", Description: "  Role 2 description  "},
+		},
+		ClusterResourceWhitelist: []metav1.GroupKind{
+			{Group: "  group1  ", Kind: "  kind1  "},
+			{Group: "  group2  ", Kind: "  kind2  "},
+		},
+		Destinations: []ApplicationDestination{
+			{Name: "  Destination 1  ", Namespace: "  Namespace 1  ", Server: "  Server 1  "},
+			{Name: "  Destination 2  ", Namespace: "  Namespace 2  ", Server: "  Server 2  "},
+		},
+		SourceRepos:      []string{"  Repo 1  ", "  Repo 2  "},
+		SourceNamespaces: []string{"  Namespace 1  ", "  Namespace 2  "},
+	}
+	expected := &AppProjectSpec{
+		Description: "Project description with whitespace",
+		Roles: []ProjectRole{
+			{Name: "Role 1", Description: "Role 1 description"},
+			{Name: "Role 2", Description: "Role 2 description"},
+		},
+		ClusterResourceWhitelist: []metav1.GroupKind{
+			{Group: "group1", Kind: "kind1"},
+			{Group: "group2", Kind: "kind2"},
+		},
+		Destinations: []ApplicationDestination{
+			{Name: "Destination 1", Namespace: "Namespace 1", Server: "Server 1"},
+			{Name: "Destination 2", Namespace: "Namespace 2", Server: "Server 2"},
+		},
+		SourceRepos:      []string{"Repo 1", "Repo 2"},
+		SourceNamespaces: []string{"Namespace 1", "Namespace 2"},
+	}
+	RemoveWhiteSpace(spec)
+	if !reflect.DeepEqual(spec, expected) {
+		t.Errorf("TestRemoveWhiteSpace: Expected %+v, got %+v", expected, spec)
+	}
+}
+
+func TestRemoveWhitespaceFromGroupKindList(t *testing.T) {
+	input := []metav1.GroupKind{
+		{Group: "  group1  ", Kind: "  kind1  "},
+		{Group: "  group2  ", Kind: "  kind2  "},
+	}
+	expected := []metav1.GroupKind{
+		{Group: "group1", Kind: "kind1"},
+		{Group: "group2", Kind: "kind2"},
+	}
+	removeWhitespaceFromGroupKindList(input)
+	if !reflect.DeepEqual(input, expected) {
+		t.Errorf("TestRemoveWhitespaceFromGroupKindList: Expected %+v, got %+v", expected, input)
+	}
+}
+
 func TestAppProjectSpec_DestinationClusters(t *testing.T) {
 	tests := []struct {
 		name         string
