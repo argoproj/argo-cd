@@ -8,8 +8,8 @@ import (
 	"os"
 
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
-	"github.com/ghodss/yaml"
 	v1 "k8s.io/api/core/v1"
+	"sigs.k8s.io/yaml"
 
 	ioutil "github.com/argoproj/argo-cd/v2/util/io"
 )
@@ -43,7 +43,7 @@ func PrintResources(output string, out io.Writer, resources ...interface{}) erro
 		}
 		filteredResource, err := omitFields(resource)
 		if err != nil {
-			return err
+			return fmt.Errorf("error omitting filtered fields from the resource: %w", err)
 		}
 		resources[i] = filteredResource
 	}
@@ -56,14 +56,14 @@ func PrintResources(output string, out io.Writer, resources ...interface{}) erro
 	case "json":
 		jsonBytes, err := json.MarshalIndent(obj, "", "  ")
 		if err != nil {
-			return err
+			return fmt.Errorf("error marshaling json: %w", err)
 		}
 
 		_, _ = fmt.Fprintln(out, string(jsonBytes))
 	case "yaml":
 		yamlBytes, err := yaml.Marshal(obj)
 		if err != nil {
-			return err
+			return fmt.Errorf("error marshaling yaml: %w", err)
 		}
 		// marshaled YAML already ends with the new line character
 		_, _ = fmt.Fprint(out, string(yamlBytes))

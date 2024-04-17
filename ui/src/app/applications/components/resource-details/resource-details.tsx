@@ -1,4 +1,4 @@
-import {DataLoader, Tab, Tabs} from 'argo-ui';
+import {DataLoader, DropDown, Tab, Tabs} from 'argo-ui';
 import * as React from 'react';
 import {useState} from 'react';
 import {EventsList, YamlEditor} from '../../../shared/components';
@@ -40,9 +40,7 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
     const tab = new URLSearchParams(appContext.history.location.search).get('tab');
     const selectedNodeInfo = NodeInfo(new URLSearchParams(appContext.history.location.search).get('node'));
     const selectedNodeKey = selectedNodeInfo.key;
-
-    const page = parseInt(new URLSearchParams(appContext.history.location.search).get('page'), 10) || 0;
-    const untilTimes = (new URLSearchParams(appContext.history.location.search).get('untilTimes') || '').split(',') || [];
+    const [pageNumber, setPageNumber] = React.useState(0);
 
     const getResourceTabs = (
         node: ResourceNode,
@@ -110,8 +108,6 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                                     applicationName={application.metadata.name}
                                     applicationNamespace={application.metadata.namespace}
                                     containerName={AppUtils.getContainerName(podState, activeContainer)}
-                                    page={{number: page, untilTimes}}
-                                    setPage={pageData => appContext.navigation.goto('.', {page: pageData.number, untilTimes: pageData.untilTimes.join(',')})}
                                     containerGroups={containerGroups}
                                     onClickContainer={onClickContainer}
                                 />
@@ -129,6 +125,7 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                         content: (
                             <PodTerminalViewer
                                 applicationName={application.metadata.name}
+                                applicationNamespace={application.metadata.namespace}
                                 projectName={application.spec.project}
                                 podState={podState}
                                 selectedNode={selectedNode}
@@ -165,23 +162,18 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                 content: <ApplicationSummary app={application} updateApp={(app, query: {validate?: boolean}) => updateApp(app, query)} />
             },
             {
-                title: 'PARAMETERS',
-                key: 'parameters',
+                title: 'SOURCES',
+                key: 'sources',
                 content: (
-                    <DataLoader
-                        key='appDetails'
-                        input={application}
-                        load={app =>
-                            services.repos.appDetails(app.spec.source, app.metadata.name, app.spec.project).catch(() => ({
-                                type: 'Directory' as AppSourceType,
-                                path: application.spec.source.path
-                            }))
-                        }>
-                        {(details: RepoAppDetails) => (
+                    <DataLoader key='appDetails' input={application} load={app => getSources(app)}>
+                        {(details: RepoAppDetails[]) => (
                             <ApplicationParameters
                                 save={(app: models.Application, query: {validate?: boolean}) => updateApp(app, query)}
                                 application={application}
-                                details={details}
+                                details={details[0]}
+                                detailsList={details}
+                                pageNumber={pageNumber}
+                                setPageNumber={setPageNumber}
                             />
                         )}
                     </DataLoader>
@@ -284,8 +276,9 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                         const settings = await services.authService.settings();
                         const execEnabled = settings.execEnabled;
                         const logsAllowed = await services.accounts.canI('logs', 'get', application.spec.project + '/' + application.metadata.name);
-                        const execAllowed = await services.accounts.canI('exec', 'create', application.spec.project + '/' + application.metadata.name);
-                        return {controlledState, liveState, events, podState, execEnabled, execAllowed, logsAllowed};
+                        const execAllowed = execEnabled && (await services.accounts.canI('exec', 'create', application.spec.project + '/' + application.metadata.name));
+                        const links = await services.applications.getResourceLinks(application.metadata.name, application.metadata.namespace, selectedNode).catch(() => null);
+                        return {controlledState, liveState, events, podState, execEnabled, execAllowed, logsAllowed, links};
                     }}>
                     {data => (
                         <React.Fragment>
@@ -307,11 +300,23 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                                     onClick={() => appContext.navigation.goto('.', {deploy: AppUtils.nodeKey(selectedNode)}, {replace: true})}
                                     style={{marginLeft: 'auto', marginRight: '5px'}}
                                     className='argo-button argo-button--base'>
-                                    <i className='fa fa-sync-alt' /> SYNC
+                                    <i className='fa fa-sync-alt' /> <span className='show-for-large'>SYNC</span>
                                 </button>
-                                <button onClick={() => AppUtils.deletePopup(appContext, selectedNode, application)} className='argo-button argo-button--base'>
-                                    <i className='fa fa-trash' /> DELETE
+                                <button
+                                    onClick={() => AppUtils.deletePopup(appContext, selectedNode, application)}
+                                    style={{marginRight: '5px'}}
+                                    className='argo-button argo-button--base'>
+                                    <i className='fa fa-trash' /> <span className='show-for-large'>DELETE</span>
                                 </button>
+                                <DropDown
+                                    isMenu={true}
+                                    anchor={() => (
+                                        <button className='argo-button argo-button--light argo-button--lg argo-button--short'>
+                                            <i className='fa fa-ellipsis-v' />
+                                        </button>
+                                    )}>
+                                    {() => AppUtils.renderResourceActionMenu(selectedNode, application, appContext)}
+                                </DropDown>
                             </div>
                             <Tabs
                                 navTransparent={true}
@@ -326,7 +331,15 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                                             title: 'SUMMARY',
                                             icon: 'fa fa-file-alt',
                                             key: 'summary',
-                                            content: <ApplicationNodeInfo application={application} live={data.liveState} controlled={data.controlledState} node={selectedNode} />
+                                            content: (
+                                                <ApplicationNodeInfo
+                                                    application={application}
+                                                    live={data.liveState}
+                                                    controlled={data.controlledState}
+                                                    node={selectedNode}
+                                                    links={data.links}
+                                                />
+                                            )
                                         }
                                     ],
                                     data.execEnabled,
@@ -351,3 +364,32 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
         </div>
     );
 };
+
+// Maintain compatibility with single source field. Remove else block when source field is removed
+async function getSources(app: models.Application) {
+    const listOfDetails = new Array<RepoAppDetails & {type: AppSourceType; path: string}>();
+    const sources: models.ApplicationSource[] = app.spec.sources;
+    if (sources) {
+        const length = sources.length;
+        for (let i = 0; i < length; i++) {
+            const aSource = sources[i];
+            const repoDetail = await services.repos.appDetails(aSource, app.metadata.name, app.spec.project).catch(e => ({
+                type: 'Directory' as AppSourceType,
+                path: aSource.path
+            }));
+            if (repoDetail) {
+                listOfDetails.push(repoDetail);
+            }
+        }
+        return listOfDetails;
+    } else {
+        const repoDetail = await services.repos.appDetails(AppUtils.getAppDefaultSource(app), app.metadata.name, app.spec.project).catch(() => ({
+            type: 'Directory' as AppSourceType,
+            path: AppUtils.getAppDefaultSource(app).path
+        }));
+        if (repoDetail) {
+            listOfDetails.push(repoDetail);
+        }
+        return listOfDetails;
+    }
+}

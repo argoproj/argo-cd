@@ -1,0 +1,25 @@
+apiVersion: serving.kserve.io/v1beta1
+kind: InferenceService
+metadata:
+  name: helloworld
+  namespace: default
+spec: {}
+status:
+  conditions:
+  - lastTransitionTime: "2023-06-20T22:44:51Z"
+    status: "True"
+    type: IngressReady
+  - lastTransitionTime: "2023-06-20T22:44:50Z"
+    severity: Info
+    status: "True"
+    type: PredictorConfigurationReady
+  - lastTransitionTime: "2023-06-20T22:44:51Z"
+    status: "True"
+    type: PredictorReady
+  - lastTransitionTime: "2023-06-20T22:44:51Z"
+    severity: Info
+    status: "True"
+    type: PredictorRouteReady
+  - lastTransitionTime: "2023-06-20T22:44:51Z"
+    status: "True"
+    type: Ready

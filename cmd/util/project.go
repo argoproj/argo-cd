@@ -94,7 +94,7 @@ func (opts *ProjectOpts) GetDestinations() []v1alpha1.ApplicationDestination {
 	return destinations
 }
 
-// TODO: Get configured keys and emit warning when a key is specified that is not configured
+// GetSignatureKeys TODO: Get configured keys and emit warning when a key is specified that is not configured
 func (opts *ProjectOpts) GetSignatureKeys() []v1alpha1.SignatureKey {
 	signatureKeys := make([]v1alpha1.SignatureKey, 0)
 	for _, keyStr := range opts.SignatureKeys {
@@ -115,7 +115,7 @@ func GetOrphanedResourcesSettings(flagSet *pflag.FlagSet, opts ProjectOpts) *v1a
 	if opts.orphanedResourcesEnabled || warnChanged {
 		settings := v1alpha1.OrphanedResourcesMonitorSettings{}
 		if warnChanged {
-			settings.Warn = pointer.BoolPtr(opts.orphanedResourcesWarn)
+			settings.Warn = pointer.Bool(opts.orphanedResourcesWarn)
 		}
 		return &settings
 	}
@@ -138,7 +138,10 @@ func readProjFromURI(fileURL string, proj *v1alpha1.AppProject) error {
 	} else {
 		err = config.UnmarshalRemoteFile(fileURL, &proj)
 	}
-	return fmt.Errorf("error reading proj from uri: %w", err)
+	if err != nil {
+		return fmt.Errorf("error reading proj from uri: %w", err)
+	}
+	return nil
 }
 
 func SetProjSpecOptions(flags *pflag.FlagSet, spec *v1alpha1.AppProjectSpec, projOpts *ProjectOpts) int {

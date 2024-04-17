@@ -3,12 +3,15 @@ package apiclient
 import (
 	"crypto/tls"
 	"crypto/x509"
+	"fmt"
+	"github.com/argoproj/argo-cd/v2/common"
+	"github.com/argoproj/argo-cd/v2/util/env"
+	"math"
 	"time"
 
 	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
 	grpc_retry "github.com/grpc-ecosystem/go-grpc-middleware/retry"
 	log "github.com/sirupsen/logrus"
-	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
@@ -17,9 +20,11 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/io"
 )
 
-const (
+//go:generate go run github.com/vektra/mockery/v2@v2.15.0 --name=RepoServerServiceClient
+
+var (
 	// MaxGRPCMessageSize contains max grpc message size
-	MaxGRPCMessageSize = 100 * 1024 * 1024
+	MaxGRPCMessageSize = env.ParseNumFromEnv(common.EnvGRPCMaxSizeMB, 100, 0, math.MaxInt32) * 1024 * 1024
 )
 
 // TLSConfiguration describes parameters for TLS configuration to be used by a repo server API client
@@ -46,7 +51,7 @@ type clientSet struct {
 func (c *clientSet) NewRepoServerClient() (io.Closer, RepoServerServiceClient, error) {
 	conn, err := NewConnection(c.address, c.timeoutSeconds, &c.tlsConfig)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, fmt.Errorf("failed to open a new connection to repo server: %w", err)
 	}
 	return conn, NewRepoServerServiceClient(conn), nil
 }
@@ -64,8 +69,8 @@ func NewConnection(address string, timeoutSeconds int, tlsConfig *TLSConfigurati
 		grpc.WithStreamInterceptor(grpc_retry.StreamClientInterceptor(retryOpts...)),
 		grpc.WithUnaryInterceptor(grpc_middleware.ChainUnaryClient(unaryInterceptors...)),
 		grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(MaxGRPCMessageSize), grpc.MaxCallSendMsgSize(MaxGRPCMessageSize)),
-		grpc.WithUnaryInterceptor(otelgrpc.UnaryClientInterceptor()),
-		grpc.WithStreamInterceptor(otelgrpc.StreamClientInterceptor()),
+		grpc.WithUnaryInterceptor(argogrpc.OTELUnaryClientInterceptor()),
+		grpc.WithStreamInterceptor(argogrpc.OTELStreamClientInterceptor()),
 	}
 
 	tlsC := &tls.Config{}

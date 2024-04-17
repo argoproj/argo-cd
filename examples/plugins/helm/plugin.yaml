@@ -1,0 +1,17 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ConfigManagementPlugin
+metadata:
+  name: simple-helm-cmp
+spec:
+  version: v1.0
+  generate:
+    command: [sh, /var/run/argocd/helm-plugin/generate.sh]
+  discover:
+    fileName: "./values.yaml"
+  parameters:
+    static:
+      - name: values-files
+        title: VALUES FILES
+        collectionType: array
+    dynamic:
+      command: [sh, /var/run/argocd/helm-plugin/get-parameters.sh]

@@ -103,6 +103,42 @@ func Test_kubeErrToGRPC(t *testing.T) {
 			},
 			expectedGRPCStatus: status.New(codes.Unauthenticated, newUnauthorizedError().Error()),
 		},
+		{
+			name: "will return Unavailable if apierr.IsServerTimeout",
+			givenErrFn: func() error {
+				return apierr.NewServerTimeout(schema.GroupResource{}, "update", 1)
+			},
+			expectedErrFn: func() error {
+				err := apierr.NewServerTimeout(schema.GroupResource{}, "update", 1)
+				grpcStatus := status.New(codes.Unavailable, err.Error())
+				return grpcStatus.Err()
+			},
+			expectedGRPCStatus: status.New(codes.Unavailable, apierr.NewServerTimeout(schema.GroupResource{}, "update", 1).Error()),
+		},
+		{
+			name: "will return Aborted if apierr.IsConflict",
+			givenErrFn: func() error {
+				return apierr.NewConflict(schema.GroupResource{}, "foo", errors.New("foo"))
+			},
+			expectedErrFn: func() error {
+				err := apierr.NewConflict(schema.GroupResource{}, "foo", errors.New("foo"))
+				grpcStatus := status.New(codes.Aborted, err.Error())
+				return grpcStatus.Err()
+			},
+			expectedGRPCStatus: status.New(codes.Aborted, apierr.NewConflict(schema.GroupResource{}, "foo", errors.New("foo")).Error()),
+		},
+		{
+			name: "will return ResourceExhausted if apierr.IsTooManyRequests",
+			givenErrFn: func() error {
+				return apierr.NewTooManyRequests("foo", 1)
+			},
+			expectedErrFn: func() error {
+				err := apierr.NewTooManyRequests("foo", 1)
+				grpcStatus := status.New(codes.ResourceExhausted, err.Error())
+				return grpcStatus.Err()
+			},
+			expectedGRPCStatus: status.New(codes.ResourceExhausted, apierr.NewTooManyRequests("foo", 1).Error()),
+		},
 	}
 	for _, c := range cases {
 		c := c

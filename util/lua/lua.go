@@ -1,6 +1,7 @@
 package lua
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -16,10 +17,12 @@ import (
 
 	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/resource_customizations"
+	"github.com/argoproj/argo-cd/v2/util/glob"
 )
 
 const (
 	incorrectReturnType       = "expect %s output from Lua script, not %s"
+	incorrectInnerType        = "expect %s inner type from Lua script, not %s"
 	invalidHealthStatus       = "Lua returned an invalid health status"
 	healthScriptFile          = "health.lua"
 	actionScriptFile          = "action.lua"
@@ -99,6 +102,7 @@ func (vm VM) ExecuteHealthLua(obj *unstructured.Unstructured, script string) (*h
 	}
 	returnValue := l.Get(-1)
 	if returnValue.Type() == lua.LTTable {
+
 		jsonBytes, err := luajson.Encode(returnValue)
 		if err != nil {
 			return nil, err
@@ -122,16 +126,30 @@ func (vm VM) ExecuteHealthLua(obj *unstructured.Unstructured, script string) (*h
 
 // GetHealthScript attempts to read lua script from config and then filesystem for that resource
 func (vm VM) GetHealthScript(obj *unstructured.Unstructured) (string, bool, error) {
+	// first, search the gvk as is in the ResourceOverrides
 	key := GetConfigMapKey(obj.GroupVersionKind())
+
 	if script, ok := vm.ResourceOverrides[key]; ok && script.HealthLua != "" {
 		return script.HealthLua, script.UseOpenLibs, nil
 	}
+
+	// if not found as is, perhaps it matches wildcard entries in the configmap
+	wildcardKey := GetWildcardConfigMapKey(vm, obj.GroupVersionKind())
+
+	if wildcardKey != "" {
+		if wildcardScript, ok := vm.ResourceOverrides[wildcardKey]; ok && wildcardScript.HealthLua != "" {
+			return wildcardScript.HealthLua, wildcardScript.UseOpenLibs, nil
+		}
+	}
+
+	// if not found in the ResourceOverrides at all, search it as is in the built-in scripts
+	// (as built-in scripts are files in folders, named after the GVK, currently there is no wildcard support for them)
 	builtInScript, err := vm.getPredefinedLuaScripts(key, healthScriptFile)
 	// standard libraries will be enabled for all built-in scripts
 	return builtInScript, true, err
 }
 
-func (vm VM) ExecuteResourceAction(obj *unstructured.Unstructured, script string) (*unstructured.Unstructured, error) {
+func (vm VM) ExecuteResourceAction(obj *unstructured.Unstructured, script string) ([]ImpactedResource, error) {
 	l, err := vm.runLua(obj, script)
 	if err != nil {
 		return nil, err
@@ -139,18 +157,61 @@ func (vm VM) ExecuteResourceAction(obj *unstructured.Unstructured, script string
 	returnValue := l.Get(-1)
 	if returnValue.Type() == lua.LTTable {
 		jsonBytes, err := luajson.Encode(returnValue)
+
 		if err != nil {
 			return nil, err
 		}
-		newObj, err := appv1.UnmarshalToUnstructured(string(jsonBytes))
-		if err != nil {
-			return nil, err
+
+		var impactedResources []ImpactedResource
+
+		jsonString := bytes.NewBuffer(jsonBytes).String()
+		if len(jsonString) < 2 {
+			return nil, fmt.Errorf("Lua output was not a valid json object or array")
 		}
-		cleanedNewObj := cleanReturnedObj(newObj.Object, obj.Object)
-		newObj.Object = cleanedNewObj
-		return newObj, nil
+		// The output from Lua is either an object (old-style action output) or an array (new-style action output).
+		// Check whether the string starts with an opening square bracket and ends with a closing square bracket,
+		// avoiding programming by exception.
+		if jsonString[0] == '[' && jsonString[len(jsonString)-1] == ']' {
+			// The string represents a new-style action array output
+			impactedResources, err = UnmarshalToImpactedResources(string(jsonBytes))
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			// The string represents an old-style action object output
+			newObj, err := appv1.UnmarshalToUnstructured(string(jsonBytes))
+			if err != nil {
+				return nil, err
+			}
+			// Wrap the old-style action output with a single-member array.
+			// The default definition of the old-style action is a "patch" one.
+			impactedResources = append(impactedResources, ImpactedResource{newObj, PatchOperation})
+		}
+
+		for _, impactedResource := range impactedResources {
+			// Cleaning the resource is only relevant to "patch"
+			if impactedResource.K8SOperation == PatchOperation {
+				impactedResource.UnstructuredObj.Object = cleanReturnedObj(impactedResource.UnstructuredObj.Object, obj.Object)
+			}
+
+		}
+		return impactedResources, nil
 	}
 	return nil, fmt.Errorf(incorrectReturnType, "table", returnValue.Type().String())
+}
+
+// UnmarshalToImpactedResources unmarshals an ImpactedResource array representation in JSON to ImpactedResource array
+func UnmarshalToImpactedResources(resources string) ([]ImpactedResource, error) {
+	if resources == "" || resources == "null" {
+		return nil, nil
+	}
+
+	var impactedResources []ImpactedResource
+	err := json.Unmarshal([]byte(resources), &impactedResources)
+	if err != nil {
+		return nil, err
+	}
+	return impactedResources, nil
 }
 
 // cleanReturnedObj Lua cannot distinguish an empty table as an array or map, and the library we are using choose to
@@ -331,6 +392,17 @@ func GetConfigMapKey(gvk schema.GroupVersionKind) string {
 		return gvk.Kind
 	}
 	return fmt.Sprintf("%s/%s", gvk.Group, gvk.Kind)
+}
+
+func GetWildcardConfigMapKey(vm VM, gvk schema.GroupVersionKind) string {
+	gvkKeyToMatch := GetConfigMapKey(gvk)
+
+	for key := range vm.ResourceOverrides {
+		if glob.Match(key, gvkKeyToMatch) {
+			return key
+		}
+	}
+	return ""
 }
 
 func (vm VM) getPredefinedLuaScripts(objKey string, scriptFile string) (string, error) {

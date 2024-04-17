@@ -2,19 +2,22 @@ package commands
 
 import (
 	"fmt"
+	"log"
+
 	"github.com/spf13/cobra"
 	"golang.org/x/crypto/bcrypt"
-	"log"
 )
 
-// bcryptCmd represents the bcrypt command
+// NewBcryptCmd represents the bcrypt command
 func NewBcryptCmd() *cobra.Command {
 	var (
 		password string
 	)
 	var bcryptCmd = &cobra.Command{
 		Use:   "bcrypt",
-		Short: "Generate bcrypt hash for the admin password",
+		Short: "Generate bcrypt hash for any password",
+		Example: `# Generate bcrypt hash for any password 
+argocd account bcrypt --password YOUR_PASSWORD`,
 		Run: func(cmd *cobra.Command, args []string) {
 			bytePassword := []byte(password)
 			// Hashing the password
@@ -22,7 +25,7 @@ func NewBcryptCmd() *cobra.Command {
 			if err != nil {
 				log.Fatalf("Failed to genarate bcrypt hash: %v", err)
 			}
-			fmt.Println(string(hash))
+			fmt.Fprint(cmd.OutOrStdout(), string(hash))
 		},
 	}
 

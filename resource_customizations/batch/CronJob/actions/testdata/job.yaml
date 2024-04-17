@@ -1,0 +1,30 @@
+- k8sOperation: create
+  unstructuredObj:
+    apiVersion: batch/v1
+    kind: Job
+    metadata:
+      name: hello-00000000000
+      namespace: test-ns
+      labels:
+        my: label
+      annotations:
+        cronjob.kubernetes.io/instantiate: manual
+        my: annotation
+    spec:
+      ttlSecondsAfterFinished: 100
+      template:
+        metadata:
+          labels:
+            pod: label
+          annotations:
+            pod: annotation
+        spec:
+          containers:
+          - name: hello
+            image: busybox:1.28
+            imagePullPolicy: IfNotPresent
+            command:
+            - /bin/sh
+            - -c
+            - date; echo Hello from the Kubernetes cluster
+          restartPolicy: OnFailure

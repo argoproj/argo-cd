@@ -1,0 +1,31 @@
+tests:
+  - healthStatus:
+      status: Progressing
+      message: "Current resource status is insufficient"
+    inputPath: testdata/progressing.yaml
+  - healthStatus:
+      status: Progressing
+      message: "Current resource status is insufficient"
+    inputPath: testdata/progressing_aggregatedStatus.yaml
+  - healthStatus:
+      status: Progressing
+      message: "Current resource status is insufficient"
+    inputPath: testdata/progressing_cluster.yaml
+  - healthStatus:
+      status: Degraded
+      message: "Current resource status is unhealthy"
+    inputPath: testdata/degraded_unapplied.yaml
+  - healthStatus:
+      status: Degraded
+      message: "Current resource status is unhealthy"
+    inputPath: testdata/degraded_unknown.yaml
+  - healthStatus:
+      status: Degraded
+      message: "Current resource status is unhealthy"
+    inputPath: testdata/degraded_unhealth.yaml
+  - healthStatus:
+      status: Healthy
+    inputPath: testdata/health.yaml
+  - healthStatus:
+      status: Healthy
+    inputPath: testdata/health_unknown.yaml

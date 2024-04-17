@@ -18,6 +18,8 @@ node_modules/
 .kube/
 ./test/cmp/*.sock
 .envrc.remote
+.*.swp
+rerunreport.txt
 
 # ignore built binaries
 cmd/argocd/argocd

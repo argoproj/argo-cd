@@ -3,7 +3,7 @@
 The Argo CD Notification controller serves Prometheus metrics on port 9001.
 
 !!! note
-    Metrics port might be changed using the `--metrics-port` flag in `argocd-notifications-controller` deployment.
+    The metrics port can be changed using the `--metrics-port` flag in `argocd-notifications-controller` deployment.
 
 ## Metrics 
 The following metrics are available:
@@ -13,9 +13,9 @@ The following metrics are available:
  Number of delivered notifications.
  Labels:
 
-* `template` - notification template name 
-* `notifier` - notification service name
-* `succeeded` - flag that indicates if notification was successfully sent or failed.
+* `trigger` - trigger name
+* `service` - notification service name
+* `succeeded` - flag that indicates if notification was successfully sent or failed
 
 ### `argocd_notifications_trigger_eval_total`
   
@@ -23,8 +23,8 @@ The following metrics are available:
  Labels:
 
 * `name` - trigger name 
-* `triggered` - flag that indicates if trigger condition returned true of false.
+* `triggered` - flag that indicates if trigger condition returned true of false
 
-# Examples:
+## Examples
 
 * Grafana Dashboard: [grafana-dashboard.json](grafana-dashboard.json)

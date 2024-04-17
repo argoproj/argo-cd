@@ -35,6 +35,8 @@ export interface NewHTTPSRepoParams {
     enableLfs: boolean;
     proxy: string;
     project?: string;
+    forceHttpBasicAuth?: boolean;
+    enableOCI: boolean;
 }
 
 interface NewGitHubAppRepoParams {
@@ -53,6 +55,15 @@ interface NewGitHubAppRepoParams {
     project?: string;
 }
 
+interface NewGoogleCloudSourceRepoParams {
+    type: string;
+    name: string;
+    url: string;
+    gcpServiceAccountKey: string;
+    proxy: string;
+    project?: string;
+}
+
 interface NewSSHRepoCredsParams {
     url: string;
     sshPrivateKey: string;
@@ -64,6 +75,9 @@ interface NewHTTPSRepoCredsParams {
     password: string;
     tlsClientCertData: string;
     tlsClientCertKey: string;
+    proxy: string;
+    forceHttpBasicAuth: boolean;
+    enableOCI: boolean;
 }
 
 interface NewGitHubAppRepoCredsParams {
@@ -74,12 +88,19 @@ interface NewGitHubAppRepoCredsParams {
     githubAppEnterpriseBaseURL: string;
     tlsClientCertData: string;
     tlsClientCertKey: string;
+    proxy: string;
+}
+
+interface NewGoogleCloudSourceRepoCredsParams {
+    url: string;
+    gcpServiceAccountKey: string;
 }
 
 export enum ConnectionMethod {
     SSH = 'via SSH',
     HTTPS = 'via HTTPS',
-    GITHUBAPP = 'via GitHub App'
+    GITHUBAPP = 'via GitHub App',
+    GOOGLECLOUD = 'via Google Cloud'
 }
 
 export class ReposList extends React.Component<
@@ -122,8 +143,8 @@ export class ReposList extends React.Component<
                             {method.toUpperCase()} <i className='fa fa-caret-down' />
                         </p>
                     )}
-                    items={[ConnectionMethod.SSH, ConnectionMethod.HTTPS, ConnectionMethod.GITHUBAPP].map(
-                        (connectMethod: ConnectionMethod.SSH | ConnectionMethod.HTTPS | ConnectionMethod.GITHUBAPP) => ({
+                    items={[ConnectionMethod.SSH, ConnectionMethod.HTTPS, ConnectionMethod.GITHUBAPP, ConnectionMethod.GOOGLECLOUD].map(
+                        (connectMethod: ConnectionMethod.SSH | ConnectionMethod.HTTPS | ConnectionMethod.GITHUBAPP | ConnectionMethod.GOOGLECLOUD) => ({
                             title: connectMethod.toUpperCase(),
                             action: () => {
                                 onSelection(connectMethod);
@@ -154,7 +175,9 @@ export class ReposList extends React.Component<
             case ConnectionMethod.HTTPS:
                 const httpsValues = params as NewHTTPSRepoParams;
                 return {
-                    url: (!httpsValues.url && 'Repository URL is required') || (this.credsTemplate && !this.isHTTPSUrl(httpsValues.url) && 'Not a valid HTTPS URL'),
+                    url:
+                        (!httpsValues.url && 'Repository URL is required') ||
+                        (this.credsTemplate && !this.isHTTPSUrl(httpsValues.url) && !httpsValues.enableOCI && 'Not a valid HTTPS URL'),
                     name: httpsValues.type === 'helm' && !httpsValues.name && 'Name is required',
                     username: !httpsValues.username && httpsValues.password && 'Username is required if password is given.',
                     password: !httpsValues.password && httpsValues.username && 'Password is required if username is given.',
@@ -167,6 +190,12 @@ export class ReposList extends React.Component<
                     githubAppId: !githubAppValues.githubAppId && 'GitHub App ID is required',
                     githubAppInstallationId: !githubAppValues.githubAppInstallationId && 'GitHub App installation ID is required',
                     githubAppPrivateKey: !githubAppValues.githubAppPrivateKey && 'GitHub App private Key is required'
+                };
+            case ConnectionMethod.GOOGLECLOUD:
+                const googleCloudValues = params as NewGoogleCloudSourceRepoParams;
+                return {
+                    url: (!googleCloudValues.url && 'Repo URL is required') || (this.credsTemplate && !this.isHTTPSUrl(googleCloudValues.url) && 'Not a valid HTTPS URL'),
+                    gcpServiceAccountKey: !googleCloudValues.gcpServiceAccountKey && 'GCP service account key is required'
                 };
         }
     }
@@ -212,9 +241,14 @@ export class ReposList extends React.Component<
             case ConnectionMethod.SSH:
                 return (params: FormValues) => this.connectSSHRepo(params as NewSSHRepoParams);
             case ConnectionMethod.HTTPS:
-                return (params: FormValues) => this.connectHTTPSRepo(params as NewHTTPSRepoParams);
+                return (params: FormValues) => {
+                    params.url = params.enableOCI ? this.stripProtocol(params.url) : params.url;
+                    return this.connectHTTPSRepo(params as NewHTTPSRepoParams);
+                };
             case ConnectionMethod.GITHUBAPP:
                 return (params: FormValues) => this.connectGitHubAppRepo(params as NewGitHubAppRepoParams);
+            case ConnectionMethod.GOOGLECLOUD:
+                return (params: FormValues) => this.connectGoogleCloudSourceRepo(params as NewGoogleCloudSourceRepoParams);
         }
     }
 
@@ -265,7 +299,10 @@ export class ReposList extends React.Component<
                                                     <div className='columns small-1'>
                                                         <i className={'icon argo-icon-' + (repo.type || 'git')} />
                                                     </div>
-                                                    <div className='columns small-1'>{repo.type || 'git'}</div>
+                                                    <div className='columns small-1'>
+                                                        <span>{repo.type || 'git'}</span>
+                                                        {repo.enableOCI && <span> OCI</span>}
+                                                    </div>
                                                     <div className='columns small-2'>
                                                         <Tooltip content={repo.name}>
                                                             <span>{repo.name}</span>
@@ -459,6 +496,9 @@ export class ReposList extends React.Component<
                                                                 <HelpIcon title='This setting is ignored when creating as credential template.' />
                                                             </div>
                                                             <div className='argo-form-row'>
+                                                                <FormField formApi={formApi} label='Force HTTP basic auth' field='forceHttpBasicAuth' component={CheckboxField} />
+                                                            </div>
+                                                            <div className='argo-form-row'>
                                                                 <FormField formApi={formApi} label='Enable LFS support (Git only)' field='enableLfs' component={CheckboxField} />
                                                                 <HelpIcon title='This setting is ignored when creating as credential template.' />
                                                             </div>
@@ -466,6 +506,9 @@ export class ReposList extends React.Component<
                                                     )}
                                                     <div className='argo-form-row'>
                                                         <FormField formApi={formApi} label='Proxy (optional)' field='proxy' component={Text} />
+                                                    </div>
+                                                    <div className='argo-form-row'>
+                                                        <FormField formApi={formApi} label='Enable OCI' field='enableOCI' component={CheckboxField} />
                                                     </div>
                                                 </div>
                                             )}
@@ -547,6 +590,29 @@ export class ReposList extends React.Component<
                                                     </div>
                                                 </div>
                                             )}
+                                            {this.state.method === ConnectionMethod.GOOGLECLOUD && (
+                                                <div className='white-box'>
+                                                    <p>CONNECT REPO USING GOOGLE CLOUD</p>
+                                                    <div className='argo-form-row'>
+                                                        <FormField
+                                                            formApi={formApi}
+                                                            label='Project'
+                                                            field='project'
+                                                            component={AutocompleteField}
+                                                            componentProps={{items: projects}}
+                                                        />
+                                                    </div>
+                                                    <div className='argo-form-row'>
+                                                        <FormField formApi={formApi} label='Repository URL' field='url' component={Text} />
+                                                    </div>
+                                                    <div className='argo-form-row'>
+                                                        <FormField formApi={formApi} label='GCP service account key' field='gcpServiceAccountKey' component={TextArea} />
+                                                    </div>
+                                                    <div className='argo-form-row'>
+                                                        <FormField formApi={formApi} label='Proxy (optional)' field='proxy' component={Text} />
+                                                    </div>
+                                                </div>
+                                            )}
                                         </form>
                                     )}
                                 </Form>
@@ -570,6 +636,10 @@ export class ReposList extends React.Component<
         } else {
             return false;
         }
+    }
+
+    private stripProtocol(url: string) {
+        return url.replace('https://', '').replace('oci://', '');
     }
 
     // only connections of git type which is not via GitHub App are updatable
@@ -630,7 +700,10 @@ export class ReposList extends React.Component<
                 username: params.username,
                 password: params.password,
                 tlsClientCertData: params.tlsClientCertData,
-                tlsClientCertKey: params.tlsClientCertKey
+                tlsClientCertKey: params.tlsClientCertKey,
+                proxy: params.proxy,
+                forceHttpBasicAuth: params.forceHttpBasicAuth,
+                enableOCI: params.enableOCI
             });
         } else {
             this.setState({connecting: true});
@@ -676,7 +749,8 @@ export class ReposList extends React.Component<
                 githubAppInstallationId: params.githubAppInstallationId,
                 githubAppEnterpriseBaseURL: params.githubAppEnterpriseBaseURL,
                 tlsClientCertData: params.tlsClientCertData,
-                tlsClientCertKey: params.tlsClientCertKey
+                tlsClientCertKey: params.tlsClientCertKey,
+                proxy: params.proxy
             });
         } else {
             this.setState({connecting: true});
@@ -687,6 +761,30 @@ export class ReposList extends React.Component<
             } catch (e) {
                 this.appContext.apis.notifications.show({
                     content: <ErrorNotification title='Unable to connect GitHub App repository' e={e} />,
+                    type: NotificationType.Error
+                });
+            } finally {
+                this.setState({connecting: false});
+            }
+        }
+    }
+
+    // Connect a new repository or create a repository credentials for GitHub App repositories
+    private async connectGoogleCloudSourceRepo(params: NewGoogleCloudSourceRepoParams) {
+        if (this.credsTemplate) {
+            this.createGoogleCloudSourceCreds({
+                url: params.url,
+                gcpServiceAccountKey: params.gcpServiceAccountKey
+            });
+        } else {
+            this.setState({connecting: true});
+            try {
+                await services.repos.createGoogleCloudSource(params);
+                this.repoLoader.reload();
+                this.showConnectRepo = false;
+            } catch (e) {
+                this.appContext.apis.notifications.show({
+                    content: <ErrorNotification title='Unable to connect Google Cloud Source repository' e={e} />,
                     type: NotificationType.Error
                 });
             } finally {
@@ -734,12 +832,32 @@ export class ReposList extends React.Component<
         }
     }
 
+    private async createGoogleCloudSourceCreds(params: NewGoogleCloudSourceRepoCredsParams) {
+        try {
+            await services.repocreds.createGoogleCloudSource(params);
+            this.credsLoader.reload();
+            this.showConnectRepo = false;
+        } catch (e) {
+            this.appContext.apis.notifications.show({
+                content: <ErrorNotification title='Unable to create Google Cloud Source credentials' e={e} />,
+                type: NotificationType.Error
+            });
+        }
+    }
+
     // Remove a repository from the configuration
     private async disconnectRepo(repo: string) {
         const confirmed = await this.appContext.apis.popup.confirm('Disconnect repository', `Are you sure you want to disconnect '${repo}'?`);
         if (confirmed) {
-            await services.repos.delete(repo);
-            this.repoLoader.reload();
+            try {
+                await services.repos.delete(repo);
+                this.repoLoader.reload();
+            } catch (e) {
+                this.appContext.apis.notifications.show({
+                    content: <ErrorNotification title='Unable to disconnect repository' e={e} />,
+                    type: NotificationType.Error
+                });
+            }
         }
     }
 
@@ -747,8 +865,15 @@ export class ReposList extends React.Component<
     private async removeRepoCreds(url: string) {
         const confirmed = await this.appContext.apis.popup.confirm('Remove repository credentials', `Are you sure you want to remove credentials for URL prefix '${url}'?`);
         if (confirmed) {
-            await services.repocreds.delete(url);
-            this.credsLoader.reload();
+            try {
+                await services.repocreds.delete(url);
+                this.credsLoader.reload();
+            } catch (e) {
+                this.appContext.apis.notifications.show({
+                    content: <ErrorNotification title='Unable to remove repository credentials' e={e} />,
+                    type: NotificationType.Error
+                });
+            }
         }
     }
 

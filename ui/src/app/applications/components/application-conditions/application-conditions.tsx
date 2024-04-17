@@ -4,7 +4,7 @@ import {Timestamp} from '../../../shared/components';
 import * as models from '../../../shared/models';
 import {getConditionCategory} from '../utils';
 
-require('./application-conditions.scss');
+import './application-conditions.scss';
 
 export const ApplicationConditions = ({conditions}: {conditions: models.ApplicationCondition[]}) => {
     return (
@@ -16,7 +16,9 @@ export const ApplicationConditions = ({conditions}: {conditions: models.Applicat
                         <div className={`argo-table-list__row application-conditions__condition application-conditions__condition--${getConditionCategory(condition)}`} key={index}>
                             <div className='row'>
                                 <div className='columns small-2'>{condition.type}</div>
-                                <div className='columns small-7'>{condition.message}</div>
+                                <div className='columns small-7' style={{whiteSpace: 'normal', lineHeight: 'normal'}}>
+                                    {condition.message}
+                                </div>
                                 <div className='columns small-3'>
                                     <Timestamp date={condition.lastTransitionTime} />
                                 </div>
