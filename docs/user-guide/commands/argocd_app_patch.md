@@ -21,10 +21,9 @@ argocd app patch APPNAME [flags]
 ### Options
 
 ```
-  -N, --app-namespace string   Only patch application in namespace
-  -h, --help                   help for patch
-      --patch string           Patch body
-      --type string            The type of patch being provided; one of [json merge] (default "json")
+  -h, --help           help for patch
+      --patch string   Patch body
+      --type string    The type of patch being provided; one of [json merge] (default "json")
 ```
 
 ### Options inherited from parent commands

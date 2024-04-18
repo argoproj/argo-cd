@@ -42,13 +42,12 @@ argocd app get APPNAME [flags]
 ### Options
 
 ```
-  -N, --app-namespace string   Only get application from namespace
-      --hard-refresh           Refresh application data as well as target manifests cache
-  -h, --help                   help for get
-  -o, --output string          Output format. One of: json|yaml|wide|tree (default "wide")
-      --refresh                Refresh application data when retrieving
-      --show-operation         Show application operation
-      --show-params            Show application parameters and overrides
+      --hard-refresh     Refresh application data as well as target manifests cache
+  -h, --help             help for get
+  -o, --output string    Output format. One of: json|yaml|wide|tree (default "wide")
+      --refresh          Refresh application data when retrieving
+      --show-operation   Show application operation
+      --show-params      Show application parameters and overrides
 ```
 
 ### Options inherited from parent commands
