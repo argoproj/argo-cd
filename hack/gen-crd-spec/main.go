@@ -28,7 +28,6 @@ func getCustomResourceDefinitions() map[string]*extensionsobj.CustomResourceDefi
 	crdYamlBytes, err := exec.Command(
 		"controller-gen",
 		"paths=./pkg/apis/application/...",
-		"crd:trivialVersions=true",
 		"crd:crdVersions=v1",
 		"output:crd:stdout",
 	).Output()
