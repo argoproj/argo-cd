@@ -472,11 +472,10 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 		if a.Spec.HasMultipleSources() {
 			numOfSources := int64(len(a.Spec.GetSources()))
 			for i, pos := range q.SourcePositions {
-				if pos <= numOfSources {
-					a.Spec.Sources[pos-1].TargetRevision = q.Revisions[i]
-				} else {
-					return fmt.Errorf("source position cannot be greater than number of sources in the application")
+				if pos <= 0 || pos > numOfSources {
+					return fmt.Errorf("source position is out of range")
 				}
+				a.Spec.Sources[pos-1].TargetRevision = q.Revisions[i]
 			}
 			sources = a.Spec.GetSources()
 		} else {
@@ -1834,16 +1833,15 @@ func (s *Server) Sync(ctx context.Context, syncReq *application.ApplicationSyncR
 
 		sources := a.Spec.GetSources()
 		for i, pos := range syncReq.SourcePositions {
-			if pos <= numOfSources {
-				sources[pos-1].TargetRevision = syncReq.Revisions[i]
-			} else {
-				return nil, fmt.Errorf("source position cannot be greater than number of sources in the application")
+			if pos <= 0 || pos > numOfSources {
+				return nil, fmt.Errorf("source position is out of range")
 			}
+			sources[pos-1].TargetRevision = syncReq.Revisions[i]
 		}
 		for index, source := range sources {
 			if a.Spec.SyncPolicy != nil && a.Spec.SyncPolicy.Automated != nil && !syncReq.GetDryRun() {
 				if text.FirstNonEmpty(a.Spec.GetSources()[index].TargetRevision, "HEAD") != text.FirstNonEmpty(source.TargetRevision, "HEAD") {
-					return nil, status.Errorf(codes.FailedPrecondition, "Cannot sync source %s to %s: auto-sync currently set to %s", source.RepoURL, syncReq.GetRevision(), source.TargetRevision)
+					return nil, status.Errorf(codes.FailedPrecondition, "Cannot sync source %s to %s: auto-sync currently set to %s", source.RepoURL, source.TargetRevision, a.Spec.Sources[index].TargetRevision)
 				}
 			}
 			revision, displayRevision, err := s.resolveRevision(ctx, a, syncReq, index)
@@ -2139,7 +2137,7 @@ func (s *Server) resolveRevision(ctx context.Context, app *appv1.Application, sy
 	}
 	defer ioutil.Close(conn)
 
-	source := app.Spec.GetSourcePtr(sourceIndex + 1)
+	source := app.Spec.GetSourcePtrBySourceIndex(sourceIndex)
 	if !source.IsHelm() {
 		if git.IsCommitSHA(ambiguousRevision) {
 			// If it's already a commit SHA, then no need to look it up
@@ -2151,7 +2149,7 @@ func (s *Server) resolveRevision(ctx context.Context, app *appv1.Application, sy
 		Repo:              repo,
 		App:               app,
 		AmbiguousRevision: ambiguousRevision,
-		SourcePosition:    int64(sourceIndex) + 1,
+		SourceIndex:       int64(sourceIndex),
 	})
 	if err != nil {
 		return "", "", fmt.Errorf("error resolving repo revision: %w", err)

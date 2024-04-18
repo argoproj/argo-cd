@@ -9,7 +9,6 @@ package v1alpha1
 
 import (
 	common "k8s.io/kube-openapi/pkg/common"
-	spec "k8s.io/kube-openapi/pkg/validation/spec"
 )
 
 func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenAPIDefinition {
@@ -8097,4 +8096,5 @@ func schema_pkg_apis_application_v1alpha1_rawResourceOverride(ref common.Referen
 		Dependencies: []string{
 			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.KnownTypeField"},
 	}
+	return map[string]common.OpenAPIDefinition{}
 }

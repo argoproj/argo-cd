@@ -881,7 +881,7 @@ func NewApplicationUnsetCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
 				}
 			}
 
-			source := app.Spec.GetSourcePtr(sourcePosition)
+			source := app.Spec.GetSourcePtrBySourcePosition(sourcePosition)
 
 			updated, nothingToUnset := unset(source, opts)
 			if nothingToUnset {
@@ -1169,7 +1169,7 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			if app.Spec.HasMultipleSources() && len(revisions) > 0 && len(sourcePositions) > 0 {
 				numOfSources := int64(len(app.Spec.GetSources()))
 				for _, pos := range sourcePositions {
-					if pos <= 0 || pos >= numOfSources {
+					if pos <= 0 || pos > numOfSources {
 						log.Fatal("source-position cannot be less than 1 or more than number of sources in the app. Counting starts at 1.")
 					}
 				}
@@ -1853,6 +1853,9 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
   argocd app sync -l '!app.kubernetes.io/instance'
   argocd app sync -l 'app.kubernetes.io/instance notin (my-app,other-app)'
 
+  # Sync a multi-source application for specific revision of specific sources
+  argocd app manifests my-app --revisions 0.0.1 --source-positions 1 --revisions 0.0.2 --source-positions 2
+
   # Sync a specific resource
   # Resource should be formatted as GROUP:KIND:NAME. If no GROUP is specified then :KIND:NAME
   argocd app sync my-app --resource :Service:my-service
@@ -2530,7 +2533,7 @@ func setParameterOverrides(app *argoappv1.Application, parameters []string, sour
 	if len(parameters) == 0 {
 		return
 	}
-	source := app.Spec.GetSourcePtr(sourcePosition)
+	source := app.Spec.GetSourcePtrBySourcePosition(sourcePosition)
 	var sourceType argoappv1.ApplicationSourceType
 	if st, _ := source.ExplicitType(); st != nil {
 		sourceType = *st
