@@ -354,6 +354,11 @@ func (c *Cache) GetManifests(revision string, appSrc *appv1.ApplicationSource, s
 	// The expected hash matches the actual hash, so remove the hash from the returned value
 	res.CacheEntryHash = ""
 
+	if res.ManifestResponse != nil {
+		// cached manifest response might be reused across different revisions, so we need to assume that the revision is the one we are looking for
+		res.ManifestResponse.Revision = revision
+	}
+
 	return nil
 }
 
