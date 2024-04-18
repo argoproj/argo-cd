@@ -58,7 +58,7 @@ func NewCommand() *cobra.Command {
 		metricsPort                      int
 		metricsCacheExpiration           time.Duration
 		metricsAplicationLabels          []string
-		metricsAplicationRevisions       []string
+		metricsApplicationRevisions       []string
 		kubectlParallelismLimit          int64
 		cacheSource                      func() (*appstatecache.Cache, error)
 		redisClient                      *redis.Client
