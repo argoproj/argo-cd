@@ -1828,9 +1828,10 @@ func (s *Server) Sync(ctx context.Context, syncReq *application.ApplicationSyncR
 	var sourceRevisions []string
 	var displayRevisions []string
 	if a.Spec.HasMultipleSources() {
-		sourceRevisions = make([]string, 0)
-		displayRevisions = make([]string, 0)
 		numOfSources := int64(len(a.Spec.GetSources()))
+		sourceRevisions = make([]string, numOfSources)
+		displayRevisions = make([]string, numOfSources)
+
 		sources := a.Spec.GetSources()
 		for i, pos := range syncReq.SourcePositions {
 			if pos <= numOfSources {
