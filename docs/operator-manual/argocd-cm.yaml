@@ -235,14 +235,6 @@ data:
   # can be either empty, "normal" or "strict". By default, it is empty i.e. disabled.
   resource.respectRBAC: "normal"
 
-  # Configuration to add a config management plugin.
-  configManagementPlugins: |
-    - name: kasane
-      init:
-        command: [kasane, update]
-      generate:
-        command: [kasane, show]
-
   # A set of settings that allow enabling or disabling the config management tool.
   # If unset, each defaults to "true".
   kustomize.enabled: true
@@ -327,6 +319,10 @@ data:
 
   # cluster.inClusterEnabled indicates whether to allow in-cluster server address. This is enabled by default.
   cluster.inClusterEnabled: "true"
+
+  # The maximum number of pod logs to render in UI. If the application has more than this number of pods, the logs will not be rendered.
+  # This is to prevent the UI from becoming unresponsive when rendering a large number of logs. Default is 10.
+  server.maxPodLogsToRender: 10
 
   # Application pod logs RBAC enforcement enables control over who can and who can't view application pod logs.
   # When you enable the switch, pod logs will be visible only to admin role by default. Other roles/users will not be able to view them via cli and UI.

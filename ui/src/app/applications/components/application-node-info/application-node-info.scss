@@ -8,7 +8,7 @@
         .tabs__content {
             background-color: white;
             @include themify($themes){
-                background-color: themed('background-1');
+                background-color: themed('background-2');
             }
         }
 

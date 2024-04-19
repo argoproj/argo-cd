@@ -62,13 +62,11 @@ const (
 	EnvArgoCDServer = "ARGOCD_SERVER"
 	// EnvArgoCDAuthToken is the environment variable to look for an Argo CD auth token
 	EnvArgoCDAuthToken = "ARGOCD_AUTH_TOKEN"
-	// EnvArgoCDgRPCMaxSizeMB is the environment variable to look for a max gRPC message size
-	EnvArgoCDgRPCMaxSizeMB = "ARGOCD_GRPC_MAX_SIZE_MB"
 )
 
 var (
 	// MaxGRPCMessageSize contains max grpc message size
-	MaxGRPCMessageSize = env.ParseNumFromEnv(EnvArgoCDgRPCMaxSizeMB, 200, 0, math.MaxInt32) * 1024 * 1024
+	MaxGRPCMessageSize = env.ParseNumFromEnv(common.EnvGRPCMaxSizeMB, 200, 0, math.MaxInt32) * 1024 * 1024
 )
 
 // Client defines an interface for interaction with an Argo CD server.
