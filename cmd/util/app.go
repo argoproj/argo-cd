@@ -428,7 +428,7 @@ func SetParameterOverrides(app *argoappv1.Application, parameters []string, inde
 	if len(parameters) == 0 {
 		return
 	}
-	source := app.Spec.GetSourcePtrBySourceIndex(index)
+	source := app.Spec.GetSourcePtrByIndex(index)
 	var sourceType argoappv1.ApplicationSourceType
 	if st, _ := source.ExplicitType(); st != nil {
 		sourceType = *st
