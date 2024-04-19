@@ -144,7 +144,7 @@ func SetAppSpecOptions(flags *pflag.FlagSet, spec *argoappv1.ApplicationSpec, ap
 	if flags == nil {
 		return visited
 	}
-	source := spec.GetSourcePtrBySourcePosition(sourcePosition)
+	source := spec.GetSourcePtrByPosition(sourcePosition)
 	if source == nil {
 		source = &argoappv1.ApplicationSource{}
 	}

@@ -881,7 +881,7 @@ func NewApplicationUnsetCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
 				}
 			}
 
-			source := app.Spec.GetSourcePtrBySourcePosition(sourcePosition)
+			source := app.Spec.GetSourcePtrByPosition(sourcePosition)
 
 			updated, nothingToUnset := unset(source, opts)
 			if nothingToUnset {
@@ -2533,7 +2533,7 @@ func setParameterOverrides(app *argoappv1.Application, parameters []string, sour
 	if len(parameters) == 0 {
 		return
 	}
-	source := app.Spec.GetSourcePtrBySourcePosition(sourcePosition)
+	source := app.Spec.GetSourcePtrByPosition(sourcePosition)
 	var sourceType argoappv1.ApplicationSourceType
 	if st, _ := source.ExplicitType(); st != nil {
 		sourceType = *st
