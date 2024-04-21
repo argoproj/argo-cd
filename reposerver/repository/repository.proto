@@ -311,7 +311,6 @@ message UpdateRevisionForPathsRequest {
 }
 
 message UpdateRevisionForPathsResponse {
-    bool changes = 1;
 }
 
 // ManifestService

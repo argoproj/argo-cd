@@ -675,15 +675,15 @@ func (m *nativeGitClient) IsAnnotatedTag(revision string) bool {
 	}
 }
 
-// returns the meta-data for the commit
+// ChangedFiles returns a list of files changed between two revisions
 func (m *nativeGitClient) ChangedFiles(revision string, targetRevision string) ([]string, error) {
 	if revision == targetRevision {
 		return []string{}, nil
 	}
 
-	//if !IsCommitSHA(revision) || !IsCommitSHA(targetRevision) {
-	//	return []string{}, fmt.Errorf("invalid revision provided, must be SHA")
-	//}
+	if !IsCommitSHA(revision) || !IsCommitSHA(targetRevision) {
+		return []string{}, fmt.Errorf("invalid revision provided, must be SHA")
+	}
 
 	out, err := m.runCmd("diff", "--name-only", fmt.Sprintf("%s..%s", revision, targetRevision))
 	if err != nil {

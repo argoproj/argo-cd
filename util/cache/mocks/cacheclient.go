@@ -49,7 +49,11 @@ func (c *MockCacheClient) Delete(key string) error {
 }
 
 func (c *MockCacheClient) Rename(oldKey string, newKey string, expiration time.Duration) error {
-	return nil
+	args := c.Called(oldKey, newKey, expiration)
+	if len(args) > 0 && args.Get(0) != nil {
+		return args.Get(0).(error)
+	}
+	return c.BaseCache.Rename(oldKey, newKey, expiration)
 }
 
 func (c *MockCacheClient) OnUpdated(ctx context.Context, key string, callback func() error) error {
