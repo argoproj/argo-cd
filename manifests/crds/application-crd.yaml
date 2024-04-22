@@ -1272,6 +1272,51 @@ spec:
                 required:
                 - repoURL
                 type: object
+              sourceHydrator:
+                description: SourceHydrator provides a way to push hydrated manifests
+                  back to git before syncing them to the cluster.
+                properties:
+                  drySource:
+                    description: DrySource specifies where the dry "don't repeat yourself"
+                      manifest source lives.
+                    properties:
+                      path:
+                        type: string
+                      repoURL:
+                        type: string
+                      targetRevision:
+                        type: string
+                    required:
+                    - path
+                    - repoURL
+                    - targetRevision
+                    type: object
+                  hydrateTo:
+                    description: |-
+                      HydrateTo specifies an optional "staging" location to push hydrated manifests to. An external system would then
+                      have to move manifests to the SyncSource, e.g. by pull request.
+                    properties:
+                      targetRevision:
+                        type: string
+                    required:
+                    - targetRevision
+                    type: object
+                  syncSource:
+                    description: SyncSource specifies where to sync hydrated manifests
+                      from.
+                    properties:
+                      path:
+                        type: string
+                      targetRevision:
+                        type: string
+                    required:
+                    - path
+                    - targetRevision
+                    type: object
+                required:
+                - drySource
+                - syncSource
+                type: object
               sources:
                 description: Sources is a reference to the location of the application's
                   manifests or chart
