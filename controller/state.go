@@ -33,6 +33,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
 	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
+	"github.com/argoproj/argo-cd/v2/util/app/path"
 	"github.com/argoproj/argo-cd/v2/util/argo"
 	argodiff "github.com/argoproj/argo-cd/v2/util/argo/diff"
 	appstatecache "github.com/argoproj/argo-cd/v2/util/cache/appstate"
@@ -192,6 +193,38 @@ func (m *appStateManager) GetRepoObjs(app *v1alpha1.Application, sources []v1alp
 		kustomizeOptions, err := kustomizeSettings.GetOptions(source)
 		if err != nil {
 			return nil, nil, fmt.Errorf("failed to get Kustomize options for source %d of %d: %w", i+1, len(sources), err)
+		}
+
+		syncedRevision := app.Status.Sync.Revision
+		if app.Spec.HasMultipleSources() {
+			if i < len(app.Status.Sync.Revisions) {
+				syncedRevision = app.Status.Sync.Revisions[i]
+			} else {
+				syncedRevision = ""
+			}
+		}
+
+		val, ok := app.Annotations[v1alpha1.AnnotationKeyManifestGeneratePaths]
+		if !source.IsHelm() && syncedRevision != "" && ok && val != "" {
+			// Validate the manifest-generate-path annotation to avoid generating manifests if it has not changed.
+			_, err = repoClient.UpdateRevisionForPaths(context.Background(), &apiclient.UpdateRevisionForPathsRequest{
+				Repo:               repo,
+				Revision:           revisions[i],
+				SyncedRevision:     syncedRevision,
+				Paths:              path.GetAppRefreshPaths(app),
+				AppLabelKey:        appLabelKey,
+				AppName:            app.InstanceName(m.namespace),
+				Namespace:          app.Spec.Destination.Namespace,
+				ApplicationSource:  &source,
+				KubeVersion:        serverVersion,
+				ApiVersions:        argo.APIResourcesToStrings(apiResources, true),
+				TrackingMethod:     string(argo.GetTrackingMethod(m.settingsMgr)),
+				RefSources:         refSources,
+				HasMultipleSources: app.Spec.HasMultipleSources(),
+			})
+			if err != nil {
+				return nil, nil, fmt.Errorf("failed to compare revisions for source %d of %d: %w", i+1, len(sources), err)
+			}
 		}
 
 		ts.AddCheckpoint("version_ms")

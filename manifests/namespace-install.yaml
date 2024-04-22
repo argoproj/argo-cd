@@ -1045,7 +1045,7 @@ spec:
         - ""
         - --appendonly
         - "no"
-        image: redis:7.0.14-alpine
+        image: redis:7.0.15-alpine
         imagePullPolicy: Always
         name: redis
         ports:
@@ -1272,6 +1272,12 @@ spec:
           valueFrom:
             configMapKeyRef:
               key: reposerver.git.request.timeout
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_GRPC_MAX_SIZE_MB
+          valueFrom:
+            configMapKeyRef:
+              key: reposerver.grpc.max.size
               name: argocd-cmd-params-cm
               optional: true
         - name: HELM_CACHE_HOME

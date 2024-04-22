@@ -70,6 +70,9 @@ export async function deleteApplication(appName: string, appNamespace: string, a
             <div>
                 <p>
                     Are you sure you want to delete the application <kbd>{appName}</kbd>?
+                    <span style={{display: 'block', marginBottom: '10px'}} />
+                    Deleting the application in <kbd>foreground</kbd> or <kbd>background</kbd> mode will delete all the application's managed resources, which can be{' '}
+                    <strong>dangerous</strong>. Be sure you understand the effects of deleting this resource before continuing. Consider asking someone to review the change first.
                 </p>
                 <div className='argo-form-row'>
                     <FormField
@@ -300,6 +303,9 @@ export const deletePodAction = async (pod: appModels.Pod, appContext: AppContext
             <div>
                 <p>
                     Are you sure you want to delete Pod <kbd>{pod.name}</kbd>?
+                    <span style={{display: 'block', marginBottom: '10px'}} />
+                    Deleting resources can be <strong>dangerous</strong>. Be sure you understand the effects of deleting this resource before continuing. Consider asking someone to
+                    review the change first.
                 </p>
                 <div className='argo-form-row' style={{paddingLeft: '30px'}}>
                     <CheckboxField id='force-delete-checkbox' field='force'>
@@ -343,7 +349,11 @@ export const deletePopup = async (ctx: ContextApis, resource: ResourceTreeNode, 
             <div>
                 <p>
                     Are you sure you want to delete {resource.kind} <kbd>{resource.name}</kbd>?
+                    <span style={{display: 'block', marginBottom: '10px'}} />
+                    Deleting resources can be <strong>dangerous</strong>. Be sure you understand the effects of deleting this resource before continuing. Consider asking someone to
+                    review the change first.
                 </p>
+
                 {isManaged ? (
                     <div className='argo-form-row'>
                         <FormField label={`Please type '${resource.name}' to confirm the deletion of the resource`} formApi={api} field='resourceName' component={Text} />
