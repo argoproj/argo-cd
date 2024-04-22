@@ -1,0 +1,177 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations:
+    argocd.argoproj.io/tracking-id: 'guestbook:apps/Deployment:default/kustomize-guestbook-ui'
+    deployment.kubernetes.io/revision: '9'
+    iksm-version: '2.0'
+    kubectl.kubernetes.io/last-applied-configuration: >
+      {"apiVersion":"apps/v1","kind":"Deployment","metadata":{"annotations":{"argocd.argoproj.io/tracking-id":"guestbook:apps/Deployment:default/kustomize-guestbook-ui","iksm-version":"2.0"},"name":"kustomize-guestbook-ui","namespace":"default"},"spec":{"replicas":4,"revisionHistoryLimit":3,"selector":{"matchLabels":{"app":"guestbook-ui"}},"template":{"metadata":{"labels":{"app":"guestbook-ui"}},"spec":{"containers":[{"env":[{"name":"SOME_ENV_VAR","value":"some_value"}],"image":"gcr.io/heptio-images/ks-guestbook-demo:0.1","name":"guestbook-ui","ports":[{"containerPort":80}],"resources":{"requests":{"cpu":"50m","memory":"100Mi"}}}]}}}}
+  creationTimestamp: '2022-01-05T15:45:21Z'
+  generation: 119
+  managedFields:
+    - apiVersion: apps/v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        'f:metadata':
+          'f:annotations':
+            'f:iksm-version': {}
+      manager: janitor
+      operation: Apply
+      time: '2022-01-06T18:21:04Z'
+    - apiVersion: apps/v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        'f:metadata':
+          'f:annotations':
+            .: {}
+            'f:argocd.argoproj.io/tracking-id': {}
+            'f:kubectl.kubernetes.io/last-applied-configuration': {}
+        'f:spec':
+          'f:progressDeadlineSeconds': {}
+          'f:replicas': {}
+          'f:revisionHistoryLimit': {}
+          'f:selector': {}
+          'f:strategy':
+            'f:rollingUpdate':
+              .: {}
+              'f:maxSurge': {}
+              'f:maxUnavailable': {}
+            'f:type': {}
+          'f:template':
+            'f:metadata':
+              'f:labels':
+                .: {}
+                'f:app': {}
+            'f:spec':
+              'f:containers':
+                'k:{"name":"guestbook-ui"}':
+                  .: {}
+                  'f:env':
+                    .: {}
+                    'k:{"name":"SOME_ENV_VAR"}':
+                      .: {}
+                      'f:name': {}
+                      'f:value': {}
+                  'f:image': {}
+                  'f:imagePullPolicy': {}
+                  'f:name': {}
+                  'f:ports':
+                    .: {}
+                    'k:{"containerPort":80,"protocol":"TCP"}':
+                      .: {}
+                      'f:containerPort': {}
+                      'f:protocol': {}
+                  'f:resources':
+                    .: {}
+                    'f:requests':
+                      .: {}
+                      'f:cpu': {}
+                      'f:memory': {}
+                  'f:terminationMessagePath': {}
+                  'f:terminationMessagePolicy': {}
+              'f:dnsPolicy': {}
+              'f:restartPolicy': {}
+              'f:schedulerName': {}
+              'f:securityContext': {}
+              'f:terminationGracePeriodSeconds': {}
+      manager: argocd
+      operation: Update
+      time: '2022-01-06T15:04:15Z'
+    - apiVersion: apps/v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        'f:metadata':
+          'f:annotations':
+            'f:deployment.kubernetes.io/revision': {}
+        'f:status':
+          'f:availableReplicas': {}
+          'f:conditions':
+            .: {}
+            'k:{"type":"Available"}':
+              .: {}
+              'f:lastTransitionTime': {}
+              'f:lastUpdateTime': {}
+              'f:message': {}
+              'f:reason': {}
+              'f:status': {}
+              'f:type': {}
+            'k:{"type":"Progressing"}':
+              .: {}
+              'f:lastTransitionTime': {}
+              'f:lastUpdateTime': {}
+              'f:message': {}
+              'f:reason': {}
+              'f:status': {}
+              'f:type': {}
+          'f:observedGeneration': {}
+          'f:readyReplicas': {}
+          'f:replicas': {}
+          'f:updatedReplicas': {}
+      manager: kube-controller-manager
+      operation: Update
+      time: '2022-01-06T18:15:14Z'
+  name: kustomize-guestbook-ui
+  namespace: default
+  resourceVersion: '8289211'
+  uid: ef253575-ce44-4c5e-84ad-16e81d0df6eb
+spec:
+  progressDeadlineSeconds: 600
+  replicas: 4
+  revisionHistoryLimit: 3
+  selector:
+    matchLabels:
+      app: guestbook-ui
+  strategy:
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 25%
+    type: RollingUpdate
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        app: guestbook-ui
+    spec:
+      containers:
+        - env:
+            - name: SOME_ENV_VAR
+              value: some_value
+          image: 'gcr.io/heptio-images/ks-guestbook-demo:0.1'
+          imagePullPolicy: IfNotPresent
+          name: guestbook-ui
+          ports:
+            - containerPort: 80
+              protocol: TCP
+          resources:
+            requests:
+              cpu: 50m
+              memory: 100Mi
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+      dnsPolicy: ClusterFirst
+      restartPolicy: Always
+      schedulerName: default-scheduler
+      securityContext: {}
+      terminationGracePeriodSeconds: 30
+status:
+  availableReplicas: 4
+  conditions:
+    - lastTransitionTime: '2022-01-05T22:20:37Z'
+      lastUpdateTime: '2022-01-05T22:43:47Z'
+      message: >-
+        ReplicaSet "kustomize-guestbook-ui-6549d54677" has successfully
+        progressed.
+      reason: NewReplicaSetAvailable
+      status: 'True'
+      type: Progressing
+    - lastTransitionTime: '2022-01-06T18:15:14Z'
+      lastUpdateTime: '2022-01-06T18:15:14Z'
+      message: Deployment has minimum availability.
+      reason: MinimumReplicasAvailable
+      status: 'True'
+      type: Available
+  observedGeneration: 119
+  readyReplicas: 4
+  replicas: 4
+  updatedReplicas: 4

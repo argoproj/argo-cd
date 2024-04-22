@@ -61,6 +61,7 @@ spec:
                                 type: string
                               type: object
                           type: object
+                          x-kubernetes-map-type: atomic
                         name:
                           type: string
                         requeueAfterSeconds:
@@ -704,6 +705,7 @@ spec:
                                 type: string
                               type: object
                           type: object
+                          x-kubernetes-map-type: atomic
                         template:
                           properties:
                             metadata:
@@ -2607,6 +2609,7 @@ spec:
                                           type: string
                                         type: object
                                     type: object
+                                    x-kubernetes-map-type: atomic
                                   name:
                                     type: string
                                   requeueAfterSeconds:
@@ -3250,6 +3253,7 @@ spec:
                                           type: string
                                         type: object
                                     type: object
+                                    x-kubernetes-map-type: atomic
                                   template:
                                     properties:
                                       metadata:
@@ -7397,6 +7401,7 @@ spec:
                                       type: string
                                     type: object
                                 type: object
+                                x-kubernetes-map-type: atomic
                             type: object
                           type: array
                         template:
@@ -8040,6 +8045,7 @@ spec:
                                           type: string
                                         type: object
                                     type: object
+                                    x-kubernetes-map-type: atomic
                                   name:
                                     type: string
                                   requeueAfterSeconds:
@@ -8683,6 +8689,7 @@ spec:
                                           type: string
                                         type: object
                                     type: object
+                                    x-kubernetes-map-type: atomic
                                   template:
                                     properties:
                                       metadata:
@@ -12830,6 +12837,7 @@ spec:
                                       type: string
                                     type: object
                                 type: object
+                                x-kubernetes-map-type: atomic
                             type: object
                           type: array
                         mergeKeys:
@@ -15718,6 +15726,7 @@ spec:
                             type: string
                           type: object
                       type: object
+                      x-kubernetes-map-type: atomic
                   type: object
                 type: array
               goTemplate:

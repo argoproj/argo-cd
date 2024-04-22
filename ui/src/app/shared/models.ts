@@ -197,6 +197,8 @@ export interface ApplicationSource {
     plugin?: ApplicationSourcePlugin;
 
     directory?: ApplicationSourceDirectory;
+
+    ref?: string;
 }
 
 export interface ApplicationSourceHelm {

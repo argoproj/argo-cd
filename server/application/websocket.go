@@ -37,7 +37,7 @@ type terminalSession struct {
 	tty            bool
 	readLock       sync.Mutex
 	writeLock      sync.Mutex
-	sessionManager util_session.SessionManager
+	sessionManager *util_session.SessionManager
 	token          *string
 }
 
@@ -48,7 +48,7 @@ func getToken(r *http.Request) (string, error) {
 }
 
 // newTerminalSession create terminalSession
-func newTerminalSession(w http.ResponseWriter, r *http.Request, responseHeader http.Header, sessionManager util_session.SessionManager) (*terminalSession, error) {
+func newTerminalSession(w http.ResponseWriter, r *http.Request, responseHeader http.Header, sessionManager *util_session.SessionManager) (*terminalSession, error) {
 	token, err := getToken(r)
 	if err != nil {
 		return nil, err
