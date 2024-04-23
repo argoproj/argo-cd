@@ -22,9 +22,6 @@ message AWSAuthConfig {
 
   // RoleARN contains optional role ARN. If set then AWS IAM Authenticator assume a role to perform cluster operations instead of the default AWS credential provider chain.
   optional string roleARN = 2;
-
-  // Profile contains optional role ARN. If set then AWS IAM Authenticator uses the profile to perform cluster operations instead of the default AWS credential provider chain.
-  optional string profile = 3;
 }
 
 // AppProject provides a logical grouping of applications, providing controls for:
@@ -901,6 +898,9 @@ message EnvEntry {
   optional string value = 2;
 }
 
+message ErrApplicationNotAllowedToUseProject {
+}
+
 // ExecProviderConfig is config used to call an external command to perform cluster authentication
 // See: https://godoc.org/k8s.io/client-go/tools/clientcmd/api#ExecConfig
 message ExecProviderConfig {
@@ -1134,6 +1134,7 @@ message KustomizeSelector {
 
 // ListGenerator include items info
 message ListGenerator {
+  // +kubebuilder:validation:Optional
   repeated k8s.io.apiextensions_apiserver.pkg.apis.apiextensions.v1.JSON elements = 1;
 
   optional ApplicationSetTemplate template = 2;
@@ -1898,9 +1899,6 @@ message RevisionHistory {
 
   // Revisions holds the revision of each source in sources field the sync was performed against
   repeated string revisions = 9;
-
-  // InitiatedBy contains information about who initiated the operations
-  optional OperationInitiator initiatedBy = 10;
 }
 
 // RevisionMetadata contains metadata for a specific revision in a Git repository

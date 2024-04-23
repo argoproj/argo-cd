@@ -1439,6 +1439,27 @@ func TestCreateAppWithDestName(t *testing.T) {
 	assert.Equal(t, app.Spec.Destination.Server, "https://cluster-api.example.com")
 }
 
+// TestCreateAppWithOperation tests that an application created with an operation is created with the operation removed.
+// Avoids regressions of https://github.com/argoproj/argo-cd/security/advisories/GHSA-g623-jcgg-mhmm
+func TestCreateAppWithOperation(t *testing.T) {
+	appServer := newTestAppServer(t)
+	testApp := newTestAppWithDestName()
+	testApp.Operation = &appsv1.Operation{
+		Sync: &appsv1.SyncOperation{
+			Manifests: []string{
+				"test",
+			},
+		},
+	}
+	createReq := application.ApplicationCreateRequest{
+		Application: testApp,
+	}
+	app, err := appServer.Create(context.Background(), &createReq)
+	require.NoError(t, err)
+	require.NotNil(t, app)
+	assert.Nil(t, app.Operation)
+}
+
 func TestUpdateApp(t *testing.T) {
 	testApp := newTestApp()
 	appServer := newTestAppServer(t, testApp)
@@ -1797,7 +1818,7 @@ func TestServer_GetApplicationSyncWindowsState(t *testing.T) {
 		appServer := newTestAppServer(t, testApp)
 
 		active, err := appServer.GetApplicationSyncWindows(context.Background(), &application.ApplicationSyncWindowsQuery{Name: &testApp.Name})
-		assert.Contains(t, err.Error(), "not found")
+		assert.Contains(t, err.Error(), "not exist")
 		assert.Nil(t, active)
 	})
 }
@@ -2407,7 +2428,16 @@ func TestAppNamespaceRestrictions(t *testing.T) {
 	t.Run("Get application in other namespace when allowed", func(t *testing.T) {
 		testApp := newTestApp()
 		testApp.Namespace = "argocd-1"
-		appServer := newTestAppServer(t, testApp)
+		testApp.Spec.Project = "other-ns"
+		otherNsProj := &appsv1.AppProject{
+			ObjectMeta: metav1.ObjectMeta{Name: "other-ns", Namespace: "default"},
+			Spec: appsv1.AppProjectSpec{
+				SourceRepos:      []string{"*"},
+				Destinations:     []appsv1.ApplicationDestination{{Server: "*", Namespace: "*"}},
+				SourceNamespaces: []string{"argocd-1"},
+			},
+		}
+		appServer := newTestAppServer(t, testApp, otherNsProj)
 		appServer.enabledNamespaces = []string{"argocd-1"}
 		app, err := appServer.Get(context.TODO(), &application.ApplicationQuery{
 			Name:         pointer.String("test-app"),
@@ -2417,6 +2447,28 @@ func TestAppNamespaceRestrictions(t *testing.T) {
 		require.NotNil(t, app)
 		require.Equal(t, "argocd-1", app.Namespace)
 		require.Equal(t, "test-app", app.Name)
+	})
+	t.Run("Get application in other namespace when project is not allowed", func(t *testing.T) {
+		testApp := newTestApp()
+		testApp.Namespace = "argocd-1"
+		testApp.Spec.Project = "other-ns"
+		otherNsProj := &appsv1.AppProject{
+			ObjectMeta: metav1.ObjectMeta{Name: "other-ns", Namespace: "default"},
+			Spec: appsv1.AppProjectSpec{
+				SourceRepos:      []string{"*"},
+				Destinations:     []appsv1.ApplicationDestination{{Server: "*", Namespace: "*"}},
+				SourceNamespaces: []string{"argocd-2"},
+			},
+		}
+		appServer := newTestAppServer(t, testApp, otherNsProj)
+		appServer.enabledNamespaces = []string{"argocd-1"}
+		app, err := appServer.Get(context.TODO(), &application.ApplicationQuery{
+			Name:         pointer.String("test-app"),
+			AppNamespace: pointer.String("argocd-1"),
+		})
+		require.Error(t, err)
+		require.Nil(t, app)
+		require.ErrorContains(t, err, "app is not allowed in project")
 	})
 	t.Run("Create application in other namespace when allowed", func(t *testing.T) {
 		testApp := newTestApp()
@@ -2460,7 +2512,7 @@ func TestAppNamespaceRestrictions(t *testing.T) {
 		})
 		require.Error(t, err)
 		require.Nil(t, app)
-		require.ErrorContains(t, err, "not allowed to use project")
+		require.ErrorContains(t, err, "app is not allowed in project")
 	})
 
 	t.Run("Create application in other namespace when not allowed by configuration", func(t *testing.T) {
@@ -2484,5 +2536,84 @@ func TestAppNamespaceRestrictions(t *testing.T) {
 		require.Nil(t, app)
 		require.ErrorContains(t, err, "namespace 'argocd-1' is not permitted")
 	})
-
+	t.Run("Get application sync window in other namespace when project is allowed", func(t *testing.T) {
+		testApp := newTestApp()
+		testApp.Namespace = "argocd-1"
+		testApp.Spec.Project = "other-ns"
+		otherNsProj := &appsv1.AppProject{
+			ObjectMeta: metav1.ObjectMeta{Name: "other-ns", Namespace: "default"},
+			Spec: appsv1.AppProjectSpec{
+				SourceRepos:      []string{"*"},
+				Destinations:     []appsv1.ApplicationDestination{{Server: "*", Namespace: "*"}},
+				SourceNamespaces: []string{"argocd-1"},
+			},
+		}
+		appServer := newTestAppServer(t, testApp, otherNsProj)
+		appServer.enabledNamespaces = []string{"argocd-1"}
+		active, err := appServer.GetApplicationSyncWindows(context.TODO(), &application.ApplicationSyncWindowsQuery{Name: &testApp.Name, AppNamespace: &testApp.Namespace})
+		assert.NoError(t, err)
+		assert.Equal(t, 0, len(active.ActiveWindows))
+	})
+	t.Run("Get application sync window in other namespace when project is not allowed", func(t *testing.T) {
+		testApp := newTestApp()
+		testApp.Namespace = "argocd-1"
+		testApp.Spec.Project = "other-ns"
+		otherNsProj := &appsv1.AppProject{
+			ObjectMeta: metav1.ObjectMeta{Name: "other-ns", Namespace: "default"},
+			Spec: appsv1.AppProjectSpec{
+				SourceRepos:      []string{"*"},
+				Destinations:     []appsv1.ApplicationDestination{{Server: "*", Namespace: "*"}},
+				SourceNamespaces: []string{"argocd-2"},
+			},
+		}
+		appServer := newTestAppServer(t, testApp, otherNsProj)
+		appServer.enabledNamespaces = []string{"argocd-1"}
+		active, err := appServer.GetApplicationSyncWindows(context.TODO(), &application.ApplicationSyncWindowsQuery{Name: &testApp.Name, AppNamespace: &testApp.Namespace})
+		require.Error(t, err)
+		require.Nil(t, active)
+		require.ErrorContains(t, err, "app is not allowed in project")
+	})
+	t.Run("Get list of links in other namespace when project is not allowed", func(t *testing.T) {
+		testApp := newTestApp()
+		testApp.Namespace = "argocd-1"
+		testApp.Spec.Project = "other-ns"
+		otherNsProj := &appsv1.AppProject{
+			ObjectMeta: metav1.ObjectMeta{Name: "other-ns", Namespace: "default"},
+			Spec: appsv1.AppProjectSpec{
+				SourceRepos:      []string{"*"},
+				Destinations:     []appsv1.ApplicationDestination{{Server: "*", Namespace: "*"}},
+				SourceNamespaces: []string{"argocd-2"},
+			},
+		}
+		appServer := newTestAppServer(t, testApp, otherNsProj)
+		appServer.enabledNamespaces = []string{"argocd-1"}
+		links, err := appServer.ListLinks(context.TODO(), &application.ListAppLinksRequest{
+			Name:      pointer.String("test-app"),
+			Namespace: pointer.String("argocd-1"),
+		})
+		require.Error(t, err)
+		require.Nil(t, links)
+		require.ErrorContains(t, err, "app is not allowed in project")
+	})
+	t.Run("Get list of links in other namespace when project is allowed", func(t *testing.T) {
+		testApp := newTestApp()
+		testApp.Namespace = "argocd-1"
+		testApp.Spec.Project = "other-ns"
+		otherNsProj := &appsv1.AppProject{
+			ObjectMeta: metav1.ObjectMeta{Name: "other-ns", Namespace: "default"},
+			Spec: appsv1.AppProjectSpec{
+				SourceRepos:      []string{"*"},
+				Destinations:     []appsv1.ApplicationDestination{{Server: "*", Namespace: "*"}},
+				SourceNamespaces: []string{"argocd-1"},
+			},
+		}
+		appServer := newTestAppServer(t, testApp, otherNsProj)
+		appServer.enabledNamespaces = []string{"argocd-1"}
+		links, err := appServer.ListLinks(context.TODO(), &application.ListAppLinksRequest{
+			Name:      pointer.String("test-app"),
+			Namespace: pointer.String("argocd-1"),
+		})
+		require.NoError(t, err)
+		assert.Equal(t, 0, len(links.Items))
+	})
 }

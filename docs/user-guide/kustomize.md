@@ -162,9 +162,6 @@ data:
     kustomize.buildOptions: --load-restrictor LoadRestrictionsNone
     kustomize.buildOptions.v4.4.0: --output /tmp
 ```
-
-After modifying `kustomize.buildOptions`, you may need to restart ArgoCD for the changes to take effect.
-
 ## Custom Kustomize versions
 
 Argo CD supports using multiple Kustomize versions simultaneously and specifies required version per application.

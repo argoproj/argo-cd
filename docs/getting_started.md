@@ -22,8 +22,12 @@ This will create a new namespace, `argocd`, where Argo CD services and applicati
     The installation manifests include `ClusterRoleBinding` resources that reference `argocd` namespace. If you are installing Argo CD into a different
     namespace then make sure to update the namespace reference.
 
-!!! tip
-    If you are not interested in UI, SSO, and multi-cluster features, then you can install only the [core](operator-manual/core/#installing) Argo CD components.
+If you are not interested in UI, SSO, multi-cluster features then you can install [core](operator-manual/installation.md#core) Argo CD components only:
+
+```bash
+kubectl create namespace argocd
+kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/core-install.yaml
+```
 
 This default installation will have a self-signed certificate and cannot be accessed without a bit of extra work.
 Do one of:

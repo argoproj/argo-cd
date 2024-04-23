@@ -30,21 +30,12 @@ import {EditAnnotations} from './edit-annotations';
 
 import './application-summary.scss';
 import {DeepLinks} from '../../../shared/components/deep-links';
+import {ExternalLinks} from '../application-urls';
 
 function swap(array: any[], a: number, b: number) {
     array = array.slice();
     [array[a], array[b]] = [array[b], array[a]];
     return array;
-}
-
-function processPath(path: string) {
-    if (path !== null && path !== undefined) {
-        if (path === '.') {
-            return '(root)';
-        }
-        return path;
-    }
-    return '';
 }
 
 export interface ApplicationSummaryProps {
@@ -249,7 +240,7 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                       title: 'PATH',
                       view: (
                           <Revision repoUrl={source.repoURL} revision={source.targetRevision || 'HEAD'} path={source.path} isForPath={true}>
-                              {processPath(source.path)}
+                              {source.path ?? ''}
                           </Revision>
                       ),
                       edit: (formApi: FormApi) =>
@@ -336,20 +327,19 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
             )
         }
     ];
-
-    const urls = app.status.summary.externalURLs || [];
+    const urls = ExternalLinks(app.status.summary.externalURLs);
     if (urls.length > 0) {
         attributes.push({
             title: 'URLs',
             view: (
                 <React.Fragment>
-                    {urls
-                        .map(item => item.split('|'))
-                        .map((parts, i) => (
-                            <a key={i} href={parts.length > 1 ? parts[1] : parts[0]} target='__blank'>
-                                {parts[0]} &nbsp;
+                    {urls.map((url, i) => {
+                        return (
+                            <a key={i} href={url.ref} target='__blank'>
+                                {url.title} &nbsp;
                             </a>
-                        ))}
+                        );
+                    })}
                 </React.Fragment>
             )
         });
