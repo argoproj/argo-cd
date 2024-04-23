@@ -626,6 +626,7 @@ func Test_areDependenciesReady(t *testing.T) {
 		assert.Equal(t, common.OperationRunning, s.Phase)
 		assert.Empty(t, s.Message)
 	})
+}
 
 func TestNormalizeTargetResourcesWithList(t *testing.T) {
 	type fixture struct {
