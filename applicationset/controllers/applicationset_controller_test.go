@@ -6067,6 +6067,219 @@ func TestUpdateApplicationSetApplicationStatusProgress(t *testing.T) {
 	}
 }
 
+func TestUpdateResourceStatus(t *testing.T) {
+
+	scheme := runtime.NewScheme()
+	err := v1alpha1.AddToScheme(scheme)
+	assert.Nil(t, err)
+
+	err = v1alpha1.AddToScheme(scheme)
+	assert.Nil(t, err)
+
+	for _, cc := range []struct {
+		name              string
+		appSet            v1alpha1.ApplicationSet
+		apps              []v1alpha1.Application
+		expectedResources []v1alpha1.ResourceStatus
+	}{
+		{
+			name: "handles an empty application list",
+			appSet: v1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "name",
+					Namespace: "argocd",
+				},
+				Status: v1alpha1.ApplicationSetStatus{
+					Resources: []v1alpha1.ResourceStatus{},
+				},
+			},
+			apps:              []v1alpha1.Application{},
+			expectedResources: nil,
+		},
+		{
+			name: "adds status if no existing statuses",
+			appSet: v1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "name",
+					Namespace: "argocd",
+				},
+				Status: v1alpha1.ApplicationSetStatus{
+					ApplicationStatus: []v1alpha1.ApplicationSetApplicationStatus{},
+				},
+			},
+			apps: []v1alpha1.Application{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "app1",
+					},
+					Status: v1alpha1.ApplicationStatus{
+						Sync: v1alpha1.SyncStatus{
+							Status: v1alpha1.SyncStatusCodeSynced,
+						},
+						Health: v1alpha1.HealthStatus{
+							Status:  health.HealthStatusHealthy,
+							Message: "OK",
+						},
+					},
+				},
+			},
+			expectedResources: []v1alpha1.ResourceStatus{
+				{
+					Name:   "app1",
+					Status: v1alpha1.SyncStatusCodeSynced,
+					Health: &v1alpha1.HealthStatus{
+						Status:  health.HealthStatusHealthy,
+						Message: "OK",
+					},
+				},
+			},
+		},
+		{
+			name: "handles an applicationset with existing and up-to-date status",
+			appSet: v1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "name",
+					Namespace: "argocd",
+				},
+				Status: v1alpha1.ApplicationSetStatus{
+					Resources: []v1alpha1.ResourceStatus{
+						{
+							Name:   "app1",
+							Status: v1alpha1.SyncStatusCodeSynced,
+							Health: &v1alpha1.HealthStatus{
+								Status:  health.HealthStatusHealthy,
+								Message: "OK",
+							},
+						},
+					},
+				},
+			},
+			apps: []v1alpha1.Application{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "app1",
+					},
+					Status: v1alpha1.ApplicationStatus{
+						Sync: v1alpha1.SyncStatus{
+							Status: v1alpha1.SyncStatusCodeSynced,
+						},
+						Health: v1alpha1.HealthStatus{
+							Status:  health.HealthStatusHealthy,
+							Message: "OK",
+						},
+					},
+				},
+			},
+			expectedResources: []v1alpha1.ResourceStatus{
+				{
+					Name:   "app1",
+					Status: v1alpha1.SyncStatusCodeSynced,
+					Health: &v1alpha1.HealthStatus{
+						Status:  health.HealthStatusHealthy,
+						Message: "OK",
+					},
+				},
+			},
+		},
+		{
+			name: "updates an applicationset with existing and out of date status",
+			appSet: v1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "name",
+					Namespace: "argocd",
+				},
+				Status: v1alpha1.ApplicationSetStatus{
+					Resources: []v1alpha1.ResourceStatus{
+						{
+							Name:   "app1",
+							Status: v1alpha1.SyncStatusCodeOutOfSync,
+							Health: &v1alpha1.HealthStatus{
+								Status:  health.HealthStatusProgressing,
+								Message: "Progressing",
+							},
+						},
+					},
+				},
+			},
+			apps: []v1alpha1.Application{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "app1",
+					},
+					Status: v1alpha1.ApplicationStatus{
+						Sync: v1alpha1.SyncStatus{
+							Status: v1alpha1.SyncStatusCodeSynced,
+						},
+						Health: v1alpha1.HealthStatus{
+							Status:  health.HealthStatusHealthy,
+							Message: "OK",
+						},
+					},
+				},
+			},
+			expectedResources: []v1alpha1.ResourceStatus{
+				{
+					Name:   "app1",
+					Status: v1alpha1.SyncStatusCodeSynced,
+					Health: &v1alpha1.HealthStatus{
+						Status:  health.HealthStatusHealthy,
+						Message: "OK",
+					},
+				},
+			},
+		},
+		{
+			name: "deletes an applicationset status if the application no longer exists",
+			appSet: v1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "name",
+					Namespace: "argocd",
+				},
+				Status: v1alpha1.ApplicationSetStatus{
+					Resources: []v1alpha1.ResourceStatus{
+						{
+							Name:   "app1",
+							Status: v1alpha1.SyncStatusCodeSynced,
+							Health: &v1alpha1.HealthStatus{
+								Status:  health.HealthStatusHealthy,
+								Message: "OK",
+							},
+						},
+					},
+				},
+			},
+			apps:              []v1alpha1.Application{},
+			expectedResources: nil,
+		},
+	} {
+
+		t.Run(cc.name, func(t *testing.T) {
+
+			kubeclientset := kubefake.NewSimpleClientset([]runtime.Object{}...)
+			argoDBMock := dbmocks.ArgoDB{}
+			argoObjs := []runtime.Object{}
+
+			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&cc.appSet).Build()
+
+			r := ApplicationSetReconciler{
+				Client:           client,
+				Scheme:           scheme,
+				Recorder:         record.NewFakeRecorder(1),
+				Cache:            &fakeCache{},
+				Generators:       map[string]generators.Generator{},
+				ArgoDB:           &argoDBMock,
+				ArgoAppClientset: appclientset.NewSimpleClientset(argoObjs...),
+				KubeClientset:    kubeclientset,
+			}
+
+			err := r.updateResourcesStatus(context.TODO(), log.NewEntry(log.StandardLogger()), &cc.appSet, cc.apps)
+
+			assert.Equal(t, err, nil, "expected no errors, but errors occured")
+			assert.Equal(t, cc.expectedResources, cc.appSet.Status.Resources, "expected resources did not match actual")
+		})
+	}
+}
+
 func TestOwnsHandler(t *testing.T) {
 	// progressive syncs do not affect create, delete, or generic
 	ownsHandler := getOwnsHandlerPredicates(true)
@@ -6172,14 +6385,70 @@ func TestOwnsHandler(t *testing.T) {
 			ObjectOld: &v1alpha1.Application{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{"foo": "bar"}}},
 			ObjectNew: &v1alpha1.Application{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{"bar": "foo"}}},
 		}}, want: true},
+		{name: "DifferentApplicationLabelsNil", args: args{e: event.UpdateEvent{
+			ObjectOld: &v1alpha1.Application{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{}}},
+			ObjectNew: &v1alpha1.Application{ObjectMeta: metav1.ObjectMeta{Labels: nil}},
+		}}, want: false},
 		{name: "DifferentApplicationAnnotations", args: args{e: event.UpdateEvent{
 			ObjectOld: &v1alpha1.Application{ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{"foo": "bar"}}},
 			ObjectNew: &v1alpha1.Application{ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{"bar": "foo"}}},
 		}}, want: true},
+		{name: "DifferentApplicationAnnotationsNil", args: args{e: event.UpdateEvent{
+			ObjectOld: &v1alpha1.Application{ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{}}},
+			ObjectNew: &v1alpha1.Application{ObjectMeta: metav1.ObjectMeta{Annotations: nil}},
+		}}, want: false},
 		{name: "DifferentApplicationFinalizers", args: args{e: event.UpdateEvent{
 			ObjectOld: &v1alpha1.Application{ObjectMeta: metav1.ObjectMeta{Finalizers: []string{"argo"}}},
 			ObjectNew: &v1alpha1.Application{ObjectMeta: metav1.ObjectMeta{Finalizers: []string{"none"}}},
 		}}, want: true},
+		{name: "DifferentApplicationFinalizersNil", args: args{e: event.UpdateEvent{
+			ObjectOld: &v1alpha1.Application{ObjectMeta: metav1.ObjectMeta{Finalizers: []string{}}},
+			ObjectNew: &v1alpha1.Application{ObjectMeta: metav1.ObjectMeta{Finalizers: nil}},
+		}}, want: false},
+		{name: "ApplicationDestinationSame", args: args{e: event.UpdateEvent{
+			ObjectOld: &v1alpha1.Application{
+				Spec: v1alpha1.ApplicationSpec{
+					Destination: v1alpha1.ApplicationDestination{
+						Server:    "server",
+						Namespace: "ns",
+						Name:      "name",
+					},
+				},
+			},
+			ObjectNew: &v1alpha1.Application{
+				Spec: v1alpha1.ApplicationSpec{
+					Destination: v1alpha1.ApplicationDestination{
+						Server:    "server",
+						Namespace: "ns",
+						Name:      "name",
+					},
+				},
+			},
+		},
+			enableProgressiveSyncs: true,
+		}, want: false},
+		{name: "ApplicationDestinationDiff", args: args{e: event.UpdateEvent{
+			ObjectOld: &v1alpha1.Application{
+				Spec: v1alpha1.ApplicationSpec{
+					Destination: v1alpha1.ApplicationDestination{
+						Server:    "server",
+						Namespace: "ns",
+						Name:      "name",
+					},
+				},
+			},
+			ObjectNew: &v1alpha1.Application{
+				Spec: v1alpha1.ApplicationSpec{
+					Destination: v1alpha1.ApplicationDestination{
+						Server:    "notSameServer",
+						Namespace: "ns",
+						Name:      "name",
+					},
+				},
+			},
+		},
+			enableProgressiveSyncs: true,
+		}, want: true},
 		{name: "NotAnAppOld", args: args{e: event.UpdateEvent{
 			ObjectOld: &v1alpha1.AppProject{},
 			ObjectNew: &v1alpha1.Application{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{"bar": "foo"}}},
