@@ -17,9 +17,10 @@ package controllers
 import (
 	"context"
 	"fmt"
-	"reflect"
 	"time"
 
+	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
@@ -1613,10 +1614,14 @@ func shouldRequeueApplicationSet(appOld *argov1alpha1.Application, appNew *argov
 	}
 
 	// the applicationset controller owns the application spec, labels, annotations, and finalizers on the applications
-	if !reflect.DeepEqual(appOld.Spec, appNew.Spec) ||
-		!reflect.DeepEqual(appOld.ObjectMeta.GetAnnotations(), appNew.ObjectMeta.GetAnnotations()) ||
-		!reflect.DeepEqual(appOld.ObjectMeta.GetLabels(), appNew.ObjectMeta.GetLabels()) ||
-		!reflect.DeepEqual(appOld.ObjectMeta.GetFinalizers(), appNew.ObjectMeta.GetFinalizers()) {
+	// reflect.DeepEqual considers nil slices/maps not equal to empty slices/maps
+	// https://pkg.go.dev/reflect#DeepEqual
+	// ApplicationDestination has an unexported field so we can just use the == for comparsion
+	if !cmp.Equal(appOld.Spec, appNew.Spec, cmpopts.EquateEmpty(), cmpopts.EquateComparable(argov1alpha1.ApplicationDestination{})) ||
+		!cmp.Equal(appOld.ObjectMeta.GetAnnotations(), appNew.ObjectMeta.GetAnnotations(), cmpopts.EquateEmpty()) ||
+		!cmp.Equal(appOld.ObjectMeta.GetLabels(), appNew.ObjectMeta.GetLabels(), cmpopts.EquateEmpty()) ||
+		!cmp.Equal(appOld.ObjectMeta.GetFinalizers(), appNew.ObjectMeta.GetFinalizers(), cmpopts.EquateEmpty()) {
+
 		return true
 	}
 

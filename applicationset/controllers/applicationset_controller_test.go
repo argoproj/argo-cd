@@ -6385,14 +6385,70 @@ func TestOwnsHandler(t *testing.T) {
 			ObjectOld: &v1alpha1.Application{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{"foo": "bar"}}},
 			ObjectNew: &v1alpha1.Application{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{"bar": "foo"}}},
 		}}, want: true},
+		{name: "DifferentApplicationLabelsNil", args: args{e: event.UpdateEvent{
+			ObjectOld: &v1alpha1.Application{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{}}},
+			ObjectNew: &v1alpha1.Application{ObjectMeta: metav1.ObjectMeta{Labels: nil}},
+		}}, want: false},
 		{name: "DifferentApplicationAnnotations", args: args{e: event.UpdateEvent{
 			ObjectOld: &v1alpha1.Application{ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{"foo": "bar"}}},
 			ObjectNew: &v1alpha1.Application{ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{"bar": "foo"}}},
 		}}, want: true},
+		{name: "DifferentApplicationAnnotationsNil", args: args{e: event.UpdateEvent{
+			ObjectOld: &v1alpha1.Application{ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{}}},
+			ObjectNew: &v1alpha1.Application{ObjectMeta: metav1.ObjectMeta{Annotations: nil}},
+		}}, want: false},
 		{name: "DifferentApplicationFinalizers", args: args{e: event.UpdateEvent{
 			ObjectOld: &v1alpha1.Application{ObjectMeta: metav1.ObjectMeta{Finalizers: []string{"argo"}}},
 			ObjectNew: &v1alpha1.Application{ObjectMeta: metav1.ObjectMeta{Finalizers: []string{"none"}}},
 		}}, want: true},
+		{name: "DifferentApplicationFinalizersNil", args: args{e: event.UpdateEvent{
+			ObjectOld: &v1alpha1.Application{ObjectMeta: metav1.ObjectMeta{Finalizers: []string{}}},
+			ObjectNew: &v1alpha1.Application{ObjectMeta: metav1.ObjectMeta{Finalizers: nil}},
+		}}, want: false},
+		{name: "ApplicationDestinationSame", args: args{e: event.UpdateEvent{
+			ObjectOld: &v1alpha1.Application{
+				Spec: v1alpha1.ApplicationSpec{
+					Destination: v1alpha1.ApplicationDestination{
+						Server:    "server",
+						Namespace: "ns",
+						Name:      "name",
+					},
+				},
+			},
+			ObjectNew: &v1alpha1.Application{
+				Spec: v1alpha1.ApplicationSpec{
+					Destination: v1alpha1.ApplicationDestination{
+						Server:    "server",
+						Namespace: "ns",
+						Name:      "name",
+					},
+				},
+			},
+		},
+			enableProgressiveSyncs: true,
+		}, want: false},
+		{name: "ApplicationDestinationDiff", args: args{e: event.UpdateEvent{
+			ObjectOld: &v1alpha1.Application{
+				Spec: v1alpha1.ApplicationSpec{
+					Destination: v1alpha1.ApplicationDestination{
+						Server:    "server",
+						Namespace: "ns",
+						Name:      "name",
+					},
+				},
+			},
+			ObjectNew: &v1alpha1.Application{
+				Spec: v1alpha1.ApplicationSpec{
+					Destination: v1alpha1.ApplicationDestination{
+						Server:    "notSameServer",
+						Namespace: "ns",
+						Name:      "name",
+					},
+				},
+			},
+		},
+			enableProgressiveSyncs: true,
+		}, want: true},
 		{name: "NotAnAppOld", args: args{e: event.UpdateEvent{
 			ObjectOld: &v1alpha1.AppProject{},
 			ObjectNew: &v1alpha1.Application{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{"bar": "foo"}}},
