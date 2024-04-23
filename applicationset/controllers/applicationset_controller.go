@@ -17,9 +17,10 @@ package controllers
 import (
 	"context"
 	"fmt"
-	"reflect"
 	"time"
 
+	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
@@ -1528,10 +1529,29 @@ func shouldRequeueApplicationSet(appOld *argov1alpha1.Application, appNew *argov
 	}
 
 	// the applicationset controller owns the application spec, labels, annotations, and finalizers on the applications
-	if !reflect.DeepEqual(appOld.Spec, appNew.Spec) ||
-		!reflect.DeepEqual(appOld.ObjectMeta.GetAnnotations(), appNew.ObjectMeta.GetAnnotations()) ||
-		!reflect.DeepEqual(appOld.ObjectMeta.GetLabels(), appNew.ObjectMeta.GetLabels()) ||
-		!reflect.DeepEqual(appOld.ObjectMeta.GetFinalizers(), appNew.ObjectMeta.GetFinalizers()) {
+	// reflect.DeepEqual considers nil slices/maps not equal to empty slices/maps
+	// https://pkg.go.dev/reflect#DeepEqual
+	// ApplicationDestination has an unexported field so we can just use the == for comparsion
+	if !cmp.Equal(appOld.Spec, appNew.Spec, cmpopts.EquateEmpty(), cmpopts.EquateComparable(argov1alpha1.ApplicationDestination{})) ||
+		!cmp.Equal(appOld.ObjectMeta.GetAnnotations(), appNew.ObjectMeta.GetAnnotations(), cmpopts.EquateEmpty()) ||
+		!cmp.Equal(appOld.ObjectMeta.GetLabels(), appNew.ObjectMeta.GetLabels(), cmpopts.EquateEmpty()) ||
+		!cmp.Equal(appOld.ObjectMeta.GetFinalizers(), appNew.ObjectMeta.GetFinalizers(), cmpopts.EquateEmpty()) {
+		if !cmp.Equal(appOld.Spec, appNew.Spec, cmpopts.EquateEmpty(), cmpopts.EquateComparable(argov1alpha1.ApplicationDestination{})) {
+			fmt.Printf("spec\n%#v\n%#v\n", appOld.Spec, appNew.Spec)
+		}
+
+		if !cmp.Equal(appOld.ObjectMeta.GetAnnotations(), appNew.ObjectMeta.GetAnnotations(), cmpopts.EquateEmpty()) {
+			fmt.Printf("annotations\n%#v\n%#v\n", appOld.ObjectMeta.GetAnnotations(), appNew.ObjectMeta.GetAnnotations())
+		}
+
+		if !cmp.Equal(appOld.ObjectMeta.GetFinalizers(), appNew.ObjectMeta.GetFinalizers(), cmpopts.EquateEmpty()) {
+			fmt.Printf("finalizers\n%#v\n%#v\n", appOld.ObjectMeta.GetFinalizers(), appNew.ObjectMeta.GetFinalizers())
+		}
+
+		if !cmp.Equal(appOld.ObjectMeta.GetLabels(), appNew.ObjectMeta.GetLabels(), cmpopts.EquateEmpty()) {
+			fmt.Printf("labels\n%#v\n%#v\n", appOld.ObjectMeta.GetLabels(), appNew.ObjectMeta.GetLabels())
+		}
+
 		return true
 	}
 
@@ -1550,6 +1570,35 @@ func shouldRequeueApplicationSet(appOld *argov1alpha1.Application, appNew *argov
 	}
 
 	return false
+}
+
+func normalizeApplication(app *argov1alpha1.Application) *argov1alpha1.Application {
+	// normalize nil maps/slices to empty maps
+	if app.ObjectMeta.GetAnnotations() == nil {
+		app.ObjectMeta.Annotations = map[string]string{}
+	}
+
+	if app.ObjectMeta.GetLabels() == nil {
+		app.ObjectMeta.Labels = map[string]string{}
+	}
+
+	if app.GetFinalizers() == nil {
+		app.Finalizers = []string{}
+	}
+
+	if app.Spec.IgnoreDifferences == nil {
+		app.Spec.IgnoreDifferences = []argov1alpha1.ResourceIgnoreDifferences{}
+	}
+
+	if app.Spec.Info == nil {
+		app.Spec.Info = []argov1alpha1.Info{}
+	}
+
+	if app.Spec.Sources == nil {
+		app.Spec.Sources = []argov1alpha1.ApplicationSource{}
+	}
+
+	return app
 }
 
 var _ handler.EventHandler = &clusterSecretEventHandler{}
