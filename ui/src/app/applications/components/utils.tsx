@@ -1061,10 +1061,17 @@ export function getAppDefaultSource(app?: appModels.Application) {
     if (!app) {
         return null;
     }
-    return app.spec.sources && app.spec.sources.length > 0 ? app.spec.sources[0] : app.spec.source;
+    return getAppSpecDefaultSource(app.spec);
 }
 
 export function getAppSpecDefaultSource(spec: appModels.ApplicationSpec) {
+    if (spec.sourceHydrator) {
+        return {
+            repoURL: spec.sourceHydrator.drySource.repoURL,
+            targetRevision: spec.sourceHydrator.syncSource.targetRevision,
+            path: spec.sourceHydrator.syncSource.path,
+        }
+    }
     return spec.sources && spec.sources.length > 0 ? spec.sources[0] : spec.source;
 }
 

@@ -6694,6 +6694,9 @@
             "$ref": "#/definitions/v1alpha1ResourceStatus"
           }
         },
+        "sourceHydrator": {
+          "$ref": "#/definitions/v1alpha1SourceHydratorStatus"
+        },
         "sourceType": {
           "type": "string",
           "title": "SourceType specifies the type of this application"
@@ -8980,6 +8983,18 @@
         },
         "syncSource": {
           "$ref": "#/definitions/v1alpha1SyncSource"
+        }
+      }
+    },
+    "v1alpha1SourceHydratorStatus": {
+      "type": "object",
+      "properties": {
+        "drySource": {
+          "$ref": "#/definitions/v1alpha1DrySource"
+        },
+        "revision": {
+          "type": "string",
+          "title": "Revision holds the resolved revision (sha) of the dry source as of the most recent reconciliation"
         }
       }
     },

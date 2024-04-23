@@ -1471,6 +1471,12 @@ func (ctrl *ApplicationController) PatchAppWithWriteBack(ctx context.Context, na
 	return patchedApp, err
 }
 
+// processAppRefreshQueueItem does roughly these tasks:
+//  1. If we're shutting down, it quits early and returns "false" to indicate we're done processing refreshes.
+//  2. Checks whether the app needs to be refreshed. If not, quit early.
+//  3. If we're "comparing with nothing," just update the app resource tree in Redis and the app status in k8s.
+//  4. Checks that all AppProject restrictions are being followed. If not, clears the app resource tree and managed
+//     resources in Redis and sets failure conditions on the app status.
 func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext bool) {
 	patchMs := time.Duration(0) // time spent in doing patch/update calls
 	setOpMs := time.Duration(0) // time spent in doing Operation patch calls in autosync
@@ -1557,6 +1563,19 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 			logCtx.Warnf("failed to set app managed resources tree: %v", err)
 		}
 		return
+	}
+
+	// If we're using a source hydrator, see if the dry source has changed.
+	if app.Spec.SourceHydrator != nil {
+		revision, err := ctrl.appStateManager.ResolveDryRevision(app)
+		if err != nil {
+			logCtx.Errorf("Failed to check whether dry source has changed, skipping: %w", err)
+		}
+		if app.Status.SourceHydrator.Revision != revision {
+			app.Status.SourceHydrator.Revision = revision
+			ctrl.persistAppStatus(origApp, &app.Status)
+			logCtx.Info("UPDATED THE REVISION, YO")
+		}
 	}
 
 	var localManifests []string
@@ -1730,6 +1749,8 @@ func (ctrl *ApplicationController) needRefreshAppStatus(app *appv1.Application, 
 	return false, refreshType, compareWith
 }
 
+// refreshAppConditions validates whether AppProject restrictions are being followed. If not, it adds error conditions
+// to the app status.
 func (ctrl *ApplicationController) refreshAppConditions(app *appv1.Application) (*appv1.AppProject, bool) {
 	errorConditions := make([]appv1.ApplicationCondition, 0)
 	proj, err := ctrl.getAppProj(app)

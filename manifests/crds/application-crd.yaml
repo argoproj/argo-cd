@@ -4224,6 +4224,30 @@ spec:
                       type: string
                   type: object
                 type: array
+              sourceHydrator:
+                description: SourceHydrator stores information about the current state
+                  of source hydration
+                properties:
+                  drySource:
+                    description: DrySource holds the dry source configuration as of
+                      the most recent reconciliation
+                    properties:
+                      path:
+                        type: string
+                      repoURL:
+                        type: string
+                      targetRevision:
+                        type: string
+                    required:
+                    - path
+                    - repoURL
+                    - targetRevision
+                    type: object
+                  revision:
+                    description: Revision holds the resolved revision (sha) of the
+                      dry source as of the most recent reconciliation
+                    type: string
+                type: object
               sourceType:
                 description: SourceType specifies the type of this application
                 type: string

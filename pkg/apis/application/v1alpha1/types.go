@@ -85,7 +85,7 @@ type ApplicationSpec struct {
 	Sources ApplicationSources `json:"sources,omitempty" protobuf:"bytes,8,opt,name=sources"`
 
 	// SourceHydrator provides a way to push hydrated manifests back to git before syncing them to the cluster.
-	SourceHydrator SourceHydrator `json:"sourceHydrator,omitempty" protobuf:"bytes,9,opt,name=sourceHydrator"`
+	SourceHydrator *SourceHydrator `json:"sourceHydrator,omitempty" protobuf:"bytes,9,opt,name=sourceHydrator"`
 }
 
 type IgnoreDifferences []ResourceIgnoreDifferences
@@ -213,6 +213,9 @@ func (a *ApplicationSpec) GetSource() ApplicationSource {
 	if a.HasMultipleSources() {
 		return a.Sources[0]
 	}
+	if a.SourceHydrator != nil {
+		return a.SourceHydrator.GetApplicationSource()
+	}
 	if a.Source != nil {
 		return *a.Source
 	}
@@ -223,6 +226,9 @@ func (a *ApplicationSpec) GetSources() ApplicationSources {
 	if a.HasMultipleSources() {
 		return a.Sources
 	}
+	if a.SourceHydrator != nil {
+		return ApplicationSources{a.SourceHydrator.GetApplicationSource()}
+	}
 	if a.Source != nil {
 		return ApplicationSources{*a.Source}
 	}
@@ -230,7 +236,7 @@ func (a *ApplicationSpec) GetSources() ApplicationSources {
 }
 
 func (a *ApplicationSpec) HasMultipleSources() bool {
-	return a.Sources != nil && len(a.Sources) > 0
+	return a.SourceHydrator == nil && a.Sources != nil && len(a.Sources) > 0
 }
 
 func (a *ApplicationSpec) GetSourcePtrByPosition(sourcePosition int) *ApplicationSource {
@@ -245,6 +251,10 @@ func (a *ApplicationSpec) GetSourcePtrByIndex(sourceIndex int) *ApplicationSourc
 			return &a.Sources[sourceIndex]
 		}
 		return &a.Sources[0]
+	}
+	if a.SourceHydrator != nil {
+		source := a.SourceHydrator.GetApplicationSource()
+		return &source
 	}
 	return a.Source
 }
@@ -303,7 +313,17 @@ type SourceHydrator struct {
 	SyncSource SyncSource `json:"syncSource" protobuf:"bytes,2,name=syncSource"`
 	// HydrateTo specifies an optional "staging" location to push hydrated manifests to. An external system would then
 	// have to move manifests to the SyncSource, e.g. by pull request.
-	HydrateTo HydrateTo `json:"hydrateTo,omitempty" protobuf:"bytes,3,opt,name=hydrateTo"`
+	HydrateTo *HydrateTo `json:"hydrateTo,omitempty" protobuf:"bytes,3,opt,name=hydrateTo"`
+}
+
+// GetApplicationSource gets the source from which we should sync when a source hydrator is configured.
+func (s SourceHydrator) GetApplicationSource() ApplicationSource {
+	return ApplicationSource{
+		// Pull the RepoURL from the dry source. The SyncSource's RepoURL is assumed to be the same.
+		RepoURL:        s.DrySource.RepoURL,
+		Path:           s.SyncSource.Path,
+		TargetRevision: s.SyncSource.TargetRevision,
+	}
 }
 
 // DrySource specifies a location for dry "don't repeat yourself" manifest source information.
@@ -998,6 +1018,15 @@ type ApplicationStatus struct {
 	SourceTypes []ApplicationSourceType `json:"sourceTypes,omitempty" protobuf:"bytes,12,opt,name=sourceTypes"`
 	// ControllerNamespace indicates the namespace in which the application controller is located
 	ControllerNamespace string `json:"controllerNamespace,omitempty" protobuf:"bytes,13,opt,name=controllerNamespace"`
+	// SourceHydrator stores information about the current state of source hydration
+	SourceHydrator SourceHydratorStatus `json:"sourceHydrator,omitempty" protobuf:"bytes,14,opt,name=sourceHydrator"`
+}
+
+type SourceHydratorStatus struct {
+	// DrySource holds the dry source configuration as of the most recent reconciliation
+	DrySource DrySource `json:"drySource,omitempty" protobuf:"bytes,1,opt,name=drySource"`
+	// Revision holds the resolved revision (sha) of the dry source as of the most recent reconciliation
+	Revision string `json:"revision,omitempty" protobuf:"bytes,2,opt,name=revision"`
 }
 
 // GetRevisions will return the current revision associated with the Application.

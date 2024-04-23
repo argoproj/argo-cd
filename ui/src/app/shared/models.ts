@@ -201,6 +201,27 @@ export interface ApplicationSource {
     ref?: string;
 }
 
+export interface SourceHydrator {
+    drySource: DrySource;
+    syncSource: SyncSource;
+    hydrateTo?: HydrateTo;
+}
+
+export interface DrySource {
+    repoURL: string;
+    targetRevision: string;
+    path: string;
+}
+
+export interface SyncSource {
+    targetRevision: string;
+    path: string
+}
+
+export interface HydrateTo {
+    targetRevision: string;
+}
+
 export interface ApplicationSourceHelm {
     valueFiles: string[];
     values?: string;
@@ -272,6 +293,7 @@ export interface ApplicationSpec {
     project: string;
     source: ApplicationSource;
     sources: ApplicationSource[];
+    sourceHydrator?: SourceHydrator;
     destination: ApplicationDestination;
     syncPolicy?: SyncPolicy;
     ignoreDifferences?: ResourceIgnoreDifferences[];

@@ -278,6 +278,16 @@ message UpdateRevisionForPathsRequest {
 message UpdateRevisionForPathsResponse {
 }
 
+message HasDrySourceChangedRequest {
+    github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.Repository repo = 1;
+    github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.ApplicationSource applicationSource = 2;
+    string syncedRevision = 3;
+}
+
+message HasDrySourceChangedResponse {
+    bool hasChanged = 1;
+}
+
 // ManifestService
 service RepoServerService {
 
@@ -335,5 +345,9 @@ service RepoServerService {
 
     // UpdateRevisionForPaths will compare two revisions and update the cache with the new revision if no changes are detected in the provided paths
     rpc UpdateRevisionForPaths(UpdateRevisionForPathsRequest) returns (UpdateRevisionForPathsResponse) {
+    }
+
+    // HasDrySourceChanged determines whether a dry source has changed since the last synced revision
+    rpc HasDrySourceChanged(HasDrySourceChangedRequest) returns (HasDrySourceChangedResponse) {
     }
 }

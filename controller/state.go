@@ -74,6 +74,7 @@ type AppStateManager interface {
 	CompareAppState(app *v1alpha1.Application, project *v1alpha1.AppProject, revisions []string, sources []v1alpha1.ApplicationSource, noCache bool, noRevisionCache bool, localObjects []string, hasMultipleSources bool) (*comparisonResult, error)
 	SyncAppState(app *v1alpha1.Application, state *v1alpha1.OperationState)
 	GetRepoObjs(app *v1alpha1.Application, sources []v1alpha1.ApplicationSource, appLabelKey string, revisions []string, noCache, noRevisionCache, verifySignature bool, proj *v1alpha1.AppProject) ([]*unstructured.Unstructured, []*apiclient.ManifestResponse, error)
+	ResolveDryRevision(app *v1alpha1.Application) (string, error)
 }
 
 // comparisonResult holds the state of an application after the reconciliation
@@ -276,6 +277,29 @@ func (m *appStateManager) GetRepoObjs(app *v1alpha1.Application, sources []v1alp
 	logCtx = logCtx.WithField("time_ms", time.Since(ts.StartTime).Milliseconds())
 	logCtx.Info("GetRepoObjs stats")
 	return targetObjs, manifestInfos, nil
+}
+
+func (m *appStateManager) ResolveDryRevision(app *v1alpha1.Application) (string, error) {
+	conn, repoClient, err := m.repoClientset.NewRepoServerClient()
+	if err != nil {
+		return "", fmt.Errorf("failed to connect to repo server: %w", err)
+	}
+	defer io.Close(conn)
+
+	repo, err := m.db.GetRepository(context.Background(), app.Spec.SourceHydrator.DrySource.RepoURL)
+	if err != nil {
+		return "", fmt.Errorf("failed to get repo %q: %w", app.Spec.SourceHydrator.DrySource.RepoURL, err)
+	}
+
+	resp, err := repoClient.ResolveRevision(context.Background(), &apiclient.ResolveRevisionRequest{
+		Repo:              repo,
+		App:               app,
+		AmbiguousRevision: app.Spec.SourceHydrator.DrySource.TargetRevision,
+	})
+	if err != nil {
+		return "", fmt.Errorf("failed to determine whether the dry source has changed: %w", err)
+	}
+	return resp.Revision, nil
 }
 
 func unmarshalManifests(manifests []string) ([]*unstructured.Unstructured, error) {
