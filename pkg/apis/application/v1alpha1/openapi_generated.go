@@ -157,6 +157,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SecretRef":                               schema_pkg_apis_application_v1alpha1_SecretRef(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SignatureKey":                            schema_pkg_apis_application_v1alpha1_SignatureKey(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SourceHydrator":                          schema_pkg_apis_application_v1alpha1_SourceHydrator(ref),
+		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SourceHydratorStatus":                    schema_pkg_apis_application_v1alpha1_SourceHydratorStatus(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SyncOperation":                           schema_pkg_apis_application_v1alpha1_SyncOperation(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SyncOperationResource":                   schema_pkg_apis_application_v1alpha1_SyncOperationResource(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SyncOperationResult":                     schema_pkg_apis_application_v1alpha1_SyncOperationResult(ref),
@@ -2163,7 +2164,6 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSpec(ref common.ReferenceCa
 					"sourceHydrator": {
 						SchemaProps: spec.SchemaProps{
 							Description: "SourceHydrator provides a way to push hydrated manifests back to git before syncing them to the cluster.",
-							Default:     map[string]interface{}{},
 							Ref:         ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SourceHydrator"),
 						},
 					},
@@ -2300,11 +2300,18 @@ func schema_pkg_apis_application_v1alpha1_ApplicationStatus(ref common.Reference
 							Format:      "",
 						},
 					},
+					"sourceHydrator": {
+						SchemaProps: spec.SchemaProps{
+							Description: "SourceHydrator stores information about the current state of source hydration",
+							Default:     map[string]interface{}{},
+							Ref:         ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SourceHydratorStatus"),
+						},
+					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationCondition", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSummary", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.HealthStatus", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.OperationState", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ResourceStatus", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.RevisionHistory", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SyncStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.Time"},
+			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationCondition", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSummary", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.HealthStatus", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.OperationState", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ResourceStatus", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.RevisionHistory", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SourceHydratorStatus", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SyncStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.Time"},
 	}
 }
 
@@ -7458,7 +7465,6 @@ func schema_pkg_apis_application_v1alpha1_SourceHydrator(ref common.ReferenceCal
 					"hydrateTo": {
 						SchemaProps: spec.SchemaProps{
 							Description: "HydrateTo specifies an optional \"staging\" location to push hydrated manifests to. An external system would then have to move manifests to the SyncSource, e.g. by pull request.",
-							Default:     map[string]interface{}{},
 							Ref:         ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.HydrateTo"),
 						},
 					},
@@ -7468,6 +7474,34 @@ func schema_pkg_apis_application_v1alpha1_SourceHydrator(ref common.ReferenceCal
 		},
 		Dependencies: []string{
 			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.DrySource", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.HydrateTo", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SyncSource"},
+	}
+}
+
+func schema_pkg_apis_application_v1alpha1_SourceHydratorStatus(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Type: []string{"object"},
+				Properties: map[string]spec.Schema{
+					"drySource": {
+						SchemaProps: spec.SchemaProps{
+							Description: "DrySource holds the dry source configuration as of the most recent reconciliation",
+							Default:     map[string]interface{}{},
+							Ref:         ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.DrySource"),
+						},
+					},
+					"revision": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Revision holds the resolved revision (sha) of the dry source as of the most recent reconciliation",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.DrySource"},
 	}
 }
 

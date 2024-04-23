@@ -188,7 +188,15 @@ export const ApplicationParameters = (props: {
         );
     } else {
         const v: models.ApplicationSource[] = new Array<models.ApplicationSource>();
-        v.push(app.spec.source);
+        if (app.spec.sourceHydrator) {
+            v.push({
+                repoURL: app.spec.sourceHydrator.drySource.repoURL,
+                targetRevision: app.spec.sourceHydrator.syncSource.targetRevision,
+                path: app.spec.sourceHydrator.syncSource.path,
+            })
+        } else {
+            v.push(app.spec.source);
+        }
         return getEditablePanel(attributes, props.details, 0, v);
     }
 
@@ -272,7 +280,7 @@ export const ApplicationParameters = (props: {
                 values={
                     app?.spec?.source
                         ? ((props.details.plugin || app?.spec?.source?.plugin) && cloneDeep(app)) || app
-                        : ((repoAppDetails.plugin || app?.spec?.sources[ind]?.plugin) && cloneDeep(app)) || app
+                        : ((repoAppDetails.plugin || src?.plugin) && cloneDeep(app)) || app
                 }
                 validate={updatedApp => {
                     const errors = {} as any;

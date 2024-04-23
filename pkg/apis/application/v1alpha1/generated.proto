@@ -633,6 +633,9 @@ message ApplicationStatus {
 
   // ControllerNamespace indicates the namespace in which the application controller is located
   optional string controllerNamespace = 13;
+
+  // SourceHydrator stores information about the current state of source hydration
+  optional SourceHydratorStatus sourceHydrator = 14;
 }
 
 // ApplicationSummary contains information about URLs and container images used by an application
@@ -2155,6 +2158,14 @@ message SourceHydrator {
   // HydrateTo specifies an optional "staging" location to push hydrated manifests to. An external system would then
   // have to move manifests to the SyncSource, e.g. by pull request.
   optional HydrateTo hydrateTo = 3;
+}
+
+message SourceHydratorStatus {
+  // DrySource holds the dry source configuration as of the most recent reconciliation
+  optional DrySource drySource = 1;
+
+  // Revision holds the resolved revision (sha) of the dry source as of the most recent reconciliation
+  optional string revision = 2;
 }
 
 // SyncOperation contains details about a sync operation.

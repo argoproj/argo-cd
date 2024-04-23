@@ -2777,3 +2777,8 @@ func (s *Service) updateCachedRevision(logCtx *log.Entry, oldRev string, newRev 
 	logCtx.Debugf("manifest cache updated for application %s in repo %s from revision %s to revision %s", request.AppName, request.GetRepo().Repo, oldRev, newRev)
 	return nil
 }
+
+func (s *Service) HasDrySourceChanged(_ context.Context, request *apiclient.HasDrySourceChangedRequest) (*apiclient.HasDrySourceChangedResponse, error) {
+	resp := apiclient.HasDrySourceChangedResponse{HasChanged: false}
+	return &resp, nil
+}
