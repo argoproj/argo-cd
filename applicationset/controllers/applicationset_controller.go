@@ -1621,21 +1621,6 @@ func shouldRequeueApplicationSet(appOld *argov1alpha1.Application, appNew *argov
 		!cmp.Equal(appOld.ObjectMeta.GetAnnotations(), appNew.ObjectMeta.GetAnnotations(), cmpopts.EquateEmpty()) ||
 		!cmp.Equal(appOld.ObjectMeta.GetLabels(), appNew.ObjectMeta.GetLabels(), cmpopts.EquateEmpty()) ||
 		!cmp.Equal(appOld.ObjectMeta.GetFinalizers(), appNew.ObjectMeta.GetFinalizers(), cmpopts.EquateEmpty()) {
-		if !cmp.Equal(appOld.Spec, appNew.Spec, cmpopts.EquateEmpty(), cmpopts.EquateComparable(argov1alpha1.ApplicationDestination{})) {
-			fmt.Printf("spec\n%#v\n%#v\n", appOld.Spec, appNew.Spec)
-		}
-
-		if !cmp.Equal(appOld.ObjectMeta.GetAnnotations(), appNew.ObjectMeta.GetAnnotations(), cmpopts.EquateEmpty()) {
-			fmt.Printf("annotations\n%#v\n%#v\n", appOld.ObjectMeta.GetAnnotations(), appNew.ObjectMeta.GetAnnotations())
-		}
-
-		if !cmp.Equal(appOld.ObjectMeta.GetFinalizers(), appNew.ObjectMeta.GetFinalizers(), cmpopts.EquateEmpty()) {
-			fmt.Printf("finalizers\n%#v\n%#v\n", appOld.ObjectMeta.GetFinalizers(), appNew.ObjectMeta.GetFinalizers())
-		}
-
-		if !cmp.Equal(appOld.ObjectMeta.GetLabels(), appNew.ObjectMeta.GetLabels(), cmpopts.EquateEmpty()) {
-			fmt.Printf("labels\n%#v\n%#v\n", appOld.ObjectMeta.GetLabels(), appNew.ObjectMeta.GetLabels())
-		}
 
 		return true
 	}
