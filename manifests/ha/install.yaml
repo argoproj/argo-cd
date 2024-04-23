@@ -35,19 +35,14 @@ spec:
         description: Application is a definition of Application resource.
         properties:
           apiVersion:
-            description: |-
-              APIVersion defines the versioned schema of this representation of an object.
-              Servers should convert recognized schemas to the latest internal value, and
-              may reject unrecognized values.
-              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
             type: string
           kind:
-            description: |-
-              Kind is a string value representing the REST resource this object represents.
-              Servers may infer this from the endpoint the client submits requests to.
-              Cannot be updated.
-              In CamelCase.
-              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
             type: string
           metadata:
             type: object
@@ -145,21 +140,22 @@ spec:
                       type: object
                     type: array
                   revision:
-                    description: |-
-                      Revision is the revision (Git) or chart version (Helm) which to sync the application to
-                      If omitted, will use the revision specified in app spec.
+                    description: Revision is the revision (Git) or chart version (Helm)
+                      which to sync the application to If omitted, will use the revision
+                      specified in app spec.
                     type: string
                   revisions:
-                    description: |-
-                      Revisions is the list of revision (Git) or chart version (Helm) which to sync each source in sources field for the application to
-                      If omitted, will use the revision specified in app spec.
+                    description: Revisions is the list of revision (Git) or chart
+                      version (Helm) which to sync each source in sources field for
+                      the application to If omitted, will use the revision specified
+                      in app spec.
                     items:
                       type: string
                     type: array
                   source:
-                    description: |-
-                      Source overrides the source definition set in the application.
-                      This is typically set in a Rollback operation and is nil during a Sync operation
+                    description: Source overrides the source definition set in the
+                      application. This is typically set in a Rollback operation and
+                      is nil during a Sync operation
                     properties:
                       chart:
                         description: Chart is a Helm chart name, and must be specified
@@ -480,18 +476,18 @@ spec:
                           Helm) that contains the application manifests
                         type: string
                       targetRevision:
-                        description: |-
-                          TargetRevision defines the revision of the source to sync the application to.
-                          In case of Git, this can be commit, tag, or branch. If omitted, will equal to HEAD.
+                        description: TargetRevision defines the revision of the source
+                          to sync the application to. In case of Git, this can be
+                          commit, tag, or branch. If omitted, will equal to HEAD.
                           In case of Helm, this is a semver tag for the Chart's version.
                         type: string
                     required:
                     - repoURL
                     type: object
                   sources:
-                    description: |-
-                      Sources overrides the source definition set in the application.
-                      This is typically set in a Rollback operation and is nil during a Sync operation
+                    description: Sources overrides the source definition set in the
+                      application. This is typically set in a Rollback operation and
+                      is nil during a Sync operation
                     items:
                       description: ApplicationSource contains all required information
                         about the source of an application
@@ -819,10 +815,11 @@ spec:
                             Helm) that contains the application manifests
                           type: string
                         targetRevision:
-                          description: |-
-                            TargetRevision defines the revision of the source to sync the application to.
-                            In case of Git, this can be commit, tag, or branch. If omitted, will equal to HEAD.
-                            In case of Helm, this is a semver tag for the Chart's version.
+                          description: TargetRevision defines the revision of the
+                            source to sync the application to. In case of Git, this
+                            can be commit, tag, or branch. If omitted, will equal
+                            to HEAD. In case of Helm, this is a semver tag for the
+                            Chart's version.
                           type: string
                       required:
                       - repoURL
@@ -841,10 +838,10 @@ spec:
                           the sync.
                         properties:
                           force:
-                            description: |-
-                              Force indicates whether or not to supply the --force flag to `kubectl apply`.
-                              The --force flag deletes and re-create the resource, when PATCH encounters conflict and has
-                              retried for 5 times.
+                            description: Force indicates whether or not to supply
+                              the --force flag to `kubectl apply`. The --force flag
+                              deletes and re-create the resource, when PATCH encounters
+                              conflict and has retried for 5 times.
                             type: boolean
                         type: object
                       hook:
@@ -852,10 +849,10 @@ spec:
                           perform the sync. This is the default strategy
                         properties:
                           force:
-                            description: |-
-                              Force indicates whether or not to supply the --force flag to `kubectl apply`.
-                              The --force flag deletes and re-create the resource, when PATCH encounters conflict and has
-                              retried for 5 times.
+                            description: Force indicates whether or not to supply
+                              the --force flag to `kubectl apply`. The --force flag
+                              deletes and re-create the resource, when PATCH encounters
+                              conflict and has retried for 5 times.
                             type: boolean
                         type: object
                     type: object
@@ -961,9 +958,9 @@ spec:
                       not set.
                     type: string
                   namespace:
-                    description: |-
-                      Namespace specifies the target namespace for the application's resources.
-                      The namespace will only be set for namespace-scoped resources that have not set a value for .metadata.namespace
+                    description: Namespace specifies the target namespace for the
+                      application's resources. The namespace will only be set for
+                      namespace-scoped resources that have not set a value for .metadata.namespace
                     type: string
                   server:
                     description: Server specifies the URL of the target cluster's
@@ -992,9 +989,10 @@ spec:
                     kind:
                       type: string
                     managedFieldsManagers:
-                      description: |-
-                        ManagedFieldsManagers is a list of trusted managers. Fields mutated by those managers will take precedence over the
-                        desired state defined in the SCM and won't be displayed in diffs
+                      description: ManagedFieldsManagers is a list of trusted managers.
+                        Fields mutated by those managers will take precedence over
+                        the desired state defined in the SCM and won't be displayed
+                        in diffs
                       items:
                         type: string
                       type: array
@@ -1021,17 +1019,18 @@ spec:
                   type: object
                 type: array
               project:
-                description: |-
-                  Project is a reference to the project this application belongs to.
-                  The empty string means that application belongs to the 'default' project.
+                description: Project is a reference to the project this application
+                  belongs to. The empty string means that application belongs to the
+                  'default' project.
                 type: string
               revisionHistoryLimit:
-                description: |-
-                  RevisionHistoryLimit limits the number of items kept in the application's revision history, which is used for informational purposes as well as for rollbacks to previous versions.
-                  This should only be changed in exceptional circumstances.
-                  Setting to zero will store no history. This will reduce storage used.
-                  Increasing will increase the space used to store the history, so we do not recommend increasing it.
-                  Default is 10.
+                description: RevisionHistoryLimit limits the number of items kept
+                  in the application's revision history, which is used for informational
+                  purposes as well as for rollbacks to previous versions. This should
+                  only be changed in exceptional circumstances. Setting to zero will
+                  store no history. This will reduce storage used. Increasing will
+                  increase the space used to store the history, so we do not recommend
+                  increasing it. Default is 10.
                 format: int64
                 type: integer
               source:
@@ -1350,10 +1349,10 @@ spec:
                       that contains the application manifests
                     type: string
                   targetRevision:
-                    description: |-
-                      TargetRevision defines the revision of the source to sync the application to.
-                      In case of Git, this can be commit, tag, or branch. If omitted, will equal to HEAD.
-                      In case of Helm, this is a semver tag for the Chart's version.
+                    description: TargetRevision defines the revision of the source
+                      to sync the application to. In case of Git, this can be commit,
+                      tag, or branch. If omitted, will equal to HEAD. In case of Helm,
+                      this is a semver tag for the Chart's version.
                     type: string
                 required:
                 - repoURL
@@ -1682,10 +1681,10 @@ spec:
                         that contains the application manifests
                       type: string
                     targetRevision:
-                      description: |-
-                        TargetRevision defines the revision of the source to sync the application to.
-                        In case of Git, this can be commit, tag, or branch. If omitted, will equal to HEAD.
-                        In case of Helm, this is a semver tag for the Chart's version.
+                      description: TargetRevision defines the revision of the source
+                        to sync the application to. In case of Git, this can be commit,
+                        tag, or branch. If omitted, will equal to HEAD. In case of
+                        Helm, this is a semver tag for the Chart's version.
                       type: string
                   required:
                   - repoURL
@@ -2178,10 +2177,11 @@ spec:
                             Helm) that contains the application manifests
                           type: string
                         targetRevision:
-                          description: |-
-                            TargetRevision defines the revision of the source to sync the application to.
-                            In case of Git, this can be commit, tag, or branch. If omitted, will equal to HEAD.
-                            In case of Helm, this is a semver tag for the Chart's version.
+                          description: TargetRevision defines the revision of the
+                            source to sync the application to. In case of Git, this
+                            can be commit, tag, or branch. If omitted, will equal
+                            to HEAD. In case of Helm, this is a semver tag for the
+                            Chart's version.
                           type: string
                       required:
                       - repoURL
@@ -2523,10 +2523,11 @@ spec:
                               or Helm) that contains the application manifests
                             type: string
                           targetRevision:
-                            description: |-
-                              TargetRevision defines the revision of the source to sync the application to.
-                              In case of Git, this can be commit, tag, or branch. If omitted, will equal to HEAD.
-                              In case of Helm, this is a semver tag for the Chart's version.
+                            description: TargetRevision defines the revision of the
+                              source to sync the application to. In case of Git, this
+                              can be commit, tag, or branch. If omitted, will equal
+                              to HEAD. In case of Helm, this is a semver tag for the
+                              Chart's version.
                             type: string
                         required:
                         - repoURL
@@ -2538,9 +2539,9 @@ spec:
                   type: object
                 type: array
               observedAt:
-                description: |-
-                  ObservedAt indicates when the application state was updated without querying latest git state
-                  Deprecated: controller no longer updates ObservedAt field
+                description: 'ObservedAt indicates when the application state was
+                  updated without querying latest git state Deprecated: controller
+                  no longer updates ObservedAt field'
                 format: date-time
                 type: string
               operationState:
@@ -2657,21 +2658,22 @@ spec:
                               type: object
                             type: array
                           revision:
-                            description: |-
-                              Revision is the revision (Git) or chart version (Helm) which to sync the application to
-                              If omitted, will use the revision specified in app spec.
+                            description: Revision is the revision (Git) or chart version
+                              (Helm) which to sync the application to If omitted,
+                              will use the revision specified in app spec.
                             type: string
                           revisions:
-                            description: |-
-                              Revisions is the list of revision (Git) or chart version (Helm) which to sync each source in sources field for the application to
-                              If omitted, will use the revision specified in app spec.
+                            description: Revisions is the list of revision (Git) or
+                              chart version (Helm) which to sync each source in sources
+                              field for the application to If omitted, will use the
+                              revision specified in app spec.
                             items:
                               type: string
                             type: array
                           source:
-                            description: |-
-                              Source overrides the source definition set in the application.
-                              This is typically set in a Rollback operation and is nil during a Sync operation
+                            description: Source overrides the source definition set
+                              in the application. This is typically set in a Rollback
+                              operation and is nil during a Sync operation
                             properties:
                               chart:
                                 description: Chart is a Helm chart name, and must
@@ -3014,18 +3016,19 @@ spec:
                                   (Git or Helm) that contains the application manifests
                                 type: string
                               targetRevision:
-                                description: |-
-                                  TargetRevision defines the revision of the source to sync the application to.
-                                  In case of Git, this can be commit, tag, or branch. If omitted, will equal to HEAD.
-                                  In case of Helm, this is a semver tag for the Chart's version.
+                                description: TargetRevision defines the revision of
+                                  the source to sync the application to. In case of
+                                  Git, this can be commit, tag, or branch. If omitted,
+                                  will equal to HEAD. In case of Helm, this is a semver
+                                  tag for the Chart's version.
                                 type: string
                             required:
                             - repoURL
                             type: object
                           sources:
-                            description: |-
-                              Sources overrides the source definition set in the application.
-                              This is typically set in a Rollback operation and is nil during a Sync operation
+                            description: Sources overrides the source definition set
+                              in the application. This is typically set in a Rollback
+                              operation and is nil during a Sync operation
                             items:
                               description: ApplicationSource contains all required
                                 information about the source of an application
@@ -3376,10 +3379,11 @@ spec:
                                     (Git or Helm) that contains the application manifests
                                   type: string
                                 targetRevision:
-                                  description: |-
-                                    TargetRevision defines the revision of the source to sync the application to.
-                                    In case of Git, this can be commit, tag, or branch. If omitted, will equal to HEAD.
-                                    In case of Helm, this is a semver tag for the Chart's version.
+                                  description: TargetRevision defines the revision
+                                    of the source to sync the application to. In case
+                                    of Git, this can be commit, tag, or branch. If
+                                    omitted, will equal to HEAD. In case of Helm,
+                                    this is a semver tag for the Chart's version.
                                   type: string
                               required:
                               - repoURL
@@ -3400,10 +3404,11 @@ spec:
                                   to perform the sync.
                                 properties:
                                   force:
-                                    description: |-
-                                      Force indicates whether or not to supply the --force flag to `kubectl apply`.
-                                      The --force flag deletes and re-create the resource, when PATCH encounters conflict and has
-                                      retried for 5 times.
+                                    description: Force indicates whether or not to
+                                      supply the --force flag to `kubectl apply`.
+                                      The --force flag deletes and re-create the resource,
+                                      when PATCH encounters conflict and has retried
+                                      for 5 times.
                                     type: boolean
                                 type: object
                               hook:
@@ -3411,10 +3416,11 @@ spec:
                                   to perform the sync. This is the default strategy
                                 properties:
                                   force:
-                                    description: |-
-                                      Force indicates whether or not to supply the --force flag to `kubectl apply`.
-                                      The --force flag deletes and re-create the resource, when PATCH encounters conflict and has
-                                      retried for 5 times.
+                                    description: Force indicates whether or not to
+                                      supply the --force flag to `kubectl apply`.
+                                      The --force flag deletes and re-create the resource,
+                                      when PATCH encounters conflict and has retried
+                                      for 5 times.
                                     type: boolean
                                 type: object
                             type: object
@@ -3458,9 +3464,9 @@ spec:
                               description: Group specifies the API group of the resource
                               type: string
                             hookPhase:
-                              description: |-
-                                HookPhase contains the state of any operation associated with this resource OR hook
-                                This can also contain values for non-hook resources.
+                              description: HookPhase contains the state of any operation
+                                associated with this resource OR hook This can also
+                                contain values for non-hook resources.
                               type: string
                             hookType:
                               description: HookType specifies the type of the hook.
@@ -3845,10 +3851,11 @@ spec:
                               or Helm) that contains the application manifests
                             type: string
                           targetRevision:
-                            description: |-
-                              TargetRevision defines the revision of the source to sync the application to.
-                              In case of Git, this can be commit, tag, or branch. If omitted, will equal to HEAD.
-                              In case of Helm, this is a semver tag for the Chart's version.
+                            description: TargetRevision defines the revision of the
+                              source to sync the application to. In case of Git, this
+                              can be commit, tag, or branch. If omitted, will equal
+                              to HEAD. In case of Helm, this is a semver tag for the
+                              Chart's version.
                             type: string
                         required:
                         - repoURL
@@ -4199,10 +4206,11 @@ spec:
                                 or Helm) that contains the application manifests
                               type: string
                             targetRevision:
-                              description: |-
-                                TargetRevision defines the revision of the source to sync the application to.
-                                In case of Git, this can be commit, tag, or branch. If omitted, will equal to HEAD.
-                                In case of Helm, this is a semver tag for the Chart's version.
+                              description: TargetRevision defines the revision of
+                                the source to sync the application to. In case of
+                                Git, this can be commit, tag, or branch. If omitted,
+                                will equal to HEAD. In case of Helm, this is a semver
+                                tag for the Chart's version.
                               type: string
                           required:
                           - repoURL
@@ -4246,9 +4254,8 @@ spec:
                 description: Resources is a list of Kubernetes resources managed by
                   this application
                 items:
-                  description: |-
-                    ResourceStatus holds the current sync and health status of a resource
-                    TODO: describe members of this type
+                  description: 'ResourceStatus holds the current sync and health status
+                    of a resource TODO: describe members of this type'
                   properties:
                     group:
                       type: string
@@ -4331,9 +4338,10 @@ spec:
                               if Server is not set.
                             type: string
                           namespace:
-                            description: |-
-                              Namespace specifies the target namespace for the application's resources.
-                              The namespace will only be set for namespace-scoped resources that have not set a value for .metadata.namespace
+                            description: Namespace specifies the target namespace
+                              for the application's resources. The namespace will
+                              only be set for namespace-scoped resources that have
+                              not set a value for .metadata.namespace
                             type: string
                           server:
                             description: Server specifies the URL of the target cluster's
@@ -4362,9 +4370,10 @@ spec:
                             kind:
                               type: string
                             managedFieldsManagers:
-                              description: |-
-                                ManagedFieldsManagers is a list of trusted managers. Fields mutated by those managers will take precedence over the
-                                desired state defined in the SCM and won't be displayed in diffs
+                              description: ManagedFieldsManagers is a list of trusted
+                                managers. Fields mutated by those managers will take
+                                precedence over the desired state defined in the SCM
+                                and won't be displayed in diffs
                               items:
                                 type: string
                               type: array
@@ -4710,10 +4719,11 @@ spec:
                               or Helm) that contains the application manifests
                             type: string
                           targetRevision:
-                            description: |-
-                              TargetRevision defines the revision of the source to sync the application to.
-                              In case of Git, this can be commit, tag, or branch. If omitted, will equal to HEAD.
-                              In case of Helm, this is a semver tag for the Chart's version.
+                            description: TargetRevision defines the revision of the
+                              source to sync the application to. In case of Git, this
+                              can be commit, tag, or branch. If omitted, will equal
+                              to HEAD. In case of Helm, this is a semver tag for the
+                              Chart's version.
                             type: string
                         required:
                         - repoURL
@@ -5064,10 +5074,11 @@ spec:
                                 or Helm) that contains the application manifests
                               type: string
                             targetRevision:
-                              description: |-
-                                TargetRevision defines the revision of the source to sync the application to.
-                                In case of Git, this can be commit, tag, or branch. If omitted, will equal to HEAD.
-                                In case of Helm, this is a semver tag for the Chart's version.
+                              description: TargetRevision defines the revision of
+                                the source to sync the application to. In case of
+                                Git, this can be commit, tag, or branch. If omitted,
+                                will equal to HEAD. In case of Helm, this is a semver
+                                tag for the Chart's version.
                               type: string
                           required:
                           - repoURL
@@ -5164,7 +5175,6 @@ spec:
                                 type: string
                               type: object
                           type: object
-                          x-kubernetes-map-type: atomic
                         name:
                           type: string
                         requeueAfterSeconds:
@@ -5808,7 +5818,6 @@ spec:
                                 type: string
                               type: object
                           type: object
-                          x-kubernetes-map-type: atomic
                         template:
                           properties:
                             metadata:
@@ -7712,7 +7721,6 @@ spec:
                                           type: string
                                         type: object
                                     type: object
-                                    x-kubernetes-map-type: atomic
                                   name:
                                     type: string
                                   requeueAfterSeconds:
@@ -8356,7 +8364,6 @@ spec:
                                           type: string
                                         type: object
                                     type: object
-                                    x-kubernetes-map-type: atomic
                                   template:
                                     properties:
                                       metadata:
@@ -12504,7 +12511,6 @@ spec:
                                       type: string
                                     type: object
                                 type: object
-                                x-kubernetes-map-type: atomic
                             type: object
                           type: array
                         template:
@@ -13148,7 +13154,6 @@ spec:
                                           type: string
                                         type: object
                                     type: object
-                                    x-kubernetes-map-type: atomic
                                   name:
                                     type: string
                                   requeueAfterSeconds:
@@ -13792,7 +13797,6 @@ spec:
                                           type: string
                                         type: object
                                     type: object
-                                    x-kubernetes-map-type: atomic
                                   template:
                                     properties:
                                       metadata:
@@ -17940,7 +17944,6 @@ spec:
                                       type: string
                                     type: object
                                 type: object
-                                x-kubernetes-map-type: atomic
                             type: object
                           type: array
                         mergeKeys:
@@ -20829,7 +20832,6 @@ spec:
                             type: string
                           type: object
                       type: object
-                      x-kubernetes-map-type: atomic
                   type: object
                 type: array
               goTemplate:
@@ -21595,28 +21597,22 @@ spec:
   - name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: |-
-          AppProject provides a logical grouping of applications, providing controls for:
-          * where the apps may deploy to (cluster whitelist)
-          * what may be deployed (repository whitelist, resource whitelist/blacklist)
-          * who can access these applications (roles, OIDC group claims bindings)
-          * and what they can do (RBAC policies)
-          * automation access to these roles (JWT tokens)
+        description: 'AppProject provides a logical grouping of applications, providing
+          controls for: * where the apps may deploy to (cluster whitelist) * what
+          may be deployed (repository whitelist, resource whitelist/blacklist) * who
+          can access these applications (roles, OIDC group claims bindings) * and
+          what they can do (RBAC policies) * automation access to these roles (JWT
+          tokens)'
         properties:
           apiVersion:
-            description: |-
-              APIVersion defines the versioned schema of this representation of an object.
-              Servers should convert recognized schemas to the latest internal value, and
-              may reject unrecognized values.
-              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
             type: string
           kind:
-            description: |-
-              Kind is a string value representing the REST resource this object represents.
-              Servers may infer this from the endpoint the client submits requests to.
-              Cannot be updated.
-              In CamelCase.
-              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
             type: string
           metadata:
             type: object
@@ -21627,9 +21623,9 @@ spec:
                 description: ClusterResourceBlacklist contains list of blacklisted
                   cluster level resources
                 items:
-                  description: |-
-                    GroupKind specifies a Group and a Kind, but does not force a version.  This is useful for identifying
-                    concepts during lookup stages without having partially valid types
+                  description: GroupKind specifies a Group and a Kind, but does not
+                    force a version.  This is useful for identifying concepts during
+                    lookup stages without having partially valid types
                   properties:
                     group:
                       type: string
@@ -21644,9 +21640,9 @@ spec:
                 description: ClusterResourceWhitelist contains list of whitelisted
                   cluster level resources
                 items:
-                  description: |-
-                    GroupKind specifies a Group and a Kind, but does not force a version.  This is useful for identifying
-                    concepts during lookup stages without having partially valid types
+                  description: GroupKind specifies a Group and a Kind, but does not
+                    force a version.  This is useful for identifying concepts during
+                    lookup stages without having partially valid types
                   properties:
                     group:
                       type: string
@@ -21673,9 +21669,9 @@ spec:
                         not set.
                       type: string
                     namespace:
-                      description: |-
-                        Namespace specifies the target namespace for the application's resources.
-                        The namespace will only be set for namespace-scoped resources that have not set a value for .metadata.namespace
+                      description: Namespace specifies the target namespace for the
+                        application's resources. The namespace will only be set for
+                        namespace-scoped resources that have not set a value for .metadata.namespace
                       type: string
                     server:
                       description: Server specifies the URL of the target cluster's
@@ -21688,9 +21684,9 @@ spec:
                 description: NamespaceResourceBlacklist contains list of blacklisted
                   namespace level resources
                 items:
-                  description: |-
-                    GroupKind specifies a Group and a Kind, but does not force a version.  This is useful for identifying
-                    concepts during lookup stages without having partially valid types
+                  description: GroupKind specifies a Group and a Kind, but does not
+                    force a version.  This is useful for identifying concepts during
+                    lookup stages without having partially valid types
                   properties:
                     group:
                       type: string
@@ -21705,9 +21701,9 @@ spec:
                 description: NamespaceResourceWhitelist contains list of whitelisted
                   namespace level resources
                 items:
-                  description: |-
-                    GroupKind specifies a Group and a Kind, but does not force a version.  This is useful for identifying
-                    concepts during lookup stages without having partially valid types
+                  description: GroupKind specifies a Group and a Kind, but does not
+                    force a version.  This is useful for identifying concepts during
+                    lookup stages without having partially valid types
                   properties:
                     group:
                       type: string
