@@ -1642,33 +1642,4 @@ func shouldRequeueApplicationSet(appOld *argov1alpha1.Application, appNew *argov
 	return false
 }
 
-func normalizeApplication(app *argov1alpha1.Application) *argov1alpha1.Application {
-	// normalize nil maps/slices to empty maps
-	if app.ObjectMeta.GetAnnotations() == nil {
-		app.ObjectMeta.Annotations = map[string]string{}
-	}
-
-	if app.ObjectMeta.GetLabels() == nil {
-		app.ObjectMeta.Labels = map[string]string{}
-	}
-
-	if app.GetFinalizers() == nil {
-		app.Finalizers = []string{}
-	}
-
-	if app.Spec.IgnoreDifferences == nil {
-		app.Spec.IgnoreDifferences = []argov1alpha1.ResourceIgnoreDifferences{}
-	}
-
-	if app.Spec.Info == nil {
-		app.Spec.Info = []argov1alpha1.Info{}
-	}
-
-	if app.Spec.Sources == nil {
-		app.Spec.Sources = []argov1alpha1.ApplicationSource{}
-	}
-
-	return app
-}
-
 var _ handler.EventHandler = &clusterSecretEventHandler{}
