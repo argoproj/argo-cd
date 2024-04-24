@@ -3036,11 +3036,24 @@ func Test_populateHelmAppDetails_values_symlinks(t *testing.T) {
 	})
 }
 
-func TestGetHelmRepos_OCIDependencies(t *testing.T) {
+func TestGetHelmRepos_OCIDependenciesWithHelmRepo(t *testing.T) {
 	src := argoappv1.ApplicationSource{Path: "."}
-	q := apiclient.ManifestRequest{Repo: &argoappv1.Repository{}, ApplicationSource: &src, HelmRepoCreds: []*argoappv1.RepoCreds{
+	q := apiclient.ManifestRequest{Repos: []*argoappv1.Repository{}, ApplicationSource: &src, HelmRepoCreds: []*argoappv1.RepoCreds{
 		{URL: "example.com", Username: "test", Password: "test", EnableOCI: true},
 	}}
+
+	helmRepos, err := getHelmRepos("./testdata/oci-dependencies", q.Repos, q.HelmRepoCreds)
+	assert.Nil(t, err)
+
+	assert.Equal(t, len(helmRepos), 1)
+	assert.Equal(t, helmRepos[0].Username, "test")
+	assert.Equal(t, helmRepos[0].EnableOci, true)
+	assert.Equal(t, helmRepos[0].Repo, "example.com/myrepo")
+}
+
+func TestGetHelmRepos_OCIDependenciesWithRepo(t *testing.T) {
+	src := argoappv1.ApplicationSource{Path: "."}
+	q := apiclient.ManifestRequest{Repos: []*argoappv1.Repository{{Repo: "example.com", Username: "test", Password: "test", EnableOCI: true}}, ApplicationSource: &src, HelmRepoCreds: []*argoappv1.RepoCreds{}}
 
 	helmRepos, err := getHelmRepos("./testdata/oci-dependencies", q.Repos, q.HelmRepoCreds)
 	assert.Nil(t, err)
