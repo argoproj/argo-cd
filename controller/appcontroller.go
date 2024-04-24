@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	goerrors "errors"
 	"fmt"
+	"github.com/argoproj/argo-cd/v2/controller/commit"
 	"math"
 	"math/rand"
 	"net/http"
@@ -1556,12 +1557,52 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 	if app.Spec.SourceHydrator != nil {
 		revision, err := ctrl.appStateManager.ResolveDryRevision(app)
 		if err != nil {
-			logCtx.Errorf("Failed to check whether dry source has changed, skipping: %w", err)
+			logCtx.Errorf("Failed to check whether dry source has changed, skipping: %v", err)
 		}
 		if app.Status.SourceHydrator.Revision != revision {
 			app.Status.SourceHydrator.Revision = revision
 			ctrl.persistAppStatus(origApp, &app.Status)
-			logCtx.Info("UPDATED THE REVISION, YO")
+
+			sources := []appv1.ApplicationSource{app.Spec.SourceHydrator.GetApplicationSource()}
+			revisions := []string{app.Spec.SourceHydrator.DrySource.TargetRevision}
+
+			appLabelKey, err := ctrl.settingsMgr.GetAppInstanceLabelKey()
+			if err != nil {
+				logCtx.Errorf("Failed to get app instance label key: %s", err)
+				return
+			}
+
+			objs, _, err := ctrl.appStateManager.GetRepoObjs(app, sources, appLabelKey, revisions, false, false, false, project)
+			if err != nil {
+				logCtx.Errorf("Failed to get repo objects: %v", err)
+				return
+			}
+
+			// Set up a ManifestsRequest
+			manifestDetails := make([]commit.ManifestDetails, len(objs))
+			for i, obj := range objs {
+				manifestDetails[i] = commit.ManifestDetails{Manifest: *obj}
+			}
+			paths := []commit.PathDetails{{
+				Path:      app.Spec.SourceHydrator.SyncSource.Path,
+				Manifests: manifestDetails,
+			}}
+			manifestsRequest := commit.ManifestsRequest{
+				RepoURL:       app.Spec.SourceHydrator.DrySource.RepoURL,
+				TargetBranch:  app.Spec.SourceHydrator.SyncSource.TargetRevision,
+				DrySHA:        revision,
+				CommitAuthor:  "Argo CD Hydrator <argo-cd-hydrator@example.com>",
+				CommitMessage: fmt.Sprintf("hydrate %s", revision),
+				CommitTime:    time.Now(),
+				Paths:         paths,
+			}
+
+			commitService := commit.NewService()
+			_, err = commitService.Commit(manifestsRequest)
+			if err != nil {
+				logCtx.Errorf("Failed to commit hydrated manifests: %v", err)
+				return
+			}
 		}
 	}
 
