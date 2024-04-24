@@ -41,6 +41,7 @@ import (
 	projectpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/project"
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/settings"
 	argoappv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	v1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	repoapiclient "github.com/argoproj/argo-cd/v2/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/v2/reposerver/repository"
 	"github.com/argoproj/argo-cd/v2/util/argo"
@@ -1075,7 +1076,18 @@ func getLocalObjectsString(ctx context.Context, app *argoappv1.Application, proj
 	}, true, &git.NoopCredsStore{}, resource.MustParse("0"), nil)
 	errors.CheckError(err)
 
-	return res.Manifests
+	retracked := make([]string, len(res.Manifests))
+	for i := range res.Manifests {
+		obj := unstructured.Unstructured{}
+		err := json.Unmarshal([]byte(res.Manifests[i]), &obj)
+		errors.CheckError(err)
+		argo.NewResourceTracking().SetAppInstance(&obj, appLabelKey, argo.InstanceNameFromQualified(app.QualifiedName(), ""), app.Spec.Destination.Namespace, v1alpha1.TrackingMethod(trackingMethod))
+		out, err := json.Marshal(obj.Object)
+		errors.CheckError(err)
+		retracked[i] = string(out)
+	}
+
+	return retracked
 }
 
 type resourceInfoProvider struct {
