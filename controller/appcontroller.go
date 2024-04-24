@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	goerrors "errors"
 	"fmt"
+	"github.com/argoproj/argo-cd/v2/controller/commit"
 	"math"
 	"math/rand"
 	"net/http"
@@ -1569,12 +1570,60 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 	if app.Spec.SourceHydrator != nil {
 		revision, err := ctrl.appStateManager.ResolveDryRevision(app)
 		if err != nil {
-			logCtx.Errorf("Failed to check whether dry source has changed, skipping: %w", err)
+			logCtx.Errorf("Failed to check whether dry source has changed, skipping: %v", err)
 		}
 		if app.Status.SourceHydrator.Revision != revision {
 			app.Status.SourceHydrator.Revision = revision
 			ctrl.persistAppStatus(origApp, &app.Status)
-			logCtx.Info("UPDATED THE REVISION, YO")
+
+			drySource := appv1.ApplicationSource{
+				RepoURL:        app.Spec.SourceHydrator.DrySource.RepoURL,
+				Path:           app.Spec.SourceHydrator.DrySource.Path,
+				TargetRevision: app.Spec.SourceHydrator.DrySource.TargetRevision,
+			}
+			drySources := []appv1.ApplicationSource{drySource}
+			revisions := []string{app.Spec.SourceHydrator.DrySource.TargetRevision}
+
+			appLabelKey, err := ctrl.settingsMgr.GetAppInstanceLabelKey()
+			if err != nil {
+				logCtx.Errorf("Failed to get app instance label key: %s", err)
+				return
+			}
+
+			// TODO: enable signature verification
+			objs, _, err := ctrl.appStateManager.GetRepoObjs(app, drySources, appLabelKey, revisions, refreshType == appv1.RefreshTypeHard,
+				comparisonLevel == CompareWithLatestForceResolve, false, project)
+			if err != nil {
+				logCtx.Errorf("Failed to get repo objects: %v", err)
+				return
+			}
+
+			// Set up a ManifestsRequest
+			manifestDetails := make([]commit.ManifestDetails, len(objs))
+			for i, obj := range objs {
+				manifestDetails[i] = commit.ManifestDetails{Manifest: *obj}
+			}
+			paths := []commit.PathDetails{{
+				Path:      app.Spec.SourceHydrator.SyncSource.Path,
+				Manifests: manifestDetails,
+			}}
+			manifestsRequest := commit.ManifestsRequest{
+				RepoURL:           app.Spec.SourceHydrator.DrySource.RepoURL,
+				TargetBranch:      app.Spec.SourceHydrator.SyncSource.TargetRevision,
+				DrySHA:            revision,
+				CommitAuthorName:  "Michael Crenshaw",
+				CommitAuthorEmail: "350466+crenshaw-dev@users.noreply.github.com",
+				CommitMessage:     fmt.Sprintf("hydrate %s", revision),
+				CommitTime:        time.Now(),
+				Paths:             paths,
+			}
+
+			commitService := commit.NewService()
+			_, err = commitService.Commit(manifestsRequest)
+			if err != nil {
+				logCtx.Errorf("Failed to commit hydrated manifests: %v", err)
+				return
+			}
 		}
 	}
 
@@ -1998,7 +2047,7 @@ func alreadyAttemptedSync(app *appv1.Application, commitSHA string, commitSHAsMS
 	} else {
 		// Ignore differences in target revision, since we already just verified commitSHAs are equal,
 		// and we do not want to trigger auto-sync due to things like HEAD != master
-		specSource := app.Spec.Source.DeepCopy()
+		specSource := app.Spec.GetSource()
 		specSource.TargetRevision = ""
 		syncResSource := app.Status.OperationState.SyncResult.Source.DeepCopy()
 		syncResSource.TargetRevision = ""
