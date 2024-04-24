@@ -104,10 +104,13 @@ func (s *service) Commit(r ManifestsRequest) (ManifestsResponse, error) {
 		return ManifestsResponse{}, fmt.Errorf("failed to commit: %w", err)
 	}
 
-	err = exec.Command("git", "push", "origin", r.TargetBranch).Run()
+	pushCmd := exec.Command("git", "push", "origin", r.TargetBranch)
+	out, err = pushCmd.CombinedOutput()
 	if err != nil {
+		log.WithError(err).WithField("output", string(out)).Error("failed to push manifests")
 		return ManifestsResponse{}, fmt.Errorf("failed to push: %w", err)
 	}
+	log.WithField("output", string(out)).Debug("pushed manifests to git")
 
 	return ManifestsResponse{}, nil
 }
