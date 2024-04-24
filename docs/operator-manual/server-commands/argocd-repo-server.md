@@ -50,7 +50,7 @@ argocd-repo-server [flags]
       --sentinelmaster string                          Redis sentinel master group name. (default "master")
       --streamed-manifest-max-extracted-size string    Maximum size of streamed manifest archives when extracted (default "1G")
       --streamed-manifest-max-tar-size string          Maximum size of streamed manifest archives (default "100M")
-      --tlsciphers string                              The list of acceptable ciphers to be used when establishing TLS connections. Use 'list' to list available ciphers. (default "TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384:TLS_RSA_WITH_AES_256_GCM_SHA384")
+      --tlsciphers string                              The list of acceptable ciphers to be used when establishing TLS connections. Use 'list' to list available ciphers. (default "TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384")
       --tlsmaxversion string                           The maximum SSL/TLS version that is acceptable (one of: 1.0|1.1|1.2|1.3) (default "1.3")
       --tlsminversion string                           The minimum SSL/TLS version that is acceptable (one of: 1.0|1.1|1.2|1.3) (default "1.2")
 ```
