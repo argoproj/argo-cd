@@ -2646,11 +2646,6 @@ func (s *Service) GetGitDirectories(_ context.Context, request *apiclient.GitDir
 			return nil
 		}
 
-		fname := entry.Name()
-		if strings.HasPrefix(fname, ".") { // Skip all folders starts with "."
-			return filepath.SkipDir
-		}
-
 		relativePath, err := filepath.Rel(repoRoot, path)
 		if err != nil {
 			return fmt.Errorf("error constructing relative repo path: %w", err)
