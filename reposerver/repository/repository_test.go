@@ -3309,7 +3309,7 @@ func TestGetGitDirectories(t *testing.T) {
 	}
 	directories, err := s.GetGitDirectories(context.TODO(), dirRequest)
 	assert.Nil(t, err)
-	assert.ElementsMatch(t, directories.GetPaths(), []string{"app", "app/bar", "app/foo/bar", "somedir", "app/foo"})
+	assert.ElementsMatch(t, directories.GetPaths(), []string{"app", "app/bar", "app/foo/bar", "somedir", "app/foo", "app/bar/.hidden"})
 
 	// do the same request again to use the cache
 	// we only allow CheckOut to be called once in the mock
