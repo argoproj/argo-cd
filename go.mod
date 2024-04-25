@@ -14,7 +14,7 @@ require (
 	github.com/alicebob/miniredis/v2 v2.30.4
 	github.com/antonmedv/expr v1.15.2
 	github.com/argoproj/gitops-engine v0.7.1-0.20240416142647-fbecbb86e412
-	github.com/argoproj/notifications-engine v0.4.1-0.20240206192038-2daee6022f41
+	github.com/argoproj/notifications-engine v0.4.1-0.20240403133627-f48567108f01
 	github.com/argoproj/pkg v0.13.7-0.20230626144333-d56162821bd1
 	github.com/aws/aws-sdk-go v1.50.8
 	github.com/bmatcuk/doublestar/v4 v4.6.0
@@ -106,7 +106,7 @@ require (
 	oras.land/oras-go/v2 v2.3.0
 	sigs.k8s.io/controller-runtime v0.14.7
 	sigs.k8s.io/structured-merge-diff/v4 v4.4.1
-	sigs.k8s.io/yaml v1.3.0
+	sigs.k8s.io/yaml v1.4.0
 )
 
 require (
@@ -254,7 +254,7 @@ require (
 	github.com/shopspring/decimal v1.2.0 // indirect
 	github.com/skeema/knownhosts v1.2.1 // indirect
 	github.com/slack-go/slack v0.12.2 // indirect
-	github.com/spf13/cast v1.5.1 // indirect
+	github.com/spf13/cast v1.6.0 // indirect
 	github.com/stretchr/objx v0.5.0 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	github.com/vmihailenco/go-tinylfu v0.2.2 // indirect
@@ -272,7 +272,7 @@ require (
 	golang.org/x/net v0.23.0
 	golang.org/x/sys v0.19.0 // indirect
 	golang.org/x/text v0.14.0 // indirect
-	golang.org/x/time v0.3.0
+	golang.org/x/time v0.5.0
 	golang.org/x/tools v0.13.0 // indirect
 	gomodules.xyz/envconfig v1.3.1-0.20190308184047-426f31af0d45 // indirect
 	gomodules.xyz/jsonpatch/v2 v2.2.0 // indirect
