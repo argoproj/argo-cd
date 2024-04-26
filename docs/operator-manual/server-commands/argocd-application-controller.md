@@ -15,6 +15,7 @@ argocd-application-controller [flags]
 ### Options
 
 ```
+      -- duration                              Set ignore normalizer JQ execution timeout
       --app-hard-resync int                    Time period in seconds for application hard resync.
       --app-resync int                         Time period in seconds for application resync. (default 180)
       --app-resync-jitter int                  Maximum time period in seconds to add as a delay jitter for application resync.
