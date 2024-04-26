@@ -222,6 +222,22 @@ func (a *ApplicationSpec) GetSource() ApplicationSource {
 	return ApplicationSource{}
 }
 
+// GetHydrateToSource returns the hydrateTo source if it exists, otherwise returns the sync source.
+func (a *ApplicationSpec) GetHydrateToSource() ApplicationSource {
+	if a.SourceHydrator != nil {
+		var targetRevision = a.SourceHydrator.SyncSource.TargetRevision
+		if a.SourceHydrator.HydrateTo != nil {
+			targetRevision = a.SourceHydrator.HydrateTo.TargetRevision
+		}
+		return ApplicationSource{
+			RepoURL:        a.SourceHydrator.DrySource.RepoURL,
+			Path:           a.SourceHydrator.SyncSource.Path,
+			TargetRevision: targetRevision,
+		}
+	}
+	return ApplicationSource{}
+}
+
 func (a *ApplicationSpec) GetSources() ApplicationSources {
 	if a.HasMultipleSources() {
 		return a.Sources

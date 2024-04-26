@@ -10,6 +10,7 @@ import (
 	"os/exec"
 	"path"
 	"sigs.k8s.io/yaml"
+	"strings"
 	"text/template"
 	"time"
 )
@@ -81,8 +82,20 @@ func (s *service) Commit(r ManifestsRequest) (ManifestsResponse, error) {
 	checkoutCmd.Dir = dirPath
 	out, err := checkoutCmd.CombinedOutput()
 	if err != nil {
-		log.WithError(err).WithField("output", string(out)).Error("failed to checkout branch")
-		return ManifestsResponse{}, fmt.Errorf("failed to checkout branch: %w", err)
+		if strings.Contains(string(out), "did not match any file(s) known to git") {
+			// If the branch does not exist, create any empty branch
+
+			checkoutCmd = exec.Command("git", "switch", "--orphan", r.TargetBranch)
+			checkoutCmd.Dir = dirPath
+			out, err = checkoutCmd.CombinedOutput()
+			if err != nil {
+				log.WithError(err).WithField("output", string(out)).Error("failed to create branch")
+				return ManifestsResponse{}, fmt.Errorf("failed to create branch: %w", err)
+			}
+		} else {
+			log.WithError(err).WithField("output", string(out)).Error("failed to checkout branch")
+			return ManifestsResponse{}, fmt.Errorf("failed to checkout branch: %w", err)
+		}
 	}
 
 	// Write the manifests to the temp dir
@@ -97,9 +110,11 @@ func (s *service) Commit(r ManifestsRequest) (ManifestsResponse, error) {
 		}
 
 		// If the file exists, truncate it.
-		err = os.Truncate(path.Join(dirPath, hydratePath, "manifest.yaml"), 0)
-		if err != nil {
-			return ManifestsResponse{}, fmt.Errorf("failed to empty manifest file: %w", err)
+		if _, err := os.Stat(path.Join(dirPath, hydratePath, "manifest.yaml")); err == nil {
+			err = os.Truncate(path.Join(dirPath, hydratePath, "manifest.yaml"), 0)
+			if err != nil {
+				return ManifestsResponse{}, fmt.Errorf("failed to empty manifest file: %w", err)
+			}
 		}
 
 		file, err := os.OpenFile(path.Join(dirPath, hydratePath, "manifest.yaml"), os.O_APPEND|os.O_CREATE|os.O_WRONLY, os.ModePerm)
@@ -193,6 +208,10 @@ func (s *service) Commit(r ManifestsRequest) (ManifestsResponse, error) {
 	commitCmd.Dir = dirPath
 	out, err = commitCmd.CombinedOutput()
 	if err != nil {
+		if strings.Contains(err.Error(), "nothing to commit, working tree clean") {
+			logCtx.Info("no changes to commit")
+			return ManifestsResponse{}, nil
+		}
 		log.WithError(err).WithField("output", string(out)).Error("failed to commit files")
 		return ManifestsResponse{}, fmt.Errorf("failed to commit: %w", err)
 	}

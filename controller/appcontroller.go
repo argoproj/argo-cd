@@ -1603,13 +1603,14 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 			for i, obj := range objs {
 				manifestDetails[i] = commit.ManifestDetails{Manifest: *obj}
 			}
+			hydrateToSource := app.Spec.GetHydrateToSource()
 			paths := []commit.PathDetails{{
-				Path:      app.Spec.SourceHydrator.SyncSource.Path,
+				Path:      hydrateToSource.Path,
 				Manifests: manifestDetails,
 			}}
 			manifestsRequest := commit.ManifestsRequest{
-				RepoURL:           app.Spec.SourceHydrator.DrySource.RepoURL,
-				TargetBranch:      app.Spec.SourceHydrator.SyncSource.TargetRevision,
+				RepoURL:           hydrateToSource.RepoURL,
+				TargetBranch:      hydrateToSource.TargetRevision,
 				DrySHA:            revision,
 				CommitAuthorName:  "Michael Crenshaw",
 				CommitAuthorEmail: "350466+crenshaw-dev@users.noreply.github.com",
