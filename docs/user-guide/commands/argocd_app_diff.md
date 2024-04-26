@@ -17,15 +17,16 @@ argocd app diff APPNAME [flags]
 ### Options
 
 ```
-      --exit-code                   Return non-zero exit code when there is a diff (default true)
-      --hard-refresh                Refresh application data as well as target manifests cache
-  -h, --help                        help for diff
-      --local string                Compare live app to a local manifests
-      --local-include stringArray   Used with --server-side-generate, specify patterns of filenames to send. Matching is based on filename and not path. (default [*.yaml,*.yml,*.json])
-      --local-repo-root string      Path to the repository root. Used together with --local allows setting the repository root (default "/")
-      --refresh                     Refresh application data when retrieving
-      --revision string             Compare live app to a particular revision
-      --server-side-generate        Used with --local, this will send your manifests to the server for diffing
+      --exit-code                                         Return non-zero exit code when there is a diff (default true)
+      --hard-refresh                                      Refresh application data as well as target manifests cache
+  -h, --help                                              help for diff
+      --ignore-normalizer-jq-execution-timeout duration   Set ignore normalizer JQ execution timeout (default 1s)
+      --local string                                      Compare live app to a local manifests
+      --local-include stringArray                         Used with --server-side-generate, specify patterns of filenames to send. Matching is based on filename and not path. (default [*.yaml,*.yml,*.json])
+      --local-repo-root string                            Path to the repository root. Used together with --local allows setting the repository root (default "/")
+      --refresh                                           Refresh application data when retrieving
+      --revision string                                   Compare live app to a particular revision
+      --server-side-generate                              Used with --local, this will send your manifests to the server for diffing
 ```
 
 ### Options inherited from parent commands
