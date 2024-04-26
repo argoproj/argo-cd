@@ -32,6 +32,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
 	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/util/argo"
+	"github.com/argoproj/argo-cd/v2/util/argo/normalizers"
 	"github.com/argoproj/argo-cd/v2/util/db"
 	"github.com/argoproj/argo-cd/v2/util/env"
 	logutils "github.com/argoproj/argo-cd/v2/util/log"
@@ -197,6 +198,7 @@ type liveStateCache struct {
 	metricsServer    *metrics.MetricsServer
 	clusterFilter    func(cluster *appv1.Cluster) bool
 	resourceTracking argo.ResourceTracking
+	ignoreNormalizerOpts normalizers.IgnoreNormalizerOpts
 
 	clusters      map[string]clustercache.ClusterCache
 	cacheSettings cacheSettings
@@ -473,7 +475,7 @@ func (c *liveStateCache) getCluster(server string) (clustercache.ClusterCache, e
 			gvk := un.GroupVersionKind()
 
 			if cacheSettings.ignoreResourceUpdatesEnabled && shouldHashManifest(appName, gvk) {
-				hash, err := generateManifestHash(un, nil, cacheSettings.resourceOverrides)
+				hash, err := generateManifestHash(un, nil, cacheSettings.resourceOverrides, c.ignoreNormalizerOpts)
 				if err != nil {
 					log.Errorf("Failed to generate manifest hash: %v", err)
 				} else {

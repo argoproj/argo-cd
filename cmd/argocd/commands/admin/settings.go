@@ -432,7 +432,7 @@ argocd admin settings resource-overrides ignore-differences ./deploy.yaml --argo
 				// configurations. This requires access to live resources which is not the
 				// purpose of this command. This will just apply jsonPointers and
 				// jqPathExpressions configurations.
-				normalizer, err := normalizers.NewIgnoreNormalizer(nil, overrides)
+				normalizer, err := normalizers.NewIgnoreNormalizer(nil, overrides, normalizers.IgnoreNormalizerOpts{})
 				errors.CheckError(err)
 
 				normalizedRes := res.DeepCopy()
@@ -457,6 +457,9 @@ argocd admin settings resource-overrides ignore-differences ./deploy.yaml --argo
 }
 
 func NewResourceIgnoreResourceUpdatesCommand(cmdCtx commandContext) *cobra.Command {
+	var (
+		ignoreNormalizerOpts normalizers.IgnoreNormalizerOpts
+	)
 	var command = &cobra.Command{
 		Use:   "ignore-resource-updates RESOURCE_YAML_PATH",
 		Short: "Renders fields excluded from resource updates",
@@ -478,7 +481,7 @@ argocd admin settings resource-overrides ignore-resource-updates ./deploy.yaml -
 					return
 				}
 
-				normalizer, err := normalizers.NewIgnoreNormalizer(nil, overrides)
+				normalizer, err := normalizers.NewIgnoreNormalizer(nil, overrides, ignoreNormalizerOpts)
 				errors.CheckError(err)
 
 				normalizedRes := res.DeepCopy()
@@ -499,6 +502,7 @@ argocd admin settings resource-overrides ignore-resource-updates ./deploy.yaml -
 			})
 		},
 	}
+	command.Flags().DurationVar(&ignoreNormalizerOpts.JQExecutionTimeout, "ignore-normalizer-jq-execution-timeout", normalizers.DefaultJQExecutionTimeout, "Set ignore normalizer JQ execution timeout")
 	return command
 }
 

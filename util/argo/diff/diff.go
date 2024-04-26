@@ -10,6 +10,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/util/argo"
 	"github.com/argoproj/argo-cd/v2/util/argo/managedfields"
+	"github.com/argoproj/argo-cd/v2/util/argo/normalizers"
 	appstatecache "github.com/argoproj/argo-cd/v2/util/cache/appstate"
 
 	"github.com/argoproj/gitops-engine/pkg/diff"
@@ -31,7 +32,7 @@ func NewDiffConfigBuilder() *DiffConfigBuilder {
 }
 
 // WithDiffSettings will set the diff settings in the builder.
-func (b *DiffConfigBuilder) WithDiffSettings(id []v1alpha1.ResourceIgnoreDifferences, o map[string]v1alpha1.ResourceOverride, ignoreAggregatedRoles bool) *DiffConfigBuilder {
+func (b *DiffConfigBuilder) WithDiffSettings(id []v1alpha1.ResourceIgnoreDifferences, o map[string]v1alpha1.ResourceOverride, ignoreAggregatedRoles bool, ignoreNormalizerOpts normalizers.IgnoreNormalizerOpts) *DiffConfigBuilder {
 	ignores := id
 	if ignores == nil {
 		ignores = []v1alpha1.ResourceIgnoreDifferences{}
@@ -44,6 +45,7 @@ func (b *DiffConfigBuilder) WithDiffSettings(id []v1alpha1.ResourceIgnoreDiffere
 	}
 	b.diffConfig.overrides = overrides
 	b.diffConfig.ignoreAggregatedRoles = ignoreAggregatedRoles
+	b.diffConfig.ignoreNormalizerOpts = ignoreNormalizerOpts
 	return b
 }
 
@@ -140,6 +142,8 @@ type DiffConfig interface {
 	// Manager returns the manager that should be used by the diff while
 	// calculating the structured merge diff.
 	Manager() string
+
+	IgnoreNormalizerOpts() normalizers.IgnoreNormalizerOpts
 }
 
 // diffConfig defines the configurations used while applying diffs.
@@ -156,6 +160,7 @@ type diffConfig struct {
 	gvkParser             *k8smanagedfields.GvkParser
 	structuredMergeDiff   bool
 	manager               string
+	ignoreNormalizerOpts  normalizers.IgnoreNormalizerOpts
 }
 
 func (c *diffConfig) Ignores() []v1alpha1.ResourceIgnoreDifferences {
@@ -193,6 +198,9 @@ func (c *diffConfig) StructuredMergeDiff() bool {
 }
 func (c *diffConfig) Manager() string {
 	return c.manager
+}
+func (c *diffConfig) IgnoreNormalizerOpts() normalizers.IgnoreNormalizerOpts {
+	return c.ignoreNormalizerOpts
 }
 
 // Validate will check the current state of this diffConfig and return
@@ -243,7 +251,7 @@ func StateDiffs(lives, configs []*unstructured.Unstructured, diffConfig DiffConf
 		return nil, fmt.Errorf("failed to perform pre-diff normalization: %w", err)
 	}
 
-	diffNormalizer, err := newDiffNormalizer(diffConfig.Ignores(), diffConfig.Overrides())
+	diffNormalizer, err := newDiffNormalizer(diffConfig.Ignores(), diffConfig.Overrides(), diffConfig.IgnoreNormalizerOpts())
 	if err != nil {
 		return nil, fmt.Errorf("failed to create diff normalizer: %w", err)
 	}

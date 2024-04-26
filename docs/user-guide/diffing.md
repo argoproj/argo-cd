@@ -182,3 +182,16 @@ data:
 ```
 
 The list of supported Kubernetes types is available in [diffing_known_types.txt](https://raw.githubusercontent.com/argoproj/argo-cd/master/util/argo/normalizers/diffing_known_types.txt)
+
+
+### JQ Path expression timeout
+
+By default, the evaluation of a JQPathExpression is limited to one second. If you encounter a "JQ patch execution timed out" error message due to a complex JQPathExpression that requires more time to evaluate, you can extend the timeout period by configuring the `ignore.normalizer.jq.timeout` setting within the `argocd-cmd-params-cm` ConfigMap.
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-cmd-params-cm
+data:
+  ignore.normalizer.jq.timeout: "5s"
