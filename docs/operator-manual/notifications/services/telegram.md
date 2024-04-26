@@ -2,13 +2,13 @@
 
 1. Get an API token using [@Botfather](https://t.me/Botfather).
 2. Store token in `<secret-name>` Secret and configure telegram integration
-in `argocd-notifications-cm` ConfigMap:
+in `<config-map-name>` ConfigMap:
 
 ```yaml
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: argocd-notifications-cm
+  name: <config-map-name>
 data:
   service.telegram: |
     token: $telegram-token

@@ -374,7 +374,7 @@ func assertMetricsPrinted(t *testing.T, expectedLines, body string) {
 	}
 }
 
-// assertMetricsNotPrinted
+// assertMetricNotPrinted
 func assertMetricsNotPrinted(t *testing.T, expectedLines, body string) {
 	for _, line := range strings.Split(expectedLines, "\n") {
 		if line == "" {

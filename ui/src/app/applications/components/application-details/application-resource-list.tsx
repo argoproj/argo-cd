@@ -10,16 +10,18 @@ import * as _ from 'lodash';
 import Moment from 'react-moment';
 import {format} from 'date-fns';
 import {ResourceNode, ResourceRef} from '../../../shared/models';
-import './application-resource-list.scss';
 
-export interface ApplicationResourceListProps {
+export const ApplicationResourceList = ({
+    resources,
+    onNodeClick,
+    nodeMenu,
+    tree
+}: {
     resources: models.ResourceStatus[];
     onNodeClick?: (fullName: string) => any;
     nodeMenu?: (node: models.ResourceNode) => React.ReactNode;
     tree?: models.ApplicationTree;
-}
-
-export const ApplicationResourceList = (props: ApplicationResourceListProps) => {
+}) => {
     function getResNode(nodes: ResourceNode[], nodeId: string): models.ResourceNode {
         for (const node of nodes) {
             if (nodeKey(node) === nodeId) {
@@ -28,7 +30,7 @@ export const ApplicationResourceList = (props: ApplicationResourceListProps) => 
         }
         return null;
     }
-    const parentNode = ((props.resources || []).length > 0 && (getResNode(props.tree.nodes, nodeKey(props.resources[0])) as ResourceNode)?.parentRefs?.[0]) || ({} as ResourceRef);
+    const parentNode = ((resources || []).length > 0 && (getResNode(tree.nodes, nodeKey(resources[0])) as ResourceNode)?.parentRefs?.[0]) || ({} as ResourceRef);
     const searchParams = new URLSearchParams(window.location.search);
     const view = searchParams.get('view');
 
@@ -70,7 +72,7 @@ export const ApplicationResourceList = (props: ApplicationResourceListProps) => 
                         <div className='columns small-2 xxxlarge-1'>STATUS</div>
                     </div>
                 </div>
-                {props.resources
+                {resources
                     .sort((first, second) => -createdOrNodeKey(first).localeCompare(createdOrNodeKey(second)))
                     .map(res => (
                         <div
@@ -78,7 +80,7 @@ export const ApplicationResourceList = (props: ApplicationResourceListProps) => 
                             className={classNames('argo-table-list__row', {
                                 'application-resource-tree__node--orphaned': res.orphaned
                             })}
-                            onClick={() => props.onNodeClick && props.onNodeClick(nodeKey(res))}>
+                            onClick={() => onNodeClick(nodeKey(res))}>
                             <div className='row'>
                                 <div className='columns small-1 xxxlarge-1'>
                                     <div className='application-details__resource-icon'>
@@ -87,8 +89,8 @@ export const ApplicationResourceList = (props: ApplicationResourceListProps) => 
                                         <div>{ResourceLabel({kind: res.kind})}</div>
                                     </div>
                                 </div>
-                                <div className='columns small-2 xxxlarge-1 application-details__item'>
-                                    <span className='application-details__item_text'>{res.name}</span>
+                                <div className='columns small-2 xxxlarge-1'>
+                                    {res.name}
                                     {res.kind === 'Application' && (
                                         <Consumer>
                                             {ctx => (
@@ -108,7 +110,7 @@ export const ApplicationResourceList = (props: ApplicationResourceListProps) => 
                                 <div className='columns small-1 xxxlarge-1'>{res.syncWave || '-'}</div>
                                 <div className='columns small-2 xxxlarge-1'>{res.namespace}</div>
                                 {res.kind === 'ReplicaSet' &&
-                                    ((getResNode(props.tree.nodes, nodeKey(res)) as ResourceNode).info || [])
+                                    ((getResNode(tree.nodes, nodeKey(res)) as ResourceNode).info || [])
                                         .filter(tag => !tag.name.includes('Node'))
                                         .slice(0, 4)
                                         .map((tag, i) => {
@@ -137,31 +139,27 @@ export const ApplicationResourceList = (props: ApplicationResourceListProps) => 
                                     )}
                                     {res.status && <ComparisonStatusIcon status={res.status} resource={res} label={true} />}
                                     {res.hook && <i title='Resource lifecycle hook' className='fa fa-anchor' />}
-                                    {props.nodeMenu && (
-                                        <div className='application-details__node-menu'>
-                                            <DropDown
-                                                isMenu={true}
-                                                anchor={() => (
-                                                    <button className='argo-button argo-button--light argo-button--lg argo-button--short'>
-                                                        <i className='fa fa-ellipsis-v' />
-                                                    </button>
-                                                )}>
-                                                {() =>
-                                                    props.nodeMenu({
-                                                        name: res.name,
-                                                        version: res.version,
-                                                        kind: res.kind,
-                                                        namespace: res.namespace,
-                                                        group: res.group,
-                                                        info: null,
-                                                        uid: '',
-                                                        resourceVersion: null,
-                                                        parentRefs: []
-                                                    })
-                                                }
-                                            </DropDown>
-                                        </div>
-                                    )}
+                                    <div className='application-details__node-menu'>
+                                        <DropDown
+                                            isMenu={true}
+                                            anchor={() => (
+                                                <button className='argo-button argo-button--light argo-button--lg argo-button--short'>
+                                                    <i className='fa fa-ellipsis-v' />
+                                                </button>
+                                            )}>
+                                            {nodeMenu({
+                                                name: res.name,
+                                                version: res.version,
+                                                kind: res.kind,
+                                                namespace: res.namespace,
+                                                group: res.group,
+                                                info: null,
+                                                uid: '',
+                                                resourceVersion: null,
+                                                parentRefs: []
+                                            })}
+                                        </DropDown>
+                                    </div>
                                 </div>
                             </div>
                         </div>

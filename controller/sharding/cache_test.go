@@ -139,12 +139,6 @@ func TestClusterSharding_Delete(t *testing.T) {
 				},
 			},
 		},
-		&v1alpha1.ApplicationList{
-			Items: []v1alpha1.Application{
-				createApp("app2", "https://127.0.0.1:6443"),
-				createApp("app1", "https://kubernetes.default.svc"),
-			},
-		},
 	)
 
 	sharding.Delete("https://kubernetes.default.svc")
@@ -168,12 +162,6 @@ func TestClusterSharding_Update(t *testing.T) {
 					ID:     "1",
 					Server: "https://kubernetes.default.svc",
 				},
-			},
-		},
-		&v1alpha1.ApplicationList{
-			Items: []v1alpha1.Application{
-				createApp("app2", "https://127.0.0.1:6443"),
-				createApp("app1", "https://kubernetes.default.svc"),
 			},
 		},
 	)
@@ -217,12 +205,6 @@ func TestClusterSharding_UpdateServerName(t *testing.T) {
 					ID:     "1",
 					Server: "https://kubernetes.default.svc",
 				},
-			},
-		},
-		&v1alpha1.ApplicationList{
-			Items: []v1alpha1.Application{
-				createApp("app2", "https://127.0.0.1:6443"),
-				createApp("app1", "https://kubernetes.default.svc"),
 			},
 		},
 	)
@@ -269,12 +251,6 @@ func TestClusterSharding_IsManagedCluster(t *testing.T) {
 				},
 			},
 		},
-		&v1alpha1.ApplicationList{
-			Items: []v1alpha1.Application{
-				createApp("app2", "https://127.0.0.1:6443"),
-				createApp("app1", "https://kubernetes.default.svc"),
-			},
-		},
 	)
 
 	assert.True(t, sharding0.IsManagedCluster(&v1alpha1.Cluster{
@@ -300,12 +276,6 @@ func TestClusterSharding_IsManagedCluster(t *testing.T) {
 					ID:     "1",
 					Server: "https://kubernetes.default.svc",
 				},
-			},
-		},
-		&v1alpha1.ApplicationList{
-			Items: []v1alpha1.Application{
-				createApp("app2", "https://127.0.0.1:6443"),
-				createApp("app1", "https://kubernetes.default.svc"),
 			},
 		},
 	)
@@ -355,12 +325,6 @@ func TestClusterSharding_ClusterShardOfResourceShouldNotBeChanged(t *testing.T) 
 				*clusterWithNil,
 				*clusterWithValue,
 				*clusterWithToBigValue,
-			},
-		},
-		&v1alpha1.ApplicationList{
-			Items: []v1alpha1.Application{
-				createApp("app2", "https://127.0.0.1:6443"),
-				createApp("app1", "https://kubernetes.default.svc"),
 			},
 		},
 	)
