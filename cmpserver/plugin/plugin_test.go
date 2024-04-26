@@ -796,6 +796,11 @@ func Test_getCommandArgsToLog(t *testing.T) {
 			args:     []string{"sh", "-c", `echo "hello world"`},
 			expected: `sh -c "echo \"hello world\""`,
 		},
+		{
+			name:     "empty string arg",
+			args:     []string{"sh", "-c", ""},
+			expected: `sh -c ""`,
+		},
 	}
 
 	for _, tc := range testCases {

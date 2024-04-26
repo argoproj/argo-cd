@@ -73,7 +73,7 @@ type managedResource struct {
 type AppStateManager interface {
 	CompareAppState(app *v1alpha1.Application, project *v1alpha1.AppProject, revisions []string, sources []v1alpha1.ApplicationSource, noCache bool, noRevisionCache bool, localObjects []string, hasMultipleSources bool) (*comparisonResult, error)
 	SyncAppState(app *v1alpha1.Application, state *v1alpha1.OperationState)
-	GetRepoObjs(app *v1alpha1.Application, sources []v1alpha1.ApplicationSource, appLabelKey string, revisions []string, noCache, noRevisionCache, verifySignature bool, proj *v1alpha1.AppProject) ([]*unstructured.Unstructured, []*apiclient.ManifestResponse, error)
+	GetRepoObjs(app *v1alpha1.Application, sources []v1alpha1.ApplicationSource, appLabelKey string, revisions []string, noCache, noRevisionCache, verifySignature bool, proj *v1alpha1.AppProject, sendAppName bool) ([]*unstructured.Unstructured, []*apiclient.ManifestResponse, error)
 	ResolveDryRevision(app *v1alpha1.Application) (string, error)
 }
 
@@ -127,7 +127,7 @@ type appStateManager struct {
 // task to the repo-server. It returns the list of generated manifests as unstructured
 // objects. It also returns the full response from all calls to the repo server as the
 // second argument.
-func (m *appStateManager) GetRepoObjs(app *v1alpha1.Application, sources []v1alpha1.ApplicationSource, appLabelKey string, revisions []string, noCache, noRevisionCache, verifySignature bool, proj *v1alpha1.AppProject) ([]*unstructured.Unstructured, []*apiclient.ManifestResponse, error) {
+func (m *appStateManager) GetRepoObjs(app *v1alpha1.Application, sources []v1alpha1.ApplicationSource, appLabelKey string, revisions []string, noCache, noRevisionCache, verifySignature bool, proj *v1alpha1.AppProject, sendAppNameAndNamespace bool) ([]*unstructured.Unstructured, []*apiclient.ManifestResponse, error) {
 	ts := stats.NewTimingStats()
 	helmRepos, err := m.db.ListHelmRepositories(context.Background())
 	if err != nil {
@@ -207,6 +207,13 @@ func (m *appStateManager) GetRepoObjs(app *v1alpha1.Application, sources []v1alp
 			}
 		}
 
+		appName := app.InstanceName(m.namespace)
+		appNamespace := app.Spec.Destination.Namespace
+		if !sendAppNameAndNamespace {
+			appName = ""
+			appNamespace = ""
+		}
+
 		val, ok := app.Annotations[v1alpha1.AnnotationKeyManifestGeneratePaths]
 		if !source.IsHelm() && syncedRevision != "" && ok && val != "" {
 			// Validate the manifest-generate-path annotation to avoid generating manifests if it has not changed.
@@ -216,8 +223,8 @@ func (m *appStateManager) GetRepoObjs(app *v1alpha1.Application, sources []v1alp
 				SyncedRevision:     syncedRevision,
 				Paths:              path.GetAppRefreshPaths(app),
 				AppLabelKey:        appLabelKey,
-				AppName:            app.InstanceName(m.namespace),
-				Namespace:          app.Spec.Destination.Namespace,
+				AppName:            appName,
+				Namespace:          appNamespace,
 				ApplicationSource:  &source,
 				KubeVersion:        serverVersion,
 				ApiVersions:        argo.APIResourcesToStrings(apiResources, true),
@@ -239,8 +246,8 @@ func (m *appStateManager) GetRepoObjs(app *v1alpha1.Application, sources []v1alp
 			NoCache:            noCache,
 			NoRevisionCache:    noRevisionCache,
 			AppLabelKey:        appLabelKey,
-			AppName:            app.InstanceName(m.namespace),
-			Namespace:          app.Spec.Destination.Namespace,
+			AppName:            appName,
+			Namespace:          appNamespace,
 			ApplicationSource:  &source,
 			KustomizeOptions:   kustomizeOptions,
 			KubeVersion:        serverVersion,
@@ -477,7 +484,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 			}
 		}
 
-		targetObjs, manifestInfos, err = m.GetRepoObjs(app, sources, appLabelKey, revisions, noCache, noRevisionCache, verifySignature, project)
+		targetObjs, manifestInfos, err = m.GetRepoObjs(app, sources, appLabelKey, revisions, noCache, noRevisionCache, verifySignature, project, true)
 		if err != nil {
 			targetObjs = make([]*unstructured.Unstructured, 0)
 			msg := fmt.Sprintf("Failed to load target state: %s", err.Error())
