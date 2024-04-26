@@ -21,6 +21,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/v2/test"
 	"github.com/argoproj/argo-cd/v2/util/argo/diff"
+	"github.com/argoproj/argo-cd/v2/util/argo/normalizers"
 )
 
 func TestPersistRevisionHistory(t *testing.T) {
@@ -333,7 +334,7 @@ func TestNormalizeTargetResources(t *testing.T) {
 	setup := func(t *testing.T, ignores []v1alpha1.ResourceIgnoreDifferences) *fixture {
 		t.Helper()
 		dc, err := diff.NewDiffConfigBuilder().
-			WithDiffSettings(ignores, nil, true).
+			WithDiffSettings(ignores, nil, true, normalizers.IgnoreNormalizerOpts{}).
 			WithNoCache().
 			Build()
 		require.NoError(t, err)
@@ -635,7 +636,7 @@ func TestNormalizeTargetResourcesWithList(t *testing.T) {
 	setupHttpProxy := func(t *testing.T, ignores []v1alpha1.ResourceIgnoreDifferences) *fixture {
 		t.Helper()
 		dc, err := diff.NewDiffConfigBuilder().
-			WithDiffSettings(ignores, nil, true).
+			WithDiffSettings(ignores, nil, true, normalizers.IgnoreNormalizerOpts{}).
 			WithNoCache().
 			Build()
 		require.NoError(t, err)
