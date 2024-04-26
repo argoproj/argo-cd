@@ -30,6 +30,7 @@ import (
 	appinformers "github.com/argoproj/argo-cd/v2/pkg/client/informers/externalversions"
 	reposerverclient "github.com/argoproj/argo-cd/v2/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/v2/util/argo"
+	"github.com/argoproj/argo-cd/v2/util/argo/normalizers"
 	cacheutil "github.com/argoproj/argo-cd/v2/util/cache"
 	appstatecache "github.com/argoproj/argo-cd/v2/util/cache/appstate"
 	"github.com/argoproj/argo-cd/v2/util/cli"
@@ -228,11 +229,12 @@ func diffReconcileResults(res1 reconcileResults, res2 reconcileResults) error {
 
 func NewReconcileCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
-		clientConfig      clientcmd.ClientConfig
-		selector          string
-		repoServerAddress string
-		outputFormat      string
-		refresh           bool
+		clientConfig         clientcmd.ClientConfig
+		selector             string
+		repoServerAddress    string
+		outputFormat         string
+		refresh              bool
+		ignoreNormalizerOpts normalizers.IgnoreNormalizerOpts
 	)
 
 	var command = &cobra.Command{
@@ -270,7 +272,7 @@ func NewReconcileCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command 
 
 				appClientset := appclientset.NewForConfigOrDie(cfg)
 				kubeClientset := kubernetes.NewForConfigOrDie(cfg)
-				result, err = reconcileApplications(ctx, kubeClientset, appClientset, namespace, repoServerClient, selector, newLiveStateCache)
+				result, err = reconcileApplications(ctx, kubeClientset, appClientset, namespace, repoServerClient, selector, newLiveStateCache, ignoreNormalizerOpts)
 				errors.CheckError(err)
 			} else {
 				appClientset := appclientset.NewForConfigOrDie(cfg)
@@ -285,6 +287,7 @@ func NewReconcileCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command 
 	command.Flags().StringVar(&selector, "l", "", "Label selector")
 	command.Flags().StringVar(&outputFormat, "o", "yaml", "Output format (yaml|json)")
 	command.Flags().BoolVar(&refresh, "refresh", false, "If set to true then recalculates apps reconciliation")
+	command.Flags().DurationVar(&ignoreNormalizerOpts.JQExecutionTimeout, "ignore-normalizer-jq-execution-timeout", normalizers.DefaultJQExecutionTimeout, "Set ignore normalizer JQ execution timeout")
 
 	return command
 }
@@ -334,6 +337,7 @@ func reconcileApplications(
 	repoServerClient reposerverclient.Clientset,
 	selector string,
 	createLiveStateCache func(argoDB db.ArgoDB, appInformer kubecache.SharedIndexInformer, settingsMgr *settings.SettingsManager, server *metrics.MetricsServer) cache.LiveStateCache,
+	ignoreNormalizerOpts normalizers.IgnoreNormalizerOpts,
 ) ([]appReconcileResult, error) {
 	settingsMgr := settings.NewSettingsManager(ctx, kubeClientset, namespace)
 	argoDB := db.NewDB(namespace, settingsMgr, kubeClientset)
@@ -374,7 +378,7 @@ func reconcileApplications(
 	)
 
 	appStateManager := controller.NewAppStateManager(
-		argoDB, appClientset, repoServerClient, namespace, kubeutil.NewKubectl(), settingsMgr, stateCache, projInformer, server, cache, time.Second, argo.NewResourceTracking(), false)
+		argoDB, appClientset, repoServerClient, namespace, kubeutil.NewKubectl(), settingsMgr, stateCache, projInformer, server, cache, time.Second, argo.NewResourceTracking(), false, ignoreNormalizerOpts)
 
 	appsList, err := appClientset.ArgoprojV1alpha1().Applications(namespace).List(ctx, v1.ListOptions{LabelSelector: selector})
 	if err != nil {

@@ -23,6 +23,7 @@ import (
 	argocdclient "github.com/argoproj/argo-cd/v2/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/v2/reposerver/apiclient/mocks"
 	"github.com/argoproj/argo-cd/v2/test"
+	"github.com/argoproj/argo-cd/v2/util/argo/normalizers"
 	"github.com/argoproj/argo-cd/v2/util/db"
 	"github.com/argoproj/argo-cd/v2/util/settings"
 )
@@ -113,6 +114,7 @@ func TestGetReconcileResults_Refresh(t *testing.T) {
 		func(argoDB db.ArgoDB, appInformer cache.SharedIndexInformer, settingsMgr *settings.SettingsManager, server *metrics.MetricsServer) statecache.LiveStateCache {
 			return &liveStateCache
 		},
+		normalizers.IgnoreNormalizerOpts{},
 	)
 
 	if !assert.NoError(t, err) {
