@@ -17,6 +17,7 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/google/go-cmp/cmp"
@@ -720,6 +721,17 @@ func (r *ApplicationSetReconciler) createOrUpdateInCluster(ctx context.Context, 
 						generatedApp.Labels = map[string]string{}
 					}
 					generatedApp.Labels[key] = state
+				}
+			}
+
+			// Preserve post-delete finalizers:
+			//   https://github.com/argoproj/argo-cd/issues/17181
+			for _, finalizer := range found.ObjectMeta.Finalizers {
+				if strings.HasPrefix(finalizer, argov1alpha1.PostDeleteFinalizerName) {
+					if generatedApp.Finalizers == nil {
+						generatedApp.Finalizers = []string{}
+					}
+					generatedApp.Finalizers = append(generatedApp.Finalizers, finalizer)
 				}
 			}
 
