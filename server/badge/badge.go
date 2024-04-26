@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"regexp"
+	"strconv"
 	"strings"
 
 	healthutil "github.com/argoproj/gitops-engine/pkg/health"
@@ -45,18 +46,21 @@ var (
 	titleTextPattern         = regexp.MustCompile(`id="titleText" [^>]*>([^<]*)`)
 	titleRectWidthPattern    = regexp.MustCompile(`(id="titleRect" .* width=)("0")`)
 	rightRectWidthPattern    = regexp.MustCompile(`(id="rightRect" .* width=)("\d*")`)
+	revisionRectWidthPattern = regexp.MustCompile(`(id="revisionRect" .* width=)("\d*")`)
 	leftRectYCoodPattern     = regexp.MustCompile(`(id="leftRect" .* y=)("\d*")`)
 	rightRectYCoodPattern    = regexp.MustCompile(`(id="rightRect" .* y=)("\d*")`)
 	revisionRectYCoodPattern = regexp.MustCompile(`(id="revisionRect" .* y=)("\d*")`)
 	leftTextYCoodPattern     = regexp.MustCompile(`(id="leftText" .* y=)("\d*")`)
 	rightTextYCoodPattern    = regexp.MustCompile(`(id="rightText" .* y=)("\d*")`)
 	revisionTextYCoodPattern = regexp.MustCompile(`(id="revisionText" .* y=)("\d*")`)
+	revisionTextXCoodPattern = regexp.MustCompile(`(id="revisionText" x=)("\d*")`)
 	svgHeightPattern         = regexp.MustCompile(`^(<svg .* height=)("\d*")`)
 	logoYCoodPattern         = regexp.MustCompile(`(<image .* y=)("\d*")`)
 )
 
 const (
 	svgWidthWithRevision      = 192
+	svgWidthWithFullRevision  = 400
 	svgWidthWithoutRevision   = 131
 	svgHeightWithAppName      = 40
 	badgeRowHeight            = 20
@@ -64,6 +68,7 @@ const (
 	logoYCoodWithAppName      = 22
 	leftRectWidth             = 77
 	widthPerChar              = 6
+	textPositionWidthPerChar  = 62
 )
 
 func replaceFirstGroupSubMatch(re *regexp.Regexp, str string, repl string) string {
@@ -89,11 +94,13 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	health := healthutil.HealthStatusUnknown
 	status := appv1.SyncStatusCodeUnknown
 	revision := ""
+	displayedRevision := ""
 	applicationName := ""
 	revisionEnabled := false
 	enabled := false
 	displayAppName := false
 	notFound := false
+	adjustWidth := false
 	svgWidth := svgWidthWithoutRevision
 	if sets, err := h.settingsMgr.GetSettings(); err == nil {
 		enabled = sets.StatusBadgeEnabled
@@ -195,16 +202,40 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	badge = replaceFirstGroupSubMatch(rightTextPattern, badge, rightText)
 
 	if !notFound && revisionEnabled && revision != "" {
-		// Increase width of SVG and enable display of revision components
-		badge = svgWidthPattern.ReplaceAllString(badge, fmt.Sprintf(`<svg width="%d" $2`, svgWidthWithRevision))
-		svgWidth = svgWidthWithRevision
+		// Enable display of revision components
 		badge = displayNonePattern.ReplaceAllString(badge, `display="inline"`)
 		badge = revisionRectColorPattern.ReplaceAllString(badge, fmt.Sprintf(`id="revisionRect" fill="%s" $2`, rightColorString))
-		shortRevision := revision
-		if len(shortRevision) > 7 {
-			shortRevision = shortRevision[:7]
+
+		adjustWidth = true
+		displayedRevision = revision
+		if keepFullRevisionParam, ok := r.URL.Query()["keepFullRevision"]; !(ok && strings.EqualFold(keepFullRevisionParam[0], "true")) && len(revision) > 7 {
+			displayedRevision = revision[:7]
+			svgWidth = svgWidthWithRevision
+		} else {
+			svgWidth = svgWidthWithFullRevision
 		}
-		badge = replaceFirstGroupSubMatch(revisionTextPattern, badge, fmt.Sprintf("(%s)", shortRevision))
+
+		badge = replaceFirstGroupSubMatch(revisionTextPattern, badge, fmt.Sprintf("(%s)", displayedRevision))
+	}
+
+	if widthParam, ok := r.URL.Query()["width"]; ok && enabled {
+		width, err := strconv.Atoi(widthParam[0])
+		if err == nil {
+			svgWidth = width
+			adjustWidth = true
+		}
+	}
+
+	// Increase width of SVG
+	if adjustWidth {
+		badge = svgWidthPattern.ReplaceAllString(badge, fmt.Sprintf(`<svg width="%d" $2`, svgWidth))
+		if revisionEnabled {
+			xpos := (svgWidthWithoutRevision)*10 + (len(displayedRevision)+1)*textPositionWidthPerChar/2
+			badge = revisionRectWidthPattern.ReplaceAllString(badge, fmt.Sprintf(`$1"%d"`, svgWidth-svgWidthWithoutRevision))
+			badge = revisionTextXCoodPattern.ReplaceAllString(badge, fmt.Sprintf(`$1"%d"`, xpos))
+		} else {
+			badge = rightRectWidthPattern.ReplaceAllString(badge, fmt.Sprintf(`$1"%d"`, svgWidth-leftRectWidth))
+		}
 	}
 
 	if showAppNameParam, ok := r.URL.Query()["showAppName"]; ok && enabled && strings.EqualFold(showAppNameParam[0], "true") {
@@ -215,7 +246,6 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		titleRectWidth := len(applicationName) * widthPerChar
 		var longerWidth int = max(titleRectWidth, svgWidth)
 		rightRectWidth := longerWidth - leftRectWidth
-		fmt.Println(len(applicationName))
 		badge = titleRectWidthPattern.ReplaceAllString(badge, fmt.Sprintf(`$1"%d"`, longerWidth))
 		badge = rightRectWidthPattern.ReplaceAllString(badge, fmt.Sprintf(`$1"%d"`, rightRectWidth))
 		badge = replaceFirstGroupSubMatch(titleTextPattern, badge, applicationName)
