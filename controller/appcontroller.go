@@ -1613,7 +1613,7 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 				DrySHA:            revision,
 				CommitAuthorName:  "Michael Crenshaw",
 				CommitAuthorEmail: "350466+crenshaw-dev@users.noreply.github.com",
-				CommitMessage:     fmt.Sprintf("hydrate %s", revision),
+				CommitMessage:     fmt.Sprintf("[Argo CD Bot] hydrate %s", revision),
 				CommitTime:        time.Now(),
 				Paths:             paths,
 				Commands:          resp[0].Commands,

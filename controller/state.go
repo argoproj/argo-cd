@@ -127,7 +127,7 @@ type appStateManager struct {
 // task to the repo-server. It returns the list of generated manifests as unstructured
 // objects. It also returns the full response from all calls to the repo server as the
 // second argument.
-func (m *appStateManager) GetRepoObjs(app *v1alpha1.Application, sources []v1alpha1.ApplicationSource, appLabelKey string, revisions []string, noCache, noRevisionCache, verifySignature bool, proj *v1alpha1.AppProject, sendAppNameAndNamespace bool) ([]*unstructured.Unstructured, []*apiclient.ManifestResponse, error) {
+func (m *appStateManager) GetRepoObjs(app *v1alpha1.Application, sources []v1alpha1.ApplicationSource, appLabelKey string, revisions []string, noCache, noRevisionCache, verifySignature bool, proj *v1alpha1.AppProject, sendRuntimeState bool) ([]*unstructured.Unstructured, []*apiclient.ManifestResponse, error) {
 	ts := stats.NewTimingStats()
 	helmRepos, err := m.db.ListHelmRepositories(context.Background())
 	if err != nil {
@@ -209,9 +209,12 @@ func (m *appStateManager) GetRepoObjs(app *v1alpha1.Application, sources []v1alp
 
 		appName := app.InstanceName(m.namespace)
 		appNamespace := app.Spec.Destination.Namespace
-		if !sendAppNameAndNamespace {
+		apiVersions := argo.APIResourcesToStrings(apiResources, true)
+		if !sendRuntimeState {
 			appName = ""
 			appNamespace = ""
+			apiVersions = nil
+			serverVersion = ""
 		}
 
 		val, ok := app.Annotations[v1alpha1.AnnotationKeyManifestGeneratePaths]
@@ -227,7 +230,7 @@ func (m *appStateManager) GetRepoObjs(app *v1alpha1.Application, sources []v1alp
 				Namespace:          appNamespace,
 				ApplicationSource:  &source,
 				KubeVersion:        serverVersion,
-				ApiVersions:        argo.APIResourcesToStrings(apiResources, true),
+				ApiVersions:        apiVersions,
 				TrackingMethod:     string(argo.GetTrackingMethod(m.settingsMgr)),
 				RefSources:         refSources,
 				HasMultipleSources: app.Spec.HasMultipleSources(),
@@ -251,7 +254,7 @@ func (m *appStateManager) GetRepoObjs(app *v1alpha1.Application, sources []v1alp
 			ApplicationSource:  &source,
 			KustomizeOptions:   kustomizeOptions,
 			KubeVersion:        serverVersion,
-			ApiVersions:        argo.APIResourcesToStrings(apiResources, true),
+			ApiVersions:        apiVersions,
 			VerifySignature:    verifySignature,
 			HelmRepoCreds:      permittedHelmCredentials,
 			TrackingMethod:     string(argo.GetTrackingMethod(m.settingsMgr)),

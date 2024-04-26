@@ -402,6 +402,10 @@ type ApplicationSourceHelm struct {
 	// ValuesObject specifies Helm values to be passed to helm template, defined as a map. This takes precedence over Values.
 	// +kubebuilder:pruning:PreserveUnknownFields
 	ValuesObject *runtime.RawExtension `json:"valuesObject,omitempty" protobuf:"bytes,10,opt,name=valuesObject"`
+	// KubeVersions is the Kubernetes version to use for templating. If not set, defaults to the server's current Kubernetes version.
+	KubeVersion string `json:"kubeVersion,omitempty" protobuf:"bytes,11,opt,name=kubeVersion"`
+	// APIVersions is a list of Kubernetes API versions to use for templating. If not set, defaults to the server's preferred API versions.
+	ApiVersions []string `json:"apiVersions,omitempty" protobuf:"bytes,12,opt,name=apiVersions"`
 }
 
 // HelmParameter is a parameter that's passed to helm template during manifest generation

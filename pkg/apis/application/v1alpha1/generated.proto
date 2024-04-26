@@ -485,6 +485,12 @@ message ApplicationSourceHelm {
   // ValuesObject specifies Helm values to be passed to helm template, defined as a map. This takes precedence over Values.
   // +kubebuilder:pruning:PreserveUnknownFields
   optional k8s.io.apimachinery.pkg.runtime.RawExtension valuesObject = 10;
+
+  // KubeVersions is the Kubernetes version to use for templating. If not set, defaults to the server's current Kubernetes version.
+  optional string kubeVersion = 11;
+
+  // APIVersions is a list of Kubernetes API versions to use for templating. If not set, defaults to the server's preferred API versions.
+  repeated string apiVersions = 12;
 }
 
 // ApplicationSourceJsonnet holds options specific to applications of type Jsonnet

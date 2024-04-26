@@ -230,6 +230,13 @@ spec:
                       helm:
                         description: Helm holds helm specific options
                         properties:
+                          apiVersions:
+                            description: APIVersions is a list of Kubernetes API versions
+                              to use for templating. If not set, defaults to the server's
+                              preferred API versions.
+                            items:
+                              type: string
+                            type: array
                           fileParameters:
                             description: FileParameters are file parameters to the
                               helm template
@@ -251,6 +258,11 @@ spec:
                               from failing when valueFiles do not exist locally by
                               not appending them to helm template --values
                             type: boolean
+                          kubeVersion:
+                            description: KubeVersions is the Kubernetes version to
+                              use for templating. If not set, defaults to the server's
+                              current Kubernetes version.
+                            type: string
                           parameters:
                             description: Parameters is a list of Helm parameters which
                               are passed to the helm template command upon manifest
@@ -566,6 +578,13 @@ spec:
                         helm:
                           description: Helm holds helm specific options
                           properties:
+                            apiVersions:
+                              description: APIVersions is a list of Kubernetes API
+                                versions to use for templating. If not set, defaults
+                                to the server's preferred API versions.
+                              items:
+                                type: string
+                              type: array
                             fileParameters:
                               description: FileParameters are file parameters to the
                                 helm template
@@ -587,6 +606,11 @@ spec:
                                 from failing when valueFiles do not exist locally
                                 by not appending them to helm template --values
                               type: boolean
+                            kubeVersion:
+                              description: KubeVersions is the Kubernetes version
+                                to use for templating. If not set, defaults to the
+                                server's current Kubernetes version.
+                              type: string
                             parameters:
                               description: Parameters is a list of Helm parameters
                                 which are passed to the helm template command upon
@@ -1021,6 +1045,13 @@ spec:
                   helm:
                     description: Helm holds helm specific options
                     properties:
+                      apiVersions:
+                        description: APIVersions is a list of Kubernetes API versions
+                          to use for templating. If not set, defaults to the server's
+                          preferred API versions.
+                        items:
+                          type: string
+                        type: array
                       fileParameters:
                         description: FileParameters are file parameters to the helm
                           template
@@ -1042,6 +1073,11 @@ spec:
                           from failing when valueFiles do not exist locally by not
                           appending them to helm template --values
                         type: boolean
+                      kubeVersion:
+                        description: KubeVersions is the Kubernetes version to use
+                          for templating. If not set, defaults to the server's current
+                          Kubernetes version.
+                        type: string
                       parameters:
                         description: Parameters is a list of Helm parameters which
                           are passed to the helm template command upon manifest generation
@@ -1393,6 +1429,13 @@ spec:
                     helm:
                       description: Helm holds helm specific options
                       properties:
+                        apiVersions:
+                          description: APIVersions is a list of Kubernetes API versions
+                            to use for templating. If not set, defaults to the server's
+                            preferred API versions.
+                          items:
+                            type: string
+                          type: array
                         fileParameters:
                           description: FileParameters are file parameters to the helm
                             template
@@ -1414,6 +1457,11 @@ spec:
                             from failing when valueFiles do not exist locally by not
                             appending them to helm template --values
                           type: boolean
+                        kubeVersion:
+                          description: KubeVersions is the Kubernetes version to use
+                            for templating. If not set, defaults to the server's current
+                            Kubernetes version.
+                          type: string
                         parameters:
                           description: Parameters is a list of Helm parameters which
                             are passed to the helm template command upon manifest
@@ -1885,6 +1933,13 @@ spec:
                         helm:
                           description: Helm holds helm specific options
                           properties:
+                            apiVersions:
+                              description: APIVersions is a list of Kubernetes API
+                                versions to use for templating. If not set, defaults
+                                to the server's preferred API versions.
+                              items:
+                                type: string
+                              type: array
                             fileParameters:
                               description: FileParameters are file parameters to the
                                 helm template
@@ -1906,6 +1961,11 @@ spec:
                                 from failing when valueFiles do not exist locally
                                 by not appending them to helm template --values
                               type: boolean
+                            kubeVersion:
+                              description: KubeVersions is the Kubernetes version
+                                to use for templating. If not set, defaults to the
+                                server's current Kubernetes version.
+                              type: string
                             parameters:
                               description: Parameters is a list of Helm parameters
                                 which are passed to the helm template command upon
@@ -2223,6 +2283,13 @@ spec:
                           helm:
                             description: Helm holds helm specific options
                             properties:
+                              apiVersions:
+                                description: APIVersions is a list of Kubernetes API
+                                  versions to use for templating. If not set, defaults
+                                  to the server's preferred API versions.
+                                items:
+                                  type: string
+                                type: array
                               fileParameters:
                                 description: FileParameters are file parameters to
                                   the helm template
@@ -2245,6 +2312,11 @@ spec:
                                   template from failing when valueFiles do not exist
                                   locally by not appending them to helm template --values
                                 type: boolean
+                              kubeVersion:
+                                description: KubeVersions is the Kubernetes version
+                                  to use for templating. If not set, defaults to the
+                                  server's current Kubernetes version.
+                                type: string
                               parameters:
                                 description: Parameters is a list of Helm parameters
                                   which are passed to the helm template command upon
@@ -2704,6 +2776,13 @@ spec:
                               helm:
                                 description: Helm holds helm specific options
                                 properties:
+                                  apiVersions:
+                                    description: APIVersions is a list of Kubernetes
+                                      API versions to use for templating. If not set,
+                                      defaults to the server's preferred API versions.
+                                    items:
+                                      type: string
+                                    type: array
                                   fileParameters:
                                     description: FileParameters are file parameters
                                       to the helm template
@@ -2728,6 +2807,11 @@ spec:
                                       not exist locally by not appending them to helm
                                       template --values
                                     type: boolean
+                                  kubeVersion:
+                                    description: KubeVersions is the Kubernetes version
+                                      to use for templating. If not set, defaults
+                                      to the server's current Kubernetes version.
+                                    type: string
                                   parameters:
                                     description: Parameters is a list of Helm parameters
                                       which are passed to the helm template command
@@ -3061,6 +3145,14 @@ spec:
                                 helm:
                                   description: Helm holds helm specific options
                                   properties:
+                                    apiVersions:
+                                      description: APIVersions is a list of Kubernetes
+                                        API versions to use for templating. If not
+                                        set, defaults to the server's preferred API
+                                        versions.
+                                      items:
+                                        type: string
+                                      type: array
                                     fileParameters:
                                       description: FileParameters are file parameters
                                         to the helm template
@@ -3085,6 +3177,12 @@ spec:
                                         do not exist locally by not appending them
                                         to helm template --values
                                       type: boolean
+                                    kubeVersion:
+                                      description: KubeVersions is the Kubernetes
+                                        version to use for templating. If not set,
+                                        defaults to the server's current Kubernetes
+                                        version.
+                                      type: string
                                     parameters:
                                       description: Parameters is a list of Helm parameters
                                         which are passed to the helm template command
@@ -3541,6 +3639,13 @@ spec:
                           helm:
                             description: Helm holds helm specific options
                             properties:
+                              apiVersions:
+                                description: APIVersions is a list of Kubernetes API
+                                  versions to use for templating. If not set, defaults
+                                  to the server's preferred API versions.
+                                items:
+                                  type: string
+                                type: array
                               fileParameters:
                                 description: FileParameters are file parameters to
                                   the helm template
@@ -3563,6 +3668,11 @@ spec:
                                   template from failing when valueFiles do not exist
                                   locally by not appending them to helm template --values
                                 type: boolean
+                              kubeVersion:
+                                description: KubeVersions is the Kubernetes version
+                                  to use for templating. If not set, defaults to the
+                                  server's current Kubernetes version.
+                                type: string
                               parameters:
                                 description: Parameters is a list of Helm parameters
                                   which are passed to the helm template command upon
@@ -3889,6 +3999,13 @@ spec:
                             helm:
                               description: Helm holds helm specific options
                               properties:
+                                apiVersions:
+                                  description: APIVersions is a list of Kubernetes
+                                    API versions to use for templating. If not set,
+                                    defaults to the server's preferred API versions.
+                                  items:
+                                    type: string
+                                  type: array
                                 fileParameters:
                                   description: FileParameters are file parameters
                                     to the helm template
@@ -3913,6 +4030,11 @@ spec:
                                     locally by not appending them to helm template
                                     --values
                                   type: boolean
+                                kubeVersion:
+                                  description: KubeVersions is the Kubernetes version
+                                    to use for templating. If not set, defaults to
+                                    the server's current Kubernetes version.
+                                  type: string
                                 parameters:
                                   description: Parameters is a list of Helm parameters
                                     which are passed to the helm template command
@@ -4413,6 +4535,13 @@ spec:
                           helm:
                             description: Helm holds helm specific options
                             properties:
+                              apiVersions:
+                                description: APIVersions is a list of Kubernetes API
+                                  versions to use for templating. If not set, defaults
+                                  to the server's preferred API versions.
+                                items:
+                                  type: string
+                                type: array
                               fileParameters:
                                 description: FileParameters are file parameters to
                                   the helm template
@@ -4435,6 +4564,11 @@ spec:
                                   template from failing when valueFiles do not exist
                                   locally by not appending them to helm template --values
                                 type: boolean
+                              kubeVersion:
+                                description: KubeVersions is the Kubernetes version
+                                  to use for templating. If not set, defaults to the
+                                  server's current Kubernetes version.
+                                type: string
                               parameters:
                                 description: Parameters is a list of Helm parameters
                                   which are passed to the helm template command upon
@@ -4761,6 +4895,13 @@ spec:
                             helm:
                               description: Helm holds helm specific options
                               properties:
+                                apiVersions:
+                                  description: APIVersions is a list of Kubernetes
+                                    API versions to use for templating. If not set,
+                                    defaults to the server's preferred API versions.
+                                  items:
+                                    type: string
+                                  type: array
                                 fileParameters:
                                   description: FileParameters are file parameters
                                     to the helm template
@@ -4785,6 +4926,11 @@ spec:
                                     locally by not appending them to helm template
                                     --values
                                   type: boolean
+                                kubeVersion:
+                                  description: KubeVersions is the Kubernetes version
+                                    to use for templating. If not set, defaults to
+                                    the server's current Kubernetes version.
+                                  type: string
                                 parameters:
                                   description: Parameters is a list of Helm parameters
                                     which are passed to the helm template command
@@ -5259,6 +5405,10 @@ spec:
                                       type: object
                                     helm:
                                       properties:
+                                        apiVersions:
+                                          items:
+                                            type: string
+                                          type: array
                                         fileParameters:
                                           items:
                                             properties:
@@ -5270,6 +5420,8 @@ spec:
                                           type: array
                                         ignoreMissingValueFiles:
                                           type: boolean
+                                        kubeVersion:
+                                          type: string
                                         parameters:
                                           items:
                                             properties:
@@ -5511,6 +5663,10 @@ spec:
                                         type: object
                                       helm:
                                         properties:
+                                          apiVersions:
+                                            items:
+                                              type: string
+                                            type: array
                                           fileParameters:
                                             items:
                                               properties:
@@ -5522,6 +5678,8 @@ spec:
                                             type: array
                                           ignoreMissingValueFiles:
                                             type: boolean
+                                          kubeVersion:
+                                            type: string
                                           parameters:
                                             items:
                                               properties:
@@ -5887,6 +6045,10 @@ spec:
                                       type: object
                                     helm:
                                       properties:
+                                        apiVersions:
+                                          items:
+                                            type: string
+                                          type: array
                                         fileParameters:
                                           items:
                                             properties:
@@ -5898,6 +6060,8 @@ spec:
                                           type: array
                                         ignoreMissingValueFiles:
                                           type: boolean
+                                        kubeVersion:
+                                          type: string
                                         parameters:
                                           items:
                                             properties:
@@ -6139,6 +6303,10 @@ spec:
                                         type: object
                                       helm:
                                         properties:
+                                          apiVersions:
+                                            items:
+                                              type: string
+                                            type: array
                                           fileParameters:
                                             items:
                                               properties:
@@ -6150,6 +6318,8 @@ spec:
                                             type: array
                                           ignoreMissingValueFiles:
                                             type: boolean
+                                          kubeVersion:
+                                            type: string
                                           parameters:
                                             items:
                                               properties:
@@ -6518,6 +6688,10 @@ spec:
                                       type: object
                                     helm:
                                       properties:
+                                        apiVersions:
+                                          items:
+                                            type: string
+                                          type: array
                                         fileParameters:
                                           items:
                                             properties:
@@ -6529,6 +6703,8 @@ spec:
                                           type: array
                                         ignoreMissingValueFiles:
                                           type: boolean
+                                        kubeVersion:
+                                          type: string
                                         parameters:
                                           items:
                                             properties:
@@ -6770,6 +6946,10 @@ spec:
                                         type: object
                                       helm:
                                         properties:
+                                          apiVersions:
+                                            items:
+                                              type: string
+                                            type: array
                                           fileParameters:
                                             items:
                                               properties:
@@ -6781,6 +6961,8 @@ spec:
                                             type: array
                                           ignoreMissingValueFiles:
                                             type: boolean
+                                          kubeVersion:
+                                            type: string
                                           parameters:
                                             items:
                                               properties:
@@ -7129,6 +7311,10 @@ spec:
                                       type: object
                                     helm:
                                       properties:
+                                        apiVersions:
+                                          items:
+                                            type: string
+                                          type: array
                                         fileParameters:
                                           items:
                                             properties:
@@ -7140,6 +7326,8 @@ spec:
                                           type: array
                                         ignoreMissingValueFiles:
                                           type: boolean
+                                        kubeVersion:
+                                          type: string
                                         parameters:
                                           items:
                                             properties:
@@ -7381,6 +7569,10 @@ spec:
                                         type: object
                                       helm:
                                         properties:
+                                          apiVersions:
+                                            items:
+                                              type: string
+                                            type: array
                                           fileParameters:
                                             items:
                                               properties:
@@ -7392,6 +7584,8 @@ spec:
                                             type: array
                                           ignoreMissingValueFiles:
                                             type: boolean
+                                          kubeVersion:
+                                            type: string
                                           parameters:
                                             items:
                                               properties:
@@ -7763,6 +7957,10 @@ spec:
                                                 type: object
                                               helm:
                                                 properties:
+                                                  apiVersions:
+                                                    items:
+                                                      type: string
+                                                    type: array
                                                   fileParameters:
                                                     items:
                                                       properties:
@@ -7774,6 +7972,8 @@ spec:
                                                     type: array
                                                   ignoreMissingValueFiles:
                                                     type: boolean
+                                                  kubeVersion:
+                                                    type: string
                                                   parameters:
                                                     items:
                                                       properties:
@@ -8015,6 +8215,10 @@ spec:
                                                   type: object
                                                 helm:
                                                   properties:
+                                                    apiVersions:
+                                                      items:
+                                                        type: string
+                                                      type: array
                                                     fileParameters:
                                                       items:
                                                         properties:
@@ -8026,6 +8230,8 @@ spec:
                                                       type: array
                                                     ignoreMissingValueFiles:
                                                       type: boolean
+                                                    kubeVersion:
+                                                      type: string
                                                     parameters:
                                                       items:
                                                         properties:
@@ -8391,6 +8597,10 @@ spec:
                                                 type: object
                                               helm:
                                                 properties:
+                                                  apiVersions:
+                                                    items:
+                                                      type: string
+                                                    type: array
                                                   fileParameters:
                                                     items:
                                                       properties:
@@ -8402,6 +8612,8 @@ spec:
                                                     type: array
                                                   ignoreMissingValueFiles:
                                                     type: boolean
+                                                  kubeVersion:
+                                                    type: string
                                                   parameters:
                                                     items:
                                                       properties:
@@ -8643,6 +8855,10 @@ spec:
                                                   type: object
                                                 helm:
                                                   properties:
+                                                    apiVersions:
+                                                      items:
+                                                        type: string
+                                                      type: array
                                                     fileParameters:
                                                       items:
                                                         properties:
@@ -8654,6 +8870,8 @@ spec:
                                                       type: array
                                                     ignoreMissingValueFiles:
                                                       type: boolean
+                                                    kubeVersion:
+                                                      type: string
                                                     parameters:
                                                       items:
                                                         properties:
@@ -9022,6 +9240,10 @@ spec:
                                                 type: object
                                               helm:
                                                 properties:
+                                                  apiVersions:
+                                                    items:
+                                                      type: string
+                                                    type: array
                                                   fileParameters:
                                                     items:
                                                       properties:
@@ -9033,6 +9255,8 @@ spec:
                                                     type: array
                                                   ignoreMissingValueFiles:
                                                     type: boolean
+                                                  kubeVersion:
+                                                    type: string
                                                   parameters:
                                                     items:
                                                       properties:
@@ -9274,6 +9498,10 @@ spec:
                                                   type: object
                                                 helm:
                                                   properties:
+                                                    apiVersions:
+                                                      items:
+                                                        type: string
+                                                      type: array
                                                     fileParameters:
                                                       items:
                                                         properties:
@@ -9285,6 +9513,8 @@ spec:
                                                       type: array
                                                     ignoreMissingValueFiles:
                                                       type: boolean
+                                                    kubeVersion:
+                                                      type: string
                                                     parameters:
                                                       items:
                                                         properties:
@@ -9633,6 +9863,10 @@ spec:
                                                 type: object
                                               helm:
                                                 properties:
+                                                  apiVersions:
+                                                    items:
+                                                      type: string
+                                                    type: array
                                                   fileParameters:
                                                     items:
                                                       properties:
@@ -9644,6 +9878,8 @@ spec:
                                                     type: array
                                                   ignoreMissingValueFiles:
                                                     type: boolean
+                                                  kubeVersion:
+                                                    type: string
                                                   parameters:
                                                     items:
                                                       properties:
@@ -9885,6 +10121,10 @@ spec:
                                                   type: object
                                                 helm:
                                                   properties:
+                                                    apiVersions:
+                                                      items:
+                                                        type: string
+                                                      type: array
                                                     fileParameters:
                                                       items:
                                                         properties:
@@ -9896,6 +10136,8 @@ spec:
                                                       type: array
                                                     ignoreMissingValueFiles:
                                                       type: boolean
+                                                    kubeVersion:
+                                                      type: string
                                                     parameters:
                                                       items:
                                                         properties:
@@ -10252,6 +10494,10 @@ spec:
                                                 type: object
                                               helm:
                                                 properties:
+                                                  apiVersions:
+                                                    items:
+                                                      type: string
+                                                    type: array
                                                   fileParameters:
                                                     items:
                                                       properties:
@@ -10263,6 +10509,8 @@ spec:
                                                     type: array
                                                   ignoreMissingValueFiles:
                                                     type: boolean
+                                                  kubeVersion:
+                                                    type: string
                                                   parameters:
                                                     items:
                                                       properties:
@@ -10504,6 +10752,10 @@ spec:
                                                   type: object
                                                 helm:
                                                   properties:
+                                                    apiVersions:
+                                                      items:
+                                                        type: string
+                                                      type: array
                                                     fileParameters:
                                                       items:
                                                         properties:
@@ -10515,6 +10767,8 @@ spec:
                                                       type: array
                                                     ignoreMissingValueFiles:
                                                       type: boolean
+                                                    kubeVersion:
+                                                      type: string
                                                     parameters:
                                                       items:
                                                         properties:
@@ -11053,6 +11307,10 @@ spec:
                                                 type: object
                                               helm:
                                                 properties:
+                                                  apiVersions:
+                                                    items:
+                                                      type: string
+                                                    type: array
                                                   fileParameters:
                                                     items:
                                                       properties:
@@ -11064,6 +11322,8 @@ spec:
                                                     type: array
                                                   ignoreMissingValueFiles:
                                                     type: boolean
+                                                  kubeVersion:
+                                                    type: string
                                                   parameters:
                                                     items:
                                                       properties:
@@ -11305,6 +11565,10 @@ spec:
                                                   type: object
                                                 helm:
                                                   properties:
+                                                    apiVersions:
+                                                      items:
+                                                        type: string
+                                                      type: array
                                                     fileParameters:
                                                       items:
                                                         properties:
@@ -11316,6 +11580,8 @@ spec:
                                                       type: array
                                                     ignoreMissingValueFiles:
                                                       type: boolean
+                                                    kubeVersion:
+                                                      type: string
                                                     parameters:
                                                       items:
                                                         properties:
@@ -11849,6 +12115,10 @@ spec:
                                                 type: object
                                               helm:
                                                 properties:
+                                                  apiVersions:
+                                                    items:
+                                                      type: string
+                                                    type: array
                                                   fileParameters:
                                                     items:
                                                       properties:
@@ -11860,6 +12130,8 @@ spec:
                                                     type: array
                                                   ignoreMissingValueFiles:
                                                     type: boolean
+                                                  kubeVersion:
+                                                    type: string
                                                   parameters:
                                                     items:
                                                       properties:
@@ -12101,6 +12373,10 @@ spec:
                                                   type: object
                                                 helm:
                                                   properties:
+                                                    apiVersions:
+                                                      items:
+                                                        type: string
+                                                      type: array
                                                     fileParameters:
                                                       items:
                                                         properties:
@@ -12112,6 +12388,8 @@ spec:
                                                       type: array
                                                     ignoreMissingValueFiles:
                                                       type: boolean
+                                                    kubeVersion:
+                                                      type: string
                                                     parameters:
                                                       items:
                                                         properties:
@@ -12475,6 +12753,10 @@ spec:
                                       type: object
                                     helm:
                                       properties:
+                                        apiVersions:
+                                          items:
+                                            type: string
+                                          type: array
                                         fileParameters:
                                           items:
                                             properties:
@@ -12486,6 +12768,8 @@ spec:
                                           type: array
                                         ignoreMissingValueFiles:
                                           type: boolean
+                                        kubeVersion:
+                                          type: string
                                         parameters:
                                           items:
                                             properties:
@@ -12727,6 +13011,10 @@ spec:
                                         type: object
                                       helm:
                                         properties:
+                                          apiVersions:
+                                            items:
+                                              type: string
+                                            type: array
                                           fileParameters:
                                             items:
                                               properties:
@@ -12738,6 +13026,8 @@ spec:
                                             type: array
                                           ignoreMissingValueFiles:
                                             type: boolean
+                                          kubeVersion:
+                                            type: string
                                           parameters:
                                             items:
                                               properties:
@@ -13111,6 +13401,10 @@ spec:
                                                 type: object
                                               helm:
                                                 properties:
+                                                  apiVersions:
+                                                    items:
+                                                      type: string
+                                                    type: array
                                                   fileParameters:
                                                     items:
                                                       properties:
@@ -13122,6 +13416,8 @@ spec:
                                                     type: array
                                                   ignoreMissingValueFiles:
                                                     type: boolean
+                                                  kubeVersion:
+                                                    type: string
                                                   parameters:
                                                     items:
                                                       properties:
@@ -13363,6 +13659,10 @@ spec:
                                                   type: object
                                                 helm:
                                                   properties:
+                                                    apiVersions:
+                                                      items:
+                                                        type: string
+                                                      type: array
                                                     fileParameters:
                                                       items:
                                                         properties:
@@ -13374,6 +13674,8 @@ spec:
                                                       type: array
                                                     ignoreMissingValueFiles:
                                                       type: boolean
+                                                    kubeVersion:
+                                                      type: string
                                                     parameters:
                                                       items:
                                                         properties:
@@ -13739,6 +14041,10 @@ spec:
                                                 type: object
                                               helm:
                                                 properties:
+                                                  apiVersions:
+                                                    items:
+                                                      type: string
+                                                    type: array
                                                   fileParameters:
                                                     items:
                                                       properties:
@@ -13750,6 +14056,8 @@ spec:
                                                     type: array
                                                   ignoreMissingValueFiles:
                                                     type: boolean
+                                                  kubeVersion:
+                                                    type: string
                                                   parameters:
                                                     items:
                                                       properties:
@@ -13991,6 +14299,10 @@ spec:
                                                   type: object
                                                 helm:
                                                   properties:
+                                                    apiVersions:
+                                                      items:
+                                                        type: string
+                                                      type: array
                                                     fileParameters:
                                                       items:
                                                         properties:
@@ -14002,6 +14314,8 @@ spec:
                                                       type: array
                                                     ignoreMissingValueFiles:
                                                       type: boolean
+                                                    kubeVersion:
+                                                      type: string
                                                     parameters:
                                                       items:
                                                         properties:
@@ -14370,6 +14684,10 @@ spec:
                                                 type: object
                                               helm:
                                                 properties:
+                                                  apiVersions:
+                                                    items:
+                                                      type: string
+                                                    type: array
                                                   fileParameters:
                                                     items:
                                                       properties:
@@ -14381,6 +14699,8 @@ spec:
                                                     type: array
                                                   ignoreMissingValueFiles:
                                                     type: boolean
+                                                  kubeVersion:
+                                                    type: string
                                                   parameters:
                                                     items:
                                                       properties:
@@ -14622,6 +14942,10 @@ spec:
                                                   type: object
                                                 helm:
                                                   properties:
+                                                    apiVersions:
+                                                      items:
+                                                        type: string
+                                                      type: array
                                                     fileParameters:
                                                       items:
                                                         properties:
@@ -14633,6 +14957,8 @@ spec:
                                                       type: array
                                                     ignoreMissingValueFiles:
                                                       type: boolean
+                                                    kubeVersion:
+                                                      type: string
                                                     parameters:
                                                       items:
                                                         properties:
@@ -14981,6 +15307,10 @@ spec:
                                                 type: object
                                               helm:
                                                 properties:
+                                                  apiVersions:
+                                                    items:
+                                                      type: string
+                                                    type: array
                                                   fileParameters:
                                                     items:
                                                       properties:
@@ -14992,6 +15322,8 @@ spec:
                                                     type: array
                                                   ignoreMissingValueFiles:
                                                     type: boolean
+                                                  kubeVersion:
+                                                    type: string
                                                   parameters:
                                                     items:
                                                       properties:
@@ -15233,6 +15565,10 @@ spec:
                                                   type: object
                                                 helm:
                                                   properties:
+                                                    apiVersions:
+                                                      items:
+                                                        type: string
+                                                      type: array
                                                     fileParameters:
                                                       items:
                                                         properties:
@@ -15244,6 +15580,8 @@ spec:
                                                       type: array
                                                     ignoreMissingValueFiles:
                                                       type: boolean
+                                                    kubeVersion:
+                                                      type: string
                                                     parameters:
                                                       items:
                                                         properties:
@@ -15600,6 +15938,10 @@ spec:
                                                 type: object
                                               helm:
                                                 properties:
+                                                  apiVersions:
+                                                    items:
+                                                      type: string
+                                                    type: array
                                                   fileParameters:
                                                     items:
                                                       properties:
@@ -15611,6 +15953,8 @@ spec:
                                                     type: array
                                                   ignoreMissingValueFiles:
                                                     type: boolean
+                                                  kubeVersion:
+                                                    type: string
                                                   parameters:
                                                     items:
                                                       properties:
@@ -15852,6 +16196,10 @@ spec:
                                                   type: object
                                                 helm:
                                                   properties:
+                                                    apiVersions:
+                                                      items:
+                                                        type: string
+                                                      type: array
                                                     fileParameters:
                                                       items:
                                                         properties:
@@ -15863,6 +16211,8 @@ spec:
                                                       type: array
                                                     ignoreMissingValueFiles:
                                                       type: boolean
+                                                    kubeVersion:
+                                                      type: string
                                                     parameters:
                                                       items:
                                                         properties:
@@ -16401,6 +16751,10 @@ spec:
                                                 type: object
                                               helm:
                                                 properties:
+                                                  apiVersions:
+                                                    items:
+                                                      type: string
+                                                    type: array
                                                   fileParameters:
                                                     items:
                                                       properties:
@@ -16412,6 +16766,8 @@ spec:
                                                     type: array
                                                   ignoreMissingValueFiles:
                                                     type: boolean
+                                                  kubeVersion:
+                                                    type: string
                                                   parameters:
                                                     items:
                                                       properties:
@@ -16653,6 +17009,10 @@ spec:
                                                   type: object
                                                 helm:
                                                   properties:
+                                                    apiVersions:
+                                                      items:
+                                                        type: string
+                                                      type: array
                                                     fileParameters:
                                                       items:
                                                         properties:
@@ -16664,6 +17024,8 @@ spec:
                                                       type: array
                                                     ignoreMissingValueFiles:
                                                       type: boolean
+                                                    kubeVersion:
+                                                      type: string
                                                     parameters:
                                                       items:
                                                         properties:
@@ -17197,6 +17559,10 @@ spec:
                                                 type: object
                                               helm:
                                                 properties:
+                                                  apiVersions:
+                                                    items:
+                                                      type: string
+                                                    type: array
                                                   fileParameters:
                                                     items:
                                                       properties:
@@ -17208,6 +17574,8 @@ spec:
                                                     type: array
                                                   ignoreMissingValueFiles:
                                                     type: boolean
+                                                  kubeVersion:
+                                                    type: string
                                                   parameters:
                                                     items:
                                                       properties:
@@ -17449,6 +17817,10 @@ spec:
                                                   type: object
                                                 helm:
                                                   properties:
+                                                    apiVersions:
+                                                      items:
+                                                        type: string
+                                                      type: array
                                                     fileParameters:
                                                       items:
                                                         properties:
@@ -17460,6 +17832,8 @@ spec:
                                                       type: array
                                                     ignoreMissingValueFiles:
                                                       type: boolean
+                                                    kubeVersion:
+                                                      type: string
                                                     parameters:
                                                       items:
                                                         properties:
@@ -17827,6 +18201,10 @@ spec:
                                       type: object
                                     helm:
                                       properties:
+                                        apiVersions:
+                                          items:
+                                            type: string
+                                          type: array
                                         fileParameters:
                                           items:
                                             properties:
@@ -17838,6 +18216,8 @@ spec:
                                           type: array
                                         ignoreMissingValueFiles:
                                           type: boolean
+                                        kubeVersion:
+                                          type: string
                                         parameters:
                                           items:
                                             properties:
@@ -18079,6 +18459,10 @@ spec:
                                         type: object
                                       helm:
                                         properties:
+                                          apiVersions:
+                                            items:
+                                              type: string
+                                            type: array
                                           fileParameters:
                                             items:
                                               properties:
@@ -18090,6 +18474,8 @@ spec:
                                             type: array
                                           ignoreMissingValueFiles:
                                             type: boolean
+                                          kubeVersion:
+                                            type: string
                                           parameters:
                                             items:
                                               properties:
@@ -18445,6 +18831,10 @@ spec:
                                       type: object
                                     helm:
                                       properties:
+                                        apiVersions:
+                                          items:
+                                            type: string
+                                          type: array
                                         fileParameters:
                                           items:
                                             properties:
@@ -18456,6 +18846,8 @@ spec:
                                           type: array
                                         ignoreMissingValueFiles:
                                           type: boolean
+                                        kubeVersion:
+                                          type: string
                                         parameters:
                                           items:
                                             properties:
@@ -18697,6 +19089,10 @@ spec:
                                         type: object
                                       helm:
                                         properties:
+                                          apiVersions:
+                                            items:
+                                              type: string
+                                            type: array
                                           fileParameters:
                                             items:
                                               properties:
@@ -18708,6 +19104,8 @@ spec:
                                             type: array
                                           ignoreMissingValueFiles:
                                             type: boolean
+                                          kubeVersion:
+                                            type: string
                                           parameters:
                                             items:
                                               properties:
@@ -19246,6 +19644,10 @@ spec:
                                       type: object
                                     helm:
                                       properties:
+                                        apiVersions:
+                                          items:
+                                            type: string
+                                          type: array
                                         fileParameters:
                                           items:
                                             properties:
@@ -19257,6 +19659,8 @@ spec:
                                           type: array
                                         ignoreMissingValueFiles:
                                           type: boolean
+                                        kubeVersion:
+                                          type: string
                                         parameters:
                                           items:
                                             properties:
@@ -19498,6 +19902,10 @@ spec:
                                         type: object
                                       helm:
                                         properties:
+                                          apiVersions:
+                                            items:
+                                              type: string
+                                            type: array
                                           fileParameters:
                                             items:
                                               properties:
@@ -19509,6 +19917,8 @@ spec:
                                             type: array
                                           ignoreMissingValueFiles:
                                             type: boolean
+                                          kubeVersion:
+                                            type: string
                                           parameters:
                                             items:
                                               properties:
@@ -20042,6 +20452,10 @@ spec:
                                       type: object
                                     helm:
                                       properties:
+                                        apiVersions:
+                                          items:
+                                            type: string
+                                          type: array
                                         fileParameters:
                                           items:
                                             properties:
@@ -20053,6 +20467,8 @@ spec:
                                           type: array
                                         ignoreMissingValueFiles:
                                           type: boolean
+                                        kubeVersion:
+                                          type: string
                                         parameters:
                                           items:
                                             properties:
@@ -20294,6 +20710,10 @@ spec:
                                         type: object
                                       helm:
                                         properties:
+                                          apiVersions:
+                                            items:
+                                              type: string
+                                            type: array
                                           fileParameters:
                                             items:
                                               properties:
@@ -20305,6 +20725,8 @@ spec:
                                             type: array
                                           ignoreMissingValueFiles:
                                             type: boolean
+                                          kubeVersion:
+                                            type: string
                                           parameters:
                                             items:
                                               properties:
@@ -20743,6 +21165,10 @@ spec:
                             type: object
                           helm:
                             properties:
+                              apiVersions:
+                                items:
+                                  type: string
+                                type: array
                               fileParameters:
                                 items:
                                   properties:
@@ -20754,6 +21180,8 @@ spec:
                                 type: array
                               ignoreMissingValueFiles:
                                 type: boolean
+                              kubeVersion:
+                                type: string
                               parameters:
                                 items:
                                   properties:
@@ -20995,6 +21423,10 @@ spec:
                               type: object
                             helm:
                               properties:
+                                apiVersions:
+                                  items:
+                                    type: string
+                                  type: array
                                 fileParameters:
                                   items:
                                     properties:
@@ -21006,6 +21438,8 @@ spec:
                                   type: array
                                 ignoreMissingValueFiles:
                                   type: boolean
+                                kubeVersion:
+                                  type: string
                                 parameters:
                                   items:
                                     properties:

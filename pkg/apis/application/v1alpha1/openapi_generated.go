@@ -1823,6 +1823,28 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSourceHelm(ref common.Refer
 							Ref:         ref("k8s.io/apimachinery/pkg/runtime.RawExtension"),
 						},
 					},
+					"kubeVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "KubeVersions is the Kubernetes version to use for templating. If not set, defaults to the server's current Kubernetes version.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"apiVersions": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersions is a list of Kubernetes API versions to use for templating. If not set, defaults to the server's preferred API versions.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
 				},
 			},
 		},

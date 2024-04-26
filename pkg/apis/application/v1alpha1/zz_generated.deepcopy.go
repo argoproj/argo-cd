@@ -1060,6 +1060,11 @@ func (in *ApplicationSourceHelm) DeepCopyInto(out *ApplicationSourceHelm) {
 		*out = new(runtime.RawExtension)
 		(*in).DeepCopyInto(*out)
 	}
+	if in.ApiVersions != nil {
+		in, out := &in.ApiVersions, &out.ApiVersions
+		*out = make([]string, len(*in))
+		copy(*out, *in)
+	}
 	return
 }
 

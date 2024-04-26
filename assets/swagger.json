@@ -6403,6 +6403,13 @@
       "type": "object",
       "title": "ApplicationSourceHelm holds helm specific options",
       "properties": {
+        "apiVersions": {
+          "description": "APIVersions is a list of Kubernetes API versions to use for templating. If not set, defaults to the server's preferred API versions.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
         "fileParameters": {
           "type": "array",
           "title": "FileParameters are file parameters to the helm template",
@@ -6413,6 +6420,10 @@
         "ignoreMissingValueFiles": {
           "type": "boolean",
           "title": "IgnoreMissingValueFiles prevents helm template from failing when valueFiles do not exist locally by not appending them to helm template --values"
+        },
+        "kubeVersion": {
+          "description": "KubeVersions is the Kubernetes version to use for templating. If not set, defaults to the server's current Kubernetes version.",
+          "type": "string"
         },
         "parameters": {
           "type": "array",
