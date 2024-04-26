@@ -1,6 +1,7 @@
 package commit
 
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/google/uuid"
 	log "github.com/sirupsen/logrus"
@@ -9,6 +10,7 @@ import (
 	"os/exec"
 	"path"
 	"sigs.k8s.io/yaml"
+	"text/template"
 	"time"
 )
 
@@ -29,6 +31,7 @@ type ManifestsRequest struct {
 	CommitMessage     string
 	CommitTime        time.Time
 	Paths             []PathDetails
+	Commands          []string
 }
 
 type PathDetails struct {
@@ -124,6 +127,41 @@ func (s *service) Commit(r ManifestsRequest) (ManifestsResponse, error) {
 		}
 	}
 
+	// Write hydrator.metadata containing information about the hydration process.
+	hydratorMetadata := hydratorMetadataFile{
+		Commands: r.Commands,
+		DrySHA:   r.DrySHA,
+		RepoURL:  r.RepoURL,
+	}
+	hydratorMetadataJson, err := json.MarshalIndent(hydratorMetadata, "", "  ")
+	if err != nil {
+		return ManifestsResponse{}, fmt.Errorf("failed to marshal hydrator metadata: %w", err)
+	}
+	err = os.WriteFile(path.Join(dirPath, "hydrator.metadata"), hydratorMetadataJson, os.ModePerm)
+	if err != nil {
+		return ManifestsResponse{}, fmt.Errorf("failed to write hydrator metadata: %w", err)
+	}
+
+	// Write README
+	readmeTemplate := template.New("readme")
+	readmeTemplate, err = readmeTemplate.Parse(manifestHydrationReadmeTemplate)
+	if err != nil {
+		return ManifestsResponse{}, fmt.Errorf("failed to parse readme template: %w", err)
+	}
+	// Create writer to template into
+	readmeFile, err := os.Create(path.Join(dirPath, "README.md"))
+	if err != nil && !os.IsExist(err) {
+		return ManifestsResponse{}, fmt.Errorf("failed to create README file: %w", err)
+	}
+	err = readmeTemplate.Execute(readmeFile, hydratorMetadata)
+	closeErr := readmeFile.Close()
+	if closeErr != nil {
+		logCtx.WithError(closeErr).Error("failed to close README file")
+	}
+	if err != nil {
+		return ManifestsResponse{}, fmt.Errorf("failed to execute readme template: %w", err)
+	}
+
 	// Commit the changes
 	addCmd := exec.Command("git", "add", ".")
 	addCmd.Dir = dirPath
@@ -170,3 +208,22 @@ func (s *service) Commit(r ManifestsRequest) (ManifestsResponse, error) {
 
 	return ManifestsResponse{}, nil
 }
+
+type hydratorMetadataFile struct {
+	Commands []string `json:"commands"`
+	RepoURL  string   `json:"repoURL"`
+	DrySHA   string   `json:"drySha"`
+}
+
+var manifestHydrationReadmeTemplate = `
+# Manifest Hydration
+
+To hydrate the manifests in this repository, run the following commands:
+
+` + "```shell\n" + `
+git clone {{ .RepoURL }}
+# cd into the cloned directory
+git checkout {{ .DrySHA }}
+{{ range $command := .Commands -}}
+{{ $command }}
+{{ end -}}` + "```"
