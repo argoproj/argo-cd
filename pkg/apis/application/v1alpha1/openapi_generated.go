@@ -8097,5 +8097,4 @@ func schema_pkg_apis_application_v1alpha1_rawResourceOverride(ref common.Referen
 		Dependencies: []string{
 			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.KnownTypeField"},
 	}
-	return map[string]common.OpenAPIDefinition{}
 }
