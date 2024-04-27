@@ -438,7 +438,12 @@ export class ReposList extends React.Component<
                                                         <FormField formApi={formApi} label='SSH private key data' field='sshPrivateKey' component={TextArea} />
                                                     </div>
                                                     <div className='argo-form-row'>
-                                                        <FormField formApi={formApi} label='SSH key exchange algorithms (white space seperated list)' field='sshKexAlgorithms' component={TextArea} />
+                                                        <FormField
+                                                            formApi={formApi}
+                                                            label='SSH key exchange algorithms (white space seperated list)'
+                                                            field='sshKexAlgorithms'
+                                                            component={TextArea}
+                                                        />
                                                     </div>
                                                     <div className='argo-form-row'>
                                                         <FormField formApi={formApi} label='Skip server verification' field='insecure' component={CheckboxField} />
