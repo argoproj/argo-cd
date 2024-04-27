@@ -314,6 +314,7 @@ func secretToRepository(secret *corev1.Secret) (*appsv1.Repository, error) {
 		Proxy:                      string(secret.Data["proxy"]),
 		Project:                    string(secret.Data["project"]),
 		GCPServiceAccountKey:       string(secret.Data["gcpServiceAccountKey"]),
+		SSHKexAlgorithms:           string(secret.Data["sshKexAlgorithms"]),
 	}
 
 	insecureIgnoreHostKey, err := boolOrFalse(secret, "insecureIgnoreHostKey")

@@ -5733,6 +5733,13 @@ func schema_pkg_apis_application_v1alpha1_Repository(ref common.ReferenceCallbac
 							Format:      "",
 						},
 					},
+					"sshKexAlgorithms": {
+						SchemaProps: spec.SchemaProps{
+							Description: "KexAlgorithms specifies the key exchange algorithms to use for SSH connections. Whitespace seperated list.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
 				},
 				Required: []string{"repo"},
 			},

@@ -24,6 +24,7 @@ type RepoOptions struct {
 	Proxy                          string
 	GCPServiceAccountKeyPath       string
 	ForceHttpBasicAuth             bool
+	SshKexAlgorithms               string
 }
 
 func AddRepoFlags(command *cobra.Command, opts *RepoOptions) {
@@ -46,4 +47,5 @@ func AddRepoFlags(command *cobra.Command, opts *RepoOptions) {
 	command.Flags().StringVar(&opts.Proxy, "proxy", "", "use proxy to access repository")
 	command.Flags().StringVar(&opts.GCPServiceAccountKeyPath, "gcp-service-account-key-path", "", "service account key for the Google Cloud Platform")
 	command.Flags().BoolVar(&opts.ForceHttpBasicAuth, "force-http-basic-auth", false, "whether to force use of basic auth when connecting repository via HTTP")
+	command.Flags().StringVar(&opts.SshKexAlgorithms, "ssh-kex-algorithms", "", "space-separated list of key exchange algorithms to use for SSH connections")
 }

@@ -1630,6 +1630,9 @@ message Repository {
 
   // ForceHttpBasicAuth specifies whether Argo CD should attempt to force basic auth for HTTP connections
   optional bool forceHttpBasicAuth = 22;
+
+  // KexAlgorithms specifies the key exchange algorithms to use for SSH connections. Whitespace seperated list.
+  optional string sshKexAlgorithms = 23;
 }
 
 // A RepositoryCertificate is either SSH known hosts entry or TLS certificate

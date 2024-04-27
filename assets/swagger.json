@@ -8150,6 +8150,10 @@
           "type": "string",
           "title": "Repo contains the URL to the remote repository"
         },
+        "sshKexAlgorithms": {
+          "description": "KexAlgorithms specifies the key exchange algorithms to use for SSH connections. Whitespace seperated list.",
+          "type": "string"
+        },
         "sshPrivateKey": {
           "description": "SSHPrivateKey contains the PEM data for authenticating at the repo server. Only used with Git repos.",
           "type": "string"

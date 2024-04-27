@@ -17,6 +17,7 @@ interface NewSSHRepoParams {
     name: string;
     url: string;
     sshPrivateKey: string;
+    sshKexAlgorithms: string;
     insecure: boolean;
     enableLfs: boolean;
     proxy: string;
@@ -67,6 +68,7 @@ interface NewGoogleCloudSourceRepoParams {
 interface NewSSHRepoCredsParams {
     url: string;
     sshPrivateKey: string;
+    sshKexAlgorithms: string;
 }
 
 interface NewHTTPSRepoCredsParams {
@@ -436,6 +438,9 @@ export class ReposList extends React.Component<
                                                         <FormField formApi={formApi} label='SSH private key data' field='sshPrivateKey' component={TextArea} />
                                                     </div>
                                                     <div className='argo-form-row'>
+                                                        <FormField formApi={formApi} label='SSH key exchange algorithms (white space seperated list)' field='sshKexAlgorithms' component={TextArea} />
+                                                    </div>
+                                                    <div className='argo-form-row'>
                                                         <FormField formApi={formApi} label='Skip server verification' field='insecure' component={CheckboxField} />
                                                         <HelpIcon title='This setting is ignored when creating as credential template.' />
                                                     </div>
@@ -674,7 +679,7 @@ export class ReposList extends React.Component<
     // Connect a new repository or create a repository credentials for SSH repositories
     private async connectSSHRepo(params: NewSSHRepoParams) {
         if (this.credsTemplate) {
-            this.createSSHCreds({url: params.url, sshPrivateKey: params.sshPrivateKey});
+            this.createSSHCreds({url: params.url, sshPrivateKey: params.sshPrivateKey, sshKexAlgorithms: params.sshKexAlgorithms});
         } else {
             this.setState({connecting: true});
             try {

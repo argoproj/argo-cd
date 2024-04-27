@@ -243,10 +243,11 @@ type SSHCreds struct {
 	insecure      bool
 	store         CredsStore
 	proxy         string
+	kexAlgorithms string
 }
 
-func NewSSHCreds(sshPrivateKey string, caPath string, insecureIgnoreHostKey bool, store CredsStore, proxy string) SSHCreds {
-	return SSHCreds{sshPrivateKey, caPath, insecureIgnoreHostKey, store, proxy}
+func NewSSHCreds(sshPrivateKey string, caPath string, insecureIgnoreHostKey bool, store CredsStore, proxy string, kexAlgorithms string) SSHCreds {
+	return SSHCreds{sshPrivateKey, caPath, insecureIgnoreHostKey, store, proxy, kexAlgorithms}
 }
 
 type sshPrivateKeyFile string
