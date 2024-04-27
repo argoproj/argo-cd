@@ -320,7 +320,7 @@ func Test_SSHCreds_Environ_TempFileCleanupOnInvalidProxyURL(t *testing.T) {
 		caFile := path.Join(tempDir, "caFile")
 		err := os.WriteFile(caFile, []byte(""), os.FileMode(0600))
 		require.NoError(t, err)
-		creds := NewSSHCreds("sshPrivateKey", caFile, insecureIgnoreHostKey, &NoopCredsStore{}, ":invalid-proxy-url")
+		creds := NewSSHCreds("sshPrivateKey", caFile, insecureIgnoreHostKey, &NoopCredsStore{}, ":invalid-proxy-url", "")
 
 		filesInDevShmBeforeInvocation := countFilesInDevShm()
 
