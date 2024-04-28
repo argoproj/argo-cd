@@ -28,7 +28,7 @@ const (
 	DefaultRSABits = 2048
 	// The default TLS cipher suites to provide to clients - see https://cipherlist.eu for updates
 	// Note that for TLS v1.3, cipher suites are not configurable and will be chosen automatically.
-	DefaultTLSCipherSuite = "TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384:TLS_RSA_WITH_AES_256_GCM_SHA384"
+	DefaultTLSCipherSuite = "TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384"
 	// The default minimum TLS version to provide to clients
 	DefaultTLSMinVersion = "1.2"
 	// The default maximum TLS version to provide to clients
