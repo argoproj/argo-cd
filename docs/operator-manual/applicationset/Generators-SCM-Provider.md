@@ -111,7 +111,7 @@ spec:
 * `tokenRef`: A `Secret` name and key containing the GitLab access token to use for requests. If not specified, will make anonymous requests which have a lower rate limit and can only see public repositories.
 * `insecure`: By default (false) - Skip checking the validity of the SCM's certificate - useful for self-signed TLS certificates.
 
-For label filtering, the repository tags are used.
+For label filtering, the repository topics are used.
 
 Available clone protocols are `ssh` and `https`.
 
@@ -395,16 +395,18 @@ kind: ApplicationSet
 metadata:
   name: myapps
 spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
   generators:
   - scmProvider:
     # ...
   template:
     metadata:
-      name: '{{ repository }}'
+      name: '{{ .repository }}'
     spec:
       source:
-        repoURL: '{{ url }}'
-        targetRevision: '{{ branch }}'
+        repoURL: '{{ .url }}'
+        targetRevision: '{{ .branch }}'
         path: kubernetes/
       project: default
       destination:
@@ -433,6 +435,8 @@ kind: ApplicationSet
 metadata:
   name: myapps
 spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
   generators:
   - scmProvider:
       bitbucketServer:
@@ -445,15 +449,15 @@ spec:
             secretName: mypassword
             key: password
       values:
-        name: "{{organization}}-{{repository}}"
+        name: "{{.organization}}-{{.repository}}"
 
   template:
     metadata:
-      name: '{{ values.name }}'
+      name: '{{ .values.name }}'
     spec:
       source:
-        repoURL: '{{ url }}'
-        targetRevision: '{{ branch }}'
+        repoURL: '{{ .url }}'
+        targetRevision: '{{ .branch }}'
         path: kubernetes/
       project: default
       destination:

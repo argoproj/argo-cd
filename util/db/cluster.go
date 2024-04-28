@@ -316,7 +316,7 @@ func (db *db) DeleteCluster(ctx context.Context, server string) error {
 	return db.settingsMgr.ResyncInformers()
 }
 
-// clusterToData converts a cluster object to string data for serialization to a secret
+// clusterToSecret converts a cluster object to string data for serialization to a secret
 func clusterToSecret(c *appv1.Cluster, secret *apiv1.Secret) error {
 	data := make(map[string][]byte)
 	data["server"] = []byte(strings.TrimRight(c.Server, "/"))
@@ -393,7 +393,7 @@ func SecretToCluster(s *apiv1.Secret) (*appv1.Cluster, error) {
 		if val, err := strconv.Atoi(string(shardStr)); err != nil {
 			log.Warnf("Error while parsing shard in cluster secret '%s': %v", s.Name, err)
 		} else {
-			shard = pointer.Int64Ptr(int64(val))
+			shard = pointer.Int64(int64(val))
 		}
 	}
 

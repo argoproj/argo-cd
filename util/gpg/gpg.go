@@ -718,14 +718,14 @@ func SyncKeyRingFromDirectory(basePath string) ([]string, []string, error) {
 		return nil
 	})
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, fmt.Errorf("error walk path: %w", err)
 	}
 
 	// Collect GPG keys installed in the key ring
 	installed := make(map[string]*appsv1.GnuPGPublicKey)
 	keys, err := GetInstalledPGPKeys(nil)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, fmt.Errorf("error get installed PGP keys: %w", err)
 	}
 	for _, v := range keys {
 		installed[v.KeyID] = v
@@ -736,16 +736,16 @@ func SyncKeyRingFromDirectory(basePath string) ([]string, []string, error) {
 		if _, ok := installed[key]; !ok {
 			addedKey, err := ImportPGPKeys(path.Join(basePath, key))
 			if err != nil {
-				return nil, nil, err
+				return nil, nil, fmt.Errorf("error import PGP keys: %w", err)
 			}
 			if len(addedKey) != 1 {
-				return nil, nil, fmt.Errorf("Invalid key found in %s", path.Join(basePath, key))
+				return nil, nil, fmt.Errorf("invalid key found in %s", path.Join(basePath, key))
 			}
 			importedKey, err := GetInstalledPGPKeys([]string{addedKey[0].KeyID})
 			if err != nil {
-				return nil, nil, err
+				return nil, nil, fmt.Errorf("error get installed PGP keys: %w", err)
 			} else if len(importedKey) != 1 {
-				return nil, nil, fmt.Errorf("Could not get details of imported key ID %s", importedKey)
+				return nil, nil, fmt.Errorf("could not get details of imported key ID %s", importedKey)
 			}
 			newKeys = append(newKeys, key)
 			fingerprints = append(fingerprints, importedKey[0].Fingerprint)
@@ -756,12 +756,12 @@ func SyncKeyRingFromDirectory(basePath string) ([]string, []string, error) {
 	for key := range installed {
 		secret, err := IsSecretKey(key)
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, fmt.Errorf("error check secret key: %w", err)
 		}
 		if _, ok := configured[key]; !ok && !secret {
 			err := DeletePGPKey(key)
 			if err != nil {
-				return nil, nil, err
+				return nil, nil, fmt.Errorf("error delete PGP keys: %w", err)
 			}
 			removedKeys = append(removedKeys, key)
 		}
@@ -772,5 +772,5 @@ func SyncKeyRingFromDirectory(basePath string) ([]string, []string, error) {
 		_ = SetPGPTrustLevelById(fingerprints, TrustUltimate)
 	}
 
-	return newKeys, removedKeys, err
+	return newKeys, removedKeys, nil
 }

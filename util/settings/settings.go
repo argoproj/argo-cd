@@ -30,6 +30,9 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"sigs.k8s.io/yaml"
 
+	enginecache "github.com/argoproj/gitops-engine/pkg/cache"
+	timeutil "github.com/argoproj/pkg/time"
+
 	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/server/settings/oidc"
@@ -38,8 +41,6 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/kube"
 	"github.com/argoproj/argo-cd/v2/util/password"
 	tlsutil "github.com/argoproj/argo-cd/v2/util/tls"
-	enginecache "github.com/argoproj/gitops-engine/pkg/cache"
-	timeutil "github.com/argoproj/pkg/time"
 )
 
 // ArgoCDSettings holds in-memory runtime configuration options.
@@ -102,6 +103,8 @@ type ArgoCDSettings struct {
 	InClusterEnabled bool `json:"inClusterEnabled"`
 	// ServerRBACLogEnforceEnable temporary var indicates whether rbac will be enforced on logs
 	ServerRBACLogEnforceEnable bool `json:"serverRBACLogEnforceEnable"`
+	// MaxPodLogsToRender the maximum number of pod logs to render
+	MaxPodLogsToRender int64 `json:"maxPodLogsToRender"`
 	// ExecEnabled indicates whether the UI exec feature is enabled
 	ExecEnabled bool `json:"execEnabled"`
 	// ExecShells restricts which shells are allowed for `exec` and in which order they are tried
@@ -155,28 +158,36 @@ func (o *oidcConfig) toExported() *OIDCConfig {
 		return nil
 	}
 	return &OIDCConfig{
-		Name:                   o.Name,
-		Issuer:                 o.Issuer,
-		ClientID:               o.ClientID,
-		ClientSecret:           o.ClientSecret,
-		CLIClientID:            o.CLIClientID,
-		RequestedScopes:        o.RequestedScopes,
-		RequestedIDTokenClaims: o.RequestedIDTokenClaims,
-		LogoutURL:              o.LogoutURL,
-		RootCA:                 o.RootCA,
+		Name:                     o.Name,
+		Issuer:                   o.Issuer,
+		ClientID:                 o.ClientID,
+		ClientSecret:             o.ClientSecret,
+		CLIClientID:              o.CLIClientID,
+		UserInfoPath:             o.UserInfoPath,
+		EnableUserInfoGroups:     o.EnableUserInfoGroups,
+		UserInfoCacheExpiration:  o.UserInfoCacheExpiration,
+		RequestedScopes:          o.RequestedScopes,
+		RequestedIDTokenClaims:   o.RequestedIDTokenClaims,
+		LogoutURL:                o.LogoutURL,
+		RootCA:                   o.RootCA,
+		EnablePKCEAuthentication: o.EnablePKCEAuthentication,
 	}
 }
 
 type OIDCConfig struct {
-	Name                   string                 `json:"name,omitempty"`
-	Issuer                 string                 `json:"issuer,omitempty"`
-	ClientID               string                 `json:"clientID,omitempty"`
-	ClientSecret           string                 `json:"clientSecret,omitempty"`
-	CLIClientID            string                 `json:"cliClientID,omitempty"`
-	RequestedScopes        []string               `json:"requestedScopes,omitempty"`
-	RequestedIDTokenClaims map[string]*oidc.Claim `json:"requestedIDTokenClaims,omitempty"`
-	LogoutURL              string                 `json:"logoutURL,omitempty"`
-	RootCA                 string                 `json:"rootCA,omitempty"`
+	Name                     string                 `json:"name,omitempty"`
+	Issuer                   string                 `json:"issuer,omitempty"`
+	ClientID                 string                 `json:"clientID,omitempty"`
+	ClientSecret             string                 `json:"clientSecret,omitempty"`
+	CLIClientID              string                 `json:"cliClientID,omitempty"`
+	EnableUserInfoGroups     bool                   `json:"enableUserInfoGroups,omitempty"`
+	UserInfoPath             string                 `json:"userInfoPath,omitempty"`
+	UserInfoCacheExpiration  string                 `json:"userInfoCacheExpiration,omitempty"`
+	RequestedScopes          []string               `json:"requestedScopes,omitempty"`
+	RequestedIDTokenClaims   map[string]*oidc.Claim `json:"requestedIDTokenClaims,omitempty"`
+	LogoutURL                string                 `json:"logoutURL,omitempty"`
+	RootCA                   string                 `json:"rootCA,omitempty"`
+	EnablePKCEAuthentication bool                   `json:"enablePKCEAuthentication,omitempty"`
 }
 
 // DEPRECATED. Helm repository credentials are now managed using RepoCredentials
@@ -476,6 +487,8 @@ const (
 	inClusterEnabledKey = "cluster.inClusterEnabled"
 	// settingsServerRBACLogEnforceEnable is the key to configure whether logs RBAC enforcement is enabled
 	settingsServerRBACLogEnforceEnableKey = "server.rbac.log.enforce.enable"
+	// MaxPodLogsToRender the maximum number of pod logs to render
+	settingsMaxPodLogsToRender = "server.maxPodLogsToRender"
 	// helmValuesFileSchemesKey is the key to configure the list of supported helm values file schemas
 	helmValuesFileSchemesKey = "helm.valuesFileSchemes"
 	// execEnabledKey is the key to configure whether the UI exec feature is enabled
@@ -777,6 +790,19 @@ func (mgr *SettingsManager) GetServerRBACLogEnforceEnable() (bool, error) {
 	}
 
 	return strconv.ParseBool(argoCDCM.Data[settingsServerRBACLogEnforceEnableKey])
+}
+
+func (mgr *SettingsManager) GetMaxPodLogsToRender() (int64, error) {
+	argoCDCM, err := mgr.getConfigMap()
+	if err != nil {
+		return 10, err
+	}
+
+	if argoCDCM.Data[settingsMaxPodLogsToRender] == "" {
+		return 10, nil
+	}
+
+	return strconv.ParseInt(argoCDCM.Data[settingsMaxPodLogsToRender], 10, 64)
 }
 
 func (mgr *SettingsManager) GetDeepLinks(deeplinkType string) ([]DeepLink, error) {
@@ -1324,8 +1350,15 @@ func (mgr *SettingsManager) initialize(ctx context.Context) error {
 	}
 	cmInformer := v1.NewFilteredConfigMapInformer(mgr.clientset, mgr.namespace, 3*time.Minute, indexers, tweakConfigMap)
 	secretsInformer := v1.NewSecretInformer(mgr.clientset, mgr.namespace, 3*time.Minute, indexers)
-	cmInformer.AddEventHandler(eventHandler)
-	secretsInformer.AddEventHandler(eventHandler)
+	_, err := cmInformer.AddEventHandler(eventHandler)
+	if err != nil {
+		log.Error(err)
+	}
+
+	_, err = secretsInformer.AddEventHandler(eventHandler)
+	if err != nil {
+		log.Error(err)
+	}
 
 	log.Info("Starting configmap/secret informers")
 	go func() {
@@ -1368,8 +1401,14 @@ func (mgr *SettingsManager) initialize(ctx context.Context) error {
 			}
 		},
 	}
-	secretsInformer.AddEventHandler(handler)
-	cmInformer.AddEventHandler(handler)
+	_, err = secretsInformer.AddEventHandler(handler)
+	if err != nil {
+		log.Error(err)
+	}
+	_, err = cmInformer.AddEventHandler(handler)
+	if err != nil {
+		log.Error(err)
+	}
 	mgr.secrets = v1listers.NewSecretLister(secretsInformer.GetIndexer())
 	mgr.secretsInformer = secretsInformer
 	mgr.configmaps = v1listers.NewConfigMapLister(cmInformer.GetIndexer())
@@ -1435,6 +1474,13 @@ func updateSettingsFromConfigMap(settings *ArgoCDSettings, argoCDCM *apiv1.Confi
 	if settings.PasswordPattern == "" {
 		settings.PasswordPattern = common.PasswordPatten
 	}
+	if maxPodLogsToRenderStr, ok := argoCDCM.Data[settingsMaxPodLogsToRender]; ok {
+		if val, err := strconv.ParseInt(maxPodLogsToRenderStr, 10, 64); err != nil {
+			log.Warnf("Failed to parse '%s' key: %v", settingsMaxPodLogsToRender, err)
+		} else {
+			settings.MaxPodLogsToRender = val
+		}
+	}
 	settings.InClusterEnabled = argoCDCM.Data[inClusterEnabledKey] != "false"
 	settings.ExecEnabled = argoCDCM.Data[execEnabledKey] == "true"
 	execShells := argoCDCM.Data[execShellsKey]
@@ -1472,27 +1518,6 @@ func (mgr *SettingsManager) updateSettingsFromSecret(settings *ArgoCDSettings, a
 		settings.ServerSignature = secretKey
 	} else {
 		errs = append(errs, &incompleteSettingsError{message: "server.secretkey is missing"})
-	}
-	if githubWebhookSecret := argoCDSecret.Data[settingsWebhookGitHubSecretKey]; len(githubWebhookSecret) > 0 {
-		settings.WebhookGitHubSecret = string(githubWebhookSecret)
-	}
-	if gitlabWebhookSecret := argoCDSecret.Data[settingsWebhookGitLabSecretKey]; len(gitlabWebhookSecret) > 0 {
-		settings.WebhookGitLabSecret = string(gitlabWebhookSecret)
-	}
-	if bitbucketWebhookUUID := argoCDSecret.Data[settingsWebhookBitbucketUUIDKey]; len(bitbucketWebhookUUID) > 0 {
-		settings.WebhookBitbucketUUID = string(bitbucketWebhookUUID)
-	}
-	if bitbucketserverWebhookSecret := argoCDSecret.Data[settingsWebhookBitbucketServerSecretKey]; len(bitbucketserverWebhookSecret) > 0 {
-		settings.WebhookBitbucketServerSecret = string(bitbucketserverWebhookSecret)
-	}
-	if gogsWebhookSecret := argoCDSecret.Data[settingsWebhookGogsSecretKey]; len(gogsWebhookSecret) > 0 {
-		settings.WebhookGogsSecret = string(gogsWebhookSecret)
-	}
-	if azureDevOpsUsername := argoCDSecret.Data[settingsWebhookAzureDevOpsUsernameKey]; len(azureDevOpsUsername) > 0 {
-		settings.WebhookAzureDevOpsUsername = string(azureDevOpsUsername)
-	}
-	if azureDevOpsPassword := argoCDSecret.Data[settingsWebhookAzureDevOpsPasswordKey]; len(azureDevOpsPassword) > 0 {
-		settings.WebhookAzureDevOpsPassword = string(azureDevOpsPassword)
 	}
 
 	// The TLS certificate may be externally managed. We try to load it from an
@@ -1533,6 +1558,15 @@ func (mgr *SettingsManager) updateSettingsFromSecret(settings *ArgoCDSettings, a
 	if len(errs) > 0 {
 		return errs[0]
 	}
+
+	settings.WebhookGitHubSecret = ReplaceStringSecret(string(argoCDSecret.Data[settingsWebhookGitHubSecretKey]), settings.Secrets)
+	settings.WebhookGitLabSecret = ReplaceStringSecret(string(argoCDSecret.Data[settingsWebhookGitLabSecretKey]), settings.Secrets)
+	settings.WebhookBitbucketUUID = ReplaceStringSecret(string(argoCDSecret.Data[settingsWebhookBitbucketUUIDKey]), settings.Secrets)
+	settings.WebhookBitbucketServerSecret = ReplaceStringSecret(string(argoCDSecret.Data[settingsWebhookBitbucketServerSecretKey]), settings.Secrets)
+	settings.WebhookGogsSecret = ReplaceStringSecret(string(argoCDSecret.Data[settingsWebhookGogsSecretKey]), settings.Secrets)
+	settings.WebhookAzureDevOpsUsername = ReplaceStringSecret(string(argoCDSecret.Data[settingsWebhookAzureDevOpsUsernameKey]), settings.Secrets)
+	settings.WebhookAzureDevOpsPassword = ReplaceStringSecret(string(argoCDSecret.Data[settingsWebhookAzureDevOpsPasswordKey]), settings.Secrets)
+
 	return nil
 }
 
@@ -1832,6 +1866,34 @@ func (a *ArgoCDSettings) IssuerURL() string {
 		return a.URL + common.DexAPIEndpoint
 	}
 	return ""
+}
+
+// UserInfoGroupsEnabled returns whether group claims should be fetch from UserInfo endpoint
+func (a *ArgoCDSettings) UserInfoGroupsEnabled() bool {
+	if oidcConfig := a.OIDCConfig(); oidcConfig != nil {
+		return oidcConfig.EnableUserInfoGroups
+	}
+	return false
+}
+
+// UserInfoPath returns the sub-path on which the IDP exposes the UserInfo endpoint
+func (a *ArgoCDSettings) UserInfoPath() string {
+	if oidcConfig := a.OIDCConfig(); oidcConfig != nil {
+		return oidcConfig.UserInfoPath
+	}
+	return ""
+}
+
+// UserInfoCacheExpiration returns the expiry time of the UserInfo cache
+func (a *ArgoCDSettings) UserInfoCacheExpiration() time.Duration {
+	if oidcConfig := a.OIDCConfig(); oidcConfig != nil && oidcConfig.UserInfoCacheExpiration != "" {
+		userInfoCacheExpiration, err := time.ParseDuration(oidcConfig.UserInfoCacheExpiration)
+		if err != nil {
+			log.Warnf("Failed to parse 'oidc.config.userInfoCacheExpiration' key: %v", err)
+		}
+		return userInfoCacheExpiration
+	}
+	return 0
 }
 
 func (a *ArgoCDSettings) OAuth2ClientID() string {

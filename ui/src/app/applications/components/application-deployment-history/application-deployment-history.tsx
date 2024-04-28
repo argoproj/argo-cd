@@ -1,4 +1,5 @@
 import {DataLoader, DropDownMenu, Duration} from 'argo-ui';
+import {InitiatedBy} from './initiated-by';
 import * as moment from 'moment';
 import * as React from 'react';
 import {Revision, Timestamp} from '../../../shared/components';
@@ -41,6 +42,12 @@ export const ApplicationDeploymentHistory = ({
                             <i className='fa fa-hourglass-half' /> <span className='show-for-large'>Time to deploy:</span>
                             <br />
                             {(info.deployStartedAt && <Duration durationMs={moment(info.deployedAt).diff(moment(info.deployStartedAt)) / 1000} />) || 'Unknown'}
+                        </div>
+                        <div>
+                            <br />
+                            Initiated by:
+                            <br />
+                            <InitiatedBy username={info.initiatedBy.username} automated={info.initiatedBy.automated} />
                         </div>
                         <div>
                             <br />

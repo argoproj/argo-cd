@@ -76,7 +76,7 @@ func fakeRepo() *appsv1.Repository {
 
 func fakeCluster() *appsv1.Cluster {
 	return &appsv1.Cluster{
-		Server: "https://cluster-api.com",
+		Server: "https://cluster-api.example.com",
 		Name:   "fake-cluster",
 		Config: appsv1.ClusterConfig{},
 	}
@@ -132,10 +132,10 @@ func newTestAppServer(t *testing.T, objects ...runtime.Object) *Server {
 		_ = enf.SetBuiltinPolicy(assets.BuiltinPolicyCSV)
 		enf.SetDefaultRole("role:admin")
 	}
-	return newTestAppServerWithEnforcerConfigure(f, t, objects...)
+	return newTestAppServerWithEnforcerConfigure(f, t, map[string]string{}, objects...)
 }
 
-func newTestAppServerWithEnforcerConfigure(f func(*rbac.Enforcer), t *testing.T, objects ...runtime.Object) *Server {
+func newTestAppServerWithEnforcerConfigure(f func(*rbac.Enforcer), t *testing.T, additionalConfig map[string]string, objects ...runtime.Object) *Server {
 	kubeclientset := fake.NewSimpleClientset(&v1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: testNamespace,
@@ -144,6 +144,7 @@ func newTestAppServerWithEnforcerConfigure(f func(*rbac.Enforcer), t *testing.T,
 				"app.kubernetes.io/part-of": "argocd",
 			},
 		},
+		Data: additionalConfig,
 	}, &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "argocd-secret",
@@ -209,7 +210,7 @@ func newTestAppServerWithEnforcerConfigure(f func(*rbac.Enforcer), t *testing.T,
 	// populate the app informer with the fake objects
 	appInformer := factory.Argoproj().V1alpha1().Applications().Informer()
 	// TODO(jessesuen): probably should return cancel function so tests can stop background informer
-	//ctx, cancel := context.WithCancel(context.Background())
+	// ctx, cancel := context.WithCancel(context.Background())
 	go appInformer.Run(ctx.Done())
 	if !k8scache.WaitForCacheSync(ctx.Done(), appInformer.HasSynced) {
 		panic("Timed out waiting for caches to sync")
@@ -503,7 +504,7 @@ spec:
       environment: default
   destination:
     namespace: ` + test.FakeDestNamespace + `
-    server: https://cluster-api.com
+    server: https://cluster-api.example.com
 `
 
 const fakeAppWithDestName = `
@@ -541,7 +542,7 @@ spec:
       environment: default
   destination:
     namespace: ` + test.FakeDestNamespace + `
-    server: https://cluster-api.com
+    server: https://cluster-api.example.com
 `
 
 func newTestAppWithDestName(opts ...func(app *appsv1.Application)) *appsv1.Application {
@@ -752,7 +753,7 @@ func TestNoAppEnumeration(t *testing.T) {
 		}
 	})
 	testDeployment := kube.MustToUnstructured(&deployment)
-	appServer := newTestAppServerWithEnforcerConfigure(f, t, testApp, testHelmApp, testDeployment)
+	appServer := newTestAppServerWithEnforcerConfigure(f, t, map[string]string{}, testApp, testHelmApp, testDeployment)
 
 	noRoleCtx := context.Background()
 	// nolint:staticcheck
@@ -797,22 +798,22 @@ func TestNoAppEnumeration(t *testing.T) {
 
 	t.Run("UpdateSpec", func(t *testing.T) {
 		_, err := appServer.UpdateSpec(adminCtx, &application.ApplicationUpdateSpecRequest{Name: pointer.String("test"), Spec: &appsv1.ApplicationSpec{
-			Destination: appsv1.ApplicationDestination{Namespace: "default", Server: "https://cluster-api.com"},
+			Destination: appsv1.ApplicationDestination{Namespace: "default", Server: "https://cluster-api.example.com"},
 			Source:      &appsv1.ApplicationSource{RepoURL: "https://some-fake-source", Path: "."},
 		}})
 		assert.NoError(t, err)
 		_, err = appServer.UpdateSpec(noRoleCtx, &application.ApplicationUpdateSpecRequest{Name: pointer.String("test"), Spec: &appsv1.ApplicationSpec{
-			Destination: appsv1.ApplicationDestination{Namespace: "default", Server: "https://cluster-api.com"},
+			Destination: appsv1.ApplicationDestination{Namespace: "default", Server: "https://cluster-api.example.com"},
 			Source:      &appsv1.ApplicationSource{RepoURL: "https://some-fake-source", Path: "."},
 		}})
 		assert.Equal(t, permissionDeniedErr.Error(), err.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
 		_, err = appServer.UpdateSpec(adminCtx, &application.ApplicationUpdateSpecRequest{Name: pointer.String("doest-not-exist"), Spec: &appsv1.ApplicationSpec{
-			Destination: appsv1.ApplicationDestination{Namespace: "default", Server: "https://cluster-api.com"},
+			Destination: appsv1.ApplicationDestination{Namespace: "default", Server: "https://cluster-api.example.com"},
 			Source:      &appsv1.ApplicationSource{RepoURL: "https://some-fake-source", Path: "."},
 		}})
 		assert.Equal(t, permissionDeniedErr.Error(), err.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
 		_, err = appServer.UpdateSpec(adminCtx, &application.ApplicationUpdateSpecRequest{Name: pointer.String("doest-not-exist"), Project: pointer.String("test"), Spec: &appsv1.ApplicationSpec{
-			Destination: appsv1.ApplicationDestination{Namespace: "default", Server: "https://cluster-api.com"},
+			Destination: appsv1.ApplicationDestination{Namespace: "default", Server: "https://cluster-api.example.com"},
 			Source:      &appsv1.ApplicationSource{RepoURL: "https://some-fake-source", Path: "."},
 		}})
 		assert.Equal(t, "rpc error: code = NotFound desc = applications.argoproj.io \"doest-not-exist\" not found", err.Error(), "when the request specifies a project, we can return the standard k8s error message")
@@ -1136,7 +1137,7 @@ func testListAppsWithLabels(t *testing.T, appQuery application.ApplicationQuery,
 			label:          "!key2",
 			expectedResult: []string{"App2", "App3"}},
 	}
-	//test valid scenarios
+	// test valid scenarios
 	for _, validTest := range validTests {
 		t.Run(validTest.testName, func(t *testing.T) {
 			appQuery.Selector = &validTest.label
@@ -1162,7 +1163,7 @@ func testListAppsWithLabels(t *testing.T, appQuery application.ApplicationQuery,
 			label:       "key1<value1",
 			errorMesage: "error parsing the selector"},
 	}
-	//test invalid scenarios
+	// test invalid scenarios
 	for _, invalidTest := range invalidTests {
 		t.Run(invalidTest.testName, func(t *testing.T) {
 			appQuery.Selector = &invalidTest.label
@@ -1272,7 +1273,7 @@ g, group-49, role:test3
 `
 		_ = enf.SetUserPolicy(policy)
 	}
-	appServer := newTestAppServerWithEnforcerConfigure(f, t, objects...)
+	appServer := newTestAppServerWithEnforcerConfigure(f, t, map[string]string{}, objects...)
 
 	res, err := appServer.List(ctx, &application.ApplicationQuery{})
 
@@ -1436,7 +1437,28 @@ func TestCreateAppWithDestName(t *testing.T) {
 	app, err := appServer.Create(context.Background(), &createReq)
 	assert.NoError(t, err)
 	assert.NotNil(t, app)
-	assert.Equal(t, app.Spec.Destination.Server, "https://cluster-api.com")
+	assert.Equal(t, app.Spec.Destination.Server, "https://cluster-api.example.com")
+}
+
+// TestCreateAppWithOperation tests that an application created with an operation is created with the operation removed.
+// Avoids regressions of https://github.com/argoproj/argo-cd/security/advisories/GHSA-g623-jcgg-mhmm
+func TestCreateAppWithOperation(t *testing.T) {
+	appServer := newTestAppServer(t)
+	testApp := newTestAppWithDestName()
+	testApp.Operation = &appsv1.Operation{
+		Sync: &appsv1.SyncOperation{
+			Manifests: []string{
+				"test",
+			},
+		},
+	}
+	createReq := application.ApplicationCreateRequest{
+		Application: testApp,
+	}
+	app, err := appServer.Create(context.Background(), &createReq)
+	require.NoError(t, err)
+	require.NotNil(t, app)
+	assert.Nil(t, app.Operation)
 }
 
 func TestUpdateApp(t *testing.T) {
@@ -1797,7 +1819,7 @@ func TestServer_GetApplicationSyncWindowsState(t *testing.T) {
 		appServer := newTestAppServer(t, testApp)
 
 		active, err := appServer.GetApplicationSyncWindows(context.Background(), &application.ApplicationSyncWindowsQuery{Name: &testApp.Name})
-		assert.Contains(t, err.Error(), "not found")
+		assert.Contains(t, err.Error(), "not exist")
 		assert.Nil(t, active)
 	})
 }
@@ -1966,6 +1988,108 @@ func TestLogsGetSelectedPod(t *testing.T) {
 	})
 }
 
+func TestMaxPodLogsRender(t *testing.T) {
+
+	defaultMaxPodLogsToRender, _ := newTestAppServer(t).settingsMgr.GetMaxPodLogsToRender()
+
+	// Case: number of pods to view logs is less than defaultMaxPodLogsToRender
+	podNumber := int(defaultMaxPodLogsToRender - 1)
+	appServer, adminCtx := createAppServerWithMaxLodLogs(t, podNumber)
+
+	t.Run("PodLogs", func(t *testing.T) {
+		err := appServer.PodLogs(&application.ApplicationPodLogsQuery{Name: pointer.String("test")}, &TestPodLogsServer{ctx: adminCtx})
+		statusCode, _ := status.FromError(err)
+		assert.Equal(t, codes.OK, statusCode.Code())
+	})
+
+	// Case: number of pods higher than defaultMaxPodLogsToRender
+	podNumber = int(defaultMaxPodLogsToRender + 1)
+	appServer, adminCtx = createAppServerWithMaxLodLogs(t, podNumber)
+
+	t.Run("PodLogs", func(t *testing.T) {
+		err := appServer.PodLogs(&application.ApplicationPodLogsQuery{Name: pointer.String("test")}, &TestPodLogsServer{ctx: adminCtx})
+		assert.NotNil(t, err)
+		statusCode, _ := status.FromError(err)
+		assert.Equal(t, codes.InvalidArgument, statusCode.Code())
+		assert.Equal(t, "rpc error: code = InvalidArgument desc = max pods to view logs are reached. Please provide more granular query", err.Error())
+	})
+
+	// Case: number of pods to view logs is less than customMaxPodLogsToRender
+	customMaxPodLogsToRender := int64(15)
+	podNumber = int(customMaxPodLogsToRender - 1)
+	appServer, adminCtx = createAppServerWithMaxLodLogs(t, podNumber, customMaxPodLogsToRender)
+
+	t.Run("PodLogs", func(t *testing.T) {
+		err := appServer.PodLogs(&application.ApplicationPodLogsQuery{Name: pointer.String("test")}, &TestPodLogsServer{ctx: adminCtx})
+		statusCode, _ := status.FromError(err)
+		assert.Equal(t, codes.OK, statusCode.Code())
+	})
+
+	// Case: number of pods higher than customMaxPodLogsToRender
+	customMaxPodLogsToRender = int64(15)
+	podNumber = int(customMaxPodLogsToRender + 1)
+	appServer, adminCtx = createAppServerWithMaxLodLogs(t, podNumber, customMaxPodLogsToRender)
+
+	t.Run("PodLogs", func(t *testing.T) {
+		err := appServer.PodLogs(&application.ApplicationPodLogsQuery{Name: pointer.String("test")}, &TestPodLogsServer{ctx: adminCtx})
+		assert.NotNil(t, err)
+		statusCode, _ := status.FromError(err)
+		assert.Equal(t, codes.InvalidArgument, statusCode.Code())
+		assert.Equal(t, "rpc error: code = InvalidArgument desc = max pods to view logs are reached. Please provide more granular query", err.Error())
+	})
+}
+
+// createAppServerWithMaxLodLogs creates a new app server with given number of pods and resources
+func createAppServerWithMaxLodLogs(t *testing.T, podNumber int, maxPodLogsToRender ...int64) (*Server, context.Context) {
+	runtimeObjects := make([]runtime.Object, podNumber+1)
+	resources := make([]appsv1.ResourceStatus, podNumber)
+
+	for i := 0; i < podNumber; i++ {
+		pod := v1.Pod{
+			TypeMeta: metav1.TypeMeta{
+				APIVersion: "v1",
+				Kind:       "Pod",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      fmt.Sprintf("pod-%d", i),
+				Namespace: "test",
+			},
+		}
+		resources[i] = appsv1.ResourceStatus{
+			Group:     pod.GroupVersionKind().Group,
+			Kind:      pod.GroupVersionKind().Kind,
+			Version:   pod.GroupVersionKind().Version,
+			Name:      pod.Name,
+			Namespace: pod.Namespace,
+			Status:    "Synced",
+		}
+		runtimeObjects[i] = kube.MustToUnstructured(&pod)
+	}
+
+	testApp := newTestApp(func(app *appsv1.Application) {
+		app.Name = "test"
+		app.Status.Resources = resources
+	})
+	runtimeObjects[podNumber] = testApp
+
+	noRoleCtx := context.Background()
+	// nolint:staticcheck
+	adminCtx := context.WithValue(noRoleCtx, "claims", &jwt.MapClaims{"groups": []string{"admin"}})
+
+	if len(maxPodLogsToRender) > 0 {
+		f := func(enf *rbac.Enforcer) {
+			_ = enf.SetBuiltinPolicy(assets.BuiltinPolicyCSV)
+			enf.SetDefaultRole("role:admin")
+		}
+		formatInt := strconv.FormatInt(maxPodLogsToRender[0], 10)
+		appServer := newTestAppServerWithEnforcerConfigure(f, t, map[string]string{"server.maxPodLogsToRender": formatInt}, runtimeObjects...)
+		return appServer, adminCtx
+	} else {
+		appServer := newTestAppServer(t, runtimeObjects...)
+		return appServer, adminCtx
+	}
+}
+
 // refreshAnnotationRemover runs an infinite loop until it detects and removes refresh annotation or given context is done
 func refreshAnnotationRemover(t *testing.T, ctx context.Context, patched *int32, appServer *Server, appName string, ch chan string) {
 	for ctx.Err() == nil {
@@ -2001,7 +2125,7 @@ func TestGetAppRefresh_NormalRefresh(t *testing.T) {
 
 	_, err := appServer.Get(context.Background(), &application.ApplicationQuery{
 		Name:    &testApp.Name,
-		Refresh: pointer.StringPtr(string(appsv1.RefreshTypeNormal)),
+		Refresh: pointer.String(string(appsv1.RefreshTypeNormal)),
 	})
 	assert.NoError(t, err)
 
@@ -2037,7 +2161,7 @@ func TestGetAppRefresh_HardRefresh(t *testing.T) {
 
 	_, err := appServer.Get(context.Background(), &application.ApplicationQuery{
 		Name:    &testApp.Name,
-		Refresh: pointer.StringPtr(string(appsv1.RefreshTypeHard)),
+		Refresh: pointer.String(string(appsv1.RefreshTypeHard)),
 	})
 	assert.NoError(t, err)
 	require.NotNil(t, getAppDetailsQuery)
@@ -2407,7 +2531,16 @@ func TestAppNamespaceRestrictions(t *testing.T) {
 	t.Run("Get application in other namespace when allowed", func(t *testing.T) {
 		testApp := newTestApp()
 		testApp.Namespace = "argocd-1"
-		appServer := newTestAppServer(t, testApp)
+		testApp.Spec.Project = "other-ns"
+		otherNsProj := &appsv1.AppProject{
+			ObjectMeta: metav1.ObjectMeta{Name: "other-ns", Namespace: "default"},
+			Spec: appsv1.AppProjectSpec{
+				SourceRepos:      []string{"*"},
+				Destinations:     []appsv1.ApplicationDestination{{Server: "*", Namespace: "*"}},
+				SourceNamespaces: []string{"argocd-1"},
+			},
+		}
+		appServer := newTestAppServer(t, testApp, otherNsProj)
 		appServer.enabledNamespaces = []string{"argocd-1"}
 		app, err := appServer.Get(context.TODO(), &application.ApplicationQuery{
 			Name:         pointer.String("test-app"),
@@ -2417,6 +2550,28 @@ func TestAppNamespaceRestrictions(t *testing.T) {
 		require.NotNil(t, app)
 		require.Equal(t, "argocd-1", app.Namespace)
 		require.Equal(t, "test-app", app.Name)
+	})
+	t.Run("Get application in other namespace when project is not allowed", func(t *testing.T) {
+		testApp := newTestApp()
+		testApp.Namespace = "argocd-1"
+		testApp.Spec.Project = "other-ns"
+		otherNsProj := &appsv1.AppProject{
+			ObjectMeta: metav1.ObjectMeta{Name: "other-ns", Namespace: "default"},
+			Spec: appsv1.AppProjectSpec{
+				SourceRepos:      []string{"*"},
+				Destinations:     []appsv1.ApplicationDestination{{Server: "*", Namespace: "*"}},
+				SourceNamespaces: []string{"argocd-2"},
+			},
+		}
+		appServer := newTestAppServer(t, testApp, otherNsProj)
+		appServer.enabledNamespaces = []string{"argocd-1"}
+		app, err := appServer.Get(context.TODO(), &application.ApplicationQuery{
+			Name:         pointer.String("test-app"),
+			AppNamespace: pointer.String("argocd-1"),
+		})
+		require.Error(t, err)
+		require.Nil(t, app)
+		require.ErrorContains(t, err, "app is not allowed in project")
 	})
 	t.Run("Create application in other namespace when allowed", func(t *testing.T) {
 		testApp := newTestApp()
@@ -2460,7 +2615,7 @@ func TestAppNamespaceRestrictions(t *testing.T) {
 		})
 		require.Error(t, err)
 		require.Nil(t, app)
-		require.ErrorContains(t, err, "not allowed to use project")
+		require.ErrorContains(t, err, "app is not allowed in project")
 	})
 
 	t.Run("Create application in other namespace when not allowed by configuration", func(t *testing.T) {
@@ -2484,5 +2639,84 @@ func TestAppNamespaceRestrictions(t *testing.T) {
 		require.Nil(t, app)
 		require.ErrorContains(t, err, "namespace 'argocd-1' is not permitted")
 	})
-
+	t.Run("Get application sync window in other namespace when project is allowed", func(t *testing.T) {
+		testApp := newTestApp()
+		testApp.Namespace = "argocd-1"
+		testApp.Spec.Project = "other-ns"
+		otherNsProj := &appsv1.AppProject{
+			ObjectMeta: metav1.ObjectMeta{Name: "other-ns", Namespace: "default"},
+			Spec: appsv1.AppProjectSpec{
+				SourceRepos:      []string{"*"},
+				Destinations:     []appsv1.ApplicationDestination{{Server: "*", Namespace: "*"}},
+				SourceNamespaces: []string{"argocd-1"},
+			},
+		}
+		appServer := newTestAppServer(t, testApp, otherNsProj)
+		appServer.enabledNamespaces = []string{"argocd-1"}
+		active, err := appServer.GetApplicationSyncWindows(context.TODO(), &application.ApplicationSyncWindowsQuery{Name: &testApp.Name, AppNamespace: &testApp.Namespace})
+		assert.NoError(t, err)
+		assert.Equal(t, 0, len(active.ActiveWindows))
+	})
+	t.Run("Get application sync window in other namespace when project is not allowed", func(t *testing.T) {
+		testApp := newTestApp()
+		testApp.Namespace = "argocd-1"
+		testApp.Spec.Project = "other-ns"
+		otherNsProj := &appsv1.AppProject{
+			ObjectMeta: metav1.ObjectMeta{Name: "other-ns", Namespace: "default"},
+			Spec: appsv1.AppProjectSpec{
+				SourceRepos:      []string{"*"},
+				Destinations:     []appsv1.ApplicationDestination{{Server: "*", Namespace: "*"}},
+				SourceNamespaces: []string{"argocd-2"},
+			},
+		}
+		appServer := newTestAppServer(t, testApp, otherNsProj)
+		appServer.enabledNamespaces = []string{"argocd-1"}
+		active, err := appServer.GetApplicationSyncWindows(context.TODO(), &application.ApplicationSyncWindowsQuery{Name: &testApp.Name, AppNamespace: &testApp.Namespace})
+		require.Error(t, err)
+		require.Nil(t, active)
+		require.ErrorContains(t, err, "app is not allowed in project")
+	})
+	t.Run("Get list of links in other namespace when project is not allowed", func(t *testing.T) {
+		testApp := newTestApp()
+		testApp.Namespace = "argocd-1"
+		testApp.Spec.Project = "other-ns"
+		otherNsProj := &appsv1.AppProject{
+			ObjectMeta: metav1.ObjectMeta{Name: "other-ns", Namespace: "default"},
+			Spec: appsv1.AppProjectSpec{
+				SourceRepos:      []string{"*"},
+				Destinations:     []appsv1.ApplicationDestination{{Server: "*", Namespace: "*"}},
+				SourceNamespaces: []string{"argocd-2"},
+			},
+		}
+		appServer := newTestAppServer(t, testApp, otherNsProj)
+		appServer.enabledNamespaces = []string{"argocd-1"}
+		links, err := appServer.ListLinks(context.TODO(), &application.ListAppLinksRequest{
+			Name:      pointer.String("test-app"),
+			Namespace: pointer.String("argocd-1"),
+		})
+		require.Error(t, err)
+		require.Nil(t, links)
+		require.ErrorContains(t, err, "app is not allowed in project")
+	})
+	t.Run("Get list of links in other namespace when project is allowed", func(t *testing.T) {
+		testApp := newTestApp()
+		testApp.Namespace = "argocd-1"
+		testApp.Spec.Project = "other-ns"
+		otherNsProj := &appsv1.AppProject{
+			ObjectMeta: metav1.ObjectMeta{Name: "other-ns", Namespace: "default"},
+			Spec: appsv1.AppProjectSpec{
+				SourceRepos:      []string{"*"},
+				Destinations:     []appsv1.ApplicationDestination{{Server: "*", Namespace: "*"}},
+				SourceNamespaces: []string{"argocd-1"},
+			},
+		}
+		appServer := newTestAppServer(t, testApp, otherNsProj)
+		appServer.enabledNamespaces = []string{"argocd-1"}
+		links, err := appServer.ListLinks(context.TODO(), &application.ListAppLinksRequest{
+			Name:      pointer.String("test-app"),
+			Namespace: pointer.String("argocd-1"),
+		})
+		require.NoError(t, err)
+		assert.Equal(t, 0, len(links.Items))
+	})
 }

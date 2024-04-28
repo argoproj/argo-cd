@@ -489,6 +489,9 @@ func (s *secretsRepositoryBackend) getRepositoryCredentialIndex(repoCredentials 
 	for i, cred := range repoCredentials {
 		credUrl := git.NormalizeGitURL(string(cred.Data["url"]))
 		if strings.HasPrefix(repoURL, credUrl) {
+			if len(credUrl) == max {
+				log.Warnf("Found multiple credentials for repoURL: %s", repoURL)
+			}
 			if len(credUrl) > max {
 				max = len(credUrl)
 				idx = i

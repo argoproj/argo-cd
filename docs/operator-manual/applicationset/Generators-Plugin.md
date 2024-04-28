@@ -22,6 +22,8 @@ kind: ApplicationSet
 metadata:
   name: myplugin
 spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
   generators:
     - plugin:
         # Specify the configMap where the plugin configuration is located.
@@ -51,10 +53,10 @@ spec:
     metadata:
       name: myplugin
       annotations:
-        example.from.input.parameters: "{{ generator.input.parameters.map.key1 }}"
-        example.from.values: "{{ values.value1 }}"
+        example.from.input.parameters: "{{ index .generator.input.parameters.map "key1" }}"
+        example.from.values: "{{ .values.value1 }}"
         # The plugin determines what else it produces.
-        example.from.plugin.output: "{{ something.from.the.plugin }}"
+        example.from.plugin.output: "{{ .something.from.the.plugin }}"
 ```
 
 - `configMapRef.name`: A `ConfigMap` name containing the plugin configuration to use for RPC call.
@@ -75,10 +77,12 @@ metadata:
 data:
   token: "$plugin.myplugin.token" # Alternatively $<some_K8S_secret>:plugin.myplugin.token
   baseUrl: "http://myplugin.plugin-ns.svc.cluster.local."
+  requestTimeout: "60"
 ```
 
 - `token`: Pre-shared token used to authenticate HTTP request (points to the right key you created in the `argocd-secret` Secret)
 - `baseUrl`: BaseUrl of the k8s service exposing your plugin in the cluster.
+- `requestTimeout`: Timeout of the request to the plugin in seconds (default: 30)
 
 ### Store credentials
 
@@ -230,6 +234,7 @@ metadata:
   name: fb-matrix
 spec:
   goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
   generators:
     - matrix:
         generators:

@@ -70,6 +70,9 @@ export async function deleteApplication(appName: string, appNamespace: string, a
             <div>
                 <p>
                     Are you sure you want to delete the application <kbd>{appName}</kbd>?
+                    <span style={{display: 'block', marginBottom: '10px'}} />
+                    Deleting the application in <kbd>foreground</kbd> or <kbd>background</kbd> mode will delete all the application's managed resources, which can be{' '}
+                    <strong>dangerous</strong>. Be sure you understand the effects of deleting this resource before continuing. Consider asking someone to review the change first.
                 </p>
                 <div className='argo-form-row'>
                     <FormField
@@ -300,6 +303,9 @@ export const deletePodAction = async (pod: appModels.Pod, appContext: AppContext
             <div>
                 <p>
                     Are you sure you want to delete Pod <kbd>{pod.name}</kbd>?
+                    <span style={{display: 'block', marginBottom: '10px'}} />
+                    Deleting resources can be <strong>dangerous</strong>. Be sure you understand the effects of deleting this resource before continuing. Consider asking someone to
+                    review the change first.
                 </p>
                 <div className='argo-form-row' style={{paddingLeft: '30px'}}>
                     <CheckboxField id='force-delete-checkbox' field='force'>
@@ -325,7 +331,12 @@ export const deletePodAction = async (pod: appModels.Pod, appContext: AppContext
 };
 
 export const deletePopup = async (ctx: ContextApis, resource: ResourceTreeNode, application: appModels.Application, appChanged?: BehaviorSubject<appModels.Application>) => {
-    const isManaged = !!resource.status;
+    function isTopLevelResource(res: ResourceTreeNode, app: appModels.Application): boolean {
+        const uniqRes = `/${res.namespace}/${res.group}/${res.kind}/${res.name}`;
+        return app.status.resources.some(resStatus => `/${resStatus.namespace}/${resStatus.group}/${resStatus.kind}/${resStatus.name}` === uniqRes);
+    }
+
+    const isManaged = isTopLevelResource(resource, application);
     const deleteOptions = {
         option: 'foreground'
     };
@@ -338,7 +349,11 @@ export const deletePopup = async (ctx: ContextApis, resource: ResourceTreeNode, 
             <div>
                 <p>
                     Are you sure you want to delete {resource.kind} <kbd>{resource.name}</kbd>?
+                    <span style={{display: 'block', marginBottom: '10px'}} />
+                    Deleting resources can be <strong>dangerous</strong>. Be sure you understand the effects of deleting this resource before continuing. Consider asking someone to
+                    review the change first.
                 </p>
+
                 {isManaged ? (
                     <div className='argo-form-row'>
                         <FormField label={`Please type '${resource.name}' to confirm the deletion of the resource`} formApi={api} field='resourceName' component={Text} />
@@ -361,7 +376,7 @@ export const deletePopup = async (ctx: ContextApis, resource: ResourceTreeNode, 
                     </label>
                     <input type='radio' name='deleteOptions' value='force' onChange={() => handleStateChange('force')} style={{marginRight: '5px'}} id='force-delete-radio' />
                     <label htmlFor='force-delete-radio' style={{paddingRight: '30px'}}>
-                        Force Delete {helpTip('Deletes the resource and its dependent resources in the background')}
+                        Background Delete {helpTip('Performs a forceful "background cascading deletion" of the resource and its dependent resources')}
                     </label>
                     <input type='radio' name='deleteOptions' value='orphan' onChange={() => handleStateChange('orphan')} style={{marginRight: '5px'}} id='cascade-delete-radio' />
                     <label htmlFor='cascade-delete-radio'>Non-cascading (Orphan) Delete {helpTip('Deletes the resource and orphans the dependent resources')}</label>
@@ -473,8 +488,8 @@ function getActionItems(
     const execAction = services.authService
         .settings()
         .then(async settings => {
-            const execAllowed = await services.accounts.canI('exec', 'create', application.spec.project + '/' + application.metadata.name);
-            if (resource.kind === 'Pod' && settings.execEnabled && execAllowed) {
+            const execAllowed = settings.execEnabled && (await services.accounts.canI('exec', 'create', application.spec.project + '/' + application.metadata.name));
+            if (resource.kind === 'Pod' && execAllowed) {
                 return [
                     {
                         title: 'Exec',
