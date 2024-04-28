@@ -17,6 +17,7 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/google/go-cmp/cmp"
@@ -51,6 +52,7 @@ import (
 	argov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
 	argoutil "github.com/argoproj/argo-cd/v2/util/argo"
+	"github.com/argoproj/argo-cd/v2/util/argo/normalizers"
 
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
 )
@@ -674,7 +676,7 @@ func (r *ApplicationSetReconciler) createOrUpdateInCluster(ctx context.Context, 
 			},
 		}
 
-		action, err := utils.CreateOrUpdate(ctx, appLog, r.Client, applicationSet.Spec.IgnoreApplicationDifferences, found, func() error {
+		action, err := utils.CreateOrUpdate(ctx, appLog, r.Client, applicationSet.Spec.IgnoreApplicationDifferences, normalizers.IgnoreNormalizerOpts{}, found, func() error {
 			// Copy only the Application/ObjectMeta fields that are significant, from the generatedApp
 			found.Spec = generatedApp.Spec
 
@@ -719,6 +721,17 @@ func (r *ApplicationSetReconciler) createOrUpdateInCluster(ctx context.Context, 
 						generatedApp.Labels = map[string]string{}
 					}
 					generatedApp.Labels[key] = state
+				}
+			}
+
+			// Preserve post-delete finalizers:
+			//   https://github.com/argoproj/argo-cd/issues/17181
+			for _, finalizer := range found.ObjectMeta.Finalizers {
+				if strings.HasPrefix(finalizer, argov1alpha1.PostDeleteFinalizerName) {
+					if generatedApp.Finalizers == nil {
+						generatedApp.Finalizers = []string{}
+					}
+					generatedApp.Finalizers = append(generatedApp.Finalizers, finalizer)
 				}
 			}
 
