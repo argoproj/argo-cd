@@ -456,7 +456,7 @@
               <div class="header-wrap">
                   <h1 class="project__header__title">Snyk test report</h1>
     
-                <p class="timestamp">April 21st 2024, 12:18:08 am (UTC+00:00)</p>
+                <p class="timestamp">April 28th 2024, 12:18:25 am (UTC+00:00)</p>
               </div>
               <div class="source-panel">
                 <span>Scanned the following path:</span>
@@ -1036,6 +1036,8 @@
         <li><a href="https://www.openssl.org/news/secadv/20240109.txt">https://www.openssl.org/news/secadv/20240109.txt</a></li>
         <li><a href="http://www.openwall.com/lists/oss-security/2024/01/09/1">http://www.openwall.com/lists/oss-security/2024/01/09/1</a></li>
         <li><a href="https://security.netapp.com/advisory/ntap-20240216-0009/">https://security.netapp.com/advisory/ntap-20240216-0009/</a></li>
+        <li><a href="https://security.netapp.com/advisory/ntap-20240426-0008/">https://security.netapp.com/advisory/ntap-20240426-0008/</a></li>
+        <li><a href="https://security.netapp.com/advisory/ntap-20240426-0013/">https://security.netapp.com/advisory/ntap-20240426-0013/</a></li>
         </ul>
         
               <hr/>
@@ -1357,9 +1359,37 @@
               <hr/>
               <!-- Overview -->
               <h2 id="nvd-description">NVD Description</h2>
-        <p><em>This vulnerability has not been analyzed by NVD yet.</em></p>
+        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>openssl</code> package and not the <code>openssl</code> package as distributed by <code>Alpine</code>.</em>
+        <em>See <code>How to fix?</code> for <code>Alpine:3.18</code> relevant fixed versions and status.</em></p>
+        <p>Issue summary: Checking excessively long invalid RSA public keys may take
+        a long time.</p>
+        <p>Impact summary: Applications that use the function EVP_PKEY_public_check()
+        to check RSA public keys may experience long delays. Where the key that
+        is being checked has been obtained from an untrusted source this may lead
+        to a Denial of Service.</p>
+        <p>When function EVP_PKEY_public_check() is called on RSA public keys,
+        a computation is done to confirm that the RSA modulus, n, is composite.
+        For valid RSA keys, n is a product of two or more large primes and this
+        computation completes quickly. However, if n is an overly large prime,
+        then this computation would take a long time.</p>
+        <p>An application that calls EVP_PKEY_public_check() and supplies an RSA key
+        obtained from an untrusted source could be vulnerable to a Denial of Service
+        attack.</p>
+        <p>The function EVP_PKEY_public_check() is not called from other OpenSSL
+        functions however it is called from the OpenSSL pkey command line
+        application. For that reason that application is also vulnerable if used
+        with the &#39;-pubin&#39; and &#39;-check&#39; options on untrusted data.</p>
+        <p>The OpenSSL SSL/TLS implementation is not affected by this issue.</p>
+        <p>The OpenSSL 3.0 and 3.1 FIPS providers are affected by this issue.</p>
         <h2 id="remediation">Remediation</h2>
         <p>Upgrade <code>Alpine:3.18</code> <code>openssl</code> to version 3.1.4-r4 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://github.com/openssl/openssl/commit/0b0f7abfb37350794a4b8960fafc292cd5d1b84d">https://github.com/openssl/openssl/commit/0b0f7abfb37350794a4b8960fafc292cd5d1b84d</a></li>
+        <li><a href="https://github.com/openssl/openssl/commit/18c02492138d1eb8b6548cb26e7b625fb2414a2a">https://github.com/openssl/openssl/commit/18c02492138d1eb8b6548cb26e7b625fb2414a2a</a></li>
+        <li><a href="https://github.com/openssl/openssl/commit/a830f551557d3d66a84bbb18a5b889c640c36294">https://github.com/openssl/openssl/commit/a830f551557d3d66a84bbb18a5b889c640c36294</a></li>
+        <li><a href="https://www.openssl.org/news/secadv/20240115.txt">https://www.openssl.org/news/secadv/20240115.txt</a></li>
+        </ul>
         
               <hr/>
         
