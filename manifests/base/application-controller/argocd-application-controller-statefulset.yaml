@@ -35,6 +35,12 @@ spec:
               name: argocd-cm
               key: timeout.hard.reconciliation
               optional: true
+        - name: ARGOCD_RECONCILIATION_JITTER
+          valueFrom:
+            configMapKeyRef:
+              key: timeout.reconciliation.jitter
+              name: argocd-cm
+              optional: true
         - name: ARGOCD_REPO_ERROR_GRACE_PERIOD_SECONDS
           valueFrom:
             configMapKeyRef:
@@ -190,6 +196,12 @@ spec:
             configMapKeyRef:
               name: argocd-cmd-params-cm
               key: controller.diff.server.side
+              optional: true
+        - name: ARGOCD_IGNORE_NORMALIZER_JQ_TIMEOUT
+          valueFrom:
+            configMapKeyRef:
+              name: argocd-cmd-params-cm
+              key: controller.ignore.normalizer.jq.timeout
               optional: true
         image: quay.io/argoproj/argocd:latest
         imagePullPolicy: Always
