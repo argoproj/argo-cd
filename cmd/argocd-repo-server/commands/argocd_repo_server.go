@@ -5,6 +5,7 @@ import (
 	"math"
 	"net"
 	"net/http"
+	"regexp"
 	"time"
 
 	"github.com/argoproj/pkg/stats"
@@ -70,6 +71,9 @@ func NewCommand() *cobra.Command {
 		helmManifestMaxExtractedSize      string
 		helmRegistryMaxIndexSize          string
 		disableManifestMaxExtractedSize   bool
+		includeHiddenDirectories          bool
+		dirExcludePattern                 string
+		dirExcludePatternCompiled         *regexp.Regexp
 	)
 	var command = cobra.Command{
 		Use:               cliName,
@@ -114,6 +118,11 @@ func NewCommand() *cobra.Command {
 			helmRegistryMaxIndexSizeQuantity, err := resource.ParseQuantity(helmRegistryMaxIndexSize)
 			errors.CheckError(err)
 
+			if dirExcludePattern != "" {
+				dirExcludePatternCompiled, err = regexp.Compile(dirExcludePattern)
+				errors.CheckError(err)
+			}
+
 			askPassServer := askpass.NewServer()
 			metricsServer := metrics.NewMetricsServer()
 			cacheutil.CollectMetrics(redisClient, metricsServer)
@@ -130,6 +139,8 @@ func NewCommand() *cobra.Command {
 				StreamedManifestMaxTarSize:                   streamedManifestMaxTarSizeQuantity.ToDec().Value(),
 				HelmManifestMaxExtractedSize:                 helmManifestMaxExtractedSizeQuantity.ToDec().Value(),
 				HelmRegistryMaxIndexSize:                     helmRegistryMaxIndexSizeQuantity.ToDec().Value(),
+				IncludeHiddenDirectories:                     includeHiddenDirectories,
+				DirExcludePattern:                            dirExcludePatternCompiled,
 			}, askPassServer)
 			errors.CheckError(err)
 
@@ -215,6 +226,8 @@ func NewCommand() *cobra.Command {
 	command.Flags().StringVar(&helmManifestMaxExtractedSize, "helm-manifest-max-extracted-size", env.StringFromEnv("ARGOCD_REPO_SERVER_HELM_MANIFEST_MAX_EXTRACTED_SIZE", "1G"), "Maximum size of helm manifest archives when extracted")
 	command.Flags().StringVar(&helmRegistryMaxIndexSize, "helm-registry-max-index-size", env.StringFromEnv("ARGOCD_REPO_SERVER_HELM_MANIFEST_MAX_INDEX_SIZE", "1G"), "Maximum size of registry index file")
 	command.Flags().BoolVar(&disableManifestMaxExtractedSize, "disable-helm-manifest-max-extracted-size", env.ParseBoolFromEnv("ARGOCD_REPO_SERVER_DISABLE_HELM_MANIFEST_MAX_EXTRACTED_SIZE", false), "Disable maximum size of helm manifest archives when extracted")
+	command.Flags().BoolVar(&includeHiddenDirectories, "include-hidden-directories", env.ParseBoolFromEnv("ARGOCD_REPO_SERVER_INCLUDE_HIDDEN_DIRECTORIES", false), "Include hidden directories from Git")
+	command.Flags().StringVar(&dirExcludePattern, "dir-exclude-pattern", env.StringFromEnv("ARGOCD_REPO_SERVER_EXCLUDE_DIRECTORIES_PATTERN", "^\\..*", env.StringFromEnvOpts{AllowEmpty: true}), "Pattern to exclude directories in Git")
 	tlsConfigCustomizerSrc = tls.AddTLSFlagsToCmd(&command)
 	cacheSrc = reposervercache.AddCacheFlagsToCmd(&command, cacheutil.Options{
 		OnClientCreated: func(client *redis.Client) {

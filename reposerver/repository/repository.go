@@ -112,6 +112,8 @@ type RepoServerInitConstants struct {
 	HelmManifestMaxExtractedSize                 int64
 	HelmRegistryMaxIndexSize                     int64
 	DisableHelmManifestMaxExtractedSize          bool
+	IncludeHiddenDirectories                     bool
+	DirExcludePattern                            *regexp.Regexp
 }
 
 // NewService returns a new instance of the Manifest service
@@ -2604,6 +2606,7 @@ func (s *Service) GetGitFiles(_ context.Context, request *apiclient.GitFilesRequ
 }
 
 func (s *Service) GetGitDirectories(_ context.Context, request *apiclient.GitDirectoriesRequest) (*apiclient.GitDirectoriesResponse, error) {
+	log.Infof("Im new and env is %t", s.initConstants.IncludeHiddenDirectories)
 	repo := request.GetRepo()
 	revision := request.GetRevision()
 	noRevisionCache := request.GetNoRevisionCache()
@@ -2616,6 +2619,7 @@ func (s *Service) GetGitDirectories(_ context.Context, request *apiclient.GitDir
 		return nil, status.Errorf(codes.Internal, "unable to resolve git revision %s: %v", revision, err)
 	}
 
+	log.Infof("Im new and env is %t", s.initConstants.IncludeHiddenDirectories)
 	// check the cache and return the results if present
 	if cachedPaths, err := s.cache.GetGitDirectories(repo.Repo, revision); err == nil {
 		log.Debugf("cache hit for repo: %s revision: %s", repo.Repo, revision)
@@ -2644,6 +2648,13 @@ func (s *Service) GetGitDirectories(_ context.Context, request *apiclient.GitDir
 		}
 		if !entry.IsDir() { // Skip files: directories only
 			return nil
+		}
+
+		if s.initConstants.DirExcludePattern != nil {
+			fname := entry.Name()
+			if skipDir := s.initConstants.DirExcludePattern.MatchString(fname); skipDir == true {
+				return filepath.SkipDir // Skip directories that match exclude pattern
+			}
 		}
 
 		relativePath, err := filepath.Rel(repoRoot, path)
