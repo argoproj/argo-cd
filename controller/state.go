@@ -36,6 +36,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/app/path"
 	"github.com/argoproj/argo-cd/v2/util/argo"
 	argodiff "github.com/argoproj/argo-cd/v2/util/argo/diff"
+	"github.com/argoproj/argo-cd/v2/util/argo/normalizers"
 	appstatecache "github.com/argoproj/argo-cd/v2/util/cache/appstate"
 	"github.com/argoproj/argo-cd/v2/util/db"
 	"github.com/argoproj/argo-cd/v2/util/gpg"
@@ -118,6 +119,7 @@ type appStateManager struct {
 	repoErrorCache        goSync.Map
 	repoErrorGracePeriod  time.Duration
 	serverSideDiff        bool
+	ignoreNormalizerOpts  normalizers.IgnoreNormalizerOpts
 }
 
 // GetRepoObjs will generate the manifests for the given application delegating the
@@ -638,7 +640,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 	useDiffCache := useDiffCache(noCache, manifestInfos, sources, app, manifestRevisions, m.statusRefreshTimeout, serverSideDiff, logCtx)
 
 	diffConfigBuilder := argodiff.NewDiffConfigBuilder().
-		WithDiffSettings(app.Spec.IgnoreDifferences, resourceOverrides, compareOptions.IgnoreAggregatedRoles).
+		WithDiffSettings(app.Spec.IgnoreDifferences, resourceOverrides, compareOptions.IgnoreAggregatedRoles, m.ignoreNormalizerOpts).
 		WithTracking(appLabelKey, string(trackingMethod))
 
 	if useDiffCache {
@@ -979,6 +981,7 @@ func NewAppStateManager(
 	persistResourceHealth bool,
 	repoErrorGracePeriod time.Duration,
 	serverSideDiff bool,
+	ignoreNormalizerOpts normalizers.IgnoreNormalizerOpts,
 ) AppStateManager {
 	return &appStateManager{
 		liveStateCache:        liveStateCache,
@@ -996,6 +999,7 @@ func NewAppStateManager(
 		persistResourceHealth: persistResourceHealth,
 		repoErrorGracePeriod:  repoErrorGracePeriod,
 		serverSideDiff:        serverSideDiff,
+		ignoreNormalizerOpts:  ignoreNormalizerOpts,
 	}
 }
 

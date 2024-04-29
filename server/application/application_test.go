@@ -43,6 +43,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	appsv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	apps "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned/fake"
 	appinformer "github.com/argoproj/argo-cd/v2/pkg/client/informers/externalversions"
 	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
@@ -1819,7 +1820,7 @@ func TestServer_GetApplicationSyncWindowsState(t *testing.T) {
 		appServer := newTestAppServer(t, testApp)
 
 		active, err := appServer.GetApplicationSyncWindows(context.Background(), &application.ApplicationSyncWindowsQuery{Name: &testApp.Name})
-		assert.Contains(t, err.Error(), "not found")
+		assert.Contains(t, err.Error(), "not exist")
 		assert.Nil(t, active)
 	})
 }
@@ -2531,7 +2532,16 @@ func TestAppNamespaceRestrictions(t *testing.T) {
 	t.Run("Get application in other namespace when allowed", func(t *testing.T) {
 		testApp := newTestApp()
 		testApp.Namespace = "argocd-1"
-		appServer := newTestAppServer(t, testApp)
+		testApp.Spec.Project = "other-ns"
+		otherNsProj := &appsv1.AppProject{
+			ObjectMeta: metav1.ObjectMeta{Name: "other-ns", Namespace: "default"},
+			Spec: appsv1.AppProjectSpec{
+				SourceRepos:      []string{"*"},
+				Destinations:     []appsv1.ApplicationDestination{{Server: "*", Namespace: "*"}},
+				SourceNamespaces: []string{"argocd-1"},
+			},
+		}
+		appServer := newTestAppServer(t, testApp, otherNsProj)
 		appServer.enabledNamespaces = []string{"argocd-1"}
 		app, err := appServer.Get(context.TODO(), &application.ApplicationQuery{
 			Name:         pointer.String("test-app"),
@@ -2541,6 +2551,28 @@ func TestAppNamespaceRestrictions(t *testing.T) {
 		require.NotNil(t, app)
 		require.Equal(t, "argocd-1", app.Namespace)
 		require.Equal(t, "test-app", app.Name)
+	})
+	t.Run("Get application in other namespace when project is not allowed", func(t *testing.T) {
+		testApp := newTestApp()
+		testApp.Namespace = "argocd-1"
+		testApp.Spec.Project = "other-ns"
+		otherNsProj := &appsv1.AppProject{
+			ObjectMeta: metav1.ObjectMeta{Name: "other-ns", Namespace: "default"},
+			Spec: appsv1.AppProjectSpec{
+				SourceRepos:      []string{"*"},
+				Destinations:     []appsv1.ApplicationDestination{{Server: "*", Namespace: "*"}},
+				SourceNamespaces: []string{"argocd-2"},
+			},
+		}
+		appServer := newTestAppServer(t, testApp, otherNsProj)
+		appServer.enabledNamespaces = []string{"argocd-1"}
+		app, err := appServer.Get(context.TODO(), &application.ApplicationQuery{
+			Name:         pointer.String("test-app"),
+			AppNamespace: pointer.String("argocd-1"),
+		})
+		require.Error(t, err)
+		require.Nil(t, app)
+		require.ErrorContains(t, err, "app is not allowed in project")
 	})
 	t.Run("Create application in other namespace when allowed", func(t *testing.T) {
 		testApp := newTestApp()
@@ -2584,7 +2616,7 @@ func TestAppNamespaceRestrictions(t *testing.T) {
 		})
 		require.Error(t, err)
 		require.Nil(t, app)
-		require.ErrorContains(t, err, "not allowed to use project")
+		require.ErrorContains(t, err, "app is not allowed in project")
 	})
 
 	t.Run("Create application in other namespace when not allowed by configuration", func(t *testing.T) {
@@ -2608,5 +2640,207 @@ func TestAppNamespaceRestrictions(t *testing.T) {
 		require.Nil(t, app)
 		require.ErrorContains(t, err, "namespace 'argocd-1' is not permitted")
 	})
+	t.Run("Get application sync window in other namespace when project is allowed", func(t *testing.T) {
+		testApp := newTestApp()
+		testApp.Namespace = "argocd-1"
+		testApp.Spec.Project = "other-ns"
+		otherNsProj := &appsv1.AppProject{
+			ObjectMeta: metav1.ObjectMeta{Name: "other-ns", Namespace: "default"},
+			Spec: appsv1.AppProjectSpec{
+				SourceRepos:      []string{"*"},
+				Destinations:     []appsv1.ApplicationDestination{{Server: "*", Namespace: "*"}},
+				SourceNamespaces: []string{"argocd-1"},
+			},
+		}
+		appServer := newTestAppServer(t, testApp, otherNsProj)
+		appServer.enabledNamespaces = []string{"argocd-1"}
+		active, err := appServer.GetApplicationSyncWindows(context.TODO(), &application.ApplicationSyncWindowsQuery{Name: &testApp.Name, AppNamespace: &testApp.Namespace})
+		assert.NoError(t, err)
+		assert.Equal(t, 0, len(active.ActiveWindows))
+	})
+	t.Run("Get application sync window in other namespace when project is not allowed", func(t *testing.T) {
+		testApp := newTestApp()
+		testApp.Namespace = "argocd-1"
+		testApp.Spec.Project = "other-ns"
+		otherNsProj := &appsv1.AppProject{
+			ObjectMeta: metav1.ObjectMeta{Name: "other-ns", Namespace: "default"},
+			Spec: appsv1.AppProjectSpec{
+				SourceRepos:      []string{"*"},
+				Destinations:     []appsv1.ApplicationDestination{{Server: "*", Namespace: "*"}},
+				SourceNamespaces: []string{"argocd-2"},
+			},
+		}
+		appServer := newTestAppServer(t, testApp, otherNsProj)
+		appServer.enabledNamespaces = []string{"argocd-1"}
+		active, err := appServer.GetApplicationSyncWindows(context.TODO(), &application.ApplicationSyncWindowsQuery{Name: &testApp.Name, AppNamespace: &testApp.Namespace})
+		require.Error(t, err)
+		require.Nil(t, active)
+		require.ErrorContains(t, err, "app is not allowed in project")
+	})
+	t.Run("Get list of links in other namespace when project is not allowed", func(t *testing.T) {
+		testApp := newTestApp()
+		testApp.Namespace = "argocd-1"
+		testApp.Spec.Project = "other-ns"
+		otherNsProj := &appsv1.AppProject{
+			ObjectMeta: metav1.ObjectMeta{Name: "other-ns", Namespace: "default"},
+			Spec: appsv1.AppProjectSpec{
+				SourceRepos:      []string{"*"},
+				Destinations:     []appsv1.ApplicationDestination{{Server: "*", Namespace: "*"}},
+				SourceNamespaces: []string{"argocd-2"},
+			},
+		}
+		appServer := newTestAppServer(t, testApp, otherNsProj)
+		appServer.enabledNamespaces = []string{"argocd-1"}
+		links, err := appServer.ListLinks(context.TODO(), &application.ListAppLinksRequest{
+			Name:      pointer.String("test-app"),
+			Namespace: pointer.String("argocd-1"),
+		})
+		require.Error(t, err)
+		require.Nil(t, links)
+		require.ErrorContains(t, err, "app is not allowed in project")
+	})
+	t.Run("Get list of links in other namespace when project is allowed", func(t *testing.T) {
+		testApp := newTestApp()
+		testApp.Namespace = "argocd-1"
+		testApp.Spec.Project = "other-ns"
+		otherNsProj := &appsv1.AppProject{
+			ObjectMeta: metav1.ObjectMeta{Name: "other-ns", Namespace: "default"},
+			Spec: appsv1.AppProjectSpec{
+				SourceRepos:      []string{"*"},
+				Destinations:     []appsv1.ApplicationDestination{{Server: "*", Namespace: "*"}},
+				SourceNamespaces: []string{"argocd-1"},
+			},
+		}
+		appServer := newTestAppServer(t, testApp, otherNsProj)
+		appServer.enabledNamespaces = []string{"argocd-1"}
+		links, err := appServer.ListLinks(context.TODO(), &application.ListAppLinksRequest{
+			Name:      pointer.String("test-app"),
+			Namespace: pointer.String("argocd-1"),
+		})
+		require.NoError(t, err)
+		assert.Equal(t, 0, len(links.Items))
+	})
+}
 
+func TestGetAmbiguousRevision_MultiSource(t *testing.T) {
+	app := &appv1.Application{
+		Spec: appv1.ApplicationSpec{
+			Sources: []appv1.ApplicationSource{
+				{
+					TargetRevision: "revision1",
+				},
+				{
+					TargetRevision: "revision2",
+				},
+			},
+		},
+	}
+	syncReq := &application.ApplicationSyncRequest{
+		SourcePositions: []int64{0, 1},
+		Revisions:       []string{"rev1", "rev2"},
+	}
+
+	sourceIndex := 0
+	expected := "rev1"
+	result := getAmbiguousRevision(app, syncReq, sourceIndex)
+	if result != expected {
+		t.Errorf("Expected ambiguous revision to be %s, but got %s", expected, result)
+	}
+
+	sourceIndex = 1
+	expected = "rev2"
+	result = getAmbiguousRevision(app, syncReq, sourceIndex)
+	if result != expected {
+		t.Errorf("Expected ambiguous revision to be %s, but got %s", expected, result)
+	}
+
+	// Test when app.Spec.HasMultipleSources() is false
+	app.Spec = appv1.ApplicationSpec{
+		Source: &appv1.ApplicationSource{
+			TargetRevision: "revision3",
+		},
+		Sources: nil,
+	}
+	syncReq = &application.ApplicationSyncRequest{
+		Revision: strToPtr("revision3"),
+	}
+	expected = "revision3"
+	result = getAmbiguousRevision(app, syncReq, sourceIndex)
+	if result != expected {
+		t.Errorf("Expected ambiguous revision to be %s, but got %s", expected, result)
+	}
+}
+
+func TestGetAmbiguousRevision_SingleSource(t *testing.T) {
+	app := &appv1.Application{
+		Spec: appv1.ApplicationSpec{
+			Source: &appv1.ApplicationSource{
+				TargetRevision: "revision1",
+			},
+		},
+	}
+	syncReq := &application.ApplicationSyncRequest{
+		Revision: strToPtr("rev1"),
+	}
+
+	// Test when app.Spec.HasMultipleSources() is true
+	sourceIndex := 1
+	expected := "rev1"
+	result := getAmbiguousRevision(app, syncReq, sourceIndex)
+	if result != expected {
+		t.Errorf("Expected ambiguous revision to be %s, but got %s", expected, result)
+	}
+}
+
+func TestServer_ResolveSourceRevisions_MultiSource(t *testing.T) {
+	s := newTestAppServer(t)
+
+	ctx := context.Background()
+	a := &appv1.Application{
+		Spec: appv1.ApplicationSpec{
+			Sources: []appv1.ApplicationSource{
+				{
+					RepoURL: "https://github.com/example/repo.git",
+				},
+			},
+		},
+	}
+
+	syncReq := &application.ApplicationSyncRequest{
+		SourcePositions: []int64{1},
+		Revisions:       []string{"HEAD"},
+	}
+
+	revision, displayRevision, sourceRevisions, displayRevisions, err := s.resolveSourceRevisions(ctx, a, syncReq)
+
+	assert.NoError(t, err)
+	assert.Equal(t, "", revision)
+	assert.Equal(t, "", displayRevision)
+	assert.Equal(t, []string{fakeResolveRevisionResponse().Revision}, sourceRevisions)
+	assert.Equal(t, []string{fakeResolveRevisionResponse().AmbiguousRevision}, displayRevisions)
+}
+
+func TestServer_ResolveSourceRevisions_SingleSource(t *testing.T) {
+	s := newTestAppServer(t)
+
+	ctx := context.Background()
+	a := &appv1.Application{
+		Spec: appv1.ApplicationSpec{
+			Source: &appv1.ApplicationSource{
+				RepoURL: "https://github.com/example/repo.git",
+			},
+		},
+	}
+
+	syncReq := &application.ApplicationSyncRequest{
+		Revision: strToPtr("HEAD"),
+	}
+
+	revision, displayRevision, sourceRevisions, displayRevisions, err := s.resolveSourceRevisions(ctx, a, syncReq)
+
+	assert.NoError(t, err)
+	assert.Equal(t, fakeResolveRevisionResponse().Revision, revision)
+	assert.Equal(t, fakeResolveRevisionResponse().AmbiguousRevision, displayRevision)
+	assert.Equal(t, ([]string)(nil), sourceRevisions)
+	assert.Equal(t, ([]string)(nil), displayRevisions)
 }

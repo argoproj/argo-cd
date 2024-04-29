@@ -13,7 +13,7 @@ on:
 
 env:
   # Golang version to use across CI steps
-  GOLANG_VERSION: '1.21'
+  GOLANG_VERSION: '1.22'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -43,6 +43,8 @@ jobs:
             frontend:
               - 'ui/**'
               - Dockerfile
+            docs:
+              - 'docs/**'
   check-go:
     name: Ensure Go modules synchronicity
     if: ${{ needs.changes.outputs.backend == 'true' }}
@@ -169,12 +171,12 @@ jobs:
       - name: Run all unit tests
         run: make test-local
       - name: Generate code coverage artifacts
-        uses: actions/upload-artifact@a8a3f3ad30e3422c9c7b888a15615d19a852ae32 # v3.1.3
+        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
         with:
           name: code-coverage
           path: coverage.out
       - name: Generate test results artifacts
-        uses: actions/upload-artifact@a8a3f3ad30e3422c9c7b888a15615d19a852ae32 # v3.1.3
+        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
         with:
           name: test-results
           path: test-results/
@@ -238,14 +240,14 @@ jobs:
       - name: Run all unit tests
         run: make test-race-local
       - name: Generate test results artifacts
-        uses: actions/upload-artifact@a8a3f3ad30e3422c9c7b888a15615d19a852ae32 # v3.1.3
+        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
         with:
           name: race-results
           path: test-results/
 
   codegen:
     name: Check changes to generated code
-    if: ${{ needs.changes.outputs.backend == 'true' }}
+    if: ${{ needs.changes.outputs.backend == 'true' || needs.changes.outputs.docs == 'true'}}
     runs-on: ubuntu-22.04
     needs:
       - changes
@@ -357,11 +359,11 @@ jobs:
         run: |
           mkdir -p test-results
       - name: Get code coverage artifact
-        uses: actions/download-artifact@9bc31d5ccc31df68ecc42ccf4149144866c47d8a # v3.0.2
+        uses: actions/download-artifact@8caf195ad4b1dee92908e23f56eeb0696f1dd42d # v4.1.5
         with:
           name: code-coverage
       - name: Get test result artifact
-        uses: actions/download-artifact@9bc31d5ccc31df68ecc42ccf4149144866c47d8a # v3.0.2
+        uses: actions/download-artifact@8caf195ad4b1dee92908e23f56eeb0696f1dd42d # v4.1.5
         with:
           name: test-results
           path: test-results
@@ -472,7 +474,7 @@ jobs:
         run: |
           docker pull ghcr.io/dexidp/dex:v2.38.0
           docker pull argoproj/argo-cd-ci-builder:v1.0.0
-          docker pull redis:7.0.14-alpine
+          docker pull redis:7.0.15-alpine
       - name: Create target directory for binaries in the build-process
         run: |
           mkdir -p dist
@@ -500,7 +502,7 @@ jobs:
           set -x
           make test-e2e-local
       - name: Upload e2e-server logs
-        uses: actions/upload-artifact@a8a3f3ad30e3422c9c7b888a15615d19a852ae32 # v3.1.3
+        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
         with:
           name: e2e-server-k8s${{ matrix.k3s-version }}.log
           path: /tmp/e2e-server.log
