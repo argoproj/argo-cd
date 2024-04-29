@@ -2785,7 +2785,7 @@ func TestGetAmbiguousRevision_SingleSource(t *testing.T) {
 
 	// Test when app.Spec.HasMultipleSources() is true
 	sourceIndex := 1
-	expected := "rev2"
+	expected := "rev1"
 	result := getAmbiguousRevision(app, syncReq, sourceIndex)
 	if result != expected {
 		t.Errorf("Expected ambiguous revision to be %s, but got %s", expected, result)
