@@ -111,15 +111,19 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 
 	// Do not attempt to further reconcile the ApplicationSet if it is being deleted.
 	if applicationSetInfo.ObjectMeta.DeletionTimestamp != nil {
+		appsetName := applicationSetInfo.ObjectMeta.Name
+		logCtx.Debugf("DeletionTimestamp is set on %s", appsetName)
 		deleteAllowed := utils.DefaultPolicy(applicationSetInfo.Spec.SyncPolicy, r.Policy, r.EnablePolicyOverride).AllowDelete()
 		if !deleteAllowed {
+			logCtx.Debugf("ApplicationSet policy does not allow to delete")
 			if err := r.removeOwnerReferencesOnDeleteAppSet(ctx, applicationSetInfo); err != nil {
 				return ctrl.Result{}, err
 			}
-			controllerutil.RemoveFinalizer(&applicationSetInfo, argov1alpha1.ResourcesFinalizerName)
-			if err := r.Update(ctx, &applicationSetInfo); err != nil {
-				return ctrl.Result{}, err
-			}
+			logCtx.Debugf("ownerReferences referring %s is deleted from generated applications", appsetName)
+		}
+		controllerutil.RemoveFinalizer(&applicationSetInfo, argov1alpha1.ResourcesFinalizerName)
+		if err := r.Update(ctx, &applicationSetInfo); err != nil {
+			return ctrl.Result{}, err
 		}
 		return ctrl.Result{}, nil
 	}
