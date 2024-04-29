@@ -103,6 +103,8 @@ type ArgoCDSettings struct {
 	InClusterEnabled bool `json:"inClusterEnabled"`
 	// ServerRBACLogEnforceEnable temporary var indicates whether rbac will be enforced on logs
 	ServerRBACLogEnforceEnable bool `json:"serverRBACLogEnforceEnable"`
+	// MaxPodLogsToRender the maximum number of pod logs to render
+	MaxPodLogsToRender int64 `json:"maxPodLogsToRender"`
 	// ExecEnabled indicates whether the UI exec feature is enabled
 	ExecEnabled bool `json:"execEnabled"`
 	// ExecShells restricts which shells are allowed for `exec` and in which order they are tried
@@ -485,6 +487,8 @@ const (
 	inClusterEnabledKey = "cluster.inClusterEnabled"
 	// settingsServerRBACLogEnforceEnable is the key to configure whether logs RBAC enforcement is enabled
 	settingsServerRBACLogEnforceEnableKey = "server.rbac.log.enforce.enable"
+	// MaxPodLogsToRender the maximum number of pod logs to render
+	settingsMaxPodLogsToRender = "server.maxPodLogsToRender"
 	// helmValuesFileSchemesKey is the key to configure the list of supported helm values file schemas
 	helmValuesFileSchemesKey = "helm.valuesFileSchemes"
 	// execEnabledKey is the key to configure whether the UI exec feature is enabled
@@ -786,6 +790,19 @@ func (mgr *SettingsManager) GetServerRBACLogEnforceEnable() (bool, error) {
 	}
 
 	return strconv.ParseBool(argoCDCM.Data[settingsServerRBACLogEnforceEnableKey])
+}
+
+func (mgr *SettingsManager) GetMaxPodLogsToRender() (int64, error) {
+	argoCDCM, err := mgr.getConfigMap()
+	if err != nil {
+		return 10, err
+	}
+
+	if argoCDCM.Data[settingsMaxPodLogsToRender] == "" {
+		return 10, nil
+	}
+
+	return strconv.ParseInt(argoCDCM.Data[settingsMaxPodLogsToRender], 10, 64)
 }
 
 func (mgr *SettingsManager) GetDeepLinks(deeplinkType string) ([]DeepLink, error) {
@@ -1457,6 +1474,13 @@ func updateSettingsFromConfigMap(settings *ArgoCDSettings, argoCDCM *apiv1.Confi
 	if settings.PasswordPattern == "" {
 		settings.PasswordPattern = common.PasswordPatten
 	}
+	if maxPodLogsToRenderStr, ok := argoCDCM.Data[settingsMaxPodLogsToRender]; ok {
+		if val, err := strconv.ParseInt(maxPodLogsToRenderStr, 10, 64); err != nil {
+			log.Warnf("Failed to parse '%s' key: %v", settingsMaxPodLogsToRender, err)
+		} else {
+			settings.MaxPodLogsToRender = val
+		}
+	}
 	settings.InClusterEnabled = argoCDCM.Data[inClusterEnabledKey] != "false"
 	settings.ExecEnabled = argoCDCM.Data[execEnabledKey] == "true"
 	execShells := argoCDCM.Data[execShellsKey]
@@ -1494,27 +1518,6 @@ func (mgr *SettingsManager) updateSettingsFromSecret(settings *ArgoCDSettings, a
 		settings.ServerSignature = secretKey
 	} else {
 		errs = append(errs, &incompleteSettingsError{message: "server.secretkey is missing"})
-	}
-	if githubWebhookSecret := argoCDSecret.Data[settingsWebhookGitHubSecretKey]; len(githubWebhookSecret) > 0 {
-		settings.WebhookGitHubSecret = string(githubWebhookSecret)
-	}
-	if gitlabWebhookSecret := argoCDSecret.Data[settingsWebhookGitLabSecretKey]; len(gitlabWebhookSecret) > 0 {
-		settings.WebhookGitLabSecret = string(gitlabWebhookSecret)
-	}
-	if bitbucketWebhookUUID := argoCDSecret.Data[settingsWebhookBitbucketUUIDKey]; len(bitbucketWebhookUUID) > 0 {
-		settings.WebhookBitbucketUUID = string(bitbucketWebhookUUID)
-	}
-	if bitbucketserverWebhookSecret := argoCDSecret.Data[settingsWebhookBitbucketServerSecretKey]; len(bitbucketserverWebhookSecret) > 0 {
-		settings.WebhookBitbucketServerSecret = string(bitbucketserverWebhookSecret)
-	}
-	if gogsWebhookSecret := argoCDSecret.Data[settingsWebhookGogsSecretKey]; len(gogsWebhookSecret) > 0 {
-		settings.WebhookGogsSecret = string(gogsWebhookSecret)
-	}
-	if azureDevOpsUsername := argoCDSecret.Data[settingsWebhookAzureDevOpsUsernameKey]; len(azureDevOpsUsername) > 0 {
-		settings.WebhookAzureDevOpsUsername = string(azureDevOpsUsername)
-	}
-	if azureDevOpsPassword := argoCDSecret.Data[settingsWebhookAzureDevOpsPasswordKey]; len(azureDevOpsPassword) > 0 {
-		settings.WebhookAzureDevOpsPassword = string(azureDevOpsPassword)
 	}
 
 	// The TLS certificate may be externally managed. We try to load it from an
@@ -1555,6 +1558,15 @@ func (mgr *SettingsManager) updateSettingsFromSecret(settings *ArgoCDSettings, a
 	if len(errs) > 0 {
 		return errs[0]
 	}
+
+	settings.WebhookGitHubSecret = ReplaceStringSecret(string(argoCDSecret.Data[settingsWebhookGitHubSecretKey]), settings.Secrets)
+	settings.WebhookGitLabSecret = ReplaceStringSecret(string(argoCDSecret.Data[settingsWebhookGitLabSecretKey]), settings.Secrets)
+	settings.WebhookBitbucketUUID = ReplaceStringSecret(string(argoCDSecret.Data[settingsWebhookBitbucketUUIDKey]), settings.Secrets)
+	settings.WebhookBitbucketServerSecret = ReplaceStringSecret(string(argoCDSecret.Data[settingsWebhookBitbucketServerSecretKey]), settings.Secrets)
+	settings.WebhookGogsSecret = ReplaceStringSecret(string(argoCDSecret.Data[settingsWebhookGogsSecretKey]), settings.Secrets)
+	settings.WebhookAzureDevOpsUsername = ReplaceStringSecret(string(argoCDSecret.Data[settingsWebhookAzureDevOpsUsernameKey]), settings.Secrets)
+	settings.WebhookAzureDevOpsPassword = ReplaceStringSecret(string(argoCDSecret.Data[settingsWebhookAzureDevOpsPasswordKey]), settings.Secrets)
+
 	return nil
 }
 

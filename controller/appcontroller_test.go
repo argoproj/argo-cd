@@ -42,6 +42,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
 	mockrepoclient "github.com/argoproj/argo-cd/v2/reposerver/apiclient/mocks"
 	"github.com/argoproj/argo-cd/v2/test"
+	"github.com/argoproj/argo-cd/v2/util/argo/normalizers"
 	cacheutil "github.com/argoproj/argo-cd/v2/util/cache"
 	appstatecache "github.com/argoproj/argo-cd/v2/util/cache/appstate"
 	"github.com/argoproj/argo-cd/v2/util/settings"
@@ -53,14 +54,15 @@ type namespacedResource struct {
 }
 
 type fakeData struct {
-	apps                   []runtime.Object
-	manifestResponse       *apiclient.ManifestResponse
-	manifestResponses      []*apiclient.ManifestResponse
-	managedLiveObjs        map[kube.ResourceKey]*unstructured.Unstructured
-	namespacedResources    map[kube.ResourceKey]namespacedResource
-	configMapData          map[string]string
-	metricsCacheExpiration time.Duration
-	applicationNamespaces  []string
+	apps                           []runtime.Object
+	manifestResponse               *apiclient.ManifestResponse
+	manifestResponses              []*apiclient.ManifestResponse
+	managedLiveObjs                map[kube.ResourceKey]*unstructured.Unstructured
+	namespacedResources            map[kube.ResourceKey]namespacedResource
+	configMapData                  map[string]string
+	metricsCacheExpiration         time.Duration
+	applicationNamespaces          []string
+	updateRevisionForPathsResponse *apiclient.UpdateRevisionForPathsResponse
 }
 
 type MockKubectl struct {
@@ -105,6 +107,8 @@ func newFakeController(data *fakeData, repoErr error) *ApplicationController {
 			mockRepoClient.On("GenerateManifest", mock.Anything, mock.Anything).Return(data.manifestResponse, nil).Once()
 		}
 	}
+
+	mockRepoClient.On("UpdateRevisionForPaths", mock.Anything, mock.Anything).Return(data.updateRevisionForPathsResponse, nil)
 
 	mockRepoClientset := mockrepoclient.Clientset{RepoServerServiceClient: &mockRepoClient}
 
@@ -155,9 +159,9 @@ func newFakeController(data *fakeData, repoErr error) *ApplicationController {
 		nil,
 		data.applicationNamespaces,
 		nil,
-
 		false,
 		false,
+		normalizers.IgnoreNormalizerOpts{},
 	)
 	db := &dbmocks.ArgoDB{}
 	db.On("GetApplicationControllerReplicas").Return(1)

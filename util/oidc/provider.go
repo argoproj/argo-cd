@@ -135,7 +135,9 @@ func (p *providerImpl) Verify(tokenString string, argoSettings *settings.ArgoCDS
 			// to avoid logging irrelevant warnings: https://github.com/coreos/go-oidc/pull/406
 			tokenVerificationErrors[aud] = err
 		}
-		if len(tokenVerificationErrors) > 0 {
+		// If the most recent attempt encountered an error, and if we have collected multiple errors, switch to the
+		// other error type to gather more context.
+		if err != nil && len(tokenVerificationErrors) > 0 {
 			err = tokenVerificationError{errorsByAudience: tokenVerificationErrors}
 		}
 	}
