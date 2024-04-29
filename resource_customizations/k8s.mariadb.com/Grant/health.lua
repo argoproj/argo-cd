@@ -1,5 +1,6 @@
 local health_status = {}
-
+health_status.status = "Progressing"
+health_status.message = "No status info available"
 if obj.status ~= nil and obj.status.conditions ~= nil then
 
     for i, condition in ipairs(obj.status.conditions) do
@@ -15,10 +16,7 @@ if obj.status ~= nil and obj.status.conditions ~= nil then
             return health_status
         end
     end
-    
-    return health_status
 end
 
-health_status.status = "Progressing"
-health_status.message = "No status info available"
+
 return health_status
