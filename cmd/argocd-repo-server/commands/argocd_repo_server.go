@@ -5,7 +5,6 @@ import (
 	"math"
 	"net"
 	"net/http"
-	"regexp"
 	"time"
 
 	"github.com/argoproj/pkg/stats"
