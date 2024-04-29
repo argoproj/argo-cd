@@ -113,7 +113,6 @@ type RepoServerInitConstants struct {
 	HelmRegistryMaxIndexSize                     int64
 	DisableHelmManifestMaxExtractedSize          bool
 	IncludeHiddenDirectories                     bool
-	DirExclusionPattern                          *regexp.Regexp
 }
 
 // NewService returns a new instance of the Manifest service
@@ -2650,11 +2649,8 @@ func (s *Service) GetGitDirectories(_ context.Context, request *apiclient.GitDir
 			return nil
 		}
 
-		if s.initConstants.IncludeHiddenDirectories == false {
-			fname := entry.Name()
-			if skipDir := strings.HasPrefix(fname, "."); skipDir == true {
-				return filepath.SkipDir // Skip hidden directory
-			}
+		if !s.initConstants.IncludeHiddenDirectories && strings.HasPrefix(entry.Name(), ".") {
+			return filepath.SkipDir // Skip hidden directory
 		}
 
 		relativePath, err := filepath.Rel(repoRoot, path)
