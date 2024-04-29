@@ -113,7 +113,7 @@ var (
 	reconcileHistogram = prometheus.NewHistogramVec(
 		prometheus.HistogramOpts{
 			Name: "argocd_app_reconcile",
-			Help: "Application reconciliation performance.",
+			Help: "Application reconciliation performance in seconds.",
 			// Buckets chosen after observing a ~2100ms mean reconcile time
 			Buckets: []float64{0.25, .5, 1, 2, 4, 8, 16},
 		},
