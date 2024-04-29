@@ -3683,3 +3683,50 @@ func TestOptionalMapEquality(t *testing.T) {
 		})
 	}
 }
+
+func TestApplicationSpec_GetSourcePtrByIndex(t *testing.T) {
+	testCases := []struct {
+		name        string
+		application ApplicationSpec
+		sourceIndex int
+		expected    *ApplicationSource
+	}{
+		{
+			name: "HasMultipleSources_ReturnsFirstSource",
+			application: ApplicationSpec{
+				Sources: []ApplicationSource{
+					{RepoURL: "https://github.com/argoproj/test1.git"},
+					{RepoURL: "https://github.com/argoproj/test2.git"},
+				},
+			},
+			sourceIndex: 0,
+			expected:    &ApplicationSource{RepoURL: "https://github.com/argoproj/test1.git"},
+		},
+		{
+			name: "HasMultipleSources_ReturnsSourceAtIndex",
+			application: ApplicationSpec{
+				Sources: []ApplicationSource{
+					{RepoURL: "https://github.com/argoproj/test1.git"},
+					{RepoURL: "https://github.com/argoproj/test2.git"},
+				},
+			},
+			sourceIndex: 1,
+			expected:    &ApplicationSource{RepoURL: "https://github.com/argoproj/test2.git"},
+		},
+		{
+			name: "HasSingleSource_ReturnsSource",
+			application: ApplicationSpec{
+				Source: &ApplicationSource{RepoURL: "https://github.com/argoproj/test.git"},
+			},
+			sourceIndex: 0,
+			expected:    &ApplicationSource{RepoURL: "https://github.com/argoproj/test.git"},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			actual := tc.application.GetSourcePtrByIndex(tc.sourceIndex)
+			assert.Equal(t, tc.expected, actual)
+		})
+	}
+}

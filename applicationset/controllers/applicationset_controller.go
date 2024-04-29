@@ -17,6 +17,7 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/google/go-cmp/cmp"
@@ -51,6 +52,7 @@ import (
 	argov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
 	argoutil "github.com/argoproj/argo-cd/v2/util/argo"
+	"github.com/argoproj/argo-cd/v2/util/argo/normalizers"
 
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
 )
@@ -109,15 +111,19 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 
 	// Do not attempt to further reconcile the ApplicationSet if it is being deleted.
 	if applicationSetInfo.ObjectMeta.DeletionTimestamp != nil {
+		appsetName := applicationSetInfo.ObjectMeta.Name
+		logCtx.Debugf("DeletionTimestamp is set on %s", appsetName)
 		deleteAllowed := utils.DefaultPolicy(applicationSetInfo.Spec.SyncPolicy, r.Policy, r.EnablePolicyOverride).AllowDelete()
 		if !deleteAllowed {
+			logCtx.Debugf("ApplicationSet policy does not allow to delete")
 			if err := r.removeOwnerReferencesOnDeleteAppSet(ctx, applicationSetInfo); err != nil {
 				return ctrl.Result{}, err
 			}
-			controllerutil.RemoveFinalizer(&applicationSetInfo, argov1alpha1.ResourcesFinalizerName)
-			if err := r.Update(ctx, &applicationSetInfo); err != nil {
-				return ctrl.Result{}, err
-			}
+			logCtx.Debugf("ownerReferences referring %s is deleted from generated applications", appsetName)
+		}
+		controllerutil.RemoveFinalizer(&applicationSetInfo, argov1alpha1.ResourcesFinalizerName)
+		if err := r.Update(ctx, &applicationSetInfo); err != nil {
+			return ctrl.Result{}, err
 		}
 		return ctrl.Result{}, nil
 	}
@@ -674,7 +680,7 @@ func (r *ApplicationSetReconciler) createOrUpdateInCluster(ctx context.Context, 
 			},
 		}
 
-		action, err := utils.CreateOrUpdate(ctx, appLog, r.Client, applicationSet.Spec.IgnoreApplicationDifferences, found, func() error {
+		action, err := utils.CreateOrUpdate(ctx, appLog, r.Client, applicationSet.Spec.IgnoreApplicationDifferences, normalizers.IgnoreNormalizerOpts{}, found, func() error {
 			// Copy only the Application/ObjectMeta fields that are significant, from the generatedApp
 			found.Spec = generatedApp.Spec
 
@@ -719,6 +725,17 @@ func (r *ApplicationSetReconciler) createOrUpdateInCluster(ctx context.Context, 
 						generatedApp.Labels = map[string]string{}
 					}
 					generatedApp.Labels[key] = state
+				}
+			}
+
+			// Preserve post-delete finalizers:
+			//   https://github.com/argoproj/argo-cd/issues/17181
+			for _, finalizer := range found.ObjectMeta.Finalizers {
+				if strings.HasPrefix(finalizer, argov1alpha1.PostDeleteFinalizerName) {
+					if generatedApp.Finalizers == nil {
+						generatedApp.Finalizers = []string{}
+					}
+					generatedApp.Finalizers = append(generatedApp.Finalizers, finalizer)
 				}
 			}
 
