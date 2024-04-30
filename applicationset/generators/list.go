@@ -83,7 +83,7 @@ func (g *ListGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.Appli
 		if err != nil {
 			return nil, fmt.Errorf("error unmarshling decoded ElementsYaml %v", err)
 		}
-		res = append(res, yamlElements...)
+		res = append(res, yamlElements...)	
 	}
 
 	return res, nil

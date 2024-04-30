@@ -35,10 +35,6 @@ const (
 	errDestinationMissing = "Destination server missing from app spec"
 )
 
-var (
-	ErrAnotherOperationInProgress = status.Errorf(codes.FailedPrecondition, "another operation is already in progress")
-)
-
 // AugmentSyncMsg enrich the K8s message with user-relevant information
 func AugmentSyncMsg(res common.ResourceSyncResult, apiResourceInfoGetter func() ([]kube.APIResourceInfo, error)) (string, error) {
 	switch res.Message {
@@ -51,12 +47,6 @@ func AugmentSyncMsg(res common.ResourceSyncResult, apiResourceInfoGetter func() 
 			res.Message = fmt.Sprintf("The Kubernetes API could not find %s/%s for requested resource %s/%s. Make sure the %q CRD is installed on the destination cluster.", res.ResourceKey.Group, res.ResourceKey.Kind, res.ResourceKey.Namespace, res.ResourceKey.Name, res.ResourceKey.Kind)
 		} else {
 			res.Message = fmt.Sprintf("The Kubernetes API could not find version %q of %s/%s for requested resource %s/%s. Version %q of %s/%s is installed on the destination cluster.", res.Version, res.ResourceKey.Group, res.ResourceKey.Kind, res.ResourceKey.Namespace, res.ResourceKey.Name, resource.GroupVersionResource.Version, resource.GroupKind.Group, resource.GroupKind.Kind)
-		}
-
-	default:
-		// Check if the message contains "metadata.annotation: Too long"
-		if strings.Contains(res.Message, "metadata.annotations: Too long: must have at most 262144 bytes") {
-			res.Message = fmt.Sprintf("%s \n -Additional Info: This error usually means that you are trying to add a large resource on client side. Consider using Server-side apply or syncing with replace enabled. Note: Syncing with Replace enabled is potentially destructive as it may cause resource deletion and re-creation.", res.Message)
 		}
 	}
 
@@ -429,7 +419,6 @@ func validateRepo(ctx context.Context,
 		helmOptions,
 		app.Name,
 		app.Spec.Destination,
-		proj,
 		sources,
 		repoClient,
 		cluster.ServerVersion,
@@ -713,7 +702,6 @@ func verifyGenerateManifests(
 	helmOptions *argoappv1.HelmOptions,
 	name string,
 	dest argoappv1.ApplicationDestination,
-	proj *argoappv1.AppProject,
 	sources []argoappv1.ApplicationSource,
 	repoClient apiclient.RepoServerServiceClient,
 	kubeVersion string,
@@ -780,8 +768,6 @@ func verifyGenerateManifests(
 			NoRevisionCache:    true,
 			HasMultipleSources: hasMultipleSources,
 			RefSources:         refSources,
-			ProjectName:        proj.Name,
-			ProjectSourceRepos: proj.Spec.SourceRepos,
 		}
 		req.Repo.CopyCredentialsFromRepo(repoRes)
 		req.Repo.CopySettingsFrom(repoRes)
@@ -809,7 +795,7 @@ func SetAppOperation(appIf v1alpha1.ApplicationInterface, appName string, op *ar
 			return nil, fmt.Errorf("error getting application %q: %w", appName, err)
 		}
 		if a.Operation != nil {
-			return nil, ErrAnotherOperationInProgress
+			return nil, status.Errorf(codes.FailedPrecondition, "another operation is already in progress")
 		}
 		a.Operation = op
 		a.Status.OperationState = nil
@@ -860,9 +846,7 @@ func NormalizeApplicationSpec(spec *argoappv1.ApplicationSpec) *argoappv1.Applic
 	if spec.Project == "" {
 		spec.Project = argoappv1.DefaultAppProjectName
 	}
-	if spec.SyncPolicy.IsZero() {
-		spec.SyncPolicy = nil
-	}
+
 	if spec.Sources != nil && len(spec.Sources) > 0 {
 		for _, source := range spec.Sources {
 			NormalizeSource(&source)

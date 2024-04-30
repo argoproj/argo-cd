@@ -45,6 +45,18 @@ func TestEnsurePrefix(t *testing.T) {
 	}
 }
 
+func TestRemoveSuffix(t *testing.T) {
+	data := [][]string{
+		{"hello.git", ".git", "hello"},
+		{"hello", ".git", "hello"},
+		{".git", ".git", ""},
+	}
+	for _, table := range data {
+		result := removeSuffix(table[0], table[1])
+		assert.Equal(t, table[2], result)
+	}
+}
+
 func TestIsSSHURL(t *testing.T) {
 	data := map[string]bool{
 		"git://github.com/argoproj/test.git":     false,
@@ -160,7 +172,10 @@ func TestCustomHTTPClient(t *testing.T) {
 		assert.Equal(t, "http://proxy:5000", proxy.String())
 	}
 
-	t.Setenv("http_proxy", "http://proxy-from-env:7878")
+	os.Setenv("http_proxy", "http://proxy-from-env:7878")
+	defer func() {
+		assert.Nil(t, os.Unsetenv("http_proxy"))
+	}()
 
 	// Get HTTPSCreds without client cert creds, but insecure connection
 	creds = NewHTTPSCreds("test", "test", "", "", true, "", &NoopCredsStore{}, false)
@@ -196,7 +211,7 @@ func TestCustomHTTPClient(t *testing.T) {
 	defer os.RemoveAll(temppath)
 	err = os.WriteFile(filepath.Join(temppath, "127.0.0.1"), cert, 0666)
 	assert.NoError(t, err)
-	t.Setenv(common.EnvVarTLSDataPath, temppath)
+	os.Setenv(common.EnvVarTLSDataPath, temppath)
 	client = GetRepoHTTPClient("https://127.0.0.1", false, creds, "")
 	assert.NotNil(t, client)
 	assert.NotNil(t, client.Transport)

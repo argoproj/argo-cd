@@ -1,8 +1,8 @@
-local hs = {}
+hs = {}
 if obj.status ~= nil then
   if obj.status.conditions ~= nil then
     -- For ClusterExternalSecret, new statuses are appended to the end of the list
-    local lastStatus = obj.status.conditions[#obj.status.conditions]
+    lastStatus = obj.status.conditions[#obj.status.conditions]
     if lastStatus.type == "Ready" and lastStatus.status == "True" then
       hs.status = "Healthy"
       hs.message = lastStatus.message

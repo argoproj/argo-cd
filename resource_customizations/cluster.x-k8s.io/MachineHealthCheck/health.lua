@@ -1,4 +1,4 @@
-local hs = {}
+hs = {}
 
 hs.status = "Progressing"
 hs.message = ""

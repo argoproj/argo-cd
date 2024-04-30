@@ -1,6 +1,6 @@
-local adopted = { status = "Unknown" }
-local advertised = { status = "Unknown" }
-local discovered = { status = "Unknown" }
+adopted = { status = "Unknown" }
+advertised = { status = "Unknown" }
+discovered = { status = "Unknown" }
 
 if obj.status ~= nil then
   if obj.status.conditions ~= nil then

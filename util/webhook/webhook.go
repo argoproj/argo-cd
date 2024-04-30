@@ -4,20 +4,21 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/argoproj/argo-cd/v2/util/glob"
 	"html"
 	"net/http"
 	"net/url"
+	"path/filepath"
 	"regexp"
 	"strings"
 
-	"github.com/go-playground/webhooks/v6/azuredevops"
-	"github.com/go-playground/webhooks/v6/bitbucket"
-	bitbucketserver "github.com/go-playground/webhooks/v6/bitbucket-server"
-	"github.com/go-playground/webhooks/v6/github"
-	"github.com/go-playground/webhooks/v6/gitlab"
-	"github.com/go-playground/webhooks/v6/gogs"
 	gogsclient "github.com/gogits/go-gogs-client"
 	log "github.com/sirupsen/logrus"
+	"gopkg.in/go-playground/webhooks.v5/bitbucket"
+	bitbucketserver "gopkg.in/go-playground/webhooks.v5/bitbucket-server"
+	"gopkg.in/go-playground/webhooks.v5/github"
+	"gopkg.in/go-playground/webhooks.v5/gitlab"
+	"gopkg.in/go-playground/webhooks.v5/gogs"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/argoproj/argo-cd/v2/common"
@@ -25,10 +26,9 @@ import (
 	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
 	"github.com/argoproj/argo-cd/v2/reposerver/cache"
 	servercache "github.com/argoproj/argo-cd/v2/server/cache"
-	"github.com/argoproj/argo-cd/v2/util/app/path"
 	"github.com/argoproj/argo-cd/v2/util/argo"
 	"github.com/argoproj/argo-cd/v2/util/db"
-	"github.com/argoproj/argo-cd/v2/util/glob"
+	"github.com/argoproj/argo-cd/v2/util/security"
 	"github.com/argoproj/argo-cd/v2/util/settings"
 )
 
@@ -41,26 +41,21 @@ type settingsSource interface {
 // https://github.com/shadow-maint/shadow/blob/master/libmisc/chkname.c#L36
 const usernameRegex = `[a-zA-Z0-9_\.][a-zA-Z0-9_\.-]{0,30}[a-zA-Z0-9_\.\$-]?`
 
-var (
-	_                              settingsSource = &settings.SettingsManager{}
-	errBasicAuthVerificationFailed                = errors.New("basic auth verification failed")
-)
+var _ settingsSource = &settings.SettingsManager{}
 
 type ArgoCDWebhookHandler struct {
-	repoCache              *cache.Cache
-	serverCache            *servercache.Cache
-	db                     db.ArgoDB
-	ns                     string
-	appNs                  []string
-	appClientset           appclientset.Interface
-	github                 *github.Webhook
-	gitlab                 *gitlab.Webhook
-	bitbucket              *bitbucket.Webhook
-	bitbucketserver        *bitbucketserver.Webhook
-	azuredevops            *azuredevops.Webhook
-	azuredevopsAuthHandler func(r *http.Request) error
-	gogs                   *gogs.Webhook
-	settingsSrc            settingsSource
+	repoCache       *cache.Cache
+	serverCache     *servercache.Cache
+	db              db.ArgoDB
+	ns              string
+	appNs           []string
+	appClientset    appclientset.Interface
+	github          *github.Webhook
+	gitlab          *gitlab.Webhook
+	bitbucket       *bitbucket.Webhook
+	bitbucketserver *bitbucketserver.Webhook
+	gogs            *gogs.Webhook
+	settingsSrc     settingsSource
 }
 
 func NewHandler(namespace string, applicationNamespaces []string, appClientset appclientset.Interface, set *settings.ArgoCDSettings, settingsSrc settingsSource, repoCache *cache.Cache, serverCache *servercache.Cache, argoDB db.ArgoDB) *ArgoCDWebhookHandler {
@@ -84,35 +79,20 @@ func NewHandler(namespace string, applicationNamespaces []string, appClientset a
 	if err != nil {
 		log.Warnf("Unable to init the Gogs webhook")
 	}
-	azuredevopsWebhook, err := azuredevops.New()
-	if err != nil {
-		log.Warnf("Unable to init the Azure DevOps webhook")
-	}
-	azuredevopsAuthHandler := func(r *http.Request) error {
-		if set.WebhookAzureDevOpsUsername != "" && set.WebhookAzureDevOpsPassword != "" {
-			username, password, ok := r.BasicAuth()
-			if !ok || username != set.WebhookAzureDevOpsUsername || password != set.WebhookAzureDevOpsPassword {
-				return errBasicAuthVerificationFailed
-			}
-		}
-		return nil
-	}
 
 	acdWebhook := ArgoCDWebhookHandler{
-		ns:                     namespace,
-		appNs:                  applicationNamespaces,
-		appClientset:           appClientset,
-		github:                 githubWebhook,
-		gitlab:                 gitlabWebhook,
-		bitbucket:              bitbucketWebhook,
-		bitbucketserver:        bitbucketserverWebhook,
-		azuredevops:            azuredevopsWebhook,
-		azuredevopsAuthHandler: azuredevopsAuthHandler,
-		gogs:                   gogsWebhook,
-		settingsSrc:            settingsSrc,
-		repoCache:              repoCache,
-		serverCache:            serverCache,
-		db:                     argoDB,
+		ns:              namespace,
+		appNs:           applicationNamespaces,
+		appClientset:    appClientset,
+		github:          githubWebhook,
+		gitlab:          gitlabWebhook,
+		bitbucket:       bitbucketWebhook,
+		bitbucketserver: bitbucketserverWebhook,
+		gogs:            gogsWebhook,
+		settingsSrc:     settingsSrc,
+		repoCache:       repoCache,
+		serverCache:     serverCache,
+		db:              argoDB,
 	}
 
 	return &acdWebhook
@@ -127,14 +107,6 @@ func parseRevision(ref string) string {
 // the revision, and whether or not this affected origin/HEAD (the default branch of the repository)
 func affectedRevisionInfo(payloadIf interface{}) (webURLs []string, revision string, change changeInfo, touchedHead bool, changedFiles []string) {
 	switch payload := payloadIf.(type) {
-	case azuredevops.GitPushEvent:
-		// See: https://learn.microsoft.com/en-us/azure/devops/service-hooks/events?view=azure-devops#git.push
-		webURLs = append(webURLs, payload.Resource.Repository.RemoteURL)
-		revision = parseRevision(payload.Resource.RefUpdates[0].Name)
-		change.shaAfter = parseRevision(payload.Resource.RefUpdates[0].NewObjectID)
-		change.shaBefore = parseRevision(payload.Resource.RefUpdates[0].OldObjectID)
-		touchedHead = payload.Resource.RefUpdates[0].Name == payload.Resource.Repository.DefaultBranch
-		// unfortunately, Azure DevOps doesn't provide a list of changed files
 	case github.PushPayload:
 		// See: https://developer.github.com/v3/activity/events/types/#pushevent
 		webURLs = append(webURLs, payload.Repository.HTMLURL)
@@ -291,8 +263,7 @@ func (a *ArgoCDWebhookHandler) HandleEvent(payload interface{}) {
 
 			for _, source := range app.Spec.GetSources() {
 				if sourceRevisionHasChanged(source, revision, touchedHead) && sourceUsesURL(source, webURL, repoRegexp) {
-					refreshPaths := path.GetAppRefreshPaths(&app)
-					if path.AppFilesHaveChanged(refreshPaths, changedFiles) {
+					if appFilesHaveChanged(&app, changedFiles) {
 						namespacedAppInterface := a.appClientset.ArgoprojV1alpha1().Applications(app.ObjectMeta.Namespace)
 						_, err = argo.RefreshApp(namespacedAppInterface, app.ObjectMeta.Name, v1alpha1.RefreshTypeNormal)
 						if err != nil {
@@ -321,7 +292,7 @@ func getWebUrlRegex(webURL string) (*regexp.Regexp, error) {
 	}
 
 	regexEscapedHostname := regexp.QuoteMeta(urlObj.Hostname())
-	regexEscapedPath := regexp.QuoteMeta(urlObj.EscapedPath()[1:])
+	regexEscapedPath := regexp.QuoteMeta(urlObj.Path[1:])
 	regexpStr := fmt.Sprintf(`(?i)^(http://|https://|%s@|ssh://(%s@)?)%s(:[0-9]+|)[:/]%s(\.git)?$`,
 		usernameRegex, usernameRegex, regexEscapedHostname, regexEscapedPath)
 	repoRegexp, err := regexp.Compile(regexpStr)
@@ -349,13 +320,83 @@ func (a *ArgoCDWebhookHandler) storePreviouslyCachedManifests(app *v1alpha1.Appl
 		return fmt.Errorf("error getting ref sources: %w", err)
 	}
 	source := app.Spec.GetSource()
-	cache.LogDebugManifestCacheKeyFields("moving manifests cache", "webhook app revision changed", change.shaBefore, &source, refSources, &clusterInfo, app.Spec.Destination.Namespace, trackingMethod, appInstanceLabelKey, app.Name, nil)
+	cache.LogDebugManifestCacheKeyFields("getting manifests cache", "webhook app revision changed", change.shaBefore, &source, refSources, &clusterInfo, app.Spec.Destination.Namespace, trackingMethod, appInstanceLabelKey, app.Name, nil)
 
-	if err := a.repoCache.SetNewRevisionManifests(change.shaAfter, change.shaBefore, &source, refSources, &clusterInfo, app.Spec.Destination.Namespace, trackingMethod, appInstanceLabelKey, app.Name, nil); err != nil {
+	var cachedManifests cache.CachedManifestResponse
+	if err := a.repoCache.GetManifests(change.shaBefore, &source, refSources, &clusterInfo, app.Spec.Destination.Namespace, trackingMethod, appInstanceLabelKey, app.Name, &cachedManifests, nil); err != nil {
 		return err
 	}
 
+	cache.LogDebugManifestCacheKeyFields("setting manifests cache", "webhook app revision changed", change.shaAfter, &source, refSources, &clusterInfo, app.Spec.Destination.Namespace, trackingMethod, appInstanceLabelKey, app.Name, nil)
+
+	if err = a.repoCache.SetManifests(change.shaAfter, &source, refSources, &clusterInfo, app.Spec.Destination.Namespace, trackingMethod, appInstanceLabelKey, app.Name, &cachedManifests, nil); err != nil {
+		return err
+	}
 	return nil
+}
+
+func getAppRefreshPaths(app *v1alpha1.Application) []string {
+	var paths []string
+	if val, ok := app.Annotations[v1alpha1.AnnotationKeyManifestGeneratePaths]; ok && val != "" {
+		for _, item := range strings.Split(val, ";") {
+			if item == "" {
+				continue
+			}
+			if filepath.IsAbs(item) {
+				paths = append(paths, item[1:])
+			} else {
+				for _, source := range app.Spec.GetSources() {
+					paths = append(paths, filepath.Clean(filepath.Join(source.Path, item)))
+				}
+			}
+		}
+	}
+	return paths
+}
+
+func appFilesHaveChanged(app *v1alpha1.Application, changedFiles []string) bool {
+	// an empty slice of changed files means that the payload didn't include a list
+	// of changed files and w have to assume that a refresh is required
+	if len(changedFiles) == 0 {
+		return true
+	}
+
+	// Check to see if the app has requested refreshes only on a specific prefix
+	refreshPaths := getAppRefreshPaths(app)
+
+	if len(refreshPaths) == 0 {
+		// Apps without a given refreshed paths always be refreshed, regardless of changed files
+		// this is the "default" behavior
+		return true
+	}
+
+	// At last one changed file must be under refresh path
+	for _, f := range changedFiles {
+		f = ensureAbsPath(f)
+		for _, item := range refreshPaths {
+			item = ensureAbsPath(item)
+			changed := false
+			if f == item {
+				changed = true
+			} else if _, err := security.EnforceToCurrentRoot(item, f); err == nil {
+				changed = true
+			}
+			if changed {
+				log.WithField("application", app.Name).Debugf("Application uses files that have changed")
+				return true
+			}
+		}
+	}
+
+	log.WithField("application", app.Name).Debugf("Application does not use any of the files that have changed")
+	return false
+}
+
+func ensureAbsPath(input string) string {
+	if !filepath.IsAbs(input) {
+		return string(filepath.Separator) + input
+	}
+	return input
 }
 
 func sourceRevisionHasChanged(source v1alpha1.ApplicationSource, revision string, touchedHead bool) bool {
@@ -389,14 +430,6 @@ func (a *ArgoCDWebhookHandler) Handler(w http.ResponseWriter, r *http.Request) {
 	var err error
 
 	switch {
-	case r.Header.Get("X-Vss-Activityid") != "":
-		if err = a.azuredevopsAuthHandler(r); err != nil {
-			if errors.Is(err, errBasicAuthVerificationFailed) {
-				log.WithField(common.SecurityField, common.SecurityHigh).Infof("Azure DevOps webhook basic auth verification failed")
-			}
-		} else {
-			payload, err = a.azuredevops.Parse(r, azuredevops.GitPushEventType)
-		}
 	//Gogs needs to be checked before GitHub since it carries both Gogs and (incompatible) GitHub headers
 	case r.Header.Get("X-Gogs-Event") != "":
 		payload, err = a.gogs.Parse(r, gogs.PushEvent)

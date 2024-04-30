@@ -9,6 +9,7 @@ import (
 	"math"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strconv"
 	"strings"
 	"testing"
@@ -448,47 +449,59 @@ func TestCacheValueGetters(t *testing.T) {
 	})
 
 	t.Run("Valid environment overrides", func(t *testing.T) {
-		t.Setenv(envLoginMaxFailCount, "5")
-		t.Setenv(envLoginMaxCacheSize, "5")
+		os.Setenv(envLoginMaxFailCount, "5")
+		os.Setenv(envLoginMaxCacheSize, "5")
 
 		mlf := getMaxLoginFailures()
 		assert.Equal(t, 5, mlf)
 
 		mcs := getMaximumCacheSize()
 		assert.Equal(t, 5, mcs)
+
+		os.Setenv(envLoginMaxFailCount, "")
+		os.Setenv(envLoginMaxCacheSize, "")
 	})
 
 	t.Run("Invalid environment overrides", func(t *testing.T) {
-		t.Setenv(envLoginMaxFailCount, "invalid")
-		t.Setenv(envLoginMaxCacheSize, "invalid")
+		os.Setenv(envLoginMaxFailCount, "invalid")
+		os.Setenv(envLoginMaxCacheSize, "invalid")
 
 		mlf := getMaxLoginFailures()
 		assert.Equal(t, defaultMaxLoginFailures, mlf)
 
 		mcs := getMaximumCacheSize()
 		assert.Equal(t, defaultMaxCacheSize, mcs)
+
+		os.Setenv(envLoginMaxFailCount, "")
+		os.Setenv(envLoginMaxCacheSize, "")
 	})
 
 	t.Run("Less than allowed in environment overrides", func(t *testing.T) {
-		t.Setenv(envLoginMaxFailCount, "-1")
-		t.Setenv(envLoginMaxCacheSize, "-1")
+		os.Setenv(envLoginMaxFailCount, "-1")
+		os.Setenv(envLoginMaxCacheSize, "-1")
 
 		mlf := getMaxLoginFailures()
 		assert.Equal(t, defaultMaxLoginFailures, mlf)
 
 		mcs := getMaximumCacheSize()
 		assert.Equal(t, defaultMaxCacheSize, mcs)
+
+		os.Setenv(envLoginMaxFailCount, "")
+		os.Setenv(envLoginMaxCacheSize, "")
 	})
 
 	t.Run("Greater than allowed in environment overrides", func(t *testing.T) {
-		t.Setenv(envLoginMaxFailCount, fmt.Sprintf("%d", math.MaxInt32+1))
-		t.Setenv(envLoginMaxCacheSize, fmt.Sprintf("%d", math.MaxInt32+1))
+		os.Setenv(envLoginMaxFailCount, fmt.Sprintf("%d", math.MaxInt32+1))
+		os.Setenv(envLoginMaxCacheSize, fmt.Sprintf("%d", math.MaxInt32+1))
 
 		mlf := getMaxLoginFailures()
 		assert.Equal(t, defaultMaxLoginFailures, mlf)
 
 		mcs := getMaximumCacheSize()
 		assert.Equal(t, defaultMaxCacheSize, mcs)
+
+		os.Setenv(envLoginMaxFailCount, "")
+		os.Setenv(envLoginMaxCacheSize, "")
 	})
 
 }
@@ -548,7 +561,7 @@ func TestMaxCacheSize(t *testing.T) {
 
 	invalidUsers := []string{"invalid1", "invalid2", "invalid3", "invalid4", "invalid5", "invalid6", "invalid7"}
 	// Temporarily decrease max cache size
-	t.Setenv(envLoginMaxCacheSize, "5")
+	os.Setenv(envLoginMaxCacheSize, "5")
 
 	for _, user := range invalidUsers {
 		err := mgr.VerifyUsernamePassword(user, "password")
@@ -564,7 +577,7 @@ func TestFailedAttemptsExpiry(t *testing.T) {
 
 	invalidUsers := []string{"invalid1", "invalid2", "invalid3", "invalid4", "invalid5", "invalid6", "invalid7"}
 
-	t.Setenv(envLoginFailureWindowSeconds, "1")
+	os.Setenv(envLoginFailureWindowSeconds, "1")
 
 	for _, user := range invalidUsers {
 		err := mgr.VerifyUsernamePassword(user, "password")
@@ -576,6 +589,8 @@ func TestFailedAttemptsExpiry(t *testing.T) {
 	err := mgr.VerifyUsernamePassword("invalid8", "password")
 	assert.Error(t, err)
 	assert.Len(t, mgr.GetLoginFailures(), 1)
+
+	os.Setenv(envLoginFailureWindowSeconds, "")
 }
 
 func getKubeClientWithConfig(config map[string]string, secretConfig map[string][]byte) *fake.Clientset {
@@ -1135,43 +1150,6 @@ allowedAudiences: []`, oidcTestServer.URL),
 		_, _, err = mgr.VerifyToken(tokenString)
 		require.Error(t, err)
 		assert.ErrorIs(t, err, common.TokenVerificationErr)
-	})
-
-	// Make sure the logic works to allow any of the allowed audiences, not just the first one.
-	t.Run("OIDC provider is external, audience is specified, actual audience isn't the first allowed audience", func(t *testing.T) {
-		config := map[string]string{
-			"url": "",
-			"oidc.config": fmt.Sprintf(`
-name: Test
-issuer: %s
-clientID: xxx
-clientSecret: yyy
-requestedScopes: ["oidc"]
-allowedAudiences: ["aud-a", "aud-b"]`, oidcTestServer.URL),
-			"oidc.tls.insecure.skip.verify": "true", // This isn't what we're testing.
-		}
-
-		// This is not actually used in the test. The test only calls the OIDC test server. But a valid cert/key pair
-		// must be set to test VerifyToken's behavior when Argo CD is configured with TLS enabled.
-		secretConfig := map[string][]byte{
-			"tls.crt": utiltest.Cert,
-			"tls.key": utiltest.PrivateKey,
-		}
-
-		settingsMgr := settings.NewSettingsManager(context.Background(), getKubeClientWithConfig(config, secretConfig), "argocd")
-		mgr := NewSessionManager(settingsMgr, getProjLister(), "", nil, NewUserStateStorage(nil))
-		mgr.verificationDelayNoiseEnabled = false
-
-		claims := jwt.RegisteredClaims{Audience: jwt.ClaimStrings{"aud-b"}, Subject: "admin", ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 24))}
-		claims.Issuer = oidcTestServer.URL
-		token := jwt.NewWithClaims(jwt.SigningMethodRS512, claims)
-		key, err := jwt.ParseRSAPrivateKeyFromPEM(utiltest.PrivateKey)
-		require.NoError(t, err)
-		tokenString, err := token.SignedString(key)
-		require.NoError(t, err)
-
-		_, _, err = mgr.VerifyToken(tokenString)
-		assert.NoError(t, err)
 	})
 
 	t.Run("OIDC provider is external, audience is not specified, token is signed with the wrong key", func(t *testing.T) {

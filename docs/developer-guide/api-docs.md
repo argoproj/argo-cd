@@ -24,9 +24,10 @@ $ curl $ARGOCD_SERVER/api/v1/applications -H "Authorization: Bearer $ARGOCD_TOKE
 
 #### How to Avoid 403 Errors for Missing Applications
 
-All endpoints of the Applications API accept an optional `project` query string parameter. If the parameter 
-is specified, and the specified Application does not exist, the API will return a `404` error.
+All endpoints of the Applications API accept an optional `project` query string parameter. If the parameter is 
+specified, and the specified Application does not exist, or if the Application does exist but is not in the given 
+project, the API will return a `404` error.
 
-Additionally, if the `project` query string parameter is specified and the Application exists but is not in 
-the given `project`, the API will return a `403` error. This is to prevent leaking information about the 
-existence of Applications to users who do not have access to them.
+If the `project` query string parameter is specified, and the Application does not exist, the API will return a `403`
+error. This is to prevent leaking information about the existence of Applications to users who do not have access to
+them.

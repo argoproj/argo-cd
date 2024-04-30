@@ -13,7 +13,6 @@ markdown_extensions:
 - admonition
 - toc:
     permalink: true
-- pymdownx.superfences
 nav:
 - Overview: index.md
 - understand_the_basics.md
@@ -27,9 +26,6 @@ nav:
   - operator-manual/declarative-setup.md
   - operator-manual/app-any-namespace.md
   - operator-manual/ingress.md
-  - High Availability:
-    - Overview: operator-manual/high_availability.md
-    - Dynamic Cluster Distribution: operator-manual/dynamic-cluster-distribution.md
   - User Management:
     - operator-manual/user-management/index.md
     - operator-manual/user-management/auth0.md
@@ -39,8 +35,6 @@ nav:
     - operator-manual/user-management/keycloak.md
     - operator-manual/user-management/openunison.md
     - operator-manual/user-management/google.md
-    - operator-manual/user-management/zitadel.md
-    - operator-manual/user-management/identity-center.md
     - operator-manual/rbac.md
   - Security:
     - Overview: operator-manual/security.md
@@ -50,6 +44,7 @@ nav:
   - operator-manual/cluster-bootstrapping.md
   - operator-manual/secret-management.md
   - operator-manual/disaster_recovery.md
+  - operator-manual/high_availability.md
   - operator-manual/reconcile.md
   - operator-manual/webhook.md
   - operator-manual/health.md
@@ -61,7 +56,7 @@ nav:
   - operator-manual/web_based_terminal.md
   - operator-manual/config-management-plugins.md
   - operator-manual/deep_links.md
-  - Notifications:
+  - Notification:
     - Overview: operator-manual/notifications/index.md
     - operator-manual/notifications/triggers.md
     - operator-manual/notifications/templates.md
@@ -74,7 +69,6 @@ nav:
     - operator-manual/notifications/troubleshooting-errors.md
     - Notification Services:
       - operator-manual/notifications/services/alertmanager.md
-      - operator-manual/notifications/services/awssqs.md
       - operator-manual/notifications/services/email.md
       - operator-manual/notifications/services/github.md
       - operator-manual/notifications/services/googlechat.md
@@ -128,9 +122,6 @@ nav:
     - operator-manual/server-commands/additional-configuration-method.md
   - Upgrading:
     - operator-manual/upgrading/overview.md
-    - operator-manual/upgrading/2.10-2.11.md
-    - operator-manual/upgrading/2.9-2.10.md
-    - operator-manual/upgrading/2.8-2.9.md
     - operator-manual/upgrading/2.7-2.8.md
     - operator-manual/upgrading/2.6-2.7.md
     - operator-manual/upgrading/2.5-2.6.md
@@ -163,9 +154,7 @@ nav:
   - user-guide/multiple_sources.md
   - GnuPG verification: user-guide/gpg-verification.md
   - user-guide/auto_sync.md
-  - Diffing:
-    - Diff Strategies: user-guide/diff-strategies.md
-    - Diff Customization: user-guide/diffing.md
+  - user-guide/diffing.md
   - user-guide/orphaned-resources.md
   - user-guide/compare-options.md
   - user-guide/sync-options.md

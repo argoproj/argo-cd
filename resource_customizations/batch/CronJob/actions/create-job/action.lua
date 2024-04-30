@@ -28,7 +28,7 @@ function deepCopy(object)
     return _copy(object)
 end
 
-local job = {}
+job = {}
 job.apiVersion = "batch/v1"
 job.kind = "Job"
 
@@ -43,7 +43,7 @@ if job.metadata.annotations == nil then
 end
 job.metadata.annotations['cronjob.kubernetes.io/instantiate'] = "manual"
 
-local ownerRef = {}
+ownerRef = {}
 ownerRef.apiVersion = obj.apiVersion
 ownerRef.kind = obj.kind
 ownerRef.name = obj.metadata.name
@@ -55,10 +55,10 @@ job.metadata.ownerReferences[1] = ownerRef
 
 job.spec = deepCopy(obj.spec.jobTemplate.spec)
 
-local impactedResource = {}
+impactedResource = {}
 impactedResource.operation = "create"
 impactedResource.resource = job
-local result = {}
+result = {}
 result[1] = impactedResource
 
 return result

@@ -15,7 +15,6 @@ import (
 
 	cmdutil "github.com/argoproj/argo-cd/v2/cmd/util"
 	"github.com/argoproj/argo-cd/v2/common"
-	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
 	"github.com/argoproj/argo-cd/v2/util/errors"
 	"github.com/argoproj/argo-cd/v2/util/settings"
 
@@ -36,7 +35,7 @@ var (
 )
 
 // NewAdminCommand returns a new instance of an argocd command
-func NewAdminCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
+func NewAdminCommand() *cobra.Command {
 	var (
 		pathOpts = clientcmd.NewDefaultPathOptions()
 	)
@@ -48,22 +47,16 @@ func NewAdminCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 		Run: func(c *cobra.Command, args []string) {
 			c.HelpFunc()(c, args)
 		},
-		Example: `# Access the Argo CD web UI
-$ argocd admin dashboard
-
-# Reset the initial admin password
-$ argocd admin initial-password reset
-`,
 	}
 
-	command.AddCommand(NewClusterCommand(clientOpts, pathOpts))
+	command.AddCommand(NewClusterCommand(pathOpts))
 	command.AddCommand(NewProjectsCommand())
 	command.AddCommand(NewSettingsCommand())
-	command.AddCommand(NewAppCommand(clientOpts))
+	command.AddCommand(NewAppCommand())
 	command.AddCommand(NewRepoCommand())
 	command.AddCommand(NewImportCommand())
 	command.AddCommand(NewExportCommand())
-	command.AddCommand(NewDashboardCommand(clientOpts))
+	command.AddCommand(NewDashboardCommand())
 	command.AddCommand(NewNotificationsCommand())
 	command.AddCommand(NewInitialPasswordCommand())
 

@@ -1,4 +1,4 @@
-local hs = {}
+hs = {}
 
 if obj.status ~= nil and obj.status.readyToUse then
   hs.status = "Healthy"

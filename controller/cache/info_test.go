@@ -53,7 +53,7 @@ var (
     resourceVersion: "123"
     uid: "4"
     annotations:
-      link.argocd.argoproj.io/external-link: http://my-grafana.example.com/pre-generated-link
+      link.argocd.argoproj.io/external-link: http://my-grafana.com/pre-generated-link
   spec:
     selector:
       app: guestbook
@@ -75,7 +75,7 @@ var (
       serviceName: not-found-service
       servicePort: 443
     rules:
-    - host: helm-guestbook.example.com
+    - host: helm-guestbook.com
       http:
         paths:
         - backend:
@@ -87,7 +87,7 @@ var (
             servicePort: https
           path: /
     tls:
-    - host: helm-guestbook.example.com
+    - host: helm-guestbook.com
     secretName: my-tls-secret
   status:
     loadBalancer:
@@ -102,13 +102,13 @@ var (
     namespace: default
     uid: "4"
     annotations:
-      link.argocd.argoproj.io/external-link: http://my-grafana.example.com/ingress-link
+      link.argocd.argoproj.io/external-link: http://my-grafana.com/ingress-link
   spec:
     backend:
       serviceName: not-found-service
       servicePort: 443
     rules:
-    - host: helm-guestbook.example.com
+    - host: helm-guestbook.com
       http:
         paths:
         - backend:
@@ -120,7 +120,7 @@ var (
             servicePort: https
           path: /
     tls:
-    - host: helm-guestbook.example.com
+    - host: helm-guestbook.com
     secretName: my-tls-secret
   status:
     loadBalancer:
@@ -139,7 +139,7 @@ var (
       serviceName: not-found-service
       servicePort: 443
     rules:
-    - host: helm-guestbook.example.com
+    - host: helm-guestbook.com
       http:
         paths:
         - backend:
@@ -151,7 +151,7 @@ var (
             servicePort: https
           path: /*
     tls:
-    - host: helm-guestbook.example.com
+    - host: helm-guestbook.com
     secretName: my-tls-secret
   status:
     loadBalancer:
@@ -170,7 +170,7 @@ var (
       serviceName: not-found-service
       servicePort: 443
     rules:
-    - host: helm-guestbook.example.com
+    - host: helm-guestbook.com
       http:
         paths:
         - backend:
@@ -200,7 +200,7 @@ var (
         port:
           number: 443
     rules:
-    - host: helm-guestbook.example.com
+    - host: helm-guestbook.com
       http:
         paths:
         - backend:
@@ -216,7 +216,7 @@ var (
                 name: https
           path: /
     tls:
-    - host: helm-guestbook.example.com
+    - host: helm-guestbook.com
     secretName: my-tls-secret
   status:
     loadBalancer:
@@ -328,7 +328,7 @@ func TestGetLinkAnnotatedServiceInfo(t *testing.T) {
 	assert.Equal(t, &v1alpha1.ResourceNetworkingInfo{
 		TargetLabels: map[string]string{"app": "guestbook"},
 		Ingress:      []v1.LoadBalancerIngress{{Hostname: "localhost"}},
-		ExternalURLs: []string{"http://my-grafana.example.com/pre-generated-link"},
+		ExternalURLs: []string{"http://my-grafana.com/pre-generated-link"},
 	}, info.NetworkingInfo)
 }
 
@@ -382,7 +382,7 @@ func TestGetIngressInfo(t *testing.T) {
 				Kind:      kube.ServiceKind,
 				Name:      "helm-guestbook",
 			}},
-			ExternalURLs: []string{"https://helm-guestbook.example.com/"},
+			ExternalURLs: []string{"https://helm-guestbook.com/"},
 		}, info.NetworkingInfo)
 	}
 }
@@ -407,7 +407,7 @@ func TestGetLinkAnnotatedIngressInfo(t *testing.T) {
 			Kind:      kube.ServiceKind,
 			Name:      "helm-guestbook",
 		}},
-		ExternalURLs: []string{"http://my-grafana.example.com/ingress-link", "https://helm-guestbook.example.com/"},
+		ExternalURLs: []string{"https://helm-guestbook.com/", "http://my-grafana.com/ingress-link"},
 	}, info.NetworkingInfo)
 }
 
@@ -431,7 +431,7 @@ func TestGetIngressInfoWildCardPath(t *testing.T) {
 			Kind:      kube.ServiceKind,
 			Name:      "helm-guestbook",
 		}},
-		ExternalURLs: []string{"https://helm-guestbook.example.com/"},
+		ExternalURLs: []string{"https://helm-guestbook.com/"},
 	}, info.NetworkingInfo)
 }
 
@@ -455,7 +455,7 @@ func TestGetIngressInfoWithoutTls(t *testing.T) {
 			Kind:      kube.ServiceKind,
 			Name:      "helm-guestbook",
 		}},
-		ExternalURLs: []string{"http://helm-guestbook.example.com/"},
+		ExternalURLs: []string{"http://helm-guestbook.com/"},
 	}, info.NetworkingInfo)
 }
 
@@ -564,7 +564,7 @@ func TestExternalUrlWithMultipleSubPaths(t *testing.T) {
     namespace: default
   spec:
     rules:
-    - host: helm-guestbook.example.com
+    - host: helm-guestbook.com
       http:
         paths:
         - backend:
@@ -588,7 +588,7 @@ func TestExternalUrlWithMultipleSubPaths(t *testing.T) {
 	info := &ResourceInfo{}
 	populateNodeInfo(ingress, info, []string{})
 
-	expectedExternalUrls := []string{"https://helm-guestbook.example.com/my/sub/path/", "https://helm-guestbook.example.com/my/sub/path/2", "https://helm-guestbook.example.com"}
+	expectedExternalUrls := []string{"https://helm-guestbook.com/my/sub/path/", "https://helm-guestbook.com/my/sub/path/2", "https://helm-guestbook.com"}
 	actualURLs := info.NetworkingInfo.ExternalURLs
 	sort.Strings(expectedExternalUrls)
 	sort.Strings(actualURLs)
