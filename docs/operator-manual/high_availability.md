@@ -126,7 +126,7 @@ stringData:
 
 **metrics**
 
-* `argocd_app_reconcile` - reports application reconciliation duration. Can be used to build reconciliation duration heat map to get a high-level reconciliation performance picture.
+* `argocd_app_reconcile` - reports application reconciliation duration in seconds. Can be used to build reconciliation duration heat map to get a high-level reconciliation performance picture.
 * `argocd_app_k8s_request_total` - number of k8s requests per application. The number of fallback Kubernetes API queries - useful to identify which application has a resource with
 non-preferred version and causes performance issues.
 

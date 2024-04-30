@@ -139,21 +139,21 @@ func AddAppFlags(command *cobra.Command, opts *AppOptions) {
 	command.Flags().StringVar(&opts.ref, "ref", "", "Ref is reference to another source within sources field")
 }
 
-func SetAppSpecOptions(flags *pflag.FlagSet, spec *argoappv1.ApplicationSpec, appOpts *AppOptions, index int) int {
+func SetAppSpecOptions(flags *pflag.FlagSet, spec *argoappv1.ApplicationSpec, appOpts *AppOptions, sourcePosition int) int {
 	visited := 0
 	if flags == nil {
 		return visited
 	}
-	source := spec.GetSourcePtr(index)
+	source := spec.GetSourcePtrByPosition(sourcePosition)
 	if source == nil {
 		source = &argoappv1.ApplicationSource{}
 	}
 	source, visited = ConstructSource(source, *appOpts, flags)
 	if spec.HasMultipleSources() {
-		if index == 0 {
-			spec.Sources[index] = *source
-		} else if index > 0 {
-			spec.Sources[index-1] = *source
+		if sourcePosition == 0 {
+			spec.Sources[sourcePosition] = *source
+		} else if sourcePosition > 0 {
+			spec.Sources[sourcePosition-1] = *source
 		} else {
 			spec.Sources = append(spec.Sources, *source)
 		}
@@ -428,7 +428,7 @@ func SetParameterOverrides(app *argoappv1.Application, parameters []string, inde
 	if len(parameters) == 0 {
 		return
 	}
-	source := app.Spec.GetSourcePtr(index)
+	source := app.Spec.GetSourcePtrByIndex(index)
 	var sourceType argoappv1.ApplicationSourceType
 	if st, _ := source.ExplicitType(); st != nil {
 		sourceType = *st
