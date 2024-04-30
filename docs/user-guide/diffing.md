@@ -68,7 +68,7 @@ spec:
 
 The above configuration will ignore differences from all fields owned by `kube-controller-manager` for all resources belonging to this application.
 
-If you have a slash `/` in your pointer path, you can use the `~1` character. For example:
+If you have a slash `/` in your pointer path, you need to replace it with the `~1` character. For example:
 
 ```yaml
 spec:
