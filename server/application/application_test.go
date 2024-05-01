@@ -2567,8 +2567,8 @@ func TestAppNamespaceRestrictions(t *testing.T) {
 		appServer := newTestAppServer(t, testApp, otherNsProj)
 		appServer.enabledNamespaces = []string{"argocd-1"}
 		app, err := appServer.Get(context.TODO(), &application.ApplicationQuery{
-			Name:         pointer.String("test-app"),
-			AppNamespace: pointer.String("argocd-1"),
+			Name:         ptr.To("test-app"),
+			AppNamespace: ptr.To("argocd-1"),
 		})
 		require.Error(t, err)
 		require.Nil(t, app)
@@ -2692,8 +2692,8 @@ func TestAppNamespaceRestrictions(t *testing.T) {
 		appServer := newTestAppServer(t, testApp, otherNsProj)
 		appServer.enabledNamespaces = []string{"argocd-1"}
 		links, err := appServer.ListLinks(context.TODO(), &application.ListAppLinksRequest{
-			Name:      pointer.String("test-app"),
-			Namespace: pointer.String("argocd-1"),
+			Name:      ptr.To("test-app"),
+			Namespace: ptr.To("argocd-1"),
 		})
 		require.Error(t, err)
 		require.Nil(t, links)
@@ -2714,8 +2714,8 @@ func TestAppNamespaceRestrictions(t *testing.T) {
 		appServer := newTestAppServer(t, testApp, otherNsProj)
 		appServer.enabledNamespaces = []string{"argocd-1"}
 		links, err := appServer.ListLinks(context.TODO(), &application.ListAppLinksRequest{
-			Name:      pointer.String("test-app"),
-			Namespace: pointer.String("argocd-1"),
+			Name:      ptr.To("test-app"),
+			Namespace: ptr.To("argocd-1"),
 		})
 		require.NoError(t, err)
 		assert.Equal(t, 0, len(links.Items))
