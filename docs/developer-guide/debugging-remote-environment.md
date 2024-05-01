@@ -45,7 +45,7 @@ And uninstall telepresence from your cluster:
 telepresence helm uninstall
 ```
 
-See [this quickstart](https://www.telepresence.io/docs/latest/howtos/intercepts/) for more information on how to intercept services using Telepresence.
+See [this quickstart](https://www.telepresence.io/docs/latest/quick-start/) for more information on how to intercept services using Telepresence.
 
 ### Connect (telepresence v1)
 Use the following command instead:

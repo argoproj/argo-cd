@@ -369,7 +369,7 @@ func TestRunCommandEmptyCommand(t *testing.T) {
 	assert.ErrorContains(t, err, "Command is empty")
 }
 
-// TestRunCommandContextTimeoutWithGracefulTermination makes sure that the process is given enough time to cleanup before sending SIGKILL.
+// TestRunCommandContextTimeoutWithCleanup makes sure that the process is given enough time to cleanup before sending SIGKILL.
 func TestRunCommandContextTimeoutWithCleanup(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 900*time.Millisecond)
 	defer cancel()

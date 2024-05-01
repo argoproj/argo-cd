@@ -128,6 +128,7 @@ nav:
     - operator-manual/server-commands/additional-configuration-method.md
   - Upgrading:
     - operator-manual/upgrading/overview.md
+    - operator-manual/upgrading/2.10-2.11.md
     - operator-manual/upgrading/2.9-2.10.md
     - operator-manual/upgrading/2.8-2.9.md
     - operator-manual/upgrading/2.7-2.8.md
@@ -162,7 +163,9 @@ nav:
   - user-guide/multiple_sources.md
   - GnuPG verification: user-guide/gpg-verification.md
   - user-guide/auto_sync.md
-  - user-guide/diffing.md
+  - Diffing:
+    - Diff Strategies: user-guide/diff-strategies.md
+    - Diff Customization: user-guide/diffing.md
   - user-guide/orphaned-resources.md
   - user-guide/compare-options.md
   - user-guide/sync-options.md

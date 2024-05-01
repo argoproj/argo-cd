@@ -216,6 +216,19 @@ func DoesNotExist() Expectation {
 	}
 }
 
+func DoesNotExistNow() Expectation {
+	return func(c *Consequences) (state, string) {
+		_, err := c.get()
+		if err != nil {
+			if apierr.IsNotFound(err) {
+				return succeeded, "app does not exist"
+			}
+			return failed, err.Error()
+		}
+		return failed, "app should not exist"
+	}
+}
+
 func Pod(predicate func(p v1.Pod) bool) Expectation {
 	return func(c *Consequences) (state, string) {
 		pods, err := pods()
