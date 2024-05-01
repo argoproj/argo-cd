@@ -116,21 +116,16 @@ func NewCommand() *cobra.Command {
 				os.Exit(1)
 			}
 
-			var cacheopt ctrlcache.Options
-			if watchedNamespace != "" {
-				cacheopt = ctrlcache.Options{
-					DefaultNamespaces: map[string]ctrlcache.Config{
-						watchedNamespace: {},
-					},
-				}
-			}
-
 			mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 				Scheme: scheme,
 				Metrics: metricsserver.Options{
 					BindAddress: metricsAddr,
 				},
-				Cache:                  cacheopt,
+				Cache: ctrlcache.Options{
+					DefaultNamespaces: map[string]ctrlcache.Config{
+						watchedNamespace: {},
+					},
+				},
 				HealthProbeBindAddress: probeBindAddr,
 				LeaderElection:         enableLeaderElection,
 				LeaderElectionID:       "58ac56fa.applicationsets.argoproj.io",
