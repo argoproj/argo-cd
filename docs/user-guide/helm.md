@@ -72,6 +72,22 @@ source:
     - values-production.yaml
 ```
 
+If Helm is passed a non-existing value file during template expansion, it will error out. Missing
+values files can be ignored (meaning, not passed to Helm) using the `--ignore-missing-value-files`. This can be
+particularly helpful to implement a [default/override
+pattern](https://github.com/argoproj/argo-cd/issues/7767#issue-1060611415) with [Application
+Sets](./application-set.md).
+
+In the declarative syntax:
+```yaml
+source:
+  helm:
+    valueFiles:
+    - values-common.yaml
+    - values-optional-override.yaml
+    ignoreMissingValueFiles: true
+```
+
 ## Values
 
 Argo CD supports the equivalent of a values file directly in the Application manifest using the `source.helm.valuesObject` key.
