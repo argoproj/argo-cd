@@ -288,14 +288,14 @@ require (
 	k8s.io/component-helpers v0.29.2 // indirect
 	k8s.io/gengo v0.0.0-20230829151522-9cce18d56c01 // indirect
 	k8s.io/kube-aggregator v0.29.2 // indirect
-	k8s.io/kubernetes v1.29.1 // indirect
+	k8s.io/kubernetes v1.29.2 // indirect
 	sigs.k8s.io/json v0.0.0-20221116044647-bc3834ca7abd // indirect
 	sigs.k8s.io/kustomize/api v0.13.5-0.20230601165947-6ce0bf390ce3 // indirect
 	sigs.k8s.io/kustomize/kyaml v0.14.3-0.20230601165947-6ce0bf390ce3 // indirect
 )
 
 replace (
-	github.com/argoproj/gitops-engine => github.com/sivchari/gitops-engine v0.0.0-20240228144537-7c3b9522429b
+	github.com/argoproj/gitops-engine => github.com/sivchari/gitops-engine v0.0.0-20240501143952-36d21f86fde3
 	// https://github.com/golang/go/issues/33546#issuecomment-519656923
 	github.com/go-check/check => github.com/go-check/check v0.0.0-20180628173108-788fd7840127
 
