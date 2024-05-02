@@ -4,7 +4,8 @@ import * as classNames from 'classnames';
 import * as models from '../../../shared/models';
 import {ResourceIcon} from '../resource-icon';
 import {ResourceLabel} from '../resource-label';
-import {ComparisonStatusIcon, HealthStatusIcon, nodeKey, createdOrNodeKey} from '../utils';
+import {ComparisonStatusIcon, HealthStatusIcon, nodeKey, createdOrNodeKey, isSameNode} from '../utils';
+import {AppDetailsPreferences} from '../../../shared/services';
 import {Consumer} from '../../../shared/context';
 import * as _ from 'lodash';
 import Moment from 'react-moment';
@@ -13,6 +14,7 @@ import {ResourceNode, ResourceRef} from '../../../shared/models';
 import './application-resource-list.scss';
 
 export interface ApplicationResourceListProps {
+    pref: AppDetailsPreferences;
     resources: models.ResourceStatus[];
     onNodeClick?: (fullName: string) => any;
     nodeMenu?: (node: models.ResourceNode) => React.ReactNode;
@@ -20,36 +22,32 @@ export interface ApplicationResourceListProps {
 }
 
 export const ApplicationResourceList = (props: ApplicationResourceListProps) => {
-    function getResNode(nodes: ResourceNode[], nodeId: string): models.ResourceNode {
-        for (const node of nodes) {
-            if (nodeKey(node) === nodeId) {
-                return node;
-            }
-        }
-        return null;
-    }
-    const parentNode = ((props.resources || []).length > 0 && (getResNode(props.tree.nodes, nodeKey(props.resources[0])) as ResourceNode)?.parentRefs?.[0]) || ({} as ResourceRef);
-    const searchParams = new URLSearchParams(window.location.search);
-    const view = searchParams.get('view');
+    const nodeByKey = new Map<string, models.ResourceNode>();
+    props.tree?.nodes?.forEach(res => nodeByKey.set(nodeKey(res), res));
+
+    const firstParentNode = props.resources.length > 0 && (nodeByKey.get(nodeKey(props.resources[0])) as ResourceNode)?.parentRefs?.[0];
+    const isSameParent = firstParentNode && props.resources.every(x => (nodeByKey.get(nodeKey(x)) as ResourceNode)?.parentRefs.every(p => isSameNode(p, firstParentNode)))
+    const isSameKind = props.resources.every(x => x.group === props.resources[0].group && x.kind === props.resources[0].kind)
+    const view = props.pref.view
 
     const ParentRefDetails = () => {
-        return Object.keys(parentNode).length > 0 ? (
+        return isSameParent ? (
             <div className='resource-parent-node-info-title'>
                 <div>Parent Node Info</div>
                 <div className='resource-parent-node-info-title__label'>
                     <div>Name:</div>
-                    <div>{parentNode?.name}</div>
+                    <div>{firstParentNode.name}</div>
                 </div>
                 <div className='resource-parent-node-info-title__label'>
                     <div>Kind:</div>
-                    <div>{parentNode?.kind}</div>
+                    <div>{firstParentNode.kind}</div>
                 </div>
             </div>
         ) : (
             <div />
         );
     };
-    return (
+    return (props.resources.length >0 &&
         <div>
             {/* Display only when the view is set to  or network */}
             {(view === 'tree' || view === 'network') && (
@@ -65,7 +63,7 @@ export const ApplicationResourceList = (props: ApplicationResourceListProps) => 
                         <div className='columns small-1 xxxlarge-1'>GROUP/KIND</div>
                         <div className='columns small-1 xxxlarge-1'>SYNC ORDER</div>
                         <div className='columns small-2 xxxlarge-1'>NAMESPACE</div>
-                        {(parentNode.kind === 'Rollout' || parentNode.kind === 'Deployment') && <div className='columns small-1 xxxlarge-1'>REVISION</div>}
+                        {(isSameKind && props.resources[0].kind === 'ReplicaSet') && <div className='columns small-1 xxxlarge-1'>REVISION</div>}
                         <div className='columns small-2 xxxlarge-1'>CREATED AT</div>
                         <div className='columns small-2 xxxlarge-1'>STATUS</div>
                     </div>
@@ -107,8 +105,8 @@ export const ApplicationResourceList = (props: ApplicationResourceListProps) => 
                                 <div className='columns small-1 xxxlarge-1'>{[res.group, res.kind].filter(item => !!item).join('/')}</div>
                                 <div className='columns small-1 xxxlarge-1'>{res.syncWave || '-'}</div>
                                 <div className='columns small-2 xxxlarge-1'>{res.namespace}</div>
-                                {res.kind === 'ReplicaSet' &&
-                                    ((getResNode(props.tree.nodes, nodeKey(res)) as ResourceNode).info || [])
+                                {isSameKind && res.kind === 'ReplicaSet' &&
+                                    ((nodeByKey.get(nodeKey(res)) as ResourceNode).info || [])
                                         .filter(tag => !tag.name.includes('Node'))
                                         .slice(0, 4)
                                         .map((tag, i) => {
@@ -146,19 +144,7 @@ export const ApplicationResourceList = (props: ApplicationResourceListProps) => 
                                                         <i className='fa fa-ellipsis-v' />
                                                     </button>
                                                 )}>
-                                                {() =>
-                                                    props.nodeMenu({
-                                                        name: res.name,
-                                                        version: res.version,
-                                                        kind: res.kind,
-                                                        namespace: res.namespace,
-                                                        group: res.group,
-                                                        info: null,
-                                                        uid: '',
-                                                        resourceVersion: null,
-                                                        parentRefs: []
-                                                    })
-                                                }
+                                                {() =>  props.nodeMenu(nodeByKey.get(nodeKey(res)))}
                                             </DropDown>
                                         </div>
                                     )}
