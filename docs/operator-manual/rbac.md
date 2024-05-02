@@ -228,7 +228,7 @@ This example shows how to assign a role to a local user.
 g, my-local-user, role:admin
 ```
 
-!!!warning "Ambiguous User/Scope Names"
+!!!warning "Ambiguous Group Assignments"
     If you have [enabled SSO](user-management/index.md#sso), any SSO user with a scope that matches a local user will be 
     added to the same roles as the local user. For example, if local user `sally` is assigned to `role:admin`, and if an 
     SSO user has a scope which happens to be named `sally`, that SSO user will also be assigned to `role:admin`.
