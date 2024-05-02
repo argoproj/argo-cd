@@ -25,6 +25,7 @@ type Service interface {
 
 type ManifestsRequest struct {
 	RepoURL           string
+	SyncBranch        string
 	TargetBranch      string
 	DrySHA            string
 	CommitAuthorName  string
@@ -77,15 +78,79 @@ func (s *service) Commit(r ManifestsRequest) (ManifestsResponse, error) {
 		return ManifestsResponse{}, fmt.Errorf("failed to clone repo: %w", err)
 	}
 
-	// Checkout the target branch
-	checkoutCmd := exec.Command("git", "checkout", r.TargetBranch)
+	// Set author name
+	authorCmd := exec.Command("git", "config", "user.name", r.CommitAuthorName)
+	authorCmd.Dir = dirPath
+	out, err := authorCmd.CombinedOutput()
+	if err != nil {
+		log.WithError(err).WithField("output", string(out)).Error("failed to set author name")
+		return ManifestsResponse{}, fmt.Errorf("failed to set author name: %w", err)
+	}
+
+	// Set author email
+	emailCmd := exec.Command("git", "config", "user.email", r.CommitAuthorEmail)
+	emailCmd.Dir = dirPath
+	out, err = emailCmd.CombinedOutput()
+	if err != nil {
+		log.WithError(err).WithField("output", string(out)).Error("failed to set author email")
+		return ManifestsResponse{}, fmt.Errorf("failed to set author email: %w", err)
+	}
+
+	// Checkout the sync branch
+	checkoutCmd := exec.Command("git", "checkout", r.SyncBranch)
 	checkoutCmd.Dir = dirPath
-	out, err := checkoutCmd.CombinedOutput()
+	out, err = checkoutCmd.CombinedOutput()
+	if err != nil {
+		// If the sync branch doesn't exist, create it as an orphan branch.
+		if strings.Contains(string(out), "did not match any file(s) known to git") {
+			checkoutCmd = exec.Command("git", "switch", "--orphan", r.SyncBranch)
+			checkoutCmd.Dir = dirPath
+			out, err = checkoutCmd.CombinedOutput()
+			if err != nil {
+				log.WithError(err).WithField("output", string(out)).Error("failed to create orphan branch")
+				return ManifestsResponse{}, fmt.Errorf("failed to create orphan branch: %w", err)
+			}
+		} else {
+			log.WithError(err).WithField("output", string(out)).Error("failed to checkout sync branch")
+			return ManifestsResponse{}, fmt.Errorf("failed to checkout sync branch: %w", err)
+		}
+
+		// Make an empty initial commit.
+		commitCmd := exec.Command("git", "commit", "--allow-empty", "-m", "Initial commit")
+		commitCmd.Dir = dirPath
+		out, err = commitCmd.CombinedOutput()
+		if err != nil {
+			log.WithError(err).WithField("output", string(out)).Error("failed to commit initial commit")
+			return ManifestsResponse{}, fmt.Errorf("failed to commit initial commit: %w", err)
+		}
+
+		// Push the commit.
+		pushCmd := exec.Command("git", "push", "origin", r.SyncBranch)
+		pushCmd.Dir = dirPath
+		out, err = pushCmd.CombinedOutput()
+		if err != nil {
+			log.WithError(err).WithField("output", string(out)).Error("failed to push sync branch")
+			return ManifestsResponse{}, fmt.Errorf("failed to push sync branch: %w", err)
+		}
+	}
+
+	// Checkout the target branch
+	checkoutCmd = exec.Command("git", "checkout", r.TargetBranch)
+	checkoutCmd.Dir = dirPath
+	out, err = checkoutCmd.CombinedOutput()
 	if err != nil {
 		if strings.Contains(string(out), "did not match any file(s) known to git") {
-			// If the branch does not exist, create any empty branch
+			// If the branch does not exist, create any empty branch based on the sync branch
+			// First, checkout the sync branch.
+			checkoutCmd = exec.Command("git", "checkout", r.SyncBranch)
+			checkoutCmd.Dir = dirPath
+			out, err = checkoutCmd.CombinedOutput()
+			if err != nil {
+				log.WithError(err).WithField("output", string(out)).Error("failed to checkout sync branch")
+				return ManifestsResponse{}, fmt.Errorf("failed to checkout sync branch: %w", err)
+			}
 
-			checkoutCmd = exec.Command("git", "switch", "--orphan", r.TargetBranch)
+			checkoutCmd = exec.Command("git", "checkout", "-b", r.TargetBranch)
 			checkoutCmd.Dir = dirPath
 			out, err = checkoutCmd.CombinedOutput()
 			if err != nil {
@@ -184,24 +249,6 @@ func (s *service) Commit(r ManifestsRequest) (ManifestsResponse, error) {
 	if err != nil {
 		log.WithError(err).WithField("output", string(out)).Error("failed to add files")
 		return ManifestsResponse{}, fmt.Errorf("failed to add files: %w", err)
-	}
-
-	// Set author name
-	authorCmd := exec.Command("git", "config", "user.name", r.CommitAuthorName)
-	authorCmd.Dir = dirPath
-	out, err = authorCmd.CombinedOutput()
-	if err != nil {
-		log.WithError(err).WithField("output", string(out)).Error("failed to set author name")
-		return ManifestsResponse{}, fmt.Errorf("failed to set author name: %w", err)
-	}
-
-	// Set author email
-	emailCmd := exec.Command("git", "config", "user.email", r.CommitAuthorEmail)
-	emailCmd.Dir = dirPath
-	out, err = emailCmd.CombinedOutput()
-	if err != nil {
-		log.WithError(err).WithField("output", string(out)).Error("failed to set author email")
-		return ManifestsResponse{}, fmt.Errorf("failed to set author email: %w", err)
 	}
 
 	commitCmd := exec.Command("git", "commit", "-m", r.CommitMessage)
