@@ -658,7 +658,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 		conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionUnknownError, Message: err.Error(), LastTransitionTime: &now})
 	}
 	diffConfigBuilder.WithGVKParser(gvkParser)
-	diffConfigBuilder.WithManager(common.ArgoCDSSAManager)
+	diffConfigBuilder.WithManager(app.GetName() + "-" + app.GetNamespace())
 
 	diffConfigBuilder.WithServerSideDiff(serverSideDiff)
 
