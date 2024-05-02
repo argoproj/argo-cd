@@ -295,7 +295,7 @@ require (
 )
 
 replace (
-	github.com/argoproj/gitops-engine => github.com/sivchari/gitops-engine v0.0.0-20240501143952-36d21f86fde3
+	github.com/argoproj/gitops-engine => github.com/sivchari/gitops-engine v0.0.0-20240502074818-d086c310e77a
 	// https://github.com/golang/go/issues/33546#issuecomment-519656923
 	github.com/go-check/check => github.com/go-check/check v0.0.0-20180628173108-788fd7840127
 
