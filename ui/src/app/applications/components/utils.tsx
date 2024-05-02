@@ -1,4 +1,4 @@
-import {models, DataLoader, FormField, MenuItem, NotificationType, Tooltip} from 'argo-ui';
+import {models, DataLoader, FormField, MenuItem, NotificationType, Tooltip, HelpIcon} from 'argo-ui';
 import {ActionButton} from 'argo-ui/v2';
 import * as classNames from 'classnames';
 import * as React from 'react';
@@ -69,7 +69,7 @@ export async function deleteApplication(appName: string, appNamespace: string, a
         api => (
             <div>
                 <p>
-                    Are you sure you want to delete the application <kbd>{appName}</kbd>?
+                    Are you sure you want to delete the <strong>Application</strong> <kbd>{appName}</kbd>?
                     <span style={{display: 'block', marginBottom: '10px'}} />
                     Deleting the application in <kbd>foreground</kbd> or <kbd>background</kbd> mode will delete all the application's managed resources, which can be{' '}
                     <strong>dangerous</strong>. Be sure you understand the effects of deleting this resource before continuing. Consider asking someone to review the change first.
@@ -119,8 +119,8 @@ export async function deleteApplication(appName: string, appNamespace: string, a
                 }
             }
         },
-        {name: 'argo-icon-warning', color: 'warning'},
-        'yellow',
+        {name: 'argo-icon-warning', color: 'failed'},
+        'red',
         {propagationPolicy: 'foreground'}
     );
     return confirmed;
@@ -302,15 +302,15 @@ export const deletePodAction = async (pod: appModels.Pod, appContext: AppContext
         () => (
             <div>
                 <p>
-                    Are you sure you want to delete Pod <kbd>{pod.name}</kbd>?
+                    Are you sure you want to delete <strong>Pod</strong> <kbd>{pod.name}</kbd>?
                     <span style={{display: 'block', marginBottom: '10px'}} />
                     Deleting resources can be <strong>dangerous</strong>. Be sure you understand the effects of deleting this resource before continuing. Consider asking someone to
                     review the change first.
                 </p>
                 <div className='argo-form-row' style={{paddingLeft: '30px'}}>
-                    <CheckboxField id='force-delete-checkbox' field='force'>
-                        <label htmlFor='force-delete-checkbox'>Force delete</label>
-                    </CheckboxField>
+                    <CheckboxField id='force-delete-checkbox' field='force'/>
+                    <label htmlFor='force-delete-checkbox'>Force delete</label>
+                    <HelpIcon title='If checked, Argo will ignore any configured grace period and delete the resource immediately' />
                 </div>
             </div>
         ),
@@ -348,7 +348,7 @@ export const deletePopup = async (ctx: ContextApis, resource: ResourceTreeNode, 
         api => (
             <div>
                 <p>
-                    Are you sure you want to delete {resource.kind} <kbd>{resource.name}</kbd>?
+                    Are you sure you want to delete <strong>{resource.kind}</strong> <kbd>{resource.name}</kbd>?
                     <span style={{display: 'block', marginBottom: '10px'}} />
                     Deleting resources can be <strong>dangerous</strong>. Be sure you understand the effects of deleting this resource before continuing. Consider asking someone to
                     review the change first.
