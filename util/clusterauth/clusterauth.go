@@ -258,24 +258,11 @@ func GetServiceAccountBearerToken(clientset kubernetes.Interface, ns string, sa 
 func getOrCreateServiceAccountTokenSecret(clientset kubernetes.Interface, sa, ns string) (string, error) {
 	// Wait for sa to have secret, but don't wait too
 	// long for 1.24+ clusters
-	var serviceAccount *corev1.ServiceAccount
-	err := wait.PollUntilContextTimeout(context.Background(), 500*time.Millisecond, 5*time.Second, true, func(ctx context.Context) (bool, error) {
-		ctx, cancel := context.WithTimeout(ctx, common.ClusterAuthRequestTimeout)
-		defer cancel()
-		var getErr error
-		serviceAccount, getErr = clientset.CoreV1().ServiceAccounts(ns).Get(ctx, sa, metav1.GetOptions{})
-		if getErr != nil {
-			return false, fmt.Errorf("failed to get serviceaccount %q: %w", sa, getErr)
-		}
-		if len(serviceAccount.Secrets) == 0 {
-			return false, nil
-		}
-		return true, nil
-	})
-	if err != nil && !wait.Interrupted(err) {
-		return "", fmt.Errorf("failed to get serviceaccount token secret: %w", err)
+	serviceAccount, err := clientset.CoreV1().ServiceAccounts(ns).Get(context.Background(), sa, metav1.GetOptions{})
+	if err != nil {
+		return "", fmt.Errorf("failed to get serviceaccount %q: %w", sa, err)
 	}
-	if serviceAccount == nil {
+	if serviceAccount.Name == "" || serviceAccount.Namespace == "" {
 		log.Errorf("Unexpected nil serviceaccount '%s/%s' with no error returned", ns, sa)
 		return "", fmt.Errorf("failed to create serviceaccount token secret: nil serviceaccount returned for '%s/%s' with no error", ns, sa)
 	}
