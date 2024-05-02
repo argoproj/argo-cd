@@ -165,7 +165,12 @@ func cmpSupports(ctx context.Context, pluginSockFilePath, appPath, repoPath, fil
 		return nil, nil, false
 	}
 
-	isSupported, isDiscoveryEnabled, err := matchRepositoryCMP(ctx, appPath, repoPath, cmpClient, env, tarExcludedGlobs)
+	// if plugin name is specified, lets return the client directly
+	if namedPlugin {
+		return conn, cmpClient, true
+	}
+
+	isSupported, _, err := matchRepositoryCMP(ctx, appPath, repoPath, cmpClient, env, tarExcludedGlobs)
 	if err != nil {
 		log.WithFields(log.Fields{
 			common.SecurityField:    common.SecurityMedium,
@@ -176,10 +181,6 @@ func cmpSupports(ctx context.Context, pluginSockFilePath, appPath, repoPath, fil
 	}
 
 	if !isSupported {
-		// if discovery is not set and the plugin name is specified, let app use the plugin
-		if !isDiscoveryEnabled && namedPlugin {
-			return conn, cmpClient, true
-		}
 		log.WithFields(log.Fields{
 			common.SecurityField:    common.SecurityLow,
 			common.SecurityCWEField: common.SecurityCWEMissingReleaseOfFileDescriptor,
