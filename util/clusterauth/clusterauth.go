@@ -259,7 +259,7 @@ func getOrCreateServiceAccountTokenSecret(clientset kubernetes.Interface, sa, ns
 	// Wait for sa to have secret, but don't wait too
 	// long for 1.24+ clusters
 	var serviceAccount *corev1.ServiceAccount
-	err := wait.PollUntilContextTimeout(context.Background(), 500*time.Millisecond, 10*time.Second, true, func(ctx context.Context) (bool, error) {
+	err := wait.PollUntilContextTimeout(context.Background(), 500*time.Millisecond, 30*time.Second, true, func(ctx context.Context) (bool, error) {
 		ctx, cancel := context.WithTimeout(ctx, common.ClusterAuthRequestTimeout)
 		defer cancel()
 		var getErr error
