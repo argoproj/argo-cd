@@ -131,13 +131,11 @@ func AppFilesHaveChanged(refreshPaths []string, changedFiles []string) bool {
 		f = ensureAbsPath(f)
 		for _, item := range refreshPaths {
 			item = ensureAbsPath(item)
-			changed := false
 			if f == item {
-				changed = true
+				return true
 			} else if _, err := security.EnforceToCurrentRoot(item, f); err == nil {
-				changed = true
-			}
-			if changed {
+				return true
+			} else if matched, err := filepath.Match(item, f); err == nil && matched {
 				return true
 			}
 		}
