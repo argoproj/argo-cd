@@ -324,7 +324,6 @@ func TestUseJWTToken(t *testing.T) {
 	projectName := "proj-" + strconv.FormatInt(time.Now().Unix(), 10)
 	appName := "app-" + strconv.FormatInt(time.Now().Unix(), 10)
 	roleName := "roleTest"
-	roleName2 := "roleTest2"
 	testApp := &v1alpha1.Application{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: appName,
@@ -364,15 +363,6 @@ func TestUseJWTToken(t *testing.T) {
 	assert.True(t, strings.HasSuffix(roleGetResult, "ID  ISSUED-AT  EXPIRES-AT"))
 
 	_, err = fixture.RunCli("proj", "role", "create-token", projectName, roleName)
-	assert.NoError(t, err)
-
-	// Create second role with kubectl, to test that it will not affect 1st role
-	_, err = fixture.Run("", "kubectl", "patch", "appproject", projectName, "--type", "merge",
-		"-n", fixture.TestNamespace(),
-		"-p", fmt.Sprintf(`{"spec":{"roles":[{"name":"%s"},{"name":"%s"}]}}`, roleName, roleName2))
-	assert.NoError(t, err)
-
-	_, err = fixture.RunCli("proj", "role", "create-token", projectName, roleName2)
 	assert.NoError(t, err)
 
 	for _, action := range []string{"get", "update", "sync", "create", "override", "*"} {
@@ -447,7 +437,7 @@ func TestRemoveOrphanedIgnore(t *testing.T) {
 		ObjectMeta: metav1.ObjectMeta{Name: projectName},
 		Spec: v1alpha1.AppProjectSpec{
 			OrphanedResources: &v1alpha1.OrphanedResourcesMonitorSettings{
-				Warn:   pointer.Bool(true),
+				Warn:   pointer.BoolPtr(true),
 				Ignore: []v1alpha1.OrphanedResourceKey{{Group: "group", Kind: "kind", Name: "name"}},
 			},
 		},
@@ -487,7 +477,7 @@ func TestRemoveOrphanedIgnore(t *testing.T) {
 }
 
 func createAndConfigGlobalProject() error {
-	// Create global project
+	//Create global project
 	projectGlobalName := "proj-g-" + fixture.Name()
 	_, err := fixture.RunCli("proj", "create", projectGlobalName,
 		"--description", "Test description",
@@ -529,7 +519,7 @@ func createAndConfigGlobalProject() error {
 		return err
 	}
 
-	// Configure global project settings
+	//Configure global project settings
 	globalProjectsSettings := `data:
   accounts.config-service: apiKey
   globalProjects: |
@@ -557,7 +547,7 @@ func TestGetVirtualProjectNoMatch(t *testing.T) {
 	err := createAndConfigGlobalProject()
 	assert.NoError(t, err)
 
-	// Create project which does not match global project settings
+	//Create project which does not match global project settings
 	projectName := "proj-" + fixture.Name()
 	_, err = fixture.RunCli("proj", "create", projectName,
 		"--description", "Test description",
@@ -569,7 +559,7 @@ func TestGetVirtualProjectNoMatch(t *testing.T) {
 	proj, err := fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.TestNamespace()).Get(context.Background(), projectName, metav1.GetOptions{})
 	assert.NoError(t, err)
 
-	// Create an app belongs to proj project
+	//Create an app belongs to proj project
 	_, err = fixture.RunCli("app", "create", fixture.Name(), "--repo", fixture.RepoURL(fixture.RepoURLTypeFile),
 		"--path", guestbookPath, "--project", proj.Name, "--dest-server", v1alpha1.KubernetesInternalAPIServerAddr, "--dest-namespace", fixture.DeploymentNamespace())
 	assert.NoError(t, err)
@@ -578,11 +568,11 @@ func TestGetVirtualProjectNoMatch(t *testing.T) {
 	// Else the sync would fail to retrieve the app resources.
 	time.Sleep(time.Second * 2)
 
-	// App trying to sync a resource which is not blacked listed anywhere
+	//App trying to sync a resource which is not blacked listed anywhere
 	_, err = fixture.RunCli("app", "sync", fixture.Name(), "--resource", "apps:Deployment:guestbook-ui", "--timeout", fmt.Sprintf("%v", 10))
 	assert.NoError(t, err)
 
-	// app trying to sync a resource which is black listed by global project
+	//app trying to sync a resource which is black listed by global project
 	_, err = fixture.RunCli("app", "sync", fixture.Name(), "--resource", ":Service:guestbook-ui", "--timeout", fmt.Sprintf("%v", 10))
 	assert.NoError(t, err)
 
@@ -593,7 +583,7 @@ func TestGetVirtualProjectMatch(t *testing.T) {
 	err := createAndConfigGlobalProject()
 	assert.NoError(t, err)
 
-	// Create project which matches global project settings
+	//Create project which matches global project settings
 	projectName := "proj-" + fixture.Name()
 	_, err = fixture.RunCli("proj", "create", projectName,
 		"--description", "Test description",
@@ -605,12 +595,12 @@ func TestGetVirtualProjectMatch(t *testing.T) {
 	proj, err := fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.TestNamespace()).Get(context.Background(), projectName, metav1.GetOptions{})
 	assert.NoError(t, err)
 
-	// Add a label to this project so that this project match global project selector
+	//Add a label to this project so that this project match global project selector
 	proj.Labels = map[string]string{"opt": "me"}
 	_, err = fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.TestNamespace()).Update(context.Background(), proj, metav1.UpdateOptions{})
 	assert.NoError(t, err)
 
-	// Create an app belongs to proj project
+	//Create an app belongs to proj project
 	_, err = fixture.RunCli("app", "create", fixture.Name(), "--repo", fixture.RepoURL(fixture.RepoURLTypeFile),
 		"--path", guestbookPath, "--project", proj.Name, "--dest-server", v1alpha1.KubernetesInternalAPIServerAddr, "--dest-namespace", fixture.DeploymentNamespace())
 	assert.NoError(t, err)
@@ -619,12 +609,12 @@ func TestGetVirtualProjectMatch(t *testing.T) {
 	// Else the sync would fail to retrieve the app resources.
 	time.Sleep(time.Second * 2)
 
-	// App trying to sync a resource which is not blacked listed anywhere
+	//App trying to sync a resource which is not blacked listed anywhere
 	_, err = fixture.RunCli("app", "sync", fixture.Name(), "--resource", "apps:Deployment:guestbook-ui", "--timeout", fmt.Sprintf("%v", 10))
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "blocked by sync window")
 
-	// app trying to sync a resource which is black listed by global project
+	//app trying to sync a resource which is black listed by global project
 	_, err = fixture.RunCli("app", "sync", fixture.Name(), "--resource", ":Service:guestbook-ui", "--timeout", fmt.Sprintf("%v", 10))
 	assert.Contains(t, err.Error(), "blocked by sync window")
 

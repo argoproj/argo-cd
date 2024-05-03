@@ -2,7 +2,6 @@ package controller
 
 import (
 	"context"
-	goerrors "errors"
 	"fmt"
 	"os"
 	"strconv"
@@ -58,27 +57,6 @@ func (m *appStateManager) getGVKParser(server string) (*managedfields.GvkParser,
 	return cluster.GetGVKParser(), nil
 }
 
-// getResourceOperations will return the kubectl implementation of the ResourceOperations
-// interface that provides functionality to manage kubernetes resources. Returns a
-// cleanup function that must be called to remove the generated kube config for this
-// server.
-func (m *appStateManager) getResourceOperations(server string) (kube.ResourceOperations, func(), error) {
-	clusterCache, err := m.liveStateCache.GetClusterCache(server)
-	if err != nil {
-		return nil, nil, fmt.Errorf("error getting cluster cache: %w", err)
-	}
-
-	cluster, err := m.db.GetCluster(context.Background(), server)
-	if err != nil {
-		return nil, nil, fmt.Errorf("error getting cluster: %w", err)
-	}
-	ops, cleanup, err := m.kubectl.ManageResources(cluster.RawRestConfig(), clusterCache.GetOpenAPISchema())
-	if err != nil {
-		return nil, nil, fmt.Errorf("error creating kubectl ResourceOperations: %w", err)
-	}
-	return ops, cleanup, nil
-}
-
 func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha1.OperationState) {
 	// Sync requests might be requested with ambiguous revisions (e.g. master, HEAD, v1.2.3).
 	// This can change meaning when resuming operations (e.g a hook sync). After calculating a
@@ -104,7 +82,7 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 	if syncOp.SyncOptions.HasOption("FailOnSharedResource=true") &&
 		hasSharedResource {
 		state.Phase = common.OperationFailed
-		state.Message = fmt.Sprintf("Shared resource found: %s", sharedResourceMessage)
+		state.Message = fmt.Sprintf("Shared resouce found: %s", sharedResourceMessage)
 		return
 	}
 
@@ -162,12 +140,6 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 		state.Phase = common.OperationError
 		state.Message = fmt.Sprintf("Failed to load application project: %v", err)
 		return
-	} else if syncWindowPreventsSync(app, proj) {
-		// If the operation is currently running, simply let the user know the sync is blocked by a current sync window
-		if state.Phase == common.OperationRunning {
-			state.Message = "Sync operation blocked by sync window"
-		}
-		return
 	}
 
 	if app.Spec.HasMultipleSources() {
@@ -181,13 +153,7 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 		revisions = []string{revision}
 	}
 
-	// ignore error if CompareStateRepoError, this shouldn't happen as noRevisionCache is true
-	compareResult, err := m.CompareAppState(app, proj, revisions, sources, false, true, syncOp.Manifests, app.Spec.HasMultipleSources())
-	if err != nil && !goerrors.Is(err, CompareStateRepoError) {
-		state.Phase = common.OperationError
-		state.Message = err.Error()
-		return
-	}
+	compareResult := m.CompareAppState(app, proj, revisions, sources, false, true, syncOp.Manifests, app.Spec.HasMultipleSources())
 	// We now have a concrete commit SHA. Save this in the sync result revision so that we remember
 	// what we should be syncing to when resuming operations.
 
@@ -311,7 +277,6 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 		sync.WithInitialState(state.Phase, state.Message, initialResourcesRes, state.StartedAt),
 		sync.WithResourcesFilter(func(key kube.ResourceKey, target *unstructured.Unstructured, live *unstructured.Unstructured) bool {
 			return (len(syncOp.Resources) == 0 ||
-				isPostDeleteHook(target) ||
 				argo.ContainsSyncResource(key.Name, key.Namespace, schema.GroupVersionKind{Kind: key.Kind, Group: key.Group}, syncOp.Resources)) &&
 				m.isSelfReferencedObj(live, target, app.GetName(), appLabelKey, trackingMethod)
 		}),
@@ -398,7 +363,7 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 	logEntry.WithField("duration", time.Since(start)).Info("sync/terminate complete")
 
 	if !syncOp.DryRun && len(syncOp.Resources) == 0 && state.Phase.Successful() {
-		err := m.persistRevisionHistory(app, compareResult.syncStatus.Revision, source, compareResult.syncStatus.Revisions, compareResult.syncStatus.ComparedTo.Sources, app.Spec.HasMultipleSources(), state.StartedAt, state.Operation.InitiatedBy)
+		err := m.persistRevisionHistory(app, compareResult.syncStatus.Revision, source, compareResult.syncStatus.Revisions, compareResult.syncStatus.ComparedTo.Sources, app.Spec.HasMultipleSources(), state.StartedAt)
 		if err != nil {
 			state.Phase = common.OperationError
 			state.Message = fmt.Sprintf("failed to record sync to history: %v", err)
@@ -529,13 +494,4 @@ func delayBetweenSyncWaves(phase common.SyncPhase, wave int, finalWave bool) err
 		time.Sleep(duration)
 	}
 	return nil
-}
-
-func syncWindowPreventsSync(app *v1alpha1.Application, proj *v1alpha1.AppProject) bool {
-	window := proj.Spec.SyncWindows.Matches(app)
-	isManual := false
-	if app.Status.OperationState != nil {
-		isManual = !app.Status.OperationState.Operation.InitiatedBy.Automated
-	}
-	return !window.CanSync(isManual)
 }

@@ -41,7 +41,7 @@ func TestNotificationServer(t *testing.T) {
 			Name:      "argocd-notifications-cm",
 		},
 		Data: map[string]string{
-			"service.webhook.test": "url: https://test.example.com",
+			"service.webhook.test": "url: https://test.com",
 			"template.app-created": "email:\n  subject: Application {{.app.metadata.name}} has been created.\nmessage: Application {{.app.metadata.name}} has been created.\nteams:\n  title: Application {{.app.metadata.name}} has been created.\n",
 			"trigger.on-created":   "- description: Application is created.\n  oncePer: app.metadata.name\n  send:\n  - app-created\n  when: \"true\"\n",
 		},
@@ -70,7 +70,7 @@ func TestNotificationServer(t *testing.T) {
 	argocdService, err := service.NewArgoCDService(kubeclientset, testNamespace, mockRepoClient)
 	require.NoError(t, err)
 	defer argocdService.Close()
-	apiFactory := api.NewFactory(settings.GetFactorySettings(argocdService, "argocd-notifications-secret", "argocd-notifications-cm", false), testNamespace, secretInformer, configMapInformer)
+	apiFactory := api.NewFactory(settings.GetFactorySettings(argocdService, "argocd-notifications-secret", "argocd-notifications-cm"), testNamespace, secretInformer, configMapInformer)
 
 	t.Run("TestListServices", func(t *testing.T) {
 		server := NewServer(apiFactory)

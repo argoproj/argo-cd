@@ -8,17 +8,6 @@ Contains a set of commands useful for Argo CD administrators and requires direct
 argocd admin [flags]
 ```
 
-### Examples
-
-```
-# Access the Argo CD web UI
-$ argocd admin dashboard
-
-# Reset the initial admin password
-$ argocd admin initial-password reset
-
-```
-
 ### Options
 
 ```

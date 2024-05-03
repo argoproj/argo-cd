@@ -370,7 +370,7 @@ func TestAppProject_IsDestinationPermitted_PermitOnlyProjectScopedClusters(t *te
 		projDest: []ApplicationDestination{{
 			Server: "https://my-cluster.123.com", Namespace: "default",
 		}},
-		appDest: ApplicationDestination{Server: "https://some-other-cluster.example.com", Namespace: "default"},
+		appDest: ApplicationDestination{Server: "https://some-other-cluster.com", Namespace: "default"},
 		clusters: []*Cluster{{
 			Server: "https://my-cluster.123.com",
 		}},
@@ -646,7 +646,7 @@ func TestAppProject_ValidateDestinations(t *testing.T) {
 	err = p.ValidateProject()
 	assert.NoError(t, err)
 
-	// no duplicates allowed
+	//no duplicates allowed
 	p.Spec.Destinations = []ApplicationDestination{validDestination, validDestination}
 	err = p.ValidateProject()
 	assert.Error(t, err)
@@ -2966,7 +2966,7 @@ func TestRetryStrategy_NextRetryAtCustomBackoff(t *testing.T) {
 	retry := RetryStrategy{
 		Backoff: &Backoff{
 			Duration:    "2s",
-			Factor:      pointer.Int64(3),
+			Factor:      pointer.Int64Ptr(3),
 			MaxDuration: "1m",
 		},
 	}
@@ -3075,74 +3075,11 @@ func TestOrphanedResourcesMonitorSettings_IsWarn(t *testing.T) {
 	settings := OrphanedResourcesMonitorSettings{}
 	assert.False(t, settings.IsWarn())
 
-	settings.Warn = pointer.Bool(false)
+	settings.Warn = pointer.BoolPtr(false)
 	assert.False(t, settings.IsWarn())
 
-	settings.Warn = pointer.Bool(true)
+	settings.Warn = pointer.BoolPtr(true)
 	assert.True(t, settings.IsWarn())
-}
-
-func Test_isValidPolicy(t *testing.T) {
-	policyTests := []struct {
-		name    string
-		policy  string
-		isValid bool
-	}{
-		{
-			name:    "policy with full wildcard",
-			policy:  "some-project/*",
-			isValid: true,
-		},
-		{
-			name:    "policy with specified project and application",
-			policy:  "some-project/some-application",
-			isValid: true,
-		},
-		{
-			name:    "policy with full wildcard namespace and application",
-			policy:  "some-project/*/*",
-			isValid: true,
-		},
-		{
-			name:    "policy with wildcard namespace and specified application",
-			policy:  "some-project/*/some-application",
-			isValid: true,
-		},
-		{
-			name:    "policy with specified namespace and wildcard application",
-			policy:  "some-project/some-namespace/*",
-			isValid: true,
-		},
-		{
-			name:    "policy with wildcard prefix namespace and specified application",
-			policy:  "some-project/some-name*/some-application",
-			isValid: true,
-		},
-		{
-			name:    "policy with specified namespace and wildcard prefixed application",
-			policy:  "some-project/some-namespace/some-app*",
-			isValid: true,
-		},
-		{
-			name:    "policy with valid namespace and application",
-			policy:  "some-project/some-namespace/some-application",
-			isValid: true,
-		},
-		{
-			name:    "policy with invalid namespace character",
-			policy:  "some-project/some~namespace/some-application",
-			isValid: false,
-		},
-		{
-			name:    "policy with invalid application character",
-			policy:  "some-project/some-namespace/some^application",
-			isValid: false,
-		},
-	}
-
-	for _, policyTest := range policyTests {
-		assert.Equal(t, policyTest.isValid, isValidObject("some-project", policyTest.policy), policyTest.name)
-	}
 }
 
 func Test_validatePolicy_projIsNotRegex(t *testing.T) {
@@ -3680,53 +3617,6 @@ func TestOptionalMapEquality(t *testing.T) {
 		t.Run(testCopy.name, func(t *testing.T) {
 			t.Parallel()
 			assert.Equal(t, testCopy.expected, testCopy.a.Equals(testCopy.b))
-		})
-	}
-}
-
-func TestApplicationSpec_GetSourcePtrByIndex(t *testing.T) {
-	testCases := []struct {
-		name        string
-		application ApplicationSpec
-		sourceIndex int
-		expected    *ApplicationSource
-	}{
-		{
-			name: "HasMultipleSources_ReturnsFirstSource",
-			application: ApplicationSpec{
-				Sources: []ApplicationSource{
-					{RepoURL: "https://github.com/argoproj/test1.git"},
-					{RepoURL: "https://github.com/argoproj/test2.git"},
-				},
-			},
-			sourceIndex: 0,
-			expected:    &ApplicationSource{RepoURL: "https://github.com/argoproj/test1.git"},
-		},
-		{
-			name: "HasMultipleSources_ReturnsSourceAtIndex",
-			application: ApplicationSpec{
-				Sources: []ApplicationSource{
-					{RepoURL: "https://github.com/argoproj/test1.git"},
-					{RepoURL: "https://github.com/argoproj/test2.git"},
-				},
-			},
-			sourceIndex: 1,
-			expected:    &ApplicationSource{RepoURL: "https://github.com/argoproj/test2.git"},
-		},
-		{
-			name: "HasSingleSource_ReturnsSource",
-			application: ApplicationSpec{
-				Source: &ApplicationSource{RepoURL: "https://github.com/argoproj/test.git"},
-			},
-			sourceIndex: 0,
-			expected:    &ApplicationSource{RepoURL: "https://github.com/argoproj/test.git"},
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			actual := tc.application.GetSourcePtrByIndex(tc.sourceIndex)
-			assert.Equal(t, tc.expected, actual)
 		})
 	}
 }

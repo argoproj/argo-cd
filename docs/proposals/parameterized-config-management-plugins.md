@@ -256,7 +256,7 @@ spec:
           array: [values.yaml]
         - name: helm-parameters
           map: 
-            image.repository: my.example.com/gcr-proxy/heptio-images/ks-guestbook-demo
+            image.repository: my.company.com/gcr-proxy/heptio-images/ks-guestbook-demo
             image.tag: "0.1"
 ```
 
@@ -283,7 +283,7 @@ That command, when run by a CMP with the above Application manifest, will print 
   {
     "name": "helm-parameters",
     "map": {
-      "image.repository": "my.example.com/gcr-proxy/heptio-images/ks-guestbook-demo",
+      "image.repository": "my.company.com/gcr-proxy/heptio-images/ks-guestbook-demo",
       "image.tag": "0.1"
     }
   }
@@ -398,7 +398,7 @@ like this:
     "title": "Helm Parameters",
     "tooltip": "Parameters to override when generating manifests with Helm",
     "map": {
-      "image.repository": "my.example.com/gcr-proxy/heptio-images/ks-guestbook-demo",
+      "image.repository": "my.company.com/gcr-proxy/heptio-images/ks-guestbook-demo",
       "image.tag": "0.1"
     }
   }
@@ -423,7 +423,7 @@ readability.)
     "title": "Helm Parameters",
     "tooltip": "Parameters to override when generating manifests with Helm",
     "map": {
-      "image.repository": "my.example.com/gcr-proxy/heptio-images/ks-guestbook-demo",
+      "image.repository": "my.company.com/gcr-proxy/heptio-images/ks-guestbook-demo",
       "image.tag": "0.1"
     }
   }
@@ -493,11 +493,11 @@ type ParametersAnnouncement []ParameterAnnouncement
    - name: images
      collectionType: map
      array:  # this gets ignored because collectionType is 'map'
-     - ubuntu:latest=docker.example.com/proxy/ubuntu:latest
-     - guestbook:v0.1=docker.example.com/proxy/guestbook:v0.1
+     - ubuntu:latest=docker.company.com/proxy/ubuntu:latest
+     - guestbook:v0.1=docker.company.com/proxy/guestbook:v0.1
      map:
-       ubuntu:latest: docker.example.com/proxy/ubuntu:latest
-       guestbook:v0.1: docker.example.com/proxy/guestbook:v0.1
+       ubuntu:latest: docker.company.com/proxy/ubuntu:latest
+       guestbook:v0.1: docker.company.com/proxy/guestbook:v0.1
    ```
 
 2. **Question**: What do we do if the CMP user sets more than one of `value`/`array`/`map` in the Application spec?
@@ -513,11 +513,11 @@ type ParametersAnnouncement []ParameterAnnouncement
          parameters:
          - name: images
            array:  # this gets sent to the CMP, but the CMP should ignore it
-           - ubuntu:latest=docker.example.com/proxy/ubuntu:latest
-           - guestbook:v0.1=docker.example.com/proxy/guestbook:v0.1
+           - ubuntu:latest=docker.company.com/proxy/ubuntu:latest
+           - guestbook:v0.1=docker.company.com/proxy/guestbook:v0.1
            map:
-             ubuntu:latest: docker.example.com/proxy/ubuntu:latest
-             guestbook:v0.1: docker.example.com/proxy/guestbook:v0.1
+             ubuntu:latest: docker.company.com/proxy/ubuntu:latest
+             guestbook:v0.1: docker.company.com/proxy/guestbook:v0.1
    ```
 
 3. **Question**: How will the UI know that adding more items to an array or a map is allowed?
@@ -528,17 +528,17 @@ type ParametersAnnouncement []ParameterAnnouncement
    - name: images
      collectionType: map  # users will be allowed to add new items, because this is a map
      map:
-       ubuntu:latest: docker.example.com/proxy/ubuntu:latest
-       guestbook:v0.1: docker.example.com/proxy/guestbook:v0.1
+       ubuntu:latest: docker.company.com/proxy/ubuntu:latest
+       guestbook:v0.1: docker.company.com/proxy/guestbook:v0.1
    ```
 
    If the CMP author wants an immutable array or map, they should just break it into individual parameters.
 
    ```yaml
    - name: ubuntu:latest
-     string: docker.example.com/proxy/ubuntu:latest
+     string: docker.company.com/proxy/ubuntu:latest
    - name: guestbook:v0.1
-     string: docker.example.com/proxy/guestbook:v0.1
+     string: docker.company.com/proxy/guestbook:v0.1
    ```
 
 4. **Question**: What do we do if a CMP announcement doesn't include a `collectionType`?
@@ -799,8 +799,8 @@ spec:
     "title": "Image Overrides",
     "collectionType": "map",
     "map": {
-      "quay.io/argoproj/argocd": "docker.example.com/proxy/argoproj/argocd",
-      "ubuntu:latest": "docker.example.com/proxy/argoproj/argocd"
+      "quay.io/argoproj/argocd": "docker.company.com/proxy/argoproj/argocd",
+      "ubuntu:latest": "docker.company.com/proxy/argoproj/argocd"
     }
   }
 ]

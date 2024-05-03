@@ -20,7 +20,7 @@
 
 ## Labels
 
-| Label key                      | Target resource(es) | Possible values                       | Description                                                                                                                                                      |
-|--------------------------------|---------------------|---------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| argocd.argoproj.io/instance    | Application         | any                                   | Recommended tracking label to [avoid conflicts with other tools which use `app.kubernetes.io/instance`](../faq.md#why-is-my-app-out-of-sync-even-after-syncing). |
-| argocd.argoproj.io/secret-type | Secret              | `cluster`, `repository`, `repo-creds` | Identifies certain types of Secrets used by Argo CD. See the [Declarative Setup docs](../operator-manual/declarative-setup.md) for details.                      |
+| Label key                      | Target resource(es) | Possible values                       | Description                                                                                                                                                     |
+|--------------------------------|---------------------|---------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| argocd.argoproj.io/instance    | Application         | any                                   | Recommended tracking label to [avoid conflicts with other tools which use `app.kubernetes.io/instance`](../faq.md#why-is-my-app-out-of-sync-even-after-syncing. |
+| argocd.argoproj.io/secret-type | Secret              | `cluster`, `repository`, `repo-creds` | Identifies certain types of Secrets used by Argo CD. See the [Declarative Setup docs](../operator-manual/declarative-setup.md) for details.                     |

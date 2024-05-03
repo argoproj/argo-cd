@@ -215,18 +215,6 @@ spec:
               name: argocd-cmd-params-cm
               key: otlp.address
               optional: true
-        - name: ARGOCD_SERVER_OTLP_INSECURE
-          valueFrom:
-            configMapKeyRef:
-              name: argocd-cmd-params-cm
-              key: otlp.insecure
-              optional: true
-        - name: ARGOCD_SERVER_OTLP_HEADERS
-          valueFrom:
-            configMapKeyRef:
-              name: argocd-cmd-params-cm
-              key: otlp.headers
-              optional: true
         - name: ARGOCD_APPLICATION_NAMESPACES
           valueFrom:
             configMapKeyRef:
@@ -235,22 +223,10 @@ spec:
               optional: true
         - name: ARGOCD_SERVER_ENABLE_PROXY_EXTENSION
           valueFrom:
-            configMapKeyRef:
-              name: argocd-cmd-params-cm
-              key: server.enable.proxy.extension
-              optional: true
-        - name: ARGOCD_K8SCLIENT_RETRY_MAX
-          valueFrom:
-            configMapKeyRef:
-              name: argocd-cmd-params-cm
-              key: server.k8sclient.retry.max
-              optional: true
-        - name: ARGOCD_K8SCLIENT_RETRY_BASE_BACKOFF
-          valueFrom:
-            configMapKeyRef:
-              name: argocd-cmd-params-cm
-              key: server.k8sclient.retry.base.backoff
-              optional: true
+              configMapKeyRef:
+                name: argocd-cmd-params-cm
+                key: server.enable.proxy.extension
+                optional: true
         - name: ARGOCD_API_CONTENT_TYPES
           valueFrom:
             configMapKeyRef:

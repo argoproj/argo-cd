@@ -35,19 +35,14 @@ spec:
         description: Application is a definition of Application resource.
         properties:
           apiVersion:
-            description: |-
-              APIVersion defines the versioned schema of this representation of an object.
-              Servers should convert recognized schemas to the latest internal value, and
-              may reject unrecognized values.
-              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
             type: string
           kind:
-            description: |-
-              Kind is a string value representing the REST resource this object represents.
-              Servers may infer this from the endpoint the client submits requests to.
-              Cannot be updated.
-              In CamelCase.
-              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
             type: string
           metadata:
             type: object
@@ -145,21 +140,22 @@ spec:
                       type: object
                     type: array
                   revision:
-                    description: |-
-                      Revision is the revision (Git) or chart version (Helm) which to sync the application to
-                      If omitted, will use the revision specified in app spec.
+                    description: Revision is the revision (Git) or chart version (Helm)
+                      which to sync the application to If omitted, will use the revision
+                      specified in app spec.
                     type: string
                   revisions:
-                    description: |-
-                      Revisions is the list of revision (Git) or chart version (Helm) which to sync each source in sources field for the application to
-                      If omitted, will use the revision specified in app spec.
+                    description: Revisions is the list of revision (Git) or chart
+                      version (Helm) which to sync each source in sources field for
+                      the application to If omitted, will use the revision specified
+                      in app spec.
                     items:
                       type: string
                     type: array
                   source:
-                    description: |-
-                      Source overrides the source definition set in the application.
-                      This is typically set in a Rollback operation and is nil during a Sync operation
+                    description: Source overrides the source definition set in the
+                      application. This is typically set in a Rollback operation and
+                      is nil during a Sync operation
                     properties:
                       chart:
                         description: Chart is a Helm chart name, and must be specified
@@ -324,12 +320,6 @@ spec:
                             description: CommonLabels is a list of additional labels
                               to add to rendered manifests
                             type: object
-                          components:
-                            description: Components specifies a list of kustomize
-                              components to add to the kustomization before building
-                            items:
-                              type: string
-                            type: array
                           forceCommonAnnotations:
                             description: ForceCommonAnnotations specifies whether
                               to force applying common annotations to resources for
@@ -347,10 +337,6 @@ spec:
                                 definition in the format [old_image_name=]<image_name>:<image_tag>
                               type: string
                             type: array
-                          labelWithoutSelector:
-                            description: LabelWithoutSelector specifies whether to
-                              apply common labels to resource selectors or not
-                            type: boolean
                           namePrefix:
                             description: NamePrefix is a prefix appended to resources
                               for Kustomize apps
@@ -480,18 +466,18 @@ spec:
                           Helm) that contains the application manifests
                         type: string
                       targetRevision:
-                        description: |-
-                          TargetRevision defines the revision of the source to sync the application to.
-                          In case of Git, this can be commit, tag, or branch. If omitted, will equal to HEAD.
+                        description: TargetRevision defines the revision of the source
+                          to sync the application to. In case of Git, this can be
+                          commit, tag, or branch. If omitted, will equal to HEAD.
                           In case of Helm, this is a semver tag for the Chart's version.
                         type: string
                     required:
                     - repoURL
                     type: object
                   sources:
-                    description: |-
-                      Sources overrides the source definition set in the application.
-                      This is typically set in a Rollback operation and is nil during a Sync operation
+                    description: Sources overrides the source definition set in the
+                      application. This is typically set in a Rollback operation and
+                      is nil during a Sync operation
                     items:
                       description: ApplicationSource contains all required information
                         about the source of an application
@@ -662,12 +648,6 @@ spec:
                               description: CommonLabels is a list of additional labels
                                 to add to rendered manifests
                               type: object
-                            components:
-                              description: Components specifies a list of kustomize
-                                components to add to the kustomization before building
-                              items:
-                                type: string
-                              type: array
                             forceCommonAnnotations:
                               description: ForceCommonAnnotations specifies whether
                                 to force applying common annotations to resources
@@ -686,10 +666,6 @@ spec:
                                   image definition in the format [old_image_name=]<image_name>:<image_tag>
                                 type: string
                               type: array
-                            labelWithoutSelector:
-                              description: LabelWithoutSelector specifies whether
-                                to apply common labels to resource selectors or not
-                              type: boolean
                             namePrefix:
                               description: NamePrefix is a prefix appended to resources
                                 for Kustomize apps
@@ -819,10 +795,11 @@ spec:
                             Helm) that contains the application manifests
                           type: string
                         targetRevision:
-                          description: |-
-                            TargetRevision defines the revision of the source to sync the application to.
-                            In case of Git, this can be commit, tag, or branch. If omitted, will equal to HEAD.
-                            In case of Helm, this is a semver tag for the Chart's version.
+                          description: TargetRevision defines the revision of the
+                            source to sync the application to. In case of Git, this
+                            can be commit, tag, or branch. If omitted, will equal
+                            to HEAD. In case of Helm, this is a semver tag for the
+                            Chart's version.
                           type: string
                       required:
                       - repoURL
@@ -841,10 +818,10 @@ spec:
                           the sync.
                         properties:
                           force:
-                            description: |-
-                              Force indicates whether or not to supply the --force flag to `kubectl apply`.
-                              The --force flag deletes and re-create the resource, when PATCH encounters conflict and has
-                              retried for 5 times.
+                            description: Force indicates whether or not to supply
+                              the --force flag to `kubectl apply`. The --force flag
+                              deletes and re-create the resource, when PATCH encounters
+                              conflict and has retried for 5 times.
                             type: boolean
                         type: object
                       hook:
@@ -852,10 +829,10 @@ spec:
                           perform the sync. This is the default strategy
                         properties:
                           force:
-                            description: |-
-                              Force indicates whether or not to supply the --force flag to `kubectl apply`.
-                              The --force flag deletes and re-create the resource, when PATCH encounters conflict and has
-                              retried for 5 times.
+                            description: Force indicates whether or not to supply
+                              the --force flag to `kubectl apply`. The --force flag
+                              deletes and re-create the resource, when PATCH encounters
+                              conflict and has retried for 5 times.
                             type: boolean
                         type: object
                     type: object
@@ -876,9 +853,9 @@ spec:
                       not set.
                     type: string
                   namespace:
-                    description: |-
-                      Namespace specifies the target namespace for the application's resources.
-                      The namespace will only be set for namespace-scoped resources that have not set a value for .metadata.namespace
+                    description: Namespace specifies the target namespace for the
+                      application's resources. The namespace will only be set for
+                      namespace-scoped resources that have not set a value for .metadata.namespace
                     type: string
                   server:
                     description: Server specifies the URL of the target cluster's
@@ -907,9 +884,10 @@ spec:
                     kind:
                       type: string
                     managedFieldsManagers:
-                      description: |-
-                        ManagedFieldsManagers is a list of trusted managers. Fields mutated by those managers will take precedence over the
-                        desired state defined in the SCM and won't be displayed in diffs
+                      description: ManagedFieldsManagers is a list of trusted managers.
+                        Fields mutated by those managers will take precedence over
+                        the desired state defined in the SCM and won't be displayed
+                        in diffs
                       items:
                         type: string
                       type: array
@@ -936,17 +914,18 @@ spec:
                   type: object
                 type: array
               project:
-                description: |-
-                  Project is a reference to the project this application belongs to.
-                  The empty string means that application belongs to the 'default' project.
+                description: Project is a reference to the project this application
+                  belongs to. The empty string means that application belongs to the
+                  'default' project.
                 type: string
               revisionHistoryLimit:
-                description: |-
-                  RevisionHistoryLimit limits the number of items kept in the application's revision history, which is used for informational purposes as well as for rollbacks to previous versions.
-                  This should only be changed in exceptional circumstances.
-                  Setting to zero will store no history. This will reduce storage used.
-                  Increasing will increase the space used to store the history, so we do not recommend increasing it.
-                  Default is 10.
+                description: RevisionHistoryLimit limits the number of items kept
+                  in the application's revision history, which is used for informational
+                  purposes as well as for rollbacks to previous versions. This should
+                  only be changed in exceptional circumstances. Setting to zero will
+                  store no history. This will reduce storage used. Increasing will
+                  increase the space used to store the history, so we do not recommend
+                  increasing it. Default is 10.
                 format: int64
                 type: integer
               source:
@@ -1114,12 +1093,6 @@ spec:
                         description: CommonLabels is a list of additional labels to
                           add to rendered manifests
                         type: object
-                      components:
-                        description: Components specifies a list of kustomize components
-                          to add to the kustomization before building
-                        items:
-                          type: string
-                        type: array
                       forceCommonAnnotations:
                         description: ForceCommonAnnotations specifies whether to force
                           applying common annotations to resources for Kustomize apps
@@ -1136,10 +1109,6 @@ spec:
                             definition in the format [old_image_name=]<image_name>:<image_tag>
                           type: string
                         type: array
-                      labelWithoutSelector:
-                        description: LabelWithoutSelector specifies whether to apply
-                          common labels to resource selectors or not
-                        type: boolean
                       namePrefix:
                         description: NamePrefix is a prefix appended to resources
                           for Kustomize apps
@@ -1265,10 +1234,10 @@ spec:
                       that contains the application manifests
                     type: string
                   targetRevision:
-                    description: |-
-                      TargetRevision defines the revision of the source to sync the application to.
-                      In case of Git, this can be commit, tag, or branch. If omitted, will equal to HEAD.
-                      In case of Helm, this is a semver tag for the Chart's version.
+                    description: TargetRevision defines the revision of the source
+                      to sync the application to. In case of Git, this can be commit,
+                      tag, or branch. If omitted, will equal to HEAD. In case of Helm,
+                      this is a semver tag for the Chart's version.
                     type: string
                 required:
                 - repoURL
@@ -1442,12 +1411,6 @@ spec:
                           description: CommonLabels is a list of additional labels
                             to add to rendered manifests
                           type: object
-                        components:
-                          description: Components specifies a list of kustomize components
-                            to add to the kustomization before building
-                          items:
-                            type: string
-                          type: array
                         forceCommonAnnotations:
                           description: ForceCommonAnnotations specifies whether to
                             force applying common annotations to resources for Kustomize
@@ -1465,10 +1428,6 @@ spec:
                               definition in the format [old_image_name=]<image_name>:<image_tag>
                             type: string
                           type: array
-                        labelWithoutSelector:
-                          description: LabelWithoutSelector specifies whether to apply
-                            common labels to resource selectors or not
-                          type: boolean
                         namePrefix:
                           description: NamePrefix is a prefix appended to resources
                             for Kustomize apps
@@ -1597,10 +1556,10 @@ spec:
                         that contains the application manifests
                       type: string
                     targetRevision:
-                      description: |-
-                        TargetRevision defines the revision of the source to sync the application to.
-                        In case of Git, this can be commit, tag, or branch. If omitted, will equal to HEAD.
-                        In case of Helm, this is a semver tag for the Chart's version.
+                      description: TargetRevision defines the revision of the source
+                        to sync the application to. In case of Git, this can be commit,
+                        tag, or branch. If omitted, will equal to HEAD. In case of
+                        Helm, this is a semver tag for the Chart's version.
                       type: string
                   required:
                   - repoURL
@@ -1743,19 +1702,6 @@ spec:
                       description: ID is an auto incrementing identifier of the RevisionHistory
                       format: int64
                       type: integer
-                    initiatedBy:
-                      description: InitiatedBy contains information about who initiated
-                        the operations
-                      properties:
-                        automated:
-                          description: Automated is set to true if operation was initiated
-                            automatically by the application controller.
-                          type: boolean
-                        username:
-                          description: Username contains the name of a user who started
-                            operation
-                          type: string
-                      type: object
                     revision:
                       description: Revision holds the revision the sync was performed
                         against
@@ -1936,12 +1882,6 @@ spec:
                               description: CommonLabels is a list of additional labels
                                 to add to rendered manifests
                               type: object
-                            components:
-                              description: Components specifies a list of kustomize
-                                components to add to the kustomization before building
-                              items:
-                                type: string
-                              type: array
                             forceCommonAnnotations:
                               description: ForceCommonAnnotations specifies whether
                                 to force applying common annotations to resources
@@ -1960,10 +1900,6 @@ spec:
                                   image definition in the format [old_image_name=]<image_name>:<image_tag>
                                 type: string
                               type: array
-                            labelWithoutSelector:
-                              description: LabelWithoutSelector specifies whether
-                                to apply common labels to resource selectors or not
-                              type: boolean
                             namePrefix:
                               description: NamePrefix is a prefix appended to resources
                                 for Kustomize apps
@@ -2093,10 +2029,11 @@ spec:
                             Helm) that contains the application manifests
                           type: string
                         targetRevision:
-                          description: |-
-                            TargetRevision defines the revision of the source to sync the application to.
-                            In case of Git, this can be commit, tag, or branch. If omitted, will equal to HEAD.
-                            In case of Helm, this is a semver tag for the Chart's version.
+                          description: TargetRevision defines the revision of the
+                            source to sync the application to. In case of Git, this
+                            can be commit, tag, or branch. If omitted, will equal
+                            to HEAD. In case of Helm, this is a semver tag for the
+                            Chart's version.
                           type: string
                       required:
                       - repoURL
@@ -2277,12 +2214,6 @@ spec:
                                 description: CommonLabels is a list of additional
                                   labels to add to rendered manifests
                                 type: object
-                              components:
-                                description: Components specifies a list of kustomize
-                                  components to add to the kustomization before building
-                                items:
-                                  type: string
-                                type: array
                               forceCommonAnnotations:
                                 description: ForceCommonAnnotations specifies whether
                                   to force applying common annotations to resources
@@ -2301,11 +2232,6 @@ spec:
                                     image definition in the format [old_image_name=]<image_name>:<image_tag>
                                   type: string
                                 type: array
-                              labelWithoutSelector:
-                                description: LabelWithoutSelector specifies whether
-                                  to apply common labels to resource selectors or
-                                  not
-                                type: boolean
                               namePrefix:
                                 description: NamePrefix is a prefix appended to resources
                                   for Kustomize apps
@@ -2438,10 +2364,11 @@ spec:
                               or Helm) that contains the application manifests
                             type: string
                           targetRevision:
-                            description: |-
-                              TargetRevision defines the revision of the source to sync the application to.
-                              In case of Git, this can be commit, tag, or branch. If omitted, will equal to HEAD.
-                              In case of Helm, this is a semver tag for the Chart's version.
+                            description: TargetRevision defines the revision of the
+                              source to sync the application to. In case of Git, this
+                              can be commit, tag, or branch. If omitted, will equal
+                              to HEAD. In case of Helm, this is a semver tag for the
+                              Chart's version.
                             type: string
                         required:
                         - repoURL
@@ -2453,9 +2380,9 @@ spec:
                   type: object
                 type: array
               observedAt:
-                description: |-
-                  ObservedAt indicates when the application state was updated without querying latest git state
-                  Deprecated: controller no longer updates ObservedAt field
+                description: 'ObservedAt indicates when the application state was
+                  updated without querying latest git state Deprecated: controller
+                  no longer updates ObservedAt field'
                 format: date-time
                 type: string
               operationState:
@@ -2568,21 +2495,22 @@ spec:
                               type: object
                             type: array
                           revision:
-                            description: |-
-                              Revision is the revision (Git) or chart version (Helm) which to sync the application to
-                              If omitted, will use the revision specified in app spec.
+                            description: Revision is the revision (Git) or chart version
+                              (Helm) which to sync the application to If omitted,
+                              will use the revision specified in app spec.
                             type: string
                           revisions:
-                            description: |-
-                              Revisions is the list of revision (Git) or chart version (Helm) which to sync each source in sources field for the application to
-                              If omitted, will use the revision specified in app spec.
+                            description: Revisions is the list of revision (Git) or
+                              chart version (Helm) which to sync each source in sources
+                              field for the application to If omitted, will use the
+                              revision specified in app spec.
                             items:
                               type: string
                             type: array
                           source:
-                            description: |-
-                              Source overrides the source definition set in the application.
-                              This is typically set in a Rollback operation and is nil during a Sync operation
+                            description: Source overrides the source definition set
+                              in the application. This is typically set in a Rollback
+                              operation and is nil during a Sync operation
                             properties:
                               chart:
                                 description: Chart is a Helm chart name, and must
@@ -2762,13 +2690,6 @@ spec:
                                     description: CommonLabels is a list of additional
                                       labels to add to rendered manifests
                                     type: object
-                                  components:
-                                    description: Components specifies a list of kustomize
-                                      components to add to the kustomization before
-                                      building
-                                    items:
-                                      type: string
-                                    type: array
                                   forceCommonAnnotations:
                                     description: ForceCommonAnnotations specifies
                                       whether to force applying common annotations
@@ -2787,11 +2708,6 @@ spec:
                                         image definition in the format [old_image_name=]<image_name>:<image_tag>
                                       type: string
                                     type: array
-                                  labelWithoutSelector:
-                                    description: LabelWithoutSelector specifies whether
-                                      to apply common labels to resource selectors
-                                      or not
-                                    type: boolean
                                   namePrefix:
                                     description: NamePrefix is a prefix appended to
                                       resources for Kustomize apps
@@ -2925,18 +2841,19 @@ spec:
                                   (Git or Helm) that contains the application manifests
                                 type: string
                               targetRevision:
-                                description: |-
-                                  TargetRevision defines the revision of the source to sync the application to.
-                                  In case of Git, this can be commit, tag, or branch. If omitted, will equal to HEAD.
-                                  In case of Helm, this is a semver tag for the Chart's version.
+                                description: TargetRevision defines the revision of
+                                  the source to sync the application to. In case of
+                                  Git, this can be commit, tag, or branch. If omitted,
+                                  will equal to HEAD. In case of Helm, this is a semver
+                                  tag for the Chart's version.
                                 type: string
                             required:
                             - repoURL
                             type: object
                           sources:
-                            description: |-
-                              Sources overrides the source definition set in the application.
-                              This is typically set in a Rollback operation and is nil during a Sync operation
+                            description: Sources overrides the source definition set
+                              in the application. This is typically set in a Rollback
+                              operation and is nil during a Sync operation
                             items:
                               description: ApplicationSource contains all required
                                 information about the source of an application
@@ -3122,13 +3039,6 @@ spec:
                                       description: CommonLabels is a list of additional
                                         labels to add to rendered manifests
                                       type: object
-                                    components:
-                                      description: Components specifies a list of
-                                        kustomize components to add to the kustomization
-                                        before building
-                                      items:
-                                        type: string
-                                      type: array
                                     forceCommonAnnotations:
                                       description: ForceCommonAnnotations specifies
                                         whether to force applying common annotations
@@ -3147,11 +3057,6 @@ spec:
                                           image definition in the format [old_image_name=]<image_name>:<image_tag>
                                         type: string
                                       type: array
-                                    labelWithoutSelector:
-                                      description: LabelWithoutSelector specifies
-                                        whether to apply common labels to resource
-                                        selectors or not
-                                      type: boolean
                                     namePrefix:
                                       description: NamePrefix is a prefix appended
                                         to resources for Kustomize apps
@@ -3287,10 +3192,11 @@ spec:
                                     (Git or Helm) that contains the application manifests
                                   type: string
                                 targetRevision:
-                                  description: |-
-                                    TargetRevision defines the revision of the source to sync the application to.
-                                    In case of Git, this can be commit, tag, or branch. If omitted, will equal to HEAD.
-                                    In case of Helm, this is a semver tag for the Chart's version.
+                                  description: TargetRevision defines the revision
+                                    of the source to sync the application to. In case
+                                    of Git, this can be commit, tag, or branch. If
+                                    omitted, will equal to HEAD. In case of Helm,
+                                    this is a semver tag for the Chart's version.
                                   type: string
                               required:
                               - repoURL
@@ -3311,10 +3217,11 @@ spec:
                                   to perform the sync.
                                 properties:
                                   force:
-                                    description: |-
-                                      Force indicates whether or not to supply the --force flag to `kubectl apply`.
-                                      The --force flag deletes and re-create the resource, when PATCH encounters conflict and has
-                                      retried for 5 times.
+                                    description: Force indicates whether or not to
+                                      supply the --force flag to `kubectl apply`.
+                                      The --force flag deletes and re-create the resource,
+                                      when PATCH encounters conflict and has retried
+                                      for 5 times.
                                     type: boolean
                                 type: object
                               hook:
@@ -3322,10 +3229,11 @@ spec:
                                   to perform the sync. This is the default strategy
                                 properties:
                                   force:
-                                    description: |-
-                                      Force indicates whether or not to supply the --force flag to `kubectl apply`.
-                                      The --force flag deletes and re-create the resource, when PATCH encounters conflict and has
-                                      retried for 5 times.
+                                    description: Force indicates whether or not to
+                                      supply the --force flag to `kubectl apply`.
+                                      The --force flag deletes and re-create the resource,
+                                      when PATCH encounters conflict and has retried
+                                      for 5 times.
                                     type: boolean
                                 type: object
                             type: object
@@ -3369,9 +3277,9 @@ spec:
                               description: Group specifies the API group of the resource
                               type: string
                             hookPhase:
-                              description: |-
-                                HookPhase contains the state of any operation associated with this resource OR hook
-                                This can also contain values for non-hook resources.
+                              description: HookPhase contains the state of any operation
+                                associated with this resource OR hook This can also
+                                contain values for non-hook resources.
                               type: string
                             hookType:
                               description: HookType specifies the type of the hook.
@@ -3595,12 +3503,6 @@ spec:
                                 description: CommonLabels is a list of additional
                                   labels to add to rendered manifests
                                 type: object
-                              components:
-                                description: Components specifies a list of kustomize
-                                  components to add to the kustomization before building
-                                items:
-                                  type: string
-                                type: array
                               forceCommonAnnotations:
                                 description: ForceCommonAnnotations specifies whether
                                   to force applying common annotations to resources
@@ -3619,11 +3521,6 @@ spec:
                                     image definition in the format [old_image_name=]<image_name>:<image_tag>
                                   type: string
                                 type: array
-                              labelWithoutSelector:
-                                description: LabelWithoutSelector specifies whether
-                                  to apply common labels to resource selectors or
-                                  not
-                                type: boolean
                               namePrefix:
                                 description: NamePrefix is a prefix appended to resources
                                   for Kustomize apps
@@ -3756,10 +3653,11 @@ spec:
                               or Helm) that contains the application manifests
                             type: string
                           targetRevision:
-                            description: |-
-                              TargetRevision defines the revision of the source to sync the application to.
-                              In case of Git, this can be commit, tag, or branch. If omitted, will equal to HEAD.
-                              In case of Helm, this is a semver tag for the Chart's version.
+                            description: TargetRevision defines the revision of the
+                              source to sync the application to. In case of Git, this
+                              can be commit, tag, or branch. If omitted, will equal
+                              to HEAD. In case of Helm, this is a semver tag for the
+                              Chart's version.
                             type: string
                         required:
                         - repoURL
@@ -3947,13 +3845,6 @@ spec:
                                   description: CommonLabels is a list of additional
                                     labels to add to rendered manifests
                                   type: object
-                                components:
-                                  description: Components specifies a list of kustomize
-                                    components to add to the kustomization before
-                                    building
-                                  items:
-                                    type: string
-                                  type: array
                                 forceCommonAnnotations:
                                   description: ForceCommonAnnotations specifies whether
                                     to force applying common annotations to resources
@@ -3972,11 +3863,6 @@ spec:
                                       image definition in the format [old_image_name=]<image_name>:<image_tag>
                                     type: string
                                   type: array
-                                labelWithoutSelector:
-                                  description: LabelWithoutSelector specifies whether
-                                    to apply common labels to resource selectors or
-                                    not
-                                  type: boolean
                                 namePrefix:
                                   description: NamePrefix is a prefix appended to
                                     resources for Kustomize apps
@@ -4110,10 +3996,11 @@ spec:
                                 or Helm) that contains the application manifests
                               type: string
                             targetRevision:
-                              description: |-
-                                TargetRevision defines the revision of the source to sync the application to.
-                                In case of Git, this can be commit, tag, or branch. If omitted, will equal to HEAD.
-                                In case of Helm, this is a semver tag for the Chart's version.
+                              description: TargetRevision defines the revision of
+                                the source to sync the application to. In case of
+                                Git, this can be commit, tag, or branch. If omitted,
+                                will equal to HEAD. In case of Helm, this is a semver
+                                tag for the Chart's version.
                               type: string
                           required:
                           - repoURL
@@ -4140,9 +4027,8 @@ spec:
                 description: Resources is a list of Kubernetes resources managed by
                   this application
                 items:
-                  description: |-
-                    ResourceStatus holds the current sync and health status of a resource
-                    TODO: describe members of this type
+                  description: 'ResourceStatus holds the current sync and health status
+                    of a resource TODO: describe members of this type'
                   properties:
                     group:
                       type: string
@@ -4225,9 +4111,10 @@ spec:
                               if Server is not set.
                             type: string
                           namespace:
-                            description: |-
-                              Namespace specifies the target namespace for the application's resources.
-                              The namespace will only be set for namespace-scoped resources that have not set a value for .metadata.namespace
+                            description: Namespace specifies the target namespace
+                              for the application's resources. The namespace will
+                              only be set for namespace-scoped resources that have
+                              not set a value for .metadata.namespace
                             type: string
                           server:
                             description: Server specifies the URL of the target cluster's
@@ -4256,9 +4143,10 @@ spec:
                             kind:
                               type: string
                             managedFieldsManagers:
-                              description: |-
-                                ManagedFieldsManagers is a list of trusted managers. Fields mutated by those managers will take precedence over the
-                                desired state defined in the SCM and won't be displayed in diffs
+                              description: ManagedFieldsManagers is a list of trusted
+                                managers. Fields mutated by those managers will take
+                                precedence over the desired state defined in the SCM
+                                and won't be displayed in diffs
                               items:
                                 type: string
                               type: array
@@ -4443,12 +4331,6 @@ spec:
                                 description: CommonLabels is a list of additional
                                   labels to add to rendered manifests
                                 type: object
-                              components:
-                                description: Components specifies a list of kustomize
-                                  components to add to the kustomization before building
-                                items:
-                                  type: string
-                                type: array
                               forceCommonAnnotations:
                                 description: ForceCommonAnnotations specifies whether
                                   to force applying common annotations to resources
@@ -4467,11 +4349,6 @@ spec:
                                     image definition in the format [old_image_name=]<image_name>:<image_tag>
                                   type: string
                                 type: array
-                              labelWithoutSelector:
-                                description: LabelWithoutSelector specifies whether
-                                  to apply common labels to resource selectors or
-                                  not
-                                type: boolean
                               namePrefix:
                                 description: NamePrefix is a prefix appended to resources
                                   for Kustomize apps
@@ -4604,10 +4481,11 @@ spec:
                               or Helm) that contains the application manifests
                             type: string
                           targetRevision:
-                            description: |-
-                              TargetRevision defines the revision of the source to sync the application to.
-                              In case of Git, this can be commit, tag, or branch. If omitted, will equal to HEAD.
-                              In case of Helm, this is a semver tag for the Chart's version.
+                            description: TargetRevision defines the revision of the
+                              source to sync the application to. In case of Git, this
+                              can be commit, tag, or branch. If omitted, will equal
+                              to HEAD. In case of Helm, this is a semver tag for the
+                              Chart's version.
                             type: string
                         required:
                         - repoURL
@@ -4795,13 +4673,6 @@ spec:
                                   description: CommonLabels is a list of additional
                                     labels to add to rendered manifests
                                   type: object
-                                components:
-                                  description: Components specifies a list of kustomize
-                                    components to add to the kustomization before
-                                    building
-                                  items:
-                                    type: string
-                                  type: array
                                 forceCommonAnnotations:
                                   description: ForceCommonAnnotations specifies whether
                                     to force applying common annotations to resources
@@ -4820,11 +4691,6 @@ spec:
                                       image definition in the format [old_image_name=]<image_name>:<image_tag>
                                     type: string
                                   type: array
-                                labelWithoutSelector:
-                                  description: LabelWithoutSelector specifies whether
-                                    to apply common labels to resource selectors or
-                                    not
-                                  type: boolean
                                 namePrefix:
                                   description: NamePrefix is a prefix appended to
                                     resources for Kustomize apps
@@ -4958,10 +4824,11 @@ spec:
                                 or Helm) that contains the application manifests
                               type: string
                             targetRevision:
-                              description: |-
-                                TargetRevision defines the revision of the source to sync the application to.
-                                In case of Git, this can be commit, tag, or branch. If omitted, will equal to HEAD.
-                                In case of Helm, this is a semver tag for the Chart's version.
+                              description: TargetRevision defines the revision of
+                                the source to sync the application to. In case of
+                                Git, this can be commit, tag, or branch. If omitted,
+                                will equal to HEAD. In case of Helm, this is a semver
+                                tag for the Chart's version.
                               type: string
                           required:
                           - repoURL
@@ -5058,7 +4925,6 @@ spec:
                                 type: string
                               type: object
                           type: object
-                          x-kubernetes-map-type: atomic
                         name:
                           type: string
                         requeueAfterSeconds:
@@ -5242,10 +5108,6 @@ spec:
                                           additionalProperties:
                                             type: string
                                           type: object
-                                        components:
-                                          items:
-                                            type: string
-                                          type: array
                                         forceCommonAnnotations:
                                           type: boolean
                                         forceCommonLabels:
@@ -5254,8 +5116,6 @@ spec:
                                           items:
                                             type: string
                                           type: array
-                                        labelWithoutSelector:
-                                          type: boolean
                                         namePrefix:
                                           type: string
                                         nameSuffix:
@@ -5458,10 +5318,6 @@ spec:
                                             additionalProperties:
                                               type: string
                                             type: object
-                                          components:
-                                            items:
-                                              type: string
-                                            type: array
                                           forceCommonAnnotations:
                                             type: boolean
                                           forceCommonLabels:
@@ -5470,8 +5326,6 @@ spec:
                                             items:
                                               type: string
                                             type: array
-                                          labelWithoutSelector:
-                                            type: boolean
                                           namePrefix:
                                             type: string
                                           nameSuffix:
@@ -5655,7 +5509,6 @@ spec:
                                 type: string
                               type: object
                           type: object
-                          x-kubernetes-map-type: atomic
                         template:
                           properties:
                             metadata:
@@ -5834,10 +5687,6 @@ spec:
                                           additionalProperties:
                                             type: string
                                           type: object
-                                        components:
-                                          items:
-                                            type: string
-                                          type: array
                                         forceCommonAnnotations:
                                           type: boolean
                                         forceCommonLabels:
@@ -5846,8 +5695,6 @@ spec:
                                           items:
                                             type: string
                                           type: array
-                                        labelWithoutSelector:
-                                          type: boolean
                                         namePrefix:
                                           type: string
                                         nameSuffix:
@@ -6050,10 +5897,6 @@ spec:
                                             additionalProperties:
                                               type: string
                                             type: object
-                                          components:
-                                            items:
-                                              type: string
-                                            type: array
                                           forceCommonAnnotations:
                                             type: boolean
                                           forceCommonLabels:
@@ -6062,8 +5905,6 @@ spec:
                                             items:
                                               type: string
                                             type: array
-                                          labelWithoutSelector:
-                                            type: boolean
                                           namePrefix:
                                             type: string
                                           nameSuffix:
@@ -6429,10 +6270,6 @@ spec:
                                           additionalProperties:
                                             type: string
                                           type: object
-                                        components:
-                                          items:
-                                            type: string
-                                          type: array
                                         forceCommonAnnotations:
                                           type: boolean
                                         forceCommonLabels:
@@ -6441,8 +6278,6 @@ spec:
                                           items:
                                             type: string
                                           type: array
-                                        labelWithoutSelector:
-                                          type: boolean
                                         namePrefix:
                                           type: string
                                         nameSuffix:
@@ -6645,10 +6480,6 @@ spec:
                                             additionalProperties:
                                               type: string
                                             type: object
-                                          components:
-                                            items:
-                                              type: string
-                                            type: array
                                           forceCommonAnnotations:
                                             type: boolean
                                           forceCommonLabels:
@@ -6657,8 +6488,6 @@ spec:
                                             items:
                                               type: string
                                             type: array
-                                          labelWithoutSelector:
-                                            type: boolean
                                           namePrefix:
                                             type: string
                                           nameSuffix:
@@ -7004,10 +6833,6 @@ spec:
                                           additionalProperties:
                                             type: string
                                           type: object
-                                        components:
-                                          items:
-                                            type: string
-                                          type: array
                                         forceCommonAnnotations:
                                           type: boolean
                                         forceCommonLabels:
@@ -7016,8 +6841,6 @@ spec:
                                           items:
                                             type: string
                                           type: array
-                                        labelWithoutSelector:
-                                          type: boolean
                                         namePrefix:
                                           type: string
                                         nameSuffix:
@@ -7220,10 +7043,6 @@ spec:
                                             additionalProperties:
                                               type: string
                                             type: object
-                                          components:
-                                            items:
-                                              type: string
-                                            type: array
                                           forceCommonAnnotations:
                                             type: boolean
                                           forceCommonLabels:
@@ -7232,8 +7051,6 @@ spec:
                                             items:
                                               type: string
                                             type: array
-                                          labelWithoutSelector:
-                                            type: boolean
                                           namePrefix:
                                             type: string
                                           nameSuffix:
@@ -7385,6 +7202,8 @@ spec:
                           - metadata
                           - spec
                           type: object
+                      required:
+                      - elements
                       type: object
                     matrix:
                       properties:
@@ -7418,7 +7237,6 @@ spec:
                                           type: string
                                         type: object
                                     type: object
-                                    x-kubernetes-map-type: atomic
                                   name:
                                     type: string
                                   requeueAfterSeconds:
@@ -7602,10 +7420,6 @@ spec:
                                                     additionalProperties:
                                                       type: string
                                                     type: object
-                                                  components:
-                                                    items:
-                                                      type: string
-                                                    type: array
                                                   forceCommonAnnotations:
                                                     type: boolean
                                                   forceCommonLabels:
@@ -7614,8 +7428,6 @@ spec:
                                                     items:
                                                       type: string
                                                     type: array
-                                                  labelWithoutSelector:
-                                                    type: boolean
                                                   namePrefix:
                                                     type: string
                                                   nameSuffix:
@@ -7818,10 +7630,6 @@ spec:
                                                       additionalProperties:
                                                         type: string
                                                       type: object
-                                                    components:
-                                                      items:
-                                                        type: string
-                                                      type: array
                                                     forceCommonAnnotations:
                                                       type: boolean
                                                     forceCommonLabels:
@@ -7830,8 +7638,6 @@ spec:
                                                       items:
                                                         type: string
                                                       type: array
-                                                    labelWithoutSelector:
-                                                      type: boolean
                                                     namePrefix:
                                                       type: string
                                                     nameSuffix:
@@ -8015,7 +7821,6 @@ spec:
                                           type: string
                                         type: object
                                     type: object
-                                    x-kubernetes-map-type: atomic
                                   template:
                                     properties:
                                       metadata:
@@ -8194,10 +7999,6 @@ spec:
                                                     additionalProperties:
                                                       type: string
                                                     type: object
-                                                  components:
-                                                    items:
-                                                      type: string
-                                                    type: array
                                                   forceCommonAnnotations:
                                                     type: boolean
                                                   forceCommonLabels:
@@ -8206,8 +8007,6 @@ spec:
                                                     items:
                                                       type: string
                                                     type: array
-                                                  labelWithoutSelector:
-                                                    type: boolean
                                                   namePrefix:
                                                     type: string
                                                   nameSuffix:
@@ -8410,10 +8209,6 @@ spec:
                                                       additionalProperties:
                                                         type: string
                                                       type: object
-                                                    components:
-                                                      items:
-                                                        type: string
-                                                      type: array
                                                     forceCommonAnnotations:
                                                       type: boolean
                                                     forceCommonLabels:
@@ -8422,8 +8217,6 @@ spec:
                                                       items:
                                                         type: string
                                                       type: array
-                                                    labelWithoutSelector:
-                                                      type: boolean
                                                     namePrefix:
                                                       type: string
                                                     nameSuffix:
@@ -8789,10 +8582,6 @@ spec:
                                                     additionalProperties:
                                                       type: string
                                                     type: object
-                                                  components:
-                                                    items:
-                                                      type: string
-                                                    type: array
                                                   forceCommonAnnotations:
                                                     type: boolean
                                                   forceCommonLabels:
@@ -8801,8 +8590,6 @@ spec:
                                                     items:
                                                       type: string
                                                     type: array
-                                                  labelWithoutSelector:
-                                                    type: boolean
                                                   namePrefix:
                                                     type: string
                                                   nameSuffix:
@@ -9005,10 +8792,6 @@ spec:
                                                       additionalProperties:
                                                         type: string
                                                       type: object
-                                                    components:
-                                                      items:
-                                                        type: string
-                                                      type: array
                                                     forceCommonAnnotations:
                                                       type: boolean
                                                     forceCommonLabels:
@@ -9017,8 +8800,6 @@ spec:
                                                       items:
                                                         type: string
                                                       type: array
-                                                    labelWithoutSelector:
-                                                      type: boolean
                                                     namePrefix:
                                                       type: string
                                                     nameSuffix:
@@ -9364,10 +9145,6 @@ spec:
                                                     additionalProperties:
                                                       type: string
                                                     type: object
-                                                  components:
-                                                    items:
-                                                      type: string
-                                                    type: array
                                                   forceCommonAnnotations:
                                                     type: boolean
                                                   forceCommonLabels:
@@ -9376,8 +9153,6 @@ spec:
                                                     items:
                                                       type: string
                                                     type: array
-                                                  labelWithoutSelector:
-                                                    type: boolean
                                                   namePrefix:
                                                     type: string
                                                   nameSuffix:
@@ -9580,10 +9355,6 @@ spec:
                                                       additionalProperties:
                                                         type: string
                                                       type: object
-                                                    components:
-                                                      items:
-                                                        type: string
-                                                      type: array
                                                     forceCommonAnnotations:
                                                       type: boolean
                                                     forceCommonLabels:
@@ -9592,8 +9363,6 @@ spec:
                                                       items:
                                                         type: string
                                                       type: array
-                                                    labelWithoutSelector:
-                                                      type: boolean
                                                     namePrefix:
                                                       type: string
                                                     nameSuffix:
@@ -9745,6 +9514,8 @@ spec:
                                     - metadata
                                     - spec
                                     type: object
+                                required:
+                                - elements
                                 type: object
                               matrix:
                                 x-kubernetes-preserve-unknown-fields: true
@@ -9947,10 +9718,6 @@ spec:
                                                     additionalProperties:
                                                       type: string
                                                     type: object
-                                                  components:
-                                                    items:
-                                                      type: string
-                                                    type: array
                                                   forceCommonAnnotations:
                                                     type: boolean
                                                   forceCommonLabels:
@@ -9959,8 +9726,6 @@ spec:
                                                     items:
                                                       type: string
                                                     type: array
-                                                  labelWithoutSelector:
-                                                    type: boolean
                                                   namePrefix:
                                                     type: string
                                                   nameSuffix:
@@ -10163,10 +9928,6 @@ spec:
                                                       additionalProperties:
                                                         type: string
                                                       type: object
-                                                    components:
-                                                      items:
-                                                        type: string
-                                                      type: array
                                                     forceCommonAnnotations:
                                                       type: boolean
                                                     forceCommonLabels:
@@ -10175,8 +9936,6 @@ spec:
                                                       items:
                                                         type: string
                                                       type: array
-                                                    labelWithoutSelector:
-                                                      type: boolean
                                                     namePrefix:
                                                       type: string
                                                     nameSuffix:
@@ -10712,10 +10471,6 @@ spec:
                                                     additionalProperties:
                                                       type: string
                                                     type: object
-                                                  components:
-                                                    items:
-                                                      type: string
-                                                    type: array
                                                   forceCommonAnnotations:
                                                     type: boolean
                                                   forceCommonLabels:
@@ -10724,8 +10479,6 @@ spec:
                                                     items:
                                                       type: string
                                                     type: array
-                                                  labelWithoutSelector:
-                                                    type: boolean
                                                   namePrefix:
                                                     type: string
                                                   nameSuffix:
@@ -10928,10 +10681,6 @@ spec:
                                                       additionalProperties:
                                                         type: string
                                                       type: object
-                                                    components:
-                                                      items:
-                                                        type: string
-                                                      type: array
                                                     forceCommonAnnotations:
                                                       type: boolean
                                                     forceCommonLabels:
@@ -10940,8 +10689,6 @@ spec:
                                                       items:
                                                         type: string
                                                       type: array
-                                                    labelWithoutSelector:
-                                                      type: boolean
                                                     namePrefix:
                                                       type: string
                                                     nameSuffix:
@@ -11472,10 +11219,6 @@ spec:
                                                     additionalProperties:
                                                       type: string
                                                     type: object
-                                                  components:
-                                                    items:
-                                                      type: string
-                                                    type: array
                                                   forceCommonAnnotations:
                                                     type: boolean
                                                   forceCommonLabels:
@@ -11484,8 +11227,6 @@ spec:
                                                     items:
                                                       type: string
                                                     type: array
-                                                  labelWithoutSelector:
-                                                    type: boolean
                                                   namePrefix:
                                                     type: string
                                                   nameSuffix:
@@ -11688,10 +11429,6 @@ spec:
                                                       additionalProperties:
                                                         type: string
                                                       type: object
-                                                    components:
-                                                      items:
-                                                        type: string
-                                                      type: array
                                                     forceCommonAnnotations:
                                                       type: boolean
                                                     forceCommonLabels:
@@ -11700,8 +11437,6 @@ spec:
                                                       items:
                                                         type: string
                                                       type: array
-                                                    labelWithoutSelector:
-                                                      type: boolean
                                                     namePrefix:
                                                       type: string
                                                     nameSuffix:
@@ -11881,7 +11616,6 @@ spec:
                                       type: string
                                     type: object
                                 type: object
-                                x-kubernetes-map-type: atomic
                             type: object
                           type: array
                         template:
@@ -12062,10 +11796,6 @@ spec:
                                           additionalProperties:
                                             type: string
                                           type: object
-                                        components:
-                                          items:
-                                            type: string
-                                          type: array
                                         forceCommonAnnotations:
                                           type: boolean
                                         forceCommonLabels:
@@ -12074,8 +11804,6 @@ spec:
                                           items:
                                             type: string
                                           type: array
-                                        labelWithoutSelector:
-                                          type: boolean
                                         namePrefix:
                                           type: string
                                         nameSuffix:
@@ -12278,10 +12006,6 @@ spec:
                                             additionalProperties:
                                               type: string
                                             type: object
-                                          components:
-                                            items:
-                                              type: string
-                                            type: array
                                           forceCommonAnnotations:
                                             type: boolean
                                           forceCommonLabels:
@@ -12290,8 +12014,6 @@ spec:
                                             items:
                                               type: string
                                             type: array
-                                          labelWithoutSelector:
-                                            type: boolean
                                           namePrefix:
                                             type: string
                                           nameSuffix:
@@ -12478,7 +12200,6 @@ spec:
                                           type: string
                                         type: object
                                     type: object
-                                    x-kubernetes-map-type: atomic
                                   name:
                                     type: string
                                   requeueAfterSeconds:
@@ -12662,10 +12383,6 @@ spec:
                                                     additionalProperties:
                                                       type: string
                                                     type: object
-                                                  components:
-                                                    items:
-                                                      type: string
-                                                    type: array
                                                   forceCommonAnnotations:
                                                     type: boolean
                                                   forceCommonLabels:
@@ -12674,8 +12391,6 @@ spec:
                                                     items:
                                                       type: string
                                                     type: array
-                                                  labelWithoutSelector:
-                                                    type: boolean
                                                   namePrefix:
                                                     type: string
                                                   nameSuffix:
@@ -12878,10 +12593,6 @@ spec:
                                                       additionalProperties:
                                                         type: string
                                                       type: object
-                                                    components:
-                                                      items:
-                                                        type: string
-                                                      type: array
                                                     forceCommonAnnotations:
                                                       type: boolean
                                                     forceCommonLabels:
@@ -12890,8 +12601,6 @@ spec:
                                                       items:
                                                         type: string
                                                       type: array
-                                                    labelWithoutSelector:
-                                                      type: boolean
                                                     namePrefix:
                                                       type: string
                                                     nameSuffix:
@@ -13075,7 +12784,6 @@ spec:
                                           type: string
                                         type: object
                                     type: object
-                                    x-kubernetes-map-type: atomic
                                   template:
                                     properties:
                                       metadata:
@@ -13254,10 +12962,6 @@ spec:
                                                     additionalProperties:
                                                       type: string
                                                     type: object
-                                                  components:
-                                                    items:
-                                                      type: string
-                                                    type: array
                                                   forceCommonAnnotations:
                                                     type: boolean
                                                   forceCommonLabels:
@@ -13266,8 +12970,6 @@ spec:
                                                     items:
                                                       type: string
                                                     type: array
-                                                  labelWithoutSelector:
-                                                    type: boolean
                                                   namePrefix:
                                                     type: string
                                                   nameSuffix:
@@ -13470,10 +13172,6 @@ spec:
                                                       additionalProperties:
                                                         type: string
                                                       type: object
-                                                    components:
-                                                      items:
-                                                        type: string
-                                                      type: array
                                                     forceCommonAnnotations:
                                                       type: boolean
                                                     forceCommonLabels:
@@ -13482,8 +13180,6 @@ spec:
                                                       items:
                                                         type: string
                                                       type: array
-                                                    labelWithoutSelector:
-                                                      type: boolean
                                                     namePrefix:
                                                       type: string
                                                     nameSuffix:
@@ -13849,10 +13545,6 @@ spec:
                                                     additionalProperties:
                                                       type: string
                                                     type: object
-                                                  components:
-                                                    items:
-                                                      type: string
-                                                    type: array
                                                   forceCommonAnnotations:
                                                     type: boolean
                                                   forceCommonLabels:
@@ -13861,8 +13553,6 @@ spec:
                                                     items:
                                                       type: string
                                                     type: array
-                                                  labelWithoutSelector:
-                                                    type: boolean
                                                   namePrefix:
                                                     type: string
                                                   nameSuffix:
@@ -14065,10 +13755,6 @@ spec:
                                                       additionalProperties:
                                                         type: string
                                                       type: object
-                                                    components:
-                                                      items:
-                                                        type: string
-                                                      type: array
                                                     forceCommonAnnotations:
                                                       type: boolean
                                                     forceCommonLabels:
@@ -14077,8 +13763,6 @@ spec:
                                                       items:
                                                         type: string
                                                       type: array
-                                                    labelWithoutSelector:
-                                                      type: boolean
                                                     namePrefix:
                                                       type: string
                                                     nameSuffix:
@@ -14424,10 +14108,6 @@ spec:
                                                     additionalProperties:
                                                       type: string
                                                     type: object
-                                                  components:
-                                                    items:
-                                                      type: string
-                                                    type: array
                                                   forceCommonAnnotations:
                                                     type: boolean
                                                   forceCommonLabels:
@@ -14436,8 +14116,6 @@ spec:
                                                     items:
                                                       type: string
                                                     type: array
-                                                  labelWithoutSelector:
-                                                    type: boolean
                                                   namePrefix:
                                                     type: string
                                                   nameSuffix:
@@ -14640,10 +14318,6 @@ spec:
                                                       additionalProperties:
                                                         type: string
                                                       type: object
-                                                    components:
-                                                      items:
-                                                        type: string
-                                                      type: array
                                                     forceCommonAnnotations:
                                                       type: boolean
                                                     forceCommonLabels:
@@ -14652,8 +14326,6 @@ spec:
                                                       items:
                                                         type: string
                                                       type: array
-                                                    labelWithoutSelector:
-                                                      type: boolean
                                                     namePrefix:
                                                       type: string
                                                     nameSuffix:
@@ -14805,6 +14477,8 @@ spec:
                                     - metadata
                                     - spec
                                     type: object
+                                required:
+                                - elements
                                 type: object
                               matrix:
                                 x-kubernetes-preserve-unknown-fields: true
@@ -15007,10 +14681,6 @@ spec:
                                                     additionalProperties:
                                                       type: string
                                                     type: object
-                                                  components:
-                                                    items:
-                                                      type: string
-                                                    type: array
                                                   forceCommonAnnotations:
                                                     type: boolean
                                                   forceCommonLabels:
@@ -15019,8 +14689,6 @@ spec:
                                                     items:
                                                       type: string
                                                     type: array
-                                                  labelWithoutSelector:
-                                                    type: boolean
                                                   namePrefix:
                                                     type: string
                                                   nameSuffix:
@@ -15223,10 +14891,6 @@ spec:
                                                       additionalProperties:
                                                         type: string
                                                       type: object
-                                                    components:
-                                                      items:
-                                                        type: string
-                                                      type: array
                                                     forceCommonAnnotations:
                                                       type: boolean
                                                     forceCommonLabels:
@@ -15235,8 +14899,6 @@ spec:
                                                       items:
                                                         type: string
                                                       type: array
-                                                    labelWithoutSelector:
-                                                      type: boolean
                                                     namePrefix:
                                                       type: string
                                                     nameSuffix:
@@ -15772,10 +15434,6 @@ spec:
                                                     additionalProperties:
                                                       type: string
                                                     type: object
-                                                  components:
-                                                    items:
-                                                      type: string
-                                                    type: array
                                                   forceCommonAnnotations:
                                                     type: boolean
                                                   forceCommonLabels:
@@ -15784,8 +15442,6 @@ spec:
                                                     items:
                                                       type: string
                                                     type: array
-                                                  labelWithoutSelector:
-                                                    type: boolean
                                                   namePrefix:
                                                     type: string
                                                   nameSuffix:
@@ -15988,10 +15644,6 @@ spec:
                                                       additionalProperties:
                                                         type: string
                                                       type: object
-                                                    components:
-                                                      items:
-                                                        type: string
-                                                      type: array
                                                     forceCommonAnnotations:
                                                       type: boolean
                                                     forceCommonLabels:
@@ -16000,8 +15652,6 @@ spec:
                                                       items:
                                                         type: string
                                                       type: array
-                                                    labelWithoutSelector:
-                                                      type: boolean
                                                     namePrefix:
                                                       type: string
                                                     nameSuffix:
@@ -16532,10 +16182,6 @@ spec:
                                                     additionalProperties:
                                                       type: string
                                                     type: object
-                                                  components:
-                                                    items:
-                                                      type: string
-                                                    type: array
                                                   forceCommonAnnotations:
                                                     type: boolean
                                                   forceCommonLabels:
@@ -16544,8 +16190,6 @@ spec:
                                                     items:
                                                       type: string
                                                     type: array
-                                                  labelWithoutSelector:
-                                                    type: boolean
                                                   namePrefix:
                                                     type: string
                                                   nameSuffix:
@@ -16748,10 +16392,6 @@ spec:
                                                       additionalProperties:
                                                         type: string
                                                       type: object
-                                                    components:
-                                                      items:
-                                                        type: string
-                                                      type: array
                                                     forceCommonAnnotations:
                                                       type: boolean
                                                     forceCommonLabels:
@@ -16760,8 +16400,6 @@ spec:
                                                       items:
                                                         type: string
                                                       type: array
-                                                    labelWithoutSelector:
-                                                      type: boolean
                                                     namePrefix:
                                                       type: string
                                                     nameSuffix:
@@ -16941,7 +16579,6 @@ spec:
                                       type: string
                                     type: object
                                 type: object
-                                x-kubernetes-map-type: atomic
                             type: object
                           type: array
                         mergeKeys:
@@ -17126,10 +16763,6 @@ spec:
                                           additionalProperties:
                                             type: string
                                           type: object
-                                        components:
-                                          items:
-                                            type: string
-                                          type: array
                                         forceCommonAnnotations:
                                           type: boolean
                                         forceCommonLabels:
@@ -17138,8 +16771,6 @@ spec:
                                           items:
                                             type: string
                                           type: array
-                                        labelWithoutSelector:
-                                          type: boolean
                                         namePrefix:
                                           type: string
                                         nameSuffix:
@@ -17342,10 +16973,6 @@ spec:
                                             additionalProperties:
                                               type: string
                                             type: object
-                                          components:
-                                            items:
-                                              type: string
-                                            type: array
                                           forceCommonAnnotations:
                                             type: boolean
                                           forceCommonLabels:
@@ -17354,8 +16981,6 @@ spec:
                                             items:
                                               type: string
                                             type: array
-                                          labelWithoutSelector:
-                                            type: boolean
                                           namePrefix:
                                             type: string
                                           nameSuffix:
@@ -17708,10 +17333,6 @@ spec:
                                           additionalProperties:
                                             type: string
                                           type: object
-                                        components:
-                                          items:
-                                            type: string
-                                          type: array
                                         forceCommonAnnotations:
                                           type: boolean
                                         forceCommonLabels:
@@ -17720,8 +17341,6 @@ spec:
                                           items:
                                             type: string
                                           type: array
-                                        labelWithoutSelector:
-                                          type: boolean
                                         namePrefix:
                                           type: string
                                         nameSuffix:
@@ -17924,10 +17543,6 @@ spec:
                                             additionalProperties:
                                               type: string
                                             type: object
-                                          components:
-                                            items:
-                                              type: string
-                                            type: array
                                           forceCommonAnnotations:
                                             type: boolean
                                           forceCommonLabels:
@@ -17936,8 +17551,6 @@ spec:
                                             items:
                                               type: string
                                             type: array
-                                          labelWithoutSelector:
-                                            type: boolean
                                           namePrefix:
                                             type: string
                                           nameSuffix:
@@ -18473,10 +18086,6 @@ spec:
                                           additionalProperties:
                                             type: string
                                           type: object
-                                        components:
-                                          items:
-                                            type: string
-                                          type: array
                                         forceCommonAnnotations:
                                           type: boolean
                                         forceCommonLabels:
@@ -18485,8 +18094,6 @@ spec:
                                           items:
                                             type: string
                                           type: array
-                                        labelWithoutSelector:
-                                          type: boolean
                                         namePrefix:
                                           type: string
                                         nameSuffix:
@@ -18689,10 +18296,6 @@ spec:
                                             additionalProperties:
                                               type: string
                                             type: object
-                                          components:
-                                            items:
-                                              type: string
-                                            type: array
                                           forceCommonAnnotations:
                                             type: boolean
                                           forceCommonLabels:
@@ -18701,8 +18304,6 @@ spec:
                                             items:
                                               type: string
                                             type: array
-                                          labelWithoutSelector:
-                                            type: boolean
                                           namePrefix:
                                             type: string
                                           nameSuffix:
@@ -19233,10 +18834,6 @@ spec:
                                           additionalProperties:
                                             type: string
                                           type: object
-                                        components:
-                                          items:
-                                            type: string
-                                          type: array
                                         forceCommonAnnotations:
                                           type: boolean
                                         forceCommonLabels:
@@ -19245,8 +18842,6 @@ spec:
                                           items:
                                             type: string
                                           type: array
-                                        labelWithoutSelector:
-                                          type: boolean
                                         namePrefix:
                                           type: string
                                         nameSuffix:
@@ -19449,10 +19044,6 @@ spec:
                                             additionalProperties:
                                               type: string
                                             type: object
-                                          components:
-                                            items:
-                                              type: string
-                                            type: array
                                           forceCommonAnnotations:
                                             type: boolean
                                           forceCommonLabels:
@@ -19461,8 +19052,6 @@ spec:
                                             items:
                                               type: string
                                             type: array
-                                          labelWithoutSelector:
-                                            type: boolean
                                           namePrefix:
                                             type: string
                                           nameSuffix:
@@ -19642,7 +19231,6 @@ spec:
                             type: string
                           type: object
                       type: object
-                      x-kubernetes-map-type: atomic
                   type: object
                 type: array
               goTemplate:
@@ -19898,10 +19486,6 @@ spec:
                                 additionalProperties:
                                   type: string
                                 type: object
-                              components:
-                                items:
-                                  type: string
-                                type: array
                               forceCommonAnnotations:
                                 type: boolean
                               forceCommonLabels:
@@ -19910,8 +19494,6 @@ spec:
                                 items:
                                   type: string
                                 type: array
-                              labelWithoutSelector:
-                                type: boolean
                               namePrefix:
                                 type: string
                               nameSuffix:
@@ -20114,10 +19696,6 @@ spec:
                                   additionalProperties:
                                     type: string
                                   type: object
-                                components:
-                                  items:
-                                    type: string
-                                  type: array
                                 forceCommonAnnotations:
                                   type: boolean
                                 forceCommonLabels:
@@ -20126,8 +19704,6 @@ spec:
                                   items:
                                     type: string
                                   type: array
-                                labelWithoutSelector:
-                                  type: boolean
                                 namePrefix:
                                   type: string
                                 nameSuffix:
@@ -20279,8 +19855,6 @@ spec:
                 - metadata
                 - spec
                 type: object
-              templatePatch:
-                type: string
             required:
             - generators
             - template
@@ -20329,37 +19903,6 @@ spec:
                   - type
                   type: object
                 type: array
-              resources:
-                items:
-                  properties:
-                    group:
-                      type: string
-                    health:
-                      properties:
-                        message:
-                          type: string
-                        status:
-                          type: string
-                      type: object
-                    hook:
-                      type: boolean
-                    kind:
-                      type: string
-                    name:
-                      type: string
-                    namespace:
-                      type: string
-                    requiresPruning:
-                      type: boolean
-                    status:
-                      type: string
-                    syncWave:
-                      format: int64
-                      type: integer
-                    version:
-                      type: string
-                  type: object
-                type: array
             type: object
         required:
         - metadata
@@ -20392,28 +19935,22 @@ spec:
   - name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: |-
-          AppProject provides a logical grouping of applications, providing controls for:
-          * where the apps may deploy to (cluster whitelist)
-          * what may be deployed (repository whitelist, resource whitelist/blacklist)
-          * who can access these applications (roles, OIDC group claims bindings)
-          * and what they can do (RBAC policies)
-          * automation access to these roles (JWT tokens)
+        description: 'AppProject provides a logical grouping of applications, providing
+          controls for: * where the apps may deploy to (cluster whitelist) * what
+          may be deployed (repository whitelist, resource whitelist/blacklist) * who
+          can access these applications (roles, OIDC group claims bindings) * and
+          what they can do (RBAC policies) * automation access to these roles (JWT
+          tokens)'
         properties:
           apiVersion:
-            description: |-
-              APIVersion defines the versioned schema of this representation of an object.
-              Servers should convert recognized schemas to the latest internal value, and
-              may reject unrecognized values.
-              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
             type: string
           kind:
-            description: |-
-              Kind is a string value representing the REST resource this object represents.
-              Servers may infer this from the endpoint the client submits requests to.
-              Cannot be updated.
-              In CamelCase.
-              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
             type: string
           metadata:
             type: object
@@ -20424,9 +19961,9 @@ spec:
                 description: ClusterResourceBlacklist contains list of blacklisted
                   cluster level resources
                 items:
-                  description: |-
-                    GroupKind specifies a Group and a Kind, but does not force a version.  This is useful for identifying
-                    concepts during lookup stages without having partially valid types
+                  description: GroupKind specifies a Group and a Kind, but does not
+                    force a version.  This is useful for identifying concepts during
+                    lookup stages without having partially valid types
                   properties:
                     group:
                       type: string
@@ -20441,9 +19978,9 @@ spec:
                 description: ClusterResourceWhitelist contains list of whitelisted
                   cluster level resources
                 items:
-                  description: |-
-                    GroupKind specifies a Group and a Kind, but does not force a version.  This is useful for identifying
-                    concepts during lookup stages without having partially valid types
+                  description: GroupKind specifies a Group and a Kind, but does not
+                    force a version.  This is useful for identifying concepts during
+                    lookup stages without having partially valid types
                   properties:
                     group:
                       type: string
@@ -20470,9 +20007,9 @@ spec:
                         not set.
                       type: string
                     namespace:
-                      description: |-
-                        Namespace specifies the target namespace for the application's resources.
-                        The namespace will only be set for namespace-scoped resources that have not set a value for .metadata.namespace
+                      description: Namespace specifies the target namespace for the
+                        application's resources. The namespace will only be set for
+                        namespace-scoped resources that have not set a value for .metadata.namespace
                       type: string
                     server:
                       description: Server specifies the URL of the target cluster's
@@ -20485,9 +20022,9 @@ spec:
                 description: NamespaceResourceBlacklist contains list of blacklisted
                   namespace level resources
                 items:
-                  description: |-
-                    GroupKind specifies a Group and a Kind, but does not force a version.  This is useful for identifying
-                    concepts during lookup stages without having partially valid types
+                  description: GroupKind specifies a Group and a Kind, but does not
+                    force a version.  This is useful for identifying concepts during
+                    lookup stages without having partially valid types
                   properties:
                     group:
                       type: string
@@ -20502,9 +20039,9 @@ spec:
                 description: NamespaceResourceWhitelist contains list of whitelisted
                   namespace level resources
                 items:
-                  description: |-
-                    GroupKind specifies a Group and a Kind, but does not force a version.  This is useful for identifying
-                    concepts during lookup stages without having partially valid types
+                  description: GroupKind specifies a Group and a Kind, but does not
+                    force a version.  This is useful for identifying concepts during
+                    lookup stages without having partially valid types
                   properties:
                     group:
                       type: string
@@ -21050,95 +20587,6 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
   labels:
-    app.kubernetes.io/component: applicationset-controller
-    app.kubernetes.io/name: argocd-applicationset-controller
-    app.kubernetes.io/part-of: argocd
-  name: argocd-applicationset-controller
-rules:
-- apiGroups:
-  - argoproj.io
-  resources:
-  - applications
-  - applicationsets
-  - applicationsets/finalizers
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - argoproj.io
-  resources:
-  - applicationsets/status
-  verbs:
-  - get
-  - patch
-  - update
-- apiGroups:
-  - argoproj.io
-  resources:
-  - appprojects
-  verbs:
-  - get
-- apiGroups:
-  - ""
-  resources:
-  - events
-  verbs:
-  - create
-  - get
-  - list
-  - patch
-  - watch
-- apiGroups:
-  - ""
-  resources:
-  - configmaps
-  verbs:
-  - create
-  - update
-  - delete
-  - get
-  - list
-  - patch
-  - watch
-- apiGroups:
-  - ""
-  resources:
-  - secrets
-  verbs:
-  - get
-  - list
-  - watch
-- apiGroups:
-  - apps
-  - extensions
-  resources:
-  - deployments
-  verbs:
-  - get
-  - list
-  - watch
-- apiGroups:
-  - coordination.k8s.io
-  resources:
-  - leases
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRole
-metadata:
-  labels:
     app.kubernetes.io/component: server
     app.kubernetes.io/name: argocd-server
     app.kubernetes.io/part-of: argocd
@@ -21314,23 +20762,6 @@ roleRef:
 subjects:
 - kind: ServiceAccount
   name: argocd-application-controller
-  namespace: argocd
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRoleBinding
-metadata:
-  labels:
-    app.kubernetes.io/component: applicationset-controller
-    app.kubernetes.io/name: argocd-applicationset-controller
-    app.kubernetes.io/part-of: argocd
-  name: argocd-applicationset-controller
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
-  name: argocd-applicationset-controller
-subjects:
-- kind: ServiceAccount
-  name: argocd-applicationset-controller
   namespace: argocd
 ---
 apiVersion: rbac.authorization.k8s.io/v1
@@ -22576,13 +22007,7 @@ spec:
               key: applicationsetcontroller.allowed.scm.providers
               name: argocd-cmd-params-cm
               optional: true
-        - name: ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_SCM_PROVIDERS
-          valueFrom:
-            configMapKeyRef:
-              key: applicationsetcontroller.enable.scm.providers
-              name: argocd-cmd-params-cm
-              optional: true
-        image: quay.io/argoproj/argocd:latest
+        image: quay.io/argoproj/argocd:v2.9.14
         imagePullPolicy: Always
         name: argocd-applicationset-controller
         ports:
@@ -22676,7 +22101,7 @@ spec:
               key: dexserver.disable.tls
               name: argocd-cmd-params-cm
               optional: true
-        image: ghcr.io/dexidp/dex:v2.38.0
+        image: ghcr.io/dexidp/dex:v2.37.0
         imagePullPolicy: Always
         name: dex
         ports:
@@ -22705,7 +22130,7 @@ spec:
         - -n
         - /usr/local/bin/argocd
         - /shared/argocd-dex
-        image: quay.io/argoproj/argocd:latest
+        image: quay.io/argoproj/argocd:v2.9.14
         imagePullPolicy: Always
         name: copyutil
         securityContext:
@@ -22781,13 +22206,7 @@ spec:
               key: application.namespaces
               name: argocd-cmd-params-cm
               optional: true
-        - name: ARGOCD_NOTIFICATION_CONTROLLER_SELF_SERVICE_NOTIFICATION_ENABLED
-          valueFrom:
-            configMapKeyRef:
-              key: notificationscontroller.selfservice.enabled
-              name: argocd-cmd-params-cm
-              optional: true
-        image: quay.io/argoproj/argocd:latest
+        image: quay.io/argoproj/argocd:v2.9.14
         imagePullPolicy: Always
         livenessProbe:
           tcpSocket:
@@ -23064,18 +22483,6 @@ spec:
               key: otlp.address
               name: argocd-cmd-params-cm
               optional: true
-        - name: ARGOCD_REPO_SERVER_OTLP_INSECURE
-          valueFrom:
-            configMapKeyRef:
-              key: otlp.insecure
-              name: argocd-cmd-params-cm
-              optional: true
-        - name: ARGOCD_REPO_SERVER_OTLP_HEADERS
-          valueFrom:
-            configMapKeyRef:
-              key: otlp.headers
-              name: argocd-cmd-params-cm
-              optional: true
         - name: ARGOCD_REPO_SERVER_MAX_COMBINED_DIRECTORY_MANIFESTS_SIZE
           valueFrom:
             configMapKeyRef:
@@ -23118,34 +22525,10 @@ spec:
               key: reposerver.disable.helm.manifest.max.extracted.size
               name: argocd-cmd-params-cm
               optional: true
-        - name: ARGOCD_REVISION_CACHE_LOCK_TIMEOUT
-          valueFrom:
-            configMapKeyRef:
-              key: reposerver.revision.cache.lock.timeout
-              name: argocd-cmd-params-cm
-              optional: true
         - name: ARGOCD_GIT_MODULES_ENABLED
           valueFrom:
             configMapKeyRef:
               key: reposerver.enable.git.submodule
-              name: argocd-cmd-params-cm
-              optional: true
-        - name: ARGOCD_GIT_LS_REMOTE_PARALLELISM_LIMIT
-          valueFrom:
-            configMapKeyRef:
-              key: reposerver.git.lsremote.parallelism.limit
-              name: argocd-cmd-params-cm
-              optional: true
-        - name: ARGOCD_GIT_REQUEST_TIMEOUT
-          valueFrom:
-            configMapKeyRef:
-              key: reposerver.git.request.timeout
-              name: argocd-cmd-params-cm
-              optional: true
-        - name: ARGOCD_GRPC_MAX_SIZE_MB
-          valueFrom:
-            configMapKeyRef:
-              key: reposerver.grpc.max.size
               name: argocd-cmd-params-cm
               optional: true
         - name: HELM_CACHE_HOME
@@ -23154,7 +22537,7 @@ spec:
           value: /helm-working-dir
         - name: HELM_DATA_HOME
           value: /helm-working-dir
-        image: quay.io/argoproj/argocd:latest
+        image: quay.io/argoproj/argocd:v2.9.14
         imagePullPolicy: Always
         livenessProbe:
           failureThreshold: 3
@@ -23206,7 +22589,7 @@ spec:
         - -n
         - /usr/local/bin/argocd
         - /var/run/argocd/argocd-cmp-server
-        image: quay.io/argoproj/argocd:latest
+        image: quay.io/argoproj/argocd:v2.9.14
         name: copyutil
         securityContext:
           allowPrivilegeEscalation: false
@@ -23483,18 +22866,6 @@ spec:
               key: otlp.address
               name: argocd-cmd-params-cm
               optional: true
-        - name: ARGOCD_SERVER_OTLP_INSECURE
-          valueFrom:
-            configMapKeyRef:
-              key: otlp.insecure
-              name: argocd-cmd-params-cm
-              optional: true
-        - name: ARGOCD_SERVER_OTLP_HEADERS
-          valueFrom:
-            configMapKeyRef:
-              key: otlp.headers
-              name: argocd-cmd-params-cm
-              optional: true
         - name: ARGOCD_APPLICATION_NAMESPACES
           valueFrom:
             configMapKeyRef:
@@ -23507,25 +22878,13 @@ spec:
               key: server.enable.proxy.extension
               name: argocd-cmd-params-cm
               optional: true
-        - name: ARGOCD_K8SCLIENT_RETRY_MAX
-          valueFrom:
-            configMapKeyRef:
-              key: server.k8sclient.retry.max
-              name: argocd-cmd-params-cm
-              optional: true
-        - name: ARGOCD_K8SCLIENT_RETRY_BASE_BACKOFF
-          valueFrom:
-            configMapKeyRef:
-              key: server.k8sclient.retry.base.backoff
-              name: argocd-cmd-params-cm
-              optional: true
         - name: ARGOCD_API_CONTENT_TYPES
           valueFrom:
             configMapKeyRef:
               key: server.api.content.types
               name: argocd-cmd-params-cm
               optional: true
-        image: quay.io/argoproj/argocd:latest
+        image: quay.io/argoproj/argocd:v2.9.14
         imagePullPolicy: Always
         livenessProbe:
           httpGet:
@@ -23651,18 +23010,6 @@ spec:
               key: timeout.hard.reconciliation
               name: argocd-cm
               optional: true
-        - name: ARGOCD_RECONCILIATION_JITTER
-          valueFrom:
-            configMapKeyRef:
-              key: timeout.reconciliation.jitter
-              name: argocd-cm
-              optional: true
-        - name: ARGOCD_REPO_ERROR_GRACE_PERIOD_SECONDS
-          valueFrom:
-            configMapKeyRef:
-              key: controller.repo.error.grace.period.seconds
-              name: argocd-cmd-params-cm
-              optional: true
         - name: ARGOCD_APPLICATION_CONTROLLER_REPO_SERVER
           valueFrom:
             configMapKeyRef:
@@ -23765,18 +23112,6 @@ spec:
               key: otlp.address
               name: argocd-cmd-params-cm
               optional: true
-        - name: ARGOCD_APPLICATION_CONTROLLER_OTLP_INSECURE
-          valueFrom:
-            configMapKeyRef:
-              key: otlp.insecure
-              name: argocd-cmd-params-cm
-              optional: true
-        - name: ARGOCD_APPLICATION_CONTROLLER_OTLP_HEADERS
-          valueFrom:
-            configMapKeyRef:
-              key: otlp.headers
-              name: argocd-cmd-params-cm
-              optional: true
         - name: ARGOCD_APPLICATION_NAMESPACES
           valueFrom:
             configMapKeyRef:
@@ -23795,31 +23130,13 @@ spec:
               key: controller.kubectl.parallelism.limit
               name: argocd-cmd-params-cm
               optional: true
-        - name: ARGOCD_K8SCLIENT_RETRY_MAX
-          valueFrom:
-            configMapKeyRef:
-              key: controller.k8sclient.retry.max
-              name: argocd-cmd-params-cm
-              optional: true
-        - name: ARGOCD_K8SCLIENT_RETRY_BASE_BACKOFF
-          valueFrom:
-            configMapKeyRef:
-              key: controller.k8sclient.retry.base.backoff
-              name: argocd-cmd-params-cm
-              optional: true
-        - name: ARGOCD_APPLICATION_CONTROLLER_SERVER_SIDE_DIFF
-          valueFrom:
-            configMapKeyRef:
-              key: controller.diff.server.side
-              name: argocd-cmd-params-cm
-              optional: true
         - name: ARGOCD_IGNORE_NORMALIZER_JQ_TIMEOUT
           valueFrom:
             configMapKeyRef:
               key: controller.ignore.normalizer.jq.timeout
               name: argocd-cmd-params-cm
               optional: true
-        image: quay.io/argoproj/argocd:latest
+        image: quay.io/argoproj/argocd:v2.9.14
         imagePullPolicy: Always
         name: argocd-application-controller
         ports:
