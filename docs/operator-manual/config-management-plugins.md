@@ -458,7 +458,7 @@ Plugins configured with argocd-cm ran on the Argo CD image. This gave it access 
 image by default (see the [Dockerfile](https://github.com/argoproj/argo-cd/blob/master/Dockerfile) for base image and
 installed tools).
 
-You can either use a stock image (like busybox, or alpine/k8s) or design your own base image with the tools your plugin needs. For
+You can either use a stock image (like ubi8, busybox, or alpine/k8s) or design your own base image with the tools your plugin needs. For
 security, avoid using images with more binaries installed than what your plugin actually needs.
 
 ### Test the plugin
