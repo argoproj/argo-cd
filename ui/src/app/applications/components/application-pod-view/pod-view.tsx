@@ -159,42 +159,43 @@ export class PodView extends React.Component<PodViewProps> {
                                                     )}
                                                     <div className='pod-view__node__pod-container pod-view__node__container'>
                                                         <div className='pod-view__node__pod-container__pods'>
-                                                            {group.pods.map(pod => (
-                                                                this.props.nodeMenu && (
-                                                                    <DropDown
-                                                                        key={pod.uid}
-                                                                        isMenu={true}
-                                                                        anchor={() => (
-                                                                            <Tooltip
-                                                                                content={<PodTooltip pod={pod} />}
-                                                                                popperOptions={{
-                                                                                    modifiers: {
-                                                                                        preventOverflow: {
-                                                                                            enabled: true
-                                                                                        },
-                                                                                        hide: {
-                                                                                            enabled: false
-                                                                                        },
-                                                                                        flip: {
-                                                                                            enabled: false
+                                                            {group.pods.map(
+                                                                pod =>
+                                                                    this.props.nodeMenu && (
+                                                                        <DropDown
+                                                                            key={pod.uid}
+                                                                            isMenu={true}
+                                                                            anchor={() => (
+                                                                                <Tooltip
+                                                                                    content={<PodTooltip pod={pod} />}
+                                                                                    popperOptions={{
+                                                                                        modifiers: {
+                                                                                            preventOverflow: {
+                                                                                                enabled: true
+                                                                                            },
+                                                                                            hide: {
+                                                                                                enabled: false
+                                                                                            },
+                                                                                            flip: {
+                                                                                                enabled: false
+                                                                                            }
                                                                                         }
-                                                                                    }
-                                                                                }}
-                                                                                key={pod.metadata.name}>
-                                                                                <div style={{position: 'relative'}}>
-                                                                                    {isYoungerThanXMinutes(pod, 30) && (
-                                                                                        <i className='fas fa-circle pod-view__node__pod pod-view__node__pod__new-pod-icon' />
-                                                                                    )}
-                                                                                    <div className={`pod-view__node__pod pod-view__node__pod--${pod.health.toLowerCase()}`}>
-                                                                                        <PodHealthIcon state={{status: pod.health, message: ''}} />
+                                                                                    }}
+                                                                                    key={pod.metadata.name}>
+                                                                                    <div style={{position: 'relative'}}>
+                                                                                        {isYoungerThanXMinutes(pod, 30) && (
+                                                                                            <i className='fas fa-circle pod-view__node__pod pod-view__node__pod__new-pod-icon' />
+                                                                                        )}
+                                                                                        <div className={`pod-view__node__pod pod-view__node__pod--${pod.health.toLowerCase()}`}>
+                                                                                            <PodHealthIcon state={{status: pod.health, message: ''}} />
+                                                                                        </div>
                                                                                     </div>
-                                                                                </div>
-                                                                            </Tooltip>
-                                                                        )}>
-                                                                    {() => this.props.nodeMenu(pod)}
-                                                                    </DropDown>
-                                                                )
-                                                            ))}
+                                                                                </Tooltip>
+                                                                            )}>
+                                                                            {() => this.props.nodeMenu(pod)}
+                                                                        </DropDown>
+                                                                    )
+                                                            )}
                                                         </div>
                                                         <div className='pod-view__node__label'>PODS</div>
                                                         {(podPrefs.sortMode === 'parentResource' || podPrefs.sortMode === 'topLevelResource') && (

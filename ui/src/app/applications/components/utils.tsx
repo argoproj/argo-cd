@@ -308,7 +308,7 @@ const deletePodAction = async (ctx: ContextApis, pod: appModels.ResourceNode, ap
                     review the change first.
                 </p>
                 <div className='argo-form-row' style={{paddingLeft: '30px'}}>
-                    <CheckboxField id='force-delete-checkbox' field='force'/>
+                    <CheckboxField id='force-delete-checkbox' field='force' />
                     <label htmlFor='force-delete-checkbox'>Force delete</label>
                     <HelpIcon title='If checked, Argo will ignore any configured grace period and delete the resource immediately' />
                 </div>
@@ -330,7 +330,13 @@ const deletePodAction = async (ctx: ContextApis, pod: appModels.ResourceNode, ap
     );
 };
 
-export const deletePopup = async (ctx: ContextApis, resource: ResourceTreeNode, application: appModels.Application, isManaged: boolean, appChanged?: BehaviorSubject<appModels.Application>) => {
+export const deletePopup = async (
+    ctx: ContextApis,
+    resource: ResourceTreeNode,
+    application: appModels.Application,
+    isManaged: boolean,
+    appChanged?: BehaviorSubject<appModels.Application>
+) => {
     const deleteOptions = {
         option: 'foreground'
     };
@@ -338,8 +344,8 @@ export const deletePopup = async (ctx: ContextApis, resource: ResourceTreeNode, 
         deleteOptions.option = option;
     }
 
-    if (resource.kind === "Pod" && !isManaged) {
-        return deletePodAction(ctx, resource, application)
+    if (resource.kind === 'Pod' && !isManaged) {
+        return deletePodAction(ctx, resource, application);
     }
 
     return ctx.popup.prompt(
@@ -451,7 +457,7 @@ function getActionItems(
         return app.status.resources.some(resStatus => `/${resStatus.namespace}/${resStatus.group}/${resStatus.kind}/${resStatus.name}` === uniqRes);
     }
 
-    const isPod = resource.kind === 'Pod'
+    const isPod = resource.kind === 'Pod';
     const isManaged = isTopLevelResource(resource, application);
 
     const items: MenuItem[] = [
@@ -499,7 +505,7 @@ function getActionItems(
     if (isQuickStart) {
         return combineLatest(
             from([items]), // this resolves immediately
-            concat([[] as MenuItem[]], logsAction), // this resolves at first to [] and then whatever the API returns
+            concat([[] as MenuItem[]], logsAction) // this resolves at first to [] and then whatever the API returns
         ).pipe(map(res => ([] as MenuItem[]).concat(...res)));
     }
 
