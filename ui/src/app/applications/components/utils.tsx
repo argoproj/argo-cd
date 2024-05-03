@@ -453,6 +453,7 @@ function getActionItems(
     isQuickStart: boolean
 ): Observable<ActionMenuItem[]> {
     const isRoot = resource.root && nodeKey(resource.root) === nodeKey(resource);
+    const isPod = resource.kind === 'Pod'
     const items: MenuItem[] = [
         ...((isRoot && [
             {
@@ -478,7 +479,7 @@ function getActionItems(
         });
     }
 
-    if (findChildPod(resource, tree)) {
+    if (isPod || findChildPod(resource, tree)) {
         items.push({
             title: 'Logs',
             iconClassName: 'fa fa-fw fa-align-left',
@@ -494,7 +495,7 @@ function getActionItems(
         .settings()
         .then(async settings => {
             const execAllowed = settings.execEnabled && (await services.accounts.canI('exec', 'create', application.spec.project + '/' + application.metadata.name));
-            if (resource.kind === 'Pod' && execAllowed) {
+            if (isPod && execAllowed) {
                 return [
                     {
                         title: 'Exec',
