@@ -26,8 +26,8 @@ export const ApplicationResourceList = (props: ApplicationResourceListProps) => 
     props.tree?.nodes?.forEach(res => nodeByKey.set(nodeKey(res), res));
 
     const firstParentNode = props.resources.length > 0 && (nodeByKey.get(nodeKey(props.resources[0])) as ResourceNode)?.parentRefs?.[0];
-    const isSameParent = firstParentNode && props.resources.every(x => (nodeByKey.get(nodeKey(x)) as ResourceNode)?.parentRefs.every(p => isSameNode(p, firstParentNode)))
-    const isSameKind = props.resources.every(x => x.group === props.resources[0].group && x.kind === props.resources[0].kind)
+    const isSameParent = firstParentNode && props.resources?.every(x => (nodeByKey.get(nodeKey(x)) as ResourceNode)?.parentRefs?.every(p => isSameNode(p, firstParentNode)))
+    const isSameKind = props.resources?.every(x => x.group === props.resources[0].group && x.kind === props.resources[0].kind)
     const view = props.pref.view
 
     const ParentRefDetails = () => {

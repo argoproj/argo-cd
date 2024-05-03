@@ -1039,7 +1039,8 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
         if (internalRoots.length > 0) {
             graph.setNode(INTERNAL_TRAFFIC_NODE, {height: NODE_HEIGHT, width: 30, type: NODE_TYPES.internalTraffic});
             internalRoots.forEach(root => {
-                processNode(root, root, [colorsBySource.get(treeNodeKey(root))]);
+                const parentNode = (root.parentRefs || []).length === 0 ? root : nodeByKey.get(treeNodeKey(root.parentRefs[0]))
+                processNode(root, parentNode, [colorsBySource.get(treeNodeKey(root))]);
                 graph.setEdge(INTERNAL_TRAFFIC_NODE, treeNodeKey(root));
             });
         }
