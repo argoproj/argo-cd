@@ -989,7 +989,7 @@ func TestNormalizeApplication(t *testing.T) {
 		normalized := false
 		fakeAppCs.AddReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
 			if patchAction, ok := action.(kubetesting.PatchAction); ok {
-				if string(patchAction.GetPatch()) == `{"spec":{"project":"default"}}` {
+				if string(patchAction.GetPatch()) == `{"spec":{"project":"default"},"status":{"sync":{"comparedTo":{"destination":{},"source":{"repoURL":""}}}}}` {
 					normalized = true
 				}
 			}
@@ -1011,7 +1011,7 @@ func TestNormalizeApplication(t *testing.T) {
 		normalized := false
 		fakeAppCs.AddReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
 			if patchAction, ok := action.(kubetesting.PatchAction); ok {
-				if string(patchAction.GetPatch()) == `{"spec":{"project":"default"}}` {
+				if string(patchAction.GetPatch()) == `{"spec":{"project":"default"},"status":{"sync":{"comparedTo":{"destination":{},"source":{"repoURL":""}}}}}` {
 					normalized = true
 				}
 			}
