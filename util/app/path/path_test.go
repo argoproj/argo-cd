@@ -144,6 +144,14 @@ func Test_AppFilesHaveChanged(t *testing.T) {
 		{"absolute path, multi source - matching #2", getMultiSourceApp("/source/path", "other/path", "source/path"), []string{"source/path/my-deployment.yaml"}, true},
 		{"absolute path - not matching", getApp("/source/path1", "source/path"), []string{"source/path/my-deployment.yaml"}, false},
 		{"absolute path, multi source - not matching", getMultiSourceApp("/source/path1", "other/path", "source/path"), []string{"source/path/my-deployment.yaml"}, false},
+		{"glob path * - matching", getApp("/source/**/my-deployment.yaml", "source/path"), []string{"source/path/my-deployment.yaml"}, true},
+		{"glob path * - not matching", getApp("/source/**/my-service.yaml", "source/path"), []string{"source/path/my-deployment.yaml"}, false},
+		{"glob path ? - matching", getApp("/source/path/my-deployment-?.yaml", "source/path"), []string{"source/path/my-deployment-0.yaml"}, true},
+		{"glob path ? - not matching", getApp("/source/path/my-deployment-?.yaml", "source/path"), []string{"source/path/my-deployment.yaml"}, false},
+		{"glob path char range - matching", getApp("/source/path[0-9]/my-deployment.yaml", "source/path"), []string{"source/path1/my-deployment.yaml"}, true},
+		{"glob path char range - not matching", getApp("/source/path[0-9]/my-deployment.yaml", "source/path"), []string{"source/path/my-deployment.yaml"}, false},
+		{"mixed glob path - matching", getApp("/source/path[0-9]/my-*.yaml", "source/path"), []string{"source/path1/my-deployment.yaml"}, true},
+		{"mixed glob path - not matching", getApp("/source/path[0-9]/my-*.yaml", "source/path"), []string{"README.md"}, false},
 		{"two relative paths - matching", getApp(".;../shared", "my-app"), []string{"shared/my-deployment.yaml"}, true},
 		{"two relative paths, multi source - matching #1", getMultiSourceApp(".;../shared", "my-app", "other/path"), []string{"shared/my-deployment.yaml"}, true},
 		{"two relative paths, multi source - matching #2", getMultiSourceApp(".;../shared", "my-app", "other/path"), []string{"shared/my-deployment.yaml"}, true},
@@ -185,12 +193,12 @@ func Test_GetAppRefreshPaths(t *testing.T) {
 	}{
 		{"default no path", &v1alpha1.Application{}, []string{}},
 		{"relative path", getApp(".", "source/path"), []string{"source/path"}},
-		{"absolute path", getApp("/source/path", "source/path"), []string{"source/path"}},
 		{"absolute path - multi source", getMultiSourceApp("/source/path", "source/path", "other/path"), []string{"source/path"}},
 		{"two relative paths ", getApp(".;../shared", "my-app"), []string{"my-app", "shared"}},
 		{"file relative path", getApp("./my-deployment.yaml", "source/path"), []string{"source/path/my-deployment.yaml"}},
 		{"file absolute path", getApp("/source/path/my-deployment.yaml", "source/path"), []string{"source/path/my-deployment.yaml"}},
 		{"file two relative paths", getApp("./README.md;../shared/my-deployment.yaml", "my-app"), []string{"my-app/README.md", "shared/my-deployment.yaml"}},
+		{"glob path", getApp("/source/*/my-deployment.yaml", "source/path"), []string{"source/*/my-deployment.yaml"}},
 		{"empty path", getApp(".;", "source/path"), []string{"source/path"}},
 	}
 	for _, tt := range tests {
