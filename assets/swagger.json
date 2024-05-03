@@ -975,25 +975,6 @@
             "type": "string",
             "name": "project",
             "in": "query"
-          },
-          {
-            "type": "array",
-            "items": {
-              "type": "string",
-              "format": "int64"
-            },
-            "collectionFormat": "multi",
-            "name": "sourcePositions",
-            "in": "query"
-          },
-          {
-            "type": "array",
-            "items": {
-              "type": "string"
-            },
-            "collectionFormat": "multi",
-            "name": "revisions",
-            "in": "query"
           }
         ],
         "responses": {
@@ -2019,43 +2000,6 @@
             "description": "A successful response.",
             "schema": {
               "$ref": "#/definitions/applicationsetApplicationSetResponse"
-            }
-          },
-          "default": {
-            "description": "An unexpected error response.",
-            "schema": {
-              "$ref": "#/definitions/runtimeError"
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/applicationsets/{name}/resource-tree": {
-      "get": {
-        "tags": [
-          "ApplicationSetService"
-        ],
-        "summary": "ResourceTree returns resource tree",
-        "operationId": "ApplicationSetService_ResourceTree",
-        "parameters": [
-          {
-            "type": "string",
-            "name": "name",
-            "in": "path",
-            "required": true
-          },
-          {
-            "type": "string",
-            "description": "The application set namespace. Default empty is argocd control plane namespace.",
-            "name": "appsetNamespace",
-            "in": "query"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "A successful response.",
-            "schema": {
-              "$ref": "#/definitions/v1alpha1ApplicationSetTree"
             }
           },
           "default": {
@@ -4275,19 +4219,6 @@
         "revision": {
           "type": "string"
         },
-        "revisions": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        },
-        "sourcePositions": {
-          "type": "array",
-          "items": {
-            "type": "string",
-            "format": "int64"
-          }
-        },
         "strategy": {
           "$ref": "#/definitions/v1alpha1SyncStrategy"
         },
@@ -5733,10 +5664,6 @@
           "type": "string",
           "title": "ClusterName contains AWS cluster name"
         },
-        "profile": {
-          "description": "Profile contains optional role ARN. If set then AWS IAM Authenticator uses the profile to perform cluster operations instead of the default AWS credential provider chain.",
-          "type": "string"
-        },
         "roleARN": {
           "description": "RoleARN contains optional role ARN. If set then AWS IAM Authenticator assume a role to perform cluster operations instead of the default AWS credential provider chain.",
           "type": "string"
@@ -6238,13 +6165,6 @@
           "items": {
             "$ref": "#/definitions/v1alpha1ApplicationSetCondition"
           }
-        },
-        "resources": {
-          "description": "Resources is a list of Applications resources managed by this application set.",
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/v1alpha1ResourceStatus"
-          }
         }
       }
     },
@@ -6313,19 +6233,6 @@
         },
         "namespace": {
           "type": "string"
-        }
-      }
-    },
-    "v1alpha1ApplicationSetTree": {
-      "type": "object",
-      "title": "ApplicationSetTree holds nodes which belongs to the application\nUsed to build a tree of an ApplicationSet and its children",
-      "properties": {
-        "nodes": {
-          "type": "array",
-          "title": "Nodes contains list of nodes which are directly managed by the applicationset",
-          "items": {
-            "$ref": "#/definitions/v1alpha1ResourceNode"
-          }
         }
       }
     },
@@ -6512,10 +6419,6 @@
           "items": {
             "type": "string"
           }
-        },
-        "labelWithoutSelector": {
-          "type": "boolean",
-          "title": "LabelWithoutSelector specifies whether to apply common labels to resource selectors or not"
         },
         "namePrefix": {
           "type": "string",
@@ -8596,9 +8499,6 @@
           "type": "integer",
           "format": "int64",
           "title": "ID is an auto incrementing identifier of the RevisionHistory"
-        },
-        "initiatedBy": {
-          "$ref": "#/definitions/v1alpha1OperationInitiator"
         },
         "revision": {
           "type": "string",

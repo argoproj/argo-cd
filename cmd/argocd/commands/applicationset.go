@@ -350,11 +350,9 @@ func printAppSetSummaryTable(appSet *arogappsetv1.ApplicationSet) {
 	fmt.Printf(printOpFmtStr, "Project:", appSet.Spec.Template.Spec.GetProject())
 	fmt.Printf(printOpFmtStr, "Server:", getServerForAppSet(appSet))
 	fmt.Printf(printOpFmtStr, "Namespace:", appSet.Spec.Template.Spec.Destination.Namespace)
-	if !appSet.Spec.Template.Spec.HasMultipleSources() {
-		fmt.Println("Source:")
-	} else {
-		fmt.Println("Sources:")
-	}
+	fmt.Printf(printOpFmtStr, "Repo:", source.RepoURL)
+	fmt.Printf(printOpFmtStr, "Target:", source.TargetRevision)
+	fmt.Printf(printOpFmtStr, "Path:", source.Path)
 	printAppSourceDetails(&source)
 
 	var (

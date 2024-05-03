@@ -12,7 +12,6 @@ import (
 
 type MetricsServer struct {
 	handler                  http.Handler
-	gitFetchFailCounter      *prometheus.CounterVec
 	gitRequestCounter        *prometheus.CounterVec
 	gitRequestHistogram      *prometheus.HistogramVec
 	repoPendingRequestsGauge *prometheus.GaugeVec
@@ -32,15 +31,6 @@ func NewMetricsServer() *MetricsServer {
 	registry := prometheus.NewRegistry()
 	registry.MustRegister(collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}))
 	registry.MustRegister(collectors.NewGoCollector())
-
-	gitFetchFailCounter := prometheus.NewCounterVec(
-		prometheus.CounterOpts{
-			Name: "argocd_git_fetch_fail_total",
-			Help: "Number of git fetch requests failures by repo server",
-		},
-		[]string{"repo", "revision"},
-	)
-	registry.MustRegister(gitFetchFailCounter)
 
 	gitRequestCounter := prometheus.NewCounterVec(
 		prometheus.CounterOpts{
@@ -91,7 +81,6 @@ func NewMetricsServer() *MetricsServer {
 
 	return &MetricsServer{
 		handler:                  promhttp.HandlerFor(registry, promhttp.HandlerOpts{}),
-		gitFetchFailCounter:      gitFetchFailCounter,
 		gitRequestCounter:        gitRequestCounter,
 		gitRequestHistogram:      gitRequestHistogram,
 		repoPendingRequestsGauge: repoPendingRequestsGauge,
@@ -102,10 +91,6 @@ func NewMetricsServer() *MetricsServer {
 
 func (m *MetricsServer) GetHandler() http.Handler {
 	return m.handler
-}
-
-func (m *MetricsServer) IncGitFetchFail(repo string, revision string) {
-	m.gitFetchFailCounter.WithLabelValues(repo, revision).Inc()
 }
 
 // IncGitRequest increments the git requests counter

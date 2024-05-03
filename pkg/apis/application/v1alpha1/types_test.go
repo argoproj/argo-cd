@@ -3082,69 +3082,6 @@ func TestOrphanedResourcesMonitorSettings_IsWarn(t *testing.T) {
 	assert.True(t, settings.IsWarn())
 }
 
-func Test_isValidPolicy(t *testing.T) {
-	policyTests := []struct {
-		name    string
-		policy  string
-		isValid bool
-	}{
-		{
-			name:    "policy with full wildcard",
-			policy:  "some-project/*",
-			isValid: true,
-		},
-		{
-			name:    "policy with specified project and application",
-			policy:  "some-project/some-application",
-			isValid: true,
-		},
-		{
-			name:    "policy with full wildcard namespace and application",
-			policy:  "some-project/*/*",
-			isValid: true,
-		},
-		{
-			name:    "policy with wildcard namespace and specified application",
-			policy:  "some-project/*/some-application",
-			isValid: true,
-		},
-		{
-			name:    "policy with specified namespace and wildcard application",
-			policy:  "some-project/some-namespace/*",
-			isValid: true,
-		},
-		{
-			name:    "policy with wildcard prefix namespace and specified application",
-			policy:  "some-project/some-name*/some-application",
-			isValid: true,
-		},
-		{
-			name:    "policy with specified namespace and wildcard prefixed application",
-			policy:  "some-project/some-namespace/some-app*",
-			isValid: true,
-		},
-		{
-			name:    "policy with valid namespace and application",
-			policy:  "some-project/some-namespace/some-application",
-			isValid: true,
-		},
-		{
-			name:    "policy with invalid namespace character",
-			policy:  "some-project/some~namespace/some-application",
-			isValid: false,
-		},
-		{
-			name:    "policy with invalid application character",
-			policy:  "some-project/some-namespace/some^application",
-			isValid: false,
-		},
-	}
-
-	for _, policyTest := range policyTests {
-		assert.Equal(t, policyTest.isValid, isValidObject("some-project", policyTest.policy), policyTest.name)
-	}
-}
-
 func Test_validatePolicy_projIsNotRegex(t *testing.T) {
 	// Make sure the "." in "some.project" isn't treated as the regex wildcard.
 	err := validatePolicy("some.project", "org-admin", "p, proj:some.project:org-admin, applications, *, some-project/*, allow")
@@ -3680,53 +3617,6 @@ func TestOptionalMapEquality(t *testing.T) {
 		t.Run(testCopy.name, func(t *testing.T) {
 			t.Parallel()
 			assert.Equal(t, testCopy.expected, testCopy.a.Equals(testCopy.b))
-		})
-	}
-}
-
-func TestApplicationSpec_GetSourcePtrByIndex(t *testing.T) {
-	testCases := []struct {
-		name        string
-		application ApplicationSpec
-		sourceIndex int
-		expected    *ApplicationSource
-	}{
-		{
-			name: "HasMultipleSources_ReturnsFirstSource",
-			application: ApplicationSpec{
-				Sources: []ApplicationSource{
-					{RepoURL: "https://github.com/argoproj/test1.git"},
-					{RepoURL: "https://github.com/argoproj/test2.git"},
-				},
-			},
-			sourceIndex: 0,
-			expected:    &ApplicationSource{RepoURL: "https://github.com/argoproj/test1.git"},
-		},
-		{
-			name: "HasMultipleSources_ReturnsSourceAtIndex",
-			application: ApplicationSpec{
-				Sources: []ApplicationSource{
-					{RepoURL: "https://github.com/argoproj/test1.git"},
-					{RepoURL: "https://github.com/argoproj/test2.git"},
-				},
-			},
-			sourceIndex: 1,
-			expected:    &ApplicationSource{RepoURL: "https://github.com/argoproj/test2.git"},
-		},
-		{
-			name: "HasSingleSource_ReturnsSource",
-			application: ApplicationSpec{
-				Source: &ApplicationSource{RepoURL: "https://github.com/argoproj/test.git"},
-			},
-			sourceIndex: 0,
-			expected:    &ApplicationSource{RepoURL: "https://github.com/argoproj/test.git"},
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			actual := tc.application.GetSourcePtrByIndex(tc.sourceIndex)
-			assert.Equal(t, tc.expected, actual)
 		})
 	}
 }
