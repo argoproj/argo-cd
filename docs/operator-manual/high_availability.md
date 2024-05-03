@@ -248,6 +248,25 @@ spec:
 # ...
 ```
 
+* **Glob paths** The annotation might contain a glob pattern path, which can be any pattern supported by the [Go filepath Match function](https://pkg.go.dev/path/filepath#Match):
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: guestbook
+  namespace: argocd
+  annotations:
+    # resolves to any file matching the pattern of *-secret.yaml in the top level shared folder
+    argocd.argoproj.io/manifest-generate-paths: "/shared/*-secret.yaml"
+spec:
+  source:
+    repoURL: https://github.com/argoproj/argocd-example-apps.git
+    targetRevision: HEAD
+    path: guestbook
+# ...
+```
+
 ### Application Sync Timeout & Jitter
 
 Argo CD has a timeout for application syncs. It will trigger a refresh for each application periodically when the timeout expires.
