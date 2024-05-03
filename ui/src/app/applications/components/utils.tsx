@@ -296,8 +296,8 @@ export function findChildPod(node: appModels.ResourceNode, tree: appModels.Appli
     });
 }
 
-export const deletePodAction = async (pod: appModels.Pod, appContext: AppContext, appName: string, appNamespace: string) => {
-    appContext.apis.popup.prompt(
+const deletePodAction = async (ctx: ContextApis, pod: appModels.ResourceNode, app: appModels.Application) => {
+    ctx.popup.prompt(
         'Delete pod',
         () => (
             <div>
@@ -317,10 +317,10 @@ export const deletePodAction = async (pod: appModels.Pod, appContext: AppContext
         {
             submit: async (vals, _, close) => {
                 try {
-                    await services.applications.deleteResource(appName, appNamespace, pod, !!vals.force, false);
+                    await services.applications.deleteResource(app.metadata.name, app.metadata.namespace, pod, !!vals.force, false);
                     close();
                 } catch (e) {
-                    appContext.apis.notifications.show({
+                    ctx.notifications.show({
                         content: <ErrorNotification title='Unable to delete resource' e={e} />,
                         type: NotificationType.Error
                     });
@@ -343,6 +343,11 @@ export const deletePopup = async (ctx: ContextApis, resource: ResourceTreeNode, 
     function handleStateChange(option: string) {
         deleteOptions.option = option;
     }
+
+    if (resource.kind === "Pod" && !isManaged) {
+        return deletePodAction(ctx, resource, application)
+    }
+
     return ctx.popup.prompt(
         'Delete resource',
         api => (
