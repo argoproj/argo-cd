@@ -10,7 +10,7 @@ import {Consumer} from '../../../shared/context';
 import * as _ from 'lodash';
 import Moment from 'react-moment';
 import {format} from 'date-fns';
-import {ResourceNode, ResourceRef} from '../../../shared/models';
+import {ResourceNode} from '../../../shared/models';
 import './application-resource-list.scss';
 
 export interface ApplicationResourceListProps {

@@ -1,4 +1,4 @@
-import {DropDown, DropDownMenu, Tooltip} from 'argo-ui';
+import {DropDown, Tooltip} from 'argo-ui';
 import * as classNames from 'classnames';
 import * as dagre from 'dagre';
 import * as React from 'react';
