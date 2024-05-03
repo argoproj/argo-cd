@@ -330,13 +330,7 @@ const deletePodAction = async (ctx: ContextApis, pod: appModels.ResourceNode, ap
     );
 };
 
-export const deletePopup = async (ctx: ContextApis, resource: ResourceTreeNode, application: appModels.Application, appChanged?: BehaviorSubject<appModels.Application>) => {
-    function isTopLevelResource(res: ResourceTreeNode, app: appModels.Application): boolean {
-        const uniqRes = `/${res.namespace}/${res.group}/${res.kind}/${res.name}`;
-        return app.status.resources.some(resStatus => `/${resStatus.namespace}/${resStatus.group}/${resStatus.kind}/${resStatus.name}` === uniqRes);
-    }
-
-    const isManaged = isTopLevelResource(resource, application);
+export const deletePopup = async (ctx: ContextApis, resource: ResourceTreeNode, application: appModels.Application, isManaged: boolean, appChanged?: BehaviorSubject<appModels.Application>) => {
     const deleteOptions = {
         option: 'foreground'
     };
@@ -452,10 +446,16 @@ function getActionItems(
     appChanged: BehaviorSubject<appModels.Application>,
     isQuickStart: boolean
 ): Observable<ActionMenuItem[]> {
-    const isRoot = resource.root && nodeKey(resource.root) === nodeKey(resource);
+    function isTopLevelResource(res: ResourceTreeNode, app: appModels.Application): boolean {
+        const uniqRes = `/${res.namespace}/${res.group}/${res.kind}/${res.name}`;
+        return app.status.resources.some(resStatus => `/${resStatus.namespace}/${resStatus.group}/${resStatus.kind}/${resStatus.name}` === uniqRes);
+    }
+
     const isPod = resource.kind === 'Pod'
+    const isManaged = isTopLevelResource(resource, application);
+
     const items: MenuItem[] = [
-        ...((isRoot && [
+        ...((isManaged && [
             {
                 title: 'Sync',
                 iconClassName: 'fa fa-fw fa-sync',
@@ -467,10 +467,11 @@ function getActionItems(
             title: 'Delete',
             iconClassName: 'fa fa-fw fa-times-circle',
             action: async () => {
-                return deletePopup(apis, resource, application, appChanged);
+                return deletePopup(apis, resource, application, isManaged, appChanged);
             }
         }
     ];
+
     if (!isQuickStart) {
         items.unshift({
             title: 'Details',
@@ -479,16 +480,27 @@ function getActionItems(
         });
     }
 
-    if (isPod || findChildPod(resource, tree)) {
-        items.push({
-            title: 'Logs',
-            iconClassName: 'fa fa-fw fa-align-left',
-            action: () => apis.navigation.goto('.', {node: nodeKey(resource), tab: 'logs'}, {replace: true})
-        });
-    }
+    const logsAction = services.accounts
+        .canI('logs', 'get', application.spec.project + '/' + application.metadata.name)
+        .then(async allowed => {
+            if (allowed && (isPod || findChildPod(resource, tree))) {
+                return [
+                    {
+                        title: 'Logs',
+                        iconClassName: 'fa fa-fw fa-align-left',
+                        action: () => apis.navigation.goto('.', {node: nodeKey(resource), tab: 'logs'}, {replace: true})
+                    } as MenuItem
+                ];
+            }
+            return [] as MenuItem[];
+        })
+        .catch(() => [] as MenuItem[]);
 
     if (isQuickStart) {
-        return from([items]);
+        return combineLatest(
+            from([items]), // this resolves immediately
+            concat([[] as MenuItem[]], logsAction), // this resolves at first to [] and then whatever the API returns
+        ).pipe(map(res => ([] as MenuItem[]).concat(...res)));
     }
 
     const execAction = services.authService
@@ -527,6 +539,7 @@ function getActionItems(
 
     return combineLatest(
         from([items]), // this resolves immediately
+        concat([[] as MenuItem[]], logsAction), // this resolves at first to [] and then whatever the API returns
         concat([[] as MenuItem[]], resourceActions), // this resolves at first to [] and then whatever the API returns
         concat([[] as MenuItem[]], execAction), // this resolves at first to [] and then whatever the API returns
         concat([[] as MenuItem[]], links) // this resolves at first to [] and then whatever the API returns
