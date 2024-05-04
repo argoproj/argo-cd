@@ -261,6 +261,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [Riskified](https://www.riskified.com/)
 1. [Robotinfra](https://www.robotinfra.com)
 1. [Rocket.Chat](https://rocket.chat)
+1. [Rogo](https://rogodata.com)
 1. [Rubin Observatory](https://www.lsst.org)
 1. [Saildrone](https://www.saildrone.com/)
 1. [Salad Technologies](https://salad.com/)
