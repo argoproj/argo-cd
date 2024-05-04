@@ -4716,6 +4716,9 @@
         "help": {
           "$ref": "#/definitions/clusterHelp"
         },
+        "impersonationEnabled": {
+          "type": "boolean"
+        },
         "kustomizeOptions": {
           "$ref": "#/definitions/v1alpha1KustomizeOptions"
         },
@@ -5937,6 +5940,13 @@
           "type": "string",
           "title": "Description contains optional project description"
         },
+        "destinationServiceAccounts": {
+          "description": "DestinationServiceAccounts holds information about the service accounts to be impersonated for the application sync operation for each destination.",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1ApplicationDestinationServiceAccount"
+          }
+        },
         "destinations": {
           "type": "array",
           "title": "Destinations contains list of destinations available for deployment",
@@ -6057,6 +6067,24 @@
         "name": {
           "description": "Name is an alternate way of specifying the target cluster by its symbolic name. This must be set if Server is not set.",
           "type": "string"
+        },
+        "namespace": {
+          "type": "string",
+          "title": "Namespace specifies the target namespace for the application's resources.\nThe namespace will only be set for namespace-scoped resources that have not set a value for .metadata.namespace"
+        },
+        "server": {
+          "description": "Server specifies the URL of the target cluster's Kubernetes control plane API. This must be set if Name is not set.",
+          "type": "string"
+        }
+      }
+    },
+    "v1alpha1ApplicationDestinationServiceAccount": {
+      "description": "ApplicationDestinationServiceAccount holds information about the service account to be impersonated for the application sync operation.",
+      "type": "object",
+      "properties": {
+        "defaultServiceAccount": {
+          "type": "string",
+          "title": "ServiceAccountName to be used for impersonation during the sync operation"
         },
         "namespace": {
           "type": "string",

@@ -20,11 +20,12 @@ import (
 )
 
 type ProjectOpts struct {
-	Description      string
-	destinations     []string
-	Sources          []string
-	SignatureKeys    []string
-	SourceNamespaces []string
+	Description                string
+	destinations               []string
+	destinationServiceAccounts []string
+	Sources                    []string
+	SignatureKeys              []string
+	SourceNamespaces           []string
 
 	orphanedResourcesEnabled   bool
 	orphanedResourcesWarn      bool
@@ -91,6 +92,23 @@ func (opts *ProjectOpts) GetDestinations() []v1alpha1.ApplicationDestination {
 		}
 	}
 	return destinations
+}
+
+func (opts *ProjectOpts) GetDestinationServiceAccounts() []v1alpha1.ApplicationDestinationServiceAccount {
+	destinationServiceAccounts := make([]v1alpha1.ApplicationDestinationServiceAccount, 0)
+	for _, destStr := range opts.destinationServiceAccounts {
+		parts := strings.Split(destStr, ",")
+		if len(parts) != 2 {
+			log.Fatalf("Expected destination of the form: server,namespace. Received: %s", destStr)
+		} else {
+			destinationServiceAccounts = append(destinationServiceAccounts, v1alpha1.ApplicationDestinationServiceAccount{
+				Server:                parts[0],
+				Namespace:             parts[1],
+				DefaultServiceAccount: parts[2],
+			})
+		}
+	}
+	return destinationServiceAccounts
 }
 
 // GetSignatureKeys TODO: Get configured keys and emit warning when a key is specified that is not configured
@@ -166,6 +184,8 @@ func SetProjSpecOptions(flags *pflag.FlagSet, spec *v1alpha1.AppProjectSpec, pro
 			spec.NamespaceResourceBlacklist = projOpts.GetDeniedNamespacedResources()
 		case "source-namespaces":
 			spec.SourceNamespaces = projOpts.GetSourceNamespaces()
+		case "dest-service-accounts":
+			spec.DestinationServiceAccounts = projOpts.GetDestinationServiceAccounts()
 		}
 	})
 	if flags.Changed("orphaned-resources") || flags.Changed("orphaned-resources-warn") {
