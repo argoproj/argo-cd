@@ -7,7 +7,7 @@
     "docker": "./scripts/build_docker.sh",
     "build": "find ./dist -type f -not -name gitkeep -delete && webpack --config ./src/app/webpack.config.js --mode production",
     "lint": "tsc --noEmit --project ./src/app && eslint",
-    "lint:fix": "tslint -p ./src/app --fix",
+    "lint:fix": "eslint --fix",
     "test": "jest"
   },
   "dependencies": {
