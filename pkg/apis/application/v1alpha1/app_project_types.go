@@ -265,6 +265,23 @@ func (p *AppProject) ValidateProject() error {
 		}
 	}
 
+	destServiceAccts := make(map[string]bool)
+	for _, destServiceAcct := range p.Spec.DestinationServiceAccounts {
+		if destServiceAcct.Server == "!*" {
+			return status.Errorf(codes.InvalidArgument, "server has an invalid format, '!*'")
+		}
+
+		if destServiceAcct.Namespace == "!*" {
+			return status.Errorf(codes.InvalidArgument, "namespace has an invalid format, '!*'")
+		}
+
+		key := fmt.Sprintf("%s/%s", destServiceAcct.Server, destServiceAcct.Namespace)
+		if _, ok := destServiceAccts[key]; ok {
+			return status.Errorf(codes.InvalidArgument, "destinationServiceAccount '%s' already added", key)
+		}
+		destServiceAccts[key] = true
+	}
+
 	return nil
 }
 

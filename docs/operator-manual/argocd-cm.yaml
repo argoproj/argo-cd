@@ -420,3 +420,6 @@ data:
               cluster:
                 name: some-cluster
                 server: https://some-cluster
+
+  # application.sync.impersonation.enabled indicates whether the application sync can be decoupled from control plane service account using impersonation.
+  application.sync.impersonation.enabled: "false"
