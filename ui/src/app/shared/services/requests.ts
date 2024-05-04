@@ -19,7 +19,7 @@ enum ReadyState {
     CONNECTING = 0,
     OPEN = 1,
     CLOSED = 2,
-    DONE = 4
+    DONE = 4,
 }
 
 let baseHRef = '/';
@@ -88,5 +88,5 @@ export default {
                 eventSource = null;
             };
         });
-    }
+    },
 };

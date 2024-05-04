@@ -34,10 +34,10 @@ export const AddAuthToToolbar = (init: Toolbar | Observable<Toolbar>, ctx: Conte
                             </button>
                         )
                     }
-                </DataLoader>
+                </DataLoader>,
             ];
             return toolbar;
-        })
+        }),
     );
 };
 
@@ -54,7 +54,7 @@ export const Page = (props: PageProps) => {
     return (
         <DataLoader load={() => services.viewPreferences.getPreferences()}>
             {pref => (
-                <div className={`${props.hideAuth ? 'page-wrapper' : ''} ${!!pref.hideSidebar ? 'sb-page-wrapper__sidebar-collapsed' : 'sb-page-wrapper'}`}>
+                <div className={`${props.hideAuth ? 'page-wrapper' : ''} ${pref.hideSidebar ? 'sb-page-wrapper__sidebar-collapsed' : 'sb-page-wrapper'}`}>
                     <ArgoPage
                         title={props.title}
                         children={props.children}

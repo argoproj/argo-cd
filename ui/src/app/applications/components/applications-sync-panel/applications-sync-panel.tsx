@@ -105,12 +105,12 @@ export const ApplicationsSyncPanel = ({show, apps, hide}: {show: boolean; apps: 
                                         syncStrategy,
                                         null,
                                         params.syncOptions,
-                                        params.retryStrategy
+                                        params.retryStrategy,
                                     )
                                     .catch(e => {
                                         ctx.notifications.show({
                                             content: <ErrorNotification title={`Unable to sync ${app.metadata.name}`} e={e} />,
-                                            type: NotificationType.Error
+                                            type: NotificationType.Error,
                                         });
                                     })
                                     .finally(() => {
@@ -119,7 +119,7 @@ export const ApplicationsSyncPanel = ({show, apps, hide}: {show: boolean; apps: 
                                 i++;
                                 setProgress({
                                     percentage: i / selectedApps.length,
-                                    title: `${i} of ${selectedApps.length} apps now syncing`
+                                    title: `${i} of ${selectedApps.length} apps now syncing`,
                                 });
                             }
                             setProgress({percentage: 100, title: 'Complete'});

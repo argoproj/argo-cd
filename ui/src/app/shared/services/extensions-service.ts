@@ -7,7 +7,7 @@ const extensions = {
     resourceExtentions: new Array<ResourceTabExtension>(),
     systemLevelExtensions: new Array<SystemLevelExtension>(),
     appViewExtensions: new Array<AppViewExtension>(),
-    statusPanelExtensions: new Array<StatusPanelExtension>()
+    statusPanelExtensions: new Array<StatusPanelExtension>(),
 };
 
 function registerResourceExtension(component: ExtensionComponent, group: string, kind: string, tabTitle: string, opts?: {icon: string}) {
@@ -126,6 +126,6 @@ export class ExtensionsService {
         registerResourceExtension,
         registerSystemLevelExtension,
         registerAppViewExtension,
-        registerStatusPanelExtension
+        registerStatusPanelExtension,
     };
 })(window);

@@ -25,20 +25,20 @@ type field = keyof ProjectSpec;
 const infoByField: {[type: string]: {title: string; helpText: string}} = {
     clusterResourceWhitelist: {
         title: 'cluster resource allow list',
-        helpText: 'Cluster-scoped K8s API Groups and Kinds which are permitted to be deployed'
+        helpText: 'Cluster-scoped K8s API Groups and Kinds which are permitted to be deployed',
     },
     clusterResourceBlacklist: {
         title: 'cluster resource deny list',
-        helpText: 'Cluster-scoped K8s API Groups and Kinds which are not permitted to be deployed'
+        helpText: 'Cluster-scoped K8s API Groups and Kinds which are not permitted to be deployed',
     },
     namespaceResourceWhitelist: {
         title: 'namespace resource allow list',
-        helpText: 'Namespace-scoped K8s API Groups and Kinds which are permitted to deploy'
+        helpText: 'Namespace-scoped K8s API Groups and Kinds which are permitted to deploy',
     },
     namespaceResourceBlacklist: {
         title: 'namespace resource deny list',
-        helpText: 'Namespace-scoped K8s API Groups and Kinds which are prohibited from being deployed'
-    }
+        helpText: 'Namespace-scoped K8s API Groups and Kinds which are prohibited from being deployed',
+    },
 };
 
 function viewList(type: field, proj: Project) {
@@ -72,8 +72,8 @@ function viewList(type: field, proj: Project) {
 const sourceReposInfoByField: {[type: string]: {title: string; helpText: string}} = {
     sourceRepos: {
         title: 'source repositories',
-        helpText: 'Git repositories where application manifests are permitted to be retrieved from'
-    }
+        helpText: 'Git repositories where application manifests are permitted to be retrieved from',
+    },
 };
 
 function viewSourceReposInfoList(type: field, proj: Project) {
@@ -102,8 +102,8 @@ function viewSourceReposInfoList(type: field, proj: Project) {
 const sourceNamespacesInfoByField: {[type: string]: {title: string; helpText: string}} = {
     sourceNamespaces: {
         title: 'source namespaces',
-        helpText: 'Kubernetes namespaces where application resources are allowed to be created in'
-    }
+        helpText: 'Kubernetes namespaces where application resources are allowed to be created in',
+    },
 };
 
 function viewSourceNamespacesInfoList(type: field, proj: Project) {
@@ -132,8 +132,8 @@ function viewSourceNamespacesInfoList(type: field, proj: Project) {
 const destinationsInfoByField: {[type: string]: {title: string; helpText: string}} = {
     destinations: {
         title: 'destinations',
-        helpText: 'Cluster and namespaces where applications are permitted to be deployed to'
-    }
+        helpText: 'Cluster and namespaces where applications are permitted to be deployed to',
+    },
 };
 
 function viewDestinationsInfoList(type: field, proj: Project) {

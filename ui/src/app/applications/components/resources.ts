@@ -32,7 +32,7 @@ export const resourceIcons = new Map<string, string>([
     ['StatefulSet', 'sts'],
     ['Service', 'svc'],
     ['User', 'user'],
-    ['Volume', 'vol']
+    ['Volume', 'vol'],
 ]);
 
 export const resources = new Map<string, string>([
@@ -73,5 +73,5 @@ export const resources = new Map<string, string>([
     ['StatefulSet', 'sts'],
     ['Service', 'svc'],
     ['User', 'user'],
-    ['Volume', 'vol']
+    ['Volume', 'vol'],
 ]);

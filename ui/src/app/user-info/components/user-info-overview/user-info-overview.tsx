@@ -14,7 +14,7 @@ export class UserInfoOverview extends React.Component<RouteComponentProps<any>, 
     public static contextTypes = {
         router: PropTypes.object,
         apis: PropTypes.object,
-        history: PropTypes.object
+        history: PropTypes.object,
     };
 
     private formApiPassword: FormApi;
@@ -39,11 +39,11 @@ export class UserInfoOverview extends React.Component<RouteComponentProps<any>, 
                                               {
                                                   iconClassName: 'fa fa-lock',
                                                   title: 'Update Password',
-                                                  action: () => (this.showChangePassword = true)
-                                              }
-                                          ]
+                                                  action: () => (this.showChangePassword = true),
+                                              },
+                                          ],
                                       }
-                                    : {items: []}
+                                    : {items: []},
                         }}>
                         <div>
                             <div className='user-info'>
@@ -99,7 +99,7 @@ export class UserInfoOverview extends React.Component<RouteComponentProps<any>, 
                                             newPassword:
                                                 (!params.newPassword && 'New password is required.') ||
                                                 (params.newPassword !== params.confirmNewPassword && 'Confirm your new password.'),
-                                            confirmNewPassword: (!params.confirmNewPassword || params.confirmNewPassword !== params.newPassword) && 'Confirm your new password.'
+                                            confirmNewPassword: (!params.confirmNewPassword || params.confirmNewPassword !== params.newPassword) && 'Confirm your new password.',
                                         })}>
                                         {formApi => (
                                             <form onSubmit={formApi.submitForm} role='form' className='change-password width-control'>
@@ -146,7 +146,7 @@ export class UserInfoOverview extends React.Component<RouteComponentProps<any>, 
         } catch (e) {
             this.appContext.apis.notifications.show({
                 content: <ErrorNotification title='Unable to update your password.' e={e} />,
-                type: NotificationType.Error
+                type: NotificationType.Error,
             });
         }
     }

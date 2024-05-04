@@ -131,14 +131,14 @@ function reduceGlobal(projs: Project[]): ProjectSpec & {count: number} {
             destinations: [],
             description: '',
             roles: [],
-            count: 0
-        }
+            count: 0,
+        },
     );
 }
 
 export class ProjectDetails extends React.Component<RouteComponentProps<{name: string}>, ProjectDetailsState> {
     public static contextTypes = {
-        apis: PropTypes.object
+        apis: PropTypes.object,
     };
     private projectRoleFormApi: FormApi;
     private projectSyncWindowsFormApi: FormApi;
@@ -173,14 +173,14 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                                                 } catch (e) {
                                                     ctx.notifications.show({
                                                         content: <ErrorNotification title='Unable to delete project' e={e} />,
-                                                        type: NotificationType.Error
+                                                        type: NotificationType.Error,
                                                     });
                                                 }
                                             }
-                                        }
-                                    }
-                                ]
-                            }
+                                        },
+                                    },
+                                ],
+                            },
                         }}>
                         <DataLoader
                             load={() => {
@@ -201,23 +201,23 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                                                         {
                                                             key: 'summary',
                                                             title: 'Summary',
-                                                            content: this.summaryTab(proj, reduceGlobal(globalProj), scopedProj)
+                                                            content: this.summaryTab(proj, reduceGlobal(globalProj), scopedProj),
                                                         },
                                                         {
                                                             key: 'roles',
                                                             title: 'Roles',
-                                                            content: this.rolesTab(proj, ctx)
+                                                            content: this.rolesTab(proj, ctx),
                                                         },
                                                         {
                                                             key: 'windows',
                                                             title: 'Windows',
-                                                            content: this.SyncWindowsTab(proj, ctx)
+                                                            content: this.SyncWindowsTab(proj, ctx),
                                                         },
                                                         {
                                                             key: 'events',
                                                             title: 'Events',
-                                                            content: this.eventsTab(proj)
-                                                        }
+                                                            content: this.eventsTab(proj),
+                                                        },
                                                     ].map(tab => ({...tab, isOnlyContentScrollable: true, extraVerticalScrollPadding: 160}))}
                                                 />
                                                 <SlidingPanel
@@ -245,7 +245,7 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                                                                     onClick={async () => {
                                                                         const confirmed = await ctx.popup.confirm(
                                                                             'Delete project role',
-                                                                            'Are you sure you want to delete project role?'
+                                                                            'Are you sure you want to delete project role?',
                                                                         );
                                                                         if (confirmed) {
                                                                             try {
@@ -255,7 +255,7 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                                                                             } catch (e) {
                                                                                 ctx.notifications.show({
                                                                                     content: <ErrorNotification title='Unable to delete project role' e={e} />,
-                                                                                    type: NotificationType.Error
+                                                                                    type: NotificationType.Error,
                                                                                 });
                                                                             }
                                                                         }
@@ -280,7 +280,7 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                                                                 jwtTokens:
                                                                     params.get('newRole') === null && proj.spec.roles !== undefined && proj.status.jwtTokensByRole !== undefined
                                                                         ? proj.status.jwtTokensByRole[params.get('editRole')].items
-                                                                        : undefined
+                                                                        : undefined,
                                                             }}
                                                             getApi={(api: FormApi) => (this.projectRoleFormApi = api)}
                                                             submit={async (projRoleParams: ProjectRoleParams) => {
@@ -291,7 +291,7 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                                                                 } catch (e) {
                                                                     ctx.notifications.show({
                                                                         content: <ErrorNotification title='Unable to edit project' e={e} />,
-                                                                        type: NotificationType.Error
+                                                                        type: NotificationType.Error,
                                                                     });
                                                                 }
                                                             }}
@@ -335,7 +335,7 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                                                                     onClick={async () => {
                                                                         const confirmed = await ctx.popup.confirm(
                                                                             'Delete sync window',
-                                                                            'Are you sure you want to delete sync window?'
+                                                                            'Are you sure you want to delete sync window?',
                                                                         );
                                                                         if (confirmed) {
                                                                             try {
@@ -346,7 +346,7 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                                                                             } catch (e) {
                                                                                 ctx.notifications.show({
                                                                                     content: <ErrorNotification title='Unable to delete sync window' e={e} />,
-                                                                                    type: NotificationType.Error
+                                                                                    type: NotificationType.Error,
                                                                                 });
                                                                             }
                                                                         }
@@ -369,7 +369,7 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                                                                 id:
                                                                     params.get('newWindow') === null && proj.spec.syncWindows !== undefined
                                                                         ? Number(params.get('editWindow'))
-                                                                        : undefined
+                                                                        : undefined,
                                                             }}
                                                             getApi={(api: FormApi) => (this.projectSyncWindowsFormApi = api)}
                                                             submit={async (projectSyncWindowsParams: ProjectSyncWindowsParams) => {
@@ -380,7 +380,7 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                                                                 } catch (e) {
                                                                     ctx.notifications.show({
                                                                         content: <ErrorNotification title='Unable to edit project' e={e} />,
-                                                                        type: NotificationType.Error
+                                                                        type: NotificationType.Error,
                                                                     });
                                                                 }
                                                             }}
@@ -407,7 +407,7 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
         } catch (e) {
             notifications.show({
                 content: <ErrorNotification title='Unable to delete JWT token' e={e} />,
-                type: NotificationType.Error
+                type: NotificationType.Error,
             });
         }
     }
@@ -421,7 +421,7 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
         } catch (e) {
             notifications.show({
                 content: <ErrorNotification title='Unable to create JWT token' e={e} />,
-                type: NotificationType.Error
+                type: NotificationType.Error,
             });
         }
     }
@@ -484,7 +484,7 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                                                     'effect would be if it was assigned to an application, namespace or cluster. ' +
                                                     'Red: no syncs allowed. ' +
                                                     'Yellow: manual syncs allowed. ' +
-                                                    'Green: all syncs allowed'
+                                                    'Green: all syncs allowed',
                                             )}
                                         </div>
                                         <div className='columns small-2'>
@@ -555,7 +555,7 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
         } catch (e) {
             this.appContext.apis.notifications.show({
                 content: <ErrorNotification title='Unable to update project' e={e} />,
-                type: NotificationType.Error
+                type: NotificationType.Error,
             });
         }
     }
@@ -566,7 +566,7 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                 <EditablePanel
                     save={item => this.saveProject(item)}
                     validate={input => ({
-                        'metadata.name': !input.metadata.name && 'Project name is required'
+                        'metadata.name': !input.metadata.name && 'Project name is required',
                     })}
                     values={proj}
                     title='GENERAL'
@@ -574,19 +574,19 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                         {
                             title: 'NAME',
                             view: proj.metadata.name,
-                            edit: (_: FormApi) => proj.metadata.name
+                            edit: () => proj.metadata.name,
                         },
                         {
                             title: 'DESCRIPTION',
                             view: proj.spec.description,
-                            edit: (formApi: FormApi) => <FormField formApi={formApi} field='spec.description' component={Text} />
+                            edit: (formApi: FormApi) => <FormField formApi={formApi} field='spec.description' component={Text} />,
                         },
                         {
                             title: 'LABELS',
                             view: Object.keys(proj.metadata.labels || {})
                                 .map(label => `${label}=${proj.metadata.labels[label]}`)
                                 .join(' '),
-                            edit: (formApi: FormApi) => <FormField formApi={formApi} field='metadata.labels' component={MapInputField} />
+                            edit: (formApi: FormApi) => <FormField formApi={formApi} field='metadata.labels' component={MapInputField} />,
                         },
                         {
                             title: 'LINKS',
@@ -594,8 +594,8 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                                 <div style={{margin: '8px 0'}}>
                                     <DataLoader load={() => services.projects.getLinks(proj.metadata.name)}>{links => <DeepLinks links={links.items} />}</DataLoader>
                                 </div>
-                            )
-                        }
+                            ),
+                        },
                     ]}
                 />
 
@@ -771,8 +771,8 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                                                 (formApi.values.spec.destinations || []).concat({
                                                     server: '*',
                                                     namespace: '*',
-                                                    name: '*'
-                                                })
+                                                    name: '*',
+                                                }),
                                             )
                                         }>
                                         ADD DESTINATION
@@ -847,8 +847,8 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                                             formApi.setValue(
                                                 'spec.signatureKeys',
                                                 (formApi.values.spec.signatureKeys || []).concat({
-                                                    keyID: ''
-                                                })
+                                                    keyID: '',
+                                                }),
                                             )
                                         }>
                                         ADD KEY
@@ -874,7 +874,7 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                                     <i
                                         className={classNames('fa', {
                                             'fa-toggle-off': !proj.spec.orphanedResources.warn,
-                                            'fa-toggle-on': proj.spec.orphanedResources.warn
+                                            'fa-toggle-on': proj.spec.orphanedResources.warn,
                                         })}
                                     />{' '}
                                     Application warning conditions are {proj.spec.orphanedResources.warn ? 'enabled' : 'disabled'}.
@@ -965,8 +965,8 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                                         formApi.setValue(
                                             'spec.orphanedResources.ignore',
                                             (formApi.values.spec.orphanedResources ? formApi.values.spec.orphanedResources.ignore || [] : []).concat({
-                                                keyID: ''
-                                            })
+                                                keyID: '',
+                                            }),
                                         )
                                     }>
                                     ADD RESOURCE

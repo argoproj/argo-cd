@@ -153,7 +153,7 @@ export class ApplicationsService {
             .query({
                 cascade,
                 propagationPolicy,
-                appNamespace
+                appNamespace,
             })
             .send({})
             .then(() => true);
@@ -190,7 +190,7 @@ export class ApplicationsService {
                 map(watchEvent => {
                     watchEvent.application = this.parseAppFields(watchEvent.application);
                     return watchEvent;
-                })
+                }),
             );
     }
 
@@ -203,7 +203,7 @@ export class ApplicationsService {
         strategy: models.SyncStrategy,
         resources: models.SyncOperationResource[],
         syncOptions?: string[],
-        retryStrategy?: models.RetryStrategy
+        retryStrategy?: models.RetryStrategy,
     ): Promise<boolean> {
         return requests
             .post(`/applications/${name}/sync`)
@@ -215,7 +215,7 @@ export class ApplicationsService {
                 strategy,
                 resources,
                 syncOptions: syncOptions ? {items: syncOptions} : null,
-                retryStrategy
+                retryStrategy,
             })
             .then(() => true);
     }
@@ -233,7 +233,7 @@ export class ApplicationsService {
         namespace: string,
         podName: string,
         resource: {group: string; kind: string; name: string},
-        containerName: string
+        containerName: string,
     ): string {
         const search = this.getLogsQuery({namespace, appNamespace, podName, resource, containerName, follow: false});
         search.set('download', 'true');
@@ -277,7 +277,7 @@ export class ApplicationsService {
                 () => {
                     first = true;
                     observer.complete();
-                }
+                },
             );
             return () => subscription.unsubscribe();
         });
@@ -293,7 +293,7 @@ export class ApplicationsService {
                 resourceName: resource.name,
                 version: resource.version,
                 kind: resource.kind,
-                group: resource.group || '' // The group query param must be present even if empty.
+                group: resource.group || '', // The group query param must be present even if empty.
             })
             .then(res => res.body as {manifest: string})
             .then(res => JSON.parse(res.manifest) as models.State);
@@ -308,7 +308,7 @@ export class ApplicationsService {
                 resourceName: resource.name,
                 version: resource.version,
                 kind: resource.kind,
-                group: resource.group
+                group: resource.group,
             })
             .then(res => {
                 const actions = (res.body.actions as models.ResourceAction[]) || [];
@@ -326,7 +326,7 @@ export class ApplicationsService {
                 resourceName: resource.name,
                 version: resource.version,
                 kind: resource.kind,
-                group: resource.group
+                group: resource.group,
             })
             .send(JSON.stringify(action))
             .then(res => (res.body.actions as models.ResourceAction[]) || []);
@@ -343,7 +343,7 @@ export class ApplicationsService {
                 version: resource.version,
                 kind: resource.kind,
                 group: resource.group || '', // The group query param must be present even if empty.
-                patchType
+                patchType,
             })
             .send(JSON.stringify(patch))
             .then(res => res.body as {manifest: string})
@@ -362,7 +362,7 @@ export class ApplicationsService {
                 kind: resource.kind,
                 group: resource.group || '', // The group query param must be present even if empty.
                 force,
-                orphan
+                orphan,
             })
             .send()
             .then(() => true);
@@ -383,7 +383,7 @@ export class ApplicationsService {
             namespace: string;
             name: string;
             uid: string;
-        }
+        },
     ): Promise<models.Event[]> {
         return requests
             .get(`/applications/${applicationName}/events`)
@@ -391,7 +391,7 @@ export class ApplicationsService {
                 appNamespace,
                 resourceUID: resource.uid,
                 resourceNamespace: resource.namespace,
-                resourceName: resource.name
+                resourceName: resource.name,
             })
             .send()
             .then(res => (res.body as models.EventList).items || []);
@@ -423,7 +423,7 @@ export class ApplicationsService {
                 resourceName: resource.name,
                 version: resource.version,
                 kind: resource.kind,
-                group: resource.group || '' // The group query param must be present even if empty.
+                group: resource.group || '', // The group query param must be present even if empty.
             })
             .send()
             .then(res => {
@@ -495,14 +495,14 @@ export class ApplicationsService {
                 apiVersion: 'argoproj.io/v1alpha1',
                 kind: 'Application',
                 spec: {
-                    project: 'default'
+                    project: 'default',
                 },
                 status: {
                     resources: [],
-                    summary: {}
-                }
+                    summary: {},
+                },
             },
-            data
+            data,
         );
 
         return data as models.Application;

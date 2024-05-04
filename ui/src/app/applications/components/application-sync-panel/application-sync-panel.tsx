@@ -13,7 +13,7 @@ import {
     FORCE_WARNING,
     SyncFlags,
     REPLACE_WARNING,
-    PRUNE_ALL_WARNING
+    PRUNE_ALL_WARNING,
 } from '../application-sync-options/application-sync-options';
 import {ComparisonStatusIcon, getAppDefaultSource, nodeKey} from '../utils';
 
@@ -57,10 +57,10 @@ export const ApplicationSyncPanel = ({application, selectedResource, hide}: {app
                             defaultValues={{
                                 revision: new URLSearchParams(ctx.history.location.search).get('revision') || source.targetRevision || 'HEAD',
                                 resources: appResources.map((_, i) => i === syncResIndex || syncResIndex === -1),
-                                syncOptions: application.spec.syncPolicy ? application.spec.syncPolicy.syncOptions : []
+                                syncOptions: application.spec.syncPolicy ? application.spec.syncPolicy.syncOptions : [],
                             }}
                             validateError={values => ({
-                                resources: values.resources.every((item: boolean) => !item) && 'Select at least one resource'
+                                resources: values.resources.every((item: boolean) => !item) && 'Select at least one resource',
                             })}
                             onSubmit={async (params: any) => {
                                 setPending(true);
@@ -126,13 +126,13 @@ export const ApplicationSyncPanel = ({application, selectedResource, hide}: {app
                                         syncStrategy,
                                         selectedResources,
                                         params.syncOptions,
-                                        params.retryStrategy
+                                        params.retryStrategy,
                                     );
                                     hide();
                                 } catch (e) {
                                     ctx.notifications.show({
                                         content: <ErrorNotification title='Unable to sync' e={e} />,
-                                        type: NotificationType.Error
+                                        type: NotificationType.Error,
                                     });
                                 } finally {
                                     setPending(false);
@@ -176,7 +176,7 @@ export const ApplicationSyncPanel = ({application, selectedResource, hide}: {app
                                                 onClick={() =>
                                                     formApi.setValue(
                                                         'resources',
-                                                        formApi.values.resources.map(() => true)
+                                                        formApi.values.resources.map(() => true),
                                                     )
                                                 }>
                                                 all
@@ -188,7 +188,7 @@ export const ApplicationSyncPanel = ({application, selectedResource, hide}: {app
                                                         'resources',
                                                         application.status.resources
                                                             .filter(item => !item.hook)
-                                                            .map((resource: models.ResourceStatus) => resource.status === models.SyncStatuses.OutOfSync)
+                                                            .map((resource: models.ResourceStatus) => resource.status === models.SyncStatuses.OutOfSync),
                                                     )
                                                 }>
                                                 out of sync
@@ -198,7 +198,7 @@ export const ApplicationSyncPanel = ({application, selectedResource, hide}: {app
                                                 onClick={() =>
                                                     formApi.setValue(
                                                         'resources',
-                                                        formApi.values.resources.map(() => false)
+                                                        formApi.values.resources.map(() => false),
                                                     )
                                                 }>
                                                 none

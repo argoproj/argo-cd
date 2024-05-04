@@ -4,7 +4,7 @@ import * as ReactForm from 'react-form';
 
 export const SetFinalizerOnApplication = ReactForm.FormField((props: {fieldApi: ReactForm.FieldApi}) => {
     const {
-        fieldApi: {getValue, setValue}
+        fieldApi: {getValue, setValue},
     } = props;
     const finalizerVal = 'resources-finalizer.argocd.argoproj.io';
     const currentValue = getValue() || [];

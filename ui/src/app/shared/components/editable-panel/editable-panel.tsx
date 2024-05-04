@@ -52,7 +52,7 @@ export class EditablePanel<T = {}> extends React.Component<EditablePanelProps<T>
 
     public UNSAFE_componentWillReceiveProps(nextProps: EditablePanelProps<T>) {
         if (this.formApi && JSON.stringify(this.props.values) !== JSON.stringify(nextProps.values)) {
-            if (!!nextProps.noReadonlyMode) {
+            if (nextProps.noReadonlyMode) {
                 this.formApi.setAllValues(nextProps.values);
             }
         }
@@ -157,7 +157,7 @@ export class EditablePanel<T = {}> extends React.Component<EditablePanelProps<T>
                                             } catch (e) {
                                                 ctx.notifications.show({
                                                     content: <ErrorNotification title='Unable to save changes' e={e} />,
-                                                    type: NotificationType.Error
+                                                    type: NotificationType.Error,
                                                 });
                                             } finally {
                                                 this.setState({saving: false});

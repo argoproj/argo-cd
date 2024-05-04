@@ -51,7 +51,7 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
         tabs: Tab[],
         execEnabled: boolean,
         execAllowed: boolean,
-        logsAllowed: boolean
+        logsAllowed: boolean,
     ) => {
         if (!node || node === undefined) {
             return [];
@@ -67,7 +67,7 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                     <div className='application-resource-events'>
                         <EventsList events={events} />
                     </div>
-                )
+                ),
             });
         }
         if (podState && podState.metadata && podState.spec) {
@@ -75,14 +75,14 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                 {
                     offset: 0,
                     title: 'CONTAINERS',
-                    containers: podState.spec.containers || []
-                }
+                    containers: podState.spec.containers || [],
+                },
             ];
             if (podState.spec.initContainers?.length > 0) {
                 containerGroups.push({
                     offset: (podState.spec.containers || []).length,
                     title: 'INIT CONTAINERS',
-                    containers: podState.spec.initContainers || []
+                    containers: podState.spec.initContainers || [],
                 });
             }
 
@@ -112,8 +112,8 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                                     onClickContainer={onClickContainer}
                                 />
                             </div>
-                        )
-                    }
+                        ),
+                    },
                 ]);
             }
             if (selectedNode?.kind === 'Pod' && execEnabled && execAllowed) {
@@ -132,8 +132,8 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                                 containerName={AppUtils.getContainerName(podState, activeContainer)}
                                 onClickContainer={onClickContainer}
                             />
-                        )
-                    }
+                        ),
+                    },
                 ]);
             }
         }
@@ -147,7 +147,7 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                             <tabExtensions.component tree={tree} resource={state} application={application} />
                         </ErrorBoundary>
                     ),
-                    icon: tabExtensions.icon
+                    icon: tabExtensions.icon,
                 });
             });
         }
@@ -159,7 +159,7 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
             {
                 title: 'SUMMARY',
                 key: 'summary',
-                content: <ApplicationSummary app={application} updateApp={(app, query: {validate?: boolean}) => updateApp(app, query)} />
+                content: <ApplicationSummary app={application} updateApp={(app, query: {validate?: boolean}) => updateApp(app, query)} />,
             },
             {
                 title: 'SOURCES',
@@ -177,7 +177,7 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                             />
                         )}
                     </DataLoader>
-                )
+                ),
             },
             {
                 title: 'MANIFEST',
@@ -191,8 +191,8 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                             return services.applications.updateSpec(application.metadata.name, application.metadata.namespace, jsonMergePatch.apply(spec, JSON.parse(patch)));
                         }}
                     />
-                )
-            }
+                ),
+            },
         ];
 
         if (application.status.sync.status !== SyncStatuses.Synced) {
@@ -205,26 +205,26 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                         key='diff'
                         load={async () =>
                             await services.applications.managedResources(application.metadata.name, application.metadata.namespace, {
-                                fields: ['items.normalizedLiveState', 'items.predictedLiveState', 'items.group', 'items.kind', 'items.namespace', 'items.name']
+                                fields: ['items.normalizedLiveState', 'items.predictedLiveState', 'items.group', 'items.kind', 'items.namespace', 'items.name'],
                             })
                         }>
                         {managedResources => <ApplicationResourcesDiff states={managedResources} />}
                     </DataLoader>
-                )
+                ),
             });
         }
 
         tabs.push({
             title: 'EVENTS',
             key: 'event',
-            content: <ApplicationResourceEvents applicationName={application.metadata.name} applicationNamespace={application.metadata.namespace} />
+            content: <ApplicationResourceEvents applicationName={application.metadata.name} applicationNamespace={application.metadata.namespace} />,
         });
 
         const extensionTabs = services.extensions.getResourceTabs('argoproj.io', 'Application').map((ext, i) => ({
             title: ext.title,
             key: `extension-${i}`,
             content: <ext.component resource={application} tree={tree} application={application} />,
-            icon: ext.icon
+            icon: ext.icon,
         }));
 
         return tabs.concat(extensionTabs);
@@ -244,8 +244,8 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                                 name: selectedNode.name,
                                 namespace: selectedNode.namespace,
                                 kind: selectedNode.kind,
-                                group: selectedNode.group
-                            }
+                                group: selectedNode.group,
+                            },
                         });
                         const controlled = managedResources.find(item => AppUtils.isSameNode(selectedNode, item));
                         const summary = application.status.resources.find(item => AppUtils.isSameNode(selectedNode, item));
@@ -260,7 +260,7 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                                 (await services.applications.resourceEvents(application.metadata.name, application.metadata.namespace, {
                                     name: liveState.metadata.name,
                                     namespace: liveState.metadata.namespace,
-                                    uid: liveState.metadata.uid
+                                    uid: liveState.metadata.uid,
                                 }))) ||
                             [];
                         let podState: State;
@@ -339,12 +339,12 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                                                     node={selectedNode}
                                                     links={data.links}
                                                 />
-                                            )
-                                        }
+                                            ),
+                                        },
                                     ],
                                     data.execEnabled,
                                     data.execAllowed,
-                                    data.logsAllowed
+                                    data.logsAllowed,
                                 )}
                                 selectedTabKey={props.tab}
                                 onTabSelected={selected => appContext.navigation.goto('.', {tab: selected}, {replace: true})}
@@ -373,9 +373,9 @@ async function getSources(app: models.Application) {
         const length = sources.length;
         for (let i = 0; i < length; i++) {
             const aSource = sources[i];
-            const repoDetail = await services.repos.appDetails(aSource, app.metadata.name, app.spec.project).catch(e => ({
+            const repoDetail = await services.repos.appDetails(aSource, app.metadata.name, app.spec.project).catch(() => ({
                 type: 'Directory' as AppSourceType,
-                path: aSource.path
+                path: aSource.path,
             }));
             if (repoDetail) {
                 listOfDetails.push(repoDetail);
@@ -385,7 +385,7 @@ async function getSources(app: models.Application) {
     } else {
         const repoDetail = await services.repos.appDetails(AppUtils.getAppDefaultSource(app), app.metadata.name, app.spec.project).catch(() => ({
             type: 'Directory' as AppSourceType,
-            path: AppUtils.getAppDefaultSource(app).path
+            path: AppUtils.getAppDefaultSource(app).path,
         }));
         if (repoDetail) {
             listOfDetails.push(repoDetail);

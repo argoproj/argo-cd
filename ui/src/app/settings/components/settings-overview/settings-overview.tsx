@@ -10,38 +10,38 @@ const settings = [
     {
         title: 'Repositories',
         description: 'Configure connected repositories',
-        path: './repos'
+        path: './repos',
     },
     {
         title: 'Repository certificates and known hosts',
         description: 'Configure repository certificates and known hosts for connecting Git repositories',
-        path: './certs'
+        path: './certs',
     },
     {
         title: 'GnuPG keys',
         description: 'Configure GnuPG public keys for commit verification',
-        path: './gpgkeys'
+        path: './gpgkeys',
     },
     {
         title: 'Clusters',
         description: 'Configure connected Kubernetes clusters',
-        path: './clusters'
+        path: './clusters',
     },
     {
         title: 'Projects',
         description: 'Configure Argo CD projects',
-        path: './projects'
+        path: './projects',
     },
     {
         title: 'Accounts',
         description: 'Configure Accounts',
-        path: './accounts'
+        path: './accounts',
     },
     {
         title: 'Appearance',
         description: 'Configure themes in UI',
-        path: './appearance'
-    }
+        path: './appearance',
+    },
 ];
 
 export const SettingsOverview: React.StatelessComponent = (props: any, context: AppContext) => (
@@ -65,5 +65,5 @@ export const SettingsOverview: React.StatelessComponent = (props: any, context: 
 );
 
 SettingsOverview.contextTypes = {
-    apis: PropTypes.object
+    apis: PropTypes.object,
 };

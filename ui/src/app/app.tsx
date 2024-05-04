@@ -34,7 +34,7 @@ const routes: Routes = {
     '/settings': {component: settings.component},
     '/user-info': {component: userInfo.component},
     '/help': {component: help.component},
-    '/pkce/verify': {component: PKCEVerification, noLayout: true}
+    '/pkce/verify': {component: PKCEVerification, noLayout: true},
 };
 
 interface NavItem {
@@ -49,25 +49,25 @@ const navItems: NavItem[] = [
         title: 'Applications',
         tooltip: 'Manage your applications, and diagnose health problems.',
         path: '/applications',
-        iconClassName: 'argo-icon argo-icon-application'
+        iconClassName: 'argo-icon argo-icon-application',
     },
     {
         title: 'Settings',
         tooltip: 'Manage your repositories, projects, settings',
         path: '/settings',
-        iconClassName: 'argo-icon argo-icon-settings'
+        iconClassName: 'argo-icon argo-icon-settings',
     },
     {
         title: 'User Info',
         path: '/user-info',
-        iconClassName: 'fa fa-user-circle'
+        iconClassName: 'fa fa-user-circle',
     },
     {
         title: 'Documentation',
         tooltip: 'Read the documentation, and get help and assistance.',
         path: '/help',
-        iconClassName: 'argo-icon argo-icon-docs'
-    }
+        iconClassName: 'argo-icon argo-icon-docs',
+    },
 ];
 
 const versionLoader = services.version.version();
@@ -98,10 +98,7 @@ requests.onError.subscribe(async err => {
         }
         // Query for basehref and remove trailing /.
         // If basehref is the default `/` it will become an empty string.
-        const basehref = document
-            .querySelector('head > base')
-            .getAttribute('href')
-            .replace(/\/$/, '');
+        const basehref = document.querySelector('head > base').getAttribute('href').replace(/\/$/, '');
         if (isSSO) {
             window.location.href = `${basehref}/auth/login?return_url=${encodeURIComponent(location.href)}`;
         } else {
@@ -116,7 +113,7 @@ export class App extends React.Component<
 > {
     public static childContextTypes = {
         history: PropTypes.object,
-        apis: PropTypes.object
+        apis: PropTypes.object,
     };
 
     public static getDerivedStateFromError(error: Error) {
@@ -172,7 +169,7 @@ export class App extends React.Component<
             extendedNavItems.push({
                 title: extension.title,
                 path: extension.path,
-                iconClassName: `fa ${extension.icon}`
+                iconClassName: `fa ${extension.icon}`,
             });
             const component = () => (
                 <>
@@ -186,7 +183,7 @@ export class App extends React.Component<
             );
             extendedRoutes[extension.path] = {
                 component: component as React.ComponentType<React.ComponentProps<any>>,
-                extension: true
+                extension: true,
             };
         }
 

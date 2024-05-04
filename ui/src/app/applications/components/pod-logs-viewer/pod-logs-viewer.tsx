@@ -94,6 +94,7 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
     useEffect(() => {
         // https://stackoverflow.com/questions/3561493/is-there-a-regexp-escape-function-in-javascript
         // matchNothing this is chosen instead of empty regexp, because that would match everything and break colored logs
+        // eslint-disable-next-line no-useless-escape
         setHighlight(filter === '' ? matchNothing : new RegExp(filter.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), 'g'));
     }, [filter]);
 
@@ -126,7 +127,7 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
                 follow,
                 sinceSeconds,
                 filter,
-                previous
+                previous,
             }) // accumulate log changes and render only once every 100ms to reduce CPU usage
             .pipe(bufferTime(100))
             .pipe(retryWhen(errors => errors.pipe(delay(500))))

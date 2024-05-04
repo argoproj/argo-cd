@@ -9,7 +9,7 @@ export const AppearanceList = () => {
         <Page
             title={'Appearance'}
             toolbar={{
-                breadcrumbs: [{title: 'Settings', path: '/settings'}, {title: 'Appearance'}]
+                breadcrumbs: [{title: 'Settings', path: '/settings'}, {title: 'Appearance'}],
             }}>
             <DataLoader load={() => services.viewPreferences.getPreferences()}>
                 {pref => (

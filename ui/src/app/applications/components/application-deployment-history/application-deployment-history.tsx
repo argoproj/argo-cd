@@ -13,7 +13,7 @@ export const ApplicationDeploymentHistory = ({
     app,
     rollbackApp,
     selectedRollbackDeploymentIndex,
-    selectDeployment
+    selectDeployment,
 }: {
     app: models.Application;
     selectedRollbackDeploymentIndex: number;
@@ -71,8 +71,8 @@ export const ApplicationDeploymentHistory = ({
                                         items={[
                                             {
                                                 title: (info.nextDeployedAt && 'Rollback') || 'Redeploy',
-                                                action: () => rollbackApp(info)
-                                            }
+                                                action: () => rollbackApp(info),
+                                            },
                                         ]}
                                     />
                                 </div>
@@ -93,7 +93,7 @@ export const ApplicationDeploymentHistory = ({
                                             <ApplicationParameters
                                                 application={{
                                                     ...app,
-                                                    spec: {...app.spec, source: recentDeployments[index].source}
+                                                    spec: {...app.spec, source: recentDeployments[index].source},
                                                 }}
                                                 details={details}
                                             />

@@ -1,3 +1,4 @@
+/* eslint-disable no-prototype-builtins */
 type operatorFn = (labels: {[name: string]: string}, key: string, values: string[]) => boolean;
 
 const operators: {[type: string]: operatorFn} = {
@@ -7,7 +8,7 @@ const operators: {[type: string]: operatorFn} = {
     '[\\W]notin[\\W]': (labels, key, values) => !values.includes(labels[key]),
     '[\\W]in[\\W]': (labels, key, values) => values.includes(labels[key]),
     '[\\W]gt[\\W]': (labels, key, values) => parseFloat(labels[key]) > parseFloat(values[0]),
-    '[\\W]lt[\\W]': (labels, key, values) => parseFloat(labels[key]) < parseFloat(values[0])
+    '[\\W]lt[\\W]': (labels, key, values) => parseFloat(labels[key]) < parseFloat(values[0]),
 };
 
 function split(input: string, delimiter: string | RegExp): string[] {

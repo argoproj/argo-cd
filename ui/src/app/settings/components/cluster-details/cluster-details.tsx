@@ -45,10 +45,10 @@ export const ClusterDetails = (props: RouteComponentProps<{server: string}>) => 
                                         } finally {
                                             setUpdating(false);
                                         }
-                                    }
-                                }
-                            ]
-                        }
+                                    },
+                                },
+                            ],
+                        },
                     }}>
                     <p />
 
@@ -67,39 +67,39 @@ export const ClusterDetails = (props: RouteComponentProps<{server: string}>) => 
                             items={[
                                 {
                                     title: 'SERVER',
-                                    view: cluster.server
+                                    view: cluster.server,
                                 },
                                 {
                                     title: 'CREDENTIALS TYPE',
                                     view:
                                         (cluster.config.awsAuthConfig && `IAM AUTH (cluster name: ${cluster.config.awsAuthConfig.clusterName})`) ||
                                         (cluster.config.execProviderConfig && `External provider (command: ${cluster.config.execProviderConfig.command})`) ||
-                                        'Token/Basic Auth'
+                                        'Token/Basic Auth',
                                 },
                                 {
                                     title: 'NAME',
                                     view: cluster.name,
-                                    edit: formApi => <FormField formApi={formApi} field='name' component={Text} />
+                                    edit: formApi => <FormField formApi={formApi} field='name' component={Text} />,
                                 },
                                 {
                                     title: 'NAMESPACES',
                                     view: ((cluster.namespaces || []).length === 0 && 'All namespaces') || cluster.namespaces.join(', '),
-                                    edit: formApi => <FormField formApi={formApi} field='namespaces' component={NamespacesEditor} />
+                                    edit: formApi => <FormField formApi={formApi} field='namespaces' component={NamespacesEditor} />,
                                 },
                                 {
                                     title: 'LABELS',
                                     view: Object.keys(cluster.labels || [])
                                         .map(label => `${label}=${cluster.labels[label]}`)
                                         .join(' '),
-                                    edit: formApi => <FormField formApi={formApi} field='labels' component={MapInputField} />
+                                    edit: formApi => <FormField formApi={formApi} field='labels' component={MapInputField} />,
                                 },
                                 {
                                     title: 'ANNOTATIONS',
                                     view: Object.keys(cluster.annotations || [])
                                         .map(annotation => `${annotation}=${cluster.annotations[annotation]}`)
                                         .join(' '),
-                                    edit: formApi => <FormField formApi={formApi} field='annotations' component={MapInputField} />
-                                }
+                                    edit: formApi => <FormField formApi={formApi} field='annotations' component={MapInputField} />,
+                                },
                             ]}
                         />
                         <div className='white-box'>

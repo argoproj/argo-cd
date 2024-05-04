@@ -7,7 +7,7 @@ export type ContainerGroup = {offset: number; containers: {name: string}[]};
 export const ContainerSelector = ({
     containerGroups,
     containerName,
-    onClickContainer
+    onClickContainer,
 }: {
     containerGroups?: ContainerGroup[];
     containerName: string;

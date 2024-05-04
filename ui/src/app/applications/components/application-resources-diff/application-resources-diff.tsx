@@ -24,7 +24,7 @@ export const ApplicationResourcesDiff = (props: ApplicationResourcesDiffProps) =
                         b: state.predictedLiveState ? jsYaml.safeDump(state.predictedLiveState, {indent: 2}) : '',
                         hook: state.hook,
                         // doubles as sort order
-                        name: (state.group || '') + '/' + state.kind + '/' + (state.namespace ? state.namespace + '/' : '') + state.name
+                        name: (state.group || '') + '/' + state.kind + '/' + (state.namespace ? state.namespace + '/' : '') + state.name,
                     };
                 })
                 .filter(i => !i.hook)
@@ -52,8 +52,8 @@ ${formatLines(diffLines(i.a, i.b), {context, aname: `a/${name}}`, bname: `b/${i.
                                 services.viewPreferences.updatePreferences({
                                     appDetails: {
                                         ...pref.appDetails,
-                                        compactDiff: !pref.appDetails.compactDiff
-                                    }
+                                        compactDiff: !pref.appDetails.compactDiff,
+                                    },
                                 })
                             }
                         />
@@ -65,8 +65,8 @@ ${formatLines(diffLines(i.a, i.b), {context, aname: `a/${name}}`, bname: `b/${i.
                                 services.viewPreferences.updatePreferences({
                                     appDetails: {
                                         ...pref.appDetails,
-                                        inlineDiff: !pref.appDetails.inlineDiff
-                                    }
+                                        inlineDiff: !pref.appDetails.inlineDiff,
+                                    },
                                 })
                             }
                         />

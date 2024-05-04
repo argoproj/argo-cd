@@ -62,9 +62,9 @@ export const Banner = (props: React.Props<any>) => {
                             permanent: items[0].uiBannerPermanent,
                             chatText: items[0].help.chatText,
                             chatUrl: items[0].help.chatUrl,
-                            position: items[0].uiBannerPosition
+                            position: items[0].uiBannerPosition,
                         };
-                    })
+                    }),
                 )
             }>
             {({
@@ -74,7 +74,7 @@ export const Banner = (props: React.Props<any>) => {
                 permanent,
                 chatText,
                 chatUrl,
-                position
+                position,
             }: {
                 content: string;
                 url: string;

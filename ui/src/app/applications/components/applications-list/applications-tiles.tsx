@@ -70,7 +70,7 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
                 return true;
             }
             return false;
-        }
+        },
     });
 
     useKeybinding({
@@ -81,7 +81,7 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
                 return true;
             }
             return false;
-        }
+        },
     });
 
     useKeybinding({
@@ -89,14 +89,14 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
         action: n => {
             reset();
             return navApp(NumKeyToNumber(n));
-        }
+        },
     });
     useKeybinding({
         keys: Object.values(NumPadKey) as NumPadKey[],
         action: n => {
             reset();
             return navApp(NumKeyToNumber(n));
-        }
+        },
     });
     return (
         <Consumer>
@@ -122,7 +122,7 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
                                                 }>
                                                 <div
                                                     className={`columns small-12 applications-list__info qe-applications-list-${AppUtils.appInstanceName(
-                                                        app
+                                                        app,
                                                     )} applications-tiles__item`}>
                                                     <div className='row '>
                                                         <div className={app.status.summary.externalURLs?.length > 0 ? 'columns small-10' : 'columns small-11'}>
@@ -151,7 +151,7 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
                                                                             style={{
                                                                                 cursor: 'pointer',
                                                                                 marginLeft: '7px',
-                                                                                color: favList?.includes(app.metadata.name) ? '#FFCE25' : '#8fa4b1'
+                                                                                color: favList?.includes(app.metadata.name) ? '#FFCE25' : '#8fa4b1',
                                                                             }}
                                                                         />
                                                                     </button>

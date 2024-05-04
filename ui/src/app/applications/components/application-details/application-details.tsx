@@ -76,7 +76,7 @@ export const SelectNode = (fullName: string, containerIndex = 0, tab: string = n
 
 export class ApplicationDetails extends React.Component<RouteComponentProps<{appnamespace: string; name: string}>, ApplicationDetailsState> {
     public static contextTypes = {
-        apis: PropTypes.object
+        apis: PropTypes.object,
     };
 
     private appChanged = new BehaviorSubject<appModels.Application>(null);
@@ -104,7 +104,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
             extensions,
             extensionsMap,
             statusExtensions,
-            statusExtensionsMap
+            statusExtensionsMap,
         };
         if (typeof this.props.match.params.appnamespace === 'undefined') {
             this.appNamespace = '';
@@ -224,7 +224,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                         }
                                     }
                                     return {...items[0], pref};
-                                })
+                                }),
                             )
                         }>
                         {({application, tree, pref}: {application: appModels.Application; tree: appModels.ApplicationTree; pref: AppDetailsPreferences}) => {
@@ -280,7 +280,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                 this.setState({
                                     groupedResources: groupdedNodeIds
                                         ? resources.filter(res => groupdedNodeIds.includes(res.uid) || groupdedNodeIds.includes(AppUtils.nodeKey(res)))
-                                        : []
+                                        : [],
                                 });
                             };
 
@@ -292,7 +292,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                         </a>
                                     ) : (
                                         part + ' '
-                                    )
+                                    ),
                                 );
                             const {Tree, Pods, Network, List} = AppsDetailsViewKey;
                             const zoomNum = (pref.zoom * 100).toFixed(0);
@@ -364,7 +364,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                 group: 'argoproj.io',
                                 kind: application.kind,
                                 name: application.metadata.name,
-                                namespace: application.metadata.namespace
+                                namespace: application.metadata.namespace,
                             });
 
                             const activeExtension = this.state.statusExtensionsMap[this.selectedExtension];
@@ -378,7 +378,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                         toolbar={{
                                             breadcrumbs: [
                                                 {title: 'Applications', path: '/applications'},
-                                                {title: <ApplicationsDetailsAppDropdown appName={this.props.match.params.name} />}
+                                                {title: <ApplicationsDetailsAppDropdown appName={this.props.match.params.name} />},
                                             ],
                                             actionMenu: {items: this.getApplicationActionMenu(application, true)},
                                             tools: (
@@ -430,7 +430,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                                             ))}
                                                     </div>
                                                 </React.Fragment>
-                                            )
+                                            ),
                                         }}>
                                         <div className='application-details__wrapper'>
                                             <div className='application-details__status-panel'>
@@ -469,7 +469,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                                                 <i
                                                                     className={classNames({
                                                                         'fa fa-align-right': this.state.truncateNameOnRight,
-                                                                        'fa fa-align-left': !this.state.truncateNameOnRight
+                                                                        'fa fa-align-left': !this.state.truncateNameOnRight,
                                                                     })}
                                                                 />
                                                             </a>
@@ -512,7 +512,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                                             onNodeClick={fullName => this.selectNode(fullName)}
                                                             nodeMenu={node =>
                                                                 AppUtils.renderResourceMenu(node, application, tree, this.appContext.apis, this.appChanged, () =>
-                                                                    this.getApplicationActionMenu(application, false)
+                                                                    this.getApplicationActionMenu(application, false),
                                                                 )
                                                             }
                                                             showCompactNodes={pref.groupNodes}
@@ -543,7 +543,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                                             onItemClick={fullName => this.selectNode(fullName)}
                                                             nodeMenu={node =>
                                                                 AppUtils.renderResourceMenu(node, application, tree, this.appContext.apis, this.appChanged, () =>
-                                                                    this.getApplicationActionMenu(application, false)
+                                                                    this.getApplicationActionMenu(application, false),
                                                                 )
                                                             }
                                                             quickStarts={node => AppUtils.renderResourceButtons(node, application, tree, this.appContext.apis, this.appChanged)}
@@ -582,7 +582,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                                                                     tree,
                                                                                     this.appContext.apis,
                                                                                     this.appChanged,
-                                                                                    () => this.getApplicationActionMenu(application, false)
+                                                                                    () => this.getApplicationActionMenu(application, false),
                                                                                 )
                                                                             }
                                                                             tree={tree}
@@ -612,7 +612,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                                             resources={data}
                                                             nodeMenu={node =>
                                                                 AppUtils.renderResourceMenu({...node, root: node}, application, tree, this.appContext.apis, this.appChanged, () =>
-                                                                    this.getApplicationActionMenu(application, false)
+                                                                    this.getApplicationActionMenu(application, false),
                                                                 )
                                                             }
                                                             tree={tree}
@@ -775,24 +775,24 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
             {
                 iconClassName: 'fa fa-info-circle',
                 title: <ActionMenuItem actionLabel='Details' />,
-                action: () => this.selectNode(fullName)
+                action: () => this.selectNode(fullName),
             },
             {
                 iconClassName: 'fa fa-file-medical',
                 title: <ActionMenuItem actionLabel='Diff' />,
                 action: () => this.selectNode(fullName, 0, 'diff'),
-                disabled: app.status.sync.status === appModels.SyncStatuses.Synced
+                disabled: app.status.sync.status === appModels.SyncStatuses.Synced,
             },
             {
                 iconClassName: 'fa fa-sync',
                 title: <ActionMenuItem actionLabel='Sync' />,
-                action: () => AppUtils.showDeploy('all', null, this.appContext.apis)
+                action: () => AppUtils.showDeploy('all', null, this.appContext.apis),
             },
             {
                 iconClassName: 'fa fa-info-circle',
                 title: <ActionMenuItem actionLabel='Sync Status' />,
                 action: () => this.setOperationStatusVisible(true),
-                disabled: !app.status.operationState
+                disabled: !app.status.operationState,
             },
             {
                 iconClassName: 'fa fa-history',
@@ -807,12 +807,12 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                 action: () => {
                     this.setRollbackPanelVisible(0);
                 },
-                disabled: !app.status.operationState || hasMultipleSources
+                disabled: !app.status.operationState || hasMultipleSources,
             },
             {
                 iconClassName: 'fa fa-times-circle',
                 title: <ActionMenuItem actionLabel='Delete' />,
-                action: () => this.deleteApplication()
+                action: () => this.deleteApplication(),
             },
             {
                 iconClassName: classNames('fa fa-redo', {'status-icon--spin': !!refreshing}),
@@ -823,8 +823,8 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                             items={[
                                 {
                                     title: 'Hard Refresh',
-                                    action: () => !refreshing && services.applications.get(app.metadata.name, app.metadata.namespace, 'hard')
-                                }
+                                    action: () => !refreshing && services.applications.get(app.metadata.name, app.metadata.namespace, 'hard'),
+                                },
                             ]}
                             anchor={() => <i className='fa fa-caret-down' />}
                         />
@@ -837,8 +837,8 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                         AppUtils.setAppRefreshing(app);
                         this.appChanged.next(app);
                     }
-                }
-            }
+                },
+            },
         ];
     }
 
@@ -874,7 +874,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                 .map(pattern => pattern.replace(/\\\*/g, '.*'))
                 // Join all filterInputs to a single regular expression
                 .join('|'),
-            'gi'
+            'gi',
         );
         return regularExpression.test(nodeName);
     }
@@ -890,7 +890,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                     const fallbackTree = {
                         nodes: app.status.resources.map(res => ({...res, parentRefs: [], info: [], resourceVersion: '', uid: ''})),
                         orphanedNodes: [],
-                        hosts: []
+                        hosts: [],
                     } as appModels.ApplicationTree;
                     return combineLatest(
                         merge(
@@ -905,11 +905,11 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                                 this.onAppDeleted();
                                             }
                                             return watchEvent.application;
-                                        })
+                                        }),
                                     )
                                     .pipe(repeat())
-                                    .pipe(retryWhen(errors => errors.pipe(delay(500))))
-                            )
+                                    .pipe(retryWhen(errors => errors.pipe(delay(500)))),
+                            ),
                         ),
                         merge(
                             from([fallbackTree]),
@@ -918,11 +918,11 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                 services.applications
                                     .watchResourceTree(name, appNamespace)
                                     .pipe(repeat())
-                                    .pipe(retryWhen(errors => errors.pipe(delay(500))))
-                            )
-                        )
+                                    .pipe(retryWhen(errors => errors.pipe(delay(500)))),
+                            ),
+                        ),
                     );
-                })
+                }),
             )
             .pipe(filter(([application, tree]) => !!application && !!tree))
             .pipe(map(([application, tree]) => ({application, tree})));
@@ -1021,7 +1021,7 @@ Are you sure you want to disable auto-sync and rollback application '${this.prop
         } catch (e) {
             this.appContext.apis.notifications.show({
                 content: <ErrorNotification title='Unable to rollback application' e={e} />,
-                type: NotificationType.Error
+                type: NotificationType.Error,
             });
         }
     }

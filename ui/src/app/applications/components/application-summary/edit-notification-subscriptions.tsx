@@ -10,6 +10,7 @@ import './edit-notification-subscriptions.scss';
 
 export const NOTIFICATION_SUBSCRIPTION_ANNOTATION_PREFIX = 'notifications.argoproj.io/subscribe';
 
+// eslint-disable-next-line no-useless-escape
 export const NOTIFICATION_SUBSCRIPTION_ANNOTATION_REGEX = new RegExp(`^notifications\.argoproj\.io\/subscribe\.[a-zA-Z-]{1,100}\.[a-zA-Z-]{1,100}$`);
 
 export type TNotificationSubscription = {
@@ -49,7 +50,7 @@ export const notificationSubscriptionsParser = {
         return annotations;
     },
     subscriptionToAnnotationKey: (subscription: TNotificationSubscription): string =>
-        `${NOTIFICATION_SUBSCRIPTION_ANNOTATION_PREFIX}.${subscription.trigger}.${subscription.service}`
+        `${NOTIFICATION_SUBSCRIPTION_ANNOTATION_PREFIX}.${subscription.trigger}.${subscription.service}`,
 };
 
 /**
@@ -68,8 +69,8 @@ export const useEditNotificationSubscriptions = (annotations: models.Application
                 {
                     trigger: '',
                     service: '',
-                    value: ''
-                }
+                    value: '',
+                },
             ]);
         }
     };
@@ -96,20 +97,22 @@ export const useEditNotificationSubscriptions = (annotations: models.Application
 
     const onRemoveSubscription = (idx: number) => idx >= 0 && setSubscriptions(subscriptions.filter((_, i) => i !== idx));
 
-    const withNotificationSubscriptions = (updateApp: ApplicationSummaryProps['updateApp']) => (...args: Parameters<ApplicationSummaryProps['updateApp']>) => {
-        const app = args[0];
+    const withNotificationSubscriptions =
+        (updateApp: ApplicationSummaryProps['updateApp']) =>
+        (...args: Parameters<ApplicationSummaryProps['updateApp']>) => {
+            const app = args[0];
 
-        const notificationSubscriptionsRaw = notificationSubscriptionsParser.subscriptionsToAnnotations(subscriptions);
+            const notificationSubscriptionsRaw = notificationSubscriptionsParser.subscriptionsToAnnotations(subscriptions);
 
-        if (Object.keys(notificationSubscriptionsRaw)?.length) {
-            app.metadata.annotations = {
-                ...notificationSubscriptionsRaw,
-                ...(app.metadata.annotations || {})
-            };
-        }
+            if (Object.keys(notificationSubscriptionsRaw)?.length) {
+                app.metadata.annotations = {
+                    ...notificationSubscriptionsRaw,
+                    ...(app.metadata.annotations || {}),
+                };
+            }
 
-        return updateApp(app, args[1]);
-    };
+            return updateApp(app, args[1]);
+        };
 
     const onResetNotificationSubscriptions = () => setSubscriptions(notificationSubscriptionsParser.annotationsToSubscriptions(annotations));
 
@@ -125,7 +128,7 @@ export const useEditNotificationSubscriptions = (annotations: models.Application
          * merge abstracted 'subscriptions' into core 'metadata.annotations' in form submit
          */
         withNotificationSubscriptions,
-        onResetNotificationSubscriptions
+        onResetNotificationSubscriptions,
     };
 };
 
@@ -142,18 +145,18 @@ export const EditNotificationSubscriptions = ({subscriptions, onAddNewSubscripti
                         {triggersList => (
                             <Autocomplete
                                 wrapperProps={{
-                                    className: 'argo-field edit-notification-subscriptions__autocomplete-wrapper'
+                                    className: 'argo-field edit-notification-subscriptions__autocomplete-wrapper',
                                 }}
                                 inputProps={{
                                     className: 'argo-field',
                                     placeholder: 'on-sync-running',
-                                    title: 'Trigger'
+                                    title: 'Trigger',
                                 }}
                                 value={subscription.trigger}
                                 onChange={e => {
                                     onEditSubscription(idx, {
                                         ...subscription,
-                                        trigger: e.target.value
+                                        trigger: e.target.value,
                                     });
                                 }}
                                 items={triggersList}
@@ -168,18 +171,18 @@ export const EditNotificationSubscriptions = ({subscriptions, onAddNewSubscripti
                         {serviceList => (
                             <Autocomplete
                                 wrapperProps={{
-                                    className: 'argo-field edit-notification-subscriptions__autocomplete-wrapper'
+                                    className: 'argo-field edit-notification-subscriptions__autocomplete-wrapper',
                                 }}
                                 inputProps={{
                                     className: 'argo-field',
                                     placeholder: 'slack',
-                                    title: 'Service'
+                                    title: 'Service',
                                 }}
                                 value={subscription.service}
                                 onChange={e => {
                                     onEditSubscription(idx, {
                                         ...subscription,
-                                        service: e.target.value
+                                        service: e.target.value,
                                     });
                                 }}
                                 items={serviceList}
@@ -199,7 +202,7 @@ export const EditNotificationSubscriptions = ({subscriptions, onAddNewSubscripti
                         onChange={e => {
                             onEditSubscription(idx, {
                                 ...subscription,
-                                value: e.target.value
+                                value: e.target.value,
                             });
                         }}
                         qe-id='application-edit-notification-subscription-value'

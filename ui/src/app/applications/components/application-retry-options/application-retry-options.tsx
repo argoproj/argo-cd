@@ -1,3 +1,4 @@
+/* eslint-disable no-prototype-builtins */
 import * as React from 'react';
 import {FormApi, NestedForm, Text, Form} from 'react-form';
 import {Checkbox, FormField} from 'argo-ui';
@@ -7,12 +8,13 @@ import * as models from '../../../shared/models';
 
 import './application-retry-options.scss';
 
+// eslint-disable-next-line no-useless-escape
 const durationRegex = /^([\d\.]+[HMS])+$/i;
 const durationRegexError = 'Should be 1h10m10s/10h10m/10m/10s';
 
 const onlyPositiveValidation = {
     min: '1',
-    step: '1'
+    step: '1',
 };
 
 function buildFormItem(label: string, propertyPath: string, component: React.ComponentType, formApi: FormApi, componentProps?: Record<string, any>) {
@@ -23,7 +25,7 @@ const retryOptions: Array<(formApi: FormApi) => React.ReactNode> = [
     formApi => buildFormItem('Limit', 'limit', NumberField, formApi, onlyPositiveValidation),
     formApi => buildFormItem('Duration', 'backoff.duration', Text, formApi),
     formApi => buildFormItem('Max Duration', 'backoff.maxDuration', Text, formApi),
-    formApi => buildFormItem('Factor', 'backoff.factor', NumberField, formApi, onlyPositiveValidation)
+    formApi => buildFormItem('Factor', 'backoff.factor', NumberField, formApi, onlyPositiveValidation),
 ];
 
 const defaultInitialValues = {
@@ -31,8 +33,8 @@ const defaultInitialValues = {
     backoff: {
         duration: '5s',
         maxDuration: '3m0s',
-        factor: 2
-    }
+        factor: 2,
+    },
 };
 
 export const ApplicationRetryForm = ({initValues, field = 'retryStrategy'}: {initValues?: models.RetryStrategy; field: string}) => {
@@ -41,7 +43,7 @@ export const ApplicationRetryForm = ({initValues, field = 'retryStrategy'}: {ini
             <Form
                 defaultValues={{
                     ...defaultInitialValues,
-                    ...initValues
+                    ...initValues,
                 }}
                 validateError={values => {
                     const backoff = values.backoff || {};
@@ -60,7 +62,7 @@ export const ApplicationRetryForm = ({initValues, field = 'retryStrategy'}: {ini
                             backoff.hasOwnProperty('maxDuration') &&
                             ((!backoff.maxDuration && 'Max Duration is required') || (!durationRegex.test(backoff.maxDuration) && durationRegexError)),
 
-                        'backoff.factor': backoff.hasOwnProperty('factor') && !backoff.factor && 'Factor is required'
+                        'backoff.factor': backoff.hasOwnProperty('factor') && !backoff.factor && 'Factor is required',
                     };
                 }}>
                 {nestedFormApi => {
@@ -85,7 +87,7 @@ export const ApplicationRetryOptions = ({
     field = 'retryStrategy',
     retry,
     setRetry,
-    id
+    id,
 }: {
     formApi: FormApi;
     field?: string;
@@ -108,7 +110,7 @@ export const ApplicationRetryOptions = ({
             formApi.setFormState({
                 ...formState,
                 values: newValues,
-                errors: newErrors
+                errors: newErrors,
             });
         }
         if (setRetry != null) {

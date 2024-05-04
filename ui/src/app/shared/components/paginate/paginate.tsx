@@ -69,7 +69,7 @@ export function Paginate<T>({page, onPageChange, children, data, emptyState, pre
                                                     }
                                                     pref.sortOptions[preferencesKey] = so.title;
                                                     services.viewPreferences.updatePreferences(pref);
-                                                }
+                                                },
                                             }))}
                                         />
                                     )}
@@ -84,7 +84,7 @@ export function Paginate<T>({page, onPageChange, children, data, emptyState, pre
                                             action: () => {
                                                 pref.pageSizes[preferencesKey] = count;
                                                 services.viewPreferences.updatePreferences(pref);
-                                            }
+                                            },
                                         }))}
                                     />
                                 </div>

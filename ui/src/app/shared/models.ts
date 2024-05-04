@@ -69,7 +69,7 @@ export const OperationPhases = {
     Failed: 'Failed' as OperationPhase,
     Error: 'Error' as OperationPhase,
     Succeeded: 'Succeeded' as OperationPhase,
-    Terminating: 'Terminating' as OperationPhase
+    Terminating: 'Terminating' as OperationPhase,
 };
 
 /**
@@ -111,7 +111,7 @@ export const ResultCodes = {
     Synced: 'Synced',
     SyncFailed: 'SyncFailed',
     Pruned: 'Pruned',
-    PruneSkipped: 'PruneSkipped'
+    PruneSkipped: 'PruneSkipped',
 };
 
 export interface ResourceResult {
@@ -307,7 +307,7 @@ export type SyncStatusCode = 'Unknown' | 'Synced' | 'OutOfSync';
 export const SyncStatuses: {[key: string]: SyncStatusCode} = {
     Unknown: 'Unknown',
     Synced: 'Synced',
-    OutOfSync: 'OutOfSync'
+    OutOfSync: 'OutOfSync',
 };
 
 export type HealthStatusCode = 'Unknown' | 'Progressing' | 'Healthy' | 'Suspended' | 'Degraded' | 'Missing';
@@ -318,7 +318,7 @@ export const HealthStatuses: {[key: string]: HealthStatusCode} = {
     Suspended: 'Suspended',
     Healthy: 'Healthy',
     Degraded: 'Degraded',
-    Missing: 'Missing'
+    Missing: 'Missing',
 };
 
 export interface HealthStatus {
@@ -504,7 +504,7 @@ export type ConnectionStatus = 'Unknown' | 'Successful' | 'Failed';
 export const ConnectionStatuses = {
     Unknown: 'Unknown',
     Failed: 'Failed',
-    Successful: 'Successful'
+    Successful: 'Successful',
 };
 
 export interface ConnectionState {
@@ -880,7 +880,7 @@ export const ResourceKinds = [
     'CSIDriver',
     'CSINode',
     'StorageClass',
-    'Volume'
+    'Volume',
 ];
 
 export const Groups = [
@@ -902,7 +902,7 @@ export const Groups = [
     'rbac.authorization.k8s.io',
     'scheduling.k8s.io',
     'stable.example.com',
-    'storage.k8s.io'
+    'storage.k8s.io',
 ];
 
 export interface HostResourceInfo {
@@ -927,7 +927,7 @@ export interface NodeSystemInfo {
 export enum ResourceName {
     ResourceCPU = 'cpu',
     ResourceMemory = 'memory',
-    ResourceStorage = 'storage'
+    ResourceStorage = 'storage',
 }
 
 export interface Pod extends ResourceNode {
@@ -946,7 +946,7 @@ export enum PodPhase {
     PodRunning = 'Running',
     PodSucceeded = 'Succeeded',
     PodFailed = 'Failed',
-    PodUnknown = 'Unknown'
+    PodUnknown = 'Unknown',
 }
 
 export interface NotificationChunk {

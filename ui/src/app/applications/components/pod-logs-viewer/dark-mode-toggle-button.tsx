@@ -10,7 +10,7 @@ export const DarkModeToggleButton = ({prefs}: {prefs: ViewPreferences}) => (
             const inverted = prefs.appDetails.darkMode;
             services.viewPreferences.updatePreferences({
                 ...prefs,
-                appDetails: {...prefs.appDetails, darkMode: !inverted}
+                appDetails: {...prefs.appDetails, darkMode: !inverted},
             });
         }}
         toggled={prefs.appDetails.darkMode}

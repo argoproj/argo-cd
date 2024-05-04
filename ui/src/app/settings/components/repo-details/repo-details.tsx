@@ -11,42 +11,42 @@ export const RepoDetails = (props: {repo: models.Repository; save?: (params: New
         const items: EditablePanelItem[] = [
             {
                 title: 'Type',
-                view: repository.type
+                view: repository.type,
             },
             {
                 title: 'Repository URL',
-                view: repository.repo
+                view: repository.repo,
             },
             {
                 title: 'Username (optional)',
                 view: repository.username || '',
-                edit: (formApi: FormApi) => <FormField formApi={formApi} field='username' component={Text} />
+                edit: (formApi: FormApi) => <FormField formApi={formApi} field='username' component={Text} />,
             },
             {
                 title: 'Password (optional)',
                 view: repository.username ? '******' : '',
-                edit: (formApi: FormApi) => <FormField formApi={formApi} field='password' component={Text} componentProps={{type: 'password'}} />
-            }
+                edit: (formApi: FormApi) => <FormField formApi={formApi} field='password' component={Text} componentProps={{type: 'password'}} />,
+            },
         ];
 
         if (repository.name) {
             items.splice(1, 0, {
                 title: 'NAME',
-                view: repository.name
+                view: repository.name,
             });
         }
 
         if (repository.project) {
             items.splice(repository.name ? 2 : 1, 0, {
                 title: 'Project',
-                view: repository.project
+                view: repository.project,
             });
         }
 
         if (repository.proxy) {
             items.push({
                 title: 'Proxy (optional)',
-                view: repository.proxy
+                view: repository.proxy,
             });
         }
 
@@ -66,7 +66,7 @@ export const RepoDetails = (props: {repo: models.Repository; save?: (params: New
         proxy: repo.proxy || '',
         project: repo.project || '',
         enableOCI: repo.enableOCI || false,
-        forceHttpBasicAuth: repo.forceHttpBasicAuth || false
+        forceHttpBasicAuth: repo.forceHttpBasicAuth || false,
     };
 
     return (
@@ -74,7 +74,7 @@ export const RepoDetails = (props: {repo: models.Repository; save?: (params: New
             values={repo}
             validate={input => ({
                 username: !input.username && input.password && 'Username is required if password is given.',
-                password: !input.password && input.username && 'Password is required if username is given.'
+                password: !input.password && input.username && 'Password is required if username is given.',
             })}
             save={async input => {
                 const params: NewHTTPSRepoParams = {...newRepo};

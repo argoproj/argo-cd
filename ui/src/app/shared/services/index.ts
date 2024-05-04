@@ -43,7 +43,7 @@ export const services: Services = {
     accounts: new AccountsService(),
     gpgkeys: new GnuPGPublicKeyService(),
     extensions: new ExtensionsService(),
-    notification: new NotificationService()
+    notification: new NotificationService(),
 };
 
 export * from './projects-service';
