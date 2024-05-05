@@ -1497,7 +1497,8 @@ type SyncStatus struct {
 	// Status is the sync state of the comparison
 	Status SyncStatusCode `json:"status" protobuf:"bytes,1,opt,name=status,casttype=SyncStatusCode"`
 	// ComparedTo contains information about what has been compared
-	ComparedTo ComparedTo `json:"comparedTo,omitempty" protobuf:"bytes,2,opt,name=comparedTo"`
+	// +patchStrategy=replace
+	ComparedTo ComparedTo `json:"comparedTo,omitempty" protobuf:"bytes,2,opt,name=comparedTo" patchStrategy:"replace"`
 	// Revision contains information about the revision the comparison has been performed to
 	Revision string `json:"revision,omitempty" protobuf:"bytes,3,opt,name=revision"`
 	// Revisions contains information about the revisions of multiple sources the comparison has been performed to
