@@ -85,6 +85,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.HelmParameter":                           schema_pkg_apis_application_v1alpha1_HelmParameter(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.HostInfo":                                schema_pkg_apis_application_v1alpha1_HostInfo(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.HostResourceInfo":                        schema_pkg_apis_application_v1alpha1_HostResourceInfo(ref),
+		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.HydrateOperation":                        schema_pkg_apis_application_v1alpha1_HydrateOperation(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.HydrateTo":                               schema_pkg_apis_application_v1alpha1_HydrateTo(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.Info":                                    schema_pkg_apis_application_v1alpha1_Info(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.InfoItem":                                schema_pkg_apis_application_v1alpha1_InfoItem(ref),
@@ -3859,6 +3860,49 @@ func schema_pkg_apis_application_v1alpha1_HostResourceInfo(ref common.ReferenceC
 	}
 }
 
+func schema_pkg_apis_application_v1alpha1_HydrateOperation(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Type: []string{"object"},
+				Properties: map[string]spec.Schema{
+					"startedAt": {
+						SchemaProps: spec.SchemaProps{
+							Description: "StartedAt indicates when the hydrate operation started",
+							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Time"),
+						},
+					},
+					"finishedAt": {
+						SchemaProps: spec.SchemaProps{
+							Description: "FinishedAt indicates when the hydrate operation finished",
+							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Time"),
+						},
+					},
+					"status": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Status indicates the status of the hydrate operation",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"message": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Message contains a message describing the current status of the hydrate operation",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
+				Required: []string{"status", "message"},
+			},
+		},
+		Dependencies: []string{
+			"k8s.io/apimachinery/pkg/apis/meta/v1.Time"},
+	}
+}
+
 func schema_pkg_apis_application_v1alpha1_HydrateTo(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
@@ -7557,11 +7601,17 @@ func schema_pkg_apis_application_v1alpha1_SourceHydratorStatus(ref common.Refere
 							Format:      "",
 						},
 					},
+					"hydrateOperation": {
+						SchemaProps: spec.SchemaProps{
+							Description: "HydrateOperation holds the status of the hydrate operation",
+							Ref:         ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.HydrateOperation"),
+						},
+					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.DrySource"},
+			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.DrySource", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.HydrateOperation"},
 	}
 }
 

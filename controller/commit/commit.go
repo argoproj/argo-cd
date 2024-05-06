@@ -62,9 +62,8 @@ type service struct {
 
 func (s *service) Commit(r ManifestsRequest) (ManifestsResponse, error) {
 	logCtx := log.WithFields(log.Fields{"repo": r.RepoURL, "branch": r.TargetBranch, "drySHA": r.DrySHA})
-	logCtx.Info("committing")
 
-	// Create a temp dir with a UUID
+	logCtx.Debug("Creating temp dir")
 	dirName, err := uuid.NewRandom()
 	dirPath := path.Join("/tmp/_commit-service", dirName.String())
 	err = os.MkdirAll(dirPath, os.ModePerm)
@@ -73,12 +72,14 @@ func (s *service) Commit(r ManifestsRequest) (ManifestsResponse, error) {
 	}
 
 	// Clone the repo into the temp dir using the git CLI
+	logCtx.Debugf("Cloning repo %s", r.RepoURL)
 	err = exec.Command("git", "clone", r.RepoURL, dirPath).Run()
 	if err != nil {
 		return ManifestsResponse{}, fmt.Errorf("failed to clone repo: %w", err)
 	}
 
 	// Set author name
+	logCtx.Debugf("Setting author name %s", r.CommitAuthorName)
 	authorCmd := exec.Command("git", "config", "user.name", r.CommitAuthorName)
 	authorCmd.Dir = dirPath
 	out, err := authorCmd.CombinedOutput()
@@ -88,6 +89,7 @@ func (s *service) Commit(r ManifestsRequest) (ManifestsResponse, error) {
 	}
 
 	// Set author email
+	logCtx.Debugf("Setting author email %s", r.CommitAuthorEmail)
 	emailCmd := exec.Command("git", "config", "user.email", r.CommitAuthorEmail)
 	emailCmd.Dir = dirPath
 	out, err = emailCmd.CombinedOutput()
@@ -97,12 +99,14 @@ func (s *service) Commit(r ManifestsRequest) (ManifestsResponse, error) {
 	}
 
 	// Checkout the sync branch
+	logCtx.Debugf("Checking out sync branch %s", r.SyncBranch)
 	checkoutCmd := exec.Command("git", "checkout", r.SyncBranch)
 	checkoutCmd.Dir = dirPath
 	out, err = checkoutCmd.CombinedOutput()
 	if err != nil {
 		// If the sync branch doesn't exist, create it as an orphan branch.
 		if strings.Contains(string(out), "did not match any file(s) known to git") {
+			logCtx.Debug("Sync branch does not exist, creating orphan branch")
 			checkoutCmd = exec.Command("git", "switch", "--orphan", r.SyncBranch)
 			checkoutCmd.Dir = dirPath
 			out, err = checkoutCmd.CombinedOutput()
@@ -116,6 +120,7 @@ func (s *service) Commit(r ManifestsRequest) (ManifestsResponse, error) {
 		}
 
 		// Make an empty initial commit.
+		logCtx.Debug("Making initial commit")
 		commitCmd := exec.Command("git", "commit", "--allow-empty", "-m", "Initial commit")
 		commitCmd.Dir = dirPath
 		out, err = commitCmd.CombinedOutput()
@@ -125,6 +130,7 @@ func (s *service) Commit(r ManifestsRequest) (ManifestsResponse, error) {
 		}
 
 		// Push the commit.
+		logCtx.Debug("Pushing initial commit")
 		pushCmd := exec.Command("git", "push", "origin", r.SyncBranch)
 		pushCmd.Dir = dirPath
 		out, err = pushCmd.CombinedOutput()
@@ -135,6 +141,7 @@ func (s *service) Commit(r ManifestsRequest) (ManifestsResponse, error) {
 	}
 
 	// Checkout the target branch
+	logCtx.Debugf("Checking out target branch %s", r.TargetBranch)
 	checkoutCmd = exec.Command("git", "checkout", r.TargetBranch)
 	checkoutCmd.Dir = dirPath
 	out, err = checkoutCmd.CombinedOutput()
@@ -142,6 +149,7 @@ func (s *service) Commit(r ManifestsRequest) (ManifestsResponse, error) {
 		if strings.Contains(string(out), "did not match any file(s) known to git") {
 			// If the branch does not exist, create any empty branch based on the sync branch
 			// First, checkout the sync branch.
+			logCtx.Debug("Checking out sync branch")
 			checkoutCmd = exec.Command("git", "checkout", r.SyncBranch)
 			checkoutCmd.Dir = dirPath
 			out, err = checkoutCmd.CombinedOutput()
@@ -150,6 +158,7 @@ func (s *service) Commit(r ManifestsRequest) (ManifestsResponse, error) {
 				return ManifestsResponse{}, fmt.Errorf("failed to checkout sync branch: %w", err)
 			}
 
+			logCtx.Debugf("Creating branch %s", r.TargetBranch)
 			checkoutCmd = exec.Command("git", "checkout", "-b", r.TargetBranch)
 			checkoutCmd.Dir = dirPath
 			out, err = checkoutCmd.CombinedOutput()
@@ -169,12 +178,14 @@ func (s *service) Commit(r ManifestsRequest) (ManifestsResponse, error) {
 		if hydratePath == "." {
 			hydratePath = ""
 		}
+		logCtx.Debugf("Writing manifests to %s", hydratePath)
 		err = os.MkdirAll(path.Join(dirPath, hydratePath), os.ModePerm)
 		if err != nil {
 			return ManifestsResponse{}, fmt.Errorf("failed to create path: %w", err)
 		}
 
 		// If the file exists, truncate it.
+		logCtx.Debugf("Emptying manifest file %s", path.Join(dirPath, hydratePath, "manifest.yaml"))
 		if _, err := os.Stat(path.Join(dirPath, hydratePath, "manifest.yaml")); err == nil {
 			err = os.Truncate(path.Join(dirPath, hydratePath, "manifest.yaml"), 0)
 			if err != nil {
@@ -182,6 +193,7 @@ func (s *service) Commit(r ManifestsRequest) (ManifestsResponse, error) {
 			}
 		}
 
+		logCtx.Debugf("Opening manifest file %s", path.Join(dirPath, hydratePath, "manifest.yaml"))
 		file, err := os.OpenFile(path.Join(dirPath, hydratePath, "manifest.yaml"), os.O_APPEND|os.O_CREATE|os.O_WRONLY, os.ModePerm)
 		if err != nil {
 			return ManifestsResponse{}, fmt.Errorf("failed to open manifest file: %w", err)
@@ -192,6 +204,7 @@ func (s *service) Commit(r ManifestsRequest) (ManifestsResponse, error) {
 				log.WithError(err).Error("failed to close file")
 			}
 		}()
+		logCtx.Debugf("Writing manifests to %s", path.Join(dirPath, hydratePath, "manifest.yaml"))
 		for _, m := range p.Manifests {
 			// Marshal the manifests
 			mYaml, err := yaml.Marshal(m.Manifest.Object)
@@ -208,6 +221,7 @@ func (s *service) Commit(r ManifestsRequest) (ManifestsResponse, error) {
 	}
 
 	// Write hydrator.metadata containing information about the hydration process.
+	logCtx.Debug("Writing hydrator metadata")
 	hydratorMetadata := hydratorMetadataFile{
 		Commands: r.Commands,
 		DrySHA:   r.DrySHA,
@@ -223,6 +237,7 @@ func (s *service) Commit(r ManifestsRequest) (ManifestsResponse, error) {
 	}
 
 	// Write README
+	logCtx.Debugf("Writing README")
 	readmeTemplate := template.New("readme")
 	readmeTemplate, err = readmeTemplate.Parse(manifestHydrationReadmeTemplate)
 	if err != nil {
@@ -243,6 +258,7 @@ func (s *service) Commit(r ManifestsRequest) (ManifestsResponse, error) {
 	}
 
 	// Commit the changes
+	logCtx.Debugf("Committing changes")
 	addCmd := exec.Command("git", "add", ".")
 	addCmd.Dir = dirPath
 	out, err = addCmd.CombinedOutput()
@@ -255,7 +271,7 @@ func (s *service) Commit(r ManifestsRequest) (ManifestsResponse, error) {
 	commitCmd.Dir = dirPath
 	out, err = commitCmd.CombinedOutput()
 	if err != nil {
-		if strings.Contains(err.Error(), "nothing to commit, working tree clean") {
+		if strings.Contains(string(out), "nothing to commit, working tree clean") {
 			logCtx.Info("no changes to commit")
 			return ManifestsResponse{}, nil
 		}
@@ -263,6 +279,7 @@ func (s *service) Commit(r ManifestsRequest) (ManifestsResponse, error) {
 		return ManifestsResponse{}, fmt.Errorf("failed to commit: %w", err)
 	}
 
+	logCtx.Debugf("Pushing changes")
 	pushCmd := exec.Command("git", "push", "origin", r.TargetBranch)
 	pushCmd.Dir = dirPath
 	out, err = pushCmd.CombinedOutput()

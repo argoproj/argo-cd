@@ -5,7 +5,13 @@ import {Revision} from '../../../shared/components/revision';
 import {Timestamp} from '../../../shared/components/timestamp';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
-import {ApplicationSyncWindowStatusIcon, ComparisonStatusIcon, getAppDefaultSource, getAppOperationState} from '../utils';
+import {
+    ApplicationSyncWindowStatusIcon,
+    ComparisonStatusIcon,
+    getAppDefaultSource,
+    getAppOperationState,
+    HydrateOperationPhaseIcon
+} from '../utils';
 import {getConditionCategory, HealthStatusIcon, OperationState, syncStatusMessage, helpTip} from '../utils';
 import {RevisionMetadataPanel} from './revision-metadata-panel';
 
@@ -63,6 +69,8 @@ export const ApplicationStatusPanel = ({application, showDiff, showOperation, sh
     if (application.metadata.deletionTimestamp && !appOperationState) {
         showOperation = null;
     }
+
+    console.log(application);
 
     const statusExtensions = services.extensions.getStatusPanelExtensions();
 
@@ -178,6 +186,19 @@ export const ApplicationStatusPanel = ({application, showDiff, showOperation, sh
                             </a>
                         )}
                     </div>
+                </div>
+            )}
+            {application.status?.sourceHydrator?.hydrateOperation && (
+                <div className='application-status-panel__item'>
+                    {sectionLabel({title: 'SOURCE HYDRATOR'})}
+                    <div className='application-status-panel__item-value'>
+                        <HydrateOperationPhaseIcon operationState={application.status.sourceHydrator.hydrateOperation} />
+                        &nbsp;
+                        {application.status.sourceHydrator.hydrateOperation.status}
+                    </div>
+                    {application.status.sourceHydrator.hydrateOperation.message && (
+                        <div className='application-status-panel__item-name'>{application.status.sourceHydrator.hydrateOperation.message}</div>
+                    )}
                 </div>
             )}
             <DataLoader

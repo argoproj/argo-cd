@@ -4366,6 +4366,31 @@ spec:
                     - repoURL
                     - targetRevision
                     type: object
+                  hydrateOperation:
+                    description: HydrateOperation holds the status of the hydrate
+                      operation
+                    properties:
+                      finishedAt:
+                        description: FinishedAt indicates when the hydrate operation
+                          finished
+                        format: date-time
+                        type: string
+                      message:
+                        description: Message contains a message describing the current
+                          status of the hydrate operation
+                        type: string
+                      startedAt:
+                        description: StartedAt indicates when the hydrate operation
+                          started
+                        format: date-time
+                        type: string
+                      status:
+                        description: Status indicates the status of the hydrate operation
+                        type: string
+                    required:
+                    - message
+                    - status
+                    type: object
                   revision:
                     description: Revision holds the resolved revision (sha) of the
                       dry source as of the most recent reconciliation

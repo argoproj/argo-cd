@@ -7370,6 +7370,25 @@
         }
       }
     },
+    "v1alpha1HydrateOperation": {
+      "type": "object",
+      "properties": {
+        "finishedAt": {
+          "$ref": "#/definitions/v1Time"
+        },
+        "message": {
+          "type": "string",
+          "title": "Message contains a message describing the current status of the hydrate operation"
+        },
+        "startedAt": {
+          "$ref": "#/definitions/v1Time"
+        },
+        "status": {
+          "type": "string",
+          "title": "Status indicates the status of the hydrate operation"
+        }
+      }
+    },
     "v1alpha1HydrateTo": {
       "description": "HydrateTo specifies a location to which hydrated manifests should be pushed as a \"staging area\" before being moved to\nthe SyncSource. The RepoURL and Path are assumed based on the associated SyncSource config in the SourceHydrator.",
       "type": "object",
@@ -9009,6 +9028,9 @@
       "properties": {
         "drySource": {
           "$ref": "#/definitions/v1alpha1DrySource"
+        },
+        "hydrateOperation": {
+          "$ref": "#/definitions/v1alpha1HydrateOperation"
         },
         "revision": {
           "type": "string",

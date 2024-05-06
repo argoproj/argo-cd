@@ -121,6 +121,7 @@ type ApplicationController struct {
 	appComparisonTypeRefreshQueue workqueue.RateLimitingInterface
 	appOperationQueue             workqueue.RateLimitingInterface
 	projectRefreshQueue           workqueue.RateLimitingInterface
+	hydrationQueue                workqueue.RateLimitingInterface
 	appInformer                   cache.SharedIndexInformer
 	appLister                     applisters.ApplicationLister
 	projInformer                  cache.SharedIndexInformer
@@ -190,6 +191,7 @@ func NewApplicationController(
 		appOperationQueue:                 workqueue.NewNamedRateLimitingQueue(ratelimiter.NewCustomAppControllerRateLimiter(rateLimiterConfig), "app_operation_processing_queue"),
 		projectRefreshQueue:               workqueue.NewNamedRateLimitingQueue(ratelimiter.NewCustomAppControllerRateLimiter(rateLimiterConfig), "project_reconciliation_queue"),
 		appComparisonTypeRefreshQueue:     workqueue.NewRateLimitingQueue(ratelimiter.NewCustomAppControllerRateLimiter(rateLimiterConfig)),
+		hydrationQueue:                    workqueue.NewRateLimitingQueue(ratelimiter.NewCustomAppControllerRateLimiter(rateLimiterConfig)),
 		db:                                db,
 		statusRefreshTimeout:              appResyncPeriod,
 		statusHardRefreshTimeout:          appHardResyncPeriod,
@@ -1571,61 +1573,42 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 		revision, err := ctrl.appStateManager.ResolveDryRevision(app)
 		if err != nil {
 			logCtx.Errorf("Failed to check whether dry source has changed, skipping: %v", err)
+			return
+		}
+		if revision == "" {
+			logCtx.Errorf("Dry source has not been resolved, skipping")
+			return
 		}
 		if app.Status.SourceHydrator.Revision != revision {
 			app.Status.SourceHydrator.Revision = revision
+			app.Status.SourceHydrator.HydrateOperation = &appv1.HydrateOperation{
+				StartedAt:  metav1.Now(),
+				FinishedAt: nil,
+				Status:     appv1.HydrateOperationPhaseRunning,
+			}
 			ctrl.persistAppStatus(origApp, &app.Status)
+			origApp.Status.SourceHydrator = app.Status.SourceHydrator
 
-			drySource := appv1.ApplicationSource{
-				RepoURL:        app.Spec.SourceHydrator.DrySource.RepoURL,
-				Path:           app.Spec.SourceHydrator.DrySource.Path,
-				TargetRevision: app.Spec.SourceHydrator.DrySource.TargetRevision,
-			}
-			drySources := []appv1.ApplicationSource{drySource}
-			revisions := []string{app.Spec.SourceHydrator.DrySource.TargetRevision}
-
-			appLabelKey, err := ctrl.settingsMgr.GetAppInstanceLabelKey()
+			err = ctrl.hydrate(app, refreshType, comparisonLevel, project, revision)
 			if err != nil {
-				logCtx.Errorf("Failed to get app instance label key: %s", err)
+				app.Status.SourceHydrator.HydrateOperation.Status = appv1.HydrateOperationPhaseFailed
+				failedAt := metav1.Now()
+				app.Status.SourceHydrator.HydrateOperation.FinishedAt = &failedAt
+				app.Status.SourceHydrator.HydrateOperation.Message = err.Error()
+				ctrl.persistAppStatus(origApp, &app.Status)
+				logCtx.Errorf("Failed to hydrate app: %v", err)
 				return
 			}
-
-			// TODO: enable signature verification
-			objs, resp, err := ctrl.appStateManager.GetRepoObjs(app, drySources, appLabelKey, revisions, refreshType == appv1.RefreshTypeHard, comparisonLevel == CompareWithLatestForceResolve, false, project, false)
-			if err != nil {
-				logCtx.Errorf("Failed to get repo objects: %v", err)
-				return
+			finishedAt := metav1.Now()
+			operation := &appv1.HydrateOperation{
+				StartedAt:  app.Status.SourceHydrator.HydrateOperation.StartedAt,
+				FinishedAt: &finishedAt,
+				Status:     appv1.HydrateOperationPhaseSucceeded,
+				Message:    "",
 			}
-
-			// Set up a ManifestsRequest
-			manifestDetails := make([]commit.ManifestDetails, len(objs))
-			for i, obj := range objs {
-				manifestDetails[i] = commit.ManifestDetails{Manifest: *obj}
-			}
-			hydrateToSource := app.Spec.GetHydrateToSource()
-			paths := []commit.PathDetails{{
-				Path:      hydrateToSource.Path,
-				Manifests: manifestDetails,
-			}}
-			manifestsRequest := commit.ManifestsRequest{
-				RepoURL:           hydrateToSource.RepoURL,
-				SyncBranch:        app.Spec.SourceHydrator.SyncSource.TargetRevision,
-				TargetBranch:      hydrateToSource.TargetRevision,
-				DrySHA:            revision,
-				CommitAuthorName:  "Michael Crenshaw",
-				CommitAuthorEmail: "350466+crenshaw-dev@users.noreply.github.com",
-				CommitMessage:     fmt.Sprintf("[Argo CD Bot] hydrate %s", revision),
-				CommitTime:        time.Now(),
-				Paths:             paths,
-				Commands:          resp[0].Commands,
-			}
-
-			commitService := commit.NewService()
-			_, err = commitService.Commit(manifestsRequest)
-			if err != nil {
-				logCtx.Errorf("Failed to commit hydrated manifests: %v", err)
-				return
-			}
+			app.Status.SourceHydrator.HydrateOperation = operation
+			ctrl.persistAppStatus(origApp, &app.Status)
+			origApp.Status.SourceHydrator = app.Status.SourceHydrator
 		}
 	}
 
@@ -1730,6 +1713,57 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 		}
 	}
 	return
+}
+
+func (ctrl *ApplicationController) hydrate(app *appv1.Application, refreshType appv1.RefreshType, comparisonLevel CompareWith, project *appv1.AppProject, revision string) error {
+	drySource := appv1.ApplicationSource{
+		RepoURL:        app.Spec.SourceHydrator.DrySource.RepoURL,
+		Path:           app.Spec.SourceHydrator.DrySource.Path,
+		TargetRevision: app.Spec.SourceHydrator.DrySource.TargetRevision,
+	}
+	drySources := []appv1.ApplicationSource{drySource}
+	revisions := []string{app.Spec.SourceHydrator.DrySource.TargetRevision}
+
+	appLabelKey, err := ctrl.settingsMgr.GetAppInstanceLabelKey()
+	if err != nil {
+		return fmt.Errorf("failed to get app instance label key: %w", err)
+	}
+
+	// TODO: enable signature verification
+	objs, resp, err := ctrl.appStateManager.GetRepoObjs(app, drySources, appLabelKey, revisions, refreshType == appv1.RefreshTypeHard, comparisonLevel == CompareWithLatestForceResolve, false, project, false)
+	if err != nil {
+		return fmt.Errorf("failed to get repo objects: %w", err)
+	}
+
+	// Set up a ManifestsRequest
+	manifestDetails := make([]commit.ManifestDetails, len(objs))
+	for i, obj := range objs {
+		manifestDetails[i] = commit.ManifestDetails{Manifest: *obj}
+	}
+	hydrateToSource := app.Spec.GetHydrateToSource()
+	paths := []commit.PathDetails{{
+		Path:      hydrateToSource.Path,
+		Manifests: manifestDetails,
+	}}
+	manifestsRequest := commit.ManifestsRequest{
+		RepoURL:           hydrateToSource.RepoURL,
+		SyncBranch:        app.Spec.SourceHydrator.SyncSource.TargetRevision,
+		TargetBranch:      hydrateToSource.TargetRevision,
+		DrySHA:            revision,
+		CommitAuthorName:  "Michael Crenshaw",
+		CommitAuthorEmail: "350466+crenshaw-dev@users.noreply.github.com",
+		CommitMessage:     fmt.Sprintf("[Argo CD Bot] hydrate %s", revision),
+		CommitTime:        time.Now(),
+		Paths:             paths,
+		Commands:          resp[0].Commands,
+	}
+
+	commitService := commit.NewService()
+	_, err = commitService.Commit(manifestsRequest)
+	if err != nil {
+		return fmt.Errorf("failed to commit hydrated manifests: %w", err)
+	}
+	return nil
 }
 
 func resourceStatusKey(res appv1.ResourceStatus) string {

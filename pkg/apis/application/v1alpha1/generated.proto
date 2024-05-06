@@ -1071,6 +1071,20 @@ message HostResourceInfo {
   optional int64 capacity = 4;
 }
 
+message HydrateOperation {
+  // StartedAt indicates when the hydrate operation started
+  optional k8s.io.apimachinery.pkg.apis.meta.v1.Time startedAt = 1;
+
+  // FinishedAt indicates when the hydrate operation finished
+  optional k8s.io.apimachinery.pkg.apis.meta.v1.Time finishedAt = 2;
+
+  // Status indicates the status of the hydrate operation
+  optional string status = 3;
+
+  // Message contains a message describing the current status of the hydrate operation
+  optional string message = 4;
+}
+
 // HydrateTo specifies a location to which hydrated manifests should be pushed as a "staging area" before being moved to
 // the SyncSource. The RepoURL and Path are assumed based on the associated SyncSource config in the SourceHydrator.
 message HydrateTo {
@@ -2182,6 +2196,9 @@ message SourceHydratorStatus {
 
   // Revision holds the resolved revision (sha) of the dry source as of the most recent reconciliation
   optional string revision = 2;
+
+  // HydrateOperation holds the status of the hydrate operation
+  optional HydrateOperation hydrateOperation = 3;
 }
 
 // SyncOperation contains details about a sync operation.

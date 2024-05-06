@@ -1047,7 +1047,28 @@ type SourceHydratorStatus struct {
 	DrySource DrySource `json:"drySource,omitempty" protobuf:"bytes,1,opt,name=drySource"`
 	// Revision holds the resolved revision (sha) of the dry source as of the most recent reconciliation
 	Revision string `json:"revision,omitempty" protobuf:"bytes,2,opt,name=revision"`
+	// HydrateOperation holds the status of the hydrate operation
+	HydrateOperation *HydrateOperation `json:"hydrateOperation,omitempty" protobuf:"bytes,3,opt,name=hydrateOperation"`
 }
+
+type HydrateOperation struct {
+	// StartedAt indicates when the hydrate operation started
+	StartedAt metav1.Time `json:"startedAt,omitempty" protobuf:"bytes,1,opt,name=startedAt"`
+	// FinishedAt indicates when the hydrate operation finished
+	FinishedAt *metav1.Time `json:"finishedAt,omitempty" protobuf:"bytes,2,opt,name=finishedAt"`
+	// Status indicates the status of the hydrate operation
+	Status HydrateOperationPhase `json:"status" protobuf:"bytes,3,opt,name=status"`
+	// Message contains a message describing the current status of the hydrate operation
+	Message string `json:"message" protobuf:"bytes,4,opt,name=message"`
+}
+
+type HydrateOperationPhase string
+
+const (
+	HydrateOperationPhaseRunning   HydrateOperationPhase = "Running"
+	HydrateOperationPhaseFailed    HydrateOperationPhase = "Failed"
+	HydrateOperationPhaseSucceeded HydrateOperationPhase = "Succeeded"
+)
 
 // GetRevisions will return the current revision associated with the Application.
 // If app has multisources, it will return all corresponding revisions preserving
