@@ -6,7 +6,7 @@ import (
 	"github.com/go-logr/logr"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/util/managedfields"
-	"k8s.io/klog/v2/klogr"
+	"k8s.io/klog/v2/textlogger"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
 )
 
@@ -31,7 +31,7 @@ func applyOptions(opts []Option) options {
 		ignoreAggregatedRoles: false,
 		ignoreMutationWebhook: true,
 		normalizer:            GetNoopNormalizer(),
-		log:                   klogr.New(),
+		log:                   textlogger.NewLogger(textlogger.NewConfig()),
 	}
 	for _, opt := range opts {
 		opt(&o)

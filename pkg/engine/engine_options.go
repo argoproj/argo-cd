@@ -2,7 +2,7 @@ package engine
 
 import (
 	"github.com/go-logr/logr"
-	"k8s.io/klog/v2/klogr"
+	"k8s.io/klog/v2/textlogger"
 
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/argoproj/gitops-engine/pkg/utils/tracing"
@@ -16,7 +16,7 @@ type options struct {
 }
 
 func applyOptions(opts []Option) options {
-	log := klogr.New()
+	log := textlogger.NewLogger(textlogger.NewConfig())
 	o := options{
 		log: log,
 		kubectl: &kube.KubectlCmd{

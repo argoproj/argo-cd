@@ -12,7 +12,7 @@ import (
 
 	"github.com/argoproj/gitops-engine/pkg/diff/mocks"
 	"github.com/argoproj/gitops-engine/pkg/diff/testdata"
-	openapi_v2 "github.com/google/gnostic/openapiv2"
+	openapi_v2 "github.com/google/gnostic-models/openapiv2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -26,7 +26,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/apimachinery/pkg/util/managedfields"
-	"k8s.io/klog/v2/klogr"
+	"k8s.io/klog/v2/textlogger"
 	openapiproto "k8s.io/kube-openapi/pkg/util/proto"
 	"sigs.k8s.io/yaml"
 )
@@ -1203,7 +1203,7 @@ spec:
 
 func diffOptionsForTest() []Option {
 	return []Option{
-		WithLogr(klogr.New()),
+		WithLogr(textlogger.NewLogger(textlogger.NewConfig())),
 		IgnoreAggregatedRoles(false),
 	}
 }

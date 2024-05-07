@@ -22,7 +22,7 @@ import (
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/util/retry"
-	"k8s.io/klog/v2/klogr"
+	"k8s.io/klog/v2/textlogger"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/util/openapi"
 
@@ -233,7 +233,7 @@ func NewSyncContext(
 		kubectl:             kubectl,
 		resourceOps:         resourceOps,
 		namespace:           namespace,
-		log:                 klogr.New(),
+		log:                 textlogger.NewLogger(textlogger.NewConfig()),
 		validate:            true,
 		startedAt:           time.Now(),
 		syncRes:             map[string]common.ResourceSyncResult{},
@@ -926,7 +926,7 @@ func (sc *syncContext) setOperationPhase(phase common.OperationPhase, message st
 
 // ensureCRDReady waits until specified CRD is ready (established condition is true).
 func (sc *syncContext) ensureCRDReady(name string) error {
-	return wait.PollImmediate(time.Duration(100)*time.Millisecond, crdReadinessTimeout, func() (bool, error) {
+	return wait.PollUntilContextTimeout(context.Background(), time.Duration(100)*time.Millisecond, crdReadinessTimeout, true, func(ctx context.Context) (bool, error) {
 		crd, err := sc.extensionsclientset.ApiextensionsV1().CustomResourceDefinitions().Get(context.TODO(), name, metav1.GetOptions{})
 		if err != nil {
 			return false, err

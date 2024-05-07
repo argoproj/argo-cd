@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"k8s.io/klog/v2/klogr"
+	"k8s.io/klog/v2/textlogger"
 
 	testingutils "github.com/argoproj/gitops-engine/pkg/utils/testing"
 	"github.com/argoproj/gitops-engine/pkg/utils/tracing"
@@ -16,7 +16,7 @@ var (
 
 func TestConvertToVersion(t *testing.T) {
 	kubectl := KubectlCmd{
-		Log:    klogr.New(),
+		Log:    textlogger.NewLogger(textlogger.NewConfig()),
 		Tracer: tracing.NopTracer{},
 	}
 	t.Run("AppsDeployment", func(t *testing.T) {

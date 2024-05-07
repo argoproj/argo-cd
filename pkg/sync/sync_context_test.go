@@ -26,7 +26,7 @@ import (
 	"k8s.io/client-go/dynamic/fake"
 	"k8s.io/client-go/rest"
 	testcore "k8s.io/client-go/testing"
-	"k8s.io/klog/v2/klogr"
+	"k8s.io/klog/v2/textlogger"
 
 	"github.com/argoproj/gitops-engine/pkg/diff"
 	"github.com/argoproj/gitops-engine/pkg/health"
@@ -63,7 +63,7 @@ func newTestSyncCtx(getResourceFunc *func(ctx context.Context, config *rest.Conf
 		namespace: FakeArgoCDNamespace,
 		revision:  "FooBarBaz",
 		disco:     fakeDisco,
-		log:       klogr.New().WithValues("application", "fake-app"),
+		log:       textlogger.NewLogger(textlogger.NewConfig()).WithValues("application", "fake-app"),
 		resources: map[kube.ResourceKey]reconciledResource{},
 		syncRes:   map[string]synccommon.ResourceSyncResult{},
 		validate:  true,
@@ -1477,7 +1477,8 @@ func Test_syncContext_hasCRDOfGroupKind(t *testing.T) {
 }
 
 func Test_setRunningPhase_healthyState(t *testing.T) {
-	sc := syncContext{log: klogr.New().WithValues("application", "fake-app")}
+	var sc syncContext
+	sc.log = textlogger.NewLogger(textlogger.NewConfig()).WithValues("application", "fake-app")
 
 	sc.setRunningPhase([]*syncTask{{targetObj: NewPod()}, {targetObj: NewPod()}, {targetObj: NewPod()}}, false)
 
@@ -1485,7 +1486,8 @@ func Test_setRunningPhase_healthyState(t *testing.T) {
 }
 
 func Test_setRunningPhase_runningHooks(t *testing.T) {
-	sc := syncContext{log: klogr.New().WithValues("application", "fake-app")}
+	var sc syncContext
+	sc.log = textlogger.NewLogger(textlogger.NewConfig()).WithValues("application", "fake-app")
 
 	sc.setRunningPhase([]*syncTask{{targetObj: newHook(synccommon.HookTypeSyncFail)}}, false)
 
@@ -1493,7 +1495,8 @@ func Test_setRunningPhase_runningHooks(t *testing.T) {
 }
 
 func Test_setRunningPhase_pendingDeletion(t *testing.T) {
-	sc := syncContext{log: klogr.New().WithValues("application", "fake-app")}
+	var sc syncContext
+	sc.log = textlogger.NewLogger(textlogger.NewConfig()).WithValues("application", "fake-app")
 
 	sc.setRunningPhase([]*syncTask{{targetObj: NewPod()}, {targetObj: NewPod()}, {targetObj: NewPod()}}, true)
 
@@ -1699,7 +1702,7 @@ func TestSyncContext_GetDeleteOptions_WithPrunePropagationPolicy(t *testing.T) {
 
 func TestSetOperationFailed(t *testing.T) {
 	sc := syncContext{}
-	sc.log = klogr.New().WithValues("application", "fake-app")
+	sc.log = textlogger.NewLogger(textlogger.NewConfig()).WithValues("application", "fake-app")
 
 	tasks := make([]*syncTask, 0)
 	tasks = append(tasks, &syncTask{message: "namespace not found"})
@@ -1712,7 +1715,7 @@ func TestSetOperationFailed(t *testing.T) {
 
 func TestSetOperationFailedDuplicatedMessages(t *testing.T) {
 	sc := syncContext{}
-	sc.log = klogr.New().WithValues("application", "fake-app")
+	sc.log = textlogger.NewLogger(textlogger.NewConfig()).WithValues("application", "fake-app")
 
 	tasks := make([]*syncTask, 0)
 	tasks = append(tasks, &syncTask{message: "namespace not found"})
@@ -1726,7 +1729,7 @@ func TestSetOperationFailedDuplicatedMessages(t *testing.T) {
 
 func TestSetOperationFailedNoTasks(t *testing.T) {
 	sc := syncContext{}
-	sc.log = klogr.New().WithValues("application", "fake-app")
+	sc.log = textlogger.NewLogger(textlogger.NewConfig()).WithValues("application", "fake-app")
 
 	sc.setOperationFailed(nil, nil, "one or more objects failed to apply")
 

@@ -5,7 +5,6 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"fmt"
-	"github.com/argoproj/gitops-engine/pkg/utils/text"
 	"net/http"
 	"os"
 	"os/exec"
@@ -15,11 +14,13 @@ import (
 	"text/tabwriter"
 	"time"
 
+	"github.com/argoproj/gitops-engine/pkg/utils/text"
+
 	"github.com/go-logr/logr"
 	"github.com/spf13/cobra"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/client-go/tools/clientcmd"
-	"k8s.io/klog/v2/klogr"
+	"k8s.io/klog/v2/textlogger"
 
 	"github.com/argoproj/gitops-engine/pkg/cache"
 	"github.com/argoproj/gitops-engine/pkg/engine"
@@ -37,7 +38,7 @@ const (
 )
 
 func main() {
-	log := klogr.New() // Delegates to klog
+	log := textlogger.NewLogger(textlogger.NewConfig())
 	err := newCmd(log).Execute()
 	checkError(err, log)
 }

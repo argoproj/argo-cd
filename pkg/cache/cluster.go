@@ -31,7 +31,7 @@ import (
 	"k8s.io/client-go/tools/pager"
 	watchutil "k8s.io/client-go/tools/watch"
 	"k8s.io/client-go/util/retry"
-	"k8s.io/klog/v2/klogr"
+	"k8s.io/klog/v2/textlogger"
 	"k8s.io/kubectl/pkg/util/openapi"
 
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
@@ -144,7 +144,7 @@ type ListRetryFunc func(err error) bool
 
 // NewClusterCache creates new instance of cluster cache
 func NewClusterCache(config *rest.Config, opts ...UpdateSettingsFunc) *clusterCache {
-	log := klogr.New()
+	log := textlogger.NewLogger(textlogger.NewConfig())
 	cache := &clusterCache{
 		settings:           Settings{ResourceHealthOverride: &noopSettings{}, ResourcesFilter: &noopSettings{}},
 		apisMeta:           make(map[schema.GroupKind]*apiMeta),
