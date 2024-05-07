@@ -21,6 +21,12 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/rbac"
 )
 
+type actionTraitMap map[string]rbacTrait
+
+type rbacTrait struct {
+	allowPath bool
+}
+
 // Provide a mapping of short-hand resource names to their RBAC counterparts
 var resourceMap map[string]string = map[string]string{
 	"account":         rbacpolicy.ResourceAccounts,
@@ -32,6 +38,7 @@ var resourceMap map[string]string = map[string]string{
 	"certs":           rbacpolicy.ResourceCertificates,
 	"certificate":     rbacpolicy.ResourceCertificates,
 	"cluster":         rbacpolicy.ResourceClusters,
+	"extension":       rbacpolicy.ResourceExtensions,
 	"gpgkey":          rbacpolicy.ResourceGPGKeys,
 	"key":             rbacpolicy.ResourceGPGKeys,
 	"log":             rbacpolicy.ResourceLogs,
@@ -46,28 +53,44 @@ var resourceMap map[string]string = map[string]string{
 }
 
 // List of allowed RBAC resources
-var validRBACResources map[string]bool = map[string]bool{
-	rbacpolicy.ResourceAccounts:        true,
-	rbacpolicy.ResourceApplications:    true,
-	rbacpolicy.ResourceApplicationSets: true,
-	rbacpolicy.ResourceCertificates:    true,
-	rbacpolicy.ResourceClusters:        true,
-	rbacpolicy.ResourceGPGKeys:         true,
-	rbacpolicy.ResourceLogs:            true,
-	rbacpolicy.ResourceExec:            true,
-	rbacpolicy.ResourceProjects:        true,
-	rbacpolicy.ResourceRepositories:    true,
+var validRBACResourcesActions map[string]actionTraitMap = map[string]actionTraitMap{
+	rbacpolicy.ResourceAccounts:        validRBACActions,
+	rbacpolicy.ResourceApplications:    validRBACApplicationsActions,
+	rbacpolicy.ResourceApplicationSets: validRBACActions,
+	rbacpolicy.ResourceCertificates:    validRBACActions,
+	rbacpolicy.ResourceClusters:        validRBACActions,
+	rbacpolicy.ResourceExtensions:      validRBACExtensionActions,
+	rbacpolicy.ResourceGPGKeys:         validRBACActions,
+	rbacpolicy.ResourceLogs:            validRBACLogActions,
+	rbacpolicy.ResourceExec:            validRBACExecActions,
+	rbacpolicy.ResourceProjects:        validRBACActions,
+	rbacpolicy.ResourceRepositories:    validRBACActions,
 }
 
 // List of allowed RBAC actions
-var validRBACActions map[string]bool = map[string]bool{
-	rbacpolicy.ActionAction:   true,
-	rbacpolicy.ActionCreate:   true,
-	rbacpolicy.ActionDelete:   true,
-	rbacpolicy.ActionGet:      true,
-	rbacpolicy.ActionOverride: true,
-	rbacpolicy.ActionSync:     true,
-	rbacpolicy.ActionUpdate:   true,
+var validRBACActions = actionTraitMap{
+	rbacpolicy.ActionCreate: rbacTrait{},
+	rbacpolicy.ActionGet:    rbacTrait{},
+	rbacpolicy.ActionUpdate: rbacTrait{},
+	rbacpolicy.ActionDelete: rbacTrait{},
+}
+var validRBACApplicationsActions = actionTraitMap{
+	rbacpolicy.ActionCreate:   rbacTrait{},
+	rbacpolicy.ActionGet:      rbacTrait{},
+	rbacpolicy.ActionUpdate:   rbacTrait{allowPath: true},
+	rbacpolicy.ActionDelete:   rbacTrait{allowPath: true},
+	rbacpolicy.ActionAction:   rbacTrait{allowPath: true},
+	rbacpolicy.ActionOverride: rbacTrait{},
+	rbacpolicy.ActionSync:     rbacTrait{},
+}
+var validRBACExecActions = actionTraitMap{
+	rbacpolicy.ActionCreate: rbacTrait{},
+}
+var validRBACLogActions = actionTraitMap{
+	rbacpolicy.ActionGet: rbacTrait{},
+}
+var validRBACExtensionActions = actionTraitMap{
+	rbacpolicy.ActionInvoke: rbacTrait{},
 }
 
 // NewRBACCommand is the command for 'rbac'
@@ -221,8 +244,8 @@ argocd admin settings rbac validate --policy-file policy.csv
 # i.e. 'policy.csv' and (optionally) 'policy.default'
 argocd admin settings rbac validate --policy-file argocd-rbac-cm.yaml
 
-# If --policy-file is not given, and instead --namespace is giventhe ConfigMap 'argocd-rbac-cm' 
-# from K8s is used. 
+# If --policy-file is not given, and instead --namespace is giventhe ConfigMap 'argocd-rbac-cm'
+# from K8s is used.
 argocd admin settings rbac validate --namespace argocd
 
 # Either --policy-file or --namespace must be given.
@@ -376,11 +399,9 @@ func checkPolicy(subject, action, resource, subResource, builtinPolicy, userPoli
 	// If in strict mode, validate that given RBAC resource and action are
 	// actually valid tokens.
 	if strict {
-		if !isValidRBACResource(realResource) {
-			log.Fatalf("error in RBAC request: '%s' is not a valid resource name", realResource)
-		}
-		if !isValidRBACAction(action) {
-			log.Fatalf("error in RBAC request: '%s' is not a valid action name", action)
+		if err := validateRBACResourceAction(realResource, action); err != nil {
+			log.Fatalf("error in RBAC request: %v", err)
+			return false
 		}
 	}
 
@@ -406,17 +427,18 @@ func resolveRBACResourceName(name string) string {
 	}
 }
 
-// isValidRBACAction checks whether a given action is a valid RBAC action
-func isValidRBACAction(action string) bool {
-	if strings.HasPrefix(action, rbacpolicy.ActionAction+"/") {
-		return true
+// validateRBACResourceAction checks whether a given resource is a valid RBAC resource.
+// If it is, it validates that the action is a valid RBAC action for this resource.
+func validateRBACResourceAction(resource, action string) error {
+	validActions, ok := validRBACResourcesActions[resource]
+	if !ok {
+		return fmt.Errorf("'%s' is not a valid resource name", resource)
 	}
-	_, ok := validRBACActions[action]
-	return ok
-}
 
-// isValidRBACResource checks whether a given resource is a valid RBAC resource
-func isValidRBACResource(resource string) bool {
-	_, ok := validRBACResources[resource]
-	return ok
+	realAction, _, hasPath := strings.Cut(action, "/")
+	actionTrait, ok := validActions[realAction]
+	if !ok || hasPath && !actionTrait.allowPath {
+		return fmt.Errorf("'%s' is not a valid action for %s", action, resource)
+	}
+	return nil
 }
