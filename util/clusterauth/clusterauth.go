@@ -427,7 +427,7 @@ func GenerateNewClusterManagerSecret(clientset kubernetes.Interface, claims *Ser
 		return true, nil
 	})
 	if err != nil {
-		return nil, fmt.Errorf("Timed out waiting for secret to generate new token: err %w", err)
+		return nil, fmt.Errorf("Timed out waiting for secret to generate new token: %w", err)
 	}
 	return created, nil
 }

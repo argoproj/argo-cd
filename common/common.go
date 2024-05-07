@@ -300,7 +300,7 @@ const (
 
 // Constants used by util/clusterauth package
 const (
-	ClusterAuthRequestTimeout = 30 * time.Second
+	ClusterAuthRequestTimeout = 10 * time.Second
 	BearerTokenTimeout        = 30 * time.Second
 )
 
