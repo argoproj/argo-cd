@@ -299,11 +299,11 @@ export function findChildPod(node: appModels.ResourceNode, tree: appModels.Appli
 export function findChildResources(node: appModels.ResourceNode, tree: appModels.ApplicationTree): appModels.ResourceNode[] {
     const key = nodeKey(node);
 
-    let childs: appModels.ResourceNode[] = [];
+    const childs: appModels.ResourceNode[] = [];
     tree.nodes.forEach(item => {
         (item.parentRefs || []).forEach(parent => {
             if (key === nodeKey(parent)) {
-                childs.push(item)
+                childs.push(item);
             }
         });
     });
@@ -384,19 +384,19 @@ export const deletePopup = async (
                                     <kbd>{[child.kind, child.name].join('/')}</kbd>
                                 </li>
                             ))}
-                            {childResources.length == 5 ? (
-                                <li key="4">
+                            {childResources.length === 5 ? (
+                                <li key='4'>
                                     <kbd>{[childResources[4].kind, childResources[4].name].join('/')}</kbd>
                                 </li>
-                            ) : ('')}
-                            {childResources.length > 5 ? (
-                                <li key="N">
-                                    and {childResources.slice(4).length} more.
-                                </li>
-                            ) : ('')}
+                            ) : (
+                                ''
+                            )}
+                            {childResources.length > 5 ? <li key='N'>and {childResources.slice(4).length} more.</li> : ''}
                         </ul>
                     </p>
-                ) : ('')}
+                ) : (
+                    ''
+                )}
 
                 {isManaged ? (
                     <div className='argo-form-row'>

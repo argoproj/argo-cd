@@ -272,7 +272,7 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                             if (childPod) {
                                 podState = await services.applications.getResource(application.metadata.name, application.metadata.namespace, childPod).catch(() => null);
                             }
-                            childResources = AppUtils.findChildResources(selectedNode, tree)
+                            childResources = AppUtils.findChildResources(selectedNode, tree);
                         }
 
                         const settings = await services.authService.settings();
