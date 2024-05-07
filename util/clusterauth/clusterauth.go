@@ -267,9 +267,6 @@ func getOrCreateServiceAccountTokenSecret(clientset kubernetes.Interface, sa, ns
 		if getErr != nil {
 			return false, fmt.Errorf("failed to get serviceaccount %q: %w", sa, getErr)
 		}
-		if len(serviceAccount.Secrets) == 0 {
-			return false, nil
-		}
 		return true, nil
 	})
 	if err != nil && !wait.Interrupted(err) {
