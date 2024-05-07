@@ -1,0 +1,14 @@
+apiVersion: projectcontour.io/v1
+kind: HTTPProxy
+metadata:
+  name: my-http-proxy
+  namespace: default
+spec:
+  routes:
+    - rateLimitPolicy:
+        global:
+          descriptors:
+            - entries:
+                - requestHeader:
+                    descriptorKey: sample-key
+                    headerName: sample-header
