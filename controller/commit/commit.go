@@ -33,12 +33,12 @@ type ManifestsRequest struct {
 	CommitMessage     string
 	CommitTime        time.Time
 	Paths             []PathDetails
-	Commands          []string
 }
 
 type PathDetails struct {
 	Path      string
 	Manifests []ManifestDetails
+	Commands  []string
 	ReadmeDetails
 }
 
@@ -172,6 +172,32 @@ func (s *service) Commit(r ManifestsRequest) (ManifestsResponse, error) {
 		}
 	}
 
+	// Clear the repo contents using git rm
+	logCtx.Debug("Clearing repo contents")
+	rmCmd := exec.Command("git", "rm", "-r", ".")
+	rmCmd.Dir = dirPath
+	out, err = rmCmd.CombinedOutput()
+	if err != nil {
+		log.WithError(err).WithField("output", string(out)).Error("failed to clear repo contents")
+		return ManifestsResponse{}, fmt.Errorf("failed to clear repo contents: %w", err)
+	}
+
+	// Write hydrator.metadata containing information about the hydration process. This top-level metadata file is used
+	// for the promoter. An additional metadata file is placed in each hydration destination directory, if applicable.
+	logCtx.Debug("Writing top-level hydrator metadata")
+	hydratorMetadata := hydratorMetadataFile{
+		DrySHA:  r.DrySHA,
+		RepoURL: r.RepoURL,
+	}
+	hydratorMetadataJson, err := json.MarshalIndent(hydratorMetadata, "", "  ")
+	if err != nil {
+		return ManifestsResponse{}, fmt.Errorf("failed to marshal hydrator metadata: %w", err)
+	}
+	err = os.WriteFile(path.Join(dirPath, "hydrator.metadata"), hydratorMetadataJson, os.ModePerm)
+	if err != nil {
+		return ManifestsResponse{}, fmt.Errorf("failed to write hydrator metadata: %w", err)
+	}
+
 	// Write the manifests to the temp dir
 	for _, p := range r.Paths {
 		hydratePath := p.Path
@@ -179,7 +205,8 @@ func (s *service) Commit(r ManifestsRequest) (ManifestsResponse, error) {
 			hydratePath = ""
 		}
 		logCtx.Debugf("Writing manifests to %s", hydratePath)
-		err = os.MkdirAll(path.Join(dirPath, hydratePath), os.ModePerm)
+		fullHydratePath := path.Join(dirPath, hydratePath)
+		err = os.MkdirAll(fullHydratePath, os.ModePerm)
 		if err != nil {
 			return ManifestsResponse{}, fmt.Errorf("failed to create path: %w", err)
 		}
@@ -218,43 +245,43 @@ func (s *service) Commit(r ManifestsRequest) (ManifestsResponse, error) {
 				return ManifestsResponse{}, fmt.Errorf("failed to write manifest: %w", err)
 			}
 		}
-	}
 
-	// Write hydrator.metadata containing information about the hydration process.
-	logCtx.Debug("Writing hydrator metadata")
-	hydratorMetadata := hydratorMetadataFile{
-		Commands: r.Commands,
-		DrySHA:   r.DrySHA,
-		RepoURL:  r.RepoURL,
-	}
-	hydratorMetadataJson, err := json.MarshalIndent(hydratorMetadata, "", "  ")
-	if err != nil {
-		return ManifestsResponse{}, fmt.Errorf("failed to marshal hydrator metadata: %w", err)
-	}
-	err = os.WriteFile(path.Join(dirPath, "hydrator.metadata"), hydratorMetadataJson, os.ModePerm)
-	if err != nil {
-		return ManifestsResponse{}, fmt.Errorf("failed to write hydrator metadata: %w", err)
-	}
+		// Write hydrator.metadata containing information about the hydration process.
+		logCtx.Debug("Writing hydrator metadata")
+		hydratorMetadata := hydratorMetadataFile{
+			Commands: p.Commands,
+			DrySHA:   r.DrySHA,
+			RepoURL:  r.RepoURL,
+		}
+		hydratorMetadataJson, err := json.MarshalIndent(hydratorMetadata, "", "  ")
+		if err != nil {
+			return ManifestsResponse{}, fmt.Errorf("failed to marshal hydrator metadata: %w", err)
+		}
+		err = os.WriteFile(path.Join(fullHydratePath, "hydrator.metadata"), hydratorMetadataJson, os.ModePerm)
+		if err != nil {
+			return ManifestsResponse{}, fmt.Errorf("failed to write hydrator metadata: %w", err)
+		}
 
-	// Write README
-	logCtx.Debugf("Writing README")
-	readmeTemplate := template.New("readme")
-	readmeTemplate, err = readmeTemplate.Parse(manifestHydrationReadmeTemplate)
-	if err != nil {
-		return ManifestsResponse{}, fmt.Errorf("failed to parse readme template: %w", err)
-	}
-	// Create writer to template into
-	readmeFile, err := os.Create(path.Join(dirPath, "README.md"))
-	if err != nil && !os.IsExist(err) {
-		return ManifestsResponse{}, fmt.Errorf("failed to create README file: %w", err)
-	}
-	err = readmeTemplate.Execute(readmeFile, hydratorMetadata)
-	closeErr := readmeFile.Close()
-	if closeErr != nil {
-		logCtx.WithError(closeErr).Error("failed to close README file")
-	}
-	if err != nil {
-		return ManifestsResponse{}, fmt.Errorf("failed to execute readme template: %w", err)
+		// Write README
+		logCtx.Debugf("Writing README")
+		readmeTemplate := template.New("readme")
+		readmeTemplate, err = readmeTemplate.Parse(manifestHydrationReadmeTemplate)
+		if err != nil {
+			return ManifestsResponse{}, fmt.Errorf("failed to parse readme template: %w", err)
+		}
+		// Create writer to template into
+		readmeFile, err := os.Create(path.Join(fullHydratePath, "README.md"))
+		if err != nil && !os.IsExist(err) {
+			return ManifestsResponse{}, fmt.Errorf("failed to create README file: %w", err)
+		}
+		err = readmeTemplate.Execute(readmeFile, hydratorMetadata)
+		closeErr := readmeFile.Close()
+		if closeErr != nil {
+			logCtx.WithError(closeErr).Error("failed to close README file")
+		}
+		if err != nil {
+			return ManifestsResponse{}, fmt.Errorf("failed to execute readme template: %w", err)
+		}
 	}
 
 	// Commit the changes
