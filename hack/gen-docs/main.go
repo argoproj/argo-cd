@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"log"
 	"os"
@@ -64,6 +65,11 @@ func updateMkDocsNav(parent string, child string, subchild string, files []strin
 	if err != nil {
 		return err
 	}
+
+	// The marshaller drops custom tags, so re-add this one. Turns out this is much less invasive than trying to handle
+	// it at the YAML parser level.
+	newmkdocs = bytes.Replace(newmkdocs, []byte("site_url: READTHEDOCS_CANONICAL_URL"), []byte("site_url: !ENV READTHEDOCS_CANONICAL_URL"), 1)
+
 	return os.WriteFile("mkdocs.yml", newmkdocs, 0644)
 }
 
