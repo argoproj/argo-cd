@@ -5,7 +5,7 @@
     This section contains information on upgrading Argo CD. Before upgrading please make sure to read details about
     the breaking changes between Argo CD versions.
 
-Argo CD uses the semver versioning and ensures that following rules:
+Argo CD uses semver-like versioning that ensures the following rules:
 
 * The patch release does not introduce any breaking changes. So if you are upgrading from v1.5.1 to v1.5.3
  there should be no special instructions to follow.
