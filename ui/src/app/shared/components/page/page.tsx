@@ -34,10 +34,10 @@ export const AddAuthToToolbar = (init: Toolbar | Observable<Toolbar>, ctx: Conte
                             </button>
                         )
                     }
-                </DataLoader>,
+                </DataLoader>
             ];
             return toolbar;
-        }),
+        })
     );
 };
 

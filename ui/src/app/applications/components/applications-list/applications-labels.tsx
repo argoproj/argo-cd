@@ -20,12 +20,12 @@ export const ApplicationsLabels = ({app}: {app: Application}) => {
             popperOptions={{
                 modifiers: {
                     preventOverflow: {
-                        enabled: true,
+                        enabled: true
                     },
                     hide: {
-                        enabled: false,
-                    },
-                },
+                        enabled: false
+                    }
+                }
             }}
             placement='auto-start'
             content={<div className='application-labels-tooltip'>{labels}</div>}>

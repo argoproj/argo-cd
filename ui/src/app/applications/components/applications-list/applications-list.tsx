@@ -46,7 +46,7 @@ const APP_FIELDS = [
     'status.operationState.finishedAt',
     'status.operationState.operation.sync',
     'status.summary',
-    'status.resources',
+    'status.resources'
 ];
 const APP_LIST_FIELDS = ['metadata.resourceVersion', ...APP_FIELDS.map(field => `items.${field}`)];
 const APP_WATCH_FIELDS = ['result.type', ...APP_FIELDS.map(field => `result.application.${field}`)];
@@ -83,12 +83,12 @@ function loadApplications(projects: string[], appNamespace: string): Observable<
                                 }
                             });
                             return {applications, updated: appChanges.length > 0};
-                        }),
+                        })
                     )
                     .pipe(filter(item => item.updated))
-                    .pipe(map(item => item.applications)),
+                    .pipe(map(item => item.applications))
             );
-        }),
+        })
     );
 }
 
@@ -151,7 +151,7 @@ const ViewPref = ({children}: {children: (pref: AppsListPreferences & {page: num
                                     .filter(item => !!item);
                             }
                             return {...viewPref, page: parseInt(params.get('page') || '0', 10), search: params.get('search') || ''};
-                        }),
+                        })
                     )
                 }>
                 {pref => children(pref)}
@@ -175,8 +175,8 @@ function filterApps(applications: models.Application[], pref: AppsListPreference
     return {
         filterResults,
         filteredApps: filterResults.filter(
-            app => (search === '' || app.metadata.name.includes(search) || app.metadata.namespace.includes(search)) && Object.values(app.filterResult).every(val => val),
-        ),
+            app => (search === '' || app.metadata.name.includes(search) || app.metadata.namespace.includes(search)) && Object.values(app.filterResult).every(val => val)
+        )
     };
 }
 
@@ -209,7 +209,7 @@ const SearchBar = (props: {content: string; ctx: ContextApis; apps: models.Appli
                 return true;
             }
             return false;
-        },
+        }
     });
 
     useKeybinding({
@@ -221,7 +221,7 @@ const SearchBar = (props: {content: string; ctx: ContextApis; apps: models.Appli
                 return true;
             }
             return false;
-        },
+        }
     });
 
     return (
@@ -345,9 +345,9 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                 health: newPref.healthFilter.join(','),
                 namespace: newPref.namespacesFilter.join(','),
                 cluster: newPref.clustersFilter.join(','),
-                labels: newPref.labelsFilter.map(encodeURIComponent).join(','),
+                labels: newPref.labelsFilter.map(encodeURIComponent).join(',')
             },
-            {replace: true},
+            {replace: true}
         );
     }
 
@@ -410,9 +410,9 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                                                                         ...pref,
                                                                                         statusBarView: {
                                                                                             ...healthBarPrefs,
-                                                                                            showHealthStatusBar: healthBarPrefs.showHealthStatusBar,
-                                                                                        },
-                                                                                    },
+                                                                                            showHealthStatusBar: healthBarPrefs.showHealthStatusBar
+                                                                                        }
+                                                                                    }
                                                                                 });
                                                                             }}>
                                                                             <i className={`fas fa-ruler-horizontal`} />
@@ -452,20 +452,20 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                                                         title: 'New App',
                                                                         iconClassName: 'fa fa-plus',
                                                                         qeId: 'applications-list-button-new-app',
-                                                                        action: () => ctx.navigation.goto('.', {new: '{}'}, {replace: true}),
+                                                                        action: () => ctx.navigation.goto('.', {new: '{}'}, {replace: true})
                                                                     },
                                                                     {
                                                                         title: 'Sync Apps',
                                                                         iconClassName: 'fa fa-sync',
-                                                                        action: () => ctx.navigation.goto('.', {syncApps: true}, {replace: true}),
+                                                                        action: () => ctx.navigation.goto('.', {syncApps: true}, {replace: true})
                                                                     },
                                                                     {
                                                                         title: 'Refresh Apps',
                                                                         iconClassName: 'fa fa-redo',
-                                                                        action: () => ctx.navigation.goto('.', {refreshApps: true}, {replace: true}),
-                                                                    },
-                                                                ],
-                                                            },
+                                                                        action: () => ctx.navigation.goto('.', {refreshApps: true}, {replace: true})
+                                                                    }
+                                                                ]
+                                                            }
                                                         }}
                                                     />
                                                     <div className='applications-list'>
@@ -493,7 +493,7 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                                                             />
                                                                         )}
                                                                     </DataLoader>,
-                                                                    sidebarTarget?.current,
+                                                                    sidebarTarget?.current
                                                                 )}
 
                                                                 {(pref.view === 'summary' && <ApplicationsSummary applications={filteredApps} />) || (
@@ -521,13 +521,13 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                                                             {title: 'Name', compare: (a, b) => a.metadata.name.localeCompare(b.metadata.name)},
                                                                             {
                                                                                 title: 'Created At',
-                                                                                compare: (b, a) => a.metadata.creationTimestamp.localeCompare(b.metadata.creationTimestamp),
+                                                                                compare: (b, a) => a.metadata.creationTimestamp.localeCompare(b.metadata.creationTimestamp)
                                                                             },
                                                                             {
                                                                                 title: 'Synchronized',
                                                                                 compare: (b, a) =>
-                                                                                    a.status.operationState?.finishedAt?.localeCompare(b.status.operationState?.finishedAt),
-                                                                            },
+                                                                                    a.status.operationState?.finishedAt?.localeCompare(b.status.operationState?.finishedAt)
+                                                                            }
                                                                         ]}
                                                                         data={filteredApps}
                                                                         onPageChange={page => ctx.navigation.goto('.', {page})}>
@@ -582,7 +582,7 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                                                             const syncApp = params.get('syncApp');
                                                                             const appNamespace = params.get('appNamespace');
                                                                             return (syncApp && from(services.applications.get(syncApp, appNamespace))) || from([null]);
-                                                                        }),
+                                                                        })
                                                                     )
                                                                 }>
                                                                 {app => (
@@ -630,7 +630,7 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                                                     } catch (e) {
                                                                         ctx.notifications.show({
                                                                             content: <ErrorNotification title='Unable to create application' e={e} />,
-                                                                            type: NotificationType.Error,
+                                                                            type: NotificationType.Error
                                                                         });
                                                                     } finally {
                                                                         setAppCreatePending(false);

@@ -43,7 +43,7 @@ const MonacoEditorLazy = React.lazy(() =>
                 <div
                     style={{
                         height: `${Math.max(props.minHeight || 0, height + 100)}px`,
-                        overflowY: 'hidden',
+                        overflowY: 'hidden'
                     }}
                     ref={el => {
                         if (el) {
@@ -58,8 +58,8 @@ const MonacoEditorLazy = React.lazy(() =>
                                         scrollBeyondLastLine: props.vScrollBar,
                                         scrollbar: {
                                             handleMouseWheel: false,
-                                            vertical: props.vScrollBar ? 'visible' : 'hidden',
-                                        },
+                                            vertical: props.vScrollBar ? 'visible' : 'hidden'
+                                        }
                                     });
 
                                     container.editorApi = editor;
@@ -86,9 +86,9 @@ const MonacoEditorLazy = React.lazy(() =>
         };
 
         return {
-            default: Component,
+            default: Component
         };
-    }),
+    })
 );
 
 export const MonacoEditor = (props: MonacoProps) => (

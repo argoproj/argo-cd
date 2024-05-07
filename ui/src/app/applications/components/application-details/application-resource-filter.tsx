@@ -128,10 +128,10 @@ export const Filters = (props: FiltersProps) => {
                 prefix: 'kind',
                 options: kinds.map(label => ({
                     label,
-                    count: getOptionCount(label, 'Kind'),
+                    count: getOptionCount(label, 'Kind')
                 })),
                 abbreviations: resources,
-                field: true,
+                field: true
             })}
             {ResourceFilter({
                 label: 'SYNC STATUS',
@@ -139,8 +139,8 @@ export const Filters = (props: FiltersProps) => {
                 options: ['Synced', 'OutOfSync'].map(label => ({
                     label,
                     count: getOptionCount(label, 'Sync'),
-                    icon: <ComparisonStatusIcon status={label as SyncStatusCode} noSpin={true} />,
-                })),
+                    icon: <ComparisonStatusIcon status={label as SyncStatusCode} noSpin={true} />
+                }))
             })}
             {ResourceFilter({
                 label: 'HEALTH STATUS',
@@ -148,8 +148,8 @@ export const Filters = (props: FiltersProps) => {
                 options: ['Healthy', 'Progressing', 'Degraded', 'Suspended', 'Missing', 'Unknown'].map(label => ({
                     label,
                     count: getOptionCount(label, 'Health'),
-                    icon: <HealthStatusIcon state={{status: label as HealthStatusCode, message: ''}} noSpin={true} />,
-                })),
+                    icon: <HealthStatusIcon state={{status: label as HealthStatusCode, message: ''}} noSpin={true} />
+                }))
             })}
             {namespaces.length > 1 && ResourceFilter({label: 'NAMESPACES', prefix: 'namespace', options: (namespaces || []).filter(l => l && l !== '').map(toOption), field: true})}
             {(tree.orphanedNodes || []).length > 0 && (
@@ -162,7 +162,7 @@ export const Filters = (props: FiltersProps) => {
                         }}
                         style={{
                             marginRight: '8px',
-                            marginLeft: '8px',
+                            marginLeft: '8px'
                         }}
                     />
                     <div className='filter__item__label'>Show Orphaned</div>

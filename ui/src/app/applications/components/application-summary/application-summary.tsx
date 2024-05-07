@@ -13,7 +13,7 @@ import {
     NumberField,
     Repo,
     Revision,
-    RevisionHelpIcon,
+    RevisionHelpIcon
 } from '../../../shared/components';
 import {BadgePanel, Spinner} from '../../../shared/components';
 import {AuthSettingsCtx, Consumer, ContextApis} from '../../../shared/context';
@@ -76,14 +76,14 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                 <DataLoader load={() => services.projects.list('items.metadata.name').then(projs => projs.map(item => item.metadata.name))}>
                     {projects => <FormField formApi={formApi} field='spec.project' component={FormSelect} componentProps={{options: projects}} />}
                 </DataLoader>
-            ),
+            )
         },
         {
             title: 'LABELS',
             view: Object.keys(app.metadata.labels || {})
                 .map(label => `${label}=${app.metadata.labels[label]}`)
                 .join(' '),
-            edit: (formApi: FormApi) => <FormField formApi={formApi} field='metadata.labels' component={MapInputField} />,
+            edit: (formApi: FormApi) => <FormField formApi={formApi} field='metadata.labels' component={MapInputField} />
         },
         {
             title: 'ANNOTATIONS',
@@ -94,12 +94,12 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                         .join(' ')}
                 </Expandable>
             ),
-            edit: (formApi: FormApi) => <EditAnnotations formApi={formApi} app={app} />,
+            edit: (formApi: FormApi) => <EditAnnotations formApi={formApi} app={app} />
         },
         {
             title: 'NOTIFICATION SUBSCRIPTIONS',
             view: false, // eventually the subscription input values will be merged in 'ANNOTATIONS', therefore 'ANNOATIONS' section is responsible to represent subscription values,
-            edit: () => <EditNotificationSubscriptions {...notificationSubscriptions} />,
+            edit: () => <EditNotificationSubscriptions {...notificationSubscriptions} />
         },
         {
             title: 'CLUSTER',
@@ -151,7 +151,7 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                                                         formApi.setAllValues(updatedApp);
                                                         setDestFormat(type);
                                                     }
-                                                },
+                                                }
                                             }))}
                                         />
                                     </div>
@@ -160,16 +160,16 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                         );
                     }}
                 </DataLoader>
-            ),
+            )
         },
         {
             title: 'NAMESPACE',
             view: <ClipboardText text={app.spec.destination.namespace} />,
-            edit: (formApi: FormApi) => <FormField formApi={formApi} field='spec.destination.namespace' component={Text} />,
+            edit: (formApi: FormApi) => <FormField formApi={formApi} field='spec.destination.namespace' component={Text} />
         },
         {
             title: 'CREATED AT',
-            view: formatCreationTimestamp(app.metadata.creationTimestamp),
+            view: formatCreationTimestamp(app.metadata.creationTimestamp)
         },
         !hasMultipleSources && {
             title: 'REPO URL',
@@ -179,7 +179,7 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                     helpTip('REPO URL is not editable for applications with multiple sources. You can edit them in the "Manifest" tab.')
                 ) : (
                     <FormField formApi={formApi} field='spec.source.repoURL' component={Text} />
-                ),
+                )
         },
         ...(!hasMultipleSources
             ? isHelm
@@ -207,7 +207,7 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                                                       component={AutocompleteField}
                                                       componentProps={{
                                                           items: charts.map(chart => chart.name),
-                                                          filterSuggestions: true,
+                                                          filterSuggestions: true
                                                       }}
                                                   />
                                               </div>
@@ -224,7 +224,7 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                                                               field='spec.source.targetRevision'
                                                               component={AutocompleteField}
                                                               componentProps={{
-                                                                  items: versions,
+                                                                  items: versions
                                                               }}
                                                           />
                                                           <RevisionHelpIcon type='helm' top='0' />
@@ -234,8 +234,8 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                                           </div>
                                       )}
                                   </DataLoader>
-                              ),
-                      },
+                              )
+                      }
                   ]
                 : [
                       {
@@ -246,7 +246,7 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                                   helpTip('TARGET REVISION is not editable for applications with multiple sources. You can edit them in the "Manifest" tab.')
                               ) : (
                                   <RevisionFormField helpIconTop={'0'} hideLabel={true} formApi={formApi} repoURL={source.repoURL} />
-                              ),
+                              )
                       },
                       {
                           title: 'PATH',
@@ -260,8 +260,8 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                                   helpTip('PATH is not editable for applications with multiple sources. You can edit them in the "Manifest" tab.')
                               ) : (
                                   <FormField formApi={formApi} field='spec.source.path' component={Text} />
-                              ),
-                      },
+                              )
+                      }
                   ]
             : []),
         {
@@ -285,7 +285,7 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                         />
                     </div>
                 </div>
-            ),
+            )
         },
         {
             title: 'SYNC OPTIONS',
@@ -300,7 +300,7 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                             <div key={opt} style={{marginRight: '10px'}}>
                                 {opt}
                             </div>
-                        ),
+                        )
                     )}
                 </div>
             ),
@@ -308,7 +308,7 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                 <div>
                     <FormField formApi={formApi} field='spec.syncPolicy.syncOptions' component={ApplicationSyncOptionsField} />
                 </div>
-            ),
+            )
         },
         {
             title: 'RETRY OPTIONS',
@@ -317,7 +317,7 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                 <div>
                     <ApplicationRetryOptions formApi={formApi} initValues={app.spec.syncPolicy ? app.spec.syncPolicy.retry : null} field='spec.syncPolicy.retry' />
                 </div>
-            ),
+            )
         },
         {
             title: 'STATUS',
@@ -325,7 +325,7 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                 <span>
                     <ComparisonStatusIcon status={app.status.sync.status} /> {app.status.sync.status} {syncStatusMessage(app)}
                 </span>
-            ),
+            )
         },
         {
             title: 'HEALTH',
@@ -333,7 +333,7 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                 <span>
                     <HealthStatusIcon state={app.status.health} /> {app.status.health.status}
                 </span>
-            ),
+            )
         },
         {
             title: 'LINKS',
@@ -341,8 +341,8 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                 <DataLoader load={() => services.applications.getLinks(app.metadata.name, app.metadata.namespace)} input={app} key='appLinks'>
                     {(links: models.LinksResponse) => <DeepLinks links={links.items} />}
                 </DataLoader>
-            ),
-        },
+            )
+        }
     ];
     const urls = ExternalLinks(app.status.summary.externalURLs);
     if (urls.length > 0) {
@@ -358,7 +358,7 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                         );
                     })}
                 </React.Fragment>
-            ),
+            )
         });
     }
 
@@ -373,7 +373,7 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                         </span>
                     ))}
                 </div>
-            ),
+            )
         });
     }
 
@@ -391,7 +391,7 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
             } catch (e) {
                 ctx.notifications.show({
                     content: <ErrorNotification title={`Unable to "${confirmationTitle.replace(/\?/g, '')}:`} e={e} />,
-                    type: NotificationType.Error,
+                    type: NotificationType.Error
                 });
             } finally {
                 setChangeSync(false);
@@ -410,7 +410,7 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
             } catch (e) {
                 ctx.notifications.show({
                     content: <ErrorNotification title='Unable to disable Auto-Sync' e={e} />,
-                    type: NotificationType.Error,
+                    type: NotificationType.Error
                 });
             } finally {
                 setChangeSync(false);
@@ -473,7 +473,7 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                         }}
                     />
                 </React.Fragment>
-            ),
+            )
         }))
         .concat({
             key: '-1',
@@ -488,7 +488,7 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                 </button>
             ),
             view: null as any,
-            edit: null,
+            edit: null
         });
 
     return (
@@ -498,7 +498,7 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                 validate={input => ({
                     'spec.project': !input.spec.project && 'Project name is required',
                     'spec.destination.server': !input.spec.destination.server && input.spec.destination.hasOwnProperty('server') && 'Cluster server is required',
-                    'spec.destination.name': !input.spec.destination.name && input.spec.destination.hasOwnProperty('name') && 'Cluster name is required',
+                    'spec.destination.name': !input.spec.destination.name && input.spec.destination.hasOwnProperty('name') && 'Cluster name is required'
                 })}
                 values={app}
                 title={app.metadata.name.toLocaleUpperCase()}
@@ -545,7 +545,7 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                                                             'Disable Prune Resources?',
                                                             'Are you sure you want to disable resource pruning during automated application synchronization?',
                                                             false,
-                                                            app.spec.syncPolicy.automated.selfHeal,
+                                                            app.spec.syncPolicy.automated.selfHeal
                                                         )
                                                     }>
                                                     Disable
@@ -559,7 +559,7 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                                                             'Enable Prune Resources?',
                                                             'Are you sure you want to enable resource pruning during automated application synchronization?',
                                                             true,
-                                                            app.spec.syncPolicy.automated.selfHeal,
+                                                            app.spec.syncPolicy.automated.selfHeal
                                                         )
                                                     }>
                                                     Enable
@@ -579,7 +579,7 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                                                             'Disable Self Heal?',
                                                             'Are you sure you want to disable automated self healing?',
                                                             app.spec.syncPolicy.automated.prune,
-                                                            false,
+                                                            false
                                                         )
                                                     }>
                                                     Disable
@@ -593,7 +593,7 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                                                             'Enable Self Heal?',
                                                             'Are you sure you want to enable automated self healing?',
                                                             app.spec.syncPolicy.automated.prune,
-                                                            true,
+                                                            true
                                                         )
                                                     }>
                                                     Enable

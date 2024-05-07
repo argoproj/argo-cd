@@ -39,7 +39,7 @@ export class RevisionFormField extends React.PureComponent<RevisionFormFieldProp
                                         .then(revisionsRes =>
                                             ['HEAD']
                                                 .concat(selectedFilter === 'Branches' ? revisionsRes.branches || [] : [])
-                                                .concat(selectedFilter === 'Tags' ? revisionsRes.tags || [] : []),
+                                                .concat(selectedFilter === 'Tags' ? revisionsRes.tags || [] : [])
                                         )
                                         .catch(() => []);
                                 }
@@ -53,7 +53,7 @@ export class RevisionFormField extends React.PureComponent<RevisionFormFieldProp
                                     component={AutocompleteField}
                                     componentProps={{
                                         items: revisions,
-                                        filterSuggestions: true,
+                                        filterSuggestions: true
                                     }}
                                 />
                             )}
@@ -73,7 +73,7 @@ export class RevisionFormField extends React.PureComponent<RevisionFormFieldProp
                             title: type,
                             action: () => {
                                 this.setFilter(type);
-                            },
+                            }
                         }))}
                     />
                 </div>

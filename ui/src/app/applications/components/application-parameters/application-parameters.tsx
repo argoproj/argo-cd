@@ -18,7 +18,7 @@ import {
     Paginate,
     RevisionHelpIcon,
     Revision,
-    Repo,
+    Repo
 } from '../../../shared/components';
 import * as models from '../../../shared/models';
 import {ApplicationSourceDirectory, Plugin} from '../../../shared/models';
@@ -33,7 +33,7 @@ import {RevisionFormField} from '../revision-form-field/revision-form-field';
 
 const TextWithMetadataField = ReactFormField((props: {metadata: {value: string}; fieldApi: FieldApi; className: string}) => {
     const {
-        fieldApi: {getValue, setValue},
+        fieldApi: {getValue, setValue}
     } = props;
     const metadata = getValue() || props.metadata;
 
@@ -78,7 +78,7 @@ function getParamsEditableItems(
         original: string;
         metadata: {name: string; value: string};
     }[],
-    component: React.ComponentType = TextWithMetadataField,
+    component: React.ComponentType = TextWithMetadataField
 ) {
     return params
         .sort(overridesFirst)
@@ -102,7 +102,7 @@ function getParamsEditableItems(
                                 field={fieldItemPath}
                                 component={component}
                                 componentProps={{
-                                    metadata: param.metadata,
+                                    metadata: param.metadata
                                 }}
                             />
                         )}
@@ -130,7 +130,7 @@ function getParamsEditableItems(
                         )}
                     </React.Fragment>
                 );
-            },
+            }
         }))
         .map((item, i) => ({...item, before: (i === 0 && <p style={{marginTop: '1em'}}>{title}</p>) || null}));
 }
@@ -157,7 +157,7 @@ export const ApplicationParameters = (props: {
     if (appSources && props.detailsList && props.detailsList.length > 1) {
         for (let i: number = 0; i < props.detailsList.length; i++) {
             multipleAttributes.push(
-                gatherDetails(props.detailsList[i], attributes, appSources[i], app, setRemovedOverrides, removedOverrides, appParamsDeletedState, setAppParamsDeletedState),
+                gatherDetails(props.detailsList[i], attributes, appSources[i], app, setRemovedOverrides, removedOverrides, appParamsDeletedState, setAppParamsDeletedState)
             );
             attributes = [];
         }
@@ -321,7 +321,7 @@ function gatherDetails(
     setRemovedOverrides: any,
     removedOverrides: any,
     appParamsDeletedState: any[],
-    setAppParamsDeletedState: any,
+    setAppParamsDeletedState: any
 ): EditablePanelItem[] {
     const hasMultipleSources = app.spec.sources && app.spec.sources.length > 0;
     // eslint-disable-next-line no-prototype-builtins
@@ -335,7 +335,7 @@ function gatherDetails(
                     helpTip('REPO URL is not editable for applications with multiple sources. You can edit them in the "Manifest" tab.')
                 ) : (
                     <FormField formApi={formApi} field='spec.source.repoURL' component={Text} />
-                ),
+                )
         });
         if (isHelm) {
             attributes.push({
@@ -359,7 +359,7 @@ function gatherDetails(
                                             component={AutocompleteField}
                                             componentProps={{
                                                 items: charts.map(chart => chart.name),
-                                                filterSuggestions: true,
+                                                filterSuggestions: true
                                             }}
                                         />
                                     </div>
@@ -376,7 +376,7 @@ function gatherDetails(
                                                     field='spec.source.targetRevision'
                                                     component={AutocompleteField}
                                                     componentProps={{
-                                                        items: versions,
+                                                        items: versions
                                                     }}
                                                 />
                                                 <RevisionHelpIcon type='helm' top='0' />
@@ -386,7 +386,7 @@ function gatherDetails(
                                 </div>
                             )}
                         </DataLoader>
-                    ),
+                    )
             });
         } else {
             attributes.push({
@@ -397,7 +397,7 @@ function gatherDetails(
                         helpTip('TARGET REVISION is not editable for applications with multiple sources. You can edit them in the "Manifest" tab.')
                     ) : (
                         <RevisionFormField helpIconTop={'0'} hideLabel={true} formApi={formApi} repoURL={source.repoURL} />
-                    ),
+                    )
             });
             attributes.push({
                 title: 'PATH',
@@ -411,12 +411,12 @@ function gatherDetails(
                         helpTip('PATH is not editable for applications with multiple sources. You can edit them in the "Manifest" tab.')
                     ) : (
                         <FormField formApi={formApi} field='spec.source.path' component={Text} />
-                    ),
+                    )
             });
             attributes.push({
                 title: 'REF',
                 view: source.ref,
-                edit: (formApi: FormApi) => <FormField formApi={formApi} field='spec.source.ref' component={Text} />,
+                edit: (formApi: FormApi) => <FormField formApi={formApi} field='spec.source.ref' component={Text} />
             });
         }
     }
@@ -432,25 +432,25 @@ function gatherDetails(
                         )) || <span>default</span>
                     }
                 </DataLoader>
-            ),
+            )
         });
 
         attributes.push({
             title: 'NAME PREFIX',
             view: source.kustomize && source.kustomize.namePrefix,
-            edit: (formApi: FormApi) => <FormField formApi={formApi} field='spec.source.kustomize.namePrefix' component={Text} />,
+            edit: (formApi: FormApi) => <FormField formApi={formApi} field='spec.source.kustomize.namePrefix' component={Text} />
         });
 
         attributes.push({
             title: 'NAME SUFFIX',
             view: source.kustomize && source.kustomize.nameSuffix,
-            edit: (formApi: FormApi) => <FormField formApi={formApi} field='spec.source.kustomize.nameSuffix' component={Text} />,
+            edit: (formApi: FormApi) => <FormField formApi={formApi} field='spec.source.kustomize.nameSuffix' component={Text} />
         });
 
         attributes.push({
             title: 'NAMESPACE',
             view: app.spec.source.kustomize && app.spec.source.kustomize.namespace,
-            edit: (formApi: FormApi) => <FormField formApi={formApi} field='spec.source.kustomize.namespace' component={Text} />,
+            edit: (formApi: FormApi) => <FormField formApi={formApi} field='spec.source.kustomize.namespace' component={Text} />
         });
 
         const srcImages = ((repoDetails && repoDetails.kustomize && repoDetails.kustomize.images) || []).map(val => kustomize.parse(val));
@@ -480,8 +480,8 @@ function gatherDetails(
                         const value = (overrideIndex > -1 && kustomize.format(images[overrideIndex])) || original;
                         return {overrideIndex, original, metadata: {name, value}};
                     }),
-                    ImageTagFieldEditor,
-                ),
+                    ImageTagFieldEditor
+                )
             );
         }
     } else if (repoDetails.type === 'Helm' && repoDetails.helm) {
@@ -497,10 +497,10 @@ function gatherDetails(
                     component={TagsInputField}
                     componentProps={{
                         options: repoDetails.helm.valueFiles,
-                        noTagsLabel: 'No values files selected',
+                        noTagsLabel: 'No values files selected'
                     }}
                 />
-            ),
+            )
         });
         attributes.push({
             title: 'VALUES',
@@ -522,7 +522,7 @@ function gatherDetails(
                         </pre>
                     </div>
                 );
-            },
+            }
         });
         const paramsByName = new Map<string, models.HelmParameter>();
         (repoDetails.helm.parameters || []).forEach(param => paramsByName.set(param.name, param));
@@ -544,8 +544,8 @@ function gatherDetails(
                     }
                     const value = (overrideIndex > -1 && source.helm.parameters[overrideIndex].value) || original;
                     return {overrideIndex, original, metadata: {name, value}};
-                }),
-            ),
+                })
+            )
         );
         const fileParamsByName = new Map<string, models.HelmFileParameter>();
         (repoDetails.helm.fileParameters || []).forEach(param => fileParamsByName.set(param.name, param));
@@ -567,8 +567,8 @@ function gatherDetails(
                     }
                     const value = (overrideIndex > -1 && source.helm.fileParameters[overrideIndex].path) || original;
                     return {overrideIndex, original, metadata: {name, value}};
-                }),
-            ),
+                })
+            )
         );
     } else if (repoDetails.type === 'Plugin') {
         attributes.push({
@@ -580,7 +580,7 @@ function gatherDetails(
                         <FormField formApi={formApi} field='spec.source.plugin.name' component={FormSelect} componentProps={{options: plugins.map(p => p.name)}} />
                     )}
                 </DataLoader>
-            ),
+            )
         });
         attributes.push({
             title: 'ENV',
@@ -593,7 +593,7 @@ function gatherDetails(
                     ))}
                 </div>
             ),
-            edit: (formApi: FormApi) => <FormField field='spec.source.plugin.env' formApi={formApi} component={ArrayInputField} />,
+            edit: (formApi: FormApi) => <FormField field='spec.source.plugin.env' formApi={formApi} component={ArrayInputField} />
         });
         const parametersSet = new Set<string>();
         if (repoDetails?.plugin?.parametersAnnouncement) {
@@ -650,12 +650,12 @@ function gatherDetails(
                                 name: announcement?.name ?? name,
                                 defaultVal: announcement?.map,
                                 isPluginPar,
-                                setAppParamsDeletedState,
+                                setAppParamsDeletedState
                             }}
                             formApi={formApi}
                             component={MapValueField}
                         />
-                    ),
+                    )
                 });
             } else if ((announcement?.collectionType === undefined && liveParam?.array) || announcement?.collectionType === 'array') {
                 let liveParamArray;
@@ -687,12 +687,12 @@ function gatherDetails(
                                 name: announcement?.name ?? name,
                                 defaultVal: announcement?.array,
                                 isPluginPar,
-                                setAppParamsDeletedState,
+                                setAppParamsDeletedState
                             }}
                             formApi={formApi}
                             component={ArrayValueField}
                         />
-                    ),
+                    )
                 });
             } else if (
                 (announcement?.collectionType === undefined && liveParam?.string) ||
@@ -716,7 +716,7 @@ function gatherDetails(
                         <div
                             style={{
                                 marginTop: 15,
-                                marginBottom: 5,
+                                marginBottom: 5
                             }}>
                             {ValueEditor(liveParamString ?? announcement?.string, null)}
                         </div>
@@ -728,12 +728,12 @@ function gatherDetails(
                                 name: announcement?.name ?? name,
                                 defaultVal: announcement?.string,
                                 isPluginPar,
-                                setAppParamsDeletedState,
+                                setAppParamsDeletedState
                             }}
                             formApi={formApi}
                             component={StringValueField}
                         />
-                    ),
+                    )
                 });
             }
         });
@@ -742,7 +742,7 @@ function gatherDetails(
         attributes.push({
             title: 'DIRECTORY RECURSE',
             view: (!!directory.recurse).toString(),
-            edit: (formApi: FormApi) => <FormField formApi={formApi} field='spec.source.directory.recurse' component={CheckboxField} />,
+            edit: (formApi: FormApi) => <FormField formApi={formApi} field='spec.source.directory.recurse' component={CheckboxField} />
         });
         attributes.push({
             title: 'TOP-LEVEL ARGUMENTS',
@@ -751,7 +751,7 @@ function gatherDetails(
                     {i.name}='{i.value}' {i.code && 'code'}
                 </label>
             )),
-            edit: (formApi: FormApi) => <FormField field='spec.source.directory.jsonnet.tlas' formApi={formApi} component={VarsInputField} />,
+            edit: (formApi: FormApi) => <FormField field='spec.source.directory.jsonnet.tlas' formApi={formApi} component={VarsInputField} />
         });
         attributes.push({
             title: 'EXTERNAL VARIABLES',
@@ -760,19 +760,19 @@ function gatherDetails(
                     {i.name}='{i.value}' {i.code && 'code'}
                 </label>
             )),
-            edit: (formApi: FormApi) => <FormField field='spec.source.directory.jsonnet.extVars' formApi={formApi} component={VarsInputField} />,
+            edit: (formApi: FormApi) => <FormField field='spec.source.directory.jsonnet.extVars' formApi={formApi} component={VarsInputField} />
         });
 
         attributes.push({
             title: 'INCLUDE',
             view: directory && directory.include,
-            edit: (formApi: FormApi) => <FormField formApi={formApi} field='spec.source.directory.include' component={Text} />,
+            edit: (formApi: FormApi) => <FormField formApi={formApi} field='spec.source.directory.include' component={Text} />
         });
 
         attributes.push({
             title: 'EXCLUDE',
             view: directory && directory.exclude,
-            edit: (formApi: FormApi) => <FormField formApi={formApi} field='spec.source.directory.exclude' component={Text} />,
+            edit: (formApi: FormApi) => <FormField formApi={formApi} field='spec.source.directory.exclude' component={Text} />
         });
     }
     return attributes;

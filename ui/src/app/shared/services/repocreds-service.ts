@@ -15,7 +15,7 @@ export class RepoCredsService {
         password,
         tlsClientCertData,
         tlsClientCertKey,
-        proxy,
+        proxy
     }: {
         url: string;
         username: string;
@@ -45,7 +45,7 @@ export class RepoCredsService {
         githubAppEnterpriseBaseURL,
         tlsClientCertData,
         tlsClientCertKey,
-        proxy,
+        proxy
     }: {
         url: string;
         githubAppPrivateKey: string;

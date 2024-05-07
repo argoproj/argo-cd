@@ -10,7 +10,7 @@ export enum AppsDetailsViewKey {
     Tree = 'tree',
     Network = 'network',
     List = 'list',
-    Pods = 'pods',
+    Pods = 'pods'
 }
 
 export interface AppDetailsPreferences {
@@ -46,7 +46,7 @@ export type AppsListViewType = 'tiles' | 'list' | 'summary';
 export enum AppsListViewKey {
     List = 'list',
     Summary = 'summary',
-    Tiles = 'tiles',
+    Tiles = 'tiles'
 }
 
 export class AppsListPreferences {
@@ -58,7 +58,7 @@ export class AppsListPreferences {
                 }
                 return count;
             },
-            0,
+            0
         );
     }
 
@@ -118,14 +118,14 @@ const DEFAULT_PREFERENCES: ViewPreferences = {
         orphanedResources: false,
         podView: {
             sortMode: 'node',
-            hideUnschedulable: true,
+            hideUnschedulable: true
         },
         darkMode: false,
         followLogs: false,
         wrapLines: false,
         zoom: 1.0,
         podGroupCount: 15.0,
-        userHelpTipMsgs: [],
+        userHelpTipMsgs: []
     },
     appList: {
         view: 'tiles' as AppsListViewType,
@@ -141,14 +141,14 @@ const DEFAULT_PREFERENCES: ViewPreferences = {
         showFavorites: false,
         favoritesAppList: new Array<string>(),
         statusBarView: {
-            showHealthStatusBar: true,
-        },
+            showHealthStatusBar: true
+        }
     },
     pageSizes: {},
     hideBannerContent: '',
     hideSidebar: false,
     position: '',
-    theme: 'light',
+    theme: 'light'
 };
 
 export class ViewPreferencesService {

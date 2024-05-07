@@ -20,7 +20,7 @@ export const AccountDetails = (props: RouteComponentProps<{name: string}>) => {
         <Page
             title={props.match.params.name}
             toolbar={{
-                breadcrumbs: [{title: 'Settings', path: '/settings'}, {title: 'Accounts', path: '/settings/accounts'}, {title: props.match.params.name}],
+                breadcrumbs: [{title: 'Settings', path: '/settings'}, {title: 'Accounts', path: '/settings/accounts'}, {title: props.match.params.name}]
             }}>
             <p />
             <div className='argo-container account-details'>
@@ -61,12 +61,12 @@ export const AccountDetails = (props: RouteComponentProps<{name: string}>) => {
                                     } catch (e) {
                                         ctx.notifications.show({
                                             content: <ErrorNotification title='Unable to generate new token' e={e} />,
-                                            type: NotificationType.Error,
+                                            type: NotificationType.Error
                                         });
                                     }
                                 }}
                                 validateError={params => ({
-                                    expiresIn: !validExpiresIn(params.expiresIn) && 'Must be in the "[0-9]+[smhd]" format',
+                                    expiresIn: !validExpiresIn(params.expiresIn) && 'Must be in the "[0-9]+[smhd]" format'
                                 })}>
                                 {api => (
                                     <form onSubmit={api.submitForm}>
@@ -121,7 +121,7 @@ export const AccountDetails = (props: RouteComponentProps<{name: string}>) => {
                                                                 onClick={async () => {
                                                                     const confirmed = await ctx.popup.confirm(
                                                                         'Delete Token?',
-                                                                        `Are you sure you want to delete token '${token.id}?'`,
+                                                                        `Are you sure you want to delete token '${token.id}?'`
                                                                     );
                                                                     if (!confirmed) {
                                                                         return;
@@ -135,7 +135,7 @@ export const AccountDetails = (props: RouteComponentProps<{name: string}>) => {
                                                                     } catch (e) {
                                                                         ctx.notifications.show({
                                                                             content: <ErrorNotification title='Unable to delete token token' e={e} />,
-                                                                            type: NotificationType.Error,
+                                                                            type: NotificationType.Error
                                                                         });
                                                                     }
                                                                 }}

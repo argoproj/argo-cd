@@ -20,8 +20,8 @@ export class ProjectsList extends React.Component {
                             breadcrumbs: [{title: 'Settings', path: '/settings'}, {title: 'Projects'}],
                             actionMenu: {
                                 className: 'fa fa-plus',
-                                items: [{title: 'New Project', iconClassName: 'fa fa-plus', action: () => ctx.navigation.goto('.', {add: true}, {replace: true})}],
-                            },
+                                items: [{title: 'New Project', iconClassName: 'fa fa-plus', action: () => ctx.navigation.goto('.', {add: true}, {replace: true})}]
+                            }
                         }}>
                         <div className='projects argo-container'>
                             <DataLoader load={() => services.projects.list()}>
@@ -77,7 +77,7 @@ export class ProjectsList extends React.Component {
                                         defaultValues={{metadata: {}, spec: {}}}
                                         getApi={api => (this.formApi = api)}
                                         validateError={(p: Project) => ({
-                                            'metadata.name': !p.metadata.name && 'Project Name is required',
+                                            'metadata.name': !p.metadata.name && 'Project Name is required'
                                         })}
                                         onSubmit={async (proj: Project) => {
                                             try {
@@ -86,7 +86,7 @@ export class ProjectsList extends React.Component {
                                             } catch (e) {
                                                 ctx.notifications.show({
                                                     content: <ErrorNotification title='Unable to create project' e={e} />,
-                                                    type: NotificationType.Error,
+                                                    type: NotificationType.Error
                                                 });
                                             }
                                         }}>

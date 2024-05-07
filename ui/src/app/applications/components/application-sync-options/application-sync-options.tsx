@@ -77,7 +77,7 @@ enum ManualSyncFlags {
     Prune = 'Prune',
     DryRun = 'Dry Run',
     ApplyOnly = 'Apply Only',
-    Force = 'Force',
+    Force = 'Force'
 }
 
 export interface SyncFlags {
@@ -94,7 +94,7 @@ const syncOptions: Array<(props: ApplicationSyncOptionProps) => React.ReactNode>
     props => booleanOption('ApplyOutOfSyncOnly', 'Apply Out of Sync Only', false, props, false),
     props => booleanOption('RespectIgnoreDifferences', 'Respect Ignore Differences', false, props, false),
     props => booleanOption('ServerSideApply', 'Server-Side Apply', false, props, false),
-    props => selectOption('PrunePropagationPolicy', 'Prune Propagation Policy', 'foreground', ['foreground', 'background', 'orphan'], props),
+    props => selectOption('PrunePropagationPolicy', 'Prune Propagation Policy', 'foreground', ['foreground', 'background', 'orphan'], props)
 ];
 
 const optionStyle = {marginTop: '0.5em'};
@@ -106,7 +106,7 @@ export const ApplicationSyncOptions = (props: ApplicationSyncOptionProps) => (
                 key={i}
                 style={optionStyle}
                 className={classNames('small-12', {
-                    'large-6': i < syncOptions.length - 1,
+                    'large-6': i < syncOptions.length - 1
                 })}>
                 {render(props)}
             </div>
@@ -119,7 +119,7 @@ export const ApplicationSyncOptions = (props: ApplicationSyncOptionProps) => (
 
 export const ApplicationManualSyncFlags = ReactForm.FormField((props: {fieldApi: ReactForm.FieldApi; id?: string}) => {
     const {
-        fieldApi: {getValue, setValue, setTouched},
+        fieldApi: {getValue, setValue, setTouched}
     } = props;
     const val = getValue() || false;
     return (
@@ -145,7 +145,7 @@ export const ApplicationManualSyncFlags = ReactForm.FormField((props: {fieldApi:
 
 export const ApplicationSyncOptionsField = ReactForm.FormField((props: {fieldApi: ReactForm.FieldApi}) => {
     const {
-        fieldApi: {getValue, setValue, setTouched},
+        fieldApi: {getValue, setValue, setTouched}
     } = props;
     const val = getValue() || [];
     return (

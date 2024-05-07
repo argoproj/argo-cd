@@ -39,10 +39,10 @@ export const Sidebar = (props: SidebarProps) => {
         popperOptions: {
             modifiers: {
                 preventOverflow: {
-                    boundariesElement: 'window' as Boundary,
-                },
-            },
-        },
+                    boundariesElement: 'window' as Boundary
+                }
+            }
+        }
     };
 
     return (

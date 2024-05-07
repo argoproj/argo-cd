@@ -24,7 +24,7 @@ export const ResourceIcon = ({kind, customStyle}: {kind: string; customStyle?: R
         backgroundColor: '#8FA4B1',
         textAlign: 'center',
         lineHeight: '30px',
-        ...customStyle,
+        ...customStyle
     };
     return (
         <div style={style}>

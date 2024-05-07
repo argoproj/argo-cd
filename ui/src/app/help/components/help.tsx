@@ -15,9 +15,9 @@ export const Help = () => {
                 combineLatest([services.authService.settings()]).pipe(
                     map(items => {
                         return {
-                            binaryUrls: items[0].help.binaryUrls || {},
+                            binaryUrls: items[0].help.binaryUrls || {}
                         };
-                    }),
+                    })
                 )
             }>
             {({binaryUrls}: {binaryUrls: Record<string, string>}) => {
@@ -53,7 +53,7 @@ export const Help = () => {
                                                                 className={classNames('fab', {
                                                                     'fa-windows': platform === 'windows',
                                                                     'fa-apple': platform === 'darwin',
-                                                                    'fa-linux': platform === 'linux',
+                                                                    'fa-linux': platform === 'linux'
                                                                 })}
                                                             />
                                                             {` ${platform}`} {arch && `(${arch})`}

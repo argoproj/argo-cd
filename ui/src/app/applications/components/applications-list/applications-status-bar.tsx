@@ -15,33 +15,33 @@ export const ApplicationsStatusBar = ({applications}: ApplicationsStatusBarProps
         {
             name: 'Healthy',
             value: applications.filter(app => app.status.health.status === 'Healthy').length,
-            color: COLORS.health.healthy,
+            color: COLORS.health.healthy
         },
         {
             name: 'Progressing',
             value: applications.filter(app => app.status.health.status === 'Progressing').length,
-            color: COLORS.health.progressing,
+            color: COLORS.health.progressing
         },
         {
             name: 'Degraded',
             value: applications.filter(app => app.status.health.status === 'Degraded').length,
-            color: COLORS.health.degraded,
+            color: COLORS.health.degraded
         },
         {
             name: 'Suspended',
             value: applications.filter(app => app.status.health.status === 'Suspended').length,
-            color: COLORS.health.suspended,
+            color: COLORS.health.suspended
         },
         {
             name: 'Missing',
             value: applications.filter(app => app.status.health.status === 'Missing').length,
-            color: COLORS.health.missing,
+            color: COLORS.health.missing
         },
         {
             name: 'Unknown',
             value: applications.filter(app => app.status.health.status === 'Unknown').length,
-            color: COLORS.health.unknown,
-        },
+            color: COLORS.health.unknown
+        }
     ];
 
     // will sort readings by value greatest to lowest, then by name

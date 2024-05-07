@@ -53,16 +53,16 @@ export async function deleteApplication(appName: string, appNamespace: string, a
     const propagationPolicies: {name: string; message: string}[] = [
         {
             name: 'Foreground',
-            message: `Cascade delete the application's resources using foreground propagation policy`,
+            message: `Cascade delete the application's resources using foreground propagation policy`
         },
         {
             name: 'Background',
-            message: `Cascade delete the application's resources using background propagation policy`,
+            message: `Cascade delete the application's resources using background propagation policy`
         },
         {
             name: 'Non-cascading',
-            message: `Only delete the application, but do not cascade delete its resources`,
-        },
+            message: `Only delete the application, but do not cascade delete its resources`
+        }
     ];
     await apis.popup.prompt(
         'Delete application',
@@ -94,7 +94,7 @@ export async function deleteApplication(appName: string, appNamespace: string, a
                                 component={PropagationPolicyOption}
                                 componentProps={{
                                     policy: policy.name,
-                                    message: policy.message,
+                                    message: policy.message
                                 }}
                             />
                         );
@@ -104,7 +104,7 @@ export async function deleteApplication(appName: string, appNamespace: string, a
         ),
         {
             validate: vals => ({
-                applicationName: vals.applicationName !== appName && 'Enter the application name to confirm the deletion',
+                applicationName: vals.applicationName !== appName && 'Enter the application name to confirm the deletion'
             }),
             submit: async (vals, _, close) => {
                 try {
@@ -114,14 +114,14 @@ export async function deleteApplication(appName: string, appNamespace: string, a
                 } catch (e) {
                     apis.notifications.show({
                         content: <ErrorNotification title='Unable to delete application' e={e} />,
-                        type: NotificationType.Error,
+                        type: NotificationType.Error
                     });
                 }
-            },
+            }
         },
         {name: 'argo-icon-warning', color: 'warning'},
         'yellow',
-        {propagationPolicy: 'foreground'},
+        {propagationPolicy: 'foreground'}
     );
     return confirmed;
 }
@@ -151,7 +151,7 @@ export async function confirmSyncingAppOfApps(apps: appModels.Application[], api
         ),
         {
             validate: vals => ({
-                applicationName: vals.applicationName !== appNameList && 'Enter the application name(s) to confirm syncing',
+                applicationName: vals.applicationName !== appNameList && 'Enter the application name(s) to confirm syncing'
             }),
             submit: async (_vals, _, close) => {
                 try {
@@ -161,20 +161,20 @@ export async function confirmSyncingAppOfApps(apps: appModels.Application[], api
                 } catch (e) {
                     apis.notifications.show({
                         content: <ErrorNotification title='Unable to sync application' e={e} />,
-                        type: NotificationType.Error,
+                        type: NotificationType.Error
                     });
                 }
-            },
+            }
         },
         {name: 'argo-icon-warning', color: 'warning'},
-        'yellow',
+        'yellow'
     );
     return confirmed;
 }
 
 const PropagationPolicyOption = ReactForm.FormField((props: {fieldApi: ReactForm.FieldApi; policy: string; message: string}) => {
     const {
-        fieldApi: {setValue},
+        fieldApi: {setValue}
     } = props;
     return (
         <div className='propagation-policy-option'>
@@ -227,7 +227,7 @@ export const ComparisonStatusIcon = ({
     status,
     resource,
     label,
-    noSpin,
+    noSpin
 }: {
     status: appModels.SyncStatusCode;
     resource?: {requiresPruning?: boolean};
@@ -323,11 +323,11 @@ export const deletePodAction = async (pod: appModels.Pod, appContext: AppContext
                 } catch (e) {
                     appContext.apis.notifications.show({
                         content: <ErrorNotification title='Unable to delete resource' e={e} />,
-                        type: NotificationType.Error,
+                        type: NotificationType.Error
                     });
                 }
-            },
-        },
+            }
+        }
     );
 };
 
@@ -339,7 +339,7 @@ export const deletePopup = async (ctx: ContextApis, resource: ResourceTreeNode, 
 
     const isManaged = isTopLevelResource(resource, application);
     const deleteOptions = {
-        option: 'foreground',
+        option: 'foreground'
     };
     function handleStateChange(option: string) {
         deleteOptions.option = option;
@@ -387,7 +387,7 @@ export const deletePopup = async (ctx: ContextApis, resource: ResourceTreeNode, 
         {
             validate: vals =>
                 isManaged && {
-                    resourceName: vals.resourceName !== resource.name && 'Enter the resource name to confirm the deletion',
+                    resourceName: vals.resourceName !== resource.name && 'Enter the resource name to confirm the deletion'
                 },
             submit: async (vals, _, close) => {
                 const force = deleteOptions.option === 'force';
@@ -401,13 +401,13 @@ export const deletePopup = async (ctx: ContextApis, resource: ResourceTreeNode, 
                 } catch (e) {
                     ctx.notifications.show({
                         content: <ErrorNotification title='Unable to delete resource' e={e} />,
-                        type: NotificationType.Error,
+                        type: NotificationType.Error
                     });
                 }
-            },
+            }
         },
         {name: 'argo-icon-warning', color: 'warning'},
-        'yellow',
+        'yellow'
     );
 };
 
@@ -430,11 +430,11 @@ function getResourceActionsMenuItems(resource: ResourceTreeNode, metadata: model
                             } catch (e) {
                                 apis.notifications.show({
                                     content: <ErrorNotification title='Unable to execute resource action' e={e} />,
-                                    type: NotificationType.Error,
+                                    type: NotificationType.Error
                                 });
                             }
-                        },
-                    }) as MenuItem,
+                        }
+                    }) as MenuItem
             );
         })
         .catch(() => [] as MenuItem[]);
@@ -446,7 +446,7 @@ function getActionItems(
     tree: appModels.ApplicationTree,
     apis: ContextApis,
     appChanged: BehaviorSubject<appModels.Application>,
-    isQuickStart: boolean,
+    isQuickStart: boolean
 ): Observable<ActionMenuItem[]> {
     const isRoot = resource.root && nodeKey(resource.root) === nodeKey(resource);
     const items: MenuItem[] = [
@@ -454,8 +454,8 @@ function getActionItems(
             {
                 title: 'Sync',
                 iconClassName: 'fa fa-fw fa-sync',
-                action: () => showDeploy(nodeKey(resource), null, apis),
-            },
+                action: () => showDeploy(nodeKey(resource), null, apis)
+            }
         ]) ||
             []),
         {
@@ -463,14 +463,14 @@ function getActionItems(
             iconClassName: 'fa fa-fw fa-times-circle',
             action: async () => {
                 return deletePopup(apis, resource, application, appChanged);
-            },
-        },
+            }
+        }
     ];
     if (!isQuickStart) {
         items.unshift({
             title: 'Details',
             iconClassName: 'fa fa-fw fa-info-circle',
-            action: () => apis.navigation.goto('.', {node: nodeKey(resource)}),
+            action: () => apis.navigation.goto('.', {node: nodeKey(resource)})
         });
     }
 
@@ -478,7 +478,7 @@ function getActionItems(
         items.push({
             title: 'Logs',
             iconClassName: 'fa fa-fw fa-align-left',
-            action: () => apis.navigation.goto('.', {node: nodeKey(resource), tab: 'logs'}, {replace: true}),
+            action: () => apis.navigation.goto('.', {node: nodeKey(resource), tab: 'logs'}, {replace: true})
         });
     }
 
@@ -495,8 +495,8 @@ function getActionItems(
                     {
                         title: 'Exec',
                         iconClassName: 'fa fa-fw fa-terminal',
-                        action: async () => apis.navigation.goto('.', {node: nodeKey(resource), tab: 'exec'}, {replace: true}),
-                    } as MenuItem,
+                        action: async () => apis.navigation.goto('.', {node: nodeKey(resource), tab: 'exec'}, {replace: true})
+                    } as MenuItem
                 ];
             }
             return [] as MenuItem[];
@@ -514,8 +514,8 @@ function getActionItems(
                         title: link.title,
                         iconClassName: `fa fa-fw ${link.iconClass ? link.iconClass : 'fa-external-link'}`,
                         action: () => window.open(link.url, '_blank'),
-                        tooltip: link.description,
-                    }) as MenuItem,
+                        tooltip: link.description
+                    }) as MenuItem
             );
         })
         .catch(() => [] as MenuItem[]);
@@ -524,7 +524,7 @@ function getActionItems(
         from([items]), // this resolves immediately
         concat([[] as MenuItem[]], resourceActions), // this resolves at first to [] and then whatever the API returns
         concat([[] as MenuItem[]], execAction), // this resolves at first to [] and then whatever the API returns
-        concat([[] as MenuItem[]], links), // this resolves at first to [] and then whatever the API returns
+        concat([[] as MenuItem[]], links) // this resolves at first to [] and then whatever the API returns
     ).pipe(map(res => ([] as MenuItem[]).concat(...res)));
 }
 
@@ -534,7 +534,7 @@ export function renderResourceMenu(
     tree: appModels.ApplicationTree,
     apis: ContextApis,
     appChanged: BehaviorSubject<appModels.Application>,
-    getApplicationActionMenu: () => any,
+    getApplicationActionMenu: () => any
 ): React.ReactNode {
     let menuItems: Observable<ActionMenuItem[]>;
 
@@ -609,7 +609,7 @@ export function renderResourceButtons(
     application: appModels.Application,
     tree: appModels.ApplicationTree,
     apis: ContextApis,
-    appChanged: BehaviorSubject<appModels.Application>,
+    appChanged: BehaviorSubject<appModels.Application>
 ): React.ReactNode {
     const menuItems: Observable<ActionMenuItem[]> = getActionItems(resource, application, tree, apis, appChanged, true);
     return (
@@ -820,13 +820,13 @@ export const getAppOperationState = (app: appModels.Application): appModels.Oper
             message: (app.status && app.status.operationState && app.status.operationState.message) || 'waiting to start',
             startedAt: new Date().toISOString(),
             operation: {
-                sync: {},
-            },
+                sync: {}
+            }
         } as appModels.OperationState;
     } else if (app.metadata.deletionTimestamp) {
         return {
             phase: appModels.OperationPhases.Running,
-            startedAt: app.metadata.deletionTimestamp,
+            startedAt: app.metadata.deletionTimestamp
         } as appModels.OperationState;
     } else {
         return app.status.operationState;
@@ -962,7 +962,7 @@ export const getPodReadinessGatesState = (pod: appModels.State): {nonExistingCon
     if (!pod.spec?.readinessGates?.length) {
         return {
             nonExistingConditions: [],
-            notPassedConditions: [],
+            notPassedConditions: []
         };
     }
 
@@ -1001,7 +1001,7 @@ export const getPodReadinessGatesState = (pod: appModels.State): {nonExistingCon
 
     return {
         nonExistingConditions,
-        notPassedConditions: failedConditions,
+        notPassedConditions: failedConditions
     };
 };
 
@@ -1170,7 +1170,7 @@ export function handlePageVisibility<T>(src: () => Observable<T>): Observable<T>
             subscription = src().subscribe(
                 (item: T) => observer.next(item),
                 err => observer.error(err),
-                () => observer.complete(),
+                () => observer.complete()
             );
         };
 
@@ -1225,15 +1225,15 @@ export const BASE_COLORS = [
     '#FF9500', // orange
     '#4B0082', // purple
     '#F5d905', // yellow
-    '#964B00', // brown
+    '#964B00' // brown
 ];
 
 export const urlPattern = new RegExp(
     new RegExp(
         // tslint:disable-next-line:max-line-length
         /^(https?:\/\/(?:www\.|(?!www))[a-z0-9][a-z0-9-]+[a-z0-9]\.[^\s]{2,}|www\.[a-z0-9][a-z0-9-]+[a-z0-9]\.[^\s]{2,}|https?:\/\/(?:www\.|(?!www))[a-z0-9]+\.[^\s]{2,}|www\.[a-z0-9]+\.[^\s]{2,})$/,
-        'gi',
-    ),
+        'gi'
+    )
 );
 
 export function appQualifiedName(app: appModels.Application, nsEnabled: boolean): string {
@@ -1268,5 +1268,5 @@ export function getUsrMsgKeyToDisplay(appName: string, msgKey: string, usrMessag
 
 export const userMsgsList: {[key: string]: string} = {
     groupNodes: `Since the number of pods has surpassed the threshold pod count of 15, you will now be switched to the group node view.
-                 If you prefer the tree view, you can simply click on the Group Nodes toolbar button to deselect the current view.`,
+                 If you prefer the tree view, you can simply click on the Group Nodes toolbar button to deselect the current view.`
 };

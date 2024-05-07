@@ -55,7 +55,7 @@ export class VersionPanel extends React.Component<VersionPanelProps, {copyState:
             'jsonnet': version.JsonnetVersion,
             'kustomize': version.KustomizeVersion,
             'Helm': version.HelmVersion,
-            'kubectl': version.KubectlVersion,
+            'kubectl': version.KubectlVersion
         };
 
         return (

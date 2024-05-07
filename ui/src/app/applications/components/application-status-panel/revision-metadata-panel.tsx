@@ -14,15 +14,15 @@ export const RevisionMetadataPanel = (props: {appName: string; appNamespace: str
                     popperOptions={{
                         modifiers: {
                             preventOverflow: {
-                                enabled: false,
+                                enabled: false
                             },
                             hide: {
-                                enabled: false,
+                                enabled: false
                             },
                             flip: {
-                                enabled: false,
-                            },
-                        },
+                                enabled: false
+                            }
+                        }
                     }}
                     content={
                         <span>

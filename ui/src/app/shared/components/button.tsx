@@ -13,7 +13,7 @@ export const Button = ({
     style,
     disabled,
     beat,
-    rotate,
+    rotate
 }: {
     onClick?: MouseEventHandler;
     children?: ReactNode;

@@ -77,7 +77,7 @@ export const ApplicationURLs = ({urls}: {urls: string[]}) => {
                             anchor={() => <i className='fa fa-caret-down' />}
                             items={externalLinks.map(item => ({
                                 title: item.title,
-                                action: () => window.open(item.ref),
+                                action: () => window.open(item.ref)
                             }))}
                         />
                     )}

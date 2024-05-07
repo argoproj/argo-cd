@@ -57,7 +57,7 @@ export const ApplicationStatusPanel = ({application, showDiff, showOperation, sh
     }
     const cntByCategory = (application.status.conditions || []).reduce(
         (map, next) => map.set(getConditionCategory(next), (map.get(getConditionCategory(next)) || 0) + 1),
-        new Map<string, number>(),
+        new Map<string, number>()
     );
     const appOperationState = getAppOperationState(application);
     if (application.metadata.deletionTimestamp && !appOperationState) {
@@ -87,10 +87,10 @@ export const ApplicationStatusPanel = ({application, showDiff, showOperation, sh
                     {sectionHeader(
                         {
                             title: 'SYNC STATUS',
-                            helpContent: 'Whether or not the version of your app is up to date with your repo. You may wish to sync your app if it is out-of-sync.',
+                            helpContent: 'Whether or not the version of your app is up to date with your repo. You may wish to sync your app if it is out-of-sync.'
                         },
                         hasMultipleSources,
-                        () => showMetadataInfo(application.status.sync ? application.status.sync.revision : ''),
+                        () => showMetadataInfo(application.status.sync ? application.status.sync.revision : '')
                     )}
                     <div className={`application-status-panel__item-value${appOperationState?.phase ? ` application-status-panel__item-value--${appOperationState.phase}` : ''}`}>
                         <div>
@@ -128,10 +128,10 @@ export const ApplicationStatusPanel = ({application, showDiff, showOperation, sh
                                 helpContent:
                                     'Whether or not your last app sync was successful. It has been ' +
                                     daysSinceLastSynchronized +
-                                    ' days since last sync. Click for the status of that sync.',
+                                    ' days since last sync. Click for the status of that sync.'
                             },
                             hasMultipleSources,
-                            () => showMetadataInfo(appOperationState.syncResult ? appOperationState.syncResult.revision : ''),
+                            () => showMetadataInfo(appOperationState.syncResult ? appOperationState.syncResult.revision : '')
                         )}
                         <div className={`application-status-panel__item-value application-status-panel__item-value--${appOperationState.phase}`}>
                             <a onClick={() => showOperation && showOperation()}>
@@ -196,7 +196,7 @@ export const ApplicationStatusPanel = ({application, showDiff, showOperation, sh
                                         'The aggregate state of sync windows for this app. ' +
                                         'Red: no syncs allowed. ' +
                                         'Yellow: manual syncs allowed. ' +
-                                        'Green: all syncs allowed',
+                                        'Green: all syncs allowed'
                                 })}
                                 <div className='application-status-panel__item-value' style={{margin: 'auto 0'}}>
                                     <ApplicationSyncWindowStatusIcon project={application.spec.project} state={data} />

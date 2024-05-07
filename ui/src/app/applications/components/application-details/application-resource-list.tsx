@@ -75,7 +75,7 @@ export const ApplicationResourceList = (props: ApplicationResourceListProps) => 
                         <div
                             key={nodeKey(res)}
                             className={classNames('argo-table-list__row', {
-                                'application-resource-tree__node--orphaned': res.orphaned,
+                                'application-resource-tree__node--orphaned': res.orphaned
                             })}
                             onClick={() => props.onNodeClick && props.onNodeClick(nodeKey(res))}>
                             <div className='row'>
@@ -155,7 +155,7 @@ export const ApplicationResourceList = (props: ApplicationResourceListProps) => 
                                                         info: null,
                                                         uid: '',
                                                         resourceVersion: null,
-                                                        parentRefs: [],
+                                                        parentRefs: []
                                                     })
                                                 }
                                             </DropDown>

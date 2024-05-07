@@ -62,8 +62,8 @@ export const ApplicationOperationState: React.StatelessComponent<Props> = ({appl
                 <Ticker>
                     {time => <Duration durationMs={((operationState.finishedAt && moment(operationState.finishedAt)) || time).diff(moment(operationState.startedAt)) / 1000} />}
                 </Ticker>
-            ),
-        },
+            )
+        }
     ];
 
     if (operationState.finishedAt && operationState.phase !== 'Running') {
@@ -82,14 +82,14 @@ export const ApplicationOperationState: React.StatelessComponent<Props> = ({appl
                             } catch (e) {
                                 ctx.apis.notifications.show({
                                     content: <ErrorNotification title='Unable to terminate operation' e={e} />,
-                                    type: NotificationType.Error,
+                                    type: NotificationType.Error
                                 });
                             }
                         }
                     }}>
                     Terminate
                 </button>
-            ),
+            )
         });
     }
     if (operationState.syncResult) {
@@ -112,7 +112,7 @@ export const ApplicationOperationState: React.StatelessComponent<Props> = ({appl
             (syncResult.resources || []).forEach(res => {
                 resultAttributes.push({
                     title: `${res.namespace}/${res.kind}:${res.name}`,
-                    value: res.message,
+                    value: res.message
                 });
             });
         }
@@ -209,5 +209,5 @@ const getStatus = (resource: models.ResourceResult): string => {
 };
 
 ApplicationOperationState.contextTypes = {
-    apis: PropTypes.object,
+    apis: PropTypes.object
 };

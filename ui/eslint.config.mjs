@@ -12,26 +12,26 @@ export default [
         rules: {
             '@typescript-eslint/no-explicit-any': 'off',
             '@typescript-eslint/ban-types': 'off',
-            '@typescript-eslint/no-var-requires': 'off',
-        },
+            '@typescript-eslint/no-var-requires': 'off'
+        }
     },
     {
         settings: {
             react: {
-                version: 'detect',
-            },
+                version: 'detect'
+            }
         },
         ...pluginReactConfig,
         rules: {
             'react/display-name': 'off',
-            'react/no-string-refs': 'off',
-        },
+            'react/no-string-refs': 'off'
+        }
     },
     eslintPluginPrettierRecommended,
     {
-        files: ['./src/**/*.{ts,tsx}'],
+        files: ['./src/**/*.{ts,tsx}']
     },
     {
-        ignores: ['dist', 'assets', '**/*.config.js', '__mocks__', 'coverage', '**/*.test.{ts,tsx}'],
-    },
+        ignores: ['dist', 'assets', '**/*.config.js', '__mocks__', 'coverage', '**/*.test.{ts,tsx}']
+    }
 ];

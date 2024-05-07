@@ -19,7 +19,7 @@ export class GpgKeysList extends React.Component<RouteComponentProps<any>> {
     public static contextTypes = {
         router: PropTypes.object,
         apis: PropTypes.object,
-        history: PropTypes.object,
+        history: PropTypes.object
     };
 
     private formApi: FormApi;
@@ -37,10 +37,10 @@ export class GpgKeysList extends React.Component<RouteComponentProps<any>> {
                             {
                                 title: 'Add GnuPG key',
                                 iconClassName: 'fa fa-plus',
-                                action: () => (this.showAddGnuPGKey = true),
-                            },
-                        ],
-                    },
+                                action: () => (this.showAddGnuPGKey = true)
+                            }
+                        ]
+                    }
                 }}>
                 <div className='gpgkeys-list'>
                     <div className='argo-container'>
@@ -73,8 +73,8 @@ export class GpgKeysList extends React.Component<RouteComponentProps<any>> {
                                                             items={[
                                                                 {
                                                                     title: 'Remove',
-                                                                    action: () => this.removeKey(gpgkey.keyID),
-                                                                },
+                                                                    action: () => this.removeKey(gpgkey.keyID)
+                                                                }
                                                             ]}
                                                         />
                                                     </div>
@@ -112,10 +112,10 @@ export class GpgKeysList extends React.Component<RouteComponentProps<any>> {
                         onSubmit={params => this.addGnuPGPublicKey({keyData: params.keyData})}
                         getApi={api => (this.formApi = api)}
                         preSubmit={(params: NewGnuPGPublicKeyParams) => ({
-                            keyData: params.keyData,
+                            keyData: params.keyData
                         })}
                         validateError={(params: NewGnuPGPublicKeyParams) => ({
-                            keyData: !params.keyData && 'GnuPG public key data is required',
+                            keyData: !params.keyData && 'GnuPG public key data is required'
                         })}>
                         {formApi => (
                             <form onSubmit={formApi.submitForm} role='form' className='gpgkeys-list width-control' encType='multipart/form-data'>
@@ -162,7 +162,7 @@ export class GpgKeysList extends React.Component<RouteComponentProps<any>> {
             if (!this.validateKeyInputfield(params.keyData)) {
                 throw {
                     name: 'Invalid key exception',
-                    message: 'Invalid GnuPG key data found - must be ASCII armored',
+                    message: 'Invalid GnuPG key data found - must be ASCII armored'
                 };
             }
             await services.gpgkeys.create({keyData: params.keyData});
@@ -171,7 +171,7 @@ export class GpgKeysList extends React.Component<RouteComponentProps<any>> {
         } catch (e) {
             this.appContext.apis.notifications.show({
                 content: <ErrorNotification title='Unable to add GnuPG public key' e={e} />,
-                type: NotificationType.Error,
+                type: NotificationType.Error
             });
         }
     }

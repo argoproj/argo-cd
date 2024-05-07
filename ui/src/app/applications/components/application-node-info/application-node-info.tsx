@@ -46,7 +46,7 @@ const RenderContainerState = (props: {container: any}) => {
                     {status && (
                         <span
                             className={classNames('application-node-info__container--highlight', {
-                                'application-node-info__container--hint': !!msg,
+                                'application-node-info__container--hint': !!msg
                             })}>
                             {status}
                         </span>
@@ -75,7 +75,7 @@ const RenderContainerState = (props: {container: any}) => {
                             {lastState?.reason && (
                                 <span
                                     className={classNames('application-node-info__container--highlight', {
-                                        'application-node-info__container--hint': !!props.container.lastState?.message,
+                                        'application-node-info__container--hint': !!props.container.lastState?.message
                                     })}>
                                     {lastState?.reason}
                                 </span>
@@ -99,12 +99,12 @@ export const ApplicationNodeInfo = (props: {
     const attributes: {title: string; value: any}[] = [
         {title: 'KIND', value: props.node.kind},
         {title: 'NAME', value: <ClipboardText text={props.node.name} />},
-        {title: 'NAMESPACE', value: <ClipboardText text={props.node.namespace} />},
+        {title: 'NAMESPACE', value: <ClipboardText text={props.node.namespace} />}
     ];
     if (props.node.createdAt) {
         attributes.push({
             title: 'CREATED AT',
-            value: formatCreationTimestamp(props.node.createdAt),
+            value: formatCreationTimestamp(props.node.createdAt)
         });
     }
     if ((props.node.images || []).length) {
@@ -118,7 +118,7 @@ export const ApplicationNodeInfo = (props: {
                         </span>
                     ))}
                 </div>
-            ),
+            )
         });
     }
 
@@ -138,7 +138,7 @@ export const ApplicationNodeInfo = (props: {
                                 return <RenderContainerState key={i} container={container} />;
                             })}
                         </div>
-                    ),
+                    )
                 });
             }
         } else if (props.node.kind === 'Service') {
@@ -162,7 +162,7 @@ export const ApplicationNodeInfo = (props: {
                     <span>
                         <ComparisonStatusIcon status={props.controlled.summary.status} resource={props.controlled.summary} label={true} />
                     </span>
-                ),
+                )
             } as any);
         }
         if (props.controlled.summary.health !== undefined) {
@@ -172,7 +172,7 @@ export const ApplicationNodeInfo = (props: {
                     <span>
                         <HealthStatusIcon state={props.controlled.summary.health} /> {props.controlled.summary.health.status}
                     </span>
-                ),
+                )
             } as any);
             if (props.controlled.summary.health.message) {
                 attributes.push({title: 'HEALTH DETAILS', value: props.controlled.summary.health.message});
@@ -187,7 +187,7 @@ export const ApplicationNodeInfo = (props: {
                     <span>
                         <HealthStatusIcon state={treeNode.health} /> {treeNode.health.message || treeNode.health.status}
                     </span>
-                ),
+                )
             } as any);
         }
     }
@@ -195,7 +195,7 @@ export const ApplicationNodeInfo = (props: {
     if (props.links) {
         attributes.push({
             title: 'LINKS',
-            value: <DeepLinks links={props.links.items} />,
+            value: <DeepLinks links={props.links.items} />
         });
     }
 
@@ -226,8 +226,8 @@ export const ApplicationNodeInfo = (props: {
                                                     services.viewPreferences.updatePreferences({
                                                         appDetails: {
                                                             ...pref.appDetails,
-                                                            hideManagedFields: !pref.appDetails.hideManagedFields,
-                                                        },
+                                                            hideManagedFields: !pref.appDetails.hideManagedFields
+                                                        }
                                                     })
                                                 }
                                             />
@@ -243,7 +243,7 @@ export const ApplicationNodeInfo = (props: {
                                                     props.application.metadata.namespace,
                                                     props.node,
                                                     patch,
-                                                    patchType,
+                                                    patchType
                                                 )
                                             }
                                         />
@@ -266,20 +266,20 @@ export const ApplicationNodeInfo = (props: {
                         );
                     }}
                 </DataLoader>
-            ),
-        },
+            )
+        }
     ];
     if (props.controlled && !props.controlled.summary.hook) {
         tabs.push({
             key: 'diff',
             icon: 'fa fa-file-medical',
             title: 'Diff',
-            content: <ApplicationResourcesDiff states={[props.controlled.state]} />,
+            content: <ApplicationResourcesDiff states={[props.controlled.state]} />
         });
         tabs.push({
             key: 'desiredManifest',
             title: 'Desired Manifest',
-            content: <YamlEditor input={props.controlled.state.targetState} hideModeButtons={true} />,
+            content: <YamlEditor input={props.controlled.state.targetState} hideModeButtons={true} />
         });
     }
 

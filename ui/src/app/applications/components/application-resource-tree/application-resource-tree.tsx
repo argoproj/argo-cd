@@ -23,7 +23,7 @@ import {
     NodeId,
     nodeKey,
     PodHealthIcon,
-    getUsrMsgKeyToDisplay,
+    getUsrMsgKeyToDisplay
 } from '../utils';
 import {NodeUpdateAnimation} from './node-update-animation';
 import {PodGroup} from '../application-pod-view/pod-view';
@@ -91,7 +91,7 @@ const NODE_TYPES = {
     externalLoadBalancer: 'external_load_balancer',
     internalTraffic: 'internal_traffic',
     groupedNodes: 'grouped_nodes',
-    podGroup: 'pod_group',
+    podGroup: 'pod_group'
 };
 // generate lots of colors with different darkness
 const TRAFFIC_COLORS = [0, 0.25, 0.4, 0.6].map(darken => BASE_COLORS.map(item => color(item).darken(darken).hex())).reduce((first, second) => first.concat(second), []);
@@ -113,7 +113,7 @@ function groupNodes(nodes: ResourceTreeNode[], graph: dagre.graphlib.Graph) {
             nodeId,
             kind: node.kind,
             parentIds: graph.predecessors(nodeId),
-            childIds: graph.successors(nodeId),
+            childIds: graph.successors(nodeId)
         };
     }
 
@@ -150,14 +150,14 @@ function groupNodes(nodes: ResourceTreeNode[], graph: dagre.graphlib.Graph) {
                         const groupedNodesInfoObj = {
                             kind: currentNodeInfo.kind,
                             nodeIds: nodeIdArr,
-                            parentIds: currentNodeInfo.parentIds,
+                            parentIds: currentNodeInfo.parentIds
                         };
                         groupedNodesInfo.push(groupedNodesInfoObj);
                     }
 
                     return groupedNodesInfo;
                 },
-                [],
+                []
             );
         })
         .reduce((flattedNodesGroup, groupedNodes) => {
@@ -194,7 +194,7 @@ function groupNodes(nodes: ResourceTreeNode[], graph: dagre.graphlib.Graph) {
                     height: NODE_HEIGHT,
                     width: NODE_WIDTH,
                     count: reducedNodeIds.length,
-                    type: NODE_TYPES.groupedNodes,
+                    type: NODE_TYPES.groupedNodes
                 });
                 graph.setEdge(parentIds[0].toString(), `${parentIds[0].toString()}/child/${kind}`);
             }
@@ -335,7 +335,7 @@ function renderLoadBalancerNode(node: dagre.Node & {label: string; color: string
                 left: node.x,
                 top: node.y,
                 width: node.width,
-                height: node.height,
+                height: node.height
             }}>
             <div className='application-resource-tree__node-kind-icon'>
                 <i title={node.kind} className={`icon fa fa-network-wired`} style={{color: node.color}} />
@@ -372,7 +372,7 @@ function processPodGroup(targetPodGroup: ResourceTreeNode, child: ResourceTreeNo
             renderMenu: () => props.nodeMenu(targetPodGroup),
             kind: targetPodGroup.kind,
             type: 'parentResource',
-            name: targetPodGroup.name,
+            name: targetPodGroup.name
         };
     }
     if (child.kind === 'Pod') {
@@ -381,7 +381,7 @@ function processPodGroup(targetPodGroup: ResourceTreeNode, child: ResourceTreeNo
             fullName: nodeKey(child),
             metadata: {name: child.name},
             spec: {nodeName: 'Unknown'},
-            health: child.health ? child.health.status : 'Unknown',
+            health: child.health ? child.health.status : 'Unknown'
         } as models.Pod;
 
         // Get node name for Pod
@@ -446,20 +446,20 @@ function renderPodGroup(props: ApplicationResourceTreeProps, id: string, node: R
         <div
             className={classNames('application-resource-tree__node', {
                 'active': fullName === props.selectedNodeFullName,
-                'application-resource-tree__node--orphaned': node.orphaned,
+                'application-resource-tree__node--orphaned': node.orphaned
             })}
             title={describeNode(node)}
             style={{
                 left: node.x,
                 top: node.y - topExtra,
                 width: node.width,
-                height: showPodGroupByStatus ? POD_NODE_HEIGHT + 20 * numberOfRows : node.height,
+                height: showPodGroupByStatus ? POD_NODE_HEIGHT + 20 * numberOfRows : node.height
             }}>
             <NodeUpdateAnimation resourceVersion={node.resourceVersion} />
             <div onClick={() => props.onNodeClick && props.onNodeClick(fullName)} className={`application-resource-tree__node__top-part`}>
                 <div
                     className={classNames('application-resource-tree__node-kind-icon', {
-                        'application-resource-tree__node-kind-icon--big': rootNode,
+                        'application-resource-tree__node-kind-icon--big': rootNode
                     })}>
                     <ResourceIcon kind={node.kind || 'Unknown'} />
                     <br />
@@ -469,14 +469,14 @@ function renderPodGroup(props: ApplicationResourceTreeProps, id: string, node: R
                     <span
                         className={classNames('application-resource-tree__node-title', {
                             'application-resource-tree__direction-right': props.nameDirection,
-                            'application-resource-tree__direction-left': !props.nameDirection,
+                            'application-resource-tree__direction-left': !props.nameDirection
                         })}
                         onClick={() => props.onGroupdNodeClick && props.onGroupdNodeClick(node.groupedNodeIds)}>
                         {node.name}
                     </span>
                     <span
                         className={classNames('application-resource-tree__node-status-icon', {
-                            'application-resource-tree__node-status-icon--offset': rootNode,
+                            'application-resource-tree__node-status-icon--offset': rootNode
                         })}>
                         {node.hook && <i title='Resource lifecycle hook' className='fa fa-anchor' />}
                         {healthState != null && <HealthStatusIcon state={healthState} />}
@@ -615,15 +615,15 @@ function renderPodGroupByStatus(props: ApplicationResourceTreeProps, node: any, 
                                 popperOptions={{
                                     modifiers: {
                                         preventOverflow: {
-                                            enabled: true,
+                                            enabled: true
                                         },
                                         hide: {
-                                            enabled: false,
+                                            enabled: false
                                         },
                                         flip: {
-                                            enabled: false,
-                                        },
-                                    },
+                                            enabled: false
+                                        }
+                                    }
                                 }}
                                 key={pod.metadata.name}>
                                 <div style={{position: 'relative'}}>
@@ -644,7 +644,7 @@ function renderPodGroupByStatus(props: ApplicationResourceTreeProps, node: any, 
                                         <i className='fa fa-info-circle' /> Info
                                     </React.Fragment>
                                 ),
-                                action: () => props.onNodeClick(pod.fullName),
+                                action: () => props.onNodeClick(pod.fullName)
                             },
                             {
                                 title: (
@@ -654,7 +654,7 @@ function renderPodGroupByStatus(props: ApplicationResourceTreeProps, node: any, 
                                 ),
                                 action: () => {
                                     props.appContext.apis.navigation.goto('.', {node: pod.fullName, tab: 'logs'}, {replace: true});
-                                },
+                                }
                             },
                             {
                                 title: (
@@ -664,8 +664,8 @@ function renderPodGroupByStatus(props: ApplicationResourceTreeProps, node: any, 
                                 ),
                                 action: () => {
                                     deletePodAction(pod, props.appContext, props.app.metadata.name, props.app.metadata.namespace);
-                                },
-                            },
+                                }
+                            }
                         ]}
                     />
                 ))
@@ -752,19 +752,19 @@ function renderResourceNode(props: ApplicationResourceTreeProps, id: string, nod
             onClick={() => props.onNodeClick && props.onNodeClick(fullName)}
             className={classNames('application-resource-tree__node', 'application-resource-tree__node--' + node.kind.toLowerCase(), {
                 'active': fullName === props.selectedNodeFullName,
-                'application-resource-tree__node--orphaned': node.orphaned,
+                'application-resource-tree__node--orphaned': node.orphaned
             })}
             title={describeNode(node)}
             style={{
                 left: node.x,
                 top: node.y,
                 width: node.width,
-                height: node.height,
+                height: node.height
             }}>
             {!appNode && <NodeUpdateAnimation resourceVersion={node.resourceVersion} />}
             <div
                 className={classNames('application-resource-tree__node-kind-icon', {
-                    'application-resource-tree__node-kind-icon--big': rootNode,
+                    'application-resource-tree__node-kind-icon--big': rootNode
                 })}>
                 <ResourceIcon kind={node.kind} />
                 <br />
@@ -774,13 +774,13 @@ function renderResourceNode(props: ApplicationResourceTreeProps, id: string, nod
                 <div
                     className={classNames('application-resource-tree__node-title', {
                         'application-resource-tree__direction-right': props.nameDirection,
-                        'application-resource-tree__direction-left': !props.nameDirection,
+                        'application-resource-tree__direction-left': !props.nameDirection
                     })}>
                     {node.name}
                 </div>
                 <div
                     className={classNames('application-resource-tree__node-status-icon', {
-                        'application-resource-tree__node-status-icon--offset': rootNode,
+                        'application-resource-tree__node-status-icon--offset': rootNode
                     })}>
                     {node.hook && <i title='Resource lifecycle hook' className='fa fa-anchor' />}
                     {healthState != null && <HealthStatusIcon state={healthState} />}
@@ -867,7 +867,7 @@ function findNetworkTargets(nodes: ResourceTreeNode[], networkingInfo: models.Re
                     return Object.keys(networkingInfo.targetLabels).every(key => networkingInfo.targetLabels[key] === target.networkingInfo.labels[key]);
                 }
                 return false;
-            }),
+            })
         );
     }
     return result;
@@ -894,10 +894,10 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
                 ? [
                       {
                           name: 'Parameter overrides',
-                          value: `${overridesCount} parameter override(s)`,
-                      },
+                          value: `${overridesCount} parameter override(s)`
+                      }
                   ]
-                : [],
+                : []
     };
 
     const statusByKey = new Map<string, models.ResourceStatus>();
@@ -1015,9 +1015,9 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
                 internalRoots
                     .map(root => treeNodeKey(root))
                     .concat(
-                        externalRoots.map(root => root.networkingInfo.ingress.map(ingress => ingress.hostname || ingress.ip)).reduce((first, second) => first.concat(second), []),
-                    ),
-            ),
+                        externalRoots.map(root => root.networkingInfo.ingress.map(ingress => ingress.hostname || ingress.ip)).reduce((first, second) => first.concat(second), [])
+                    )
+            )
         );
         // assign unique color to each traffic source
         sources.forEach((key, i) => colorsBySource.set(key, TRAFFIC_COLORS[i % TRAFFIC_COLORS.length]));
@@ -1048,7 +1048,7 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
                         width: NODE_WIDTH,
                         type: NODE_TYPES.externalLoadBalancer,
                         label: key,
-                        color: colorsBySource.get(key),
+                        color: colorsBySource.get(key)
                     });
                     graph.setEdge(loadBalancerNodeKey, treeNodeKey(root), {colors: [colorsBySource.get(key)]});
                     graph.setEdge(EXTERNAL_TRAFFIC_NODE, loadBalancerNodeKey, {colors: [colorsBySource.get(key)]});
@@ -1273,7 +1273,7 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
                                         left: xMid - distance / 2,
                                         top: yMid,
                                         backgroundImage: edge.backgroundImage,
-                                        transform: props.useNetworkingHierarchy ? `translate(140px, 35px) rotate(${angle}deg)` : `translate(150px, 35px) rotate(${angle}deg)`,
+                                        transform: props.useNetworkingHierarchy ? `translate(140px, 35px) rotate(${angle}deg)` : `translate(150px, 35px) rotate(${angle}deg)`
                                     }}>
                                     {lastLine && props.useNetworkingHierarchy && <ArrowConnector color={arrowColor} left={xMid + distance / 2} top={yMid} angle={angle} />}
                                 </div>

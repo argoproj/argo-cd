@@ -29,7 +29,7 @@ export class RepositoriesService {
         proxy,
         project,
         forceHttpBasicAuth,
-        enableOCI,
+        enableOCI
     }: {
         type: string;
         name: string;
@@ -64,7 +64,7 @@ export class RepositoriesService {
         proxy,
         project,
         forceHttpBasicAuth,
-        enableOCI,
+        enableOCI
     }: {
         type: string;
         name: string;
@@ -94,7 +94,7 @@ export class RepositoriesService {
         insecure,
         enableLfs,
         proxy,
-        project,
+        project
     }: {
         type: string;
         name: string;
@@ -124,7 +124,7 @@ export class RepositoriesService {
         insecure,
         enableLfs,
         proxy,
-        project,
+        project
     }: {
         type: string;
         name: string;
@@ -155,7 +155,7 @@ export class RepositoriesService {
                 insecure,
                 enableLfs,
                 proxy,
-                project,
+                project
             })
             .then(res => res.body as models.Repository);
     }
@@ -166,7 +166,7 @@ export class RepositoriesService {
         url,
         gcpServiceAccountKey,
         proxy,
-        project,
+        project
     }: {
         type: string;
         name: string;
@@ -183,7 +183,7 @@ export class RepositoriesService {
                 repo: url,
                 gcpServiceAccountKey,
                 proxy,
-                project,
+                project
             })
             .then(res => res.body as models.Repository);
     }

@@ -12,7 +12,7 @@ export const ToggleButton = ({
     beat,
     disabled,
     icon,
-    rotate,
+    rotate
 }: {
     toggled: boolean;
     beat?: boolean;
@@ -33,7 +33,7 @@ export const ToggleButton = ({
         style={{
             // these are the argo-button color swapped
             backgroundColor: toggled && ARGO_WARNING_COLOR,
-            color: toggled && 'black',
+            color: toggled && 'black'
         }}>
         {children}
     </Button>

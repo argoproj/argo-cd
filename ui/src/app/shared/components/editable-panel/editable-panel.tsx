@@ -157,7 +157,7 @@ export class EditablePanel<T = {}> extends React.Component<EditablePanelProps<T>
                                             } catch (e) {
                                                 ctx.notifications.show({
                                                     content: <ErrorNotification title='Unable to save changes' e={e} />,
-                                                    type: NotificationType.Error,
+                                                    type: NotificationType.Error
                                                 });
                                             } finally {
                                                 this.setState({saving: false});

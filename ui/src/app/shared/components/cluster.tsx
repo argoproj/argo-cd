@@ -35,7 +35,7 @@ async function getCluster(clusters: Promise<models.Cluster[]>, server: string, n
     if (!cluster) {
         cluster = {
             name: server,
-            server,
+            server
         };
     }
     return cluster;

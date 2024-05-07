@@ -12,7 +12,7 @@ export const FullscreenButton = ({
     kind,
     name,
     namespace,
-    podName,
+    podName
 }: PodLogsProps & {fullscreen?: boolean}) => {
     const fullscreenURL =
         `/applications/${applicationNamespace}/${applicationName}/${namespace}/${containerName}/logs?` + `podName=${podName}&group=${group}&kind=${kind}&name=${name}`;

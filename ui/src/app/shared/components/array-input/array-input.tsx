@@ -165,7 +165,7 @@ export const ResetOrDeleteButton = (props: {
 
 export const ArrayInputField = ReactForm.FormField((props: {fieldApi: ReactForm.FieldApi}) => {
     const {
-        fieldApi: {getValue, setValue},
+        fieldApi: {getValue, setValue}
     } = props;
     return <ArrayInput editor={NameValueEditor} items={getValue() || []} onChange={setValue} />;
 });
@@ -173,7 +173,7 @@ export const ArrayInputField = ReactForm.FormField((props: {fieldApi: ReactForm.
 export const ArrayValueField = ReactForm.FormField(
     (props: {fieldApi: ReactForm.FieldApi; name: string; defaultVal: string[]; isPluginPar: boolean; setAppParamsDeletedState: any}) => {
         const {
-            fieldApi: {getValue, setValue},
+            fieldApi: {getValue, setValue}
         } = props;
 
         let liveParamArray;
@@ -209,13 +209,13 @@ export const ArrayValueField = ReactForm.FormField(
                 />
             </React.Fragment>
         );
-    },
+    }
 );
 
 export const StringValueField = ReactForm.FormField(
     (props: {fieldApi: ReactForm.FieldApi; name: string; defaultVal: string; isPluginPar: boolean; setAppParamsDeletedState: any}) => {
         const {
-            fieldApi: {getValue, setValue},
+            fieldApi: {getValue, setValue}
         } = props;
         let liveParamString;
         const liveParam = getValue()?.find((val: {name: string; string: string}) => val.name === props.name);
@@ -256,12 +256,12 @@ export const StringValueField = ReactForm.FormField(
                 </div>
             </React.Fragment>
         );
-    },
+    }
 );
 
 export const MapInputField = ReactForm.FormField((props: {fieldApi: ReactForm.FieldApi}) => {
     const {
-        fieldApi: {getValue, setValue},
+        fieldApi: {getValue, setValue}
     } = props;
     const items = new Array<NameValue>();
     const map = getValue() || {};
@@ -282,7 +282,7 @@ export const MapInputField = ReactForm.FormField((props: {fieldApi: ReactForm.Fi
 export const MapValueField = ReactForm.FormField(
     (props: {fieldApi: ReactForm.FieldApi; name: string; defaultVal: Map<string, string>; isPluginPar: boolean; setAppParamsDeletedState: any}) => {
         const {
-            fieldApi: {getValue, setValue},
+            fieldApi: {getValue, setValue}
         } = props;
         const items = new Array<NameValue>();
         const liveParam = getValue()?.find((val: {name: string; map: object}) => val.name === props.name);
@@ -318,7 +318,7 @@ export const MapValueField = ReactForm.FormField(
                         if (index === -1) {
                             getValue().push({
                                 name: props.name,
-                                array: change,
+                                array: change
                             });
                         } else {
                             getValue()[index].array = change;
@@ -328,5 +328,5 @@ export const MapValueField = ReactForm.FormField(
                 />
             </React.Fragment>
         );
-    },
+    }
 );

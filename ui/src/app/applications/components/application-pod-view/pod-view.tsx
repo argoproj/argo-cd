@@ -43,7 +43,7 @@ export class PodView extends React.Component<PodViewProps> {
     }
 
     public static contextTypes = {
-        apis: PropTypes.object,
+        apis: PropTypes.object
     };
 
     public render() {
@@ -75,7 +75,7 @@ export class PodView extends React.Component<PodViewProps> {
                                             style={{border: 'none', width: '170px'}}
                                             onClick={() =>
                                                 services.viewPreferences.updatePreferences({
-                                                    appDetails: {...prefs.appDetails, podView: {...podPrefs, hideUnschedulable: !podPrefs.hideUnschedulable}},
+                                                    appDetails: {...prefs.appDetails, podView: {...podPrefs, hideUnschedulable: !podPrefs.hideUnschedulable}}
                                                 })
                                             }>
                                             <i className={`fa fa-${podPrefs.hideUnschedulable ? 'eye-slash' : 'eye'}`} style={{width: '15px', marginRight: '5px'}} />
@@ -166,15 +166,15 @@ export class PodView extends React.Component<PodViewProps> {
                                                                             popperOptions={{
                                                                                 modifiers: {
                                                                                     preventOverflow: {
-                                                                                        enabled: true,
+                                                                                        enabled: true
                                                                                     },
                                                                                     hide: {
-                                                                                        enabled: false,
+                                                                                        enabled: false
                                                                                     },
                                                                                     flip: {
-                                                                                        enabled: false,
-                                                                                    },
-                                                                                },
+                                                                                        enabled: false
+                                                                                    }
+                                                                                }
                                                                             }}
                                                                             key={pod.metadata.name}>
                                                                             <div style={{position: 'relative'}}>
@@ -194,7 +194,7 @@ export class PodView extends React.Component<PodViewProps> {
                                                                                     <i className='fa fa-info-circle' /> Info
                                                                                 </React.Fragment>
                                                                             ),
-                                                                            action: () => this.props.onItemClick(pod.fullName),
+                                                                            action: () => this.props.onItemClick(pod.fullName)
                                                                         },
                                                                         {
                                                                             title: (
@@ -204,7 +204,7 @@ export class PodView extends React.Component<PodViewProps> {
                                                                             ),
                                                                             action: () => {
                                                                                 this.appContext.apis.navigation.goto('.', {node: pod.fullName, tab: 'logs'}, {replace: true});
-                                                                            },
+                                                                            }
                                                                         },
                                                                         {
                                                                             title: (
@@ -214,7 +214,7 @@ export class PodView extends React.Component<PodViewProps> {
                                                                             ),
                                                                             action: () => {
                                                                                 this.appContext.apis.navigation.goto('.', {node: pod.fullName, tab: 'exec'}, {replace: true});
-                                                                            },
+                                                                            }
                                                                         },
                                                                         {
                                                                             title: (
@@ -227,10 +227,10 @@ export class PodView extends React.Component<PodViewProps> {
                                                                                     pod,
                                                                                     this.appContext,
                                                                                     this.props.app.metadata.name,
-                                                                                    this.props.app.metadata.namespace,
+                                                                                    this.props.app.metadata.namespace
                                                                                 );
-                                                                            },
-                                                                        },
+                                                                            }
+                                                                        }
                                                                     ]}
                                                                 />
                                                             ))}
@@ -269,7 +269,7 @@ export class PodView extends React.Component<PodViewProps> {
             action: () => {
                 this.appContext.apis.navigation.goto('.', {podSortMode: mode});
                 services.viewPreferences.updatePreferences({appDetails: {...prefs.appDetails, podView: {...podPrefs, sortMode: mode}}});
-            },
+            }
         }));
     }
 
@@ -292,9 +292,9 @@ export class PodView extends React.Component<PodViewProps> {
                     pods: [],
                     info: [
                         {name: 'Kernel Version', value: infraNode.systemInfo.kernelVersion},
-                        {name: 'OS/Arch', value: `${infraNode.systemInfo.operatingSystem}/${infraNode.systemInfo.architecture}`},
+                        {name: 'OS/Arch', value: `${infraNode.systemInfo.operatingSystem}/${infraNode.systemInfo.architecture}`}
                     ],
-                    hostResourcesInfo: infraNode.resourcesInfo,
+                    hostResourcesInfo: infraNode.resourcesInfo
                 };
             });
         }
@@ -323,7 +323,7 @@ export class PodView extends React.Component<PodViewProps> {
                     createdAt: rnode.createdAt,
                     resourceStatus: {health: rnode.health, status: status ? status.status : null, requiresPruning: status && status.requiresPruning ? true : false},
                     renderMenu: () => this.props.nodeMenu(rnode),
-                    renderQuickStarts: () => this.props.quickStarts(rnode),
+                    renderQuickStarts: () => this.props.quickStarts(rnode)
                 };
             }
         });
@@ -337,7 +337,7 @@ export class PodView extends React.Component<PodViewProps> {
                 fullName: nodeKey(rnode),
                 metadata: {name: rnode.name},
                 spec: {nodeName: 'Unknown'},
-                health: rnode.health ? rnode.health.status : 'Unknown',
+                health: rnode.health ? rnode.health.status : 'Unknown'
             } as Pod;
 
             // Get node name for Pod
@@ -362,9 +362,9 @@ export class PodView extends React.Component<PodViewProps> {
                             pods: [p],
                             info: [
                                 {name: 'Kernel Version', value: 'N/A'},
-                                {name: 'OS/Arch', value: 'N/A'},
+                                {name: 'OS/Arch', value: 'N/A'}
                             ],
-                            hostResourcesInfo: [],
+                            hostResourcesInfo: []
                         };
                     }
                 }
@@ -375,7 +375,7 @@ export class PodView extends React.Component<PodViewProps> {
                             kind: parentRef.kind,
                             type: sortMode,
                             name: parentRef.name,
-                            pods: [p],
+                            pods: [p]
                         };
                     } else {
                         groupRefs[parentRef.uid].pods.push(p);
@@ -405,7 +405,7 @@ export class PodView extends React.Component<PodViewProps> {
 const labelForSortMode = {
     node: 'Node',
     parentResource: 'Parent Resource',
-    topLevelResource: 'Top Level Resource',
+    topLevelResource: 'Top Level Resource'
 };
 
 const sizes = ['Bytes', 'Ki', 'Mi', 'Gi', 'Ti', 'Pi', 'Ei', 'Zi', 'Yi'];

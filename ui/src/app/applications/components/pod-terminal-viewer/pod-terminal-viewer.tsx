@@ -32,7 +32,7 @@ export const PodTerminalViewer: React.FC<PodTerminalViewerProps> = ({
     projectName,
     podState,
     containerName,
-    onClickContainer,
+    onClickContainer
 }) => {
     const terminalRef = React.useRef(null);
     const appContext = React.useContext(Context); // used to show toast
@@ -48,7 +48,7 @@ export const PodTerminalViewer: React.FC<PodTerminalViewerProps> = ({
     function showErrorMsg(msg: string, err: any) {
         appContext.notifications.show({
             content: <ErrorNotification title={msg} e={err} />,
-            type: NotificationType.Error,
+            type: NotificationType.Error
         });
     }
 
@@ -64,8 +64,8 @@ export const PodTerminalViewer: React.FC<PodTerminalViewerProps> = ({
                 JSON.stringify({
                     operation: 'resize',
                     cols: terminal.cols,
-                    rows: terminal.rows,
-                }),
+                    rows: terminal.rows
+                })
             );
         }
     };
@@ -132,12 +132,12 @@ export const PodTerminalViewer: React.FC<PodTerminalViewerProps> = ({
             bellStyle: 'sound',
             fontSize: 14,
             fontWeight: 400,
-            cursorBlink: true,
+            cursorBlink: true
         });
         terminal.options = {
             theme: {
-                background: '#333',
-            },
+                background: '#333'
+            }
         };
         terminal.loadAddon(fitAddon);
         terminal.open(node);
@@ -160,7 +160,7 @@ export const PodTerminalViewer: React.FC<PodTerminalViewerProps> = ({
         webSocket = new WebSocket(
             `${
                 location.protocol === 'https:' ? 'wss' : 'ws'
-            }://${url}/terminal?pod=${name}&container=${containerName}&appName=${applicationName}&appNamespace=${applicationNamespace}&projectName=${projectName}&namespace=${namespace}`,
+            }://${url}/terminal?pod=${name}&container=${containerName}&appName=${applicationName}&appNamespace=${applicationNamespace}&projectName=${projectName}&namespace=${namespace}`
         );
         webSocket.onopen = onConnectionOpen;
         webSocket.onclose = onConnectionClose;
@@ -185,7 +185,7 @@ export const PodTerminalViewer: React.FC<PodTerminalViewerProps> = ({
             // Save a reference to the node
             terminalRef.current = node;
         },
-        [containerName],
+        [containerName]
     );
 
     useEffect(() => {
@@ -222,13 +222,13 @@ export const PodTerminalViewer: React.FC<PodTerminalViewerProps> = ({
         {
             offset: 0,
             title: 'CONTAINERS',
-            containers: podState.spec.containers || [],
+            containers: podState.spec.containers || []
         },
         {
             offset: (podState.spec.containers || []).length,
             title: 'INIT CONTAINERS',
-            containers: podState.spec.initContainers || [],
-        },
+            containers: podState.spec.initContainers || []
+        }
     ];
 
     return (

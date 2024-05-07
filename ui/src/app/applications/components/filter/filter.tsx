@@ -42,7 +42,7 @@ export const CheckboxRow = (props: {value: boolean; onChange?: (value: boolean) 
                 }}
                 value={value}
                 style={{
-                    marginRight: '8px',
+                    marginRight: '8px'
                 }}
             />
             {props.option.icon && <div style={{marginRight: '5px'}}>{props.option.icon}</div>}
@@ -94,7 +94,7 @@ export const Filter = (props: FilterProps) => {
                 Object.keys(values).map(v => {
                     if (options?.find(x => x.label === v)) return {label: v, count: options?.find(x => x.label === v).count} as CheckboxOption;
                     else return {label: v} as CheckboxOption;
-                }),
+                })
             );
         }
     }, [values]);

@@ -52,8 +52,8 @@ export function getFilterResults(applications: Application[], pref: AppsListPref
                         return (inputMatch && inputMatch[0] === app.spec.destination.server) || (app.spec.destination.name && minimatch(app.spec.destination.name, filterString));
                     }
                 }),
-            labels: pref.labelsFilter.length === 0 || pref.labelsFilter.every(selector => LabelSelector.match(selector, app.metadata.labels)),
-        },
+            labels: pref.labelsFilter.length === 0 || pref.labelsFilter.every(selector => LabelSelector.match(selector, app.metadata.labels))
+        }
     }));
 }
 
@@ -80,7 +80,7 @@ const getCounts = (apps: FilteredApp[], filterType: keyof FilterResult, filter: 
     }
     // filter out all apps that does not match other filters and ignore this filter result
     apps.filter(app => filter(app) && Object.keys(app.filterResult).every((key: keyof FilterResult) => key === filterType || app.filterResult[key])).forEach(app =>
-        map.set(filter(app), (map.get(filter(app)) || 0) + 1),
+        map.set(filter(app), (map.get(filter(app)) || 0) + 1)
     );
     return map;
 };
@@ -91,7 +91,7 @@ const getOptions = (apps: FilteredApp[], filterType: keyof FilterResult, filter:
         return {
             label: k,
             icon: getIcon && getIcon(k),
-            count: counts.get(k),
+            count: counts.get(k)
         };
     });
 };
@@ -108,7 +108,7 @@ const SyncFilter = (props: AppFilterProps) => (
             Object.keys(SyncStatuses),
             s => (
                 <ComparisonStatusIcon status={s as SyncStatusCode} noSpin={true} />
-            ),
+            )
         )}
     />
 );
@@ -125,7 +125,7 @@ const HealthFilter = (props: AppFilterProps) => (
             Object.keys(HealthStatuses),
             s => (
                 <HealthStatusIcon state={{status: s as HealthStatusCode, message: ''}} noSpin={true} />
-            ),
+            )
         )}
     />
 );
@@ -142,7 +142,7 @@ const LabelsFilter = (props: AppFilterProps) => {
                     labels.set(label, values);
                 }
                 values.add(app.metadata.labels[label]);
-            }),
+            })
         );
     const suggestions = new Array<string>();
     Array.from(labels.entries()).forEach(([label, values]) => {
@@ -160,7 +160,7 @@ const ProjectFilter = (props: AppFilterProps) => {
     const [projects, loading, error] = useData(
         () => services.projects.list('items.metadata.name'),
         null,
-        () => null,
+        () => null
     );
     const projectOptions = (projects || []).map(proj => {
         return {label: proj.metadata.name};
@@ -194,7 +194,7 @@ const ClusterFilter = (props: AppFilterProps) => {
     const [clusters, loading, error] = useData(() => services.clusters.list());
     const clusterOptions = optionsFrom(
         Array.from(new Set(props.apps.map(app => getClusterDetail(app.spec.destination, clusters)).filter(item => !!item))),
-        props.pref.clustersFilter,
+        props.pref.clustersFilter
     );
 
     return (
@@ -239,7 +239,7 @@ const FavoriteFilter = (props: AppFilterProps) => {
                 value={!!props.pref.showFavorites}
                 onChange={onChange}
                 style={{
-                    marginRight: '8px',
+                    marginRight: '8px'
                 }}
             />
             <div style={{marginRight: '5px', textAlign: 'center', width: '25px'}}>
@@ -256,13 +256,13 @@ function getAutoSyncOptions(apps: FilteredApp[]) {
         {
             label: 'Enabled',
             icon: <i className='fa fa-circle-play' />,
-            count: counts.get('Enabled'),
+            count: counts.get('Enabled')
         },
         {
             label: 'Disabled',
             icon: <i className='fa fa-ban' />,
-            count: counts.get('Disabled'),
-        },
+            count: counts.get('Disabled')
+        }
     ];
 }
 

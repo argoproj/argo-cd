@@ -20,36 +20,36 @@ const appTypes = new Array<{field: string; type: models.AppSourceType}>(
     {type: 'Helm', field: 'helm'},
     {type: 'Kustomize', field: 'kustomize'},
     {type: 'Directory', field: 'directory'},
-    {type: 'Plugin', field: 'plugin'},
+    {type: 'Plugin', field: 'plugin'}
 );
 
 const DEFAULT_APP: Partial<models.Application> = {
     apiVersion: 'argoproj.io/v1alpha1',
     kind: 'Application',
     metadata: {
-        name: '',
+        name: ''
     },
     spec: {
         destination: {
             name: '',
             namespace: '',
-            server: '',
+            server: ''
         },
         source: {
             path: '',
             repoURL: '',
-            targetRevision: 'HEAD',
+            targetRevision: 'HEAD'
         },
         sources: [],
-        project: '',
-    },
+        project: ''
+    }
 };
 
 const AutoSyncFormField = ReactFormField((props: {fieldApi: FieldApi; className: string}) => {
     const manual = 'Manual';
     const auto = 'Automatic';
     const {
-        fieldApi: {getValue, setValue},
+        fieldApi: {getValue, setValue}
     } = props;
     const automated = getValue() as models.Automated;
 
@@ -137,7 +137,7 @@ export const ApplicationCreatePanel = (props: {
                     Promise.all([
                         services.projects.list('items.metadata.name').then(projects => projects.map(proj => proj.metadata.name).sort()),
                         services.clusters.list().then(clusters => clusters.sort()),
-                        services.repos.list(),
+                        services.repos.list()
                     ]).then(([projects, clusters, reposInfo]) => ({projects, clusters, reposInfo}))
                 }>
                 {({projects, clusters, reposInfo}) => {
@@ -178,7 +178,7 @@ export const ApplicationCreatePanel = (props: {
                                         'spec.destination.name':
                                             !a.spec.destination.name &&
                                             (!a.spec.destination.hasOwnProperty('server') || a.spec.destination.server === '') &&
-                                            'Cluster name is required',
+                                            'Cluster name is required'
                                     })}
                                     defaultValues={app}
                                     formDidUpdate={state => props.onAppChanged(state.values as any)}
@@ -222,7 +222,7 @@ export const ApplicationCreatePanel = (props: {
                                                         component={AutocompleteField}
                                                         componentProps={{
                                                             items: projects,
-                                                            filterSuggestions: true,
+                                                            filterSuggestions: true
                                                         }}
                                                     />
                                                 </div>
@@ -289,7 +289,7 @@ export const ApplicationCreatePanel = (props: {
                                                                                     api.setAllValues(updatedApp);
                                                                                 }
                                                                             }
-                                                                        },
+                                                                        }
                                                                     }))}
                                                                 />
                                                             )}
@@ -319,7 +319,7 @@ export const ApplicationCreatePanel = (props: {
                                                                         component={AutocompleteField}
                                                                         componentProps={{
                                                                             items: apps,
-                                                                            filterSuggestions: true,
+                                                                            filterSuggestions: true
                                                                         }}
                                                                     />
                                                                 )}
@@ -345,7 +345,7 @@ export const ApplicationCreatePanel = (props: {
                                                                             component={AutocompleteField}
                                                                             componentProps={{
                                                                                 items: charts.map(chart => chart.name),
-                                                                                filterSuggestions: true,
+                                                                                filterSuggestions: true
                                                                             }}
                                                                         />
                                                                     </div>
@@ -355,7 +355,7 @@ export const ApplicationCreatePanel = (props: {
                                                                             field='spec.source.targetRevision'
                                                                             component={AutocompleteField}
                                                                             componentProps={{
-                                                                                items: (selectedChart && selectedChart.versions) || [],
+                                                                                items: (selectedChart && selectedChart.versions) || []
                                                                             }}
                                                                         />
                                                                         <RevisionHelpIcon type='helm' />
@@ -416,7 +416,7 @@ export const ApplicationCreatePanel = (props: {
                                                                             api.setAllValues(updatedApp);
                                                                             setDestFormat(type);
                                                                         }
-                                                                    },
+                                                                    }
                                                                 }))}
                                                             />
                                                         </div>
@@ -441,18 +441,18 @@ export const ApplicationCreatePanel = (props: {
                                                     path: app.spec.source.path,
                                                     chart: app.spec.source.chart,
                                                     targetRevision: app.spec.source.targetRevision,
-                                                    appName: app.metadata.name,
+                                                    appName: app.metadata.name
                                                 }}
                                                 load={async src => {
                                                     if (src.repoURL && src.targetRevision && (src.path || src.chart)) {
                                                         return services.repos.appDetails(src, src.appName, app.spec.project).catch(() => ({
                                                             type: 'Directory',
-                                                            details: {},
+                                                            details: {}
                                                         }));
                                                     } else {
                                                         return {
                                                             type: 'Directory',
-                                                            details: {},
+                                                            details: {}
                                                         };
                                                     }
                                                 }}>
@@ -464,7 +464,7 @@ export const ApplicationCreatePanel = (props: {
                                                                 details = {
                                                                     type,
                                                                     path: details.path,
-                                                                    helm: {name: '', valueFiles: [], path: '', parameters: [], fileParameters: []},
+                                                                    helm: {name: '', valueFiles: [], path: '', parameters: [], fileParameters: []}
                                                                 };
                                                                 break;
                                                             case 'Kustomize':
@@ -493,7 +493,7 @@ export const ApplicationCreatePanel = (props: {
                                                                     action: () => {
                                                                         setExplicitPathType({type: item.type, path: app.spec.source.path});
                                                                         normalizeTypeFields(api, item.type);
-                                                                    },
+                                                                    }
                                                                 }))}
                                                             />
                                                             <ApplicationParameters

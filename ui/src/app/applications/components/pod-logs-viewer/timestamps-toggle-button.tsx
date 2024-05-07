@@ -5,7 +5,7 @@ import {ToggleButton} from '../../../shared/components/toggle-button';
 export const TimestampsToggleButton = ({
     timestamp,
     viewTimestamps,
-    setViewTimestamps,
+    setViewTimestamps
 }: {
     timestamp?: string;
     viewTimestamps: boolean;

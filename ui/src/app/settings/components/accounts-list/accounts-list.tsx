@@ -10,7 +10,7 @@ export const AccountsList = () => {
         <Page
             title='Accounts'
             toolbar={{
-                breadcrumbs: [{title: 'Settings', path: '/settings'}, {title: 'Accounts'}],
+                breadcrumbs: [{title: 'Settings', path: '/settings'}, {title: 'Accounts'}]
             }}>
             <div className='argo-container'>
                 <DataLoader load={() => services.accounts.list()}>

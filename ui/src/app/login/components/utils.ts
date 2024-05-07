@@ -10,7 +10,7 @@ import {
     parseWwwAuthenticateChallenges,
     processAuthorizationCodeOpenIDResponse,
     processDiscoveryResponse,
-    validateAuthResponse,
+    validateAuthResponse
 } from 'oauth4webapi';
 import {AuthSettings} from '../../shared/models';
 
@@ -19,7 +19,7 @@ export const discoverAuthServer = (issuerURL: URL): Promise<AuthorizationServer>
 export const PKCECodeVerifier = {
     get: () => sessionStorage.getItem(window.btoa('code_verifier')),
     set: (codeVerifier: string) => sessionStorage.setItem(window.btoa('code_verifier'), codeVerifier),
-    unset: () => sessionStorage.removeItem(window.btoa('code_verifier')),
+    unset: () => sessionStorage.removeItem(window.btoa('code_verifier'))
 };
 
 export const getPKCERedirectURI = () => {
@@ -63,7 +63,7 @@ const validateAndGetOIDCForPKCE = async (oidcConfig: AuthSettings['oidcConfig'])
     return {
         issuerURL,
         authorizationServer,
-        clientID: oidcConfig.clientID,
+        clientID: oidcConfig.clientID
     };
 };
 
@@ -118,7 +118,7 @@ export const pkceCallback = async (queryParams: string, oidcConfig: AuthSettings
 
     const client: Client = {
         client_id: oidcConfig.clientID,
-        token_endpoint_auth_method: 'none',
+        token_endpoint_auth_method: 'none'
     };
 
     const params = validateAuthResponse(authorizationServer, client, callbackQueryParams, expectNoState);

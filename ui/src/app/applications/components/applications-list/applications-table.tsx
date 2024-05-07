@@ -31,7 +31,7 @@ export const ApplicationsTable = (props: {
         action: () => {
             reset();
             return selectedApp > -1 ? true : false;
-        },
+        }
     });
     useKeybinding({
         keys: Key.ENTER,
@@ -41,7 +41,7 @@ export const ApplicationsTable = (props: {
                 return true;
             }
             return false;
-        },
+        }
     });
 
     return (
@@ -78,7 +78,7 @@ export const ApplicationsTable = (props: {
                                                                         style={{
                                                                             cursor: 'pointer',
                                                                             marginRight: '7px',
-                                                                            color: favList?.includes(app.metadata.name) ? '#FFCE25' : '#8fa4b1',
+                                                                            color: favList?.includes(app.metadata.name) ? '#FFCE25' : '#8fa4b1'
                                                                         }}
                                                                     />
                                                                 </button>
@@ -142,7 +142,7 @@ export const ApplicationsTable = (props: {
                                                     items={[
                                                         {title: 'Sync', action: () => props.syncApplication(app.metadata.name, app.metadata.namespace)},
                                                         {title: 'Refresh', action: () => props.refreshApplication(app.metadata.name, app.metadata.namespace)},
-                                                        {title: 'Delete', action: () => props.deleteApplication(app.metadata.name, app.metadata.namespace)},
+                                                        {title: 'Delete', action: () => props.deleteApplication(app.metadata.name, app.metadata.namespace)}
                                                     ]}
                                                 />
                                             </div>

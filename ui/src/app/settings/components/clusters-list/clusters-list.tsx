@@ -101,7 +101,7 @@ export const ClustersList = () => {
                                                                             action: async () => {
                                                                                 const confirmed = await ctx.popup.confirm(
                                                                                     'Delete cluster?',
-                                                                                    `Are you sure you want to delete cluster: ${cluster.name}`,
+                                                                                    `Are you sure you want to delete cluster: ${cluster.name}`
                                                                                 );
                                                                                 if (confirmed) {
                                                                                     try {
@@ -114,12 +114,12 @@ export const ClustersList = () => {
                                                                                     } catch (e) {
                                                                                         ctx.notifications.show({
                                                                                             content: <ErrorNotification title='Unable to delete cluster' e={e} />,
-                                                                                            type: NotificationType.Error,
+                                                                                            type: NotificationType.Error
                                                                                         });
                                                                                     }
                                                                                 }
-                                                                            },
-                                                                        },
+                                                                            }
+                                                                        }
                                                                     ]}
                                                                 />
                                                             </div>

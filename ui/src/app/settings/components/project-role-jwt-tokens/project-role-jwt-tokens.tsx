@@ -43,7 +43,7 @@ export const ProjectRoleJWTTokens = (props: ProjectRoleJWTTokensProps) => {
                         getApi={props.getApi}
                         defaultValues={{expiresIn: ''}}
                         validateError={(params: any) => ({
-                            expiresIn: !validExpiresIn(params.expiresIn) && 'Must be in the "[0-9]+[smhd]" format. For example, "12h", "7d".',
+                            expiresIn: !validExpiresIn(params.expiresIn) && 'Must be in the "[0-9]+[smhd]" format. For example, "12h", "7d".'
                         })}>
                         {api => (
                             <form onSubmit={api.submitForm} role='form' className='width-control'>
@@ -105,7 +105,7 @@ async function createJWTToken(props: ProjectRoleJWTTokensProps, api: FormApi, ct
     const nameContext = id === undefined || id === '' ? ` has no token ID and ` : ` has token ID '${id}' and `;
     const confirmed = await ctx.popup.confirm(
         'Create JWT Token',
-        `Are you sure you want to create a JWT token that ${nameContext}${expiresInPrompt} for role '${role}' in project '${project}'?`,
+        `Are you sure you want to create a JWT token that ${nameContext}${expiresInPrompt} for role '${role}' in project '${project}'?`
     );
     if (confirmed) {
         props.createJWTToken({project, role, expiresIn, id} as CreateJWTTokenParams);

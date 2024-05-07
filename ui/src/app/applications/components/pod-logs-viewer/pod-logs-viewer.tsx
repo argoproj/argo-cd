@@ -127,7 +127,7 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
                 follow,
                 sinceSeconds,
                 filter,
-                previous,
+                previous
             }) // accumulate log changes and render only once every 100ms to reduce CPU usage
             .pipe(bufferTime(100))
             .pipe(retryWhen(errors => errors.pipe(delay(500))))
