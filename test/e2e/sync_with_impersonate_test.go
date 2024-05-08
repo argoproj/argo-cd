@@ -2,6 +2,7 @@ package e2e
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	. "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
@@ -11,6 +12,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	rbac "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 )
 
 func TestSyncWithImpersonateDisable(t *testing.T) {
@@ -170,6 +172,61 @@ func TestSyncWithImpersonateWithFalseServiceAccount(t *testing.T) {
 		}).
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeOutOfSync))
+}
+
+func TestSyncWithNegationApplicationDestinationNamespace(t *testing.T) {
+	projectName := "nagation-test-project"
+	serviceAccountName := "test-account"
+	roleName := "test-account-sa-role"
+	Given(t).
+		SetTrackingMethod("annotation").
+		Path("guestbook").
+		When().
+		SetParamInSettingConfigMap("application.sync.impersonation.enabled", "true").
+		And(func() {
+			destinationServiceAccounts := []ApplicationDestinationServiceAccount{
+				{
+					Server:                "*",
+					Namespace:             fixture.DeploymentNamespace(),
+					DefaultServiceAccount: serviceAccountName,
+				},
+			}
+			err := createTestServiceAccount(serviceAccountName, fixture.DeploymentNamespace())
+			assert.NoError(t, err)
+			err = createTestAppProject(projectName, fixture.TestNamespace(), destinationServiceAccounts)
+			assert.NoError(t, err)
+			err = createTestRole(roleName, fixture.DeploymentNamespace(), []rbac.PolicyRule{
+				{
+					APIGroups: []string{"apps", ""},
+					Resources: []string{"deployments"},
+					Verbs:     []string{"*"},
+				},
+				{
+					APIGroups: []string{""},
+					Resources: []string{"services"},
+					Verbs:     []string{"*"},
+				},
+			})
+			assert.NoError(t, err)
+			err = createTestRoleBinding(roleName, serviceAccountName, fixture.DeploymentNamespace())
+			assert.NoError(t, err)
+		}).
+		CreateFromFile(func(app *Application) {
+			app.Spec.SyncPolicy = &SyncPolicy{Automated: &SyncPolicyAutomated{}}
+			app.Spec.Project = projectName
+		}).
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		When().
+		And(func() {
+			patch := []byte(fmt.Sprintf(`{"spec": {"destinations": [{"namespace": "%s"}]}}`, "!"+fixture.DeploymentNamespace()))
+
+			_, err := fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.TestNamespace()).Patch(context.Background(), projectName, types.MergePatchType, patch, metav1.PatchOptions{})
+			assert.NoError(t, err)
+		}).
+		Refresh(RefreshTypeNormal).
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeUnknown))
 }
 
 // createTestAppProject creates a test AppProject resource.
