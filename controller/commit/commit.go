@@ -3,6 +3,7 @@ package commit
 import (
 	"encoding/json"
 	"fmt"
+	securejoin "github.com/cyphar/filepath-securejoin"
 	"github.com/google/uuid"
 	log "github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -65,11 +66,21 @@ func (s *service) Commit(r ManifestsRequest) (ManifestsResponse, error) {
 
 	logCtx.Debug("Creating temp dir")
 	dirName, err := uuid.NewRandom()
+	if err != nil {
+		return ManifestsResponse{}, fmt.Errorf("failed to generate a uuid to create temp dir: %w", err)
+	}
+	// Don't need SecureJoin here, both parts are safe.
 	dirPath := path.Join("/tmp/_commit-service", dirName.String())
 	err = os.MkdirAll(dirPath, os.ModePerm)
 	if err != nil {
 		return ManifestsResponse{}, fmt.Errorf("failed to create temp dir: %w", err)
 	}
+	defer func() {
+		err := os.RemoveAll(dirPath)
+		if err != nil {
+			logCtx.WithError(err).Errorf("failed to remove temp dir %s", dirPath)
+		}
+	}()
 
 	// Clone the repo into the temp dir using the git CLI
 	logCtx.Debugf("Cloning repo %s", r.RepoURL)
@@ -84,7 +95,7 @@ func (s *service) Commit(r ManifestsRequest) (ManifestsResponse, error) {
 	authorCmd.Dir = dirPath
 	out, err := authorCmd.CombinedOutput()
 	if err != nil {
-		log.WithError(err).WithField("output", string(out)).Error("failed to set author name")
+		logCtx.WithError(err).WithField("output", string(out)).Error("failed to set author name")
 		return ManifestsResponse{}, fmt.Errorf("failed to set author name: %w", err)
 	}
 
@@ -94,7 +105,7 @@ func (s *service) Commit(r ManifestsRequest) (ManifestsResponse, error) {
 	emailCmd.Dir = dirPath
 	out, err = emailCmd.CombinedOutput()
 	if err != nil {
-		log.WithError(err).WithField("output", string(out)).Error("failed to set author email")
+		logCtx.WithError(err).WithField("output", string(out)).Error("failed to set author email")
 		return ManifestsResponse{}, fmt.Errorf("failed to set author email: %w", err)
 	}
 
@@ -111,11 +122,11 @@ func (s *service) Commit(r ManifestsRequest) (ManifestsResponse, error) {
 			checkoutCmd.Dir = dirPath
 			out, err = checkoutCmd.CombinedOutput()
 			if err != nil {
-				log.WithError(err).WithField("output", string(out)).Error("failed to create orphan branch")
+				logCtx.WithError(err).WithField("output", string(out)).Error("failed to create orphan branch")
 				return ManifestsResponse{}, fmt.Errorf("failed to create orphan branch: %w", err)
 			}
 		} else {
-			log.WithError(err).WithField("output", string(out)).Error("failed to checkout sync branch")
+			logCtx.WithError(err).WithField("output", string(out)).Error("failed to checkout sync branch")
 			return ManifestsResponse{}, fmt.Errorf("failed to checkout sync branch: %w", err)
 		}
 
@@ -125,7 +136,7 @@ func (s *service) Commit(r ManifestsRequest) (ManifestsResponse, error) {
 		commitCmd.Dir = dirPath
 		out, err = commitCmd.CombinedOutput()
 		if err != nil {
-			log.WithError(err).WithField("output", string(out)).Error("failed to commit initial commit")
+			logCtx.WithError(err).WithField("output", string(out)).Error("failed to commit initial commit")
 			return ManifestsResponse{}, fmt.Errorf("failed to commit initial commit: %w", err)
 		}
 
@@ -135,7 +146,7 @@ func (s *service) Commit(r ManifestsRequest) (ManifestsResponse, error) {
 		pushCmd.Dir = dirPath
 		out, err = pushCmd.CombinedOutput()
 		if err != nil {
-			log.WithError(err).WithField("output", string(out)).Error("failed to push sync branch")
+			logCtx.WithError(err).WithField("output", string(out)).Error("failed to push sync branch")
 			return ManifestsResponse{}, fmt.Errorf("failed to push sync branch: %w", err)
 		}
 	}
@@ -154,7 +165,7 @@ func (s *service) Commit(r ManifestsRequest) (ManifestsResponse, error) {
 			checkoutCmd.Dir = dirPath
 			out, err = checkoutCmd.CombinedOutput()
 			if err != nil {
-				log.WithError(err).WithField("output", string(out)).Error("failed to checkout sync branch")
+				logCtx.WithError(err).WithField("output", string(out)).Error("failed to checkout sync branch")
 				return ManifestsResponse{}, fmt.Errorf("failed to checkout sync branch: %w", err)
 			}
 
@@ -163,11 +174,11 @@ func (s *service) Commit(r ManifestsRequest) (ManifestsResponse, error) {
 			checkoutCmd.Dir = dirPath
 			out, err = checkoutCmd.CombinedOutput()
 			if err != nil {
-				log.WithError(err).WithField("output", string(out)).Error("failed to create branch")
+				logCtx.WithError(err).WithField("output", string(out)).Error("failed to create branch")
 				return ManifestsResponse{}, fmt.Errorf("failed to create branch: %w", err)
 			}
 		} else {
-			log.WithError(err).WithField("output", string(out)).Error("failed to checkout branch")
+			logCtx.WithError(err).WithField("output", string(out)).Error("failed to checkout branch")
 			return ManifestsResponse{}, fmt.Errorf("failed to checkout branch: %w", err)
 		}
 	}
@@ -178,7 +189,7 @@ func (s *service) Commit(r ManifestsRequest) (ManifestsResponse, error) {
 	rmCmd.Dir = dirPath
 	out, err = rmCmd.CombinedOutput()
 	if err != nil {
-		log.WithError(err).WithField("output", string(out)).Error("failed to clear repo contents")
+		logCtx.WithError(err).WithField("output", string(out)).Error("failed to clear repo contents")
 		return ManifestsResponse{}, fmt.Errorf("failed to clear repo contents: %w", err)
 	}
 
@@ -193,7 +204,9 @@ func (s *service) Commit(r ManifestsRequest) (ManifestsResponse, error) {
 	if err != nil {
 		return ManifestsResponse{}, fmt.Errorf("failed to marshal hydrator metadata: %w", err)
 	}
-	err = os.WriteFile(path.Join(dirPath, "hydrator.metadata"), hydratorMetadataJson, os.ModePerm)
+	// No need to use SecureJoin here, as the path is already sanitized.
+	hydratorMetadataPath := path.Join(dirPath, "hydrator.metadata")
+	err = os.WriteFile(hydratorMetadataPath, hydratorMetadataJson, os.ModePerm)
 	if err != nil {
 		return ManifestsResponse{}, fmt.Errorf("failed to write hydrator metadata: %w", err)
 	}
@@ -205,33 +218,38 @@ func (s *service) Commit(r ManifestsRequest) (ManifestsResponse, error) {
 			hydratePath = ""
 		}
 		logCtx.Debugf("Writing manifests to %s", hydratePath)
-		fullHydratePath := path.Join(dirPath, hydratePath)
+		fullHydratePath, err := securejoin.SecureJoin(dirPath, hydratePath)
+		if err != nil {
+			return ManifestsResponse{}, fmt.Errorf("failed to construct hydrate path: %w", err)
+		}
 		err = os.MkdirAll(fullHydratePath, os.ModePerm)
 		if err != nil {
 			return ManifestsResponse{}, fmt.Errorf("failed to create path: %w", err)
 		}
 
 		// If the file exists, truncate it.
-		logCtx.Debugf("Emptying manifest file %s", path.Join(dirPath, hydratePath, "manifest.yaml"))
-		if _, err := os.Stat(path.Join(dirPath, hydratePath, "manifest.yaml")); err == nil {
-			err = os.Truncate(path.Join(dirPath, hydratePath, "manifest.yaml"), 0)
+		// No need to use SecureJoin here, as the path is already sanitized.
+		manifestPath := path.Join(fullHydratePath, "manifest.yaml")
+		logCtx.Debugf("Emptying manifest file %s", manifestPath)
+		if _, err := os.Stat(manifestPath); err == nil {
+			err = os.Truncate(manifestPath, 0)
 			if err != nil {
 				return ManifestsResponse{}, fmt.Errorf("failed to empty manifest file: %w", err)
 			}
 		}
 
-		logCtx.Debugf("Opening manifest file %s", path.Join(dirPath, hydratePath, "manifest.yaml"))
-		file, err := os.OpenFile(path.Join(dirPath, hydratePath, "manifest.yaml"), os.O_APPEND|os.O_CREATE|os.O_WRONLY, os.ModePerm)
+		logCtx.Debugf("Opening manifest file %s", manifestPath)
+		file, err := os.OpenFile(manifestPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, os.ModePerm)
 		if err != nil {
 			return ManifestsResponse{}, fmt.Errorf("failed to open manifest file: %w", err)
 		}
 		defer func() {
 			err := file.Close()
 			if err != nil {
-				log.WithError(err).Error("failed to close file")
+				logCtx.WithError(err).Error("failed to close file")
 			}
 		}()
-		logCtx.Debugf("Writing manifests to %s", path.Join(dirPath, hydratePath, "manifest.yaml"))
+		logCtx.Debugf("Writing manifests to %s", manifestPath)
 		for _, m := range p.Manifests {
 			// Marshal the manifests
 			mYaml, err := yaml.Marshal(m.Manifest.Object)
@@ -257,7 +275,9 @@ func (s *service) Commit(r ManifestsRequest) (ManifestsResponse, error) {
 		if err != nil {
 			return ManifestsResponse{}, fmt.Errorf("failed to marshal hydrator metadata: %w", err)
 		}
-		err = os.WriteFile(path.Join(fullHydratePath, "hydrator.metadata"), hydratorMetadataJson, os.ModePerm)
+		// No need to use SecureJoin here, as the path is already sanitized.
+		hydratorMetadataPath := path.Join(fullHydratePath, "hydrator.metadata")
+		err = os.WriteFile(hydratorMetadataPath, hydratorMetadataJson, os.ModePerm)
 		if err != nil {
 			return ManifestsResponse{}, fmt.Errorf("failed to write hydrator metadata: %w", err)
 		}
@@ -270,7 +290,9 @@ func (s *service) Commit(r ManifestsRequest) (ManifestsResponse, error) {
 			return ManifestsResponse{}, fmt.Errorf("failed to parse readme template: %w", err)
 		}
 		// Create writer to template into
-		readmeFile, err := os.Create(path.Join(fullHydratePath, "README.md"))
+		// No need to use SecureJoin here, as the path is already sanitized.
+		readmePath := path.Join(fullHydratePath, "README.md")
+		readmeFile, err := os.Create(readmePath)
 		if err != nil && !os.IsExist(err) {
 			return ManifestsResponse{}, fmt.Errorf("failed to create README file: %w", err)
 		}
@@ -290,7 +312,7 @@ func (s *service) Commit(r ManifestsRequest) (ManifestsResponse, error) {
 	addCmd.Dir = dirPath
 	out, err = addCmd.CombinedOutput()
 	if err != nil {
-		log.WithError(err).WithField("output", string(out)).Error("failed to add files")
+		logCtx.WithError(err).WithField("output", string(out)).Error("failed to add files")
 		return ManifestsResponse{}, fmt.Errorf("failed to add files: %w", err)
 	}
 
@@ -302,7 +324,7 @@ func (s *service) Commit(r ManifestsRequest) (ManifestsResponse, error) {
 			logCtx.Info("no changes to commit")
 			return ManifestsResponse{}, nil
 		}
-		log.WithError(err).WithField("output", string(out)).Error("failed to commit files")
+		logCtx.WithError(err).WithField("output", string(out)).Error("failed to commit files")
 		return ManifestsResponse{}, fmt.Errorf("failed to commit: %w", err)
 	}
 
@@ -311,10 +333,10 @@ func (s *service) Commit(r ManifestsRequest) (ManifestsResponse, error) {
 	pushCmd.Dir = dirPath
 	out, err = pushCmd.CombinedOutput()
 	if err != nil {
-		log.WithError(err).WithField("output", string(out)).Error("failed to push manifests")
+		logCtx.WithError(err).WithField("output", string(out)).Error("failed to push manifests")
 		return ManifestsResponse{}, fmt.Errorf("failed to push: %w", err)
 	}
-	log.WithField("output", string(out)).Debug("pushed manifests to git")
+	logCtx.WithField("output", string(out)).Debug("pushed manifests to git")
 
 	return ManifestsResponse{}, nil
 }
