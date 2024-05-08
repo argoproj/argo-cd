@@ -222,6 +222,7 @@ nav:
 - Blog ⧉: https://blog.argoproj.io/
 repo_url: https://github.com/argoproj/argo-cd
 site_name: Argo CD - Declarative GitOps CD for Kubernetes
+site_url: !ENV READTHEDOCS_CANONICAL_URL
 strict: true
 theme:
   custom_dir: overrides
