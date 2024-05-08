@@ -20,6 +20,9 @@ spec:
     - podSelector:
         matchLabels:
           app.kubernetes.io/name: argocd-application-controller
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/name: argocd-applicationset-controller
     ports:
     - protocol: TCP
       port: 6379
