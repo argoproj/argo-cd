@@ -77,7 +77,7 @@ An example `argocd-cm.yaml` file with deep links and their variations :
       if: resource.kind == "Pod" || resource.kind == "Deployment"
     
     # Example of a checking if a tag exists that contains - or / and how to alternatively access it
-    - url: https://mycompany.splunk.com?tag={{ index .resource.metadata.labels "some.specific.kubernetes.like/tag"" }}
+    - url: https://mycompany.splunk.com?tag={{ index .resource.metadata.labels "some.specific.kubernetes.like/tag" }}
       title: Tag Service
       if: resource.metadata.labels["some.specific.kubernetes.like/tag"] != nil && resource.metadata.labels["some.specific.kubernetes.like/tag"] != ""
 ```
