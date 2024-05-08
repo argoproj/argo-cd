@@ -245,6 +245,7 @@ export const ComparisonStatusIcon = ({
             title = 'Synced';
             break;
         case appModels.SyncStatuses.OutOfSync:
+            // eslint-disable-next-line no-case-declarations
             const requiresPruning = resource && resource.requiresPruning;
             className = requiresPruning ? 'fa fa-trash' : 'fa fa-arrow-alt-circle-up';
             title = 'OutOfSync';
@@ -433,7 +434,7 @@ function getResourceActionsMenuItems(resource: ResourceTreeNode, metadata: model
                                 });
                             }
                         }
-                    } as MenuItem)
+                    }) as MenuItem
             );
         })
         .catch(() => [] as MenuItem[]);
@@ -514,7 +515,7 @@ function getActionItems(
                         iconClassName: `fa fa-fw ${link.iconClass ? link.iconClass : 'fa-external-link'}`,
                         action: () => window.open(link.url, '_blank'),
                         tooltip: link.description
-                    } as MenuItem)
+                    }) as MenuItem
             );
         })
         .catch(() => [] as MenuItem[]);
@@ -610,8 +611,7 @@ export function renderResourceButtons(
     apis: ContextApis,
     appChanged: BehaviorSubject<appModels.Application>
 ): React.ReactNode {
-    let menuItems: Observable<ActionMenuItem[]>;
-    menuItems = getActionItems(resource, application, tree, apis, appChanged, true);
+    const menuItems: Observable<ActionMenuItem[]> = getActionItems(resource, application, tree, apis, appChanged, true);
     return (
         <DataLoader load={() => menuItems}>
             {items => (
@@ -628,12 +628,7 @@ export function renderResourceButtons(
                                 }
                             }}
                             icon={item.iconClassName}
-                            tooltip={
-                                item.title
-                                    .toString()
-                                    .charAt(0)
-                                    .toUpperCase() + item.title.toString().slice(1)
-                            }
+                            tooltip={item.title.toString().charAt(0).toUpperCase() + item.title.toString().slice(1)}
                         />
                     ))}
                 </div>
@@ -1250,14 +1245,8 @@ export function appInstanceName(app: appModels.Application): string {
 }
 
 export function formatCreationTimestamp(creationTimestamp: string) {
-    const createdAt = moment
-        .utc(creationTimestamp)
-        .local()
-        .format('MM/DD/YYYY HH:mm:ss');
-    const fromNow = moment
-        .utc(creationTimestamp)
-        .local()
-        .fromNow();
+    const createdAt = moment.utc(creationTimestamp).local().format('MM/DD/YYYY HH:mm:ss');
+    const fromNow = moment.utc(creationTimestamp).local().fromNow();
     return (
         <span>
             {createdAt}
