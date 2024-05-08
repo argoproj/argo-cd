@@ -94,15 +94,7 @@ const NODE_TYPES = {
     podGroup: 'pod_group'
 };
 // generate lots of colors with different darkness
-const TRAFFIC_COLORS = [0, 0.25, 0.4, 0.6]
-    .map(darken =>
-        BASE_COLORS.map(item =>
-            color(item)
-                .darken(darken)
-                .hex()
-        )
-    )
-    .reduce((first, second) => first.concat(second), []);
+const TRAFFIC_COLORS = [0, 0.25, 0.4, 0.6].map(darken => BASE_COLORS.map(item => color(item).darken(darken).hex())).reduce((first, second) => first.concat(second), []);
 
 function getGraphSize(nodes: dagre.Node[]): {width: number; height: number} {
     let width = 0;
@@ -892,7 +884,8 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
         resourceVersion: props.app.metadata.resourceVersion,
         group: 'argoproj.io',
         version: '',
-        children: Array(),
+        // @ts-expect-error its not any
+        children: [],
         status: props.app.status.sync.status,
         health: props.app.status.health,
         uid: props.app.kind + '-' + props.app.metadata.namespace + '-' + props.app.metadata.name,
@@ -1035,7 +1028,7 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
                 const loadBalancers = root.networkingInfo.ingress.map(ingress => ingress.hostname || ingress.ip);
                 const colorByService = new Map<string, string>();
                 (childrenByParentKey.get(treeNodeKey(root)) || []).forEach((child, i) => colorByService.set(treeNodeKey(child), TRAFFIC_COLORS[i % TRAFFIC_COLORS.length]));
-                (childrenByParentKey.get(treeNodeKey(root)) || []).sort(compareNodes).forEach((child, i) => {
+                (childrenByParentKey.get(treeNodeKey(root)) || []).sort(compareNodes).forEach(child => {
                     processNode(child, root, [colorByService.get(treeNodeKey(child))]);
                 });
                 if (root.podGroup && props.showCompactNodes) {
