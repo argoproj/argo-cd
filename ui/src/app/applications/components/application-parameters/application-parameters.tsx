@@ -250,8 +250,10 @@ export const ApplicationParameters = (props: {
                         if (params) {
                             for (const param of params) {
                                 if (param.map && param.array) {
+                                    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
                                     // @ts-ignore
                                     param.map = param.array.reduce((acc, {name, value}) => {
+                                        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
                                         // @ts-ignore
                                         acc[name] = value;
                                         return acc;
@@ -322,6 +324,7 @@ function gatherDetails(
     setAppParamsDeletedState: any
 ): EditablePanelItem[] {
     const hasMultipleSources = app.spec.sources && app.spec.sources.length > 0;
+    // eslint-disable-next-line no-prototype-builtins
     const isHelm = source.hasOwnProperty('chart');
     if (hasMultipleSources) {
         attributes.push({

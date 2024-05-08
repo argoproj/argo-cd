@@ -373,7 +373,7 @@ async function getSources(app: models.Application) {
         const length = sources.length;
         for (let i = 0; i < length; i++) {
             const aSource = sources[i];
-            const repoDetail = await services.repos.appDetails(aSource, app.metadata.name, app.spec.project).catch(e => ({
+            const repoDetail = await services.repos.appDetails(aSource, app.metadata.name, app.spec.project).catch(() => ({
                 type: 'Directory' as AppSourceType,
                 path: aSource.path
             }));
