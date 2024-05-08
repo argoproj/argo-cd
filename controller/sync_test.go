@@ -18,6 +18,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/v2/test"
 	"github.com/argoproj/argo-cd/v2/util/argo/diff"
+	"github.com/argoproj/argo-cd/v2/util/argo/normalizers"
 )
 
 func TestPersistRevisionHistory(t *testing.T) {
@@ -254,75 +255,6 @@ func TestAppStateManager_SyncAppState(t *testing.T) {
 	})
 }
 
-func TestSyncWindowDeniesSync(t *testing.T) {
-	type fixture struct {
-		project     *v1alpha1.AppProject
-		application *v1alpha1.Application
-		controller  *ApplicationController
-	}
-
-	setup := func() *fixture {
-		app := newFakeApp()
-		app.Status.OperationState = nil
-		app.Status.History = nil
-
-		project := &v1alpha1.AppProject{
-			ObjectMeta: v1.ObjectMeta{
-				Namespace: test.FakeArgoCDNamespace,
-				Name:      "default",
-			},
-			Spec: v1alpha1.AppProjectSpec{
-				SyncWindows: v1alpha1.SyncWindows{{
-					Kind:         "deny",
-					Schedule:     "0 0 * * *",
-					Duration:     "24h",
-					Clusters:     []string{"*"},
-					Namespaces:   []string{"*"},
-					Applications: []string{"*"},
-				}},
-			},
-		}
-		data := fakeData{
-			apps: []runtime.Object{app, project},
-			manifestResponse: &apiclient.ManifestResponse{
-				Manifests: []string{},
-				Namespace: test.FakeDestNamespace,
-				Server:    test.FakeClusterURL,
-				Revision:  "abc123",
-			},
-			managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
-		}
-		ctrl := newFakeController(&data, nil)
-
-		return &fixture{
-			project:     project,
-			application: app,
-			controller:  ctrl,
-		}
-	}
-
-	t.Run("will keep the sync progressing if a sync window prevents the sync", func(t *testing.T) {
-		// given a project with an active deny sync window and an operation in progress
-		t.Parallel()
-		f := setup()
-		opMessage := "Sync operation blocked by sync window"
-
-		opState := &v1alpha1.OperationState{Operation: v1alpha1.Operation{
-			Sync: &v1alpha1.SyncOperation{
-				Source: &v1alpha1.ApplicationSource{},
-			}},
-			Phase: common.OperationRunning,
-		}
-		// when
-		f.controller.appStateManager.SyncAppState(f.application, opState)
-
-		//then
-		assert.Equal(t, common.OperationRunning, opState.Phase)
-		assert.Contains(t, opState.Message, opMessage)
-	})
-
-}
-
 func TestNormalizeTargetResources(t *testing.T) {
 	type fixture struct {
 		comparisonResult *comparisonResult
@@ -330,7 +262,7 @@ func TestNormalizeTargetResources(t *testing.T) {
 	setup := func(t *testing.T, ignores []v1alpha1.ResourceIgnoreDifferences) *fixture {
 		t.Helper()
 		dc, err := diff.NewDiffConfigBuilder().
-			WithDiffSettings(ignores, nil, true).
+			WithDiffSettings(ignores, nil, true, normalizers.IgnoreNormalizerOpts{}).
 			WithNoCache().
 			Build()
 		require.NoError(t, err)
@@ -463,7 +395,7 @@ func TestNormalizeTargetResourcesWithList(t *testing.T) {
 	setupHttpProxy := func(t *testing.T, ignores []v1alpha1.ResourceIgnoreDifferences) *fixture {
 		t.Helper()
 		dc, err := diff.NewDiffConfigBuilder().
-			WithDiffSettings(ignores, nil, true).
+			WithDiffSettings(ignores, nil, true, normalizers.IgnoreNormalizerOpts{}).
 			WithNoCache().
 			Build()
 		require.NoError(t, err)

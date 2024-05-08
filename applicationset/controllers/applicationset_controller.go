@@ -50,6 +50,7 @@ import (
 	argov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
 	argoutil "github.com/argoproj/argo-cd/v2/util/argo"
+	"github.com/argoproj/argo-cd/v2/util/argo/normalizers"
 
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
 )
@@ -124,20 +125,18 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	// Log a warning if there are unrecognized generators
 	_ = utils.CheckInvalidGenerators(&applicationSetInfo)
 	// desiredApplications is the main list of all expected Applications from all generators in this appset.
-	desiredApplications, applicationSetReason, generatorsErr := r.generateApplications(logCtx, applicationSetInfo)
-	if generatorsErr != nil {
+	desiredApplications, applicationSetReason, err := r.generateApplications(logCtx, applicationSetInfo)
+	if err != nil {
 		_ = r.setApplicationSetStatusCondition(ctx,
 			&applicationSetInfo,
 			argov1alpha1.ApplicationSetCondition{
 				Type:    argov1alpha1.ApplicationSetConditionErrorOccurred,
-				Message: generatorsErr.Error(),
+				Message: err.Error(),
 				Reason:  string(applicationSetReason),
 				Status:  argov1alpha1.ApplicationSetConditionStatusTrue,
 			}, parametersGenerated,
 		)
-		if len(desiredApplications) < 1 {
-			return ctrl.Result{}, generatorsErr
-		}
+		return ctrl.Result{}, err
 	}
 
 	parametersGenerated = true
@@ -311,7 +310,7 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 
 	requeueAfter := r.getMinRequeueAfter(&applicationSetInfo)
 
-	if len(validateErrors) == 0 && generatorsErr == nil {
+	if len(validateErrors) == 0 {
 		if err := r.setApplicationSetStatusCondition(ctx,
 			&applicationSetInfo,
 			argov1alpha1.ApplicationSetCondition{
@@ -668,7 +667,7 @@ func (r *ApplicationSetReconciler) createOrUpdateInCluster(ctx context.Context, 
 			},
 		}
 
-		action, err := utils.CreateOrUpdate(ctx, appLog, r.Client, applicationSet.Spec.IgnoreApplicationDifferences, found, func() error {
+		action, err := utils.CreateOrUpdate(ctx, appLog, r.Client, applicationSet.Spec.IgnoreApplicationDifferences, normalizers.IgnoreNormalizerOpts{}, found, func() error {
 			// Copy only the Application/ObjectMeta fields that are significant, from the generatedApp
 			found.Spec = generatedApp.Spec
 
