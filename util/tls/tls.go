@@ -28,7 +28,7 @@ const (
 	DefaultRSABits = 2048
 	// The default TLS cipher suites to provide to clients - see https://cipherlist.eu for updates
 	// Note that for TLS v1.3, cipher suites are not configurable and will be chosen automatically.
-	DefaultTLSCipherSuite = "TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384:TLS_RSA_WITH_AES_256_GCM_SHA384"
+	DefaultTLSCipherSuite = "TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384"
 	// The default minimum TLS version to provide to clients
 	DefaultTLSMinVersion = "1.2"
 	// The default maximum TLS version to provide to clients
@@ -123,11 +123,11 @@ func tlsVersionsToStr(versions []uint16) []string {
 func getTLSConfigCustomizer(minVersionStr, maxVersionStr, tlsCiphersStr string) (ConfigCustomizer, error) {
 	minVersion, err := getTLSVersionByString(minVersionStr)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error retrieving TLS version by min version %q: %w", minVersionStr, err)
 	}
 	maxVersion, err := getTLSVersionByString(maxVersionStr)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error retrieving TLS version by max version %q: %w", maxVersionStr, err)
 	}
 	if minVersion > maxVersion {
 		return nil, fmt.Errorf("Minimum TLS version %s must not be higher than maximum TLS version %s", minVersionStr, maxVersionStr)
@@ -153,7 +153,7 @@ func getTLSConfigCustomizer(minVersionStr, maxVersionStr, tlsCiphersStr string) 
 	if tlsCiphersStr != "" {
 		cipherSuites, err = getTLSCipherSuitesByString(tlsCiphersStr)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("error retrieving TLS cipher suites: %w", err)
 		}
 	} else {
 		cipherSuites = make([]uint16, 0)
@@ -309,7 +309,7 @@ func generatePEM(opts CertOptions) ([]byte, []byte, error) {
 func GenerateX509KeyPair(opts CertOptions) (*tls.Certificate, error) {
 	certpem, keypem, err := generatePEM(opts)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error generating X509 key pair: %w", err)
 	}
 	cert, err := tls.X509KeyPair(certpem, keypem)
 	if err != nil {
@@ -420,7 +420,7 @@ func CreateServerTLSConfig(tlsCertPath, tlsKeyPath string, hosts []string) (*tls
 			IsCA:         false,
 		})
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("error generating X509 key pair: %w", err)
 		}
 		cert = c
 	} else {

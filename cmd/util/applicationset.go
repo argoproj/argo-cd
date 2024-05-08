@@ -61,6 +61,6 @@ func readAppset(yml []byte, appsets *[]*argoprojiov1alpha1.ApplicationSet) error
 		*appsets = append(*appsets, &appset)
 
 	}
-
-	return fmt.Errorf("error reading app set: %w", err)
+	// we reach here if there is no error found while reading the Application Set
+	return nil
 }

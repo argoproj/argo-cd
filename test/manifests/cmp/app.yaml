@@ -1,0 +1,23 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: plugin-test-app
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/argoproj/argo-cd.git
+    path: test/manifests/cmp/app
+    plugin:
+      env:
+        - name: FOO
+          value: bar
+        - name: REV
+          value: test-$ARGOCD_APP_REVISION
+      parameters:
+        - name: array-param
+          array:
+            - override
+            - values
+  destination:
+    namespace: default
+    server: https://kubernetes.default.svc

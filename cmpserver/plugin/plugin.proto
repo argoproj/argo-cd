@@ -44,6 +44,7 @@ message ManifestResponse {
 
 message RepositoryResponse {
     bool isSupported = 1;
+    bool isDiscoveryEnabled = 2;
 }
 
 // ParametersAnnouncementResponse contains a list of announcements. This list represents all the parameters which a CMP

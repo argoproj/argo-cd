@@ -67,3 +67,18 @@ func TestDeletingAppByLabel(t *testing.T) {
 		// delete is successful
 		Expect(DoesNotExist())
 }
+
+func TestDeletingAppByLabelWait(t *testing.T) {
+	Given(t).
+		Path(guestbookPath).
+		When().
+		CreateApp("--label=foo=bar").
+		Sync().
+		Then().
+		Expect(SyncStatusIs(SyncStatusCode(SyncStatusCodeSynced))).
+		When().
+		DeleteBySelectorWithWait("foo=bar").
+		Then().
+		// delete is successful
+		Expect(DoesNotExistNow())
+}

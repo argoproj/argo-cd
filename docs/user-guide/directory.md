@@ -43,6 +43,9 @@ spec:
       recurse: true
 ```
 
+!!! warning
+    Directory-type applications only work for plain manifest files. If Argo CD encounters Kustomize, Helm, or Jsonnet files when directory: is set, it will fail to render the manifests.
+
 ## Including/Excluding Files
 
 ### Including Only Certain Files

@@ -137,6 +137,8 @@ func (s *Server) createToken(ctx context.Context, q *project.ProjectTokenCreateR
 	}
 	id = claims.ID
 
+	prj.NormalizeJWTTokens()
+
 	items := append(prj.Status.JWTTokensByRole[q.Role].Items, v1alpha1.JWTToken{IssuedAt: issuedAt, ExpiresAt: expiresAt, ID: id})
 	if _, found := prj.Status.JWTTokensByRole[q.Role]; found {
 		prj.Status.JWTTokensByRole[q.Role] = v1alpha1.JWTTokens{Items: items}
@@ -172,6 +174,9 @@ func (s *Server) ListLinks(ctx context.Context, q *project.ListProjectLinksReque
 		return nil, err
 	}
 
+	// sanitize project jwt tokens
+	proj.Status = v1alpha1.AppProjectStatus{}
+
 	obj, err := kube.ToUnstructured(proj)
 	if err != nil {
 		return nil, fmt.Errorf("error getting application: %w", err)
@@ -182,7 +187,8 @@ func (s *Server) ListLinks(ctx context.Context, q *project.ListProjectLinksReque
 		return nil, fmt.Errorf("failed to read application deep links from configmap: %w", err)
 	}
 
-	finalList, errorList := deeplinks.EvaluateDeepLinksResponse(*obj, deepLinks)
+	deeplinksObj := deeplinks.CreateDeepLinksObject(nil, nil, nil, obj)
+	finalList, errorList := deeplinks.EvaluateDeepLinksResponse(deeplinksObj, obj.GetName(), deepLinks)
 	if len(errorList) > 0 {
 		log.Errorf("errorList while evaluating project deep links, %v", strings.Join(errorList, ", "))
 	}
@@ -397,7 +403,7 @@ func (s *Server) Update(ctx context.Context, q *project.ProjectUpdateRequest) (*
 	}
 
 	for _, a := range argo.FilterByProjects(appsList.Items, []string{q.Project.Name}) {
-		if oldProj.IsSourcePermitted(a.Spec.Source) {
+		if oldProj.IsSourcePermitted(a.Spec.GetSource()) {
 			srcValidatedApps = append(srcValidatedApps, a)
 		}
 
@@ -415,7 +421,7 @@ func (s *Server) Update(ctx context.Context, q *project.ProjectUpdateRequest) (*
 	invalidDstCount := 0
 
 	for _, a := range srcValidatedApps {
-		if !q.Project.IsSourcePermitted(a.Spec.Source) {
+		if !q.Project.IsSourcePermitted(a.Spec.GetSource()) {
 			invalidSrcCount++
 		}
 	}
@@ -503,7 +509,7 @@ func (s *Server) logEvent(a *v1alpha1.AppProject, ctx context.Context, reason st
 		user = "Unknown user"
 	}
 	message := fmt.Sprintf("%s %s", user, action)
-	s.auditLogger.LogAppProjEvent(a, eventInfo, message)
+	s.auditLogger.LogAppProjEvent(a, eventInfo, message, user)
 }
 
 func (s *Server) GetSyncWindowsState(ctx context.Context, q *project.SyncWindowsQuery) (*project.SyncWindowsResponse, error) {
@@ -538,11 +544,11 @@ func (s *Server) NormalizeProjs() error {
 			if proj.NormalizeJWTTokens() {
 				_, err := s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Update(context.Background(), &proj, metav1.UpdateOptions{})
 				if err == nil {
-					log.Info(fmt.Sprintf("Successfully normalized project %s.", proj.Name))
+					log.Infof("Successfully normalized project %s.", proj.Name)
 					break
 				}
 				if !apierr.IsConflict(err) {
-					log.Warn(fmt.Sprintf("Failed normalize project %s", proj.Name))
+					log.Warnf("Failed normalize project %s", proj.Name)
 					break
 				}
 				projGet, err := s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Get(context.Background(), proj.Name, metav1.GetOptions{})

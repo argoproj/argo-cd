@@ -62,6 +62,13 @@ export class RepoCredsService {
             .then(res => res.body as models.RepoCreds);
     }
 
+    public createGoogleCloudSource({url, gcpServiceAccountKey}: {url: string; gcpServiceAccountKey: string}): Promise<models.RepoCreds> {
+        return requests
+            .post('/repocreds')
+            .send({url, gcpServiceAccountKey})
+            .then(res => res.body as models.RepoCreds);
+    }
+
     public delete(url: string): Promise<models.RepoCreds> {
         return requests
             .delete(`/repocreds/${encodeURIComponent(url)}`)

@@ -2,6 +2,7 @@ package e2e
 
 import (
 	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 	"testing"
@@ -10,6 +11,7 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/health"
 	. "github.com/argoproj/gitops-engine/pkg/sync/common"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	. "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	. "github.com/argoproj/argo-cd/v2/test/e2e/fixture"
@@ -21,56 +23,41 @@ import (
 func TestCustomToolWithGitCreds(t *testing.T) {
 	ctx := Given(t)
 	ctx.
-		// path does not matter, we ignore it
-		ConfigManagementPlugin(
-			ConfigManagementPlugin{
-				Name: Name(),
-				Generate: Command{
-					Command: []string{"sh", "-c"},
-					Args:    []string{`echo "{\"kind\": \"ConfigMap\", \"apiVersion\": \"v1\", \"metadata\": { \"name\": \"$ARGOCD_APP_NAME\", \"namespace\": \"$ARGOCD_APP_NAMESPACE\", \"annotations\": {\"GitAskpass\": \"$GIT_ASKPASS\"}}}"`},
-				},
-			},
-		).
+		And(func() {
+			go startCMPServer(t, "./testdata/cmp-gitcreds")
+			time.Sleep(1 * time.Second)
+			t.Setenv("ARGOCD_BINARY_NAME", "argocd")
+		}).
 		CustomCACertAdded().
 		// add the private repo with credentials
 		HTTPSRepoURLAdded(true).
 		RepoURLType(RepoURLTypeHTTPS).
-		Path("https-kustomize-base").
+		Path("cmp-gitcreds").
 		When().
 		CreateApp().
 		Sync().
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
-		Expect(HealthIs(health.HealthStatusHealthy)).
-		And(func(app *Application) {
-			output, err := Run("", "kubectl", "-n", DeploymentNamespace(), "get", "cm", ctx.AppName(), "-o", "jsonpath={.metadata.annotations.GitAskpass}")
-			assert.NoError(t, err)
-			assert.Equal(t, "argocd", output)
-		})
+		Expect(HealthIs(health.HealthStatusHealthy))
 }
 
 // make sure we can echo back the Git creds
 func TestCustomToolWithGitCredsTemplate(t *testing.T) {
 	ctx := Given(t)
 	ctx.
-		// path does not matter, we ignore it
-		ConfigManagementPlugin(
-			ConfigManagementPlugin{
-				Name: Name(),
-				Generate: Command{
-					Command: []string{"sh", "-c"},
-					Args:    []string{`echo "{\"kind\": \"ConfigMap\", \"apiVersion\": \"v1\", \"metadata\": { \"name\": \"$ARGOCD_APP_NAME\", \"namespace\": \"$ARGOCD_APP_NAMESPACE\", \"annotations\": {\"GitAskpass\": \"$GIT_ASKPASS\", \"GitUsername\": \"$GIT_USERNAME\", \"GitPassword\": \"$GIT_PASSWORD\"}}}"`},
-				},
-			},
-		).
+		And(func() {
+			go startCMPServer(t, "./testdata/cmp-gitcredstemplate")
+			time.Sleep(1 * time.Second)
+			t.Setenv("ARGOCD_BINARY_NAME", "argocd")
+		}).
 		CustomCACertAdded().
 		// add the git creds template
 		HTTPSCredentialsUserPassAdded().
 		// add the private repo without credentials
 		HTTPSRepoURLAdded(false).
 		RepoURLType(RepoURLTypeHTTPS).
-		Path("https-kustomize-base").
+		Path("cmp-gitcredstemplate").
 		When().
 		CreateApp().
 		Sync().
@@ -78,11 +65,6 @@ func TestCustomToolWithGitCredsTemplate(t *testing.T) {
 		Expect(OperationPhaseIs(OperationSucceeded)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		Expect(HealthIs(health.HealthStatusHealthy)).
-		And(func(app *Application) {
-			output, err := Run("", "kubectl", "-n", DeploymentNamespace(), "get", "cm", ctx.AppName(), "-o", "jsonpath={.metadata.annotations.GitAskpass}")
-			assert.NoError(t, err)
-			assert.Equal(t, "argocd", output)
-		}).
 		And(func(app *Application) {
 			output, err := Run("", "kubectl", "-n", DeploymentNamespace(), "get", "cm", ctx.AppName(), "-o", "jsonpath={.metadata.annotations.GitUsername}")
 			assert.NoError(t, err)
@@ -99,24 +81,21 @@ func TestCustomToolWithGitCredsTemplate(t *testing.T) {
 func TestCustomToolWithEnv(t *testing.T) {
 	ctx := Given(t)
 	ctx.
-		// path does not matter, we ignore it
-		ConfigManagementPlugin(
-			ConfigManagementPlugin{
-				Name: Name(),
-				Generate: Command{
-					Command: []string{"sh", "-c"},
-					Args:    []string{`echo "{\"kind\": \"ConfigMap\", \"apiVersion\": \"v1\", \"metadata\": { \"name\": \"$ARGOCD_APP_NAME\", \"namespace\": \"$ARGOCD_APP_NAMESPACE\", \"annotations\": {\"Foo\": \"$ARGOCD_ENV_FOO\", \"KubeVersion\": \"$KUBE_VERSION\", \"KubeApiVersion\": \"$KUBE_API_VERSIONS\",\"Bar\": \"baz\"}}}"`},
-				},
-			},
-		).
+		And(func() {
+			go startCMPServer(t, "./testdata/cmp-fileName")
+			time.Sleep(1 * time.Second)
+			t.Setenv("ARGOCD_BINARY_NAME", "argocd")
+		}).
 		// does not matter what the path is
-		Path("guestbook").
+		Path("cmp-fileName").
 		When().
 		CreateFromFile(func(app *Application) {
-			app.Spec.Source.Plugin.Env = Env{{
-				Name:  "FOO",
-				Value: "bar",
-			}}
+			app.Spec.Source.Plugin = &ApplicationSourcePlugin{
+				Env: Env{{
+					Name:  "FOO",
+					Value: "bar",
+				}},
+			}
 		}).
 		Sync().
 		Then().
@@ -156,25 +135,23 @@ func TestCustomToolWithEnv(t *testing.T) {
 		})
 }
 
-//make sure we can sync and diff with --local
+// make sure we can sync and diff with --local
 func TestCustomToolSyncAndDiffLocal(t *testing.T) {
+	testdataPath, err := filepath.Abs("testdata")
+	require.NoError(t, err)
 	ctx := Given(t)
+	appPath := filepath.Join(testdataPath, "guestbook")
 	ctx.
-		// path does not matter, we ignore it
-		ConfigManagementPlugin(
-			ConfigManagementPlugin{
-				Name: Name(),
-				Generate: Command{
-					Command: []string{"sh", "-c"},
-					Args:    []string{`echo "{\"kind\": \"ConfigMap\", \"apiVersion\": \"v1\", \"metadata\": { \"name\": \"$ARGOCD_APP_NAME\", \"namespace\": \"$ARGOCD_APP_NAMESPACE\", \"annotations\": {\"Foo\": \"$ARGOCD_ENV_FOO\", \"KubeVersion\": \"$KUBE_VERSION\", \"KubeApiVersion\": \"$KUBE_API_VERSIONS\",\"Bar\": \"baz\"}}}"`},
-				},
-			},
-		).
+		And(func() {
+			go startCMPServer(t, "./testdata/cmp-kustomize")
+			time.Sleep(1 * time.Second)
+			t.Setenv("ARGOCD_BINARY_NAME", "argocd")
+		}).
 		// does not matter what the path is
 		Path("guestbook").
 		When().
-		CreateApp("--config-management-plugin", ctx.AppName()).
-		Sync("--local", "testdata/guestbook").
+		CreateApp("--config-management-plugin", "cmp-kustomize-v1.0").
+		Sync("--local", appPath, "--local-repo-root", testdataPath).
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
@@ -183,36 +160,36 @@ func TestCustomToolSyncAndDiffLocal(t *testing.T) {
 			time.Sleep(1 * time.Second)
 		}).
 		And(func(app *Application) {
-			FailOnErr(RunCli("app", "sync", ctx.AppName(), "--local", "testdata/guestbook"))
+			FailOnErr(RunCli("app", "sync", ctx.AppName(), "--local", appPath, "--local-repo-root", testdataPath))
 		}).
 		And(func(app *Application) {
-			FailOnErr(RunCli("app", "diff", ctx.AppName(), "--local", "testdata/guestbook"))
+			FailOnErr(RunCli("app", "diff", ctx.AppName(), "--local", appPath, "--local-repo-root", testdataPath))
 		})
 }
 
-func startCMPServer(configFile string) {
+func startCMPServer(t *testing.T, configFile string) {
 	pluginSockFilePath := TmpDir + PluginSockFilePath
-	os.Setenv("ARGOCD_BINARY_NAME", "argocd-cmp-server")
+	t.Setenv("ARGOCD_BINARY_NAME", "argocd-cmp-server")
 	// ARGOCD_PLUGINSOCKFILEPATH should be set as the same value as repo server env var
-	os.Setenv("ARGOCD_PLUGINSOCKFILEPATH", pluginSockFilePath)
+	t.Setenv("ARGOCD_PLUGINSOCKFILEPATH", pluginSockFilePath)
 	if _, err := os.Stat(pluginSockFilePath); os.IsNotExist(err) {
 		// path/to/whatever does not exist
 		err := os.Mkdir(pluginSockFilePath, 0700)
-		CheckError(err)
+		require.NoError(t, err)
 	}
 	FailOnErr(RunWithStdin("", "", "../../dist/argocd", "--config-dir-path", configFile))
 }
 
-//Discover by fileName
+// Discover by fileName
 func TestCMPDiscoverWithFileName(t *testing.T) {
 	pluginName := "cmp-fileName"
 	Given(t).
 		And(func() {
-			go startCMPServer("./testdata/cmp-fileName")
+			go startCMPServer(t, "./testdata/cmp-fileName")
 			time.Sleep(1 * time.Second)
-			os.Setenv("ARGOCD_BINARY_NAME", "argocd")
+			t.Setenv("ARGOCD_BINARY_NAME", "argocd")
 		}).
-		Path(pluginName).
+		Path(pluginName + "/subdir").
 		When().
 		CreateApp().
 		Sync().
@@ -222,13 +199,13 @@ func TestCMPDiscoverWithFileName(t *testing.T) {
 		Expect(HealthIs(health.HealthStatusHealthy))
 }
 
-//Discover by Find glob
+// Discover by Find glob
 func TestCMPDiscoverWithFindGlob(t *testing.T) {
 	Given(t).
 		And(func() {
-			go startCMPServer("./testdata/cmp-find-glob")
+			go startCMPServer(t, "./testdata/cmp-find-glob")
 			time.Sleep(1 * time.Second)
-			os.Setenv("ARGOCD_BINARY_NAME", "argocd")
+			t.Setenv("ARGOCD_BINARY_NAME", "argocd")
 		}).
 		Path("guestbook").
 		When().
@@ -240,13 +217,13 @@ func TestCMPDiscoverWithFindGlob(t *testing.T) {
 		Expect(HealthIs(health.HealthStatusHealthy))
 }
 
-//Discover by Plugin Name
+// Discover by Plugin Name
 func TestCMPDiscoverWithPluginName(t *testing.T) {
 	Given(t).
 		And(func() {
-			go startCMPServer("./testdata/cmp-find-glob")
+			go startCMPServer(t, "./testdata/cmp-find-glob")
 			time.Sleep(1 * time.Second)
-			os.Setenv("ARGOCD_BINARY_NAME", "argocd")
+			t.Setenv("ARGOCD_BINARY_NAME", "argocd")
 		}).
 		Path("guestbook").
 		When().
@@ -261,15 +238,15 @@ func TestCMPDiscoverWithPluginName(t *testing.T) {
 		Expect(HealthIs(health.HealthStatusHealthy))
 }
 
-//Discover by Find command
+// Discover by Find command
 func TestCMPDiscoverWithFindCommandWithEnv(t *testing.T) {
 	pluginName := "cmp-find-command"
 	ctx := Given(t)
 	ctx.
 		And(func() {
-			go startCMPServer("./testdata/cmp-find-command")
+			go startCMPServer(t, "./testdata/cmp-find-command")
 			time.Sleep(1 * time.Second)
-			os.Setenv("ARGOCD_BINARY_NAME", "argocd")
+			t.Setenv("ARGOCD_BINARY_NAME", "argocd")
 		}).
 		Path(pluginName).
 		When().
@@ -310,9 +287,9 @@ func TestCMPDiscoverWithFindCommandWithEnv(t *testing.T) {
 func TestPruneResourceFromCMP(t *testing.T) {
 	Given(t).
 		And(func() {
-			go startCMPServer("./testdata/cmp-find-glob")
+			go startCMPServer(t, "./testdata/cmp-find-glob")
 			time.Sleep(1 * time.Second)
-			os.Setenv("ARGOCD_BINARY_NAME", "argocd")
+			t.Setenv("ARGOCD_BINARY_NAME", "argocd")
 		}).
 		Path("guestbook").
 		When().
@@ -328,4 +305,75 @@ func TestPruneResourceFromCMP(t *testing.T) {
 			_, err := Run("", "kubectl", "-n", DeploymentNamespace(), "get", "deployment", "guestbook-ui")
 			assert.Error(t, err)
 		})
+}
+
+func TestPreserveFileModeForCMP(t *testing.T) {
+	Given(t).
+		And(func() {
+			go startCMPServer(t, "./testdata/cmp-preserve-file-mode")
+			time.Sleep(1 * time.Second)
+			t.Setenv("ARGOCD_BINARY_NAME", "argocd")
+		}).
+		Path("cmp-preserve-file-mode").
+		When().
+		CreateFromFile(func(app *Application) {
+			app.Spec.Source.Plugin = &ApplicationSourcePlugin{Name: "cmp-preserve-file-mode-v1.0"}
+		}).
+		Refresh(RefreshTypeNormal).
+		Then().
+		And(func(app *Application) {
+			require.Len(t, app.Status.Resources, 1)
+			assert.Equal(t, "ConfigMap", app.Status.Resources[0].Kind)
+		})
+}
+
+func TestCMPWithSymlinkPartialFiles(t *testing.T) {
+	Given(t, WithTestData("testdata2")).
+		And(func() {
+			go startCMPServer(t, "./testdata2/cmp-symlink")
+			time.Sleep(1 * time.Second)
+			t.Setenv("ARGOCD_BINARY_NAME", "argocd")
+		}).
+		Path("guestbook-partial-symlink-files").
+		When().
+		CreateApp().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(HealthIs(health.HealthStatusHealthy))
+}
+
+func TestCMPWithSymlinkFiles(t *testing.T) {
+	Given(t, WithTestData("testdata2")).
+		And(func() {
+			go startCMPServer(t, "./testdata2/cmp-symlink")
+			time.Sleep(1 * time.Second)
+			t.Setenv("ARGOCD_BINARY_NAME", "argocd")
+		}).
+		Path("guestbook-symlink-files").
+		When().
+		CreateApp().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(HealthIs(health.HealthStatusHealthy))
+}
+
+func TestCMPWithSymlinkFolder(t *testing.T) {
+	Given(t, WithTestData("testdata2")).
+		And(func() {
+			go startCMPServer(t, "./testdata2/cmp-symlink")
+			time.Sleep(1 * time.Second)
+			t.Setenv("ARGOCD_BINARY_NAME", "argocd")
+		}).
+		Path("guestbook-symlink-folder").
+		When().
+		CreateApp().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(HealthIs(health.HealthStatusHealthy))
 }

@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -62,7 +61,7 @@ func TestBitbucketHasRepo(t *testing.T) {
 	}))
 	defer func() { testServer.Close() }()
 
-	os.Setenv("BITBUCKET_API_BASE_URL", testServer.URL)
+	t.Setenv("BITBUCKET_API_BASE_URL", testServer.URL)
 	cases := []struct {
 		name, path, repo, owner, sha string
 		status                       int
@@ -449,7 +448,7 @@ func TestBitbucketListRepos(t *testing.T) {
 	}))
 	defer func() { testServer.Close() }()
 
-	os.Setenv("BITBUCKET_API_BASE_URL", testServer.URL)
+	t.Setenv("BITBUCKET_API_BASE_URL", testServer.URL)
 	cases := []struct {
 		name, proto, owner    string
 		hasError, allBranches bool

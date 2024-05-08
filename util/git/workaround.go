@@ -1,6 +1,9 @@
 package git
 
 import (
+	"fmt"
+	neturl "net/url"
+
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/transport"
@@ -30,6 +33,23 @@ func newClient(url string, insecure bool, creds Creds, proxy string) (transport.
 
 	if !IsHTTPSURL(url) && !IsHTTPURL(url) {
 		// use the default client for protocols other than HTTP/HTTPS
+		ep.InsecureSkipTLS = insecure
+		if proxy != "" {
+			parsedProxyURL, err := neturl.Parse(proxy)
+			if err != nil {
+				return nil, nil, fmt.Errorf("failed to create client for url '%s', error parsing proxy url '%s': %w", url, proxy, err)
+			}
+			var proxyUsername, proxyPasswd string
+			if parsedProxyURL.User != nil {
+				proxyUsername = parsedProxyURL.User.Username()
+				proxyPasswd, _ = parsedProxyURL.User.Password()
+			}
+			ep.Proxy = transport.ProxyOptions{
+				URL:      fmt.Sprintf("%s://%s:%s", parsedProxyURL.Scheme, parsedProxyURL.Hostname(), parsedProxyURL.Port()),
+				Username: proxyUsername,
+				Password: proxyPasswd,
+			}
+		}
 		c, err := client.NewClient(ep)
 		if err != nil {
 			return nil, nil, err

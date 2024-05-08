@@ -196,7 +196,7 @@ func githubMockHandler(t *testing.T) func(http.ResponseWriter, *http.Request) {
 				t.Fail()
 			}
 		default:
-			w.WriteHeader(404)
+			w.WriteHeader(http.StatusNotFound)
 		}
 	}
 }

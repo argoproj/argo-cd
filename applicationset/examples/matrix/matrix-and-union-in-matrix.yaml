@@ -13,6 +13,7 @@ metadata:
   name: matrix-and-union-in-matrix
 spec:
   goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
   generators:
     - matrix:
         generators:

@@ -1,0 +1,31 @@
+apiVersion: apps.kruise.io/v1alpha1
+kind: BroadcastJob
+metadata:
+  name: failed-job
+spec:
+  template:
+    spec:
+      containers:
+        - name: guestbook
+          image: openkruise/guestbook:v3
+          command: ["exit",  "1"] # a dummy command to fail
+      restartPolicy: Never
+  completionPolicy:
+    type: Always
+    ttlSecondsAfterFinished: 60 # the job will be deleted after 60 seconds
+
+status:
+  active: 0
+  completionTime: '2023-09-17T14:31:38Z'
+  conditions:
+    - lastProbeTime: '2023-09-17T14:31:38Z'
+      lastTransitionTime: '2023-09-17T14:31:38Z'
+      message: failure policy is FailurePolicyTypeFailFast and failed pod is found
+      reason: Failed
+      status: 'True'
+      type: Failed
+  desired: 1
+  failed: 1
+  phase: failed
+  startTime: '2023-09-17T14:31:32Z'
+  succeeded: 0

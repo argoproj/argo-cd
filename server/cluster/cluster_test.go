@@ -3,24 +3,16 @@ package cluster
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"reflect"
 	"testing"
 	"time"
 
-	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
-
-	"github.com/argoproj/gitops-engine/pkg/utils/kube/kubetest"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
-	"github.com/stretchr/testify/require"
-	"k8s.io/client-go/kubernetes/fake"
-	"k8s.io/utils/pointer"
-
 	"github.com/argoproj/argo-cd/v2/common"
+	"github.com/argoproj/argo-cd/v2/pkg/apiclient/cluster"
 	clusterapi "github.com/argoproj/argo-cd/v2/pkg/apiclient/cluster"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	servercache "github.com/argoproj/argo-cd/v2/server/cache"
 	"github.com/argoproj/argo-cd/v2/test"
 	cacheutil "github.com/argoproj/argo-cd/v2/util/cache"
@@ -29,6 +21,16 @@ import (
 	dbmocks "github.com/argoproj/argo-cd/v2/util/db/mocks"
 	"github.com/argoproj/argo-cd/v2/util/rbac"
 	"github.com/argoproj/argo-cd/v2/util/settings"
+	"github.com/argoproj/gitops-engine/pkg/utils/kube/kubetest"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/kubernetes/fake"
+	"k8s.io/utils/pointer"
 )
 
 func newServerInMemoryCache() *servercache.Cache {
@@ -47,6 +49,117 @@ func newNoopEnforcer() *rbac.Enforcer {
 	enf := rbac.NewEnforcer(fake.NewSimpleClientset(test.NewFakeConfigMap()), test.FakeArgoCDNamespace, common.ArgoCDConfigMapName, nil)
 	enf.EnableEnforce(false)
 	return enf
+}
+
+func TestUpdateCluster_RejectInvalidParams(t *testing.T) {
+	testCases := []struct {
+		name    string
+		request clusterapi.ClusterUpdateRequest
+	}{
+		{
+			name:    "allowed cluster URL in body, disallowed cluster URL in query",
+			request: clusterapi.ClusterUpdateRequest{Cluster: &v1alpha1.Cluster{Name: "", Server: "https://127.0.0.1", Project: "", ClusterResources: true}, Id: &clusterapi.ClusterID{Type: "", Value: "https://127.0.0.2"}, UpdatedFields: []string{"clusterResources", "project"}},
+		},
+		{
+			name:    "allowed cluster URL in body, disallowed cluster name in query",
+			request: clusterapi.ClusterUpdateRequest{Cluster: &v1alpha1.Cluster{Name: "", Server: "https://127.0.0.1", Project: "", ClusterResources: true}, Id: &clusterapi.ClusterID{Type: "name", Value: "disallowed-unscoped"}, UpdatedFields: []string{"clusterResources", "project"}},
+		},
+		{
+			name:    "allowed cluster URL in body, disallowed cluster name in query, changing unscoped to scoped",
+			request: clusterapi.ClusterUpdateRequest{Cluster: &v1alpha1.Cluster{Name: "", Server: "https://127.0.0.1", Project: "allowed-project", ClusterResources: true}, Id: &clusterapi.ClusterID{Type: "", Value: "https://127.0.0.2"}, UpdatedFields: []string{"clusterResources", "project"}},
+		},
+		{
+			name:    "allowed cluster URL in body, disallowed cluster URL in query, changing unscoped to scoped",
+			request: clusterapi.ClusterUpdateRequest{Cluster: &v1alpha1.Cluster{Name: "", Server: "https://127.0.0.1", Project: "allowed-project", ClusterResources: true}, Id: &clusterapi.ClusterID{Type: "name", Value: "disallowed-unscoped"}, UpdatedFields: []string{"clusterResources", "project"}},
+		},
+	}
+
+	db := &dbmocks.ArgoDB{}
+
+	clusters := []v1alpha1.Cluster{
+		{
+			Name:   "allowed-unscoped",
+			Server: "https://127.0.0.1",
+		},
+		{
+			Name:   "disallowed-unscoped",
+			Server: "https://127.0.0.2",
+		},
+		{
+			Name:    "allowed-scoped",
+			Server:  "https://127.0.0.3",
+			Project: "allowed-project",
+		},
+		{
+			Name:    "disallowed-scoped",
+			Server:  "https://127.0.0.4",
+			Project: "disallowed-project",
+		},
+	}
+
+	db.On("ListClusters", mock.Anything).Return(
+		func(ctx context.Context) *v1alpha1.ClusterList {
+			return &v1alpha1.ClusterList{
+				ListMeta: v1.ListMeta{},
+				Items:    clusters,
+			}
+		},
+		func(ctx context.Context) error {
+			return nil
+		},
+	)
+	db.On("UpdateCluster", mock.Anything, mock.Anything).Return(
+		func(ctx context.Context, c *v1alpha1.Cluster) *v1alpha1.Cluster {
+			for _, cluster := range clusters {
+				if c.Server == cluster.Server {
+					return c
+				}
+			}
+			return nil
+		},
+		func(ctx context.Context, c *v1alpha1.Cluster) error {
+			for _, cluster := range clusters {
+				if c.Server == cluster.Server {
+					return nil
+				}
+			}
+			return fmt.Errorf("cluster '%s' not found", c.Server)
+		},
+	)
+	db.On("GetCluster", mock.Anything, mock.Anything).Return(
+		func(ctx context.Context, server string) *v1alpha1.Cluster {
+			for _, cluster := range clusters {
+				if server == cluster.Server {
+					return &cluster
+				}
+			}
+			return nil
+		},
+		func(ctx context.Context, server string) error {
+			for _, cluster := range clusters {
+				if server == cluster.Server {
+					return nil
+				}
+			}
+			return fmt.Errorf("cluster '%s' not found", server)
+		},
+	)
+
+	enf := rbac.NewEnforcer(fake.NewSimpleClientset(test.NewFakeConfigMap()), test.FakeArgoCDNamespace, common.ArgoCDConfigMapName, nil)
+	_ = enf.SetBuiltinPolicy(`p, role:test, clusters, *, https://127.0.0.1, allow
+p, role:test, clusters, *, allowed-project/*, allow`)
+	enf.SetDefaultRole("role:test")
+	server := NewServer(db, enf, newServerInMemoryCache(), &kubetest.MockKubectlCmd{})
+
+	for _, c := range testCases {
+		cc := c
+		t.Run(cc.name, func(t *testing.T) {
+			t.Parallel()
+			out, err := server.Update(context.Background(), &cc.request)
+			require.Nil(t, out)
+			assert.ErrorIs(t, err, common.PermissionDeniedAPIError)
+		})
+	}
 }
 
 func TestGetCluster_UrlEncodedName(t *testing.T) {
@@ -165,7 +278,7 @@ func TestUpdateCluster_FieldsPathSet(t *testing.T) {
 	_, err := server.Update(context.Background(), &clusterapi.ClusterUpdateRequest{
 		Cluster: &v1alpha1.Cluster{
 			Server: "https://127.0.0.1",
-			Shard:  pointer.Int64Ptr(1),
+			Shard:  pointer.Int64(1),
 		},
 		UpdatedFields: []string{"shard"},
 	})
@@ -378,4 +491,116 @@ func getClientset(config map[string]string, ns string, objects ...runtime.Object
 		Data: config,
 	}
 	return fake.NewSimpleClientset(append(objects, &cm, &secret)...)
+}
+
+func TestListCluster(t *testing.T) {
+	db := &dbmocks.ArgoDB{}
+
+	fooCluster := v1alpha1.Cluster{
+		Name:       "foo",
+		Server:     "https://127.0.0.1",
+		Namespaces: []string{"default", "kube-system"},
+	}
+	barCluster := v1alpha1.Cluster{
+		Name:       "bar",
+		Server:     "https://192.168.0.1",
+		Namespaces: []string{"default", "kube-system"},
+	}
+	bazCluster := v1alpha1.Cluster{
+		Name:       "test/ing",
+		Server:     "https://testing.com",
+		Namespaces: []string{"default", "kube-system"},
+	}
+
+	mockClusterList := v1alpha1.ClusterList{
+		ListMeta: v1.ListMeta{},
+		Items:    []v1alpha1.Cluster{fooCluster, barCluster, bazCluster},
+	}
+
+	db.On("ListClusters", mock.Anything).Return(&mockClusterList, nil)
+
+	s := NewServer(db, newNoopEnforcer(), newServerInMemoryCache(), &kubetest.MockKubectlCmd{})
+
+	tests := []struct {
+		name    string
+		q       *cluster.ClusterQuery
+		want    *appv1.ClusterList
+		wantErr bool
+	}{
+		{
+			name: "filter by name",
+			q: &clusterapi.ClusterQuery{
+				Name: fooCluster.Name,
+			},
+			want: &v1alpha1.ClusterList{
+				ListMeta: v1.ListMeta{},
+				Items:    []v1alpha1.Cluster{fooCluster},
+			},
+		},
+		{
+			name: "filter by server",
+			q: &clusterapi.ClusterQuery{
+				Server: barCluster.Server,
+			},
+			want: &v1alpha1.ClusterList{
+				ListMeta: v1.ListMeta{},
+				Items:    []v1alpha1.Cluster{barCluster},
+			},
+		},
+		{
+			name: "filter by id - name",
+			q: &clusterapi.ClusterQuery{
+				Id: &clusterapi.ClusterID{
+					Type:  "name",
+					Value: fooCluster.Name,
+				},
+			},
+			want: &v1alpha1.ClusterList{
+				ListMeta: v1.ListMeta{},
+				Items:    []v1alpha1.Cluster{fooCluster},
+			},
+		},
+		{
+			name: "filter by id - name_escaped",
+			q: &clusterapi.ClusterQuery{
+				Id: &clusterapi.ClusterID{
+					Type:  "name_escaped",
+					Value: "test%2fing",
+				},
+			},
+			want: &v1alpha1.ClusterList{
+				ListMeta: v1.ListMeta{},
+				Items:    []v1alpha1.Cluster{bazCluster},
+			},
+		},
+		{
+			name: "filter by id - server",
+			q: &clusterapi.ClusterQuery{
+				Id: &clusterapi.ClusterID{
+					Type:  "server",
+					Value: barCluster.Server,
+				},
+			},
+			want: &v1alpha1.ClusterList{
+				ListMeta: v1.ListMeta{},
+				Items:    []v1alpha1.Cluster{barCluster},
+			},
+		},
+	}
+	for _, tt := range tests {
+		tt := tt
+
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			got, err := s.List(context.Background(), tt.q)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Server.List() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("Server.List() = %v, want %v", got, tt.want)
+			}
+		})
+	}
 }
