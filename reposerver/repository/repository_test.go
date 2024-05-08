@@ -653,7 +653,7 @@ func TestInvalidMetadata(t *testing.T) {
 	q := apiclient.ManifestRequest{Repo: &argoappv1.Repository{}, ApplicationSource: &src, AppLabelKey: "test", AppName: "invalid-metadata", TrackingMethod: "annotation+label"}
 	_, err := service.GenerateManifest(context.Background(), &q)
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "contains non-string key in the map")
+	assert.Contains(t, err.Error(), "contains non-string value in the map under key \"invalid\"")
 }
 
 func TestNilMetadataAccessors(t *testing.T) {
