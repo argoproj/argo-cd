@@ -7,7 +7,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <title>Snyk test report</title>
-  <meta name="description" content="31 known vulnerabilities found in 153 vulnerable dependency paths.">
+  <meta name="description" content="27 known vulnerabilities found in 160 vulnerable dependency paths.">
   <base target="_blank">
   <link rel="icon" type="image/png" href="https://res.cloudinary.com/snyk/image/upload/v1468845142/favicon/favicon.png"
     sizes="194x194">
@@ -456,7 +456,7 @@
               <div class="header-wrap">
                   <h1 class="project__header__title">Snyk test report</h1>
     
-                <p class="timestamp">March 10th 2024, 12:15:42 am (UTC+00:00)</p>
+                <p class="timestamp">May 5th 2024, 12:16:29 am (UTC+00:00)</p>
               </div>
               <div class="source-panel">
                 <span>Scanned the following paths:</span>
@@ -470,9 +470,9 @@
               </div>
     
               <div class="meta-counts">
-                <div class="meta-count"><span>31</span> <span>known vulnerabilities</span></div>
-                <div class="meta-count"><span>153 vulnerable dependency paths</span></div>
-                <div class="meta-count"><span>2276</span> <span>dependencies</span></div>
+                <div class="meta-count"><span>27</span> <span>known vulnerabilities</span></div>
+                <div class="meta-count"><span>160 vulnerable dependency paths</span></div>
+                <div class="meta-count"><span>2282</span> <span>dependencies</span></div>
               </div><!-- .meta-counts -->
             </div><!-- .layout-container--short -->
           </header><!-- .project__header -->
@@ -480,6 +480,77 @@
 
     <div class="layout-container" style="padding-top: 35px;">
       <div class="cards--vuln filter--patch filter--ignore">
+        <div class="card card--vuln  disclosure--not-new severity--high" data-snyk-test="high">
+            <h2 class="card__title">Allocation of Resources Without Limits or Throttling</h2>
+            <div class="card__section">
+        
+                <div class="label label--high">
+                    <span class="label__text">high severity</span>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: quay.io/argoproj/argocd:latest/helm/v3 <span class="list-paths__item__arrow">›</span> /usr/local/bin/helm
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: golang
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            golang.org/x/net/http2
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                helm.sh/helm/v3@* and golang.org/x/net/http2@v0.17.0
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        helm.sh/helm/v3@*
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/http2@v0.17.0
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="overview">Overview</h2>
+        <p><a href="https://pkg.go.dev/golang.org/x/net/http2">golang.org/x/net/http2</a> is a work-in-progress HTTP/2 implementation for Go.</p>
+        <p>Affected versions of this package are vulnerable to Allocation of Resources Without Limits or Throttling when reading header data from <code>CONTINUATION</code> frames. As part of the HPACK flow, all incoming <code>HEADERS</code> and <code>CONTINUATION</code> frames are read even if their payloads exceed <code>MaxHeaderBytes</code> and will be discarded. An attacker can send excessive data over a connection to render it unresponsive.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>golang.org/x/net/http2</code> to version 0.23.0 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://github.com/traefik/traefik/commit/099c7e9444a5d56918b8221672fc8d6a09a5d389">Github Commit</a></li>
+        <li><a href="https://github.com/golang/net/commit/ba872109ef2dc8f1da778651bd1fd3792d0e4587">GitHub Commit</a></li>
+        <li><a href="https://github.com/golang/go/issues/65051">GitHub Issue</a></li>
+        <li><a href="https://pkg.go.dev/vuln/GO-2024-2687">Go Advisory</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GOLANGORGXNETHTTP2-6531285">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
         <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
             <h2 class="card__title">CVE-2020-22916</h2>
             <div class="card__section">
@@ -539,14 +610,14 @@
         <p>There is no fixed version for <code>Ubuntu:22.04</code> <code>xz-utils</code>.</p>
         <h2 id="references">References</h2>
         <ul>
-        <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2020-22916">ADVISORY</a></li>
-        <li><a href="https://github.com/snappyJack/CVE-request-XZ-5.2.5-has-denial-of-service-vulnerability">cve@mitre.org</a></li>
-        <li><a href="https://tukaani.org/xz/">cve@mitre.org</a></li>
-        <li><a href="https://bugzilla.redhat.com/show_bug.cgi?id=2234987">cve@mitre.org</a></li>
-        <li><a href="https://bugzilla.suse.com/show_bug.cgi?id=1214590">cve@mitre.org</a></li>
-        <li><a href="https://github.com/tukaani-project/xz/issues/61">cve@mitre.org</a></li>
-        <li><a href="https://security-tracker.debian.org/tracker/CVE-2020-22916">cve@mitre.org</a></li>
-        <li><a href="http://web.archive.org/web/20230918084612/https://github.com/snappyJack/CVE-request-XZ-5.2.5-has-denial-of-service-vulnerability">cve@mitre.org</a></li>
+        <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2020-22916">http://people.ubuntu.com/~ubuntu-security/cve/CVE-2020-22916</a></li>
+        <li><a href="https://github.com/snappyJack/CVE-request-XZ-5.2.5-has-denial-of-service-vulnerability">https://github.com/snappyJack/CVE-request-XZ-5.2.5-has-denial-of-service-vulnerability</a></li>
+        <li><a href="https://tukaani.org/xz/">https://tukaani.org/xz/</a></li>
+        <li><a href="https://bugzilla.redhat.com/show_bug.cgi?id=2234987">https://bugzilla.redhat.com/show_bug.cgi?id=2234987</a></li>
+        <li><a href="https://bugzilla.suse.com/show_bug.cgi?id=1214590">https://bugzilla.suse.com/show_bug.cgi?id=1214590</a></li>
+        <li><a href="https://github.com/tukaani-project/xz/issues/61">https://github.com/tukaani-project/xz/issues/61</a></li>
+        <li><a href="https://security-tracker.debian.org/tracker/CVE-2020-22916">https://security-tracker.debian.org/tracker/CVE-2020-22916</a></li>
+        <li><a href="http://web.archive.org/web/20230918084612/https://github.com/snappyJack/CVE-request-XZ-5.2.5-has-denial-of-service-vulnerability">http://web.archive.org/web/20230918084612/https://github.com/snappyJack/CVE-request-XZ-5.2.5-has-denial-of-service-vulnerability</a></li>
         </ul>
         
               <hr/>
@@ -557,7 +628,7 @@
         
         </div><!-- .card -->
         <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
-            <h2 class="card__title">CVE-2023-51767</h2>
+            <h2 class="card__title">Information Exposure</h2>
             <div class="card__section">
         
                 <div class="label label--medium">
@@ -576,12 +647,12 @@
                     <li class="card__meta__item">
                             Vulnerable module:
         
-                            openssh/openssh-client
+                            libgcrypt20
                     </li>
         
                     <li class="card__meta__item">Introduced through:
         
-                                docker-image|quay.io/argoproj/argocd@latest and openssh/openssh-client@1:8.9p1-3ubuntu0.6
+                                docker-image|quay.io/argoproj/argocd@latest and libgcrypt20@1.9.4-3ubuntu3
         
                     </li>
                 </ul>
@@ -596,7 +667,148 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         docker-image|quay.io/argoproj/argocd@latest
                                          <span class="list-paths__item__arrow">›</span> 
-                                        openssh/openssh-client@1:8.9p1-3ubuntu0.6
+                                        libgcrypt20@1.9.4-3ubuntu3
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@latest
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gnupg2/dirmngr@2.2.27-3ubuntu2.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        libgcrypt20@1.9.4-3ubuntu3
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@latest
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gnupg2/gpg@2.2.27-3ubuntu2.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        libgcrypt20@1.9.4-3ubuntu3
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@latest
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        apt@2.4.12
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        apt/libapt-pkg6.0@2.4.12
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        libgcrypt20@1.9.4-3ubuntu3
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@latest
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        apt@2.4.12
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gnupg2/gpgv@2.2.27-3ubuntu2.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        libgcrypt20@1.9.4-3ubuntu3
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@latest
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gnupg2/gpg@2.2.27-3ubuntu2.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gnupg2/gpgconf@2.2.27-3ubuntu2.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        libgcrypt20@1.9.4-3ubuntu3
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@latest
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gnupg2/gnupg@2.2.27-3ubuntu2.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gnupg2/gnupg-utils@2.2.27-3ubuntu2.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        libgcrypt20@1.9.4-3ubuntu3
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@latest
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gnupg2/gnupg@2.2.27-3ubuntu2.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gnupg2/gpg-agent@2.2.27-3ubuntu2.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        libgcrypt20@1.9.4-3ubuntu3
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@latest
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gnupg2/gnupg@2.2.27-3ubuntu2.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gnupg2/gpg-wks-client@2.2.27-3ubuntu2.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        libgcrypt20@1.9.4-3ubuntu3
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@latest
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gnupg2/gnupg@2.2.27-3ubuntu2.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gnupg2/gpg-wks-server@2.2.27-3ubuntu2.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        libgcrypt20@1.9.4-3ubuntu3
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@latest
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gnupg2/gnupg@2.2.27-3ubuntu2.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gnupg2/gpgsm@2.2.27-3ubuntu2.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        libgcrypt20@1.9.4-3ubuntu3
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@latest
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        apt@2.4.12
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        apt/libapt-pkg6.0@2.4.12
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        systemd/libsystemd0@249.11-0ubuntu3.12
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        libgcrypt20@1.9.4-3ubuntu3
                                         
                                 </span>
         
@@ -608,27 +820,23 @@
               <hr/>
               <!-- Overview -->
               <h2 id="nvd-description">NVD Description</h2>
-        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>openssh</code> package and not the <code>openssh</code> package as distributed by <code>Ubuntu</code>.</em>
+        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>libgcrypt20</code> package and not the <code>libgcrypt20</code> package as distributed by <code>Ubuntu</code>.</em>
         <em>See <code>How to fix?</code> for <code>Ubuntu:22.04</code> relevant fixed versions and status.</em></p>
-        <p>OpenSSH through 9.6, when common types of DRAM are used, might allow row hammer attacks (for authentication bypass) because the integer value of authenticated in mm_answer_authpassword does not resist flips of a single bit. NOTE: this is applicable to a certain threat model of attacker-victim co-location in which the attacker has user privileges.</p>
+        <p>A timing-based side-channel flaw was found in libgcrypt&#39;s RSA implementation. This issue may allow a remote attacker to initiate a Bleichenbacher-style attack, which can lead to the decryption of RSA ciphertexts.</p>
         <h2 id="remediation">Remediation</h2>
-        <p>There is no fixed version for <code>Ubuntu:22.04</code> <code>openssh</code>.</p>
+        <p>There is no fixed version for <code>Ubuntu:22.04</code> <code>libgcrypt20</code>.</p>
         <h2 id="references">References</h2>
         <ul>
-        <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2023-51767">ADVISORY</a></li>
-        <li><a href="https://arxiv.org/abs/2309.02545">cve@mitre.org</a></li>
-        <li><a href="https://github.com/openssh/openssh-portable/blob/8241b9c0529228b4b86d88b1a6076fb9f97e4a99/auth-passwd.c#L77">cve@mitre.org</a></li>
-        <li><a href="https://github.com/openssh/openssh-portable/blob/8241b9c0529228b4b86d88b1a6076fb9f97e4a99/monitor.c#L878">cve@mitre.org</a></li>
-        <li><a href="https://access.redhat.com/security/cve/CVE-2023-51767">cve@mitre.org</a></li>
-        <li><a href="https://bugzilla.redhat.com/show_bug.cgi?id=2255850">cve@mitre.org</a></li>
-        <li><a href="https://ubuntu.com/security/CVE-2023-51767">cve@mitre.org</a></li>
-        <li><a href="https://security.netapp.com/advisory/ntap-20240125-0006/">cve@mitre.org</a></li>
+        <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2024-2236">http://people.ubuntu.com/~ubuntu-security/cve/CVE-2024-2236</a></li>
+        <li><a href="https://access.redhat.com/security/cve/CVE-2024-2236">https://access.redhat.com/security/cve/CVE-2024-2236</a></li>
+        <li><a href="https://bugzilla.redhat.com/show_bug.cgi?id=2268268">https://bugzilla.redhat.com/show_bug.cgi?id=2268268</a></li>
+        <li><a href="https://bugzilla.redhat.com/show_bug.cgi?id=2245218">https://bugzilla.redhat.com/show_bug.cgi?id=2245218</a></li>
         </ul>
         
               <hr/>
         
             <div class="cta card__cta">
-                <p><a href="https://snyk.io/vuln/SNYK-UBUNTU2204-OPENSSH-6142085">More about this vulnerability</a></p>
+                <p><a href="https://snyk.io/vuln/SNYK-UBUNTU2204-LIBGCRYPT20-6411451">More about this vulnerability</a></p>
             </div>
         
         </div><!-- .card -->
@@ -764,7 +972,7 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         docker-image|quay.io/argoproj/argocd@latest
                                          <span class="list-paths__item__arrow">›</span> 
-                                        openssh/openssh-client@1:8.9p1-3ubuntu0.6
+                                        openssh/openssh-client@1:8.9p1-3ubuntu0.7
                                          <span class="list-paths__item__arrow">›</span> 
                                         krb5/libgssapi-krb5-2@1.19.2-2ubuntu0.3
                                         
@@ -777,7 +985,7 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         git@1:2.34.1-1ubuntu1.10
                                          <span class="list-paths__item__arrow">›</span> 
-                                        curl/libcurl3-gnutls@7.81.0-1ubuntu1.15
+                                        curl/libcurl3-gnutls@7.81.0-1ubuntu1.16
                                          <span class="list-paths__item__arrow">›</span> 
                                         krb5/libgssapi-krb5-2@1.19.2-2ubuntu0.3
                                         
@@ -790,7 +998,7 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         git@1:2.34.1-1ubuntu1.10
                                          <span class="list-paths__item__arrow">›</span> 
-                                        curl/libcurl3-gnutls@7.81.0-1ubuntu1.15
+                                        curl/libcurl3-gnutls@7.81.0-1ubuntu1.16
                                          <span class="list-paths__item__arrow">›</span> 
                                         libssh/libssh-4@0.9.6-2ubuntu0.22.04.3
                                          <span class="list-paths__item__arrow">›</span> 
@@ -841,8 +1049,8 @@
         <p>There is no fixed version for <code>Ubuntu:22.04</code> <code>krb5</code>.</p>
         <h2 id="references">References</h2>
         <ul>
-        <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2024-26461">ADVISORY</a></li>
-        <li><a href="https://github.com/LuMingYinDetect/krb5_defects/blob/main/krb5_detect_2.md">cve@mitre.org</a></li>
+        <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2024-26461">http://people.ubuntu.com/~ubuntu-security/cve/CVE-2024-26461</a></li>
+        <li><a href="https://github.com/LuMingYinDetect/krb5_defects/blob/main/krb5_detect_2.md">https://github.com/LuMingYinDetect/krb5_defects/blob/main/krb5_detect_2.md</a></li>
         </ul>
         
               <hr/>
@@ -984,7 +1192,7 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         docker-image|quay.io/argoproj/argocd@latest
                                          <span class="list-paths__item__arrow">›</span> 
-                                        openssh/openssh-client@1:8.9p1-3ubuntu0.6
+                                        openssh/openssh-client@1:8.9p1-3ubuntu0.7
                                          <span class="list-paths__item__arrow">›</span> 
                                         krb5/libgssapi-krb5-2@1.19.2-2ubuntu0.3
                                         
@@ -997,7 +1205,7 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         git@1:2.34.1-1ubuntu1.10
                                          <span class="list-paths__item__arrow">›</span> 
-                                        curl/libcurl3-gnutls@7.81.0-1ubuntu1.15
+                                        curl/libcurl3-gnutls@7.81.0-1ubuntu1.16
                                          <span class="list-paths__item__arrow">›</span> 
                                         krb5/libgssapi-krb5-2@1.19.2-2ubuntu0.3
                                         
@@ -1010,7 +1218,7 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         git@1:2.34.1-1ubuntu1.10
                                          <span class="list-paths__item__arrow">›</span> 
-                                        curl/libcurl3-gnutls@7.81.0-1ubuntu1.15
+                                        curl/libcurl3-gnutls@7.81.0-1ubuntu1.16
                                          <span class="list-paths__item__arrow">›</span> 
                                         libssh/libssh-4@0.9.6-2ubuntu0.22.04.3
                                          <span class="list-paths__item__arrow">›</span> 
@@ -1061,8 +1269,8 @@
         <p>There is no fixed version for <code>Ubuntu:22.04</code> <code>krb5</code>.</p>
         <h2 id="references">References</h2>
         <ul>
-        <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2024-26462">ADVISORY</a></li>
-        <li><a href="https://github.com/LuMingYinDetect/krb5_defects/blob/main/krb5_detect_3.md">cve@mitre.org</a></li>
+        <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2024-26462">http://people.ubuntu.com/~ubuntu-security/cve/CVE-2024-26462</a></li>
+        <li><a href="https://github.com/LuMingYinDetect/krb5_defects/blob/main/krb5_detect_3.md">https://github.com/LuMingYinDetect/krb5_defects/blob/main/krb5_detect_3.md</a></li>
         </ul>
         
               <hr/>
@@ -1204,7 +1412,7 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         docker-image|quay.io/argoproj/argocd@latest
                                          <span class="list-paths__item__arrow">›</span> 
-                                        openssh/openssh-client@1:8.9p1-3ubuntu0.6
+                                        openssh/openssh-client@1:8.9p1-3ubuntu0.7
                                          <span class="list-paths__item__arrow">›</span> 
                                         krb5/libgssapi-krb5-2@1.19.2-2ubuntu0.3
                                         
@@ -1217,7 +1425,7 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         git@1:2.34.1-1ubuntu1.10
                                          <span class="list-paths__item__arrow">›</span> 
-                                        curl/libcurl3-gnutls@7.81.0-1ubuntu1.15
+                                        curl/libcurl3-gnutls@7.81.0-1ubuntu1.16
                                          <span class="list-paths__item__arrow">›</span> 
                                         krb5/libgssapi-krb5-2@1.19.2-2ubuntu0.3
                                         
@@ -1230,7 +1438,7 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         git@1:2.34.1-1ubuntu1.10
                                          <span class="list-paths__item__arrow">›</span> 
-                                        curl/libcurl3-gnutls@7.81.0-1ubuntu1.15
+                                        curl/libcurl3-gnutls@7.81.0-1ubuntu1.16
                                          <span class="list-paths__item__arrow">›</span> 
                                         libssh/libssh-4@0.9.6-2ubuntu0.22.04.3
                                          <span class="list-paths__item__arrow">›</span> 
@@ -1281,8 +1489,8 @@
         <p>There is no fixed version for <code>Ubuntu:22.04</code> <code>krb5</code>.</p>
         <h2 id="references">References</h2>
         <ul>
-        <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2024-26458">ADVISORY</a></li>
-        <li><a href="https://github.com/LuMingYinDetect/krb5_defects/blob/main/krb5_detect_1.md">cve@mitre.org</a></li>
+        <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2024-26458">http://people.ubuntu.com/~ubuntu-security/cve/CVE-2024-26458</a></li>
+        <li><a href="https://github.com/LuMingYinDetect/krb5_defects/blob/main/krb5_detect_1.md">https://github.com/LuMingYinDetect/krb5_defects/blob/main/krb5_detect_1.md</a></li>
         </ul>
         
               <hr/>
@@ -1349,216 +1557,6 @@
         
             <div class="cta card__cta">
                 <p><a href="https://snyk.io/vuln/snyk:lic:golang:gopkg.in:retry.v1:LGPL-3.0">More about this vulnerability</a></p>
-            </div>
-        
-        </div><!-- .card -->
-        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
-            <h2 class="card__title">Infinite loop</h2>
-            <div class="card__section">
-        
-                <div class="label label--medium">
-                    <span class="label__text">medium severity</span>
-                </div>
-        
-                <hr/>
-        
-                <ul class="card__meta">
-                    <li class="card__meta__item">
-                        Manifest file: quay.io/argoproj/argocd:latest/argoproj/argo-cd/v2 <span class="list-paths__item__arrow">›</span> /usr/local/bin/argocd
-                    </li>
-                    <li class="card__meta__item">
-                        Package Manager: golang
-                    </li>
-                    <li class="card__meta__item">
-                            Vulnerable module:
-        
-                            google.golang.org/protobuf/internal/encoding/json
-                    </li>
-        
-                    <li class="card__meta__item">Introduced through:
-        
-                                github.com/argoproj/argo-cd/v2@* and google.golang.org/protobuf/internal/encoding/json@v1.31.0
-        
-                    </li>
-                </ul>
-        
-                <hr/>
-        
-        
-                        <h3 class="card__section__title">Detailed paths</h3>
-        
-                    <ul class="card__meta__paths">
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v2@*
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        google.golang.org/protobuf/internal/encoding/json@v1.31.0
-                                        
-                                </span>
-        
-                            </li>
-                    </ul><!-- .list-paths -->
-        
-            </div><!-- .card__section -->
-        
-              <hr/>
-              <!-- Overview -->
-              <h2 id="overview">Overview</h2>
-        <p>Affected versions of this package are vulnerable to Infinite loop via the <code>protojson.Unmarshal</code> function. An attacker can cause a denial of service condition by unmarshaling certain forms of invalid JSON.</p>
-        <p><strong>Note:</strong></p>
-        <p>This condition can occur when unmarshaling into a message which contains a <code>google.protobuf.Any</code> value, or when the <code>UnmarshalOptions.DiscardUnknown</code> option is set.</p>
-        <h2 id="remediation">Remediation</h2>
-        <p>Upgrade <code>google.golang.org/protobuf/internal/encoding/json</code> to version 1.33.0 or higher.</p>
-        <h2 id="references">References</h2>
-        <ul>
-        <li><a href="https://github.com/protocolbuffers/protobuf-go/commit/f01a588e5810b90996452eec4a28f22a0afae023">GitHub Commit</a></li>
-        <li><a href="https://github.com/protocolbuffers/protobuf-go/releases/tag/v1.33.0">GitHub Release</a></li>
-        <li><a href="https://pkg.go.dev/vuln/GO-2024-2611">Vulnerability Advisory</a></li>
-        </ul>
-        
-              <hr/>
-        
-            <div class="cta card__cta">
-                <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GOOGLEGOLANGORGPROTOBUFINTERNALENCODINGJSON-6393704">More about this vulnerability</a></p>
-            </div>
-        
-        </div><!-- .card -->
-        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
-            <h2 class="card__title">Stack-based Buffer Overflow</h2>
-            <div class="card__section">
-        
-                <div class="label label--medium">
-                    <span class="label__text">medium severity</span>
-                </div>
-        
-                <hr/>
-        
-                <ul class="card__meta">
-                    <li class="card__meta__item">
-                        Manifest file: quay.io/argoproj/argocd:latest/argoproj/argo-cd/v2 <span class="list-paths__item__arrow">›</span> /usr/local/bin/argocd
-                    </li>
-                    <li class="card__meta__item">
-                        Package Manager: golang
-                    </li>
-                    <li class="card__meta__item">
-                            Vulnerable module:
-        
-                            google.golang.org/protobuf/encoding/protojson
-                    </li>
-        
-                    <li class="card__meta__item">Introduced through:
-        
-                                github.com/argoproj/argo-cd/v2@* and google.golang.org/protobuf/encoding/protojson@v1.31.0
-        
-                    </li>
-                </ul>
-        
-                <hr/>
-        
-        
-                        <h3 class="card__section__title">Detailed paths</h3>
-        
-                    <ul class="card__meta__paths">
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v2@*
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        google.golang.org/protobuf/encoding/protojson@v1.31.0
-                                        
-                                </span>
-        
-                            </li>
-                    </ul><!-- .list-paths -->
-        
-            </div><!-- .card__section -->
-        
-              <hr/>
-              <!-- Overview -->
-              <h2 id="overview">Overview</h2>
-        <p>Affected versions of this package are vulnerable to Stack-based Buffer Overflow when processing input that uses pathologically deep nesting.</p>
-        <h2 id="remediation">Remediation</h2>
-        <p>Upgrade <code>google.golang.org/protobuf/encoding/protojson</code> to version 1.32.0 or higher.</p>
-        <h2 id="references">References</h2>
-        <ul>
-        <li><a href="https://github.com/protocolbuffers/protobuf-go/commit/bfcd6476a38e41247d6bb43dc8f00b23ec9fffc2">GitHub Commit</a></li>
-        <li><a href="https://github.com/golang/protobuf/issues/1584">GitHub Issue</a></li>
-        </ul>
-        
-              <hr/>
-        
-            <div class="cta card__cta">
-                <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GOOGLEGOLANGORGPROTOBUFENCODINGPROTOJSON-6137908">More about this vulnerability</a></p>
-            </div>
-        
-        </div><!-- .card -->
-        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
-            <h2 class="card__title">Infinite loop</h2>
-            <div class="card__section">
-        
-                <div class="label label--medium">
-                    <span class="label__text">medium severity</span>
-                </div>
-        
-                <hr/>
-        
-                <ul class="card__meta">
-                    <li class="card__meta__item">
-                        Manifest file: quay.io/argoproj/argocd:latest/argoproj/argo-cd/v2 <span class="list-paths__item__arrow">›</span> /usr/local/bin/argocd
-                    </li>
-                    <li class="card__meta__item">
-                        Package Manager: golang
-                    </li>
-                    <li class="card__meta__item">
-                            Vulnerable module:
-        
-                            google.golang.org/protobuf/encoding/protojson
-                    </li>
-        
-                    <li class="card__meta__item">Introduced through:
-        
-                                github.com/argoproj/argo-cd/v2@* and google.golang.org/protobuf/encoding/protojson@v1.31.0
-        
-                    </li>
-                </ul>
-        
-                <hr/>
-        
-        
-                        <h3 class="card__section__title">Detailed paths</h3>
-        
-                    <ul class="card__meta__paths">
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v2@*
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        google.golang.org/protobuf/encoding/protojson@v1.31.0
-                                        
-                                </span>
-        
-                            </li>
-                    </ul><!-- .list-paths -->
-        
-            </div><!-- .card__section -->
-        
-              <hr/>
-              <!-- Overview -->
-              <h2 id="overview">Overview</h2>
-        <p>Affected versions of this package are vulnerable to Infinite loop via the <code>protojson.Unmarshal</code> function. An attacker can cause a denial of service condition by unmarshaling certain forms of invalid JSON.</p>
-        <p><strong>Note:</strong></p>
-        <p>This condition can occur when unmarshaling into a message which contains a <code>google.protobuf.Any</code> value, or when the <code>UnmarshalOptions.DiscardUnknown</code> option is set.</p>
-        <h2 id="remediation">Remediation</h2>
-        <p>Upgrade <code>google.golang.org/protobuf/encoding/protojson</code> to version 1.33.0 or higher.</p>
-        <h2 id="references">References</h2>
-        <ul>
-        <li><a href="https://github.com/protocolbuffers/protobuf-go/commit/f01a588e5810b90996452eec4a28f22a0afae023">GitHub Commit</a></li>
-        <li><a href="https://github.com/protocolbuffers/protobuf-go/releases/tag/v1.33.0">GitHub Release</a></li>
-        <li><a href="https://pkg.go.dev/vuln/GO-2024-2611">Vulnerability Advisory</a></li>
-        </ul>
-        
-              <hr/>
-        
-            <div class="cta card__cta">
-                <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GOOGLEGOLANGORGPROTOBUFENCODINGPROTOJSON-6393703">More about this vulnerability</a></p>
             </div>
         
         </div><!-- .card -->
@@ -1647,7 +1645,7 @@
         
                     <li class="card__meta__item">Introduced through:
         
-                                github.com/argoproj/argo-cd/v2@* and github.com/hashicorp/go-version@v1.2.1
+                                github.com/argoproj/argo-cd/v2@* and github.com/hashicorp/go-version@v1.6.0
         
                     </li>
                 </ul>
@@ -1662,7 +1660,7 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         github.com/argoproj/argo-cd/v2@*
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/hashicorp/go-version@v1.2.1
+                                        github.com/hashicorp/go-version@v1.6.0
                                         
                                 </span>
         
@@ -1922,80 +1920,6 @@
             </div>
         
         </div><!-- .card -->
-        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
-            <h2 class="card__title">Improper Restriction of Recursive Entity References in DTDs (&#x27;XML Entity Expansion&#x27;)</h2>
-            <div class="card__section">
-        
-                <div class="label label--medium">
-                    <span class="label__text">medium severity</span>
-                </div>
-        
-                <hr/>
-        
-                <ul class="card__meta">
-                    <li class="card__meta__item">
-                        Manifest file: quay.io/argoproj/argocd:latest/argoproj/argocd <span class="list-paths__item__arrow">›</span> Dockerfile
-                    </li>
-                    <li class="card__meta__item">
-                        Package Manager: ubuntu:22.04
-                    </li>
-                    <li class="card__meta__item">
-                            Vulnerable module:
-        
-                            expat/libexpat1
-                    </li>
-        
-                    <li class="card__meta__item">Introduced through:
-        
-        
-                                    docker-image|quay.io/argoproj/argocd@latest, git@1:2.34.1-1ubuntu1.10 and others
-                    </li>
-                </ul>
-        
-                <hr/>
-        
-        
-                        <h3 class="card__section__title">Detailed paths</h3>
-        
-                    <ul class="card__meta__paths">
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@latest
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        git@1:2.34.1-1ubuntu1.10
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        expat/libexpat1@2.4.7-1ubuntu0.2
-                                        
-                                </span>
-        
-                            </li>
-                    </ul><!-- .list-paths -->
-        
-            </div><!-- .card__section -->
-        
-              <hr/>
-              <!-- Overview -->
-              <h2 id="nvd-description">NVD Description</h2>
-        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>expat</code> package and not the <code>expat</code> package as distributed by <code>Ubuntu</code>.</em>
-        <em>See <code>How to fix?</code> for <code>Ubuntu:22.04</code> relevant fixed versions and status.</em></p>
-        <p>libexpat through 2.5.0 allows recursive XML Entity Expansion if XML_DTD is undefined at compile time.</p>
-        <h2 id="remediation">Remediation</h2>
-        <p>There is no fixed version for <code>Ubuntu:22.04</code> <code>expat</code>.</p>
-        <h2 id="references">References</h2>
-        <ul>
-        <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2023-52426">ADVISORY</a></li>
-        <li><a href="https://cwe.mitre.org/data/definitions/776.html">cve@mitre.org</a></li>
-        <li><a href="https://github.com/libexpat/libexpat/commit/0f075ec8ecb5e43f8fdca5182f8cca4703da0404">cve@mitre.org</a></li>
-        <li><a href="https://github.com/libexpat/libexpat/pull/777">cve@mitre.org</a></li>
-        </ul>
-        
-              <hr/>
-        
-            <div class="cta card__cta">
-                <p><a href="https://snyk.io/vuln/SNYK-UBUNTU2204-EXPAT-6241291">More about this vulnerability</a></p>
-            </div>
-        
-        </div><!-- .card -->
         <div class="card card--vuln  disclosure--not-new severity--low" data-snyk-test="low">
             <h2 class="card__title">CVE-2023-7008</h2>
             <div class="card__section">
@@ -2045,7 +1969,7 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         docker-image|quay.io/argoproj/argocd@latest
                                          <span class="list-paths__item__arrow">›</span> 
-                                        apt@2.4.11
+                                        apt@2.4.12
                                          <span class="list-paths__item__arrow">›</span> 
                                         systemd/libsystemd0@249.11-0ubuntu3.12
                                         
@@ -2067,7 +1991,7 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         docker-image|quay.io/argoproj/argocd@latest
                                          <span class="list-paths__item__arrow">›</span> 
-                                        util-linux@2.37.2-4ubuntu3
+                                        util-linux@2.37.2-4ubuntu3.4
                                          <span class="list-paths__item__arrow">›</span> 
                                         systemd/libsystemd0@249.11-0ubuntu3.12
                                         
@@ -2078,7 +2002,7 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         docker-image|quay.io/argoproj/argocd@latest
                                          <span class="list-paths__item__arrow">›</span> 
-                                        util-linux/bsdutils@1:2.37.2-4ubuntu3
+                                        util-linux/bsdutils@1:2.37.2-4ubuntu3.4
                                          <span class="list-paths__item__arrow">›</span> 
                                         systemd/libsystemd0@249.11-0ubuntu3.12
                                         
@@ -2089,9 +2013,9 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         docker-image|quay.io/argoproj/argocd@latest
                                          <span class="list-paths__item__arrow">›</span> 
-                                        apt@2.4.11
+                                        apt@2.4.12
                                          <span class="list-paths__item__arrow">›</span> 
-                                        apt/libapt-pkg6.0@2.4.11
+                                        apt/libapt-pkg6.0@2.4.12
                                          <span class="list-paths__item__arrow">›</span> 
                                         systemd/libsystemd0@249.11-0ubuntu3.12
                                         
@@ -2122,7 +2046,7 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         docker-image|quay.io/argoproj/argocd@latest
                                          <span class="list-paths__item__arrow">›</span> 
-                                        util-linux@2.37.2-4ubuntu3
+                                        util-linux@2.37.2-4ubuntu3.4
                                          <span class="list-paths__item__arrow">›</span> 
                                         systemd/libudev1@249.11-0ubuntu3.12
                                         
@@ -2133,9 +2057,9 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         docker-image|quay.io/argoproj/argocd@latest
                                          <span class="list-paths__item__arrow">›</span> 
-                                        apt@2.4.11
+                                        apt@2.4.12
                                          <span class="list-paths__item__arrow">›</span> 
-                                        apt/libapt-pkg6.0@2.4.11
+                                        apt/libapt-pkg6.0@2.4.12
                                          <span class="list-paths__item__arrow">›</span> 
                                         systemd/libudev1@249.11-0ubuntu3.12
                                         
@@ -2156,13 +2080,14 @@
         <p>There is no fixed version for <code>Ubuntu:22.04</code> <code>systemd</code>.</p>
         <h2 id="references">References</h2>
         <ul>
-        <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2023-7008">ADVISORY</a></li>
-        <li><a href="https://access.redhat.com/security/cve/CVE-2023-7008">secalert@redhat.com</a></li>
-        <li><a href="https://bugzilla.redhat.com/show_bug.cgi?id=2222261">secalert@redhat.com</a></li>
-        <li><a href="https://bugzilla.redhat.com/show_bug.cgi?id=2222672">secalert@redhat.com</a></li>
-        <li><a href="https://github.com/systemd/systemd/issues/25676">secalert@redhat.com</a></li>
-        <li><a href="https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/QHNBXGKJWISJETTTDTZKTBFIBJUOSLKL/">secalert@redhat.com</a></li>
-        <li><a href="https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/4GMDEG5PKONWNHOEYSUDRT6JEOISRMN2/">secalert@redhat.com</a></li>
+        <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2023-7008">http://people.ubuntu.com/~ubuntu-security/cve/CVE-2023-7008</a></li>
+        <li><a href="https://access.redhat.com/security/cve/CVE-2023-7008">https://access.redhat.com/security/cve/CVE-2023-7008</a></li>
+        <li><a href="https://bugzilla.redhat.com/show_bug.cgi?id=2222261">https://bugzilla.redhat.com/show_bug.cgi?id=2222261</a></li>
+        <li><a href="https://bugzilla.redhat.com/show_bug.cgi?id=2222672">https://bugzilla.redhat.com/show_bug.cgi?id=2222672</a></li>
+        <li><a href="https://github.com/systemd/systemd/issues/25676">https://github.com/systemd/systemd/issues/25676</a></li>
+        <li><a href="https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/QHNBXGKJWISJETTTDTZKTBFIBJUOSLKL/">https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/QHNBXGKJWISJETTTDTZKTBFIBJUOSLKL/</a></li>
+        <li><a href="https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/4GMDEG5PKONWNHOEYSUDRT6JEOISRMN2/">https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/4GMDEG5PKONWNHOEYSUDRT6JEOISRMN2/</a></li>
+        <li><a href="https://access.redhat.com/errata/RHSA-2024:2463">https://access.redhat.com/errata/RHSA-2024:2463</a></li>
         </ul>
         
               <hr/>
@@ -2232,7 +2157,7 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         docker-image|quay.io/argoproj/argocd@latest
                                          <span class="list-paths__item__arrow">›</span> 
-                                        openssh/openssh-client@1:8.9p1-3ubuntu0.6
+                                        openssh/openssh-client@1:8.9p1-3ubuntu0.7
                                          <span class="list-paths__item__arrow">›</span> 
                                         shadow/passwd@1:4.8.1-2ubuntu2.2
                                         
@@ -2262,11 +2187,11 @@
         <p>There is no fixed version for <code>Ubuntu:22.04</code> <code>shadow</code>.</p>
         <h2 id="references">References</h2>
         <ul>
-        <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2023-29383">ADVISORY</a></li>
-        <li><a href="https://github.com/shadow-maint/shadow/commit/e5905c4b84d4fb90aefcd96ee618411ebfac663d">cve@mitre.org</a></li>
-        <li><a href="https://github.com/shadow-maint/shadow/pull/687">cve@mitre.org</a></li>
-        <li><a href="https://www.trustwave.com/en-us/resources/blogs/spiderlabs-blog/cve-2023-29383-abusing-linux-chfn-to-misrepresent-etc-passwd/">cve@mitre.org</a></li>
-        <li><a href="https://www.trustwave.com/en-us/resources/security-resources/security-advisories/?fid=31797">cve@mitre.org</a></li>
+        <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2023-29383">http://people.ubuntu.com/~ubuntu-security/cve/CVE-2023-29383</a></li>
+        <li><a href="https://github.com/shadow-maint/shadow/commit/e5905c4b84d4fb90aefcd96ee618411ebfac663d">https://github.com/shadow-maint/shadow/commit/e5905c4b84d4fb90aefcd96ee618411ebfac663d</a></li>
+        <li><a href="https://github.com/shadow-maint/shadow/pull/687">https://github.com/shadow-maint/shadow/pull/687</a></li>
+        <li><a href="https://www.trustwave.com/en-us/resources/blogs/spiderlabs-blog/cve-2023-29383-abusing-linux-chfn-to-misrepresent-etc-passwd/">https://www.trustwave.com/en-us/resources/blogs/spiderlabs-blog/cve-2023-29383-abusing-linux-chfn-to-misrepresent-etc-passwd/</a></li>
+        <li><a href="https://www.trustwave.com/en-us/resources/security-resources/security-advisories/?fid=31797">https://www.trustwave.com/en-us/resources/security-resources/security-advisories/?fid=31797</a></li>
         </ul>
         
               <hr/>
@@ -2346,15 +2271,15 @@
         <p>There is no fixed version for <code>Ubuntu:22.04</code> <code>pcre3</code>.</p>
         <h2 id="references">References</h2>
         <ul>
-        <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2017-11164">ADVISORY</a></li>
-        <li><a href="https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2017-11164">CVE Details</a></li>
-        <li><a href="https://security-tracker.debian.org/tracker/CVE-2017-11164">Debian Security Tracker</a></li>
-        <li><a href="https://lists.apache.org/thread.html/rf9fa47ab66495c78bb4120b0754dd9531ca2ff0430f6685ac9b07772@%3Cdev.mina.apache.org%3E">MLIST</a></li>
-        <li><a href="http://openwall.com/lists/oss-security/2017/07/11/3">OSS security Advisory</a></li>
-        <li><a href="http://www.securityfocus.com/bid/99575">Security Focus</a></li>
-        <li><a href="http://www.openwall.com/lists/oss-security/2023/04/11/1">cve@mitre.org</a></li>
-        <li><a href="http://www.openwall.com/lists/oss-security/2023/04/12/1">cve@mitre.org</a></li>
-        <li><a href="https://lists.apache.org/thread.html/rf9fa47ab66495c78bb4120b0754dd9531ca2ff0430f6685ac9b07772%40%3Cdev.mina.apache.org%3E">cve@mitre.org</a></li>
+        <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2017-11164">http://people.ubuntu.com/~ubuntu-security/cve/CVE-2017-11164</a></li>
+        <li><a href="https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2017-11164">https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2017-11164</a></li>
+        <li><a href="https://security-tracker.debian.org/tracker/CVE-2017-11164">https://security-tracker.debian.org/tracker/CVE-2017-11164</a></li>
+        <li><a href="https://lists.apache.org/thread.html/rf9fa47ab66495c78bb4120b0754dd9531ca2ff0430f6685ac9b07772@%3Cdev.mina.apache.org%3E">https://lists.apache.org/thread.html/rf9fa47ab66495c78bb4120b0754dd9531ca2ff0430f6685ac9b07772@%3Cdev.mina.apache.org%3E</a></li>
+        <li><a href="http://openwall.com/lists/oss-security/2017/07/11/3">http://openwall.com/lists/oss-security/2017/07/11/3</a></li>
+        <li><a href="http://www.securityfocus.com/bid/99575">http://www.securityfocus.com/bid/99575</a></li>
+        <li><a href="http://www.openwall.com/lists/oss-security/2023/04/11/1">http://www.openwall.com/lists/oss-security/2023/04/11/1</a></li>
+        <li><a href="http://www.openwall.com/lists/oss-security/2023/04/12/1">http://www.openwall.com/lists/oss-security/2023/04/12/1</a></li>
+        <li><a href="https://lists.apache.org/thread.html/rf9fa47ab66495c78bb4120b0754dd9531ca2ff0430f6685ac9b07772%40%3Cdev.mina.apache.org%3E">https://lists.apache.org/thread.html/rf9fa47ab66495c78bb4120b0754dd9531ca2ff0430f6685ac9b07772%40%3Cdev.mina.apache.org%3E</a></li>
         </ul>
         
               <hr/>
@@ -2423,8 +2348,8 @@
         <p>There is no fixed version for <code>Ubuntu:22.04</code> <code>patch</code>.</p>
         <h2 id="references">References</h2>
         <ul>
-        <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2021-45261">ADVISORY</a></li>
-        <li><a href="https://savannah.gnu.org/bugs/?61685">MISC</a></li>
+        <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2021-45261">http://people.ubuntu.com/~ubuntu-security/cve/CVE-2021-45261</a></li>
+        <li><a href="https://savannah.gnu.org/bugs/?61685">https://savannah.gnu.org/bugs/?61685</a></li>
         </ul>
         
               <hr/>
@@ -2493,13 +2418,13 @@
         <p>There is no fixed version for <code>Ubuntu:22.04</code> <code>patch</code>.</p>
         <h2 id="references">References</h2>
         <ul>
-        <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2018-6952">ADVISORY</a></li>
-        <li><a href="https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2018-6952">CVE Details</a></li>
-        <li><a href="https://security-tracker.debian.org/tracker/CVE-2018-6952">Debian Security Tracker</a></li>
-        <li><a href="https://security.gentoo.org/glsa/201904-17">Gentoo Security Advisory</a></li>
-        <li><a href="https://savannah.gnu.org/bugs/index.php?53133">MISC</a></li>
-        <li><a href="https://access.redhat.com/errata/RHSA-2019:2033">REDHAT</a></li>
-        <li><a href="http://www.securityfocus.com/bid/103047">Security Focus</a></li>
+        <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2018-6952">http://people.ubuntu.com/~ubuntu-security/cve/CVE-2018-6952</a></li>
+        <li><a href="https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2018-6952">https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2018-6952</a></li>
+        <li><a href="https://security-tracker.debian.org/tracker/CVE-2018-6952">https://security-tracker.debian.org/tracker/CVE-2018-6952</a></li>
+        <li><a href="https://security.gentoo.org/glsa/201904-17">https://security.gentoo.org/glsa/201904-17</a></li>
+        <li><a href="https://savannah.gnu.org/bugs/index.php?53133">https://savannah.gnu.org/bugs/index.php?53133</a></li>
+        <li><a href="https://access.redhat.com/errata/RHSA-2019:2033">https://access.redhat.com/errata/RHSA-2019:2033</a></li>
+        <li><a href="http://www.securityfocus.com/bid/103047">http://www.securityfocus.com/bid/103047</a></li>
         </ul>
         
               <hr/>
@@ -2558,7 +2483,7 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         docker-image|quay.io/argoproj/argocd@latest
                                          <span class="list-paths__item__arrow">›</span> 
-                                        bash@5.1-6ubuntu1
+                                        bash@5.1-6ubuntu1.1
                                          <span class="list-paths__item__arrow">›</span> 
                                         ncurses/libtinfo6@6.3-2ubuntu0.1
                                         
@@ -2580,7 +2505,7 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         docker-image|quay.io/argoproj/argocd@latest
                                          <span class="list-paths__item__arrow">›</span> 
-                                        less@590-1ubuntu0.22.04.2
+                                        less@590-1ubuntu0.22.04.3
                                          <span class="list-paths__item__arrow">›</span> 
                                         ncurses/libtinfo6@6.3-2ubuntu0.1
                                         
@@ -2635,7 +2560,7 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         docker-image|quay.io/argoproj/argocd@latest
                                          <span class="list-paths__item__arrow">›</span> 
-                                        util-linux@2.37.2-4ubuntu3
+                                        util-linux@2.37.2-4ubuntu3.4
                                          <span class="list-paths__item__arrow">›</span> 
                                         ncurses/libtinfo6@6.3-2ubuntu0.1
                                         
@@ -2759,11 +2684,11 @@
         <p>There is no fixed version for <code>Ubuntu:22.04</code> <code>ncurses</code>.</p>
         <h2 id="references">References</h2>
         <ul>
-        <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2023-50495">ADVISORY</a></li>
-        <li><a href="https://lists.gnu.org/archive/html/bug-ncurses/2023-04/msg00020.html">cve@mitre.org</a></li>
-        <li><a href="https://lists.gnu.org/archive/html/bug-ncurses/2023-04/msg00029.html">cve@mitre.org</a></li>
-        <li><a href="https://security.netapp.com/advisory/ntap-20240119-0008/">cve@mitre.org</a></li>
-        <li><a href="https://lists.fedoraproject.org/archives/list/package-announce%40lists.fedoraproject.org/message/LU4MYMKFEZQ5VSCVLRIZGDQOUW3T44GT/">cve@mitre.org</a></li>
+        <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2023-50495">http://people.ubuntu.com/~ubuntu-security/cve/CVE-2023-50495</a></li>
+        <li><a href="https://lists.gnu.org/archive/html/bug-ncurses/2023-04/msg00020.html">https://lists.gnu.org/archive/html/bug-ncurses/2023-04/msg00020.html</a></li>
+        <li><a href="https://lists.gnu.org/archive/html/bug-ncurses/2023-04/msg00029.html">https://lists.gnu.org/archive/html/bug-ncurses/2023-04/msg00029.html</a></li>
+        <li><a href="https://security.netapp.com/advisory/ntap-20240119-0008/">https://security.netapp.com/advisory/ntap-20240119-0008/</a></li>
+        <li><a href="https://lists.fedoraproject.org/archives/list/package-announce%40lists.fedoraproject.org/message/LU4MYMKFEZQ5VSCVLRIZGDQOUW3T44GT/">https://lists.fedoraproject.org/archives/list/package-announce%40lists.fedoraproject.org/message/LU4MYMKFEZQ5VSCVLRIZGDQOUW3T44GT/</a></li>
         </ul>
         
               <hr/>
@@ -2822,7 +2747,7 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         docker-image|quay.io/argoproj/argocd@latest
                                          <span class="list-paths__item__arrow">›</span> 
-                                        bash@5.1-6ubuntu1
+                                        bash@5.1-6ubuntu1.1
                                          <span class="list-paths__item__arrow">›</span> 
                                         ncurses/libtinfo6@6.3-2ubuntu0.1
                                         
@@ -2844,7 +2769,7 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         docker-image|quay.io/argoproj/argocd@latest
                                          <span class="list-paths__item__arrow">›</span> 
-                                        less@590-1ubuntu0.22.04.2
+                                        less@590-1ubuntu0.22.04.3
                                          <span class="list-paths__item__arrow">›</span> 
                                         ncurses/libtinfo6@6.3-2ubuntu0.1
                                         
@@ -2899,7 +2824,7 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         docker-image|quay.io/argoproj/argocd@latest
                                          <span class="list-paths__item__arrow">›</span> 
-                                        util-linux@2.37.2-4ubuntu3
+                                        util-linux@2.37.2-4ubuntu3.4
                                          <span class="list-paths__item__arrow">›</span> 
                                         ncurses/libtinfo6@6.3-2ubuntu0.1
                                         
@@ -3023,8 +2948,9 @@
         <p>There is no fixed version for <code>Ubuntu:22.04</code> <code>ncurses</code>.</p>
         <h2 id="references">References</h2>
         <ul>
-        <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2023-45918">ADVISORY</a></li>
-        <li><a href="https://lists.gnu.org/archive/html/bug-ncurses/2023-06/msg00005.html">cve@mitre.org</a></li>
+        <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2023-45918">http://people.ubuntu.com/~ubuntu-security/cve/CVE-2023-45918</a></li>
+        <li><a href="https://lists.gnu.org/archive/html/bug-ncurses/2023-06/msg00005.html">https://lists.gnu.org/archive/html/bug-ncurses/2023-06/msg00005.html</a></li>
+        <li><a href="https://security.netapp.com/advisory/ntap-20240315-0006/">https://security.netapp.com/advisory/ntap-20240315-0006/</a></li>
         </ul>
         
               <hr/>
@@ -3093,15 +3019,15 @@
         <p>There is no fixed version for <code>Ubuntu:22.04</code> <code>libzstd</code>.</p>
         <h2 id="references">References</h2>
         <ul>
-        <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2022-4899">ADVISORY</a></li>
-        <li><a href="https://github.com/facebook/zstd/issues/3200">secalert@redhat.com</a></li>
-        <li><a href="https://security.netapp.com/advisory/ntap-20230725-0005/">secalert@redhat.com</a></li>
-        <li><a href="https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/C63HAGVLQA6FJNDCHR7CNZZL6VSLILB2/">secalert@redhat.com</a></li>
-        <li><a href="https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/JEHRBBYYTPA4DETOM5XAKGCP37NUTLOA/">secalert@redhat.com</a></li>
-        <li><a href="https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/QYLDK6ODVC4LJSDULLX6Q2YHTFOWABCN/">secalert@redhat.com</a></li>
-        <li><a href="https://lists.fedoraproject.org/archives/list/package-announce%40lists.fedoraproject.org/message/C63HAGVLQA6FJNDCHR7CNZZL6VSLILB2/">secalert@redhat.com</a></li>
-        <li><a href="https://lists.fedoraproject.org/archives/list/package-announce%40lists.fedoraproject.org/message/JEHRBBYYTPA4DETOM5XAKGCP37NUTLOA/">secalert@redhat.com</a></li>
-        <li><a href="https://lists.fedoraproject.org/archives/list/package-announce%40lists.fedoraproject.org/message/QYLDK6ODVC4LJSDULLX6Q2YHTFOWABCN/">secalert@redhat.com</a></li>
+        <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2022-4899">http://people.ubuntu.com/~ubuntu-security/cve/CVE-2022-4899</a></li>
+        <li><a href="https://github.com/facebook/zstd/issues/3200">https://github.com/facebook/zstd/issues/3200</a></li>
+        <li><a href="https://security.netapp.com/advisory/ntap-20230725-0005/">https://security.netapp.com/advisory/ntap-20230725-0005/</a></li>
+        <li><a href="https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/C63HAGVLQA6FJNDCHR7CNZZL6VSLILB2/">https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/C63HAGVLQA6FJNDCHR7CNZZL6VSLILB2/</a></li>
+        <li><a href="https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/JEHRBBYYTPA4DETOM5XAKGCP37NUTLOA/">https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/JEHRBBYYTPA4DETOM5XAKGCP37NUTLOA/</a></li>
+        <li><a href="https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/QYLDK6ODVC4LJSDULLX6Q2YHTFOWABCN/">https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/QYLDK6ODVC4LJSDULLX6Q2YHTFOWABCN/</a></li>
+        <li><a href="https://lists.fedoraproject.org/archives/list/package-announce%40lists.fedoraproject.org/message/C63HAGVLQA6FJNDCHR7CNZZL6VSLILB2/">https://lists.fedoraproject.org/archives/list/package-announce%40lists.fedoraproject.org/message/C63HAGVLQA6FJNDCHR7CNZZL6VSLILB2/</a></li>
+        <li><a href="https://lists.fedoraproject.org/archives/list/package-announce%40lists.fedoraproject.org/message/JEHRBBYYTPA4DETOM5XAKGCP37NUTLOA/">https://lists.fedoraproject.org/archives/list/package-announce%40lists.fedoraproject.org/message/JEHRBBYYTPA4DETOM5XAKGCP37NUTLOA/</a></li>
+        <li><a href="https://lists.fedoraproject.org/archives/list/package-announce%40lists.fedoraproject.org/message/QYLDK6ODVC4LJSDULLX6Q2YHTFOWABCN/">https://lists.fedoraproject.org/archives/list/package-announce%40lists.fedoraproject.org/message/QYLDK6ODVC4LJSDULLX6Q2YHTFOWABCN/</a></li>
         </ul>
         
               <hr/>
@@ -3243,7 +3169,7 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         docker-image|quay.io/argoproj/argocd@latest
                                          <span class="list-paths__item__arrow">›</span> 
-                                        openssh/openssh-client@1:8.9p1-3ubuntu0.6
+                                        openssh/openssh-client@1:8.9p1-3ubuntu0.7
                                          <span class="list-paths__item__arrow">›</span> 
                                         krb5/libgssapi-krb5-2@1.19.2-2ubuntu0.3
                                         
@@ -3256,7 +3182,7 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         git@1:2.34.1-1ubuntu1.10
                                          <span class="list-paths__item__arrow">›</span> 
-                                        curl/libcurl3-gnutls@7.81.0-1ubuntu1.15
+                                        curl/libcurl3-gnutls@7.81.0-1ubuntu1.16
                                          <span class="list-paths__item__arrow">›</span> 
                                         krb5/libgssapi-krb5-2@1.19.2-2ubuntu0.3
                                         
@@ -3269,7 +3195,7 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         git@1:2.34.1-1ubuntu1.10
                                          <span class="list-paths__item__arrow">›</span> 
-                                        curl/libcurl3-gnutls@7.81.0-1ubuntu1.15
+                                        curl/libcurl3-gnutls@7.81.0-1ubuntu1.16
                                          <span class="list-paths__item__arrow">›</span> 
                                         libssh/libssh-4@0.9.6-2ubuntu0.22.04.3
                                          <span class="list-paths__item__arrow">›</span> 
@@ -3320,12 +3246,12 @@
         <p>There is no fixed version for <code>Ubuntu:22.04</code> <code>krb5</code>.</p>
         <h2 id="references">References</h2>
         <ul>
-        <li><a href="https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2018-5709">CVE Details</a></li>
-        <li><a href="https://security-tracker.debian.org/tracker/CVE-2018-5709">Debian Security Tracker</a></li>
-        <li><a href="https://github.com/poojamnit/Kerberos-V5-1.16-Vulnerabilities/tree/master/Integer%20Overflow">GitHub Additional Information</a></li>
-        <li><a href="https://lists.apache.org/thread.html/rf9fa47ab66495c78bb4120b0754dd9531ca2ff0430f6685ac9b07772@%3Cdev.mina.apache.org%3E">MLIST</a></li>
-        <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2018-5709">Ubuntu CVE Tracker</a></li>
-        <li><a href="https://lists.apache.org/thread.html/rf9fa47ab66495c78bb4120b0754dd9531ca2ff0430f6685ac9b07772%40%3Cdev.mina.apache.org%3E">cve@mitre.org</a></li>
+        <li><a href="https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2018-5709">https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2018-5709</a></li>
+        <li><a href="https://security-tracker.debian.org/tracker/CVE-2018-5709">https://security-tracker.debian.org/tracker/CVE-2018-5709</a></li>
+        <li><a href="https://github.com/poojamnit/Kerberos-V5-1.16-Vulnerabilities/tree/master/Integer%20Overflow">https://github.com/poojamnit/Kerberos-V5-1.16-Vulnerabilities/tree/master/Integer%20Overflow</a></li>
+        <li><a href="https://lists.apache.org/thread.html/rf9fa47ab66495c78bb4120b0754dd9531ca2ff0430f6685ac9b07772@%3Cdev.mina.apache.org%3E">https://lists.apache.org/thread.html/rf9fa47ab66495c78bb4120b0754dd9531ca2ff0430f6685ac9b07772@%3Cdev.mina.apache.org%3E</a></li>
+        <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2018-5709">http://people.ubuntu.com/~ubuntu-security/cve/CVE-2018-5709</a></li>
+        <li><a href="https://lists.apache.org/thread.html/rf9fa47ab66495c78bb4120b0754dd9531ca2ff0430f6685ac9b07772%40%3Cdev.mina.apache.org%3E">https://lists.apache.org/thread.html/rf9fa47ab66495c78bb4120b0754dd9531ca2ff0430f6685ac9b07772%40%3Cdev.mina.apache.org%3E</a></li>
         </ul>
         
               <hr/>
@@ -3384,7 +3310,7 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         docker-image|quay.io/argoproj/argocd@latest
                                          <span class="list-paths__item__arrow">›</span> 
-                                        apt@2.4.11
+                                        apt@2.4.12
                                          <span class="list-paths__item__arrow">›</span> 
                                         gnupg2/gpgv@2.2.27-3ubuntu2.1
                                         
@@ -3698,13 +3624,13 @@
         <p>There is no fixed version for <code>Ubuntu:22.04</code> <code>gnupg2</code>.</p>
         <h2 id="references">References</h2>
         <ul>
-        <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2022-3219">ADVISORY</a></li>
-        <li><a href="https://access.redhat.com/security/cve/CVE-2022-3219">secalert@redhat.com</a></li>
-        <li><a href="https://bugzilla.redhat.com/show_bug.cgi?id=2127010">secalert@redhat.com</a></li>
-        <li><a href="https://dev.gnupg.org/D556">secalert@redhat.com</a></li>
-        <li><a href="https://dev.gnupg.org/T5993">secalert@redhat.com</a></li>
-        <li><a href="https://marc.info/?l=oss-security&m=165696590211434&w=4">secalert@redhat.com</a></li>
-        <li><a href="https://security.netapp.com/advisory/ntap-20230324-0001/">secalert@redhat.com</a></li>
+        <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2022-3219">http://people.ubuntu.com/~ubuntu-security/cve/CVE-2022-3219</a></li>
+        <li><a href="https://access.redhat.com/security/cve/CVE-2022-3219">https://access.redhat.com/security/cve/CVE-2022-3219</a></li>
+        <li><a href="https://bugzilla.redhat.com/show_bug.cgi?id=2127010">https://bugzilla.redhat.com/show_bug.cgi?id=2127010</a></li>
+        <li><a href="https://dev.gnupg.org/D556">https://dev.gnupg.org/D556</a></li>
+        <li><a href="https://dev.gnupg.org/T5993">https://dev.gnupg.org/T5993</a></li>
+        <li><a href="https://marc.info/?l=oss-security&m=165696590211434&w=4">https://marc.info/?l=oss-security&amp;m=165696590211434&amp;w=4</a></li>
+        <li><a href="https://security.netapp.com/advisory/ntap-20230324-0001/">https://security.netapp.com/advisory/ntap-20230324-0001/</a></li>
         </ul>
         
               <hr/>
@@ -3739,7 +3665,7 @@
         
                     <li class="card__meta__item">Introduced through:
         
-                                docker-image|quay.io/argoproj/argocd@latest and glibc/libc-bin@2.35-0ubuntu3.6
+                                docker-image|quay.io/argoproj/argocd@latest and glibc/libc-bin@2.35-0ubuntu3.7
         
                     </li>
                 </ul>
@@ -3754,7 +3680,7 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         docker-image|quay.io/argoproj/argocd@latest
                                          <span class="list-paths__item__arrow">›</span> 
-                                        glibc/libc-bin@2.35-0ubuntu3.6
+                                        glibc/libc-bin@2.35-0ubuntu3.7
                                         
                                 </span>
         
@@ -3763,7 +3689,7 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         docker-image|quay.io/argoproj/argocd@latest
                                          <span class="list-paths__item__arrow">›</span> 
-                                        glibc/libc6@2.35-0ubuntu3.6
+                                        glibc/libc6@2.35-0ubuntu3.7
                                         
                                 </span>
         
@@ -3782,10 +3708,10 @@
         <p>There is no fixed version for <code>Ubuntu:22.04</code> <code>glibc</code>.</p>
         <h2 id="references">References</h2>
         <ul>
-        <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2016-20013">ADVISORY</a></li>
-        <li><a href="https://twitter.com/solardiz/status/795601240151457793">cve@mitre.org</a></li>
-        <li><a href="https://pthree.org/2018/05/23/do-not-use-sha256crypt-sha512crypt-theyre-dangerous/">cve@mitre.org</a></li>
-        <li><a href="https://akkadia.org/drepper/SHA-crypt.txt">cve@mitre.org</a></li>
+        <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2016-20013">http://people.ubuntu.com/~ubuntu-security/cve/CVE-2016-20013</a></li>
+        <li><a href="https://twitter.com/solardiz/status/795601240151457793">https://twitter.com/solardiz/status/795601240151457793</a></li>
+        <li><a href="https://pthree.org/2018/05/23/do-not-use-sha256crypt-sha512crypt-theyre-dangerous/">https://pthree.org/2018/05/23/do-not-use-sha256crypt-sha512crypt-theyre-dangerous/</a></li>
+        <li><a href="https://akkadia.org/drepper/SHA-crypt.txt">https://akkadia.org/drepper/SHA-crypt.txt</a></li>
         </ul>
         
               <hr/>
@@ -3876,8 +3802,8 @@
         <p>There is no fixed version for <code>Ubuntu:22.04</code> <code>git</code>.</p>
         <h2 id="references">References</h2>
         <ul>
-        <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2018-1000021">ADVISORY</a></li>
-        <li><a href="https://security-tracker.debian.org/tracker/CVE-2018-1000021">Debian Security Tracker</a></li>
+        <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2018-1000021">http://people.ubuntu.com/~ubuntu-security/cve/CVE-2018-1000021</a></li>
+        <li><a href="https://security-tracker.debian.org/tracker/CVE-2018-1000021">https://security-tracker.debian.org/tracker/CVE-2018-1000021</a></li>
         <li><a href="http://www.batterystapl.es/2018/01/security-implications-of-ansi-escape.html">http://www.batterystapl.es/2018/01/security-implications-of-ansi-escape.html</a></li>
         </ul>
         
@@ -3937,7 +3863,7 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         docker-image|quay.io/argoproj/argocd@latest
                                          <span class="list-paths__item__arrow">›</span> 
-                                        apt@2.4.11
+                                        apt@2.4.12
                                          <span class="list-paths__item__arrow">›</span> 
                                         gcc-12/libstdc++6@12.3.0-1ubuntu1~22.04
                                         
@@ -3948,9 +3874,9 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         docker-image|quay.io/argoproj/argocd@latest
                                          <span class="list-paths__item__arrow">›</span> 
-                                        apt@2.4.11
+                                        apt@2.4.12
                                          <span class="list-paths__item__arrow">›</span> 
-                                        apt/libapt-pkg6.0@2.4.11
+                                        apt/libapt-pkg6.0@2.4.12
                                          <span class="list-paths__item__arrow">›</span> 
                                         gcc-12/libstdc++6@12.3.0-1ubuntu1~22.04
                                         
@@ -3989,11 +3915,11 @@
         <p>There is no fixed version for <code>Ubuntu:22.04</code> <code>gcc-12</code>.</p>
         <h2 id="references">References</h2>
         <ul>
-        <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2022-27943">ADVISORY</a></li>
-        <li><a href="https://gcc.gnu.org/bugzilla/show_bug.cgi?id=105039">cve@mitre.org</a></li>
-        <li><a href="https://sourceware.org/bugzilla/show_bug.cgi?id=28995">cve@mitre.org</a></li>
-        <li><a href="https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/H424YXGW7OKXS2NCAP35OP6Y4P4AW6VG/">cve@mitre.org</a></li>
-        <li><a href="https://lists.fedoraproject.org/archives/list/package-announce%40lists.fedoraproject.org/message/H424YXGW7OKXS2NCAP35OP6Y4P4AW6VG/">cve@mitre.org</a></li>
+        <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2022-27943">http://people.ubuntu.com/~ubuntu-security/cve/CVE-2022-27943</a></li>
+        <li><a href="https://gcc.gnu.org/bugzilla/show_bug.cgi?id=105039">https://gcc.gnu.org/bugzilla/show_bug.cgi?id=105039</a></li>
+        <li><a href="https://sourceware.org/bugzilla/show_bug.cgi?id=28995">https://sourceware.org/bugzilla/show_bug.cgi?id=28995</a></li>
+        <li><a href="https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/H424YXGW7OKXS2NCAP35OP6Y4P4AW6VG/">https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/H424YXGW7OKXS2NCAP35OP6Y4P4AW6VG/</a></li>
+        <li><a href="https://lists.fedoraproject.org/archives/list/package-announce%40lists.fedoraproject.org/message/H424YXGW7OKXS2NCAP35OP6Y4P4AW6VG/">https://lists.fedoraproject.org/archives/list/package-announce%40lists.fedoraproject.org/message/H424YXGW7OKXS2NCAP35OP6Y4P4AW6VG/</a></li>
         </ul>
         
               <hr/>
@@ -4028,7 +3954,7 @@
         
                     <li class="card__meta__item">Introduced through:
         
-                                docker-image|quay.io/argoproj/argocd@latest and coreutils@8.32-4.1ubuntu1.1
+                                docker-image|quay.io/argoproj/argocd@latest and coreutils@8.32-4.1ubuntu1.2
         
                     </li>
                 </ul>
@@ -4043,7 +3969,7 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         docker-image|quay.io/argoproj/argocd@latest
                                          <span class="list-paths__item__arrow">›</span> 
-                                        coreutils@8.32-4.1ubuntu1.1
+                                        coreutils@8.32-4.1ubuntu1.2
                                         
                                 </span>
         
@@ -4062,88 +3988,18 @@
         <p>There is no fixed version for <code>Ubuntu:22.04</code> <code>coreutils</code>.</p>
         <h2 id="references">References</h2>
         <ul>
-        <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2016-2781">ADVISORY</a></li>
-        <li><a href="https://security-tracker.debian.org/tracker/CVE-2016-2781">Debian Security Tracker</a></li>
-        <li><a href="https://lists.apache.org/thread.html/rf9fa47ab66495c78bb4120b0754dd9531ca2ff0430f6685ac9b07772@%3Cdev.mina.apache.org%3E">MLIST</a></li>
-        <li><a href="http://www.openwall.com/lists/oss-security/2016/02/28/2">OSS security Advisory</a></li>
-        <li><a href="http://www.openwall.com/lists/oss-security/2016/02/28/3">OSS security Advisory</a></li>
-        <li><a href="https://lists.apache.org/thread.html/rf9fa47ab66495c78bb4120b0754dd9531ca2ff0430f6685ac9b07772%40%3Cdev.mina.apache.org%3E">cve@mitre.org</a></li>
+        <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2016-2781">http://people.ubuntu.com/~ubuntu-security/cve/CVE-2016-2781</a></li>
+        <li><a href="https://security-tracker.debian.org/tracker/CVE-2016-2781">https://security-tracker.debian.org/tracker/CVE-2016-2781</a></li>
+        <li><a href="https://lists.apache.org/thread.html/rf9fa47ab66495c78bb4120b0754dd9531ca2ff0430f6685ac9b07772@%3Cdev.mina.apache.org%3E">https://lists.apache.org/thread.html/rf9fa47ab66495c78bb4120b0754dd9531ca2ff0430f6685ac9b07772@%3Cdev.mina.apache.org%3E</a></li>
+        <li><a href="http://www.openwall.com/lists/oss-security/2016/02/28/2">http://www.openwall.com/lists/oss-security/2016/02/28/2</a></li>
+        <li><a href="http://www.openwall.com/lists/oss-security/2016/02/28/3">http://www.openwall.com/lists/oss-security/2016/02/28/3</a></li>
+        <li><a href="https://lists.apache.org/thread.html/rf9fa47ab66495c78bb4120b0754dd9531ca2ff0430f6685ac9b07772%40%3Cdev.mina.apache.org%3E">https://lists.apache.org/thread.html/rf9fa47ab66495c78bb4120b0754dd9531ca2ff0430f6685ac9b07772%40%3Cdev.mina.apache.org%3E</a></li>
         </ul>
         
               <hr/>
         
             <div class="cta card__cta">
                 <p><a href="https://snyk.io/vuln/SNYK-UBUNTU2204-COREUTILS-2801226">More about this vulnerability</a></p>
-            </div>
-        
-        </div><!-- .card -->
-        <div class="card card--vuln  disclosure--not-new severity--low" data-snyk-test="low">
-            <h2 class="card__title">Out-of-bounds Write</h2>
-            <div class="card__section">
-        
-                <div class="label label--low">
-                    <span class="label__text">low severity</span>
-                </div>
-        
-                <hr/>
-        
-                <ul class="card__meta">
-                    <li class="card__meta__item">
-                        Manifest file: quay.io/argoproj/argocd:latest/argoproj/argocd <span class="list-paths__item__arrow">›</span> Dockerfile
-                    </li>
-                    <li class="card__meta__item">
-                        Package Manager: ubuntu:22.04
-                    </li>
-                    <li class="card__meta__item">
-                            Vulnerable module:
-        
-                            bash
-                    </li>
-        
-                    <li class="card__meta__item">Introduced through:
-        
-                                docker-image|quay.io/argoproj/argocd@latest and bash@5.1-6ubuntu1
-        
-                    </li>
-                </ul>
-        
-                <hr/>
-        
-        
-                        <h3 class="card__section__title">Detailed paths</h3>
-        
-                    <ul class="card__meta__paths">
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@latest
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        bash@5.1-6ubuntu1
-                                        
-                                </span>
-        
-                            </li>
-                    </ul><!-- .list-paths -->
-        
-            </div><!-- .card__section -->
-        
-              <hr/>
-              <!-- Overview -->
-              <h2 id="nvd-description">NVD Description</h2>
-        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>bash</code> package and not the <code>bash</code> package as distributed by <code>Ubuntu</code>.</em>
-        <em>See <code>How to fix?</code> for <code>Ubuntu:22.04</code> relevant fixed versions and status.</em></p>
-        <p>A flaw was found in the bash package, where a heap-buffer overflow can occur in valid parameter_transform. This issue may lead to memory problems.</p>
-        <h2 id="remediation">Remediation</h2>
-        <p>There is no fixed version for <code>Ubuntu:22.04</code> <code>bash</code>.</p>
-        <h2 id="references">References</h2>
-        <ul>
-        <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2022-3715">ADVISORY</a></li>
-        <li><a href="https://bugzilla.redhat.com/show_bug.cgi?id=2126720">secalert@redhat.com</a></li>
-        </ul>
-        
-              <hr/>
-        
-            <div class="cta card__cta">
-                <p><a href="https://snyk.io/vuln/SNYK-UBUNTU2204-BASH-3098342">More about this vulnerability</a></p>
             </div>
         
         </div><!-- .card -->

@@ -10,6 +10,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	testutil "github.com/argoproj/argo-cd/v2/test"
 	argo "github.com/argoproj/argo-cd/v2/util/argo/diff"
+	"github.com/argoproj/argo-cd/v2/util/argo/normalizers"
 	"github.com/argoproj/argo-cd/v2/util/argo/testdata"
 	appstatecache "github.com/argoproj/argo-cd/v2/util/cache/appstate"
 )
@@ -40,7 +41,7 @@ func TestStateDiff(t *testing.T) {
 	diffConfig := func(t *testing.T, params *diffConfigParams) argo.DiffConfig {
 		t.Helper()
 		diffConfig, err := argo.NewDiffConfigBuilder().
-			WithDiffSettings(params.ignores, params.overrides, params.ignoreRoles).
+			WithDiffSettings(params.ignores, params.overrides, params.ignoreRoles, normalizers.IgnoreNormalizerOpts{}).
 			WithTracking(params.label, params.trackingMethod).
 			WithNoCache().
 			Build()
@@ -185,7 +186,7 @@ func TestDiffConfigBuilder(t *testing.T) {
 
 		// when
 		diffConfig, err := argo.NewDiffConfigBuilder().
-			WithDiffSettings(f.ignores, f.overrides, f.ignoreRoles).
+			WithDiffSettings(f.ignores, f.overrides, f.ignoreRoles, normalizers.IgnoreNormalizerOpts{}).
 			WithTracking(f.label, f.trackingMethod).
 			WithNoCache().
 			Build()
@@ -209,7 +210,7 @@ func TestDiffConfigBuilder(t *testing.T) {
 
 		// when
 		diffConfig, err := argo.NewDiffConfigBuilder().
-			WithDiffSettings(nil, nil, f.ignoreRoles).
+			WithDiffSettings(nil, nil, f.ignoreRoles, normalizers.IgnoreNormalizerOpts{}).
 			WithTracking(f.label, f.trackingMethod).
 			WithNoCache().
 			Build()
@@ -231,7 +232,7 @@ func TestDiffConfigBuilder(t *testing.T) {
 
 		// when
 		diffConfig, err := argo.NewDiffConfigBuilder().
-			WithDiffSettings(f.ignores, f.overrides, f.ignoreRoles).
+			WithDiffSettings(f.ignores, f.overrides, f.ignoreRoles, normalizers.IgnoreNormalizerOpts{}).
 			WithTracking(f.label, f.trackingMethod).
 			WithCache(&appstatecache.Cache{}, "").
 			Build()
@@ -246,7 +247,7 @@ func TestDiffConfigBuilder(t *testing.T) {
 
 		// when
 		diffConfig, err := argo.NewDiffConfigBuilder().
-			WithDiffSettings(f.ignores, f.overrides, f.ignoreRoles).
+			WithDiffSettings(f.ignores, f.overrides, f.ignoreRoles, normalizers.IgnoreNormalizerOpts{}).
 			WithTracking(f.label, f.trackingMethod).
 			WithCache(nil, f.appName).
 			Build()

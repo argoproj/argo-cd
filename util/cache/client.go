@@ -7,10 +7,20 @@ import (
 )
 
 var ErrCacheMiss = errors.New("cache: key is missing")
+var ErrCacheKeyLocked = errors.New("cache: key is locked")
+var CacheLockedValue = "locked"
 
 type Item struct {
-	Key    string
-	Object interface{}
+	Key             string
+	Object          interface{}
+	CacheActionOpts CacheActionOpts
+}
+
+type CacheActionOpts struct {
+	// Delete item from cache
+	Delete bool
+	// Disable writing if key already exists (NX)
+	DisableOverwrite bool
 	// Expiration is the cache expiration time.
 	Expiration time.Duration
 }

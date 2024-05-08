@@ -975,6 +975,25 @@
             "type": "string",
             "name": "project",
             "in": "query"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "int64"
+            },
+            "collectionFormat": "multi",
+            "name": "sourcePositions",
+            "in": "query"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi",
+            "name": "revisions",
+            "in": "query"
           }
         ],
         "responses": {
@@ -2000,6 +2019,43 @@
             "description": "A successful response.",
             "schema": {
               "$ref": "#/definitions/applicationsetApplicationSetResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/applicationsets/{name}/resource-tree": {
+      "get": {
+        "tags": [
+          "ApplicationSetService"
+        ],
+        "summary": "ResourceTree returns resource tree",
+        "operationId": "ApplicationSetService_ResourceTree",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "name",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "description": "The application set namespace. Default empty is argocd control plane namespace.",
+            "name": "appsetNamespace",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1alpha1ApplicationSetTree"
             }
           },
           "default": {
@@ -4219,6 +4275,19 @@
         "revision": {
           "type": "string"
         },
+        "revisions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "sourcePositions": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "int64"
+          }
+        },
         "strategy": {
           "$ref": "#/definitions/v1alpha1SyncStrategy"
         },
@@ -6169,6 +6238,13 @@
           "items": {
             "$ref": "#/definitions/v1alpha1ApplicationSetCondition"
           }
+        },
+        "resources": {
+          "description": "Resources is a list of Applications resources managed by this application set.",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1ResourceStatus"
+          }
         }
       }
     },
@@ -6237,6 +6313,19 @@
         },
         "namespace": {
           "type": "string"
+        }
+      }
+    },
+    "v1alpha1ApplicationSetTree": {
+      "type": "object",
+      "title": "ApplicationSetTree holds nodes which belongs to the application\nUsed to build a tree of an ApplicationSet and its children",
+      "properties": {
+        "nodes": {
+          "type": "array",
+          "title": "Nodes contains list of nodes which are directly managed by the applicationset",
+          "items": {
+            "$ref": "#/definitions/v1alpha1ResourceNode"
+          }
         }
       }
     },
@@ -7413,6 +7502,7 @@
       "properties": {
         "elements": {
           "type": "array",
+          "title": "+kubebuilder:validation:Optional",
           "items": {
             "$ref": "#/definitions/v1JSON"
           }
