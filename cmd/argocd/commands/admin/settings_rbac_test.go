@@ -138,6 +138,14 @@ func Test_PolicyFromK8s(t *testing.T) {
 		ok := checkPolicy("role:test", "get", "logs", "*/*", assets.BuiltinPolicyCSV, uPol, dRole, "", true)
 		require.True(t, ok)
 	})
+	t.Run("get logs", func(t *testing.T) {
+		ok := checkPolicy("role:test", "get", "logs", "*", assets.BuiltinPolicyCSV, uPol, dRole, "", true)
+		require.True(t, ok)
+	})
+	t.Run("get logs", func(t *testing.T) {
+		ok := checkPolicy("role:test", "get", "logs", "", assets.BuiltinPolicyCSV, uPol, dRole, "", true)
+		require.True(t, ok)
+	})
 	t.Run("create exec", func(t *testing.T) {
 		ok := checkPolicy("role:test", "create", "exec", "*/*", assets.BuiltinPolicyCSV, uPol, dRole, "", true)
 		require.True(t, ok)
