@@ -1,4 +1,4 @@
-import {models, DataLoader, FormField, MenuItem, NotificationType, Tooltip} from 'argo-ui';
+import {models, DataLoader, FormField, MenuItem, NotificationType, Tooltip, HelpIcon} from 'argo-ui';
 import {ActionButton} from 'argo-ui/v2';
 import * as classNames from 'classnames';
 import * as React from 'react';
@@ -7,7 +7,7 @@ import {FormApi, Text} from 'react-form';
 import * as moment from 'moment';
 import {BehaviorSubject, combineLatest, concat, from, fromEvent, Observable, Observer, Subscription} from 'rxjs';
 import {debounceTime, map} from 'rxjs/operators';
-import {AppContext, Context, ContextApis} from '../../shared/context';
+import {Context, ContextApis} from '../../shared/context';
 import {ResourceTreeNode} from './application-resource-tree/application-resource-tree';
 
 import {CheckboxField, COLORS, ErrorNotification, Revision} from '../../shared/components';
@@ -69,7 +69,7 @@ export async function deleteApplication(appName: string, appNamespace: string, a
         api => (
             <div>
                 <p>
-                    Are you sure you want to delete the application <kbd>{appName}</kbd>?
+                    Are you sure you want to delete the <strong>Application</strong> <kbd>{appName}</kbd>?
                     <span style={{display: 'block', marginBottom: '10px'}} />
                     Deleting the application in <kbd>foreground</kbd> or <kbd>background</kbd> mode will delete all the application's managed resources, which can be{' '}
                     <strong>dangerous</strong>. Be sure you understand the effects of deleting this resource before continuing. Consider asking someone to review the change first.
@@ -119,8 +119,8 @@ export async function deleteApplication(appName: string, appNamespace: string, a
                 }
             }
         },
-        {name: 'argo-icon-warning', color: 'warning'},
-        'yellow',
+        {name: 'argo-icon-warning', color: 'failed'},
+        'red',
         {propagationPolicy: 'foreground'}
     );
     return confirmed;
@@ -297,31 +297,31 @@ export function findChildPod(node: appModels.ResourceNode, tree: appModels.Appli
     });
 }
 
-export const deletePodAction = async (pod: appModels.Pod, appContext: AppContext, appName: string, appNamespace: string) => {
-    appContext.apis.popup.prompt(
+const deletePodAction = async (ctx: ContextApis, pod: appModels.ResourceNode, app: appModels.Application) => {
+    ctx.popup.prompt(
         'Delete pod',
         () => (
             <div>
                 <p>
-                    Are you sure you want to delete Pod <kbd>{pod.name}</kbd>?
+                    Are you sure you want to delete <strong>Pod</strong> <kbd>{pod.name}</kbd>?
                     <span style={{display: 'block', marginBottom: '10px'}} />
                     Deleting resources can be <strong>dangerous</strong>. Be sure you understand the effects of deleting this resource before continuing. Consider asking someone to
                     review the change first.
                 </p>
                 <div className='argo-form-row' style={{paddingLeft: '30px'}}>
-                    <CheckboxField id='force-delete-checkbox' field='force'>
-                        <label htmlFor='force-delete-checkbox'>Force delete</label>
-                    </CheckboxField>
+                    <CheckboxField id='force-delete-checkbox' field='force' />
+                    <label htmlFor='force-delete-checkbox'>Force delete</label>
+                    <HelpIcon title='If checked, Argo will ignore any configured grace period and delete the resource immediately' />
                 </div>
             </div>
         ),
         {
             submit: async (vals, _, close) => {
                 try {
-                    await services.applications.deleteResource(appName, appNamespace, pod, !!vals.force, false);
+                    await services.applications.deleteResource(app.metadata.name, app.metadata.namespace, pod, !!vals.force, false);
                     close();
                 } catch (e) {
-                    appContext.apis.notifications.show({
+                    ctx.notifications.show({
                         content: <ErrorNotification title='Unable to delete resource' e={e} />,
                         type: NotificationType.Error
                     });
@@ -331,25 +331,30 @@ export const deletePodAction = async (pod: appModels.Pod, appContext: AppContext
     );
 };
 
-export const deletePopup = async (ctx: ContextApis, resource: ResourceTreeNode, application: appModels.Application, appChanged?: BehaviorSubject<appModels.Application>) => {
-    function isTopLevelResource(res: ResourceTreeNode, app: appModels.Application): boolean {
-        const uniqRes = `/${res.namespace}/${res.group}/${res.kind}/${res.name}`;
-        return app.status.resources.some(resStatus => `/${resStatus.namespace}/${resStatus.group}/${resStatus.kind}/${resStatus.name}` === uniqRes);
-    }
-
-    const isManaged = isTopLevelResource(resource, application);
+export const deletePopup = async (
+    ctx: ContextApis,
+    resource: ResourceTreeNode,
+    application: appModels.Application,
+    isManaged: boolean,
+    appChanged?: BehaviorSubject<appModels.Application>
+) => {
     const deleteOptions = {
         option: 'foreground'
     };
     function handleStateChange(option: string) {
         deleteOptions.option = option;
     }
+
+    if (resource.kind === 'Pod' && !isManaged) {
+        return deletePodAction(ctx, resource, application);
+    }
+
     return ctx.popup.prompt(
         'Delete resource',
         api => (
             <div>
                 <p>
-                    Are you sure you want to delete {resource.kind} <kbd>{resource.name}</kbd>?
+                    Are you sure you want to delete <strong>{resource.kind}</strong> <kbd>{resource.name}</kbd>?
                     <span style={{display: 'block', marginBottom: '10px'}} />
                     Deleting resources can be <strong>dangerous</strong>. Be sure you understand the effects of deleting this resource before continuing. Consider asking someone to
                     review the change first.
@@ -448,9 +453,16 @@ function getActionItems(
     appChanged: BehaviorSubject<appModels.Application>,
     isQuickStart: boolean
 ): Observable<ActionMenuItem[]> {
-    const isRoot = resource.root && nodeKey(resource.root) === nodeKey(resource);
+    function isTopLevelResource(res: ResourceTreeNode, app: appModels.Application): boolean {
+        const uniqRes = `/${res.namespace}/${res.group}/${res.kind}/${res.name}`;
+        return app.status.resources.some(resStatus => `/${resStatus.namespace}/${resStatus.group}/${resStatus.kind}/${resStatus.name}` === uniqRes);
+    }
+
+    const isPod = resource.kind === 'Pod';
+    const isManaged = isTopLevelResource(resource, application);
+
     const items: MenuItem[] = [
-        ...((isRoot && [
+        ...((isManaged && [
             {
                 title: 'Sync',
                 iconClassName: 'fa fa-fw fa-sync',
@@ -462,10 +474,11 @@ function getActionItems(
             title: 'Delete',
             iconClassName: 'fa fa-fw fa-times-circle',
             action: async () => {
-                return deletePopup(apis, resource, application, appChanged);
+                return deletePopup(apis, resource, application, isManaged, appChanged);
             }
         }
     ];
+
     if (!isQuickStart) {
         items.unshift({
             title: 'Details',
@@ -474,23 +487,34 @@ function getActionItems(
         });
     }
 
-    if (findChildPod(resource, tree)) {
-        items.push({
-            title: 'Logs',
-            iconClassName: 'fa fa-fw fa-align-left',
-            action: () => apis.navigation.goto('.', {node: nodeKey(resource), tab: 'logs'}, {replace: true})
-        });
-    }
+    const logsAction = services.accounts
+        .canI('logs', 'get', application.spec.project + '/' + application.metadata.name)
+        .then(async allowed => {
+            if (allowed && (isPod || findChildPod(resource, tree))) {
+                return [
+                    {
+                        title: 'Logs',
+                        iconClassName: 'fa fa-fw fa-align-left',
+                        action: () => apis.navigation.goto('.', {node: nodeKey(resource), tab: 'logs'}, {replace: true})
+                    } as MenuItem
+                ];
+            }
+            return [] as MenuItem[];
+        })
+        .catch(() => [] as MenuItem[]);
 
     if (isQuickStart) {
-        return from([items]);
+        return combineLatest(
+            from([items]), // this resolves immediately
+            concat([[] as MenuItem[]], logsAction) // this resolves at first to [] and then whatever the API returns
+        ).pipe(map(res => ([] as MenuItem[]).concat(...res)));
     }
 
     const execAction = services.authService
         .settings()
         .then(async settings => {
             const execAllowed = settings.execEnabled && (await services.accounts.canI('exec', 'create', application.spec.project + '/' + application.metadata.name));
-            if (resource.kind === 'Pod' && execAllowed) {
+            if (isPod && execAllowed) {
                 return [
                     {
                         title: 'Exec',
@@ -522,6 +546,7 @@ function getActionItems(
 
     return combineLatest(
         from([items]), // this resolves immediately
+        concat([[] as MenuItem[]], logsAction), // this resolves at first to [] and then whatever the API returns
         concat([[] as MenuItem[]], resourceActions), // this resolves at first to [] and then whatever the API returns
         concat([[] as MenuItem[]], execAction), // this resolves at first to [] and then whatever the API returns
         concat([[] as MenuItem[]], links) // this resolves at first to [] and then whatever the API returns
