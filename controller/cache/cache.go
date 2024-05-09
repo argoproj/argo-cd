@@ -69,6 +69,9 @@ const (
 
 	// EnvClusterCacheRetryUseBackoff is the env variable to control whether to use a backoff strategy with the retry during cluster cache sync
 	EnvClusterCacheRetryUseBackoff = "ARGOCD_CLUSTER_CACHE_RETRY_USE_BACKOFF"
+
+	// EnvClusterConnectionMonitoringInterval is the env variable to configure the cluster status monitoring interval.
+	EnvClusterConnectionMonitoringInterval = "ARGOCD_CLUSTER_STATUS_MONITORING_INTERVAL"
 )
 
 // GitOps engine cluster cache tuning options
@@ -100,6 +103,9 @@ var (
 
 	// clusterCacheRetryUseBackoff specifies whether to use a backoff strategy on cluster cache sync, if retry is enabled
 	clusterCacheRetryUseBackoff bool = false
+
+	// clusterStatusMonitoringInterval specifies the interval used by Argo CD to monitor the cluster connection status.
+	clusterStatusMonitoringInterval = 10 * time.Second
 )
 
 func init() {
@@ -111,6 +117,7 @@ func init() {
 	clusterCacheListSemaphoreSize = env.ParseInt64FromEnv(EnvClusterCacheListSemaphore, clusterCacheListSemaphoreSize, 0, math.MaxInt64)
 	clusterCacheAttemptLimit = int32(env.ParseNumFromEnv(EnvClusterCacheAttemptLimit, int(clusterCacheAttemptLimit), 1, math.MaxInt32))
 	clusterCacheRetryUseBackoff = env.ParseBoolFromEnv(EnvClusterCacheRetryUseBackoff, false)
+	clusterStatusMonitoringInterval = env.ParseDurationFromEnv(EnvClusterConnectionMonitoringInterval, clusterStatusMonitoringInterval, 0, math.MaxInt64)
 }
 
 type LiveStateCache interface {
@@ -185,7 +192,6 @@ func NewLiveStateCache(
 		settingsMgr:         settingsMgr,
 		metricsServer:       metricsServer,
 		clusterSharding:     clusterSharding,
-		clusterFilter:       clusterFilter,
 		resourceTracking:    resourceTracking,
 	}
 }
@@ -524,19 +530,19 @@ func (c *liveStateCache) getCluster(server string) (clustercache.ClusterCache, e
 		clustercache.SetRetryOptions(clusterCacheAttemptLimit, clusterCacheRetryUseBackoff, isRetryableError),
 		clustercache.SetRespectRBAC(respectRBAC),
 		clustercache.SetClusterStatusRetryFunc(isTransientNetworkErr),
-		clustercache.SetClusterConnectionInterval(10 * time.Second),
+		clustercache.SetClusterConnectionInterval(clusterStatusMonitoringInterval),
 	}
 
 	clusterCache = clustercache.NewClusterCache(clusterCacheConfig, clusterCacheOpts...)
 
-	// Make sure to check if the monitoring interval is disabled
-
-	ctx, cancel := context.WithCancel(context.Background())
-	if c.clusterStatusCancel == nil {
-		c.clusterStatusCancel = make(map[string]context.CancelFunc)
+	if clusterStatusMonitoringInterval != 0 {
+		ctx, cancel := context.WithCancel(context.Background())
+		if c.clusterStatusCancel == nil {
+			c.clusterStatusCancel = make(map[string]context.CancelFunc)
+		}
+		c.clusterStatusCancel[server] = cancel
+		clusterCache.StartClusterConnectionStatusMonitoring(ctx)
 	}
-	c.clusterStatusCancel[server] = cancel
-	clusterCache.StartClusterConnectionStatusMonitoring(ctx)
 
 	_ = clusterCache.OnResourceUpdated(func(newRes *clustercache.Resource, oldRes *clustercache.Resource, namespaceResources map[kube.ResourceKey]*clustercache.Resource) {
 		toNotify := make(map[string]bool)
