@@ -573,16 +573,12 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                                                     preferencesKey='application-details'>
                                                                     {data => (
                                                                         <ApplicationResourceList
+                                                                            pref={pref}
                                                                             onNodeClick={fullName => this.selectNode(fullName)}
                                                                             resources={data}
                                                                             nodeMenu={node =>
-                                                                                AppUtils.renderResourceMenu(
-                                                                                    {...node, root: node},
-                                                                                    application,
-                                                                                    tree,
-                                                                                    this.appContext.apis,
-                                                                                    this.appChanged,
-                                                                                    () => this.getApplicationActionMenu(application, false)
+                                                                                AppUtils.renderResourceMenu(node, application, tree, this.appContext.apis, this.appChanged, () =>
+                                                                                    this.getApplicationActionMenu(application, false)
                                                                                 )
                                                                             }
                                                                             tree={tree}
@@ -608,10 +604,11 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                                     preferencesKey='grouped-nodes-details'>
                                                     {data => (
                                                         <ApplicationResourceList
+                                                            pref={pref}
                                                             onNodeClick={fullName => this.selectNode(fullName)}
                                                             resources={data}
                                                             nodeMenu={node =>
-                                                                AppUtils.renderResourceMenu({...node, root: node}, application, tree, this.appContext.apis, this.appChanged, () =>
+                                                                AppUtils.renderResourceMenu(node, application, tree, this.appContext.apis, this.appChanged, () =>
                                                                     this.getApplicationActionMenu(application, false)
                                                                 )
                                                             }
