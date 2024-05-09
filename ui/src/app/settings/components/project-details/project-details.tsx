@@ -574,7 +574,7 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                         {
                             title: 'NAME',
                             view: proj.metadata.name,
-                            edit: (_: FormApi) => proj.metadata.name
+                            edit: () => proj.metadata.name
                         },
                         {
                             title: 'DESCRIPTION',

@@ -16,6 +16,7 @@ import (
 	"sigs.k8s.io/yaml"
 
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/util/argo/normalizers"
 )
 
 func strToUnstructured(jsonStr string) *unstructured.Unstructured {
@@ -749,7 +750,7 @@ func TestManifestHash(t *testing.T) {
 
 	expected := hash(data)
 
-	hash, err := generateManifestHash(manifest, ignores, nil)
+	hash, err := generateManifestHash(manifest, ignores, nil, normalizers.IgnoreNormalizerOpts{})
 	assert.Equal(t, expected, hash)
 	assert.Nil(t, err)
 }

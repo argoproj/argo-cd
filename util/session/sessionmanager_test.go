@@ -1137,6 +1137,43 @@ allowedAudiences: []`, oidcTestServer.URL),
 		assert.ErrorIs(t, err, common.TokenVerificationErr)
 	})
 
+	// Make sure the logic works to allow any of the allowed audiences, not just the first one.
+	t.Run("OIDC provider is external, audience is specified, actual audience isn't the first allowed audience", func(t *testing.T) {
+		config := map[string]string{
+			"url": "",
+			"oidc.config": fmt.Sprintf(`
+name: Test
+issuer: %s
+clientID: xxx
+clientSecret: yyy
+requestedScopes: ["oidc"]
+allowedAudiences: ["aud-a", "aud-b"]`, oidcTestServer.URL),
+			"oidc.tls.insecure.skip.verify": "true", // This isn't what we're testing.
+		}
+
+		// This is not actually used in the test. The test only calls the OIDC test server. But a valid cert/key pair
+		// must be set to test VerifyToken's behavior when Argo CD is configured with TLS enabled.
+		secretConfig := map[string][]byte{
+			"tls.crt": utiltest.Cert,
+			"tls.key": utiltest.PrivateKey,
+		}
+
+		settingsMgr := settings.NewSettingsManager(context.Background(), getKubeClientWithConfig(config, secretConfig), "argocd")
+		mgr := NewSessionManager(settingsMgr, getProjLister(), "", nil, NewUserStateStorage(nil))
+		mgr.verificationDelayNoiseEnabled = false
+
+		claims := jwt.RegisteredClaims{Audience: jwt.ClaimStrings{"aud-b"}, Subject: "admin", ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 24))}
+		claims.Issuer = oidcTestServer.URL
+		token := jwt.NewWithClaims(jwt.SigningMethodRS512, claims)
+		key, err := jwt.ParseRSAPrivateKeyFromPEM(utiltest.PrivateKey)
+		require.NoError(t, err)
+		tokenString, err := token.SignedString(key)
+		require.NoError(t, err)
+
+		_, _, err = mgr.VerifyToken(tokenString)
+		assert.NoError(t, err)
+	})
+
 	t.Run("OIDC provider is external, audience is not specified, token is signed with the wrong key", func(t *testing.T) {
 		config := map[string]string{
 			"url": "",

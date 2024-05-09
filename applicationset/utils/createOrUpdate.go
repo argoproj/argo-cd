@@ -20,6 +20,7 @@ import (
 	argov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/util/argo"
 	argodiff "github.com/argoproj/argo-cd/v2/util/argo/diff"
+	"github.com/argoproj/argo-cd/v2/util/argo/normalizers"
 )
 
 // CreateOrUpdate overrides "sigs.k8s.io/controller-runtime" function
@@ -35,7 +36,7 @@ import (
 // The MutateFn is called regardless of creating or updating an object.
 //
 // It returns the executed operation and an error.
-func CreateOrUpdate(ctx context.Context, logCtx *log.Entry, c client.Client, ignoreAppDifferences argov1alpha1.ApplicationSetIgnoreDifferences, obj *argov1alpha1.Application, f controllerutil.MutateFn) (controllerutil.OperationResult, error) {
+func CreateOrUpdate(ctx context.Context, logCtx *log.Entry, c client.Client, ignoreAppDifferences argov1alpha1.ApplicationSetIgnoreDifferences, ignoreNormalizerOpts normalizers.IgnoreNormalizerOpts, obj *argov1alpha1.Application, f controllerutil.MutateFn) (controllerutil.OperationResult, error) {
 
 	key := client.ObjectKeyFromObject(obj)
 	if err := c.Get(ctx, key, obj); err != nil {
@@ -60,7 +61,7 @@ func CreateOrUpdate(ctx context.Context, logCtx *log.Entry, c client.Client, ign
 
 	// Apply ignoreApplicationDifferences rules to remove ignored fields from both the live and the desired state. This
 	// prevents those differences from appearing in the diff and therefore in the patch.
-	err := applyIgnoreDifferences(ignoreAppDifferences, normalizedLive, obj)
+	err := applyIgnoreDifferences(ignoreAppDifferences, normalizedLive, obj, ignoreNormalizerOpts)
 	if err != nil {
 		return controllerutil.OperationResultNone, fmt.Errorf("failed to apply ignore differences: %w", err)
 	}
@@ -134,14 +135,14 @@ func mutate(f controllerutil.MutateFn, key client.ObjectKey, obj client.Object) 
 }
 
 // applyIgnoreDifferences applies the ignore differences rules to the found application. It modifies the applications in place.
-func applyIgnoreDifferences(applicationSetIgnoreDifferences argov1alpha1.ApplicationSetIgnoreDifferences, found *argov1alpha1.Application, generatedApp *argov1alpha1.Application) error {
+func applyIgnoreDifferences(applicationSetIgnoreDifferences argov1alpha1.ApplicationSetIgnoreDifferences, found *argov1alpha1.Application, generatedApp *argov1alpha1.Application, ignoreNormalizerOpts normalizers.IgnoreNormalizerOpts) error {
 	if len(applicationSetIgnoreDifferences) == 0 {
 		return nil
 	}
 
 	generatedAppCopy := generatedApp.DeepCopy()
 	diffConfig, err := argodiff.NewDiffConfigBuilder().
-		WithDiffSettings(applicationSetIgnoreDifferences.ToApplicationIgnoreDifferences(), nil, false).
+		WithDiffSettings(applicationSetIgnoreDifferences.ToApplicationIgnoreDifferences(), nil, false, ignoreNormalizerOpts).
 		WithNoCache().
 		Build()
 	if err != nil {

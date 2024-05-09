@@ -211,6 +211,40 @@ data:
 
 For more information on `scopes` please review the [User Management Documentation](user-management/index.md).
 
+## Local Users/Accounts
+
+[Local users](user-management/index.md#local-usersaccounts) are assigned access by either grouping them with a role or by assigning policies directly 
+to them. 
+
+The example below shows how to assign a policy directly to a local user.
+
+```yaml
+p, my-local-user, applications, sync, my-project/*, allow
+```
+
+This example shows how to assign a role to a local user.
+
+```yaml
+g, my-local-user, role:admin
+```
+
+!!!warning "Ambiguous Group Assignments"
+    If you have [enabled SSO](user-management/index.md#sso), any SSO user with a scope that matches a local user will be 
+    added to the same roles as the local user. For example, if local user `sally` is assigned to `role:admin`, and if an 
+    SSO user has a scope which happens to be named `sally`, that SSO user will also be assigned to `role:admin`.
+
+    An example of where this may be a problem is if your SSO provider is an SCM, and org members are automatically
+    granted scopes named after the orgs. If a user can create or add themselves to an org in the SCM, they can gain the
+    permissions of the local user with the same name.
+
+    To avoid ambiguity, if you are using local users and SSO, it is recommended to assign permissions directly to local
+    users, and not to assign roles to local users. In other words, instead of using `g, my-local-user, role:admin`, you
+    should explicitly assign permissions to `my-local-user`:
+
+    ```yaml
+    p, my-local-user, *, *, *, allow
+    ```
+
 ## Policy CSV Composition
 
 It is possible to provide additional entries in the `argocd-rbac-cm`
