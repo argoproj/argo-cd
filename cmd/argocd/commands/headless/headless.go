@@ -23,7 +23,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	cache2 "k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/clientcmd"
-	"k8s.io/utils/ptr"
+	"k8s.io/utils/pointer"
 
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
@@ -205,7 +205,7 @@ func MaybeStartLocalServer(ctx context.Context, clientOpts *apiclient.ClientOpti
 	log.SetLevel(log.ErrorLevel)
 	os.Setenv(v1alpha1.EnvVarFakeInClusterConfig, "true")
 	if address == nil {
-		address = ptr.To("localhost")
+		address = pointer.String("localhost")
 	}
 	if port == nil || *port == 0 {
 		addr := fmt.Sprintf("%s:0", *address)

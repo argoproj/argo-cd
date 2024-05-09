@@ -705,7 +705,7 @@ func (m *nativeGitClient) IsAnnotatedTag(revision string) bool {
 	}
 }
 
-// ChangedFiles returns a list of files changed between two revisions
+// returns the meta-data for the commit
 func (m *nativeGitClient) ChangedFiles(revision string, targetRevision string) ([]string, error) {
 	if revision == targetRevision {
 		return []string{}, nil
