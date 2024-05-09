@@ -315,6 +315,15 @@ func (s *Service) runRepoOperation(
 	} else {
 		gitClient, revision, err = s.newClientResolveRevision(repo, revision, gitClientOpts)
 		if err != nil {
+			if gitClient != nil && strings.Contains(err.Error(), "remote:") {
+				// https://github.com/go-git/go-git/issues/582
+				// get full error message from native git fetch command
+				if err := gitClient.Init(); err != nil {
+					log.Warnf("Failed to initialize git repo: %v", err)
+				} else if err := gitClient.Fetch(""); err != nil {
+					return err
+				}
+			}
 			return err
 		}
 	}
@@ -2345,7 +2354,7 @@ func (s *Service) newClientResolveRevision(repo *v1alpha1.Repository, revision s
 	}
 	commitSHA, err := gitClient.LsRemote(revision)
 	if err != nil {
-		return nil, "", err
+		return gitClient, "", err
 	}
 	return gitClient, commitSHA, nil
 }
