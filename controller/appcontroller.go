@@ -41,6 +41,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
+	"k8s.io/utils/strings/slices"
 
 	"github.com/argoproj/argo-cd/v2/common"
 	statecache "github.com/argoproj/argo-cd/v2/controller/cache"
@@ -125,6 +126,8 @@ type ApplicationController struct {
 	settingsMgr                   *settings_util.SettingsManager
 	refreshRequestedApps          map[string]CompareWith
 	refreshRequestedAppsMutex     *sync.Mutex
+	dirtyAppVersions              map[string][]string
+	dirtyAppVersionsMutex         *sync.RWMutex
 	metricsServer                 *metrics.MetricsServer
 	kubectlSemaphore              *semaphore.Weighted
 	clusterSharding               sharding.ClusterShardingCache
@@ -186,6 +189,8 @@ func NewApplicationController(
 		statusRefreshJitter:               appResyncJitter,
 		refreshRequestedApps:              make(map[string]CompareWith),
 		refreshRequestedAppsMutex:         &sync.Mutex{},
+		dirtyAppVersions:                  make(map[string][]string),
+		dirtyAppVersionsMutex:             &sync.RWMutex{},
 		auditLogger:                       argo.NewAuditLogger(namespace, kubeClientset, common.ApplicationController),
 		settingsMgr:                       settingsMgr,
 		selfHealTimeout:                   selfHealTimeout,
@@ -868,6 +873,41 @@ func (ctrl *ApplicationController) requestAppRefresh(appName string, compareWith
 	}
 }
 
+func (ctrl *ApplicationController) isDirtyApplication(app *appv1.Application) bool {
+	key := ctrl.toAppKey(app.QualifiedName())
+	ctrl.dirtyAppVersionsMutex.RLock()
+	versions := ctrl.dirtyAppVersions[key]
+	ctrl.dirtyAppVersionsMutex.RUnlock()
+	return slices.Contains(versions, app.GetResourceVersion())
+}
+
+func (ctrl *ApplicationController) setDirtyApplication(app *appv1.Application) {
+	key := ctrl.toAppKey(app.QualifiedName())
+	ctrl.dirtyAppVersionsMutex.Lock()
+	defer ctrl.dirtyAppVersionsMutex.Unlock()
+
+	versions := []string{}
+	if value, ok := ctrl.dirtyAppVersions[key]; ok {
+		versions = value
+	}
+	ctrl.dirtyAppVersions[key] = append(versions, app.GetResourceVersion())
+}
+
+func (ctrl *ApplicationController) resetDirtyApplication(app *appv1.Application) bool {
+	key := ctrl.toAppKey(app.QualifiedName())
+	ctrl.dirtyAppVersionsMutex.Lock()
+	defer ctrl.dirtyAppVersionsMutex.Unlock()
+
+	if versions, ok := ctrl.dirtyAppVersions[key]; ok {
+		//If a new version is already known as dirty, do not reset
+		if slices.Contains(versions, app.GetResourceVersion()) {
+			return false
+		}
+		delete(ctrl.dirtyAppVersions, key)
+	}
+	return true
+}
+
 func (ctrl *ApplicationController) isRefreshRequested(appName string) (bool, CompareWith) {
 	ctrl.refreshRequestedAppsMutex.Lock()
 	defer ctrl.refreshRequestedAppsMutex.Unlock()
@@ -1491,19 +1531,28 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 		return
 	}
 	origApp = origApp.DeepCopy()
-	needRefresh, refreshType, comparisonLevel := ctrl.needRefreshAppStatus(origApp, ctrl.statusRefreshTimeout, ctrl.statusHardRefreshTimeout)
-
-	if !needRefresh {
-		return
-	}
-	app := origApp.DeepCopy()
 	logCtx := log.WithFields(log.Fields{
-		"application":    app.QualifiedName(),
-		"level":          comparisonLevel,
+		"application":    origApp.QualifiedName(),
 		"dest-server":    origApp.Spec.Destination.Server,
 		"dest-name":      origApp.Spec.Destination.Name,
 		"dest-namespace": origApp.Spec.Destination.Namespace,
 	})
+
+	if ctrl.isDirtyApplication(origApp) {
+		// The informer will trigger a resfresh when the new version is received
+		logCtx.Infof("Skipping refresh because application version %s is outdated", origApp.GetResourceVersion())
+		return
+	}
+
+	needRefresh, refreshType, comparisonLevel := ctrl.needRefreshAppStatus(origApp, ctrl.statusRefreshTimeout, ctrl.statusHardRefreshTimeout)
+	if !needRefresh {
+		return
+	}
+	app := origApp.DeepCopy()
+	logCtx = logCtx.WithFields(log.Fields{
+		"level": comparisonLevel,
+	})
+	logCtx.Debugf("Current App status before reconcile is %s. Version %s", origApp.Status.Health.Status, origApp.ResourceVersion)
 
 	startTime := time.Now()
 	defer func() {
@@ -1798,11 +1847,12 @@ func (ctrl *ApplicationController) persistAppStatus(orig *appv1.Application, new
 	defer func() {
 		patchMs = time.Since(start)
 	}()
-	_, err = ctrl.PatchAppWithWriteBack(context.Background(), orig.Name, orig.Namespace, types.MergePatchType, patch, metav1.PatchOptions{})
+	result, err := ctrl.PatchAppWithWriteBack(context.Background(), orig.Name, orig.Namespace, types.MergePatchType, patch, metav1.PatchOptions{})
 	if err != nil {
 		logCtx.Warnf("Error updating application: %v", err)
 	} else {
-		logCtx.Infof("Update successful")
+		logCtx.Infof("Update successful. New version is %s", result.GetResourceVersion())
+		ctrl.setDirtyApplication(orig)
 	}
 	return patchMs
 }
@@ -2146,6 +2196,9 @@ func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.Shar
 						jitter := time.Duration(float64(ctrl.statusRefreshJitter) * rand.Float64())
 						delay = &jitter
 					}
+				}
+				if !ctrl.resetDirtyApplication(newApp) {
+					log.WithField("application", newApp.QualifiedName()).Infof("Cannot reset dirty application because version %s is already dirty", newApp.GetResourceVersion())
 				}
 
 				ctrl.requestAppRefresh(newApp.QualifiedName(), compareWith, delay)
