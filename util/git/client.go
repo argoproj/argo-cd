@@ -795,6 +795,16 @@ func (m *nativeGitClient) runCmdOutput(cmd *exec.Cmd, ropts runOpts) (string, er
 			}
 		}
 	}
+	// If the repo url is http or https based, and if proxy is set with username/password, then set the environment variable GIT_HTTP_PROXY_AUTHMETHOD
+	if (IsHTTPSURL(m.repoURL) || IsHTTPURL(m.repoURL)) && m.proxy != "" {
+		parsedProxyURL, err := url.Parse(m.proxy)
+		if err != nil {
+			log.Warnf("Unable to parse proxy url %s due to error %s", m.proxy, err.Error())
+		}
+		if parsedProxyURL.User != nil {
+			cmd.Env = append(cmd.Env, "GIT_HTTP_PROXY_AUTHMETHOD=anyauth")
+		}
+	}
 	cmd.Env = proxy.UpsertEnv(cmd, m.proxy)
 	opts := executil.ExecRunOpts{
 		TimeoutBehavior: argoexec.TimeoutBehavior{
