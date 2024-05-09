@@ -208,6 +208,10 @@ func removeWebhookMutation(predictedLive, live *unstructured.Unstructured, gvkPa
 	}
 	gvk := predictedLive.GetObjectKind().GroupVersionKind()
 	pt := gvkParser.Type(gvk)
+	if pt == nil {
+		return nil, fmt.Errorf("unable to resolve parseableType for GroupVersionKind: %s", gvk)
+	}
+
 	typedPredictedLive, err := pt.FromUnstructured(predictedLive.Object)
 	if err != nil {
 		return nil, fmt.Errorf("error converting predicted live state from unstructured to %s: %w", gvk, err)
@@ -316,6 +320,9 @@ func structuredMergeDiff(p *SMDParams) (*DiffResult, error) {
 
 	gvk := p.config.GetObjectKind().GroupVersionKind()
 	pt := gescheme.ResolveParseableType(gvk, p.gvkParser)
+	if pt == nil {
+		return nil, fmt.Errorf("unable to resolve parseableType for GroupVersionKind: %s", gvk)
+	}
 
 	// Build typed value from live and config unstructures
 	tvLive, err := pt.FromUnstructured(p.live.Object)
