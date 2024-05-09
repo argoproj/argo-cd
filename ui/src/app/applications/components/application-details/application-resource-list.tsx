@@ -7,7 +7,6 @@ import {ResourceLabel} from '../resource-label';
 import {ComparisonStatusIcon, HealthStatusIcon, nodeKey, createdOrNodeKey, isSameNode} from '../utils';
 import {AppDetailsPreferences} from '../../../shared/services';
 import {Consumer} from '../../../shared/context';
-import * as _ from 'lodash';
 import Moment from 'react-moment';
 import {format} from 'date-fns';
 import {ResourceNode} from '../../../shared/models';

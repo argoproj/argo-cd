@@ -75,7 +75,7 @@ spec:
   - clusters:
       selector:
         matchLabels:
-          staging: true
+          staging: "true"
         # The cluster generator also supports matchExpressions.
         #matchExpressions:
         #  - key: staging
