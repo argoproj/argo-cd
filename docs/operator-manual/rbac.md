@@ -9,86 +9,201 @@ Once SSO or local users are configured, additional RBAC roles can be defined, an
 
 Argo CD has two pre-defined roles but RBAC configuration allows defining roles and groups (see below).
 
-* `role:readonly` - read-only access to all resources
-* `role:admin` - unrestricted access to all resources
+- `role:readonly` - read-only access to all resources
+- `role:admin` - unrestricted access to all resources
 
 These default built-in role definitions can be seen in [builtin-policy.csv](https://github.com/argoproj/argo-cd/blob/master/assets/builtin-policy.csv)
 
-### RBAC Permission Structure
+## Default policy for Authenticated Users
 
-Breaking down the permissions definition differs slightly between applications and every other resource type in Argo CD.
+When a user is authenticated in Argo CD, it will be granted the role specified in `policy.default`.
 
-* All resources *except* application-specific permissions (see next bullet):
+!!! warning "Denying Default Permissions"
+All authenticated users get _at least_ the permissions granted by the default policy. This access cannot be blocked
+by a `deny` rule. It is recommended to create a new `role:authenticated` with the minimum set of permission possible,
+then grant permissions to individual roles as needed.
 
-    `p, <role/user/group>, <resource>, <action>, <object>`
+## Anonymous Access
 
-* Applications, applicationsets, logs, and exec (which belong to an `AppProject`):
+Enabling anonymous access to the Argo CD instance allows users to assume the default role permissions specified by `policy.default` **without being authenticated**.
 
-    `p, <role/user/group>, <resource>, <action>, <appproject>/<object>`
+The anonymous access to Argo CD can be enabled using `users.anonymous.enabled` field in `argocd-cm` (see [argocd-cm.yaml](argocd-cm.yaml)).
 
-### RBAC Resources and Actions
+!!! warning
+When enabling anonymous access, consider creating a new default role, and assign it to the default policy
+with `policy.default: role:unauthenticated`.
 
-Resources: `clusters`, `projects`, `applications`, `applicationsets`,
-`repositories`, `certificates`, `accounts`, `gpgkeys`, `logs`, `exec`,
-`extensions`
+## RBAC Policy Structure
 
-Actions: `get`, `create`, `update`, `delete`, `sync`, `override`,`action/<group/kind/action-name>`
+TODO: exaplain deny
+TODO: explain globing
+TODO: Explain scopes
 
-Note that `sync`, `override`, and `action/<group/kind/action-name>` only have meaning for the `applications` resource.
+There are two different types of policy syntax, one for assiging permissions, and another one to assign users to roles.
 
-#### Application resources
+- **Group**: Allows to assign authenticated users/groups to internal roles.
 
-The resource path for application objects is of the form
-`<project-name>/<application-name>`.
+  `g, <user/group>, <role>`
 
-Delete access to sub-resources of a project, such as a rollout or a pod, cannot
-be managed granularly. `<project-name>/<application-name>` grants access to all
-subresources of an application.
+  - `<user/group>`: The entity to whom the role will be assigned. It can be a local user or a user authenticated with SSO.
+    When SSO is used, the `user` will be based on the `sub` claims, while the group is one of the value returned by the `scopes` configuration.
+  - `<role>`: The internal role to which the entity will be assigned.
+
+- **Permission**: Allows to assign permissions to an entity.
+
+  `p, <role/user/group>, <resource>, <action>, <object>, <effect>`
+
+  - `<role/user/group>`: The entity to whom the permission will be assigned
+  - `<resource>`: The type of resource on which the action is performed.
+  - `<action>`: The operation that is being performed on the resource.
+  - `<object>`: The object identifier representing the resource on which the action is performed. Depending on the resource, the object's format will vary.
+  - `<effect>`: Whether this permission should grant or restrict the operation on the target object. One of `allow` or `deny`.
+
+Below is a table that summarize all possible resources, and which actions are valid for each of them.
+
+| Resource\Action     | get | create | update | delete | sync | action | override | invoke |
+| :------------------ | :-: | :----: | :----: | :----: | :--: | :----: | :------: | :----: |
+| **applications**    | ✅  |   ✅   |   ✅   |   ✅   |  ✅  |   ✅   |    ✅    |   ❌   |
+| **applicationsets** | ✅  |   ✅   |   ✅   |   ✅   |  ❌  |   ❌   |    ❌    |   ❌   |
+| **clusters**        | ✅  |   ✅   |   ✅   |   ✅   |  ❌  |   ❌   |    ❌    |   ❌   |
+| **projects**        | ✅  |   ✅   |   ✅   |   ✅   |  ❌  |   ❌   |    ❌    |   ❌   |
+| **repositories**    | ✅  |   ✅   |   ✅   |   ✅   |  ❌  |   ❌   |    ❌    |   ❌   |
+| **accounts**        | ✅  |   ❌   |   ✅   |   ❌   |  ❌  |   ❌   |    ❌    |   ❌   |
+| **certificates**    | ✅  |   ✅   |   ❌   |   ✅   |  ❌  |   ❌   |    ❌    |   ❌   |
+| **gpgkeys**         | ✅  |   ✅   |   ❌   |   ✅   |  ❌  |   ❌   |    ❌    |   ❌   |
+| **logs**            | ✅  |   ❌   |   ❌   |   ❌   |  ❌  |   ❌   |    ❌    |   ❌   |
+| **exec**            | ❌  |   ✅   |   ❌   |   ❌   |  ❌  |   ❌   |    ❌    |   ❌   |
+| **extensions**      | ❌  |   ❌   |   ❌   |   ❌   |  ❌  |   ❌   |    ❌    |   ✅   |
+
+### Application-Specific permissions
+
+Some permissions only have meaning within an application. It is the case of the following resources:
+
+- `applications`
+- `applicationsets`
+- `logs`
+- `exec`
+
+While they can be set in the global configuration, they can also be configured in [AppProject's roles](../user-guide/projects.md#project-roles).
+The expected `<object>` value in the policy structure is replaced by `<app-project>/<app-name>`.
+
+For instance, these permissions would grant `example-user` access to get any applications,
+but only be able to see logs in the `my-app` application part of the `example-project` project.
+
+```csv
+p, example-user, applications, get, *, allow
+p, example-user, logs, get, example-project/my-app, allow
+```
+
+#### Application in any namespaces
+
+When [application in any namespace](app-any-namespace.md) is enabled, the expected `<object>` value in the policy structure is replaced by `<app-project>/<app-ns>/<app-name>`.
+Since multiple application could have the same name in the same project, the policy below make sure to restrict the access only to `app-namespace`.
+
+```csv
+p, example-user, applications, get, */app-namespace/*, allow
+p, example-user, logs, get, example-project/app-namespace/my-app, allow
+```
+
+### The `applications` resource
+
+The `applications` resource is an [Application-Specific permission](#application-specific-permissions).
+
+#### Fine-grained permisisons for `update`/`delete` action
+
+The `update` and `delete` actions, when granted on an application, will allow the user to perform the operation on the application itself, **and** all of its resources.
+It can be desirable to only allow `update` or `delete` on specific resources within an application.
+
+To do so, when the action if performed on an applciation's resource, the `<action>` will have the `<action>/<group>/<kind>/<ns>/<name>` format.
+
+For instance, to grant access to `example-user` to only delete Pods in the `prod-app`, the policy could be:
+
+```csv
+p, example-user, applications, delete/*/Pod/*, default/prod-app, allow
+```
+
+If we want to grant the permissions to the user to update all resources of an application, but not the application itself:
+
+```csv
+p, example-user, applications, update/*, default/prod-app, allow
+```
+
+If we want to explictly deny delete of the application, but allow the user to delete Pods:
+
+```csv
+p, example-user, applications, delete, default/prod-app, deny
+p, example-user, applications, delete/*/Pod/*, default/prod-app, allow
+```
+
+!!! important
+It is not possible to deny fine-grained permissions for a sub-resource if the action was **explicitly allowed on the application**.
+For instance, the following policy will **allow** a user to delete the Pod and any other resources in the application:
+
+    ```csv
+    p, example-user, applications, delete, default/prod-app, allow
+    p, example-user, applications, delete/*/Pod/*, default/prod-app, deny
+    ```
 
 #### The `action` action
 
 The `action` action corresponds to either built-in resource customizations defined
 [in the Argo CD repository](https://github.com/argoproj/argo-cd/tree/master/resource_customizations),
 or to [custom resource actions](resource_actions.md#custom-resource-actions) defined by you.
-The `action` path is of the form `action/<api-group>/<Kind>/<action-name>`. For
-example, a resource customization path
-`resource_customizations/extensions/DaemonSet/actions/restart/action.lua`
-corresponds to the `action` path `action/extensions/DaemonSet/restart`. You can
-also use glob patterns in the action path: `action/*` (or regex patterns if you have
-[enabled the `regex` match mode](https://github.com/argoproj/argo-cd/blob/master/docs/operator-manual/argocd-rbac-cm.yaml)).
 
-If the resource is not under a group (for examples, Pods or ConfigMaps), then omit the group name from your RBAC
-configuration:
+The `<action>` have the `action/<group>/<kind>/<action-name>` format.
+
+For example, a resource customization path `resource_customizations/extensions/DaemonSet/actions/restart/action.lua`
+corresponds to the `action` path `action/extensions/DaemonSet/restart`. If the resource is not under a group (for examples, Pods or ConfigMaps),
+then the path will be `action//Pod/action-name`.
+
+The following permission allows the user to perform any action on the DaemonSet resources, as well as the `maintenance-off` action on a Pod:
 
 ```csv
 p, example-user, applications, action//Pod/maintenance-off, default/*, allow
+p, example-user, applications, action/extensions/DaemonSet/*, default/*, allow
 ```
 
-#### The `exec` resource
+To allow the user to perform any actions:
 
-`exec` is a special resource. When enabled with the `create` action, this privilege allows a user to `exec` into Pods via
-the Argo CD UI. The functionality is similar to `kubectl exec`.
+```csv
+p, example-user, applications, action/*, default/*, allow
+```
 
-See [Web-based Terminal](web_based_terminal.md) for more info.
+### The `applicationsets` resource
 
-#### The `applicationsets` resource
-
+The `applicationsets` resource is an [Application-Specific permission](#application-specific-permissions).
 [ApplicationSets](applicationset/index.md) provide a declarative way to automatically create/update/delete Applications.
 
-Granting `applicationsets, create` effectively grants the ability to create Applications. While it doesn't allow the
+Allowing the `create` action on the resource effectively grants the ability to create Applications. While it doesn't allow the
 user to create Applications directly, they can create Applications via an ApplicationSet.
 
+!!! note
 In v2.5, it is not possible to create an ApplicationSet with a templated Project field (e.g. `project: {{path.basename}}`)
 via the API (or, by extension, the CLI). Disallowing templated projects makes project restrictions via RBAC safe:
+
+With the resource being application-specifc, the `<object>` of the applicationsets permissions will have the format `<app-project>/<app-name>`.
+However, since an ApplicationSet does belong to any project, the `<app-project>` value represents
+
+With the following permission, a `dev-group` user will be unable to create an ApplicationSet capable of creating Applications
+outside the `dev-project` project.
 
 ```csv
 p, dev-group, applicationsets, *, dev-project/*, allow
 ```
 
-With this rule in place, a `dev-group` user will be unable to create an ApplicationSet capable of creating Applications
-outside the `dev-project` project.
+### The `logs` resource
 
-#### The `extensions` resource
+The `logs` resource is an [Application-Specific permission](#application-specific-permissions). When enabled with the `get` action, this permission allows a user to see Pod's logs of an application via
+the Argo CD UI. The functionality is similar to `kubectl logs`.
+
+### The `exec` resource
+
+The `exec` resource is an [Application-Specific permission](#application-specific-permissions). When enabled with the `create` action, this permission allows a user to `exec` into Pods of an application via
+the Argo CD UI. The functionality is similar to `kubectl exec`.
+
+See [Web-based Terminal](web_based_terminal.md) for more info.
+
+### The `extensions` resource
 
 With the `extensions` resource it is possible configure permissions to
 invoke [proxy
@@ -108,15 +223,15 @@ p, role:extension, extensions, invoke, httpbin, allow
 
 Explanation:
 
-* *line1*: defines the group `role:extension` associated with the
+- _line1_: defines the group `role:extension` associated with the
   subject `ext`.
-* *line2*: defines a policy allowing this role to read (`get`) the
+- _line2_: defines a policy allowing this role to read (`get`) the
   `httpbin-app` application in the `default` project.
-* *line3*: defines another policy allowing this role to `invoke` the
+- _line3_: defines another policy allowing this role to `invoke` the
   `httpbin` extension.
 
 **Note 1**: that for extensions requests to be allowed, the policy defined
-in the *line2* is also required.
+in the _line2_ is also required.
 
 **Note 2**: `invoke` is a new action introduced specifically to be used
 with the `extensions` resource. The current actions for `extensions`
@@ -129,11 +244,7 @@ configures a custom role, named `org-admin`. The role is assigned to any user wh
 `your-github-org:your-team` group. All other users get the default policy of `role:readonly`,
 which cannot modify Argo CD settings.
 
-!!! warning
-    All authenticated users get *at least* the permissions granted by the default policy. This access cannot be blocked
-    by a `deny` rule. Instead, restrict the default policy and then grant permissions to individual roles as needed.
-
-*ArgoCD ConfigMap `argocd-rbac-cm` Example:*
+_ArgoCD ConfigMap `argocd-rbac-cm` Example:_
 
 ```yaml
 apiVersion: v1
@@ -160,7 +271,7 @@ data:
     g, your-github-org:your-team, role:org-admin
 ```
 
-----
+---
 
 Another `policy.csv` example might look as follows:
 
@@ -177,17 +288,17 @@ p, role:staging-db-admin, projects, get, staging-db-project, allow
 g, db-admins, role:staging-db-admin
 ```
 
-This example defines a *role* called `staging-db-admin` with nine *permissions* that allow users with that role to perform the following *actions*:
+This example defines a _role_ called `staging-db-admin` with nine _permissions_ that allow users with that role to perform the following _actions_:
 
-* `create`, `delete`, `get`, `override`, `sync` and `update` for applications in the `staging-db-project` project,
-* `get` logs for objects in the `staging-db-project` project,
-* `create` exec for objects in the `staging-db-project` project, and
-* `get` for the project named `staging-db-project`.
+- `create`, `delete`, `get`, `override`, `sync` and `update` for applications in the `staging-db-project` project,
+- `get` logs for objects in the `staging-db-project` project,
+- `create` exec for objects in the `staging-db-project` project, and
+- `get` for the project named `staging-db-project`.
 
 !!! note
-    The `scopes` field controls which OIDC scopes to examine during rbac
-    enforcement (in addition to `sub` scope). If omitted, defaults to:
-    `'[groups]'`. The scope value can be a string, or a list of strings.
+The `scopes` field controls which OIDC scopes to examine during rbac
+enforcement (in addition to `sub` scope). If omitted, defaults to:
+`'[groups]'`. The scope value can be a string, or a list of strings.
 
 Following example shows targeting `email` as well as `groups` from your OIDC provider.
 
@@ -213,8 +324,8 @@ For more information on `scopes` please review the [User Management Documentatio
 
 ## Local Users/Accounts
 
-[Local users](user-management/index.md#local-usersaccounts) are assigned access by either grouping them with a role or by assigning policies directly 
-to them. 
+[Local users](user-management/index.md#local-usersaccounts) are assigned access by either grouping them with a role or by assigning policies directly
+to them.
 
 The example below shows how to assign a policy directly to a local user.
 
@@ -229,9 +340,9 @@ g, my-local-user, role:admin
 ```
 
 !!!warning "Ambiguous Group Assignments"
-    If you have [enabled SSO](user-management/index.md#sso), any SSO user with a scope that matches a local user will be 
-    added to the same roles as the local user. For example, if local user `sally` is assigned to `role:admin`, and if an 
-    SSO user has a scope which happens to be named `sally`, that SSO user will also be assigned to `role:admin`.
+If you have [enabled SSO](user-management/index.md#sso), any SSO user with a scope that matches a local user will be
+added to the same roles as the local user. For example, if local user `sally` is assigned to `role:admin`, and if an
+SSO user has a scope which happens to be named `sally`, that SSO user will also be assigned to `role:admin`.
 
     An example of where this may be a problem is if your SSO provider is an SCM, and org members are automatically
     granted scopes named after the orgs. If a user can create or add themselves to an org in the SCM, they can gain the
@@ -274,11 +385,6 @@ data:
     p, role:tester, projects, *, *, allow
     g, my-org:team-qa, role:tester
 ```
-
-## Anonymous Access
-
-The anonymous access to Argo CD can be enabled using `users.anonymous.enabled` field in `argocd-cm` (see [argocd-cm.yaml](argocd-cm.yaml)).
-The anonymous users get default role permissions specified by `policy.default` in `argocd-rbac-cm.yaml`. For read-only access you'll want `policy.default: role:readonly` as above
 
 ## Validating and testing your RBAC policies
 
@@ -342,7 +448,7 @@ $ argocd admin settings rbac can role:org-admin create applications 'someproj/so
 Yes
 ```
 
-Another example,  given the policy above from `policy.csv`, which defines the
+Another example, given the policy above from `policy.csv`, which defines the
 role `role:staging-db-admin` and associates the group `db-admins` with it.
 Policy is stored locally as `policy.csv`:
 
