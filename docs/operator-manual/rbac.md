@@ -25,8 +25,8 @@ When a user is authenticated in Argo CD, it will be granted the role specified i
 
 !!! warning "Denying Default Permissions"
 
-    All authenticated users get _at least_ the permissions granted by the default policy. This access cannot be blocked
-    by a `deny` rule. It is recommended to create a new `role:authenticated` with the minimum set of permissions possible,
+    **All authenticated users get _at least_ the permissions granted by the default policy. This access cannot be blocked
+    by a `deny` rule.** It is recommended to create a new `role:authenticated` with the minimum set of permissions possible,
     then grant permissions to individual roles as needed.
 
 ## Anonymous Access
@@ -44,23 +44,23 @@ The anonymous access to Argo CD can be enabled using the `users.anonymous.enable
 
 The policy syntax is based on [Casbin](https://casbin.org/docs/overview). There are two different types of policy syntax: one for assigning permissions, and another one for assigning users to internal roles.
 
-- **Group**: Allows to assign authenticated users/groups to internal roles.
+**Group**: Allows to assign authenticated users/groups to internal roles.
 
-  `g, <user/group>, <role>`
+Syntax: `g, <user/group>, <role>`
 
-  - `<user/group>`: The entity to whom the role will be assigned. It can be a local user or a user authenticated with SSO.
-    When SSO is used, the `user` will be based on the `sub` claims, while the group is one of the values returned by the `scopes` configuration.
-  - `<role>`: The internal role to which the entity will be assigned.
+- `<user/group>`: The entity to whom the role will be assigned. It can be a local user or a user authenticated with SSO.
+  When SSO is used, the `user` will be based on the `sub` claims, while the group is one of the values returned by the `scopes` configuration.
+- `<role>`: The internal role to which the entity will be assigned.
 
-- **Permission**: Allows to assign permissions to an entity.
+**Permission**: Allows to assign permissions to an entity.
 
-  `p, <role/user/group>, <resource>, <action>, <object>, <effect>`
+Syntax: `p, <role/user/group>, <resource>, <action>, <object>, <effect>`
 
-  - `<role/user/group>`: The entity to whom the permission will be assigned
-  - `<resource>`: The type of resource on which the action is performed.
-  - `<action>`: The operation that is being performed on the resource.
-  - `<object>`: The object identifier representing the resource on which the action is performed. Depending on the resource, the object's format will vary.
-  - `<effect>`: Whether this permission should grant or restrict the operation on the target object. One of `allow` or `deny`.
+- `<role/user/group>`: The entity to whom the permission will be assigned
+- `<resource>`: The type of resource on which the action is performed.
+- `<action>`: The operation that is being performed on the resource.
+- `<object>`: The object identifier representing the resource on which the action is performed. Depending on the resource, the object's format will vary.
+- `<effect>`: Whether this permission should grant or restrict the operation on the target object. One of `allow` or `deny`.
 
 Below is a table that summarizes all possible resources and which actions are valid for each of them.
 
@@ -119,7 +119,7 @@ It can be desirable to only allow `update` or `delete` on specific resources wit
 
 To do so, when the action if performed on an application's resource, the `<action>` will have the `<action>/<group>/<kind>/<ns>/<name>` format.
 
-For instance, to grant access to `example-user` to only delete Pods in the `prod-app`, the policy could be:
+For instance, to grant access to `example-user` to only delete Pods in the `prod-app` Application, the policy could be:
 
 ```csv
 p, example-user, applications, delete/*/Pod/*, default/prod-app, allow
@@ -138,7 +138,7 @@ p, example-user, applications, delete, default/prod-app, deny
 p, example-user, applications, delete/*/Pod/*, default/prod-app, allow
 ```
 
-!!! important
+!!! note
 
     It is not possible to deny fine-grained permissions for a sub-resource if the action was **explicitly allowed on the application**.
     For instance, the following policy will **allow** a user to delete the Pod and any other resources in the application:
@@ -181,6 +181,7 @@ These manifests will be used instead of the configured source, until the next sy
 ### The `applicationsets` resource
 
 The `applicationsets` resource is an [Application-Specific permission](#application-specific-permissions).
+
 [ApplicationSets](applicationset/index.md) provide a declarative way to automatically create/update/delete Applications.
 
 Allowing the `create` action on the resource effectively grants the ability to create Applications. While it doesn't allow the
@@ -204,12 +205,14 @@ p, dev-group, applicationsets, *, dev-project/*, allow
 ### The `logs` resource
 
 The `logs` resource is an [Application-Specific permission](#application-specific-permissions).
+
 When granted with the `get` action, this permission allows a user to see Pod's logs of an application via
 the Argo CD UI. The functionality is similar to `kubectl logs`.
 
 ### The `exec` resource
 
 The `exec` resource is an [Application-Specific permission](#application-specific-permissions).
+
 When granted with the `create` action, this permission allows a user to `exec` into Pods of an application via
 the Argo CD UI. The functionality is similar to `kubectl exec`.
 
