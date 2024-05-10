@@ -42,7 +42,7 @@ The anonymous access to Argo CD can be enabled using `users.anonymous.enabled` f
 
 ## RBAC Policy Structure
 
-The policy syntax is based on [Casbin](https://casbin.org/docs/overview). There are two different types of policy syntax: one for assiging permissions, and another one to assign users to internal roles.
+The policy syntax is based on [Casbin](https://casbin.org/docs/overview). There are two different types of policy syntax: one for assigning permissions, and another one to assign users to internal roles.
 
 - **Group**: Allows to assign authenticated users/groups to internal roles.
 
@@ -117,7 +117,7 @@ The `applications` resource is an [Application-Specific permission](#application
 The `update` and `delete` actions, when granted on an application, will allow the user to perform the operation on the application itself, **and** all of its resources.
 It can be desirable to only allow `update` or `delete` on specific resources within an application.
 
-To do so, when the action if performed on an applciation's resource, the `<action>` will have the `<action>/<group>/<kind>/<ns>/<name>` format.
+To do so, when the action if performed on an application's resource, the `<action>` will have the `<action>/<group>/<kind>/<ns>/<name>` format.
 
 For instance, to grant access to `example-user` to only delete Pods in the `prod-app`, the policy could be:
 
@@ -131,7 +131,7 @@ If we want to grant the permissions to the user to update all resources of an ap
 p, example-user, applications, update/*, default/prod-app, allow
 ```
 
-If we want to explictly deny delete of the application, but allow the user to delete Pods:
+If we want to explicitly deny delete of the application, but allow the user to delete Pods:
 
 ```csv
 p, example-user, applications, delete, default/prod-app, deny
@@ -191,8 +191,8 @@ user to create Applications directly, they can create Applications via an Applic
     In v2.5, it is not possible to create an ApplicationSet with a templated Project field (e.g. `project: {{path.basename}}`)
     via the API (or, by extension, the CLI). Disallowing templated projects makes project restrictions via RBAC safe:
 
-With the resource being application-specifc, the `<object>` of the applicationsets permissions will have the format `<app-project>/<app-name>`.
-However, since an ApplicationSet does belong to any project, the `<app-project>` value represents
+With the resource being application-specific, the `<object>` of the applicationsets permissions will have the format `<app-project>/<app-name>`.
+However, since an ApplicationSet does belong to any project, the `<app-project>` value represents the projects in which the ApplicationSet will be able to create Applications.
 
 With the following permission, a `dev-group` user will be unable to create an ApplicationSet capable of creating Applications
 outside the `dev-project` project.
@@ -267,7 +267,7 @@ When the `example-user` executes the `extensions/DaemonSet/test` action, the fol
 
 1. The current user `example-user` match the token `example-user`.
 2. The value `applications` match the token `applications`.
-3. The value `action/extensions/DaemonSet/test` match `action/extensions/*`. Note that `/` are not treated as seprator and the use of `**` is not necessary.
+3. The value `action/extensions/DaemonSet/test` match `action/extensions/*`. Note that `/` are not treated as separator and the use of `**` is not necessary.
 4. The value `default/my-app` match `default/*`.
 
 ## Using SSO Users/Groups
