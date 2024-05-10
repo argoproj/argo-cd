@@ -5,12 +5,17 @@ user management system and has only one built-in user `admin`. The `admin` user 
 it has unrestricted access to the system. RBAC requires [SSO configuration](user-management/index.md) or [one or more local users setup](user-management/index.md).
 Once SSO or local users are configured, additional RBAC roles can be defined, and SSO groups or local users can then be mapped to roles.
 
+There are two main components where RBAC permission can be defined:
+
+- The global RBAC config map (see [argo-rbac-cm.yaml](argocd-rbac-cm-yaml.md))
+- The [AppProject's roles](../user-guide/projects.md#project-roles)
+
 ## Basic Built-in Roles
 
 Argo CD has two pre-defined roles but RBAC configuration allows defining roles and groups (see below).
 
-- `role:readonly` - read-only access to all resources
-- `role:admin` - unrestricted access to all resources
+- `role:readonly`: read-only access to all resources
+- `role:admin`: unrestricted access to all resources
 
 These default built-in role definitions can be seen in [builtin-policy.csv](https://github.com/argoproj/argo-cd/blob/master/assets/builtin-policy.csv)
 
@@ -19,27 +24,25 @@ These default built-in role definitions can be seen in [builtin-policy.csv](http
 When a user is authenticated in Argo CD, it will be granted the role specified in `policy.default`.
 
 !!! warning "Denying Default Permissions"
-All authenticated users get _at least_ the permissions granted by the default policy. This access cannot be blocked
-by a `deny` rule. It is recommended to create a new `role:authenticated` with the minimum set of permission possible,
-then grant permissions to individual roles as needed.
+
+    All authenticated users get _at least_ the permissions granted by the default policy. This access cannot be blocked
+    by a `deny` rule. It is recommended to create a new `role:authenticated` with the minimum set of permission possible,
+    then grant permissions to individual roles as needed.
 
 ## Anonymous Access
 
 Enabling anonymous access to the Argo CD instance allows users to assume the default role permissions specified by `policy.default` **without being authenticated**.
 
-The anonymous access to Argo CD can be enabled using `users.anonymous.enabled` field in `argocd-cm` (see [argocd-cm.yaml](argocd-cm.yaml)).
+The anonymous access to Argo CD can be enabled using `users.anonymous.enabled` field in `argocd-cm` (see [argocd-cm.yaml](argocd-cm-yaml.md)).
 
 !!! warning
-When enabling anonymous access, consider creating a new default role, and assign it to the default policy
-with `policy.default: role:unauthenticated`.
+
+    When enabling anonymous access, consider creating a new default role, and assign it to the default policy
+    with `policy.default: role:unauthenticated`.
 
 ## RBAC Policy Structure
 
-TODO: exaplain deny
-TODO: explain globing
-TODO: Explain scopes
-
-There are two different types of policy syntax, one for assiging permissions, and another one to assign users to roles.
+The policy syntax is based on [Casbin](https://casbin.org/docs/overview). There are two different types of policy syntax: one for assiging permissions, and another one to assign users to internal roles.
 
 - **Group**: Allows to assign authenticated users/groups to internal roles.
 
@@ -136,8 +139,9 @@ p, example-user, applications, delete/*/Pod/*, default/prod-app, allow
 ```
 
 !!! important
-It is not possible to deny fine-grained permissions for a sub-resource if the action was **explicitly allowed on the application**.
-For instance, the following policy will **allow** a user to delete the Pod and any other resources in the application:
+
+    It is not possible to deny fine-grained permissions for a sub-resource if the action was **explicitly allowed on the application**.
+    For instance, the following policy will **allow** a user to delete the Pod and any other resources in the application:
 
     ```csv
     p, example-user, applications, delete, default/prod-app, allow
@@ -169,6 +173,11 @@ To allow the user to perform any actions:
 p, example-user, applications, action/*, default/*, allow
 ```
 
+#### The `override` action
+
+When granted along with the `sync` action, the override action will allow a user to synchronize local manifest to the Application.
+These manifests will be used instead of the configured source, until the next sync is performed.
+
 ### The `applicationsets` resource
 
 The `applicationsets` resource is an [Application-Specific permission](#application-specific-permissions).
@@ -178,8 +187,9 @@ Allowing the `create` action on the resource effectively grants the ability to c
 user to create Applications directly, they can create Applications via an ApplicationSet.
 
 !!! note
-In v2.5, it is not possible to create an ApplicationSet with a templated Project field (e.g. `project: {{path.basename}}`)
-via the API (or, by extension, the CLI). Disallowing templated projects makes project restrictions via RBAC safe:
+
+    In v2.5, it is not possible to create an ApplicationSet with a templated Project field (e.g. `project: {{path.basename}}`)
+    via the API (or, by extension, the CLI). Disallowing templated projects makes project restrictions via RBAC safe:
 
 With the resource being application-specifc, the `<object>` of the applicationsets permissions will have the format `<app-project>/<app-name>`.
 However, since an ApplicationSet does belong to any project, the `<app-project>` value represents
@@ -193,114 +203,81 @@ p, dev-group, applicationsets, *, dev-project/*, allow
 
 ### The `logs` resource
 
-The `logs` resource is an [Application-Specific permission](#application-specific-permissions). When enabled with the `get` action, this permission allows a user to see Pod's logs of an application via
+The `logs` resource is an [Application-Specific permission](#application-specific-permissions).
+When granted with the `get` action, this permission allows a user to see Pod's logs of an application via
 the Argo CD UI. The functionality is similar to `kubectl logs`.
 
 ### The `exec` resource
 
-The `exec` resource is an [Application-Specific permission](#application-specific-permissions). When enabled with the `create` action, this permission allows a user to `exec` into Pods of an application via
+The `exec` resource is an [Application-Specific permission](#application-specific-permissions).
+When granted with the `create` action, this permission allows a user to `exec` into Pods of an application via
 the Argo CD UI. The functionality is similar to `kubectl exec`.
 
 See [Web-based Terminal](web_based_terminal.md) for more info.
 
 ### The `extensions` resource
 
-With the `extensions` resource it is possible configure permissions to
-invoke [proxy
-extensions](../developer-guide/extensions/proxy-extensions.md). The
-`extensions` RBAC validation works in conjunction with the
-`applications` resource. A user logged in Argo CD (UI or CLI), needs
-to have at least read permission on the project, namespace and
-application where the request is originated from.
+With the `extensions` resource, it is possible configure permissions to invoke [proxy extensions](../developer-guide/extensions/proxy-extensions.md).
+The `extensions` RBAC validation works in conjunction with the `applications` resource.
+A user **needs to have read permission on the application** where the request is originated from.
 
-Consider the example below:
+Consider the example below, it will allow the `example-user` to invoke the `httpbin` extensions in all
+applications under the `default` project.
 
 ```csv
-g, ext, role:extension
-p, role:extension, applications, get, default/httpbin-app, allow
-p, role:extension, extensions, invoke, httpbin, allow
+p, example-user, applications, get, default/*, allow
+p, example-user, extensions, invoke, httpbin, allow
 ```
 
-Explanation:
+### The `deny` effect
 
-- _line1_: defines the group `role:extension` associated with the
-  subject `ext`.
-- _line2_: defines a policy allowing this role to read (`get`) the
-  `httpbin-app` application in the `default` project.
-- _line3_: defines another policy allowing this role to `invoke` the
-  `httpbin` extension.
+When `deny` is used as an effect in a permission, it will be effective if the permission matches.
+Even if more specific permissions with the `allow` effect match as well, the `deny` will have priority.
 
-**Note 1**: that for extensions requests to be allowed, the policy defined
-in the _line2_ is also required.
+The order in which the permission appears is the policy has no impact, and the result is deterministic.
 
-**Note 2**: `invoke` is a new action introduced specifically to be used
-with the `extensions` resource. The current actions for `extensions`
-are `*` or `invoke`.
+## Policy evaluation and matching
 
-## Tying It All Together
+The evaluation of access is done in two part: validating against the default policy, then validating the policy for the current user.
 
-Additional roles and groups can be configured in `argocd-rbac-cm` ConfigMap. The example below
-configures a custom role, named `org-admin`. The role is assigned to any user which belongs to
-`your-github-org:your-team` group. All other users get the default policy of `role:readonly`,
-which cannot modify Argo CD settings.
+**If an action is allowed or denied by the default policy, then this effect will be effective without further evaluation**.
+When the effect is undefined, the evaluation will continue to subject-specific policies.
 
-_ArgoCD ConfigMap `argocd-rbac-cm` Example:_
+The access will be evaluated for the user, then for each configured group that the user is part of.
 
-```yaml
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: argocd-rbac-cm
-  namespace: argocd
-data:
-  policy.default: role:readonly
-  policy.csv: |
-    p, role:org-admin, applications, *, */*, allow
-    p, role:org-admin, clusters, get, *, allow
-    p, role:org-admin, repositories, get, *, allow
-    p, role:org-admin, repositories, create, *, allow
-    p, role:org-admin, repositories, update, *, allow
-    p, role:org-admin, repositories, delete, *, allow
-    p, role:org-admin, projects, get, *, allow
-    p, role:org-admin, projects, create, *, allow
-    p, role:org-admin, projects, update, *, allow
-    p, role:org-admin, projects, delete, *, allow
-    p, role:org-admin, logs, get, *, allow
-    p, role:org-admin, exec, create, */*, allow
+The matching engine, configured in `policy.matchMode`, can use two different match mode to compare the values of tokens:
 
-    g, your-github-org:your-team, role:org-admin
+- `glob`: based on the [`glob` package](https://pkg.go.dev/github.com/gobwas/glob).
+- `regex`: based on the [`regexp` package](https://pkg.go.dev/regexp).
+
+When all tokens match during the evaluation, the effect will be returned. The evaluation will continue until all matching permissions are evaluated, or until a permission with the `deny` effect matches.
+After all permissions are evaluated, if there was at least one `allow` effect and no `deny`, the access will be granted.
+
+### Glob matching
+
+When `glob` is used, the policy tokens are treated as single terms, without separator.
+
+Consider the following policy:
+
+```
+p, example-user, applications, action/extensions/*, default/*, allow
 ```
 
----
+When the `example-user` executes the `extensions/DaemonSet/test` action, the following `glob` matches would happen:
 
-Another `policy.csv` example might look as follows:
+1. The current user `example-user` match the token `example-user`.
+2. The value `applications` match the token `applications`.
+3. The value `action/extensions/DaemonSet/test` match `action/extensions/*`. Note that `/` are not treated as seprator and the use of `**` is not necessary.
+4. The value `default/my-app` match `default/*`.
 
-```csv
-p, role:staging-db-admin, applications, create, staging-db-project/*, allow
-p, role:staging-db-admin, applications, delete, staging-db-project/*, allow
-p, role:staging-db-admin, applications, get, staging-db-project/*, allow
-p, role:staging-db-admin, applications, override, staging-db-project/*, allow
-p, role:staging-db-admin, applications, sync, staging-db-project/*, allow
-p, role:staging-db-admin, applications, update, staging-db-project/*, allow
-p, role:staging-db-admin, logs, get, staging-db-project/*, allow
-p, role:staging-db-admin, exec, create, staging-db-project/*, allow
-p, role:staging-db-admin, projects, get, staging-db-project, allow
-g, db-admins, role:staging-db-admin
-```
+## Using SSO Users/Groups
 
-This example defines a _role_ called `staging-db-admin` with nine _permissions_ that allow users with that role to perform the following _actions_:
+The `scopes` field controls which OIDC scopes to examine during rbac enforcement (in addition to `sub` scope).
+If omitted, defaults to `'[groups]'`. The scope value can be a string, or a list of strings.
 
-- `create`, `delete`, `get`, `override`, `sync` and `update` for applications in the `staging-db-project` project,
-- `get` logs for objects in the `staging-db-project` project,
-- `create` exec for objects in the `staging-db-project` project, and
-- `get` for the project named `staging-db-project`.
+For more information on `scopes` please review the [User Management Documentation](user-management/index.md).
 
-!!! note
-The `scopes` field controls which OIDC scopes to examine during rbac
-enforcement (in addition to `sub` scope). If omitted, defaults to:
-`'[groups]'`. The scope value can be a string, or a list of strings.
-
-Following example shows targeting `email` as well as `groups` from your OIDC provider.
+The following example shows targeting `email` as well as `groups` from your OIDC provider.
 
 ```yaml
 apiVersion: v1
@@ -320,7 +297,24 @@ data:
   scopes: '[groups, email]'
 ```
 
-For more information on `scopes` please review the [User Management Documentation](user-management/index.md).
+This can be useful to associate user's email and groups directly in AppProject
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: team-beta-project
+  namespace: argocd
+spec:
+  roles:
+    - name: admin
+      description: Admin privileges to team-beta
+      policies:
+        - p, proj:team-beta-project:admin, applications, *, *, allow
+      groups:
+        - user@example.org # Value from the email scope
+        - my-org:team-beta # Value from the groups scope
+```
 
 ## Local Users/Accounts
 
@@ -339,10 +333,11 @@ This example shows how to assign a role to a local user.
 g, my-local-user, role:admin
 ```
 
-!!!warning "Ambiguous Group Assignments"
-If you have [enabled SSO](user-management/index.md#sso), any SSO user with a scope that matches a local user will be
-added to the same roles as the local user. For example, if local user `sally` is assigned to `role:admin`, and if an
-SSO user has a scope which happens to be named `sally`, that SSO user will also be assigned to `role:admin`.
+!!! warning "Ambiguous Group Assignments"
+
+    If you have [enabled SSO](user-management/index.md#sso), any SSO user with a scope that matches a local user will be
+    added to the same roles as the local user. For example, if local user `sally` is assigned to `role:admin`, and if an
+    SSO user has a scope which happens to be named `sally`, that SSO user will also be assigned to `role:admin`.
 
     An example of where this may be a problem is if your SSO provider is an SCM, and org members are automatically
     granted scopes named after the orgs. If a user can create or add themselves to an org in the SCM, they can gain the
@@ -358,20 +353,17 @@ SSO user has a scope which happens to be named `sally`, that SSO user will also 
 
 ## Policy CSV Composition
 
-It is possible to provide additional entries in the `argocd-rbac-cm`
-configmap to compose the final policy csv. In this case the key must
-follow the pattern `policy.<any string>.csv`. Argo CD will concatenate
-all additional policies it finds with this pattern below the main one
-('policy.csv'). The order of additional provided policies are
-determined by the key string. Example: if two additional policies are
-provided with keys `policy.A.csv` and `policy.B.csv`, it will first
-concatenate `policy.A.csv` and then `policy.B.csv`.
+It is possible to provide additional entries in the `argocd-rbac-cm` configmap to compose the final policy csv.
+In this case the key must follow the pattern `policy.<any string>.csv`.
+Argo CD will concatenate all additional policies it finds with this pattern below the main one ('policy.csv').
+The order of additional provided policies are determined by the key string.
 
-This is useful to allow composing policies in config management tools
-like Kustomize, Helm, etc.
+Example: if two additional policies are provided with keys `policy.A.csv` and `policy.B.csv`,
+it will first concatenate `policy.A.csv` and then `policy.B.csv`.
 
-The example below shows how a Kustomize patch can be provided in an
-overlay to add additional configuration to an existing RBAC policy.
+This is useful to allow composing policies in config management tools like Kustomize, Helm, etc.
+
+The example below shows how a Kustomize patch can be provided in an overlay to add additional configuration to an existing RBAC policy.
 
 ```yaml
 apiVersion: v1
@@ -389,88 +381,18 @@ data:
 ## Validating and testing your RBAC policies
 
 If you want to ensure that your RBAC policies are working as expected, you can
-use the `argocd admin settings rbac` command to validate them. This tool allows you to
-test whether a certain role or subject can perform the requested action with a
-policy that's not live yet in the system, i.e. from a local file or config map.
-Additionally, it can be used against the live policy in the cluster your Argo
-CD is running in.
-
-To check whether your new policy is valid and understood by Argo CD's RBAC
-implementation, you can use the `argocd admin settings rbac validate` command.
+use the [`argocd admin settings rbac` command](../user-guide/commands/argocd_admin_settings_rbac.md) to validate them.
+This tool allows you to test whether a certain role or subject can perform the requested action with a policy
+that's not live yet in the system, i.e. from a local file or config map.
+Additionally, it can be used against the live policy in the cluster your Argo CD is running in.
 
 ### Validating a policy
 
-To validate a policy stored in a local text file:
-
-```shell
-argocd admin settings rbac validate --policy-file somepolicy.csv
-```
-
-To validate a policy stored in a local K8s ConfigMap definition in a YAML file:
-
-```shell
-argocd admin settings rbac validate --policy-file argocd-rbac-cm.yaml
-```
-
-To validate a policy stored in K8s, used by Argo CD in namespace `argocd`,
-ensure that your current context in `~/.kube/config` is pointing to your
-Argo CD cluster and give appropriate namespace:
-
-```shell
-argocd admin settings rbac validate --namespace argocd
-```
+To check whether your new policy is valid and understood by Argo CD's RBAC implementation,
+you can use the [`argocd admin settings rbac validate`](../user-guide/commands/argocd_admin_settings_rbac_validate.md) command.
 
 ### Testing a policy
 
 To test whether a role or subject (group or local user) has sufficient
 permissions to execute certain actions on certain resources, you can
-use the `argocd admin settings rbac can` command. Its general syntax is
-
-```shell
-argocd admin settings rbac can SOMEROLE ACTION RESOURCE SUBRESOURCE [flags]
-```
-
-Given the example from the above ConfigMap, which defines the role
-`role:org-admin`, and is stored on your local system as `argocd-rbac-cm-yaml`,
-you can test whether that role can do something like follows:
-
-```console
-$ argocd admin settings rbac can role:org-admin get applications --policy-file argocd-rbac-cm.yaml
-Yes
-
-$ argocd admin settings rbac can role:org-admin get clusters --policy-file argocd-rbac-cm.yaml
-Yes
-
-$ argocd admin settings rbac can role:org-admin create clusters 'somecluster' --policy-file argocd-rbac-cm.yaml
-No
-
-$ argocd admin settings rbac can role:org-admin create applications 'someproj/someapp' --policy-file argocd-rbac-cm.yaml
-Yes
-```
-
-Another example, given the policy above from `policy.csv`, which defines the
-role `role:staging-db-admin` and associates the group `db-admins` with it.
-Policy is stored locally as `policy.csv`:
-
-You can test against the role:
-
-```console
-$ # Plain policy, without a default role defined
-$ argocd admin settings rbac can role:staging-db-admin get applications --policy-file policy.csv
-No
-
-$ argocd admin settings rbac can role:staging-db-admin get applications 'staging-db-project/*' --policy-file policy.csv
-Yes
-
-$ # Argo CD augments a builtin policy with two roles defined, the default role
-$ # being 'role:readonly' - You can include a named default role to use:
-$ argocd admin settings rbac can role:staging-db-admin get applications --policy-file policy.csv --default-role role:readonly
-Yes
-```
-
-Or against the group defined:
-
-```console
-$ argocd admin settings rbac can db-admins get applications 'staging-db-project/*' --policy-file policy.csv
-Yes
-```
+use the [`argocd admin settings rbac can` command](../user-guide/commands/argocd_admin_settings_rbac_can.md).
