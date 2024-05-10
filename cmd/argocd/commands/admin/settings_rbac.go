@@ -54,27 +54,32 @@ var resourceMap map[string]string = map[string]string{
 
 // List of allowed RBAC resources
 var validRBACResourcesActions map[string]actionTraitMap = map[string]actionTraitMap{
-	rbacpolicy.ResourceAccounts:        validRBACActions,
-	rbacpolicy.ResourceApplications:    validRBACApplicationsActions,
-	rbacpolicy.ResourceApplicationSets: validRBACActions,
-	rbacpolicy.ResourceCertificates:    validRBACActions,
-	rbacpolicy.ResourceClusters:        validRBACActions,
-	rbacpolicy.ResourceExtensions:      validRBACExtensionActions,
-	rbacpolicy.ResourceGPGKeys:         validRBACActions,
-	rbacpolicy.ResourceLogs:            validRBACLogActions,
-	rbacpolicy.ResourceExec:            validRBACExecActions,
-	rbacpolicy.ResourceProjects:        validRBACActions,
-	rbacpolicy.ResourceRepositories:    validRBACActions,
+	rbacpolicy.ResourceAccounts:        accountsActions,
+	rbacpolicy.ResourceApplications:    applicationsActions,
+	rbacpolicy.ResourceApplicationSets: defaultCRUDActions,
+	rbacpolicy.ResourceCertificates:    defaultCRDActions,
+	rbacpolicy.ResourceClusters:        defaultCRUDActions,
+	rbacpolicy.ResourceExtensions:      extensionActions,
+	rbacpolicy.ResourceGPGKeys:         defaultCRDActions,
+	rbacpolicy.ResourceLogs:            logsActions,
+	rbacpolicy.ResourceExec:            execActions,
+	rbacpolicy.ResourceProjects:        defaultCRUDActions,
+	rbacpolicy.ResourceRepositories:    defaultCRUDActions,
 }
 
 // List of allowed RBAC actions
-var validRBACActions = actionTraitMap{
+var defaultCRUDActions = actionTraitMap{
 	rbacpolicy.ActionCreate: rbacTrait{},
 	rbacpolicy.ActionGet:    rbacTrait{},
 	rbacpolicy.ActionUpdate: rbacTrait{},
 	rbacpolicy.ActionDelete: rbacTrait{},
 }
-var validRBACApplicationsActions = actionTraitMap{
+var defaultCRDActions = actionTraitMap{
+	rbacpolicy.ActionCreate: rbacTrait{},
+	rbacpolicy.ActionGet:    rbacTrait{},
+	rbacpolicy.ActionDelete: rbacTrait{},
+}
+var applicationsActions = actionTraitMap{
 	rbacpolicy.ActionCreate:   rbacTrait{},
 	rbacpolicy.ActionGet:      rbacTrait{},
 	rbacpolicy.ActionUpdate:   rbacTrait{allowPath: true},
@@ -83,13 +88,17 @@ var validRBACApplicationsActions = actionTraitMap{
 	rbacpolicy.ActionOverride: rbacTrait{},
 	rbacpolicy.ActionSync:     rbacTrait{},
 }
-var validRBACExecActions = actionTraitMap{
+var accountsActions = actionTraitMap{
+	rbacpolicy.ActionCreate: rbacTrait{},
+	rbacpolicy.ActionUpdate: rbacTrait{},
+}
+var execActions = actionTraitMap{
 	rbacpolicy.ActionCreate: rbacTrait{},
 }
-var validRBACLogActions = actionTraitMap{
+var logsActions = actionTraitMap{
 	rbacpolicy.ActionGet: rbacTrait{},
 }
-var validRBACExtensionActions = actionTraitMap{
+var extensionActions = actionTraitMap{
 	rbacpolicy.ActionInvoke: rbacTrait{},
 }
 
