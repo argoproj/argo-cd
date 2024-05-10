@@ -1,4 +1,4 @@
-import {DropDown, DropDownMenu, Tooltip} from 'argo-ui';
+import {DropDown, Tooltip} from 'argo-ui';
 import * as classNames from 'classnames';
 import * as dagre from 'dagre';
 import * as React from 'react';
@@ -15,7 +15,6 @@ import {ResourceLabel} from '../resource-label';
 import {
     BASE_COLORS,
     ComparisonStatusIcon,
-    deletePodAction,
     getAppOverridesCount,
     HealthStatusIcon,
     isAppNode,
@@ -592,83 +591,58 @@ function renderPodGroupByStatus(props: ApplicationResourceTreeProps, node: any, 
                     </div>
                 </React.Fragment>
             ) : (
-                pods.map(pod => (
-                    <DropDownMenu
-                        key={pod.uid}
-                        anchor={() => (
-                            <Tooltip
-                                content={
-                                    <div>
-                                        {pod.metadata.name}
-                                        <div>Health: {pod.health}</div>
-                                        {pod.createdAt && (
-                                            <span>
-                                                <span>Created: </span>
-                                                <Moment fromNow={true} ago={true}>
-                                                    {pod.createdAt}
-                                                </Moment>
-                                                <span> ago ({<Moment local={true}>{pod.createdAt}</Moment>})</span>
-                                            </span>
-                                        )}
-                                    </div>
-                                }
-                                popperOptions={{
-                                    modifiers: {
-                                        preventOverflow: {
-                                            enabled: true
-                                        },
-                                        hide: {
-                                            enabled: false
-                                        },
-                                        flip: {
-                                            enabled: false
+                pods.map(
+                    pod =>
+                        props.nodeMenu && (
+                            <DropDown
+                                key={pod.uid}
+                                isMenu={true}
+                                anchor={() => (
+                                    <Tooltip
+                                        content={
+                                            <div>
+                                                {pod.metadata.name}
+                                                <div>Health: {pod.health}</div>
+                                                {pod.createdAt && (
+                                                    <span>
+                                                        <span>Created: </span>
+                                                        <Moment fromNow={true} ago={true}>
+                                                            {pod.createdAt}
+                                                        </Moment>
+                                                        <span> ago ({<Moment local={true}>{pod.createdAt}</Moment>})</span>
+                                                    </span>
+                                                )}
+                                            </div>
                                         }
-                                    }
-                                }}
-                                key={pod.metadata.name}>
-                                <div style={{position: 'relative'}}>
-                                    {isYoungerThanXMinutes(pod, 30) && (
-                                        <i className='fas fa-star application-resource-tree__node--lower-section__pod-group__pod application-resource-tree__node--lower-section__pod-group__pod__star-icon' />
-                                    )}
-                                    <div
-                                        className={`application-resource-tree__node--lower-section__pod-group__pod application-resource-tree__node--lower-section__pod-group__pod--${pod.health.toLowerCase()}`}>
-                                        <PodHealthIcon state={{status: pod.health, message: ''}} />
-                                    </div>
-                                </div>
-                            </Tooltip>
-                        )}
-                        items={[
-                            {
-                                title: (
-                                    <React.Fragment>
-                                        <i className='fa fa-info-circle' /> Info
-                                    </React.Fragment>
-                                ),
-                                action: () => props.onNodeClick(pod.fullName)
-                            },
-                            {
-                                title: (
-                                    <React.Fragment>
-                                        <i className='fa fa-align-left' /> Logs
-                                    </React.Fragment>
-                                ),
-                                action: () => {
-                                    props.appContext.apis.navigation.goto('.', {node: pod.fullName, tab: 'logs'}, {replace: true});
-                                }
-                            },
-                            {
-                                title: (
-                                    <React.Fragment>
-                                        <i className='fa fa-times-circle' /> Delete
-                                    </React.Fragment>
-                                ),
-                                action: () => {
-                                    deletePodAction(pod, props.appContext, props.app.metadata.name, props.app.metadata.namespace);
-                                }
-                            }
-                        ]}
-                    />
-                ))
+                                        popperOptions={{
+                                            modifiers: {
+                                                preventOverflow: {
+                                                    enabled: true
+                                                },
+                                                hide: {
+                                                    enabled: false
+                                                },
+                                                flip: {
+                                                    enabled: false
+                                                }
+                                            }
+                                        }}
+                                        key={pod.metadata.name}>
+                                        <div style={{position: 'relative'}}>
+                                            {isYoungerThanXMinutes(pod, 30) && (
+                                                <i className='fas fa-star application-resource-tree__node--lower-section__pod-group__pod application-resource-tree__node--lower-section__pod-group__pod__star-icon' />
+                                            )}
+                                            <div
+                                                className={`application-resource-tree__node--lower-section__pod-group__pod application-resource-tree__node--lower-section__pod-group__pod--${pod.health.toLowerCase()}`}>
+                                                <PodHealthIcon state={{status: pod.health, message: ''}} />
+                                            </div>
+                                        </div>
+                                    </Tooltip>
+                                )}>
+                                {() => props.nodeMenu(pod)}
+                            </DropDown>
+                        )
+                )
             )}
         </div>
     );
