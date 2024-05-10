@@ -1,7 +1,6 @@
 package controllers
 
 import (
-	"context"
 	"testing"
 
 	log "github.com/sirupsen/logrus"
@@ -551,7 +550,7 @@ func TestClusterEventHandler(t *testing.T) {
 
 			mockAddRateLimitingInterface := mockAddRateLimitingInterface{}
 
-			handler.queueRelatedAppGenerators(context.Background(), &mockAddRateLimitingInterface, &test.secret)
+			handler.queueRelatedAppGenerators(&mockAddRateLimitingInterface, &test.secret)
 
 			assert.False(t, mockAddRateLimitingInterface.errorOccurred)
 			assert.ElementsMatch(t, mockAddRateLimitingInterface.addedItems, test.expectedRequests)
