@@ -2278,7 +2278,7 @@ func (ctrl *ApplicationController) getAppList(options metav1.ListOptions) (*appv
 
 func (ctrl *ApplicationController) logAppEvent(a *appv1.Application, eventInfo argo.EventInfo, message string, ctx context.Context) {
 	eventLabels := argo.GetAppEventLabels(a, applisters.NewAppProjectLister(ctrl.projInformer.GetIndexer()), ctrl.namespace, ctrl.settingsMgr, ctrl.db, ctx)
-	ctrl.auditLogger.LogAppEvent(a, argo.EventInfo{Reason: argo.EventReasonStatusRefreshed, Type: v1.EventTypeWarning}, message, "", eventLabels)
+	ctrl.auditLogger.LogAppEvent(a, eventInfo, message, "", eventLabels)
 }
 
 type ClusterFilterFunction func(c *appv1.Cluster, distributionFunction sharding.DistributionFunction) bool
