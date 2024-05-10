@@ -42,6 +42,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
 	mockrepoclient "github.com/argoproj/argo-cd/v2/reposerver/apiclient/mocks"
 	"github.com/argoproj/argo-cd/v2/test"
+	"github.com/argoproj/argo-cd/v2/util/argo/normalizers"
 	cacheutil "github.com/argoproj/argo-cd/v2/util/cache"
 	appstatecache "github.com/argoproj/argo-cd/v2/util/cache/appstate"
 	"github.com/argoproj/argo-cd/v2/util/settings"
@@ -158,9 +159,9 @@ func newFakeController(data *fakeData, repoErr error) *ApplicationController {
 		nil,
 		data.applicationNamespaces,
 		nil,
-
 		false,
 		false,
+		normalizers.IgnoreNormalizerOpts{},
 	)
 	db := &dbmocks.ArgoDB{}
 	db.On("GetApplicationControllerReplicas").Return(1)
@@ -988,7 +989,7 @@ func TestNormalizeApplication(t *testing.T) {
 		normalized := false
 		fakeAppCs.AddReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
 			if patchAction, ok := action.(kubetesting.PatchAction); ok {
-				if string(patchAction.GetPatch()) == `{"spec":{"project":"default"}}` {
+				if string(patchAction.GetPatch()) == `{"spec":{"project":"default"},"status":{"sync":{"comparedTo":{"destination":{},"source":{"repoURL":""}}}}}` {
 					normalized = true
 				}
 			}
@@ -1010,7 +1011,7 @@ func TestNormalizeApplication(t *testing.T) {
 		normalized := false
 		fakeAppCs.AddReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
 			if patchAction, ok := action.(kubetesting.PatchAction); ok {
-				if string(patchAction.GetPatch()) == `{"spec":{"project":"default"}}` {
+				if string(patchAction.GetPatch()) == `{"spec":{"project":"default"},"status":{"sync":{"comparedTo":{"destination":{},"source":{"repoURL":""}}}}}` {
 					normalized = true
 				}
 			}
@@ -1715,6 +1716,36 @@ func TestProcessRequestedAppOperation_HasRetriesTerminated(t *testing.T) {
 
 	phase, _, _ := unstructured.NestedString(receivedPatch, "status", "operationState", "phase")
 	assert.Equal(t, string(synccommon.OperationFailed), phase)
+}
+
+func TestProcessRequestedAppOperation_Successful(t *testing.T) {
+	app := newFakeApp()
+	app.Spec.Project = "default"
+	app.Operation = &v1alpha1.Operation{
+		Sync: &v1alpha1.SyncOperation{},
+	}
+	ctrl := newFakeController(&fakeData{
+		apps: []runtime.Object{app, &defaultProj},
+		manifestResponses: []*apiclient.ManifestResponse{{
+			Manifests: []string{},
+		}},
+	}, nil)
+	fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
+	receivedPatch := map[string]interface{}{}
+	fakeAppCs.PrependReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		if patchAction, ok := action.(kubetesting.PatchAction); ok {
+			assert.NoError(t, json.Unmarshal(patchAction.GetPatch(), &receivedPatch))
+		}
+		return true, &v1alpha1.Application{}, nil
+	})
+
+	ctrl.processRequestedAppOperation(app)
+
+	phase, _, _ := unstructured.NestedString(receivedPatch, "status", "operationState", "phase")
+	assert.Equal(t, string(synccommon.OperationSucceeded), phase)
+	ok, level := ctrl.isRefreshRequested(ctrl.toAppKey(app.Name))
+	assert.True(t, ok)
+	assert.Equal(t, CompareWithLatestForceResolve, level)
 }
 
 func TestGetAppHosts(t *testing.T) {

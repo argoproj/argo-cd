@@ -11,7 +11,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
@@ -115,7 +115,7 @@ func GetOrphanedResourcesSettings(flagSet *pflag.FlagSet, opts ProjectOpts) *v1a
 	if opts.orphanedResourcesEnabled || warnChanged {
 		settings := v1alpha1.OrphanedResourcesMonitorSettings{}
 		if warnChanged {
-			settings.Warn = pointer.Bool(opts.orphanedResourcesWarn)
+			settings.Warn = ptr.To(opts.orphanedResourcesWarn)
 		}
 		return &settings
 	}

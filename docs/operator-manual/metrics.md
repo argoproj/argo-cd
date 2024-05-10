@@ -10,7 +10,7 @@ Metrics about applications. Scraped at the `argocd-metrics:8082/metrics` endpoin
 | `argocd_app_info` | gauge | Information about Applications. It contains labels such as `sync_status` and `health_status` that reflect the application state in Argo CD. |
 | `argocd_app_k8s_request_total` | counter | Number of Kubernetes requests executed during application reconciliation |
 | `argocd_app_labels` | gauge | Argo Application labels converted to Prometheus labels. Disabled by default. See section below about how to enable it. |
-| `argocd_app_reconcile` | histogram | Application reconciliation performance. |
+| `argocd_app_reconcile` | histogram | Application reconciliation performance in seconds. |
 | `argocd_app_sync_total` | counter | Counter for application sync history |
 | `argocd_cluster_api_resource_objects` | gauge | Number of k8s resource objects in the cache. |
 | `argocd_cluster_api_resources` | gauge | Number of monitored Kubernetes API resources. |

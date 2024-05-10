@@ -174,6 +174,31 @@ The [PR#1139](https://github.com/argoproj/argo-cd/pull/1139) is an example of Ce
 
 Please note that bundled health checks with wildcards are not supported.
 
+## Overriding Go-Based Health Checks
+
+Health checks for some resources were [hardcoded as Go code](https://github.com/argoproj/gitops-engine/tree/master/pkg/health) 
+because Lua support was introduced later. Also, the logic of health checks for some resources were too complex, so it 
+was easier to implement it in Go.
+
+It is possible to override health checks for built-in resource. Argo will prefer the configured health check over the
+Go-based built-in check.
+
+The following resources have Go-based health checks:
+
+* PersistentVolumeClaim
+* Pod
+* Service
+* apiregistration.k8s.io/APIService
+* apps/DaemonSet
+* apps/Deployment
+* apps/ReplicaSet
+* apps/StatefulSet
+* argoproj.io/Workflow
+* autoscaling/HorizontalPodAutoscaler
+* batch/Job
+* extensions/Ingress
+* networking.k8s.io/Ingress
+
 ## Health Checks
 
 An Argo CD App's health is inferred from the health of its immediate child resources (the resources represented in 

@@ -7,7 +7,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <title>Snyk test report</title>
-  <meta name="description" content="28 known vulnerabilities found in 161 vulnerable dependency paths.">
+  <meta name="description" content="27 known vulnerabilities found in 160 vulnerable dependency paths.">
   <base target="_blank">
   <link rel="icon" type="image/png" href="https://res.cloudinary.com/snyk/image/upload/v1468845142/favicon/favicon.png"
     sizes="194x194">
@@ -456,7 +456,7 @@
               <div class="header-wrap">
                   <h1 class="project__header__title">Snyk test report</h1>
     
-                <p class="timestamp">April 21st 2024, 12:16:16 am (UTC+00:00)</p>
+                <p class="timestamp">May 5th 2024, 12:16:29 am (UTC+00:00)</p>
               </div>
               <div class="source-panel">
                 <span>Scanned the following paths:</span>
@@ -470,9 +470,9 @@
               </div>
     
               <div class="meta-counts">
-                <div class="meta-count"><span>28</span> <span>known vulnerabilities</span></div>
-                <div class="meta-count"><span>161 vulnerable dependency paths</span></div>
-                <div class="meta-count"><span>2281</span> <span>dependencies</span></div>
+                <div class="meta-count"><span>27</span> <span>known vulnerabilities</span></div>
+                <div class="meta-count"><span>160 vulnerable dependency paths</span></div>
+                <div class="meta-count"><span>2282</span> <span>dependencies</span></div>
               </div><!-- .meta-counts -->
             </div><!-- .layout-container--short -->
           </header><!-- .project__header -->
@@ -624,82 +624,6 @@
         
             <div class="cta card__cta">
                 <p><a href="https://snyk.io/vuln/SNYK-UBUNTU2204-XZUTILS-5854647">More about this vulnerability</a></p>
-            </div>
-        
-        </div><!-- .card -->
-        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
-            <h2 class="card__title">CVE-2023-51767</h2>
-            <div class="card__section">
-        
-                <div class="label label--medium">
-                    <span class="label__text">medium severity</span>
-                </div>
-        
-                <hr/>
-        
-                <ul class="card__meta">
-                    <li class="card__meta__item">
-                        Manifest file: quay.io/argoproj/argocd:latest/argoproj/argocd <span class="list-paths__item__arrow">›</span> Dockerfile
-                    </li>
-                    <li class="card__meta__item">
-                        Package Manager: ubuntu:22.04
-                    </li>
-                    <li class="card__meta__item">
-                            Vulnerable module:
-        
-                            openssh/openssh-client
-                    </li>
-        
-                    <li class="card__meta__item">Introduced through:
-        
-                                docker-image|quay.io/argoproj/argocd@latest and openssh/openssh-client@1:8.9p1-3ubuntu0.7
-        
-                    </li>
-                </ul>
-        
-                <hr/>
-        
-        
-                        <h3 class="card__section__title">Detailed paths</h3>
-        
-                    <ul class="card__meta__paths">
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@latest
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        openssh/openssh-client@1:8.9p1-3ubuntu0.7
-                                        
-                                </span>
-        
-                            </li>
-                    </ul><!-- .list-paths -->
-        
-            </div><!-- .card__section -->
-        
-              <hr/>
-              <!-- Overview -->
-              <h2 id="nvd-description">NVD Description</h2>
-        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>openssh</code> package and not the <code>openssh</code> package as distributed by <code>Ubuntu</code>.</em>
-        <em>See <code>How to fix?</code> for <code>Ubuntu:22.04</code> relevant fixed versions and status.</em></p>
-        <p>OpenSSH through 9.6, when common types of DRAM are used, might allow row hammer attacks (for authentication bypass) because the integer value of authenticated in mm_answer_authpassword does not resist flips of a single bit. NOTE: this is applicable to a certain threat model of attacker-victim co-location in which the attacker has user privileges.</p>
-        <h2 id="remediation">Remediation</h2>
-        <p>There is no fixed version for <code>Ubuntu:22.04</code> <code>openssh</code>.</p>
-        <h2 id="references">References</h2>
-        <ul>
-        <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2023-51767">http://people.ubuntu.com/~ubuntu-security/cve/CVE-2023-51767</a></li>
-        <li><a href="https://arxiv.org/abs/2309.02545">https://arxiv.org/abs/2309.02545</a></li>
-        <li><a href="https://github.com/openssh/openssh-portable/blob/8241b9c0529228b4b86d88b1a6076fb9f97e4a99/auth-passwd.c#L77">https://github.com/openssh/openssh-portable/blob/8241b9c0529228b4b86d88b1a6076fb9f97e4a99/auth-passwd.c#L77</a></li>
-        <li><a href="https://github.com/openssh/openssh-portable/blob/8241b9c0529228b4b86d88b1a6076fb9f97e4a99/monitor.c#L878">https://github.com/openssh/openssh-portable/blob/8241b9c0529228b4b86d88b1a6076fb9f97e4a99/monitor.c#L878</a></li>
-        <li><a href="https://access.redhat.com/security/cve/CVE-2023-51767">https://access.redhat.com/security/cve/CVE-2023-51767</a></li>
-        <li><a href="https://bugzilla.redhat.com/show_bug.cgi?id=2255850">https://bugzilla.redhat.com/show_bug.cgi?id=2255850</a></li>
-        <li><a href="https://ubuntu.com/security/CVE-2023-51767">https://ubuntu.com/security/CVE-2023-51767</a></li>
-        <li><a href="https://security.netapp.com/advisory/ntap-20240125-0006/">https://security.netapp.com/advisory/ntap-20240125-0006/</a></li>
-        </ul>
-        
-              <hr/>
-        
-            <div class="cta card__cta">
-                <p><a href="https://snyk.io/vuln/SNYK-UBUNTU2204-OPENSSH-6142085">More about this vulnerability</a></p>
             </div>
         
         </div><!-- .card -->
@@ -906,6 +830,7 @@
         <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2024-2236">http://people.ubuntu.com/~ubuntu-security/cve/CVE-2024-2236</a></li>
         <li><a href="https://access.redhat.com/security/cve/CVE-2024-2236">https://access.redhat.com/security/cve/CVE-2024-2236</a></li>
         <li><a href="https://bugzilla.redhat.com/show_bug.cgi?id=2268268">https://bugzilla.redhat.com/show_bug.cgi?id=2268268</a></li>
+        <li><a href="https://bugzilla.redhat.com/show_bug.cgi?id=2245218">https://bugzilla.redhat.com/show_bug.cgi?id=2245218</a></li>
         </ul>
         
               <hr/>
@@ -2162,6 +2087,7 @@
         <li><a href="https://github.com/systemd/systemd/issues/25676">https://github.com/systemd/systemd/issues/25676</a></li>
         <li><a href="https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/QHNBXGKJWISJETTTDTZKTBFIBJUOSLKL/">https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/QHNBXGKJWISJETTTDTZKTBFIBJUOSLKL/</a></li>
         <li><a href="https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/4GMDEG5PKONWNHOEYSUDRT6JEOISRMN2/">https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/4GMDEG5PKONWNHOEYSUDRT6JEOISRMN2/</a></li>
+        <li><a href="https://access.redhat.com/errata/RHSA-2024:2463">https://access.redhat.com/errata/RHSA-2024:2463</a></li>
         </ul>
         
               <hr/>
@@ -2579,7 +2505,7 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         docker-image|quay.io/argoproj/argocd@latest
                                          <span class="list-paths__item__arrow">›</span> 
-                                        less@590-1ubuntu0.22.04.2
+                                        less@590-1ubuntu0.22.04.3
                                          <span class="list-paths__item__arrow">›</span> 
                                         ncurses/libtinfo6@6.3-2ubuntu0.1
                                         
@@ -2843,7 +2769,7 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         docker-image|quay.io/argoproj/argocd@latest
                                          <span class="list-paths__item__arrow">›</span> 
-                                        less@590-1ubuntu0.22.04.2
+                                        less@590-1ubuntu0.22.04.3
                                          <span class="list-paths__item__arrow">›</span> 
                                         ncurses/libtinfo6@6.3-2ubuntu0.1
                                         

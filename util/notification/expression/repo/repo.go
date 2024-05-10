@@ -13,7 +13,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/notification/expression/shared"
 
 	"github.com/argoproj/notifications-engine/pkg/util/text"
-	giturls "github.com/whilp/git-urls"
+	giturls "github.com/chainguard-dev/git-urls"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
@@ -33,7 +33,7 @@ func getApplicationSourceAndName(obj *unstructured.Unstructured) (*v1alpha1.Appl
 	if err != nil {
 		return nil, "", err
 	}
-	return application.Spec.GetSourcePtr(0), application.GetName(), nil
+	return application.Spec.GetSourcePtrByIndex(0), application.GetName(), nil
 }
 
 func getAppDetails(app *unstructured.Unstructured, argocdService service.Service) (*shared.AppDetail, error) {

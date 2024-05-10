@@ -189,10 +189,10 @@ export const ApplicationParameters = (props: {
     } else {
         const v: models.ApplicationSource[] = new Array<models.ApplicationSource>();
         v.push(app.spec.source);
-        return getEditablePanel(attributes, props.details, 0, v);
+        return getEditablePanel(attributes, props.details, 0, v, true);
     }
 
-    function getEditablePanel(panel: EditablePanelItem[], repoAppDetails: models.RepoAppDetails, ind: number, sources: models.ApplicationSource[]): any {
+    function getEditablePanel(panel: EditablePanelItem[], repoAppDetails: models.RepoAppDetails, ind: number, sources: models.ApplicationSource[], isSingleSource?: boolean): any {
         const src: models.ApplicationSource = sources[ind];
         let descriptionCollapsed: string;
         let floatingTitle: string;
@@ -230,6 +230,8 @@ export const ApplicationParameters = (props: {
                 save={
                     props.save &&
                     (async (input: models.Application) => {
+                        const updatedSrc = isSingleSource ? input.spec.source : input.spec.sources[ind];
+
                         function isDefined(item: any) {
                             return item !== null && item !== undefined;
                         }
@@ -237,19 +239,21 @@ export const ApplicationParameters = (props: {
                             return item !== null && item !== undefined && item.match(/:/);
                         }
 
-                        if (src.helm && src.helm.parameters) {
-                            src.helm.parameters = src.helm.parameters.filter(isDefined);
+                        if (updatedSrc.helm && updatedSrc.helm.parameters) {
+                            updatedSrc.helm.parameters = updatedSrc.helm.parameters.filter(isDefined);
                         }
-                        if (src.kustomize && src.kustomize.images) {
-                            src.kustomize.images = src.kustomize.images.filter(isDefinedWithVersion);
+                        if (updatedSrc.kustomize && updatedSrc.kustomize.images) {
+                            updatedSrc.kustomize.images = updatedSrc.kustomize.images.filter(isDefinedWithVersion);
                         }
 
                         let params = input.spec?.source?.plugin?.parameters;
                         if (params) {
                             for (const param of params) {
                                 if (param.map && param.array) {
+                                    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
                                     // @ts-ignore
                                     param.map = param.array.reduce((acc, {name, value}) => {
+                                        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
                                         // @ts-ignore
                                         acc[name] = value;
                                         return acc;
@@ -320,6 +324,7 @@ function gatherDetails(
     setAppParamsDeletedState: any
 ): EditablePanelItem[] {
     const hasMultipleSources = app.spec.sources && app.spec.sources.length > 0;
+    // eslint-disable-next-line no-prototype-builtins
     const isHelm = source.hasOwnProperty('chart');
     if (hasMultipleSources) {
         attributes.push({
