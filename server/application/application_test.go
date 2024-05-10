@@ -1580,6 +1580,7 @@ func TestDeleteApp(t *testing.T) {
 
 func TestDeleteResourcesRBAC(t *testing.T) {
 	ctx := context.Background()
+	// nolint:staticcheck
 	ctx = context.WithValue(ctx, "claims", &jwt.RegisteredClaims{Subject: "test-user"})
 	testApp := newTestApp()
 	appServer := newTestAppServer(t, testApp)
@@ -1642,6 +1643,7 @@ p, test-user, applications, delete/fake.io/PodTest/*, default/test-app, deny
 
 func TestPatchResourcesRBAC(t *testing.T) {
 	ctx := context.Background()
+	// nolint:staticcheck
 	ctx = context.WithValue(ctx, "claims", &jwt.RegisteredClaims{Subject: "test-user"})
 	testApp := newTestApp()
 	appServer := newTestAppServer(t, testApp)
