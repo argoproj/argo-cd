@@ -246,7 +246,7 @@ Implementing this proposal would significantly increase resilience against breac
 
 ### Risks and Mitigations
 
-The new verification levels (i.e. `progressive` and `full`) make source verification a lot more robust and thorough compared to the current implementation. 
+The new verification levels (i.e. `progressive` and `strict`) make source verification a lot more robust and thorough compared to the current implementation. 
 
 However, for `progressive` mode, there are at least two risk factors I can see which I'd like to raise for validation: 
 
