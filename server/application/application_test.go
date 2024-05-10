@@ -1580,7 +1580,7 @@ func TestDeleteApp(t *testing.T) {
 
 func TestDeleteResourcesRBAC(t *testing.T) {
 	ctx := context.Background()
-	ctx = context.WithValue(ctx, "claims", &jwt.StandardClaims{Subject: "test-user"})
+	ctx = context.WithValue(ctx, "claims", &jwt.RegisteredClaims{Subject: "test-user"})
 	testApp := newTestApp()
 	appServer := newTestAppServer(t, testApp)
 	appServer.enf.SetDefaultRole("")
@@ -1642,7 +1642,7 @@ p, test-user, applications, delete/fake.io/PodTest/*, default/test-app, deny
 
 func TestPatchResourcesRBAC(t *testing.T) {
 	ctx := context.Background()
-	ctx = context.WithValue(ctx, "claims", &jwt.StandardClaims{Subject: "test-user"})
+	ctx = context.WithValue(ctx, "claims", &jwt.RegisteredClaims{Subject: "test-user"})
 	testApp := newTestApp()
 	appServer := newTestAppServer(t, testApp)
 	appServer.enf.SetDefaultRole("")
@@ -1820,7 +1820,7 @@ func TestUpdateAppProject(t *testing.T) {
 	testApp := newTestApp()
 	ctx := context.Background()
 	// nolint:staticcheck
-	ctx = context.WithValue(ctx, "claims", &jwt.StandardClaims{Subject: "admin"})
+	ctx = context.WithValue(ctx, "claims", &jwt.RegisteredClaims{Subject: "admin"})
 	appServer := newTestAppServer(t, testApp)
 	appServer.enf.SetDefaultRole("")
 
@@ -1884,7 +1884,7 @@ func TestAppJsonPatch(t *testing.T) {
 	testApp := newTestAppWithAnnotations()
 	ctx := context.Background()
 	// nolint:staticcheck
-	ctx = context.WithValue(ctx, "claims", &jwt.StandardClaims{Subject: "admin"})
+	ctx = context.WithValue(ctx, "claims", &jwt.RegisteredClaims{Subject: "admin"})
 	appServer := newTestAppServer(t, testApp)
 	appServer.enf.SetDefaultRole("")
 
@@ -1909,7 +1909,7 @@ func TestAppMergePatch(t *testing.T) {
 	testApp := newTestApp()
 	ctx := context.Background()
 	// nolint:staticcheck
-	ctx = context.WithValue(ctx, "claims", &jwt.StandardClaims{Subject: "admin"})
+	ctx = context.WithValue(ctx, "claims", &jwt.RegisteredClaims{Subject: "admin"})
 	appServer := newTestAppServer(t, testApp)
 	appServer.enf.SetDefaultRole("")
 
