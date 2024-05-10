@@ -710,6 +710,38 @@ func TestSettingsManager_GetKustomizeBuildOptions(t *testing.T) {
 	})
 }
 
+func TestSettingsManager_GetEventLabelKeys(t *testing.T) {
+	tests := []struct {
+		name         string
+		data         string
+		expectedKeys []string
+	}{
+		{
+			name:         "Comma separated data",
+			data:         "app,env, tier,    example.com/team",
+			expectedKeys: []string{"app", "env", "tier", "example.com/team"},
+		},
+		{
+			name:         "Empty data",
+			data:         "",
+			expectedKeys: []string{},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, settingsManager := fixtures(map[string]string{
+				resourceEventLabelKeys: tt.data,
+			})
+			keys := settingsManager.GetEventLabelKeys()
+			assert.Equal(t, len(tt.expectedKeys), len(keys))
+
+			for i := range tt.expectedKeys {
+				assert.Equal(t, tt.expectedKeys[i], keys[i])
+			}
+		})
+	}
+}
+
 func TestKustomizeSettings_GetOptions(t *testing.T) {
 	settings := KustomizeSettings{
 		BuildOptions: "--opt1 val1",

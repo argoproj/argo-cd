@@ -1575,3 +1575,111 @@ func TestAugmentSyncMsg(t *testing.T) {
 		})
 	}
 }
+
+func TestGetAppEventLabels(t *testing.T) {
+	tests := []struct {
+		name                string
+		cmEventLabelKeys    string
+		appLabels           map[string]string
+		projLabels          map[string]string
+		expectedEventLabels map[string]string
+	}{
+		{
+			name:                "no label keys in cm",
+			cmEventLabelKeys:    "",
+			appLabels:           nil,
+			projLabels:          nil,
+			expectedEventLabels: nil,
+		},
+		{
+			name:                "no label keys in cm",
+			cmEventLabelKeys:    "",
+			appLabels:           map[string]string{"team": "A", "tier": "frontend"},
+			projLabels:          map[string]string{"env": "dev"},
+			expectedEventLabels: nil,
+		},
+		{
+			name:                "label keys in cm, no labels on app & proj",
+			cmEventLabelKeys:    "team,env",
+			appLabels:           nil,
+			projLabels:          nil,
+			expectedEventLabels: nil,
+		},
+		{
+			name:                "label keys in cm, labels on app, no labels on proj",
+			cmEventLabelKeys:    "team,env",
+			appLabels:           map[string]string{"team": "A", "tier": "frontend"},
+			projLabels:          nil,
+			expectedEventLabels: map[string]string{"team": "A"},
+		},
+		{
+			name:                "label keys in cm, no labels on app, labels on proj",
+			cmEventLabelKeys:    "team,env",
+			appLabels:           nil,
+			projLabels:          map[string]string{"env": "dev"},
+			expectedEventLabels: map[string]string{"env": "dev"},
+		},
+		{
+			name:                "label keys in cm, labels on app & proj",
+			cmEventLabelKeys:    "team,env",
+			appLabels:           map[string]string{"team": "A", "tier": "frontend"},
+			projLabels:          map[string]string{"env": "dev"},
+			expectedEventLabels: map[string]string{"team": "A", "env": "dev"},
+		},
+		{
+			name:                "app & proj label conflicts",
+			cmEventLabelKeys:    "example.com/team,env",
+			appLabels:           map[string]string{"example.com/team": "A", "tier": "frontend"},
+			projLabels:          map[string]string{"example.com/team": "B", "env": "dev"},
+			expectedEventLabels: map[string]string{"example.com/team": "A", "env": "dev"},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cm := corev1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "argocd-cm",
+					Namespace: test.FakeArgoCDNamespace,
+					Labels: map[string]string{
+						"app.kubernetes.io/part-of": "argocd",
+					},
+				},
+				Data: map[string]string{
+					"resource.eventLabelKeys": tt.cmEventLabelKeys,
+				},
+			}
+
+			proj := &argoappv1.AppProject{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "default",
+					Namespace: test.FakeArgoCDNamespace,
+					Labels:    tt.projLabels,
+				},
+			}
+
+			var app argoappv1.Application
+			app.Name = "test-app"
+			app.Namespace = test.FakeArgoCDNamespace
+			app.Labels = tt.appLabels
+			appClientset := appclientset.NewSimpleClientset(proj)
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			indexers := cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}
+			informer := v1alpha1.NewAppProjectInformer(appClientset, test.FakeArgoCDNamespace, 0, indexers)
+			go informer.Run(ctx.Done())
+			cache.WaitForCacheSync(ctx.Done(), informer.HasSynced)
+
+			kubeClient := fake.NewSimpleClientset(&cm)
+			settingsMgr := settings.NewSettingsManager(context.Background(), kubeClient, test.FakeArgoCDNamespace)
+			argoDB := db.NewDB("default", settingsMgr, kubeClient)
+
+			eventLabels := GetAppEventLabels(&app, applisters.NewAppProjectLister(informer.GetIndexer()), test.FakeArgoCDNamespace, settingsMgr, argoDB, ctx)
+			assert.Equal(t, len(eventLabels), len(tt.expectedEventLabels))
+			for ek, ev := range tt.expectedEventLabels {
+				v, found := eventLabels[ek]
+				assert.True(t, found)
+				assert.Equal(t, ev, v)
+			}
+		})
+	}
+}

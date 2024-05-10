@@ -1104,3 +1104,37 @@ func IsValidContainerName(name string) bool {
 	validationErrors := apimachineryvalidation.NameIsDNSLabel(name, false)
 	return len(validationErrors) == 0
 }
+
+// GetAppEventLabels returns a map of labels to add to k8s event.
+// The Application and it's AppProject labels are compared against `resource.eventLabelKeys` key in argocd-cm,
+// if matched, the corresponding labels are returned to add on the generated event. In case of conflict
+// between labels on Application and AppProject, the Application label values are prioritized and added to the event.
+func GetAppEventLabels(app *argoappv1.Application, projLister applicationsv1.AppProjectLister, ns string, settingsManager *settings.SettingsManager, db db.ArgoDB, ctx context.Context) map[string]string {
+	eventLabels := make(map[string]string)
+
+	labels := app.Labels
+	if labels == nil {
+		labels = make(map[string]string)
+	}
+	proj, err := GetAppProject(app, projLister, ns, settingsManager, db, ctx)
+	if err == nil {
+		for k, v := range proj.Labels {
+			_, found := labels[k]
+			if !found {
+				labels[k] = v
+			}
+		}
+	} else {
+		log.Warn(err)
+	}
+
+	keys := settingsManager.GetEventLabelKeys()
+	for _, k := range keys {
+		v, found := labels[k]
+		if found {
+			eventLabels[k] = v
+		}
+	}
+
+	return eventLabels
+}
