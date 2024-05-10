@@ -1,7 +1,7 @@
 # RBAC Configuration
 
-The RBAC feature enables restriction of access to Argo CD resources. Argo CD does not have its own
-user management system and has only one built-in user `admin`. The `admin` user is a superuser and
+The RBAC feature enables restrictions of access to Argo CD resources. Argo CD does not have its own
+user management system and has only one built-in user, `admin`. The `admin` user is a superuser and
 it has unrestricted access to the system. RBAC requires [SSO configuration](user-management/index.md) or [one or more local users setup](user-management/index.md).
 Once SSO or local users are configured, additional RBAC roles can be defined, and SSO groups or local users can then be mapped to roles.
 
@@ -19,37 +19,37 @@ Argo CD has two pre-defined roles but RBAC configuration allows defining roles a
 
 These default built-in role definitions can be seen in [builtin-policy.csv](https://github.com/argoproj/argo-cd/blob/master/assets/builtin-policy.csv)
 
-## Default policy for Authenticated Users
+## Default Policy for Authenticated Users
 
 When a user is authenticated in Argo CD, it will be granted the role specified in `policy.default`.
 
 !!! warning "Denying Default Permissions"
 
     All authenticated users get _at least_ the permissions granted by the default policy. This access cannot be blocked
-    by a `deny` rule. It is recommended to create a new `role:authenticated` with the minimum set of permission possible,
+    by a `deny` rule. It is recommended to create a new `role:authenticated` with the minimum set of permissions possible,
     then grant permissions to individual roles as needed.
 
 ## Anonymous Access
 
 Enabling anonymous access to the Argo CD instance allows users to assume the default role permissions specified by `policy.default` **without being authenticated**.
 
-The anonymous access to Argo CD can be enabled using `users.anonymous.enabled` field in `argocd-cm` (see [argocd-cm.yaml](argocd-cm-yaml.md)).
+The anonymous access to Argo CD can be enabled using the `users.anonymous.enabled` field in `argocd-cm` (see [argocd-cm.yaml](argocd-cm-yaml.md)).
 
 !!! warning
 
-    When enabling anonymous access, consider creating a new default role, and assign it to the default policy
+    When enabling anonymous access, consider creating a new default role and assigning it to the default policy
     with `policy.default: role:unauthenticated`.
 
 ## RBAC Policy Structure
 
-The policy syntax is based on [Casbin](https://casbin.org/docs/overview). There are two different types of policy syntax: one for assigning permissions, and another one to assign users to internal roles.
+The policy syntax is based on [Casbin](https://casbin.org/docs/overview). There are two different types of policy syntax: one for assigning permissions, and another one for assigning users to internal roles.
 
 - **Group**: Allows to assign authenticated users/groups to internal roles.
 
   `g, <user/group>, <role>`
 
   - `<user/group>`: The entity to whom the role will be assigned. It can be a local user or a user authenticated with SSO.
-    When SSO is used, the `user` will be based on the `sub` claims, while the group is one of the value returned by the `scopes` configuration.
+    When SSO is used, the `user` will be based on the `sub` claims, while the group is one of the values returned by the `scopes` configuration.
   - `<role>`: The internal role to which the entity will be assigned.
 
 - **Permission**: Allows to assign permissions to an entity.
@@ -62,7 +62,7 @@ The policy syntax is based on [Casbin](https://casbin.org/docs/overview). There 
   - `<object>`: The object identifier representing the resource on which the action is performed. Depending on the resource, the object's format will vary.
   - `<effect>`: Whether this permission should grant or restrict the operation on the target object. One of `allow` or `deny`.
 
-Below is a table that summarize all possible resources, and which actions are valid for each of them.
+Below is a table that summarizes all possible resources and which actions are valid for each of them.
 
 | Resource\Action     | get | create | update | delete | sync | action | override | invoke |
 | :------------------ | :-: | :----: | :----: | :----: | :--: | :----: | :------: | :----: |
@@ -78,9 +78,9 @@ Below is a table that summarize all possible resources, and which actions are va
 | **exec**            | ❌  |   ✅   |   ❌   |   ❌   |  ❌  |   ❌   |    ❌    |   ❌   |
 | **extensions**      | ❌  |   ❌   |   ❌   |   ❌   |  ❌  |   ❌   |    ❌    |   ✅   |
 
-### Application-Specific permissions
+### Application-Specific Permissions
 
-Some permissions only have meaning within an application. It is the case of the following resources:
+Some permissions only have meaning within an application. It is the case with the following resources:
 
 - `applications`
 - `applicationsets`
@@ -91,17 +91,17 @@ While they can be set in the global configuration, they can also be configured i
 The expected `<object>` value in the policy structure is replaced by `<app-project>/<app-name>`.
 
 For instance, these permissions would grant `example-user` access to get any applications,
-but only be able to see logs in the `my-app` application part of the `example-project` project.
+but only be able to see logs in `my-app` application part of the `example-project` project.
 
 ```csv
 p, example-user, applications, get, *, allow
 p, example-user, logs, get, example-project/my-app, allow
 ```
 
-#### Application in any namespaces
+#### Application in Any Namespaces
 
 When [application in any namespace](app-any-namespace.md) is enabled, the expected `<object>` value in the policy structure is replaced by `<app-project>/<app-ns>/<app-name>`.
-Since multiple application could have the same name in the same project, the policy below make sure to restrict the access only to `app-namespace`.
+Since multiple applications could have the same name in the same project, the policy below makes sure to restrict access only to `app-namespace`.
 
 ```csv
 p, example-user, applications, get, */app-namespace/*, allow
@@ -112,9 +112,9 @@ p, example-user, logs, get, example-project/app-namespace/my-app, allow
 
 The `applications` resource is an [Application-Specific permission](#application-specific-permissions).
 
-#### Fine-grained permisisons for `update`/`delete` action
+#### Fine-grained Permissions for `update`/`delete` action
 
-The `update` and `delete` actions, when granted on an application, will allow the user to perform the operation on the application itself, **and** all of its resources.
+The `update` and `delete` actions, when granted on an application, will allow the user to perform the operation on the application itself **and** all of its resources.
 It can be desirable to only allow `update` or `delete` on specific resources within an application.
 
 To do so, when the action if performed on an application's resource, the `<action>` will have the `<action>/<group>/<kind>/<ns>/<name>` format.
@@ -125,7 +125,7 @@ For instance, to grant access to `example-user` to only delete Pods in the `prod
 p, example-user, applications, delete/*/Pod/*, default/prod-app, allow
 ```
 
-If we want to grant the permissions to the user to update all resources of an application, but not the application itself:
+If we want to grant access to the user to update all resources of an application, but not the application itself:
 
 ```csv
 p, example-user, applications, update/*, default/prod-app, allow
@@ -154,10 +154,10 @@ The `action` action corresponds to either built-in resource customizations defin
 [in the Argo CD repository](https://github.com/argoproj/argo-cd/tree/master/resource_customizations),
 or to [custom resource actions](resource_actions.md#custom-resource-actions) defined by you.
 
-The `<action>` have the `action/<group>/<kind>/<action-name>` format.
+The `<action>` has the `action/<group>/<kind>/<action-name>` format.
 
 For example, a resource customization path `resource_customizations/extensions/DaemonSet/actions/restart/action.lua`
-corresponds to the `action` path `action/extensions/DaemonSet/restart`. If the resource is not under a group (for examples, Pods or ConfigMaps),
+corresponds to the `action` path `action/extensions/DaemonSet/restart`. If the resource is not under a group (for example, Pods or ConfigMaps),
 then the path will be `action//Pod/action-name`.
 
 The following permission allows the user to perform any action on the DaemonSet resources, as well as the `maintenance-off` action on a Pod:
@@ -175,7 +175,7 @@ p, example-user, applications, action/*, default/*, allow
 
 #### The `override` action
 
-When granted along with the `sync` action, the override action will allow a user to synchronize local manifest to the Application.
+When granted along with the `sync` action, the override action will allow a user to synchronize local manifests to the Application.
 These manifests will be used instead of the configured source, until the next sync is performed.
 
 ### The `applicationsets` resource
@@ -217,7 +217,7 @@ See [Web-based Terminal](web_based_terminal.md) for more info.
 
 ### The `extensions` resource
 
-With the `extensions` resource, it is possible configure permissions to invoke [proxy extensions](../developer-guide/extensions/proxy-extensions.md).
+With the `extensions` resource, it is possible to configure permissions to invoke [proxy extensions](../developer-guide/extensions/proxy-extensions.md).
 The `extensions` RBAC validation works in conjunction with the `applications` resource.
 A user **needs to have read permission on the application** where the request is originated from.
 
@@ -234,28 +234,28 @@ p, example-user, extensions, invoke, httpbin, allow
 When `deny` is used as an effect in a permission, it will be effective if the permission matches.
 Even if more specific permissions with the `allow` effect match as well, the `deny` will have priority.
 
-The order in which the permission appears is the policy has no impact, and the result is deterministic.
+The order in which the permission appears in the policy has no impact, and the result is deterministic.
 
 ## Policy evaluation and matching
 
-The evaluation of access is done in two part: validating against the default policy, then validating the policy for the current user.
+The evaluation of access is done in two parts: validating against the default policy, then validating the policy for the current user.
 
 **If an action is allowed or denied by the default policy, then this effect will be effective without further evaluation**.
-When the effect is undefined, the evaluation will continue to subject-specific policies.
+When the effect is undefined, the evaluation will continue with subject-specific policies.
 
 The access will be evaluated for the user, then for each configured group that the user is part of.
 
-The matching engine, configured in `policy.matchMode`, can use two different match mode to compare the values of tokens:
+The matching engine, configured in `policy.matchMode`, can use two different match modes to compare the values of tokens:
 
 - `glob`: based on the [`glob` package](https://pkg.go.dev/github.com/gobwas/glob).
 - `regex`: based on the [`regexp` package](https://pkg.go.dev/regexp).
 
 When all tokens match during the evaluation, the effect will be returned. The evaluation will continue until all matching permissions are evaluated, or until a permission with the `deny` effect matches.
-After all permissions are evaluated, if there was at least one `allow` effect and no `deny`, the access will be granted.
+After all permissions are evaluated, if there was at least one `allow` effect and no `deny`, access will be granted.
 
 ### Glob matching
 
-When `glob` is used, the policy tokens are treated as single terms, without separator.
+When `glob` is used, the policy tokens are treated as single terms, without separators.
 
 Consider the following policy:
 
@@ -263,17 +263,17 @@ Consider the following policy:
 p, example-user, applications, action/extensions/*, default/*, allow
 ```
 
-When the `example-user` executes the `extensions/DaemonSet/test` action, the following `glob` matches would happen:
+When the `example-user` executes the `extensions/DaemonSet/test` action, the following `glob` matches will happen:
 
-1. The current user `example-user` match the token `example-user`.
-2. The value `applications` match the token `applications`.
-3. The value `action/extensions/DaemonSet/test` match `action/extensions/*`. Note that `/` are not treated as separator and the use of `**` is not necessary.
-4. The value `default/my-app` match `default/*`.
+1. The current user `example-user` matches the token `example-user`.
+2. The value `applications` matches the token `applications`.
+3. The value `action/extensions/DaemonSet/test` matches `action/extensions/*`. Note that `/` is not treated as a separator and the use of `**` is not necessary.
+4. The value `default/my-app` matches `default/*`.
 
 ## Using SSO Users/Groups
 
-The `scopes` field controls which OIDC scopes to examine during rbac enforcement (in addition to `sub` scope).
-If omitted, defaults to `'[groups]'`. The scope value can be a string, or a list of strings.
+The `scopes` field controls which OIDC scopes to examine during RBAC enforcement (in addition to `sub` scope).
+If omitted, it defaults to `'[groups]'`. The scope value can be a string, or a list of strings.
 
 For more information on `scopes` please review the [User Management Documentation](user-management/index.md).
 
@@ -297,7 +297,7 @@ data:
   scopes: '[groups, email]'
 ```
 
-This can be useful to associate user's email and groups directly in AppProject
+This can be useful to associate users' emails and groups directly in AppProject.
 
 ```yaml
 apiVersion: argoproj.io/v1alpha1
@@ -354,7 +354,7 @@ g, my-local-user, role:admin
 ## Policy CSV Composition
 
 It is possible to provide additional entries in the `argocd-rbac-cm` configmap to compose the final policy csv.
-In this case the key must follow the pattern `policy.<any string>.csv`.
+In this case, the key must follow the pattern `policy.<any string>.csv`.
 Argo CD will concatenate all additional policies it finds with this pattern below the main one ('policy.csv').
 The order of additional provided policies are determined by the key string.
 
