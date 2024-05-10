@@ -392,7 +392,7 @@ Additionally, it can be used against the live policy in the cluster your Argo CD
 ### Validating a policy
 
 To check whether your new policy is valid and understood by Argo CD's RBAC implementation,
-you can use the [`argocd admin settings rbac validate`](../user-guide/commands/argocd_admin_settings_rbac_validate.md) command.
+you can use the [`argocd admin settings rbac validate` command](../user-guide/commands/argocd_admin_settings_rbac_validate.md).
 
 ### Testing a policy
 
