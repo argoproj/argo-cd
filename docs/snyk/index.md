@@ -13,11 +13,11 @@ recent minor releases.
 
 |    | Critical | High | Medium | Low |
 |---:|:--------:|:----:|:------:|:---:|
-| [go.mod](master/argocd-test.html) | 0 | 0 | 6 | 0 |
+| [go.mod](master/argocd-test.html) | 0 | 1 | 6 | 0 |
 | [ui/yarn.lock](master/argocd-test.html) | 0 | 0 | 1 | 0 |
 | [dex:v2.38.0](master/ghcr.io_dexidp_dex_v2.38.0.html) | 0 | 0 | 2 | 2 |
 | [haproxy:2.6.14-alpine](master/haproxy_2.6.14-alpine.html) | 0 | 1 | 3 | 2 |
-| [argocd:latest](master/quay.io_argoproj_argocd_latest.html) | 0 | 0 | 5 | 14 |
+| [argocd:latest](master/quay.io_argoproj_argocd_latest.html) | 0 | 0 | 5 | 7 |
 | [redis:7.0.15-alpine](master/redis_7.0.15-alpine.html) | 0 | 0 | 0 | 1 |
 | [install.yaml](master/argocd-iac-install.html) | - | - | - | - |
 | [namespace-install.yaml](master/argocd-iac-namespace-install.html) | - | - | - | - |
