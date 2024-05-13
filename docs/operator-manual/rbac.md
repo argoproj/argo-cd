@@ -31,7 +31,7 @@ When a user is authenticated in Argo CD, it will be granted the role specified i
 
 ## Anonymous Access
 
-Enabling anonymous access to the Argo CD instance allows users to assume the default role policies specified by `policy.default` **without being authenticated**.
+Enabling anonymous access to the Argo CD instance allows users to assume the default role permissions specified by `policy.default` **without being authenticated**.
 
 The anonymous access to Argo CD can be enabled using the `users.anonymous.enabled` field in `argocd-cm` (see [argocd-cm.yaml](argocd-cm-yaml.md)).
 
