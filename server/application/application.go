@@ -2145,7 +2145,12 @@ func (s *Server) resolveRevision(ctx context.Context, app *appv1.Application, sy
 
 	ambiguousRevision := getAmbiguousRevision(app, syncReq, sourceIndex)
 
-	repo, err := s.db.GetRepository(ctx, app.Spec.GetSource().RepoURL)
+	repoUrl := app.Spec.GetSource().RepoURL
+	if app.Spec.HasMultipleSources() {
+		repoUrl = app.Spec.Sources[sourceIndex].RepoURL
+	}
+
+	repo, err := s.db.GetRepository(ctx, repoUrl)
 	if err != nil {
 		return "", "", fmt.Errorf("error getting repository by URL: %w", err)
 	}
