@@ -5,7 +5,7 @@ user management system and has only one built-in user, `admin`. The `admin` user
 it has unrestricted access to the system. RBAC requires [SSO configuration](user-management/index.md) or [one or more local users setup](user-management/index.md).
 Once SSO or local users are configured, additional RBAC roles can be defined, and SSO groups or local users can then be mapped to roles.
 
-There are two main components where RBAC permission can be defined:
+There are two main components where RBAC configuration can be defined:
 
 - The global RBAC config map (see [argo-rbac-cm.yaml](argocd-rbac-cm-yaml.md))
 - The [AppProject's roles](../user-guide/projects.md#project-roles)
@@ -23,26 +23,26 @@ These default built-in role definitions can be seen in [builtin-policy.csv](http
 
 When a user is authenticated in Argo CD, it will be granted the role specified in `policy.default`.
 
-!!! warning "Denying Default Permissions"
+!!! warning "Restricting Default Permissions"
 
-    **All authenticated users get _at least_ the permissions granted by the default policy. This access cannot be blocked
+    **All authenticated users get _at least_ the permissions granted by the default policies. This access cannot be blocked
     by a `deny` rule.** It is recommended to create a new `role:authenticated` with the minimum set of permissions possible,
     then grant permissions to individual roles as needed.
 
 ## Anonymous Access
 
-Enabling anonymous access to the Argo CD instance allows users to assume the default role permissions specified by `policy.default` **without being authenticated**.
+Enabling anonymous access to the Argo CD instance allows users to assume the default role policies specified by `policy.default` **without being authenticated**.
 
 The anonymous access to Argo CD can be enabled using the `users.anonymous.enabled` field in `argocd-cm` (see [argocd-cm.yaml](argocd-cm-yaml.md)).
 
 !!! warning
 
-    When enabling anonymous access, consider creating a new default role and assigning it to the default policy
+    When enabling anonymous access, consider creating a new default role and assigning it to the default policies
     with `policy.default: role:unauthenticated`.
 
-## RBAC Policy Structure
+## RBAC Model Structure
 
-The policy syntax is based on [Casbin](https://casbin.org/docs/overview). There are two different types of policy syntax: one for assigning permissions, and another one for assigning users to internal roles.
+The model syntax is based on [Casbin](https://casbin.org/docs/overview). There are two different types of syntax: one for assigning policies, and another one for assigning users to internal roles.
 
 **Group**: Allows to assign authenticated users/groups to internal roles.
 
@@ -52,15 +52,15 @@ Syntax: `g, <user/group>, <role>`
   When SSO is used, the `user` will be based on the `sub` claims, while the group is one of the values returned by the `scopes` configuration.
 - `<role>`: The internal role to which the entity will be assigned.
 
-**Permission**: Allows to assign permissions to an entity.
+**Policy**: Allows to assign permissions to an entity.
 
 Syntax: `p, <role/user/group>, <resource>, <action>, <object>, <effect>`
 
-- `<role/user/group>`: The entity to whom the permission will be assigned
+- `<role/user/group>`: The entity to whom the policy will be assigned
 - `<resource>`: The type of resource on which the action is performed.
 - `<action>`: The operation that is being performed on the resource.
 - `<object>`: The object identifier representing the resource on which the action is performed. Depending on the resource, the object's format will vary.
-- `<effect>`: Whether this permission should grant or restrict the operation on the target object. One of `allow` or `deny`.
+- `<effect>`: Whether this policy should grant or restrict the operation on the target object. One of `allow` or `deny`.
 
 Below is a table that summarizes all possible resources and which actions are valid for each of them.
 
@@ -78,9 +78,9 @@ Below is a table that summarizes all possible resources and which actions are va
 | **exec**            | ❌  |   ✅   |   ❌   |   ❌   |  ❌  |   ❌   |    ❌    |   ❌   |
 | **extensions**      | ❌  |   ❌   |   ❌   |   ❌   |  ❌  |   ❌   |    ❌    |   ✅   |
 
-### Application-Specific Permissions
+### Application-Specific Policy
 
-Some permissions only have meaning within an application. It is the case with the following resources:
+Some policy only have meaning within an application. It is the case with the following resources:
 
 - `applications`
 - `applicationsets`
@@ -90,7 +90,7 @@ Some permissions only have meaning within an application. It is the case with th
 While they can be set in the global configuration, they can also be configured in [AppProject's roles](../user-guide/projects.md#project-roles).
 The expected `<object>` value in the policy structure is replaced by `<app-project>/<app-name>`.
 
-For instance, these permissions would grant `example-user` access to get any applications,
+For instance, these policies would grant `example-user` access to get any applications,
 but only be able to see logs in `my-app` application part of the `example-project` project.
 
 ```csv
@@ -110,7 +110,7 @@ p, example-user, logs, get, example-project/app-namespace/my-app, allow
 
 ### The `applications` resource
 
-The `applications` resource is an [Application-Specific permission](#application-specific-permissions).
+The `applications` resource is an [Application-Specific Policy](#application-specific-policy).
 
 #### Fine-grained Permissions for `update`/`delete` action
 
@@ -141,7 +141,7 @@ p, example-user, applications, delete/*/Pod/*, default/prod-app, allow
 !!! note
 
     It is not possible to deny fine-grained permissions for a sub-resource if the action was **explicitly allowed on the application**.
-    For instance, the following policy will **allow** a user to delete the Pod and any other resources in the application:
+    For instance, the following policies will **allow** a user to delete the Pod and any other resources in the application:
 
     ```csv
     p, example-user, applications, delete, default/prod-app, allow
@@ -160,7 +160,7 @@ For example, a resource customization path `resource_customizations/extensions/D
 corresponds to the `action` path `action/extensions/DaemonSet/restart`. If the resource is not under a group (for example, Pods or ConfigMaps),
 then the path will be `action//Pod/action-name`.
 
-The following permission allows the user to perform any action on the DaemonSet resources, as well as the `maintenance-off` action on a Pod:
+The following policies allows the user to perform any action on the DaemonSet resources, as well as the `maintenance-off` action on a Pod:
 
 ```csv
 p, example-user, applications, action//Pod/maintenance-off, default/*, allow
@@ -180,7 +180,7 @@ These manifests will be used instead of the configured source, until the next sy
 
 ### The `applicationsets` resource
 
-The `applicationsets` resource is an [Application-Specific permission](#application-specific-permissions).
+The `applicationsets` resource is an [Application-Specific policy](#application-specific-policy).
 
 [ApplicationSets](applicationset/index.md) provide a declarative way to automatically create/update/delete Applications.
 
@@ -192,10 +192,10 @@ user to create Applications directly, they can create Applications via an Applic
     In v2.5, it is not possible to create an ApplicationSet with a templated Project field (e.g. `project: {{path.basename}}`)
     via the API (or, by extension, the CLI). Disallowing templated projects makes project restrictions via RBAC safe:
 
-With the resource being application-specific, the `<object>` of the applicationsets permissions will have the format `<app-project>/<app-name>`.
+With the resource being application-specific, the `<object>` of the applicationsets policy will have the format `<app-project>/<app-name>`.
 However, since an ApplicationSet does belong to any project, the `<app-project>` value represents the projects in which the ApplicationSet will be able to create Applications.
 
-With the following permission, a `dev-group` user will be unable to create an ApplicationSet capable of creating Applications
+With the following policy, a `dev-group` user will be unable to create an ApplicationSet capable of creating Applications
 outside the `dev-project` project.
 
 ```csv
@@ -204,16 +204,16 @@ p, dev-group, applicationsets, *, dev-project/*, allow
 
 ### The `logs` resource
 
-The `logs` resource is an [Application-Specific permission](#application-specific-permissions).
+The `logs` resource is an [Application-Specific Policy](#application-specific-policy).
 
-When granted with the `get` action, this permission allows a user to see Pod's logs of an application via
+When granted with the `get` action, this policy allows a user to see Pod's logs of an application via
 the Argo CD UI. The functionality is similar to `kubectl logs`.
 
 ### The `exec` resource
 
-The `exec` resource is an [Application-Specific permission](#application-specific-permissions).
+The `exec` resource is an [Application-Specific Policy](#application-specific-policy).
 
-When granted with the `create` action, this permission allows a user to `exec` into Pods of an application via
+When granted with the `create` action, this policy allows a user to `exec` into Pods of an application via
 the Argo CD UI. The functionality is similar to `kubectl exec`.
 
 See [Web-based Terminal](web_based_terminal.md) for more info.
@@ -234,16 +234,16 @@ p, example-user, extensions, invoke, httpbin, allow
 
 ### The `deny` effect
 
-When `deny` is used as an effect in a permission, it will be effective if the permission matches.
-Even if more specific permissions with the `allow` effect match as well, the `deny` will have priority.
+When `deny` is used as an effect in a policy, it will be effective if the policy matches.
+Even if more specific policies with the `allow` effect match as well, the `deny` will have priority.
 
-The order in which the permission appears in the policy has no impact, and the result is deterministic.
+The order in which the policies appears in the policy file configuration has no impact, and the result is deterministic.
 
-## Policy evaluation and matching
+## Policies Evaluation and Matching
 
-The evaluation of access is done in two parts: validating against the default policy, then validating the policy for the current user.
+The evaluation of access is done in two parts: validating against the default policy configuration, then validating against the policies for the current user.
 
-**If an action is allowed or denied by the default policy, then this effect will be effective without further evaluation**.
+**If an action is allowed or denied by the default policies, then this effect will be effective without further evaluation**.
 When the effect is undefined, the evaluation will continue with subject-specific policies.
 
 The access will be evaluated for the user, then for each configured group that the user is part of.
@@ -253,8 +253,8 @@ The matching engine, configured in `policy.matchMode`, can use two different mat
 - `glob`: based on the [`glob` package](https://pkg.go.dev/github.com/gobwas/glob).
 - `regex`: based on the [`regexp` package](https://pkg.go.dev/regexp).
 
-When all tokens match during the evaluation, the effect will be returned. The evaluation will continue until all matching permissions are evaluated, or until a permission with the `deny` effect matches.
-After all permissions are evaluated, if there was at least one `allow` effect and no `deny`, access will be granted.
+When all tokens match during the evaluation, the effect will be returned. The evaluation will continue until all matching policies are evaluated, or until a policy with the `deny` effect matches.
+After all policies are evaluated, if there was at least one `allow` effect and no `deny`, access will be granted.
 
 ### Glob matching
 
@@ -346,9 +346,9 @@ g, my-local-user, role:admin
     granted scopes named after the orgs. If a user can create or add themselves to an org in the SCM, they can gain the
     permissions of the local user with the same name.
 
-    To avoid ambiguity, if you are using local users and SSO, it is recommended to assign permissions directly to local
+    To avoid ambiguity, if you are using local users and SSO, it is recommended to assign policies directly to local
     users, and not to assign roles to local users. In other words, instead of using `g, my-local-user, role:admin`, you
-    should explicitly assign permissions to `my-local-user`:
+    should explicitly assign policies to `my-local-user`:
 
     ```yaml
     p, my-local-user, *, *, *, allow
@@ -366,7 +366,7 @@ it will first concatenate `policy.A.csv` and then `policy.B.csv`.
 
 This is useful to allow composing policies in config management tools like Kustomize, Helm, etc.
 
-The example below shows how a Kustomize patch can be provided in an overlay to add additional configuration to an existing RBAC policy.
+The example below shows how a Kustomize patch can be provided in an overlay to add additional configuration to an existing RBAC ConfigMap.
 
 ```yaml
 apiVersion: v1
@@ -387,11 +387,11 @@ If you want to ensure that your RBAC policies are working as expected, you can
 use the [`argocd admin settings rbac` command](../user-guide/commands/argocd_admin_settings_rbac.md) to validate them.
 This tool allows you to test whether a certain role or subject can perform the requested action with a policy
 that's not live yet in the system, i.e. from a local file or config map.
-Additionally, it can be used against the live policy in the cluster your Argo CD is running in.
+Additionally, it can be used against the live RBAC configuration in the cluster your Argo CD is running in.
 
 ### Validating a policy
 
-To check whether your new policy is valid and understood by Argo CD's RBAC implementation,
+To check whether your new policy configuration is valid and understood by Argo CD's RBAC implementation,
 you can use the [`argocd admin settings rbac validate` command](../user-guide/commands/argocd_admin_settings_rbac_validate.md).
 
 ### Testing a policy
