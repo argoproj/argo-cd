@@ -11,8 +11,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/argoproj/gitops-engine/pkg/diff"
 	"github.com/stretchr/testify/require"
-	"k8s.io/utils/pointer"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/utils/ptr"
 
 	argocdcommon "github.com/argoproj/argo-cd/v2/common"
 
@@ -2966,7 +2969,7 @@ func TestRetryStrategy_NextRetryAtCustomBackoff(t *testing.T) {
 	retry := RetryStrategy{
 		Backoff: &Backoff{
 			Duration:    "2s",
-			Factor:      pointer.Int64(3),
+			Factor:      ptr.To(int64(3)),
 			MaxDuration: "1m",
 		},
 	}
@@ -3075,11 +3078,74 @@ func TestOrphanedResourcesMonitorSettings_IsWarn(t *testing.T) {
 	settings := OrphanedResourcesMonitorSettings{}
 	assert.False(t, settings.IsWarn())
 
-	settings.Warn = pointer.Bool(false)
+	settings.Warn = ptr.To(false)
 	assert.False(t, settings.IsWarn())
 
-	settings.Warn = pointer.Bool(true)
+	settings.Warn = ptr.To(true)
 	assert.True(t, settings.IsWarn())
+}
+
+func Test_isValidPolicy(t *testing.T) {
+	policyTests := []struct {
+		name    string
+		policy  string
+		isValid bool
+	}{
+		{
+			name:    "policy with full wildcard",
+			policy:  "some-project/*",
+			isValid: true,
+		},
+		{
+			name:    "policy with specified project and application",
+			policy:  "some-project/some-application",
+			isValid: true,
+		},
+		{
+			name:    "policy with full wildcard namespace and application",
+			policy:  "some-project/*/*",
+			isValid: true,
+		},
+		{
+			name:    "policy with wildcard namespace and specified application",
+			policy:  "some-project/*/some-application",
+			isValid: true,
+		},
+		{
+			name:    "policy with specified namespace and wildcard application",
+			policy:  "some-project/some-namespace/*",
+			isValid: true,
+		},
+		{
+			name:    "policy with wildcard prefix namespace and specified application",
+			policy:  "some-project/some-name*/some-application",
+			isValid: true,
+		},
+		{
+			name:    "policy with specified namespace and wildcard prefixed application",
+			policy:  "some-project/some-namespace/some-app*",
+			isValid: true,
+		},
+		{
+			name:    "policy with valid namespace and application",
+			policy:  "some-project/some-namespace/some-application",
+			isValid: true,
+		},
+		{
+			name:    "policy with invalid namespace character",
+			policy:  "some-project/some~namespace/some-application",
+			isValid: false,
+		},
+		{
+			name:    "policy with invalid application character",
+			policy:  "some-project/some-namespace/some^application",
+			isValid: false,
+		},
+	}
+
+	for _, policyTest := range policyTests {
+		assert.Equal(t, policyTest.isValid, isValidObject("some-project", policyTest.policy), policyTest.name)
+	}
 }
 
 func Test_validatePolicy_projIsNotRegex(t *testing.T) {
@@ -3373,7 +3439,7 @@ func TestApplicationSourcePluginParameters_Environ_string(t *testing.T) {
 	params := ApplicationSourcePluginParameters{
 		{
 			Name:    "version",
-			String_: pointer.String("1.2.3"),
+			String_: ptr.To("1.2.3"),
 		},
 	}
 	environ, err := params.Environ()
@@ -3430,7 +3496,7 @@ func TestApplicationSourcePluginParameters_Environ_all(t *testing.T) {
 	params := ApplicationSourcePluginParameters{
 		{
 			Name:    "some-name",
-			String_: pointer.String("1.2.3"),
+			String_: ptr.To("1.2.3"),
 			OptionalArray: &OptionalArray{
 				Array: []string{"redis", "minio"},
 			},
@@ -3619,4 +3685,83 @@ func TestOptionalMapEquality(t *testing.T) {
 			assert.Equal(t, testCopy.expected, testCopy.a.Equals(testCopy.b))
 		})
 	}
+}
+
+func TestApplicationSpec_GetSourcePtrByIndex(t *testing.T) {
+	testCases := []struct {
+		name        string
+		application ApplicationSpec
+		sourceIndex int
+		expected    *ApplicationSource
+	}{
+		{
+			name: "HasMultipleSources_ReturnsFirstSource",
+			application: ApplicationSpec{
+				Sources: []ApplicationSource{
+					{RepoURL: "https://github.com/argoproj/test1.git"},
+					{RepoURL: "https://github.com/argoproj/test2.git"},
+				},
+			},
+			sourceIndex: 0,
+			expected:    &ApplicationSource{RepoURL: "https://github.com/argoproj/test1.git"},
+		},
+		{
+			name: "HasMultipleSources_ReturnsSourceAtIndex",
+			application: ApplicationSpec{
+				Sources: []ApplicationSource{
+					{RepoURL: "https://github.com/argoproj/test1.git"},
+					{RepoURL: "https://github.com/argoproj/test2.git"},
+				},
+			},
+			sourceIndex: 1,
+			expected:    &ApplicationSource{RepoURL: "https://github.com/argoproj/test2.git"},
+		},
+		{
+			name: "HasSingleSource_ReturnsSource",
+			application: ApplicationSpec{
+				Source: &ApplicationSource{RepoURL: "https://github.com/argoproj/test.git"},
+			},
+			sourceIndex: 0,
+			expected:    &ApplicationSource{RepoURL: "https://github.com/argoproj/test.git"},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			actual := tc.application.GetSourcePtrByIndex(tc.sourceIndex)
+			assert.Equal(t, tc.expected, actual)
+		})
+	}
+}
+
+func TestHelmValuesObjectHasReplaceStrategy(t *testing.T) {
+	app := Application{
+		Status: ApplicationStatus{Sync: SyncStatus{ComparedTo: ComparedTo{
+			Source: ApplicationSource{
+				Helm: &ApplicationSourceHelm{
+					ValuesObject: &runtime.RawExtension{
+						Object: &unstructured.Unstructured{Object: map[string]interface{}{"key": []string{"value"}}},
+					},
+				},
+			},
+		}}},
+	}
+
+	appModified := Application{
+		Status: ApplicationStatus{Sync: SyncStatus{ComparedTo: ComparedTo{
+			Source: ApplicationSource{
+				Helm: &ApplicationSourceHelm{
+					ValuesObject: &runtime.RawExtension{
+						Object: &unstructured.Unstructured{Object: map[string]interface{}{"key": []string{"value-modified1"}}},
+					},
+				},
+			},
+		}}},
+	}
+
+	patch, _, err := diff.CreateTwoWayMergePatch(
+		app,
+		appModified, Application{})
+	require.NoError(t, err)
+	assert.Equal(t, `{"status":{"sync":{"comparedTo":{"destination":{},"source":{"helm":{"valuesObject":{"key":["value-modified1"]}},"repoURL":""}}}}}`, string(patch))
 }

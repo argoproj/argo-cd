@@ -4,21 +4,21 @@
 
 The GitHub notification service changes commit status using [GitHub Apps](https://docs.github.com/en/developers/apps) and requires specifying the following settings:
 
-* `appID` - the app id
-* `installationID` - the app installation id
-* `privateKey` - the app private key
-* `enterpriseBaseURL` - optional URL, e.g. https://git.example.com/
+- `appID` - the app id
+- `installationID` - the app installation id
+- `privateKey` - the app private key
+- `enterpriseBaseURL` - optional URL, e.g. https://git.example.com/
 
 ## Configuration
 
 1. Create a GitHub Apps using https://github.com/settings/apps/new
-2. Change repository permissions to enable write commit statuses and/or deployments and/or pull requests comments
-![2](https://user-images.githubusercontent.com/18019529/108397381-3ca57980-725b-11eb-8d17-5b8992dc009e.png)
-3. Generate a private key, and download it automatically
-![3](https://user-images.githubusercontent.com/18019529/108397926-d4a36300-725b-11eb-83fe-74795c8c3e03.png)
-4. Install app to account
-5. Store privateKey in `argocd-notifications-secret` Secret and configure GitHub integration
-in `argocd-notifications-cm` ConfigMap
+1. Change repository permissions to enable write commit statuses and/or deployments and/or pull requests comments
+   ![2](https://user-images.githubusercontent.com/18019529/108397381-3ca57980-725b-11eb-8d17-5b8992dc009e.png)
+1. Generate a private key, and download it automatically
+   ![3](https://user-images.githubusercontent.com/18019529/108397926-d4a36300-725b-11eb-83fe-74795c8c3e03.png)
+1. Install app to account
+1. Store privateKey in `argocd-notifications-secret` Secret and configure GitHub integration
+   in `argocd-notifications-cm` ConfigMap
 
 ```yaml
 apiVersion: v1
@@ -77,6 +77,7 @@ template.app-deployed: |
       requiredContexts: []
       autoMerge: true
       transientEnvironment: false
+      reference: v1.0.0
     pullRequestComment:
       content: |
         Application {{.app.metadata.name}} is now running new version of deployments manifests.
@@ -84,9 +85,11 @@ template.app-deployed: |
 ```
 
 **Notes**:
+
 - If the message is set to 140 characters or more, it will be truncated.
 - If `github.repoURLPath` and `github.revisionPath` are same as above, they can be omitted.
 - Automerge is optional and `true` by default for github deployments to ensure the requested ref is up to date with the default branch.
   Setting this option to `false` is required if you would like to deploy older refs in your default branch.
   For more information see the [GitHub Deployment API Docs](https://docs.github.com/en/rest/deployments/deployments?apiVersion=2022-11-28#create-a-deployment).
 - If `github.pullRequestComment.content` is set to 65536 characters or more, it will be truncated.
+- Reference is optional. When set, it will be used as the ref to deploy. If not set, the revision will be used as the ref to deploy.
