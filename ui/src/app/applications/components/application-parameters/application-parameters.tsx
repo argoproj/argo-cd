@@ -250,8 +250,10 @@ export const ApplicationParameters = (props: {
                         if (params) {
                             for (const param of params) {
                                 if (param.map && param.array) {
+                                    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
                                     // @ts-ignore
                                     param.map = param.array.reduce((acc, {name, value}) => {
+                                        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
                                         // @ts-ignore
                                         acc[name] = value;
                                         return acc;
@@ -264,7 +266,7 @@ export const ApplicationParameters = (props: {
                             input.spec.source.plugin.parameters = params;
                         }
                         if (input.spec.source.helm && input.spec.source.helm.valuesObject) {
-                            input.spec.source.helm.valuesObject = jsYaml.safeLoad(input.spec.source.helm.values); // Deserialize json
+                            input.spec.source.helm.valuesObject = jsYaml.load(input.spec.source.helm.values); // Deserialize json
                             input.spec.source.helm.values = '';
                         }
                         await props.save(input, {});
@@ -285,7 +287,7 @@ export const ApplicationParameters = (props: {
                     }
 
                     if (updatedApp.spec.source.helm && updatedApp.spec.source.helm.values) {
-                        const parsedValues = jsYaml.safeLoad(updatedApp.spec.source.helm.values);
+                        const parsedValues = jsYaml.load(updatedApp.spec.source.helm.values);
                         errors['spec.source.helm.values'] = typeof parsedValues === 'object' ? null : 'Values must be a map';
                     }
 
@@ -322,6 +324,7 @@ function gatherDetails(
     setAppParamsDeletedState: any
 ): EditablePanelItem[] {
     const hasMultipleSources = app.spec.sources && app.spec.sources.length > 0;
+    // eslint-disable-next-line no-prototype-builtins
     const isHelm = source.hasOwnProperty('chart');
     if (hasMultipleSources) {
         attributes.push({
@@ -483,7 +486,7 @@ function gatherDetails(
         }
     } else if (repoDetails.type === 'Helm' && repoDetails.helm) {
         const isValuesObject = source?.helm?.valuesObject;
-        const helmValues = isValuesObject ? jsYaml.safeDump(source.helm.valuesObject) : source?.helm?.values;
+        const helmValues = isValuesObject ? jsYaml.dump(source.helm.valuesObject) : source?.helm?.values;
         attributes.push({
             title: 'VALUES FILES',
             view: (source.helm && (source.helm.valueFiles || []).join(', ')) || 'No values files selected',

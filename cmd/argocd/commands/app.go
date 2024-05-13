@@ -29,7 +29,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	k8swatch "k8s.io/apimachinery/pkg/watch"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/yaml"
 
 	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/headless"
@@ -497,16 +497,16 @@ func NewApplicationLogsCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				stream, err := appIf.PodLogs(ctx, &application.ApplicationPodLogsQuery{
 					Name:         &appName,
 					Group:        &group,
-					Namespace:    pointer.String(namespace),
+					Namespace:    ptr.To(namespace),
 					Kind:         &kind,
 					ResourceName: &resourceName,
-					Follow:       pointer.Bool(follow),
-					TailLines:    pointer.Int64(tail),
-					SinceSeconds: pointer.Int64(sinceSeconds),
+					Follow:       ptr.To(follow),
+					TailLines:    ptr.To(tail),
+					SinceSeconds: ptr.To(sinceSeconds),
 					UntilTime:    &untilTime,
 					Filter:       &filter,
-					Container:    pointer.String(container),
-					Previous:     pointer.Bool(previous),
+					Container:    ptr.To(container),
+					Previous:     ptr.To(previous),
 					AppNamespace: &appNs,
 				})
 				if err != nil {
@@ -1557,7 +1557,7 @@ func NewApplicationListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			conn, appIf := headless.NewClientOrDie(clientOpts, c).NewApplicationClientOrDie()
 			defer argoio.Close(conn)
 			apps, err := appIf.List(ctx, &application.ApplicationQuery{
-				Selector:     pointer.String(selector),
+				Selector:     ptr.To(selector),
 				AppNamespace: &appNamespace,
 			})
 
@@ -1749,7 +1749,7 @@ func NewApplicationWaitCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			closer, appIf := acdClient.NewApplicationClientOrDie()
 			defer argoio.Close(closer)
 			if selector != "" {
-				list, err := appIf.List(ctx, &application.ApplicationQuery{Selector: pointer.String(selector)})
+				list, err := appIf.List(ctx, &application.ApplicationQuery{Selector: ptr.To(selector)})
 				errors.CheckError(err)
 				for _, i := range list.Items {
 					appNames = append(appNames, i.QualifiedName())
@@ -1899,7 +1899,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			appNames := args
 			if selector != "" || len(projects) > 0 {
 				list, err := appIf.List(ctx, &application.ApplicationQuery{
-					Selector:     pointer.String(selector),
+					Selector:     ptr.To(selector),
 					AppNamespace: &appNamespace,
 					Projects:     projects})
 				errors.CheckError(err)
@@ -2071,7 +2071,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 						Backoff: &argoappv1.Backoff{
 							Duration:    retryBackoffDuration.String(),
 							MaxDuration: retryBackoffMaxDuration.String(),
-							Factor:      pointer.Int64(retryBackoffFactor),
+							Factor:      ptr.To(retryBackoffFactor),
 						},
 					}
 				}
@@ -2157,7 +2157,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 func getAppNamesBySelector(ctx context.Context, appIf application.ApplicationServiceClient, selector string) ([]string, error) {
 	appNames := []string{}
 	if selector != "" {
-		list, err := appIf.List(ctx, &application.ApplicationQuery{Selector: pointer.String(selector)})
+		list, err := appIf.List(ctx, &application.ApplicationQuery{Selector: ptr.To(selector)})
 		if err != nil {
 			return []string{}, err
 		}
@@ -2339,7 +2339,7 @@ func checkResourceStatus(watch watchOpts, healthStatus string, syncStatus string
 func resourceParentChild(ctx context.Context, acdClient argocdclient.Client, appName string, appNs string) (map[string]argoappv1.ResourceNode, map[string][]string, map[string]struct{}, map[string]*resourceState) {
 	_, appIf := acdClient.NewApplicationClientOrDie()
 	mapUidToNode, mapParentToChild, parentNode := parentChildDetails(appIf, ctx, appName, appNs)
-	app, err := appIf.Get(ctx, &application.ApplicationQuery{Name: pointer.String(appName), AppNamespace: pointer.String(appNs)})
+	app, err := appIf.Get(ctx, &application.ApplicationQuery{Name: ptr.To(appName), AppNamespace: ptr.To(appNs)})
 	errors.CheckError(err)
 	mapNodeNameToResourceState := make(map[string]*resourceState)
 	for _, res := range getResourceStates(app, nil) {
@@ -2719,8 +2719,8 @@ func NewApplicationRollbackCommand(clientOpts *argocdclient.ClientOptions) *cobr
 			_, err = appIf.Rollback(ctx, &application.ApplicationRollbackRequest{
 				Name:         &appName,
 				AppNamespace: &appNs,
-				Id:           pointer.Int64(depInfo.ID),
-				Prune:        pointer.Bool(prune),
+				Id:           ptr.To(depInfo.ID),
+				Prune:        ptr.To(prune),
 			})
 			errors.CheckError(err)
 
@@ -2843,7 +2843,7 @@ func NewApplicationManifestsCommand(clientOpts *argocdclient.ClientOptions) *cob
 					q := application.ApplicationManifestQuery{
 						Name:            &appName,
 						AppNamespace:    &appNs,
-						Revision:        pointer.String(revision),
+						Revision:        ptr.To(revision),
 						Revisions:       revisions,
 						SourcePositions: sourcePositions,
 					}
@@ -2859,7 +2859,7 @@ func NewApplicationManifestsCommand(clientOpts *argocdclient.ClientOptions) *cob
 					q := application.ApplicationManifestQuery{
 						Name:         &appName,
 						AppNamespace: &appNs,
-						Revision:     pointer.String(revision),
+						Revision:     ptr.To(revision),
 					}
 					res, err := appIf.GetManifests(ctx, &q)
 					errors.CheckError(err)

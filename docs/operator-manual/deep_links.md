@@ -75,4 +75,9 @@ An example `argocd-cm.yaml` file with deep links and their variations :
     - url: https://mycompany.splunk.com?search={{.resource.metadata.name}}&env={{.project.metadata.labels.env}}
       title: Splunk
       if: resource.kind == "Pod" || resource.kind == "Deployment"
+    
+    # sample checking a tag exists that contains - or / and how to alternatively access it
+    - url: https://mycompany.splunk.com?tag={{ index .resource.metadata.labels "some.specific.kubernetes.like/tag" }}
+      title: Tag Service
+      if: resource.metadata.labels["some.specific.kubernetes.like/tag"] != nil && resource.metadata.labels["some.specific.kubernetes.like/tag"] != ""
 ```

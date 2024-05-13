@@ -1,0 +1,23 @@
+apiVersion: k8s.mariadb.com/v1alpha1
+kind: SqlJob
+metadata:
+  name: jobname
+spec:
+  backoffLimit: 5
+  database: dbname
+  mariaDbRef:
+    name: mariadb
+    waitForIt: true
+  passwordSecretKeyRef:
+    key: password
+    name: mariadb-root
+  restartPolicy: Never
+  serviceAccountName: jobname
+  sql: "some SQL;"
+status:
+  conditions:
+  - lastTransitionTime: "2024-04-22T14:08:49Z"
+    message: Success
+    reason: JobComplete
+    status: "True"
+    type: Complete
