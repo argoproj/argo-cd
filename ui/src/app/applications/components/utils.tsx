@@ -300,16 +300,16 @@ export function findChildPod(node: appModels.ResourceNode, tree: appModels.Appli
 export function findChildResources(node: appModels.ResourceNode, tree: appModels.ApplicationTree): appModels.ResourceNode[] {
     const key = nodeKey(node);
 
-    const childs: appModels.ResourceNode[] = [];
+    const children: appModels.ResourceNode[] = [];
     tree.nodes.forEach(item => {
         (item.parentRefs || []).forEach(parent => {
             if (key === nodeKey(parent)) {
-                childs.push(item);
+                children.push(item);
             }
         });
     });
 
-    return childs;
+    return children;
 }
 
 const deletePodAction = async (ctx: ContextApis, pod: appModels.ResourceNode, app: appModels.Application) => {
@@ -371,14 +371,15 @@ export const deletePopup = async (
             <div>
                 <p>
                     Are you sure you want to delete <strong>{resource.kind}</strong> <kbd>{resource.name}</kbd>?
-                    <span style={{display: 'block', marginBottom: '10px'}} />
+                </p>
+                <p>
                     Deleting resources can be <strong>dangerous</strong>. Be sure you understand the effects of deleting this resource before continuing. Consider asking someone to
                     review the change first.
                 </p>
 
                 {(childResources || []).length > 0 ? (
-                    <p>
-                        Dependent resources:
+                    <React.Fragment>
+                        <p>Dependent resources:</p>
                         <ul>
                             {childResources.slice(0, 4).map((child, i) => (
                                 <li key={i}>
@@ -394,7 +395,7 @@ export const deletePopup = async (
                             )}
                             {childResources.length > 5 ? <li key='N'>and {childResources.slice(4).length} more.</li> : ''}
                         </ul>
-                    </p>
+                    </React.Fragment>
                 ) : (
                     ''
                 )}
