@@ -1,32 +1,37 @@
-# `argocd app diff` Command Reference
+# `argocd admin redis-initial-password` Command Reference
 
-## argocd app diff
+## argocd admin redis-initial-password
 
-Perform a diff against the target and live state.
-
-### Synopsis
-
-Perform a diff against the target and live state.
-Uses 'diff' to render the difference. KUBECTL_EXTERNAL_DIFF environment variable can be used to select your own diff tool.
-Returns the following exit codes: 2 on general errors, 1 when a diff is found, and 0 when no diff is found
+Ensure the Redis password exists, creating a new one if necessary.
 
 ```
-argocd app diff APPNAME [flags]
+argocd admin redis-initial-password [flags]
 ```
 
 ### Options
 
 ```
-      --exit-code                                         Return non-zero exit code when there is a diff (default true)
-      --hard-refresh                                      Refresh application data as well as target manifests cache
-  -h, --help                                              help for diff
-      --ignore-normalizer-jq-execution-timeout duration   Set ignore normalizer JQ execution timeout (default 1s)
-      --local string                                      Compare live app to a local manifests
-      --local-include stringArray                         Used with --server-side-generate, specify patterns of filenames to send. Matching is based on filename and not path. (default [*.yaml,*.yml,*.json])
-      --local-repo-root string                            Path to the repository root. Used together with --local allows setting the repository root (default "/")
-      --refresh                                           Refresh application data when retrieving
-      --revision string                                   Compare live app to a particular revision
-      --server-side-generate                              Used with --local, this will send your manifests to the server for diffing
+      --as string                      Username to impersonate for the operation
+      --as-group stringArray           Group to impersonate for the operation, this flag can be repeated to specify multiple groups.
+      --as-uid string                  UID to impersonate for the operation
+      --certificate-authority string   Path to a cert file for the certificate authority
+      --client-certificate string      Path to a client certificate file for TLS
+      --client-key string              Path to a client key file for TLS
+      --cluster string                 The name of the kubeconfig cluster to use
+      --context string                 The name of the kubeconfig context to use
+      --disable-compression            If true, opt-out of response compression for all requests to the server
+  -h, --help                           help for redis-initial-password
+      --insecure-skip-tls-verify       If true, the server's certificate will not be checked for validity. This will make your HTTPS connections insecure
+      --kubeconfig string              Path to a kube config. Only required if out-of-cluster
+  -n, --namespace string               If present, the namespace scope for this CLI request
+      --password string                Password for basic authentication to the API server
+      --proxy-url string               If provided, this URL will be used to connect via proxy
+      --request-timeout string         The length of time to wait before giving up on a single server request. Non-zero values should contain a corresponding time unit (e.g. 1s, 2m, 3h). A value of zero means don't timeout requests. (default "0")
+      --server string                  The address and port of the Kubernetes API server
+      --tls-server-name string         If provided, this name will be used to validate server certificate. If this is not provided, hostname used to contact the server is used.
+      --token string                   Bearer token for authentication to the API server
+      --user string                    The name of the kubeconfig user to use
+      --username string                Username for basic authentication to the API server
 ```
 
 ### Options inherited from parent commands
@@ -52,12 +57,11 @@ argocd app diff APPNAME [flags]
       --redis-haproxy-name string       Name of the Redis HA Proxy; set this or the ARGOCD_REDIS_HAPROXY_NAME environment variable when the HA Proxy's name label differs from the default, for example when installing via the Helm chart (default "argocd-redis-ha-haproxy")
       --redis-name string               Name of the Redis deployment; set this or the ARGOCD_REDIS_NAME environment variable when the Redis's name label differs from the default, for example when installing via the Helm chart (default "argocd-redis")
       --repo-server-name string         Name of the Argo CD Repo server; set this or the ARGOCD_REPO_SERVER_NAME environment variable when the server's name label differs from the default, for example when installing via the Helm chart (default "argocd-repo-server")
-      --server string                   Argo CD server address
       --server-crt string               Server certificate file
       --server-name string              Name of the Argo CD API server; set this or the ARGOCD_SERVER_NAME environment variable when the server's name label differs from the default, for example when installing via the Helm chart (default "argocd-server")
 ```
 
 ### SEE ALSO
 
-* [argocd app](argocd_app.md)	 - Manage applications
+* [argocd admin](argocd_admin.md)	 - Contains a set of commands useful for Argo CD administrators and requires direct Kubernetes access
 

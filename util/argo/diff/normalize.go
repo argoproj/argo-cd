@@ -15,7 +15,7 @@ func Normalize(lives, configs []*unstructured.Unstructured, diffConfig DiffConfi
 	if err != nil {
 		return nil, err
 	}
-	diffNormalizer, err := newDiffNormalizer(diffConfig.Ignores(), diffConfig.Overrides())
+	diffNormalizer, err := newDiffNormalizer(diffConfig.Ignores(), diffConfig.Overrides(), diffConfig.IgnoreNormalizerOpts())
 	if err != nil {
 		return nil, err
 	}
@@ -40,8 +40,8 @@ func Normalize(lives, configs []*unstructured.Unstructured, diffConfig DiffConfi
 }
 
 // newDiffNormalizer creates normalizer that uses Argo CD and application settings to normalize the resource prior to diffing.
-func newDiffNormalizer(ignore []v1alpha1.ResourceIgnoreDifferences, overrides map[string]v1alpha1.ResourceOverride) (diff.Normalizer, error) {
-	ignoreNormalizer, err := normalizers.NewIgnoreNormalizer(ignore, overrides)
+func newDiffNormalizer(ignore []v1alpha1.ResourceIgnoreDifferences, overrides map[string]v1alpha1.ResourceOverride, opts normalizers.IgnoreNormalizerOpts) (diff.Normalizer, error) {
+	ignoreNormalizer, err := normalizers.NewIgnoreNormalizer(ignore, overrides, opts)
 	if err != nil {
 		return nil, err
 	}
