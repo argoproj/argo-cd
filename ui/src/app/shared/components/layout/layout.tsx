@@ -9,7 +9,6 @@ export interface LayoutProps {
     onVersionClick?: () => void;
     children?: React.ReactNode;
     pref: ViewPreferences;
-    isExtension?: boolean;
 }
 
 const getBGColor = (theme: string): string => (theme === 'light' ? '#dee6eb' : '#100f0f');

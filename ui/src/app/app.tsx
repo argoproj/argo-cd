@@ -240,8 +240,7 @@ export class App extends React.Component<
                                                                 <Layout
                                                                     onVersionClick={() => this.setState({showVersionPanel: true})}
                                                                     navItems={this.navItems}
-                                                                    pref={pref}
-                                                                    isExtension={route.extension}>
+                                                                    pref={pref}>
                                                                     <Banner>
                                                                         <route.component {...routeProps} />
                                                                     </Banner>
