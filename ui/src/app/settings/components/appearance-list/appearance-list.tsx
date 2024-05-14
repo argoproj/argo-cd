@@ -16,15 +16,31 @@ export const AppearanceList = () => {
                     <div className='appearance-list'>
                         <div className='argo-container'>
                             <div className='appearance-list__panel'>
-                                <div className='columns'>Dark Theme</div>
+                                <div className='columns'>System Theme</div>
                                 <div className='columns'>
                                     <button
                                         className='argo-button argo-button--base appearance-list__button'
                                         onClick={() => {
-                                            const targetTheme = pref.theme === 'light' ? 'dark' : 'light';
-                                            services.viewPreferences.updatePreferences({theme: targetTheme});
+                                            services.viewPreferences.updatePreferences({useSystemTheme: !pref.useSystemTheme});
                                         }}>
-                                        {pref.theme === 'light' ? 'Enable' : 'Disable'}
+                                        {pref.useSystemTheme ? 'Disable' : 'Enable'}
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        <div className='argo-container'>
+                            <div className='appearance-list__panel'>
+                                <div className='columns'>Dark Theme</div>
+                                <div className='columns'>
+                                    <button
+                                        className={`argo-button ${pref.useSystemTheme && 'disabled'} argo-button--base appearance-list__button`}
+                                        onClick={() => {
+                                            if (!pref.useSystemTheme) {
+                                                const targetTheme = pref.selectedTheme === 'light' ? 'dark' : 'light';
+                                                services.viewPreferences.updatePreferences({selectedTheme: targetTheme});
+                                            }
+                                        }}>
+                                        {pref.selectedTheme === 'light' ? 'Enable' : 'Disable'}
                                     </button>
                                 </div>
                             </div>
