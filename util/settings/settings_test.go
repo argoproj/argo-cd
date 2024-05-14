@@ -1820,3 +1820,42 @@ func TestIsImpersonationEnabled(t *testing.T) {
 	require.NoError(t, err,
 		"when user enables the flag in argocd-cm config map, IsImpersonationEnabled() must not return any error")
 }
+
+func TestSettingsManager_GetHideSecretAnnotations(t *testing.T) {
+	tests := []struct {
+		name   string
+		input  string
+		output []string
+	}{
+		{
+			name:   "Empty input",
+			input:  "",
+			output: []string{},
+		},
+		{
+			name: "Correct format",
+			input: `- example.com/token-secret.value
+							- token`,
+			output: []string{"example.com/token-secret.value", "token"},
+		},
+		{
+			name: "Partially correct format with each key on new line - returns correct keys",
+			input: `  example.com/token-secret.value  
+							-token`,
+			output: []string{"example.com/token-secret.value", "token"},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, settingsManager := fixtures(map[string]string{
+				hideSecretAnnotations: tt.input,
+			})
+			keys := settingsManager.GetHideSecretAnnotations()
+			assert.Equal(t, len(tt.output), len(keys))
+
+			for i := range tt.output {
+				assert.Equal(t, tt.output[i], keys[i])
+			}
+		})
+	}
+}

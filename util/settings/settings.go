@@ -14,6 +14,7 @@ import (
 	"net/url"
 	"path"
 	"reflect"
+	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -532,6 +533,8 @@ const (
 	RespectRBACValueNormal = "normal"
 	// impersonationEnabledKey is the key to configure whether the application sync decoupling through impersonation feature is enabled
 	impersonationEnabledKey = "application.sync.impersonation.enabled"
+	// hideSecretAnnotations is the key to configure annotations to hide in secret resource
+	hideSecretAnnotations = "hide.secret.annotations"
 )
 
 const (
@@ -2339,6 +2342,26 @@ func (mgr *SettingsManager) GetExcludeEventLabelKeys() []string {
 		}
 	}
 	return labelKeys
+}
+
+func (mgr *SettingsManager) GetHideSecretAnnotations() []string {
+	annotsKeys := []string{}
+	argoCDCM, err := mgr.getConfigMap()
+	if err != nil {
+		log.Error(fmt.Errorf("failed getting configmap: %v", err))
+		return annotsKeys
+	}
+	if value, ok := argoCDCM.Data[hideSecretAnnotations]; ok {
+		annots := strings.Split(value, "\n")
+		for _, a := range annots {
+			a = regexp.MustCompile(`^\s*-`).ReplaceAllString(a, "")
+			a := strings.TrimSpace(a)
+			if a != "" {
+				annotsKeys = append(annotsKeys, a)
+			}
+		}
+	}
+	return annotsKeys
 }
 
 func (mgr *SettingsManager) GetMaxWebhookPayloadSize() int64 {
