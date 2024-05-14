@@ -19,6 +19,11 @@ import (
 	blake2b "github.com/minio/blake2b-simd"
 )
 
+// OptimalExtraCapacityFactor extra factor capacity (1 + ε). The ideal balance
+// between keeping the shards uniform while also keeping consistency when
+// changing shard numbers.
+const OptimalExtraCapacityFactor = 1.25
+
 var ErrNoHosts = errors.New("no hosts added")
 
 type Host struct {
@@ -234,7 +239,7 @@ func (c *Consistent) MaxLoad() int64 {
 	if avgLoadPerNode == 0 {
 		avgLoadPerNode = 1
 	}
-	avgLoadPerNode = math.Ceil(avgLoadPerNode * 1.25)
+	avgLoadPerNode = math.Ceil(avgLoadPerNode * OptimalExtraCapacityFactor)
 	return int64(avgLoadPerNode)
 }
 
@@ -256,11 +261,7 @@ func (c *Consistent) loadOK(server string) bool {
 		panic(fmt.Sprintf("given host(%s) not in loadsMap", bserver.Name))
 	}
 
-	if float64(bserver.Load)+1 <= avgLoadPerNode {
-		return true
-	}
-
-	return false
+	return float64(bserver.Load)+1 <= avgLoadPerNode
 }
 
 func (c *Consistent) delSlice(val uint64) {
