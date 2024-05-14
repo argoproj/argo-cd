@@ -3,8 +3,7 @@ package cache
 import (
 	"encoding/json"
 	"fmt"
-	"strings"
-
+        "regexp"
 	v1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -75,7 +74,7 @@ func isStatefulSetChild(un *unstructured.Unstructured) (func(kube.ResourceKey) b
 	return func(key kube.ResourceKey) bool {
 		if key.Kind == kube.PersistentVolumeClaimKind && key.GroupKind().Group == "" {
 			for _, templ := range templates {
-				if strings.HasPrefix(key.Name, fmt.Sprintf("%s-%s-", templ.Name, un.GetName())) {
+				if match, _ := regexp.MatchString(fmt.Sprintf(`%s-%s-\d+$`, templ.Name, un.GetName()), key.Name); match  {
 					return true
 				}
 			}
