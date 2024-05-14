@@ -26,7 +26,7 @@ const base = bases.length > 0 ? bases[0].getAttribute('href') || '/' : '/';
 export const history = createBrowserHistory({basename: base});
 requests.setBaseHRef(base);
 
-type Routes = {[path: string]: {component: React.ComponentType<RouteComponentProps<any>>; noLayout?: boolean; extension?: boolean}};
+type Routes = {[path: string]: {component: React.ComponentType<RouteComponentProps<any>>; noLayout?: boolean}};
 
 const routes: Routes = {
     '/login': {component: login.component as any, noLayout: true},
@@ -182,8 +182,7 @@ export class App extends React.Component<
                 </>
             );
             extendedRoutes[extension.path] = {
-                component: component as React.ComponentType<React.ComponentProps<any>>,
-                extension: true
+                component: component as React.ComponentType<React.ComponentProps<any>>
             };
         }
 
