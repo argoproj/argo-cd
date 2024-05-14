@@ -420,3 +420,8 @@ data:
               cluster:
                 name: some-cluster
                 server: https://some-cluster
+
+  # A optional list of annotation keys to hide in UI on secret resources
+  hide.secret.annotations: |
+    - openshift.io/token-secret.value
+    - api-key
