@@ -678,7 +678,7 @@ func (m *nativeGitClient) lsRemote(revision string) (string, error) {
 // only the for loop in this function will run, otherwise the lsRemote loop will try to resolve the revision.
 // Some examples to illustrate the actual behavior, if:
 // * The revision is "v0.1.*"/"0.1.*" or "v0.1.2"/"0.1.2" and there's a tag matching that constraint only this function loop will run;
-// * The revision is "v0.1.*"/"0.1.*" or "0.1.2"/"0.1.2" and there is no tag matching that constraint only this function loop will run;
+// * The revision is "v0.1.*"/"0.1.*" or "0.1.2"/"0.1.2" and there is no tag matching that constraint this function loop and lsRemote loop will run for backward compatibility;
 // * The revision is "custom-tag" only the lsRemote loop will run because that revision is an invalid semver;
 // * The revision is "master-branch" only the lsRemote loop will run because that revision is an invalid semver;
 func (m *nativeGitClient) resolveSemverRevision(revision string, refs []*plumbing.Reference) (string, error) {
@@ -714,7 +714,7 @@ func (m *nativeGitClient) resolveSemverRevision(revision string, refs []*plumbin
 	}
 
 	if maxVersionHash.IsZero() {
-		return "", fmt.Errorf("no version matching the semver revision were found")
+		return "", nil
 	}
 
 	return maxVersionHash.String(), nil
