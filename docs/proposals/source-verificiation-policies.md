@@ -58,7 +58,7 @@ Add a list of detailed use cases this enhancement intends to take care of.
 
 #### Use case 1:
 
-As an Argo CD user, I would like to ensure that my applications only syncs if every single commit in my source repository has been cryptographically signed by a trusted party.
+As an Argo CD user, I would like to ensure that my applications only syncs if all commits in the history of the repository that led to the application's target revision has been cryptographically signed by a trusted party.
 
 #### Use case 2:
 
