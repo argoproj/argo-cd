@@ -56,7 +56,7 @@ type indexCache interface {
 type Client interface {
 	CleanChartCache(chart string, version string) error
 	ExtractChart(chart string, version string, passCredentials bool, manifestMaxExtractedSize int64, disableManifestMaxExtractedSize bool) (string, argoio.Closer, error)
-	GetIndex(noCache bool) (*Index, error)
+	GetIndex(noCache bool, maxIndexSize int64) (*Index, error)
 	GetTags(chart string, noCache bool) (*TagsList, error)
 	TestHelmOCI() (bool, error)
 }
@@ -230,7 +230,7 @@ func (c *nativeHelmChart) ExtractChart(chart string, version string, passCredent
 	}), nil
 }
 
-func (c *nativeHelmChart) GetIndex(noCache bool) (*Index, error) {
+func (c *nativeHelmChart) GetIndex(noCache bool, maxIndexSize int64) (*Index, error) {
 	indexLock.Lock(c.repoURL)
 	defer indexLock.Unlock(c.repoURL)
 
@@ -244,7 +244,7 @@ func (c *nativeHelmChart) GetIndex(noCache bool) (*Index, error) {
 	if len(data) == 0 {
 		start := time.Now()
 		var err error
-		data, err = c.loadRepoIndex()
+		data, err = c.loadRepoIndex(maxIndexSize)
 		if err != nil {
 			return nil, err
 		}
@@ -297,7 +297,7 @@ func (c *nativeHelmChart) TestHelmOCI() (bool, error) {
 	return true, nil
 }
 
-func (c *nativeHelmChart) loadRepoIndex() ([]byte, error) {
+func (c *nativeHelmChart) loadRepoIndex(maxIndexSize int64) ([]byte, error) {
 	indexURL, err := getIndexURL(c.repoURL)
 	if err != nil {
 		return nil, err
@@ -332,7 +332,7 @@ func (c *nativeHelmChart) loadRepoIndex() ([]byte, error) {
 	if resp.StatusCode != http.StatusOK {
 		return nil, errors.New("failed to get index: " + resp.Status)
 	}
-	return io.ReadAll(resp.Body)
+	return io.ReadAll(io.LimitReader(resp.Body, maxIndexSize))
 }
 
 func newTLSConfig(creds Creds) (*tls.Config, error) {
