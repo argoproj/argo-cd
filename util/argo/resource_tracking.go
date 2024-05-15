@@ -2,6 +2,7 @@ package argo
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -155,6 +156,13 @@ func (rt *resourceTracking) SetAppInstance(un *unstructured.Unstructured, key, v
 		}
 		if len(val) > LabelMaxLength {
 			val = val[:LabelMaxLength]
+			// Prevent errors if the truncated name ends in a special character.
+			// See https://github.com/argoproj/argo-cd/issues/18237.
+			okEndPattern := regexp.MustCompile("[a-zA-Z0-9]$")
+
+			for !okEndPattern.MatchString(val) {
+				val = val[:len(val)-1]
+			}
 		}
 		err = argokube.SetAppInstanceLabel(un, key, val)
 		if err != nil {
