@@ -111,7 +111,7 @@ export const ApplicationCreatePanel = (props: {
     const [destFormat, setDestFormat] = React.useState('URL');
     const [retry, setRetry] = React.useState(false);
     const app = deepMerge(DEFAULT_APP, props.app || {});
-    const debouncedOnAppChanged = debounce(props.onAppChanged, 500);
+    const debouncedOnAppChanged = debounce(props.onAppChanged, 800);
 
     React.useEffect(() => {
         if (app?.spec?.destination?.name && app.spec.destination.name !== '') {
