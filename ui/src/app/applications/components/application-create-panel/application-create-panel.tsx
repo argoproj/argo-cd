@@ -13,7 +13,7 @@ import {RevisionFormField} from '../revision-form-field/revision-form-field';
 import {SetFinalizerOnApplication} from './set-finalizer-on-application';
 import './application-create-panel.scss';
 import {getAppDefaultSource} from '../utils';
-import { debounce } from 'lodash-es';
+import {debounce} from 'lodash-es';
 
 const jsonMergePatch = require('json-merge-patch');
 
@@ -515,7 +515,7 @@ export const ApplicationCreatePanel = (props: {
                                         return (
                                             <form onSubmit={api.submitForm} role='form' className='width-control'>
                                                 {generalPanel()}
-                                                
+
                                                 {sourcePanel()}
 
                                                 {destinationPanel()}
