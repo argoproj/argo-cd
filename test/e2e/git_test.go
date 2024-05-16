@@ -9,19 +9,31 @@ import (
 	. "github.com/argoproj/argo-cd/v2/test/e2e/fixture/app"
 )
 
-func TestGitSemverResolution(t *testing.T) {
+func TestGitSemverResolutionNotUsingConstraint(t *testing.T) {
 	Given(t).
-		RepoURLType(fixture.RepoURLTypeSSH).
-		Recurse().
+		Path("deployment").
 		CustomSSHKnownHostsAdded().
-		Revision("v0.1.*").
+		SSHRepoURLAdded(true).
+		RepoURLType(fixture.RepoURLTypeSSH).
+		Revision("v0.1.0").
 		When().
+		AddTag("v0.1.0").
 		CreateApp().
 		Sync().
 		Then().
-		Expect(SyncStatusIs(SyncStatusCodeUnknown)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced))
+}
+
+func TestGitSemverResolutionUsingConstraint(t *testing.T) {
+	Given(t).
+		Path("deployment").
+		CustomSSHKnownHostsAdded().
+		SSHRepoURLAdded(true).
+		RepoURLType(fixture.RepoURLTypeSSH).
+		Revision("v0.1.*").
 		When().
 		AddTag("v0.1.0").
+		CreateApp().
 		Sync().
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeSynced))
