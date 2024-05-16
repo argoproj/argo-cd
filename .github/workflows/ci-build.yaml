@@ -367,10 +367,13 @@ jobs:
         with:
           name: test-results
           path: test-results
+      - name: combine-go-coverage
+        run: |
+          go tool covdata percent -i=./test-results -o test-results/full-coverage.out
       - name: Upload code coverage information to codecov.io
         uses: codecov/codecov-action@eaaf4bedf32dbdc6b720b63067d99c4d77d6047d # v3.1.4
         with:
-          file: coverage.out
+          file: full-coverage.out
       - name: Perform static code analysis using SonarCloud
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -501,6 +504,11 @@ jobs:
         run: |
           set -x
           make test-e2e-local
+      - name: Upload e2e coverage report
+        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
+        with:
+          name: e2e-coverage
+          path: /test-results/cov*
       - name: Upload e2e-server logs
         uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
         with:
