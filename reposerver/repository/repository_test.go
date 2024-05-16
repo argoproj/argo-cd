@@ -40,7 +40,6 @@ import (
 	"github.com/argoproj/argo-cd/v2/reposerver/metrics"
 	fileutil "github.com/argoproj/argo-cd/v2/test/fixture/path"
 	"github.com/argoproj/argo-cd/v2/util/argo"
-	dbmocks "github.com/argoproj/argo-cd/v2/util/db/mocks"
 	"github.com/argoproj/argo-cd/v2/util/git"
 	gitmocks "github.com/argoproj/argo-cd/v2/util/git/mocks"
 	"github.com/argoproj/argo-cd/v2/util/helm"
@@ -499,11 +498,11 @@ func TestHelmChartReferencingExternalValues(t *testing.T) {
 			{Ref: "ref", RepoURL: "https://git.example.com/test/repo"},
 		},
 	}
-	repoDB := &dbmocks.ArgoDB{}
-	repoDB.On("GetRepository", context.Background(), "https://git.example.com/test/repo").Return(&argoappv1.Repository{
-		Repo: "https://git.example.com/test/repo",
-	}, nil)
-	refSources, err := argo.GetRefSources(context.Background(), spec, repoDB)
+	refSources, err := argo.GetRefSources(context.Background(), spec, func(ctx context.Context, url string, project string) (*argoappv1.Repository, error) {
+		return &argoappv1.Repository{
+			Repo: "https://git.example.com/test/repo",
+		}, nil
+	})
 	require.NoError(t, err)
 	request := &apiclient.ManifestRequest{Repo: &argoappv1.Repository{}, ApplicationSource: &spec.Sources[0], NoCache: true, RefSources: refSources, HasMultipleSources: true, ProjectName: "something",
 		ProjectSourceRepos: []string{"*"}}
@@ -529,15 +528,16 @@ func TestHelmChartReferencingExternalValues_InvalidRefs(t *testing.T) {
 		},
 	}
 
-	repoDB := &dbmocks.ArgoDB{}
-	repoDB.On("GetRepository", context.Background(), "https://git.example.com/test/repo").Return(&argoappv1.Repository{
-		Repo: "https://git.example.com/test/repo",
-	}, nil)
-
 	// Empty refsource
 	service := newService(t, ".")
 
-	refSources, err := argo.GetRefSources(context.Background(), spec, repoDB)
+	getRepository := func(ctx context.Context, url string, project string) (*argoappv1.Repository, error) {
+		return &argoappv1.Repository{
+			Repo: "https://git.example.com/test/repo",
+		}, nil
+	}
+
+	refSources, err := argo.GetRefSources(context.Background(), spec, getRepository)
 	require.NoError(t, err)
 
 	request := &apiclient.ManifestRequest{Repo: &argoappv1.Repository{}, ApplicationSource: &spec.Sources[0], NoCache: true, RefSources: refSources, HasMultipleSources: true, ProjectName: "something",
@@ -550,7 +550,7 @@ func TestHelmChartReferencingExternalValues_InvalidRefs(t *testing.T) {
 	service = newService(t, ".")
 
 	spec.Sources[1].Ref = "Invalid"
-	refSources, err = argo.GetRefSources(context.Background(), spec, repoDB)
+	refSources, err = argo.GetRefSources(context.Background(), spec, getRepository)
 	require.NoError(t, err)
 
 	request = &apiclient.ManifestRequest{Repo: &argoappv1.Repository{}, ApplicationSource: &spec.Sources[0], NoCache: true, RefSources: refSources, HasMultipleSources: true, ProjectName: "something",
@@ -564,7 +564,7 @@ func TestHelmChartReferencingExternalValues_InvalidRefs(t *testing.T) {
 
 	spec.Sources[1].Ref = "ref"
 	spec.Sources[1].Chart = "helm-chart"
-	refSources, err = argo.GetRefSources(context.Background(), spec, repoDB)
+	refSources, err = argo.GetRefSources(context.Background(), spec, getRepository)
 	require.NoError(t, err)
 
 	request = &apiclient.ManifestRequest{Repo: &argoappv1.Repository{}, ApplicationSource: &spec.Sources[0], NoCache: true, RefSources: refSources, HasMultipleSources: true, ProjectName: "something",
@@ -582,7 +582,7 @@ func TestHelmChartReferencingExternalValues_OutOfBounds_Symlink(t *testing.T) {
 		err = os.RemoveAll("testdata/oob-symlink")
 		require.NoError(t, err)
 	})
-	// Create a symlink to a file outside of the repo
+	// Create a symlink to a file outside the repo
 	err = os.Symlink("../../../values.yaml", "./testdata/oob-symlink/oob-symlink.yaml")
 	// Create a regular file to reference from another source
 	err = os.WriteFile("./testdata/oob-symlink/values.yaml", []byte("foo: bar"), 0644)
@@ -597,11 +597,11 @@ func TestHelmChartReferencingExternalValues_OutOfBounds_Symlink(t *testing.T) {
 			{Ref: "ref", RepoURL: "https://git.example.com/test/repo"},
 		},
 	}
-	repoDB := &dbmocks.ArgoDB{}
-	repoDB.On("GetRepository", context.Background(), "https://git.example.com/test/repo").Return(&argoappv1.Repository{
-		Repo: "https://git.example.com/test/repo",
-	}, nil)
-	refSources, err := argo.GetRefSources(context.Background(), spec, repoDB)
+	refSources, err := argo.GetRefSources(context.Background(), spec, func(ctx context.Context, url string, project string) (*argoappv1.Repository, error) {
+		return &argoappv1.Repository{
+			Repo: "https://git.example.com/test/repo",
+		}, nil
+	})
 	require.NoError(t, err)
 	request := &apiclient.ManifestRequest{Repo: &argoappv1.Repository{}, ApplicationSource: &spec.Sources[0], NoCache: true, RefSources: refSources, HasMultipleSources: true}
 	_, err = service.GenerateManifest(context.Background(), request)

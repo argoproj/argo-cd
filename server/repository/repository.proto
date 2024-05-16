@@ -43,6 +43,8 @@ message RepoQuery {
 	string repo = 1;
 	// Whether to force a cache refresh on repo's connection state
 	bool forceRefresh = 2;
+	// App project for query
+	string appProject = 3;
 }
 
 // RepoAccessQuery is a query for checking access to a repo

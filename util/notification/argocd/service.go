@@ -16,8 +16,8 @@ import (
 
 //go:generate go run github.com/vektra/mockery/v2@v2.40.2 --name=Service
 type Service interface {
-	GetCommitMetadata(ctx context.Context, repoURL string, commitSHA string) (*shared.CommitMetadata, error)
-	GetAppDetails(ctx context.Context, appSource *v1alpha1.ApplicationSource, appName string) (*shared.AppDetail, error)
+	GetCommitMetadata(ctx context.Context, repoURL string, commitSHA string, project string) (*shared.CommitMetadata, error)
+	GetAppDetails(ctx context.Context, app *v1alpha1.Application) (*shared.AppDetail, error)
 }
 
 func NewArgoCDService(clientset kubernetes.Interface, namespace string, repoClientset apiclient.Clientset) (*argoCDService, error) {
@@ -46,9 +46,9 @@ type argoCDService struct {
 	dispose          func()
 }
 
-func (svc *argoCDService) GetCommitMetadata(ctx context.Context, repoURL string, commitSHA string) (*shared.CommitMetadata, error) {
+func (svc *argoCDService) GetCommitMetadata(ctx context.Context, repoURL string, commitSHA string, project string) (*shared.CommitMetadata, error) {
 	argocdDB := db.NewDB(svc.namespace, svc.settingsMgr, svc.clientset)
-	repo, err := argocdDB.GetRepository(ctx, repoURL)
+	repo, err := argocdDB.GetRepository(ctx, repoURL, project)
 	if err != nil {
 		return nil, err
 	}
@@ -75,9 +75,11 @@ func (svc *argoCDService) getKustomizeOptions(source *v1alpha1.ApplicationSource
 	return kustomizeSettings.GetOptions(*source)
 }
 
-func (svc *argoCDService) GetAppDetails(ctx context.Context, appSource *v1alpha1.ApplicationSource, appName string) (*shared.AppDetail, error) {
+func (svc *argoCDService) GetAppDetails(ctx context.Context, app *v1alpha1.Application) (*shared.AppDetail, error) {
+	appSource := app.Spec.GetSourcePtrByIndex(0)
+
 	argocdDB := db.NewDB(svc.namespace, svc.settingsMgr, svc.clientset)
-	repo, err := argocdDB.GetRepository(ctx, appSource.RepoURL)
+	repo, err := argocdDB.GetRepository(ctx, appSource.RepoURL, app.Spec.Project)
 	if err != nil {
 		return nil, err
 	}
@@ -94,7 +96,7 @@ func (svc *argoCDService) GetAppDetails(ctx context.Context, appSource *v1alpha1
 		return nil, err
 	}
 	appDetail, err := svc.repoServerClient.GetAppDetails(ctx, &apiclient.RepoServerAppDetailsQuery{
-		AppName:          appName,
+		AppName:          app.Name,
 		Repo:             repo,
 		Source:           appSource,
 		Repos:            helmRepos,

@@ -77,7 +77,7 @@ func TestDb_CreateRepository(t *testing.T) {
 	// New repositories should be now stored as secrets
 	secret, err := clientset.CoreV1().Secrets(testNamespace).Get(
 		context.TODO(),
-		RepoURLToSecretName(repoSecretPrefix, input.Repo),
+		RepoURLToSecretName(repoSecretPrefix, input.Repo, ""),
 		metav1.GetOptions{},
 	)
 	assert.NotNil(t, secret)
@@ -93,17 +93,17 @@ func TestDb_GetRepository(t *testing.T) {
 		settingsMgr:   settingsManager,
 	}
 
-	repository, err := testee.GetRepository(context.TODO(), "git@github.com:argoproj/argoproj.git")
+	repository, err := testee.GetRepository(context.TODO(), "git@github.com:argoproj/argoproj.git", "")
 	assert.NoError(t, err)
 	assert.NotNil(t, repository)
 	assert.Equal(t, "OtherRepo", repository.Name)
 
-	repository, err = testee.GetRepository(context.TODO(), "git@github.com:argoproj/argo-cd.git")
+	repository, err = testee.GetRepository(context.TODO(), "git@github.com:argoproj/argo-cd.git", "")
 	assert.NoError(t, err)
 	assert.NotNil(t, repository)
 	assert.Equal(t, "SomeRepo", repository.Name)
 
-	repository, err = testee.GetRepository(context.TODO(), "git@github.com:argoproj/not-existing.git")
+	repository, err = testee.GetRepository(context.TODO(), "git@github.com:argoproj/not-existing.git", "")
 	assert.NoError(t, err)
 	assert.NotNil(t, repository)
 	assert.Equal(t, "git@github.com:argoproj/not-existing.git", repository.Repo)
@@ -189,14 +189,14 @@ func TestDb_DeleteRepository(t *testing.T) {
 		settingsMgr:   settingsManager,
 	}
 
-	err := testee.DeleteRepository(context.TODO(), "git@github.com:argoproj/argoproj.git")
+	err := testee.DeleteRepository(context.TODO(), "git@github.com:argoproj/argoproj.git", "")
 	assert.NoError(t, err)
 
 	repositories, err := settingsManager.GetRepositories()
 	assert.NoError(t, err)
 	assert.Empty(t, repositories)
 
-	err = testee.DeleteRepository(context.TODO(), "git@github.com:argoproj/argo-cd.git")
+	err = testee.DeleteRepository(context.TODO(), "git@github.com:argoproj/argo-cd.git", "")
 	assert.NoError(t, err)
 
 	_, err = clientset.CoreV1().Secrets(testNamespace).Get(context.TODO(), "some-repo-secret", metav1.GetOptions{})
@@ -259,7 +259,7 @@ func TestRepoURLToSecretName(t *testing.T) {
 	}
 
 	for k, v := range tables {
-		if sn := RepoURLToSecretName(repoSecretPrefix, k); sn != v {
+		if sn := RepoURLToSecretName(repoSecretPrefix, k, ""); sn != v {
 			t.Errorf("Expected secret name %q for repo %q; instead, got %q", v, k, sn)
 		}
 	}
@@ -274,7 +274,7 @@ func Test_CredsURLToSecretName(t *testing.T) {
 	}
 
 	for k, v := range tables {
-		if sn := RepoURLToSecretName(credSecretPrefix, k); sn != v {
+		if sn := RepoURLToSecretName(credSecretPrefix, k, ""); sn != v {
 			t.Errorf("Expected secret name %q for repo %q; instead, got %q", v, k, sn)
 		}
 	}

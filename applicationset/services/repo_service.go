@@ -6,7 +6,6 @@ import (
 
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
-	"github.com/argoproj/argo-cd/v2/util/db"
 	"github.com/argoproj/argo-cd/v2/util/git"
 	"github.com/argoproj/argo-cd/v2/util/io"
 )
@@ -20,7 +19,7 @@ type RepositoryDB interface {
 }
 
 type argoCDService struct {
-	repositoriesDB         RepositoryDB
+	getRepository          func(ctx context.Context, url, project string) (*v1alpha1.Repository, error)
 	storecreds             git.CredsStore
 	submoduleEnabled       bool
 	repoServerClientSet    apiclient.Clientset
@@ -38,9 +37,9 @@ type Repos interface {
 	GetDirectories(ctx context.Context, repoURL string, revision string, noRevisionCache bool) ([]string, error)
 }
 
-func NewArgoCDService(db db.ArgoDB, submoduleEnabled bool, repoClientset apiclient.Clientset, newFileGlobbingEnabled bool) (Repos, error) {
+func NewArgoCDService(getRepository func(ctx context.Context, url, project string) (*v1alpha1.Repository, error), submoduleEnabled bool, repoClientset apiclient.Clientset, newFileGlobbingEnabled bool) (Repos, error) {
 	return &argoCDService{
-		repositoriesDB:         db.(RepositoryDB),
+		getRepository:          getRepository,
 		submoduleEnabled:       submoduleEnabled,
 		repoServerClientSet:    repoClientset,
 		newFileGlobbingEnabled: newFileGlobbingEnabled,
@@ -48,7 +47,7 @@ func NewArgoCDService(db db.ArgoDB, submoduleEnabled bool, repoClientset apiclie
 }
 
 func (a *argoCDService) GetFiles(ctx context.Context, repoURL string, revision string, pattern string, noRevisionCache bool) (map[string][]byte, error) {
-	repo, err := a.repositoriesDB.GetRepository(ctx, repoURL)
+	repo, err := a.getRepository(ctx, repoURL, "")
 	if err != nil {
 		return nil, fmt.Errorf("error in GetRepository: %w", err)
 	}
@@ -75,7 +74,7 @@ func (a *argoCDService) GetFiles(ctx context.Context, repoURL string, revision s
 }
 
 func (a *argoCDService) GetDirectories(ctx context.Context, repoURL string, revision string, noRevisionCache bool) ([]string, error) {
-	repo, err := a.repositoriesDB.GetRepository(ctx, repoURL)
+	repo, err := a.getRepository(ctx, repoURL, "")
 	if err != nil {
 		return nil, fmt.Errorf("error in GetRepository: %w", err)
 	}
