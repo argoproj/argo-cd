@@ -102,9 +102,15 @@ export const ApplicationResourceList = (props: ApplicationResourceListProps) => 
                                             </Consumer>
                                         )}
                                     </div>
-                                    <div className='columns small-1 xxxlarge-1' title={[res.group, res.kind].filter(item => !!item).join('/')}>{[res.group, res.kind].filter(item => !!item).join('/')}</div>
-                                    <div className='columns small-1 xxxlarge-1' title={res.syncWave ? String(res.syncWave) : '-'}>{res.syncWave || '-'}</div>
-                                    <div className='columns small-2 xxxlarge-1' title={res.namespace}>{res.namespace}</div>
+                                    <div className='columns small-1 xxxlarge-1' title={[res.group, res.kind].filter(item => !!item).join('/')}>
+                                        {[res.group, res.kind].filter(item => !!item).join('/')}
+                                    </div>
+                                    <div className='columns small-1 xxxlarge-1' title={res.syncWave ? String(res.syncWave) : '-'}>
+                                        {res.syncWave || '-'}
+                                    </div>
+                                    <div className='columns small-2 xxxlarge-1' title={res.namespace}>
+                                        {res.namespace}
+                                    </div>
                                     {isSameKind &&
                                         res.kind === 'ReplicaSet' &&
                                         ((nodeByKey.get(nodeKey(res)) as ResourceNode).info || [])
