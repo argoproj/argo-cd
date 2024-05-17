@@ -28,6 +28,7 @@ argocd login cd.argoproj.io --core
 ### Options
 
 ```
+      --browserless       Perform SSO login without a browser
   -h, --help              help for login
       --name string       Name to use for the context
       --password string   The password of an account to authenticate
