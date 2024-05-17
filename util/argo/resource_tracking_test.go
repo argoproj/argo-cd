@@ -102,6 +102,20 @@ func TestSetAppInstanceAnnotationAndLabelLongNameBadEnding(t *testing.T) {
 	assert.Equal(t, obj.GetLabels()[common.LabelKeyAppInstance], "the-very-suspicious-name-with-precisely-sixty-three-characters")
 }
 
+func TestSetAppInstanceAnnotationAndLabelOutOfBounds(t *testing.T) {
+	yamlBytes, err := os.ReadFile("testdata/svc.yaml")
+	assert.Nil(t, err)
+	var obj unstructured.Unstructured
+	err = yaml.Unmarshal(yamlBytes, &obj)
+	assert.Nil(t, err)
+
+	resourceTracking := NewResourceTracking()
+
+	err = resourceTracking.SetAppInstance(&obj, common.LabelKeyAppInstance, "----------------------------------------------------------------", "", TrackingMethodAnnotationAndLabel)
+	// this should error because it can't truncate to a valid value
+	assert.EqualError(t, err, "failed to set app instance label: unable to truncate label to not end with a special character")
+}
+
 func TestSetAppInstanceAnnotationNotFound(t *testing.T) {
 	yamlBytes, err := os.ReadFile("testdata/svc.yaml")
 	assert.Nil(t, err)
