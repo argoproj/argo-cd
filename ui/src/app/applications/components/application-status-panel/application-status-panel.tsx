@@ -107,16 +107,20 @@ export const ApplicationStatusPanel = ({application, showDiff, showOperation, sh
                     <div className='application-status-panel__item-name' style={{marginBottom: '0.5em'}}>
                         {application.spec.syncPolicy?.automated ? 'Auto sync is enabled.' : 'Auto sync is not enabled.'}
                     </div>
-                    {application.status && application.status.sync && application.status.sync.revision && !application.spec.source.chart && (
-                        <div className='application-status-panel__item-name'>
-                            <RevisionMetadataPanel
-                                appName={application.metadata.name}
-                                appNamespace={application.metadata.namespace}
-                                type={source.chart && 'helm'}
-                                revision={application.status.sync.revision}
-                            />
-                        </div>
-                    )}
+                    {application.status &&
+                        application.status.sync &&
+                        (hasMultipleSources
+                            ? application.status.sync.revisions && application.status.sync.revisions[0] && application.spec.sources && !application.spec.sources[0].chart
+                            : application.status.sync.revision && !application.spec.source?.chart) && (
+                            <div className='application-status-panel__item-name'>
+                                <RevisionMetadataPanel
+                                    appName={application.metadata.name}
+                                    appNamespace={application.metadata.namespace}
+                                    type={source.chart && 'helm'}
+                                    revision={hasMultipleSources ? application.status.sync.revisions[0] : application.status.sync.revision}
+                                />
+                            </div>
+                        )}
                 </React.Fragment>
             </div>
             {appOperationState && (
