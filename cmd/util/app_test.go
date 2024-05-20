@@ -174,12 +174,12 @@ func (f *appOptionsFixture) SetFlag(key, value string) error {
 	return err
 }
 
-func (f *appOptionsFixture) SetFlagWithSourceIndex(key, value string, index int) error {
+func (f *appOptionsFixture) SetFlagWithSourcePosition(key, value string, sourcePosition int) error {
 	err := f.command.Flags().Set(key, value)
 	if err != nil {
 		return err
 	}
-	_ = SetAppSpecOptions(f.command.Flags(), f.spec, f.options, index)
+	_ = SetAppSpecOptions(f.command.Flags(), f.spec, f.options, sourcePosition)
 	return err
 }
 
@@ -251,34 +251,34 @@ func newMultiSourceAppOptionsFixture() *appOptionsFixture {
 
 func Test_setAppSpecOptionsMultiSourceApp(t *testing.T) {
 	f := newMultiSourceAppOptionsFixture()
-	index := 0
-	index1 := 1
-	index2 := 2
+	sourcePosition := 0
+	sourcePosition1 := 1
+	sourcePosition2 := 2
 	t.Run("SyncPolicy", func(t *testing.T) {
-		assert.NoError(t, f.SetFlagWithSourceIndex("sync-policy", "automated", index1))
+		assert.NoError(t, f.SetFlagWithSourcePosition("sync-policy", "automated", sourcePosition1))
 		assert.NotNil(t, f.spec.SyncPolicy.Automated)
 
 		f.spec.SyncPolicy = nil
-		assert.NoError(t, f.SetFlagWithSourceIndex("sync-policy", "automatic", index1))
+		assert.NoError(t, f.SetFlagWithSourcePosition("sync-policy", "automatic", sourcePosition1))
 		assert.NotNil(t, f.spec.SyncPolicy.Automated)
 	})
-	t.Run("Helm - Index 0", func(t *testing.T) {
-		assert.NoError(t, f.SetFlagWithSourceIndex("helm-version", "v2", index))
+	t.Run("Helm - SourcePosition 0", func(t *testing.T) {
+		assert.NoError(t, f.SetFlagWithSourcePosition("helm-version", "v2", sourcePosition))
 		assert.Equal(t, len(f.spec.GetSources()), 2)
-		assert.Equal(t, f.spec.GetSources()[index].Helm.Version, "v2")
+		assert.Equal(t, f.spec.GetSources()[sourcePosition].Helm.Version, "v2")
 	})
 	t.Run("Kustomize", func(t *testing.T) {
-		assert.NoError(t, f.SetFlagWithSourceIndex("kustomize-replica", "my-deployment=2", index1))
-		assert.Equal(t, f.spec.Sources[index1-1].Kustomize.Replicas, v1alpha1.KustomizeReplicas{{Name: "my-deployment", Count: intstr.FromInt(2)}})
-		assert.NoError(t, f.SetFlagWithSourceIndex("kustomize-replica", "my-deployment=4", index2))
-		assert.Equal(t, f.spec.Sources[index2-1].Kustomize.Replicas, v1alpha1.KustomizeReplicas{{Name: "my-deployment", Count: intstr.FromInt(4)}})
+		assert.NoError(t, f.SetFlagWithSourcePosition("kustomize-replica", "my-deployment=2", sourcePosition1))
+		assert.Equal(t, f.spec.Sources[sourcePosition1-1].Kustomize.Replicas, v1alpha1.KustomizeReplicas{{Name: "my-deployment", Count: intstr.FromInt(2)}})
+		assert.NoError(t, f.SetFlagWithSourcePosition("kustomize-replica", "my-deployment=4", sourcePosition2))
+		assert.Equal(t, f.spec.Sources[sourcePosition2-1].Kustomize.Replicas, v1alpha1.KustomizeReplicas{{Name: "my-deployment", Count: intstr.FromInt(4)}})
 	})
 	t.Run("Helm", func(t *testing.T) {
-		assert.NoError(t, f.SetFlagWithSourceIndex("helm-version", "v2", index1))
-		assert.NoError(t, f.SetFlagWithSourceIndex("helm-version", "v3", index2))
+		assert.NoError(t, f.SetFlagWithSourcePosition("helm-version", "v2", sourcePosition1))
+		assert.NoError(t, f.SetFlagWithSourcePosition("helm-version", "v3", sourcePosition2))
 		assert.Equal(t, len(f.spec.GetSources()), 2)
-		assert.Equal(t, f.spec.GetSources()[index1-1].Helm.Version, "v2")
-		assert.Equal(t, f.spec.GetSources()[index2-1].Helm.Version, "v3")
+		assert.Equal(t, f.spec.GetSources()[sourcePosition1-1].Helm.Version, "v2")
+		assert.Equal(t, f.spec.GetSources()[sourcePosition2-1].Helm.Version, "v3")
 	})
 }
 

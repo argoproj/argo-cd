@@ -14,7 +14,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
@@ -77,7 +77,7 @@ func TestNotificationServer(t *testing.T) {
 		services, err := server.ListServices(ctx, &notification.ServicesListRequest{})
 		assert.NoError(t, err)
 		assert.Len(t, services.Items, 1)
-		assert.Equal(t, services.Items[0].Name, pointer.String("test"))
+		assert.Equal(t, services.Items[0].Name, ptr.To("test"))
 		assert.NotEmpty(t, services.Items[0])
 	})
 	t.Run("TestListTriggers", func(t *testing.T) {
@@ -85,7 +85,7 @@ func TestNotificationServer(t *testing.T) {
 		triggers, err := server.ListTriggers(ctx, &notification.TriggersListRequest{})
 		assert.NoError(t, err)
 		assert.Len(t, triggers.Items, 1)
-		assert.Equal(t, triggers.Items[0].Name, pointer.String("on-created"))
+		assert.Equal(t, triggers.Items[0].Name, ptr.To("on-created"))
 		assert.NotEmpty(t, triggers.Items[0])
 	})
 	t.Run("TestListTemplates", func(t *testing.T) {
@@ -93,7 +93,7 @@ func TestNotificationServer(t *testing.T) {
 		templates, err := server.ListTemplates(ctx, &notification.TemplatesListRequest{})
 		assert.NoError(t, err)
 		assert.Len(t, templates.Items, 1)
-		assert.Equal(t, templates.Items[0].Name, pointer.String("app-created"))
+		assert.Equal(t, templates.Items[0].Name, ptr.To("app-created"))
 		assert.NotEmpty(t, templates.Items[0])
 	})
 }

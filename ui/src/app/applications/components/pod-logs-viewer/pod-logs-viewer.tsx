@@ -64,7 +64,7 @@ function stringHashCode(str: string) {
 
 // ansi color for pod name
 function podColor(podName: string) {
-    return colors[stringHashCode(podName) % colors.length];
+    return colors[Math.abs(stringHashCode(podName) % colors.length)];
 }
 
 // https://2ality.com/2012/09/empty-regexp.html
@@ -94,6 +94,7 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
     useEffect(() => {
         // https://stackoverflow.com/questions/3561493/is-there-a-regexp-escape-function-in-javascript
         // matchNothing this is chosen instead of empty regexp, because that would match everything and break colored logs
+        // eslint-disable-next-line no-useless-escape
         setHighlight(filter === '' ? matchNothing : new RegExp(filter.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), 'g'));
     }, [filter]);
 

@@ -103,6 +103,8 @@ type ArgoCDSettings struct {
 	InClusterEnabled bool `json:"inClusterEnabled"`
 	// ServerRBACLogEnforceEnable temporary var indicates whether rbac will be enforced on logs
 	ServerRBACLogEnforceEnable bool `json:"serverRBACLogEnforceEnable"`
+	// MaxPodLogsToRender the maximum number of pod logs to render
+	MaxPodLogsToRender int64 `json:"maxPodLogsToRender"`
 	// ExecEnabled indicates whether the UI exec feature is enabled
 	ExecEnabled bool `json:"execEnabled"`
 	// ExecShells restricts which shells are allowed for `exec` and in which order they are tried
@@ -169,6 +171,7 @@ func (o *oidcConfig) toExported() *OIDCConfig {
 		LogoutURL:                o.LogoutURL,
 		RootCA:                   o.RootCA,
 		EnablePKCEAuthentication: o.EnablePKCEAuthentication,
+		DomainHint:               o.DomainHint,
 	}
 }
 
@@ -186,6 +189,7 @@ type OIDCConfig struct {
 	LogoutURL                string                 `json:"logoutURL,omitempty"`
 	RootCA                   string                 `json:"rootCA,omitempty"`
 	EnablePKCEAuthentication bool                   `json:"enablePKCEAuthentication,omitempty"`
+	DomainHint               string                 `json:"domainHint,omitempty"`
 }
 
 // DEPRECATED. Helm repository credentials are now managed using RepoCredentials
@@ -485,6 +489,8 @@ const (
 	inClusterEnabledKey = "cluster.inClusterEnabled"
 	// settingsServerRBACLogEnforceEnable is the key to configure whether logs RBAC enforcement is enabled
 	settingsServerRBACLogEnforceEnableKey = "server.rbac.log.enforce.enable"
+	// MaxPodLogsToRender the maximum number of pod logs to render
+	settingsMaxPodLogsToRender = "server.maxPodLogsToRender"
 	// helmValuesFileSchemesKey is the key to configure the list of supported helm values file schemas
 	helmValuesFileSchemesKey = "helm.valuesFileSchemes"
 	// execEnabledKey is the key to configure whether the UI exec feature is enabled
@@ -786,6 +792,19 @@ func (mgr *SettingsManager) GetServerRBACLogEnforceEnable() (bool, error) {
 	}
 
 	return strconv.ParseBool(argoCDCM.Data[settingsServerRBACLogEnforceEnableKey])
+}
+
+func (mgr *SettingsManager) GetMaxPodLogsToRender() (int64, error) {
+	argoCDCM, err := mgr.getConfigMap()
+	if err != nil {
+		return 10, err
+	}
+
+	if argoCDCM.Data[settingsMaxPodLogsToRender] == "" {
+		return 10, nil
+	}
+
+	return strconv.ParseInt(argoCDCM.Data[settingsMaxPodLogsToRender], 10, 64)
 }
 
 func (mgr *SettingsManager) GetDeepLinks(deeplinkType string) ([]DeepLink, error) {
@@ -1456,6 +1475,13 @@ func updateSettingsFromConfigMap(settings *ArgoCDSettings, argoCDCM *apiv1.Confi
 	settings.PasswordPattern = argoCDCM.Data[settingsPasswordPatternKey]
 	if settings.PasswordPattern == "" {
 		settings.PasswordPattern = common.PasswordPatten
+	}
+	if maxPodLogsToRenderStr, ok := argoCDCM.Data[settingsMaxPodLogsToRender]; ok {
+		if val, err := strconv.ParseInt(maxPodLogsToRenderStr, 10, 64); err != nil {
+			log.Warnf("Failed to parse '%s' key: %v", settingsMaxPodLogsToRender, err)
+		} else {
+			settings.MaxPodLogsToRender = val
+		}
 	}
 	settings.InClusterEnabled = argoCDCM.Data[inClusterEnabledKey] != "false"
 	settings.ExecEnabled = argoCDCM.Data[execEnabledKey] == "true"
