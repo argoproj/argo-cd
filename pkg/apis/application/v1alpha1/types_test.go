@@ -15,7 +15,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 
 	argocdcommon "github.com/argoproj/argo-cd/v2/common"
 
@@ -2969,7 +2969,7 @@ func TestRetryStrategy_NextRetryAtCustomBackoff(t *testing.T) {
 	retry := RetryStrategy{
 		Backoff: &Backoff{
 			Duration:    "2s",
-			Factor:      pointer.Int64(3),
+			Factor:      ptr.To(int64(3)),
 			MaxDuration: "1m",
 		},
 	}
@@ -3078,10 +3078,10 @@ func TestOrphanedResourcesMonitorSettings_IsWarn(t *testing.T) {
 	settings := OrphanedResourcesMonitorSettings{}
 	assert.False(t, settings.IsWarn())
 
-	settings.Warn = pointer.Bool(false)
+	settings.Warn = ptr.To(false)
 	assert.False(t, settings.IsWarn())
 
-	settings.Warn = pointer.Bool(true)
+	settings.Warn = ptr.To(true)
 	assert.True(t, settings.IsWarn())
 }
 
@@ -3439,7 +3439,7 @@ func TestApplicationSourcePluginParameters_Environ_string(t *testing.T) {
 	params := ApplicationSourcePluginParameters{
 		{
 			Name:    "version",
-			String_: pointer.String("1.2.3"),
+			String_: ptr.To("1.2.3"),
 		},
 	}
 	environ, err := params.Environ()
@@ -3496,7 +3496,7 @@ func TestApplicationSourcePluginParameters_Environ_all(t *testing.T) {
 	params := ApplicationSourcePluginParameters{
 		{
 			Name:    "some-name",
-			String_: pointer.String("1.2.3"),
+			String_: ptr.To("1.2.3"),
 			OptionalArray: &OptionalArray{
 				Array: []string{"redis", "minio"},
 			},
