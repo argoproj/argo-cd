@@ -310,9 +310,6 @@ func init() {
 	knownTypes["core/v1/NodeProxyOptions"] = func() interface{} {
 		return &corev1.NodeProxyOptions{}
 	}
-	knownTypes["core/v1/NodeResources"] = func() interface{} {
-		return &corev1.NodeResources{}
-	}
 	knownTypes["core/v1/NodeSelector"] = func() interface{} {
 		return &corev1.NodeSelector{}
 	}
