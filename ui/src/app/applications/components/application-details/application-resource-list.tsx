@@ -1,4 +1,4 @@
-import {DropDown} from 'argo-ui';
+import {DropDown, Tooltip} from 'argo-ui';
 import * as React from 'react';
 import * as classNames from 'classnames';
 import * as models from '../../../shared/models';
@@ -70,89 +70,101 @@ export const ApplicationResourceList = (props: ApplicationResourceListProps) => 
                     </div>
                     {props.resources
                         .sort((first, second) => -createdOrNodeKey(first).localeCompare(createdOrNodeKey(second)))
-                        .map(res => (
-                            <div
-                                key={nodeKey(res)}
-                                className={classNames('argo-table-list__row', {
-                                    'application-resource-tree__node--orphaned': res.orphaned
-                                })}
-                                onClick={() => props.onNodeClick && props.onNodeClick(nodeKey(res))}>
-                                <div className='row'>
-                                    <div className='columns small-1 xxxlarge-1'>
-                                        <div className='application-details__resource-icon'>
-                                            <ResourceIcon kind={res.kind} />
-                                            <br />
-                                            <div>{ResourceLabel({kind: res.kind})}</div>
+                        .map(res => {
+                            const groupkindjoin = [res.group, res.kind].filter(item => !!item).join('/');
+                            return (
+                                <div
+                                    key={nodeKey(res)}
+                                    className={classNames('argo-table-list__row', {
+                                        'application-resource-tree__node--orphaned': res.orphaned
+                                    })}
+                                    onClick={() => props.onNodeClick && props.onNodeClick(nodeKey(res))}>
+                                    <div className='row'>
+                                        <div className='columns small-1 xxxlarge-1'>
+                                            <div className='application-details__resource-icon'>
+                                                <ResourceIcon kind={res.kind} />
+                                                <br />
+                                                <div>{ResourceLabel({kind: res.kind})}</div>
+                                            </div>
                                         </div>
-                                    </div>
-                                    <div className='columns small-2 xxxlarge-1 application-details__item'>
-                                        <span className='application-details__item_text'>{res.name}</span>
-                                        {res.kind === 'Application' && (
-                                            <Consumer>
-                                                {ctx => (
-                                                    <span className='application-details__external_link'>
-                                                        <a
-                                                            href={ctx.baseHref + 'applications/' + res.namespace + '/' + res.name}
-                                                            onClick={e => e.stopPropagation()}
-                                                            title='Open application'>
-                                                            <i className='fa fa-external-link-alt' />
-                                                        </a>
+                                        <Tooltip content={res.name} enabled={!!res.name}>
+                                            <div className='columns small-2 xxxlarge-1 application-details__item'>
+                                                <span className='application-details__item_text'>{res.name}</span>
+                                                {res.kind === 'Application' && (
+                                                    <Consumer>
+                                                        {ctx => (
+                                                            <span className='application-details__external_link'>
+                                                                <a
+                                                                    href={ctx.baseHref + 'applications/' + res.namespace + '/' + res.name}
+                                                                    onClick={e => e.stopPropagation()}
+                                                                    title='Open application'>
+                                                                    <i className='fa fa-external-link-alt' />
+                                                                </a>
+                                                            </span>
+                                                        )}
+                                                    </Consumer>
+                                                )}
+                                            </div>
+                                        </Tooltip>
+                                        <Tooltip content={groupkindjoin}>
+                                            <div className='columns small-1 xxxlarge-1'>{groupkindjoin}</div>
+                                        </Tooltip>
+                                        <Tooltip content={res.syncWave} enabled={!!res.syncWave}>
+                                            <div className='columns small-1 xxxlarge-1'>{res.syncWave || '-'}</div>
+                                        </Tooltip>
+                                        <Tooltip content={res.namespace} enabled={!!res.namespace}>
+                                            <div className='columns small-2 xxxlarge-1'>{res.namespace}</div>
+                                        </Tooltip>
+                                        {isSameKind &&
+                                            res.kind === 'ReplicaSet' &&
+                                            ((nodeByKey.get(nodeKey(res)) as ResourceNode).info || [])
+                                                .filter(tag => !tag.name.includes('Node'))
+                                                .slice(0, 4)
+                                                .map((tag, i) => {
+                                                    return (
+                                                        <div key={i} className='columns small-1 xxxlarge-1'>
+                                                            {tag?.value?.split(':')[1] || '-'}
+                                                        </div>
+                                                    );
+                                                })}
+                                        <Tooltip content={res.createdAt} enabled={!!res.createdAt}>
+                                            <div className='columns small-2 xxxlarge-1'>
+                                                {res.createdAt && (
+                                                    <span>
+                                                        <Moment fromNow={true} ago={true}>
+                                                            {res.createdAt}
+                                                        </Moment>
+                                                        &nbsp;ago &nbsp; {format(new Date(res.createdAt), 'MM/dd/yy')}
                                                     </span>
                                                 )}
-                                            </Consumer>
-                                        )}
-                                    </div>
-                                    <div className='columns small-1 xxxlarge-1'>{[res.group, res.kind].filter(item => !!item).join('/')}</div>
-                                    <div className='columns small-1 xxxlarge-1'>{res.syncWave || '-'}</div>
-                                    <div className='columns small-2 xxxlarge-1'>{res.namespace}</div>
-                                    {isSameKind &&
-                                        res.kind === 'ReplicaSet' &&
-                                        ((nodeByKey.get(nodeKey(res)) as ResourceNode).info || [])
-                                            .filter(tag => !tag.name.includes('Node'))
-                                            .slice(0, 4)
-                                            .map((tag, i) => {
-                                                return (
-                                                    <div key={i} className='columns small-1 xxxlarge-1'>
-                                                        {tag?.value?.split(':')[1] || '-'}
-                                                    </div>
-                                                );
-                                            })}
-
-                                    <div className='columns small-2 xxxlarge-1'>
-                                        {res.createdAt && (
-                                            <span>
-                                                <Moment fromNow={true} ago={true}>
-                                                    {res.createdAt}
-                                                </Moment>
-                                                &nbsp;ago &nbsp; {format(new Date(res.createdAt), 'MM/dd/yy')}
-                                            </span>
-                                        )}
-                                    </div>
-                                    <div className='columns small-2 xxxlarge-1'>
-                                        {res.health && (
-                                            <React.Fragment>
-                                                <HealthStatusIcon state={res.health} /> {res.health.status} &nbsp;
-                                            </React.Fragment>
-                                        )}
-                                        {res.status && <ComparisonStatusIcon status={res.status} resource={res} label={true} />}
-                                        {res.hook && <i title='Resource lifecycle hook' className='fa fa-anchor' />}
-                                        {props.nodeMenu && (
-                                            <div className='application-details__node-menu'>
-                                                <DropDown
-                                                    isMenu={true}
-                                                    anchor={() => (
-                                                        <button className='argo-button argo-button--light argo-button--lg argo-button--short'>
-                                                            <i className='fa fa-ellipsis-v' />
-                                                        </button>
-                                                    )}>
-                                                    {() => props.nodeMenu(nodeByKey.get(nodeKey(res)))}
-                                                </DropDown>
                                             </div>
-                                        )}
+                                        </Tooltip>
+                                        <div className='columns small-2 xxxlarge-1'>
+                                            {res.health && (
+                                                <React.Fragment>
+                                                    <HealthStatusIcon state={res.health} /> {res.health.status} &nbsp;
+                                                </React.Fragment>
+                                            )}
+                                            {res.status && <ComparisonStatusIcon status={res.status} resource={res} label={true} />}
+                                            {res.hook && <i title='Resource lifecycle hook' className='fa fa-anchor' />}
+                                            {props.nodeMenu && (
+                                                <div className='application-details__node-menu'>
+                                                    <DropDown
+                                                        isMenu={true}
+                                                        anchor={() => (
+                                                            <button className='argo-button argo-button--light argo-button--lg argo-button--short'>
+                                                                <i className='fa fa-ellipsis-v' />
+                                                            </button>
+                                                        )}>
+                                                        {() => props.nodeMenu(nodeByKey.get(nodeKey(res)))}
+                                                    </DropDown>
+                                                </div>
+                                            )}
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
-                        ))}
+                            );
+                        })}
                 </div>
             </div>
         )
