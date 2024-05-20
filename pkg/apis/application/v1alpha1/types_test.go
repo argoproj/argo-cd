@@ -11,7 +11,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/argoproj/gitops-engine/pkg/diff"
 	"github.com/stretchr/testify/require"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/utils/pointer"
 
 	argocdcommon "github.com/argoproj/argo-cd/v2/common"
@@ -3619,4 +3622,83 @@ func TestOptionalMapEquality(t *testing.T) {
 			assert.Equal(t, testCopy.expected, testCopy.a.Equals(testCopy.b))
 		})
 	}
+}
+
+func TestApplicationSpec_GetSourcePtrByIndex(t *testing.T) {
+	testCases := []struct {
+		name        string
+		application ApplicationSpec
+		sourceIndex int
+		expected    *ApplicationSource
+	}{
+		{
+			name: "HasMultipleSources_ReturnsFirstSource",
+			application: ApplicationSpec{
+				Sources: []ApplicationSource{
+					{RepoURL: "https://github.com/argoproj/test1.git"},
+					{RepoURL: "https://github.com/argoproj/test2.git"},
+				},
+			},
+			sourceIndex: 0,
+			expected:    &ApplicationSource{RepoURL: "https://github.com/argoproj/test1.git"},
+		},
+		{
+			name: "HasMultipleSources_ReturnsSourceAtIndex",
+			application: ApplicationSpec{
+				Sources: []ApplicationSource{
+					{RepoURL: "https://github.com/argoproj/test1.git"},
+					{RepoURL: "https://github.com/argoproj/test2.git"},
+				},
+			},
+			sourceIndex: 1,
+			expected:    &ApplicationSource{RepoURL: "https://github.com/argoproj/test2.git"},
+		},
+		{
+			name: "HasSingleSource_ReturnsSource",
+			application: ApplicationSpec{
+				Source: &ApplicationSource{RepoURL: "https://github.com/argoproj/test.git"},
+			},
+			sourceIndex: 0,
+			expected:    &ApplicationSource{RepoURL: "https://github.com/argoproj/test.git"},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			actual := tc.application.GetSourcePtrByIndex(tc.sourceIndex)
+			assert.Equal(t, tc.expected, actual)
+		})
+	}
+}
+
+func TestHelmValuesObjectHasReplaceStrategy(t *testing.T) {
+	app := Application{
+		Status: ApplicationStatus{Sync: SyncStatus{ComparedTo: ComparedTo{
+			Source: ApplicationSource{
+				Helm: &ApplicationSourceHelm{
+					ValuesObject: &runtime.RawExtension{
+						Object: &unstructured.Unstructured{Object: map[string]interface{}{"key": []string{"value"}}},
+					},
+				},
+			},
+		}}},
+	}
+
+	appModified := Application{
+		Status: ApplicationStatus{Sync: SyncStatus{ComparedTo: ComparedTo{
+			Source: ApplicationSource{
+				Helm: &ApplicationSourceHelm{
+					ValuesObject: &runtime.RawExtension{
+						Object: &unstructured.Unstructured{Object: map[string]interface{}{"key": []string{"value-modified1"}}},
+					},
+				},
+			},
+		}}},
+	}
+
+	patch, _, err := diff.CreateTwoWayMergePatch(
+		app,
+		appModified, Application{})
+	require.NoError(t, err)
+	assert.Equal(t, `{"status":{"sync":{"comparedTo":{"destination":{},"source":{"helm":{"valuesObject":{"key":["value-modified1"]}},"repoURL":""}}}}}`, string(patch))
 }

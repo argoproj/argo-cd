@@ -124,11 +124,18 @@ func TestCache_GetManifests(t *testing.T) {
 		assert.Equal(t, ErrCacheMiss, err)
 	})
 	t.Run("expect cache hit", func(t *testing.T) {
-		err = cache.GetManifests("my-revision", &ApplicationSource{}, q.RefSources, q, "my-namespace", "", "my-app-label-key", "my-app-label-value", value, nil)
+		err = cache.SetManifests(
+			"my-revision1", &ApplicationSource{}, q.RefSources, q, "my-namespace", "", "my-app-label-key", "my-app-label-value",
+			&CachedManifestResponse{ManifestResponse: &apiclient.ManifestResponse{SourceType: "my-source-type", Revision: "my-revision2"}}, nil)
 		assert.NoError(t, err)
-		assert.Equal(t, &CachedManifestResponse{ManifestResponse: &apiclient.ManifestResponse{SourceType: "my-source-type"}}, value)
+
+		err = cache.GetManifests("my-revision1", &ApplicationSource{}, q.RefSources, q, "my-namespace", "", "my-app-label-key", "my-app-label-value", value, nil)
+		assert.NoError(t, err)
+
+		assert.Equal(t, "my-source-type", value.ManifestResponse.SourceType)
+		assert.Equal(t, "my-revision1", value.ManifestResponse.Revision)
 	})
-	mockCache.AssertCacheCalledTimes(t, &mocks.CacheCallCounts{ExternalSets: 1, ExternalGets: 8})
+	mockCache.AssertCacheCalledTimes(t, &mocks.CacheCallCounts{ExternalSets: 2, ExternalGets: 8})
 }
 
 func TestCache_GetAppDetails(t *testing.T) {

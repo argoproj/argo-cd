@@ -904,6 +904,9 @@ message EnvEntry {
   optional string value = 2;
 }
 
+message ErrApplicationNotAllowedToUseProject {
+}
+
 // ExecProviderConfig is config used to call an external command to perform cluster authentication
 // See: https://godoc.org/k8s.io/client-go/tools/clientcmd/api#ExecConfig
 message ExecProviderConfig {
@@ -2224,6 +2227,7 @@ message SyncStatus {
   optional string status = 1;
 
   // ComparedTo contains information about what has been compared
+  // +patchStrategy=replace
   optional ComparedTo comparedTo = 2;
 
   // Revision contains information about the revision the comparison has been performed to

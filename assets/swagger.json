@@ -975,6 +975,25 @@
             "type": "string",
             "name": "project",
             "in": "query"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "int64"
+            },
+            "collectionFormat": "multi",
+            "name": "sourcePositions",
+            "in": "query"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi",
+            "name": "revisions",
+            "in": "query"
           }
         ],
         "responses": {
@@ -4218,6 +4237,19 @@
         },
         "revision": {
           "type": "string"
+        },
+        "revisions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "sourcePositions": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "int64"
+          }
         },
         "strategy": {
           "$ref": "#/definitions/v1alpha1SyncStrategy"

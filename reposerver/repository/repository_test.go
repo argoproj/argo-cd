@@ -302,7 +302,7 @@ func TestGenerateManifests_K8SAPIResetCache(t *testing.T) {
 		ProjectSourceRepos: []string{"*"},
 	}
 
-	cachedFakeResponse := &apiclient.ManifestResponse{Manifests: []string{"Fake"}}
+	cachedFakeResponse := &apiclient.ManifestResponse{Manifests: []string{"Fake"}, Revision: mock.Anything}
 
 	err := service.cache.SetManifests(mock.Anything, &src, q.RefSources, &q, "", "", "", "", &cache.CachedManifestResponse{ManifestResponse: cachedFakeResponse}, nil)
 	assert.NoError(t, err)
@@ -3570,7 +3570,9 @@ func TestUpdateRevisionForPaths(t *testing.T) {
 				SyncedRevision: "SYNCEDHEAD",
 				Paths:          []string{"."},
 			},
-		}, want: &apiclient.UpdateRevisionForPathsResponse{}, wantErr: assert.NoError},
+		}, want: &apiclient.UpdateRevisionForPathsResponse{
+			Changes: true,
+		}, wantErr: assert.NoError},
 		{name: "NoChangesUpdateCache", fields: func() fields {
 			s, _, c := newServiceWithOpt(t, func(gitClient *gitmocks.Client, helmClient *helmmocks.Client, paths *iomocks.TempPaths) {
 				gitClient.On("Init").Return(nil)
