@@ -82,7 +82,7 @@ func getAdminAccount(mgr *settings.SettingsManager) (*settings.Account, error) {
 
 func adminContext(ctx context.Context) context.Context {
 	// nolint:staticcheck
-	return context.WithValue(ctx, "claims", &jwt.StandardClaims{Subject: "admin", Issuer: sessionutil.SessionManagerClaimsIssuer})
+	return context.WithValue(ctx, "claims", &jwt.RegisteredClaims{Subject: "admin", Issuer: sessionutil.SessionManagerClaimsIssuer})
 }
 
 func ssoAdminContext(ctx context.Context, iat time.Time) context.Context {
