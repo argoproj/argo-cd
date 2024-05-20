@@ -61,8 +61,11 @@ What this proposal instead aims to do is to first find the first `repository` (o
 which match the requested `project`, it will fall back to returning the first unscoped credential, i.e, the first credential
 with an empty `project` parameter.
 
-The exception to this rule is when we create a new repository credential, we need to specifically look up a repository 
-credential which matches the exact URL and project.
+This change would apply when we retrieve a _single_ repository credential. For _listing_ repository credentials, nothing 
+changes - the logic would be the same as today. 
+
+When it comes to mutating a repository credential we need to strictly match the project which the cred belongs to, since 
+there would otherwise be a risk of changing (inadvertently or otherwise) a credential not belonging to the correct project.
 
 The third part is specifically for when we imperatively create repository secrets. Currently, when we create a repository
 secret in the UI/CLI, a suffix gets generated which is a hash of the repository URL. This mechanism will be extended to 
