@@ -333,7 +333,7 @@ jobs:
 
   analyze:
     name: Process & analyze test artifacts
-    if: ${{ needs.changes.outputs.backend == 'true' || needs.changes.outputs.frontend == 'true' }}
+    #if: ${{ needs.changes.outputs.backend == 'true' || needs.changes.outputs.frontend == 'true' }}
     runs-on: ubuntu-22.04
     needs:
       - test-go
