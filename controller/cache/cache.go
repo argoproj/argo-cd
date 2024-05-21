@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"os/exec"
 	"reflect"
+	"strconv"
 	"strings"
 	"sync"
 	"syscall"
@@ -67,6 +68,9 @@ const (
 
 	// EnvClusterCacheRetryUseBackoff is the env variable to control whether to use a backoff strategy with the retry during cluster cache sync
 	EnvClusterCacheRetryUseBackoff = "ARGOCD_CLUSTER_CACHE_RETRY_USE_BACKOFF"
+
+	// AnnotationIgnoreResourcesTracking is a Kubernetes annotation for a Kubernetes resource to ignore any resources tracking
+	AnnotationIgnoreResourcesTracking = "argocd.argoproj.io/ignore-resources-tracking"
 )
 
 // GitOps engine cluster cache tuning options
@@ -161,6 +165,9 @@ type ResourceInfo struct {
 	NodeInfo *NodeInfo
 
 	manifestHash string
+
+	// annotations stores all the ObjectRef annotations
+	annotations map[string]string
 }
 
 func NewLiveStateCache(
@@ -342,6 +349,14 @@ func skipAppRequeuing(key kube.ResourceKey) bool {
 }
 
 func skipResourceUpdate(oldInfo, newInfo *ResourceInfo) bool {
+	if val, ok := newInfo.annotations[AnnotationIgnoreResourcesTracking]; ok {
+		// ignore the error and fall through the further checking
+		skip, _ := strconv.ParseBool(val)
+		if skip {
+			return true
+		}
+	}
+
 	if oldInfo == nil || newInfo == nil {
 		return false
 	}
@@ -549,7 +564,7 @@ func (c *liveStateCache) getCluster(server string) (clustercache.ClusterCache, e
 					"name":        ref.Name,
 					"api-version": ref.APIVersion,
 					"kind":        ref.Kind,
-				}).Debug("Ignoring change of object because none of the watched resource fields have changed")
+				}).Debugf("Ignoring change of object because none of the watched resource fields have changed or annotation %v is set to true", AnnotationIgnoreResourcesTracking)
 			}
 			return
 		}
