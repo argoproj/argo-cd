@@ -59,6 +59,7 @@ func NewAdminCommand() *cobra.Command {
 	command.AddCommand(NewDashboardCommand())
 	command.AddCommand(NewNotificationsCommand())
 	command.AddCommand(NewInitialPasswordCommand())
+	command.AddCommand(NewRedisInitialPasswordCommand())
 
 	command.Flags().StringVar(&cmdutil.LogFormat, "logformat", "text", "Set the logging format. One of: text|json")
 	command.Flags().StringVar(&cmdutil.LogLevel, "loglevel", "info", "Set the logging level. One of: debug|info|warn|error")
