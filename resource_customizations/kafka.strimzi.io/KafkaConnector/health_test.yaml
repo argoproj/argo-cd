@@ -1,0 +1,12 @@
+tests:
+- healthStatus:
+    status: Progressing
+    message: "Waiting for KafkaConnector"
+  inputPath: testdata/progressing_noStatus.yaml
+- healthStatus:
+    status: Degraded
+    message: "The following tasks have failed: 0, see connectorStatus for more details."
+  inputPath: testdata/degraded.yaml
+- healthStatus:
+    status: Healthy
+  inputPath: testdata/healthy.yaml
