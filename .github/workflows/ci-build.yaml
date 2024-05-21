@@ -298,7 +298,8 @@ jobs:
 
   build-ui:
     name: Build, test & lint UI code
-    if: ${{ needs.changes.outputs.frontend == 'true' }}
+    # We run UI logic for backend changes so that we have a complete set of coverage documents to send to codecov.
+    if: ${{ needs.changes.outputs.backend == 'true' || needs.changes.outputs.frontend == 'true' }}
     runs-on: ubuntu-22.04
     needs:
       - changes
@@ -333,7 +334,7 @@ jobs:
 
   analyze:
     name: Process & analyze test artifacts
-    #if: ${{ needs.changes.outputs.backend == 'true' || needs.changes.outputs.frontend == 'true' }}
+    if: ${{ needs.changes.outputs.backend == 'true' || needs.changes.outputs.frontend == 'true' }}
     runs-on: ubuntu-22.04
     needs:
       - test-go
