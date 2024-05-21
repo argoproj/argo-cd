@@ -508,7 +508,7 @@ jobs:
       - name: Upload e2e coverage report
         uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
         with:
-          name: e2e-coverage
+          name: test-results
           path: /test-results/cov*
       - name: Upload e2e-server logs
         uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
