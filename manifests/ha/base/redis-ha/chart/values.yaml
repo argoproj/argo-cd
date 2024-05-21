@@ -14,6 +14,7 @@ redis-ha:
     IPv6:
       enabled: false
     image:
+      repository: haproxy
       tag: 2.6.14-alpine
     containerSecurityContext: null
     timeout:
@@ -23,6 +24,7 @@ redis-ha:
     metrics:
       enabled: true
   image:
+    repository: redis
     tag: 7.0.14-alpine
   containerSecurityContext: null
   sentinel:
