@@ -10,17 +10,17 @@ metadata:
   labels:
     app.kubernetes.io/instance: kafka-connect
     strimzi.io/cluster: strimzi-connect-cluster
-  name: kafka
+  name: my-connector
   namespace: strimzi
   resourceVersion: "43088521"
-  selfLink: /apis/kafka.strimzi.io/v1beta1/namespaces/strimzi/kafkaconnects/kafka
+  selfLink: /apis/kafka.strimzi.io/v1beta1/namespaces/strimzi/kafkaconnector/kafka
   uid: 941ae21d-4e69-11ea-a53d-06e66a171f98
 spec:
-  autoRestart:
-    enabled: true
-  class: com.mongodb.kafka.connect.MongoSourceConnector
+  class: org.apache.kafka.connect.file.FileStreamSourceConnector
+  tasksMax: 2
   config:
-    output.json.formatter: com.mongodb.kafka.connect.source.json.formatter.SimplifiedJson
+    file: "/opt/kafka/LICENSE"
+    topic: my-topic
 status:
   autoRestart:
     count: 1
@@ -37,14 +37,14 @@ status:
     connector:
       state: RUNNING
       worker_id: >-
-        data-sources-connect-cluster-connect-0.data-sources-connect-cluster-connect.data-sources.svc:8083
-    name: mgdis-ops-klt-agreement
+        kafka-connect-cluster-connect-0.kafka-connect-cluster-connect.strimzi.svc:8083
+    name: my-connector
     tasks:
       - id: 0
         state: FAILED
-        trace: "org.apache.kafka.connect.errors.ConnectException: Tolerance exceeded in error handler\n\tat org.apache.kafka.connect.runtime.errors.RetryWithToleranceOperator.execAndHandleError(RetryWithToleranceOperator.java:230)\n\tat org.apache.kafka.connect.runtime.errors.RetryWithToleranceOperator.execute(RetryWithToleranceOperator.java:156)\n\tat org.apache.kafka.connect.runtime.AbstractWorkerSourceTask.convertTransformedRecord(AbstractWorkerSourceTask.java:494)\n\tat org.apache.kafka.connect.runtime.AbstractWorkerSourceTask.sendRecords(AbstractWorkerSourceTask.java:402)\n\tat org.apache.kafka.connect.runtime.AbstractWorkerSourceTask.execute(AbstractWorkerSourceTask.java:367)\n\tat org.apache.kafka.connect.runtime.WorkerTask.doRun(WorkerTask.java:204)\n\tat org.apache.kafka.connect.runtime.WorkerTask.run(WorkerTask.java:259)\n\tat org.apache.kafka.connect.runtime.AbstractWorkerSourceTask.run(AbstractWorkerSourceTask.java:77)\n\tat org.apache.kafka.connect.runtime.isolation.Plugins.lambda$withClassLoader$1(Plugins.java:237)\n\tat java.base/java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:539)\n\tat java.base/java.util.concurrent.FutureTask.run(FutureTask.java:264)\n\tat java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1136)\n\tat java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:635)\n\tat java.base/java.lang.Thread.run(Thread.java:840)\nCaused by: io.apicurio.registry.rest.client.exception.ArtifactNotFoundException: No artifact with ID 'AgreementChangeStream' in group 'fr.mgdis.contract.kafka_connect.mongo.account_management' was found.\n\tat io.apicurio.registry.rest.client.exception.ExceptionMapper.map(ExceptionMapper.java:35)\n\tat io.apicurio.registry.rest.client.impl.ErrorHandler.handleErrorResponse(ErrorHandler.java:64)\n\tat io.apicurio.rest.client.handler.BodyHandler.lambda$toSupplierOfType$1(BodyHandler.java:55)\n\tat io.apicurio.rest.client.JdkHttpClient.sendRequest(JdkHttpClient.java:204)\n\tat io.apicurio.registry.rest.client.impl.RegistryClientImpl.getArtifactMetaData(RegistryClientImpl.java:116)\n\tat io.apicurio.registry.resolver.DefaultSchemaResolver.resolveByCoordinates(DefaultSchemaResolver.java:342)\n\tat io.apicurio.registry.resolver.DefaultSchemaResolver.lambda$resolveSchemaByArtifactReferenceCached$7(DefaultSchemaResolver.java:333)\n\tat io.apicurio.registry.resolver.ERCache.lambda$getValue$0(ERCache.java:201)\n\tat io.apicurio.registry.resolver.ERCache.retry(ERCache.java:254)\n\tat io.apicurio.registry.resolver.ERCache.getValue(ERCache.java:200)\n\tat io.apicurio.registry.resolver.ERCache.getByArtifactCoordinates(ERCache.java:185)\n\tat io.apicurio.registry.resolver.DefaultSchemaResolver.resolveSchemaByArtifactReferenceCached(DefaultSchemaResolver.java:333)\n\tat io.apicurio.registry.resolver.DefaultSchemaResolver.resolveSchemaByCoordinates(DefaultSchemaResolver.java:182)\n\tat io.apicurio.registry.resolver.DefaultSchemaResolver.getSchemaFromRegistry(DefaultSchemaResolver.java:124)\n\tat io.apicurio.registry.resolver.DefaultSchemaResolver.resolveSchema(DefaultSchemaResolver.java:90)\n\tat io.apicurio.registry.serde.AbstractKafkaSerializer.serialize(AbstractKafkaSerializer.java:83)\n\tat io.apicurio.registry.utils.converter.SerdeBasedConverter.fromConnectData(SerdeBasedConverter.java:122)\n\tat org.apache.kafka.connect.runtime.AbstractWorkerSourceTask.lambda$convertTransformedRecord$6(AbstractWorkerSourceTask.java:494)\n\tat org.apache.kafka.connect.runtime.errors.RetryWithToleranceOperator.execAndRetry(RetryWithToleranceOperator.java:180)\n\tat org.apache.kafka.connect.runtime.errors.RetryWithToleranceOperator.execAndHandleError(RetryWithToleranceOperator.java:214)\n\t... 13 more\n"
+        trace: "org.apache.kafka.connect.errors.ConnectException: Tolerance exceeded in error handler..."
         worker_id: >-
-          data-sources-connect-cluster-connect-0.data-sources-connect-cluster-connect.data-sources.svc:8083
+          kafka-connect-cluster-connect-0.kafka-connect-cluster-connect.strimzi.svc:8083
     type: source
   observedGeneration: 1
   tasksMax: 1

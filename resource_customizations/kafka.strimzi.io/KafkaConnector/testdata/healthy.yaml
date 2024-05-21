@@ -10,17 +10,17 @@ metadata:
   labels:
     app.kubernetes.io/instance: kafka-connect
     strimzi.io/cluster: strimzi-connect-cluster
-  name: kafka
+  name: my-connector
   namespace: strimzi
   resourceVersion: "43088521"
-  selfLink: /apis/kafka.strimzi.io/v1beta1/namespaces/strimzi/kafkaconnects/kafka
+  selfLink: /apis/kafka.strimzi.io/v1beta1/namespaces/strimzi/kafkaconnector/kafka
   uid: 941ae21d-4e69-11ea-a53d-06e66a171f98
 spec:
-  autoRestart:
-    enabled: true
-  class: com.mongodb.kafka.connect.MongoSourceConnector
+  class: org.apache.kafka.connect.file.FileStreamSourceConnector
+  tasksMax: 2
   config:
-    change.stream.full.document: updateLookup
+    file: "/opt/kafka/LICENSE"
+    topic: my-topic
 status:
   conditions:
     - lastTransitionTime: '2024-05-17T15:55:22.356665885Z'
@@ -30,13 +30,13 @@ status:
     connector:
       state: RUNNING
       worker_id: >-
-        data-sources-connect-cluster-connect-0.data-sources-connect-cluster-connect.data-sources.svc:8083
-    name: mgdis-ops-klt-convention-type
+        kafka-connect-cluster-connect-0.kafka-connect-cluster-connect.strimzi.svc:8083
+    name: my-connector
     tasks:
       - id: 0
         state: RUNNING
         worker_id: >-
-          data-sources-connect-cluster-connect-0.data-sources-connect-cluster-connect.data-sources.svc:8083
+          kafka-connect-cluster-connect-0.kafka-connect-cluster-connect.strimzi.svc:8083
     type: source
   observedGeneration: 1
   tasksMax: 1
