@@ -298,7 +298,8 @@ jobs:
 
   build-ui:
     name: Build, test & lint UI code
-    if: ${{ needs.changes.outputs.frontend == 'true' }}
+    # We run UI logic for backend changes so that we have a complete set of coverage documents to send to codecov.
+    if: ${{ needs.changes.outputs.backend == 'true' || needs.changes.outputs.frontend == 'true' }}
     runs-on: ubuntu-22.04
     needs:
       - changes
@@ -368,9 +369,12 @@ jobs:
           name: test-results
           path: test-results
       - name: Upload code coverage information to codecov.io
-        uses: codecov/codecov-action@eaaf4bedf32dbdc6b720b63067d99c4d77d6047d # v3.1.4
+        uses: codecov/codecov-action@125fc84a9a348dbcf27191600683ec096ec9021c # v4.4.1
         with:
           file: coverage.out
+          fail_ci_if_error: true
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
       - name: Perform static code analysis using SonarCloud
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
