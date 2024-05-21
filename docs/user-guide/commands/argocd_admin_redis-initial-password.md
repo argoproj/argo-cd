@@ -1,30 +1,37 @@
-# `argocd admin` Command Reference
+# `argocd admin redis-initial-password` Command Reference
 
-## argocd admin
+## argocd admin redis-initial-password
 
-Contains a set of commands useful for Argo CD administrators and requires direct Kubernetes access
-
-```
-argocd admin [flags]
-```
-
-### Examples
+Ensure the Redis password exists, creating a new one if necessary.
 
 ```
-# Access the Argo CD web UI
-$ argocd admin dashboard
-
-# Reset the initial admin password
-$ argocd admin initial-password reset
-
+argocd admin redis-initial-password [flags]
 ```
 
 ### Options
 
 ```
-  -h, --help               help for admin
-      --logformat string   Set the logging format. One of: text|json (default "text")
-      --loglevel string    Set the logging level. One of: debug|info|warn|error (default "info")
+      --as string                      Username to impersonate for the operation
+      --as-group stringArray           Group to impersonate for the operation, this flag can be repeated to specify multiple groups.
+      --as-uid string                  UID to impersonate for the operation
+      --certificate-authority string   Path to a cert file for the certificate authority
+      --client-certificate string      Path to a client certificate file for TLS
+      --client-key string              Path to a client key file for TLS
+      --cluster string                 The name of the kubeconfig cluster to use
+      --context string                 The name of the kubeconfig context to use
+      --disable-compression            If true, opt-out of response compression for all requests to the server
+  -h, --help                           help for redis-initial-password
+      --insecure-skip-tls-verify       If true, the server's certificate will not be checked for validity. This will make your HTTPS connections insecure
+      --kubeconfig string              Path to a kube config. Only required if out-of-cluster
+  -n, --namespace string               If present, the namespace scope for this CLI request
+      --password string                Password for basic authentication to the API server
+      --proxy-url string               If provided, this URL will be used to connect via proxy
+      --request-timeout string         The length of time to wait before giving up on a single server request. Non-zero values should contain a corresponding time unit (e.g. 1s, 2m, 3h). A value of zero means don't timeout requests. (default "0")
+      --server string                  The address and port of the Kubernetes API server
+      --tls-server-name string         If provided, this name will be used to validate server certificate. If this is not provided, hostname used to contact the server is used.
+      --token string                   Bearer token for authentication to the API server
+      --user string                    The name of the kubeconfig user to use
+      --username string                Username for basic authentication to the API server
 ```
 
 ### Options inherited from parent commands
@@ -42,29 +49,19 @@ $ argocd admin initial-password reset
       --http-retry-max int              Maximum number of retries to establish http connection to Argo CD server
       --insecure                        Skip server certificate and domain verification
       --kube-context string             Directs the command to the given kube-context
+      --logformat string                Set the logging format. One of: text|json (default "text")
+      --loglevel string                 Set the logging level. One of: debug|info|warn|error (default "info")
       --plaintext                       Disable TLS
       --port-forward                    Connect to a random argocd-server port using port forwarding
       --port-forward-namespace string   Namespace name which should be used for port forwarding
       --redis-haproxy-name string       Name of the Redis HA Proxy; set this or the ARGOCD_REDIS_HAPROXY_NAME environment variable when the HA Proxy's name label differs from the default, for example when installing via the Helm chart (default "argocd-redis-ha-haproxy")
       --redis-name string               Name of the Redis deployment; set this or the ARGOCD_REDIS_NAME environment variable when the Redis's name label differs from the default, for example when installing via the Helm chart (default "argocd-redis")
       --repo-server-name string         Name of the Argo CD Repo server; set this or the ARGOCD_REPO_SERVER_NAME environment variable when the server's name label differs from the default, for example when installing via the Helm chart (default "argocd-repo-server")
-      --server string                   Argo CD server address
       --server-crt string               Server certificate file
       --server-name string              Name of the Argo CD API server; set this or the ARGOCD_SERVER_NAME environment variable when the server's name label differs from the default, for example when installing via the Helm chart (default "argocd-server")
 ```
 
 ### SEE ALSO
 
-* [argocd](argocd.md)	 - argocd controls a Argo CD server
-* [argocd admin app](argocd_admin_app.md)	 - Manage applications configuration
-* [argocd admin cluster](argocd_admin_cluster.md)	 - Manage clusters configuration
-* [argocd admin dashboard](argocd_admin_dashboard.md)	 - Starts Argo CD Web UI locally
-* [argocd admin export](argocd_admin_export.md)	 - Export all Argo CD data to stdout (default) or a file
-* [argocd admin import](argocd_admin_import.md)	 - Import Argo CD data from stdin (specify `-') or a file
-* [argocd admin initial-password](argocd_admin_initial-password.md)	 - Prints initial password to log in to Argo CD for the first time
-* [argocd admin notifications](argocd_admin_notifications.md)	 - Set of CLI commands that helps manage notifications settings
-* [argocd admin proj](argocd_admin_proj.md)	 - Manage projects configuration
-* [argocd admin redis-initial-password](argocd_admin_redis-initial-password.md)	 - Ensure the Redis password exists, creating a new one if necessary.
-* [argocd admin repo](argocd_admin_repo.md)	 - Manage repositories configuration
-* [argocd admin settings](argocd_admin_settings.md)	 - Provides set of commands for settings validation and troubleshooting
+* [argocd admin](argocd_admin.md)	 - Contains a set of commands useful for Argo CD administrators and requires direct Kubernetes access
 
