@@ -20,7 +20,7 @@
   "devDependencies": {
     "@types/mocha": "^8.0.3",
     "@types/node": "^14.14.2",
-    "dotenv": "^8.2.0",
+    "dotenv": "^16.4.5",
     "mocha": "^8.2.0",
     "prettier": "^2.8.8",
     "tslint": "^6.1.3",
