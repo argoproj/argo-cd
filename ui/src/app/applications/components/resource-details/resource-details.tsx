@@ -303,7 +303,7 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                                     <i className='fa fa-sync-alt' /> <span className='show-for-large'>SYNC</span>
                                 </button>
                                 <button
-                                    onClick={() => AppUtils.deletePopup(appContext, selectedNode, application)}
+                                    onClick={() => AppUtils.deletePopup(appContext, selectedNode, application, !!data.controlledState)}
                                     style={{marginRight: '5px'}}
                                     className='argo-button argo-button--base'>
                                     <i className='fa fa-trash' /> <span className='show-for-large'>DELETE</span>
@@ -373,7 +373,7 @@ async function getSources(app: models.Application) {
         const length = sources.length;
         for (let i = 0; i < length; i++) {
             const aSource = sources[i];
-            const repoDetail = await services.repos.appDetails(aSource, app.metadata.name, app.spec.project).catch(e => ({
+            const repoDetail = await services.repos.appDetails(aSource, app.metadata.name, app.spec.project).catch(() => ({
                 type: 'Directory' as AppSourceType,
                 path: aSource.path
             }));

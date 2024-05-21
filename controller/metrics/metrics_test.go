@@ -391,7 +391,7 @@ func TestReconcileMetrics(t *testing.T) {
 	assert.NoError(t, err)
 
 	appReconcileMetrics := `
-# HELP argocd_app_reconcile Application reconciliation performance.
+# HELP argocd_app_reconcile Application reconciliation performance in seconds.
 # TYPE argocd_app_reconcile histogram
 argocd_app_reconcile_bucket{dest_server="https://localhost:6443",namespace="argocd",le="0.25"} 0
 argocd_app_reconcile_bucket{dest_server="https://localhost:6443",namespace="argocd",le="0.5"} 0

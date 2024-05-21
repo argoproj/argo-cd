@@ -64,6 +64,7 @@ In this example, the cluster secret's `name` and `server` fields are used to pop
 
 A label selector may be used to narrow the scope of targeted clusters to only those matching a specific label:
 ```yaml
+apiVersion: argoproj.io/v1alpha1
 kind: ApplicationSet
 metadata:
   name: guestbook
@@ -75,7 +76,7 @@ spec:
   - clusters:
       selector:
         matchLabels:
-          staging: true
+          staging: "true"
         # The cluster generator also supports matchExpressions.
         #matchExpressions:
         #  - key: staging
@@ -88,6 +89,7 @@ spec:
 
 This would match an Argo CD cluster secret containing:
 ```yaml
+apiVersion: v1
 kind: Secret
 data:
   # (... fields as above ...)

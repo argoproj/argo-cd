@@ -16,7 +16,8 @@ test('github.com', () => {
         'git@github.com:argoproj/argo-cd.git',
         '024dee09f543ce7bb5af7ca50260504d89dfda94',
         'https://github.com/argoproj/argo-cd',
-        'https://github.com/argoproj/argo-cd/commit/024dee09f543ce7bb5af7ca50260504d89dfda94');
+        'https://github.com/argoproj/argo-cd/commit/024dee09f543ce7bb5af7ca50260504d89dfda94',
+    );
 });
 
 // for enterprise github installations
@@ -26,7 +27,8 @@ test('github.my-enterprise.com', () => {
         'git@github.my-enterprise.com:my-org/my-repo.git',
         'a06f2be80a4da89abb8ced904beab75b3ec6db0e',
         'https://github.my-enterprise.com/my-org/my-repo',
-        'https://github.my-enterprise.com/my-org/my-repo/commit/a06f2be80a4da89abb8ced904beab75b3ec6db0e');
+        'https://github.my-enterprise.com/my-org/my-repo/commit/a06f2be80a4da89abb8ced904beab75b3ec6db0e',
+    );
 });
 
 test('gitlab.com', () => {
@@ -35,7 +37,8 @@ test('gitlab.com', () => {
         'git@gitlab.com:alex_collins/private-repo.git',
         'b1fe9426ead684d7af16958920968342ee295c1f',
         'https://gitlab.com/alex_collins/private-repo',
-        'https://gitlab.com/alex_collins/private-repo/-/commit/b1fe9426ead684d7af16958920968342ee295c1f');
+        'https://gitlab.com/alex_collins/private-repo/-/commit/b1fe9426ead684d7af16958920968342ee295c1f',
+    );
 });
 
 test('bitbucket.org', () => {
@@ -44,7 +47,8 @@ test('bitbucket.org', () => {
         'git@bitbucket.org:alexcollinsinuit/test-repo.git',
         '38fb93957deb45ff546af13399a92ac0d568c350',
         'https://bitbucket.org/alexcollinsinuit/test-repo',
-        'https://bitbucket.org/alexcollinsinuit/test-repo/commits/38fb93957deb45ff546af13399a92ac0d568c350');
+        'https://bitbucket.org/alexcollinsinuit/test-repo/commits/38fb93957deb45ff546af13399a92ac0d568c350',
+    );
 });
 
 test('empty url', () => {
