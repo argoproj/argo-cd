@@ -1,4 +1,3 @@
-/* eslint-disable no-prototype-builtins */
 import * as React from 'react';
 import {FormApi, NestedForm, Text, Form} from 'react-form';
 import {Checkbox, FormField} from 'argo-ui';
@@ -8,7 +7,6 @@ import * as models from '../../../shared/models';
 
 import './application-retry-options.scss';
 
-// eslint-disable-next-line no-useless-escape
 const durationRegex = /^([\d\.]+[HMS])+$/i;
 const durationRegexError = 'Should be 1h10m10s/10h10m/10m/10s';
 

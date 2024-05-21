@@ -1064,16 +1064,6 @@ func TestGitlabListRepos(t *testing.T) {
 			url:   "git@gitlab.com:test-argocd-proton/argocd.git",
 		},
 		{
-			name:  "labelmatch",
-			proto: "ssh",
-			url:   "git@gitlab.com:test-argocd-proton/argocd.git",
-			filters: []v1alpha1.SCMProviderGeneratorFilter{
-				{
-					LabelMatch: strp("test-topic"),
-				},
-			},
-		},
-		{
 			name:  "https protocol",
 			proto: "https",
 			url:   "https://gitlab.com/test-argocd-proton/argocd.git",

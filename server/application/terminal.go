@@ -312,7 +312,7 @@ func startProcess(k8sClient kubernetes.Interface, cfg *rest.Config, namespace, p
 		return err
 	}
 
-	return exec.StreamWithContext(context.Background(), remotecommand.StreamOptions{
+	return exec.Stream(remotecommand.StreamOptions{
 		Stdin:             ptyHandler,
 		Stdout:            ptyHandler,
 		Stderr:            ptyHandler,

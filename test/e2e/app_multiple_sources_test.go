@@ -1,7 +1,6 @@
 package e2e
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -74,7 +73,6 @@ func TestMultiSourceAppWithHelmExternalValueFiles(t *testing.T) {
 			},
 		},
 	}}
-	fmt.Printf("sources: %v\n", sources)
 	ctx := Given(t)
 	ctx.
 		Sources(sources).

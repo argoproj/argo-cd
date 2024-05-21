@@ -18,7 +18,6 @@ argocd app patch-resource APPNAME [flags]
       --namespace string       Namespace
       --patch string           Patch
       --patch-type string      Which Patching strategy to use: 'application/json-patch+json', 'application/merge-patch+json', or 'application/strategic-merge-patch+json'. Defaults to 'application/merge-patch+json' (default "application/merge-patch+json")
-      --project string         The name of the application's project - specifying this allows the command to report "not found" instead of "permission denied" if the app does not exist
       --resource-name string   Name of resource
 ```
 

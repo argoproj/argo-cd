@@ -1,5 +1,0 @@
-apiVersion: apps.kruise.io/v1beta1
-kind: StatefulSet
-metadata:
-  name: statefulset-test
-  namespace: kruise

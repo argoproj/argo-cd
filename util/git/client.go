@@ -24,7 +24,6 @@ import (
 	"github.com/go-git/go-git/v5/plumbing/transport"
 	githttp "github.com/go-git/go-git/v5/plumbing/transport/http"
 	"github.com/go-git/go-git/v5/storage/memory"
-	"github.com/google/uuid"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/crypto/ssh/knownhosts"
@@ -56,8 +55,7 @@ type Refs struct {
 
 type gitRefCache interface {
 	SetGitReferences(repo string, references []*plumbing.Reference) error
-	GetOrLockGitReferences(repo string, lockId string, references *[]*plumbing.Reference) (string, error)
-	UnlockGitReferences(repo string, lockId string) error
+	GetGitReferences(repo string, references *[]*plumbing.Reference) error
 }
 
 // Client is a generic git client interface
@@ -75,7 +73,6 @@ type Client interface {
 	RevisionMetadata(revision string) (*RevisionMetadata, error)
 	VerifyCommitSignature(string) (string, error)
 	IsAnnotatedTag(string) bool
-	ChangedFiles(revision string, targetRevision string) ([]string, error)
 }
 
 type EventHandlers struct {
@@ -177,10 +174,6 @@ func NewClientExt(rawRepoURL string, root string, creds Creds, insecure bool, en
 	return client, nil
 }
 
-var (
-	gitClientTimeout = env.ParseDurationFromEnv("ARGOCD_GIT_REQUEST_TIMEOUT", 15*time.Second, 0, math.MaxInt64)
-)
-
 // Returns a HTTP client object suitable for go-git to use using the following
 // pattern:
 //   - If insecure is true, always returns a client with certificate verification
@@ -192,8 +185,8 @@ var (
 func GetRepoHTTPClient(repoURL string, insecure bool, creds Creds, proxyURL string) *http.Client {
 	// Default HTTP client
 	var customHTTPClient = &http.Client{
-		// 15 second timeout by default
-		Timeout: gitClientTimeout,
+		// 15 second timeout
+		Timeout: 15 * time.Second,
 		// don't follow redirect
 		CheckRedirect: func(req *http.Request, via []*http.Request) error {
 			return http.ErrUseLastResponse
@@ -480,36 +473,11 @@ func (m *nativeGitClient) Checkout(revision string, submoduleEnabled bool) error
 }
 
 func (m *nativeGitClient) getRefs() ([]*plumbing.Reference, error) {
-	myLockUUID, err := uuid.NewRandom()
-	myLockId := ""
-	if err != nil {
-		log.Debug("Error generating git references cache lock id: ", err)
-	} else {
-		myLockId = myLockUUID.String()
-	}
-	// Prevent an additional get call to cache if we know our state isn't stale
-	needsUnlock := true
 	if m.gitRefCache != nil && m.loadRefFromCache {
 		var res []*plumbing.Reference
-		foundLockId, err := m.gitRefCache.GetOrLockGitReferences(m.repoURL, myLockId, &res)
-		isLockOwner := myLockId == foundLockId
-		if !isLockOwner && err == nil {
-			// Valid value already in cache
+		if m.gitRefCache.GetGitReferences(m.repoURL, &res) == nil {
 			return res, nil
-		} else if !isLockOwner && err != nil {
-			// Error getting value from cache
-			log.Debugf("Error getting git references from cache: %v", err)
-			return nil, err
 		}
-		// Defer a soft reset of the cache lock, if the value is set this call will be ignored
-		defer func() {
-			if needsUnlock {
-				err := m.gitRefCache.UnlockGitReferences(m.repoURL, myLockId)
-				if err != nil {
-					log.Debugf("Error unlocking git references from cache: %v", err)
-				}
-			}
-		}()
 	}
 
 	if m.OnLsRemote != nil {
@@ -536,9 +504,6 @@ func (m *nativeGitClient) getRefs() ([]*plumbing.Reference, error) {
 	if err == nil && m.gitRefCache != nil {
 		if err := m.gitRefCache.SetGitReferences(m.repoURL, res); err != nil {
 			log.Warnf("Failed to store git references to cache: %v", err)
-		} else {
-			// Since we successfully overwrote the lock with valid data, we don't need to unlock
-			needsUnlock = false
 		}
 		return res, nil
 	}
@@ -705,29 +670,6 @@ func (m *nativeGitClient) IsAnnotatedTag(revision string) bool {
 	}
 }
 
-// ChangedFiles returns a list of files changed between two revisions
-func (m *nativeGitClient) ChangedFiles(revision string, targetRevision string) ([]string, error) {
-	if revision == targetRevision {
-		return []string{}, nil
-	}
-
-	if !IsCommitSHA(revision) || !IsCommitSHA(targetRevision) {
-		return []string{}, fmt.Errorf("invalid revision provided, must be SHA")
-	}
-
-	out, err := m.runCmd("diff", "--name-only", fmt.Sprintf("%s..%s", revision, targetRevision))
-	if err != nil {
-		return nil, fmt.Errorf("failed to diff %s..%s: %w", revision, targetRevision, err)
-	}
-
-	if out == "" {
-		return []string{}, nil
-	}
-
-	files := strings.Split(out, "\n")
-	return files, nil
-}
-
 // runWrapper runs a custom command with all the semantics of running the Git client
 func (m *nativeGitClient) runGnuPGWrapper(wrapper string, args ...string) (string, error) {
 	cmd := exec.Command(wrapper, args...)
@@ -795,6 +737,7 @@ func (m *nativeGitClient) runCmdOutput(cmd *exec.Cmd, ropts runOpts) (string, er
 			}
 		}
 	}
+
 	cmd.Env = proxy.UpsertEnv(cmd, m.proxy)
 	opts := executil.ExecRunOpts{
 		TimeoutBehavior: argoexec.TimeoutBehavior{
