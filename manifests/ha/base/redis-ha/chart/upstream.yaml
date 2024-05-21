@@ -1054,10 +1054,7 @@ spec:
         app: redis-ha-haproxy
         release: argocd
       annotations:
-        prometheus.io/port: "9101"
-        prometheus.io/scrape: "true"
-        prometheus.io/path: "/metrics"
-        checksum/config: e34e8124c38bcfd2f16e75620bbde30158686692b13bc449eecc44c51b207d54
+        checksum/config: 2cb2cc491da078531f46cefd660dfcc1703f56dc3186217ec25d2f83d38a3736
     spec:
       # Needed when using unmodified rbac-setup.yml
       
