@@ -39,6 +39,7 @@ export interface PodLogsProps {
     timestamp?: string;
     containerGroups?: any[];
     onClickContainer?: (group: any, i: number, tab: string) => void;
+    fullscreen?: boolean;
 }
 
 // ansi colors, see https://en.wikipedia.org/wiki/ANSI_escape_code#Colors
