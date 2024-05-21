@@ -219,7 +219,7 @@ export class CertsList extends React.Component<RouteComponentProps<any>> {
             let knownHostEntries: models.RepoCert[] = [];
             atob(params.certData)
                 .split('\n')
-                .forEach(function processEntry(item, index) {
+                .forEach(function processEntry(item) {
                     const trimmedLine = item.trimLeft();
                     if (trimmedLine.startsWith('#') === false) {
                         const knownHosts = trimmedLine.split(' ', 3);
@@ -227,6 +227,7 @@ export class CertsList extends React.Component<RouteComponentProps<any>> {
                             // Perform a little sanity check on the data - server
                             // checks too, but let's not send it invalid data in
                             // the first place.
+                            // eslint-disable-next-line no-useless-escape
                             const subType = knownHosts[1].match(/^(ssh\-[a-z0-9]+|ecdsa-[a-z0-9\-]+)$/gi);
                             if (subType != null) {
                                 // Key could be valid for multiple hosts

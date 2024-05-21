@@ -4,16 +4,17 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/argoproj/argo-cd/v2/util/templates"
 	"os"
 	"strconv"
 	"text/tabwriter"
+
+	"github.com/argoproj/argo-cd/v2/util/templates"
 
 	"github.com/argoproj/argo-cd/v2/cmd/util"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/yaml"
 
 	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/headless"
@@ -96,11 +97,11 @@ func NewApplicationResourceActionsListCommand(clientOpts *argocdclient.ClientOpt
 			availActionsForResource, err := appIf.ListResourceActions(ctx, &applicationpkg.ApplicationResourceRequest{
 				Name:         &appName,
 				AppNamespace: &appNs,
-				Namespace:    pointer.String(obj.GetNamespace()),
-				ResourceName: pointer.String(obj.GetName()),
-				Group:        pointer.String(gvk.Group),
-				Kind:         pointer.String(gvk.Kind),
-				Version:      pointer.String(gvk.Version),
+				Namespace:    ptr.To(obj.GetNamespace()),
+				ResourceName: ptr.To(obj.GetName()),
+				Group:        ptr.To(gvk.Group),
+				Kind:         ptr.To(gvk.Kind),
+				Version:      ptr.To(gvk.Version),
 			})
 			errors.CheckError(err)
 			for _, action := range availActionsForResource.Actions {
@@ -195,12 +196,12 @@ func NewApplicationResourceActionsRunCommand(clientOpts *argocdclient.ClientOpti
 			_, err := appIf.RunResourceAction(ctx, &applicationpkg.ResourceActionRunRequest{
 				Name:         &appName,
 				AppNamespace: &appNs,
-				Namespace:    pointer.String(obj.GetNamespace()),
-				ResourceName: pointer.String(objResourceName),
-				Group:        pointer.String(gvk.Group),
-				Kind:         pointer.String(gvk.Kind),
-				Version:      pointer.String(gvk.GroupVersion().Version),
-				Action:       pointer.String(actionName),
+				Namespace:    ptr.To(obj.GetNamespace()),
+				ResourceName: ptr.To(objResourceName),
+				Group:        ptr.To(gvk.Group),
+				Kind:         ptr.To(gvk.Kind),
+				Version:      ptr.To(gvk.GroupVersion().Version),
+				Action:       ptr.To(actionName),
 			})
 			errors.CheckError(err)
 		}

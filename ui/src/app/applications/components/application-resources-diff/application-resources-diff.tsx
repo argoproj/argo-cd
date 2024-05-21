@@ -20,8 +20,8 @@ export const ApplicationResourcesDiff = (props: ApplicationResourcesDiffProps) =
             const diffText = props.states
                 .map(state => {
                     return {
-                        a: state.normalizedLiveState ? jsYaml.safeDump(state.normalizedLiveState, {indent: 2}) : '',
-                        b: state.predictedLiveState ? jsYaml.safeDump(state.predictedLiveState, {indent: 2}) : '',
+                        a: state.normalizedLiveState ? jsYaml.dump(state.normalizedLiveState, {indent: 2}) : '',
+                        b: state.predictedLiveState ? jsYaml.dump(state.predictedLiveState, {indent: 2}) : '',
                         hook: state.hook,
                         // doubles as sort order
                         name: (state.group || '') + '/' + state.kind + '/' + (state.namespace ? state.namespace + '/' : '') + state.name

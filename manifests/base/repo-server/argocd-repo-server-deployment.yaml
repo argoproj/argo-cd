@@ -24,6 +24,11 @@ spec:
         args:
           - /usr/local/bin/argocd-repo-server
         env:
+          - name: REDIS_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                key: auth
+                name: argocd-redis
           - name: ARGOCD_RECONCILIATION_TIMEOUT
             valueFrom:
               configMapKeyRef:
@@ -196,6 +201,12 @@ spec:
             valueFrom:
               configMapKeyRef:
                 key: reposerver.git.request.timeout
+                name: argocd-cmd-params-cm
+                optional: true
+          - name: ARGOCD_GRPC_MAX_SIZE_MB
+            valueFrom:
+              configMapKeyRef:
+                key: reposerver.grpc.max.size
                 name: argocd-cmd-params-cm
                 optional: true
           - name: HELM_CACHE_HOME
