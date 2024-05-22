@@ -61,7 +61,7 @@ The List generator can also dynamically generate its elements based on a yaml/js
 apiVersion: argoproj.io/v1alpha1
 kind: ApplicationSet
 metadata:
-  name: elements-yaml
+  name: elementsYaml
   namespace: argocd
 spec:
   goTemplate: true
