@@ -12,12 +12,12 @@ argocd app delete-resource APPNAME [flags]
 
 ```
       --all                    Indicates whether to patch multiple matching of resources
-      --force                  Indicates whether to orphan the dependents of the deleted resource
+      --force                  Indicates whether to force delete the resource
       --group string           Group
   -h, --help                   help for delete-resource
       --kind string            Kind
       --namespace string       Namespace
-      --orphan                 Indicates whether to force delete the resource
+      --orphan                 Indicates whether to orphan the dependents of the deleted resource
       --project string         The name of the application's project - specifying this allows the command to report "not found" instead of "permission denied" if the app does not exist
       --resource-name string   Name of resource
 ```

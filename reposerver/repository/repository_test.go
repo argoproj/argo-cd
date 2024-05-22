@@ -15,6 +15,7 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -30,6 +31,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/yaml"
 
+	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	argoappv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
@@ -77,6 +79,10 @@ type newGitRepoOptions struct {
 }
 
 func newCacheMocks() *repoCacheMocks {
+	return newCacheMocksWithOpts(1*time.Minute, 1*time.Minute, 10*time.Second)
+}
+
+func newCacheMocksWithOpts(repoCacheExpiration, revisionCacheExpiration, revisionCacheLockTimeout time.Duration) *repoCacheMocks {
 	mockRepoCache := repositorymocks.NewMockRepoCache(&repositorymocks.MockCacheOptions{
 		RepoCacheExpiration:     1 * time.Minute,
 		RevisionCacheExpiration: 1 * time.Minute,
@@ -86,7 +92,7 @@ func newCacheMocks() *repoCacheMocks {
 	cacheutilCache := cacheutil.NewCache(mockRepoCache.RedisClient)
 	return &repoCacheMocks{
 		cacheutilCache: cacheutilCache,
-		cache:          cache.NewCache(cacheutilCache, 1*time.Minute, 1*time.Minute),
+		cache:          cache.NewCache(cacheutilCache, repoCacheExpiration, revisionCacheExpiration, revisionCacheLockTimeout),
 		mockCache:      mockRepoCache,
 	}
 }
@@ -113,12 +119,12 @@ func newServiceWithMocks(t *testing.T, root string, signed bool) (*Service, *git
 		chart := "my-chart"
 		oobChart := "out-of-bounds-chart"
 		version := "1.1.0"
-		helmClient.On("GetIndex", mock.AnythingOfType("bool")).Return(&helm.Index{Entries: map[string]helm.Entries{
+		helmClient.On("GetIndex", mock.AnythingOfType("bool"), mock.Anything).Return(&helm.Index{Entries: map[string]helm.Entries{
 			chart:    {{Version: "1.0.0"}, {Version: version}},
 			oobChart: {{Version: "1.0.0"}, {Version: version}},
 		}}, nil)
-		helmClient.On("ExtractChart", chart, version).Return("./testdata/my-chart", io.NopCloser, nil)
-		helmClient.On("ExtractChart", oobChart, version).Return("./testdata2/out-of-bounds-chart", io.NopCloser, nil)
+		helmClient.On("ExtractChart", chart, version, false, int64(0), false).Return("./testdata/my-chart", io.NopCloser, nil)
+		helmClient.On("ExtractChart", oobChart, version, false, int64(0), false).Return("./testdata2/out-of-bounds-chart", io.NopCloser, nil)
 		helmClient.On("CleanChartCache", chart, version).Return(nil)
 		helmClient.On("CleanChartCache", oobChart, version).Return(nil)
 		helmClient.On("DependencyBuild").Return(nil)
@@ -199,7 +205,7 @@ func TestGenerateYamlManifestInDir(t *testing.T) {
 	}
 
 	// update this value if we add/remove manifests
-	const countOfManifests = 48
+	const countOfManifests = 50
 
 	res1, err := service.GenerateManifest(context.Background(), &q)
 
@@ -296,7 +302,7 @@ func TestGenerateManifests_K8SAPIResetCache(t *testing.T) {
 		ProjectSourceRepos: []string{"*"},
 	}
 
-	cachedFakeResponse := &apiclient.ManifestResponse{Manifests: []string{"Fake"}}
+	cachedFakeResponse := &apiclient.ManifestResponse{Manifests: []string{"Fake"}, Revision: mock.Anything}
 
 	err := service.cache.SetManifests(mock.Anything, &src, q.RefSources, &q, "", "", "", "", &cache.CachedManifestResponse{ManifestResponse: cachedFakeResponse}, nil)
 	assert.NoError(t, err)
@@ -385,8 +391,8 @@ func TestGenerateManifest_RefOnlyShortCircuit(t *testing.T) {
 	_, err := service.GenerateManifest(context.Background(), &q)
 	assert.NoError(t, err)
 	cacheMocks.mockCache.AssertCacheCalledTimes(t, &repositorymocks.CacheCallCounts{
-		ExternalSets: 1,
-		ExternalGets: 1})
+		ExternalSets: 2,
+		ExternalGets: 2})
 	assert.True(t, lsremoteCalled, "ls-remote should be called when the source is ref only")
 	var revisions [][2]string
 	assert.NoError(t, cacheMocks.cacheutilCache.GetItem(fmt.Sprintf("git-refs|%s", repoRemote), &revisions))
@@ -451,7 +457,7 @@ func TestGenerateManifestsHelmWithRefs_CachedNoLsRemote(t *testing.T) {
 		ProjectSourceRepos: []string{"*"},
 		RefSources:         map[string]*argoappv1.RefTarget{"$ref": {TargetRevision: "HEAD", Repo: *repo}},
 	}
-	err = cacheMocks.cacheutilCache.SetItem(fmt.Sprintf("git-refs|%s", repoRemote), [][2]string{{"HEAD", revision}}, 30*time.Second, false)
+	err = cacheMocks.cacheutilCache.SetItem(fmt.Sprintf("git-refs|%s", repoRemote), [][2]string{{"HEAD", revision}}, nil)
 	assert.NoError(t, err)
 	_, err = service.GenerateManifest(context.Background(), &q)
 	assert.NoError(t, err)
@@ -511,6 +517,61 @@ func TestHelmChartReferencingExternalValues(t *testing.T) {
 		Revision:   "1.1.0",
 		SourceType: "Helm",
 	}, response)
+}
+
+func TestHelmChartReferencingExternalValues_InvalidRefs(t *testing.T) {
+	spec := argoappv1.ApplicationSpec{
+		Sources: []argoappv1.ApplicationSource{
+			{RepoURL: "https://helm.example.com", Chart: "my-chart", TargetRevision: ">= 1.0.0", Helm: &argoappv1.ApplicationSourceHelm{
+				ValueFiles: []string{"$ref/testdata/my-chart/my-chart-values.yaml"},
+			}},
+			{RepoURL: "https://git.example.com/test/repo"},
+		},
+	}
+
+	repoDB := &dbmocks.ArgoDB{}
+	repoDB.On("GetRepository", context.Background(), "https://git.example.com/test/repo").Return(&argoappv1.Repository{
+		Repo: "https://git.example.com/test/repo",
+	}, nil)
+
+	// Empty refsource
+	service := newService(t, ".")
+
+	refSources, err := argo.GetRefSources(context.Background(), spec, repoDB)
+	require.NoError(t, err)
+
+	request := &apiclient.ManifestRequest{Repo: &argoappv1.Repository{}, ApplicationSource: &spec.Sources[0], NoCache: true, RefSources: refSources, HasMultipleSources: true, ProjectName: "something",
+		ProjectSourceRepos: []string{"*"}}
+	response, err := service.GenerateManifest(context.Background(), request)
+	assert.Error(t, err)
+	assert.Nil(t, response)
+
+	// Invalid ref
+	service = newService(t, ".")
+
+	spec.Sources[1].Ref = "Invalid"
+	refSources, err = argo.GetRefSources(context.Background(), spec, repoDB)
+	require.NoError(t, err)
+
+	request = &apiclient.ManifestRequest{Repo: &argoappv1.Repository{}, ApplicationSource: &spec.Sources[0], NoCache: true, RefSources: refSources, HasMultipleSources: true, ProjectName: "something",
+		ProjectSourceRepos: []string{"*"}}
+	response, err = service.GenerateManifest(context.Background(), request)
+	assert.Error(t, err)
+	assert.Nil(t, response)
+
+	// Helm chart as ref (unsupported)
+	service = newService(t, ".")
+
+	spec.Sources[1].Ref = "ref"
+	spec.Sources[1].Chart = "helm-chart"
+	refSources, err = argo.GetRefSources(context.Background(), spec, repoDB)
+	require.NoError(t, err)
+
+	request = &apiclient.ManifestRequest{Repo: &argoappv1.Repository{}, ApplicationSource: &spec.Sources[0], NoCache: true, RefSources: refSources, HasMultipleSources: true, ProjectName: "something",
+		ProjectSourceRepos: []string{"*"}}
+	response, err = service.GenerateManifest(context.Background(), request)
+	assert.Error(t, err)
+	assert.Nil(t, response)
 }
 
 func TestHelmChartReferencingExternalValues_OutOfBounds_Symlink(t *testing.T) {
@@ -592,7 +653,7 @@ func TestInvalidMetadata(t *testing.T) {
 	q := apiclient.ManifestRequest{Repo: &argoappv1.Repository{}, ApplicationSource: &src, AppLabelKey: "test", AppName: "invalid-metadata", TrackingMethod: "annotation+label"}
 	_, err := service.GenerateManifest(context.Background(), &q)
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "contains non-string key in the map")
+	assert.Contains(t, err.Error(), "contains non-string value in the map under key \"invalid\"")
 }
 
 func TestNilMetadataAccessors(t *testing.T) {
@@ -1448,15 +1509,15 @@ func TestGenerateNullList(t *testing.T) {
 }
 
 func TestIdentifyAppSourceTypeByAppDirWithKustomizations(t *testing.T) {
-	sourceType, err := GetAppSourceType(context.Background(), &argoappv1.ApplicationSource{}, "./testdata/kustomization_yaml", "./testdata", "testapp", map[string]bool{}, []string{})
+	sourceType, err := GetAppSourceType(context.Background(), &argoappv1.ApplicationSource{}, "./testdata/kustomization_yaml", "./testdata", "testapp", map[string]bool{}, []string{}, []string{})
 	assert.Nil(t, err)
 	assert.Equal(t, argoappv1.ApplicationSourceTypeKustomize, sourceType)
 
-	sourceType, err = GetAppSourceType(context.Background(), &argoappv1.ApplicationSource{}, "./testdata/kustomization_yml", "./testdata", "testapp", map[string]bool{}, []string{})
+	sourceType, err = GetAppSourceType(context.Background(), &argoappv1.ApplicationSource{}, "./testdata/kustomization_yml", "./testdata", "testapp", map[string]bool{}, []string{}, []string{})
 	assert.Nil(t, err)
 	assert.Equal(t, argoappv1.ApplicationSourceTypeKustomize, sourceType)
 
-	sourceType, err = GetAppSourceType(context.Background(), &argoappv1.ApplicationSource{}, "./testdata/Kustomization", "./testdata", "testapp", map[string]bool{}, []string{})
+	sourceType, err = GetAppSourceType(context.Background(), &argoappv1.ApplicationSource{}, "./testdata/Kustomization", "./testdata", "testapp", map[string]bool{}, []string{}, []string{})
 	assert.Nil(t, err)
 	assert.Equal(t, argoappv1.ApplicationSourceTypeKustomize, sourceType)
 }
@@ -2975,11 +3036,24 @@ func Test_populateHelmAppDetails_values_symlinks(t *testing.T) {
 	})
 }
 
-func TestGetHelmRepos_OCIDependencies(t *testing.T) {
+func TestGetHelmRepos_OCIDependenciesWithHelmRepo(t *testing.T) {
 	src := argoappv1.ApplicationSource{Path: "."}
-	q := apiclient.ManifestRequest{Repo: &argoappv1.Repository{}, ApplicationSource: &src, HelmRepoCreds: []*argoappv1.RepoCreds{
+	q := apiclient.ManifestRequest{Repos: []*argoappv1.Repository{}, ApplicationSource: &src, HelmRepoCreds: []*argoappv1.RepoCreds{
 		{URL: "example.com", Username: "test", Password: "test", EnableOCI: true},
 	}}
+
+	helmRepos, err := getHelmRepos("./testdata/oci-dependencies", q.Repos, q.HelmRepoCreds)
+	assert.Nil(t, err)
+
+	assert.Equal(t, len(helmRepos), 1)
+	assert.Equal(t, helmRepos[0].Username, "test")
+	assert.Equal(t, helmRepos[0].EnableOci, true)
+	assert.Equal(t, helmRepos[0].Repo, "example.com/myrepo")
+}
+
+func TestGetHelmRepos_OCIDependenciesWithRepo(t *testing.T) {
+	src := argoappv1.ApplicationSource{Path: "."}
+	q := apiclient.ManifestRequest{Repos: []*argoappv1.Repository{{Repo: "example.com", Username: "test", Password: "test", EnableOCI: true}}, ApplicationSource: &src, HelmRepoCreds: []*argoappv1.RepoCreds{}}
 
 	helmRepos, err := getHelmRepos("./testdata/oci-dependencies", q.Repos, q.HelmRepoCreds)
 	assert.Nil(t, err)
@@ -3357,12 +3431,408 @@ func TestGetGitFiles(t *testing.T) {
 	})
 }
 
+func TestErrorUpdateRevisionForPaths(t *testing.T) {
+	type fields struct {
+		service *Service
+	}
+	type args struct {
+		ctx     context.Context
+		request *apiclient.UpdateRevisionForPathsRequest
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		want    *apiclient.UpdateRevisionForPathsResponse
+		wantErr assert.ErrorAssertionFunc
+	}{
+		{name: "InvalidRepo", fields: fields{service: newService(t, ".")}, args: args{
+			ctx: context.TODO(),
+			request: &apiclient.UpdateRevisionForPathsRequest{
+				Repo:           nil,
+				Revision:       "HEAD",
+				SyncedRevision: "sadfsadf",
+			},
+		}, want: nil, wantErr: assert.Error},
+		{name: "InvalidResolveRevision", fields: fields{service: func() *Service {
+			s, _, _ := newServiceWithOpt(t, func(gitClient *gitmocks.Client, helmClient *helmmocks.Client, paths *iomocks.TempPaths) {
+				gitClient.On("Checkout", mock.Anything, mock.Anything).Return(nil)
+				gitClient.On("LsRemote", mock.Anything).Return("", fmt.Errorf("ah error"))
+				paths.On("GetPath", mock.Anything).Return(".", nil)
+				paths.On("GetPathIfExists", mock.Anything).Return(".", nil)
+			}, ".")
+			return s
+		}()}, args: args{
+			ctx: context.TODO(),
+			request: &apiclient.UpdateRevisionForPathsRequest{
+				Repo:           &argoappv1.Repository{Repo: "not-a-valid-url"},
+				Revision:       "sadfsadf",
+				SyncedRevision: "HEAD",
+				Paths:          []string{"."},
+			},
+		}, want: nil, wantErr: assert.Error},
+		{name: "InvalidResolveSyncedRevision", fields: fields{service: func() *Service {
+			s, _, _ := newServiceWithOpt(t, func(gitClient *gitmocks.Client, helmClient *helmmocks.Client, paths *iomocks.TempPaths) {
+				gitClient.On("Checkout", mock.Anything, mock.Anything).Return(nil)
+				gitClient.On("LsRemote", "HEAD").Once().Return("632039659e542ed7de0c170a4fcc1c571b288fc0", nil)
+				gitClient.On("LsRemote", mock.Anything).Return("", fmt.Errorf("ah error"))
+				paths.On("GetPath", mock.Anything).Return(".", nil)
+				paths.On("GetPathIfExists", mock.Anything).Return(".", nil)
+			}, ".")
+			return s
+		}()}, args: args{
+			ctx: context.TODO(),
+			request: &apiclient.UpdateRevisionForPathsRequest{
+				Repo:           &argoappv1.Repository{Repo: "not-a-valid-url"},
+				Revision:       "HEAD",
+				SyncedRevision: "sadfsadf",
+				Paths:          []string{"."},
+			},
+		}, want: nil, wantErr: assert.Error},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			s := tt.fields.service
+			got, err := s.UpdateRevisionForPaths(tt.args.ctx, tt.args.request)
+			if !tt.wantErr(t, err, fmt.Sprintf("UpdateRevisionForPaths(%v, %v)", tt.args.ctx, tt.args.request)) {
+				return
+			}
+			assert.Equalf(t, tt.want, got, "UpdateRevisionForPaths(%v, %v)", tt.args.ctx, tt.args.request)
+		})
+	}
+}
+
+func TestUpdateRevisionForPaths(t *testing.T) {
+	type fields struct {
+		service *Service
+		cache   *repoCacheMocks
+	}
+	type args struct {
+		ctx     context.Context
+		request *apiclient.UpdateRevisionForPathsRequest
+	}
+	type cacheHit struct {
+		revision         string
+		previousRevision string
+	}
+	tests := []struct {
+		name     string
+		fields   fields
+		args     args
+		want     *apiclient.UpdateRevisionForPathsResponse
+		wantErr  assert.ErrorAssertionFunc
+		cacheHit *cacheHit
+	}{
+		{name: "NoPathAbort", fields: func() fields {
+			s, _, c := newServiceWithOpt(t, func(gitClient *gitmocks.Client, helmClient *helmmocks.Client, paths *iomocks.TempPaths) {
+				gitClient.On("Checkout", mock.Anything, mock.Anything).Return(nil)
+			}, ".")
+			return fields{
+				service: s,
+				cache:   c,
+			}
+		}(), args: args{
+			ctx: context.TODO(),
+			request: &apiclient.UpdateRevisionForPathsRequest{
+				Repo:  &argoappv1.Repository{Repo: "a-url.com"},
+				Paths: []string{},
+			},
+		}, want: &apiclient.UpdateRevisionForPathsResponse{}, wantErr: assert.NoError},
+		{name: "SameResolvedRevisionAbort", fields: func() fields {
+			s, _, c := newServiceWithOpt(t, func(gitClient *gitmocks.Client, helmClient *helmmocks.Client, paths *iomocks.TempPaths) {
+				gitClient.On("Checkout", mock.Anything, mock.Anything).Return(nil)
+				gitClient.On("LsRemote", "HEAD").Once().Return("632039659e542ed7de0c170a4fcc1c571b288fc0", nil)
+				gitClient.On("LsRemote", "SYNCEDHEAD").Once().Return("632039659e542ed7de0c170a4fcc1c571b288fc0", nil)
+				paths.On("GetPath", mock.Anything).Return(".", nil)
+				paths.On("GetPathIfExists", mock.Anything).Return(".", nil)
+			}, ".")
+			return fields{
+				service: s,
+				cache:   c,
+			}
+		}(), args: args{
+			ctx: context.TODO(),
+			request: &apiclient.UpdateRevisionForPathsRequest{
+				Repo:           &argoappv1.Repository{Repo: "a-url.com"},
+				Revision:       "HEAD",
+				SyncedRevision: "SYNCEDHEAD",
+				Paths:          []string{"."},
+			},
+		}, want: &apiclient.UpdateRevisionForPathsResponse{}, wantErr: assert.NoError},
+		{name: "ChangedFilesDoNothing", fields: func() fields {
+			s, _, c := newServiceWithOpt(t, func(gitClient *gitmocks.Client, helmClient *helmmocks.Client, paths *iomocks.TempPaths) {
+				gitClient.On("Init").Return(nil)
+				gitClient.On("Fetch", mock.Anything).Return(nil)
+				gitClient.On("Checkout", mock.Anything, mock.Anything).Return(nil)
+				gitClient.On("LsRemote", "HEAD").Once().Return("632039659e542ed7de0c170a4fcc1c571b288fc0", nil)
+				gitClient.On("LsRemote", "SYNCEDHEAD").Once().Return("1e67a504d03def3a6a1125d934cb511680f72555", nil)
+				paths.On("GetPath", mock.Anything).Return(".", nil)
+				paths.On("GetPathIfExists", mock.Anything).Return(".", nil)
+				gitClient.On("Root").Return("")
+				gitClient.On("ChangedFiles", mock.Anything, mock.Anything).Return([]string{"app.yaml"}, nil)
+			}, ".")
+			return fields{
+				service: s,
+				cache:   c,
+			}
+		}(), args: args{
+			ctx: context.TODO(),
+			request: &apiclient.UpdateRevisionForPathsRequest{
+				Repo:           &argoappv1.Repository{Repo: "a-url.com"},
+				Revision:       "HEAD",
+				SyncedRevision: "SYNCEDHEAD",
+				Paths:          []string{"."},
+			},
+		}, want: &apiclient.UpdateRevisionForPathsResponse{}, wantErr: assert.NoError},
+		{name: "NoChangesUpdateCache", fields: func() fields {
+			s, _, c := newServiceWithOpt(t, func(gitClient *gitmocks.Client, helmClient *helmmocks.Client, paths *iomocks.TempPaths) {
+				gitClient.On("Init").Return(nil)
+				gitClient.On("Fetch", mock.Anything).Return(nil)
+				gitClient.On("Checkout", mock.Anything, mock.Anything).Return(nil)
+				gitClient.On("LsRemote", "HEAD").Once().Return("632039659e542ed7de0c170a4fcc1c571b288fc0", nil)
+				gitClient.On("LsRemote", "SYNCEDHEAD").Once().Return("1e67a504d03def3a6a1125d934cb511680f72555", nil)
+				paths.On("GetPath", mock.Anything).Return(".", nil)
+				paths.On("GetPathIfExists", mock.Anything).Return(".", nil)
+				gitClient.On("Root").Return("")
+				gitClient.On("ChangedFiles", mock.Anything, mock.Anything).Return([]string{}, nil)
+			}, ".")
+			return fields{
+				service: s,
+				cache:   c,
+			}
+		}(), args: args{
+			ctx: context.TODO(),
+			request: &apiclient.UpdateRevisionForPathsRequest{
+				Repo:           &argoappv1.Repository{Repo: "a-url.com"},
+				Revision:       "HEAD",
+				SyncedRevision: "SYNCEDHEAD",
+				Paths:          []string{"."},
+
+				AppLabelKey:       "app.kubernetes.io/name",
+				AppName:           "no-change-update-cache",
+				Namespace:         "default",
+				TrackingMethod:    "annotation+label",
+				ApplicationSource: &argoappv1.ApplicationSource{Path: "."},
+				KubeVersion:       "v1.16.0",
+			},
+		}, want: &apiclient.UpdateRevisionForPathsResponse{}, wantErr: assert.NoError, cacheHit: &cacheHit{
+			previousRevision: "1e67a504d03def3a6a1125d934cb511680f72555",
+			revision:         "632039659e542ed7de0c170a4fcc1c571b288fc0",
+		}},
+		{name: "NoChangesHelmMultiSourceUpdateCache", fields: func() fields {
+			s, _, c := newServiceWithOpt(t, func(gitClient *gitmocks.Client, helmClient *helmmocks.Client, paths *iomocks.TempPaths) {
+				gitClient.On("Init").Return(nil)
+				gitClient.On("Fetch", mock.Anything).Return(nil)
+				gitClient.On("Checkout", mock.Anything, mock.Anything).Return(nil)
+				gitClient.On("LsRemote", "HEAD").Once().Return("632039659e542ed7de0c170a4fcc1c571b288fc0", nil)
+				gitClient.On("LsRemote", "SYNCEDHEAD").Once().Return("1e67a504d03def3a6a1125d934cb511680f72555", nil)
+				paths.On("GetPath", mock.Anything).Return(".", nil)
+				paths.On("GetPathIfExists", mock.Anything).Return(".", nil)
+				gitClient.On("Root").Return("")
+				gitClient.On("ChangedFiles", mock.Anything, mock.Anything).Return([]string{}, nil)
+			}, ".")
+			return fields{
+				service: s,
+				cache:   c,
+			}
+		}(), args: args{
+			ctx: context.TODO(),
+			request: &apiclient.UpdateRevisionForPathsRequest{
+				Repo:           &argoappv1.Repository{Repo: "a-url.com"},
+				Revision:       "HEAD",
+				SyncedRevision: "SYNCEDHEAD",
+				Paths:          []string{"."},
+
+				AppLabelKey:       "app.kubernetes.io/name",
+				AppName:           "no-change-update-cache",
+				Namespace:         "default",
+				TrackingMethod:    "annotation+label",
+				ApplicationSource: &argoappv1.ApplicationSource{Path: ".", Helm: &argoappv1.ApplicationSourceHelm{ReleaseName: "test"}},
+				KubeVersion:       "v1.16.0",
+
+				HasMultipleSources: true,
+			},
+		}, want: &apiclient.UpdateRevisionForPathsResponse{}, wantErr: assert.NoError, cacheHit: &cacheHit{
+			previousRevision: "1e67a504d03def3a6a1125d934cb511680f72555",
+			revision:         "632039659e542ed7de0c170a4fcc1c571b288fc0",
+		}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			s := tt.fields.service
+			cache := tt.fields.cache
+
+			if tt.cacheHit != nil {
+				cache.mockCache.On("Rename", tt.cacheHit.previousRevision, tt.cacheHit.revision, mock.Anything).Return(nil)
+			}
+
+			got, err := s.UpdateRevisionForPaths(tt.args.ctx, tt.args.request)
+			if !tt.wantErr(t, err, fmt.Sprintf("UpdateRevisionForPaths(%v, %v)", tt.args.ctx, tt.args.request)) {
+				return
+			}
+			assert.Equalf(t, tt.want, got, "UpdateRevisionForPaths(%v, %v)", tt.args.ctx, tt.args.request)
+
+			if tt.cacheHit != nil {
+				cache.mockCache.AssertCacheCalledTimes(t, &repositorymocks.CacheCallCounts{
+					ExternalRenames: 1,
+				})
+			} else {
+				cache.mockCache.AssertCacheCalledTimes(t, &repositorymocks.CacheCallCounts{
+					ExternalRenames: 0,
+				})
+			}
+		})
+	}
+}
+
 func Test_getRepoSanitizerRegex(t *testing.T) {
 	r := getRepoSanitizerRegex("/tmp/_argocd-repo")
 	msg := r.ReplaceAllString("error message containing /tmp/_argocd-repo/SENSITIVE and other stuff", "<path to cached source>")
 	assert.Equal(t, "error message containing <path to cached source> and other stuff", msg)
 	msg = r.ReplaceAllString("error message containing /tmp/_argocd-repo/SENSITIVE/with/trailing/path and other stuff", "<path to cached source>")
 	assert.Equal(t, "error message containing <path to cached source>/with/trailing/path and other stuff", msg)
+}
+
+func TestGetRefs_CacheWithLockDisabled(t *testing.T) {
+	// Test that when the lock is disabled the default behavior still works correctly
+	// Also shows the current issue with the git requests due to cache misses
+	dir := t.TempDir()
+	initGitRepo(t, newGitRepoOptions{
+		path:           dir,
+		createPath:     false,
+		remote:         "",
+		addEmptyCommit: true,
+	})
+	// Test in-memory and redis
+	cacheMocks := newCacheMocksWithOpts(1*time.Minute, 1*time.Minute, 0)
+	t.Cleanup(cacheMocks.mockCache.StopRedisCallback)
+	var wg sync.WaitGroup
+	numberOfCallers := 10
+	for i := 0; i < numberOfCallers; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			client, err := git.NewClient(fmt.Sprintf("file://%s", dir), git.NopCreds{}, true, false, "", git.WithCache(cacheMocks.cache, true))
+			require.NoError(t, err)
+			refs, err := client.LsRefs()
+			assert.NoError(t, err)
+			assert.NotNil(t, refs)
+			assert.NotEqual(t, 0, len(refs.Branches), "Expected branches to be populated")
+			assert.NotEmpty(t, refs.Branches[0])
+		}()
+	}
+	wg.Wait()
+	// Unlock should not have been called
+	cacheMocks.mockCache.AssertNumberOfCalls(t, "UnlockGitReferences", 0)
+	// Lock should not have been called
+	cacheMocks.mockCache.AssertNumberOfCalls(t, "TryLockGitRefCache", 0)
+}
+
+func TestGetRefs_CacheDisabled(t *testing.T) {
+	// Test that default get refs with cache disabled does not call GetOrLockGitReferences
+	dir := t.TempDir()
+	initGitRepo(t, newGitRepoOptions{
+		path:           dir,
+		createPath:     false,
+		remote:         "",
+		addEmptyCommit: true,
+	})
+	cacheMocks := newCacheMocks()
+	t.Cleanup(cacheMocks.mockCache.StopRedisCallback)
+	client, err := git.NewClient(fmt.Sprintf("file://%s", dir), git.NopCreds{}, true, false, "", git.WithCache(cacheMocks.cache, false))
+	require.NoError(t, err)
+	refs, err := client.LsRefs()
+	assert.NoError(t, err)
+	assert.NotNil(t, refs)
+	assert.NotEqual(t, 0, len(refs.Branches), "Expected branches to be populated")
+	assert.NotEmpty(t, refs.Branches[0])
+	// Unlock should not have been called
+	cacheMocks.mockCache.AssertNumberOfCalls(t, "UnlockGitReferences", 0)
+	cacheMocks.mockCache.AssertNumberOfCalls(t, "GetOrLockGitReferences", 0)
+}
+
+func TestGetRefs_CacheWithLock(t *testing.T) {
+	// Test that there is only one call to SetGitReferences for the same repo which is done after the ls-remote
+	dir := t.TempDir()
+	initGitRepo(t, newGitRepoOptions{
+		path:           dir,
+		createPath:     false,
+		remote:         "",
+		addEmptyCommit: true,
+	})
+	cacheMocks := newCacheMocks()
+	t.Cleanup(cacheMocks.mockCache.StopRedisCallback)
+	var wg sync.WaitGroup
+	numberOfCallers := 10
+	for i := 0; i < numberOfCallers; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			client, err := git.NewClient(fmt.Sprintf("file://%s", dir), git.NopCreds{}, true, false, "", git.WithCache(cacheMocks.cache, true))
+			require.NoError(t, err)
+			refs, err := client.LsRefs()
+			assert.NoError(t, err)
+			assert.NotNil(t, refs)
+			assert.NotEqual(t, 0, len(refs.Branches), "Expected branches to be populated")
+			assert.NotEmpty(t, refs.Branches[0])
+		}()
+	}
+	wg.Wait()
+	// Unlock should not have been called
+	cacheMocks.mockCache.AssertNumberOfCalls(t, "UnlockGitReferences", 0)
+	cacheMocks.mockCache.AssertNumberOfCalls(t, "GetOrLockGitReferences", 0)
+}
+
+func TestGetRefs_CacheUnlockedOnUpdateFailed(t *testing.T) {
+	// Worst case the ttl on the lock expires and the lock is removed
+	// however if the holder of the lock fails to update the cache the caller should remove the lock
+	// to allow other callers to attempt to update the cache as quickly as possible
+	dir := t.TempDir()
+	initGitRepo(t, newGitRepoOptions{
+		path:           dir,
+		createPath:     false,
+		remote:         "",
+		addEmptyCommit: true,
+	})
+	cacheMocks := newCacheMocks()
+	t.Cleanup(cacheMocks.mockCache.StopRedisCallback)
+	repoUrl := fmt.Sprintf("file://%s", dir)
+	client, err := git.NewClient(repoUrl, git.NopCreds{}, true, false, "", git.WithCache(cacheMocks.cache, true))
+	require.NoError(t, err)
+	refs, err := client.LsRefs()
+	assert.NoError(t, err)
+	assert.NotNil(t, refs)
+	assert.NotEqual(t, 0, len(refs.Branches), "Expected branches to be populated")
+	assert.NotEmpty(t, refs.Branches[0])
+	var output [][2]string
+	err = cacheMocks.cacheutilCache.GetItem(fmt.Sprintf("git-refs|%s|%s", repoUrl, common.CacheVersion), &output)
+	assert.Error(t, err, "Should be a cache miss")
+	assert.Equal(t, 0, len(output), "Expected cache to be empty for key")
+	cacheMocks.mockCache.AssertNumberOfCalls(t, "UnlockGitReferences", 0)
+	cacheMocks.mockCache.AssertNumberOfCalls(t, "GetOrLockGitReferences", 0)
+}
+
+func TestGetRefs_CacheLockTryLockGitRefCacheError(t *testing.T) {
+	// Worst case the ttl on the lock expires and the lock is removed
+	// however if the holder of the lock fails to update the cache the caller should remove the lock
+	// to allow other callers to attempt to update the cache as quickly as possible
+	dir := t.TempDir()
+	initGitRepo(t, newGitRepoOptions{
+		path:           dir,
+		createPath:     false,
+		remote:         "",
+		addEmptyCommit: true,
+	})
+	cacheMocks := newCacheMocks()
+	t.Cleanup(cacheMocks.mockCache.StopRedisCallback)
+	repoUrl := fmt.Sprintf("file://%s", dir)
+	// buf := bytes.Buffer{}
+	// log.SetOutput(&buf)
+	client, err := git.NewClient(repoUrl, git.NopCreds{}, true, false, "", git.WithCache(cacheMocks.cache, true))
+	require.NoError(t, err)
+	refs, err := client.LsRefs()
+	assert.NoError(t, err)
+	assert.NotNil(t, refs)
 }
 
 func TestGetRevisionChartDetails(t *testing.T) {

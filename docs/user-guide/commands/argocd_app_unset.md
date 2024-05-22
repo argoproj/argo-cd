@@ -14,8 +14,11 @@ argocd app unset APPNAME parameters [flags]
   # Unset kustomize override kustomize image
   argocd app unset my-app --kustomize-image=alpine
 
-  # Unset kustomize override prefix
+  # Unset kustomize override suffix
   argocd app unset my-app --namesuffix
+
+  # Unset kustomize override suffix for source at position 1 under spec.sources of app my-app. source-position starts at 1.
+  argocd app unset my-app --source-position 1 --namesuffix
 
   # Unset parameter override
   argocd app unset my-app -p COMPONENT=PARAM
@@ -24,6 +27,7 @@ argocd app unset APPNAME parameters [flags]
 ### Options
 
 ```
+  -N, --app-namespace string            Unset application parameters in namespace
   -h, --help                            help for unset
       --ignore-missing-value-files      Unset the helm ignore-missing-value-files option (revert to false)
       --kustomize-image stringArray     Kustomize images name (e.g. --kustomize-image node --kustomize-image mysql)
@@ -35,6 +39,8 @@ argocd app unset APPNAME parameters [flags]
   -p, --parameter stringArray           Unset a parameter override (e.g. -p guestbook=image)
       --pass-credentials                Unset passCredentials
       --plugin-env stringArray          Unset plugin env variables (e.g --plugin-env name)
+      --ref                             Unset ref on the source
+      --source-position int             Position of the source from the list of sources of the app. Counting starts at 1. (default -1)
       --values stringArray              Unset one or more Helm values files
       --values-literal                  Unset literal Helm values block
 ```

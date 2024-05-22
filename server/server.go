@@ -771,7 +771,7 @@ func (a *ArgoCDServer) newGRPCServer() (*grpc.Server, application.AppResourceTre
 	// NOTE: notice we do not configure the gRPC server here with TLS (e.g. grpc.Creds(creds))
 	// This is because TLS handshaking occurs in cmux handling
 	sOpts = append(sOpts, grpc.StreamInterceptor(grpc_middleware.ChainStreamServer(
-		otelgrpc.StreamServerInterceptor(),
+		otelgrpc.StreamServerInterceptor(), //nolint:staticcheck // TODO: ignore SA1019 for depreciation: see https://github.com/argoproj/argo-cd/issues/18258
 		grpc_logrus.StreamServerInterceptor(a.log),
 		grpc_prometheus.StreamServerInterceptor,
 		grpc_auth.StreamServerInterceptor(a.Authenticate),
@@ -785,7 +785,7 @@ func (a *ArgoCDServer) newGRPCServer() (*grpc.Server, application.AppResourceTre
 	)))
 	sOpts = append(sOpts, grpc.UnaryInterceptor(grpc_middleware.ChainUnaryServer(
 		bug21955WorkaroundInterceptor,
-		otelgrpc.UnaryServerInterceptor(),
+		otelgrpc.UnaryServerInterceptor(), //nolint:staticcheck // TODO: ignore SA1019 for depreciation: see https://github.com/argoproj/argo-cd/issues/18258
 		grpc_logrus.UnaryServerInterceptor(a.log),
 		grpc_prometheus.UnaryServerInterceptor,
 		grpc_auth.UnaryServerInterceptor(a.Authenticate),
@@ -1011,7 +1011,7 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandl
 	}
 	mux.Handle("/api/", handler)
 
-	terminal := application.NewHandler(a.appLister, a.Namespace, a.ApplicationNamespaces, a.db, a.enf, a.Cache, appResourceTreeFn, a.settings.ExecShells, *a.sessionMgr).
+	terminal := application.NewHandler(a.appLister, a.Namespace, a.ApplicationNamespaces, a.db, a.enf, a.Cache, appResourceTreeFn, a.settings.ExecShells, a.sessionMgr).
 		WithFeatureFlagMiddleware(a.settingsMgr.GetSettings)
 	th := util_session.WithAuthMiddleware(a.DisableAuth, a.sessionMgr, terminal)
 	mux.Handle("/terminal", th)

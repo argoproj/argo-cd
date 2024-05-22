@@ -7,6 +7,7 @@ The following configuration options are available for Kustomize:
 * `images` is a list of Kustomize image overrides
 * `replicas` is a list of Kustomize replica overrides
 * `commonLabels` is a string map of additional labels
+* `labelWithoutSelector` is a boolean value which defines if the common label(s) should be applied to resource selectors and templates.
 * `forceCommonLabels` is a boolean value which defines if it's allowed to override existing labels
 * `commonAnnotations` is a string map of additional annotations
 * `namespace` is a Kubernetes resources namespace
@@ -31,7 +32,7 @@ metadata:
   name: kustomize-inline-example
 namespace: test1
 resources:
-  - https://raw.githubusercontent.com/argoproj/argocd-example-apps/master/kustomize-guestbook/
+  - https://github.com/argoproj/argocd-example-apps//kustomize-guestbook/
 patches:
   - target:
       kind: Deployment
@@ -211,7 +212,7 @@ argocd app set <appName> --kustomize-version v3.5.4
 
 ## Build Environment
 
-Kustomize apps have access to the [standard build environment](build-environment.md) which can be used in combination with a [config managment plugin](../operator-manual/config-management-plugins.md) to alter the rendered manifests.
+Kustomize apps have access to the [standard build environment](build-environment.md) which can be used in combination with a [config management plugin](../operator-manual/config-management-plugins.md) to alter the rendered manifests.
 
 You can use these build environment variables in your Argo CD Application manifests. You can enable this by setting `.spec.source.kustomize.commonAnnotationsEnvsubst` to `true` in your Application manifest.
 

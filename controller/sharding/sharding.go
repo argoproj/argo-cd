@@ -43,6 +43,7 @@ const ShardControllerMappingKey = "shardControllerMapping"
 type DistributionFunction func(c *v1alpha1.Cluster) int
 type ClusterFilterFunction func(c *v1alpha1.Cluster) bool
 type clusterAccessor func() []*v1alpha1.Cluster
+type appAccessor func() []*v1alpha1.Application
 
 // shardApplicationControllerMapping stores the mapping of Shard Number to Application Controller in ConfigMap.
 // It also stores the heartbeat of last synced time of the application controller.
@@ -75,7 +76,7 @@ func GetClusterFilter(db db.ArgoDB, distributionFunction DistributionFunction, r
 
 // GetDistributionFunction returns which DistributionFunction should be used based on the passed algorithm and
 // the current datas.
-func GetDistributionFunction(clusters clusterAccessor, shardingAlgorithm string, replicasCount int) DistributionFunction {
+func GetDistributionFunction(clusters clusterAccessor, apps appAccessor, shardingAlgorithm string, replicasCount int) DistributionFunction {
 	log.Debugf("Using filter function:  %s", shardingAlgorithm)
 	distributionFunction := LegacyDistributionFunction(replicasCount)
 	switch shardingAlgorithm {
@@ -374,13 +375,13 @@ func GetClusterSharding(kubeClient kubernetes.Interface, settingsMgr *settings.S
 
 		// if app controller deployment is not found when dynamic cluster distribution is enabled error out
 		if err != nil {
-			return nil, fmt.Errorf("(dymanic cluster distribution) failed to get app controller deployment: %v", err)
+			return nil, fmt.Errorf("(dynamic cluster distribution) failed to get app controller deployment: %v", err)
 		}
 
 		if appControllerDeployment != nil && appControllerDeployment.Spec.Replicas != nil {
 			replicasCount = int(*appControllerDeployment.Spec.Replicas)
 		} else {
-			return nil, fmt.Errorf("(dymanic cluster distribution) failed to get app controller deployment replica count")
+			return nil, fmt.Errorf("(dynamic cluster distribution) failed to get app controller deployment replica count")
 		}
 
 	} else {
