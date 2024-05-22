@@ -253,6 +253,7 @@ func MaybeStartLocalServer(ctx context.Context, clientOpts *apiclient.ClientOpti
 		ListenHost:           *address,
 		RepoClientset:        &forwardRepoClientset{namespace: namespace, context: ctxStr, repoServerName: clientOpts.RepoServerName, kubeClientset: kubeClientset},
 		EnableProxyExtension: false,
+		ApplicationNamespaces: []string{"*"},
 	})
 	srv.Init(ctx)
 
