@@ -5,39 +5,112 @@ import (
 	"os"
 	"testing"
 
+	"github.com/argoproj/argo-cd/v2/server/rbacpolicy"
+	"github.com/argoproj/argo-cd/v2/util/assets"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
-
-	"github.com/argoproj/argo-cd/v2/util/assets"
+	restclient "k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/clientcmd"
+	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 )
 
-func Test_isValidRBACAction(t *testing.T) {
-	for k := range validRBACActions {
-		t.Run(k, func(t *testing.T) {
-			ok := isValidRBACAction(k)
-			assert.True(t, ok)
-		})
-	}
-	t.Run("invalid", func(t *testing.T) {
-		ok := isValidRBACAction("invalid")
-		assert.False(t, ok)
-	})
+type FakeClientConfig struct {
+	clientConfig clientcmd.ClientConfig
 }
 
-func Test_isValidRBACResource(t *testing.T) {
-	for k := range validRBACResources {
-		t.Run(k, func(t *testing.T) {
-			ok := isValidRBACResource(k)
-			assert.True(t, ok)
+func NewFakeClientConfig(clientConfig clientcmd.ClientConfig) *FakeClientConfig {
+	return &FakeClientConfig{clientConfig: clientConfig}
+}
+
+func (f *FakeClientConfig) RawConfig() (clientcmdapi.Config, error) {
+	config, err := f.clientConfig.RawConfig()
+	return config, err
+}
+
+func (f *FakeClientConfig) ClientConfig() (*restclient.Config, error) {
+	return f.clientConfig.ClientConfig()
+}
+
+func (f *FakeClientConfig) Namespace() (string, bool, error) {
+	return f.clientConfig.Namespace()
+}
+
+func (f *FakeClientConfig) ConfigAccess() clientcmd.ConfigAccess {
+	return nil
+}
+
+func Test_validateRBACResourceAction(t *testing.T) {
+	type args struct {
+		resource string
+		action   string
+	}
+	tests := []struct {
+		name  string
+		args  args
+		valid bool
+	}{
+		{
+			name: "Test valid resource and action",
+			args: args{
+				resource: rbacpolicy.ResourceApplications,
+				action:   rbacpolicy.ActionCreate,
+			},
+			valid: true,
+		},
+		{
+			name: "Test invalid resource",
+			args: args{
+				resource: "invalid",
+			},
+			valid: false,
+		},
+		{
+			name: "Test invalid action",
+			args: args{
+				resource: rbacpolicy.ResourceApplications,
+				action:   "invalid",
+			},
+			valid: false,
+		},
+		{
+			name: "Test invalid action for resource",
+			args: args{
+				resource: rbacpolicy.ResourceLogs,
+				action:   rbacpolicy.ActionCreate,
+			},
+			valid: false,
+		},
+		{
+			name: "Test valid action with path",
+			args: args{
+				resource: rbacpolicy.ResourceApplications,
+				action:   rbacpolicy.ActionAction + "/apps/Deployment/restart",
+			},
+			valid: true,
+		},
+		{
+			name: "Test invalid action with path",
+			args: args{
+				resource: rbacpolicy.ResourceApplications,
+				action:   rbacpolicy.ActionGet + "/apps/Deployment/restart",
+			},
+			valid: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := validateRBACResourceAction(tt.args.resource, tt.args.action)
+			if tt.valid {
+				assert.NoError(t, result)
+			} else {
+				assert.NotNil(t, result)
+			}
 		})
 	}
-	t.Run("invalid", func(t *testing.T) {
-		ok := isValidRBACResource("invalid")
-		assert.False(t, ok)
-	})
 }
 
 func Test_PolicyFromCSV(t *testing.T) {
@@ -102,6 +175,22 @@ func Test_PolicyFromK8s(t *testing.T) {
 		ok := checkPolicy("role:user", "get", "certificates", ".*", assets.BuiltinPolicyCSV, uPol, "role:readonly", "regex", true)
 		require.False(t, ok)
 	})
+	t.Run("get logs", func(t *testing.T) {
+		ok := checkPolicy("role:test", "get", "logs", "*/*", assets.BuiltinPolicyCSV, uPol, dRole, "", true)
+		require.True(t, ok)
+	})
+	t.Run("create exec", func(t *testing.T) {
+		ok := checkPolicy("role:test", "create", "exec", "*/*", assets.BuiltinPolicyCSV, uPol, dRole, "", true)
+		require.True(t, ok)
+	})
+	t.Run("create applicationsets", func(t *testing.T) {
+		ok := checkPolicy("role:user", "create", "applicationsets", "*/*", assets.BuiltinPolicyCSV, uPol, dRole, "", true)
+		require.True(t, ok)
+	})
+	t.Run("delete applicationsets", func(t *testing.T) {
+		ok := checkPolicy("role:user", "delete", "applicationsets", "*/*", assets.BuiltinPolicyCSV, uPol, dRole, "", true)
+		require.True(t, ok)
+	})
 }
 
 func Test_PolicyFromK8sUsingRegex(t *testing.T) {
@@ -111,7 +200,12 @@ func Test_PolicyFromK8sUsingRegex(t *testing.T) {
 p, role:user, clusters, get, .+, allow
 p, role:user, clusters, get, https://kubernetes.*, deny
 p, role:user, applications, get, .*, allow
-p, role:user, applications, create, .*/.*, allow`
+p, role:user, applications, create, .*/.*, allow
+p, role:user, applicationsets, create, .*/.*, allow
+p, role:user, applicationsets, delete, .*/.*, allow
+p, role:user, logs, get, .*/.*, allow
+p, role:user, exec, create, .*/.*, allow
+`
 
 	kubeclientset := fake.NewSimpleClientset(&v1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
@@ -157,4 +251,36 @@ p, role:, certificates, get, .*, allow`
 		ok := checkPolicy("role:user", "get", "certificates", ".+", builtInPolicy, uPol, dRole, "glob", true)
 		require.False(t, ok)
 	})
+	t.Run("get logs via glob match mode", func(t *testing.T) {
+		ok := checkPolicy("role:user", "get", "logs", ".*/.*", builtInPolicy, uPol, dRole, "glob", true)
+		require.True(t, ok)
+	})
+	t.Run("create exec", func(t *testing.T) {
+		ok := checkPolicy("role:user", "create", "exec", ".*/.*", builtInPolicy, uPol, dRole, "regex", true)
+		require.True(t, ok)
+	})
+	t.Run("create applicationsets", func(t *testing.T) {
+		ok := checkPolicy("role:user", "create", "applicationsets", ".*/.*", builtInPolicy, uPol, dRole, "regex", true)
+		require.True(t, ok)
+	})
+	t.Run("delete applicationsets", func(t *testing.T) {
+		ok := checkPolicy("role:user", "delete", "applicationsets", ".*/.*", builtInPolicy, uPol, dRole, "regex", true)
+		require.True(t, ok)
+	})
+}
+
+func TestNewRBACCanCommand(t *testing.T) {
+	command := NewRBACCanCommand()
+
+	require.NotNil(t, command)
+	assert.Equal(t, "can", command.Name())
+	assert.Equal(t, "Check RBAC permissions for a role or subject", command.Short)
+}
+
+func TestNewRBACValidateCommand(t *testing.T) {
+	command := NewRBACValidateCommand()
+
+	require.NotNil(t, command)
+	assert.Equal(t, "validate", command.Name())
+	assert.Equal(t, "Validate RBAC policy", command.Short)
 }

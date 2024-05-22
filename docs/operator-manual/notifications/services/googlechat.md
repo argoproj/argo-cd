@@ -19,7 +19,7 @@ The Google Chat notification service send message notifications to a google chat
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: <config-map-name>
+  name: argocd-notifications-cm
 data:
   service.googlechat: |
     webhooks:
@@ -51,7 +51,7 @@ You can send [simple text](https://developers.google.com/chat/reference/message-
 
 ```yaml
 template.app-sync-succeeded: |
-  message: The app {{ .app.metadata.name }} has succesfully synced!
+  message: The app {{ .app.metadata.name }} has successfully synced!
 ```
 
 A card message can be defined as follows:
@@ -59,23 +59,37 @@ A card message can be defined as follows:
 ```yaml
 template.app-sync-succeeded: |
   googlechat:
-    cards: |
+    cardsV2: |
       - header:
           title: ArgoCD Bot Notification
         sections:
           - widgets:
-              - textParagraph:
-                  text: The app {{ .app.metadata.name }} has succesfully synced!
+              - decoratedText:
+                  text: The app {{ .app.metadata.name }} has successfully synced!
           - widgets:
-              - keyValue:
+              - decoratedText:
                   topLabel: Repository
-                  content: {{ call .repo.RepoURLToHTTPS .app.spec.source.repoURL }}
-              - keyValue:
+                  text: {{ call .repo.RepoURLToHTTPS .app.spec.source.repoURL }}
+              - decoratedText:
                   topLabel: Revision
-                  content: {{ .app.spec.source.targetRevision }}
-              - keyValue:
+                  text: {{ .app.spec.source.targetRevision }}
+              - decoratedText:
                   topLabel: Author
-                  content: {{ (call .repo.GetCommitMetadata .app.status.sync.revision).Author }}
+                  text: {{ (call .repo.GetCommitMetadata .app.status.sync.revision).Author }}
 ```
+All [Card fields](https://developers.google.com/chat/api/reference/rest/v1/cards#Card_1) are supported and can be used
+in notifications. It is also possible to use the previous (now deprecated) `cards` key to use the legacy card fields,
+but this is not recommended as Google has deprecated this field and recommends using the newer `cardsV2`.
 
 The card message can be written in JSON too.
+
+## Chat Threads
+
+It is possible send both simple text and card messages in a chat thread by specifying a unique key for the thread. The thread key can be defined as follows:
+
+```yaml
+template.app-sync-succeeded: |
+  message: The app {{ .app.metadata.name }} has successfully synced!
+  googlechat:
+    threadKey: {{ .app.metadata.name }}
+```

@@ -3,6 +3,7 @@ package rbac
 import (
 	"context"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -41,6 +42,69 @@ func fakeConfigMap() *apiv1.ConfigMap {
 		Data: make(map[string]string),
 	}
 	return &cm
+}
+
+func TestPolicyCSV(t *testing.T) {
+	t.Run("will return empty string if data has no csv entries", func(t *testing.T) {
+		// given
+		data := make(map[string]string)
+
+		// when
+		policy := PolicyCSV(data)
+
+		// then
+		assert.Equal(t, "", policy)
+	})
+	t.Run("will return just policy defined with default key", func(t *testing.T) {
+		// given
+		data := make(map[string]string)
+		expectedPolicy := "policy1\npolicy2"
+		data[ConfigMapPolicyCSVKey] = expectedPolicy
+		data["UnrelatedKey"] = "unrelated value"
+
+		// when
+		policy := PolicyCSV(data)
+
+		// then
+		assert.Equal(t, expectedPolicy, policy)
+	})
+	t.Run("will return composed policy provided by multiple policy keys", func(t *testing.T) {
+		// given
+		data := make(map[string]string)
+		data[ConfigMapPolicyCSVKey] = "policy1"
+		data["UnrelatedKey"] = "unrelated value"
+		data["policy.overlay1.csv"] = "policy2"
+		data["policy.overlay2.csv"] = "policy3"
+
+		// when
+		policy := PolicyCSV(data)
+
+		// then
+		assert.Regexp(t, "^policy1", policy)
+		assert.Contains(t, policy, "policy2")
+		assert.Contains(t, policy, "policy3")
+	})
+	t.Run("will return composed policy in a deterministic order", func(t *testing.T) {
+		// given
+		data := make(map[string]string)
+		data["UnrelatedKey"] = "unrelated value"
+		data["policy.B.csv"] = "policyb"
+		data["policy.A.csv"] = "policya"
+		data["policy.C.csv"] = "policyc"
+		data[ConfigMapPolicyCSVKey] = "policy1"
+
+		// when
+		policy := PolicyCSV(data)
+
+		// then
+		result := strings.Split(policy, "\n")
+		assert.Len(t, result, 4)
+		assert.Equal(t, "policy1", result[0])
+		assert.Equal(t, "policya", result[1])
+		assert.Equal(t, "policyb", result[2])
+		assert.Equal(t, "policyc", result[3])
+	})
+
 }
 
 // TestBuiltinPolicyEnforcer tests the builtin policy rules
@@ -402,8 +466,14 @@ func TestGlobMatchFunc(t *testing.T) {
 }
 
 func TestLoadPolicyLine(t *testing.T) {
-	t.Run("Valid policy line", func(t *testing.T) {
-		policy := `p, foo, bar, baz`
+	t.Run("Valid permission line", func(t *testing.T) {
+		policy := `p, role:Myrole, applications, *, myproj/*, allow`
+		model := newBuiltInModel()
+		err := loadPolicyLine(policy, model)
+		require.NoError(t, err)
+	})
+	t.Run("Valid grant line", func(t *testing.T) {
+		policy := `g, your-github-org:your-team, role:org-admin`
 		model := newBuiltInModel()
 		err := loadPolicyLine(policy, model)
 		require.NoError(t, err)
@@ -434,6 +504,18 @@ func TestLoadPolicyLine(t *testing.T) {
 	})
 	t.Run("Invalid policy line", func(t *testing.T) {
 		policy := "agh, foo, bar"
+		model := newBuiltInModel()
+		err := loadPolicyLine(policy, model)
+		require.Error(t, err)
+	})
+	t.Run("Invalid policy line missing comma", func(t *testing.T) {
+		policy := "p, role:Myrole, applications, *, myproj/* allow"
+		model := newBuiltInModel()
+		err := loadPolicyLine(policy, model)
+		require.Error(t, err)
+	})
+	t.Run("Invalid policy line missing policy type", func(t *testing.T) {
+		policy := ", role:Myrole, applications, *, myproj/*, allow"
 		model := newBuiltInModel()
 		err := loadPolicyLine(policy, model)
 		require.Error(t, err)

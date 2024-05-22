@@ -7,6 +7,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/argoproj/argo-cd/v2/common"
+	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
 	configUtil "github.com/argoproj/argo-cd/v2/util/config"
 )
 
@@ -21,16 +22,22 @@ type PluginConfig struct {
 }
 
 type PluginConfigSpec struct {
-	Version          string   `json:"version"`
-	Init             Command  `json:"init,omitempty"`
-	Generate         Command  `json:"generate"`
-	Discover         Discover `json:"discover"`
+	Version          string     `json:"version"`
+	Init             Command    `json:"init,omitempty"`
+	Generate         Command    `json:"generate"`
+	Discover         Discover   `json:"discover"`
+	Parameters       Parameters `yaml:"parameters"`
+	PreserveFileMode bool       `json:"preserveFileMode,omitempty"`
 }
 
-//Discover holds find and fileName
+// Discover holds find and fileName
 type Discover struct {
 	Find     Find   `json:"find"`
 	FileName string `json:"fileName"`
+}
+
+func (d Discover) IsDefined() bool {
+	return d.FileName != "" || d.Find.Glob != "" || len(d.Find.Command.Command) > 0
 }
 
 // Command holds binary path and arguments list
@@ -43,6 +50,17 @@ type Command struct {
 type Find struct {
 	Command
 	Glob string `json:"glob"`
+}
+
+// Parameters holds static and dynamic configurations
+type Parameters struct {
+	Static  []*apiclient.ParameterAnnouncement `yaml:"static"`
+	Dynamic Command                            `yaml:"dynamic"`
+}
+
+// Dynamic hold the dynamic announcements for CMP's
+type Dynamic struct {
+	Command
 }
 
 func ReadPluginConfig(filePath string) (*PluginConfig, error) {
@@ -71,9 +89,7 @@ func ValidatePluginConfig(config PluginConfig) error {
 	if len(config.Spec.Generate.Command) == 0 {
 		return fmt.Errorf("invalid plugin configuration file. spec.generate command should be non-empty")
 	}
-	if config.Spec.Discover.Find.Glob == "" && len(config.Spec.Discover.Find.Command.Command) == 0 && config.Spec.Discover.FileName == "" {
-		return fmt.Errorf("invalid plugin configuration file. atleast one of discover.find.command or discover.find.glob or discover.fineName should be non-empty")
-	}
+	// discovery field is optional as apps can now specify plugin names directly
 	return nil
 }
 

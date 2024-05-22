@@ -1,0 +1,29 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-plugin-config
+data:
+  plugin.yaml: |
+    apiVersion: argoproj.io/v1alpha1
+    kind: ConfigManagementPlugin
+    metadata:
+      name: my-plugin
+    spec:
+      version: v1.0
+      init:
+        command: [sh , -c, 'echo "params: $ARGOCD_APP_PARAMETERS"']
+      generate:
+        command: [jq, -n, '{"kind": "ConfigMap", "apiVersion": "v1", "metadata": { "name": env.ARGOCD_APP_NAME, "namespace": env.ARGOCD_APP_NAMESPACE, "annotations": {"test": "annotation test", "KubeVersion": env.KUBE_VERSION }}, "data": { "params": env.ARGOCD_APP_PARAMETERS } }']
+      discover:
+        fileName: "./subdir/s*.yaml"
+      parameters:
+        static:
+          - name: string-param
+            string: default-string-value
+          - name: array-param
+            array: [default, items]
+            collectionType: array
+          - name: map-param
+            map:
+              some: value
+            collectionType: map

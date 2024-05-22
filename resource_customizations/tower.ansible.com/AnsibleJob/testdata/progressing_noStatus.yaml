@@ -1,0 +1,17 @@
+apiVersion: tower.ansible.com/v1alpha1
+kind: AnsibleJob
+metadata:
+  annotations:
+    argocd.argoproj.io/hook: PreSync
+  creationTimestamp: "2023-06-27T20:22:22Z"
+  generateName: prehook-test-
+  generation: 1
+  labels:
+    app.kubernetes.io/instance: ansible-hooks
+  name: prehook-test-dfcff01-presync-1687897341
+  namespace: argocd
+  resourceVersion: "6536518"
+  uid: 09fa0d39-a170-4c37-a3b0-6e140e029868
+spec:
+  job_template_name: Demo Job Template
+  tower_auth_secret: toweraccess

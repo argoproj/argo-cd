@@ -1,4 +1,4 @@
-health_status = {}
+local health_status = {}
 if obj.status ~= nil then
   if obj.status.readyReplicas ~= 0 and obj.status.readyReplicas == obj.status.replicas then
     health_status.status = "Healthy"
