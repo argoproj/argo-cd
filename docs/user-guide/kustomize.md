@@ -8,19 +8,16 @@ You can define a Kustomize application manifest in the declarative GitOps way. H
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: sealed-secrets
-  namespace: argocd
+  name: kustomize-example
 spec:
   project: default
   source:
-    chart: sealed-secrets
-    repoURL: https://bitnami-labs.github.io/sealed-secrets
-    path: overlays/prod
-    targetRevision: 1.16.1
+    path: examples/helloWorld
+    repoURL: 'https://github.com/kubernetes-sigs/kustomize'
+    targetRevision: HEAD
   destination:
-    server: "https://kubernetes.default.svc"
-    namespace: kubeseal
-```
+    namespace: default
+    server: 'https://kubernetes.default.svc'
 
 If the `kustomization.yaml` file exists at the location pointed to by `repoURL` and `path`, Argo CD will render the manifests using Kustomize.
 
