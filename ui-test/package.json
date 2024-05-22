@@ -13,7 +13,7 @@
   "license": "Apache-2.0",
   "dependencies": {
     "@types/selenium-webdriver": "^4.0.9",
-    "assert": "^2.0.0",
+    "assert": "^2.1.0",
     "chromedriver": "^125.0.0",
     "selenium-webdriver": "^4.0.0-alpha.7"
   },
