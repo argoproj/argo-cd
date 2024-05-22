@@ -5,6 +5,8 @@ resources:
 - chart/upstream.yaml
 - argocd-redis-ha-proxy-network-policy.yaml
 - argocd-redis-ha-server-network-policy.yaml
+- ../../../base/redis/initial-password
+- ./initial-password/sa
 
 patches:
 - target:
@@ -294,15 +296,17 @@ patches:
     kind: StatefulSet
     name: argocd-redis-ha-server
   path: overlays/statefulset-containers-securityContext.yaml
+
+# update service account of initial-password job/cronjob
 - target:
-      group: rbac.authorization.k8s.io
-      version: v1
-      kind: Role
-      name: argocd-redis-ha-haproxy
-  path: overlays/haproxy-role.yaml
-- target:
-    group: apps
+    group: batch
     version: v1
-    kind: Deployment
-    name: argocd-redis-ha-haproxy
-  path: overlays/deployment-initContainers.yaml
+    kind: Job
+    name: argocd-redis-initial-password
+  path: overlays/job-sa.yaml
+- target:
+    group: batch
+    version: v1
+    kind: CronJob
+    name: argocd-redis-initial-password
+  path: overlays/cronjob-sa.yaml

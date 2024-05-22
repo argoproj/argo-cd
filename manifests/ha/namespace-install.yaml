@@ -59,6 +59,15 @@ apiVersion: v1
 kind: ServiceAccount
 metadata:
   labels:
+    app.kubernetes.io/component: redis
+    app.kubernetes.io/name: argocd-redis-initial-password
+    app.kubernetes.io/part-of: argocd
+  name: argocd-redis-initial-password
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  labels:
     app.kubernetes.io/component: repo-server
     app.kubernetes.io/name: argocd-repo-server
     app.kubernetes.io/part-of: argocd
@@ -278,9 +287,19 @@ rules:
 - apiGroups:
   - ""
   resources:
-  - secrets
+  - endpoints
   verbs:
-  - create
+  - get
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  labels:
+    app.kubernetes.io/component: redis
+    app.kubernetes.io/name: argocd-redis-initial-password
+    app.kubernetes.io/part-of: argocd
+  name: argocd-redis-initial-password
+rules:
 - apiGroups:
   - ""
   resourceNames:
@@ -292,9 +311,9 @@ rules:
 - apiGroups:
   - ""
   resources:
-  - endpoints
+  - secrets
   verbs:
-  - get
+  - create
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
@@ -435,6 +454,22 @@ roleRef:
 subjects:
 - kind: ServiceAccount
   name: argocd-redis-ha-haproxy
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  labels:
+    app.kubernetes.io/component: redis
+    app.kubernetes.io/name: argocd-redis-initial-password
+    app.kubernetes.io/part-of: argocd
+  name: argocd-redis-initial-password
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: argocd-redis-initial-password
+subjects:
+- kind: ServiceAccount
+  name: argocd-redis-initial-password
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
@@ -2006,22 +2041,6 @@ spec:
         - mountPath: /run/haproxy
           name: shared-socket
       initContainers:
-      - command:
-        - argocd
-        - admin
-        - redis-initial-password
-        image: quay.io/argoproj/argocd:latest
-        imagePullPolicy: IfNotPresent
-        name: secret-init
-        securityContext:
-          allowPrivilegeEscalation: false
-          capabilities:
-            drop:
-            - ALL
-          readOnlyRootFilesystem: true
-          runAsNonRoot: true
-          seccompProfile:
-            type: RuntimeDefault
       - args:
         - /readonly/haproxy_init.sh
         command:
@@ -3231,6 +3250,83 @@ spec:
         name: data
   updateStrategy:
     type: RollingUpdate
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  labels:
+    app.kubernetes.io/component: redis
+    app.kubernetes.io/name: argocd-redis-initial-password
+    app.kubernetes.io/part-of: argocd
+  name: argocd-redis-initial-password
+spec:
+  concurrencyPolicy: Forbid
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+          - command:
+            - argocd
+            - admin
+            - redis-initial-password
+            image: quay.io/argoproj/argocd:latest
+            imagePullPolicy: IfNotPresent
+            name: argocd-redis-initial-password
+            securityContext:
+              allowPrivilegeEscalation: false
+              capabilities:
+                drop:
+                - ALL
+              readOnlyRootFilesystem: true
+              runAsNonRoot: true
+              seccompProfile:
+                type: RuntimeDefault
+          restartPolicy: OnFailure
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 999
+            seccompProfile:
+              type: RuntimeDefault
+          serviceAccountName: argocd-redis-initial-password
+  schedule: 0 0 * * *
+  suspend: true
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  labels:
+    app.kubernetes.io/component: redis
+    app.kubernetes.io/name: argocd-redis-initial-password
+    app.kubernetes.io/part-of: argocd
+  name: argocd-redis-initial-password
+spec:
+  template:
+    spec:
+      containers:
+      - command:
+        - argocd
+        - admin
+        - redis-initial-password
+        image: quay.io/argoproj/argocd:latest
+        imagePullPolicy: IfNotPresent
+        name: argocd-redis-initial-password
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+          seccompProfile:
+            type: RuntimeDefault
+      restartPolicy: OnFailure
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 999
+        seccompProfile:
+          type: RuntimeDefault
+      serviceAccountName: argocd-redis-initial-password
 ---
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy

@@ -1,0 +1,4 @@
+
+- op: replace
+  path: /spec/jobTemplate/spec/template/spec/serviceAccountName
+  value: argocd-redis-initial-password

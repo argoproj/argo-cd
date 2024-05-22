@@ -1103,23 +1103,6 @@ spec:
             drop:
             - ALL
           readOnlyRootFilesystem: true
-      initContainers:
-      - command:
-        - argocd
-        - admin
-        - redis-initial-password
-        image: quay.io/argoproj/argocd:latest
-        imagePullPolicy: IfNotPresent
-        name: secret-init
-        securityContext:
-          allowPrivilegeEscalation: false
-          capabilities:
-            drop:
-            - ALL
-          readOnlyRootFilesystem: true
-          runAsNonRoot: true
-          seccompProfile:
-            type: RuntimeDefault
       securityContext:
         runAsNonRoot: true
         runAsUser: 999
@@ -2069,6 +2052,83 @@ spec:
             path: ca.crt
           optional: true
           secretName: argocd-repo-server-tls
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  labels:
+    app.kubernetes.io/component: redis
+    app.kubernetes.io/name: argocd-redis-initial-password
+    app.kubernetes.io/part-of: argocd
+  name: argocd-redis-initial-password
+spec:
+  concurrencyPolicy: Forbid
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+          - command:
+            - argocd
+            - admin
+            - redis-initial-password
+            image: quay.io/argoproj/argocd:latest
+            imagePullPolicy: IfNotPresent
+            name: argocd-redis-initial-password
+            securityContext:
+              allowPrivilegeEscalation: false
+              capabilities:
+                drop:
+                - ALL
+              readOnlyRootFilesystem: true
+              runAsNonRoot: true
+              seccompProfile:
+                type: RuntimeDefault
+          restartPolicy: OnFailure
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 999
+            seccompProfile:
+              type: RuntimeDefault
+          serviceAccountName: argocd-redis
+  schedule: 0 0 * * *
+  suspend: true
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  labels:
+    app.kubernetes.io/component: redis
+    app.kubernetes.io/name: argocd-redis-initial-password
+    app.kubernetes.io/part-of: argocd
+  name: argocd-redis-initial-password
+spec:
+  template:
+    spec:
+      containers:
+      - command:
+        - argocd
+        - admin
+        - redis-initial-password
+        image: quay.io/argoproj/argocd:latest
+        imagePullPolicy: IfNotPresent
+        name: argocd-redis-initial-password
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+          seccompProfile:
+            type: RuntimeDefault
+      restartPolicy: OnFailure
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 999
+        seccompProfile:
+          type: RuntimeDefault
+      serviceAccountName: argocd-redis
 ---
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy

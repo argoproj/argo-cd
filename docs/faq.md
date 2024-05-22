@@ -274,6 +274,11 @@ The most common instance of this error is with `env:` fields for `containers`.
 ```bash
 kubectl delete secret argocd-redis -n <argocd namesapce>
 ```
+* Create a new secret by create a new job from CronJob `argocd-redis-initial-password`
+```bash
+kubectl delete job argocd-redis-initial-password -n <argocd namespace> # ignore error if the job does not exist
+kubectl create job --from=cronjob/argocd-redis-initial-password argocd-redis-initial-password -n <argocd namespace>
+```
 * If you are running Redis in HA mode, restart Redis in HA.
 ```bash
 kubectl rollout restart deployment argocd-redis-ha-haproxy
