@@ -15,7 +15,6 @@ export const ApplicationFullscreenLogs = (props: RouteComponentProps<{name: stri
                 const group = q.get('group');
                 const kind = q.get('kind');
                 const title = `${podName || `${group}/${kind}/${name}`}:${props.match.params.container}`;
-                const fullscreen = true;
                 return (
                     <div className='application-fullscreen-logs'>
                         <Helmet title={`${title} - Argo CD`} />
@@ -29,7 +28,6 @@ export const ApplicationFullscreenLogs = (props: RouteComponentProps<{name: stri
                             kind={kind}
                             name={name}
                             podName={podName}
-                            fullscreen={fullscreen}
                         />
                     </div>
                 );

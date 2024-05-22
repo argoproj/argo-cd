@@ -8,20 +8,6 @@ Prints information cluster statistics and inferred shard number
 argocd admin cluster stats [flags]
 ```
 
-### Examples
-
-```
-
-#Display stats and shards for clusters 
-argocd admin cluster stats
-
-#Display Cluster Statistics for a Specific Shard
-argocd admin cluster stats --shard=1
-
-#In a multi-cluster environment to print stats for a specific cluster say(target-cluster)
-argocd admin cluster stats target-cluster
-```
-
 ### Options
 
 ```
@@ -35,7 +21,6 @@ argocd admin cluster stats target-cluster
       --cluster string                        The name of the kubeconfig cluster to use
       --context string                        The name of the kubeconfig context to use
       --default-cache-expiration duration     Cache expiration default (default 24h0m0s)
-      --disable-compression                   If true, opt-out of response compression for all requests to the server
   -h, --help                                  help for stats
       --insecure-skip-tls-verify              If true, the server's certificate will not be checked for validity. This will make your HTTPS connections insecure
       --kubeconfig string                     Path to a kube config. Only required if out-of-cluster
@@ -57,7 +42,6 @@ argocd admin cluster stats target-cluster
       --sentinelmaster string                 Redis sentinel master group name. (default "master")
       --server string                         The address and port of the Kubernetes API server
       --shard int                             Cluster shard filter (default -1)
-      --sharding-method string                Sharding method. Defaults: legacy. Supported sharding methods are : [legacy, round-robin]  (default "legacy")
       --tls-server-name string                If provided, this name will be used to validate server certificate. If this is not provided, hostname used to contact the server is used.
       --token string                          Bearer token for authentication to the API server
       --user string                           The name of the kubeconfig user to use

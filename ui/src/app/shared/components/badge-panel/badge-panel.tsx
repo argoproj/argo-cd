@@ -19,7 +19,7 @@ export const BadgePanel = ({app, project, appNamespace, nsEnabled}: {app?: strin
         let entityURL = '';
         let alt = '';
         if (app) {
-            badgeURL = `${root}api/badge?name=${app}&revision=true&showAppName=true`;
+            badgeURL = `${root}api/badge?name=${app}&revision=true`;
             if (nsEnabled) {
                 badgeURL += `&namespace=${appNamespace}`;
             }
@@ -54,14 +54,14 @@ export const BadgePanel = ({app, project, appNamespace, nsEnabled}: {app?: strin
                                 badgeType === 'URL'
                                     ? badgeURL
                                     : badgeType === 'Markdown'
-                                      ? `[![${alt}](${badgeURL})](${entityURL})`
-                                      : badgeType === 'Textile'
-                                        ? `!${badgeURL}!:${entityURL}`
-                                        : badgeType === 'Rdoc'
-                                          ? `{<img src="${badgeURL}" alt="${alt}" />}[${entityURL}]`
-                                          : badgeType === 'AsciiDoc'
-                                            ? `image:${badgeURL}["${alt}", link="${entityURL}"]`
-                                            : ''
+                                    ? `[![${alt}](${badgeURL})](${entityURL})`
+                                    : badgeType === 'Textile'
+                                    ? `!${badgeURL}!:${entityURL}`
+                                    : badgeType === 'Rdoc'
+                                    ? `{<img src="${badgeURL}" alt="${alt}" />}[${entityURL}]`
+                                    : badgeType === 'AsciiDoc'
+                                    ? `image:${badgeURL}["${alt}", link="${entityURL}"]`
+                                    : ''
                             }
                         />
                     </div>
