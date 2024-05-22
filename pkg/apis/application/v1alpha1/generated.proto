@@ -961,8 +961,10 @@ message GitGenerator {
 
   optional string pathParamPrefix = 7;
 
+  optional string paramPrefix = 8;
+
   // Values contains key/value pairs which are passed directly as parameters to the template
-  map<string, string> values = 8;
+  map<string, string> values = 9;
 }
 
 // GnuPGPublicKey is a representation of a GnuPG public key
