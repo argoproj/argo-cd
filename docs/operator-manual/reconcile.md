@@ -111,3 +111,53 @@ data:
     # actually changing in content.
     - .status.conditions[].lastTransitionTime
 ```
+
+## Completely ignore resources update
+
+There is an use case that you would like to completely ignore the resources at all. This mostly happens when some dependent
+resources are created by another resource (e.g. a Job and a Pod are created by a CronJob and you want to ignore the Job
+and the Pod). 
+
+For this use case, the above configurations will not help because argocd will still reconcile any newly created objects.
+
+To completely ignore a newly created object, you need to add annotation `argocd.argoproj.io/ignore-resources-tracking=true`
+to the target resource manifest.
+
+## Example
+
+### CronJob
+
+```
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: hello
+  namespace: test-cronjob
+spec:
+  schedule: "* * * * *"
+  jobTemplate:
+    metadata:
+      annotations:
+        argocd.argoproj.io/ignore-resources-tracking: "true"
+    spec:
+      template:
+        metadata:
+          annotations:
+            argocd.argoproj.io/ignore-resources-tracking: "true"
+        spec:
+          containers:
+          - name: hello
+            image: busybox:1.28
+            imagePullPolicy: IfNotPresent
+            command:
+            - /bin/sh
+            - -c
+            - date; echo Hello from the Kubernetes cluster
+          restartPolicy: OnFailure
+```
+
+And you should see the following debug message (if enabled) in the `application-controller` log:
+
+```
+Ignoring change of object because none of the watched resource fields have changed or annotation argocd.argoproj.io/ignore-resources-tracking is set to true
+```
