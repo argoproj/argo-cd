@@ -12,10 +12,10 @@
   "author": "Keith Chong",
   "license": "Apache-2.0",
   "dependencies": {
-    "@types/selenium-webdriver": "^4.0.9",
+    "@types/selenium-webdriver": "^4.1.22",
     "assert": "^2.1.0",
     "chromedriver": "^125.0.0",
-    "selenium-webdriver": "^4.0.0-alpha.7"
+    "selenium-webdriver": "^4.21.0"
   },
   "devDependencies": {
     "@types/mocha": "^10.0.6",
