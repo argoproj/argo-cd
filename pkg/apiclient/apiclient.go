@@ -57,7 +57,7 @@ import (
 )
 
 // These mocks are not currently used, but they are part of the public API of this package.
-//go:generate -command mockery go run github.com/vektra/mockery/v2@v2.15.0
+//go:generate -command mockery go run github.com/vektra/mockery/v2@v2.40.2
 //go:generate mockery --dir=./session --name=SessionServiceServer --output=./session/mocks
 //go:generate mockery --dir=./session --name=SessionServiceClient --output=./session/mocks
 //go:generate mockery --dir=./cluster --name=ClusterServiceServer --output=./cluster/mocks
