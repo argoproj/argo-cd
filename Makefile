@@ -188,7 +188,7 @@ all: cli image
 .PHONY: gogen
 gogen:
 	export GO111MODULE=off
-	go generate ./util/argo/...
+	go generate ./...
 
 .PHONY: protogen
 protogen: mod-vendor-local protogen-fast

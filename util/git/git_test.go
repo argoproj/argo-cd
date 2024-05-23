@@ -433,17 +433,17 @@ func TestLsFiles(t *testing.T) {
 	expectedResult := []string{"a.yaml", "link.yaml", "subdir/b.yaml"}
 	lsResult, err := client.LsFiles("*.yaml", false)
 	assert.NoError(t, err)
-	assert.Equal(t, lsResult, expectedResult)
+	assert.Equal(t, expectedResult, lsResult)
 
 	// New and safer globbing, do not return symlinks resolving outside of the repo
 	expectedResult = []string{"a.yaml"}
 	lsResult, err = client.LsFiles("*.yaml", true)
 	assert.NoError(t, err)
-	assert.Equal(t, lsResult, expectedResult)
+	assert.Equal(t, expectedResult, lsResult)
 
 	// New globbing, do not return files outside of the repo
 	var nilResult []string
 	lsResult, err = client.LsFiles(filepath.Join(tmpDir2, "*.yaml"), true)
 	assert.NoError(t, err)
-	assert.Equal(t, lsResult, nilResult)
+	assert.Equal(t, nilResult, lsResult)
 }
