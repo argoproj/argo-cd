@@ -564,7 +564,7 @@ func deriveServiceAccountName(project *v1alpha1.AppProject, application *v1alpha
 	if application.Spec.Destination.Namespace != "" {
 		serviceAccountNamespace = application.Spec.Destination.Namespace
 	}
-	// Loop through the destinationServiceAccounts and see if there is any destination that is an exact match
+	// Loop through the destinationServiceAccounts and see if there is any destination that is a candidate.
 	// if so, return the service account specified for that destination.
 	for _, item := range project.Spec.DestinationServiceAccounts {
 		dstServerMatched := glob.Match(item.Server, application.Spec.Destination.Server)
