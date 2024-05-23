@@ -71,14 +71,6 @@ perspective is to add a `project` parameter when deleting a repository credentia
 this option is optional and would only be a required parameter if multiple repository credentials are found for the same 
 URL.
 
-### Use cases
-
-TODO
-
-#### Use case 1:
-
-TODO
-
 ### Security Considerations
 
 Special care needs to be taken in order not to inadvertently expose repository credentials belonging to other `AppProject`s.
