@@ -71,6 +71,7 @@ func NewServer(initConstants plugin.CMPServerInitConstants) (*ArgoCDCMPServer, e
 				MinTime: common.GetGRPCKeepAliveEnforcementMinimum(),
 			},
 		),
+		grpc.StatsHandler(otelgrpc.NewServerHandler()),
 	}
 
 	return &ArgoCDCMPServer{
