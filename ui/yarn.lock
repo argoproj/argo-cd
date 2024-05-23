@@ -2257,10 +2257,10 @@
   dependencies:
     "@types/react" "*"
 
-"@types/react-paginate@^6.2.0":
-  version "6.2.1"
-  resolved "https://registry.yarnpkg.com/@types/react-paginate/-/react-paginate-6.2.1.tgz#2329088d78010ea49661559c8467a24ecd942784"
-  integrity sha512-+q8k1N0WzbMyOCsIEH/p5D6/KQD8dXYLzfvSvriYn//94icd2sqhAL2rWXkgwGvqHGCSTU9AoHtsWCJxPfquUQ==
+"@types/react-paginate@^7.1.4":
+  version "7.1.4"
+  resolved "https://registry.yarnpkg.com/@types/react-paginate/-/react-paginate-7.1.4.tgz#b0c7fd53f4b3d65ff37a7c45d58d5741d84dc6ea"
+  integrity sha512-6fqZvDzRJHubOGl6c7cGFC9ysgQSWYy0Gpus9HjORpydlcXgPnT8x+aKgqwCdtpZrRTwcBz2Q7JWAOYaRrsXGg==
   dependencies:
     "@types/react" "*"
 
