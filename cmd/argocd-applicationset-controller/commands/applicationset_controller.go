@@ -30,6 +30,9 @@ import (
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	"k8s.io/client-go/tools/clientcmd"
+	ctrlcache "sigs.k8s.io/controller-runtime/pkg/cache"
+	ctrlclient "sigs.k8s.io/controller-runtime/pkg/client"
+	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
 	"github.com/argoproj/argo-cd/v2/applicationset/services"
 	appv1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
@@ -113,15 +116,28 @@ func NewCommand() *cobra.Command {
 				os.Exit(1)
 			}
 
+			var cacheOpt ctrlcache.Options
+
+			if watchedNamespace != "" {
+				cacheOpt = ctrlcache.Options{
+					DefaultNamespaces: map[string]ctrlcache.Config{
+						watchedNamespace: {},
+					},
+				}
+			}
+
 			mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
-				Scheme:                 scheme,
-				MetricsBindAddress:     metricsAddr,
-				Namespace:              watchedNamespace,
+				Scheme: scheme,
+				Metrics: metricsserver.Options{
+					BindAddress: metricsAddr,
+				},
+				Cache:                  cacheOpt,
 				HealthProbeBindAddress: probeBindAddr,
-				Port:                   9443,
 				LeaderElection:         enableLeaderElection,
 				LeaderElectionID:       "58ac56fa.applicationsets.argoproj.io",
-				DryRunClient:           dryRun,
+				Client: ctrlclient.Options{
+					DryRun: &dryRun,
+				},
 			})
 
 			if err != nil {

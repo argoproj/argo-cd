@@ -85,7 +85,7 @@ spec:
         spec:
           project: "default"
           source:
-            revision: HEAD
+            targetRevision: HEAD
             repoURL: https://github.com/argoproj/argo-cd.git
             # New path value is generated here:
             path: 'applicationset/examples/template-override/{{cluster}}-override'
@@ -99,7 +99,7 @@ spec:
       source:
         repoURL: https://github.com/argoproj/argo-cd.git
         targetRevision: HEAD
-        # This 'default' value is not used: it is is replaced by the generator's template path, above
+        # This 'default' value is not used: it is replaced by the generator's template path, above
         path: applicationset/examples/template-override/default
       destination:
         server: '{{url}}'

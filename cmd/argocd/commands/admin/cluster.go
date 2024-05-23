@@ -19,7 +19,7 @@ import (
 	"k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 
 	cmdutil "github.com/argoproj/argo-cd/v2/cmd/util"
 	"github.com/argoproj/argo-cd/v2/common"
@@ -86,8 +86,12 @@ func loadClusters(ctx context.Context, kubeClient *kubernetes.Clientset, appClie
 	if err != nil {
 		return nil, err
 	}
+	appItems, err := appClient.ArgoprojV1alpha1().Applications(namespace).List(ctx, v1.ListOptions{})
+	if err != nil {
+		return nil, err
+	}
 	clusterShardingCache := sharding.NewClusterSharding(argoDB, shard, replicas, shardingAlgorithm)
-	clusterShardingCache.Init(clustersList)
+	clusterShardingCache.Init(clustersList, appItems)
 	clusterShards := clusterShardingCache.GetDistribution()
 
 	var cache *appstatecache.Cache
@@ -113,10 +117,6 @@ func loadClusters(ctx context.Context, kubeClient *kubernetes.Clientset, appClie
 		}
 	}
 
-	appItems, err := appClient.ArgoprojV1alpha1().Applications(namespace).List(ctx, v1.ListOptions{})
-	if err != nil {
-		return nil, err
-	}
 	apps := appItems.Items
 	for i, app := range apps {
 		err := argo.ValidateDestination(ctx, &app.Spec.Destination, argoDB)
@@ -129,12 +129,6 @@ func loadClusters(ctx context.Context, kubeClient *kubernetes.Clientset, appClie
 
 	batchSize := 10
 	batchesCount := int(math.Ceil(float64(len(clusters)) / float64(batchSize)))
-	clusterSharding := &sharding.ClusterSharding{
-		Shard:    shard,
-		Replicas: replicas,
-		Shards:   make(map[string]int),
-		Clusters: make(map[string]*v1alpha1.Cluster),
-	}
 	for batchNum := 0; batchNum < batchesCount; batchNum++ {
 		batchStart := batchSize * batchNum
 		batchEnd := batchSize * (batchNum + 1)
@@ -146,10 +140,8 @@ func loadClusters(ctx context.Context, kubeClient *kubernetes.Clientset, appClie
 			clusterShard := 0
 			cluster := batch[i]
 			if replicas > 0 {
-				distributionFunction := sharding.GetDistributionFunction(clusterSharding.GetClusterAccessor(), common.DefaultShardingAlgorithm, replicas)
-				distributionFunction(&cluster)
-				clusterShard := clusterShards[cluster.Server]
-				cluster.Shard = pointer.Int64(int64(clusterShard))
+				clusterShard = clusterShards[cluster.Server]
+				cluster.Shard = ptr.To(int64(clusterShard))
 				log.Infof("Cluster with uid: %s will be processed by shard %d", cluster.ID, clusterShard)
 			}
 			if shard != -1 && clusterShard != shard {
