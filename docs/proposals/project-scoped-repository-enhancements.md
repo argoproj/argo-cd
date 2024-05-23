@@ -46,7 +46,7 @@ which happen to share the same URL.
 
 ## Proposal
 
-There are three parts to this proposal.
+There are a few parts to this proposal.
 
 The first part of this proposal is to change how the selected credential gets selected. Currently, the first repository 
 secret that matches the repository URL gets returned.
@@ -66,6 +66,11 @@ The third part is specifically for when we imperatively create repository secret
 secret in the UI/CLI, a suffix gets generated which is a hash of the repository URL. This mechanism will be extended to 
 also hash the repository _project_.
 
+On the API server side no major changes are anticipated to the public API. The only change we need to do from the API 
+perspective is to add a `project` parameter when deleting a repository credential. To preserve backwards compatibility
+this option is optional and would only be a required parameter if multiple repository credentials are found for the same 
+URL.
+
 ### Use cases
 
 TODO
@@ -83,7 +88,10 @@ Access to repositories are covered by RBAC checks on the project, so we should b
 
 ### Upgrade / Downgrade Strategy
 
-N/A
+When upgrading no changes need to happen - the repository credentials will work as before. On the other hand, when 
+downgrading to an older version we need to consider that the existing order in which multiple credentials with the same
+URL gets returned is undefined. This means that deleting the credentials before downgrading to an older version would be
+advisable.
 
 ## Drawbacks
 
