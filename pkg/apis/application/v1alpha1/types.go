@@ -2768,7 +2768,6 @@ type ApplicationDestinationServiceAccount struct {
 	// Server specifies the URL of the target cluster's Kubernetes control plane API.
 	Server string `json:"server,omitempty" protobuf:"bytes,1,opt,name=server"`
 	// Namespace specifies the target namespace for the application's resources.
-	// The namespace will only be set for namespace-scoped resources that have not set a value for .metadata.namespace
 	Namespace string `json:"namespace,omitempty" protobuf:"bytes,2,opt,name=namespace"`
 	// ServiceAccountName to be used for impersonation during the sync operation
 	DefaultServiceAccount string `json:"defaultServiceAccount,omitempty" protobuf:"bytes,3,opt,name=defaultServiceAccount"`
