@@ -264,7 +264,7 @@ func TestRepositoryServer(t *testing.T) {
 
 		s := NewServer(&repoServerClientset, argoDB, enforcer, nil, appLister, projInformer, testNamespace, settingsMgr)
 		url := "https://test"
-		repo, _ := s.getRepo(context.TODO(), url)
+		repo, _ := s.getRepo(context.TODO(), url, "")
 		assert.Equal(t, repo.Repo, url)
 	})
 
