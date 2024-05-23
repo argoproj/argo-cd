@@ -2765,7 +2765,7 @@ type KustomizeOptions struct {
 
 // ApplicationDestinationServiceAccount holds information about the service account to be impersonated for the application sync operation.
 type ApplicationDestinationServiceAccount struct {
-	// Server specifies the URL of the target cluster's Kubernetes control plane API. This must be set if Name is not set.
+	// Server specifies the URL of the target cluster's Kubernetes control plane API.
 	Server string `json:"server,omitempty" protobuf:"bytes,1,opt,name=server"`
 	// Namespace specifies the target namespace for the application's resources.
 	// The namespace will only be set for namespace-scoped resources that have not set a value for .metadata.namespace
