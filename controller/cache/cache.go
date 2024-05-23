@@ -41,6 +41,8 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/settings"
 )
 
+//go:generate go run github.com/vektra/mockery/v2@v2.40.2 --name=LiveStateCache
+
 const (
 	// EnvClusterCacheResyncDuration is the env variable that holds cluster cache re-sync duration
 	EnvClusterCacheResyncDuration = "ARGOCD_CLUSTER_CACHE_RESYNC_DURATION"
