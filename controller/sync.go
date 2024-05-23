@@ -567,8 +567,8 @@ func deriveServiceAccountName(project *v1alpha1.AppProject, application *v1alpha
 	// Loop through the destinationServiceAccounts and see if there is any destination that is an exact match
 	// if so, return the service account specified for that destination.
 	for _, item := range project.Spec.DestinationServiceAccounts {
-		dstServerMatched := item.Server == "*" || glob.Match(item.Server, application.Spec.Destination.Server)
-		dstNamespaceMatched := item.Namespace == "*" || glob.Match(item.Namespace, application.Spec.Destination.Namespace)
+		dstServerMatched := glob.Match(item.Server, application.Spec.Destination.Server)
+		dstNamespaceMatched := glob.Match(item.Namespace, application.Spec.Destination.Namespace)
 		if dstServerMatched && dstNamespaceMatched {
 			if strings.Contains(item.DefaultServiceAccount, ":") {
 				// service account is fully qualified with the namespace.
