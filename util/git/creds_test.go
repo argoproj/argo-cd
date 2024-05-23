@@ -17,6 +17,7 @@ import (
 
 	"github.com/argoproj/argo-cd/v2/util/cert"
 	"github.com/argoproj/argo-cd/v2/util/io"
+	argoio "github.com/argoproj/gitops-engine/pkg/utils/io"
 )
 
 type cred struct {
@@ -299,6 +300,37 @@ func Test_SSHCreds_Environ_WithProxyUserNamePassword(t *testing.T) {
 		assert.FileExists(t, privateKeyFile)
 		io.Close(closer)
 		assert.NoFileExists(t, privateKeyFile)
+	}
+}
+
+func Test_SSHCreds_Environ_TempFileCleanupOnInvalidProxyURL(t *testing.T) {
+
+	// Previously, if the proxy URL was invalid, a temporary file would be left in /dev/shm. This ensures the file is cleaned up in this case.
+
+	// countDev returns the number of files in /dev/shm (argoio.TempDir)
+	countFilesInDevShm := func() int {
+		entries, err := os.ReadDir(argoio.TempDir)
+		require.NoError(t, err)
+
+		return len(entries)
+	}
+
+	for _, insecureIgnoreHostKey := range []bool{false, true} {
+		tempDir := t.TempDir()
+		caFile := path.Join(tempDir, "caFile")
+		err := os.WriteFile(caFile, []byte(""), os.FileMode(0600))
+		require.NoError(t, err)
+		creds := NewSSHCreds("sshPrivateKey", caFile, insecureIgnoreHostKey, &NoopCredsStore{}, ":invalid-proxy-url")
+
+		filesInDevShmBeforeInvocation := countFilesInDevShm()
+
+		_, _, err = creds.Environ()
+		require.Error(t, err)
+
+		filesInDevShmAfterInvocation := countFilesInDevShm()
+
+		assert.Equal(t, filesInDevShmBeforeInvocation, filesInDevShmAfterInvocation, "no temporary files should leak if the proxy url cannot be parsed")
+
 	}
 }
 
