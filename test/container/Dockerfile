@@ -1,4 +1,4 @@
-FROM docker.io/library/redis:7.2.4@sha256:7dd707032d90c6eaafd566f62a00f5b0116ae08fd7d6cbbb0f311b82b47171a2 as redis
+FROM docker.io/library/redis:7.2.5@sha256:b32ea6ea4d5b38496c6e93d02083e97f461cb09d6b8672462b53071236ef4b12 as redis
 
 # There are libraries we will want to copy from here in the final stage of the
 # build, but the COPY directive does not have a way to determine system

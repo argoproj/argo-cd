@@ -2347,6 +2347,7 @@ func (s *Service) newClientResolveRevision(repo *v1alpha1.Repository, revision s
 	}
 	commitSHA, err := gitClient.LsRemote(revision)
 	if err != nil {
+		s.metricsServer.IncGitLsRemoteFail(gitClient.Root(), revision)
 		return nil, "", err
 	}
 	return gitClient, commitSHA, nil
@@ -2532,6 +2533,7 @@ func (s *Service) ResolveRevision(ctx context.Context, q *apiclient.ResolveRevis
 		}
 		revision, err = gitClient.LsRemote(ambiguousRevision)
 		if err != nil {
+			s.metricsServer.IncGitLsRemoteFail(gitClient.Root(), revision)
 			return &apiclient.ResolveRevisionResponse{Revision: "", AmbiguousRevision: ""}, err
 		}
 		return &apiclient.ResolveRevisionResponse{
@@ -2709,6 +2711,7 @@ func (s *Service) UpdateRevisionForPaths(_ context.Context, request *apiclient.U
 
 	syncedRevision, err = gitClient.LsRemote(syncedRevision)
 	if err != nil {
+		s.metricsServer.IncGitLsRemoteFail(gitClient.Root(), revision)
 		return nil, status.Errorf(codes.Internal, "unable to resolve git revision %s: %v", revision, err)
 	}
 
