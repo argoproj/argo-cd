@@ -6,12 +6,11 @@ import (
 	"os"
 	"path/filepath"
 
-	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
-
 	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
 	grpc_logrus "github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
 	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 	log "github.com/sirupsen/logrus"
+	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/health"
@@ -70,13 +69,11 @@ func NewServer(metricsServer *metrics.MetricsServer, cache *reposervercache.Cach
 
 	serverLog := log.NewEntry(log.StandardLogger())
 	streamInterceptors := []grpc.StreamServerInterceptor{
-		otelgrpc.StreamServerInterceptor(), //nolint:staticcheck // TODO: ignore SA1019 for depreciation: see https://github.com/argoproj/argo-cd/issues/18258
 		grpc_logrus.StreamServerInterceptor(serverLog),
 		grpc_prometheus.StreamServerInterceptor,
 		grpc_util.PanicLoggerStreamServerInterceptor(serverLog),
 	}
 	unaryInterceptors := []grpc.UnaryServerInterceptor{
-		otelgrpc.UnaryServerInterceptor(), //nolint:staticcheck // TODO: ignore SA1019 for depreciation: see https://github.com/argoproj/argo-cd/issues/18258
 		grpc_logrus.UnaryServerInterceptor(serverLog),
 		grpc_prometheus.UnaryServerInterceptor,
 		grpc_util.PanicLoggerUnaryServerInterceptor(serverLog),
@@ -93,6 +90,7 @@ func NewServer(metricsServer *metrics.MetricsServer, cache *reposervercache.Cach
 				MinTime: common.GetGRPCKeepAliveEnforcementMinimum(),
 			},
 		),
+		grpc.StatsHandler(otelgrpc.NewServerHandler()),
 	}
 
 	// We do allow for non-TLS servers to be created, in case of mTLS will be

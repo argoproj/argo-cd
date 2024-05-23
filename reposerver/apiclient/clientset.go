@@ -4,10 +4,12 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
-	"github.com/argoproj/argo-cd/v2/common"
-	"github.com/argoproj/argo-cd/v2/util/env"
 	"math"
 	"time"
+
+	"github.com/argoproj/argo-cd/v2/common"
+	"github.com/argoproj/argo-cd/v2/util/env"
+	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 
 	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
 	grpc_retry "github.com/grpc-ecosystem/go-grpc-middleware/retry"
@@ -69,8 +71,7 @@ func NewConnection(address string, timeoutSeconds int, tlsConfig *TLSConfigurati
 		grpc.WithStreamInterceptor(grpc_retry.StreamClientInterceptor(retryOpts...)),
 		grpc.WithUnaryInterceptor(grpc_middleware.ChainUnaryClient(unaryInterceptors...)),
 		grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(MaxGRPCMessageSize), grpc.MaxCallSendMsgSize(MaxGRPCMessageSize)),
-		grpc.WithUnaryInterceptor(argogrpc.OTELUnaryClientInterceptor()),
-		grpc.WithStreamInterceptor(argogrpc.OTELStreamClientInterceptor()),
+		grpc.WithStatsHandler(otelgrpc.NewClientHandler()),
 	}
 
 	tlsC := &tls.Config{}
