@@ -10,7 +10,7 @@ approvers:
   - "@alexmt"
 
 creation-date: 2024-05-17
-last-updated: 2024-05-22
+last-updated: 2024-05-23
 ---
 
 # Project scoped repository credential enhancements
