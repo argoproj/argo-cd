@@ -205,7 +205,7 @@ func TestGenerateYamlManifestInDir(t *testing.T) {
 	}
 
 	// update this value if we add/remove manifests
-	const countOfManifests = 48
+	const countOfManifests = 50
 
 	res1, err := service.GenerateManifest(context.Background(), &q)
 
@@ -3036,11 +3036,24 @@ func Test_populateHelmAppDetails_values_symlinks(t *testing.T) {
 	})
 }
 
-func TestGetHelmRepos_OCIDependencies(t *testing.T) {
+func TestGetHelmRepos_OCIDependenciesWithHelmRepo(t *testing.T) {
 	src := argoappv1.ApplicationSource{Path: "."}
-	q := apiclient.ManifestRequest{Repo: &argoappv1.Repository{}, ApplicationSource: &src, HelmRepoCreds: []*argoappv1.RepoCreds{
+	q := apiclient.ManifestRequest{Repos: []*argoappv1.Repository{}, ApplicationSource: &src, HelmRepoCreds: []*argoappv1.RepoCreds{
 		{URL: "example.com", Username: "test", Password: "test", EnableOCI: true},
 	}}
+
+	helmRepos, err := getHelmRepos("./testdata/oci-dependencies", q.Repos, q.HelmRepoCreds)
+	assert.Nil(t, err)
+
+	assert.Equal(t, len(helmRepos), 1)
+	assert.Equal(t, helmRepos[0].Username, "test")
+	assert.Equal(t, helmRepos[0].EnableOci, true)
+	assert.Equal(t, helmRepos[0].Repo, "example.com/myrepo")
+}
+
+func TestGetHelmRepos_OCIDependenciesWithRepo(t *testing.T) {
+	src := argoappv1.ApplicationSource{Path: "."}
+	q := apiclient.ManifestRequest{Repos: []*argoappv1.Repository{{Repo: "example.com", Username: "test", Password: "test", EnableOCI: true}}, ApplicationSource: &src, HelmRepoCreds: []*argoappv1.RepoCreds{}}
 
 	helmRepos, err := getHelmRepos("./testdata/oci-dependencies", q.Repos, q.HelmRepoCreds)
 	assert.Nil(t, err)
@@ -3239,6 +3252,9 @@ func Test_getResolvedValueFiles(t *testing.T) {
 	}
 }
 func TestErrorGetGitDirectories(t *testing.T) {
+	// test not using the cache
+	root := "./testdata/git-files-dirs"
+
 	type fields struct {
 		service *Service
 	}
@@ -3265,6 +3281,7 @@ func TestErrorGetGitDirectories(t *testing.T) {
 			s, _, _ := newServiceWithOpt(t, func(gitClient *gitmocks.Client, helmClient *helmmocks.Client, paths *iomocks.TempPaths) {
 				gitClient.On("Checkout", mock.Anything, mock.Anything).Return(nil)
 				gitClient.On("LsRemote", mock.Anything).Return("", fmt.Errorf("ah error"))
+				gitClient.On("Root").Return(root)
 				paths.On("GetPath", mock.Anything).Return(".", nil)
 				paths.On("GetPathIfExists", mock.Anything).Return(".", nil)
 			}, ".")
@@ -3323,6 +3340,9 @@ func TestGetGitDirectories(t *testing.T) {
 }
 
 func TestErrorGetGitFiles(t *testing.T) {
+	// test not using the cache
+	root := ""
+
 	type fields struct {
 		service *Service
 	}
@@ -3349,6 +3369,7 @@ func TestErrorGetGitFiles(t *testing.T) {
 			s, _, _ := newServiceWithOpt(t, func(gitClient *gitmocks.Client, helmClient *helmmocks.Client, paths *iomocks.TempPaths) {
 				gitClient.On("Checkout", mock.Anything, mock.Anything).Return(nil)
 				gitClient.On("LsRemote", mock.Anything).Return("", fmt.Errorf("ah error"))
+				gitClient.On("Root").Return(root)
 				paths.On("GetPath", mock.Anything).Return(".", nil)
 				paths.On("GetPathIfExists", mock.Anything).Return(".", nil)
 			}, ".")
@@ -3419,6 +3440,9 @@ func TestGetGitFiles(t *testing.T) {
 }
 
 func TestErrorUpdateRevisionForPaths(t *testing.T) {
+	// test not using the cache
+	root := ""
+
 	type fields struct {
 		service *Service
 	}
@@ -3445,6 +3469,7 @@ func TestErrorUpdateRevisionForPaths(t *testing.T) {
 			s, _, _ := newServiceWithOpt(t, func(gitClient *gitmocks.Client, helmClient *helmmocks.Client, paths *iomocks.TempPaths) {
 				gitClient.On("Checkout", mock.Anything, mock.Anything).Return(nil)
 				gitClient.On("LsRemote", mock.Anything).Return("", fmt.Errorf("ah error"))
+				gitClient.On("Root").Return(root)
 				paths.On("GetPath", mock.Anything).Return(".", nil)
 				paths.On("GetPathIfExists", mock.Anything).Return(".", nil)
 			}, ".")
@@ -3463,6 +3488,7 @@ func TestErrorUpdateRevisionForPaths(t *testing.T) {
 				gitClient.On("Checkout", mock.Anything, mock.Anything).Return(nil)
 				gitClient.On("LsRemote", "HEAD").Once().Return("632039659e542ed7de0c170a4fcc1c571b288fc0", nil)
 				gitClient.On("LsRemote", mock.Anything).Return("", fmt.Errorf("ah error"))
+				gitClient.On("Root").Return(root)
 				paths.On("GetPath", mock.Anything).Return(".", nil)
 				paths.On("GetPathIfExists", mock.Anything).Return(".", nil)
 			}, ".")
