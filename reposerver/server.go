@@ -74,13 +74,11 @@ func NewServer(metricsServer *metrics.MetricsServer, cache *reposervercache.Cach
 
 	serverLog := log.NewEntry(log.StandardLogger())
 	streamInterceptors := []grpc.StreamServerInterceptor{
-		otelgrpc.StreamServerInterceptor(), //nolint:staticcheck // TODO: ignore SA1019 for depreciation: see https://github.com/argoproj/argo-cd/issues/18258
 		grpc_logrus.StreamServerInterceptor(serverLog),
 		serverMetrics.StreamServerInterceptor(),
 		grpc_util.PanicLoggerStreamServerInterceptor(serverLog),
 	}
 	unaryInterceptors := []grpc.UnaryServerInterceptor{
-		otelgrpc.UnaryServerInterceptor(), //nolint:staticcheck // TODO: ignore SA1019 for depreciation: see https://github.com/argoproj/argo-cd/issues/18258
 		grpc_logrus.UnaryServerInterceptor(serverLog),
 		serverMetrics.UnaryServerInterceptor(),
 		grpc_util.PanicLoggerUnaryServerInterceptor(serverLog),
@@ -97,6 +95,7 @@ func NewServer(metricsServer *metrics.MetricsServer, cache *reposervercache.Cach
 				MinTime: common.GetGRPCKeepAliveEnforcementMinimum(),
 			},
 		),
+		grpc.StatsHandler(otelgrpc.NewServerHandler()),
 	}
 
 	// We do allow for non-TLS servers to be created, in case of mTLS will be
