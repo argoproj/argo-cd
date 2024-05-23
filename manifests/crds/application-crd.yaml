@@ -262,6 +262,10 @@ spec:
                               use for templating. If not set, defaults to the server's
                               current Kubernetes version.
                             type: string
+                          namespace:
+                            description: ReleaseName is the namespace scope to use.
+                              If omitted it will use the application name
+                            type: string
                           parameters:
                             description: Parameters is a list of Helm parameters which
                               are passed to the helm template command upon manifest
@@ -609,6 +613,10 @@ spec:
                               description: KubeVersions is the Kubernetes version
                                 to use for templating. If not set, defaults to the
                                 server's current Kubernetes version.
+                              type: string
+                            namespace:
+                              description: ReleaseName is the namespace scope to use.
+                                If omitted it will use the application name
                               type: string
                             parameters:
                               description: Parameters is a list of Helm parameters
@@ -1077,6 +1085,10 @@ spec:
                           for templating. If not set, defaults to the server's current
                           Kubernetes version.
                         type: string
+                      namespace:
+                        description: ReleaseName is the namespace scope to use. If
+                          omitted it will use the application name
+                        type: string
                       parameters:
                         description: Parameters is a list of Helm parameters which
                           are passed to the helm template command upon manifest generation
@@ -1460,6 +1472,10 @@ spec:
                           description: KubeVersions is the Kubernetes version to use
                             for templating. If not set, defaults to the server's current
                             Kubernetes version.
+                          type: string
+                        namespace:
+                          description: ReleaseName is the namespace scope to use.
+                            If omitted it will use the application name
                           type: string
                         parameters:
                           description: Parameters is a list of Helm parameters which
@@ -1965,6 +1981,10 @@ spec:
                                 to use for templating. If not set, defaults to the
                                 server's current Kubernetes version.
                               type: string
+                            namespace:
+                              description: ReleaseName is the namespace scope to use.
+                                If omitted it will use the application name
+                              type: string
                             parameters:
                               description: Parameters is a list of Helm parameters
                                 which are passed to the helm template command upon
@@ -2315,6 +2335,10 @@ spec:
                                 description: KubeVersions is the Kubernetes version
                                   to use for templating. If not set, defaults to the
                                   server's current Kubernetes version.
+                                type: string
+                              namespace:
+                                description: ReleaseName is the namespace scope to
+                                  use. If omitted it will use the application name
                                 type: string
                               parameters:
                                 description: Parameters is a list of Helm parameters
@@ -2811,6 +2835,11 @@ spec:
                                       to use for templating. If not set, defaults
                                       to the server's current Kubernetes version.
                                     type: string
+                                  namespace:
+                                    description: ReleaseName is the namespace scope
+                                      to use. If omitted it will use the application
+                                      name
+                                    type: string
                                   parameters:
                                     description: Parameters is a list of Helm parameters
                                       which are passed to the helm template command
@@ -3181,6 +3210,11 @@ spec:
                                         version to use for templating. If not set,
                                         defaults to the server's current Kubernetes
                                         version.
+                                      type: string
+                                    namespace:
+                                      description: ReleaseName is the namespace scope
+                                        to use. If omitted it will use the application
+                                        name
                                       type: string
                                     parameters:
                                       description: Parameters is a list of Helm parameters
@@ -3672,6 +3706,10 @@ spec:
                                   to use for templating. If not set, defaults to the
                                   server's current Kubernetes version.
                                 type: string
+                              namespace:
+                                description: ReleaseName is the namespace scope to
+                                  use. If omitted it will use the application name
+                                type: string
                               parameters:
                                 description: Parameters is a list of Helm parameters
                                   which are passed to the helm template command upon
@@ -4033,6 +4071,11 @@ spec:
                                   description: KubeVersions is the Kubernetes version
                                     to use for templating. If not set, defaults to
                                     the server's current Kubernetes version.
+                                  type: string
+                                namespace:
+                                  description: ReleaseName is the namespace scope
+                                    to use. If omitted it will use the application
+                                    name
                                   type: string
                                 parameters:
                                   description: Parameters is a list of Helm parameters
@@ -4593,6 +4636,10 @@ spec:
                                   to use for templating. If not set, defaults to the
                                   server's current Kubernetes version.
                                 type: string
+                              namespace:
+                                description: ReleaseName is the namespace scope to
+                                  use. If omitted it will use the application name
+                                type: string
                               parameters:
                                 description: Parameters is a list of Helm parameters
                                   which are passed to the helm template command upon
@@ -4954,6 +5001,11 @@ spec:
                                   description: KubeVersions is the Kubernetes version
                                     to use for templating. If not set, defaults to
                                     the server's current Kubernetes version.
+                                  type: string
+                                namespace:
+                                  description: ReleaseName is the namespace scope
+                                    to use. If omitted it will use the application
+                                    name
                                   type: string
                                 parameters:
                                   description: Parameters is a list of Helm parameters

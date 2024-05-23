@@ -210,6 +210,8 @@ spec:
                                           type: boolean
                                         kubeVersion:
                                           type: string
+                                        namespace:
+                                          type: string
                                         parameters:
                                           items:
                                             properties:
@@ -467,6 +469,8 @@ spec:
                                           ignoreMissingValueFiles:
                                             type: boolean
                                           kubeVersion:
+                                            type: string
+                                          namespace:
                                             type: string
                                           parameters:
                                             items:
@@ -850,6 +854,8 @@ spec:
                                           type: boolean
                                         kubeVersion:
                                           type: string
+                                        namespace:
+                                          type: string
                                         parameters:
                                           items:
                                             properties:
@@ -1107,6 +1113,8 @@ spec:
                                           ignoreMissingValueFiles:
                                             type: boolean
                                           kubeVersion:
+                                            type: string
+                                          namespace:
                                             type: string
                                           parameters:
                                             items:
@@ -1493,6 +1501,8 @@ spec:
                                           type: boolean
                                         kubeVersion:
                                           type: string
+                                        namespace:
+                                          type: string
                                         parameters:
                                           items:
                                             properties:
@@ -1750,6 +1760,8 @@ spec:
                                           ignoreMissingValueFiles:
                                             type: boolean
                                           kubeVersion:
+                                            type: string
+                                          namespace:
                                             type: string
                                           parameters:
                                             items:
@@ -2116,6 +2128,8 @@ spec:
                                           type: boolean
                                         kubeVersion:
                                           type: string
+                                        namespace:
+                                          type: string
                                         parameters:
                                           items:
                                             properties:
@@ -2373,6 +2387,8 @@ spec:
                                           ignoreMissingValueFiles:
                                             type: boolean
                                           kubeVersion:
+                                            type: string
+                                          namespace:
                                             type: string
                                           parameters:
                                             items:
@@ -2762,6 +2778,8 @@ spec:
                                                     type: boolean
                                                   kubeVersion:
                                                     type: string
+                                                  namespace:
+                                                    type: string
                                                   parameters:
                                                     items:
                                                       properties:
@@ -3019,6 +3037,8 @@ spec:
                                                     ignoreMissingValueFiles:
                                                       type: boolean
                                                     kubeVersion:
+                                                      type: string
+                                                    namespace:
                                                       type: string
                                                     parameters:
                                                       items:
@@ -3402,6 +3422,8 @@ spec:
                                                     type: boolean
                                                   kubeVersion:
                                                     type: string
+                                                  namespace:
+                                                    type: string
                                                   parameters:
                                                     items:
                                                       properties:
@@ -3659,6 +3681,8 @@ spec:
                                                     ignoreMissingValueFiles:
                                                       type: boolean
                                                     kubeVersion:
+                                                      type: string
+                                                    namespace:
                                                       type: string
                                                     parameters:
                                                       items:
@@ -4045,6 +4069,8 @@ spec:
                                                     type: boolean
                                                   kubeVersion:
                                                     type: string
+                                                  namespace:
+                                                    type: string
                                                   parameters:
                                                     items:
                                                       properties:
@@ -4302,6 +4328,8 @@ spec:
                                                     ignoreMissingValueFiles:
                                                       type: boolean
                                                     kubeVersion:
+                                                      type: string
+                                                    namespace:
                                                       type: string
                                                     parameters:
                                                       items:
@@ -4668,6 +4696,8 @@ spec:
                                                     type: boolean
                                                   kubeVersion:
                                                     type: string
+                                                  namespace:
+                                                    type: string
                                                   parameters:
                                                     items:
                                                       properties:
@@ -4925,6 +4955,8 @@ spec:
                                                     ignoreMissingValueFiles:
                                                       type: boolean
                                                     kubeVersion:
+                                                      type: string
+                                                    namespace:
                                                       type: string
                                                     parameters:
                                                       items:
@@ -5299,6 +5331,8 @@ spec:
                                                     type: boolean
                                                   kubeVersion:
                                                     type: string
+                                                  namespace:
+                                                    type: string
                                                   parameters:
                                                     items:
                                                       properties:
@@ -5556,6 +5590,8 @@ spec:
                                                     ignoreMissingValueFiles:
                                                       type: boolean
                                                     kubeVersion:
+                                                      type: string
+                                                    namespace:
                                                       type: string
                                                     parameters:
                                                       items:
@@ -6112,6 +6148,8 @@ spec:
                                                     type: boolean
                                                   kubeVersion:
                                                     type: string
+                                                  namespace:
+                                                    type: string
                                                   parameters:
                                                     items:
                                                       properties:
@@ -6369,6 +6407,8 @@ spec:
                                                     ignoreMissingValueFiles:
                                                       type: boolean
                                                     kubeVersion:
+                                                      type: string
+                                                    namespace:
                                                       type: string
                                                     parameters:
                                                       items:
@@ -6920,6 +6960,8 @@ spec:
                                                     type: boolean
                                                   kubeVersion:
                                                     type: string
+                                                  namespace:
+                                                    type: string
                                                   parameters:
                                                     items:
                                                       properties:
@@ -7177,6 +7219,8 @@ spec:
                                                     ignoreMissingValueFiles:
                                                       type: boolean
                                                     kubeVersion:
+                                                      type: string
+                                                    namespace:
                                                       type: string
                                                     parameters:
                                                       items:
@@ -7558,6 +7602,8 @@ spec:
                                           type: boolean
                                         kubeVersion:
                                           type: string
+                                        namespace:
+                                          type: string
                                         parameters:
                                           items:
                                             properties:
@@ -7815,6 +7861,8 @@ spec:
                                           ignoreMissingValueFiles:
                                             type: boolean
                                           kubeVersion:
+                                            type: string
+                                          namespace:
                                             type: string
                                           parameters:
                                             items:
@@ -8206,6 +8254,8 @@ spec:
                                                     type: boolean
                                                   kubeVersion:
                                                     type: string
+                                                  namespace:
+                                                    type: string
                                                   parameters:
                                                     items:
                                                       properties:
@@ -8463,6 +8513,8 @@ spec:
                                                     ignoreMissingValueFiles:
                                                       type: boolean
                                                     kubeVersion:
+                                                      type: string
+                                                    namespace:
                                                       type: string
                                                     parameters:
                                                       items:
@@ -8846,6 +8898,8 @@ spec:
                                                     type: boolean
                                                   kubeVersion:
                                                     type: string
+                                                  namespace:
+                                                    type: string
                                                   parameters:
                                                     items:
                                                       properties:
@@ -9103,6 +9157,8 @@ spec:
                                                     ignoreMissingValueFiles:
                                                       type: boolean
                                                     kubeVersion:
+                                                      type: string
+                                                    namespace:
                                                       type: string
                                                     parameters:
                                                       items:
@@ -9489,6 +9545,8 @@ spec:
                                                     type: boolean
                                                   kubeVersion:
                                                     type: string
+                                                  namespace:
+                                                    type: string
                                                   parameters:
                                                     items:
                                                       properties:
@@ -9746,6 +9804,8 @@ spec:
                                                     ignoreMissingValueFiles:
                                                       type: boolean
                                                     kubeVersion:
+                                                      type: string
+                                                    namespace:
                                                       type: string
                                                     parameters:
                                                       items:
@@ -10112,6 +10172,8 @@ spec:
                                                     type: boolean
                                                   kubeVersion:
                                                     type: string
+                                                  namespace:
+                                                    type: string
                                                   parameters:
                                                     items:
                                                       properties:
@@ -10369,6 +10431,8 @@ spec:
                                                     ignoreMissingValueFiles:
                                                       type: boolean
                                                     kubeVersion:
+                                                      type: string
+                                                    namespace:
                                                       type: string
                                                     parameters:
                                                       items:
@@ -10743,6 +10807,8 @@ spec:
                                                     type: boolean
                                                   kubeVersion:
                                                     type: string
+                                                  namespace:
+                                                    type: string
                                                   parameters:
                                                     items:
                                                       properties:
@@ -11000,6 +11066,8 @@ spec:
                                                     ignoreMissingValueFiles:
                                                       type: boolean
                                                     kubeVersion:
+                                                      type: string
+                                                    namespace:
                                                       type: string
                                                     parameters:
                                                       items:
@@ -11556,6 +11624,8 @@ spec:
                                                     type: boolean
                                                   kubeVersion:
                                                     type: string
+                                                  namespace:
+                                                    type: string
                                                   parameters:
                                                     items:
                                                       properties:
@@ -11813,6 +11883,8 @@ spec:
                                                     ignoreMissingValueFiles:
                                                       type: boolean
                                                     kubeVersion:
+                                                      type: string
+                                                    namespace:
                                                       type: string
                                                     parameters:
                                                       items:
@@ -12364,6 +12436,8 @@ spec:
                                                     type: boolean
                                                   kubeVersion:
                                                     type: string
+                                                  namespace:
+                                                    type: string
                                                   parameters:
                                                     items:
                                                       properties:
@@ -12621,6 +12695,8 @@ spec:
                                                     ignoreMissingValueFiles:
                                                       type: boolean
                                                     kubeVersion:
+                                                      type: string
+                                                    namespace:
                                                       type: string
                                                     parameters:
                                                       items:
@@ -13006,6 +13082,8 @@ spec:
                                           type: boolean
                                         kubeVersion:
                                           type: string
+                                        namespace:
+                                          type: string
                                         parameters:
                                           items:
                                             properties:
@@ -13263,6 +13341,8 @@ spec:
                                           ignoreMissingValueFiles:
                                             type: boolean
                                           kubeVersion:
+                                            type: string
+                                          namespace:
                                             type: string
                                           parameters:
                                             items:
@@ -13636,6 +13716,8 @@ spec:
                                           type: boolean
                                         kubeVersion:
                                           type: string
+                                        namespace:
+                                          type: string
                                         parameters:
                                           items:
                                             properties:
@@ -13893,6 +13975,8 @@ spec:
                                           ignoreMissingValueFiles:
                                             type: boolean
                                           kubeVersion:
+                                            type: string
+                                          namespace:
                                             type: string
                                           parameters:
                                             items:
@@ -14449,6 +14533,8 @@ spec:
                                           type: boolean
                                         kubeVersion:
                                           type: string
+                                        namespace:
+                                          type: string
                                         parameters:
                                           items:
                                             properties:
@@ -14706,6 +14792,8 @@ spec:
                                           ignoreMissingValueFiles:
                                             type: boolean
                                           kubeVersion:
+                                            type: string
+                                          namespace:
                                             type: string
                                           parameters:
                                             items:
@@ -15257,6 +15345,8 @@ spec:
                                           type: boolean
                                         kubeVersion:
                                           type: string
+                                        namespace:
+                                          type: string
                                         parameters:
                                           items:
                                             properties:
@@ -15514,6 +15604,8 @@ spec:
                                           ignoreMissingValueFiles:
                                             type: boolean
                                           kubeVersion:
+                                            type: string
+                                          namespace:
                                             type: string
                                           parameters:
                                             items:
@@ -15970,6 +16062,8 @@ spec:
                                 type: boolean
                               kubeVersion:
                                 type: string
+                              namespace:
+                                type: string
                               parameters:
                                 items:
                                   properties:
@@ -16227,6 +16321,8 @@ spec:
                                 ignoreMissingValueFiles:
                                   type: boolean
                                 kubeVersion:
+                                  type: string
+                                namespace:
                                   type: string
                                 parameters:
                                   items:

@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	goerrors "errors"
 	"fmt"
-	"github.com/argoproj/argo-cd/v2/controller/commit"
 	"math"
 	"math/rand"
 	"net/http"
@@ -16,6 +15,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/argoproj/argo-cd/v2/controller/commit"
 
 	clustercache "github.com/argoproj/gitops-engine/pkg/cache"
 	"github.com/argoproj/gitops-engine/pkg/diff"
@@ -1586,15 +1587,30 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 			logCtx.Errorf("Dry source has not been resolved, skipping")
 			return
 		}
-		if app.Status.SourceHydrator.Revision != revision {
-			app.Status.SourceHydrator.Revision = revision
-			app.Status.SourceHydrator.HydrateOperation = &appv1.HydrateOperation{
-				StartedAt:  metav1.Now(),
-				FinishedAt: nil,
-				Status:     appv1.HydrateOperationPhaseRunning,
+		if app.Status.SourceHydrator.Revision != revision || (app.Status.SourceHydrator.HydrateOperation != nil && app.Status.SourceHydrator.HydrateOperation.Status != appv1.HydrateOperationPhaseSucceeded) {
+			restart := false
+			if app.Status.SourceHydrator.Revision != revision {
+				restart = true
 			}
-			ctrl.persistAppStatus(origApp, &app.Status)
-			origApp.Status.SourceHydrator = app.Status.SourceHydrator
+
+			if app.Status.SourceHydrator.HydrateOperation != nil && app.Status.SourceHydrator.HydrateOperation.Status == appv1.HydrateOperationPhaseFailed {
+				retryWaitPeriod := 2 * 60 * time.Second
+				if metav1.Now().Sub(app.Status.SourceHydrator.HydrateOperation.FinishedAt.Time) > retryWaitPeriod {
+					logCtx.Info("Retrying failed hydration")
+					restart = true
+				}
+			}
+
+			if restart {
+				app.Status.SourceHydrator.HydrateOperation = &appv1.HydrateOperation{
+					StartedAt:  metav1.Now(),
+					FinishedAt: nil,
+					Status:     appv1.HydrateOperationPhaseRunning,
+				}
+				ctrl.persistAppStatus(origApp, &app.Status)
+				origApp.Status.SourceHydrator = app.Status.SourceHydrator
+			}
+
 			destinationBranch := app.Spec.SourceHydrator.SyncSource.TargetRevision
 			if app.Spec.SourceHydrator.HydrateTo != nil {
 				destinationBranch = app.Spec.SourceHydrator.HydrateTo.TargetRevision
@@ -1605,6 +1621,8 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 				destinationBranch:    destinationBranch,
 			}
 			ctrl.hydrationQueue.Add(key)
+		} else {
+			logCtx.Debug("No reason to re-hydrate")
 		}
 	}
 
@@ -1785,7 +1803,7 @@ func (ctrl *ApplicationController) processHydrationQueueItem() (processNext bool
 				app.Status.SourceHydrator.HydrateOperation.Status = appv1.HydrateOperationPhaseFailed
 				failedAt := metav1.Now()
 				app.Status.SourceHydrator.HydrateOperation.FinishedAt = &failedAt
-				app.Status.SourceHydrator.HydrateOperation.Message = err.Error()
+				app.Status.SourceHydrator.HydrateOperation.Message = fmt.Sprintf("Failed to hydrated revision %s: %v", revision, err.Error())
 				ctrl.persistAppStatus(origApp, &app.Status)
 				logCtx.Errorf("Failed to hydrate app: %v", err)
 				return
@@ -1800,6 +1818,7 @@ func (ctrl *ApplicationController) processHydrationQueueItem() (processNext bool
 				Status:     appv1.HydrateOperationPhaseSucceeded,
 				Message:    "",
 			}
+			app.Status.SourceHydrator.Revision = revision
 			app.Status.SourceHydrator.HydrateOperation = operation
 			ctrl.persistAppStatus(origApp, &app.Status)
 			origApp.Status.SourceHydrator = app.Status.SourceHydrator
@@ -1855,18 +1874,16 @@ func (ctrl *ApplicationController) hydrate(apps []*appv1.Application, refreshTyp
 	}
 
 	manifestsRequest := commit.ManifestsRequest{
-		RepoURL:           repoURL,
-		SyncBranch:        syncBranch,
-		TargetBranch:      targetBranch,
-		DrySHA:            revision,
-		CommitAuthorName:  "Michael Crenshaw",
-		CommitAuthorEmail: "350466+crenshaw-dev@users.noreply.github.com",
-		CommitMessage:     fmt.Sprintf("[Argo CD Bot] hydrate %s", revision),
-		CommitTime:        time.Now(),
-		Paths:             paths,
+		RepoURL:       repoURL,
+		SyncBranch:    syncBranch,
+		TargetBranch:  targetBranch,
+		DrySHA:        revision,
+		CommitMessage: fmt.Sprintf("[Argo CD Bot] hydrate %s", revision),
+		CommitTime:    time.Now(),
+		Paths:         paths,
 	}
 
-	commitService := commit.NewService()
+	commitService := commit.NewService(ctrl.db)
 	_, err := commitService.Commit(manifestsRequest)
 	if err != nil {
 		return fmt.Errorf("failed to commit hydrated manifests: %w", err)

@@ -6425,6 +6425,10 @@
           "description": "KubeVersions is the Kubernetes version to use for templating. If not set, defaults to the server's current Kubernetes version.",
           "type": "string"
         },
+        "namespace": {
+          "type": "string",
+          "title": "ReleaseName is the namespace scope to use. If omitted it will use the application name"
+        },
         "parameters": {
           "type": "array",
           "title": "Parameters is a list of Helm parameters which are passed to the helm template command upon manifest generation",

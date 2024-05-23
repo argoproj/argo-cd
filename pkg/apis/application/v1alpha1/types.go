@@ -406,6 +406,8 @@ type ApplicationSourceHelm struct {
 	KubeVersion string `json:"kubeVersion,omitempty" protobuf:"bytes,11,opt,name=kubeVersion"`
 	// APIVersions is a list of Kubernetes API versions to use for templating. If not set, defaults to the server's preferred API versions.
 	ApiVersions []string `json:"apiVersions,omitempty" protobuf:"bytes,12,opt,name=apiVersions"`
+	// ReleaseName is the namespace scope to use. If omitted it will use the application name
+	Namespace string `json:"namespace,omitempty" protobuf:"bytes,13,opt,name=namespace"`
 }
 
 // HelmParameter is a parameter that's passed to helm template during manifest generation

@@ -491,6 +491,9 @@ message ApplicationSourceHelm {
 
   // APIVersions is a list of Kubernetes API versions to use for templating. If not set, defaults to the server's preferred API versions.
   repeated string apiVersions = 12;
+
+  // ReleaseName is the namespace scope to use. If omitted it will use the application name
+  optional string namespace = 13;
 }
 
 // ApplicationSourceJsonnet holds options specific to applications of type Jsonnet
