@@ -29,6 +29,10 @@ spec:
       name: Revision
       priority: 10
       type: string
+    - jsonPath: .spec.project
+      name: Project
+      priority: 10
+      type: string
     name: v1alpha1
     schema:
       openAPIV3Schema:
@@ -23071,12 +23075,6 @@ kind: NetworkPolicy
 metadata:
   name: argocd-redis-network-policy
 spec:
-  egress:
-  - ports:
-    - port: 53
-      protocol: UDP
-    - port: 53
-      protocol: TCP
   ingress:
   - from:
     - podSelector:
@@ -23096,7 +23094,6 @@ spec:
       app.kubernetes.io/name: argocd-redis
   policyTypes:
   - Ingress
-  - Egress
 ---
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
