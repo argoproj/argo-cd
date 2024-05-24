@@ -126,7 +126,7 @@ stringData:
 
 **metrics**
 
-* `argocd_app_reconcile` - reports application reconciliation duration. Can be used to build reconciliation duration heat map to get a high-level reconciliation performance picture.
+* `argocd_app_reconcile` - reports application reconciliation duration in seconds. Can be used to build reconciliation duration heat map to get a high-level reconciliation performance picture.
 * `argocd_app_k8s_request_total` - number of k8s requests per application. The number of fallback Kubernetes API queries - useful to identify which application has a resource with
 non-preferred version and causes performance issues.
 
@@ -245,6 +245,25 @@ spec:
     repoURL: https://github.com/argoproj/argocd-example-apps.git
     targetRevision: HEAD
     path: my-application
+# ...
+```
+
+* **Glob paths** The annotation might contain a glob pattern path, which can be any pattern supported by the [Go filepath Match function](https://pkg.go.dev/path/filepath#Match):
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: guestbook
+  namespace: argocd
+  annotations:
+    # resolves to any file matching the pattern of *-secret.yaml in the top level shared folder
+    argocd.argoproj.io/manifest-generate-paths: "/shared/*-secret.yaml"
+spec:
+  source:
+    repoURL: https://github.com/argoproj/argocd-example-apps.git
+    targetRevision: HEAD
+    path: guestbook
 # ...
 ```
 

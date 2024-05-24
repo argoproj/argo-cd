@@ -453,7 +453,29 @@ export interface ApplicationStatus {
     health: HealthStatus;
     operationState?: OperationState;
     summary?: ApplicationSummary;
+    sourceHydrator?: SourceHydratorStatus;
 }
+
+export interface SourceHydratorStatus {
+    drySource: DrySource;
+    revision: string;
+    hydrateOperation?: HydrateOperation;
+}
+
+export interface HydrateOperation {
+    startedAt: models.Time;
+    finishedAt?: models.Time;
+    status: HydrateOperationPhase;
+    message: string;
+}
+
+export type HydrateOperationPhase = 'Running' | 'Failed' | 'Succeeded';
+
+export const HydrateOperationPhases = {
+    Running: 'Running' as OperationPhase,
+    Failed: 'Failed' as OperationPhase,
+    Succeeded: 'Succeeded' as OperationPhase,
+};
 
 export interface JwtTokens {
     items: JwtToken[];

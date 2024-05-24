@@ -30,14 +30,14 @@ type HelmRepository struct {
 
 // Helm provides wrapper functionality around the `helm` command.
 type Helm interface {
-	// Template returns a list of unstructured objects from a `helm template` command
-	Template(opts *TemplateOpts) (string, error)
+	// Template returns a list of unstructured objects from a `helm template` command and the full command that was run
+	Template(opts *TemplateOpts) (string, string, error)
 	// GetParameters returns a list of chart parameters taking into account values in provided YAML files.
-	GetParameters(valuesFiles []pathutil.ResolvedFilePath, appPath, repoRoot string) (map[string]string, error)
+	GetParameters(valuesFiles []pathutil.ResolvedFilePath, appPath, repoRoot string) (map[string]string, string, error)
 	// DependencyBuild runs `helm dependency build` to download a chart's dependencies
-	DependencyBuild() error
+	DependencyBuild() ([]string, error)
 	// Init runs `helm init --client-only`
-	Init() error
+	Init() (string, error)
 	// Dispose deletes temp resources
 	Dispose()
 }
@@ -67,51 +67,58 @@ func IsMissingDependencyErr(err error) bool {
 		strings.Contains(err.Error(), "found in Chart.yaml, but missing in charts/ directory")
 }
 
-func (h *helm) Template(templateOpts *TemplateOpts) (string, error) {
-	out, err := h.cmd.template(".", templateOpts)
+func (h *helm) Template(templateOpts *TemplateOpts) (string, string, error) {
+	out, command, err := h.cmd.template(".", templateOpts)
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
-	return out, nil
+	return out, command, nil
 }
 
-func (h *helm) DependencyBuild() error {
+func (h *helm) DependencyBuild() ([]string, error) {
 	isHelmOci := h.cmd.IsHelmOci
 	defer func() {
 		h.cmd.IsHelmOci = isHelmOci
 	}()
 
+	var commands []string
 	for i := range h.repos {
 		repo := h.repos[i]
 		if repo.EnableOci {
 			h.cmd.IsHelmOci = true
 			if repo.Creds.Username != "" && repo.Creds.Password != "" {
-				_, err := h.cmd.RegistryLogin(repo.Repo, repo.Creds)
+				_, command, err := h.cmd.RegistryLogin(repo.Repo, repo.Creds)
+				commands = append(commands, command)
 
 				defer func() {
-					_, _ = h.cmd.RegistryLogout(repo.Repo, repo.Creds)
+					_, _, _ = h.cmd.RegistryLogout(repo.Repo, repo.Creds)
 				}()
 
 				if err != nil {
-					return err
+					return []string{}, err
 				}
 			}
 		} else {
-			_, err := h.cmd.RepoAdd(repo.Name, repo.Repo, repo.Creds, h.passCredentials)
+			_, command, err := h.cmd.RepoAdd(repo.Name, repo.Repo, repo.Creds, h.passCredentials)
+			commands = append(commands, command)
 
 			if err != nil {
-				return err
+				return []string{}, err
 			}
 		}
 	}
 	h.repos = nil
-	_, err := h.cmd.dependencyBuild()
-	return err
+	_, command, err := h.cmd.dependencyBuild()
+	if err != nil {
+		return []string{}, err
+	}
+	commands = append(commands, command)
+	return commands, nil
 }
 
-func (h *helm) Init() error {
-	_, err := h.cmd.Init()
-	return err
+func (h *helm) Init() (string, error) {
+	_, command, err := h.cmd.Init()
+	return command, err
 }
 
 func (h *helm) Dispose() {
@@ -135,13 +142,15 @@ func Version(shortForm bool) (string, error) {
 	return strings.TrimSpace(version), nil
 }
 
-func (h *helm) GetParameters(valuesFiles []pathutil.ResolvedFilePath, appPath, repoRoot string) (map[string]string, error) {
+func (h *helm) GetParameters(valuesFiles []pathutil.ResolvedFilePath, appPath, repoRoot string) (map[string]string, string, error) {
 	var values []string
+	var command string
 	// Don't load values.yaml if it's an out-of-bounds link.
 	if _, _, err := pathutil.ResolveValueFilePathOrUrl(appPath, repoRoot, "values.yaml", []string{}); err == nil {
-		out, err := h.cmd.inspectValues(".")
+		var out string
+		out, command, err = h.cmd.inspectValues(".")
 		if err != nil {
-			return nil, err
+			return nil, "", err
 		}
 		values = append(values, out)
 	} else {
@@ -160,7 +169,7 @@ func (h *helm) GetParameters(valuesFiles []pathutil.ResolvedFilePath, appPath, r
 			fileValues, err = os.ReadFile(file)
 		}
 		if err != nil {
-			return nil, fmt.Errorf("failed to read value file %s: %s", file, err)
+			return nil, "", fmt.Errorf("failed to read value file %s: %s", file, err)
 		}
 		values = append(values, string(fileValues))
 	}
@@ -169,12 +178,12 @@ func (h *helm) GetParameters(valuesFiles []pathutil.ResolvedFilePath, appPath, r
 	for _, file := range values {
 		values := map[string]interface{}{}
 		if err := yaml.Unmarshal([]byte(file), &values); err != nil {
-			return nil, fmt.Errorf("failed to parse values: %s", err)
+			return nil, "", fmt.Errorf("failed to parse values: %s", err)
 		}
 		flatVals(values, output)
 	}
 
-	return output, nil
+	return output, command, nil
 }
 
 func flatVals(input interface{}, output map[string]string, prefixes ...string) {

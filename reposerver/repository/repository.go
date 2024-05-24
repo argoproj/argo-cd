@@ -1000,7 +1000,9 @@ func getHelmRepos(appPath string, repositories []*v1alpha1.Repository, helmRepoC
 				// finally if repo is OCI and no credentials found, use the first OCI credential matching by hostname
 				// see https://github.com/argoproj/argo-cd/issues/14636
 				for _, cred := range repositories {
-					if depURL, err := url.Parse("oci://" + dep.Repo); err == nil && cred.EnableOCI && depURL.Host == cred.Repo {
+					// if the repo is OCI, don't match the repository URL exactly, but only as a dependent repository prefix just like in the getRepoCredential function
+					// see https://github.com/argoproj/argo-cd/issues/12436
+					if _, err := url.Parse("oci://" + dep.Repo); err == nil && cred.EnableOCI && strings.HasPrefix(dep.Repo, cred.Repo) {
 						repo.Username = cred.Username
 						repo.Password = cred.Password
 						break
@@ -1073,7 +1075,7 @@ var manifestGenerateLock = sync.NewKeyLock()
 // if multiple threads are trying to run it.
 // Multiple goroutines might process same helm app in one repo concurrently when repo server process multiple
 // manifest generation requests of the same commit.
-func runHelmBuild(appPath string, h helm.Helm) error {
+func runHelmBuild(appPath string, h helm.Helm) ([]string, error) {
 	manifestGenerateLock.Lock(appPath)
 	defer manifestGenerateLock.Unlock(appPath)
 
@@ -1083,16 +1085,16 @@ func runHelmBuild(appPath string, h helm.Helm) error {
 	markerFile := path.Join(appPath, helmDepUpMarkerFile)
 	_, err := os.Stat(markerFile)
 	if err == nil {
-		return nil
+		return []string{}, nil
 	} else if !os.IsNotExist(err) {
-		return err
+		return []string{}, err
 	}
 
-	err = h.DependencyBuild()
+	commands, err := h.DependencyBuild()
 	if err != nil {
-		return fmt.Errorf("error building helm chart dependencies: %w", err)
+		return []string{}, fmt.Errorf("error building helm chart dependencies: %w", err)
 	}
-	return os.WriteFile(markerFile, []byte("marker"), 0644)
+	return commands, os.WriteFile(markerFile, []byte("marker"), 0644)
 }
 
 func isSourcePermitted(url string, repos []string) bool {
@@ -1100,7 +1102,12 @@ func isSourcePermitted(url string, repos []string) bool {
 	return p.IsSourcePermitted(v1alpha1.ApplicationSource{RepoURL: url})
 }
 
-func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclient.ManifestRequest, isLocal bool, gitRepoPaths io.TempPaths) ([]*unstructured.Unstructured, error) {
+// helmTemplate runs helm template on the application source and returns the generated manifests as well as a list of
+// commands that were executed
+func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclient.ManifestRequest, isLocal bool, gitRepoPaths io.TempPaths) ([]*unstructured.Unstructured, []string, error) {
+	// Track the commands executed as part of the helm template operation
+	var commands []string
+
 	concurrencyAllowed := helmConcurrencyDefault || isConcurrencyAllowed(appPath)
 	if !concurrencyAllowed {
 		manifestGenerateLock.Lock(appPath)
@@ -1113,11 +1120,29 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 	// templating, thus, we just use the name part of the identifier.
 	appName, _ := argo.ParseInstanceName(q.AppName, "")
 
+	// If the API versions are not set in the application source, use the ones from the request.
+	var apiVersions []string
+	if q.ApplicationSource.Helm != nil {
+		apiVersions = q.ApplicationSource.Helm.ApiVersions
+	}
+	if len(apiVersions) == 0 {
+		apiVersions = q.ApiVersions
+	}
+
+	// If the Kube version is not set in the application source, use the one from the request.
+	kubeVersion := ""
+	if q.ApplicationSource.Helm != nil {
+		kubeVersion = q.ApplicationSource.Helm.KubeVersion
+	}
+	if kubeVersion == "" {
+		kubeVersion = q.KubeVersion
+	}
+
 	templateOpts := &helm.TemplateOpts{
 		Name:        appName,
 		Namespace:   q.Namespace,
-		KubeVersion: text.SemVer(q.KubeVersion),
-		APIVersions: q.ApiVersions,
+		KubeVersion: text.SemVer(kubeVersion),
+		APIVersions: apiVersions,
 		Set:         map[string]string{},
 		SetString:   map[string]string{},
 		SetFile:     map[string]pathutil.ResolvedFilePath{},
@@ -1133,10 +1158,16 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 		if appHelm.ReleaseName != "" {
 			templateOpts.Name = appHelm.ReleaseName
 		}
+		if appHelm.Namespace != "" {
+			templateOpts.Namespace = appHelm.Namespace
+		}
+		if templateOpts.Namespace == "" {
+			return nil, nil, fmt.Errorf("cannot generate application '%s' without helm namespace", appName)
+		}
 
 		resolvedValueFiles, err := getResolvedValueFiles(appPath, repoRoot, env, q.GetValuesFileSchemes(), appHelm.ValueFiles, q.RefSources, gitRepoPaths, appHelm.IgnoreMissingValueFiles)
 		if err != nil {
-			return nil, fmt.Errorf("error resolving helm value files: %w", err)
+			return nil, nil, fmt.Errorf("error resolving helm value files: %w", err)
 		}
 
 		templateOpts.Values = resolvedValueFiles
@@ -1144,7 +1175,7 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 		if !appHelm.ValuesIsEmpty() {
 			rand, err := uuid.NewRandom()
 			if err != nil {
-				return nil, fmt.Errorf("error generating random filename for Helm values file: %w", err)
+				return nil, nil, fmt.Errorf("error generating random filename for Helm values file: %w", err)
 			}
 			p := path.Join(os.TempDir(), rand.String())
 			defer func() {
@@ -1155,7 +1186,7 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 			}()
 			err = os.WriteFile(p, appHelm.ValuesYAML(), 0644)
 			if err != nil {
-				return nil, fmt.Errorf("error writing helm values file: %w", err)
+				return nil, nil, fmt.Errorf("error writing helm values file: %w", err)
 			}
 			templateOpts.Values = append(templateOpts.Values, pathutil.ResolvedFilePath(p))
 		}
@@ -1170,7 +1201,7 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 		for _, p := range appHelm.FileParameters {
 			resolvedPath, _, err := pathutil.ResolveValueFilePathOrUrl(appPath, repoRoot, env.Envsubst(p.Path), q.GetValuesFileSchemes())
 			if err != nil {
-				return nil, fmt.Errorf("error resolving helm value file path: %w", err)
+				return nil, nil, fmt.Errorf("error resolving helm value file path: %w", err)
 			}
 			templateOpts.SetFile[p.Name] = resolvedPath
 		}
@@ -1194,31 +1225,39 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 
 	helmRepos, err := getHelmRepos(appPath, q.Repos, q.HelmRepoCreds)
 	if err != nil {
-		return nil, fmt.Errorf("error getting helm repos: %w", err)
+		return nil, nil, fmt.Errorf("error getting helm repos: %w", err)
 	}
 
 	h, err := helm.NewHelmApp(appPath, helmRepos, isLocal, version, proxy, passCredentials)
 	if err != nil {
-		return nil, fmt.Errorf("error initializing helm app object: %w", err)
+		return nil, nil, fmt.Errorf("error initializing helm app object: %w", err)
 	}
 
 	defer h.Dispose()
-	err = h.Init()
+	command, err := h.Init()
 	if err != nil {
-		return nil, fmt.Errorf("error initializing helm app: %w", err)
+		return nil, nil, fmt.Errorf("error initializing helm app: %w", err)
+	}
+	if command != "" {
+		commands = append(commands, command)
 	}
 
-	out, err := h.Template(templateOpts)
+	out, command, err := h.Template(templateOpts)
+	if err == nil {
+		commands = append(commands, command)
+	}
 	if err != nil {
 		if !helm.IsMissingDependencyErr(err) {
-			return nil, err
+			return nil, nil, err
 		}
 
+		var buildCommands []string
 		if concurrencyAllowed {
-			err = runHelmBuild(appPath, h)
+			buildCommands, err = runHelmBuild(appPath, h)
 		} else {
-			err = h.DependencyBuild()
+			buildCommands, err = h.DependencyBuild()
 		}
+		commands = append(commands, buildCommands...)
 
 		if err != nil {
 			var reposNotPermitted []string
@@ -1236,18 +1275,20 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 			}
 
 			if len(reposNotPermitted) > 0 {
-				return nil, status.Errorf(codes.PermissionDenied, "helm repos %s are not permitted in project '%s'", strings.Join(reposNotPermitted, ", "), q.ProjectName)
+				return nil, nil, status.Errorf(codes.PermissionDenied, "helm repos %s are not permitted in project '%s'", strings.Join(reposNotPermitted, ", "), q.ProjectName)
 			}
 
-			return nil, err
+			return nil, nil, err
 		}
 
-		out, err = h.Template(templateOpts)
+		out, command, err = h.Template(templateOpts)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
+		commands = append(commands, command)
 	}
-	return kube.SplitYAML([]byte(out))
+	objs, err := kube.SplitYAML([]byte(out))
+	return objs, commands, err
 }
 
 func getResolvedValueFiles(
@@ -1378,6 +1419,7 @@ func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, 
 
 	env := newEnv(q, revision)
 
+	// This call mutates q.ApplicationSource to apply overrides
 	appSourceType, err := GetAppSourceType(ctx, q.ApplicationSource, appPath, repoRoot, q.AppName, q.EnabledSourceTypes, opt.cmpTarExcludedGlobs, env.Environ())
 	if err != nil {
 		return nil, fmt.Errorf("error getting app source type: %w", err)
@@ -1387,9 +1429,11 @@ func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, 
 		repoURL = q.Repo.Repo
 	}
 
+	var commands []string
+
 	switch appSourceType {
 	case v1alpha1.ApplicationSourceTypeHelm:
-		targetObjs, err = helmTemplate(appPath, repoRoot, env, q, isLocal, gitRepoPaths)
+		targetObjs, commands, err = helmTemplate(appPath, repoRoot, env, q, isLocal, gitRepoPaths)
 	case v1alpha1.ApplicationSourceTypeKustomize:
 		kustomizeBinary := ""
 		if q.KustomizeOptions != nil {
@@ -1462,6 +1506,7 @@ func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, 
 	return &apiclient.ManifestResponse{
 		Manifests:  manifests,
 		SourceType: string(appSourceType),
+		Commands:   commands,
 	}, nil
 }
 
@@ -2060,7 +2105,7 @@ func populateHelmAppDetails(res *apiclient.RepoAppDetailsResponse, appPath strin
 		return err
 	}
 	defer h.Dispose()
-	err = h.Init()
+	_, err = h.Init()
 	if err != nil {
 		return err
 	}
@@ -2080,7 +2125,7 @@ func populateHelmAppDetails(res *apiclient.RepoAppDetailsResponse, appPath strin
 	if err != nil {
 		return fmt.Errorf("failed to resolve value files: %w", err)
 	}
-	params, err := h.GetParameters(resolvedSelectedValueFiles, appPath, repoRoot)
+	params, _, err := h.GetParameters(resolvedSelectedValueFiles, appPath, repoRoot)
 	if err != nil {
 		return err
 	}
@@ -2308,7 +2353,7 @@ func (s *Service) GetRevisionChartDetails(ctx context.Context, q *apiclient.Repo
 		return nil, fmt.Errorf("error creating helm cmd: %v", err)
 	}
 	defer helmCmd.Close()
-	helmDetails, err := helmCmd.InspectChart()
+	helmDetails, _, err := helmCmd.InspectChart()
 	if err != nil {
 		return nil, fmt.Errorf("error inspecting chart: %v", err)
 	}
@@ -2512,7 +2557,7 @@ func (s *Service) ResolveRevision(ctx context.Context, q *apiclient.ResolveRevis
 	app := q.App
 	ambiguousRevision := q.AmbiguousRevision
 	var revision string
-	var source = app.Spec.GetSource()
+	var source = app.Spec.GetSourcePtrByIndex(int(q.SourceIndex))
 	if source.IsHelm() {
 		_, revision, err := s.newHelmClientResolveRevision(repo, ambiguousRevision, source.Chart, true)
 

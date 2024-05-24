@@ -36,6 +36,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/app/path"
 	"github.com/argoproj/argo-cd/v2/util/argo"
 	argodiff "github.com/argoproj/argo-cd/v2/util/argo/diff"
+	"github.com/argoproj/argo-cd/v2/util/argo/normalizers"
 	appstatecache "github.com/argoproj/argo-cd/v2/util/cache/appstate"
 	"github.com/argoproj/argo-cd/v2/util/db"
 	"github.com/argoproj/argo-cd/v2/util/gpg"
@@ -72,8 +73,8 @@ type managedResource struct {
 type AppStateManager interface {
 	CompareAppState(app *v1alpha1.Application, project *v1alpha1.AppProject, revisions []string, sources []v1alpha1.ApplicationSource, noCache bool, noRevisionCache bool, localObjects []string, hasMultipleSources bool) (*comparisonResult, error)
 	SyncAppState(app *v1alpha1.Application, state *v1alpha1.OperationState)
-	GetRepoObjs(app *v1alpha1.Application, sources []v1alpha1.ApplicationSource, appLabelKey string, revisions []string, noCache, noRevisionCache, verifySignature bool, proj *v1alpha1.AppProject) ([]*unstructured.Unstructured, []*apiclient.ManifestResponse, error)
-	ResolveDryRevision(app *v1alpha1.Application) (string, error)
+	GetRepoObjs(app *v1alpha1.Application, sources []v1alpha1.ApplicationSource, appLabelKey string, revisions []string, noCache, noRevisionCache, verifySignature bool, proj *v1alpha1.AppProject, sendAppName bool) ([]*unstructured.Unstructured, []*apiclient.ManifestResponse, error)
+	ResolveDryRevision(repoURL string, revision string) (string, error)
 }
 
 // comparisonResult holds the state of an application after the reconciliation
@@ -119,13 +120,14 @@ type appStateManager struct {
 	repoErrorCache        goSync.Map
 	repoErrorGracePeriod  time.Duration
 	serverSideDiff        bool
+	ignoreNormalizerOpts  normalizers.IgnoreNormalizerOpts
 }
 
 // GetRepoObjs will generate the manifests for the given application delegating the
 // task to the repo-server. It returns the list of generated manifests as unstructured
 // objects. It also returns the full response from all calls to the repo server as the
 // second argument.
-func (m *appStateManager) GetRepoObjs(app *v1alpha1.Application, sources []v1alpha1.ApplicationSource, appLabelKey string, revisions []string, noCache, noRevisionCache, verifySignature bool, proj *v1alpha1.AppProject) ([]*unstructured.Unstructured, []*apiclient.ManifestResponse, error) {
+func (m *appStateManager) GetRepoObjs(app *v1alpha1.Application, sources []v1alpha1.ApplicationSource, appLabelKey string, revisions []string, noCache, noRevisionCache, verifySignature bool, proj *v1alpha1.AppProject, sendRuntimeState bool) ([]*unstructured.Unstructured, []*apiclient.ManifestResponse, error) {
 	ts := stats.NewTimingStats()
 	helmRepos, err := m.db.ListHelmRepositories(context.Background())
 	if err != nil {
@@ -205,6 +207,14 @@ func (m *appStateManager) GetRepoObjs(app *v1alpha1.Application, sources []v1alp
 			}
 		}
 
+		appNamespace := app.Spec.Destination.Namespace
+		apiVersions := argo.APIResourcesToStrings(apiResources, true)
+		if !sendRuntimeState {
+			appNamespace = ""
+			apiVersions = nil
+			serverVersion = ""
+		}
+
 		val, ok := app.Annotations[v1alpha1.AnnotationKeyManifestGeneratePaths]
 		if !source.IsHelm() && syncedRevision != "" && ok && val != "" {
 			// Validate the manifest-generate-path annotation to avoid generating manifests if it has not changed.
@@ -215,10 +225,10 @@ func (m *appStateManager) GetRepoObjs(app *v1alpha1.Application, sources []v1alp
 				Paths:              path.GetAppRefreshPaths(app),
 				AppLabelKey:        appLabelKey,
 				AppName:            app.InstanceName(m.namespace),
-				Namespace:          app.Spec.Destination.Namespace,
+				Namespace:          appNamespace,
 				ApplicationSource:  &source,
 				KubeVersion:        serverVersion,
-				ApiVersions:        argo.APIResourcesToStrings(apiResources, true),
+				ApiVersions:        apiVersions,
 				TrackingMethod:     string(argo.GetTrackingMethod(m.settingsMgr)),
 				RefSources:         refSources,
 				HasMultipleSources: app.Spec.HasMultipleSources(),
@@ -238,11 +248,11 @@ func (m *appStateManager) GetRepoObjs(app *v1alpha1.Application, sources []v1alp
 			NoRevisionCache:    noRevisionCache,
 			AppLabelKey:        appLabelKey,
 			AppName:            app.InstanceName(m.namespace),
-			Namespace:          app.Spec.Destination.Namespace,
+			Namespace:          appNamespace,
 			ApplicationSource:  &source,
 			KustomizeOptions:   kustomizeOptions,
 			KubeVersion:        serverVersion,
-			ApiVersions:        argo.APIResourcesToStrings(apiResources, true),
+			ApiVersions:        apiVersions,
 			VerifySignature:    verifySignature,
 			HelmRepoCreds:      permittedHelmCredentials,
 			TrackingMethod:     string(argo.GetTrackingMethod(m.settingsMgr)),
@@ -277,22 +287,31 @@ func (m *appStateManager) GetRepoObjs(app *v1alpha1.Application, sources []v1alp
 	return targetObjs, manifestInfos, nil
 }
 
-func (m *appStateManager) ResolveDryRevision(app *v1alpha1.Application) (string, error) {
+func (m *appStateManager) ResolveDryRevision(repoURL string, revision string) (string, error) {
 	conn, repoClient, err := m.repoClientset.NewRepoServerClient()
 	if err != nil {
 		return "", fmt.Errorf("failed to connect to repo server: %w", err)
 	}
 	defer io.Close(conn)
 
-	repo, err := m.db.GetRepository(context.Background(), app.Spec.SourceHydrator.DrySource.RepoURL)
+	repo, err := m.db.GetRepository(context.Background(), repoURL)
 	if err != nil {
-		return "", fmt.Errorf("failed to get repo %q: %w", app.Spec.SourceHydrator.DrySource.RepoURL, err)
+		return "", fmt.Errorf("failed to get repo %q: %w", repoURL, err)
 	}
 
+	// Mock the app. The repo-server only needs to know whether the "chart" field is populated.
+	app := &v1alpha1.Application{
+		Spec: v1alpha1.ApplicationSpec{
+			Source: &v1alpha1.ApplicationSource{
+				RepoURL:        repoURL,
+				TargetRevision: revision,
+			},
+		},
+	}
 	resp, err := repoClient.ResolveRevision(context.Background(), &apiclient.ResolveRevisionRequest{
 		Repo:              repo,
 		App:               app,
-		AmbiguousRevision: app.Spec.SourceHydrator.DrySource.TargetRevision,
+		AmbiguousRevision: revision,
 	})
 	if err != nil {
 		return "", fmt.Errorf("failed to determine whether the dry source has changed: %w", err)
@@ -475,7 +494,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 			}
 		}
 
-		targetObjs, manifestInfos, err = m.GetRepoObjs(app, sources, appLabelKey, revisions, noCache, noRevisionCache, verifySignature, project)
+		targetObjs, manifestInfos, err = m.GetRepoObjs(app, sources, appLabelKey, revisions, noCache, noRevisionCache, verifySignature, project, true)
 		if err != nil {
 			targetObjs = make([]*unstructured.Unstructured, 0)
 			msg := fmt.Sprintf("Failed to load target state: %s", err.Error())
@@ -662,7 +681,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 	useDiffCache := useDiffCache(noCache, manifestInfos, sources, app, manifestRevisions, m.statusRefreshTimeout, serverSideDiff, logCtx)
 
 	diffConfigBuilder := argodiff.NewDiffConfigBuilder().
-		WithDiffSettings(app.Spec.IgnoreDifferences, resourceOverrides, compareOptions.IgnoreAggregatedRoles).
+		WithDiffSettings(app.Spec.IgnoreDifferences, resourceOverrides, compareOptions.IgnoreAggregatedRoles, m.ignoreNormalizerOpts).
 		WithTracking(appLabelKey, string(trackingMethod))
 
 	if useDiffCache {
@@ -1003,6 +1022,7 @@ func NewAppStateManager(
 	persistResourceHealth bool,
 	repoErrorGracePeriod time.Duration,
 	serverSideDiff bool,
+	ignoreNormalizerOpts normalizers.IgnoreNormalizerOpts,
 ) AppStateManager {
 	return &appStateManager{
 		liveStateCache:        liveStateCache,
@@ -1020,6 +1040,7 @@ func NewAppStateManager(
 		persistResourceHealth: persistResourceHealth,
 		repoErrorGracePeriod:  repoErrorGracePeriod,
 		serverSideDiff:        serverSideDiff,
+		ignoreNormalizerOpts:  ignoreNormalizerOpts,
 	}
 }
 

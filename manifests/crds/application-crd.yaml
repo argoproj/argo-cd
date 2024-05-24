@@ -229,6 +229,13 @@ spec:
                       helm:
                         description: Helm holds helm specific options
                         properties:
+                          apiVersions:
+                            description: APIVersions is a list of Kubernetes API versions
+                              to use for templating. If not set, defaults to the server's
+                              preferred API versions.
+                            items:
+                              type: string
+                            type: array
                           fileParameters:
                             description: FileParameters are file parameters to the
                               helm template
@@ -250,6 +257,15 @@ spec:
                               from failing when valueFiles do not exist locally by
                               not appending them to helm template --values
                             type: boolean
+                          kubeVersion:
+                            description: KubeVersions is the Kubernetes version to
+                              use for templating. If not set, defaults to the server's
+                              current Kubernetes version.
+                            type: string
+                          namespace:
+                            description: ReleaseName is the namespace scope to use.
+                              If omitted it will use the application name
+                            type: string
                           parameters:
                             description: Parameters is a list of Helm parameters which
                               are passed to the helm template command upon manifest
@@ -565,6 +581,13 @@ spec:
                         helm:
                           description: Helm holds helm specific options
                           properties:
+                            apiVersions:
+                              description: APIVersions is a list of Kubernetes API
+                                versions to use for templating. If not set, defaults
+                                to the server's preferred API versions.
+                              items:
+                                type: string
+                              type: array
                             fileParameters:
                               description: FileParameters are file parameters to the
                                 helm template
@@ -586,6 +609,15 @@ spec:
                                 from failing when valueFiles do not exist locally
                                 by not appending them to helm template --values
                               type: boolean
+                            kubeVersion:
+                              description: KubeVersions is the Kubernetes version
+                                to use for templating. If not set, defaults to the
+                                server's current Kubernetes version.
+                              type: string
+                            namespace:
+                              description: ReleaseName is the namespace scope to use.
+                                If omitted it will use the application name
+                              type: string
                             parameters:
                               description: Parameters is a list of Helm parameters
                                 which are passed to the helm template command upon
@@ -1020,6 +1052,13 @@ spec:
                   helm:
                     description: Helm holds helm specific options
                     properties:
+                      apiVersions:
+                        description: APIVersions is a list of Kubernetes API versions
+                          to use for templating. If not set, defaults to the server's
+                          preferred API versions.
+                        items:
+                          type: string
+                        type: array
                       fileParameters:
                         description: FileParameters are file parameters to the helm
                           template
@@ -1041,6 +1080,15 @@ spec:
                           from failing when valueFiles do not exist locally by not
                           appending them to helm template --values
                         type: boolean
+                      kubeVersion:
+                        description: KubeVersions is the Kubernetes version to use
+                          for templating. If not set, defaults to the server's current
+                          Kubernetes version.
+                        type: string
+                      namespace:
+                        description: ReleaseName is the namespace scope to use. If
+                          omitted it will use the application name
+                        type: string
                       parameters:
                         description: Parameters is a list of Helm parameters which
                           are passed to the helm template command upon manifest generation
@@ -1392,6 +1440,13 @@ spec:
                     helm:
                       description: Helm holds helm specific options
                       properties:
+                        apiVersions:
+                          description: APIVersions is a list of Kubernetes API versions
+                            to use for templating. If not set, defaults to the server's
+                            preferred API versions.
+                          items:
+                            type: string
+                          type: array
                         fileParameters:
                           description: FileParameters are file parameters to the helm
                             template
@@ -1413,6 +1468,15 @@ spec:
                             from failing when valueFiles do not exist locally by not
                             appending them to helm template --values
                           type: boolean
+                        kubeVersion:
+                          description: KubeVersions is the Kubernetes version to use
+                            for templating. If not set, defaults to the server's current
+                            Kubernetes version.
+                          type: string
+                        namespace:
+                          description: ReleaseName is the namespace scope to use.
+                            If omitted it will use the application name
+                          type: string
                         parameters:
                           description: Parameters is a list of Helm parameters which
                             are passed to the helm template command upon manifest
@@ -1884,6 +1948,13 @@ spec:
                         helm:
                           description: Helm holds helm specific options
                           properties:
+                            apiVersions:
+                              description: APIVersions is a list of Kubernetes API
+                                versions to use for templating. If not set, defaults
+                                to the server's preferred API versions.
+                              items:
+                                type: string
+                              type: array
                             fileParameters:
                               description: FileParameters are file parameters to the
                                 helm template
@@ -1905,6 +1976,15 @@ spec:
                                 from failing when valueFiles do not exist locally
                                 by not appending them to helm template --values
                               type: boolean
+                            kubeVersion:
+                              description: KubeVersions is the Kubernetes version
+                                to use for templating. If not set, defaults to the
+                                server's current Kubernetes version.
+                              type: string
+                            namespace:
+                              description: ReleaseName is the namespace scope to use.
+                                If omitted it will use the application name
+                              type: string
                             parameters:
                               description: Parameters is a list of Helm parameters
                                 which are passed to the helm template command upon
@@ -2222,6 +2302,13 @@ spec:
                           helm:
                             description: Helm holds helm specific options
                             properties:
+                              apiVersions:
+                                description: APIVersions is a list of Kubernetes API
+                                  versions to use for templating. If not set, defaults
+                                  to the server's preferred API versions.
+                                items:
+                                  type: string
+                                type: array
                               fileParameters:
                                 description: FileParameters are file parameters to
                                   the helm template
@@ -2244,6 +2331,15 @@ spec:
                                   template from failing when valueFiles do not exist
                                   locally by not appending them to helm template --values
                                 type: boolean
+                              kubeVersion:
+                                description: KubeVersions is the Kubernetes version
+                                  to use for templating. If not set, defaults to the
+                                  server's current Kubernetes version.
+                                type: string
+                              namespace:
+                                description: ReleaseName is the namespace scope to
+                                  use. If omitted it will use the application name
+                                type: string
                               parameters:
                                 description: Parameters is a list of Helm parameters
                                   which are passed to the helm template command upon
@@ -2703,6 +2799,13 @@ spec:
                               helm:
                                 description: Helm holds helm specific options
                                 properties:
+                                  apiVersions:
+                                    description: APIVersions is a list of Kubernetes
+                                      API versions to use for templating. If not set,
+                                      defaults to the server's preferred API versions.
+                                    items:
+                                      type: string
+                                    type: array
                                   fileParameters:
                                     description: FileParameters are file parameters
                                       to the helm template
@@ -2727,6 +2830,16 @@ spec:
                                       not exist locally by not appending them to helm
                                       template --values
                                     type: boolean
+                                  kubeVersion:
+                                    description: KubeVersions is the Kubernetes version
+                                      to use for templating. If not set, defaults
+                                      to the server's current Kubernetes version.
+                                    type: string
+                                  namespace:
+                                    description: ReleaseName is the namespace scope
+                                      to use. If omitted it will use the application
+                                      name
+                                    type: string
                                   parameters:
                                     description: Parameters is a list of Helm parameters
                                       which are passed to the helm template command
@@ -3060,6 +3173,14 @@ spec:
                                 helm:
                                   description: Helm holds helm specific options
                                   properties:
+                                    apiVersions:
+                                      description: APIVersions is a list of Kubernetes
+                                        API versions to use for templating. If not
+                                        set, defaults to the server's preferred API
+                                        versions.
+                                      items:
+                                        type: string
+                                      type: array
                                     fileParameters:
                                       description: FileParameters are file parameters
                                         to the helm template
@@ -3084,6 +3205,17 @@ spec:
                                         do not exist locally by not appending them
                                         to helm template --values
                                       type: boolean
+                                    kubeVersion:
+                                      description: KubeVersions is the Kubernetes
+                                        version to use for templating. If not set,
+                                        defaults to the server's current Kubernetes
+                                        version.
+                                      type: string
+                                    namespace:
+                                      description: ReleaseName is the namespace scope
+                                        to use. If omitted it will use the application
+                                        name
+                                      type: string
                                     parameters:
                                       description: Parameters is a list of Helm parameters
                                         which are passed to the helm template command
@@ -3540,6 +3672,13 @@ spec:
                           helm:
                             description: Helm holds helm specific options
                             properties:
+                              apiVersions:
+                                description: APIVersions is a list of Kubernetes API
+                                  versions to use for templating. If not set, defaults
+                                  to the server's preferred API versions.
+                                items:
+                                  type: string
+                                type: array
                               fileParameters:
                                 description: FileParameters are file parameters to
                                   the helm template
@@ -3562,6 +3701,15 @@ spec:
                                   template from failing when valueFiles do not exist
                                   locally by not appending them to helm template --values
                                 type: boolean
+                              kubeVersion:
+                                description: KubeVersions is the Kubernetes version
+                                  to use for templating. If not set, defaults to the
+                                  server's current Kubernetes version.
+                                type: string
+                              namespace:
+                                description: ReleaseName is the namespace scope to
+                                  use. If omitted it will use the application name
+                                type: string
                               parameters:
                                 description: Parameters is a list of Helm parameters
                                   which are passed to the helm template command upon
@@ -3888,6 +4036,13 @@ spec:
                             helm:
                               description: Helm holds helm specific options
                               properties:
+                                apiVersions:
+                                  description: APIVersions is a list of Kubernetes
+                                    API versions to use for templating. If not set,
+                                    defaults to the server's preferred API versions.
+                                  items:
+                                    type: string
+                                  type: array
                                 fileParameters:
                                   description: FileParameters are file parameters
                                     to the helm template
@@ -3912,6 +4067,16 @@ spec:
                                     locally by not appending them to helm template
                                     --values
                                   type: boolean
+                                kubeVersion:
+                                  description: KubeVersions is the Kubernetes version
+                                    to use for templating. If not set, defaults to
+                                    the server's current Kubernetes version.
+                                  type: string
+                                namespace:
+                                  description: ReleaseName is the namespace scope
+                                    to use. If omitted it will use the application
+                                    name
+                                  type: string
                                 parameters:
                                   description: Parameters is a list of Helm parameters
                                     which are passed to the helm template command
@@ -4243,6 +4408,31 @@ spec:
                     - repoURL
                     - targetRevision
                     type: object
+                  hydrateOperation:
+                    description: HydrateOperation holds the status of the hydrate
+                      operation
+                    properties:
+                      finishedAt:
+                        description: FinishedAt indicates when the hydrate operation
+                          finished
+                        format: date-time
+                        type: string
+                      message:
+                        description: Message contains a message describing the current
+                          status of the hydrate operation
+                        type: string
+                      startedAt:
+                        description: StartedAt indicates when the hydrate operation
+                          started
+                        format: date-time
+                        type: string
+                      status:
+                        description: Status indicates the status of the hydrate operation
+                        type: string
+                    required:
+                    - message
+                    - status
+                    type: object
                   revision:
                     description: Revision holds the resolved revision (sha) of the
                       dry source as of the most recent reconciliation
@@ -4412,6 +4602,13 @@ spec:
                           helm:
                             description: Helm holds helm specific options
                             properties:
+                              apiVersions:
+                                description: APIVersions is a list of Kubernetes API
+                                  versions to use for templating. If not set, defaults
+                                  to the server's preferred API versions.
+                                items:
+                                  type: string
+                                type: array
                               fileParameters:
                                 description: FileParameters are file parameters to
                                   the helm template
@@ -4434,6 +4631,15 @@ spec:
                                   template from failing when valueFiles do not exist
                                   locally by not appending them to helm template --values
                                 type: boolean
+                              kubeVersion:
+                                description: KubeVersions is the Kubernetes version
+                                  to use for templating. If not set, defaults to the
+                                  server's current Kubernetes version.
+                                type: string
+                              namespace:
+                                description: ReleaseName is the namespace scope to
+                                  use. If omitted it will use the application name
+                                type: string
                               parameters:
                                 description: Parameters is a list of Helm parameters
                                   which are passed to the helm template command upon
@@ -4760,6 +4966,13 @@ spec:
                             helm:
                               description: Helm holds helm specific options
                               properties:
+                                apiVersions:
+                                  description: APIVersions is a list of Kubernetes
+                                    API versions to use for templating. If not set,
+                                    defaults to the server's preferred API versions.
+                                  items:
+                                    type: string
+                                  type: array
                                 fileParameters:
                                   description: FileParameters are file parameters
                                     to the helm template
@@ -4784,6 +4997,16 @@ spec:
                                     locally by not appending them to helm template
                                     --values
                                   type: boolean
+                                kubeVersion:
+                                  description: KubeVersions is the Kubernetes version
+                                    to use for templating. If not set, defaults to
+                                    the server's current Kubernetes version.
+                                  type: string
+                                namespace:
+                                  description: ReleaseName is the namespace scope
+                                    to use. If omitted it will use the application
+                                    name
+                                  type: string
                                 parameters:
                                   description: Parameters is a list of Helm parameters
                                     which are passed to the helm template command

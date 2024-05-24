@@ -654,7 +654,7 @@ func TestRepositoryServerGetAppDetails(t *testing.T) {
 
 		s := NewServer(&repoServerClientset, db, enforcer, newFixtures().Cache, appLister, projLister, testNamespace, settingsMgr)
 		resp, err := s.GetAppDetails(context.TODO(), &repository.RepoAppDetailsQuery{
-			Source:     guestbookApp.Spec.GetSourcePtr(0),
+			Source:     guestbookApp.Spec.GetSourcePtrByIndex(0),
 			AppName:    "guestbook",
 			AppProject: "default",
 		})
@@ -752,7 +752,7 @@ func TestRepositoryServerGetAppDetails(t *testing.T) {
 
 		s := NewServer(&repoServerClientset, db, enforcer, newFixtures().Cache, appLister, projLister, testNamespace, settingsMgr)
 		resp, err := s.GetAppDetails(context.TODO(), &repository.RepoAppDetailsQuery{
-			Source:     guestbookApp.Spec.GetSourcePtr(0),
+			Source:     guestbookApp.Spec.GetSourcePtrByIndex(0),
 			AppName:    "guestbook",
 			AppProject: "mismatch",
 		})

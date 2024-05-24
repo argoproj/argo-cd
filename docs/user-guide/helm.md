@@ -72,6 +72,22 @@ source:
     - values-production.yaml
 ```
 
+If Helm is passed a non-existing value file during template expansion, it will error out. Missing
+values files can be ignored (meaning, not passed to Helm) using the `--ignore-missing-value-files`. This can be
+particularly helpful to implement a [default/override
+pattern](https://github.com/argoproj/argo-cd/issues/7767#issue-1060611415) with [Application
+Sets](./application-set.md).
+
+In the declarative syntax:
+```yaml
+source:
+  helm:
+    valueFiles:
+    - values-common.yaml
+    - values-optional-override.yaml
+    ignoreMissingValueFiles: true
+```
+
 ## Values
 
 Argo CD supports the equivalent of a values file directly in the Application manifest using the `source.helm.valuesObject` key.
@@ -200,6 +216,28 @@ the result will be param1=value5
 !!! note "When valueFiles or values is used"
     The list of parameters seen in the ui is not what is used for resources, rather it is the values/valuesObject merged with parameters (see [this issue](https://github.com/argoproj/argo-cd/issues/9213) incase it has been resolved)
     As a workaround using parameters instead of values/valuesObject will provide a better overview of what will be used for resources
+
+## Helm --set-file support
+
+The `--set-file` argument to helm can be used with the following syntax on
+the cli:
+
+```bash
+argocd app set helm-guestbook --helm-set-file some.key=path/to/file.ext
+```
+
+or using the fileParameters for yaml:
+
+```yaml
+source:
+  helm:
+    fileParameters:
+      - name: some.key
+        value: path/to/file.ext
+```
+
+!!! warning "Reference in multiple sources not supported"
+    Please note that using a multiple sources application will not let you load the file by reference. See [argoproj/argo-cd#13220](https://github.com/argoproj/argo-cd/issues/13220)
 
 ## Helm Release Name
 

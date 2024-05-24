@@ -163,6 +163,8 @@ const (
 	LabelValueSecretTypeRepository = "repository"
 	// LabelValueSecretTypeRepoCreds indicates a secret type of repository credentials
 	LabelValueSecretTypeRepoCreds = "repo-creds"
+	// LabelValueSecretTypeRepoCreds indicates a secret type of repository credentials
+	LabelValueSecretTypeHydrator = "hydrator"
 
 	// AnnotationKeyAppInstance is the Argo CD application name is used as the instance name
 	AnnotationKeyAppInstance = "argocd.argoproj.io/tracking-id"

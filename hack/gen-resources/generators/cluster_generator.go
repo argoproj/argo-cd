@@ -144,7 +144,7 @@ func (cg *ClusterGenerator) installVCluster(opts *util.GenerateOpts, namespace s
 		return err
 	}
 	log.Print("Execute helm install command")
-	_, err = cmd.Freestyle("upgrade", "--install", releaseName, "vcluster", "--values", opts.ClusterOpts.ValuesFilePath, "--repo", "https://charts.loft.sh", "--namespace", namespace, "--repository-config", "", "--create-namespace", "--wait")
+	_, _, err = cmd.Freestyle("upgrade", "--install", releaseName, "vcluster", "--values", opts.ClusterOpts.ValuesFilePath, "--repo", "https://charts.loft.sh", "--namespace", namespace, "--repository-config", "", "--create-namespace", "--wait")
 	if err != nil {
 		return err
 	}

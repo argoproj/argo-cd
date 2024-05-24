@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	exec2 "github.com/argoproj/argo-cd/v2/util/exec"
 	"io"
 	"os"
 	"os/exec"
@@ -795,13 +796,18 @@ func Test_getCommandArgsToLog(t *testing.T) {
 			args:     []string{"sh", "-c", `echo "hello world"`},
 			expected: `sh -c "echo \"hello world\""`,
 		},
+		{
+			name:     "empty string arg",
+			args:     []string{"sh", "-c", ""},
+			expected: `sh -c ""`,
+		},
 	}
 
 	for _, tc := range testCases {
 		tcc := tc
 		t.Run(tcc.name, func(t *testing.T) {
 			t.Parallel()
-			assert.Equal(t, tcc.expected, getCommandArgsToLog(exec.Command(tcc.args[0], tcc.args[1:]...)))
+			assert.Equal(t, tcc.expected, exec2.GetCommandArgsToLog(exec.Command(tcc.args[0], tcc.args[1:]...)))
 		})
 	}
 }

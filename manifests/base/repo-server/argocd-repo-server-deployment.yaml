@@ -24,6 +24,11 @@ spec:
         args:
           - /usr/local/bin/argocd-repo-server
         env:
+          - name: REDIS_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                key: auth
+                name: argocd-redis
           - name: ARGOCD_RECONCILIATION_TIMEOUT
             valueFrom:
               configMapKeyRef:

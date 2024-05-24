@@ -384,7 +384,7 @@
         "parameters": [
           {
             "type": "string",
-            "description": "Name must be unique within a namespace. Is required when creating resources, although\nsome resources may allow a client to request the generation of an appropriate name\nautomatically. Name is primarily intended for creation idempotence and configuration\ndefinition.\nCannot be updated.\nMore info: http://kubernetes.io/docs/user-guide/identifiers#names\n+optional",
+            "description": "Name must be unique within a namespace. Is required when creating resources, although\nsome resources may allow a client to request the generation of an appropriate name\nautomatically. Name is primarily intended for creation idempotence and configuration\ndefinition.\nCannot be updated.\nMore info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names#names\n+optional",
             "name": "application.metadata.name",
             "in": "path",
             "required": true
@@ -2030,6 +2030,43 @@
         }
       }
     },
+    "/api/v1/applicationsets/{name}/resource-tree": {
+      "get": {
+        "tags": [
+          "ApplicationSetService"
+        ],
+        "summary": "ResourceTree returns resource tree",
+        "operationId": "ApplicationSetService_ResourceTree",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "name",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "description": "The application set namespace. Default empty is argocd control plane namespace.",
+            "name": "appsetNamespace",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1alpha1ApplicationSetTree"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        }
+      }
+    },
     "/api/v1/certificates": {
       "get": {
         "tags": [
@@ -2931,7 +2968,7 @@
         "parameters": [
           {
             "type": "string",
-            "description": "Name must be unique within a namespace. Is required when creating resources, although\nsome resources may allow a client to request the generation of an appropriate name\nautomatically. Name is primarily intended for creation idempotence and configuration\ndefinition.\nCannot be updated.\nMore info: http://kubernetes.io/docs/user-guide/identifiers#names\n+optional",
+            "description": "Name must be unique within a namespace. Is required when creating resources, although\nsome resources may allow a client to request the generation of an appropriate name\nautomatically. Name is primarily intended for creation idempotence and configuration\ndefinition.\nCannot be updated.\nMore info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names#names\n+optional",
             "name": "project.metadata.name",
             "in": "path",
             "required": true
@@ -4238,6 +4275,19 @@
         "revision": {
           "type": "string"
         },
+        "revisions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "sourcePositions": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "int64"
+          }
+        },
         "strategy": {
           "$ref": "#/definitions/v1alpha1SyncStrategy"
         },
@@ -4936,6 +4986,13 @@
     "repositoryManifestResponse": {
       "type": "object",
       "properties": {
+        "commands": {
+          "type": "array",
+          "title": "commands is the list of commands used to hydrate the manifests",
+          "items": {
+            "type": "string"
+          }
+        },
         "manifests": {
           "type": "array",
           "items": {
@@ -5353,8 +5410,8 @@
       "type": "object",
       "properties": {
         "key": {
-          "type": "string",
-          "title": "key is the label key that the selector applies to.\n+patchMergeKey=key\n+patchStrategy=merge"
+          "description": "key is the label key that the selector applies to.",
+          "type": "string"
         },
         "operator": {
           "description": "operator represents a key's relationship to a set of values.\nValid operators are In, NotIn, Exists and DoesNotExist.",
@@ -5403,6 +5460,10 @@
         "ip": {
           "type": "string",
           "title": "IP is set for load-balancer ingress points that are IP based\n(typically GCE or OpenStack load-balancers)\n+optional"
+        },
+        "ipMode": {
+          "type": "string",
+          "title": "IPMode specifies how the load-balancer IP behaves, and may only be specified when the ip field is specified.\nSetting this to \"VIP\" indicates that traffic is delivered to the node with\nthe destination set to the load-balancer's IP and port.\nSetting this to \"Proxy\" indicates that traffic is delivered to the node or pod with\nthe destination set to the node's IP and node port or the pod's IP and port.\nService implementations may use this information to adjust traffic routing.\n+optional"
         },
         "ports": {
           "type": "array",
@@ -5513,7 +5574,7 @@
       "properties": {
         "annotations": {
           "type": "object",
-          "title": "Annotations is an unstructured key value map stored with a resource that may be\nset by external tools to store and retrieve arbitrary metadata. They are not\nqueryable and should be preserved when modifying objects.\nMore info: http://kubernetes.io/docs/user-guide/annotations\n+optional",
+          "title": "Annotations is an unstructured key value map stored with a resource that may be\nset by external tools to store and retrieve arbitrary metadata. They are not\nqueryable and should be preserved when modifying objects.\nMore info: https://kubernetes.io/docs/concepts/overview/working-with-objects/annotations\n+optional",
           "additionalProperties": {
             "type": "string"
           }
@@ -5547,7 +5608,7 @@
         },
         "labels": {
           "type": "object",
-          "title": "Map of string keys and values that can be used to organize and categorize\n(scope and select) objects. May match selectors of replication controllers\nand services.\nMore info: http://kubernetes.io/docs/user-guide/labels\n+optional",
+          "title": "Map of string keys and values that can be used to organize and categorize\n(scope and select) objects. May match selectors of replication controllers\nand services.\nMore info: https://kubernetes.io/docs/concepts/overview/working-with-objects/labels\n+optional",
           "additionalProperties": {
             "type": "string"
           }
@@ -5561,10 +5622,10 @@
         },
         "name": {
           "type": "string",
-          "title": "Name must be unique within a namespace. Is required when creating resources, although\nsome resources may allow a client to request the generation of an appropriate name\nautomatically. Name is primarily intended for creation idempotence and configuration\ndefinition.\nCannot be updated.\nMore info: http://kubernetes.io/docs/user-guide/identifiers#names\n+optional"
+          "title": "Name must be unique within a namespace. Is required when creating resources, although\nsome resources may allow a client to request the generation of an appropriate name\nautomatically. Name is primarily intended for creation idempotence and configuration\ndefinition.\nCannot be updated.\nMore info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names#names\n+optional"
         },
         "namespace": {
-          "description": "Namespace defines the space within which each name must be unique. An empty namespace is\nequivalent to the \"default\" namespace, but \"default\" is the canonical representation.\nNot all objects are required to be scoped to a namespace - the value of this field for\nthose objects will be empty.\n\nMust be a DNS_LABEL.\nCannot be updated.\nMore info: http://kubernetes.io/docs/user-guide/namespaces\n+optional",
+          "description": "Namespace defines the space within which each name must be unique. An empty namespace is\nequivalent to the \"default\" namespace, but \"default\" is the canonical representation.\nNot all objects are required to be scoped to a namespace - the value of this field for\nthose objects will be empty.\n\nMust be a DNS_LABEL.\nCannot be updated.\nMore info: https://kubernetes.io/docs/concepts/overview/working-with-objects/namespaces\n+optional",
           "type": "string"
         },
         "ownerReferences": {
@@ -5583,7 +5644,7 @@
           "title": "Deprecated: selfLink is a legacy read-only field that is no longer populated by the system.\n+optional"
         },
         "uid": {
-          "description": "UID is the unique in time and space value for this object. It is typically generated by\nthe server on successful creation of a resource and is not allowed to change on PUT\noperations.\n\nPopulated by the system.\nRead-only.\nMore info: http://kubernetes.io/docs/user-guide/identifiers#uids\n+optional",
+          "description": "UID is the unique in time and space value for this object. It is typically generated by\nthe server on successful creation of a resource and is not allowed to change on PUT\noperations.\n\nPopulated by the system.\nRead-only.\nMore info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names#uids\n+optional",
           "type": "string"
         }
       }
@@ -5644,11 +5705,11 @@
         },
         "name": {
           "type": "string",
-          "title": "Name of the referent.\nMore info: http://kubernetes.io/docs/user-guide/identifiers#names"
+          "title": "Name of the referent.\nMore info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names#names"
         },
         "uid": {
           "type": "string",
-          "title": "UID of the referent.\nMore info: http://kubernetes.io/docs/user-guide/identifiers#uids"
+          "title": "UID of the referent.\nMore info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names#uids"
         }
       }
     },
@@ -6188,6 +6249,13 @@
           "items": {
             "$ref": "#/definitions/v1alpha1ApplicationSetCondition"
           }
+        },
+        "resources": {
+          "description": "Resources is a list of Applications resources managed by this application set.",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1ResourceStatus"
+          }
         }
       }
     },
@@ -6259,6 +6327,19 @@
         }
       }
     },
+    "v1alpha1ApplicationSetTree": {
+      "type": "object",
+      "title": "ApplicationSetTree holds nodes which belongs to the application\nUsed to build a tree of an ApplicationSet and its children",
+      "properties": {
+        "nodes": {
+          "type": "array",
+          "title": "Nodes contains list of nodes which are directly managed by the applicationset",
+          "items": {
+            "$ref": "#/definitions/v1alpha1ResourceNode"
+          }
+        }
+      }
+    },
     "v1alpha1ApplicationSource": {
       "type": "object",
       "title": "ApplicationSource contains all required information about the source of an application",
@@ -6322,6 +6403,13 @@
       "type": "object",
       "title": "ApplicationSourceHelm holds helm specific options",
       "properties": {
+        "apiVersions": {
+          "description": "APIVersions is a list of Kubernetes API versions to use for templating. If not set, defaults to the server's preferred API versions.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
         "fileParameters": {
           "type": "array",
           "title": "FileParameters are file parameters to the helm template",
@@ -6332,6 +6420,14 @@
         "ignoreMissingValueFiles": {
           "type": "boolean",
           "title": "IgnoreMissingValueFiles prevents helm template from failing when valueFiles do not exist locally by not appending them to helm template --values"
+        },
+        "kubeVersion": {
+          "description": "KubeVersions is the Kubernetes version to use for templating. If not set, defaults to the server's current Kubernetes version.",
+          "type": "string"
+        },
+        "namespace": {
+          "type": "string",
+          "title": "ReleaseName is the namespace scope to use. If omitted it will use the application name"
         },
         "parameters": {
           "type": "array",
@@ -7275,6 +7371,25 @@
         },
         "resourceName": {
           "type": "string"
+        }
+      }
+    },
+    "v1alpha1HydrateOperation": {
+      "type": "object",
+      "properties": {
+        "finishedAt": {
+          "$ref": "#/definitions/v1Time"
+        },
+        "message": {
+          "type": "string",
+          "title": "Message contains a message describing the current status of the hydrate operation"
+        },
+        "startedAt": {
+          "$ref": "#/definitions/v1Time"
+        },
+        "status": {
+          "type": "string",
+          "title": "Status indicates the status of the hydrate operation"
         }
       }
     },
@@ -8917,6 +9032,9 @@
       "properties": {
         "drySource": {
           "$ref": "#/definitions/v1alpha1DrySource"
+        },
+        "hydrateOperation": {
+          "$ref": "#/definitions/v1alpha1HydrateOperation"
         },
         "revision": {
           "type": "string",

@@ -131,6 +131,8 @@ message ApplicationSyncRequest {
 	optional SyncOptions syncOptions = 11;
 	optional string appNamespace = 12;
 	optional string project = 13;
+	repeated int64 sourcePositions = 14;
+	repeated string revisions = 15;
 }
 
 // ApplicationUpdateSpecRequest is a request to update application spec

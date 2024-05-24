@@ -6,6 +6,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	applisters "github.com/argoproj/argo-cd/v2/pkg/client/listers/application/v1alpha1"
 	argodiff "github.com/argoproj/argo-cd/v2/util/argo/diff"
+	"github.com/argoproj/argo-cd/v2/util/argo/normalizers"
 	"github.com/argoproj/argo-cd/v2/util/errors"
 	logutils "github.com/argoproj/argo-cd/v2/util/log"
 	"github.com/argoproj/argo-cd/v2/util/settings"
@@ -52,7 +53,7 @@ func NewPreviewer(
 	trackingMethod, err := p.settingsManager.GetTrackingMethod()
 	errors.CheckError(err)
 	p.diffConfig, err = argodiff.NewDiffConfigBuilder().
-		WithDiffSettings(nil, nil, false).
+		WithDiffSettings(nil, nil, false, normalizers.IgnoreNormalizerOpts{}).
 		WithTracking(p.appLabelKey, trackingMethod).
 		WithNoCache().
 		WithLogger(logutils.NewLogrusLogger(logutils.NewWithCurrentConfig())).
@@ -183,6 +184,7 @@ func (p *Previewer) getBranchManifest(
 		true,
 		false,
 		project,
+		false,
 	)
 	return unstructured, err
 }

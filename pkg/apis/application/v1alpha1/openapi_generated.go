@@ -41,6 +41,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSetTemplate":                  schema_pkg_apis_application_v1alpha1_ApplicationSetTemplate(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSetTemplateMeta":              schema_pkg_apis_application_v1alpha1_ApplicationSetTemplateMeta(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSetTerminalGenerator":         schema_pkg_apis_application_v1alpha1_ApplicationSetTerminalGenerator(ref),
+		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSetTree":                      schema_pkg_apis_application_v1alpha1_ApplicationSetTree(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSource":                       schema_pkg_apis_application_v1alpha1_ApplicationSource(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSourceDirectory":              schema_pkg_apis_application_v1alpha1_ApplicationSourceDirectory(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSourceHelm":                   schema_pkg_apis_application_v1alpha1_ApplicationSourceHelm(ref),
@@ -84,6 +85,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.HelmParameter":                           schema_pkg_apis_application_v1alpha1_HelmParameter(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.HostInfo":                                schema_pkg_apis_application_v1alpha1_HostInfo(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.HostResourceInfo":                        schema_pkg_apis_application_v1alpha1_HostResourceInfo(ref),
+		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.HydrateOperation":                        schema_pkg_apis_application_v1alpha1_HydrateOperation(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.HydrateTo":                               schema_pkg_apis_application_v1alpha1_HydrateTo(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.Info":                                    schema_pkg_apis_application_v1alpha1_Info(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.InfoItem":                                schema_pkg_apis_application_v1alpha1_InfoItem(ref),
@@ -1343,11 +1345,25 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSetStatus(ref common.Refere
 							},
 						},
 					},
+					"resources": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Resources is a list of Applications resources managed by this application set.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ResourceStatus"),
+									},
+								},
+							},
+						},
+					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSetApplicationStatus", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSetCondition"},
+			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSetApplicationStatus", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSetCondition", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ResourceStatus"},
 	}
 }
 
@@ -1554,6 +1570,35 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSetTerminalGenerator(ref co
 		},
 		Dependencies: []string{
 			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ClusterGenerator", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.DuckTypeGenerator", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.GitGenerator", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ListGenerator", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.PluginGenerator", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.PullRequestGenerator", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SCMProviderGenerator", "k8s.io/apimachinery/pkg/apis/meta/v1.LabelSelector"},
+	}
+}
+
+func schema_pkg_apis_application_v1alpha1_ApplicationSetTree(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "ApplicationSetTree holds nodes which belongs to the application Used to build a tree of an ApplicationSet and its children",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"nodes": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Nodes contains list of nodes which are directly managed by the applicationset",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ResourceNode"),
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ResourceNode"},
 	}
 }
 
@@ -1777,6 +1822,35 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSourceHelm(ref common.Refer
 						SchemaProps: spec.SchemaProps{
 							Description: "ValuesObject specifies Helm values to be passed to helm template, defined as a map. This takes precedence over Values.",
 							Ref:         ref("k8s.io/apimachinery/pkg/runtime.RawExtension"),
+						},
+					},
+					"kubeVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "KubeVersions is the Kubernetes version to use for templating. If not set, defaults to the server's current Kubernetes version.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"apiVersions": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersions is a list of Kubernetes API versions to use for templating. If not set, defaults to the server's preferred API versions.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+					"namespace": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ReleaseName is the namespace scope to use. If omitted it will use the application name",
+							Type:        []string{"string"},
+							Format:      "",
 						},
 					},
 				},
@@ -3793,6 +3867,49 @@ func schema_pkg_apis_application_v1alpha1_HostResourceInfo(ref common.ReferenceC
 	}
 }
 
+func schema_pkg_apis_application_v1alpha1_HydrateOperation(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Type: []string{"object"},
+				Properties: map[string]spec.Schema{
+					"startedAt": {
+						SchemaProps: spec.SchemaProps{
+							Description: "StartedAt indicates when the hydrate operation started",
+							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Time"),
+						},
+					},
+					"finishedAt": {
+						SchemaProps: spec.SchemaProps{
+							Description: "FinishedAt indicates when the hydrate operation finished",
+							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Time"),
+						},
+					},
+					"status": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Status indicates the status of the hydrate operation",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"message": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Message contains a message describing the current status of the hydrate operation",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
+				Required: []string{"status", "message"},
+			},
+		},
+		Dependencies: []string{
+			"k8s.io/apimachinery/pkg/apis/meta/v1.Time"},
+	}
+}
+
 func schema_pkg_apis_application_v1alpha1_HydrateTo(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
@@ -4111,7 +4228,6 @@ func schema_pkg_apis_application_v1alpha1_KustomizeReplica(ref common.ReferenceC
 					"count": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Number of replicas",
-							Default:     map[string]interface{}{},
 							Ref:         ref("k8s.io/apimachinery/pkg/util/intstr.IntOrString"),
 						},
 					},
@@ -4233,8 +4349,7 @@ func schema_pkg_apis_application_v1alpha1_ListGenerator(ref common.ReferenceCall
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Default: map[string]interface{}{},
-										Ref:     ref("k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1.JSON"),
+										Ref: ref("k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1.JSON"),
 									},
 								},
 							},
@@ -4572,7 +4687,6 @@ func schema_pkg_apis_application_v1alpha1_OperationState(ref common.ReferenceCal
 					"startedAt": {
 						SchemaProps: spec.SchemaProps{
 							Description: "StartedAt contains time of operation start",
-							Default:     map[string]interface{}{},
 							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Time"),
 						},
 					},
@@ -4871,8 +4985,7 @@ func schema_pkg_apis_application_v1alpha1_PluginInput(ref common.ReferenceCallba
 								Allows: true,
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Default: map[string]interface{}{},
-										Ref:     ref("k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1.JSON"),
+										Ref: ref("k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1.JSON"),
 									},
 								},
 							},
@@ -6731,7 +6844,6 @@ func schema_pkg_apis_application_v1alpha1_RevisionHistory(ref common.ReferenceCa
 					"deployedAt": {
 						SchemaProps: spec.SchemaProps{
 							Description: "DeployedAt holds the time the sync operation completed",
-							Default:     map[string]interface{}{},
 							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Time"),
 						},
 					},
@@ -6818,7 +6930,6 @@ func schema_pkg_apis_application_v1alpha1_RevisionMetadata(ref common.ReferenceC
 					"date": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Date specifies when the revision was authored",
-							Default:     map[string]interface{}{},
 							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Time"),
 						},
 					},
@@ -7497,11 +7608,17 @@ func schema_pkg_apis_application_v1alpha1_SourceHydratorStatus(ref common.Refere
 							Format:      "",
 						},
 					},
+					"hydrateOperation": {
+						SchemaProps: spec.SchemaProps{
+							Description: "HydrateOperation holds the status of the hydrate operation",
+							Ref:         ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.HydrateOperation"),
+						},
+					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.DrySource"},
+			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.DrySource", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.HydrateOperation"},
 	}
 }
 
@@ -7871,6 +7988,11 @@ func schema_pkg_apis_application_v1alpha1_SyncStatus(ref common.ReferenceCallbac
 						},
 					},
 					"comparedTo": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-patch-strategy": "replace",
+							},
+						},
 						SchemaProps: spec.SchemaProps{
 							Description: "ComparedTo contains information about what has been compared",
 							Default:     map[string]interface{}{},

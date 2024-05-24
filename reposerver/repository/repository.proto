@@ -73,6 +73,7 @@ message ResolveRevisionRequest {
     github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.Repository repo = 1;
     github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.Application app = 2;
     string ambiguousRevision = 3;
+    int64 sourceIndex = 4;
 }
 
 // ResolveRevisionResponse
@@ -91,6 +92,8 @@ message ManifestResponse {
     string sourceType = 6;
     // Raw response of git verify-commit operation (always the empty string for Helm)
     string verifyResult = 7;
+    // commands is the list of commands used to hydrate the manifests
+    repeated string commands = 8;
 }
 
 message ListRefsRequest {

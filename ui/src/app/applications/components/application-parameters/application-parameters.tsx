@@ -197,10 +197,10 @@ export const ApplicationParameters = (props: {
         } else {
             v.push(app.spec.source);
         }
-        return getEditablePanel(attributes, props.details, 0, v);
+        return getEditablePanel(attributes, props.details, 0, v, true);
     }
 
-    function getEditablePanel(panel: EditablePanelItem[], repoAppDetails: models.RepoAppDetails, ind: number, sources: models.ApplicationSource[]): any {
+    function getEditablePanel(panel: EditablePanelItem[], repoAppDetails: models.RepoAppDetails, ind: number, sources: models.ApplicationSource[], isSingleSource?: boolean): any {
         const src: models.ApplicationSource = sources[ind];
         let descriptionCollapsed: string;
         let floatingTitle: string;
@@ -238,6 +238,8 @@ export const ApplicationParameters = (props: {
                 save={
                     props.save &&
                     (async (input: models.Application) => {
+                        const updatedSrc = isSingleSource ? input.spec.source : input.spec.sources[ind];
+
                         function isDefined(item: any) {
                             return item !== null && item !== undefined;
                         }
@@ -245,19 +247,21 @@ export const ApplicationParameters = (props: {
                             return item !== null && item !== undefined && item.match(/:/);
                         }
 
-                        if (src.helm && src.helm.parameters) {
-                            src.helm.parameters = src.helm.parameters.filter(isDefined);
+                        if (updatedSrc.helm && updatedSrc.helm.parameters) {
+                            updatedSrc.helm.parameters = updatedSrc.helm.parameters.filter(isDefined);
                         }
-                        if (src.kustomize && src.kustomize.images) {
-                            src.kustomize.images = src.kustomize.images.filter(isDefinedWithVersion);
+                        if (updatedSrc.kustomize && updatedSrc.kustomize.images) {
+                            updatedSrc.kustomize.images = updatedSrc.kustomize.images.filter(isDefinedWithVersion);
                         }
 
                         let params = input.spec?.source?.plugin?.parameters;
                         if (params) {
                             for (const param of params) {
                                 if (param.map && param.array) {
+                                    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
                                     // @ts-ignore
                                     param.map = param.array.reduce((acc, {name, value}) => {
+                                        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
                                         // @ts-ignore
                                         acc[name] = value;
                                         return acc;
@@ -270,7 +274,7 @@ export const ApplicationParameters = (props: {
                             input.spec.source.plugin.parameters = params;
                         }
                         if (input.spec.source.helm && input.spec.source.helm.valuesObject) {
-                            input.spec.source.helm.valuesObject = jsYaml.safeLoad(input.spec.source.helm.values); // Deserialize json
+                            input.spec.source.helm.valuesObject = jsYaml.load(input.spec.source.helm.values); // Deserialize json
                             input.spec.source.helm.values = '';
                         }
                         await props.save(input, {});
@@ -291,7 +295,7 @@ export const ApplicationParameters = (props: {
                     }
 
                     if (updatedApp.spec.source.helm && updatedApp.spec.source.helm.values) {
-                        const parsedValues = jsYaml.safeLoad(updatedApp.spec.source.helm.values);
+                        const parsedValues = jsYaml.load(updatedApp.spec.source.helm.values);
                         errors['spec.source.helm.values'] = typeof parsedValues === 'object' ? null : 'Values must be a map';
                     }
 
@@ -328,6 +332,7 @@ function gatherDetails(
     setAppParamsDeletedState: any
 ): EditablePanelItem[] {
     const hasMultipleSources = app.spec.sources && app.spec.sources.length > 0;
+    // eslint-disable-next-line no-prototype-builtins
     const isHelm = source.hasOwnProperty('chart');
     if (hasMultipleSources) {
         attributes.push({
@@ -489,7 +494,7 @@ function gatherDetails(
         }
     } else if (repoDetails.type === 'Helm' && repoDetails.helm) {
         const isValuesObject = source?.helm?.valuesObject;
-        const helmValues = isValuesObject ? jsYaml.safeDump(source.helm.valuesObject) : source?.helm?.values;
+        const helmValues = isValuesObject ? jsYaml.dump(source.helm.valuesObject) : source?.helm?.values;
         attributes.push({
             title: 'VALUES FILES',
             view: (source.helm && (source.helm.valueFiles || []).join(', ')) || 'No values files selected',

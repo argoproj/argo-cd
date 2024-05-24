@@ -34,7 +34,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/cache"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 
 	argocommon "github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
@@ -472,11 +472,10 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 		if a.Spec.HasMultipleSources() {
 			numOfSources := int64(len(a.Spec.GetSources()))
 			for i, pos := range q.SourcePositions {
-				if pos <= numOfSources {
-					a.Spec.Sources[pos-1].TargetRevision = q.Revisions[i]
-				} else {
-					return fmt.Errorf("source position cannot be greater than number of sources in the application")
+				if pos <= 0 || pos > numOfSources {
+					return fmt.Errorf("source position is out of range")
 				}
+				a.Spec.Sources[pos-1].TargetRevision = q.Revisions[i]
 			}
 			sources = a.Spec.GetSources()
 		} else {
@@ -1300,9 +1299,9 @@ func (s *Server) getCachedAppState(ctx context.Context, a *appv1.Application, ge
 			return errors.New(argoutil.FormatAppConditions(conditions))
 		}
 		_, err = s.Get(ctx, &application.ApplicationQuery{
-			Name:         pointer.String(a.GetName()),
-			AppNamespace: pointer.String(a.GetNamespace()),
-			Refresh:      pointer.String(string(appv1.RefreshTypeNormal)),
+			Name:         ptr.To(a.GetName()),
+			AppNamespace: ptr.To(a.GetNamespace()),
+			Refresh:      ptr.To(string(appv1.RefreshTypeNormal)),
 		})
 		if err != nil {
 			return fmt.Errorf("error getting application by query: %w", err)
@@ -1325,9 +1324,15 @@ func (s *Server) getAppResources(ctx context.Context, a *appv1.Application) (*ap
 
 func (s *Server) getAppLiveResource(ctx context.Context, action string, q *application.ApplicationResourceRequest) (*appv1.ResourceNode, *rest.Config, *appv1.Application, error) {
 	a, _, err := s.getApplicationEnforceRBACInformer(ctx, action, q.GetProject(), q.GetAppNamespace(), q.GetName())
+	if err == permissionDeniedErr && (action == rbacpolicy.ActionDelete || action == rbacpolicy.ActionUpdate) {
+		// If users dont have permission on the whole applications, maybe they have fine-grained access to the specific resources
+		action = fmt.Sprintf("%s/%s/%s/%s/%s", action, q.GetGroup(), q.GetKind(), q.GetNamespace(), q.GetResourceName())
+		a, _, err = s.getApplicationEnforceRBACInformer(ctx, action, q.GetProject(), q.GetAppNamespace(), q.GetName())
+	}
 	if err != nil {
 		return nil, nil, nil, err
 	}
+
 	tree, err := s.getAppResources(ctx, a)
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("error getting app resources: %w", err)
@@ -1574,10 +1579,10 @@ func (s *Server) PodLogs(q *application.ApplicationPodLogsQuery, ws application.
 
 	var sinceSeconds, tailLines *int64
 	if q.GetSinceSeconds() > 0 {
-		sinceSeconds = pointer.Int64(q.GetSinceSeconds())
+		sinceSeconds = ptr.To(q.GetSinceSeconds())
 	}
 	if q.GetTailLines() > 0 {
-		tailLines = pointer.Int64(q.GetTailLines())
+		tailLines = ptr.To(q.GetTailLines())
 	}
 	var untilTime *metav1.Time
 	if q.GetUntilTime() != "" {
@@ -1698,10 +1703,10 @@ func (s *Server) PodLogs(q *application.ApplicationPodLogsQuery, ws application.
 				ts := metav1.NewTime(entry.timeStamp)
 				if untilTime != nil && entry.timeStamp.After(untilTime.Time) {
 					done <- ws.Send(&application.LogEntry{
-						Last:         pointer.Bool(true),
+						Last:         ptr.To(true),
 						PodName:      &entry.podName,
 						Content:      &entry.line,
-						TimeStampStr: pointer.String(entry.timeStamp.Format(time.RFC3339Nano)),
+						TimeStampStr: ptr.To(entry.timeStamp.Format(time.RFC3339Nano)),
 						TimeStamp:    &ts,
 					})
 					return
@@ -1710,9 +1715,9 @@ func (s *Server) PodLogs(q *application.ApplicationPodLogsQuery, ws application.
 					if err := ws.Send(&application.LogEntry{
 						PodName:      &entry.podName,
 						Content:      &entry.line,
-						TimeStampStr: pointer.String(entry.timeStamp.Format(time.RFC3339Nano)),
+						TimeStampStr: ptr.To(entry.timeStamp.Format(time.RFC3339Nano)),
 						TimeStamp:    &ts,
-						Last:         pointer.Bool(false),
+						Last:         ptr.To(false),
 					}); err != nil {
 						done <- err
 						break
@@ -1723,10 +1728,10 @@ func (s *Server) PodLogs(q *application.ApplicationPodLogsQuery, ws application.
 		now := time.Now()
 		nowTS := metav1.NewTime(now)
 		done <- ws.Send(&application.LogEntry{
-			Last:         pointer.Bool(true),
-			PodName:      pointer.String(""),
-			Content:      pointer.String(""),
-			TimeStampStr: pointer.String(now.Format(time.RFC3339Nano)),
+			Last:         ptr.To(true),
+			PodName:      ptr.To(""),
+			Content:      ptr.To(""),
+			TimeStampStr: ptr.To(now.Format(time.RFC3339Nano)),
 			TimeStamp:    &nowTS,
 		})
 	}()
@@ -1811,8 +1816,6 @@ func (s *Server) Sync(ctx context.Context, syncReq *application.ApplicationSyncR
 		return nil, err
 	}
 
-	source := a.Spec.GetSource()
-
 	if syncReq.Manifests != nil {
 		if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionOverride, a.RBACName(s.ns)); err != nil {
 			return nil, err
@@ -1824,14 +1827,10 @@ func (s *Server) Sync(ctx context.Context, syncReq *application.ApplicationSyncR
 	if a.DeletionTimestamp != nil {
 		return nil, status.Errorf(codes.FailedPrecondition, "application is deleting")
 	}
-	if a.Spec.SyncPolicy != nil && a.Spec.SyncPolicy.Automated != nil && !syncReq.GetDryRun() {
-		if syncReq.GetRevision() != "" && syncReq.GetRevision() != text.FirstNonEmpty(source.TargetRevision, "HEAD") {
-			return nil, status.Errorf(codes.FailedPrecondition, "Cannot sync to %s: auto-sync currently set to %s", syncReq.GetRevision(), source.TargetRevision)
-		}
-	}
-	revision, displayRevision, err := s.resolveRevision(ctx, a, syncReq)
+
+	revision, displayRevision, sourceRevisions, displayRevisions, err := s.resolveSourceRevisions(ctx, a, syncReq)
 	if err != nil {
-		return nil, status.Errorf(codes.FailedPrecondition, err.Error())
+		return nil, err
 	}
 
 	var retry *appv1.RetryStrategy
@@ -1869,6 +1868,8 @@ func (s *Server) Sync(ctx context.Context, syncReq *application.ApplicationSyncR
 			SyncStrategy: syncReq.Strategy,
 			Resources:    resources,
 			Manifests:    syncReq.Manifests,
+			Sources:      a.Spec.Sources,
+			Revisions:    sourceRevisions,
 		},
 		InitiatedBy: appv1.OperationInitiator{Username: session.Username(ctx)},
 		Info:        syncReq.Infos,
@@ -1888,12 +1889,59 @@ func (s *Server) Sync(ctx context.Context, syncReq *application.ApplicationSyncR
 	if len(syncReq.Resources) > 0 {
 		partial = "partial "
 	}
-	reason := fmt.Sprintf("initiated %ssync to %s", partial, displayRevision)
+	var reason string
+	if a.Spec.HasMultipleSources() {
+		reason = fmt.Sprintf("initiated %ssync to %s", partial, strings.Join(displayRevisions, ","))
+	} else {
+		reason = fmt.Sprintf("initiated %ssync to %s", partial, displayRevision)
+	}
 	if syncReq.Manifests != nil {
 		reason = fmt.Sprintf("initiated %ssync locally", partial)
 	}
 	s.logAppEvent(a, ctx, argo.EventReasonOperationStarted, reason)
 	return a, nil
+}
+
+func (s *Server) resolveSourceRevisions(ctx context.Context, a *appv1.Application, syncReq *application.ApplicationSyncRequest) (string, string, []string, []string, error) {
+	if a.Spec.HasMultipleSources() {
+		numOfSources := int64(len(a.Spec.GetSources()))
+		sourceRevisions := make([]string, numOfSources)
+		displayRevisions := make([]string, numOfSources)
+
+		sources := a.Spec.GetSources()
+		for i, pos := range syncReq.SourcePositions {
+			if pos <= 0 || pos > numOfSources {
+				return "", "", nil, nil, fmt.Errorf("source position is out of range")
+			}
+			sources[pos-1].TargetRevision = syncReq.Revisions[i]
+		}
+		for index, source := range sources {
+			if a.Spec.SyncPolicy != nil && a.Spec.SyncPolicy.Automated != nil && !syncReq.GetDryRun() {
+				if text.FirstNonEmpty(a.Spec.GetSources()[index].TargetRevision, "HEAD") != text.FirstNonEmpty(source.TargetRevision, "HEAD") {
+					return "", "", nil, nil, status.Errorf(codes.FailedPrecondition, "Cannot sync source %s to %s: auto-sync currently set to %s", source.RepoURL, source.TargetRevision, a.Spec.Sources[index].TargetRevision)
+				}
+			}
+			revision, displayRevision, err := s.resolveRevision(ctx, a, syncReq, index)
+			if err != nil {
+				return "", "", nil, nil, status.Errorf(codes.FailedPrecondition, err.Error())
+			}
+			sourceRevisions[index] = revision
+			displayRevisions[index] = displayRevision
+		}
+		return "", "", sourceRevisions, displayRevisions, nil
+	} else {
+		source := a.Spec.GetSource()
+		if a.Spec.SyncPolicy != nil && a.Spec.SyncPolicy.Automated != nil && !syncReq.GetDryRun() {
+			if syncReq.GetRevision() != "" && syncReq.GetRevision() != text.FirstNonEmpty(source.TargetRevision, "HEAD") {
+				return "", "", nil, nil, status.Errorf(codes.FailedPrecondition, "Cannot sync to %s: auto-sync currently set to %s", syncReq.GetRevision(), source.TargetRevision)
+			}
+		}
+		revision, displayRevision, err := s.resolveRevision(ctx, a, syncReq, -1)
+		if err != nil {
+			return "", "", nil, nil, status.Errorf(codes.FailedPrecondition, err.Error())
+		}
+		return revision, displayRevision, nil, nil, nil
+	}
 }
 
 func (s *Server) Rollback(ctx context.Context, rollbackReq *application.ApplicationRollbackRequest) (*appv1.Application, error) {
@@ -2068,17 +2116,41 @@ func (s *Server) ListResourceLinks(ctx context.Context, req *application.Applica
 	return finalList, nil
 }
 
+func getAmbiguousRevision(app *appv1.Application, syncReq *application.ApplicationSyncRequest, sourceIndex int) string {
+	ambiguousRevision := ""
+	if app.Spec.HasMultipleSources() {
+		for i, pos := range syncReq.SourcePositions {
+			if pos == int64(sourceIndex) {
+				ambiguousRevision = syncReq.Revisions[i]
+			}
+		}
+		if ambiguousRevision == "" {
+			ambiguousRevision = app.Spec.Sources[sourceIndex].TargetRevision
+		}
+	} else {
+		ambiguousRevision = syncReq.GetRevision()
+		if ambiguousRevision == "" {
+			ambiguousRevision = app.Spec.GetSource().TargetRevision
+		}
+	}
+	return ambiguousRevision
+}
+
 // resolveRevision resolves the revision specified either in the sync request, or the
 // application source, into a concrete revision that will be used for a sync operation.
-func (s *Server) resolveRevision(ctx context.Context, app *appv1.Application, syncReq *application.ApplicationSyncRequest) (string, string, error) {
+func (s *Server) resolveRevision(ctx context.Context, app *appv1.Application, syncReq *application.ApplicationSyncRequest, sourceIndex int) (string, string, error) {
 	if syncReq.Manifests != nil {
 		return "", "", nil
 	}
-	ambiguousRevision := syncReq.GetRevision()
-	if ambiguousRevision == "" {
-		ambiguousRevision = app.Spec.GetSource().TargetRevision
+
+	ambiguousRevision := getAmbiguousRevision(app, syncReq, sourceIndex)
+
+	repoUrl := app.Spec.GetSource().RepoURL
+	if app.Spec.HasMultipleSources() {
+		repoUrl = app.Spec.Sources[sourceIndex].RepoURL
 	}
-	repo, err := s.db.GetRepository(ctx, app.Spec.GetSource().RepoURL)
+
+	repo, err := s.db.GetRepository(ctx, repoUrl)
 	if err != nil {
 		return "", "", fmt.Errorf("error getting repository by URL: %w", err)
 	}
@@ -2088,7 +2160,7 @@ func (s *Server) resolveRevision(ctx context.Context, app *appv1.Application, sy
 	}
 	defer ioutil.Close(conn)
 
-	source := app.Spec.GetSource()
+	source := app.Spec.GetSourcePtrByIndex(sourceIndex)
 	if !source.IsHelm() {
 		if git.IsCommitSHA(ambiguousRevision) {
 			// If it's already a commit SHA, then no need to look it up
@@ -2100,6 +2172,7 @@ func (s *Server) resolveRevision(ctx context.Context, app *appv1.Application, sy
 		Repo:              repo,
 		App:               app,
 		AmbiguousRevision: ambiguousRevision,
+		SourceIndex:       int64(sourceIndex),
 	})
 	if err != nil {
 		return "", "", fmt.Errorf("error resolving repo revision: %w", err)

@@ -222,6 +222,22 @@ func (a *ApplicationSpec) GetSource() ApplicationSource {
 	return ApplicationSource{}
 }
 
+// GetHydrateToSource returns the hydrateTo source if it exists, otherwise returns the sync source.
+func (a *ApplicationSpec) GetHydrateToSource() ApplicationSource {
+	if a.SourceHydrator != nil {
+		var targetRevision = a.SourceHydrator.SyncSource.TargetRevision
+		if a.SourceHydrator.HydrateTo != nil {
+			targetRevision = a.SourceHydrator.HydrateTo.TargetRevision
+		}
+		return ApplicationSource{
+			RepoURL:        a.SourceHydrator.DrySource.RepoURL,
+			Path:           a.SourceHydrator.SyncSource.Path,
+			TargetRevision: targetRevision,
+		}
+	}
+	return ApplicationSource{}
+}
+
 func (a *ApplicationSpec) GetSources() ApplicationSources {
 	if a.HasMultipleSources() {
 		return a.Sources
@@ -239,11 +255,16 @@ func (a *ApplicationSpec) HasMultipleSources() bool {
 	return a.SourceHydrator == nil && a.Sources != nil && len(a.Sources) > 0
 }
 
-func (a *ApplicationSpec) GetSourcePtr(index int) *ApplicationSource {
+func (a *ApplicationSpec) GetSourcePtrByPosition(sourcePosition int) *ApplicationSource {
+	// if Application has multiple sources, return the first source in sources
+	return a.GetSourcePtrByIndex(sourcePosition - 1)
+}
+
+func (a *ApplicationSpec) GetSourcePtrByIndex(sourceIndex int) *ApplicationSource {
 	// if Application has multiple sources, return the first source in sources
 	if a.HasMultipleSources() {
-		if index > 0 {
-			return &a.Sources[index-1]
+		if sourceIndex > 0 {
+			return &a.Sources[sourceIndex]
 		}
 		return &a.Sources[0]
 	}
@@ -381,6 +402,12 @@ type ApplicationSourceHelm struct {
 	// ValuesObject specifies Helm values to be passed to helm template, defined as a map. This takes precedence over Values.
 	// +kubebuilder:pruning:PreserveUnknownFields
 	ValuesObject *runtime.RawExtension `json:"valuesObject,omitempty" protobuf:"bytes,10,opt,name=valuesObject"`
+	// KubeVersions is the Kubernetes version to use for templating. If not set, defaults to the server's current Kubernetes version.
+	KubeVersion string `json:"kubeVersion,omitempty" protobuf:"bytes,11,opt,name=kubeVersion"`
+	// APIVersions is a list of Kubernetes API versions to use for templating. If not set, defaults to the server's preferred API versions.
+	ApiVersions []string `json:"apiVersions,omitempty" protobuf:"bytes,12,opt,name=apiVersions"`
+	// ReleaseName is the namespace scope to use. If omitted it will use the application name
+	Namespace string `json:"namespace,omitempty" protobuf:"bytes,13,opt,name=namespace"`
 }
 
 // HelmParameter is a parameter that's passed to helm template during manifest generation
@@ -1022,7 +1049,28 @@ type SourceHydratorStatus struct {
 	DrySource DrySource `json:"drySource,omitempty" protobuf:"bytes,1,opt,name=drySource"`
 	// Revision holds the resolved revision (sha) of the dry source as of the most recent reconciliation
 	Revision string `json:"revision,omitempty" protobuf:"bytes,2,opt,name=revision"`
+	// HydrateOperation holds the status of the hydrate operation
+	HydrateOperation *HydrateOperation `json:"hydrateOperation,omitempty" protobuf:"bytes,3,opt,name=hydrateOperation"`
 }
+
+type HydrateOperation struct {
+	// StartedAt indicates when the hydrate operation started
+	StartedAt metav1.Time `json:"startedAt,omitempty" protobuf:"bytes,1,opt,name=startedAt"`
+	// FinishedAt indicates when the hydrate operation finished
+	FinishedAt *metav1.Time `json:"finishedAt,omitempty" protobuf:"bytes,2,opt,name=finishedAt"`
+	// Status indicates the status of the hydrate operation
+	Status HydrateOperationPhase `json:"status" protobuf:"bytes,3,opt,name=status"`
+	// Message contains a message describing the current status of the hydrate operation
+	Message string `json:"message" protobuf:"bytes,4,opt,name=message"`
+}
+
+type HydrateOperationPhase string
+
+const (
+	HydrateOperationPhaseRunning   HydrateOperationPhase = "Running"
+	HydrateOperationPhaseFailed    HydrateOperationPhase = "Failed"
+	HydrateOperationPhaseSucceeded HydrateOperationPhase = "Succeeded"
+)
 
 // GetRevisions will return the current revision associated with the Application.
 // If app has multisources, it will return all corresponding revisions preserving
@@ -1568,7 +1616,8 @@ type SyncStatus struct {
 	// Status is the sync state of the comparison
 	Status SyncStatusCode `json:"status" protobuf:"bytes,1,opt,name=status,casttype=SyncStatusCode"`
 	// ComparedTo contains information about what has been compared
-	ComparedTo ComparedTo `json:"comparedTo,omitempty" protobuf:"bytes,2,opt,name=comparedTo"`
+	// +patchStrategy=replace
+	ComparedTo ComparedTo `json:"comparedTo,omitempty" protobuf:"bytes,2,opt,name=comparedTo" patchStrategy:"replace"`
 	// Revision contains information about the revision the comparison has been performed to
 	Revision string `json:"revision,omitempty" protobuf:"bytes,3,opt,name=revision"`
 	// Revisions contains information about the revisions of multiple sources the comparison has been performed to
