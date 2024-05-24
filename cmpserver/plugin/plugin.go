@@ -24,7 +24,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/io/files"
 
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
-	"github.com/cyphar/filepath-securejoin"
+	securejoin "github.com/cyphar/filepath-securejoin"
 	"github.com/mattn/go-zglob"
 	log "github.com/sirupsen/logrus"
 )
@@ -61,7 +61,7 @@ func (s *Service) Init(workDir string) error {
 	return nil
 }
 
-func runCommand(ctx context.Context, command Command, path string, env []string) (string, error) {
+func runCommand(ctx context.Context, command Command, warnOnEmptyOutput string, path string, env []string) (string, error) {
 	if len(command.Command) == 0 {
 		return "", fmt.Errorf("Command is empty")
 	}
@@ -126,10 +126,10 @@ func runCommand(ctx context.Context, command Command, path string, env []string)
 		"command": command,
 	})
 	if len(output) == 0 {
-		logCtx.Warn("Plugin command returned zero output")
+		logCtx.Warn(warnOnEmptyOutput)
 	} else {
-		// Log stderr even on successfull commands to help develop plugins
-		logCtx.Info("Plugin command successfull")
+		// Log stderr even on successful commands to help develop plugins
+		logCtx.Warn("Plugin command successful")
 	}
 
 	return strings.TrimSuffix(output, "\n"), nil
@@ -259,13 +259,13 @@ func (s *Service) generateManifest(ctx context.Context, appDir string, envEntrie
 
 	env := append(os.Environ(), environ(envEntries)...)
 	if len(config.Spec.Init.Command) > 0 {
-		_, err := runCommand(ctx, config.Spec.Init, appDir, env)
+		_, err := runCommand(ctx, config.Spec.Init, "Plugin init returned zero output (this is ok)", appDir, env)
 		if err != nil {
 			return &apiclient.ManifestResponse{}, err
 		}
 	}
 
-	out, err := runCommand(ctx, config.Spec.Generate, appDir, env)
+	out, err := runCommand(ctx, config.Spec.Generate, "Plugin command returned zero output (this is likely problematic)", appDir, env)
 	if err != nil {
 		return &apiclient.ManifestResponse{}, err
 	}
@@ -370,7 +370,7 @@ func (s *Service) matchRepository(ctx context.Context, workdir string, envEntrie
 	if len(config.Spec.Discover.Find.Command.Command) > 0 {
 		log.Debugf("Going to try runCommand.")
 		env := append(os.Environ(), environ(envEntries)...)
-		find, err := runCommand(ctx, config.Spec.Discover.Find.Command, appPath, env)
+		find, err := runCommand(ctx, config.Spec.Discover.Find.Command, "Plugin discover reported it does not support this app", appPath, env)
 		if err != nil {
 			return false, true, fmt.Errorf("error running find command: %w", err)
 		}
@@ -423,7 +423,7 @@ func getParametersAnnouncement(ctx context.Context, appDir string, announcements
 
 	if len(command.Command) > 0 {
 		env := append(os.Environ(), environ(envEntries)...)
-		stdout, err := runCommand(ctx, command, appDir, env)
+		stdout, err := runCommand(ctx, command, "Plugin dynamic parameter announcements failed to return json (e.g. [])", appDir, env)
 		if err != nil {
 			return nil, fmt.Errorf("error executing dynamic parameter output command: %w", err)
 		}
