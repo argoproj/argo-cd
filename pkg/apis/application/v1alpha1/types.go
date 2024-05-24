@@ -2531,7 +2531,7 @@ func (w SyncWindow) active(currentTime time.Time) bool {
 // Update updates a sync window's settings with the given parameter
 func (w *SyncWindow) Update(s string, d string, a []string, n []string, c []string, tz string) error {
 
-	if len(s) == 0 && len(d) == 0 && len(a) == 0 && len(n) == 0 && len(c) == 0 {
+	if len(s) == 0 && len(d) == 0 && len(a) == 0 && len(n) == 0 && len(c) == 0 && len(tz) == 0 {
 		return fmt.Errorf("cannot update: require one or more of schedule, duration, application, namespace, or cluster")
 	}
 
@@ -2552,10 +2552,9 @@ func (w *SyncWindow) Update(s string, d string, a []string, n []string, c []stri
 	if len(c) > 0 {
 		w.Clusters = c
 	}
-	if tz == "" {
-		tz = "UTC"
+	if len(tz) > 0 {
+		w.TimeZone = tz
 	}
-	w.TimeZone = tz
 	return nil
 }
 
