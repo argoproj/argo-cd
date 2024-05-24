@@ -10,7 +10,7 @@ approvers:
   - "@alexmt"
 
 creation-date: 2024-05-17
-last-updated: 2024-05-23
+last-updated: 2024-05-24
 ---
 
 # Project scoped repository credential enhancements
@@ -71,10 +71,18 @@ perspective is to add a `project` parameter when deleting a repository credentia
 this option is optional and would only be a required parameter if multiple repository credentials are found for the same 
 URL.
 
+Finally, we need to change the way the cache keys for the repository paths are generated in the repo-server 
+(see `Security Considerations`). 
+
 ### Security Considerations
 
-Special care needs to be taken in order not to inadvertently expose repository credentials belonging to other `AppProject`s.
+* Special care needs to be taken in order not to inadvertently expose repository credentials belonging to other `AppProject`s.
 Access to repositories are covered by RBAC checks on the project, so we should be good.
+* We need to change how the cache keys for the checked out repository paths are generated on the repo-server side, the 
+reason being that we do not want separate `AppProject`s sharing the same paths of sources which have been downloaded. 
+With this change there is a potential for multiple `AppProject`s to have rendered/downloaded different manifests due to 
+having different sets of credentials, so to mitigate that we need to check out a separate copy of the repository per 
+`AppProject`.
 
 ### Risks and Mitigations
 
@@ -96,6 +104,10 @@ to keeping said secrets safe, and it also makes it harder to have a bird's eye v
 credentials from the repository secrets has the potential to scale linearly with the number of app projects (in the worst case 
 scenario we would need to loop through all the credentials before finding the correct credential to load). This is likely 
 a non-issue in practice.
+* Also depending on the number of projects making use of distinct credentials for the same repository URL, this will 
+imply that for each `AppProject` sharing the same repository URL, a separate copy of the repository will be checked out.
+This has potential implications in terms of memory consumption, sync times, CPU load times etc. This is something 
+which an Argo CD admin will need to be mindful of.
 
 ## Alternatives
 
