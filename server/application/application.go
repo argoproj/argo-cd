@@ -469,15 +469,16 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 		}
 
 		sources := make([]appv1.ApplicationSource, 0)
+		appSpec := a.Spec.DeepCopy()
 		if a.Spec.HasMultipleSources() {
 			numOfSources := int64(len(a.Spec.GetSources()))
 			for i, pos := range q.SourcePositions {
 				if pos <= 0 || pos > numOfSources {
 					return fmt.Errorf("source position is out of range")
 				}
-				a.Spec.Sources[pos-1].TargetRevision = q.Revisions[i]
+				appSpec.Sources[pos-1].TargetRevision = q.Revisions[i]
 			}
-			sources = a.Spec.GetSources()
+			sources = appSpec.GetSources()
 		} else {
 			source := a.Spec.GetSource()
 			if q.GetRevision() != "" {
@@ -487,7 +488,7 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 		}
 
 		// Store the map of all sources having ref field into a map for applications with sources field
-		refSources, err := argo.GetRefSources(context.Background(), a.Spec, s.db)
+		refSources, err := argo.GetRefSources(context.Background(), *appSpec, s.db)
 		if err != nil {
 			return fmt.Errorf("failed to get ref sources: %v", err)
 		}
@@ -560,7 +561,7 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 				manifestInfo.Manifests[i] = string(data)
 			}
 		}
-		manifests.Manifests = manifestInfo.Manifests
+		manifests.Manifests = append(manifests.Manifests, manifestInfo.Manifests...)
 	}
 
 	return manifests, nil
