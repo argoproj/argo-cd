@@ -399,9 +399,9 @@ type GitGenerator struct {
 	RequeueAfterSeconds *int64                      `json:"requeueAfterSeconds,omitempty" protobuf:"bytes,5,name=requeueAfterSeconds"`
 	Template            ApplicationSetTemplate      `json:"template,omitempty" protobuf:"bytes,6,name=template"`
 	PathParamPrefix     string                      `json:"pathParamPrefix,omitempty" protobuf:"bytes,7,name=pathParamPrefix"`
-
+	ParamPrefix         string                      `json:"paramPrefix,omitempty" protobuf:"bytes,8,name=paramPrefix"`
 	// Values contains key/value pairs which are passed directly as parameters to the template
-	Values map[string]string `json:"values,omitempty" protobuf:"bytes,8,name=values"`
+	Values map[string]string `json:"values,omitempty" protobuf:"bytes,9,name=values"`
 }
 
 type GitDirectoryGeneratorItem struct {
