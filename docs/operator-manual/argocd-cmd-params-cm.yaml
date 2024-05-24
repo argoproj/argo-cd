@@ -179,6 +179,8 @@ data:
   reposerver.git.lsremote.parallelism.limit: "0"
   # Git requests timeout.
   reposerver.git.request.timeout: "15s"
+  # Include hidden directories from Git
+  reposerver.include.hidden.directories: "false"
 
   # Disable TLS on the HTTP endpoint
   dexserver.disable.tls: "false"
