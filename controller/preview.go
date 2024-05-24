@@ -15,9 +15,11 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"net/url"
 	"strings"
+	"time"
 )
 
 const ArgoCDGitHubUsername = "argocd"
+const PreviewSleepDuration = 60 * time.Second
 
 type Previewer struct {
 	appLister       *applisters.ApplicationLister
@@ -90,6 +92,7 @@ func (p *Previewer) Run() {
 				}
 			}
 		}
+		time.Sleep(time.Duration(PreviewSleepDuration))
 	}
 }
 
