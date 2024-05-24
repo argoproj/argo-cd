@@ -840,6 +840,13 @@ func (ctrl *ApplicationController) Run(ctx context.Context, statusProcessors int
 		}
 	}, time.Second, ctx.Done())
 	<-ctx.Done()
+
+	go NewPreviewer(
+		&ctrl.appLister,
+		&ctrl.appStateManager,
+		ctrl.settingsMgr,
+		ctrl.getAppProj,
+	).Run()
 }
 
 // requestAppRefresh adds a request for given app to the refresh queue. appName
