@@ -113,7 +113,7 @@ const (
 
 	// LegacyShardingAlgorithm is the default value for Sharding Algorithm it uses an `uid` based distribution (non-uniform)
 	LegacyShardingAlgorithm = "legacy"
-	// RoundRobinShardingAlgorithm is a flag value that can be opted for Sharding Algorithm it uses an equal distribution accross all shards
+	// RoundRobinShardingAlgorithm is a flag value that can be opted for Sharding Algorithm it uses an equal distribution across all shards
 	RoundRobinShardingAlgorithm = "round-robin"
 	// AppControllerHeartbeatUpdateRetryCount is the retry count for updating the Shard Mapping to the Shard Mapping ConfigMap used by Application Controller
 	AppControllerHeartbeatUpdateRetryCount = 3
@@ -206,7 +206,7 @@ const (
 	EnvVarTLSDataPath = "ARGOCD_TLS_DATA_PATH"
 	// EnvGitAttemptsCount specifies number of git remote operations attempts count
 	EnvGitAttemptsCount = "ARGOCD_GIT_ATTEMPTS_COUNT"
-	// EnvGitRetryMaxDuration specifices max duration of git remote operation retry
+	// EnvGitRetryMaxDuration specifies max duration of git remote operation retry
 	EnvGitRetryMaxDuration = "ARGOCD_GIT_RETRY_MAX_DURATION"
 	// EnvGitRetryDuration specifies duration of git remote operation retry
 	EnvGitRetryDuration = "ARGOCD_GIT_RETRY_DURATION"
@@ -353,7 +353,7 @@ func GetCMPChunkSize() int {
 }
 
 // GetCMPWorkDir will return the full path of the work directory used by the CMP server.
-// This directory and all it's contents will be deleted durring CMP bootstrap.
+// This directory and all it's contents will be deleted during CMP bootstrap.
 func GetCMPWorkDir() string {
 	if workDir := os.Getenv(EnvCMPWorkDir); workDir != "" {
 		return filepath.Join(workDir, DefaultCMPWorkDirName)
