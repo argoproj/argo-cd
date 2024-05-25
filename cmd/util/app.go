@@ -80,6 +80,7 @@ type AppOptions struct {
 	retryBackoffDuration            time.Duration
 	retryBackoffMaxDuration         time.Duration
 	retryBackoffFactor              int64
+	retryRefresh                    bool
 	ref                             string
 }
 
@@ -136,6 +137,7 @@ func AddAppFlags(command *cobra.Command, opts *AppOptions) {
 	command.Flags().DurationVar(&opts.retryBackoffDuration, "sync-retry-backoff-duration", argoappv1.DefaultSyncRetryDuration, "Sync retry backoff base duration. Input needs to be a duration (e.g. 2m, 1h)")
 	command.Flags().DurationVar(&opts.retryBackoffMaxDuration, "sync-retry-backoff-max-duration", argoappv1.DefaultSyncRetryMaxDuration, "Max sync retry backoff duration. Input needs to be a duration (e.g. 2m, 1h)")
 	command.Flags().Int64Var(&opts.retryBackoffFactor, "sync-retry-backoff-factor", argoappv1.DefaultSyncRetryFactor, "Factor multiplies the base duration after each failed sync retry")
+	command.Flags().BoolVar(&opts.retryRefresh, "sync-retry-refresh", false, "Set if a new revision should trigger a new sync")
 	command.Flags().StringVar(&opts.ref, "ref", "", "Ref is reference to another source within sources field")
 }
 
@@ -220,6 +222,7 @@ func SetAppSpecOptions(flags *pflag.FlagSet, spec *argoappv1.ApplicationSpec, ap
 						MaxDuration: appOpts.retryBackoffMaxDuration.String(),
 						Factor:      ptr.To(appOpts.retryBackoffFactor),
 					},
+					Refresh: appOpts.retryRefresh,
 				}
 			} else if appOpts.retryLimit == 0 {
 				if spec.SyncPolicy.IsZero() {
@@ -230,6 +233,14 @@ func SetAppSpecOptions(flags *pflag.FlagSet, spec *argoappv1.ApplicationSpec, ap
 			} else {
 				log.Fatalf("Invalid sync-retry-limit [%d]", appOpts.retryLimit)
 			}
+		case "sync-retry-refresh":
+			if spec.SyncPolicy == nil {
+				spec.SyncPolicy = &argoappv1.SyncPolicy{}
+			}
+			if spec.SyncPolicy.Retry == nil {
+				spec.SyncPolicy.Retry = &argoappv1.RetryStrategy{}
+			}
+			spec.SyncPolicy.Retry.Refresh = appOpts.retryRefresh
 		}
 	})
 	if flags.Changed("auto-prune") {
