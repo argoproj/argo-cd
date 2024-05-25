@@ -8583,6 +8583,10 @@
           "description": "Limit is the maximum number of attempts for retrying a failed sync. If set to 0, no retries will be performed.",
           "type": "integer",
           "format": "int64"
+        },
+        "refresh": {
+          "type": "boolean",
+          "title": "Refresh indicates if a new revision should trigger a new sync (default: false)"
         }
       }
     },

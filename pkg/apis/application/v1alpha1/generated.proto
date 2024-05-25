@@ -1892,6 +1892,9 @@ message RetryStrategy {
 
   // Backoff controls how to backoff on subsequent retries of failed syncs
   optional Backoff backoff = 2;
+
+  // Refresh indicates if a new revision should trigger a new sync (default: false)
+  optional bool refresh = 3;
 }
 
 // RevisionHistory contains history information about a previous sync

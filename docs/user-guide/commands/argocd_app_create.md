@@ -93,6 +93,7 @@ argocd app create APPNAME [flags]
       --sync-retry-backoff-factor int              Factor multiplies the base duration after each failed sync retry (default 2)
       --sync-retry-backoff-max-duration duration   Max sync retry backoff duration. Input needs to be a duration (e.g. 2m, 1h) (default 3m0s)
       --sync-retry-limit int                       Max number of allowed sync retries
+      --sync-retry-refresh                         Set if a new revision should trigger a new sync
       --upsert                                     Allows to override application with the same name even if supplied application spec is different from existing spec
       --validate                                   Validation of repo and cluster (default true)
       --values stringArray                         Helm values file(s) to use
