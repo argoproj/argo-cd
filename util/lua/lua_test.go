@@ -159,7 +159,7 @@ func TestGetHealthScriptWithOverride(t *testing.T) {
 	}
 	script, useOpenLibs, err := vm.GetHealthScript(testObj)
 	assert.Nil(t, err)
-	assert.Equal(t, false, useOpenLibs)
+	assert.False(t, useOpenLibs)
 	assert.Equal(t, newHealthStatusFunction, script)
 }
 
@@ -176,7 +176,7 @@ func TestGetHealthScriptWithKindWildcardOverride(t *testing.T) {
 
 	script, useOpenLibs, err := vm.GetHealthScript(testObj)
 	assert.Nil(t, err)
-	assert.Equal(t, false, useOpenLibs)
+	assert.False(t, useOpenLibs)
 	assert.Equal(t, newHealthStatusFunction, script)
 }
 
@@ -193,7 +193,7 @@ func TestGetHealthScriptWithGroupWildcardOverride(t *testing.T) {
 
 	script, useOpenLibs, err := vm.GetHealthScript(testObj)
 	assert.Nil(t, err)
-	assert.Equal(t, false, useOpenLibs)
+	assert.False(t, useOpenLibs)
 	assert.Equal(t, newHealthStatusFunction, script)
 }
 
@@ -210,7 +210,7 @@ func TestGetHealthScriptWithGroupAndKindWildcardOverride(t *testing.T) {
 
 	script, useOpenLibs, err := vm.GetHealthScript(testObj)
 	assert.Nil(t, err)
-	assert.Equal(t, false, useOpenLibs)
+	assert.False(t, useOpenLibs)
 	assert.Equal(t, newHealthStatusFunction, script)
 }
 
@@ -219,7 +219,7 @@ func TestGetHealthScriptPredefined(t *testing.T) {
 	vm := VM{}
 	script, useOpenLibs, err := vm.GetHealthScript(testObj)
 	assert.Nil(t, err)
-	assert.Equal(t, true, useOpenLibs)
+	assert.True(t, useOpenLibs)
 	assert.NotEmpty(t, script)
 }
 
@@ -228,7 +228,7 @@ func TestGetHealthScriptNoPredefined(t *testing.T) {
 	vm := VM{}
 	script, useOpenLibs, err := vm.GetHealthScript(testObj)
 	assert.Nil(t, err)
-	assert.Equal(t, true, useOpenLibs)
+	assert.True(t, useOpenLibs)
 	assert.Equal(t, "", script)
 }
 
