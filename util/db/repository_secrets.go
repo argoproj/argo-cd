@@ -463,7 +463,7 @@ func (s *secretsRepositoryBackend) getRepositorySecret(repoURL, project string, 
 	var foundSecret *corev1.Secret
 	for _, secret := range secrets {
 		if git.SameURL(string(secret.Data["url"]), repoURL) {
-			if project != "" && project == string(secret.Data["project"]) {
+			if project == string(secret.Data["project"]) {
 				return secret, nil
 			}
 
