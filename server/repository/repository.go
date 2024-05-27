@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"fmt"
+	"github.com/argoproj/argo-cd/v2/util/git"
 	"reflect"
 
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
@@ -87,9 +88,9 @@ func createRBACObject(project string, repo string) string {
 // Get the connection state for a given repository URL by connecting to the
 // repo and evaluate the results. Unless forceRefresh is set to true, the
 // result may be retrieved out of the cache.
-func (s *Server) getConnectionState(ctx context.Context, url string, forceRefresh bool) appsv1.ConnectionState {
+func (s *Server) getConnectionState(ctx context.Context, url string, project string, forceRefresh bool) appsv1.ConnectionState {
 	if !forceRefresh {
-		if connectionState, err := s.cache.GetRepoConnectionState(url); err == nil {
+		if connectionState, err := s.cache.GetRepoConnectionState(url, project); err == nil {
 			return connectionState
 		}
 	}
@@ -112,7 +113,7 @@ func (s *Server) getConnectionState(ctx context.Context, url string, forceRefres
 			connectionState.Message = fmt.Sprintf("Unable to connect to repository: %v", err)
 		}
 	}
-	err = s.cache.SetRepoConnectionState(url, &connectionState)
+	err = s.cache.SetRepoConnectionState(url, project, &connectionState)
 	if err != nil {
 		log.Warnf("getConnectionState cache set error %s: %v", url, err)
 	}
@@ -166,7 +167,7 @@ func (s *Server) Get(ctx context.Context, q *repositorypkg.RepoQuery) (*appsv1.R
 		InheritedCreds:             repo.InheritedCreds,
 	}
 
-	item.ConnectionState = s.getConnectionState(ctx, item.Repo, q.ForceRefresh)
+	item.ConnectionState = s.getConnectionState(ctx, item.Repo, item.Project, q.ForceRefresh)
 
 	return &item, nil
 }
@@ -202,7 +203,7 @@ func (s *Server) ListRepositories(ctx context.Context, q *repositorypkg.RepoQuer
 		}
 	}
 	err = kube.RunAllAsync(len(items), func(i int) error {
-		items[i].ConnectionState = s.getConnectionState(ctx, items[i].Repo, q.ForceRefresh)
+		items[i].ConnectionState = s.getConnectionState(ctx, items[i].Repo, items[i].Project, q.ForceRefresh)
 		return nil
 	})
 	if err != nil {
@@ -471,21 +472,48 @@ func (s *Server) Delete(ctx context.Context, q *repositorypkg.RepoQuery) (*repos
 
 // DeleteRepository removes a repository from the configuration
 func (s *Server) DeleteRepository(ctx context.Context, q *repositorypkg.RepoQuery) (*repositorypkg.RepoResponse, error) {
-	repo, err := s.getRepo(ctx, q.Repo, q.GetAppProject())
+	repositories, err := s.ListRepositories(ctx, q)
 	if err != nil {
 		return nil, err
 	}
 
-	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceRepositories, rbacpolicy.ActionDelete, createRBACObject(repo.Project, repo.Repo)); err != nil {
+	var foundRepos []*v1alpha1.Repository
+	for _, repo := range repositories.Items {
+		if git.SameURL(repo.Repo, q.Repo) {
+			foundRepos = append(foundRepos, repo)
+		}
+	}
+
+	if len(foundRepos) == 0 {
+		return nil, errPermissionDenied
+	}
+
+	var foundRepo *v1alpha1.Repository
+	if len(foundRepos) > 1 {
+		for _, repo := range foundRepos {
+			if repo.Project == q.GetAppProject() {
+				foundRepo = repo
+				break
+			}
+		}
+	} else {
+		foundRepo = foundRepos[0]
+	}
+
+	if foundRepo == nil {
+		return nil, errPermissionDenied
+	}
+
+	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceRepositories, rbacpolicy.ActionDelete, createRBACObject(foundRepo.Project, foundRepo.Repo)); err != nil {
 		return nil, err
 	}
 
 	// invalidate cache
-	if err := s.cache.SetRepoConnectionState(q.Repo, nil); err == nil {
+	if err := s.cache.SetRepoConnectionState(foundRepo.Repo, foundRepo.Project, nil); err == nil {
 		log.Errorf("error invalidating cache: %v", err)
 	}
 
-	err = s.db.DeleteRepository(ctx, q.Repo, q.GetAppProject())
+	err = s.db.DeleteRepository(ctx, foundRepo.Repo, foundRepo.Project)
 	return &repositorypkg.RepoResponse{}, err
 }
 
