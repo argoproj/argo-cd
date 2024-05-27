@@ -3099,7 +3099,9 @@ func TestGetHelmRepo_NamedReposAlias(t *testing.T) {
 func Test_getResolvedValueFiles(t *testing.T) {
 	tempDir := t.TempDir()
 	paths := io.NewRandomizedTempPaths(tempDir)
-	paths.Add(git.NormalizeGitURL("https://github.com/org/repo1"), path.Join(tempDir, "repo1"))
+
+	key, _ := json.Marshal(map[string]string{"url": git.NormalizeGitURL("https://github.com/org/repo1"), "project": ""})
+	paths.Add(string(key), path.Join(tempDir, "repo1"))
 
 	testCases := []struct {
 		name         string
