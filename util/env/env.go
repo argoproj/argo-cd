@@ -47,27 +47,31 @@ func ParseNumFromEnv(env string, defaultValue, min, max int) int {
 // max is greater than 0) or is less than min.
 //
 // nolint:unparam
-func ParseInt64FromEnv(env string, defaultValue, min, max int64) int64 {
+func ParseInt64FromEnv(env string, defaultValue, min, max int64) int32 {
 	str := os.Getenv(env)
 	if str == "" {
-		return defaultValue
+		return int32(defaultValue)
 	}
 
 	num, err := strconv.ParseInt(str, 10, 64)
 	if err != nil {
-		log.Warnf("Could not parse '%s' as a int64 from environment %s", str, env)
-		return defaultValue
+		log.Warnf("Could not parse '%s' as an int64 from environment %s", str, env)
+		return int32(defaultValue)
 	}
+
+	// Check if the parsed value exceeds the maximum for int32
 	if num < min {
-		log.Warnf("Value in %s is %d, which is less than minimum %d allowed", env, num, min)
-		return defaultValue
+		log.Warnf("Value in %s is %d, which is less than the minimum %d allowed", env, num, min)
+		return int32(defaultValue)
 	}
 	if num > max {
-		log.Warnf("Value in %s is %d, which is greater than maximum %d allowed", env, num, max)
-		return defaultValue
+		log.Warnf("Value in %s is %d, which is greater than the maximum %d allowed", env, num, max)
+		return int32(defaultValue)
 	}
-	return num
+
+	return int32(num)
 }
+
 
 // Helper function to parse a float32 from an environment variable. Returns a
 // default if env is not set, is not parseable to a number, exceeds max (if
