@@ -100,7 +100,7 @@ func (s *Server) getConnectionState(ctx context.Context, url string, project str
 		ModifiedAt: &now,
 	}
 	var err error
-	repo, err := s.db.GetRepository(ctx, url, "")
+	repo, err := s.db.GetRepository(ctx, url, project)
 	if err == nil {
 		err = s.testRepo(ctx, repo)
 	}
