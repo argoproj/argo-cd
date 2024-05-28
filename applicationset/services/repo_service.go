@@ -10,14 +10,6 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/io"
 )
 
-//go:generate go run github.com/vektra/mockery/v2@v2.40.2 --name=RepositoryDB
-
-// RepositoryDB Is a lean facade for ArgoDB,
-// Using a lean interface makes it easier to test the functionality of the git generator
-type RepositoryDB interface {
-	GetRepository(ctx context.Context, url string) (*v1alpha1.Repository, error)
-}
-
 type argoCDService struct {
 	getRepository          func(ctx context.Context, url, project string) (*v1alpha1.Repository, error)
 	storecreds             git.CredsStore
