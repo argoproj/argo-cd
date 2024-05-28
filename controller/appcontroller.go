@@ -1874,7 +1874,8 @@ func (ctrl *ApplicationController) autoSync(app *appv1.Application, syncStatus *
 	// auto-sync with pruning disabled). We need to ensure that we do not keep Syncing an
 	// application in an infinite loop. To detect this, we only attempt the Sync if the revision
 	// and parameter overrides are different from our most recent sync operation.
-	if alreadyAttempted && (!selfHeal || !attemptPhase.Successful()) {
+	// Unless selfHeal if set to true in which case we will retry
+	if alreadyAttempted && !selfHeal {
 		if !attemptPhase.Successful() {
 			logCtx.Warnf("Skipping auto-sync: failed previous sync attempt to %s", desiredCommitSHA)
 			message := fmt.Sprintf("Failed sync attempt to %s: %s", desiredCommitSHA, app.Status.OperationState.Message)
