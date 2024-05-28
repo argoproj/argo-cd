@@ -763,7 +763,7 @@ type ApplicationSetStatus struct {
 	Resources []ResourceStatus `json:"resources,omitempty" protobuf:"bytes,3,opt,name=resources"`
 }
 
-// ApplicationSetCondition contains details about an applicationset condition, which is usally an error or warning
+// ApplicationSetCondition contains details about an applicationset condition, which is usually an error or warning
 type ApplicationSetCondition struct {
 	// Type is an applicationset condition type
 	Type ApplicationSetConditionType `json:"type" protobuf:"bytes,1,opt,name=type"`

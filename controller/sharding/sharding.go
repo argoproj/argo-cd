@@ -54,7 +54,7 @@ type shardApplicationControllerMapping struct {
 }
 
 // GetClusterFilter returns a ClusterFilterFunction which is a function taking a cluster as a parameter
-// and returns wheter or not the cluster should be processed by a given shard. It calls the distributionFunction
+// and returns whether or not the cluster should be processed by a given shard. It calls the distributionFunction
 // to determine which shard will process the cluster, and if the given shard is equal to the calculated shard
 // the function will return true.
 func GetClusterFilter(db db.ArgoDB, distributionFunction DistributionFunction, replicas, shard int) ClusterFilterFunction {
@@ -128,13 +128,13 @@ func LegacyDistributionFunction(replicas int) DistributionFunction {
 // for a given cluster the function will return the shard number based on the modulo of the cluster rank in
 // the cluster's list sorted by uid on the shard number.
 // This function ensures an homogenous distribution: each shards got assigned the same number of
-// clusters +/-1 , but with the drawback of a reshuffling of clusters accross shards in case of some changes
+// clusters +/-1 , but with the drawback of a reshuffling of clusters across shards in case of some changes
 // in the cluster list
 
 func RoundRobinDistributionFunction(clusters clusterAccessor, replicas int) DistributionFunction {
 	return func(c *v1alpha1.Cluster) int {
 		if replicas > 0 {
-			if c == nil { // in-cluster does not necessarly have a secret assigned. So we are receiving a nil cluster here.
+			if c == nil { // in-cluster does not necessary have a secret assigned. So we are receiving a nil cluster here.
 				return 0
 			}
 			// if Shard is manually set and the assigned value is lower than the number of replicas,

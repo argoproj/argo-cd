@@ -15,6 +15,23 @@ spec:
       labels:
         app.kubernetes.io/name: argocd-redis
     spec:
+      initContainers:
+        - command:
+            - argocd
+            - admin
+            - redis-initial-password
+          image: quay.io/argoproj/argocd:latest
+          imagePullPolicy: IfNotPresent
+          name: secret-init
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            seccompProfile:
+              type: RuntimeDefault
       securityContext:
         runAsNonRoot: true
         runAsUser: 999
@@ -30,6 +47,13 @@ spec:
         - ""
         - "--appendonly"
         - "no"
+        - --requirepass $(REDIS_PASSWORD)
+        env:
+          - name: REDIS_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                key: auth
+                name: argocd-redis
         ports:
         - containerPort: 6379
         securityContext:

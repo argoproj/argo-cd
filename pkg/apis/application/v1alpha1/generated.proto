@@ -109,6 +109,7 @@ message AppProjectStatus {
 // +kubebuilder:printcolumn:name="Sync Status",type=string,JSONPath=`.status.sync.status`
 // +kubebuilder:printcolumn:name="Health Status",type=string,JSONPath=`.status.health.status`
 // +kubebuilder:printcolumn:name="Revision",type=string,JSONPath=`.status.sync.revision`,priority=10
+// +kubebuilder:printcolumn:name="Project",type=string,JSONPath=`.spec.project`,priority=10
 message Application {
   optional k8s.io.apimachinery.pkg.apis.meta.v1.ObjectMeta metadata = 1;
 
@@ -198,7 +199,7 @@ message ApplicationSetApplicationStatus {
   optional string step = 5;
 }
 
-// ApplicationSetCondition contains details about an applicationset condition, which is usally an error or warning
+// ApplicationSetCondition contains details about an applicationset condition, which is usually an error or warning
 message ApplicationSetCondition {
   // Type is an applicationset condition type
   optional string type = 1;

@@ -118,6 +118,13 @@ func newDocsCommand() *cobra.Command {
 
 func generateBuiltInTriggersDocs(out io.Writer, triggers map[string][]triggers.Condition, templates map[string]services.Notification) {
 	_, _ = fmt.Fprintln(out, "# Triggers and Templates Catalog")
+
+	_, _ = fmt.Fprintln(out, "## Getting Started")
+	_, _ = fmt.Fprintln(out, "* Install Triggers and Templates from the catalog")
+	_, _ = fmt.Fprintln(out, "  ```bash")
+	_, _ = fmt.Fprintln(out, "  kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/notifications_catalog/install.yaml")
+	_, _ = fmt.Fprintln(out, "  ```")
+
 	_, _ = fmt.Fprintln(out, "## Triggers")
 
 	w := tablewriter.NewWriter(out)

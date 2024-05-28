@@ -188,7 +188,7 @@ all: cli image
 .PHONY: gogen
 gogen:
 	export GO111MODULE=off
-	go generate ./util/argo/...
+	go generate ./...
 
 .PHONY: protogen
 protogen: mod-vendor-local protogen-fast
@@ -357,7 +357,7 @@ lint-local:
 	golangci-lint --version
 	# NOTE: If you get a "Killed" OOM message, try reducing the value of GOGC
 	# See https://github.com/golangci/golangci-lint#memory-usage-of-golangci-lint
-	GOGC=$(ARGOCD_LINT_GOGC) GOMAXPROCS=2 golangci-lint run --enable gofmt --fix --verbose --timeout 3000s --max-issues-per-linter 0 --max-same-issues 0
+	GOGC=$(ARGOCD_LINT_GOGC) GOMAXPROCS=2 golangci-lint run --fix --verbose
 
 .PHONY: lint-ui
 lint-ui: test-tools-image
