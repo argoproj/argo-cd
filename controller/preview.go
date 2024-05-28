@@ -11,15 +11,20 @@ import (
 	logutils "github.com/argoproj/argo-cd/v2/util/log"
 	"github.com/argoproj/argo-cd/v2/util/settings"
 	"github.com/google/go-github/v62/github"
+	"github.com/google/shlex"
 	"gopkg.in/yaml.v3"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
 	"net/url"
+	"os"
+	"os/exec"
+	"path"
+	"sort"
 	"strings"
 	"time"
 )
 
-const ArgoCDGitHubUsername = "argocd"
+const ArgoCDGitHubUsername = "crenshaw-dev"
 const PreviewSleepDuration = 60 * time.Second
 
 type Previewer struct {
@@ -44,7 +49,7 @@ func NewPreviewer(
 	p.appStateManager = appStateManager
 	p.settingsManager = settingsManager
 	p.getAppProject = getAppProject
-	p.ghClient = github.NewClient(nil)
+	p.ghClient = github.NewClient(nil).WithAuthToken(os.Getenv("GITHUB_TOKEN"))
 	p.ghContext = context.Background()
 	appLabelKey, err := p.settingsManager.GetAppInstanceLabelKey()
 	errors.CheckError(err)
@@ -69,21 +74,31 @@ func (p *Previewer) Run() {
 		for repoURL, apps := range p.getRepoMap() {
 			owner, repo := p.getOwnerRepo(repoURL)
 
-			opts := &github.PullRequestListOptions{
-				State: "open",
-				Base:  apps[0].Spec.SourceHydrator.DrySource.TargetRevision,
+			baseRevision := apps[0].Spec.SourceHydrator.DrySource.TargetRevision
+			if baseRevision == "HEAD" {
+				repo, _, err := p.ghClient.Repositories.Get(p.ghContext, owner, repo)
+				errors.CheckError(err)
+				baseRevision = repo.GetDefaultBranch()
 			}
 
-			pullRequests, _, _ := p.ghClient.PullRequests.List(p.ghContext, owner, repo, opts)
+			opts := &github.PullRequestListOptions{
+				State: "open",
+				Base:  baseRevision,
+			}
+
+			pullRequests, _, err := p.ghClient.PullRequests.List(p.ghContext, owner, repo, opts)
+			errors.CheckError(err)
 			for _, pr := range pullRequests {
 				comment, found := p.getComment(owner, repo, pr)
 				newComment := &github.IssueComment{
 					// pr.Base is PR Target (branch that will receive changes)
 					// pr.Head is PR Source (changes we want to integrate)
-					Body: github.String(p.makeComment(apps, pr.Base.Ref, pr.Head.Ref)),
+					Body: github.String(p.makeComment(apps, pr.Base.GetRef(), pr.Head.GetRef())),
 				}
 				if found {
-					// 4. do update
+					if comment.GetBody() == newComment.GetBody() {
+						continue
+					}
 					_, _, err := p.ghClient.Issues.EditComment(p.ghContext, owner, repo, comment.GetID(), newComment)
 					errors.CheckError(err)
 				} else {
@@ -93,7 +108,7 @@ func (p *Previewer) Run() {
 				}
 			}
 		}
-		time.Sleep(time.Duration(PreviewSleepDuration))
+		time.Sleep(PreviewSleepDuration)
 	}
 }
 
@@ -106,6 +121,10 @@ func (p *Previewer) getRepoMap() map[string][]*v1alpha1.Application {
 		panic(fmt.Errorf("error while fetching the apps list: %w", err))
 	}
 	for i := 0; i < len(apps); i++ {
+		if apps[i].Spec.SourceHydrator == nil {
+			continue
+		}
+
 		app := apps[i]
 		repoURL := app.Spec.SourceHydrator.DrySource.RepoURL
 		if repoMap[repoURL] == nil {
@@ -125,24 +144,35 @@ func (p *Previewer) getOwnerRepo(repoUrl string) (string, string) {
 	if len(parts) < 2 {
 		panic("incorrect Git URL")
 	}
-	return parts[0], parts[1]
+	return parts[1], parts[2]
 }
 
-func (p *Previewer) getComment(owner string, repo string, pr *github.PullRequest) (*github.PullRequestComment, bool) {
-	prComments, _, err := p.ghClient.PullRequests.ListComments(p.ghContext, owner, repo, pr.GetNumber(), nil)
+func (p *Previewer) getComment(owner string, repo string, pr *github.PullRequest) (*github.IssueComment, bool) {
+	prComments, resp, err := p.ghClient.Issues.ListComments(p.ghContext, owner, repo, pr.GetNumber(), nil)
 	errors.CheckError(err)
 
+	if resp.StatusCode != 200 {
+		panic(fmt.Errorf("failed to get PR comments: %d", resp.StatusCode))
+	}
+
 	for i := 0; i < len(prComments); i++ {
-		if prComments[i].GetAuthorAssociation() == ArgoCDGitHubUsername {
+		if prComments[i].GetUser().GetLogin() == ArgoCDGitHubUsername {
 			return prComments[i], true
 		}
 	}
 	return nil, false
 }
 
-func (p *Previewer) makeComment(apps []*v1alpha1.Application, baseBranch *string, headBranch *string) (commentBody string) {
+func (p *Previewer) makeComment(apps []*v1alpha1.Application, baseBranch string, headBranch string) (commentBody string) {
 
-	commentBody = fmt.Sprintf("\n===== from branch %s to branch %s ======\n", *headBranch, *baseBranch)
+	commentBody = fmt.Sprintf("\n## From branch %s to branch %s\n", headBranch, baseBranch)
+
+	// Sort the apps by name.
+	// This is to ensure that the diff is consistent across runs.
+	sort.Slice(apps, func(i, j int) bool {
+		return apps[i].Name < apps[j].Name
+	})
+
 	for i := 0; i < len(apps); i++ {
 		// Produce diff
 		app := apps[i]
@@ -155,15 +185,50 @@ func (p *Previewer) makeComment(apps []*v1alpha1.Application, baseBranch *string
 		headUnstructured, err := p.getBranchManifest(app, project, headBranch)
 		errors.CheckError(err)
 
-		commentBody += fmt.Sprintf("\n===== for target application %s ======\n", app.Name)
+		commentBody += fmt.Sprintf("\n### for target application %s\n", app.Name)
 
-		appDiff, err := argodiff.StateDiffs(baseUnstructured, headUnstructured, p.diffConfig)
-		errors.CheckError(err)
+		tempDir, err := os.MkdirTemp("", "argocd-diff")
+		if err != nil {
+			panic(err)
+		}
+		targetFile := path.Join(tempDir, "target.yaml")
+		targetData := []byte("")
+		if baseUnstructured != nil {
+			targetData, err = yaml.Marshal(baseUnstructured)
+			if err != nil {
+				panic(err)
+			}
+		}
+		err = os.WriteFile(targetFile, targetData, 0644)
+		if err != nil {
+			panic(err)
+		}
+		liveFile := path.Join(tempDir, "base.yaml")
+		liveData := []byte("")
+		if headUnstructured != nil {
+			liveData, err = yaml.Marshal(headUnstructured)
+			if err != nil {
+				panic(err)
+			}
+		}
+		err = os.WriteFile(liveFile, liveData, 0644)
+		if err != nil {
+			panic(err)
+		}
+		cmdBinary := "diff"
+		var args []string
+		if envDiff := os.Getenv("KUBECTL_EXTERNAL_DIFF"); envDiff != "" {
+			parts, err := shlex.Split(envDiff)
+			if err != nil {
+				panic(err)
+			}
+			cmdBinary = parts[0]
+			args = parts[1:]
+		}
+		cmd := exec.Command(cmdBinary, append(args, liveFile, targetFile)...)
+		out, _ := cmd.CombinedOutput()
 
-		diffBytes, err := yaml.Marshal(appDiff)
-		errors.CheckError(err)
-
-		commentBody += string(diffBytes)
+		commentBody += "```diff\n" + string(out) + "```\n"
 	}
 	return commentBody
 }
@@ -172,16 +237,20 @@ func (p *Previewer) makeComment(apps []*v1alpha1.Application, baseBranch *string
 func (p *Previewer) getBranchManifest(
 	app *v1alpha1.Application,
 	project *v1alpha1.AppProject,
-	branch *string,
+	branch string,
 ) (unstructured []*unstructured.Unstructured, err error) {
 
 	unstructured, _, err = (*p.appStateManager).GetRepoObjs(
 		app,
-		app.Spec.Sources,
+		[]v1alpha1.ApplicationSource{{
+			RepoURL:        app.Spec.SourceHydrator.DrySource.RepoURL,
+			Path:           app.Spec.SourceHydrator.DrySource.Path,
+			TargetRevision: branch,
+		}},
 		p.appLabelKey,
-		[]string{*branch},
-		true,
-		true,
+		[]string{branch},
+		false,
+		true, // disable revision cache since we're using branch names instead of SHAs
 		false,
 		project,
 		false,
