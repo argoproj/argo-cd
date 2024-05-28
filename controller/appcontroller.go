@@ -1923,7 +1923,15 @@ func (ctrl *ApplicationController) autoSync(app *appv1.Application, syncStatus *
 	} else {
 		ctrl.writeBackToInformer(updatedApp)
 	}
-	message := fmt.Sprintf("Initiated automated sync to '%s'", desiredCommitSHA)
+
+	var target string
+	if updatedApp.Spec.HasMultipleSources() {
+		target = strings.Join(desiredCommitSHAsMS, ", ")
+	} else {
+		target = desiredCommitSHA
+	}
+	message := fmt.Sprintf("Initiated automated sync to '%s'", target)
+
 	ctrl.auditLogger.LogAppEvent(app, argo.EventInfo{Reason: argo.EventReasonOperationStarted, Type: v1.EventTypeNormal}, message, "")
 	logCtx.Info(message)
 	return nil, setOpTime
