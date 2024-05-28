@@ -2197,7 +2197,7 @@ func populatePluginAppDetails(ctx context.Context, res *apiclient.RepoAppDetails
 
 	announcement, err := parametersAnnouncementStream.CloseAndRecv()
 	if err != nil {
-		return fmt.Errorf("failed to get parameter anouncement: %w", err)
+		return fmt.Errorf("failed to get parameter announcement: %w", err)
 	}
 
 	res.Plugin = &apiclient.PluginAppSpec{

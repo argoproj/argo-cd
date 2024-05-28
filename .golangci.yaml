@@ -5,6 +5,13 @@ issues:
   max-same-issues: 0
 linters:
   enable:
+    - errcheck
     - gofmt
+    - gosimple
+    - govet
+    - ineffassign
+    - misspell
+    - staticcheck
+    - unused
 run:
   timeout: 50m
