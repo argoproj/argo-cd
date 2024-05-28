@@ -350,15 +350,17 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
             title: 'URLs',
             view: (
                 <React.Fragment>
-                    {urls.map((url, i) => {
-                        return (
-                            <div>
-                                <a key={i} href={url.ref} target='__blank'>
-                                    {url.title}
-                                </a>
-                            </div>
-                        );
-                    })}
+                    <div className='application-summary__links-rows'>
+                        {urls.map((url, i) => {
+                            return (
+                                <div className='application-summary__links-row'>
+                                    <a key={i} href={url.ref} target='__blank'>
+                                        {url.title}
+                                    </a>
+                                </div>
+                            );
+                        })}
+                    </div>
                 </React.Fragment>
             )
         });
