@@ -568,7 +568,7 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) {
 	opt := newTestOption(opts...)
 	// In large scenarios, we can skip tests that already run
 	SkipIfAlreadyRun(t)
-	// Register this test after it has been run & was successfull
+	// Register this test after it has been run & was successful
 	t.Cleanup(func() {
 		RecordTestRun(t)
 	})

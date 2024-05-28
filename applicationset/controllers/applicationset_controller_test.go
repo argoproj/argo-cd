@@ -4113,7 +4113,7 @@ func TestBuildAppDependencyList(t *testing.T) {
 			}
 
 			appDependencyList, appStepMap, err := r.buildAppDependencyList(log.NewEntry(log.StandardLogger()), cc.appSet, cc.apps)
-			assert.Equal(t, err, nil, "expected no errors, but errors occured")
+			assert.Equal(t, err, nil, "expected no errors, but errors occurred")
 			assert.Equal(t, cc.expectedList, appDependencyList, "expected appDependencyList did not match actual")
 			assert.Equal(t, cc.expectedStepMap, appStepMap, "expected appStepMap did not match actual")
 		})
@@ -4707,7 +4707,7 @@ func TestBuildAppSyncMap(t *testing.T) {
 			}
 
 			appSyncMap, err := r.buildAppSyncMap(context.TODO(), cc.appSet, cc.appDependencyList, cc.appMap)
-			assert.Equal(t, err, nil, "expected no errors, but errors occured")
+			assert.Equal(t, err, nil, "expected no errors, but errors occurred")
 			assert.Equal(t, cc.expectedMap, appSyncMap, "expected appSyncMap did not match actual")
 		})
 	}
@@ -5373,7 +5373,7 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 				appStatuses[i].LastTransitionTime = nil
 			}
 
-			assert.Equal(t, err, nil, "expected no errors, but errors occured")
+			assert.Equal(t, err, nil, "expected no errors, but errors occurred")
 			assert.Equal(t, cc.expectedAppStatus, appStatuses, "expected appStatuses did not match actual")
 		})
 	}
@@ -6127,7 +6127,7 @@ func TestUpdateApplicationSetApplicationStatusProgress(t *testing.T) {
 				appStatuses[i].LastTransitionTime = nil
 			}
 
-			assert.Equal(t, err, nil, "expected no errors, but errors occured")
+			assert.Equal(t, err, nil, "expected no errors, but errors occurred")
 			assert.Equal(t, cc.expectedAppStatus, appStatuses, "expected appStatuses did not match actual")
 		})
 	}
@@ -6340,7 +6340,7 @@ func TestUpdateResourceStatus(t *testing.T) {
 
 			err := r.updateResourcesStatus(context.TODO(), log.NewEntry(log.StandardLogger()), &cc.appSet, cc.apps)
 
-			assert.Equal(t, err, nil, "expected no errors, but errors occured")
+			assert.Equal(t, err, nil, "expected no errors, but errors occurred")
 			assert.Equal(t, cc.expectedResources, cc.appSet.Status.Resources, "expected resources did not match actual")
 		})
 	}

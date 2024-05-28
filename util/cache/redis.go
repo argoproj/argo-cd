@@ -42,7 +42,7 @@ func NewRedisCache(client *redis.Client, expiration time.Duration, compressionTy
 	}
 }
 
-// compile-time validation of adherance of the CacheClient contract
+// compile-time validation of adherence of the CacheClient contract
 var _ CacheClient = &redisCache{}
 
 type redisCache struct {
