@@ -352,9 +352,11 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                 <React.Fragment>
                     {urls.map((url, i) => {
                         return (
-                            <a key={i} href={url.ref} target='__blank'>
-                                {url.title} &nbsp;
-                            </a>
+                            <div>
+                                <a key={i} href={url.ref} target='__blank'>
+                                    {url.title}
+                                </a>
+                            </div>
                         );
                     })}
                 </React.Fragment>
