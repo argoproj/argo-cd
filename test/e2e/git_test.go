@@ -1,9 +1,11 @@
 package e2e
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/argoproj/argo-cd/v2/test/e2e/fixture"
+	v1 "k8s.io/api/core/v1"
 
 	. "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	. "github.com/argoproj/argo-cd/v2/test/e2e/fixture/app"
@@ -36,5 +38,15 @@ func TestGitSemverResolutionUsingConstraint(t *testing.T) {
 		CreateApp().
 		Sync().
 		Then().
-		Expect(SyncStatusIs(SyncStatusCodeSynced))
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		When().
+		PatchFile("deployment.yaml", `[
+	{"op": "replace", "path": "/metadata/name", "value": "new-app"},
+	{"op": "replace", "path": "/spec/replicas", "value": 1}
+]`).
+		AddTag("v0.1.2").
+		Sync().
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(Pod(func(p v1.Pod) bool { return strings.HasPrefix(p.Name, "new-app") }))
 }
