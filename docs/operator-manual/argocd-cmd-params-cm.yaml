@@ -58,7 +58,7 @@ data:
   controller.resource.health.persist: "true"
   # Cache expiration default (default 24h0m0s)
   controller.default.cache.expiration: "24h0m0s"
-  # Sharding algorithm used to balance clusters accross application controller shards (default "legacy")
+  # Sharding algorithm used to balance clusters across application controller shards (default "legacy")
   controller.sharding.algorithm: legacy
   # Number of allowed concurrent kubectl fork/execs. Any value less than 1 means no limit.
   controller.kubectl.parallelism.limit: "20"
