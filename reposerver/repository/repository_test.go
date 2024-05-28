@@ -3339,6 +3339,39 @@ func TestGetGitDirectories(t *testing.T) {
 	})
 }
 
+func TestGetGitDirectoriesWithHiddenDirSupported(t *testing.T) {
+	// test not using the cache
+	root := "./testdata/git-files-dirs"
+	s, _, cacheMocks := newServiceWithOpt(t, func(gitClient *gitmocks.Client, helmClient *helmmocks.Client, paths *iomocks.TempPaths) {
+		gitClient.On("Init").Return(nil)
+		gitClient.On("Fetch", mock.Anything).Return(nil)
+		gitClient.On("Checkout", mock.Anything, mock.Anything).Once().Return(nil)
+		gitClient.On("LsRemote", "HEAD").Return("632039659e542ed7de0c170a4fcc1c571b288fc0", nil)
+		gitClient.On("Root").Return(root)
+		paths.On("GetPath", mock.Anything).Return(root, nil)
+		paths.On("GetPathIfExists", mock.Anything).Return(root, nil)
+	}, root)
+	s.initConstants.IncludeHiddenDirectories = true
+	dirRequest := &apiclient.GitDirectoriesRequest{
+		Repo:             &argoappv1.Repository{Repo: "a-url.com"},
+		SubmoduleEnabled: false,
+		Revision:         "HEAD",
+	}
+	directories, err := s.GetGitDirectories(context.TODO(), dirRequest)
+	assert.Nil(t, err)
+	assert.ElementsMatch(t, directories.GetPaths(), []string{"app", "app/bar", "app/foo/bar", "somedir", "app/foo", "app/bar/.hidden"})
+
+	// do the same request again to use the cache
+	// we only allow CheckOut to be called once in the mock
+	directories, err = s.GetGitDirectories(context.TODO(), dirRequest)
+	assert.Nil(t, err)
+	assert.ElementsMatch(t, []string{"app", "app/bar", "app/foo/bar", "somedir", "app/foo", "app/bar/.hidden"}, directories.GetPaths())
+	cacheMocks.mockCache.AssertCacheCalledTimes(t, &repositorymocks.CacheCallCounts{
+		ExternalSets: 1,
+		ExternalGets: 2,
+	})
+}
+
 func TestErrorGetGitFiles(t *testing.T) {
 	// test not using the cache
 	root := ""
