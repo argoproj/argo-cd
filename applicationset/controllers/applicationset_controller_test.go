@@ -176,7 +176,12 @@ func TestExtractApplications(t *testing.T) {
 		cc := c
 		app := v1alpha1.Application{
 			ObjectMeta: metav1.ObjectMeta{
-				Name: "test",
+				Name:      "test",
+				Namespace: "namespace",
+			},
+			TypeMeta: metav1.TypeMeta{
+				Kind:       application.ApplicationKind,
+				APIVersion: "argoproj.io/v1alpha1",
 			},
 		}
 
@@ -401,8 +406,10 @@ func TestCreateOrUpdateInCluster(t *testing.T) {
 			desiredApps: []v1alpha1.Application{
 				{
 					ObjectMeta: metav1.ObjectMeta{
-						Name: "app1",
+						Name:      "app1",
+						Namespace: "namespace",
 					},
+					Spec: v1alpha1.ApplicationSpec{Project: "default"},
 				},
 			},
 			expected: []v1alpha1.Application{
@@ -454,7 +461,8 @@ func TestCreateOrUpdateInCluster(t *testing.T) {
 			desiredApps: []v1alpha1.Application{
 				{
 					ObjectMeta: metav1.ObjectMeta{
-						Name: "app1",
+						Name:      "app1",
+						Namespace: "namespace",
 					},
 					Spec: v1alpha1.ApplicationSpec{
 						Project: "project",
@@ -512,7 +520,8 @@ func TestCreateOrUpdateInCluster(t *testing.T) {
 			desiredApps: []v1alpha1.Application{
 				{
 					ObjectMeta: metav1.ObjectMeta{
-						Name: "app2",
+						Name:      "app2",
+						Namespace: "namespace",
 					},
 					Spec: v1alpha1.ApplicationSpec{
 						Project: "project",
@@ -571,6 +580,7 @@ func TestCreateOrUpdateInCluster(t *testing.T) {
 				{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:        "app1",
+						Namespace:   "namespace",
 						Labels:      map[string]string{"label-key": "label-value"},
 						Annotations: map[string]string{"annot-key": "annot-value"},
 					},
@@ -634,7 +644,8 @@ func TestCreateOrUpdateInCluster(t *testing.T) {
 			desiredApps: []v1alpha1.Application{
 				{
 					ObjectMeta: metav1.ObjectMeta{
-						Name: "app1",
+						Name:      "app1",
+						Namespace: "namespace",
 					},
 					Spec: v1alpha1.ApplicationSpec{
 						Project: "project",
@@ -700,7 +711,8 @@ func TestCreateOrUpdateInCluster(t *testing.T) {
 			desiredApps: []v1alpha1.Application{
 				{
 					ObjectMeta: metav1.ObjectMeta{
-						Name: "app1",
+						Name:      "app1",
+						Namespace: "namespace",
 					},
 					Spec: v1alpha1.ApplicationSpec{
 						Project: "project",
@@ -773,6 +785,7 @@ func TestCreateOrUpdateInCluster(t *testing.T) {
 				{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:        "app1",
+						Namespace:   "namespace",
 						Labels:      map[string]string{"label-key": "label-value"},
 						Annotations: map[string]string{"annot-key": "annot-value"},
 					},
@@ -850,7 +863,8 @@ func TestCreateOrUpdateInCluster(t *testing.T) {
 			desiredApps: []v1alpha1.Application{
 				{
 					ObjectMeta: metav1.ObjectMeta{
-						Name: "app1",
+						Name:      "app1",
+						Namespace: "namespace",
 					},
 					Spec: v1alpha1.ApplicationSpec{
 						Project: "project",
@@ -918,7 +932,8 @@ func TestCreateOrUpdateInCluster(t *testing.T) {
 			desiredApps: []v1alpha1.Application{
 				{
 					ObjectMeta: metav1.ObjectMeta{
-						Name: "app1",
+						Name:      "app1",
+						Namespace: "namespace",
 					},
 					Spec: v1alpha1.ApplicationSpec{
 						Project: "project",
@@ -967,7 +982,8 @@ func TestCreateOrUpdateInCluster(t *testing.T) {
 			desiredApps: []v1alpha1.Application{
 				{
 					ObjectMeta: metav1.ObjectMeta{
-						Name: "app1",
+						Name:      "app1",
+						Namespace: "namespace",
 					},
 					Spec: v1alpha1.ApplicationSpec{
 						Project: "project",
@@ -1044,7 +1060,8 @@ func TestCreateOrUpdateInCluster(t *testing.T) {
 			desiredApps: []v1alpha1.Application{
 				{
 					ObjectMeta: metav1.ObjectMeta{
-						Name: "app1",
+						Name:      "app1",
+						Namespace: "namespace",
 					},
 					Spec: v1alpha1.ApplicationSpec{
 						Project: "project",
@@ -1146,7 +1163,8 @@ func TestCreateOrUpdateInCluster(t *testing.T) {
 			desiredApps: []v1alpha1.Application{
 				{
 					ObjectMeta: metav1.ObjectMeta{
-						Name: "app1",
+						Name:      "app1",
+						Namespace: "namespace",
 					},
 					Spec: v1alpha1.ApplicationSpec{
 						Project: "project",
@@ -1246,7 +1264,8 @@ func TestCreateOrUpdateInCluster(t *testing.T) {
 			desiredApps: []v1alpha1.Application{
 				{
 					ObjectMeta: metav1.ObjectMeta{
-						Name: "app1",
+						Name:      "app1",
+						Namespace: "namespace",
 					},
 					Spec: v1alpha1.ApplicationSpec{
 						Project: "project",
@@ -1326,7 +1345,8 @@ func TestCreateOrUpdateInCluster(t *testing.T) {
 			desiredApps: []v1alpha1.Application{
 				{
 					ObjectMeta: metav1.ObjectMeta{
-						Name: "app1",
+						Name:      "app1",
+						Namespace: "namespace",
 					},
 					Spec: v1alpha1.ApplicationSpec{
 						Project: "project",
@@ -1780,7 +1800,11 @@ func TestCreateApplications(t *testing.T) {
 			apps: []v1alpha1.Application{
 				{
 					ObjectMeta: metav1.ObjectMeta{
-						Name: "app1",
+						Name:      "app1",
+						Namespace: "namespace",
+					},
+					Spec: v1alpha1.ApplicationSpec{
+						Project: "default",
 					},
 				},
 			},
@@ -1835,7 +1859,8 @@ func TestCreateApplications(t *testing.T) {
 			apps: []v1alpha1.Application{
 				{
 					ObjectMeta: metav1.ObjectMeta{
-						Name: "app1",
+						Name:      "app1",
+						Namespace: "namespace",
 					},
 					Spec: v1alpha1.ApplicationSpec{
 						Project: "project",
@@ -1893,7 +1918,8 @@ func TestCreateApplications(t *testing.T) {
 			apps: []v1alpha1.Application{
 				{
 					ObjectMeta: metav1.ObjectMeta{
-						Name: "app2",
+						Name:      "app2",
+						Namespace: "namespace",
 					},
 					Spec: v1alpha1.ApplicationSpec{
 						Project: "project",

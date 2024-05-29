@@ -576,10 +576,6 @@ func (r *ApplicationSetReconciler) createOrUpdateInCluster(ctx context.Context, 
 	var firstError error
 	// Creates or updates the application in appList
 	for _, generatedApp := range desiredApplications {
-		// The app's namespace must be the same as the AppSet's namespace to preserve the appsets-in-any-namespace
-		// security boundary.
-		generatedApp.Namespace = applicationSet.Namespace
-
 		appLog := logCtx.WithFields(log.Fields{"app": generatedApp.QualifiedName()})
 
 		// Normalize to avoid fighting with the application controller.

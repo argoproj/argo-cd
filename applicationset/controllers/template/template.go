@@ -62,6 +62,9 @@ func GenerateApplications(logCtx *log.Entry, applicationSetInfo argov1alpha1.App
 					app = patchedApplication
 				}
 
+				// The app's namespace must be the same as the AppSet's namespace to preserve the appsets-in-any-namespace
+				// security boundary.
+				app.Namespace = applicationSetInfo.Namespace
 				res = append(res, *app)
 			}
 		}

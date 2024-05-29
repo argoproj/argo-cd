@@ -368,7 +368,9 @@ func TestCreateAppSetDryRun(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, 2, len(result.Status.Resources))
 	assert.Equal(t, "a", result.Status.Resources[0].Name)
+	assert.Equal(t, testAppSet.Namespace, result.Status.Resources[0].Namespace)
 	assert.Equal(t, "b", result.Status.Resources[1].Name)
+	assert.Equal(t, testAppSet.Namespace, result.Status.Resources[1].Namespace)
 }
 
 func TestCreateAppSetDryRunWithDuplicate(t *testing.T) {
@@ -391,6 +393,7 @@ func TestCreateAppSetDryRunWithDuplicate(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, 1, len(result.Status.Resources))
 	assert.Equal(t, "a", result.Status.Resources[0].Name)
+	assert.Equal(t, testAppSet.Namespace, result.Status.Resources[0].Namespace)
 }
 
 func TestGetAppSet(t *testing.T) {
