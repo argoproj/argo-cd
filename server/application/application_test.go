@@ -308,6 +308,7 @@ func newTestAppServerWithEnforcerConfigure(f func(*rbac.Enforcer), t *testing.T,
 		settingsMgr,
 		projInformer,
 		[]string{},
+		argo.TestEnableEventLog(),
 	)
 	return server.(*Server)
 }
@@ -488,6 +489,7 @@ func newTestAppServerWithEnforcerConfigureWithBenchmark(f func(*rbac.Enforcer), 
 		settingsMgr,
 		projInformer,
 		[]string{},
+		argo.TestEnableEventLog(),
 	)
 	return server.(*Server)
 }

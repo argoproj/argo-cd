@@ -31,6 +31,7 @@ argocd-application-controller [flags]
       --default-cache-expiration duration                         Cache expiration default (default 24h0m0s)
       --disable-compression                                       If true, opt-out of response compression for all requests to the server
       --dynamic-cluster-distribution-enabled                      Enables dynamic cluster distribution.
+      --enable-k8s-event none                                     Enable ArgoCD to use k8s event. For disabling all events, set the value as none. (e.g --enable-k8s-event=none), For enabling specific events, set the value as `event reason`. (e.g --enable-k8s-event=StatusRefreshed,ResourceCreated) (default [all])
       --gloglevel int                                             Set the glog logging level
   -h, --help                                                      help for argocd-application-controller
       --ignore-normalizer-jq-execution-timeout-seconds duration   Set ignore normalizer JQ execution timeout
