@@ -1628,7 +1628,7 @@ func TestGetAppEventLabels(t *testing.T) {
 			expectedEventLabels: map[string]string{"team": "A", "tier": "frontend", "environment": "dev"},
 		},
 		{
-			name:                "exlcude event labels",
+			name:                "exclude event labels",
 			cmInEventLabelKeys:  "example.com/team,tier,env*",
 			cmExEventLabelKeys:  "tie*",
 			appLabels:           map[string]string{"example.com/team": "A", "tier": "frontend"},
