@@ -155,6 +155,11 @@ func newTestAppSetServerWithEnforcerConfigure(f func(*rbac.Enforcer), namespace 
 		testNamespace,
 		sync.NewKeyLock(),
 		[]string{testNamespace, "external-namespace"},
+		true,
+		true,
+		"",
+		[]string{},
+		true,
 	)
 	return server.(*Server)
 }
@@ -361,9 +366,9 @@ func TestCreateAppSetDryRun(t *testing.T) {
 	result, err := appServer.Create(context.Background(), &createReq)
 
 	assert.Nil(t, err)
-	assert.Equal(t, 2, len(result.Status.ApplicationStatus))
-	assert.Equal(t, "a", result.Status.ApplicationStatus[0].Application)
-	assert.Equal(t, "b", result.Status.ApplicationStatus[1].Application)
+	assert.Equal(t, 2, len(result.Status.Resources))
+	assert.Equal(t, "a", result.Status.Resources[0].Name)
+	assert.Equal(t, "b", result.Status.Resources[1].Name)
 }
 
 func TestCreateAppSetDryRunWithDuplicate(t *testing.T) {
@@ -384,8 +389,8 @@ func TestCreateAppSetDryRunWithDuplicate(t *testing.T) {
 	result, err := appServer.Create(context.Background(), &createReq)
 
 	assert.Nil(t, err)
-	assert.Equal(t, 1, len(result.Status.ApplicationStatus))
-	assert.Equal(t, "a", result.Status.ApplicationStatus[0].Application)
+	assert.Equal(t, 1, len(result.Status.Resources))
+	assert.Equal(t, "a", result.Status.Resources[0].Name)
 }
 
 func TestGetAppSet(t *testing.T) {
