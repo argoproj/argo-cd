@@ -288,6 +288,7 @@ func TestRepositoryServer(t *testing.T) {
 
 		url := "https://test"
 		db := &dbmocks.ArgoDB{}
+		db.On("ListRepositories", context.TODO()).Return([]*appsv1.Repository{{Repo: url}}, nil)
 		db.On("GetRepository", context.TODO(), url, "").Return(&appsv1.Repository{Repo: url}, nil)
 		db.On("RepositoryExists", context.TODO(), url, "").Return(true, nil)
 
