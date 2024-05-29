@@ -45,21 +45,26 @@ import (
 )
 
 type Server struct {
-	ns                string
-	db                db.ArgoDB
-	enf               *rbac.Enforcer
-	k8sClient         kubernetes.Interface
-	dynamicClient     dynamic.Interface
-	client            client.Client
-	repoClientSet     repoapiclient.Clientset
-	appclientset      appclientset.Interface
-	appsetInformer    cache.SharedIndexInformer
-	appsetLister      applisters.ApplicationSetLister
-	projLister        applisters.AppProjectNamespaceLister
-	auditLogger       *argo.AuditLogger
-	settings          *settings.SettingsManager
-	projectLock       sync.KeyLock
-	enabledNamespaces []string
+	ns                       string
+	db                       db.ArgoDB
+	enf                      *rbac.Enforcer
+	k8sClient                kubernetes.Interface
+	dynamicClient            dynamic.Interface
+	client                   client.Client
+	repoClientSet            repoapiclient.Clientset
+	appclientset             appclientset.Interface
+	appsetInformer           cache.SharedIndexInformer
+	appsetLister             applisters.ApplicationSetLister
+	projLister               applisters.AppProjectNamespaceLister
+	auditLogger              *argo.AuditLogger
+	settings                 *settings.SettingsManager
+	projectLock              sync.KeyLock
+	enabledNamespaces        []string
+	GitSubmoduleEnabled      bool
+	EnableNewGitFileGlobbing bool
+	ScmRootCAPath            string
+	AllowedScmProviders      []string
+	EnableScmProviders       bool
 }
 
 // NewServer returns a new instance of the ApplicationSet service
@@ -78,23 +83,33 @@ func NewServer(
 	namespace string,
 	projectLock sync.KeyLock,
 	enabledNamespaces []string,
+	gitSubmoduleEnabled bool,
+	enableNewGitFileGlobbing bool,
+	scmRootCAPath string,
+	allowedScmProviders []string,
+	enableScmProviders bool,
 ) applicationset.ApplicationSetServiceServer {
 	s := &Server{
-		ns:                namespace,
-		db:                db,
-		enf:               enf,
-		dynamicClient:     dynamicClientset,
-		client:            kubeControllerClientset,
-		k8sClient:         kubeclientset,
-		repoClientSet:     repoClientSet,
-		appclientset:      appclientset,
-		appsetInformer:    appsetInformer,
-		appsetLister:      appsetLister,
-		projLister:        projLister,
-		settings:          settings,
-		projectLock:       projectLock,
-		auditLogger:       argo.NewAuditLogger(namespace, kubeclientset, "argocd-server"),
-		enabledNamespaces: enabledNamespaces,
+		ns:                       namespace,
+		db:                       db,
+		enf:                      enf,
+		dynamicClient:            dynamicClientset,
+		client:                   kubeControllerClientset,
+		k8sClient:                kubeclientset,
+		repoClientSet:            repoClientSet,
+		appclientset:             appclientset,
+		appsetInformer:           appsetInformer,
+		appsetLister:             appsetLister,
+		projLister:               projLister,
+		settings:                 settings,
+		projectLock:              projectLock,
+		auditLogger:              argo.NewAuditLogger(namespace, kubeclientset, "argocd-server"),
+		enabledNamespaces:        enabledNamespaces,
+		GitSubmoduleEnabled:      gitSubmoduleEnabled,
+		EnableNewGitFileGlobbing: enableNewGitFileGlobbing,
+		ScmRootCAPath:            scmRootCAPath,
+		AllowedScmProviders:      allowedScmProviders,
+		EnableScmProviders:       enableScmProviders,
 	}
 	return s
 }
@@ -251,17 +266,12 @@ func (s *Server) Create(ctx context.Context, q *applicationset.ApplicationSetCre
 
 func (s *Server) generateApplicationSetApps(ctx context.Context, appset v1alpha1.ApplicationSet, namespace string) ([]v1alpha1.Application, error) {
 	logCtx := log.WithField("applicationset", appset.Name)
-	gitSubmoduleEnabled := true
-	enableNewGitFileGlobbing := true
-	scmRootCAPath := ""
-	enableScmProviders := true
-	allowedScmProviders := []string{}
 
 	argoCDDB := s.db
 
-	scmConfig := generators.NewSCMConfig(scmRootCAPath, allowedScmProviders, enableScmProviders, github_app.NewAuthCredentials(argoCDDB.(db.RepoCredsDB)))
+	scmConfig := generators.NewSCMConfig(s.ScmRootCAPath, s.AllowedScmProviders, s.EnableScmProviders, github_app.NewAuthCredentials(argoCDDB.(db.RepoCredsDB)))
 
-	argoCDService, err := services.NewArgoCDService(s.db, gitSubmoduleEnabled, s.repoClientSet, enableNewGitFileGlobbing)
+	argoCDService, err := services.NewArgoCDService(s.db, s.GitSubmoduleEnabled, s.repoClientSet, s.EnableNewGitFileGlobbing)
 	errors.CheckError(err)
 
 	appSetGenerators := generators.GetGenerators(ctx, s.client, s.k8sClient, namespace, argoCDService, s.dynamicClient, scmConfig)

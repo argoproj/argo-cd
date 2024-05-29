@@ -166,6 +166,7 @@ func init() {
 // ArgoCDServer is the API server for Argo CD
 type ArgoCDServer struct {
 	ArgoCDServerOpts
+	ApplicationSetOpts
 
 	ssoClientApp   *oidc.ClientApp
 	settings       *settings_util.ArgoCDSettings
@@ -226,6 +227,14 @@ type ArgoCDServerOpts struct {
 	EnableProxyExtension    bool
 }
 
+type ApplicationSetOpts struct {
+	GitSubmoduleEnabled      bool
+	EnableNewGitFileGlobbing bool
+	ScmRootCAPath            string
+	AllowedScmProviders      []string
+	EnableScmProviders       bool
+}
+
 // HTTPMetricsRegistry exposes operations to update http metrics in the Argo CD
 // API server.
 type HTTPMetricsRegistry interface {
@@ -260,7 +269,7 @@ func initializeDefaultProject(opts ArgoCDServerOpts) error {
 }
 
 // NewServer returns a new instance of the Argo CD API server
-func NewServer(ctx context.Context, opts ArgoCDServerOpts) *ArgoCDServer {
+func NewServer(ctx context.Context, opts ArgoCDServerOpts, appsetOpts ApplicationSetOpts) *ArgoCDServer {
 	settingsMgr := settings_util.NewSettingsManager(ctx, opts.KubeClientset, opts.Namespace)
 	settings, err := settingsMgr.InitializeSettings(opts.Insecure)
 	errorsutil.CheckError(err)
@@ -316,26 +325,27 @@ func NewServer(ctx context.Context, opts ArgoCDServerOpts) *ArgoCDServer {
 	em := extension.NewManager(logger, sg, ag, pg, enf)
 
 	a := &ArgoCDServer{
-		ArgoCDServerOpts:  opts,
-		log:               logger,
-		settings:          settings,
-		sessionMgr:        sessionMgr,
-		settingsMgr:       settingsMgr,
-		enf:               enf,
-		projInformer:      projInformer,
-		projLister:        projLister,
-		appInformer:       appInformer,
-		appLister:         appLister,
-		appsetInformer:    appsetInformer,
-		appsetLister:      appsetLister,
-		policyEnforcer:    policyEnf,
-		userStateStorage:  userStateStorage,
-		staticAssets:      http.FS(staticFS),
-		db:                dbInstance,
-		apiFactory:        apiFactory,
-		secretInformer:    secretInformer,
-		configMapInformer: configMapInformer,
-		extensionManager:  em,
+		ArgoCDServerOpts:   opts,
+		ApplicationSetOpts: appsetOpts,
+		log:                logger,
+		settings:           settings,
+		sessionMgr:         sessionMgr,
+		settingsMgr:        settingsMgr,
+		enf:                enf,
+		projInformer:       projInformer,
+		projLister:         projLister,
+		appInformer:        appInformer,
+		appLister:          appLister,
+		appsetInformer:     appsetInformer,
+		appsetLister:       appsetLister,
+		policyEnforcer:     policyEnf,
+		userStateStorage:   userStateStorage,
+		staticAssets:       http.FS(staticFS),
+		db:                 dbInstance,
+		apiFactory:         apiFactory,
+		secretInformer:     secretInformer,
+		configMapInformer:  configMapInformer,
+		extensionManager:   em,
 	}
 
 	err = a.logInClusterWarnings()
@@ -881,7 +891,13 @@ func newArgoCDServiceSet(a *ArgoCDServer) *ArgoCDServiceSet {
 		a.settingsMgr,
 		a.Namespace,
 		projectLock,
-		a.ApplicationNamespaces)
+		a.ApplicationNamespaces,
+		a.GitSubmoduleEnabled,
+		a.EnableNewGitFileGlobbing,
+		a.ScmRootCAPath,
+		a.AllowedScmProviders,
+		a.EnableScmProviders,
+	)
 
 	projectService := project.NewServer(a.Namespace, a.KubeClientset, a.AppClientset, a.enf, projectLock, a.sessionMgr, a.policyEnforcer, a.projInformer, a.settingsMgr, a.db)
 	appsInAnyNamespaceEnabled := len(a.ArgoCDServerOpts.ApplicationNamespaces) > 0

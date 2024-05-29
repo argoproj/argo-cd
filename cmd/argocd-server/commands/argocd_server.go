@@ -43,6 +43,7 @@ const (
 var (
 	failureRetryCount              = env.ParseNumFromEnv(failureRetryCountEnv, 0, 0, 10)
 	failureRetryPeriodMilliSeconds = env.ParseNumFromEnv(failureRetryPeriodMilliSecondsEnv, 100, 0, 1000)
+	gitSubmoduleEnabled            = env.ParseBoolFromEnv(common.EnvGitSubmoduleEnabled, true)
 )
 
 // NewCommand returns a new instance of an argocd command
@@ -80,6 +81,12 @@ func NewCommand() *cobra.Command {
 		staticAssetsDir          string
 		applicationNamespaces    []string
 		enableProxyExtension     bool
+
+		// ApplicationSet
+		enableNewGitFileGlobbing bool
+		scmRootCAPath            string
+		allowedScmProviders      []string
+		enableScmProviders       bool
 	)
 	var command = &cobra.Command{
 		Use:               cliName,
@@ -215,10 +222,18 @@ func NewCommand() *cobra.Command {
 				EnableProxyExtension:    enableProxyExtension,
 			}
 
+			appsetOpts := server.ApplicationSetOpts{
+				GitSubmoduleEnabled:      gitSubmoduleEnabled,
+				EnableNewGitFileGlobbing: enableNewGitFileGlobbing,
+				ScmRootCAPath:            scmRootCAPath,
+				AllowedScmProviders:      allowedScmProviders,
+				EnableScmProviders:       enableScmProviders,
+			}
+
 			stats.RegisterStackDumper()
 			stats.StartStatsTicker(10 * time.Minute)
 			stats.RegisterHeapDumper("memprofile")
-			argocd := server.NewServer(ctx, argoCDOpts)
+			argocd := server.NewServer(ctx, argoCDOpts, appsetOpts)
 			argocd.Init(ctx)
 			lns, err := argocd.Listen()
 			errors.CheckError(err)
@@ -278,6 +293,13 @@ func NewCommand() *cobra.Command {
 	command.Flags().BoolVar(&dexServerStrictTLS, "dex-server-strict-tls", env.ParseBoolFromEnv("ARGOCD_SERVER_DEX_SERVER_STRICT_TLS", false), "Perform strict validation of TLS certificates when connecting to dex server")
 	command.Flags().StringSliceVar(&applicationNamespaces, "application-namespaces", env.StringsFromEnv("ARGOCD_APPLICATION_NAMESPACES", []string{}, ","), "List of additional namespaces where application resources can be managed in")
 	command.Flags().BoolVar(&enableProxyExtension, "enable-proxy-extension", env.ParseBoolFromEnv("ARGOCD_SERVER_ENABLE_PROXY_EXTENSION", false), "Enable Proxy Extension feature")
+
+	// Flags related to the applicationSet component.
+	command.Flags().StringVar(&scmRootCAPath, "scm-root-ca-path", env.StringFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_SCM_ROOT_CA_PATH", ""), "Provide Root CA Path for self-signed TLS Certificates")
+	command.Flags().BoolVar(&enableScmProviders, "enable-scm-providers", env.ParseBoolFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_SCM_PROVIDERS", true), "Enable retrieving information from SCM providers, used by the SCM and PR generators (Default: true)")
+	command.Flags().StringSliceVar(&allowedScmProviders, "allowed-scm-providers", env.StringsFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_ALLOWED_SCM_PROVIDERS", []string{}, ","), "The list of allowed custom SCM provider API URLs. This restriction does not apply to SCM or PR generators which do not accept a custom API URL. (Default: Empty = all)")
+	command.Flags().BoolVar(&enableNewGitFileGlobbing, "enable-new-git-file-globbing", env.ParseBoolFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_NEW_GIT_FILE_GLOBBING", false), "Enable new globbing in Git files generator.")
+
 	tlsConfigCustomizerSrc = tls.AddTLSFlagsToCmd(command)
 	cacheSrc = servercache.AddCacheFlagsToCmd(command, cacheutil.Options{
 		OnClientCreated: func(client *redis.Client) {

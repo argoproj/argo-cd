@@ -348,7 +348,7 @@ func TestCreateAppSetDryRun(t *testing.T) {
 	appServer := newTestAppSetServer()
 	testAppSet.Spec.Template.Name = "{{name}}"
 	testAppSet.Spec.Generators = []appsv1.ApplicationSetGenerator{
-		appsv1.ApplicationSetGenerator{
+		{
 			List: &appsv1.ListGenerator{
 				Elements: []apiextensionsv1.JSON{{Raw: []byte(`{"name": "a"}`)}, {Raw: []byte(`{"name": "b"}`)}},
 			},
@@ -371,7 +371,7 @@ func TestCreateAppSetDryRunWithDuplicate(t *testing.T) {
 	appServer := newTestAppSetServer()
 	testAppSet.Spec.Template.Name = "{{name}}"
 	testAppSet.Spec.Generators = []appsv1.ApplicationSetGenerator{
-		appsv1.ApplicationSetGenerator{
+		{
 			List: &appsv1.ListGenerator{
 				Elements: []apiextensionsv1.JSON{{Raw: []byte(`{"name": "a"}`)}, {Raw: []byte(`{"name": "a"}`)}},
 			},
