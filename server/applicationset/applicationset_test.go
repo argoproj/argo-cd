@@ -32,6 +32,10 @@ const (
 	fakeRepoURL   = "https://git.com/repo.git"
 )
 
+var (
+	testEnableEventList []string = argo.DefaultEnableEventList()
+)
+
 func fakeRepo() *appsv1.Repository {
 	return &appsv1.Repository{
 		Repo: fakeRepoURL,
@@ -152,7 +156,7 @@ func newTestAppSetServerWithEnforcerConfigure(f func(*rbac.Enforcer), namespace 
 		testNamespace,
 		sync.NewKeyLock(),
 		[]string{testNamespace, "external-namespace"},
-		argo.TestEnableEventLog(),
+		testEnableEventList,
 	)
 	return server.(*Server)
 }
