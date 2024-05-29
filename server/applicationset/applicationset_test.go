@@ -19,6 +19,7 @@ import (
 	apps "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned/fake"
 	appinformer "github.com/argoproj/argo-cd/v2/pkg/client/informers/externalversions"
 	"github.com/argoproj/argo-cd/v2/server/rbacpolicy"
+	"github.com/argoproj/argo-cd/v2/util/argo"
 	"github.com/argoproj/argo-cd/v2/util/assets"
 	"github.com/argoproj/argo-cd/v2/util/db"
 	"github.com/argoproj/argo-cd/v2/util/errors"
@@ -151,6 +152,7 @@ func newTestAppSetServerWithEnforcerConfigure(f func(*rbac.Enforcer), namespace 
 		testNamespace,
 		sync.NewKeyLock(),
 		[]string{testNamespace, "external-namespace"},
+		argo.TestEnableEventLog(),
 	)
 	return server.(*Server)
 }
