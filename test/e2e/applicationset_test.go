@@ -817,7 +817,7 @@ func TestSyncPolicyCreateUpdate(t *testing.T) {
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:       "my-cluster-guestbook-sync-policy-create-update",
-			Namespace:  utils.ArgoCDNamespace,
+			Namespace:  fixture.TestNamespace(),
 			Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
 		},
 		Spec: argov1alpha1.ApplicationSpec{
@@ -926,7 +926,7 @@ func TestSyncPolicyCreateDelete(t *testing.T) {
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:       "my-cluster-guestbook-sync-policy-create-delete",
-			Namespace:  utils.ArgoCDNamespace,
+			Namespace:  fixture.TestNamespace(),
 			Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
 		},
 		Spec: argov1alpha1.ApplicationSpec{
@@ -1025,7 +1025,7 @@ func TestSyncPolicyCreateOnly(t *testing.T) {
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:       "my-cluster-guestbook-sync-policy-create-only",
-			Namespace:  utils.ArgoCDNamespace,
+			Namespace:  fixture.TestNamespace(),
 			Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
 		},
 		Spec: argov1alpha1.ApplicationSpec{

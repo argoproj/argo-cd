@@ -14,7 +14,7 @@ import (
 const maxRecreateRetries = 5
 
 // StartGPGWatcher watches a given directory for creation and deletion of files and syncs the GPG keyring
-func StartGPGWatcher(sourcePath string) error {
+func StartGPGWatcher(sourcePath string, gpgWrapperPath string) error {
 	log.Infof("Starting GPG sync watcher on directory '%s'", sourcePath)
 	forceSync := false
 	watcher, err := fsnotify.NewWatcher()
@@ -63,7 +63,7 @@ func StartGPGWatcher(sourcePath string) error {
 					}
 					if gpg.IsShortKeyID(path.Base(event.Name)) || forceSync {
 						log.Infof("Updating GPG keyring on filesystem event")
-						added, removed, err := gpg.SyncKeyRingFromDirectory(sourcePath)
+						added, removed, err := gpg.SyncKeyRingFromDirectory(sourcePath, gpgWrapperPath)
 						if err != nil {
 							log.Errorf("Could not sync keyring: %s", err.Error())
 						} else {

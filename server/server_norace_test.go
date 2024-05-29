@@ -37,7 +37,9 @@ func TestUserAgent(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	s.Init(ctx)
-	go s.Run(ctx, lns)
+	go s.Run(ctx, lns, cancel, func() {
+
+	})
 	defer func() { time.Sleep(3 * time.Second) }()
 
 	type testData struct {
@@ -102,7 +104,9 @@ func Test_StaticHeaders(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 		s.Init(ctx)
-		go s.Run(ctx, lns)
+		go s.Run(ctx, lns, cancel, func() {
+
+		})
 		defer func() { time.Sleep(3 * time.Second) }()
 
 		// Allow server startup
@@ -131,7 +135,9 @@ func Test_StaticHeaders(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 		s.Init(ctx)
-		go s.Run(ctx, lns)
+		go s.Run(ctx, lns, cancel, func() {
+
+		})
 		defer func() { time.Sleep(3 * time.Second) }()
 
 		// Allow server startup
@@ -160,7 +166,9 @@ func Test_StaticHeaders(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 		s.Init(ctx)
-		go s.Run(ctx, lns)
+		go s.Run(ctx, lns, cancel, func() {
+
+		})
 		defer func() { time.Sleep(3 * time.Second) }()
 
 		err = test.WaitForPortListen(fmt.Sprintf("127.0.0.1:%d", s.ListenPort), 10*time.Second)

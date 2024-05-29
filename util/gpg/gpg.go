@@ -469,9 +469,9 @@ func DeletePGPKey(keyID string) error {
 }
 
 // IsSecretKey returns true if the keyID also has a private key in the keyring
-func IsSecretKey(keyID string) (bool, error) {
+func IsSecretKey(keyID string, path string) (bool, error) {
 	args := append([]string{}, "--no-permission-warning", "--list-secret-keys", keyID)
-	cmd := exec.Command("gpg-wrapper.sh", args...)
+	cmd := exec.Command(path+"gpg-wrapper.sh", args...)
 	cmd.Env = getGPGEnviron()
 	out, err := executil.Run(cmd)
 	if err != nil {
@@ -689,7 +689,7 @@ func ParseGitCommitVerification(signature string) PGPVerifyResult {
 // Files must have a file name matching their Key ID. Keys that are found in the directory but are not
 // in the keyring will be installed to the keyring, files that exist in the keyring but do not exist in
 // the directory will be deleted.
-func SyncKeyRingFromDirectory(basePath string) ([]string, []string, error) {
+func SyncKeyRingFromDirectory(basePath, gpgWrapperPath string) ([]string, []string, error) {
 	configured := make(map[string]interface{})
 	newKeys := make([]string, 0)
 	fingerprints := make([]string, 0)
@@ -752,7 +752,7 @@ func SyncKeyRingFromDirectory(basePath string) ([]string, []string, error) {
 
 	// Delete all keys from the keyring that are not found in the configuration anymore.
 	for key := range installed {
-		secret, err := IsSecretKey(key)
+		secret, err := IsSecretKey(key, gpgWrapperPath)
 		if err != nil {
 			return nil, nil, fmt.Errorf("error check secret key: %w", err)
 		}
