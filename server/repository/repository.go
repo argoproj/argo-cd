@@ -128,7 +128,7 @@ func (s *Server) List(ctx context.Context, q *repositorypkg.RepoQuery) (*appsv1.
 
 // Get return the requested configured repository by URL and the state of its connections.
 func (s *Server) Get(ctx context.Context, q *repositorypkg.RepoQuery) (*appsv1.Repository, error) {
-	repo, err := s.getRepo(ctx, q.Repo, q.GetAppProject())
+	repo, err := s.getRepository(ctx, q)
 	if err != nil {
 		return nil, err
 	}
@@ -138,7 +138,7 @@ func (s *Server) Get(ctx context.Context, q *repositorypkg.RepoQuery) (*appsv1.R
 	}
 
 	// getRepo does not return an error for unconfigured repositories, so we are checking here
-	exists, err := s.db.RepositoryExists(ctx, q.Repo, q.GetAppProject())
+	exists, err := s.db.RepositoryExists(ctx, q.Repo, repo.Project)
 	if err != nil {
 		return nil, err
 	}
@@ -472,6 +472,25 @@ func (s *Server) Delete(ctx context.Context, q *repositorypkg.RepoQuery) (*repos
 
 // DeleteRepository removes a repository from the configuration
 func (s *Server) DeleteRepository(ctx context.Context, q *repositorypkg.RepoQuery) (*repositorypkg.RepoResponse, error) {
+	foundRepo, err := s.getRepository(ctx, q)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceRepositories, rbacpolicy.ActionDelete, createRBACObject(foundRepo.Project, foundRepo.Repo)); err != nil {
+		return nil, err
+	}
+
+	// invalidate cache
+	if err := s.cache.SetRepoConnectionState(foundRepo.Repo, foundRepo.Project, nil); err == nil {
+		log.Errorf("error invalidating cache: %v", err)
+	}
+
+	err = s.db.DeleteRepository(ctx, foundRepo.Repo, foundRepo.Project)
+	return &repositorypkg.RepoResponse{}, err
+}
+
+func (s *Server) getRepository(ctx context.Context, q *repositorypkg.RepoQuery) (*appsv1.Repository, error) {
 	repositories, err := s.ListRepositories(ctx, q)
 	if err != nil {
 		return nil, err
@@ -501,20 +520,10 @@ func (s *Server) DeleteRepository(ctx context.Context, q *repositorypkg.RepoQuer
 	}
 
 	if foundRepo == nil {
-		return nil, errPermissionDenied
+		return nil, fmt.Errorf("TODO: give nice error messages since multiple repos were found for user")
 	}
 
-	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceRepositories, rbacpolicy.ActionDelete, createRBACObject(foundRepo.Project, foundRepo.Repo)); err != nil {
-		return nil, err
-	}
-
-	// invalidate cache
-	if err := s.cache.SetRepoConnectionState(foundRepo.Repo, foundRepo.Project, nil); err == nil {
-		log.Errorf("error invalidating cache: %v", err)
-	}
-
-	err = s.db.DeleteRepository(ctx, foundRepo.Repo, foundRepo.Project)
-	return &repositorypkg.RepoResponse{}, err
+	return foundRepo, nil
 }
 
 // ValidateAccess checks whether access to a repository is possible with the
