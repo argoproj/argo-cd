@@ -528,13 +528,13 @@ func Test_IsSecretKey(t *testing.T) {
 	assert.Equal(t, "ultimate", keys[0].Trust)
 
 	{
-		secret, err := IsSecretKey(keys[0].KeyID)
+		secret, err := IsSecretKey(keys[0].KeyID, "")
 		require.NoError(t, err)
 		assert.True(t, secret)
 	}
 
 	{
-		secret, err := IsSecretKey("invalid")
+		secret, err := IsSecretKey("invalid", "")
 		require.NoError(t, err)
 		assert.False(t, secret)
 	}
@@ -550,7 +550,7 @@ func Test_SyncKeyRingFromDirectory(t *testing.T) {
 	tempDir := t.TempDir()
 
 	{
-		new, removed, err := SyncKeyRingFromDirectory(tempDir)
+		new, removed, err := SyncKeyRingFromDirectory(tempDir, "")
 		require.NoError(t, err)
 		assert.Empty(t, new)
 		assert.Empty(t, removed)
@@ -575,7 +575,7 @@ func Test_SyncKeyRingFromDirectory(t *testing.T) {
 			dst.Close()
 		}
 
-		new, removed, err := SyncKeyRingFromDirectory(tempDir)
+		new, removed, err := SyncKeyRingFromDirectory(tempDir, "")
 		require.NoError(t, err)
 		assert.Len(t, new, 3)
 		assert.Empty(t, removed)
@@ -592,7 +592,7 @@ func Test_SyncKeyRingFromDirectory(t *testing.T) {
 		if err != nil {
 			panic(err.Error())
 		}
-		new, removed, err := SyncKeyRingFromDirectory(tempDir)
+		new, removed, err := SyncKeyRingFromDirectory(tempDir, "")
 		require.NoError(t, err)
 		assert.Empty(t, new)
 		assert.Len(t, removed, 1)

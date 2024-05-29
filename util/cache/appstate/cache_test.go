@@ -60,7 +60,8 @@ func TestCache_GetAppResourcesTree(t *testing.T) {
 }
 
 func TestAddCacheFlagsToCmd(t *testing.T) {
-	cache, err := AddCacheFlagsToCmd(&cobra.Command{})()
+	cmd := &cobra.Command{}
+	cache, err := AddCacheFlagsToCmd(cmd.Flags())()
 	require.NoError(t, err)
 	assert.Equal(t, 1*time.Hour, cache.appStateCacheExpiration)
 }

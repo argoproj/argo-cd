@@ -280,7 +280,10 @@ func MaybeStartLocalServer(ctx context.Context, clientOpts *apiclient.ClientOpti
 	if err != nil {
 		return fmt.Errorf("failed to listen: %w", err)
 	}
-	go srv.Run(ctx, lns)
+	go func() {
+		srv.Run(ctx, lns, nil, nil)
+		srv.Wait()
+	}()
 	clientOpts.ServerAddr = fmt.Sprintf("%s:%d", *address, *port)
 	clientOpts.PlainText = true
 	if !cache2.WaitForCacheSync(ctx.Done(), srv.Initialized) {

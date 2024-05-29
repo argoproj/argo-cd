@@ -15,7 +15,8 @@ import (
 )
 
 func TestAddCacheFlagsToCmd(t *testing.T) {
-	cache, err := AddCacheFlagsToCmd(&cobra.Command{})()
+	cmd := &cobra.Command{}
+	cache, err := AddCacheFlagsToCmd(cmd.Flags())()
 	require.NoError(t, err)
 	assert.Equal(t, 24*time.Hour, cache.client.(*redisCache).expiration)
 }

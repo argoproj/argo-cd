@@ -5,16 +5,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	flag "github.com/spf13/pflag"
 	"hash/fnv"
 	"math"
 	"sort"
 	"strings"
 	"time"
-
-	"github.com/argoproj/gitops-engine/pkg/utils/text"
-	"github.com/go-git/go-git/v5/plumbing"
-	log "github.com/sirupsen/logrus"
-	"github.com/spf13/cobra"
 
 	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
@@ -22,6 +18,9 @@ import (
 	cacheutil "github.com/argoproj/argo-cd/v2/util/cache"
 	"github.com/argoproj/argo-cd/v2/util/env"
 	"github.com/argoproj/argo-cd/v2/util/hash"
+	"github.com/argoproj/gitops-engine/pkg/utils/text"
+	"github.com/go-git/go-git/v5/plumbing"
+	log "github.com/sirupsen/logrus"
 )
 
 var (
@@ -48,16 +47,16 @@ func NewCache(cache *cacheutil.Cache, repoCacheExpiration time.Duration, revisio
 	return &Cache{cache, repoCacheExpiration, revisionCacheExpiration, revisionCacheLockTimeout}
 }
 
-func AddCacheFlagsToCmd(cmd *cobra.Command, opts ...cacheutil.Options) func() (*Cache, error) {
+func AddCacheFlagsToCmd(flags *flag.FlagSet, opts ...cacheutil.Options) func() (*Cache, error) {
 	var repoCacheExpiration time.Duration
 	var revisionCacheExpiration time.Duration
 	var revisionCacheLockTimeout time.Duration
 
-	cmd.Flags().DurationVar(&repoCacheExpiration, "repo-cache-expiration", env.ParseDurationFromEnv("ARGOCD_REPO_CACHE_EXPIRATION", 24*time.Hour, 0, math.MaxInt64), "Cache expiration for repo state, incl. app lists, app details, manifest generation, revision meta-data")
-	cmd.Flags().DurationVar(&revisionCacheExpiration, "revision-cache-expiration", env.ParseDurationFromEnv("ARGOCD_RECONCILIATION_TIMEOUT", 3*time.Minute, 0, math.MaxInt64), "Cache expiration for cached revision")
-	cmd.Flags().DurationVar(&revisionCacheLockTimeout, "revision-cache-lock-timeout", env.ParseDurationFromEnv("ARGOCD_REVISION_CACHE_LOCK_TIMEOUT", 10*time.Second, 0, math.MaxInt64), "Cache TTL for locks to prevent duplicate requests on revisions, set to 0 to disable")
+	flags.DurationVar(&repoCacheExpiration, "repo-cache-expiration", env.ParseDurationFromEnv("ARGOCD_REPO_CACHE_EXPIRATION", 24*time.Hour, 0, math.MaxInt64), "Cache expiration for repo state, incl. app lists, app details, manifest generation, revision meta-data")
+	flags.DurationVar(&revisionCacheExpiration, "revision-cache-expiration", env.ParseDurationFromEnv("ARGOCD_RECONCILIATION_TIMEOUT", 3*time.Minute, 0, math.MaxInt64), "Cache expiration for cached revision")
+	flags.DurationVar(&revisionCacheLockTimeout, "revision-cache-lock-timeout", env.ParseDurationFromEnv("ARGOCD_REVISION_CACHE_LOCK_TIMEOUT", 10*time.Second, 0, math.MaxInt64), "Cache TTL for locks to prevent duplicate requests on revisions, set to 0 to disable")
 
-	repoFactory := cacheutil.AddCacheFlagsToCmd(cmd, opts...)
+	repoFactory := cacheutil.AddCacheFlagsToCmd(flags, opts...)
 
 	return func() (*Cache, error) {
 		cache, err := repoFactory()
