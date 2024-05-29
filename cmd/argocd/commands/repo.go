@@ -242,6 +242,9 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 
 // NewRepoRemoveCommand returns a new instance of an `argocd repo remove` command
 func NewRepoRemoveCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
+	var (
+		project string
+	)
 	var command = &cobra.Command{
 		Use:   "rm REPO",
 		Short: "Remove repository credentials",
@@ -255,12 +258,13 @@ func NewRepoRemoveCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 			conn, repoIf := headless.NewClientOrDie(clientOpts, c).NewRepoClientOrDie()
 			defer io.Close(conn)
 			for _, repoURL := range args {
-				_, err := repoIf.DeleteRepository(ctx, &repositorypkg.RepoQuery{Repo: repoURL})
+				_, err := repoIf.DeleteRepository(ctx, &repositorypkg.RepoQuery{Repo: repoURL, AppProject: project})
 				errors.CheckError(err)
 				fmt.Printf("Repository '%s' removed\n", repoURL)
 			}
 		},
 	}
+	command.Flags().StringVar(&project, "project", "", "project of the repository")
 	return command
 }
 
