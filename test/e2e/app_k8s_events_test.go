@@ -13,16 +13,17 @@ import (
 	. "github.com/argoproj/argo-cd/v2/test/e2e/fixture/app"
 )
 
-// resource.eventLabelKeys keys set in argocd-cm
+// resource.includeEventLabelKeys keys set in argocd-cm
 func TestLabelsOnAppK8sEvents(t *testing.T) {
-	expectedLabels := map[string]string{"app": "test", "env": "dev"}
+	expectedLabels := map[string]string{"app": "test", "environment": "dev"}
 
 	Given(t).
 		Timeout(60).
 		Path("two-nice-pods").
 		When().
-		SetParamInSettingConfigMap("resource.eventLabelKeys", "app,env").
-		CreateApp("--label=app=test", "--label=env=dev", "--label=tier=ui").
+		SetParamInSettingConfigMap("resource.includeEventLabelKeys", "app,team,env*").
+		SetParamInSettingConfigMap("resource.excludeEventLabelKeys", "team").
+		CreateApp("--label=app=test", "--label=environment=dev", "--label=team=A", "--label=tier=ui").
 		Sync().
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
@@ -41,13 +42,13 @@ func TestLabelsOnAppK8sEvents(t *testing.T) {
 		})
 }
 
-// resource.eventLabelKeys keys not set in argocd-cm
+// resource.includeEventLabelKeys keys not set in argocd-cm
 func TestNoLabelsOnAppK8sEvents(t *testing.T) {
 	Given(t).
 		Timeout(60).
 		Path("two-nice-pods").
 		When().
-		CreateApp("--label=app=test", "--label=env=dev", "--label=tier=ui").
+		CreateApp("--label=app=test", "--label=environment=dev", "--label=team=A", "--label=tier=ui").
 		Sync().
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).

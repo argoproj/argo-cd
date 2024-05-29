@@ -1579,59 +1579,61 @@ func TestAugmentSyncMsg(t *testing.T) {
 func TestGetAppEventLabels(t *testing.T) {
 	tests := []struct {
 		name                string
-		cmEventLabelKeys    string
+		cmInEventLabelKeys  string
+		cmExEventLabelKeys  string
 		appLabels           map[string]string
 		projLabels          map[string]string
 		expectedEventLabels map[string]string
 	}{
 		{
-			name:                "no label keys in cm",
-			cmEventLabelKeys:    "",
-			appLabels:           nil,
-			projLabels:          nil,
-			expectedEventLabels: nil,
-		},
-		{
-			name:                "no label keys in cm",
-			cmEventLabelKeys:    "",
+			name:                "no label keys in cm - no event labels",
+			cmInEventLabelKeys:  "",
 			appLabels:           map[string]string{"team": "A", "tier": "frontend"},
-			projLabels:          map[string]string{"env": "dev"},
+			projLabels:          map[string]string{"environment": "dev"},
 			expectedEventLabels: nil,
 		},
 		{
-			name:                "label keys in cm, no labels on app & proj",
-			cmEventLabelKeys:    "team,env",
+			name:                "label keys in cm, no labels on app & proj - no event labels",
+			cmInEventLabelKeys:  "team, environment",
 			appLabels:           nil,
 			projLabels:          nil,
 			expectedEventLabels: nil,
 		},
 		{
-			name:                "label keys in cm, labels on app, no labels on proj",
-			cmEventLabelKeys:    "team,env",
+			name:                "labels on app, no labels on proj - event labels matched on app only",
+			cmInEventLabelKeys:  "team, environment",
 			appLabels:           map[string]string{"team": "A", "tier": "frontend"},
 			projLabels:          nil,
 			expectedEventLabels: map[string]string{"team": "A"},
 		},
 		{
-			name:                "label keys in cm, no labels on app, labels on proj",
-			cmEventLabelKeys:    "team,env",
+			name:                "no labels on app, labels on proj - event labels matched on proj only",
+			cmInEventLabelKeys:  "team, environment",
 			appLabels:           nil,
-			projLabels:          map[string]string{"env": "dev"},
-			expectedEventLabels: map[string]string{"env": "dev"},
+			projLabels:          map[string]string{"environment": "dev"},
+			expectedEventLabels: map[string]string{"environment": "dev"},
 		},
 		{
-			name:                "label keys in cm, labels on app & proj",
-			cmEventLabelKeys:    "team,env",
+			name:                "labels on app & proj with conflicts - event labels matched on both app & proj and app labels prioritized on conflict",
+			cmInEventLabelKeys:  "team, environment",
+			appLabels:           map[string]string{"team": "A", "environment": "stage", "tier": "frontend"},
+			projLabels:          map[string]string{"environment": "dev"},
+			expectedEventLabels: map[string]string{"team": "A", "environment": "stage"},
+		},
+		{
+			name:                "wildcard support - matched all labels",
+			cmInEventLabelKeys:  "*",
 			appLabels:           map[string]string{"team": "A", "tier": "frontend"},
-			projLabels:          map[string]string{"env": "dev"},
-			expectedEventLabels: map[string]string{"team": "A", "env": "dev"},
+			projLabels:          map[string]string{"environment": "dev"},
+			expectedEventLabels: map[string]string{"team": "A", "tier": "frontend", "environment": "dev"},
 		},
 		{
-			name:                "app & proj label conflicts",
-			cmEventLabelKeys:    "example.com/team,env",
+			name:                "exlcude event labels",
+			cmInEventLabelKeys:  "example.com/team,tier,env*",
+			cmExEventLabelKeys:  "tie*",
 			appLabels:           map[string]string{"example.com/team": "A", "tier": "frontend"},
-			projLabels:          map[string]string{"example.com/team": "B", "env": "dev"},
-			expectedEventLabels: map[string]string{"example.com/team": "A", "env": "dev"},
+			projLabels:          map[string]string{"environment": "dev"},
+			expectedEventLabels: map[string]string{"example.com/team": "A", "environment": "dev"},
 		},
 	}
 	for _, tt := range tests {
@@ -1645,7 +1647,8 @@ func TestGetAppEventLabels(t *testing.T) {
 					},
 				},
 				Data: map[string]string{
-					"resource.eventLabelKeys": tt.cmEventLabelKeys,
+					"resource.includeEventLabelKeys": tt.cmInEventLabelKeys,
+					"resource.excludeEventLabelKeys": tt.cmExEventLabelKeys,
 				},
 			}
 
@@ -1674,7 +1677,7 @@ func TestGetAppEventLabels(t *testing.T) {
 			argoDB := db.NewDB("default", settingsMgr, kubeClient)
 
 			eventLabels := GetAppEventLabels(&app, applisters.NewAppProjectLister(informer.GetIndexer()), test.FakeArgoCDNamespace, settingsMgr, argoDB, ctx)
-			assert.Equal(t, len(eventLabels), len(tt.expectedEventLabels))
+			assert.Equal(t, len(tt.expectedEventLabels), len(eventLabels))
 			for ek, ev := range tt.expectedEventLabels {
 				v, found := eventLabels[ek]
 				assert.True(t, found)

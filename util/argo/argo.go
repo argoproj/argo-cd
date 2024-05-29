@@ -27,6 +27,7 @@ import (
 	applicationsv1 "github.com/argoproj/argo-cd/v2/pkg/client/listers/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/v2/util/db"
+	"github.com/argoproj/argo-cd/v2/util/glob"
 	"github.com/argoproj/argo-cd/v2/util/io"
 	"github.com/argoproj/argo-cd/v2/util/settings"
 )
@@ -1105,13 +1106,15 @@ func IsValidContainerName(name string) bool {
 	return len(validationErrors) == 0
 }
 
-// GetAppEventLabels returns a map of labels to add to k8s event.
-// The Application and it's AppProject labels are compared against `resource.eventLabelKeys` key in argocd-cm,
-// if matched, the corresponding labels are returned to add on the generated event. In case of conflict
-// between labels on Application and AppProject, the Application label values are prioritized and added to the event.
+// GetAppEventLabels returns a map of labels to add to a K8s event.
+// The Application and its AppProject labels are compared against the `resource.includeEventLabelKeys` key in argocd-cm.
+// If matched, the corresponding labels are returned to be added to the generated event. In case of a conflict
+// between labels on the Application and AppProject, the Application label values are prioritized and added to the event.
+// Furthermore, labels specified in `resource.excludeEventLabelKeys` in argocd-cm are removed from the event labels, if they were included.
 func GetAppEventLabels(app *argoappv1.Application, projLister applicationsv1.AppProjectLister, ns string, settingsManager *settings.SettingsManager, db db.ArgoDB, ctx context.Context) map[string]string {
 	eventLabels := make(map[string]string)
 
+	// Get all app & app-project labels
 	labels := app.Labels
 	if labels == nil {
 		labels = make(map[string]string)
@@ -1128,11 +1131,21 @@ func GetAppEventLabels(app *argoappv1.Application, projLister applicationsv1.App
 		log.Warn(err)
 	}
 
-	keys := settingsManager.GetEventLabelKeys()
-	for _, k := range keys {
-		v, found := labels[k]
+	// Filter out event labels to include
+	inKeys := settingsManager.GetIncludeEventLabelKeys()
+	for k, v := range labels {
+		found := glob.MatchStringInList(inKeys, k, false)
 		if found {
 			eventLabels[k] = v
+		}
+	}
+
+	// Remove excluded event labels
+	exKeys := settingsManager.GetExcludeEventLabelKeys()
+	for k := range eventLabels {
+		found := glob.MatchStringInList(exKeys, k, false)
+		if found {
+			delete(eventLabels, k)
 		}
 	}
 

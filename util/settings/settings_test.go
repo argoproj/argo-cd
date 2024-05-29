@@ -718,25 +718,33 @@ func TestSettingsManager_GetEventLabelKeys(t *testing.T) {
 	}{
 		{
 			name:         "Comma separated data",
-			data:         "app,env, tier,    example.com/team",
-			expectedKeys: []string{"app", "env", "tier", "example.com/team"},
+			data:         "app,env, tier,    example.com/team-*, *",
+			expectedKeys: []string{"app", "env", "tier", "example.com/team-*", "*"},
 		},
 		{
 			name:         "Empty data",
-			data:         "",
 			expectedKeys: []string{},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, settingsManager := fixtures(map[string]string{
-				resourceEventLabelKeys: tt.data,
-			})
-			keys := settingsManager.GetEventLabelKeys()
-			assert.Equal(t, len(tt.expectedKeys), len(keys))
+			_, settingsManager := fixtures(map[string]string{})
+			if tt.data != "" {
+				_, settingsManager = fixtures(map[string]string{
+					resourceIncludeEventLabelKeys: tt.data,
+					resourceExcludeEventLabelKeys: tt.data,
+				})
+			}
+
+			inKeys := settingsManager.GetIncludeEventLabelKeys()
+			assert.Equal(t, len(tt.expectedKeys), len(inKeys))
+
+			exKeys := settingsManager.GetExcludeEventLabelKeys()
+			assert.Equal(t, len(tt.expectedKeys), len(exKeys))
 
 			for i := range tt.expectedKeys {
-				assert.Equal(t, tt.expectedKeys[i], keys[i])
+				assert.Equal(t, tt.expectedKeys[i], inKeys[i])
+				assert.Equal(t, tt.expectedKeys[i], exKeys[i])
 			}
 		})
 	}
