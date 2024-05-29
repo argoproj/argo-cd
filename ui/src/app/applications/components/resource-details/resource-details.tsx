@@ -264,6 +264,7 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                                 }))) ||
                             [];
                         let podState: State;
+                        let childResources: models.ResourceNode[] = [];
                         if (selectedNode.kind === 'Pod') {
                             podState = liveState;
                         } else {
@@ -271,6 +272,7 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                             if (childPod) {
                                 podState = await services.applications.getResource(application.metadata.name, application.metadata.namespace, childPod).catch(() => null);
                             }
+                            childResources = AppUtils.findChildResources(selectedNode, tree);
                         }
 
                         const settings = await services.authService.settings();
@@ -278,7 +280,7 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                         const logsAllowed = await services.accounts.canI('logs', 'get', application.spec.project + '/' + application.metadata.name);
                         const execAllowed = execEnabled && (await services.accounts.canI('exec', 'create', application.spec.project + '/' + application.metadata.name));
                         const links = await services.applications.getResourceLinks(application.metadata.name, application.metadata.namespace, selectedNode).catch(() => null);
-                        return {controlledState, liveState, events, podState, execEnabled, execAllowed, logsAllowed, links};
+                        return {controlledState, liveState, events, podState, execEnabled, execAllowed, logsAllowed, links, childResources};
                     }}>
                     {data => (
                         <React.Fragment>
@@ -303,7 +305,7 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                                     <i className='fa fa-sync-alt' /> <span className='show-for-large'>SYNC</span>
                                 </button>
                                 <button
-                                    onClick={() => AppUtils.deletePopup(appContext, selectedNode, application, !!data.controlledState)}
+                                    onClick={() => AppUtils.deletePopup(appContext, selectedNode, application, !!data.controlledState, data.childResources)}
                                     style={{marginRight: '5px'}}
                                     className='argo-button argo-button--base'>
                                     <i className='fa fa-trash' /> <span className='show-for-large'>DELETE</span>
