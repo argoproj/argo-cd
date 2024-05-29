@@ -313,6 +313,7 @@ func TestRepositoryServer(t *testing.T) {
 			Username:       "foo",
 			InheritedCreds: true,
 		}
+		db.On("ListRepositories", context.TODO()).Return([]*appsv1.Repository{testRepo}, nil)
 		db.On("GetRepository", context.TODO(), url, "").Return(testRepo, nil)
 		db.On("RepositoryExists", context.TODO(), url, "").Return(true, nil)
 
@@ -333,6 +334,7 @@ func TestRepositoryServer(t *testing.T) {
 
 		url := "https://test"
 		db := &dbmocks.ArgoDB{}
+		db.On("ListRepositories", context.TODO()).Return(nil, nil)
 		db.On("GetRepository", context.TODO(), url, "").Return(nil, errors.New("some error"))
 		db.On("RepositoryExists", context.TODO(), url, "").Return(true, nil)
 
@@ -347,9 +349,11 @@ func TestRepositoryServer(t *testing.T) {
 	t.Run("Test_GetWithNotExistRepoShouldReturn404", func(t *testing.T) {
 		repoServerClient := mocks.RepoServerServiceClient{}
 		repoServerClientset := mocks.Clientset{RepoServerServiceClient: &repoServerClient}
+		repoServerClient.On("TestRepository", mock.Anything, mock.Anything).Return(&apiclient.TestRepositoryResponse{}, nil)
 
 		url := "https://test"
 		db := &dbmocks.ArgoDB{}
+		db.On("ListRepositories", context.TODO()).Return([]*appsv1.Repository{{Repo: url}}, nil)
 		db.On("GetRepository", context.TODO(), url, "").Return(&appsv1.Repository{Repo: url}, nil)
 		db.On("RepositoryExists", context.TODO(), url, "").Return(false, nil)
 
