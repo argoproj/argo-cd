@@ -69,6 +69,8 @@ const (
 	fakeRepoURL   = "https://git.com/repo.git"
 )
 
+var testEnableEventList []string = argo.DefaultEnableEventList()
+
 func fakeRepo() *appsv1.Repository {
 	return &appsv1.Repository{
 		Repo: fakeRepoURL,
@@ -306,7 +308,7 @@ func newTestAppServerWithEnforcerConfigure(f func(*rbac.Enforcer), t *testing.T,
 		settingsMgr,
 		projInformer,
 		[]string{},
-		argo.TestEnableEventLog(),
+		testEnableEventList,
 	)
 	return server.(*Server)
 }
@@ -487,7 +489,7 @@ func newTestAppServerWithEnforcerConfigureWithBenchmark(f func(*rbac.Enforcer), 
 		settingsMgr,
 		projInformer,
 		[]string{},
-		argo.TestEnableEventLog(),
+		testEnableEventList,
 	)
 	return server.(*Server)
 }

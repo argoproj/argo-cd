@@ -50,7 +50,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/settings"
 )
 
-var testEnableEventLog map[string](bool) = argo.TestEnableEventLog()
+var testEnableEventList []string = argo.DefaultEnableEventList()
 
 type namespacedResource struct {
 	v1alpha1.ResourceNode
@@ -167,7 +167,7 @@ func newFakeController(data *fakeData, repoErr error) *ApplicationController {
 		false,
 		false,
 		normalizers.IgnoreNormalizerOpts{},
-		testEnableEventLog,
+		testEnableEventList,
 	)
 	db := &dbmocks.ArgoDB{}
 	db.On("GetApplicationControllerReplicas").Return(1)
