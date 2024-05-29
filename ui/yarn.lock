@@ -2879,7 +2879,7 @@ arg@^4.1.0:
 
 "argo-ui@git+https://github.com/argoproj/argo-ui.git":
   version "1.0.0"
-  resolved "git+https://github.com/argoproj/argo-ui.git#5ff344ac9692c14dd108468bd3c020c3c75181cb"
+  resolved "git+https://github.com/argoproj/argo-ui.git#4836620cfc729d7c732b9b562fc4c03051e9598a"
   dependencies:
     "@fortawesome/fontawesome-free" "^6.2.1"
     "@tippy.js/react" "^3.1.1"
@@ -2889,7 +2889,6 @@ arg@^4.1.0:
     foundation-sites "^6.4.3"
     history "^4.10.1"
     moment "^2.29.4"
-    moment-timezone "^0.5.34"
     prop-types "^15.8.1"
     react-autocomplete "1.8.1"
     react-form "^2.16.0"
@@ -7154,14 +7153,7 @@ mobx-react@^7.2.0:
   dependencies:
     mobx-react-lite "^3.3.0"
 
-moment-timezone@^0.5.34:
-  version "0.5.37"
-  resolved "https://registry.yarnpkg.com/moment-timezone/-/moment-timezone-0.5.37.tgz#adf97f719c4e458fdb12e2b4e87b8bec9f4eef1e"
-  integrity sha512-uEDzDNFhfaywRl+vwXxffjjq1q0Vzr+fcQpQ1bU0kbzorfS7zVtZnCnGc8mhWmF39d4g4YriF6kwA75mJKE/Zg==
-  dependencies:
-    moment ">= 2.9.0"
-
-"moment@>= 2.9.0", moment@^2.29.4:
+moment@^2.29.4:
   version "2.29.4"
   resolved "https://registry.yarnpkg.com/moment/-/moment-2.29.4.tgz#3dbe052889fe7c1b2ed966fcb3a77328964ef108"
   integrity sha512-5LC9SOxjSc2HF6vO2CyuTDNivEdoz2IvyJJGj6X8DJ0eFyfszE0QiEd+iXmBvUP3WHxSjFH/vIsA0EN00cgr8w==
