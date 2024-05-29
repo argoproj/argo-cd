@@ -25,6 +25,7 @@ import (
 	appsettemplate "github.com/argoproj/argo-cd/v2/applicationset/controllers/template"
 	"github.com/argoproj/argo-cd/v2/applicationset/generators"
 	"github.com/argoproj/argo-cd/v2/applicationset/services"
+	appsetstatus "github.com/argoproj/argo-cd/v2/applicationset/status"
 	appsetutils "github.com/argoproj/argo-cd/v2/applicationset/utils"
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/applicationset"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
@@ -193,22 +194,15 @@ func (s *Server) Create(ctx context.Context, q *applicationset.ApplicationSetCre
 		if err != nil {
 			return nil, fmt.Errorf("unable to generate Applications of ApplicationSet: %v", err)
 		}
-		appset.Status = v1alpha1.ApplicationSetStatus{
-			ApplicationStatus: []v1alpha1.ApplicationSetApplicationStatus{},
-		}
 
-		appNames := map[string]v1alpha1.Application{}
-		for _, app := range apps {
-			// remove duplicates because an applicationSet cannot be generated multiple times
-			if _, exist := appNames[app.Name]; !exist {
-				appNames[app.Name] = app
-			}
+		statusMap := appsetstatus.GetResourceStatusMap(appset)
+		statusMap = appsetstatus.BuildResourceStatus(statusMap, apps)
+
+		statuses := []v1alpha1.ResourceStatus{}
+		for _, status := range statusMap {
+			statuses = append(statuses, status)
 		}
-		for name, _ := range appNames {
-			appset.Status.ApplicationStatus = append(appset.Status.ApplicationStatus, v1alpha1.ApplicationSetApplicationStatus{
-				Application: name,
-			})
-		}
+		appset.Status.Resources = statuses
 		return appset, nil
 	}
 

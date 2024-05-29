@@ -44,6 +44,7 @@ import (
 
 	"github.com/argoproj/argo-cd/v2/applicationset/controllers/template"
 	"github.com/argoproj/argo-cd/v2/applicationset/generators"
+	"github.com/argoproj/argo-cd/v2/applicationset/status"
 	"github.com/argoproj/argo-cd/v2/applicationset/utils"
 	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/util/db"
@@ -1290,8 +1291,8 @@ func findApplicationStatusIndex(appStatuses []argov1alpha1.ApplicationSetApplica
 }
 
 func (r *ApplicationSetReconciler) updateResourcesStatus(ctx context.Context, logCtx *log.Entry, appset *argov1alpha1.ApplicationSet, apps []argov1alpha1.Application) error {
-	statusMap := getResourceStatusMap(appset)
-	statusMap = buildResourceStatus(statusMap, apps)
+	statusMap := status.GetResourceStatusMap(appset)
+	statusMap = status.BuildResourceStatus(statusMap, apps)
 
 	statuses := []argov1alpha1.ResourceStatus{}
 	for _, status := range statusMap {
@@ -1315,58 +1316,6 @@ func (r *ApplicationSetReconciler) updateResourcesStatus(ctx context.Context, lo
 	}
 
 	return nil
-}
-
-func buildResourceStatus(statusMap map[string]argov1alpha1.ResourceStatus, apps []argov1alpha1.Application) map[string]argov1alpha1.ResourceStatus {
-	appMap := map[string]argov1alpha1.Application{}
-	for _, app := range apps {
-		appCopy := app
-		appMap[app.Name] = app
-
-		gvk := app.GroupVersionKind()
-		// Create status if it does not exist
-		status, ok := statusMap[app.Name]
-		if !ok {
-			status = argov1alpha1.ResourceStatus{
-				Group:     gvk.Group,
-				Version:   gvk.Version,
-				Kind:      gvk.Kind,
-				Name:      app.Name,
-				Namespace: app.Namespace,
-				Status:    app.Status.Sync.Status,
-				Health:    &appCopy.Status.Health,
-			}
-		}
-
-		status.Group = gvk.Group
-		status.Version = gvk.Version
-		status.Kind = gvk.Kind
-		status.Name = app.Name
-		status.Namespace = app.Namespace
-		status.Status = app.Status.Sync.Status
-		status.Health = &appCopy.Status.Health
-
-		statusMap[app.Name] = status
-	}
-	cleanupDeletedApplicationStatuses(statusMap, appMap)
-
-	return statusMap
-}
-
-func getResourceStatusMap(appset *argov1alpha1.ApplicationSet) map[string]argov1alpha1.ResourceStatus {
-	statusMap := map[string]argov1alpha1.ResourceStatus{}
-	for _, status := range appset.Status.Resources {
-		statusMap[status.Name] = status
-	}
-	return statusMap
-}
-
-func cleanupDeletedApplicationStatuses(statusMap map[string]argov1alpha1.ResourceStatus, apps map[string]argov1alpha1.Application) {
-	for name := range statusMap {
-		if _, ok := apps[name]; !ok {
-			delete(statusMap, name)
-		}
-	}
 }
 
 // setApplicationSetApplicationStatus updates the ApplicationSet's status field
