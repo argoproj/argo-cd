@@ -23,6 +23,8 @@ type SecretMaperValidation struct {
 	Transform func(string) string
 }
 
+//go:generate go run github.com/vektra/mockery/v2@v2.40.2 --name ArgoDB
+
 type ArgoDB interface {
 	// ListClusters lists configured clusters
 	ListClusters(ctx context.Context) (*appv1.ClusterList, error)

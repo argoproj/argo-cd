@@ -330,12 +330,69 @@ func (m *ApplicationSetDeleteRequest) GetAppsetNamespace() string {
 	return ""
 }
 
+type ApplicationSetTreeQuery struct {
+	Name string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	// The application set namespace. Default empty is argocd control plane namespace
+	AppsetNamespace      string   `protobuf:"bytes,2,opt,name=appsetNamespace,proto3" json:"appsetNamespace,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *ApplicationSetTreeQuery) Reset()         { *m = ApplicationSetTreeQuery{} }
+func (m *ApplicationSetTreeQuery) String() string { return proto.CompactTextString(m) }
+func (*ApplicationSetTreeQuery) ProtoMessage()    {}
+func (*ApplicationSetTreeQuery) Descriptor() ([]byte, []int) {
+	return fileDescriptor_eacb9df0ce5738fa, []int{5}
+}
+func (m *ApplicationSetTreeQuery) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *ApplicationSetTreeQuery) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_ApplicationSetTreeQuery.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *ApplicationSetTreeQuery) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ApplicationSetTreeQuery.Merge(m, src)
+}
+func (m *ApplicationSetTreeQuery) XXX_Size() int {
+	return m.Size()
+}
+func (m *ApplicationSetTreeQuery) XXX_DiscardUnknown() {
+	xxx_messageInfo_ApplicationSetTreeQuery.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_ApplicationSetTreeQuery proto.InternalMessageInfo
+
+func (m *ApplicationSetTreeQuery) GetName() string {
+	if m != nil {
+		return m.Name
+	}
+	return ""
+}
+
+func (m *ApplicationSetTreeQuery) GetAppsetNamespace() string {
+	if m != nil {
+		return m.AppsetNamespace
+	}
+	return ""
+}
+
 func init() {
 	proto.RegisterType((*ApplicationSetGetQuery)(nil), "applicationset.ApplicationSetGetQuery")
 	proto.RegisterType((*ApplicationSetListQuery)(nil), "applicationset.ApplicationSetListQuery")
 	proto.RegisterType((*ApplicationSetResponse)(nil), "applicationset.ApplicationSetResponse")
 	proto.RegisterType((*ApplicationSetCreateRequest)(nil), "applicationset.ApplicationSetCreateRequest")
 	proto.RegisterType((*ApplicationSetDeleteRequest)(nil), "applicationset.ApplicationSetDeleteRequest")
+	proto.RegisterType((*ApplicationSetTreeQuery)(nil), "applicationset.ApplicationSetTreeQuery")
 }
 
 func init() {
@@ -400,6 +457,8 @@ type ApplicationSetServiceClient interface {
 	Create(ctx context.Context, in *ApplicationSetCreateRequest, opts ...grpc.CallOption) (*v1alpha1.ApplicationSet, error)
 	// Delete deletes an application set
 	Delete(ctx context.Context, in *ApplicationSetDeleteRequest, opts ...grpc.CallOption) (*ApplicationSetResponse, error)
+	// ResourceTree returns resource tree
+	ResourceTree(ctx context.Context, in *ApplicationSetTreeQuery, opts ...grpc.CallOption) (*v1alpha1.ApplicationSetTree, error)
 }
 
 type applicationSetServiceClient struct {
@@ -446,6 +505,15 @@ func (c *applicationSetServiceClient) Delete(ctx context.Context, in *Applicatio
 	return out, nil
 }
 
+func (c *applicationSetServiceClient) ResourceTree(ctx context.Context, in *ApplicationSetTreeQuery, opts ...grpc.CallOption) (*v1alpha1.ApplicationSetTree, error) {
+	out := new(v1alpha1.ApplicationSetTree)
+	err := c.cc.Invoke(ctx, "/applicationset.ApplicationSetService/ResourceTree", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // ApplicationSetServiceServer is the server API for ApplicationSetService service.
 type ApplicationSetServiceServer interface {
 	// Get returns an applicationset by name
@@ -456,6 +524,8 @@ type ApplicationSetServiceServer interface {
 	Create(context.Context, *ApplicationSetCreateRequest) (*v1alpha1.ApplicationSet, error)
 	// Delete deletes an application set
 	Delete(context.Context, *ApplicationSetDeleteRequest) (*ApplicationSetResponse, error)
+	// ResourceTree returns resource tree
+	ResourceTree(context.Context, *ApplicationSetTreeQuery) (*v1alpha1.ApplicationSetTree, error)
 }
 
 // UnimplementedApplicationSetServiceServer can be embedded to have forward compatible implementations.
@@ -473,6 +543,9 @@ func (*UnimplementedApplicationSetServiceServer) Create(ctx context.Context, req
 }
 func (*UnimplementedApplicationSetServiceServer) Delete(ctx context.Context, req *ApplicationSetDeleteRequest) (*ApplicationSetResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Delete not implemented")
+}
+func (*UnimplementedApplicationSetServiceServer) ResourceTree(ctx context.Context, req *ApplicationSetTreeQuery) (*v1alpha1.ApplicationSetTree, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ResourceTree not implemented")
 }
 
 func RegisterApplicationSetServiceServer(s *grpc.Server, srv ApplicationSetServiceServer) {
@@ -551,6 +624,24 @@ func _ApplicationSetService_Delete_Handler(srv interface{}, ctx context.Context,
 	return interceptor(ctx, in, info, handler)
 }
 
+func _ApplicationSetService_ResourceTree_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ApplicationSetTreeQuery)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ApplicationSetServiceServer).ResourceTree(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/applicationset.ApplicationSetService/ResourceTree",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ApplicationSetServiceServer).ResourceTree(ctx, req.(*ApplicationSetTreeQuery))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 var _ApplicationSetService_serviceDesc = grpc.ServiceDesc{
 	ServiceName: "applicationset.ApplicationSetService",
 	HandlerType: (*ApplicationSetServiceServer)(nil),
@@ -570,6 +661,10 @@ var _ApplicationSetService_serviceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "Delete",
 			Handler:    _ApplicationSetService_Delete_Handler,
+		},
+		{
+			MethodName: "ResourceTree",
+			Handler:    _ApplicationSetService_ResourceTree_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
@@ -813,6 +908,47 @@ func (m *ApplicationSetDeleteRequest) MarshalToSizedBuffer(dAtA []byte) (int, er
 	return len(dAtA) - i, nil
 }
 
+func (m *ApplicationSetTreeQuery) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *ApplicationSetTreeQuery) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *ApplicationSetTreeQuery) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if m.XXX_unrecognized != nil {
+		i -= len(m.XXX_unrecognized)
+		copy(dAtA[i:], m.XXX_unrecognized)
+	}
+	if len(m.AppsetNamespace) > 0 {
+		i -= len(m.AppsetNamespace)
+		copy(dAtA[i:], m.AppsetNamespace)
+		i = encodeVarintApplicationset(dAtA, i, uint64(len(m.AppsetNamespace)))
+		i--
+		dAtA[i] = 0x12
+	}
+	if len(m.Name) > 0 {
+		i -= len(m.Name)
+		copy(dAtA[i:], m.Name)
+		i = encodeVarintApplicationset(dAtA, i, uint64(len(m.Name)))
+		i--
+		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
+}
+
 func encodeVarintApplicationset(dAtA []byte, offset int, v uint64) int {
 	offset -= sovApplicationset(v)
 	base := offset
@@ -913,6 +1049,26 @@ func (m *ApplicationSetCreateRequest) Size() (n int) {
 }
 
 func (m *ApplicationSetDeleteRequest) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	l = len(m.Name)
+	if l > 0 {
+		n += 1 + l + sovApplicationset(uint64(l))
+	}
+	l = len(m.AppsetNamespace)
+	if l > 0 {
+		n += 1 + l + sovApplicationset(uint64(l))
+	}
+	if m.XXX_unrecognized != nil {
+		n += len(m.XXX_unrecognized)
+	}
+	return n
+}
+
+func (m *ApplicationSetTreeQuery) Size() (n int) {
 	if m == nil {
 		return 0
 	}
@@ -1473,6 +1629,121 @@ func (m *ApplicationSetDeleteRequest) Unmarshal(dAtA []byte) error {
 		}
 		if fieldNum <= 0 {
 			return fmt.Errorf("proto: ApplicationSetDeleteRequest: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Name", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowApplicationset
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthApplicationset
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthApplicationset
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Name = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 2:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field AppsetNamespace", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowApplicationset
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthApplicationset
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthApplicationset
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.AppsetNamespace = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipApplicationset(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthApplicationset
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.XXX_unrecognized = append(m.XXX_unrecognized, dAtA[iNdEx:iNdEx+skippy]...)
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *ApplicationSetTreeQuery) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowApplicationset
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: ApplicationSetTreeQuery: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: ApplicationSetTreeQuery: illegal tag %d (wire type %d)", fieldNum, wire)
 		}
 		switch fieldNum {
 		case 1:

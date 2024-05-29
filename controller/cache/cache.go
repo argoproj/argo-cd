@@ -33,12 +33,15 @@ import (
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
 	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/util/argo"
+	"github.com/argoproj/argo-cd/v2/util/argo/normalizers"
 	"github.com/argoproj/argo-cd/v2/util/db"
 	"github.com/argoproj/argo-cd/v2/util/env"
 	logutils "github.com/argoproj/argo-cd/v2/util/log"
 	"github.com/argoproj/argo-cd/v2/util/lua"
 	"github.com/argoproj/argo-cd/v2/util/settings"
 )
+
+//go:generate go run github.com/vektra/mockery/v2@v2.40.2 --name=LiveStateCache
 
 const (
 	// EnvClusterCacheResyncDuration is the env variable that holds cluster cache re-sync duration
@@ -197,14 +200,15 @@ type cacheSettings struct {
 }
 
 type liveStateCache struct {
-	db               db.ArgoDB
-	appInformer      cache.SharedIndexInformer
-	onObjectUpdated  ObjectUpdatedHandler
-	kubectl          kube.Kubectl
-	settingsMgr      *settings.SettingsManager
-	metricsServer    *metrics.MetricsServer
-	clusterSharding  sharding.ClusterShardingCache
-	resourceTracking argo.ResourceTracking
+	db                   db.ArgoDB
+	appInformer          cache.SharedIndexInformer
+	onObjectUpdated      ObjectUpdatedHandler
+	kubectl              kube.Kubectl
+	settingsMgr          *settings.SettingsManager
+	metricsServer        *metrics.MetricsServer
+	clusterSharding      sharding.ClusterShardingCache
+	resourceTracking     argo.ResourceTracking
+	ignoreNormalizerOpts normalizers.IgnoreNormalizerOpts
 
 	clusters      map[string]clustercache.ClusterCache
 	cacheSettings cacheSettings
@@ -288,7 +292,8 @@ func isRootAppNode(r *clustercache.Resource) bool {
 }
 
 func getApp(r *clustercache.Resource, ns map[kube.ResourceKey]*clustercache.Resource) string {
-	return getAppRecursive(r, ns, map[kube.ResourceKey]bool{})
+	name, _ := getAppRecursive(r, ns, map[kube.ResourceKey]bool{})
+	return name
 }
 
 func ownerRefGV(ownerRef metav1.OwnerReference) schema.GroupVersion {
@@ -299,27 +304,31 @@ func ownerRefGV(ownerRef metav1.OwnerReference) schema.GroupVersion {
 	return gv
 }
 
-func getAppRecursive(r *clustercache.Resource, ns map[kube.ResourceKey]*clustercache.Resource, visited map[kube.ResourceKey]bool) string {
+func getAppRecursive(r *clustercache.Resource, ns map[kube.ResourceKey]*clustercache.Resource, visited map[kube.ResourceKey]bool) (string, bool) {
 	if !visited[r.ResourceKey()] {
 		visited[r.ResourceKey()] = true
 	} else {
 		log.Warnf("Circular dependency detected: %v.", visited)
-		return resInfo(r).AppName
+		return resInfo(r).AppName, false
 	}
 
 	if resInfo(r).AppName != "" {
-		return resInfo(r).AppName
+		return resInfo(r).AppName, true
 	}
 	for _, ownerRef := range r.OwnerRefs {
 		gv := ownerRefGV(ownerRef)
 		if parent, ok := ns[kube.NewResourceKey(gv.Group, ownerRef.Kind, r.Ref.Namespace, ownerRef.Name)]; ok {
-			app := getAppRecursive(parent, ns, visited)
-			if app != "" {
-				return app
+			visited_branch := make(map[kube.ResourceKey]bool, len(visited))
+			for k, v := range visited {
+				visited_branch[k] = v
+			}
+			app, ok := getAppRecursive(parent, ns, visited_branch)
+			if app != "" || !ok {
+				return app, ok
 			}
 		}
 	}
-	return ""
+	return "", true
 }
 
 var (
@@ -372,7 +381,12 @@ func isRetryableError(err error) bool {
 		isResourceQuotaConflictErr(err) ||
 		isTransientNetworkErr(err) ||
 		isExceededQuotaErr(err) ||
+		isHTTP2GoawayErr(err) ||
 		errors.Is(err, syscall.ECONNRESET)
+}
+
+func isHTTP2GoawayErr(err error) bool {
+	return strings.Contains(err.Error(), "http2: server sent GOAWAY and closed the connection")
 }
 
 func isExceededQuotaErr(err error) bool {
@@ -432,6 +446,10 @@ func (c *liveStateCache) getCluster(server string) (clustercache.ClusterCache, e
 		return nil, fmt.Errorf("error getting cluster: %w", err)
 	}
 
+	if c.clusterSharding == nil {
+		return nil, fmt.Errorf("unable to handle cluster %s: cluster sharding is not configured", cluster.Server)
+	}
+
 	if !c.canHandleCluster(cluster) {
 		return nil, fmt.Errorf("controller is configured to ignore cluster %s", cluster.Server)
 	}
@@ -487,7 +505,7 @@ func (c *liveStateCache) getCluster(server string) (clustercache.ClusterCache, e
 			gvk := un.GroupVersionKind()
 
 			if cacheSettings.ignoreResourceUpdatesEnabled && shouldHashManifest(appName, gvk) {
-				hash, err := generateManifestHash(un, nil, cacheSettings.resourceOverrides)
+				hash, err := generateManifestHash(un, nil, cacheSettings.resourceOverrides, c.ignoreNormalizerOpts)
 				if err != nil {
 					log.Errorf("Failed to generate manifest hash: %v", err)
 				} else {
@@ -751,7 +769,7 @@ func (c *liveStateCache) handleAddEvent(cluster *appv1.Cluster) {
 }
 
 func (c *liveStateCache) handleModEvent(oldCluster *appv1.Cluster, newCluster *appv1.Cluster) {
-	c.clusterSharding.Update(newCluster)
+	c.clusterSharding.Update(oldCluster, newCluster)
 	c.lock.Lock()
 	cluster, ok := c.clusters[newCluster.Server]
 	c.lock.Unlock()

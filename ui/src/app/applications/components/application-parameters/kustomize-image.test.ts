@@ -1,4 +1,4 @@
-import { format, parse } from './kustomize-image';
+import {format, parse} from './kustomize-image';
 
 test('parse image version override', () => {
     const image = parse('foo/bar:v1.0.0');
@@ -8,7 +8,7 @@ test('parse image version override', () => {
 });
 
 test('format image version override', () => {
-    const formatted = format({ name: 'foo/bar', newTag: 'v1.0.0' });
+    const formatted = format({name: 'foo/bar', newTag: 'v1.0.0'});
     expect(formatted).toBe('foo/bar:v1.0.0');
 });
 
@@ -21,7 +21,7 @@ test('parse image name override', () => {
 });
 
 test('format image name override', () => {
-    const formatted = format({ name: 'foo/bar', newTag: 'v1.0.0', newName: 'foo/bar1' });
+    const formatted = format({name: 'foo/bar', newTag: 'v1.0.0', newName: 'foo/bar1'});
     expect(formatted).toBe('foo/bar=foo/bar1:v1.0.0');
 });
 
@@ -33,6 +33,6 @@ test('parse image digest override', () => {
 });
 
 test('format image digest override', () => {
-    const formatted = format({ name: 'foo/bar', digest: 'sha:123' });
+    const formatted = format({name: 'foo/bar', digest: 'sha:123'});
     expect(formatted).toBe('foo/bar@sha:123');
 });

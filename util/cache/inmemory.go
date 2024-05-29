@@ -20,7 +20,7 @@ func init() {
 	gob.Register([]interface{}{})
 }
 
-// compile-time validation of adherance of the CacheClient contract
+// compile-time validation of adherence of the CacheClient contract
 var _ CacheClient = &InMemoryCache{}
 
 type InMemoryCache struct {
@@ -33,7 +33,12 @@ func (i *InMemoryCache) Set(item *Item) error {
 	if err != nil {
 		return err
 	}
-	i.memCache.Set(item.Key, buf, item.Expiration)
+	if item.CacheActionOpts.DisableOverwrite {
+		// go-redis doesn't throw an error on Set with NX, so absorbing here to keep the interface consistent
+		_ = i.memCache.Add(item.Key, buf, item.CacheActionOpts.Expiration)
+	} else {
+		i.memCache.Set(item.Key, buf, item.CacheActionOpts.Expiration)
+	}
 	return nil
 }
 

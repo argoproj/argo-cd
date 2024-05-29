@@ -1,0 +1,21 @@
+tests:
+- healthStatus:
+    status: Progressing
+    message: "Creating HorizontalPodAutoscaler Object"
+  inputPath: testdata/keda-progressing.yaml
+- healthStatus:
+    status: Degraded
+    message: "ScaledObject doesn't have correct Idle/Min/Max Replica Counts specification"
+  inputPath: testdata/keda-degraded-1.yaml
+- healthStatus:
+    status: Degraded
+    message: "ScaledObject doesn't have correct triggers specification"
+  inputPath: testdata/keda-degraded.yaml
+- healthStatus:
+    status: Healthy
+    message: "ScaledObject is defined correctly and is ready for scaling"
+  inputPath: testdata/keda-healthy.yaml
+- healthStatus:
+    status: Suspended
+    message: "ScaledObject is paused"
+  inputPath: testdata/keda-suspended.yaml
