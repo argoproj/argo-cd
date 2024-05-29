@@ -162,6 +162,7 @@ func newTestAppSetServerWithEnforcerConfigure(f func(*rbac.Enforcer), namespace 
 		"",
 		[]string{},
 		true,
+		argo.TestEnableEventLog(),
 	)
 	return server.(*Server)
 }
