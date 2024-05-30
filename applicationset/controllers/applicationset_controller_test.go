@@ -1501,9 +1501,6 @@ func TestCreateApplications(t *testing.T) {
 						Name:      "app1",
 						Namespace: "namespace",
 					},
-					Spec: v1alpha1.ApplicationSpec{
-						Project: "default",
-					},
 				},
 			},
 			expected: []v1alpha1.Application{
