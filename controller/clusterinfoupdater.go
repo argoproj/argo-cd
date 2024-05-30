@@ -3,8 +3,9 @@ package controller
 import (
 	"context"
 	"fmt"
-	"github.com/argoproj/argo-cd/v2/common"
 	"time"
+
+	"github.com/argoproj/argo-cd/v2/common"
 
 	"github.com/argoproj/argo-cd/v2/util/env"
 	"github.com/argoproj/gitops-engine/pkg/cache"

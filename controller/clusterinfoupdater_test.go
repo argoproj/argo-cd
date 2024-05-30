@@ -36,11 +36,13 @@ func TestClusterSecretUpdater(t *testing.T) {
 	var tests = []struct {
 		LastCacheSyncTime *time.Time
 		SyncError         error
+		ConnectionStatus  clustercache.ConnectionStatus
 		ExpectedStatus    v1alpha1.ConnectionStatus
 	}{
-		{nil, nil, v1alpha1.ConnectionStatusUnknown},
-		{&now, nil, v1alpha1.ConnectionStatusSuccessful},
-		{&now, fmt.Errorf("sync failed"), v1alpha1.ConnectionStatusFailed},
+		{nil, nil, clustercache.ConnectionStatusUnknown, v1alpha1.ConnectionStatusUnknown},
+		{&now, nil, clustercache.ConnectionStatusSuccessful, v1alpha1.ConnectionStatusSuccessful},
+		{&now, fmt.Errorf("sync failed"), clustercache.ConnectionStatusSuccessful, v1alpha1.ConnectionStatusFailed},
+		{&now, nil, clustercache.ConnectionStatusFailed, v1alpha1.ConnectionStatusFailed},
 	}
 
 	emptyArgoCDConfigMap := &v1.ConfigMap{
@@ -78,12 +80,27 @@ func TestClusterSecretUpdater(t *testing.T) {
 	cluster, err := argoDB.CreateCluster(ctx, &v1alpha1.Cluster{Server: "http://minikube"})
 	assert.NoError(t, err, "Test prepare test data create cluster failed")
 
+	fakeApp := &v1alpha1.Application{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "fake-app",
+			Namespace: fakeNamespace,
+		},
+		Spec: v1alpha1.ApplicationSpec{
+			Destination: v1alpha1.ApplicationDestination{
+				Server: cluster.Server,
+			},
+		},
+	}
+	err = appInformer.GetIndexer().Add(fakeApp)
+	assert.NoError(t, err)
+
 	for _, test := range tests {
 		info := &clustercache.ClusterInfo{
 			Server:            cluster.Server,
 			K8SVersion:        updatedK8sVersion,
 			LastCacheSyncTime: test.LastCacheSyncTime,
 			SyncError:         test.SyncError,
+			ConnectionStatus:  test.ConnectionStatus,
 		}
 
 		lister := applisters.NewApplicationLister(appInformer.GetIndexer()).Applications(fakeNamespace)
