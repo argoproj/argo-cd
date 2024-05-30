@@ -5,9 +5,9 @@ import (
 	"testing"
 
 	"github.com/argoproj/argo-cd/v2/applicationset/generators"
-	"github.com/argoproj/argo-cd/v2/applicationset/generators/mocks"
+	genmock "github.com/argoproj/argo-cd/v2/applicationset/generators/mocks"
 	"github.com/argoproj/argo-cd/v2/applicationset/utils"
-	"github.com/argoproj/argo-cd/v2/applicationset/utils/mocks"
+	rendmock "github.com/argoproj/argo-cd/v2/applicationset/utils/mocks"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/util/collections"
@@ -83,7 +83,7 @@ func TestGenerateApplications(t *testing.T) {
 
 		t.Run(cc.name, func(t *testing.T) {
 
-			generatorMock := mocks.GeneratorMock{}
+			generatorMock := genmock.GeneratorMock{}
 			generator := v1alpha1.ApplicationSetGenerator{
 				List: &v1alpha1.ListGenerator{},
 			}
@@ -94,7 +94,7 @@ func TestGenerateApplications(t *testing.T) {
 			generatorMock.On("GetTemplate", &generator).
 				Return(&v1alpha1.ApplicationSetTemplate{})
 
-			rendererMock := mocks.RendererMock{}
+			rendererMock := rendmock.RendererMock{}
 
 			var expectedApps []v1alpha1.Application
 
@@ -201,7 +201,7 @@ func TestMergeTemplateApplications(t *testing.T) {
 
 		t.Run(cc.name, func(t *testing.T) {
 
-			generatorMock := mocks.GeneratorMock{}
+			generatorMock := genmock.GeneratorMock{}
 			generator := v1alpha1.ApplicationSetGenerator{
 				List: &v1alpha1.ListGenerator{},
 			}
@@ -212,7 +212,7 @@ func TestMergeTemplateApplications(t *testing.T) {
 			generatorMock.On("GetTemplate", &generator).
 				Return(&cc.overrideTemplate)
 
-			rendererMock := mocks.RendererMock{}
+			rendererMock := rendmock.RendererMock{}
 
 			rendererMock.On("RenderTemplateParams", GetTempApplication(cc.expectedMerged), cc.params[0], false, []string(nil)).
 				Return(&cc.expectedApps[0], nil)
@@ -312,7 +312,7 @@ func TestGenerateAppsUsingPullRequestGenerator(t *testing.T) {
 
 		t.Run(cases.name, func(t *testing.T) {
 
-			generatorMock := mocks.GeneratorMock{}
+			generatorMock := genmock.GeneratorMock{}
 			generator := v1alpha1.ApplicationSetGenerator{
 				PullRequest: &v1alpha1.PullRequestGenerator{},
 			}
