@@ -1,0 +1,13 @@
+tests:
+- healthStatus:
+    status: Progressing
+    message: "Waiting for Integration"
+  inputPath: testdata/progressing.yaml
+- healthStatus:
+    status: Healthy
+    message: ""
+  inputPath: testdata/healthy.yaml
+- healthStatus:
+    status: Degraded
+    message: "back-off 40s restarting failed container=integration pod=camelk-example-deployment"
+  inputPath: testdata/degraded.yaml
