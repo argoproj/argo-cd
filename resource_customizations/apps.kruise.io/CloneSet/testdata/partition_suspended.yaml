@@ -1,0 +1,31 @@
+apiVersion: apps.kruise.io/v1alpha1
+kind: CloneSet
+metadata:
+  name: cloneset-test
+  namespace: kruise
+  generation: 2
+  labels:
+    app: sample
+spec:
+  replicas: 5
+  selector:
+    matchLabels:
+      app: sample
+  template:
+    metadata:
+      labels:
+        app: sample
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:alpine
+  updateStrategy:
+    partition: 3
+
+status:
+  observedGeneration: 2
+  replicas: 5
+  expectedUpdatedReplicas: 2
+  updatedReadyReplicas: 1
+  updatedAvailableReplicas: 1
+  updatedReplicas: 3

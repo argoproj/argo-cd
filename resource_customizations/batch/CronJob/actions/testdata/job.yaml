@@ -8,6 +8,7 @@
       labels:
         my: label
       annotations:
+        cronjob.kubernetes.io/instantiate: manual
         my: annotation
     spec:
       ttlSecondsAfterFinished: 100

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"net/url"
 	"regexp"
 	"strings"
 
@@ -12,7 +13,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/notification/expression/shared"
 
 	"github.com/argoproj/notifications-engine/pkg/util/text"
-	giturls "github.com/whilp/git-urls"
+	giturls "github.com/chainguard-dev/git-urls"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
@@ -22,25 +23,25 @@ var (
 	gitSuffix = regexp.MustCompile(`\.git$`)
 )
 
-func getApplicationSource(obj *unstructured.Unstructured) (*v1alpha1.ApplicationSource, error) {
+func getApplicationSourceAndName(obj *unstructured.Unstructured) (*v1alpha1.ApplicationSource, string, error) {
 	data, err := json.Marshal(obj)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 	application := &v1alpha1.Application{}
 	err = json.Unmarshal(data, application)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
-	return application.Spec.GetSourcePtr(), nil
+	return application.Spec.GetSourcePtrByIndex(0), application.GetName(), nil
 }
 
 func getAppDetails(app *unstructured.Unstructured, argocdService service.Service) (*shared.AppDetail, error) {
-	appSource, err := getApplicationSource(app)
+	appSource, appName, err := getApplicationSourceAndName(app)
 	if err != nil {
 		return nil, err
 	}
-	appDetail, err := argocdService.GetAppDetails(context.Background(), appSource)
+	appDetail, err := argocdService.GetAppDetails(context.Background(), appSource, appName)
 	if err != nil {
 		return nil, err
 	}
@@ -90,6 +91,7 @@ func NewExprs(argocdService service.Service, app *unstructured.Unstructured) map
 	return map[string]interface{}{
 		"RepoURLToHTTPS":    repoURLToHTTPS,
 		"FullNameByRepoURL": FullNameByRepoURL,
+		"QueryEscape":       url.QueryEscape,
 		"GetCommitMetadata": func(commitSHA string) interface{} {
 			meta, err := getCommitMetadata(commitSHA, app, argocdService)
 			if err != nil {

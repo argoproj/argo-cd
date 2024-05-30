@@ -568,7 +568,7 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) {
 	opt := newTestOption(opts...)
 	// In large scenarios, we can skip tests that already run
 	SkipIfAlreadyRun(t)
-	// Register this test after it has been run & was successfull
+	// Register this test after it has been run & was successful
 	t.Cleanup(func() {
 		RecordTestRun(t)
 	})
@@ -938,8 +938,8 @@ func RestartRepoServer() {
 		if prefix != "" {
 			workload = prefix + "-repo-server"
 		}
-		FailOnErr(Run("", "kubectl", "rollout", "restart", "deployment", workload))
-		FailOnErr(Run("", "kubectl", "rollout", "status", "deployment", workload))
+		FailOnErr(Run("", "kubectl", "rollout", "-n", TestNamespace(), "restart", "deployment", workload))
+		FailOnErr(Run("", "kubectl", "rollout", "-n", TestNamespace(), "status", "deployment", workload))
 		// wait longer to avoid error on s390x
 		time.Sleep(10 * time.Second)
 	}
@@ -955,8 +955,8 @@ func RestartAPIServer() {
 		if prefix != "" {
 			workload = prefix + "-server"
 		}
-		FailOnErr(Run("", "kubectl", "rollout", "restart", "deployment", workload))
-		FailOnErr(Run("", "kubectl", "rollout", "status", "deployment", workload))
+		FailOnErr(Run("", "kubectl", "rollout", "-n", TestNamespace(), "restart", "deployment", workload))
+		FailOnErr(Run("", "kubectl", "rollout", "-n", TestNamespace(), "status", "deployment", workload))
 	}
 }
 

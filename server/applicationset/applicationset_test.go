@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/argoproj/gitops-engine/pkg/health"
 	"github.com/argoproj/pkg/sync"
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
@@ -38,7 +39,7 @@ func fakeRepo() *appsv1.Repository {
 
 func fakeCluster() *appsv1.Cluster {
 	return &appsv1.Cluster{
-		Server: "https://cluster-api.com",
+		Server: "https://cluster-api.example.com",
 		Name:   "fake-cluster",
 		Config: appsv1.ClusterConfig{},
 	}
@@ -50,10 +51,21 @@ func newTestAppSetServer(objects ...runtime.Object) *Server {
 		_ = enf.SetBuiltinPolicy(assets.BuiltinPolicyCSV)
 		enf.SetDefaultRole("role:admin")
 	}
-	return newTestAppSetServerWithEnforcerConfigure(f, objects...)
+	scopedNamespaces := ""
+	return newTestAppSetServerWithEnforcerConfigure(f, scopedNamespaces, objects...)
 }
 
-func newTestAppSetServerWithEnforcerConfigure(f func(*rbac.Enforcer), objects ...runtime.Object) *Server {
+// return an ApplicationServiceServer which returns fake data
+func newTestNamespacedAppSetServer(objects ...runtime.Object) *Server {
+	f := func(enf *rbac.Enforcer) {
+		_ = enf.SetBuiltinPolicy(assets.BuiltinPolicyCSV)
+		enf.SetDefaultRole("role:admin")
+	}
+	scopedNamespaces := "argocd"
+	return newTestAppSetServerWithEnforcerConfigure(f, scopedNamespaces, objects...)
+}
+
+func newTestAppSetServerWithEnforcerConfigure(f func(*rbac.Enforcer), namespace string, objects ...runtime.Object) *Server {
 	kubeclientset := fake.NewSimpleClientset(&v1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: testNamespace,
@@ -97,7 +109,7 @@ func newTestAppSetServerWithEnforcerConfigure(f func(*rbac.Enforcer), objects ..
 	objects = append(objects, defaultProj, myProj)
 
 	fakeAppsClientset := apps.NewSimpleClientset(objects...)
-	factory := appinformer.NewSharedInformerFactoryWithOptions(fakeAppsClientset, 0, appinformer.WithNamespace(""), appinformer.WithTweakListOptions(func(options *metav1.ListOptions) {}))
+	factory := appinformer.NewSharedInformerFactoryWithOptions(fakeAppsClientset, 0, appinformer.WithNamespace(namespace), appinformer.WithTweakListOptions(func(options *metav1.ListOptions) {}))
 	fakeProjLister := factory.Argoproj().V1alpha1().AppProjects().Lister().AppProjects(testNamespace)
 
 	enforcer := rbac.NewEnforcer(kubeclientset, testNamespace, common.ArgoCDRBACConfigMapName, nil)
@@ -114,6 +126,12 @@ func newTestAppSetServerWithEnforcerConfigure(f func(*rbac.Enforcer), objects ..
 	if !k8scache.WaitForCacheSync(ctx.Done(), appInformer.HasSynced) {
 		panic("Timed out waiting for caches to sync")
 	}
+	// populate the appset informer with the fake objects
+	appsetInformer := factory.Argoproj().V1alpha1().ApplicationSets().Informer()
+	go appsetInformer.Run(ctx.Done())
+	if !k8scache.WaitForCacheSync(ctx.Done(), appsetInformer.HasSynced) {
+		panic("Timed out waiting for caches to sync")
+	}
 
 	projInformer := factory.Argoproj().V1alpha1().AppProjects().Informer()
 	go projInformer.Run(ctx.Done())
@@ -125,11 +143,9 @@ func newTestAppSetServerWithEnforcerConfigure(f func(*rbac.Enforcer), objects ..
 		db,
 		kubeclientset,
 		enforcer,
-		nil,
 		fakeAppsClientset,
-		factory.Argoproj().V1alpha1().Applications().Lister(),
 		appInformer,
-		factory.Argoproj().V1alpha1().ApplicationSets().Lister().ApplicationSets(testNamespace),
+		factory.Argoproj().V1alpha1().ApplicationSets().Lister(),
 		fakeProjLister,
 		settingsMgr,
 		testNamespace,
@@ -223,21 +239,22 @@ func testListAppsetsWithLabels(t *testing.T, appsetQuery applicationset.Applicat
 }
 
 func TestListAppSetsInNamespaceWithLabels(t *testing.T) {
+	testNamespace := "test-namespace"
 	appSetServer := newTestAppSetServer(newTestAppSet(func(appset *appsv1.ApplicationSet) {
 		appset.Name = "AppSet1"
-		appset.ObjectMeta.Namespace = "test-namespace"
+		appset.ObjectMeta.Namespace = testNamespace
 		appset.SetLabels(map[string]string{"key1": "value1", "key2": "value1"})
 	}), newTestAppSet(func(appset *appsv1.ApplicationSet) {
 		appset.Name = "AppSet2"
-		appset.ObjectMeta.Namespace = "test-namespace"
+		appset.ObjectMeta.Namespace = testNamespace
 		appset.SetLabels(map[string]string{"key1": "value2"})
 	}), newTestAppSet(func(appset *appsv1.ApplicationSet) {
 		appset.Name = "AppSet3"
-		appset.ObjectMeta.Namespace = "test-namespace"
+		appset.ObjectMeta.Namespace = testNamespace
 		appset.SetLabels(map[string]string{"key1": "value3"})
 	}))
-	appSetServer.ns = "test-namespace"
-	appsetQuery := applicationset.ApplicationSetListQuery{AppsetNamespace: "test-namespace"}
+	appSetServer.enabledNamespaces = []string{testNamespace}
+	appsetQuery := applicationset.ApplicationSetListQuery{AppsetNamespace: testNamespace}
 
 	testListAppsetsWithLabels(t, appsetQuery, appSetServer)
 }
@@ -256,6 +273,32 @@ func TestListAppSetsInDefaultNSWithLabels(t *testing.T) {
 	appsetQuery := applicationset.ApplicationSetListQuery{}
 
 	testListAppsetsWithLabels(t, appsetQuery, appSetServer)
+}
+
+// This test covers https://github.com/argoproj/argo-cd/issues/15429
+// If the namespace isn't provided during listing action, argocd's
+// default namespace must be used and not all the namespaces
+func TestListAppSetsWithoutNamespace(t *testing.T) {
+	testNamespace := "test-namespace"
+	appSetServer := newTestNamespacedAppSetServer(newTestAppSet(func(appset *appsv1.ApplicationSet) {
+		appset.Name = "AppSet1"
+		appset.ObjectMeta.Namespace = testNamespace
+		appset.SetLabels(map[string]string{"key1": "value1", "key2": "value1"})
+	}), newTestAppSet(func(appset *appsv1.ApplicationSet) {
+		appset.Name = "AppSet2"
+		appset.ObjectMeta.Namespace = testNamespace
+		appset.SetLabels(map[string]string{"key1": "value2"})
+	}), newTestAppSet(func(appset *appsv1.ApplicationSet) {
+		appset.Name = "AppSet3"
+		appset.ObjectMeta.Namespace = testNamespace
+		appset.SetLabels(map[string]string{"key1": "value3"})
+	}))
+	appSetServer.enabledNamespaces = []string{testNamespace}
+	appsetQuery := applicationset.ApplicationSetListQuery{}
+
+	res, err := appSetServer.List(context.Background(), &appsetQuery)
+	assert.NoError(t, err)
+	assert.Equal(t, 0, len(res.Items))
 }
 
 func TestCreateAppSet(t *testing.T) {
@@ -431,4 +474,91 @@ func TestUpdateAppSet(t *testing.T) {
 		}, updated.Labels)
 	})
 
+}
+
+func TestResourceTree(t *testing.T) {
+	appSet1 := newTestAppSet(func(appset *appsv1.ApplicationSet) {
+		appset.Name = "AppSet1"
+		appset.Status.Resources = []appsv1.ResourceStatus{
+			{
+				Name:      "app1",
+				Kind:      "Application",
+				Group:     "argoproj.io",
+				Version:   "v1alpha1",
+				Namespace: "default",
+				Health: &appsv1.HealthStatus{
+					Status:  health.HealthStatusHealthy,
+					Message: "OK",
+				},
+				Status: appsv1.SyncStatusCodeSynced,
+			},
+		}
+	})
+
+	appSet2 := newTestAppSet(func(appset *appsv1.ApplicationSet) {
+		appset.Name = "AppSet2"
+	})
+
+	appSet3 := newTestAppSet(func(appset *appsv1.ApplicationSet) {
+		appset.Name = "AppSet3"
+	})
+
+	expectedTree := &appsv1.ApplicationSetTree{
+		Nodes: []appsv1.ResourceNode{
+			{
+				ResourceRef: appsv1.ResourceRef{
+					Kind:      "Application",
+					Group:     "argoproj.io",
+					Version:   "v1alpha1",
+					Namespace: "default",
+					Name:      "app1",
+				},
+				ParentRefs: []appsv1.ResourceRef{
+					{
+						Kind:      "ApplicationSet",
+						Group:     "argoproj.io",
+						Version:   "v1alpha1",
+						Namespace: "default",
+						Name:      "AppSet1",
+					},
+				},
+				Health: &appsv1.HealthStatus{
+					Status:  health.HealthStatusHealthy,
+					Message: "OK",
+				},
+			},
+		},
+	}
+
+	t.Run("ResourceTree in default namespace", func(t *testing.T) {
+
+		appSetServer := newTestAppSetServer(appSet1, appSet2, appSet3)
+
+		appsetQuery := applicationset.ApplicationSetTreeQuery{Name: "AppSet1"}
+
+		res, err := appSetServer.ResourceTree(context.Background(), &appsetQuery)
+		assert.NoError(t, err)
+		assert.Equal(t, expectedTree, res)
+	})
+
+	t.Run("ResourceTree in named namespace", func(t *testing.T) {
+
+		appSetServer := newTestAppSetServer(appSet1, appSet2, appSet3)
+
+		appsetQuery := applicationset.ApplicationSetTreeQuery{Name: "AppSet1", AppsetNamespace: testNamespace}
+
+		res, err := appSetServer.ResourceTree(context.Background(), &appsetQuery)
+		assert.NoError(t, err)
+		assert.Equal(t, expectedTree, res)
+	})
+
+	t.Run("ResourceTree in not allowed namespace", func(t *testing.T) {
+
+		appSetServer := newTestAppSetServer(appSet1, appSet2, appSet3)
+
+		appsetQuery := applicationset.ApplicationSetTreeQuery{Name: "AppSet1", AppsetNamespace: "NOT-ALLOWED"}
+
+		_, err := appSetServer.ResourceTree(context.Background(), &appsetQuery)
+		assert.Equal(t, "namespace 'NOT-ALLOWED' is not permitted", err.Error())
+	})
 }

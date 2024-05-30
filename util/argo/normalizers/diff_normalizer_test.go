@@ -19,7 +19,7 @@ func TestNormalizeObjectWithMatchedGroupKind(t *testing.T) {
 		Group:        "apps",
 		Kind:         "Deployment",
 		JSONPointers: []string{"/not-matching-path", "/spec/template/spec/containers"},
-	}}, make(map[string]v1alpha1.ResourceOverride))
+	}}, make(map[string]v1alpha1.ResourceOverride), IgnoreNormalizerOpts{})
 
 	assert.Nil(t, err)
 
@@ -44,7 +44,7 @@ func TestNormalizeNoMatchedGroupKinds(t *testing.T) {
 		Group:        "",
 		Kind:         "Service",
 		JSONPointers: []string{"/spec"},
-	}}, make(map[string]v1alpha1.ResourceOverride))
+	}}, make(map[string]v1alpha1.ResourceOverride), IgnoreNormalizerOpts{})
 
 	assert.Nil(t, err)
 
@@ -63,7 +63,7 @@ func TestNormalizeMatchedResourceOverrides(t *testing.T) {
 		"apps/Deployment": {
 			IgnoreDifferences: v1alpha1.OverrideIgnoreDiff{JSONPointers: []string{"/spec/template/spec/containers"}},
 		},
-	})
+	}, IgnoreNormalizerOpts{})
 
 	assert.Nil(t, err)
 
@@ -118,7 +118,7 @@ func TestNormalizeMissingJsonPointer(t *testing.T) {
 		"apiextensions.k8s.io/CustomResourceDefinition": {
 			IgnoreDifferences: v1alpha1.OverrideIgnoreDiff{JSONPointers: []string{"/spec/additionalPrinterColumns/0/priority"}},
 		},
-	})
+	}, IgnoreNormalizerOpts{})
 	assert.NoError(t, err)
 
 	deployment := test.NewDeployment()
@@ -139,7 +139,7 @@ func TestNormalizeGlobMatch(t *testing.T) {
 		"*/*": {
 			IgnoreDifferences: v1alpha1.OverrideIgnoreDiff{JSONPointers: []string{"/spec/template/spec/containers"}},
 		},
-	})
+	}, IgnoreNormalizerOpts{})
 
 	assert.Nil(t, err)
 
@@ -161,7 +161,7 @@ func TestNormalizeJQPathExpression(t *testing.T) {
 		Group:             "apps",
 		Kind:              "Deployment",
 		JQPathExpressions: []string{".spec.template.spec.initContainers[] | select(.name == \"init-container-0\")"},
-	}}, make(map[string]v1alpha1.ResourceOverride))
+	}}, make(map[string]v1alpha1.ResourceOverride), IgnoreNormalizerOpts{})
 
 	assert.Nil(t, err)
 
@@ -197,7 +197,7 @@ func TestNormalizeIllegalJQPathExpression(t *testing.T) {
 		Kind:              "Deployment",
 		JQPathExpressions: []string{".spec.template.spec.containers[] | select(.name == \"missing-quote)"},
 		// JSONPointers: []string{"no-starting-slash"},
-	}}, make(map[string]v1alpha1.ResourceOverride))
+	}}, make(map[string]v1alpha1.ResourceOverride), IgnoreNormalizerOpts{})
 
 	assert.Error(t, err)
 }
@@ -207,7 +207,7 @@ func TestNormalizeJQPathExpressionWithError(t *testing.T) {
 		Group:             "apps",
 		Kind:              "Deployment",
 		JQPathExpressions: []string{".spec.fakeField.foo[]"},
-	}}, make(map[string]v1alpha1.ResourceOverride))
+	}}, make(map[string]v1alpha1.ResourceOverride), IgnoreNormalizerOpts{})
 
 	assert.Nil(t, err)
 
@@ -230,7 +230,7 @@ func TestNormalizeExpectedErrorAreSilenced(t *testing.T) {
 				JSONPointers: []string{"/invalid", "/invalid/json/path"},
 			},
 		},
-	})
+	}, IgnoreNormalizerOpts{})
 	assert.Nil(t, err)
 
 	ignoreNormalizer := normalizer.(*ignoreNormalizer)
@@ -254,12 +254,34 @@ func TestNormalizeExpectedErrorAreSilenced(t *testing.T) {
 
 }
 
+func TestJqPathExpressionFailWithTimeout(t *testing.T) {
+	normalizer, err := NewIgnoreNormalizer([]v1alpha1.ResourceIgnoreDifferences{}, map[string]v1alpha1.ResourceOverride{
+		"*/*": {
+			IgnoreDifferences: v1alpha1.OverrideIgnoreDiff{
+				JQPathExpressions: []string{"until(true==false; [.] + [1])"},
+			},
+		},
+	}, IgnoreNormalizerOpts{})
+	assert.Nil(t, err)
+
+	ignoreNormalizer := normalizer.(*ignoreNormalizer)
+	assert.Len(t, ignoreNormalizer.patches, 1)
+	jqPatch := ignoreNormalizer.patches[0]
+
+	deployment := test.NewDeployment()
+	deploymentData, err := json.Marshal(deployment)
+	assert.Nil(t, err)
+
+	_, err = jqPatch.Apply(deploymentData)
+	assert.ErrorContains(t, err, "JQ patch execution timed out")
+}
+
 func TestJQPathExpressionReturnsHelpfulError(t *testing.T) {
 	normalizer, err := NewIgnoreNormalizer([]v1alpha1.ResourceIgnoreDifferences{{
 		Kind: "ConfigMap",
 		// This is a really wild expression, but it does trigger the desired error.
 		JQPathExpressions: []string{`.nothing) | .data["config.yaml"] |= (fromjson | del(.auth) | tojson`},
-	}}, nil)
+	}}, nil, IgnoreNormalizerOpts{})
 
 	assert.NoError(t, err)
 

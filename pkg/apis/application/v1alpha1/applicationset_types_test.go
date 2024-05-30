@@ -6,7 +6,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 )
 
 func testAppSetCond(t ApplicationSetConditionType, msg string, lastTransitionTime *metav1.Time, status ApplicationSetConditionStatus, reason string) ApplicationSetCondition {
@@ -173,9 +173,9 @@ func TestSCMProviderGeneratorGitlab_WillIncludeSharedProjects(t *testing.T) {
 	settings := SCMProviderGeneratorGitlab{}
 	assert.True(t, settings.WillIncludeSharedProjects())
 
-	settings.IncludeSharedProjects = pointer.Bool(false)
+	settings.IncludeSharedProjects = ptr.To(false)
 	assert.False(t, settings.WillIncludeSharedProjects())
 
-	settings.IncludeSharedProjects = pointer.Bool(true)
+	settings.IncludeSharedProjects = ptr.To(true)
 	assert.True(t, settings.WillIncludeSharedProjects())
 }

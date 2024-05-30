@@ -65,6 +65,7 @@ type ApplicationSetSpec struct {
 	// ApplyNestedSelectors enables selectors defined within the generators of two level-nested matrix or merge generators
 	ApplyNestedSelectors         bool                            `json:"applyNestedSelectors,omitempty" protobuf:"bytes,8,name=applyNestedSelectors"`
 	IgnoreApplicationDifferences ApplicationSetIgnoreDifferences `json:"ignoreApplicationDifferences,omitempty" protobuf:"bytes,9,name=ignoreApplicationDifferences"`
+	TemplatePatch                *string                         `json:"templatePatch,omitempty" protobuf:"bytes,10,name=templatePatch"`
 }
 
 type ApplicationPreservedFields struct {
@@ -259,6 +260,7 @@ func (g ApplicationSetTerminalGenerators) toApplicationSetNestedGenerators() []A
 
 // ListGenerator include items info
 type ListGenerator struct {
+	// +kubebuilder:validation:Optional
 	Elements     []apiextensionsv1.JSON `json:"elements" protobuf:"bytes,1,name=elements"`
 	Template     ApplicationSetTemplate `json:"template,omitempty" protobuf:"bytes,2,name=template"`
 	ElementsYaml string                 `json:"elementsYaml,omitempty" protobuf:"bytes,3,opt,name=elementsYaml"`
@@ -757,9 +759,11 @@ type ApplicationSetStatus struct {
 	// Important: Run "make" to regenerate code after modifying this file
 	Conditions        []ApplicationSetCondition         `json:"conditions,omitempty" protobuf:"bytes,1,name=conditions"`
 	ApplicationStatus []ApplicationSetApplicationStatus `json:"applicationStatus,omitempty" protobuf:"bytes,2,name=applicationStatus"`
+	// Resources is a list of Applications resources managed by this application set.
+	Resources []ResourceStatus `json:"resources,omitempty" protobuf:"bytes,3,opt,name=resources"`
 }
 
-// ApplicationSetCondition contains details about an applicationset condition, which is usally an error or warning
+// ApplicationSetCondition contains details about an applicationset condition, which is usually an error or warning
 type ApplicationSetCondition struct {
 	// Type is an applicationset condition type
 	Type ApplicationSetConditionType `json:"type" protobuf:"bytes,1,opt,name=type"`
@@ -840,6 +844,21 @@ type ApplicationSetList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty" protobuf:"bytes,1,opt,name=metadata"`
 	Items           []ApplicationSet `json:"items" protobuf:"bytes,2,rep,name=items"`
+}
+
+// ApplicationSetTree holds nodes which belongs to the application
+// Used to build a tree of an ApplicationSet and its children
+type ApplicationSetTree struct {
+	// Nodes contains list of nodes which are directly managed by the applicationset
+	Nodes []ResourceNode `json:"nodes,omitempty" protobuf:"bytes,1,rep,name=nodes"`
+}
+
+// Normalize sorts applicationset tree nodes. The persistent order allows to
+// effectively compare previously cached app tree and allows to unnecessary Redis requests.
+func (t *ApplicationSetTree) Normalize() {
+	sort.Slice(t.Nodes, func(i, j int) bool {
+		return t.Nodes[i].FullName() < t.Nodes[j].FullName()
+	})
 }
 
 // func init() {

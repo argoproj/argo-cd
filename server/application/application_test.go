@@ -37,12 +37,13 @@ import (
 	"k8s.io/client-go/rest"
 	kubetesting "k8s.io/client-go/testing"
 	k8scache "k8s.io/client-go/tools/cache"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/yaml"
 
 	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	appsv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	apps "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned/fake"
 	appinformer "github.com/argoproj/argo-cd/v2/pkg/client/informers/externalversions"
 	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
@@ -76,7 +77,7 @@ func fakeRepo() *appsv1.Repository {
 
 func fakeCluster() *appsv1.Cluster {
 	return &appsv1.Cluster{
-		Server: "https://cluster-api.com",
+		Server: "https://cluster-api.example.com",
 		Name:   "fake-cluster",
 		Config: appsv1.ClusterConfig{},
 	}
@@ -132,10 +133,10 @@ func newTestAppServer(t *testing.T, objects ...runtime.Object) *Server {
 		_ = enf.SetBuiltinPolicy(assets.BuiltinPolicyCSV)
 		enf.SetDefaultRole("role:admin")
 	}
-	return newTestAppServerWithEnforcerConfigure(f, t, objects...)
+	return newTestAppServerWithEnforcerConfigure(f, t, map[string]string{}, objects...)
 }
 
-func newTestAppServerWithEnforcerConfigure(f func(*rbac.Enforcer), t *testing.T, objects ...runtime.Object) *Server {
+func newTestAppServerWithEnforcerConfigure(f func(*rbac.Enforcer), t *testing.T, additionalConfig map[string]string, objects ...runtime.Object) *Server {
 	kubeclientset := fake.NewSimpleClientset(&v1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: testNamespace,
@@ -144,6 +145,7 @@ func newTestAppServerWithEnforcerConfigure(f func(*rbac.Enforcer), t *testing.T,
 				"app.kubernetes.io/part-of": "argocd",
 			},
 		},
+		Data: additionalConfig,
 	}, &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "argocd-secret",
@@ -242,7 +244,7 @@ func newTestAppServerWithEnforcerConfigure(f func(*rbac.Enforcer), t *testing.T,
 			}
 		}()
 	})
-	broadcaster.On("OnAdd", mock.Anything).Return()
+	broadcaster.On("OnAdd", mock.Anything, mock.Anything).Return()
 	broadcaster.On("OnUpdate", mock.Anything, mock.Anything).Return()
 	broadcaster.On("OnDelete", mock.Anything).Return()
 
@@ -422,7 +424,7 @@ func newTestAppServerWithEnforcerConfigureWithBenchmark(f func(*rbac.Enforcer), 
 			}
 		}()
 	})
-	broadcaster.On("OnAdd", mock.Anything).Return()
+	broadcaster.On("OnAdd", mock.Anything, mock.Anything).Return()
 	broadcaster.On("OnUpdate", mock.Anything, mock.Anything).Return()
 	broadcaster.On("OnDelete", mock.Anything).Return()
 
@@ -503,7 +505,7 @@ spec:
       environment: default
   destination:
     namespace: ` + test.FakeDestNamespace + `
-    server: https://cluster-api.com
+    server: https://cluster-api.example.com
 `
 
 const fakeAppWithDestName = `
@@ -541,7 +543,7 @@ spec:
       environment: default
   destination:
     namespace: ` + test.FakeDestNamespace + `
-    server: https://cluster-api.com
+    server: https://cluster-api.example.com
 `
 
 func newTestAppWithDestName(opts ...func(app *appsv1.Application)) *appsv1.Application {
@@ -606,9 +608,9 @@ func (t *TestServerStream) Recv() (*application.ApplicationManifestQueryWithFile
 		t.headerSent = true
 		return &application.ApplicationManifestQueryWithFilesWrapper{Part: &application.ApplicationManifestQueryWithFilesWrapper_Query{
 			Query: &application.ApplicationManifestQueryWithFiles{
-				Name:     pointer.String(t.appName),
-				Project:  pointer.String(t.project),
-				Checksum: pointer.String(""),
+				Name:     ptr.To(t.appName),
+				Project:  ptr.To(t.project),
+				Checksum: ptr.To(""),
 			},
 		}}, nil
 	}
@@ -752,7 +754,7 @@ func TestNoAppEnumeration(t *testing.T) {
 		}
 	})
 	testDeployment := kube.MustToUnstructured(&deployment)
-	appServer := newTestAppServerWithEnforcerConfigure(f, t, testApp, testHelmApp, testDeployment)
+	appServer := newTestAppServerWithEnforcerConfigure(f, t, map[string]string{}, testApp, testHelmApp, testDeployment)
 
 	noRoleCtx := context.Background()
 	// nolint:staticcheck
@@ -760,162 +762,162 @@ func TestNoAppEnumeration(t *testing.T) {
 
 	t.Run("Get", func(t *testing.T) {
 		// nolint:staticcheck
-		_, err := appServer.Get(adminCtx, &application.ApplicationQuery{Name: pointer.String("test")})
+		_, err := appServer.Get(adminCtx, &application.ApplicationQuery{Name: ptr.To("test")})
 		assert.NoError(t, err)
 		// nolint:staticcheck
-		_, err = appServer.Get(noRoleCtx, &application.ApplicationQuery{Name: pointer.String("test")})
+		_, err = appServer.Get(noRoleCtx, &application.ApplicationQuery{Name: ptr.To("test")})
 		assert.Equal(t, permissionDeniedErr.Error(), err.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
 		// nolint:staticcheck
-		_, err = appServer.Get(adminCtx, &application.ApplicationQuery{Name: pointer.String("doest-not-exist")})
+		_, err = appServer.Get(adminCtx, &application.ApplicationQuery{Name: ptr.To("doest-not-exist")})
 		assert.Equal(t, permissionDeniedErr.Error(), err.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
 		// nolint:staticcheck
-		_, err = appServer.Get(adminCtx, &application.ApplicationQuery{Name: pointer.String("doest-not-exist"), Project: []string{"test"}})
+		_, err = appServer.Get(adminCtx, &application.ApplicationQuery{Name: ptr.To("doest-not-exist"), Project: []string{"test"}})
 		assert.Equal(t, "rpc error: code = NotFound desc = applications.argoproj.io \"doest-not-exist\" not found", err.Error(), "when the request specifies a project, we can return the standard k8s error message")
 	})
 
 	t.Run("GetManifests", func(t *testing.T) {
-		_, err := appServer.GetManifests(adminCtx, &application.ApplicationManifestQuery{Name: pointer.String("test")})
+		_, err := appServer.GetManifests(adminCtx, &application.ApplicationManifestQuery{Name: ptr.To("test")})
 		assert.NoError(t, err)
-		_, err = appServer.GetManifests(noRoleCtx, &application.ApplicationManifestQuery{Name: pointer.String("test")})
+		_, err = appServer.GetManifests(noRoleCtx, &application.ApplicationManifestQuery{Name: ptr.To("test")})
 		assert.Equal(t, permissionDeniedErr.Error(), err.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
-		_, err = appServer.GetManifests(adminCtx, &application.ApplicationManifestQuery{Name: pointer.String("doest-not-exist")})
+		_, err = appServer.GetManifests(adminCtx, &application.ApplicationManifestQuery{Name: ptr.To("doest-not-exist")})
 		assert.Equal(t, permissionDeniedErr.Error(), err.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
-		_, err = appServer.GetManifests(adminCtx, &application.ApplicationManifestQuery{Name: pointer.String("doest-not-exist"), Project: pointer.String("test")})
+		_, err = appServer.GetManifests(adminCtx, &application.ApplicationManifestQuery{Name: ptr.To("doest-not-exist"), Project: ptr.To("test")})
 		assert.Equal(t, "rpc error: code = NotFound desc = applications.argoproj.io \"doest-not-exist\" not found", err.Error(), "when the request specifies a project, we can return the standard k8s error message")
 	})
 
 	t.Run("ListResourceEvents", func(t *testing.T) {
-		_, err := appServer.ListResourceEvents(adminCtx, &application.ApplicationResourceEventsQuery{Name: pointer.String("test")})
+		_, err := appServer.ListResourceEvents(adminCtx, &application.ApplicationResourceEventsQuery{Name: ptr.To("test")})
 		assert.NoError(t, err)
-		_, err = appServer.ListResourceEvents(noRoleCtx, &application.ApplicationResourceEventsQuery{Name: pointer.String("test")})
+		_, err = appServer.ListResourceEvents(noRoleCtx, &application.ApplicationResourceEventsQuery{Name: ptr.To("test")})
 		assert.Equal(t, permissionDeniedErr.Error(), err.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
-		_, err = appServer.ListResourceEvents(adminCtx, &application.ApplicationResourceEventsQuery{Name: pointer.String("doest-not-exist")})
+		_, err = appServer.ListResourceEvents(adminCtx, &application.ApplicationResourceEventsQuery{Name: ptr.To("doest-not-exist")})
 		assert.Equal(t, permissionDeniedErr.Error(), err.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
-		_, err = appServer.ListResourceEvents(adminCtx, &application.ApplicationResourceEventsQuery{Name: pointer.String("doest-not-exist"), Project: pointer.String("test")})
+		_, err = appServer.ListResourceEvents(adminCtx, &application.ApplicationResourceEventsQuery{Name: ptr.To("doest-not-exist"), Project: ptr.To("test")})
 		assert.Equal(t, "rpc error: code = NotFound desc = applications.argoproj.io \"doest-not-exist\" not found", err.Error(), "when the request specifies a project, we can return the standard k8s error message")
 	})
 
 	t.Run("UpdateSpec", func(t *testing.T) {
-		_, err := appServer.UpdateSpec(adminCtx, &application.ApplicationUpdateSpecRequest{Name: pointer.String("test"), Spec: &appsv1.ApplicationSpec{
-			Destination: appsv1.ApplicationDestination{Namespace: "default", Server: "https://cluster-api.com"},
+		_, err := appServer.UpdateSpec(adminCtx, &application.ApplicationUpdateSpecRequest{Name: ptr.To("test"), Spec: &appsv1.ApplicationSpec{
+			Destination: appsv1.ApplicationDestination{Namespace: "default", Server: "https://cluster-api.example.com"},
 			Source:      &appsv1.ApplicationSource{RepoURL: "https://some-fake-source", Path: "."},
 		}})
 		assert.NoError(t, err)
-		_, err = appServer.UpdateSpec(noRoleCtx, &application.ApplicationUpdateSpecRequest{Name: pointer.String("test"), Spec: &appsv1.ApplicationSpec{
-			Destination: appsv1.ApplicationDestination{Namespace: "default", Server: "https://cluster-api.com"},
+		_, err = appServer.UpdateSpec(noRoleCtx, &application.ApplicationUpdateSpecRequest{Name: ptr.To("test"), Spec: &appsv1.ApplicationSpec{
+			Destination: appsv1.ApplicationDestination{Namespace: "default", Server: "https://cluster-api.example.com"},
 			Source:      &appsv1.ApplicationSource{RepoURL: "https://some-fake-source", Path: "."},
 		}})
 		assert.Equal(t, permissionDeniedErr.Error(), err.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
-		_, err = appServer.UpdateSpec(adminCtx, &application.ApplicationUpdateSpecRequest{Name: pointer.String("doest-not-exist"), Spec: &appsv1.ApplicationSpec{
-			Destination: appsv1.ApplicationDestination{Namespace: "default", Server: "https://cluster-api.com"},
+		_, err = appServer.UpdateSpec(adminCtx, &application.ApplicationUpdateSpecRequest{Name: ptr.To("doest-not-exist"), Spec: &appsv1.ApplicationSpec{
+			Destination: appsv1.ApplicationDestination{Namespace: "default", Server: "https://cluster-api.example.com"},
 			Source:      &appsv1.ApplicationSource{RepoURL: "https://some-fake-source", Path: "."},
 		}})
 		assert.Equal(t, permissionDeniedErr.Error(), err.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
-		_, err = appServer.UpdateSpec(adminCtx, &application.ApplicationUpdateSpecRequest{Name: pointer.String("doest-not-exist"), Project: pointer.String("test"), Spec: &appsv1.ApplicationSpec{
-			Destination: appsv1.ApplicationDestination{Namespace: "default", Server: "https://cluster-api.com"},
+		_, err = appServer.UpdateSpec(adminCtx, &application.ApplicationUpdateSpecRequest{Name: ptr.To("doest-not-exist"), Project: ptr.To("test"), Spec: &appsv1.ApplicationSpec{
+			Destination: appsv1.ApplicationDestination{Namespace: "default", Server: "https://cluster-api.example.com"},
 			Source:      &appsv1.ApplicationSource{RepoURL: "https://some-fake-source", Path: "."},
 		}})
 		assert.Equal(t, "rpc error: code = NotFound desc = applications.argoproj.io \"doest-not-exist\" not found", err.Error(), "when the request specifies a project, we can return the standard k8s error message")
 	})
 
 	t.Run("Patch", func(t *testing.T) {
-		_, err := appServer.Patch(adminCtx, &application.ApplicationPatchRequest{Name: pointer.String("test"), Patch: pointer.String(`[{"op": "replace", "path": "/spec/source/path", "value": "foo"}]`)})
+		_, err := appServer.Patch(adminCtx, &application.ApplicationPatchRequest{Name: ptr.To("test"), Patch: ptr.To(`[{"op": "replace", "path": "/spec/source/path", "value": "foo"}]`)})
 		assert.NoError(t, err)
-		_, err = appServer.Patch(noRoleCtx, &application.ApplicationPatchRequest{Name: pointer.String("test"), Patch: pointer.String(`[{"op": "replace", "path": "/spec/source/path", "value": "foo"}]`)})
+		_, err = appServer.Patch(noRoleCtx, &application.ApplicationPatchRequest{Name: ptr.To("test"), Patch: ptr.To(`[{"op": "replace", "path": "/spec/source/path", "value": "foo"}]`)})
 		assert.Equal(t, permissionDeniedErr.Error(), err.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
-		_, err = appServer.Patch(adminCtx, &application.ApplicationPatchRequest{Name: pointer.String("doest-not-exist")})
+		_, err = appServer.Patch(adminCtx, &application.ApplicationPatchRequest{Name: ptr.To("doest-not-exist")})
 		assert.Equal(t, permissionDeniedErr.Error(), err.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
-		_, err = appServer.Patch(adminCtx, &application.ApplicationPatchRequest{Name: pointer.String("doest-not-exist"), Project: pointer.String("test")})
+		_, err = appServer.Patch(adminCtx, &application.ApplicationPatchRequest{Name: ptr.To("doest-not-exist"), Project: ptr.To("test")})
 		assert.Equal(t, "rpc error: code = NotFound desc = applications.argoproj.io \"doest-not-exist\" not found", err.Error(), "when the request specifies a project, we can return the standard k8s error message")
 	})
 
 	t.Run("GetResource", func(t *testing.T) {
-		_, err := appServer.GetResource(adminCtx, &application.ApplicationResourceRequest{Name: pointer.String("test"), ResourceName: pointer.String("test"), Group: pointer.String("apps"), Kind: pointer.String("Deployment"), Namespace: pointer.String("test")})
+		_, err := appServer.GetResource(adminCtx, &application.ApplicationResourceRequest{Name: ptr.To("test"), ResourceName: ptr.To("test"), Group: ptr.To("apps"), Kind: ptr.To("Deployment"), Namespace: ptr.To("test")})
 		assert.NoError(t, err)
-		_, err = appServer.GetResource(noRoleCtx, &application.ApplicationResourceRequest{Name: pointer.String("test"), ResourceName: pointer.String("test"), Group: pointer.String("apps"), Kind: pointer.String("Deployment"), Namespace: pointer.String("test")})
+		_, err = appServer.GetResource(noRoleCtx, &application.ApplicationResourceRequest{Name: ptr.To("test"), ResourceName: ptr.To("test"), Group: ptr.To("apps"), Kind: ptr.To("Deployment"), Namespace: ptr.To("test")})
 		assert.Equal(t, permissionDeniedErr.Error(), err.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
-		_, err = appServer.GetResource(adminCtx, &application.ApplicationResourceRequest{Name: pointer.String("doest-not-exist"), ResourceName: pointer.String("test"), Group: pointer.String("apps"), Kind: pointer.String("Deployment"), Namespace: pointer.String("test")})
+		_, err = appServer.GetResource(adminCtx, &application.ApplicationResourceRequest{Name: ptr.To("doest-not-exist"), ResourceName: ptr.To("test"), Group: ptr.To("apps"), Kind: ptr.To("Deployment"), Namespace: ptr.To("test")})
 		assert.Equal(t, permissionDeniedErr.Error(), err.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
-		_, err = appServer.GetResource(adminCtx, &application.ApplicationResourceRequest{Name: pointer.String("doest-not-exist"), Project: pointer.String("test"), ResourceName: pointer.String("test"), Group: pointer.String("apps"), Kind: pointer.String("Deployment"), Namespace: pointer.String("test")})
+		_, err = appServer.GetResource(adminCtx, &application.ApplicationResourceRequest{Name: ptr.To("doest-not-exist"), Project: ptr.To("test"), ResourceName: ptr.To("test"), Group: ptr.To("apps"), Kind: ptr.To("Deployment"), Namespace: ptr.To("test")})
 		assert.Equal(t, "rpc error: code = NotFound desc = applications.argoproj.io \"doest-not-exist\" not found", err.Error(), "when the request specifies a project, we can return the standard k8s error message")
 	})
 
 	t.Run("PatchResource", func(t *testing.T) {
-		_, err := appServer.PatchResource(adminCtx, &application.ApplicationResourcePatchRequest{Name: pointer.String("test"), ResourceName: pointer.String("test"), Group: pointer.String("apps"), Kind: pointer.String("Deployment"), Namespace: pointer.String("test"), Patch: pointer.String(`[{"op": "replace", "path": "/spec/replicas", "value": 3}]`)})
+		_, err := appServer.PatchResource(adminCtx, &application.ApplicationResourcePatchRequest{Name: ptr.To("test"), ResourceName: ptr.To("test"), Group: ptr.To("apps"), Kind: ptr.To("Deployment"), Namespace: ptr.To("test"), Patch: ptr.To(`[{"op": "replace", "path": "/spec/replicas", "value": 3}]`)})
 		// This will always throw an error, because the kubectl mock for PatchResource is hard-coded to return nil.
 		// The best we can do is to confirm we get past the permission check.
 		assert.NotEqual(t, permissionDeniedErr.Error(), err.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
-		_, err = appServer.PatchResource(noRoleCtx, &application.ApplicationResourcePatchRequest{Name: pointer.String("test"), ResourceName: pointer.String("test"), Group: pointer.String("apps"), Kind: pointer.String("Deployment"), Namespace: pointer.String("test"), Patch: pointer.String(`[{"op": "replace", "path": "/spec/replicas", "value": 3}]`)})
+		_, err = appServer.PatchResource(noRoleCtx, &application.ApplicationResourcePatchRequest{Name: ptr.To("test"), ResourceName: ptr.To("test"), Group: ptr.To("apps"), Kind: ptr.To("Deployment"), Namespace: ptr.To("test"), Patch: ptr.To(`[{"op": "replace", "path": "/spec/replicas", "value": 3}]`)})
 		assert.Equal(t, permissionDeniedErr.Error(), err.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
-		_, err = appServer.PatchResource(adminCtx, &application.ApplicationResourcePatchRequest{Name: pointer.String("doest-not-exist"), ResourceName: pointer.String("test"), Group: pointer.String("apps"), Kind: pointer.String("Deployment"), Namespace: pointer.String("test"), Patch: pointer.String(`[{"op": "replace", "path": "/spec/replicas", "value": 3}]`)})
+		_, err = appServer.PatchResource(adminCtx, &application.ApplicationResourcePatchRequest{Name: ptr.To("doest-not-exist"), ResourceName: ptr.To("test"), Group: ptr.To("apps"), Kind: ptr.To("Deployment"), Namespace: ptr.To("test"), Patch: ptr.To(`[{"op": "replace", "path": "/spec/replicas", "value": 3}]`)})
 		assert.Equal(t, permissionDeniedErr.Error(), err.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
-		_, err = appServer.PatchResource(adminCtx, &application.ApplicationResourcePatchRequest{Name: pointer.String("doest-not-exist"), Project: pointer.String("test"), ResourceName: pointer.String("test"), Group: pointer.String("apps"), Kind: pointer.String("Deployment"), Namespace: pointer.String("test"), Patch: pointer.String(`[{"op": "replace", "path": "/spec/replicas", "value": 3}]`)})
+		_, err = appServer.PatchResource(adminCtx, &application.ApplicationResourcePatchRequest{Name: ptr.To("doest-not-exist"), Project: ptr.To("test"), ResourceName: ptr.To("test"), Group: ptr.To("apps"), Kind: ptr.To("Deployment"), Namespace: ptr.To("test"), Patch: ptr.To(`[{"op": "replace", "path": "/spec/replicas", "value": 3}]`)})
 		assert.Equal(t, "rpc error: code = NotFound desc = applications.argoproj.io \"doest-not-exist\" not found", err.Error(), "when the request specifies a project, we can return the standard k8s error message")
 	})
 
 	t.Run("DeleteResource", func(t *testing.T) {
-		_, err := appServer.DeleteResource(adminCtx, &application.ApplicationResourceDeleteRequest{Name: pointer.String("test"), ResourceName: pointer.String("test"), Group: pointer.String("apps"), Kind: pointer.String("Deployment"), Namespace: pointer.String("test")})
+		_, err := appServer.DeleteResource(adminCtx, &application.ApplicationResourceDeleteRequest{Name: ptr.To("test"), ResourceName: ptr.To("test"), Group: ptr.To("apps"), Kind: ptr.To("Deployment"), Namespace: ptr.To("test")})
 		assert.NoError(t, err)
-		_, err = appServer.DeleteResource(noRoleCtx, &application.ApplicationResourceDeleteRequest{Name: pointer.String("test"), ResourceName: pointer.String("test"), Group: pointer.String("apps"), Kind: pointer.String("Deployment"), Namespace: pointer.String("test")})
+		_, err = appServer.DeleteResource(noRoleCtx, &application.ApplicationResourceDeleteRequest{Name: ptr.To("test"), ResourceName: ptr.To("test"), Group: ptr.To("apps"), Kind: ptr.To("Deployment"), Namespace: ptr.To("test")})
 		assert.Equal(t, permissionDeniedErr.Error(), err.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
-		_, err = appServer.DeleteResource(adminCtx, &application.ApplicationResourceDeleteRequest{Name: pointer.String("doest-not-exist"), ResourceName: pointer.String("test"), Group: pointer.String("apps"), Kind: pointer.String("Deployment"), Namespace: pointer.String("test")})
+		_, err = appServer.DeleteResource(adminCtx, &application.ApplicationResourceDeleteRequest{Name: ptr.To("doest-not-exist"), ResourceName: ptr.To("test"), Group: ptr.To("apps"), Kind: ptr.To("Deployment"), Namespace: ptr.To("test")})
 		assert.Equal(t, permissionDeniedErr.Error(), err.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
-		_, err = appServer.DeleteResource(adminCtx, &application.ApplicationResourceDeleteRequest{Name: pointer.String("doest-not-exist"), Project: pointer.String("test"), ResourceName: pointer.String("test"), Group: pointer.String("apps"), Kind: pointer.String("Deployment"), Namespace: pointer.String("test")})
+		_, err = appServer.DeleteResource(adminCtx, &application.ApplicationResourceDeleteRequest{Name: ptr.To("doest-not-exist"), Project: ptr.To("test"), ResourceName: ptr.To("test"), Group: ptr.To("apps"), Kind: ptr.To("Deployment"), Namespace: ptr.To("test")})
 		assert.Equal(t, "rpc error: code = NotFound desc = applications.argoproj.io \"doest-not-exist\" not found", err.Error(), "when the request specifies a project, we can return the standard k8s error message")
 	})
 
 	t.Run("ResourceTree", func(t *testing.T) {
-		_, err := appServer.ResourceTree(adminCtx, &application.ResourcesQuery{ApplicationName: pointer.String("test")})
+		_, err := appServer.ResourceTree(adminCtx, &application.ResourcesQuery{ApplicationName: ptr.To("test")})
 		assert.NoError(t, err)
-		_, err = appServer.ResourceTree(noRoleCtx, &application.ResourcesQuery{ApplicationName: pointer.String("test")})
+		_, err = appServer.ResourceTree(noRoleCtx, &application.ResourcesQuery{ApplicationName: ptr.To("test")})
 		assert.Equal(t, permissionDeniedErr.Error(), err.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
-		_, err = appServer.ResourceTree(adminCtx, &application.ResourcesQuery{ApplicationName: pointer.String("doest-not-exist")})
+		_, err = appServer.ResourceTree(adminCtx, &application.ResourcesQuery{ApplicationName: ptr.To("doest-not-exist")})
 		assert.Equal(t, permissionDeniedErr.Error(), err.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
-		_, err = appServer.ResourceTree(adminCtx, &application.ResourcesQuery{ApplicationName: pointer.String("doest-not-exist"), Project: pointer.String("test")})
+		_, err = appServer.ResourceTree(adminCtx, &application.ResourcesQuery{ApplicationName: ptr.To("doest-not-exist"), Project: ptr.To("test")})
 		assert.Equal(t, "rpc error: code = NotFound desc = applications.argoproj.io \"doest-not-exist\" not found", err.Error(), "when the request specifies a project, we can return the standard k8s error message")
 	})
 
 	t.Run("RevisionMetadata", func(t *testing.T) {
-		_, err := appServer.RevisionMetadata(adminCtx, &application.RevisionMetadataQuery{Name: pointer.String("test")})
+		_, err := appServer.RevisionMetadata(adminCtx, &application.RevisionMetadataQuery{Name: ptr.To("test")})
 		assert.NoError(t, err)
-		_, err = appServer.RevisionMetadata(noRoleCtx, &application.RevisionMetadataQuery{Name: pointer.String("test")})
+		_, err = appServer.RevisionMetadata(noRoleCtx, &application.RevisionMetadataQuery{Name: ptr.To("test")})
 		assert.Equal(t, permissionDeniedErr.Error(), err.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
-		_, err = appServer.RevisionMetadata(adminCtx, &application.RevisionMetadataQuery{Name: pointer.String("doest-not-exist")})
+		_, err = appServer.RevisionMetadata(adminCtx, &application.RevisionMetadataQuery{Name: ptr.To("doest-not-exist")})
 		assert.Equal(t, permissionDeniedErr.Error(), err.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
-		_, err = appServer.RevisionMetadata(adminCtx, &application.RevisionMetadataQuery{Name: pointer.String("doest-not-exist"), Project: pointer.String("test")})
+		_, err = appServer.RevisionMetadata(adminCtx, &application.RevisionMetadataQuery{Name: ptr.To("doest-not-exist"), Project: ptr.To("test")})
 		assert.Equal(t, "rpc error: code = NotFound desc = applications.argoproj.io \"doest-not-exist\" not found", err.Error(), "when the request specifies a project, we can return the standard k8s error message")
 	})
 
 	t.Run("RevisionChartDetails", func(t *testing.T) {
-		_, err := appServer.RevisionChartDetails(adminCtx, &application.RevisionMetadataQuery{Name: pointer.String("test-helm")})
+		_, err := appServer.RevisionChartDetails(adminCtx, &application.RevisionMetadataQuery{Name: ptr.To("test-helm")})
 		assert.NoError(t, err)
-		_, err = appServer.RevisionChartDetails(noRoleCtx, &application.RevisionMetadataQuery{Name: pointer.String("test-helm")})
+		_, err = appServer.RevisionChartDetails(noRoleCtx, &application.RevisionMetadataQuery{Name: ptr.To("test-helm")})
 		assert.Equal(t, permissionDeniedErr.Error(), err.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
-		_, err = appServer.RevisionChartDetails(adminCtx, &application.RevisionMetadataQuery{Name: pointer.String("doest-not-exist")})
+		_, err = appServer.RevisionChartDetails(adminCtx, &application.RevisionMetadataQuery{Name: ptr.To("doest-not-exist")})
 		assert.Equal(t, permissionDeniedErr.Error(), err.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
-		_, err = appServer.RevisionChartDetails(adminCtx, &application.RevisionMetadataQuery{Name: pointer.String("doest-not-exist"), Project: pointer.String("test")})
+		_, err = appServer.RevisionChartDetails(adminCtx, &application.RevisionMetadataQuery{Name: ptr.To("doest-not-exist"), Project: ptr.To("test")})
 		assert.Equal(t, "rpc error: code = NotFound desc = applications.argoproj.io \"doest-not-exist\" not found", err.Error(), "when the request specifies a project, we can return the standard k8s error message")
 	})
 
 	t.Run("ManagedResources", func(t *testing.T) {
-		_, err := appServer.ManagedResources(adminCtx, &application.ResourcesQuery{ApplicationName: pointer.String("test")})
+		_, err := appServer.ManagedResources(adminCtx, &application.ResourcesQuery{ApplicationName: ptr.To("test")})
 		assert.NoError(t, err)
-		_, err = appServer.ManagedResources(noRoleCtx, &application.ResourcesQuery{ApplicationName: pointer.String("test")})
+		_, err = appServer.ManagedResources(noRoleCtx, &application.ResourcesQuery{ApplicationName: ptr.To("test")})
 		assert.Equal(t, permissionDeniedErr.Error(), err.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
-		_, err = appServer.ManagedResources(adminCtx, &application.ResourcesQuery{ApplicationName: pointer.String("doest-not-exist")})
+		_, err = appServer.ManagedResources(adminCtx, &application.ResourcesQuery{ApplicationName: ptr.To("doest-not-exist")})
 		assert.Equal(t, permissionDeniedErr.Error(), err.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
-		_, err = appServer.ManagedResources(adminCtx, &application.ResourcesQuery{ApplicationName: pointer.String("doest-not-exist"), Project: pointer.String("test")})
+		_, err = appServer.ManagedResources(adminCtx, &application.ResourcesQuery{ApplicationName: ptr.To("doest-not-exist"), Project: ptr.To("test")})
 		assert.Equal(t, "rpc error: code = NotFound desc = applications.argoproj.io \"doest-not-exist\" not found", err.Error(), "when the request specifies a project, we can return the standard k8s error message")
 	})
 
 	t.Run("Sync", func(t *testing.T) {
-		_, err := appServer.Sync(adminCtx, &application.ApplicationSyncRequest{Name: pointer.String("test")})
+		_, err := appServer.Sync(adminCtx, &application.ApplicationSyncRequest{Name: ptr.To("test")})
 		assert.NoError(t, err)
-		_, err = appServer.Sync(noRoleCtx, &application.ApplicationSyncRequest{Name: pointer.String("test")})
+		_, err = appServer.Sync(noRoleCtx, &application.ApplicationSyncRequest{Name: ptr.To("test")})
 		assert.Equal(t, permissionDeniedErr.Error(), err.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
-		_, err = appServer.Sync(adminCtx, &application.ApplicationSyncRequest{Name: pointer.String("doest-not-exist")})
+		_, err = appServer.Sync(adminCtx, &application.ApplicationSyncRequest{Name: ptr.To("doest-not-exist")})
 		assert.Equal(t, permissionDeniedErr.Error(), err.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
-		_, err = appServer.Sync(adminCtx, &application.ApplicationSyncRequest{Name: pointer.String("doest-not-exist"), Project: pointer.String("test")})
+		_, err = appServer.Sync(adminCtx, &application.ApplicationSyncRequest{Name: ptr.To("doest-not-exist"), Project: ptr.To("test")})
 		assert.Equal(t, "rpc error: code = NotFound desc = applications.argoproj.io \"doest-not-exist\" not found", err.Error(), "when the request specifies a project, we can return the standard k8s error message")
 	})
 
@@ -923,62 +925,62 @@ func TestNoAppEnumeration(t *testing.T) {
 		// The sync operation is already started from the previous test. We just need to set the field that the
 		// controller would set if this were an actual Argo CD environment.
 		setSyncRunningOperationState(t, appServer)
-		_, err := appServer.TerminateOperation(adminCtx, &application.OperationTerminateRequest{Name: pointer.String("test")})
+		_, err := appServer.TerminateOperation(adminCtx, &application.OperationTerminateRequest{Name: ptr.To("test")})
 		assert.NoError(t, err)
-		_, err = appServer.TerminateOperation(noRoleCtx, &application.OperationTerminateRequest{Name: pointer.String("test")})
+		_, err = appServer.TerminateOperation(noRoleCtx, &application.OperationTerminateRequest{Name: ptr.To("test")})
 		assert.Equal(t, permissionDeniedErr.Error(), err.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
-		_, err = appServer.TerminateOperation(adminCtx, &application.OperationTerminateRequest{Name: pointer.String("doest-not-exist")})
+		_, err = appServer.TerminateOperation(adminCtx, &application.OperationTerminateRequest{Name: ptr.To("doest-not-exist")})
 		assert.Equal(t, permissionDeniedErr.Error(), err.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
-		_, err = appServer.TerminateOperation(adminCtx, &application.OperationTerminateRequest{Name: pointer.String("doest-not-exist"), Project: pointer.String("test")})
+		_, err = appServer.TerminateOperation(adminCtx, &application.OperationTerminateRequest{Name: ptr.To("doest-not-exist"), Project: ptr.To("test")})
 		assert.Equal(t, "rpc error: code = NotFound desc = applications.argoproj.io \"doest-not-exist\" not found", err.Error(), "when the request specifies a project, we can return the standard k8s error message")
 	})
 
 	t.Run("Rollback", func(t *testing.T) {
 		unsetSyncRunningOperationState(t, appServer)
-		_, err := appServer.Rollback(adminCtx, &application.ApplicationRollbackRequest{Name: pointer.String("test")})
+		_, err := appServer.Rollback(adminCtx, &application.ApplicationRollbackRequest{Name: ptr.To("test")})
 		assert.NoError(t, err)
-		_, err = appServer.Rollback(noRoleCtx, &application.ApplicationRollbackRequest{Name: pointer.String("test")})
+		_, err = appServer.Rollback(noRoleCtx, &application.ApplicationRollbackRequest{Name: ptr.To("test")})
 		assert.Equal(t, permissionDeniedErr.Error(), err.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
-		_, err = appServer.Rollback(adminCtx, &application.ApplicationRollbackRequest{Name: pointer.String("doest-not-exist")})
+		_, err = appServer.Rollback(adminCtx, &application.ApplicationRollbackRequest{Name: ptr.To("doest-not-exist")})
 		assert.Equal(t, permissionDeniedErr.Error(), err.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
-		_, err = appServer.Rollback(adminCtx, &application.ApplicationRollbackRequest{Name: pointer.String("doest-not-exist"), Project: pointer.String("test")})
+		_, err = appServer.Rollback(adminCtx, &application.ApplicationRollbackRequest{Name: ptr.To("doest-not-exist"), Project: ptr.To("test")})
 		assert.Equal(t, "rpc error: code = NotFound desc = applications.argoproj.io \"doest-not-exist\" not found", err.Error(), "when the request specifies a project, we can return the standard k8s error message")
 	})
 
 	t.Run("ListResourceActions", func(t *testing.T) {
-		_, err := appServer.ListResourceActions(adminCtx, &application.ApplicationResourceRequest{Name: pointer.String("test"), ResourceName: pointer.String("test"), Group: pointer.String("apps"), Kind: pointer.String("Deployment"), Namespace: pointer.String("test")})
+		_, err := appServer.ListResourceActions(adminCtx, &application.ApplicationResourceRequest{Name: ptr.To("test"), ResourceName: ptr.To("test"), Group: ptr.To("apps"), Kind: ptr.To("Deployment"), Namespace: ptr.To("test")})
 		assert.NoError(t, err)
-		_, err = appServer.ListResourceActions(noRoleCtx, &application.ApplicationResourceRequest{Name: pointer.String("test")})
+		_, err = appServer.ListResourceActions(noRoleCtx, &application.ApplicationResourceRequest{Name: ptr.To("test")})
 		assert.Equal(t, permissionDeniedErr.Error(), err.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
-		_, err = appServer.ListResourceActions(noRoleCtx, &application.ApplicationResourceRequest{Group: pointer.String("argoproj.io"), Kind: pointer.String("Application"), Name: pointer.String("test")})
+		_, err = appServer.ListResourceActions(noRoleCtx, &application.ApplicationResourceRequest{Group: ptr.To("argoproj.io"), Kind: ptr.To("Application"), Name: ptr.To("test")})
 		assert.Equal(t, permissionDeniedErr.Error(), err.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
-		_, err = appServer.ListResourceActions(adminCtx, &application.ApplicationResourceRequest{Name: pointer.String("doest-not-exist")})
+		_, err = appServer.ListResourceActions(adminCtx, &application.ApplicationResourceRequest{Name: ptr.To("doest-not-exist")})
 		assert.Equal(t, permissionDeniedErr.Error(), err.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
-		_, err = appServer.ListResourceActions(adminCtx, &application.ApplicationResourceRequest{Name: pointer.String("doest-not-exist"), Project: pointer.String("test")})
+		_, err = appServer.ListResourceActions(adminCtx, &application.ApplicationResourceRequest{Name: ptr.To("doest-not-exist"), Project: ptr.To("test")})
 		assert.Equal(t, "rpc error: code = NotFound desc = applications.argoproj.io \"doest-not-exist\" not found", err.Error(), "when the request specifies a project, we can return the standard k8s error message")
 	})
 
 	t.Run("RunResourceAction", func(t *testing.T) {
-		_, err := appServer.RunResourceAction(adminCtx, &application.ResourceActionRunRequest{Name: pointer.String("test"), ResourceName: pointer.String("test"), Group: pointer.String("apps"), Kind: pointer.String("Deployment"), Namespace: pointer.String("test"), Action: pointer.String("restart")})
+		_, err := appServer.RunResourceAction(adminCtx, &application.ResourceActionRunRequest{Name: ptr.To("test"), ResourceName: ptr.To("test"), Group: ptr.To("apps"), Kind: ptr.To("Deployment"), Namespace: ptr.To("test"), Action: ptr.To("restart")})
 		assert.NoError(t, err)
-		_, err = appServer.RunResourceAction(noRoleCtx, &application.ResourceActionRunRequest{Name: pointer.String("test")})
+		_, err = appServer.RunResourceAction(noRoleCtx, &application.ResourceActionRunRequest{Name: ptr.To("test")})
 		assert.Equal(t, permissionDeniedErr.Error(), err.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
-		_, err = appServer.RunResourceAction(noRoleCtx, &application.ResourceActionRunRequest{Group: pointer.String("argoproj.io"), Kind: pointer.String("Application"), Name: pointer.String("test")})
+		_, err = appServer.RunResourceAction(noRoleCtx, &application.ResourceActionRunRequest{Group: ptr.To("argoproj.io"), Kind: ptr.To("Application"), Name: ptr.To("test")})
 		assert.Equal(t, permissionDeniedErr.Error(), err.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
-		_, err = appServer.RunResourceAction(adminCtx, &application.ResourceActionRunRequest{Name: pointer.String("doest-not-exist")})
+		_, err = appServer.RunResourceAction(adminCtx, &application.ResourceActionRunRequest{Name: ptr.To("doest-not-exist")})
 		assert.Equal(t, permissionDeniedErr.Error(), err.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
-		_, err = appServer.RunResourceAction(adminCtx, &application.ResourceActionRunRequest{Name: pointer.String("doest-not-exist"), Project: pointer.String("test")})
+		_, err = appServer.RunResourceAction(adminCtx, &application.ResourceActionRunRequest{Name: ptr.To("doest-not-exist"), Project: ptr.To("test")})
 		assert.Equal(t, "rpc error: code = NotFound desc = applications.argoproj.io \"doest-not-exist\" not found", err.Error(), "when the request specifies a project, we can return the standard k8s error message")
 	})
 
 	t.Run("GetApplicationSyncWindows", func(t *testing.T) {
-		_, err := appServer.GetApplicationSyncWindows(adminCtx, &application.ApplicationSyncWindowsQuery{Name: pointer.String("test")})
+		_, err := appServer.GetApplicationSyncWindows(adminCtx, &application.ApplicationSyncWindowsQuery{Name: ptr.To("test")})
 		assert.NoError(t, err)
-		_, err = appServer.GetApplicationSyncWindows(noRoleCtx, &application.ApplicationSyncWindowsQuery{Name: pointer.String("test")})
+		_, err = appServer.GetApplicationSyncWindows(noRoleCtx, &application.ApplicationSyncWindowsQuery{Name: ptr.To("test")})
 		assert.Equal(t, permissionDeniedErr.Error(), err.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
-		_, err = appServer.GetApplicationSyncWindows(adminCtx, &application.ApplicationSyncWindowsQuery{Name: pointer.String("doest-not-exist")})
+		_, err = appServer.GetApplicationSyncWindows(adminCtx, &application.ApplicationSyncWindowsQuery{Name: ptr.To("doest-not-exist")})
 		assert.Equal(t, permissionDeniedErr.Error(), err.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
-		_, err = appServer.GetApplicationSyncWindows(adminCtx, &application.ApplicationSyncWindowsQuery{Name: pointer.String("doest-not-exist"), Project: pointer.String("test")})
+		_, err = appServer.GetApplicationSyncWindows(adminCtx, &application.ApplicationSyncWindowsQuery{Name: ptr.To("doest-not-exist"), Project: ptr.To("test")})
 		assert.Equal(t, "rpc error: code = NotFound desc = applications.argoproj.io \"doest-not-exist\" not found", err.Error(), "when the request specifies a project, we can return the standard k8s error message")
 	})
 
@@ -994,58 +996,58 @@ func TestNoAppEnumeration(t *testing.T) {
 	})
 
 	t.Run("WatchResourceTree", func(t *testing.T) {
-		err := appServer.WatchResourceTree(&application.ResourcesQuery{ApplicationName: pointer.String("test")}, &TestResourceTreeServer{ctx: adminCtx})
+		err := appServer.WatchResourceTree(&application.ResourcesQuery{ApplicationName: ptr.To("test")}, &TestResourceTreeServer{ctx: adminCtx})
 		assert.NoError(t, err)
-		err = appServer.WatchResourceTree(&application.ResourcesQuery{ApplicationName: pointer.String("test")}, &TestResourceTreeServer{ctx: noRoleCtx})
+		err = appServer.WatchResourceTree(&application.ResourcesQuery{ApplicationName: ptr.To("test")}, &TestResourceTreeServer{ctx: noRoleCtx})
 		assert.Equal(t, permissionDeniedErr.Error(), err.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
-		err = appServer.WatchResourceTree(&application.ResourcesQuery{ApplicationName: pointer.String("does-not-exist")}, &TestResourceTreeServer{ctx: adminCtx})
+		err = appServer.WatchResourceTree(&application.ResourcesQuery{ApplicationName: ptr.To("does-not-exist")}, &TestResourceTreeServer{ctx: adminCtx})
 		assert.Equal(t, permissionDeniedErr.Error(), err.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
-		err = appServer.WatchResourceTree(&application.ResourcesQuery{ApplicationName: pointer.String("does-not-exist"), Project: pointer.String("test")}, &TestResourceTreeServer{ctx: adminCtx})
+		err = appServer.WatchResourceTree(&application.ResourcesQuery{ApplicationName: ptr.To("does-not-exist"), Project: ptr.To("test")}, &TestResourceTreeServer{ctx: adminCtx})
 		assert.Equal(t, "rpc error: code = NotFound desc = applications.argoproj.io \"does-not-exist\" not found", err.Error(), "when the request specifies a project, we can return the standard k8s error message")
 	})
 
 	t.Run("PodLogs", func(t *testing.T) {
-		err := appServer.PodLogs(&application.ApplicationPodLogsQuery{Name: pointer.String("test")}, &TestPodLogsServer{ctx: adminCtx})
+		err := appServer.PodLogs(&application.ApplicationPodLogsQuery{Name: ptr.To("test")}, &TestPodLogsServer{ctx: adminCtx})
 		assert.NoError(t, err)
-		err = appServer.PodLogs(&application.ApplicationPodLogsQuery{Name: pointer.String("test")}, &TestPodLogsServer{ctx: noRoleCtx})
+		err = appServer.PodLogs(&application.ApplicationPodLogsQuery{Name: ptr.To("test")}, &TestPodLogsServer{ctx: noRoleCtx})
 		assert.Equal(t, permissionDeniedErr.Error(), err.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
-		err = appServer.PodLogs(&application.ApplicationPodLogsQuery{Name: pointer.String("does-not-exist")}, &TestPodLogsServer{ctx: adminCtx})
+		err = appServer.PodLogs(&application.ApplicationPodLogsQuery{Name: ptr.To("does-not-exist")}, &TestPodLogsServer{ctx: adminCtx})
 		assert.Equal(t, permissionDeniedErr.Error(), err.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
-		err = appServer.PodLogs(&application.ApplicationPodLogsQuery{Name: pointer.String("does-not-exist"), Project: pointer.String("test")}, &TestPodLogsServer{ctx: adminCtx})
+		err = appServer.PodLogs(&application.ApplicationPodLogsQuery{Name: ptr.To("does-not-exist"), Project: ptr.To("test")}, &TestPodLogsServer{ctx: adminCtx})
 		assert.Equal(t, "rpc error: code = NotFound desc = applications.argoproj.io \"does-not-exist\" not found", err.Error(), "when the request specifies a project, we can return the standard k8s error message")
 	})
 
 	t.Run("ListLinks", func(t *testing.T) {
-		_, err := appServer.ListLinks(adminCtx, &application.ListAppLinksRequest{Name: pointer.String("test")})
+		_, err := appServer.ListLinks(adminCtx, &application.ListAppLinksRequest{Name: ptr.To("test")})
 		assert.NoError(t, err)
-		_, err = appServer.ListLinks(noRoleCtx, &application.ListAppLinksRequest{Name: pointer.String("test")})
+		_, err = appServer.ListLinks(noRoleCtx, &application.ListAppLinksRequest{Name: ptr.To("test")})
 		assert.Equal(t, permissionDeniedErr.Error(), err.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
-		_, err = appServer.ListLinks(adminCtx, &application.ListAppLinksRequest{Name: pointer.String("does-not-exist")})
+		_, err = appServer.ListLinks(adminCtx, &application.ListAppLinksRequest{Name: ptr.To("does-not-exist")})
 		assert.Equal(t, permissionDeniedErr.Error(), err.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
-		_, err = appServer.ListLinks(adminCtx, &application.ListAppLinksRequest{Name: pointer.String("does-not-exist"), Project: pointer.String("test")})
+		_, err = appServer.ListLinks(adminCtx, &application.ListAppLinksRequest{Name: ptr.To("does-not-exist"), Project: ptr.To("test")})
 		assert.Equal(t, "rpc error: code = NotFound desc = applications.argoproj.io \"does-not-exist\" not found", err.Error(), "when the request specifies a project, we can return the standard k8s error message")
 	})
 
 	t.Run("ListResourceLinks", func(t *testing.T) {
-		_, err := appServer.ListResourceLinks(adminCtx, &application.ApplicationResourceRequest{Name: pointer.String("test"), ResourceName: pointer.String("test"), Group: pointer.String("apps"), Kind: pointer.String("Deployment"), Namespace: pointer.String("test")})
+		_, err := appServer.ListResourceLinks(adminCtx, &application.ApplicationResourceRequest{Name: ptr.To("test"), ResourceName: ptr.To("test"), Group: ptr.To("apps"), Kind: ptr.To("Deployment"), Namespace: ptr.To("test")})
 		assert.NoError(t, err)
-		_, err = appServer.ListResourceLinks(noRoleCtx, &application.ApplicationResourceRequest{Name: pointer.String("test"), ResourceName: pointer.String("test"), Group: pointer.String("apps"), Kind: pointer.String("Deployment"), Namespace: pointer.String("test")})
+		_, err = appServer.ListResourceLinks(noRoleCtx, &application.ApplicationResourceRequest{Name: ptr.To("test"), ResourceName: ptr.To("test"), Group: ptr.To("apps"), Kind: ptr.To("Deployment"), Namespace: ptr.To("test")})
 		assert.Equal(t, permissionDeniedErr.Error(), err.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
-		_, err = appServer.ListResourceLinks(adminCtx, &application.ApplicationResourceRequest{Name: pointer.String("does-not-exist"), ResourceName: pointer.String("test"), Group: pointer.String("apps"), Kind: pointer.String("Deployment"), Namespace: pointer.String("test")})
+		_, err = appServer.ListResourceLinks(adminCtx, &application.ApplicationResourceRequest{Name: ptr.To("does-not-exist"), ResourceName: ptr.To("test"), Group: ptr.To("apps"), Kind: ptr.To("Deployment"), Namespace: ptr.To("test")})
 		assert.Equal(t, permissionDeniedErr.Error(), err.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
-		_, err = appServer.ListResourceLinks(adminCtx, &application.ApplicationResourceRequest{Name: pointer.String("does-not-exist"), ResourceName: pointer.String("test"), Group: pointer.String("apps"), Kind: pointer.String("Deployment"), Namespace: pointer.String("test"), Project: pointer.String("test")})
+		_, err = appServer.ListResourceLinks(adminCtx, &application.ApplicationResourceRequest{Name: ptr.To("does-not-exist"), ResourceName: ptr.To("test"), Group: ptr.To("apps"), Kind: ptr.To("Deployment"), Namespace: ptr.To("test"), Project: ptr.To("test")})
 		assert.Equal(t, "rpc error: code = NotFound desc = applications.argoproj.io \"does-not-exist\" not found", err.Error(), "when the request specifies a project, we can return the standard k8s error message")
 	})
 
 	// Do this last so other stuff doesn't fail.
 	t.Run("Delete", func(t *testing.T) {
-		_, err := appServer.Delete(adminCtx, &application.ApplicationDeleteRequest{Name: pointer.String("test")})
+		_, err := appServer.Delete(adminCtx, &application.ApplicationDeleteRequest{Name: ptr.To("test")})
 		assert.NoError(t, err)
-		_, err = appServer.Delete(noRoleCtx, &application.ApplicationDeleteRequest{Name: pointer.String("test")})
+		_, err = appServer.Delete(noRoleCtx, &application.ApplicationDeleteRequest{Name: ptr.To("test")})
 		assert.Equal(t, permissionDeniedErr.Error(), err.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
-		_, err = appServer.Delete(adminCtx, &application.ApplicationDeleteRequest{Name: pointer.String("doest-not-exist")})
+		_, err = appServer.Delete(adminCtx, &application.ApplicationDeleteRequest{Name: ptr.To("doest-not-exist")})
 		assert.Equal(t, permissionDeniedErr.Error(), err.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
-		_, err = appServer.Delete(adminCtx, &application.ApplicationDeleteRequest{Name: pointer.String("doest-not-exist"), Project: pointer.String("test")})
+		_, err = appServer.Delete(adminCtx, &application.ApplicationDeleteRequest{Name: ptr.To("doest-not-exist"), Project: ptr.To("test")})
 		assert.Equal(t, "rpc error: code = NotFound desc = applications.argoproj.io \"doest-not-exist\" not found", err.Error(), "when the request specifies a project, we can return the standard k8s error message")
 	})
 }
@@ -1272,7 +1274,7 @@ g, group-49, role:test3
 `
 		_ = enf.SetUserPolicy(policy)
 	}
-	appServer := newTestAppServerWithEnforcerConfigure(f, t, objects...)
+	appServer := newTestAppServerWithEnforcerConfigure(f, t, map[string]string{}, objects...)
 
 	res, err := appServer.List(ctx, &application.ApplicationQuery{})
 
@@ -1436,7 +1438,28 @@ func TestCreateAppWithDestName(t *testing.T) {
 	app, err := appServer.Create(context.Background(), &createReq)
 	assert.NoError(t, err)
 	assert.NotNil(t, app)
-	assert.Equal(t, app.Spec.Destination.Server, "https://cluster-api.com")
+	assert.Equal(t, app.Spec.Destination.Server, "https://cluster-api.example.com")
+}
+
+// TestCreateAppWithOperation tests that an application created with an operation is created with the operation removed.
+// Avoids regressions of https://github.com/argoproj/argo-cd/security/advisories/GHSA-g623-jcgg-mhmm
+func TestCreateAppWithOperation(t *testing.T) {
+	appServer := newTestAppServer(t)
+	testApp := newTestAppWithDestName()
+	testApp.Operation = &appsv1.Operation{
+		Sync: &appsv1.SyncOperation{
+			Manifests: []string{
+				"test",
+			},
+		},
+	}
+	createReq := application.ApplicationCreateRequest{
+		Application: testApp,
+	}
+	app, err := appServer.Create(context.Background(), &createReq)
+	require.NoError(t, err)
+	require.NotNil(t, app)
+	assert.Nil(t, app.Operation)
 }
 
 func TestUpdateApp(t *testing.T) {
@@ -1555,6 +1578,132 @@ func TestDeleteApp(t *testing.T) {
 	})
 }
 
+func TestDeleteResourcesRBAC(t *testing.T) {
+	ctx := context.Background()
+	// nolint:staticcheck
+	ctx = context.WithValue(ctx, "claims", &jwt.RegisteredClaims{Subject: "test-user"})
+	testApp := newTestApp()
+	appServer := newTestAppServer(t, testApp)
+	appServer.enf.SetDefaultRole("")
+
+	req := application.ApplicationResourceDeleteRequest{
+		Name:         &testApp.Name,
+		AppNamespace: &testApp.Namespace,
+		Group:        strToPtr("fake.io"),
+		Kind:         strToPtr("PodTest"),
+		Namespace:    strToPtr("fake-ns"),
+		ResourceName: strToPtr("my-pod-test"),
+	}
+
+	expectedErrorWhenDeleteAllowed := "rpc error: code = InvalidArgument desc = PodTest fake.io my-pod-test not found as part of application test-app"
+
+	t.Run("delete with application permission", func(t *testing.T) {
+		_ = appServer.enf.SetBuiltinPolicy(`
+p, test-user, applications, delete, default/test-app, allow
+`)
+		_, err := appServer.DeleteResource(ctx, &req)
+		assert.Equal(t, expectedErrorWhenDeleteAllowed, err.Error())
+	})
+
+	t.Run("delete with application permission but deny subresource", func(t *testing.T) {
+		_ = appServer.enf.SetBuiltinPolicy(`
+p, test-user, applications, delete, default/test-app, allow
+p, test-user, applications, delete/*, default/test-app, deny
+`)
+		_, err := appServer.DeleteResource(ctx, &req)
+		assert.Equal(t, expectedErrorWhenDeleteAllowed, err.Error())
+	})
+
+	t.Run("delete with subresource", func(t *testing.T) {
+		_ = appServer.enf.SetBuiltinPolicy(`
+p, test-user, applications, delete/*, default/test-app, allow
+`)
+		_, err := appServer.DeleteResource(ctx, &req)
+		assert.Equal(t, expectedErrorWhenDeleteAllowed, err.Error())
+	})
+
+	t.Run("delete with subresource but deny applications", func(t *testing.T) {
+		_ = appServer.enf.SetBuiltinPolicy(`
+p, test-user, applications, delete, default/test-app, deny
+p, test-user, applications, delete/*, default/test-app, allow
+`)
+		_, err := appServer.DeleteResource(ctx, &req)
+		assert.Equal(t, expectedErrorWhenDeleteAllowed, err.Error())
+	})
+
+	t.Run("delete with specific subresource denied", func(t *testing.T) {
+		_ = appServer.enf.SetBuiltinPolicy(`
+p, test-user, applications, delete/*, default/test-app, allow
+p, test-user, applications, delete/fake.io/PodTest/*, default/test-app, deny
+`)
+		_, err := appServer.DeleteResource(ctx, &req)
+		assert.Equal(t, codes.PermissionDenied.String(), status.Code(err).String())
+	})
+}
+
+func TestPatchResourcesRBAC(t *testing.T) {
+	ctx := context.Background()
+	// nolint:staticcheck
+	ctx = context.WithValue(ctx, "claims", &jwt.RegisteredClaims{Subject: "test-user"})
+	testApp := newTestApp()
+	appServer := newTestAppServer(t, testApp)
+	appServer.enf.SetDefaultRole("")
+
+	req := application.ApplicationResourcePatchRequest{
+		Name:         &testApp.Name,
+		AppNamespace: &testApp.Namespace,
+		Group:        strToPtr("fake.io"),
+		Kind:         strToPtr("PodTest"),
+		Namespace:    strToPtr("fake-ns"),
+		ResourceName: strToPtr("my-pod-test"),
+	}
+
+	expectedErrorWhenUpdateAllowed := "rpc error: code = InvalidArgument desc = PodTest fake.io my-pod-test not found as part of application test-app"
+
+	t.Run("patch with application permission", func(t *testing.T) {
+		_ = appServer.enf.SetBuiltinPolicy(`
+p, test-user, applications, update, default/test-app, allow
+`)
+		_, err := appServer.PatchResource(ctx, &req)
+		assert.Equal(t, expectedErrorWhenUpdateAllowed, err.Error())
+	})
+
+	t.Run("patch with application permission but deny subresource", func(t *testing.T) {
+		_ = appServer.enf.SetBuiltinPolicy(`
+p, test-user, applications, update, default/test-app, allow
+p, test-user, applications, update/*, default/test-app, deny
+`)
+		_, err := appServer.PatchResource(ctx, &req)
+		assert.Equal(t, expectedErrorWhenUpdateAllowed, err.Error())
+	})
+
+	t.Run("patch with subresource", func(t *testing.T) {
+		_ = appServer.enf.SetBuiltinPolicy(`
+p, test-user, applications, update/*, default/test-app, allow
+`)
+		_, err := appServer.PatchResource(ctx, &req)
+		assert.Equal(t, expectedErrorWhenUpdateAllowed, err.Error())
+	})
+
+	t.Run("patch with subresource but deny applications", func(t *testing.T) {
+		_ = appServer.enf.SetBuiltinPolicy(`
+p, test-user, applications, update, default/test-app, deny
+p, test-user, applications, update/*, default/test-app, allow
+`)
+		_, err := appServer.PatchResource(ctx, &req)
+		assert.Equal(t, expectedErrorWhenUpdateAllowed, err.Error())
+	})
+
+	t.Run("patch with specific subresource denied", func(t *testing.T) {
+		_ = appServer.enf.SetBuiltinPolicy(`
+p, test-user, applications, update/*, default/test-app, allow
+p, test-user, applications, update/fake.io/PodTest/*, default/test-app, deny
+`)
+		_, err := appServer.PatchResource(ctx, &req)
+		assert.Equal(t, codes.PermissionDenied.String(), status.Code(err).String())
+	})
+}
+
 func TestSyncAndTerminate(t *testing.T) {
 	ctx := context.Background()
 	appServer := newTestAppServer(t)
@@ -1658,7 +1807,7 @@ func TestRollbackApp(t *testing.T) {
 
 	updatedApp, err := appServer.Rollback(context.Background(), &application.ApplicationRollbackRequest{
 		Name: &testApp.Name,
-		Id:   pointer.Int64(1),
+		Id:   ptr.To(int64(1)),
 	})
 
 	assert.Nil(t, err)
@@ -1673,7 +1822,7 @@ func TestUpdateAppProject(t *testing.T) {
 	testApp := newTestApp()
 	ctx := context.Background()
 	// nolint:staticcheck
-	ctx = context.WithValue(ctx, "claims", &jwt.StandardClaims{Subject: "admin"})
+	ctx = context.WithValue(ctx, "claims", &jwt.RegisteredClaims{Subject: "admin"})
 	appServer := newTestAppServer(t, testApp)
 	appServer.enf.SetDefaultRole("")
 
@@ -1737,23 +1886,23 @@ func TestAppJsonPatch(t *testing.T) {
 	testApp := newTestAppWithAnnotations()
 	ctx := context.Background()
 	// nolint:staticcheck
-	ctx = context.WithValue(ctx, "claims", &jwt.StandardClaims{Subject: "admin"})
+	ctx = context.WithValue(ctx, "claims", &jwt.RegisteredClaims{Subject: "admin"})
 	appServer := newTestAppServer(t, testApp)
 	appServer.enf.SetDefaultRole("")
 
-	app, err := appServer.Patch(ctx, &application.ApplicationPatchRequest{Name: &testApp.Name, Patch: pointer.String("garbage")})
+	app, err := appServer.Patch(ctx, &application.ApplicationPatchRequest{Name: &testApp.Name, Patch: ptr.To("garbage")})
 	assert.Error(t, err)
 	assert.Nil(t, app)
 
-	app, err = appServer.Patch(ctx, &application.ApplicationPatchRequest{Name: &testApp.Name, Patch: pointer.String("[]")})
+	app, err = appServer.Patch(ctx, &application.ApplicationPatchRequest{Name: &testApp.Name, Patch: ptr.To("[]")})
 	assert.NoError(t, err)
 	assert.NotNil(t, app)
 
-	app, err = appServer.Patch(ctx, &application.ApplicationPatchRequest{Name: &testApp.Name, Patch: pointer.String(`[{"op": "replace", "path": "/spec/source/path", "value": "foo"}]`)})
+	app, err = appServer.Patch(ctx, &application.ApplicationPatchRequest{Name: &testApp.Name, Patch: ptr.To(`[{"op": "replace", "path": "/spec/source/path", "value": "foo"}]`)})
 	assert.NoError(t, err)
 	assert.Equal(t, "foo", app.Spec.Source.Path)
 
-	app, err = appServer.Patch(ctx, &application.ApplicationPatchRequest{Name: &testApp.Name, Patch: pointer.String(`[{"op": "remove", "path": "/metadata/annotations/test.annotation"}]`)})
+	app, err = appServer.Patch(ctx, &application.ApplicationPatchRequest{Name: &testApp.Name, Patch: ptr.To(`[{"op": "remove", "path": "/metadata/annotations/test.annotation"}]`)})
 	assert.NoError(t, err)
 	assert.NotContains(t, app.Annotations, "test.annotation")
 }
@@ -1762,12 +1911,12 @@ func TestAppMergePatch(t *testing.T) {
 	testApp := newTestApp()
 	ctx := context.Background()
 	// nolint:staticcheck
-	ctx = context.WithValue(ctx, "claims", &jwt.StandardClaims{Subject: "admin"})
+	ctx = context.WithValue(ctx, "claims", &jwt.RegisteredClaims{Subject: "admin"})
 	appServer := newTestAppServer(t, testApp)
 	appServer.enf.SetDefaultRole("")
 
 	app, err := appServer.Patch(ctx, &application.ApplicationPatchRequest{
-		Name: &testApp.Name, Patch: pointer.String(`{"spec": { "source": { "path": "foo" } }}`), PatchType: pointer.String("merge")})
+		Name: &testApp.Name, Patch: ptr.To(`{"spec": { "source": { "path": "foo" } }}`), PatchType: ptr.To("merge")})
 	assert.NoError(t, err)
 	assert.Equal(t, "foo", app.Spec.Source.Path)
 }
@@ -1797,7 +1946,7 @@ func TestServer_GetApplicationSyncWindowsState(t *testing.T) {
 		appServer := newTestAppServer(t, testApp)
 
 		active, err := appServer.GetApplicationSyncWindows(context.Background(), &application.ApplicationSyncWindowsQuery{Name: &testApp.Name})
-		assert.Contains(t, err.Error(), "not found")
+		assert.Contains(t, err.Error(), "not exist")
 		assert.Nil(t, active)
 	})
 }
@@ -1966,6 +2115,108 @@ func TestLogsGetSelectedPod(t *testing.T) {
 	})
 }
 
+func TestMaxPodLogsRender(t *testing.T) {
+
+	defaultMaxPodLogsToRender, _ := newTestAppServer(t).settingsMgr.GetMaxPodLogsToRender()
+
+	// Case: number of pods to view logs is less than defaultMaxPodLogsToRender
+	podNumber := int(defaultMaxPodLogsToRender - 1)
+	appServer, adminCtx := createAppServerWithMaxLodLogs(t, podNumber)
+
+	t.Run("PodLogs", func(t *testing.T) {
+		err := appServer.PodLogs(&application.ApplicationPodLogsQuery{Name: ptr.To("test")}, &TestPodLogsServer{ctx: adminCtx})
+		statusCode, _ := status.FromError(err)
+		assert.Equal(t, codes.OK, statusCode.Code())
+	})
+
+	// Case: number of pods higher than defaultMaxPodLogsToRender
+	podNumber = int(defaultMaxPodLogsToRender + 1)
+	appServer, adminCtx = createAppServerWithMaxLodLogs(t, podNumber)
+
+	t.Run("PodLogs", func(t *testing.T) {
+		err := appServer.PodLogs(&application.ApplicationPodLogsQuery{Name: ptr.To("test")}, &TestPodLogsServer{ctx: adminCtx})
+		assert.NotNil(t, err)
+		statusCode, _ := status.FromError(err)
+		assert.Equal(t, codes.InvalidArgument, statusCode.Code())
+		assert.Equal(t, "rpc error: code = InvalidArgument desc = max pods to view logs are reached. Please provide more granular query", err.Error())
+	})
+
+	// Case: number of pods to view logs is less than customMaxPodLogsToRender
+	customMaxPodLogsToRender := int64(15)
+	podNumber = int(customMaxPodLogsToRender - 1)
+	appServer, adminCtx = createAppServerWithMaxLodLogs(t, podNumber, customMaxPodLogsToRender)
+
+	t.Run("PodLogs", func(t *testing.T) {
+		err := appServer.PodLogs(&application.ApplicationPodLogsQuery{Name: ptr.To("test")}, &TestPodLogsServer{ctx: adminCtx})
+		statusCode, _ := status.FromError(err)
+		assert.Equal(t, codes.OK, statusCode.Code())
+	})
+
+	// Case: number of pods higher than customMaxPodLogsToRender
+	customMaxPodLogsToRender = int64(15)
+	podNumber = int(customMaxPodLogsToRender + 1)
+	appServer, adminCtx = createAppServerWithMaxLodLogs(t, podNumber, customMaxPodLogsToRender)
+
+	t.Run("PodLogs", func(t *testing.T) {
+		err := appServer.PodLogs(&application.ApplicationPodLogsQuery{Name: ptr.To("test")}, &TestPodLogsServer{ctx: adminCtx})
+		assert.NotNil(t, err)
+		statusCode, _ := status.FromError(err)
+		assert.Equal(t, codes.InvalidArgument, statusCode.Code())
+		assert.Equal(t, "rpc error: code = InvalidArgument desc = max pods to view logs are reached. Please provide more granular query", err.Error())
+	})
+}
+
+// createAppServerWithMaxLodLogs creates a new app server with given number of pods and resources
+func createAppServerWithMaxLodLogs(t *testing.T, podNumber int, maxPodLogsToRender ...int64) (*Server, context.Context) {
+	runtimeObjects := make([]runtime.Object, podNumber+1)
+	resources := make([]appsv1.ResourceStatus, podNumber)
+
+	for i := 0; i < podNumber; i++ {
+		pod := v1.Pod{
+			TypeMeta: metav1.TypeMeta{
+				APIVersion: "v1",
+				Kind:       "Pod",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      fmt.Sprintf("pod-%d", i),
+				Namespace: "test",
+			},
+		}
+		resources[i] = appsv1.ResourceStatus{
+			Group:     pod.GroupVersionKind().Group,
+			Kind:      pod.GroupVersionKind().Kind,
+			Version:   pod.GroupVersionKind().Version,
+			Name:      pod.Name,
+			Namespace: pod.Namespace,
+			Status:    "Synced",
+		}
+		runtimeObjects[i] = kube.MustToUnstructured(&pod)
+	}
+
+	testApp := newTestApp(func(app *appsv1.Application) {
+		app.Name = "test"
+		app.Status.Resources = resources
+	})
+	runtimeObjects[podNumber] = testApp
+
+	noRoleCtx := context.Background()
+	// nolint:staticcheck
+	adminCtx := context.WithValue(noRoleCtx, "claims", &jwt.MapClaims{"groups": []string{"admin"}})
+
+	if len(maxPodLogsToRender) > 0 {
+		f := func(enf *rbac.Enforcer) {
+			_ = enf.SetBuiltinPolicy(assets.BuiltinPolicyCSV)
+			enf.SetDefaultRole("role:admin")
+		}
+		formatInt := strconv.FormatInt(maxPodLogsToRender[0], 10)
+		appServer := newTestAppServerWithEnforcerConfigure(f, t, map[string]string{"server.maxPodLogsToRender": formatInt}, runtimeObjects...)
+		return appServer, adminCtx
+	} else {
+		appServer := newTestAppServer(t, runtimeObjects...)
+		return appServer, adminCtx
+	}
+}
+
 // refreshAnnotationRemover runs an infinite loop until it detects and removes refresh annotation or given context is done
 func refreshAnnotationRemover(t *testing.T, ctx context.Context, patched *int32, appServer *Server, appName string, ch chan string) {
 	for ctx.Err() == nil {
@@ -2001,7 +2252,7 @@ func TestGetAppRefresh_NormalRefresh(t *testing.T) {
 
 	_, err := appServer.Get(context.Background(), &application.ApplicationQuery{
 		Name:    &testApp.Name,
-		Refresh: pointer.String(string(appsv1.RefreshTypeNormal)),
+		Refresh: ptr.To(string(appsv1.RefreshTypeNormal)),
 	})
 	assert.NoError(t, err)
 
@@ -2037,7 +2288,7 @@ func TestGetAppRefresh_HardRefresh(t *testing.T) {
 
 	_, err := appServer.Get(context.Background(), &application.ApplicationQuery{
 		Name:    &testApp.Name,
-		Refresh: pointer.String(string(appsv1.RefreshTypeHard)),
+		Refresh: ptr.To(string(appsv1.RefreshTypeHard)),
 	})
 	assert.NoError(t, err)
 	require.NotNil(t, getAppDetailsQuery)
@@ -2368,7 +2619,7 @@ func TestAppNamespaceRestrictions(t *testing.T) {
 		testApp2 := newTestApp()
 		testApp2.Namespace = "argocd-1"
 		appServer := newTestAppServer(t, testApp1, testApp2)
-		apps, err := appServer.List(context.TODO(), &application.ApplicationQuery{AppNamespace: pointer.String("argocd-1")})
+		apps, err := appServer.List(context.TODO(), &application.ApplicationQuery{AppNamespace: ptr.To("argocd-1")})
 		require.NoError(t, err)
 		require.Len(t, apps.Items, 0)
 	})
@@ -2387,7 +2638,7 @@ func TestAppNamespaceRestrictions(t *testing.T) {
 		testApp := newTestApp()
 		appServer := newTestAppServer(t, testApp)
 		app, err := appServer.Get(context.TODO(), &application.ApplicationQuery{
-			Name: pointer.String("test-app"),
+			Name: ptr.To("test-app"),
 		})
 		require.NoError(t, err)
 		assert.Equal(t, "test-app", app.GetName())
@@ -2397,8 +2648,8 @@ func TestAppNamespaceRestrictions(t *testing.T) {
 		testApp.Namespace = "argocd-1"
 		appServer := newTestAppServer(t, testApp)
 		app, err := appServer.Get(context.TODO(), &application.ApplicationQuery{
-			Name:         pointer.String("test-app"),
-			AppNamespace: pointer.String("argocd-1"),
+			Name:         ptr.To("test-app"),
+			AppNamespace: ptr.To("argocd-1"),
 		})
 		require.Error(t, err)
 		require.ErrorContains(t, err, "permission denied")
@@ -2407,16 +2658,47 @@ func TestAppNamespaceRestrictions(t *testing.T) {
 	t.Run("Get application in other namespace when allowed", func(t *testing.T) {
 		testApp := newTestApp()
 		testApp.Namespace = "argocd-1"
-		appServer := newTestAppServer(t, testApp)
+		testApp.Spec.Project = "other-ns"
+		otherNsProj := &appsv1.AppProject{
+			ObjectMeta: metav1.ObjectMeta{Name: "other-ns", Namespace: "default"},
+			Spec: appsv1.AppProjectSpec{
+				SourceRepos:      []string{"*"},
+				Destinations:     []appsv1.ApplicationDestination{{Server: "*", Namespace: "*"}},
+				SourceNamespaces: []string{"argocd-1"},
+			},
+		}
+		appServer := newTestAppServer(t, testApp, otherNsProj)
 		appServer.enabledNamespaces = []string{"argocd-1"}
 		app, err := appServer.Get(context.TODO(), &application.ApplicationQuery{
-			Name:         pointer.String("test-app"),
-			AppNamespace: pointer.String("argocd-1"),
+			Name:         ptr.To("test-app"),
+			AppNamespace: ptr.To("argocd-1"),
 		})
 		require.NoError(t, err)
 		require.NotNil(t, app)
 		require.Equal(t, "argocd-1", app.Namespace)
 		require.Equal(t, "test-app", app.Name)
+	})
+	t.Run("Get application in other namespace when project is not allowed", func(t *testing.T) {
+		testApp := newTestApp()
+		testApp.Namespace = "argocd-1"
+		testApp.Spec.Project = "other-ns"
+		otherNsProj := &appsv1.AppProject{
+			ObjectMeta: metav1.ObjectMeta{Name: "other-ns", Namespace: "default"},
+			Spec: appsv1.AppProjectSpec{
+				SourceRepos:      []string{"*"},
+				Destinations:     []appsv1.ApplicationDestination{{Server: "*", Namespace: "*"}},
+				SourceNamespaces: []string{"argocd-2"},
+			},
+		}
+		appServer := newTestAppServer(t, testApp, otherNsProj)
+		appServer.enabledNamespaces = []string{"argocd-1"}
+		app, err := appServer.Get(context.TODO(), &application.ApplicationQuery{
+			Name:         ptr.To("test-app"),
+			AppNamespace: ptr.To("argocd-1"),
+		})
+		require.Error(t, err)
+		require.Nil(t, app)
+		require.ErrorContains(t, err, "app is not allowed in project")
 	})
 	t.Run("Create application in other namespace when allowed", func(t *testing.T) {
 		testApp := newTestApp()
@@ -2460,7 +2742,7 @@ func TestAppNamespaceRestrictions(t *testing.T) {
 		})
 		require.Error(t, err)
 		require.Nil(t, app)
-		require.ErrorContains(t, err, "not allowed to use project")
+		require.ErrorContains(t, err, "app is not allowed in project")
 	})
 
 	t.Run("Create application in other namespace when not allowed by configuration", func(t *testing.T) {
@@ -2484,5 +2766,207 @@ func TestAppNamespaceRestrictions(t *testing.T) {
 		require.Nil(t, app)
 		require.ErrorContains(t, err, "namespace 'argocd-1' is not permitted")
 	})
+	t.Run("Get application sync window in other namespace when project is allowed", func(t *testing.T) {
+		testApp := newTestApp()
+		testApp.Namespace = "argocd-1"
+		testApp.Spec.Project = "other-ns"
+		otherNsProj := &appsv1.AppProject{
+			ObjectMeta: metav1.ObjectMeta{Name: "other-ns", Namespace: "default"},
+			Spec: appsv1.AppProjectSpec{
+				SourceRepos:      []string{"*"},
+				Destinations:     []appsv1.ApplicationDestination{{Server: "*", Namespace: "*"}},
+				SourceNamespaces: []string{"argocd-1"},
+			},
+		}
+		appServer := newTestAppServer(t, testApp, otherNsProj)
+		appServer.enabledNamespaces = []string{"argocd-1"}
+		active, err := appServer.GetApplicationSyncWindows(context.TODO(), &application.ApplicationSyncWindowsQuery{Name: &testApp.Name, AppNamespace: &testApp.Namespace})
+		assert.NoError(t, err)
+		assert.Equal(t, 0, len(active.ActiveWindows))
+	})
+	t.Run("Get application sync window in other namespace when project is not allowed", func(t *testing.T) {
+		testApp := newTestApp()
+		testApp.Namespace = "argocd-1"
+		testApp.Spec.Project = "other-ns"
+		otherNsProj := &appsv1.AppProject{
+			ObjectMeta: metav1.ObjectMeta{Name: "other-ns", Namespace: "default"},
+			Spec: appsv1.AppProjectSpec{
+				SourceRepos:      []string{"*"},
+				Destinations:     []appsv1.ApplicationDestination{{Server: "*", Namespace: "*"}},
+				SourceNamespaces: []string{"argocd-2"},
+			},
+		}
+		appServer := newTestAppServer(t, testApp, otherNsProj)
+		appServer.enabledNamespaces = []string{"argocd-1"}
+		active, err := appServer.GetApplicationSyncWindows(context.TODO(), &application.ApplicationSyncWindowsQuery{Name: &testApp.Name, AppNamespace: &testApp.Namespace})
+		require.Error(t, err)
+		require.Nil(t, active)
+		require.ErrorContains(t, err, "app is not allowed in project")
+	})
+	t.Run("Get list of links in other namespace when project is not allowed", func(t *testing.T) {
+		testApp := newTestApp()
+		testApp.Namespace = "argocd-1"
+		testApp.Spec.Project = "other-ns"
+		otherNsProj := &appsv1.AppProject{
+			ObjectMeta: metav1.ObjectMeta{Name: "other-ns", Namespace: "default"},
+			Spec: appsv1.AppProjectSpec{
+				SourceRepos:      []string{"*"},
+				Destinations:     []appsv1.ApplicationDestination{{Server: "*", Namespace: "*"}},
+				SourceNamespaces: []string{"argocd-2"},
+			},
+		}
+		appServer := newTestAppServer(t, testApp, otherNsProj)
+		appServer.enabledNamespaces = []string{"argocd-1"}
+		links, err := appServer.ListLinks(context.TODO(), &application.ListAppLinksRequest{
+			Name:      ptr.To("test-app"),
+			Namespace: ptr.To("argocd-1"),
+		})
+		require.Error(t, err)
+		require.Nil(t, links)
+		require.ErrorContains(t, err, "app is not allowed in project")
+	})
+	t.Run("Get list of links in other namespace when project is allowed", func(t *testing.T) {
+		testApp := newTestApp()
+		testApp.Namespace = "argocd-1"
+		testApp.Spec.Project = "other-ns"
+		otherNsProj := &appsv1.AppProject{
+			ObjectMeta: metav1.ObjectMeta{Name: "other-ns", Namespace: "default"},
+			Spec: appsv1.AppProjectSpec{
+				SourceRepos:      []string{"*"},
+				Destinations:     []appsv1.ApplicationDestination{{Server: "*", Namespace: "*"}},
+				SourceNamespaces: []string{"argocd-1"},
+			},
+		}
+		appServer := newTestAppServer(t, testApp, otherNsProj)
+		appServer.enabledNamespaces = []string{"argocd-1"}
+		links, err := appServer.ListLinks(context.TODO(), &application.ListAppLinksRequest{
+			Name:      ptr.To("test-app"),
+			Namespace: ptr.To("argocd-1"),
+		})
+		require.NoError(t, err)
+		assert.Equal(t, 0, len(links.Items))
+	})
+}
 
+func TestGetAmbiguousRevision_MultiSource(t *testing.T) {
+	app := &appv1.Application{
+		Spec: appv1.ApplicationSpec{
+			Sources: []appv1.ApplicationSource{
+				{
+					TargetRevision: "revision1",
+				},
+				{
+					TargetRevision: "revision2",
+				},
+			},
+		},
+	}
+	syncReq := &application.ApplicationSyncRequest{
+		SourcePositions: []int64{0, 1},
+		Revisions:       []string{"rev1", "rev2"},
+	}
+
+	sourceIndex := 0
+	expected := "rev1"
+	result := getAmbiguousRevision(app, syncReq, sourceIndex)
+	if result != expected {
+		t.Errorf("Expected ambiguous revision to be %s, but got %s", expected, result)
+	}
+
+	sourceIndex = 1
+	expected = "rev2"
+	result = getAmbiguousRevision(app, syncReq, sourceIndex)
+	if result != expected {
+		t.Errorf("Expected ambiguous revision to be %s, but got %s", expected, result)
+	}
+
+	// Test when app.Spec.HasMultipleSources() is false
+	app.Spec = appv1.ApplicationSpec{
+		Source: &appv1.ApplicationSource{
+			TargetRevision: "revision3",
+		},
+		Sources: nil,
+	}
+	syncReq = &application.ApplicationSyncRequest{
+		Revision: strToPtr("revision3"),
+	}
+	expected = "revision3"
+	result = getAmbiguousRevision(app, syncReq, sourceIndex)
+	if result != expected {
+		t.Errorf("Expected ambiguous revision to be %s, but got %s", expected, result)
+	}
+}
+
+func TestGetAmbiguousRevision_SingleSource(t *testing.T) {
+	app := &appv1.Application{
+		Spec: appv1.ApplicationSpec{
+			Source: &appv1.ApplicationSource{
+				TargetRevision: "revision1",
+			},
+		},
+	}
+	syncReq := &application.ApplicationSyncRequest{
+		Revision: strToPtr("rev1"),
+	}
+
+	// Test when app.Spec.HasMultipleSources() is true
+	sourceIndex := 1
+	expected := "rev1"
+	result := getAmbiguousRevision(app, syncReq, sourceIndex)
+	if result != expected {
+		t.Errorf("Expected ambiguous revision to be %s, but got %s", expected, result)
+	}
+}
+
+func TestServer_ResolveSourceRevisions_MultiSource(t *testing.T) {
+	s := newTestAppServer(t)
+
+	ctx := context.Background()
+	a := &appv1.Application{
+		Spec: appv1.ApplicationSpec{
+			Sources: []appv1.ApplicationSource{
+				{
+					RepoURL: "https://github.com/example/repo.git",
+				},
+			},
+		},
+	}
+
+	syncReq := &application.ApplicationSyncRequest{
+		SourcePositions: []int64{1},
+		Revisions:       []string{"HEAD"},
+	}
+
+	revision, displayRevision, sourceRevisions, displayRevisions, err := s.resolveSourceRevisions(ctx, a, syncReq)
+
+	assert.NoError(t, err)
+	assert.Equal(t, "", revision)
+	assert.Equal(t, "", displayRevision)
+	assert.Equal(t, []string{fakeResolveRevisionResponse().Revision}, sourceRevisions)
+	assert.Equal(t, []string{fakeResolveRevisionResponse().AmbiguousRevision}, displayRevisions)
+}
+
+func TestServer_ResolveSourceRevisions_SingleSource(t *testing.T) {
+	s := newTestAppServer(t)
+
+	ctx := context.Background()
+	a := &appv1.Application{
+		Spec: appv1.ApplicationSpec{
+			Source: &appv1.ApplicationSource{
+				RepoURL: "https://github.com/example/repo.git",
+			},
+		},
+	}
+
+	syncReq := &application.ApplicationSyncRequest{
+		Revision: strToPtr("HEAD"),
+	}
+
+	revision, displayRevision, sourceRevisions, displayRevisions, err := s.resolveSourceRevisions(ctx, a, syncReq)
+
+	assert.NoError(t, err)
+	assert.Equal(t, fakeResolveRevisionResponse().Revision, revision)
+	assert.Equal(t, fakeResolveRevisionResponse().AmbiguousRevision, displayRevision)
+	assert.Equal(t, ([]string)(nil), sourceRevisions)
+	assert.Equal(t, ([]string)(nil), displayRevisions)
 }

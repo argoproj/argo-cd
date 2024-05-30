@@ -25,7 +25,6 @@ import (
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
 	applisters "github.com/argoproj/argo-cd/v2/pkg/client/listers/application/v1alpha1"
-	servercache "github.com/argoproj/argo-cd/v2/server/cache"
 	"github.com/argoproj/argo-cd/v2/server/rbacpolicy"
 	"github.com/argoproj/argo-cd/v2/util/argo"
 	"github.com/argoproj/argo-cd/v2/util/collections"
@@ -40,11 +39,9 @@ type Server struct {
 	ns                string
 	db                db.ArgoDB
 	enf               *rbac.Enforcer
-	cache             *servercache.Cache
 	appclientset      appclientset.Interface
-	appLister         applisters.ApplicationLister
 	appsetInformer    cache.SharedIndexInformer
-	appsetLister      applisters.ApplicationSetNamespaceLister
+	appsetLister      applisters.ApplicationSetLister
 	projLister        applisters.AppProjectNamespaceLister
 	auditLogger       *argo.AuditLogger
 	settings          *settings.SettingsManager
@@ -57,11 +54,9 @@ func NewServer(
 	db db.ArgoDB,
 	kubeclientset kubernetes.Interface,
 	enf *rbac.Enforcer,
-	cache *servercache.Cache,
 	appclientset appclientset.Interface,
-	appLister applisters.ApplicationLister,
 	appsetInformer cache.SharedIndexInformer,
-	appsetLister applisters.ApplicationSetNamespaceLister,
+	appsetLister applisters.ApplicationSetLister,
 	projLister applisters.AppProjectNamespaceLister,
 	settings *settings.SettingsManager,
 	namespace string,
@@ -70,11 +65,9 @@ func NewServer(
 ) applicationset.ApplicationSetServiceServer {
 	s := &Server{
 		ns:                namespace,
-		cache:             cache,
 		db:                db,
 		enf:               enf,
 		appclientset:      appclientset,
-		appLister:         appLister,
 		appsetInformer:    appsetInformer,
 		appsetLister:      appsetLister,
 		projLister:        projLister,
@@ -94,7 +87,7 @@ func (s *Server) Get(ctx context.Context, q *applicationset.ApplicationSetGetQue
 		return nil, security.NamespaceNotPermittedError(namespace)
 	}
 
-	a, err := s.appclientset.ArgoprojV1alpha1().ApplicationSets(namespace).Get(ctx, q.Name, metav1.GetOptions{})
+	a, err := s.appsetLister.ApplicationSets(namespace).Get(q.Name)
 
 	if err != nil {
 		return nil, fmt.Errorf("error getting ApplicationSet: %w", err)
@@ -113,14 +106,19 @@ func (s *Server) List(ctx context.Context, q *applicationset.ApplicationSetListQ
 		return nil, fmt.Errorf("error parsing the selector: %w", err)
 	}
 
-	appIf := s.appclientset.ArgoprojV1alpha1().ApplicationSets(q.AppsetNamespace)
-	appsetList, err := appIf.List(ctx, metav1.ListOptions{LabelSelector: selector.String()})
+	var appsets []*v1alpha1.ApplicationSet
+	if q.AppsetNamespace == "" {
+		appsets, err = s.appsetLister.List(selector)
+	} else {
+		appsets, err = s.appsetLister.ApplicationSets(q.AppsetNamespace).List(selector)
+	}
+
 	if err != nil {
 		return nil, fmt.Errorf("error listing ApplicationSets with selectors: %w", err)
 	}
 
 	newItems := make([]v1alpha1.ApplicationSet, 0)
-	for _, a := range appsetList.Items {
+	for _, a := range appsets {
 
 		// Skip any application that is neither in the conrol plane's namespace
 		// nor in the list of enabled namespaces.
@@ -129,7 +127,7 @@ func (s *Server) List(ctx context.Context, q *applicationset.ApplicationSetListQ
 		}
 
 		if s.enf.Enforce(ctx.Value("claims"), rbacpolicy.ResourceApplicationSets, rbacpolicy.ActionGet, a.RBACName(s.ns)) {
-			newItems = append(newItems, a)
+			newItems = append(newItems, *a)
 		}
 	}
 
@@ -140,7 +138,7 @@ func (s *Server) List(ctx context.Context, q *applicationset.ApplicationSetListQ
 		return newItems[i].Name < newItems[j].Name
 	})
 
-	appsetList = &v1alpha1.ApplicationSetList{
+	appsetList := &v1alpha1.ApplicationSetList{
 		ListMeta: metav1.ListMeta{
 			ResourceVersion: s.appsetInformer.LastSyncResourceVersion(),
 		},
@@ -282,6 +280,52 @@ func (s *Server) Delete(ctx context.Context, q *applicationset.ApplicationSetDel
 
 }
 
+func (s *Server) ResourceTree(ctx context.Context, q *applicationset.ApplicationSetTreeQuery) (*v1alpha1.ApplicationSetTree, error) {
+	namespace := s.appsetNamespaceOrDefault(q.AppsetNamespace)
+
+	if !s.isNamespaceEnabled(namespace) {
+		return nil, security.NamespaceNotPermittedError(namespace)
+	}
+
+	a, err := s.appclientset.ArgoprojV1alpha1().ApplicationSets(namespace).Get(ctx, q.Name, metav1.GetOptions{})
+
+	if err != nil {
+		return nil, fmt.Errorf("error getting ApplicationSet: %w", err)
+	}
+	if err = s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplicationSets, rbacpolicy.ActionGet, a.RBACName(s.ns)); err != nil {
+		return nil, err
+	}
+
+	return s.buildApplicationSetTree(ctx, a)
+}
+
+func (s *Server) buildApplicationSetTree(ctx context.Context, a *v1alpha1.ApplicationSet) (*v1alpha1.ApplicationSetTree, error) {
+	var tree v1alpha1.ApplicationSetTree
+
+	gvk := v1alpha1.ApplicationSetSchemaGroupVersionKind
+	parentRefs := []v1alpha1.ResourceRef{
+		{Group: gvk.Group, Version: gvk.Version, Kind: gvk.Kind, Name: a.Name, Namespace: a.Namespace, UID: string(a.UID)},
+	}
+
+	apps := a.Status.Resources
+	for _, app := range apps {
+		tree.Nodes = append(tree.Nodes, v1alpha1.ResourceNode{
+			Health: app.Health,
+			ResourceRef: v1alpha1.ResourceRef{
+				Name:      app.Name,
+				Group:     app.Group,
+				Version:   app.Version,
+				Kind:      app.Kind,
+				Namespace: a.Namespace,
+			},
+			ParentRefs: parentRefs,
+		})
+	}
+	tree.Normalize()
+
+	return &tree, nil
+}
+
 func (s *Server) validateAppSet(ctx context.Context, appset *v1alpha1.ApplicationSet) (string, error) {
 	if appset == nil {
 		return "", fmt.Errorf("ApplicationSet cannot be validated for nil value")
@@ -336,7 +380,7 @@ func (s *Server) waitSync(appset *v1alpha1.ApplicationSet) {
 		return
 	}
 	for {
-		if currAppset, err := s.appsetLister.Get(appset.Name); err == nil {
+		if currAppset, err := s.appsetLister.ApplicationSets(appset.Namespace).Get(appset.Name); err == nil {
 			currVersion, err := strconv.Atoi(currAppset.ResourceVersion)
 			if err == nil && currVersion >= minVersion {
 				return

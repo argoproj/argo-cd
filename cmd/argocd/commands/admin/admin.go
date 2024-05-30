@@ -48,6 +48,12 @@ func NewAdminCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 		Run: func(c *cobra.Command, args []string) {
 			c.HelpFunc()(c, args)
 		},
+		Example: `# Access the Argo CD web UI
+$ argocd admin dashboard
+
+# Reset the initial admin password
+$ argocd admin initial-password reset
+`,
 	}
 
 	command.AddCommand(NewClusterCommand(clientOpts, pathOpts))
@@ -57,9 +63,10 @@ func NewAdminCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	command.AddCommand(NewRepoCommand())
 	command.AddCommand(NewImportCommand())
 	command.AddCommand(NewExportCommand())
-	command.AddCommand(NewDashboardCommand())
+	command.AddCommand(NewDashboardCommand(clientOpts))
 	command.AddCommand(NewNotificationsCommand())
 	command.AddCommand(NewInitialPasswordCommand())
+	command.AddCommand(NewRedisInitialPasswordCommand())
 
 	command.Flags().StringVar(&cmdutil.LogFormat, "logformat", "text", "Set the logging format. One of: text|json")
 	command.Flags().StringVar(&cmdutil.LogLevel, "loglevel", "info", "Set the logging level. One of: debug|info|warn|error")
