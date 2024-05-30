@@ -51,25 +51,30 @@ There are a few parts to this proposal.
 The first part of this proposal is to change how the selected credential gets selected. Currently, the first repository 
 secret that matches the repository URL gets returned.
 
-What this proposal instead aims to do is to first find the first `repository` secret which matches the
-`project` of the application that is making the request for the repository credentials. If there are no credentials 
-which match the requested `project`, it will fall back to returning the first unscoped credential, i.e, the first credential
-with an empty `project` parameter.
+What this proposal instead aims to do is to find the first `repository` secret which matches the `project` of the 
+requester that is asking for the repository credentials, as well as the repository URL. If there are no credentials 
+which match the requested `project`, it will fall back to returning the first unscoped credential, i.e, the first 
+credential with an empty `project` parameter.
 
-This change would apply when we retrieve a _single_ repository credential. For listing repository credentials, nothing 
-changes - the logic would be the same as today. 
+In order to preserve backwards compatibility we need to apply this behavior only when there are multiple repository 
+credentials that match the same URL and that the user is authorized to access. If only one matching secret can be 
+found, whether it is project-scoped or not, that secret will be the one to be returned to the user.
+
+This change would apply when we retrieve a _single_ repository credential, or when we delete a repository credential.
+For listing repository credentials, nothing changes - the logic would be the same as today. 
 
 When it comes to mutating a repository credential we need to strictly match the project which the cred belongs to, since 
 there would otherwise be a risk of changing (inadvertently or otherwise) a credential not belonging to the correct project.
+This can be done without any breaking changes.
 
-The third part is specifically for when we imperatively create repository secrets. Currently, when we create a repository
+The second part is specifically for when we imperatively create repository secrets. Currently, when we create a repository
 secret in the UI/CLI, a suffix gets generated which is a hash of the repository URL. This mechanism will be extended to 
 also hash the repository _project_.
 
 On the API server side no major changes are anticipated to the public API. The only change we need to do from the API 
-perspective is to add a `project` parameter when deleting a repository credential. To preserve backwards compatibility
-this option is optional and would only be a required parameter if multiple repository credentials are found for the same 
-URL.
+perspective is to add an `appProject` parameter when retrieving or deleting a repository credential. To preserve backwards 
+compatibility this option is optional and would only be a required parameter if multiple repository credentials are 
+found for the same URL.
 
 Finally, we need to change the way the cache keys for the repository paths are generated in the repo-server 
 (see `Security Considerations`). 
