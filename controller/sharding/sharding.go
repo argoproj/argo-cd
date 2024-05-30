@@ -138,7 +138,7 @@ func LegacyDistributionFunction(replicas int) DistributionFunction {
 func RoundRobinDistributionFunction(clusters clusterAccessor, replicas int) DistributionFunction {
 	return func(c *v1alpha1.Cluster) int {
 		if replicas > 0 {
-			if c == nil { // in-cluster does not necessary have a secret assigned. So we are receiving a nil cluster here.
+			if c == nil { // in-cluster does not necessarily have a secret assigned. So we are receiving a nil cluster here.
 				return 0
 			}
 			// if Shard is manually set and the assigned value is lower than the number of replicas,
@@ -169,7 +169,7 @@ func RoundRobinDistributionFunction(clusters clusterAccessor, replicas int) Dist
 func ConsistentHashingWithBoundedLoadsDistributionFunction(clusters clusterAccessor, apps appAccessor, replicas int) DistributionFunction {
 	return func(c *v1alpha1.Cluster) int {
 		if replicas > 0 {
-			if c == nil { // in-cluster does not necessarly have a secret assigned. So we are receiving a nil cluster here.
+			if c == nil { // in-cluster does not necessarily have a secret assigned. So we are receiving a nil cluster here.
 				return 0
 			}
 
