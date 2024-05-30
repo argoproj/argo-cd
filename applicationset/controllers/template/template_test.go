@@ -4,9 +4,10 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/argoproj/argo-cd/v2/applicationset/controllers/mocks"
 	"github.com/argoproj/argo-cd/v2/applicationset/generators"
+	"github.com/argoproj/argo-cd/v2/applicationset/generators/mocks"
 	"github.com/argoproj/argo-cd/v2/applicationset/utils"
+	"github.com/argoproj/argo-cd/v2/applicationset/utils/mocks"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/util/collections"
