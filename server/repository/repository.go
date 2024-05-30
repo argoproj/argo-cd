@@ -472,24 +472,27 @@ func (s *Server) Delete(ctx context.Context, q *repositorypkg.RepoQuery) (*repos
 
 // DeleteRepository removes a repository from the configuration
 func (s *Server) DeleteRepository(ctx context.Context, q *repositorypkg.RepoQuery) (*repositorypkg.RepoResponse, error) {
-	foundRepo, err := s.getRepository(ctx, q)
+	repo, err := s.getRepository(ctx, q)
 	if err != nil {
 		return nil, err
 	}
 
-	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceRepositories, rbacpolicy.ActionDelete, createRBACObject(foundRepo.Project, foundRepo.Repo)); err != nil {
+	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceRepositories, rbacpolicy.ActionDelete, createRBACObject(repo.Project, repo.Repo)); err != nil {
 		return nil, err
 	}
 
 	// invalidate cache
-	if err := s.cache.SetRepoConnectionState(foundRepo.Repo, foundRepo.Project, nil); err == nil {
+	if err := s.cache.SetRepoConnectionState(repo.Repo, repo.Project, nil); err == nil {
 		log.Errorf("error invalidating cache: %v", err)
 	}
 
-	err = s.db.DeleteRepository(ctx, foundRepo.Repo, foundRepo.Project)
+	err = s.db.DeleteRepository(ctx, repo.Repo, repo.Project)
 	return &repositorypkg.RepoResponse{}, err
 }
 
+// getRepository fetches a single repository which the user has access to. If only one repository can be found which
+// matches the same URL, that will be returned (this is for backward compatibility reasons). If multiple repositories
+// are matched, a repository is only returned if it matches the app project of the incoming request.
 func (s *Server) getRepository(ctx context.Context, q *repositorypkg.RepoQuery) (*appsv1.Repository, error) {
 	repositories, err := s.ListRepositories(ctx, q)
 	if err != nil {
@@ -520,7 +523,7 @@ func (s *Server) getRepository(ctx context.Context, q *repositorypkg.RepoQuery) 
 	}
 
 	if foundRepo == nil {
-		return nil, fmt.Errorf("TODO: give nice error messages since multiple repos were found for user")
+		return nil, fmt.Errorf("multiple repositories found for url %s, please disambiguate by specifying an app project", q.Repo)
 	}
 
 	return foundRepo, nil
