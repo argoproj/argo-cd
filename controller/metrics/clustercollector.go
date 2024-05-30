@@ -2,9 +2,11 @@ package metrics
 
 import (
 	"context"
+	"strings"
 	"sync"
 	"time"
 
+	argoappv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/gitops-engine/pkg/cache"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -20,7 +22,7 @@ var (
 	descClusterInfo = prometheus.NewDesc(
 		"argocd_cluster_info",
 		"Information about cluster.",
-		append(descClusterDefaultLabels, "k8s_version"),
+		append(descClusterDefaultLabels, "k8s_version", "name"),
 		nil,
 	)
 	descClusterCacheResources = prometheus.NewDesc(
@@ -44,7 +46,7 @@ var (
 	descClusterConnectionStatus = prometheus.NewDesc(
 		"argocd_cluster_connection_status",
 		"The k8s cluster current connection status.",
-		append(descClusterDefaultLabels, "k8s_version"),
+		append(descClusterDefaultLabels, "k8s_version", "name", "labels"),
 		nil,
 	)
 )
@@ -57,6 +59,7 @@ type clusterCollector struct {
 	infoSource HasClustersInfo
 	info       []cache.ClusterInfo
 	lock       sync.Mutex
+	clusters   argoappv1.ClusterList
 }
 
 func (c *clusterCollector) Run(ctx context.Context) {
@@ -89,9 +92,17 @@ func (c *clusterCollector) Describe(ch chan<- *prometheus.Desc) {
 func (c *clusterCollector) Collect(ch chan<- prometheus.Metric) {
 
 	now := time.Now()
+	clusters := c.clusters
 	for _, c := range c.info {
+		metadata := findClusterMetadata(c.Server, clusters)
+
+		labels := make([]string, 0, len(metadata.Labels))
+		for k, v := range metadata.Labels {
+			labels = append(labels, k+"="+v)
+		}
+
 		defaultValues := []string{c.Server}
-		ch <- prometheus.MustNewConstMetric(descClusterInfo, prometheus.GaugeValue, 1, append(defaultValues, c.K8SVersion)...)
+		ch <- prometheus.MustNewConstMetric(descClusterInfo, prometheus.GaugeValue, 1, append(defaultValues, c.K8SVersion, metadata.Name)...)
 		ch <- prometheus.MustNewConstMetric(descClusterCacheResources, prometheus.GaugeValue, float64(c.ResourcesCount), defaultValues...)
 		ch <- prometheus.MustNewConstMetric(descClusterAPIs, prometheus.GaugeValue, float64(c.APIsCount), defaultValues...)
 		cacheAgeSeconds := -1
@@ -99,6 +110,15 @@ func (c *clusterCollector) Collect(ch chan<- prometheus.Metric) {
 			cacheAgeSeconds = int(now.Sub(*c.LastCacheSyncTime).Seconds())
 		}
 		ch <- prometheus.MustNewConstMetric(descClusterCacheAgeSeconds, prometheus.GaugeValue, float64(cacheAgeSeconds), defaultValues...)
-		ch <- prometheus.MustNewConstMetric(descClusterConnectionStatus, prometheus.GaugeValue, boolFloat64(c.SyncError == nil), append(defaultValues, c.K8SVersion)...)
+		ch <- prometheus.MustNewConstMetric(descClusterConnectionStatus, prometheus.GaugeValue, boolFloat64(c.SyncError == nil), append(defaultValues, c.K8SVersion, metadata.Name, strings.Join(labels, ","))...)
 	}
+}
+
+func findClusterMetadata(server string, clusters argoappv1.ClusterList) argoappv1.Cluster {
+	for _, cluster := range clusters.Items {
+		if cluster.Server == server {
+			return cluster
+		}
+	}
+	return argoappv1.Cluster{}
 }

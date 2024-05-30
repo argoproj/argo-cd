@@ -794,7 +794,6 @@ func (ctrl *ApplicationController) Run(ctx context.Context, statusProcessors int
 	defer ctrl.appOperationQueue.ShutDown()
 	defer ctrl.projectRefreshQueue.ShutDown()
 
-	ctrl.metricsServer.RegisterClustersInfoSource(ctx, ctrl.stateCache)
 	ctrl.RegisterClusterSecretUpdater(ctx)
 
 	go ctrl.appInformer.Run(ctx.Done())
@@ -817,6 +816,8 @@ func (ctrl *ApplicationController) Run(ctx context.Context, statusProcessors int
 			ctrl.clusterSharding.Init(clusters, appItems)
 		}
 	}
+
+	ctrl.metricsServer.RegisterClustersInfoSource(ctx, ctrl.stateCache, *clusters)
 
 	errors.CheckError(ctrl.stateCache.Init())
 
