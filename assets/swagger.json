@@ -6021,7 +6021,7 @@
     },
     "v1alpha1ApplicationSetCondition": {
       "type": "object",
-      "title": "ApplicationSetCondition contains details about an applicationset condition, which is usally an error or warning",
+      "title": "ApplicationSetCondition contains details about an applicationset condition, which is usually an error or warning",
       "properties": {
         "lastTransitionTime": {
           "$ref": "#/definitions/v1Time"
