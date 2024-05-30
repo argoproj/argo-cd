@@ -128,8 +128,8 @@ func runCommand(ctx context.Context, command Command, path string, env []string)
 	if len(output) == 0 {
 		logCtx.Warn("Plugin command returned zero output")
 	} else {
-		// Log stderr even on successfull commands to help develop plugins
-		logCtx.Info("Plugin command successfull")
+		// Log stderr even on successful commands to help develop plugins
+		logCtx.Info("Plugin command successful")
 	}
 
 	return strings.TrimSuffix(output, "\n"), nil

@@ -29,7 +29,7 @@ func resolveSymbolicLinkRecursive(path string, maxDepth int) (string, error) {
 		if ok {
 			return path, nil
 		}
-		// Other error has occured
+		// Other error has occurred
 		return "", err
 	}
 
