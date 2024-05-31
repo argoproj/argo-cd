@@ -10,7 +10,7 @@ approvers:
   - "@alexmt"
 
 creation-date: 2024-05-17
-last-updated: 2024-05-24
+last-updated: 2024-05-31
 ---
 
 # Project scoped repository credential enhancements
@@ -48,22 +48,26 @@ which happen to share the same URL.
 
 There are a few parts to this proposal.
 
-The first part of this proposal is to change how the selected credential gets selected. Currently, the first repository 
-secret that matches the repository URL gets returned.
+We need to distinguish between a user accessing a repository via the API/CLI/UI and an application retrieving repository
+credentials. In the first case, we need to maintain backwards compatibility for API consumers. The current behaviour 
+is that the API will return the first repository found matching the URL given. Since we now want to allow the same URL 
+to potentially be in multiple projects, we need to do some minor changes.
 
-What this proposal instead aims to do is to find the first `repository` secret which matches the `project` of the 
-requester that is asking for the repository credentials, as well as the repository URL. If there are no credentials 
-which match the requested `project`, it will fall back to returning the first unscoped credential, i.e, the first 
-credential with an empty `project` parameter.
-
-In order to preserve backwards compatibility we need to apply this behavior only when there are multiple repository 
-credentials that match the same URL and that the user is authorized to access. If only one matching secret can be 
-found, whether it is project-scoped or not, that secret will be the one to be returned to the user.
+* If there is only one matching repository with the same URL and assuming the user is allowed to access it, use that repository 
+whether it is project-scoped or not. This is inline with the current behavior.
+* If there are multiple repositories with the same URL and assuming the user is allowed to access them, then setting a
+project parameter would be required, since there would otherwise be no way to determine which of the credentials a user
+wants to access. This is not a breaking change since this adds functionality which has previously not existed.
 
 This change would apply when we retrieve a _single_ repository credential, or when we delete a repository credential.
-For listing repository credentials, nothing changes - the logic would be the same as today. 
+For listing repository credentials, nothing changes - the logic would be the same as today.
 
-When it comes to mutating a repository credential we need to strictly match the project which the cred belongs to, since 
+In the case of selecting a suitable repository for an application, the logic would differ slightly. What instead happens 
+is that the lookup would first attempt to find the first `repository` secret which matches the `project` 
+and repository URL of the requesting application. If there are no credentials which match the requested `project`, it 
+will fall back to returning the first unscoped credential, i.e, the first credential with an empty `project` parameter.
+
+When it comes to mutating a repository credential we need to strictly match the project which the repository belongs to, since 
 there would otherwise be a risk of changing (inadvertently or otherwise) a credential not belonging to the correct project.
 This can be done without any breaking changes.
 
