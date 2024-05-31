@@ -22,7 +22,7 @@
     "dagre": "^0.8.5",
     "date-fns": "^2.30.0",
     "deepmerge": "^3.2.0",
-    "foundation-sites": "^6.7.5",
+    "foundation-sites": "^6.8.1",
     "git-url-parse": "^13.1.0",
     "history": "^4.7.2",
     "js-yaml": "^4.1.0",
