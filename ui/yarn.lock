@@ -5171,10 +5171,10 @@ forwarded@0.2.0:
   resolved "https://registry.yarnpkg.com/forwarded/-/forwarded-0.2.0.tgz#2269936428aad4c15c7ebe9779a84bf0b2a81811"
   integrity sha512-buRG0fpBtRHSTCOASe6hD258tEubFoRLb4ZNA6NxMVHNw2gOcwHo9wyablzMzOA5z9xA9L1KNjk/Nt6MT9aYow==
 
-foundation-sites@^6.4.3, foundation-sites@^6.7.5:
-  version "6.7.5"
-  resolved "https://registry.yarnpkg.com/foundation-sites/-/foundation-sites-6.7.5.tgz#6bc2bdd06819e6ed4d7fd8e3090246a0b6ac81c0"
-  integrity sha512-MEjAENdF/IV2XQvlQmg20o+iDTyyWu0N/j440e8fKbEylbKxARzgg5S7vcnxtjukC1Lqg+rRm7ZDSSyGhVVoUQ==
+foundation-sites@^6.4.3, foundation-sites@^6.8.1:
+  version "6.8.1"
+  resolved "https://registry.yarnpkg.com/foundation-sites/-/foundation-sites-6.8.1.tgz#9b17e9371c18916a375985571b33bdbe4c347555"
+  integrity sha512-9JAuLqVgzf7EIRUqVKeYN68dU/SGe0aNJPgnejdfJKSWnBFdQLF3Zvy9WEQ1gE/gnyvwG3Ia3LkkEd9774n0bQ==
 
 fresh@0.5.2:
   version "0.5.2"
