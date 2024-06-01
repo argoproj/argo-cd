@@ -41,6 +41,14 @@
             }
         }
 
+        .argo-field,
+        .argo-textarea {
+            @include themify($themes){
+                background-color: themed('background-2');
+                color: themed('text-2');
+            }
+        }
+
         margin-bottom: 1em;
 
         > * {
