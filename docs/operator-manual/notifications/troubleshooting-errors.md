@@ -53,7 +53,9 @@ apiVersion: v1
 kind: Secret
 metadata:
   name: argocd-slackbot
-  namespace: argocd
+  namespace: <the namespace where argocd is installed>
+  labels:
+    app.kubernetes.io/part-of: argocd
 type: Opaque
 data:
   slack-token: <base64encryptedtoken>
