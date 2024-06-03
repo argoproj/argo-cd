@@ -3171,7 +3171,7 @@
         "parameters": [
           {
             "type": "string",
-            "description": "URL is the URL that these credentials matches to",
+            "description": "URL is the URL to which these credentials match",
             "name": "creds.url",
             "in": "path",
             "required": true
@@ -8088,7 +8088,7 @@
         },
         "url": {
           "type": "string",
-          "title": "URL is the URL that these credentials matches to"
+          "title": "URL is the URL to which these credentials match"
         },
         "username": {
           "type": "string",

@@ -14,7 +14,7 @@ import (
 
 // RepoCreds holds the definition for repository credentials
 type RepoCreds struct {
-	// URL is the URL that these credentials matches to
+	// URL is the URL to which these credentials match
 	URL string `json:"url" protobuf:"bytes,1,opt,name=url"`
 	// Username for authenticating at the repo server
 	Username string `json:"username,omitempty" protobuf:"bytes,2,opt,name=username"`

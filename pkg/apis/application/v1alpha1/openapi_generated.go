@@ -5421,7 +5421,7 @@ func schema_pkg_apis_application_v1alpha1_RepoCreds(ref common.ReferenceCallback
 				Properties: map[string]spec.Schema{
 					"url": {
 						SchemaProps: spec.SchemaProps{
-							Description: "URL is the URL that these credentials matches to",
+							Description: "URL is the URL to which these credentials match",
 							Default:     "",
 							Type:        []string{"string"},
 							Format:      "",

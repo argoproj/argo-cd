@@ -1510,7 +1510,7 @@ message RefTarget {
 
 // RepoCreds holds the definition for repository credentials
 message RepoCreds {
-  // URL is the URL that these credentials matches to
+  // URL is the URL to which these credentials match
   optional string url = 1;
 
   // Username for authenticating at the repo server
