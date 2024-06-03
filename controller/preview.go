@@ -29,7 +29,7 @@ import (
 	"time"
 )
 
-const ArgoCDGitHubUsername = "gitops-promoter[bot]"
+const ArgoCDGitHubUsername = "gitops-promoter-5-29[bot]"
 const PreviewSleepDuration = 10 * time.Second
 
 type Previewer struct {
@@ -278,8 +278,8 @@ func (p *Previewer) makeComment(apps []*v1alpha1.Application, baseBranch string,
 		}
 		targetFile := path.Join(tempDir, "target.yaml")
 		targetData := []byte("")
-		if baseUnstructured != nil {
-			targetData, err = yaml.Marshal(baseUnstructured)
+		if headUnstructured != nil {
+			targetData, err = yaml.Marshal(headUnstructured)
 			if err != nil {
 				return "", fmt.Errorf("failed to marshal base unstructured: %w", err)
 			}
@@ -290,8 +290,8 @@ func (p *Previewer) makeComment(apps []*v1alpha1.Application, baseBranch string,
 		}
 		liveFile := path.Join(tempDir, "base.yaml")
 		liveData := []byte("")
-		if headUnstructured != nil {
-			liveData, err = yaml.Marshal(headUnstructured)
+		if baseUnstructured != nil {
+			liveData, err = yaml.Marshal(baseUnstructured)
 			if err != nil {
 				return "", fmt.Errorf("failed to marshal head unstructured: %w", err)
 			}
