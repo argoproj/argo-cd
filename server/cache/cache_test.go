@@ -37,12 +37,22 @@ func TestCache_GetRepoConnectionState(t *testing.T) {
 	err = cache.SetRepoConnectionState("my-repo", "", &ConnectionState{Status: "my-state"})
 	assert.NoError(t, err)
 	// cache miss
+	_, err = cache.GetRepoConnectionState("my-repo", "some-project")
+	assert.Equal(t, ErrCacheMiss, err)
+	// populate cache
+	err = cache.SetRepoConnectionState("my-repo", "some-project", &ConnectionState{Status: "my-project-state"})
+	assert.NoError(t, err)
+	// cache miss
 	_, err = cache.GetRepoConnectionState("other-repo", "")
 	assert.Equal(t, ErrCacheMiss, err)
 	// cache hit
 	value, err := cache.GetRepoConnectionState("my-repo", "")
 	assert.NoError(t, err)
 	assert.Equal(t, ConnectionState{Status: "my-state"}, value)
+	// cache hit
+	value, err = cache.GetRepoConnectionState("my-repo", "some-project")
+	assert.NoError(t, err)
+	assert.Equal(t, ConnectionState{Status: "my-project-state"}, value)
 }
 
 func TestAddCacheFlagsToCmd(t *testing.T) {

@@ -24,6 +24,8 @@ const (
 	username = "username"
 	// The name of the key storing the password in the secret
 	password = "password"
+	// The name of the project storing the project in the secret
+	project = "project"
 	// The name of the key storing the SSH private in the secret
 	sshPrivateKey = "sshPrivateKey"
 	// The name of the key storing the TLS client cert data in the secret

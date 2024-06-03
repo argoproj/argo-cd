@@ -70,7 +70,7 @@ func (c *Cache) SetRepoConnectionState(repo string, project string, state *appv1
 }
 
 func repoConnectionStateKey(repo string, project string) string {
-	return fmt.Sprintf("repo|%s|connection-state", repo)
+	return fmt.Sprintf("repo|%s|%s|connection-state", repo, project)
 }
 
 func (c *Cache) GetRepoConnectionState(repo string, project string) (appv1.ConnectionState, error) {
