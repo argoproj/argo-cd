@@ -67,7 +67,7 @@ is that the lookup would first attempt to find the first `repository` secret whi
 and repository URL of the requesting application. If there are no credentials which match the requested `project`, it 
 will fall back to returning the first unscoped credential, i.e, the first credential with an empty `project` parameter.
 
-When it comes to mutating a repository credential we need to strictly match the project which the repository belongs to, since 
+When it comes to mutating a repository credential we need to strictly match the project to which the repository belongs, since 
 there would otherwise be a risk of changing (inadvertently or otherwise) a credential not belonging to the correct project.
 This can be done without any breaking changes.
 
