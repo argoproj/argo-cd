@@ -54,7 +54,7 @@ is that the API will return the first repository found matching the URL given. S
 to potentially be in multiple projects, we need to do some minor changes.
 
 * If there is only one matching repository with the same URL and assuming the user is allowed to access it, use that repository 
-whether it is project-scoped or not. This is inline with the current behavior.
+whether it is project-scoped or not. This is in line with the current behavior.
 * If there are multiple repositories with the same URL and assuming the user is allowed to access them, then setting a
 project parameter would be required, since there would otherwise be no way to determine which of the credentials a user
 wants to access. This is not a breaking change since this adds functionality which has previously not existed.
