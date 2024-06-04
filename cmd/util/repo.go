@@ -22,6 +22,7 @@ type RepoOptions struct {
 	GithubAppPrivateKeyPath        string
 	GitHubAppEnterpriseBaseURL     string
 	Proxy                          string
+	NoProxy                        string
 	GCPServiceAccountKeyPath       string
 	ForceHttpBasicAuth             bool
 }
@@ -44,6 +45,7 @@ func AddRepoFlags(command *cobra.Command, opts *RepoOptions) {
 	command.Flags().StringVar(&opts.GithubAppPrivateKeyPath, "github-app-private-key-path", "", "private key of the GitHub Application")
 	command.Flags().StringVar(&opts.GitHubAppEnterpriseBaseURL, "github-app-enterprise-base-url", "", "base url to use when using GitHub Enterprise (e.g. https://ghe.example.com/api/v3")
 	command.Flags().StringVar(&opts.Proxy, "proxy", "", "use proxy to access repository")
+	command.Flags().StringVar(&opts.Proxy, "no-proxy", "", "don't access these targets via proxy")
 	command.Flags().StringVar(&opts.GCPServiceAccountKeyPath, "gcp-service-account-key-path", "", "service account key for the Google Cloud Platform")
 	command.Flags().BoolVar(&opts.ForceHttpBasicAuth, "force-http-basic-auth", false, "whether to force use of basic auth when connecting repository via HTTP")
 }

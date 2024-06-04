@@ -77,17 +77,18 @@ func WithChartPaths(chartPaths argoio.TempPaths) ClientOpts {
 	}
 }
 
-func NewClient(repoURL string, creds Creds, enableOci bool, proxy string, opts ...ClientOpts) Client {
-	return NewClientWithLock(repoURL, creds, globalLock, enableOci, proxy, opts...)
+func NewClient(repoURL string, creds Creds, enableOci bool, proxy string, noProxy string, opts ...ClientOpts) Client {
+	return NewClientWithLock(repoURL, creds, globalLock, enableOci, proxy, noProxy, opts...)
 }
 
-func NewClientWithLock(repoURL string, creds Creds, repoLock sync.KeyLock, enableOci bool, proxy string, opts ...ClientOpts) Client {
+func NewClientWithLock(repoURL string, creds Creds, repoLock sync.KeyLock, enableOci bool, proxy string, noProxy string, opts ...ClientOpts) Client {
 	c := &nativeHelmChart{
 		repoURL:         repoURL,
 		creds:           creds,
 		repoLock:        repoLock,
 		enableOci:       enableOci,
 		proxy:           proxy,
+		noProxy:         noProxy,
 		chartCachePaths: argoio.NewRandomizedTempPaths(os.TempDir()),
 	}
 	for i := range opts {
@@ -106,6 +107,7 @@ type nativeHelmChart struct {
 	enableOci       bool
 	indexCache      indexCache
 	proxy           string
+	noProxy         string
 }
 
 func fileExist(filePath string) (bool, error) {
@@ -143,7 +145,7 @@ func untarChart(tempDir string, cachedChartPath string, manifestMaxExtractedSize
 
 func (c *nativeHelmChart) ExtractChart(chart string, version string, project string, passCredentials bool, manifestMaxExtractedSize int64, disableManifestMaxExtractedSize bool) (string, argoio.Closer, error) {
 	// always use Helm V3 since we don't have chart content to determine correct Helm version
-	helmCmd, err := NewCmdWithVersion("", HelmV3, c.enableOci, c.proxy)
+	helmCmd, err := NewCmdWithVersion("", HelmV3, c.enableOci, c.proxy, c.noProxy)
 	if err != nil {
 		return "", nil, err
 	}
@@ -276,7 +278,7 @@ func (c *nativeHelmChart) TestHelmOCI() (bool, error) {
 	}
 	defer func() { _ = os.RemoveAll(tmpDir) }()
 
-	helmCmd, err := NewCmdWithVersion(tmpDir, HelmV3, c.enableOci, c.proxy)
+	helmCmd, err := NewCmdWithVersion(tmpDir, HelmV3, c.enableOci, c.proxy, c.noProxy)
 	if err != nil {
 		return false, err
 	}
@@ -319,7 +321,7 @@ func (c *nativeHelmChart) loadRepoIndex(maxIndexSize int64) ([]byte, error) {
 	}
 
 	tr := &http.Transport{
-		Proxy:             proxy.GetCallback(c.proxy),
+		Proxy:             proxy.GetCallback(c.proxy, c.noProxy),
 		TLSClientConfig:   tlsConf,
 		DisableKeepAlives: true,
 	}
@@ -432,7 +434,7 @@ func (c *nativeHelmChart) GetTags(chart string, noCache bool) (*TagsList, error)
 			return nil, fmt.Errorf("failed setup tlsConfig: %w", err)
 		}
 		client := &http.Client{Transport: &http.Transport{
-			Proxy:             proxy.GetCallback(c.proxy),
+			Proxy:             proxy.GetCallback(c.proxy, c.noProxy),
 			TLSClientConfig:   tlsConf,
 			DisableKeepAlives: true,
 		}}
