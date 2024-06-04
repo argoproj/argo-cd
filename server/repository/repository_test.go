@@ -838,3 +838,159 @@ func newEnforcer(kubeclientset *fake.Clientset) *rbac.Enforcer {
 	})
 	return enforcer
 }
+
+func TestGetRepository(t *testing.T) {
+	type args struct {
+		ctx              context.Context
+		listRepositories func(context.Context, *repository.RepoQuery) (*appsv1.RepositoryList, error)
+		q                *repository.RepoQuery
+	}
+	tests := []struct {
+		name  string
+		args  args
+		want  *appsv1.Repository
+		error error
+	}{
+		{
+			name: "empty project and no repos",
+			args: args{
+				ctx: context.TODO(),
+				listRepositories: func(ctx context.Context, query *repository.RepoQuery) (*appsv1.RepositoryList, error) {
+					return &appsv1.RepositoryList{
+						Items: []*appsv1.Repository{
+							{Repo: "something-else"},
+						},
+					}, nil
+				},
+				q: &repository.RepoQuery{},
+			},
+			want:  nil,
+			error: status.Error(codes.PermissionDenied, "permission denied"),
+		},
+		{
+			name: "empty project and no matching repos",
+			args: args{
+				ctx: context.TODO(),
+				listRepositories: func(ctx context.Context, query *repository.RepoQuery) (*appsv1.RepositoryList, error) {
+					return &appsv1.RepositoryList{}, nil
+				},
+				q: &repository.RepoQuery{
+					Repo: "foobar",
+				},
+			},
+			want:  nil,
+			error: status.Error(codes.PermissionDenied, "permission denied"),
+		},
+		{
+			name: "empty project + matching repo with an empty project",
+			args: args{
+				ctx: context.TODO(),
+				listRepositories: func(ctx context.Context, query *repository.RepoQuery) (*appsv1.RepositoryList, error) {
+					return &appsv1.RepositoryList{
+						Items: []*appsv1.Repository{
+							{Repo: "foobar", Project: ""},
+						},
+					}, nil
+				},
+				q: &repository.RepoQuery{
+					Repo:       "foobar",
+					AppProject: "",
+				},
+			},
+			want: &appsv1.Repository{
+				Repo:    "foobar",
+				Project: "",
+			},
+			error: nil,
+		},
+		{
+			name: "empty project + matching repo with a non-empty project",
+			args: args{
+				ctx: context.TODO(),
+				listRepositories: func(ctx context.Context, query *repository.RepoQuery) (*appsv1.RepositoryList, error) {
+					return &appsv1.RepositoryList{
+						Items: []*appsv1.Repository{
+							{Repo: "foobar", Project: "foobar"},
+						},
+					}, nil
+				},
+				q: &repository.RepoQuery{
+					Repo:       "foobar",
+					AppProject: "",
+				},
+			},
+			want: &appsv1.Repository{
+				Repo:    "foobar",
+				Project: "foobar",
+			},
+			error: nil,
+		},
+		{
+			name: "non-empty project + matching repo with an empty project",
+			args: args{
+				ctx: context.TODO(),
+				listRepositories: func(ctx context.Context, query *repository.RepoQuery) (*appsv1.RepositoryList, error) {
+					return &appsv1.RepositoryList{
+						Items: []*appsv1.Repository{
+							{Repo: "foobar", Project: ""},
+						},
+					}, nil
+				},
+				q: &repository.RepoQuery{
+					Repo:       "foobar",
+					AppProject: "foobar",
+				},
+			},
+			want:  nil,
+			error: errors.New(`repository not found for url "foobar" and project "foobar"`),
+		},
+		{
+			name: "non-empty project + matching repo with a matching project",
+			args: args{
+				ctx: context.TODO(),
+				listRepositories: func(ctx context.Context, query *repository.RepoQuery) (*appsv1.RepositoryList, error) {
+					return &appsv1.RepositoryList{
+						Items: []*appsv1.Repository{
+							{Repo: "foobar", Project: "foobar"},
+						},
+					}, nil
+				},
+				q: &repository.RepoQuery{
+					Repo:       "foobar",
+					AppProject: "foobar",
+				},
+			},
+			want: &appsv1.Repository{
+				Repo:    "foobar",
+				Project: "foobar",
+			},
+			error: nil,
+		},
+		{
+			name: "non-empty project + matching repo with a non-matching project",
+			args: args{
+				ctx: context.TODO(),
+				listRepositories: func(ctx context.Context, query *repository.RepoQuery) (*appsv1.RepositoryList, error) {
+					return &appsv1.RepositoryList{
+						Items: []*appsv1.Repository{
+							{Repo: "foobar", Project: "something-else"},
+						},
+					}, nil
+				},
+				q: &repository.RepoQuery{
+					Repo:       "foobar",
+					AppProject: "foobar",
+				},
+			},
+			want:  nil,
+			error: errors.New(`repository not found for url "foobar" and project "foobar"`),
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := getRepository(tt.args.ctx, tt.args.listRepositories, tt.args.q)
+			assert.Equal(t, tt.error, err)
+			assert.Equalf(t, tt.want, got, "getRepository(%v, %v) = %v", tt.args.ctx, tt.args.q, got)
+		})
+	}
+}

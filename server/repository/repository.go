@@ -128,7 +128,7 @@ func (s *Server) List(ctx context.Context, q *repositorypkg.RepoQuery) (*appsv1.
 
 // Get return the requested configured repository by URL and the state of its connections.
 func (s *Server) Get(ctx context.Context, q *repositorypkg.RepoQuery) (*appsv1.Repository, error) {
-	repo, err := s.getRepository(ctx, q)
+	repo, err := getRepository(ctx, s.ListRepositories, q)
 	if err != nil {
 		return nil, err
 	}
@@ -472,7 +472,7 @@ func (s *Server) Delete(ctx context.Context, q *repositorypkg.RepoQuery) (*repos
 
 // DeleteRepository removes a repository from the configuration
 func (s *Server) DeleteRepository(ctx context.Context, q *repositorypkg.RepoQuery) (*repositorypkg.RepoResponse, error) {
-	repo, err := s.getRepository(ctx, q)
+	repo, err := getRepository(ctx, s.ListRepositories, q)
 	if err != nil {
 		return nil, err
 	}
@@ -493,8 +493,8 @@ func (s *Server) DeleteRepository(ctx context.Context, q *repositorypkg.RepoQuer
 // getRepository fetches a single repository which the user has access to. If only one repository can be found which
 // matches the same URL, that will be returned (this is for backward compatibility reasons). If multiple repositories
 // are matched, a repository is only returned if it matches the app project of the incoming request.
-func (s *Server) getRepository(ctx context.Context, q *repositorypkg.RepoQuery) (*appsv1.Repository, error) {
-	repositories, err := s.ListRepositories(ctx, q)
+func getRepository(ctx context.Context, listRepositories func(context.Context, *repositorypkg.RepoQuery) (*v1alpha1.RepositoryList, error), q *repositorypkg.RepoQuery) (*appsv1.Repository, error) {
+	repositories, err := listRepositories(ctx, q)
 	if err != nil {
 		return nil, err
 	}
@@ -511,19 +511,19 @@ func (s *Server) getRepository(ctx context.Context, q *repositorypkg.RepoQuery) 
 	}
 
 	var foundRepo *v1alpha1.Repository
-	if len(foundRepos) > 1 {
+	if len(foundRepos) == 1 && q.GetAppProject() == "" {
+		foundRepo = foundRepos[0]
+	} else if len(foundRepos) > 0 {
 		for _, repo := range foundRepos {
 			if repo.Project == q.GetAppProject() {
 				foundRepo = repo
 				break
 			}
 		}
-	} else {
-		foundRepo = foundRepos[0]
 	}
 
 	if foundRepo == nil {
-		return nil, fmt.Errorf("multiple repositories found for url %s, please disambiguate by specifying an app project", q.Repo)
+		return nil, fmt.Errorf("repository not found for url %q and project %q", q.Repo, q.GetAppProject())
 	}
 
 	return foundRepo, nil
