@@ -116,7 +116,7 @@ a non-issue in practice.
 * Also depending on the number of projects making use of distinct credentials for the same repository URL, this will 
 imply that for each `AppProject` sharing the same repository URL, a separate copy of the repository will be checked out.
 This has potential implications in terms of memory consumption, sync times, CPU load times etc. This is something 
-which an Argo CD admin will need to be mindful of.
+of which an Argo CD admin will need to be mindful.
 
 ## Alternatives
 
