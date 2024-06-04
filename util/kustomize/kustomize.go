@@ -40,7 +40,7 @@ type Kustomize interface {
 }
 
 // NewKustomizeApp create a new wrapper to run commands on the `kustomize` command-line tool.
-func NewKustomizeApp(repoRoot string, path string, creds git.Creds, fromRepo string, binaryPath string, proxy string) Kustomize {
+func NewKustomizeApp(repoRoot string, path string, creds git.Creds, fromRepo string, binaryPath string, proxy string, noProxy string) Kustomize {
 	return &kustomize{
 		repoRoot:   repoRoot,
 		path:       path,
@@ -48,6 +48,7 @@ func NewKustomizeApp(repoRoot string, path string, creds git.Creds, fromRepo str
 		repo:       fromRepo,
 		binaryPath: binaryPath,
 		proxy:      proxy,
+		noProxy:    noProxy,
 	}
 }
 
@@ -64,6 +65,8 @@ type kustomize struct {
 	binaryPath string
 	// HTTP/HTTPS proxy used to access repository
 	proxy string
+	// NoProxy specifies a list of targets where the proxy isn't used, applies only in cases where the proxy is applied
+	noProxy string
 }
 
 var _ Kustomize = &kustomize{}
@@ -326,7 +329,7 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 		cmd = exec.Command(k.getBinaryPath(), "build", k.path)
 	}
 	cmd.Env = env
-	cmd.Env = proxy.UpsertEnv(cmd, k.proxy)
+	cmd.Env = proxy.UpsertEnv(cmd, k.proxy, k.noProxy)
 	cmd.Dir = k.repoRoot
 	commands = append(commands, executil.GetCommandArgsToLog(cmd))
 	out, err := executil.Run(cmd)

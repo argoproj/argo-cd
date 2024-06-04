@@ -119,13 +119,15 @@ type HTTPSCreds struct {
 	clientCertKey string
 	// HTTP/HTTPS proxy used to access repository
 	proxy string
+	// list of targets that shouldn't use the proxy, applies only if the proxy is set
+	noProxy string
 	// temporal credentials store
 	store CredsStore
 	// whether to force usage of basic auth
 	forceBasicAuth bool
 }
 
-func NewHTTPSCreds(username string, password string, clientCertData string, clientCertKey string, insecure bool, proxy string, store CredsStore, forceBasicAuth bool) GenericHTTPSCreds {
+func NewHTTPSCreds(username string, password string, clientCertData string, clientCertKey string, insecure bool, proxy string, noProxy string, store CredsStore, forceBasicAuth bool) GenericHTTPSCreds {
 	return HTTPSCreds{
 		username,
 		password,
@@ -133,6 +135,7 @@ func NewHTTPSCreds(username string, password string, clientCertData string, clie
 		clientCertData,
 		clientCertKey,
 		proxy,
+		noProxy,
 		store,
 		forceBasicAuth,
 	}
@@ -235,10 +238,11 @@ type SSHCreds struct {
 	insecure      bool
 	store         CredsStore
 	proxy         string
+	noProxy       string
 }
 
-func NewSSHCreds(sshPrivateKey string, caPath string, insecureIgnoreHostKey bool, store CredsStore, proxy string) SSHCreds {
-	return SSHCreds{sshPrivateKey, caPath, insecureIgnoreHostKey, store, proxy}
+func NewSSHCreds(sshPrivateKey string, caPath string, insecureIgnoreHostKey bool, store CredsStore, proxy string, noProxy string) SSHCreds {
+	return SSHCreds{sshPrivateKey, caPath, insecureIgnoreHostKey, store, proxy, noProxy}
 }
 
 type sshPrivateKeyFile string
@@ -335,12 +339,13 @@ type GitHubAppCreds struct {
 	clientCertKey  string
 	insecure       bool
 	proxy          string
+	noProxy        string
 	store          CredsStore
 }
 
 // NewGitHubAppCreds provide github app credentials
-func NewGitHubAppCreds(appID int64, appInstallId int64, privateKey string, baseURL string, repoURL string, clientCertData string, clientCertKey string, insecure bool, proxy string, store CredsStore) GenericHTTPSCreds {
-	return GitHubAppCreds{appID: appID, appInstallId: appInstallId, privateKey: privateKey, baseURL: baseURL, repoURL: repoURL, clientCertData: clientCertData, clientCertKey: clientCertKey, insecure: insecure, proxy: proxy, store: store}
+func NewGitHubAppCreds(appID int64, appInstallId int64, privateKey string, baseURL string, repoURL string, clientCertData string, clientCertKey string, insecure bool, proxy string, noProxy string, store CredsStore) GenericHTTPSCreds {
+	return GitHubAppCreds{appID: appID, appInstallId: appInstallId, privateKey: privateKey, baseURL: baseURL, repoURL: repoURL, clientCertData: clientCertData, clientCertKey: clientCertKey, insecure: insecure, proxy: proxy, noProxy: noProxy, store: store}
 }
 
 func (g GitHubAppCreds) Environ() (io.Closer, []string, error) {
@@ -439,7 +444,7 @@ func (g GitHubAppCreds) getAccessToken() (string, error) {
 	}
 
 	// Create a new GitHub transport
-	c := GetRepoHTTPClient(baseUrl, g.insecure, g, g.proxy)
+	c := GetRepoHTTPClient(baseUrl, g.insecure, g, g.proxy, g.noProxy)
 	itr, err := ghinstallation.New(c.Transport,
 		g.appID,
 		g.appInstallId,
