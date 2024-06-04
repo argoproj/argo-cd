@@ -58,7 +58,7 @@ is that the API will return the first repository found matching the URL given. S
 to potentially be in multiple projects, we need to do some minor changes.
 
 * If there is only one matching repository with the same URL, and assuming the user is allowed to access it _and_ there is
-no app project given as a parameter, use that repository whether it is project-scoped or not. This is in line with the 
+no app project given as a parameter, use that repository ignoring any project-scope. This is in line with the 
 current behavior.
 * If there is only one matching repository with the same URL, and assuming the user is allowed to access it _and_ there is
 an app project given as a parameter, use that repository only if it also matches the app project given. 
