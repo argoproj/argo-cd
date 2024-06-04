@@ -1,4 +1,7 @@
 redis-ha:
+  auth: true
+  authKey: auth
+  existingSecret: argocd-redis
   persistentVolume:
     enabled: false
   redis:

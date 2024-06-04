@@ -64,6 +64,7 @@ $ argocd admin initial-password reset
 * [argocd admin initial-password](argocd_admin_initial-password.md)	 - Prints initial password to log in to Argo CD for the first time
 * [argocd admin notifications](argocd_admin_notifications.md)	 - Set of CLI commands that helps manage notifications settings
 * [argocd admin proj](argocd_admin_proj.md)	 - Manage projects configuration
+* [argocd admin redis-initial-password](argocd_admin_redis-initial-password.md)	 - Ensure the Redis password exists, creating a new one if necessary.
 * [argocd admin repo](argocd_admin_repo.md)	 - Manage repositories configuration
 * [argocd admin settings](argocd_admin_settings.md)	 - Provides set of commands for settings validation and troubleshooting
 

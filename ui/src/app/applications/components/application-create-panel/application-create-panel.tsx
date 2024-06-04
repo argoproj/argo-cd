@@ -13,6 +13,7 @@ import {RevisionFormField} from '../revision-form-field/revision-form-field';
 import {SetFinalizerOnApplication} from './set-finalizer-on-application';
 import './application-create-panel.scss';
 import {getAppDefaultSource} from '../utils';
+import {debounce} from 'lodash-es';
 
 const jsonMergePatch = require('json-merge-patch');
 
@@ -110,6 +111,7 @@ export const ApplicationCreatePanel = (props: {
     const [destFormat, setDestFormat] = React.useState('URL');
     const [retry, setRetry] = React.useState(false);
     const app = deepMerge(DEFAULT_APP, props.app || {});
+    const debouncedOnAppChanged = debounce(props.onAppChanged, 800);
 
     React.useEffect(() => {
         if (app?.spec?.destination?.name && app.spec.destination.name !== '') {
@@ -181,7 +183,7 @@ export const ApplicationCreatePanel = (props: {
                                             'Cluster name is required'
                                     })}
                                     defaultValues={app}
-                                    formDidUpdate={state => props.onAppChanged(state.values as any)}
+                                    formDidUpdate={state => debouncedOnAppChanged(state.values as any)}
                                     onSubmit={props.createApp}
                                     getApi={props.getFormApi}>
                                     {api => {

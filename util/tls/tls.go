@@ -427,7 +427,7 @@ func CreateServerTLSConfig(tlsCertPath, tlsKeyPath string, hosts []string) (*tls
 		log.Infof("Loading TLS configuration from cert=%s and key=%s", tlsCertPath, tlsKeyPath)
 		c, err := tls.LoadX509KeyPair(tlsCertPath, tlsKeyPath)
 		if err != nil {
-			return nil, fmt.Errorf("Unable to initalize TLS configuration with cert=%s and key=%s: %v", tlsCertPath, tlsKeyPath, err)
+			return nil, fmt.Errorf("Unable to initialize TLS configuration with cert=%s and key=%s: %v", tlsCertPath, tlsKeyPath, err)
 		}
 		cert = &c
 	}

@@ -23,7 +23,7 @@ This will create a new namespace, `argocd`, where Argo CD services and applicati
     namespace then make sure to update the namespace reference.
 
 !!! tip
-    If you are not interested in UI, SSO, and multi-cluster features, then you can install only the [core](operator-manual/core/#installing) Argo CD components.
+    If you are not interested in UI, SSO, and multi-cluster features, then you can install only the [core](operator-manual/core.md#installing) Argo CD components.
 
 This default installation will have a self-signed certificate and cannot be accessed without a bit of extra work.
 Do one of:
@@ -39,6 +39,9 @@ Do one of:
     
 
 Use `argocd login --core` to [configure](./user-guide/commands/argocd_login.md) CLI access and skip steps 3-5.
+
+!!! note
+    This default installation for Redis is using password authentication. The Redis password is stored in Kubernetes secret `argocd-redis` with key `auth` in the namespace where Argo CD is installed.
 
 ## 2. Download Argo CD CLI
 

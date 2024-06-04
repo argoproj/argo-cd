@@ -867,7 +867,7 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSetCondition(ref common.Ref
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "ApplicationSetCondition contains details about an applicationset condition, which is usally an error or warning",
+				Description: "ApplicationSetCondition contains details about an applicationset condition, which is usually an error or warning",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"type": {

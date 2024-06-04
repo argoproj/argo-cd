@@ -1578,6 +1578,132 @@ func TestDeleteApp(t *testing.T) {
 	})
 }
 
+func TestDeleteResourcesRBAC(t *testing.T) {
+	ctx := context.Background()
+	// nolint:staticcheck
+	ctx = context.WithValue(ctx, "claims", &jwt.RegisteredClaims{Subject: "test-user"})
+	testApp := newTestApp()
+	appServer := newTestAppServer(t, testApp)
+	appServer.enf.SetDefaultRole("")
+
+	req := application.ApplicationResourceDeleteRequest{
+		Name:         &testApp.Name,
+		AppNamespace: &testApp.Namespace,
+		Group:        strToPtr("fake.io"),
+		Kind:         strToPtr("PodTest"),
+		Namespace:    strToPtr("fake-ns"),
+		ResourceName: strToPtr("my-pod-test"),
+	}
+
+	expectedErrorWhenDeleteAllowed := "rpc error: code = InvalidArgument desc = PodTest fake.io my-pod-test not found as part of application test-app"
+
+	t.Run("delete with application permission", func(t *testing.T) {
+		_ = appServer.enf.SetBuiltinPolicy(`
+p, test-user, applications, delete, default/test-app, allow
+`)
+		_, err := appServer.DeleteResource(ctx, &req)
+		assert.Equal(t, expectedErrorWhenDeleteAllowed, err.Error())
+	})
+
+	t.Run("delete with application permission but deny subresource", func(t *testing.T) {
+		_ = appServer.enf.SetBuiltinPolicy(`
+p, test-user, applications, delete, default/test-app, allow
+p, test-user, applications, delete/*, default/test-app, deny
+`)
+		_, err := appServer.DeleteResource(ctx, &req)
+		assert.Equal(t, expectedErrorWhenDeleteAllowed, err.Error())
+	})
+
+	t.Run("delete with subresource", func(t *testing.T) {
+		_ = appServer.enf.SetBuiltinPolicy(`
+p, test-user, applications, delete/*, default/test-app, allow
+`)
+		_, err := appServer.DeleteResource(ctx, &req)
+		assert.Equal(t, expectedErrorWhenDeleteAllowed, err.Error())
+	})
+
+	t.Run("delete with subresource but deny applications", func(t *testing.T) {
+		_ = appServer.enf.SetBuiltinPolicy(`
+p, test-user, applications, delete, default/test-app, deny
+p, test-user, applications, delete/*, default/test-app, allow
+`)
+		_, err := appServer.DeleteResource(ctx, &req)
+		assert.Equal(t, expectedErrorWhenDeleteAllowed, err.Error())
+	})
+
+	t.Run("delete with specific subresource denied", func(t *testing.T) {
+		_ = appServer.enf.SetBuiltinPolicy(`
+p, test-user, applications, delete/*, default/test-app, allow
+p, test-user, applications, delete/fake.io/PodTest/*, default/test-app, deny
+`)
+		_, err := appServer.DeleteResource(ctx, &req)
+		assert.Equal(t, codes.PermissionDenied.String(), status.Code(err).String())
+	})
+}
+
+func TestPatchResourcesRBAC(t *testing.T) {
+	ctx := context.Background()
+	// nolint:staticcheck
+	ctx = context.WithValue(ctx, "claims", &jwt.RegisteredClaims{Subject: "test-user"})
+	testApp := newTestApp()
+	appServer := newTestAppServer(t, testApp)
+	appServer.enf.SetDefaultRole("")
+
+	req := application.ApplicationResourcePatchRequest{
+		Name:         &testApp.Name,
+		AppNamespace: &testApp.Namespace,
+		Group:        strToPtr("fake.io"),
+		Kind:         strToPtr("PodTest"),
+		Namespace:    strToPtr("fake-ns"),
+		ResourceName: strToPtr("my-pod-test"),
+	}
+
+	expectedErrorWhenUpdateAllowed := "rpc error: code = InvalidArgument desc = PodTest fake.io my-pod-test not found as part of application test-app"
+
+	t.Run("patch with application permission", func(t *testing.T) {
+		_ = appServer.enf.SetBuiltinPolicy(`
+p, test-user, applications, update, default/test-app, allow
+`)
+		_, err := appServer.PatchResource(ctx, &req)
+		assert.Equal(t, expectedErrorWhenUpdateAllowed, err.Error())
+	})
+
+	t.Run("patch with application permission but deny subresource", func(t *testing.T) {
+		_ = appServer.enf.SetBuiltinPolicy(`
+p, test-user, applications, update, default/test-app, allow
+p, test-user, applications, update/*, default/test-app, deny
+`)
+		_, err := appServer.PatchResource(ctx, &req)
+		assert.Equal(t, expectedErrorWhenUpdateAllowed, err.Error())
+	})
+
+	t.Run("patch with subresource", func(t *testing.T) {
+		_ = appServer.enf.SetBuiltinPolicy(`
+p, test-user, applications, update/*, default/test-app, allow
+`)
+		_, err := appServer.PatchResource(ctx, &req)
+		assert.Equal(t, expectedErrorWhenUpdateAllowed, err.Error())
+	})
+
+	t.Run("patch with subresource but deny applications", func(t *testing.T) {
+		_ = appServer.enf.SetBuiltinPolicy(`
+p, test-user, applications, update, default/test-app, deny
+p, test-user, applications, update/*, default/test-app, allow
+`)
+		_, err := appServer.PatchResource(ctx, &req)
+		assert.Equal(t, expectedErrorWhenUpdateAllowed, err.Error())
+	})
+
+	t.Run("patch with specific subresource denied", func(t *testing.T) {
+		_ = appServer.enf.SetBuiltinPolicy(`
+p, test-user, applications, update/*, default/test-app, allow
+p, test-user, applications, update/fake.io/PodTest/*, default/test-app, deny
+`)
+		_, err := appServer.PatchResource(ctx, &req)
+		assert.Equal(t, codes.PermissionDenied.String(), status.Code(err).String())
+	})
+}
+
 func TestSyncAndTerminate(t *testing.T) {
 	ctx := context.Background()
 	appServer := newTestAppServer(t)
@@ -1696,7 +1822,7 @@ func TestUpdateAppProject(t *testing.T) {
 	testApp := newTestApp()
 	ctx := context.Background()
 	// nolint:staticcheck
-	ctx = context.WithValue(ctx, "claims", &jwt.StandardClaims{Subject: "admin"})
+	ctx = context.WithValue(ctx, "claims", &jwt.RegisteredClaims{Subject: "admin"})
 	appServer := newTestAppServer(t, testApp)
 	appServer.enf.SetDefaultRole("")
 
@@ -1760,7 +1886,7 @@ func TestAppJsonPatch(t *testing.T) {
 	testApp := newTestAppWithAnnotations()
 	ctx := context.Background()
 	// nolint:staticcheck
-	ctx = context.WithValue(ctx, "claims", &jwt.StandardClaims{Subject: "admin"})
+	ctx = context.WithValue(ctx, "claims", &jwt.RegisteredClaims{Subject: "admin"})
 	appServer := newTestAppServer(t, testApp)
 	appServer.enf.SetDefaultRole("")
 
@@ -1785,7 +1911,7 @@ func TestAppMergePatch(t *testing.T) {
 	testApp := newTestApp()
 	ctx := context.Background()
 	// nolint:staticcheck
-	ctx = context.WithValue(ctx, "claims", &jwt.StandardClaims{Subject: "admin"})
+	ctx = context.WithValue(ctx, "claims", &jwt.RegisteredClaims{Subject: "admin"})
 	appServer := newTestAppServer(t, testApp)
 	appServer.enf.SetDefaultRole("")
 
