@@ -22,6 +22,9 @@ message AWSAuthConfig {
 
   // RoleARN contains optional role ARN. If set then AWS IAM Authenticator assume a role to perform cluster operations instead of the default AWS credential provider chain.
   optional string roleARN = 2;
+
+  // Profile contains optional role ARN. If set then AWS IAM Authenticator uses the profile to perform cluster operations instead of the default AWS credential provider chain.
+  optional string profile = 3;
 }
 
 // AppProject provides a logical grouping of applications, providing controls for:
@@ -106,6 +109,7 @@ message AppProjectStatus {
 // +kubebuilder:printcolumn:name="Sync Status",type=string,JSONPath=`.status.sync.status`
 // +kubebuilder:printcolumn:name="Health Status",type=string,JSONPath=`.status.health.status`
 // +kubebuilder:printcolumn:name="Revision",type=string,JSONPath=`.status.sync.revision`,priority=10
+// +kubebuilder:printcolumn:name="Project",type=string,JSONPath=`.spec.project`,priority=10
 message Application {
   optional k8s.io.apimachinery.pkg.apis.meta.v1.ObjectMeta metadata = 1;
 
@@ -195,7 +199,7 @@ message ApplicationSetApplicationStatus {
   optional string step = 5;
 }
 
-// ApplicationSetCondition contains details about an applicationset condition, which is usally an error or warning
+// ApplicationSetCondition contains details about an applicationset condition, which is usually an error or warning
 message ApplicationSetCondition {
   // Type is an applicationset condition type
   optional string type = 1;
@@ -327,6 +331,9 @@ message ApplicationSetStatus {
   repeated ApplicationSetCondition conditions = 1;
 
   repeated ApplicationSetApplicationStatus applicationStatus = 2;
+
+  // Resources is a list of Applications resources managed by this application set.
+  repeated ResourceStatus resources = 3;
 }
 
 // ApplicationSetStrategy configures how generated Applications are updated in sequence.
@@ -390,6 +397,13 @@ message ApplicationSetTerminalGenerator {
 
   // Selector allows to post-filter all generator.
   optional k8s.io.apimachinery.pkg.apis.meta.v1.LabelSelector selector = 8;
+}
+
+// ApplicationSetTree holds nodes which belongs to the application
+// Used to build a tree of an ApplicationSet and its children
+message ApplicationSetTree {
+  // Nodes contains list of nodes which are directly managed by the applicationset
+  repeated ResourceNode nodes = 1;
 }
 
 // ApplicationSource contains all required information about the source of an application
@@ -526,6 +540,9 @@ message ApplicationSourceKustomize {
 
   // Components specifies a list of kustomize components to add to the kustomization before building
   repeated string components = 13;
+
+  // LabelWithoutSelector specifies whether to apply common labels to resource selectors or not
+  optional bool labelWithoutSelector = 14;
 }
 
 // ApplicationSourcePlugin holds options specific to config management plugins
@@ -898,6 +915,9 @@ message EnvEntry {
   optional string value = 2;
 }
 
+message ErrApplicationNotAllowedToUseProject {
+}
+
 // ExecProviderConfig is config used to call an external command to perform cluster authentication
 // See: https://godoc.org/k8s.io/client-go/tools/clientcmd/api#ExecConfig
 message ExecProviderConfig {
@@ -1131,6 +1151,7 @@ message KustomizeSelector {
 
 // ListGenerator include items info
 message ListGenerator {
+  // +kubebuilder:validation:Optional
   repeated k8s.io.apiextensions_apiserver.pkg.apis.apiextensions.v1.JSON elements = 1;
 
   optional ApplicationSetTemplate template = 2;
@@ -1895,6 +1916,9 @@ message RevisionHistory {
 
   // Revisions holds the revision of each source in sources field the sync was performed against
   repeated string revisions = 9;
+
+  // InitiatedBy contains information about who initiated the operations
+  optional OperationInitiator initiatedBy = 10;
 }
 
 // RevisionMetadata contains metadata for a specific revision in a Git repository
@@ -2214,6 +2238,7 @@ message SyncStatus {
   optional string status = 1;
 
   // ComparedTo contains information about what has been compared
+  // +patchStrategy=replace
   optional ComparedTo comparedTo = 2;
 
   // Revision contains information about the revision the comparison has been performed to

@@ -29,20 +29,29 @@ spec:
       name: Revision
       priority: 10
       type: string
+    - jsonPath: .spec.project
+      name: Project
+      priority: 10
+      type: string
     name: v1alpha1
     schema:
       openAPIV3Schema:
         description: Application is a definition of Application resource.
         properties:
           apiVersion:
-            description: 'APIVersion defines the versioned schema of this representation
-              of an object. Servers should convert recognized schemas to the latest
-              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
             type: string
           kind:
-            description: 'Kind is a string value representing the REST resource this
-              object represents. Servers may infer this from the endpoint the client
-              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
             type: string
           metadata:
             type: object
@@ -140,22 +149,21 @@ spec:
                       type: object
                     type: array
                   revision:
-                    description: Revision is the revision (Git) or chart version (Helm)
-                      which to sync the application to If omitted, will use the revision
-                      specified in app spec.
+                    description: |-
+                      Revision is the revision (Git) or chart version (Helm) which to sync the application to
+                      If omitted, will use the revision specified in app spec.
                     type: string
                   revisions:
-                    description: Revisions is the list of revision (Git) or chart
-                      version (Helm) which to sync each source in sources field for
-                      the application to If omitted, will use the revision specified
-                      in app spec.
+                    description: |-
+                      Revisions is the list of revision (Git) or chart version (Helm) which to sync each source in sources field for the application to
+                      If omitted, will use the revision specified in app spec.
                     items:
                       type: string
                     type: array
                   source:
-                    description: Source overrides the source definition set in the
-                      application. This is typically set in a Rollback operation and
-                      is nil during a Sync operation
+                    description: |-
+                      Source overrides the source definition set in the application.
+                      This is typically set in a Rollback operation and is nil during a Sync operation
                     properties:
                       chart:
                         description: Chart is a Helm chart name, and must be specified
@@ -343,6 +351,10 @@ spec:
                                 definition in the format [old_image_name=]<image_name>:<image_tag>
                               type: string
                             type: array
+                          labelWithoutSelector:
+                            description: LabelWithoutSelector specifies whether to
+                              apply common labels to resource selectors or not
+                            type: boolean
                           namePrefix:
                             description: NamePrefix is a prefix appended to resources
                               for Kustomize apps
@@ -472,18 +484,18 @@ spec:
                           Helm) that contains the application manifests
                         type: string
                       targetRevision:
-                        description: TargetRevision defines the revision of the source
-                          to sync the application to. In case of Git, this can be
-                          commit, tag, or branch. If omitted, will equal to HEAD.
+                        description: |-
+                          TargetRevision defines the revision of the source to sync the application to.
+                          In case of Git, this can be commit, tag, or branch. If omitted, will equal to HEAD.
                           In case of Helm, this is a semver tag for the Chart's version.
                         type: string
                     required:
                     - repoURL
                     type: object
                   sources:
-                    description: Sources overrides the source definition set in the
-                      application. This is typically set in a Rollback operation and
-                      is nil during a Sync operation
+                    description: |-
+                      Sources overrides the source definition set in the application.
+                      This is typically set in a Rollback operation and is nil during a Sync operation
                     items:
                       description: ApplicationSource contains all required information
                         about the source of an application
@@ -678,6 +690,10 @@ spec:
                                   image definition in the format [old_image_name=]<image_name>:<image_tag>
                                 type: string
                               type: array
+                            labelWithoutSelector:
+                              description: LabelWithoutSelector specifies whether
+                                to apply common labels to resource selectors or not
+                              type: boolean
                             namePrefix:
                               description: NamePrefix is a prefix appended to resources
                                 for Kustomize apps
@@ -807,11 +823,10 @@ spec:
                             Helm) that contains the application manifests
                           type: string
                         targetRevision:
-                          description: TargetRevision defines the revision of the
-                            source to sync the application to. In case of Git, this
-                            can be commit, tag, or branch. If omitted, will equal
-                            to HEAD. In case of Helm, this is a semver tag for the
-                            Chart's version.
+                          description: |-
+                            TargetRevision defines the revision of the source to sync the application to.
+                            In case of Git, this can be commit, tag, or branch. If omitted, will equal to HEAD.
+                            In case of Helm, this is a semver tag for the Chart's version.
                           type: string
                       required:
                       - repoURL
@@ -830,10 +845,10 @@ spec:
                           the sync.
                         properties:
                           force:
-                            description: Force indicates whether or not to supply
-                              the --force flag to `kubectl apply`. The --force flag
-                              deletes and re-create the resource, when PATCH encounters
-                              conflict and has retried for 5 times.
+                            description: |-
+                              Force indicates whether or not to supply the --force flag to `kubectl apply`.
+                              The --force flag deletes and re-create the resource, when PATCH encounters conflict and has
+                              retried for 5 times.
                             type: boolean
                         type: object
                       hook:
@@ -841,10 +856,10 @@ spec:
                           perform the sync. This is the default strategy
                         properties:
                           force:
-                            description: Force indicates whether or not to supply
-                              the --force flag to `kubectl apply`. The --force flag
-                              deletes and re-create the resource, when PATCH encounters
-                              conflict and has retried for 5 times.
+                            description: |-
+                              Force indicates whether or not to supply the --force flag to `kubectl apply`.
+                              The --force flag deletes and re-create the resource, when PATCH encounters conflict and has
+                              retried for 5 times.
                             type: boolean
                         type: object
                     type: object
@@ -865,9 +880,9 @@ spec:
                       not set.
                     type: string
                   namespace:
-                    description: Namespace specifies the target namespace for the
-                      application's resources. The namespace will only be set for
-                      namespace-scoped resources that have not set a value for .metadata.namespace
+                    description: |-
+                      Namespace specifies the target namespace for the application's resources.
+                      The namespace will only be set for namespace-scoped resources that have not set a value for .metadata.namespace
                     type: string
                   server:
                     description: Server specifies the URL of the target cluster's
@@ -896,10 +911,9 @@ spec:
                     kind:
                       type: string
                     managedFieldsManagers:
-                      description: ManagedFieldsManagers is a list of trusted managers.
-                        Fields mutated by those managers will take precedence over
-                        the desired state defined in the SCM and won't be displayed
-                        in diffs
+                      description: |-
+                        ManagedFieldsManagers is a list of trusted managers. Fields mutated by those managers will take precedence over the
+                        desired state defined in the SCM and won't be displayed in diffs
                       items:
                         type: string
                       type: array
@@ -926,18 +940,17 @@ spec:
                   type: object
                 type: array
               project:
-                description: Project is a reference to the project this application
-                  belongs to. The empty string means that application belongs to the
-                  'default' project.
+                description: |-
+                  Project is a reference to the project this application belongs to.
+                  The empty string means that application belongs to the 'default' project.
                 type: string
               revisionHistoryLimit:
-                description: RevisionHistoryLimit limits the number of items kept
-                  in the application's revision history, which is used for informational
-                  purposes as well as for rollbacks to previous versions. This should
-                  only be changed in exceptional circumstances. Setting to zero will
-                  store no history. This will reduce storage used. Increasing will
-                  increase the space used to store the history, so we do not recommend
-                  increasing it. Default is 10.
+                description: |-
+                  RevisionHistoryLimit limits the number of items kept in the application's revision history, which is used for informational purposes as well as for rollbacks to previous versions.
+                  This should only be changed in exceptional circumstances.
+                  Setting to zero will store no history. This will reduce storage used.
+                  Increasing will increase the space used to store the history, so we do not recommend increasing it.
+                  Default is 10.
                 format: int64
                 type: integer
               source:
@@ -1127,6 +1140,10 @@ spec:
                             definition in the format [old_image_name=]<image_name>:<image_tag>
                           type: string
                         type: array
+                      labelWithoutSelector:
+                        description: LabelWithoutSelector specifies whether to apply
+                          common labels to resource selectors or not
+                        type: boolean
                       namePrefix:
                         description: NamePrefix is a prefix appended to resources
                           for Kustomize apps
@@ -1252,10 +1269,10 @@ spec:
                       that contains the application manifests
                     type: string
                   targetRevision:
-                    description: TargetRevision defines the revision of the source
-                      to sync the application to. In case of Git, this can be commit,
-                      tag, or branch. If omitted, will equal to HEAD. In case of Helm,
-                      this is a semver tag for the Chart's version.
+                    description: |-
+                      TargetRevision defines the revision of the source to sync the application to.
+                      In case of Git, this can be commit, tag, or branch. If omitted, will equal to HEAD.
+                      In case of Helm, this is a semver tag for the Chart's version.
                     type: string
                 required:
                 - repoURL
@@ -1452,6 +1469,10 @@ spec:
                               definition in the format [old_image_name=]<image_name>:<image_tag>
                             type: string
                           type: array
+                        labelWithoutSelector:
+                          description: LabelWithoutSelector specifies whether to apply
+                            common labels to resource selectors or not
+                          type: boolean
                         namePrefix:
                           description: NamePrefix is a prefix appended to resources
                             for Kustomize apps
@@ -1580,10 +1601,10 @@ spec:
                         that contains the application manifests
                       type: string
                     targetRevision:
-                      description: TargetRevision defines the revision of the source
-                        to sync the application to. In case of Git, this can be commit,
-                        tag, or branch. If omitted, will equal to HEAD. In case of
-                        Helm, this is a semver tag for the Chart's version.
+                      description: |-
+                        TargetRevision defines the revision of the source to sync the application to.
+                        In case of Git, this can be commit, tag, or branch. If omitted, will equal to HEAD.
+                        In case of Helm, this is a semver tag for the Chart's version.
                       type: string
                   required:
                   - repoURL
@@ -1726,6 +1747,19 @@ spec:
                       description: ID is an auto incrementing identifier of the RevisionHistory
                       format: int64
                       type: integer
+                    initiatedBy:
+                      description: InitiatedBy contains information about who initiated
+                        the operations
+                      properties:
+                        automated:
+                          description: Automated is set to true if operation was initiated
+                            automatically by the application controller.
+                          type: boolean
+                        username:
+                          description: Username contains the name of a user who started
+                            operation
+                          type: string
+                      type: object
                     revision:
                       description: Revision holds the revision the sync was performed
                         against
@@ -1930,6 +1964,10 @@ spec:
                                   image definition in the format [old_image_name=]<image_name>:<image_tag>
                                 type: string
                               type: array
+                            labelWithoutSelector:
+                              description: LabelWithoutSelector specifies whether
+                                to apply common labels to resource selectors or not
+                              type: boolean
                             namePrefix:
                               description: NamePrefix is a prefix appended to resources
                                 for Kustomize apps
@@ -2059,11 +2097,10 @@ spec:
                             Helm) that contains the application manifests
                           type: string
                         targetRevision:
-                          description: TargetRevision defines the revision of the
-                            source to sync the application to. In case of Git, this
-                            can be commit, tag, or branch. If omitted, will equal
-                            to HEAD. In case of Helm, this is a semver tag for the
-                            Chart's version.
+                          description: |-
+                            TargetRevision defines the revision of the source to sync the application to.
+                            In case of Git, this can be commit, tag, or branch. If omitted, will equal to HEAD.
+                            In case of Helm, this is a semver tag for the Chart's version.
                           type: string
                       required:
                       - repoURL
@@ -2268,6 +2305,11 @@ spec:
                                     image definition in the format [old_image_name=]<image_name>:<image_tag>
                                   type: string
                                 type: array
+                              labelWithoutSelector:
+                                description: LabelWithoutSelector specifies whether
+                                  to apply common labels to resource selectors or
+                                  not
+                                type: boolean
                               namePrefix:
                                 description: NamePrefix is a prefix appended to resources
                                   for Kustomize apps
@@ -2400,11 +2442,10 @@ spec:
                               or Helm) that contains the application manifests
                             type: string
                           targetRevision:
-                            description: TargetRevision defines the revision of the
-                              source to sync the application to. In case of Git, this
-                              can be commit, tag, or branch. If omitted, will equal
-                              to HEAD. In case of Helm, this is a semver tag for the
-                              Chart's version.
+                            description: |-
+                              TargetRevision defines the revision of the source to sync the application to.
+                              In case of Git, this can be commit, tag, or branch. If omitted, will equal to HEAD.
+                              In case of Helm, this is a semver tag for the Chart's version.
                             type: string
                         required:
                         - repoURL
@@ -2416,9 +2457,9 @@ spec:
                   type: object
                 type: array
               observedAt:
-                description: 'ObservedAt indicates when the application state was
-                  updated without querying latest git state Deprecated: controller
-                  no longer updates ObservedAt field'
+                description: |-
+                  ObservedAt indicates when the application state was updated without querying latest git state
+                  Deprecated: controller no longer updates ObservedAt field
                 format: date-time
                 type: string
               operationState:
@@ -2531,22 +2572,21 @@ spec:
                               type: object
                             type: array
                           revision:
-                            description: Revision is the revision (Git) or chart version
-                              (Helm) which to sync the application to If omitted,
-                              will use the revision specified in app spec.
+                            description: |-
+                              Revision is the revision (Git) or chart version (Helm) which to sync the application to
+                              If omitted, will use the revision specified in app spec.
                             type: string
                           revisions:
-                            description: Revisions is the list of revision (Git) or
-                              chart version (Helm) which to sync each source in sources
-                              field for the application to If omitted, will use the
-                              revision specified in app spec.
+                            description: |-
+                              Revisions is the list of revision (Git) or chart version (Helm) which to sync each source in sources field for the application to
+                              If omitted, will use the revision specified in app spec.
                             items:
                               type: string
                             type: array
                           source:
-                            description: Source overrides the source definition set
-                              in the application. This is typically set in a Rollback
-                              operation and is nil during a Sync operation
+                            description: |-
+                              Source overrides the source definition set in the application.
+                              This is typically set in a Rollback operation and is nil during a Sync operation
                             properties:
                               chart:
                                 description: Chart is a Helm chart name, and must
@@ -2751,6 +2791,11 @@ spec:
                                         image definition in the format [old_image_name=]<image_name>:<image_tag>
                                       type: string
                                     type: array
+                                  labelWithoutSelector:
+                                    description: LabelWithoutSelector specifies whether
+                                      to apply common labels to resource selectors
+                                      or not
+                                    type: boolean
                                   namePrefix:
                                     description: NamePrefix is a prefix appended to
                                       resources for Kustomize apps
@@ -2884,19 +2929,18 @@ spec:
                                   (Git or Helm) that contains the application manifests
                                 type: string
                               targetRevision:
-                                description: TargetRevision defines the revision of
-                                  the source to sync the application to. In case of
-                                  Git, this can be commit, tag, or branch. If omitted,
-                                  will equal to HEAD. In case of Helm, this is a semver
-                                  tag for the Chart's version.
+                                description: |-
+                                  TargetRevision defines the revision of the source to sync the application to.
+                                  In case of Git, this can be commit, tag, or branch. If omitted, will equal to HEAD.
+                                  In case of Helm, this is a semver tag for the Chart's version.
                                 type: string
                             required:
                             - repoURL
                             type: object
                           sources:
-                            description: Sources overrides the source definition set
-                              in the application. This is typically set in a Rollback
-                              operation and is nil during a Sync operation
+                            description: |-
+                              Sources overrides the source definition set in the application.
+                              This is typically set in a Rollback operation and is nil during a Sync operation
                             items:
                               description: ApplicationSource contains all required
                                 information about the source of an application
@@ -3107,6 +3151,11 @@ spec:
                                           image definition in the format [old_image_name=]<image_name>:<image_tag>
                                         type: string
                                       type: array
+                                    labelWithoutSelector:
+                                      description: LabelWithoutSelector specifies
+                                        whether to apply common labels to resource
+                                        selectors or not
+                                      type: boolean
                                     namePrefix:
                                       description: NamePrefix is a prefix appended
                                         to resources for Kustomize apps
@@ -3242,11 +3291,10 @@ spec:
                                     (Git or Helm) that contains the application manifests
                                   type: string
                                 targetRevision:
-                                  description: TargetRevision defines the revision
-                                    of the source to sync the application to. In case
-                                    of Git, this can be commit, tag, or branch. If
-                                    omitted, will equal to HEAD. In case of Helm,
-                                    this is a semver tag for the Chart's version.
+                                  description: |-
+                                    TargetRevision defines the revision of the source to sync the application to.
+                                    In case of Git, this can be commit, tag, or branch. If omitted, will equal to HEAD.
+                                    In case of Helm, this is a semver tag for the Chart's version.
                                   type: string
                               required:
                               - repoURL
@@ -3267,11 +3315,10 @@ spec:
                                   to perform the sync.
                                 properties:
                                   force:
-                                    description: Force indicates whether or not to
-                                      supply the --force flag to `kubectl apply`.
-                                      The --force flag deletes and re-create the resource,
-                                      when PATCH encounters conflict and has retried
-                                      for 5 times.
+                                    description: |-
+                                      Force indicates whether or not to supply the --force flag to `kubectl apply`.
+                                      The --force flag deletes and re-create the resource, when PATCH encounters conflict and has
+                                      retried for 5 times.
                                     type: boolean
                                 type: object
                               hook:
@@ -3279,11 +3326,10 @@ spec:
                                   to perform the sync. This is the default strategy
                                 properties:
                                   force:
-                                    description: Force indicates whether or not to
-                                      supply the --force flag to `kubectl apply`.
-                                      The --force flag deletes and re-create the resource,
-                                      when PATCH encounters conflict and has retried
-                                      for 5 times.
+                                    description: |-
+                                      Force indicates whether or not to supply the --force flag to `kubectl apply`.
+                                      The --force flag deletes and re-create the resource, when PATCH encounters conflict and has
+                                      retried for 5 times.
                                     type: boolean
                                 type: object
                             type: object
@@ -3327,9 +3373,9 @@ spec:
                               description: Group specifies the API group of the resource
                               type: string
                             hookPhase:
-                              description: HookPhase contains the state of any operation
-                                associated with this resource OR hook This can also
-                                contain values for non-hook resources.
+                              description: |-
+                                HookPhase contains the state of any operation associated with this resource OR hook
+                                This can also contain values for non-hook resources.
                               type: string
                             hookType:
                               description: HookType specifies the type of the hook.
@@ -3577,6 +3623,11 @@ spec:
                                     image definition in the format [old_image_name=]<image_name>:<image_tag>
                                   type: string
                                 type: array
+                              labelWithoutSelector:
+                                description: LabelWithoutSelector specifies whether
+                                  to apply common labels to resource selectors or
+                                  not
+                                type: boolean
                               namePrefix:
                                 description: NamePrefix is a prefix appended to resources
                                   for Kustomize apps
@@ -3709,11 +3760,10 @@ spec:
                               or Helm) that contains the application manifests
                             type: string
                           targetRevision:
-                            description: TargetRevision defines the revision of the
-                              source to sync the application to. In case of Git, this
-                              can be commit, tag, or branch. If omitted, will equal
-                              to HEAD. In case of Helm, this is a semver tag for the
-                              Chart's version.
+                            description: |-
+                              TargetRevision defines the revision of the source to sync the application to.
+                              In case of Git, this can be commit, tag, or branch. If omitted, will equal to HEAD.
+                              In case of Helm, this is a semver tag for the Chart's version.
                             type: string
                         required:
                         - repoURL
@@ -3926,6 +3976,11 @@ spec:
                                       image definition in the format [old_image_name=]<image_name>:<image_tag>
                                     type: string
                                   type: array
+                                labelWithoutSelector:
+                                  description: LabelWithoutSelector specifies whether
+                                    to apply common labels to resource selectors or
+                                    not
+                                  type: boolean
                                 namePrefix:
                                   description: NamePrefix is a prefix appended to
                                     resources for Kustomize apps
@@ -4059,11 +4114,10 @@ spec:
                                 or Helm) that contains the application manifests
                               type: string
                             targetRevision:
-                              description: TargetRevision defines the revision of
-                                the source to sync the application to. In case of
-                                Git, this can be commit, tag, or branch. If omitted,
-                                will equal to HEAD. In case of Helm, this is a semver
-                                tag for the Chart's version.
+                              description: |-
+                                TargetRevision defines the revision of the source to sync the application to.
+                                In case of Git, this can be commit, tag, or branch. If omitted, will equal to HEAD.
+                                In case of Helm, this is a semver tag for the Chart's version.
                               type: string
                           required:
                           - repoURL
@@ -4090,8 +4144,9 @@ spec:
                 description: Resources is a list of Kubernetes resources managed by
                   this application
                 items:
-                  description: 'ResourceStatus holds the current sync and health status
-                    of a resource TODO: describe members of this type'
+                  description: |-
+                    ResourceStatus holds the current sync and health status of a resource
+                    TODO: describe members of this type
                   properties:
                     group:
                       type: string
@@ -4174,10 +4229,9 @@ spec:
                               if Server is not set.
                             type: string
                           namespace:
-                            description: Namespace specifies the target namespace
-                              for the application's resources. The namespace will
-                              only be set for namespace-scoped resources that have
-                              not set a value for .metadata.namespace
+                            description: |-
+                              Namespace specifies the target namespace for the application's resources.
+                              The namespace will only be set for namespace-scoped resources that have not set a value for .metadata.namespace
                             type: string
                           server:
                             description: Server specifies the URL of the target cluster's
@@ -4206,10 +4260,9 @@ spec:
                             kind:
                               type: string
                             managedFieldsManagers:
-                              description: ManagedFieldsManagers is a list of trusted
-                                managers. Fields mutated by those managers will take
-                                precedence over the desired state defined in the SCM
-                                and won't be displayed in diffs
+                              description: |-
+                                ManagedFieldsManagers is a list of trusted managers. Fields mutated by those managers will take precedence over the
+                                desired state defined in the SCM and won't be displayed in diffs
                               items:
                                 type: string
                               type: array
@@ -4418,6 +4471,11 @@ spec:
                                     image definition in the format [old_image_name=]<image_name>:<image_tag>
                                   type: string
                                 type: array
+                              labelWithoutSelector:
+                                description: LabelWithoutSelector specifies whether
+                                  to apply common labels to resource selectors or
+                                  not
+                                type: boolean
                               namePrefix:
                                 description: NamePrefix is a prefix appended to resources
                                   for Kustomize apps
@@ -4550,11 +4608,10 @@ spec:
                               or Helm) that contains the application manifests
                             type: string
                           targetRevision:
-                            description: TargetRevision defines the revision of the
-                              source to sync the application to. In case of Git, this
-                              can be commit, tag, or branch. If omitted, will equal
-                              to HEAD. In case of Helm, this is a semver tag for the
-                              Chart's version.
+                            description: |-
+                              TargetRevision defines the revision of the source to sync the application to.
+                              In case of Git, this can be commit, tag, or branch. If omitted, will equal to HEAD.
+                              In case of Helm, this is a semver tag for the Chart's version.
                             type: string
                         required:
                         - repoURL
@@ -4767,6 +4824,11 @@ spec:
                                       image definition in the format [old_image_name=]<image_name>:<image_tag>
                                     type: string
                                   type: array
+                                labelWithoutSelector:
+                                  description: LabelWithoutSelector specifies whether
+                                    to apply common labels to resource selectors or
+                                    not
+                                  type: boolean
                                 namePrefix:
                                   description: NamePrefix is a prefix appended to
                                     resources for Kustomize apps
@@ -4900,11 +4962,10 @@ spec:
                                 or Helm) that contains the application manifests
                               type: string
                             targetRevision:
-                              description: TargetRevision defines the revision of
-                                the source to sync the application to. In case of
-                                Git, this can be commit, tag, or branch. If omitted,
-                                will equal to HEAD. In case of Helm, this is a semver
-                                tag for the Chart's version.
+                              description: |-
+                                TargetRevision defines the revision of the source to sync the application to.
+                                In case of Git, this can be commit, tag, or branch. If omitted, will equal to HEAD.
+                                In case of Helm, this is a semver tag for the Chart's version.
                               type: string
                           required:
                           - repoURL
@@ -5001,6 +5062,7 @@ spec:
                                 type: string
                               type: object
                           type: object
+                          x-kubernetes-map-type: atomic
                         name:
                           type: string
                         requeueAfterSeconds:
@@ -5196,6 +5258,8 @@ spec:
                                           items:
                                             type: string
                                           type: array
+                                        labelWithoutSelector:
+                                          type: boolean
                                         namePrefix:
                                           type: string
                                         nameSuffix:
@@ -5410,6 +5474,8 @@ spec:
                                             items:
                                               type: string
                                             type: array
+                                          labelWithoutSelector:
+                                            type: boolean
                                           namePrefix:
                                             type: string
                                           nameSuffix:
@@ -5593,6 +5659,7 @@ spec:
                                 type: string
                               type: object
                           type: object
+                          x-kubernetes-map-type: atomic
                         template:
                           properties:
                             metadata:
@@ -5783,6 +5850,8 @@ spec:
                                           items:
                                             type: string
                                           type: array
+                                        labelWithoutSelector:
+                                          type: boolean
                                         namePrefix:
                                           type: string
                                         nameSuffix:
@@ -5997,6 +6066,8 @@ spec:
                                             items:
                                               type: string
                                             type: array
+                                          labelWithoutSelector:
+                                            type: boolean
                                           namePrefix:
                                             type: string
                                           nameSuffix:
@@ -6374,6 +6445,8 @@ spec:
                                           items:
                                             type: string
                                           type: array
+                                        labelWithoutSelector:
+                                          type: boolean
                                         namePrefix:
                                           type: string
                                         nameSuffix:
@@ -6588,6 +6661,8 @@ spec:
                                             items:
                                               type: string
                                             type: array
+                                          labelWithoutSelector:
+                                            type: boolean
                                           namePrefix:
                                             type: string
                                           nameSuffix:
@@ -6945,6 +7020,8 @@ spec:
                                           items:
                                             type: string
                                           type: array
+                                        labelWithoutSelector:
+                                          type: boolean
                                         namePrefix:
                                           type: string
                                         nameSuffix:
@@ -7159,6 +7236,8 @@ spec:
                                             items:
                                               type: string
                                             type: array
+                                          labelWithoutSelector:
+                                            type: boolean
                                           namePrefix:
                                             type: string
                                           nameSuffix:
@@ -7310,8 +7389,6 @@ spec:
                           - metadata
                           - spec
                           type: object
-                      required:
-                      - elements
                       type: object
                     matrix:
                       properties:
@@ -7345,6 +7422,7 @@ spec:
                                           type: string
                                         type: object
                                     type: object
+                                    x-kubernetes-map-type: atomic
                                   name:
                                     type: string
                                   requeueAfterSeconds:
@@ -7540,6 +7618,8 @@ spec:
                                                     items:
                                                       type: string
                                                     type: array
+                                                  labelWithoutSelector:
+                                                    type: boolean
                                                   namePrefix:
                                                     type: string
                                                   nameSuffix:
@@ -7754,6 +7834,8 @@ spec:
                                                       items:
                                                         type: string
                                                       type: array
+                                                    labelWithoutSelector:
+                                                      type: boolean
                                                     namePrefix:
                                                       type: string
                                                     nameSuffix:
@@ -7937,6 +8019,7 @@ spec:
                                           type: string
                                         type: object
                                     type: object
+                                    x-kubernetes-map-type: atomic
                                   template:
                                     properties:
                                       metadata:
@@ -8127,6 +8210,8 @@ spec:
                                                     items:
                                                       type: string
                                                     type: array
+                                                  labelWithoutSelector:
+                                                    type: boolean
                                                   namePrefix:
                                                     type: string
                                                   nameSuffix:
@@ -8341,6 +8426,8 @@ spec:
                                                       items:
                                                         type: string
                                                       type: array
+                                                    labelWithoutSelector:
+                                                      type: boolean
                                                     namePrefix:
                                                       type: string
                                                     nameSuffix:
@@ -8718,6 +8805,8 @@ spec:
                                                     items:
                                                       type: string
                                                     type: array
+                                                  labelWithoutSelector:
+                                                    type: boolean
                                                   namePrefix:
                                                     type: string
                                                   nameSuffix:
@@ -8932,6 +9021,8 @@ spec:
                                                       items:
                                                         type: string
                                                       type: array
+                                                    labelWithoutSelector:
+                                                      type: boolean
                                                     namePrefix:
                                                       type: string
                                                     nameSuffix:
@@ -9289,6 +9380,8 @@ spec:
                                                     items:
                                                       type: string
                                                     type: array
+                                                  labelWithoutSelector:
+                                                    type: boolean
                                                   namePrefix:
                                                     type: string
                                                   nameSuffix:
@@ -9503,6 +9596,8 @@ spec:
                                                       items:
                                                         type: string
                                                       type: array
+                                                    labelWithoutSelector:
+                                                      type: boolean
                                                     namePrefix:
                                                       type: string
                                                     nameSuffix:
@@ -9654,8 +9749,6 @@ spec:
                                     - metadata
                                     - spec
                                     type: object
-                                required:
-                                - elements
                                 type: object
                               matrix:
                                 x-kubernetes-preserve-unknown-fields: true
@@ -9870,6 +9963,8 @@ spec:
                                                     items:
                                                       type: string
                                                     type: array
+                                                  labelWithoutSelector:
+                                                    type: boolean
                                                   namePrefix:
                                                     type: string
                                                   nameSuffix:
@@ -10084,6 +10179,8 @@ spec:
                                                       items:
                                                         type: string
                                                       type: array
+                                                    labelWithoutSelector:
+                                                      type: boolean
                                                     namePrefix:
                                                       type: string
                                                     nameSuffix:
@@ -10631,6 +10728,8 @@ spec:
                                                     items:
                                                       type: string
                                                     type: array
+                                                  labelWithoutSelector:
+                                                    type: boolean
                                                   namePrefix:
                                                     type: string
                                                   nameSuffix:
@@ -10845,6 +10944,8 @@ spec:
                                                       items:
                                                         type: string
                                                       type: array
+                                                    labelWithoutSelector:
+                                                      type: boolean
                                                     namePrefix:
                                                       type: string
                                                     nameSuffix:
@@ -11387,6 +11488,8 @@ spec:
                                                     items:
                                                       type: string
                                                     type: array
+                                                  labelWithoutSelector:
+                                                    type: boolean
                                                   namePrefix:
                                                     type: string
                                                   nameSuffix:
@@ -11601,6 +11704,8 @@ spec:
                                                       items:
                                                         type: string
                                                       type: array
+                                                    labelWithoutSelector:
+                                                      type: boolean
                                                     namePrefix:
                                                       type: string
                                                     nameSuffix:
@@ -11780,6 +11885,7 @@ spec:
                                       type: string
                                     type: object
                                 type: object
+                                x-kubernetes-map-type: atomic
                             type: object
                           type: array
                         template:
@@ -11972,6 +12078,8 @@ spec:
                                           items:
                                             type: string
                                           type: array
+                                        labelWithoutSelector:
+                                          type: boolean
                                         namePrefix:
                                           type: string
                                         nameSuffix:
@@ -12186,6 +12294,8 @@ spec:
                                             items:
                                               type: string
                                             type: array
+                                          labelWithoutSelector:
+                                            type: boolean
                                           namePrefix:
                                             type: string
                                           nameSuffix:
@@ -12372,6 +12482,7 @@ spec:
                                           type: string
                                         type: object
                                     type: object
+                                    x-kubernetes-map-type: atomic
                                   name:
                                     type: string
                                   requeueAfterSeconds:
@@ -12567,6 +12678,8 @@ spec:
                                                     items:
                                                       type: string
                                                     type: array
+                                                  labelWithoutSelector:
+                                                    type: boolean
                                                   namePrefix:
                                                     type: string
                                                   nameSuffix:
@@ -12781,6 +12894,8 @@ spec:
                                                       items:
                                                         type: string
                                                       type: array
+                                                    labelWithoutSelector:
+                                                      type: boolean
                                                     namePrefix:
                                                       type: string
                                                     nameSuffix:
@@ -12964,6 +13079,7 @@ spec:
                                           type: string
                                         type: object
                                     type: object
+                                    x-kubernetes-map-type: atomic
                                   template:
                                     properties:
                                       metadata:
@@ -13154,6 +13270,8 @@ spec:
                                                     items:
                                                       type: string
                                                     type: array
+                                                  labelWithoutSelector:
+                                                    type: boolean
                                                   namePrefix:
                                                     type: string
                                                   nameSuffix:
@@ -13368,6 +13486,8 @@ spec:
                                                       items:
                                                         type: string
                                                       type: array
+                                                    labelWithoutSelector:
+                                                      type: boolean
                                                     namePrefix:
                                                       type: string
                                                     nameSuffix:
@@ -13745,6 +13865,8 @@ spec:
                                                     items:
                                                       type: string
                                                     type: array
+                                                  labelWithoutSelector:
+                                                    type: boolean
                                                   namePrefix:
                                                     type: string
                                                   nameSuffix:
@@ -13959,6 +14081,8 @@ spec:
                                                       items:
                                                         type: string
                                                       type: array
+                                                    labelWithoutSelector:
+                                                      type: boolean
                                                     namePrefix:
                                                       type: string
                                                     nameSuffix:
@@ -14316,6 +14440,8 @@ spec:
                                                     items:
                                                       type: string
                                                     type: array
+                                                  labelWithoutSelector:
+                                                    type: boolean
                                                   namePrefix:
                                                     type: string
                                                   nameSuffix:
@@ -14530,6 +14656,8 @@ spec:
                                                       items:
                                                         type: string
                                                       type: array
+                                                    labelWithoutSelector:
+                                                      type: boolean
                                                     namePrefix:
                                                       type: string
                                                     nameSuffix:
@@ -14681,8 +14809,6 @@ spec:
                                     - metadata
                                     - spec
                                     type: object
-                                required:
-                                - elements
                                 type: object
                               matrix:
                                 x-kubernetes-preserve-unknown-fields: true
@@ -14897,6 +15023,8 @@ spec:
                                                     items:
                                                       type: string
                                                     type: array
+                                                  labelWithoutSelector:
+                                                    type: boolean
                                                   namePrefix:
                                                     type: string
                                                   nameSuffix:
@@ -15111,6 +15239,8 @@ spec:
                                                       items:
                                                         type: string
                                                       type: array
+                                                    labelWithoutSelector:
+                                                      type: boolean
                                                     namePrefix:
                                                       type: string
                                                     nameSuffix:
@@ -15658,6 +15788,8 @@ spec:
                                                     items:
                                                       type: string
                                                     type: array
+                                                  labelWithoutSelector:
+                                                    type: boolean
                                                   namePrefix:
                                                     type: string
                                                   nameSuffix:
@@ -15872,6 +16004,8 @@ spec:
                                                       items:
                                                         type: string
                                                       type: array
+                                                    labelWithoutSelector:
+                                                      type: boolean
                                                     namePrefix:
                                                       type: string
                                                     nameSuffix:
@@ -16414,6 +16548,8 @@ spec:
                                                     items:
                                                       type: string
                                                     type: array
+                                                  labelWithoutSelector:
+                                                    type: boolean
                                                   namePrefix:
                                                     type: string
                                                   nameSuffix:
@@ -16628,6 +16764,8 @@ spec:
                                                       items:
                                                         type: string
                                                       type: array
+                                                    labelWithoutSelector:
+                                                      type: boolean
                                                     namePrefix:
                                                       type: string
                                                     nameSuffix:
@@ -16807,6 +16945,7 @@ spec:
                                       type: string
                                     type: object
                                 type: object
+                                x-kubernetes-map-type: atomic
                             type: object
                           type: array
                         mergeKeys:
@@ -17003,6 +17142,8 @@ spec:
                                           items:
                                             type: string
                                           type: array
+                                        labelWithoutSelector:
+                                          type: boolean
                                         namePrefix:
                                           type: string
                                         nameSuffix:
@@ -17217,6 +17358,8 @@ spec:
                                             items:
                                               type: string
                                             type: array
+                                          labelWithoutSelector:
+                                            type: boolean
                                           namePrefix:
                                             type: string
                                           nameSuffix:
@@ -17581,6 +17724,8 @@ spec:
                                           items:
                                             type: string
                                           type: array
+                                        labelWithoutSelector:
+                                          type: boolean
                                         namePrefix:
                                           type: string
                                         nameSuffix:
@@ -17795,6 +17940,8 @@ spec:
                                             items:
                                               type: string
                                             type: array
+                                          labelWithoutSelector:
+                                            type: boolean
                                           namePrefix:
                                             type: string
                                           nameSuffix:
@@ -18342,6 +18489,8 @@ spec:
                                           items:
                                             type: string
                                           type: array
+                                        labelWithoutSelector:
+                                          type: boolean
                                         namePrefix:
                                           type: string
                                         nameSuffix:
@@ -18556,6 +18705,8 @@ spec:
                                             items:
                                               type: string
                                             type: array
+                                          labelWithoutSelector:
+                                            type: boolean
                                           namePrefix:
                                             type: string
                                           nameSuffix:
@@ -19098,6 +19249,8 @@ spec:
                                           items:
                                             type: string
                                           type: array
+                                        labelWithoutSelector:
+                                          type: boolean
                                         namePrefix:
                                           type: string
                                         nameSuffix:
@@ -19312,6 +19465,8 @@ spec:
                                             items:
                                               type: string
                                             type: array
+                                          labelWithoutSelector:
+                                            type: boolean
                                           namePrefix:
                                             type: string
                                           nameSuffix:
@@ -19491,6 +19646,7 @@ spec:
                             type: string
                           type: object
                       type: object
+                      x-kubernetes-map-type: atomic
                   type: object
                 type: array
               goTemplate:
@@ -19758,6 +19914,8 @@ spec:
                                 items:
                                   type: string
                                 type: array
+                              labelWithoutSelector:
+                                type: boolean
                               namePrefix:
                                 type: string
                               nameSuffix:
@@ -19972,6 +20130,8 @@ spec:
                                   items:
                                     type: string
                                   type: array
+                                labelWithoutSelector:
+                                  type: boolean
                                 namePrefix:
                                   type: string
                                 nameSuffix:
@@ -20173,6 +20333,37 @@ spec:
                   - type
                   type: object
                 type: array
+              resources:
+                items:
+                  properties:
+                    group:
+                      type: string
+                    health:
+                      properties:
+                        message:
+                          type: string
+                        status:
+                          type: string
+                      type: object
+                    hook:
+                      type: boolean
+                    kind:
+                      type: string
+                    name:
+                      type: string
+                    namespace:
+                      type: string
+                    requiresPruning:
+                      type: boolean
+                    status:
+                      type: string
+                    syncWave:
+                      format: int64
+                      type: integer
+                    version:
+                      type: string
+                  type: object
+                type: array
             type: object
         required:
         - metadata
@@ -20205,22 +20396,28 @@ spec:
   - name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: 'AppProject provides a logical grouping of applications, providing
-          controls for: * where the apps may deploy to (cluster whitelist) * what
-          may be deployed (repository whitelist, resource whitelist/blacklist) * who
-          can access these applications (roles, OIDC group claims bindings) * and
-          what they can do (RBAC policies) * automation access to these roles (JWT
-          tokens)'
+        description: |-
+          AppProject provides a logical grouping of applications, providing controls for:
+          * where the apps may deploy to (cluster whitelist)
+          * what may be deployed (repository whitelist, resource whitelist/blacklist)
+          * who can access these applications (roles, OIDC group claims bindings)
+          * and what they can do (RBAC policies)
+          * automation access to these roles (JWT tokens)
         properties:
           apiVersion:
-            description: 'APIVersion defines the versioned schema of this representation
-              of an object. Servers should convert recognized schemas to the latest
-              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
             type: string
           kind:
-            description: 'Kind is a string value representing the REST resource this
-              object represents. Servers may infer this from the endpoint the client
-              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
             type: string
           metadata:
             type: object
@@ -20231,9 +20428,9 @@ spec:
                 description: ClusterResourceBlacklist contains list of blacklisted
                   cluster level resources
                 items:
-                  description: GroupKind specifies a Group and a Kind, but does not
-                    force a version.  This is useful for identifying concepts during
-                    lookup stages without having partially valid types
+                  description: |-
+                    GroupKind specifies a Group and a Kind, but does not force a version.  This is useful for identifying
+                    concepts during lookup stages without having partially valid types
                   properties:
                     group:
                       type: string
@@ -20248,9 +20445,9 @@ spec:
                 description: ClusterResourceWhitelist contains list of whitelisted
                   cluster level resources
                 items:
-                  description: GroupKind specifies a Group and a Kind, but does not
-                    force a version.  This is useful for identifying concepts during
-                    lookup stages without having partially valid types
+                  description: |-
+                    GroupKind specifies a Group and a Kind, but does not force a version.  This is useful for identifying
+                    concepts during lookup stages without having partially valid types
                   properties:
                     group:
                       type: string
@@ -20277,9 +20474,9 @@ spec:
                         not set.
                       type: string
                     namespace:
-                      description: Namespace specifies the target namespace for the
-                        application's resources. The namespace will only be set for
-                        namespace-scoped resources that have not set a value for .metadata.namespace
+                      description: |-
+                        Namespace specifies the target namespace for the application's resources.
+                        The namespace will only be set for namespace-scoped resources that have not set a value for .metadata.namespace
                       type: string
                     server:
                       description: Server specifies the URL of the target cluster's
@@ -20292,9 +20489,9 @@ spec:
                 description: NamespaceResourceBlacklist contains list of blacklisted
                   namespace level resources
                 items:
-                  description: GroupKind specifies a Group and a Kind, but does not
-                    force a version.  This is useful for identifying concepts during
-                    lookup stages without having partially valid types
+                  description: |-
+                    GroupKind specifies a Group and a Kind, but does not force a version.  This is useful for identifying
+                    concepts during lookup stages without having partially valid types
                   properties:
                     group:
                       type: string
@@ -20309,9 +20506,9 @@ spec:
                 description: NamespaceResourceWhitelist contains list of whitelisted
                   namespace level resources
                 items:
-                  description: GroupKind specifies a Group and a Kind, but does not
-                    force a version.  This is useful for identifying concepts during
-                    lookup stages without having partially valid types
+                  description: |-
+                    GroupKind specifies a Group and a Kind, but does not force a version.  This is useful for identifying
+                    concepts during lookup stages without having partially valid types
                   properties:
                     group:
                       type: string
@@ -20552,6 +20749,8 @@ metadata:
     app.kubernetes.io/name: argocd-redis-ha
     app.kubernetes.io/part-of: argocd
   name: argocd-redis-ha
+secrets:
+- name: argocd-redis
 ---
 apiVersion: v1
 kind: ServiceAccount
@@ -20618,6 +20817,14 @@ rules:
   verbs:
   - create
   - list
+- apiGroups:
+  - apps
+  resources:
+  - deployments
+  verbs:
+  - get
+  - list
+  - watch
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
@@ -20777,6 +20984,20 @@ rules:
 - apiGroups:
   - ""
   resources:
+  - secrets
+  verbs:
+  - create
+- apiGroups:
+  - ""
+  resourceNames:
+  - argocd-redis
+  resources:
+  - secrets
+  verbs:
+  - get
+- apiGroups:
+  - ""
+  resources:
   - endpoints
   verbs:
   - get
@@ -20844,6 +21065,95 @@ rules:
   - '*'
   verbs:
   - '*'
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/component: applicationset-controller
+    app.kubernetes.io/name: argocd-applicationset-controller
+    app.kubernetes.io/part-of: argocd
+  name: argocd-applicationset-controller
+rules:
+- apiGroups:
+  - argoproj.io
+  resources:
+  - applications
+  - applicationsets
+  - applicationsets/finalizers
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - argoproj.io
+  resources:
+  - applicationsets/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - argoproj.io
+  resources:
+  - appprojects
+  verbs:
+  - get
+- apiGroups:
+  - ""
+  resources:
+  - events
+  verbs:
+  - create
+  - get
+  - list
+  - patch
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - configmaps
+  verbs:
+  - create
+  - update
+  - delete
+  - get
+  - list
+  - patch
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - secrets
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - apps
+  - extensions
+  resources:
+  - deployments
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - coordination.k8s.io
+  resources:
+  - leases
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
@@ -21030,6 +21340,23 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
   labels:
+    app.kubernetes.io/component: applicationset-controller
+    app.kubernetes.io/name: argocd-applicationset-controller
+    app.kubernetes.io/part-of: argocd
+  name: argocd-applicationset-controller
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: argocd-applicationset-controller
+subjects:
+- kind: ServiceAccount
+  name: argocd-applicationset-controller
+  namespace: argocd
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  labels:
     app.kubernetes.io/component: server
     app.kubernetes.io/name: argocd-server
     app.kubernetes.io/part-of: argocd
@@ -21112,7 +21439,7 @@ data:
     sentinel_get_master() {
     set +e
         if [ "$SENTINEL_PORT" -eq 0 ]; then
-            redis-cli -h "${SERVICE}" -p "${SENTINEL_TLS_PORT}"   --tls --cacert /tls-certs/ca.crt --cert /tls-certs/redis.crt --key /tls-certs/redis.key sentinel get-master-addr-by-name "${MASTER_GROUP}" |\
+            redis-cli -h "${SERVICE}" -p "${SENTINEL_TLS_PORT}"  --tls --cacert /tls-certs/ca.crt  --cert /tls-certs/redis.crt --key /tls-certs/redis.key sentinel get-master-addr-by-name "${MASTER_GROUP}" |\
             grep -E '((^\s*((([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5]))\s*$)|(^\s*((([0-9A-Fa-f]{1,4}:){7}([0-9A-Fa-f]{1,4}|:))|(([0-9A-Fa-f]{1,4}:){6}(:[0-9A-Fa-f]{1,4}|((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3})|:))|(([0-9A-Fa-f]{1,4}:){5}(((:[0-9A-Fa-f]{1,4}){1,2})|:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3})|:))|(([0-9A-Fa-f]{1,4}:){4}(((:[0-9A-Fa-f]{1,4}){1,3})|((:[0-9A-Fa-f]{1,4})?:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){3}(((:[0-9A-Fa-f]{1,4}){1,4})|((:[0-9A-Fa-f]{1,4}){0,2}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){2}(((:[0-9A-Fa-f]{1,4}){1,5})|((:[0-9A-Fa-f]{1,4}){0,3}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){1}(((:[0-9A-Fa-f]{1,4}){1,6})|((:[0-9A-Fa-f]{1,4}){0,4}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(:(((:[0-9A-Fa-f]{1,4}){1,7})|((:[0-9A-Fa-f]{1,4}){0,5}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:)))(%.+)?s*$))'
         else
             redis-cli -h "${SERVICE}" -p "${SENTINEL_PORT}"  sentinel get-master-addr-by-name "${MASTER_GROUP}" |\
@@ -21221,9 +21548,9 @@ data:
     redis_ping() {
     set +e
         if [ "$REDIS_PORT" -eq 0 ]; then
-            redis-cli -h "${MASTER}" -p "${REDIS_TLS_PORT}"  --tls --cacert /tls-certs/ca.crt --cert /tls-certs/redis.crt --key /tls-certs/redis.key ping
+            redis-cli -h "${MASTER}" -a "${AUTH}" --no-auth-warning -p "${REDIS_TLS_PORT}" --tls --cacert /tls-certs/ca.crt  --cert /tls-certs/redis.crt --key /tls-certs/redis.key ping
         else
-            redis-cli -h "${MASTER}" -p "${REDIS_PORT}" ping
+            redis-cli -h "${MASTER}" -a "${AUTH}" --no-auth-warning -p "${REDIS_PORT}" ping
         fi
     set -e
     }
@@ -21256,7 +21583,7 @@ data:
 
             if [ "$SENTINEL_PORT" -eq 0 ]; then
                 echo "  on sentinel (${SERVICE}:${SENTINEL_TLS_PORT}), sentinel grp (${MASTER_GROUP})"
-                if redis-cli -h "${SERVICE}" -p "${SENTINEL_TLS_PORT}"   --tls --cacert /tls-certs/ca.crt --cert /tls-certs/redis.crt --key /tls-certs/redis.key sentinel failover "${MASTER_GROUP}" | grep -q 'NOGOODSLAVE' ; then
+                if redis-cli -h "${SERVICE}" -p "${SENTINEL_TLS_PORT}"  --tls --cacert /tls-certs/ca.crt  --cert /tls-certs/redis.crt --key /tls-certs/redis.key sentinel failover "${MASTER_GROUP}" | grep -q 'NOGOODSLAVE' ; then
                     echo "  $(date) Failover returned with 'NOGOODSLAVE'"
                     echo "Setting defaults for this pod.."
                     setup_defaults
@@ -21321,9 +21648,9 @@ data:
     redis_role() {
     set +e
         if [ "$REDIS_PORT" -eq 0 ]; then
-            ROLE=$(redis-cli  -p "${REDIS_TLS_PORT}"  --tls --cacert /tls-certs/ca.crt --cert /tls-certs/redis.crt --key /tls-certs/redis.key info | grep role | sed 's/role://' | sed 's/\r//')
+            ROLE=$(redis-cli  -a "${AUTH}" --no-auth-warning -p "${REDIS_TLS_PORT}" --tls --cacert /tls-certs/ca.crt  --cert /tls-certs/redis.crt --key /tls-certs/redis.key info | grep role | sed 's/role://' | sed 's/\r//')
         else
-            ROLE=$(redis-cli  -p "${REDIS_PORT}" info | grep role | sed 's/role://' | sed 's/\r//')
+            ROLE=$(redis-cli  -a "${AUTH}" --no-auth-warning -p "${REDIS_PORT}" info | grep role | sed 's/role://' | sed 's/\r//')
         fi
     set -e
     }
@@ -21331,9 +21658,9 @@ data:
     identify_redis_master() {
     set +e
         if [ "$REDIS_PORT" -eq 0 ]; then
-            REDIS_MASTER=$(redis-cli  -p "${REDIS_TLS_PORT}"  --tls --cacert /tls-certs/ca.crt --cert /tls-certs/redis.crt --key /tls-certs/redis.key info | grep master_host | sed 's/master_host://' | sed 's/\r//')
+            REDIS_MASTER=$(redis-cli  -a "${AUTH}" --no-auth-warning -p "${REDIS_TLS_PORT}" --tls --cacert /tls-certs/ca.crt  --cert /tls-certs/redis.crt --key /tls-certs/redis.key info | grep master_host | sed 's/master_host://' | sed 's/\r//')
         else
-            REDIS_MASTER=$(redis-cli  -p "${REDIS_PORT}" info | grep master_host | sed 's/master_host://' | sed 's/\r//')
+            REDIS_MASTER=$(redis-cli  -a "${AUTH}" --no-auth-warning -p "${REDIS_PORT}" info | grep master_host | sed 's/master_host://' | sed 's/\r//')
         fi
     set -e
     }
@@ -21343,9 +21670,9 @@ data:
         sh /readonly-config/init.sh
 
         if [ "$REDIS_PORT" -eq 0 ]; then
-            echo "shutdown" | redis-cli  -p "${REDIS_TLS_PORT}"  --tls --cacert /tls-certs/ca.crt --cert /tls-certs/redis.crt --key /tls-certs/redis.key
+            echo "shutdown" | redis-cli  -a "${AUTH}" --no-auth-warning -p "${REDIS_TLS_PORT}" --tls --cacert /tls-certs/ca.crt  --cert /tls-certs/redis.crt --key /tls-certs/redis.key
         else
-            echo "shutdown" | redis-cli  -p "${REDIS_PORT}"
+            echo "shutdown" | redis-cli  -a "${AUTH}" --no-auth-warning -p "${REDIS_PORT}"
         fi
     set -e
     }
@@ -21358,6 +21685,7 @@ data:
         identify_announce_ip
     done
 
+    trap "exit 0" TERM
     while true; do
         sleep 60
 
@@ -21400,9 +21728,10 @@ data:
     decide redis backend to use\n#master\nfrontend ft_redis_master\n  bind :6379 \n
     \ use_backend bk_redis_master\n# Check all redis servers to see if they think
     they are master\nbackend bk_redis_master\n  mode tcp\n  option tcp-check\n  tcp-check
-    connect\n  tcp-check send PING\\r\\n\n  tcp-check expect string +PONG\n  tcp-check
-    send info\\ replication\\r\\n\n  tcp-check expect string role:master\n  tcp-check
-    send QUIT\\r\\n\n  tcp-check expect string +OK\n  use-server R0 if { srv_is_up(R0)
+    connect\n  tcp-check send \"AUTH ${AUTH}\"\\r\\n\n  tcp-check expect string +OK\n
+    \ tcp-check send PING\\r\\n\n  tcp-check expect string +PONG\n  tcp-check send
+    info\\ replication\\r\\n\n  tcp-check expect string role:master\n  tcp-check send
+    QUIT\\r\\n\n  tcp-check expect string +OK\n  use-server R0 if { srv_is_up(R0)
     } { nbsrv(check_if_redis_is_master_0) ge 2 }\n  server R0 argocd-redis-ha-announce-0:6379
     check inter 3s fall 1 rise 1\n  use-server R1 if { srv_is_up(R1) } { nbsrv(check_if_redis_is_master_1)
     ge 2 }\n  server R1 argocd-redis-ha-announce-1:6379 check inter 3s fall 1 rise
@@ -21465,7 +21794,7 @@ data:
     sentinel_get_master() {
     set +e
         if [ "$SENTINEL_PORT" -eq 0 ]; then
-            redis-cli -h "${SERVICE}" -p "${SENTINEL_TLS_PORT}"   --tls --cacert /tls-certs/ca.crt --cert /tls-certs/redis.crt --key /tls-certs/redis.key sentinel get-master-addr-by-name "${MASTER_GROUP}" |\
+            redis-cli -h "${SERVICE}" -p "${SENTINEL_TLS_PORT}"  --tls --cacert /tls-certs/ca.crt  --cert /tls-certs/redis.crt --key /tls-certs/redis.key sentinel get-master-addr-by-name "${MASTER_GROUP}" |\
             grep -E '((^\s*((([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5]))\s*$)|(^\s*((([0-9A-Fa-f]{1,4}:){7}([0-9A-Fa-f]{1,4}|:))|(([0-9A-Fa-f]{1,4}:){6}(:[0-9A-Fa-f]{1,4}|((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3})|:))|(([0-9A-Fa-f]{1,4}:){5}(((:[0-9A-Fa-f]{1,4}){1,2})|:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3})|:))|(([0-9A-Fa-f]{1,4}:){4}(((:[0-9A-Fa-f]{1,4}){1,3})|((:[0-9A-Fa-f]{1,4})?:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){3}(((:[0-9A-Fa-f]{1,4}){1,4})|((:[0-9A-Fa-f]{1,4}){0,2}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){2}(((:[0-9A-Fa-f]{1,4}){1,5})|((:[0-9A-Fa-f]{1,4}){0,3}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){1}(((:[0-9A-Fa-f]{1,4}){1,6})|((:[0-9A-Fa-f]{1,4}){0,4}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(:(((:[0-9A-Fa-f]{1,4}){1,7})|((:[0-9A-Fa-f]{1,4}){0,5}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:)))(%.+)?s*$))'
         else
             redis-cli -h "${SERVICE}" -p "${SENTINEL_PORT}"  sentinel get-master-addr-by-name "${MASTER_GROUP}" |\
@@ -21574,9 +21903,9 @@ data:
     redis_ping() {
     set +e
         if [ "$REDIS_PORT" -eq 0 ]; then
-            redis-cli -h "${MASTER}" -p "${REDIS_TLS_PORT}"  --tls --cacert /tls-certs/ca.crt --cert /tls-certs/redis.crt --key /tls-certs/redis.key ping
+            redis-cli -h "${MASTER}" -a "${AUTH}" --no-auth-warning -p "${REDIS_TLS_PORT}" --tls --cacert /tls-certs/ca.crt  --cert /tls-certs/redis.crt --key /tls-certs/redis.key ping
         else
-            redis-cli -h "${MASTER}" -p "${REDIS_PORT}" ping
+            redis-cli -h "${MASTER}" -a "${AUTH}" --no-auth-warning -p "${REDIS_PORT}" ping
         fi
     set -e
     }
@@ -21609,7 +21938,7 @@ data:
 
             if [ "$SENTINEL_PORT" -eq 0 ]; then
                 echo "  on sentinel (${SERVICE}:${SENTINEL_TLS_PORT}), sentinel grp (${MASTER_GROUP})"
-                if redis-cli -h "${SERVICE}" -p "${SENTINEL_TLS_PORT}"   --tls --cacert /tls-certs/ca.crt --cert /tls-certs/redis.crt --key /tls-certs/redis.key sentinel failover "${MASTER_GROUP}" | grep -q 'NOGOODSLAVE' ; then
+                if redis-cli -h "${SERVICE}" -p "${SENTINEL_TLS_PORT}"  --tls --cacert /tls-certs/ca.crt  --cert /tls-certs/redis.crt --key /tls-certs/redis.key sentinel failover "${MASTER_GROUP}" | grep -q 'NOGOODSLAVE' ; then
                     echo "  $(date) Failover returned with 'NOGOODSLAVE'"
                     echo "Setting defaults for this pod.."
                     setup_defaults
@@ -21717,6 +22046,8 @@ data:
     rdbcompression yes
     repl-diskless-sync yes
     save ""
+    requirepass replace-default-auth
+    masterauth replace-default-auth
   sentinel.conf: |
     dir "/data"
     port 26379
@@ -21725,10 +22056,12 @@ data:
         sentinel failover-timeout argocd 180000
         maxclients 10000
         sentinel parallel-syncs argocd 5
+    sentinel auth-pass argocd replace-default-auth
   trigger-failover-if-master.sh: |
     get_redis_role() {
       is_master=$(
         redis-cli \
+          -a "${AUTH}" --no-auth-warning \
           -h localhost \
           -p 6379 \
           info | grep -c 'role:master' || true
@@ -21768,6 +22101,7 @@ data:
   redis_liveness.sh: |
     response=$(
       redis-cli \
+        -a "${AUTH}" --no-auth-warning \
         -h localhost \
         -p 6379 \
         ping
@@ -21780,6 +22114,7 @@ data:
   redis_readiness.sh: |
     response=$(
       redis-cli \
+        -a "${AUTH}" --no-auth-warning \
         -h localhost \
         -p 6379 \
         ping
@@ -21968,8 +22303,6 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  annotations:
-    service.alpha.kubernetes.io/tolerate-unready-endpoints: "true"
   labels:
     app.kubernetes.io/component: redis
     app.kubernetes.io/name: argocd-redis-ha
@@ -21994,8 +22327,6 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  annotations:
-    service.alpha.kubernetes.io/tolerate-unready-endpoints: "true"
   labels:
     app.kubernetes.io/component: redis
     app.kubernetes.io/name: argocd-redis-ha
@@ -22020,8 +22351,6 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  annotations:
-    service.alpha.kubernetes.io/tolerate-unready-endpoints: "true"
   labels:
     app.kubernetes.io/component: redis
     app.kubernetes.io/name: argocd-redis-ha
@@ -22375,7 +22704,7 @@ spec:
               key: dexserver.disable.tls
               name: argocd-cmd-params-cm
               optional: true
-        image: ghcr.io/dexidp/dex:v2.37.0
+        image: ghcr.io/dexidp/dex:v2.38.0
         imagePullPolicy: Always
         name: dex
         ports:
@@ -22544,7 +22873,7 @@ spec:
   template:
     metadata:
       annotations:
-        checksum/config: 492a6adabb741e0cee39be9aa5155c41a4456629f862d0006a2d892dbecfbcae
+        checksum/config: e34e8124c38bcfd2f16e75620bbde30158686692b13bc449eecc44c51b207d54
         prometheus.io/path: /metrics
         prometheus.io/port: "9101"
         prometheus.io/scrape: "true"
@@ -22560,7 +22889,13 @@ spec:
                 app.kubernetes.io/name: argocd-redis-ha-haproxy
             topologyKey: kubernetes.io/hostname
       containers:
-      - image: haproxy:2.6.14-alpine
+      - env:
+        - name: AUTH
+          valueFrom:
+            secretKeyRef:
+              key: auth
+              name: argocd-redis
+        image: public.ecr.aws/docker/library/haproxy:2.6.14-alpine
         imagePullPolicy: IfNotPresent
         lifecycle: {}
         livenessProbe:
@@ -22595,11 +22930,27 @@ spec:
         - mountPath: /run/haproxy
           name: shared-socket
       initContainers:
+      - command:
+        - argocd
+        - admin
+        - redis-initial-password
+        image: quay.io/argoproj/argocd:latest
+        imagePullPolicy: IfNotPresent
+        name: secret-init
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+          seccompProfile:
+            type: RuntimeDefault
       - args:
         - /readonly/haproxy_init.sh
         command:
         - sh
-        image: haproxy:2.6.14-alpine
+        image: public.ecr.aws/docker/library/haproxy:2.6.14-alpine
         imagePullPolicy: IfNotPresent
         name: config-init
         securityContext:
@@ -22667,6 +23018,11 @@ spec:
       - args:
         - /usr/local/bin/argocd-repo-server
         env:
+        - name: REDIS_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              key: auth
+              name: argocd-redis
         - name: ARGOCD_RECONCILIATION_TIMEOUT
           valueFrom:
             configMapKeyRef:
@@ -22817,6 +23173,12 @@ spec:
               key: reposerver.disable.helm.manifest.max.extracted.size
               name: argocd-cmd-params-cm
               optional: true
+        - name: ARGOCD_REVISION_CACHE_LOCK_TIMEOUT
+          valueFrom:
+            configMapKeyRef:
+              key: reposerver.revision.cache.lock.timeout
+              name: argocd-cmd-params-cm
+              optional: true
         - name: ARGOCD_GIT_MODULES_ENABLED
           valueFrom:
             configMapKeyRef:
@@ -22833,6 +23195,18 @@ spec:
           valueFrom:
             configMapKeyRef:
               key: reposerver.git.request.timeout
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_GRPC_MAX_SIZE_MB
+          valueFrom:
+            configMapKeyRef:
+              key: reposerver.grpc.max.size
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_REPO_SERVER_INCLUDE_HIDDEN_DIRECTORIES
+          valueFrom:
+            configMapKeyRef:
+              key: reposerver.include.hidden.directories
               name: argocd-cmd-params-cm
               optional: true
         - name: HELM_CACHE_HOME
@@ -22978,6 +23352,11 @@ spec:
         env:
         - name: ARGOCD_API_SERVER_REPLICAS
           value: "2"
+        - name: REDIS_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              key: auth
+              name: argocd-redis
         - name: ARGOCD_SERVER_INSECURE
           valueFrom:
             configMapKeyRef:
@@ -23206,6 +23585,12 @@ spec:
               key: server.k8sclient.retry.base.backoff
               name: argocd-cmd-params-cm
               optional: true
+        - name: ARGOCD_API_CONTENT_TYPES
+          valueFrom:
+            configMapKeyRef:
+              key: server.api.content.types
+              name: argocd-cmd-params-cm
+              optional: true
         image: quay.io/argoproj/argocd:latest
         imagePullPolicy: Always
         livenessProbe:
@@ -23318,6 +23703,11 @@ spec:
       - args:
         - /usr/local/bin/argocd-application-controller
         env:
+        - name: REDIS_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              key: auth
+              name: argocd-redis
         - name: ARGOCD_CONTROLLER_REPLICAS
           value: "1"
         - name: ARGOCD_RECONCILIATION_TIMEOUT
@@ -23330,6 +23720,12 @@ spec:
           valueFrom:
             configMapKeyRef:
               key: timeout.hard.reconciliation
+              name: argocd-cm
+              optional: true
+        - name: ARGOCD_RECONCILIATION_JITTER
+          valueFrom:
+            configMapKeyRef:
+              key: timeout.reconciliation.jitter
               name: argocd-cm
               optional: true
         - name: ARGOCD_REPO_ERROR_GRACE_PERIOD_SECONDS
@@ -23482,6 +23878,18 @@ spec:
               key: controller.k8sclient.retry.base.backoff
               name: argocd-cmd-params-cm
               optional: true
+        - name: ARGOCD_APPLICATION_CONTROLLER_SERVER_SIDE_DIFF
+          valueFrom:
+            configMapKeyRef:
+              key: controller.diff.server.side
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_IGNORE_NORMALIZER_JQ_TIMEOUT
+          valueFrom:
+            configMapKeyRef:
+              key: controller.ignore.normalizer.jq.timeout
+              name: argocd-cmd-params-cm
+              optional: true
         image: quay.io/argoproj/argocd:latest
         imagePullPolicy: Always
         name: argocd-application-controller
@@ -23542,7 +23950,7 @@ spec:
   template:
     metadata:
       annotations:
-        checksum/init-config: 69130412bda04eacad3530cb7bcf26cf121401e725e15d0959dd71a7380afe75
+        checksum/init-config: 9d3c019a5ea1fd98ab5cde397d8eecd351da884f15e6ba346c607cb2446c2198
       labels:
         app.kubernetes.io/name: argocd-redis-ha
     spec:
@@ -23559,7 +23967,13 @@ spec:
         - /data/conf/redis.conf
         command:
         - redis-server
-        image: redis:7.0.14-alpine
+        env:
+        - name: AUTH
+          valueFrom:
+            secretKeyRef:
+              key: auth
+              name: argocd-redis
+        image: public.ecr.aws/docker/library/redis:7.0.15-alpine
         imagePullPolicy: IfNotPresent
         lifecycle:
           preStop:
@@ -23613,7 +24027,13 @@ spec:
         - /data/conf/sentinel.conf
         command:
         - redis-sentinel
-        image: redis:7.0.14-alpine
+        env:
+        - name: AUTH
+          valueFrom:
+            secretKeyRef:
+              key: auth
+              name: argocd-redis
+        image: public.ecr.aws/docker/library/redis:7.0.15-alpine
         imagePullPolicy: IfNotPresent
         lifecycle: {}
         livenessProbe:
@@ -23666,7 +24086,12 @@ spec:
           value: 40000915ab58c3fa8fd888fb8b24711944e6cbb4
         - name: SENTINEL_ID_2
           value: 2bbec7894d954a8af3bb54d13eaec53cb024e2ca
-        image: redis:7.0.14-alpine
+        - name: AUTH
+          valueFrom:
+            secretKeyRef:
+              key: auth
+              name: argocd-redis
+        image: public.ecr.aws/docker/library/redis:7.0.15-alpine
         imagePullPolicy: IfNotPresent
         name: split-brain-fix
         resources: {}
@@ -23696,7 +24121,12 @@ spec:
           value: 40000915ab58c3fa8fd888fb8b24711944e6cbb4
         - name: SENTINEL_ID_2
           value: 2bbec7894d954a8af3bb54d13eaec53cb024e2ca
-        image: redis:7.0.14-alpine
+        - name: AUTH
+          valueFrom:
+            secretKeyRef:
+              key: auth
+              name: argocd-redis
+        image: public.ecr.aws/docker/library/redis:7.0.15-alpine
         imagePullPolicy: IfNotPresent
         name: config-init
         securityContext:
@@ -23819,21 +24249,6 @@ kind: NetworkPolicy
 metadata:
   name: argocd-redis-ha-proxy-network-policy
 spec:
-  egress:
-  - ports:
-    - port: 6379
-      protocol: TCP
-    - port: 26379
-      protocol: TCP
-    to:
-    - podSelector:
-        matchLabels:
-          app.kubernetes.io/name: argocd-redis-ha
-  - ports:
-    - port: 53
-      protocol: UDP
-    - port: 53
-      protocol: TCP
   ingress:
   - from:
     - podSelector:
@@ -23855,7 +24270,6 @@ spec:
       app.kubernetes.io/name: argocd-redis-ha-haproxy
   policyTypes:
   - Ingress
-  - Egress
 ---
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy

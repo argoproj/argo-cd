@@ -15,6 +15,7 @@ core/v1/CinderPersistentVolumeSource
 core/v1/CinderVolumeSource
 core/v1/ClaimSource
 core/v1/ClientIPConfig
+core/v1/ClusterTrustBundleProjection
 core/v1/ComponentCondition
 core/v1/ComponentStatus
 core/v1/ComponentStatusList
@@ -28,6 +29,7 @@ core/v1/ConfigMapVolumeSource
 core/v1/Container
 core/v1/ContainerImage
 core/v1/ContainerPort
+core/v1/ContainerResizePolicy
 core/v1/ContainerState
 core/v1/ContainerStateRunning
 core/v1/ContainerStateTerminated
@@ -66,6 +68,7 @@ core/v1/GlusterfsVolumeSource
 core/v1/HTTPGetAction
 core/v1/HTTPHeader
 core/v1/HostAlias
+core/v1/HostIP
 core/v1/HostPathVolumeSource
 core/v1/ISCSIPersistentVolumeSource
 core/v1/ISCSIVolumeSource
@@ -81,6 +84,7 @@ core/v1/LoadBalancerIngress
 core/v1/LoadBalancerStatus
 core/v1/LocalObjectReference
 core/v1/LocalVolumeSource
+core/v1/ModifyVolumeStatus
 core/v1/NFSVolumeSource
 core/v1/Namespace
 core/v1/NamespaceCondition
@@ -135,6 +139,7 @@ core/v1/PodPortForwardOptions
 core/v1/PodProxyOptions
 core/v1/PodReadinessGate
 core/v1/PodResourceClaim
+core/v1/PodResourceClaimStatus
 core/v1/PodSchedulingGate
 core/v1/PodSecurityContext
 core/v1/PodSignature
@@ -194,6 +199,7 @@ core/v1/ServiceProxyOptions
 core/v1/ServiceSpec
 core/v1/ServiceStatus
 core/v1/SessionAffinityConfig
+core/v1/SleepAction
 core/v1/StorageOSPersistentVolumeSource
 core/v1/StorageOSVolumeSource
 core/v1/Sysctl
@@ -210,6 +216,7 @@ core/v1/VolumeDevice
 core/v1/VolumeMount
 core/v1/VolumeNodeAffinity
 core/v1/VolumeProjection
+core/v1/VolumeResourceRequirements
 core/v1/VolumeSource
 core/v1/VsphereVirtualDiskVolumeSource
 core/v1/WeightedPodAffinityTerm

@@ -10,7 +10,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
@@ -76,11 +76,11 @@ func TestDeepLinks(t *testing.T) {
 			inputLinks: []settings.DeepLink{{
 				Title:     "link",
 				URL:       "http://example.com/{{ .application.metadata.name }}&{{ .resource.data.key }}&{{ index .project.spec.sourceRepos 0}}&{{ .cluster.name }}",
-				Condition: pointer.String(`application.metadata.name == "test" && project.metadata.name == "test-project"`),
+				Condition: ptr.To(`application.metadata.name == "test" && project.metadata.name == "test-project"`),
 			}},
 			outputLinks: []*application.LinkInfo{{
-				Title: pointer.String("link"),
-				Url:   pointer.String("http://example.com/test&value1&test-repo.git&test-cluster"),
+				Title: ptr.To("link"),
+				Url:   ptr.To("http://example.com/test&value1&test-repo.git&test-cluster"),
 			}},
 			error: []string{},
 		},
@@ -92,11 +92,11 @@ func TestDeepLinks(t *testing.T) {
 			inputLinks: []settings.DeepLink{{
 				Title:     "link",
 				URL:       "http://example.com/{{ .app.metadata.name }}&{{ .resource.data.key }}&{{ index .project.spec.sourceRepos 0}}&{{ .cluster.name }}",
-				Condition: pointer.String(`app.metadata.name == "test" && project.metadata.name == "test-project"`),
+				Condition: ptr.To(`app.metadata.name == "test" && project.metadata.name == "test-project"`),
 			}},
 			outputLinks: []*application.LinkInfo{{
-				Title: pointer.String("link"),
-				Url:   pointer.String("http://example.com/test&value1&test-repo.git&test-cluster"),
+				Title: ptr.To("link"),
+				Url:   ptr.To("http://example.com/test&value1&test-repo.git&test-cluster"),
 			}},
 			error: []string{},
 		},
@@ -108,21 +108,21 @@ func TestDeepLinks(t *testing.T) {
 				{
 					Title:     "link",
 					URL:       "http://example.com/{{ .application.metadata.name }}&{{ .application.spec.destination.namespace }}",
-					Condition: pointer.String(`application.metadata.name matches "test"`),
+					Condition: ptr.To(`application.metadata.name matches "test"`),
 				},
 				{
 					Title:     "link1",
 					URL:       "http://example.com/{{ .application.metadata.name }}&{{ .application.spec.destination.namespace }}",
-					Condition: pointer.String(`application.metadata.name matches "test1"`),
+					Condition: ptr.To(`application.metadata.name matches "test1"`),
 				},
 				{
 					Title:     "link2",
 					URL:       "http://example.com/{{ .application.metadata.name }}&{{ .application.spec.destination.namespace }}",
-					Condition: pointer.String(`application.metadata.test matches "test"`),
+					Condition: ptr.To(`application.metadata.test matches "test"`),
 				}},
 			outputLinks: []*application.LinkInfo{{
-				Title: pointer.String("link"),
-				Url:   pointer.String("http://example.com/test&testns"),
+				Title: ptr.To("link"),
+				Url:   ptr.To("http://example.com/test&testns"),
 			}},
 			error: []string{"failed to evaluate link condition 'application.metadata.test matches \"test\"' with resource test, error=interface conversion: interface {} is nil, not string (1:27)\n | application.metadata.test matches \"test\"\n | ..........................^"},
 		},
@@ -134,16 +134,16 @@ func TestDeepLinks(t *testing.T) {
 				{
 					Title:     "link",
 					URL:       "http://example.com/{{ .application.metadata.name }}&{{ .application.spec.destination.namespace }}",
-					Condition: pointer.String(`application.metadata.name matches "test"`),
+					Condition: ptr.To(`application.metadata.name matches "test"`),
 				},
 				{
 					Title:     "link1",
 					URL:       "http://example.com/{{ .application.metadata.name }}&{{ .application.spec.destination.namespace }}",
-					Condition: pointer.String(`1 + 1`),
+					Condition: ptr.To(`1 + 1`),
 				}},
 			outputLinks: []*application.LinkInfo{{
-				Title: pointer.String("link"),
-				Url:   pointer.String("http://example.com/test&testns"),
+				Title: ptr.To("link"),
+				Url:   ptr.To("http://example.com/test&testns"),
 			}},
 			error: []string{"link condition '1 + 1' evaluated to non-boolean value for resource test"},
 		},
@@ -155,11 +155,11 @@ func TestDeepLinks(t *testing.T) {
 			inputLinks: []settings.DeepLink{{
 				Title:     "link",
 				URL:       "http://example.com/{{ .cluster.name | replace \"-\" \"_\" }}&{{ first .project.spec.sourceRepos }}",
-				Condition: pointer.String(`application.metadata.name == "test" && project.metadata.name == "test-project"`),
+				Condition: ptr.To(`application.metadata.name == "test" && project.metadata.name == "test-project"`),
 			}},
 			outputLinks: []*application.LinkInfo{{
-				Title: pointer.String("link"),
-				Url:   pointer.String("http://example.com/test_cluster&test-repo.git"),
+				Title: ptr.To("link"),
+				Url:   ptr.To("http://example.com/test_cluster&test-repo.git"),
 			}},
 			error: []string{},
 		},

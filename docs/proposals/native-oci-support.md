@@ -126,7 +126,7 @@ Consider the following in developing an upgrade/downgrade strategy for this enha
 
 ## Drawbacks
 
-* Sourcing content from an OCI registry may be perceived to be against GitOps principles as content is not sourced from a Git repository. This concern could be mitigated by attaching additional details related to the content (such as original Git source [URL, revision]). Though it should be noted that the GitOps principles only require a source of truth to be visioned and immutable which OCI registires support.
+* Sourcing content from an OCI registry may be perceived to be against GitOps principles as content is not sourced from a Git repository. This concern could be mitigated by attaching additional details related to the content (such as original Git source [URL, revision]). Though it should be noted that the GitOps principles only require a source of truth to be visioned and immutable which OCI registries support.
 
 ## Alternatives
 

@@ -7,20 +7,21 @@
 
 ***
 ## Release Assets
-| Asset                   | Description                   |
-|-------------------------|-------------------------------|
-| argocd-darwin-amd64     | CLI Binary                    |
-| argocd-darwin-arm64     | CLI Binary                    |
-| argocd-linux_amd64      | CLI Binary                    |
-| argocd-linux_arm64      | CLI Binary                    |
-| argocd-linux_ppc64le    | CLI Binary                    |
-| argocd-linux_s390x      | CLI Binary                    |
-| argocd-windows_amd64    | CLI Binary                    |
-| argocd-cli.intoto.jsonl | Attestation of CLI binaries   |
-| cli_checksums.txt       | Checksums of binaries         |
-| sbom.tar.gz             | Sbom                          |
-| sbom.tar.gz.pem         | Certificate used to sign sbom |
-| sbom.tar.gz.sig         | Signature of sbom                |
+| Asset                    | Description                   |
+|--------------------------|-------------------------------|
+| argocd-darwin-amd64      | CLI Binary                    |
+| argocd-darwin-arm64      | CLI Binary                    |
+| argocd-linux_amd64       | CLI Binary                    |
+| argocd-linux_arm64       | CLI Binary                    |
+| argocd-linux_ppc64le     | CLI Binary                    |
+| argocd-linux_s390x       | CLI Binary                    |
+| argocd-windows_amd64     | CLI Binary                    |
+| argocd-cli.intoto.jsonl  | Attestation of CLI binaries   |
+| argocd-sbom.intoto.jsonl | Attestation of SBOM           |
+| cli_checksums.txt        | Checksums of binaries         |
+| sbom.tar.gz              | Sbom                          |
+| sbom.tar.gz.pem          | Certificate used to sign sbom |
+| sbom.tar.gz.sig          | Signature of sbom             |
 
 ***
 ## Verification of container images
@@ -92,7 +93,7 @@ The attestation payload contains a non-forgeable provenance which is base64 enco
 ```bash
 slsa-verifier verify-image "$IMAGE" \
     --source-uri github.com/argoproj/argo-cd \
-    --source-tag v2.7.0
+    --source-tag v2.7.0 \
     --print-provenance | jq
 ```
 

@@ -1,0 +1,17 @@
+issues:
+  exclude:
+    - SA5011
+  max-issues-per-linter: 0
+  max-same-issues: 0
+linters:
+  enable:
+    - errcheck
+    - gofmt
+    - gosimple
+    - govet
+    - ineffassign
+    - misspell
+    - staticcheck
+    - unused
+run:
+  timeout: 50m

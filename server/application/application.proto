@@ -69,6 +69,8 @@ message ApplicationManifestQuery {
 	optional string revision = 2;
 	optional string appNamespace = 3;
 	optional string project = 4;
+	repeated int64 sourcePositions = 5;
+	repeated string revisions = 6;
 }
 
 message FileChunk {
@@ -129,6 +131,8 @@ message ApplicationSyncRequest {
 	optional SyncOptions syncOptions = 11;
 	optional string appNamespace = 12;
 	optional string project = 13;
+	repeated int64 sourcePositions = 14;
+	repeated string revisions = 15;
 }
 
 // ApplicationUpdateSpecRequest is a request to update application spec

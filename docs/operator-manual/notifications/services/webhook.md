@@ -31,7 +31,7 @@ Use the following steps to configure webhook:
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: <config-map-name>
+  name: argocd-notifications-cm
 data:
   service.webhook.<webhook-name>: |
     url: https://<hostname>/<optional-path>
@@ -50,7 +50,7 @@ data:
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: <config-map-name>
+  name: argocd-notifications-cm
 data:
   template.github-commit-status: |
     webhook:
@@ -82,7 +82,7 @@ metadata:
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: <config-map-name>
+  name: argocd-notifications-cm
 data:
   service.webhook.github: |
     url: https://api.github.com
@@ -97,7 +97,7 @@ data:
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: <config-map-name>
+  name: argocd-notifications-cm
 data:
   service.webhook.github: |
     url: https://api.github.com
@@ -128,7 +128,7 @@ data:
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: <config-map-name>
+  name: argocd-notifications-cm
 data:
   service.webhook.jenkins: |
     url: http://<jenkins-host>/job/<job-name>/build?token=<job-secret>
@@ -145,7 +145,7 @@ type: Opaque
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: <config-map-name>
+  name: argocd-notifications-cm
 data:
   service.webhook.form: |
     url: https://form.example.com
@@ -166,7 +166,7 @@ data:
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: <config-map-name>
+  name: argocd-notifications-cm
 data:
   service.webhook.slack_webhook: |
     url: https://hooks.slack.com/services/xxxxx

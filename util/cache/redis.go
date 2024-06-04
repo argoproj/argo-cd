@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net"
 	"time"
 
 	ioutil "github.com/argoproj/argo-cd/v2/util/io"
@@ -41,7 +42,7 @@ func NewRedisCache(client *redis.Client, expiration time.Duration, compressionTy
 	}
 }
 
-// compile-time validation of adherance of the CacheClient contract
+// compile-time validation of adherence of the CacheClient contract
 var _ CacheClient = &redisCache{}
 
 type redisCache struct {
@@ -95,8 +96,17 @@ func (r *redisCache) unmarshal(data []byte, obj interface{}) error {
 	return nil
 }
 
+func (r *redisCache) Rename(oldKey string, newKey string, _ time.Duration) error {
+	err := r.client.Rename(context.TODO(), r.getKey(oldKey), r.getKey(newKey)).Err()
+	if err != nil && err.Error() == "ERR no such key" {
+		err = ErrCacheMiss
+	}
+
+	return err
+}
+
 func (r *redisCache) Set(item *Item) error {
-	expiration := item.Expiration
+	expiration := item.CacheActionOpts.Expiration
 	if expiration == 0 {
 		expiration = r.expiration
 	}
@@ -110,6 +120,7 @@ func (r *redisCache) Set(item *Item) error {
 		Key:   r.getKey(item.Key),
 		Value: val,
 		TTL:   expiration,
+		SetNX: item.CacheActionOpts.DisableOverwrite,
 	})
 }
 
@@ -155,41 +166,27 @@ type MetricsRegistry interface {
 	ObserveRedisRequestDuration(duration time.Duration)
 }
 
-var metricStartTimeKey = struct{}{}
-
 type redisHook struct {
 	registry MetricsRegistry
 }
 
-func (rh *redisHook) BeforeProcess(ctx context.Context, cmd redis.Cmder) (context.Context, error) {
-	return context.WithValue(ctx, metricStartTimeKey, time.Now()), nil
+func (rh *redisHook) DialHook(next redis.DialHook) redis.DialHook {
+	return func(ctx context.Context, network, addr string) (net.Conn, error) {
+		conn, err := next(ctx, network, addr)
+		return conn, err
+	}
 }
 
-func (rh *redisHook) AfterProcess(ctx context.Context, cmd redis.Cmder) error {
-	cmdErr := cmd.Err()
-	rh.registry.IncRedisRequest(cmdErr != nil && cmdErr != redis.Nil)
+func (rh *redisHook) ProcessHook(next redis.ProcessHook) redis.ProcessHook {
+	return func(ctx context.Context, cmd redis.Cmder) error {
+		startTime := time.Now()
 
-	startTime := ctx.Value(metricStartTimeKey).(time.Time)
-	duration := time.Since(startTime)
-	rh.registry.ObserveRedisRequestDuration(duration)
+		err := next(ctx, cmd)
+		rh.registry.IncRedisRequest(err != nil && err != redis.Nil)
+		rh.registry.ObserveRedisRequestDuration(time.Since(startTime))
 
-	return nil
-}
-
-func (redisHook) BeforeProcessPipeline(ctx context.Context, _ []redis.Cmder) (context.Context, error) {
-	return ctx, nil
-}
-
-func (redisHook) AfterProcessPipeline(_ context.Context, _ []redis.Cmder) error {
-	return nil
-}
-
-func (redisHook) DialHook(next redis.DialHook) redis.DialHook {
-	return nil
-}
-
-func (redisHook) ProcessHook(next redis.ProcessHook) redis.ProcessHook {
-	return nil
+		return err
+	}
 }
 
 func (redisHook) ProcessPipelineHook(next redis.ProcessPipelineHook) redis.ProcessPipelineHook {
