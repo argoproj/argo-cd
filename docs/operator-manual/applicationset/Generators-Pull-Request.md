@@ -283,6 +283,8 @@ spec:
         # Labels is used to filter the PRs that you want to target. (optional)
         labels:
         - preview
+        # If true, skips validating the SCM provider's TLS certificate - useful for self-signed certificates.
+        insecure: false
       requeueAfterSeconds: 1800
   template:
   # ...
@@ -294,6 +296,9 @@ spec:
 * `api`: If using self-hosted Azure DevOps Repos, the URL to access it. (Optional)
 * `tokenRef`: A `Secret` name and key containing the Azure DevOps access token to use for requests. If not specified, will make anonymous requests which have a lower rate limit and can only see public repositories. (Optional)
 * `labels`: Filter the PRs to those containing **all** of the labels listed. (Optional)
+* `insecure`: By default (false) - Skip checking the validity of the SCM's certificate - useful for self-signed TLS certificates.
+
+As a preferable alternative to setting `insecure` to true, you can configure self-signed TLS certificates for Azure DevOps Server by [mounting self-signed certificate to the applicationset controller](./Generators-SCM-Provider.md#self-signed-tls-certificates).
 
 ## Filters
 
