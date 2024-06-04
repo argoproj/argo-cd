@@ -6,6 +6,10 @@ sponsors:
   - TBD
 reviewers:
   - "@alexmt"
+  - "@jsoref"
+  - "@christianh814"
+  - "@wanghong230"
+  - "@yyzxw"
 approvers:
   - "@alexmt"
 
