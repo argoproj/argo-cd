@@ -4,7 +4,7 @@
 
 The Rocket.Chat notification service configuration includes following settings:
 
-* `email` - the Rocker.Chat user's email
+* `email` - the Rocker.Chat user's SAMAccountName
 * `password` - the Rocker.Chat user's password
 * `alias` - optional alias that should be used to post message
 * `icon` - optional message icon
