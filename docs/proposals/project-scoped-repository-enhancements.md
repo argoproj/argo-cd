@@ -10,7 +10,7 @@ approvers:
   - "@alexmt"
 
 creation-date: 2024-05-17
-last-updated: 2024-05-31
+last-updated: 2024-06-04
 ---
 
 # Project scoped repository credential enhancements
@@ -53,8 +53,11 @@ credentials. In the first case, we need to maintain backwards compatibility for 
 is that the API will return the first repository found matching the URL given. Since we now want to allow the same URL 
 to potentially be in multiple projects, we need to do some minor changes.
 
-* If there is only one matching repository with the same URL and assuming the user is allowed to access it, use that repository 
-whether it is project-scoped or not. This is in line with the current behavior.
+* If there is only one matching repository with the same URL, and assuming the user is allowed to access it _and_ there is
+no app project given as a parameter, use that repository whether it is project-scoped or not. This is in line with the 
+current behavior.
+* If there is only one matching repository with the same URL, and assuming the user is allowed to access it _and_ there is
+an app project given as a parameter, use that repository only if it also matches the app project given. 
 * If there are multiple repositories with the same URL and assuming the user is allowed to access them, then setting a
 project parameter would be required, since there would otherwise be no way to determine which of the credentials a user
 wants to access. This is not a breaking change since this adds functionality which has previously not existed.
