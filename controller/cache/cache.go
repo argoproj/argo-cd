@@ -358,24 +358,29 @@ func skipResourceUpdate(oldInfo, newInfo *ResourceInfo) bool {
 // If there's an app name from resource tracking, or if this is itself an app, we should generate a hash.
 // Otherwise, the hashing should be skipped to save CPU time.
 func shouldHashManifest(appName string, gvk schema.GroupVersionKind, un *unstructured.Unstructured) bool {
-	// Do not generate hash if argocd.argoproj.io/apply-resources-update is false
-	// Otherwise:
-	// Only hash if the resource belongs to an app
+	// Only hash if the resource belongs to an app OR argocd.argoproj.io/apply-resources-update is present and set to true
 	// Best      - Only hash for resources that are part of an app or their dependencies
 	// (current) - Only hash for resources that are part of an app + all apps that might be from an ApplicationSet
 	// Orphan    - If orphan is enabled, hash should be made on all resource of that namespace and a config to disable it
 	// Worst     - Hash all resources watched by Argo
-	applyResourcesUpdate := true
-	val, ok := un.GetAnnotations()[AnnotationApplyResourcesUpdate]
-	if ok {
-		ret, err := strconv.ParseBool(val)
-		if err != nil {
-			applyResourcesUpdate = true
+	belong := appName != "" || (gvk.Group == application.Group && gvk.Kind == application.ApplicationKind)
+
+	// If the resource does not belong the app, we will look up argocd.argoproj.io/apply-resources-update and decide
+	// whether we generate hash or not.
+	if !belong {
+		applyResourcesUpdate := false
+		val, ok := un.GetAnnotations()[AnnotationApplyResourcesUpdate]
+		if ok {
+			ret, err := strconv.ParseBool(val)
+			if err != nil {
+				applyResourcesUpdate = false
+			}
+			applyResourcesUpdate = ret
 		}
-		applyResourcesUpdate = ret
+		return applyResourcesUpdate
 	}
 
-	return applyResourcesUpdate && (appName != "" || (gvk.Group == application.Group && gvk.Kind == application.ApplicationKind))
+	return belong
 }
 
 // isRetryableError is a helper method to see whether an error
