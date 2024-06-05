@@ -352,7 +352,7 @@ func (vm VM) GetResourceActionDiscovery(obj *unstructured.Unstructured) (string,
 		if err != nil {
 			return "", err
 		}
-		if actions.AddPreBuildActions {
+		if actions.AddBuildInActions {
 			addActionDiscoveryScripts = actions.ActionDiscoveryLua
 		} else {
 			return actions.ActionDiscoveryLua, nil
@@ -390,7 +390,7 @@ func mergeLuaScript(overrideScript string, discoveryScript string) string {
 	overrideScript = script(overrideScript)
 	discoveryScript = script(discoveryScript)
 
-	return "\nlocal actions = {}\n" + overrideScript + "\n" + discoveryScript + "return actions"
+	return "\nlocal actions = {}\n" + overrideScript + "\n" + discoveryScript + "\nreturn actions"
 }
 
 // GetResourceAction attempts to read lua script from config and then filesystem for that resource

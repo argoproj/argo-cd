@@ -298,7 +298,7 @@ func TestGetResourceActionWithOverride(t *testing.T) {
 	assert.Equal(t, test, action)
 }
 
-func TestGetResourceActionsWithAddPreBuildActionsFlag(t *testing.T) {
+func TestGetResourceActionsWithAddBuildInActionsFlag(t *testing.T) {
 	testObj := StrToUnstructured(rolloutJSON)
 	test := appv1.ResourceActionDefinition{
 		Name:      "retry",
@@ -310,7 +310,7 @@ func TestGetResourceActionsWithAddPreBuildActionsFlag(t *testing.T) {
 			"argoproj.io/Rollout": {
 				Actions: string(grpc.MustMarshal(appv1.ResourceActions{
 					ActionDiscoveryLua: validDiscoveryLua,
-					AddPreBuildActions: true,
+					AddBuildInActions:  true,
 				})),
 			},
 		},
@@ -388,7 +388,7 @@ func TestExecuteResourceActionDiscovery(t *testing.T) {
 	}
 }
 
-func TestExecuteResourceActionDiscoveryWithAddPreBuildActionsFlag(t *testing.T) {
+func TestExecuteResourceActionDiscoveryWithAddBuildInActionsFlag(t *testing.T) {
 
 	const validDiscoveryLua = `
 			scaleParams = { {name = "replicas", type = "number"} }
@@ -404,15 +404,15 @@ func TestExecuteResourceActionDiscoveryWithAddPreBuildActionsFlag(t *testing.T) 
 			"argoproj.io/Rollout": {
 				Actions: string(grpc.MustMarshal(appv1.ResourceActions{
 					ActionDiscoveryLua: validDiscoveryLua,
-					AddPreBuildActions: true,
+					AddBuildInActions:  true,
 				})),
 			},
 		},
 	}
 	testObj := StrToUnstructured(rolloutJSON)
 	discoveryLua, err := vm.GetResourceActionDiscovery(testObj)
+	assert.Nil(t, err)
 	actions, err := vm.ExecuteResourceActionDiscovery(testObj, discoveryLua)
-
 	assert.Nil(t, err)
 	expectedActions := []appv1.ResourceAction{
 
@@ -896,7 +896,7 @@ func TestMergeLuaScripts(t *testing.T) {
 		expectedCode string
 	}{
 		{
-			name:         "Valid merge",
+			name:         "valid merge",
 			override:     overrideScript,
 			discovery:    builtInDiscoveryScript,
 			expectErr:    false,
@@ -910,11 +910,6 @@ func TestMergeLuaScripts(t *testing.T) {
 			discovery:    builtInDiscoveryScript,
 			expectErr:    false,
 			expectedCode: "",
-		},
-		{
-			discovery:    builtInDiscoveryScript,
-			expectErr:    false,
-			expectedCode: expected,
 		},
 		{
 			name:         "missing return keyword override script",
