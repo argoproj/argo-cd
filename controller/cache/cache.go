@@ -565,7 +565,7 @@ func (c *liveStateCache) getCluster(server string) (clustercache.ClusterCache, e
 					"name":        ref.Name,
 					"api-version": ref.APIVersion,
 					"kind":        ref.Kind,
-				}).Debugf("Ignoring change of object because none of the watched resource fields have changed")
+				}).Debug("Ignoring change of object because none of the watched resource fields have changed")
 			}
 			return
 		}
