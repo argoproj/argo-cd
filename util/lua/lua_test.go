@@ -25,6 +25,32 @@ metadata:
   namespace: default
   resourceVersion: "123"
 `
+const rolloutJSON = `
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: istio-host-split
+  namespace: testns1
+spec:
+  replicas: 1
+  strategy:
+    canary:
+      analysis:
+        analysisRunMetadata: {}
+status:
+  canary:
+    weights:
+      canary:
+        podTemplateHash: 7766c75d45
+        serviceName: istio-host-split-canary
+        weight: 0
+      stable:
+        podTemplateHash: 7766c75d45
+        serviceName: istio-host-split-stable
+        weight: 100
+  currentPodHash: 7766c75d45
+  currentStepHash: 85659df978
+`
 
 const objWithNoScriptJSON = `
 apiVersion: not-an-endpoint.io/v1alpha1
@@ -272,6 +298,28 @@ func TestGetResourceActionWithOverride(t *testing.T) {
 	assert.Equal(t, test, action)
 }
 
+func TestGetResourceActionsWithAddPreBuildActionsFlag(t *testing.T) {
+	testObj := StrToUnstructured(rolloutJSON)
+	test := appv1.ResourceActionDefinition{
+		Name:      "retry",
+		ActionLua: "obj.status.abort = nil\nreturn obj\n",
+	}
+
+	vm := VM{
+		ResourceOverrides: map[string]appv1.ResourceOverride{
+			"argoproj.io/Rollout": {
+				Actions: string(grpc.MustMarshal(appv1.ResourceActions{
+					ActionDiscoveryLua: validDiscoveryLua,
+					AddPreBuildActions: true,
+				})),
+			},
+		},
+	}
+	action, err := vm.GetResourceAction(testObj, "retry")
+	assert.Nil(t, err)
+	assert.Equal(t, test, action)
+}
+
 func TestGetResourceActionDiscoveryPredefined(t *testing.T) {
 	testObj := StrToUnstructured(objJSON)
 	vm := VM{}
@@ -337,6 +385,68 @@ func TestExecuteResourceActionDiscovery(t *testing.T) {
 	}
 	for _, expectedAction := range expectedActions {
 		assert.Contains(t, actions, expectedAction)
+	}
+}
+
+func TestExecuteResourceActionDiscoveryWithAddPreBuildActionsFlag(t *testing.T) {
+
+	const validDiscoveryLua = `
+			scaleParams = { {name = "replicas", type = "number"} }
+			scale = {name = 'scale', params = scaleParams}
+				
+			test = {}
+			actions = {scale = scale, resume = resume, test = test}
+			
+			return actions
+			`
+	vm := VM{
+		ResourceOverrides: map[string]appv1.ResourceOverride{
+			"argoproj.io/Rollout": {
+				Actions: string(grpc.MustMarshal(appv1.ResourceActions{
+					ActionDiscoveryLua: validDiscoveryLua,
+					AddPreBuildActions: true,
+				})),
+			},
+		},
+	}
+	testObj := StrToUnstructured(rolloutJSON)
+	discoveryLua, err := vm.GetResourceActionDiscovery(testObj)
+	actions, err := vm.ExecuteResourceActionDiscovery(testObj, discoveryLua)
+
+	assert.Nil(t, err)
+	expectedActions := []appv1.ResourceAction{
+
+		{
+			Name: "resume",
+		},
+		{
+			Name: "retry",
+		},
+		{
+			Name: "abort",
+		},
+		{
+			Name: "restart",
+		},
+		{
+			Name: "promote-full",
+		},
+		{
+			Name: "test",
+		},
+		{
+			Name: "scale",
+		},
+	}
+	for _, expectedAction := range expectedActions {
+		found := false
+		for _, action := range actions {
+			if action.Name == expectedAction.Name {
+				found = true
+				break
+			}
+		}
+		assert.True(t, found, "Expected action %s not found", expectedAction.Name)
 	}
 }
 
@@ -756,4 +866,103 @@ return hs`
 		assert.Nil(t, err)
 		assert.Nil(t, status)
 	})
+}
+
+func TestMergeLuaScripts(t *testing.T) {
+	overrideScript := `
+    local actions = {}
+    actions["action1"] = {name = "action1"}
+    return actions
+    `
+	builtInDiscoveryScript := `
+    local actions = {}
+    actions["action2"] = {
+        name = "action2"
+    }
+    return actions
+    `
+	expected := `
+    local actions = {}
+    actions["action1"] = {name = "action1"}
+    actions["action2"] = {name = "action2"}
+    return actions
+    `
+
+	testCases := []struct {
+		name         string
+		override     string
+		discovery    string
+		expectErr    bool
+		expectedCode string
+	}{
+		{
+			name:         "Valid merge",
+			override:     overrideScript,
+			discovery:    builtInDiscoveryScript,
+			expectErr:    false,
+			expectedCode: expected,
+		},
+		{
+			name: "missing return actions in  override script",
+			override: ` actions["action1"] = {
+        				name = "action1"
+					}`,
+			discovery:    builtInDiscoveryScript,
+			expectErr:    false,
+			expectedCode: "",
+		},
+		{
+			discovery:    builtInDiscoveryScript,
+			expectErr:    false,
+			expectedCode: expected,
+		},
+		{
+			name:         "missing return keyword override script",
+			override:     `actions`,
+			discovery:    builtInDiscoveryScript,
+			expectErr:    true,
+			expectedCode: "",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			result := mergeLuaScript(tc.override, tc.discovery)
+			L := lua.NewState()
+			defer L.Close()
+
+			err := L.DoString(result)
+			if tc.expectErr {
+				if err == nil {
+					t.Errorf("Expected error but got nil")
+				}
+			} else {
+				if err != nil {
+					t.Errorf("Unexpected error: %v", err)
+				}
+
+				if err := L.DoString(result); err != nil {
+					t.Errorf("Result is not a valid Lua script: %v", err)
+				}
+				expectedScripts := []string{tc.expectedCode, result}
+				for i, script := range expectedScripts {
+					fn, err := L.LoadString(script)
+					if err != nil {
+						assert.NotNil(t, err, fmt.Sprintf("Error parsing script %d: %v", i, err))
+					}
+					L.Push(fn)
+					if err := L.PCall(0, lua.MultRet, nil); err != nil {
+						assert.NotNil(t, err, fmt.Sprintf("Error executing script %d: %v", i, err))
+					}
+				}
+
+				// Compare the parsed ASTs
+				expectedTable := L.Get(-2)
+				resultTable := L.Get(-1)
+				if !assert.Equal(t, expectedTable, resultTable) {
+					t.Errorf("Parsed tables do not match - expected %v but got %v", expectedTable, resultTable)
+				}
+			}
+		})
+	}
 }

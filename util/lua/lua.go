@@ -5,15 +5,16 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"os"
-	"path/filepath"
-	"time"
-
 	"github.com/argoproj/gitops-engine/pkg/health"
 	lua "github.com/yuin/gopher-lua"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	luajson "layeh.com/gopher-json"
+	"os"
+	"path/filepath"
+	"regexp"
+	"strings"
+	"time"
 
 	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/resource_customizations"
@@ -344,25 +345,63 @@ func noAvailableActions(jsonBytes []byte) bool {
 func (vm VM) GetResourceActionDiscovery(obj *unstructured.Unstructured) (string, error) {
 	key := GetConfigMapKey(obj.GroupVersionKind())
 	override, ok := vm.ResourceOverrides[key]
+
+	var addActionDiscoveryScripts string
 	if ok && override.Actions != "" {
 		actions, err := override.GetActions()
 		if err != nil {
 			return "", err
 		}
-		return actions.ActionDiscoveryLua, nil
+		if actions.AddPreBuildActions {
+			addActionDiscoveryScripts = actions.ActionDiscoveryLua
+		} else {
+			return actions.ActionDiscoveryLua, nil
+		}
 	}
+
 	discoveryKey := fmt.Sprintf("%s/actions/", key)
 	discoveryScript, err := vm.getPredefinedLuaScripts(discoveryKey, actionDiscoveryScriptFile)
 	if err != nil {
 		return "", err
 	}
+
+	if addActionDiscoveryScripts != "" {
+		discoveryScript = mergeLuaScript(addActionDiscoveryScripts, discoveryScript)
+	}
 	return discoveryScript, nil
+}
+
+func mergeLuaScript(overrideScript string, discoveryScript string) string {
+	re := regexp.MustCompile(`(?m)^\s*return\s+.*$`)
+
+	script := func(script string) string {
+		script = re.ReplaceAllString(script, "")
+		var result strings.Builder
+		parts := strings.Split(script, "local actions = {}")
+		for _, part := range parts {
+			segment := strings.TrimSpace(part)
+			if segment != "" {
+				result.WriteString(segment)
+			}
+		}
+		return result.String()
+	}
+
+	overrideScript = script(overrideScript)
+	discoveryScript = script(discoveryScript)
+
+	return "\nlocal actions = {}\n" + overrideScript + "\n" + discoveryScript + "return actions"
 }
 
 // GetResourceAction attempts to read lua script from config and then filesystem for that resource
 func (vm VM) GetResourceAction(obj *unstructured.Unstructured, actionName string) (appv1.ResourceActionDefinition, error) {
 	key := GetConfigMapKey(obj.GroupVersionKind())
 	override, ok := vm.ResourceOverrides[key]
+	actionKey := fmt.Sprintf("%s/actions/%s", key, actionName)
+	actionScript, err := vm.getPredefinedLuaScripts(actionKey, actionScriptFile)
+	if err != nil {
+		return appv1.ResourceActionDefinition{}, err
+	}
 	if ok && override.Actions != "" {
 		actions, err := override.GetActions()
 		if err != nil {
@@ -373,12 +412,6 @@ func (vm VM) GetResourceAction(obj *unstructured.Unstructured, actionName string
 				return action, nil
 			}
 		}
-	}
-
-	actionKey := fmt.Sprintf("%s/actions/%s", key, actionName)
-	actionScript, err := vm.getPredefinedLuaScripts(actionKey, actionScriptFile)
-	if err != nil {
-		return appv1.ResourceActionDefinition{}, err
 	}
 
 	return appv1.ResourceActionDefinition{
