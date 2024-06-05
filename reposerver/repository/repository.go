@@ -2557,6 +2557,25 @@ func (s *Service) GetGitFiles(_ context.Context, request *apiclient.GitFilesRequ
 		return nil, status.Errorf(codes.Internal, "unable to resolve git revision %s: %v", revision, err)
 	}
 
+	if gpg.IsGPGEnabled() && request.VerifyCommit {
+		cs, err := gitClient.VerifyCommitSignature(revision)
+		if err != nil {
+			log.Errorf("error verifying signature of commit '%s' in repo '%s': %v", revision, repo.Repo, err)
+			return nil, err
+		}
+
+		if cs != "" {
+			vr := gpg.ParseGitCommitVerification(cs)
+			if vr.Result == gpg.VerifyResultUnknown {
+				return nil, fmt.Errorf("UNKNOWN signature: %s", vr.Message)
+			} else {
+				log.Debugf("%s signature from %s key %s", vr.Result, vr.Cipher, gpg.KeyID(vr.KeyID))
+			}
+		} else {
+			return nil, fmt.Errorf("Revision %s is not signed.", revision)
+		}
+	}
+
 	// check the cache and return the results if present
 	if cachedFiles, err := s.cache.GetGitFiles(repo.Repo, revision, gitPath); err == nil {
 		log.Debugf("cache hit for repo: %s revision: %s pattern: %s", repo.Repo, revision, gitPath)
@@ -2613,6 +2632,25 @@ func (s *Service) GetGitDirectories(_ context.Context, request *apiclient.GitDir
 	gitClient, revision, err := s.newClientResolveRevision(repo, revision, git.WithCache(s.cache, !noRevisionCache))
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "unable to resolve git revision %s: %v", revision, err)
+	}
+
+	if gpg.IsGPGEnabled() && request.VerifyCommit {
+		cs, err := gitClient.VerifyCommitSignature(revision)
+		if err != nil {
+			log.Errorf("error verifying signature of commit '%s' in repo '%s': %v", revision, repo.Repo, err)
+			return nil, err
+		}
+
+		if cs != "" {
+			vr := gpg.ParseGitCommitVerification(cs)
+			if vr.Result == gpg.VerifyResultUnknown {
+				return nil, fmt.Errorf("UNKNOWN signature: %s", vr.Message)
+			} else {
+				log.Debugf("%s signature from %s key %s", vr.Result, vr.Cipher, gpg.KeyID(vr.KeyID))
+			}
+		} else {
+			return nil, fmt.Errorf("revision %s is not signed", revision)
+		}
 	}
 
 	// check the cache and return the results if present

@@ -3318,6 +3318,25 @@ func TestErrorGetGitDirectories(t *testing.T) {
 				Revision:         "sadfsadf",
 			},
 		}, want: nil, wantErr: assert.Error},
+		{name: "ErrorVerifyCommit", fields: fields{service: func() *Service {
+			s, _, _ := newServiceWithOpt(t, func(gitClient *gitmocks.Client, helmClient *helmmocks.Client, paths *iomocks.TempPaths) {
+				gitClient.On("Checkout", mock.Anything, mock.Anything).Return(nil)
+				gitClient.On("LsRemote", mock.Anything).Return("", fmt.Errorf("ah error"))
+				gitClient.On("VerifyCommitSignature", mock.Anything).Return("", fmt.Errorf("revision %s is not signed", "sadfsadf"))
+				gitClient.On("Root").Return(root)
+				paths.On("GetPath", mock.Anything).Return(".", nil)
+				paths.On("GetPathIfExists", mock.Anything).Return(".", nil)
+			}, ".")
+			return s
+		}()}, args: args{
+			ctx: context.TODO(),
+			request: &apiclient.GitDirectoriesRequest{
+				Repo:             &argoappv1.Repository{Repo: "not-a-valid-url"},
+				SubmoduleEnabled: false,
+				Revision:         "sadfsadf",
+				VerifyCommit:     true,
+			},
+		}, want: nil, wantErr: assert.Error},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
