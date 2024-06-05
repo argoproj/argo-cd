@@ -2099,6 +2099,8 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 						}
 					} else {
 						fmt.Printf("====== No Differences found ======\n")
+						// if no differences found, then no need to sync
+						return
 					}
 				}
 				_, err = appIf.Sync(ctx, &syncReq)
