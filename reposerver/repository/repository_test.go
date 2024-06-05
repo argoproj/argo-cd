@@ -995,7 +995,7 @@ func TestManifestGenErrorCacheByMinutesElapsed(t *testing.T) {
 
 			// 5) Ensure that the service no longer returns a cached copy of the last error
 			assert.True(t, err != nil && res == nil)
-			assert.True(t, !strings.HasPrefix(err.Error(), cachedManifestGenerationPrefix))
+			assert.False(t, strings.HasPrefix(err.Error(), cachedManifestGenerationPrefix))
 
 		})
 	}
@@ -1043,7 +1043,7 @@ func TestManifestGenErrorCacheRespectsNoCache(t *testing.T) {
 
 	// 3) Ensure that the cache returns a new generation attempt, rather than a previous cached error
 	assert.True(t, err != nil && res == nil)
-	assert.True(t, !strings.HasPrefix(err.Error(), cachedManifestGenerationPrefix))
+	assert.False(t, strings.HasPrefix(err.Error(), cachedManifestGenerationPrefix))
 
 	// 4) Call generateManifest
 	res, err = service.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
@@ -3047,7 +3047,7 @@ func TestGetHelmRepos_OCIDependenciesWithHelmRepo(t *testing.T) {
 
 	assert.Equal(t, len(helmRepos), 1)
 	assert.Equal(t, helmRepos[0].Username, "test")
-	assert.Equal(t, helmRepos[0].EnableOci, true)
+	assert.True(t, helmRepos[0].EnableOci)
 	assert.Equal(t, helmRepos[0].Repo, "example.com/myrepo")
 }
 
@@ -3060,7 +3060,7 @@ func TestGetHelmRepos_OCIDependenciesWithRepo(t *testing.T) {
 
 	assert.Equal(t, len(helmRepos), 1)
 	assert.Equal(t, helmRepos[0].Username, "test")
-	assert.Equal(t, helmRepos[0].EnableOci, true)
+	assert.True(t, helmRepos[0].EnableOci)
 	assert.Equal(t, helmRepos[0].Repo, "example.com/myrepo")
 }
 

@@ -127,14 +127,14 @@ func TestInClusterServerAddressEnabled(t *testing.T) {
 	})
 	argoCDCM, err := settingsManager.getConfigMap()
 	assert.NoError(t, err)
-	assert.Equal(t, true, argoCDCM.Data[inClusterEnabledKey] == "true")
+	assert.True(t, argoCDCM.Data[inClusterEnabledKey] == "true")
 
 	_, settingsManager = fixtures(map[string]string{
 		"cluster.inClusterEnabled": "false",
 	})
 	argoCDCM, err = settingsManager.getConfigMap()
 	assert.NoError(t, err)
-	assert.Equal(t, false, argoCDCM.Data[inClusterEnabledKey] == "true")
+	assert.False(t, argoCDCM.Data[inClusterEnabledKey] == "true")
 }
 
 func TestInClusterServerAddressEnabledByDefault(t *testing.T) {
@@ -166,7 +166,7 @@ func TestInClusterServerAddressEnabledByDefault(t *testing.T) {
 	settingsManager := NewSettingsManager(context.Background(), kubeClient, "default")
 	settings, err := settingsManager.GetSettings()
 	assert.NoError(t, err)
-	assert.Equal(t, true, settings.InClusterEnabled)
+	assert.True(t, settings.InClusterEnabled)
 }
 
 func TestGetAppInstanceLabelKey(t *testing.T) {
@@ -182,7 +182,7 @@ func TestGetServerRBACLogEnforceEnableKeyDefaultFalse(t *testing.T) {
 	_, settingsManager := fixtures(nil)
 	serverRBACLogEnforceEnable, err := settingsManager.GetServerRBACLogEnforceEnable()
 	assert.NoError(t, err)
-	assert.Equal(t, false, serverRBACLogEnforceEnable)
+	assert.False(t, serverRBACLogEnforceEnable)
 }
 
 func TestGetIsIgnoreResourceUpdatesEnabled(t *testing.T) {
@@ -207,7 +207,7 @@ func TestGetServerRBACLogEnforceEnableKey(t *testing.T) {
 	})
 	serverRBACLogEnforceEnable, err := settingsManager.GetServerRBACLogEnforceEnable()
 	assert.NoError(t, err)
-	assert.Equal(t, true, serverRBACLogEnforceEnable)
+	assert.True(t, serverRBACLogEnforceEnable)
 }
 
 func TestGetResourceOverrides(t *testing.T) {
@@ -377,9 +377,9 @@ func TestGetResourceOverrides_with_splitted_keys(t *testing.T) {
 		assert.Equal(t, 1, len(overrides["admissionregistration.k8s.io/MutatingWebhookConfiguration"].IgnoreResourceUpdates.JSONPointers))
 		assert.Equal(t, "foo", overrides["admissionregistration.k8s.io/MutatingWebhookConfiguration"].IgnoreResourceUpdates.JSONPointers[0])
 		assert.Equal(t, "foo\n", overrides["certmanager.k8s.io/Certificate"].HealthLua)
-		assert.Equal(t, true, overrides["certmanager.k8s.io/Certificate"].UseOpenLibs)
+		assert.True(t, overrides["certmanager.k8s.io/Certificate"].UseOpenLibs)
 		assert.Equal(t, "foo\n", overrides["cert-manager.io/Certificate"].HealthLua)
-		assert.Equal(t, false, overrides["cert-manager.io/Certificate"].UseOpenLibs)
+		assert.False(t, overrides["cert-manager.io/Certificate"].UseOpenLibs)
 		assert.Equal(t, "foo", overrides["apps/Deployment"].Actions)
 	})
 
@@ -432,8 +432,8 @@ func TestGetResourceOverrides_with_splitted_keys(t *testing.T) {
 		assert.Equal(t, "bar", overrides["admissionregistration.k8s.io/MutatingWebhookConfiguration"].HealthLua)
 		assert.Equal(t, "bar", overrides["certmanager.k8s.io/Certificate"].HealthLua)
 		assert.Equal(t, "bar", overrides["cert-manager.io/Certificate"].HealthLua)
-		assert.Equal(t, false, overrides["certmanager.k8s.io/Certificate"].UseOpenLibs)
-		assert.Equal(t, true, overrides["cert-manager.io/Certificate"].UseOpenLibs)
+		assert.False(t, overrides["certmanager.k8s.io/Certificate"].UseOpenLibs)
+		assert.True(t, overrides["cert-manager.io/Certificate"].UseOpenLibs)
 		assert.Equal(t, "bar", overrides["apps/Deployment"].Actions)
 		assert.Equal(t, "bar", overrides["Deployment"].Actions)
 		assert.Equal(t, "bar", overrides["iam-manager.k8s.io/Iamrole"].HealthLua)
@@ -764,7 +764,7 @@ func TestGetGoogleAnalytics(t *testing.T) {
 	ga, err := settingsManager.GetGoogleAnalytics()
 	assert.NoError(t, err)
 	assert.Equal(t, "123", ga.TrackingID)
-	assert.Equal(t, true, ga.AnonymizeUsers)
+	assert.True(t, ga.AnonymizeUsers)
 }
 
 func TestSettingsManager_GetHelp(t *testing.T) {
@@ -950,7 +950,7 @@ func TestGetOIDCConfig(t *testing.T) {
 
 	claim := oidcConfig.RequestedIDTokenClaims["groups"]
 	assert.NotNil(t, claim)
-	assert.Equal(t, true, claim.Essential)
+	assert.True(t, claim.Essential)
 }
 
 func TestRedirectURL(t *testing.T) {
