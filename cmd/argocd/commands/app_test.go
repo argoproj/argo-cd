@@ -223,10 +223,10 @@ func TestDefaultWaitOptions(t *testing.T) {
 		suspended: false,
 	}
 	opts := getWatchOpts(watch)
-	assert.Equal(t, true, opts.sync)
-	assert.Equal(t, true, opts.health)
-	assert.Equal(t, true, opts.operation)
-	assert.Equal(t, false, opts.suspended)
+	assert.True(t, opts.sync)
+	assert.True(t, opts.health)
+	assert.True(t, opts.operation)
+	assert.False(t, opts.suspended)
 }
 
 func TestOverrideWaitOptions(t *testing.T) {
@@ -237,10 +237,10 @@ func TestOverrideWaitOptions(t *testing.T) {
 		suspended: false,
 	}
 	opts := getWatchOpts(watch)
-	assert.Equal(t, true, opts.sync)
-	assert.Equal(t, false, opts.health)
-	assert.Equal(t, false, opts.operation)
-	assert.Equal(t, false, opts.suspended)
+	assert.True(t, opts.sync)
+	assert.False(t, opts.health)
+	assert.False(t, opts.operation)
+	assert.False(t, opts.suspended)
 }
 
 func TestFindRevisionHistoryWithoutPassedIdAndEmptyHistoryList(t *testing.T) {
@@ -1163,18 +1163,18 @@ func Test_unset(t *testing.T) {
 	assert.False(t, updated)
 	assert.False(t, nothingToUnset)
 
-	assert.Equal(t, true, helmSource.Helm.IgnoreMissingValueFiles)
+	assert.True(t, helmSource.Helm.IgnoreMissingValueFiles)
 	updated, nothingToUnset = unset(helmSource, unsetOpts{ignoreMissingValueFiles: true})
-	assert.Equal(t, false, helmSource.Helm.IgnoreMissingValueFiles)
+	assert.False(t, helmSource.Helm.IgnoreMissingValueFiles)
 	assert.True(t, updated)
 	assert.False(t, nothingToUnset)
 	updated, nothingToUnset = unset(helmSource, unsetOpts{ignoreMissingValueFiles: true})
 	assert.False(t, updated)
 	assert.False(t, nothingToUnset)
 
-	assert.Equal(t, true, helmSource.Helm.PassCredentials)
+	assert.True(t, helmSource.Helm.PassCredentials)
 	updated, nothingToUnset = unset(helmSource, unsetOpts{passCredentials: true})
-	assert.Equal(t, false, helmSource.Helm.PassCredentials)
+	assert.False(t, helmSource.Helm.PassCredentials)
 	assert.True(t, updated)
 	assert.False(t, nothingToUnset)
 	updated, nothingToUnset = unset(helmSource, unsetOpts{passCredentials: true})

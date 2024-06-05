@@ -142,8 +142,8 @@ func TestCustomHTTPClient(t *testing.T) {
 	if client.Transport != nil {
 		transport := client.Transport.(*http.Transport)
 		assert.NotNil(t, transport.TLSClientConfig)
-		assert.Equal(t, true, transport.DisableKeepAlives)
-		assert.Equal(t, false, transport.TLSClientConfig.InsecureSkipVerify)
+		assert.True(t, transport.DisableKeepAlives)
+		assert.False(t, transport.TLSClientConfig.InsecureSkipVerify)
 		assert.NotNil(t, transport.TLSClientConfig.GetClientCertificate)
 		assert.Nil(t, transport.TLSClientConfig.RootCAs)
 		if transport.TLSClientConfig.GetClientCertificate != nil {
@@ -170,8 +170,8 @@ func TestCustomHTTPClient(t *testing.T) {
 	if client.Transport != nil {
 		transport := client.Transport.(*http.Transport)
 		assert.NotNil(t, transport.TLSClientConfig)
-		assert.Equal(t, true, transport.DisableKeepAlives)
-		assert.Equal(t, true, transport.TLSClientConfig.InsecureSkipVerify)
+		assert.True(t, transport.DisableKeepAlives)
+		assert.True(t, transport.TLSClientConfig.InsecureSkipVerify)
 		assert.NotNil(t, transport.TLSClientConfig.GetClientCertificate)
 		assert.Nil(t, transport.TLSClientConfig.RootCAs)
 		if transport.TLSClientConfig.GetClientCertificate != nil {
@@ -203,8 +203,8 @@ func TestCustomHTTPClient(t *testing.T) {
 	if client.Transport != nil {
 		transport := client.Transport.(*http.Transport)
 		assert.NotNil(t, transport.TLSClientConfig)
-		assert.Equal(t, true, transport.DisableKeepAlives)
-		assert.Equal(t, false, transport.TLSClientConfig.InsecureSkipVerify)
+		assert.True(t, transport.DisableKeepAlives)
+		assert.False(t, transport.TLSClientConfig.InsecureSkipVerify)
 		assert.NotNil(t, transport.TLSClientConfig.RootCAs)
 	}
 }
