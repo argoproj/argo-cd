@@ -174,7 +174,9 @@ export class App extends React.Component<
             const component = () => (
                 <>
                     <Helmet>
-                        <title>{extension.title} - Argo CD</title>
+                        <title>
+                            {extension.title} - {authSettings.uiTitle && authSettings.uiTitle !== '' ? authSettings.uiTitle : 'Argo CD'}
+                        </title>
                     </Helmet>
                     <Page title={extension.title}>
                         <extension.component />
@@ -213,7 +215,7 @@ export class App extends React.Component<
                     <link rel='icon' type='image/png' href={`${base}assets/favicon/favicon-32x32.png`} sizes='32x32' />
                     <link rel='icon' type='image/png' href={`${base}assets/favicon/favicon-16x16.png`} sizes='16x16' />
                 </Helmet>
-                <PageContext.Provider value={{title: 'Argo CD'}}>
+                <PageContext.Provider value={{title: this.state.authSettings.uiTitle && this.state.authSettings.uiTitle !== '' ? this.state.authSettings.uiTitle : 'Argo CD'}}>
                     <Provider value={{history, popup: this.popupManager, notifications: this.notificationsManager, navigation: this.navigationManager, baseHref: base}}>
                         <DataLoader load={() => services.viewPreferences.getPreferences()}>
                             {pref => <div className={pref.theme ? 'theme-' + pref.theme : 'theme-light'}>{this.state.popupProps && <Popup {...this.state.popupProps} />}</div>}
