@@ -46,10 +46,13 @@ func populateNodeInfo(un *unstructured.Unstructured, res *ResourceInfo, customLa
 			res.NetworkingInfo.ExternalURLs = append(res.NetworkingInfo.ExternalURLs, v)
 		}
 
-		if res.annotations == nil {
-			res.annotations = make(map[string]string)
+		if k == AnnotationIgnoreResourcesUpdate {
+			value, err := strconv.ParseBool(v)
+			if err != nil {
+				value = false
+			}
+			res.ignoreResourcesUpdate = value
 		}
-		res.annotations[k] = v
 	}
 
 	switch gvk.Group {
