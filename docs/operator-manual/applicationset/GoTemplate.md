@@ -204,9 +204,9 @@ ApplicationSet controller provides:
 
 - all [sprig](http://masterminds.github.io/sprig/) Go templates function except `env`, `expandenv` and `getHostByName`
 - `normalize`: sanitizes the input so that it complies with the following rules:
-  1. contains no more than 253 characters
-  2. contains only lowercase alphanumeric characters, '-' or '.'
-  3. starts and ends with an alphanumeric character
+    1. contains no more than 253 characters
+    2. contains only lowercase alphanumeric characters, '-' or '.'
+    3. starts and ends with an alphanumeric character
 
 - `slugify`: sanitizes like `normalize` and smart truncates (it doesn't cut a word into 2) like described in the [introduction](#introduction) section.
 - `toYaml` / `fromYaml` / `fromYamlArray` helm like functions

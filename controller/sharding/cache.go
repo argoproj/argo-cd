@@ -51,7 +51,7 @@ func NewClusterSharding(_ db.ArgoDB, shard, replicas int, shardingAlgorithm stri
 	return clusterSharding
 }
 
-// IsManagedCluster returns wheter or not the cluster should be processed by a given shard.
+// IsManagedCluster returns whether or not the cluster should be processed by a given shard.
 func (s *ClusterSharding) IsManagedCluster(c *v1alpha1.Cluster) bool {
 	s.lock.RLock()
 	defer s.lock.RUnlock()
