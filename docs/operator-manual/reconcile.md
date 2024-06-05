@@ -120,7 +120,7 @@ and the Pod).
 
 For this use case, the above configurations will not help because argocd will still reconcile any newly created objects.
 
-To completely ignore a newly created object, you need to add annotation `argocd.argoproj.io/ignore-resources-update=true`
+To completely ignore a newly created object, you need to add annotation `argocd.argoproj.io/apply-resources-update=false`
 to the target resource manifest.
 
 ## Example
@@ -138,12 +138,12 @@ spec:
   jobTemplate:
     metadata:
       annotations:
-        argocd.argoproj.io/ignore-resources-update: "true"
+        argocd.argoproj.io/apply-resources-update: "false"
     spec:
       template:
         metadata:
           annotations:
-            argocd.argoproj.io/ignore-resources-update: "true"
+            argocd.argoproj.io/apply-resources-update: "false"
         spec:
           containers:
           - name: hello
@@ -159,5 +159,5 @@ spec:
 And you should see the following debug message (if enabled) in the `application-controller` log:
 
 ```
-Ignoring change of object because none of the watched resource fields have changed or annotation argocd.argoproj.io/ignore-resources-update is set to true
+Ignoring change of object because none of the watched resource fields have changed or annotation argocd.argoproj.io/apply-resources-update is set to false
 ```

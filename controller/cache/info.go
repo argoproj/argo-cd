@@ -38,6 +38,9 @@ func populateNodeInfo(un *unstructured.Unstructured, res *ResourceInfo, customLa
 		}
 	}
 
+	// always apply resources update by default
+	res.applyResourcesUpdate = true
+
 	for k, v := range un.GetAnnotations() {
 		if strings.HasPrefix(k, common.AnnotationKeyLinkPrefix) {
 			if res.NetworkingInfo == nil {
@@ -46,12 +49,12 @@ func populateNodeInfo(un *unstructured.Unstructured, res *ResourceInfo, customLa
 			res.NetworkingInfo.ExternalURLs = append(res.NetworkingInfo.ExternalURLs, v)
 		}
 
-		if k == AnnotationIgnoreResourcesUpdate {
+		if k == AnnotationApplyResourcesUpdate {
 			value, err := strconv.ParseBool(v)
 			if err != nil {
 				value = false
 			}
-			res.ignoreResourcesUpdate = value
+			res.applyResourcesUpdate = value
 		}
 	}
 

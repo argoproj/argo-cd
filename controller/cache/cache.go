@@ -68,8 +68,8 @@ const (
 	// EnvClusterCacheRetryUseBackoff is the env variable to control whether to use a backoff strategy with the retry during cluster cache sync
 	EnvClusterCacheRetryUseBackoff = "ARGOCD_CLUSTER_CACHE_RETRY_USE_BACKOFF"
 
-	// AnnotationIgnoreResourcesUpdate is a Kubernetes annotation for a Kubernetes resource to ignore any resources update
-	AnnotationIgnoreResourcesUpdate = "argocd.argoproj.io/ignore-resources-update"
+	// AnnotationApplyResourcesUpdate when set to false to a resource, argocd will not proceed any update onto that resource.
+	AnnotationApplyResourcesUpdate = "argocd.argoproj.io/apply-resources-update"
 )
 
 // GitOps engine cluster cache tuning options
@@ -165,8 +165,8 @@ type ResourceInfo struct {
 
 	manifestHash string
 
-	// boolean to store the value of argocd.argoproj.io/ignore-resources-update annotation
-	ignoreResourcesUpdate bool
+	// boolean to store the value of argocd.argoproj.io/apply-resources-update annotation
+	applyResourcesUpdate bool
 }
 
 func NewLiveStateCache(
@@ -348,7 +348,7 @@ func skipAppRequeuing(key kube.ResourceKey) bool {
 }
 
 func skipResourceUpdate(oldInfo, newInfo *ResourceInfo) bool {
-	if newInfo.ignoreResourcesUpdate && oldInfo.Health.Status == newInfo.Health.Status {
+	if !newInfo.applyResourcesUpdate && oldInfo.Health.Status == newInfo.Health.Status {
 		return true
 	}
 
@@ -512,7 +512,7 @@ func (c *liveStateCache) getCluster(server string) (clustercache.ClusterCache, e
 
 			gvk := un.GroupVersionKind()
 
-			if cacheSettings.ignoreResourceUpdatesEnabled && shouldHashManifest(appName, gvk) {
+			if (cacheSettings.ignoreResourceUpdatesEnabled || res.applyResourcesUpdate) && shouldHashManifest(appName, gvk) {
 				hash, err := generateManifestHash(un, nil, cacheSettings.resourceOverrides, c.ignoreNormalizerOpts)
 				if err != nil {
 					log.Errorf("Failed to generate manifest hash: %v", err)
