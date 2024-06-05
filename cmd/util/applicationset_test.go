@@ -36,5 +36,5 @@ func TestReadAppSet(t *testing.T) {
 	if err != nil {
 		t.Logf("Failed reading appset file")
 	}
-	assert.Equal(t, len(appSets), 1)
+	assert.Len(t, appSets, 1)
 }

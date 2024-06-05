@@ -75,8 +75,8 @@ func Test_CreateOrUpdateSecretField(t *testing.T) {
 		assert.Equal(t, "foobaz", string(s.Data["password"]))
 
 		// Labels and annotations should be untouched
-		assert.Len(t, s.Labels, 0)
-		assert.Len(t, s.Annotations, 0)
+		assert.Empty(t, s.Labels)
+		assert.Empty(t, s.Annotations)
 	})
 
 	t.Run("Change field in existing secret with labels", func(t *testing.T) {

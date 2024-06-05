@@ -315,7 +315,7 @@ func TestGetTLSConfigCustomizer(t *testing.T) {
 		cfunc(&config)
 		assert.Equal(t, config.MinVersion, uint16(tls.VersionTLS13))
 		assert.Equal(t, config.MaxVersion, uint16(tls.VersionTLS13))
-		assert.Len(t, config.CipherSuites, 0)
+		assert.Empty(t, config.CipherSuites)
 	})
 
 	t.Run("Valid TLS customization - No cipher customization for TLSv1.3 only with custom ciphers", func(t *testing.T) {
@@ -326,7 +326,7 @@ func TestGetTLSConfigCustomizer(t *testing.T) {
 		cfunc(&config)
 		assert.Equal(t, config.MinVersion, uint16(tls.VersionTLS13))
 		assert.Equal(t, config.MaxVersion, uint16(tls.VersionTLS13))
-		assert.Len(t, config.CipherSuites, 0)
+		assert.Empty(t, config.CipherSuites)
 	})
 
 	t.Run("Invalid TLS customization - Min version higher than max version", func(t *testing.T) {

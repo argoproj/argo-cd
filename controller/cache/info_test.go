@@ -314,7 +314,7 @@ status:
 func TestGetServiceInfo(t *testing.T) {
 	info := &ResourceInfo{}
 	populateNodeInfo(testService, info, []string{})
-	assert.Equal(t, 0, len(info.Info))
+	assert.Empty(t, info.Info)
 	assert.Equal(t, &v1alpha1.ResourceNetworkingInfo{
 		TargetLabels: map[string]string{"app": "guestbook"},
 		Ingress:      []v1.LoadBalancerIngress{{Hostname: "localhost"}},
@@ -324,7 +324,7 @@ func TestGetServiceInfo(t *testing.T) {
 func TestGetLinkAnnotatedServiceInfo(t *testing.T) {
 	info := &ResourceInfo{}
 	populateNodeInfo(testLinkAnnotatedService, info, []string{})
-	assert.Equal(t, 0, len(info.Info))
+	assert.Empty(t, info.Info)
 	assert.Equal(t, &v1alpha1.ResourceNetworkingInfo{
 		TargetLabels: map[string]string{"app": "guestbook"},
 		Ingress:      []v1.LoadBalancerIngress{{Hostname: "localhost"}},
@@ -335,7 +335,7 @@ func TestGetLinkAnnotatedServiceInfo(t *testing.T) {
 func TestGetIstioVirtualServiceInfo(t *testing.T) {
 	info := &ResourceInfo{}
 	populateNodeInfo(testIstioVirtualService, info, []string{})
-	assert.Equal(t, 0, len(info.Info))
+	assert.Empty(t, info.Info)
 	require.NotNil(t, info.NetworkingInfo)
 	require.NotNil(t, info.NetworkingInfo.TargetRefs)
 	assert.Contains(t, info.NetworkingInfo.TargetRefs, v1alpha1.ResourceRef{
@@ -365,7 +365,7 @@ func TestGetIngressInfo(t *testing.T) {
 	for _, tc := range tests {
 		info := &ResourceInfo{}
 		populateNodeInfo(tc.Ingress, info, []string{})
-		assert.Equal(t, 0, len(info.Info))
+		assert.Empty(t, info.Info)
 		sort.Slice(info.NetworkingInfo.TargetRefs, func(i, j int) bool {
 			return strings.Compare(info.NetworkingInfo.TargetRefs[j].Name, info.NetworkingInfo.TargetRefs[i].Name) < 0
 		})
@@ -390,7 +390,7 @@ func TestGetIngressInfo(t *testing.T) {
 func TestGetLinkAnnotatedIngressInfo(t *testing.T) {
 	info := &ResourceInfo{}
 	populateNodeInfo(testLinkAnnotatedIngress, info, []string{})
-	assert.Equal(t, 0, len(info.Info))
+	assert.Empty(t, info.Info)
 	sort.Slice(info.NetworkingInfo.TargetRefs, func(i, j int) bool {
 		return strings.Compare(info.NetworkingInfo.TargetRefs[j].Name, info.NetworkingInfo.TargetRefs[i].Name) < 0
 	})
@@ -414,7 +414,7 @@ func TestGetLinkAnnotatedIngressInfo(t *testing.T) {
 func TestGetIngressInfoWildCardPath(t *testing.T) {
 	info := &ResourceInfo{}
 	populateNodeInfo(testIngressWildCardPath, info, []string{})
-	assert.Equal(t, 0, len(info.Info))
+	assert.Empty(t, info.Info)
 	sort.Slice(info.NetworkingInfo.TargetRefs, func(i, j int) bool {
 		return strings.Compare(info.NetworkingInfo.TargetRefs[j].Name, info.NetworkingInfo.TargetRefs[i].Name) < 0
 	})
@@ -438,7 +438,7 @@ func TestGetIngressInfoWildCardPath(t *testing.T) {
 func TestGetIngressInfoWithoutTls(t *testing.T) {
 	info := &ResourceInfo{}
 	populateNodeInfo(testIngressWithoutTls, info, []string{})
-	assert.Equal(t, 0, len(info.Info))
+	assert.Empty(t, info.Info)
 	sort.Slice(info.NetworkingInfo.TargetRefs, func(i, j int) bool {
 		return strings.Compare(info.NetworkingInfo.TargetRefs[j].Name, info.NetworkingInfo.TargetRefs[i].Name) < 0
 	})
@@ -525,7 +525,7 @@ func TestGetIngressInfoNoHost(t *testing.T) {
 			Name:      "helm-guestbook",
 		}},
 	}, info.NetworkingInfo)
-	assert.Equal(t, len(info.NetworkingInfo.ExternalURLs), 0)
+	assert.Empty(t, info.NetworkingInfo.ExternalURLs)
 }
 func TestExternalUrlWithSubPath(t *testing.T) {
 	ingress := strToUnstructured(`
@@ -660,7 +660,7 @@ func TestCustomLabel(t *testing.T) {
 	info := &ResourceInfo{}
 	populateNodeInfo(configmap, info, []string{"my-label"})
 
-	assert.Equal(t, 0, len(info.Info))
+	assert.Empty(t, info.Info)
 
 	configmap = strToUnstructured(`
   apiVersion: v1
@@ -673,7 +673,7 @@ func TestCustomLabel(t *testing.T) {
 	info = &ResourceInfo{}
 	populateNodeInfo(configmap, info, []string{"my-label", "other-label"})
 
-	assert.Equal(t, 1, len(info.Info))
+	assert.Len(t, info.Info, 1)
 	assert.Equal(t, "my-label", info.Info[0].Name)
 	assert.Equal(t, "value", info.Info[0].Value)
 
@@ -689,7 +689,7 @@ func TestCustomLabel(t *testing.T) {
 	info = &ResourceInfo{}
 	populateNodeInfo(configmap, info, []string{"my-label", "other-label"})
 
-	assert.Equal(t, 2, len(info.Info))
+	assert.Len(t, info.Info, 2)
 	assert.Equal(t, "my-label", info.Info[0].Name)
 	assert.Equal(t, "value", info.Info[0].Value)
 	assert.Equal(t, "other-label", info.Info[1].Name)

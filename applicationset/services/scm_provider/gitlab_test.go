@@ -1143,11 +1143,11 @@ func TestGitlabListRepos(t *testing.T) {
 				}
 				// In case of listing subgroups, validate the number of returned projects
 				if c.includeSubgroups || c.includeSharedProjects {
-					assert.Equal(t, 2, len(uniqueRepos))
+					assert.Len(t, uniqueRepos, 2)
 				}
 				// In case we filter on the topic, ensure we got only one repo returned
 				if c.topic != "" {
-					assert.Equal(t, 1, len(uniqueRepos))
+					assert.Len(t, uniqueRepos, 1)
 				}
 			}
 		})
