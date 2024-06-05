@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"os/exec"
 	"reflect"
+	"strconv"
 	"strings"
 	"sync"
 	"syscall"
@@ -164,9 +165,6 @@ type ResourceInfo struct {
 	NodeInfo *NodeInfo
 
 	manifestHash string
-
-	// boolean to store the value of argocd.argoproj.io/apply-resources-update annotation
-	applyResourcesUpdate bool
 }
 
 func NewLiveStateCache(
@@ -348,28 +346,36 @@ func skipAppRequeuing(key kube.ResourceKey) bool {
 }
 
 func skipResourceUpdate(oldInfo, newInfo *ResourceInfo) bool {
-	if !newInfo.applyResourcesUpdate && oldInfo.Health.Status == newInfo.Health.Status {
-		return true
-	}
-
 	if oldInfo == nil || newInfo == nil {
 		return false
 	}
 	isSameHealthStatus := (oldInfo.Health == nil && newInfo.Health == nil) || oldInfo.Health != nil && newInfo.Health != nil && oldInfo.Health.Status == newInfo.Health.Status
-	isSameManifest := oldInfo.manifestHash != "" && newInfo.manifestHash != "" && oldInfo.manifestHash == newInfo.manifestHash
+	isSameManifest := oldInfo.manifestHash == newInfo.manifestHash
 	return isSameHealthStatus && isSameManifest
 }
 
 // shouldHashManifest validates if the API resource needs to be hashed.
 // If there's an app name from resource tracking, or if this is itself an app, we should generate a hash.
 // Otherwise, the hashing should be skipped to save CPU time.
-func shouldHashManifest(appName string, gvk schema.GroupVersionKind) bool {
-	// Only hash if the resource belongs to an app.
+func shouldHashManifest(appName string, gvk schema.GroupVersionKind, un *unstructured.Unstructured) bool {
+	// Do not generate hash if argocd.argoproj.io/apply-resources-update is false
+	// Otherwise:
+	// Only hash if the resource belongs to an app
 	// Best      - Only hash for resources that are part of an app or their dependencies
 	// (current) - Only hash for resources that are part of an app + all apps that might be from an ApplicationSet
 	// Orphan    - If orphan is enabled, hash should be made on all resource of that namespace and a config to disable it
 	// Worst     - Hash all resources watched by Argo
-	return appName != "" || (gvk.Group == application.Group && gvk.Kind == application.ApplicationKind)
+	applyResourcesUpdate := true
+	val, ok := un.GetAnnotations()[AnnotationApplyResourcesUpdate]
+	if ok {
+		ret, err := strconv.ParseBool(val)
+		if err != nil {
+			applyResourcesUpdate = true
+		}
+		applyResourcesUpdate = ret
+	}
+
+	return applyResourcesUpdate && (appName != "" || (gvk.Group == application.Group && gvk.Kind == application.ApplicationKind))
 }
 
 // isRetryableError is a helper method to see whether an error
@@ -512,7 +518,7 @@ func (c *liveStateCache) getCluster(server string) (clustercache.ClusterCache, e
 
 			gvk := un.GroupVersionKind()
 
-			if (cacheSettings.ignoreResourceUpdatesEnabled || res.applyResourcesUpdate) && shouldHashManifest(appName, gvk) {
+			if cacheSettings.ignoreResourceUpdatesEnabled && shouldHashManifest(appName, gvk, un) {
 				hash, err := generateManifestHash(un, nil, cacheSettings.resourceOverrides, c.ignoreNormalizerOpts)
 				if err != nil {
 					log.Errorf("Failed to generate manifest hash: %v", err)
