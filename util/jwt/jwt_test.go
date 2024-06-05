@@ -62,9 +62,9 @@ func TestIssuedAtTime_Error_Missing(t *testing.T) {
 }
 
 func TestIsValid(t *testing.T) {
-	assert.Equal(t, true, IsValid("foo.bar.foo"))
-	assert.Equal(t, true, IsValid("foo.bar.foo.bar"))
-	assert.Equal(t, false, IsValid("foo.bar"))
-	assert.Equal(t, false, IsValid("foo"))
-	assert.Equal(t, false, IsValid(""))
+	assert.True(t, IsValid("foo.bar.foo"))
+	assert.True(t, IsValid("foo.bar.foo.bar"))
+	assert.False(t, IsValid("foo.bar"))
+	assert.False(t, IsValid("foo"))
+	assert.False(t, IsValid(""))
 }
