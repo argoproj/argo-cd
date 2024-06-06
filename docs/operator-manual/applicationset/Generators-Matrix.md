@@ -12,6 +12,7 @@ By combining both generators parameters, to produce every possible combination, 
 Any set of generators may be used, with the combined values of those generators inserted into the `template` parameters, as usual.
 
 **Note**: If both child generators are Git generators, one or both of them must use the `pathParamPrefix` option to avoid conflicts when merging the child generators’ items.
+`paramPrefix` option to protect other variables from overwriting each other.
 
 ## Example: Git Directory generator + Cluster generator
 

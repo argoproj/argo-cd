@@ -1245,6 +1245,8 @@ spec:
                             - path
                             type: object
                           type: array
+                        paramPrefix:
+                          type: string
                         pathParamPrefix:
                           type: string
                         repoURL:
@@ -3605,6 +3607,8 @@ spec:
                                       - path
                                       type: object
                                     type: array
+                                  paramPrefix:
+                                    type: string
                                   pathParamPrefix:
                                     type: string
                                   repoURL:
@@ -8665,6 +8669,8 @@ spec:
                                       - path
                                       type: object
                                     type: array
+                                  paramPrefix:
+                                    type: string
                                   pathParamPrefix:
                                     type: string
                                   repoURL:
