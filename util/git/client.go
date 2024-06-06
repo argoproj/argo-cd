@@ -272,6 +272,7 @@ func newAuth(repoURL string, creds Creds) (transport.AuthMethod, error) {
 		auth := &PublicKeysWithOptions{}
 		auth.User = sshUser
 		auth.Signer = signer
+		auth.KexAlgorithms = strings.Fields(creds.kexAlgorithms)
 		if creds.insecure {
 			auth.HostKeyCallback = ssh.InsecureIgnoreHostKey()
 		} else {
