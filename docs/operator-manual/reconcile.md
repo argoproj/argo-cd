@@ -114,7 +114,7 @@ data:
 
 ## Completely ignore resources update
 
-There is an use case that you would like to completely ignore the resources at all. This mostly happens when some dependent
+There is a use case that you would like to completely ignore the resources at all. This mostly happens when some dependent
 resources are created by another resource (e.g. a Job and a Pod are created by a CronJob and you want to ignore the Job
 and the Pod). 
 
@@ -159,5 +159,8 @@ spec:
 And you should see the following debug message (if enabled) in the `application-controller` log:
 
 ```
-Ignoring change of object because none of the watched resource fields have changed or annotation argocd.argoproj.io/apply-resources-update is set to false
+Ignoring change of object because none of the watched resource fields have changed
 ```
+
+Note: If you add annotation to any resource with `argocd.argoproj.io/apply-resources-update=true`, argocd controller
+will refresh that resource regardless if it belongs to the application or not.
