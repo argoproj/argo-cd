@@ -332,6 +332,8 @@ type ApplicationSourceHelm struct {
 	// ValuesObject specifies Helm values to be passed to helm template, defined as a map. This takes precedence over Values.
 	// +kubebuilder:pruning:PreserveUnknownFields
 	ValuesObject *runtime.RawExtension `json:"valuesObject,omitempty" protobuf:"bytes,10,opt,name=valuesObject"`
+	// ValueRefs is a list of Refs of other sources whose outputs will serve as values for this helm source
+	ValueRefs []string `json:"valueRefs,omitempty" protobuf:"bytes,11,opt,name=valueRefs"`
 }
 
 // HelmParameter is a parameter that's passed to helm template during manifest generation

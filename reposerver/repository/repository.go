@@ -801,6 +801,7 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 
 		manifestGenResult, err = GenerateManifests(ctx, opContext.appPath, repoRoot, commitSHA, q, false, s.gitCredsStore, s.initConstants.MaxCombinedDirectoryManifestsSize, s.gitRepoPaths, WithCMPTarDoneChannel(ch.tarDoneCh), WithCMPTarExcludedGlobs(s.initConstants.CMPTarExcludedGlobs))
 	}
+
 	refSourceCommitSHAs := make(map[string]string)
 	if len(repoRefs) > 0 {
 		for normalizedURL, repoRef := range repoRefs {
@@ -863,6 +864,7 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 	}
 	manifestGenResult.Revision = commitSHA
 	manifestGenResult.VerifyResult = opContext.verificationResult
+
 	err = s.cache.SetManifests(cacheKey, appSourceCopy, q.RefSources, q, q.Namespace, q.TrackingMethod, q.AppLabelKey, q.AppName, &manifestGenCacheEntry, refSourceCommitSHAs)
 	if err != nil {
 		log.Warnf("manifest cache set error %s/%s: %v", appSourceCopy.String(), cacheKey, err)
@@ -1103,7 +1105,31 @@ func isSourcePermitted(url string, repos []string) bool {
 	return p.IsSourcePermitted(v1alpha1.ApplicationSource{RepoURL: url})
 }
 
+// standard helm call get the helm template, output as unstructured type
 func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclient.ManifestRequest, isLocal bool, gitRepoPaths io.TempPaths) ([]*unstructured.Unstructured, error) {
+	out, err := runHelmTemplate(appPath, repoRoot, env, q, isLocal, gitRepoPaths)
+	if err != nil {
+		return nil, err
+	}
+
+	targetObjs, err := kube.SplitYAML([]byte(*out))
+
+	return targetObjs, err
+}
+
+// call helm template, but expect that the output is a single YAML document that does not conform to
+// kubernetes API specs, as it is a values manifest
+func helmTemplateMultistage(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclient.ManifestRequest, isLocal bool, gitRepoPaths io.TempPaths) (map[string]interface{}, error) {
+	out, err := runHelmTemplate(appPath, repoRoot, env, q, isLocal, gitRepoPaths)
+	if err != nil {
+		return nil, err
+	}
+
+	return validateMultistageValues([]byte(*out))
+}
+
+// contains main logic for running helm template with dependencies
+func runHelmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclient.ManifestRequest, isLocal bool, gitRepoPaths io.TempPaths) (*string, error) {
 	concurrencyAllowed := helmConcurrencyDefault || isConcurrencyAllowed(appPath)
 	if !concurrencyAllowed {
 		manifestGenerateLock.Lock(appPath)
@@ -1144,23 +1170,34 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 
 		templateOpts.Values = resolvedValueFiles
 
-		if !appHelm.ValuesIsEmpty() {
-			rand, err := uuid.NewRandom()
-			if err != nil {
-				return nil, fmt.Errorf("error generating random filename for Helm values file: %w", err)
-			}
-			p := path.Join(os.TempDir(), rand.String())
-			defer func() {
-				// do not remove the directory if it is the source has Ref field set
-				if q.ApplicationSource.Ref == "" {
-					_ = os.RemoveAll(p)
+		filesToClean := make([]string, 0)
+		// clean up any temp values files before this function ends
+		defer func() {
+			// do not remove the directory if it is the source has Ref field set
+			if q.ApplicationSource.Ref == "" {
+				for _, path := range filesToClean {
+					_ = os.RemoveAll(path)
 				}
-			}()
-			err = os.WriteFile(p, appHelm.ValuesYAML(), 0644)
-			if err != nil {
-				return nil, fmt.Errorf("error writing helm values file: %w", err)
 			}
-			templateOpts.Values = append(templateOpts.Values, pathutil.ResolvedFilePath(p))
+		}()
+		if !appHelm.ValuesIsEmpty() {
+			path, err := appendValuesFile([]byte(appHelm.ValuesYAML()), q, templateOpts)
+			filesToClean = append(filesToClean, path)
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		// write multistage manifests so that they can be used by this chart
+		if len(q.ValueRefManifests) > 0 {
+			// make sure the manifests are supplied in the order of the input
+			for _, refName := range q.ApplicationSource.Helm.ValueRefs {
+				path, err := appendValuesFile([]byte(q.ValueRefManifests[refName]), q, templateOpts)
+				filesToClean = append(filesToClean, path)
+				if err != nil {
+					return nil, err
+				}
+			}
 		}
 
 		for _, p := range appHelm.Parameters {
@@ -1244,13 +1281,50 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 
 			return nil, err
 		}
-
 		out, err = h.Template(templateOpts)
+
 		if err != nil {
 			return nil, err
 		}
 	}
-	return kube.SplitYAML([]byte(out))
+	return &out, nil
+}
+
+// write the values bytes to a temp file, append to templateOpts.
+// Files are not removed by this function
+func appendValuesFile(valuesBytes []byte, q *apiclient.ManifestRequest, templateOpts *helm.TemplateOpts) (string, error) {
+	rand, err := uuid.NewRandom()
+	if err != nil {
+		return "", fmt.Errorf("error generating random filename for Helm values file: %w", err)
+	}
+	p := path.Join(os.TempDir(), rand.String())
+
+	err = os.WriteFile(p, valuesBytes, 0644)
+	if err != nil {
+		return p, fmt.Errorf("error writing helm values file: %w", err)
+	}
+	templateOpts.Values = append(templateOpts.Values, pathutil.ResolvedFilePath(p))
+	return p, nil
+}
+
+// ensure that the yamlData contains exactly one valid yaml document - i.e. it is a valid values document
+// to be passed to the next stage
+func validateMultistageValues(yamlData []byte) (map[string]interface{}, error) {
+	output := make(map[string]interface{})
+
+	documents, err := kube.SplitYAMLToString(yamlData)
+	if err != nil {
+		return nil, fmt.Errorf("error processing multi-stage value source: %w", err)
+	}
+	if len(documents) != 1 {
+		return nil, fmt.Errorf("multistage value output does not contain exactly one valid document")
+	}
+	// if we have exactly one doc, it is safe to unmarshal the original data
+	err = yaml.Unmarshal(yamlData, &output)
+	if err != nil {
+		return nil, fmt.Errorf("error unmarshalling multi-stage value source: %w", err)
+	}
+	return output, err
 }
 
 func getResolvedValueFiles(
@@ -1376,8 +1450,7 @@ func WithCMPTarExcludedGlobs(excludedGlobs []string) GenerateManifestOpt {
 func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, q *apiclient.ManifestRequest, isLocal bool, gitCredsStore git.CredsStore, maxCombinedManifestQuantity resource.Quantity, gitRepoPaths io.TempPaths, opts ...GenerateManifestOpt) (*apiclient.ManifestResponse, error) {
 	opt := newGenerateManifestOpt(opts...)
 	var targetObjs []*unstructured.Unstructured
-
-	resourceTracking := argo.NewResourceTracking()
+	var multistageValues map[string]interface{}
 
 	env := newEnv(q, revision)
 
@@ -1392,7 +1465,12 @@ func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, 
 
 	switch appSourceType {
 	case v1alpha1.ApplicationSourceTypeHelm:
-		targetObjs, err = helmTemplate(appPath, repoRoot, env, q, isLocal, gitRepoPaths)
+		if q.IsMultistageSource {
+			multistageValues, err = helmTemplateMultistage(appPath, repoRoot, env, q, isLocal, gitRepoPaths)
+		} else {
+			targetObjs, err = helmTemplate(appPath, repoRoot, env, q, isLocal, gitRepoPaths)
+		}
+
 	case v1alpha1.ApplicationSourceTypeKustomize:
 		kustomizeBinary := ""
 		if q.KustomizeOptions != nil {
@@ -1422,7 +1500,32 @@ func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, 
 		return nil, err
 	}
 
+	var manifests []string
+	// for a multistage source, we don't need resource tracking. Just convert to string
+	if q.IsMultistageSource {
+		yamlData, err := yaml.Marshal(multistageValues)
+		if err != nil {
+			return nil, err
+		}
+		manifests = append(manifests, string(yamlData))
+	} else {
+		manifests, err = prepareAppManifests(targetObjs, q)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return &apiclient.ManifestResponse{
+		Manifests:  manifests,
+		SourceType: string(appSourceType),
+	}, nil
+}
+
+func prepareAppManifests(targetObjs []*unstructured.Unstructured, q *apiclient.ManifestRequest) ([]string, error) {
+	resourceTracking := argo.NewResourceTracking()
+	var err error
 	manifests := make([]string, 0)
+
 	for _, obj := range targetObjs {
 		if obj == nil {
 			continue
@@ -1461,11 +1564,7 @@ func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, 
 			manifests = append(manifests, string(manifestStr))
 		}
 	}
-
-	return &apiclient.ManifestResponse{
-		Manifests:  manifests,
-		SourceType: string(appSourceType),
-	}, nil
+	return manifests, nil
 }
 
 func newEnv(q *apiclient.ManifestRequest, revision string) *v1alpha1.Env {

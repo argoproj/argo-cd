@@ -6433,6 +6433,13 @@
             "type": "string"
           }
         },
+        "valueRefs": {
+          "type": "array",
+          "title": "ValueRefs is a list of Refs of other sources whose outputs will serve as values for this helm source",
+          "items": {
+            "type": "string"
+          }
+        },
         "values": {
           "type": "string",
           "title": "Values specifies Helm values to be passed to helm template, typically defined as a block. ValuesObject takes precedence over Values, so use one or the other.\n+patchStrategy=replace"

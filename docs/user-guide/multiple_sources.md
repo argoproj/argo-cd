@@ -11,7 +11,7 @@ files from multiple locations to form a single Application.
 Argo CD has the ability to specify multiple sources for a single Application. Argo CD compiles all the sources
 and reconciles the combined resources.
 
-You can provide multiple sources using the `sources` field. When you specify the `sources` field, Argo CD will ignore 
+You can provide multiple sources using the `sources` field. When you specify the `sources` field, Argo CD will ignore
 the `source` (singular) field.
 
 See the below example for specifying multiple sources:
@@ -36,14 +36,14 @@ spec:
       targetRevision: HEAD
 ```
 
-The above example has two sources specified that need to be combined in order to create the "billing" application. Argo CD will generate the manifests for each source separately and combine 
+The above example has two sources specified that need to be combined in order to create the "billing" application. Argo CD will generate the manifests for each source separately and combine
 the resulting manifests.
 
 !!! warning "Do not abuse multiple sources"
     Note this feature is **NOT** destined as a generic way to group different/unrelated applications. Take a look at [applicationsets](../user-guide/application-set.md) and the [app-of-apps](../../operator-manual/cluster-bootstrapping/) pattern if you want to have a single entity for multiple applications. If you find yourself using more than 2-3 items in the `sources` array then you are almost certainly abusing this feature and you need to rethink your application grouping strategy.
 
-If multiple sources produce the same resource (same `group`, `kind`, `name`, and `namespace`), the last source to 
-produce the resource will take precedence. Argo CD will produce a `RepeatedResourceWarning` in this case, but it will 
+If multiple sources produce the same resource (same `group`, `kind`, `name`, and `namespace`), the last source to
+produce the resource will take precedence. Argo CD will produce a `RepeatedResourceWarning` in this case, but it will
 sync the resources. This provides a convenient way to override a resource from a chart with a resource from a Git repo.
 
 ## Helm value files from external Git repository
@@ -75,16 +75,48 @@ spec:
     ref: values
 ```
 
-In the above example, the `prometheus` chart will use the value file from `git.example.gom/org/value-files.git`. 
-`$values` resolves to the root of the `value-files` repository. The `$values` variable may only be specified at the 
+In the above example, the `prometheus` chart will use the value file from `git.example.gom/org/value-files.git`.
+`$values` resolves to the root of the `value-files` repository. The `$values` variable may only be specified at the
 beginning of the value file path.
 
 If the `path` field is set in the `$values` source, Argo CD will attempt to generate resources from the git repository
 at that URL. If the `path` field is not set, Argo CD will use the repository solely as a source of value files.
 
 !!! note
-    Sources with the `ref` field set must not also specify the `chart` field. Argo CD does not currently support using  
+    Sources with the `ref` field set must not also specify the `chart` field. Argo CD does not currently support using
     another Helm chart as a source for value files.
 
 !!! note
     Even when the `ref` field is configured with the `path` field, `$value` still represents the root of sources with the `ref` field. Consequently, `valueFiles` must be specified as relative paths from the root of sources.
+
+
+## Multistage helm chart generation of values files
+By using multiple sources, an application can be configured to use one helm chart source to generate a values file which is then passed in to another chart in the sources list.
+
+```yml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+spec:
+  sources:
+    - repoURL: 'https://github.com/mycompany/billing-app.git'
+      path: .
+      targetRevision: HEAD
+      helm:
+        # specify the list of refs whose outputs will be passed in as input files
+        valueRefs:
+          - generator
+    - repoURL: 'https://github.com/mycompany/values-generator-chart.git'
+      path: .
+      targetRevision: HEAD
+      helm:
+        values: |
+          someAdditionalConfiguration: true
+      ref: generator
+```
+
+The values-generating sources should output exactly one manifest. `valueRefs` should be a list of
+refs set by other charts - the `$` prefix is not required in this case because there is no larger substitution.
+
+!!! note
+    Currently, only one source can have a `valueRefs` spec. This ensures that circular references
+    for values generation do not occur.

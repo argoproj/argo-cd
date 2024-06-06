@@ -1060,6 +1060,11 @@ func (in *ApplicationSourceHelm) DeepCopyInto(out *ApplicationSourceHelm) {
 		*out = new(runtime.RawExtension)
 		(*in).DeepCopyInto(*out)
 	}
+	if in.ValueRefs != nil {
+		in, out := &in.ValueRefs, &out.ValueRefs
+		*out = make([]string, len(*in))
+		copy(*out, *in)
+	}
 	return
 }
 
