@@ -2,11 +2,11 @@
 
 ## argocd completion
 
-output shell completion code for the specified shell (bash or zsh)
+output shell completion code for the specified shell (bash, zsh or fish)
 
 ### Synopsis
 
-Write bash or zsh shell completion code to standard output.
+Write bash, zsh or fish shell completion code to standard output.
 
 For bash, ensure you have bash completions installed and enabled.
 To access completions in your current shell, run
@@ -35,6 +35,11 @@ $ source <(argocd completion bash)
 # For zsh
 $ argocd completion zsh > _argocd
 $ source _argocd
+
+# For fish
+$ argocd completion fish > ~/.config/fish/completions/argocd.fish
+$ source ~/.config/fish/completions/argocd.fish
+
 
 ```
 

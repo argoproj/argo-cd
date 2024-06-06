@@ -308,15 +308,15 @@ func Test_SSHKnownHostsData_Tokenize(t *testing.T) {
 
 func Test_MatchHostName(t *testing.T) {
 	matchHostName := "foo.example.com"
-	assert.Equal(t, MatchHostName(matchHostName, "*"), true)
-	assert.Equal(t, MatchHostName(matchHostName, "*.example.com"), true)
-	assert.Equal(t, MatchHostName(matchHostName, "foo.*"), true)
-	assert.Equal(t, MatchHostName(matchHostName, "foo.*.com"), true)
-	assert.Equal(t, MatchHostName(matchHostName, "fo?.example.com"), true)
-	assert.Equal(t, MatchHostName(matchHostName, "foo?.example.com"), false)
-	assert.Equal(t, MatchHostName(matchHostName, "bar.example.com"), false)
-	assert.Equal(t, MatchHostName(matchHostName, "*.otherexample.com"), false)
-	assert.Equal(t, MatchHostName(matchHostName, "foo.otherexample.*"), false)
+	assert.True(t, MatchHostName(matchHostName, "*"))
+	assert.True(t, MatchHostName(matchHostName, "*.example.com"))
+	assert.True(t, MatchHostName(matchHostName, "foo.*"))
+	assert.True(t, MatchHostName(matchHostName, "foo.*.com"))
+	assert.True(t, MatchHostName(matchHostName, "fo?.example.com"))
+	assert.False(t, MatchHostName(matchHostName, "foo?.example.com"))
+	assert.False(t, MatchHostName(matchHostName, "bar.example.com"))
+	assert.False(t, MatchHostName(matchHostName, "*.otherexample.com"))
+	assert.False(t, MatchHostName(matchHostName, "foo.otherexample.*"))
 }
 
 func Test_SSHFingerprintSHA256(t *testing.T) {

@@ -34,7 +34,7 @@ func TestCreateAndUseAccount(t *testing.T) {
 		Login().
 		Then().
 		CurrentUser(func(user *session.GetUserInfoResponse, err error) {
-			assert.Equal(t, user.LoggedIn, true)
+			assert.True(t, user.LoggedIn)
 			assert.Equal(t, user.Username, ctx.GetName())
 		})
 }
