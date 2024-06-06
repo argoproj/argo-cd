@@ -3,6 +3,8 @@ package cache
 import (
 	"context"
 	"errors"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"net"
 	"net/url"
 	"sync"
@@ -553,7 +555,7 @@ func TestSkipResourceUpdate(t *testing.T) {
 		assert.False(t, skipResourceUpdate(info, nil))
 	})
 	t.Run("No hash", func(t *testing.T) {
-		assert.False(t, skipResourceUpdate(&ResourceInfo{}, &ResourceInfo{}))
+		assert.True(t, skipResourceUpdate(&ResourceInfo{}, &ResourceInfo{}))
 	})
 	t.Run("Same hash", func(t *testing.T) {
 		assert.True(t, skipResourceUpdate(&ResourceInfo{
@@ -651,4 +653,81 @@ func TestSkipResourceUpdate(t *testing.T) {
 			},
 		}))
 	})
+}
+
+func TestShouldHashManifest(t *testing.T) {
+	tests := []struct {
+		name        string
+		appName     string
+		gvk         schema.GroupVersionKind
+		un          *unstructured.Unstructured
+		annotations map[string]string
+		want        bool
+	}{
+		{
+			name:    "appName not empty gvk matches",
+			appName: "MyApp",
+			gvk:     schema.GroupVersionKind{Group: application.Group, Kind: application.ApplicationKind},
+			un:      &unstructured.Unstructured{},
+			want:    true,
+		},
+		{
+			name:    "appName empty",
+			appName: "",
+			gvk:     schema.GroupVersionKind{Group: application.Group, Kind: application.ApplicationKind},
+			un:      &unstructured.Unstructured{},
+			want:    true,
+		},
+		{
+			name:    "appName empty group not match",
+			appName: "",
+			gvk:     schema.GroupVersionKind{Group: "group1", Kind: application.ApplicationKind},
+			un:      &unstructured.Unstructured{},
+			want:    false,
+		},
+		{
+			name:    "appName empty kind not match",
+			appName: "",
+			gvk:     schema.GroupVersionKind{Group: application.Group, Kind: "kind1"},
+			un:      &unstructured.Unstructured{},
+			want:    false,
+		},
+		{
+			name:        "argocd.argoproj.io/apply-resources-update=true",
+			appName:     "",
+			gvk:         schema.GroupVersionKind{Group: application.Group, Kind: "kind1"},
+			un:          &unstructured.Unstructured{},
+			annotations: map[string]string{"argocd.argoproj.io/apply-resources-update": "true"},
+			want:        true,
+		},
+		{
+			name:        "argocd.argoproj.io/apply-resources-update=invalid",
+			appName:     "",
+			gvk:         schema.GroupVersionKind{Group: application.Group, Kind: "kind1"},
+			un:          &unstructured.Unstructured{},
+			annotations: map[string]string{"argocd.argoproj.io/apply-resources-update": "invalid"},
+			want:        false,
+		},
+		{
+			name:        "argocd.argoproj.io/apply-resources-update=false",
+			appName:     "",
+			gvk:         schema.GroupVersionKind{Group: application.Group, Kind: "kind1"},
+			un:          &unstructured.Unstructured{},
+			annotations: map[string]string{"argocd.argoproj.io/apply-resources-update": "false"},
+			want:        false,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if test.annotations != nil {
+				test.un.SetAnnotations(test.annotations)
+			}
+			got := shouldHashManifest(test.appName, test.gvk, test.un)
+			if test.want != got {
+				t.Fatalf("test=%v want %v got %v", test.name, test.want, got)
+			}
+		})
+	}
+
 }
