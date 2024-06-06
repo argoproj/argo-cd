@@ -28,6 +28,10 @@ spec:
       name: Revision
       priority: 10
       type: string
+    - jsonPath: .spec.project
+      name: Project
+      priority: 10
+      type: string
     name: v1alpha1
     schema:
       openAPIV3Schema:

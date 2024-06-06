@@ -490,7 +490,7 @@ func NewClusterListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comman
 # List Clusters in Default "Wide" Format
 argocd cluster list
 
-# List Cluster via specifing the server
+# List Cluster via specifying the server
 argocd cluster list --server <ARGOCD_SERVER_ADDRESS>
 
 # List Clusters in JSON Format

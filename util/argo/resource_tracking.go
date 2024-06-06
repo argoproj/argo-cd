@@ -1,7 +1,9 @@
 package argo
 
 import (
+	"errors"
 	"fmt"
+	"regexp"
 	"strings"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -21,6 +23,7 @@ const (
 
 var WrongResourceTrackingFormat = fmt.Errorf("wrong resource tracking format, should be <application-name>:<group>/<kind>:<namespace>/<name>")
 var LabelMaxLength = 63
+var OkEndPattern = regexp.MustCompile("[a-zA-Z0-9]$")
 
 // ResourceTracking defines methods which allow setup and retrieve tracking information to resource
 type ResourceTracking interface {
@@ -145,7 +148,6 @@ func (rt *resourceTracking) SetAppInstance(un *unstructured.Unstructured, key, v
 		if err != nil {
 			return fmt.Errorf("failed to set app instance label: %w", err)
 		}
-		return nil
 	case TrackingMethodAnnotation:
 		return setAppInstanceAnnotation()
 	case TrackingMethodAnnotationAndLabel:
@@ -155,19 +157,26 @@ func (rt *resourceTracking) SetAppInstance(un *unstructured.Unstructured, key, v
 		}
 		if len(val) > LabelMaxLength {
 			val = val[:LabelMaxLength]
+			// Prevent errors if the truncated name ends in a special character.
+			// See https://github.com/argoproj/argo-cd/issues/18237.
+			for !OkEndPattern.MatchString(val) {
+				if len(val) <= 1 {
+					return errors.New("failed to set app instance label: unable to truncate label to not end with a special character")
+				}
+				val = val[:len(val)-1]
+			}
 		}
 		err = argokube.SetAppInstanceLabel(un, key, val)
 		if err != nil {
 			return fmt.Errorf("failed to set app instance label: %w", err)
 		}
-		return nil
 	default:
 		err := argokube.SetAppInstanceLabel(un, key, val)
 		if err != nil {
 			return fmt.Errorf("failed to set app instance label: %w", err)
 		}
-		return nil
 	}
+	return nil
 }
 
 // BuildAppInstanceValue build resource tracking id in format <application-name>;<group>/<kind>/<namespace>/<name>

@@ -112,6 +112,7 @@ type RepoServerInitConstants struct {
 	HelmManifestMaxExtractedSize                 int64
 	HelmRegistryMaxIndexSize                     int64
 	DisableHelmManifestMaxExtractedSize          bool
+	IncludeHiddenDirectories                     bool
 }
 
 // NewService returns a new instance of the Manifest service
@@ -2240,7 +2241,7 @@ func populatePluginAppDetails(ctx context.Context, res *apiclient.RepoAppDetails
 
 	announcement, err := parametersAnnouncementStream.CloseAndRecv()
 	if err != nil {
-		return fmt.Errorf("failed to get parameter anouncement: %w", err)
+		return fmt.Errorf("failed to get parameter announcement: %w", err)
 	}
 
 	res.Plugin = &apiclient.PluginAppSpec{
@@ -2390,6 +2391,7 @@ func (s *Service) newClientResolveRevision(repo *v1alpha1.Repository, revision s
 	}
 	commitSHA, err := gitClient.LsRemote(revision)
 	if err != nil {
+		s.metricsServer.IncGitLsRemoteFail(gitClient.Root(), revision)
 		return nil, "", err
 	}
 	return gitClient, commitSHA, nil
@@ -2575,6 +2577,7 @@ func (s *Service) ResolveRevision(ctx context.Context, q *apiclient.ResolveRevis
 		}
 		revision, err = gitClient.LsRemote(ambiguousRevision)
 		if err != nil {
+			s.metricsServer.IncGitLsRemoteFail(gitClient.Root(), revision)
 			return &apiclient.ResolveRevisionResponse{Revision: "", AmbiguousRevision: ""}, err
 		}
 		return &apiclient.ResolveRevisionResponse{
@@ -2691,9 +2694,8 @@ func (s *Service) GetGitDirectories(_ context.Context, request *apiclient.GitDir
 			return nil
 		}
 
-		fname := entry.Name()
-		if strings.HasPrefix(fname, ".") { // Skip all folders starts with "."
-			return filepath.SkipDir
+		if !s.initConstants.IncludeHiddenDirectories && strings.HasPrefix(entry.Name(), ".") {
+			return filepath.SkipDir // Skip hidden directory
 		}
 
 		relativePath, err := filepath.Rel(repoRoot, path)
@@ -2752,6 +2754,7 @@ func (s *Service) UpdateRevisionForPaths(_ context.Context, request *apiclient.U
 
 	syncedRevision, err = gitClient.LsRemote(syncedRevision)
 	if err != nil {
+		s.metricsServer.IncGitLsRemoteFail(gitClient.Root(), revision)
 		return nil, status.Errorf(codes.Internal, "unable to resolve git revision %s: %v", revision, err)
 	}
 

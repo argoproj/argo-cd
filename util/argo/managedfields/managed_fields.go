@@ -88,7 +88,7 @@ type typedResults struct {
 }
 
 // newTypedResults will convert live and config into a TypedValue using the given pt
-// and compare them. Returns a typedResults with the coverted types and the comparison.
+// and compare them. Returns a typedResults with the converted types and the comparison.
 // If pt is nil, will use the DeducedParseableType.
 func newTypedResults(live, config *unstructured.Unstructured, pt *typed.ParseableType) (*typedResults, error) {
 	typedLive, err := pt.FromUnstructured(live.Object)
