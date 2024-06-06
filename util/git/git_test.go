@@ -212,34 +212,95 @@ func TestCustomHTTPClient(t *testing.T) {
 func TestLsRemote(t *testing.T) {
 	clnt, err := NewClientExt("https://github.com/argoproj/argo-cd.git", "/tmp", NopCreds{}, false, false, "")
 	assert.NoError(t, err)
-	xpass := []string{
-		"HEAD",
-		"master",
-		"release-0.8",
-		"v0.8.0",
-		"4e22a3cb21fa447ca362a05a505a69397c8a0d44",
-		//"4e22a3c",
+
+	testCases := []struct {
+		name           string
+		revision       string
+		expectedCommit string
+	}{
+		{
+			name:     "should resolve symbolic link reference",
+			revision: "HEAD",
+		},
+		{
+			name:     "should resolve branch name",
+			revision: "master",
+		},
+		{
+			name:           "should resolve tag without semantic versioning",
+			revision:       "release-0.8",
+			expectedCommit: "ff87d8cb9e669d3738434733ecba3c6dd2c64d70",
+		},
+		{
+			name:           "should resolve a pined tag with semantic versioning",
+			revision:       "v0.8.0",
+			expectedCommit: "d7c04ae24c16f8ec611b0331596fbc595537abe9",
+		},
+		{
+			name:           "should resolve a pined tag with semantic versioning without the 'v' prefix",
+			revision:       "0.8.0",
+			expectedCommit: "d7c04ae24c16f8ec611b0331596fbc595537abe9",
+		},
+		{
+			name:           "should resolve a range tag with semantic versioning",
+			revision:       "v0.8.*", // it should resolve to v0.8.2
+			expectedCommit: "e5eefa2b943ae14a3e4491d4e35ef082e1c2a3f4",
+		},
+		{
+			name:           "should resolve a range tag with semantic versioning without the 'v' prefix",
+			revision:       "0.8.*", // it should resolve to v0.8.2
+			expectedCommit: "e5eefa2b943ae14a3e4491d4e35ef082e1c2a3f4",
+		},
+		{
+			name:           "should resolve a conditional range tag with semantic versioning",
+			revision:       ">=v2.9.0 <2.10.4", // it should resolve to v2.10.3
+			expectedCommit: "0fd6344537eb948cff602824a1d060421ceff40e",
+		},
+		{
+			name:     "should resolve a star range tag with semantic versioning",
+			revision: "*",
+		},
+		{
+			name:     "should resolve a star range suffixed tag with semantic versioning",
+			revision: "*-0",
+		},
+		{
+			name:           "should resolve commit sha",
+			revision:       "4e22a3cb21fa447ca362a05a505a69397c8a0d44",
+			expectedCommit: "4e22a3cb21fa447ca362a05a505a69397c8a0d44",
+		},
 	}
-	for _, revision := range xpass {
-		commitSHA, err := clnt.LsRemote(revision)
-		assert.NoError(t, err)
-		assert.True(t, IsCommitSHA(commitSHA))
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			commitSHA, err := clnt.LsRemote(tc.revision)
+			assert.NoError(t, err)
+			assert.True(t, IsCommitSHA(commitSHA))
+			if tc.expectedCommit != "" {
+				assert.Equal(t, tc.expectedCommit, commitSHA)
+			}
+		})
 	}
 
 	// We do not resolve truncated git hashes and return the commit as-is if it appears to be a commit
-	commitSHA, err := clnt.LsRemote("4e22a3c")
-	assert.NoError(t, err)
-	assert.False(t, IsCommitSHA(commitSHA))
-	assert.True(t, IsTruncatedCommitSHA(commitSHA))
+	t.Run("truncated commit", func(t *testing.T) {
+		commitSHA, err := clnt.LsRemote("4e22a3c")
+		assert.NoError(t, err)
+		assert.False(t, IsCommitSHA(commitSHA))
+		assert.True(t, IsTruncatedCommitSHA(commitSHA))
+	})
 
-	xfail := []string{
-		"unresolvable",
-		"4e22a3", // too short (6 characters)
-	}
-	for _, revision := range xfail {
-		_, err := clnt.LsRemote(revision)
-		assert.Error(t, err)
-	}
+	t.Run("unresolvable revisions", func(t *testing.T) {
+		xfail := []string{
+			"unresolvable",
+			"4e22a3", // too short (6 characters)
+		}
+
+		for _, revision := range xfail {
+			_, err := clnt.LsRemote(revision)
+			assert.ErrorContains(t, err, "Unable to resolve")
+		}
+	})
 }
 
 // Running this test requires git-lfs to be installed on your machine.
