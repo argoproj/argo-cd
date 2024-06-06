@@ -6000,6 +6000,12 @@ func schema_pkg_apis_application_v1alpha1_ResourceActions(ref common.ReferenceCa
 							},
 						},
 					},
+					"addBuiltInActions": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"boolean"},
+							Format: "",
+						},
+					},
 				},
 			},
 		},
