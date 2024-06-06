@@ -15,5 +15,3 @@ Below are some of the concepts that are specific to Argo CD.
 * **Tool** A tool to create manifests from a directory of files. E.g. Kustomize. See **Application Source Type**.
 * **Configuration management tool** See **Tool**.
 * **Configuration management plugin** A custom tool.
-
-HI THIS IS A TEST
