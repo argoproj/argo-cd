@@ -367,6 +367,8 @@ func shouldHashManifest(appName string, gvk schema.GroupVersionKind, un *unstruc
 
 	// If the resource does not belong the app, we will look up argocd.argoproj.io/apply-resources-update and decide
 	// whether we generate hash or not.
+	// If argocd.argoproj.io/apply-resources-update is presented and is true, return true
+	// Else return false
 	if !belong {
 		if val, ok := un.GetAnnotations()[AnnotationApplyResourcesUpdate]; ok {
 			applyResourcesUpdate, err := strconv.ParseBool(val)
