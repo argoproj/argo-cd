@@ -27,7 +27,7 @@ func Test_setHelmOpt(t *testing.T) {
 	t.Run("IgnoreMissingValueFiles", func(t *testing.T) {
 		src := v1alpha1.ApplicationSource{}
 		setHelmOpt(&src, helmOpts{ignoreMissingValueFiles: true})
-		assert.Equal(t, true, src.Helm.IgnoreMissingValueFiles)
+		assert.True(t, src.Helm.IgnoreMissingValueFiles)
 	})
 	t.Run("ReleaseName", func(t *testing.T) {
 		src := v1alpha1.ApplicationSource{}
@@ -57,12 +57,12 @@ func Test_setHelmOpt(t *testing.T) {
 	t.Run("HelmPassCredentials", func(t *testing.T) {
 		src := v1alpha1.ApplicationSource{}
 		setHelmOpt(&src, helmOpts{passCredentials: true})
-		assert.Equal(t, true, src.Helm.PassCredentials)
+		assert.True(t, src.Helm.PassCredentials)
 	})
 	t.Run("HelmSkipCrds", func(t *testing.T) {
 		src := v1alpha1.ApplicationSource{}
 		setHelmOpt(&src, helmOpts{skipCrds: true})
-		assert.Equal(t, true, src.Helm.SkipCrds)
+		assert.True(t, src.Helm.SkipCrds)
 	})
 }
 

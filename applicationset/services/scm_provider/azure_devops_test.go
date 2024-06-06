@@ -15,6 +15,8 @@ import (
 	azureGit "github.com/microsoft/azure-devops-go-api/azuredevops/git"
 )
 
+//go:generate go run github.com/vektra/mockery/v2@v2.40.2 --srcpkg=github.com/microsoft/azure-devops-go-api/azuredevops/git --name=Client --output=azure_devops/git/mocks --outpkg=mocks
+
 func s(input string) *string {
 	return ptr.To(input)
 }

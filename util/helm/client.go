@@ -32,7 +32,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/proxy"
 )
 
-//go:generate go run github.com/vektra/mockery/v2@v2.25.1 --name=Client
+//go:generate go run github.com/vektra/mockery/v2@v2.40.2 --name=Client
 
 var (
 	globalLock = sync.NewKeyLock()

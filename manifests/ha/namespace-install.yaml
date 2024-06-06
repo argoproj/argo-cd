@@ -2279,6 +2279,12 @@ spec:
               key: reposerver.grpc.max.size
               name: argocd-cmd-params-cm
               optional: true
+        - name: ARGOCD_REPO_SERVER_INCLUDE_HIDDEN_DIRECTORIES
+          valueFrom:
+            configMapKeyRef:
+              key: reposerver.include.hidden.directories
+              name: argocd-cmd-params-cm
+              optional: true
         - name: HELM_CACHE_HOME
           value: /helm-working-dir
         - name: HELM_CONFIG_HOME
@@ -3319,21 +3325,6 @@ kind: NetworkPolicy
 metadata:
   name: argocd-redis-ha-proxy-network-policy
 spec:
-  egress:
-  - ports:
-    - port: 6379
-      protocol: TCP
-    - port: 26379
-      protocol: TCP
-    to:
-    - podSelector:
-        matchLabels:
-          app.kubernetes.io/name: argocd-redis-ha
-  - ports:
-    - port: 53
-      protocol: UDP
-    - port: 53
-      protocol: TCP
   ingress:
   - from:
     - podSelector:
@@ -3355,7 +3346,6 @@ spec:
       app.kubernetes.io/name: argocd-redis-ha-haproxy
   policyTypes:
   - Ingress
-  - Egress
 ---
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy

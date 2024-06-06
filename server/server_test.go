@@ -1190,7 +1190,7 @@ func TestOIDCConfigChangeDetection_SecretsChanged(t *testing.T) {
 	result := checkOIDCConfigChange(originalOIDCConfig, &argoSettings)
 
 	//Then
-	assert.Equal(t, result, true, "secrets have changed, expect interpolated OIDCConfig to change")
+	assert.True(t, result, "secrets have changed, expect interpolated OIDCConfig to change")
 }
 
 func TestOIDCConfigChangeDetection_ConfigChanged(t *testing.T) {
@@ -1222,7 +1222,7 @@ func TestOIDCConfigChangeDetection_ConfigChanged(t *testing.T) {
 	result := checkOIDCConfigChange(originalOIDCConfig, &argoSettings)
 
 	//Then
-	assert.Equal(t, result, true, "no error expected since OICD config created")
+	assert.True(t, result, "no error expected since OICD config created")
 }
 
 func TestOIDCConfigChangeDetection_ConfigCreated(t *testing.T) {
@@ -1242,7 +1242,7 @@ func TestOIDCConfigChangeDetection_ConfigCreated(t *testing.T) {
 	result := checkOIDCConfigChange(originalOIDCConfig, &argoSettings)
 
 	//Then
-	assert.Equal(t, result, true, "no error expected since new OICD config created")
+	assert.True(t, result, "no error expected since new OICD config created")
 }
 
 func TestOIDCConfigChangeDetection_ConfigDeleted(t *testing.T) {
@@ -1267,7 +1267,7 @@ func TestOIDCConfigChangeDetection_ConfigDeleted(t *testing.T) {
 	result := checkOIDCConfigChange(originalOIDCConfig, &argoSettings)
 
 	//Then
-	assert.Equal(t, result, true, "no error expected since OICD config deleted")
+	assert.True(t, result, "no error expected since OICD config deleted")
 }
 
 func TestOIDCConfigChangeDetection_NoChange(t *testing.T) {
@@ -1290,7 +1290,7 @@ func TestOIDCConfigChangeDetection_NoChange(t *testing.T) {
 	result := checkOIDCConfigChange(originalOIDCConfig, &argoSettings)
 
 	//Then
-	assert.Equal(t, result, false, "no error since no config change")
+	assert.False(t, result, "no error since no config change")
 }
 
 func TestIsMainJsBundle(t *testing.T) {

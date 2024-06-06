@@ -223,10 +223,10 @@ func TestDefaultWaitOptions(t *testing.T) {
 		suspended: false,
 	}
 	opts := getWatchOpts(watch)
-	assert.Equal(t, true, opts.sync)
-	assert.Equal(t, true, opts.health)
-	assert.Equal(t, true, opts.operation)
-	assert.Equal(t, false, opts.suspended)
+	assert.True(t, opts.sync)
+	assert.True(t, opts.health)
+	assert.True(t, opts.operation)
+	assert.False(t, opts.suspended)
 }
 
 func TestOverrideWaitOptions(t *testing.T) {
@@ -237,10 +237,10 @@ func TestOverrideWaitOptions(t *testing.T) {
 		suspended: false,
 	}
 	opts := getWatchOpts(watch)
-	assert.Equal(t, true, opts.sync)
-	assert.Equal(t, false, opts.health)
-	assert.Equal(t, false, opts.operation)
-	assert.Equal(t, false, opts.suspended)
+	assert.True(t, opts.sync)
+	assert.False(t, opts.health)
+	assert.False(t, opts.operation)
+	assert.False(t, opts.suspended)
 }
 
 func TestFindRevisionHistoryWithoutPassedIdAndEmptyHistoryList(t *testing.T) {
@@ -1163,18 +1163,18 @@ func Test_unset(t *testing.T) {
 	assert.False(t, updated)
 	assert.False(t, nothingToUnset)
 
-	assert.Equal(t, true, helmSource.Helm.IgnoreMissingValueFiles)
+	assert.True(t, helmSource.Helm.IgnoreMissingValueFiles)
 	updated, nothingToUnset = unset(helmSource, unsetOpts{ignoreMissingValueFiles: true})
-	assert.Equal(t, false, helmSource.Helm.IgnoreMissingValueFiles)
+	assert.False(t, helmSource.Helm.IgnoreMissingValueFiles)
 	assert.True(t, updated)
 	assert.False(t, nothingToUnset)
 	updated, nothingToUnset = unset(helmSource, unsetOpts{ignoreMissingValueFiles: true})
 	assert.False(t, updated)
 	assert.False(t, nothingToUnset)
 
-	assert.Equal(t, true, helmSource.Helm.PassCredentials)
+	assert.True(t, helmSource.Helm.PassCredentials)
 	updated, nothingToUnset = unset(helmSource, unsetOpts{passCredentials: true})
-	assert.Equal(t, false, helmSource.Helm.PassCredentials)
+	assert.False(t, helmSource.Helm.PassCredentials)
 	assert.True(t, updated)
 	assert.False(t, nothingToUnset)
 	updated, nothingToUnset = unset(helmSource, unsetOpts{passCredentials: true})
@@ -1357,47 +1357,47 @@ func TestFilterAppResources(t *testing.T) {
 		expectedResult    []*v1alpha1.SyncOperationResource
 	}{
 		// --resource apps:ReplicaSet:replicaSet-name1 --resource *:Service:*
-		{testName: "Include ReplicaSet replicaSet-name1 resouce and all service resources",
+		{testName: "Include ReplicaSet replicaSet-name1 resource and all service resources",
 			selectedResources: []*v1alpha1.SyncOperationResource{&includeAllServiceResources, &includeReplicaSet1Resource},
 			expectedResult:    []*v1alpha1.SyncOperationResource{&replicaSet1, &service1, &service2},
 		},
 		// --resource apps:ReplicaSet:replicaSet-name1 --resource !*:Service:*
-		{testName: "Include ReplicaSet replicaSet-name1 resouce and exclude all service resources",
+		{testName: "Include ReplicaSet replicaSet-name1 resource and exclude all service resources",
 			selectedResources: []*v1alpha1.SyncOperationResource{&excludeAllServiceResources, &includeReplicaSet1Resource},
 			expectedResult:    []*v1alpha1.SyncOperationResource{&replicaSet1, &replicaSet2, &job, &deployment},
 		},
 		// --resource !apps:ReplicaSet:replicaSet-name2 --resource !*:Service:*
-		{testName: "Exclude ReplicaSet replicaSet-name2 resouce and all service resources",
+		{testName: "Exclude ReplicaSet replicaSet-name2 resource and all service resources",
 			selectedResources: []*v1alpha1.SyncOperationResource{&excludeReplicaSet2Resource, &excludeAllServiceResources},
 			expectedResult:    []*v1alpha1.SyncOperationResource{&replicaSet1, &replicaSet2, &job, &service1, &service2, &deployment},
 		},
 		// --resource !apps:ReplicaSet:replicaSet-name2
-		{testName: "Exclude ReplicaSet replicaSet-name2 resouce",
+		{testName: "Exclude ReplicaSet replicaSet-name2 resource",
 			selectedResources: []*v1alpha1.SyncOperationResource{&excludeReplicaSet2Resource},
 			expectedResult:    []*v1alpha1.SyncOperationResource{&replicaSet1, &job, &service1, &service2, &deployment},
 		},
 		// --resource apps:ReplicaSet:replicaSet-name1
-		{testName: "Include ReplicaSet replicaSet-name1 resouce",
+		{testName: "Include ReplicaSet replicaSet-name1 resource",
 			selectedResources: []*v1alpha1.SyncOperationResource{&includeReplicaSet1Resource},
 			expectedResult:    []*v1alpha1.SyncOperationResource{&replicaSet1},
 		},
 		// --resource !*:Service:*
-		{testName: "Exclude Service resouces",
+		{testName: "Exclude Service resources",
 			selectedResources: []*v1alpha1.SyncOperationResource{&excludeAllServiceResources},
 			expectedResult:    []*v1alpha1.SyncOperationResource{&replicaSet1, &replicaSet2, &job, &deployment},
 		},
 		// --resource *:Service:*
-		{testName: "Include Service resouces",
+		{testName: "Include Service resources",
 			selectedResources: []*v1alpha1.SyncOperationResource{&includeAllServiceResources},
 			expectedResult:    []*v1alpha1.SyncOperationResource{&service1, &service2},
 		},
 		// --resource !*:*:*
-		{testName: "Exclude all resouces",
+		{testName: "Exclude all resources",
 			selectedResources: []*v1alpha1.SyncOperationResource{&excludeAllResources},
 			expectedResult:    nil,
 		},
 		// --resource *:*:*
-		{testName: "Include all resouces",
+		{testName: "Include all resources",
 			selectedResources: []*v1alpha1.SyncOperationResource{&includeAllResources},
 			expectedResult:    []*v1alpha1.SyncOperationResource{&replicaSet1, &replicaSet2, &job, &service1, &service2, &deployment},
 		},
