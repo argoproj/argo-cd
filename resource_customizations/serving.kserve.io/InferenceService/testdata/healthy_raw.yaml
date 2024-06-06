@@ -3,6 +3,8 @@ kind: InferenceService
 metadata:
   name: helloworld
   namespace: default
+  annotations:
+    serving.kserve.io/deploymentMode: RawDeployment
 spec: {}
 status:
   conditions:
