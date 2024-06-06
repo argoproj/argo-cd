@@ -370,6 +370,9 @@ jobs:
         with:
           name: test-results
           path: test-results
+      - name: Poke around
+        run: |
+          ls -lrt test-results
       - name: combine-go-coverage
         run: |
           go tool covdata percent -i=./test-results -o test-results/full-coverage.out
