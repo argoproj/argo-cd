@@ -212,13 +212,13 @@ func TestAPIVersions(t *testing.T) {
 	if !assert.NoError(t, err) || !assert.Len(t, objs, 1) {
 		return
 	}
-	assert.Equal(t, objs[0].GetAPIVersion(), "sample/v1")
+	assert.Equal(t, "sample/v1", objs[0].GetAPIVersion())
 
 	objs, err = template(h, &TemplateOpts{APIVersions: []string{"sample/v2"}})
 	if !assert.NoError(t, err) || !assert.Len(t, objs, 1) {
 		return
 	}
-	assert.Equal(t, objs[0].GetAPIVersion(), "sample/v2")
+	assert.Equal(t, "sample/v2", objs[0].GetAPIVersion())
 }
 
 func TestSkipCrds(t *testing.T) {

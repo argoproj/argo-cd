@@ -849,7 +849,7 @@ func TestExplicitType(t *testing.T) {
 
 	explicitType, err = src.ExplicitType()
 	assert.NoError(t, err)
-	assert.Equal(t, *explicitType, ApplicationSourceTypeHelm)
+	assert.Equal(t, ApplicationSourceTypeHelm, *explicitType)
 }
 
 func TestExplicitTypeWithDirectory(t *testing.T) {
@@ -2499,7 +2499,7 @@ func TestSyncWindow_Active(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 
 			result := tt.syncWindow.active(tt.currentTime)
-			assert.Equal(t, result, tt.expectedResult)
+			assert.Equal(t, tt.expectedResult, result)
 
 		})
 	}
@@ -3432,7 +3432,7 @@ func TestGetSummary(t *testing.T) {
 
 	summary = tree.GetSummary(app)
 	assert.Len(t, summary.ExternalURLs, 1)
-	assert.Equal(t, summary.ExternalURLs[0], url)
+	assert.Equal(t, url, summary.ExternalURLs[0])
 }
 
 func TestApplicationSourcePluginParameters_Environ_string(t *testing.T) {

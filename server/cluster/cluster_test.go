@@ -205,7 +205,7 @@ func TestGetCluster_UrlEncodedName(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	assert.Equal(t, cluster.Name, "test/ing")
+	assert.Equal(t, "test/ing", cluster.Name)
 }
 
 func TestGetCluster_NameWithUrlEncodingButShouldNotBeUnescaped(t *testing.T) {
@@ -235,7 +235,7 @@ func TestGetCluster_NameWithUrlEncodingButShouldNotBeUnescaped(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	assert.Equal(t, cluster.Name, "test%2fing")
+	assert.Equal(t, "test%2fing", cluster.Name)
 }
 
 func TestUpdateCluster_NoFieldsPaths(t *testing.T) {
@@ -272,8 +272,8 @@ func TestUpdateCluster_NoFieldsPaths(t *testing.T) {
 
 	require.NoError(t, err)
 
-	assert.Equal(t, updated.Name, "minikube")
-	assert.Equal(t, updated.Namespaces, []string{"default", "kube-system"})
+	assert.Equal(t, "minikube", updated.Name)
+	assert.Equal(t, []string{"default", "kube-system"}, updated.Namespaces)
 }
 
 func TestUpdateCluster_FieldsPathSet(t *testing.T) {
@@ -301,9 +301,9 @@ func TestUpdateCluster_FieldsPathSet(t *testing.T) {
 
 	require.NoError(t, err)
 
-	assert.Equal(t, updated.Name, "minikube")
-	assert.Equal(t, updated.Namespaces, []string{"default", "kube-system"})
-	assert.Equal(t, *updated.Shard, int64(1))
+	assert.Equal(t, "minikube", updated.Name)
+	assert.Equal(t, []string{"default", "kube-system"}, updated.Namespaces)
+	assert.Equal(t, int64(1), *updated.Shard)
 
 	labelEnv := map[string]string{
 		"env": "qa",
@@ -318,8 +318,8 @@ func TestUpdateCluster_FieldsPathSet(t *testing.T) {
 
 	require.NoError(t, err)
 
-	assert.Equal(t, updated.Name, "minikube")
-	assert.Equal(t, updated.Namespaces, []string{"default", "kube-system"})
+	assert.Equal(t, "minikube", updated.Name)
+	assert.Equal(t, []string{"default", "kube-system"}, updated.Namespaces)
 	assert.Equal(t, updated.Labels, labelEnv)
 
 	annotationEnv := map[string]string{
@@ -335,8 +335,8 @@ func TestUpdateCluster_FieldsPathSet(t *testing.T) {
 
 	require.NoError(t, err)
 
-	assert.Equal(t, updated.Name, "minikube")
-	assert.Equal(t, updated.Namespaces, []string{"default", "kube-system"})
+	assert.Equal(t, "minikube", updated.Name)
+	assert.Equal(t, []string{"default", "kube-system"}, updated.Namespaces)
 	assert.Equal(t, updated.Annotations, annotationEnv)
 
 	_, err = server.Update(context.Background(), &clusterapi.ClusterUpdateRequest{
@@ -349,9 +349,9 @@ func TestUpdateCluster_FieldsPathSet(t *testing.T) {
 
 	require.NoError(t, err)
 
-	assert.Equal(t, updated.Name, "minikube")
-	assert.Equal(t, updated.Namespaces, []string{"default", "kube-system"})
-	assert.Equal(t, updated.Project, "new-project")
+	assert.Equal(t, "minikube", updated.Name)
+	assert.Equal(t, []string{"default", "kube-system"}, updated.Namespaces)
+	assert.Equal(t, "new-project", updated.Project)
 }
 
 func TestDeleteClusterByName(t *testing.T) {

@@ -1426,7 +1426,7 @@ func TestCreateApp(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, app)
 	assert.NotNil(t, app.Spec)
-	assert.Equal(t, app.Spec.Project, "default")
+	assert.Equal(t, "default", app.Spec.Project)
 }
 
 func TestCreateAppWithDestName(t *testing.T) {
@@ -1438,7 +1438,7 @@ func TestCreateAppWithDestName(t *testing.T) {
 	app, err := appServer.Create(context.Background(), &createReq)
 	assert.NoError(t, err)
 	assert.NotNil(t, app)
-	assert.Equal(t, app.Spec.Destination.Server, "https://cluster-api.example.com")
+	assert.Equal(t, "https://cluster-api.example.com", app.Spec.Destination.Server)
 }
 
 // TestCreateAppWithOperation tests that an application created with an operation is created with the operation removed.
@@ -1470,7 +1470,7 @@ func TestUpdateApp(t *testing.T) {
 		Application: testApp,
 	})
 	assert.NoError(t, err)
-	assert.Equal(t, app.Spec.Project, "default")
+	assert.Equal(t, "default", app.Spec.Project)
 }
 
 func TestUpdateAppSpec(t *testing.T) {
@@ -1835,7 +1835,7 @@ func TestUpdateAppProject(t *testing.T) {
 	t.Run("cannot update to another project", func(t *testing.T) {
 		testApp.Spec.Project = "my-proj"
 		_, err := appServer.Update(ctx, &application.ApplicationUpdateRequest{Application: testApp})
-		assert.Equal(t, status.Code(err), codes.PermissionDenied)
+		assert.Equal(t, codes.PermissionDenied, status.Code(err))
 	})
 
 	t.Run("cannot change projects without create privileges", func(t *testing.T) {
@@ -2258,7 +2258,7 @@ func TestGetAppRefresh_NormalRefresh(t *testing.T) {
 
 	select {
 	case <-ch:
-		assert.Equal(t, atomic.LoadInt32(&patched), int32(1))
+		assert.Equal(t, int32(1), atomic.LoadInt32(&patched))
 	case <-time.After(10 * time.Second):
 		assert.Fail(t, "Out of time ( 10 seconds )")
 	}
@@ -2298,7 +2298,7 @@ func TestGetAppRefresh_HardRefresh(t *testing.T) {
 	assert.NoError(t, err)
 	select {
 	case <-ch:
-		assert.Equal(t, atomic.LoadInt32(&patched), int32(1))
+		assert.Equal(t, int32(1), atomic.LoadInt32(&patched))
 	case <-time.After(10 * time.Second):
 		assert.Fail(t, "Out of time ( 10 seconds )")
 	}

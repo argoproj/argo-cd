@@ -620,7 +620,7 @@ func TestGenerateManifestsUseExactRevision(t *testing.T) {
 	res1, err := service.GenerateManifest(context.Background(), &q)
 	assert.NoError(t, err)
 	assert.Len(t, res1.Manifests, 2)
-	assert.Equal(t, gitClient.Calls[0].Arguments[0], "abc")
+	assert.Equal(t, "abc", gitClient.Calls[0].Arguments[0])
 }
 
 func TestRecurseManifestsInDir(t *testing.T) {
@@ -3047,9 +3047,9 @@ func TestGetHelmRepos_OCIDependenciesWithHelmRepo(t *testing.T) {
 	assert.NoError(t, err)
 
 	assert.Len(t, helmRepos, 1)
-	assert.Equal(t, helmRepos[0].Username, "test")
+	assert.Equal(t, "test", helmRepos[0].Username)
 	assert.True(t, helmRepos[0].EnableOci)
-	assert.Equal(t, helmRepos[0].Repo, "example.com/myrepo")
+	assert.Equal(t, "example.com/myrepo", helmRepos[0].Repo)
 }
 
 func TestGetHelmRepos_OCIDependenciesWithRepo(t *testing.T) {
@@ -3060,9 +3060,9 @@ func TestGetHelmRepos_OCIDependenciesWithRepo(t *testing.T) {
 	assert.NoError(t, err)
 
 	assert.Len(t, helmRepos, 1)
-	assert.Equal(t, helmRepos[0].Username, "test")
+	assert.Equal(t, "test", helmRepos[0].Username)
 	assert.True(t, helmRepos[0].EnableOci)
-	assert.Equal(t, helmRepos[0].Repo, "example.com/myrepo")
+	assert.Equal(t, "example.com/myrepo", helmRepos[0].Repo)
 }
 
 func TestGetHelmRepo_NamedRepos(t *testing.T) {
@@ -3077,8 +3077,8 @@ func TestGetHelmRepo_NamedRepos(t *testing.T) {
 	assert.NoError(t, err)
 
 	assert.Len(t, helmRepos, 1)
-	assert.Equal(t, helmRepos[0].Username, "test")
-	assert.Equal(t, helmRepos[0].Repo, "https://example.com")
+	assert.Equal(t, "test", helmRepos[0].Username)
+	assert.Equal(t, "https://example.com", helmRepos[0].Repo)
 }
 
 func TestGetHelmRepo_NamedReposAlias(t *testing.T) {
@@ -3093,8 +3093,8 @@ func TestGetHelmRepo_NamedReposAlias(t *testing.T) {
 	assert.NoError(t, err)
 
 	assert.Len(t, helmRepos, 1)
-	assert.Equal(t, helmRepos[0].Username, "test-alias")
-	assert.Equal(t, helmRepos[0].Repo, "https://example.com")
+	assert.Equal(t, "test-alias", helmRepos[0].Username)
+	assert.Equal(t, "https://example.com", helmRepos[0].Repo)
 }
 
 func Test_getResolvedValueFiles(t *testing.T) {
@@ -3462,7 +3462,7 @@ func TestGetGitFiles(t *testing.T) {
 
 	fileResponse, err := s.GetGitFiles(context.TODO(), filesRequest)
 	assert.NoError(t, err)
-	assert.Equal(t, fileResponse.GetMap(), expected)
+	assert.Equal(t, expected, fileResponse.GetMap())
 
 	// do the same request again to use the cache
 	// we only allow LsFiles to be called once in the mock

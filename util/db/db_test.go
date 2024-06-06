@@ -65,8 +65,8 @@ func TestCreateRepository(t *testing.T) {
 	assert.NoError(t, err)
 
 	assert.Equal(t, common.AnnotationValueManagedByArgoCD, secret.Annotations[common.AnnotationKeyManagedBy])
-	assert.Equal(t, string(secret.Data[username]), "test-username")
-	assert.Equal(t, string(secret.Data[password]), "test-password")
+	assert.Equal(t, "test-username", string(secret.Data[username]))
+	assert.Equal(t, "test-password", string(secret.Data[password]))
 	assert.Empty(t, secret.Data[sshPrivateKey])
 }
 
@@ -103,17 +103,17 @@ func TestCreateProjectScopedRepository(t *testing.T) {
 	assert.NoError(t, err)
 
 	assert.Equal(t, common.AnnotationValueManagedByArgoCD, secret.Annotations[common.AnnotationKeyManagedBy])
-	assert.Equal(t, string(secret.Data[username]), "test-username")
-	assert.Equal(t, string(secret.Data[password]), "test-password")
-	assert.Equal(t, string(secret.Data[project]), "test-project")
+	assert.Equal(t, "test-username", string(secret.Data[username]))
+	assert.Equal(t, "test-password", string(secret.Data[password]))
+	assert.Equal(t, "test-project", string(secret.Data[project]))
 	assert.Empty(t, secret.Data[sshPrivateKey])
 
 	secret, err = clientset.CoreV1().Secrets(testNamespace).Get(context.Background(), RepoURLToSecretName(repoSecretPrefix, otherRepo.Repo, "other-project"), metav1.GetOptions{})
 	assert.NoError(t, err)
 	assert.Equal(t, common.AnnotationValueManagedByArgoCD, secret.Annotations[common.AnnotationKeyManagedBy])
-	assert.Equal(t, string(secret.Data[username]), "other-username")
-	assert.Equal(t, string(secret.Data[password]), "other-password")
-	assert.Equal(t, string(secret.Data[project]), "other-project")
+	assert.Equal(t, "other-username", string(secret.Data[username]))
+	assert.Equal(t, "other-password", string(secret.Data[password]))
+	assert.Equal(t, "other-project", string(secret.Data[project]))
 	assert.Empty(t, secret.Data[sshPrivateKey])
 }
 
@@ -133,8 +133,8 @@ func TestCreateRepoCredentials(t *testing.T) {
 	assert.NoError(t, err)
 
 	assert.Equal(t, common.AnnotationValueManagedByArgoCD, secret.Annotations[common.AnnotationKeyManagedBy])
-	assert.Equal(t, string(secret.Data[username]), "test-username")
-	assert.Equal(t, string(secret.Data[password]), "test-password")
+	assert.Equal(t, "test-username", string(secret.Data[username]))
+	assert.Equal(t, "test-password", string(secret.Data[password]))
 	assert.Empty(t, secret.Data[sshPrivateKey])
 
 	created, err := db.CreateRepository(context.Background(), &v1alpha1.Repository{
