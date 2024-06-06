@@ -394,10 +394,10 @@ func TestKustomizeLabelWithoutSelector(t *testing.T) {
 				obj := objs[0]
 				sl, found, err := unstructured.NestedStringMap(obj.Object, "spec", "selector", "matchLabels")
 				assert.Nil(t, err)
-				assert.Equal(t, found, true)
+				assert.True(t, found)
 				tl, found, err := unstructured.NestedStringMap(obj.Object, "spec", "template", "metadata", "labels")
 				assert.Nil(t, err)
-				assert.Equal(t, found, true)
+				assert.True(t, found)
 				assert.Equal(t, tc.ExpectedMetadataLabels, obj.GetLabels())
 				assert.Equal(t, tc.ExpectedSelectorLabels, sl)
 				assert.Equal(t, tc.ExpectedTemplateLabels, tl)
@@ -478,13 +478,13 @@ func TestKustomizeBuildPatches(t *testing.T) {
 	obj := objs[0]
 	containers, found, err := unstructured.NestedSlice(obj.Object, "spec", "template", "spec", "containers")
 	assert.Nil(t, err)
-	assert.Equal(t, found, true)
+	assert.True(t, found)
 
 	ports, found, err := unstructured.NestedSlice(
 		containers[0].(map[string]interface{}),
 		"ports",
 	)
-	assert.Equal(t, found, true)
+	assert.True(t, found)
 	assert.Nil(t, err)
 
 	port, found, err := unstructured.NestedInt64(
@@ -492,7 +492,7 @@ func TestKustomizeBuildPatches(t *testing.T) {
 		"containerPort",
 	)
 
-	assert.Equal(t, found, true)
+	assert.True(t, found)
 	assert.Nil(t, err)
 	assert.Equal(t, port, int64(443))
 
@@ -500,7 +500,7 @@ func TestKustomizeBuildPatches(t *testing.T) {
 		containers[0].(map[string]interface{}),
 		"name",
 	)
-	assert.Equal(t, found, true)
+	assert.True(t, found)
 	assert.Nil(t, err)
 	assert.Equal(t, name, "test")
 }

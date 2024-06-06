@@ -169,6 +169,6 @@ func TestDeepLinks(t *testing.T) {
 		objs := CreateDeepLinksObject(tc.resourceObj, tc.appObj, tc.clusterObj, tc.projectObj)
 		output, err := EvaluateDeepLinksResponse(objs, tc.appObj.GetName(), tc.inputLinks)
 		assert.Equal(t, tc.error, err, strings.Join(err, ","))
-		assert.Equal(t, reflect.DeepEqual(output.Items, tc.outputLinks), true)
+		assert.True(t, reflect.DeepEqual(output.Items, tc.outputLinks))
 	}
 }

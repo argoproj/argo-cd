@@ -4,6 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/argoproj/argo-cd/v2/server/rbacpolicy"
+	"github.com/argoproj/argo-cd/v2/util/assets"
+	"github.com/golang-jwt/jwt/v4"
 	"reflect"
 	"testing"
 	"time"
@@ -49,6 +52,16 @@ func newNoopEnforcer() *rbac.Enforcer {
 	enf := rbac.NewEnforcer(fake.NewSimpleClientset(test.NewFakeConfigMap()), test.FakeArgoCDNamespace, common.ArgoCDConfigMapName, nil)
 	enf.EnableEnforce(false)
 	return enf
+}
+
+func newEnforcer() *rbac.Enforcer {
+	enforcer := rbac.NewEnforcer(fake.NewSimpleClientset(test.NewFakeConfigMap()), test.FakeArgoCDNamespace, common.ArgoCDRBACConfigMapName, nil)
+	_ = enforcer.SetBuiltinPolicy(assets.BuiltinPolicyCSV)
+	enforcer.SetDefaultRole("role:test")
+	enforcer.SetClaimsEnforcerFunc(func(claims jwt.Claims, rvals ...interface{}) bool {
+		return true
+	})
+	return enforcer
 }
 
 func TestUpdateCluster_RejectInvalidParams(t *testing.T) {
@@ -603,4 +616,153 @@ func TestListCluster(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestGetClusterAndVerifyAccess(t *testing.T) {
+	t.Run("GetClusterAndVerifyAccess - No Cluster", func(t *testing.T) {
+		db := &dbmocks.ArgoDB{}
+
+		mockCluster := v1alpha1.Cluster{
+			Name:       "test/ing",
+			Server:     "https://127.0.0.1",
+			Namespaces: []string{"default", "kube-system"},
+		}
+		mockClusterList := v1alpha1.ClusterList{
+			ListMeta: v1.ListMeta{},
+			Items: []v1alpha1.Cluster{
+				mockCluster,
+			},
+		}
+
+		db.On("ListClusters", mock.Anything).Return(&mockClusterList, nil)
+
+		server := NewServer(db, newNoopEnforcer(), newServerInMemoryCache(), &kubetest.MockKubectlCmd{})
+		cluster, err := server.getClusterAndVerifyAccess(context.Background(), &clusterapi.ClusterQuery{
+			Name: "test/not-exists",
+		}, rbacpolicy.ActionGet)
+
+		assert.Nil(t, cluster)
+		assert.ErrorIs(t, err, common.PermissionDeniedAPIError)
+	})
+
+	t.Run("GetClusterAndVerifyAccess - Permissions Denied", func(t *testing.T) {
+		db := &dbmocks.ArgoDB{}
+
+		mockCluster := v1alpha1.Cluster{
+			Name:       "test/ing",
+			Server:     "https://127.0.0.1",
+			Namespaces: []string{"default", "kube-system"},
+		}
+		mockClusterList := v1alpha1.ClusterList{
+			ListMeta: v1.ListMeta{},
+			Items: []v1alpha1.Cluster{
+				mockCluster,
+			},
+		}
+
+		db.On("ListClusters", mock.Anything).Return(&mockClusterList, nil)
+
+		server := NewServer(db, newEnforcer(), newServerInMemoryCache(), &kubetest.MockKubectlCmd{})
+		cluster, err := server.getClusterAndVerifyAccess(context.Background(), &clusterapi.ClusterQuery{
+			Name: "test/ing",
+		}, rbacpolicy.ActionGet)
+
+		assert.Nil(t, cluster)
+		assert.ErrorIs(t, err, common.PermissionDeniedAPIError)
+	})
+}
+
+func TestNoClusterEnumeration(t *testing.T) {
+	db := &dbmocks.ArgoDB{}
+
+	mockCluster := v1alpha1.Cluster{
+		Name:       "test/ing",
+		Server:     "https://127.0.0.1",
+		Namespaces: []string{"default", "kube-system"},
+	}
+	mockClusterList := v1alpha1.ClusterList{
+		ListMeta: v1.ListMeta{},
+		Items: []v1alpha1.Cluster{
+			mockCluster,
+		},
+	}
+
+	db.On("ListClusters", mock.Anything).Return(&mockClusterList, nil)
+	db.On("GetCluster", mock.Anything, mock.Anything).Return(&mockCluster, nil)
+
+	server := NewServer(db, newEnforcer(), newServerInMemoryCache(), &kubetest.MockKubectlCmd{})
+
+	t.Run("Get", func(t *testing.T) {
+		_, err := server.Get(context.Background(), &clusterapi.ClusterQuery{
+			Name: "cluster-not-exists",
+		})
+		assert.Error(t, err)
+		assert.Equal(t, common.PermissionDeniedAPIError.Error(), err.Error(), "error message must be _only_ the permission error, to avoid leaking information about cluster existence")
+
+		_, err = server.Get(context.Background(), &clusterapi.ClusterQuery{
+			Name: "test/ing",
+		})
+		assert.Error(t, err)
+		assert.Equal(t, common.PermissionDeniedAPIError.Error(), err.Error(), "error message must be _only_ the permission error, to avoid leaking information about cluster existence")
+	})
+
+	t.Run("Update", func(t *testing.T) {
+		_, err := server.Update(context.Background(), &clusterapi.ClusterUpdateRequest{
+			Cluster: &v1alpha1.Cluster{
+				Name: "cluster-not-exists",
+			},
+		})
+		assert.Error(t, err)
+		assert.Equal(t, common.PermissionDeniedAPIError.Error(), err.Error(), "error message must be _only_ the permission error, to avoid leaking information about cluster existence")
+
+		_, err = server.Update(context.Background(), &clusterapi.ClusterUpdateRequest{
+			Cluster: &v1alpha1.Cluster{
+				Name: "test/ing",
+			},
+		})
+		assert.Error(t, err)
+		assert.Equal(t, common.PermissionDeniedAPIError.Error(), err.Error(), "error message must be _only_ the permission error, to avoid leaking information about cluster existence")
+	})
+
+	t.Run("Delete", func(t *testing.T) {
+		_, err := server.Delete(context.Background(), &clusterapi.ClusterQuery{
+			Server: "https://127.0.0.2",
+		})
+		assert.Error(t, err)
+		assert.Equal(t, common.PermissionDeniedAPIError.Error(), err.Error(), "error message must be _only_ the permission error, to avoid leaking information about cluster existence")
+
+		_, err = server.Delete(context.Background(), &clusterapi.ClusterQuery{
+			Server: "https://127.0.0.1",
+		})
+		assert.Error(t, err)
+		assert.Equal(t, common.PermissionDeniedAPIError.Error(), err.Error(), "error message must be _only_ the permission error, to avoid leaking information about cluster existence")
+	})
+
+	t.Run("RotateAuth", func(t *testing.T) {
+		_, err := server.RotateAuth(context.Background(), &clusterapi.ClusterQuery{
+			Server: "https://127.0.0.2",
+		})
+		assert.Error(t, err)
+		assert.Equal(t, common.PermissionDeniedAPIError.Error(), err.Error(), "error message must be _only_ the permission error, to avoid leaking information about cluster existence")
+
+		_, err = server.RotateAuth(context.Background(), &clusterapi.ClusterQuery{
+			Server: "https://127.0.0.1",
+		})
+		assert.Error(t, err)
+		assert.Equal(t, common.PermissionDeniedAPIError.Error(), err.Error(), "error message must be _only_ the permission error, to avoid leaking information about cluster existence")
+	})
+
+	t.Run("InvalidateCache", func(t *testing.T) {
+		_, err := server.InvalidateCache(context.Background(), &clusterapi.ClusterQuery{
+			Server: "https://127.0.0.2",
+		})
+		assert.Error(t, err)
+		assert.Equal(t, common.PermissionDeniedAPIError.Error(), err.Error(), "error message must be _only_ the permission error, to avoid leaking information about cluster existence")
+
+		_, err = server.InvalidateCache(context.Background(), &clusterapi.ClusterQuery{
+			Server: "https://127.0.0.1",
+		})
+		assert.Error(t, err)
+		assert.Equal(t, common.PermissionDeniedAPIError.Error(), err.Error(), "error message must be _only_ the permission error, to avoid leaking information about cluster existence")
+	})
 }
