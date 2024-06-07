@@ -23,6 +23,7 @@ import (
 	certutil "github.com/argoproj/argo-cd/v2/util/cert"
 	executil "github.com/argoproj/argo-cd/v2/util/exec"
 	"github.com/argoproj/argo-cd/v2/util/git"
+	"github.com/argoproj/argo-cd/v2/util/proxy"
 )
 
 // represents a Docker image in the format NAME[:TAG].
@@ -35,13 +36,14 @@ type Kustomize interface {
 }
 
 // NewKustomizeApp create a new wrapper to run commands on the `kustomize` command-line tool.
-func NewKustomizeApp(repoRoot string, path string, creds git.Creds, fromRepo string, binaryPath string) Kustomize {
+func NewKustomizeApp(repoRoot string, path string, creds git.Creds, fromRepo string, binaryPath string, proxy string) Kustomize {
 	return &kustomize{
 		repoRoot:   repoRoot,
 		path:       path,
 		creds:      creds,
 		repo:       fromRepo,
 		binaryPath: binaryPath,
+		proxy:      proxy,
 	}
 }
 
@@ -56,6 +58,8 @@ type kustomize struct {
 	repo string
 	// optional kustomize binary path
 	binaryPath string
+	// HTTP/HTTPS proxy used to access repository
+	proxy string
 }
 
 var _ Kustomize = &kustomize{}
@@ -306,6 +310,7 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 		cmd = exec.Command(k.getBinaryPath(), "build", k.path)
 	}
 	cmd.Env = env
+	cmd.Env = proxy.UpsertEnv(cmd, k.proxy)
 	cmd.Dir = k.repoRoot
 	out, err := executil.Run(cmd)
 	if err != nil {
