@@ -107,7 +107,7 @@ func Test_validateRBACResourceAction(t *testing.T) {
 			if tt.valid {
 				assert.NoError(t, result)
 			} else {
-				assert.NotNil(t, result)
+				assert.Error(t, result)
 			}
 		})
 	}

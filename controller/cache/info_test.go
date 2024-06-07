@@ -752,5 +752,5 @@ func TestManifestHash(t *testing.T) {
 
 	hash, err := generateManifestHash(manifest, ignores, nil, normalizers.IgnoreNormalizerOpts{})
 	assert.Equal(t, expected, hash)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 }

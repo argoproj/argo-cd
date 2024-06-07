@@ -273,7 +273,7 @@ func TestInitializingExistingDefaultProject(t *testing.T) {
 	assert.NotNil(t, argocd)
 
 	proj, err := appClientSet.ArgoprojV1alpha1().AppProjects(test.FakeArgoCDNamespace).Get(context.Background(), v1alpha1.DefaultAppProjectName, metav1.GetOptions{})
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.NotNil(t, proj)
 	assert.Equal(t, proj.Name, v1alpha1.DefaultAppProjectName)
 }
@@ -296,7 +296,7 @@ func TestInitializingNotExistingDefaultProject(t *testing.T) {
 	assert.NotNil(t, argocd)
 
 	proj, err := appClientSet.ArgoprojV1alpha1().AppProjects(test.FakeArgoCDNamespace).Get(context.Background(), v1alpha1.DefaultAppProjectName, metav1.GetOptions{})
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.NotNil(t, proj)
 	assert.Equal(t, proj.Name, v1alpha1.DefaultAppProjectName)
 }

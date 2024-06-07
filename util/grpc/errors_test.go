@@ -15,7 +15,7 @@ import (
 
 func Test_gitErrToGRPC(t *testing.T) {
 	var ok bool
-	assert.Equal(t, gitErrToGRPC(nil), nil)
+	assert.NoError(t, gitErrToGRPC(nil))
 
 	defaultErrorMsg := "default error"
 	defaultError := gitErrToGRPC(errors.New(defaultErrorMsg))
