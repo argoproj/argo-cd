@@ -1,5 +1,5 @@
 -- isInferenceServiceInRawDeploymentMode determines if the inference service deployed in RawDeployment mode
--- kserve v12 and above supports Rawdeployment for Inference graphs and Inference services
+-- KServe v12 and above supports Rawdeployment for Inference graphs. For Inference services, KServe has supported RawDeployment model since [v0.7.0](https://github.com/kserve/kserve/releases/tag/v0.7.0).
 function isInferenceServiceInRawDeploymentMode(obj)
   if obj.metadata.annotations == nil then
     return false
