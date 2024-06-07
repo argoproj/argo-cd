@@ -494,7 +494,7 @@ func TestLsFiles(t *testing.T) {
 	assert.Equal(t, expectedResult, lsResult)
 
 	// New and safer globbing, do not return symlinks resolving outside of the repo
-	expectedResult = nil
+	expectedResult = []string{"a.yaml"}
 	lsResult, err = client.LsFiles("*.yaml", true)
 	assert.NoError(t, err)
 	assert.Equal(t, expectedResult, lsResult)
