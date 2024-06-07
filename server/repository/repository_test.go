@@ -424,7 +424,7 @@ func TestRepositoryServer(t *testing.T) {
 		s := NewServer(&repoServerClientset, db, enforcer, newFixtures().Cache, appLister, projInformer, testNamespace, settingsMgr)
 		resp, err := s.ListRepositories(context.TODO(), &repository.RepoQuery{})
 		assert.NoError(t, err)
-		assert.Equal(t, 2, len(resp.Items))
+		assert.Len(t, resp.Items, 2)
 	})
 }
 
@@ -679,7 +679,7 @@ func TestRepositoryServerGetAppDetails(t *testing.T) {
 
 		s := NewServer(&repoServerClientset, db, enforcer, newFixtures().Cache, appLister, projLister, testNamespace, settingsMgr)
 		sources := multiSourceApp001.Spec.GetSources()
-		assert.Equal(t, 2, len(sources))
+		assert.Len(t, sources, 2)
 		resp, err := s.GetAppDetails(context.TODO(), &repository.RepoAppDetailsQuery{
 			Source:     &sources[0],
 			AppName:    multiSourceApp001AppName,
@@ -720,7 +720,7 @@ func TestRepositoryServerGetAppDetails(t *testing.T) {
 
 		s := NewServer(&repoServerClientset, db, enforcer, newFixtures().Cache, appLister, projLister, testNamespace, settingsMgr)
 		sources := multiSourceApp002.Spec.GetSources()
-		assert.Equal(t, 2, len(sources))
+		assert.Len(t, sources, 2)
 
 		resp, err := s.GetAppDetails(context.TODO(), &repository.RepoAppDetailsQuery{
 			Source:     &sources[0],

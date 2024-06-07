@@ -2367,7 +2367,7 @@ func TestValidateGeneratedApplications(t *testing.T) {
 			}
 
 			if len(errorMessages) == 0 {
-				assert.Equal(t, len(cc.expectedErrors), 0, "Expected errors but none were seen")
+				assert.Empty(t, cc.expectedErrors, "Expected errors but none were seen")
 			} else {
 				// An error was returned: it should be expected
 				matched := false
@@ -2943,7 +2943,7 @@ func TestDeletePerformedWithSyncPolicyCreateDelete(t *testing.T) {
 
 	apps := applicationsDeleteSyncPolicyTest(t, applicationsSyncPolicy, 3, true)
 
-	assert.Equal(t, 0, len(apps.Items))
+	assert.Empty(t, apps.Items)
 }
 
 func TestDeletePerformedWithSyncPolicySync(t *testing.T) {
@@ -2952,7 +2952,7 @@ func TestDeletePerformedWithSyncPolicySync(t *testing.T) {
 
 	apps := applicationsDeleteSyncPolicyTest(t, applicationsSyncPolicy, 3, true)
 
-	assert.Equal(t, 0, len(apps.Items))
+	assert.Empty(t, apps.Items)
 }
 
 func TestDeletePerformedWithSyncPolicyCreateOnlyAndAllowPolicyOverrideFalse(t *testing.T) {
@@ -2961,7 +2961,7 @@ func TestDeletePerformedWithSyncPolicyCreateOnlyAndAllowPolicyOverrideFalse(t *t
 
 	apps := applicationsDeleteSyncPolicyTest(t, applicationsSyncPolicy, 3, false)
 
-	assert.Equal(t, 0, len(apps.Items))
+	assert.Empty(t, apps.Items)
 }
 
 // Test app generation from a go template application set using a pull request generator

@@ -58,7 +58,7 @@ func TestClusterSharding_Add(t *testing.T) {
 	assert.True(t, ok)
 	assert.Equal(t, 0, myClusterDistribution)
 
-	assert.Equal(t, 2, len(distribution))
+	assert.Len(t, distribution, 2)
 }
 
 func TestClusterSharding_AddRoundRobin_Redistributes(t *testing.T) {
@@ -94,7 +94,7 @@ func TestClusterSharding_AddRoundRobin_Redistributes(t *testing.T) {
 	assert.True(t, ok)
 	assert.Equal(t, 1, clusterDistributionB)
 
-	assert.Equal(t, 2, len(distributionBefore))
+	assert.Len(t, distributionBefore, 2)
 
 	clusterC := v1alpha1.Cluster{
 		ID:     "2",
@@ -149,7 +149,7 @@ func TestClusterSharding_Delete(t *testing.T) {
 
 	sharding.Delete("https://kubernetes.default.svc")
 	distribution := sharding.GetDistribution()
-	assert.Equal(t, 1, len(distribution))
+	assert.Len(t, distribution, 1)
 }
 
 func TestClusterSharding_Update(t *testing.T) {
@@ -179,7 +179,7 @@ func TestClusterSharding_Update(t *testing.T) {
 	)
 
 	distributionBefore := sharding.GetDistribution()
-	assert.Equal(t, 2, len(distributionBefore))
+	assert.Len(t, distributionBefore, 2)
 
 	distributionA, ok := distributionBefore["https://kubernetes.default.svc"]
 	assert.True(t, ok)
@@ -194,7 +194,7 @@ func TestClusterSharding_Update(t *testing.T) {
 	})
 
 	distributionAfter := sharding.GetDistribution()
-	assert.Equal(t, 2, len(distributionAfter))
+	assert.Len(t, distributionAfter, 2)
 
 	distributionA, ok = distributionAfter["https://kubernetes.default.svc"]
 	assert.True(t, ok)
@@ -228,7 +228,7 @@ func TestClusterSharding_UpdateServerName(t *testing.T) {
 	)
 
 	distributionBefore := sharding.GetDistribution()
-	assert.Equal(t, 2, len(distributionBefore))
+	assert.Len(t, distributionBefore, 2)
 
 	distributionA, ok := distributionBefore["https://kubernetes.default.svc"]
 	assert.True(t, ok)
@@ -243,7 +243,7 @@ func TestClusterSharding_UpdateServerName(t *testing.T) {
 	})
 
 	distributionAfter := sharding.GetDistribution()
-	assert.Equal(t, 2, len(distributionAfter))
+	assert.Len(t, distributionAfter, 2)
 
 	_, ok = distributionAfter["https://kubernetes.default.svc"]
 	assert.False(t, ok) // the old server name should not be present anymore
@@ -365,7 +365,7 @@ func TestClusterSharding_ClusterShardOfResourceShouldNotBeChanged(t *testing.T) 
 		},
 	)
 	distribution := sharding.GetDistribution()
-	assert.Equal(t, 3, len(distribution))
+	assert.Len(t, distribution, 3)
 
 	assert.Nil(t, sharding.Clusters[clusterWithNil.Server].Shard)
 

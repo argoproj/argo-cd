@@ -39,7 +39,7 @@ func TestHelmTemplateParams(t *testing.T) {
 	}
 	objs, err := template(h, &opts)
 	assert.Nil(t, err)
-	assert.Equal(t, 5, len(objs))
+	assert.Len(t, objs, 5)
 
 	for _, obj := range objs {
 		if obj.GetKind() == "Service" && obj.GetName() == "test-minio" {
@@ -67,7 +67,7 @@ func TestHelmTemplateValues(t *testing.T) {
 	}
 	objs, err := template(h, &opts)
 	assert.Nil(t, err)
-	assert.Equal(t, 8, len(objs))
+	assert.Len(t, objs, 8)
 
 	for _, obj := range objs {
 		if obj.GetKind() == "Deployment" && obj.GetName() == "test-redis-slave" {
@@ -130,7 +130,7 @@ func TestHelmTemplateReleaseNameOverwrite(t *testing.T) {
 
 	objs, err := template(h, &TemplateOpts{Name: "my-release"})
 	assert.Nil(t, err)
-	assert.Equal(t, 5, len(objs))
+	assert.Len(t, objs, 5)
 
 	for _, obj := range objs {
 		if obj.GetKind() == "StatefulSet" {
@@ -147,7 +147,7 @@ func TestHelmTemplateReleaseName(t *testing.T) {
 	assert.NoError(t, err)
 	objs, err := template(h, &TemplateOpts{Name: "test"})
 	assert.Nil(t, err)
-	assert.Equal(t, 5, len(objs))
+	assert.Len(t, objs, 5)
 
 	for _, obj := range objs {
 		if obj.GetKind() == "StatefulSet" {
@@ -238,7 +238,7 @@ func TestSkipCrds(t *testing.T) {
 	}
 
 	objs, err = template(h, &TemplateOpts{SkipCrds: true})
-	if !assert.NoError(t, err) || !assert.Len(t, objs, 0) {
+	if !assert.NoError(t, err) || !assert.Empty(t, objs) {
 		return
 	}
 }

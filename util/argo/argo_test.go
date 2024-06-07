@@ -295,7 +295,7 @@ func TestValidateChartWithoutRevision(t *testing.T) {
 		},
 	}, db)
 	assert.NoError(t, err)
-	assert.Equal(t, 1, len(conditions))
+	assert.Len(t, conditions, 1)
 	assert.Equal(t, argoappv1.ApplicationConditionInvalidSpecError, conditions[0].Type)
 	assert.Equal(t, "spec.source.targetRevision is required if the manifest source is a helm chart", conditions[0].Message)
 }
@@ -555,7 +555,7 @@ func TestFilterByRepo(t *testing.T) {
 
 	t.Run("No match", func(t *testing.T) {
 		res := FilterByRepo(apps, "git@github.com:owner/willnotmatch.git")
-		assert.Len(t, res, 0)
+		assert.Empty(t, res)
 	})
 }
 
@@ -589,7 +589,7 @@ func TestFilterByRepoP(t *testing.T) {
 
 	t.Run("No match", func(t *testing.T) {
 		res := FilterByRepoP(apps, "git@github.com:owner/willnotmatch.git")
-		assert.Len(t, res, 0)
+		assert.Empty(t, res)
 	})
 }
 
@@ -836,7 +836,7 @@ func TestValidatePermissions(t *testing.T) {
 		db.On("GetCluster", context.Background(), "https://127.0.0.1:6443").Return(&cluster, nil)
 		conditions, err := ValidatePermissions(context.Background(), &spec, &proj, db)
 		assert.NoError(t, err)
-		assert.Len(t, conditions, 0)
+		assert.Empty(t, conditions)
 	})
 }
 
@@ -1006,7 +1006,7 @@ func TestFilterByName(t *testing.T) {
 	t.Run("No such app", func(t *testing.T) {
 		res, err := FilterByName(apps, "foobar")
 		assert.Error(t, err)
-		assert.Len(t, res, 0)
+		assert.Empty(t, res)
 	})
 }
 
@@ -1042,7 +1042,7 @@ func TestFilterByNameP(t *testing.T) {
 
 	t.Run("No such app", func(t *testing.T) {
 		res := FilterByNameP(apps, "foobar")
-		assert.Len(t, res, 0)
+		assert.Empty(t, res)
 	})
 }
 
@@ -1433,7 +1433,7 @@ func TestValidatePermissionsMultipleSources(t *testing.T) {
 		db.On("GetCluster", context.Background(), "https://127.0.0.1:6443").Return(&cluster, nil)
 		conditions, err := ValidatePermissions(context.Background(), &spec, &proj, db)
 		assert.NoError(t, err)
-		assert.Len(t, conditions, 0)
+		assert.Empty(t, conditions)
 	})
 }
 
