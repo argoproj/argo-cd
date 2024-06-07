@@ -210,12 +210,12 @@ func TestGenerateYamlManifestInDir(t *testing.T) {
 	res1, err := service.GenerateManifest(context.Background(), &q)
 
 	assert.NoError(t, err)
-	assert.Equal(t, countOfManifests, len(res1.Manifests))
+	assert.Len(t, res1.Manifests, countOfManifests)
 
 	// this will test concatenated manifests to verify we split YAMLs correctly
 	res2, err := GenerateManifests(context.Background(), "./testdata/concatenated", "/", "", &q, false, &git.NoopCredsStore{}, resource.MustParse("0"), nil)
 	assert.NoError(t, err)
-	assert.Equal(t, 3, len(res2.Manifests))
+	assert.Len(t, res2.Manifests, 3)
 }
 
 func Test_GenerateManifests_NoOutOfBoundsAccess(t *testing.T) {
@@ -618,7 +618,7 @@ func TestGenerateManifestsUseExactRevision(t *testing.T) {
 
 	res1, err := service.GenerateManifest(context.Background(), &q)
 	assert.Nil(t, err)
-	assert.Equal(t, 2, len(res1.Manifests))
+	assert.Len(t, res1.Manifests, 2)
 	assert.Equal(t, gitClient.Calls[0].Arguments[0], "abc")
 }
 
@@ -632,7 +632,7 @@ func TestRecurseManifestsInDir(t *testing.T) {
 
 	res1, err := service.GenerateManifest(context.Background(), &q)
 	assert.Nil(t, err)
-	assert.Equal(t, 2, len(res1.Manifests))
+	assert.Len(t, res1.Manifests, 2)
 }
 
 func TestInvalidManifestsInDir(t *testing.T) {
@@ -664,7 +664,7 @@ func TestNilMetadataAccessors(t *testing.T) {
 	q := apiclient.ManifestRequest{Repo: &argoappv1.Repository{}, ApplicationSource: &src, AppLabelKey: "test", AppName: "nil-metadata-accessors", TrackingMethod: "annotation+label"}
 	res, err := service.GenerateManifest(context.Background(), &q)
 	assert.NoError(t, err)
-	assert.Equal(t, len(res.Manifests), 1)
+	assert.Len(t, res.Manifests, 1)
 	assert.Equal(t, expected, res.Manifests[0])
 }
 
@@ -688,7 +688,7 @@ func TestGenerateJsonnetManifestInDir(t *testing.T) {
 	}
 	res1, err := service.GenerateManifest(context.Background(), &q)
 	assert.Nil(t, err)
-	assert.Equal(t, 2, len(res1.Manifests))
+	assert.Len(t, res1.Manifests, 2)
 }
 
 func TestGenerateJsonnetManifestInRootDir(t *testing.T) {
@@ -711,7 +711,7 @@ func TestGenerateJsonnetManifestInRootDir(t *testing.T) {
 	}
 	res1, err := service.GenerateManifest(context.Background(), &q)
 	assert.Nil(t, err)
-	assert.Equal(t, 2, len(res1.Manifests))
+	assert.Len(t, res1.Manifests, 2)
 }
 
 func TestGenerateJsonnetLibOutside(t *testing.T) {
@@ -1478,7 +1478,7 @@ func TestGenerateNullList(t *testing.T) {
 			ProjectSourceRepos: []string{"*"},
 		})
 		assert.Nil(t, err)
-		assert.Equal(t, len(res1.Manifests), 1)
+		assert.Len(t, res1.Manifests, 1)
 		assert.Contains(t, res1.Manifests[0], "prometheus-operator-operator")
 	})
 
@@ -1491,7 +1491,7 @@ func TestGenerateNullList(t *testing.T) {
 			ProjectSourceRepos: []string{"*"},
 		})
 		assert.Nil(t, err)
-		assert.Equal(t, len(res1.Manifests), 1)
+		assert.Len(t, res1.Manifests, 1)
 		assert.Contains(t, res1.Manifests[0], "prometheus-operator-operator")
 	})
 
@@ -1531,7 +1531,7 @@ func TestGenerateFromUTF16(t *testing.T) {
 	}
 	res1, err := GenerateManifests(context.Background(), "./testdata/utf-16", "/", "", &q, false, &git.NoopCredsStore{}, resource.MustParse("0"), nil)
 	assert.Nil(t, err)
-	assert.Equal(t, 2, len(res1.Manifests))
+	assert.Len(t, res1.Manifests, 2)
 }
 
 func TestListApps(t *testing.T) {
@@ -2776,7 +2776,7 @@ func Test_getHelmDependencyRepos(t *testing.T) {
 
 	repos, err := getHelmDependencyRepos("../../util/helm/testdata/dependency")
 	assert.NoError(t, err)
-	assert.Equal(t, len(repos), 2)
+	assert.Len(t, repos, 2)
 	assert.Equal(t, repos[0].Repo, repo1)
 	assert.Equal(t, repos[1].Repo, repo2)
 }
@@ -3045,7 +3045,7 @@ func TestGetHelmRepos_OCIDependenciesWithHelmRepo(t *testing.T) {
 	helmRepos, err := getHelmRepos("./testdata/oci-dependencies", q.Repos, q.HelmRepoCreds)
 	assert.Nil(t, err)
 
-	assert.Equal(t, len(helmRepos), 1)
+	assert.Len(t, helmRepos, 1)
 	assert.Equal(t, helmRepos[0].Username, "test")
 	assert.True(t, helmRepos[0].EnableOci)
 	assert.Equal(t, helmRepos[0].Repo, "example.com/myrepo")
@@ -3058,7 +3058,7 @@ func TestGetHelmRepos_OCIDependenciesWithRepo(t *testing.T) {
 	helmRepos, err := getHelmRepos("./testdata/oci-dependencies", q.Repos, q.HelmRepoCreds)
 	assert.Nil(t, err)
 
-	assert.Equal(t, len(helmRepos), 1)
+	assert.Len(t, helmRepos, 1)
 	assert.Equal(t, helmRepos[0].Username, "test")
 	assert.True(t, helmRepos[0].EnableOci)
 	assert.Equal(t, helmRepos[0].Repo, "example.com/myrepo")
@@ -3075,7 +3075,7 @@ func TestGetHelmRepo_NamedRepos(t *testing.T) {
 	helmRepos, err := getHelmRepos("./testdata/helm-with-dependencies", q.Repos, q.HelmRepoCreds)
 	assert.Nil(t, err)
 
-	assert.Equal(t, len(helmRepos), 1)
+	assert.Len(t, helmRepos, 1)
 	assert.Equal(t, helmRepos[0].Username, "test")
 	assert.Equal(t, helmRepos[0].Repo, "https://example.com")
 }
@@ -3091,7 +3091,7 @@ func TestGetHelmRepo_NamedReposAlias(t *testing.T) {
 	helmRepos, err := getHelmRepos("./testdata/helm-with-dependencies-alias", q.Repos, q.HelmRepoCreds)
 	assert.Nil(t, err)
 
-	assert.Equal(t, len(helmRepos), 1)
+	assert.Len(t, helmRepos, 1)
 	assert.Equal(t, helmRepos[0].Username, "test-alias")
 	assert.Equal(t, helmRepos[0].Repo, "https://example.com")
 }
@@ -3763,7 +3763,7 @@ func TestGetRefs_CacheWithLockDisabled(t *testing.T) {
 			refs, err := client.LsRefs()
 			assert.NoError(t, err)
 			assert.NotNil(t, refs)
-			assert.NotEqual(t, 0, len(refs.Branches), "Expected branches to be populated")
+			assert.NotEmpty(t, refs.Branches, "Expected branches to be populated")
 			assert.NotEmpty(t, refs.Branches[0])
 		}()
 	}
@@ -3790,7 +3790,7 @@ func TestGetRefs_CacheDisabled(t *testing.T) {
 	refs, err := client.LsRefs()
 	assert.NoError(t, err)
 	assert.NotNil(t, refs)
-	assert.NotEqual(t, 0, len(refs.Branches), "Expected branches to be populated")
+	assert.NotEmpty(t, refs.Branches, "Expected branches to be populated")
 	assert.NotEmpty(t, refs.Branches[0])
 	// Unlock should not have been called
 	cacheMocks.mockCache.AssertNumberOfCalls(t, "UnlockGitReferences", 0)
@@ -3819,7 +3819,7 @@ func TestGetRefs_CacheWithLock(t *testing.T) {
 			refs, err := client.LsRefs()
 			assert.NoError(t, err)
 			assert.NotNil(t, refs)
-			assert.NotEqual(t, 0, len(refs.Branches), "Expected branches to be populated")
+			assert.NotEmpty(t, refs.Branches, "Expected branches to be populated")
 			assert.NotEmpty(t, refs.Branches[0])
 		}()
 	}
@@ -3848,12 +3848,12 @@ func TestGetRefs_CacheUnlockedOnUpdateFailed(t *testing.T) {
 	refs, err := client.LsRefs()
 	assert.NoError(t, err)
 	assert.NotNil(t, refs)
-	assert.NotEqual(t, 0, len(refs.Branches), "Expected branches to be populated")
+	assert.NotEmpty(t, refs.Branches, "Expected branches to be populated")
 	assert.NotEmpty(t, refs.Branches[0])
 	var output [][2]string
 	err = cacheMocks.cacheutilCache.GetItem(fmt.Sprintf("git-refs|%s|%s", repoUrl, common.CacheVersion), &output)
 	assert.Error(t, err, "Should be a cache miss")
-	assert.Equal(t, 0, len(output), "Expected cache to be empty for key")
+	assert.Empty(t, output, "Expected cache to be empty for key")
 	cacheMocks.mockCache.AssertNumberOfCalls(t, "UnlockGitReferences", 0)
 	cacheMocks.mockCache.AssertNumberOfCalls(t, "GetOrLockGitReferences", 0)
 }

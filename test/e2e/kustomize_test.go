@@ -98,7 +98,7 @@ func TestSyncStatusOptionIgnore(t *testing.T) {
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		Expect(HealthIs(health.HealthStatusHealthy)).
 		And(func(app *Application) {
-			assert.Equal(t, 2, len(app.Status.Resources))
+			assert.Len(t, app.Status.Resources, 2)
 			for _, resourceStatus := range app.Status.Resources {
 				// new map in-sync
 				if resourceStatus.Name != oldMap {

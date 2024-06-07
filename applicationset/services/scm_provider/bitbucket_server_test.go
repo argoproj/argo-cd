@@ -80,7 +80,7 @@ func defaultHandler(t *testing.T) func(http.ResponseWriter, *http.Request) {
 
 func verifyDefaultRepo(t *testing.T, err error, repos []*Repository) {
 	assert.NoError(t, err)
-	assert.Equal(t, 1, len(repos))
+	assert.Len(t, repos, 1)
 	assert.Equal(t, Repository{
 		Organization: "PROJECT",
 		Repository:   "REPO",
@@ -194,7 +194,7 @@ func TestListReposPagination(t *testing.T) {
 	assert.NoError(t, err)
 	repos, err := provider.ListRepos(context.Background(), "ssh")
 	assert.NoError(t, err)
-	assert.Equal(t, 2, len(repos))
+	assert.Len(t, repos, 2)
 	assert.Equal(t, Repository{
 		Organization: "PROJECT",
 		Repository:   "REPO",
@@ -277,7 +277,7 @@ func TestGetBranchesBranchPagination(t *testing.T) {
 		RepositoryId: 1,
 	})
 	assert.NoError(t, err)
-	assert.Equal(t, 2, len(repos))
+	assert.Len(t, repos, 2)
 	assert.Equal(t, Repository{
 		Organization: "PROJECT",
 		Repository:   "REPO",
@@ -330,7 +330,7 @@ func TestGetBranchesDefaultOnly(t *testing.T) {
 		RepositoryId: 1,
 	})
 	assert.NoError(t, err)
-	assert.Equal(t, 1, len(repos))
+	assert.Len(t, repos, 1)
 	assert.Equal(t, Repository{
 		Organization: "PROJECT",
 		Repository:   "REPO",
@@ -447,7 +447,7 @@ func TestListReposDefaultBranch(t *testing.T) {
 	assert.NoError(t, err)
 	repos, err := provider.ListRepos(context.Background(), "ssh")
 	assert.NoError(t, err)
-	assert.Equal(t, 1, len(repos))
+	assert.Len(t, repos, 1)
 	assert.Equal(t, Repository{
 		Organization: "PROJECT",
 		Repository:   "REPO",
@@ -502,7 +502,7 @@ func TestListReposCloneProtocol(t *testing.T) {
 	assert.NoError(t, err)
 	repos, err := provider.ListRepos(context.Background(), "https")
 	assert.NoError(t, err)
-	assert.Equal(t, 1, len(repos))
+	assert.Len(t, repos, 1)
 	assert.Equal(t, Repository{
 		Organization: "PROJECT",
 		Repository:   "REPO",

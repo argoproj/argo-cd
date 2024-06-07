@@ -319,6 +319,6 @@ func TestGithubGetBranches(t *testing.T) {
 		assert.NoError(t, err)
 	} else {
 		// considering master  branch to  exist.
-		assert.Equal(t, len(repos), 1)
+		assert.Len(t, repos, 1)
 	}
 }

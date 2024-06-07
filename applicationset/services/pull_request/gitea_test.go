@@ -253,7 +253,7 @@ func TestGiteaList(t *testing.T) {
 	assert.Nil(t, err)
 	prs, err := host.List(context.Background())
 	assert.Nil(t, err)
-	assert.Equal(t, len(prs), 1)
+	assert.Len(t, prs, 1)
 	assert.Equal(t, prs[0].Number, 1)
 	assert.Equal(t, prs[0].Branch, "test")
 	assert.Equal(t, prs[0].TargetBranch, "main")
