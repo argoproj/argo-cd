@@ -54,7 +54,7 @@ func TestProjectCreation(t *testing.T) {
 	proj, err := fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.TestNamespace()).Get(context.Background(), projectName, metav1.GetOptions{})
 	assert.NoError(t, err)
 	assert.Equal(t, projectName, proj.Name)
-	assert.Equal(t, 2, len(proj.Spec.Destinations))
+	assert.Len(t, proj.Spec.Destinations, 2)
 
 	assert.Equal(t, "https://192.168.99.100:8443", proj.Spec.Destinations[0].Server)
 	assert.Equal(t, "default", proj.Spec.Destinations[0].Namespace)
@@ -62,7 +62,7 @@ func TestProjectCreation(t *testing.T) {
 	assert.Equal(t, "https://192.168.99.100:8443", proj.Spec.Destinations[1].Server)
 	assert.Equal(t, "service", proj.Spec.Destinations[1].Namespace)
 
-	assert.Equal(t, 1, len(proj.Spec.SourceRepos))
+	assert.Len(t, proj.Spec.SourceRepos, 1)
 	assert.Equal(t, "https://github.com/argoproj/argo-cd.git", proj.Spec.SourceRepos[0])
 
 	assert.NotNil(t, proj.Spec.OrphanedResources)
@@ -126,7 +126,7 @@ func TestSetProject(t *testing.T) {
 	proj, err := fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.TestNamespace()).Get(context.Background(), projectName, metav1.GetOptions{})
 	assert.NoError(t, err)
 	assert.Equal(t, projectName, proj.Name)
-	assert.Equal(t, 2, len(proj.Spec.Destinations))
+	assert.Len(t, proj.Spec.Destinations, 2)
 
 	assert.Equal(t, "https://192.168.99.100:8443", proj.Spec.Destinations[0].Server)
 	assert.Equal(t, "default", proj.Spec.Destinations[0].Namespace)
@@ -183,7 +183,7 @@ func TestAddProjectDestination(t *testing.T) {
 	proj, err := fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.TestNamespace()).Get(context.Background(), projectName, metav1.GetOptions{})
 	assert.NoError(t, err)
 	assert.Equal(t, projectName, proj.Name)
-	assert.Equal(t, 1, len(proj.Spec.Destinations))
+	assert.Len(t, proj.Spec.Destinations, 1)
 
 	assert.Equal(t, "https://192.168.99.100:8443", proj.Spec.Destinations[0].Server)
 	assert.Equal(t, "test1", proj.Spec.Destinations[0].Namespace)
@@ -213,7 +213,7 @@ func TestAddProjectDestinationWithName(t *testing.T) {
 	proj, err := fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.TestNamespace()).Get(context.Background(), projectName, metav1.GetOptions{})
 	assert.NoError(t, err)
 	assert.Equal(t, projectName, proj.Name)
-	assert.Equal(t, 1, len(proj.Spec.Destinations))
+	assert.Len(t, proj.Spec.Destinations, 1)
 
 	assert.Equal(t, "", proj.Spec.Destinations[0].Server)
 	assert.Equal(t, "in-cluster", proj.Spec.Destinations[0].Name)
@@ -260,7 +260,7 @@ func TestRemoveProjectDestination(t *testing.T) {
 		t.Fatalf("Unable to get project %v", err)
 	}
 	assert.Equal(t, projectName, proj.Name)
-	assert.Equal(t, 0, len(proj.Spec.Destinations))
+	assert.Empty(t, proj.Spec.Destinations)
 	assertProjHasEvent(t, proj, "update", argo.EventReasonResourceUpdated)
 }
 
@@ -286,7 +286,7 @@ func TestAddProjectSource(t *testing.T) {
 	proj, err := fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.TestNamespace()).Get(context.Background(), projectName, metav1.GetOptions{})
 	assert.NoError(t, err)
 	assert.Equal(t, projectName, proj.Name)
-	assert.Equal(t, 1, len(proj.Spec.SourceRepos))
+	assert.Len(t, proj.Spec.SourceRepos, 1)
 
 	assert.Equal(t, "https://github.com/argoproj/argo-cd.git", proj.Spec.SourceRepos[0])
 }
@@ -314,7 +314,7 @@ func TestRemoveProjectSource(t *testing.T) {
 	proj, err := fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.TestNamespace()).Get(context.Background(), projectName, metav1.GetOptions{})
 	assert.NoError(t, err)
 	assert.Equal(t, projectName, proj.Name)
-	assert.Equal(t, 0, len(proj.Spec.SourceRepos))
+	assert.Empty(t, proj.Spec.SourceRepos)
 	assertProjHasEvent(t, proj, "update", argo.EventReasonResourceUpdated)
 }
 
@@ -431,7 +431,7 @@ func TestAddOrphanedIgnore(t *testing.T) {
 	proj, err := fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.TestNamespace()).Get(context.Background(), projectName, metav1.GetOptions{})
 	assert.NoError(t, err)
 	assert.Equal(t, projectName, proj.Name)
-	assert.Equal(t, 1, len(proj.Spec.OrphanedResources.Ignore))
+	assert.Len(t, proj.Spec.OrphanedResources.Ignore, 1)
 
 	assert.Equal(t, "group", proj.Spec.OrphanedResources.Ignore[0].Group)
 	assert.Equal(t, "kind", proj.Spec.OrphanedResources.Ignore[0].Kind)
@@ -482,7 +482,7 @@ func TestRemoveOrphanedIgnore(t *testing.T) {
 		t.Fatalf("Unable to get project %v", err)
 	}
 	assert.Equal(t, projectName, proj.Name)
-	assert.Equal(t, 0, len(proj.Spec.OrphanedResources.Ignore))
+	assert.Empty(t, proj.Spec.OrphanedResources.Ignore)
 	assertProjHasEvent(t, proj, "update", argo.EventReasonResourceUpdated)
 }
 

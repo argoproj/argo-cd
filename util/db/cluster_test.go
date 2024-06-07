@@ -93,7 +93,7 @@ func Test_secretToCluster_LastAppliedConfigurationDropped(t *testing.T) {
 	}
 	cluster, err := SecretToCluster(secret)
 	require.NoError(t, err)
-	assert.Len(t, cluster.Annotations, 0)
+	assert.Empty(t, cluster.Annotations)
 }
 
 func TestClusterToSecret(t *testing.T) {
@@ -412,7 +412,7 @@ func TestListClusters(t *testing.T) {
 
 		clusters, err := db.ListClusters(context.TODO())
 		require.NoError(t, err)
-		assert.Len(t, clusters.Items, 0)
+		assert.Empty(t, clusters.Items)
 	})
 
 	t.Run("ListClusters() should add this cluster since it does not contain in-cluster server address even though in-cluster is disabled", func(t *testing.T) {

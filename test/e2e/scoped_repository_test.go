@@ -35,7 +35,7 @@ func TestCreateRepositoryWithProject(t *testing.T) {
 			assert.Equal(t, r.Project, "argo-project")
 
 			prjConsequence.And(func(projectResponse *project.DetailedProjectsResponse, err error) {
-				assert.Equal(t, len(projectResponse.Repositories), 1)
+				assert.Len(t, projectResponse.Repositories, 1)
 				assert.Equal(t, projectResponse.Repositories[0].Repo, path)
 			})
 		})

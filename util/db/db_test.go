@@ -556,7 +556,7 @@ func TestDeleteClusterWithUnmanagedSecret(t *testing.T) {
 	secret, err := clientset.CoreV1().Secrets(testNamespace).Get(context.Background(), clusterName, metav1.GetOptions{})
 	assert.Nil(t, err)
 
-	assert.Equal(t, 0, len(secret.Labels))
+	assert.Empty(t, secret.Labels)
 }
 
 func TestFuzzyEquivalence(t *testing.T) {

@@ -298,7 +298,7 @@ func TestListAppSetsWithoutNamespace(t *testing.T) {
 
 	res, err := appSetServer.List(context.Background(), &appsetQuery)
 	assert.NoError(t, err)
-	assert.Equal(t, 0, len(res.Items))
+	assert.Empty(t, res.Items)
 }
 
 func TestCreateAppSet(t *testing.T) {

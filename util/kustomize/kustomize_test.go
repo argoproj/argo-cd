@@ -73,8 +73,8 @@ func TestKustomizeBuild(t *testing.T) {
 	objs, images, err := kustomize.Build(&kustomizeSource, nil, env)
 	assert.Nil(t, err)
 	if err != nil {
-		assert.Equal(t, len(objs), 2)
-		assert.Equal(t, len(images), 2)
+		assert.Len(t, objs, 2)
+		assert.Len(t, images, 2)
 	}
 	for _, obj := range objs {
 		fmt.Println(obj.GetAnnotations())
@@ -230,7 +230,7 @@ func TestKustomizeBuildForceCommonLabels(t *testing.T) {
 			assert.Error(t, err)
 		default:
 			assert.Nil(t, err)
-			if assert.Equal(t, len(objs), 1) {
+			if assert.Len(t, objs, 1) {
 				assert.Equal(t, tc.ExpectedLabels, objs[0].GetLabels())
 			}
 		}
@@ -322,7 +322,7 @@ func TestKustomizeBuildForceCommonAnnotations(t *testing.T) {
 			assert.Error(t, err)
 		default:
 			assert.Nil(t, err)
-			if assert.Equal(t, len(objs), 1) {
+			if assert.Len(t, objs, 1) {
 				assert.Equal(t, tc.ExpectedAnnotations, objs[0].GetAnnotations())
 			}
 		}
@@ -390,7 +390,7 @@ func TestKustomizeLabelWithoutSelector(t *testing.T) {
 			assert.Error(t, err)
 		default:
 			assert.Nil(t, err)
-			if assert.Equal(t, len(objs), 1) {
+			if assert.Len(t, objs, 1) {
 				obj := objs[0]
 				sl, found, err := unstructured.NestedStringMap(obj.Object, "spec", "selector", "matchLabels")
 				assert.Nil(t, err)
@@ -423,8 +423,8 @@ func TestKustomizeCustomVersion(t *testing.T) {
 	objs, images, err := kustomize.Build(&kustomizeSource, nil, env)
 	assert.Nil(t, err)
 	if err != nil {
-		assert.Equal(t, len(objs), 2)
-		assert.Equal(t, len(images), 2)
+		assert.Len(t, objs, 2)
+		assert.Len(t, images, 2)
 	}
 
 	content, err := os.ReadFile(envOutputFile)

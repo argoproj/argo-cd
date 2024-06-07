@@ -28,6 +28,7 @@ jobs:
     outputs:
       backend: ${{ steps.filter.outputs.backend_any_changed }}
       frontend: ${{ steps.filter.outputs.frontend_any_changed }}
+      docs: ${{ steps.filter.outputs.docs_any_changed }}
     steps:
       - uses: actions/checkout@8410ad0602e1e429cee44a835ae9f77f654a6694 # v4.0.0
       - uses: tj-actions/changed-files@90a06d6ba9543371ab4df8eeca0be07ca6054959 # v42.0.2

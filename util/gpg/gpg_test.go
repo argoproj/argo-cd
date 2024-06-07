@@ -189,7 +189,7 @@ func Test_GPG_KeyManagement(t *testing.T) {
 	// Import garbage - error expected
 	keys, err = ImportPGPKeys("testdata/garbage.asc")
 	assert.Error(t, err)
-	assert.Len(t, keys, 0)
+	assert.Empty(t, keys)
 
 	// We should still have a total of 2 keys in the keyring now
 	{
@@ -285,7 +285,7 @@ func Test_ValidateGPGKeys(t *testing.T) {
 	{
 		keys, err := ValidatePGPKeys("testdata/garbage.asc")
 		assert.Error(t, err)
-		assert.Len(t, keys, 0)
+		assert.Empty(t, keys)
 	}
 
 	// We should still have a total of 1 keys in the keyring now
@@ -552,8 +552,8 @@ func Test_SyncKeyRingFromDirectory(t *testing.T) {
 	{
 		new, removed, err := SyncKeyRingFromDirectory(tempDir)
 		assert.NoError(t, err)
-		assert.Len(t, new, 0)
-		assert.Len(t, removed, 0)
+		assert.Empty(t, new)
+		assert.Empty(t, removed)
 	}
 
 	{
@@ -578,7 +578,7 @@ func Test_SyncKeyRingFromDirectory(t *testing.T) {
 		new, removed, err := SyncKeyRingFromDirectory(tempDir)
 		assert.NoError(t, err)
 		assert.Len(t, new, 3)
-		assert.Len(t, removed, 0)
+		assert.Empty(t, removed)
 
 		installed, err := GetInstalledPGPKeys(new)
 		assert.NoError(t, err)
@@ -594,7 +594,7 @@ func Test_SyncKeyRingFromDirectory(t *testing.T) {
 		}
 		new, removed, err := SyncKeyRingFromDirectory(tempDir)
 		assert.NoError(t, err)
-		assert.Len(t, new, 0)
+		assert.Empty(t, new)
 		assert.Len(t, removed, 1)
 
 		installed, err := GetInstalledPGPKeys(new)

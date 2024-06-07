@@ -211,7 +211,7 @@ func TestCachedManifestResponse_HashBehavior(t *testing.T) {
 
 		items := getInMemoryCacheContents(t, inMemCache)
 
-		assert.Equal(t, len(items), 1)
+		assert.Len(t, items, 1)
 
 		for key, val := range items {
 			cmr = val
@@ -259,7 +259,7 @@ func TestCachedManifestResponse_HashBehavior(t *testing.T) {
 
 	// Verify that the hash mismatch item has been deleted
 	items := getInMemoryCacheContents(t, inMemCache)
-	assert.Equal(t, len(items), 0)
+	assert.Empty(t, items)
 
 }
 
@@ -379,7 +379,7 @@ func TestGetGitReferences(t *testing.T) {
 		lockOwner, err := cache.GetGitReferences("test-repo", &references)
 		assert.NoError(t, err)
 		assert.Equal(t, "", lockOwner, "Lock owner should be empty")
-		assert.Equal(t, 1, len(references))
+		assert.Len(t, references, 1)
 		assert.Equal(t, "test", (references)[0].Target().String())
 		assert.Equal(t, "test-repo", (references)[0].Name().String())
 		fixtures.mockCache.AssertCacheCalledTimes(t, &mocks.CacheCallCounts{ExternalSets: 1, ExternalGets: 1})
@@ -403,21 +403,21 @@ func TestGetGitReferences(t *testing.T) {
 
 func TestGitRefCacheItemToReferences_DataChecks(t *testing.T) {
 	references := *GitRefCacheItemToReferences(nil)
-	assert.Equal(t, 0, len(references), "No data should be handled gracefully by returning an empty slice")
+	assert.Empty(t, references, "No data should be handled gracefully by returning an empty slice")
 	references = *GitRefCacheItemToReferences([][2]string{{"", ""}})
-	assert.Equal(t, 0, len(references), "Empty data should be discarded")
+	assert.Empty(t, references, "Empty data should be discarded")
 	references = *GitRefCacheItemToReferences([][2]string{{"test", ""}})
-	assert.Equal(t, 1, len(references), "Just the key being set should not be discarded")
+	assert.Len(t, references, 1, "Just the key being set should not be discarded")
 	assert.Equal(t, "test", references[0].Name().String(), "Name should be set and equal test")
 	references = *GitRefCacheItemToReferences([][2]string{{"", "ref: test1"}})
-	assert.Equal(t, 1, len(references), "Just the value being set should not be discarded")
+	assert.Len(t, references, 1, "Just the value being set should not be discarded")
 	assert.Equal(t, "test1", references[0].Target().String(), "Target should be set and equal test1")
 	references = *GitRefCacheItemToReferences([][2]string{{"test2", "ref: test2"}})
-	assert.Equal(t, 1, len(references), "Valid data is should be preserved")
+	assert.Len(t, references, 1, "Valid data is should be preserved")
 	assert.Equal(t, "test2", references[0].Name().String(), "Name should be set and equal test2")
 	assert.Equal(t, "test2", references[0].Target().String(), "Target should be set and equal test2")
 	references = *GitRefCacheItemToReferences([][2]string{{"test3", "ref: test3"}, {"test4", "ref: test4"}})
-	assert.Equal(t, 2, len(references), "Valid data is should be preserved")
+	assert.Len(t, references, 2, "Valid data is should be preserved")
 	assert.Equal(t, "test3", references[0].Name().String(), "Name should be set and equal test3")
 	assert.Equal(t, "test3", references[0].Target().String(), "Target should be set and equal test3")
 	assert.Equal(t, "test4", references[1].Name().String(), "Name should be set and equal test4")
@@ -684,7 +684,7 @@ func TestGetGitDirectories(t *testing.T) {
 		t.Cleanup(fixtures.mockCache.StopRedisCallback)
 		directories, err := fixtures.cache.GetGitDirectories("test-repo", "test-revision")
 		assert.ErrorAs(t, err, &ErrCacheMiss)
-		assert.Equal(t, 0, len(directories))
+		assert.Empty(t, directories)
 		fixtures.mockCache.AssertCacheCalledTimes(t, &mocks.CacheCallCounts{ExternalGets: 1})
 	})
 	t.Run("GetGitDirectories cache miss local", func(t *testing.T) {
@@ -739,7 +739,7 @@ func TestGetGitFiles(t *testing.T) {
 		t.Cleanup(fixtures.mockCache.StopRedisCallback)
 		directories, err := fixtures.cache.GetGitFiles("test-repo", "test-revision", "*.json")
 		assert.ErrorAs(t, err, &ErrCacheMiss)
-		assert.Equal(t, 0, len(directories))
+		assert.Empty(t, directories)
 		fixtures.mockCache.AssertCacheCalledTimes(t, &mocks.CacheCallCounts{ExternalGets: 1})
 	})
 	t.Run("GetGitFiles cache hit", func(t *testing.T) {

@@ -205,7 +205,7 @@ func Test_TLSCertificate_ValidPEM_ValidCert(t *testing.T) {
 	// Valid PEM data, single certificate, expect array of length 1
 	certificates, err := ParseTLSCertificatesFromData(Test_TLSValidSingleCert)
 	assert.Nil(t, err)
-	assert.Equal(t, len(certificates), 1)
+	assert.Len(t, certificates, 1)
 	// Expect good decode
 	x509Cert, err := DecodePEMCertificateToX509(certificates[0])
 	assert.Nil(t, err)
@@ -216,7 +216,7 @@ func Test_TLSCertificate_ValidPEM_InvalidCert(t *testing.T) {
 	// Valid PEM data, but invalid certificate
 	certificates, err := ParseTLSCertificatesFromData(Test_TLSInvalidSingleCert)
 	assert.Nil(t, err)
-	assert.Equal(t, len(certificates), 1)
+	assert.Len(t, certificates, 1)
 	// Expect bad decode
 	_, err = DecodePEMCertificateToX509(certificates[0])
 	assert.NotNil(t, err)
@@ -226,14 +226,14 @@ func Test_TLSCertificate_InvalidPEM(t *testing.T) {
 	// Invalid PEM data, expect array of length 0
 	certificates, err := ParseTLSCertificatesFromData(Test_TLSInvalidPEMData)
 	assert.Nil(t, err)
-	assert.Equal(t, len(certificates), 0)
+	assert.Empty(t, certificates)
 }
 
 func Test_TLSCertificate_ValidPEM_ValidCert_Multi(t *testing.T) {
 	// Valid PEM data, two certificates, expect array of length 2
 	certificates, err := ParseTLSCertificatesFromData(Test_TLSValidMultiCert)
 	assert.Nil(t, err)
-	assert.Equal(t, len(certificates), 2)
+	assert.Len(t, certificates, 2)
 	// Expect good decode
 	x509Cert, err := DecodePEMCertificateToX509(certificates[0])
 	assert.Nil(t, err)
@@ -247,7 +247,7 @@ func Test_TLSCertificate_ValidPEM_ValidCert_FromFile(t *testing.T) {
 	// Valid PEM data, single certificate from file, expect array of length 1
 	certificates, err := ParseTLSCertificatesFromPath("../../test/certificates/cert1.pem")
 	assert.Nil(t, err)
-	assert.Equal(t, len(certificates), 1)
+	assert.Len(t, certificates, 1)
 	// Expect good decode
 	x509Cert, err := DecodePEMCertificateToX509(certificates[0])
 	assert.Nil(t, err)
@@ -257,7 +257,7 @@ func Test_TLSCertificate_ValidPEM_ValidCert_FromFile(t *testing.T) {
 func Test_TLSCertPool(t *testing.T) {
 	certificates, err := ParseTLSCertificatesFromData(Test_TLSValidMultiCert)
 	assert.Nil(t, err)
-	assert.Equal(t, len(certificates), 2)
+	assert.Len(t, certificates, 2)
 	certPool := GetCertPoolFromPEMData(certificates)
 	assert.NotNil(t, certPool)
 }
@@ -272,14 +272,14 @@ func Test_SSHKnownHostsData_ParseData(t *testing.T) {
 	// Expect valid data with 7 known host entries
 	entries, err := ParseSSHKnownHostsFromData(Test_ValidSSHKnownHostsData)
 	assert.Nil(t, err)
-	assert.Equal(t, len(entries), 7)
+	assert.Len(t, entries, 7)
 }
 
 func Test_SSHKnownHostsData_ParseFile(t *testing.T) {
 	// Expect valid data with 7 known host entries
 	entries, err := ParseSSHKnownHostsFromPath("../../test/certificates/ssh_known_hosts")
 	assert.Nil(t, err)
-	assert.Equal(t, len(entries), 7)
+	assert.Len(t, entries, 7)
 }
 
 func Test_SSHKnownHostsData_ParseNonExistingFile(t *testing.T) {
@@ -297,12 +297,12 @@ func Test_SSHKnownHostsData_Tokenize(t *testing.T) {
 	for _, entry := range entries {
 		hosts, _, err := KnownHostsLineToPublicKey(entry)
 		assert.Nil(t, err)
-		assert.Equal(t, len(hosts), 1)
+		assert.Len(t, hosts, 1)
 		hoststring, subtype, certdata, err := TokenizeSSHKnownHostsEntry(entry)
 		assert.Nil(t, err)
 		hosts, _, err = TokenizedDataToPublicKey(hoststring, subtype, string(certdata))
 		assert.Nil(t, err)
-		assert.Equal(t, len(hosts), 1)
+		assert.Len(t, hosts, 1)
 	}
 }
 
@@ -332,7 +332,7 @@ func Test_SSHFingerprintSHA256(t *testing.T) {
 	}
 	entries, err := ParseSSHKnownHostsFromData(Test_ValidSSHKnownHostsData)
 	assert.Nil(t, err)
-	assert.Equal(t, len(entries), 7)
+	assert.Len(t, entries, 7)
 	for idx, entry := range entries {
 		_, pubKey, err := KnownHostsLineToPublicKey(entry)
 		assert.Nil(t, err)
@@ -354,7 +354,7 @@ func Test_SSHFingerPrintSHA256FromString(t *testing.T) {
 	}
 	entries, err := ParseSSHKnownHostsFromData(Test_ValidSSHKnownHostsData)
 	assert.Nil(t, err)
-	assert.Equal(t, len(entries), 7)
+	assert.Len(t, entries, 7)
 	for idx, entry := range entries {
 		fp := SSHFingerprintSHA256FromString(entry)
 		assert.Equal(t, fp, fingerprints[idx])
@@ -489,7 +489,7 @@ func TestGetCertificateForConnect(t *testing.T) {
 		t.Setenv(common.EnvVarTLSDataPath, temppath)
 		certs, err := GetCertificateForConnect("127.0.0.1")
 		assert.NoError(t, err)
-		assert.Len(t, certs, 0)
+		assert.Empty(t, certs)
 	})
 
 	t.Run("No valid cert in file", func(t *testing.T) {
@@ -501,7 +501,7 @@ func TestGetCertificateForConnect(t *testing.T) {
 		t.Setenv(common.EnvVarTLSDataPath, temppath)
 		certs, err := GetCertificateForConnect("127.0.0.1")
 		assert.Error(t, err)
-		assert.Len(t, certs, 0)
+		assert.Empty(t, certs)
 		assert.Contains(t, err.Error(), "no certificates found")
 	})
 
