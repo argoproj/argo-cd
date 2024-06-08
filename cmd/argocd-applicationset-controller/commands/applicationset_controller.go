@@ -105,7 +105,7 @@ func NewCommand() *cobra.Command {
 				os.Exit(1)
 			}
 
-			// By default watch all namespace
+			// By default, watch all namespaces
 			var watchedNamespace string = ""
 
 			// If the applicationset-namespaces contains only one namespace it corresponds to the current namespace
@@ -172,7 +172,7 @@ func NewCommand() *cobra.Command {
 			}
 
 			repoClientset := apiclient.NewRepoServerClientset(argocdRepoServer, repoServerTimeoutSeconds, tlsConfig)
-			argoCDService, err := services.NewArgoCDService(argoCDDB, gitSubmoduleEnabled, repoClientset, enableNewGitFileGlobbing)
+			argoCDService, err := services.NewArgoCDService(argoCDDB.GetRepository, gitSubmoduleEnabled, repoClientset, enableNewGitFileGlobbing)
 			errors.CheckError(err)
 
 			terminalGenerators := map[string]generators.Generator{

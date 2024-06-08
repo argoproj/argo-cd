@@ -23,25 +23,25 @@ var (
 	gitSuffix = regexp.MustCompile(`\.git$`)
 )
 
-func getApplicationSourceAndName(obj *unstructured.Unstructured) (*v1alpha1.ApplicationSource, string, error) {
+func getApplication(obj *unstructured.Unstructured) (*v1alpha1.Application, error) {
 	data, err := json.Marshal(obj)
 	if err != nil {
-		return nil, "", err
+		return nil, err
 	}
 	application := &v1alpha1.Application{}
 	err = json.Unmarshal(data, application)
 	if err != nil {
-		return nil, "", err
+		return nil, err
 	}
-	return application.Spec.GetSourcePtrByIndex(0), application.GetName(), nil
+	return application, nil
 }
 
-func getAppDetails(app *unstructured.Unstructured, argocdService service.Service) (*shared.AppDetail, error) {
-	appSource, appName, err := getApplicationSourceAndName(app)
+func getAppDetails(un *unstructured.Unstructured, argocdService service.Service) (*shared.AppDetail, error) {
+	app, err := getApplication(un)
 	if err != nil {
 		return nil, err
 	}
-	appDetail, err := argocdService.GetAppDetails(context.Background(), appSource, appName)
+	appDetail, err := argocdService.GetAppDetails(context.Background(), app)
 	if err != nil {
 		return nil, err
 	}
@@ -56,7 +56,15 @@ func getCommitMetadata(commitSHA string, app *unstructured.Unstructured, argocdS
 	if !ok {
 		panic(errors.New("failed to get application source repo URL"))
 	}
-	meta, err := argocdService.GetCommitMetadata(context.Background(), repoURL, commitSHA)
+	project, ok, err := unstructured.NestedString(app.Object, "spec", "project")
+	if err != nil {
+		return nil, err
+	}
+	if !ok {
+		panic(errors.New("failed to get application project"))
+	}
+
+	meta, err := argocdService.GetCommitMetadata(context.Background(), repoURL, commitSHA, project)
 	if err != nil {
 		return nil, err
 	}

@@ -1513,7 +1513,7 @@ message RefTarget {
 
 // RepoCreds holds the definition for repository credentials
 message RepoCreds {
-  // URL is the URL that this credentials matches to
+  // URL is the URL to which these credentials match
   optional string url = 1;
 
   // Username for authenticating at the repo server
@@ -1626,7 +1626,7 @@ message Repository {
   // Proxy specifies the HTTP/HTTPS proxy used to access the repo
   optional string proxy = 19;
 
-  // Reference between project and repository that allow you automatically to be added as item inside SourceRepos project entity
+  // Reference between project and repository that allows it to be automatically added as an item inside SourceRepos project entity
   optional string project = 20;
 
   // GCPServiceAccountKey specifies the service account key in JSON format to be used for getting credentials to Google Cloud Source repos

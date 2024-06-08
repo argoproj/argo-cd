@@ -344,7 +344,7 @@ func (s *Service) runRepoOperation(
 
 	if source.IsHelm() {
 		if settings.noCache {
-			err = helmClient.CleanChartCache(source.Chart, revision)
+			err = helmClient.CleanChartCache(source.Chart, revision, repo.Project)
 			if err != nil {
 				return err
 			}
@@ -353,7 +353,7 @@ func (s *Service) runRepoOperation(
 		if source.Helm != nil {
 			helmPassCredentials = source.Helm.PassCredentials
 		}
-		chartPath, closer, err := helmClient.ExtractChart(source.Chart, revision, helmPassCredentials, s.initConstants.HelmManifestMaxExtractedSize, s.initConstants.DisableHelmManifestMaxExtractedSize)
+		chartPath, closer, err := helmClient.ExtractChart(source.Chart, revision, repo.Project, helmPassCredentials, s.initConstants.HelmManifestMaxExtractedSize, s.initConstants.DisableHelmManifestMaxExtractedSize)
 		if err != nil {
 			return err
 		}
@@ -1272,12 +1272,12 @@ func getResolvedValueFiles(
 		referencedSource := getReferencedSource(rawValueFile, refSources)
 		if referencedSource != nil {
 			// If the $-prefixed path appears to reference another source, do env substitution _after_ resolving that source.
-			resolvedPath, err = getResolvedRefValueFile(rawValueFile, env, allowedValueFilesSchemas, referencedSource.Repo.Repo, gitRepoPaths)
+			resolvedPath, err = getResolvedRefValueFile(rawValueFile, env, allowedValueFilesSchemas, referencedSource.Repo.Repo, gitRepoPaths, referencedSource.Repo.Project)
 			if err != nil {
 				return nil, fmt.Errorf("error resolving value file path: %w", err)
 			}
 		} else {
-			// This will resolve val to an absolute path (or an URL)
+			// This will resolve val to an absolute path (or a URL)
 			resolvedPath, isRemote, err = pathutil.ResolveValueFilePathOrUrl(appPath, repoRoot, env.Envsubst(rawValueFile), allowedValueFilesSchemas)
 			if err != nil {
 				return nil, fmt.Errorf("error resolving value file path: %w", err)
@@ -1305,9 +1305,15 @@ func getResolvedRefValueFile(
 	allowedValueFilesSchemas []string,
 	refSourceRepo string,
 	gitRepoPaths io.TempPaths,
+	project string,
 ) (pathutil.ResolvedFilePath, error) {
 	pathStrings := strings.Split(rawValueFile, "/")
-	repoPath := gitRepoPaths.GetPathIfExists(git.NormalizeGitURL(refSourceRepo))
+
+	keyData, err := json.Marshal(map[string]string{"url": git.NormalizeGitURL(refSourceRepo), "project": project})
+	if err != nil {
+		return "", err
+	}
+	repoPath := gitRepoPaths.GetPathIfExists(string(keyData))
 	if repoPath == "" {
 		return "", fmt.Errorf("failed to find repo %q", refSourceRepo)
 	}
@@ -2301,7 +2307,7 @@ func (s *Service) GetRevisionChartDetails(ctx context.Context, q *apiclient.Repo
 	if err != nil {
 		return nil, fmt.Errorf("helm client error: %v", err)
 	}
-	chartPath, closer, err := helmClient.ExtractChart(q.Name, revision, false, s.initConstants.HelmManifestMaxExtractedSize, s.initConstants.DisableHelmManifestMaxExtractedSize)
+	chartPath, closer, err := helmClient.ExtractChart(q.Name, revision, q.Repo.Project, false, s.initConstants.HelmManifestMaxExtractedSize, s.initConstants.DisableHelmManifestMaxExtractedSize)
 	if err != nil {
 		return nil, fmt.Errorf("error extracting chart: %v", err)
 	}
@@ -2331,7 +2337,11 @@ func fileParameters(q *apiclient.RepoServerAppDetailsQuery) []v1alpha1.HelmFileP
 }
 
 func (s *Service) newClient(repo *v1alpha1.Repository, opts ...git.ClientOpts) (git.Client, error) {
-	repoPath, err := s.gitRepoPaths.GetPath(git.NormalizeGitURL(repo.Repo))
+	keyData, err := json.Marshal(map[string]string{"url": git.NormalizeGitURL(repo.Repo), "project": repo.Project})
+	if err != nil {
+		return nil, err
+	}
+	repoPath, err := s.gitRepoPaths.GetPath(string(keyData))
 	if err != nil {
 		return nil, err
 	}
