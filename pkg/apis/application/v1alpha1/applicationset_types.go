@@ -648,7 +648,7 @@ type PullRequestGeneratorAzureDevOps struct {
 	// Labels is used to filter the PRs that you want to target
 	Labels []string `json:"labels,omitempty" protobuf:"bytes,6,rep,name=labels"`
 	// Skips validating the SCM provider's TLS certificate - useful for self-signed certificates.; default: false
-	Insecure bool `json:"insecure,omitempty" protobuf:"varint,6,opt,name=insecure"`
+	Insecure bool `json:"insecure,omitempty" protobuf:"varint,7,opt,name=insecure"`
 }
 
 // PullRequestGenerator defines connection info specific to GitHub.
