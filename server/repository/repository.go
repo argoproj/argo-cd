@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"reflect"
+	"sort"
+	"strings"
 
 	"github.com/argoproj/argo-cd/v2/util/git"
 
@@ -27,6 +29,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/argo"
 	"github.com/argoproj/argo-cd/v2/util/db"
 	"github.com/argoproj/argo-cd/v2/util/errors"
+	"github.com/argoproj/argo-cd/v2/util/git"
 	"github.com/argoproj/argo-cd/v2/util/io"
 	"github.com/argoproj/argo-cd/v2/util/rbac"
 	"github.com/argoproj/argo-cd/v2/util/settings"
@@ -208,6 +211,11 @@ func (s *Server) ListRepositories(ctx context.Context, q *repositorypkg.RepoQuer
 	if err != nil {
 		return nil, err
 	}
+	sort.Slice(items, func(i, j int) bool {
+		first := items[i]
+		second := items[j]
+		return strings.Compare(fmt.Sprintf("%s/%s", first.Project, first.Repo), fmt.Sprintf("%s/%s", second.Project, second.Repo)) < 0
+	})
 	return &appsv1.RepositoryList{Items: items}, nil
 }
 
@@ -482,7 +490,7 @@ func (s *Server) DeleteRepository(ctx context.Context, q *repositorypkg.RepoQuer
 	}
 
 	// invalidate cache
-	if err := s.cache.SetRepoConnectionState(repo.Repo, repo.Project, nil); err == nil {
+	if err := s.cache.SetRepoConnectionState(repo.Repo, repo.Project, nil); err != nil {
 		log.Errorf("error invalidating cache: %v", err)
 	}
 
