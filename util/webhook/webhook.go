@@ -344,7 +344,7 @@ func (a *ArgoCDWebhookHandler) storePreviouslyCachedManifests(app *v1alpha1.Appl
 		return fmt.Errorf("error getting cluster info: %w", err)
 	}
 
-	refSources, err := argo.GetRefSources(context.Background(), app.Spec, a.db)
+	refSources, err := argo.GetRefSources(context.Background(), app.Spec, a.db.GetRepository)
 	if err != nil {
 		return fmt.Errorf("error getting ref sources: %w", err)
 	}

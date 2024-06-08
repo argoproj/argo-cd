@@ -457,6 +457,45 @@ func TestAppCreationWithoutForceUpdate(t *testing.T) {
 		Expect(Error("", "existing application spec is different, use upsert flag to force update"))
 }
 
+// Test designed to cover #15126.
+// The issue occurs in the controller, when a valuesObject field that contains non-strings (eg, a nested map) gets
+// merged/patched.
+// Note: Failure is observed by the test timing out, because the controller cannot 'merge' the patch.
+func TestPatchValuesObject(t *testing.T) {
+	Given(t).
+		Timeout(30).
+		Path("helm").
+		When().
+		// app should be auto-synced once created
+		CreateFromFile(func(app *Application) {
+			app.Spec.Source.Helm = &ApplicationSourceHelm{
+				ValuesObject: &runtime.RawExtension{
+					// Setup by using nested YAML objects, which is what causes the patch error:
+					// "unable to find api field in struct RawExtension for the json field "some""
+					Raw: []byte(`{"some": {"foo": "bar"}}`),
+				},
+			}
+		}).
+		Then().
+		When().
+		PatchApp(`[{
+					"op": "add",
+					"path": "/spec/source/helm/valuesObject",
+					"value": {"some":{"foo":"bar","new":"field"}}
+					}]`).
+		Refresh(RefreshTypeNormal).
+		Sync().
+		Then().
+		Expect(Success("")).
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(NoConditions()).
+		And(func(app *Application) {
+			// Check that the patch was a success.
+			assert.Equal(t, `{"some":{"foo":"bar","new":"field"}}`, string(app.Spec.Source.Helm.ValuesObject.Raw))
+		})
+}
+
 func TestDeleteAppResource(t *testing.T) {
 	ctx := Given(t)
 
@@ -652,9 +691,9 @@ func TestAppRollbackSuccessful(t *testing.T) {
 		And(func(app *Application) {
 			assert.Equal(t, SyncStatusCodeSynced, app.Status.Sync.Status)
 			require.NotNil(t, app.Status.OperationState.SyncResult)
-			assert.Equal(t, 2, len(app.Status.OperationState.SyncResult.Resources))
+			assert.Len(t, app.Status.OperationState.SyncResult.Resources, 2)
 			assert.Equal(t, OperationSucceeded, app.Status.OperationState.Phase)
-			assert.Equal(t, 3, len(app.Status.History))
+			assert.Len(t, app.Status.History, 3)
 		})
 }
 
@@ -1537,8 +1576,8 @@ func TestPermissions(t *testing.T) {
 			fmt.Printf("APP NAME: %s\n", appName)
 			tree, err := cdClient.ResourceTree(context.Background(), &applicationpkg.ResourcesQuery{ApplicationName: &appName, AppNamespace: &appNs})
 			require.NoError(t, err)
-			assert.Len(t, tree.Nodes, 0)
-			assert.Len(t, tree.OrphanedNodes, 0)
+			assert.Empty(t, tree.Nodes)
+			assert.Empty(t, tree.OrphanedNodes)
 		}).
 		When().
 		// add missing permissions but deny management of Deployment kind
@@ -2077,7 +2116,7 @@ func TestCreateAppWithNoNameSpaceForGlobalResource(t *testing.T) {
 			time.Sleep(500 * time.Millisecond)
 			app, err := AppClientset.ArgoprojV1alpha1().Applications(TestNamespace()).Get(context.Background(), app.Name, metav1.GetOptions{})
 			assert.NoError(t, err)
-			assert.Len(t, app.Status.Conditions, 0)
+			assert.Empty(t, app.Status.Conditions)
 		})
 }
 
@@ -2845,46 +2884,5 @@ func TestAnnotationTrackingExtraResources(t *testing.T) {
 		Expect(OperationPhaseIs(OperationSucceeded)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		Expect(HealthIs(health.HealthStatusHealthy))
-
-}
-
-// Test designed to cover #15126.
-// The issue occurs in the controller, when a valuesObject field that contains non-strings (eg, a nested map) gets
-// merged/patched.
-// Note: Failure is observed by the test timing out, because the controller cannot 'merge' the patch.
-func TestPatchValuesObject(t *testing.T) {
-
-	Given(t).
-		Timeout(30).
-		Path("helm").
-		When().
-		// app should be auto-synced once created
-		CreateFromFile(func(app *Application) {
-			app.Spec.Source.Helm = &ApplicationSourceHelm{
-				ValuesObject: &runtime.RawExtension{
-					// Setup by using nested YAML objects, which is what causes the patch error:
-					// "unable to find api field in struct RawExtension for the json field "some""
-					Raw: []byte(`{"some": {"foo": "bar"}}`),
-				},
-			}
-		}).
-		Then().
-		When().
-		PatchApp(`[{
-					"op": "add",
-					"path": "/spec/source/helm/valuesObject",
-					"value": {"some":{"foo":"bar","new":"field"}}
-					}]`).
-		Refresh(RefreshTypeNormal).
-		Sync().
-		Then().
-		Expect(Success("")).
-		Expect(OperationPhaseIs(OperationSucceeded)).
-		Expect(SyncStatusIs(SyncStatusCodeSynced)).
-		Expect(NoConditions()).
-		And(func(app *Application) {
-			// Check that the patch was a success.
-			assert.Equal(t, `{"some":{"foo":"bar","new":"field"}}`, string(app.Spec.Source.Helm.ValuesObject.Raw))
-		})
 
 }

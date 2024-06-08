@@ -223,10 +223,10 @@ func TestDefaultWaitOptions(t *testing.T) {
 		suspended: false,
 	}
 	opts := getWatchOpts(watch)
-	assert.Equal(t, true, opts.sync)
-	assert.Equal(t, true, opts.health)
-	assert.Equal(t, true, opts.operation)
-	assert.Equal(t, false, opts.suspended)
+	assert.True(t, opts.sync)
+	assert.True(t, opts.health)
+	assert.True(t, opts.operation)
+	assert.False(t, opts.suspended)
 }
 
 func TestOverrideWaitOptions(t *testing.T) {
@@ -237,10 +237,10 @@ func TestOverrideWaitOptions(t *testing.T) {
 		suspended: false,
 	}
 	opts := getWatchOpts(watch)
-	assert.Equal(t, true, opts.sync)
-	assert.Equal(t, false, opts.health)
-	assert.Equal(t, false, opts.operation)
-	assert.Equal(t, false, opts.suspended)
+	assert.True(t, opts.sync)
+	assert.False(t, opts.health)
+	assert.False(t, opts.operation)
+	assert.False(t, opts.suspended)
 }
 
 func TestFindRevisionHistoryWithoutPassedIdAndEmptyHistoryList(t *testing.T) {
@@ -1118,36 +1118,36 @@ func Test_unset(t *testing.T) {
 	assert.False(t, updated)
 	assert.False(t, nothingToUnset)
 
-	assert.Equal(t, 2, len(kustomizeSource.Kustomize.Images))
+	assert.Len(t, kustomizeSource.Kustomize.Images, 2)
 	updated, nothingToUnset = unset(kustomizeSource, unsetOpts{kustomizeImages: []string{"old1=new:tag"}})
-	assert.Equal(t, 1, len(kustomizeSource.Kustomize.Images))
+	assert.Len(t, kustomizeSource.Kustomize.Images, 1)
 	assert.True(t, updated)
 	assert.False(t, nothingToUnset)
 	updated, nothingToUnset = unset(kustomizeSource, unsetOpts{kustomizeImages: []string{"old1=new:tag"}})
 	assert.False(t, updated)
 	assert.False(t, nothingToUnset)
 
-	assert.Equal(t, 2, len(kustomizeSource.Kustomize.Replicas))
+	assert.Len(t, kustomizeSource.Kustomize.Replicas, 2)
 	updated, nothingToUnset = unset(kustomizeSource, unsetOpts{kustomizeReplicas: []string{"my-deployment"}})
-	assert.Equal(t, 1, len(kustomizeSource.Kustomize.Replicas))
+	assert.Len(t, kustomizeSource.Kustomize.Replicas, 1)
 	assert.True(t, updated)
 	assert.False(t, nothingToUnset)
 	updated, nothingToUnset = unset(kustomizeSource, unsetOpts{kustomizeReplicas: []string{"my-deployment"}})
 	assert.False(t, updated)
 	assert.False(t, nothingToUnset)
 
-	assert.Equal(t, 2, len(helmSource.Helm.Parameters))
+	assert.Len(t, helmSource.Helm.Parameters, 2)
 	updated, nothingToUnset = unset(helmSource, unsetOpts{parameters: []string{"name-1"}})
-	assert.Equal(t, 1, len(helmSource.Helm.Parameters))
+	assert.Len(t, helmSource.Helm.Parameters, 1)
 	assert.True(t, updated)
 	assert.False(t, nothingToUnset)
 	updated, nothingToUnset = unset(helmSource, unsetOpts{parameters: []string{"name-1"}})
 	assert.False(t, updated)
 	assert.False(t, nothingToUnset)
 
-	assert.Equal(t, 2, len(helmSource.Helm.ValueFiles))
+	assert.Len(t, helmSource.Helm.ValueFiles, 2)
 	updated, nothingToUnset = unset(helmSource, unsetOpts{valuesFiles: []string{"values-1.yaml"}})
-	assert.Equal(t, 1, len(helmSource.Helm.ValueFiles))
+	assert.Len(t, helmSource.Helm.ValueFiles, 1)
 	assert.True(t, updated)
 	assert.False(t, nothingToUnset)
 	updated, nothingToUnset = unset(helmSource, unsetOpts{valuesFiles: []string{"values-1.yaml"}})
@@ -1163,27 +1163,27 @@ func Test_unset(t *testing.T) {
 	assert.False(t, updated)
 	assert.False(t, nothingToUnset)
 
-	assert.Equal(t, true, helmSource.Helm.IgnoreMissingValueFiles)
+	assert.True(t, helmSource.Helm.IgnoreMissingValueFiles)
 	updated, nothingToUnset = unset(helmSource, unsetOpts{ignoreMissingValueFiles: true})
-	assert.Equal(t, false, helmSource.Helm.IgnoreMissingValueFiles)
+	assert.False(t, helmSource.Helm.IgnoreMissingValueFiles)
 	assert.True(t, updated)
 	assert.False(t, nothingToUnset)
 	updated, nothingToUnset = unset(helmSource, unsetOpts{ignoreMissingValueFiles: true})
 	assert.False(t, updated)
 	assert.False(t, nothingToUnset)
 
-	assert.Equal(t, true, helmSource.Helm.PassCredentials)
+	assert.True(t, helmSource.Helm.PassCredentials)
 	updated, nothingToUnset = unset(helmSource, unsetOpts{passCredentials: true})
-	assert.Equal(t, false, helmSource.Helm.PassCredentials)
+	assert.False(t, helmSource.Helm.PassCredentials)
 	assert.True(t, updated)
 	assert.False(t, nothingToUnset)
 	updated, nothingToUnset = unset(helmSource, unsetOpts{passCredentials: true})
 	assert.False(t, updated)
 	assert.False(t, nothingToUnset)
 
-	assert.Equal(t, 2, len(pluginSource.Plugin.Env))
+	assert.Len(t, pluginSource.Plugin.Env, 2)
 	updated, nothingToUnset = unset(pluginSource, unsetOpts{pluginEnvs: []string{"env-1"}})
-	assert.Equal(t, 1, len(pluginSource.Plugin.Env))
+	assert.Len(t, pluginSource.Plugin.Env, 1)
 	assert.True(t, updated)
 	assert.False(t, nothingToUnset)
 	updated, nothingToUnset = unset(pluginSource, unsetOpts{pluginEnvs: []string{"env-1"}})
@@ -1480,7 +1480,7 @@ func TestParseSelectedResourcesEmptyList(t *testing.T) {
 	var resources []string
 	operationResources, err := parseSelectedResources(resources)
 	assert.NoError(t, err)
-	assert.Len(t, operationResources, 0)
+	assert.Empty(t, operationResources)
 }
 
 func TestPrintApplicationTableNotWide(t *testing.T) {

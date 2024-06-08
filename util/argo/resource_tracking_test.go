@@ -236,5 +236,5 @@ func TestResourceIdNormalizer_Normalize_ConfigHasOldLabel(t *testing.T) {
 }
 
 func TestIsOldTrackingMethod(t *testing.T) {
-	assert.Equal(t, true, IsOldTrackingMethod(string(TrackingMethodLabel)))
+	assert.True(t, IsOldTrackingMethod(string(TrackingMethodLabel)))
 }

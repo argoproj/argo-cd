@@ -1283,7 +1283,7 @@ g, group-49, role:test3
 	for i := range res.Items {
 		names = append(names, res.Items[i].Name)
 	}
-	assert.Equal(t, 300, len(names))
+	assert.Len(t, names, 300)
 }
 
 func generateTestApp(num int) []*appsv1.Application {
@@ -1929,7 +1929,7 @@ func TestServer_GetApplicationSyncWindowsState(t *testing.T) {
 
 		active, err := appServer.GetApplicationSyncWindows(context.Background(), &application.ApplicationSyncWindowsQuery{Name: &testApp.Name})
 		assert.NoError(t, err)
-		assert.Equal(t, 1, len(active.ActiveWindows))
+		assert.Len(t, active.ActiveWindows, 1)
 	})
 	t.Run("Inactive", func(t *testing.T) {
 		testApp := newTestApp()
@@ -1938,7 +1938,7 @@ func TestServer_GetApplicationSyncWindowsState(t *testing.T) {
 
 		active, err := appServer.GetApplicationSyncWindows(context.Background(), &application.ApplicationSyncWindowsQuery{Name: &testApp.Name})
 		assert.NoError(t, err)
-		assert.Equal(t, 0, len(active.ActiveWindows))
+		assert.Empty(t, active.ActiveWindows)
 	})
 	t.Run("ProjectDoesNotExist", func(t *testing.T) {
 		testApp := newTestApp()
@@ -2069,7 +2069,7 @@ func TestLogsGetSelectedPod(t *testing.T) {
 			Name: &appName,
 		}
 		pods := getSelectedPods(treeNodes, &podQuery)
-		assert.Equal(t, 2, len(pods))
+		assert.Len(t, pods, 2)
 	})
 
 	t.Run("GetRSPods", func(t *testing.T) {
@@ -2083,7 +2083,7 @@ func TestLogsGetSelectedPod(t *testing.T) {
 			ResourceName: &name,
 		}
 		pods := getSelectedPods(treeNodes, &podQuery)
-		assert.Equal(t, 1, len(pods))
+		assert.Len(t, pods, 1)
 	})
 
 	t.Run("GetDeploymentPods", func(t *testing.T) {
@@ -2097,7 +2097,7 @@ func TestLogsGetSelectedPod(t *testing.T) {
 			ResourceName: &name,
 		}
 		pods := getSelectedPods(treeNodes, &podQuery)
-		assert.Equal(t, 1, len(pods))
+		assert.Len(t, pods, 1)
 	})
 
 	t.Run("NoMatchingPods", func(t *testing.T) {
@@ -2111,7 +2111,7 @@ func TestLogsGetSelectedPod(t *testing.T) {
 			ResourceName: &name,
 		}
 		pods := getSelectedPods(treeNodes, &podQuery)
-		assert.Equal(t, 0, len(pods))
+		assert.Empty(t, pods)
 	})
 }
 
@@ -2611,7 +2611,7 @@ func TestAppNamespaceRestrictions(t *testing.T) {
 		appServer := newTestAppServer(t, testApp1)
 		apps, err := appServer.List(context.TODO(), &application.ApplicationQuery{})
 		require.NoError(t, err)
-		require.Len(t, apps.Items, 0)
+		require.Empty(t, apps.Items)
 	})
 
 	t.Run("List applications with non-allowed apps existing and explicit ns request", func(t *testing.T) {
@@ -2621,7 +2621,7 @@ func TestAppNamespaceRestrictions(t *testing.T) {
 		appServer := newTestAppServer(t, testApp1, testApp2)
 		apps, err := appServer.List(context.TODO(), &application.ApplicationQuery{AppNamespace: ptr.To("argocd-1")})
 		require.NoError(t, err)
-		require.Len(t, apps.Items, 0)
+		require.Empty(t, apps.Items)
 	})
 
 	t.Run("List applications with allowed apps in other namespaces", func(t *testing.T) {
@@ -2782,7 +2782,7 @@ func TestAppNamespaceRestrictions(t *testing.T) {
 		appServer.enabledNamespaces = []string{"argocd-1"}
 		active, err := appServer.GetApplicationSyncWindows(context.TODO(), &application.ApplicationSyncWindowsQuery{Name: &testApp.Name, AppNamespace: &testApp.Namespace})
 		assert.NoError(t, err)
-		assert.Equal(t, 0, len(active.ActiveWindows))
+		assert.Empty(t, active.ActiveWindows)
 	})
 	t.Run("Get application sync window in other namespace when project is not allowed", func(t *testing.T) {
 		testApp := newTestApp()
@@ -2844,7 +2844,7 @@ func TestAppNamespaceRestrictions(t *testing.T) {
 			Namespace: ptr.To("argocd-1"),
 		})
 		require.NoError(t, err)
-		assert.Equal(t, 0, len(links.Items))
+		assert.Empty(t, links.Items)
 	})
 }
 

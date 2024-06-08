@@ -488,13 +488,13 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 		}
 
 		// Store the map of all sources having ref field into a map for applications with sources field
-		refSources, err := argo.GetRefSources(context.Background(), *appSpec, s.db)
+		refSources, err := argo.GetRefSources(context.Background(), *appSpec, s.db.GetRepository)
 		if err != nil {
 			return fmt.Errorf("failed to get ref sources: %v", err)
 		}
 
 		for _, source := range sources {
-			repo, err := s.db.GetRepository(ctx, source.RepoURL)
+			repo, err := s.db.GetRepository(ctx, source.RepoURL, proj.Name)
 			if err != nil {
 				return fmt.Errorf("error getting repository: %w", err)
 			}
@@ -615,7 +615,7 @@ func (s *Server) GetManifestsWithFiles(stream application.ApplicationService_Get
 			return fmt.Errorf("error getting app project: %w", err)
 		}
 
-		repo, err := s.db.GetRepository(ctx, a.Spec.GetSource().RepoURL)
+		repo, err := s.db.GetRepository(ctx, a.Spec.GetSource().RepoURL, proj.Name)
 		if err != nil {
 			return fmt.Errorf("error getting repository: %w", err)
 		}
@@ -749,7 +749,7 @@ func (s *Server) Get(ctx context.Context, q *application.ApplicationQuery) (*app
 			enabledSourceTypes map[string]bool,
 		) error {
 			source := app.Spec.GetSource()
-			repo, err := s.db.GetRepository(ctx, a.Spec.GetSource().RepoURL)
+			repo, err := s.db.GetRepository(ctx, a.Spec.GetSource().RepoURL, proj.Name)
 			if err != nil {
 				return fmt.Errorf("error getting repository: %w", err)
 			}
@@ -1499,7 +1499,7 @@ func (s *Server) RevisionMetadata(ctx context.Context, q *application.RevisionMe
 	}
 
 	source := a.Spec.GetSource()
-	repo, err := s.db.GetRepository(ctx, source.RepoURL)
+	repo, err := s.db.GetRepository(ctx, source.RepoURL, proj.Name)
 	if err != nil {
 		return nil, fmt.Errorf("error getting repository by URL: %w", err)
 	}
@@ -1524,7 +1524,7 @@ func (s *Server) RevisionChartDetails(ctx context.Context, q *application.Revisi
 	if a.Spec.Source.Chart == "" {
 		return nil, fmt.Errorf("no chart found for application: %v", a.QualifiedName())
 	}
-	repo, err := s.db.GetRepository(ctx, a.Spec.Source.RepoURL)
+	repo, err := s.db.GetRepository(ctx, a.Spec.Source.RepoURL, a.Spec.Project)
 	if err != nil {
 		return nil, fmt.Errorf("error getting repository by URL: %w", err)
 	}
@@ -2151,7 +2151,7 @@ func (s *Server) resolveRevision(ctx context.Context, app *appv1.Application, sy
 		repoUrl = app.Spec.Sources[sourceIndex].RepoURL
 	}
 
-	repo, err := s.db.GetRepository(ctx, repoUrl)
+	repo, err := s.db.GetRepository(ctx, repoUrl, app.Spec.Project)
 	if err != nil {
 		return "", "", fmt.Errorf("error getting repository by URL: %w", err)
 	}

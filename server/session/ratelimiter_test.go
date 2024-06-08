@@ -21,7 +21,7 @@ func TestRateLimiter(t *testing.T) {
 	_, err := limiter()
 	assert.Equal(t, err, session.InvalidLoginErr)
 
-	if !assert.Equal(t, len(closers), 10) {
+	if !assert.Len(t, closers, 10) {
 		return
 	}
 	// complete one request

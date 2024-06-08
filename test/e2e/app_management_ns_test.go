@@ -547,9 +547,9 @@ func TestNamespacedAppRollbackSuccessful(t *testing.T) {
 		And(func(app *Application) {
 			assert.Equal(t, SyncStatusCodeSynced, app.Status.Sync.Status)
 			require.NotNil(t, app.Status.OperationState.SyncResult)
-			assert.Equal(t, 2, len(app.Status.OperationState.SyncResult.Resources))
+			assert.Len(t, app.Status.OperationState.SyncResult.Resources, 2)
 			assert.Equal(t, OperationSucceeded, app.Status.OperationState.Phase)
-			assert.Equal(t, 3, len(app.Status.History))
+			assert.Len(t, app.Status.History, 3)
 		})
 }
 
@@ -1225,8 +1225,8 @@ func TestNamespacedPermissions(t *testing.T) {
 			defer io.Close(closer)
 			tree, err := cdClient.ResourceTree(context.Background(), &applicationpkg.ResourcesQuery{ApplicationName: &app.Name, AppNamespace: &app.Namespace})
 			require.NoError(t, err)
-			assert.Len(t, tree.Nodes, 0)
-			assert.Len(t, tree.OrphanedNodes, 0)
+			assert.Empty(t, tree.Nodes)
+			assert.Empty(t, tree.OrphanedNodes)
 		}).
 		When().
 		// add missing permissions but deny management of Deployment kind
@@ -1707,7 +1707,7 @@ func TestNamespacedCreateAppWithNoNameSpaceForGlobalResource(t *testing.T) {
 			time.Sleep(500 * time.Millisecond)
 			app, err := AppClientset.ArgoprojV1alpha1().Applications(AppNamespace()).Get(context.Background(), app.Name, metav1.GetOptions{})
 			assert.NoError(t, err)
-			assert.Len(t, app.Status.Conditions, 0)
+			assert.Empty(t, app.Status.Conditions)
 		})
 }
 

@@ -211,17 +211,17 @@ func (_m *ArgoDB) DeleteGPGPublicKey(ctx context.Context, keyID string) error {
 	return r0
 }
 
-// DeleteRepository provides a mock function with given fields: ctx, name
-func (_m *ArgoDB) DeleteRepository(ctx context.Context, name string) error {
-	ret := _m.Called(ctx, name)
+// DeleteRepository provides a mock function with given fields: ctx, name, project
+func (_m *ArgoDB) DeleteRepository(ctx context.Context, name string, project string) error {
+	ret := _m.Called(ctx, name, project)
 
 	if len(ret) == 0 {
 		panic("no return value specified for DeleteRepository")
 	}
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, string) error); ok {
-		r0 = rf(ctx, name)
+	if rf, ok := ret.Get(0).(func(context.Context, string, string) error); ok {
+		r0 = rf(ctx, name, project)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -415,9 +415,9 @@ func (_m *ArgoDB) GetProjectRepositories(ctx context.Context, project string) ([
 	return r0, r1
 }
 
-// GetRepository provides a mock function with given fields: ctx, url
-func (_m *ArgoDB) GetRepository(ctx context.Context, url string) (*v1alpha1.Repository, error) {
-	ret := _m.Called(ctx, url)
+// GetRepository provides a mock function with given fields: ctx, url, project
+func (_m *ArgoDB) GetRepository(ctx context.Context, url string, project string) (*v1alpha1.Repository, error) {
+	ret := _m.Called(ctx, url, project)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetRepository")
@@ -425,19 +425,19 @@ func (_m *ArgoDB) GetRepository(ctx context.Context, url string) (*v1alpha1.Repo
 
 	var r0 *v1alpha1.Repository
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, string) (*v1alpha1.Repository, error)); ok {
-		return rf(ctx, url)
+	if rf, ok := ret.Get(0).(func(context.Context, string, string) (*v1alpha1.Repository, error)); ok {
+		return rf(ctx, url, project)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, string) *v1alpha1.Repository); ok {
-		r0 = rf(ctx, url)
+	if rf, ok := ret.Get(0).(func(context.Context, string, string) *v1alpha1.Repository); ok {
+		r0 = rf(ctx, url, project)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*v1alpha1.Repository)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
-		r1 = rf(ctx, url)
+	if rf, ok := ret.Get(1).(func(context.Context, string, string) error); ok {
+		r1 = rf(ctx, url, project)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -685,9 +685,9 @@ func (_m *ArgoDB) RemoveRepoCertificates(ctx context.Context, selector *db.Certi
 	return r0, r1
 }
 
-// RepositoryExists provides a mock function with given fields: ctx, repoURL
-func (_m *ArgoDB) RepositoryExists(ctx context.Context, repoURL string) (bool, error) {
-	ret := _m.Called(ctx, repoURL)
+// RepositoryExists provides a mock function with given fields: ctx, repoURL, project
+func (_m *ArgoDB) RepositoryExists(ctx context.Context, repoURL string, project string) (bool, error) {
+	ret := _m.Called(ctx, repoURL, project)
 
 	if len(ret) == 0 {
 		panic("no return value specified for RepositoryExists")
@@ -695,17 +695,17 @@ func (_m *ArgoDB) RepositoryExists(ctx context.Context, repoURL string) (bool, e
 
 	var r0 bool
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, string) (bool, error)); ok {
-		return rf(ctx, repoURL)
+	if rf, ok := ret.Get(0).(func(context.Context, string, string) (bool, error)); ok {
+		return rf(ctx, repoURL, project)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, string) bool); ok {
-		r0 = rf(ctx, repoURL)
+	if rf, ok := ret.Get(0).(func(context.Context, string, string) bool); ok {
+		r0 = rf(ctx, repoURL, project)
 	} else {
 		r0 = ret.Get(0).(bool)
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
-		r1 = rf(ctx, repoURL)
+	if rf, ok := ret.Get(1).(func(context.Context, string, string) error); ok {
+		r1 = rf(ctx, repoURL, project)
 	} else {
 		r1 = ret.Error(1)
 	}

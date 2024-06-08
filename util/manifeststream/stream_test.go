@@ -112,7 +112,7 @@ func TestManifestStream(t *testing.T) {
 
 	files, err := os.ReadDir(workdir)
 	require.NoError(t, err)
-	require.Equal(t, 1, len(files))
+	require.Len(t, files, 1)
 	names := []string{}
 	for _, f := range files {
 		names = append(names, f.Name())

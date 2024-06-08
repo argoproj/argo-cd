@@ -303,7 +303,7 @@ func Test_getOrCreateServiceAccountTokenSecret_NoSecretForSA(t *testing.T) {
 	}
 
 	sa := obj.(*corev1.ServiceAccount)
-	assert.Equal(t, 1, len(sa.Secrets))
+	assert.Len(t, sa.Secrets, 1)
 }
 
 func Test_getOrCreateServiceAccountTokenSecret_SAHasSecret(t *testing.T) {
@@ -354,7 +354,7 @@ func Test_getOrCreateServiceAccountTokenSecret_SAHasSecret(t *testing.T) {
 	}
 
 	sa := obj.(*corev1.ServiceAccount)
-	assert.Equal(t, 1, len(sa.Secrets))
+	assert.Len(t, sa.Secrets, 1)
 
 	// Adding if statement to prevent case where secret not found
 	// since accessing name by first index.

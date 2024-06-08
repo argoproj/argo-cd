@@ -75,10 +75,10 @@ func TestSetLabels(t *testing.T) {
 		if yamlStr == depWithoutSelector {
 			assert.Nil(t, depV1Beta1.Spec.Selector)
 		} else if yamlStr == depWithSelector {
-			assert.Equal(t, 1, len(depV1Beta1.Spec.Selector.MatchLabels))
+			assert.Len(t, depV1Beta1.Spec.Selector.MatchLabels, 1)
 			assert.Equal(t, "nginx", depV1Beta1.Spec.Selector.MatchLabels["app"])
 		}
-		assert.Equal(t, 1, len(depV1Beta1.Spec.Template.Labels))
+		assert.Len(t, depV1Beta1.Spec.Template.Labels, 1)
 		assert.Equal(t, "nginx", depV1Beta1.Spec.Template.Labels["app"])
 	}
 }

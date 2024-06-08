@@ -219,7 +219,7 @@ func NewClusterShardsCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comm
 	clientConfig = cli.AddKubectlFlagsToCmd(&command)
 	command.Flags().IntVar(&shard, "shard", -1, "Cluster shard filter")
 	command.Flags().IntVar(&replicas, "replicas", 0, "Application controller replicas count. Inferred from number of running controller pods if not specified")
-	command.Flags().StringVar(&shardingAlgorithm, "sharding-method", common.DefaultShardingAlgorithm, "Sharding method. Defaults: legacy. Supported sharding methods are : [legacy, round-robin] ")
+	command.Flags().StringVar(&shardingAlgorithm, "sharding-method", common.DefaultShardingAlgorithm, "Sharding method. Defaults: legacy. Supported sharding methods are : [legacy, round-robin, consistent-hashing] ")
 	command.Flags().BoolVar(&portForwardRedis, "port-forward-redis", true, "Automatically port-forward ha proxy redis from current namespace?")
 
 	cacheSrc = appstatecache.AddCacheFlagsToCmd(&command)
@@ -514,7 +514,7 @@ argocd admin cluster stats target-cluster`,
 	clientConfig = cli.AddKubectlFlagsToCmd(&command)
 	command.Flags().IntVar(&shard, "shard", -1, "Cluster shard filter")
 	command.Flags().IntVar(&replicas, "replicas", 0, "Application controller replicas count. Inferred from number of running controller pods if not specified")
-	command.Flags().StringVar(&shardingAlgorithm, "sharding-method", common.DefaultShardingAlgorithm, "Sharding method. Defaults: legacy. Supported sharding methods are : [legacy, round-robin] ")
+	command.Flags().StringVar(&shardingAlgorithm, "sharding-method", common.DefaultShardingAlgorithm, "Sharding method. Defaults: legacy. Supported sharding methods are : [legacy, round-robin, consistent-hashing] ")
 	command.Flags().BoolVar(&portForwardRedis, "port-forward-redis", true, "Automatically port-forward ha proxy redis from current namespace?")
 	cacheSrc = appstatecache.AddCacheFlagsToCmd(&command)
 
