@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"fmt"
+	"github.com/argoproj/argo-cd/v2/util/git"
 	"reflect"
 
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
@@ -69,8 +70,8 @@ var (
 	errPermissionDenied = status.Error(codes.PermissionDenied, "permission denied")
 )
 
-func (s *Server) getRepo(ctx context.Context, url string) (*appsv1.Repository, error) {
-	repo, err := s.db.GetRepository(ctx, url)
+func (s *Server) getRepo(ctx context.Context, url, project string) (*appsv1.Repository, error) {
+	repo, err := s.db.GetRepository(ctx, url, project)
 	if err != nil {
 		return nil, errPermissionDenied
 	}
@@ -87,9 +88,9 @@ func createRBACObject(project string, repo string) string {
 // Get the connection state for a given repository URL by connecting to the
 // repo and evaluate the results. Unless forceRefresh is set to true, the
 // result may be retrieved out of the cache.
-func (s *Server) getConnectionState(ctx context.Context, url string, forceRefresh bool) appsv1.ConnectionState {
+func (s *Server) getConnectionState(ctx context.Context, url string, project string, forceRefresh bool) appsv1.ConnectionState {
 	if !forceRefresh {
-		if connectionState, err := s.cache.GetRepoConnectionState(url); err == nil {
+		if connectionState, err := s.cache.GetRepoConnectionState(url, project); err == nil {
 			return connectionState
 		}
 	}
@@ -99,7 +100,7 @@ func (s *Server) getConnectionState(ctx context.Context, url string, forceRefres
 		ModifiedAt: &now,
 	}
 	var err error
-	repo, err := s.db.GetRepository(ctx, url)
+	repo, err := s.db.GetRepository(ctx, url, project)
 	if err == nil {
 		err = s.testRepo(ctx, repo)
 	}
@@ -112,7 +113,7 @@ func (s *Server) getConnectionState(ctx context.Context, url string, forceRefres
 			connectionState.Message = fmt.Sprintf("Unable to connect to repository: %v", err)
 		}
 	}
-	err = s.cache.SetRepoConnectionState(url, &connectionState)
+	err = s.cache.SetRepoConnectionState(url, project, &connectionState)
 	if err != nil {
 		log.Warnf("getConnectionState cache set error %s: %v", url, err)
 	}
@@ -127,7 +128,7 @@ func (s *Server) List(ctx context.Context, q *repositorypkg.RepoQuery) (*appsv1.
 
 // Get return the requested configured repository by URL and the state of its connections.
 func (s *Server) Get(ctx context.Context, q *repositorypkg.RepoQuery) (*appsv1.Repository, error) {
-	repo, err := s.getRepo(ctx, q.Repo)
+	repo, err := getRepository(ctx, s.ListRepositories, q)
 	if err != nil {
 		return nil, err
 	}
@@ -137,7 +138,7 @@ func (s *Server) Get(ctx context.Context, q *repositorypkg.RepoQuery) (*appsv1.R
 	}
 
 	// getRepo does not return an error for unconfigured repositories, so we are checking here
-	exists, err := s.db.RepositoryExists(ctx, q.Repo)
+	exists, err := s.db.RepositoryExists(ctx, q.Repo, repo.Project)
 	if err != nil {
 		return nil, err
 	}
@@ -166,7 +167,7 @@ func (s *Server) Get(ctx context.Context, q *repositorypkg.RepoQuery) (*appsv1.R
 		InheritedCreds:             repo.InheritedCreds,
 	}
 
-	item.ConnectionState = s.getConnectionState(ctx, item.Repo, q.ForceRefresh)
+	item.ConnectionState = s.getConnectionState(ctx, item.Repo, item.Project, q.ForceRefresh)
 
 	return &item, nil
 }
@@ -202,7 +203,7 @@ func (s *Server) ListRepositories(ctx context.Context, q *repositorypkg.RepoQuer
 		}
 	}
 	err = kube.RunAllAsync(len(items), func(i int) error {
-		items[i].ConnectionState = s.getConnectionState(ctx, items[i].Repo, q.ForceRefresh)
+		items[i].ConnectionState = s.getConnectionState(ctx, items[i].Repo, items[i].Project, q.ForceRefresh)
 		return nil
 	})
 	if err != nil {
@@ -212,7 +213,7 @@ func (s *Server) ListRepositories(ctx context.Context, q *repositorypkg.RepoQuer
 }
 
 func (s *Server) ListRefs(ctx context.Context, q *repositorypkg.RepoQuery) (*apiclient.Refs, error) {
-	repo, err := s.getRepo(ctx, q.Repo)
+	repo, err := s.getRepo(ctx, q.Repo, q.GetAppProject())
 	if err != nil {
 		return nil, err
 	}
@@ -235,7 +236,7 @@ func (s *Server) ListRefs(ctx context.Context, q *repositorypkg.RepoQuery) (*api
 // ListApps performs discovery of a git repository for potential sources of applications. Used
 // as a convenience to the UI for auto-complete.
 func (s *Server) ListApps(ctx context.Context, q *repositorypkg.RepoAppsQuery) (*repositorypkg.RepoAppsResponse, error) {
-	repo, err := s.getRepo(ctx, q.Repo)
+	repo, err := s.getRepo(ctx, q.Repo, q.GetAppProject())
 	if err != nil {
 		return nil, err
 	}
@@ -286,7 +287,7 @@ func (s *Server) GetAppDetails(ctx context.Context, q *repositorypkg.RepoAppDeta
 	if q.Source == nil {
 		return nil, status.Errorf(codes.InvalidArgument, "missing payload in request")
 	}
-	repo, err := s.getRepo(ctx, q.Source.RepoURL)
+	repo, err := s.getRepo(ctx, q.Source.RepoURL, q.GetAppProject())
 	if err != nil {
 		return nil, err
 	}
@@ -355,7 +356,7 @@ func (s *Server) GetAppDetails(ctx context.Context, q *repositorypkg.RepoAppDeta
 
 // GetHelmCharts returns list of helm charts in the specified repository
 func (s *Server) GetHelmCharts(ctx context.Context, q *repositorypkg.RepoQuery) (*apiclient.HelmChartsResponse, error) {
-	repo, err := s.getRepo(ctx, q.Repo)
+	repo, err := s.getRepo(ctx, q.Repo, q.GetAppProject())
 	if err != nil {
 		return nil, err
 	}
@@ -411,7 +412,7 @@ func (s *Server) CreateRepository(ctx context.Context, q *repositorypkg.RepoCrea
 	repo, err = s.db.CreateRepository(ctx, r)
 	if status.Convert(err).Code() == codes.AlreadyExists {
 		// act idempotent if existing spec matches new spec
-		existing, getErr := s.db.GetRepository(ctx, r.Repo)
+		existing, getErr := s.db.GetRepository(ctx, r.Repo, q.Repo.Project)
 		if getErr != nil {
 			return nil, status.Errorf(codes.Internal, "unable to check existing repository details: %v", getErr)
 		}
@@ -446,7 +447,7 @@ func (s *Server) UpdateRepository(ctx context.Context, q *repositorypkg.RepoUpda
 		return nil, status.Errorf(codes.InvalidArgument, "missing payload in request")
 	}
 
-	repo, err := s.getRepo(ctx, q.Repo.Repo)
+	repo, err := s.getRepo(ctx, q.Repo.Repo, q.Repo.Project)
 	if err != nil {
 		return nil, err
 	}
@@ -471,7 +472,7 @@ func (s *Server) Delete(ctx context.Context, q *repositorypkg.RepoQuery) (*repos
 
 // DeleteRepository removes a repository from the configuration
 func (s *Server) DeleteRepository(ctx context.Context, q *repositorypkg.RepoQuery) (*repositorypkg.RepoResponse, error) {
-	repo, err := s.getRepo(ctx, q.Repo)
+	repo, err := getRepository(ctx, s.ListRepositories, q)
 	if err != nil {
 		return nil, err
 	}
@@ -481,12 +482,51 @@ func (s *Server) DeleteRepository(ctx context.Context, q *repositorypkg.RepoQuer
 	}
 
 	// invalidate cache
-	if err := s.cache.SetRepoConnectionState(q.Repo, nil); err == nil {
+	if err := s.cache.SetRepoConnectionState(repo.Repo, repo.Project, nil); err == nil {
 		log.Errorf("error invalidating cache: %v", err)
 	}
 
-	err = s.db.DeleteRepository(ctx, q.Repo)
+	err = s.db.DeleteRepository(ctx, repo.Repo, repo.Project)
 	return &repositorypkg.RepoResponse{}, err
+}
+
+// getRepository fetches a single repository which the user has access to. If only one repository can be found which
+// matches the same URL, that will be returned (this is for backward compatibility reasons). If multiple repositories
+// are matched, a repository is only returned if it matches the app project of the incoming request.
+func getRepository(ctx context.Context, listRepositories func(context.Context, *repositorypkg.RepoQuery) (*v1alpha1.RepositoryList, error), q *repositorypkg.RepoQuery) (*appsv1.Repository, error) {
+	repositories, err := listRepositories(ctx, q)
+	if err != nil {
+		return nil, err
+	}
+
+	var foundRepos []*v1alpha1.Repository
+	for _, repo := range repositories.Items {
+		if git.SameURL(repo.Repo, q.Repo) {
+			foundRepos = append(foundRepos, repo)
+		}
+	}
+
+	if len(foundRepos) == 0 {
+		return nil, errPermissionDenied
+	}
+
+	var foundRepo *v1alpha1.Repository
+	if len(foundRepos) == 1 && q.GetAppProject() == "" {
+		foundRepo = foundRepos[0]
+	} else if len(foundRepos) > 0 {
+		for _, repo := range foundRepos {
+			if repo.Project == q.GetAppProject() {
+				foundRepo = repo
+				break
+			}
+		}
+	}
+
+	if foundRepo == nil {
+		return nil, fmt.Errorf("repository not found for url %q and project %q", q.Repo, q.GetAppProject())
+	}
+
+	return foundRepo, nil
 }
 
 // ValidateAccess checks whether access to a repository is possible with the

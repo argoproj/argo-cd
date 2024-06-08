@@ -375,7 +375,7 @@ func TestValidateRepo(t *testing.T) {
 
 	db := &dbmocks.ArgoDB{}
 
-	db.On("GetRepository", context.Background(), app.Spec.Source.RepoURL).Return(repo, nil)
+	db.On("GetRepository", context.Background(), app.Spec.Source.RepoURL, "").Return(repo, nil)
 	db.On("ListHelmRepositories", context.Background()).Return(helmRepos, nil)
 	db.On("GetCluster", context.Background(), app.Spec.Destination.Server).Return(cluster, nil)
 	db.On("GetAllHelmRepositoryCredentials", context.Background()).Return(nil, nil)
@@ -1270,15 +1270,14 @@ func Test_GetRefSources(t *testing.T) {
 	repo := &argoappv1.Repository{Repo: fmt.Sprintf("file://%s", repoPath)}
 
 	t.Run("target ref exists", func(t *testing.T) {
-		repoDB := &dbmocks.ArgoDB{}
-		repoDB.On("GetRepository", context.Background(), repo.Repo).Return(repo, nil)
-
 		argoSpec := getMultiSourceAppSpec(argoappv1.ApplicationSources{
 			{RepoURL: fmt.Sprintf("file://%s", repoPath), Ref: "source-1_2"},
 			{RepoURL: fmt.Sprintf("file://%s", repoPath)},
 		})
 
-		refSources, err := GetRefSources(context.Background(), *argoSpec, repoDB)
+		refSources, err := GetRefSources(context.Background(), *argoSpec, func(ctx context.Context, url string, project string) (*argoappv1.Repository, error) {
+			return repo, nil
+		})
 
 		expectedRefSource := argoappv1.RefTargetRevisionMapping{
 			"$source-1_2": &argoappv1.RefTarget{
@@ -1291,14 +1290,13 @@ func Test_GetRefSources(t *testing.T) {
 	})
 
 	t.Run("target ref does not exist", func(t *testing.T) {
-		repoDB := &dbmocks.ArgoDB{}
-		repoDB.On("GetRepository", context.Background(), "file://does-not-exist").Return(nil, errors.New("repo does not exist"))
-
 		argoSpec := getMultiSourceAppSpec(argoappv1.ApplicationSources{
 			{RepoURL: "file://does-not-exist", Ref: "source1"},
 		})
 
-		refSources, err := GetRefSources(context.Background(), *argoSpec, repoDB)
+		refSources, err := GetRefSources(context.Background(), *argoSpec, func(ctx context.Context, url string, project string) (*argoappv1.Repository, error) {
+			return nil, errors.New("repo does not exist")
+		})
 
 		assert.Error(t, err)
 		assert.Empty(t, refSources)
@@ -1309,7 +1307,9 @@ func Test_GetRefSources(t *testing.T) {
 			{RepoURL: "file://does-not-exist", Ref: "%invalid-name%"},
 		})
 
-		refSources, err := GetRefSources(context.TODO(), *argoSpec, &dbmocks.ArgoDB{})
+		refSources, err := GetRefSources(context.TODO(), *argoSpec, func(ctx context.Context, url string, project string) (*argoappv1.Repository, error) {
+			return nil, err
+		})
 
 		assert.Error(t, err)
 		assert.Empty(t, refSources)
@@ -1321,7 +1321,9 @@ func Test_GetRefSources(t *testing.T) {
 			{RepoURL: "file://does-not-exist", Ref: "source1"},
 		})
 
-		refSources, err := GetRefSources(context.TODO(), *argoSpec, &dbmocks.ArgoDB{})
+		refSources, err := GetRefSources(context.TODO(), *argoSpec, func(ctx context.Context, url string, project string) (*argoappv1.Repository, error) {
+			return nil, err
+		})
 
 		assert.Error(t, err)
 		assert.Empty(t, refSources)

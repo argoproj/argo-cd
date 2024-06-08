@@ -178,7 +178,7 @@ func (m *appStateManager) GetRepoObjs(app *v1alpha1.Application, sources []v1alp
 	targetObjs := make([]*unstructured.Unstructured, 0)
 
 	// Store the map of all sources having ref field into a map for applications with sources field
-	refSources, err := argo.GetRefSources(context.Background(), app.Spec, m.db)
+	refSources, err := argo.GetRefSources(context.Background(), app.Spec, m.db.GetRepository)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to get ref sources: %v", err)
 	}
@@ -188,7 +188,7 @@ func (m *appStateManager) GetRepoObjs(app *v1alpha1.Application, sources []v1alp
 			revisions[i] = source.TargetRevision
 		}
 		ts.AddCheckpoint("helm_ms")
-		repo, err := m.db.GetRepository(context.Background(), source.RepoURL)
+		repo, err := m.db.GetRepository(context.Background(), source.RepoURL, proj.Name)
 		if err != nil {
 			return nil, nil, fmt.Errorf("failed to get repo %q: %w", source.RepoURL, err)
 		}
