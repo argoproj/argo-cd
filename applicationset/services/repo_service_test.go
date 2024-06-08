@@ -64,10 +64,8 @@ func TestGetDirectories(t *testing.T) {
 			},
 		}, args: args{}, want: []string{"foo", "foo/bar", "bar/foo"}, wantErr: assert.NoError},
 		{name: "ErrorVerifyingCommit", fields: fields{
-			repositoriesDBFuncs: []func(*mocks.RepositoryDB){
-				func(db *mocks.RepositoryDB) {
-					db.On("GetRepository", mock.Anything, mock.Anything).Return(&v1alpha1.Repository{}, nil)
-				},
+			getRepository: func(ctx context.Context, url, project string) (*v1alpha1.Repository, error) {
+				return &v1alpha1.Repository{}, nil
 			},
 			repoServerClientFuncs: []func(*repo_mocks.RepoServerServiceClient){
 				func(client *repo_mocks.RepoServerServiceClient) {
@@ -155,10 +153,8 @@ func TestGetFiles(t *testing.T) {
 			"bar.yaml": []byte("yay: appsets"),
 		}, wantErr: assert.NoError},
 		{name: "ErrorVerifyingCommit", fields: fields{
-			repositoriesDBFuncs: []func(*mocks.RepositoryDB){
-				func(db *mocks.RepositoryDB) {
-					db.On("GetRepository", mock.Anything, mock.Anything).Return(&v1alpha1.Repository{}, nil)
-				},
+			getRepository: func(ctx context.Context, url, project string) (*v1alpha1.Repository, error) {
+				return &v1alpha1.Repository{}, nil
 			},
 			repoServerClientFuncs: []func(*repo_mocks.RepoServerServiceClient){
 				func(client *repo_mocks.RepoServerServiceClient) {
