@@ -74,7 +74,10 @@ func (g *GitGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.Applic
 	}
 
 	// we need to verify the signature on the Git revision if GPG is enabled
-	verifyCommit := appProject.Spec.SignatureKeys != nil && len(appProject.Spec.SignatureKeys) > 0 && gpg.IsGPGEnabled()
+	verifyCommit := false
+	if appProject.Spec.SignatureKeys != nil && len(appProject.Spec.SignatureKeys) > 0 && gpg.IsGPGEnabled() {
+		verifyCommit = true
+	}
 
 	var err error
 	var res []map[string]interface{}

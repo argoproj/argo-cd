@@ -7,8 +7,11 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	"github.com/argoproj/argo-cd/v2/applicationset/services/mocks"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 )
 
@@ -337,7 +340,14 @@ func TestGitGenerateParamsFromDirectories(t *testing.T) {
 				},
 			}
 
-			got, err := gitGenerator.GenerateParams(&applicationSetInfo.Spec.Generators[0], &applicationSetInfo)
+			scheme := runtime.NewScheme()
+			err := v1alpha1.AddToScheme(scheme)
+			assert.Nil(t, err)
+			appProject := argoprojiov1alpha1.AppProject{}
+
+			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&appProject).Build()
+
+			got, err := gitGenerator.GenerateParams(&applicationSetInfo.Spec.Generators[0], &applicationSetInfo, client)
 
 			if testCaseCopy.expectedError != nil {
 				assert.EqualError(t, err, testCaseCopy.expectedError.Error())
@@ -631,7 +641,14 @@ func TestGitGenerateParamsFromDirectoriesGoTemplate(t *testing.T) {
 				},
 			}
 
-			got, err := gitGenerator.GenerateParams(&applicationSetInfo.Spec.Generators[0], &applicationSetInfo)
+			scheme := runtime.NewScheme()
+			err := v1alpha1.AddToScheme(scheme)
+			assert.Nil(t, err)
+			appProject := argoprojiov1alpha1.AppProject{}
+
+			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&appProject).Build()
+
+			got, err := gitGenerator.GenerateParams(&applicationSetInfo.Spec.Generators[0], &applicationSetInfo, client)
 
 			if testCaseCopy.expectedError != nil {
 				assert.EqualError(t, err, testCaseCopy.expectedError.Error())
@@ -988,7 +1005,14 @@ cluster:
 				},
 			}
 
-			got, err := gitGenerator.GenerateParams(&applicationSetInfo.Spec.Generators[0], &applicationSetInfo)
+			scheme := runtime.NewScheme()
+			err := v1alpha1.AddToScheme(scheme)
+			assert.Nil(t, err)
+			appProject := argoprojiov1alpha1.AppProject{}
+
+			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&appProject).Build()
+
+			got, err := gitGenerator.GenerateParams(&applicationSetInfo.Spec.Generators[0], &applicationSetInfo, client)
 			fmt.Println(got, err)
 
 			if testCaseCopy.expectedError != nil {
@@ -1337,7 +1361,14 @@ cluster:
 				},
 			}
 
-			got, err := gitGenerator.GenerateParams(&applicationSetInfo.Spec.Generators[0], &applicationSetInfo)
+			scheme := runtime.NewScheme()
+			err := v1alpha1.AddToScheme(scheme)
+			assert.Nil(t, err)
+			appProject := argoprojiov1alpha1.AppProject{}
+
+			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&appProject).Build()
+
+			got, err := gitGenerator.GenerateParams(&applicationSetInfo.Spec.Generators[0], &applicationSetInfo, client)
 			fmt.Println(got, err)
 
 			if testCaseCopy.expectedError != nil {

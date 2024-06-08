@@ -681,7 +681,8 @@ func TestPluginGenerateParams(t *testing.T) {
 				},
 			}
 
-			got, err := pluginGenerator.GenerateParams(&generatorConfig, &applicationSetInfo)
+			got, err := pluginGenerator.GenerateParams(&generatorConfig, &applicationSetInfo, nil)
+
 			if err != nil {
 				fmt.Println(err)
 			}
