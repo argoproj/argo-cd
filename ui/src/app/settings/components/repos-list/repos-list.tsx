@@ -334,7 +334,7 @@ export class ReposList extends React.Component<
                                                                 },
                                                                 {
                                                                     title: 'Disconnect',
-                                                                    action: () => this.disconnectRepo(repo.repo)
+                                                                    action: () => this.disconnectRepo(repo.repo, repo.project)
                                                                 }
                                                             ]}
                                                         />
@@ -847,11 +847,11 @@ export class ReposList extends React.Component<
     }
 
     // Remove a repository from the configuration
-    private async disconnectRepo(repo: string) {
+    private async disconnectRepo(repo: string, project: string) {
         const confirmed = await this.appContext.apis.popup.confirm('Disconnect repository', `Are you sure you want to disconnect '${repo}'?`);
         if (confirmed) {
             try {
-                await services.repos.delete(repo);
+                await services.repos.delete(repo, project);
                 this.repoLoader.reload();
             } catch (e) {
                 this.appContext.apis.notifications.show({

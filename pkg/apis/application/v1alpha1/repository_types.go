@@ -14,7 +14,7 @@ import (
 
 // RepoCreds holds the definition for repository credentials
 type RepoCreds struct {
-	// URL is the URL that this credentials matches to
+	// URL is the URL to which these credentials match
 	URL string `json:"url" protobuf:"bytes,1,opt,name=url"`
 	// Username for authenticating at the repo server
 	Username string `json:"username,omitempty" protobuf:"bytes,2,opt,name=username"`
@@ -87,7 +87,7 @@ type Repository struct {
 	GitHubAppEnterpriseBaseURL string `json:"githubAppEnterpriseBaseUrl,omitempty" protobuf:"bytes,18,opt,name=githubAppEnterpriseBaseUrl"`
 	// Proxy specifies the HTTP/HTTPS proxy used to access the repo
 	Proxy string `json:"proxy,omitempty" protobuf:"bytes,19,opt,name=proxy"`
-	// Reference between project and repository that allow you automatically to be added as item inside SourceRepos project entity
+	// Reference between project and repository that allows it to be automatically added as an item inside SourceRepos project entity
 	Project string `json:"project,omitempty" protobuf:"bytes,20,opt,name=project"`
 	// GCPServiceAccountKey specifies the service account key in JSON format to be used for getting credentials to Google Cloud Source repos
 	GCPServiceAccountKey string `json:"gcpServiceAccountKey,omitempty" protobuf:"bytes,21,opt,name=gcpServiceAccountKey"`
