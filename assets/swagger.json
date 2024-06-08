@@ -8752,6 +8752,10 @@
           "description": "The URL to Azure DevOps. If blank, use https://dev.azure.com.",
           "type": "string"
         },
+        "insecure": {
+          "type": "boolean",
+          "title": "Skips validating the SCM provider's TLS certificate - useful for self-signed certificates.; default: False"
+        },
         "organization": {
           "description": "Azure Devops organization. Required. E.g. \"my-organization\".",
           "type": "string"
@@ -8759,10 +8763,6 @@
         "teamProject": {
           "description": "Azure Devops team project. Required. E.g. \"my-team\".",
           "type": "string"
-        },
-        "insecure": {
-          "type": "boolean",
-          "title": "Skips validating the SCM provider's TLS certificate - useful for self-signed certificates.; default: false"
         }
       }
     },

@@ -5060,6 +5060,13 @@ func schema_pkg_apis_application_v1alpha1_PullRequestGeneratorAzureDevOps(ref co
 							},
 						},
 					},
+					"insecure": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Skips validating the SCM provider's TLS certificate - useful for self-signed certificates.; default: false",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
 				},
 				Required: []string{"organization", "project", "repo"},
 			},
@@ -7013,6 +7020,13 @@ func schema_pkg_apis_application_v1alpha1_SCMProviderGeneratorAzureDevOps(ref co
 					"allBranches": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Scan all branches instead of just the default branch.",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"insecure": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Skips validating the SCM provider's TLS certificate - useful for self-signed certificates.; default: False",
 							Type:        []string{"boolean"},
 							Format:      "",
 						},

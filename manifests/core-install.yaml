@@ -11138,6 +11138,8 @@ spec:
                                         type: boolean
                                       api:
                                         type: string
+                                      insecure:
+                                        type: boolean
                                       organization:
                                         type: string
                                       teamProject:
@@ -16200,6 +16202,8 @@ spec:
                                         type: boolean
                                       api:
                                         type: string
+                                      insecure:
+                                        type: boolean
                                       organization:
                                         type: string
                                       teamProject:
@@ -18903,6 +18907,8 @@ spec:
                               type: boolean
                             api:
                               type: string
+                            insecure:
+                              type: boolean
                             organization:
                               type: string
                             teamProject:
