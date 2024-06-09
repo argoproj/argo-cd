@@ -2033,9 +2033,6 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 					if applyOutOfSyncOnly {
 						items = append(items, common.SyncOptionApplyOutOfSyncOnly)
 					}
-					if respectIgnoreDifferences {
-						items = append(items, common.SyncRespectIgnoreDifferences)
-					}
 
 					if len(items) == 0 {
 						// for prevent send even empty array if not need
