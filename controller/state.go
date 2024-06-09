@@ -180,12 +180,7 @@ func (m *appStateManager) GetRepoObjs(app *v1alpha1.Application, sources []v1alp
 	// Store the map of all sources having ref field into a map for applications with sources field
 	// If it's for a rollback process, the refSources[*].targetRevision fields are the desired
 	// revisions for the rollback
-	refSources, err := argo.GetRefSources(context.Background(), argo.GetRefSourcesOptions{
-		Sources:    sources,
-		Db:         m.db,
-		Revisions:  revisions,
-		IsRollback: rollback,
-	})
+	refSources, err := argo.GetRefSources(context.Background(), app.Spec, m.db.GetRepository, revisions, rollback)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to get ref sources: %v", err)
 	}

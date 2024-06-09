@@ -1277,7 +1277,7 @@ func Test_GetRefSources(t *testing.T) {
 
 		refSources, err := GetRefSources(context.Background(), *argoSpec, func(ctx context.Context, url string, project string) (*argoappv1.Repository, error) {
 			return repo, nil
-		})
+		}, []string{}, false)
 
 		expectedRefSource := argoappv1.RefTargetRevisionMapping{
 			"$source-1_2": &argoappv1.RefTarget{
@@ -1296,7 +1296,7 @@ func Test_GetRefSources(t *testing.T) {
 
 		refSources, err := GetRefSources(context.Background(), *argoSpec, func(ctx context.Context, url string, project string) (*argoappv1.Repository, error) {
 			return nil, errors.New("repo does not exist")
-		})
+		}, []string{}, false)
 
 		assert.Error(t, err)
 		assert.Empty(t, refSources)
@@ -1309,7 +1309,7 @@ func Test_GetRefSources(t *testing.T) {
 
 		refSources, err := GetRefSources(context.TODO(), *argoSpec, func(ctx context.Context, url string, project string) (*argoappv1.Repository, error) {
 			return nil, err
-		})
+		}, []string{}, false)
 
 		assert.Error(t, err)
 		assert.Empty(t, refSources)
@@ -1323,7 +1323,7 @@ func Test_GetRefSources(t *testing.T) {
 
 		refSources, err := GetRefSources(context.TODO(), *argoSpec, func(ctx context.Context, url string, project string) (*argoappv1.Repository, error) {
 			return nil, err
-		})
+		}, []string{}, false)
 
 		assert.Error(t, err)
 		assert.Empty(t, refSources)

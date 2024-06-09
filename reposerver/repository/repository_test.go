@@ -503,7 +503,7 @@ func TestHelmChartReferencingExternalValues(t *testing.T) {
 		return &argoappv1.Repository{
 			Repo: "https://git.example.com/test/repo",
 		}, nil
-	})
+	}, []string{}, false)
 	require.NoError(t, err)
 	request := &apiclient.ManifestRequest{Repo: &argoappv1.Repository{}, ApplicationSource: &spec.Sources[0], NoCache: true, RefSources: refSources, HasMultipleSources: true, ProjectName: "something",
 		ProjectSourceRepos: []string{"*"}}
@@ -532,20 +532,13 @@ func TestHelmChartReferencingExternalValues_InvalidRefs(t *testing.T) {
 	// Empty refsource
 	service := newService(t, ".")
 
-<<<<<<< HEAD
 	getRepository := func(ctx context.Context, url string, project string) (*argoappv1.Repository, error) {
 		return &argoappv1.Repository{
 			Repo: "https://git.example.com/test/repo",
 		}, nil
 	}
 
-	refSources, err := argo.GetRefSources(context.Background(), spec, getRepository)
-=======
-	refSources, err := argo.GetRefSources(context.Background(), argo.GetRefSourcesOptions{
-		Sources: spec.Sources,
-		Db:      repoDB,
-	})
->>>>>>> aec91ff53 (fix errors)
+	refSources, err := argo.GetRefSources(context.Background(), spec, getRepository, []string{}, false)
 	require.NoError(t, err)
 
 	request := &apiclient.ManifestRequest{Repo: &argoappv1.Repository{}, ApplicationSource: &spec.Sources[0], NoCache: true, RefSources: refSources, HasMultipleSources: true, ProjectName: "something",
@@ -558,14 +551,7 @@ func TestHelmChartReferencingExternalValues_InvalidRefs(t *testing.T) {
 	service = newService(t, ".")
 
 	spec.Sources[1].Ref = "Invalid"
-<<<<<<< HEAD
-	refSources, err = argo.GetRefSources(context.Background(), spec, getRepository)
-=======
-	refSources, err = argo.GetRefSources(context.Background(), argo.GetRefSourcesOptions{
-		Sources: spec.Sources,
-		Db:      repoDB,
-	})
->>>>>>> aec91ff53 (fix errors)
+	refSources, err = argo.GetRefSources(context.Background(), spec, getRepository, []string{}, false)
 	require.NoError(t, err)
 
 	request = &apiclient.ManifestRequest{Repo: &argoappv1.Repository{}, ApplicationSource: &spec.Sources[0], NoCache: true, RefSources: refSources, HasMultipleSources: true, ProjectName: "something",
@@ -579,7 +565,7 @@ func TestHelmChartReferencingExternalValues_InvalidRefs(t *testing.T) {
 
 	spec.Sources[1].Ref = "ref"
 	spec.Sources[1].Chart = "helm-chart"
-	refSources, err = argo.GetRefSources(context.Background(), spec, getRepository)
+	refSources, err = argo.GetRefSources(context.Background(), spec, getRepository, []string{}, false)
 	require.NoError(t, err)
 
 	request = &apiclient.ManifestRequest{Repo: &argoappv1.Repository{}, ApplicationSource: &spec.Sources[0], NoCache: true, RefSources: refSources, HasMultipleSources: true, ProjectName: "something",
@@ -616,7 +602,7 @@ func TestHelmChartReferencingExternalValues_OutOfBounds_Symlink(t *testing.T) {
 		return &argoappv1.Repository{
 			Repo: "https://git.example.com/test/repo",
 		}, nil
-	})
+	}, []string{}, false)
 	require.NoError(t, err)
 	request := &apiclient.ManifestRequest{Repo: &argoappv1.Repository{}, ApplicationSource: &spec.Sources[0], NoCache: true, RefSources: refSources, HasMultipleSources: true}
 	_, err = service.GenerateManifest(context.Background(), request)

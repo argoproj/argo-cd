@@ -418,7 +418,7 @@ func validateRepo(ctx context.Context,
 		}
 	}
 
-	refSources, err := GetRefSources(ctx, app.Spec, db.GetRepository)
+	refSources, err := GetRefSources(ctx, app.Spec, db.GetRepository, []string{}, false)
 	if err != nil {
 		return nil, fmt.Errorf("error getting ref sources: %w", err)
 	}
@@ -446,7 +446,7 @@ func validateRepo(ctx context.Context,
 // GetRefSources creates a map of ref keys (from the sources' 'ref' fields) to information about the referenced source.
 // This function also validates the references use allowed characters and does not define the same ref key more than
 // once (which would lead to ambiguous references).
-func GetRefSources(ctx context.Context, spec argoappv1.ApplicationSpec, getRepository func(ctx context.Context, url string, project string) (*argoappv1.Repository, error)) (argoappv1.RefTargetRevisionMapping, error) {
+func GetRefSources(ctx context.Context, spec argoappv1.ApplicationSpec, getRepository func(ctx context.Context, url string, project string) (*argoappv1.Repository, error), revisions []string, isRollback bool) (argoappv1.RefTargetRevisionMapping, error) {
 	refSources := make(argoappv1.RefTargetRevisionMapping)
 	if spec.HasMultipleSources() {
 		// Validate first to avoid unnecessary DB calls.
@@ -465,16 +465,20 @@ func GetRefSources(ctx context.Context, spec argoappv1.ApplicationSpec, getRepos
 			}
 		}
 		// Get Repositories for all sources before generating Manifests
-		for _, source := range spec.Sources {
+		for i, source := range spec.Sources {
 			if source.Ref != "" {
 				repo, err := getRepository(ctx, source.RepoURL, spec.Project)
 				if err != nil {
 					return nil, fmt.Errorf("failed to get repository %s: %v", source.RepoURL, err)
 				}
 				refKey := "$" + source.Ref
+				revision := source.TargetRevision
+				if isRollback {
+					revision = revisions[i]
+				}
 				refSources[refKey] = &argoappv1.RefTarget{
 					Repo:           *repo,
-					TargetRevision: source.TargetRevision,
+					TargetRevision: revision,
 					Chart:          source.Chart,
 				}
 			}
