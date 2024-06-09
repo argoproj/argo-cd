@@ -3,10 +3,11 @@ package e2e
 import (
 	"testing"
 
-	"github.com/argoproj/argo-cd/v2/pkg/apiclient/notification"
-	notifFixture "github.com/argoproj/argo-cd/v2/test/e2e/fixture/notification"
 	"github.com/stretchr/testify/assert"
 	"k8s.io/utils/ptr"
+
+	"github.com/argoproj/argo-cd/v2/pkg/apiclient/notification"
+	notifFixture "github.com/argoproj/argo-cd/v2/test/e2e/fixture/notification"
 )
 
 func TestNotificationsListServices(t *testing.T) {

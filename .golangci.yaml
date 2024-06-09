@@ -7,6 +7,7 @@ linters:
   enable:
     - errcheck
     - gofmt
+    - goimports
     - gosimple
     - govet
     - ineffassign
@@ -15,6 +16,8 @@ linters:
     - testifylint
     - unused
 linters-settings:
+  goimports:
+    local-prefixes: github.com/argoproj/argo-cd/v2
   testifylint:
     enable-all: true
     disable:
