@@ -21,30 +21,31 @@ type Context struct {
 	chart       string
 	repoURLType fixture.RepoURLType
 	// seconds
-	timeout                int
-	name                   string
-	appNamespace           string
-	destServer             string
-	destName               string
-	env                    string
-	parameters             []string
-	namePrefix             string
-	nameSuffix             string
-	resource               string
-	prune                  bool
-	configManagementPlugin string
-	async                  bool
-	localPath              string
-	project                string
-	revision               string
-	force                  bool
-	applyOutOfSyncOnly     bool
-	directoryRecurse       bool
-	replace                bool
-	helmPassCredentials    bool
-	helmSkipCrds           bool
-	trackingMethod         v1alpha1.TrackingMethod
-	sources                []v1alpha1.ApplicationSource
+	timeout                  int
+	name                     string
+	appNamespace             string
+	destServer               string
+	destName                 string
+	env                      string
+	parameters               []string
+	namePrefix               string
+	nameSuffix               string
+	resource                 string
+	prune                    bool
+	configManagementPlugin   string
+	async                    bool
+	localPath                string
+	project                  string
+	revision                 string
+	force                    bool
+	applyOutOfSyncOnly       bool
+	directoryRecurse         bool
+	replace                  bool
+	helmPassCredentials      bool
+	helmSkipCrds             bool
+	trackingMethod           v1alpha1.TrackingMethod
+	sources                  []v1alpha1.ApplicationSource
+	respectIgnoreDifferences bool
 }
 
 type ContextArgs struct {
@@ -368,5 +369,10 @@ func (c *Context) GetTrackingMethod() v1alpha1.TrackingMethod {
 
 func (c *Context) Sources(sources []v1alpha1.ApplicationSource) *Context {
 	c.sources = sources
+	return c
+}
+
+func (c *Context) RespectIgnoreDifferences() *Context {
+	c.respectIgnoreDifferences = true
 	return c
 }
