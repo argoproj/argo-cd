@@ -12,13 +12,12 @@ import (
 )
 
 func TestLogout(t *testing.T) {
-
 	// Write the test config file
 	err := os.WriteFile(testConfigFilePath, []byte(testConfig), os.ModePerm)
 	assert.NoError(t, err)
 	defer os.Remove(testConfigFilePath)
 
-	err = os.Chmod(testConfigFilePath, 0600)
+	err = os.Chmod(testConfigFilePath, 0o600)
 	require.NoError(t, err)
 
 	localConfig, err := localconfig.ReadLocalConfig(testConfigFilePath)

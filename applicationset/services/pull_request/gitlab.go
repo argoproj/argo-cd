@@ -55,7 +55,6 @@ func NewGitLabService(ctx context.Context, token, url, project string, labels []
 }
 
 func (g *GitLabService) List(ctx context.Context) ([]*PullRequest, error) {
-
 	// Filter the merge requests on labels, if they are specified.
 	var labels *gitlab.Labels
 	if len(g.labels) > 0 {

@@ -65,7 +65,6 @@ func TestPostDeleteHook(t *testing.T) {
 			assert.Len(t, hooks.Items, 1)
 			assert.Equal(t, "hook", hooks.Items[0].Name)
 		})
-
 }
 
 // make sure that that hooks do not appear in "argocd app diff"

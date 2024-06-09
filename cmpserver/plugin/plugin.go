@@ -54,7 +54,7 @@ func (s *Service) Init(workDir string) error {
 	if err != nil {
 		return fmt.Errorf("error removing workdir %q: %w", workDir, err)
 	}
-	err = os.MkdirAll(workDir, 0700)
+	err = os.MkdirAll(workDir, 0o700)
 	if err != nil {
 		return fmt.Errorf("error creating workdir %q: %w", workDir, err)
 	}

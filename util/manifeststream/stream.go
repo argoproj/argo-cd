@@ -118,7 +118,6 @@ func SendRepoStream(repoStream RepoStreamSender, appStream ApplicationStreamRece
 			Request: req,
 		},
 	})
-
 	if err != nil {
 		return fmt.Errorf("error sending request: %w", err)
 	}
@@ -130,7 +129,6 @@ func SendRepoStream(repoStream RepoStreamSender, appStream ApplicationStreamRece
 			},
 		},
 	})
-
 	if err != nil {
 		return fmt.Errorf("error sending metadata: %w", err)
 	}
@@ -194,7 +192,6 @@ func ReceiveManifestFileStream(ctx context.Context, receiver RepoStreamReceiver,
 		log.Warnf("error removing the tgz file %q: %s", tgzFile.Name(), err)
 	}
 	return request, metadata, nil
-
 }
 
 // receiveFile will receive the file from the gRPC stream and save it in the dst folder.

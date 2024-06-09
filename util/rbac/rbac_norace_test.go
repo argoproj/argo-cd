@@ -15,7 +15,6 @@ import (
 
 // TestPolicyInformer verifies the informer will get updated with a new configmap
 func TestPolicyInformer(t *testing.T) {
-
 	// !race:
 	// A BUNCH of data race warnings thrown by running this test and the next... it's tough to guess to what degree this
 	// is primarily a casbin issue or a Argo CD RBAC issue... A least one data race is an `rbac.go` with
@@ -55,7 +54,6 @@ func TestPolicyInformer(t *testing.T) {
 
 // TestResourceActionWildcards verifies the ability to use wildcards in resources and actions
 func TestResourceActionWildcards(t *testing.T) {
-
 	// !race:
 	// Same as TestPolicyInformer
 

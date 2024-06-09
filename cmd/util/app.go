@@ -489,7 +489,6 @@ func readAppsFromStdin(apps *[]*argoappv1.Application) error {
 }
 
 func readAppsFromURI(fileURL string, apps *[]*argoappv1.Application) error {
-
 	readFilePayload := func() ([]byte, error) {
 		parsedURL, err := url.ParseRequestURI(fileURL)
 		if err != nil || !(parsedURL.Scheme == "http" || parsedURL.Scheme == "https") {

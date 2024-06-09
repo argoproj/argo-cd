@@ -98,11 +98,9 @@ func TestProjectServer(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, int64(1), appList.Items[0].Status.JWTTokensByRole[roleName].Items[0].IssuedAt)
 		assert.ElementsMatch(t, appList.Items[0].Status.JWTTokensByRole[roleName].Items, appList.Items[0].Spec.Roles[0].JWTTokens)
-
 	})
 
 	t.Run("TestClusterUpdateDenied", func(t *testing.T) {
-
 		enforcer.SetDefaultRole("role:projects")
 		_ = enforcer.SetBuiltinPolicy("p, role:projects, projects, update, *, allow")
 		argoDB := db.NewDB("default", settingsMgr, kubeclientset)
@@ -117,7 +115,6 @@ func TestProjectServer(t *testing.T) {
 	})
 
 	t.Run("TestReposUpdateDenied", func(t *testing.T) {
-
 		enforcer.SetDefaultRole("role:projects")
 		_ = enforcer.SetBuiltinPolicy("p, role:projects, projects, update, *, allow")
 		argoDB := db.NewDB("default", settingsMgr, kubeclientset)
@@ -132,7 +129,6 @@ func TestProjectServer(t *testing.T) {
 	})
 
 	t.Run("TestClusterResourceWhitelistUpdateDenied", func(t *testing.T) {
-
 		enforcer.SetDefaultRole("role:projects")
 		_ = enforcer.SetBuiltinPolicy("p, role:projects, projects, update, *, allow")
 		argoDB := db.NewDB("default", settingsMgr, kubeclientset)
@@ -147,7 +143,6 @@ func TestProjectServer(t *testing.T) {
 	})
 
 	t.Run("TestNamespaceResourceBlacklistUpdateDenied", func(t *testing.T) {
-
 		enforcer.SetDefaultRole("role:projects")
 		_ = enforcer.SetBuiltinPolicy("p, role:projects, projects, update, *, allow")
 		argoDB := db.NewDB("default", settingsMgr, kubeclientset)
@@ -516,7 +511,6 @@ p, role:admin, projects, update, *, allow`)
 	})
 
 	t.Run("TestAddWildcardSource", func(t *testing.T) {
-
 		proj := existingProj.DeepCopy()
 		wildSourceRepo := "*"
 		proj.Spec.SourceRepos = append(proj.Spec.SourceRepos, wildSourceRepo)
@@ -707,7 +701,6 @@ p, role:admin, projects, update, *, allow`)
 		_, err := projectServer.GetSyncWindowsState(ctx, &project.SyncWindowsQuery{Name: projectWithSyncWindows.Name})
 		assert.EqualError(t, err, "rpc error: code = PermissionDenied desc = permission denied: projects, get, test")
 	})
-
 }
 
 func newEnforcer(kubeclientset *fake.Clientset) *rbac.Enforcer {

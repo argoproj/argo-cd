@@ -142,7 +142,6 @@ func TestAddRemoveHelmRepo(t *testing.T) {
 		}
 		assert.False(t, exists)
 	})
-
 }
 
 func TestAddHelmRepoInsecureSkipVerify(t *testing.T) {
@@ -182,5 +181,4 @@ func TestAddHelmRepoInsecureSkipVerify(t *testing.T) {
 		}
 		assert.True(t, exists)
 	})
-
 }

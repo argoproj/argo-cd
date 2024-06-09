@@ -87,7 +87,6 @@ func TestIsSSHURLUserName(t *testing.T) {
 	isSSH, user = IsSSHURL("john@doe.org@john-server.org:29418/project")
 	assert.True(t, isSSH)
 	assert.Equal(t, "john@doe.org", user)
-
 }
 
 func TestSameURL(t *testing.T) {
@@ -194,7 +193,7 @@ func TestCustomHTTPClient(t *testing.T) {
 	assert.NoError(t, err)
 	temppath := t.TempDir()
 	defer os.RemoveAll(temppath)
-	err = os.WriteFile(filepath.Join(temppath, "127.0.0.1"), cert, 0666)
+	err = os.WriteFile(filepath.Join(temppath, "127.0.0.1"), cert, 0o666)
 	assert.NoError(t, err)
 	t.Setenv(common.EnvVarTLSDataPath, temppath)
 	client = GetRepoHTTPClient("https://127.0.0.1", false, creds, "")
@@ -305,7 +304,6 @@ func TestLsRemote(t *testing.T) {
 
 // Running this test requires git-lfs to be installed on your machine.
 func TestLFSClient(t *testing.T) {
-
 	// temporary disable LFS test
 	// TODO(alexmt): dockerize tests in and enabled it
 	t.Skip()
@@ -399,7 +397,6 @@ func TestNewFactory(t *testing.T) {
 		{"GitHub", args{url: "https://github.com/argoproj/argocd-example-apps"}},
 	}
 	for _, tt := range tests {
-
 		if tt.name == "PrivateSSHRepo" {
 			test.Flaky(t)
 		}
@@ -472,12 +469,12 @@ func TestLsFiles(t *testing.T) {
 	a, err := os.Create(filepath.Join(tmpDir1, "a.yaml"))
 	assert.NoError(t, err)
 	a.Close()
-	err = os.MkdirAll(filepath.Join(tmpDir1, "subdir"), 0755)
+	err = os.MkdirAll(filepath.Join(tmpDir1, "subdir"), 0o755)
 	assert.NoError(t, err)
 	b, err := os.Create(filepath.Join(tmpDir1, "subdir", "b.yaml"))
 	assert.NoError(t, err)
 	b.Close()
-	err = os.MkdirAll(filepath.Join(tmpDir2, "subdir"), 0755)
+	err = os.MkdirAll(filepath.Join(tmpDir2, "subdir"), 0o755)
 	assert.NoError(t, err)
 	c, err := os.Create(filepath.Join(tmpDir2, "c.yaml"))
 	assert.NoError(t, err)

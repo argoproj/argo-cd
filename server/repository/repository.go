@@ -67,9 +67,7 @@ func NewServer(
 	}
 }
 
-var (
-	errPermissionDenied = status.Error(codes.PermissionDenied, "permission denied")
-)
+var errPermissionDenied = status.Error(codes.PermissionDenied, "permission denied")
 
 func (s *Server) getRepo(ctx context.Context, url, project string) (*appsv1.Repository, error) {
 	repo, err := s.db.GetRepository(ctx, url, project)

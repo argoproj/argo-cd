@@ -91,7 +91,8 @@ func NewController(
 		configMapInformer: configMapInformer,
 		appInformer:       appInformer,
 		appProjInformer:   appProjInformer,
-		apiFactory:        apiFactory}
+		apiFactory:        apiFactory,
+	}
 	skipProcessingOpt := controller.WithSkipProcessing(func(obj v1.Object) (bool, string) {
 		app, ok := (obj).(*unstructured.Unstructured)
 		if !ok {
@@ -138,7 +139,6 @@ func (c *notificationController) alterDestinations(obj v1.Object, destinations s
 }
 
 func newInformer(resClient dynamic.ResourceInterface, controllerNamespace string, applicationNamespaces []string, selector string) cache.SharedIndexInformer {
-
 	informer := cache.NewSharedIndexInformer(
 		&cache.ListWatch{
 			ListFunc: func(options v1.ListOptions) (runtime.Object, error) {

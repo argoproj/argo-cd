@@ -33,7 +33,7 @@ func TestClusterSecretUpdater(t *testing.T) {
 	const updatedK8sVersion = "1.0"
 	now := time.Now()
 
-	var tests = []struct {
+	tests := []struct {
 		LastCacheSyncTime *time.Time
 		SyncError         error
 		ExpectedStatus    v1alpha1.ConnectionStatus

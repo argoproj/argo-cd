@@ -17,7 +17,6 @@ import (
 )
 
 func TestNormalize(t *testing.T) {
-
 	parser := scheme.StaticParser()
 	t.Run("will remove conflicting fields if managed by trusted managers", func(t *testing.T) {
 		// given
@@ -47,7 +46,6 @@ func TestNormalize(t *testing.T) {
 		assert.False(t, ok)
 		assert.NoError(t, err)
 		assert.Equal(t, liveRevisionHistory, desiredRevisionHistory)
-
 	})
 	t.Run("will keep conflicting fields if not from trusted manager", func(t *testing.T) {
 		// given
@@ -81,7 +79,6 @@ func TestNormalize(t *testing.T) {
 		assert.Nil(t, desiredResult)
 		validateNestedFloat64(t, float64(3), desiredState, "spec", "replicas")
 		validateNestedFloat64(t, float64(1), desiredState, "spec", "revisionHistoryLimit")
-
 	})
 	t.Run("no-op if desired state is nil", func(t *testing.T) {
 		// given

@@ -25,16 +25,14 @@ const (
 	testBearerTokenTimeout = 5 * time.Second
 )
 
-var (
-	testClaims = ServiceAccountClaims{
-		Sub:                "system:serviceaccount:kube-system:argocd-manager",
-		Iss:                "kubernetes/serviceaccount",
-		Namespace:          "kube-system",
-		SecretName:         "argocd-manager-token-tj79r",
-		ServiceAccountName: "argocd-manager",
-		ServiceAccountUID:  "91dd37cf-8d92-11e9-a091-d65f2ae7fa8d",
-	}
-)
+var testClaims = ServiceAccountClaims{
+	Sub:                "system:serviceaccount:kube-system:argocd-manager",
+	Iss:                "kubernetes/serviceaccount",
+	Namespace:          "kube-system",
+	SecretName:         "argocd-manager-token-tj79r",
+	ServiceAccountName: "argocd-manager",
+	ServiceAccountUID:  "91dd37cf-8d92-11e9-a091-d65f2ae7fa8d",
+}
 
 func newServiceAccount() *corev1.ServiceAccount {
 	saBytes, err := os.ReadFile("./testdata/argocd-manager-sa.yaml")
@@ -178,7 +176,6 @@ func TestInstallClusterManagerRBAC(t *testing.T) {
 		assert.Error(t, err)
 		assert.Empty(t, token)
 	})
-
 }
 
 func TestUninstallClusterManagerRBAC(t *testing.T) {

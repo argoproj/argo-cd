@@ -35,9 +35,7 @@ const (
 	errDestinationMissing = "Destination server missing from app spec"
 )
 
-var (
-	ErrAnotherOperationInProgress = status.Errorf(codes.FailedPrecondition, "another operation is already in progress")
-)
+var ErrAnotherOperationInProgress = status.Errorf(codes.FailedPrecondition, "another operation is already in progress")
 
 // AugmentSyncMsg enrich the K8s message with user-relevant information
 func AugmentSyncMsg(res common.ResourceSyncResult, apiResourceInfoGetter func() ([]kube.APIResourceInfo, error)) (string, error) {
@@ -67,9 +65,7 @@ func AugmentSyncMsg(res common.ResourceSyncResult, apiResourceInfoGetter func() 
 // group _and_ kind, it will return the resource info. If there's a matching kind but no matching group, it will
 // return the first resource info that matches the kind. If there's no matching kind, it will return nil.
 func getAPIResourceInfo(group, kind string, getApiResourceInfo func() ([]kube.APIResourceInfo, error)) (*kube.APIResourceInfo, error) {
-
 	apiResources, err := getApiResourceInfo()
-
 	if err != nil {
 		return nil, fmt.Errorf("failed to get API resource info: %w", err)
 	}
@@ -115,7 +111,6 @@ func FilterByProjects(apps []argoappv1.Application, projects []string) []argoapp
 		}
 	}
 	return items
-
 }
 
 // FilterByProjectsP returns application pointers which belongs to the specified project
@@ -135,7 +130,6 @@ func FilterByProjectsP(apps []*argoappv1.Application, projects []string) []*argo
 		}
 	}
 	return items
-
 }
 
 // FilterAppSetsByProjects returns applications which belongs to the specified project
@@ -565,7 +559,6 @@ func ValidatePermissions(ctx context.Context, spec *argoappv1.ApplicationSpec, p
 				})
 			}
 		}
-
 	} else {
 		conditions = validateSourcePermissions(ctx, spec.GetSource(), proj, spec.Project, spec.HasMultipleSources())
 		if len(conditions) > 0 {
@@ -604,7 +597,6 @@ func ValidatePermissions(ctx context.Context, spec *argoappv1.ApplicationSpec, p
 		}
 		// Ensure the k8s cluster the app is referencing, is configured in Argo CD
 		_, err = db.GetCluster(ctx, spec.Destination.Server)
-
 		if err != nil {
 			if errStatus, ok := status.FromError(err); ok && errStatus.Code() == codes.NotFound {
 				conditions = append(conditions, argoappv1.ApplicationCondition{
@@ -630,7 +622,6 @@ func APIResourcesToStrings(resources []kube.APIResourceInfo, includeKinds bool) 
 		if includeKinds {
 			resMap[groupVersion+"/"+r.GroupKind.Kind] = true
 		}
-
 	}
 	var res []string
 	for k := range resMap {
@@ -663,7 +654,6 @@ func GetAppProjectWithScopedResources(name string, projLister applicationsv1.App
 		return nil, nil, nil, fmt.Errorf("error getting project repos: %w", err)
 	}
 	return project, repos, clusters, nil
-
 }
 
 // GetAppProjectByName returns a project from an application based on name
@@ -843,7 +833,8 @@ func ContainsSyncResource(name string, namespace string, gvk schema.GroupVersion
 
 // IncludeResource checks if an app resource matches atleast one of the filters, then it returns true.
 func IncludeResource(resourceName string, resourceNamespace string, gvk schema.GroupVersionKind,
-	syncOperationResources []*argoappv1.SyncOperationResource) bool {
+	syncOperationResources []*argoappv1.SyncOperationResource,
+) bool {
 	for _, syncOperationResource := range syncOperationResources {
 		includeResource := syncOperationResource.Compare(resourceName, resourceNamespace, gvk)
 		if syncOperationResource.Exclude {
@@ -945,7 +936,7 @@ func GetGlobalProjects(proj *argoappv1.AppProject, projLister applicationsv1.App
 	}
 
 	for _, gp := range gps {
-		//The project itself is not its own the global project
+		// The project itself is not its own the global project
 		if proj.Name == gp.ProjectName {
 			continue
 		}
@@ -954,7 +945,7 @@ func GetGlobalProjects(proj *argoappv1.AppProject, projLister applicationsv1.App
 		if err != nil {
 			break
 		}
-		//Get projects which match the label selector, then see if proj is a match
+		// Get projects which match the label selector, then see if proj is a match
 		projList, err := projLister.AppProjects(proj.Namespace).List(selector)
 		if err != nil {
 			break
@@ -969,13 +960,12 @@ func GetGlobalProjects(proj *argoappv1.AppProject, projLister applicationsv1.App
 		if !matchMe {
 			continue
 		}
-		//If proj is a match for this global project setting, then it is its global project
+		// If proj is a match for this global project setting, then it is its global project
 		globalProj, err := projLister.AppProjects(proj.Namespace).Get(gp.ProjectName)
 		if err != nil {
 			break
 		}
 		globalProjects = append(globalProjects, globalProj)
-
 	}
 	return globalProjects
 }

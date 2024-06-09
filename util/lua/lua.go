@@ -102,7 +102,6 @@ func (vm VM) ExecuteHealthLua(obj *unstructured.Unstructured, script string) (*h
 	}
 	returnValue := l.Get(-1)
 	if returnValue.Type() == lua.LTTable {
-
 		jsonBytes, err := luajson.Encode(returnValue)
 		if err != nil {
 			return nil, err
@@ -157,7 +156,6 @@ func (vm VM) ExecuteResourceAction(obj *unstructured.Unstructured, script string
 	returnValue := l.Get(-1)
 	if returnValue.Type() == lua.LTTable {
 		jsonBytes, err := luajson.Encode(returnValue)
-
 		if err != nil {
 			return nil, err
 		}
@@ -193,7 +191,6 @@ func (vm VM) ExecuteResourceAction(obj *unstructured.Unstructured, script string
 			if impactedResource.K8SOperation == PatchOperation {
 				impactedResource.UnstructuredObj.Object = cleanReturnedObj(impactedResource.UnstructuredObj.Object, obj.Object)
 			}
-
 		}
 		return impactedResources, nil
 	}
@@ -276,7 +273,6 @@ func (vm VM) ExecuteResourceActionDiscovery(obj *unstructured.Unstructured, scri
 	}
 	returnValue := l.Get(-1)
 	if returnValue.Type() == lua.LTTable {
-
 		jsonBytes, err := luajson.Encode(returnValue)
 		if err != nil {
 			return nil, err

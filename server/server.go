@@ -123,9 +123,11 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/webhook"
 )
 
-const maxConcurrentLoginRequestsCountEnv = "ARGOCD_MAX_CONCURRENT_LOGIN_REQUESTS_COUNT"
-const replicasCountEnv = "ARGOCD_API_SERVER_REPLICAS"
-const renewTokenKey = "renew-token"
+const (
+	maxConcurrentLoginRequestsCountEnv = "ARGOCD_MAX_CONCURRENT_LOGIN_REQUESTS_COUNT"
+	replicasCountEnv                   = "ARGOCD_API_SERVER_REPLICAS"
+	renewTokenKey                      = "renew-token"
+)
 
 // ErrNoSession indicates no auth token was supplied as part of a request
 var ErrNoSession = status.Errorf(codes.Unauthenticated, "no session information")
@@ -535,7 +537,6 @@ func (a *ArgoCDServer) Run(ctx context.Context, listeners *Listeners) {
 	if !a.useTLS() {
 		httpL = tcpm.Match(cmux.HTTP1Fast("PATCH"))
 		grpcL = tcpm.MatchWithWriters(cmux.HTTP2MatchHeaderFieldSendSettings("content-type", "application/grpc"))
-
 	} else {
 		// We first match on HTTP 1.1 methods.
 		httpL = tcpm.Match(cmux.HTTP1Fast("PATCH"))
@@ -1056,7 +1057,7 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandl
 	registerDownloadHandlers(mux, "/download")
 
 	// Serve extensions
-	var extensionsSharedPath = "/tmp/extensions/"
+	extensionsSharedPath := "/tmp/extensions/"
 
 	var extensionsHandler http.Handler = http.HandlerFunc(func(writer http.ResponseWriter, _ *http.Request) {
 		a.serveExtensions(extensionsSharedPath, writer)

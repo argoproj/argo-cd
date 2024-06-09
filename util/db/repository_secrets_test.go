@@ -1,10 +1,9 @@
 package db
 
 import (
+	"context"
 	"strconv"
 	"testing"
-
-	"context"
 
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc/codes"
@@ -37,7 +36,6 @@ func TestSecretsRepositoryBackend_CreateRepository(t *testing.T) {
 		EnableLFS:             true,
 	}
 	setupWithK8sObjects := func(objects ...runtime.Object) *fixture {
-
 		clientset := getClientset(map[string]string{}, objects...)
 		settingsMgr := settings.NewSettingsManager(context.Background(), clientset, testNamespace)
 		repoBackend := &secretsRepositoryBackend{db: &db{
@@ -545,7 +543,6 @@ func TestSecretsRepositoryBackend_DeleteRepository(t *testing.T) {
 }
 
 func TestSecretsRepositoryBackend_CreateRepoCreds(t *testing.T) {
-
 	clientset := getClientset(map[string]string{})
 	testee := &secretsRepositoryBackend{db: &db{
 		ns:            testNamespace,
@@ -618,7 +615,6 @@ func TestSecretsRepositoryBackend_CreateRepoCreds(t *testing.T) {
 			}
 			assert.Equal(t, testCase.repoCreds.GitHubAppEnterpriseBaseURL, string(secret.Data["githubAppEnterpriseUrl"]))
 			assert.Equal(t, testCase.repoCreds.Proxy, string(secret.Data["proxy"]))
-
 		})
 	}
 }

@@ -158,7 +158,6 @@ func TestNamespacedGetLogsAllowSwitchOnNS(t *testing.T) {
 			assert.NoError(t, err)
 			assert.NotContains(t, out, "Hi")
 		})
-
 }
 
 func TestNamespacedGetLogsAllowSwitchOff(t *testing.T) {
@@ -540,7 +539,6 @@ func TestNamespacedAppRollbackSuccessful(t *testing.T) {
 			// sync app and make sure it reaches InSync state
 			_, err = RunCli("app", "rollback", app.QualifiedName(), "1")
 			require.NoError(t, err)
-
 		}).
 		Expect(NamespacedEvent(AppNamespace(), EventReasonOperationStarted, "rollback")).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
@@ -924,7 +922,6 @@ func TestNamespacedResourceAction(t *testing.T) {
 		Sync().
 		Then().
 		And(func(app *Application) {
-
 			closer, client, err := ArgoCDClientset.NewApplicationClient()
 			assert.NoError(t, err)
 			defer io.Close(closer)
@@ -941,7 +938,8 @@ func TestNamespacedResourceAction(t *testing.T) {
 			assert.NoError(t, err)
 			assert.Equal(t, []*ResourceAction{{Name: "sample", Disabled: false}}, actions.Actions)
 
-			_, err = client.RunResourceAction(context.Background(), &applicationpkg.ResourceActionRunRequest{Name: &app.Name,
+			_, err = client.RunResourceAction(context.Background(), &applicationpkg.ResourceActionRunRequest{
+				Name:         &app.Name,
 				Group:        ptr.To("apps"),
 				Kind:         ptr.To("Deployment"),
 				Version:      ptr.To("v1"),
@@ -1314,7 +1312,6 @@ func TestNamespacedPermissionDeniedWithScopedRepo(t *testing.T) {
 		CreateApp().
 		Then().
 		Expect(Error("", "is not permitted in project"))
-
 }
 
 // make sure that if we deleted a resource from the app, it is not pruned if annotated with Prune=false
@@ -1343,7 +1340,6 @@ func TestNamespacedSyncOptionPruneFalse(t *testing.T) {
 
 // make sure that if we have an invalid manifest, we can add it if we disable validation, we get a server error rather than a client error
 func TestNamespacedSyncOptionValidateFalse(t *testing.T) {
-
 	Given(t).
 		Path("crd-validation").
 		SetTrackingMethod("annotation").
@@ -1402,7 +1398,6 @@ func TestNamespacedCompareOptionIgnoreExtraneous(t *testing.T) {
 }
 
 func TestNamespacedSelfManagedApps(t *testing.T) {
-
 	Given(t).
 		Path("self-managed-app").
 		SetTrackingMethod("annotation").
@@ -1634,7 +1629,8 @@ func TestNamespacedNotPermittedResources(t *testing.T) {
 		SourceNamespaces: []string{AppNamespace()},
 		NamespaceResourceBlacklist: []metav1.GroupKind{
 			{Group: "", Kind: "Service"},
-		}}).
+		},
+	}).
 		And(func() {
 			FailOnErr(KubeClientset.NetworkingV1().Ingresses(TestNamespace()).Create(context.Background(), ingress, metav1.CreateOptions{}))
 			FailOnErr(KubeClientset.CoreV1().Services(DeploymentNamespace()).Create(context.Background(), svc, metav1.CreateOptions{}))
@@ -1897,7 +1893,8 @@ func TestNamespacedNamespaceAutoCreationWithMetadata(t *testing.T) {
 				ManagedNamespaceMetadata: &ManagedNamespaceMetadata{
 					Labels:      map[string]string{"foo": "bar"},
 					Annotations: map[string]string{"bar": "bat"},
-				}}
+				},
+			}
 		}).
 		Then().
 		Expect(NoNamespace(updatedNamespace)).
@@ -1931,7 +1928,6 @@ func TestNamespacedNamespaceAutoCreationWithMetadata(t *testing.T) {
 		Then().
 		Expect(Success("")).
 		Expect(Namespace(updatedNamespace, func(app *Application, ns *v1.Namespace) {
-
 			delete(ns.Labels, "kubernetes.io/metadata.name")
 			delete(ns.Labels, "argocd.argoproj.io/tracking-id")
 			delete(ns.Annotations, "kubectl.kubernetes.io/last-applied-configuration")
@@ -1991,7 +1987,8 @@ func TestNamespacedNamespaceAutoCreationWithMetadataAndNsManifest(t *testing.T) 
 				ManagedNamespaceMetadata: &ManagedNamespaceMetadata{
 					Labels:      map[string]string{"foo": "bar", "abc": "123"},
 					Annotations: map[string]string{"bar": "bat"},
-				}}
+				},
+			}
 		}).
 		Then().
 		Expect(NoNamespace(namespace)).
@@ -2064,7 +2061,8 @@ metadata:
 				ManagedNamespaceMetadata: &ManagedNamespaceMetadata{
 					Labels:      map[string]string{"foo": "bar"},
 					Annotations: map[string]string{"bar": "bat"},
-				}}
+				},
+			}
 		}).
 		Then().
 		Expect(Namespace(updatedNamespace, func(app *Application, ns *v1.Namespace) {
@@ -2101,7 +2099,6 @@ metadata:
 		Then().
 		Expect(Success("")).
 		Expect(Namespace(updatedNamespace, func(app *Application, ns *v1.Namespace) {
-
 			assert.Empty(t, app.Status.Conditions)
 
 			delete(ns.Labels, "kubernetes.io/metadata.name")
@@ -2122,7 +2119,6 @@ metadata:
 		Then().
 		Expect(Success("")).
 		Expect(Namespace(updatedNamespace, func(app *Application, ns *v1.Namespace) {
-
 			assert.Empty(t, app.Status.Conditions)
 
 			delete(ns.Labels, "kubernetes.io/metadata.name")
@@ -2171,12 +2167,10 @@ func TestNamespacedCreateDisableValidation(t *testing.T) {
 		}).
 		When().
 		AppSet("--path", "baddir3", "--validate=false")
-
 }
 
 func TestNamespacedCreateFromPartialFile(t *testing.T) {
-	partialApp :=
-		`metadata:
+	partialApp := `metadata:
   labels:
     labels.local/from-file: file
     labels.local/from-args: file

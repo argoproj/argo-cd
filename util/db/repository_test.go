@@ -1,9 +1,8 @@
 package db
 
 import (
-	"testing"
-
 	"context"
+	"testing"
 
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
@@ -27,27 +26,25 @@ const (
   type: git`
 )
 
-var (
-	repoArgoCD = &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace: testNamespace,
-			Name:      "some-repo-secret",
-			Annotations: map[string]string{
-				common.AnnotationKeyManagedBy: common.AnnotationValueManagedByArgoCD,
-			},
-			Labels: map[string]string{
-				common.LabelKeySecretType: common.LabelValueSecretTypeRepository,
-			},
+var repoArgoCD = &corev1.Secret{
+	ObjectMeta: metav1.ObjectMeta{
+		Namespace: testNamespace,
+		Name:      "some-repo-secret",
+		Annotations: map[string]string{
+			common.AnnotationKeyManagedBy: common.AnnotationValueManagedByArgoCD,
 		},
-		Data: map[string][]byte{
-			"name":     []byte("SomeRepo"),
-			"url":      []byte("git@github.com:argoproj/argo-cd.git"),
-			"username": []byte("someUsername"),
-			"password": []byte("somePassword"),
-			"type":     []byte("git"),
+		Labels: map[string]string{
+			common.LabelKeySecretType: common.LabelValueSecretTypeRepository,
 		},
-	}
-)
+	},
+	Data: map[string][]byte{
+		"name":     []byte("SomeRepo"),
+		"url":      []byte("git@github.com:argoproj/argo-cd.git"),
+		"username": []byte("someUsername"),
+		"password": []byte("somePassword"),
+		"type":     []byte("git"),
+	},
+}
 
 func TestDb_CreateRepository(t *testing.T) {
 	clientset := getClientset(map[string]string{})

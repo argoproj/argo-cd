@@ -295,7 +295,6 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 				permitted, err := proj.IsDestinationPermitted(v1alpha1.ApplicationDestination{Namespace: un.GetNamespace(), Server: app.Spec.Destination.Server, Name: app.Spec.Destination.Name}, func(project string) ([]*v1alpha1.Cluster, error) {
 					return m.db.GetProjectClusters(context.TODO(), project)
 				})
-
 				if err != nil {
 					return err
 				}
@@ -338,7 +337,6 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 		openAPISchema,
 		opts...,
 	)
-
 	if err != nil {
 		state.Phase = common.OperationError
 		state.Message = fmt.Sprintf("failed to initialize sync context: %v", err)

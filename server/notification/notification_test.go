@@ -26,7 +26,6 @@ import (
 const testNamespace = "default"
 
 func TestNotificationServer(t *testing.T) {
-
 	// catalogPath := path.Join(paths[1], "config", "notifications-catalog")
 	b, err := os.ReadFile("../../notifications_catalog/install.yaml")
 	require.NoError(t, err)

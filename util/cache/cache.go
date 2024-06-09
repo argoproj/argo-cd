@@ -2,14 +2,13 @@ package cache
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"fmt"
 	"math"
 	"os"
 	"strings"
 	"time"
-
-	"crypto/tls"
-	"crypto/x509"
 
 	"github.com/redis/go-redis/v9"
 	log "github.com/sirupsen/logrus"

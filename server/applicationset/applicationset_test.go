@@ -121,7 +121,7 @@ func newTestAppSetServerWithEnforcerConfigure(f func(*rbac.Enforcer), namespace 
 	// populate the app informer with the fake objects
 	appInformer := factory.Argoproj().V1alpha1().Applications().Informer()
 	// TODO(jessesuen): probably should return cancel function so tests can stop background informer
-	//ctx, cancel := context.WithCancel(context.Background())
+	// ctx, cancel := context.WithCancel(context.Background())
 	go appInformer.Run(ctx.Done())
 	if !k8scache.WaitForCacheSync(ctx.Done(), appInformer.HasSynced) {
 		panic("Timed out waiting for caches to sync")
@@ -180,29 +180,43 @@ func testListAppsetsWithLabels(t *testing.T, appsetQuery applicationset.Applicat
 		label          string
 		expectedResult []string
 	}{
-		{testName: "Equality based filtering using '=' operator",
+		{
+			testName:       "Equality based filtering using '=' operator",
 			label:          "key1=value1",
-			expectedResult: []string{"AppSet1"}},
-		{testName: "Equality based filtering using '==' operator",
+			expectedResult: []string{"AppSet1"},
+		},
+		{
+			testName:       "Equality based filtering using '==' operator",
 			label:          "key1==value1",
-			expectedResult: []string{"AppSet1"}},
-		{testName: "Equality based filtering using '!=' operator",
+			expectedResult: []string{"AppSet1"},
+		},
+		{
+			testName:       "Equality based filtering using '!=' operator",
 			label:          "key1!=value1",
-			expectedResult: []string{"AppSet2", "AppSet3"}},
-		{testName: "Set based filtering using 'in' operator",
+			expectedResult: []string{"AppSet2", "AppSet3"},
+		},
+		{
+			testName:       "Set based filtering using 'in' operator",
 			label:          "key1 in (value1, value3)",
-			expectedResult: []string{"AppSet1", "AppSet3"}},
-		{testName: "Set based filtering using 'notin' operator",
+			expectedResult: []string{"AppSet1", "AppSet3"},
+		},
+		{
+			testName:       "Set based filtering using 'notin' operator",
 			label:          "key1 notin (value1, value3)",
-			expectedResult: []string{"AppSet2"}},
-		{testName: "Set based filtering using 'exists' operator",
+			expectedResult: []string{"AppSet2"},
+		},
+		{
+			testName:       "Set based filtering using 'exists' operator",
 			label:          "key1",
-			expectedResult: []string{"AppSet1", "AppSet2", "AppSet3"}},
-		{testName: "Set based filtering using 'not exists' operator",
+			expectedResult: []string{"AppSet1", "AppSet2", "AppSet3"},
+		},
+		{
+			testName:       "Set based filtering using 'not exists' operator",
 			label:          "!key2",
-			expectedResult: []string{"AppSet2", "AppSet3"}},
+			expectedResult: []string{"AppSet2", "AppSet3"},
+		},
 	}
-	//test valid scenarios
+	// test valid scenarios
 	for _, validTest := range validTests {
 		t.Run(validTest.testName, func(t *testing.T) {
 			appsetQuery.Selector = validTest.label
@@ -221,14 +235,18 @@ func testListAppsetsWithLabels(t *testing.T, appsetQuery applicationset.Applicat
 		label       string
 		errorMesage string
 	}{
-		{testName: "Set based filtering using '>' operator",
+		{
+			testName:    "Set based filtering using '>' operator",
 			label:       "key1>value1",
-			errorMesage: "error parsing the selector"},
-		{testName: "Set based filtering using '<' operator",
+			errorMesage: "error parsing the selector",
+		},
+		{
+			testName:    "Set based filtering using '<' operator",
 			label:       "key1<value1",
-			errorMesage: "error parsing the selector"},
+			errorMesage: "error parsing the selector",
+		},
 	}
-	//test invalid scenarios
+	// test invalid scenarios
 	for _, invalidTest := range invalidTests {
 		t.Run(invalidTest.testName, func(t *testing.T) {
 			appsetQuery.Selector = invalidTest.label
@@ -353,7 +371,6 @@ func TestGetAppSet(t *testing.T) {
 	})
 
 	t.Run("Get in default namespace", func(t *testing.T) {
-
 		appSetServer := newTestAppSetServer(appSet1, appSet2, appSet3)
 
 		appsetQuery := applicationset.ApplicationSetGetQuery{Name: "AppSet1"}
@@ -364,7 +381,6 @@ func TestGetAppSet(t *testing.T) {
 	})
 
 	t.Run("Get in named namespace", func(t *testing.T) {
-
 		appSetServer := newTestAppSetServer(appSet1, appSet2, appSet3)
 
 		appsetQuery := applicationset.ApplicationSetGetQuery{Name: "AppSet1", AppsetNamespace: testNamespace}
@@ -375,7 +391,6 @@ func TestGetAppSet(t *testing.T) {
 	})
 
 	t.Run("Get in not allowed namespace", func(t *testing.T) {
-
 		appSetServer := newTestAppSetServer(appSet1, appSet2, appSet3)
 
 		appsetQuery := applicationset.ApplicationSetGetQuery{Name: "AppSet1", AppsetNamespace: "NOT-ALLOWED"}
@@ -399,7 +414,6 @@ func TestDeleteAppSet(t *testing.T) {
 	})
 
 	t.Run("Delete in default namespace", func(t *testing.T) {
-
 		appSetServer := newTestAppSetServer(appSet1, appSet2, appSet3)
 
 		appsetQuery := applicationset.ApplicationSetDeleteRequest{Name: "AppSet1"}
@@ -410,7 +424,6 @@ func TestDeleteAppSet(t *testing.T) {
 	})
 
 	t.Run("Delete in named namespace", func(t *testing.T) {
-
 		appSetServer := newTestAppSetServer(appSet1, appSet2, appSet3)
 
 		appsetQuery := applicationset.ApplicationSetDeleteRequest{Name: "AppSet1", AppsetNamespace: testNamespace}
@@ -443,7 +456,6 @@ func TestUpdateAppSet(t *testing.T) {
 	})
 
 	t.Run("Update merge", func(t *testing.T) {
-
 		appServer := newTestAppSetServer(appSet)
 
 		updated, err := appServer.updateAppSet(appSet, newAppSet, context.Background(), true)
@@ -460,7 +472,6 @@ func TestUpdateAppSet(t *testing.T) {
 	})
 
 	t.Run("Update no merge", func(t *testing.T) {
-
 		appServer := newTestAppSetServer(appSet)
 
 		updated, err := appServer.updateAppSet(appSet, newAppSet, context.Background(), false)
@@ -473,7 +484,6 @@ func TestUpdateAppSet(t *testing.T) {
 			"label-key1": "label-value1-updated",
 		}, updated.Labels)
 	})
-
 }
 
 func TestResourceTree(t *testing.T) {
@@ -531,7 +541,6 @@ func TestResourceTree(t *testing.T) {
 	}
 
 	t.Run("ResourceTree in default namespace", func(t *testing.T) {
-
 		appSetServer := newTestAppSetServer(appSet1, appSet2, appSet3)
 
 		appsetQuery := applicationset.ApplicationSetTreeQuery{Name: "AppSet1"}
@@ -542,7 +551,6 @@ func TestResourceTree(t *testing.T) {
 	})
 
 	t.Run("ResourceTree in named namespace", func(t *testing.T) {
-
 		appSetServer := newTestAppSetServer(appSet1, appSet2, appSet3)
 
 		appsetQuery := applicationset.ApplicationSetTreeQuery{Name: "AppSet1", AppsetNamespace: testNamespace}
@@ -553,7 +561,6 @@ func TestResourceTree(t *testing.T) {
 	})
 
 	t.Run("ResourceTree in not allowed namespace", func(t *testing.T) {
-
 		appSetServer := newTestAppSetServer(appSet1, appSet2, appSet3)
 
 		appsetQuery := applicationset.ApplicationSetTreeQuery{Name: "AppSet1", AppsetNamespace: "NOT-ALLOWED"}

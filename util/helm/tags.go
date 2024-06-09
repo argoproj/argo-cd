@@ -18,7 +18,7 @@ func (t TagsList) MaxVersion(constraints *semver.Constraints) (*semver.Version, 
 	for _, tag := range t.Tags {
 		v, err := semver.NewVersion(tag)
 
-		//Invalid semantic version ignored
+		// Invalid semantic version ignored
 		if errors.Is(err, semver.ErrInvalidSemVer) {
 			log.Debugf("Invalid semantic version: %s", tag)
 			continue

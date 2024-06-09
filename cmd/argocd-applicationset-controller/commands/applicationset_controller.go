@@ -73,7 +73,7 @@ func NewCommand() *cobra.Command {
 	scheme := runtime.NewScheme()
 	_ = clientgoscheme.AddToScheme(scheme)
 	_ = appv1alpha1.AddToScheme(scheme)
-	var command = cobra.Command{
+	command := cobra.Command{
 		Use:   "controller",
 		Short: "Starts Argo CD ApplicationSet controller",
 		RunE: func(c *cobra.Command, args []string) error {
@@ -139,7 +139,6 @@ func NewCommand() *cobra.Command {
 					DryRun: &dryRun,
 				},
 			})
-
 			if err != nil {
 				log.Error(err, "unable to start manager")
 				os.Exit(1)

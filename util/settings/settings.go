@@ -513,13 +513,11 @@ const (
 	RespectRBACValueNormal = "normal"
 )
 
-var (
-	sourceTypeToEnableGenerationKey = map[v1alpha1.ApplicationSourceType]string{
-		v1alpha1.ApplicationSourceTypeKustomize: "kustomize.enable",
-		v1alpha1.ApplicationSourceTypeHelm:      "helm.enable",
-		v1alpha1.ApplicationSourceTypeDirectory: "jsonnet.enable",
-	}
-)
+var sourceTypeToEnableGenerationKey = map[v1alpha1.ApplicationSourceType]string{
+	v1alpha1.ApplicationSourceTypeKustomize: "kustomize.enable",
+	v1alpha1.ApplicationSourceTypeHelm:      "helm.enable",
+	v1alpha1.ApplicationSourceTypeDirectory: "jsonnet.enable",
+}
 
 // SettingsManager holds config info for a new manager with which to access Kubernetes ConfigMaps.
 type SettingsManager struct {
@@ -1167,7 +1165,6 @@ func (mgr *SettingsManager) GetHelmRepositories() ([]HelmRepoCredentials, error)
 }
 
 func (mgr *SettingsManager) GetRepositories() ([]Repository, error) {
-
 	mgr.mutex.Lock()
 	reposCache := mgr.reposCache
 	mgr.mutex.Unlock()
@@ -1227,7 +1224,6 @@ func (mgr *SettingsManager) SaveRepositoryCredentials(creds []RepositoryCredenti
 }
 
 func (mgr *SettingsManager) GetRepositoryCredentials() ([]RepositoryCredentials, error) {
-
 	mgr.mutex.Lock()
 	repoCredsCache := mgr.repoCredsCache
 	mgr.mutex.Unlock()
@@ -1399,7 +1395,6 @@ func (mgr *SettingsManager) initialize(ctx context.Context) error {
 					tryNotify()
 				}
 			}
-
 		},
 		UpdateFunc: func(oldObj, newObj interface{}) {
 			oldMeta, oldOk := oldObj.(metav1.Common)
@@ -1633,7 +1628,6 @@ func (mgr *SettingsManager) SaveSettings(settings *ArgoCDSettings) error {
 		}
 		return nil
 	})
-
 	if err != nil {
 		return err
 	}
@@ -1739,7 +1733,6 @@ func (mgr *SettingsManager) SaveGPGPublicKeyData(ctx context.Context, gpgPublicK
 	}
 
 	return mgr.ResyncInformers()
-
 }
 
 type SettingsManagerOpts func(mgs *SettingsManager)
@@ -1752,7 +1745,6 @@ func WithRepoOrClusterChangedHandler(handler func()) SettingsManagerOpts {
 
 // NewSettingsManager generates a new SettingsManager pointer and returns it
 func NewSettingsManager(ctx context.Context, clientset kubernetes.Interface, namespace string, opts ...SettingsManagerOpts) *SettingsManager {
-
 	mgr := &SettingsManager{
 		ctx:       ctx,
 		clientset: clientset,

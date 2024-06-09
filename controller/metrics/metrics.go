@@ -209,7 +209,7 @@ var invalidPromLabelChars = regexp.MustCompile(`[^a-zA-Z0-9_]`)
 func normalizeLabels(prefix string, appLabels []string) []string {
 	results := []string{}
 	for _, label := range appLabels {
-		//prometheus labels don't accept dash in their name
+		// prometheus labels don't accept dash in their name
 		curr := invalidPromLabelChars.ReplaceAllString(label, "_")
 		result := fmt.Sprintf("%s_%s", prefix, curr)
 		results = append(results, result)
