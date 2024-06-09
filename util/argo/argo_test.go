@@ -1275,7 +1275,7 @@ func Test_GetRefSources(t *testing.T) {
 			{RepoURL: fmt.Sprintf("file://%s", repoPath)},
 		})
 
-		refSources, err := GetRefSources(context.Background(), *argoSpec, func(ctx context.Context, url string, project string) (*argoappv1.Repository, error) {
+		refSources, err := GetRefSources(context.Background(), argoSpec.Sources, argoSpec.Project, func(ctx context.Context, url string, project string) (*argoappv1.Repository, error) {
 			return repo, nil
 		}, []string{}, false)
 
@@ -1292,9 +1292,10 @@ func Test_GetRefSources(t *testing.T) {
 	t.Run("target ref does not exist", func(t *testing.T) {
 		argoSpec := getMultiSourceAppSpec(argoappv1.ApplicationSources{
 			{RepoURL: "file://does-not-exist", Ref: "source1"},
+			{RepoURL: fmt.Sprintf("file://%s", repoPath)},
 		})
 
-		refSources, err := GetRefSources(context.Background(), *argoSpec, func(ctx context.Context, url string, project string) (*argoappv1.Repository, error) {
+		refSources, err := GetRefSources(context.Background(), argoSpec.Sources, argoSpec.Project, func(ctx context.Context, url string, project string) (*argoappv1.Repository, error) {
 			return nil, errors.New("repo does not exist")
 		}, []string{}, false)
 
@@ -1305,9 +1306,10 @@ func Test_GetRefSources(t *testing.T) {
 	t.Run("invalid ref", func(t *testing.T) {
 		argoSpec := getMultiSourceAppSpec(argoappv1.ApplicationSources{
 			{RepoURL: "file://does-not-exist", Ref: "%invalid-name%"},
+			{RepoURL: fmt.Sprintf("file://%s", repoPath)},
 		})
 
-		refSources, err := GetRefSources(context.TODO(), *argoSpec, func(ctx context.Context, url string, project string) (*argoappv1.Repository, error) {
+		refSources, err := GetRefSources(context.TODO(), argoSpec.Sources, argoSpec.Project, func(ctx context.Context, url string, project string) (*argoappv1.Repository, error) {
 			return nil, err
 		}, []string{}, false)
 
@@ -1321,7 +1323,7 @@ func Test_GetRefSources(t *testing.T) {
 			{RepoURL: "file://does-not-exist", Ref: "source1"},
 		})
 
-		refSources, err := GetRefSources(context.TODO(), *argoSpec, func(ctx context.Context, url string, project string) (*argoappv1.Repository, error) {
+		refSources, err := GetRefSources(context.TODO(), argoSpec.Sources, argoSpec.Project, func(ctx context.Context, url string, project string) (*argoappv1.Repository, error) {
 			return nil, err
 		}, []string{}, false)
 
