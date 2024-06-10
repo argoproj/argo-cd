@@ -1,3 +1,13 @@
+-- isInferenceServiceInRawDeploymentMode determines if the inference service deployed in RawDeployment mode
+-- KServe v12 and above supports Rawdeployment for Inference graphs. For Inference services, KServe has supported RawDeployment model since [v0.7.0](https://github.com/kserve/kserve/releases/tag/v0.7.0).
+function isInferenceServiceInRawDeploymentMode(obj)
+  if obj.metadata.annotations == nil then
+    return false
+  end
+  local deploymentMode = obj.metadata.annotations["serving.kserve.io/deploymentMode"]
+  return deploymentMode ~= nil and deploymentMode == "RawDeployment"
+end
+
 local health_status = {}
 health_status.status = "Progressing"
 health_status.message = "Waiting for status update."
@@ -25,7 +35,7 @@ if obj.status ~= nil and obj.status.conditions ~= nil then
       end
     end
   end
-  if status_true == 5 and status_false == 0 and status_unknown == 0 then
+  if ((isInferenceServiceInRawDeploymentMode(obj) and status_true == 3) or status_true == 5) and status_false == 0 and status_unknown == 0 then
     health_status.message = "Inference Service is healthy."
     health_status.status = "Healthy"
     return health_status
