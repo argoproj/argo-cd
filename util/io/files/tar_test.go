@@ -61,7 +61,7 @@ func TestTgz(t *testing.T) {
 		assert.Contains(t, files, "applicationset/latest/kustomization.yaml")
 		assert.Contains(t, files, "applicationset/stable/kustomization.yaml")
 		assert.Contains(t, files, "applicationset/readme-symlink")
-		assert.Equal(t, files["applicationset/readme-symlink"], "../README.md")
+		assert.Equal(t, "../README.md", files["applicationset/readme-symlink"])
 	})
 	t.Run("will exclude files from the exclusion list", func(t *testing.T) {
 		// given

@@ -67,7 +67,7 @@ func Test_secretToCluster(t *testing.T) {
 	}
 	cluster, err := SecretToCluster(secret)
 	require.NoError(t, err)
-	assert.Equal(t, *cluster, v1alpha1.Cluster{
+	assert.Equal(t, v1alpha1.Cluster{
 		Name:   "test",
 		Server: "http://mycluster",
 		Config: v1alpha1.ClusterConfig{
@@ -75,7 +75,7 @@ func Test_secretToCluster(t *testing.T) {
 		},
 		Labels:      labels,
 		Annotations: annotations,
-	})
+	}, *cluster)
 }
 
 func Test_secretToCluster_LastAppliedConfigurationDropped(t *testing.T) {
@@ -146,12 +146,12 @@ func Test_secretToCluster_NoConfig(t *testing.T) {
 	}
 	cluster, err := SecretToCluster(secret)
 	assert.NoError(t, err)
-	assert.Equal(t, *cluster, v1alpha1.Cluster{
+	assert.Equal(t, v1alpha1.Cluster{
 		Name:        "test",
 		Server:      "http://mycluster",
 		Labels:      map[string]string{},
 		Annotations: map[string]string{},
-	})
+	}, *cluster)
 }
 
 func Test_secretToCluster_InvalidConfig(t *testing.T) {

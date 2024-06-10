@@ -2482,7 +2482,7 @@ func TestReconcilerValidationProjectErrorBehaviour(t *testing.T) {
 	// make sure good app got created
 	err = r.Client.Get(context.TODO(), crtclient.ObjectKey{Namespace: "argocd", Name: "good-project"}, &app)
 	assert.NoError(t, err)
-	assert.Equal(t, app.Name, "good-project")
+	assert.Equal(t, "good-project", app.Name)
 
 	// make sure bad app was not created
 	err = r.Client.Get(context.TODO(), crtclient.ObjectKey{Namespace: "argocd", Name: "bad-project"}, &app)
@@ -2571,7 +2571,7 @@ func TestReconcilerCreateAppsRecoveringRenderError(t *testing.T) {
 	// make sure good app got created
 	err = r.Client.Get(context.TODO(), crtclient.ObjectKey{Namespace: "argocd", Name: "app"}, &app)
 	assert.NoError(t, err)
-	assert.Equal(t, app.Name, "app")
+	assert.Equal(t, "app", app.Name)
 }
 
 func TestSetApplicationSetStatusCondition(t *testing.T) {
@@ -2720,7 +2720,7 @@ func applicationsUpdateSyncPolicyTest(t *testing.T, applicationsSyncPolicy v1alp
 	// make sure good app got created
 	err = r.Client.Get(context.TODO(), crtclient.ObjectKey{Namespace: "argocd", Name: "good-cluster"}, &app)
 	assert.NoError(t, err)
-	assert.Equal(t, app.Name, "good-cluster")
+	assert.Equal(t, "good-cluster", app.Name)
 
 	// Update resource
 	var retrievedApplicationSet v1alpha1.ApplicationSet
@@ -2743,7 +2743,7 @@ func applicationsUpdateSyncPolicyTest(t *testing.T, applicationsSyncPolicy v1alp
 	err = r.Client.Get(context.TODO(), crtclient.ObjectKey{Namespace: "argocd", Name: "good-cluster"}, &app)
 	assert.NoError(t, err)
 	assert.True(t, resUpdate.RequeueAfter == 0)
-	assert.Equal(t, app.Name, "good-cluster")
+	assert.Equal(t, "good-cluster", app.Name)
 
 	return app
 }
@@ -2890,7 +2890,7 @@ func applicationsDeleteSyncPolicyTest(t *testing.T, applicationsSyncPolicy v1alp
 	// make sure good app got created
 	err = r.Client.Get(context.TODO(), crtclient.ObjectKey{Namespace: "argocd", Name: "good-cluster"}, &app)
 	assert.NoError(t, err)
-	assert.Equal(t, app.Name, "good-cluster")
+	assert.Equal(t, "good-cluster", app.Name)
 
 	// Update resource
 	var retrievedApplicationSet v1alpha1.ApplicationSet
@@ -3203,7 +3203,7 @@ func TestPolicies(t *testing.T) {
 			var app v1alpha1.Application
 			err = r.Client.Get(context.TODO(), crtclient.ObjectKey{Namespace: "argocd", Name: "my-app"}, &app)
 			assert.NoError(t, err)
-			assert.Equal(t, app.Annotations["key"], "value")
+			assert.Equal(t, "value", app.Annotations["key"])
 
 			// Check if Application is updated
 			app.Annotations["key"] = "edited"
@@ -3218,9 +3218,9 @@ func TestPolicies(t *testing.T) {
 			assert.NoError(t, err)
 
 			if c.allowedUpdate {
-				assert.Equal(t, app.Annotations["key"], "value")
+				assert.Equal(t, "value", app.Annotations["key"])
 			} else {
-				assert.Equal(t, app.Annotations["key"], "edited")
+				assert.Equal(t, "edited", app.Annotations["key"])
 			}
 
 			// Check if Application is deleted

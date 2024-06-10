@@ -154,11 +154,11 @@ func TestRoundRobinGetClusterFilterWithFixedShard(t *testing.T) {
 	db.On("GetApplicationControllerReplicas").Return(replicasCount)
 
 	filter := GetDistributionFunction(clusterAccessor, appAccessor, common.RoundRobinShardingAlgorithm, replicasCount)
-	assert.Equal(t, filter(nil), 0)
-	assert.Equal(t, filter(&cluster1), 0)
-	assert.Equal(t, filter(&cluster2), 1)
-	assert.Equal(t, filter(&cluster3), 2)
-	assert.Equal(t, filter(&cluster4), 3)
+	assert.Equal(t, 0, filter(nil))
+	assert.Equal(t, 0, filter(&cluster1))
+	assert.Equal(t, 1, filter(&cluster2))
+	assert.Equal(t, 2, filter(&cluster3))
+	assert.Equal(t, 3, filter(&cluster4))
 
 	// a cluster with a fixed shard should be processed by the specified exact
 	// same shard unless the specified shard index is greater than the number of replicas.

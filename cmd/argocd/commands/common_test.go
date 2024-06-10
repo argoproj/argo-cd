@@ -79,14 +79,14 @@ func Test_PrintResource(t *testing.T) {
 		return err
 	})
 	assert.NoError(t, err)
-	assert.Equal(t, str, expectYamlSingle)
+	assert.Equal(t, expectYamlSingle, str)
 
 	str, err = captureOutput(func() error {
 		err := PrintResource(testResource, "json")
 		return err
 	})
 	assert.NoError(t, err)
-	assert.Equal(t, str, expectJsonSingle)
+	assert.Equal(t, expectJsonSingle, str)
 
 	err = PrintResource(testResource, "unknown")
 	assert.Error(t, err)
@@ -114,28 +114,28 @@ func Test_PrintResourceList(t *testing.T) {
 		return err
 	})
 	assert.NoError(t, err)
-	assert.Equal(t, str, expectYamlList)
+	assert.Equal(t, expectYamlList, str)
 
 	str, err = captureOutput(func() error {
 		err := PrintResourceList(testResource, "json", false)
 		return err
 	})
 	assert.NoError(t, err)
-	assert.Equal(t, str, expectJsonList)
+	assert.Equal(t, expectJsonList, str)
 
 	str, err = captureOutput(func() error {
 		err := PrintResourceList(testResource2, "yaml", true)
 		return err
 	})
 	assert.NoError(t, err)
-	assert.Equal(t, str, expectYamlSingle)
+	assert.Equal(t, expectYamlSingle, str)
 
 	str, err = captureOutput(func() error {
 		err := PrintResourceList(testResource2, "json", true)
 		return err
 	})
 	assert.NoError(t, err)
-	assert.Equal(t, str, expectJsonSingle)
+	assert.Equal(t, expectJsonSingle, str)
 
 	err = PrintResourceList(testResource, "unknown", false)
 	assert.Error(t, err)

@@ -42,6 +42,6 @@ func TestReconnect(t *testing.T) {
 	err = json.Unmarshal(p, &message)
 
 	assert.NoError(t, err)
-	assert.Equal(t, message.Data, ReconnectMessage)
+	assert.Equal(t, ReconnectMessage, message.Data)
 
 }

@@ -209,7 +209,7 @@ func Test_TLSCertificate_ValidPEM_ValidCert(t *testing.T) {
 	// Expect good decode
 	x509Cert, err := DecodePEMCertificateToX509(certificates[0])
 	assert.NoError(t, err)
-	assert.Equal(t, x509Cert.Subject.String(), Test_Cert1CN)
+	assert.Equal(t, Test_Cert1CN, x509Cert.Subject.String())
 }
 
 func Test_TLSCertificate_ValidPEM_InvalidCert(t *testing.T) {
@@ -237,10 +237,10 @@ func Test_TLSCertificate_ValidPEM_ValidCert_Multi(t *testing.T) {
 	// Expect good decode
 	x509Cert, err := DecodePEMCertificateToX509(certificates[0])
 	assert.NoError(t, err)
-	assert.Equal(t, x509Cert.Subject.String(), Test_Cert1CN)
+	assert.Equal(t, Test_Cert1CN, x509Cert.Subject.String())
 	x509Cert, err = DecodePEMCertificateToX509(certificates[1])
 	assert.NoError(t, err)
-	assert.Equal(t, x509Cert.Subject.String(), Test_Cert2CN)
+	assert.Equal(t, Test_Cert2CN, x509Cert.Subject.String())
 }
 
 func Test_TLSCertificate_ValidPEM_ValidCert_FromFile(t *testing.T) {
@@ -251,7 +251,7 @@ func Test_TLSCertificate_ValidPEM_ValidCert_FromFile(t *testing.T) {
 	// Expect good decode
 	x509Cert, err := DecodePEMCertificateToX509(certificates[0])
 	assert.NoError(t, err)
-	assert.Equal(t, x509Cert.Subject.String(), Test_Cert1CN)
+	assert.Equal(t, Test_Cert1CN, x509Cert.Subject.String())
 }
 
 func Test_TLSCertPool(t *testing.T) {
@@ -435,7 +435,7 @@ func Test_EscapeBracketPattern(t *testing.T) {
 	}
 
 	for original, expected := range patternList {
-		assert.Equal(t, nonBracketedPattern(original), expected)
+		assert.Equal(t, expected, nonBracketedPattern(original))
 	}
 }
 

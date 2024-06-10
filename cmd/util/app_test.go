@@ -230,7 +230,7 @@ func Test_setAppSpecOptions(t *testing.T) {
 	t.Run("Kustomize", func(t *testing.T) {
 		assert.NoError(t, f.SetFlag("kustomize-replica", "my-deployment=2"))
 		assert.NoError(t, f.SetFlag("kustomize-replica", "my-statefulset=4"))
-		assert.Equal(t, f.spec.Source.Kustomize.Replicas, v1alpha1.KustomizeReplicas{{Name: "my-deployment", Count: intstr.FromInt(2)}, {Name: "my-statefulset", Count: intstr.FromInt(4)}})
+		assert.Equal(t, v1alpha1.KustomizeReplicas{{Name: "my-deployment", Count: intstr.FromInt(2)}, {Name: "my-statefulset", Count: intstr.FromInt(4)}}, f.spec.Source.Kustomize.Replicas)
 	})
 }
 
@@ -265,20 +265,20 @@ func Test_setAppSpecOptionsMultiSourceApp(t *testing.T) {
 	t.Run("Helm - SourcePosition 0", func(t *testing.T) {
 		assert.NoError(t, f.SetFlagWithSourcePosition("helm-version", "v2", sourcePosition))
 		assert.Len(t, f.spec.GetSources(), 2)
-		assert.Equal(t, f.spec.GetSources()[sourcePosition].Helm.Version, "v2")
+		assert.Equal(t, "v2", f.spec.GetSources()[sourcePosition].Helm.Version)
 	})
 	t.Run("Kustomize", func(t *testing.T) {
 		assert.NoError(t, f.SetFlagWithSourcePosition("kustomize-replica", "my-deployment=2", sourcePosition1))
-		assert.Equal(t, f.spec.Sources[sourcePosition1-1].Kustomize.Replicas, v1alpha1.KustomizeReplicas{{Name: "my-deployment", Count: intstr.FromInt(2)}})
+		assert.Equal(t, v1alpha1.KustomizeReplicas{{Name: "my-deployment", Count: intstr.FromInt(2)}}, f.spec.Sources[sourcePosition1-1].Kustomize.Replicas)
 		assert.NoError(t, f.SetFlagWithSourcePosition("kustomize-replica", "my-deployment=4", sourcePosition2))
-		assert.Equal(t, f.spec.Sources[sourcePosition2-1].Kustomize.Replicas, v1alpha1.KustomizeReplicas{{Name: "my-deployment", Count: intstr.FromInt(4)}})
+		assert.Equal(t, v1alpha1.KustomizeReplicas{{Name: "my-deployment", Count: intstr.FromInt(4)}}, f.spec.Sources[sourcePosition2-1].Kustomize.Replicas)
 	})
 	t.Run("Helm", func(t *testing.T) {
 		assert.NoError(t, f.SetFlagWithSourcePosition("helm-version", "v2", sourcePosition1))
 		assert.NoError(t, f.SetFlagWithSourcePosition("helm-version", "v3", sourcePosition2))
 		assert.Len(t, f.spec.GetSources(), 2)
-		assert.Equal(t, f.spec.GetSources()[sourcePosition1-1].Helm.Version, "v2")
-		assert.Equal(t, f.spec.GetSources()[sourcePosition2-1].Helm.Version, "v3")
+		assert.Equal(t, "v2", f.spec.GetSources()[sourcePosition1-1].Helm.Version)
+		assert.Equal(t, "v3", f.spec.GetSources()[sourcePosition2-1].Helm.Version)
 	})
 }
 

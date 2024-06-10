@@ -215,7 +215,7 @@ func TestWebhookHandler(t *testing.T) {
 			w := httptest.NewRecorder()
 
 			h.Handler(w, req)
-			assert.Equal(t, w.Code, test.expectedStatusCode)
+			assert.Equal(t, test.expectedStatusCode, w.Code)
 
 			list := &v1alpha1.ApplicationSetList{}
 			err = fc.List(context.TODO(), list)
