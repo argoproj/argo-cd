@@ -42,6 +42,7 @@ This requirement is incompatible with tooling which injects nondeterministic con
 1) Helm chart dependencies on unpinned chart versions
 2) Kustomize remote bases to unpinned git revisions
 3) Config tool parameter overrides in the Argo CD Application `spec.source` fields
+4) Multiple sources referenced in the same application (knowledge of combination of source versions is held externally to git)
 
 Injecting nondeterministic configuration makes it impossible to know the complete history of an application by looking at a git branch history. Even if the nondeterministic output is databased (for example, in a hydrated source branch in git), it is impossible for developers to confidently make changes to desired state, because they cannot know ahead of time what other configuration will be injected at deploy time.
 
