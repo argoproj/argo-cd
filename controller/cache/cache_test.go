@@ -3,13 +3,14 @@ package cache
 import (
 	"context"
 	"errors"
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"net"
 	"net/url"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
