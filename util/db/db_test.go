@@ -58,11 +58,11 @@ func TestCreateRepository(t *testing.T) {
 		Username: "test-username",
 		Password: "test-password",
 	})
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.Equal(t, "https://github.com/argoproj/argocd-example-apps", repo.Repo)
 
 	secret, err := clientset.CoreV1().Secrets(testNamespace).Get(context.Background(), RepoURLToSecretName(repoSecretPrefix, repo.Repo, ""), metav1.GetOptions{})
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	assert.Equal(t, common.AnnotationValueManagedByArgoCD, secret.Annotations[common.AnnotationKeyManagedBy])
 	assert.Equal(t, string(secret.Data[username]), "test-username")
@@ -80,7 +80,7 @@ func TestCreateProjectScopedRepository(t *testing.T) {
 		Password: "test-password",
 		Project:  "test-project",
 	})
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	otherRepo, err := db.CreateRepository(context.Background(), &v1alpha1.Repository{
 		Repo:     "https://github.com/argoproj/argocd-example-apps",
@@ -88,19 +88,19 @@ func TestCreateProjectScopedRepository(t *testing.T) {
 		Password: "other-password",
 		Project:  "other-project",
 	})
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	_, err = db.CreateRepository(context.Background(), &v1alpha1.Repository{
 		Repo:     "https://github.com/argoproj/argocd-example-apps",
 		Username: "wrong-username",
 		Password: "wrong-password",
 	})
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	assert.Equal(t, "https://github.com/argoproj/argocd-example-apps", repo.Repo)
 
 	secret, err := clientset.CoreV1().Secrets(testNamespace).Get(context.Background(), RepoURLToSecretName(repoSecretPrefix, repo.Repo, "test-project"), metav1.GetOptions{})
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	assert.Equal(t, common.AnnotationValueManagedByArgoCD, secret.Annotations[common.AnnotationKeyManagedBy])
 	assert.Equal(t, string(secret.Data[username]), "test-username")
@@ -109,7 +109,7 @@ func TestCreateProjectScopedRepository(t *testing.T) {
 	assert.Empty(t, secret.Data[sshPrivateKey])
 
 	secret, err = clientset.CoreV1().Secrets(testNamespace).Get(context.Background(), RepoURLToSecretName(repoSecretPrefix, otherRepo.Repo, "other-project"), metav1.GetOptions{})
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.Equal(t, common.AnnotationValueManagedByArgoCD, secret.Annotations[common.AnnotationKeyManagedBy])
 	assert.Equal(t, string(secret.Data[username]), "other-username")
 	assert.Equal(t, string(secret.Data[password]), "other-password")
@@ -126,11 +126,11 @@ func TestCreateRepoCredentials(t *testing.T) {
 		Username: "test-username",
 		Password: "test-password",
 	})
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.Equal(t, "https://github.com/argoproj/", creds.URL)
 
 	secret, err := clientset.CoreV1().Secrets(testNamespace).Get(context.Background(), RepoURLToSecretName(credSecretPrefix, creds.URL, ""), metav1.GetOptions{})
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	assert.Equal(t, common.AnnotationValueManagedByArgoCD, secret.Annotations[common.AnnotationKeyManagedBy])
 	assert.Equal(t, string(secret.Data[username]), "test-username")
@@ -140,7 +140,7 @@ func TestCreateRepoCredentials(t *testing.T) {
 	created, err := db.CreateRepository(context.Background(), &v1alpha1.Repository{
 		Repo: "https://github.com/argoproj/argo-cd",
 	})
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.Equal(t, "https://github.com/argoproj/argo-cd", created.Repo)
 
 	// There seems to be a race or some other hiccup in the fake K8s clientset used for this test.
@@ -237,7 +237,7 @@ func TestCreateExistingRepository(t *testing.T) {
 		Username: "test-username",
 		Password: "test-password",
 	})
-	assert.NotNil(t, err)
+	assert.Error(t, err)
 	assert.Equal(t, codes.AlreadyExists, status.Convert(err).Code())
 }
 
@@ -320,14 +320,14 @@ func TestDeleteRepositoryManagedSecrets(t *testing.T) {
 	db := NewDB(testNamespace, settings.NewSettingsManager(context.Background(), clientset, testNamespace), clientset)
 
 	err := db.DeleteRepository(context.Background(), "https://github.com/argoproj/argocd-example-apps", "")
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	_, err = clientset.CoreV1().Secrets(testNamespace).Get(context.Background(), "managed-secret", metav1.GetOptions{})
-	assert.NotNil(t, err)
+	assert.Error(t, err)
 	assert.True(t, errors.IsNotFound(err))
 
 	cm, err := clientset.CoreV1().ConfigMaps(testNamespace).Get(context.Background(), "argocd-cm", metav1.GetOptions{})
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.Equal(t, "", cm.Data["repositories"])
 }
 
@@ -355,15 +355,15 @@ func TestDeleteRepositoryUnmanagedSecrets(t *testing.T) {
 	db := NewDB(testNamespace, settings.NewSettingsManager(context.Background(), clientset, testNamespace), clientset)
 
 	err := db.DeleteRepository(context.Background(), "https://github.com/argoproj/argocd-example-apps", "")
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	s, err := clientset.CoreV1().Secrets(testNamespace).Get(context.Background(), "unmanaged-secret", metav1.GetOptions{})
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.Equal(t, "test-username", string(s.Data[username]))
 	assert.Equal(t, "test-password", string(s.Data[password]))
 
 	cm, err := clientset.CoreV1().ConfigMaps(testNamespace).Get(context.Background(), "argocd-cm", metav1.GetOptions{})
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.Equal(t, "", cm.Data["repositories"])
 }
 
@@ -398,21 +398,21 @@ func TestUpdateRepositoryWithManagedSecrets(t *testing.T) {
 	db := NewDB(testNamespace, settings.NewSettingsManager(context.Background(), clientset, testNamespace), clientset)
 
 	repo, err := db.GetRepository(context.Background(), "https://github.com/argoproj/argocd-example-apps", "")
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.Equal(t, "test-username", repo.Username)
 	assert.Equal(t, "test-password", repo.Password)
 	assert.Equal(t, "test-ssh-private-key", repo.SSHPrivateKey)
 
 	_, err = db.UpdateRepository(context.Background(), &v1alpha1.Repository{
 		Repo: "https://github.com/argoproj/argocd-example-apps", Password: "", Username: "", SSHPrivateKey: ""})
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	_, err = clientset.CoreV1().Secrets(testNamespace).Get(context.Background(), "managed-secret", metav1.GetOptions{})
-	assert.NotNil(t, err)
+	assert.Error(t, err)
 	assert.True(t, errors.IsNotFound(err))
 
 	cm, err := clientset.CoreV1().ConfigMaps(testNamespace).Get(context.Background(), "argocd-cm", metav1.GetOptions{})
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.Equal(t, "- url: https://github.com/argoproj/argocd-example-apps", strings.Trim(cm.Data["repositories"], "\n"))
 }
 
@@ -459,7 +459,7 @@ func TestRepositorySecretsTrim(t *testing.T) {
 	db := NewDB(testNamespace, settings.NewSettingsManager(context.Background(), clientset, testNamespace), clientset)
 
 	repo, err := db.GetRepository(context.Background(), "https://github.com/argoproj/argocd-example-apps", "")
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	teststruct := []struct {
 		expectedSecret  string
 		retrievedSecret string
@@ -524,7 +524,7 @@ func TestGetNonExistingCluster(t *testing.T) {
 
 	db := NewDB(testNamespace, settings.NewSettingsManager(context.Background(), clientset, testNamespace), clientset)
 	_, err := db.GetCluster(context.Background(), server)
-	assert.NotNil(t, err)
+	assert.Error(t, err)
 	status, ok := status.FromError(err)
 	assert.True(t, ok)
 	assert.Equal(t, codes.NotFound, status.Code())
@@ -538,10 +538,10 @@ func TestCreateClusterSuccessful(t *testing.T) {
 	_, err := db.CreateCluster(context.Background(), &v1alpha1.Cluster{
 		Server: server,
 	})
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	secret, err := clientset.CoreV1().Secrets(testNamespace).Get(context.Background(), "cluster-mycluster-3274446258", metav1.GetOptions{})
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	assert.Equal(t, server, string(secret.Data["server"]))
 	assert.Equal(t, common.AnnotationValueManagedByArgoCD, secret.Annotations[common.AnnotationKeyManagedBy])
@@ -570,10 +570,10 @@ func TestDeleteClusterWithManagedSecret(t *testing.T) {
 
 	db := NewDB(testNamespace, settings.NewSettingsManager(context.Background(), clientset, testNamespace), clientset)
 	err := db.DeleteCluster(context.Background(), clusterURL)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	_, err = clientset.CoreV1().Secrets(testNamespace).Get(context.Background(), clusterName, metav1.GetOptions{})
-	assert.NotNil(t, err)
+	assert.Error(t, err)
 
 	assert.True(t, errors.IsNotFound(err))
 }
@@ -598,10 +598,10 @@ func TestDeleteClusterWithUnmanagedSecret(t *testing.T) {
 
 	db := NewDB(testNamespace, settings.NewSettingsManager(context.Background(), clientset, testNamespace), clientset)
 	err := db.DeleteCluster(context.Background(), clusterURL)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	secret, err := clientset.CoreV1().Secrets(testNamespace).Get(context.Background(), clusterName, metav1.GetOptions{})
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	assert.Empty(t, secret.Labels)
 }
@@ -614,7 +614,7 @@ func TestFuzzyEquivalence(t *testing.T) {
 	repo, err := db.CreateRepository(ctx, &v1alpha1.Repository{
 		Repo: "https://github.com/argoproj/argocd-example-apps",
 	})
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.Equal(t, "https://github.com/argoproj/argocd-example-apps", repo.Repo)
 
 	repo, err = db.CreateRepository(ctx, &v1alpha1.Repository{
@@ -630,7 +630,7 @@ func TestFuzzyEquivalence(t *testing.T) {
 	assert.Nil(t, repo)
 
 	repo, err = db.GetRepository(ctx, "https://github.com/argoproj/argocd-example-APPS", "")
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.Equal(t, "https://github.com/argoproj/argocd-example-apps", repo.Repo)
 }
 
@@ -669,7 +669,7 @@ func TestListHelmRepositories(t *testing.T) {
 	db := NewDB(testNamespace, settings.NewSettingsManager(context.Background(), clientset, testNamespace), clientset)
 
 	repos, err := db.ListRepositories(context.Background())
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.Len(t, repos, 1)
 	repo := repos[0]
 	assert.Equal(t, "https://argoproj.github.io/argo-helm", repo.Repo)
@@ -715,7 +715,7 @@ func TestHelmRepositorySecretsTrim(t *testing.T) {
 	db := NewDB(testNamespace, settings.NewSettingsManager(context.Background(), clientset, testNamespace), clientset)
 	repo, err := db.GetRepository(context.Background(), "https://argoproj.github.io/argo-helm", "")
 
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	teststruct := []struct {
 		expectedSecret  string
 		retrievedSecret string

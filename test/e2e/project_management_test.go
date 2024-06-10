@@ -49,7 +49,7 @@ func TestProjectCreation(t *testing.T) {
 		"-d", "https://192.168.99.100:8443,service",
 		"-s", "https://github.com/argoproj/argo-cd.git",
 		"--orphaned-resources")
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	proj, err := fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.TestNamespace()).Get(context.Background(), projectName, metav1.GetOptions{})
 	assert.NoError(t, err)
@@ -281,7 +281,7 @@ func TestAddProjectSource(t *testing.T) {
 	}
 
 	_, err = fixture.RunCli("proj", "add-source", projectName, "https://github.com/argoproj/argo-cd.git")
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	proj, err := fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.TestNamespace()).Get(context.Background(), projectName, metav1.GetOptions{})
 	assert.NoError(t, err)
@@ -351,7 +351,7 @@ func TestUseJWTToken(t *testing.T) {
 			SourceRepos: []string{"*"},
 		},
 	}, metav1.CreateOptions{})
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	_, err = fixture.AppClientset.ArgoprojV1alpha1().Applications(fixture.TestNamespace()).Create(context.Background(), testApp, metav1.CreateOptions{})
 	assert.NoError(t, err)

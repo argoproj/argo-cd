@@ -28,7 +28,7 @@ func TestAddRemovePublicRepo(t *testing.T) {
 
 		repo, err := repoClient.ListRepositories(context.Background(), &repositorypkg.RepoQuery{})
 
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 		exists := false
 		for i := range repo.Items {
 			if repo.Items[i].Repo == repoUrl {

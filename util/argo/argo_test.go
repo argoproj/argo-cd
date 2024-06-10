@@ -42,7 +42,7 @@ func TestRefreshApp(t *testing.T) {
 	appClientset := appclientset.NewSimpleClientset(&testApp)
 	appIf := appClientset.ArgoprojV1alpha1().Applications("default")
 	_, err := RefreshApp(appIf, "test-app", argoappv1.RefreshTypeNormal)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	// For some reason, the fake Application interface doesn't reflect the patch status after Patch(),
 	// so can't verify it was set in unit tests.
 	//_, ok := newApp.Annotations[common.AnnotationKeyRefresh]
@@ -82,7 +82,7 @@ func TestGetAppProjectWithNoProjDefined(t *testing.T) {
 	settingsMgr := settings.NewSettingsManager(context.Background(), kubeClient, test.FakeArgoCDNamespace)
 	argoDB := db.NewDB("default", settingsMgr, kubeClient)
 	proj, err := GetAppProject(&testApp, applisters.NewAppProjectLister(informer.GetIndexer()), namespace, settingsMgr, argoDB, ctx)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.Equal(t, proj.Name, projName)
 }
 
@@ -900,7 +900,7 @@ func TestValidateDestination(t *testing.T) {
 		}
 
 		appCond := ValidateDestination(context.Background(), &dest, nil)
-		assert.Nil(t, appCond)
+		assert.NoError(t, appCond)
 		assert.False(t, dest.IsServerInferred())
 	})
 
@@ -913,7 +913,7 @@ func TestValidateDestination(t *testing.T) {
 		db.On("GetClusterServersByName", context.Background(), "minikube").Return([]string{"https://127.0.0.1:6443"}, nil)
 
 		appCond := ValidateDestination(context.Background(), &dest, db)
-		assert.Nil(t, appCond)
+		assert.NoError(t, appCond)
 		assert.Equal(t, "https://127.0.0.1:6443", dest.Server)
 		assert.True(t, dest.IsServerInferred())
 	})

@@ -156,7 +156,7 @@ func TestCustomHTTPClient(t *testing.T) {
 			}
 		}
 		proxy, err := transport.Proxy(nil)
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 		assert.Equal(t, "http://proxy:5000", proxy.String())
 	}
 
@@ -184,9 +184,9 @@ func TestCustomHTTPClient(t *testing.T) {
 			}
 		}
 		req, err := http.NewRequest(http.MethodGet, "http://proxy-from-env:7878", nil)
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 		proxy, err := transport.Proxy(req)
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 		assert.Equal(t, "http://proxy-from-env:7878", proxy.String())
 	}
 	// GetRepoHTTPClient with root ca

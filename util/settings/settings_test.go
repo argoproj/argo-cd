@@ -560,7 +560,7 @@ func TestConvertToOverrideKey(t *testing.T) {
 	assert.Equal(t, "Certificate", key)
 
 	_, err = convertToOverrideKey("")
-	assert.NotNil(t, err)
+	assert.Error(t, err)
 
 	_, err = convertToOverrideKey("_")
 	assert.NoError(t, err)
