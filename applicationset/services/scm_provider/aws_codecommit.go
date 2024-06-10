@@ -3,12 +3,12 @@ package scm_provider
 import (
 	"context"
 	"fmt"
-	"github.com/aws/aws-sdk-go/aws/request"
 	pathpkg "path"
 	"path/filepath"
 	"strings"
 
-	application "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/aws/aws-sdk-go/aws/request"
+
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/arn"
 	"github.com/aws/aws-sdk-go/aws/awserr"
@@ -19,6 +19,8 @@ import (
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/exp/maps"
 	"k8s.io/utils/strings/slices"
+
+	application "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 )
 
 const (

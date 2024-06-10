@@ -8,8 +8,9 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/argoproj/argo-cd/v2/util/io/files"
 	log "github.com/sirupsen/logrus"
+
+	"github.com/argoproj/argo-cd/v2/util/io/files"
 )
 
 func CloseAndDelete(f *os.File) {

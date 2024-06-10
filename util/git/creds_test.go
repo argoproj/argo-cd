@@ -15,9 +15,10 @@ import (
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 
+	argoio "github.com/argoproj/gitops-engine/pkg/utils/io"
+
 	"github.com/argoproj/argo-cd/v2/util/cert"
 	"github.com/argoproj/argo-cd/v2/util/io"
-	argoio "github.com/argoproj/gitops-engine/pkg/utils/io"
 )
 
 type cred struct {
