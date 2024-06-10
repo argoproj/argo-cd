@@ -273,7 +273,7 @@ func TestInitializingExistingDefaultProject(t *testing.T) {
 	assert.NotNil(t, argocd)
 
 	proj, err := appClientSet.ArgoprojV1alpha1().AppProjects(test.FakeArgoCDNamespace).Get(context.Background(), v1alpha1.DefaultAppProjectName, metav1.GetOptions{})
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.NotNil(t, proj)
 	assert.Equal(t, proj.Name, v1alpha1.DefaultAppProjectName)
 }
@@ -296,7 +296,7 @@ func TestInitializingNotExistingDefaultProject(t *testing.T) {
 	assert.NotNil(t, argocd)
 
 	proj, err := appClientSet.ArgoprojV1alpha1().AppProjects(test.FakeArgoCDNamespace).Get(context.Background(), v1alpha1.DefaultAppProjectName, metav1.GetOptions{})
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.NotNil(t, proj)
 	assert.Equal(t, proj.Name, v1alpha1.DefaultAppProjectName)
 }
@@ -1083,7 +1083,7 @@ func TestTranslateGrpcCookieHeader(t *testing.T) {
 		})
 		assert.NoError(t, err)
 		assert.Equal(t, "argocd.token=xyz; path=/; SameSite=lax; httpOnly; Secure", recorder.Result().Header.Get("Set-Cookie"))
-		assert.Equal(t, 1, len(recorder.Result().Cookies()))
+		assert.Len(t, recorder.Result().Cookies(), 1)
 	})
 
 	t.Run("TokenIsLongerThan4093", func(t *testing.T) {
@@ -1093,7 +1093,7 @@ func TestTranslateGrpcCookieHeader(t *testing.T) {
 		})
 		assert.NoError(t, err)
 		assert.Regexp(t, "argocd.token=.*; path=/; SameSite=lax; httpOnly; Secure", recorder.Result().Header.Get("Set-Cookie"))
-		assert.Equal(t, 2, len(recorder.Result().Cookies()))
+		assert.Len(t, recorder.Result().Cookies(), 2)
 	})
 
 	t.Run("TokenIsEmpty", func(t *testing.T) {

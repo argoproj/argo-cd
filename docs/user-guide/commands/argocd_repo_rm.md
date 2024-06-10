@@ -11,7 +11,8 @@ argocd repo rm REPO [flags]
 ### Options
 
 ```
-  -h, --help   help for rm
+  -h, --help             help for rm
+      --project string   project of the repository
 ```
 
 ### Options inherited from parent commands

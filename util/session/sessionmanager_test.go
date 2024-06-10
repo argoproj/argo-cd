@@ -430,7 +430,7 @@ func TestVerifyUsernamePassword(t *testing.T) {
 			err := mgr.VerifyUsernamePassword(tc.userName, tc.password)
 
 			if tc.expected == nil {
-				assert.Nil(t, err)
+				assert.NoError(t, err)
 			} else {
 				assert.EqualError(t, err, tc.expected.Error())
 			}

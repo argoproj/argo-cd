@@ -194,8 +194,8 @@ func TestDiffConfigBuilder(t *testing.T) {
 		// then
 		require.NoError(t, err)
 		require.NotNil(t, diffConfig)
-		assert.Equal(t, 0, len(diffConfig.Ignores()))
-		assert.Equal(t, 0, len(diffConfig.Overrides()))
+		assert.Empty(t, diffConfig.Ignores())
+		assert.Empty(t, diffConfig.Overrides())
 		assert.Equal(t, f.label, diffConfig.AppLabelKey())
 		assert.Equal(t, f.overrides, diffConfig.Overrides())
 		assert.Equal(t, f.trackingMethod, diffConfig.TrackingMethod())
@@ -218,8 +218,8 @@ func TestDiffConfigBuilder(t *testing.T) {
 		// then
 		require.NoError(t, err)
 		require.NotNil(t, diffConfig)
-		assert.Equal(t, 0, len(diffConfig.Ignores()))
-		assert.Equal(t, 0, len(diffConfig.Overrides()))
+		assert.Empty(t, diffConfig.Ignores())
+		assert.Empty(t, diffConfig.Overrides())
 		assert.Equal(t, f.label, diffConfig.AppLabelKey())
 		assert.Equal(t, f.overrides, diffConfig.Overrides())
 		assert.Equal(t, f.trackingMethod, diffConfig.TrackingMethod())

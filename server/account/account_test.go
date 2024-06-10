@@ -309,7 +309,7 @@ func TestDeleteToken_SuccessfullyRemoved(t *testing.T) {
 	acc, err := accountServer.GetAccount(ctx, &account.GetAccountRequest{Name: "account1"})
 	assert.NoError(t, err)
 
-	assert.Len(t, acc.Tokens, 0)
+	assert.Empty(t, acc.Tokens)
 }
 
 func TestCanI_GetLogsAllowNoSwitch(t *testing.T) {

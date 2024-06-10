@@ -6,14 +6,15 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/argoproj/argo-cd/v2/applicationset/services/scm_provider/aws_codecommit/mocks"
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/codecommit"
 	"github.com/aws/aws-sdk-go/service/resourcegroupstaggingapi"
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+
+	"github.com/argoproj/argo-cd/v2/applicationset/services/scm_provider/aws_codecommit/mocks"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 )
 
 type awsCodeCommitTestRepository struct {

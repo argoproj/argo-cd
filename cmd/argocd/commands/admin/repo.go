@@ -157,7 +157,7 @@ func NewGenRepoSpecCommand() *cobra.Command {
 			_, err := argoDB.CreateRepository(ctx, &repoOpts.Repo)
 			errors.CheckError(err)
 
-			secret, err := kubeClientset.CoreV1().Secrets(ArgoCDNamespace).Get(ctx, db.RepoURLToSecretName(repoSecretPrefix, repoOpts.Repo.Repo), v1.GetOptions{})
+			secret, err := kubeClientset.CoreV1().Secrets(ArgoCDNamespace).Get(ctx, db.RepoURLToSecretName(repoSecretPrefix, repoOpts.Repo.Repo, repoOpts.Repo.Project), v1.GetOptions{})
 			errors.CheckError(err)
 
 			errors.CheckError(PrintResources(outputFormat, os.Stdout, secret))

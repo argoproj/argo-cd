@@ -388,7 +388,7 @@ func validateRepo(ctx context.Context,
 	errMessage := ""
 
 	for _, source := range sources {
-		repo, err := db.GetRepository(ctx, source.RepoURL)
+		repo, err := db.GetRepository(ctx, source.RepoURL, proj.Name)
 		if err != nil {
 			return nil, err
 		}
@@ -418,7 +418,7 @@ func validateRepo(ctx context.Context,
 		}
 	}
 
-	refSources, err := GetRefSources(ctx, app.Spec, db)
+	refSources, err := GetRefSources(ctx, app.Spec, db.GetRepository)
 	if err != nil {
 		return nil, fmt.Errorf("error getting ref sources: %w", err)
 	}
@@ -446,7 +446,7 @@ func validateRepo(ctx context.Context,
 // GetRefSources creates a map of ref keys (from the sources' 'ref' fields) to information about the referenced source.
 // This function also validates the references use allowed characters and does not define the same ref key more than
 // once (which would lead to ambiguous references).
-func GetRefSources(ctx context.Context, spec argoappv1.ApplicationSpec, db db.ArgoDB) (argoappv1.RefTargetRevisionMapping, error) {
+func GetRefSources(ctx context.Context, spec argoappv1.ApplicationSpec, getRepository func(ctx context.Context, url string, project string) (*argoappv1.Repository, error)) (argoappv1.RefTargetRevisionMapping, error) {
 	refSources := make(argoappv1.RefTargetRevisionMapping)
 	if spec.HasMultipleSources() {
 		// Validate first to avoid unnecessary DB calls.
@@ -467,7 +467,7 @@ func GetRefSources(ctx context.Context, spec argoappv1.ApplicationSpec, db db.Ar
 		// Get Repositories for all sources before generating Manifests
 		for _, source := range spec.Sources {
 			if source.Ref != "" {
-				repo, err := db.GetRepository(ctx, source.RepoURL)
+				repo, err := getRepository(ctx, source.RepoURL, spec.Project)
 				if err != nil {
 					return nil, fmt.Errorf("failed to get repository %s: %v", source.RepoURL, err)
 				}
@@ -742,7 +742,7 @@ func verifyGenerateManifests(
 	}
 
 	for _, source := range sources {
-		repoRes, err := db.GetRepository(ctx, source.RepoURL)
+		repoRes, err := db.GetRepository(ctx, source.RepoURL, proj.Name)
 		if err != nil {
 			conditions = append(conditions, argoappv1.ApplicationCondition{
 				Type:    argoappv1.ApplicationConditionInvalidSpecError,

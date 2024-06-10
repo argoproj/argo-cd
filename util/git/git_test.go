@@ -151,12 +151,12 @@ func TestCustomHTTPClient(t *testing.T) {
 			assert.NoError(t, err)
 			if err == nil {
 				assert.NotNil(t, cert)
-				assert.NotEqual(t, 0, len(cert.Certificate))
+				assert.NotEmpty(t, cert.Certificate)
 				assert.NotNil(t, cert.PrivateKey)
 			}
 		}
 		proxy, err := transport.Proxy(nil)
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 		assert.Equal(t, "http://proxy:5000", proxy.String())
 	}
 
@@ -179,14 +179,14 @@ func TestCustomHTTPClient(t *testing.T) {
 			assert.NoError(t, err)
 			if err == nil {
 				assert.NotNil(t, cert)
-				assert.Equal(t, 0, len(cert.Certificate))
+				assert.Empty(t, cert.Certificate)
 				assert.Nil(t, cert.PrivateKey)
 			}
 		}
 		req, err := http.NewRequest(http.MethodGet, "http://proxy-from-env:7878", nil)
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 		proxy, err := transport.Proxy(req)
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 		assert.Equal(t, "http://proxy-from-env:7878", proxy.String())
 	}
 	// GetRepoHTTPClient with root ca
@@ -330,7 +330,7 @@ func TestLFSClient(t *testing.T) {
 
 	largeFiles, err := client.LsLargeFiles()
 	assert.NoError(t, err)
-	assert.Equal(t, 3, len(largeFiles))
+	assert.Len(t, largeFiles, 3)
 
 	fileHandle, err := os.Open(fmt.Sprintf("%s/test3.yaml", tempDir))
 	assert.NoError(t, err)
@@ -428,7 +428,7 @@ func TestNewFactory(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NotNil(t, revisionMetadata)
 		assert.Regexp(t, "^.*<.*>$", revisionMetadata.Author)
-		assert.Len(t, revisionMetadata.Tags, 0)
+		assert.Empty(t, revisionMetadata.Tags)
 		assert.NotEmpty(t, revisionMetadata.Date)
 		assert.NotEmpty(t, revisionMetadata.Message)
 

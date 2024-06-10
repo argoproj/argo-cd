@@ -188,9 +188,9 @@ export class RepositoriesService {
             .then(res => res.body as models.Repository);
     }
 
-    public delete(url: string): Promise<models.Repository> {
+    public delete(url: string, project: string): Promise<models.Repository> {
         return requests
-            .delete(`/repositories/${encodeURIComponent(url)}`)
+            .delete(`/repositories/${encodeURIComponent(url)}?appProject=${project}`)
             .send()
             .then(res => res.body as models.Repository);
     }

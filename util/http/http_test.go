@@ -16,7 +16,7 @@ func TestCookieMaxLength(t *testing.T) {
 	// keys will be of format foo, foo-1, foo-2 ..
 	cookies, err = MakeCookieMetadata("foo", strings.Repeat("_", (maxCookieLength-5)*maxCookieNumber))
 	assert.EqualError(t, err, "the authentication token is 81760 characters long and requires 21 cookies but the max number of cookies is 20. Contact your Argo CD administrator to increase the max number of cookies")
-	assert.Equal(t, 0, len(cookies))
+	assert.Empty(t, cookies)
 }
 
 func TestCookieWithAttributes(t *testing.T) {
@@ -31,10 +31,10 @@ func TestSplitCookie(t *testing.T) {
 	cookieValue := strings.Repeat("_", (maxCookieLength-6)*4)
 	cookies, err := MakeCookieMetadata("foo", cookieValue)
 	assert.NoError(t, err)
-	assert.Equal(t, 4, len(cookies))
-	assert.Equal(t, 2, len(strings.Split(cookies[0], "=")))
+	assert.Len(t, cookies, 4)
+	assert.Len(t, strings.Split(cookies[0], "="), 2)
 	token := strings.Split(cookies[0], "=")[1]
-	assert.Equal(t, 2, len(strings.Split(token, ":")))
+	assert.Len(t, strings.Split(token, ":"), 2)
 	assert.Equal(t, "4", strings.Split(token, ":")[0])
 
 	cookies = append(cookies, "bar=this-entry-should-be-filtered")

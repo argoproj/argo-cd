@@ -67,7 +67,7 @@ func TestIDTokenClaims(t *testing.T) {
 	requestedClaims := make(map[string]*oidc.Claim)
 
 	opts = AppendClaimsAuthenticationRequestParameter(opts, requestedClaims)
-	assert.Len(t, opts, 0)
+	assert.Empty(t, opts)
 
 	requestedClaims["groups"] = &oidc.Claim{Essential: true}
 	opts = AppendClaimsAuthenticationRequestParameter(opts, requestedClaims)
