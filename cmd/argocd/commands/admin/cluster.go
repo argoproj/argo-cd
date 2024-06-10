@@ -19,13 +19,14 @@ import (
 	"k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
-	"k8s.io/utils/ptr"
+	"k8s.io/utils/pointer"
 
 	cmdutil "github.com/argoproj/argo-cd/v2/cmd/util"
 	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/controller/sharding"
 	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	argoappv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
 	"github.com/argoproj/argo-cd/v2/util/argo"
 	cacheutil "github.com/argoproj/argo-cd/v2/util/cache"
@@ -71,7 +72,7 @@ argocd admin cluster namespaces my-cluster `,
 }
 
 type ClusterWithInfo struct {
-	v1alpha1.Cluster
+	argoappv1.Cluster
 	// Shard holds controller shard number that handles the cluster
 	Shard int
 	// Namespaces holds list of namespaces managed by Argo CD in the cluster
@@ -86,12 +87,8 @@ func loadClusters(ctx context.Context, kubeClient *kubernetes.Clientset, appClie
 	if err != nil {
 		return nil, err
 	}
-	appItems, err := appClient.ArgoprojV1alpha1().Applications(namespace).List(ctx, v1.ListOptions{})
-	if err != nil {
-		return nil, err
-	}
 	clusterShardingCache := sharding.NewClusterSharding(argoDB, shard, replicas, shardingAlgorithm)
-	clusterShardingCache.Init(clustersList, appItems)
+	clusterShardingCache.Init(clustersList)
 	clusterShards := clusterShardingCache.GetDistribution()
 
 	var cache *appstatecache.Cache
@@ -117,6 +114,10 @@ func loadClusters(ctx context.Context, kubeClient *kubernetes.Clientset, appClie
 		}
 	}
 
+	appItems, err := appClient.ArgoprojV1alpha1().Applications(namespace).List(ctx, v1.ListOptions{})
+	if err != nil {
+		return nil, err
+	}
 	apps := appItems.Items
 	for i, app := range apps {
 		err := argo.ValidateDestination(ctx, &app.Spec.Destination, argoDB)
@@ -129,6 +130,12 @@ func loadClusters(ctx context.Context, kubeClient *kubernetes.Clientset, appClie
 
 	batchSize := 10
 	batchesCount := int(math.Ceil(float64(len(clusters)) / float64(batchSize)))
+	clusterSharding := &sharding.ClusterSharding{
+		Shard:    shard,
+		Replicas: replicas,
+		Shards:   make(map[string]int),
+		Clusters: make(map[string]*v1alpha1.Cluster),
+	}
 	for batchNum := 0; batchNum < batchesCount; batchNum++ {
 		batchStart := batchSize * batchNum
 		batchEnd := batchSize * (batchNum + 1)
@@ -140,8 +147,10 @@ func loadClusters(ctx context.Context, kubeClient *kubernetes.Clientset, appClie
 			clusterShard := 0
 			cluster := batch[i]
 			if replicas > 0 {
-				clusterShard = clusterShards[cluster.Server]
-				cluster.Shard = ptr.To(int64(clusterShard))
+				distributionFunction := sharding.GetDistributionFunction(clusterSharding.GetClusterAccessor(), common.DefaultShardingAlgorithm, replicas)
+				distributionFunction(&cluster)
+				clusterShard := clusterShards[cluster.Server]
+				cluster.Shard = pointer.Int64(int64(clusterShard))
 				log.Infof("Cluster with uid: %s will be processed by shard %d", cluster.ID, clusterShard)
 			}
 			if shard != -1 && clusterShard != shard {
@@ -219,7 +228,7 @@ func NewClusterShardsCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comm
 	clientConfig = cli.AddKubectlFlagsToCmd(&command)
 	command.Flags().IntVar(&shard, "shard", -1, "Cluster shard filter")
 	command.Flags().IntVar(&replicas, "replicas", 0, "Application controller replicas count. Inferred from number of running controller pods if not specified")
-	command.Flags().StringVar(&shardingAlgorithm, "sharding-method", common.DefaultShardingAlgorithm, "Sharding method. Defaults: legacy. Supported sharding methods are : [legacy, round-robin, consistent-hashing] ")
+	command.Flags().StringVar(&shardingAlgorithm, "sharding-method", common.DefaultShardingAlgorithm, "Sharding method. Defaults: legacy. Supported sharding methods are : [legacy, round-robin] ")
 	command.Flags().BoolVar(&portForwardRedis, "port-forward-redis", true, "Automatically port-forward ha proxy redis from current namespace?")
 
 	cacheSrc = appstatecache.AddCacheFlagsToCmd(&command)
@@ -514,7 +523,7 @@ argocd admin cluster stats target-cluster`,
 	clientConfig = cli.AddKubectlFlagsToCmd(&command)
 	command.Flags().IntVar(&shard, "shard", -1, "Cluster shard filter")
 	command.Flags().IntVar(&replicas, "replicas", 0, "Application controller replicas count. Inferred from number of running controller pods if not specified")
-	command.Flags().StringVar(&shardingAlgorithm, "sharding-method", common.DefaultShardingAlgorithm, "Sharding method. Defaults: legacy. Supported sharding methods are : [legacy, round-robin, consistent-hashing] ")
+	command.Flags().StringVar(&shardingAlgorithm, "sharding-method", common.DefaultShardingAlgorithm, "Sharding method. Defaults: legacy. Supported sharding methods are : [legacy, round-robin] ")
 	command.Flags().BoolVar(&portForwardRedis, "port-forward-redis", true, "Automatically port-forward ha proxy redis from current namespace?")
 	cacheSrc = appstatecache.AddCacheFlagsToCmd(&command)
 
@@ -617,16 +626,15 @@ func NewGenClusterConfigCommand(pathOpts *clientcmd.PathOptions) *cobra.Command 
 			errors.CheckError(err)
 			kubeClientset := fake.NewSimpleClientset()
 
-			var awsAuthConf *v1alpha1.AWSAuthConfig
-			var execProviderConf *v1alpha1.ExecProviderConfig
+			var awsAuthConf *argoappv1.AWSAuthConfig
+			var execProviderConf *argoappv1.ExecProviderConfig
 			if clusterOpts.AwsClusterName != "" {
-				awsAuthConf = &v1alpha1.AWSAuthConfig{
+				awsAuthConf = &argoappv1.AWSAuthConfig{
 					ClusterName: clusterOpts.AwsClusterName,
 					RoleARN:     clusterOpts.AwsRoleArn,
-					Profile:     clusterOpts.AwsProfile,
 				}
 			} else if clusterOpts.ExecProviderCommand != "" {
-				execProviderConf = &v1alpha1.ExecProviderConfig{
+				execProviderConf = &argoappv1.ExecProviderConfig{
 					Command:     clusterOpts.ExecProviderCommand,
 					Args:        clusterOpts.ExecProviderArgs,
 					Env:         clusterOpts.ExecProviderEnv,
@@ -650,7 +658,7 @@ func NewGenClusterConfigCommand(pathOpts *clientcmd.PathOptions) *cobra.Command 
 
 			clst := cmdutil.NewCluster(contextName, clusterOpts.Namespaces, clusterOpts.ClusterResources, conf, bearerToken, awsAuthConf, execProviderConf, labelsMap, annotationsMap)
 			if clusterOpts.InClusterEndpoint() {
-				clst.Server = v1alpha1.KubernetesInternalAPIServerAddr
+				clst.Server = argoappv1.KubernetesInternalAPIServerAddr
 			}
 			if clusterOpts.ClusterEndpoint == string(cmdutil.KubePublicEndpoint) {
 				// Ignore `kube-public` cluster endpoints, since this command is intended to run without invoking any network connections.

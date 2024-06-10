@@ -20,5 +20,5 @@ func TestParseLabels(t *testing.T) {
 	emptyLabels := []string{}
 	result, err = Parse(emptyLabels)
 	assert.NoError(t, err)
-	assert.Empty(t, result)
+	assert.Len(t, result, 0)
 }

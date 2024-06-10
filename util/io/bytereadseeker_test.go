@@ -1,11 +1,10 @@
 package io
 
 import (
-	"io"
-	"testing"
-
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"io"
+	"testing"
 )
 
 func TestByteReadSeeker_Read(t *testing.T) {

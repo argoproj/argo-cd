@@ -22,9 +22,6 @@ message AWSAuthConfig {
 
   // RoleARN contains optional role ARN. If set then AWS IAM Authenticator assume a role to perform cluster operations instead of the default AWS credential provider chain.
   optional string roleARN = 2;
-
-  // Profile contains optional role ARN. If set then AWS IAM Authenticator uses the profile to perform cluster operations instead of the default AWS credential provider chain.
-  optional string profile = 3;
 }
 
 // AppProject provides a logical grouping of applications, providing controls for:
@@ -109,7 +106,6 @@ message AppProjectStatus {
 // +kubebuilder:printcolumn:name="Sync Status",type=string,JSONPath=`.status.sync.status`
 // +kubebuilder:printcolumn:name="Health Status",type=string,JSONPath=`.status.health.status`
 // +kubebuilder:printcolumn:name="Revision",type=string,JSONPath=`.status.sync.revision`,priority=10
-// +kubebuilder:printcolumn:name="Project",type=string,JSONPath=`.spec.project`,priority=10
 message Application {
   optional k8s.io.apimachinery.pkg.apis.meta.v1.ObjectMeta metadata = 1;
 
@@ -197,12 +193,9 @@ message ApplicationSetApplicationStatus {
 
   // Step tracks which step this Application should be updated in
   optional string step = 5;
-
-  // TargetRevision tracks the desired revisions the Application should be synced to.
-  repeated string targetrevisions = 6;
 }
 
-// ApplicationSetCondition contains details about an applicationset condition, which is usually an error or warning
+// ApplicationSetCondition contains details about an applicationset condition, which is usally an error or warning
 message ApplicationSetCondition {
   // Type is an applicationset condition type
   optional string type = 1;
@@ -334,9 +327,6 @@ message ApplicationSetStatus {
   repeated ApplicationSetCondition conditions = 1;
 
   repeated ApplicationSetApplicationStatus applicationStatus = 2;
-
-  // Resources is a list of Applications resources managed by this application set.
-  repeated ResourceStatus resources = 3;
 }
 
 // ApplicationSetStrategy configures how generated Applications are updated in sequence.
@@ -400,13 +390,6 @@ message ApplicationSetTerminalGenerator {
 
   // Selector allows to post-filter all generator.
   optional k8s.io.apimachinery.pkg.apis.meta.v1.LabelSelector selector = 8;
-}
-
-// ApplicationSetTree holds nodes which belongs to the application
-// Used to build a tree of an ApplicationSet and its children
-message ApplicationSetTree {
-  // Nodes contains list of nodes which are directly managed by the applicationset
-  repeated ResourceNode nodes = 1;
 }
 
 // ApplicationSource contains all required information about the source of an application
@@ -543,9 +526,6 @@ message ApplicationSourceKustomize {
 
   // Components specifies a list of kustomize components to add to the kustomization before building
   repeated string components = 13;
-
-  // LabelWithoutSelector specifies whether to apply common labels to resource selectors or not
-  optional bool labelWithoutSelector = 14;
 }
 
 // ApplicationSourcePlugin holds options specific to config management plugins
@@ -1513,7 +1493,7 @@ message RefTarget {
 
 // RepoCreds holds the definition for repository credentials
 message RepoCreds {
-  // URL is the URL to which these credentials match
+  // URL is the URL that this credentials matches to
   optional string url = 1;
 
   // Username for authenticating at the repo server
@@ -1626,7 +1606,7 @@ message Repository {
   // Proxy specifies the HTTP/HTTPS proxy used to access the repo
   optional string proxy = 19;
 
-  // Reference between project and repository that allows it to be automatically added as an item inside SourceRepos project entity
+  // Reference between project and repository that allow you automatically to be added as item inside SourceRepos project entity
   optional string project = 20;
 
   // GCPServiceAccountKey specifies the service account key in JSON format to be used for getting credentials to Google Cloud Source repos
@@ -1919,9 +1899,6 @@ message RevisionHistory {
 
   // Revisions holds the revision of each source in sources field the sync was performed against
   repeated string revisions = 9;
-
-  // InitiatedBy contains information about who initiated the operations
-  optional OperationInitiator initiatedBy = 10;
 }
 
 // RevisionMetadata contains metadata for a specific revision in a Git repository

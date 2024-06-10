@@ -293,11 +293,11 @@ func Test_GenerateDexConfig(t *testing.T) {
 		}
 		clients, ok := dexCfg["staticClients"].([]interface{})
 		assert.True(t, ok)
-		assert.Len(t, clients, 4)
+		assert.Equal(t, 4, len(clients))
 
 		customClient := clients[3].(map[string]interface{})
 		assert.Equal(t, "argo-workflow", customClient["id"].(string))
-		assert.Len(t, customClient["redirectURIs"].([]interface{}), 1)
+		assert.Equal(t, 1, len(customClient["redirectURIs"].([]interface{})))
 	})
 	t.Run("Custom static clients secret dereference with trailing CRLF", func(t *testing.T) {
 		s := settings.ArgoCDSettings{
@@ -315,7 +315,7 @@ func Test_GenerateDexConfig(t *testing.T) {
 		}
 		clients, ok := dexCfg["staticClients"].([]interface{})
 		assert.True(t, ok)
-		assert.Len(t, clients, 4)
+		assert.Equal(t, 4, len(clients))
 
 		customClient := clients[3].(map[string]interface{})
 		assert.Equal(t, "barfoo", customClient["secret"])

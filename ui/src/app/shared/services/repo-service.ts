@@ -62,9 +62,7 @@ export class RepositoriesService {
         insecure,
         enableLfs,
         proxy,
-        project,
-        forceHttpBasicAuth,
-        enableOCI
+        project
     }: {
         type: string;
         name: string;
@@ -77,12 +75,10 @@ export class RepositoriesService {
         enableLfs: boolean;
         proxy: string;
         project?: string;
-        forceHttpBasicAuth?: boolean;
-        enableOCI: boolean;
     }): Promise<models.Repository> {
         return requests
             .put(`/repositories/${encodeURIComponent(url)}`)
-            .send({type, name, repo: url, username, password, tlsClientCertData, tlsClientCertKey, insecure, enableLfs, proxy, project, forceHttpBasicAuth, enableOCI})
+            .send({type, name, repo: url, username, password, tlsClientCertData, tlsClientCertKey, insecure, enableLfs, proxy, project})
             .then(res => res.body as models.Repository);
     }
 
@@ -188,9 +184,9 @@ export class RepositoriesService {
             .then(res => res.body as models.Repository);
     }
 
-    public delete(url: string, project: string): Promise<models.Repository> {
+    public delete(url: string): Promise<models.Repository> {
         return requests
-            .delete(`/repositories/${encodeURIComponent(url)}?appProject=${project}`)
+            .delete(`/repositories/${encodeURIComponent(url)}`)
             .send()
             .then(res => res.body as models.Repository);
     }

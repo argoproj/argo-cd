@@ -6,19 +6,28 @@ import (
 
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
+	"github.com/argoproj/argo-cd/v2/util/db"
 	"github.com/argoproj/argo-cd/v2/util/git"
 	"github.com/argoproj/argo-cd/v2/util/io"
 )
 
+//go:generate go run github.com/vektra/mockery/v2@v2.25.1 --name=RepositoryDB
+
+// RepositoryDB Is a lean facade for ArgoDB,
+// Using a lean interface makes it easier to test the functionality of the git generator
+type RepositoryDB interface {
+	GetRepository(ctx context.Context, url string) (*v1alpha1.Repository, error)
+}
+
 type argoCDService struct {
-	getRepository          func(ctx context.Context, url, project string) (*v1alpha1.Repository, error)
+	repositoriesDB         RepositoryDB
 	storecreds             git.CredsStore
 	submoduleEnabled       bool
 	repoServerClientSet    apiclient.Clientset
 	newFileGlobbingEnabled bool
 }
 
-//go:generate go run github.com/vektra/mockery/v2@v2.40.2 --name=Repos
+//go:generate go run github.com/vektra/mockery/v2@v2.25.1 --name=Repos
 
 type Repos interface {
 
@@ -29,9 +38,9 @@ type Repos interface {
 	GetDirectories(ctx context.Context, repoURL string, revision string, noRevisionCache bool) ([]string, error)
 }
 
-func NewArgoCDService(getRepository func(ctx context.Context, url, project string) (*v1alpha1.Repository, error), submoduleEnabled bool, repoClientset apiclient.Clientset, newFileGlobbingEnabled bool) (Repos, error) {
+func NewArgoCDService(db db.ArgoDB, submoduleEnabled bool, repoClientset apiclient.Clientset, newFileGlobbingEnabled bool) (Repos, error) {
 	return &argoCDService{
-		getRepository:          getRepository,
+		repositoriesDB:         db.(RepositoryDB),
 		submoduleEnabled:       submoduleEnabled,
 		repoServerClientSet:    repoClientset,
 		newFileGlobbingEnabled: newFileGlobbingEnabled,
@@ -39,7 +48,7 @@ func NewArgoCDService(getRepository func(ctx context.Context, url, project strin
 }
 
 func (a *argoCDService) GetFiles(ctx context.Context, repoURL string, revision string, pattern string, noRevisionCache bool) (map[string][]byte, error) {
-	repo, err := a.getRepository(ctx, repoURL, "")
+	repo, err := a.repositoriesDB.GetRepository(ctx, repoURL)
 	if err != nil {
 		return nil, fmt.Errorf("error in GetRepository: %w", err)
 	}
@@ -66,7 +75,7 @@ func (a *argoCDService) GetFiles(ctx context.Context, repoURL string, revision s
 }
 
 func (a *argoCDService) GetDirectories(ctx context.Context, repoURL string, revision string, noRevisionCache bool) ([]string, error) {
-	repo, err := a.getRepository(ctx, repoURL, "")
+	repo, err := a.repositoriesDB.GetRepository(ctx, repoURL)
 	if err != nil {
 		return nil, fmt.Errorf("error in GetRepository: %w", err)
 	}

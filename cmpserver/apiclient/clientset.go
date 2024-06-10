@@ -2,11 +2,7 @@ package apiclient
 
 import (
 	"context"
-	"math"
 	"time"
-
-	"github.com/argoproj/argo-cd/v2/common"
-	"github.com/argoproj/argo-cd/v2/util/env"
 
 	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
 	grpc_retry "github.com/grpc-ecosystem/go-grpc-middleware/retry"
@@ -18,9 +14,9 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/io"
 )
 
-var (
+const (
 	// MaxGRPCMessageSize contains max grpc message size
-	MaxGRPCMessageSize = env.ParseNumFromEnv(common.EnvGRPCMaxSizeMB, 100, 0, math.MaxInt32) * 1024 * 1024
+	MaxGRPCMessageSize = 100 * 1024 * 1024
 )
 
 // Clientset represents config management plugin server api clients

@@ -127,7 +127,7 @@ func TestHandleAddEvent_ClusterExcluded(t *testing.T) {
 		Config: appv1.ClusterConfig{Username: "bar"},
 	})
 
-	assert.Empty(t, clustersCache.clusters)
+	assert.Len(t, clustersCache.clusters, 0)
 }
 
 func TestHandleDeleteEvent_CacheDeadlock(t *testing.T) {

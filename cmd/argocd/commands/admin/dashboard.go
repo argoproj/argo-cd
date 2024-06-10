@@ -3,10 +3,9 @@ package admin
 import (
 	"fmt"
 
+	"github.com/argoproj/argo-cd/v2/util/cli"
 	"github.com/spf13/cobra"
 	"k8s.io/client-go/tools/clientcmd"
-
-	"github.com/argoproj/argo-cd/v2/util/cli"
 
 	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/headless"
 	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/initialize"

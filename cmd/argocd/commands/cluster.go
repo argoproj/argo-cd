@@ -111,7 +111,6 @@ func NewClusterAddCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clie
 				awsAuthConf = &argoappv1.AWSAuthConfig{
 					ClusterName: clusterOpts.AwsClusterName,
 					RoleARN:     clusterOpts.AwsRoleArn,
-					Profile:     clusterOpts.AwsProfile,
 				}
 			} else if clusterOpts.ExecProviderCommand != "" {
 				execProviderConf = &argoappv1.ExecProviderConfig{
@@ -490,7 +489,7 @@ func NewClusterListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comman
 # List Clusters in Default "Wide" Format
 argocd cluster list
 
-# List Cluster via specifying the server
+# List Cluster via specifing the server
 argocd cluster list --server <ARGOCD_SERVER_ADDRESS>
 
 # List Clusters in JSON Format
