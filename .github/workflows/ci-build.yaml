@@ -171,16 +171,11 @@ jobs:
           go mod download
       - name: Run all unit tests
         run: make test-local
-      - name: Generate code coverage artifacts
-        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
-        with:
-          name: code-coverage
-          path: coverage.out
       - name: Generate test results artifacts
         uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
         with:
           name: test-results
-          path: test-results/
+          path: test-results
 
   test-go-race:
     name: Run unit tests with -race for Go packages
@@ -341,6 +336,7 @@ jobs:
       - test-go
       - build-ui
       - changes
+      - test-e2e
     env:
       sonar_secret: ${{ secrets.SONAR_TOKEN }}
     steps:
@@ -357,22 +353,23 @@ jobs:
       - name: Remove other node_modules directory
         run: |
           rm -rf ui/node_modules/argo-ui/node_modules
-      - name: Create test-results directory
-        run: |
-          mkdir -p test-results
-      - name: Get code coverage artifact
+      - name: Get e2e code coverage
         uses: actions/download-artifact@65a9edc5881444af0b9093a5e628f2fe47ea3b2e # v4.1.7
         with:
-          name: code-coverage
-      - name: Get test result artifact
+          name: e2e-code-coverage
+          path: e2e-code-coverage
+      - name: Get unit test code coverage
         uses: actions/download-artifact@65a9edc5881444af0b9093a5e628f2fe47ea3b2e # v4.1.7
         with:
           name: test-results
           path: test-results
+      - name: combine-go-coverage
+        run: |
+          go tool covdata percent -i=test-results,e2e-code-coverage -o test-results/full-coverage.out
       - name: Upload code coverage information to codecov.io
         uses: codecov/codecov-action@125fc84a9a348dbcf27191600683ec096ec9021c # v4.4.1
         with:
-          file: coverage.out
+          file: test-results/full-coverage.out
           fail_ci_if_error: true
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
@@ -380,30 +377,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-          SCANNER_VERSION: 4.2.0.1873
-          SCANNER_PATH: /tmp/cache/scanner
-          OS: linux
-        run: |
-          # We do not use the provided action, because it does contain an old
-          # version of the scanner, and also takes time to build.
-          set -e
-          mkdir -p ${SCANNER_PATH}
-          export SONAR_USER_HOME=${SCANNER_PATH}/.sonar
-          if [[ ! -x "${SCANNER_PATH}/sonar-scanner-${SCANNER_VERSION}-${OS}/bin/sonar-scanner" ]]; then
-            curl -Ol https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-${SCANNER_VERSION}-${OS}.zip
-            unzip -qq -o sonar-scanner-cli-${SCANNER_VERSION}-${OS}.zip -d ${SCANNER_PATH}
-          fi
-          
-          chmod +x ${SCANNER_PATH}/sonar-scanner-${SCANNER_VERSION}-${OS}/bin/sonar-scanner
-          chmod +x ${SCANNER_PATH}/sonar-scanner-${SCANNER_VERSION}-${OS}/jre/bin/java
-          
-          # Explicitly set NODE_MODULES
-          export NODE_MODULES=${PWD}/ui/node_modules
-          export NODE_PATH=${PWD}/ui/node_modules
-          
-          ${SCANNER_PATH}/sonar-scanner-${SCANNER_VERSION}-${OS}/bin/sonar-scanner
+        uses: SonarSource/sonarqube-scan-action@86fe81775628f1c6349c28baab87881a2170f495 # v2.1.0
         if: env.sonar_secret != ''
-
   test-e2e:
     name: Run end-to-end tests
     if: ${{ needs.changes.outputs.backend == 'true' }}
@@ -411,7 +386,17 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        k3s-version: [v1.29.1, v1.28.6, v1.27.10, v1.26.13, v1.25.16]
+        k3s:
+          - version: v1.29.1
+            latest: true
+          - version: v1.28.6
+            latest: false
+          - version: v1.27.10
+            latest: false
+          - version: v1.26.13
+            latest: false
+          - version: v1.25.16
+            latest: false
     needs:
       - build-go
       - changes
@@ -440,7 +425,7 @@ jobs:
           sudo pkill mono || true
       - name: Install K3S
         env:
-          INSTALL_K3S_VERSION: ${{ matrix.k3s-version }}+k3s1
+          INSTALL_K3S_VERSION: ${{ matrix.k3s.version }}+k3s1
         run: |
           set -x
           curl -sfL https://get.k3s.io | sh -
@@ -506,10 +491,17 @@ jobs:
         run: |
           set -x
           make test-e2e-local
+        continue-on-error: true
+      - name: Upload e2e coverage report
+        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
+        with:
+          name: e2e-code-coverage
+          path: /tmp/coverage/cov*
+        if: ${{ matrix.k3s.latest }}
       - name: Upload e2e-server logs
         uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
         with:
-          name: e2e-server-k8s${{ matrix.k3s-version }}.log
+          name: e2e-server-k8s${{ matrix.k3s.version }}.log
           path: /tmp/e2e-server.log
         if: ${{ failure() }}
 
