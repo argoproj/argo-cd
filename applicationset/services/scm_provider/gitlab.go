@@ -7,9 +7,10 @@ import (
 	"os"
 	pathpkg "path"
 
-	"github.com/argoproj/argo-cd/v2/applicationset/utils"
 	"github.com/hashicorp/go-retryablehttp"
 	"github.com/xanzy/go-gitlab"
+
+	"github.com/argoproj/argo-cd/v2/applicationset/utils"
 )
 
 type GitlabProvider struct {

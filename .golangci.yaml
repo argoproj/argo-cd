@@ -1,12 +1,18 @@
 issues:
   exclude:
     - SA5011
+  exclude-rules:
+    - path: "(applicationset|cmd|cmpserver|controller|reposerver|server|util)/"
+      linters:
+        - errorlint
   max-issues-per-linter: 0
   max-same-issues: 0
 linters:
   enable:
     - errcheck
+    - errorlint
     - gofmt
+    - goimports
     - gosimple
     - govet
     - ineffassign
@@ -15,6 +21,8 @@ linters:
     - testifylint
     - unused
 linters-settings:
+  goimports:
+    local-prefixes: github.com/argoproj/argo-cd/v2
   testifylint:
     enable-all: true
     disable:
