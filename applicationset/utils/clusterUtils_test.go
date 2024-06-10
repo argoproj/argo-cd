@@ -34,13 +34,13 @@ func Test_secretToCluster(t *testing.T) {
 	}
 	cluster, err := secretToCluster(secret)
 	assert.NoError(t, err)
-	assert.Equal(t, *cluster, argoappv1.Cluster{
+	assert.Equal(t, argoappv1.Cluster{
 		Name:   "test",
 		Server: "http://mycluster",
 		Config: argoappv1.ClusterConfig{
 			Username: "foo",
 		},
-	})
+	}, *cluster)
 }
 
 // From Argo CD util/db/cluster_test.go
@@ -57,10 +57,10 @@ func Test_secretToCluster_NoConfig(t *testing.T) {
 	}
 	cluster, err := secretToCluster(secret)
 	assert.NoError(t, err)
-	assert.Equal(t, *cluster, argoappv1.Cluster{
+	assert.Equal(t, argoappv1.Cluster{
 		Name:   "test",
 		Server: "http://mycluster",
-	})
+	}, *cluster)
 }
 
 func createClusterSecret(secretName string, clusterName string, clusterServer string) *corev1.Secret {

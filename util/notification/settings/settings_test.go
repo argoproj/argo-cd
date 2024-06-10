@@ -83,7 +83,7 @@ func TestInitGetVars(t *testing.T) {
 		}
 		result := varsProvider(emptyAppData, testDestination)
 		assert.NotNil(t, result["context"])
-		assert.Equal(t, result["context"], expectedContext)
+		assert.Equal(t, expectedContext, result["context"])
 	})
 	t.Run("Vars provider serves notification secrets on secrets key", func(t *testing.T) {
 		result := varsProvider(emptyAppData, testDestination)

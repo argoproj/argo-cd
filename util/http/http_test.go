@@ -74,10 +74,10 @@ func TestTransportWithHeader(t *testing.T) {
 	}
 	resp, err := client.Do(req)
 	assert.NoError(t, err)
-	assert.Equal(t, resp.Header, http.Header{
+	assert.Equal(t, http.Header{
 		"Bar": []string{"req_1"},
 		"Foo": []string{"req_1"},
-	})
+	}, resp.Header)
 
 	// with default headers.
 	client.Transport = &TransportWithHeader{
@@ -88,8 +88,8 @@ func TestTransportWithHeader(t *testing.T) {
 	}
 	resp, err = client.Do(req)
 	assert.NoError(t, err)
-	assert.Equal(t, resp.Header, http.Header{
+	assert.Equal(t, http.Header{
 		"Bar": []string{"req_1"},
 		"Foo": []string{"default_1", "default_2", "req_1"},
-	})
+	}, resp.Header)
 }

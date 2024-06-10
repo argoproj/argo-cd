@@ -245,13 +245,13 @@ func TestGetAccount(t *testing.T) {
 		acc, err := accountServer.GetAccount(ctx, &account.GetAccountRequest{Name: "account1"})
 		assert.NoError(t, err)
 
-		assert.Equal(t, acc.Name, "account1")
+		assert.Equal(t, "account1", acc.Name)
 	})
 
 	t.Run("NonExistingAccount", func(t *testing.T) {
 		_, err := accountServer.GetAccount(ctx, &account.GetAccountRequest{Name: "bad-name"})
 		assert.Error(t, err)
-		assert.Equal(t, status.Code(err), codes.NotFound)
+		assert.Equal(t, codes.NotFound, status.Code(err))
 	})
 }
 

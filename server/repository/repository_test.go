@@ -385,7 +385,7 @@ func TestRepositoryServer(t *testing.T) {
 			},
 		})
 		assert.NoError(t, err)
-		assert.Equal(t, repo.Repo, "repo")
+		assert.Equal(t, "repo", repo.Repo)
 	})
 
 	t.Run("Test_CreateRepositoryWithUpsert", func(t *testing.T) {
@@ -411,7 +411,7 @@ func TestRepositoryServer(t *testing.T) {
 		})
 
 		assert.NoError(t, err)
-		assert.Equal(t, repo.Repo, "test")
+		assert.Equal(t, "test", repo.Repo)
 	})
 
 	t.Run("Test_ListRepositories", func(t *testing.T) {

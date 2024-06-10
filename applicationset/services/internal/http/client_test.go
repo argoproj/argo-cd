@@ -137,8 +137,8 @@ func TestClientDo(t *testing.T) {
 			if cc.expectedError != nil {
 				assert.EqualError(t, err, cc.expectedError.Error())
 			} else {
-				assert.Equal(t, resp.StatusCode, cc.expectedCode)
-				assert.Equal(t, data, cc.expected)
+				assert.Equal(t, cc.expectedCode, resp.StatusCode)
+				assert.Equal(t, cc.expected, data)
 				assert.NoError(t, err)
 			}
 		})

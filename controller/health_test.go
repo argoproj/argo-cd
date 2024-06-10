@@ -55,8 +55,8 @@ func TestSetApplicationHealth(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, health.HealthStatusDegraded, healthStatus.Status)
 
-	assert.Equal(t, resourceStatuses[0].Health.Status, health.HealthStatusHealthy)
-	assert.Equal(t, resourceStatuses[1].Health.Status, health.HealthStatusDegraded)
+	assert.Equal(t, health.HealthStatusHealthy, resourceStatuses[0].Health.Status)
+	assert.Equal(t, health.HealthStatusDegraded, resourceStatuses[1].Health.Status)
 
 	// now mark the job as a hook and retry. it should ignore the hook and consider the app healthy
 	failedJob.SetAnnotations(map[string]string{synccommon.AnnotationKeyHook: "PreSync"})
@@ -103,7 +103,7 @@ func TestSetApplicationHealth_MissingResourceNoBuiltHealthCheck(t *testing.T) {
 		healthStatus, err := setApplicationHealth(resources, resourceStatuses, lua.ResourceHealthOverrides{}, app, true)
 		assert.NoError(t, err)
 		assert.Equal(t, health.HealthStatusHealthy, healthStatus.Status)
-		assert.Equal(t, resourceStatuses[0].Health.Status, health.HealthStatusMissing)
+		assert.Equal(t, health.HealthStatusMissing, resourceStatuses[0].Health.Status)
 	})
 
 	t.Run("HasOverride", func(t *testing.T) {

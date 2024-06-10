@@ -73,7 +73,7 @@ func Test_GPG_InitializeGnuPG(t *testing.T) {
 	keys, err := GetInstalledPGPKeys(nil)
 	assert.NoError(t, err)
 	assert.Len(t, keys, 1)
-	assert.Equal(t, keys[0].Trust, "ultimate")
+	assert.Equal(t, "ultimate", keys[0].Trust)
 
 	// During unit-tests, we need to also kill gpg-agent so we can create a new key.
 	// In real world scenario -- i.e. container crash -- gpg-agent is not running yet.
@@ -88,7 +88,7 @@ func Test_GPG_InitializeGnuPG(t *testing.T) {
 	keys, err = GetInstalledPGPKeys(nil)
 	assert.NoError(t, err)
 	assert.Len(t, keys, 1)
-	assert.Equal(t, keys[0].Trust, "ultimate")
+	assert.Equal(t, "ultimate", keys[0].Trust)
 
 	t.Run("GNUPGHOME is a file", func(t *testing.T) {
 		f, err := os.CreateTemp("", "gpg-test")
@@ -525,7 +525,7 @@ func Test_IsSecretKey(t *testing.T) {
 	keys, err := GetInstalledPGPKeys(nil)
 	assert.NoError(t, err)
 	assert.Len(t, keys, 1)
-	assert.Equal(t, keys[0].Trust, "ultimate")
+	assert.Equal(t, "ultimate", keys[0].Trust)
 
 	{
 		secret, err := IsSecretKey(keys[0].KeyID)

@@ -32,7 +32,7 @@ func TestCreateRepositoryWithProject(t *testing.T) {
 		Then().
 		And(func(r *Repository, err error) {
 			assert.Equal(t, r.Repo, path)
-			assert.Equal(t, r.Project, "argo-project")
+			assert.Equal(t, "argo-project", r.Project)
 
 			prjConsequence.And(func(projectResponse *project.DetailedProjectsResponse, err error) {
 				assert.Len(t, projectResponse.Repositories, 1)
@@ -121,7 +121,7 @@ func TestDeleteRepositoryRbacAllowed(t *testing.T) {
 		Then().
 		And(func(r *Repository, err error) {
 			assert.Equal(t, r.Repo, path)
-			assert.Equal(t, r.Project, "argo-project")
+			assert.Equal(t, "argo-project", r.Project)
 		}).
 		When().
 		Delete().
@@ -164,7 +164,7 @@ func TestDeleteRepositoryRbacDenied(t *testing.T) {
 		Then().
 		And(func(r *Repository, err error) {
 			assert.Equal(t, r.Repo, path)
-			assert.Equal(t, r.Project, "argo-project")
+			assert.Equal(t, "argo-project", r.Project)
 		}).
 		When().
 		IgnoreErrors().
@@ -190,7 +190,7 @@ func TestDeleteRepository(t *testing.T) {
 		Delete().
 		Then().
 		And(func(r *Repository, err error) {
-			assert.Equal(t, err.Error(), "repo not found")
+			assert.Equal(t, "repo not found", err.Error())
 		})
 
 }

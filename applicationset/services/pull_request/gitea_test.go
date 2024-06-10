@@ -254,10 +254,10 @@ func TestGiteaList(t *testing.T) {
 	prs, err := host.List(context.Background())
 	assert.NoError(t, err)
 	assert.Len(t, prs, 1)
-	assert.Equal(t, prs[0].Number, 1)
-	assert.Equal(t, prs[0].Branch, "test")
-	assert.Equal(t, prs[0].TargetBranch, "main")
-	assert.Equal(t, prs[0].HeadSHA, "7bbaf62d92ddfafd9cc8b340c619abaec32bc09f")
+	assert.Equal(t, 1, prs[0].Number)
+	assert.Equal(t, "test", prs[0].Branch)
+	assert.Equal(t, "main", prs[0].TargetBranch)
+	assert.Equal(t, "7bbaf62d92ddfafd9cc8b340c619abaec32bc09f", prs[0].HeadSHA)
 }
 
 func TestGetGiteaPRLabelNames(t *testing.T) {

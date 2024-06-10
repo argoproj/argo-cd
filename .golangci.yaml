@@ -28,7 +28,6 @@ linters-settings:
     disable:
       - compares
       - error-is-as
-      - expected-actual
       - float-compare
       - go-require
       - nil-compare

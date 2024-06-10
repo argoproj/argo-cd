@@ -21,7 +21,7 @@ func TestGetAccounts_NoAccountsConfigured(t *testing.T) {
 
 	adminAccount, ok := accounts[common.ArgoCDAdminUsername]
 	assert.True(t, ok)
-	assert.EqualValues(t, adminAccount.Capabilities, []AccountCapability{AccountCapabilityLogin})
+	assert.EqualValues(t, []AccountCapability{AccountCapabilityLogin}, adminAccount.Capabilities)
 }
 
 func TestGetAccounts_HasConfiguredAccounts(t *testing.T) {
@@ -66,7 +66,7 @@ func TestGetAccount(t *testing.T) {
 		_, err := settingsManager.GetAccount("incorrect-name")
 
 		assert.Error(t, err)
-		assert.Equal(t, status.Code(err), codes.NotFound)
+		assert.Equal(t, codes.NotFound, status.Code(err))
 	})
 }
 
@@ -155,8 +155,8 @@ func TestAddAccount_AccountAdded(t *testing.T) {
 	cm, err := clientset.CoreV1().ConfigMaps("default").Get(context.Background(), common.ArgoCDConfigMapName, metav1.GetOptions{})
 	assert.NoError(t, err)
 
-	assert.Equal(t, cm.Data["accounts.test"], "login")
-	assert.Equal(t, cm.Data["accounts.test.enabled"], "false")
+	assert.Equal(t, "login", cm.Data["accounts.test"])
+	assert.Equal(t, "false", cm.Data["accounts.test.enabled"])
 
 	secret, err := clientset.CoreV1().Secrets("default").Get(context.Background(), common.ArgoCDSecretName, metav1.GetOptions{})
 	assert.NoError(t, err)
@@ -195,8 +195,8 @@ func TestUpdateAccount_SuccessfullyUpdated(t *testing.T) {
 	cm, err := clientset.CoreV1().ConfigMaps("default").Get(context.Background(), common.ArgoCDConfigMapName, metav1.GetOptions{})
 	assert.NoError(t, err)
 
-	assert.Equal(t, cm.Data["accounts.test"], "login")
-	assert.Equal(t, cm.Data["accounts.test.enabled"], "false")
+	assert.Equal(t, "login", cm.Data["accounts.test"])
+	assert.Equal(t, "false", cm.Data["accounts.test.enabled"])
 
 	secret, err := clientset.CoreV1().Secrets("default").Get(context.Background(), common.ArgoCDSecretName, metav1.GetOptions{})
 	assert.NoError(t, err)
