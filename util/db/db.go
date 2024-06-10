@@ -10,11 +10,12 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 
+	log "github.com/sirupsen/logrus"
+
 	"github.com/argoproj/argo-cd/v2/common"
 	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/util/env"
 	"github.com/argoproj/argo-cd/v2/util/settings"
-	log "github.com/sirupsen/logrus"
 )
 
 // SecretMaperValidation determine whether the secret should be transformed(i.e. trailing CRLF characters trimmed)

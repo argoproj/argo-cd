@@ -3,8 +3,9 @@ package repository
 import (
 	"context"
 	"fmt"
-	"github.com/argoproj/argo-cd/v2/util/git"
 	"reflect"
+
+	"github.com/argoproj/argo-cd/v2/util/git"
 
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/argoproj/gitops-engine/pkg/utils/text"

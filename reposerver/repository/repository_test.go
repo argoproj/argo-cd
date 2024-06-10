@@ -19,9 +19,10 @@ import (
 	"testing"
 	"time"
 
-	cacheutil "github.com/argoproj/argo-cd/v2/util/cache"
 	log "github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/api/resource"
+
+	cacheutil "github.com/argoproj/argo-cd/v2/util/cache"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
