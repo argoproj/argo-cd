@@ -1122,9 +1122,9 @@ func TestGitlabListRepos(t *testing.T) {
 			provider, _ := NewGitlabProvider(context.Background(), "test-argocd-proton", "", ts.URL, c.allBranches, c.includeSubgroups, c.includeSharedProjects, c.insecure, "", c.topic)
 			rawRepos, err := ListRepos(context.Background(), provider, c.filters, c.proto)
 			if c.hasError {
-				assert.NotNil(t, err)
+				assert.Error(t, err)
 			} else {
-				assert.Nil(t, err)
+				assert.NoError(t, err)
 				// Just check that this one project shows up. Not a great test but better than nothing?
 				repos := []*Repository{}
 				uniqueRepos := map[string]int{}
@@ -1194,7 +1194,7 @@ func TestGitlabHasPath(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			ok, err := host.RepoHasPath(context.Background(), repo, c.path)
-			assert.Nil(t, err)
+			assert.NoError(t, err)
 			assert.Equal(t, c.exists, ok)
 		})
 	}
@@ -1212,7 +1212,7 @@ func TestGitlabGetBranches(t *testing.T) {
 	}
 	t.Run("branch exists", func(t *testing.T) {
 		repos, err := host.GetBranches(context.Background(), repo)
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 		assert.Equal(t, repos[0].Branch, "master")
 	})
 

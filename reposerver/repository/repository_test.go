@@ -19,9 +19,10 @@ import (
 	"testing"
 	"time"
 
-	cacheutil "github.com/argoproj/argo-cd/v2/util/cache"
 	log "github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/api/resource"
+
+	cacheutil "github.com/argoproj/argo-cd/v2/util/cache"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -40,7 +41,6 @@ import (
 	"github.com/argoproj/argo-cd/v2/reposerver/metrics"
 	fileutil "github.com/argoproj/argo-cd/v2/test/fixture/path"
 	"github.com/argoproj/argo-cd/v2/util/argo"
-	dbmocks "github.com/argoproj/argo-cd/v2/util/db/mocks"
 	"github.com/argoproj/argo-cd/v2/util/git"
 	gitmocks "github.com/argoproj/argo-cd/v2/util/git/mocks"
 	"github.com/argoproj/argo-cd/v2/util/helm"
@@ -123,10 +123,10 @@ func newServiceWithMocks(t *testing.T, root string, signed bool) (*Service, *git
 			chart:    {{Version: "1.0.0"}, {Version: version}},
 			oobChart: {{Version: "1.0.0"}, {Version: version}},
 		}}, nil)
-		helmClient.On("ExtractChart", chart, version, false, int64(0), false).Return("./testdata/my-chart", io.NopCloser, nil)
-		helmClient.On("ExtractChart", oobChart, version, false, int64(0), false).Return("./testdata2/out-of-bounds-chart", io.NopCloser, nil)
-		helmClient.On("CleanChartCache", chart, version).Return(nil)
-		helmClient.On("CleanChartCache", oobChart, version).Return(nil)
+		helmClient.On("ExtractChart", chart, version, "", false, int64(0), false).Return("./testdata/my-chart", io.NopCloser, nil)
+		helmClient.On("ExtractChart", oobChart, version, "", false, int64(0), false).Return("./testdata2/out-of-bounds-chart", io.NopCloser, nil)
+		helmClient.On("CleanChartCache", chart, version, "").Return(nil)
+		helmClient.On("CleanChartCache", oobChart, version, "").Return(nil)
 		helmClient.On("DependencyBuild").Return(nil)
 
 		paths.On("Add", mock.Anything, mock.Anything).Return(root, nil)
@@ -499,11 +499,11 @@ func TestHelmChartReferencingExternalValues(t *testing.T) {
 			{Ref: "ref", RepoURL: "https://git.example.com/test/repo"},
 		},
 	}
-	repoDB := &dbmocks.ArgoDB{}
-	repoDB.On("GetRepository", context.Background(), "https://git.example.com/test/repo").Return(&argoappv1.Repository{
-		Repo: "https://git.example.com/test/repo",
-	}, nil)
-	refSources, err := argo.GetRefSources(context.Background(), spec, repoDB)
+	refSources, err := argo.GetRefSources(context.Background(), spec, func(ctx context.Context, url string, project string) (*argoappv1.Repository, error) {
+		return &argoappv1.Repository{
+			Repo: "https://git.example.com/test/repo",
+		}, nil
+	})
 	require.NoError(t, err)
 	request := &apiclient.ManifestRequest{Repo: &argoappv1.Repository{}, ApplicationSource: &spec.Sources[0], NoCache: true, RefSources: refSources, HasMultipleSources: true, ProjectName: "something",
 		ProjectSourceRepos: []string{"*"}}
@@ -529,15 +529,16 @@ func TestHelmChartReferencingExternalValues_InvalidRefs(t *testing.T) {
 		},
 	}
 
-	repoDB := &dbmocks.ArgoDB{}
-	repoDB.On("GetRepository", context.Background(), "https://git.example.com/test/repo").Return(&argoappv1.Repository{
-		Repo: "https://git.example.com/test/repo",
-	}, nil)
-
 	// Empty refsource
 	service := newService(t, ".")
 
-	refSources, err := argo.GetRefSources(context.Background(), spec, repoDB)
+	getRepository := func(ctx context.Context, url string, project string) (*argoappv1.Repository, error) {
+		return &argoappv1.Repository{
+			Repo: "https://git.example.com/test/repo",
+		}, nil
+	}
+
+	refSources, err := argo.GetRefSources(context.Background(), spec, getRepository)
 	require.NoError(t, err)
 
 	request := &apiclient.ManifestRequest{Repo: &argoappv1.Repository{}, ApplicationSource: &spec.Sources[0], NoCache: true, RefSources: refSources, HasMultipleSources: true, ProjectName: "something",
@@ -550,7 +551,7 @@ func TestHelmChartReferencingExternalValues_InvalidRefs(t *testing.T) {
 	service = newService(t, ".")
 
 	spec.Sources[1].Ref = "Invalid"
-	refSources, err = argo.GetRefSources(context.Background(), spec, repoDB)
+	refSources, err = argo.GetRefSources(context.Background(), spec, getRepository)
 	require.NoError(t, err)
 
 	request = &apiclient.ManifestRequest{Repo: &argoappv1.Repository{}, ApplicationSource: &spec.Sources[0], NoCache: true, RefSources: refSources, HasMultipleSources: true, ProjectName: "something",
@@ -564,7 +565,7 @@ func TestHelmChartReferencingExternalValues_InvalidRefs(t *testing.T) {
 
 	spec.Sources[1].Ref = "ref"
 	spec.Sources[1].Chart = "helm-chart"
-	refSources, err = argo.GetRefSources(context.Background(), spec, repoDB)
+	refSources, err = argo.GetRefSources(context.Background(), spec, getRepository)
 	require.NoError(t, err)
 
 	request = &apiclient.ManifestRequest{Repo: &argoappv1.Repository{}, ApplicationSource: &spec.Sources[0], NoCache: true, RefSources: refSources, HasMultipleSources: true, ProjectName: "something",
@@ -582,7 +583,7 @@ func TestHelmChartReferencingExternalValues_OutOfBounds_Symlink(t *testing.T) {
 		err = os.RemoveAll("testdata/oob-symlink")
 		require.NoError(t, err)
 	})
-	// Create a symlink to a file outside of the repo
+	// Create a symlink to a file outside the repo
 	err = os.Symlink("../../../values.yaml", "./testdata/oob-symlink/oob-symlink.yaml")
 	// Create a regular file to reference from another source
 	err = os.WriteFile("./testdata/oob-symlink/values.yaml", []byte("foo: bar"), 0644)
@@ -597,11 +598,11 @@ func TestHelmChartReferencingExternalValues_OutOfBounds_Symlink(t *testing.T) {
 			{Ref: "ref", RepoURL: "https://git.example.com/test/repo"},
 		},
 	}
-	repoDB := &dbmocks.ArgoDB{}
-	repoDB.On("GetRepository", context.Background(), "https://git.example.com/test/repo").Return(&argoappv1.Repository{
-		Repo: "https://git.example.com/test/repo",
-	}, nil)
-	refSources, err := argo.GetRefSources(context.Background(), spec, repoDB)
+	refSources, err := argo.GetRefSources(context.Background(), spec, func(ctx context.Context, url string, project string) (*argoappv1.Repository, error) {
+		return &argoappv1.Repository{
+			Repo: "https://git.example.com/test/repo",
+		}, nil
+	})
 	require.NoError(t, err)
 	request := &apiclient.ManifestRequest{Repo: &argoappv1.Repository{}, ApplicationSource: &spec.Sources[0], NoCache: true, RefSources: refSources, HasMultipleSources: true}
 	_, err = service.GenerateManifest(context.Background(), request)
@@ -617,7 +618,7 @@ func TestGenerateManifestsUseExactRevision(t *testing.T) {
 		ProjectSourceRepos: []string{"*"}}
 
 	res1, err := service.GenerateManifest(context.Background(), &q)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.Len(t, res1.Manifests, 2)
 	assert.Equal(t, gitClient.Calls[0].Arguments[0], "abc")
 }
@@ -631,7 +632,7 @@ func TestRecurseManifestsInDir(t *testing.T) {
 		ProjectSourceRepos: []string{"*"}}
 
 	res1, err := service.GenerateManifest(context.Background(), &q)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.Len(t, res1.Manifests, 2)
 }
 
@@ -643,7 +644,7 @@ func TestInvalidManifestsInDir(t *testing.T) {
 	q := apiclient.ManifestRequest{Repo: &argoappv1.Repository{}, ApplicationSource: &src}
 
 	_, err := service.GenerateManifest(context.Background(), &q)
-	assert.NotNil(t, err)
+	assert.Error(t, err)
 }
 
 func TestInvalidMetadata(t *testing.T) {
@@ -687,7 +688,7 @@ func TestGenerateJsonnetManifestInDir(t *testing.T) {
 		ProjectSourceRepos: []string{"*"},
 	}
 	res1, err := service.GenerateManifest(context.Background(), &q)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.Len(t, res1.Manifests, 2)
 }
 
@@ -710,7 +711,7 @@ func TestGenerateJsonnetManifestInRootDir(t *testing.T) {
 		ProjectSourceRepos: []string{"*"},
 	}
 	res1, err := service.GenerateManifest(context.Background(), &q)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.Len(t, res1.Manifests, 2)
 }
 
@@ -744,7 +745,7 @@ func TestManifestGenErrorCacheByNumRequests(t *testing.T) {
 
 		cachedManifestResponse := &cache.CachedManifestResponse{}
 		err := service.cache.GetManifests(mock.Anything, manifestRequest.ApplicationSource, manifestRequest.RefSources, manifestRequest, manifestRequest.Namespace, "", manifestRequest.AppLabelKey, manifestRequest.AppName, cachedManifestResponse, nil)
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 		return cachedManifestResponse
 	}
 
@@ -1477,7 +1478,7 @@ func TestGenerateNullList(t *testing.T) {
 			ProjectName:        "something",
 			ProjectSourceRepos: []string{"*"},
 		})
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 		assert.Len(t, res1.Manifests, 1)
 		assert.Contains(t, res1.Manifests[0], "prometheus-operator-operator")
 	})
@@ -1490,7 +1491,7 @@ func TestGenerateNullList(t *testing.T) {
 			ProjectName:        "something",
 			ProjectSourceRepos: []string{"*"},
 		})
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 		assert.Len(t, res1.Manifests, 1)
 		assert.Contains(t, res1.Manifests[0], "prometheus-operator-operator")
 	})
@@ -1503,22 +1504,22 @@ func TestGenerateNullList(t *testing.T) {
 			ProjectName:        "something",
 			ProjectSourceRepos: []string{"*"},
 		})
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 		assert.Len(t, res1.Manifests, 2)
 	})
 }
 
 func TestIdentifyAppSourceTypeByAppDirWithKustomizations(t *testing.T) {
 	sourceType, err := GetAppSourceType(context.Background(), &argoappv1.ApplicationSource{}, "./testdata/kustomization_yaml", "./testdata", "testapp", map[string]bool{}, []string{}, []string{})
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.Equal(t, argoappv1.ApplicationSourceTypeKustomize, sourceType)
 
 	sourceType, err = GetAppSourceType(context.Background(), &argoappv1.ApplicationSource{}, "./testdata/kustomization_yml", "./testdata", "testapp", map[string]bool{}, []string{}, []string{})
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.Equal(t, argoappv1.ApplicationSourceTypeKustomize, sourceType)
 
 	sourceType, err = GetAppSourceType(context.Background(), &argoappv1.ApplicationSource{}, "./testdata/Kustomization", "./testdata", "testapp", map[string]bool{}, []string{}, []string{})
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.Equal(t, argoappv1.ApplicationSourceTypeKustomize, sourceType)
 }
 
@@ -1530,7 +1531,7 @@ func TestGenerateFromUTF16(t *testing.T) {
 		ProjectSourceRepos: []string{"*"},
 	}
 	res1, err := GenerateManifests(context.Background(), "./testdata/utf-16", "/", "", &q, false, &git.NoopCredsStore{}, resource.MustParse("0"), nil)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.Len(t, res1.Manifests, 2)
 }
 
@@ -2798,7 +2799,7 @@ func TestResolveRevision(t *testing.T) {
 	}
 
 	assert.NotNil(t, resolveRevisionResponse.Revision)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.Equal(t, expectedResolveRevisionResponse, resolveRevisionResponse)
 
 }
@@ -2820,7 +2821,7 @@ func TestResolveRevisionNegativeScenarios(t *testing.T) {
 	}
 
 	assert.NotNil(t, resolveRevisionResponse.Revision)
-	assert.NotNil(t, err)
+	assert.Error(t, err)
 	assert.Equal(t, expectedResolveRevisionResponse, resolveRevisionResponse)
 
 }
@@ -3043,7 +3044,7 @@ func TestGetHelmRepos_OCIDependenciesWithHelmRepo(t *testing.T) {
 	}}
 
 	helmRepos, err := getHelmRepos("./testdata/oci-dependencies", q.Repos, q.HelmRepoCreds)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	assert.Len(t, helmRepos, 1)
 	assert.Equal(t, helmRepos[0].Username, "test")
@@ -3056,7 +3057,7 @@ func TestGetHelmRepos_OCIDependenciesWithRepo(t *testing.T) {
 	q := apiclient.ManifestRequest{Repos: []*argoappv1.Repository{{Repo: "example.com", Username: "test", Password: "test", EnableOCI: true}}, ApplicationSource: &src, HelmRepoCreds: []*argoappv1.RepoCreds{}}
 
 	helmRepos, err := getHelmRepos("./testdata/oci-dependencies", q.Repos, q.HelmRepoCreds)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	assert.Len(t, helmRepos, 1)
 	assert.Equal(t, helmRepos[0].Username, "test")
@@ -3073,7 +3074,7 @@ func TestGetHelmRepo_NamedRepos(t *testing.T) {
 	}}}
 
 	helmRepos, err := getHelmRepos("./testdata/helm-with-dependencies", q.Repos, q.HelmRepoCreds)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	assert.Len(t, helmRepos, 1)
 	assert.Equal(t, helmRepos[0].Username, "test")
@@ -3089,7 +3090,7 @@ func TestGetHelmRepo_NamedReposAlias(t *testing.T) {
 	}}}
 
 	helmRepos, err := getHelmRepos("./testdata/helm-with-dependencies-alias", q.Repos, q.HelmRepoCreds)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	assert.Len(t, helmRepos, 1)
 	assert.Equal(t, helmRepos[0].Username, "test-alias")
@@ -3099,7 +3100,9 @@ func TestGetHelmRepo_NamedReposAlias(t *testing.T) {
 func Test_getResolvedValueFiles(t *testing.T) {
 	tempDir := t.TempDir()
 	paths := io.NewRandomizedTempPaths(tempDir)
-	paths.Add(git.NormalizeGitURL("https://github.com/org/repo1"), path.Join(tempDir, "repo1"))
+
+	key, _ := json.Marshal(map[string]string{"url": git.NormalizeGitURL("https://github.com/org/repo1"), "project": ""})
+	paths.Add(string(key), path.Join(tempDir, "repo1"))
 
 	testCases := []struct {
 		name         string
@@ -3325,13 +3328,13 @@ func TestGetGitDirectories(t *testing.T) {
 		Revision:         "HEAD",
 	}
 	directories, err := s.GetGitDirectories(context.TODO(), dirRequest)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.ElementsMatch(t, directories.GetPaths(), []string{"app", "app/bar", "app/foo/bar", "somedir", "app/foo"})
 
 	// do the same request again to use the cache
 	// we only allow CheckOut to be called once in the mock
 	directories, err = s.GetGitDirectories(context.TODO(), dirRequest)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.ElementsMatch(t, []string{"app", "app/bar", "app/foo/bar", "somedir", "app/foo"}, directories.GetPaths())
 	cacheMocks.mockCache.AssertCacheCalledTimes(t, &repositorymocks.CacheCallCounts{
 		ExternalSets: 1,
@@ -3358,13 +3361,13 @@ func TestGetGitDirectoriesWithHiddenDirSupported(t *testing.T) {
 		Revision:         "HEAD",
 	}
 	directories, err := s.GetGitDirectories(context.TODO(), dirRequest)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.ElementsMatch(t, directories.GetPaths(), []string{"app", "app/bar", "app/foo/bar", "somedir", "app/foo", "app/bar/.hidden"})
 
 	// do the same request again to use the cache
 	// we only allow CheckOut to be called once in the mock
 	directories, err = s.GetGitDirectories(context.TODO(), dirRequest)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.ElementsMatch(t, []string{"app", "app/bar", "app/foo/bar", "somedir", "app/foo", "app/bar/.hidden"}, directories.GetPaths())
 	cacheMocks.mockCache.AssertCacheCalledTimes(t, &repositorymocks.CacheCallCounts{
 		ExternalSets: 1,
@@ -3453,18 +3456,18 @@ func TestGetGitFiles(t *testing.T) {
 	expected := make(map[string][]byte)
 	for _, filePath := range files {
 		fileContents, err := os.ReadFile(filePath)
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 		expected[filePath] = fileContents
 	}
 
 	fileResponse, err := s.GetGitFiles(context.TODO(), filesRequest)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.Equal(t, fileResponse.GetMap(), expected)
 
 	// do the same request again to use the cache
 	// we only allow LsFiles to be called once in the mock
 	fileResponse, err = s.GetGitFiles(context.TODO(), filesRequest)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.Equal(t, expected, fileResponse.GetMap())
 	cacheMocks.mockCache.AssertCacheCalledTimes(t, &repositorymocks.CacheCallCounts{
 		ExternalSets: 1,

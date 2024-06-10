@@ -4,9 +4,10 @@ import (
 	"os"
 	"testing"
 
-	"github.com/argoproj/argo-cd/v2/util/localconfig"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/argoproj/argo-cd/v2/util/localconfig"
 )
 
 const testConfig = `contexts:

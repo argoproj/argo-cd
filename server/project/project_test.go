@@ -177,7 +177,7 @@ func TestProjectServer(t *testing.T) {
 
 		_, err := projectServer.Update(context.Background(), &project.ProjectUpdateRequest{Project: updatedProj})
 
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 	})
 
 	t.Run("TestRemoveDestinationUsedByApp", func(t *testing.T) {
@@ -194,7 +194,7 @@ func TestProjectServer(t *testing.T) {
 
 		_, err := projectServer.Update(context.Background(), &project.ProjectUpdateRequest{Project: updatedProj})
 
-		assert.NotNil(t, err)
+		assert.Error(t, err)
 		statusCode, _ := status.FromError(err)
 		assert.Equal(t, codes.InvalidArgument, statusCode.Code())
 	})
@@ -213,7 +213,7 @@ func TestProjectServer(t *testing.T) {
 
 		_, err := projectServer.Update(context.Background(), &project.ProjectUpdateRequest{Project: updatedProj})
 
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 	})
 
 	t.Run("TestRemoveSourceUsedByApp", func(t *testing.T) {
@@ -230,7 +230,7 @@ func TestProjectServer(t *testing.T) {
 
 		_, err := projectServer.Update(context.Background(), &project.ProjectUpdateRequest{Project: updatedProj})
 
-		assert.NotNil(t, err)
+		assert.Error(t, err)
 		statusCode, _ := status.FromError(err)
 		assert.Equal(t, codes.InvalidArgument, statusCode.Code())
 	})
@@ -289,7 +289,7 @@ func TestProjectServer(t *testing.T) {
 
 		_, err := projectServer.Delete(context.Background(), &project.ProjectQuery{Name: "test"})
 
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 	})
 
 	t.Run("TestDeleteDefaultProjectFailure", func(t *testing.T) {
@@ -316,7 +316,7 @@ func TestProjectServer(t *testing.T) {
 
 		_, err := projectServer.Delete(context.Background(), &project.ProjectQuery{Name: "test"})
 
-		assert.NotNil(t, err)
+		assert.Error(t, err)
 		statusCode, _ := status.FromError(err)
 		assert.Equal(t, codes.InvalidArgument, statusCode.Code())
 	})
@@ -508,9 +508,9 @@ p, role:admin, projects, update, *, allow`)
 		argoDB := db.NewDB("default", settingsMgr, kubeclientset)
 		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projWithToken), enforcer, sync.NewKeyLock(), sessionMgr, policyEnf, projInformer, settingsMgr, argoDB)
 		_, err := projectServer.CreateToken(context.Background(), &project.ProjectTokenCreateRequest{Project: projWithToken.Name, Role: tokenName})
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 		projWithTwoTokens, err := projectServer.Get(context.Background(), &project.ProjectQuery{Name: projWithToken.Name})
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 		assert.Len(t, projWithTwoTokens.Spec.Roles, 1)
 		assert.Len(t, projWithTwoTokens.Spec.Roles[0].JWTTokens, 2)
 	})
@@ -524,7 +524,7 @@ p, role:admin, projects, update, *, allow`)
 		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(proj), enforcer, sync.NewKeyLock(), nil, policyEnf, projInformer, settingsMgr, argoDB)
 		request := &project.ProjectUpdateRequest{Project: proj}
 		updatedProj, err := projectServer.Update(context.Background(), request)
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 		assert.Equal(t, wildSourceRepo, updatedProj.Spec.SourceRepos[1])
 	})
 
@@ -543,7 +543,7 @@ p, role:admin, projects, update, *, allow`)
 		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projWithRole), enforcer, sync.NewKeyLock(), nil, policyEnf, projInformer, settingsMgr, argoDB)
 		request := &project.ProjectUpdateRequest{Project: projWithRole}
 		_, err := projectServer.Update(context.Background(), request)
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 		t.Log(projWithRole.Spec.Roles[0].Policies[0])
 		expectedPolicy := fmt.Sprintf(policyTemplate, projWithRole.Name, role.Name, action, projWithRole.Name, object, effect)
 		assert.Equal(t, projWithRole.Spec.Roles[0].Policies[0], expectedPolicy)
@@ -660,7 +660,7 @@ p, role:admin, projects, update, *, allow`)
 		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projWithRole), enforcer, sync.NewKeyLock(), nil, nil, projInformer, settingsMgr, argoDB)
 		request := &project.ProjectUpdateRequest{Project: projWithRole}
 		updateProj, err := projectServer.Update(context.Background(), request)
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 		expectedPolicy := fmt.Sprintf(policyTemplate, projWithRole.Name, roleName, action, projWithRole.Name, object, effect)
 		assert.Equal(t, expectedPolicy, updateProj.Spec.Roles[0].Policies[0])
 	})

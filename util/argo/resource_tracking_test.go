@@ -15,32 +15,32 @@ import (
 
 func TestSetAppInstanceLabel(t *testing.T) {
 	yamlBytes, err := os.ReadFile("testdata/svc.yaml")
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	var obj unstructured.Unstructured
 	err = yaml.Unmarshal(yamlBytes, &obj)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	resourceTracking := NewResourceTracking()
 
 	err = resourceTracking.SetAppInstance(&obj, common.LabelKeyAppInstance, "my-app", "", TrackingMethodLabel)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	app := resourceTracking.GetAppName(&obj, common.LabelKeyAppInstance, TrackingMethodLabel)
 	assert.Equal(t, "my-app", app)
 }
 
 func TestSetAppInstanceAnnotation(t *testing.T) {
 	yamlBytes, err := os.ReadFile("testdata/svc.yaml")
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	var obj unstructured.Unstructured
 	err = yaml.Unmarshal(yamlBytes, &obj)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	resourceTracking := NewResourceTracking()
 
 	err = resourceTracking.SetAppInstance(&obj, common.AnnotationKeyAppInstance, "my-app", "", TrackingMethodAnnotation)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	app := resourceTracking.GetAppName(&obj, common.AnnotationKeyAppInstance, TrackingMethodAnnotation)
 	assert.Equal(t, "my-app", app)
@@ -48,15 +48,15 @@ func TestSetAppInstanceAnnotation(t *testing.T) {
 
 func TestSetAppInstanceAnnotationAndLabel(t *testing.T) {
 	yamlBytes, err := os.ReadFile("testdata/svc.yaml")
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	var obj unstructured.Unstructured
 	err = yaml.Unmarshal(yamlBytes, &obj)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	resourceTracking := NewResourceTracking()
 
 	err = resourceTracking.SetAppInstance(&obj, common.LabelKeyAppInstance, "my-app", "", TrackingMethodAnnotationAndLabel)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	app := resourceTracking.GetAppName(&obj, common.LabelKeyAppInstance, TrackingMethodAnnotationAndLabel)
 	assert.Equal(t, "my-app", app)
@@ -64,15 +64,15 @@ func TestSetAppInstanceAnnotationAndLabel(t *testing.T) {
 
 func TestSetAppInstanceAnnotationAndLabelLongName(t *testing.T) {
 	yamlBytes, err := os.ReadFile("testdata/svc.yaml")
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	var obj unstructured.Unstructured
 	err = yaml.Unmarshal(yamlBytes, &obj)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	resourceTracking := NewResourceTracking()
 
 	err = resourceTracking.SetAppInstance(&obj, common.LabelKeyAppInstance, "my-app-with-an-extremely-long-name-that-is-over-sixty-three-characters", "", TrackingMethodAnnotationAndLabel)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	// the annotation should still work, so the name from GetAppName should not be truncated
 	app := resourceTracking.GetAppName(&obj, common.LabelKeyAppInstance, TrackingMethodAnnotationAndLabel)
@@ -84,15 +84,15 @@ func TestSetAppInstanceAnnotationAndLabelLongName(t *testing.T) {
 
 func TestSetAppInstanceAnnotationAndLabelLongNameBadEnding(t *testing.T) {
 	yamlBytes, err := os.ReadFile("testdata/svc.yaml")
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	var obj unstructured.Unstructured
 	err = yaml.Unmarshal(yamlBytes, &obj)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	resourceTracking := NewResourceTracking()
 
 	err = resourceTracking.SetAppInstance(&obj, common.LabelKeyAppInstance, "the-very-suspicious-name-with-precisely-sixty-three-characters-with-hyphen", "", TrackingMethodAnnotationAndLabel)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	// the annotation should still work, so the name from GetAppName should not be truncated
 	app := resourceTracking.GetAppName(&obj, common.LabelKeyAppInstance, TrackingMethodAnnotationAndLabel)
@@ -104,10 +104,10 @@ func TestSetAppInstanceAnnotationAndLabelLongNameBadEnding(t *testing.T) {
 
 func TestSetAppInstanceAnnotationAndLabelOutOfBounds(t *testing.T) {
 	yamlBytes, err := os.ReadFile("testdata/svc.yaml")
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	var obj unstructured.Unstructured
 	err = yaml.Unmarshal(yamlBytes, &obj)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	resourceTracking := NewResourceTracking()
 
@@ -118,11 +118,11 @@ func TestSetAppInstanceAnnotationAndLabelOutOfBounds(t *testing.T) {
 
 func TestSetAppInstanceAnnotationNotFound(t *testing.T) {
 	yamlBytes, err := os.ReadFile("testdata/svc.yaml")
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	var obj unstructured.Unstructured
 	err = yaml.Unmarshal(yamlBytes, &obj)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	resourceTracking := NewResourceTracking()
 
@@ -193,18 +193,18 @@ func TestResourceIdNormalizer_Normalize(t *testing.T) {
 	// live object is a resource that has old style tracking label
 	liveObj := sampleResource()
 	err := rt.SetAppInstance(liveObj, common.LabelKeyAppInstance, "my-app", "", TrackingMethodLabel)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	// config object is a resource that has new style tracking annotation
 	configObj := sampleResource()
 	err = rt.SetAppInstance(configObj, common.AnnotationKeyAppInstance, "my-app2", "", TrackingMethodAnnotation)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	_ = rt.Normalize(configObj, liveObj, common.LabelKeyAppInstance, string(TrackingMethodAnnotation))
 
 	// the normalization should affect add the new style annotation and drop old tracking label from live object
 	annotation, err := kube.GetAppInstanceAnnotation(configObj, common.AnnotationKeyAppInstance)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.Equal(t, liveObj.GetAnnotations()[common.AnnotationKeyAppInstance], annotation)
 	_, hasOldLabel := liveObj.GetLabels()[common.LabelKeyAppInstance]
 	assert.False(t, hasOldLabel)
@@ -216,20 +216,20 @@ func TestResourceIdNormalizer_Normalize_ConfigHasOldLabel(t *testing.T) {
 	// live object is a resource that has old style tracking label
 	liveObj := sampleResource()
 	err := rt.SetAppInstance(liveObj, common.LabelKeyAppInstance, "my-app", "", TrackingMethodLabel)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	// config object is a resource that has new style tracking annotation
 	configObj := sampleResource()
 	err = rt.SetAppInstance(configObj, common.AnnotationKeyAppInstance, "my-app2", "", TrackingMethodAnnotation)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	err = rt.SetAppInstance(configObj, common.LabelKeyAppInstance, "my-app", "", TrackingMethodLabel)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	_ = rt.Normalize(configObj, liveObj, common.LabelKeyAppInstance, string(TrackingMethodAnnotation))
 
 	// the normalization should affect add the new style annotation and drop old tracking label from live object
 	annotation, err := kube.GetAppInstanceAnnotation(configObj, common.AnnotationKeyAppInstance)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.Equal(t, liveObj.GetAnnotations()[common.AnnotationKeyAppInstance], annotation)
 	_, hasOldLabel := liveObj.GetLabels()[common.LabelKeyAppInstance]
 	assert.True(t, hasOldLabel)

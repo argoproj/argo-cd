@@ -58,18 +58,18 @@ func TestSetLabels(t *testing.T) {
 	for _, yamlStr := range []string{depWithoutSelector, depWithSelector} {
 		var obj unstructured.Unstructured
 		err := yaml.Unmarshal([]byte(yamlStr), &obj)
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 
 		err = SetAppInstanceLabel(&obj, common.LabelKeyAppInstance, "my-app")
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 
 		manifestBytes, err := json.MarshalIndent(obj.Object, "", "  ")
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 		log.Println(string(manifestBytes))
 
 		var depV1Beta1 extv1beta1.Deployment
 		err = json.Unmarshal(manifestBytes, &depV1Beta1)
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 
 		// the following makes sure we are not falling into legacy code which injects labels
 		if yamlStr == depWithoutSelector {
@@ -85,20 +85,20 @@ func TestSetLabels(t *testing.T) {
 
 func TestSetSvcLabel(t *testing.T) {
 	yamlBytes, err := os.ReadFile("testdata/svc.yaml")
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	var obj unstructured.Unstructured
 	err = yaml.Unmarshal(yamlBytes, &obj)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	err = SetAppInstanceLabel(&obj, common.LabelKeyAppInstance, "my-app")
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	manifestBytes, err := json.MarshalIndent(obj.Object, "", "  ")
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	log.Println(string(manifestBytes))
 
 	var s apiv1.Service
 	err = json.Unmarshal(manifestBytes, &s)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	log.Println(s.Name)
 	log.Println(s.ObjectMeta)
@@ -114,20 +114,20 @@ func TestIsValidResourceName(t *testing.T) {
 
 func TestSetAppInstanceAnnotation(t *testing.T) {
 	yamlBytes, err := os.ReadFile("testdata/svc.yaml")
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	var obj unstructured.Unstructured
 	err = yaml.Unmarshal(yamlBytes, &obj)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	err = SetAppInstanceAnnotation(&obj, common.LabelKeyAppInstance, "my-app")
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	manifestBytes, err := json.MarshalIndent(obj.Object, "", "  ")
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	log.Println(string(manifestBytes))
 
 	var s apiv1.Service
 	err = json.Unmarshal(manifestBytes, &s)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	log.Println(s.Name)
 	log.Println(s.ObjectMeta)
@@ -136,10 +136,10 @@ func TestSetAppInstanceAnnotation(t *testing.T) {
 
 func TestSetAppInstanceAnnotationWithInvalidData(t *testing.T) {
 	yamlBytes, err := os.ReadFile("testdata/svc-with-invalid-data.yaml")
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	var obj unstructured.Unstructured
 	err = yaml.Unmarshal(yamlBytes, &obj)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	err = SetAppInstanceAnnotation(&obj, common.LabelKeyAppInstance, "my-app")
 	assert.Error(t, err)
 	assert.Equal(t, "failed to get annotations from target object /v1, Kind=Service /my-service: .metadata.annotations accessor error: contains non-string value in the map under key \"invalid-annotation\": <nil> is of the type <nil>, expected string", err.Error())
@@ -147,24 +147,24 @@ func TestSetAppInstanceAnnotationWithInvalidData(t *testing.T) {
 
 func TestGetAppInstanceAnnotation(t *testing.T) {
 	yamlBytes, err := os.ReadFile("testdata/svc.yaml")
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	var obj unstructured.Unstructured
 	err = yaml.Unmarshal(yamlBytes, &obj)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	err = SetAppInstanceAnnotation(&obj, common.LabelKeyAppInstance, "my-app")
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	annotation, err := GetAppInstanceAnnotation(&obj, common.LabelKeyAppInstance)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.Equal(t, "my-app", annotation)
 }
 
 func TestGetAppInstanceAnnotationWithInvalidData(t *testing.T) {
 	yamlBytes, err := os.ReadFile("testdata/svc-with-invalid-data.yaml")
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	var obj unstructured.Unstructured
 	err = yaml.Unmarshal(yamlBytes, &obj)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	_, err = GetAppInstanceAnnotation(&obj, "valid-annotation")
 	assert.Error(t, err)
@@ -173,23 +173,23 @@ func TestGetAppInstanceAnnotationWithInvalidData(t *testing.T) {
 
 func TestGetAppInstanceLabel(t *testing.T) {
 	yamlBytes, err := os.ReadFile("testdata/svc.yaml")
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	var obj unstructured.Unstructured
 	err = yaml.Unmarshal(yamlBytes, &obj)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	err = SetAppInstanceLabel(&obj, common.LabelKeyAppInstance, "my-app")
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	label, err := GetAppInstanceLabel(&obj, common.LabelKeyAppInstance)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.Equal(t, "my-app", label)
 }
 
 func TestGetAppInstanceLabelWithInvalidData(t *testing.T) {
 	yamlBytes, err := os.ReadFile("testdata/svc-with-invalid-data.yaml")
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	var obj unstructured.Unstructured
 	err = yaml.Unmarshal(yamlBytes, &obj)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	_, err = GetAppInstanceLabel(&obj, "valid-label")
 	assert.Error(t, err)
 	assert.Equal(t, "failed to get labels for /v1, Kind=Service /my-service: .metadata.labels accessor error: contains non-string value in the map under key \"invalid-label\": <nil> is of the type <nil>, expected string", err.Error())
@@ -197,24 +197,24 @@ func TestGetAppInstanceLabelWithInvalidData(t *testing.T) {
 
 func TestRemoveLabel(t *testing.T) {
 	yamlBytes, err := os.ReadFile("testdata/svc.yaml")
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	var obj unstructured.Unstructured
 	err = yaml.Unmarshal(yamlBytes, &obj)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	obj.SetLabels(map[string]string{"test": "value"})
 
 	err = RemoveLabel(&obj, "test")
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	assert.Nil(t, obj.GetLabels())
 }
 
 func TestRemoveLabelWithInvalidData(t *testing.T) {
 	yamlBytes, err := os.ReadFile("testdata/svc-with-invalid-data.yaml")
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	var obj unstructured.Unstructured
 	err = yaml.Unmarshal(yamlBytes, &obj)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	err = RemoveLabel(&obj, "valid-label")
 	assert.Error(t, err)
