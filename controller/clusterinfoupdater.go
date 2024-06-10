@@ -3,8 +3,9 @@ package controller
 import (
 	"context"
 	"fmt"
-	"github.com/argoproj/argo-cd/v2/common"
 	"time"
+
+	"github.com/argoproj/argo-cd/v2/common"
 
 	"github.com/argoproj/argo-cd/v2/util/env"
 	"github.com/argoproj/gitops-engine/pkg/cache"
@@ -143,12 +144,12 @@ func (c *clusterInfoUpdater) getUpdatedClusterInfo(ctx context.Context, apps []*
 		ConnectionState:   appv1.ConnectionState{ModifiedAt: &now},
 		ApplicationsCount: appCount,
 	}
-	if info != nil {
+	if info != nil && appCount != 0 {
 		clusterInfo.ServerVersion = info.K8SVersion
 		clusterInfo.APIVersions = argo.APIResourcesToStrings(info.APIResources, true)
 		if info.LastCacheSyncTime == nil {
 			clusterInfo.ConnectionState.Status = appv1.ConnectionStatusUnknown
-		} else if info.SyncError == nil {
+		} else if info.SyncError == nil && info.ConnectionStatus == cache.ConnectionStatusSuccessful {
 			clusterInfo.ConnectionState.Status = appv1.ConnectionStatusSuccessful
 			syncTime := metav1.NewTime(*info.LastCacheSyncTime)
 			clusterInfo.CacheInfo.LastCacheSyncTime = &syncTime
@@ -156,7 +157,9 @@ func (c *clusterInfoUpdater) getUpdatedClusterInfo(ctx context.Context, apps []*
 			clusterInfo.CacheInfo.ResourcesCount = int64(info.ResourcesCount)
 		} else {
 			clusterInfo.ConnectionState.Status = appv1.ConnectionStatusFailed
-			clusterInfo.ConnectionState.Message = info.SyncError.Error()
+			if info.SyncError != nil {
+				clusterInfo.ConnectionState.Message = info.SyncError.Error()
+			}
 		}
 	} else {
 		clusterInfo.ConnectionState.Status = appv1.ConnectionStatusUnknown
