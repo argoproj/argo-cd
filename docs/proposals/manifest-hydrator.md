@@ -113,6 +113,7 @@ If output is not deterministic, then a preview generated today might not be vali
 * The `sourceHydrator` field is mutually exclusive with the `source` and the `sources` field. Should we throw an error if they're both configured, or should we just pick one and ignore the others?
 * How will/should this feature relate to the image updater? Is there an opportunity to share code, since both tools involve pushing to git?
 * Should we enforce a naming convention for hydrated manifest branches, e.g. `argo/...`? This would make it easier to recommend branch protection rules, for example, only allow pushes to `argo/*` from the argo bot.
+* Should we enforce setting a `sourceHydrator.syncSource.path` to something besides `.`? Setting a path makes it easier to add/remove other apps later if desired.
 
 ## Proposal
 
@@ -151,7 +152,7 @@ spec:
 
 When the Argo CD application controller detects a new commit on the `drySource`, it queue up the hydration process.
 
-When the application controller detects a new (hydrated) commit on the `syncSource.targetBranch` or 
+When the application controller detects a new (hydrated) commit on the `syncSource.targetBranch`, it will sync the manifests.
 
 ### Processing a New Dry Commit
 
@@ -450,8 +451,6 @@ The hydrator will also write a `hydrator.metadata` file containing a JSON repres
 
 To request a commit to the hydrated branch, the application controller will make a call to the CommitManifests service.
 
-**Note**: for the purposes of explaining the feature, the CommitManifests service is described as an external gRPC service. It could also be implemented in-process in an existing Argo CD component.
-
 A single call will bundle all the changes destined for a given targetBranch.
 
 It's the application controller's job to ensure that the user has write access to the repo before making the call.
@@ -487,6 +486,26 @@ message CommitPathDetails {
 
 message CommitManifestsResponse {
 }
+```
+
+### Push access
+
+The hydrator will need to push to the git repository. This will require a secret containing the git credentials.
+
+Write access will be configured via a Kubernetes secret with the following structure:
+
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  labels:
+    argocd.argoproj.io/secret-type: repository-write
+stringData:
+  url: 'https://github.com/argoproj/argocd-example-apps'
+  githubAppID: '123456'
+  githubInstallationID: '123456'
+  githubAppPrivateKey: |
+    -----
 ```
 
 ### Use cases
