@@ -11,13 +11,12 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 
-	"github.com/redis/go-redis/v9"
-	log "github.com/sirupsen/logrus"
-	"github.com/spf13/cobra"
-
 	"github.com/argoproj/argo-cd/v2/common"
 	certutil "github.com/argoproj/argo-cd/v2/util/cert"
 	"github.com/argoproj/argo-cd/v2/util/env"
+	"github.com/redis/go-redis/v9"
+	log "github.com/sirupsen/logrus"
+	"github.com/spf13/cobra"
 )
 
 const (

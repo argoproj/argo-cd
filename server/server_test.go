@@ -273,7 +273,7 @@ func TestInitializingExistingDefaultProject(t *testing.T) {
 	assert.NotNil(t, argocd)
 
 	proj, err := appClientSet.ArgoprojV1alpha1().AppProjects(test.FakeArgoCDNamespace).Get(context.Background(), v1alpha1.DefaultAppProjectName, metav1.GetOptions{})
-	assert.NoError(t, err)
+	assert.Nil(t, err)
 	assert.NotNil(t, proj)
 	assert.Equal(t, proj.Name, v1alpha1.DefaultAppProjectName)
 }
@@ -296,7 +296,7 @@ func TestInitializingNotExistingDefaultProject(t *testing.T) {
 	assert.NotNil(t, argocd)
 
 	proj, err := appClientSet.ArgoprojV1alpha1().AppProjects(test.FakeArgoCDNamespace).Get(context.Background(), v1alpha1.DefaultAppProjectName, metav1.GetOptions{})
-	assert.NoError(t, err)
+	assert.Nil(t, err)
 	assert.NotNil(t, proj)
 	assert.Equal(t, proj.Name, v1alpha1.DefaultAppProjectName)
 }
@@ -1083,7 +1083,7 @@ func TestTranslateGrpcCookieHeader(t *testing.T) {
 		})
 		assert.NoError(t, err)
 		assert.Equal(t, "argocd.token=xyz; path=/; SameSite=lax; httpOnly; Secure", recorder.Result().Header.Get("Set-Cookie"))
-		assert.Len(t, recorder.Result().Cookies(), 1)
+		assert.Equal(t, 1, len(recorder.Result().Cookies()))
 	})
 
 	t.Run("TokenIsLongerThan4093", func(t *testing.T) {
@@ -1093,7 +1093,7 @@ func TestTranslateGrpcCookieHeader(t *testing.T) {
 		})
 		assert.NoError(t, err)
 		assert.Regexp(t, "argocd.token=.*; path=/; SameSite=lax; httpOnly; Secure", recorder.Result().Header.Get("Set-Cookie"))
-		assert.Len(t, recorder.Result().Cookies(), 2)
+		assert.Equal(t, 2, len(recorder.Result().Cookies()))
 	})
 
 	t.Run("TokenIsEmpty", func(t *testing.T) {
@@ -1190,7 +1190,7 @@ func TestOIDCConfigChangeDetection_SecretsChanged(t *testing.T) {
 	result := checkOIDCConfigChange(originalOIDCConfig, &argoSettings)
 
 	//Then
-	assert.True(t, result, "secrets have changed, expect interpolated OIDCConfig to change")
+	assert.Equal(t, result, true, "secrets have changed, expect interpolated OIDCConfig to change")
 }
 
 func TestOIDCConfigChangeDetection_ConfigChanged(t *testing.T) {
@@ -1222,7 +1222,7 @@ func TestOIDCConfigChangeDetection_ConfigChanged(t *testing.T) {
 	result := checkOIDCConfigChange(originalOIDCConfig, &argoSettings)
 
 	//Then
-	assert.True(t, result, "no error expected since OICD config created")
+	assert.Equal(t, result, true, "no error expected since OICD config created")
 }
 
 func TestOIDCConfigChangeDetection_ConfigCreated(t *testing.T) {
@@ -1242,7 +1242,7 @@ func TestOIDCConfigChangeDetection_ConfigCreated(t *testing.T) {
 	result := checkOIDCConfigChange(originalOIDCConfig, &argoSettings)
 
 	//Then
-	assert.True(t, result, "no error expected since new OICD config created")
+	assert.Equal(t, result, true, "no error expected since new OICD config created")
 }
 
 func TestOIDCConfigChangeDetection_ConfigDeleted(t *testing.T) {
@@ -1267,7 +1267,7 @@ func TestOIDCConfigChangeDetection_ConfigDeleted(t *testing.T) {
 	result := checkOIDCConfigChange(originalOIDCConfig, &argoSettings)
 
 	//Then
-	assert.True(t, result, "no error expected since OICD config deleted")
+	assert.Equal(t, result, true, "no error expected since OICD config deleted")
 }
 
 func TestOIDCConfigChangeDetection_NoChange(t *testing.T) {
@@ -1290,7 +1290,7 @@ func TestOIDCConfigChangeDetection_NoChange(t *testing.T) {
 	result := checkOIDCConfigChange(originalOIDCConfig, &argoSettings)
 
 	//Then
-	assert.False(t, result, "no error since no config change")
+	assert.Equal(t, result, false, "no error since no config change")
 }
 
 func TestIsMainJsBundle(t *testing.T) {

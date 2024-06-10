@@ -112,7 +112,6 @@ type RepoServerInitConstants struct {
 	HelmManifestMaxExtractedSize                 int64
 	HelmRegistryMaxIndexSize                     int64
 	DisableHelmManifestMaxExtractedSize          bool
-	IncludeHiddenDirectories                     bool
 }
 
 // NewService returns a new instance of the Manifest service
@@ -344,7 +343,7 @@ func (s *Service) runRepoOperation(
 
 	if source.IsHelm() {
 		if settings.noCache {
-			err = helmClient.CleanChartCache(source.Chart, revision, repo.Project)
+			err = helmClient.CleanChartCache(source.Chart, revision)
 			if err != nil {
 				return err
 			}
@@ -353,7 +352,7 @@ func (s *Service) runRepoOperation(
 		if source.Helm != nil {
 			helmPassCredentials = source.Helm.PassCredentials
 		}
-		chartPath, closer, err := helmClient.ExtractChart(source.Chart, revision, repo.Project, helmPassCredentials, s.initConstants.HelmManifestMaxExtractedSize, s.initConstants.DisableHelmManifestMaxExtractedSize)
+		chartPath, closer, err := helmClient.ExtractChart(source.Chart, revision, helmPassCredentials, s.initConstants.HelmManifestMaxExtractedSize, s.initConstants.DisableHelmManifestMaxExtractedSize)
 		if err != nil {
 			return err
 		}
@@ -1001,9 +1000,7 @@ func getHelmRepos(appPath string, repositories []*v1alpha1.Repository, helmRepoC
 				// finally if repo is OCI and no credentials found, use the first OCI credential matching by hostname
 				// see https://github.com/argoproj/argo-cd/issues/14636
 				for _, cred := range repositories {
-					// if the repo is OCI, don't match the repository URL exactly, but only as a dependent repository prefix just like in the getRepoCredential function
-					// see https://github.com/argoproj/argo-cd/issues/12436
-					if _, err := url.Parse("oci://" + dep.Repo); err == nil && cred.EnableOCI && strings.HasPrefix(dep.Repo, cred.Repo) {
+					if depURL, err := url.Parse("oci://" + dep.Repo); err == nil && cred.EnableOCI && depURL.Host == cred.Repo {
 						repo.Username = cred.Username
 						repo.Password = cred.Password
 						break
@@ -1272,12 +1269,12 @@ func getResolvedValueFiles(
 		referencedSource := getReferencedSource(rawValueFile, refSources)
 		if referencedSource != nil {
 			// If the $-prefixed path appears to reference another source, do env substitution _after_ resolving that source.
-			resolvedPath, err = getResolvedRefValueFile(rawValueFile, env, allowedValueFilesSchemas, referencedSource.Repo.Repo, gitRepoPaths, referencedSource.Repo.Project)
+			resolvedPath, err = getResolvedRefValueFile(rawValueFile, env, allowedValueFilesSchemas, referencedSource.Repo.Repo, gitRepoPaths)
 			if err != nil {
 				return nil, fmt.Errorf("error resolving value file path: %w", err)
 			}
 		} else {
-			// This will resolve val to an absolute path (or a URL)
+			// This will resolve val to an absolute path (or an URL)
 			resolvedPath, isRemote, err = pathutil.ResolveValueFilePathOrUrl(appPath, repoRoot, env.Envsubst(rawValueFile), allowedValueFilesSchemas)
 			if err != nil {
 				return nil, fmt.Errorf("error resolving value file path: %w", err)
@@ -1305,15 +1302,9 @@ func getResolvedRefValueFile(
 	allowedValueFilesSchemas []string,
 	refSourceRepo string,
 	gitRepoPaths io.TempPaths,
-	project string,
 ) (pathutil.ResolvedFilePath, error) {
 	pathStrings := strings.Split(rawValueFile, "/")
-
-	keyData, err := json.Marshal(map[string]string{"url": git.NormalizeGitURL(refSourceRepo), "project": project})
-	if err != nil {
-		return "", err
-	}
-	repoPath := gitRepoPaths.GetPathIfExists(string(keyData))
+	repoPath := gitRepoPaths.GetPathIfExists(git.NormalizeGitURL(refSourceRepo))
 	if repoPath == "" {
 		return "", fmt.Errorf("failed to find repo %q", refSourceRepo)
 	}
@@ -2204,7 +2195,7 @@ func populatePluginAppDetails(ctx context.Context, res *apiclient.RepoAppDetails
 
 	announcement, err := parametersAnnouncementStream.CloseAndRecv()
 	if err != nil {
-		return fmt.Errorf("failed to get parameter announcement: %w", err)
+		return fmt.Errorf("failed to get parameter anouncement: %w", err)
 	}
 
 	res.Plugin = &apiclient.PluginAppSpec{
@@ -2307,7 +2298,7 @@ func (s *Service) GetRevisionChartDetails(ctx context.Context, q *apiclient.Repo
 	if err != nil {
 		return nil, fmt.Errorf("helm client error: %v", err)
 	}
-	chartPath, closer, err := helmClient.ExtractChart(q.Name, revision, q.Repo.Project, false, s.initConstants.HelmManifestMaxExtractedSize, s.initConstants.DisableHelmManifestMaxExtractedSize)
+	chartPath, closer, err := helmClient.ExtractChart(q.Name, revision, false, s.initConstants.HelmManifestMaxExtractedSize, s.initConstants.DisableHelmManifestMaxExtractedSize)
 	if err != nil {
 		return nil, fmt.Errorf("error extracting chart: %v", err)
 	}
@@ -2337,11 +2328,7 @@ func fileParameters(q *apiclient.RepoServerAppDetailsQuery) []v1alpha1.HelmFileP
 }
 
 func (s *Service) newClient(repo *v1alpha1.Repository, opts ...git.ClientOpts) (git.Client, error) {
-	keyData, err := json.Marshal(map[string]string{"url": git.NormalizeGitURL(repo.Repo), "project": repo.Project})
-	if err != nil {
-		return nil, err
-	}
-	repoPath, err := s.gitRepoPaths.GetPath(string(keyData))
+	repoPath, err := s.gitRepoPaths.GetPath(git.NormalizeGitURL(repo.Repo))
 	if err != nil {
 		return nil, err
 	}
@@ -2358,7 +2345,6 @@ func (s *Service) newClientResolveRevision(repo *v1alpha1.Repository, revision s
 	}
 	commitSHA, err := gitClient.LsRemote(revision)
 	if err != nil {
-		s.metricsServer.IncGitLsRemoteFail(gitClient.Root(), revision)
 		return nil, "", err
 	}
 	return gitClient, commitSHA, nil
@@ -2544,7 +2530,6 @@ func (s *Service) ResolveRevision(ctx context.Context, q *apiclient.ResolveRevis
 		}
 		revision, err = gitClient.LsRemote(ambiguousRevision)
 		if err != nil {
-			s.metricsServer.IncGitLsRemoteFail(gitClient.Root(), revision)
 			return &apiclient.ResolveRevisionResponse{Revision: "", AmbiguousRevision: ""}, err
 		}
 		return &apiclient.ResolveRevisionResponse{
@@ -2661,8 +2646,9 @@ func (s *Service) GetGitDirectories(_ context.Context, request *apiclient.GitDir
 			return nil
 		}
 
-		if !s.initConstants.IncludeHiddenDirectories && strings.HasPrefix(entry.Name(), ".") {
-			return filepath.SkipDir // Skip hidden directory
+		fname := entry.Name()
+		if strings.HasPrefix(fname, ".") { // Skip all folders starts with "."
+			return filepath.SkipDir
 		}
 
 		relativePath, err := filepath.Rel(repoRoot, path)
@@ -2721,7 +2707,6 @@ func (s *Service) UpdateRevisionForPaths(_ context.Context, request *apiclient.U
 
 	syncedRevision, err = gitClient.LsRemote(syncedRevision)
 	if err != nil {
-		s.metricsServer.IncGitLsRemoteFail(gitClient.Root(), revision)
 		return nil, status.Errorf(codes.Internal, "unable to resolve git revision %s: %v", revision, err)
 	}
 
@@ -2762,7 +2747,7 @@ func (s *Service) UpdateRevisionForPaths(_ context.Context, request *apiclient.U
 	}
 
 	logCtx.Debugf("changes found for application %s in repo %s from revision %s to revision %s", request.AppName, repo.Repo, syncedRevision, revision)
-	return &apiclient.UpdateRevisionForPathsResponse{}, nil
+	return &apiclient.UpdateRevisionForPathsResponse{Changes: true}, nil
 }
 
 func (s *Service) updateCachedRevision(logCtx *log.Entry, oldRev string, newRev string, request *apiclient.UpdateRevisionForPathsRequest, gitClientOpts git.ClientOpts) error {
@@ -2773,8 +2758,10 @@ func (s *Service) updateCachedRevision(logCtx *log.Entry, oldRev string, newRev 
 		if err != nil {
 			return fmt.Errorf("failed to get repo refs for application %s in repo %s from revision %s: %w", request.AppName, request.GetRepo().Repo, request.Revision, err)
 		}
+	}
 
-		// Update revision in refSource
+	// Update revision in refSource
+	if request.HasMultipleSources && request.ApplicationSource.Helm != nil {
 		for normalizedURL := range repoRefs {
 			repoRefs[normalizedURL] = newRev
 		}

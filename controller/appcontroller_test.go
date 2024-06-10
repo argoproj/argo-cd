@@ -19,6 +19,7 @@ import (
 	statecache "github.com/argoproj/argo-cd/v2/controller/cache"
 	"github.com/argoproj/argo-cd/v2/controller/sharding"
 
+	dbmocks "github.com/argoproj/argo-cd/v2/util/db/mocks"
 	"github.com/argoproj/gitops-engine/pkg/cache/mocks"
 	synccommon "github.com/argoproj/gitops-engine/pkg/sync/common"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
@@ -34,8 +35,6 @@ import (
 	kubetesting "k8s.io/client-go/testing"
 	"k8s.io/client-go/tools/cache"
 	"sigs.k8s.io/yaml"
-
-	dbmocks "github.com/argoproj/argo-cd/v2/util/db/mocks"
 
 	mockstatecache "github.com/argoproj/argo-cd/v2/controller/cache/mocks"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
@@ -1410,7 +1409,7 @@ func TestRefreshAppConditions(t *testing.T) {
 
 		_, hasErrors := ctrl.refreshAppConditions(app)
 		assert.False(t, hasErrors)
-		assert.Empty(t, app.Status.Conditions)
+		assert.Len(t, app.Status.Conditions, 0)
 	})
 
 	t.Run("PreserveExistingWarningCondition", func(t *testing.T) {
@@ -1717,36 +1716,6 @@ func TestProcessRequestedAppOperation_HasRetriesTerminated(t *testing.T) {
 
 	phase, _, _ := unstructured.NestedString(receivedPatch, "status", "operationState", "phase")
 	assert.Equal(t, string(synccommon.OperationFailed), phase)
-}
-
-func TestProcessRequestedAppOperation_Successful(t *testing.T) {
-	app := newFakeApp()
-	app.Spec.Project = "default"
-	app.Operation = &v1alpha1.Operation{
-		Sync: &v1alpha1.SyncOperation{},
-	}
-	ctrl := newFakeController(&fakeData{
-		apps: []runtime.Object{app, &defaultProj},
-		manifestResponses: []*apiclient.ManifestResponse{{
-			Manifests: []string{},
-		}},
-	}, nil)
-	fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
-	receivedPatch := map[string]interface{}{}
-	fakeAppCs.PrependReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
-		if patchAction, ok := action.(kubetesting.PatchAction); ok {
-			assert.NoError(t, json.Unmarshal(patchAction.GetPatch(), &receivedPatch))
-		}
-		return true, &v1alpha1.Application{}, nil
-	})
-
-	ctrl.processRequestedAppOperation(app)
-
-	phase, _, _ := unstructured.NestedString(receivedPatch, "status", "operationState", "phase")
-	assert.Equal(t, string(synccommon.OperationSucceeded), phase)
-	ok, level := ctrl.isRefreshRequested(ctrl.toAppKey(app.Name))
-	assert.True(t, ok)
-	assert.Equal(t, CompareWithLatestForceResolve, level)
 }
 
 func TestGetAppHosts(t *testing.T) {

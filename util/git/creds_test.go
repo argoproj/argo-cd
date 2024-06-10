@@ -15,8 +15,6 @@ import (
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 
-	argoio "github.com/argoproj/gitops-engine/pkg/utils/io"
-
 	"github.com/argoproj/argo-cd/v2/util/cert"
 	"github.com/argoproj/argo-cd/v2/util/io"
 )
@@ -304,37 +302,6 @@ func Test_SSHCreds_Environ_WithProxyUserNamePassword(t *testing.T) {
 	}
 }
 
-func Test_SSHCreds_Environ_TempFileCleanupOnInvalidProxyURL(t *testing.T) {
-
-	// Previously, if the proxy URL was invalid, a temporary file would be left in /dev/shm. This ensures the file is cleaned up in this case.
-
-	// countDev returns the number of files in /dev/shm (argoio.TempDir)
-	countFilesInDevShm := func() int {
-		entries, err := os.ReadDir(argoio.TempDir)
-		require.NoError(t, err)
-
-		return len(entries)
-	}
-
-	for _, insecureIgnoreHostKey := range []bool{false, true} {
-		tempDir := t.TempDir()
-		caFile := path.Join(tempDir, "caFile")
-		err := os.WriteFile(caFile, []byte(""), os.FileMode(0600))
-		require.NoError(t, err)
-		creds := NewSSHCreds("sshPrivateKey", caFile, insecureIgnoreHostKey, &NoopCredsStore{}, ":invalid-proxy-url")
-
-		filesInDevShmBeforeInvocation := countFilesInDevShm()
-
-		_, _, err = creds.Environ()
-		require.Error(t, err)
-
-		filesInDevShmAfterInvocation := countFilesInDevShm()
-
-		assert.Equal(t, filesInDevShmBeforeInvocation, filesInDevShmAfterInvocation, "no temporary files should leak if the proxy url cannot be parsed")
-
-	}
-}
-
 const gcpServiceAccountKeyJSON = `{
   "type": "service_account",
   "project_id": "my-google-project",
@@ -366,16 +333,16 @@ func TestNewGoogleCloudCreds_invalidJSON(t *testing.T) {
 
 	token, err := googleCloudCreds.getAccessToken()
 	assert.Equal(t, "", token)
-	assert.Error(t, err)
+	assert.NotNil(t, err)
 
 	username, err := googleCloudCreds.getUsername()
 	assert.Equal(t, "", username)
-	assert.Error(t, err)
+	assert.NotNil(t, err)
 
 	closer, envStringSlice, err := googleCloudCreds.Environ()
 	assert.Equal(t, NopCloser{}, closer)
 	assert.Equal(t, []string(nil), envStringSlice)
-	assert.Error(t, err)
+	assert.NotNil(t, err)
 }
 
 func TestGoogleCloudCreds_Environ_cleanup(t *testing.T) {

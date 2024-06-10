@@ -3,7 +3,6 @@ package apiclient
 import (
 	"bytes"
 	"encoding/binary"
-	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -155,7 +154,7 @@ func (c *client) startGRPCProxy() (*grpc.Server, net.Listener, error) {
 			for {
 				header := make([]byte, frameHeaderLength)
 				if _, err := io.ReadAtLeast(resp.Body, header, frameHeaderLength); err != nil {
-					if errors.Is(err, io.EOF) {
+					if err == io.EOF {
 						err = io.ErrUnexpectedEOF
 					}
 					return err
@@ -168,7 +167,7 @@ func (c *client) startGRPCProxy() (*grpc.Server, net.Listener, error) {
 				data := make([]byte, length)
 
 				if read, err := io.ReadAtLeast(resp.Body, data, length); err != nil {
-					if !errors.Is(err, io.EOF) {
+					if err != io.EOF {
 						return err
 					} else if read < length {
 						return io.ErrUnexpectedEOF

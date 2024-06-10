@@ -27,7 +27,7 @@ func Test_setHelmOpt(t *testing.T) {
 	t.Run("IgnoreMissingValueFiles", func(t *testing.T) {
 		src := v1alpha1.ApplicationSource{}
 		setHelmOpt(&src, helmOpts{ignoreMissingValueFiles: true})
-		assert.True(t, src.Helm.IgnoreMissingValueFiles)
+		assert.Equal(t, true, src.Helm.IgnoreMissingValueFiles)
 	})
 	t.Run("ReleaseName", func(t *testing.T) {
 		src := v1alpha1.ApplicationSource{}
@@ -57,12 +57,12 @@ func Test_setHelmOpt(t *testing.T) {
 	t.Run("HelmPassCredentials", func(t *testing.T) {
 		src := v1alpha1.ApplicationSource{}
 		setHelmOpt(&src, helmOpts{passCredentials: true})
-		assert.True(t, src.Helm.PassCredentials)
+		assert.Equal(t, true, src.Helm.PassCredentials)
 	})
 	t.Run("HelmSkipCrds", func(t *testing.T) {
 		src := v1alpha1.ApplicationSource{}
 		setHelmOpt(&src, helmOpts{skipCrds: true})
-		assert.True(t, src.Helm.SkipCrds)
+		assert.Equal(t, true, src.Helm.SkipCrds)
 	})
 }
 
@@ -264,7 +264,7 @@ func Test_setAppSpecOptionsMultiSourceApp(t *testing.T) {
 	})
 	t.Run("Helm - SourcePosition 0", func(t *testing.T) {
 		assert.NoError(t, f.SetFlagWithSourcePosition("helm-version", "v2", sourcePosition))
-		assert.Len(t, f.spec.GetSources(), 2)
+		assert.Equal(t, len(f.spec.GetSources()), 2)
 		assert.Equal(t, f.spec.GetSources()[sourcePosition].Helm.Version, "v2")
 	})
 	t.Run("Kustomize", func(t *testing.T) {
@@ -276,7 +276,7 @@ func Test_setAppSpecOptionsMultiSourceApp(t *testing.T) {
 	t.Run("Helm", func(t *testing.T) {
 		assert.NoError(t, f.SetFlagWithSourcePosition("helm-version", "v2", sourcePosition1))
 		assert.NoError(t, f.SetFlagWithSourcePosition("helm-version", "v3", sourcePosition2))
-		assert.Len(t, f.spec.GetSources(), 2)
+		assert.Equal(t, len(f.spec.GetSources()), 2)
 		assert.Equal(t, f.spec.GetSources()[sourcePosition1-1].Helm.Version, "v2")
 		assert.Equal(t, f.spec.GetSources()[sourcePosition2-1].Helm.Version, "v3")
 	})
@@ -358,7 +358,7 @@ func TestReadAppsFromURI(t *testing.T) {
 	apps := make([]*v1alpha1.Application, 0)
 	err = readAppsFromURI(file.Name(), &apps)
 	assert.NoError(t, err)
-	assert.Len(t, apps, 2)
+	assert.Equal(t, 2, len(apps))
 
 	assert.Equal(t, "sth1", apps[0].Name)
 	assert.Equal(t, "sth2", apps[1].Name)
@@ -389,7 +389,7 @@ func TestConstructAppFromStdin(t *testing.T) {
 		log.Fatal(err)
 	}
 	assert.NoError(t, err)
-	assert.Len(t, apps, 2)
+	assert.Equal(t, 2, len(apps))
 	assert.Equal(t, "sth1", apps[0].Name)
 	assert.Equal(t, "sth2", apps[1].Name)
 
@@ -399,7 +399,7 @@ func TestConstructBasedOnName(t *testing.T) {
 	apps, err := ConstructApps("", "test", []string{}, []string{}, []string{}, AppOptions{}, nil)
 
 	assert.NoError(t, err)
-	assert.Len(t, apps, 1)
+	assert.Equal(t, 1, len(apps))
 	assert.Equal(t, "test", apps[0].Name)
 }
 

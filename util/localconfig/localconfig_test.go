@@ -4,12 +4,11 @@ package localconfig
 
 import (
 	"fmt"
+	"github.com/stretchr/testify/require"
 	"os"
 	"path"
 	"path/filepath"
 	"testing"
-
-	"github.com/stretchr/testify/require"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -88,7 +87,7 @@ func TestFilePermission(t *testing.T) {
 			if err := getFilePermission(fi); err != nil {
 				assert.EqualError(t, err, c.expectedError.Error())
 			} else {
-				require.NoError(t, c.expectedError)
+				require.Nil(t, c.expectedError)
 			}
 		})
 	}

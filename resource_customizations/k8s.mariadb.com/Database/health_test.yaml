@@ -1,5 +1,0 @@
-tests:
-- healthStatus:
-    status: Healthy
-    message: "Created"
-  inputPath: testdata/database-ready.yaml

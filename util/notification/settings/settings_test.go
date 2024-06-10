@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/argoproj/argo-cd/v2/reposerver/apiclient/mocks"
+	service "github.com/argoproj/argo-cd/v2/util/notification/argocd"
 	"github.com/argoproj/notifications-engine/pkg/api"
 	"github.com/argoproj/notifications-engine/pkg/services"
 	"github.com/stretchr/testify/assert"
@@ -11,9 +13,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
-
-	"github.com/argoproj/argo-cd/v2/reposerver/apiclient/mocks"
-	service "github.com/argoproj/argo-cd/v2/util/notification/argocd"
 )
 
 const testNamespace = "default"

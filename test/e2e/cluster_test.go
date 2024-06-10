@@ -91,7 +91,7 @@ func TestClusterAddPermissionDenied(t *testing.T) {
 		Create().
 		Then().
 		AndCLIOutput(func(output string, err error) {
-			assert.Contains(t, err.Error(), "PermissionDenied desc = permission denied")
+			assert.True(t, strings.Contains(err.Error(), "PermissionDenied desc = permission denied: clusters, create"))
 		})
 }
 
@@ -256,7 +256,7 @@ func TestClusterDeleteDenied(t *testing.T) {
 		DeleteByName().
 		Then().
 		AndCLIOutput(func(output string, err error) {
-			assert.Contains(t, err.Error(), "PermissionDenied desc = permission denied")
+			assert.True(t, strings.Contains(err.Error(), "PermissionDenied desc = permission denied: clusters, delete"))
 		})
 
 	// Attempt to remove cluster creds by server
@@ -270,7 +270,7 @@ func TestClusterDeleteDenied(t *testing.T) {
 		DeleteByServer().
 		Then().
 		AndCLIOutput(func(output string, err error) {
-			assert.Contains(t, err.Error(), "PermissionDenied desc = permission denied")
+			assert.True(t, strings.Contains(err.Error(), "PermissionDenied desc = permission denied: clusters, delete"))
 		})
 }
 

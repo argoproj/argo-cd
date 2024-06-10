@@ -18,6 +18,7 @@ import (
 
 	"github.com/argoproj/argo-cd/v2/util/notification/settings"
 
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
 	"github.com/argoproj/notifications-engine/pkg/api"
 	"github.com/argoproj/notifications-engine/pkg/controller"
 	"github.com/argoproj/notifications-engine/pkg/services"
@@ -31,8 +32,6 @@ import (
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
-
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
 )
 
 const (

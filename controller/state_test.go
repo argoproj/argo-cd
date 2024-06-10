@@ -50,13 +50,13 @@ func TestCompareAppStateEmpty(t *testing.T) {
 	revisions := make([]string, 0)
 	revisions = append(revisions, "")
 	compRes, err := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false)
-	assert.NoError(t, err)
+	assert.Nil(t, err)
 	assert.NotNil(t, compRes)
 	assert.NotNil(t, compRes.syncStatus)
 	assert.Equal(t, argoappv1.SyncStatusCodeSynced, compRes.syncStatus.Status)
-	assert.Empty(t, compRes.resources)
-	assert.Empty(t, compRes.managedResources)
-	assert.Empty(t, app.Status.Conditions)
+	assert.Len(t, compRes.resources, 0)
+	assert.Len(t, compRes.managedResources, 0)
+	assert.Len(t, app.Status.Conditions, 0)
 }
 
 // TestCompareAppStateRepoError tests the case when CompareAppState notices a repo error
@@ -80,7 +80,7 @@ func TestCompareAppStateRepoError(t *testing.T) {
 	// expect to not get error as outside of grace period, but status should be unknown
 	compRes, err = ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false)
 	assert.NotNil(t, compRes)
-	assert.NoError(t, err)
+	assert.Nil(t, err)
 	assert.Equal(t, compRes.syncStatus.Status, argoappv1.SyncStatusCodeUnknown)
 }
 
@@ -114,13 +114,13 @@ func TestCompareAppStateNamespaceMetadataDiffers(t *testing.T) {
 	revisions := make([]string, 0)
 	revisions = append(revisions, "")
 	compRes, err := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false)
-	assert.NoError(t, err)
+	assert.Nil(t, err)
 	assert.NotNil(t, compRes)
 	assert.NotNil(t, compRes.syncStatus)
 	assert.Equal(t, argoappv1.SyncStatusCodeOutOfSync, compRes.syncStatus.Status)
-	assert.Empty(t, compRes.resources)
-	assert.Empty(t, compRes.managedResources)
-	assert.Empty(t, app.Status.Conditions)
+	assert.Len(t, compRes.resources, 0)
+	assert.Len(t, compRes.managedResources, 0)
+	assert.Len(t, app.Status.Conditions, 0)
 }
 
 // TestCompareAppStateNamespaceMetadataDiffers tests comparison when managed namespace metadata differs to live and manifest ns
@@ -163,7 +163,7 @@ func TestCompareAppStateNamespaceMetadataDiffersToManifest(t *testing.T) {
 	revisions := make([]string, 0)
 	revisions = append(revisions, "")
 	compRes, err := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false)
-	assert.NoError(t, err)
+	assert.Nil(t, err)
 	assert.NotNil(t, compRes)
 	assert.NotNil(t, compRes.syncStatus)
 	assert.Equal(t, argoappv1.SyncStatusCodeOutOfSync, compRes.syncStatus.Status)
@@ -181,7 +181,7 @@ func TestCompareAppStateNamespaceMetadataDiffersToManifest(t *testing.T) {
 	assert.Equal(t, map[string]string{}, labels)
 	// Manifests override definitions in managedNamespaceMetadata
 	assert.Equal(t, map[string]string{"bar": "bat"}, result.GetAnnotations())
-	assert.Empty(t, app.Status.Conditions)
+	assert.Len(t, app.Status.Conditions, 0)
 }
 
 // TestCompareAppStateNamespaceMetadata tests comparison when managed namespace metadata differs to live
@@ -221,7 +221,7 @@ func TestCompareAppStateNamespaceMetadata(t *testing.T) {
 	revisions := make([]string, 0)
 	revisions = append(revisions, "")
 	compRes, err := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false)
-	assert.NoError(t, err)
+	assert.Nil(t, err)
 	assert.NotNil(t, compRes)
 	assert.NotNil(t, compRes.syncStatus)
 	assert.Equal(t, argoappv1.SyncStatusCodeOutOfSync, compRes.syncStatus.Status)
@@ -238,7 +238,7 @@ func TestCompareAppStateNamespaceMetadata(t *testing.T) {
 
 	assert.Equal(t, map[string]string{"foo": "bar"}, labels)
 	assert.Equal(t, map[string]string{"argocd.argoproj.io/sync-options": "ServerSideApply=true", "bar": "bat", "foo": "bar"}, result.GetAnnotations())
-	assert.Empty(t, app.Status.Conditions)
+	assert.Len(t, app.Status.Conditions, 0)
 }
 
 // TestCompareAppStateNamespaceMetadataIsTheSame tests comparison when managed namespace metadata is the same
@@ -280,13 +280,13 @@ func TestCompareAppStateNamespaceMetadataIsTheSame(t *testing.T) {
 	revisions := make([]string, 0)
 	revisions = append(revisions, "")
 	compRes, err := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false)
-	assert.NoError(t, err)
+	assert.Nil(t, err)
 	assert.NotNil(t, compRes)
 	assert.NotNil(t, compRes.syncStatus)
 	assert.Equal(t, argoappv1.SyncStatusCodeSynced, compRes.syncStatus.Status)
-	assert.Empty(t, compRes.resources)
-	assert.Empty(t, compRes.managedResources)
-	assert.Empty(t, app.Status.Conditions)
+	assert.Len(t, compRes.resources, 0)
+	assert.Len(t, compRes.managedResources, 0)
+	assert.Len(t, app.Status.Conditions, 0)
 }
 
 // TestCompareAppStateMissing tests when there is a manifest defined in the repo which doesn't exist in live
@@ -308,13 +308,13 @@ func TestCompareAppStateMissing(t *testing.T) {
 	revisions := make([]string, 0)
 	revisions = append(revisions, "")
 	compRes, err := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false)
-	assert.NoError(t, err)
+	assert.Nil(t, err)
 	assert.NotNil(t, compRes)
 	assert.NotNil(t, compRes.syncStatus)
 	assert.Equal(t, argoappv1.SyncStatusCodeOutOfSync, compRes.syncStatus.Status)
 	assert.Len(t, compRes.resources, 1)
 	assert.Len(t, compRes.managedResources, 1)
-	assert.Empty(t, app.Status.Conditions)
+	assert.Len(t, app.Status.Conditions, 0)
 }
 
 // TestCompareAppStateExtra tests when there is an extra object in live but not defined in git
@@ -340,12 +340,12 @@ func TestCompareAppStateExtra(t *testing.T) {
 	revisions := make([]string, 0)
 	revisions = append(revisions, "")
 	compRes, err := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false)
-	assert.NoError(t, err)
+	assert.Nil(t, err)
 	assert.NotNil(t, compRes)
 	assert.Equal(t, argoappv1.SyncStatusCodeOutOfSync, compRes.syncStatus.Status)
-	assert.Len(t, compRes.resources, 1)
-	assert.Len(t, compRes.managedResources, 1)
-	assert.Empty(t, app.Status.Conditions)
+	assert.Equal(t, 1, len(compRes.resources))
+	assert.Equal(t, 1, len(compRes.managedResources))
+	assert.Equal(t, 0, len(app.Status.Conditions))
 }
 
 // TestCompareAppStateHook checks that hooks are detected during manifest generation, and not
@@ -371,13 +371,13 @@ func TestCompareAppStateHook(t *testing.T) {
 	revisions := make([]string, 0)
 	revisions = append(revisions, "")
 	compRes, err := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false)
-	assert.NoError(t, err)
+	assert.Nil(t, err)
 	assert.NotNil(t, compRes)
 	assert.Equal(t, argoappv1.SyncStatusCodeSynced, compRes.syncStatus.Status)
-	assert.Empty(t, compRes.resources)
-	assert.Empty(t, compRes.managedResources)
-	assert.Len(t, compRes.reconciliationResult.Hooks, 1)
-	assert.Empty(t, app.Status.Conditions)
+	assert.Equal(t, 0, len(compRes.resources))
+	assert.Equal(t, 0, len(compRes.managedResources))
+	assert.Equal(t, 1, len(compRes.reconciliationResult.Hooks))
+	assert.Equal(t, 0, len(app.Status.Conditions))
 }
 
 // TestCompareAppStateSkipHook checks that skipped resources are detected during manifest generation, and not
@@ -403,13 +403,13 @@ func TestCompareAppStateSkipHook(t *testing.T) {
 	revisions := make([]string, 0)
 	revisions = append(revisions, "")
 	compRes, err := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false)
-	assert.NoError(t, err)
+	assert.Nil(t, err)
 	assert.NotNil(t, compRes)
 	assert.Equal(t, argoappv1.SyncStatusCodeSynced, compRes.syncStatus.Status)
-	assert.Len(t, compRes.resources, 1)
-	assert.Len(t, compRes.managedResources, 1)
-	assert.Empty(t, compRes.reconciliationResult.Hooks)
-	assert.Empty(t, app.Status.Conditions)
+	assert.Equal(t, 1, len(compRes.resources))
+	assert.Equal(t, 1, len(compRes.managedResources))
+	assert.Equal(t, 0, len(compRes.reconciliationResult.Hooks))
+	assert.Equal(t, 0, len(app.Status.Conditions))
 }
 
 // checks that ignore resources are detected, but excluded from status
@@ -434,13 +434,13 @@ func TestCompareAppStateCompareOptionIgnoreExtraneous(t *testing.T) {
 	revisions := make([]string, 0)
 	revisions = append(revisions, "")
 	compRes, err := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false)
-	assert.NoError(t, err)
+	assert.Nil(t, err)
 
 	assert.NotNil(t, compRes)
 	assert.Equal(t, argoappv1.SyncStatusCodeSynced, compRes.syncStatus.Status)
-	assert.Empty(t, compRes.resources)
-	assert.Empty(t, compRes.managedResources)
-	assert.Empty(t, app.Status.Conditions)
+	assert.Len(t, compRes.resources, 0)
+	assert.Len(t, compRes.managedResources, 0)
+	assert.Len(t, app.Status.Conditions, 0)
 }
 
 // TestCompareAppStateExtraHook tests when there is an extra _hook_ object in live but not defined in git
@@ -467,14 +467,14 @@ func TestCompareAppStateExtraHook(t *testing.T) {
 	revisions := make([]string, 0)
 	revisions = append(revisions, "")
 	compRes, err := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false)
-	assert.NoError(t, err)
+	assert.Nil(t, err)
 
 	assert.NotNil(t, compRes)
 	assert.Equal(t, argoappv1.SyncStatusCodeSynced, compRes.syncStatus.Status)
-	assert.Len(t, compRes.resources, 1)
-	assert.Len(t, compRes.managedResources, 1)
-	assert.Empty(t, compRes.reconciliationResult.Hooks)
-	assert.Empty(t, app.Status.Conditions)
+	assert.Equal(t, 1, len(compRes.resources))
+	assert.Equal(t, 1, len(compRes.managedResources))
+	assert.Equal(t, 0, len(compRes.reconciliationResult.Hooks))
+	assert.Equal(t, 0, len(app.Status.Conditions))
 }
 
 // TestAppRevisions tests that revisions are properly propagated for a single source app
@@ -496,11 +496,11 @@ func TestAppRevisionsSingleSource(t *testing.T) {
 	revisions := make([]string, 0)
 	revisions = append(revisions, "")
 	compRes, err := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, app.Spec.GetSources(), false, false, nil, app.Spec.HasMultipleSources())
-	assert.NoError(t, err)
+	assert.Nil(t, err)
 	assert.NotNil(t, compRes)
 	assert.NotNil(t, compRes.syncStatus)
 	assert.NotEmpty(t, compRes.syncStatus.Revision)
-	assert.Empty(t, compRes.syncStatus.Revisions)
+	assert.Len(t, compRes.syncStatus.Revisions, 0)
 }
 
 // TestAppRevisions tests that revisions are properly propagated for a multi source app
@@ -536,7 +536,7 @@ func TestAppRevisionsMultiSource(t *testing.T) {
 	revisions := make([]string, 0)
 	revisions = append(revisions, "")
 	compRes, err := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, app.Spec.GetSources(), false, false, nil, app.Spec.HasMultipleSources())
-	assert.NoError(t, err)
+	assert.Nil(t, err)
 	assert.NotNil(t, compRes)
 	assert.NotNil(t, compRes.syncStatus)
 	assert.Empty(t, compRes.syncStatus.Revision)
@@ -584,14 +584,14 @@ func TestCompareAppStateDuplicatedNamespacedResources(t *testing.T) {
 	revisions := make([]string, 0)
 	revisions = append(revisions, "")
 	compRes, err := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false)
-	assert.NoError(t, err)
+	assert.Nil(t, err)
 
 	assert.NotNil(t, compRes)
-	assert.Len(t, app.Status.Conditions, 1)
+	assert.Equal(t, 1, len(app.Status.Conditions))
 	assert.NotNil(t, app.Status.Conditions[0].LastTransitionTime)
 	assert.Equal(t, argoappv1.ApplicationConditionRepeatedResourceWarning, app.Status.Conditions[0].Type)
 	assert.Equal(t, "Resource /Pod/fake-dest-ns/my-pod appeared 2 times among application resources.", app.Status.Conditions[0].Message)
-	assert.Len(t, compRes.resources, 4)
+	assert.Equal(t, 4, len(compRes.resources))
 }
 
 func TestCompareAppStateManagedNamespaceMetadataWithLiveNsDoesNotGetPruned(t *testing.T) {
@@ -621,10 +621,10 @@ func TestCompareAppStateManagedNamespaceMetadataWithLiveNsDoesNotGetPruned(t *te
 	}
 	ctrl := newFakeController(&data, nil)
 	compRes, err := ctrl.appStateManager.CompareAppState(app, &defaultProj, []string{}, app.Spec.Sources, false, false, nil, false)
-	assert.NoError(t, err)
+	assert.Nil(t, err)
 
 	assert.NotNil(t, compRes)
-	assert.Empty(t, app.Status.Conditions)
+	assert.Equal(t, 0, len(app.Status.Conditions))
 	assert.NotNil(t, compRes)
 	assert.NotNil(t, compRes.syncStatus)
 	// Ensure that ns does not get pruned
@@ -676,7 +676,7 @@ func TestCompareAppStateWithManifestGeneratePath(t *testing.T) {
 	revisions = append(revisions, "abc123")
 	compRes, err := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, app.Spec.GetSources(), false, false, nil, false)
 
-	assert.NoError(t, err)
+	assert.Nil(t, err)
 	assert.NotNil(t, compRes)
 	assert.Equal(t, argoappv1.SyncStatusCodeSynced, compRes.syncStatus.Status)
 	assert.Equal(t, "abc123", compRes.syncStatus.Revision)
@@ -713,7 +713,7 @@ func TestSetHealth(t *testing.T) {
 	revisions := make([]string, 0)
 	revisions = append(revisions, "")
 	compRes, err := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false)
-	assert.NoError(t, err)
+	assert.Nil(t, err)
 
 	assert.Equal(t, health.HealthStatusHealthy, compRes.healthStatus.Status)
 }
@@ -750,7 +750,7 @@ func TestSetHealthSelfReferencedApp(t *testing.T) {
 	revisions := make([]string, 0)
 	revisions = append(revisions, "")
 	compRes, err := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false)
-	assert.NoError(t, err)
+	assert.Nil(t, err)
 
 	assert.Equal(t, health.HealthStatusHealthy, compRes.healthStatus.Status)
 }
@@ -775,7 +775,7 @@ func TestSetManagedResourcesWithOrphanedResources(t *testing.T) {
 	tree, err := ctrl.setAppManagedResources(app, &comparisonResult{managedResources: make([]managedResource, 0)})
 
 	assert.NoError(t, err)
-	assert.Len(t, tree.OrphanedNodes, 1)
+	assert.Equal(t, len(tree.OrphanedNodes), 1)
 	assert.Equal(t, "guestbook", tree.OrphanedNodes[0].Name)
 	assert.Equal(t, app.Namespace, tree.OrphanedNodes[0].Namespace)
 }
@@ -804,7 +804,7 @@ func TestSetManagedResourcesWithResourcesOfAnotherApp(t *testing.T) {
 	tree, err := ctrl.setAppManagedResources(app1, &comparisonResult{managedResources: make([]managedResource, 0)})
 
 	assert.NoError(t, err)
-	assert.Empty(t, tree.OrphanedNodes)
+	assert.Equal(t, 0, len(tree.OrphanedNodes))
 }
 
 func TestReturnUnknownComparisonStateOnSettingLoadError(t *testing.T) {
@@ -825,7 +825,7 @@ func TestReturnUnknownComparisonStateOnSettingLoadError(t *testing.T) {
 	revisions := make([]string, 0)
 	revisions = append(revisions, "")
 	compRes, err := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false)
-	assert.NoError(t, err)
+	assert.Nil(t, err)
 
 	assert.Equal(t, health.HealthStatusUnknown, compRes.healthStatus.Status)
 	assert.Equal(t, argoappv1.SyncStatusCodeUnknown, compRes.syncStatus.Status)
@@ -966,13 +966,13 @@ func TestSignedResponseNoSignatureRequired(t *testing.T) {
 		revisions := make([]string, 0)
 		revisions = append(revisions, "")
 		compRes, err := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false)
-		assert.NoError(t, err)
+		assert.Nil(t, err)
 		assert.NotNil(t, compRes)
 		assert.NotNil(t, compRes.syncStatus)
 		assert.Equal(t, argoappv1.SyncStatusCodeSynced, compRes.syncStatus.Status)
-		assert.Empty(t, compRes.resources)
-		assert.Empty(t, compRes.managedResources)
-		assert.Empty(t, app.Status.Conditions)
+		assert.Len(t, compRes.resources, 0)
+		assert.Len(t, compRes.managedResources, 0)
+		assert.Len(t, app.Status.Conditions, 0)
 	}
 	// We have a bad signature response, but project does not require signed commits
 	{
@@ -993,13 +993,13 @@ func TestSignedResponseNoSignatureRequired(t *testing.T) {
 		revisions := make([]string, 0)
 		revisions = append(revisions, "")
 		compRes, err := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false)
-		assert.NoError(t, err)
+		assert.Nil(t, err)
 		assert.NotNil(t, compRes)
 		assert.NotNil(t, compRes.syncStatus)
 		assert.Equal(t, argoappv1.SyncStatusCodeSynced, compRes.syncStatus.Status)
-		assert.Empty(t, compRes.resources)
-		assert.Empty(t, compRes.managedResources)
-		assert.Empty(t, app.Status.Conditions)
+		assert.Len(t, compRes.resources, 0)
+		assert.Len(t, compRes.managedResources, 0)
+		assert.Len(t, app.Status.Conditions, 0)
 	}
 }
 
@@ -1025,13 +1025,13 @@ func TestSignedResponseSignatureRequired(t *testing.T) {
 		revisions := make([]string, 0)
 		revisions = append(revisions, "")
 		compRes, err := ctrl.appStateManager.CompareAppState(app, &signedProj, revisions, sources, false, false, nil, false)
-		assert.NoError(t, err)
+		assert.Nil(t, err)
 		assert.NotNil(t, compRes)
 		assert.NotNil(t, compRes.syncStatus)
 		assert.Equal(t, argoappv1.SyncStatusCodeSynced, compRes.syncStatus.Status)
-		assert.Empty(t, compRes.resources)
-		assert.Empty(t, compRes.managedResources)
-		assert.Empty(t, app.Status.Conditions)
+		assert.Len(t, compRes.resources, 0)
+		assert.Len(t, compRes.managedResources, 0)
+		assert.Len(t, app.Status.Conditions, 0)
 	}
 	// We have a bad signature response and signing is required - do not sync
 	{
@@ -1052,12 +1052,12 @@ func TestSignedResponseSignatureRequired(t *testing.T) {
 		revisions := make([]string, 0)
 		revisions = append(revisions, "abc123")
 		compRes, err := ctrl.appStateManager.CompareAppState(app, &signedProj, revisions, sources, false, false, nil, false)
-		assert.NoError(t, err)
+		assert.Nil(t, err)
 		assert.NotNil(t, compRes)
 		assert.NotNil(t, compRes.syncStatus)
 		assert.Equal(t, argoappv1.SyncStatusCodeSynced, compRes.syncStatus.Status)
-		assert.Empty(t, compRes.resources)
-		assert.Empty(t, compRes.managedResources)
+		assert.Len(t, compRes.resources, 0)
+		assert.Len(t, compRes.managedResources, 0)
 		assert.Len(t, app.Status.Conditions, 1)
 	}
 	// We have a malformed signature response and signing is required - do not sync
@@ -1079,12 +1079,12 @@ func TestSignedResponseSignatureRequired(t *testing.T) {
 		revisions := make([]string, 0)
 		revisions = append(revisions, "abc123")
 		compRes, err := ctrl.appStateManager.CompareAppState(app, &signedProj, revisions, sources, false, false, nil, false)
-		assert.NoError(t, err)
+		assert.Nil(t, err)
 		assert.NotNil(t, compRes)
 		assert.NotNil(t, compRes.syncStatus)
 		assert.Equal(t, argoappv1.SyncStatusCodeSynced, compRes.syncStatus.Status)
-		assert.Empty(t, compRes.resources)
-		assert.Empty(t, compRes.managedResources)
+		assert.Len(t, compRes.resources, 0)
+		assert.Len(t, compRes.managedResources, 0)
 		assert.Len(t, app.Status.Conditions, 1)
 	}
 	// We have no signature response (no signature made) and signing is required - do not sync
@@ -1106,12 +1106,12 @@ func TestSignedResponseSignatureRequired(t *testing.T) {
 		revisions := make([]string, 0)
 		revisions = append(revisions, "abc123")
 		compRes, err := ctrl.appStateManager.CompareAppState(app, &signedProj, revisions, sources, false, false, nil, false)
-		assert.NoError(t, err)
+		assert.Nil(t, err)
 		assert.NotNil(t, compRes)
 		assert.NotNil(t, compRes.syncStatus)
 		assert.Equal(t, argoappv1.SyncStatusCodeSynced, compRes.syncStatus.Status)
-		assert.Empty(t, compRes.resources)
-		assert.Empty(t, compRes.managedResources)
+		assert.Len(t, compRes.resources, 0)
+		assert.Len(t, compRes.managedResources, 0)
 		assert.Len(t, app.Status.Conditions, 1)
 	}
 
@@ -1136,12 +1136,12 @@ func TestSignedResponseSignatureRequired(t *testing.T) {
 		revisions := make([]string, 0)
 		revisions = append(revisions, "abc123")
 		compRes, err := ctrl.appStateManager.CompareAppState(app, &testProj, revisions, sources, false, false, nil, false)
-		assert.NoError(t, err)
+		assert.Nil(t, err)
 		assert.NotNil(t, compRes)
 		assert.NotNil(t, compRes.syncStatus)
 		assert.Equal(t, argoappv1.SyncStatusCodeSynced, compRes.syncStatus.Status)
-		assert.Empty(t, compRes.resources)
-		assert.Empty(t, compRes.managedResources)
+		assert.Len(t, compRes.resources, 0)
+		assert.Len(t, compRes.managedResources, 0)
 		assert.Len(t, app.Status.Conditions, 1)
 		assert.Contains(t, app.Status.Conditions[0].Message, "key is not allowed")
 	}
@@ -1166,12 +1166,12 @@ func TestSignedResponseSignatureRequired(t *testing.T) {
 		revisions := make([]string, 0)
 		revisions = append(revisions, "abc123")
 		compRes, err := ctrl.appStateManager.CompareAppState(app, &signedProj, revisions, sources, false, false, localManifests, false)
-		assert.NoError(t, err)
+		assert.Nil(t, err)
 		assert.NotNil(t, compRes)
 		assert.NotNil(t, compRes.syncStatus)
 		assert.Equal(t, argoappv1.SyncStatusCodeUnknown, compRes.syncStatus.Status)
-		assert.Empty(t, compRes.resources)
-		assert.Empty(t, compRes.managedResources)
+		assert.Len(t, compRes.resources, 0)
+		assert.Len(t, compRes.managedResources, 0)
 		assert.Len(t, app.Status.Conditions, 1)
 		assert.Contains(t, app.Status.Conditions[0].Message, "Cannot use local manifests")
 	}
@@ -1196,13 +1196,13 @@ func TestSignedResponseSignatureRequired(t *testing.T) {
 		revisions := make([]string, 0)
 		revisions = append(revisions, "abc123")
 		compRes, err := ctrl.appStateManager.CompareAppState(app, &signedProj, revisions, sources, false, false, nil, false)
-		assert.NoError(t, err)
+		assert.Nil(t, err)
 		assert.NotNil(t, compRes)
 		assert.NotNil(t, compRes.syncStatus)
 		assert.Equal(t, argoappv1.SyncStatusCodeSynced, compRes.syncStatus.Status)
-		assert.Empty(t, compRes.resources)
-		assert.Empty(t, compRes.managedResources)
-		assert.Empty(t, app.Status.Conditions)
+		assert.Len(t, compRes.resources, 0)
+		assert.Len(t, compRes.managedResources, 0)
+		assert.Len(t, app.Status.Conditions, 0)
 	}
 
 	// Signature required and local manifests supplied and GPG subsystem is disabled - sync
@@ -1226,13 +1226,13 @@ func TestSignedResponseSignatureRequired(t *testing.T) {
 		revisions := make([]string, 0)
 		revisions = append(revisions, "abc123")
 		compRes, err := ctrl.appStateManager.CompareAppState(app, &signedProj, revisions, sources, false, false, localManifests, false)
-		assert.NoError(t, err)
+		assert.Nil(t, err)
 		assert.NotNil(t, compRes)
 		assert.NotNil(t, compRes.syncStatus)
 		assert.Equal(t, argoappv1.SyncStatusCodeSynced, compRes.syncStatus.Status)
-		assert.Empty(t, compRes.resources)
-		assert.Empty(t, compRes.managedResources)
-		assert.Empty(t, app.Status.Conditions)
+		assert.Len(t, compRes.resources, 0)
+		assert.Len(t, compRes.managedResources, 0)
+		assert.Len(t, app.Status.Conditions, 0)
 	}
 }
 

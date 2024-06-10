@@ -305,9 +305,9 @@ func TestGiteaListRepos(t *testing.T) {
 			provider, _ := NewGiteaProvider(context.Background(), "test-argocd", "", ts.URL, c.allBranches, false)
 			rawRepos, err := ListRepos(context.Background(), provider, c.filters, c.proto)
 			if c.hasError {
-				assert.Error(t, err)
+				assert.NotNil(t, err)
 			} else {
-				assert.NoError(t, err)
+				assert.Nil(t, err)
 				// Just check that this one project shows up. Not a great test but better thing nothing?
 				repos := []*Repository{}
 				branches := []string{}
@@ -341,19 +341,19 @@ func TestGiteaHasPath(t *testing.T) {
 
 	t.Run("file exists", func(t *testing.T) {
 		ok, err := host.RepoHasPath(context.Background(), repo, "README.md")
-		assert.NoError(t, err)
+		assert.Nil(t, err)
 		assert.True(t, ok)
 	})
 
 	t.Run("directory exists", func(t *testing.T) {
 		ok, err := host.RepoHasPath(context.Background(), repo, "gitea")
-		assert.NoError(t, err)
+		assert.Nil(t, err)
 		assert.True(t, ok)
 	})
 
 	t.Run("does not exists", func(t *testing.T) {
 		ok, err := host.RepoHasPath(context.Background(), repo, "notathing")
-		assert.NoError(t, err)
+		assert.Nil(t, err)
 		assert.False(t, ok)
 	})
 }

@@ -5,11 +5,10 @@ import (
 	"time"
 
 	"github.com/alicebob/miniredis/v2"
-	"github.com/redis/go-redis/v9"
-	"github.com/stretchr/testify/mock"
-
 	cacheutil "github.com/argoproj/argo-cd/v2/util/cache"
 	cacheutilmocks "github.com/argoproj/argo-cd/v2/util/cache/mocks"
+	"github.com/redis/go-redis/v9"
+	"github.com/stretchr/testify/mock"
 )
 
 type MockCacheType int
