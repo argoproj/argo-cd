@@ -795,11 +795,11 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                 iconClassName: 'fa fa-history',
                 title: hasMultipleSources ? (
                     <React.Fragment>
-                        <ActionMenuItem actionLabel=' History and rollback' />
+                        <ActionMenuItem actionLabel=' History and Rollback' />
                         {helpTip('Rollback is not supported for apps with multiple sources')}
                     </React.Fragment>
                 ) : (
-                    <ActionMenuItem actionLabel='History and rollback' />
+                    <ActionMenuItem actionLabel='History and Rollback' />
                 ),
                 action: () => {
                     this.setRollbackPanelVisible(0);

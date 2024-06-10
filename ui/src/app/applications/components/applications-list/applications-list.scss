@@ -31,6 +31,12 @@
     &__empty-state {
         text-align: center;
     }
+    &__tools {
+        display: flex;
+        width: 100%;
+        align-items: center;
+        justify-content: flex-start;
+    }
 
     &__entry {
         padding-left: 1em;
