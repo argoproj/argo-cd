@@ -197,7 +197,7 @@ func TestLuaResourceActionsScript(t *testing.T) {
 
 		return nil
 	})
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 }
 
 // Handling backward compatibility.

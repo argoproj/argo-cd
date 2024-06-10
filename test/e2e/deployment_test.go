@@ -275,12 +275,12 @@ func createNamespaceScopedUser(t *testing.T, username string, clusterScopedSecre
 		},
 	}
 	_, err := KubeClientset.CoreV1().Namespaces().Create(context.Background(), &ns, metav1.CreateOptions{})
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	// Create a ServiceAccount in that Namespace, which will be used for the Argo CD Cluster SEcret
 	serviceAccountName := username + "-serviceaccount"
 	err = clusterauth.CreateServiceAccount(KubeClientset, serviceAccountName, ns.Name)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	// Create a Role that allows the ServiceAccount to read/write all within the Namespace
 	role := rbacv1.Role{
@@ -295,7 +295,7 @@ func createNamespaceScopedUser(t *testing.T, username string, clusterScopedSecre
 		}},
 	}
 	_, err = KubeClientset.RbacV1().Roles(role.Namespace).Create(context.Background(), &role, metav1.CreateOptions{})
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	// Bind the Role with the ServiceAccount in the Namespace
 	roleBinding := rbacv1.RoleBinding{
@@ -315,11 +315,11 @@ func createNamespaceScopedUser(t *testing.T, username string, clusterScopedSecre
 		},
 	}
 	_, err = KubeClientset.RbacV1().RoleBindings(roleBinding.Namespace).Create(context.Background(), &roleBinding, metav1.CreateOptions{})
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	// Retrieve the bearer token from the ServiceAccount
 	token, err := clusterauth.GetServiceAccountBearerToken(KubeClientset, ns.Name, serviceAccountName, time.Second*60)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.NotEmpty(t, token)
 
 	// In order to test a cluster-scoped Argo CD Cluster Secret, we may optionally grant the ServiceAccount read-all permissions at cluster scope.
@@ -327,10 +327,10 @@ func createNamespaceScopedUser(t *testing.T, username string, clusterScopedSecre
 		clusterRole, clusterRoleBinding := generateReadOnlyClusterRoleandBindingForServiceAccount(username, username)
 
 		_, err := KubeClientset.RbacV1().ClusterRoles().Create(context.Background(), &clusterRole, metav1.CreateOptions{})
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 
 		_, err = KubeClientset.RbacV1().ClusterRoleBindings().Create(context.Background(), &clusterRoleBinding, metav1.CreateOptions{})
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 
 	}
 
@@ -343,10 +343,10 @@ func createNamespaceScopedUser(t *testing.T, username string, clusterScopedSecre
 	}
 
 	jsonStringBytes, err := json.Marshal(clusterSecretConfigJSON)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	_, apiURL, err := extractKubeConfigValues()
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	clusterResourcesField := ""
 	namespacesField := ""
@@ -364,7 +364,7 @@ func createNamespaceScopedUser(t *testing.T, username string, clusterScopedSecre
 
 	// Finally, create the Cluster secret in the Argo CD E2E namespace
 	_, err = KubeClientset.CoreV1().Secrets(secret.Namespace).Create(context.Background(), &secret, metav1.CreateOptions{})
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 }
 
 // extractKubeConfigValues returns contents of the local environment's kubeconfig, using standard path resolution mechanism.

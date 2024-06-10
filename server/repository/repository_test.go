@@ -278,7 +278,7 @@ func TestRepositoryServer(t *testing.T) {
 		_, err := s.ValidateAccess(context.TODO(), &repository.RepoAccessQuery{
 			Repo: url,
 		})
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 	})
 
 	t.Run("Test_Get", func(t *testing.T) {
@@ -296,7 +296,7 @@ func TestRepositoryServer(t *testing.T) {
 		repo, err := s.Get(context.TODO(), &repository.RepoQuery{
 			Repo: url,
 		})
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 		assert.Equal(t, repo.Repo, url)
 	})
 
@@ -321,7 +321,7 @@ func TestRepositoryServer(t *testing.T) {
 		repo, err := s.Get(context.TODO(), &repository.RepoQuery{
 			Repo: url,
 		})
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 
 		testRepo.ConnectionState = repo.ConnectionState // overwrite connection state on our test object to simplify comparison below
 
@@ -384,7 +384,7 @@ func TestRepositoryServer(t *testing.T) {
 				Username: "test",
 			},
 		})
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 		assert.Equal(t, repo.Repo, "repo")
 	})
 
@@ -410,7 +410,7 @@ func TestRepositoryServer(t *testing.T) {
 			Upsert: true,
 		})
 
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 		assert.Equal(t, repo.Repo, "test")
 	})
 
