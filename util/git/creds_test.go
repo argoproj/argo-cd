@@ -15,9 +15,10 @@ import (
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 
+	argoio "github.com/argoproj/gitops-engine/pkg/utils/io"
+
 	"github.com/argoproj/argo-cd/v2/util/cert"
 	"github.com/argoproj/argo-cd/v2/util/io"
-	argoio "github.com/argoproj/gitops-engine/pkg/utils/io"
 )
 
 type cred struct {
@@ -365,16 +366,16 @@ func TestNewGoogleCloudCreds_invalidJSON(t *testing.T) {
 
 	token, err := googleCloudCreds.getAccessToken()
 	assert.Equal(t, "", token)
-	assert.NotNil(t, err)
+	assert.Error(t, err)
 
 	username, err := googleCloudCreds.getUsername()
 	assert.Equal(t, "", username)
-	assert.NotNil(t, err)
+	assert.Error(t, err)
 
 	closer, envStringSlice, err := googleCloudCreds.Environ()
 	assert.Equal(t, NopCloser{}, closer)
 	assert.Equal(t, []string(nil), envStringSlice)
-	assert.NotNil(t, err)
+	assert.Error(t, err)
 }
 
 func TestGoogleCloudCreds_Environ_cleanup(t *testing.T) {

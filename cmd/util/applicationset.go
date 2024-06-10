@@ -5,9 +5,10 @@ import (
 	"net/url"
 	"os"
 
+	"github.com/argoproj/gitops-engine/pkg/utils/kube"
+
 	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/util/config"
-	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 )
 
 func ConstructApplicationSet(fileURL string) ([]*argoprojiov1alpha1.ApplicationSet, error) {

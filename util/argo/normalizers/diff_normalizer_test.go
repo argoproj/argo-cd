@@ -21,18 +21,18 @@ func TestNormalizeObjectWithMatchedGroupKind(t *testing.T) {
 		JSONPointers: []string{"/not-matching-path", "/spec/template/spec/containers"},
 	}}, make(map[string]v1alpha1.ResourceOverride), IgnoreNormalizerOpts{})
 
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	deployment := test.NewDeployment()
 
 	_, has, err := unstructured.NestedSlice(deployment.Object, "spec", "template", "spec", "containers")
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.True(t, has)
 
 	err = normalizer.Normalize(deployment)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	_, has, err = unstructured.NestedSlice(deployment.Object, "spec", "template", "spec", "containers")
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.False(t, has)
 
 	err = normalizer.Normalize(nil)
@@ -46,15 +46,15 @@ func TestNormalizeNoMatchedGroupKinds(t *testing.T) {
 		JSONPointers: []string{"/spec"},
 	}}, make(map[string]v1alpha1.ResourceOverride), IgnoreNormalizerOpts{})
 
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	deployment := test.NewDeployment()
 
 	err = normalizer.Normalize(deployment)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	_, hasSpec, err := unstructured.NestedMap(deployment.Object, "spec")
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.True(t, hasSpec)
 }
 
@@ -65,18 +65,18 @@ func TestNormalizeMatchedResourceOverrides(t *testing.T) {
 		},
 	}, IgnoreNormalizerOpts{})
 
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	deployment := test.NewDeployment()
 
 	_, has, err := unstructured.NestedSlice(deployment.Object, "spec", "template", "spec", "containers")
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.True(t, has)
 
 	err = normalizer.Normalize(deployment)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	_, has, err = unstructured.NestedSlice(deployment.Object, "spec", "template", "spec", "containers")
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.False(t, has)
 }
 
@@ -141,18 +141,18 @@ func TestNormalizeGlobMatch(t *testing.T) {
 		},
 	}, IgnoreNormalizerOpts{})
 
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	deployment := test.NewDeployment()
 
 	_, has, err := unstructured.NestedSlice(deployment.Object, "spec", "template", "spec", "containers")
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.True(t, has)
 
 	err = normalizer.Normalize(deployment)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	_, has, err = unstructured.NestedSlice(deployment.Object, "spec", "template", "spec", "containers")
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.False(t, has)
 }
 
@@ -163,7 +163,7 @@ func TestNormalizeJQPathExpression(t *testing.T) {
 		JQPathExpressions: []string{".spec.template.spec.initContainers[] | select(.name == \"init-container-0\")"},
 	}}, make(map[string]v1alpha1.ResourceOverride), IgnoreNormalizerOpts{})
 
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	deployment := test.NewDeployment()
 
@@ -171,22 +171,22 @@ func TestNormalizeJQPathExpression(t *testing.T) {
 	initContainers = append(initContainers, map[string]interface{}{"name": "init-container-0"})
 	initContainers = append(initContainers, map[string]interface{}{"name": "init-container-1"})
 	err = unstructured.SetNestedSlice(deployment.Object, initContainers, "spec", "template", "spec", "initContainers")
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	actualInitContainers, has, err := unstructured.NestedSlice(deployment.Object, "spec", "template", "spec", "initContainers")
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.True(t, has)
 	assert.Len(t, actualInitContainers, 2)
 
 	err = normalizer.Normalize(deployment)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	actualInitContainers, has, err = unstructured.NestedSlice(deployment.Object, "spec", "template", "spec", "initContainers")
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.True(t, has)
 	assert.Len(t, actualInitContainers, 1)
 
 	actualInitContainerName, has, err := unstructured.NestedString(actualInitContainers[0].(map[string]interface{}), "name")
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.True(t, has)
 	assert.Equal(t, actualInitContainerName, "init-container-1")
 }
@@ -209,17 +209,17 @@ func TestNormalizeJQPathExpressionWithError(t *testing.T) {
 		JQPathExpressions: []string{".spec.fakeField.foo[]"},
 	}}, make(map[string]v1alpha1.ResourceOverride), IgnoreNormalizerOpts{})
 
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	deployment := test.NewDeployment()
 	originalDeployment, err := deployment.MarshalJSON()
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	err = normalizer.Normalize(deployment)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	normalizedDeployment, err := deployment.MarshalJSON()
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.Equal(t, originalDeployment, normalizedDeployment)
 }
 
@@ -231,7 +231,7 @@ func TestNormalizeExpectedErrorAreSilenced(t *testing.T) {
 			},
 		},
 	}, IgnoreNormalizerOpts{})
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	ignoreNormalizer := normalizer.(*ignoreNormalizer)
 	assert.Len(t, ignoreNormalizer.patches, 2)
@@ -240,7 +240,7 @@ func TestNormalizeExpectedErrorAreSilenced(t *testing.T) {
 
 	deployment := test.NewDeployment()
 	deploymentData, err := json.Marshal(deployment)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	// Error: "error in remove for path: '/invalid': Unable to remove nonexistent key: invalid: missing value"
 	_, err = jsonPatch.Apply(deploymentData)
@@ -262,7 +262,7 @@ func TestJqPathExpressionFailWithTimeout(t *testing.T) {
 			},
 		},
 	}, IgnoreNormalizerOpts{})
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	ignoreNormalizer := normalizer.(*ignoreNormalizer)
 	assert.Len(t, ignoreNormalizer.patches, 1)
@@ -270,7 +270,7 @@ func TestJqPathExpressionFailWithTimeout(t *testing.T) {
 
 	deployment := test.NewDeployment()
 	deploymentData, err := json.Marshal(deployment)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	_, err = jqPatch.Apply(deploymentData)
 	assert.ErrorContains(t, err, "JQ patch execution timed out")

@@ -53,7 +53,7 @@ func TestPersistRevisionHistory(t *testing.T) {
 	assert.Equal(t, app.Spec.GetSource(), opState.SyncResult.Source)
 
 	updatedApp, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(context.Background(), app.Name, v1.GetOptions{})
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.Len(t, updatedApp.Status.History, 1)
 	assert.Equal(t, app.Spec.GetSource(), updatedApp.Status.History[0].Source)
 	assert.Equal(t, "abc123", updatedApp.Status.History[0].Revision)
@@ -142,7 +142,7 @@ func TestPersistRevisionHistoryRollback(t *testing.T) {
 	assert.Equal(t, source, opState.SyncResult.Source)
 
 	updatedApp, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(context.Background(), app.Name, v1.GetOptions{})
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.Len(t, updatedApp.Status.History, 1)
 	assert.Equal(t, source, updatedApp.Status.History[0].Source)
 	assert.Equal(t, "abc123", updatedApp.Status.History[0].Revision)

@@ -38,14 +38,14 @@ func TestHelmTemplateParams(t *testing.T) {
 		},
 	}
 	objs, err := template(h, &opts)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.Len(t, objs, 5)
 
 	for _, obj := range objs {
 		if obj.GetKind() == "Service" && obj.GetName() == "test-minio" {
 			var svc apiv1.Service
 			err := runtime.DefaultUnstructuredConverter.FromUnstructured(obj.Object, &svc)
-			assert.Nil(t, err)
+			assert.NoError(t, err)
 			assert.Equal(t, apiv1.ServiceTypeLoadBalancer, svc.Spec.Type)
 			assert.Equal(t, int32(1234), svc.Spec.Ports[0].TargetPort.IntVal)
 			assert.Equal(t, "true", svc.ObjectMeta.Annotations["prometheus.io/scrape"])
@@ -66,14 +66,14 @@ func TestHelmTemplateValues(t *testing.T) {
 		Values: []path.ResolvedFilePath{valuesPath},
 	}
 	objs, err := template(h, &opts)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.Len(t, objs, 8)
 
 	for _, obj := range objs {
 		if obj.GetKind() == "Deployment" && obj.GetName() == "test-redis-slave" {
 			var dep appsv1.Deployment
 			err := runtime.DefaultUnstructuredConverter.FromUnstructured(obj.Object, &dep)
-			assert.Nil(t, err)
+			assert.NoError(t, err)
 			assert.Equal(t, int32(3), *dep.Spec.Replicas)
 		}
 	}
@@ -86,7 +86,7 @@ func TestHelmGetParams(t *testing.T) {
 	h, err := NewHelmApp(repoRootAbs, nil, false, "", "", false)
 	assert.NoError(t, err)
 	params, err := h.GetParameters(nil, repoRootAbs, repoRootAbs)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	slaveCountParam := params["cluster.slaveCount"]
 	assert.Equal(t, "1", slaveCountParam)
@@ -101,7 +101,7 @@ func TestHelmGetParamsValueFiles(t *testing.T) {
 	valuesPath, _, err := path.ResolveValueFilePathOrUrl(repoRootAbs, repoRootAbs, "values-production.yaml", nil)
 	require.NoError(t, err)
 	params, err := h.GetParameters([]path.ResolvedFilePath{valuesPath}, repoRootAbs, repoRootAbs)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	slaveCountParam := params["cluster.slaveCount"]
 	assert.Equal(t, "3", slaveCountParam)
@@ -118,7 +118,7 @@ func TestHelmGetParamsValueFilesThatExist(t *testing.T) {
 	valuesProductionPath, _, err := path.ResolveValueFilePathOrUrl(repoRootAbs, repoRootAbs, "values-production.yaml", nil)
 	require.NoError(t, err)
 	params, err := h.GetParameters([]path.ResolvedFilePath{valuesMissingPath, valuesProductionPath}, repoRootAbs, repoRootAbs)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	slaveCountParam := params["cluster.slaveCount"]
 	assert.Equal(t, "3", slaveCountParam)
@@ -129,14 +129,14 @@ func TestHelmTemplateReleaseNameOverwrite(t *testing.T) {
 	assert.NoError(t, err)
 
 	objs, err := template(h, &TemplateOpts{Name: "my-release"})
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.Len(t, objs, 5)
 
 	for _, obj := range objs {
 		if obj.GetKind() == "StatefulSet" {
 			var stateful appsv1.StatefulSet
 			err := runtime.DefaultUnstructuredConverter.FromUnstructured(obj.Object, &stateful)
-			assert.Nil(t, err)
+			assert.NoError(t, err)
 			assert.Equal(t, "my-release-redis-master", stateful.ObjectMeta.Name)
 		}
 	}
@@ -146,14 +146,14 @@ func TestHelmTemplateReleaseName(t *testing.T) {
 	h, err := NewHelmApp("./testdata/redis", nil, false, "", "", false)
 	assert.NoError(t, err)
 	objs, err := template(h, &TemplateOpts{Name: "test"})
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.Len(t, objs, 5)
 
 	for _, obj := range objs {
 		if obj.GetKind() == "StatefulSet" {
 			var stateful appsv1.StatefulSet
 			err := runtime.DefaultUnstructuredConverter.FromUnstructured(obj.Object, &stateful)
-			assert.Nil(t, err)
+			assert.NoError(t, err)
 			assert.Equal(t, "test-redis-master", stateful.ObjectMeta.Name)
 		}
 	}

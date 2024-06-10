@@ -3,15 +3,17 @@ package controller
 import (
 	"context"
 	"fmt"
-	"github.com/argoproj/argo-cd/v2/common"
 	"time"
 
-	"github.com/argoproj/argo-cd/v2/util/env"
+	"github.com/argoproj/argo-cd/v2/common"
+
 	"github.com/argoproj/gitops-engine/pkg/cache"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+
+	"github.com/argoproj/argo-cd/v2/util/env"
 
 	"github.com/argoproj/argo-cd/v2/controller/metrics"
 	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
