@@ -752,7 +752,8 @@ func (m *nativeGitClient) RevisionMetadata(revision string) (*RevisionMetadata, 
 func (m *nativeGitClient) VerifyCommitSignature(revision string) (string, error) {
 	out, err := m.runGnuPGWrapper("git-verify-wrapper.sh", revision)
 	if err != nil {
-		return "", err
+		log.Errorf("error verifying commit signature: %v", err)
+		return "", fmt.Errorf("permission denied")
 	}
 	return out, nil
 }
