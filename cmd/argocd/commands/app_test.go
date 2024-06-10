@@ -212,6 +212,42 @@ func TestPrintTreeViewDetailedAppGet(t *testing.T) {
 	assert.Contains(t, output, "numalogic-rollout-demo-5dcd5457d5-6trpt")
 	assert.Contains(t, output, "Degraded")
 	assert.Contains(t, output, "Readiness Gate failed")
+}
+
+func TestFindRevisionHistoryWithoutPassedIdWithMultipleSources(t *testing.T) {
+
+	histories := v1alpha1.RevisionHistories{}
+
+	histories = append(histories, v1alpha1.RevisionHistory{ID: 1})
+	histories = append(histories, v1alpha1.RevisionHistory{ID: 2})
+	histories = append(histories, v1alpha1.RevisionHistory{ID: 3})
+
+	status := v1alpha1.ApplicationStatus{
+		Resources:      nil,
+		Sync:           v1alpha1.SyncStatus{},
+		Health:         v1alpha1.HealthStatus{},
+		History:        histories,
+		Conditions:     nil,
+		ReconciledAt:   nil,
+		OperationState: nil,
+		ObservedAt:     nil,
+		SourceType:     "",
+		Summary:        v1alpha1.ApplicationSummary{},
+	}
+
+	application := v1alpha1.Application{
+		Status: status,
+	}
+
+	history, err := findRevisionHistory(&application, -1)
+
+	if err != nil {
+		t.Fatal("Find revision history should fail without errors")
+	}
+
+	if history == nil {
+		t.Fatal("History should be found")
+	}
 
 }
 

@@ -643,7 +643,7 @@ func printAppSourceDetails(appSrc *argoappv1.ApplicationSource) {
 	if appSrc.Path != "" {
 		fmt.Printf(printOpFmtStr, "  Path:", appSrc.Path)
 	}
-	if appSrc.Ref != "" {
+	if appSrc.IsRef() {
 		fmt.Printf(printOpFmtStr, "  Ref:", appSrc.Ref)
 	}
 	if appSrc.Helm != nil && len(appSrc.Helm.ValueFiles) > 0 {
@@ -923,7 +923,7 @@ func NewApplicationUnsetCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
 
 func unset(source *argoappv1.ApplicationSource, opts unsetOpts) (updated bool, nothingToUnset bool) {
 	needToUnsetRef := false
-	if opts.ref && source.Ref != "" {
+	if opts.ref && source.IsRef() {
 		source.Ref = ""
 		updated = true
 		needToUnsetRef = true
