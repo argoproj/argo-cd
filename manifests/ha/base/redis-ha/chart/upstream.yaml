@@ -1091,7 +1091,7 @@ spec:
               topologyKey: kubernetes.io/hostname
       initContainers:
       - name: config-init
-        image: public.ecr.aws/docker/library/haproxy:2.6.14-alpine
+        image: public.ecr.aws/docker/library/haproxy:2.6.17-alpine
         imagePullPolicy: IfNotPresent
         resources:
           {}
@@ -1115,7 +1115,7 @@ spec:
           mountPath: /data
       containers:
       - name: haproxy
-        image: public.ecr.aws/docker/library/haproxy:2.6.14-alpine
+        image: public.ecr.aws/docker/library/haproxy:2.6.17-alpine
         imagePullPolicy: IfNotPresent
         securityContext: 
           allowPrivilegeEscalation: false
