@@ -45,7 +45,7 @@ const (
 	EventReasonOperationCompleted = "OperationCompleted"
 )
 
-func (l *AuditLogger) logEvent(objMeta ObjectRef, gvk schema.GroupVersionKind, info EventInfo, message string, logFields map[string]string) {
+func (l *AuditLogger) logEvent(objMeta ObjectRef, gvk schema.GroupVersionKind, info EventInfo, message string, logFields map[string]string, eventLabels map[string]string) {
 	logCtx := log.WithFields(log.Fields{
 		"type":   info.Type,
 		"reason": info.Reason,
@@ -66,6 +66,7 @@ func (l *AuditLogger) logEvent(objMeta ObjectRef, gvk schema.GroupVersionKind, i
 	event := v1.Event{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        fmt.Sprintf("%v.%x", objMeta.Name, t.UnixNano()),
+			Labels:      eventLabels,
 			Annotations: logFields,
 		},
 		Source: v1.EventSource{
@@ -108,7 +109,7 @@ func (l *AuditLogger) LogAppEvent(app *v1alpha1.Application, info EventInfo, mes
 	if user != "" {
 		fields["user"] = user
 	}
-	l.logEvent(objectMeta, v1alpha1.ApplicationSchemaGroupVersionKind, info, message, fields)
+	l.logEvent(objectMeta, v1alpha1.ApplicationSchemaGroupVersionKind, info, message, fields, eventLabels)
 }
 
 func (l *AuditLogger) LogAppSetEvent(app *v1alpha1.ApplicationSet, info EventInfo, message, user string) {
