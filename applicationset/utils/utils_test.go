@@ -828,7 +828,7 @@ func TestRenderTemplateParamsFinalizers(t *testing.T) {
 			render := Render{}
 
 			res, err := render.RenderTemplateParams(application, c.syncPolicy, params, true, nil)
-			assert.Nil(t, err)
+			assert.NoError(t, err)
 
 			assert.ElementsMatch(t, res.Finalizers, c.expectedFinalizers)
 
@@ -842,9 +842,9 @@ func TestCheckInvalidGenerators(t *testing.T) {
 
 	scheme := runtime.NewScheme()
 	err := argoappsv1.AddToScheme(scheme)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	err = argoappsv1.AddToScheme(scheme)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	for _, c := range []struct {
 		testName    string
@@ -946,9 +946,9 @@ func TestInvalidGenerators(t *testing.T) {
 
 	scheme := runtime.NewScheme()
 	err := argoappsv1.AddToScheme(scheme)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	err = argoappsv1.AddToScheme(scheme)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	for _, c := range []struct {
 		testName        string

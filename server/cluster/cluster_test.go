@@ -388,7 +388,7 @@ func TestDeleteClusterByName(t *testing.T) {
 		_, err := server.Delete(context.Background(), &clusterapi.ClusterQuery{
 			Name: "my-cluster-name",
 		})
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 
 		_, err = db.GetCluster(context.Background(), "https://my-cluster-server")
 		assert.EqualError(t, err, `rpc error: code = NotFound desc = cluster "https://my-cluster-server" not found`)
@@ -471,7 +471,7 @@ func TestRotateAuth(t *testing.T) {
 			Name: "my-cluster-name",
 		})
 
-		require.NotNil(t, err)
+		require.Error(t, err)
 		assert.Contains(t, err.Error(), "Get \"https://my-cluster-name/")
 	})
 
@@ -480,7 +480,7 @@ func TestRotateAuth(t *testing.T) {
 			Server: "https://my-cluster-name",
 		})
 
-		require.NotNil(t, err)
+		require.Error(t, err)
 		assert.Contains(t, err.Error(), "Get \"https://my-cluster-name/")
 	})
 }

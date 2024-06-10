@@ -278,11 +278,11 @@ func TestGithubHasPath(t *testing.T) {
 		Branch:       "master",
 	}
 	ok, err := host.RepoHasPath(context.Background(), repo, "pkg/")
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.True(t, ok)
 
 	ok, err = host.RepoHasPath(context.Background(), repo, "notathing/")
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.False(t, ok)
 }
 

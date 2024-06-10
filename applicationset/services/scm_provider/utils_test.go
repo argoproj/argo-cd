@@ -37,7 +37,7 @@ func TestFilterRepoMatch(t *testing.T) {
 		},
 	}
 	repos, err := ListRepos(context.Background(), provider, filters, "")
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.Len(t, repos, 2)
 	assert.Equal(t, "one", repos[0].Repository)
 	assert.Equal(t, "three", repos[1].Repository)
@@ -66,7 +66,7 @@ func TestFilterLabelMatch(t *testing.T) {
 		},
 	}
 	repos, err := ListRepos(context.Background(), provider, filters, "")
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.Len(t, repos, 2)
 	assert.Equal(t, "one", repos[0].Repository)
 	assert.Equal(t, "two", repos[1].Repository)
@@ -92,7 +92,7 @@ func TestFilterPathExists(t *testing.T) {
 		},
 	}
 	repos, err := ListRepos(context.Background(), provider, filters, "")
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.Len(t, repos, 1)
 	assert.Equal(t, "two", repos[0].Repository)
 }
@@ -117,7 +117,7 @@ func TestFilterPathDoesntExists(t *testing.T) {
 		},
 	}
 	repos, err := ListRepos(context.Background(), provider, filters, "")
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.Len(t, repos, 2)
 }
 func TestFilterRepoMatchBadRegexp(t *testing.T) {
@@ -134,7 +134,7 @@ func TestFilterRepoMatchBadRegexp(t *testing.T) {
 		},
 	}
 	_, err := ListRepos(context.Background(), provider, filters, "")
-	assert.NotNil(t, err)
+	assert.Error(t, err)
 }
 
 func TestFilterLabelMatchBadRegexp(t *testing.T) {
@@ -151,7 +151,7 @@ func TestFilterLabelMatchBadRegexp(t *testing.T) {
 		},
 	}
 	_, err := ListRepos(context.Background(), provider, filters, "")
-	assert.NotNil(t, err)
+	assert.Error(t, err)
 }
 
 func TestFilterBranchMatch(t *testing.T) {
@@ -185,7 +185,7 @@ func TestFilterBranchMatch(t *testing.T) {
 		},
 	}
 	repos, err := ListRepos(context.Background(), provider, filters, "")
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.Len(t, repos, 2)
 	assert.Equal(t, "one", repos[0].Repository)
 	assert.Equal(t, "two", repos[0].Branch)
@@ -217,7 +217,7 @@ func TestMultiFilterAnd(t *testing.T) {
 		},
 	}
 	repos, err := ListRepos(context.Background(), provider, filters, "")
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.Len(t, repos, 1)
 	assert.Equal(t, "two", repos[0].Repository)
 }
@@ -248,7 +248,7 @@ func TestMultiFilterOr(t *testing.T) {
 		},
 	}
 	repos, err := ListRepos(context.Background(), provider, filters, "")
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.Len(t, repos, 3)
 	assert.Equal(t, "one", repos[0].Repository)
 	assert.Equal(t, "two", repos[1].Repository)
@@ -274,7 +274,7 @@ func TestNoFilters(t *testing.T) {
 	}
 	filters := []argoprojiov1alpha1.SCMProviderGeneratorFilter{}
 	repos, err := ListRepos(context.Background(), provider, filters, "")
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.Len(t, repos, 3)
 	assert.Equal(t, "one", repos[0].Repository)
 	assert.Equal(t, "two", repos[1].Repository)

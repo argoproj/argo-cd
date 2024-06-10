@@ -1469,7 +1469,7 @@ func TestUpdateApp(t *testing.T) {
 	app, err := appServer.Update(context.Background(), &application.ApplicationUpdateRequest{
 		Application: testApp,
 	})
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.Equal(t, app.Spec.Project, "default")
 }
 
@@ -1495,10 +1495,10 @@ func TestDeleteApp(t *testing.T) {
 		Application: newTestApp(),
 	}
 	app, err := appServer.Create(ctx, &createReq)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	app, err = appServer.Get(ctx, &application.ApplicationQuery{Name: &app.Name})
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.NotNil(t, app)
 
 	fakeAppCs := appServer.appclientset.(*apps.Clientset)
@@ -1521,7 +1521,7 @@ func TestDeleteApp(t *testing.T) {
 
 	trueVar := true
 	_, err = appServer.Delete(ctx, &application.ApplicationDeleteRequest{Name: &app.Name, Cascade: &trueVar})
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.True(t, patched)
 	assert.True(t, deleted)
 
@@ -1530,7 +1530,7 @@ func TestDeleteApp(t *testing.T) {
 	patched = false
 	deleted = false
 	_, err = appServer.Delete(ctx, &application.ApplicationDeleteRequest{Name: &app.Name, Cascade: &falseVar})
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.False(t, patched)
 	assert.True(t, deleted)
 
@@ -1544,7 +1544,7 @@ func TestDeleteApp(t *testing.T) {
 	t.Run("Delete with background propagation policy", func(t *testing.T) {
 		policy := backgroundPropagationPolicy
 		_, err = appServer.Delete(ctx, &application.ApplicationDeleteRequest{Name: &app.Name, PropagationPolicy: &policy})
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 		assert.True(t, patched)
 		assert.True(t, deleted)
 		t.Cleanup(revertValues)
@@ -1571,7 +1571,7 @@ func TestDeleteApp(t *testing.T) {
 	t.Run("Delete with foreground propagation policy", func(t *testing.T) {
 		policy := foregroundPropagationPolicy
 		_, err = appServer.Delete(ctx, &application.ApplicationDeleteRequest{Name: &app.Name, Cascade: &trueVar, PropagationPolicy: &policy})
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 		assert.True(t, patched)
 		assert.True(t, deleted)
 		t.Cleanup(revertValues)
@@ -1713,14 +1713,14 @@ func TestSyncAndTerminate(t *testing.T) {
 		Application: testApp,
 	}
 	app, err := appServer.Create(ctx, &createReq)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	app, err = appServer.Sync(ctx, &application.ApplicationSyncRequest{Name: &app.Name})
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.NotNil(t, app)
 	assert.NotNil(t, app.Operation)
 
 	events, err := appServer.kubeclientset.CoreV1().Events(appServer.ns).List(context.Background(), metav1.ListOptions{})
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	event := events.Items[1]
 
 	assert.Regexp(t, ".*initiated sync to HEAD \\([0-9A-Fa-f]{40}\\).*", event.Message)
@@ -1732,14 +1732,14 @@ func TestSyncAndTerminate(t *testing.T) {
 		StartedAt: metav1.NewTime(time.Now()),
 	}
 	_, err = appServer.appclientset.ArgoprojV1alpha1().Applications(appServer.ns).Update(context.Background(), app, metav1.UpdateOptions{})
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	resp, err := appServer.TerminateOperation(ctx, &application.OperationTerminateRequest{Name: &app.Name})
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.NotNil(t, resp)
 
 	app, err = appServer.Get(ctx, &application.ApplicationQuery{Name: &app.Name})
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.NotNil(t, app)
 	assert.Equal(t, synccommon.OperationTerminating, app.Status.OperationState.Phase)
 }
@@ -1810,7 +1810,7 @@ func TestRollbackApp(t *testing.T) {
 		Id:   ptr.To(int64(1)),
 	})
 
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	assert.NotNil(t, updatedApp.Operation)
 	assert.NotNil(t, updatedApp.Operation.Sync)
@@ -2006,7 +2006,7 @@ func TestGetCachedAppState(t *testing.T) {
 			retryCount++
 			return res
 		})
-		assert.Equal(t, nil, err)
+		assert.NoError(t, err)
 		assert.Equal(t, 2, retryCount)
 		assert.True(t, patched)
 	})
@@ -2135,7 +2135,7 @@ func TestMaxPodLogsRender(t *testing.T) {
 
 	t.Run("PodLogs", func(t *testing.T) {
 		err := appServer.PodLogs(&application.ApplicationPodLogsQuery{Name: ptr.To("test")}, &TestPodLogsServer{ctx: adminCtx})
-		assert.NotNil(t, err)
+		assert.Error(t, err)
 		statusCode, _ := status.FromError(err)
 		assert.Equal(t, codes.InvalidArgument, statusCode.Code())
 		assert.Equal(t, "rpc error: code = InvalidArgument desc = max pods to view logs are reached. Please provide more granular query", err.Error())
@@ -2159,7 +2159,7 @@ func TestMaxPodLogsRender(t *testing.T) {
 
 	t.Run("PodLogs", func(t *testing.T) {
 		err := appServer.PodLogs(&application.ApplicationPodLogsQuery{Name: ptr.To("test")}, &TestPodLogsServer{ctx: adminCtx})
-		assert.NotNil(t, err)
+		assert.Error(t, err)
 		statusCode, _ := status.FromError(err)
 		assert.Equal(t, codes.InvalidArgument, statusCode.Code())
 		assert.Equal(t, "rpc error: code = InvalidArgument desc = max pods to view logs are reached. Please provide more granular query", err.Error())

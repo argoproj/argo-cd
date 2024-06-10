@@ -523,7 +523,7 @@ func TestListReposUnknownProtocol(t *testing.T) {
 	provider, err := NewBitbucketServerProviderNoAuth(context.Background(), ts.URL, "PROJECT", true)
 	assert.NoError(t, err)
 	_, errProtocol := provider.ListRepos(context.Background(), "http")
-	assert.NotNil(t, errProtocol)
+	assert.Error(t, errProtocol)
 }
 
 func TestBitbucketServerHasPath(t *testing.T) {
