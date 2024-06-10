@@ -160,7 +160,7 @@ func TestUpdateClusterLabels(t *testing.T) {
 				Labels: map[string]string{"argocd.argoproj.io/kubernetes-version": "1.27", "argocd.argoproj.io/auto-label-cluster-info": "true"},
 			},
 			func(ctx context.Context, cluster *v1alpha1.Cluster) (*v1alpha1.Cluster, error) {
-				assert.Equal(t, cluster.Labels["argocd.argoproj.io/kubernetes-version"], "1.28")
+				assert.Equal(t, "1.28", cluster.Labels["argocd.argoproj.io/kubernetes-version"])
 				return nil, nil
 			},
 			assert.NoError,
@@ -176,7 +176,7 @@ func TestUpdateClusterLabels(t *testing.T) {
 				Labels: map[string]string{"argocd.argoproj.io/kubernetes-version": "1.27", "argocd.argoproj.io/auto-label-cluster-info": "true"},
 			},
 			func(ctx context.Context, cluster *v1alpha1.Cluster) (*v1alpha1.Cluster, error) {
-				assert.Equal(t, cluster.Labels["argocd.argoproj.io/kubernetes-version"], "1.28")
+				assert.Equal(t, "1.28", cluster.Labels["argocd.argoproj.io/kubernetes-version"])
 				return nil, errors.New("some error happened while saving")
 			},
 			assert.Error,

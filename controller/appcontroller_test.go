@@ -1102,8 +1102,8 @@ func TestGetResourceTree_HasOrphanedResources(t *testing.T) {
 	}})
 
 	assert.NoError(t, err)
-	assert.Equal(t, tree.Nodes, []v1alpha1.ResourceNode{managedDeploy})
-	assert.Equal(t, tree.OrphanedNodes, []v1alpha1.ResourceNode{orphanedDeploy1, orphanedDeploy2})
+	assert.Equal(t, []v1alpha1.ResourceNode{managedDeploy}, tree.Nodes)
+	assert.Equal(t, []v1alpha1.ResourceNode{orphanedDeploy1, orphanedDeploy2}, tree.OrphanedNodes)
 }
 
 func TestSetOperationStateOnDeletedApp(t *testing.T) {

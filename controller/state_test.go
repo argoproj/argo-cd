@@ -81,7 +81,7 @@ func TestCompareAppStateRepoError(t *testing.T) {
 	compRes, err = ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false)
 	assert.NotNil(t, compRes)
 	assert.NoError(t, err)
-	assert.Equal(t, compRes.syncStatus.Status, argoappv1.SyncStatusCodeUnknown)
+	assert.Equal(t, argoappv1.SyncStatusCodeUnknown, compRes.syncStatus.Status)
 }
 
 // TestCompareAppStateNamespaceMetadataDiffers tests comparison when managed namespace metadata differs
@@ -1706,7 +1706,7 @@ func TestUseDiffCache(t *testing.T) {
 			useDiffCache := useDiffCache(tc.noCache, tc.manifestInfos, tc.sources, tc.app, tc.manifestRevisions, tc.statusRefreshTimeout, tc.serverSideDiff, log)
 
 			// Then
-			assert.Equal(t, useDiffCache, tc.expectedUseCache)
+			assert.Equal(t, tc.expectedUseCache, useDiffCache)
 		})
 	}
 }

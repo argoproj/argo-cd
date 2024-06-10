@@ -139,7 +139,7 @@ func TestGetTLSVersionByString(t *testing.T) {
 	t.Run("Empty versions", func(t *testing.T) {
 		r, err := getTLSVersionByString("")
 		assert.NoError(t, err)
-		assert.Equal(t, r, uint16(0))
+		assert.Equal(t, uint16(0), r)
 	})
 }
 

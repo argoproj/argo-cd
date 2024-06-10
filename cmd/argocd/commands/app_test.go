@@ -1428,39 +1428,39 @@ func TestParseSelectedResources(t *testing.T) {
 	operationResources, err := parseSelectedResources(resources)
 	assert.NoError(t, err)
 	assert.Len(t, operationResources, 5)
-	assert.Equal(t, *operationResources[0], v1alpha1.SyncOperationResource{
+	assert.Equal(t, v1alpha1.SyncOperationResource{
 		Namespace: "",
 		Name:      "test",
 		Kind:      application.ApplicationKind,
 		Group:     "v1alpha",
-	})
-	assert.Equal(t, *operationResources[1], v1alpha1.SyncOperationResource{
+	}, *operationResources[0])
+	assert.Equal(t, v1alpha1.SyncOperationResource{
 		Namespace: "namespace",
 		Name:      "test",
 		Kind:      application.ApplicationKind,
 		Group:     "v1alpha",
-	})
-	assert.Equal(t, *operationResources[2], v1alpha1.SyncOperationResource{
+	}, *operationResources[1])
+	assert.Equal(t, v1alpha1.SyncOperationResource{
 		Namespace: "",
 		Name:      "test",
 		Kind:      "Application",
 		Group:     "v1alpha",
 		Exclude:   true,
-	})
-	assert.Equal(t, *operationResources[3], v1alpha1.SyncOperationResource{
+	}, *operationResources[2])
+	assert.Equal(t, v1alpha1.SyncOperationResource{
 		Namespace: "default",
 		Name:      "test",
 		Kind:      "Deployment",
 		Group:     "apps",
 		Exclude:   false,
-	})
-	assert.Equal(t, *operationResources[4], v1alpha1.SyncOperationResource{
+	}, *operationResources[3])
+	assert.Equal(t, v1alpha1.SyncOperationResource{
 		Namespace: "",
 		Name:      "*",
 		Kind:      "*",
 		Group:     "*",
 		Exclude:   true,
-	})
+	}, *operationResources[4])
 }
 
 func TestParseSelectedResourcesIncorrect(t *testing.T) {

@@ -28,7 +28,7 @@ func TestCreateAndUseAccount(t *testing.T) {
 		Then().
 		And(func(account *account.Account, err error) {
 			assert.Equal(t, account.Name, ctx.GetName())
-			assert.Equal(t, account.Capabilities, []string{"login"})
+			assert.Equal(t, []string{"login"}, account.Capabilities)
 		}).
 		When().
 		Login().
@@ -144,7 +144,7 @@ test   true     login, apiKey`, output)
 	info, err := client.GetUserInfo(context.Background(), &session.GetUserInfoRequest{})
 	assert.NoError(t, err)
 
-	assert.Equal(t, info.Username, "test")
+	assert.Equal(t, "test", info.Username)
 }
 
 func TestLoginBadCredentials(t *testing.T) {

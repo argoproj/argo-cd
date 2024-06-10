@@ -1124,11 +1124,11 @@ func TestGetGlobalProjects(t *testing.T) {
 
 		xGlobalProjects := GetGlobalProjects(isX, projLister, settingsMgr)
 		assert.Len(t, xGlobalProjects, 1)
-		assert.Equal(t, xGlobalProjects[0].Name, "default-x")
+		assert.Equal(t, "default-x", xGlobalProjects[0].Name)
 
 		nonXGlobalProjects := GetGlobalProjects(isNoX, projLister, settingsMgr)
 		assert.Len(t, nonXGlobalProjects, 1)
-		assert.Equal(t, nonXGlobalProjects[0].Name, "default-non-x")
+		assert.Equal(t, "default-non-x", nonXGlobalProjects[0].Name)
 	})
 }
 
@@ -1140,7 +1140,7 @@ func Test_GetDifferentPathsBetweenStructs(t *testing.T) {
 	}
 
 	difference, _ := GetDifferentPathsBetweenStructs(r1, r2)
-	assert.Equal(t, difference, []string{"Name"})
+	assert.Equal(t, []string{"Name"}, difference)
 
 }
 
@@ -1150,7 +1150,7 @@ func Test_GenerateSpecIsDifferentErrorMessageWithNoDiff(t *testing.T) {
 	r2 := argoappv1.Repository{}
 
 	msg := GenerateSpecIsDifferentErrorMessage("application", r1, r2)
-	assert.Equal(t, msg, "existing application spec is different; use upsert flag to force update")
+	assert.Equal(t, "existing application spec is different; use upsert flag to force update", msg)
 
 }
 
@@ -1162,7 +1162,7 @@ func Test_GenerateSpecIsDifferentErrorMessageWithDiff(t *testing.T) {
 	}
 
 	msg := GenerateSpecIsDifferentErrorMessage("repo", r1, r2)
-	assert.Equal(t, msg, "existing repo spec is different; use upsert flag to force update; difference in keys \"Name\"")
+	assert.Equal(t, "existing repo spec is different; use upsert flag to force update; difference in keys \"Name\"", msg)
 
 }
 

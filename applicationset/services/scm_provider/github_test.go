@@ -301,7 +301,7 @@ func TestGithubGetBranches(t *testing.T) {
 	if err != nil {
 		assert.NoError(t, err)
 	} else {
-		assert.Equal(t, repos[0].Branch, "master")
+		assert.Equal(t, "master", repos[0].Branch)
 	}
 	//Branch Doesn't exists instead of error will return no error
 	repo2 := &Repository{
