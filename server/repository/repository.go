@@ -315,7 +315,7 @@ func (s *Server) GetAppDetails(ctx context.Context, q *repositorypkg.RepoAppDeta
 			return nil, errPermissionDenied
 		}
 		// verify caller is not making a request with arbitrary source values which were not in our history
-		if !isSourceInHistory(app, *q.Source) {
+		if !isSourceInHistory(app, *q.Source, q.SourceIndex, q.VersionId) {
 			return nil, errPermissionDenied
 		}
 	}
@@ -345,6 +345,7 @@ func (s *Server) GetAppDetails(ctx context.Context, q *repositorypkg.RepoAppDeta
 	if err != nil {
 		return nil, err
 	}
+
 	return repoClient.GetAppDetails(ctx, &apiclient.RepoServerAppDetailsQuery{
 		Repo:             repo,
 		Source:           q.Source,
@@ -600,26 +601,48 @@ func (s *Server) isRepoPermittedInProject(ctx context.Context, repo string, proj
 
 // isSourceInHistory checks if the supplied application source is either our current application
 // source, or was something which we synced to previously.
-func isSourceInHistory(app *v1alpha1.Application, source v1alpha1.ApplicationSource) bool {
-	appSource := app.Spec.GetSource()
-	if source.Equals(&appSource) {
-		return true
-	}
-	appSources := app.Spec.GetSources()
-	for _, s := range appSources {
-		if source.Equals(&s) {
+func isSourceInHistory(app *v1alpha1.Application, source v1alpha1.ApplicationSource, index int32, versionId int32) bool {
+	// We have to check if the spec is within the source or sources split
+	// and then iterate over the historical
+	if app.Spec.HasMultipleSources() {
+		appSources := app.Spec.GetSources()
+		for _, s := range appSources {
+			if source.Equals(&s) {
+				return true
+			}
+		}
+	} else {
+		appSource := app.Spec.GetSource()
+		if source.Equals(&appSource) {
 			return true
 		}
 	}
+
 	// Iterate history. When comparing items in our history, use the actual synced revision to
 	// compare with the supplied source.targetRevision in the request. This is because
 	// history[].source.targetRevision is ambiguous (e.g. HEAD), whereas
 	// history[].revision will contain the explicit SHA
+	// In case of multi source apps, we have to check the specific versionID because users
+	// could have removed/added new sources and we cannot check all the versions due to that
 	for _, h := range app.Status.History {
-		h.Source.TargetRevision = h.Revision
-		if source.Equals(&h.Source) {
-			return true
+		// multi source revision
+		if len(h.Sources) > 0 {
+			if h.ID == int64(versionId) {
+				if h.Revisions == nil {
+					continue
+				}
+				h.Sources[index].TargetRevision = h.Revisions[index]
+				if source.Equals(&h.Sources[index]) {
+					return true
+				}
+			}
+		} else { // single source revision
+			h.Source.TargetRevision = h.Revision
+			if source.Equals(&h.Source) {
+				return true
+			}
 		}
 	}
+
 	return false
 }
