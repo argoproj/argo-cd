@@ -231,7 +231,7 @@ func TestRegisterExtensions(t *testing.T) {
 				err := f.manager.RegisterExtensions()
 
 				// then
-				assert.Error(t, err, fmt.Sprintf("expected error in test %s but got nil", tc.name))
+				assert.Error(t, err, "expected error in test %s but got nil", tc.name)
 			})
 		}
 	})

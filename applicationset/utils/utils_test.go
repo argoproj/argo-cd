@@ -912,7 +912,7 @@ func TestCheckInvalidGenerators(t *testing.T) {
 		hook := logtest.NewGlobal()
 
 		_ = CheckInvalidGenerators(&c.appSet)
-		assert.True(t, len(hook.Entries) >= 1, c.testName)
+		assert.GreaterOrEqual(t, len(hook.Entries), 1, c.testName)
 		assert.NotNil(t, hook.LastEntry(), c.testName)
 		if hook.LastEntry() != nil {
 			assert.Equal(t, logrus.WarnLevel, hook.LastEntry().Level, c.testName)
