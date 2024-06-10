@@ -555,7 +555,7 @@ func TestSkipResourceUpdate(t *testing.T) {
 		assert.False(t, skipResourceUpdate(info, nil))
 	})
 	t.Run("No hash", func(t *testing.T) {
-		assert.True(t, skipResourceUpdate(&ResourceInfo{}, &ResourceInfo{}))
+		assert.False(t, skipResourceUpdate(&ResourceInfo{}, &ResourceInfo{}))
 	})
 	t.Run("Same hash", func(t *testing.T) {
 		assert.True(t, skipResourceUpdate(&ResourceInfo{

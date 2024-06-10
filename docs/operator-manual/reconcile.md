@@ -112,22 +112,19 @@ data:
     - .status.conditions[].lastTransitionTime
 ```
 
-## Completely ignore resources update
+## Tracking Dependent Resources
 
-There is a use case that you would like to completely ignore the resources at all. This mostly happens when some dependent
-resources are created by another resource (e.g. a Job and a Pod are created by a CronJob and you want to ignore the Job
-and the Pod). 
+Dependent resources by default are not being tracked. Therefore, we cannot generate any hash of those objects and utilize 
+the `ignoreResourceUpdates` configuration.
 
-For this use case, the above configurations will not help because argocd will still reconcile any newly created objects.
-
-To completely ignore a newly created object, you need to add annotation `argocd.argoproj.io/apply-resources-update=false`
-to the target resource manifest.
+If you want to track the dependent object and apply the `ignoreResourceUpdates` configuration, you can add 
+`argocd.argoproj.io/apply-resources-update=true` annotation in the dependent resources manifest:
 
 ## Example
 
 ### CronJob
 
-```
+```yaml
 apiVersion: batch/v1
 kind: CronJob
 metadata:
@@ -138,12 +135,12 @@ spec:
   jobTemplate:
     metadata:
       annotations:
-        argocd.argoproj.io/apply-resources-update: "false"
+        argocd.argoproj.io/apply-resources-update: "true"
     spec:
       template:
         metadata:
           annotations:
-            argocd.argoproj.io/apply-resources-update: "false"
+            argocd.argoproj.io/apply-resources-update: "true"
         spec:
           containers:
           - name: hello
@@ -156,11 +153,17 @@ spec:
           restartPolicy: OnFailure
 ```
 
-And you should see the following debug message (if enabled) in the `application-controller` log:
+Then you can update `argocd-cm` configMap to ignore the dependent resources:
 
-```
-Ignoring change of object because none of the watched resource fields have changed
+`argocd-cm`:
+```yaml
+resource.customizations.ignoreResourceUpdates.batch_Job: |
+    jsonPointers:
+      - /status
+resource.customizations.ignoreResourceUpdates.Pod: |
+    jsonPointers:
+      - /status      
 ```
 
-Note: If you add annotation to any resource with `argocd.argoproj.io/apply-resources-update=true`, argocd controller
-will refresh that resource regardless if it belongs to the application or not.
+Note: If you set `argocd.argoproj.io/apply-resources-update: "false"`, no hash will be generated and `ignoreResourceUpdates`
+cannot be applied on those resources.
