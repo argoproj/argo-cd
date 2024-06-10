@@ -3,6 +3,7 @@ package commands
 import (
 	"context"
 	"encoding/json"
+	std_errors "errors"
 	"fmt"
 	"io"
 	"os"
@@ -514,10 +515,10 @@ func NewApplicationLogsCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				}
 				for {
 					msg, err := stream.Recv()
-					if err == io.EOF {
-						return
-					}
 					if err != nil {
+						if std_errors.Is(err, io.EOF) {
+							return
+						}
 						st, ok := status.FromError(err)
 						if !ok {
 							log.Fatalf("stream read failed: %v", err)
