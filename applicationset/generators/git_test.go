@@ -342,7 +342,7 @@ func TestGitGenerateParamsFromDirectories(t *testing.T) {
 
 			scheme := runtime.NewScheme()
 			err := v1alpha1.AddToScheme(scheme)
-			assert.Nil(t, err)
+			assert.NoError(t, err)
 			appProject := argoprojiov1alpha1.AppProject{}
 
 			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&appProject).Build()
@@ -643,7 +643,7 @@ func TestGitGenerateParamsFromDirectoriesGoTemplate(t *testing.T) {
 
 			scheme := runtime.NewScheme()
 			err := v1alpha1.AddToScheme(scheme)
-			assert.Nil(t, err)
+			assert.NoError(t, err)
 			appProject := argoprojiov1alpha1.AppProject{}
 
 			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&appProject).Build()
@@ -1007,7 +1007,7 @@ cluster:
 
 			scheme := runtime.NewScheme()
 			err := v1alpha1.AddToScheme(scheme)
-			assert.Nil(t, err)
+			assert.NoError(t, err)
 			appProject := argoprojiov1alpha1.AppProject{}
 
 			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&appProject).Build()
@@ -1363,7 +1363,7 @@ cluster:
 
 			scheme := runtime.NewScheme()
 			err := v1alpha1.AddToScheme(scheme)
-			assert.Nil(t, err)
+			assert.NoError(t, err)
 			appProject := argoprojiov1alpha1.AppProject{}
 
 			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&appProject).Build()
