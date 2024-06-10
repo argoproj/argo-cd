@@ -5,17 +5,16 @@ import (
 	"os"
 	"testing"
 
-	"github.com/argoproj/notifications-engine/pkg/api"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-	corev1 "k8s.io/api/core/v1"
-	"k8s.io/utils/ptr"
-
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/notification"
 	"github.com/argoproj/argo-cd/v2/reposerver/apiclient/mocks"
 	service "github.com/argoproj/argo-cd/v2/util/notification/argocd"
 	"github.com/argoproj/argo-cd/v2/util/notification/k8s"
 	"github.com/argoproj/argo-cd/v2/util/notification/settings"
+	"github.com/argoproj/notifications-engine/pkg/api"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/utils/pointer"
 
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
@@ -42,7 +41,7 @@ func TestNotificationServer(t *testing.T) {
 			Name:      "argocd-notifications-cm",
 		},
 		Data: map[string]string{
-			"service.webhook.test": "url: https://test.example.com",
+			"service.webhook.test": "url: https://test.com",
 			"template.app-created": "email:\n  subject: Application {{.app.metadata.name}} has been created.\nmessage: Application {{.app.metadata.name}} has been created.\nteams:\n  title: Application {{.app.metadata.name}} has been created.\n",
 			"trigger.on-created":   "- description: Application is created.\n  oncePer: app.metadata.name\n  send:\n  - app-created\n  when: \"true\"\n",
 		},
@@ -71,14 +70,14 @@ func TestNotificationServer(t *testing.T) {
 	argocdService, err := service.NewArgoCDService(kubeclientset, testNamespace, mockRepoClient)
 	require.NoError(t, err)
 	defer argocdService.Close()
-	apiFactory := api.NewFactory(settings.GetFactorySettings(argocdService, "argocd-notifications-secret", "argocd-notifications-cm", false), testNamespace, secretInformer, configMapInformer)
+	apiFactory := api.NewFactory(settings.GetFactorySettings(argocdService, "argocd-notifications-secret", "argocd-notifications-cm"), testNamespace, secretInformer, configMapInformer)
 
 	t.Run("TestListServices", func(t *testing.T) {
 		server := NewServer(apiFactory)
 		services, err := server.ListServices(ctx, &notification.ServicesListRequest{})
 		assert.NoError(t, err)
 		assert.Len(t, services.Items, 1)
-		assert.Equal(t, services.Items[0].Name, ptr.To("test"))
+		assert.Equal(t, services.Items[0].Name, pointer.String("test"))
 		assert.NotEmpty(t, services.Items[0])
 	})
 	t.Run("TestListTriggers", func(t *testing.T) {
@@ -86,7 +85,7 @@ func TestNotificationServer(t *testing.T) {
 		triggers, err := server.ListTriggers(ctx, &notification.TriggersListRequest{})
 		assert.NoError(t, err)
 		assert.Len(t, triggers.Items, 1)
-		assert.Equal(t, triggers.Items[0].Name, ptr.To("on-created"))
+		assert.Equal(t, triggers.Items[0].Name, pointer.String("on-created"))
 		assert.NotEmpty(t, triggers.Items[0])
 	})
 	t.Run("TestListTemplates", func(t *testing.T) {
@@ -94,7 +93,7 @@ func TestNotificationServer(t *testing.T) {
 		templates, err := server.ListTemplates(ctx, &notification.TemplatesListRequest{})
 		assert.NoError(t, err)
 		assert.Len(t, templates.Items, 1)
-		assert.Equal(t, templates.Items[0].Name, ptr.To("app-created"))
+		assert.Equal(t, templates.Items[0].Name, pointer.String("app-created"))
 		assert.NotEmpty(t, templates.Items[0])
 	})
 }

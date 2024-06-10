@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/argoproj/argo-cd/v2/common"
 	jwt "github.com/golang-jwt/jwt/v4"
 	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
@@ -16,8 +17,6 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
-
-	"github.com/argoproj/argo-cd/v2/common"
 )
 
 // ArgoCDManagerServiceAccount is the name of the service account for managing a cluster
@@ -230,8 +229,8 @@ func GetServiceAccountBearerToken(clientset kubernetes.Interface, ns string, sa 
 	}
 
 	var secret *corev1.Secret
-	err = wait.PollUntilContextTimeout(context.Background(), 500*time.Millisecond, timeout, true, func(ctx context.Context) (bool, error) {
-		ctx, cancel := context.WithTimeout(ctx, common.ClusterAuthRequestTimeout)
+	err = wait.PollImmediate(500*time.Millisecond, timeout, func() (bool, error) {
+		ctx, cancel := context.WithTimeout(context.Background(), common.ClusterAuthRequestTimeout)
 		defer cancel()
 		secret, err = clientset.CoreV1().Secrets(ns).Get(ctx, secretName, metav1.GetOptions{})
 		if err != nil {
@@ -260,17 +259,20 @@ func getOrCreateServiceAccountTokenSecret(clientset kubernetes.Interface, sa, ns
 	// Wait for sa to have secret, but don't wait too
 	// long for 1.24+ clusters
 	var serviceAccount *corev1.ServiceAccount
-	err := wait.PollUntilContextTimeout(context.Background(), 500*time.Millisecond, 30*time.Second, true, func(ctx context.Context) (bool, error) {
-		ctx, cancel := context.WithTimeout(ctx, common.ClusterAuthRequestTimeout)
+	err := wait.PollImmediate(500*time.Millisecond, 5*time.Second, func() (bool, error) {
+		ctx, cancel := context.WithTimeout(context.Background(), common.ClusterAuthRequestTimeout)
 		defer cancel()
 		var getErr error
 		serviceAccount, getErr = clientset.CoreV1().ServiceAccounts(ns).Get(ctx, sa, metav1.GetOptions{})
 		if getErr != nil {
 			return false, fmt.Errorf("failed to get serviceaccount %q: %w", sa, getErr)
 		}
+		if len(serviceAccount.Secrets) == 0 {
+			return false, nil
+		}
 		return true, nil
 	})
-	if err != nil && !wait.Interrupted(err) {
+	if err != nil && err != wait.ErrWaitTimeout {
 		return "", fmt.Errorf("failed to get serviceaccount token secret: %w", err)
 	}
 	if serviceAccount == nil {
@@ -417,8 +419,8 @@ func GenerateNewClusterManagerSecret(clientset kubernetes.Interface, claims *Ser
 		return nil, err
 	}
 
-	err = wait.PollUntilContextTimeout(context.Background(), 500*time.Millisecond, 30*time.Second, false, func(ctx context.Context) (bool, error) {
-		created, err = secretsClient.Get(ctx, created.Name, metav1.GetOptions{})
+	err = wait.Poll(500*time.Millisecond, 30*time.Second, func() (bool, error) {
+		created, err = secretsClient.Get(context.Background(), created.Name, metav1.GetOptions{})
 		if err != nil {
 			return false, err
 		}
@@ -428,7 +430,7 @@ func GenerateNewClusterManagerSecret(clientset kubernetes.Interface, claims *Ser
 		return true, nil
 	})
 	if err != nil {
-		return nil, fmt.Errorf("Timed out waiting for secret to generate new token: %w", err)
+		return nil, fmt.Errorf("Timed out waiting for secret to generate new token")
 	}
 	return created, nil
 }

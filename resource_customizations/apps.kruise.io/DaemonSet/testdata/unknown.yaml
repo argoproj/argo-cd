@@ -1,5 +1,0 @@
-apiVersion: apps.kruise.io/v1alpha1
-kind: DaemonSet
-metadata:
-  name: daemonset-test
-  namespace: kruise

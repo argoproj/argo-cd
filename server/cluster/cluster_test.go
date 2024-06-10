@@ -4,25 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/argoproj/argo-cd/v2/server/rbacpolicy"
+	"github.com/argoproj/argo-cd/v2/util/assets"
+	"github.com/golang-jwt/jwt/v4"
 	"reflect"
 	"testing"
 	"time"
-
-	"github.com/golang-jwt/jwt/v4"
-
-	"github.com/argoproj/argo-cd/v2/server/rbacpolicy"
-	"github.com/argoproj/argo-cd/v2/util/assets"
-
-	"github.com/argoproj/gitops-engine/pkg/utils/kube/kubetest"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
-	"github.com/stretchr/testify/require"
-	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/client-go/kubernetes/fake"
-	"k8s.io/utils/ptr"
 
 	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/cluster"
@@ -37,6 +24,16 @@ import (
 	dbmocks "github.com/argoproj/argo-cd/v2/util/db/mocks"
 	"github.com/argoproj/argo-cd/v2/util/rbac"
 	"github.com/argoproj/argo-cd/v2/util/settings"
+	"github.com/argoproj/gitops-engine/pkg/utils/kube/kubetest"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/kubernetes/fake"
+	"k8s.io/utils/pointer"
 )
 
 func newServerInMemoryCache() *servercache.Cache {
@@ -294,7 +291,7 @@ func TestUpdateCluster_FieldsPathSet(t *testing.T) {
 	_, err := server.Update(context.Background(), &clusterapi.ClusterUpdateRequest{
 		Cluster: &v1alpha1.Cluster{
 			Server: "https://127.0.0.1",
-			Shard:  ptr.To(int64(1)),
+			Shard:  pointer.Int64Ptr(1),
 		},
 		UpdatedFields: []string{"shard"},
 	})
@@ -388,7 +385,7 @@ func TestDeleteClusterByName(t *testing.T) {
 		_, err := server.Delete(context.Background(), &clusterapi.ClusterQuery{
 			Name: "my-cluster-name",
 		})
-		assert.NoError(t, err)
+		assert.Nil(t, err)
 
 		_, err = db.GetCluster(context.Background(), "https://my-cluster-server")
 		assert.EqualError(t, err, `rpc error: code = NotFound desc = cluster "https://my-cluster-server" not found`)
@@ -471,7 +468,7 @@ func TestRotateAuth(t *testing.T) {
 			Name: "my-cluster-name",
 		})
 
-		require.Error(t, err)
+		require.NotNil(t, err)
 		assert.Contains(t, err.Error(), "Get \"https://my-cluster-name/")
 	})
 
@@ -480,7 +477,7 @@ func TestRotateAuth(t *testing.T) {
 			Server: "https://my-cluster-name",
 		})
 
-		require.Error(t, err)
+		require.NotNil(t, err)
 		assert.Contains(t, err.Error(), "Get \"https://my-cluster-name/")
 	})
 }

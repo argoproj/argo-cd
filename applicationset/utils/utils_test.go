@@ -828,7 +828,7 @@ func TestRenderTemplateParamsFinalizers(t *testing.T) {
 			render := Render{}
 
 			res, err := render.RenderTemplateParams(application, c.syncPolicy, params, true, nil)
-			assert.NoError(t, err)
+			assert.Nil(t, err)
 
 			assert.ElementsMatch(t, res.Finalizers, c.expectedFinalizers)
 
@@ -842,9 +842,9 @@ func TestCheckInvalidGenerators(t *testing.T) {
 
 	scheme := runtime.NewScheme()
 	err := argoappsv1.AddToScheme(scheme)
-	assert.NoError(t, err)
+	assert.Nil(t, err)
 	err = argoappsv1.AddToScheme(scheme)
-	assert.NoError(t, err)
+	assert.Nil(t, err)
 
 	for _, c := range []struct {
 		testName    string
@@ -946,9 +946,9 @@ func TestInvalidGenerators(t *testing.T) {
 
 	scheme := runtime.NewScheme()
 	err := argoappsv1.AddToScheme(scheme)
-	assert.NoError(t, err)
+	assert.Nil(t, err)
 	err = argoappsv1.AddToScheme(scheme)
-	assert.NoError(t, err)
+	assert.Nil(t, err)
 
 	for _, c := range []struct {
 		testName        string
@@ -1240,43 +1240,6 @@ func TestNormalizeBitbucketBasePath(t *testing.T) {
 	} {
 		result := NormalizeBitbucketBasePath(c.basePath)
 		assert.Equal(t, c.expectedBasePath, result, c.testName)
-	}
-}
-
-func TestSlugify(t *testing.T) {
-	for _, c := range []struct {
-		branch           string
-		smartTruncate    bool
-		length           int
-		expectedBasePath string
-	}{
-		{
-			branch:           "feat/a_really+long_pull_request_name_to_test_argo_slugification_and_branch_name_shortening_feature",
-			smartTruncate:    false,
-			length:           50,
-			expectedBasePath: "feat-a-really-long-pull-request-name-to-test-argo",
-		},
-		{
-			branch:           "feat/a_really+long_pull_request_name_to_test_argo_slugification_and_branch_name_shortening_feature",
-			smartTruncate:    true,
-			length:           53,
-			expectedBasePath: "feat-a-really-long-pull-request-name-to-test-argo",
-		},
-		{
-			branch:           "feat/areallylongpullrequestnametotestargoslugificationandbranchnameshorteningfeature",
-			smartTruncate:    true,
-			length:           50,
-			expectedBasePath: "feat",
-		},
-		{
-			branch:           "feat/areallylongpullrequestnametotestargoslugificationandbranchnameshorteningfeature",
-			smartTruncate:    false,
-			length:           50,
-			expectedBasePath: "feat-areallylongpullrequestnametotestargoslugifica",
-		},
-	} {
-		result := SlugifyName(c.length, c.smartTruncate, c.branch)
-		assert.Equal(t, c.expectedBasePath, result, c.branch)
 	}
 }
 

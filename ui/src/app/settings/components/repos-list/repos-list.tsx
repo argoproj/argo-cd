@@ -1,4 +1,3 @@
-/* eslint-disable no-case-declarations */
 import {AutocompleteField, DropDownMenu, FormField, FormSelect, HelpIcon, NotificationType, SlidingPanel, Tooltip} from 'argo-ui';
 import * as PropTypes from 'prop-types';
 import * as React from 'react';
@@ -334,7 +333,7 @@ export class ReposList extends React.Component<
                                                                 },
                                                                 {
                                                                     title: 'Disconnect',
-                                                                    action: () => this.disconnectRepo(repo.repo, repo.project)
+                                                                    action: () => this.disconnectRepo(repo.repo)
                                                                 }
                                                             ]}
                                                         />
@@ -847,11 +846,11 @@ export class ReposList extends React.Component<
     }
 
     // Remove a repository from the configuration
-    private async disconnectRepo(repo: string, project: string) {
+    private async disconnectRepo(repo: string) {
         const confirmed = await this.appContext.apis.popup.confirm('Disconnect repository', `Are you sure you want to disconnect '${repo}'?`);
         if (confirmed) {
             try {
-                await services.repos.delete(repo, project);
+                await services.repos.delete(repo);
                 this.repoLoader.reload();
             } catch (e) {
                 this.appContext.apis.notifications.show({

@@ -1,7 +1,6 @@
 package controllers
 
 import (
-	"context"
 	"testing"
 
 	log "github.com/sirupsen/logrus"
@@ -23,10 +22,10 @@ func TestClusterEventHandler(t *testing.T) {
 
 	scheme := runtime.NewScheme()
 	err := argov1alpha1.AddToScheme(scheme)
-	assert.NoError(t, err)
+	assert.Nil(t, err)
 
 	err = argov1alpha1.AddToScheme(scheme)
-	assert.NoError(t, err)
+	assert.Nil(t, err)
 
 	tests := []struct {
 		name             string
@@ -551,7 +550,7 @@ func TestClusterEventHandler(t *testing.T) {
 
 			mockAddRateLimitingInterface := mockAddRateLimitingInterface{}
 
-			handler.queueRelatedAppGenerators(context.Background(), &mockAddRateLimitingInterface, &test.secret)
+			handler.queueRelatedAppGenerators(&mockAddRateLimitingInterface, &test.secret)
 
 			assert.False(t, mockAddRateLimitingInterface.errorOccurred)
 			assert.ElementsMatch(t, mockAddRateLimitingInterface.addedItems, test.expectedRequests)
@@ -582,7 +581,7 @@ func TestNestedGeneratorHasClusterGenerator_NestedClusterGenerator(t *testing.T)
 
 	hasClusterGenerator, err := nestedGeneratorHasClusterGenerator(nested)
 
-	assert.NoError(t, err)
+	assert.Nil(t, err)
 	assert.True(t, hasClusterGenerator)
 }
 
@@ -609,7 +608,7 @@ func TestNestedGeneratorHasClusterGenerator_NestedMergeGenerator(t *testing.T) {
 
 	hasClusterGenerator, err := nestedGeneratorHasClusterGenerator(nested)
 
-	assert.NoError(t, err)
+	assert.Nil(t, err)
 	assert.True(t, hasClusterGenerator)
 }
 
@@ -636,6 +635,6 @@ func TestNestedGeneratorHasClusterGenerator_NestedMergeGeneratorWithInvalidJSON(
 
 	hasClusterGenerator, err := nestedGeneratorHasClusterGenerator(nested)
 
-	assert.Error(t, err)
+	assert.NotNil(t, err)
 	assert.False(t, hasClusterGenerator)
 }

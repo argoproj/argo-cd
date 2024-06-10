@@ -19,8 +19,6 @@ var tenSec = int64(10)
 
 func TestSimpleClusterDecisionResourceGeneratorExternalNamespace(t *testing.T) {
 
-	var externalNamespace = string(utils.ArgoCDExternalNamespace)
-
 	expectedApp := argov1alpha1.Application{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Application",
@@ -28,7 +26,7 @@ func TestSimpleClusterDecisionResourceGeneratorExternalNamespace(t *testing.T) {
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:       "cluster1-guestbook",
-			Namespace:  externalNamespace,
+			Namespace:  utils.ArgoCDExternalNamespace,
 			Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
 		},
 		Spec: argov1alpha1.ApplicationSpec{
@@ -63,8 +61,8 @@ func TestSimpleClusterDecisionResourceGeneratorExternalNamespace(t *testing.T) {
 		CreatePlacementDecisionConfigMap("my-configmap").
 		CreatePlacementDecision("my-placementdecision").
 		StatusUpdatePlacementDecision("my-placementdecision", clusterList).
-		CreateNamespace(externalNamespace).
-		SwitchToExternalNamespace(utils.ArgoCDExternalNamespace).
+		CreateNamespace(utils.ArgoCDExternalNamespace).
+		SwitchToExternalNamespace().
 		Create(v1alpha1.ApplicationSet{ObjectMeta: metav1.ObjectMeta{
 			Name: "simple-cluster-generator",
 		},

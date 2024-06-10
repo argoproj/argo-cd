@@ -8,19 +8,6 @@ List configured GPG public keys
 argocd gpg list [flags]
 ```
 
-### Examples
-
-```
-  # List all configured GPG public keys in wide format (default).
-  argocd gpg list
-  
-  # List all configured GPG public keys in JSON format.
-  argocd gpg list -o json
-  
-  # List all configured GPG public keys in YAML format.
-  argocd gpg list -o yaml
-```
-
 ### Options
 
 ```

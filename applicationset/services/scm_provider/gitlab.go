@@ -7,10 +7,9 @@ import (
 	"os"
 	pathpkg "path"
 
+	"github.com/argoproj/argo-cd/v2/applicationset/utils"
 	"github.com/hashicorp/go-retryablehttp"
 	"github.com/xanzy/go-gitlab"
-
-	"github.com/argoproj/argo-cd/v2/applicationset/utils"
 )
 
 type GitlabProvider struct {
@@ -101,20 +100,12 @@ func (g *GitlabProvider) ListRepos(ctx context.Context, cloneProtocol string) ([
 				return nil, fmt.Errorf("unknown clone protocol for Gitlab %v", cloneProtocol)
 			}
 
-			var repoLabels []string
-			if len(gitlabRepo.Topics) == 0 {
-				// fallback to for gitlab prior to 14.5
-				repoLabels = gitlabRepo.TagList
-			} else {
-				repoLabels = gitlabRepo.Topics
-			}
-
 			repos = append(repos, &Repository{
 				Organization: gitlabRepo.Namespace.FullPath,
 				Repository:   gitlabRepo.Path,
 				URL:          url,
 				Branch:       gitlabRepo.DefaultBranch,
-				Labels:       repoLabels,
+				Labels:       gitlabRepo.TagList,
 				RepositoryId: gitlabRepo.ID,
 			})
 		}

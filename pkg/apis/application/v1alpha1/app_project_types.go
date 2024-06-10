@@ -428,7 +428,7 @@ func (proj AppProject) IsDestinationPermitted(dst ApplicationDestination, projec
 	if destinationMatched && proj.Spec.PermitOnlyProjectScopedClusters {
 		clusters, err := projectClusters(proj.Name)
 		if err != nil {
-			return false, fmt.Errorf("could not retrieve project clusters: %w", err)
+			return false, fmt.Errorf("could not retrieve project clusters: %s", err)
 		}
 
 		for _, cluster := range clusters {

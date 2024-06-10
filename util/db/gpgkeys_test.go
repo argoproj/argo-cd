@@ -162,7 +162,7 @@ func Test_ListConfiguredGPGPublicKeys(t *testing.T) {
 		}
 		keys, err := db.ListConfiguredGPGPublicKeys(context.Background())
 		assert.NoError(t, err)
-		assert.Empty(t, keys)
+		assert.Len(t, keys, 0)
 	}
 	// Bad case. Single key in input, wrong mapping to Key ID in CM
 	{
@@ -174,7 +174,7 @@ func Test_ListConfiguredGPGPublicKeys(t *testing.T) {
 		}
 		keys, err := db.ListConfiguredGPGPublicKeys(context.Background())
 		assert.Error(t, err)
-		assert.Empty(t, keys)
+		assert.Len(t, keys, 0)
 	}
 	// Bad case. Garbage public key
 	{
@@ -186,7 +186,7 @@ func Test_ListConfiguredGPGPublicKeys(t *testing.T) {
 		}
 		keys, err := db.ListConfiguredGPGPublicKeys(context.Background())
 		assert.Error(t, err)
-		assert.Empty(t, keys)
+		assert.Len(t, keys, 0)
 	}
 	// Bad case. Garbage ConfigMap key in data
 	{
@@ -198,7 +198,7 @@ func Test_ListConfiguredGPGPublicKeys(t *testing.T) {
 		}
 		keys, err := db.ListConfiguredGPGPublicKeys(context.Background())
 		assert.Error(t, err)
-		assert.Empty(t, keys)
+		assert.Len(t, keys, 0)
 	}
 }
 
@@ -213,7 +213,7 @@ func Test_AddGPGPublicKey(t *testing.T) {
 		new, skipped, err := db.AddGPGPublicKey(context.Background(), testdata.Github_asc)
 		assert.NoError(t, err)
 		assert.Len(t, new, 1)
-		assert.Empty(t, skipped)
+		assert.Len(t, skipped, 0)
 		cm, err := settings.GetConfigMapByName(common.ArgoCDGPGKeysConfigMapName)
 		assert.NoError(t, err)
 		assert.Len(t, cm.Data, 1)
@@ -221,7 +221,7 @@ func Test_AddGPGPublicKey(t *testing.T) {
 		// Same key should not be added, but skipped
 		new, skipped, err = db.AddGPGPublicKey(context.Background(), testdata.Github_asc)
 		assert.NoError(t, err)
-		assert.Empty(t, new)
+		assert.Len(t, new, 0)
 		assert.Len(t, skipped, 1)
 		cm, err = settings.GetConfigMapByName(common.ArgoCDGPGKeysConfigMapName)
 		assert.NoError(t, err)
@@ -231,7 +231,7 @@ func Test_AddGPGPublicKey(t *testing.T) {
 		new, skipped, err = db.AddGPGPublicKey(context.Background(), testdata.Multi_asc)
 		assert.NoError(t, err)
 		assert.Len(t, new, 2)
-		assert.Empty(t, skipped)
+		assert.Len(t, skipped, 0)
 		cm, err = settings.GetConfigMapByName(common.ArgoCDGPGKeysConfigMapName)
 		assert.NoError(t, err)
 		assert.Len(t, cm.Data, 3)
@@ -239,7 +239,7 @@ func Test_AddGPGPublicKey(t *testing.T) {
 		// Same new keys should be skipped
 		new, skipped, err = db.AddGPGPublicKey(context.Background(), testdata.Multi_asc)
 		assert.NoError(t, err)
-		assert.Empty(t, new)
+		assert.Len(t, new, 0)
 		assert.Len(t, skipped, 2)
 		cm, err = settings.GetConfigMapByName(common.ArgoCDGPGKeysConfigMapName)
 		assert.NoError(t, err)
@@ -288,7 +288,7 @@ func Test_DeleteGPGPublicKey(t *testing.T) {
 		// No key left in configuration
 		n, err = db.ListConfiguredGPGPublicKeys(context.Background())
 		assert.NoError(t, err)
-		assert.Empty(t, n)
+		assert.Len(t, n, 0)
 	})
 
 	t.Run("bad case - empty ConfigMap", func(t *testing.T) {

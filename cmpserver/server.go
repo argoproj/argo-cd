@@ -18,8 +18,6 @@ import (
 	"google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/reflection"
 
-	"google.golang.org/grpc/keepalive"
-
 	"github.com/argoproj/argo-cd/v2/cmpserver/apiclient"
 	"github.com/argoproj/argo-cd/v2/cmpserver/plugin"
 	"github.com/argoproj/argo-cd/v2/common"
@@ -27,6 +25,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/server/version"
 	"github.com/argoproj/argo-cd/v2/util/errors"
 	grpc_util "github.com/argoproj/argo-cd/v2/util/grpc"
+	"google.golang.org/grpc/keepalive"
 )
 
 // ArgoCDCMPServer is the config management plugin server implementation
@@ -47,13 +46,13 @@ func NewServer(initConstants plugin.CMPServerInitConstants) (*ArgoCDCMPServer, e
 
 	serverLog := log.NewEntry(log.StandardLogger())
 	streamInterceptors := []grpc.StreamServerInterceptor{
-		otelgrpc.StreamServerInterceptor(), //nolint:staticcheck // TODO: ignore SA1019 for depreciation: see https://github.com/argoproj/argo-cd/issues/18258
+		otelgrpc.StreamServerInterceptor(),
 		grpc_logrus.StreamServerInterceptor(serverLog),
 		grpc_prometheus.StreamServerInterceptor,
 		grpc_util.PanicLoggerStreamServerInterceptor(serverLog),
 	}
 	unaryInterceptors := []grpc.UnaryServerInterceptor{
-		otelgrpc.UnaryServerInterceptor(), //nolint:staticcheck // TODO: ignore SA1019 for depreciation: see https://github.com/argoproj/argo-cd/issues/18258
+		otelgrpc.UnaryServerInterceptor(),
 		grpc_logrus.UnaryServerInterceptor(serverLog),
 		grpc_prometheus.UnaryServerInterceptor,
 		grpc_util.PanicLoggerUnaryServerInterceptor(serverLog),
@@ -66,7 +65,7 @@ func NewServer(initConstants plugin.CMPServerInitConstants) (*ArgoCDCMPServer, e
 		grpc.MaxSendMsgSize(apiclient.MaxGRPCMessageSize),
 		grpc.KeepaliveEnforcementPolicy(
 			keepalive.EnforcementPolicy{
-				MinTime: common.GetGRPCKeepAliveEnforcementMinimum(),
+				MinTime: common.GRPCKeepAliveEnforcementMinimum,
 			},
 		),
 	}

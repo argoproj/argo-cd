@@ -227,18 +227,6 @@ spec:
 )
 
 const (
-	testCustomResourceYAML = `apiVersion: v1
-apiVersion: example.com/v1alpha1
-kind: ExampleResource
-metadata:
-  name: example-resource
-  labels:
-    app: example
-spec:
-  replicas: 0`
-)
-
-const (
 	testCronJobYAML = `apiVersion: batch/v1
 kind: CronJob
 metadata:
@@ -297,7 +285,7 @@ func TestResourceOverrideIgnoreDifferences(t *testing.T) {
 			assert.NoError(t, err)
 		})
 		assert.NoError(t, err)
-		assert.Contains(t, out, "Ignore differences are not configured for 'apps/Deployment'\n")
+		assert.Contains(t, out, "No overrides configured")
 	})
 
 	t.Run("DataIgnored", func(t *testing.T) {
@@ -317,7 +305,7 @@ func TestResourceOverrideIgnoreDifferences(t *testing.T) {
 }
 
 func TestResourceOverrideHealth(t *testing.T) {
-	f, closer, err := tempFile(testCustomResourceYAML)
+	f, closer, err := tempFile(testDeploymentYAML)
 	if !assert.NoError(t, err) {
 		return
 	}
@@ -325,34 +313,19 @@ func TestResourceOverrideHealth(t *testing.T) {
 
 	t.Run("NoHealthAssessment", func(t *testing.T) {
 		cmd := NewResourceOverridesCommand(newCmdContext(map[string]string{
-			"resource.customizations": `example.com/ExampleResource: {}`}))
+			"resource.customizations": `apps/Deployment: {}`}))
 		out, err := captureStdout(func() {
 			cmd.SetArgs([]string{"health", f})
 			err := cmd.Execute()
 			assert.NoError(t, err)
 		})
 		assert.NoError(t, err)
-		assert.Contains(t, out, "Health script is not configured for 'example.com/ExampleResource'\n")
+		assert.Contains(t, out, "Health script is not configured")
 	})
 
 	t.Run("HealthAssessmentConfigured", func(t *testing.T) {
 		cmd := NewResourceOverridesCommand(newCmdContext(map[string]string{
-			"resource.customizations": `example.com/ExampleResource:
-  health.lua: |
-    return { status = "Progressing" }
-`}))
-		out, err := captureStdout(func() {
-			cmd.SetArgs([]string{"health", f})
-			err := cmd.Execute()
-			assert.NoError(t, err)
-		})
-		assert.NoError(t, err)
-		assert.Contains(t, out, "Progressing")
-	})
-
-	t.Run("HealthAssessmentConfiguredWildcard", func(t *testing.T) {
-		cmd := NewResourceOverridesCommand(newCmdContext(map[string]string{
-			"resource.customizations": `example.com/*:
+			"resource.customizations": `apps/Deployment:
   health.lua: |
     return { status = "Progressing" }
 `}))
@@ -439,7 +412,7 @@ resume   false
       action.lua: |
         job1 = {}
         job1.apiVersion = "batch/v1"
-        job1.kind = "Job"
+        job1.kind = "Job" 
         job1.metadata = {}
         job1.metadata.name = "hello-1"
         job1.metadata.namespace = "obj.metadata.namespace"

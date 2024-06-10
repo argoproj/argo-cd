@@ -53,7 +53,7 @@ var (
     resourceVersion: "123"
     uid: "4"
     annotations:
-      link.argocd.argoproj.io/external-link: http://my-grafana.example.com/pre-generated-link
+      link.argocd.argoproj.io/external-link: http://my-grafana.com/pre-generated-link
   spec:
     selector:
       app: guestbook
@@ -75,7 +75,7 @@ var (
       serviceName: not-found-service
       servicePort: 443
     rules:
-    - host: helm-guestbook.example.com
+    - host: helm-guestbook.com
       http:
         paths:
         - backend:
@@ -87,7 +87,7 @@ var (
             servicePort: https
           path: /
     tls:
-    - host: helm-guestbook.example.com
+    - host: helm-guestbook.com
     secretName: my-tls-secret
   status:
     loadBalancer:
@@ -102,13 +102,13 @@ var (
     namespace: default
     uid: "4"
     annotations:
-      link.argocd.argoproj.io/external-link: http://my-grafana.example.com/ingress-link
+      link.argocd.argoproj.io/external-link: http://my-grafana.com/ingress-link
   spec:
     backend:
       serviceName: not-found-service
       servicePort: 443
     rules:
-    - host: helm-guestbook.example.com
+    - host: helm-guestbook.com
       http:
         paths:
         - backend:
@@ -120,7 +120,7 @@ var (
             servicePort: https
           path: /
     tls:
-    - host: helm-guestbook.example.com
+    - host: helm-guestbook.com
     secretName: my-tls-secret
   status:
     loadBalancer:
@@ -139,7 +139,7 @@ var (
       serviceName: not-found-service
       servicePort: 443
     rules:
-    - host: helm-guestbook.example.com
+    - host: helm-guestbook.com
       http:
         paths:
         - backend:
@@ -151,7 +151,7 @@ var (
             servicePort: https
           path: /*
     tls:
-    - host: helm-guestbook.example.com
+    - host: helm-guestbook.com
     secretName: my-tls-secret
   status:
     loadBalancer:
@@ -170,7 +170,7 @@ var (
       serviceName: not-found-service
       servicePort: 443
     rules:
-    - host: helm-guestbook.example.com
+    - host: helm-guestbook.com
       http:
         paths:
         - backend:
@@ -200,7 +200,7 @@ var (
         port:
           number: 443
     rules:
-    - host: helm-guestbook.example.com
+    - host: helm-guestbook.com
       http:
         paths:
         - backend:
@@ -216,7 +216,7 @@ var (
                 name: https
           path: /
     tls:
-    - host: helm-guestbook.example.com
+    - host: helm-guestbook.com
     secretName: my-tls-secret
   status:
     loadBalancer:
@@ -314,7 +314,7 @@ status:
 func TestGetServiceInfo(t *testing.T) {
 	info := &ResourceInfo{}
 	populateNodeInfo(testService, info, []string{})
-	assert.Empty(t, info.Info)
+	assert.Equal(t, 0, len(info.Info))
 	assert.Equal(t, &v1alpha1.ResourceNetworkingInfo{
 		TargetLabels: map[string]string{"app": "guestbook"},
 		Ingress:      []v1.LoadBalancerIngress{{Hostname: "localhost"}},
@@ -324,18 +324,18 @@ func TestGetServiceInfo(t *testing.T) {
 func TestGetLinkAnnotatedServiceInfo(t *testing.T) {
 	info := &ResourceInfo{}
 	populateNodeInfo(testLinkAnnotatedService, info, []string{})
-	assert.Empty(t, info.Info)
+	assert.Equal(t, 0, len(info.Info))
 	assert.Equal(t, &v1alpha1.ResourceNetworkingInfo{
 		TargetLabels: map[string]string{"app": "guestbook"},
 		Ingress:      []v1.LoadBalancerIngress{{Hostname: "localhost"}},
-		ExternalURLs: []string{"http://my-grafana.example.com/pre-generated-link"},
+		ExternalURLs: []string{"http://my-grafana.com/pre-generated-link"},
 	}, info.NetworkingInfo)
 }
 
 func TestGetIstioVirtualServiceInfo(t *testing.T) {
 	info := &ResourceInfo{}
 	populateNodeInfo(testIstioVirtualService, info, []string{})
-	assert.Empty(t, info.Info)
+	assert.Equal(t, 0, len(info.Info))
 	require.NotNil(t, info.NetworkingInfo)
 	require.NotNil(t, info.NetworkingInfo.TargetRefs)
 	assert.Contains(t, info.NetworkingInfo.TargetRefs, v1alpha1.ResourceRef{
@@ -365,7 +365,7 @@ func TestGetIngressInfo(t *testing.T) {
 	for _, tc := range tests {
 		info := &ResourceInfo{}
 		populateNodeInfo(tc.Ingress, info, []string{})
-		assert.Empty(t, info.Info)
+		assert.Equal(t, 0, len(info.Info))
 		sort.Slice(info.NetworkingInfo.TargetRefs, func(i, j int) bool {
 			return strings.Compare(info.NetworkingInfo.TargetRefs[j].Name, info.NetworkingInfo.TargetRefs[i].Name) < 0
 		})
@@ -382,7 +382,7 @@ func TestGetIngressInfo(t *testing.T) {
 				Kind:      kube.ServiceKind,
 				Name:      "helm-guestbook",
 			}},
-			ExternalURLs: []string{"https://helm-guestbook.example.com/"},
+			ExternalURLs: []string{"https://helm-guestbook.com/"},
 		}, info.NetworkingInfo)
 	}
 }
@@ -390,7 +390,7 @@ func TestGetIngressInfo(t *testing.T) {
 func TestGetLinkAnnotatedIngressInfo(t *testing.T) {
 	info := &ResourceInfo{}
 	populateNodeInfo(testLinkAnnotatedIngress, info, []string{})
-	assert.Empty(t, info.Info)
+	assert.Equal(t, 0, len(info.Info))
 	sort.Slice(info.NetworkingInfo.TargetRefs, func(i, j int) bool {
 		return strings.Compare(info.NetworkingInfo.TargetRefs[j].Name, info.NetworkingInfo.TargetRefs[i].Name) < 0
 	})
@@ -407,14 +407,14 @@ func TestGetLinkAnnotatedIngressInfo(t *testing.T) {
 			Kind:      kube.ServiceKind,
 			Name:      "helm-guestbook",
 		}},
-		ExternalURLs: []string{"http://my-grafana.example.com/ingress-link", "https://helm-guestbook.example.com/"},
+		ExternalURLs: []string{"https://helm-guestbook.com/", "http://my-grafana.com/ingress-link"},
 	}, info.NetworkingInfo)
 }
 
 func TestGetIngressInfoWildCardPath(t *testing.T) {
 	info := &ResourceInfo{}
 	populateNodeInfo(testIngressWildCardPath, info, []string{})
-	assert.Empty(t, info.Info)
+	assert.Equal(t, 0, len(info.Info))
 	sort.Slice(info.NetworkingInfo.TargetRefs, func(i, j int) bool {
 		return strings.Compare(info.NetworkingInfo.TargetRefs[j].Name, info.NetworkingInfo.TargetRefs[i].Name) < 0
 	})
@@ -431,14 +431,14 @@ func TestGetIngressInfoWildCardPath(t *testing.T) {
 			Kind:      kube.ServiceKind,
 			Name:      "helm-guestbook",
 		}},
-		ExternalURLs: []string{"https://helm-guestbook.example.com/"},
+		ExternalURLs: []string{"https://helm-guestbook.com/"},
 	}, info.NetworkingInfo)
 }
 
 func TestGetIngressInfoWithoutTls(t *testing.T) {
 	info := &ResourceInfo{}
 	populateNodeInfo(testIngressWithoutTls, info, []string{})
-	assert.Empty(t, info.Info)
+	assert.Equal(t, 0, len(info.Info))
 	sort.Slice(info.NetworkingInfo.TargetRefs, func(i, j int) bool {
 		return strings.Compare(info.NetworkingInfo.TargetRefs[j].Name, info.NetworkingInfo.TargetRefs[i].Name) < 0
 	})
@@ -455,7 +455,7 @@ func TestGetIngressInfoWithoutTls(t *testing.T) {
 			Kind:      kube.ServiceKind,
 			Name:      "helm-guestbook",
 		}},
-		ExternalURLs: []string{"http://helm-guestbook.example.com/"},
+		ExternalURLs: []string{"http://helm-guestbook.com/"},
 	}, info.NetworkingInfo)
 }
 
@@ -525,7 +525,7 @@ func TestGetIngressInfoNoHost(t *testing.T) {
 			Name:      "helm-guestbook",
 		}},
 	}, info.NetworkingInfo)
-	assert.Empty(t, info.NetworkingInfo.ExternalURLs)
+	assert.Equal(t, len(info.NetworkingInfo.ExternalURLs), 0)
 }
 func TestExternalUrlWithSubPath(t *testing.T) {
 	ingress := strToUnstructured(`
@@ -564,7 +564,7 @@ func TestExternalUrlWithMultipleSubPaths(t *testing.T) {
     namespace: default
   spec:
     rules:
-    - host: helm-guestbook.example.com
+    - host: helm-guestbook.com
       http:
         paths:
         - backend:
@@ -588,7 +588,7 @@ func TestExternalUrlWithMultipleSubPaths(t *testing.T) {
 	info := &ResourceInfo{}
 	populateNodeInfo(ingress, info, []string{})
 
-	expectedExternalUrls := []string{"https://helm-guestbook.example.com/my/sub/path/", "https://helm-guestbook.example.com/my/sub/path/2", "https://helm-guestbook.example.com"}
+	expectedExternalUrls := []string{"https://helm-guestbook.com/my/sub/path/", "https://helm-guestbook.com/my/sub/path/2", "https://helm-guestbook.com"}
 	actualURLs := info.NetworkingInfo.ExternalURLs
 	sort.Strings(expectedExternalUrls)
 	sort.Strings(actualURLs)
@@ -660,7 +660,7 @@ func TestCustomLabel(t *testing.T) {
 	info := &ResourceInfo{}
 	populateNodeInfo(configmap, info, []string{"my-label"})
 
-	assert.Empty(t, info.Info)
+	assert.Equal(t, 0, len(info.Info))
 
 	configmap = strToUnstructured(`
   apiVersion: v1
@@ -673,7 +673,7 @@ func TestCustomLabel(t *testing.T) {
 	info = &ResourceInfo{}
 	populateNodeInfo(configmap, info, []string{"my-label", "other-label"})
 
-	assert.Len(t, info.Info, 1)
+	assert.Equal(t, 1, len(info.Info))
 	assert.Equal(t, "my-label", info.Info[0].Name)
 	assert.Equal(t, "value", info.Info[0].Value)
 
@@ -689,7 +689,7 @@ func TestCustomLabel(t *testing.T) {
 	info = &ResourceInfo{}
 	populateNodeInfo(configmap, info, []string{"my-label", "other-label"})
 
-	assert.Len(t, info.Info, 2)
+	assert.Equal(t, 2, len(info.Info))
 	assert.Equal(t, "my-label", info.Info[0].Name)
 	assert.Equal(t, "value", info.Info[0].Value)
 	assert.Equal(t, "other-label", info.Info[1].Name)
@@ -752,5 +752,5 @@ func TestManifestHash(t *testing.T) {
 
 	hash, err := generateManifestHash(manifest, ignores, nil, normalizers.IgnoreNormalizerOpts{})
 	assert.Equal(t, expected, hash)
-	assert.NoError(t, err)
+	assert.Nil(t, err)
 }
