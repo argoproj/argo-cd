@@ -314,7 +314,7 @@ Create token succeeded for proj:test-project:test-role.
 
 			token, err := jwtgo.Parse(tokenResponse.Token, nil)
 			if token == nil {
-				err = fmt.Errorf("received malformed token %v", err)
+				err = fmt.Errorf("received malformed token %w", err)
 				errors.CheckError(err)
 				return
 			}
