@@ -400,7 +400,7 @@ func preDiffNormalize(lives, targets []*unstructured.Unstructured, diffConfig Di
 	}
 	err := diffConfig.Validate()
 	if err != nil {
-		return nil, fmt.Errorf("preDiffNormalize error: %s", err)
+		return nil, fmt.Errorf("preDiffNormalize error: %w", err)
 	}
 
 	results := &NormalizationResult{}

@@ -3,6 +3,7 @@ package oidc
 import (
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"html"
 	"html/template"
@@ -113,7 +114,7 @@ func NewClientApp(settings *settings.ArgoCDSettings, dexServerAddr string, dexTl
 	log.Infof("Creating client app (%s)", a.clientID)
 	u, err := url.Parse(settings.URL)
 	if err != nil {
-		return nil, fmt.Errorf("parse redirect-uri: %v", err)
+		return nil, fmt.Errorf("parse redirect-uri: %w", err)
 	}
 
 	transport := &http.Transport{
@@ -572,7 +573,7 @@ func (a *ClientApp) GetUserInfo(actualClaims jwt.MapClaims, issuerURL, userInfoP
 	err := a.clientCache.Get(formatAccessTokenCacheKey(AccessTokenCachePrefix, sub), &encAccessToken)
 	// without an accessToken we can't query the user info endpoint
 	// thus the user needs to reauthenticate for argocd to get a new accessToken
-	if err == cache.ErrCacheMiss {
+	if errors.Is(err, cache.ErrCacheMiss) {
 		return claims, true, fmt.Errorf("no accessToken for %s: %w", sub, err)
 	} else if err != nil {
 		return claims, true, fmt.Errorf("couldn't read accessToken from cache for %s: %w", sub, err)

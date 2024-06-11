@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -137,7 +138,7 @@ func SendRepoStream(repoStream RepoStreamSender, appStream ApplicationStreamRece
 	for {
 		part, err := appStream.Recv()
 		if err != nil {
-			if err == io.EOF {
+			if errors.Is(err, io.EOF) {
 				break
 			}
 			return fmt.Errorf("stream Recv error: %w", err)
@@ -218,7 +219,7 @@ func receiveFile(ctx context.Context, receiver RepoStreamReceiver, checksum, dst
 		}
 		req, err := receiver.Recv()
 		if err != nil {
-			if err == io.EOF {
+			if errors.Is(err, io.EOF) {
 				break
 			}
 			return nil, fmt.Errorf("stream Recv error: %w", err)

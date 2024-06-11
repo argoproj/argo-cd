@@ -126,7 +126,7 @@ func readProjFromStdin(proj *v1alpha1.AppProject) error {
 	reader := bufio.NewReader(os.Stdin)
 	err := config.UnmarshalReader(reader, &proj)
 	if err != nil {
-		return fmt.Errorf("unable to read manifest from stdin: %v", err)
+		return fmt.Errorf("unable to read manifest from stdin: %w", err)
 	}
 	return nil
 }
