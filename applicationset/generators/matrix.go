@@ -15,6 +15,7 @@ import (
 var _ Generator = (*MatrixGenerator)(nil)
 
 var (
+	ErrMaxChildrenEqualsOne       = fmt.Errorf("invalid max number of children, value must not equal to one")
 	ErrLessThanTwoGenerators      = fmt.Errorf("found less than two generators, Matrix support only two")
 	ErrMoreThenOneInnerGenerators = fmt.Errorf("found more than one generator in matrix.Generators")
 	ErrMoreThanMaxGenerators      = fmt.Errorf("found more than the max allowed of child generators")
@@ -38,6 +39,10 @@ func (m *MatrixGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.App
 
 	if appSetGenerator.Matrix == nil {
 		return nil, EmptyAppSetGeneratorError
+	}
+
+	if m.maxChildren == 1 {
+		return nil, ErrMaxChildrenEqualsOne
 	}
 
 	numGens := len(appSetGenerator.Matrix.Generators)

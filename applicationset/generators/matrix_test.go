@@ -1181,6 +1181,12 @@ func TestMatrixMaxGenerators(t *testing.T) {
 			maxChildren: 2,
 			expectedErr: ErrMoreThanMaxGenerators,
 		},
+		{
+			name:           "returns error if max num generators is equals to one",
+			baseGenerators: []argoprojiov1alpha1.ApplicationSetNestedGenerator{},
+			maxChildren:    1,
+			expectedErr:    ErrMaxChildrenEqualsOne,
+		},
 	}
 
 	for _, testCase := range testCases {
