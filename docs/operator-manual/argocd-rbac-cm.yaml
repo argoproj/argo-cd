@@ -19,6 +19,10 @@ data:
     # Grant all members of 'my-org:team-beta' admins
     g, my-org:team-beta, role:admin
 
+  # policy.csv may also be provided in a base64-encoded gzipped format to improve space utilization in the ConfigMap
+  # policy.csv and policy.csv.gz are mutually exclusive, so only provide one or the other
+  # policy.csv.gz: H4sIAJB6aGYAA0utSMwtyEkFAJ+b7G4HAAAA
+
   # it is possible to provide additional entries in this configmap to compose the final policy csv.
   # In this case the key must follow the pattern 'policy.<any string>.csv'. Argo CD will concatenate
   # all additional policies it finds with this pattern below the main one ('policy.csv'). This is useful
@@ -27,6 +31,10 @@ data:
     p, role:tester, applications, *, */*, allow
     p, role:tester, projects, *, *, allow
     g, my-org:team-qa, role:tester
+  
+  # additional overlay entries can also be individually gzipped+base64 encoded
+  # as with the main policy.csv file, each one can only be provided as gzipped+b64 or not
+  # policy.overlay.csv.gz: H4sIAJB6aGYAA0utSMwtyEkFAJ+b7G4HAAAA
 
   # policy.default is the name of the default role which Argo CD will falls back to, when
   # authorizing API requests (optional). If omitted or empty, users may be still be able to login,

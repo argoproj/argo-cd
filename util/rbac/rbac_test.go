@@ -48,9 +48,10 @@ func TestPolicyCSV(t *testing.T) {
 		data := make(map[string]string)
 
 		// when
-		policy := PolicyCSV(data)
+		policy, err := PolicyCSV(data)
 
 		// then
+		assert.NoError(t, err)
 		assert.Equal(t, "", policy)
 	})
 	t.Run("will return just policy defined with default key", func(t *testing.T) {
@@ -61,9 +62,25 @@ func TestPolicyCSV(t *testing.T) {
 		data["UnrelatedKey"] = "unrelated value"
 
 		// when
-		policy := PolicyCSV(data)
+		policy, err := PolicyCSV(data)
 
 		// then
+		assert.NoError(t, err)
+		assert.Equal(t, expectedPolicy, policy)
+	})
+	t.Run("will return just policy defined with default key (b64+gzip)", func(t *testing.T) {
+		// given
+		data := make(map[string]string)
+		encodedGzippedPolicy := "H4sIANxuaGYAAyvIz8lMrjTkKgDTRgC96AkyDwAAAA=="
+		expectedPolicy := "policy1\npolicy2"
+		data[ConfigMapPolicyCSVGzipKey] = encodedGzippedPolicy
+		data["UnrelatedKey"] = "unrelated value"
+
+		// when
+		policy, err := PolicyCSV(data)
+
+		// then
+		assert.NoError(t, err)
 		assert.Equal(t, expectedPolicy, policy)
 	})
 	t.Run("will return composed policy provided by multiple policy keys", func(t *testing.T) {
@@ -75,9 +92,27 @@ func TestPolicyCSV(t *testing.T) {
 		data["policy.overlay2.csv"] = "policy3"
 
 		// when
-		policy := PolicyCSV(data)
+		policy, err := PolicyCSV(data)
 
 		// then
+		assert.NoError(t, err)
+		assert.Regexp(t, "^policy1", policy)
+		assert.Contains(t, policy, "policy2")
+		assert.Contains(t, policy, "policy3")
+	})
+	t.Run("will return composed policy provided by multiple policy keys (b64+gzip)", func(t *testing.T) {
+		// given
+		data := make(map[string]string)
+		data[ConfigMapPolicyCSVGzipKey] = "H4sIAHxyaGYAAyvIz8lMrjQEAOMn+HcHAAAA"
+		data["UnrelatedKey"] = "unrelated value"
+		data["policy.overlay1.csv.gz"] = "H4sIAINyaGYAAyvIz8lMrjQCAFl28e4HAAAA"
+		data["policy.overlay2.csv.gz"] = "H4sIAJtyaGYAAyvIz8lMrjQGAM9G9pkHAAAA"
+
+		// when
+		policy, err := PolicyCSV(data)
+
+		// then
+		assert.NoError(t, err)
 		assert.Regexp(t, "^policy1", policy)
 		assert.Contains(t, policy, "policy2")
 		assert.Contains(t, policy, "policy3")
@@ -92,15 +127,139 @@ func TestPolicyCSV(t *testing.T) {
 		data[ConfigMapPolicyCSVKey] = "policy1"
 
 		// when
-		policy := PolicyCSV(data)
+		policy, err := PolicyCSV(data)
 
 		// then
+		assert.NoError(t, err)
 		result := strings.Split(policy, "\n")
 		assert.Len(t, result, 4)
 		assert.Equal(t, "policy1", result[0])
 		assert.Equal(t, "policya", result[1])
 		assert.Equal(t, "policyb", result[2])
 		assert.Equal(t, "policyc", result[3])
+	})
+	t.Run("will return composed policy in a deterministic order (b64+gzip)", func(t *testing.T) {
+		// given
+		data := make(map[string]string)
+		data["UnrelatedKey"] = "unrelated value"
+		data["policy.B.csv.gz"] = "H4sIAOFyaGYAAyvIz8lMrkwCAK0nmoUHAAAA"
+		data["policy.A.csv.gz"] = "H4sIAOZyaGYAAyvIz8lMrkwEABd2kxwHAAAA"
+		data["policy.C.csv.gz"] = "H4sIAO1yaGYAAyvIz8lMrkwGADsXnfIHAAAA"
+		data[ConfigMapPolicyCSVGzipKey] = "H4sIAHxyaGYAAyvIz8lMrjQEAOMn+HcHAAAA"
+
+		// when
+		policy, err := PolicyCSV(data)
+
+		// then
+		assert.NoError(t, err)
+		result := strings.Split(policy, "\n")
+		assert.Len(t, result, 4)
+		assert.Equal(t, "policy1", result[0])
+		assert.Equal(t, "policya", result[1])
+		assert.Equal(t, "policyb", result[2])
+		assert.Equal(t, "policyc", result[3])
+	})
+	t.Run("will return composed policy in a deterministic order with a mix of ungzipped and b64+gzipped", func(t *testing.T) {
+		// given
+		data := make(map[string]string)
+		data["UnrelatedKey"] = "unrelated value"
+		data["policy.B.csv"] = "policyb"
+		data["policy.A.csv"] = "policya"
+		data["policy.C.csv.gz"] = "H4sIAO1yaGYAAyvIz8lMrkwGADsXnfIHAAAA"
+		data[ConfigMapPolicyCSVGzipKey] = "H4sIAHxyaGYAAyvIz8lMrjQEAOMn+HcHAAAA"
+
+		// when
+		policy, err := PolicyCSV(data)
+
+		// then
+		assert.NoError(t, err)
+		result := strings.Split(policy, "\n")
+		assert.Len(t, result, 4)
+		assert.Equal(t, "policy1", result[0])
+		assert.Equal(t, "policya", result[1])
+		assert.Equal(t, "policyb", result[2])
+		assert.Equal(t, "policyc", result[3])
+	})
+	t.Run("will return composed policy in a deterministic order with a mix of ungzipped and b64+gzipped (variant)", func(t *testing.T) {
+		// given
+		data := make(map[string]string)
+		data["UnrelatedKey"] = "unrelated value"
+		data["policy.B.csv.gz"] = "H4sIAOFyaGYAAyvIz8lMrkwCAK0nmoUHAAAA"
+		data["policy.A.csv"] = "policya"
+		data["policy.C.csv"] = "policyc"
+		data[ConfigMapPolicyCSVKey] = "policy1"
+
+		// when
+		policy, err := PolicyCSV(data)
+
+		// then
+		assert.NoError(t, err)
+		result := strings.Split(policy, "\n")
+		assert.Len(t, result, 4)
+		assert.Equal(t, "policy1", result[0])
+		assert.Equal(t, "policya", result[1])
+		assert.Equal(t, "policyb", result[2])
+		assert.Equal(t, "policyc", result[3])
+	})
+	t.Run("will error if main policy has both gzipped and ungzipped versions", func(t *testing.T) {
+		// given
+		data := make(map[string]string)
+		data[ConfigMapPolicyCSVKey] = "policy1"
+		data[ConfigMapPolicyCSVGzipKey] = "H4sIAHxyaGYAAyvIz8lMrjQEAOMn+HcHAAAA"
+
+		// when
+		_, err := PolicyCSV(data)
+
+		// then
+		assert.Error(t, err)
+	})
+	t.Run("will error if a composed policy segment has both gzipped and ungzipped versions", func(t *testing.T) {
+		// given
+		data := make(map[string]string)
+		data[ConfigMapPolicyCSVKey] = "policy1"
+		data["policy.A.csv"] = "policya"
+		data["policy.A.csv.gz"] = "H4sIAOZyaGYAAyvIz8lMrkwEABd2kxwHAAAA"
+
+		// when
+		_, err := PolicyCSV(data)
+
+		// then
+		assert.Error(t, err)
+	})
+}
+
+// TestB64decodeAndUngzipData tests the function that handles compressed RBAC rules
+func TestB64decodeAndUngzipData(t *testing.T) {
+	t.Run("test a gzipped and base64-encoded string", func(t *testing.T) {
+		// given
+		input := "H4sIAHpsaGYAAyvJyCxWAKJEhZLU4hKF4pKizLx0ALXWhvwVAAAA"
+
+		// when
+		output, err := b64decodeAndUngzipData(input)
+
+		// then
+		assert.NoError(t, err)
+		assert.Equal(t, "this is a test string", output)
+	})
+	t.Run("test something not gzipped", func(t *testing.T) {
+		// given
+		input := "dGhpcyBpcyBub3QgZ3ppcHBlZAo=" // "this is not gzipped"
+
+		// when
+		_, err := b64decodeAndUngzipData(input)
+
+		// then
+		assert.Error(t, err)
+	})
+	t.Run("test something not base64 encoded", func(t *testing.T) {
+		// given
+		input := "not base64 encoded&^$$$#@"
+
+		// when
+		_, err := b64decodeAndUngzipData(input)
+
+		// then
+		assert.Error(t, err)
 	})
 }
 

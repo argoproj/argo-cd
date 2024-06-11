@@ -1,10 +1,14 @@
 package rbac
 
 import (
+	"bytes"
+	"compress/gzip"
 	"context"
+	"encoding/base64"
 	"encoding/csv"
 	"errors"
 	"fmt"
+	"io"
 	"sort"
 	"strings"
 	"sync"
@@ -34,6 +38,7 @@ import (
 
 const (
 	ConfigMapPolicyCSVKey     = "policy.csv"
+	ConfigMapPolicyCSVGzipKey = "policy.csv.gz"
 	ConfigMapPolicyDefaultKey = "policy.default"
 	ConfigMapScopesKey        = "scopes"
 	ConfigMapMatchModeKey     = "policy.matchMode"
@@ -403,18 +408,51 @@ func (e *Enforcer) runInformer(ctx context.Context, onUpdated func(cm *apiv1.Con
 // that matches the policy key name convention:
 //
 //	policy[.overlay].csv
-func PolicyCSV(data map[string]string) string {
+//
+// Also supports gzipped base64-encoded content; if the
+// filename ends in .gz, the content will be decoded and ungzipped;
+// if both gzipped and ungzipped versions of the same key are present,
+// you'll end up with content from both
+func PolicyCSV(data map[string]string) (string, error) {
 	var strBuilder strings.Builder
+
 	// add the main policy first
-	if p, ok := data[ConfigMapPolicyCSVKey]; ok {
+	p, mainok := data[ConfigMapPolicyCSVKey]
+	if mainok {
 		strBuilder.WriteString(p)
+	}
+	if p, ok := data[ConfigMapPolicyCSVGzipKey]; ok {
+		if mainok {
+			return strBuilder.String(), fmt.Errorf("")
+		}
+
+		ungzipped, err := b64decodeAndUngzipData(p)
+		if err != nil {
+			return strBuilder.String(), err
+		}
+		if mainok {
+			strBuilder.WriteString("\n")
+		}
+		strBuilder.WriteString(ungzipped)
 	}
 
 	keys := make([]string, 0, len(data))
+	keyMap := make(map[string]struct{}, len(data))
 	for k := range data {
 		keys = append(keys, k)
+		keyMap[k] = struct{}{}
 	}
 	sort.Strings(keys)
+
+	// check for gzipped and ungzipped versions of the same key and error if found
+	for key := range keyMap {
+		if strings.HasPrefix(key, "policy.") && strings.HasSuffix(key, ".csv") {
+			_, exists := keyMap[fmt.Sprintf("%s.gz", key)]
+			if exists {
+				return strBuilder.String(), fmt.Errorf("'%s' conflicts with gzipped version of same key", key)
+			}
+		}
+	}
 
 	// append additional policies at the end of the csv
 	for _, key := range keys {
@@ -424,16 +462,49 @@ func PolicyCSV(data map[string]string) string {
 			key != ConfigMapPolicyCSVKey {
 			strBuilder.WriteString("\n")
 			strBuilder.WriteString(value)
+		} else if strings.HasPrefix(key, "policy.") &&
+			strings.HasSuffix(key, ".csv.gz") &&
+			key != ConfigMapPolicyCSVGzipKey {
+			ungzipped, err := b64decodeAndUngzipData(value)
+			if err != nil {
+				return strBuilder.String(), err
+			}
+			strBuilder.WriteString("\n")
+			strBuilder.WriteString(ungzipped)
 		}
 	}
-	return strBuilder.String()
+	return strBuilder.String(), nil
+}
+
+// decodes and ungzips RBAC data; it expects it to be b64-encoded because
+// the RBAC data comes from a ConfigMap and not a Secret, so the user
+// must manually encode it in order to avoid putting invalid characters
+// into the ConfigMap keys
+func b64decodeAndUngzipData(data string) (string, error) {
+	b64decoded, err := base64.StdEncoding.DecodeString(data)
+	if err != nil {
+		return "", err
+	}
+	reader := bytes.NewReader(b64decoded)
+	gzipReader, err := gzip.NewReader(reader)
+	if err != nil {
+		return "", err
+	}
+	ungzipped, err := io.ReadAll(gzipReader)
+	if err != nil {
+		return "", err
+	}
+	return string(ungzipped), nil
 }
 
 // syncUpdate updates the enforcer
 func (e *Enforcer) syncUpdate(cm *apiv1.ConfigMap, onUpdated func(cm *apiv1.ConfigMap) error) error {
 	e.SetDefaultRole(cm.Data[ConfigMapPolicyDefaultKey])
 	e.SetMatchMode(cm.Data[ConfigMapMatchModeKey])
-	policyCSV := PolicyCSV(cm.Data)
+	policyCSV, err := PolicyCSV(cm.Data)
+	if err != nil {
+		return fmt.Errorf("error in PolicyCSV: %w", err)
+	}
 	if err := onUpdated(cm); err != nil {
 		return err
 	}
