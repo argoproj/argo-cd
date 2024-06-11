@@ -6,6 +6,8 @@ import (
 	"os/exec"
 	"syscall"
 
+	"k8s.io/apimachinery/pkg/runtime"
+
 	"github.com/argoproj/argo-cd/v2/common"
 
 	log "github.com/sirupsen/logrus"
@@ -45,8 +47,9 @@ func NewCommand() *cobra.Command {
 
 func NewRunDexCommand() *cobra.Command {
 	var (
-		clientConfig clientcmd.ClientConfig
-		disableTLS   bool
+		clientConfig              clientcmd.ClientConfig
+		disableTLS                bool
+		acceptProtobufContentType bool
 	)
 	command := cobra.Command{
 		Use:   "rundex",
@@ -71,6 +74,10 @@ func NewRunDexCommand() *cobra.Command {
 			config, err := clientConfig.ClientConfig()
 			errors.CheckError(err)
 			config.UserAgent = fmt.Sprintf("argocd-dex/%s (%s)", vers.Version, vers.Platform)
+			if acceptProtobufContentType {
+				config.AcceptContentTypes = runtime.ContentTypeProtobuf + "," + runtime.ContentTypeJSON
+			}
+
 			kubeClientset := kubernetes.NewForConfigOrDie(config)
 
 			if !disableTLS {
@@ -139,6 +146,8 @@ func NewRunDexCommand() *cobra.Command {
 	command.Flags().StringVar(&cmdutil.LogFormat, "logformat", "text", "Set the logging format. One of: text|json")
 	command.Flags().StringVar(&cmdutil.LogLevel, "loglevel", "info", "Set the logging level. One of: debug|info|warn|error")
 	command.Flags().BoolVar(&disableTLS, "disable-tls", env.ParseBoolFromEnv("ARGOCD_DEX_SERVER_DISABLE_TLS", false), "Disable TLS on the HTTP endpoint")
+	command.Flags().BoolVar(&acceptProtobufContentType, "accept-protobuf-content-type-enabled", env.ParseBoolFromEnv("ARGOCD_ACCEPT_PROTOBUF_CONTENTTYPE_ENABLED", false), "Allows the Argo CD dex server to receive kubernetes api responses in protobuf instead of json, if possible. This may improve performance in serialization but is experimental.")
+
 	return &command
 }
 

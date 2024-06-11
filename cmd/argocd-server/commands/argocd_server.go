@@ -12,6 +12,7 @@ import (
 	"github.com/argoproj/pkg/stats"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
@@ -50,39 +51,40 @@ var (
 // NewCommand returns a new instance of an argocd command
 func NewCommand() *cobra.Command {
 	var (
-		redisClient              *redis.Client
-		insecure                 bool
-		listenHost               string
-		listenPort               int
-		metricsHost              string
-		metricsPort              int
-		otlpAddress              string
-		otlpInsecure             bool
-		otlpHeaders              map[string]string
-		otlpAttrs                []string
-		glogLevel                int
-		clientConfig             clientcmd.ClientConfig
-		repoServerTimeoutSeconds int
-		baseHRef                 string
-		rootPath                 string
-		repoServerAddress        string
-		dexServerAddress         string
-		disableAuth              bool
-		contentTypes             string
-		enableGZip               bool
-		tlsConfigCustomizerSrc   func() (tls.ConfigCustomizer, error)
-		cacheSrc                 func() (*servercache.Cache, error)
-		repoServerCacheSrc       func() (*reposervercache.Cache, error)
-		frameOptions             string
-		contentSecurityPolicy    string
-		repoServerPlaintext      bool
-		repoServerStrictTLS      bool
-		dexServerPlaintext       bool
-		dexServerStrictTLS       bool
-		staticAssetsDir          string
-		applicationNamespaces    []string
-		enableProxyExtension     bool
-		webhookParallelism       int
+		redisClient               *redis.Client
+		insecure                  bool
+		listenHost                string
+		listenPort                int
+		metricsHost               string
+		metricsPort               int
+		otlpAddress               string
+		otlpInsecure              bool
+		otlpHeaders               map[string]string
+		otlpAttrs                 []string
+		glogLevel                 int
+		clientConfig              clientcmd.ClientConfig
+		repoServerTimeoutSeconds  int
+		baseHRef                  string
+		rootPath                  string
+		repoServerAddress         string
+		dexServerAddress          string
+		disableAuth               bool
+		contentTypes              string
+		enableGZip                bool
+		tlsConfigCustomizerSrc    func() (tls.ConfigCustomizer, error)
+		cacheSrc                  func() (*servercache.Cache, error)
+		repoServerCacheSrc        func() (*reposervercache.Cache, error)
+		frameOptions              string
+		contentSecurityPolicy     string
+		repoServerPlaintext       bool
+		repoServerStrictTLS       bool
+		dexServerPlaintext        bool
+		dexServerStrictTLS        bool
+		staticAssetsDir           string
+		applicationNamespaces     []string
+		enableProxyExtension      bool
+		webhookParallelism        int
+		acceptProtobufContentType bool
 
 		// ApplicationSet
 		enableNewGitFileGlobbing bool
@@ -130,6 +132,9 @@ func NewCommand() *cobra.Command {
 			errors.CheckError(err)
 			errors.CheckError(v1alpha1.SetK8SConfigDefaults(appclientsetConfig))
 			config.UserAgent = fmt.Sprintf("argocd-server/%s (%s)", vers.Version, vers.Platform)
+			if acceptProtobufContentType {
+				config.AcceptContentTypes = runtime.ContentTypeProtobuf + "," + runtime.ContentTypeJSON
+			}
 
 			if failureRetryCount > 0 {
 				appclientsetConfig = kube.AddFailureRetryWrapper(appclientsetConfig, failureRetryCount, failureRetryPeriodMilliSeconds)
@@ -297,6 +302,7 @@ func NewCommand() *cobra.Command {
 	command.Flags().StringSliceVar(&applicationNamespaces, "application-namespaces", env.StringsFromEnv("ARGOCD_APPLICATION_NAMESPACES", []string{}, ","), "List of additional namespaces where application resources can be managed in")
 	command.Flags().BoolVar(&enableProxyExtension, "enable-proxy-extension", env.ParseBoolFromEnv("ARGOCD_SERVER_ENABLE_PROXY_EXTENSION", false), "Enable Proxy Extension feature")
 	command.Flags().IntVar(&webhookParallelism, "webhook-parallelism-limit", env.ParseNumFromEnv("ARGOCD_SERVER_WEBHOOK_PARALLELISM_LIMIT", 50, 1, 1000), "Number of webhook requests processed concurrently")
+	command.Flags().BoolVar(&acceptProtobufContentType, "accept-protobuf-content-type-enabled", env.ParseBoolFromEnv("ARGOCD_ACCEPT_PROTOBUF_CONTENTTYPE_ENABLED", false), "Allows the Argo CD to receive kubernetes api responses in protobuf instead of json, if possible. This may improve performance in serialization but is experimental.")
 
 	// Flags related to the applicationSet component.
 	command.Flags().StringVar(&scmRootCAPath, "appset-scm-root-ca-path", env.StringFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_SCM_ROOT_CA_PATH", ""), "Provide Root CA Path for self-signed TLS Certificates")
