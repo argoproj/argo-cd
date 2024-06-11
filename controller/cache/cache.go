@@ -401,7 +401,7 @@ func isTransientNetworkErr(err error) bool {
 	case errors.As(err, &netErr):
 		var dnsErr *net.DNSError
 		var opErr *net.OpError
-		var unknownNetworkErr *net.UnknownNetworkError
+		var unknownNetworkErr net.UnknownNetworkError
 		var urlErr *url.Error
 		switch {
 		case errors.As(err, &dnsErr), errors.As(err, &opErr), errors.As(err, &unknownNetworkErr):
