@@ -487,6 +487,7 @@ jobs:
             fi
             count=$((count+1))
           done
+          ps -ef | grep argocd
       - name: Run E2E testsuite
         run: |
           set -x
