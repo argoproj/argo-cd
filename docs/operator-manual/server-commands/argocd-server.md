@@ -25,6 +25,7 @@ argocd-server [flags]
 ### Options
 
 ```
+      --accept-protobuf-content-type-enabled            Allows the Argo CD to receive kubernetes api responses in protobuf instead of json, if possible. This may improve performance in serialization but is experimental.
       --address string                                  Listen on given address (default "0.0.0.0")
       --api-content-types string                        Semicolon separated list of allowed content types for non GET api requests. Any content type is allowed if empty. (default "application/json")
       --app-state-cache-expiration duration             Cache expiration for app state (default 1h0m0s)
