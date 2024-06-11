@@ -59,7 +59,6 @@ func TLSConfig(tlsConfig *DexTLSConfig) *tls.Config {
 // Argo CD API server wants to proxy requests at /api/dex, then the dex config yaml issuer URL should
 // also be /api/dex (e.g. issuer: https://argocd.example.com/api/dex)
 func NewDexHTTPReverseProxy(serverAddr string, baseHRef string, tlsConfig *DexTLSConfig) func(writer http.ResponseWriter, request *http.Request) {
-
 	fullAddr := DexServerAddressWithProtocol(serverAddr, tlsConfig)
 
 	target, err := url.Parse(fullAddr)

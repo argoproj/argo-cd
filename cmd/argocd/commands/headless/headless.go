@@ -143,7 +143,8 @@ func (c *forwardRepoClientset) NewRepoServerClient() (io.Closer, repoapiclient.R
 			return
 		}
 		c.repoClientset = repoapiclient.NewRepoServerClientset(fmt.Sprintf("localhost:%d", repoServerPort), 60, repoapiclient.TLSConfiguration{
-			DisableTLS: false, StrictValidation: false})
+			DisableTLS: false, StrictValidation: false,
+		})
 	})
 	if c.err != nil {
 		return nil, nil, c.err

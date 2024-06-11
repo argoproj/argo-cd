@@ -753,8 +753,42 @@ func TestNoAppEnumeration(t *testing.T) {
 			},
 		}
 	})
+	testAppMulti := newTestApp(func(app *appsv1.Application) {
+		app.Name = "test-multi"
+		app.Spec.Sources = appsv1.ApplicationSources{
+			appsv1.ApplicationSource{
+				TargetRevision: "something-old",
+			},
+			appsv1.ApplicationSource{
+				TargetRevision: "something-old",
+			},
+		}
+		app.Status.Resources = []appsv1.ResourceStatus{
+			{
+				Group:     deployment.GroupVersionKind().Group,
+				Kind:      deployment.GroupVersionKind().Kind,
+				Version:   deployment.GroupVersionKind().Version,
+				Name:      deployment.Name,
+				Namespace: deployment.Namespace,
+				Status:    "Synced",
+			},
+		}
+		app.Status.History = []appsv1.RevisionHistory{
+			{
+				ID: 1,
+				Sources: appsv1.ApplicationSources{
+					appsv1.ApplicationSource{
+						TargetRevision: "something-old",
+					},
+					appsv1.ApplicationSource{
+						TargetRevision: "something-old",
+					},
+				},
+			},
+		}
+	})
 	testDeployment := kube.MustToUnstructured(&deployment)
-	appServer := newTestAppServerWithEnforcerConfigure(f, t, map[string]string{}, testApp, testHelmApp, testDeployment)
+	appServer := newTestAppServerWithEnforcerConfigure(f, t, map[string]string{}, testApp, testHelmApp, testAppMulti, testDeployment)
 
 	noRoleCtx := context.Background()
 	// nolint:staticcheck
@@ -880,6 +914,8 @@ func TestNoAppEnumeration(t *testing.T) {
 	t.Run("RevisionMetadata", func(t *testing.T) {
 		_, err := appServer.RevisionMetadata(adminCtx, &application.RevisionMetadataQuery{Name: ptr.To("test")})
 		assert.NoError(t, err)
+		_, err = appServer.RevisionMetadata(adminCtx, &application.RevisionMetadataQuery{Name: ptr.To("test-multi"), SourceIndex: ptr.To(int32(0)), VersionId: ptr.To(int32(1))})
+		assert.NoError(t, err)
 		_, err = appServer.RevisionMetadata(noRoleCtx, &application.RevisionMetadataQuery{Name: ptr.To("test")})
 		assert.Equal(t, permissionDeniedErr.Error(), err.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
 		_, err = appServer.RevisionMetadata(adminCtx, &application.RevisionMetadataQuery{Name: ptr.To("doest-not-exist")})
@@ -938,6 +974,8 @@ func TestNoAppEnumeration(t *testing.T) {
 	t.Run("Rollback", func(t *testing.T) {
 		unsetSyncRunningOperationState(t, appServer)
 		_, err := appServer.Rollback(adminCtx, &application.ApplicationRollbackRequest{Name: ptr.To("test")})
+		assert.NoError(t, err)
+		_, err = appServer.Rollback(adminCtx, &application.ApplicationRollbackRequest{Name: ptr.To("test-multi"), Id: ptr.To(int64(1))})
 		assert.NoError(t, err)
 		_, err = appServer.Rollback(noRoleCtx, &application.ApplicationRollbackRequest{Name: ptr.To("test")})
 		assert.Equal(t, permissionDeniedErr.Error(), err.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
@@ -1116,27 +1154,41 @@ func testListAppsWithLabels(t *testing.T, appQuery application.ApplicationQuery,
 		label          string
 		expectedResult []string
 	}{
-		{testName: "Equality based filtering using '=' operator",
+		{
+			testName:       "Equality based filtering using '=' operator",
 			label:          "key1=value1",
-			expectedResult: []string{"App1"}},
-		{testName: "Equality based filtering using '==' operator",
+			expectedResult: []string{"App1"},
+		},
+		{
+			testName:       "Equality based filtering using '==' operator",
 			label:          "key1==value1",
-			expectedResult: []string{"App1"}},
-		{testName: "Equality based filtering using '!=' operator",
+			expectedResult: []string{"App1"},
+		},
+		{
+			testName:       "Equality based filtering using '!=' operator",
 			label:          "key1!=value1",
-			expectedResult: []string{"App2", "App3"}},
-		{testName: "Set based filtering using 'in' operator",
+			expectedResult: []string{"App2", "App3"},
+		},
+		{
+			testName:       "Set based filtering using 'in' operator",
 			label:          "key1 in (value1, value3)",
-			expectedResult: []string{"App1", "App3"}},
-		{testName: "Set based filtering using 'notin' operator",
+			expectedResult: []string{"App1", "App3"},
+		},
+		{
+			testName:       "Set based filtering using 'notin' operator",
 			label:          "key1 notin (value1, value3)",
-			expectedResult: []string{"App2"}},
-		{testName: "Set based filtering using 'exists' operator",
+			expectedResult: []string{"App2"},
+		},
+		{
+			testName:       "Set based filtering using 'exists' operator",
 			label:          "key1",
-			expectedResult: []string{"App1", "App2", "App3"}},
-		{testName: "Set based filtering using 'not exists' operator",
+			expectedResult: []string{"App1", "App2", "App3"},
+		},
+		{
+			testName:       "Set based filtering using 'not exists' operator",
 			label:          "!key2",
-			expectedResult: []string{"App2", "App3"}},
+			expectedResult: []string{"App2", "App3"},
+		},
 	}
 	// test valid scenarios
 	for _, validTest := range validTests {
@@ -1157,12 +1209,16 @@ func testListAppsWithLabels(t *testing.T, appQuery application.ApplicationQuery,
 		label       string
 		errorMesage string
 	}{
-		{testName: "Set based filtering using '>' operator",
+		{
+			testName:    "Set based filtering using '>' operator",
 			label:       "key1>value1",
-			errorMesage: "error parsing the selector"},
-		{testName: "Set based filtering using '<' operator",
+			errorMesage: "error parsing the selector",
+		},
+		{
+			testName:    "Set based filtering using '<' operator",
 			label:       "key1<value1",
-			errorMesage: "error parsing the selector"},
+			errorMesage: "error parsing the selector",
+		},
 	}
 	// test invalid scenarios
 	for _, invalidTest := range invalidTests {
@@ -1283,7 +1339,7 @@ g, group-49, role:test3
 	for i := range res.Items {
 		names = append(names, res.Items[i].Name)
 	}
-	assert.Equal(t, 300, len(names))
+	assert.Len(t, names, 300)
 }
 
 func generateTestApp(num int) []*appsv1.Application {
@@ -1426,7 +1482,7 @@ func TestCreateApp(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, app)
 	assert.NotNil(t, app.Spec)
-	assert.Equal(t, app.Spec.Project, "default")
+	assert.Equal(t, "default", app.Spec.Project)
 }
 
 func TestCreateAppWithDestName(t *testing.T) {
@@ -1438,7 +1494,7 @@ func TestCreateAppWithDestName(t *testing.T) {
 	app, err := appServer.Create(context.Background(), &createReq)
 	assert.NoError(t, err)
 	assert.NotNil(t, app)
-	assert.Equal(t, app.Spec.Destination.Server, "https://cluster-api.example.com")
+	assert.Equal(t, "https://cluster-api.example.com", app.Spec.Destination.Server)
 }
 
 // TestCreateAppWithOperation tests that an application created with an operation is created with the operation removed.
@@ -1469,8 +1525,8 @@ func TestUpdateApp(t *testing.T) {
 	app, err := appServer.Update(context.Background(), &application.ApplicationUpdateRequest{
 		Application: testApp,
 	})
-	assert.Nil(t, err)
-	assert.Equal(t, app.Spec.Project, "default")
+	assert.NoError(t, err)
+	assert.Equal(t, "default", app.Spec.Project)
 }
 
 func TestUpdateAppSpec(t *testing.T) {
@@ -1495,10 +1551,10 @@ func TestDeleteApp(t *testing.T) {
 		Application: newTestApp(),
 	}
 	app, err := appServer.Create(ctx, &createReq)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	app, err = appServer.Get(ctx, &application.ApplicationQuery{Name: &app.Name})
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.NotNil(t, app)
 
 	fakeAppCs := appServer.appclientset.(*apps.Clientset)
@@ -1521,7 +1577,7 @@ func TestDeleteApp(t *testing.T) {
 
 	trueVar := true
 	_, err = appServer.Delete(ctx, &application.ApplicationDeleteRequest{Name: &app.Name, Cascade: &trueVar})
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.True(t, patched)
 	assert.True(t, deleted)
 
@@ -1530,7 +1586,7 @@ func TestDeleteApp(t *testing.T) {
 	patched = false
 	deleted = false
 	_, err = appServer.Delete(ctx, &application.ApplicationDeleteRequest{Name: &app.Name, Cascade: &falseVar})
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.False(t, patched)
 	assert.True(t, deleted)
 
@@ -1544,7 +1600,7 @@ func TestDeleteApp(t *testing.T) {
 	t.Run("Delete with background propagation policy", func(t *testing.T) {
 		policy := backgroundPropagationPolicy
 		_, err = appServer.Delete(ctx, &application.ApplicationDeleteRequest{Name: &app.Name, PropagationPolicy: &policy})
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 		assert.True(t, patched)
 		assert.True(t, deleted)
 		t.Cleanup(revertValues)
@@ -1571,7 +1627,7 @@ func TestDeleteApp(t *testing.T) {
 	t.Run("Delete with foreground propagation policy", func(t *testing.T) {
 		policy := foregroundPropagationPolicy
 		_, err = appServer.Delete(ctx, &application.ApplicationDeleteRequest{Name: &app.Name, Cascade: &trueVar, PropagationPolicy: &policy})
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 		assert.True(t, patched)
 		assert.True(t, deleted)
 		t.Cleanup(revertValues)
@@ -1713,14 +1769,14 @@ func TestSyncAndTerminate(t *testing.T) {
 		Application: testApp,
 	}
 	app, err := appServer.Create(ctx, &createReq)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	app, err = appServer.Sync(ctx, &application.ApplicationSyncRequest{Name: &app.Name})
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.NotNil(t, app)
 	assert.NotNil(t, app.Operation)
 
 	events, err := appServer.kubeclientset.CoreV1().Events(appServer.ns).List(context.Background(), metav1.ListOptions{})
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	event := events.Items[1]
 
 	assert.Regexp(t, ".*initiated sync to HEAD \\([0-9A-Fa-f]{40}\\).*", event.Message)
@@ -1732,14 +1788,14 @@ func TestSyncAndTerminate(t *testing.T) {
 		StartedAt: metav1.NewTime(time.Now()),
 	}
 	_, err = appServer.appclientset.ArgoprojV1alpha1().Applications(appServer.ns).Update(context.Background(), app, metav1.UpdateOptions{})
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	resp, err := appServer.TerminateOperation(ctx, &application.OperationTerminateRequest{Name: &app.Name})
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.NotNil(t, resp)
 
 	app, err = appServer.Get(ctx, &application.ApplicationQuery{Name: &app.Name})
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.NotNil(t, app)
 	assert.Equal(t, synccommon.OperationTerminating, app.Status.OperationState.Phase)
 }
@@ -1810,7 +1866,7 @@ func TestRollbackApp(t *testing.T) {
 		Id:   ptr.To(int64(1)),
 	})
 
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	assert.NotNil(t, updatedApp.Operation)
 	assert.NotNil(t, updatedApp.Operation.Sync)
@@ -1835,7 +1891,7 @@ func TestUpdateAppProject(t *testing.T) {
 	t.Run("cannot update to another project", func(t *testing.T) {
 		testApp.Spec.Project = "my-proj"
 		_, err := appServer.Update(ctx, &application.ApplicationUpdateRequest{Application: testApp})
-		assert.Equal(t, status.Code(err), codes.PermissionDenied)
+		assert.Equal(t, codes.PermissionDenied, status.Code(err))
 	})
 
 	t.Run("cannot change projects without create privileges", func(t *testing.T) {
@@ -1916,7 +1972,8 @@ func TestAppMergePatch(t *testing.T) {
 	appServer.enf.SetDefaultRole("")
 
 	app, err := appServer.Patch(ctx, &application.ApplicationPatchRequest{
-		Name: &testApp.Name, Patch: ptr.To(`{"spec": { "source": { "path": "foo" } }}`), PatchType: ptr.To("merge")})
+		Name: &testApp.Name, Patch: ptr.To(`{"spec": { "source": { "path": "foo" } }}`), PatchType: ptr.To("merge"),
+	})
 	assert.NoError(t, err)
 	assert.Equal(t, "foo", app.Spec.Source.Path)
 }
@@ -1929,7 +1986,7 @@ func TestServer_GetApplicationSyncWindowsState(t *testing.T) {
 
 		active, err := appServer.GetApplicationSyncWindows(context.Background(), &application.ApplicationSyncWindowsQuery{Name: &testApp.Name})
 		assert.NoError(t, err)
-		assert.Equal(t, 1, len(active.ActiveWindows))
+		assert.Len(t, active.ActiveWindows, 1)
 	})
 	t.Run("Inactive", func(t *testing.T) {
 		testApp := newTestApp()
@@ -1938,7 +1995,7 @@ func TestServer_GetApplicationSyncWindowsState(t *testing.T) {
 
 		active, err := appServer.GetApplicationSyncWindows(context.Background(), &application.ApplicationSyncWindowsQuery{Name: &testApp.Name})
 		assert.NoError(t, err)
-		assert.Equal(t, 0, len(active.ActiveWindows))
+		assert.Empty(t, active.ActiveWindows)
 	})
 	t.Run("ProjectDoesNotExist", func(t *testing.T) {
 		testApp := newTestApp()
@@ -2006,7 +2063,7 @@ func TestGetCachedAppState(t *testing.T) {
 			retryCount++
 			return res
 		})
-		assert.Equal(t, nil, err)
+		assert.NoError(t, err)
 		assert.Equal(t, 2, retryCount)
 		assert.True(t, patched)
 	})
@@ -2069,7 +2126,7 @@ func TestLogsGetSelectedPod(t *testing.T) {
 			Name: &appName,
 		}
 		pods := getSelectedPods(treeNodes, &podQuery)
-		assert.Equal(t, 2, len(pods))
+		assert.Len(t, pods, 2)
 	})
 
 	t.Run("GetRSPods", func(t *testing.T) {
@@ -2083,7 +2140,7 @@ func TestLogsGetSelectedPod(t *testing.T) {
 			ResourceName: &name,
 		}
 		pods := getSelectedPods(treeNodes, &podQuery)
-		assert.Equal(t, 1, len(pods))
+		assert.Len(t, pods, 1)
 	})
 
 	t.Run("GetDeploymentPods", func(t *testing.T) {
@@ -2097,7 +2154,7 @@ func TestLogsGetSelectedPod(t *testing.T) {
 			ResourceName: &name,
 		}
 		pods := getSelectedPods(treeNodes, &podQuery)
-		assert.Equal(t, 1, len(pods))
+		assert.Len(t, pods, 1)
 	})
 
 	t.Run("NoMatchingPods", func(t *testing.T) {
@@ -2111,12 +2168,11 @@ func TestLogsGetSelectedPod(t *testing.T) {
 			ResourceName: &name,
 		}
 		pods := getSelectedPods(treeNodes, &podQuery)
-		assert.Equal(t, 0, len(pods))
+		assert.Empty(t, pods)
 	})
 }
 
 func TestMaxPodLogsRender(t *testing.T) {
-
 	defaultMaxPodLogsToRender, _ := newTestAppServer(t).settingsMgr.GetMaxPodLogsToRender()
 
 	// Case: number of pods to view logs is less than defaultMaxPodLogsToRender
@@ -2135,7 +2191,7 @@ func TestMaxPodLogsRender(t *testing.T) {
 
 	t.Run("PodLogs", func(t *testing.T) {
 		err := appServer.PodLogs(&application.ApplicationPodLogsQuery{Name: ptr.To("test")}, &TestPodLogsServer{ctx: adminCtx})
-		assert.NotNil(t, err)
+		assert.Error(t, err)
 		statusCode, _ := status.FromError(err)
 		assert.Equal(t, codes.InvalidArgument, statusCode.Code())
 		assert.Equal(t, "rpc error: code = InvalidArgument desc = max pods to view logs are reached. Please provide more granular query", err.Error())
@@ -2159,7 +2215,7 @@ func TestMaxPodLogsRender(t *testing.T) {
 
 	t.Run("PodLogs", func(t *testing.T) {
 		err := appServer.PodLogs(&application.ApplicationPodLogsQuery{Name: ptr.To("test")}, &TestPodLogsServer{ctx: adminCtx})
-		assert.NotNil(t, err)
+		assert.Error(t, err)
 		statusCode, _ := status.FromError(err)
 		assert.Equal(t, codes.InvalidArgument, statusCode.Code())
 		assert.Equal(t, "rpc error: code = InvalidArgument desc = max pods to view logs are reached. Please provide more granular query", err.Error())
@@ -2258,11 +2314,10 @@ func TestGetAppRefresh_NormalRefresh(t *testing.T) {
 
 	select {
 	case <-ch:
-		assert.Equal(t, atomic.LoadInt32(&patched), int32(1))
+		assert.Equal(t, int32(1), atomic.LoadInt32(&patched))
 	case <-time.After(10 * time.Second):
 		assert.Fail(t, "Out of time ( 10 seconds )")
 	}
-
 }
 
 func TestGetAppRefresh_HardRefresh(t *testing.T) {
@@ -2298,7 +2353,7 @@ func TestGetAppRefresh_HardRefresh(t *testing.T) {
 	assert.NoError(t, err)
 	select {
 	case <-ch:
-		assert.Equal(t, atomic.LoadInt32(&patched), int32(1))
+		assert.Equal(t, int32(1), atomic.LoadInt32(&patched))
 	case <-time.After(10 * time.Second):
 		assert.Fail(t, "Out of time ( 10 seconds )")
 	}
@@ -2611,7 +2666,7 @@ func TestAppNamespaceRestrictions(t *testing.T) {
 		appServer := newTestAppServer(t, testApp1)
 		apps, err := appServer.List(context.TODO(), &application.ApplicationQuery{})
 		require.NoError(t, err)
-		require.Len(t, apps.Items, 0)
+		require.Empty(t, apps.Items)
 	})
 
 	t.Run("List applications with non-allowed apps existing and explicit ns request", func(t *testing.T) {
@@ -2621,7 +2676,7 @@ func TestAppNamespaceRestrictions(t *testing.T) {
 		appServer := newTestAppServer(t, testApp1, testApp2)
 		apps, err := appServer.List(context.TODO(), &application.ApplicationQuery{AppNamespace: ptr.To("argocd-1")})
 		require.NoError(t, err)
-		require.Len(t, apps.Items, 0)
+		require.Empty(t, apps.Items)
 	})
 
 	t.Run("List applications with allowed apps in other namespaces", func(t *testing.T) {
@@ -2782,7 +2837,7 @@ func TestAppNamespaceRestrictions(t *testing.T) {
 		appServer.enabledNamespaces = []string{"argocd-1"}
 		active, err := appServer.GetApplicationSyncWindows(context.TODO(), &application.ApplicationSyncWindowsQuery{Name: &testApp.Name, AppNamespace: &testApp.Namespace})
 		assert.NoError(t, err)
-		assert.Equal(t, 0, len(active.ActiveWindows))
+		assert.Empty(t, active.ActiveWindows)
 	})
 	t.Run("Get application sync window in other namespace when project is not allowed", func(t *testing.T) {
 		testApp := newTestApp()
@@ -2844,7 +2899,7 @@ func TestAppNamespaceRestrictions(t *testing.T) {
 			Namespace: ptr.To("argocd-1"),
 		})
 		require.NoError(t, err)
-		assert.Equal(t, 0, len(links.Items))
+		assert.Empty(t, links.Items)
 	})
 }
 

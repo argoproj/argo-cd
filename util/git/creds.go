@@ -57,8 +57,7 @@ func init() {
 	googleCloudTokenSource = gocache.New(gocache.NoExpiration, 0)
 }
 
-type NoopCredsStore struct {
-}
+type NoopCredsStore struct{}
 
 func (d NoopCredsStore) Add(username string, password string) string {
 	return ""
@@ -86,8 +85,7 @@ func getGitAskPassEnv(id string) []string {
 }
 
 // nop implementation
-type NopCloser struct {
-}
+type NopCloser struct{}
 
 func (c NopCloser) Close() error {
 	return nil
@@ -95,8 +93,7 @@ func (c NopCloser) Close() error {
 
 var _ Creds = NopCreds{}
 
-type NopCreds struct {
-}
+type NopCreds struct{}
 
 func (c NopCreds) Environ() (io.Closer, []string, error) {
 	return NopCloser{}, nil, nil
@@ -408,7 +405,6 @@ func (g GitHubAppCreds) Environ() (io.Closer, []string, error) {
 		}
 		// GIT_SSL_KEY is the full path to a client certificate's key to be used
 		env = append(env, fmt.Sprintf("GIT_SSL_KEY=%s", keyFile.Name()))
-
 	}
 	nonce := g.store.Add(githubAccessTokenUsername, token)
 	env = append(env, getGitAskPassEnv(nonce)...)

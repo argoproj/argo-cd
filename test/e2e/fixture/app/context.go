@@ -100,7 +100,7 @@ func (c *Context) AppNamespace() string {
 
 func (c *Context) SetAppNamespace(namespace string) *Context {
 	c.appNamespace = namespace
-	//fixture.SetParamInSettingConfigMap("application.resourceTrackingMethod", "annotation")
+	// fixture.SetParamInSettingConfigMap("application.resourceTrackingMethod", "annotation")
 	return c
 }
 

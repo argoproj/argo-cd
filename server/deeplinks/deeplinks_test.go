@@ -119,7 +119,8 @@ func TestDeepLinks(t *testing.T) {
 					Title:     "link2",
 					URL:       "http://example.com/{{ .application.metadata.name }}&{{ .application.spec.destination.namespace }}",
 					Condition: ptr.To(`application.metadata.test matches "test"`),
-				}},
+				},
+			},
 			outputLinks: []*application.LinkInfo{{
 				Title: ptr.To("link"),
 				Url:   ptr.To("http://example.com/test&testns"),
@@ -140,7 +141,8 @@ func TestDeepLinks(t *testing.T) {
 					Title:     "link1",
 					URL:       "http://example.com/{{ .application.metadata.name }}&{{ .application.spec.destination.namespace }}",
 					Condition: ptr.To(`1 + 1`),
-				}},
+				},
+			},
 			outputLinks: []*application.LinkInfo{{
 				Title: ptr.To("link"),
 				Url:   ptr.To("http://example.com/test&testns"),

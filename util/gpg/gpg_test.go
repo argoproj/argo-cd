@@ -73,7 +73,7 @@ func Test_GPG_InitializeGnuPG(t *testing.T) {
 	keys, err := GetInstalledPGPKeys(nil)
 	assert.NoError(t, err)
 	assert.Len(t, keys, 1)
-	assert.Equal(t, keys[0].Trust, "ultimate")
+	assert.Equal(t, "ultimate", keys[0].Trust)
 
 	// During unit-tests, we need to also kill gpg-agent so we can create a new key.
 	// In real world scenario -- i.e. container crash -- gpg-agent is not running yet.
@@ -88,7 +88,7 @@ func Test_GPG_InitializeGnuPG(t *testing.T) {
 	keys, err = GetInstalledPGPKeys(nil)
 	assert.NoError(t, err)
 	assert.Len(t, keys, 1)
-	assert.Equal(t, keys[0].Trust, "ultimate")
+	assert.Equal(t, "ultimate", keys[0].Trust)
 
 	t.Run("GNUPGHOME is a file", func(t *testing.T) {
 		f, err := os.CreateTemp("", "gpg-test")
@@ -189,7 +189,7 @@ func Test_GPG_KeyManagement(t *testing.T) {
 	// Import garbage - error expected
 	keys, err = ImportPGPKeys("testdata/garbage.asc")
 	assert.Error(t, err)
-	assert.Len(t, keys, 0)
+	assert.Empty(t, keys)
 
 	// We should still have a total of 2 keys in the keyring now
 	{
@@ -285,7 +285,7 @@ func Test_ValidateGPGKeys(t *testing.T) {
 	{
 		keys, err := ValidatePGPKeys("testdata/garbage.asc")
 		assert.Error(t, err)
-		assert.Len(t, keys, 0)
+		assert.Empty(t, keys)
 	}
 
 	// We should still have a total of 1 keys in the keyring now
@@ -525,7 +525,7 @@ func Test_IsSecretKey(t *testing.T) {
 	keys, err := GetInstalledPGPKeys(nil)
 	assert.NoError(t, err)
 	assert.Len(t, keys, 1)
-	assert.Equal(t, keys[0].Trust, "ultimate")
+	assert.Equal(t, "ultimate", keys[0].Trust)
 
 	{
 		secret, err := IsSecretKey(keys[0].KeyID)
@@ -552,8 +552,8 @@ func Test_SyncKeyRingFromDirectory(t *testing.T) {
 	{
 		new, removed, err := SyncKeyRingFromDirectory(tempDir)
 		assert.NoError(t, err)
-		assert.Len(t, new, 0)
-		assert.Len(t, removed, 0)
+		assert.Empty(t, new)
+		assert.Empty(t, removed)
 	}
 
 	{
@@ -578,7 +578,7 @@ func Test_SyncKeyRingFromDirectory(t *testing.T) {
 		new, removed, err := SyncKeyRingFromDirectory(tempDir)
 		assert.NoError(t, err)
 		assert.Len(t, new, 3)
-		assert.Len(t, removed, 0)
+		assert.Empty(t, removed)
 
 		installed, err := GetInstalledPGPKeys(new)
 		assert.NoError(t, err)
@@ -594,7 +594,7 @@ func Test_SyncKeyRingFromDirectory(t *testing.T) {
 		}
 		new, removed, err := SyncKeyRingFromDirectory(tempDir)
 		assert.NoError(t, err)
-		assert.Len(t, new, 0)
+		assert.Empty(t, new)
 		assert.Len(t, removed, 1)
 
 		installed, err := GetInstalledPGPKeys(new)

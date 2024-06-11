@@ -33,7 +33,6 @@ func NewMatrixGenerator(supportedGenerators map[string]Generator) Generator {
 }
 
 func (m *MatrixGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator, appSet *argoprojiov1alpha1.ApplicationSet) ([]map[string]interface{}, error) {
-
 	if appSetGenerator.Matrix == nil {
 		return nil, EmptyAppSetGeneratorError
 	}
@@ -58,7 +57,6 @@ func (m *MatrixGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.App
 			return nil, fmt.Errorf("failed to get params for second generator in the matrix generator: %w", err)
 		}
 		for _, b := range g1 {
-
 			if appSet.Spec.GoTemplate {
 				tmp := map[string]interface{}{}
 				if err := mergo.Merge(&tmp, b, mergo.WithOverride); err != nil {
@@ -120,7 +118,6 @@ func (m *MatrixGenerator) getParams(appSetBaseGenerator argoprojiov1alpha1.Appli
 		argoprojiov1alpha1.ApplicationSetTemplate{},
 		appSet,
 		params)
-
 	if err != nil {
 		return nil, fmt.Errorf("child generator returned an error on parameter generation: %v", err)
 	}
@@ -172,7 +169,6 @@ func (m *MatrixGenerator) GetRequeueAfter(appSetGenerator *argoprojiov1alpha1.Ap
 	} else {
 		return NoRequeueAfter
 	}
-
 }
 
 func getMatrixGenerator(r argoprojiov1alpha1.ApplicationSetNestedGenerator) (*argoprojiov1alpha1.MatrixGenerator, error) {

@@ -65,7 +65,6 @@ func TestPostDeleteHook(t *testing.T) {
 			assert.Len(t, hooks.Items, 1)
 			assert.Equal(t, "hook", hooks.Items[0].Name)
 		})
-
 }
 
 // make sure that that hooks do not appear in "argocd app diff"
@@ -420,7 +419,7 @@ func TestAutomaticallyNamingUnnamedHook(t *testing.T) {
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		And(func(app *Application) {
 			resources := app.Status.OperationState.SyncResult.Resources
-			assert.Equal(t, 3, len(resources))
+			assert.Len(t, resources, 3)
 			// make sure we don't use the same name
 			assert.Contains(t, resources[0].Name, "presync")
 			assert.Contains(t, resources[2].Name, "postsync")

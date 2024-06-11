@@ -38,6 +38,7 @@ import (
 
 	argocommon "github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
 	applisters "github.com/argoproj/argo-cd/v2/pkg/client/listers/application/v1alpha1"
@@ -394,8 +395,8 @@ func (s *Server) queryRepoServer(ctx context.Context, proj *appv1.AppProject, ac
 	helmCreds []*appv1.RepoCreds,
 	helmOptions *appv1.HelmOptions,
 	enabledSourceTypes map[string]bool,
-) error) error {
-
+) error,
+) error {
 	closer, client, err := s.repoClientset.NewRepoServerClient()
 	if err != nil {
 		return fmt.Errorf("error creating repo server client: %w", err)
@@ -446,8 +447,8 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 
 	manifestInfos := make([]*apiclient.ManifestResponse, 0)
 	err = s.queryRepoServer(ctx, proj, func(
-		client apiclient.RepoServerServiceClient, helmRepos []*appv1.Repository, helmCreds []*appv1.RepoCreds, helmOptions *appv1.HelmOptions, enableGenerateManifests map[string]bool) error {
-
+		client apiclient.RepoServerServiceClient, helmRepos []*appv1.Repository, helmCreds []*appv1.RepoCreds, helmOptions *appv1.HelmOptions, enableGenerateManifests map[string]bool,
+	) error {
 		appInstanceLabelKey, err := s.settingsMgr.GetAppInstanceLabelKey()
 		if err != nil {
 			return fmt.Errorf("error getting app instance label key from settings: %w", err)
@@ -488,13 +489,13 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 		}
 
 		// Store the map of all sources having ref field into a map for applications with sources field
-		refSources, err := argo.GetRefSources(context.Background(), *appSpec, s.db)
+		refSources, err := argo.GetRefSources(context.Background(), sources, appSpec.Project, s.db.GetRepository, []string{}, false)
 		if err != nil {
 			return fmt.Errorf("failed to get ref sources: %v", err)
 		}
 
 		for _, source := range sources {
-			repo, err := s.db.GetRepository(ctx, source.RepoURL)
+			repo, err := s.db.GetRepository(ctx, source.RepoURL, proj.Name)
 			if err != nil {
 				return fmt.Errorf("error getting repository: %w", err)
 			}
@@ -536,7 +537,6 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 		}
 		return nil
 	})
-
 	if err != nil {
 		return nil, err
 	}
@@ -570,7 +570,6 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 func (s *Server) GetManifestsWithFiles(stream application.ApplicationService_GetManifestsWithFilesServer) error {
 	ctx := stream.Context()
 	query, err := manifeststream.ReceiveApplicationManifestQueryWithFiles(stream)
-
 	if err != nil {
 		return fmt.Errorf("error getting query: %w", err)
 	}
@@ -586,8 +585,8 @@ func (s *Server) GetManifestsWithFiles(stream application.ApplicationService_Get
 
 	var manifestInfo *apiclient.ManifestResponse
 	err = s.queryRepoServer(ctx, proj, func(
-		client apiclient.RepoServerServiceClient, helmRepos []*appv1.Repository, helmCreds []*appv1.RepoCreds, helmOptions *appv1.HelmOptions, enableGenerateManifests map[string]bool) error {
-
+		client apiclient.RepoServerServiceClient, helmRepos []*appv1.Repository, helmCreds []*appv1.RepoCreds, helmOptions *appv1.HelmOptions, enableGenerateManifests map[string]bool,
+	) error {
 		appInstanceLabelKey, err := s.settingsMgr.GetAppInstanceLabelKey()
 		if err != nil {
 			return fmt.Errorf("error getting app instance label key from settings: %w", err)
@@ -615,7 +614,7 @@ func (s *Server) GetManifestsWithFiles(stream application.ApplicationService_Get
 			return fmt.Errorf("error getting app project: %w", err)
 		}
 
-		repo, err := s.db.GetRepository(ctx, a.Spec.GetSource().RepoURL)
+		repo, err := s.db.GetRepository(ctx, a.Spec.GetSource().RepoURL, proj.Name)
 		if err != nil {
 			return fmt.Errorf("error getting repository: %w", err)
 		}
@@ -666,7 +665,6 @@ func (s *Server) GetManifestsWithFiles(stream application.ApplicationService_Get
 		manifestInfo = resp
 		return nil
 	})
-
 	if err != nil {
 		return err
 	}
@@ -749,7 +747,7 @@ func (s *Server) Get(ctx context.Context, q *application.ApplicationQuery) (*app
 			enabledSourceTypes map[string]bool,
 		) error {
 			source := app.Spec.GetSource()
-			repo, err := s.db.GetRepository(ctx, a.Spec.GetSource().RepoURL)
+			repo, err := s.db.GetRepository(ctx, a.Spec.GetSource().RepoURL, proj.Name)
 			if err != nil {
 				return fmt.Errorf("error getting repository: %w", err)
 			}
@@ -1498,8 +1496,74 @@ func (s *Server) RevisionMetadata(ctx context.Context, q *application.RevisionMe
 		return nil, err
 	}
 
-	source := a.Spec.GetSource()
-	repo, err := s.db.GetRepository(ctx, source.RepoURL)
+	var versionId int64 = 0
+	if q.VersionId != nil {
+		versionId = int64(*q.VersionId)
+	}
+
+	var source *v1alpha1.ApplicationSource
+
+	// To support changes between single source and multi source revisions
+	// we have to calculate if the operation has to be done as multisource or not.
+	// There are 2 different scenarios, checking current revision and historic revision
+	// - Current revision (VersionId is nil or 0):
+	// 		- The application is multi source and required version too -> multi source
+	// 		- The application is single source and the required version too -> single source
+	// 		- The application is multi source and the required version is single source -> single source
+	// 		- The application is single source and the required version is multi source -> multi source
+	// - Historic revision:
+	// 		- The application is multi source and the previous one too -> multi source
+	// 		- The application is single source and the previous one too -> single source
+	// 		- The application is multi source and the previous one is single source -> multi source
+	// 		- The application is single source and the previous one is multi source -> single source
+	isRevisionMultiSource := a.Spec.HasMultipleSources()
+	emptyHistory := len(a.Status.History) == 0
+	if !emptyHistory {
+		for _, h := range a.Status.History {
+			if h.ID == versionId {
+				isRevisionMultiSource = len(h.Revisions) > 0
+				break
+			}
+		}
+	}
+
+	// If the historical data is empty (because the app hasn't been synced yet)
+	// we can use the source, if not (the app has been synced at least once)
+	// we have to use the history because sources can be added/removed
+	if emptyHistory {
+		if isRevisionMultiSource {
+			source = &a.Spec.Sources[*q.SourceIndex]
+		} else {
+			s := a.Spec.GetSource()
+			source = &s
+		}
+	} else {
+		// the source count can change during the time, we cannot just trust in .status.sync
+		// because if a source has been added/removed, the revisions there won't match
+		// as this is only used for the UI and not internally, we can use the historical data
+		// using the specific revisionId
+		for _, h := range a.Status.History {
+			if h.ID == versionId {
+				// The iteration values are assigned to the respective iteration variables as in an assignment statement.
+				// The iteration variables may be declared by the “range” clause using a form of short variable declaration (:=).
+				// In this case their types are set to the types of the respective iteration values and their scope is the block of the "for" statement;
+				// they are re-used in each iteration. If the iteration variables are declared outside the "for" statement,
+				// after execution their values will be those of the last iteration.
+				// https://golang.org/ref/spec#For_statements
+				h := h
+				if isRevisionMultiSource {
+					source = &h.Sources[*q.SourceIndex]
+				} else {
+					source = &h.Source
+				}
+			}
+		}
+	}
+	if source == nil {
+		return nil, fmt.Errorf("revision not found: %w", err)
+	}
+
+	repo, err := s.db.GetRepository(ctx, source.RepoURL, proj.Name)
 	if err != nil {
 		return nil, fmt.Errorf("error getting repository by URL: %w", err)
 	}
@@ -1521,10 +1585,29 @@ func (s *Server) RevisionChartDetails(ctx context.Context, q *application.Revisi
 	if err != nil {
 		return nil, err
 	}
-	if a.Spec.Source.Chart == "" {
-		return nil, fmt.Errorf("no chart found for application: %v", a.QualifiedName())
+
+	var source *v1alpha1.ApplicationSource
+	if a.Spec.HasMultipleSources() {
+		// the source count can change during the time, we cannot just trust in .status.sync
+		// because if a source has been added/removed, the revisions there won't match
+		// as this is only used for the UI and not internally, we can use the historical data
+		// using the specific revisionId
+		for _, h := range a.Status.History {
+			if h.ID == int64(*q.VersionId) {
+				source = &h.Sources[*q.SourceIndex]
+			}
+		}
+		if source == nil {
+			return nil, fmt.Errorf("revision not found: %w", err)
+		}
+	} else {
+		source = a.Spec.Source
 	}
-	repo, err := s.db.GetRepository(ctx, a.Spec.Source.RepoURL)
+
+	if source.Chart == "" {
+		return nil, fmt.Errorf("no chart found for application: %v", q.GetName())
+	}
+	repo, err := s.db.GetRepository(ctx, source.RepoURL, a.Spec.Project)
 	if err != nil {
 		return nil, fmt.Errorf("error getting repository by URL: %w", err)
 	}
@@ -1535,7 +1618,7 @@ func (s *Server) RevisionChartDetails(ctx context.Context, q *application.Revisi
 	defer ioutil.Close(conn)
 	return repoClient.GetRevisionChartDetails(ctx, &apiclient.RepoServerRevisionChartDetailsRequest{
 		Repo:     repo,
-		Name:     a.Spec.Source.Chart,
+		Name:     source.Chart,
 		Revision: q.GetRevision(),
 	})
 }
@@ -1970,9 +2053,10 @@ func (s *Server) Rollback(ctx context.Context, rollbackReq *application.Applicat
 	if deploymentInfo == nil {
 		return nil, status.Errorf(codes.InvalidArgument, "application %s does not have deployment with id %v", a.QualifiedName(), rollbackReq.GetId())
 	}
-	if deploymentInfo.Source.IsZero() {
+	if deploymentInfo.Source.IsZero() && deploymentInfo.Sources.IsZero() {
 		// Since source type was introduced to history starting with v0.12, and is now required for
 		// rollback, we cannot support rollback to revisions deployed using Argo CD v0.11 or below
+		// As multi source doesn't use app.Source, we need to check to the Sources length
 		return nil, status.Errorf(codes.FailedPrecondition, "cannot rollback to revision deployed with Argo CD v0.11 or lower. sync to revision instead.")
 	}
 
@@ -1985,11 +2069,13 @@ func (s *Server) Rollback(ctx context.Context, rollbackReq *application.Applicat
 	op := appv1.Operation{
 		Sync: &appv1.SyncOperation{
 			Revision:     deploymentInfo.Revision,
+			Revisions:    deploymentInfo.Revisions,
 			DryRun:       rollbackReq.GetDryRun(),
 			Prune:        rollbackReq.GetPrune(),
 			SyncOptions:  syncOptions,
 			SyncStrategy: &appv1.SyncStrategy{Apply: &appv1.SyncStrategyApply{}},
 			Source:       &deploymentInfo.Source,
+			Sources:      deploymentInfo.Sources,
 		},
 		InitiatedBy: appv1.OperationInitiator{Username: session.Username(ctx)},
 	}
@@ -2151,7 +2237,7 @@ func (s *Server) resolveRevision(ctx context.Context, app *appv1.Application, sy
 		repoUrl = app.Spec.Sources[sourceIndex].RepoURL
 	}
 
-	repo, err := s.db.GetRepository(ctx, repoUrl)
+	repo, err := s.db.GetRepository(ctx, repoUrl, app.Spec.Project)
 	if err != nil {
 		return "", "", fmt.Errorf("error getting repository by URL: %w", err)
 	}
@@ -2275,7 +2361,6 @@ func (s *Server) getUnstructuredLiveResourceOrApp(ctx context.Context, rbacReque
 			return nil, nil, nil, nil, err
 		}
 		obj, err = s.kubectl.GetResource(ctx, config, res.GroupKindVersion(), res.Name, res.Namespace)
-
 	}
 	if err != nil {
 		return nil, nil, nil, nil, fmt.Errorf("error getting resource: %w", err)
@@ -2300,7 +2385,6 @@ func (s *Server) getAvailableActions(resourceOverrides map[string]appv1.Resource
 		return nil, fmt.Errorf("error executing Lua discovery script: %w", err)
 	}
 	return availableActions, nil
-
 }
 
 func (s *Server) RunResourceAction(ctx context.Context, q *application.ResourceActionRunRequest) (*application.ApplicationResponse, error) {
@@ -2387,7 +2471,6 @@ func (s *Server) RunResourceAction(ctx context.Context, q *application.ResourceA
 	for _, impactedResource := range newObjects {
 		newObj := impactedResource.UnstructuredObj
 		newObjBytes, err := json.Marshal(newObj)
-
 		if err != nil {
 			return nil, fmt.Errorf("error marshaling new object: %w", err)
 		}

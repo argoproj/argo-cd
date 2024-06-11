@@ -30,7 +30,7 @@ func Normalize(live, config *unstructured.Unstructured, trustedManagers []string
 	configCopy := config.DeepCopy()
 	results, err := newTypedResults(liveCopy, configCopy, pt)
 	if err != nil {
-		return nil, nil, fmt.Errorf("error building typed results: %s", err)
+		return nil, nil, fmt.Errorf("error building typed results: %w", err)
 	}
 
 	normalized := false
@@ -38,7 +38,7 @@ func Normalize(live, config *unstructured.Unstructured, trustedManagers []string
 		if trustedManager(mf.Manager, trustedManagers) {
 			err := normalize(mf, results)
 			if err != nil {
-				return nil, nil, fmt.Errorf("error normalizing manager %s: %s", mf.Manager, err)
+				return nil, nil, fmt.Errorf("error normalizing manager %s: %w", mf.Manager, err)
 			}
 			normalized = true
 		}
@@ -93,16 +93,16 @@ type typedResults struct {
 func newTypedResults(live, config *unstructured.Unstructured, pt *typed.ParseableType) (*typedResults, error) {
 	typedLive, err := pt.FromUnstructured(live.Object)
 	if err != nil {
-		return nil, fmt.Errorf("error creating typedLive: %s", err)
+		return nil, fmt.Errorf("error creating typedLive: %w", err)
 	}
 
 	typedConfig, err := pt.FromUnstructured(config.Object)
 	if err != nil {
-		return nil, fmt.Errorf("error creating typedConfig: %s", err)
+		return nil, fmt.Errorf("error creating typedConfig: %w", err)
 	}
 	comparison, err := typedLive.Compare(typedConfig)
 	if err != nil {
-		return nil, fmt.Errorf("error comparing typed resources: %s", err)
+		return nil, fmt.Errorf("error comparing typed resources: %w", err)
 	}
 	return &typedResults{
 		live:       typedLive,

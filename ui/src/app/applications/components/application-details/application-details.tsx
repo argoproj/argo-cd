@@ -24,7 +24,7 @@ import {ResourceDetails} from '../resource-details/resource-details';
 import * as AppUtils from '../utils';
 import {ApplicationResourceList} from './application-resource-list';
 import {Filters, FiltersProps} from './application-resource-filter';
-import {getAppDefaultSource, urlPattern, helpTip} from '../utils';
+import {getAppDefaultSource, getAppCurrentVersion, urlPattern} from '../utils';
 import {ChartDetails, ResourceStatus} from '../../../shared/models';
 import {ApplicationsDetailsAppDropdown} from './application-details-app-dropdown';
 import {useSidebarTarget} from '../../../sidebar/sidebar';
@@ -655,7 +655,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                                     <DataLoader
                                                         input={application}
                                                         load={input =>
-                                                            services.applications.revisionChartDetails(input.metadata.name, input.metadata.namespace, this.state.revision)
+                                                            services.applications.revisionChartDetails(input.metadata.name, input.metadata.namespace, this.state.revision, 0, 0)
                                                         }>
                                                         {(m: ChartDetails) => (
                                                             <div className='white-box' style={{marginTop: '1.5em'}}>
@@ -699,7 +699,13 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                                 ) : (
                                                     <DataLoader
                                                         load={() =>
-                                                            services.applications.revisionMetadata(application.metadata.name, application.metadata.namespace, this.state.revision)
+                                                            services.applications.revisionMetadata(
+                                                                application.metadata.name,
+                                                                application.metadata.namespace,
+                                                                this.state.revision,
+                                                                0,
+                                                                getAppCurrentVersion(application)
+                                                            )
                                                         }>
                                                         {metadata => (
                                                             <div className='white-box' style={{marginTop: '1.5em'}}>
@@ -767,7 +773,6 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
         const refreshing = app.metadata.annotations && app.metadata.annotations[appModels.AnnotationRefreshKey];
         const fullName = AppUtils.nodeKey({group: 'argoproj.io', kind: app.kind, name: app.metadata.name, namespace: app.metadata.namespace});
         const ActionMenuItem = (prop: {actionLabel: string}) => <span className={needOverlapLabelOnNarrowScreen ? 'show-for-large' : ''}>{prop.actionLabel}</span>;
-        const hasMultipleSources = app.spec.sources && app.spec.sources.length > 0;
         return [
             {
                 iconClassName: 'fa fa-info-circle',
@@ -793,18 +798,11 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
             },
             {
                 iconClassName: 'fa fa-history',
-                title: hasMultipleSources ? (
-                    <React.Fragment>
-                        <ActionMenuItem actionLabel=' History and rollback' />
-                        {helpTip('Rollback is not supported for apps with multiple sources')}
-                    </React.Fragment>
-                ) : (
-                    <ActionMenuItem actionLabel='History and rollback' />
-                ),
+                title: <ActionMenuItem actionLabel='History and rollback' />,
                 action: () => {
                     this.setRollbackPanelVisible(0);
                 },
-                disabled: !app.status.operationState || hasMultipleSources
+                disabled: !app.status.operationState
             },
             {
                 iconClassName: 'fa fa-times-circle',
