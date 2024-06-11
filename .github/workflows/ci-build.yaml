@@ -491,8 +491,8 @@ jobs:
           ls -lrt /tmp/coverage
       - name: Run E2E testsuite
         run:
-          ls -lrt /tmp/coverage
           set -x
+          ls -lrt /tmp/coverage
           make test-e2e-local
           ls -lrt /tmp/coverage
       - name: Upload e2e coverage report
