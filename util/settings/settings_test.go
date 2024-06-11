@@ -127,14 +127,14 @@ func TestInClusterServerAddressEnabled(t *testing.T) {
 	})
 	argoCDCM, err := settingsManager.getConfigMap()
 	assert.NoError(t, err)
-	assert.True(t, argoCDCM.Data[inClusterEnabledKey] == "true")
+	assert.Equal(t, "true", argoCDCM.Data[inClusterEnabledKey])
 
 	_, settingsManager = fixtures(map[string]string{
 		"cluster.inClusterEnabled": "false",
 	})
 	argoCDCM, err = settingsManager.getConfigMap()
 	assert.NoError(t, err)
-	assert.False(t, argoCDCM.Data[inClusterEnabledKey] == "true")
+	assert.NotEqual(t, "true", argoCDCM.Data[inClusterEnabledKey])
 }
 
 func TestInClusterServerAddressEnabledByDefault(t *testing.T) {

@@ -253,7 +253,7 @@ func TestCachedManifestResponse_HashBehavior(t *testing.T) {
 	retrievedVal = &CachedManifestResponse{}
 	err = repoCache.GetManifests(response.Revision, appSrc, q.RefSources, q, response.Namespace, "", appKey, appValue, retrievedVal, nil)
 
-	assert.True(t, err == cacheutil.ErrCacheMiss)
+	assert.Equal(t, err, cacheutil.ErrCacheMiss)
 
 	// Verify that the hash mismatch item has been deleted
 	items := getInMemoryCacheContents(t, inMemCache)
