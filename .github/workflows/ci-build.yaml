@@ -472,7 +472,6 @@ jobs:
       - name: Run E2E server and wait for it being available
         timeout-minutes: 30
         run: |
-          ls -lrt /tmp/coverage
           set -x
           # Something is weird in GH runners -- there's a phantom listener for
           # port 8080 which is not visible in netstat -tulpen, but still there
@@ -488,6 +487,7 @@ jobs:
             fi
             count=$((count+1))
           done
+          strings dist/argocd | grep '/src/internal/coverage'
           ls -lrt /tmp/coverage
       - name: Run E2E testsuite
         run:

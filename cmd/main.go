@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 
@@ -53,6 +54,8 @@ func main() {
 	default:
 		command = cli.NewCommand()
 	}
+
+	fmt.Printf("GOCOVERDIR: %s\n", os.Getenv("GOCOVERDIR"))
 
 	if err := command.Execute(); err != nil {
 		os.Exit(1)
