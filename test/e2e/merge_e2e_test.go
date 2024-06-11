@@ -180,7 +180,7 @@ func TestClusterMergeGenerator(t *testing.T) {
 		// Create a ClusterGenerator-based ApplicationSet
 		When().
 		CreateClusterSecret("my-secret", "cluster1", "https://kubernetes.default.svc").
-		CreateClusterSecret("my-secret2", "cluster2", "https://kubernetes.default.svc").
+		CreateClusterSecret("my-secret2", "cluster2", "https://kubernetes.default.svc.cluster.local").
 		Create(v1alpha1.ApplicationSet{ObjectMeta: metav1.ObjectMeta{
 			Name: "merge-generator",
 		},

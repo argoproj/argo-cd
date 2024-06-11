@@ -118,7 +118,7 @@ func ListClusters(ctx context.Context, clientset kubernetes.Interface, namespace
 		}
 
 		clusterList.Items[i] = *cluster
-		if cluster.Server == appv1.KubernetesInternalAPIServerAddr {
+		if strings.HasPrefix(cluster.Server, appv1.KubernetesInternalAPIServerAddr) {
 			hasInClusterCredentials = true
 		}
 	}
