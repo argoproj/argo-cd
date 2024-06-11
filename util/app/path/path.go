@@ -47,23 +47,23 @@ func (e *OutOfBoundsSymlinkError) Error() string {
 func CheckOutOfBoundsSymlinks(basePath string) error {
 	absBasePath, err := filepath.Abs(basePath)
 	if err != nil {
-		return fmt.Errorf("failed to get absolute path: %v", err)
+		return fmt.Errorf("failed to get absolute path: %w", err)
 	}
 	return filepath.Walk(absBasePath, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
-			return fmt.Errorf("failed to walk for symlinks in %s: %v", absBasePath, err)
+			return fmt.Errorf("failed to walk for symlinks in %s: %w", absBasePath, err)
 		}
 		if files.IsSymlink(info) {
 			// We don't use filepath.EvalSymlinks because it fails without returning a path
 			// if the target doesn't exist.
 			linkTarget, err := os.Readlink(path)
 			if err != nil {
-				return fmt.Errorf("failed to read link %s: %v", path, err)
+				return fmt.Errorf("failed to read link %s: %w", path, err)
 			}
 			// get the path of the symlink relative to basePath, used for error description
 			linkRelPath, err := filepath.Rel(absBasePath, path)
 			if err != nil {
-				return fmt.Errorf("failed to get relative path for symlink: %v", err)
+				return fmt.Errorf("failed to get relative path for symlink: %w", err)
 			}
 			// deny all absolute symlinks
 			if filepath.IsAbs(linkTarget) {
@@ -78,7 +78,7 @@ func CheckOutOfBoundsSymlinks(basePath string) error {
 				newDir := filepath.Join(currentDir, part)
 				rel, err := filepath.Rel(absBasePath, newDir)
 				if err != nil {
-					return fmt.Errorf("failed to get relative path for symlink target: %v", err)
+					return fmt.Errorf("failed to get relative path for symlink target: %w", err)
 				}
 				if rel == ".." || strings.HasPrefix(rel, ".."+string(os.PathSeparator)) {
 					// return an error so we don't keep traversing the tree

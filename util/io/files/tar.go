@@ -107,14 +107,14 @@ func Untgz(dstPath string, r io.Reader, maxSize int64, preserveFileMode bool) er
 			if os.IsNotExist(err) {
 				realPath = linkTarget
 			} else if err != nil {
-				return fmt.Errorf("error checking symlink realpath: %s", err)
+				return fmt.Errorf("error checking symlink realpath: %w", err)
 			}
 			if !Inbound(realPath, dstPath) {
 				return fmt.Errorf("illegal filepath in symlink: %s", linkTarget)
 			}
 			err = os.Symlink(realPath, target)
 			if err != nil {
-				return fmt.Errorf("error creating symlink: %s", err)
+				return fmt.Errorf("error creating symlink: %w", err)
 			}
 		case tar.TypeReg:
 			var mode os.FileMode = 0644
@@ -155,7 +155,7 @@ func (t *tgz) tgzFile(path string, fi os.FileInfo, err error) error {
 
 	relativePath, err := RelativePath(path, t.srcPath)
 	if err != nil {
-		return fmt.Errorf("relative path error: %s", err)
+		return fmt.Errorf("relative path error: %w", err)
 	}
 
 	if t.inclusions != nil && base != "." && !fi.IsDir() {
@@ -197,7 +197,7 @@ func (t *tgz) tgzFile(path string, fi os.FileInfo, err error) error {
 	if IsSymlink(fi) {
 		link, err = os.Readlink(path)
 		if err != nil {
-			return fmt.Errorf("error getting link target: %s", err)
+			return fmt.Errorf("error getting link target: %w", err)
 		}
 	}
 

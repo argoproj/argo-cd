@@ -483,7 +483,7 @@ func readAppsFromStdin(apps *[]*argoappv1.Application) error {
 	}
 	err = readApps(data, apps)
 	if err != nil {
-		return fmt.Errorf("unable to read manifest from stdin: %v", err)
+		return fmt.Errorf("unable to read manifest from stdin: %w", err)
 	}
 	return nil
 }

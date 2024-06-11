@@ -7,6 +7,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"math/big"
 	"net/url"
@@ -1073,7 +1074,7 @@ func (mgr *SettingsManager) GetResourceCompareOptions() (ArgoCDDiffOptions, erro
 func (mgr *SettingsManager) GetHelmSettings() (*v1alpha1.HelmOptions, error) {
 	argoCDCM, err := mgr.getConfigMap()
 	if err != nil {
-		return nil, fmt.Errorf("failed to get argo-cd config map: %v", err)
+		return nil, fmt.Errorf("failed to get argo-cd config map: %w", err)
 	}
 	helmOptions := &v1alpha1.HelmOptions{}
 	if value, ok := argoCDCM.Data[helmValuesFileSchemesKey]; ok {
@@ -1509,7 +1510,7 @@ func validateExternalURL(u string) error {
 	}
 	URL, err := url.Parse(u)
 	if err != nil {
-		return fmt.Errorf("Failed to parse URL: %v", err)
+		return fmt.Errorf("Failed to parse URL: %w", err)
 	}
 	if URL.Scheme != "http" && URL.Scheme != "https" {
 		return fmt.Errorf("URL must include http or https protocol")
@@ -2050,8 +2051,8 @@ func (mgr *SettingsManager) notifySubscribers(newSettings *ArgoCDSettings) {
 }
 
 func isIncompleteSettingsError(err error) bool {
-	_, ok := err.(*incompleteSettingsError)
-	return ok
+	var incompleteSettingsErr *incompleteSettingsError
+	return errors.As(err, &incompleteSettingsErr)
 }
 
 // InitializeSettings is used to initialize empty admin password, signature, certificate etc if missing
@@ -2220,7 +2221,7 @@ func (mgr *SettingsManager) GetNamespace() string {
 func (mgr *SettingsManager) GetResourceCustomLabels() ([]string, error) {
 	argoCDCM, err := mgr.getConfigMap()
 	if err != nil {
-		return []string{}, fmt.Errorf("failed getting configmap: %v", err)
+		return []string{}, fmt.Errorf("failed getting configmap: %w", err)
 	}
 	labels := argoCDCM.Data[resourceCustomLabelsKey]
 	if labels != "" {

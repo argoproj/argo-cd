@@ -80,11 +80,11 @@ func (db *db) CreateRepository(ctx context.Context, r *appsv1.Repository) (*apps
 func (db *db) GetRepository(ctx context.Context, repoURL, project string) (*appsv1.Repository, error) {
 	repository, err := db.getRepository(ctx, repoURL, project)
 	if err != nil {
-		return repository, fmt.Errorf("unable to get repository %q: %v", repoURL, err)
+		return repository, fmt.Errorf("unable to get repository %q: %w", repoURL, err)
 	}
 
 	if err := db.enrichCredsToRepo(ctx, repository); err != nil {
-		return repository, fmt.Errorf("unable to enrich repository %q info with credentials: %v", repoURL, err)
+		return repository, fmt.Errorf("unable to enrich repository %q info with credentials: %w", repoURL, err)
 	}
 
 	return repository, err
@@ -125,11 +125,11 @@ func (db *db) getRepository(ctx context.Context, repoURL, project string) (*apps
 	secretsBackend := db.repoBackend()
 	exists, err := secretsBackend.RepositoryExists(ctx, repoURL, project, true)
 	if err != nil {
-		return nil, fmt.Errorf("unable to check if repository %q exists from secrets backend: %v", repoURL, err)
+		return nil, fmt.Errorf("unable to check if repository %q exists from secrets backend: %w", repoURL, err)
 	} else if exists {
 		repository, err := secretsBackend.GetRepository(ctx, repoURL, project)
 		if err != nil {
-			return nil, fmt.Errorf("unable to get repository %q from secrets backend: %v", repoURL, err)
+			return nil, fmt.Errorf("unable to get repository %q from secrets backend: %w", repoURL, err)
 		}
 		return repository, nil
 	}
@@ -137,11 +137,11 @@ func (db *db) getRepository(ctx context.Context, repoURL, project string) (*apps
 	legacyBackend := db.legacyRepoBackend()
 	exists, err = legacyBackend.RepositoryExists(ctx, repoURL, project, true)
 	if err != nil {
-		return nil, fmt.Errorf("unable to check if repository %q exists from legacy backend: %v", repoURL, err)
+		return nil, fmt.Errorf("unable to check if repository %q exists from legacy backend: %w", repoURL, err)
 	} else if exists {
 		repository, err := legacyBackend.GetRepository(ctx, repoURL, project)
 		if err != nil {
-			return nil, fmt.Errorf("unable to get repository %q from legacy backend: %v", repoURL, err)
+			return nil, fmt.Errorf("unable to get repository %q from legacy backend: %w", repoURL, err)
 		}
 		return repository, nil
 	}

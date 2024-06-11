@@ -235,7 +235,7 @@ func generate(opts CertOptions) ([]byte, crypto.PrivateKey, error) {
 		return nil, nil, fmt.Errorf("Unrecognized elliptic curve: %q", opts.ECDSACurve)
 	}
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to generate private key: %s", err)
+		return nil, nil, fmt.Errorf("failed to generate private key: %w", err)
 	}
 
 	var notBefore time.Time
@@ -255,7 +255,7 @@ func generate(opts CertOptions) ([]byte, crypto.PrivateKey, error) {
 	serialNumberLimit := new(big.Int).Lsh(big.NewInt(1), 128)
 	serialNumber, err := rand.Int(rand.Reader, serialNumberLimit)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to generate serial number: %s", err)
+		return nil, nil, fmt.Errorf("failed to generate serial number: %w", err)
 	}
 
 	if opts.Organization == "" {
@@ -289,7 +289,7 @@ func generate(opts CertOptions) ([]byte, crypto.PrivateKey, error) {
 
 	certBytes, err := x509.CreateCertificate(rand.Reader, &template, &template, publicKey(privateKey), privateKey)
 	if err != nil {
-		return nil, nil, fmt.Errorf("Failed to create certificate: %s", err)
+		return nil, nil, fmt.Errorf("Failed to create certificate: %w", err)
 	}
 	return certBytes, privateKey, nil
 }
@@ -348,11 +348,11 @@ func LoadX509CertPool(paths ...string) (*x509.CertPool, error) {
 				continue
 			}
 			// ...but everything else is considered an error
-			return nil, fmt.Errorf("could not load TLS certificate: %v", err)
+			return nil, fmt.Errorf("could not load TLS certificate: %w", err)
 		} else {
 			f, err := os.ReadFile(path)
 			if err != nil {
-				return nil, fmt.Errorf("failure to load TLS certificates from %s: %v", path, err)
+				return nil, fmt.Errorf("failure to load TLS certificates from %s: %w", path, err)
 			}
 			if ok := pool.AppendCertsFromPEM(f); !ok {
 				return nil, fmt.Errorf("invalid cert data in %s", path)
@@ -366,7 +366,7 @@ func LoadX509CertPool(paths ...string) (*x509.CertPool, error) {
 func LoadX509Cert(path string) (*x509.Certificate, error) {
 	bytes, err := os.ReadFile(path)
 	if err != nil {
-		return nil, fmt.Errorf("could not read certificate file: %v", err)
+		return nil, fmt.Errorf("could not read certificate file: %w", err)
 	}
 	block, _ := pem.Decode(bytes)
 	if block == nil {
@@ -374,7 +374,7 @@ func LoadX509Cert(path string) (*x509.Certificate, error) {
 	}
 	cert, err := x509.ParseCertificate(block.Bytes)
 	if err != nil {
-		return nil, fmt.Errorf("could not parse certificate: %v", err)
+		return nil, fmt.Errorf("could not parse certificate: %w", err)
 	}
 	return cert, nil
 }
@@ -427,7 +427,7 @@ func CreateServerTLSConfig(tlsCertPath, tlsKeyPath string, hosts []string) (*tls
 		log.Infof("Loading TLS configuration from cert=%s and key=%s", tlsCertPath, tlsKeyPath)
 		c, err := tls.LoadX509KeyPair(tlsCertPath, tlsKeyPath)
 		if err != nil {
-			return nil, fmt.Errorf("Unable to initialize TLS configuration with cert=%s and key=%s: %v", tlsCertPath, tlsKeyPath, err)
+			return nil, fmt.Errorf("Unable to initialize TLS configuration with cert=%s and key=%s: %w", tlsCertPath, tlsKeyPath, err)
 		}
 		cert = &c
 	}

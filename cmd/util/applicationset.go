@@ -23,7 +23,7 @@ func constructAppsetFromFileUrl(fileURL string) ([]*argoprojiov1alpha1.Applicati
 	// read uri
 	err := readAppsetFromURI(fileURL, &appset)
 	if err != nil {
-		return nil, fmt.Errorf("error reading applicationset from file %s: %s", fileURL, err)
+		return nil, fmt.Errorf("error reading applicationset from file %s: %w", fileURL, err)
 	}
 
 	return appset, nil

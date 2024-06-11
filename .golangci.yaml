@@ -2,7 +2,7 @@ issues:
   exclude:
     - SA5011
   exclude-rules:
-    - path: "(applicationset|cmpserver|controller|reposerver|server|util)/"
+    - path: "(applicationset|cmpserver|controller|reposerver|server)/"
       linters:
         - errorlint
   max-issues-per-linter: 0

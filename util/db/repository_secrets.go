@@ -76,7 +76,7 @@ func (s *secretsRepositoryBackend) hasRepoTypeLabel(secretName string) (bool, er
 func (s *secretsRepositoryBackend) GetRepoCredsBySecretName(_ context.Context, name string) (*appsv1.RepoCreds, error) {
 	secret, err := s.db.getSecret(name, map[string]*corev1.Secret{})
 	if err != nil {
-		return nil, fmt.Errorf("failed to get secret %s: %v", name, err)
+		return nil, fmt.Errorf("failed to get secret %s: %w", name, err)
 	}
 	return s.secretToRepoCred(secret)
 }
@@ -171,7 +171,7 @@ func (s *secretsRepositoryBackend) RepositoryExists(ctx context.Context, repoURL
 			return false, nil
 		}
 
-		return false, fmt.Errorf("failed to get repository secret for %q: %v", repoURL, err)
+		return false, fmt.Errorf("failed to get repository secret for %q: %w", repoURL, err)
 	}
 
 	return secret != nil, nil
