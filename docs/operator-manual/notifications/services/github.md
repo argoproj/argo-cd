@@ -7,7 +7,7 @@ The GitHub notification service changes commit status using [GitHub Apps](https:
 - `appID` - the app id
 - `installationID` - the app installation id
 - `privateKey` - the app private key
-- `enterpriseBaseURL` - optional URL, e.g. https://git.example.com/
+- `enterpriseBaseURL` - optional URL, e.g. https://git.example.com/api/v3
 
 ## Configuration
 
