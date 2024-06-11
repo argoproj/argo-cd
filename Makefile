@@ -454,6 +454,7 @@ start-e2e-local: mod-vendor-local dep-ui-local cli-local
 	mkdir -p /tmp/argo-e2e/app/config/plugin && chmod 0700 /tmp/argo-e2e/app/config/plugin
 	# create a folder to hold go coverage results
 	mkdir -p /tmp/coverage
+	ls -lrt /tmp/coverage
 	# set paths for locally managed ssh known hosts and tls certs data
 	ARGOCD_SSH_DATA_PATH=/tmp/argo-e2e/app/config/ssh \
 	ARGOCD_TLS_DATA_PATH=/tmp/argo-e2e/app/config/tls \
@@ -471,6 +472,7 @@ start-e2e-local: mod-vendor-local dep-ui-local cli-local
 	ARGOCD_APPLICATIONSET_CONTROLLER_ALLOWED_SCM_PROVIDERS=http://127.0.0.1:8341,http://127.0.0.1:8342,http://127.0.0.1:8343,http://127.0.0.1:8344 \
 	ARGOCD_E2E_TEST=true \
 		goreman -f $(ARGOCD_PROCFILE) start ${ARGOCD_START}
+	ls -lrt /tmp/coverage
 
 # Cleans VSCode debug.test files from sub-dirs to prevent them from being included in by golang embed
 .PHONY: clean-debug
