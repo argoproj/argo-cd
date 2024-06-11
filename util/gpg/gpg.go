@@ -249,13 +249,13 @@ func InitializeGnuPG() error {
 		// re-initialize key ring.
 		err = removeKeyRing(gnuPgHome)
 		if err != nil {
-			return fmt.Errorf("re-initializing keyring at %s failed: %v", gnuPgHome, err)
+			return fmt.Errorf("re-initializing keyring at %s failed: %w", gnuPgHome, err)
 		}
 	}
 
 	err = os.WriteFile(filepath.Join(gnuPgHome, canaryMarkerFilename), []byte("canary"), 0644)
 	if err != nil {
-		return fmt.Errorf("could not create canary: %v", err)
+		return fmt.Errorf("could not create canary: %w", err)
 	}
 
 	f, err := os.CreateTemp("", "gpg-key-recipe")

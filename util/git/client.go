@@ -322,13 +322,13 @@ func (m *nativeGitClient) Init() error {
 	if err == nil {
 		return nil
 	}
-	if err != git.ErrRepositoryNotExists {
+	if !errors.Is(err, git.ErrRepositoryNotExists) {
 		return err
 	}
 	log.Infof("Initializing %s to %s", m.repoURL, m.root)
 	err = os.RemoveAll(m.root)
 	if err != nil {
-		return fmt.Errorf("unable to clean repo at %s: %v", m.root, err)
+		return fmt.Errorf("unable to clean repo at %s: %w", m.root, err)
 	}
 	err = os.MkdirAll(m.root, 0755)
 	if err != nil {

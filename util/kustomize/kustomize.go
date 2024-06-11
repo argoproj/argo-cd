@@ -406,7 +406,7 @@ func Version(shortForm bool) (string, error) {
 	// short: "{kustomize/v3.8.1  2020-07-16T00:58:46Z  }"
 	version, err := executil.Run(cmd)
 	if err != nil {
-		return "", fmt.Errorf("could not get kustomize version: %s", err)
+		return "", fmt.Errorf("could not get kustomize version: %w", err)
 	}
 	version = strings.TrimSpace(version)
 	if shortForm {

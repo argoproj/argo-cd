@@ -469,7 +469,7 @@ func GetRefSources(ctx context.Context, sources argoappv1.ApplicationSources, pr
 			if source.Ref != "" {
 				repo, err := getRepository(ctx, source.RepoURL, project)
 				if err != nil {
-					return nil, fmt.Errorf("failed to get repository %s: %v", source.RepoURL, err)
+					return nil, fmt.Errorf("failed to get repository %s: %w", source.RepoURL, err)
 				}
 				refKey := "$" + source.Ref
 				revision := source.TargetRevision
@@ -501,7 +501,7 @@ func ValidateDestination(ctx context.Context, dest *argoappv1.ApplicationDestina
 		if dest.Server == "" {
 			server, err := getDestinationServer(ctx, db, dest.Name)
 			if err != nil {
-				return fmt.Errorf("unable to find destination server: %v", err)
+				return fmt.Errorf("unable to find destination server: %w", err)
 			}
 			if server == "" {
 				return fmt.Errorf("application references destination cluster %s which does not exist", dest.Name)

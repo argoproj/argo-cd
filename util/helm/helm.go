@@ -130,7 +130,7 @@ func Version(shortForm bool) (string, error) {
 	// short: "v3.3.1+g249e521"
 	version, err := executil.RunWithRedactor(cmd, redactor)
 	if err != nil {
-		return "", fmt.Errorf("could not get helm version: %s", err)
+		return "", fmt.Errorf("could not get helm version: %w", err)
 	}
 	return strings.TrimSpace(version), nil
 }
@@ -160,7 +160,7 @@ func (h *helm) GetParameters(valuesFiles []pathutil.ResolvedFilePath, appPath, r
 			fileValues, err = os.ReadFile(file)
 		}
 		if err != nil {
-			return nil, fmt.Errorf("failed to read value file %s: %s", file, err)
+			return nil, fmt.Errorf("failed to read value file %s: %w", file, err)
 		}
 		values = append(values, string(fileValues))
 	}
@@ -169,7 +169,7 @@ func (h *helm) GetParameters(valuesFiles []pathutil.ResolvedFilePath, appPath, r
 	for _, file := range values {
 		values := map[string]interface{}{}
 		if err := yaml.Unmarshal([]byte(file), &values); err != nil {
-			return nil, fmt.Errorf("failed to parse values: %s", err)
+			return nil, fmt.Errorf("failed to parse values: %w", err)
 		}
 		flatVals(values, output)
 	}
