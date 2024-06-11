@@ -62,6 +62,7 @@ func NewServer(
 	namespace string,
 	projectLock sync.KeyLock,
 	enabledNamespaces []string,
+	enableK8sEvent []string,
 ) applicationset.ApplicationSetServiceServer {
 	s := &Server{
 		ns:                namespace,
@@ -73,7 +74,7 @@ func NewServer(
 		projLister:        projLister,
 		settings:          settings,
 		projectLock:       projectLock,
-		auditLogger:       argo.NewAuditLogger(namespace, kubeclientset, "argocd-server"),
+		auditLogger:       argo.NewAuditLogger(namespace, kubeclientset, "argocd-server", enableK8sEvent),
 		enabledNamespaces: enabledNamespaces,
 	}
 	return s

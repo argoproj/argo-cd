@@ -22,6 +22,7 @@ import (
 	reposervercache "github.com/argoproj/argo-cd/v2/reposerver/cache"
 	"github.com/argoproj/argo-cd/v2/server"
 	servercache "github.com/argoproj/argo-cd/v2/server/cache"
+	"github.com/argoproj/argo-cd/v2/util/argo"
 	cacheutil "github.com/argoproj/argo-cd/v2/util/cache"
 	"github.com/argoproj/argo-cd/v2/util/cli"
 	"github.com/argoproj/argo-cd/v2/util/dex"
@@ -78,6 +79,9 @@ func NewCommand() *cobra.Command {
 		staticAssetsDir          string
 		applicationNamespaces    []string
 		enableProxyExtension     bool
+
+		// argocd k8s event logging flag
+		enableK8sEvent []string
 	)
 	var command = &cobra.Command{
 		Use:               cliName,
@@ -203,6 +207,7 @@ func NewCommand() *cobra.Command {
 				StaticAssetsDir:       staticAssetsDir,
 				ApplicationNamespaces: applicationNamespaces,
 				EnableProxyExtension:  enableProxyExtension,
+				EnableK8sEvent:        enableK8sEvent,
 			}
 
 			stats.RegisterStackDumper()
@@ -268,6 +273,8 @@ func NewCommand() *cobra.Command {
 	command.Flags().BoolVar(&dexServerStrictTLS, "dex-server-strict-tls", env.ParseBoolFromEnv("ARGOCD_SERVER_DEX_SERVER_STRICT_TLS", false), "Perform strict validation of TLS certificates when connecting to dex server")
 	command.Flags().StringSliceVar(&applicationNamespaces, "application-namespaces", env.StringsFromEnv("ARGOCD_APPLICATION_NAMESPACES", []string{}, ","), "List of additional namespaces where application resources can be managed in")
 	command.Flags().BoolVar(&enableProxyExtension, "enable-proxy-extension", env.ParseBoolFromEnv("ARGOCD_SERVER_ENABLE_PROXY_EXTENSION", false), "Enable Proxy Extension feature")
+	command.Flags().StringSliceVar(&enableK8sEvent, "enable-k8s-event", env.StringsFromEnv("ARGOCD_ENABLE_K8S_EVENT", argo.DefaultEnableEventList(), ","), "Enable ArgoCD to use k8s event. For disabling all events, set the value as `none`. (e.g --enable-k8s-event=none), For enabling specific events, set the value as `event reason`. (e.g --enable-k8s-event=StatusRefreshed,ResourceCreated)")
+
 	tlsConfigCustomizerSrc = tls.AddTLSFlagsToCmd(command)
 	cacheSrc = servercache.AddCacheFlagsToCmd(command, cacheutil.Options{
 		OnClientCreated: func(client *redis.Client) {

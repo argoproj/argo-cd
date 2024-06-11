@@ -221,6 +221,7 @@ type ArgoCDServerOpts struct {
 	ContentSecurityPolicy string
 	ApplicationNamespaces []string
 	EnableProxyExtension  bool
+	EnableK8sEvent        []string
 }
 
 // HTTPMetricsRegistry exposes operations to update http metrics in the Argo CD
@@ -862,7 +863,9 @@ func newArgoCDServiceSet(a *ArgoCDServer) *ArgoCDServiceSet {
 		projectLock,
 		a.settingsMgr,
 		a.projInformer,
-		a.ApplicationNamespaces)
+		a.ApplicationNamespaces,
+		a.EnableK8sEvent,
+	)
 
 	applicationSetService := applicationset.NewServer(
 		a.db,
@@ -875,9 +878,11 @@ func newArgoCDServiceSet(a *ArgoCDServer) *ArgoCDServiceSet {
 		a.settingsMgr,
 		a.Namespace,
 		projectLock,
-		a.ApplicationNamespaces)
+		a.ApplicationNamespaces,
+		a.EnableK8sEvent,
+	)
 
-	projectService := project.NewServer(a.Namespace, a.KubeClientset, a.AppClientset, a.enf, projectLock, a.sessionMgr, a.policyEnforcer, a.projInformer, a.settingsMgr, a.db)
+	projectService := project.NewServer(a.Namespace, a.KubeClientset, a.AppClientset, a.enf, projectLock, a.sessionMgr, a.policyEnforcer, a.projInformer, a.settingsMgr, a.db, a.EnableK8sEvent)
 	appsInAnyNamespaceEnabled := len(a.ArgoCDServerOpts.ApplicationNamespaces) > 0
 	settingsService := settings.NewServer(a.settingsMgr, a.RepoClientset, a, a.DisableAuth, appsInAnyNamespaceEnabled)
 	accountService := account.NewServer(a.sessionMgr, a.settingsMgr, a.enf)
