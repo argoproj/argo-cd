@@ -45,7 +45,6 @@ func Tgz(srcPath string, inclusions []string, exclusions []string, writers ...io
 		tarWriter:  tw,
 	}
 	err := filepath.Walk(srcPath, t.tgzFile)
-
 	if err != nil {
 		return 0, err
 	}
@@ -92,7 +91,7 @@ func Untgz(dstPath string, r io.Reader, maxSize int64, preserveFileMode bool) er
 
 		switch header.Typeflag {
 		case tar.TypeDir:
-			var mode os.FileMode = 0755
+			var mode os.FileMode = 0o755
 			if preserveFileMode {
 				mode = os.FileMode(header.Mode)
 			}
@@ -117,12 +116,12 @@ func Untgz(dstPath string, r io.Reader, maxSize int64, preserveFileMode bool) er
 				return fmt.Errorf("error creating symlink: %w", err)
 			}
 		case tar.TypeReg:
-			var mode os.FileMode = 0644
+			var mode os.FileMode = 0o644
 			if preserveFileMode {
 				mode = os.FileMode(header.Mode)
 			}
 
-			err := os.MkdirAll(filepath.Dir(target), 0755)
+			err := os.MkdirAll(filepath.Dir(target), 0o755)
 			if err != nil {
 				return fmt.Errorf("error creating nested folders: %w", err)
 			}

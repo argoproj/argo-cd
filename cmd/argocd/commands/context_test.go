@@ -44,7 +44,7 @@ func TestContextDelete(t *testing.T) {
 	assert.NoError(t, err)
 	defer os.Remove(testConfigFilePath)
 
-	err = os.Chmod(testConfigFilePath, 0600)
+	err = os.Chmod(testConfigFilePath, 0o600)
 	require.NoError(t, err, "Could not change the file permission to 0600 %v", err)
 	localConfig, err := localconfig.ReadLocalConfig(testConfigFilePath)
 	assert.NoError(t, err)

@@ -631,9 +631,7 @@ func TestPluginGenerateParams(t *testing.T) {
 	ctx := context.Background()
 
 	for _, testCase := range testCases {
-
 		t.Run(testCase.name, func(t *testing.T) {
-
 			generatorConfig := argoprojiov1alpha1.ApplicationSetGenerator{
 				Plugin: &argoprojiov1alpha1.PluginGenerator{
 					ConfigMapRef: argoprojiov1alpha1.PluginConfigMapRef{Name: testCase.configmap.Name},
@@ -645,7 +643,6 @@ func TestPluginGenerateParams(t *testing.T) {
 			}
 
 			handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-
 				authHeader := r.Header.Get("Authorization")
 				_, tokenKey := plugin.ParseSecretKey(testCase.configmap.Data["token"])
 				expectedToken := testCase.secret.Data[strings.Replace(tokenKey, "$", "", -1)]
@@ -673,7 +670,7 @@ func TestPluginGenerateParams(t *testing.T) {
 
 			fakeClientWithCache := fake.NewClientBuilder().WithObjects([]client.Object{testCase.configmap, testCase.secret}...).Build()
 
-			var pluginGenerator = NewPluginGenerator(fakeClientWithCache, ctx, fakeClient, "default")
+			pluginGenerator := NewPluginGenerator(fakeClientWithCache, ctx, fakeClient, "default")
 
 			applicationSetInfo := argoprojiov1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
@@ -685,7 +682,6 @@ func TestPluginGenerateParams(t *testing.T) {
 			}
 
 			got, err := pluginGenerator.GenerateParams(&generatorConfig, &applicationSetInfo)
-
 			if err != nil {
 				fmt.Println(err)
 			}

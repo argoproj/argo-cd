@@ -112,7 +112,6 @@ func (p *AppProject) GetJWTToken(roleName string, issuedAt int64, id string) (*J
 				return &token, i, nil
 			}
 		}
-
 	}
 
 	if issuedAt != -1 {
@@ -144,10 +143,10 @@ func (p AppProject) RemoveJWTToken(roleIndex int, issuedAt int64, id string) err
 	}
 
 	if err1 == nil || err2 == nil {
-		//If we find this token from either places, we can say there are no error
+		// If we find this token from either places, we can say there are no error
 		return nil
 	} else {
-		//If we could not locate this taken from either places, we can return any of the errors
+		// If we could not locate this taken from either places, we can return any of the errors
 		return err2
 	}
 }

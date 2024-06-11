@@ -55,5 +55,4 @@ func TestHealthCheck(t *testing.T) {
 	if resp.StatusCode != http.StatusServiceUnavailable {
 		t.Fatalf("Was expecting status code 503 from health check, but got %d instead", resp.StatusCode)
 	}
-
 }

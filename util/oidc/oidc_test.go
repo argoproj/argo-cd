@@ -82,8 +82,7 @@ func TestIDTokenClaims(t *testing.T) {
 	assert.Equal(t, "{\"id_token\":{\"groups\":{\"essential\":true}}}", values.Get("claims"))
 }
 
-type fakeProvider struct {
-}
+type fakeProvider struct{}
 
 func (p *fakeProvider) Endpoint() (*oauth2.Endpoint, error) {
 	return &oauth2.Endpoint{}, nil
@@ -323,7 +322,7 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 }
 
 func TestIsValidRedirect(t *testing.T) {
-	var tests = []struct {
+	tests := []struct {
 		name        string
 		valid       bool
 		redirectURL string
@@ -508,8 +507,7 @@ func TestGenerateAppState_NoReturnURL(t *testing.T) {
 }
 
 func TestGetUserInfo(t *testing.T) {
-
-	var tests = []struct {
+	tests := []struct {
 		name                  string
 		userInfoPath          string
 		expectedOutput        interface{}
@@ -771,5 +769,4 @@ func TestGetUserInfo(t *testing.T) {
 			}
 		})
 	}
-
 }

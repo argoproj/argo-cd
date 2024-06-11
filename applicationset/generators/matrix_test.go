@@ -23,7 +23,6 @@ import (
 )
 
 func TestMatrixGenerate(t *testing.T) {
-
 	gitGenerator := &argoprojiov1alpha1.GitGenerator{
 		RepoURL:     "RepoURL",
 		Revision:    "Revision",
@@ -147,7 +146,6 @@ func TestMatrixGenerate(t *testing.T) {
 			}
 
 			for _, g := range testCaseCopy.baseGenerators {
-
 				gitGeneratorSpec := argoprojiov1alpha1.ApplicationSetGenerator{
 					Git:  g.Git,
 					List: g.List,
@@ -169,7 +167,7 @@ func TestMatrixGenerate(t *testing.T) {
 					Return(&argoprojiov1alpha1.ApplicationSetTemplate{})
 			}
 
-			var matrixGenerator = NewMatrixGenerator(
+			matrixGenerator := NewMatrixGenerator(
 				map[string]Generator{
 					"Git":  genMock,
 					"List": &ListGenerator{},
@@ -189,14 +187,11 @@ func TestMatrixGenerate(t *testing.T) {
 				assert.NoError(t, err)
 				assert.Equal(t, testCaseCopy.expected, got)
 			}
-
 		})
-
 	}
 }
 
 func TestMatrixGenerateGoTemplate(t *testing.T) {
-
 	gitGenerator := &argoprojiov1alpha1.GitGenerator{
 		RepoURL:     "RepoURL",
 		Revision:    "Revision",
@@ -360,7 +355,6 @@ func TestMatrixGenerateGoTemplate(t *testing.T) {
 			}
 
 			for _, g := range testCaseCopy.baseGenerators {
-
 				gitGeneratorSpec := argoprojiov1alpha1.ApplicationSetGenerator{
 					Git:  g.Git,
 					List: g.List,
@@ -386,7 +380,7 @@ func TestMatrixGenerateGoTemplate(t *testing.T) {
 					Return(&argoprojiov1alpha1.ApplicationSetTemplate{})
 			}
 
-			var matrixGenerator = NewMatrixGenerator(
+			matrixGenerator := NewMatrixGenerator(
 				map[string]Generator{
 					"Git":  genMock,
 					"List": &ListGenerator{},
@@ -406,14 +400,11 @@ func TestMatrixGenerateGoTemplate(t *testing.T) {
 				assert.NoError(t, err)
 				assert.Equal(t, testCaseCopy.expected, got)
 			}
-
 		})
-
 	}
 }
 
 func TestMatrixGetRequeueAfter(t *testing.T) {
-
 	gitGenerator := &argoprojiov1alpha1.GitGenerator{
 		RepoURL:     "RepoURL",
 		Revision:    "Revision",
@@ -530,7 +521,7 @@ func TestMatrixGetRequeueAfter(t *testing.T) {
 				mock.On("GetRequeueAfter", &gitGeneratorSpec).Return(testCaseCopy.gitGetRequeueAfter, nil)
 			}
 
-			var matrixGenerator = NewMatrixGenerator(
+			matrixGenerator := NewMatrixGenerator(
 				map[string]Generator{
 					"Git":                     mock,
 					"List":                    &ListGenerator{},
@@ -548,9 +539,7 @@ func TestMatrixGetRequeueAfter(t *testing.T) {
 			})
 
 			assert.Equal(t, testCaseCopy.expected, got)
-
 		})
-
 	}
 }
 
@@ -655,10 +644,9 @@ func TestInterpolatedMatrixGenerate(t *testing.T) {
 				fakeClient,
 				testCase.clientError,
 			}
-			var clusterGenerator = NewClusterGenerator(cl, context.Background(), appClientset, "namespace")
+			clusterGenerator := NewClusterGenerator(cl, context.Background(), appClientset, "namespace")
 
 			for _, g := range testCaseCopy.baseGenerators {
-
 				gitGeneratorSpec := argoprojiov1alpha1.ApplicationSetGenerator{
 					Git:      g.Git,
 					Clusters: g.Clusters,
@@ -678,7 +666,7 @@ func TestInterpolatedMatrixGenerate(t *testing.T) {
 				genMock.On("GetTemplate", &gitGeneratorSpec).
 					Return(&argoprojiov1alpha1.ApplicationSetTemplate{})
 			}
-			var matrixGenerator = NewMatrixGenerator(
+			matrixGenerator := NewMatrixGenerator(
 				map[string]Generator{
 					"Git":      genMock,
 					"Clusters": clusterGenerator,
@@ -698,7 +686,6 @@ func TestInterpolatedMatrixGenerate(t *testing.T) {
 				assert.NoError(t, err)
 				assert.Equal(t, testCaseCopy.expected, got)
 			}
-
 		})
 	}
 }
@@ -838,16 +825,14 @@ func TestInterpolatedMatrixGenerateGoTemplate(t *testing.T) {
 				fakeClient,
 				testCase.clientError,
 			}
-			var clusterGenerator = NewClusterGenerator(cl, context.Background(), appClientset, "namespace")
+			clusterGenerator := NewClusterGenerator(cl, context.Background(), appClientset, "namespace")
 
 			for _, g := range testCaseCopy.baseGenerators {
-
 				gitGeneratorSpec := argoprojiov1alpha1.ApplicationSetGenerator{
 					Git:      g.Git,
 					Clusters: g.Clusters,
 				}
 				genMock.On("GenerateParams", mock.AnythingOfType("*v1alpha1.ApplicationSetGenerator"), appSet).Return([]map[string]interface{}{
-
 					{
 						"path": map[string]string{
 							"path":               "examples/git-generator-files-discovery/cluster-config/dev/config.json",
@@ -866,7 +851,7 @@ func TestInterpolatedMatrixGenerateGoTemplate(t *testing.T) {
 				genMock.On("GetTemplate", &gitGeneratorSpec).
 					Return(&argoprojiov1alpha1.ApplicationSetTemplate{})
 			}
-			var matrixGenerator = NewMatrixGenerator(
+			matrixGenerator := NewMatrixGenerator(
 				map[string]Generator{
 					"Git":      genMock,
 					"Clusters": clusterGenerator,
@@ -886,14 +871,11 @@ func TestInterpolatedMatrixGenerateGoTemplate(t *testing.T) {
 				assert.NoError(t, err)
 				assert.Equal(t, testCaseCopy.expected, got)
 			}
-
 		})
-
 	}
 }
 
 func TestMatrixGenerateListElementsYaml(t *testing.T) {
-
 	gitGenerator := &argoprojiov1alpha1.GitGenerator{
 		RepoURL:  "RepoURL",
 		Revision: "Revision",
@@ -997,7 +979,6 @@ func TestMatrixGenerateListElementsYaml(t *testing.T) {
 			}
 
 			for _, g := range testCaseCopy.baseGenerators {
-
 				gitGeneratorSpec := argoprojiov1alpha1.ApplicationSetGenerator{
 					Git:  g.Git,
 					List: g.List,
@@ -1029,10 +1010,9 @@ func TestMatrixGenerateListElementsYaml(t *testing.T) {
 				}}, nil)
 				genMock.On("GetTemplate", &gitGeneratorSpec).
 					Return(&argoprojiov1alpha1.ApplicationSetTemplate{})
-
 			}
 
-			var matrixGenerator = NewMatrixGenerator(
+			matrixGenerator := NewMatrixGenerator(
 				map[string]Generator{
 					"Git":  genMock,
 					"List": &ListGenerator{},
@@ -1052,9 +1032,7 @@ func TestMatrixGenerateListElementsYaml(t *testing.T) {
 				assert.NoError(t, err)
 				assert.Equal(t, testCaseCopy.expected, got)
 			}
-
 		})
-
 	}
 }
 
@@ -1078,7 +1056,6 @@ func (g *generatorMock) GetRequeueAfter(appSetGenerator *argoprojiov1alpha1.Appl
 	args := g.Called(appSetGenerator)
 
 	return args.Get(0).(time.Duration)
-
 }
 
 func TestGitGenerator_GenerateParams_list_x_git_matrix_generator(t *testing.T) {

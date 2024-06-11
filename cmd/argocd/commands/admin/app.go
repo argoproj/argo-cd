@@ -44,7 +44,7 @@ import (
 )
 
 func NewAppCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
-	var command = &cobra.Command{
+	command := &cobra.Command{
 		Use:   "app",
 		Short: "Manage applications configuration",
 		Example: `
@@ -79,7 +79,7 @@ func NewGenAppSpecCommand() *cobra.Command {
 		annotations  []string
 		inline       bool
 	)
-	var command = &cobra.Command{
+	command := &cobra.Command{
 		Use:   "generate-spec APPNAME",
 		Short: "Generate declarative config for an application",
 		Example: `
@@ -159,7 +159,7 @@ func printLine(format string, a ...interface{}) {
 }
 
 func NewDiffReconcileResults() *cobra.Command {
-	var command = &cobra.Command{
+	command := &cobra.Command{
 		Use:   "diff-reconcile-results PATH1 PATH2",
 		Short: "Compare results of two reconciliations and print diff.",
 		Run: func(c *cobra.Command, args []string) {
@@ -249,7 +249,7 @@ func NewReconcileCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command 
 		ignoreNormalizerOpts normalizers.IgnoreNormalizerOpts
 	)
 
-	var command = &cobra.Command{
+	command := &cobra.Command{
 		Use:   "get-reconcile-results PATH",
 		Short: "Reconcile all applications and stores reconciliation summary in the specified file.",
 		Run: func(c *cobra.Command, args []string) {
@@ -328,7 +328,7 @@ func saveToFile(err error, outputFormat string, result reconcileResults, outputP
 		return fmt.Errorf("format %s is not supported", outputFormat)
 	}
 
-	return os.WriteFile(outputPath, data, 0644)
+	return os.WriteFile(outputPath, data, 0o644)
 }
 
 func getReconcileResults(ctx context.Context, appClientset appclientset.Interface, namespace string, selector string) ([]appReconcileResult, error) {
@@ -384,7 +384,6 @@ func reconcileApplications(
 	}, func(r *http.Request) error {
 		return nil
 	}, []string{})
-
 	if err != nil {
 		return nil, err
 	}

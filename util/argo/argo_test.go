@@ -87,7 +87,7 @@ func TestGetAppProjectWithNoProjDefined(t *testing.T) {
 }
 
 func TestIncludeResource(t *testing.T) {
-	//Resource filters format - GROUP:KIND:NAMESPACE/NAME or GROUP:KIND:NAME
+	// Resource filters format - GROUP:KIND:NAMESPACE/NAME or GROUP:KIND:NAME
 	var (
 		blankValues = argoappv1.SyncOperationResource{Group: "", Kind: "", Name: "", Namespace: "", Exclude: false}
 		// *:*:*
@@ -112,7 +112,8 @@ func TestIncludeResource(t *testing.T) {
 		expectedResult        bool
 	}{
 		//--resource apps:ReplicaSet:backend --resource *:Service:*
-		{testName: "Include ReplicaSet backend resource and all service resources",
+		{
+			testName:              "Include ReplicaSet backend resource and all service resources",
 			name:                  "backend",
 			namespace:             "default",
 			gvk:                   schema.GroupVersionKind{Group: "apps", Kind: "ReplicaSet"},
@@ -120,7 +121,8 @@ func TestIncludeResource(t *testing.T) {
 			expectedResult:        true,
 		},
 		//--resource apps:ReplicaSet:backend --resource *:Service:*
-		{testName: "Include ReplicaSet backend resource and all service resources",
+		{
+			testName:              "Include ReplicaSet backend resource and all service resources",
 			name:                  "main-page-down",
 			namespace:             "default",
 			gvk:                   schema.GroupVersionKind{Group: "batch", Kind: "Job"},
@@ -128,7 +130,8 @@ func TestIncludeResource(t *testing.T) {
 			expectedResult:        false,
 		},
 		//--resource apps:ReplicaSet:backend --resource !*:Service:*
-		{testName: "Include ReplicaSet backend resource and exclude all service resources",
+		{
+			testName:              "Include ReplicaSet backend resource and exclude all service resources",
 			name:                  "main-page-down",
 			namespace:             "default",
 			gvk:                   schema.GroupVersionKind{Group: "batch", Kind: "Job"},
@@ -136,7 +139,8 @@ func TestIncludeResource(t *testing.T) {
 			expectedResult:        true,
 		},
 		// --resource !apps:ReplicaSet:backend --resource !*:Service:*
-		{testName: "Exclude ReplicaSet backend resource and all service resources",
+		{
+			testName:              "Exclude ReplicaSet backend resource and all service resources",
 			name:                  "main-page-down",
 			namespace:             "default",
 			gvk:                   schema.GroupVersionKind{Group: "batch", Kind: "Job"},
@@ -144,7 +148,8 @@ func TestIncludeResource(t *testing.T) {
 			expectedResult:        true,
 		},
 		// --resource !apps:ReplicaSet:backend
-		{testName: "Exclude ReplicaSet backend resource",
+		{
+			testName:              "Exclude ReplicaSet backend resource",
 			name:                  "backend",
 			namespace:             "default",
 			gvk:                   schema.GroupVersionKind{Group: "apps", Kind: "ReplicaSet"},
@@ -152,7 +157,8 @@ func TestIncludeResource(t *testing.T) {
 			expectedResult:        false,
 		},
 		// --resource apps:ReplicaSet:backend
-		{testName: "Include ReplicaSet backend resource",
+		{
+			testName:              "Include ReplicaSet backend resource",
 			name:                  "backend",
 			namespace:             "default",
 			gvk:                   schema.GroupVersionKind{Group: "apps", Kind: "ReplicaSet"},
@@ -160,7 +166,8 @@ func TestIncludeResource(t *testing.T) {
 			expectedResult:        true,
 		},
 		// --resource !*:Service:*
-		{testName: "Exclude Service resources",
+		{
+			testName:              "Exclude Service resources",
 			name:                  "backend",
 			namespace:             "default",
 			gvk:                   schema.GroupVersionKind{Group: "", Kind: "Service"},
@@ -168,7 +175,8 @@ func TestIncludeResource(t *testing.T) {
 			expectedResult:        false,
 		},
 		// --resource *:Service:*
-		{testName: "Include Service resources",
+		{
+			testName:              "Include Service resources",
 			name:                  "backend",
 			namespace:             "default",
 			gvk:                   schema.GroupVersionKind{Group: "", Kind: "Service"},
@@ -176,7 +184,8 @@ func TestIncludeResource(t *testing.T) {
 			expectedResult:        true,
 		},
 		// --resource !*:*:*
-		{testName: "Exclude all resources",
+		{
+			testName:              "Exclude all resources",
 			name:                  "backend",
 			namespace:             "default",
 			gvk:                   schema.GroupVersionKind{Group: "", Kind: "Service"},
@@ -184,14 +193,16 @@ func TestIncludeResource(t *testing.T) {
 			expectedResult:        false,
 		},
 		// --resource *:*:*
-		{testName: "Include all resources",
+		{
+			testName:              "Include all resources",
 			name:                  "backend",
 			namespace:             "default",
 			gvk:                   schema.GroupVersionKind{Group: "", Kind: "Service"},
 			syncOperationResource: []*argoappv1.SyncOperationResource{&includeAllResources},
 			expectedResult:        true,
 		},
-		{testName: "No Filters",
+		{
+			testName:              "No Filters",
 			name:                  "backend",
 			namespace:             "default",
 			gvk:                   schema.GroupVersionKind{Group: "", Kind: "Service"},
@@ -314,7 +325,8 @@ func TestAPIResourcesToStrings(t *testing.T) {
 
 	assert.ElementsMatch(t, []string{"apps/v1beta1", "apps/v1beta2", "extensions/v1beta1"}, APIResourcesToStrings(resources, false))
 	assert.ElementsMatch(t, []string{
-		"apps/v1beta1", "apps/v1beta1/Deployment", "apps/v1beta2", "apps/v1beta2/Deployment", "extensions/v1beta1", "extensions/v1beta1/Deployment"},
+		"apps/v1beta1", "apps/v1beta1/Deployment", "apps/v1beta2", "apps/v1beta2/Deployment", "extensions/v1beta1", "extensions/v1beta1/Deployment",
+	},
 		APIResourcesToStrings(resources, true))
 }
 
@@ -889,7 +901,6 @@ func TestSetAppOperations(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NotNil(t, app)
 	})
-
 }
 
 func TestValidateDestination(t *testing.T) {
@@ -968,7 +979,6 @@ func TestValidateDestination(t *testing.T) {
 		assert.Equal(t, "unable to find destination server: there are 2 clusters with the same name: [https://127.0.0.1:2443 https://127.0.0.1:8443]", err.Error())
 		assert.False(t, dest.IsServerInferred())
 	})
-
 }
 
 func TestFilterByName(t *testing.T) {
@@ -1133,7 +1143,6 @@ func TestGetGlobalProjects(t *testing.T) {
 }
 
 func Test_GetDifferentPathsBetweenStructs(t *testing.T) {
-
 	r1 := argoappv1.Repository{}
 	r2 := argoappv1.Repository{
 		Name: "SomeName",
@@ -1141,21 +1150,17 @@ func Test_GetDifferentPathsBetweenStructs(t *testing.T) {
 
 	difference, _ := GetDifferentPathsBetweenStructs(r1, r2)
 	assert.Equal(t, []string{"Name"}, difference)
-
 }
 
 func Test_GenerateSpecIsDifferentErrorMessageWithNoDiff(t *testing.T) {
-
 	r1 := argoappv1.Repository{}
 	r2 := argoappv1.Repository{}
 
 	msg := GenerateSpecIsDifferentErrorMessage("application", r1, r2)
 	assert.Equal(t, "existing application spec is different; use upsert flag to force update", msg)
-
 }
 
 func Test_GenerateSpecIsDifferentErrorMessageWithDiff(t *testing.T) {
-
 	r1 := argoappv1.Repository{}
 	r2 := argoappv1.Repository{
 		Name: "test",
@@ -1163,7 +1168,6 @@ func Test_GenerateSpecIsDifferentErrorMessageWithDiff(t *testing.T) {
 
 	msg := GenerateSpecIsDifferentErrorMessage("repo", r1, r2)
 	assert.Equal(t, "existing repo spec is different; use upsert flag to force update; difference in keys \"Name\"", msg)
-
 }
 
 func Test_ParseAppQualifiedName(t *testing.T) {
@@ -1333,7 +1337,6 @@ func Test_GetRefSources(t *testing.T) {
 }
 
 func TestValidatePermissionsMultipleSources(t *testing.T) {
-
 	t.Run("Empty Repo URL result in condition", func(t *testing.T) {
 		spec := argoappv1.ApplicationSpec{
 			Sources: argoappv1.ApplicationSources{
@@ -1352,12 +1355,13 @@ func TestValidatePermissionsMultipleSources(t *testing.T) {
 
 	t.Run("Incomplete Path/Chart/Ref combo result in condition", func(t *testing.T) {
 		spec := argoappv1.ApplicationSpec{
-			Sources: argoappv1.ApplicationSources{{
-				RepoURL: "http://some/where",
-				Path:    "",
-				Chart:   "",
-				Ref:     "",
-			},
+			Sources: argoappv1.ApplicationSources{
+				{
+					RepoURL: "http://some/where",
+					Path:    "",
+					Chart:   "",
+					Ref:     "",
+				},
 			},
 		}
 		proj := argoappv1.AppProject{}
@@ -1371,12 +1375,13 @@ func TestValidatePermissionsMultipleSources(t *testing.T) {
 
 	t.Run("One of the Application sources is not permitted in project", func(t *testing.T) {
 		spec := argoappv1.ApplicationSpec{
-			Sources: argoappv1.ApplicationSources{{
-				RepoURL:        "http://some/where",
-				Path:           "",
-				Chart:          "somechart",
-				TargetRevision: "1.4.1",
-			},
+			Sources: argoappv1.ApplicationSources{
+				{
+					RepoURL:        "http://some/where",
+					Path:           "",
+					Chart:          "somechart",
+					TargetRevision: "1.4.1",
+				},
 			},
 			Destination: argoappv1.ApplicationDestination{
 				Server:    "https://127.0.0.1:6443",
@@ -1405,12 +1410,13 @@ func TestValidatePermissionsMultipleSources(t *testing.T) {
 
 	t.Run("Source with a Ref field and missing Path/Chart field", func(t *testing.T) {
 		spec := argoappv1.ApplicationSpec{
-			Sources: argoappv1.ApplicationSources{{
-				RepoURL: "http://some/where",
-				Path:    "",
-				Chart:   "",
-				Ref:     "somechart",
-			},
+			Sources: argoappv1.ApplicationSources{
+				{
+					RepoURL: "http://some/where",
+					Path:    "",
+					Chart:   "",
+					Ref:     "somechart",
+				},
 			},
 			Destination: argoappv1.ApplicationDestination{
 				Name:      "does-exist",

@@ -152,10 +152,10 @@ func TestCache_GetAppDetails(t *testing.T) {
 	res := &apiclient.RepoAppDetailsResponse{Type: "my-type"}
 	err = cache.SetAppDetails("my-revision", &ApplicationSource{}, emptyRefSources, res, "", nil)
 	assert.NoError(t, err)
-	//cache miss
+	// cache miss
 	err = cache.GetAppDetails("other-revision", &ApplicationSource{}, emptyRefSources, value, "", nil)
 	assert.Equal(t, ErrCacheMiss, err)
-	//cache miss
+	// cache miss
 	err = cache.GetAppDetails("my-revision", &ApplicationSource{Path: "other-path"}, emptyRefSources, value, "", nil)
 	assert.Equal(t, ErrCacheMiss, err)
 	// cache hit
@@ -172,7 +172,6 @@ func TestAddCacheFlagsToCmd(t *testing.T) {
 }
 
 func TestCachedManifestResponse_HashBehavior(t *testing.T) {
-
 	inMemCache := cacheutil.NewInMemoryCache(1 * time.Hour)
 
 	repoCache := NewCache(
@@ -209,7 +208,6 @@ func TestCachedManifestResponse_HashBehavior(t *testing.T) {
 	var cacheKey string
 	var cmr *CachedManifestResponse
 	{
-
 		items := getInMemoryCacheContents(t, inMemCache)
 
 		assert.Len(t, items, 1)
@@ -249,7 +247,6 @@ func TestCachedManifestResponse_HashBehavior(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-
 	}
 
 	// Retrieve the value using GetManifests and confirm it returns a cache miss
@@ -261,7 +258,6 @@ func TestCachedManifestResponse_HashBehavior(t *testing.T) {
 	// Verify that the hash mismatch item has been deleted
 	items := getInMemoryCacheContents(t, inMemCache)
 	assert.Empty(t, items)
-
 }
 
 func getInMemoryCacheContents(t *testing.T, inMemCache *cacheutil.InMemoryCache) map[string]*CachedManifestResponse {
@@ -284,7 +280,6 @@ func getInMemoryCacheContents(t *testing.T, inMemCache *cacheutil.InMemoryCache)
 }
 
 func TestCachedManifestResponse_ShallowCopy(t *testing.T) {
-
 	pre := &CachedManifestResponse{
 		CacheEntryHash:        "value",
 		FirstFailureTimestamp: 1,
@@ -313,7 +308,6 @@ func TestCachedManifestResponse_ShallowCopy(t *testing.T) {
 }
 
 func TestCachedManifestResponse_ShallowCopyExpectedFields(t *testing.T) {
-
 	// Attempt to ensure that the developer updated CachedManifestResponse.shallowCopy(), by doing a sanity test of the structure here
 
 	val := &CachedManifestResponse{}
@@ -331,8 +325,10 @@ func TestCachedManifestResponse_ShallowCopyExpectedFields(t *testing.T) {
 		return
 	}
 
-	expectedFields := []string{"cacheEntryHash", "manifestResponse", "mostRecentError", "firstFailureTimestamp",
-		"numberOfConsecutiveFailures", "numberOfCachedResponsesReturned"}
+	expectedFields := []string{
+		"cacheEntryHash", "manifestResponse", "mostRecentError", "firstFailureTimestamp",
+		"numberOfConsecutiveFailures", "numberOfCachedResponsesReturned",
+	}
 
 	assert.Equal(t, len(jsonMap), len(expectedFields))
 
@@ -342,7 +338,6 @@ func TestCachedManifestResponse_ShallowCopyExpectedFields(t *testing.T) {
 	for _, expectedField := range expectedFields {
 		assert.Truef(t, strings.Contains(string(str), "\""+expectedField+"\""), "Missing field: %s", expectedField)
 	}
-
 }
 
 func TestGetGitReferences(t *testing.T) {
@@ -399,7 +394,6 @@ func TestGetGitReferences(t *testing.T) {
 		assert.Nil(t, references)
 		fixtures.mockCache.AssertCacheCalledTimes(t, &mocks.CacheCallCounts{ExternalGets: 1})
 	})
-
 }
 
 func TestGitRefCacheItemToReferences_DataChecks(t *testing.T) {
@@ -502,7 +496,8 @@ func TestGetOrLockGitReferences(t *testing.T) {
 			"git-refs|test-repo",
 			[][2]string{{"test-repo", "ref: test"}},
 			&cacheutil.CacheActionOpts{
-				Expiration: 30 * time.Second})
+				Expiration: 30 * time.Second,
+			})
 		assert.NoError(t, err)
 		var references []*plumbing.Reference
 		lockId, err := cache.GetOrLockGitReferences("test-repo", "test-lock-id", &references)
@@ -676,7 +671,6 @@ func TestRevisionChartDetails(t *testing.T) {
 		assert.Equal(t, expectedItem, details)
 		fixtures.mockCache.AssertCacheCalledTimes(t, &mocks.CacheCallCounts{ExternalGets: 1, ExternalSets: 1})
 	})
-
 }
 
 func TestGetGitDirectories(t *testing.T) {
@@ -731,7 +725,6 @@ func TestGetGitDirectories(t *testing.T) {
 		assert.Equal(t, expectedItem, directories)
 		fixtures.mockCache.AssertCacheCalledTimes(t, &mocks.CacheCallCounts{ExternalGets: 1, ExternalSets: 1})
 	})
-
 }
 
 func TestGetGitFiles(t *testing.T) {
@@ -770,5 +763,4 @@ func TestGetGitFiles(t *testing.T) {
 		assert.Equal(t, expectedItem, files)
 		fixtures.mockCache.AssertCacheCalledTimes(t, &mocks.CacheCallCounts{ExternalGets: 1, ExternalSets: 1})
 	})
-
 }

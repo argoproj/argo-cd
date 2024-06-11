@@ -194,7 +194,6 @@ func (n *ignoreNormalizer) Normalize(un *unstructured.Unstructured) error {
 			glob.Match(patch.GetGroupKind().Kind, groupKind.Kind) &&
 			(patch.GetName() == "" || patch.GetName() == un.GetName()) &&
 			(patch.GetNamespace() == "" || patch.GetNamespace() == un.GetNamespace()) {
-
 			matched = append(matched, patch)
 		}
 	}

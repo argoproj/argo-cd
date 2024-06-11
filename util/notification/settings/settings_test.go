@@ -16,9 +16,11 @@ import (
 	service "github.com/argoproj/argo-cd/v2/util/notification/argocd"
 )
 
-const testNamespace = "default"
-const testContextKey = "test-context-key"
-const testContextKeyValue = "test-context-key-value"
+const (
+	testNamespace       = "default"
+	testContextKey      = "test-context-key"
+	testContextKeyValue = "test-context-key-value"
+)
 
 func TestInitGetVars(t *testing.T) {
 	notificationsCm := corev1.ConfigMap{

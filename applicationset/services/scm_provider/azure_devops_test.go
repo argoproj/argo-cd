@@ -105,13 +105,11 @@ func TestAzureDevopsRepoHasPath(t *testing.T) {
 			assert.Equal(t, testCase.pathFound, hasPath)
 
 			gitClientMock.AssertCalled(t, "GetItem", ctx, azureGit.GetItemArgs{Project: &teamProject, Path: &path, VersionDescriptor: &azureGit.GitVersionDescriptor{Version: &branchName}, RepositoryId: repoId})
-
 		})
 	}
 }
 
 func TestGetDefaultBranchOnDisabledRepo(t *testing.T) {
-
 	organization := "myorg"
 	teamProject := "myorg_project"
 	repoName := "myorg_project_repo"
@@ -171,7 +169,6 @@ func TestGetDefaultBranchOnDisabledRepo(t *testing.T) {
 }
 
 func TestGetAllBranchesOnDisabledRepo(t *testing.T) {
-
 	organization := "myorg"
 	teamProject := "myorg_project"
 	repoName := "myorg_project_repo"
@@ -231,9 +228,7 @@ func TestGetAllBranchesOnDisabledRepo(t *testing.T) {
 }
 
 func TestAzureDevOpsGetDefaultBranchStripsRefsName(t *testing.T) {
-
 	t.Run("Get branches only default branch removes characters before querying azure devops", func(t *testing.T) {
-
 		organization := "myorg"
 		teamProject := "myorg_project"
 		repoName := "myorg_project_repo"
@@ -406,7 +401,6 @@ func TestAzureDevopsGetBranches(t *testing.T) {
 				assert.ErrorContains(t, err, testCase.clientError.Error())
 				gitClientMock.AssertNotCalled(t, "GetBranches", ctx, azureGit.GetBranchesArgs{RepositoryId: &repoName, Project: &teamProject})
 				return
-
 			}
 
 			if testCase.getBranchesApiError != nil {
@@ -475,14 +469,14 @@ func TestGetAzureDevopsRepositories(t *testing.T) {
 				{Name: s("missing_default_branch"), RemoteUrl: s("https://remoteurl.u"), Id: repoId},
 				{DefaultBranch: s("missing_name"), RemoteUrl: s("https://remoteurl.u"), Id: repoId},
 				{Name: s("missing_remote_url"), DefaultBranch: s("main"), Id: repoId},
-				{Name: s("missing_id"), DefaultBranch: s("main"), RemoteUrl: s("https://remoteurl.u")}},
+				{Name: s("missing_id"), DefaultBranch: s("main"), RemoteUrl: s("https://remoteurl.u")},
+			},
 			expectedNumberOfRepos: 1,
 		},
 	}
 
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {
-
 			gitClientMock := azureMock.Client{}
 			gitClientMock.On("GetRepositories", ctx, azureGit.GetRepositoriesArgs{Project: s(teamProject)}).Return(&testCase.repositories, testCase.getRepositoriesError)
 

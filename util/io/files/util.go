@@ -60,7 +60,7 @@ func CreateTempDir(baseDir string) (string, error) {
 		return "", fmt.Errorf("error creating directory name: %w", err)
 	}
 	tempDir := path.Join(base, newUUID.String())
-	if err := os.MkdirAll(tempDir, 0755); err != nil {
+	if err := os.MkdirAll(tempDir, 0o755); err != nil {
 		return "", fmt.Errorf("error creating tempDir: %w", err)
 	}
 	return tempDir, nil

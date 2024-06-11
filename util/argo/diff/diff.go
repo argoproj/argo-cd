@@ -190,48 +190,63 @@ type diffConfig struct {
 func (c *diffConfig) Ignores() []v1alpha1.ResourceIgnoreDifferences {
 	return c.ignores
 }
+
 func (c *diffConfig) Overrides() map[string]v1alpha1.ResourceOverride {
 	return c.overrides
 }
+
 func (c *diffConfig) AppLabelKey() string {
 	return c.appLabelKey
 }
+
 func (c *diffConfig) TrackingMethod() string {
 	return c.trackingMethod
 }
+
 func (c *diffConfig) AppName() string {
 	return c.appName
 }
+
 func (c *diffConfig) NoCache() bool {
 	return c.noCache
 }
+
 func (c *diffConfig) StateCache() *appstatecache.Cache {
 	return c.stateCache
 }
+
 func (c *diffConfig) IgnoreAggregatedRoles() bool {
 	return c.ignoreAggregatedRoles
 }
+
 func (c *diffConfig) Logger() *logr.Logger {
 	return c.logger
 }
+
 func (c *diffConfig) GVKParser() *k8smanagedfields.GvkParser {
 	return c.gvkParser
 }
+
 func (c *diffConfig) StructuredMergeDiff() bool {
 	return c.structuredMergeDiff
 }
+
 func (c *diffConfig) Manager() string {
 	return c.manager
 }
+
 func (c *diffConfig) ServerSideDryRunner() diff.ServerSideDryRunner {
 	return c.serverSideDryRunner
 }
+
 func (c *diffConfig) ServerSideDiff() bool {
 	return c.serverSideDiff
 }
+
 func (c *diffConfig) IgnoreMutationWebhook() bool {
 	return c.ignoreMutationWebhook
 }
+
 func (c *diffConfig) IgnoreNormalizerOpts() normalizers.IgnoreNormalizerOpts {
 	return c.ignoreNormalizerOpts
 }

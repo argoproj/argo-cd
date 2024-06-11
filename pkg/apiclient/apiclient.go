@@ -70,10 +70,8 @@ const (
 	EnvArgoCDAuthToken = "ARGOCD_AUTH_TOKEN"
 )
 
-var (
-	// MaxGRPCMessageSize contains max grpc message size
-	MaxGRPCMessageSize = env.ParseNumFromEnv(common.EnvGRPCMaxSizeMB, 200, 0, math.MaxInt32) * 1024 * 1024
-)
+// MaxGRPCMessageSize contains max grpc message size
+var MaxGRPCMessageSize = env.ParseNumFromEnv(common.EnvGRPCMaxSizeMB, 200, 0, math.MaxInt32) * 1024 * 1024
 
 // Client defines an interface for interaction with an Argo CD server.
 type Client interface {

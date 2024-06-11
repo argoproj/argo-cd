@@ -26,9 +26,7 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-var (
-	errBasicAuthVerificationFailed = errors.New("basic auth verification failed")
-)
+var errBasicAuthVerificationFailed = errors.New("basic auth verification failed")
 
 type WebhookHandler struct {
 	namespace              string

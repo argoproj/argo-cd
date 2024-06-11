@@ -46,7 +46,6 @@ func parseLogsStream(podName string, stream io.ReadCloser, ch chan logEntry) {
 		for _, line := range strings.Split(lines, "\r") {
 			ch <- logEntry{line: line, timeStamp: logTime, podName: podName}
 		}
-
 	}
 }
 

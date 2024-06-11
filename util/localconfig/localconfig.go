@@ -282,7 +282,6 @@ func DefaultConfigDir() (string, error) {
 
 func getHomeDir() (string, error) {
 	homeDir, err := os.UserHomeDir()
-
 	if err != nil {
 		return "", err
 	}

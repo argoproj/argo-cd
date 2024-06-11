@@ -368,7 +368,6 @@ func (a *ClientApp) HandleCallback(w http.ResponseWriter, r *http.Request) {
 	}
 
 	idToken, err := a.provider.Verify(idTokenRAW, a.settings)
-
 	if err != nil {
 		log.Warnf("Failed to verify token: %s", err)
 		http.Error(w, common.TokenVerificationError, http.StatusInternalServerError)
@@ -586,7 +585,6 @@ func (a *ClientApp) GetUserInfo(actualClaims jwt.MapClaims, issuerURL, userInfoP
 
 	url := issuerURL + userInfoPath
 	request, err := http.NewRequest("GET", url, nil)
-
 	if err != nil {
 		err = fmt.Errorf("failed creating new http request: %w", err)
 		return claims, false, err

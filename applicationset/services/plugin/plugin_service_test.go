@@ -23,7 +23,6 @@ func TestPlugin(t *testing.T) {
 			return
 		}
 		_, err := w.Write([]byte(expectedJSON))
-
 		if err != nil {
 			assert.NoError(t, fmt.Errorf("Error Write %v", err))
 		}
@@ -32,13 +31,11 @@ func TestPlugin(t *testing.T) {
 	defer ts.Close()
 
 	client, err := NewPluginService(context.Background(), "plugin-test", ts.URL, token, 0)
-
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
 
 	data, err := client.List(context.Background(), nil)
-
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}

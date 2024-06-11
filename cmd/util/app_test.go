@@ -362,7 +362,6 @@ func TestReadAppsFromURI(t *testing.T) {
 
 	assert.Equal(t, "sth1", apps[0].Name)
 	assert.Equal(t, "sth2", apps[1].Name)
-
 }
 
 func TestConstructAppFromStdin(t *testing.T) {
@@ -392,7 +391,6 @@ func TestConstructAppFromStdin(t *testing.T) {
 	assert.Len(t, apps, 2)
 	assert.Equal(t, "sth1", apps[0].Name)
 	assert.Equal(t, "sth2", apps[1].Name)
-
 }
 
 func TestConstructBasedOnName(t *testing.T) {
@@ -404,9 +402,7 @@ func TestConstructBasedOnName(t *testing.T) {
 }
 
 func TestFilterResources(t *testing.T) {
-
 	t.Run("Filter by ns", func(t *testing.T) {
-
 		resources := []*v1alpha1.ResourceDiff{
 			{
 				LiveState: "{\"apiVersion\":\"v1\",\"kind\":\"Service\",\"metadata\":{\"name\":\"test-helm-guestbook\",\"namespace\":\"argocd\"},\"spec\":{\"selector\":{\"app\":\"helm-guestbook\",\"release\":\"test\"},\"sessionAffinity\":\"None\",\"type\":\"ClusterIP\"},\"status\":{\"loadBalancer\":{}}}",
@@ -422,7 +418,6 @@ func TestFilterResources(t *testing.T) {
 	})
 
 	t.Run("Filter by kind", func(t *testing.T) {
-
 		resources := []*v1alpha1.ResourceDiff{
 			{
 				LiveState: "{\"apiVersion\":\"v1\",\"kind\":\"Service\",\"metadata\":{\"name\":\"test-helm-guestbook\",\"namespace\":\"argocd\"},\"spec\":{\"selector\":{\"app\":\"helm-guestbook\",\"release\":\"test\"},\"sessionAffinity\":\"None\",\"type\":\"ClusterIP\"},\"status\":{\"loadBalancer\":{}}}",
@@ -438,7 +433,6 @@ func TestFilterResources(t *testing.T) {
 	})
 
 	t.Run("Filter by name", func(t *testing.T) {
-
 		resources := []*v1alpha1.ResourceDiff{
 			{
 				LiveState: "{\"apiVersion\":\"v1\",\"kind\":\"Service\",\"metadata\":{\"name\":\"test-helm-guestbook\",\"namespace\":\"argocd\"},\"spec\":{\"selector\":{\"app\":\"helm-guestbook\",\"release\":\"test\"},\"sessionAffinity\":\"None\",\"type\":\"ClusterIP\"},\"status\":{\"loadBalancer\":{}}}",

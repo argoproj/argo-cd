@@ -148,7 +148,6 @@ func (ctrl *ApplicationController) cleanupPostDeleteHooks(liveObjs map[kube.Reso
 				}
 			}
 		}
-
 	}
 	if pendingDeletionCount > 0 {
 		logCtx.Infof("Waiting for %d post-delete hooks to be deleted", pendingDeletionCount)

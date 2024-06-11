@@ -66,6 +66,7 @@ func NewWithReplicationFactor(replicationFactor int) *Consistent {
 		replicationFactor: replicationFactor,
 	}
 }
+
 func (c *Consistent) Add(server string) {
 	c.Lock()
 	defer c.Unlock()

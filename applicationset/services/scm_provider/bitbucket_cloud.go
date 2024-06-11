@@ -52,7 +52,6 @@ func (c *ExtendedClient) GetContents(repo *Repository, path string) (bool, error
 var _ SCMProviderService = &BitBucketCloudProvider{}
 
 func NewBitBucketCloudProvider(ctx context.Context, owner string, user string, password string, allBranches bool) (*BitBucketCloudProvider, error) {
-
 	client := &ExtendedClient{
 		bitbucket.NewBasicAuth(user, password),
 		user,
@@ -151,11 +150,9 @@ func (g *BitBucketCloudProvider) listBranches(repo *Repository) ([]bitbucket.Rep
 		return nil, err
 	}
 	return branches.Branches, nil
-
 }
 
 func findCloneURL(cloneProtocol string, repo *bitbucket.Repository) (*string, error) {
-
 	cloneLinks, ok := repo.Links["clone"].([]interface{})
 	if !ok {
 		return nil, fmt.Errorf("unknown type returned from repo links")

@@ -488,7 +488,7 @@ type ApplicationSourceKustomize struct {
 	Patches KustomizePatches `json:"patches,omitempty" protobuf:"bytes,12,opt,name=patches"`
 	// Components specifies a list of kustomize components to add to the kustomization before building
 	Components []string `json:"components,omitempty" protobuf:"bytes,13,rep,name=components"`
-	//LabelWithoutSelector specifies whether to apply common labels to resource selectors or not
+	// LabelWithoutSelector specifies whether to apply common labels to resource selectors or not
 	LabelWithoutSelector bool `json:"labelWithoutSelector,omitempty" protobuf:"bytes,14,opt,name=labelWithoutSelector"`
 }
 
@@ -1238,7 +1238,6 @@ func (r *RetryStrategy) NextRetryAt(lastAttempt time.Time, retryCounts int64) (t
 		if r.Backoff.Factor != nil {
 			factor = *r.Backoff.Factor
 		}
-
 	}
 	// Formula: timeToWait = duration * factor^retry_number
 	// Note that timeToWait should equal to duration for the first retry attempt.
@@ -2266,7 +2265,6 @@ func (s *SyncWindows) Active() *SyncWindows {
 }
 
 func (s *SyncWindows) active(currentTime time.Time) *SyncWindows {
-
 	// If SyncWindows.Active() is called outside of a UTC locale, it should be
 	// first converted to UTC before we scan through the SyncWindows.
 	currentTime = currentTime.In(time.UTC)
@@ -2300,7 +2298,6 @@ func (s *SyncWindows) InactiveAllows() *SyncWindows {
 }
 
 func (s *SyncWindows) inactiveAllows(currentTime time.Time) *SyncWindows {
-
 	// If SyncWindows.InactiveAllows() is called outside of a UTC locale, it should be
 	// first converted to UTC before we scan through the SyncWindows.
 	currentTime = currentTime.In(time.UTC)
@@ -2342,7 +2339,6 @@ func (w *SyncWindow) scheduleOffsetByTimeZone() time.Duration {
 func (s *AppProjectSpec) AddWindow(knd string, sch string, dur string, app []string, ns []string, cl []string, ms bool, timeZone string) error {
 	if len(knd) == 0 || len(sch) == 0 || len(dur) == 0 {
 		return fmt.Errorf("cannot create window: require kind, schedule, duration and one or more of applications, namespaces and clusters")
-
 	}
 
 	window := &SyncWindow{
@@ -2371,7 +2367,6 @@ func (s *AppProjectSpec) AddWindow(knd string, sch string, dur string, app []str
 	s.SyncWindows = append(s.SyncWindows, window)
 
 	return nil
-
 }
 
 // DeleteWindow deletes a sync window with the given id from the AppProject
@@ -2522,7 +2517,6 @@ func (w SyncWindow) Active() bool {
 }
 
 func (w SyncWindow) active(currentTime time.Time) bool {
-
 	// If SyncWindow.Active() is called outside of a UTC locale, it should be
 	// first converted to UTC before search
 	currentTime = currentTime.UTC()
@@ -2540,7 +2534,6 @@ func (w SyncWindow) active(currentTime time.Time) bool {
 
 // Update updates a sync window's settings with the given parameter
 func (w *SyncWindow) Update(s string, d string, a []string, n []string, c []string, tz string) error {
-
 	if len(s) == 0 && len(d) == 0 && len(a) == 0 && len(n) == 0 && len(c) == 0 {
 		return fmt.Errorf("cannot update: require one or more of schedule, duration, application, namespace, or cluster")
 	}
@@ -2571,7 +2564,6 @@ func (w *SyncWindow) Update(s string, d string, a []string, n []string, c []stri
 
 // Validate checks whether a sync window has valid configuration. The error returned indicates any problems that has been found.
 func (w *SyncWindow) Validate() error {
-
 	// Default timeZone to UTC if timeZone is not specified
 	if w.TimeZone == "" {
 		w.TimeZone = "UTC"
@@ -3106,7 +3098,6 @@ func (r ResourceDiff) TargetObject() (*unstructured.Unstructured, error) {
 
 // SetInferredServer sets the Server field of the destination. See IsServerInferred() for details.
 func (d *ApplicationDestination) SetInferredServer(server string) {
-
 	d.isServerInferred = true
 	d.Server = server
 }

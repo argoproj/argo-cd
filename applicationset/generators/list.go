@@ -12,8 +12,7 @@ import (
 
 var _ Generator = (*ListGenerator)(nil)
 
-type ListGenerator struct {
-}
+type ListGenerator struct{}
 
 func NewListGenerator() Generator {
 	g := &ListGenerator{}
@@ -77,7 +76,6 @@ func (g *ListGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.Appli
 
 	// Append elements from ElementsYaml to the response
 	if len(appSetGenerator.List.ElementsYaml) > 0 {
-
 		var yamlElements []map[string]interface{}
 		err := yaml.Unmarshal([]byte(appSetGenerator.List.ElementsYaml), &yamlElements)
 		if err != nil {
