@@ -490,7 +490,7 @@ jobs:
           strings dist/argocd | grep '/src/internal/coverage'
           ls -lrt /tmp/coverage
       - name: Run E2E testsuite
-        run:
+        run: |
           set -x
           ls -lrt /tmp/coverage
           make test-e2e-local
