@@ -487,15 +487,12 @@ jobs:
             fi
             count=$((count+1))
           done
-          strings dist/argocd | grep '/src/internal/coverage'
-          ls -lrt /tmp/coverage
       - name: Run E2E testsuite
         run: |
           set -x
-          echo $GOCOVERDIR
-          ls -lrt /tmp/coverage
           make test-e2e-local
-          ls -lrt /tmp/coverage
+          ls -ld /tmp/**/gocoverdir
+          ls -lrt /tmp/**/gocoverdir
       - name: Upload e2e coverage report
         uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
         with:
