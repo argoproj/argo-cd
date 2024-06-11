@@ -59,6 +59,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/security"
 	"github.com/argoproj/argo-cd/v2/util/session"
 	"github.com/argoproj/argo-cd/v2/util/settings"
+	"github.com/argoproj/argo-cd/v2/util/ujson"
 
 	applicationType "github.com/argoproj/argo-cd/v2/pkg/apis/application"
 )
@@ -545,12 +546,16 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 	manifests := &apiclient.ManifestResponse{}
 	for _, manifestInfo := range manifestInfos {
 		for i, manifest := range manifestInfo.Manifests {
-			obj := &unstructured.Unstructured{}
-			err = json.Unmarshal([]byte(manifest), obj)
+			tmp, err := ujson.NewKubeJson([]byte(manifest))
 			if err != nil {
 				return nil, fmt.Errorf("error unmarshaling manifest into unstructured: %w", err)
 			}
-			if obj.GetKind() == kube.SecretKind && obj.GroupVersionKind().Group == "" {
+			if tmp.GetKind() == kube.SecretKind && tmp.GroupVersionKind().Group == "" {
+				obj := &unstructured.Unstructured{}
+				err = json.Unmarshal([]byte(manifest), obj)
+				if err != nil {
+					return nil, fmt.Errorf("error unmarshaling manifest into unstructured: %w", err)
+				}
 				obj, _, err = diff.HideSecretData(obj, nil)
 				if err != nil {
 					return nil, fmt.Errorf("error hiding secret data: %w", err)
@@ -673,12 +678,16 @@ func (s *Server) GetManifestsWithFiles(stream application.ApplicationService_Get
 	}
 
 	for i, manifest := range manifestInfo.Manifests {
-		obj := &unstructured.Unstructured{}
-		err = json.Unmarshal([]byte(manifest), obj)
+		tmp, err := ujson.NewKubeJson([]byte(manifest))
 		if err != nil {
 			return fmt.Errorf("error unmarshaling manifest into unstructured: %w", err)
 		}
-		if obj.GetKind() == kube.SecretKind && obj.GroupVersionKind().Group == "" {
+		if tmp.GetKind() == kube.SecretKind && tmp.GroupVersionKind().Group == "" {
+			obj := &unstructured.Unstructured{}
+			err = json.Unmarshal([]byte(manifest), obj)
+			if err != nil {
+				return fmt.Errorf("error unmarshaling manifest into unstructured: %w", err)
+			}
 			obj, _, err = diff.HideSecretData(obj, nil)
 			if err != nil {
 				return fmt.Errorf("error hiding secret data: %w", err)

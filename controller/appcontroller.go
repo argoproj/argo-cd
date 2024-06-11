@@ -56,6 +56,7 @@ import (
 	argodiff "github.com/argoproj/argo-cd/v2/util/argo/diff"
 	"github.com/argoproj/argo-cd/v2/util/argo/normalizers"
 	"github.com/argoproj/argo-cd/v2/util/env"
+	"github.com/argoproj/argo-cd/v2/util/ujson"
 
 	kubeerrors "k8s.io/apimachinery/pkg/api/errors"
 
@@ -518,18 +519,20 @@ func (ctrl *ApplicationController) getResourceTree(a *appv1.Application, managed
 	for i := range managedResources {
 		managedResource := managedResources[i]
 		delete(orphanedNodesMap, kube.NewResourceKey(managedResource.Group, managedResource.Kind, managedResource.Namespace, managedResource.Name))
-		var live = &unstructured.Unstructured{}
-		err := json.Unmarshal([]byte(managedResource.LiveState), &live)
+
+		var live *ujson.KubeJson
+		live, err := ujson.NewKubeJson([]byte(managedResource.LiveState))
 		if err != nil {
 			return nil, fmt.Errorf("failed to unmarshal live state of managed resources: %w", err)
 		}
 
-		if live == nil {
-			var target = &unstructured.Unstructured{}
-			err = json.Unmarshal([]byte(managedResource.TargetState), &target)
+		if live.IsEmpty() {
+			var target *ujson.KubeJson
+			target, err := ujson.NewKubeJson([]byte(managedResource.TargetState))
 			if err != nil {
 				return nil, fmt.Errorf("failed to unmarshal target state of managed resources: %w", err)
 			}
+
 			nodes = append(nodes, appv1.ResourceNode{
 				ResourceRef: appv1.ResourceRef{
 					Version:   target.GroupVersionKind().Version,
@@ -540,7 +543,7 @@ func (ctrl *ApplicationController) getResourceTree(a *appv1.Application, managed
 				},
 			})
 		} else {
-			err := ctrl.stateCache.IterateHierarchy(a.Spec.Destination.Server, kube.GetResourceKey(live), func(child appv1.ResourceNode, appName string) bool {
+			err := ctrl.stateCache.IterateHierarchy(a.Spec.Destination.Server, ujson.GetResourceKey(live), func(child appv1.ResourceNode, appName string) bool {
 				permitted, _ := proj.IsResourcePermitted(schema.GroupKind{Group: child.ResourceRef.Group, Kind: child.ResourceRef.Kind}, child.Namespace, a.Spec.Destination, func(project string) ([]*appv1.Cluster, error) {
 					clusters, err := ctrl.db.GetProjectClusters(context.TODO(), project)
 					if err != nil {
