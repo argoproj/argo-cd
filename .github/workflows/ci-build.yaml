@@ -492,6 +492,7 @@ jobs:
       - name: Run E2E testsuite
         run: |
           set -x
+          echo $GOCOVERDIR
           ls -lrt /tmp/coverage
           make test-e2e-local
           ls -lrt /tmp/coverage
