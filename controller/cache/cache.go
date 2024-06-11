@@ -71,7 +71,9 @@ const (
 	// EnvClusterCacheRetryUseBackoff is the env variable to control whether to use a backoff strategy with the retry during cluster cache sync
 	EnvClusterCacheRetryUseBackoff = "ARGOCD_CLUSTER_CACHE_RETRY_USE_BACKOFF"
 
-	// AnnotationApplyResourcesUpdate when set to true on a resource, argocd will ignore the resource changes based on ignoreResourceUpdates configuration.
+	// AnnotationApplyResourcesUpdate when set to true on a resource that is not tracked under an app, argocd will generate a
+	// hash and apply `ignoreResourceUpdate` configuration on it. If the annotation is set to false (or not presented) on a resource
+	// that is not tracked under an app, ignoreResourceUpdates configuration will not be applied.
 	AnnotationApplyResourcesUpdate = "argocd.argoproj.io/apply-resources-update"
 )
 
