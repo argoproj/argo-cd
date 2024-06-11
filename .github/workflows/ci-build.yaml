@@ -491,8 +491,6 @@ jobs:
         run: |
           set -x
           make test-e2e-local
-          ls -ld /tmp/**/gocoverdir
-          ls -lrt /tmp/**/gocoverdir
       - name: Upload e2e coverage report
         uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
         with:
@@ -504,7 +502,7 @@ jobs:
         with:
           name: e2e-server-k8s${{ matrix.k3s.version }}.log
           path: /tmp/e2e-server.log
-        if: ${{ always() }}
+        if: ${{ failure() }}
 
   # workaround for status checks -- check this one job instead of each individual E2E job in the matrix
   # this allows us to skip the entire matrix when it doesn't need to run while still having accurate status checks
