@@ -11,6 +11,7 @@ RUN echo 'deb http://archive.debian.org/debian buster-backports main' >> /etc/ap
 RUN apt-get update && apt-get install --no-install-recommends -y \
     openssh-server \
     nginx \
+    
     unzip \
     fcgiwrap \
     git \
