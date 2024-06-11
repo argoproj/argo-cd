@@ -51,6 +51,10 @@ message RevisionMetadataQuery{
 	// the application's namespace
 	optional string appNamespace = 3;
 	optional string project = 4;
+	// source index (for multi source apps)
+	optional int32 sourceIndex = 5;
+	// versionId from historical data (for multi source apps)
+	optional int32 versionId = 6;
 }
 
 // ApplicationEventsQuery is a query for application resource events

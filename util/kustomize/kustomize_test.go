@@ -494,7 +494,7 @@ func TestKustomizeBuildPatches(t *testing.T) {
 
 	assert.True(t, found)
 	assert.NoError(t, err)
-	assert.Equal(t, port, int64(443))
+	assert.Equal(t, int64(443), port)
 
 	name, found, err := unstructured.NestedString(
 		containers[0].(map[string]interface{}),
@@ -502,5 +502,5 @@ func TestKustomizeBuildPatches(t *testing.T) {
 	)
 	assert.True(t, found)
 	assert.NoError(t, err)
-	assert.Equal(t, name, "test")
+	assert.Equal(t, "test", name)
 }

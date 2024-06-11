@@ -1213,7 +1213,7 @@ func TestGitlabGetBranches(t *testing.T) {
 	t.Run("branch exists", func(t *testing.T) {
 		repos, err := host.GetBranches(context.Background(), repo)
 		assert.NoError(t, err)
-		assert.Equal(t, repos[0].Branch, "master")
+		assert.Equal(t, "master", repos[0].Branch)
 	})
 
 	repo2 := &Repository{

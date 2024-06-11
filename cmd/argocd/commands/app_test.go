@@ -212,6 +212,42 @@ func TestPrintTreeViewDetailedAppGet(t *testing.T) {
 	assert.Contains(t, output, "numalogic-rollout-demo-5dcd5457d5-6trpt")
 	assert.Contains(t, output, "Degraded")
 	assert.Contains(t, output, "Readiness Gate failed")
+}
+
+func TestFindRevisionHistoryWithoutPassedIdWithMultipleSources(t *testing.T) {
+
+	histories := v1alpha1.RevisionHistories{}
+
+	histories = append(histories, v1alpha1.RevisionHistory{ID: 1})
+	histories = append(histories, v1alpha1.RevisionHistory{ID: 2})
+	histories = append(histories, v1alpha1.RevisionHistory{ID: 3})
+
+	status := v1alpha1.ApplicationStatus{
+		Resources:      nil,
+		Sync:           v1alpha1.SyncStatus{},
+		Health:         v1alpha1.HealthStatus{},
+		History:        histories,
+		Conditions:     nil,
+		ReconciledAt:   nil,
+		OperationState: nil,
+		ObservedAt:     nil,
+		SourceType:     "",
+		Summary:        v1alpha1.ApplicationSummary{},
+	}
+
+	application := v1alpha1.Application{
+		Status: status,
+	}
+
+	history, err := findRevisionHistory(&application, -1)
+
+	if err != nil {
+		t.Fatal("Find revision history should fail without errors")
+	}
+
+	if history == nil {
+		t.Fatal("History should be found")
+	}
 
 }
 
@@ -1428,39 +1464,39 @@ func TestParseSelectedResources(t *testing.T) {
 	operationResources, err := parseSelectedResources(resources)
 	assert.NoError(t, err)
 	assert.Len(t, operationResources, 5)
-	assert.Equal(t, *operationResources[0], v1alpha1.SyncOperationResource{
+	assert.Equal(t, v1alpha1.SyncOperationResource{
 		Namespace: "",
 		Name:      "test",
 		Kind:      application.ApplicationKind,
 		Group:     "v1alpha",
-	})
-	assert.Equal(t, *operationResources[1], v1alpha1.SyncOperationResource{
+	}, *operationResources[0])
+	assert.Equal(t, v1alpha1.SyncOperationResource{
 		Namespace: "namespace",
 		Name:      "test",
 		Kind:      application.ApplicationKind,
 		Group:     "v1alpha",
-	})
-	assert.Equal(t, *operationResources[2], v1alpha1.SyncOperationResource{
+	}, *operationResources[1])
+	assert.Equal(t, v1alpha1.SyncOperationResource{
 		Namespace: "",
 		Name:      "test",
 		Kind:      "Application",
 		Group:     "v1alpha",
 		Exclude:   true,
-	})
-	assert.Equal(t, *operationResources[3], v1alpha1.SyncOperationResource{
+	}, *operationResources[2])
+	assert.Equal(t, v1alpha1.SyncOperationResource{
 		Namespace: "default",
 		Name:      "test",
 		Kind:      "Deployment",
 		Group:     "apps",
 		Exclude:   false,
-	})
-	assert.Equal(t, *operationResources[4], v1alpha1.SyncOperationResource{
+	}, *operationResources[3])
+	assert.Equal(t, v1alpha1.SyncOperationResource{
 		Namespace: "",
 		Name:      "*",
 		Kind:      "*",
 		Group:     "*",
 		Exclude:   true,
-	})
+	}, *operationResources[4])
 }
 
 func TestParseSelectedResourcesIncorrect(t *testing.T) {

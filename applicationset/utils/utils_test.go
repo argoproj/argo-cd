@@ -184,12 +184,12 @@ func TestRenderTemplateParams(t *testing.T) {
 				// the target field has been templated into the expected value
 				actualValue := *getPtrFunc(newApplication)
 				assert.Equal(t, test.expectedVal, actualValue, "Field '%s' had an unexpected value. expected: '%s' value: '%s'", fieldName, test.expectedVal, actualValue)
-				assert.Equal(t, newApplication.ObjectMeta.Annotations["annotation-key"], "annotation-value")
-				assert.Equal(t, newApplication.ObjectMeta.Annotations["annotation-key2"], "annotation-value2")
-				assert.Equal(t, newApplication.ObjectMeta.Labels["label-key"], "label-value")
-				assert.Equal(t, newApplication.ObjectMeta.Labels["label-key2"], "label-value2")
-				assert.Equal(t, newApplication.ObjectMeta.Name, "application-one")
-				assert.Equal(t, newApplication.ObjectMeta.Namespace, "default")
+				assert.Equal(t, "annotation-value", newApplication.ObjectMeta.Annotations["annotation-key"])
+				assert.Equal(t, "annotation-value2", newApplication.ObjectMeta.Annotations["annotation-key2"])
+				assert.Equal(t, "label-value", newApplication.ObjectMeta.Labels["label-key"])
+				assert.Equal(t, "label-value2", newApplication.ObjectMeta.Labels["label-key2"])
+				assert.Equal(t, "application-one", newApplication.ObjectMeta.Name)
+				assert.Equal(t, "default", newApplication.ObjectMeta.Namespace)
 				assert.Equal(t, newApplication.ObjectMeta.UID, types.UID("d546da12-06b7-4f9a-8ea2-3adb16a20e2b"))
 				assert.Equal(t, newApplication.ObjectMeta.CreationTimestamp, application.ObjectMeta.CreationTimestamp)
 				assert.NoError(t, err)
@@ -250,7 +250,7 @@ func TestRenderHelmValuesObjectJson(t *testing.T) {
 	err = json.Unmarshal(newApplication.Spec.Source.Helm.ValuesObject.Raw, &unmarshaled)
 
 	assert.NoError(t, err)
-	assert.Equal(t, unmarshaled.(map[string]interface{})["some"].(map[string]interface{})["string"], "Hello world")
+	assert.Equal(t, "Hello world", unmarshaled.(map[string]interface{})["some"].(map[string]interface{})["string"])
 
 }
 
@@ -302,7 +302,7 @@ func TestRenderHelmValuesObjectYaml(t *testing.T) {
 	err = json.Unmarshal(newApplication.Spec.Source.Helm.ValuesObject.Raw, &unmarshaled)
 
 	assert.NoError(t, err)
-	assert.Equal(t, unmarshaled.(map[string]interface{})["some"].(map[string]interface{})["string"], "Hello world")
+	assert.Equal(t, "Hello world", unmarshaled.(map[string]interface{})["some"].(map[string]interface{})["string"])
 
 }
 
@@ -640,12 +640,12 @@ func TestRenderTemplateParamsGoTemplate(t *testing.T) {
 					assert.NoError(t, err)
 					actualValue := *getPtrFunc(newApplication)
 					assert.Equal(t, test.expectedVal, actualValue, "Field '%s' had an unexpected value. expected: '%s' value: '%s'", fieldName, test.expectedVal, actualValue)
-					assert.Equal(t, newApplication.ObjectMeta.Annotations["annotation-key"], "annotation-value")
-					assert.Equal(t, newApplication.ObjectMeta.Annotations["annotation-key2"], "annotation-value2")
-					assert.Equal(t, newApplication.ObjectMeta.Labels["label-key"], "label-value")
-					assert.Equal(t, newApplication.ObjectMeta.Labels["label-key2"], "label-value2")
-					assert.Equal(t, newApplication.ObjectMeta.Name, "application-one")
-					assert.Equal(t, newApplication.ObjectMeta.Namespace, "default")
+					assert.Equal(t, "annotation-value", newApplication.ObjectMeta.Annotations["annotation-key"])
+					assert.Equal(t, "annotation-value2", newApplication.ObjectMeta.Annotations["annotation-key2"])
+					assert.Equal(t, "label-value", newApplication.ObjectMeta.Labels["label-key"])
+					assert.Equal(t, "label-value2", newApplication.ObjectMeta.Labels["label-key2"])
+					assert.Equal(t, "application-one", newApplication.ObjectMeta.Name)
+					assert.Equal(t, "default", newApplication.ObjectMeta.Namespace)
 					assert.Equal(t, newApplication.ObjectMeta.UID, types.UID("d546da12-06b7-4f9a-8ea2-3adb16a20e2b"))
 					assert.Equal(t, newApplication.ObjectMeta.CreationTimestamp, application.ObjectMeta.CreationTimestamp)
 				}
@@ -701,7 +701,7 @@ func TestRenderTemplateKeys(t *testing.T) {
 		newApplication, err := render.RenderTemplateParams(application, nil, params, false, nil)
 		require.NoError(t, err)
 		require.Contains(t, newApplication.ObjectMeta.Annotations, "annotation-some-key")
-		assert.Equal(t, newApplication.ObjectMeta.Annotations["annotation-some-key"], "annotation-some-value")
+		assert.Equal(t, "annotation-some-value", newApplication.ObjectMeta.Annotations["annotation-some-key"])
 	})
 	t.Run("gotemplate", func(t *testing.T) {
 		application := &argoappsv1.Application{
@@ -721,7 +721,7 @@ func TestRenderTemplateKeys(t *testing.T) {
 		newApplication, err := render.RenderTemplateParams(application, nil, params, true, nil)
 		require.NoError(t, err)
 		require.Contains(t, newApplication.ObjectMeta.Annotations, "annotation-some-key")
-		assert.Equal(t, newApplication.ObjectMeta.Annotations["annotation-some-key"], "annotation-some-value")
+		assert.Equal(t, "annotation-some-value", newApplication.ObjectMeta.Annotations["annotation-some-key"])
 	})
 }
 

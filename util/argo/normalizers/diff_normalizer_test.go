@@ -188,7 +188,7 @@ func TestNormalizeJQPathExpression(t *testing.T) {
 	actualInitContainerName, has, err := unstructured.NestedString(actualInitContainers[0].(map[string]interface{}), "name")
 	assert.NoError(t, err)
 	assert.True(t, has)
-	assert.Equal(t, actualInitContainerName, "init-container-1")
+	assert.Equal(t, "init-container-1", actualInitContainerName)
 }
 
 func TestNormalizeIllegalJQPathExpression(t *testing.T) {

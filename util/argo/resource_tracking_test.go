@@ -79,7 +79,7 @@ func TestSetAppInstanceAnnotationAndLabelLongName(t *testing.T) {
 	assert.Equal(t, "my-app-with-an-extremely-long-name-that-is-over-sixty-three-characters", app)
 
 	// the label should be truncated to 63 characters
-	assert.Equal(t, obj.GetLabels()[common.LabelKeyAppInstance], "my-app-with-an-extremely-long-name-that-is-over-sixty-three-cha")
+	assert.Equal(t, "my-app-with-an-extremely-long-name-that-is-over-sixty-three-cha", obj.GetLabels()[common.LabelKeyAppInstance])
 }
 
 func TestSetAppInstanceAnnotationAndLabelLongNameBadEnding(t *testing.T) {
@@ -99,7 +99,7 @@ func TestSetAppInstanceAnnotationAndLabelLongNameBadEnding(t *testing.T) {
 	assert.Equal(t, "the-very-suspicious-name-with-precisely-sixty-three-characters-with-hyphen", app)
 
 	// the label should be truncated to 63 characters, AND the hyphen should be removed
-	assert.Equal(t, obj.GetLabels()[common.LabelKeyAppInstance], "the-very-suspicious-name-with-precisely-sixty-three-characters")
+	assert.Equal(t, "the-very-suspicious-name-with-precisely-sixty-three-characters", obj.GetLabels()[common.LabelKeyAppInstance])
 }
 
 func TestSetAppInstanceAnnotationAndLabelOutOfBounds(t *testing.T) {
@@ -136,11 +136,11 @@ func TestParseAppInstanceValue(t *testing.T) {
 	if !assert.NoError(t, err) {
 		t.Fatal()
 	}
-	assert.Equal(t, appInstanceValue.ApplicationName, "app")
-	assert.Equal(t, appInstanceValue.Group, "<group>")
-	assert.Equal(t, appInstanceValue.Kind, "<kind>")
-	assert.Equal(t, appInstanceValue.Namespace, "<namespace>")
-	assert.Equal(t, appInstanceValue.Name, "<name>")
+	assert.Equal(t, "app", appInstanceValue.ApplicationName)
+	assert.Equal(t, "<group>", appInstanceValue.Group)
+	assert.Equal(t, "<kind>", appInstanceValue.Kind)
+	assert.Equal(t, "<namespace>", appInstanceValue.Namespace)
+	assert.Equal(t, "<name>", appInstanceValue.Name)
 }
 
 func TestParseAppInstanceValueColon(t *testing.T) {
@@ -149,11 +149,11 @@ func TestParseAppInstanceValueColon(t *testing.T) {
 	if !assert.NoError(t, err) {
 		t.Fatal()
 	}
-	assert.Equal(t, appInstanceValue.ApplicationName, "app")
-	assert.Equal(t, appInstanceValue.Group, "<group>")
-	assert.Equal(t, appInstanceValue.Kind, "<kind>")
-	assert.Equal(t, appInstanceValue.Namespace, "<namespace>")
-	assert.Equal(t, appInstanceValue.Name, "<name>:<colon>")
+	assert.Equal(t, "app", appInstanceValue.ApplicationName)
+	assert.Equal(t, "<group>", appInstanceValue.Group)
+	assert.Equal(t, "<kind>", appInstanceValue.Kind)
+	assert.Equal(t, "<namespace>", appInstanceValue.Namespace)
+	assert.Equal(t, "<name>:<colon>", appInstanceValue.Name)
 }
 
 func TestParseAppInstanceValueWrongFormat1(t *testing.T) {

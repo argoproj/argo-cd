@@ -96,7 +96,7 @@ func TestProjectServer(t *testing.T) {
 
 		appList, err := projectServer.appclientset.ArgoprojV1alpha1().AppProjects(projectWithRole.Namespace).List(context.Background(), v1.ListOptions{})
 		assert.NoError(t, err)
-		assert.Equal(t, appList.Items[0].Status.JWTTokensByRole[roleName].Items[0].IssuedAt, int64(1))
+		assert.Equal(t, int64(1), appList.Items[0].Status.JWTTokensByRole[roleName].Items[0].IssuedAt)
 		assert.ElementsMatch(t, appList.Items[0].Status.JWTTokensByRole[roleName].Items, appList.Items[0].Spec.Roles[0].JWTTokens)
 
 	})
@@ -546,7 +546,7 @@ p, role:admin, projects, update, *, allow`)
 		assert.NoError(t, err)
 		t.Log(projWithRole.Spec.Roles[0].Policies[0])
 		expectedPolicy := fmt.Sprintf(policyTemplate, projWithRole.Name, role.Name, action, projWithRole.Name, object, effect)
-		assert.Equal(t, projWithRole.Spec.Roles[0].Policies[0], expectedPolicy)
+		assert.Equal(t, expectedPolicy, projWithRole.Spec.Roles[0].Policies[0])
 	})
 
 	t.Run("TestValidatePolicyDuplicatePolicyFailure", func(t *testing.T) {

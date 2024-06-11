@@ -44,7 +44,7 @@ func TestUpdateProjects_FindMatchingProject(t *testing.T) {
 
 	barProj, err := clientset.ArgoprojV1alpha1().AppProjects(namespace).Get(ctx, "bar", v1.GetOptions{})
 	assert.NoError(t, err)
-	assert.EqualValues(t, barProj.Spec.Roles[0].Policies, []string{"p, proj:bar:test, *, set, bar/*, allow"})
+	assert.EqualValues(t, []string{"p, proj:bar:test, *, set, bar/*, allow"}, barProj.Spec.Roles[0].Policies)
 }
 
 func TestUpdateProjects_FindMatchingRole(t *testing.T) {
@@ -59,7 +59,7 @@ func TestUpdateProjects_FindMatchingRole(t *testing.T) {
 
 	proj, err := clientset.ArgoprojV1alpha1().AppProjects(namespace).Get(ctx, "proj", v1.GetOptions{})
 	assert.NoError(t, err)
-	assert.EqualValues(t, proj.Spec.Roles[0].Policies, []string{"p, proj:proj:foo, *, set, proj/*, allow"})
+	assert.EqualValues(t, []string{"p, proj:proj:foo, *, set, proj/*, allow"}, proj.Spec.Roles[0].Policies)
 	assert.Empty(t, proj.Spec.Roles[1].Policies)
 }
 

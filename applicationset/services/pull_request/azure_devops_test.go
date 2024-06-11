@@ -215,7 +215,7 @@ func TestBuildURL(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			result := buildURL(tc.url, tc.organization)
-			assert.Equal(t, result, tc.expected)
+			assert.Equal(t, tc.expected, result)
 		})
 	}
 }

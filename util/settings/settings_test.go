@@ -67,7 +67,7 @@ func TestSaveRepositories(t *testing.T) {
 	assert.NoError(t, err)
 	cm, err := kubeClient.CoreV1().ConfigMaps("default").Get(context.Background(), common.ArgoCDConfigMapName, metav1.GetOptions{})
 	assert.NoError(t, err)
-	assert.Equal(t, cm.Data["repositories"], "- url: http://foo\n")
+	assert.Equal(t, "- url: http://foo\n", cm.Data["repositories"])
 
 	repos, err := settingsManager.GetRepositories()
 	assert.NoError(t, err)
@@ -82,7 +82,7 @@ func TestSaveRepositoriesNoConfigMap(t *testing.T) {
 	assert.NoError(t, err)
 	cm, err := kubeClient.CoreV1().ConfigMaps("default").Get(context.Background(), common.ArgoCDConfigMapName, metav1.GetOptions{})
 	assert.NoError(t, err)
-	assert.Equal(t, cm.Data["repositories"], "- url: http://foo\n")
+	assert.Equal(t, "- url: http://foo\n", cm.Data["repositories"])
 }
 
 func TestSaveRepositoryCredentials(t *testing.T) {
@@ -91,7 +91,7 @@ func TestSaveRepositoryCredentials(t *testing.T) {
 	assert.NoError(t, err)
 	cm, err := kubeClient.CoreV1().ConfigMaps("default").Get(context.Background(), common.ArgoCDConfigMapName, metav1.GetOptions{})
 	assert.NoError(t, err)
-	assert.Equal(t, cm.Data["repository.credentials"], "- url: http://foo\n")
+	assert.Equal(t, "- url: http://foo\n", cm.Data["repository.credentials"])
 
 	creds, err := settingsManager.GetRepositoryCredentials()
 	assert.NoError(t, err)
@@ -1289,11 +1289,11 @@ requestedIDTokenClaims: {"groups": {"essential": true}}`,
 
 	settings, err := settingsManager.GetSettings()
 	assert.NoError(t, err)
-	assert.Equal(t, settings.WebhookGitHubSecret, "mywebhooksecret")
+	assert.Equal(t, "mywebhooksecret", settings.WebhookGitHubSecret)
 
 	oidcConfig := settings.OIDCConfig()
-	assert.Equal(t, oidcConfig.Issuer, "https://dev-123456.oktapreview.com")
-	assert.Equal(t, oidcConfig.ClientSecret, "deadbeef")
+	assert.Equal(t, "https://dev-123456.oktapreview.com", oidcConfig.Issuer)
+	assert.Equal(t, "deadbeef", oidcConfig.ClientSecret)
 }
 
 func TestGetEnableManifestGeneration(t *testing.T) {
