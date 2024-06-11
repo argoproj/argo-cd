@@ -487,9 +487,10 @@ jobs:
             fi
             count=$((count+1))
           done
-          ps -ef | grep argocd
+          ps -ef | grep argo
       - name: Run E2E testsuite
         run: |
+          ps -ef | grep argo
           set -x
           make test-e2e-local
       - name: Upload e2e coverage report
