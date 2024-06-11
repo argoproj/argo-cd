@@ -25,8 +25,7 @@ func TestGenerateListParams(t *testing.T) {
 	}
 
 	for _, testCase := range testCases {
-
-		var listGenerator = NewListGenerator()
+		listGenerator := NewListGenerator()
 
 		applicationSetInfo := argoprojiov1alpha1.ApplicationSet{
 			ObjectMeta: metav1.ObjectMeta{
@@ -38,11 +37,11 @@ func TestGenerateListParams(t *testing.T) {
 		got, err := listGenerator.GenerateParams(&argoprojiov1alpha1.ApplicationSetGenerator{
 			List: &argoprojiov1alpha1.ListGenerator{
 				Elements: testCase.elements,
-			}}, &applicationSetInfo)
+			},
+		}, &applicationSetInfo)
 
 		assert.NoError(t, err)
 		assert.ElementsMatch(t, testCase.expected, got)
-
 	}
 }
 
@@ -61,8 +60,7 @@ func TestGenerateListParamsGoTemplate(t *testing.T) {
 	}
 
 	for _, testCase := range testCases {
-
-		var listGenerator = NewListGenerator()
+		listGenerator := NewListGenerator()
 
 		applicationSetInfo := argoprojiov1alpha1.ApplicationSet{
 			ObjectMeta: metav1.ObjectMeta{
@@ -76,7 +74,8 @@ func TestGenerateListParamsGoTemplate(t *testing.T) {
 		got, err := listGenerator.GenerateParams(&argoprojiov1alpha1.ApplicationSetGenerator{
 			List: &argoprojiov1alpha1.ListGenerator{
 				Elements: testCase.elements,
-			}}, &applicationSetInfo)
+			},
+		}, &applicationSetInfo)
 
 		assert.NoError(t, err)
 		assert.ElementsMatch(t, testCase.expected, got)

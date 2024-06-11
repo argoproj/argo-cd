@@ -297,7 +297,6 @@ func runWatchTest(t *testing.T, db ArgoDB, actions []func(old *v1alpha1.Cluster,
 	case <-time.After(timeout):
 		assert.Fail(t, "Failed due to timeout")
 	}
-
 }
 
 func TestListClusters(t *testing.T) {

@@ -38,8 +38,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/settings"
 )
 
-type fakeSettingsSrc struct {
-}
+type fakeSettingsSrc struct{}
 
 func (f fakeSettingsSrc) GetAppInstanceLabelKey() (string, error) {
 	return "mycompany.com/appname", nil

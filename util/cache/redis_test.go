@@ -108,7 +108,7 @@ func TestRedisSetCacheCompressed(t *testing.T) {
 
 	compressedData, err := redisClient.Get(context.Background(), "my-key.gz").Bytes()
 	assert.NoError(t, err)
-	assert.True(t, len(compressedData) > len([]byte(testValue)), "compressed data is bigger than uncompressed")
+	assert.Greater(t, len(compressedData), len([]byte(testValue)), "compressed data is bigger than uncompressed")
 
 	var result string
 	assert.NoError(t, client.Get("my-key", &result))
@@ -134,7 +134,7 @@ func TestRedisMetrics(t *testing.T) {
 	faultyClient := NewRedisCache(faultyRedisClient, 60*time.Second, RedisCompressionNone)
 	var res string
 
-	//client successful request
+	// client successful request
 	err = client.Set(&Item{Key: "foo", Object: "bar"})
 	assert.NoError(t, err)
 	err = client.Get("foo", &res)
@@ -146,7 +146,7 @@ func TestRedisMetrics(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, float64(2), metric.Counter.GetValue())
 
-	//faulty client failed request
+	// faulty client failed request
 	err = faultyClient.Get("foo", &res)
 	assert.Error(t, err)
 	c, err = ms.redisRequestCounter.GetMetricWithLabelValues("mock", "true")
@@ -155,7 +155,7 @@ func TestRedisMetrics(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, float64(1), metric.Counter.GetValue())
 
-	//both clients histogram count
+	// both clients histogram count
 	o, err := ms.redisRequestHistogram.GetMetricWithLabelValues("mock")
 	assert.NoError(t, err)
 	err = o.(prometheus.Metric).Write(metric)

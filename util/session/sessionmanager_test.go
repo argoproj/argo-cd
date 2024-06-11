@@ -363,6 +363,7 @@ func TestIss(t *testing.T) {
 	assert.Empty(t, Iss(loggedOutContext))
 	assert.Equal(t, "qux", Iss(loggedInContext))
 }
+
 func TestLoggedIn(t *testing.T) {
 	assert.False(t, LoggedIn(loggedOutContext))
 	assert.True(t, LoggedIn(loggedInContext))
@@ -490,7 +491,6 @@ func TestCacheValueGetters(t *testing.T) {
 		mcs := getMaximumCacheSize()
 		assert.Equal(t, defaultMaxCacheSize, mcs)
 	})
-
 }
 
 func TestLoginRateLimiter(t *testing.T) {

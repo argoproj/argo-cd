@@ -44,8 +44,7 @@ type Renderer interface {
 	Replace(tmpl string, replaceMap map[string]interface{}, useGoTemplate bool, goTemplateOptions []string) (string, error)
 }
 
-type Render struct {
-}
+type Render struct{}
 
 func copyValueIntoUnexported(destination, value reflect.Value) {
 	reflect.NewAt(destination.Type(), unsafe.Pointer(destination.UnsafeAddr())).
@@ -54,7 +53,7 @@ func copyValueIntoUnexported(destination, value reflect.Value) {
 }
 
 func copyUnexported(copy, original reflect.Value) {
-	var unexported = reflect.NewAt(original.Type(), unsafe.Pointer(original.UnsafeAddr())).Elem()
+	unexported := reflect.NewAt(original.Type(), unsafe.Pointer(original.UnsafeAddr())).Elem()
 	copyValueIntoUnexported(copy, unexported)
 }
 
@@ -127,7 +126,7 @@ func (r *Render) deeplyReplace(copy, original reflect.Value, replaceMap map[stri
 	// If it is a struct we translate each field
 	case reflect.Struct:
 		for i := 0; i < original.NumField(); i += 1 {
-			var currentType = fmt.Sprintf("%s.%s", original.Type().Field(i).Name, original.Type().PkgPath())
+			currentType := fmt.Sprintf("%s.%s", original.Type().Field(i).Name, original.Type().PkgPath())
 			// specific case time
 			if currentType == "time.Time" {
 				copy.Field(i).Set(original.Field(i))
@@ -270,7 +269,6 @@ func (r *Render) RenderTemplateParams(tmpl *argoappsv1.Application, syncPolicy *
 	// See TestRenderTemplateParamsFinalizers in util_test.go for test-based definition of behaviour
 	if (syncPolicy == nil || !syncPolicy.PreserveResourcesOnDeletion) &&
 		((*replacedTmpl).ObjectMeta.Finalizers == nil || len((*replacedTmpl).ObjectMeta.Finalizers) == 0) {
-
 		(*replacedTmpl).ObjectMeta.Finalizers = []string{"resources-finalizer.argocd.argoproj.io"}
 	}
 
@@ -486,7 +484,6 @@ func SlugifyName(args ...interface{}) string {
 }
 
 func getTlsConfigWithCACert(scmRootCAPath string) *tls.Config {
-
 	tlsConfig := &tls.Config{}
 
 	if scmRootCAPath != "" {

@@ -16,7 +16,6 @@ import (
 )
 
 func TestGetDirectories(t *testing.T) {
-
 	type fields struct {
 		storecreds            git.CredsStore
 		submoduleEnabled      bool

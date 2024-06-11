@@ -11,9 +11,10 @@ import (
 	"github.com/argoproj/argo-cd/v2/common"
 )
 
-const Test_Cert1CN = "CN=foo.example.com,OU=SpecOps,O=Capone\\, Inc,L=Chicago,ST=IL,C=US"
-const Test_Cert2CN = "CN=bar.example.com,OU=Testsuite,O=Testing Corp,L=Hanover,ST=Lower Saxony,C=DE"
-const Test_TLSValidSingleCert = `
+const (
+	Test_Cert1CN            = "CN=foo.example.com,OU=SpecOps,O=Capone\\, Inc,L=Chicago,ST=IL,C=US"
+	Test_Cert2CN            = "CN=bar.example.com,OU=Testsuite,O=Testing Corp,L=Hanover,ST=Lower Saxony,C=DE"
+	Test_TLSValidSingleCert = `
 -----BEGIN CERTIFICATE-----
 MIIFvTCCA6WgAwIBAgIUGrTmW3qc39zqnE08e3qNDhUkeWswDQYJKoZIhvcNAQEL
 BQAwbjELMAkGA1UEBhMCVVMxCzAJBgNVBAgMAklMMRAwDgYDVQQHDAdDaGljYWdv
@@ -48,6 +49,7 @@ r2AaraPFgrprnxUibP4L7jxdr+iiw5bWN9/B81PodrS7n5TNtnfnpZD6X6rThqOP
 xO7Tr5lAo74vNUkF2EHNaI28/RGnJPm2TIxZqy4rNH6L
 -----END CERTIFICATE-----
 `
+)
 
 const Test_TLSInvalidPEMData = `
 MIIF1zCCA7+gAwIBAgIUQdTcSHY2Sxd3Tq/v1eIEZPCNbOowDQYJKoZIhvcNAQEL
@@ -474,7 +476,7 @@ func TestGetCertificateForConnect(t *testing.T) {
 		if err != nil {
 			panic(err)
 		}
-		err = os.WriteFile(path.Join(temppath, "127.0.0.1"), cert, 0666)
+		err = os.WriteFile(path.Join(temppath, "127.0.0.1"), cert, 0o666)
 		if err != nil {
 			panic(err)
 		}
@@ -494,7 +496,7 @@ func TestGetCertificateForConnect(t *testing.T) {
 
 	t.Run("No valid cert in file", func(t *testing.T) {
 		temppath := t.TempDir()
-		err := os.WriteFile(path.Join(temppath, "127.0.0.1"), []byte("foobar"), 0666)
+		err := os.WriteFile(path.Join(temppath, "127.0.0.1"), []byte("foobar"), 0o666)
 		if err != nil {
 			panic(err)
 		}
@@ -504,7 +506,6 @@ func TestGetCertificateForConnect(t *testing.T) {
 		assert.Empty(t, certs)
 		assert.Contains(t, err.Error(), "no certificates found")
 	})
-
 }
 
 func TestGetCertBundlePathForRepository(t *testing.T) {
@@ -514,7 +515,7 @@ func TestGetCertBundlePathForRepository(t *testing.T) {
 		if err != nil {
 			panic(err)
 		}
-		err = os.WriteFile(path.Join(temppath, "127.0.0.1"), cert, 0666)
+		err = os.WriteFile(path.Join(temppath, "127.0.0.1"), cert, 0o666)
 		if err != nil {
 			panic(err)
 		}
@@ -534,7 +535,7 @@ func TestGetCertBundlePathForRepository(t *testing.T) {
 
 	t.Run("No valid cert in file", func(t *testing.T) {
 		temppath := t.TempDir()
-		err := os.WriteFile(path.Join(temppath, "127.0.0.1"), []byte("foobar"), 0666)
+		err := os.WriteFile(path.Join(temppath, "127.0.0.1"), []byte("foobar"), 0o666)
 		if err != nil {
 			panic(err)
 		}
@@ -543,5 +544,4 @@ func TestGetCertBundlePathForRepository(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Empty(t, certpath)
 	})
-
 }

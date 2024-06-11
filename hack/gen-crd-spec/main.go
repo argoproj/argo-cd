@@ -16,13 +16,11 @@ import (
 	"sigs.k8s.io/yaml"
 )
 
-var (
-	kindToCRDPath = map[string]string{
-		application.ApplicationFullName:    "manifests/crds/application-crd.yaml",
-		application.AppProjectFullName:     "manifests/crds/appproject-crd.yaml",
-		application.ApplicationSetFullName: "manifests/crds/applicationset-crd.yaml",
-	}
-)
+var kindToCRDPath = map[string]string{
+	application.ApplicationFullName:    "manifests/crds/application-crd.yaml",
+	application.AppProjectFullName:     "manifests/crds/appproject-crd.yaml",
+	application.ApplicationSetFullName: "manifests/crds/applicationset-crd.yaml",
+}
 
 func getCustomResourceDefinitions() map[string]*extensionsobj.CustomResourceDefinition {
 	crdYamlBytes, err := exec.Command(
@@ -153,6 +151,6 @@ func writeCRDintoFile(crd *extensionsobj.CustomResourceDefinition, path string) 
 	yamlBytes, err := yaml.JSONToYAML(jsonBytes)
 	checkErr(err)
 
-	err = os.WriteFile(path, yamlBytes, 0644)
+	err = os.WriteFile(path, yamlBytes, 0o644)
 	checkErr(err)
 }

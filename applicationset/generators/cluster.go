@@ -38,7 +38,6 @@ type ClusterGenerator struct {
 var render = &utils.Render{}
 
 func NewClusterGenerator(c client.Client, ctx context.Context, clientset kubernetes.Interface, namespace string) Generator {
-
 	settingsManager := settings.NewSettingsManager(ctx, clientset, namespace)
 
 	g := &ClusterGenerator{
@@ -62,7 +61,6 @@ func (g *ClusterGenerator) GetTemplate(appSetGenerator *argoappsetv1alpha1.Appli
 }
 
 func (g *ClusterGenerator) GenerateParams(appSetGenerator *argoappsetv1alpha1.ApplicationSetGenerator, appSet *argoappsetv1alpha1.ApplicationSet) ([]map[string]interface{}, error) {
-
 	if appSetGenerator == nil {
 		return nil, EmptyAppSetGeneratorError
 	}
@@ -95,12 +93,10 @@ func (g *ClusterGenerator) GenerateParams(appSetGenerator *argoappsetv1alpha1.Ap
 	secretsFound := []corev1.Secret{}
 
 	for _, cluster := range clustersFromArgoCD.Items {
-
 		// If there is a secret for this cluster, then it's a non-local cluster, so it will be
 		// handled by the next step.
 		if secretForCluster, exists := clusterSecrets[cluster.Name]; exists {
 			secretsFound = append(secretsFound, secretForCluster)
-
 		} else if !ignoreLocalClusters {
 			// If there is no secret for the cluster, it's the local cluster, so handle it here.
 			params := map[string]interface{}{}
@@ -185,5 +181,4 @@ func (g *ClusterGenerator) getSecretsByClusterName(appSetGenerator *argoappsetv1
 	}
 
 	return res, nil
-
 }

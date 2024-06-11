@@ -39,7 +39,7 @@ func newAWSCommand() *cobra.Command {
 		roleARN     string
 		profile     string
 	)
-	var command = &cobra.Command{
+	command := &cobra.Command{
 		Use: "aws",
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()

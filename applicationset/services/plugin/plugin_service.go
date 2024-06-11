@@ -56,7 +56,6 @@ func NewPluginService(ctx context.Context, appSetName string, baseURL string, to
 
 func (p *Service) List(ctx context.Context, parameters v1alpha1.PluginParameters) (*ServiceResponse, error) {
 	req, err := p.client.NewRequest(http.MethodPost, "api/v1/getparams.execute", ServiceRequest{ApplicationSetName: p.appSetName, Input: v1alpha1.PluginInput{Parameters: parameters}}, nil)
-
 	if err != nil {
 		return nil, fmt.Errorf("NewRequest returned unexpected error: %v", err)
 	}
@@ -64,7 +63,6 @@ func (p *Service) List(ctx context.Context, parameters v1alpha1.PluginParameters
 	var data ServiceResponse
 
 	_, err = p.client.Do(ctx, req, &data)
-
 	if err != nil {
 		return nil, fmt.Errorf("error get api '%s': %v", p.appSetName, err)
 	}

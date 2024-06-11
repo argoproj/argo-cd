@@ -27,7 +27,6 @@ func TestIndex_GetEntries(t *testing.T) {
 	t.Run("NotFound", func(t *testing.T) {
 		_, err := index.GetEntries("foo")
 		assert.EqualError(t, err, "chart 'foo' not found in index")
-
 	})
 	t.Run("Found", func(t *testing.T) {
 		entries, err := index.GetEntries("argo-cd")
@@ -42,14 +41,12 @@ func TestEntries_MaxVersion(t *testing.T) {
 		constraints, _ := semver.NewConstraint("0.8.1")
 		_, err := entries.MaxVersion(constraints)
 		assert.EqualError(t, err, "constraint not found in index")
-
 	})
 	t.Run("Exact", func(t *testing.T) {
 		constraints, _ := semver.NewConstraint("0.5.3")
 		version, err := entries.MaxVersion(constraints)
 		assert.NoError(t, err)
 		assert.Equal(t, semver.MustParse("0.5.3"), version)
-
 	})
 	t.Run("Constraint", func(t *testing.T) {
 		constraints, _ := semver.NewConstraint("> 0.5.3")

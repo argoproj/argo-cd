@@ -17,14 +17,16 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/git"
 )
 
-const kustomization1 = "kustomization_yaml"
-const kustomization2a = "kustomization_yml"
-const kustomization2b = "Kustomization"
-const kustomization3 = "force_common"
-const kustomization4 = "custom_version"
-const kustomization5 = "kustomization_yaml_patches"
-const kustomization6 = "kustomization_yaml_components"
-const kustomization7 = "label_without_selector"
+const (
+	kustomization1  = "kustomization_yaml"
+	kustomization2a = "kustomization_yml"
+	kustomization2b = "Kustomization"
+	kustomization3  = "force_common"
+	kustomization4  = "custom_version"
+	kustomization5  = "kustomization_yaml_patches"
+	kustomization6  = "kustomization_yaml_components"
+	kustomization7  = "label_without_selector"
+)
 
 func testDataDir(tb testing.TB, testData string) (string, error) {
 	res := tb.TempDir()
@@ -404,7 +406,6 @@ func TestKustomizeLabelWithoutSelector(t *testing.T) {
 			}
 		}
 	}
-
 }
 
 func TestKustomizeCustomVersion(t *testing.T) {

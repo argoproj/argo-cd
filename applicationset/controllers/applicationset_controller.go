@@ -65,12 +65,10 @@ const (
 	ReconcileRequeueOnValidationError = time.Minute * 3
 )
 
-var (
-	defaultPreservedAnnotations = []string{
-		NotifiedAnnotationKey,
-		argov1alpha1.AnnotationKeyRefresh,
-	}
-)
+var defaultPreservedAnnotations = []string{
+	NotifiedAnnotationKey,
+	argov1alpha1.AnnotationKeyRefresh,
+}
 
 // ApplicationSetReconciler reconciles a ApplicationSet object
 type ApplicationSetReconciler struct {
@@ -241,7 +239,6 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		// trigger appropriate application syncs if RollingSync strategy is enabled
 		if progressiveSyncsStrategyEnabled(&applicationSetInfo, "RollingSync") {
 			validApps, err = r.syncValidApplications(logCtx, &applicationSetInfo, appSyncMap, appMap, validApps)
-
 			if err != nil {
 				_ = r.setApplicationSetStatusCondition(ctx,
 					&applicationSetInfo,
@@ -455,7 +452,6 @@ func (r *ApplicationSetReconciler) validateGeneratedApplications(ctx context.Con
 	errorsByIndex := map[int]error{}
 	namesSet := map[string]bool{}
 	for i, app := range desiredApplications {
-
 		if !namesSet[app.Name] {
 			namesSet[app.Name] = true
 		} else {
@@ -475,7 +471,6 @@ func (r *ApplicationSetReconciler) validateGeneratedApplications(ctx context.Con
 			errorsByIndex[i] = fmt.Errorf("application destination spec is invalid: %s", err.Error())
 			continue
 		}
-
 	}
 
 	return errorsByIndex, nil
@@ -484,7 +479,6 @@ func (r *ApplicationSetReconciler) validateGeneratedApplications(ctx context.Con
 func (r *ApplicationSetReconciler) getMinRequeueAfter(applicationSetInfo *argov1alpha1.ApplicationSet) time.Duration {
 	var res time.Duration
 	for _, requestedGenerator := range applicationSetInfo.Spec.Generators {
-
 		relevantGenerators := generators.GetRelevantGenerators(&requestedGenerator, r.Generators)
 
 		for _, g := range relevantGenerators {
@@ -536,7 +530,6 @@ func (r *ApplicationSetReconciler) generateApplications(logCtx *log.Entry, appli
 
 			for _, p := range a.Params {
 				app, err := r.Renderer.RenderTemplateParams(tmplApplication, applicationSetInfo.Spec.SyncPolicy, p, applicationSetInfo.Spec.GoTemplate, applicationSetInfo.Spec.GoTemplateOptions)
-
 				if err != nil {
 					logCtx.WithError(err).WithField("params", a.Params).WithField("generator", requestedGenerator).
 						Error("error generating application from params")
@@ -550,7 +543,6 @@ func (r *ApplicationSetReconciler) generateApplications(logCtx *log.Entry, appli
 
 				if applicationSetInfo.Spec.TemplatePatch != nil {
 					patchedApplication, err := r.applyTemplatePatch(app, applicationSetInfo, p)
-
 					if err != nil {
 						log.WithError(err).WithField("params", a.Params).WithField("generator", requestedGenerator).
 							Error("error generating application from params")
@@ -578,7 +570,6 @@ func (r *ApplicationSetReconciler) generateApplications(logCtx *log.Entry, appli
 
 func (r *ApplicationSetReconciler) applyTemplatePatch(app *argov1alpha1.Application, applicationSetInfo argov1alpha1.ApplicationSet, params map[string]interface{}) (*argov1alpha1.Application, error) {
 	replacedTemplate, err := r.Renderer.Replace(*applicationSetInfo.Spec.TemplatePatch, params, applicationSetInfo.Spec.GoTemplate, applicationSetInfo.Spec.GoTemplateOptions)
-
 	if err != nil {
 		return nil, fmt.Errorf("error replacing values in templatePatch: %w", err)
 	}
@@ -656,7 +647,6 @@ func (r *ApplicationSetReconciler) updateCache(ctx context.Context, obj client.O
 // - For existing application, it will call update
 // The function also adds owner reference to all applications, and uses it to delete them.
 func (r *ApplicationSetReconciler) createOrUpdateInCluster(ctx context.Context, logCtx *log.Entry, applicationSet argov1alpha1.ApplicationSet, desiredApplications []argov1alpha1.Application) error {
-
 	var firstError error
 	// Creates or updates the application in appList
 	for _, generatedApp := range desiredApplications {
@@ -746,7 +736,6 @@ func (r *ApplicationSetReconciler) createOrUpdateInCluster(ctx context.Context, 
 
 			return controllerutil.SetControllerReference(&applicationSet, found, r.Scheme)
 		})
-
 		if err != nil {
 			appLog.WithError(err).WithField("action", action).Errorf("failed to %s Application", action)
 			if firstError == nil {
@@ -772,7 +761,6 @@ func (r *ApplicationSetReconciler) createOrUpdateInCluster(ctx context.Context, 
 // createInCluster will filter from the desiredApplications only the application that needs to be created
 // Then it will call createOrUpdateInCluster to do the actual create
 func (r *ApplicationSetReconciler) createInCluster(ctx context.Context, logCtx *log.Entry, applicationSet argov1alpha1.ApplicationSet, desiredApplications []argov1alpha1.Application) error {
-
 	var createApps []argov1alpha1.Application
 	current, err := r.getCurrentApplications(ctx, applicationSet)
 	if err != nil {
@@ -800,7 +788,6 @@ func (r *ApplicationSetReconciler) createInCluster(ctx context.Context, logCtx *
 func (r *ApplicationSetReconciler) getCurrentApplications(ctx context.Context, applicationSet argov1alpha1.ApplicationSet) ([]argov1alpha1.Application, error) {
 	var current argov1alpha1.ApplicationList
 	err := r.Client.List(ctx, &current, client.MatchingFields{".metadata.controller": applicationSet.Name}, client.InNamespace(applicationSet.Namespace))
-
 	if err != nil {
 		return nil, fmt.Errorf("error retrieving applications: %w", err)
 	}
@@ -838,7 +825,6 @@ func (r *ApplicationSetReconciler) deleteInCluster(ctx context.Context, logCtx *
 		_, exists := m[app.Name]
 
 		if !exists {
-
 			// Removes the Argo CD resources finalizer if the application contains an invalid target (eg missing cluster)
 			err := r.removeFinalizerOnInvalidDestination(ctx, applicationSet, &app, clusterList, logCtx)
 			if err != nil {
@@ -866,7 +852,6 @@ func (r *ApplicationSetReconciler) deleteInCluster(ctx context.Context, logCtx *
 
 // removeFinalizerOnInvalidDestination removes the Argo CD resources finalizer if the application contains an invalid target (eg missing cluster)
 func (r *ApplicationSetReconciler) removeFinalizerOnInvalidDestination(ctx context.Context, applicationSet argov1alpha1.ApplicationSet, app *argov1alpha1.Application, clusterList *argov1alpha1.ClusterList, appLog *log.Entry) error {
-
 	// Only check if the finalizers need to be removed IF there are finalizers to remove
 	if len(app.Finalizers) == 0 {
 		return nil
@@ -879,12 +864,10 @@ func (r *ApplicationSetReconciler) removeFinalizerOnInvalidDestination(ctx conte
 		appLog.Warnf("The destination cluster for %s couldn't be found: %v", app.Name, err)
 		validDestination = false
 	} else {
-
 		// Detect if the destination's server field does not match an existing cluster
 
 		matchingCluster := false
 		for _, cluster := range clusterList.Items {
-
 			// Server fields must match. Note that ValidateDestination ensures that the server field is set, if applicable.
 			if app.Spec.Destination.Server != cluster.Server {
 				continue
@@ -908,7 +891,6 @@ func (r *ApplicationSetReconciler) removeFinalizerOnInvalidDestination(ctx conte
 	// If the destination is invalid (for example the cluster is no longer defined), then remove
 	// the application finalizers to avoid triggering Argo CD bug #5817
 	if !validDestination {
-
 		// Filter out the Argo CD finalizer from the finalizer list
 		var newFinalizers []string
 		for _, existingFinalizer := range app.Finalizers {
@@ -958,7 +940,6 @@ func (r *ApplicationSetReconciler) removeOwnerReferencesOnDeleteAppSet(ctx conte
 }
 
 func (r *ApplicationSetReconciler) performProgressiveSyncs(ctx context.Context, logCtx *log.Entry, appset argov1alpha1.ApplicationSet, applications []argov1alpha1.Application, desiredApplications []argov1alpha1.Application, appMap map[string]argov1alpha1.Application) (map[string]bool, error) {
-
 	appDependencyList, appStepMap, err := r.buildAppDependencyList(logCtx, appset, desiredApplications)
 	if err != nil {
 		return nil, fmt.Errorf("failed to build app dependency list: %w", err)
@@ -996,7 +977,6 @@ func (r *ApplicationSetReconciler) performProgressiveSyncs(ctx context.Context, 
 
 // this list tracks which Applications belong to each RollingUpdate step
 func (r *ApplicationSetReconciler) buildAppDependencyList(logCtx *log.Entry, applicationSet argov1alpha1.ApplicationSet, applications []argov1alpha1.Application) ([][]string, map[string]int, error) {
-
 	if applicationSet.Spec.Strategy == nil || applicationSet.Spec.Strategy.Type == "" || applicationSet.Spec.Strategy.Type == "AllAtOnce" {
 		return [][]string{}, map[string]int{}, nil
 	}
@@ -1016,11 +996,9 @@ func (r *ApplicationSetReconciler) buildAppDependencyList(logCtx *log.Entry, app
 	// use applicationLabelSelectors to filter generated Applications into steps and status by name
 	for _, app := range applications {
 		for i, step := range steps {
-
 			selected := true // default to true, assuming the current Application is a match for the given step matchExpression
 
 			for _, matchExpression := range step.MatchExpressions {
-
 				if val, ok := app.Labels[matchExpression.Key]; ok {
 					valueMatched := labelMatchedExpression(logCtx, val, matchExpression)
 
@@ -1084,7 +1062,6 @@ func (r *ApplicationSetReconciler) buildAppSyncMap(ctx context.Context, applicat
 
 		// detect if we need to halt before progressing to the next step
 		for _, appName := range appDependencyList[i] {
-
 			idx := findApplicationStatusIndex(applicationSet.Status.ApplicationStatus, appName)
 			if idx == -1 {
 				// no Application status found, likely because the Application is being newly created
@@ -1095,7 +1072,6 @@ func (r *ApplicationSetReconciler) buildAppSyncMap(ctx context.Context, applicat
 			appStatus := applicationSet.Status.ApplicationStatus[idx]
 
 			if app, ok := appMap[appName]; ok {
-
 				syncEnabled = appSyncEnabledForNextStep(&applicationSet, app, appStatus)
 				if !syncEnabled {
 					break
@@ -1112,7 +1088,6 @@ func (r *ApplicationSetReconciler) buildAppSyncMap(ctx context.Context, applicat
 }
 
 func appSyncEnabledForNextStep(appset *argov1alpha1.ApplicationSet, app argov1alpha1.Application, appStatus argov1alpha1.ApplicationSetApplicationStatus) bool {
-
 	if progressiveSyncsStrategyEnabled(appset, "RollingSync") {
 		// we still need to complete the current step if the Application is not yet Healthy or there are still pending Application changes
 		return isApplicationHealthy(app) && appStatus.Status == "Healthy"
@@ -1155,12 +1130,10 @@ func statusStrings(app argov1alpha1.Application) (string, string, string) {
 
 // check the status of each Application's status and promote Applications to the next status if needed
 func (r *ApplicationSetReconciler) updateApplicationSetApplicationStatus(ctx context.Context, logCtx *log.Entry, applicationSet *argov1alpha1.ApplicationSet, applications []argov1alpha1.Application, appStepMap map[string]int) ([]argov1alpha1.ApplicationSetApplicationStatus, error) {
-
 	now := metav1.Now()
 	appStatuses := make([]argov1alpha1.ApplicationSetApplicationStatus, 0, len(applications))
 
 	for _, app := range applications {
-
 		healthStatusString, syncStatusString, operationPhaseString := statusStrings(app)
 
 		idx := findApplicationStatusIndex(applicationSet.Status.ApplicationStatus, app.Name)
@@ -1280,7 +1253,6 @@ func (r *ApplicationSetReconciler) updateApplicationSetApplicationStatusProgress
 		}
 
 		for _, appStatus := range applicationSet.Status.ApplicationStatus {
-
 			maxUpdateAllowed := true
 			maxUpdate := &intstr.IntOrString{}
 			if progressiveSyncsStrategyEnabled(applicationSet, "RollingSync") {
@@ -1303,7 +1275,6 @@ func (r *ApplicationSetReconciler) updateApplicationSetApplicationStatusProgress
 					maxUpdateAllowed = false
 					logCtx.Infof("Application %v is not allowed to update yet, %v/%v Applications already updating in step %v in AppSet %v", appStatus.Application, updateCountMap[appStepMap[appStatus.Application]], maxUpdateVal, appStepMap[appStatus.Application]+1, applicationSet.Name)
 				}
-
 			}
 
 			if appStatus.Status == "Waiting" && appSyncMap[appStatus.Application] && maxUpdateAllowed {
@@ -1329,7 +1300,6 @@ func (r *ApplicationSetReconciler) updateApplicationSetApplicationStatusProgress
 }
 
 func (r *ApplicationSetReconciler) updateApplicationSetApplicationStatusConditions(ctx context.Context, applicationSet *argov1alpha1.ApplicationSet) ([]argov1alpha1.ApplicationSetCondition, error) {
-
 	appSetProgressing := false
 	for _, appStatus := range applicationSet.Status.ApplicationStatus {
 		if appStatus.Status != "Healthy" {
@@ -1393,7 +1363,6 @@ func (r *ApplicationSetReconciler) updateResourcesStatus(ctx context.Context, lo
 	namespacedName := types.NamespacedName{Namespace: appset.Namespace, Name: appset.Name}
 	err := r.Client.Status().Update(ctx, appset)
 	if err != nil {
-
 		logCtx.Errorf("unable to set application set status: %v", err)
 		return fmt.Errorf("unable to set application set status: %v", err)
 	}
@@ -1495,7 +1464,6 @@ func (r *ApplicationSetReconciler) setAppSetApplicationStatus(ctx context.Contex
 		// Update the newly fetched object with new set of ApplicationStatus
 		err := r.Client.Status().Update(ctx, applicationSet)
 		if err != nil {
-
 			logCtx.Errorf("unable to set application set status: %v", err)
 			return fmt.Errorf("unable to set application set status: %v", err)
 		}
@@ -1541,7 +1509,6 @@ func (r *ApplicationSetReconciler) syncValidApplications(logCtx *log.Entry, appl
 
 // used by the RollingSync Progressive Sync strategy to trigger a sync of a particular Application resource
 func syncApplication(application argov1alpha1.Application, prune bool) (argov1alpha1.Application, error) {
-
 	operation := argov1alpha1.Operation{
 		InitiatedBy: argov1alpha1.OperationInitiator{
 			Username:  "applicationset-controller",
@@ -1644,7 +1611,6 @@ func shouldRequeueApplicationSet(appOld *argov1alpha1.Application, appNew *argov
 		!cmp.Equal(appOld.ObjectMeta.GetAnnotations(), appNew.ObjectMeta.GetAnnotations(), cmpopts.EquateEmpty()) ||
 		!cmp.Equal(appOld.ObjectMeta.GetLabels(), appNew.ObjectMeta.GetLabels(), cmpopts.EquateEmpty()) ||
 		!cmp.Equal(appOld.ObjectMeta.GetFinalizers(), appNew.ObjectMeta.GetFinalizers(), cmpopts.EquateEmpty()) {
-
 		return true
 	}
 

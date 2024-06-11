@@ -79,7 +79,7 @@ func NewCommand() *cobra.Command {
 		applicationNamespaces    []string
 		enableProxyExtension     bool
 	)
-	var command = &cobra.Command{
+	command := &cobra.Command{
 		Use:               cliName,
 		Short:             "Run the ArgoCD API server",
 		Long:              "The API server is a gRPC/REST server which exposes the API consumed by the Web UI, CLI, and CI/CD systems.  This command runs API server in the foreground.  It can be configured by following options.",

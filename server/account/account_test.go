@@ -313,7 +313,6 @@ func TestDeleteToken_SuccessfullyRemoved(t *testing.T) {
 }
 
 func TestCanI_GetLogsAllowNoSwitch(t *testing.T) {
-
 	accountServer, _ := newTestAccountServer(context.Background(), func(cm *v1.ConfigMap, secret *v1.Secret) {
 	})
 
@@ -339,7 +338,6 @@ func TestCanI_GetLogsDenySwitchOn(t *testing.T) {
 }
 
 func TestCanI_GetLogsAllowSwitchOn(t *testing.T) {
-
 	accountServer, _ := newTestAccountServer(context.Background(), func(cm *v1.ConfigMap, secret *v1.Secret) {
 		cm.Data["server.rbac.log.enforce.enable"] = "true"
 	})
@@ -351,7 +349,6 @@ func TestCanI_GetLogsAllowSwitchOn(t *testing.T) {
 }
 
 func TestCanI_GetLogsAllowSwitchOff(t *testing.T) {
-
 	accountServer, _ := newTestAccountServer(context.Background(), func(cm *v1.ConfigMap, secret *v1.Secret) {
 		cm.Data["server.rbac.log.enforce.enable"] = "false"
 	})

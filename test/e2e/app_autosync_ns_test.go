@@ -98,5 +98,4 @@ func TestNSAutoSyncSelfHealEnabled(t *testing.T) {
 		And(func(app *Application) {
 			assert.Empty(t, app.Status.Conditions)
 		})
-
 }

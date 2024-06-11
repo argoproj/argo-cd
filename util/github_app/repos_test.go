@@ -19,11 +19,9 @@ func (a ArgocdRepositoryMock) GetRepoCredsBySecretName(ctx context.Context, secr
 	args := a.mock.Called(ctx, secretName)
 
 	return args.Get(0).(*v1alpha1.RepoCreds), args.Error(1)
-
 }
 
 func Test_repoAsCredentials_GetAuth(t *testing.T) {
-
 	tests := []struct {
 		name    string
 		repo    v1alpha1.RepoCreds

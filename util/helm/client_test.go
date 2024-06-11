@@ -5,13 +5,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
+	"net/http"
+	"net/http/httptest"
 	"net/url"
 	"os"
 	"strings"
 	"testing"
-
-	"net/http"
-	"net/http/httptest"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
