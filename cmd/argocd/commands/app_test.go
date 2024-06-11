@@ -212,6 +212,42 @@ func TestPrintTreeViewDetailedAppGet(t *testing.T) {
 	assert.Contains(t, output, "numalogic-rollout-demo-5dcd5457d5-6trpt")
 	assert.Contains(t, output, "Degraded")
 	assert.Contains(t, output, "Readiness Gate failed")
+}
+
+func TestFindRevisionHistoryWithoutPassedIdWithMultipleSources(t *testing.T) {
+
+	histories := v1alpha1.RevisionHistories{}
+
+	histories = append(histories, v1alpha1.RevisionHistory{ID: 1})
+	histories = append(histories, v1alpha1.RevisionHistory{ID: 2})
+	histories = append(histories, v1alpha1.RevisionHistory{ID: 3})
+
+	status := v1alpha1.ApplicationStatus{
+		Resources:      nil,
+		Sync:           v1alpha1.SyncStatus{},
+		Health:         v1alpha1.HealthStatus{},
+		History:        histories,
+		Conditions:     nil,
+		ReconciledAt:   nil,
+		OperationState: nil,
+		ObservedAt:     nil,
+		SourceType:     "",
+		Summary:        v1alpha1.ApplicationSummary{},
+	}
+
+	application := v1alpha1.Application{
+		Status: status,
+	}
+
+	history, err := findRevisionHistory(&application, -1)
+
+	if err != nil {
+		t.Fatal("Find revision history should fail without errors")
+	}
+
+	if history == nil {
+		t.Fatal("History should be found")
+	}
 
 }
 
@@ -223,10 +259,10 @@ func TestDefaultWaitOptions(t *testing.T) {
 		suspended: false,
 	}
 	opts := getWatchOpts(watch)
-	assert.Equal(t, true, opts.sync)
-	assert.Equal(t, true, opts.health)
-	assert.Equal(t, true, opts.operation)
-	assert.Equal(t, false, opts.suspended)
+	assert.True(t, opts.sync)
+	assert.True(t, opts.health)
+	assert.True(t, opts.operation)
+	assert.False(t, opts.suspended)
 }
 
 func TestOverrideWaitOptions(t *testing.T) {
@@ -237,10 +273,10 @@ func TestOverrideWaitOptions(t *testing.T) {
 		suspended: false,
 	}
 	opts := getWatchOpts(watch)
-	assert.Equal(t, true, opts.sync)
-	assert.Equal(t, false, opts.health)
-	assert.Equal(t, false, opts.operation)
-	assert.Equal(t, false, opts.suspended)
+	assert.True(t, opts.sync)
+	assert.False(t, opts.health)
+	assert.False(t, opts.operation)
+	assert.False(t, opts.suspended)
 }
 
 func TestFindRevisionHistoryWithoutPassedIdAndEmptyHistoryList(t *testing.T) {
@@ -1118,36 +1154,36 @@ func Test_unset(t *testing.T) {
 	assert.False(t, updated)
 	assert.False(t, nothingToUnset)
 
-	assert.Equal(t, 2, len(kustomizeSource.Kustomize.Images))
+	assert.Len(t, kustomizeSource.Kustomize.Images, 2)
 	updated, nothingToUnset = unset(kustomizeSource, unsetOpts{kustomizeImages: []string{"old1=new:tag"}})
-	assert.Equal(t, 1, len(kustomizeSource.Kustomize.Images))
+	assert.Len(t, kustomizeSource.Kustomize.Images, 1)
 	assert.True(t, updated)
 	assert.False(t, nothingToUnset)
 	updated, nothingToUnset = unset(kustomizeSource, unsetOpts{kustomizeImages: []string{"old1=new:tag"}})
 	assert.False(t, updated)
 	assert.False(t, nothingToUnset)
 
-	assert.Equal(t, 2, len(kustomizeSource.Kustomize.Replicas))
+	assert.Len(t, kustomizeSource.Kustomize.Replicas, 2)
 	updated, nothingToUnset = unset(kustomizeSource, unsetOpts{kustomizeReplicas: []string{"my-deployment"}})
-	assert.Equal(t, 1, len(kustomizeSource.Kustomize.Replicas))
+	assert.Len(t, kustomizeSource.Kustomize.Replicas, 1)
 	assert.True(t, updated)
 	assert.False(t, nothingToUnset)
 	updated, nothingToUnset = unset(kustomizeSource, unsetOpts{kustomizeReplicas: []string{"my-deployment"}})
 	assert.False(t, updated)
 	assert.False(t, nothingToUnset)
 
-	assert.Equal(t, 2, len(helmSource.Helm.Parameters))
+	assert.Len(t, helmSource.Helm.Parameters, 2)
 	updated, nothingToUnset = unset(helmSource, unsetOpts{parameters: []string{"name-1"}})
-	assert.Equal(t, 1, len(helmSource.Helm.Parameters))
+	assert.Len(t, helmSource.Helm.Parameters, 1)
 	assert.True(t, updated)
 	assert.False(t, nothingToUnset)
 	updated, nothingToUnset = unset(helmSource, unsetOpts{parameters: []string{"name-1"}})
 	assert.False(t, updated)
 	assert.False(t, nothingToUnset)
 
-	assert.Equal(t, 2, len(helmSource.Helm.ValueFiles))
+	assert.Len(t, helmSource.Helm.ValueFiles, 2)
 	updated, nothingToUnset = unset(helmSource, unsetOpts{valuesFiles: []string{"values-1.yaml"}})
-	assert.Equal(t, 1, len(helmSource.Helm.ValueFiles))
+	assert.Len(t, helmSource.Helm.ValueFiles, 1)
 	assert.True(t, updated)
 	assert.False(t, nothingToUnset)
 	updated, nothingToUnset = unset(helmSource, unsetOpts{valuesFiles: []string{"values-1.yaml"}})
@@ -1163,27 +1199,27 @@ func Test_unset(t *testing.T) {
 	assert.False(t, updated)
 	assert.False(t, nothingToUnset)
 
-	assert.Equal(t, true, helmSource.Helm.IgnoreMissingValueFiles)
+	assert.True(t, helmSource.Helm.IgnoreMissingValueFiles)
 	updated, nothingToUnset = unset(helmSource, unsetOpts{ignoreMissingValueFiles: true})
-	assert.Equal(t, false, helmSource.Helm.IgnoreMissingValueFiles)
+	assert.False(t, helmSource.Helm.IgnoreMissingValueFiles)
 	assert.True(t, updated)
 	assert.False(t, nothingToUnset)
 	updated, nothingToUnset = unset(helmSource, unsetOpts{ignoreMissingValueFiles: true})
 	assert.False(t, updated)
 	assert.False(t, nothingToUnset)
 
-	assert.Equal(t, true, helmSource.Helm.PassCredentials)
+	assert.True(t, helmSource.Helm.PassCredentials)
 	updated, nothingToUnset = unset(helmSource, unsetOpts{passCredentials: true})
-	assert.Equal(t, false, helmSource.Helm.PassCredentials)
+	assert.False(t, helmSource.Helm.PassCredentials)
 	assert.True(t, updated)
 	assert.False(t, nothingToUnset)
 	updated, nothingToUnset = unset(helmSource, unsetOpts{passCredentials: true})
 	assert.False(t, updated)
 	assert.False(t, nothingToUnset)
 
-	assert.Equal(t, 2, len(pluginSource.Plugin.Env))
+	assert.Len(t, pluginSource.Plugin.Env, 2)
 	updated, nothingToUnset = unset(pluginSource, unsetOpts{pluginEnvs: []string{"env-1"}})
-	assert.Equal(t, 1, len(pluginSource.Plugin.Env))
+	assert.Len(t, pluginSource.Plugin.Env, 1)
 	assert.True(t, updated)
 	assert.False(t, nothingToUnset)
 	updated, nothingToUnset = unset(pluginSource, unsetOpts{pluginEnvs: []string{"env-1"}})
@@ -1357,47 +1393,47 @@ func TestFilterAppResources(t *testing.T) {
 		expectedResult    []*v1alpha1.SyncOperationResource
 	}{
 		// --resource apps:ReplicaSet:replicaSet-name1 --resource *:Service:*
-		{testName: "Include ReplicaSet replicaSet-name1 resouce and all service resources",
+		{testName: "Include ReplicaSet replicaSet-name1 resource and all service resources",
 			selectedResources: []*v1alpha1.SyncOperationResource{&includeAllServiceResources, &includeReplicaSet1Resource},
 			expectedResult:    []*v1alpha1.SyncOperationResource{&replicaSet1, &service1, &service2},
 		},
 		// --resource apps:ReplicaSet:replicaSet-name1 --resource !*:Service:*
-		{testName: "Include ReplicaSet replicaSet-name1 resouce and exclude all service resources",
+		{testName: "Include ReplicaSet replicaSet-name1 resource and exclude all service resources",
 			selectedResources: []*v1alpha1.SyncOperationResource{&excludeAllServiceResources, &includeReplicaSet1Resource},
 			expectedResult:    []*v1alpha1.SyncOperationResource{&replicaSet1, &replicaSet2, &job, &deployment},
 		},
 		// --resource !apps:ReplicaSet:replicaSet-name2 --resource !*:Service:*
-		{testName: "Exclude ReplicaSet replicaSet-name2 resouce and all service resources",
+		{testName: "Exclude ReplicaSet replicaSet-name2 resource and all service resources",
 			selectedResources: []*v1alpha1.SyncOperationResource{&excludeReplicaSet2Resource, &excludeAllServiceResources},
 			expectedResult:    []*v1alpha1.SyncOperationResource{&replicaSet1, &replicaSet2, &job, &service1, &service2, &deployment},
 		},
 		// --resource !apps:ReplicaSet:replicaSet-name2
-		{testName: "Exclude ReplicaSet replicaSet-name2 resouce",
+		{testName: "Exclude ReplicaSet replicaSet-name2 resource",
 			selectedResources: []*v1alpha1.SyncOperationResource{&excludeReplicaSet2Resource},
 			expectedResult:    []*v1alpha1.SyncOperationResource{&replicaSet1, &job, &service1, &service2, &deployment},
 		},
 		// --resource apps:ReplicaSet:replicaSet-name1
-		{testName: "Include ReplicaSet replicaSet-name1 resouce",
+		{testName: "Include ReplicaSet replicaSet-name1 resource",
 			selectedResources: []*v1alpha1.SyncOperationResource{&includeReplicaSet1Resource},
 			expectedResult:    []*v1alpha1.SyncOperationResource{&replicaSet1},
 		},
 		// --resource !*:Service:*
-		{testName: "Exclude Service resouces",
+		{testName: "Exclude Service resources",
 			selectedResources: []*v1alpha1.SyncOperationResource{&excludeAllServiceResources},
 			expectedResult:    []*v1alpha1.SyncOperationResource{&replicaSet1, &replicaSet2, &job, &deployment},
 		},
 		// --resource *:Service:*
-		{testName: "Include Service resouces",
+		{testName: "Include Service resources",
 			selectedResources: []*v1alpha1.SyncOperationResource{&includeAllServiceResources},
 			expectedResult:    []*v1alpha1.SyncOperationResource{&service1, &service2},
 		},
 		// --resource !*:*:*
-		{testName: "Exclude all resouces",
+		{testName: "Exclude all resources",
 			selectedResources: []*v1alpha1.SyncOperationResource{&excludeAllResources},
 			expectedResult:    nil,
 		},
 		// --resource *:*:*
-		{testName: "Include all resouces",
+		{testName: "Include all resources",
 			selectedResources: []*v1alpha1.SyncOperationResource{&includeAllResources},
 			expectedResult:    []*v1alpha1.SyncOperationResource{&replicaSet1, &replicaSet2, &job, &service1, &service2, &deployment},
 		},
@@ -1428,39 +1464,39 @@ func TestParseSelectedResources(t *testing.T) {
 	operationResources, err := parseSelectedResources(resources)
 	assert.NoError(t, err)
 	assert.Len(t, operationResources, 5)
-	assert.Equal(t, *operationResources[0], v1alpha1.SyncOperationResource{
+	assert.Equal(t, v1alpha1.SyncOperationResource{
 		Namespace: "",
 		Name:      "test",
 		Kind:      application.ApplicationKind,
 		Group:     "v1alpha",
-	})
-	assert.Equal(t, *operationResources[1], v1alpha1.SyncOperationResource{
+	}, *operationResources[0])
+	assert.Equal(t, v1alpha1.SyncOperationResource{
 		Namespace: "namespace",
 		Name:      "test",
 		Kind:      application.ApplicationKind,
 		Group:     "v1alpha",
-	})
-	assert.Equal(t, *operationResources[2], v1alpha1.SyncOperationResource{
+	}, *operationResources[1])
+	assert.Equal(t, v1alpha1.SyncOperationResource{
 		Namespace: "",
 		Name:      "test",
 		Kind:      "Application",
 		Group:     "v1alpha",
 		Exclude:   true,
-	})
-	assert.Equal(t, *operationResources[3], v1alpha1.SyncOperationResource{
+	}, *operationResources[2])
+	assert.Equal(t, v1alpha1.SyncOperationResource{
 		Namespace: "default",
 		Name:      "test",
 		Kind:      "Deployment",
 		Group:     "apps",
 		Exclude:   false,
-	})
-	assert.Equal(t, *operationResources[4], v1alpha1.SyncOperationResource{
+	}, *operationResources[3])
+	assert.Equal(t, v1alpha1.SyncOperationResource{
 		Namespace: "",
 		Name:      "*",
 		Kind:      "*",
 		Group:     "*",
 		Exclude:   true,
-	})
+	}, *operationResources[4])
 }
 
 func TestParseSelectedResourcesIncorrect(t *testing.T) {
@@ -1480,7 +1516,7 @@ func TestParseSelectedResourcesEmptyList(t *testing.T) {
 	var resources []string
 	operationResources, err := parseSelectedResources(resources)
 	assert.NoError(t, err)
-	assert.Len(t, operationResources, 0)
+	assert.Empty(t, operationResources)
 }
 
 func TestPrintApplicationTableNotWide(t *testing.T) {

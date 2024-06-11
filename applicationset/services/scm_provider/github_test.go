@@ -278,11 +278,11 @@ func TestGithubHasPath(t *testing.T) {
 		Branch:       "master",
 	}
 	ok, err := host.RepoHasPath(context.Background(), repo, "pkg/")
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.True(t, ok)
 
 	ok, err = host.RepoHasPath(context.Background(), repo, "notathing/")
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.False(t, ok)
 }
 
@@ -301,7 +301,7 @@ func TestGithubGetBranches(t *testing.T) {
 	if err != nil {
 		assert.NoError(t, err)
 	} else {
-		assert.Equal(t, repos[0].Branch, "master")
+		assert.Equal(t, "master", repos[0].Branch)
 	}
 	//Branch Doesn't exists instead of error will return no error
 	repo2 := &Repository{
@@ -319,6 +319,6 @@ func TestGithubGetBranches(t *testing.T) {
 		assert.NoError(t, err)
 	} else {
 		// considering master  branch to  exist.
-		assert.Equal(t, len(repos), 1)
+		assert.Len(t, repos, 1)
 	}
 }

@@ -2,12 +2,13 @@ package application
 
 import (
 	"encoding/json"
-	"github.com/gorilla/websocket"
-	"github.com/stretchr/testify/assert"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"github.com/gorilla/websocket"
+	"github.com/stretchr/testify/assert"
 )
 
 func reconnect(w http.ResponseWriter, r *http.Request) {
@@ -41,6 +42,6 @@ func TestReconnect(t *testing.T) {
 	err = json.Unmarshal(p, &message)
 
 	assert.NoError(t, err)
-	assert.Equal(t, message.Data, ReconnectMessage)
+	assert.Equal(t, ReconnectMessage, message.Data)
 
 }

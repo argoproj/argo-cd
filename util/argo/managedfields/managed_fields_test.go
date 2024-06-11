@@ -10,9 +10,10 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/yaml"
 
+	"github.com/argoproj/gitops-engine/pkg/utils/kube/scheme"
+
 	"github.com/argoproj/argo-cd/v2/util/argo/managedfields"
 	"github.com/argoproj/argo-cd/v2/util/argo/testdata"
-	"github.com/argoproj/gitops-engine/pkg/utils/kube/scheme"
 )
 
 func TestNormalize(t *testing.T) {
@@ -134,13 +135,13 @@ func TestNormalize(t *testing.T) {
 		var vwcLive arv1.ValidatingWebhookConfiguration
 		err = runtime.DefaultUnstructuredConverter.FromUnstructured(liveResult.Object, &vwcLive)
 		require.NoError(t, err)
-		assert.Equal(t, 1, len(vwcLive.Webhooks))
+		assert.Len(t, vwcLive.Webhooks, 1)
 		assert.Equal(t, "", string(vwcLive.Webhooks[0].ClientConfig.CABundle))
 
 		var vwcConfig arv1.ValidatingWebhookConfiguration
 		err = runtime.DefaultUnstructuredConverter.FromUnstructured(desiredResult.Object, &vwcConfig)
 		require.NoError(t, err)
-		assert.Equal(t, 1, len(vwcConfig.Webhooks))
+		assert.Len(t, vwcConfig.Webhooks, 1)
 		assert.Equal(t, "", string(vwcConfig.Webhooks[0].ClientConfig.CABundle))
 	})
 }

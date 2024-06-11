@@ -74,7 +74,7 @@ func TestRedisSetCache(t *testing.T) {
 		client := NewRedisCache(redis.NewClient(&redis.Options{Addr: mr.Addr()}), 10*time.Second, RedisCompressionNone)
 		err = client.Get("foo", &res)
 		assert.NoError(t, err)
-		assert.Equal(t, res, "bar")
+		assert.Equal(t, "bar", res)
 	})
 
 	t.Run("Successful delete", func(t *testing.T) {
@@ -144,7 +144,7 @@ func TestRedisMetrics(t *testing.T) {
 	assert.NoError(t, err)
 	err = c.Write(metric)
 	assert.NoError(t, err)
-	assert.Equal(t, metric.Counter.GetValue(), float64(2))
+	assert.Equal(t, float64(2), metric.Counter.GetValue())
 
 	//faulty client failed request
 	err = faultyClient.Get("foo", &res)
@@ -153,12 +153,12 @@ func TestRedisMetrics(t *testing.T) {
 	assert.NoError(t, err)
 	err = c.Write(metric)
 	assert.NoError(t, err)
-	assert.Equal(t, metric.Counter.GetValue(), float64(1))
+	assert.Equal(t, float64(1), metric.Counter.GetValue())
 
 	//both clients histogram count
 	o, err := ms.redisRequestHistogram.GetMetricWithLabelValues("mock")
 	assert.NoError(t, err)
 	err = o.(prometheus.Metric).Write(metric)
 	assert.NoError(t, err)
-	assert.Equal(t, int(metric.Histogram.GetSampleCount()), 3)
+	assert.Equal(t, 3, int(metric.Histogram.GetSampleCount()))
 }

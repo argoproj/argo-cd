@@ -265,9 +265,9 @@ func TestPullRequestGetSecretRef(t *testing.T) {
 		t.Run(c.name, func(t *testing.T) {
 			token, err := gen.getSecretRef(ctx, c.ref, c.namespace)
 			if c.hasError {
-				assert.NotNil(t, err)
+				assert.Error(t, err)
 			} else {
-				assert.Nil(t, err)
+				assert.NoError(t, err)
 			}
 			assert.Equal(t, c.token, token)
 		})

@@ -273,9 +273,9 @@ func TestInitializingExistingDefaultProject(t *testing.T) {
 	assert.NotNil(t, argocd)
 
 	proj, err := appClientSet.ArgoprojV1alpha1().AppProjects(test.FakeArgoCDNamespace).Get(context.Background(), v1alpha1.DefaultAppProjectName, metav1.GetOptions{})
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.NotNil(t, proj)
-	assert.Equal(t, proj.Name, v1alpha1.DefaultAppProjectName)
+	assert.Equal(t, v1alpha1.DefaultAppProjectName, proj.Name)
 }
 
 func TestInitializingNotExistingDefaultProject(t *testing.T) {
@@ -296,9 +296,9 @@ func TestInitializingNotExistingDefaultProject(t *testing.T) {
 	assert.NotNil(t, argocd)
 
 	proj, err := appClientSet.ArgoprojV1alpha1().AppProjects(test.FakeArgoCDNamespace).Get(context.Background(), v1alpha1.DefaultAppProjectName, metav1.GetOptions{})
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.NotNil(t, proj)
-	assert.Equal(t, proj.Name, v1alpha1.DefaultAppProjectName)
+	assert.Equal(t, v1alpha1.DefaultAppProjectName, proj.Name)
 }
 
 func TestEnforceProjectGroups(t *testing.T) {
@@ -1083,7 +1083,7 @@ func TestTranslateGrpcCookieHeader(t *testing.T) {
 		})
 		assert.NoError(t, err)
 		assert.Equal(t, "argocd.token=xyz; path=/; SameSite=lax; httpOnly; Secure", recorder.Result().Header.Get("Set-Cookie"))
-		assert.Equal(t, 1, len(recorder.Result().Cookies()))
+		assert.Len(t, recorder.Result().Cookies(), 1)
 	})
 
 	t.Run("TokenIsLongerThan4093", func(t *testing.T) {
@@ -1093,7 +1093,7 @@ func TestTranslateGrpcCookieHeader(t *testing.T) {
 		})
 		assert.NoError(t, err)
 		assert.Regexp(t, "argocd.token=.*; path=/; SameSite=lax; httpOnly; Secure", recorder.Result().Header.Get("Set-Cookie"))
-		assert.Equal(t, 2, len(recorder.Result().Cookies()))
+		assert.Len(t, recorder.Result().Cookies(), 2)
 	})
 
 	t.Run("TokenIsEmpty", func(t *testing.T) {
@@ -1127,11 +1127,11 @@ func TestInitializeDefaultProject_ProjectDoesNotExist(t *testing.T) {
 		return
 	}
 
-	assert.Equal(t, proj.Spec, v1alpha1.AppProjectSpec{
+	assert.Equal(t, v1alpha1.AppProjectSpec{
 		SourceRepos:              []string{"*"},
 		Destinations:             []v1alpha1.ApplicationDestination{{Server: "*", Namespace: "*"}},
 		ClusterResourceWhitelist: []metav1.GroupKind{{Group: "*", Kind: "*"}},
-	})
+	}, proj.Spec)
 }
 
 func TestInitializeDefaultProject_ProjectAlreadyInitialized(t *testing.T) {
@@ -1190,7 +1190,7 @@ func TestOIDCConfigChangeDetection_SecretsChanged(t *testing.T) {
 	result := checkOIDCConfigChange(originalOIDCConfig, &argoSettings)
 
 	//Then
-	assert.Equal(t, result, true, "secrets have changed, expect interpolated OIDCConfig to change")
+	assert.True(t, result, "secrets have changed, expect interpolated OIDCConfig to change")
 }
 
 func TestOIDCConfigChangeDetection_ConfigChanged(t *testing.T) {
@@ -1222,7 +1222,7 @@ func TestOIDCConfigChangeDetection_ConfigChanged(t *testing.T) {
 	result := checkOIDCConfigChange(originalOIDCConfig, &argoSettings)
 
 	//Then
-	assert.Equal(t, result, true, "no error expected since OICD config created")
+	assert.True(t, result, "no error expected since OICD config created")
 }
 
 func TestOIDCConfigChangeDetection_ConfigCreated(t *testing.T) {
@@ -1242,7 +1242,7 @@ func TestOIDCConfigChangeDetection_ConfigCreated(t *testing.T) {
 	result := checkOIDCConfigChange(originalOIDCConfig, &argoSettings)
 
 	//Then
-	assert.Equal(t, result, true, "no error expected since new OICD config created")
+	assert.True(t, result, "no error expected since new OICD config created")
 }
 
 func TestOIDCConfigChangeDetection_ConfigDeleted(t *testing.T) {
@@ -1267,7 +1267,7 @@ func TestOIDCConfigChangeDetection_ConfigDeleted(t *testing.T) {
 	result := checkOIDCConfigChange(originalOIDCConfig, &argoSettings)
 
 	//Then
-	assert.Equal(t, result, true, "no error expected since OICD config deleted")
+	assert.True(t, result, "no error expected since OICD config deleted")
 }
 
 func TestOIDCConfigChangeDetection_NoChange(t *testing.T) {
@@ -1290,7 +1290,7 @@ func TestOIDCConfigChangeDetection_NoChange(t *testing.T) {
 	result := checkOIDCConfigChange(originalOIDCConfig, &argoSettings)
 
 	//Then
-	assert.Equal(t, result, false, "no error since no config change")
+	assert.False(t, result, "no error since no config change")
 }
 
 func TestIsMainJsBundle(t *testing.T) {

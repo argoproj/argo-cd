@@ -4,9 +4,10 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/argoproj/argo-cd/v2/applicationset/utils"
 	bitbucketv1 "github.com/gfleury/go-bitbucket-v1"
 	log "github.com/sirupsen/logrus"
+
+	"github.com/argoproj/argo-cd/v2/applicationset/utils"
 )
 
 type BitbucketService struct {

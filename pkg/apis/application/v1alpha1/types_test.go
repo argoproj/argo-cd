@@ -431,7 +431,7 @@ func TestAppProject_IsDestinationPermitted_PermitOnlyProjectScopedClusters(t *te
 	_, err := proj.IsDestinationPermitted(ApplicationDestination{Server: "https://my-cluster.123.com", Namespace: "default"}, func(_ string) ([]*Cluster, error) {
 		return nil, errors.New("some error")
 	})
-	assert.NotNil(t, err)
+	assert.Error(t, err)
 	assert.True(t, strings.Contains(err.Error(), "could not retrieve project clusters"))
 }
 
@@ -543,7 +543,7 @@ func TestAppProject_RemoveGroupFromRole(t *testing.T) {
 		got, err := p.RemoveGroupFromRole("test-role", "test-group")
 		assert.NoError(t, err)
 		assert.True(t, got)
-		assert.Len(t, p.Spec.Roles[0].Groups, 0)
+		assert.Empty(t, p.Spec.Roles[0].Groups)
 	})
 }
 
@@ -839,7 +839,7 @@ func TestExplicitType(t *testing.T) {
 		},
 	}
 	explicitType, err := src.ExplicitType()
-	assert.NotNil(t, err)
+	assert.Error(t, err)
 	assert.Nil(t, explicitType)
 	src = ApplicationSource{
 		Helm: &ApplicationSourceHelm{
@@ -848,8 +848,8 @@ func TestExplicitType(t *testing.T) {
 	}
 
 	explicitType, err = src.ExplicitType()
-	assert.Nil(t, err)
-	assert.Equal(t, *explicitType, ApplicationSourceTypeHelm)
+	assert.NoError(t, err)
+	assert.Equal(t, ApplicationSourceTypeHelm, *explicitType)
 }
 
 func TestExplicitTypeWithDirectory(t *testing.T) {
@@ -858,7 +858,7 @@ func TestExplicitTypeWithDirectory(t *testing.T) {
 		Directory: &ApplicationSourceDirectory{},
 	}
 	_, err := src.ExplicitType()
-	assert.NotNil(t, err, "cannot add directory with any other types")
+	assert.Error(t, err, "cannot add directory with any other types")
 }
 
 func TestAppSourceEquality(t *testing.T) {
@@ -1383,7 +1383,7 @@ func TestApplicationSourceKustomize_MergeReplica(t *testing.T) {
 	t.Run("Replace", func(t *testing.T) {
 		k := ApplicationSourceKustomize{Replicas: KustomizeReplicas{r1}}
 		k.MergeReplica(r2)
-		assert.Equal(t, 1, len(k.Replicas))
+		assert.Len(t, k.Replicas, 1)
 		assert.Equal(t, k.Replicas[0].Name, r2.Name)
 		assert.Equal(t, k.Replicas[0].Count, r2.Count)
 	})
@@ -1623,7 +1623,7 @@ func TestSyncWindows_HasWindows(t *testing.T) {
 func TestSyncWindows_Active(t *testing.T) {
 	t.Run("WithTestProject", func(t *testing.T) {
 		proj := newTestProjectWithSyncWindows()
-		assert.Equal(t, 1, len(*proj.Spec.SyncWindows.Active()))
+		assert.Len(t, *proj.Spec.SyncWindows.Active(), 1)
 	})
 
 	syncWindow := func(kind string, schedule string, duration string, timeZone string) *SyncWindow {
@@ -1766,7 +1766,7 @@ func TestSyncWindows_Active(t *testing.T) {
 			if result == nil {
 				result = &SyncWindows{}
 			}
-			assert.Equal(t, tt.expectedLength, len(*result))
+			assert.Len(t, *result, tt.expectedLength)
 
 			if len(*result) == 1 {
 				assert.Equal(t, tt.syncWindow[tt.matchingIndex], (*result)[0])
@@ -1781,7 +1781,7 @@ func TestSyncWindows_InactiveAllows(t *testing.T) {
 	t.Run("WithTestProject", func(t *testing.T) {
 		proj := newTestProjectWithSyncWindows()
 		proj.Spec.SyncWindows[0].Schedule = "0 0 1 1 1"
-		assert.Equal(t, 1, len(*proj.Spec.SyncWindows.InactiveAllows()))
+		assert.Len(t, *proj.Spec.SyncWindows.InactiveAllows(), 1)
 	})
 
 	syncWindow := func(kind string, schedule string, duration string, timeZone string) *SyncWindow {
@@ -1942,7 +1942,7 @@ func TestSyncWindows_InactiveAllows(t *testing.T) {
 			if result == nil {
 				result = &SyncWindows{}
 			}
-			assert.Equal(t, tt.expectedLength, len(*result))
+			assert.Len(t, *result, tt.expectedLength)
 
 			if len(*result) == 1 {
 				assert.Equal(t, tt.syncWindow[tt.matchingIndex], (*result)[0])
@@ -1997,12 +1997,12 @@ func TestAppProjectSpec_DeleteWindow(t *testing.T) {
 	t.Run("CannotFind", func(t *testing.T) {
 		err := proj.Spec.DeleteWindow(3)
 		assert.Error(t, err)
-		assert.Equal(t, 2, len(proj.Spec.SyncWindows))
+		assert.Len(t, proj.Spec.SyncWindows, 2)
 	})
 	t.Run("Delete", func(t *testing.T) {
 		err := proj.Spec.DeleteWindow(0)
 		assert.NoError(t, err)
-		assert.Equal(t, 1, len(proj.Spec.SyncWindows))
+		assert.Len(t, proj.Spec.SyncWindows, 1)
 	})
 }
 
@@ -2012,31 +2012,31 @@ func TestSyncWindows_Matches(t *testing.T) {
 	t.Run("MatchNamespace", func(t *testing.T) {
 		proj.Spec.SyncWindows[0].Namespaces = []string{"default"}
 		windows := proj.Spec.SyncWindows.Matches(app)
-		assert.Equal(t, 1, len(*windows))
+		assert.Len(t, *windows, 1)
 		proj.Spec.SyncWindows[0].Namespaces = nil
 	})
 	t.Run("MatchCluster", func(t *testing.T) {
 		proj.Spec.SyncWindows[0].Clusters = []string{"cluster1"}
 		windows := proj.Spec.SyncWindows.Matches(app)
-		assert.Equal(t, 1, len(*windows))
+		assert.Len(t, *windows, 1)
 		proj.Spec.SyncWindows[0].Clusters = nil
 	})
 	t.Run("MatchClusterName", func(t *testing.T) {
 		proj.Spec.SyncWindows[0].Clusters = []string{"clusterName"}
 		windows := proj.Spec.SyncWindows.Matches(app)
-		assert.Equal(t, 1, len(*windows))
+		assert.Len(t, *windows, 1)
 		proj.Spec.SyncWindows[0].Clusters = nil
 	})
 	t.Run("MatchAppName", func(t *testing.T) {
 		proj.Spec.SyncWindows[0].Applications = []string{"test-app"}
 		windows := proj.Spec.SyncWindows.Matches(app)
-		assert.Equal(t, 1, len(*windows))
+		assert.Len(t, *windows, 1)
 		proj.Spec.SyncWindows[0].Applications = nil
 	})
 	t.Run("MatchWildcardAppName", func(t *testing.T) {
 		proj.Spec.SyncWindows[0].Applications = []string{"test-*"}
 		windows := proj.Spec.SyncWindows.Matches(app)
-		assert.Equal(t, 1, len(*windows))
+		assert.Len(t, *windows, 1)
 		proj.Spec.SyncWindows[0].Applications = nil
 	})
 	t.Run("NoMatch", func(t *testing.T) {
@@ -2499,7 +2499,7 @@ func TestSyncWindow_Active(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 
 			result := tt.syncWindow.active(tt.currentTime)
-			assert.Equal(t, result, tt.expectedResult)
+			assert.Equal(t, tt.expectedResult, result)
 
 		})
 	}
@@ -2858,12 +2858,12 @@ func TestSyncOptions_AddOption(t *testing.T) {
 
 func TestSyncOptions_RemoveOption(t *testing.T) {
 	options := SyncOptions{"a=1"}
-	assert.Len(t, options.RemoveOption("a=1"), 0)
-	assert.Len(t, options.RemoveOption("a=1").RemoveOption("a=1"), 0)
+	assert.Empty(t, options.RemoveOption("a=1"))
+	assert.Empty(t, options.RemoveOption("a=1").RemoveOption("a=1"))
 }
 
 func TestRevisionHistories_Trunc(t *testing.T) {
-	assert.Len(t, RevisionHistories{}.Trunc(1), 0)
+	assert.Empty(t, RevisionHistories{}.Trunc(1))
 	assert.Len(t, RevisionHistories{{}}.Trunc(1), 1)
 	assert.Len(t, RevisionHistories{{}, {}}.Trunc(1), 1)
 	// keep the last element, even with longer list
@@ -3423,7 +3423,7 @@ func TestGetSummary(t *testing.T) {
 	app := newTestApp()
 
 	summary := tree.GetSummary(app)
-	assert.Equal(t, len(summary.ExternalURLs), 0)
+	assert.Empty(t, summary.ExternalURLs)
 
 	const annotationName = argocdcommon.AnnotationKeyLinkPrefix + "/my-link"
 	const url = "https://example.com"
@@ -3431,8 +3431,8 @@ func TestGetSummary(t *testing.T) {
 	app.Annotations[annotationName] = url
 
 	summary = tree.GetSummary(app)
-	assert.Equal(t, len(summary.ExternalURLs), 1)
-	assert.Equal(t, summary.ExternalURLs[0], url)
+	assert.Len(t, summary.ExternalURLs, 1)
+	assert.Equal(t, url, summary.ExternalURLs[0])
 }
 
 func TestApplicationSourcePluginParameters_Environ_string(t *testing.T) {

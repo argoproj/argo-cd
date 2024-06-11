@@ -19,7 +19,6 @@ import (
 	statecache "github.com/argoproj/argo-cd/v2/controller/cache"
 	"github.com/argoproj/argo-cd/v2/controller/sharding"
 
-	dbmocks "github.com/argoproj/argo-cd/v2/util/db/mocks"
 	"github.com/argoproj/gitops-engine/pkg/cache/mocks"
 	synccommon "github.com/argoproj/gitops-engine/pkg/sync/common"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
@@ -35,6 +34,8 @@ import (
 	kubetesting "k8s.io/client-go/testing"
 	"k8s.io/client-go/tools/cache"
 	"sigs.k8s.io/yaml"
+
+	dbmocks "github.com/argoproj/argo-cd/v2/util/db/mocks"
 
 	mockstatecache "github.com/argoproj/argo-cd/v2/controller/cache/mocks"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
@@ -1101,8 +1102,8 @@ func TestGetResourceTree_HasOrphanedResources(t *testing.T) {
 	}})
 
 	assert.NoError(t, err)
-	assert.Equal(t, tree.Nodes, []v1alpha1.ResourceNode{managedDeploy})
-	assert.Equal(t, tree.OrphanedNodes, []v1alpha1.ResourceNode{orphanedDeploy1, orphanedDeploy2})
+	assert.Equal(t, []v1alpha1.ResourceNode{managedDeploy}, tree.Nodes)
+	assert.Equal(t, []v1alpha1.ResourceNode{orphanedDeploy1, orphanedDeploy2}, tree.OrphanedNodes)
 }
 
 func TestSetOperationStateOnDeletedApp(t *testing.T) {
@@ -1409,7 +1410,7 @@ func TestRefreshAppConditions(t *testing.T) {
 
 		_, hasErrors := ctrl.refreshAppConditions(app)
 		assert.False(t, hasErrors)
-		assert.Len(t, app.Status.Conditions, 0)
+		assert.Empty(t, app.Status.Conditions)
 	})
 
 	t.Run("PreserveExistingWarningCondition", func(t *testing.T) {

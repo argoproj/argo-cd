@@ -3,6 +3,7 @@ package commands
 import (
 	"context"
 	"encoding/json"
+	std_errors "errors"
 	"fmt"
 	"io"
 	"os"
@@ -514,10 +515,10 @@ func NewApplicationLogsCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				}
 				for {
 					msg, err := stream.Recv()
-					if err == io.EOF {
-						return
-					}
 					if err != nil {
+						if std_errors.Is(err, io.EOF) {
+							return
+						}
 						st, ok := status.FromError(err)
 						if !ok {
 							log.Fatalf("stream read failed: %v", err)
@@ -642,7 +643,7 @@ func printAppSourceDetails(appSrc *argoappv1.ApplicationSource) {
 	if appSrc.Path != "" {
 		fmt.Printf(printOpFmtStr, "  Path:", appSrc.Path)
 	}
-	if appSrc.Ref != "" {
+	if appSrc.IsRef() {
 		fmt.Printf(printOpFmtStr, "  Ref:", appSrc.Ref)
 	}
 	if appSrc.Helm != nil && len(appSrc.Helm.ValueFiles) > 0 {
@@ -922,7 +923,7 @@ func NewApplicationUnsetCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
 
 func unset(source *argoappv1.ApplicationSource, opts unsetOpts) (updated bool, nothingToUnset bool) {
 	needToUnsetRef := false
-	if opts.ref && source.Ref != "" {
+	if opts.ref && source.IsRef() {
 		source.Ref = ""
 		updated = true
 		needToUnsetRef = true
@@ -2099,6 +2100,8 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 						}
 					} else {
 						fmt.Printf("====== No Differences found ======\n")
+						// if no differences found, then no need to sync
+						return
 					}
 				}
 				_, err = appIf.Sync(ctx, &syncReq)

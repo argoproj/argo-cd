@@ -7,7 +7,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/argoproj/argo-cd/v2/common"
 	jwt "github.com/golang-jwt/jwt/v4"
 	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
@@ -17,6 +16,8 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
+
+	"github.com/argoproj/argo-cd/v2/common"
 )
 
 // ArgoCDManagerServiceAccount is the name of the service account for managing a cluster

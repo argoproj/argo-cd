@@ -112,6 +112,7 @@ type RepoServerInitConstants struct {
 	HelmManifestMaxExtractedSize                 int64
 	HelmRegistryMaxIndexSize                     int64
 	DisableHelmManifestMaxExtractedSize          bool
+	IncludeHiddenDirectories                     bool
 }
 
 // NewService returns a new instance of the Manifest service
@@ -343,7 +344,7 @@ func (s *Service) runRepoOperation(
 
 	if source.IsHelm() {
 		if settings.noCache {
-			err = helmClient.CleanChartCache(source.Chart, revision)
+			err = helmClient.CleanChartCache(source.Chart, revision, repo.Project)
 			if err != nil {
 				return err
 			}
@@ -352,7 +353,7 @@ func (s *Service) runRepoOperation(
 		if source.Helm != nil {
 			helmPassCredentials = source.Helm.PassCredentials
 		}
-		chartPath, closer, err := helmClient.ExtractChart(source.Chart, revision, helmPassCredentials, s.initConstants.HelmManifestMaxExtractedSize, s.initConstants.DisableHelmManifestMaxExtractedSize)
+		chartPath, closer, err := helmClient.ExtractChart(source.Chart, revision, repo.Project, helmPassCredentials, s.initConstants.HelmManifestMaxExtractedSize, s.initConstants.DisableHelmManifestMaxExtractedSize)
 		if err != nil {
 			return err
 		}
@@ -513,7 +514,7 @@ func (s *Service) GenerateManifest(ctx context.Context, q *apiclient.ManifestReq
 	var err error
 
 	// Skip this path for ref only sources
-	if q.HasMultipleSources && q.ApplicationSource.Path == "" && q.ApplicationSource.Chart == "" && q.ApplicationSource.Ref != "" {
+	if q.HasMultipleSources && q.ApplicationSource.Path == "" && !q.ApplicationSource.IsHelm() && q.ApplicationSource.IsRef() {
 		log.Debugf("Skipping manifest generation for ref only source for application: %s and ref %s", q.AppName, q.ApplicationSource.Ref)
 		_, revision, err := s.newClientResolveRevision(q.Repo, q.Revision, git.WithCache(s.cache, !q.NoRevisionCache && !q.NoCache))
 		res = &apiclient.ManifestResponse{
@@ -1271,12 +1272,12 @@ func getResolvedValueFiles(
 		referencedSource := getReferencedSource(rawValueFile, refSources)
 		if referencedSource != nil {
 			// If the $-prefixed path appears to reference another source, do env substitution _after_ resolving that source.
-			resolvedPath, err = getResolvedRefValueFile(rawValueFile, env, allowedValueFilesSchemas, referencedSource.Repo.Repo, gitRepoPaths)
+			resolvedPath, err = getResolvedRefValueFile(rawValueFile, env, allowedValueFilesSchemas, referencedSource.Repo.Repo, gitRepoPaths, referencedSource.Repo.Project)
 			if err != nil {
 				return nil, fmt.Errorf("error resolving value file path: %w", err)
 			}
 		} else {
-			// This will resolve val to an absolute path (or an URL)
+			// This will resolve val to an absolute path (or a URL)
 			resolvedPath, isRemote, err = pathutil.ResolveValueFilePathOrUrl(appPath, repoRoot, env.Envsubst(rawValueFile), allowedValueFilesSchemas)
 			if err != nil {
 				return nil, fmt.Errorf("error resolving value file path: %w", err)
@@ -1304,9 +1305,15 @@ func getResolvedRefValueFile(
 	allowedValueFilesSchemas []string,
 	refSourceRepo string,
 	gitRepoPaths io.TempPaths,
+	project string,
 ) (pathutil.ResolvedFilePath, error) {
 	pathStrings := strings.Split(rawValueFile, "/")
-	repoPath := gitRepoPaths.GetPathIfExists(git.NormalizeGitURL(refSourceRepo))
+
+	keyData, err := json.Marshal(map[string]string{"url": git.NormalizeGitURL(refSourceRepo), "project": project})
+	if err != nil {
+		return "", err
+	}
+	repoPath := gitRepoPaths.GetPathIfExists(string(keyData))
 	if repoPath == "" {
 		return "", fmt.Errorf("failed to find repo %q", refSourceRepo)
 	}
@@ -2009,7 +2016,7 @@ func (s *Service) GetAppDetails(ctx context.Context, q *apiclient.RepoServerAppD
 	}
 
 	settings := operationSettings{allowConcurrent: q.Source.AllowsConcurrentProcessing(), noCache: q.NoCache, noRevisionCache: q.NoCache || q.NoRevisionCache}
-	err := s.runRepoOperation(ctx, q.Source.TargetRevision, q.Repo, q.Source, false, cacheFn, operation, settings, false, nil)
+	err := s.runRepoOperation(ctx, q.Source.TargetRevision, q.Repo, q.Source, false, cacheFn, operation, settings, len(q.RefSources) > 0, q.RefSources)
 
 	return res, err
 }
@@ -2197,7 +2204,7 @@ func populatePluginAppDetails(ctx context.Context, res *apiclient.RepoAppDetails
 
 	announcement, err := parametersAnnouncementStream.CloseAndRecv()
 	if err != nil {
-		return fmt.Errorf("failed to get parameter anouncement: %w", err)
+		return fmt.Errorf("failed to get parameter announcement: %w", err)
 	}
 
 	res.Plugin = &apiclient.PluginAppSpec{
@@ -2300,7 +2307,7 @@ func (s *Service) GetRevisionChartDetails(ctx context.Context, q *apiclient.Repo
 	if err != nil {
 		return nil, fmt.Errorf("helm client error: %v", err)
 	}
-	chartPath, closer, err := helmClient.ExtractChart(q.Name, revision, false, s.initConstants.HelmManifestMaxExtractedSize, s.initConstants.DisableHelmManifestMaxExtractedSize)
+	chartPath, closer, err := helmClient.ExtractChart(q.Name, revision, q.Repo.Project, false, s.initConstants.HelmManifestMaxExtractedSize, s.initConstants.DisableHelmManifestMaxExtractedSize)
 	if err != nil {
 		return nil, fmt.Errorf("error extracting chart: %v", err)
 	}
@@ -2330,7 +2337,11 @@ func fileParameters(q *apiclient.RepoServerAppDetailsQuery) []v1alpha1.HelmFileP
 }
 
 func (s *Service) newClient(repo *v1alpha1.Repository, opts ...git.ClientOpts) (git.Client, error) {
-	repoPath, err := s.gitRepoPaths.GetPath(git.NormalizeGitURL(repo.Repo))
+	keyData, err := json.Marshal(map[string]string{"url": git.NormalizeGitURL(repo.Repo), "project": repo.Project})
+	if err != nil {
+		return nil, err
+	}
+	repoPath, err := s.gitRepoPaths.GetPath(string(keyData))
 	if err != nil {
 		return nil, err
 	}
@@ -2650,9 +2661,8 @@ func (s *Service) GetGitDirectories(_ context.Context, request *apiclient.GitDir
 			return nil
 		}
 
-		fname := entry.Name()
-		if strings.HasPrefix(fname, ".") { // Skip all folders starts with "."
-			return filepath.SkipDir
+		if !s.initConstants.IncludeHiddenDirectories && strings.HasPrefix(entry.Name(), ".") {
+			return filepath.SkipDir // Skip hidden directory
 		}
 
 		relativePath, err := filepath.Rel(repoRoot, path)

@@ -206,6 +206,11 @@ func (s ApplicationSources) Equals(other ApplicationSources) bool {
 	return true
 }
 
+// IsZero returns true if the application source is considered empty
+func (a ApplicationSources) IsZero() bool {
+	return len(a) == 0
+}
+
 func (a *ApplicationSpec) GetSource() ApplicationSource {
 	// if Application has multiple sources, return the first source in sources
 	if a.HasMultipleSources() {
@@ -255,6 +260,11 @@ func (a *ApplicationSource) AllowsConcurrentProcessing() bool {
 		return a.Kustomize.AllowsConcurrentProcessing()
 	}
 	return true
+}
+
+// IsRef returns true when the application source is of type Ref
+func (a *ApplicationSource) IsRef() bool {
+	return a.Ref != ""
 }
 
 // IsHelm returns true when the application source is of type Helm
@@ -2577,11 +2587,11 @@ func (w *SyncWindow) Validate() error {
 	specParser := cron.NewParser(cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow)
 	_, err := specParser.Parse(w.Schedule)
 	if err != nil {
-		return fmt.Errorf("cannot parse schedule '%s': %s", w.Schedule, err)
+		return fmt.Errorf("cannot parse schedule '%s': %w", w.Schedule, err)
 	}
 	_, err = time.ParseDuration(w.Duration)
 	if err != nil {
-		return fmt.Errorf("cannot parse duration '%s': %s", w.Duration, err)
+		return fmt.Errorf("cannot parse duration '%s': %w", w.Duration, err)
 	}
 	return nil
 }

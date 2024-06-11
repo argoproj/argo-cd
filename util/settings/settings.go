@@ -758,6 +758,11 @@ func (mgr *SettingsManager) GetAppInstanceLabelKey() (string, error) {
 	if label == "" {
 		return common.LabelKeyAppInstance, nil
 	}
+	// return new label key if user is still using legacy key
+	if label == common.LabelKeyLegacyApplicationName {
+		log.Warnf("deprecated legacy application instance tracking key(%v) is present in configmap, new key(%v) will be used automatically", common.LabelKeyLegacyApplicationName, common.LabelKeyAppInstance)
+		return common.LabelKeyAppInstance, nil
+	}
 	return label, nil
 }
 

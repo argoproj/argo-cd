@@ -20305,11 +20305,16 @@ spec:
                       type: string
                     step:
                       type: string
+                    targetRevisions:
+                      items:
+                        type: string
+                      type: array
                   required:
                   - application
                   - message
                   - status
                   - step
+                  - targetRevisions
                   type: object
                 type: array
               conditions:
@@ -22265,6 +22270,12 @@ spec:
           valueFrom:
             configMapKeyRef:
               key: reposerver.grpc.max.size
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_REPO_SERVER_INCLUDE_HIDDEN_DIRECTORIES
+          valueFrom:
+            configMapKeyRef:
+              key: reposerver.include.hidden.directories
               name: argocd-cmd-params-cm
               optional: true
         - name: HELM_CACHE_HOME

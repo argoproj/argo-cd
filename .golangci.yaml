@@ -1,10 +1,36 @@
 issues:
   exclude:
     - SA5011
+  exclude-rules:
+    - path: "(applicationset|cmpserver|controller|reposerver|server|util)/"
+      linters:
+        - errorlint
   max-issues-per-linter: 0
   max-same-issues: 0
 linters:
   enable:
+    - errcheck
+    - errorlint
     - gofmt
+    - goimports
+    - gosimple
+    - govet
+    - ineffassign
+    - misspell
+    - staticcheck
+    - testifylint
+    - unused
+linters-settings:
+  goimports:
+    local-prefixes: github.com/argoproj/argo-cd/v2
+  testifylint:
+    enable-all: true
+    disable:
+      - compares
+      - error-is-as
+      - float-compare
+      - go-require
+      - nil-compare
+      - require-error
 run:
   timeout: 50m

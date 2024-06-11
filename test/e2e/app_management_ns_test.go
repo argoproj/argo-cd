@@ -547,9 +547,9 @@ func TestNamespacedAppRollbackSuccessful(t *testing.T) {
 		And(func(app *Application) {
 			assert.Equal(t, SyncStatusCodeSynced, app.Status.Sync.Status)
 			require.NotNil(t, app.Status.OperationState.SyncResult)
-			assert.Equal(t, 2, len(app.Status.OperationState.SyncResult.Resources))
+			assert.Len(t, app.Status.OperationState.SyncResult.Resources, 2)
 			assert.Equal(t, OperationSucceeded, app.Status.OperationState.Phase)
-			assert.Equal(t, 3, len(app.Status.History))
+			assert.Len(t, app.Status.History, 3)
 		})
 }
 
@@ -1225,8 +1225,8 @@ func TestNamespacedPermissions(t *testing.T) {
 			defer io.Close(closer)
 			tree, err := cdClient.ResourceTree(context.Background(), &applicationpkg.ResourcesQuery{ApplicationName: &app.Name, AppNamespace: &app.Namespace})
 			require.NoError(t, err)
-			assert.Len(t, tree.Nodes, 0)
-			assert.Len(t, tree.OrphanedNodes, 0)
+			assert.Empty(t, tree.Nodes)
+			assert.Empty(t, tree.OrphanedNodes)
 		}).
 		When().
 		// add missing permissions but deny management of Deployment kind
@@ -1652,9 +1652,9 @@ func TestNamespacedNotPermittedResources(t *testing.T) {
 			_, hasIngress := statusByKind[kube.IngressKind]
 			assert.False(t, hasIngress, "Ingress is prohibited not managed object and should be even visible to user")
 			serviceStatus := statusByKind[kube.ServiceKind]
-			assert.Equal(t, serviceStatus.Status, SyncStatusCodeUnknown, "Service is prohibited managed resource so should be set to Unknown")
+			assert.Equal(t, SyncStatusCodeUnknown, serviceStatus.Status, "Service is prohibited managed resource so should be set to Unknown")
 			deploymentStatus := statusByKind[kube.DeploymentKind]
-			assert.Equal(t, deploymentStatus.Status, SyncStatusCodeOutOfSync)
+			assert.Equal(t, SyncStatusCodeOutOfSync, deploymentStatus.Status)
 		}).
 		When().
 		Delete(true).
@@ -1707,7 +1707,7 @@ func TestNamespacedCreateAppWithNoNameSpaceForGlobalResource(t *testing.T) {
 			time.Sleep(500 * time.Millisecond)
 			app, err := AppClientset.ArgoprojV1alpha1().Applications(AppNamespace()).Get(context.Background(), app.Name, metav1.GetOptions{})
 			assert.NoError(t, err)
-			assert.Len(t, app.Status.Conditions, 0)
+			assert.Empty(t, app.Status.Conditions)
 		})
 }
 
@@ -1731,8 +1731,8 @@ func TestNamespacedCreateAppWithNoNameSpaceWhenRequired(t *testing.T) {
 			require.NoError(t, err)
 
 			assert.Len(t, updatedApp.Status.Conditions, 2)
-			assert.Equal(t, updatedApp.Status.Conditions[0].Type, ApplicationConditionInvalidSpecError)
-			assert.Equal(t, updatedApp.Status.Conditions[1].Type, ApplicationConditionInvalidSpecError)
+			assert.Equal(t, ApplicationConditionInvalidSpecError, updatedApp.Status.Conditions[0].Type)
+			assert.Equal(t, ApplicationConditionInvalidSpecError, updatedApp.Status.Conditions[1].Type)
 		})
 }
 
@@ -1757,8 +1757,8 @@ func TestNamespacedCreateAppWithNoNameSpaceWhenRequired2(t *testing.T) {
 			require.NoError(t, err)
 
 			assert.Len(t, updatedApp.Status.Conditions, 2)
-			assert.Equal(t, updatedApp.Status.Conditions[0].Type, ApplicationConditionInvalidSpecError)
-			assert.Equal(t, updatedApp.Status.Conditions[1].Type, ApplicationConditionInvalidSpecError)
+			assert.Equal(t, ApplicationConditionInvalidSpecError, updatedApp.Status.Conditions[0].Type)
+			assert.Equal(t, ApplicationConditionInvalidSpecError, updatedApp.Status.Conditions[1].Type)
 		})
 }
 
@@ -2367,14 +2367,14 @@ func TestNamespacedSyncOptionReplace(t *testing.T) {
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		And(func(app *Application) {
-			assert.Equal(t, app.Status.OperationState.SyncResult.Resources[0].Message, "configmap/my-map created")
+			assert.Equal(t, "configmap/my-map created", app.Status.OperationState.SyncResult.Resources[0].Message)
 		}).
 		When().
 		Sync().
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		And(func(app *Application) {
-			assert.Equal(t, app.Status.OperationState.SyncResult.Resources[0].Message, "configmap/my-map replaced")
+			assert.Equal(t, "configmap/my-map replaced", app.Status.OperationState.SyncResult.Resources[0].Message)
 		})
 }
 
@@ -2390,14 +2390,14 @@ func TestNamespacedSyncOptionReplaceFromCLI(t *testing.T) {
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		And(func(app *Application) {
-			assert.Equal(t, app.Status.OperationState.SyncResult.Resources[0].Message, "configmap/my-map created")
+			assert.Equal(t, "configmap/my-map created", app.Status.OperationState.SyncResult.Resources[0].Message)
 		}).
 		When().
 		Sync().
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		And(func(app *Application) {
-			assert.Equal(t, app.Status.OperationState.SyncResult.Resources[0].Message, "configmap/my-map replaced")
+			assert.Equal(t, "configmap/my-map replaced", app.Status.OperationState.SyncResult.Resources[0].Message)
 		})
 }
 
@@ -2444,7 +2444,7 @@ func TestNamespacedDisableManifestGeneration(t *testing.T) {
 		Refresh(RefreshTypeHard).
 		Then().
 		And(func(app *Application) {
-			assert.Equal(t, app.Status.SourceType, ApplicationSourceTypeKustomize)
+			assert.Equal(t, ApplicationSourceTypeKustomize, app.Status.SourceType)
 		}).
 		When().
 		And(func() {
@@ -2459,7 +2459,7 @@ func TestNamespacedDisableManifestGeneration(t *testing.T) {
 			time.Sleep(1 * time.Second)
 		}).
 		And(func(app *Application) {
-			assert.Equal(t, app.Status.SourceType, ApplicationSourceTypeDirectory)
+			assert.Equal(t, ApplicationSourceTypeDirectory, app.Status.SourceType)
 		})
 }
 

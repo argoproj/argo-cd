@@ -297,6 +297,21 @@ export function findChildPod(node: appModels.ResourceNode, tree: appModels.Appli
     });
 }
 
+export function findChildResources(node: appModels.ResourceNode, tree: appModels.ApplicationTree): appModels.ResourceNode[] {
+    const key = nodeKey(node);
+
+    const children: appModels.ResourceNode[] = [];
+    tree.nodes.forEach(item => {
+        (item.parentRefs || []).forEach(parent => {
+            if (key === nodeKey(parent)) {
+                children.push(item);
+            }
+        });
+    });
+
+    return children;
+}
+
 const deletePodAction = async (ctx: ContextApis, pod: appModels.ResourceNode, app: appModels.Application) => {
     ctx.popup.prompt(
         'Delete pod',
@@ -336,6 +351,7 @@ export const deletePopup = async (
     resource: ResourceTreeNode,
     application: appModels.Application,
     isManaged: boolean,
+    childResources: appModels.ResourceNode[],
     appChanged?: BehaviorSubject<appModels.Application>
 ) => {
     const deleteOptions = {
@@ -355,10 +371,34 @@ export const deletePopup = async (
             <div>
                 <p>
                     Are you sure you want to delete <strong>{resource.kind}</strong> <kbd>{resource.name}</kbd>?
-                    <span style={{display: 'block', marginBottom: '10px'}} />
+                </p>
+                <p>
                     Deleting resources can be <strong>dangerous</strong>. Be sure you understand the effects of deleting this resource before continuing. Consider asking someone to
                     review the change first.
                 </p>
+
+                {(childResources || []).length > 0 ? (
+                    <React.Fragment>
+                        <p>Dependent resources:</p>
+                        <ul>
+                            {childResources.slice(0, 4).map((child, i) => (
+                                <li key={i}>
+                                    <kbd>{[child.kind, child.name].join('/')}</kbd>
+                                </li>
+                            ))}
+                            {childResources.length === 5 ? (
+                                <li key='4'>
+                                    <kbd>{[childResources[4].kind, childResources[4].name].join('/')}</kbd>
+                                </li>
+                            ) : (
+                                ''
+                            )}
+                            {childResources.length > 5 ? <li key='N'>and {childResources.slice(4).length} more.</li> : ''}
+                        </ul>
+                    </React.Fragment>
+                ) : (
+                    ''
+                )}
 
                 {isManaged ? (
                     <div className='argo-form-row'>
@@ -460,6 +500,7 @@ function getActionItems(
 
     const isPod = resource.kind === 'Pod';
     const isManaged = isTopLevelResource(resource, application);
+    const childResources = findChildResources(resource, tree);
 
     const items: MenuItem[] = [
         ...((isManaged && [
@@ -474,7 +515,7 @@ function getActionItems(
             title: 'Delete',
             iconClassName: 'fa fa-fw fa-times-circle',
             action: async () => {
-                return deletePopup(apis, resource, application, isManaged, appChanged);
+                return deletePopup(apis, resource, application, isManaged, childResources, appChanged);
             }
         }
     ];
@@ -664,16 +705,20 @@ export function renderResourceButtons(
 
 export function syncStatusMessage(app: appModels.Application) {
     const source = getAppDefaultSource(app);
+    const revision = getAppDefaultSyncRevision(app);
     const rev = app.status.sync.revision || source.targetRevision || 'HEAD';
     let message = source.targetRevision || 'HEAD';
 
-    if (app.status.sync.revision) {
+    if (revision) {
         if (source.chart) {
-            message += ' (' + app.status.sync.revision + ')';
-        } else if (app.status.sync.revision.length >= 7 && !app.status.sync.revision.startsWith(source.targetRevision)) {
-            message += ' (' + app.status.sync.revision.substr(0, 7) + ')';
+            message += ' (' + revision + ')';
+        } else if (revision.length >= 7 && !revision.startsWith(source.targetRevision)) {
+            message += ' (' + revision.substr(0, 7) + ')';
         }
     }
+
+    message += getAppDefaultSyncRevisionExtra(app);
+
     switch (app.status.sync.status) {
         case appModels.SyncStatuses.Synced:
             return (
@@ -1062,6 +1107,37 @@ export function getAppDefaultSource(app?: appModels.Application) {
         return null;
     }
     return app.spec.sources && app.spec.sources.length > 0 ? app.spec.sources[0] : app.spec.source;
+}
+
+// getAppDefaultSyncRevision gets the first app revisions from `status.sync.revisions` or, if that list is missing or empty, the `revision`
+// field.
+export function getAppDefaultSyncRevision(app?: appModels.Application) {
+    if (!app || !app.status || !app.status.sync) {
+        return '';
+    }
+    return app.status.sync.revisions && app.status.sync.revisions.length > 0 ? app.status.sync.revisions[0] : app.status.sync.revision;
+}
+
+// getAppCurrentVersion gets the first app revisions from `status.sync.revisions` or, if that list is missing or empty, the `revision`
+// field.
+export function getAppCurrentVersion(app?: appModels.Application) {
+    if (!app || !app.status || !app.status.history) {
+        return 0;
+    }
+    return app.status.history[app.status.history.length - 1].id;
+}
+
+// getAppDefaultSyncRevisionExtra gets the extra message with others revision count
+export function getAppDefaultSyncRevisionExtra(app?: appModels.Application) {
+    if (!app || !app.status || !app.status.sync) {
+        return '';
+    }
+
+    if (app.status.sync.revisions && app.status.sync.revisions.length > 0) {
+        return ` and (${app.status.sync.revisions.length - 1}) more`;
+    }
+
+    return '';
 }
 
 export function getAppSpecDefaultSource(spec: appModels.ApplicationSpec) {
