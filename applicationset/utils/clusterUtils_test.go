@@ -33,14 +33,14 @@ func Test_secretToCluster(t *testing.T) {
 		},
 	}
 	cluster, err := secretToCluster(secret)
-	assert.Nil(t, err)
-	assert.Equal(t, *cluster, argoappv1.Cluster{
+	assert.NoError(t, err)
+	assert.Equal(t, argoappv1.Cluster{
 		Name:   "test",
 		Server: "http://mycluster",
 		Config: argoappv1.ClusterConfig{
 			Username: "foo",
 		},
-	})
+	}, *cluster)
 }
 
 // From Argo CD util/db/cluster_test.go
@@ -56,11 +56,11 @@ func Test_secretToCluster_NoConfig(t *testing.T) {
 		},
 	}
 	cluster, err := secretToCluster(secret)
-	assert.Nil(t, err)
-	assert.Equal(t, *cluster, argoappv1.Cluster{
+	assert.NoError(t, err)
+	assert.Equal(t, argoappv1.Cluster{
 		Name:   "test",
 		Server: "http://mycluster",
-	})
+	}, *cluster)
 }
 
 func createClusterSecret(secretName string, clusterName string, clusterServer string) *corev1.Secret {
@@ -96,7 +96,7 @@ func TestValidateDestination(t *testing.T) {
 		}
 
 		appCond := ValidateDestination(context.Background(), &dest, nil, fakeNamespace)
-		assert.Nil(t, appCond)
+		assert.NoError(t, appCond)
 		assert.False(t, dest.IsServerInferred())
 	})
 
@@ -111,7 +111,7 @@ func TestValidateDestination(t *testing.T) {
 		kubeclientset := fake.NewSimpleClientset(objects...)
 
 		appCond := ValidateDestination(context.Background(), &dest, kubeclientset, fakeNamespace)
-		assert.Nil(t, appCond)
+		assert.NoError(t, appCond)
 		assert.Equal(t, "https://127.0.0.1:6443", dest.Server)
 		assert.True(t, dest.IsServerInferred())
 	})

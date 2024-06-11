@@ -10,10 +10,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/argoproj/argo-cd/v2/common"
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	dbmocks "github.com/argoproj/argo-cd/v2/util/db/mocks"
-	"github.com/argoproj/argo-cd/v2/util/settings"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	appsv1 "k8s.io/api/apps/v1"
@@ -22,6 +18,11 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	kubefake "k8s.io/client-go/kubernetes/fake"
 	"sigs.k8s.io/yaml"
+
+	"github.com/argoproj/argo-cd/v2/common"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	dbmocks "github.com/argoproj/argo-cd/v2/util/db/mocks"
+	"github.com/argoproj/argo-cd/v2/util/settings"
 )
 
 func TestGetShardByID_NotEmptyID(t *testing.T) {
@@ -153,11 +154,11 @@ func TestRoundRobinGetClusterFilterWithFixedShard(t *testing.T) {
 	db.On("GetApplicationControllerReplicas").Return(replicasCount)
 
 	filter := GetDistributionFunction(clusterAccessor, appAccessor, common.RoundRobinShardingAlgorithm, replicasCount)
-	assert.Equal(t, filter(nil), 0)
-	assert.Equal(t, filter(&cluster1), 0)
-	assert.Equal(t, filter(&cluster2), 1)
-	assert.Equal(t, filter(&cluster3), 2)
-	assert.Equal(t, filter(&cluster4), 3)
+	assert.Equal(t, 0, filter(nil))
+	assert.Equal(t, 0, filter(&cluster1))
+	assert.Equal(t, 1, filter(&cluster2))
+	assert.Equal(t, 2, filter(&cluster3))
+	assert.Equal(t, 3, filter(&cluster4))
 
 	// a cluster with a fixed shard should be processed by the specified exact
 	// same shard unless the specified shard index is greater than the number of replicas.
@@ -411,16 +412,16 @@ func TestInferShard(t *testing.T) {
 	osHostnameError := errors.New("cannot resolve hostname")
 	osHostnameFunction = func() (string, error) { return "exampleshard", osHostnameError }
 	_, err := InferShard()
-	assert.NotNil(t, err)
+	assert.Error(t, err)
 	assert.Equal(t, err, osHostnameError)
 
 	osHostnameFunction = func() (string, error) { return "exampleshard", nil }
 	_, err = InferShard()
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	osHostnameFunction = func() (string, error) { return "example-shard", nil }
 	_, err = InferShard()
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 }
 
 func createTestClusters() (clusterAccessor, *dbmocks.ArgoDB, v1alpha1.Cluster, v1alpha1.Cluster, v1alpha1.Cluster, v1alpha1.Cluster, v1alpha1.Cluster) {
@@ -973,7 +974,7 @@ func TestGetClusterSharding(t *testing.T) {
 					t.Errorf("Expected error %v but got nil", tc.expectedErr)
 				}
 			} else {
-				assert.Nil(t, err)
+				assert.NoError(t, err)
 			}
 		})
 	}

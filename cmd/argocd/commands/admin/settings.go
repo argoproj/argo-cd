@@ -202,12 +202,12 @@ var validatorsByGroup = map[string]settingValidator{
 		ssoProvider := ""
 		if general.DexConfig != "" {
 			if _, err := settings.UnmarshalDexConfig(general.DexConfig); err != nil {
-				return "", fmt.Errorf("invalid dex.config: %v", err)
+				return "", fmt.Errorf("invalid dex.config: %w", err)
 			}
 			ssoProvider = "Dex"
 		} else if general.OIDCConfigRAW != "" {
 			if err := settings.ValidateOIDCConfig(general.OIDCConfigRAW); err != nil {
-				return "", fmt.Errorf("invalid oidc.config: %v", err)
+				return "", fmt.Errorf("invalid oidc.config: %w", err)
 			}
 			ssoProvider = "OIDC"
 		}

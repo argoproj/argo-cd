@@ -8,15 +8,16 @@ import (
 	"testing"
 	"time"
 
+	"github.com/go-git/go-git/v5/plumbing"
+	"github.com/spf13/cobra"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
+
 	. "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/v2/reposerver/cache/mocks"
 	cacheutil "github.com/argoproj/argo-cd/v2/util/cache"
-	"github.com/go-git/go-git/v5/plumbing"
-	"github.com/spf13/cobra"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
 )
 
 type MockedCache struct {
@@ -472,7 +473,7 @@ func TestGetOrLockGitReferences(t *testing.T) {
 		var references []*plumbing.Reference
 		lockId, err := cache.GetOrLockGitReferences("test-repo", "test-lock-id", &references)
 		assert.NoError(t, err)
-		assert.Equal(t, lockId, "test-lock-id")
+		assert.Equal(t, "test-lock-id", lockId)
 		assert.NotEqual(t, "", lockId, "Lock id should be set")
 		fixtures.mockCache.AssertCacheCalledTimes(t, &mocks.CacheCallCounts{ExternalSets: 1, ExternalGets: 2})
 	})
@@ -486,7 +487,7 @@ func TestGetOrLockGitReferences(t *testing.T) {
 		var references []*plumbing.Reference
 		lockId, err := cache.GetOrLockGitReferences("test-repo", "test-lock-id", &references)
 		assert.NoError(t, err)
-		assert.NotEqual(t, lockId, "test-lock-id")
+		assert.NotEqual(t, "test-lock-id", lockId)
 		assert.Equal(t, "", lockId, "Lock id should not be set")
 		assert.Equal(t, "test-repo", references[0].Name().String())
 		assert.Equal(t, "test", references[0].Target().String())
@@ -506,7 +507,7 @@ func TestGetOrLockGitReferences(t *testing.T) {
 		var references []*plumbing.Reference
 		lockId, err := cache.GetOrLockGitReferences("test-repo", "test-lock-id", &references)
 		assert.NoError(t, err)
-		assert.NotEqual(t, lockId, "test-lock-id")
+		assert.NotEqual(t, "test-lock-id", lockId)
 		assert.Equal(t, "", lockId, "Lock id should not be set")
 		assert.Equal(t, "test-repo", references[0].Name().String())
 		assert.Equal(t, "test", references[0].Target().String())
@@ -527,7 +528,7 @@ func TestGetOrLockGitReferences(t *testing.T) {
 		var references []*plumbing.Reference
 		lockId, err := cache.GetOrLockGitReferences("test-repo", "test-lock-id", &references)
 		assert.NoError(t, err)
-		assert.NotEqual(t, lockId, "test-lock-id")
+		assert.NotEqual(t, "test-lock-id", lockId)
 		assert.Equal(t, "", lockId, "Lock id should not be set")
 		fixtures.mockCache.AssertCacheCalledTimes(t, &mocks.CacheCallCounts{ExternalSets: 2, ExternalGets: 2})
 	})
@@ -543,7 +544,7 @@ func TestGetOrLockGitReferences(t *testing.T) {
 		var references []*plumbing.Reference
 		lockId, err := cache.GetOrLockGitReferences("test-repo", "test-lock-id", &references)
 		assert.NoError(t, err)
-		assert.Equal(t, lockId, "test-lock-id")
+		assert.Equal(t, "test-lock-id", lockId)
 		assert.NotEqual(t, "", lockId, "Lock id should be set")
 		cache.revisionCacheLockTimeout = 10 * time.Second
 		fixtures.mockCache.AssertCacheCalledTimes(t, &mocks.CacheCallCounts{ExternalSets: 1})
@@ -560,7 +561,7 @@ func TestGetOrLockGitReferences(t *testing.T) {
 		var references []*plumbing.Reference
 		lockId, err := cache.GetOrLockGitReferences("test-repo", "test-lock-id", &references)
 		assert.NoError(t, err)
-		assert.Equal(t, lockId, "test-lock-id")
+		assert.Equal(t, "test-lock-id", lockId)
 		assert.NotEqual(t, "", lockId, "Lock id should be set")
 		fixtures.mockCache.RedisClient.AssertNumberOfCalls(t, "Set", 2)
 		fixtures.mockCache.RedisClient.AssertNumberOfCalls(t, "Get", 4)
@@ -583,7 +584,7 @@ func TestUnlockGitReferences(t *testing.T) {
 		var references []*plumbing.Reference
 		lockId, err := cache.GetOrLockGitReferences("test-repo", "test-lock-id", &references)
 		assert.NoError(t, err)
-		assert.Equal(t, lockId, "test-lock-id")
+		assert.Equal(t, "test-lock-id", lockId)
 		assert.NotEqual(t, "", lockId, "Lock id should be set")
 		// Release lock
 		err = cache.UnlockGitReferences("test-repo", lockId)

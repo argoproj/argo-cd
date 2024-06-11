@@ -6,9 +6,10 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/argoproj/argo-cd/v2/applicationset/utils"
 	"github.com/hashicorp/go-retryablehttp"
 	gitlab "github.com/xanzy/go-gitlab"
+
+	"github.com/argoproj/argo-cd/v2/applicationset/utils"
 )
 
 type GitLabService struct {

@@ -431,7 +431,7 @@ func TestAppProject_IsDestinationPermitted_PermitOnlyProjectScopedClusters(t *te
 	_, err := proj.IsDestinationPermitted(ApplicationDestination{Server: "https://my-cluster.123.com", Namespace: "default"}, func(_ string) ([]*Cluster, error) {
 		return nil, errors.New("some error")
 	})
-	assert.NotNil(t, err)
+	assert.Error(t, err)
 	assert.True(t, strings.Contains(err.Error(), "could not retrieve project clusters"))
 }
 
@@ -839,7 +839,7 @@ func TestExplicitType(t *testing.T) {
 		},
 	}
 	explicitType, err := src.ExplicitType()
-	assert.NotNil(t, err)
+	assert.Error(t, err)
 	assert.Nil(t, explicitType)
 	src = ApplicationSource{
 		Helm: &ApplicationSourceHelm{
@@ -848,8 +848,8 @@ func TestExplicitType(t *testing.T) {
 	}
 
 	explicitType, err = src.ExplicitType()
-	assert.Nil(t, err)
-	assert.Equal(t, *explicitType, ApplicationSourceTypeHelm)
+	assert.NoError(t, err)
+	assert.Equal(t, ApplicationSourceTypeHelm, *explicitType)
 }
 
 func TestExplicitTypeWithDirectory(t *testing.T) {
@@ -858,7 +858,7 @@ func TestExplicitTypeWithDirectory(t *testing.T) {
 		Directory: &ApplicationSourceDirectory{},
 	}
 	_, err := src.ExplicitType()
-	assert.NotNil(t, err, "cannot add directory with any other types")
+	assert.Error(t, err, "cannot add directory with any other types")
 }
 
 func TestAppSourceEquality(t *testing.T) {
@@ -2499,7 +2499,7 @@ func TestSyncWindow_Active(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 
 			result := tt.syncWindow.active(tt.currentTime)
-			assert.Equal(t, result, tt.expectedResult)
+			assert.Equal(t, tt.expectedResult, result)
 
 		})
 	}
@@ -3432,7 +3432,7 @@ func TestGetSummary(t *testing.T) {
 
 	summary = tree.GetSummary(app)
 	assert.Len(t, summary.ExternalURLs, 1)
-	assert.Equal(t, summary.ExternalURLs[0], url)
+	assert.Equal(t, url, summary.ExternalURLs[0])
 }
 
 func TestApplicationSourcePluginParameters_Environ_string(t *testing.T) {

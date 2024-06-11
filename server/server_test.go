@@ -273,9 +273,9 @@ func TestInitializingExistingDefaultProject(t *testing.T) {
 	assert.NotNil(t, argocd)
 
 	proj, err := appClientSet.ArgoprojV1alpha1().AppProjects(test.FakeArgoCDNamespace).Get(context.Background(), v1alpha1.DefaultAppProjectName, metav1.GetOptions{})
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.NotNil(t, proj)
-	assert.Equal(t, proj.Name, v1alpha1.DefaultAppProjectName)
+	assert.Equal(t, v1alpha1.DefaultAppProjectName, proj.Name)
 }
 
 func TestInitializingNotExistingDefaultProject(t *testing.T) {
@@ -296,9 +296,9 @@ func TestInitializingNotExistingDefaultProject(t *testing.T) {
 	assert.NotNil(t, argocd)
 
 	proj, err := appClientSet.ArgoprojV1alpha1().AppProjects(test.FakeArgoCDNamespace).Get(context.Background(), v1alpha1.DefaultAppProjectName, metav1.GetOptions{})
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.NotNil(t, proj)
-	assert.Equal(t, proj.Name, v1alpha1.DefaultAppProjectName)
+	assert.Equal(t, v1alpha1.DefaultAppProjectName, proj.Name)
 }
 
 func TestEnforceProjectGroups(t *testing.T) {
@@ -1127,11 +1127,11 @@ func TestInitializeDefaultProject_ProjectDoesNotExist(t *testing.T) {
 		return
 	}
 
-	assert.Equal(t, proj.Spec, v1alpha1.AppProjectSpec{
+	assert.Equal(t, v1alpha1.AppProjectSpec{
 		SourceRepos:              []string{"*"},
 		Destinations:             []v1alpha1.ApplicationDestination{{Server: "*", Namespace: "*"}},
 		ClusterResourceWhitelist: []metav1.GroupKind{{Group: "*", Kind: "*"}},
-	})
+	}, proj.Spec)
 }
 
 func TestInitializeDefaultProject_ProjectAlreadyInitialized(t *testing.T) {

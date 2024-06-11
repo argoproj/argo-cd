@@ -8,9 +8,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	fileutil "github.com/argoproj/argo-cd/v2/test/fixture/path"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func TestPathRoot(t *testing.T) {
@@ -63,7 +64,7 @@ func TestBadSymlinks(t *testing.T) {
 	err := CheckOutOfBoundsSymlinks("./testdata/badlink")
 	oobError := &OutOfBoundsSymlinkError{}
 	assert.ErrorAs(t, err, &oobError)
-	assert.Equal(t, oobError.File, "badlink")
+	assert.Equal(t, "badlink", oobError.File)
 }
 
 // Crazy formatting check
@@ -71,7 +72,7 @@ func TestBadSymlinks2(t *testing.T) {
 	err := CheckOutOfBoundsSymlinks("./testdata/badlink2")
 	oobError := &OutOfBoundsSymlinkError{}
 	assert.ErrorAs(t, err, &oobError)
-	assert.Equal(t, oobError.File, "badlink")
+	assert.Equal(t, "badlink", oobError.File)
 }
 
 // Make sure no part of the symlink can leave the repo, even if it ultimately targets inside the repo
@@ -79,7 +80,7 @@ func TestBadSymlinks3(t *testing.T) {
 	err := CheckOutOfBoundsSymlinks("./testdata/badlink3")
 	oobError := &OutOfBoundsSymlinkError{}
 	assert.ErrorAs(t, err, &oobError)
-	assert.Equal(t, oobError.File, "badlink")
+	assert.Equal(t, "badlink", oobError.File)
 }
 
 // No absolute symlinks allowed
@@ -90,7 +91,7 @@ func TestAbsSymlink(t *testing.T) {
 	err := CheckOutOfBoundsSymlinks(testDir)
 	oobError := &OutOfBoundsSymlinkError{}
 	assert.ErrorAs(t, err, &oobError)
-	assert.Equal(t, oobError.File, "abslink")
+	assert.Equal(t, "abslink", oobError.File)
 }
 
 func getApp(annotation string, sourcePath string) *v1alpha1.Application {

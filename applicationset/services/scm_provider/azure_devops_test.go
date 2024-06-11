@@ -10,9 +10,10 @@ import (
 	"github.com/stretchr/testify/mock"
 	"k8s.io/utils/ptr"
 
-	azureMock "github.com/argoproj/argo-cd/v2/applicationset/services/scm_provider/azure_devops/git/mocks"
 	"github.com/microsoft/azure-devops-go-api/azuredevops"
 	azureGit "github.com/microsoft/azure-devops-go-api/azuredevops/git"
+
+	azureMock "github.com/argoproj/argo-cd/v2/applicationset/services/scm_provider/azure_devops/git/mocks"
 )
 
 //go:generate go run github.com/vektra/mockery/v2@v2.40.2 --srcpkg=github.com/microsoft/azure-devops-go-api/azuredevops/git --name=Client --output=azure_devops/git/mocks --outpkg=mocks

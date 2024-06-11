@@ -169,7 +169,10 @@ var (
 		Status: appsv1.ApplicationStatus{
 			History: appsv1.RevisionHistories{
 				{
-					Revision: "HEAD",
+					ID: 1,
+					Revisions: []string{
+						"abcdef123567",
+					},
 					Sources: []appsv1.ApplicationSource{
 						{
 							RepoURL:        "https://helm.elastic.co",
@@ -278,7 +281,7 @@ func TestRepositoryServer(t *testing.T) {
 		_, err := s.ValidateAccess(context.TODO(), &repository.RepoAccessQuery{
 			Repo: url,
 		})
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 	})
 
 	t.Run("Test_Get", func(t *testing.T) {
@@ -296,7 +299,7 @@ func TestRepositoryServer(t *testing.T) {
 		repo, err := s.Get(context.TODO(), &repository.RepoQuery{
 			Repo: url,
 		})
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 		assert.Equal(t, repo.Repo, url)
 	})
 
@@ -321,7 +324,7 @@ func TestRepositoryServer(t *testing.T) {
 		repo, err := s.Get(context.TODO(), &repository.RepoQuery{
 			Repo: url,
 		})
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 
 		testRepo.ConnectionState = repo.ConnectionState // overwrite connection state on our test object to simplify comparison below
 
@@ -384,8 +387,8 @@ func TestRepositoryServer(t *testing.T) {
 				Username: "test",
 			},
 		})
-		assert.Nil(t, err)
-		assert.Equal(t, repo.Repo, "repo")
+		assert.NoError(t, err)
+		assert.Equal(t, "repo", repo.Repo)
 	})
 
 	t.Run("Test_CreateRepositoryWithUpsert", func(t *testing.T) {
@@ -410,8 +413,8 @@ func TestRepositoryServer(t *testing.T) {
 			Upsert: true,
 		})
 
-		assert.Nil(t, err)
-		assert.Equal(t, repo.Repo, "test")
+		assert.NoError(t, err)
+		assert.Equal(t, "test", repo.Repo)
 	})
 
 	t.Run("Test_ListRepositories", func(t *testing.T) {
@@ -807,6 +810,65 @@ func TestRepositoryServerGetAppDetails(t *testing.T) {
 			Source:     previousSource,
 			AppName:    "guestbook",
 			AppProject: "default",
+		})
+		assert.NoError(t, err)
+		assert.Equal(t, expectedResp, *resp)
+	})
+
+	t.Run("Test_ExistingAppMultiSourceNotInHistory", func(t *testing.T) {
+		repoServerClient := mocks.RepoServerServiceClient{}
+		repoServerClientset := mocks.Clientset{RepoServerServiceClient: &repoServerClient}
+		enforcer := newEnforcer(kubeclientset)
+
+		url := "https://helm.elastic.co"
+		helmRepos := []*appsv1.Repository{{Repo: url}, {Repo: url}}
+		db := &dbmocks.ArgoDB{}
+		db.On("ListHelmRepositories", context.TODO(), mock.Anything).Return(helmRepos, nil)
+		db.On("GetRepository", context.TODO(), url, "default").Return(&appsv1.Repository{Repo: url}, nil)
+		db.On("GetProjectRepositories", context.TODO(), "default").Return(nil, nil)
+		db.On("GetProjectClusters", context.TODO(), "default").Return(nil, nil)
+		expectedResp := apiclient.RepoAppDetailsResponse{Type: "Helm"}
+		repoServerClient.On("GetAppDetails", context.TODO(), mock.Anything).Return(&expectedResp, nil)
+		appLister, projLister := newAppAndProjLister(defaultProj, multiSourceApp001)
+
+		differentSource := multiSourceApp001.Spec.Sources[0].DeepCopy()
+		differentSource.Helm.ValueFiles = []string{"/etc/passwd"}
+
+		s := NewServer(&repoServerClientset, db, enforcer, newFixtures().Cache, appLister, projLister, testNamespace, settingsMgr)
+		resp, err := s.GetAppDetails(context.TODO(), &repository.RepoAppDetailsQuery{
+			Source:      differentSource,
+			AppName:     multiSourceApp001AppName,
+			AppProject:  "default",
+			SourceIndex: 0,
+			VersionId:   1,
+		})
+		assert.Equal(t, errPermissionDenied, err)
+		assert.Nil(t, resp)
+	})
+	t.Run("Test_ExistingAppMultiSourceInHistory", func(t *testing.T) {
+		repoServerClient := mocks.RepoServerServiceClient{}
+		repoServerClientset := mocks.Clientset{RepoServerServiceClient: &repoServerClient}
+		enforcer := newEnforcer(kubeclientset)
+
+		url := "https://helm.elastic.co"
+		db := &dbmocks.ArgoDB{}
+		db.On("GetRepository", context.TODO(), url, "default").Return(&appsv1.Repository{Repo: url}, nil)
+		db.On("ListHelmRepositories", context.TODO(), mock.Anything).Return(nil, nil)
+		db.On("GetProjectRepositories", context.TODO(), "default").Return(nil, nil)
+		db.On("GetProjectClusters", context.TODO(), "default").Return(nil, nil)
+		expectedResp := apiclient.RepoAppDetailsResponse{Type: "Directory"}
+		repoServerClient.On("GetAppDetails", context.TODO(), mock.Anything).Return(&expectedResp, nil)
+		appLister, projLister := newAppAndProjLister(defaultProj, multiSourceApp001)
+		previousSource := multiSourceApp001.Status.History[0].Sources[0].DeepCopy()
+		previousSource.TargetRevision = multiSourceApp001.Status.History[0].Revisions[0]
+
+		s := NewServer(&repoServerClientset, db, enforcer, newFixtures().Cache, appLister, projLister, testNamespace, settingsMgr)
+		resp, err := s.GetAppDetails(context.TODO(), &repository.RepoAppDetailsQuery{
+			Source:      previousSource,
+			AppName:     multiSourceApp001AppName,
+			AppProject:  "default",
+			SourceIndex: 0,
+			VersionId:   1,
 		})
 		assert.NoError(t, err)
 		assert.Equal(t, expectedResp, *resp)
