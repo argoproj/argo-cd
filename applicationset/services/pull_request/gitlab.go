@@ -6,9 +6,10 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/argoproj/argo-cd/v2/applicationset/utils"
 	"github.com/hashicorp/go-retryablehttp"
 	gitlab "github.com/xanzy/go-gitlab"
+
+	"github.com/argoproj/argo-cd/v2/applicationset/utils"
 )
 
 type GitLabService struct {
@@ -54,7 +55,6 @@ func NewGitLabService(ctx context.Context, token, url, project string, labels []
 }
 
 func (g *GitLabService) List(ctx context.Context) ([]*PullRequest, error) {
-
 	// Filter the merge requests on labels, if they are specified.
 	var labels *gitlab.Labels
 	if len(g.labels) > 0 {

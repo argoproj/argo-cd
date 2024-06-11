@@ -25,7 +25,7 @@ const (
 )
 
 func NewRepoCommand() *cobra.Command {
-	var command = &cobra.Command{
+	command := &cobra.Command{
 		Use:   "repo",
 		Short: "Manage repositories configuration",
 		Run: func(c *cobra.Command, args []string) {
@@ -44,7 +44,7 @@ func NewGenRepoSpecCommand() *cobra.Command {
 	)
 
 	// For better readability and easier formatting
-	var repoAddExamples = `  
+	repoAddExamples := `  
   # Add a Git repository via SSH using a private key for authentication, ignoring the server's host key:
   argocd admin repo generate-spec git@git.example.com:repos/repo --insecure-ignore-host-key --ssh-private-key-path ~/id_rsa
 
@@ -67,7 +67,7 @@ func NewGenRepoSpecCommand() *cobra.Command {
   argocd admin repo generate-spec helm-oci-registry.cn-zhangjiakou.cr.aliyuncs.com --type helm --name stable --enable-oci --username test --password test
 `
 
-	var command = &cobra.Command{
+	command := &cobra.Command{
 		Use:     "generate-spec REPOURL",
 		Short:   "Generate declarative config for a repo",
 		Example: repoAddExamples,
@@ -157,7 +157,7 @@ func NewGenRepoSpecCommand() *cobra.Command {
 			_, err := argoDB.CreateRepository(ctx, &repoOpts.Repo)
 			errors.CheckError(err)
 
-			secret, err := kubeClientset.CoreV1().Secrets(ArgoCDNamespace).Get(ctx, db.RepoURLToSecretName(repoSecretPrefix, repoOpts.Repo.Repo), v1.GetOptions{})
+			secret, err := kubeClientset.CoreV1().Secrets(ArgoCDNamespace).Get(ctx, db.RepoURLToSecretName(repoSecretPrefix, repoOpts.Repo.Repo, repoOpts.Repo.Project), v1.GetOptions{})
 			errors.CheckError(err)
 
 			errors.CheckError(PrintResources(outputFormat, os.Stdout, secret))

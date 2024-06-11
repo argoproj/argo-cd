@@ -854,8 +854,23 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSetApplicationStatus(ref co
 							Format:      "",
 						},
 					},
+					"targetRevisions": {
+						SchemaProps: spec.SchemaProps{
+							Description: "TargetRevision tracks the desired revisions the Application should be synced to.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
 				},
-				Required: []string{"application", "message", "status", "step"},
+				Required: []string{"application", "message", "status", "step", "targetRevisions"},
 			},
 		},
 		Dependencies: []string{
@@ -5421,7 +5436,7 @@ func schema_pkg_apis_application_v1alpha1_RepoCreds(ref common.ReferenceCallback
 				Properties: map[string]spec.Schema{
 					"url": {
 						SchemaProps: spec.SchemaProps{
-							Description: "URL is the URL that this credentials matches to",
+							Description: "URL is the URL to which these credentials match",
 							Default:     "",
 							Type:        []string{"string"},
 							Format:      "",
@@ -5710,7 +5725,7 @@ func schema_pkg_apis_application_v1alpha1_Repository(ref common.ReferenceCallbac
 					},
 					"project": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Reference between project and repository that allow you automatically to be added as item inside SourceRepos project entity",
+							Description: "Reference between project and repository that allows it to be automatically added as an item inside SourceRepos project entity",
 							Type:        []string{"string"},
 							Format:      "",
 						},

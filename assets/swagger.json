@@ -1633,6 +1633,20 @@
             "type": "string",
             "name": "project",
             "in": "query"
+          },
+          {
+            "type": "integer",
+            "format": "int32",
+            "description": "source index (for multi source apps).",
+            "name": "sourceIndex",
+            "in": "query"
+          },
+          {
+            "type": "integer",
+            "format": "int32",
+            "description": "versionId from historical data (for multi source apps).",
+            "name": "versionId",
+            "in": "query"
           }
         ],
         "responses": {
@@ -1682,6 +1696,20 @@
           {
             "type": "string",
             "name": "project",
+            "in": "query"
+          },
+          {
+            "type": "integer",
+            "format": "int32",
+            "description": "source index (for multi source apps).",
+            "name": "sourceIndex",
+            "in": "query"
+          },
+          {
+            "type": "integer",
+            "format": "int32",
+            "description": "versionId from historical data (for multi source apps).",
+            "name": "versionId",
             "in": "query"
           }
         ],
@@ -3171,7 +3199,7 @@
         "parameters": [
           {
             "type": "string",
-            "description": "URL is the URL that this credentials matches to",
+            "description": "URL is the URL to which these credentials match",
             "name": "creds.url",
             "in": "path",
             "required": true
@@ -3250,6 +3278,12 @@
             "type": "boolean",
             "description": "Whether to force a cache refresh on repo's connection state.",
             "name": "forceRefresh",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "App project for query.",
+            "name": "appProject",
             "in": "query"
           }
         ],
@@ -3373,6 +3407,12 @@
             "description": "Whether to force a cache refresh on repo's connection state.",
             "name": "forceRefresh",
             "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "App project for query.",
+            "name": "appProject",
+            "in": "query"
           }
         ],
         "responses": {
@@ -3408,6 +3448,12 @@
             "type": "boolean",
             "description": "Whether to force a cache refresh on repo's connection state.",
             "name": "forceRefresh",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "App project for query.",
+            "name": "appProject",
             "in": "query"
           }
         ],
@@ -3493,6 +3539,12 @@
             "description": "Whether to force a cache refresh on repo's connection state.",
             "name": "forceRefresh",
             "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "App project for query.",
+            "name": "appProject",
+            "in": "query"
           }
         ],
         "responses": {
@@ -3529,6 +3581,12 @@
             "type": "boolean",
             "description": "Whether to force a cache refresh on repo's connection state.",
             "name": "forceRefresh",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "App project for query.",
+            "name": "appProject",
             "in": "query"
           }
         ],
@@ -5100,6 +5158,16 @@
         },
         "source": {
           "$ref": "#/definitions/v1alpha1ApplicationSource"
+        },
+        "sourceIndex": {
+          "type": "integer",
+          "format": "int32",
+          "title": "source index (for multi source apps)"
+        },
+        "versionId": {
+          "type": "integer",
+          "format": "int32",
+          "title": "versionId from historical data (for multi source apps)"
         }
       }
     },
@@ -6016,6 +6084,13 @@
         "step": {
           "type": "string",
           "title": "Step tracks which step this Application should be updated in"
+        },
+        "targetrevisions": {
+          "description": "TargetRevision tracks the desired revisions the Application should be synced to.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
         }
       }
     },
@@ -8058,7 +8133,7 @@
         },
         "url": {
           "type": "string",
-          "title": "URL is the URL that this credentials matches to"
+          "title": "URL is the URL to which these credentials match"
         },
         "username": {
           "type": "string",
@@ -8144,7 +8219,7 @@
         },
         "project": {
           "type": "string",
-          "title": "Reference between project and repository that allow you automatically to be added as item inside SourceRepos project entity"
+          "title": "Reference between project and repository that allows it to be automatically added as an item inside SourceRepos project entity"
         },
         "proxy": {
           "type": "string",

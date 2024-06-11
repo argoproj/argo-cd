@@ -6,10 +6,11 @@ import (
 	"time"
 
 	"github.com/alicebob/miniredis/v2"
-	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/redis/go-redis/v9"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/argoproj/argo-cd/v2/common"
 )
 
 func TestAddCacheFlagsToCmd(t *testing.T) {

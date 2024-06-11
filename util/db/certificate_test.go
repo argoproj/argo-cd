@@ -14,8 +14,10 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/settings"
 )
 
-const Test_Cert1CN = "CN=foo.example.com,OU=SpecOps,O=Capone\\, Inc,L=Chicago,ST=IL,C=US"
-const Test_Cert2CN = "CN=bar.example.com,OU=Testsuite,O=Testing Corp,L=Hanover,ST=Lower Saxony,C=DE"
+const (
+	Test_Cert1CN = "CN=foo.example.com,OU=SpecOps,O=Capone\\, Inc,L=Chicago,ST=IL,C=US"
+	Test_Cert2CN = "CN=bar.example.com,OU=Testsuite,O=Testing Corp,L=Hanover,ST=Lower Saxony,C=DE"
+)
 
 var Test_TLS_Subjects []string = []string{
 	"CN=foo.example.com,OU=SpecOps,O=Capone\\, Inc,L=Chicago,ST=IL,C=US",
@@ -236,8 +238,10 @@ var Test_TLS_Hostnames []string = []string{
 	"github.com",
 }
 
-const Test_NumSSHKnownHostsExpected = 7
-const Test_NumTLSCertificatesExpected = 3
+const (
+	Test_NumSSHKnownHostsExpected   = 7
+	Test_NumTLSCertificatesExpected = 3
+)
 
 func getCertClientset() *fake.Clientset {
 	cm := v1.ConfigMap{
@@ -422,7 +426,7 @@ func Test_CreateSSHKnownHostEntries(t *testing.T) {
 	}, false)
 	assert.NoError(t, err)
 	assert.NotNil(t, certList)
-	assert.Len(t, certList.Items, 0)
+	assert.Empty(t, certList.Items)
 
 	// Existing cert, different data, no upsert
 	// Result: Error
@@ -563,7 +567,7 @@ func Test_CreateTLSCertificates(t *testing.T) {
 	}, false)
 	assert.NoError(t, err)
 	assert.NotNil(t, certList)
-	assert.Len(t, certList.Items, 0)
+	assert.Empty(t, certList.Items)
 
 	// Valid TLS certificate, existing cert, different data, no upsert
 	// Expected: Error
@@ -663,7 +667,6 @@ func Test_CreateTLSCertificates(t *testing.T) {
 	}, true)
 	assert.Error(t, err)
 	assert.Nil(t, certList)
-
 }
 
 func Test_RemoveSSHKnownHosts(t *testing.T) {
@@ -689,7 +692,7 @@ func Test_RemoveSSHKnownHosts(t *testing.T) {
 	})
 	assert.NoError(t, err)
 	assert.NotNil(t, certList)
-	assert.Len(t, certList.Items, 0)
+	assert.Empty(t, certList.Items)
 
 	// Remove single SSH known hosts entry by sub type
 	// Expected: List of 1 entry
@@ -709,7 +712,7 @@ func Test_RemoveSSHKnownHosts(t *testing.T) {
 	})
 	assert.NoError(t, err)
 	assert.NotNil(t, certList)
-	assert.Len(t, certList.Items, 0)
+	assert.Empty(t, certList.Items)
 
 	// Remove all remaining SSH known hosts entries
 	// Expected: List of 5 entry
@@ -727,7 +730,7 @@ func Test_RemoveSSHKnownHosts(t *testing.T) {
 	})
 	assert.NoError(t, err)
 	assert.NotNil(t, certList)
-	assert.Len(t, certList.Items, 0)
+	assert.Empty(t, certList.Items)
 }
 
 func Test_RemoveTLSCertificates(t *testing.T) {
@@ -753,7 +756,7 @@ func Test_RemoveTLSCertificates(t *testing.T) {
 	})
 	assert.NoError(t, err)
 	assert.NotNil(t, certList)
-	assert.Len(t, certList.Items, 0)
+	assert.Empty(t, certList.Items)
 
 	// Remove all TLS certificate entry for hostname
 	// Expected: List of 2 entry
@@ -773,6 +776,5 @@ func Test_RemoveTLSCertificates(t *testing.T) {
 	})
 	assert.NoError(t, err)
 	assert.NotNil(t, certList)
-	assert.Len(t, certList.Items, 0)
-
+	assert.Empty(t, certList.Items)
 }

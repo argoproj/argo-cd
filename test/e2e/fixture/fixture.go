@@ -231,7 +231,6 @@ func init() {
 	for scanner.Scan() {
 		testsRun[scanner.Text()] = true
 	}
-
 }
 
 func loginAs(username, password string) {
@@ -756,7 +755,6 @@ func RunCliWithStdin(stdin string, args ...string) (string, error) {
 }
 
 func Patch(path string, jsonPatch string) {
-
 	log.WithFields(log.Fields{"path": path, "jsonPatch": jsonPatch}).Info("patching")
 
 	filename := filepath.Join(repoDirectory(), path)
@@ -784,7 +782,7 @@ func Patch(path string, jsonPatch string) {
 		CheckError(err)
 	}
 
-	CheckError(os.WriteFile(filename, bytes, 0644))
+	CheckError(os.WriteFile(filename, bytes, 0o644))
 	FailOnErr(Run(repoDirectory(), "git", "diff"))
 	FailOnErr(Run(repoDirectory(), "git", "commit", "-am", "patch"))
 	if IsRemote() {
@@ -793,7 +791,6 @@ func Patch(path string, jsonPatch string) {
 }
 
 func Delete(path string) {
-
 	log.WithFields(log.Fields{"path": path}).Info("deleting")
 
 	CheckError(os.Remove(filepath.Join(repoDirectory(), path)))
@@ -808,11 +805,10 @@ func Delete(path string) {
 func WriteFile(path, contents string) {
 	log.WithFields(log.Fields{"path": path}).Info("adding")
 
-	CheckError(os.WriteFile(filepath.Join(repoDirectory(), path), []byte(contents), 0644))
+	CheckError(os.WriteFile(filepath.Join(repoDirectory(), path), []byte(contents), 0o644))
 }
 
 func AddFile(path, contents string) {
-
 	WriteFile(path, contents)
 
 	FailOnErr(Run(repoDirectory(), "git", "diff"))
@@ -860,7 +856,6 @@ func AddTag(name string) {
 
 // create the resource by creating using "kubectl apply", with bonus templating
 func Declarative(filename string, values interface{}) (string, error) {
-
 	bytes, err := os.ReadFile(path.Join("testdata", filename))
 	CheckError(err)
 
@@ -1001,7 +996,7 @@ func RecordTestRun(t *testing.T) {
 		return
 	}
 	log.Infof("Registering test execution at %s", rf)
-	f, err := os.OpenFile(rf, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	f, err := os.OpenFile(rf, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
 	if err != nil {
 		t.Fatalf("could not open record file %s: %v", rf, err)
 	}

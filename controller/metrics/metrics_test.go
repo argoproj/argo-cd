@@ -2,7 +2,6 @@ package metrics
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"net/http"
 	"net/http/httptest"
@@ -228,7 +227,7 @@ func runTest(t *testing.T, cfg TestMetricServerConfig) {
 	assert.NoError(t, err)
 	rr := httptest.NewRecorder()
 	metricsServ.Handler.ServeHTTP(rr, req)
-	assert.Equal(t, rr.Code, http.StatusOK)
+	assert.Equal(t, http.StatusOK, rr.Code)
 	body := rr.Body.String()
 	assertMetricsPrinted(t, cfg.ExpectedResponse, body)
 }
@@ -357,7 +356,7 @@ argocd_app_sync_total{dest_server="https://localhost:6443",name="my-app",namespa
 	assert.NoError(t, err)
 	rr := httptest.NewRecorder()
 	metricsServ.Handler.ServeHTTP(rr, req)
-	assert.Equal(t, rr.Code, http.StatusOK)
+	assert.Equal(t, http.StatusOK, rr.Code)
 	body := rr.Body.String()
 	log.Println(body)
 	assertMetricsPrinted(t, appSyncTotal, body)
@@ -370,7 +369,7 @@ func assertMetricsPrinted(t *testing.T, expectedLines, body string) {
 		if line == "" {
 			continue
 		}
-		assert.Contains(t, body, line, fmt.Sprintf("expected metrics mismatch for line: %s", line))
+		assert.Contains(t, body, line, "expected metrics mismatch for line: %s", line)
 	}
 }
 
@@ -411,7 +410,7 @@ argocd_app_reconcile_count{dest_server="https://localhost:6443",namespace="argoc
 	assert.NoError(t, err)
 	rr := httptest.NewRecorder()
 	metricsServ.Handler.ServeHTTP(rr, req)
-	assert.Equal(t, rr.Code, http.StatusOK)
+	assert.Equal(t, http.StatusOK, rr.Code)
 	body := rr.Body.String()
 	log.Println(body)
 	assertMetricsPrinted(t, appReconcileMetrics, body)
@@ -435,7 +434,7 @@ argocd_app_sync_total{dest_server="https://localhost:6443",name="my-app",namespa
 	assert.NoError(t, err)
 	rr := httptest.NewRecorder()
 	metricsServ.Handler.ServeHTTP(rr, req)
-	assert.Equal(t, rr.Code, http.StatusOK)
+	assert.Equal(t, http.StatusOK, rr.Code)
 	body := rr.Body.String()
 	assertMetricsPrinted(t, appSyncTotal, body)
 
@@ -446,7 +445,7 @@ argocd_app_sync_total{dest_server="https://localhost:6443",name="my-app",namespa
 	assert.NoError(t, err)
 	rr = httptest.NewRecorder()
 	metricsServ.Handler.ServeHTTP(rr, req)
-	assert.Equal(t, rr.Code, http.StatusOK)
+	assert.Equal(t, http.StatusOK, rr.Code)
 	body = rr.Body.String()
 	log.Println(body)
 	assertMetricsNotPrinted(t, appSyncTotal, body)
@@ -483,7 +482,7 @@ workqueue_unfinished_work_seconds{name="test"}
 	assert.NoError(t, err)
 	rr := httptest.NewRecorder()
 	metricsServ.Handler.ServeHTTP(rr, req)
-	assert.Equal(t, rr.Code, http.StatusOK)
+	assert.Equal(t, http.StatusOK, rr.Code)
 	body := rr.Body.String()
 	log.Println(body)
 	assertMetricsPrinted(t, expectedMetrics, body)
@@ -515,7 +514,7 @@ go_threads
 	assert.NoError(t, err)
 	rr := httptest.NewRecorder()
 	metricsServ.Handler.ServeHTTP(rr, req)
-	assert.Equal(t, rr.Code, http.StatusOK)
+	assert.Equal(t, http.StatusOK, rr.Code)
 	body := rr.Body.String()
 	log.Println(body)
 	assertMetricsPrinted(t, expectedMetrics, body)

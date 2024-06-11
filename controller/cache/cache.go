@@ -173,8 +173,8 @@ func NewLiveStateCache(
 	metricsServer *metrics.MetricsServer,
 	onObjectUpdated ObjectUpdatedHandler,
 	clusterSharding sharding.ClusterShardingCache,
-	resourceTracking argo.ResourceTracking) LiveStateCache {
-
+	resourceTracking argo.ResourceTracking,
+) LiveStateCache {
 	return &liveStateCache{
 		appInformer:      appInformer,
 		db:               db,
@@ -331,11 +331,9 @@ func getAppRecursive(r *clustercache.Resource, ns map[kube.ResourceKey]*clusterc
 	return "", true
 }
 
-var (
-	ignoredRefreshResources = map[string]bool{
-		"/" + kube.EndpointsKind: true,
-	}
-)
+var ignoredRefreshResources = map[string]bool{
+	"/" + kube.EndpointsKind: true,
+}
 
 // skipAppRequeuing checks if the object is an API type which we want to skip requeuing against.
 // We ignore API types which have a high churn rate, and/or whose updates are irrelevant to the app
@@ -807,7 +805,6 @@ func (c *liveStateCache) handleModEvent(oldCluster *appv1.Cluster, newCluster *a
 			}()
 		}
 	}
-
 }
 
 func (c *liveStateCache) handleDeleteEvent(clusterServer string) {

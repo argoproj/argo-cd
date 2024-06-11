@@ -73,7 +73,7 @@ func NewCommand() *cobra.Command {
 	scheme := runtime.NewScheme()
 	_ = clientgoscheme.AddToScheme(scheme)
 	_ = appv1alpha1.AddToScheme(scheme)
-	var command = cobra.Command{
+	command := cobra.Command{
 		Use:   "controller",
 		Short: "Starts Argo CD ApplicationSet controller",
 		RunE: func(c *cobra.Command, args []string) error {
@@ -105,7 +105,7 @@ func NewCommand() *cobra.Command {
 				os.Exit(1)
 			}
 
-			// By default watch all namespace
+			// By default, watch all namespaces
 			var watchedNamespace string = ""
 
 			// If the applicationset-namespaces contains only one namespace it corresponds to the current namespace
@@ -139,7 +139,6 @@ func NewCommand() *cobra.Command {
 					DryRun: &dryRun,
 				},
 			})
-
 			if err != nil {
 				log.Error(err, "unable to start manager")
 				os.Exit(1)
@@ -172,7 +171,7 @@ func NewCommand() *cobra.Command {
 			}
 
 			repoClientset := apiclient.NewRepoServerClientset(argocdRepoServer, repoServerTimeoutSeconds, tlsConfig)
-			argoCDService, err := services.NewArgoCDService(argoCDDB, gitSubmoduleEnabled, repoClientset, enableNewGitFileGlobbing)
+			argoCDService, err := services.NewArgoCDService(argoCDDB.GetRepository, gitSubmoduleEnabled, repoClientset, enableNewGitFileGlobbing)
 			errors.CheckError(err)
 
 			terminalGenerators := map[string]generators.Generator{

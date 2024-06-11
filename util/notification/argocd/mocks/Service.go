@@ -17,9 +17,9 @@ type Service struct {
 	mock.Mock
 }
 
-// GetAppDetails provides a mock function with given fields: ctx, appSource, appName
-func (_m *Service) GetAppDetails(ctx context.Context, appSource *v1alpha1.ApplicationSource, appName string) (*shared.AppDetail, error) {
-	ret := _m.Called(ctx, appSource, appName)
+// GetAppDetails provides a mock function with given fields: ctx, app
+func (_m *Service) GetAppDetails(ctx context.Context, app *v1alpha1.Application) (*shared.AppDetail, error) {
+	ret := _m.Called(ctx, app)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetAppDetails")
@@ -27,19 +27,19 @@ func (_m *Service) GetAppDetails(ctx context.Context, appSource *v1alpha1.Applic
 
 	var r0 *shared.AppDetail
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, *v1alpha1.ApplicationSource, string) (*shared.AppDetail, error)); ok {
-		return rf(ctx, appSource, appName)
+	if rf, ok := ret.Get(0).(func(context.Context, *v1alpha1.Application) (*shared.AppDetail, error)); ok {
+		return rf(ctx, app)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, *v1alpha1.ApplicationSource, string) *shared.AppDetail); ok {
-		r0 = rf(ctx, appSource, appName)
+	if rf, ok := ret.Get(0).(func(context.Context, *v1alpha1.Application) *shared.AppDetail); ok {
+		r0 = rf(ctx, app)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*shared.AppDetail)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, *v1alpha1.ApplicationSource, string) error); ok {
-		r1 = rf(ctx, appSource, appName)
+	if rf, ok := ret.Get(1).(func(context.Context, *v1alpha1.Application) error); ok {
+		r1 = rf(ctx, app)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -47,9 +47,9 @@ func (_m *Service) GetAppDetails(ctx context.Context, appSource *v1alpha1.Applic
 	return r0, r1
 }
 
-// GetCommitMetadata provides a mock function with given fields: ctx, repoURL, commitSHA
-func (_m *Service) GetCommitMetadata(ctx context.Context, repoURL string, commitSHA string) (*shared.CommitMetadata, error) {
-	ret := _m.Called(ctx, repoURL, commitSHA)
+// GetCommitMetadata provides a mock function with given fields: ctx, repoURL, commitSHA, project
+func (_m *Service) GetCommitMetadata(ctx context.Context, repoURL string, commitSHA string, project string) (*shared.CommitMetadata, error) {
+	ret := _m.Called(ctx, repoURL, commitSHA, project)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetCommitMetadata")
@@ -57,19 +57,19 @@ func (_m *Service) GetCommitMetadata(ctx context.Context, repoURL string, commit
 
 	var r0 *shared.CommitMetadata
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, string, string) (*shared.CommitMetadata, error)); ok {
-		return rf(ctx, repoURL, commitSHA)
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, string) (*shared.CommitMetadata, error)); ok {
+		return rf(ctx, repoURL, commitSHA, project)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, string, string) *shared.CommitMetadata); ok {
-		r0 = rf(ctx, repoURL, commitSHA)
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, string) *shared.CommitMetadata); ok {
+		r0 = rf(ctx, repoURL, commitSHA, project)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*shared.CommitMetadata)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, string, string) error); ok {
-		r1 = rf(ctx, repoURL, commitSHA)
+	if rf, ok := ret.Get(1).(func(context.Context, string, string, string) error); ok {
+		r1 = rf(ctx, repoURL, commitSHA, project)
 	} else {
 		r1 = ret.Error(1)
 	}

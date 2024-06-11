@@ -30,14 +30,14 @@ func TestGetCallBack(t *testing.T) {
 	t.Run("custom proxy present", func(t *testing.T) {
 		proxy := "http://proxy:8888"
 		url, err := GetCallback(proxy)(nil)
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 		assert.Equal(t, proxy, url.String())
 	})
 	t.Run("custom proxy absent", func(t *testing.T) {
 		proxyEnv := "http://proxy:8888"
 		t.Setenv("http_proxy", "http://proxy:8888")
 		url, err := GetCallback("")(httptest.NewRequest(http.MethodGet, proxyEnv, nil))
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 		assert.Equal(t, proxyEnv, url.String())
 	})
 }

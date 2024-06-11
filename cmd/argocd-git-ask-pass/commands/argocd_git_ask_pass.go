@@ -23,7 +23,7 @@ const (
 )
 
 func NewCommand() *cobra.Command {
-	var command = cobra.Command{
+	command := cobra.Command{
 		Use:               cliName,
 		Short:             "Argo CD git credential helper",
 		DisableAutoGenTag: true,

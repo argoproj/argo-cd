@@ -3,13 +3,13 @@ package apiclient_test
 import (
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+
 	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/v2/reposerver/apiclient/mocks"
-	"github.com/stretchr/testify/assert"
 )
 
 func TestNewRepoServerClient_CorrectClientReturned(t *testing.T) {
-
 	mockClientset := &mocks.Clientset{
 		RepoServerServiceClient: &mocks.RepoServerServiceClient{},
 	}

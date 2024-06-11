@@ -18,6 +18,8 @@ import (
 	"google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/reflection"
 
+	"google.golang.org/grpc/keepalive"
+
 	"github.com/argoproj/argo-cd/v2/cmpserver/apiclient"
 	"github.com/argoproj/argo-cd/v2/cmpserver/plugin"
 	"github.com/argoproj/argo-cd/v2/common"
@@ -25,7 +27,6 @@ import (
 	"github.com/argoproj/argo-cd/v2/server/version"
 	"github.com/argoproj/argo-cd/v2/util/errors"
 	grpc_util "github.com/argoproj/argo-cd/v2/util/grpc"
-	"google.golang.org/grpc/keepalive"
 )
 
 // ArgoCDCMPServer is the config management plugin server implementation

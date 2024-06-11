@@ -6,7 +6,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/argoproj/argo-cd/v2/util/errors"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
@@ -17,6 +16,8 @@ import (
 	"k8s.io/client-go/kubernetes/fake"
 	kubetesting "k8s.io/client-go/testing"
 	"sigs.k8s.io/yaml"
+
+	"github.com/argoproj/argo-cd/v2/util/errors"
 )
 
 const (
@@ -24,16 +25,14 @@ const (
 	testBearerTokenTimeout = 5 * time.Second
 )
 
-var (
-	testClaims = ServiceAccountClaims{
-		Sub:                "system:serviceaccount:kube-system:argocd-manager",
-		Iss:                "kubernetes/serviceaccount",
-		Namespace:          "kube-system",
-		SecretName:         "argocd-manager-token-tj79r",
-		ServiceAccountName: "argocd-manager",
-		ServiceAccountUID:  "91dd37cf-8d92-11e9-a091-d65f2ae7fa8d",
-	}
-)
+var testClaims = ServiceAccountClaims{
+	Sub:                "system:serviceaccount:kube-system:argocd-manager",
+	Iss:                "kubernetes/serviceaccount",
+	Namespace:          "kube-system",
+	SecretName:         "argocd-manager-token-tj79r",
+	ServiceAccountName: "argocd-manager",
+	ServiceAccountUID:  "91dd37cf-8d92-11e9-a091-d65f2ae7fa8d",
+}
 
 func newServiceAccount() *corev1.ServiceAccount {
 	saBytes, err := os.ReadFile("./testdata/argocd-manager-sa.yaml")
@@ -177,7 +176,6 @@ func TestInstallClusterManagerRBAC(t *testing.T) {
 		assert.Error(t, err)
 		assert.Empty(t, token)
 	})
-
 }
 
 func TestUninstallClusterManagerRBAC(t *testing.T) {
@@ -224,11 +222,11 @@ func TestRotateServiceAccountSecrets(t *testing.T) {
 	saClient := kubeclientset.CoreV1().ServiceAccounts(testClaims.Namespace)
 	sa, err := saClient.Get(context.Background(), testClaims.ServiceAccountName, metav1.GetOptions{})
 	assert.NoError(t, err)
-	assert.Equal(t, sa.Secrets, []corev1.ObjectReference{
+	assert.Equal(t, []corev1.ObjectReference{
 		{
 			Name: "argocd-manager-token-abc123",
 		},
-	})
+	}, sa.Secrets)
 	secretsClient := kubeclientset.CoreV1().Secrets(testClaims.Namespace)
 	_, err = secretsClient.Get(context.Background(), testClaims.SecretName, metav1.GetOptions{})
 	assert.True(t, apierr.IsNotFound(err))
@@ -303,7 +301,7 @@ func Test_getOrCreateServiceAccountTokenSecret_NoSecretForSA(t *testing.T) {
 	}
 
 	sa := obj.(*corev1.ServiceAccount)
-	assert.Equal(t, 1, len(sa.Secrets))
+	assert.Len(t, sa.Secrets, 1)
 }
 
 func Test_getOrCreateServiceAccountTokenSecret_SAHasSecret(t *testing.T) {
@@ -354,7 +352,7 @@ func Test_getOrCreateServiceAccountTokenSecret_SAHasSecret(t *testing.T) {
 	}
 
 	sa := obj.(*corev1.ServiceAccount)
-	assert.Equal(t, 1, len(sa.Secrets))
+	assert.Len(t, sa.Secrets, 1)
 
 	// Adding if statement to prevent case where secret not found
 	// since accessing name by first index.

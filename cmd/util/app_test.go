@@ -27,7 +27,7 @@ func Test_setHelmOpt(t *testing.T) {
 	t.Run("IgnoreMissingValueFiles", func(t *testing.T) {
 		src := v1alpha1.ApplicationSource{}
 		setHelmOpt(&src, helmOpts{ignoreMissingValueFiles: true})
-		assert.Equal(t, true, src.Helm.IgnoreMissingValueFiles)
+		assert.True(t, src.Helm.IgnoreMissingValueFiles)
 	})
 	t.Run("ReleaseName", func(t *testing.T) {
 		src := v1alpha1.ApplicationSource{}
@@ -57,12 +57,12 @@ func Test_setHelmOpt(t *testing.T) {
 	t.Run("HelmPassCredentials", func(t *testing.T) {
 		src := v1alpha1.ApplicationSource{}
 		setHelmOpt(&src, helmOpts{passCredentials: true})
-		assert.Equal(t, true, src.Helm.PassCredentials)
+		assert.True(t, src.Helm.PassCredentials)
 	})
 	t.Run("HelmSkipCrds", func(t *testing.T) {
 		src := v1alpha1.ApplicationSource{}
 		setHelmOpt(&src, helmOpts{skipCrds: true})
-		assert.Equal(t, true, src.Helm.SkipCrds)
+		assert.True(t, src.Helm.SkipCrds)
 	})
 }
 
@@ -222,7 +222,7 @@ func Test_setAppSpecOptions(t *testing.T) {
 	})
 	t.Run("RetryLimit", func(t *testing.T) {
 		assert.NoError(t, f.SetFlag("sync-retry-limit", "5"))
-		assert.True(t, f.spec.SyncPolicy.Retry.Limit == 5)
+		assert.Equal(t, int64(5), f.spec.SyncPolicy.Retry.Limit)
 
 		assert.NoError(t, f.SetFlag("sync-retry-limit", "0"))
 		assert.Nil(t, f.spec.SyncPolicy.Retry)
@@ -230,7 +230,7 @@ func Test_setAppSpecOptions(t *testing.T) {
 	t.Run("Kustomize", func(t *testing.T) {
 		assert.NoError(t, f.SetFlag("kustomize-replica", "my-deployment=2"))
 		assert.NoError(t, f.SetFlag("kustomize-replica", "my-statefulset=4"))
-		assert.Equal(t, f.spec.Source.Kustomize.Replicas, v1alpha1.KustomizeReplicas{{Name: "my-deployment", Count: intstr.FromInt(2)}, {Name: "my-statefulset", Count: intstr.FromInt(4)}})
+		assert.Equal(t, v1alpha1.KustomizeReplicas{{Name: "my-deployment", Count: intstr.FromInt(2)}, {Name: "my-statefulset", Count: intstr.FromInt(4)}}, f.spec.Source.Kustomize.Replicas)
 	})
 }
 
@@ -264,21 +264,21 @@ func Test_setAppSpecOptionsMultiSourceApp(t *testing.T) {
 	})
 	t.Run("Helm - SourcePosition 0", func(t *testing.T) {
 		assert.NoError(t, f.SetFlagWithSourcePosition("helm-version", "v2", sourcePosition))
-		assert.Equal(t, len(f.spec.GetSources()), 2)
-		assert.Equal(t, f.spec.GetSources()[sourcePosition].Helm.Version, "v2")
+		assert.Len(t, f.spec.GetSources(), 2)
+		assert.Equal(t, "v2", f.spec.GetSources()[sourcePosition].Helm.Version)
 	})
 	t.Run("Kustomize", func(t *testing.T) {
 		assert.NoError(t, f.SetFlagWithSourcePosition("kustomize-replica", "my-deployment=2", sourcePosition1))
-		assert.Equal(t, f.spec.Sources[sourcePosition1-1].Kustomize.Replicas, v1alpha1.KustomizeReplicas{{Name: "my-deployment", Count: intstr.FromInt(2)}})
+		assert.Equal(t, v1alpha1.KustomizeReplicas{{Name: "my-deployment", Count: intstr.FromInt(2)}}, f.spec.Sources[sourcePosition1-1].Kustomize.Replicas)
 		assert.NoError(t, f.SetFlagWithSourcePosition("kustomize-replica", "my-deployment=4", sourcePosition2))
-		assert.Equal(t, f.spec.Sources[sourcePosition2-1].Kustomize.Replicas, v1alpha1.KustomizeReplicas{{Name: "my-deployment", Count: intstr.FromInt(4)}})
+		assert.Equal(t, v1alpha1.KustomizeReplicas{{Name: "my-deployment", Count: intstr.FromInt(4)}}, f.spec.Sources[sourcePosition2-1].Kustomize.Replicas)
 	})
 	t.Run("Helm", func(t *testing.T) {
 		assert.NoError(t, f.SetFlagWithSourcePosition("helm-version", "v2", sourcePosition1))
 		assert.NoError(t, f.SetFlagWithSourcePosition("helm-version", "v3", sourcePosition2))
-		assert.Equal(t, len(f.spec.GetSources()), 2)
-		assert.Equal(t, f.spec.GetSources()[sourcePosition1-1].Helm.Version, "v2")
-		assert.Equal(t, f.spec.GetSources()[sourcePosition2-1].Helm.Version, "v3")
+		assert.Len(t, f.spec.GetSources(), 2)
+		assert.Equal(t, "v2", f.spec.GetSources()[sourcePosition1-1].Helm.Version)
+		assert.Equal(t, "v3", f.spec.GetSources()[sourcePosition2-1].Helm.Version)
 	})
 }
 
@@ -358,11 +358,10 @@ func TestReadAppsFromURI(t *testing.T) {
 	apps := make([]*v1alpha1.Application, 0)
 	err = readAppsFromURI(file.Name(), &apps)
 	assert.NoError(t, err)
-	assert.Equal(t, 2, len(apps))
+	assert.Len(t, apps, 2)
 
 	assert.Equal(t, "sth1", apps[0].Name)
 	assert.Equal(t, "sth2", apps[1].Name)
-
 }
 
 func TestConstructAppFromStdin(t *testing.T) {
@@ -389,24 +388,21 @@ func TestConstructAppFromStdin(t *testing.T) {
 		log.Fatal(err)
 	}
 	assert.NoError(t, err)
-	assert.Equal(t, 2, len(apps))
+	assert.Len(t, apps, 2)
 	assert.Equal(t, "sth1", apps[0].Name)
 	assert.Equal(t, "sth2", apps[1].Name)
-
 }
 
 func TestConstructBasedOnName(t *testing.T) {
 	apps, err := ConstructApps("", "test", []string{}, []string{}, []string{}, AppOptions{}, nil)
 
 	assert.NoError(t, err)
-	assert.Equal(t, 1, len(apps))
+	assert.Len(t, apps, 1)
 	assert.Equal(t, "test", apps[0].Name)
 }
 
 func TestFilterResources(t *testing.T) {
-
 	t.Run("Filter by ns", func(t *testing.T) {
-
 		resources := []*v1alpha1.ResourceDiff{
 			{
 				LiveState: "{\"apiVersion\":\"v1\",\"kind\":\"Service\",\"metadata\":{\"name\":\"test-helm-guestbook\",\"namespace\":\"argocd\"},\"spec\":{\"selector\":{\"app\":\"helm-guestbook\",\"release\":\"test\"},\"sessionAffinity\":\"None\",\"type\":\"ClusterIP\"},\"status\":{\"loadBalancer\":{}}}",
@@ -422,7 +418,6 @@ func TestFilterResources(t *testing.T) {
 	})
 
 	t.Run("Filter by kind", func(t *testing.T) {
-
 		resources := []*v1alpha1.ResourceDiff{
 			{
 				LiveState: "{\"apiVersion\":\"v1\",\"kind\":\"Service\",\"metadata\":{\"name\":\"test-helm-guestbook\",\"namespace\":\"argocd\"},\"spec\":{\"selector\":{\"app\":\"helm-guestbook\",\"release\":\"test\"},\"sessionAffinity\":\"None\",\"type\":\"ClusterIP\"},\"status\":{\"loadBalancer\":{}}}",
@@ -438,7 +433,6 @@ func TestFilterResources(t *testing.T) {
 	})
 
 	t.Run("Filter by name", func(t *testing.T) {
-
 		resources := []*v1alpha1.ResourceDiff{
 			{
 				LiveState: "{\"apiVersion\":\"v1\",\"kind\":\"Service\",\"metadata\":{\"name\":\"test-helm-guestbook\",\"namespace\":\"argocd\"},\"spec\":{\"selector\":{\"app\":\"helm-guestbook\",\"release\":\"test\"},\"sessionAffinity\":\"None\",\"type\":\"ClusterIP\"},\"status\":{\"loadBalancer\":{}}}",

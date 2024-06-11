@@ -40,11 +40,11 @@ func TestUpdateProjects_FindMatchingProject(t *testing.T) {
 
 	fooProj, err := clientset.ArgoprojV1alpha1().AppProjects(namespace).Get(ctx, "foo", v1.GetOptions{})
 	assert.NoError(t, err)
-	assert.Len(t, fooProj.Spec.Roles[0].Policies, 0)
+	assert.Empty(t, fooProj.Spec.Roles[0].Policies)
 
 	barProj, err := clientset.ArgoprojV1alpha1().AppProjects(namespace).Get(ctx, "bar", v1.GetOptions{})
 	assert.NoError(t, err)
-	assert.EqualValues(t, barProj.Spec.Roles[0].Policies, []string{"p, proj:bar:test, *, set, bar/*, allow"})
+	assert.EqualValues(t, []string{"p, proj:bar:test, *, set, bar/*, allow"}, barProj.Spec.Roles[0].Policies)
 }
 
 func TestUpdateProjects_FindMatchingRole(t *testing.T) {
@@ -59,8 +59,8 @@ func TestUpdateProjects_FindMatchingRole(t *testing.T) {
 
 	proj, err := clientset.ArgoprojV1alpha1().AppProjects(namespace).Get(ctx, "proj", v1.GetOptions{})
 	assert.NoError(t, err)
-	assert.EqualValues(t, proj.Spec.Roles[0].Policies, []string{"p, proj:proj:foo, *, set, proj/*, allow"})
-	assert.Len(t, proj.Spec.Roles[1].Policies, 0)
+	assert.EqualValues(t, []string{"p, proj:proj:foo, *, set, proj/*, allow"}, proj.Spec.Roles[0].Policies)
+	assert.Empty(t, proj.Spec.Roles[1].Policies)
 }
 
 func TestGetModification_SetPolicy(t *testing.T) {

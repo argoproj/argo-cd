@@ -1,5 +1,7 @@
 package errors
 
+import "errors"
+
 type credentialsConfigurationError struct {
 	causingError error
 }
@@ -15,6 +17,6 @@ func NewCredentialsConfigurationError(err error) error {
 
 // IsCredentialsConfigurationError checks if the given error is a wrapped credentials configuration error.
 func IsCredentialsConfigurationError(err error) bool {
-	_, ok := err.(*credentialsConfigurationError)
-	return ok
+	var ccErr *credentialsConfigurationError
+	return errors.As(err, &ccErr)
 }
