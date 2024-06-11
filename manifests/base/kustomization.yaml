@@ -10,6 +10,7 @@ resources:
 - ./application-controller
 - ./dex
 - ./repo-server
+- ./commit-server
 - ./server
 - ./config
 - ./redis

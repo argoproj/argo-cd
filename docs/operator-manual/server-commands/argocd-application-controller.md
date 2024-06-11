@@ -27,6 +27,7 @@ argocd-application-controller [flags]
       --client-certificate string                                 Path to a client certificate file for TLS
       --client-key string                                         Path to a client key file for TLS
       --cluster string                                            The name of the kubeconfig cluster to use
+      --commit-server string                                      Commit server address. (default "argocd-commit-server:8086")
       --context string                                            The name of the kubeconfig context to use
       --default-cache-expiration duration                         Cache expiration default (default 24h0m0s)
       --disable-compression                                       If true, opt-out of response compression for all requests to the server

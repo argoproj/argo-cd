@@ -383,20 +383,20 @@ spec:
                                       type: object
                                     hydrateTo:
                                       properties:
-                                        targetRevision:
+                                        targetBranch:
                                           type: string
                                       required:
-                                      - targetRevision
+                                      - targetBranch
                                       type: object
                                     syncSource:
                                       properties:
                                         path:
                                           type: string
-                                        targetRevision:
+                                        targetBranch:
                                           type: string
                                       required:
                                       - path
-                                      - targetRevision
+                                      - targetBranch
                                       type: object
                                   required:
                                   - drySource
@@ -1027,20 +1027,20 @@ spec:
                                       type: object
                                     hydrateTo:
                                       properties:
-                                        targetRevision:
+                                        targetBranch:
                                           type: string
                                       required:
-                                      - targetRevision
+                                      - targetBranch
                                       type: object
                                     syncSource:
                                       properties:
                                         path:
                                           type: string
-                                        targetRevision:
+                                        targetBranch:
                                           type: string
                                       required:
                                       - path
-                                      - targetRevision
+                                      - targetBranch
                                       type: object
                                   required:
                                   - drySource
@@ -1674,20 +1674,20 @@ spec:
                                       type: object
                                     hydrateTo:
                                       properties:
-                                        targetRevision:
+                                        targetBranch:
                                           type: string
                                       required:
-                                      - targetRevision
+                                      - targetBranch
                                       type: object
                                     syncSource:
                                       properties:
                                         path:
                                           type: string
-                                        targetRevision:
+                                        targetBranch:
                                           type: string
                                       required:
                                       - path
-                                      - targetRevision
+                                      - targetBranch
                                       type: object
                                   required:
                                   - drySource
@@ -2301,20 +2301,20 @@ spec:
                                       type: object
                                     hydrateTo:
                                       properties:
-                                        targetRevision:
+                                        targetBranch:
                                           type: string
                                       required:
-                                      - targetRevision
+                                      - targetBranch
                                       type: object
                                     syncSource:
                                       properties:
                                         path:
                                           type: string
-                                        targetRevision:
+                                        targetBranch:
                                           type: string
                                       required:
                                       - path
-                                      - targetRevision
+                                      - targetBranch
                                       type: object
                                   required:
                                   - drySource
@@ -2951,20 +2951,20 @@ spec:
                                                 type: object
                                               hydrateTo:
                                                 properties:
-                                                  targetRevision:
+                                                  targetBranch:
                                                     type: string
                                                 required:
-                                                - targetRevision
+                                                - targetBranch
                                                 type: object
                                               syncSource:
                                                 properties:
                                                   path:
                                                     type: string
-                                                  targetRevision:
+                                                  targetBranch:
                                                     type: string
                                                 required:
                                                 - path
-                                                - targetRevision
+                                                - targetBranch
                                                 type: object
                                             required:
                                             - drySource
@@ -3595,20 +3595,20 @@ spec:
                                                 type: object
                                               hydrateTo:
                                                 properties:
-                                                  targetRevision:
+                                                  targetBranch:
                                                     type: string
                                                 required:
-                                                - targetRevision
+                                                - targetBranch
                                                 type: object
                                               syncSource:
                                                 properties:
                                                   path:
                                                     type: string
-                                                  targetRevision:
+                                                  targetBranch:
                                                     type: string
                                                 required:
                                                 - path
-                                                - targetRevision
+                                                - targetBranch
                                                 type: object
                                             required:
                                             - drySource
@@ -4242,20 +4242,20 @@ spec:
                                                 type: object
                                               hydrateTo:
                                                 properties:
-                                                  targetRevision:
+                                                  targetBranch:
                                                     type: string
                                                 required:
-                                                - targetRevision
+                                                - targetBranch
                                                 type: object
                                               syncSource:
                                                 properties:
                                                   path:
                                                     type: string
-                                                  targetRevision:
+                                                  targetBranch:
                                                     type: string
                                                 required:
                                                 - path
-                                                - targetRevision
+                                                - targetBranch
                                                 type: object
                                             required:
                                             - drySource
@@ -4869,20 +4869,20 @@ spec:
                                                 type: object
                                               hydrateTo:
                                                 properties:
-                                                  targetRevision:
+                                                  targetBranch:
                                                     type: string
                                                 required:
-                                                - targetRevision
+                                                - targetBranch
                                                 type: object
                                               syncSource:
                                                 properties:
                                                   path:
                                                     type: string
-                                                  targetRevision:
+                                                  targetBranch:
                                                     type: string
                                                 required:
                                                 - path
-                                                - targetRevision
+                                                - targetBranch
                                                 type: object
                                             required:
                                             - drySource
@@ -5504,20 +5504,20 @@ spec:
                                                 type: object
                                               hydrateTo:
                                                 properties:
-                                                  targetRevision:
+                                                  targetBranch:
                                                     type: string
                                                 required:
-                                                - targetRevision
+                                                - targetBranch
                                                 type: object
                                               syncSource:
                                                 properties:
                                                   path:
                                                     type: string
-                                                  targetRevision:
+                                                  targetBranch:
                                                     type: string
                                                 required:
                                                 - path
-                                                - targetRevision
+                                                - targetBranch
                                                 type: object
                                             required:
                                             - drySource
@@ -6321,20 +6321,20 @@ spec:
                                                 type: object
                                               hydrateTo:
                                                 properties:
-                                                  targetRevision:
+                                                  targetBranch:
                                                     type: string
                                                 required:
-                                                - targetRevision
+                                                - targetBranch
                                                 type: object
                                               syncSource:
                                                 properties:
                                                   path:
                                                     type: string
-                                                  targetRevision:
+                                                  targetBranch:
                                                     type: string
                                                 required:
                                                 - path
-                                                - targetRevision
+                                                - targetBranch
                                                 type: object
                                             required:
                                             - drySource
@@ -7133,20 +7133,20 @@ spec:
                                                 type: object
                                               hydrateTo:
                                                 properties:
-                                                  targetRevision:
+                                                  targetBranch:
                                                     type: string
                                                 required:
-                                                - targetRevision
+                                                - targetBranch
                                                 type: object
                                               syncSource:
                                                 properties:
                                                   path:
                                                     type: string
-                                                  targetRevision:
+                                                  targetBranch:
                                                     type: string
                                                 required:
                                                 - path
-                                                - targetRevision
+                                                - targetBranch
                                                 type: object
                                             required:
                                             - drySource
@@ -7775,20 +7775,20 @@ spec:
                                       type: object
                                     hydrateTo:
                                       properties:
-                                        targetRevision:
+                                        targetBranch:
                                           type: string
                                       required:
-                                      - targetRevision
+                                      - targetBranch
                                       type: object
                                     syncSource:
                                       properties:
                                         path:
                                           type: string
-                                        targetRevision:
+                                        targetBranch:
                                           type: string
                                       required:
                                       - path
-                                      - targetRevision
+                                      - targetBranch
                                       type: object
                                   required:
                                   - drySource
@@ -8427,20 +8427,20 @@ spec:
                                                 type: object
                                               hydrateTo:
                                                 properties:
-                                                  targetRevision:
+                                                  targetBranch:
                                                     type: string
                                                 required:
-                                                - targetRevision
+                                                - targetBranch
                                                 type: object
                                               syncSource:
                                                 properties:
                                                   path:
                                                     type: string
-                                                  targetRevision:
+                                                  targetBranch:
                                                     type: string
                                                 required:
                                                 - path
-                                                - targetRevision
+                                                - targetBranch
                                                 type: object
                                             required:
                                             - drySource
@@ -9071,20 +9071,20 @@ spec:
                                                 type: object
                                               hydrateTo:
                                                 properties:
-                                                  targetRevision:
+                                                  targetBranch:
                                                     type: string
                                                 required:
-                                                - targetRevision
+                                                - targetBranch
                                                 type: object
                                               syncSource:
                                                 properties:
                                                   path:
                                                     type: string
-                                                  targetRevision:
+                                                  targetBranch:
                                                     type: string
                                                 required:
                                                 - path
-                                                - targetRevision
+                                                - targetBranch
                                                 type: object
                                             required:
                                             - drySource
@@ -9718,20 +9718,20 @@ spec:
                                                 type: object
                                               hydrateTo:
                                                 properties:
-                                                  targetRevision:
+                                                  targetBranch:
                                                     type: string
                                                 required:
-                                                - targetRevision
+                                                - targetBranch
                                                 type: object
                                               syncSource:
                                                 properties:
                                                   path:
                                                     type: string
-                                                  targetRevision:
+                                                  targetBranch:
                                                     type: string
                                                 required:
                                                 - path
-                                                - targetRevision
+                                                - targetBranch
                                                 type: object
                                             required:
                                             - drySource
@@ -10345,20 +10345,20 @@ spec:
                                                 type: object
                                               hydrateTo:
                                                 properties:
-                                                  targetRevision:
+                                                  targetBranch:
                                                     type: string
                                                 required:
-                                                - targetRevision
+                                                - targetBranch
                                                 type: object
                                               syncSource:
                                                 properties:
                                                   path:
                                                     type: string
-                                                  targetRevision:
+                                                  targetBranch:
                                                     type: string
                                                 required:
                                                 - path
-                                                - targetRevision
+                                                - targetBranch
                                                 type: object
                                             required:
                                             - drySource
@@ -10980,20 +10980,20 @@ spec:
                                                 type: object
                                               hydrateTo:
                                                 properties:
-                                                  targetRevision:
+                                                  targetBranch:
                                                     type: string
                                                 required:
-                                                - targetRevision
+                                                - targetBranch
                                                 type: object
                                               syncSource:
                                                 properties:
                                                   path:
                                                     type: string
-                                                  targetRevision:
+                                                  targetBranch:
                                                     type: string
                                                 required:
                                                 - path
-                                                - targetRevision
+                                                - targetBranch
                                                 type: object
                                             required:
                                             - drySource
@@ -11797,20 +11797,20 @@ spec:
                                                 type: object
                                               hydrateTo:
                                                 properties:
-                                                  targetRevision:
+                                                  targetBranch:
                                                     type: string
                                                 required:
-                                                - targetRevision
+                                                - targetBranch
                                                 type: object
                                               syncSource:
                                                 properties:
                                                   path:
                                                     type: string
-                                                  targetRevision:
+                                                  targetBranch:
                                                     type: string
                                                 required:
                                                 - path
-                                                - targetRevision
+                                                - targetBranch
                                                 type: object
                                             required:
                                             - drySource
@@ -12609,20 +12609,20 @@ spec:
                                                 type: object
                                               hydrateTo:
                                                 properties:
-                                                  targetRevision:
+                                                  targetBranch:
                                                     type: string
                                                 required:
-                                                - targetRevision
+                                                - targetBranch
                                                 type: object
                                               syncSource:
                                                 properties:
                                                   path:
                                                     type: string
-                                                  targetRevision:
+                                                  targetBranch:
                                                     type: string
                                                 required:
                                                 - path
-                                                - targetRevision
+                                                - targetBranch
                                                 type: object
                                             required:
                                             - drySource
@@ -13255,20 +13255,20 @@ spec:
                                       type: object
                                     hydrateTo:
                                       properties:
-                                        targetRevision:
+                                        targetBranch:
                                           type: string
                                       required:
-                                      - targetRevision
+                                      - targetBranch
                                       type: object
                                     syncSource:
                                       properties:
                                         path:
                                           type: string
-                                        targetRevision:
+                                        targetBranch:
                                           type: string
                                       required:
                                       - path
-                                      - targetRevision
+                                      - targetBranch
                                       type: object
                                   required:
                                   - drySource
@@ -13889,20 +13889,20 @@ spec:
                                       type: object
                                     hydrateTo:
                                       properties:
-                                        targetRevision:
+                                        targetBranch:
                                           type: string
                                       required:
-                                      - targetRevision
+                                      - targetBranch
                                       type: object
                                     syncSource:
                                       properties:
                                         path:
                                           type: string
-                                        targetRevision:
+                                        targetBranch:
                                           type: string
                                       required:
                                       - path
-                                      - targetRevision
+                                      - targetBranch
                                       type: object
                                   required:
                                   - drySource
@@ -14706,20 +14706,20 @@ spec:
                                       type: object
                                     hydrateTo:
                                       properties:
-                                        targetRevision:
+                                        targetBranch:
                                           type: string
                                       required:
-                                      - targetRevision
+                                      - targetBranch
                                       type: object
                                     syncSource:
                                       properties:
                                         path:
                                           type: string
-                                        targetRevision:
+                                        targetBranch:
                                           type: string
                                       required:
                                       - path
-                                      - targetRevision
+                                      - targetBranch
                                       type: object
                                   required:
                                   - drySource
@@ -15518,20 +15518,20 @@ spec:
                                       type: object
                                     hydrateTo:
                                       properties:
-                                        targetRevision:
+                                        targetBranch:
                                           type: string
                                       required:
-                                      - targetRevision
+                                      - targetBranch
                                       type: object
                                     syncSource:
                                       properties:
                                         path:
                                           type: string
-                                        targetRevision:
+                                        targetBranch:
                                           type: string
                                       required:
                                       - path
-                                      - targetRevision
+                                      - targetBranch
                                       type: object
                                   required:
                                   - drySource
@@ -16235,20 +16235,20 @@ spec:
                             type: object
                           hydrateTo:
                             properties:
-                              targetRevision:
+                              targetBranch:
                                 type: string
                             required:
-                            - targetRevision
+                            - targetBranch
                             type: object
                           syncSource:
                             properties:
                               path:
                                 type: string
-                              targetRevision:
+                              targetBranch:
                                 type: string
                             required:
                             - path
-                            - targetRevision
+                            - targetBranch
                             type: object
                         required:
                         - drySource

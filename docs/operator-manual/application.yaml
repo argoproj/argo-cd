@@ -177,6 +177,17 @@ spec:
       path: guestbook  # This has no meaning for Helm charts pulled directly from a Helm repo instead of git.
       ref: my-repo  # For Helm, acts as a reference to this source for fetching values files from this source. Has no meaning when under `source` field
 
+  sourceHydrator:
+    drySource:
+      repoURL:
+      path:
+      targetRevision:
+    syncSource:
+      targetBranch:
+      path:
+    hydrateTo:
+      targetBranch:
+
   # Destination cluster and namespace to deploy the application
   destination:
     # cluster API URL

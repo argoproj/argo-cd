@@ -1,144 +1,62 @@
 package commit
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
-	"net/http"
+	"github.com/argoproj/argo-cd/v2/applicationset/services/github_app_auth"
+	"github.com/argoproj/argo-cd/v2/commitserver/apiclient"
+	securejoin "github.com/cyphar/filepath-securejoin"
+	"github.com/google/uuid"
+	log "github.com/sirupsen/logrus"
+	"gopkg.in/yaml.v3"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"os"
 	"os/exec"
 	"path"
 	"strings"
 	"text/template"
-	"time"
-
-	"github.com/argoproj/argo-cd/v2/applicationset/services/github_app_auth"
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/util/db"
-	"github.com/bradleyfalzon/ghinstallation/v2"
-	securejoin "github.com/cyphar/filepath-securejoin"
-	"github.com/google/go-github/v35/github"
-	"github.com/google/uuid"
-	log "github.com/sirupsen/logrus"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"sigs.k8s.io/yaml"
 )
 
-/**
-The commit package provides a way for the controller to push manifests to git.
-*/
-
-type Service interface {
-	Commit(ManifestsRequest) (ManifestsResponse, error)
+type Service struct {
 }
 
-type ManifestsRequest struct {
-	RepoURL       string
-	SyncBranch    string
-	TargetBranch  string
-	DrySHA        string
-	CommitMessage string
-	CommitTime    time.Time
-	Paths         []PathDetails
+func NewService() *Service {
+	return &Service{}
 }
 
-type PathDetails struct {
-	Path      string
-	Manifests []ManifestDetails
-	Commands  []string
-	ReadmeDetails
-}
-
-type ManifestDetails struct {
-	Manifest unstructured.Unstructured
-}
-
-type ReadmeDetails struct {
-}
-
-type ManifestsResponse struct {
-	RequestId string
-}
-
-func NewService(db db.ArgoDB) Service {
-	return &service{db: db}
-}
-
-type service struct {
-	db db.ArgoDB
-}
-
-func isGitHubApp(cred *v1alpha1.Repository) bool {
-	return cred.GithubAppPrivateKey != "" && cred.GithubAppId != 0 && cred.GithubAppInstallationId != 0
-}
-
-// Client builds a github client for the given app authentication.
-func getAppInstallation(g github_app_auth.Authentication) (*ghinstallation.Transport, error) {
-	rt, err := ghinstallation.New(http.DefaultTransport, g.Id, g.InstallationId, []byte(g.PrivateKey))
-	if err != nil {
-		return nil, fmt.Errorf("failed to create github app install: %w", err)
-	}
-	return rt, nil
-}
-
-func getGitHubInstallationClient(rt *ghinstallation.Transport) *github.Client {
-	httpClient := http.Client{Transport: rt}
-	client := github.NewClient(&httpClient)
-	return client
-}
-
-func getGitHubAppClient(g github_app_auth.Authentication) (*github.Client, error) {
-	var client *github.Client
-	var err error
-
-	// This creates the app authenticated with the bearer JWT, not the installation token.
-	rt, err := ghinstallation.NewAppsTransport(http.DefaultTransport, g.Id, []byte(g.PrivateKey))
-	if err != nil {
-		return nil, fmt.Errorf("failed to create github app: %w", err)
-	}
-
-	httpClient := http.Client{Transport: rt}
-	client = github.NewClient(&httpClient)
-	return client, err
-
-}
-
-func (s *service) Commit(r ManifestsRequest) (ManifestsResponse, error) {
+func (s *Service) Commit(ctx context.Context, r *apiclient.ManifestsRequest) (*apiclient.ManifestsResponse, error) {
 	var authorName, authorEmail, basicAuth string
 
-	ctx := context.TODO()
-	logCtx := log.WithFields(log.Fields{"repo": r.RepoURL, "branch": r.TargetBranch, "drySHA": r.DrySHA})
+	logCtx := log.WithFields(log.Fields{"repo": r.RepoUrl, "branch": r.TargetBranch, "drySHA": r.DrySha})
 
-	repo, err := s.db.GetHydratorCredentials(ctx, r.RepoURL)
-	if err != nil {
-		return ManifestsResponse{}, fmt.Errorf("failed to get git credentials: %w", err)
-	}
-	if isGitHubApp(repo) {
+	if isGitHubApp(r.Repo) {
 		info := github_app_auth.Authentication{
-			Id:             repo.GithubAppId,
-			InstallationId: repo.GithubAppInstallationId,
-			PrivateKey:     repo.GithubAppPrivateKey,
+			Id:             r.Repo.GithubAppId,
+			InstallationId: r.Repo.GithubAppInstallationId,
+			PrivateKey:     r.Repo.GithubAppPrivateKey,
 		}
 		appInstall, err := getAppInstallation(info)
 		if err != nil {
-			return ManifestsResponse{}, err
+			return &apiclient.ManifestsResponse{}, err
 		}
 		token, err := appInstall.Token(ctx)
 		if err != nil {
-			return ManifestsResponse{}, fmt.Errorf("failed to get access token: %w", err)
+			return &apiclient.ManifestsResponse{}, fmt.Errorf("failed to get access token: %w", err)
 		}
 		client, err := getGitHubAppClient(info)
 		if err != nil {
-			return ManifestsResponse{}, fmt.Errorf("cannot create github client: %w", err)
+			return &apiclient.ManifestsResponse{}, fmt.Errorf("cannot create github client: %w", err)
 		}
 		app, _, err := client.Apps.Get(ctx, "")
 		if err != nil {
-			return ManifestsResponse{}, fmt.Errorf("cannot get app info: %w", err)
+			return &apiclient.ManifestsResponse{}, fmt.Errorf("cannot get app info: %w", err)
 		}
 		appLogin := fmt.Sprintf("%s[bot]", app.GetSlug())
 		user, _, err := getGitHubInstallationClient(appInstall).Users.Get(ctx, appLogin)
 		if err != nil {
-			return ManifestsResponse{}, fmt.Errorf("cannot get app user info: %w", err)
+			return &apiclient.ManifestsResponse{}, fmt.Errorf("cannot get app user info: %w", err)
 		}
 		authorName = user.GetLogin()
 		authorEmail = fmt.Sprintf("%d+%s@users.noreply.github.com", user.GetID(), user.GetLogin())
@@ -150,13 +68,13 @@ func (s *service) Commit(r ManifestsRequest) (ManifestsResponse, error) {
 	logCtx.Debug("Creating temp dir")
 	dirName, err := uuid.NewRandom()
 	if err != nil {
-		return ManifestsResponse{}, fmt.Errorf("failed to generate a uuid to create temp dir: %w", err)
+		return &apiclient.ManifestsResponse{}, fmt.Errorf("failed to generate a uuid to create temp dir: %w", err)
 	}
 	// Don't need SecureJoin here, both parts are safe.
 	dirPath := path.Join("/tmp/_commit-service", dirName.String())
 	err = os.MkdirAll(dirPath, os.ModePerm)
 	if err != nil {
-		return ManifestsResponse{}, fmt.Errorf("failed to create temp dir: %w", err)
+		return &apiclient.ManifestsResponse{}, fmt.Errorf("failed to create temp dir: %w", err)
 	}
 	defer func() {
 		err := os.RemoveAll(dirPath)
@@ -166,14 +84,16 @@ func (s *service) Commit(r ManifestsRequest) (ManifestsResponse, error) {
 	}()
 
 	// Clone the repo into the temp dir using the git CLI
-	logCtx.Debugf("Cloning repo %s", r.RepoURL)
-	authRepoUrl := r.RepoURL
+	logCtx.Debugf("Cloning repo %s", r.RepoUrl)
+	authRepoUrl := r.RepoUrl
 	if basicAuth != "" && strings.HasPrefix(authRepoUrl, "https://github.com/") {
 		authRepoUrl = fmt.Sprintf("https://%s@github.com/%s", basicAuth, strings.TrimPrefix(authRepoUrl, "https://github.com/"))
 	}
-	err = exec.Command("git", "clone", authRepoUrl, dirPath).Run()
+	cloneCmd := exec.Command("git", "clone", authRepoUrl, dirPath)
+	out, err := cloneCmd.CombinedOutput()
 	if err != nil {
-		return ManifestsResponse{}, fmt.Errorf("failed to clone repo: %w", err)
+		logCtx.WithError(err).WithField("output", string(out)).Error("failed to clone repo")
+		return &apiclient.ManifestsResponse{}, fmt.Errorf("failed to clone repo: %w", err)
 	}
 
 	if basicAuth != "" {
@@ -182,10 +102,10 @@ func (s *service) Commit(r ManifestsRequest) (ManifestsResponse, error) {
 		logCtx.Debugf("Setting auth")
 		authCmd := exec.Command("git", "config", fmt.Sprintf("url.\"https://%s@github.com/\".insteadOf", basicAuth), "https://github.com/")
 		authCmd.Dir = dirPath
-		out, err := authCmd.CombinedOutput()
+		out, err = authCmd.CombinedOutput()
 		if err != nil {
 			logCtx.WithError(err).WithField("output", string(out)).Error("failed to set auth")
-			return ManifestsResponse{}, fmt.Errorf("failed to set auth: %w", err)
+			return &apiclient.ManifestsResponse{}, fmt.Errorf("failed to set auth: %w", err)
 		}
 	}
 
@@ -194,10 +114,10 @@ func (s *service) Commit(r ManifestsRequest) (ManifestsResponse, error) {
 		logCtx.Debugf("Setting author name %s", authorName)
 		authorCmd := exec.Command("git", "config", "user.name", authorName)
 		authorCmd.Dir = dirPath
-		out, err := authorCmd.CombinedOutput()
+		out, err = authorCmd.CombinedOutput()
 		if err != nil {
 			logCtx.WithError(err).WithField("output", string(out)).Error("failed to set author name")
-			return ManifestsResponse{}, fmt.Errorf("failed to set author name: %w", err)
+			return &apiclient.ManifestsResponse{}, fmt.Errorf("failed to set author name: %w", err)
 		}
 	}
 
@@ -206,10 +126,10 @@ func (s *service) Commit(r ManifestsRequest) (ManifestsResponse, error) {
 		logCtx.Debugf("Setting author email %s", authorEmail)
 		emailCmd := exec.Command("git", "config", "user.email", authorEmail)
 		emailCmd.Dir = dirPath
-		out, err := emailCmd.CombinedOutput()
+		out, err = emailCmd.CombinedOutput()
 		if err != nil {
 			logCtx.WithError(err).WithField("output", string(out)).Error("failed to set author email")
-			return ManifestsResponse{}, fmt.Errorf("failed to set author email: %w", err)
+			return &apiclient.ManifestsResponse{}, fmt.Errorf("failed to set author email: %w", err)
 		}
 	}
 
@@ -217,7 +137,7 @@ func (s *service) Commit(r ManifestsRequest) (ManifestsResponse, error) {
 	logCtx.Debugf("Checking out sync branch %s", r.SyncBranch)
 	checkoutCmd := exec.Command("git", "checkout", r.SyncBranch)
 	checkoutCmd.Dir = dirPath
-	out, err := checkoutCmd.CombinedOutput()
+	out, err = checkoutCmd.CombinedOutput()
 	if err != nil {
 		// If the sync branch doesn't exist, create it as an orphan branch.
 		if strings.Contains(string(out), "did not match any file(s) known to git") {
@@ -227,11 +147,11 @@ func (s *service) Commit(r ManifestsRequest) (ManifestsResponse, error) {
 			out, err = checkoutCmd.CombinedOutput()
 			if err != nil {
 				logCtx.WithError(err).WithField("output", string(out)).Error("failed to create orphan branch")
-				return ManifestsResponse{}, fmt.Errorf("failed to create orphan branch: %w", err)
+				return &apiclient.ManifestsResponse{}, fmt.Errorf("failed to create orphan branch: %w", err)
 			}
 		} else {
 			logCtx.WithError(err).WithField("output", string(out)).Error("failed to checkout sync branch")
-			return ManifestsResponse{}, fmt.Errorf("failed to checkout sync branch: %w", err)
+			return &apiclient.ManifestsResponse{}, fmt.Errorf("failed to checkout sync branch: %w", err)
 		}
 
 		// Make an empty initial commit.
@@ -241,7 +161,7 @@ func (s *service) Commit(r ManifestsRequest) (ManifestsResponse, error) {
 		out, err = commitCmd.CombinedOutput()
 		if err != nil {
 			logCtx.WithError(err).WithField("output", string(out)).Error("failed to commit initial commit")
-			return ManifestsResponse{}, fmt.Errorf("failed to commit initial commit: %w", err)
+			return &apiclient.ManifestsResponse{}, fmt.Errorf("failed to commit initial commit: %w", err)
 		}
 
 		// Push the commit.
@@ -251,7 +171,7 @@ func (s *service) Commit(r ManifestsRequest) (ManifestsResponse, error) {
 		out, err = pushCmd.CombinedOutput()
 		if err != nil {
 			logCtx.WithError(err).WithField("output", string(out)).Error("failed to push sync branch")
-			return ManifestsResponse{}, fmt.Errorf("failed to push sync branch: %w", err)
+			return &apiclient.ManifestsResponse{}, fmt.Errorf("failed to push sync branch: %w", err)
 		}
 	}
 
@@ -270,7 +190,7 @@ func (s *service) Commit(r ManifestsRequest) (ManifestsResponse, error) {
 			out, err = checkoutCmd.CombinedOutput()
 			if err != nil {
 				logCtx.WithError(err).WithField("output", string(out)).Error("failed to checkout sync branch")
-				return ManifestsResponse{}, fmt.Errorf("failed to checkout sync branch: %w", err)
+				return &apiclient.ManifestsResponse{}, fmt.Errorf("failed to checkout sync branch: %w", err)
 			}
 
 			logCtx.Debugf("Creating branch %s", r.TargetBranch)
@@ -279,11 +199,11 @@ func (s *service) Commit(r ManifestsRequest) (ManifestsResponse, error) {
 			out, err = checkoutCmd.CombinedOutput()
 			if err != nil {
 				logCtx.WithError(err).WithField("output", string(out)).Error("failed to create branch")
-				return ManifestsResponse{}, fmt.Errorf("failed to create branch: %w", err)
+				return &apiclient.ManifestsResponse{}, fmt.Errorf("failed to create branch: %w", err)
 			}
 		} else {
 			logCtx.WithError(err).WithField("output", string(out)).Error("failed to checkout branch")
-			return ManifestsResponse{}, fmt.Errorf("failed to checkout branch: %w", err)
+			return &apiclient.ManifestsResponse{}, fmt.Errorf("failed to checkout branch: %w", err)
 		}
 	}
 
@@ -294,25 +214,25 @@ func (s *service) Commit(r ManifestsRequest) (ManifestsResponse, error) {
 	out, err = rmCmd.CombinedOutput()
 	if err != nil {
 		logCtx.WithError(err).WithField("output", string(out)).Error("failed to clear repo contents")
-		return ManifestsResponse{}, fmt.Errorf("failed to clear repo contents: %w", err)
+		return &apiclient.ManifestsResponse{}, fmt.Errorf("failed to clear repo contents: %w", err)
 	}
 
 	// Write hydrator.metadata containing information about the hydration process. This top-level metadata file is used
 	// for the promoter. An additional metadata file is placed in each hydration destination directory, if applicable.
 	logCtx.Debug("Writing top-level hydrator metadata")
 	hydratorMetadata := hydratorMetadataFile{
-		DrySHA:  r.DrySHA,
-		RepoURL: r.RepoURL,
+		DrySHA:  r.DrySha,
+		RepoURL: r.RepoUrl,
 	}
 	hydratorMetadataJson, err := json.MarshalIndent(hydratorMetadata, "", "  ")
 	if err != nil {
-		return ManifestsResponse{}, fmt.Errorf("failed to marshal hydrator metadata: %w", err)
+		return &apiclient.ManifestsResponse{}, fmt.Errorf("failed to marshal hydrator metadata: %w", err)
 	}
 	// No need to use SecureJoin here, as the path is already sanitized.
 	hydratorMetadataPath := path.Join(dirPath, "hydrator.metadata")
 	err = os.WriteFile(hydratorMetadataPath, hydratorMetadataJson, os.ModePerm)
 	if err != nil {
-		return ManifestsResponse{}, fmt.Errorf("failed to write hydrator metadata: %w", err)
+		return &apiclient.ManifestsResponse{}, fmt.Errorf("failed to write hydrator metadata: %w", err)
 	}
 
 	// Write the manifests to the temp dir
@@ -324,11 +244,11 @@ func (s *service) Commit(r ManifestsRequest) (ManifestsResponse, error) {
 		logCtx.Debugf("Writing manifests to %s", hydratePath)
 		fullHydratePath, err := securejoin.SecureJoin(dirPath, hydratePath)
 		if err != nil {
-			return ManifestsResponse{}, fmt.Errorf("failed to construct hydrate path: %w", err)
+			return &apiclient.ManifestsResponse{}, fmt.Errorf("failed to construct hydrate path: %w", err)
 		}
 		err = os.MkdirAll(fullHydratePath, os.ModePerm)
 		if err != nil {
-			return ManifestsResponse{}, fmt.Errorf("failed to create path: %w", err)
+			return &apiclient.ManifestsResponse{}, fmt.Errorf("failed to create path: %w", err)
 		}
 
 		// If the file exists, truncate it.
@@ -338,14 +258,14 @@ func (s *service) Commit(r ManifestsRequest) (ManifestsResponse, error) {
 		if _, err := os.Stat(manifestPath); err == nil {
 			err = os.Truncate(manifestPath, 0)
 			if err != nil {
-				return ManifestsResponse{}, fmt.Errorf("failed to empty manifest file: %w", err)
+				return &apiclient.ManifestsResponse{}, fmt.Errorf("failed to empty manifest file: %w", err)
 			}
 		}
 
 		logCtx.Debugf("Opening manifest file %s", manifestPath)
 		file, err := os.OpenFile(manifestPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, os.ModePerm)
 		if err != nil {
-			return ManifestsResponse{}, fmt.Errorf("failed to open manifest file: %w", err)
+			return &apiclient.ManifestsResponse{}, fmt.Errorf("failed to open manifest file: %w", err)
 		}
 		defer func() {
 			err := file.Close()
@@ -355,16 +275,28 @@ func (s *service) Commit(r ManifestsRequest) (ManifestsResponse, error) {
 		}()
 		logCtx.Debugf("Writing manifests to %s", manifestPath)
 		for _, m := range p.Manifests {
-			// Marshal the manifests
-			mYaml, err := yaml.Marshal(m.Manifest.Object)
+			obj := &unstructured.Unstructured{}
+			err = json.Unmarshal([]byte(m.Manifest), obj)
 			if err != nil {
-				return ManifestsResponse{}, fmt.Errorf("failed to marshal manifest: %w", err)
+				return &apiclient.ManifestsResponse{}, fmt.Errorf("failed to unmarshal manifest: %w", err)
+			}
+			// Marshal the manifests
+			buf := bytes.Buffer{}
+			enc := yaml.NewEncoder(&buf)
+			enc.SetIndent(2)
+			err = enc.Encode(&obj)
+			if err != nil {
+				return &apiclient.ManifestsResponse{}, fmt.Errorf("failed to encode manifest: %w", err)
+			}
+			mYaml := buf.Bytes()
+			if err != nil {
+				return &apiclient.ManifestsResponse{}, fmt.Errorf("failed to marshal manifest: %w", err)
 			}
 			mYaml = append(mYaml, []byte("\n---\n\n")...)
 			// Write the yaml to manifest.yaml
 			_, err = file.Write(mYaml)
 			if err != nil {
-				return ManifestsResponse{}, fmt.Errorf("failed to write manifest: %w", err)
+				return &apiclient.ManifestsResponse{}, fmt.Errorf("failed to write manifest: %w", err)
 			}
 		}
 
@@ -372,18 +304,18 @@ func (s *service) Commit(r ManifestsRequest) (ManifestsResponse, error) {
 		logCtx.Debug("Writing hydrator metadata")
 		hydratorMetadata := hydratorMetadataFile{
 			Commands: p.Commands,
-			DrySHA:   r.DrySHA,
-			RepoURL:  r.RepoURL,
+			DrySHA:   r.DrySha,
+			RepoURL:  r.RepoUrl,
 		}
 		hydratorMetadataJson, err := json.MarshalIndent(hydratorMetadata, "", "  ")
 		if err != nil {
-			return ManifestsResponse{}, fmt.Errorf("failed to marshal hydrator metadata: %w", err)
+			return &apiclient.ManifestsResponse{}, fmt.Errorf("failed to marshal hydrator metadata: %w", err)
 		}
 		// No need to use SecureJoin here, as the path is already sanitized.
 		hydratorMetadataPath := path.Join(fullHydratePath, "hydrator.metadata")
 		err = os.WriteFile(hydratorMetadataPath, hydratorMetadataJson, os.ModePerm)
 		if err != nil {
-			return ManifestsResponse{}, fmt.Errorf("failed to write hydrator metadata: %w", err)
+			return &apiclient.ManifestsResponse{}, fmt.Errorf("failed to write hydrator metadata: %w", err)
 		}
 
 		// Write README
@@ -391,14 +323,14 @@ func (s *service) Commit(r ManifestsRequest) (ManifestsResponse, error) {
 		readmeTemplate := template.New("readme")
 		readmeTemplate, err = readmeTemplate.Parse(manifestHydrationReadmeTemplate)
 		if err != nil {
-			return ManifestsResponse{}, fmt.Errorf("failed to parse readme template: %w", err)
+			return &apiclient.ManifestsResponse{}, fmt.Errorf("failed to parse readme template: %w", err)
 		}
 		// Create writer to template into
 		// No need to use SecureJoin here, as the path is already sanitized.
 		readmePath := path.Join(fullHydratePath, "README.md")
 		readmeFile, err := os.Create(readmePath)
 		if err != nil && !os.IsExist(err) {
-			return ManifestsResponse{}, fmt.Errorf("failed to create README file: %w", err)
+			return &apiclient.ManifestsResponse{}, fmt.Errorf("failed to create README file: %w", err)
 		}
 		err = readmeTemplate.Execute(readmeFile, hydratorMetadata)
 		closeErr := readmeFile.Close()
@@ -406,7 +338,7 @@ func (s *service) Commit(r ManifestsRequest) (ManifestsResponse, error) {
 			logCtx.WithError(closeErr).Error("failed to close README file")
 		}
 		if err != nil {
-			return ManifestsResponse{}, fmt.Errorf("failed to execute readme template: %w", err)
+			return &apiclient.ManifestsResponse{}, fmt.Errorf("failed to execute readme template: %w", err)
 		}
 	}
 
@@ -417,7 +349,7 @@ func (s *service) Commit(r ManifestsRequest) (ManifestsResponse, error) {
 	out, err = addCmd.CombinedOutput()
 	if err != nil {
 		logCtx.WithError(err).WithField("output", string(out)).Error("failed to add files")
-		return ManifestsResponse{}, fmt.Errorf("failed to add files: %w", err)
+		return &apiclient.ManifestsResponse{}, fmt.Errorf("failed to add files: %w", err)
 	}
 
 	commitCmd := exec.Command("git", "commit", "-m", r.CommitMessage)
@@ -426,10 +358,10 @@ func (s *service) Commit(r ManifestsRequest) (ManifestsResponse, error) {
 	if err != nil {
 		if strings.Contains(string(out), "nothing to commit, working tree clean") {
 			logCtx.Info("no changes to commit")
-			return ManifestsResponse{}, nil
+			return &apiclient.ManifestsResponse{}, nil
 		}
 		logCtx.WithError(err).WithField("output", string(out)).Error("failed to commit files")
-		return ManifestsResponse{}, fmt.Errorf("failed to commit: %w", err)
+		return &apiclient.ManifestsResponse{}, fmt.Errorf("failed to commit: %w", err)
 	}
 
 	logCtx.Debugf("Pushing changes")
@@ -438,11 +370,11 @@ func (s *service) Commit(r ManifestsRequest) (ManifestsResponse, error) {
 	out, err = pushCmd.CombinedOutput()
 	if err != nil {
 		logCtx.WithError(err).WithField("output", string(out)).Error("failed to push manifests")
-		return ManifestsResponse{}, fmt.Errorf("failed to push: %w", err)
+		return &apiclient.ManifestsResponse{}, fmt.Errorf("failed to push: %w", err)
 	}
 	logCtx.WithField("output", string(out)).Debug("pushed manifests to git")
 
-	return ManifestsResponse{}, nil
+	return &apiclient.ManifestsResponse{}, nil
 }
 
 type hydratorMetadataFile struct {

@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	goerrors "errors"
 	"fmt"
-	"github.com/argoproj/argo-cd/v2/controller/commit"
+	commitclient "github.com/argoproj/argo-cd/v2/commitserver/apiclient"
 	"math"
 	"math/rand"
 	"net/http"
@@ -132,6 +132,7 @@ type ApplicationController struct {
 	statusRefreshJitter           time.Duration
 	selfHealTimeout               time.Duration
 	repoClientset                 apiclient.Clientset
+	commitClientset               commitclient.Clientset
 	db                            db.ArgoDB
 	settingsMgr                   *settings_util.SettingsManager
 	refreshRequestedApps          map[string]CompareWith
@@ -155,6 +156,7 @@ func NewApplicationController(
 	kubeClientset kubernetes.Interface,
 	applicationClientset appclientset.Interface,
 	repoClientset apiclient.Clientset,
+	commitClientset commitclient.Clientset,
 	argoCache *appstatecache.Cache,
 	kubectl kube.Kubectl,
 	appResyncPeriod time.Duration,
@@ -187,6 +189,7 @@ func NewApplicationController(
 		kubectl:                           kubectl,
 		applicationClientset:              applicationClientset,
 		repoClientset:                     repoClientset,
+		commitClientset:                   commitClientset,
 		appRefreshQueue:                   workqueue.NewNamedRateLimitingQueue(ratelimiter.NewCustomAppControllerRateLimiter(rateLimiterConfig), "app_reconciliation_queue"),
 		appOperationQueue:                 workqueue.NewNamedRateLimitingQueue(ratelimiter.NewCustomAppControllerRateLimiter(rateLimiterConfig), "app_operation_processing_queue"),
 		projectRefreshQueue:               workqueue.NewNamedRateLimitingQueue(ratelimiter.NewCustomAppControllerRateLimiter(rateLimiterConfig), "project_reconciliation_queue"),
@@ -861,13 +864,13 @@ func (ctrl *ApplicationController) Run(ctx context.Context, statusProcessors int
 		}
 	}, time.Second, ctx.Done())
 
-	go NewPreviewer(
-		&ctrl.appLister,
-		&ctrl.appStateManager,
-		ctrl.settingsMgr,
-		ctrl.getAppProj,
-		ctrl.db,
-	).Run()
+	//go NewPreviewer(
+	//	&ctrl.appLister,
+	//	&ctrl.appStateManager,
+	//	ctrl.settingsMgr,
+	//	ctrl.getAppProj,
+	//	ctrl.db,
+	//).Run()
 
 	<-ctx.Done()
 }
@@ -1600,7 +1603,7 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 				restart = true
 			}
 
-			if app.Status.SourceHydrator.HydrateOperation != nil && app.Status.SourceHydrator.HydrateOperation.Status == appv1.HydrateOperationPhaseFailed {
+			if app.Status.SourceHydrator.HydrateOperation != nil && app.Status.SourceHydrator.HydrateOperation.FinishedAt != nil && app.Status.SourceHydrator.HydrateOperation.Status == appv1.HydrateOperationPhaseFailed {
 				retryWaitPeriod := 2 * 60 * time.Second
 				if metav1.Now().Sub(app.Status.SourceHydrator.HydrateOperation.FinishedAt.Time) > retryWaitPeriod {
 					logCtx.Info("Retrying failed hydration")
@@ -1618,9 +1621,9 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 				origApp.Status.SourceHydrator = app.Status.SourceHydrator
 			}
 
-			destinationBranch := app.Spec.SourceHydrator.SyncSource.TargetRevision
+			destinationBranch := app.Spec.SourceHydrator.SyncSource.TargetBranch
 			if app.Spec.SourceHydrator.HydrateTo != nil {
-				destinationBranch = app.Spec.SourceHydrator.HydrateTo.TargetRevision
+				destinationBranch = app.Spec.SourceHydrator.HydrateTo.TargetBranch
 			}
 			key := hydrationQueueKey{
 				sourceRepoURL:        app.Spec.SourceHydrator.DrySource.RepoURL,
@@ -1783,17 +1786,17 @@ func (ctrl *ApplicationController) processHydrationQueueItem() (processNext bool
 			app.Spec.SourceHydrator.DrySource.TargetRevision != hydrationKey.sourceTargetRevision {
 			continue
 		}
-		destinationBranch := app.Spec.SourceHydrator.SyncSource.TargetRevision
+		destinationBranch := app.Spec.SourceHydrator.SyncSource.TargetBranch
 		if app.Spec.SourceHydrator.HydrateTo != nil {
-			destinationBranch = app.Spec.SourceHydrator.HydrateTo.TargetRevision
+			destinationBranch = app.Spec.SourceHydrator.HydrateTo.TargetBranch
 		}
 		if destinationBranch != hydrationKey.destinationBranch {
 			continue
 		}
-		if _, ok := relevantApps[app.Spec.SourceHydrator.SyncSource.TargetRevision]; !ok {
-			relevantApps[app.Spec.SourceHydrator.SyncSource.TargetRevision] = []*appv1.Application{}
+		if _, ok := relevantApps[app.Spec.SourceHydrator.SyncSource.TargetBranch]; !ok {
+			relevantApps[app.Spec.SourceHydrator.SyncSource.TargetBranch] = []*appv1.Application{}
 		}
-		relevantApps[app.Spec.SourceHydrator.SyncSource.TargetRevision] = append(relevantApps[app.Spec.SourceHydrator.SyncSource.TargetRevision], app)
+		relevantApps[app.Spec.SourceHydrator.SyncSource.TargetBranch] = append(relevantApps[app.Spec.SourceHydrator.SyncSource.TargetBranch], app)
 	}
 
 	// Get the latest revision
@@ -1839,10 +1842,10 @@ func (ctrl *ApplicationController) hydrate(apps []*appv1.Application, refreshTyp
 		return nil
 	}
 	repoURL := apps[0].Spec.SourceHydrator.DrySource.RepoURL
-	syncBranch := apps[0].Spec.SourceHydrator.SyncSource.TargetRevision
+	syncBranch := apps[0].Spec.SourceHydrator.SyncSource.TargetBranch
 	targetBranch := apps[0].Spec.GetHydrateToSource().TargetRevision
 
-	var paths []commit.PathDetails
+	var paths []*commitclient.PathDetails
 	for _, app := range apps {
 		project, err := ctrl.getAppProj(app)
 		if err != nil {
@@ -1868,30 +1871,44 @@ func (ctrl *ApplicationController) hydrate(apps []*appv1.Application, refreshTyp
 		}
 
 		// Set up a ManifestsRequest
-		manifestDetails := make([]commit.ManifestDetails, len(objs))
+		manifestDetails := make([]*commitclient.ManifestDetails, len(objs))
 		for i, obj := range objs {
-			manifestDetails[i] = commit.ManifestDetails{Manifest: *obj}
+			objJson, err := json.Marshal(obj)
+			if err != nil {
+				return fmt.Errorf("failed to marshal object: %w", err)
+			}
+			manifestDetails[i] = &commitclient.ManifestDetails{Manifest: string(objJson)}
 		}
 
-		paths = append(paths, commit.PathDetails{
+		paths = append(paths, &commitclient.PathDetails{
 			Path:      app.Spec.SourceHydrator.SyncSource.Path,
 			Manifests: manifestDetails,
 			Commands:  resp[0].Commands,
 		})
 	}
 
-	manifestsRequest := commit.ManifestsRequest{
-		RepoURL:       repoURL,
+	repo, err := ctrl.db.GetHydratorCredentials(context.Background(), repoURL)
+	if err != nil {
+		return fmt.Errorf("failed to get hydrator credentials: %w", err)
+	}
+
+	manifestsRequest := commitclient.ManifestsRequest{
+		Repo:          repo,
+		RepoUrl:       repoURL,
 		SyncBranch:    syncBranch,
 		TargetBranch:  targetBranch,
-		DrySHA:        revision,
+		DrySha:        revision,
 		CommitMessage: fmt.Sprintf("[Argo CD Bot] hydrate %s", revision),
-		CommitTime:    time.Now(),
+		CommitTime:    time.Now().String(),
 		Paths:         paths,
 	}
 
-	commitService := commit.NewService(ctrl.db)
-	_, err := commitService.Commit(manifestsRequest)
+	closer, commitService, err := ctrl.commitClientset.NewCommitServerClient()
+	if err != nil {
+		return fmt.Errorf("failed to create commit service: %w", err)
+	}
+	defer closer.Close()
+	_, err = commitService.Commit(context.Background(), &manifestsRequest)
 	if err != nil {
 		return fmt.Errorf("failed to commit hydrated manifests: %w", err)
 	}

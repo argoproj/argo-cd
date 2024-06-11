@@ -27,7 +27,7 @@ func (db *db) getRepoCredsSecret(repoURL string) (*corev1.Secret, error) {
 	// Should reuse stuff from repo secrets backend...
 	secretBackend := (&secretsRepositoryBackend{db: db})
 
-	secrets, err := db.listSecretsByType(common.LabelValueSecretTypeHydrator)
+	secrets, err := db.listSecretsByType(common.LabelValueSecretTypeRepositoryWrite)
 	if err != nil {
 		return nil, err
 	}

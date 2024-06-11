@@ -226,9 +226,9 @@ func (a *ApplicationSpec) GetSource() ApplicationSource {
 // GetHydrateToSource returns the hydrateTo source if it exists, otherwise returns the sync source.
 func (a *ApplicationSpec) GetHydrateToSource() ApplicationSource {
 	if a.SourceHydrator != nil {
-		var targetRevision = a.SourceHydrator.SyncSource.TargetRevision
+		var targetRevision = a.SourceHydrator.SyncSource.TargetBranch
 		if a.SourceHydrator.HydrateTo != nil {
-			targetRevision = a.SourceHydrator.HydrateTo.TargetRevision
+			targetRevision = a.SourceHydrator.HydrateTo.TargetBranch
 		}
 		return ApplicationSource{
 			RepoURL:        a.SourceHydrator.DrySource.RepoURL,
@@ -339,7 +339,7 @@ func (s SourceHydrator) GetApplicationSource() ApplicationSource {
 		// Pull the RepoURL from the dry source. The SyncSource's RepoURL is assumed to be the same.
 		RepoURL:        s.DrySource.RepoURL,
 		Path:           s.SyncSource.Path,
-		TargetRevision: s.SyncSource.TargetRevision,
+		TargetRevision: s.SyncSource.TargetBranch,
 	}
 }
 
@@ -353,14 +353,14 @@ type DrySource struct {
 // SyncSource specifies a location from which hydrated manifests may be synced. RepoURL is assumed based on the
 // associated DrySource config in the SourceHydrator.
 type SyncSource struct {
-	TargetRevision string `json:"targetRevision" protobuf:"bytes,1,name=targetRevision"`
-	Path           string `json:"path" protobuf:"bytes,2,name=path"`
+	TargetBranch string `json:"targetBranch" protobuf:"bytes,1,name=targetBranch"`
+	Path         string `json:"path" protobuf:"bytes,2,name=path"`
 }
 
 // HydrateTo specifies a location to which hydrated manifests should be pushed as a "staging area" before being moved to
 // the SyncSource. The RepoURL and Path are assumed based on the associated SyncSource config in the SourceHydrator.
 type HydrateTo struct {
-	TargetRevision string `json:"targetRevision" protobuf:"bytes,1,name=targetRevision"`
+	TargetBranch string `json:"targetBranch" protobuf:"bytes,1,name=targetBranch"`
 }
 
 // RefreshType specifies how to refresh the sources of a given application

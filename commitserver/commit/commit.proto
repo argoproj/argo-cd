@@ -1,0 +1,38 @@
+syntax = "proto3";
+option go_package = "github.com/argoproj/argo-cd/v2/commitserver/apiclient";
+
+import "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1/generated.proto";
+
+message ManifestsRequest {
+  github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.Repository repo = 1;
+  string repo_url = 2;
+  string sync_branch = 3;
+  string target_branch = 4;
+  string dry_sha = 5;
+  string commit_message = 6;
+  string commit_time = 7;
+  repeated PathDetails paths = 8;
+
+}
+
+message PathDetails {
+  string path = 1;
+  repeated ManifestDetails manifests = 2;
+  repeated string commands = 3;
+  ReadmeDetails readme_details = 4;
+}
+
+message ManifestDetails {
+  string manifest = 1;
+}
+
+message ReadmeDetails {
+}
+
+message ManifestsResponse {
+  string request_id = 1;
+}
+
+service CommitService {
+  rpc Commit (ManifestsRequest) returns (ManifestsResponse);
+}

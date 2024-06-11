@@ -1092,7 +1092,7 @@ message HydrateOperation {
 // HydrateTo specifies a location to which hydrated manifests should be pushed as a "staging area" before being moved to
 // the SyncSource. The RepoURL and Path are assumed based on the associated SyncSource config in the SourceHydrator.
 message HydrateTo {
-  optional string targetRevision = 1;
+  optional string targetBranch = 1;
 }
 
 message Info {
@@ -2304,7 +2304,7 @@ message SyncPolicyAutomated {
 // SyncSource specifies a location from which hydrated manifests may be synced. RepoURL is assumed based on the
 // associated DrySource config in the SourceHydrator.
 message SyncSource {
-  optional string targetRevision = 1;
+  optional string targetBranch = 1;
 
   optional string path = 2;
 }

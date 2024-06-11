@@ -3917,7 +3917,7 @@ func schema_pkg_apis_application_v1alpha1_HydrateTo(ref common.ReferenceCallback
 				Description: "HydrateTo specifies a location to which hydrated manifests should be pushed as a \"staging area\" before being moved to the SyncSource. The RepoURL and Path are assumed based on the associated SyncSource config in the SourceHydrator.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
-					"targetRevision": {
+					"targetBranch": {
 						SchemaProps: spec.SchemaProps{
 							Default: "",
 							Type:    []string{"string"},
@@ -3925,7 +3925,7 @@ func schema_pkg_apis_application_v1alpha1_HydrateTo(ref common.ReferenceCallback
 						},
 					},
 				},
-				Required: []string{"targetRevision"},
+				Required: []string{"targetBranch"},
 			},
 		},
 	}
@@ -7951,7 +7951,7 @@ func schema_pkg_apis_application_v1alpha1_SyncSource(ref common.ReferenceCallbac
 				Description: "SyncSource specifies a location from which hydrated manifests may be synced. RepoURL is assumed based on the associated DrySource config in the SourceHydrator.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
-					"targetRevision": {
+					"targetBranch": {
 						SchemaProps: spec.SchemaProps{
 							Default: "",
 							Type:    []string{"string"},
@@ -7966,7 +7966,7 @@ func schema_pkg_apis_application_v1alpha1_SyncSource(ref common.ReferenceCallbac
 						},
 					},
 				},
-				Required: []string{"targetRevision", "path"},
+				Required: []string{"targetBranch", "path"},
 			},
 		},
 	}

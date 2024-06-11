@@ -1348,10 +1348,10 @@ spec:
                       HydrateTo specifies an optional "staging" location to push hydrated manifests to. An external system would then
                       have to move manifests to the SyncSource, e.g. by pull request.
                     properties:
-                      targetRevision:
+                      targetBranch:
                         type: string
                     required:
-                    - targetRevision
+                    - targetBranch
                     type: object
                   syncSource:
                     description: SyncSource specifies where to sync hydrated manifests
@@ -1359,11 +1359,11 @@ spec:
                     properties:
                       path:
                         type: string
-                      targetRevision:
+                      targetBranch:
                         type: string
                     required:
                     - path
-                    - targetRevision
+                    - targetBranch
                     type: object
                 required:
                 - drySource
