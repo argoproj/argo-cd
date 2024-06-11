@@ -3967,3 +3967,59 @@ func TestGetRevisionChartDetails(t *testing.T) {
 		assert.Equal(t, []string{"test-maintainer"}, chartDetails.Maintainers)
 	})
 }
+
+func TestVerifyCommitSignature(t *testing.T) {
+	repo := &v1alpha1.Repository{
+		Repo: "https://github.com/example/repo.git",
+	}
+
+	t.Run("VerifyCommitSignature with valid signature", func(t *testing.T) {
+		t.Setenv("ARGOCD_GPG_ENABLED", "true")
+		mockGitClient := &gitmocks.Client{}
+		mockGitClient.On("VerifyCommitSignature", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+			Return(testSignature, nil)
+
+		err := verifyCommitSignature(true, mockGitClient, "abcd1234", repo)
+		assert.NoError(t, err)
+	})
+
+	t.Run("VerifyCommitSignature with invalid signature", func(t *testing.T) {
+		t.Setenv("ARGOCD_GPG_ENABLED", "true")
+		mockGitClient := &gitmocks.Client{}
+		mockGitClient.On("VerifyCommitSignature", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+			Return("", nil)
+
+		err := verifyCommitSignature(true, mockGitClient, "abcd1234", repo)
+		assert.Error(t, err)
+		assert.Equal(t, "revision abcd1234 is not signed", err.Error())
+	})
+
+	t.Run("VerifyCommitSignature with unknown signature", func(t *testing.T) {
+		t.Setenv("ARGOCD_GPG_ENABLED", "true")
+		mockGitClient := &gitmocks.Client{}
+		mockGitClient.On("VerifyCommitSignature", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+			Return("", fmt.Errorf("UNKNOWN signature: gpg: Unknown signature from ABCDEFGH"))
+
+		err := verifyCommitSignature(true, mockGitClient, "abcd1234", repo)
+		assert.Error(t, err)
+		assert.Equal(t, "UNKNOWN signature: gpg: Unknown signature from ABCDEFGH", err.Error())
+	})
+
+	t.Run("VerifyCommitSignature with error verifying signature", func(t *testing.T) {
+		t.Setenv("ARGOCD_GPG_ENABLED", "true")
+		mockGitClient := &gitmocks.Client{}
+		mockGitClient.On("VerifyCommitSignature", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+			Return("", fmt.Errorf("error verifying signature of commit 'abcd1234' in repo 'https://github.com/example/repo.git': failed to verify signature"))
+
+		err := verifyCommitSignature(true, mockGitClient, "abcd1234", repo)
+		assert.Error(t, err)
+		assert.Equal(t, "error verifying signature of commit 'abcd1234' in repo 'https://github.com/example/repo.git': failed to verify signature", err.Error())
+	})
+
+	t.Run("VerifyCommitSignature with signature verification disabled", func(t *testing.T) {
+		t.Setenv("ARGOCD_GPG_ENABLED", "false")
+		mockGitClient := &gitmocks.Client{}
+		err := verifyCommitSignature(false, mockGitClient, "abcd1234", repo)
+		assert.NoError(t, err)
+	})
+}

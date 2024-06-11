@@ -68,22 +68,13 @@ func (g *GitGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.Applic
 		project = appSet.Spec.Template.Spec.Project
 	}
 
-	log.Info("===============project=================")
-	log.Info(project)
-
 	appProject := &argoprojiov1alpha1.AppProject{}
 	if err := client.Get(context.TODO(), types.NamespacedName{Name: appSet.Spec.Template.Spec.Project, Namespace: appSet.Namespace}, appProject); err != nil {
 		return nil, fmt.Errorf("error getting project %s: %w", project, err)
 	}
 
-	log.Infof("===============GPG Enabled : %v=================", gpg.IsGPGEnabled())
 	// we need to verify the signature on the Git revision if GPG is enabled
-	verifyCommit := false
-	if appProject.Spec.SignatureKeys != nil && len(appProject.Spec.SignatureKeys) > 0 && gpg.IsGPGEnabled() {
-		log.Info("===============GPG verification is enabled=================")
-		verifyCommit = true
-	}
-	log.Infof("===============GPG verification is %v=================", verifyCommit)
+	verifyCommit := appProject.Spec.SignatureKeys != nil && len(appProject.Spec.SignatureKeys) > 0 && gpg.IsGPGEnabled()
 
 	var err error
 	var res []map[string]interface{}
