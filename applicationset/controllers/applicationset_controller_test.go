@@ -12,6 +12,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -122,10 +123,10 @@ func (r *rendererMock) Replace(tmpl string, replaceMap map[string]interface{}, u
 func TestExtractApplications(t *testing.T) {
 	scheme := runtime.NewScheme()
 	err := v1alpha1.AddToScheme(scheme)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	err = v1alpha1.AddToScheme(scheme)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	for _, c := range []struct {
 		name                string
@@ -240,9 +241,9 @@ func TestExtractApplications(t *testing.T) {
 			})
 
 			if cc.expectErr {
-				assert.Error(t, err)
+				require.Error(t, err)
 			} else {
-				assert.NoError(t, err)
+				require.NoError(t, err)
 			}
 			assert.Equal(t, expectedApps, got)
 			assert.Equal(t, cc.expectedReason, reason)
@@ -358,10 +359,10 @@ func TestMergeTemplateApplications(t *testing.T) {
 func TestCreateOrUpdateInCluster(t *testing.T) {
 	scheme := runtime.NewScheme()
 	err := v1alpha1.AddToScheme(scheme)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	err = v1alpha1.AddToScheme(scheme)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	for _, c := range []struct {
 		// name is human-readable test name
@@ -1352,7 +1353,7 @@ func TestCreateOrUpdateInCluster(t *testing.T) {
 
 			for _, a := range c.existingApps {
 				err = controllerutil.SetControllerReference(&c.appSet, &a, scheme)
-				assert.NoError(t, err)
+				require.NoError(t, err)
 				initObjs = append(initObjs, &a)
 			}
 
@@ -1366,7 +1367,7 @@ func TestCreateOrUpdateInCluster(t *testing.T) {
 			}
 
 			err = r.createOrUpdateInCluster(context.TODO(), log.NewEntry(log.StandardLogger()), c.appSet, c.desiredApps)
-			assert.NoError(t, err)
+			require.NoError(t, err)
 
 			for _, obj := range c.expected {
 				got := &v1alpha1.Application{}
@@ -1385,10 +1386,10 @@ func TestCreateOrUpdateInCluster(t *testing.T) {
 func TestRemoveFinalizerOnInvalidDestination_FinalizerTypes(t *testing.T) {
 	scheme := runtime.NewScheme()
 	err := v1alpha1.AddToScheme(scheme)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	err = v1alpha1.AddToScheme(scheme)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	for _, c := range []struct {
 		// name is human-readable test name
@@ -1479,18 +1480,18 @@ func TestRemoveFinalizerOnInvalidDestination_FinalizerTypes(t *testing.T) {
 			// argoDB := db.NewDB("namespace", settingsMgr, r.KubeClientset)
 			// clusterList, err := argoDB.ListClusters(context.Background())
 			clusterList, err := utils.ListClusters(context.Background(), kubeclientset, "namespace")
-			assert.NoError(t, err, "Unexpected error")
+			require.NoError(t, err, "Unexpected error")
 
 			appLog := log.WithFields(log.Fields{"app": app.Name, "appSet": ""})
 
 			appInputParam := app.DeepCopy()
 
 			err = r.removeFinalizerOnInvalidDestination(context.Background(), appSet, appInputParam, clusterList, appLog)
-			assert.NoError(t, err, "Unexpected error")
+			require.NoError(t, err, "Unexpected error")
 
 			retrievedApp := v1alpha1.Application{}
 			err = client.Get(context.Background(), crtclient.ObjectKeyFromObject(&app), &retrievedApp)
-			assert.NoError(t, err, "Unexpected error")
+			require.NoError(t, err, "Unexpected error")
 
 			// App on the cluster should have the expected finalizers
 			assert.ElementsMatch(t, c.expectedFinalizers, retrievedApp.Finalizers)
@@ -1507,10 +1508,10 @@ func TestRemoveFinalizerOnInvalidDestination_FinalizerTypes(t *testing.T) {
 func TestRemoveFinalizerOnInvalidDestination_DestinationTypes(t *testing.T) {
 	scheme := runtime.NewScheme()
 	err := v1alpha1.AddToScheme(scheme)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	err = v1alpha1.AddToScheme(scheme)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	for _, c := range []struct {
 		// name is human-readable test name
@@ -1637,18 +1638,18 @@ func TestRemoveFinalizerOnInvalidDestination_DestinationTypes(t *testing.T) {
 			// argoDB := db.NewDB("argocd", settingsMgr, r.KubeClientset)
 			// clusterList, err := argoDB.ListClusters(context.Background())
 			clusterList, err := utils.ListClusters(context.Background(), kubeclientset, "namespace")
-			assert.NoError(t, err, "Unexpected error")
+			require.NoError(t, err, "Unexpected error")
 
 			appLog := log.WithFields(log.Fields{"app": app.Name, "appSet": ""})
 
 			appInputParam := app.DeepCopy()
 
 			err = r.removeFinalizerOnInvalidDestination(context.Background(), appSet, appInputParam, clusterList, appLog)
-			assert.NoError(t, err, "Unexpected error")
+			require.NoError(t, err, "Unexpected error")
 
 			retrievedApp := v1alpha1.Application{}
 			err = client.Get(context.Background(), crtclient.ObjectKeyFromObject(&app), &retrievedApp)
-			assert.NoError(t, err, "Unexpected error")
+			require.NoError(t, err, "Unexpected error")
 
 			finalizerRemoved := len(retrievedApp.Finalizers) == 0
 
@@ -1663,10 +1664,10 @@ func TestRemoveFinalizerOnInvalidDestination_DestinationTypes(t *testing.T) {
 func TestRemoveOwnerReferencesOnDeleteAppSet(t *testing.T) {
 	scheme := runtime.NewScheme()
 	err := v1alpha1.AddToScheme(scheme)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	err = v1alpha1.AddToScheme(scheme)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	for _, c := range []struct {
 		// name is human-readable test name
@@ -1708,7 +1709,7 @@ func TestRemoveOwnerReferencesOnDeleteAppSet(t *testing.T) {
 			}
 
 			err := controllerutil.SetControllerReference(&appSet, &app, scheme)
-			assert.NoError(t, err, "Unexpected error")
+			require.NoError(t, err, "Unexpected error")
 
 			initObjs := []crtclient.Object{&app, &appSet}
 
@@ -1723,11 +1724,11 @@ func TestRemoveOwnerReferencesOnDeleteAppSet(t *testing.T) {
 			}
 
 			err = r.removeOwnerReferencesOnDeleteAppSet(context.Background(), appSet)
-			assert.NoError(t, err, "Unexpected error")
+			require.NoError(t, err, "Unexpected error")
 
 			retrievedApp := v1alpha1.Application{}
 			err = client.Get(context.Background(), crtclient.ObjectKeyFromObject(&app), &retrievedApp)
-			assert.NoError(t, err, "Unexpected error")
+			require.NoError(t, err, "Unexpected error")
 
 			ownerReferencesRemoved := len(retrievedApp.OwnerReferences) == 0
 			assert.True(t, ownerReferencesRemoved)
@@ -1738,10 +1739,10 @@ func TestRemoveOwnerReferencesOnDeleteAppSet(t *testing.T) {
 func TestCreateApplications(t *testing.T) {
 	scheme := runtime.NewScheme()
 	err := v1alpha1.AddToScheme(scheme)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	err = v1alpha1.AddToScheme(scheme)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	testCases := []struct {
 		name       string
@@ -1906,7 +1907,7 @@ func TestCreateApplications(t *testing.T) {
 			initObjs := []crtclient.Object{&c.appSet}
 			for _, a := range c.existsApps {
 				err = controllerutil.SetControllerReference(&c.appSet, &a, scheme)
-				assert.NoError(t, err)
+				require.NoError(t, err)
 				initObjs = append(initObjs, &a)
 			}
 
@@ -1920,7 +1921,7 @@ func TestCreateApplications(t *testing.T) {
 			}
 
 			err = r.createInCluster(context.TODO(), log.NewEntry(log.StandardLogger()), c.appSet, c.apps)
-			assert.NoError(t, err)
+			require.NoError(t, err)
 
 			for _, obj := range c.expected {
 				got := &v1alpha1.Application{}
@@ -1930,7 +1931,7 @@ func TestCreateApplications(t *testing.T) {
 				}, got)
 
 				err = controllerutil.SetControllerReference(&c.appSet, &obj, r.Scheme)
-				assert.NoError(t, err)
+				require.NoError(t, err)
 
 				assert.Equal(t, obj, *got)
 			}
@@ -1941,9 +1942,9 @@ func TestCreateApplications(t *testing.T) {
 func TestDeleteInCluster(t *testing.T) {
 	scheme := runtime.NewScheme()
 	err := v1alpha1.AddToScheme(scheme)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	err = v1alpha1.AddToScheme(scheme)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	for _, c := range []struct {
 		// appSet is the application set on which the delete function is called
@@ -2049,7 +2050,7 @@ func TestDeleteInCluster(t *testing.T) {
 		for _, a := range c.existingApps {
 			temp := a
 			err = controllerutil.SetControllerReference(&c.appSet, &temp, scheme)
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			initObjs = append(initObjs, &temp)
 		}
 
@@ -2063,7 +2064,7 @@ func TestDeleteInCluster(t *testing.T) {
 		}
 
 		err = r.deleteInCluster(context.TODO(), log.NewEntry(log.StandardLogger()), c.appSet, c.desiredApps)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		// For each of the expected objects, verify they exist on the cluster
 		for _, obj := range c.expected {
@@ -2074,7 +2075,7 @@ func TestDeleteInCluster(t *testing.T) {
 			}, got)
 
 			err = controllerutil.SetControllerReference(&c.appSet, &obj, r.Scheme)
-			assert.NoError(t, err)
+			require.NoError(t, err)
 
 			assert.Equal(t, obj, *got)
 		}
@@ -2087,7 +2088,7 @@ func TestDeleteInCluster(t *testing.T) {
 				Name:      obj.Name,
 			}, got)
 
-			assert.EqualError(t, err, fmt.Sprintf("applications.argoproj.io \"%s\" not found", obj.Name))
+			require.EqualError(t, err, fmt.Sprintf("applications.argoproj.io \"%s\" not found", obj.Name))
 		}
 	}
 }
@@ -2095,9 +2096,9 @@ func TestDeleteInCluster(t *testing.T) {
 func TestGetMinRequeueAfter(t *testing.T) {
 	scheme := runtime.NewScheme()
 	err := v1alpha1.AddToScheme(scheme)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	err = v1alpha1.AddToScheme(scheme)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	client := fake.NewClientBuilder().WithScheme(scheme).Build()
 
@@ -2143,10 +2144,10 @@ func TestGetMinRequeueAfter(t *testing.T) {
 func TestValidateGeneratedApplications(t *testing.T) {
 	scheme := runtime.NewScheme()
 	err := v1alpha1.AddToScheme(scheme)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	err = v1alpha1.AddToScheme(scheme)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	client := fake.NewClientBuilder().WithScheme(scheme).Build()
 
@@ -2380,9 +2381,9 @@ func TestValidateGeneratedApplications(t *testing.T) {
 func TestReconcilerValidationProjectErrorBehaviour(t *testing.T) {
 	scheme := runtime.NewScheme()
 	err := v1alpha1.AddToScheme(scheme)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	err = v1alpha1.AddToScheme(scheme)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	project := v1alpha1.AppProject{
 		ObjectMeta: metav1.ObjectMeta{Name: "good-project", Namespace: "argocd"},
@@ -2457,27 +2458,27 @@ func TestReconcilerValidationProjectErrorBehaviour(t *testing.T) {
 
 	// Verify that on validation error, no error is returned, but the object is requeued
 	res, err := r.Reconcile(context.Background(), req)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, ReconcileRequeueOnValidationError, res.RequeueAfter)
 
 	var app v1alpha1.Application
 
 	// make sure good app got created
 	err = r.Client.Get(context.TODO(), crtclient.ObjectKey{Namespace: "argocd", Name: "good-project"}, &app)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, "good-project", app.Name)
 
 	// make sure bad app was not created
 	err = r.Client.Get(context.TODO(), crtclient.ObjectKey{Namespace: "argocd", Name: "bad-project"}, &app)
-	assert.Error(t, err)
+	require.Error(t, err)
 }
 
 func TestReconcilerCreateAppsRecoveringRenderError(t *testing.T) {
 	scheme := runtime.NewScheme()
 	err := v1alpha1.AddToScheme(scheme)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	err = v1alpha1.AddToScheme(scheme)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	project := v1alpha1.AppProject{
 		ObjectMeta: metav1.ObjectMeta{Name: "default", Namespace: "argocd"},
@@ -2545,23 +2546,23 @@ func TestReconcilerCreateAppsRecoveringRenderError(t *testing.T) {
 
 	// Verify that on generatorsError, no error is returned, but the object is requeued
 	res, err := r.Reconcile(context.Background(), req)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, ReconcileRequeueOnValidationError, res.RequeueAfter)
 
 	var app v1alpha1.Application
 
 	// make sure good app got created
 	err = r.Client.Get(context.TODO(), crtclient.ObjectKey{Namespace: "argocd", Name: "app"}, &app)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, "app", app.Name)
 }
 
 func TestSetApplicationSetStatusCondition(t *testing.T) {
 	scheme := runtime.NewScheme()
 	err := v1alpha1.AddToScheme(scheme)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	err = v1alpha1.AddToScheme(scheme)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	appSet := v1alpha1.ApplicationSet{
 		ObjectMeta: metav1.ObjectMeta{
@@ -2608,7 +2609,7 @@ func TestSetApplicationSetStatusCondition(t *testing.T) {
 	}
 
 	err = r.setApplicationSetStatusCondition(context.TODO(), &appSet, appCondition, true)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	assert.Len(t, appSet.Status.Conditions, 3)
 }
@@ -2616,9 +2617,9 @@ func TestSetApplicationSetStatusCondition(t *testing.T) {
 func applicationsUpdateSyncPolicyTest(t *testing.T, applicationsSyncPolicy v1alpha1.ApplicationsSyncPolicy, recordBuffer int, allowPolicyOverride bool) v1alpha1.Application {
 	scheme := runtime.NewScheme()
 	err := v1alpha1.AddToScheme(scheme)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	err = v1alpha1.AddToScheme(scheme)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	defaultProject := v1alpha1.AppProject{
 		ObjectMeta: metav1.ObjectMeta{Name: "default", Namespace: "argocd"},
@@ -2693,20 +2694,20 @@ func applicationsUpdateSyncPolicyTest(t *testing.T, applicationsSyncPolicy v1alp
 
 	// Verify that on validation error, no error is returned, but the object is requeued
 	resCreate, err := r.Reconcile(context.Background(), req)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, time.Duration(0), resCreate.RequeueAfter)
 
 	var app v1alpha1.Application
 
 	// make sure good app got created
 	err = r.Client.Get(context.TODO(), crtclient.ObjectKey{Namespace: "argocd", Name: "good-cluster"}, &app)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, "good-cluster", app.Name)
 
 	// Update resource
 	var retrievedApplicationSet v1alpha1.ApplicationSet
 	err = r.Client.Get(context.TODO(), crtclient.ObjectKey{Namespace: "argocd", Name: "name"}, &retrievedApplicationSet)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	retrievedApplicationSet.Spec.Template.Annotations = map[string]string{"annotation-key": "annotation-value"}
 	retrievedApplicationSet.Spec.Template.Labels = map[string]string{"label-key": "label-value"}
@@ -2716,13 +2717,13 @@ func applicationsUpdateSyncPolicyTest(t *testing.T, applicationsSyncPolicy v1alp
 	}
 
 	err = r.Client.Update(context.TODO(), &retrievedApplicationSet)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	resUpdate, err := r.Reconcile(context.Background(), req)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	err = r.Client.Get(context.TODO(), crtclient.ObjectKey{Namespace: "argocd", Name: "good-cluster"}, &app)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, time.Duration(0), resUpdate.RequeueAfter)
 	assert.Equal(t, "good-cluster", app.Name)
 
@@ -2780,9 +2781,9 @@ func TestUpdatePerformedWithSyncPolicyCreateOnlyAndAllowPolicyOverrideFalse(t *t
 func applicationsDeleteSyncPolicyTest(t *testing.T, applicationsSyncPolicy v1alpha1.ApplicationsSyncPolicy, recordBuffer int, allowPolicyOverride bool) v1alpha1.ApplicationList {
 	scheme := runtime.NewScheme()
 	err := v1alpha1.AddToScheme(scheme)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	err = v1alpha1.AddToScheme(scheme)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	defaultProject := v1alpha1.AppProject{
 		ObjectMeta: metav1.ObjectMeta{Name: "default", Namespace: "argocd"},
@@ -2857,20 +2858,20 @@ func applicationsDeleteSyncPolicyTest(t *testing.T, applicationsSyncPolicy v1alp
 
 	// Verify that on validation error, no error is returned, but the object is requeued
 	resCreate, err := r.Reconcile(context.Background(), req)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, time.Duration(0), resCreate.RequeueAfter)
 
 	var app v1alpha1.Application
 
 	// make sure good app got created
 	err = r.Client.Get(context.TODO(), crtclient.ObjectKey{Namespace: "argocd", Name: "good-cluster"}, &app)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, "good-cluster", app.Name)
 
 	// Update resource
 	var retrievedApplicationSet v1alpha1.ApplicationSet
 	err = r.Client.Get(context.TODO(), crtclient.ObjectKey{Namespace: "argocd", Name: "name"}, &retrievedApplicationSet)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	retrievedApplicationSet.Spec.Generators = []v1alpha1.ApplicationSetGenerator{
 		{
 			List: &v1alpha1.ListGenerator{
@@ -2880,15 +2881,15 @@ func applicationsDeleteSyncPolicyTest(t *testing.T, applicationsSyncPolicy v1alp
 	}
 
 	err = r.Client.Update(context.TODO(), &retrievedApplicationSet)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	resUpdate, err := r.Reconcile(context.Background(), req)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	var apps v1alpha1.ApplicationList
 
 	err = r.Client.List(context.TODO(), &apps)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, time.Duration(0), resUpdate.RequeueAfter)
 
 	return apps
@@ -3051,10 +3052,10 @@ func TestGenerateAppsUsingPullRequestGenerator(t *testing.T) {
 func TestPolicies(t *testing.T) {
 	scheme := runtime.NewScheme()
 	err := v1alpha1.AddToScheme(scheme)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	err = v1alpha1.AddToScheme(scheme)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	defaultProject := v1alpha1.AppProject{
 		ObjectMeta: metav1.ObjectMeta{Name: "default", Namespace: "argocd"},
@@ -3167,25 +3168,25 @@ func TestPolicies(t *testing.T) {
 
 			// Check if Application is created
 			res, err := r.Reconcile(context.Background(), req)
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			assert.Equal(t, time.Duration(0), res.RequeueAfter)
 
 			var app v1alpha1.Application
 			err = r.Client.Get(context.TODO(), crtclient.ObjectKey{Namespace: "argocd", Name: "my-app"}, &app)
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			assert.Equal(t, "value", app.Annotations["key"])
 
 			// Check if Application is updated
 			app.Annotations["key"] = "edited"
 			err = r.Client.Update(context.TODO(), &app)
-			assert.NoError(t, err)
+			require.NoError(t, err)
 
 			res, err = r.Reconcile(context.Background(), req)
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			assert.Equal(t, time.Duration(0), res.RequeueAfter)
 
 			err = r.Client.Get(context.TODO(), crtclient.ObjectKey{Namespace: "argocd", Name: "my-app"}, &app)
-			assert.NoError(t, err)
+			require.NoError(t, err)
 
 			if c.allowedUpdate {
 				assert.Equal(t, "value", app.Annotations["key"])
@@ -3195,21 +3196,21 @@ func TestPolicies(t *testing.T) {
 
 			// Check if Application is deleted
 			err = r.Client.Get(context.TODO(), crtclient.ObjectKey{Namespace: "argocd", Name: "name"}, &appSet)
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			appSet.Spec.Generators[0] = v1alpha1.ApplicationSetGenerator{
 				List: &v1alpha1.ListGenerator{
 					Elements: []apiextensionsv1.JSON{},
 				},
 			}
 			err = r.Client.Update(context.TODO(), &appSet)
-			assert.NoError(t, err)
+			require.NoError(t, err)
 
 			res, err = r.Reconcile(context.Background(), req)
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			assert.Equal(t, time.Duration(0), res.RequeueAfter)
 
 			err = r.Client.Get(context.TODO(), crtclient.ObjectKey{Namespace: "argocd", Name: "my-app"}, &app)
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			if c.allowedDelete {
 				assert.NotNil(t, app.DeletionTimestamp)
 			} else {
@@ -3222,9 +3223,9 @@ func TestPolicies(t *testing.T) {
 func TestSetApplicationSetApplicationStatus(t *testing.T) {
 	scheme := runtime.NewScheme()
 	err := v1alpha1.AddToScheme(scheme)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	err = v1alpha1.AddToScheme(scheme)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	kubeclientset := kubefake.NewSimpleClientset([]runtime.Object{}...)
 	argoDBMock := dbmocks.ArgoDB{}
@@ -3318,7 +3319,7 @@ func TestSetApplicationSetApplicationStatus(t *testing.T) {
 			}
 
 			err = r.setAppSetApplicationStatus(context.TODO(), log.NewEntry(log.StandardLogger()), &cc.appSet, cc.appStatuses)
-			assert.NoError(t, err)
+			require.NoError(t, err)
 
 			assert.Equal(t, cc.expectedAppStatuses, cc.appSet.Status.ApplicationStatus)
 		})
@@ -3328,10 +3329,10 @@ func TestSetApplicationSetApplicationStatus(t *testing.T) {
 func TestBuildAppDependencyList(t *testing.T) {
 	scheme := runtime.NewScheme()
 	err := v1alpha1.AddToScheme(scheme)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	err = v1alpha1.AddToScheme(scheme)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	client := fake.NewClientBuilder().WithScheme(scheme).Build()
 
@@ -4078,7 +4079,7 @@ func TestBuildAppDependencyList(t *testing.T) {
 			}
 
 			appDependencyList, appStepMap, err := r.buildAppDependencyList(log.NewEntry(log.StandardLogger()), cc.appSet, cc.apps)
-			assert.NoError(t, err, "expected no errors, but errors occurred")
+			require.NoError(t, err, "expected no errors, but errors occurred")
 			assert.Equal(t, cc.expectedList, appDependencyList, "expected appDependencyList did not match actual")
 			assert.Equal(t, cc.expectedStepMap, appStepMap, "expected appStepMap did not match actual")
 		})
@@ -4088,10 +4089,10 @@ func TestBuildAppDependencyList(t *testing.T) {
 func TestBuildAppSyncMap(t *testing.T) {
 	scheme := runtime.NewScheme()
 	err := v1alpha1.AddToScheme(scheme)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	err = v1alpha1.AddToScheme(scheme)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	client := fake.NewClientBuilder().WithScheme(scheme).Build()
 
@@ -4669,7 +4670,7 @@ func TestBuildAppSyncMap(t *testing.T) {
 			}
 
 			appSyncMap, err := r.buildAppSyncMap(context.TODO(), cc.appSet, cc.appDependencyList, cc.appMap)
-			assert.NoError(t, err, "expected no errors, but errors occurred")
+			require.NoError(t, err, "expected no errors, but errors occurred")
 			assert.Equal(t, cc.expectedMap, appSyncMap, "expected appSyncMap did not match actual")
 		})
 	}
@@ -4678,10 +4679,10 @@ func TestBuildAppSyncMap(t *testing.T) {
 func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 	scheme := runtime.NewScheme()
 	err := v1alpha1.AddToScheme(scheme)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	err = v1alpha1.AddToScheme(scheme)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	for _, cc := range []struct {
 		name              string
@@ -5402,7 +5403,7 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 				appStatuses[i].LastTransitionTime = nil
 			}
 
-			assert.NoError(t, err, "expected no errors, but errors occurred")
+			require.NoError(t, err, "expected no errors, but errors occurred")
 			assert.Equal(t, cc.expectedAppStatus, appStatuses, "expected appStatuses did not match actual")
 		})
 	}
@@ -5411,10 +5412,10 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 func TestUpdateApplicationSetApplicationStatusProgress(t *testing.T) {
 	scheme := runtime.NewScheme()
 	err := v1alpha1.AddToScheme(scheme)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	err = v1alpha1.AddToScheme(scheme)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	for _, cc := range []struct {
 		name              string
@@ -6153,7 +6154,7 @@ func TestUpdateApplicationSetApplicationStatusProgress(t *testing.T) {
 				appStatuses[i].LastTransitionTime = nil
 			}
 
-			assert.NoError(t, err, "expected no errors, but errors occurred")
+			require.NoError(t, err, "expected no errors, but errors occurred")
 			assert.Equal(t, cc.expectedAppStatus, appStatuses, "expected appStatuses did not match actual")
 		})
 	}
@@ -6162,10 +6163,10 @@ func TestUpdateApplicationSetApplicationStatusProgress(t *testing.T) {
 func TestUpdateResourceStatus(t *testing.T) {
 	scheme := runtime.NewScheme()
 	err := v1alpha1.AddToScheme(scheme)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	err = v1alpha1.AddToScheme(scheme)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	for _, cc := range []struct {
 		name              string
@@ -6363,7 +6364,7 @@ func TestUpdateResourceStatus(t *testing.T) {
 
 			err := r.updateResourcesStatus(context.TODO(), log.NewEntry(log.StandardLogger()), &cc.appSet, cc.apps)
 
-			assert.NoError(t, err, "expected no errors, but errors occurred")
+			require.NoError(t, err, "expected no errors, but errors occurred")
 			assert.Equal(t, cc.expectedResources, cc.appSet.Status.Resources, "expected resources did not match actual")
 		})
 	}

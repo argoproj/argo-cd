@@ -25,27 +25,27 @@ const (
 
 func Test_URIToSecretName(t *testing.T) {
 	name, err := URIToSecretName("cluster", "http://foo")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, "cluster-foo-752281925", name)
 
 	name, err = URIToSecretName("cluster", "http://thelongestdomainnameintheworld.argocd-project.com:3000")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, "cluster-thelongestdomainnameintheworld.argocd-project.com-2721640553", name)
 
 	name, err = URIToSecretName("cluster", "http://[fe80::1ff:fe23:4567:890a]")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, "cluster-fe80--1ff-fe23-4567-890a-3877258831", name)
 
 	name, err = URIToSecretName("cluster", "http://[fe80::1ff:fe23:4567:890a]:8000")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, "cluster-fe80--1ff-fe23-4567-890a-664858999", name)
 
 	name, err = URIToSecretName("cluster", "http://[FE80::1FF:FE23:4567:890A]:8000")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, "cluster-fe80--1ff-fe23-4567-890a-682802007", name)
 
 	name, err = URIToSecretName("cluster", "http://:/abc")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, "cluster--1969338796", name)
 }
 
@@ -108,7 +108,7 @@ func TestClusterToSecret(t *testing.T) {
 	}
 	s := &v1.Secret{}
 	err := clusterToSecret(cluster, s)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	assert.Equal(t, []byte(cluster.Server), s.Data["server"])
 	assert.Equal(t, []byte(cluster.Name), s.Data["name"])
@@ -145,7 +145,7 @@ func Test_secretToCluster_NoConfig(t *testing.T) {
 		},
 	}
 	cluster, err := SecretToCluster(secret)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, v1alpha1.Cluster{
 		Name:        "test",
 		Server:      "http://mycluster",
@@ -193,14 +193,10 @@ func TestUpdateCluster(t *testing.T) {
 		Server:             "http://mycluster",
 		RefreshRequestedAt: &requestedAt,
 	})
-	if !assert.NoError(t, err) {
-		return
-	}
+	require.NoError(t, err)
 
 	secret, err := kubeclientset.CoreV1().Secrets(fakeNamespace).Get(context.Background(), "mycluster", metav1.GetOptions{})
-	if !assert.NoError(t, err) {
-		return
-	}
+	require.NoError(t, err)
 
 	assert.Equal(t, secret.Annotations[v1alpha1.AnnotationKeyRefresh], requestedAt.Format(time.RFC3339))
 }
@@ -221,7 +217,7 @@ func TestDeleteUnknownCluster(t *testing.T) {
 	})
 	settingsManager := settings.NewSettingsManager(context.Background(), kubeclientset, fakeNamespace)
 	db := NewDB(fakeNamespace, settingsManager, kubeclientset)
-	assert.EqualError(t, db.DeleteCluster(context.Background(), "http://unknown"), `rpc error: code = NotFound desc = cluster "http://unknown" not found`)
+	require.EqualError(t, db.DeleteCluster(context.Background(), "http://unknown"), `rpc error: code = NotFound desc = cluster "http://unknown" not found`)
 }
 
 func TestRejectCreationForInClusterWhenDisabled(t *testing.T) {
@@ -255,7 +251,7 @@ func TestRejectCreationForInClusterWhenDisabled(t *testing.T) {
 		Server: appv1.KubernetesInternalAPIServerAddr,
 		Name:   "incluster-name",
 	})
-	assert.Error(t, err)
+	require.Error(t, err)
 }
 
 func runWatchTest(t *testing.T, db ArgoDB, actions []func(old *v1alpha1.Cluster, new *v1alpha1.Cluster)) {
@@ -283,7 +279,7 @@ func runWatchTest(t *testing.T, db ArgoDB, actions []func(old *v1alpha1.Cluster,
 	}
 
 	go func() {
-		assert.NoError(t, db.WatchClusters(ctx, func(cluster *v1alpha1.Cluster) {
+		require.NoError(t, db.WatchClusters(ctx, func(cluster *v1alpha1.Cluster) {
 			doNext(nil, cluster)
 		}, func(oldCluster *v1alpha1.Cluster, newCluster *v1alpha1.Cluster) {
 			doNext(oldCluster, newCluster)

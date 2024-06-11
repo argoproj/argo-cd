@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestCombineStringMaps(t *testing.T) {
@@ -47,9 +48,9 @@ func TestCombineStringMaps(t *testing.T) {
 			got, err := CombineStringMaps(testCaseCopy.left, testCaseCopy.right)
 
 			if testCaseCopy.expectedErr != nil {
-				assert.EqualError(t, err, testCaseCopy.expectedErr.Error())
+				require.EqualError(t, err, testCaseCopy.expectedErr.Error())
 			} else {
-				assert.NoError(t, err)
+				require.NoError(t, err)
 				assert.Equal(t, testCaseCopy.expected, got)
 			}
 		})

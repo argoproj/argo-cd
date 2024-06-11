@@ -49,7 +49,7 @@ func TestParseLogsStream_ParsingError(t *testing.T) {
 	}
 
 	require.Len(t, entries, 1)
-	assert.Error(t, entries[0].err)
+	require.Error(t, entries[0].err)
 }
 
 func TestMergeLogStreams(t *testing.T) {

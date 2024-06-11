@@ -6,6 +6,7 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/health"
 	. "github.com/argoproj/gitops-engine/pkg/sync/common"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	v1 "k8s.io/api/core/v1"
 
 	. "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
@@ -26,7 +27,7 @@ func TestNamespaceCreationWithSSA(t *testing.T) {
 	defer func() {
 		if !t.Skipped() {
 			_, err := Run("", "kubectl", "delete", "namespace", namespace)
-			assert.NoError(t, err)
+			require.NoError(t, err)
 		}
 	}()
 

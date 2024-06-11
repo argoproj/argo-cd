@@ -17,6 +17,7 @@ import (
 	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 type possiblyErroringFakeCtrlRuntimeClient struct {
@@ -262,9 +263,9 @@ func TestGenerateParams(t *testing.T) {
 			}, &applicationSetInfo)
 
 			if testCase.expectedError != nil {
-				assert.EqualError(t, err, testCase.expectedError.Error())
+				require.EqualError(t, err, testCase.expectedError.Error())
 			} else {
-				assert.NoError(t, err)
+				require.NoError(t, err)
 				assert.ElementsMatch(t, testCase.expected, got)
 			}
 		})
@@ -635,9 +636,9 @@ func TestGenerateParamsGoTemplate(t *testing.T) {
 			}, &applicationSetInfo)
 
 			if testCase.expectedError != nil {
-				assert.EqualError(t, err, testCase.expectedError.Error())
+				require.EqualError(t, err, testCase.expectedError.Error())
 			} else {
-				assert.NoError(t, err)
+				require.NoError(t, err)
 				assert.ElementsMatch(t, testCase.expected, got)
 			}
 		})

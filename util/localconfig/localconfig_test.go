@@ -74,7 +74,7 @@ func TestFilePermission(t *testing.T) {
 			f, err := os.Create(filePath)
 			require.NoError(t, err, "Could not write  create config file: %v", err)
 			defer func() {
-				assert.NoError(t, f.Close())
+				require.NoError(t, f.Close())
 			}()
 
 			err = f.Chmod(c.perm)
@@ -84,7 +84,7 @@ func TestFilePermission(t *testing.T) {
 			require.NoError(t, err, "Could not access the fileinfo: %v", err)
 
 			if err := getFilePermission(fi); err != nil {
-				assert.EqualError(t, err, c.expectedError.Error())
+				require.EqualError(t, err, c.expectedError.Error())
 			} else {
 				require.NoError(t, c.expectedError)
 			}

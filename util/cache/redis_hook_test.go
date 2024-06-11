@@ -6,6 +6,7 @@ import (
 
 	"github.com/alicebob/miniredis/v2"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/redis/go-redis/v9"
 )
@@ -28,7 +29,7 @@ func Test_ReconnectCallbackHookCalled(t *testing.T) {
 	faultyDNSClient := NewRedisCache(faultyDNSRedisClient, 60*time.Second, RedisCompressionNone)
 	err = faultyDNSClient.Set(&Item{Key: "baz", Object: "foo"})
 	assert.True(t, called)
-	assert.Error(t, err)
+	require.Error(t, err)
 }
 
 func Test_ReconnectCallbackHookNotCalled(t *testing.T) {
@@ -49,5 +50,5 @@ func Test_ReconnectCallbackHookNotCalled(t *testing.T) {
 
 	err = client.Set(&Item{Key: "foo", Object: "bar"})
 	assert.False(t, called)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 }

@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -40,7 +41,7 @@ func TestGenerateListParams(t *testing.T) {
 			},
 		}, &applicationSetInfo)
 
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.ElementsMatch(t, testCase.expected, got)
 	}
 }
@@ -77,7 +78,7 @@ func TestGenerateListParamsGoTemplate(t *testing.T) {
 			},
 		}, &applicationSetInfo)
 
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.ElementsMatch(t, testCase.expected, got)
 	}
 }

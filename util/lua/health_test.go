@@ -8,6 +8,7 @@ import (
 
 	"github.com/argoproj/gitops-engine/pkg/health"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"sigs.k8s.io/yaml"
 
@@ -61,5 +62,5 @@ func TestLuaHealthScript(t *testing.T) {
 		}
 		return nil
 	})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 }

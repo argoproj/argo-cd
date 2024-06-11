@@ -109,7 +109,7 @@ func TestBuiltinPolicyEnforcer(t *testing.T) {
 	kubeclientset := fake.NewSimpleClientset()
 	enf := NewEnforcer(kubeclientset, fakeNamespace, fakeConfigMapName, nil)
 	err := enf.syncUpdate(fakeConfigMap(), noOpUpdate)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	// Without setting builtin policy, this should fail
 	assert.False(t, enf.Enforce("admin", "applications", "get", "foo/bar"))
@@ -182,7 +182,7 @@ func TestDefaultRole(t *testing.T) {
 	kubeclientset := fake.NewSimpleClientset()
 	enf := NewEnforcer(kubeclientset, fakeNamespace, fakeConfigMapName, nil)
 	err := enf.syncUpdate(fakeConfigMap(), noOpUpdate)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	_ = enf.SetBuiltinPolicy(assets.BuiltinPolicyCSV)
 
 	assert.False(t, enf.Enforce("bob", "applications", "get", "foo/bar"))
@@ -196,7 +196,7 @@ func TestURLAsObjectName(t *testing.T) {
 	kubeclientset := fake.NewSimpleClientset()
 	enf := NewEnforcer(kubeclientset, fakeNamespace, fakeConfigMapName, nil)
 	err := enf.syncUpdate(fakeConfigMap(), noOpUpdate)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	policy := `
 p, alice, repositories, *, foo/*, allow
 p, bob, repositories, *, foo/https://github.com/argoproj/argo-cd.git, allow
@@ -295,7 +295,7 @@ func TestDefaultRoleWithRuntimePolicy(t *testing.T) {
 	kubeclientset := fake.NewSimpleClientset()
 	enf := NewEnforcer(kubeclientset, fakeNamespace, fakeConfigMapName, nil)
 	err := enf.syncUpdate(fakeConfigMap(), noOpUpdate)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	runtimePolicy := assets.BuiltinPolicyCSV
 	assert.False(t, enf.EnforceRuntimePolicy("", runtimePolicy, "bob", "applications", "get", "foo/bar"))
 	enf.SetDefaultRole("role:readonly")
@@ -308,7 +308,7 @@ func TestClaimsEnforcerFuncWithRuntimePolicy(t *testing.T) {
 	kubeclientset := fake.NewSimpleClientset()
 	enf := NewEnforcer(kubeclientset, fakeNamespace, fakeConfigMapName, nil)
 	err := enf.syncUpdate(fakeConfigMap(), noOpUpdate)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	runtimePolicy := assets.BuiltinPolicyCSV
 	claims := jwt.RegisteredClaims{
 		Subject: "foo",
@@ -326,7 +326,7 @@ func TestInvalidRuntimePolicy(t *testing.T) {
 	kubeclientset := fake.NewSimpleClientset(cm)
 	enf := NewEnforcer(kubeclientset, fakeNamespace, fakeConfigMapName, nil)
 	err := enf.syncUpdate(fakeConfigMap(), noOpUpdate)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	_ = enf.SetBuiltinPolicy(assets.BuiltinPolicyCSV)
 	assert.True(t, enf.EnforceRuntimePolicy("", "", "admin", "applications", "update", "foo/bar"))
 	assert.False(t, enf.EnforceRuntimePolicy("", "", "role:readonly", "applications", "update", "foo/bar"))
@@ -344,14 +344,14 @@ func TestValidatePolicy(t *testing.T) {
 		` p, role:admin, projects, delete, *, allow `,
 	}
 	for _, good := range goodPolicies {
-		assert.NoError(t, ValidatePolicy(good))
+		require.NoError(t, ValidatePolicy(good))
 	}
 	badPolicies := []string{
 		"this, is, not, a, good, policy",
 		"this\ttoo",
 	}
 	for _, bad := range badPolicies {
-		assert.Error(t, ValidatePolicy(bad))
+		require.Error(t, ValidatePolicy(bad))
 	}
 }
 
@@ -360,20 +360,20 @@ func TestEnforceErrorMessage(t *testing.T) {
 	kubeclientset := fake.NewSimpleClientset()
 	enf := NewEnforcer(kubeclientset, fakeNamespace, fakeConfigMapName, nil)
 	err := enf.syncUpdate(fakeConfigMap(), noOpUpdate)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	err = enf.EnforceErr("admin", "applications", "get", "foo/bar")
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Equal(t, "rpc error: code = PermissionDenied desc = permission denied: applications, get, foo/bar", err.Error())
 
 	err = enf.EnforceErr()
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Equal(t, "rpc error: code = PermissionDenied desc = permission denied", err.Error())
 
 	// nolint:staticcheck
 	ctx := context.WithValue(context.Background(), "claims", &jwt.RegisteredClaims{Subject: "proj:default:admin"})
 	err = enf.EnforceErr(ctx.Value("claims"), "project")
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Equal(t, "rpc error: code = PermissionDenied desc = permission denied: project, sub: proj:default:admin", err.Error())
 
 	iat := time.Unix(int64(1593035962), 0).Format(time.RFC3339)
@@ -381,19 +381,19 @@ func TestEnforceErrorMessage(t *testing.T) {
 	// nolint:staticcheck
 	ctx = context.WithValue(context.Background(), "claims", &jwt.RegisteredClaims{Subject: "proj:default:admin", IssuedAt: jwt.NewNumericDate(time.Unix(int64(1593035962), 0))})
 	err = enf.EnforceErr(ctx.Value("claims"), "project")
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Equal(t, exp, err.Error())
 
 	// nolint:staticcheck
 	ctx = context.WithValue(context.Background(), "claims", &jwt.RegisteredClaims{ExpiresAt: jwt.NewNumericDate(time.Now())})
 	err = enf.EnforceErr(ctx.Value("claims"), "project")
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Equal(t, "rpc error: code = PermissionDenied desc = permission denied: project", err.Error())
 
 	// nolint:staticcheck
 	ctx = context.WithValue(context.Background(), "claims", &jwt.RegisteredClaims{Subject: "proj:default:admin", IssuedAt: nil})
 	err = enf.EnforceErr(ctx.Value("claims"), "project")
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Equal(t, "rpc error: code = PermissionDenied desc = permission denied: project, sub: proj:default:admin", err.Error())
 }
 
@@ -401,7 +401,7 @@ func TestDefaultGlobMatchMode(t *testing.T) {
 	kubeclientset := fake.NewSimpleClientset()
 	enf := NewEnforcer(kubeclientset, fakeNamespace, fakeConfigMapName, nil)
 	err := enf.syncUpdate(fakeConfigMap(), noOpUpdate)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	policy := `
 p, alice, clusters, get, "https://github.com/*/*.git", allow
 `
@@ -417,7 +417,7 @@ func TestGlobMatchMode(t *testing.T) {
 	kubeclientset := fake.NewSimpleClientset()
 	enf := NewEnforcer(kubeclientset, fakeNamespace, fakeConfigMapName, nil)
 	err := enf.syncUpdate(cm, noOpUpdate)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	policy := `
 p, alice, clusters, get, "https://github.com/*/*.git", allow
 `
@@ -433,7 +433,7 @@ func TestRegexMatchMode(t *testing.T) {
 	kubeclientset := fake.NewSimpleClientset()
 	enf := NewEnforcer(kubeclientset, fakeNamespace, fakeConfigMapName, nil)
 	err := enf.syncUpdate(cm, noOpUpdate)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	policy := `
 p, alice, clusters, get, "https://github.com/argo[a-z]{4}/argo-[a-z]+.git", allow
 `

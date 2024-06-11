@@ -39,7 +39,7 @@ func testDataDir(tb testing.TB, testData string) (string, error) {
 
 func TestKustomizeBuild(t *testing.T) {
 	appPath, err := testDataDir(t, kustomization1)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	namePrefix := "namePrefix-"
 	nameSuffix := "-nameSuffix"
 	namespace := "custom-namespace"
@@ -73,7 +73,7 @@ func TestKustomizeBuild(t *testing.T) {
 		},
 	}
 	objs, images, err := kustomize.Build(&kustomizeSource, nil, env)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	if err != nil {
 		assert.Len(t, objs, 2)
 		assert.Len(t, images, 2)
@@ -125,7 +125,7 @@ func TestKustomizeBuild(t *testing.T) {
 
 func TestFailKustomizeBuild(t *testing.T) {
 	appPath, err := testDataDir(t, kustomization1)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	kustomize := NewKustomizeApp(appPath, appPath, git.NopCreds{}, "", "")
 	kustomizeSource := v1alpha1.ApplicationSourceKustomize{
 		Replicas: []v1alpha1.KustomizeReplica{
@@ -136,7 +136,7 @@ func TestFailKustomizeBuild(t *testing.T) {
 		},
 	}
 	_, _, err = kustomize.Build(&kustomizeSource, nil, nil)
-	assert.EqualError(t, err, "expected integer value for count. Received: garbage")
+	require.EqualError(t, err, "expected integer value for count. Received: garbage")
 }
 
 func TestFindKustomization(t *testing.T) {
@@ -147,7 +147,7 @@ func TestFindKustomization(t *testing.T) {
 
 func testFindKustomization(t *testing.T, set string, expected string) {
 	kustomization, err := (&kustomize{path: "testdata/" + set}).findKustomization()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, "testdata/"+set+"/"+expected, kustomization)
 }
 
@@ -165,13 +165,13 @@ func TestParseKustomizeBuildOptions(t *testing.T) {
 
 func TestVersion(t *testing.T) {
 	ver, err := Version(false)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotEmpty(t, ver)
 }
 
 func TestGetSemver(t *testing.T) {
 	ver, err := getSemver()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotEmpty(t, ver)
 }
 
@@ -224,14 +224,14 @@ func TestKustomizeBuildForceCommonLabels(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		appPath, err := testDataDir(t, tc.TestData)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		kustomize := NewKustomizeApp(appPath, appPath, git.NopCreds{}, "", "")
 		objs, _, err := kustomize.Build(&tc.KustomizeSource, nil, tc.Env)
 		switch tc.ExpectErr {
 		case true:
-			assert.Error(t, err)
+			require.Error(t, err)
 		default:
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			if assert.Len(t, objs, 1) {
 				assert.Equal(t, tc.ExpectedLabels, objs[0].GetLabels())
 			}
@@ -316,14 +316,14 @@ func TestKustomizeBuildForceCommonAnnotations(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		appPath, err := testDataDir(t, tc.TestData)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		kustomize := NewKustomizeApp(appPath, appPath, git.NopCreds{}, "", "")
 		objs, _, err := kustomize.Build(&tc.KustomizeSource, nil, tc.Env)
 		switch tc.ExpectErr {
 		case true:
-			assert.Error(t, err)
+			require.Error(t, err)
 		default:
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			if assert.Len(t, objs, 1) {
 				assert.Equal(t, tc.ExpectedAnnotations, objs[0].GetAnnotations())
 			}
@@ -383,22 +383,22 @@ func TestKustomizeLabelWithoutSelector(t *testing.T) {
 
 	for _, tc := range testCases {
 		appPath, err := testDataDir(t, tc.TestData)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		kustomize := NewKustomizeApp(appPath, appPath, git.NopCreds{}, "", "")
 		objs, _, err := kustomize.Build(&tc.KustomizeSource, nil, tc.Env)
 
 		switch tc.ExpectErr {
 		case true:
-			assert.Error(t, err)
+			require.Error(t, err)
 		default:
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			if assert.Len(t, objs, 1) {
 				obj := objs[0]
 				sl, found, err := unstructured.NestedStringMap(obj.Object, "spec", "selector", "matchLabels")
-				assert.NoError(t, err)
+				require.NoError(t, err)
 				assert.True(t, found)
 				tl, found, err := unstructured.NestedStringMap(obj.Object, "spec", "template", "metadata", "labels")
-				assert.NoError(t, err)
+				require.NoError(t, err)
 				assert.True(t, found)
 				assert.Equal(t, tc.ExpectedMetadataLabels, obj.GetLabels())
 				assert.Equal(t, tc.ExpectedSelectorLabels, sl)
@@ -410,9 +410,9 @@ func TestKustomizeLabelWithoutSelector(t *testing.T) {
 
 func TestKustomizeCustomVersion(t *testing.T) {
 	appPath, err := testDataDir(t, kustomization1)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	kustomizePath, err := testDataDir(t, kustomization4)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	envOutputFile := kustomizePath + "/env_output"
 	kustomize := NewKustomizeApp(appPath, appPath, git.NopCreds{}, "", kustomizePath+"/kustomize.special")
 	kustomizeSource := v1alpha1.ApplicationSourceKustomize{
@@ -422,27 +422,27 @@ func TestKustomizeCustomVersion(t *testing.T) {
 		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_NAME", Value: "argo-cd-tests"},
 	}
 	objs, images, err := kustomize.Build(&kustomizeSource, nil, env)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	if err != nil {
 		assert.Len(t, objs, 2)
 		assert.Len(t, images, 2)
 	}
 
 	content, err := os.ReadFile(envOutputFile)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, "ARGOCD_APP_NAME=argo-cd-tests\n", string(content))
 }
 
 func TestKustomizeBuildComponents(t *testing.T) {
 	appPath, err := testDataDir(t, kustomization6)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	kustomize := NewKustomizeApp(appPath, appPath, git.NopCreds{}, "", "")
 
 	kustomizeSource := v1alpha1.ApplicationSourceKustomize{
 		Components: []string{"./components"},
 	}
 	objs, _, err := kustomize.Build(&kustomizeSource, nil, nil)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	obj := objs[0]
 	assert.Equal(t, "nginx-deployment", obj.GetName())
 	assert.Equal(t, map[string]string{
@@ -456,7 +456,7 @@ func TestKustomizeBuildComponents(t *testing.T) {
 
 func TestKustomizeBuildPatches(t *testing.T) {
 	appPath, err := testDataDir(t, kustomization5)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	kustomize := NewKustomizeApp(appPath, appPath, git.NopCreds{}, "", "")
 
 	kustomizeSource := v1alpha1.ApplicationSourceKustomize{
@@ -475,10 +475,10 @@ func TestKustomizeBuildPatches(t *testing.T) {
 		},
 	}
 	objs, _, err := kustomize.Build(&kustomizeSource, nil, nil)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	obj := objs[0]
 	containers, found, err := unstructured.NestedSlice(obj.Object, "spec", "template", "spec", "containers")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.True(t, found)
 
 	ports, found, err := unstructured.NestedSlice(
@@ -486,7 +486,7 @@ func TestKustomizeBuildPatches(t *testing.T) {
 		"ports",
 	)
 	assert.True(t, found)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	port, found, err := unstructured.NestedInt64(
 		ports[0].(map[string]interface{}),
@@ -494,7 +494,7 @@ func TestKustomizeBuildPatches(t *testing.T) {
 	)
 
 	assert.True(t, found)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, int64(443), port)
 
 	name, found, err := unstructured.NestedString(
@@ -502,6 +502,6 @@ func TestKustomizeBuildPatches(t *testing.T) {
 		"name",
 	)
 	assert.True(t, found)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, "test", name)
 }

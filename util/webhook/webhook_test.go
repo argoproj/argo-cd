@@ -29,6 +29,7 @@ import (
 
 	"github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
@@ -80,7 +81,7 @@ func TestGitHubCommitEvent(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPost, "/api/webhook", nil)
 	req.Header.Set("X-GitHub-Event", "push")
 	eventJSON, err := os.ReadFile("testdata/github-commit-event.json")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	req.Body = io.NopCloser(bytes.NewReader(eventJSON))
 	w := httptest.NewRecorder()
 	h.Handler(w, req)
@@ -96,7 +97,7 @@ func TestAzureDevOpsCommitEvent(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPost, "/api/webhook", nil)
 	req.Header.Set("X-Vss-Activityid", "abc")
 	eventJSON, err := os.ReadFile("testdata/azuredevops-git-push-event.json")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	req.Body = io.NopCloser(bytes.NewReader(eventJSON))
 	w := httptest.NewRecorder()
 	h.Handler(w, req)
@@ -151,7 +152,7 @@ func TestGitHubCommitEvent_MultiSource_Refresh(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPost, "/api/webhook", nil)
 	req.Header.Set("X-GitHub-Event", "push")
 	eventJSON, err := os.ReadFile("testdata/github-commit-event.json")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	req.Body = io.NopCloser(bytes.NewReader(eventJSON))
 	w := httptest.NewRecorder()
 	h.Handler(w, req)
@@ -232,7 +233,7 @@ func TestGitHubCommitEvent_AppsInOtherNamespaces(t *testing.T) {
 	req := httptest.NewRequest("POST", "/api/webhook", nil)
 	req.Header.Set("X-GitHub-Event", "push")
 	eventJSON, err := os.ReadFile("testdata/github-commit-event.json")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	req.Body = io.NopCloser(bytes.NewReader(eventJSON))
 	w := httptest.NewRecorder()
 	h.Handler(w, req)
@@ -264,7 +265,7 @@ func TestGitHubTagEvent(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPost, "/api/webhook", nil)
 	req.Header.Set("X-GitHub-Event", "push")
 	eventJSON, err := os.ReadFile("testdata/github-tag-event.json")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	req.Body = io.NopCloser(bytes.NewReader(eventJSON))
 	w := httptest.NewRecorder()
 	h.Handler(w, req)
@@ -280,7 +281,7 @@ func TestGitHubPingEvent(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPost, "/api/webhook", nil)
 	req.Header.Set("X-GitHub-Event", "ping")
 	eventJSON, err := os.ReadFile("testdata/github-ping-event.json")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	req.Body = io.NopCloser(bytes.NewReader(eventJSON))
 	w := httptest.NewRecorder()
 	h.Handler(w, req)
@@ -296,7 +297,7 @@ func TestBitbucketServerRepositoryReferenceChangedEvent(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPost, "/api/webhook", nil)
 	req.Header.Set("X-Event-Key", "repo:refs_changed")
 	eventJSON, err := os.ReadFile("testdata/bitbucket-server-event.json")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	req.Body = io.NopCloser(bytes.NewReader(eventJSON))
 	w := httptest.NewRecorder()
 	h.Handler(w, req)
@@ -328,7 +329,7 @@ func TestGogsPushEvent(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPost, "/api/webhook", nil)
 	req.Header.Set("X-Gogs-Event", "push")
 	eventJSON, err := os.ReadFile("testdata/gogs-event.json")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	req.Body = io.NopCloser(bytes.NewReader(eventJSON))
 	w := httptest.NewRecorder()
 	h.Handler(w, req)
@@ -344,7 +345,7 @@ func TestGitLabPushEvent(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPost, "/api/webhook", nil)
 	req.Header.Set("X-Gitlab-Event", "Push Hook")
 	eventJSON, err := os.ReadFile("testdata/gitlab-event.json")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	req.Body = io.NopCloser(bytes.NewReader(eventJSON))
 	w := httptest.NewRecorder()
 	h.Handler(w, req)
@@ -360,7 +361,7 @@ func TestGitLabSystemEvent(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPost, "/api/webhook", nil)
 	req.Header.Set("X-Gitlab-Event", "System Hook")
 	eventJSON, err := os.ReadFile("testdata/gitlab-event.json")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	req.Body = io.NopCloser(bytes.NewReader(eventJSON))
 	w := httptest.NewRecorder()
 	h.Handler(w, req)
@@ -596,7 +597,7 @@ func Test_getWebUrlRegex(t *testing.T) {
 		t.Run(testCopy.name, func(t *testing.T) {
 			t.Parallel()
 			regexp, err := getWebUrlRegex(testCopy.webURL)
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			if matches := regexp.MatchString(testCopy.repo); matches != testCopy.shouldMatch {
 				t.Errorf("sourceRevisionHasChanged() = %v, want %v", matches, testCopy.shouldMatch)
 			}

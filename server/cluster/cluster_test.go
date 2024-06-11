@@ -173,7 +173,7 @@ p, role:test, clusters, *, allowed-project/*, allow`)
 			t.Parallel()
 			out, err := server.Update(context.Background(), &cc.request)
 			require.Nil(t, out)
-			assert.ErrorIs(t, err, common.PermissionDeniedAPIError)
+			require.ErrorIs(t, err, common.PermissionDeniedAPIError)
 		})
 	}
 }
@@ -381,17 +381,17 @@ func TestDeleteClusterByName(t *testing.T) {
 			Name: "foo",
 		})
 
-		assert.EqualError(t, err, `rpc error: code = PermissionDenied desc = permission denied`)
+		require.EqualError(t, err, `rpc error: code = PermissionDenied desc = permission denied`)
 	})
 
 	t.Run("Delete Succeeds When Deleting by Name", func(t *testing.T) {
 		_, err := server.Delete(context.Background(), &clusterapi.ClusterQuery{
 			Name: "my-cluster-name",
 		})
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		_, err = db.GetCluster(context.Background(), "https://my-cluster-server")
-		assert.EqualError(t, err, `rpc error: code = NotFound desc = cluster "https://my-cluster-server" not found`)
+		require.EqualError(t, err, `rpc error: code = NotFound desc = cluster "https://my-cluster-server" not found`)
 	})
 }
 
@@ -460,7 +460,7 @@ func TestRotateAuth(t *testing.T) {
 			Name: "foo",
 		})
 
-		assert.EqualError(t, err, `rpc error: code = PermissionDenied desc = permission denied`)
+		require.EqualError(t, err, `rpc error: code = PermissionDenied desc = permission denied`)
 	})
 
 	// While the tests results for the next two tests result in an error, they do
@@ -645,7 +645,7 @@ func TestGetClusterAndVerifyAccess(t *testing.T) {
 		}, rbacpolicy.ActionGet)
 
 		assert.Nil(t, cluster)
-		assert.ErrorIs(t, err, common.PermissionDeniedAPIError)
+		require.ErrorIs(t, err, common.PermissionDeniedAPIError)
 	})
 
 	t.Run("GetClusterAndVerifyAccess - Permissions Denied", func(t *testing.T) {
@@ -671,7 +671,7 @@ func TestGetClusterAndVerifyAccess(t *testing.T) {
 		}, rbacpolicy.ActionGet)
 
 		assert.Nil(t, cluster)
-		assert.ErrorIs(t, err, common.PermissionDeniedAPIError)
+		require.ErrorIs(t, err, common.PermissionDeniedAPIError)
 	})
 }
 
@@ -699,13 +699,13 @@ func TestNoClusterEnumeration(t *testing.T) {
 		_, err := server.Get(context.Background(), &clusterapi.ClusterQuery{
 			Name: "cluster-not-exists",
 		})
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Equal(t, common.PermissionDeniedAPIError.Error(), err.Error(), "error message must be _only_ the permission error, to avoid leaking information about cluster existence")
 
 		_, err = server.Get(context.Background(), &clusterapi.ClusterQuery{
 			Name: "test/ing",
 		})
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Equal(t, common.PermissionDeniedAPIError.Error(), err.Error(), "error message must be _only_ the permission error, to avoid leaking information about cluster existence")
 	})
 
@@ -715,7 +715,7 @@ func TestNoClusterEnumeration(t *testing.T) {
 				Name: "cluster-not-exists",
 			},
 		})
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Equal(t, common.PermissionDeniedAPIError.Error(), err.Error(), "error message must be _only_ the permission error, to avoid leaking information about cluster existence")
 
 		_, err = server.Update(context.Background(), &clusterapi.ClusterUpdateRequest{
@@ -723,7 +723,7 @@ func TestNoClusterEnumeration(t *testing.T) {
 				Name: "test/ing",
 			},
 		})
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Equal(t, common.PermissionDeniedAPIError.Error(), err.Error(), "error message must be _only_ the permission error, to avoid leaking information about cluster existence")
 	})
 
@@ -731,13 +731,13 @@ func TestNoClusterEnumeration(t *testing.T) {
 		_, err := server.Delete(context.Background(), &clusterapi.ClusterQuery{
 			Server: "https://127.0.0.2",
 		})
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Equal(t, common.PermissionDeniedAPIError.Error(), err.Error(), "error message must be _only_ the permission error, to avoid leaking information about cluster existence")
 
 		_, err = server.Delete(context.Background(), &clusterapi.ClusterQuery{
 			Server: "https://127.0.0.1",
 		})
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Equal(t, common.PermissionDeniedAPIError.Error(), err.Error(), "error message must be _only_ the permission error, to avoid leaking information about cluster existence")
 	})
 
@@ -745,13 +745,13 @@ func TestNoClusterEnumeration(t *testing.T) {
 		_, err := server.RotateAuth(context.Background(), &clusterapi.ClusterQuery{
 			Server: "https://127.0.0.2",
 		})
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Equal(t, common.PermissionDeniedAPIError.Error(), err.Error(), "error message must be _only_ the permission error, to avoid leaking information about cluster existence")
 
 		_, err = server.RotateAuth(context.Background(), &clusterapi.ClusterQuery{
 			Server: "https://127.0.0.1",
 		})
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Equal(t, common.PermissionDeniedAPIError.Error(), err.Error(), "error message must be _only_ the permission error, to avoid leaking information about cluster existence")
 	})
 
@@ -759,13 +759,13 @@ func TestNoClusterEnumeration(t *testing.T) {
 		_, err := server.InvalidateCache(context.Background(), &clusterapi.ClusterQuery{
 			Server: "https://127.0.0.2",
 		})
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Equal(t, common.PermissionDeniedAPIError.Error(), err.Error(), "error message must be _only_ the permission error, to avoid leaking information about cluster existence")
 
 		_, err = server.InvalidateCache(context.Background(), &clusterapi.ClusterQuery{
 			Server: "https://127.0.0.1",
 		})
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Equal(t, common.PermissionDeniedAPIError.Error(), err.Error(), "error message must be _only_ the permission error, to avoid leaking information about cluster existence")
 	})
 }

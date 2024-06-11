@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -18,5 +18,5 @@ func TestGeneratePassword(t *testing.T) {
 		return
 	}
 	err = bcrypt.CompareHashAndPassword(output.Bytes(), []byte("abc"))
-	assert.NoError(t, err)
+	require.NoError(t, err)
 }

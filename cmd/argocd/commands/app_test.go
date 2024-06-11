@@ -32,6 +32,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"golang.org/x/oauth2"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -1025,7 +1026,7 @@ func TestTargetObjects(t *testing.T) {
 func TestTargetObjects_invalid(t *testing.T) {
 	resources := []*v1alpha1.ResourceDiff{{TargetState: "{"}}
 	_, err := targetObjects(resources)
-	assert.Error(t, err)
+	require.Error(t, err)
 }
 
 func TestCheckForDeleteEvent(t *testing.T) {
@@ -1467,7 +1468,7 @@ func TestParseSelectedResources(t *testing.T) {
 		"!*:*:*",
 	}
 	operationResources, err := parseSelectedResources(resources)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Len(t, operationResources, 5)
 	assert.Equal(t, v1alpha1.SyncOperationResource{
 		Namespace: "",
@@ -1507,19 +1508,19 @@ func TestParseSelectedResources(t *testing.T) {
 func TestParseSelectedResourcesIncorrect(t *testing.T) {
 	resources := []string{"v1alpha:test", "v1alpha:Application:namespace/test"}
 	_, err := parseSelectedResources(resources)
-	assert.ErrorContains(t, err, "v1alpha:test")
+	require.ErrorContains(t, err, "v1alpha:test")
 }
 
 func TestParseSelectedResourcesIncorrectNamespace(t *testing.T) {
 	resources := []string{"v1alpha:Application:namespace/test/unknown"}
 	_, err := parseSelectedResources(resources)
-	assert.ErrorContains(t, err, "v1alpha:Application:namespace/test/unknown")
+	require.ErrorContains(t, err, "v1alpha:Application:namespace/test/unknown")
 }
 
 func TestParseSelectedResourcesEmptyList(t *testing.T) {
 	var resources []string
 	operationResources, err := parseSelectedResources(resources)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Empty(t, operationResources)
 }
 
@@ -1549,7 +1550,7 @@ func TestPrintApplicationTableNotWide(t *testing.T) {
 		printApplicationTable([]v1alpha1.Application{*app, *app}, &output)
 		return nil
 	})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	expectation := "NAME      CLUSTER                NAMESPACE  PROJECT  STATUS     HEALTH   SYNCPOLICY  CONDITIONS\napp-name  http://localhost:8080  default    prj      OutOfSync  Healthy  Manual      <none>\napp-name  http://localhost:8080  default    prj      OutOfSync  Healthy  Manual      <none>\n"
 	assert.Equal(t, output, expectation)
 }
@@ -1585,7 +1586,7 @@ func TestPrintApplicationTableWide(t *testing.T) {
 		printApplicationTable([]v1alpha1.Application{*app, *app}, &output)
 		return nil
 	})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	expectation := "NAME      CLUSTER                NAMESPACE  PROJECT  STATUS     HEALTH   SYNCPOLICY  CONDITIONS  REPO                                             PATH       TARGET\napp-name  http://localhost:8080  default    prj      OutOfSync  Healthy  Manual      <none>      https://github.com/argoproj/argocd-example-apps  guestbook  123\napp-name  http://localhost:8080  default    prj      OutOfSync  Healthy  Manual      <none>      https://github.com/argoproj/argocd-example-apps  guestbook  123\n"
 	assert.Equal(t, output, expectation)
 }

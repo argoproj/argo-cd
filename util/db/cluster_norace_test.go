@@ -13,6 +13,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/common"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"k8s.io/client-go/kubernetes/fake"
 
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
@@ -58,14 +59,14 @@ func TestWatchClusters_CreateRemoveCluster(t *testing.T) {
 				Server: "https://minikube",
 				Name:   "minikube",
 			})
-			assert.NoError(t, err)
+			require.NoError(t, err)
 		},
 		func(old *v1alpha1.Cluster, new *v1alpha1.Cluster) {
 			assert.Nil(t, old)
 			assert.Equal(t, "https://minikube", new.Server)
 			assert.Equal(t, "minikube", new.Name)
 
-			assert.NoError(t, db.DeleteCluster(context.Background(), "https://minikube"))
+			require.NoError(t, db.DeleteCluster(context.Background(), "https://minikube"))
 		},
 		func(old *v1alpha1.Cluster, new *v1alpha1.Cluster) {
 			assert.Nil(t, new)
@@ -113,14 +114,14 @@ func TestWatchClusters_LocalClusterModifications(t *testing.T) {
 				Server: v1alpha1.KubernetesInternalAPIServerAddr,
 				Name:   "some name",
 			})
-			assert.NoError(t, err)
+			require.NoError(t, err)
 		},
 		func(old *v1alpha1.Cluster, new *v1alpha1.Cluster) {
 			assert.NotNil(t, old)
 			assert.Equal(t, v1alpha1.KubernetesInternalAPIServerAddr, new.Server)
 			assert.Equal(t, "some name", new.Name)
 
-			assert.NoError(t, db.DeleteCluster(context.Background(), v1alpha1.KubernetesInternalAPIServerAddr))
+			require.NoError(t, db.DeleteCluster(context.Background(), v1alpha1.KubernetesInternalAPIServerAddr))
 		},
 		func(old *v1alpha1.Cluster, new *v1alpha1.Cluster) {
 			assert.Equal(t, v1alpha1.KubernetesInternalAPIServerAddr, new.Server)

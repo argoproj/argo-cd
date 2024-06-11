@@ -39,5 +39,5 @@ func TestEncryptDecrypt_Failed(t *testing.T) {
 	require.NoError(t, err)
 
 	_, err = Decrypt(encrypted, wrongKey)
-	assert.Error(t, err)
+	require.Error(t, err)
 }

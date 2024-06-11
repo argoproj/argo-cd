@@ -106,9 +106,9 @@ func Test_validateRBACResourceAction(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			result := validateRBACResourceAction(tt.args.resource, tt.args.action)
 			if tt.valid {
-				assert.NoError(t, result)
+				require.NoError(t, result)
 			} else {
-				assert.Error(t, result)
+				require.Error(t, result)
 			}
 		})
 	}

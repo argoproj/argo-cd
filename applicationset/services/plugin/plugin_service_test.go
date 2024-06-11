@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestPlugin(t *testing.T) {
@@ -24,7 +25,7 @@ func TestPlugin(t *testing.T) {
 		}
 		_, err := w.Write([]byte(expectedJSON))
 		if err != nil {
-			assert.NoError(t, fmt.Errorf("Error Write %v", err))
+			require.NoError(t, fmt.Errorf("Error Write %v", err))
 		}
 	})
 	ts := httptest.NewServer(handler)

@@ -7,6 +7,7 @@ import (
 
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -40,7 +41,7 @@ func TestDeepLinks(t *testing.T) {
 			},
 		},
 	})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	resourceObj, err := kube.ToUnstructured(&v1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test-cm",
@@ -51,12 +52,12 @@ func TestDeepLinks(t *testing.T) {
 			"key": "value1",
 		},
 	})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	clusterObj, err := kube.ToUnstructured(&ClusterLinksData{
 		Server: "test-svc.com",
 		Name:   "test-cluster",
 	})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	projectObj, err := kube.ToUnstructured(&v1alpha1.AppProject{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test-project",
@@ -66,7 +67,7 @@ func TestDeepLinks(t *testing.T) {
 			SourceRepos: []string{"test-repo.git"},
 		},
 	})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	testTable := []deepLinkTC{
 		{
 			appObj:      appObj,

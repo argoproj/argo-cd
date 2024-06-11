@@ -4,16 +4,17 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func loadOpts(t *testing.T, opts string) {
 	t.Setenv("ARGOCD_OPTS", opts)
-	assert.NoError(t, loadFlags())
+	require.NoError(t, loadFlags())
 }
 
 func loadInvalidOpts(t *testing.T, opts string) {
 	t.Setenv("ARGOCD_OPTS", opts)
-	assert.Error(t, loadFlags())
+	require.Error(t, loadFlags())
 }
 
 func TestNilOpts(t *testing.T) {

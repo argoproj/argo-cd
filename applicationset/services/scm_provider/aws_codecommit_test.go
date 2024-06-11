@@ -12,6 +12,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 
 	"github.com/argoproj/argo-cd/v2/applicationset/services/scm_provider/aws_codecommit/mocks"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
@@ -217,7 +218,7 @@ func TestAWSCodeCommitListRepos(t *testing.T) {
 			}
 			repos, err := provider.ListRepos(ctx, testCase.cloneProtocol)
 			if testCase.expectOverallError {
-				assert.Error(t, err)
+				require.Error(t, err)
 			} else {
 				assert.Len(t, repos, len(validRepositories))
 				for i, repo := range repos {
@@ -369,7 +370,7 @@ func TestAWSCodeCommitRepoHasPath(t *testing.T) {
 				Branch:       branch,
 			}, testCase.path)
 			if testCase.expectOverallError {
-				assert.Error(t, err)
+				require.Error(t, err)
 			} else {
 				assert.Equal(t, testCase.expectedResult, actual)
 			}
@@ -449,7 +450,7 @@ func TestAWSCodeCommitGetBranches(t *testing.T) {
 				RepositoryId: id,
 			})
 			if testCase.expectOverallError {
-				assert.Error(t, err)
+				require.Error(t, err)
 			} else {
 				assertCopiedProperties := func(repo *Repository) {
 					assert.Equal(t, id, repo.RepositoryId)

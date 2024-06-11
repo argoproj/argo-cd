@@ -30,6 +30,5 @@ linters-settings:
       - error-is-as
       - float-compare
       - go-require
-      - require-error
 run:
   timeout: 50m

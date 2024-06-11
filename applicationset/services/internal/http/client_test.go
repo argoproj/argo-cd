@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestClient(t *testing.T) {
@@ -17,7 +18,7 @@ func TestClient(t *testing.T) {
 		w.WriteHeader(http.StatusOK)
 		_, err := w.Write([]byte("Hello, World!"))
 		if err != nil {
-			assert.NoError(t, fmt.Errorf("Error Write %v", err))
+			require.NoError(t, fmt.Errorf("Error Write %v", err))
 		}
 	}))
 	defer server.Close()
@@ -61,7 +62,7 @@ func TestClientDo(t *testing.T) {
 					"key3": 123
 				 }]`))
 				if err != nil {
-					assert.NoError(t, fmt.Errorf("Error Write %v", err))
+					require.NoError(t, fmt.Errorf("Error Write %v", err))
 				}
 			})),
 			clientOptionFns: nil,
@@ -104,7 +105,7 @@ func TestClientDo(t *testing.T) {
 					"key3": 123
 				 }]`))
 				if err != nil {
-					assert.NoError(t, fmt.Errorf("Error Write %v", err))
+					require.NoError(t, fmt.Errorf("Error Write %v", err))
 				}
 			})),
 			clientOptionFns: nil,
@@ -132,11 +133,11 @@ func TestClientDo(t *testing.T) {
 			resp, err := client.Do(ctx, req, &data)
 
 			if cc.expectedError != nil {
-				assert.EqualError(t, err, cc.expectedError.Error())
+				require.EqualError(t, err, cc.expectedError.Error())
 			} else {
 				assert.Equal(t, cc.expectedCode, resp.StatusCode)
 				assert.Equal(t, cc.expected, data)
-				assert.NoError(t, err)
+				require.NoError(t, err)
 			}
 		})
 	}

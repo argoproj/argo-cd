@@ -7,6 +7,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 
 	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
 	repo_mocks "github.com/argoproj/argo-cd/v2/reposerver/apiclient/mocks"
@@ -168,6 +169,6 @@ func TestNewArgoCDService(t *testing.T) {
 	service, err := NewArgoCDService(func(ctx context.Context, url, project string) (*v1alpha1.Repository, error) {
 		return &v1alpha1.Repository{}, nil
 	}, false, &repo_mocks.Clientset{}, false)
-	assert.NoError(t, err, err)
+	require.NoError(t, err, err)
 	assert.NotNil(t, service)
 }
