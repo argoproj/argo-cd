@@ -27,11 +27,9 @@ linters-settings:
   testifylint:
     enable-all: true
     disable:
-      - compares
       - error-is-as
       - float-compare
       - go-require
-      - nil-compare
       - require-error
 run:
   timeout: 50m

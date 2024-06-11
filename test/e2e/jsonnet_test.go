@@ -35,7 +35,7 @@ func TestJsonnetAppliedCorrectly(t *testing.T) {
 				}
 			}
 
-			assert.True(t, index > -1)
+			assert.Greater(t, index, -1)
 
 			deployment := resources[index]
 			assert.Equal(t, "jsonnet-guestbook-ui", deployment.GetName())
@@ -65,7 +65,7 @@ func TestJsonnetTlaParameterAppliedCorrectly(t *testing.T) {
 				}
 			}
 
-			assert.True(t, index > -1)
+			assert.Greater(t, index, -1)
 
 			deployment := resources[index]
 			assert.Equal(t, "testing-tla", deployment.GetName())

@@ -2,7 +2,6 @@ package metrics
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"net/http"
 	"net/http/httptest"
@@ -370,7 +369,7 @@ func assertMetricsPrinted(t *testing.T, expectedLines, body string) {
 		if line == "" {
 			continue
 		}
-		assert.Contains(t, body, line, fmt.Sprintf("expected metrics mismatch for line: %s", line))
+		assert.Contains(t, body, line, "expected metrics mismatch for line: %s", line)
 	}
 }
 

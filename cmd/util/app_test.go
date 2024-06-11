@@ -222,7 +222,7 @@ func Test_setAppSpecOptions(t *testing.T) {
 	})
 	t.Run("RetryLimit", func(t *testing.T) {
 		assert.NoError(t, f.SetFlag("sync-retry-limit", "5"))
-		assert.True(t, f.spec.SyncPolicy.Retry.Limit == 5)
+		assert.Equal(t, int64(5), f.spec.SyncPolicy.Retry.Limit)
 
 		assert.NoError(t, f.SetFlag("sync-retry-limit", "0"))
 		assert.Nil(t, f.spec.SyncPolicy.Retry)

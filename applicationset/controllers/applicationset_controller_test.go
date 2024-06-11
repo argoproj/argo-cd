@@ -1652,7 +1652,7 @@ func TestRemoveFinalizerOnInvalidDestination_DestinationTypes(t *testing.T) {
 
 			finalizerRemoved := len(retrievedApp.Finalizers) == 0
 
-			assert.True(t, c.expectFinalizerRemoved == finalizerRemoved)
+			assert.Equal(t, c.expectFinalizerRemoved, finalizerRemoved)
 
 			bytes, _ := json.MarshalIndent(retrievedApp, "", "  ")
 			t.Log("Contents of app after call:", string(bytes))
@@ -2458,7 +2458,7 @@ func TestReconcilerValidationProjectErrorBehaviour(t *testing.T) {
 	// Verify that on validation error, no error is returned, but the object is requeued
 	res, err := r.Reconcile(context.Background(), req)
 	assert.NoError(t, err)
-	assert.True(t, res.RequeueAfter == ReconcileRequeueOnValidationError)
+	assert.Equal(t, ReconcileRequeueOnValidationError, res.RequeueAfter)
 
 	var app v1alpha1.Application
 
@@ -2546,7 +2546,7 @@ func TestReconcilerCreateAppsRecoveringRenderError(t *testing.T) {
 	// Verify that on generatorsError, no error is returned, but the object is requeued
 	res, err := r.Reconcile(context.Background(), req)
 	assert.NoError(t, err)
-	assert.True(t, res.RequeueAfter == ReconcileRequeueOnValidationError)
+	assert.Equal(t, ReconcileRequeueOnValidationError, res.RequeueAfter)
 
 	var app v1alpha1.Application
 
@@ -2694,7 +2694,7 @@ func applicationsUpdateSyncPolicyTest(t *testing.T, applicationsSyncPolicy v1alp
 	// Verify that on validation error, no error is returned, but the object is requeued
 	resCreate, err := r.Reconcile(context.Background(), req)
 	assert.NoError(t, err)
-	assert.True(t, resCreate.RequeueAfter == 0)
+	assert.Equal(t, time.Duration(0), resCreate.RequeueAfter)
 
 	var app v1alpha1.Application
 
@@ -2723,7 +2723,7 @@ func applicationsUpdateSyncPolicyTest(t *testing.T, applicationsSyncPolicy v1alp
 
 	err = r.Client.Get(context.TODO(), crtclient.ObjectKey{Namespace: "argocd", Name: "good-cluster"}, &app)
 	assert.NoError(t, err)
-	assert.True(t, resUpdate.RequeueAfter == 0)
+	assert.Equal(t, time.Duration(0), resUpdate.RequeueAfter)
 	assert.Equal(t, "good-cluster", app.Name)
 
 	return app
@@ -2858,7 +2858,7 @@ func applicationsDeleteSyncPolicyTest(t *testing.T, applicationsSyncPolicy v1alp
 	// Verify that on validation error, no error is returned, but the object is requeued
 	resCreate, err := r.Reconcile(context.Background(), req)
 	assert.NoError(t, err)
-	assert.True(t, resCreate.RequeueAfter == 0)
+	assert.Equal(t, time.Duration(0), resCreate.RequeueAfter)
 
 	var app v1alpha1.Application
 
@@ -2889,7 +2889,7 @@ func applicationsDeleteSyncPolicyTest(t *testing.T, applicationsSyncPolicy v1alp
 
 	err = r.Client.List(context.TODO(), &apps)
 	assert.NoError(t, err)
-	assert.True(t, resUpdate.RequeueAfter == 0)
+	assert.Equal(t, time.Duration(0), resUpdate.RequeueAfter)
 
 	return apps
 }
@@ -3168,7 +3168,7 @@ func TestPolicies(t *testing.T) {
 			// Check if Application is created
 			res, err := r.Reconcile(context.Background(), req)
 			assert.NoError(t, err)
-			assert.True(t, res.RequeueAfter == 0)
+			assert.Equal(t, time.Duration(0), res.RequeueAfter)
 
 			var app v1alpha1.Application
 			err = r.Client.Get(context.TODO(), crtclient.ObjectKey{Namespace: "argocd", Name: "my-app"}, &app)
@@ -3182,7 +3182,7 @@ func TestPolicies(t *testing.T) {
 
 			res, err = r.Reconcile(context.Background(), req)
 			assert.NoError(t, err)
-			assert.True(t, res.RequeueAfter == 0)
+			assert.Equal(t, time.Duration(0), res.RequeueAfter)
 
 			err = r.Client.Get(context.TODO(), crtclient.ObjectKey{Namespace: "argocd", Name: "my-app"}, &app)
 			assert.NoError(t, err)
@@ -3206,7 +3206,7 @@ func TestPolicies(t *testing.T) {
 
 			res, err = r.Reconcile(context.Background(), req)
 			assert.NoError(t, err)
-			assert.True(t, res.RequeueAfter == 0)
+			assert.Equal(t, time.Duration(0), res.RequeueAfter)
 
 			err = r.Client.Get(context.TODO(), crtclient.ObjectKey{Namespace: "argocd", Name: "my-app"}, &app)
 			assert.NoError(t, err)

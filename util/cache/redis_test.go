@@ -108,7 +108,7 @@ func TestRedisSetCacheCompressed(t *testing.T) {
 
 	compressedData, err := redisClient.Get(context.Background(), "my-key.gz").Bytes()
 	assert.NoError(t, err)
-	assert.True(t, len(compressedData) > len([]byte(testValue)), "compressed data is bigger than uncompressed")
+	assert.Greater(t, len(compressedData), len([]byte(testValue)), "compressed data is bigger than uncompressed")
 
 	var result string
 	assert.NoError(t, client.Get("my-key", &result))
