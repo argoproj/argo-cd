@@ -14,8 +14,10 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/settings"
 )
 
-const Test_Cert1CN = "CN=foo.example.com,OU=SpecOps,O=Capone\\, Inc,L=Chicago,ST=IL,C=US"
-const Test_Cert2CN = "CN=bar.example.com,OU=Testsuite,O=Testing Corp,L=Hanover,ST=Lower Saxony,C=DE"
+const (
+	Test_Cert1CN = "CN=foo.example.com,OU=SpecOps,O=Capone\\, Inc,L=Chicago,ST=IL,C=US"
+	Test_Cert2CN = "CN=bar.example.com,OU=Testsuite,O=Testing Corp,L=Hanover,ST=Lower Saxony,C=DE"
+)
 
 var Test_TLS_Subjects []string = []string{
 	"CN=foo.example.com,OU=SpecOps,O=Capone\\, Inc,L=Chicago,ST=IL,C=US",
@@ -236,8 +238,10 @@ var Test_TLS_Hostnames []string = []string{
 	"github.com",
 }
 
-const Test_NumSSHKnownHostsExpected = 7
-const Test_NumTLSCertificatesExpected = 3
+const (
+	Test_NumSSHKnownHostsExpected   = 7
+	Test_NumTLSCertificatesExpected = 3
+)
 
 func getCertClientset() *fake.Clientset {
 	cm := v1.ConfigMap{
@@ -663,7 +667,6 @@ func Test_CreateTLSCertificates(t *testing.T) {
 	}, true)
 	assert.Error(t, err)
 	assert.Nil(t, certList)
-
 }
 
 func Test_RemoveSSHKnownHosts(t *testing.T) {
@@ -774,5 +777,4 @@ func Test_RemoveTLSCertificates(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, certList)
 	assert.Empty(t, certList.Items)
-
 }

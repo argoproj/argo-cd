@@ -219,7 +219,6 @@ func NewApplicationController(
 				if projMeta, ok := obj.(metav1.Object); ok {
 					ctrl.InvalidateProjectsCache(projMeta.GetName())
 				}
-
 			}
 		},
 		UpdateFunc: func(old, new interface{}) {
@@ -518,14 +517,14 @@ func (ctrl *ApplicationController) getResourceTree(a *appv1.Application, managed
 	for i := range managedResources {
 		managedResource := managedResources[i]
 		delete(orphanedNodesMap, kube.NewResourceKey(managedResource.Group, managedResource.Kind, managedResource.Namespace, managedResource.Name))
-		var live = &unstructured.Unstructured{}
+		live := &unstructured.Unstructured{}
 		err := json.Unmarshal([]byte(managedResource.LiveState), &live)
 		if err != nil {
 			return nil, fmt.Errorf("failed to unmarshal live state of managed resources: %w", err)
 		}
 
 		if live == nil {
-			var target = &unstructured.Unstructured{}
+			target := &unstructured.Unstructured{}
 			err = json.Unmarshal([]byte(managedResource.TargetState), &target)
 			if err != nil {
 				return nil, fmt.Errorf("failed to unmarshal target state of managed resources: %w", err)
@@ -1057,7 +1056,6 @@ func (ctrl *ApplicationController) getPermittedAppLiveObjects(app *appv1.Applica
 	// Don't delete live resources which are not permitted in the app project
 	for k, v := range objsMap {
 		permitted, err := proj.IsLiveResourcePermitted(v, app.Spec.Destination.Server, app.Spec.Destination.Name, projectClusters)
-
 		if err != nil {
 			return nil, err
 		}
@@ -1358,7 +1356,6 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 		} else if state.RetryCount > 0 {
 			state.Message = fmt.Sprintf("%s (retried %d times).", state.Message, state.RetryCount)
 		}
-
 	}
 
 	ctrl.setOperationState(app, state)
@@ -1898,7 +1895,6 @@ func (ctrl *ApplicationController) autoSync(app *appv1.Application, syncStatus *
 			ctrl.requestAppRefresh(app.QualifiedName(), CompareWithLatest.Pointer(), &retryAfter)
 			return nil, 0
 		}
-
 	}
 
 	if app.Spec.SyncPolicy.Automated.Prune && !app.Spec.SyncPolicy.Automated.AllowEmpty {

@@ -156,6 +156,7 @@ func TestStateDiff(t *testing.T) {
 		})
 	}
 }
+
 func TestDiffConfigBuilder(t *testing.T) {
 	type fixture struct {
 		ignores        []v1alpha1.ResourceIgnoreDifferences
@@ -178,7 +179,6 @@ func TestDiffConfigBuilder(t *testing.T) {
 			appName:        "application-name",
 			stateCache:     &appstatecache.Cache{},
 		}
-
 	}
 	t.Run("will build diff config successfully", func(t *testing.T) {
 		// given
@@ -256,5 +256,4 @@ func TestDiffConfigBuilder(t *testing.T) {
 		require.Error(t, err)
 		require.Nil(t, diffConfig)
 	})
-
 }

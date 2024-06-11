@@ -74,7 +74,6 @@ func TestSCMProviderGetSecretRef(t *testing.T) {
 				assert.NoError(t, err)
 			}
 			assert.Equal(t, c.token, token)
-
 		})
 	}
 }
@@ -196,7 +195,6 @@ func TestSCMProviderGenerateParams(t *testing.T) {
 				assert.NoError(t, err)
 				assert.Equal(t, testCaseCopy.expected, got)
 			}
-
 		})
 	}
 }

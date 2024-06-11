@@ -45,12 +45,9 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/stats"
 )
 
-var (
-	CompareStateRepoError = errors.New("failed to get repo objects")
-)
+var CompareStateRepoError = errors.New("failed to get repo objects")
 
-type resourceInfoProviderStub struct {
-}
+type resourceInfoProviderStub struct{}
 
 func (r *resourceInfoProviderStub) IsNamespaced(_ schema.GroupKind) (bool, error) {
 	return false, nil
@@ -261,7 +258,6 @@ func (m *appStateManager) GetRepoObjs(app *v1alpha1.Application, sources []v1alp
 		}
 
 		targetObj, err := unmarshalManifests(manifestInfo.Manifests)
-
 		if err != nil {
 			return nil, nil, fmt.Errorf("failed to unmarshal manifests for source %d of %d: %w", i+1, len(sources), err)
 		}
@@ -296,7 +292,6 @@ func DeduplicateTargetObjects(
 	objs []*unstructured.Unstructured,
 	infoProvider kubeutil.ResourceInfoProvider,
 ) ([]*unstructured.Unstructured, []v1alpha1.ApplicationCondition, error) {
-
 	targetByKey := make(map[kubeutil.ResourceKey][]*unstructured.Unstructured)
 	for i := range objs {
 		obj := objs[i]
@@ -548,7 +543,6 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 			}
 			return clusters, nil
 		})
-
 		if err != nil {
 			msg := fmt.Sprintf("Failed to check if live resource %q is permitted in project %q: %s", k.String(), app.Spec.Project, err.Error())
 			conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: msg, LastTransitionTime: &now})
@@ -590,7 +584,6 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 			if isManagedNamespace(liveObj, app) && !targetNsExists {
 				nsSpec := &v1.Namespace{TypeMeta: metav1.TypeMeta{APIVersion: "v1", Kind: kubeutil.NamespaceKind}, ObjectMeta: metav1.ObjectMeta{Name: liveObj.GetName()}}
 				managedNs, err := kubeutil.ToUnstructured(nsSpec)
-
 				if err != nil {
 					conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: err.Error(), LastTransitionTime: &now})
 					failedToLoadObjs = true
@@ -874,7 +867,6 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 // useDiffCache will determine if the diff should be calculated based
 // on the existing live state cache or not.
 func useDiffCache(noCache bool, manifestInfos []*apiclient.ManifestResponse, sources []v1alpha1.ApplicationSource, app *v1alpha1.Application, manifestRevisions []string, statusRefreshTimeout time.Duration, serverSideDiff bool, log *log.Entry) bool {
-
 	if noCache {
 		log.WithField("useDiffCache", "false").Debug("noCache is true")
 		return false

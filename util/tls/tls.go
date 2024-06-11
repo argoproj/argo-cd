@@ -35,14 +35,12 @@ const (
 	DefaultTLSMaxVersion = "1.3"
 )
 
-var (
-	tlsVersionByString = map[string]uint16{
-		"1.0": tls.VersionTLS10,
-		"1.1": tls.VersionTLS11,
-		"1.2": tls.VersionTLS12,
-		"1.3": tls.VersionTLS13,
-	}
-)
+var tlsVersionByString = map[string]uint16{
+	"1.0": tls.VersionTLS10,
+	"1.1": tls.VersionTLS11,
+	"1.2": tls.VersionTLS12,
+	"1.3": tls.VersionTLS13,
+}
 
 type CertOptions struct {
 	// Hostnames and IPs to generate a certificate for
@@ -164,7 +162,6 @@ func getTLSConfigCustomizer(minVersionStr, maxVersionStr, tlsCiphersStr string) 
 		config.MaxVersion = maxVersion
 		config.CipherSuites = cipherSuites
 	}, nil
-
 }
 
 // Adds TLS server related command line options to a command and returns a TLS
@@ -320,7 +317,6 @@ func GenerateX509KeyPair(opts CertOptions) (*tls.Certificate, error) {
 
 // EncodeX509KeyPair encodes a TLS Certificate into its pem encoded format for storage
 func EncodeX509KeyPair(cert tls.Certificate) ([]byte, []byte) {
-
 	certpem := []byte{}
 	for _, certtmp := range cert.Certificate {
 		certpem = append(certpem, pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: certtmp})...)
@@ -433,5 +429,4 @@ func CreateServerTLSConfig(tlsCertPath, tlsKeyPath string, hosts []string) (*tls
 	}
 
 	return &tls.Config{Certificates: []tls.Certificate{*cert}}, nil
-
 }

@@ -98,7 +98,6 @@ func (h *helm) DependencyBuild() error {
 			}
 		} else {
 			_, err := h.cmd.RepoAdd(repo.Name, repo.Repo, repo.Creds, h.passCredentials)
-
 			if err != nil {
 				return err
 			}

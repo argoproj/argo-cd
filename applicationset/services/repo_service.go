@@ -21,7 +21,6 @@ type argoCDService struct {
 //go:generate go run github.com/vektra/mockery/v2@v2.40.2 --name=Repos
 
 type Repos interface {
-
 	// GetFiles returns content of files (not directories) within the target repo
 	GetFiles(ctx context.Context, repoURL string, revision string, pattern string, noRevisionCache bool) (map[string][]byte, error)
 
@@ -89,5 +88,4 @@ func (a *argoCDService) GetDirectories(ctx context.Context, repoURL string, revi
 		return nil, fmt.Errorf("error retrieving Git Directories: %w", err)
 	}
 	return dirResponse.GetPaths(), nil
-
 }

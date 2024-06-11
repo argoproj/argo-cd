@@ -1,11 +1,10 @@
 package db
 
 import (
+	"context"
 	"fmt"
 	"regexp"
 	"strings"
-
-	"context"
 
 	"golang.org/x/crypto/ssh"
 
@@ -57,7 +56,6 @@ type CertificateListSelector struct {
 //     the string "SHA256:"
 //   - For TLS certs, the Subject of the X509 cert as a string in DN notation
 func (db *db) ListRepoCertificates(ctx context.Context, selector *CertificateListSelector) (*appsv1.RepositoryCertificateList, error) {
-
 	// selector may be given as nil, but we need at least an empty data structure
 	// so we create it if necessary.
 	if selector == nil {
@@ -243,7 +241,6 @@ func (db *db) CreateRepoCertificate(ctx context.Context, certificates *appsv1.Re
 				created = append(created, certificate)
 				saveSSHData = true
 			}
-
 		} else if certificate.CertType == "https" {
 			var tlsCertificate *TLSCertificate = nil
 			newEntry := true

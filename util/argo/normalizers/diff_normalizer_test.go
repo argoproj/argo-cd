@@ -251,7 +251,6 @@ func TestNormalizeExpectedErrorAreSilenced(t *testing.T) {
 	assert.False(t, shouldLogError(err))
 
 	assert.True(t, shouldLogError(fmt.Errorf("An error that should not be ignored")))
-
 }
 
 func TestJqPathExpressionFailWithTimeout(t *testing.T) {

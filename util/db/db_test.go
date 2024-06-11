@@ -175,7 +175,8 @@ func TestGetRepositoryCredentials(t *testing.T) {
   passwordSecret:
     name: missing-managed-secret
     key: password
-`}
+`,
+	}
 	clientset := getClientset(config, newManagedSecret())
 	db := NewDB(testNamespace, settings.NewSettingsManager(context.Background(), clientset, testNamespace), clientset)
 
@@ -255,7 +256,8 @@ func TestGetRepository(t *testing.T) {
   passwordSecret:
     name: managed-secret
     key: password
-`}
+`,
+	}
 	clientset := getClientset(config, newManagedSecret())
 	db := NewDB(testNamespace, settings.NewSettingsManager(context.Background(), clientset, testNamespace), clientset)
 
@@ -315,7 +317,8 @@ func TestDeleteRepositoryManagedSecrets(t *testing.T) {
   passwordSecret:
     name: managed-secret
     key: password
-`}
+`,
+	}
 	clientset := getClientset(config, newManagedSecret())
 	db := NewDB(testNamespace, settings.NewSettingsManager(context.Background(), clientset, testNamespace), clientset)
 
@@ -341,7 +344,8 @@ func TestDeleteRepositoryUnmanagedSecrets(t *testing.T) {
   passwordSecret:
     name: unmanaged-secret
     key: password
-`}
+`,
+	}
 	clientset := getClientset(config, &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "unmanaged-secret",
@@ -380,7 +384,8 @@ func TestUpdateRepositoryWithManagedSecrets(t *testing.T) {
   sshPrivateKeySecret:
     name: managed-secret
     key: sshPrivateKey
-`}
+`,
+	}
 	clientset := getClientset(config, &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "managed-secret",
@@ -404,7 +409,8 @@ func TestUpdateRepositoryWithManagedSecrets(t *testing.T) {
 	assert.Equal(t, "test-ssh-private-key", repo.SSHPrivateKey)
 
 	_, err = db.UpdateRepository(context.Background(), &v1alpha1.Repository{
-		Repo: "https://github.com/argoproj/argocd-example-apps", Password: "", Username: "", SSHPrivateKey: ""})
+		Repo: "https://github.com/argoproj/argocd-example-apps", Password: "", Username: "", SSHPrivateKey: "",
+	})
 	assert.NoError(t, err)
 
 	_, err = clientset.CoreV1().Secrets(testNamespace).Get(context.Background(), "managed-secret", metav1.GetOptions{})
@@ -438,7 +444,8 @@ func TestRepositorySecretsTrim(t *testing.T) {
   githubAppPrivateKeySecret:
     name: managed-secret
     key: githubAppPrivateKey
-`}
+`,
+	}
 	clientset := getClientset(config, &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "managed-secret",
@@ -652,7 +659,8 @@ func TestListHelmRepositories(t *testing.T) {
   tlsClientCertKeySecret:
     name: test-secret
     key: key
-`}
+`,
+	}
 	clientset := getClientset(config, &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test-secret",
@@ -699,7 +707,8 @@ func TestHelmRepositorySecretsTrim(t *testing.T) {
   tlsClientCertKeySecret:
     name: test-secret
     key: key
-`}
+`,
+	}
 	clientset := getClientset(config, &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test-secret",

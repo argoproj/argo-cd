@@ -20,7 +20,7 @@ func validatePGPKey(keyData string) (*appsv1.GnuPGPublicKey, error) {
 	}
 	defer os.Remove(f.Name())
 
-	err = os.WriteFile(f.Name(), []byte(keyData), 0600)
+	err = os.WriteFile(f.Name(), []byte(keyData), 0o600)
 	if err != nil {
 		return nil, err
 	}

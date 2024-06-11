@@ -167,7 +167,8 @@ func TestRegisterExtensions(t *testing.T) {
 		f.settingsGetterMock.On("Get", mock.Anything).Return(settings, nil)
 		expectedProxyRegistries := []string{
 			"external-backend",
-			"some-backend"}
+			"some-backend",
+		}
 
 		// when
 		err := f.manager.RegisterExtensions()
@@ -179,7 +180,6 @@ func TestRegisterExtensions(t *testing.T) {
 			assert.True(t, found)
 			assert.NotNil(t, proxyRegistry)
 		}
-
 	})
 	t.Run("will return error if extension config is invalid", func(t *testing.T) {
 		// given
@@ -375,7 +375,6 @@ func TestCallExtension(t *testing.T) {
 			}
 			fmt.Fprintln(w, response)
 		}))
-
 	}
 	newExtensionRequest := func(t *testing.T, method, url string) *http.Request {
 		t.Helper()
@@ -782,6 +781,7 @@ extensions:
     connectionTimeout: 2s
 `
 }
+
 func getExtensionConfigNoName() string {
 	return `
 extensions:
@@ -790,6 +790,7 @@ extensions:
     - url: https://httpbin.org
 `
 }
+
 func getExtensionConfigInvalidName() string {
 	return `
 extensions:

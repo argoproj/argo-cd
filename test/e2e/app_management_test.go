@@ -164,7 +164,6 @@ func TestGetLogsAllowSwitchOn(t *testing.T) {
 			assert.NoError(t, err)
 			assert.NotContains(t, out, "Hi")
 		})
-
 }
 
 func TestGetLogsAllowSwitchOff(t *testing.T) {
@@ -531,7 +530,6 @@ func TestPatchHttp(t *testing.T) {
 			assert.Equal(t, "patch", app.Labels["test"])
 			assert.Equal(t, "patch", app.Annotations["test"])
 		})
-
 }
 
 // demonstrate that we cannot use a standard sync when an immutable field is changed, we must use "force"
@@ -684,7 +682,6 @@ func TestAppRollbackSuccessful(t *testing.T) {
 			// sync app and make sure it reaches InSync state
 			_, err = RunCli("app", "rollback", app.Name, "1")
 			require.NoError(t, err)
-
 		}).
 		Expect(Event(EventReasonOperationStarted, "rollback")).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
@@ -1062,7 +1059,6 @@ func TestOldStyleResourceAction(t *testing.T) {
 		Sync().
 		Then().
 		And(func(app *Application) {
-
 			closer, client, err := ArgoCDClientset.NewApplicationClient()
 			assert.NoError(t, err)
 			defer io.Close(closer)
@@ -1078,7 +1074,8 @@ func TestOldStyleResourceAction(t *testing.T) {
 			assert.NoError(t, err)
 			assert.Equal(t, []*ResourceAction{{Name: "sample", Disabled: false}}, actions.Actions)
 
-			_, err = client.RunResourceAction(context.Background(), &applicationpkg.ResourceActionRunRequest{Name: &app.Name,
+			_, err = client.RunResourceAction(context.Background(), &applicationpkg.ResourceActionRunRequest{
+				Name:         &app.Name,
 				Group:        ptr.To("apps"),
 				Kind:         ptr.To("Deployment"),
 				Version:      ptr.To("v1"),
@@ -1161,13 +1158,13 @@ func TestNewStyleResourceActionPermitted(t *testing.T) {
 			NamespaceResourceWhitelist: []metav1.GroupKind{
 				{Group: "batch", Kind: "Job"},
 				{Group: "batch", Kind: "CronJob"},
-			}}).
+			},
+		}).
 		When().
 		CreateApp().
 		Sync().
 		Then().
 		And(func(app *Application) {
-
 			closer, client, err := ArgoCDClientset.NewApplicationClient()
 			assert.NoError(t, err)
 			defer io.Close(closer)
@@ -1183,7 +1180,8 @@ func TestNewStyleResourceActionPermitted(t *testing.T) {
 			assert.NoError(t, err)
 			assert.Equal(t, []*ResourceAction{{Name: "sample", Disabled: false}}, actions.Actions)
 
-			_, err = client.RunResourceAction(context.Background(), &applicationpkg.ResourceActionRunRequest{Name: &app.Name,
+			_, err = client.RunResourceAction(context.Background(), &applicationpkg.ResourceActionRunRequest{
+				Name:         &app.Name,
 				Group:        ptr.To("batch"),
 				Kind:         ptr.To("CronJob"),
 				Version:      ptr.To("v1"),
@@ -1271,13 +1269,13 @@ func TestNewStyleResourceActionMixedOk(t *testing.T) {
 			NamespaceResourceWhitelist: []metav1.GroupKind{
 				{Group: "batch", Kind: "Job"},
 				{Group: "batch", Kind: "CronJob"},
-			}}).
+			},
+		}).
 		When().
 		CreateApp().
 		Sync().
 		Then().
 		And(func(app *Application) {
-
 			closer, client, err := ArgoCDClientset.NewApplicationClient()
 			assert.NoError(t, err)
 			defer io.Close(closer)
@@ -1293,7 +1291,8 @@ func TestNewStyleResourceActionMixedOk(t *testing.T) {
 			assert.NoError(t, err)
 			assert.Equal(t, []*ResourceAction{{Name: "sample", Disabled: false}}, actions.Actions)
 
-			_, err = client.RunResourceAction(context.Background(), &applicationpkg.ResourceActionRunRequest{Name: &app.Name,
+			_, err = client.RunResourceAction(context.Background(), &applicationpkg.ResourceActionRunRequest{
+				Name:         &app.Name,
 				Group:        ptr.To("batch"),
 				Kind:         ptr.To("CronJob"),
 				Version:      ptr.To("v1"),
@@ -1740,7 +1739,6 @@ func TestSyncOptionPruneFalse(t *testing.T) {
 
 // make sure that if we have an invalid manifest, we can add it if we disable validation, we get a server error rather than a client error
 func TestSyncOptionValidateFalse(t *testing.T) {
-
 	Given(t).
 		Path("crd-validation").
 		When().
@@ -1829,7 +1827,6 @@ func TestSourceNamespaceCanBeMigratedToManagedNamespaceWithoutBeingPrunedOrOutOf
 }
 
 func TestSelfManagedApps(t *testing.T) {
-
 	Given(t).
 		Path("self-managed-app").
 		When().
@@ -2047,7 +2044,8 @@ func TestNotPermittedResources(t *testing.T) {
 		Destinations: []ApplicationDestination{{Namespace: DeploymentNamespace(), Server: "*"}},
 		NamespaceResourceBlacklist: []metav1.GroupKind{
 			{Group: "", Kind: "Service"},
-		}}).
+		},
+	}).
 		And(func() {
 			FailOnErr(KubeClientset.NetworkingV1().Ingresses(TestNamespace()).Create(context.Background(), ingress, metav1.CreateOptions{}))
 			FailOnErr(KubeClientset.CoreV1().Services(DeploymentNamespace()).Create(context.Background(), svc, metav1.CreateOptions{}))
@@ -2302,12 +2300,10 @@ func TestCreateDisableValidation(t *testing.T) {
 		}).
 		When().
 		AppSet("--path", "baddir3", "--validate=false")
-
 }
 
 func TestCreateFromPartialFile(t *testing.T) {
-	partialApp :=
-		`metadata:
+	partialApp := `metadata:
   labels:
     labels.local/from-file: file
     labels.local/from-args: file
@@ -2884,5 +2880,4 @@ func TestAnnotationTrackingExtraResources(t *testing.T) {
 		Expect(OperationPhaseIs(OperationSucceeded)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		Expect(HealthIs(health.HealthStatusHealthy))
-
 }

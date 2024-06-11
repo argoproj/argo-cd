@@ -93,9 +93,7 @@ const (
 	envLoginMaxCacheSize = "ARGOCD_SESSION_MAX_CACHE_SIZE"
 )
 
-var (
-	InvalidLoginErr = status.Errorf(codes.Unauthenticated, invalidLoginError)
-)
+var InvalidLoginErr = status.Errorf(codes.Unauthenticated, invalidLoginError)
 
 // Returns the maximum cache size as number of entries
 func getMaximumCacheSize() int {
@@ -379,7 +377,6 @@ func (mgr *SessionManager) updateFailureCount(username string, failed bool) {
 	if err != nil {
 		log.Errorf("Could not update login attempts: %v", err)
 	}
-
 }
 
 // Get the current login failure attempts for given username
@@ -545,7 +542,6 @@ func (mgr *SessionManager) VerifyToken(tokenString string) (jwt.Claims, string, 
 		}
 
 		idToken, err := prov.Verify(tokenString, argoSettings)
-
 		// The token verification has failed. If the token has expired, we will
 		// return a dummy claims only containing a value for the issuer, so the
 		// UI can handle expired tokens appropriately.

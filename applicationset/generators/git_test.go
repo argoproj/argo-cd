@@ -175,7 +175,6 @@ foo:
 }
 
 func TestGitGenerateParamsFromDirectories(t *testing.T) {
-
 	cases := []struct {
 		name            string
 		directories     []argoprojiov1alpha1.GitDirectoryGeneratorItem
@@ -320,7 +319,7 @@ func TestGitGenerateParamsFromDirectories(t *testing.T) {
 
 			argoCDServiceMock.On("GetDirectories", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(testCaseCopy.repoApps, testCaseCopy.repoError)
 
-			var gitGenerator = NewGitGenerator(&argoCDServiceMock)
+			gitGenerator := NewGitGenerator(&argoCDServiceMock)
 			applicationSetInfo := argoprojiov1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "set",
@@ -353,7 +352,6 @@ func TestGitGenerateParamsFromDirectories(t *testing.T) {
 }
 
 func TestGitGenerateParamsFromDirectoriesGoTemplate(t *testing.T) {
-
 	cases := []struct {
 		name            string
 		directories     []argoprojiov1alpha1.GitDirectoryGeneratorItem
@@ -553,7 +551,6 @@ func TestGitGenerateParamsFromDirectoriesGoTemplate(t *testing.T) {
 			},
 			repoError: nil,
 			expected: []map[string]interface{}{
-
 				{
 					"path": map[string]interface{}{
 						"path":               "app1",
@@ -616,7 +613,7 @@ func TestGitGenerateParamsFromDirectoriesGoTemplate(t *testing.T) {
 
 			argoCDServiceMock.On("GetDirectories", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(testCaseCopy.repoApps, testCaseCopy.repoError)
 
-			var gitGenerator = NewGitGenerator(&argoCDServiceMock)
+			gitGenerator := NewGitGenerator(&argoCDServiceMock)
 			applicationSetInfo := argoprojiov1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "set",
@@ -646,11 +643,9 @@ func TestGitGenerateParamsFromDirectoriesGoTemplate(t *testing.T) {
 			argoCDServiceMock.AssertExpectations(t)
 		})
 	}
-
 }
 
 func TestGitGenerateParamsFromFiles(t *testing.T) {
-
 	cases := []struct {
 		name string
 		// files is the list of paths/globs to match
@@ -976,7 +971,7 @@ cluster:
 			argoCDServiceMock.On("GetFiles", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 				Return(testCaseCopy.repoFileContents, testCaseCopy.repoPathsError)
 
-			var gitGenerator = NewGitGenerator(&argoCDServiceMock)
+			gitGenerator := NewGitGenerator(&argoCDServiceMock)
 			applicationSetInfo := argoprojiov1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "set",
@@ -1009,7 +1004,6 @@ cluster:
 }
 
 func TestGitGenerateParamsFromFilesGoTemplate(t *testing.T) {
-
 	cases := []struct {
 		name string
 		// files is the list of paths/globs to match
@@ -1326,7 +1320,7 @@ cluster:
 			argoCDServiceMock.On("GetFiles", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 				Return(testCaseCopy.repoFileContents, testCaseCopy.repoPathsError)
 
-			var gitGenerator = NewGitGenerator(&argoCDServiceMock)
+			gitGenerator := NewGitGenerator(&argoCDServiceMock)
 			applicationSetInfo := argoprojiov1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "set",

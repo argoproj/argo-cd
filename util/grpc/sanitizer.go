@@ -1,11 +1,10 @@
 package grpc
 
 import (
+	"context"
 	"errors"
 	"regexp"
 	"strings"
-
-	"context"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/status"

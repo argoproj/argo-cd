@@ -11,7 +11,7 @@ linters:
   enable:
     - errcheck
     - errorlint
-    - gofmt
+    - gofumpt
     - goimports
     - gosimple
     - govet
@@ -20,6 +20,7 @@ linters:
     - staticcheck
     - testifylint
     - unused
+    - whitespace 
 linters-settings:
   goimports:
     local-prefixes: github.com/argoproj/argo-cd/v2

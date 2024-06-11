@@ -34,7 +34,7 @@ func NewCommand() *cobra.Command {
 		pathOpts   = clientcmd.NewDefaultPathOptions()
 	)
 
-	var command = &cobra.Command{
+	command := &cobra.Command{
 		Use:   cliName,
 		Short: "argocd controls a Argo CD server",
 		Run: func(c *cobra.Command, args []string) {

@@ -61,6 +61,7 @@ func testApp() *v1alpha1.Application {
 		},
 	}
 }
+
 func testApp2() *v1alpha1.Application {
 	return &v1alpha1.Application{
 		ObjectMeta: v1.ObjectMeta{Name: "test-app", Namespace: "argocd-test"},
@@ -130,36 +131,66 @@ func TestHandlerFeatureProjectIsEnabled(t *testing.T) {
 		healthColor color.RGBA
 		statusColor color.RGBA
 	}{
-		{createApplications([]string{"Healthy:Synced", "Healthy:Synced"}, []string{"default", "default"}, "test"),
-			http.StatusOK, "/api/badge?project=default", "test", "Healthy", "Synced", Green, Green},
-		{createApplications([]string{"Healthy:Synced", "Healthy:OutOfSync"}, []string{"test-project", "test-project"}, "default"),
-			http.StatusOK, "/api/badge?project=test-project", "default", "Healthy", "OutOfSync", Green, Orange},
-		{createApplications([]string{"Healthy:Synced", "Degraded:Synced"}, []string{"default", "default"}, "test"),
-			http.StatusOK, "/api/badge?project=default", "test", "Degraded", "Synced", Red, Green},
-		{createApplications([]string{"Healthy:Synced", "Degraded:OutOfSync"}, []string{"test-project", "test-project"}, "default"),
-			http.StatusOK, "/api/badge?project=test-project", "default", "Degraded", "OutOfSync", Red, Orange},
-		{createApplications([]string{"Healthy:Synced", "Healthy:Synced"}, []string{"test-project", "default"}, "test"),
-			http.StatusOK, "/api/badge?project=default&project=test-project", "test", "Healthy", "Synced", Green, Green},
-		{createApplications([]string{"Healthy:OutOfSync", "Healthy:Synced"}, []string{"test-project", "default"}, "default"),
-			http.StatusOK, "/api/badge?project=default&project=test-project", "default", "Healthy", "OutOfSync", Green, Orange},
-		{createApplications([]string{"Degraded:Synced", "Healthy:Synced"}, []string{"test-project", "default"}, "test"),
-			http.StatusOK, "/api/badge?project=default&project=test-project", "test", "Degraded", "Synced", Red, Green},
-		{createApplications([]string{"Degraded:OutOfSync", "Healthy:OutOfSync"}, []string{"test-project", "default"}, "default"),
-			http.StatusOK, "/api/badge?project=default&project=test-project", "default", "Degraded", "OutOfSync", Red, Orange},
-		{createApplications([]string{"Unknown:Unknown", "Unknown:Unknown"}, []string{"test-project", "default"}, "default"),
-			http.StatusOK, "/api/badge?project=", "default", "Unknown", "Unknown", Purple, Purple},
-		{createApplications([]string{"Unknown:Unknown", "Unknown:Unknown"}, []string{"test-project", "default"}, "default"),
-			http.StatusBadRequest, "/api/badge?project=test$project", "default", "Unknown", "Unknown", Purple, Purple},
-		{createApplications([]string{"Unknown:Unknown", "Unknown:Unknown"}, []string{"test-project", "default"}, "default"),
-			http.StatusOK, "/api/badge?project=unknown", "default", "Unknown", "Unknown", Purple, Purple},
-		{createApplications([]string{"Unknown:Unknown", "Unknown:Unknown"}, []string{"test-project", "default"}, "default"),
-			http.StatusBadRequest, "/api/badge?name=foo_bar", "default", "Unknown", "Unknown", Purple, Purple},
-		{createApplications([]string{"Unknown:Unknown", "Unknown:Unknown"}, []string{"test-project", "default"}, "default"),
-			http.StatusOK, "/api/badge?name=foobar", "default", "Not Found", "", Purple, Purple},
-		{createApplicationsWithName([]string{"Healthy:Synced"}, []string{"default"}, "test", "test.application"),
-			http.StatusOK, "/api/badge?name=test.application-0", "test", "Healthy", "Synced", Green, Green},
-		{createApplicationsWithName([]string{"Healthy:Synced"}, []string{"default"}, "test", "test.invalid_name"),
-			http.StatusBadRequest, "/api/badge?name=test.invalid_name-0", "test", "Healthy", "Synced", Green, Green},
+		{
+			createApplications([]string{"Healthy:Synced", "Healthy:Synced"}, []string{"default", "default"}, "test"),
+			http.StatusOK, "/api/badge?project=default", "test", "Healthy", "Synced", Green, Green,
+		},
+		{
+			createApplications([]string{"Healthy:Synced", "Healthy:OutOfSync"}, []string{"test-project", "test-project"}, "default"),
+			http.StatusOK, "/api/badge?project=test-project", "default", "Healthy", "OutOfSync", Green, Orange,
+		},
+		{
+			createApplications([]string{"Healthy:Synced", "Degraded:Synced"}, []string{"default", "default"}, "test"),
+			http.StatusOK, "/api/badge?project=default", "test", "Degraded", "Synced", Red, Green,
+		},
+		{
+			createApplications([]string{"Healthy:Synced", "Degraded:OutOfSync"}, []string{"test-project", "test-project"}, "default"),
+			http.StatusOK, "/api/badge?project=test-project", "default", "Degraded", "OutOfSync", Red, Orange,
+		},
+		{
+			createApplications([]string{"Healthy:Synced", "Healthy:Synced"}, []string{"test-project", "default"}, "test"),
+			http.StatusOK, "/api/badge?project=default&project=test-project", "test", "Healthy", "Synced", Green, Green,
+		},
+		{
+			createApplications([]string{"Healthy:OutOfSync", "Healthy:Synced"}, []string{"test-project", "default"}, "default"),
+			http.StatusOK, "/api/badge?project=default&project=test-project", "default", "Healthy", "OutOfSync", Green, Orange,
+		},
+		{
+			createApplications([]string{"Degraded:Synced", "Healthy:Synced"}, []string{"test-project", "default"}, "test"),
+			http.StatusOK, "/api/badge?project=default&project=test-project", "test", "Degraded", "Synced", Red, Green,
+		},
+		{
+			createApplications([]string{"Degraded:OutOfSync", "Healthy:OutOfSync"}, []string{"test-project", "default"}, "default"),
+			http.StatusOK, "/api/badge?project=default&project=test-project", "default", "Degraded", "OutOfSync", Red, Orange,
+		},
+		{
+			createApplications([]string{"Unknown:Unknown", "Unknown:Unknown"}, []string{"test-project", "default"}, "default"),
+			http.StatusOK, "/api/badge?project=", "default", "Unknown", "Unknown", Purple, Purple,
+		},
+		{
+			createApplications([]string{"Unknown:Unknown", "Unknown:Unknown"}, []string{"test-project", "default"}, "default"),
+			http.StatusBadRequest, "/api/badge?project=test$project", "default", "Unknown", "Unknown", Purple, Purple,
+		},
+		{
+			createApplications([]string{"Unknown:Unknown", "Unknown:Unknown"}, []string{"test-project", "default"}, "default"),
+			http.StatusOK, "/api/badge?project=unknown", "default", "Unknown", "Unknown", Purple, Purple,
+		},
+		{
+			createApplications([]string{"Unknown:Unknown", "Unknown:Unknown"}, []string{"test-project", "default"}, "default"),
+			http.StatusBadRequest, "/api/badge?name=foo_bar", "default", "Unknown", "Unknown", Purple, Purple,
+		},
+		{
+			createApplications([]string{"Unknown:Unknown", "Unknown:Unknown"}, []string{"test-project", "default"}, "default"),
+			http.StatusOK, "/api/badge?name=foobar", "default", "Not Found", "", Purple, Purple,
+		},
+		{
+			createApplicationsWithName([]string{"Healthy:Synced"}, []string{"default"}, "test", "test.application"),
+			http.StatusOK, "/api/badge?name=test.application-0", "test", "Healthy", "Synced", Green, Green,
+		},
+		{
+			createApplicationsWithName([]string{"Healthy:Synced"}, []string{"default"}, "test", "test.invalid_name"),
+			http.StatusBadRequest, "/api/badge?name=test.invalid_name-0", "test", "Healthy", "Synced", Green, Green,
+		},
 	}
 	for _, tt := range projectTests {
 		argoCDCm := argoCDCm()
@@ -229,7 +260,6 @@ func TestHandlerNamespacesIsEnabled(t *testing.T) {
 		assert.Equal(t, toRGBString(Purple), rightRectColorPattern.FindStringSubmatch(response)[1])
 		assert.Equal(t, "Not Found", leftTextPattern.FindStringSubmatch(response)[1])
 		assert.Equal(t, "", rightTextPattern.FindStringSubmatch(response)[1])
-
 	})
 
 	t.Run("Request with illegal namespace", func(t *testing.T) {
@@ -360,6 +390,7 @@ func createApplicationsWithName(appCombo, projectName []string, namespace string
 	}
 	return apps
 }
+
 func TestHandlerFeatureIsEnabledRevisionIsEnabled(t *testing.T) {
 	settingsMgr := settings.NewSettingsManager(context.Background(), fake.NewSimpleClientset(argoCDCm(), argoCDSecret()), "default")
 	handler := NewHandler(appclientset.NewSimpleClientset(testApp()), settingsMgr, "default", []string{})
@@ -422,7 +453,6 @@ func TestHandlerRevisionIsEnabledShortCommitSHA(t *testing.T) {
 }
 
 func TestHandlerFeatureIsDisabled(t *testing.T) {
-
 	argoCDCmDisabled := argoCDCm()
 	delete(argoCDCmDisabled.Data, "statusbadge.enabled")
 
@@ -474,7 +504,6 @@ func TestHandlerApplicationNameInBadgeIsEnabled(t *testing.T) {
 }
 
 func TestHandlerApplicationNameInBadgeIsDisabled(t *testing.T) {
-
 	settingsMgr := settings.NewSettingsManager(context.Background(), fake.NewSimpleClientset(argoCDCm(), argoCDSecret()), "default")
 	handler := NewHandler(appclientset.NewSimpleClientset(testApp()), settingsMgr, "default", []string{})
 	req, err := http.NewRequest(http.MethodGet, "/api/badge?name=test-app", nil)

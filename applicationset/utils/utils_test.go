@@ -21,7 +21,6 @@ import (
 )
 
 func TestRenderTemplateParams(t *testing.T) {
-
 	// Believe it or not, this is actually less complex than the equivalent solution using reflection
 	fieldMap := map[string]func(app *argoappsv1.Application) *string{}
 	fieldMap["Path"] = func(app *argoappsv1.Application) *string { return &app.Spec.Source.Path }
@@ -165,11 +164,8 @@ func TestRenderTemplateParams(t *testing.T) {
 	}
 
 	for _, test := range tests {
-
 		t.Run(test.name, func(t *testing.T) {
-
 			for fieldName, getPtrFunc := range fieldMap {
-
 				// Clone the template application
 				application := emptyApplication.DeepCopy()
 
@@ -196,11 +192,9 @@ func TestRenderTemplateParams(t *testing.T) {
 			}
 		})
 	}
-
 }
 
 func TestRenderHelmValuesObjectJson(t *testing.T) {
-
 	params := map[string]interface{}{
 		"test": "Hello world",
 	}
@@ -251,11 +245,9 @@ func TestRenderHelmValuesObjectJson(t *testing.T) {
 
 	assert.NoError(t, err)
 	assert.Equal(t, "Hello world", unmarshaled.(map[string]interface{})["some"].(map[string]interface{})["string"])
-
 }
 
 func TestRenderHelmValuesObjectYaml(t *testing.T) {
-
 	params := map[string]interface{}{
 		"test": "Hello world",
 	}
@@ -303,11 +295,9 @@ func TestRenderHelmValuesObjectYaml(t *testing.T) {
 
 	assert.NoError(t, err)
 	assert.Equal(t, "Hello world", unmarshaled.(map[string]interface{})["some"].(map[string]interface{})["string"])
-
 }
 
 func TestRenderTemplateParamsGoTemplate(t *testing.T) {
-
 	// Believe it or not, this is actually less complex than the equivalent solution using reflection
 	fieldMap := map[string]func(app *argoappsv1.Application) *string{}
 	fieldMap["Path"] = func(app *argoappsv1.Application) *string { return &app.Spec.Source.Path }
@@ -616,11 +606,8 @@ func TestRenderTemplateParamsGoTemplate(t *testing.T) {
 	}
 
 	for _, test := range tests {
-
 		t.Run(test.name, func(t *testing.T) {
-
 			for fieldName, getPtrFunc := range fieldMap {
-
 				// Clone the template application
 				application := emptyApplication.DeepCopy()
 
@@ -734,7 +721,6 @@ func Test_Render_Replace_no_panic_on_missing_closing_brace(t *testing.T) {
 }
 
 func TestRenderTemplateParamsFinalizers(t *testing.T) {
-
 	emptyApplication := &argoappsv1.Application{
 		Spec: argoappsv1.ApplicationSpec{
 			Source: &argoappsv1.ApplicationSource{
@@ -813,9 +799,7 @@ func TestRenderTemplateParamsFinalizers(t *testing.T) {
 			expectedFinalizers: []string{"resources-finalizer.argocd.argoproj.io/background"},
 		},
 	} {
-
 		t.Run(c.testName, func(t *testing.T) {
-
 			// Clone the template application
 			application := emptyApplication.DeepCopy()
 			application.Finalizers = c.existingFinalizers
@@ -831,15 +815,11 @@ func TestRenderTemplateParamsFinalizers(t *testing.T) {
 			assert.NoError(t, err)
 
 			assert.ElementsMatch(t, res.Finalizers, c.expectedFinalizers)
-
 		})
-
 	}
-
 }
 
 func TestCheckInvalidGenerators(t *testing.T) {
-
 	scheme := runtime.NewScheme()
 	err := argoappsv1.AddToScheme(scheme)
 	assert.NoError(t, err)
@@ -943,7 +923,6 @@ func TestCheckInvalidGenerators(t *testing.T) {
 }
 
 func TestInvalidGenerators(t *testing.T) {
-
 	scheme := runtime.NewScheme()
 	err := argoappsv1.AddToScheme(scheme)
 	assert.NoError(t, err)
@@ -1322,7 +1301,7 @@ xO7Tr5lAo74vNUkF2EHNaI28/RGnJPm2TIxZqy4rNH6L
 `
 
 	rootCAPath := path.Join(temppath, "foo.example.com")
-	err := os.WriteFile(rootCAPath, []byte(cert), 0666)
+	err := os.WriteFile(rootCAPath, []byte(cert), 0o666)
 	if err != nil {
 		panic(err)
 	}

@@ -308,20 +308,21 @@ func TestSyncWindowDeniesSync(t *testing.T) {
 		f := setup()
 		opMessage := "Sync operation blocked by sync window"
 
-		opState := &v1alpha1.OperationState{Operation: v1alpha1.Operation{
-			Sync: &v1alpha1.SyncOperation{
-				Source: &v1alpha1.ApplicationSource{},
-			}},
+		opState := &v1alpha1.OperationState{
+			Operation: v1alpha1.Operation{
+				Sync: &v1alpha1.SyncOperation{
+					Source: &v1alpha1.ApplicationSource{},
+				},
+			},
 			Phase: common.OperationRunning,
 		}
 		// when
 		f.controller.appStateManager.SyncAppState(f.application, opState)
 
-		//then
+		// then
 		assert.Equal(t, common.OperationRunning, opState.Phase)
 		assert.Contains(t, opState.Message, opMessage)
 	})
-
 }
 
 func TestNormalizeTargetResources(t *testing.T) {
@@ -488,7 +489,7 @@ func TestNormalizeTargetResourcesWithList(t *testing.T) {
 				Group:             "projectcontour.io",
 				Kind:              "HTTPProxy",
 				JQPathExpressions: []string{".spec.routes[]"},
-				//JSONPointers: []string{"/spec/routes"},
+				// JSONPointers: []string{"/spec/routes"},
 			},
 		}
 		f := setupHttpProxy(t, ignores)
@@ -518,7 +519,6 @@ func TestNormalizeTargetResourcesWithList(t *testing.T) {
 		require.Len(t, dig[[]any](patchedTargets[0].Object, []interface{}{"spec", "routes", 0, "rateLimitPolicy", "global", "descriptors"}), 1)
 		// and it should NOT equal an empty object
 		require.Len(t, dig[any](patchedTargets[0].Object, []interface{}{"spec", "routes", 0, "rateLimitPolicy", "global", "descriptors", 0, "entries", 0}), 1)
-
 	})
 	t.Run("will correctly set array entries if new entries have been added", func(t *testing.T) {
 		// given

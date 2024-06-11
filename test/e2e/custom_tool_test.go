@@ -174,7 +174,7 @@ func startCMPServer(t *testing.T, configFile string) {
 	t.Setenv("ARGOCD_PLUGINSOCKFILEPATH", pluginSockFilePath)
 	if _, err := os.Stat(pluginSockFilePath); os.IsNotExist(err) {
 		// path/to/whatever does not exist
-		err := os.Mkdir(pluginSockFilePath, 0700)
+		err := os.Mkdir(pluginSockFilePath, 0o700)
 		require.NoError(t, err)
 	}
 	FailOnErr(RunWithStdin("", "", "../../dist/argocd", "--config-dir-path", configFile))

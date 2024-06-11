@@ -48,6 +48,7 @@ connectors:
     orgs:
     - name: your-github-org
 `
+
 var customStaticClientDexConfig = `
 connectors:
 # GitHub example
@@ -66,6 +67,7 @@ staticClients:
   - https://argo/oauth2/callback
   secret:  $dex.acme.clientSecret
 `
+
 var badDexConfig = `
 connectors:
 # GitHub example
@@ -111,6 +113,7 @@ connectors:
       filter: "(objectClass=groupOfNames)"
       nameAttr: cn
 `
+
 var goodDexConfigWithEnabledApprovalScreen = `
 oauth2:
   passwordConnector: ldap
@@ -149,7 +152,6 @@ var goodSecretswithCRLF = map[string]string{
 }
 
 func Test_GenerateDexConfig(t *testing.T) {
-
 	t.Run("Empty settings", func(t *testing.T) {
 		s := settings.ArgoCDSettings{}
 		config, err := GenerateDexConfigYAML(&s, false)
@@ -401,7 +403,8 @@ func Test_DexReverseProxy(t *testing.T) {
 		client := &http.Client{
 			CheckRedirect: func(req *http.Request, via []*http.Request) error {
 				return http.ErrUseLastResponse
-			}}
+			},
+		}
 		resp, err := client.Get(server.URL)
 		assert.NotNil(t, resp)
 		assert.NoError(t, err)

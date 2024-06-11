@@ -68,7 +68,8 @@ func NewMockRepoCache(cacheOpts *MockCacheOptions) *MockRepoCache {
 	redisCacheClient := &cacheutilmocks.MockCacheClient{
 		ReadDelay:  cacheOpts.ReadDelay,
 		WriteDelay: cacheOpts.WriteDelay,
-		BaseCache:  cacheutil.NewRedisCache(redisClient, cacheOpts.RepoCacheExpiration, cacheutil.RedisCompressionNone)}
+		BaseCache:  cacheutil.NewRedisCache(redisClient, cacheOpts.RepoCacheExpiration, cacheutil.RedisCompressionNone),
+	}
 	newMockCache := &MockRepoCache{RedisClient: redisCacheClient, StopRedisCallback: stopRedis}
 	newMockCache.ConfigureDefaultCallbacks()
 	return newMockCache

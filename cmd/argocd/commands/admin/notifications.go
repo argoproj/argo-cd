@@ -21,9 +21,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
 )
 
-var (
-	applications = schema.GroupVersionResource{Group: application.Group, Version: "v1alpha1", Resource: application.ApplicationPlural}
-)
+var applications = schema.GroupVersionResource{Group: application.Group, Version: "v1alpha1", Resource: application.ApplicationPlural}
 
 func NewNotificationsCommand() *cobra.Command {
 	var (

@@ -47,7 +47,6 @@ func AddProjFlags(command *cobra.Command, opts *ProjectOpts) {
 	command.Flags().StringArrayVar(&opts.allowedNamespacedResources, "allow-namespaced-resource", []string{}, "List of allowed namespaced resources")
 	command.Flags().StringArrayVar(&opts.deniedNamespacedResources, "deny-namespaced-resource", []string{}, "List of denied namespaced resources")
 	command.Flags().StringSliceVar(&opts.SourceNamespaces, "source-namespaces", []string{}, "List of source namespaces for applications")
-
 }
 
 func getGroupKindList(values []string) []v1.GroupKind {
@@ -177,7 +176,7 @@ func SetProjSpecOptions(flags *pflag.FlagSet, spec *v1alpha1.AppProjectSpec, pro
 }
 
 func ConstructAppProj(fileURL string, args []string, opts ProjectOpts, c *cobra.Command) (*v1alpha1.AppProject, error) {
-	var proj = v1alpha1.AppProject{
+	proj := v1alpha1.AppProject{
 		TypeMeta: v1.TypeMeta{
 			Kind:       application.AppProjectKind,
 			APIVersion: application.Group + "/v1alpha1",

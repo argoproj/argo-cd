@@ -160,7 +160,7 @@ func writeKeyToFile(keyData string) (string, error) {
 		return "", err
 	}
 
-	err = os.WriteFile(f.Name(), []byte(keyData), 0600)
+	err = os.WriteFile(f.Name(), []byte(keyData), 0o600)
 	if err != nil {
 		os.Remove(f.Name())
 		return "", err
@@ -221,7 +221,6 @@ func IsGPGEnabled() bool {
 // InitializeGnuPG will initialize a GnuPG working directory and also create a
 // transient private key so that the trust DB will work correctly.
 func InitializeGnuPG() error {
-
 	gnuPgHome := common.GetGnuPGHomePath()
 
 	// We only operate if ARGOCD_GNUPGHOME is set
@@ -253,7 +252,7 @@ func InitializeGnuPG() error {
 		}
 	}
 
-	err = os.WriteFile(filepath.Join(gnuPgHome, canaryMarkerFilename), []byte("canary"), 0644)
+	err = os.WriteFile(filepath.Join(gnuPgHome, canaryMarkerFilename), []byte("canary"), 0o644)
 	if err != nil {
 		return fmt.Errorf("could not create canary: %w", err)
 	}
@@ -696,7 +695,6 @@ func SyncKeyRingFromDirectory(basePath string) ([]string, []string, error) {
 	fingerprints := make([]string, 0)
 	removedKeys := make([]string, 0)
 	st, err := os.Stat(basePath)
-
 	if err != nil {
 		return nil, nil, err
 	}

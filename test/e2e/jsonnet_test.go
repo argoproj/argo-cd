@@ -87,6 +87,7 @@ func TestJsonnetTlaEnv(t *testing.T) {
 			assert.Equal(t, Name(), FailOnErr(Run(".", "kubectl", "-n", DeploymentNamespace(), "get", "cm", "my-map", "-o", "jsonpath={.data.bar}")).(string))
 		})
 }
+
 func TestJsonnetExtVarEnv(t *testing.T) {
 	Given(t).
 		Path("jsonnet-ext-var").

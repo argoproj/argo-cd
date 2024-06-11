@@ -24,7 +24,6 @@ func TestClient(t *testing.T) {
 
 	var clientOptionFns []ClientOptionFunc
 	_, err := NewClient(server.URL, clientOptionFns...)
-
 	if err != nil {
 		t.Fatalf("Failed to create client: %v", err)
 	}
@@ -119,13 +118,11 @@ func TestClientDo(t *testing.T) {
 			defer cc.fakeServer.Close()
 
 			client, err := NewClient(cc.fakeServer.URL, cc.clientOptionFns...)
-
 			if err != nil {
 				t.Fatalf("NewClient returned unexpected error: %v", err)
 			}
 
 			req, err := client.NewRequest("POST", "", cc.params, nil)
-
 			if err != nil {
 				t.Fatalf("NewRequest returned unexpected error: %v", err)
 			}

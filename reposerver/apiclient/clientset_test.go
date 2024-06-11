@@ -10,7 +10,6 @@ import (
 )
 
 func TestNewRepoServerClient_CorrectClientReturned(t *testing.T) {
-
 	mockClientset := &mocks.Clientset{
 		RepoServerServiceClient: &mocks.RepoServerServiceClient{},
 	}

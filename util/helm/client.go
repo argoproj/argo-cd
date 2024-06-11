@@ -144,7 +144,6 @@ func untarChart(tempDir string, cachedChartPath string, manifestMaxExtractedSize
 func (c *nativeHelmChart) ExtractChart(chart string, version string, project string, passCredentials bool, manifestMaxExtractedSize int64, disableManifestMaxExtractedSize bool) (string, argoio.Closer, error) {
 	// always use Helm V3 since we don't have chart content to determine correct Helm version
 	helmCmd, err := NewCmdWithVersion("", HelmV3, c.enableOci, c.proxy)
-
 	if err != nil {
 		return "", nil, err
 	}
@@ -458,7 +457,6 @@ func (c *nativeHelmChart) GetTags(chart string, noCache bool) (*TagsList, error)
 
 			return nil
 		})
-
 		if err != nil {
 			return nil, fmt.Errorf("failed to get tags: %w", err)
 		}

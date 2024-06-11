@@ -20,7 +20,6 @@ import (
 )
 
 func TestWatchClusters_CreateRemoveCluster(t *testing.T) {
-
 	// !race:
 	// Intermittent failure when running TestWatchClusters_LocalClusterModifications with -race, likely due to race condition
 	// https://github.com/argoproj/argo-cd/issues/4755
@@ -76,7 +75,6 @@ func TestWatchClusters_CreateRemoveCluster(t *testing.T) {
 }
 
 func TestWatchClusters_LocalClusterModifications(t *testing.T) {
-
 	// !race:
 	// Intermittent failure when running TestWatchClusters_LocalClusterModifications with -race, likely due to race condition
 	// https://github.com/argoproj/argo-cd/issues/4755

@@ -110,7 +110,6 @@ func Test_CreateOrUpdateSecretField(t *testing.T) {
 		assert.Contains(t, s.Labels, "label3")
 		assert.Contains(t, s.Annotations, "annotation3")
 	})
-
 }
 
 func Test_CreateOrUpdateSecretData(t *testing.T) {
@@ -178,5 +177,4 @@ func Test_CreateOrUpdateSecretData(t *testing.T) {
 		require.Len(t, s.Data, 1)
 		require.Equal(t, "foobarbaz", string(s.Data["password"]))
 	})
-
 }

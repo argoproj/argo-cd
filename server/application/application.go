@@ -395,8 +395,8 @@ func (s *Server) queryRepoServer(ctx context.Context, proj *appv1.AppProject, ac
 	helmCreds []*appv1.RepoCreds,
 	helmOptions *appv1.HelmOptions,
 	enabledSourceTypes map[string]bool,
-) error) error {
-
+) error,
+) error {
 	closer, client, err := s.repoClientset.NewRepoServerClient()
 	if err != nil {
 		return fmt.Errorf("error creating repo server client: %w", err)
@@ -447,8 +447,8 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 
 	manifestInfos := make([]*apiclient.ManifestResponse, 0)
 	err = s.queryRepoServer(ctx, proj, func(
-		client apiclient.RepoServerServiceClient, helmRepos []*appv1.Repository, helmCreds []*appv1.RepoCreds, helmOptions *appv1.HelmOptions, enableGenerateManifests map[string]bool) error {
-
+		client apiclient.RepoServerServiceClient, helmRepos []*appv1.Repository, helmCreds []*appv1.RepoCreds, helmOptions *appv1.HelmOptions, enableGenerateManifests map[string]bool,
+	) error {
 		appInstanceLabelKey, err := s.settingsMgr.GetAppInstanceLabelKey()
 		if err != nil {
 			return fmt.Errorf("error getting app instance label key from settings: %w", err)
@@ -537,7 +537,6 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 		}
 		return nil
 	})
-
 	if err != nil {
 		return nil, err
 	}
@@ -571,7 +570,6 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 func (s *Server) GetManifestsWithFiles(stream application.ApplicationService_GetManifestsWithFilesServer) error {
 	ctx := stream.Context()
 	query, err := manifeststream.ReceiveApplicationManifestQueryWithFiles(stream)
-
 	if err != nil {
 		return fmt.Errorf("error getting query: %w", err)
 	}
@@ -587,8 +585,8 @@ func (s *Server) GetManifestsWithFiles(stream application.ApplicationService_Get
 
 	var manifestInfo *apiclient.ManifestResponse
 	err = s.queryRepoServer(ctx, proj, func(
-		client apiclient.RepoServerServiceClient, helmRepos []*appv1.Repository, helmCreds []*appv1.RepoCreds, helmOptions *appv1.HelmOptions, enableGenerateManifests map[string]bool) error {
-
+		client apiclient.RepoServerServiceClient, helmRepos []*appv1.Repository, helmCreds []*appv1.RepoCreds, helmOptions *appv1.HelmOptions, enableGenerateManifests map[string]bool,
+	) error {
 		appInstanceLabelKey, err := s.settingsMgr.GetAppInstanceLabelKey()
 		if err != nil {
 			return fmt.Errorf("error getting app instance label key from settings: %w", err)
@@ -667,7 +665,6 @@ func (s *Server) GetManifestsWithFiles(stream application.ApplicationService_Get
 		manifestInfo = resp
 		return nil
 	})
-
 	if err != nil {
 		return err
 	}
@@ -2364,7 +2361,6 @@ func (s *Server) getUnstructuredLiveResourceOrApp(ctx context.Context, rbacReque
 			return nil, nil, nil, nil, err
 		}
 		obj, err = s.kubectl.GetResource(ctx, config, res.GroupKindVersion(), res.Name, res.Namespace)
-
 	}
 	if err != nil {
 		return nil, nil, nil, nil, fmt.Errorf("error getting resource: %w", err)
@@ -2389,7 +2385,6 @@ func (s *Server) getAvailableActions(resourceOverrides map[string]appv1.Resource
 		return nil, fmt.Errorf("error executing Lua discovery script: %w", err)
 	}
 	return availableActions, nil
-
 }
 
 func (s *Server) RunResourceAction(ctx context.Context, q *application.ResourceActionRunRequest) (*application.ApplicationResponse, error) {
@@ -2476,7 +2471,6 @@ func (s *Server) RunResourceAction(ctx context.Context, q *application.ResourceA
 	for _, impactedResource := range newObjects {
 		newObj := impactedResource.UnstructuredObj
 		newObjBytes, err := json.Marshal(newObj)
-
 		if err != nil {
 			return nil, fmt.Errorf("error marshaling new object: %w", err)
 		}

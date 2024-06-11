@@ -29,9 +29,7 @@ const (
 	EnvClusterInfoTimeout = "ARGO_CD_UPDATE_CLUSTER_INFO_TIMEOUT"
 )
 
-var (
-	clusterInfoTimeout = env.ParseDurationFromEnv(EnvClusterInfoTimeout, defaultSecretUpdateInterval, defaultSecretUpdateInterval, 1*time.Minute)
-)
+var clusterInfoTimeout = env.ParseDurationFromEnv(EnvClusterInfoTimeout, defaultSecretUpdateInterval, defaultSecretUpdateInterval, 1*time.Minute)
 
 type clusterInfoUpdater struct {
 	infoSource    metrics.HasClustersInfo
@@ -51,8 +49,8 @@ func NewClusterInfoUpdater(
 	cache *appstatecache.Cache,
 	clusterFilter func(cluster *appv1.Cluster) bool,
 	projGetter func(app *appv1.Application) (*appv1.AppProject, error),
-	namespace string) *clusterInfoUpdater {
-
+	namespace string,
+) *clusterInfoUpdater {
 	return &clusterInfoUpdater{infoSource, db, appLister, cache, clusterFilter, projGetter, namespace, time.Time{}}
 }
 

@@ -22,7 +22,7 @@ import (
 
 // NewRepoCommand returns a new instance of an `argocd repo` command
 func NewRepoCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
-	var command = &cobra.Command{
+	command := &cobra.Command{
 		Use:   "repo",
 		Short: "Manage repository connection parameters",
 		Run: func(c *cobra.Command, args []string) {
@@ -53,12 +53,10 @@ argocd repo rm https://github.com/yourusername/your-repo.git
 
 // NewRepoAddCommand returns a new instance of an `argocd repo add` command
 func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
-	var (
-		repoOpts cmdutil.RepoOptions
-	)
+	var repoOpts cmdutil.RepoOptions
 
 	// For better readability and easier formatting
-	var repoAddExamples = `  # Add a Git repository via SSH using a private key for authentication, ignoring the server's host key:
+	repoAddExamples := `  # Add a Git repository via SSH using a private key for authentication, ignoring the server's host key:
   argocd repo add git@git.example.com:repos/repo --insecure-ignore-host-key --ssh-private-key-path ~/id_rsa
 
   # Add a Git repository via SSH on a non-default port - need to use ssh:// style URLs here
@@ -95,7 +93,7 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
   argocd repo add https://source.developers.google.com/p/my-google-cloud-project/r/my-repo --gcp-service-account-key-path service-account-key.json
 `
 
-	var command = &cobra.Command{
+	command := &cobra.Command{
 		Use:     "add REPOURL",
 		Short:   "Add git repository connection parameters",
 		Example: repoAddExamples,
@@ -242,10 +240,8 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 
 // NewRepoRemoveCommand returns a new instance of an `argocd repo remove` command
 func NewRepoRemoveCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
-	var (
-		project string
-	)
-	var command = &cobra.Command{
+	var project string
+	command := &cobra.Command{
 		Use:   "rm REPO",
 		Short: "Remove repository credentials",
 		Run: func(c *cobra.Command, args []string) {
@@ -298,7 +294,7 @@ func NewRepoListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 		output  string
 		refresh string
 	)
-	var command = &cobra.Command{
+	command := &cobra.Command{
 		Use:   "list",
 		Short: "List configured repositories",
 		Run: func(c *cobra.Command, args []string) {
@@ -343,7 +339,7 @@ func NewRepoGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 		refresh string
 		project string
 	)
-	var command = &cobra.Command{
+	command := &cobra.Command{
 		Use:   "get",
 		Short: "Get a configured repository by URL",
 		Run: func(c *cobra.Command, args []string) {

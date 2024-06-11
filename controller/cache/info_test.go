@@ -356,7 +356,7 @@ func TestGetIstioVirtualServiceInfo(t *testing.T) {
 }
 
 func TestGetIngressInfo(t *testing.T) {
-	var tests = []struct {
+	tests := []struct {
 		Ingress *unstructured.Unstructured
 	}{
 		{testIngress},
@@ -495,6 +495,7 @@ func TestGetIngressInfoWithHost(t *testing.T) {
 		ExternalURLs: []string{"https://107.178.210.11/"},
 	}, info.NetworkingInfo)
 }
+
 func TestGetIngressInfoNoHost(t *testing.T) {
 	ingress := strToUnstructured(`
   apiVersion: extensions/v1beta1
@@ -527,6 +528,7 @@ func TestGetIngressInfoNoHost(t *testing.T) {
 	}, info.NetworkingInfo)
 	assert.Empty(t, info.NetworkingInfo.ExternalURLs)
 }
+
 func TestExternalUrlWithSubPath(t *testing.T) {
 	ingress := strToUnstructured(`
   apiVersion: networking.k8s.io/v1
@@ -555,6 +557,7 @@ func TestExternalUrlWithSubPath(t *testing.T) {
 	expectedExternalUrls := []string{"https://107.178.210.11/my/sub/path/"}
 	assert.Equal(t, expectedExternalUrls, info.NetworkingInfo.ExternalURLs)
 }
+
 func TestExternalUrlWithMultipleSubPaths(t *testing.T) {
 	ingress := strToUnstructured(`
   apiVersion: networking.k8s.io/v1
@@ -594,6 +597,7 @@ func TestExternalUrlWithMultipleSubPaths(t *testing.T) {
 	sort.Strings(actualURLs)
 	assert.Equal(t, expectedExternalUrls, actualURLs)
 }
+
 func TestExternalUrlWithNoSubPath(t *testing.T) {
 	ingress := strToUnstructured(`
   apiVersion: networking.k8s.io/v1
