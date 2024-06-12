@@ -3,12 +3,12 @@ package commands
 import (
 	"context"
 	"fmt"
+	"github.com/redis/go-redis/v9"
 	"math"
 	"strings"
 	"time"
 
 	"github.com/argoproj/pkg/stats"
-	"github.com/redis/go-redis/v9"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"k8s.io/client-go/kubernetes"
@@ -226,6 +226,8 @@ func NewCommand() *cobra.Command {
 				if closer != nil {
 					closer()
 				}
+				log.Info("API Server successfully shut down.")
+				break
 			}
 		},
 		Example: templates.Examples(`
