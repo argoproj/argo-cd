@@ -422,7 +422,6 @@ func PolicyCSV(data map[string]string) string {
 		if strings.HasPrefix(key, "policy.") &&
 			strings.HasSuffix(key, ".csv") &&
 			key != ConfigMapPolicyCSVKey {
-
 			strBuilder.WriteString("\n")
 			strBuilder.WriteString(value)
 		}

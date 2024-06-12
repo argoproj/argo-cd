@@ -190,7 +190,6 @@ func TestEnforceProjectToken(t *testing.T) {
 		res := s.enf.Enforce(claims, "applications", "get", invalidId)
 		assert.False(t, res)
 	})
-
 }
 
 func TestEnforceClaims(t *testing.T) {
@@ -273,9 +272,9 @@ func TestInitializingExistingDefaultProject(t *testing.T) {
 	assert.NotNil(t, argocd)
 
 	proj, err := appClientSet.ArgoprojV1alpha1().AppProjects(test.FakeArgoCDNamespace).Get(context.Background(), v1alpha1.DefaultAppProjectName, metav1.GetOptions{})
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.NotNil(t, proj)
-	assert.Equal(t, proj.Name, v1alpha1.DefaultAppProjectName)
+	assert.Equal(t, v1alpha1.DefaultAppProjectName, proj.Name)
 }
 
 func TestInitializingNotExistingDefaultProject(t *testing.T) {
@@ -296,9 +295,9 @@ func TestInitializingNotExistingDefaultProject(t *testing.T) {
 	assert.NotNil(t, argocd)
 
 	proj, err := appClientSet.ArgoprojV1alpha1().AppProjects(test.FakeArgoCDNamespace).Get(context.Background(), v1alpha1.DefaultAppProjectName, metav1.GetOptions{})
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.NotNil(t, proj)
-	assert.Equal(t, proj.Name, v1alpha1.DefaultAppProjectName)
+	assert.Equal(t, v1alpha1.DefaultAppProjectName, proj.Name)
 }
 
 func TestEnforceProjectGroups(t *testing.T) {
@@ -418,7 +417,7 @@ func TestAuthenticate(t *testing.T) {
 		errorMsg         string
 		anonymousEnabled bool
 	}
-	var tests = []testData{
+	tests := []testData{
 		{
 			test:             "TestNoSessionAnonymousDisabled",
 			errorMsg:         "no session information",
@@ -465,7 +464,6 @@ func TestAuthenticate(t *testing.T) {
 			} else {
 				assert.NoError(t, err)
 			}
-
 		})
 	}
 }
@@ -597,7 +595,6 @@ connectors:
 }
 
 func TestGetClaims(t *testing.T) {
-
 	defaultExpiry := jwt.NewNumericDate(time.Now().Add(time.Hour * 24))
 	defaultExpiryUnix := float64(defaultExpiry.Unix())
 
@@ -609,7 +606,7 @@ func TestGetClaims(t *testing.T) {
 		expectNewToken        bool
 		additionalOIDCConfig  settings_util.OIDCConfig
 	}
-	var tests = []testData{
+	tests := []testData{
 		{
 			test: "GetClaims",
 			claims: jwt.MapClaims{
@@ -705,7 +702,7 @@ func TestAuthenticate_3rd_party_JWTs(t *testing.T) {
 		expectedClaims        interface{}
 		useDex                bool
 	}
-	var tests = []testData{
+	tests := []testData{
 		// Dex
 		{
 			test:                  "anonymous disabled, no audience",
@@ -859,7 +856,7 @@ func TestAuthenticate_no_request_metadata(t *testing.T) {
 		expectedErrorContains string
 		expectedClaims        interface{}
 	}
-	var tests = []testData{
+	tests := []testData{
 		{
 			test:                  "anonymous disabled",
 			anonymousEnabled:      false,
@@ -902,7 +899,7 @@ func TestAuthenticate_no_SSO(t *testing.T) {
 		expectedErrorMessage string
 		expectedClaims       interface{}
 	}
-	var tests = []testData{
+	tests := []testData{
 		{
 			test:                 "anonymous disabled",
 			anonymousEnabled:     false,
@@ -952,7 +949,7 @@ func TestAuthenticate_bad_request_metadata(t *testing.T) {
 		expectedErrorMessage string
 		expectedClaims       interface{}
 	}
-	var tests = []testData{
+	tests := []testData{
 		{
 			test:                 "anonymous disabled, empty metadata",
 			anonymousEnabled:     false,
@@ -1083,7 +1080,7 @@ func TestTranslateGrpcCookieHeader(t *testing.T) {
 		})
 		assert.NoError(t, err)
 		assert.Equal(t, "argocd.token=xyz; path=/; SameSite=lax; httpOnly; Secure", recorder.Result().Header.Get("Set-Cookie"))
-		assert.Equal(t, 1, len(recorder.Result().Cookies()))
+		assert.Len(t, recorder.Result().Cookies(), 1)
 	})
 
 	t.Run("TokenIsLongerThan4093", func(t *testing.T) {
@@ -1093,7 +1090,7 @@ func TestTranslateGrpcCookieHeader(t *testing.T) {
 		})
 		assert.NoError(t, err)
 		assert.Regexp(t, "argocd.token=.*; path=/; SameSite=lax; httpOnly; Secure", recorder.Result().Header.Get("Set-Cookie"))
-		assert.Equal(t, 2, len(recorder.Result().Cookies()))
+		assert.Len(t, recorder.Result().Cookies(), 2)
 	})
 
 	t.Run("TokenIsEmpty", func(t *testing.T) {
@@ -1104,7 +1101,6 @@ func TestTranslateGrpcCookieHeader(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, "", recorder.Result().Header.Get("Set-Cookie"))
 	})
-
 }
 
 func TestInitializeDefaultProject_ProjectDoesNotExist(t *testing.T) {
@@ -1127,11 +1123,11 @@ func TestInitializeDefaultProject_ProjectDoesNotExist(t *testing.T) {
 		return
 	}
 
-	assert.Equal(t, proj.Spec, v1alpha1.AppProjectSpec{
+	assert.Equal(t, v1alpha1.AppProjectSpec{
 		SourceRepos:              []string{"*"},
 		Destinations:             []v1alpha1.ApplicationDestination{{Server: "*", Namespace: "*"}},
 		ClusterResourceWhitelist: []metav1.GroupKind{{Group: "*", Kind: "*"}},
-	})
+	}, proj.Spec)
 }
 
 func TestInitializeDefaultProject_ProjectAlreadyInitialized(t *testing.T) {
@@ -1169,10 +1165,11 @@ func TestInitializeDefaultProject_ProjectAlreadyInitialized(t *testing.T) {
 }
 
 func TestOIDCConfigChangeDetection_SecretsChanged(t *testing.T) {
-	//Given
+	// Given
 	rawOIDCConfig, err := yaml.Marshal(&settings_util.OIDCConfig{
 		ClientID:     "$k8ssecret:clientid",
-		ClientSecret: "$k8ssecret:clientsecret"})
+		ClientSecret: "$k8ssecret:clientsecret",
+	})
 	assert.NoError(t, err, "no error expected when marshalling OIDC config")
 
 	originalSecrets := map[string]string{"k8ssecret:clientid": "argocd", "k8ssecret:clientsecret": "sharedargooauthsecret"}
@@ -1184,21 +1181,22 @@ func TestOIDCConfigChangeDetection_SecretsChanged(t *testing.T) {
 	assert.Equal(t, originalOIDCConfig.ClientID, originalSecrets["k8ssecret:clientid"], "expected ClientID be replaced by secret value")
 	assert.Equal(t, originalOIDCConfig.ClientSecret, originalSecrets["k8ssecret:clientsecret"], "expected ClientSecret be replaced by secret value")
 
-	//When
+	// When
 	newSecrets := map[string]string{"k8ssecret:clientid": "argocd", "k8ssecret:clientsecret": "a!Better!Secret"}
 	argoSettings.Secrets = newSecrets
 	result := checkOIDCConfigChange(originalOIDCConfig, &argoSettings)
 
-	//Then
-	assert.Equal(t, result, true, "secrets have changed, expect interpolated OIDCConfig to change")
+	// Then
+	assert.True(t, result, "secrets have changed, expect interpolated OIDCConfig to change")
 }
 
 func TestOIDCConfigChangeDetection_ConfigChanged(t *testing.T) {
-	//Given
+	// Given
 	rawOIDCConfig, err := yaml.Marshal(&settings_util.OIDCConfig{
 		Name:         "argocd",
 		ClientID:     "$k8ssecret:clientid",
-		ClientSecret: "$k8ssecret:clientsecret"})
+		ClientSecret: "$k8ssecret:clientsecret",
+	})
 
 	assert.NoError(t, err, "no error expected when marshalling OIDC config")
 
@@ -1211,45 +1209,48 @@ func TestOIDCConfigChangeDetection_ConfigChanged(t *testing.T) {
 	assert.Equal(t, originalOIDCConfig.ClientID, originalSecrets["k8ssecret:clientid"], "expected ClientID be replaced by secret value")
 	assert.Equal(t, originalOIDCConfig.ClientSecret, originalSecrets["k8ssecret:clientsecret"], "expected ClientSecret be replaced by secret value")
 
-	//When
+	// When
 	newRawOICDConfig, err := yaml.Marshal(&settings_util.OIDCConfig{
 		Name:         "cat",
 		ClientID:     "$k8ssecret:clientid",
-		ClientSecret: "$k8ssecret:clientsecret"})
+		ClientSecret: "$k8ssecret:clientsecret",
+	})
 
 	assert.NoError(t, err, "no error expected when marshalling OIDC config")
 	argoSettings.OIDCConfigRAW = string(newRawOICDConfig)
 	result := checkOIDCConfigChange(originalOIDCConfig, &argoSettings)
 
-	//Then
-	assert.Equal(t, result, true, "no error expected since OICD config created")
+	// Then
+	assert.True(t, result, "no error expected since OICD config created")
 }
 
 func TestOIDCConfigChangeDetection_ConfigCreated(t *testing.T) {
-	//Given
+	// Given
 	argoSettings := settings_util.ArgoCDSettings{OIDCConfigRAW: ""}
 	originalOIDCConfig := argoSettings.OIDCConfig()
 
-	//When
+	// When
 	newRawOICDConfig, err := yaml.Marshal(&settings_util.OIDCConfig{
 		Name:         "cat",
 		ClientID:     "$k8ssecret:clientid",
-		ClientSecret: "$k8ssecret:clientsecret"})
+		ClientSecret: "$k8ssecret:clientsecret",
+	})
 	assert.NoError(t, err, "no error expected when marshalling OIDC config")
 	newSecrets := map[string]string{"k8ssecret:clientid": "argocd", "k8ssecret:clientsecret": "sharedargooauthsecret"}
 	argoSettings.OIDCConfigRAW = string(newRawOICDConfig)
 	argoSettings.Secrets = newSecrets
 	result := checkOIDCConfigChange(originalOIDCConfig, &argoSettings)
 
-	//Then
-	assert.Equal(t, result, true, "no error expected since new OICD config created")
+	// Then
+	assert.True(t, result, "no error expected since new OICD config created")
 }
 
 func TestOIDCConfigChangeDetection_ConfigDeleted(t *testing.T) {
-	//Given
+	// Given
 	rawOIDCConfig, err := yaml.Marshal(&settings_util.OIDCConfig{
 		ClientID:     "$k8ssecret:clientid",
-		ClientSecret: "$k8ssecret:clientsecret"})
+		ClientSecret: "$k8ssecret:clientsecret",
+	})
 	assert.NoError(t, err, "no error expected when marshalling OIDC config")
 
 	originalSecrets := map[string]string{"k8ssecret:clientid": "argocd", "k8ssecret:clientsecret": "sharedargooauthsecret"}
@@ -1261,20 +1262,21 @@ func TestOIDCConfigChangeDetection_ConfigDeleted(t *testing.T) {
 	assert.Equal(t, originalOIDCConfig.ClientID, originalSecrets["k8ssecret:clientid"], "expected ClientID be replaced by secret value")
 	assert.Equal(t, originalOIDCConfig.ClientSecret, originalSecrets["k8ssecret:clientsecret"], "expected ClientSecret be replaced by secret value")
 
-	//When
+	// When
 	argoSettings.OIDCConfigRAW = ""
 	argoSettings.Secrets = make(map[string]string)
 	result := checkOIDCConfigChange(originalOIDCConfig, &argoSettings)
 
-	//Then
-	assert.Equal(t, result, true, "no error expected since OICD config deleted")
+	// Then
+	assert.True(t, result, "no error expected since OICD config deleted")
 }
 
 func TestOIDCConfigChangeDetection_NoChange(t *testing.T) {
-	//Given
+	// Given
 	rawOIDCConfig, err := yaml.Marshal(&settings_util.OIDCConfig{
 		ClientID:     "$k8ssecret:clientid",
-		ClientSecret: "$k8ssecret:clientsecret"})
+		ClientSecret: "$k8ssecret:clientsecret",
+	})
 	assert.NoError(t, err, "no error expected when marshalling OIDC config")
 
 	originalSecrets := map[string]string{"k8ssecret:clientid": "argocd", "k8ssecret:clientsecret": "sharedargooauthsecret"}
@@ -1286,11 +1288,11 @@ func TestOIDCConfigChangeDetection_NoChange(t *testing.T) {
 	assert.Equal(t, originalOIDCConfig.ClientID, originalSecrets["k8ssecret:clientid"], "expected ClientID be replaced by secret value")
 	assert.Equal(t, originalOIDCConfig.ClientSecret, originalSecrets["k8ssecret:clientsecret"], "expected ClientSecret be replaced by secret value")
 
-	//When
+	// When
 	result := checkOIDCConfigChange(originalOIDCConfig, &argoSettings)
 
-	//Then
-	assert.Equal(t, result, false, "no error since no config change")
+	// Then
+	assert.False(t, result, "no error since no config change")
 }
 
 func TestIsMainJsBundle(t *testing.T) {
@@ -1407,6 +1409,7 @@ func TestCacheControlHeaders(t *testing.T) {
 		})
 	}
 }
+
 func TestReplaceBaseHRef(t *testing.T) {
 	testCases := []struct {
 		name        string

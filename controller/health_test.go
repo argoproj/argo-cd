@@ -46,7 +46,8 @@ func TestSetApplicationHealth(t *testing.T) {
 	runningPod := resourceFromFile("./testdata/pod-running-restart-always.yaml")
 
 	resources := []managedResource{{
-		Group: "", Version: "v1", Kind: "Pod", Live: &runningPod}, {
+		Group: "", Version: "v1", Kind: "Pod", Live: &runningPod,
+	}, {
 		Group: "batch", Version: "v1", Kind: "Job", Live: &failedJob,
 	}}
 	resourceStatuses := initStatuses(resources)
@@ -55,8 +56,8 @@ func TestSetApplicationHealth(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, health.HealthStatusDegraded, healthStatus.Status)
 
-	assert.Equal(t, resourceStatuses[0].Health.Status, health.HealthStatusHealthy)
-	assert.Equal(t, resourceStatuses[1].Health.Status, health.HealthStatusDegraded)
+	assert.Equal(t, health.HealthStatusHealthy, resourceStatuses[0].Health.Status)
+	assert.Equal(t, health.HealthStatusDegraded, resourceStatuses[1].Health.Status)
 
 	// now mark the job as a hook and retry. it should ignore the hook and consider the app healthy
 	failedJob.SetAnnotations(map[string]string{synccommon.AnnotationKeyHook: "PreSync"})
@@ -84,7 +85,8 @@ func TestSetApplicationHealth_MissingResource(t *testing.T) {
 	pod := resourceFromFile("./testdata/pod-running-restart-always.yaml")
 
 	resources := []managedResource{{
-		Group: "", Version: "v1", Kind: "Pod", Target: &pod}, {}}
+		Group: "", Version: "v1", Kind: "Pod", Target: &pod,
+	}, {}}
 	resourceStatuses := initStatuses(resources)
 
 	healthStatus, err := setApplicationHealth(resources, resourceStatuses, lua.ResourceHealthOverrides{}, app, true)
@@ -96,14 +98,15 @@ func TestSetApplicationHealth_MissingResourceNoBuiltHealthCheck(t *testing.T) {
 	cm := resourceFromFile("./testdata/configmap.yaml")
 
 	resources := []managedResource{{
-		Group: "", Version: "v1", Kind: "ConfigMap", Target: &cm}}
+		Group: "", Version: "v1", Kind: "ConfigMap", Target: &cm,
+	}}
 	resourceStatuses := initStatuses(resources)
 
 	t.Run("NoOverride", func(t *testing.T) {
 		healthStatus, err := setApplicationHealth(resources, resourceStatuses, lua.ResourceHealthOverrides{}, app, true)
 		assert.NoError(t, err)
 		assert.Equal(t, health.HealthStatusHealthy, healthStatus.Status)
-		assert.Equal(t, resourceStatuses[0].Health.Status, health.HealthStatusMissing)
+		assert.Equal(t, health.HealthStatusMissing, resourceStatuses[0].Health.Status)
 	})
 
 	t.Run("HasOverride", func(t *testing.T) {
@@ -158,7 +161,8 @@ return hs`,
 	t.Run("ChildAppDegraded", func(t *testing.T) {
 		degradedApp := newAppLiveObj(health.HealthStatusDegraded)
 		resources := []managedResource{{
-			Group: application.Group, Version: "v1alpha1", Kind: application.ApplicationKind, Live: degradedApp}, {}}
+			Group: application.Group, Version: "v1alpha1", Kind: application.ApplicationKind, Live: degradedApp,
+		}, {}}
 		resourceStatuses := initStatuses(resources)
 
 		healthStatus, err := setApplicationHealth(resources, resourceStatuses, overrides, app, true)
@@ -169,7 +173,8 @@ return hs`,
 	t.Run("ChildAppMissing", func(t *testing.T) {
 		degradedApp := newAppLiveObj(health.HealthStatusMissing)
 		resources := []managedResource{{
-			Group: application.Group, Version: "v1alpha1", Kind: application.ApplicationKind, Live: degradedApp}, {}}
+			Group: application.Group, Version: "v1alpha1", Kind: application.ApplicationKind, Live: degradedApp,
+		}, {}}
 		resourceStatuses := initStatuses(resources)
 
 		healthStatus, err := setApplicationHealth(resources, resourceStatuses, overrides, app, true)

@@ -23,7 +23,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	cache2 "k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/clientcmd"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
@@ -143,7 +143,8 @@ func (c *forwardRepoClientset) NewRepoServerClient() (io.Closer, repoapiclient.R
 			return
 		}
 		c.repoClientset = repoapiclient.NewRepoServerClientset(fmt.Sprintf("localhost:%d", repoServerPort), 60, repoapiclient.TLSConfiguration{
-			DisableTLS: false, StrictValidation: false})
+			DisableTLS: false, StrictValidation: false,
+		})
 	})
 	if c.err != nil {
 		return nil, nil, c.err
@@ -205,7 +206,7 @@ func MaybeStartLocalServer(ctx context.Context, clientOpts *apiclient.ClientOpti
 	log.SetLevel(log.ErrorLevel)
 	os.Setenv(v1alpha1.EnvVarFakeInClusterConfig, "true")
 	if address == nil {
-		address = pointer.String("localhost")
+		address = ptr.To("localhost")
 	}
 	if port == nil || *port == 0 {
 		addr := fmt.Sprintf("%s:0", *address)

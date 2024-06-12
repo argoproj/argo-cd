@@ -82,7 +82,7 @@ func getAdminAccount(mgr *settings.SettingsManager) (*settings.Account, error) {
 
 func adminContext(ctx context.Context) context.Context {
 	// nolint:staticcheck
-	return context.WithValue(ctx, "claims", &jwt.StandardClaims{Subject: "admin", Issuer: sessionutil.SessionManagerClaimsIssuer})
+	return context.WithValue(ctx, "claims", &jwt.RegisteredClaims{Subject: "admin", Issuer: sessionutil.SessionManagerClaimsIssuer})
 }
 
 func ssoAdminContext(ctx context.Context, iat time.Time) context.Context {
@@ -245,13 +245,13 @@ func TestGetAccount(t *testing.T) {
 		acc, err := accountServer.GetAccount(ctx, &account.GetAccountRequest{Name: "account1"})
 		assert.NoError(t, err)
 
-		assert.Equal(t, acc.Name, "account1")
+		assert.Equal(t, "account1", acc.Name)
 	})
 
 	t.Run("NonExistingAccount", func(t *testing.T) {
 		_, err := accountServer.GetAccount(ctx, &account.GetAccountRequest{Name: "bad-name"})
 		assert.Error(t, err)
-		assert.Equal(t, status.Code(err), codes.NotFound)
+		assert.Equal(t, codes.NotFound, status.Code(err))
 	})
 }
 
@@ -309,11 +309,10 @@ func TestDeleteToken_SuccessfullyRemoved(t *testing.T) {
 	acc, err := accountServer.GetAccount(ctx, &account.GetAccountRequest{Name: "account1"})
 	assert.NoError(t, err)
 
-	assert.Len(t, acc.Tokens, 0)
+	assert.Empty(t, acc.Tokens)
 }
 
 func TestCanI_GetLogsAllowNoSwitch(t *testing.T) {
-
 	accountServer, _ := newTestAccountServer(context.Background(), func(cm *v1.ConfigMap, secret *v1.Secret) {
 	})
 
@@ -339,7 +338,6 @@ func TestCanI_GetLogsDenySwitchOn(t *testing.T) {
 }
 
 func TestCanI_GetLogsAllowSwitchOn(t *testing.T) {
-
 	accountServer, _ := newTestAccountServer(context.Background(), func(cm *v1.ConfigMap, secret *v1.Secret) {
 		cm.Data["server.rbac.log.enforce.enable"] = "true"
 	})
@@ -351,7 +349,6 @@ func TestCanI_GetLogsAllowSwitchOn(t *testing.T) {
 }
 
 func TestCanI_GetLogsAllowSwitchOff(t *testing.T) {
-
 	accountServer, _ := newTestAccountServer(context.Background(), func(cm *v1.ConfigMap, secret *v1.Secret) {
 		cm.Data["server.rbac.log.enforce.enable"] = "false"
 	})

@@ -11,8 +11,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/argoproj/gitops-engine/pkg/diff"
 	"github.com/stretchr/testify/require"
-	"k8s.io/utils/pointer"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/utils/ptr"
 
 	argocdcommon "github.com/argoproj/argo-cd/v2/common"
 
@@ -112,74 +115,85 @@ func TestAppProject_IsDestinationPermitted(t *testing.T) {
 		projDest    []ApplicationDestination
 		appDest     ApplicationDestination
 		isPermitted bool
-	}{{
-		projDest: []ApplicationDestination{{
-			Server: "https://kubernetes.default.svc", Namespace: "default",
-		}},
-		appDest:     ApplicationDestination{Server: "https://kubernetes.default.svc", Namespace: "default"},
-		isPermitted: true,
-	}, {
-		projDest: []ApplicationDestination{{
-			Server: "https://kubernetes.default.svc", Namespace: "default",
-		}},
-		appDest:     ApplicationDestination{Server: "https://kubernetes.default.svc", Namespace: "kube-system"},
-		isPermitted: false,
-	}, {
-		projDest: []ApplicationDestination{{
-			Server: "https://my-cluster", Namespace: "default",
-		}},
-		appDest:     ApplicationDestination{Server: "https://kubernetes.default.svc", Namespace: "default"},
-		isPermitted: false,
-	}, {
-		projDest: []ApplicationDestination{{
-			Server: "https://kubernetes.default.svc", Namespace: "*",
-		}},
-		appDest:     ApplicationDestination{Server: "https://kubernetes.default.svc", Namespace: "kube-system"},
-		isPermitted: true,
-	}, {
-		projDest: []ApplicationDestination{{
-			Server: "https://*.default.svc", Namespace: "default",
-		}},
-		appDest:     ApplicationDestination{Server: "https://kubernetes.default.svc", Namespace: "default"},
-		isPermitted: true,
-	}, {
-		projDest: []ApplicationDestination{{
-			Server: "https://team1-*", Namespace: "default",
-		}},
-		appDest:     ApplicationDestination{Server: "https://test2-dev-cluster", Namespace: "default"},
-		isPermitted: false,
-	}, {
-		projDest: []ApplicationDestination{{
-			Server: "https://kubernetes.default.svc", Namespace: "test-*",
-		}},
-		appDest:     ApplicationDestination{Server: "https://kubernetes.default.svc", Namespace: "test-foo"},
-		isPermitted: true,
-	}, {
-		projDest: []ApplicationDestination{{
-			Server: "https://kubernetes.default.svc", Namespace: "test-*",
-		}},
-		appDest:     ApplicationDestination{Server: "https://kubernetes.default.svc", Namespace: "test"},
-		isPermitted: false,
-	}, {
-		projDest: []ApplicationDestination{{
-			Server: "*", Namespace: "*",
-		}},
-		appDest:     ApplicationDestination{Server: "https://kubernetes.default.svc", Namespace: "test"},
-		isPermitted: true,
-	},
+	}{
+		{
+			projDest: []ApplicationDestination{{
+				Server: "https://kubernetes.default.svc", Namespace: "default",
+			}},
+			appDest:     ApplicationDestination{Server: "https://kubernetes.default.svc", Namespace: "default"},
+			isPermitted: true,
+		},
+		{
+			projDest: []ApplicationDestination{{
+				Server: "https://kubernetes.default.svc", Namespace: "default",
+			}},
+			appDest:     ApplicationDestination{Server: "https://kubernetes.default.svc", Namespace: "kube-system"},
+			isPermitted: false,
+		},
+		{
+			projDest: []ApplicationDestination{{
+				Server: "https://my-cluster", Namespace: "default",
+			}},
+			appDest:     ApplicationDestination{Server: "https://kubernetes.default.svc", Namespace: "default"},
+			isPermitted: false,
+		},
+		{
+			projDest: []ApplicationDestination{{
+				Server: "https://kubernetes.default.svc", Namespace: "*",
+			}},
+			appDest:     ApplicationDestination{Server: "https://kubernetes.default.svc", Namespace: "kube-system"},
+			isPermitted: true,
+		},
+		{
+			projDest: []ApplicationDestination{{
+				Server: "https://*.default.svc", Namespace: "default",
+			}},
+			appDest:     ApplicationDestination{Server: "https://kubernetes.default.svc", Namespace: "default"},
+			isPermitted: true,
+		},
+		{
+			projDest: []ApplicationDestination{{
+				Server: "https://team1-*", Namespace: "default",
+			}},
+			appDest:     ApplicationDestination{Server: "https://test2-dev-cluster", Namespace: "default"},
+			isPermitted: false,
+		},
+		{
+			projDest: []ApplicationDestination{{
+				Server: "https://kubernetes.default.svc", Namespace: "test-*",
+			}},
+			appDest:     ApplicationDestination{Server: "https://kubernetes.default.svc", Namespace: "test-foo"},
+			isPermitted: true,
+		},
+		{
+			projDest: []ApplicationDestination{{
+				Server: "https://kubernetes.default.svc", Namespace: "test-*",
+			}},
+			appDest:     ApplicationDestination{Server: "https://kubernetes.default.svc", Namespace: "test"},
+			isPermitted: false,
+		},
+		{
+			projDest: []ApplicationDestination{{
+				Server: "*", Namespace: "*",
+			}},
+			appDest:     ApplicationDestination{Server: "https://kubernetes.default.svc", Namespace: "test"},
+			isPermitted: true,
+		},
 		{
 			projDest: []ApplicationDestination{{
 				Server: "", Namespace: "*", Name: "test",
 			}},
 			appDest:     ApplicationDestination{Name: "test", Namespace: "test"},
 			isPermitted: true,
-		}, {
+		},
+		{
 			projDest: []ApplicationDestination{{
 				Server: "", Namespace: "*", Name: "test2",
 			}},
 			appDest:     ApplicationDestination{Name: "test", Namespace: "test"},
 			isPermitted: false,
-		}}
+		},
+	}
 
 	for _, data := range testData {
 		proj := AppProject{
@@ -428,7 +442,7 @@ func TestAppProject_IsDestinationPermitted_PermitOnlyProjectScopedClusters(t *te
 	_, err := proj.IsDestinationPermitted(ApplicationDestination{Server: "https://my-cluster.123.com", Namespace: "default"}, func(_ string) ([]*Cluster, error) {
 		return nil, errors.New("some error")
 	})
-	assert.NotNil(t, err)
+	assert.Error(t, err)
 	assert.True(t, strings.Contains(err.Error(), "could not retrieve project clusters"))
 }
 
@@ -540,7 +554,7 @@ func TestAppProject_RemoveGroupFromRole(t *testing.T) {
 		got, err := p.RemoveGroupFromRole("test-role", "test-group")
 		assert.NoError(t, err)
 		assert.True(t, got)
-		assert.Len(t, p.Spec.Roles[0].Groups, 0)
+		assert.Empty(t, p.Spec.Roles[0].Groups)
 	})
 }
 
@@ -836,7 +850,7 @@ func TestExplicitType(t *testing.T) {
 		},
 	}
 	explicitType, err := src.ExplicitType()
-	assert.NotNil(t, err)
+	assert.Error(t, err)
 	assert.Nil(t, explicitType)
 	src = ApplicationSource{
 		Helm: &ApplicationSourceHelm{
@@ -845,8 +859,8 @@ func TestExplicitType(t *testing.T) {
 	}
 
 	explicitType, err = src.ExplicitType()
-	assert.Nil(t, err)
-	assert.Equal(t, *explicitType, ApplicationSourceTypeHelm)
+	assert.NoError(t, err)
+	assert.Equal(t, ApplicationSourceTypeHelm, *explicitType)
 }
 
 func TestExplicitTypeWithDirectory(t *testing.T) {
@@ -855,7 +869,7 @@ func TestExplicitTypeWithDirectory(t *testing.T) {
 		Directory: &ApplicationSourceDirectory{},
 	}
 	_, err := src.ExplicitType()
-	assert.NotNil(t, err, "cannot add directory with any other types")
+	assert.Error(t, err, "cannot add directory with any other types")
 }
 
 func TestAppSourceEquality(t *testing.T) {
@@ -924,7 +938,6 @@ func TestAppProjectSpec_DestinationClusters(t *testing.T) {
 }
 
 func TestRepository_HasCredentials(t *testing.T) {
-
 	tests := []struct {
 		name string
 		repo Repository
@@ -1279,7 +1292,6 @@ func TestApplicationSourceHelm_AddParameter(t *testing.T) {
 	t.Run("Add", func(t *testing.T) {
 		src.AddParameter(HelmParameter{Value: "bar"})
 		assert.ElementsMatch(t, []HelmParameter{{Value: "bar"}}, src.Parameters)
-
 	})
 	t.Run("Replace", func(t *testing.T) {
 		src.AddParameter(HelmParameter{Value: "baz"})
@@ -1292,7 +1304,6 @@ func TestApplicationSourceHelm_AddFileParameter(t *testing.T) {
 	t.Run("Add", func(t *testing.T) {
 		src.AddFileParameter(HelmFileParameter{Name: "foo", Path: "bar"})
 		assert.ElementsMatch(t, []HelmFileParameter{{Name: "foo", Path: "bar"}}, src.FileParameters)
-
 	})
 	t.Run("Replace", func(t *testing.T) {
 		src.AddFileParameter(HelmFileParameter{Name: "foo", Path: "baz"})
@@ -1380,11 +1391,12 @@ func TestApplicationSourceKustomize_MergeReplica(t *testing.T) {
 	t.Run("Replace", func(t *testing.T) {
 		k := ApplicationSourceKustomize{Replicas: KustomizeReplicas{r1}}
 		k.MergeReplica(r2)
-		assert.Equal(t, 1, len(k.Replicas))
+		assert.Len(t, k.Replicas, 1)
 		assert.Equal(t, k.Replicas[0].Name, r2.Name)
 		assert.Equal(t, k.Replicas[0].Count, r2.Count)
 	})
 }
+
 func TestApplicationSourceKustomize_FindByName(t *testing.T) {
 	r1 := KustomizeReplica{
 		Name:  "my-deployment",
@@ -1486,7 +1498,6 @@ func TestApplicationSourceDirectory_IsZero(t *testing.T) {
 }
 
 func TestApplicationSourcePlugin_IsZero(t *testing.T) {
-
 	tests := []struct {
 		name   string
 		source *ApplicationSourcePlugin
@@ -1620,7 +1631,7 @@ func TestSyncWindows_HasWindows(t *testing.T) {
 func TestSyncWindows_Active(t *testing.T) {
 	t.Run("WithTestProject", func(t *testing.T) {
 		proj := newTestProjectWithSyncWindows()
-		assert.Equal(t, 1, len(*proj.Spec.SyncWindows.Active()))
+		assert.Len(t, *proj.Spec.SyncWindows.Active(), 1)
 	})
 
 	syncWindow := func(kind string, schedule string, duration string, timeZone string) *SyncWindow {
@@ -1758,27 +1769,24 @@ func TestSyncWindows_Active(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-
 			result := tt.syncWindow.active(tt.currentTime)
 			if result == nil {
 				result = &SyncWindows{}
 			}
-			assert.Equal(t, tt.expectedLength, len(*result))
+			assert.Len(t, *result, tt.expectedLength)
 
 			if len(*result) == 1 {
 				assert.Equal(t, tt.syncWindow[tt.matchingIndex], (*result)[0])
 			}
-
 		})
 	}
-
 }
 
 func TestSyncWindows_InactiveAllows(t *testing.T) {
 	t.Run("WithTestProject", func(t *testing.T) {
 		proj := newTestProjectWithSyncWindows()
 		proj.Spec.SyncWindows[0].Schedule = "0 0 1 1 1"
-		assert.Equal(t, 1, len(*proj.Spec.SyncWindows.InactiveAllows()))
+		assert.Len(t, *proj.Spec.SyncWindows.InactiveAllows(), 1)
 	})
 
 	syncWindow := func(kind string, schedule string, duration string, timeZone string) *SyncWindow {
@@ -1934,20 +1942,17 @@ func TestSyncWindows_InactiveAllows(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-
 			result := tt.syncWindow.inactiveAllows(tt.currentTime)
 			if result == nil {
 				result = &SyncWindows{}
 			}
-			assert.Equal(t, tt.expectedLength, len(*result))
+			assert.Len(t, *result, tt.expectedLength)
 
 			if len(*result) == 1 {
 				assert.Equal(t, tt.syncWindow[tt.matchingIndex], (*result)[0])
 			}
-
 		})
 	}
-
 }
 
 func TestAppProjectSpec_AddWindow(t *testing.T) {
@@ -1983,7 +1988,6 @@ func TestAppProjectSpec_AddWindow(t *testing.T) {
 				assert.NoError(t, tt.p.Spec.DeleteWindow(0))
 			}
 		})
-
 	}
 }
 
@@ -1994,12 +1998,12 @@ func TestAppProjectSpec_DeleteWindow(t *testing.T) {
 	t.Run("CannotFind", func(t *testing.T) {
 		err := proj.Spec.DeleteWindow(3)
 		assert.Error(t, err)
-		assert.Equal(t, 2, len(proj.Spec.SyncWindows))
+		assert.Len(t, proj.Spec.SyncWindows, 2)
 	})
 	t.Run("Delete", func(t *testing.T) {
 		err := proj.Spec.DeleteWindow(0)
 		assert.NoError(t, err)
-		assert.Equal(t, 1, len(proj.Spec.SyncWindows))
+		assert.Len(t, proj.Spec.SyncWindows, 1)
 	})
 }
 
@@ -2009,31 +2013,31 @@ func TestSyncWindows_Matches(t *testing.T) {
 	t.Run("MatchNamespace", func(t *testing.T) {
 		proj.Spec.SyncWindows[0].Namespaces = []string{"default"}
 		windows := proj.Spec.SyncWindows.Matches(app)
-		assert.Equal(t, 1, len(*windows))
+		assert.Len(t, *windows, 1)
 		proj.Spec.SyncWindows[0].Namespaces = nil
 	})
 	t.Run("MatchCluster", func(t *testing.T) {
 		proj.Spec.SyncWindows[0].Clusters = []string{"cluster1"}
 		windows := proj.Spec.SyncWindows.Matches(app)
-		assert.Equal(t, 1, len(*windows))
+		assert.Len(t, *windows, 1)
 		proj.Spec.SyncWindows[0].Clusters = nil
 	})
 	t.Run("MatchClusterName", func(t *testing.T) {
 		proj.Spec.SyncWindows[0].Clusters = []string{"clusterName"}
 		windows := proj.Spec.SyncWindows.Matches(app)
-		assert.Equal(t, 1, len(*windows))
+		assert.Len(t, *windows, 1)
 		proj.Spec.SyncWindows[0].Clusters = nil
 	})
 	t.Run("MatchAppName", func(t *testing.T) {
 		proj.Spec.SyncWindows[0].Applications = []string{"test-app"}
 		windows := proj.Spec.SyncWindows.Matches(app)
-		assert.Equal(t, 1, len(*windows))
+		assert.Len(t, *windows, 1)
 		proj.Spec.SyncWindows[0].Applications = nil
 	})
 	t.Run("MatchWildcardAppName", func(t *testing.T) {
 		proj.Spec.SyncWindows[0].Applications = []string{"test-*"}
 		windows := proj.Spec.SyncWindows.Matches(app)
-		assert.Equal(t, 1, len(*windows))
+		assert.Len(t, *windows, 1)
 		proj.Spec.SyncWindows[0].Applications = nil
 	})
 	t.Run("NoMatch", func(t *testing.T) {
@@ -2384,14 +2388,12 @@ func TestSyncWindows_hasDeny(t *testing.T) {
 		hasDeny, manualEnabled := proj.Spec.SyncWindows.hasDeny()
 		assert.True(t, hasDeny)
 		assert.True(t, manualEnabled)
-
 	})
 	t.Run("False", func(t *testing.T) {
 		proj := newTestProjectWithSyncWindows()
 		hasDeny, manualEnabled := proj.Spec.SyncWindows.hasDeny()
 		assert.False(t, hasDeny)
 		assert.False(t, manualEnabled)
-
 	})
 }
 
@@ -2494,13 +2496,10 @@ func TestSyncWindow_Active(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-
 			result := tt.syncWindow.active(tt.currentTime)
-			assert.Equal(t, result, tt.expectedResult)
-
+			assert.Equal(t, tt.expectedResult, result)
 		})
 	}
-
 }
 
 func TestSyncWindow_Update(t *testing.T) {
@@ -2855,12 +2854,12 @@ func TestSyncOptions_AddOption(t *testing.T) {
 
 func TestSyncOptions_RemoveOption(t *testing.T) {
 	options := SyncOptions{"a=1"}
-	assert.Len(t, options.RemoveOption("a=1"), 0)
-	assert.Len(t, options.RemoveOption("a=1").RemoveOption("a=1"), 0)
+	assert.Empty(t, options.RemoveOption("a=1"))
+	assert.Empty(t, options.RemoveOption("a=1").RemoveOption("a=1"))
 }
 
 func TestRevisionHistories_Trunc(t *testing.T) {
-	assert.Len(t, RevisionHistories{}.Trunc(1), 0)
+	assert.Empty(t, RevisionHistories{}.Trunc(1))
 	assert.Len(t, RevisionHistories{{}}.Trunc(1), 1)
 	assert.Len(t, RevisionHistories{{}, {}}.Trunc(1), 1)
 	// keep the last element, even with longer list
@@ -2906,22 +2905,28 @@ func TestProjectNormalize(t *testing.T) {
 		assert.ElementsMatch(t, p.Spec.Roles[0].JWTTokens, p.Status.JWTTokensByRole["test-role"].Items)
 	})
 	t.Run("SpecRolesEmpty-StatusRolesToken", func(t *testing.T) {
-		p := AppProject{Spec: AppProjectSpec{Roles: []ProjectRole{{Name: "test-role"}}},
-			Status: AppProjectStatus{JWTTokensByRole: tokensByRole}}
+		p := AppProject{
+			Spec:   AppProjectSpec{Roles: []ProjectRole{{Name: "test-role"}}},
+			Status: AppProjectStatus{JWTTokensByRole: tokensByRole},
+		}
 		needNormalize := p.NormalizeJWTTokens()
 		assert.True(t, needNormalize)
 		assert.ElementsMatch(t, p.Spec.Roles[0].JWTTokens, p.Status.JWTTokensByRole["test-role"].Items)
 	})
 	t.Run("SpecRolesToken-StatusRolesToken-Same", func(t *testing.T) {
-		p := AppProject{Spec: AppProjectSpec{Roles: []ProjectRole{{Name: "test-role", JWTTokens: testTokens}}},
-			Status: AppProjectStatus{JWTTokensByRole: tokensByRole}}
+		p := AppProject{
+			Spec:   AppProjectSpec{Roles: []ProjectRole{{Name: "test-role", JWTTokens: testTokens}}},
+			Status: AppProjectStatus{JWTTokensByRole: tokensByRole},
+		}
 		needNormalize := p.NormalizeJWTTokens()
 		assert.False(t, needNormalize)
 		assert.ElementsMatch(t, p.Spec.Roles[0].JWTTokens, p.Status.JWTTokensByRole["test-role"].Items)
 	})
 	t.Run("SpecRolesToken-StatusRolesToken-DifferentToken", func(t *testing.T) {
-		p := AppProject{Spec: AppProjectSpec{Roles: []ProjectRole{{Name: "test-role", JWTTokens: testTokens2}}},
-			Status: AppProjectStatus{JWTTokensByRole: tokensByRole}}
+		p := AppProject{
+			Spec:   AppProjectSpec{Roles: []ProjectRole{{Name: "test-role", JWTTokens: testTokens2}}},
+			Status: AppProjectStatus{JWTTokensByRole: tokensByRole},
+		}
 		needNormalize := p.NormalizeJWTTokens()
 		assert.True(t, needNormalize)
 		assert.ElementsMatch(t, p.Spec.Roles[0].JWTTokens, p.Status.JWTTokensByRole["test-role"].Items)
@@ -2929,10 +2934,14 @@ func TestProjectNormalize(t *testing.T) {
 	t.Run("SpecRolesToken-StatusRolesToken-DifferentRole", func(t *testing.T) {
 		jwtTokens0 := []JWTToken{{IssuedAt: issuedAt}}
 		jwtTokens1 := []JWTToken{{IssuedAt: issuedAt}, {IssuedAt: secondIssuedAt}}
-		p := AppProject{Spec: AppProjectSpec{Roles: []ProjectRole{{Name: "test-role", JWTTokens: jwtTokens0},
-			{Name: "test-role1", JWTTokens: jwtTokens1},
-			{Name: "test-role2"}}},
-			Status: AppProjectStatus{JWTTokensByRole: tokensByRole}}
+		p := AppProject{
+			Spec: AppProjectSpec{Roles: []ProjectRole{
+				{Name: "test-role", JWTTokens: jwtTokens0},
+				{Name: "test-role1", JWTTokens: jwtTokens1},
+				{Name: "test-role2"},
+			}},
+			Status: AppProjectStatus{JWTTokensByRole: tokensByRole},
+		}
 		needNormalize := p.NormalizeJWTTokens()
 		assert.True(t, needNormalize)
 		assert.ElementsMatch(t, p.Spec.Roles[0].JWTTokens, p.Status.JWTTokensByRole["test-role"].Items)
@@ -2959,14 +2968,13 @@ func TestRetryStrategy_NextRetryAtDefaultBackoff(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, expected.Format(time.RFC850), retryAt.Format(time.RFC850))
 	}
-
 }
 
 func TestRetryStrategy_NextRetryAtCustomBackoff(t *testing.T) {
 	retry := RetryStrategy{
 		Backoff: &Backoff{
 			Duration:    "2s",
-			Factor:      pointer.Int64(3),
+			Factor:      ptr.To(int64(3)),
 			MaxDuration: "1m",
 		},
 	}
@@ -3075,10 +3083,10 @@ func TestOrphanedResourcesMonitorSettings_IsWarn(t *testing.T) {
 	settings := OrphanedResourcesMonitorSettings{}
 	assert.False(t, settings.IsWarn())
 
-	settings.Warn = pointer.Bool(false)
+	settings.Warn = ptr.To(false)
 	assert.False(t, settings.IsWarn())
 
-	settings.Warn = pointer.Bool(true)
+	settings.Warn = ptr.To(true)
 	assert.True(t, settings.IsWarn())
 }
 
@@ -3170,7 +3178,6 @@ func Test_validatePolicy_ValidResource(t *testing.T) {
 	assert.NoError(t, err)
 	err = validatePolicy("some-project", "org-admin", "p, proj:some-project:org-admin, unknown, *, some-project/*, allow")
 	assert.Error(t, err)
-
 }
 
 func TestEnvsubst(t *testing.T) {
@@ -3219,13 +3226,12 @@ func Test_validateGroupName(t *testing.T) {
 }
 
 func TestGetCAPath(t *testing.T) {
-
 	temppath := t.TempDir()
 	cert, err := os.ReadFile("../../../../test/fixture/certs/argocd-test-server.crt")
 	if err != nil {
 		panic(err)
 	}
-	err = os.WriteFile(path.Join(temppath, "foo.example.com"), cert, 0666)
+	err = os.WriteFile(path.Join(temppath, "foo.example.com"), cert, 0o666)
 	if err != nil {
 		panic(err)
 	}
@@ -3374,7 +3380,6 @@ func TestAppProjectIsSourceNamespacePermitted(t *testing.T) {
 		// app7 is installed to someotherns, controller running in argocd
 		assert.False(t, proj.IsAppNamespacePermitted(app7, "argocd"))
 	})
-
 }
 
 func Test_RBACName(t *testing.T) {
@@ -3420,7 +3425,7 @@ func TestGetSummary(t *testing.T) {
 	app := newTestApp()
 
 	summary := tree.GetSummary(app)
-	assert.Equal(t, len(summary.ExternalURLs), 0)
+	assert.Empty(t, summary.ExternalURLs)
 
 	const annotationName = argocdcommon.AnnotationKeyLinkPrefix + "/my-link"
 	const url = "https://example.com"
@@ -3428,15 +3433,15 @@ func TestGetSummary(t *testing.T) {
 	app.Annotations[annotationName] = url
 
 	summary = tree.GetSummary(app)
-	assert.Equal(t, len(summary.ExternalURLs), 1)
-	assert.Equal(t, summary.ExternalURLs[0], url)
+	assert.Len(t, summary.ExternalURLs, 1)
+	assert.Equal(t, url, summary.ExternalURLs[0])
 }
 
 func TestApplicationSourcePluginParameters_Environ_string(t *testing.T) {
 	params := ApplicationSourcePluginParameters{
 		{
 			Name:    "version",
-			String_: pointer.String("1.2.3"),
+			String_: ptr.To("1.2.3"),
 		},
 	}
 	environ, err := params.Environ()
@@ -3493,7 +3498,7 @@ func TestApplicationSourcePluginParameters_Environ_all(t *testing.T) {
 	params := ApplicationSourcePluginParameters{
 		{
 			Name:    "some-name",
-			String_: pointer.String("1.2.3"),
+			String_: ptr.To("1.2.3"),
 			OptionalArray: &OptionalArray{
 				Array: []string{"redis", "minio"},
 			},
@@ -3729,4 +3734,36 @@ func TestApplicationSpec_GetSourcePtrByIndex(t *testing.T) {
 			assert.Equal(t, tc.expected, actual)
 		})
 	}
+}
+
+func TestHelmValuesObjectHasReplaceStrategy(t *testing.T) {
+	app := Application{
+		Status: ApplicationStatus{Sync: SyncStatus{ComparedTo: ComparedTo{
+			Source: ApplicationSource{
+				Helm: &ApplicationSourceHelm{
+					ValuesObject: &runtime.RawExtension{
+						Object: &unstructured.Unstructured{Object: map[string]interface{}{"key": []string{"value"}}},
+					},
+				},
+			},
+		}}},
+	}
+
+	appModified := Application{
+		Status: ApplicationStatus{Sync: SyncStatus{ComparedTo: ComparedTo{
+			Source: ApplicationSource{
+				Helm: &ApplicationSourceHelm{
+					ValuesObject: &runtime.RawExtension{
+						Object: &unstructured.Unstructured{Object: map[string]interface{}{"key": []string{"value-modified1"}}},
+					},
+				},
+			},
+		}}},
+	}
+
+	patch, _, err := diff.CreateTwoWayMergePatch(
+		app,
+		appModified, Application{})
+	require.NoError(t, err)
+	assert.Equal(t, `{"status":{"sync":{"comparedTo":{"destination":{},"source":{"helm":{"valuesObject":{"key":["value-modified1"]}},"repoURL":""}}}}}`, string(patch))
 }

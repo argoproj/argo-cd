@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"log"
 	"os"
@@ -19,7 +20,7 @@ func main() {
 
 func generateNotificationsDocs() {
 	_ = os.RemoveAll("./docs/operator-manual/notifications/services")
-	_ = os.MkdirAll("./docs/operator-manual/notifications/services", 0755)
+	_ = os.MkdirAll("./docs/operator-manual/notifications/services", 0o755)
 	files, err := docs.CopyServicesDocs("./docs/operator-manual/notifications/services")
 	if err != nil {
 		log.Fatal(err)
@@ -64,7 +65,12 @@ func updateMkDocsNav(parent string, child string, subchild string, files []strin
 	if err != nil {
 		return err
 	}
-	return os.WriteFile("mkdocs.yml", newmkdocs, 0644)
+
+	// The marshaller drops custom tags, so re-add this one. Turns out this is much less invasive than trying to handle
+	// it at the YAML parser level.
+	newmkdocs = bytes.Replace(newmkdocs, []byte("site_url: READTHEDOCS_CANONICAL_URL"), []byte("site_url: !ENV READTHEDOCS_CANONICAL_URL"), 1)
+
+	return os.WriteFile("mkdocs.yml", newmkdocs, 0o644)
 }
 
 func trimPrefixes(files []string, prefix string) {

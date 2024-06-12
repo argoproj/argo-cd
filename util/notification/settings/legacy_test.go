@@ -115,11 +115,13 @@ func TestGetDestinations(t *testing.T) {
 		"my-trigger.recipients.argocd-notifications.argoproj.io": "slack:my-channel",
 	}, []string{}, nil)
 	assert.Equal(t, services.Destinations{
-		"my-trigger": []services.Destination{{
-			Recipient: "my-channel",
-			Service:   "slack",
+		"my-trigger": []services.Destination{
+			{
+				Recipient: "my-channel",
+				Service:   "slack",
+			},
 		},
-		}}, res)
+	}, res)
 }
 
 func TestGetDestinations_DefaultTrigger(t *testing.T) {

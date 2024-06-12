@@ -15,7 +15,6 @@ import (
 )
 
 func TestKustomize2AppSource(t *testing.T) {
-
 	patchLabelMatchesFor := func(kind string) func(app *Application) {
 		return func(app *Application) {
 			name := "k2-patched-guestbook-ui-deploy1"
@@ -98,14 +97,13 @@ func TestSyncStatusOptionIgnore(t *testing.T) {
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		Expect(HealthIs(health.HealthStatusHealthy)).
 		And(func(app *Application) {
-			assert.Equal(t, 2, len(app.Status.Resources))
+			assert.Len(t, app.Status.Resources, 2)
 			for _, resourceStatus := range app.Status.Resources {
 				// new map in-sync
 				if resourceStatus.Name != oldMap {
 					assert.Contains(t, resourceStatus.Name, "my-map-")
 					// make sure we've a new map with changed name
 					assert.Equal(t, SyncStatusCodeSynced, resourceStatus.Status)
-
 				} else {
 					assert.Equal(t, SyncStatusCodeOutOfSync, resourceStatus.Status)
 				}
@@ -256,7 +254,7 @@ func TestKustomizeUnsetOverride(t *testing.T) {
 			assert.Contains(t, app.Spec.GetSource().Kustomize.Images, KustomizeImage("alpine:bar"))
 		}).
 		When().
-		//AppUnSet("--kustomize-image=alpine").
+		// AppUnSet("--kustomize-image=alpine").
 		AppUnSet("--kustomize-image", "alpine", "--kustomize-image", "alpine").
 		Then().
 		And(func(app *Application) {

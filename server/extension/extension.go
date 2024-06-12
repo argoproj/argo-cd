@@ -50,7 +50,7 @@ const (
 	// that the Argo CD application is associated with. This header
 	// will be populated by the extension proxy and passed to the
 	// configured backend service. If this header is passed by
-	// the client, its value will be overriden by the extension
+	// the client, its value will be overridden by the extension
 	// handler.
 	//
 	// Example:
@@ -61,7 +61,7 @@ const (
 	// that the Argo CD application is associated with. This header
 	// will be populated by the extension proxy and passed to the
 	// configured backend service. If this header is passed by
-	// the client, its value will be overriden by the extension
+	// the client, its value will be overridden by the extension
 	// handler.
 	HeaderArgoCDTargetClusterName = "Argocd-Target-Cluster-Name"
 )
@@ -546,8 +546,8 @@ func appendProxy(registry ProxyRegistry,
 	extName string,
 	service ServiceConfig,
 	proxy *httputil.ReverseProxy,
-	singleBackend bool) error {
-
+	singleBackend bool,
+) error {
 	if singleBackend {
 		key := proxyKey(extName, "", "")
 		if _, exist := registry[key]; exist {
@@ -634,7 +634,6 @@ func (m *Manager) authorize(ctx context.Context, rr *RequestResources, extName s
 // findProxy will search the given registry to find the correct proxy to use
 // based on the given extName and dest.
 func findProxy(registry ProxyRegistry, extName string, dest v1alpha1.ApplicationDestination) (*httputil.ReverseProxy, error) {
-
 	// First try to find the proxy in the registry just by the extension name.
 	// This is the simple case for extensions with only one backend service.
 	key := proxyKey(extName, "", "")
@@ -719,7 +718,7 @@ func registerMetrics(extName string, metrics httpsnoop.Metrics, extensionMetrics
 	}
 }
 
-// prepareRequest is reponsible for cleaning the incoming request URL removing
+// prepareRequest is responsible for cleaning the incoming request URL removing
 // the Argo CD extension API section from it. It will set the cluster destination name
 // and cluster destination server in the headers as it is defined in the given app.
 func prepareRequest(r *http.Request, extName string, app *v1alpha1.Application) {

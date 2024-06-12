@@ -13,7 +13,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/test/e2e/fixture"
@@ -49,12 +49,12 @@ func TestProjectCreation(t *testing.T) {
 		"-d", "https://192.168.99.100:8443,service",
 		"-s", "https://github.com/argoproj/argo-cd.git",
 		"--orphaned-resources")
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	proj, err := fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.TestNamespace()).Get(context.Background(), projectName, metav1.GetOptions{})
 	assert.NoError(t, err)
 	assert.Equal(t, projectName, proj.Name)
-	assert.Equal(t, 2, len(proj.Spec.Destinations))
+	assert.Len(t, proj.Spec.Destinations, 2)
 
 	assert.Equal(t, "https://192.168.99.100:8443", proj.Spec.Destinations[0].Server)
 	assert.Equal(t, "default", proj.Spec.Destinations[0].Namespace)
@@ -62,7 +62,7 @@ func TestProjectCreation(t *testing.T) {
 	assert.Equal(t, "https://192.168.99.100:8443", proj.Spec.Destinations[1].Server)
 	assert.Equal(t, "service", proj.Spec.Destinations[1].Namespace)
 
-	assert.Equal(t, 1, len(proj.Spec.SourceRepos))
+	assert.Len(t, proj.Spec.SourceRepos, 1)
 	assert.Equal(t, "https://github.com/argoproj/argo-cd.git", proj.Spec.SourceRepos[0])
 
 	assert.NotNil(t, proj.Spec.OrphanedResources)
@@ -126,7 +126,7 @@ func TestSetProject(t *testing.T) {
 	proj, err := fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.TestNamespace()).Get(context.Background(), projectName, metav1.GetOptions{})
 	assert.NoError(t, err)
 	assert.Equal(t, projectName, proj.Name)
-	assert.Equal(t, 2, len(proj.Spec.Destinations))
+	assert.Len(t, proj.Spec.Destinations, 2)
 
 	assert.Equal(t, "https://192.168.99.100:8443", proj.Spec.Destinations[0].Server)
 	assert.Equal(t, "default", proj.Spec.Destinations[0].Namespace)
@@ -154,7 +154,6 @@ func TestAddProjectDestination(t *testing.T) {
 		"https://192.168.99.100:8443",
 		"test1",
 	)
-
 	if err != nil {
 		t.Fatalf("Unable to add project destination %v", err)
 	}
@@ -183,7 +182,7 @@ func TestAddProjectDestination(t *testing.T) {
 	proj, err := fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.TestNamespace()).Get(context.Background(), projectName, metav1.GetOptions{})
 	assert.NoError(t, err)
 	assert.Equal(t, projectName, proj.Name)
-	assert.Equal(t, 1, len(proj.Spec.Destinations))
+	assert.Len(t, proj.Spec.Destinations, 1)
 
 	assert.Equal(t, "https://192.168.99.100:8443", proj.Spec.Destinations[0].Server)
 	assert.Equal(t, "test1", proj.Spec.Destinations[0].Namespace)
@@ -205,7 +204,6 @@ func TestAddProjectDestinationWithName(t *testing.T) {
 		"test1",
 		"--name",
 	)
-
 	if err != nil {
 		t.Fatalf("Unable to add project destination %v", err)
 	}
@@ -213,7 +211,7 @@ func TestAddProjectDestinationWithName(t *testing.T) {
 	proj, err := fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.TestNamespace()).Get(context.Background(), projectName, metav1.GetOptions{})
 	assert.NoError(t, err)
 	assert.Equal(t, projectName, proj.Name)
-	assert.Equal(t, 1, len(proj.Spec.Destinations))
+	assert.Len(t, proj.Spec.Destinations, 1)
 
 	assert.Equal(t, "", proj.Spec.Destinations[0].Server)
 	assert.Equal(t, "in-cluster", proj.Spec.Destinations[0].Name)
@@ -234,7 +232,6 @@ func TestRemoveProjectDestination(t *testing.T) {
 			}},
 		},
 	}, metav1.CreateOptions{})
-
 	if err != nil {
 		t.Fatalf("Unable to create project %v", err)
 	}
@@ -243,7 +240,6 @@ func TestRemoveProjectDestination(t *testing.T) {
 		"https://192.168.99.100:8443",
 		"test",
 	)
-
 	if err != nil {
 		t.Fatalf("Unable to remove project destination %v", err)
 	}
@@ -260,7 +256,7 @@ func TestRemoveProjectDestination(t *testing.T) {
 		t.Fatalf("Unable to get project %v", err)
 	}
 	assert.Equal(t, projectName, proj.Name)
-	assert.Equal(t, 0, len(proj.Spec.Destinations))
+	assert.Empty(t, proj.Spec.Destinations)
 	assertProjHasEvent(t, proj, "update", argo.EventReasonResourceUpdated)
 }
 
@@ -275,18 +271,17 @@ func TestAddProjectSource(t *testing.T) {
 	}
 
 	_, err = fixture.RunCli("proj", "add-source", projectName, "https://github.com/argoproj/argo-cd.git")
-
 	if err != nil {
 		t.Fatalf("Unable to add project source %v", err)
 	}
 
 	_, err = fixture.RunCli("proj", "add-source", projectName, "https://github.com/argoproj/argo-cd.git")
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	proj, err := fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.TestNamespace()).Get(context.Background(), projectName, metav1.GetOptions{})
 	assert.NoError(t, err)
 	assert.Equal(t, projectName, proj.Name)
-	assert.Equal(t, 1, len(proj.Spec.SourceRepos))
+	assert.Len(t, proj.Spec.SourceRepos, 1)
 
 	assert.Equal(t, "https://github.com/argoproj/argo-cd.git", proj.Spec.SourceRepos[0])
 }
@@ -314,7 +309,7 @@ func TestRemoveProjectSource(t *testing.T) {
 	proj, err := fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.TestNamespace()).Get(context.Background(), projectName, metav1.GetOptions{})
 	assert.NoError(t, err)
 	assert.Equal(t, projectName, proj.Name)
-	assert.Equal(t, 0, len(proj.Spec.SourceRepos))
+	assert.Empty(t, proj.Spec.SourceRepos)
 	assertProjHasEvent(t, proj, "update", argo.EventReasonResourceUpdated)
 }
 
@@ -351,7 +346,7 @@ func TestUseJWTToken(t *testing.T) {
 			SourceRepos: []string{"*"},
 		},
 	}, metav1.CreateOptions{})
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	_, err = fixture.AppClientset.ArgoprojV1alpha1().Applications(fixture.TestNamespace()).Create(context.Background(), testApp, metav1.CreateOptions{})
 	assert.NoError(t, err)
@@ -395,7 +390,6 @@ func TestUseJWTToken(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Nil(t, newProj.Status.JWTTokensByRole[roleName].Items)
 	assert.Nil(t, newProj.Spec.Roles[0].JWTTokens)
-
 }
 
 func TestAddOrphanedIgnore(t *testing.T) {
@@ -414,7 +408,6 @@ func TestAddOrphanedIgnore(t *testing.T) {
 		"--name",
 		"name",
 	)
-
 	if err != nil {
 		t.Fatalf("Unable to add resource to orphaned ignore %v", err)
 	}
@@ -431,7 +424,7 @@ func TestAddOrphanedIgnore(t *testing.T) {
 	proj, err := fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.TestNamespace()).Get(context.Background(), projectName, metav1.GetOptions{})
 	assert.NoError(t, err)
 	assert.Equal(t, projectName, proj.Name)
-	assert.Equal(t, 1, len(proj.Spec.OrphanedResources.Ignore))
+	assert.Len(t, proj.Spec.OrphanedResources.Ignore, 1)
 
 	assert.Equal(t, "group", proj.Spec.OrphanedResources.Ignore[0].Group)
 	assert.Equal(t, "kind", proj.Spec.OrphanedResources.Ignore[0].Kind)
@@ -447,12 +440,11 @@ func TestRemoveOrphanedIgnore(t *testing.T) {
 		ObjectMeta: metav1.ObjectMeta{Name: projectName},
 		Spec: v1alpha1.AppProjectSpec{
 			OrphanedResources: &v1alpha1.OrphanedResourcesMonitorSettings{
-				Warn:   pointer.Bool(true),
+				Warn:   ptr.To(true),
 				Ignore: []v1alpha1.OrphanedResourceKey{{Group: "group", Kind: "kind", Name: "name"}},
 			},
 		},
 	}, metav1.CreateOptions{})
-
 	if err != nil {
 		t.Fatalf("Unable to create project %v", err)
 	}
@@ -463,7 +455,6 @@ func TestRemoveOrphanedIgnore(t *testing.T) {
 		"--name",
 		"name",
 	)
-
 	if err != nil {
 		t.Fatalf("Unable to remove resource from orphaned ignore list %v", err)
 	}
@@ -482,7 +473,7 @@ func TestRemoveOrphanedIgnore(t *testing.T) {
 		t.Fatalf("Unable to get project %v", err)
 	}
 	assert.Equal(t, projectName, proj.Name)
-	assert.Equal(t, 0, len(proj.Spec.OrphanedResources.Ignore))
+	assert.Empty(t, proj.Spec.OrphanedResources.Ignore)
 	assertProjHasEvent(t, proj, "update", argo.EventReasonResourceUpdated)
 }
 
@@ -585,7 +576,6 @@ func TestGetVirtualProjectNoMatch(t *testing.T) {
 	// app trying to sync a resource which is black listed by global project
 	_, err = fixture.RunCli("app", "sync", fixture.Name(), "--resource", ":Service:guestbook-ui", "--timeout", fmt.Sprintf("%v", 10))
 	assert.NoError(t, err)
-
 }
 
 func TestGetVirtualProjectMatch(t *testing.T) {
@@ -627,5 +617,4 @@ func TestGetVirtualProjectMatch(t *testing.T) {
 	// app trying to sync a resource which is black listed by global project
 	_, err = fixture.RunCli("app", "sync", fixture.Name(), "--resource", ":Service:guestbook-ui", "--timeout", fmt.Sprintf("%v", 10))
 	assert.Contains(t, err.Error(), "blocked by sync window")
-
 }

@@ -56,12 +56,12 @@ func TestTgz(t *testing.T) {
 		prepareRead(f)
 		files, err := read(f.file)
 		require.NoError(t, err)
-		assert.Equal(t, 8, len(files))
+		assert.Len(t, files, 8)
 		assert.Contains(t, files, "README.md")
 		assert.Contains(t, files, "applicationset/latest/kustomization.yaml")
 		assert.Contains(t, files, "applicationset/stable/kustomization.yaml")
 		assert.Contains(t, files, "applicationset/readme-symlink")
-		assert.Equal(t, files["applicationset/readme-symlink"], "../README.md")
+		assert.Equal(t, "../README.md", files["applicationset/readme-symlink"])
 	})
 	t.Run("will exclude files from the exclusion list", func(t *testing.T) {
 		// given
@@ -79,7 +79,7 @@ func TestTgz(t *testing.T) {
 		prepareRead(f)
 		files, err := read(f.file)
 		require.NoError(t, err)
-		assert.Equal(t, 7, len(files))
+		assert.Len(t, files, 7)
 		assert.Contains(t, files, "applicationset/latest/kustomization.yaml")
 		assert.Contains(t, files, "applicationset/stable/kustomization.yaml")
 	})
@@ -99,7 +99,7 @@ func TestTgz(t *testing.T) {
 		prepareRead(f)
 		files, err := read(f.file)
 		require.NoError(t, err)
-		assert.Equal(t, 5, len(files))
+		assert.Len(t, files, 5)
 		assert.Contains(t, files, "applicationset/stable/kustomization.yaml")
 	})
 }
@@ -174,14 +174,14 @@ func TestUntgz(t *testing.T) {
 		// then
 		require.NoError(t, err)
 		names := readFiles(t, destDir)
-		assert.Equal(t, 8, len(names))
+		assert.Len(t, names, 8)
 		assert.Contains(t, names, "README.md")
 		assert.Contains(t, names, "applicationset/latest/kustomization.yaml")
 		assert.Contains(t, names, "applicationset/stable/kustomization.yaml")
 		assert.Contains(t, names, "applicationset/readme-symlink")
 		assert.Equal(t, filepath.Join(destDir, "README.md"), names["applicationset/readme-symlink"])
 	})
-	t.Run("will protect agains symlink exploit", func(t *testing.T) {
+	t.Run("will protect against symlink exploit", func(t *testing.T) {
 		// given
 		tmpDir := createTmpDir(t)
 		defer deleteTmpDir(t, tmpDir)
@@ -216,7 +216,7 @@ func TestUntgz(t *testing.T) {
 
 		scriptFileInfo, err := os.Stat(path.Join(destDir, "script.sh"))
 		require.NoError(t, err)
-		assert.Equal(t, os.FileMode(0644), scriptFileInfo.Mode())
+		assert.Equal(t, os.FileMode(0o644), scriptFileInfo.Mode())
 	})
 }
 

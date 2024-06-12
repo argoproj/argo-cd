@@ -363,6 +363,7 @@ func TestIss(t *testing.T) {
 	assert.Empty(t, Iss(loggedOutContext))
 	assert.Equal(t, "qux", Iss(loggedInContext))
 }
+
 func TestLoggedIn(t *testing.T) {
 	assert.False(t, LoggedIn(loggedOutContext))
 	assert.True(t, LoggedIn(loggedInContext))
@@ -430,7 +431,7 @@ func TestVerifyUsernamePassword(t *testing.T) {
 			err := mgr.VerifyUsernamePassword(tc.userName, tc.password)
 
 			if tc.expected == nil {
-				assert.Nil(t, err)
+				assert.NoError(t, err)
 			} else {
 				assert.EqualError(t, err, tc.expected.Error())
 			}
@@ -490,7 +491,6 @@ func TestCacheValueGetters(t *testing.T) {
 		mcs := getMaximumCacheSize()
 		assert.Equal(t, defaultMaxCacheSize, mcs)
 	})
-
 }
 
 func TestLoginRateLimiter(t *testing.T) {

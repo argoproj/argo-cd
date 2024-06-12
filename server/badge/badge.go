@@ -122,7 +122,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		reqNs = h.namespace
 	}
 
-	//Sample url: http://localhost:8080/api/badge?name=123
+	// Sample url: http://localhost:8080/api/badge?name=123
 	if name, ok := r.URL.Query()["name"]; ok && enabled && !notFound {
 		if argo.IsValidAppName(name[0]) {
 			if app, err := h.appClientset.ArgoprojV1alpha1().Applications(reqNs).Get(context.Background(), name[0], v1.GetOptions{}); err == nil {
@@ -142,7 +142,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	//Sample url: http://localhost:8080/api/badge?project=default
+	// Sample url: http://localhost:8080/api/badge?project=default
 	if projects, ok := r.URL.Query()["project"]; ok && enabled && !notFound {
 		for _, p := range projects {
 			if errs := validation.NameIsDNSLabel(strings.ToLower(p), false); len(p) > 0 && len(errs) != 0 {
@@ -168,7 +168,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
-	//Sample url: http://localhost:8080/api/badge?name=123&revision=true
+	// Sample url: http://localhost:8080/api/badge?name=123&revision=true
 	if revisionParam, ok := r.URL.Query()["revision"]; ok && enabled && strings.EqualFold(revisionParam[0], "true") {
 		revisionEnabled = true
 	}
@@ -262,10 +262,10 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "image/svg+xml")
 
-	//Ask cache's to not cache the contents in order prevent the badge from becoming stale
+	// Ask cache's to not cache the contents in order prevent the badge from becoming stale
 	w.Header().Set("Cache-Control", "private, no-store")
 
-	//Allow badges to be fetched via XHR from frontend applications without running into CORS issues
+	// Allow badges to be fetched via XHR from frontend applications without running into CORS issues
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.WriteHeader(http.StatusOK)
 	_, _ = w.Write([]byte(badge))

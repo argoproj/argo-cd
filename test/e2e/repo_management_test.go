@@ -28,7 +28,7 @@ func TestAddRemovePublicRepo(t *testing.T) {
 
 		repo, err := repoClient.ListRepositories(context.Background(), &repositorypkg.RepoQuery{})
 
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 		exists := false
 		for i := range repo.Items {
 			if repo.Items[i].Repo == repoUrl {
@@ -142,7 +142,6 @@ func TestAddRemoveHelmRepo(t *testing.T) {
 		}
 		assert.False(t, exists)
 	})
-
 }
 
 func TestAddHelmRepoInsecureSkipVerify(t *testing.T) {
@@ -182,5 +181,4 @@ func TestAddHelmRepoInsecureSkipVerify(t *testing.T) {
 		}
 		assert.True(t, exists)
 	})
-
 }

@@ -83,7 +83,7 @@ func TestListPullRequestBearerTokenCloud(t *testing.T) {
 	assert.NoError(t, err)
 	pullRequests, err := ListPullRequests(context.Background(), svc, []v1alpha1.PullRequestGeneratorFilter{})
 	assert.NoError(t, err)
-	assert.Equal(t, 1, len(pullRequests))
+	assert.Len(t, pullRequests, 1)
 	assert.Equal(t, 101, pullRequests[0].Number)
 	assert.Equal(t, "feature/foo-bar", pullRequests[0].Branch)
 	assert.Equal(t, "1a8dd249c04a", pullRequests[0].HeadSHA)
@@ -99,7 +99,7 @@ func TestListPullRequestNoAuthCloud(t *testing.T) {
 	assert.NoError(t, err)
 	pullRequests, err := ListPullRequests(context.Background(), svc, []v1alpha1.PullRequestGeneratorFilter{})
 	assert.NoError(t, err)
-	assert.Equal(t, 1, len(pullRequests))
+	assert.Len(t, pullRequests, 1)
 	assert.Equal(t, 101, pullRequests[0].Number)
 	assert.Equal(t, "feature/foo-bar", pullRequests[0].Branch)
 	assert.Equal(t, "1a8dd249c04a", pullRequests[0].HeadSHA)
@@ -115,7 +115,7 @@ func TestListPullRequestBasicAuthCloud(t *testing.T) {
 	assert.NoError(t, err)
 	pullRequests, err := ListPullRequests(context.Background(), svc, []v1alpha1.PullRequestGeneratorFilter{})
 	assert.NoError(t, err)
-	assert.Equal(t, 1, len(pullRequests))
+	assert.Len(t, pullRequests, 1)
 	assert.Equal(t, 101, pullRequests[0].Number)
 	assert.Equal(t, "feature/foo-bar", pullRequests[0].Branch)
 	assert.Equal(t, "1a8dd249c04a", pullRequests[0].HeadSHA)
@@ -192,7 +192,7 @@ func TestListPullRequestPaginationCloud(t *testing.T) {
 	assert.NoError(t, err)
 	pullRequests, err := ListPullRequests(context.Background(), svc, []v1alpha1.PullRequestGeneratorFilter{})
 	assert.NoError(t, err)
-	assert.Equal(t, 3, len(pullRequests))
+	assert.Len(t, pullRequests, 3)
 	assert.Equal(t, PullRequest{
 		Number:  101,
 		Branch:  "feature-101",
@@ -370,7 +370,7 @@ func TestListPullRequestBranchMatchCloud(t *testing.T) {
 		},
 	})
 	assert.NoError(t, err)
-	assert.Equal(t, 2, len(pullRequests))
+	assert.Len(t, pullRequests, 2)
 	assert.Equal(t, PullRequest{
 		Number:  101,
 		Branch:  "feature-101",
@@ -391,7 +391,7 @@ func TestListPullRequestBranchMatchCloud(t *testing.T) {
 		},
 	})
 	assert.NoError(t, err)
-	assert.Equal(t, 1, len(pullRequests))
+	assert.Len(t, pullRequests, 1)
 	assert.Equal(t, PullRequest{
 		Number:  102,
 		Branch:  "feature-102",

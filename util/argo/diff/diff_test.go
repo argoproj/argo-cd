@@ -156,6 +156,7 @@ func TestStateDiff(t *testing.T) {
 		})
 	}
 }
+
 func TestDiffConfigBuilder(t *testing.T) {
 	type fixture struct {
 		ignores        []v1alpha1.ResourceIgnoreDifferences
@@ -178,7 +179,6 @@ func TestDiffConfigBuilder(t *testing.T) {
 			appName:        "application-name",
 			stateCache:     &appstatecache.Cache{},
 		}
-
 	}
 	t.Run("will build diff config successfully", func(t *testing.T) {
 		// given
@@ -194,8 +194,8 @@ func TestDiffConfigBuilder(t *testing.T) {
 		// then
 		require.NoError(t, err)
 		require.NotNil(t, diffConfig)
-		assert.Equal(t, 0, len(diffConfig.Ignores()))
-		assert.Equal(t, 0, len(diffConfig.Overrides()))
+		assert.Empty(t, diffConfig.Ignores())
+		assert.Empty(t, diffConfig.Overrides())
 		assert.Equal(t, f.label, diffConfig.AppLabelKey())
 		assert.Equal(t, f.overrides, diffConfig.Overrides())
 		assert.Equal(t, f.trackingMethod, diffConfig.TrackingMethod())
@@ -218,8 +218,8 @@ func TestDiffConfigBuilder(t *testing.T) {
 		// then
 		require.NoError(t, err)
 		require.NotNil(t, diffConfig)
-		assert.Equal(t, 0, len(diffConfig.Ignores()))
-		assert.Equal(t, 0, len(diffConfig.Overrides()))
+		assert.Empty(t, diffConfig.Ignores())
+		assert.Empty(t, diffConfig.Overrides())
 		assert.Equal(t, f.label, diffConfig.AppLabelKey())
 		assert.Equal(t, f.overrides, diffConfig.Overrides())
 		assert.Equal(t, f.trackingMethod, diffConfig.TrackingMethod())
@@ -256,5 +256,4 @@ func TestDiffConfigBuilder(t *testing.T) {
 		require.Error(t, err)
 		require.Nil(t, diffConfig)
 	})
-
 }
