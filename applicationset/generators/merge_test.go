@@ -177,7 +177,7 @@ func TestMergeGenerate(t *testing.T) {
 					MergeKeys:  testCaseCopy.mergeKeys,
 					Template:   argoprojiov1alpha1.ApplicationSetTemplate{},
 				},
-			}, appSet)
+			}, appSet, nil)
 
 			if testCaseCopy.expectedErr != nil {
 				assert.EqualError(t, err, testCaseCopy.expectedErr.Error())

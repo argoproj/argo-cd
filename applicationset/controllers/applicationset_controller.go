@@ -514,7 +514,7 @@ func (r *ApplicationSetReconciler) generateApplications(logCtx *log.Entry, appli
 	var applicationSetReason argov1alpha1.ApplicationSetReasonType
 
 	for _, requestedGenerator := range applicationSetInfo.Spec.Generators {
-		t, err := generators.Transform(requestedGenerator, r.Generators, applicationSetInfo.Spec.Template, &applicationSetInfo, map[string]interface{}{})
+		t, err := generators.Transform(requestedGenerator, r.Generators, applicationSetInfo.Spec.Template, &applicationSetInfo, map[string]interface{}{}, r.Client)
 		if err != nil {
 			logCtx.WithError(err).WithField("generator", requestedGenerator).
 				Error("error generating application from params")

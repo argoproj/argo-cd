@@ -259,7 +259,7 @@ func TestGenerateParams(t *testing.T) {
 					Selector: testCase.selector,
 					Values:   testCase.values,
 				},
-			}, &applicationSetInfo)
+			}, &applicationSetInfo, nil)
 
 			if testCase.expectedError != nil {
 				assert.EqualError(t, err, testCase.expectedError.Error())
@@ -632,7 +632,7 @@ func TestGenerateParamsGoTemplate(t *testing.T) {
 					Selector: testCase.selector,
 					Values:   testCase.values,
 				},
-			}, &applicationSetInfo)
+			}, &applicationSetInfo, nil)
 
 			if testCase.expectedError != nil {
 				assert.EqualError(t, err, testCase.expectedError.Error())
