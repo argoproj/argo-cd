@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestAddProxyEnvIfAbsent(t *testing.T) {
@@ -30,14 +31,14 @@ func TestGetCallBack(t *testing.T) {
 	t.Run("custom proxy present", func(t *testing.T) {
 		proxy := "http://proxy:8888"
 		url, err := GetCallback(proxy)(nil)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, proxy, url.String())
 	})
 	t.Run("custom proxy absent", func(t *testing.T) {
 		proxyEnv := "http://proxy:8888"
 		t.Setenv("http_proxy", "http://proxy:8888")
 		url, err := GetCallback("")(httptest.NewRequest(http.MethodGet, proxyEnv, nil))
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, proxyEnv, url.String())
 	})
 }
