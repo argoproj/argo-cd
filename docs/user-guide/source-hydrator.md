@@ -1,5 +1,7 @@
 # Source Hydrator
 
+**Current feature state**: Alpha
+
 Tools like Helm and Kustomize allow users to express their Kubernetes manifests in a more concise and reusable way
 (keeping it DRY - Don't Repeat Yourself). However, these tools can obscure the actual Kubernetes manifests that are
 applied to the cluster.
@@ -10,7 +12,34 @@ allows users to see the actual Kubernetes manifests that are applied to the clus
 The source hydrator is a feature of Argo CD that allows users to push the hydrated manifests to git before syncing them 
 to the cluster.
 
-To use the source hydrator, set the `spec.sourceHydrator` field of the Application. For example:
+## Using the Source Hydrator
+
+To use the source hydrator, you must first install a push secret.
+
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-push-secret
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/secret-type: repository-write
+type: Opaque
+stringData:
+  url: "https://github.com"
+  type: "git"
+  githubAppID: "<your app ID here>"
+  githubAppInstallationID: "<your installation ID here>"
+  githubAppPrivateKey: |
+    <your private key here>
+```
+
+For now, the source hydrator only supports GitHub Apps. To use the source hydrator, you must first 
+[create a GitHub App](https://github.com/settings/apps/new) with read/write permissions and install it in the repository 
+you want to use it in. After you install the app, the installation ID will appear in the URL. The private key is 
+generated when you create the GitHub App.
+
+Once your push secret is installed, set the `spec.sourceHydrator` field of the Application. For example:
 
 ```yaml
 apiVersion: argoproj.io/v1alpha1
