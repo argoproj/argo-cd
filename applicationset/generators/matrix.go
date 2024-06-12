@@ -121,7 +121,7 @@ func (m *MatrixGenerator) getParams(appSetBaseGenerator argoprojiov1alpha1.Appli
 		params,
 		client)
 	if err != nil {
-		return nil, fmt.Errorf("child generator returned an error on parameter generation: %v", err)
+		return nil, fmt.Errorf("child generator returned an error on parameter generation: %w", err)
 	}
 
 	if len(t) == 0 {

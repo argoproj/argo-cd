@@ -142,7 +142,7 @@ func (g *GitGenerator) generateParamsForGitFiles(appSetGenerator *argoprojiov1al
 		// A JSON / YAML file path can contain multiple sets of parameters (ie it is an array)
 		paramsArray, err := g.generateParamsFromGitFile(path, allFiles[path], appSetGenerator.Git.Values, useGoTemplate, goTemplateOptions, appSetGenerator.Git.PathParamPrefix)
 		if err != nil {
-			return nil, fmt.Errorf("unable to process file '%s': %v", path, err)
+			return nil, fmt.Errorf("unable to process file '%s': %w", path, err)
 		}
 
 		res = append(res, paramsArray...)
@@ -160,7 +160,7 @@ func (g *GitGenerator) generateParamsFromGitFile(filePath string, fileContent []
 		singleObj := make(map[string]interface{})
 		err = yaml.Unmarshal(fileContent, &singleObj)
 		if err != nil {
-			return nil, fmt.Errorf("unable to parse file: %v", err)
+			return nil, fmt.Errorf("unable to parse file: %w", err)
 		}
 		objectsFound = append(objectsFound, singleObj)
 	} else if len(objectsFound) == 0 {
