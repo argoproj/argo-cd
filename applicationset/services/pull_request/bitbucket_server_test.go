@@ -25,6 +25,7 @@ func defaultHandler(t *testing.T) func(http.ResponseWriter, *http.Request) {
 					"values": [
 						{
 							"id": 101,
+							"title": "feat(ABC) : 123",
 							"toRef": {
 								"latestCommit": "5b766e3564a3453808f3cd3dd3f2e5fad8ef0e7a",
 								"displayId": "master",
@@ -60,6 +61,7 @@ func TestListPullRequestNoAuth(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Len(t, pullRequests, 1)
 	assert.Equal(t, 101, pullRequests[0].Number)
+	assert.Equal(t, "feat(ABC) : 123", pullRequests[0].Title)
 	assert.Equal(t, "feature-ABC-123", pullRequests[0].Branch)
 	assert.Equal(t, "master", pullRequests[0].TargetBranch)
 	assert.Equal(t, "cb3cf2e4d1517c83e720d2585b9402dbef71f992", pullRequests[0].HeadSHA)
@@ -78,6 +80,7 @@ func TestListPullRequestPagination(t *testing.T) {
 					"values": [
 						{
 							"id": 101,
+							"title": "feat(101)",
 							"toRef": {
 								"latestCommit": "5b766e3564a3453808f3cd3dd3f2e5fad8ef0e7a",
 								"displayId": "master",
@@ -91,6 +94,7 @@ func TestListPullRequestPagination(t *testing.T) {
 						},
 						{
 							"id": 102,
+							"title": "feat(102)",
 							"toRef": {
 								"latestCommit": "5b766e3564a3453808f3cd3dd3f2e5fad8ef0e7a",
 								"displayId": "branch",
@@ -113,6 +117,7 @@ func TestListPullRequestPagination(t *testing.T) {
 				"values": [
 					{
 						"id": 200,
+						"title": "feat(200)",
 						"toRef": {
 							"latestCommit": "5b766e3564a3453808f3cd3dd3f2e5fad8ef0e7a",
 							"displayId": "master",
@@ -142,6 +147,7 @@ func TestListPullRequestPagination(t *testing.T) {
 	assert.Len(t, pullRequests, 3)
 	assert.Equal(t, PullRequest{
 		Number:       101,
+		Title:        "feat(101)",
 		Branch:       "feature-101",
 		TargetBranch: "master",
 		HeadSHA:      "ab3cf2e4d1517c83e720d2585b9402dbef71f992",
@@ -149,6 +155,7 @@ func TestListPullRequestPagination(t *testing.T) {
 	}, *pullRequests[0])
 	assert.Equal(t, PullRequest{
 		Number:       102,
+		Title:        "feat(102)",
 		Branch:       "feature-102",
 		TargetBranch: "branch",
 		HeadSHA:      "bb3cf2e4d1517c83e720d2585b9402dbef71f992",
@@ -156,6 +163,7 @@ func TestListPullRequestPagination(t *testing.T) {
 	}, *pullRequests[1])
 	assert.Equal(t, PullRequest{
 		Number:       200,
+		Title:        "feat(200)",
 		Branch:       "feature-200",
 		TargetBranch: "master",
 		HeadSHA:      "cb3cf2e4d1517c83e720d2585b9402dbef71f992",
@@ -177,6 +185,7 @@ func TestListPullRequestBasicAuth(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Len(t, pullRequests, 1)
 	assert.Equal(t, 101, pullRequests[0].Number)
+	assert.Equal(t, "feat(ABC) : 123", pullRequests[0].Title)
 	assert.Equal(t, "feature-ABC-123", pullRequests[0].Branch)
 	assert.Equal(t, "cb3cf2e4d1517c83e720d2585b9402dbef71f992", pullRequests[0].HeadSHA)
 }
@@ -256,6 +265,7 @@ func TestListPullRequestBranchMatch(t *testing.T) {
 					"values": [
 						{
 							"id": 101,
+							"title": "feat(101)",
 							"toRef": {
 								"latestCommit": "5b766e3564a3453808f3cd3dd3f2e5fad8ef0e7a",
 								"displayId": "master",
@@ -269,6 +279,7 @@ func TestListPullRequestBranchMatch(t *testing.T) {
 						},
 						{
 							"id": 102,
+							"title": "feat(102)",
 							"toRef": {
 								"latestCommit": "5b766e3564a3453808f3cd3dd3f2e5fad8ef0e7a",
 								"displayId": "branch",
@@ -291,6 +302,7 @@ func TestListPullRequestBranchMatch(t *testing.T) {
 				"values": [
 					{
 						"id": 200,
+						"title": "feat(200)",
 						"toRef": {
 							"latestCommit": "5b766e3564a3453808f3cd3dd3f2e5fad8ef0e7a",
 							"displayId": "master",
@@ -325,6 +337,7 @@ func TestListPullRequestBranchMatch(t *testing.T) {
 	assert.Len(t, pullRequests, 2)
 	assert.Equal(t, PullRequest{
 		Number:       101,
+		Title:        "feat(101)",
 		Branch:       "feature-101",
 		TargetBranch: "master",
 		HeadSHA:      "ab3cf2e4d1517c83e720d2585b9402dbef71f992",
@@ -332,6 +345,7 @@ func TestListPullRequestBranchMatch(t *testing.T) {
 	}, *pullRequests[0])
 	assert.Equal(t, PullRequest{
 		Number:       102,
+		Title:        "feat(102)",
 		Branch:       "feature-102",
 		TargetBranch: "branch",
 		HeadSHA:      "bb3cf2e4d1517c83e720d2585b9402dbef71f992",
@@ -350,6 +364,7 @@ func TestListPullRequestBranchMatch(t *testing.T) {
 	assert.Len(t, pullRequests, 1)
 	assert.Equal(t, PullRequest{
 		Number:       102,
+		Title:        "feat(102)",
 		Branch:       "feature-102",
 		TargetBranch: "branch",
 		HeadSHA:      "bb3cf2e4d1517c83e720d2585b9402dbef71f992",

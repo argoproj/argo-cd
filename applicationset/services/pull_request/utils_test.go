@@ -19,6 +19,7 @@ func TestFilterBranchMatchBadRegexp(t *testing.T) {
 		[]*PullRequest{
 			{
 				Number:       1,
+				Title:        "PR branch1",
 				Branch:       "branch1",
 				TargetBranch: "master",
 				HeadSHA:      "089d92cbf9ff857a39e6feccd32798ca700fb958",
@@ -41,24 +42,28 @@ func TestFilterBranchMatch(t *testing.T) {
 		[]*PullRequest{
 			{
 				Number:       1,
+				Title:        "PR one",
 				Branch:       "one",
 				TargetBranch: "master",
 				HeadSHA:      "189d92cbf9ff857a39e6feccd32798ca700fb958",
 			},
 			{
 				Number:       2,
+				Title:        "PR two",
 				Branch:       "two",
 				TargetBranch: "master",
 				HeadSHA:      "289d92cbf9ff857a39e6feccd32798ca700fb958",
 			},
 			{
 				Number:       3,
+				Title:        "PR three",
 				Branch:       "three",
 				TargetBranch: "master",
 				HeadSHA:      "389d92cbf9ff857a39e6feccd32798ca700fb958",
 			},
 			{
 				Number:       4,
+				Title:        "PR four",
 				Branch:       "four",
 				TargetBranch: "master",
 				HeadSHA:      "489d92cbf9ff857a39e6feccd32798ca700fb958",
@@ -83,24 +88,28 @@ func TestFilterTargetBranchMatch(t *testing.T) {
 		[]*PullRequest{
 			{
 				Number:       1,
+				Title:        "PR one",
 				Branch:       "one",
 				TargetBranch: "master",
 				HeadSHA:      "189d92cbf9ff857a39e6feccd32798ca700fb958",
 			},
 			{
 				Number:       2,
+				Title:        "PR two",
 				Branch:       "two",
 				TargetBranch: "branch1",
 				HeadSHA:      "289d92cbf9ff857a39e6feccd32798ca700fb958",
 			},
 			{
 				Number:       3,
+				Title:        "PR three",
 				Branch:       "three",
 				TargetBranch: "branch2",
 				HeadSHA:      "389d92cbf9ff857a39e6feccd32798ca700fb958",
 			},
 			{
 				Number:       4,
+				Title:        "PR four",
 				Branch:       "four",
 				TargetBranch: "branch3",
 				HeadSHA:      "489d92cbf9ff857a39e6feccd32798ca700fb958",
@@ -125,24 +134,28 @@ func TestMultiFilterOr(t *testing.T) {
 		[]*PullRequest{
 			{
 				Number:       1,
+				Title:        "PR one",
 				Branch:       "one",
 				TargetBranch: "master",
 				HeadSHA:      "189d92cbf9ff857a39e6feccd32798ca700fb958",
 			},
 			{
 				Number:       2,
+				Title:        "PR two",
 				Branch:       "two",
 				TargetBranch: "master",
 				HeadSHA:      "289d92cbf9ff857a39e6feccd32798ca700fb958",
 			},
 			{
 				Number:       3,
+				Title:        "PR three",
 				Branch:       "three",
 				TargetBranch: "master",
 				HeadSHA:      "389d92cbf9ff857a39e6feccd32798ca700fb958",
 			},
 			{
 				Number:       4,
+				Title:        "PR four",
 				Branch:       "four",
 				TargetBranch: "master",
 				HeadSHA:      "489d92cbf9ff857a39e6feccd32798ca700fb958",
@@ -172,24 +185,28 @@ func TestMultiFilterOrWithTargetBranchFilter(t *testing.T) {
 		[]*PullRequest{
 			{
 				Number:       1,
+				Title:        "PR one",
 				Branch:       "one",
 				TargetBranch: "master",
 				HeadSHA:      "189d92cbf9ff857a39e6feccd32798ca700fb958",
 			},
 			{
 				Number:       2,
+				Title:        "PR two",
 				Branch:       "two",
 				TargetBranch: "branch1",
 				HeadSHA:      "289d92cbf9ff857a39e6feccd32798ca700fb958",
 			},
 			{
 				Number:       3,
+				Title:        "PR three",
 				Branch:       "three",
 				TargetBranch: "branch2",
 				HeadSHA:      "389d92cbf9ff857a39e6feccd32798ca700fb958",
 			},
 			{
 				Number:       4,
+				Title:        "PR four",
 				Branch:       "four",
 				TargetBranch: "branch3",
 				HeadSHA:      "489d92cbf9ff857a39e6feccd32798ca700fb958",
@@ -220,12 +237,14 @@ func TestNoFilters(t *testing.T) {
 		[]*PullRequest{
 			{
 				Number:       1,
+				Title:        "PR one",
 				Branch:       "one",
 				TargetBranch: "master",
 				HeadSHA:      "189d92cbf9ff857a39e6feccd32798ca700fb958",
 			},
 			{
 				Number:       2,
+				Title:        "PR two",
 				Branch:       "two",
 				TargetBranch: "master",
 				HeadSHA:      "289d92cbf9ff857a39e6feccd32798ca700fb958",
