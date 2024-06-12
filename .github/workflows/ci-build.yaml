@@ -491,6 +491,7 @@ jobs:
         run: |
           set -x
           make test-e2e-local
+          goreman run stop-all
       - name: Upload e2e coverage report
         uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
         with:
