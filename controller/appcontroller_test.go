@@ -19,7 +19,6 @@ import (
 	statecache "github.com/argoproj/argo-cd/v2/controller/cache"
 	"github.com/argoproj/argo-cd/v2/controller/sharding"
 
-	dbmocks "github.com/argoproj/argo-cd/v2/util/db/mocks"
 	"github.com/argoproj/gitops-engine/pkg/cache/mocks"
 	synccommon "github.com/argoproj/gitops-engine/pkg/sync/common"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
@@ -36,6 +35,9 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"sigs.k8s.io/yaml"
 
+	dbmocks "github.com/argoproj/argo-cd/v2/util/db/mocks"
+
+	mockcommitclient "github.com/argoproj/argo-cd/v2/commitserver/apiclient/mocks"
 	mockstatecache "github.com/argoproj/argo-cd/v2/controller/cache/mocks"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned/fake"
@@ -112,6 +114,8 @@ func newFakeController(data *fakeData, repoErr error) *ApplicationController {
 
 	mockRepoClientset := mockrepoclient.Clientset{RepoServerServiceClient: &mockRepoClient}
 
+	mockCommitClientset := mockcommitclient.Clientset{}
+
 	secret := corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "argocd-secret",
@@ -141,6 +145,7 @@ func newFakeController(data *fakeData, repoErr error) *ApplicationController {
 		kubeClient,
 		appclientset.NewSimpleClientset(data.apps...),
 		&mockRepoClientset,
+		&mockCommitClientset,
 		appstatecache.NewCache(
 			cacheutil.NewCache(cacheutil.NewInMemoryCache(1*time.Minute)),
 			1*time.Minute,
@@ -221,6 +226,7 @@ metadata:
   namespace: ` + test.FakeArgoCDNamespace + `
 type: Opaque
 `
+
 var fakeApp = `
 apiVersion: argoproj.io/v1alpha1
 kind: Application
@@ -807,7 +813,6 @@ func TestFinalizeAppDeletion(t *testing.T) {
 	// Create an Application with a cluster that doesn't exist
 	// Ensure it can be deleted.
 	t.Run("DeleteWithInvalidClusterName", func(t *testing.T) {
-
 		appTemplate := newFakeAppWithDestName()
 
 		testShouldDelete := func(app *v1alpha1.Application) {
@@ -840,7 +845,6 @@ func TestFinalizeAppDeletion(t *testing.T) {
 		app3.Spec.Destination.Name = "invalid"
 		app3.Spec.Destination.Server = "https://invalid"
 		testShouldDelete(app3)
-
 	})
 
 	t.Run("PostDelete_HookIsCreated", func(t *testing.T) {
@@ -852,7 +856,8 @@ func TestFinalizeAppDeletion(t *testing.T) {
 				Manifests: []string{fakePostDeleteHook},
 			}},
 			apps:            []runtime.Object{app, &defaultProj},
-			managedLiveObjs: map[kube.ResourceKey]*unstructured.Unstructured{}}, nil)
+			managedLiveObjs: map[kube.ResourceKey]*unstructured.Unstructured{},
+		}, nil)
 
 		patched := false
 		fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
@@ -889,7 +894,8 @@ func TestFinalizeAppDeletion(t *testing.T) {
 			apps: []runtime.Object{app, &defaultProj},
 			managedLiveObjs: map[kube.ResourceKey]*unstructured.Unstructured{
 				kube.GetResourceKey(liveHook): liveHook,
-			}}, nil)
+			},
+		}, nil)
 
 		patched := false
 		fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
@@ -923,7 +929,8 @@ func TestFinalizeAppDeletion(t *testing.T) {
 			apps: []runtime.Object{app, &defaultProj},
 			managedLiveObjs: map[kube.ResourceKey]*unstructured.Unstructured{
 				kube.GetResourceKey(liveHook): liveHook,
-			}}, nil)
+			},
+		}, nil)
 
 		patched := false
 		fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
@@ -1101,8 +1108,8 @@ func TestGetResourceTree_HasOrphanedResources(t *testing.T) {
 	}})
 
 	assert.NoError(t, err)
-	assert.Equal(t, tree.Nodes, []v1alpha1.ResourceNode{managedDeploy})
-	assert.Equal(t, tree.OrphanedNodes, []v1alpha1.ResourceNode{orphanedDeploy1, orphanedDeploy2})
+	assert.Equal(t, []v1alpha1.ResourceNode{managedDeploy}, tree.Nodes)
+	assert.Equal(t, []v1alpha1.ResourceNode{orphanedDeploy1, orphanedDeploy2}, tree.OrphanedNodes)
 }
 
 func TestSetOperationStateOnDeletedApp(t *testing.T) {
@@ -1409,7 +1416,7 @@ func TestRefreshAppConditions(t *testing.T) {
 
 		_, hasErrors := ctrl.refreshAppConditions(app)
 		assert.False(t, hasErrors)
-		assert.Len(t, app.Status.Conditions, 0)
+		assert.Empty(t, app.Status.Conditions)
 	})
 
 	t.Run("PreserveExistingWarningCondition", func(t *testing.T) {
@@ -1496,7 +1503,6 @@ func TestUpdateReconciledAt(t *testing.T) {
 		assert.NoError(t, err)
 		assert.False(t, updated)
 	})
-
 }
 
 func TestProjectErrorToCondition(t *testing.T) {
@@ -1801,9 +1807,12 @@ func TestGetAppHosts(t *testing.T) {
 	assert.Equal(t, []v1alpha1.HostInfo{{
 		Name:       "minikube",
 		SystemInfo: corev1.NodeSystemInfo{OSImage: "debian"},
-		ResourcesInfo: []v1alpha1.HostResourceInfo{{
-			ResourceName: corev1.ResourceCPU, Capacity: 5000, RequestedByApp: 1000, RequestedByNeighbors: 2000},
-		}}}, hosts)
+		ResourcesInfo: []v1alpha1.HostResourceInfo{
+			{
+				ResourceName: corev1.ResourceCPU, Capacity: 5000, RequestedByApp: 1000, RequestedByNeighbors: 2000,
+			},
+		},
+	}}, hosts)
 }
 
 func TestMetricsExpiration(t *testing.T) {

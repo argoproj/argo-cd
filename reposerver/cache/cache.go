@@ -23,8 +23,10 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/hash"
 )
 
-var ErrCacheMiss = cacheutil.ErrCacheMiss
-var ErrCacheKeyLocked = cacheutil.ErrCacheKeyLocked
+var (
+	ErrCacheMiss      = cacheutil.ErrCacheMiss
+	ErrCacheKeyLocked = cacheutil.ErrCacheKeyLocked
+)
 
 type Cache struct {
 	cache                    *cacheutil.Cache
@@ -154,7 +156,8 @@ func (c *Cache) SetApps(repoUrl, revision string, apps map[string]string) error 
 		apps,
 		&cacheutil.CacheActionOpts{
 			Expiration: c.repoCacheExpiration,
-			Delete:     apps == nil})
+			Delete:     apps == nil,
+		})
 }
 
 func helmIndexRefsKey(repo string) string {
@@ -211,7 +214,8 @@ func (c *Cache) TryLockGitRefCache(repo string, lockId string, references *[]*pl
 	// leads to duplicate requests
 	err := c.cache.SetItem(gitRefsKey(repo), [][2]string{{cacheutil.CacheLockedValue, lockId}}, &cacheutil.CacheActionOpts{
 		Expiration:       c.revisionCacheLockTimeout,
-		DisableOverwrite: true})
+		DisableOverwrite: true,
+	})
 	if err != nil {
 		// Log but ignore this error since we'll want to retry, failing to obtain the lock should not throw an error
 		log.Errorf("Error attempting to acquire git references cache lock: %v", err)
@@ -326,7 +330,6 @@ func (c *Cache) SetNewRevisionManifests(newRevision string, revision string, app
 
 func (c *Cache) GetManifests(revision string, appSrc *appv1.ApplicationSource, srcRefs appv1.RefTargetRevisionMapping, clusterInfo ClusterRuntimeInfo, namespace string, trackingMethod string, appLabelKey string, appName string, res *CachedManifestResponse, refSourceCommitSHAs ResolvedRevisions) error {
 	err := c.cache.GetItem(manifestCacheKey(revision, appSrc, srcRefs, namespace, trackingMethod, appLabelKey, appName, clusterInfo, refSourceCommitSHAs), res)
-
 	if err != nil {
 		return err
 	}
@@ -378,7 +381,8 @@ func (c *Cache) SetManifests(revision string, appSrc *appv1.ApplicationSource, s
 		res,
 		&cacheutil.CacheActionOpts{
 			Expiration: c.repoCacheExpiration,
-			Delete:     res == nil})
+			Delete:     res == nil,
+		})
 }
 
 func (c *Cache) DeleteManifests(revision string, appSrc *appv1.ApplicationSource, srcRefs appv1.RefTargetRevisionMapping, clusterInfo ClusterRuntimeInfo, namespace, trackingMethod, appLabelKey, appName string, refSourceCommitSHAs ResolvedRevisions) error {
@@ -405,7 +409,8 @@ func (c *Cache) SetAppDetails(revision string, appSrc *appv1.ApplicationSource, 
 		res,
 		&cacheutil.CacheActionOpts{
 			Expiration: c.repoCacheExpiration,
-			Delete:     res == nil})
+			Delete:     res == nil,
+		})
 }
 
 func revisionMetadataKey(repoURL, revision string) string {
@@ -488,7 +493,6 @@ func (cmr *CachedManifestResponse) shallowCopy() *CachedManifestResponse {
 }
 
 func (cmr *CachedManifestResponse) generateCacheEntryHash() (string, error) {
-
 	// Copy, then remove the old hash
 	copy := cmr.shallowCopy()
 	copy.CacheEntryHash = ""
@@ -505,13 +509,11 @@ func (cmr *CachedManifestResponse) generateCacheEntryHash() (string, error) {
 	}
 	fnvHash := h.Sum(nil)
 	return base64.URLEncoding.EncodeToString(fnvHash), nil
-
 }
 
 // CachedManifestResponse represents a cached result of a previous manifest generation operation, including the caching
 // of a manifest generation error, plus additional information on previous failures
 type CachedManifestResponse struct {
-
 	// NOTE: When adding fields to this struct, you MUST also update shallowCopy()
 
 	CacheEntryHash                  string                      `json:"cacheEntryHash"`

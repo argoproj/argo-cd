@@ -2,20 +2,20 @@ package commands
 
 import (
 	"fmt"
+	"net"
+
 	cmdutil "github.com/argoproj/argo-cd/v2/cmd/util"
 	"github.com/argoproj/argo-cd/v2/commitserver"
 	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/util/cli"
 	"github.com/argoproj/argo-cd/v2/util/env"
 	"github.com/argoproj/argo-cd/v2/util/errors"
-	"github.com/spf13/cobra"
-	"net"
 )
 
 func NewCommand() *cobra.Command {
 	var listenHost string
 	var listenPort int
-	var command = &cobra.Command{
+	command := &cobra.Command{
 		RunE: func(cmd *cobra.Command, args []string) error {
 			vers := common.GetVersion()
 			vers.LogStartupInfo(

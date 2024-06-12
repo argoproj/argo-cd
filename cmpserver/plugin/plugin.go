@@ -6,13 +6,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	exec2 "github.com/argoproj/argo-cd/v2/util/exec"
-	"github.com/argoproj/pkg/rand"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
+
+	exec2 "github.com/argoproj/argo-cd/v2/util/exec"
+	"github.com/argoproj/pkg/rand"
 
 	"github.com/argoproj/argo-cd/v2/cmpserver/apiclient"
 	"github.com/argoproj/argo-cd/v2/common"
@@ -22,7 +23,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/io/files"
 
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
-	"github.com/cyphar/filepath-securejoin"
+	securejoin "github.com/cyphar/filepath-securejoin"
 	"github.com/mattn/go-zglob"
 	log "github.com/sirupsen/logrus"
 )
@@ -52,7 +53,7 @@ func (s *Service) Init(workDir string) error {
 	if err != nil {
 		return fmt.Errorf("error removing workdir %q: %w", workDir, err)
 	}
-	err = os.MkdirAll(workDir, 0700)
+	err = os.MkdirAll(workDir, 0o700)
 	if err != nil {
 		return fmt.Errorf("error creating workdir %q: %w", workDir, err)
 	}

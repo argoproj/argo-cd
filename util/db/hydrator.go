@@ -3,11 +3,12 @@ package db
 import (
 	"context"
 
-	"github.com/argoproj/argo-cd/v2/common"
-	appsv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	corev1 "k8s.io/api/core/v1"
+
+	"github.com/argoproj/argo-cd/v2/common"
+	appsv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 )
 
 func (db *db) GetHydratorCredentials(ctx context.Context, repoURL string) (*appsv1.Repository, error) {

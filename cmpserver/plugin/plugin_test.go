@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	exec2 "github.com/argoproj/argo-cd/v2/util/exec"
 	"io"
 	"os"
 	"os/exec"
@@ -12,6 +11,10 @@ import (
 	"path/filepath"
 	"testing"
 	"time"
+
+	exec2 "github.com/argoproj/argo-cd/v2/util/exec"
+
+	exec2 "github.com/argoproj/argo-cd/v2/util/exec"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -470,12 +473,12 @@ func Test_getTempDirMustCleanup(t *testing.T) {
 	tempDir := t.TempDir()
 
 	// Induce a directory create error to verify error handling.
-	err := os.Chmod(tempDir, 0000)
+	err := os.Chmod(tempDir, 0o000)
 	require.NoError(t, err)
 	_, _, err = getTempDirMustCleanup(path.Join(tempDir, "test"))
 	assert.ErrorContains(t, err, "error creating temp dir")
 
-	err = os.Chmod(tempDir, 0700)
+	err = os.Chmod(tempDir, 0o700)
 	require.NoError(t, err)
 	workDir, cleanup, err := getTempDirMustCleanup(tempDir)
 	require.NoError(t, err)
@@ -488,7 +491,7 @@ func TestService_Init(t *testing.T) {
 	// Set up a base directory containing a test directory and a test file.
 	tempDir := t.TempDir()
 	workDir := path.Join(tempDir, "workDir")
-	err := os.MkdirAll(workDir, 0700)
+	err := os.MkdirAll(workDir, 0o700)
 	require.NoError(t, err)
 	testfile := path.Join(workDir, "testfile")
 	file, err := os.Create(testfile)
@@ -497,14 +500,14 @@ func TestService_Init(t *testing.T) {
 	require.NoError(t, err)
 
 	// Make the base directory read-only so Init's cleanup fails.
-	err = os.Chmod(tempDir, 0000)
+	err = os.Chmod(tempDir, 0o000)
 	require.NoError(t, err)
 	s := NewService(CMPServerInitConstants{PluginConfig: PluginConfig{}})
 	err = s.Init(workDir)
 	assert.ErrorContains(t, err, "error removing workdir", "Init must throw an error if it can't remove the work directory")
 
 	// Make the base directory writable so Init's cleanup succeeds.
-	err = os.Chmod(tempDir, 0700)
+	err = os.Chmod(tempDir, 0o700)
 	require.NoError(t, err)
 	err = s.Init(workDir)
 	assert.NoError(t, err)

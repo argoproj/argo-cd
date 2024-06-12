@@ -10,11 +10,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	log "github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/client-go/tools/cache"
 	"sigs.k8s.io/yaml"
+
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 )
 
 // StartInformer is a helper to start an informer, wait for its cache to sync and return a cancel func

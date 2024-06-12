@@ -3,19 +3,13 @@ package commit
 import (
 	"context"
 	"fmt"
-	"github.com/argoproj/argo-cd/v2/applicationset/services/github_app_auth"
-	"github.com/argoproj/argo-cd/v2/commitserver/apiclient"
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	securejoin "github.com/cyphar/filepath-securejoin"
-	"github.com/google/uuid"
-	log "github.com/sirupsen/logrus"
 	"os"
 	"path"
 	"strings"
+
 )
 
-type Service struct {
-}
+type Service struct{}
 
 func NewService() *Service {
 	return &Service{}

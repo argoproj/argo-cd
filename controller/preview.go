@@ -3,6 +3,15 @@ package controller
 import (
 	"context"
 	"fmt"
+	"net/http"
+	"net/url"
+	"os"
+	"os/exec"
+	"path"
+	"sort"
+	"strings"
+	"time"
+
 	"github.com/argoproj/argo-cd/v2/applicationset/services/github_app_auth"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	applisters "github.com/argoproj/argo-cd/v2/pkg/client/listers/application/v1alpha1"
@@ -12,25 +21,12 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/errors"
 	logutils "github.com/argoproj/argo-cd/v2/util/log"
 	"github.com/argoproj/argo-cd/v2/util/settings"
-	"github.com/bradleyfalzon/ghinstallation/v2"
-	"github.com/google/go-github/v62/github"
-	"github.com/google/shlex"
-	log "github.com/sirupsen/logrus"
-	"gopkg.in/yaml.v3"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/labels"
-	"net/http"
-	"net/url"
-	"os"
-	"os/exec"
-	"path"
-	"sort"
-	"strings"
-	"time"
 )
 
-const ArgoCDGitHubUsername = "gitops-promoter-5-29[bot]"
-const PreviewSleepDuration = 10 * time.Second
+const (
+	ArgoCDGitHubUsername = "gitops-promoter-5-29[bot]"
+	PreviewSleepDuration = 10 * time.Second
+)
 
 type Previewer struct {
 	appLister       *applisters.ApplicationLister
@@ -186,7 +182,7 @@ func getGitHubAppClient(g github_app_auth.Authentication) (*github.Client, error
 
 func (p *Previewer) getRepoMap() (map[string][]*v1alpha1.Application, error) {
 	// Get list of unique Repos from all Applications
-	var repoMap = map[string][]*v1alpha1.Application{}
+	repoMap := map[string][]*v1alpha1.Application{}
 
 	apps, err := (*p.appLister).List(labels.Everything())
 	if err != nil {
@@ -243,7 +239,6 @@ func (p *Previewer) getComment(owner string, repo string, pr *github.PullRequest
 }
 
 func (p *Previewer) makeComment(apps []*v1alpha1.Application, baseBranch string, headBranch string) (string, error) {
-
 	commentBody := fmt.Sprintf("\n## From branch %s to branch %s\n", headBranch, baseBranch)
 
 	// Sort the apps by name.
@@ -284,7 +279,7 @@ func (p *Previewer) makeComment(apps []*v1alpha1.Application, baseBranch string,
 				return "", fmt.Errorf("failed to marshal base unstructured: %w", err)
 			}
 		}
-		err = os.WriteFile(targetFile, targetData, 0644)
+		err = os.WriteFile(targetFile, targetData, 0o644)
 		if err != nil {
 			return "", fmt.Errorf("failed to write target file: %w", err)
 		}
@@ -296,7 +291,7 @@ func (p *Previewer) makeComment(apps []*v1alpha1.Application, baseBranch string,
 				return "", fmt.Errorf("failed to marshal head unstructured: %w", err)
 			}
 		}
-		err = os.WriteFile(liveFile, liveData, 0644)
+		err = os.WriteFile(liveFile, liveData, 0o644)
 		if err != nil {
 			return "", fmt.Errorf("failed to write live file: %w", err)
 		}
@@ -324,7 +319,6 @@ func (p *Previewer) getBranchManifest(
 	project *v1alpha1.AppProject,
 	branch string,
 ) (unstructured []*unstructured.Unstructured, err error) {
-
 	unstructured, _, err = (*p.appStateManager).GetRepoObjs(
 		app,
 		[]v1alpha1.ApplicationSource{{
@@ -338,6 +332,7 @@ func (p *Previewer) getBranchManifest(
 		true, // disable revision cache since we're using branch names instead of SHAs
 		false,
 		project,
+		false,
 		false,
 	)
 	return unstructured, err

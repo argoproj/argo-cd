@@ -20,13 +20,12 @@ import (
 )
 
 func TestClusterEventHandler(t *testing.T) {
-
 	scheme := runtime.NewScheme()
 	err := argov1alpha1.AddToScheme(scheme)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	err = argov1alpha1.AddToScheme(scheme)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	tests := []struct {
 		name             string
@@ -535,9 +534,7 @@ func TestClusterEventHandler(t *testing.T) {
 	}
 
 	for _, test := range tests {
-
 		t.Run(test.name, func(t *testing.T) {
-
 			appSetList := argov1alpha1.ApplicationSetList{
 				Items: test.items,
 			}
@@ -555,10 +552,8 @@ func TestClusterEventHandler(t *testing.T) {
 
 			assert.False(t, mockAddRateLimitingInterface.errorOccurred)
 			assert.ElementsMatch(t, mockAddRateLimitingInterface.addedItems, test.expectedRequests)
-
 		})
 	}
-
 }
 
 // Add checks the type, and adds it to the internal list of received additions
@@ -582,7 +577,7 @@ func TestNestedGeneratorHasClusterGenerator_NestedClusterGenerator(t *testing.T)
 
 	hasClusterGenerator, err := nestedGeneratorHasClusterGenerator(nested)
 
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.True(t, hasClusterGenerator)
 }
 
@@ -609,7 +604,7 @@ func TestNestedGeneratorHasClusterGenerator_NestedMergeGenerator(t *testing.T) {
 
 	hasClusterGenerator, err := nestedGeneratorHasClusterGenerator(nested)
 
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.True(t, hasClusterGenerator)
 }
 
@@ -636,6 +631,6 @@ func TestNestedGeneratorHasClusterGenerator_NestedMergeGeneratorWithInvalidJSON(
 
 	hasClusterGenerator, err := nestedGeneratorHasClusterGenerator(nested)
 
-	assert.NotNil(t, err)
+	assert.Error(t, err)
 	assert.False(t, hasClusterGenerator)
 }

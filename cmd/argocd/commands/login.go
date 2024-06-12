@@ -44,7 +44,7 @@ func NewLoginCommand(globalClientOpts *argocdclient.ClientOptions) *cobra.Comman
 		ssoPort     int
 		skipTestTLS bool
 	)
-	var command = &cobra.Command{
+	command := &cobra.Command{
 		Use:   "login SERVER",
 		Short: "Log in to Argo CD",
 		Long:  "Log in to Argo CD",

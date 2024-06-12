@@ -546,8 +546,8 @@ func appendProxy(registry ProxyRegistry,
 	extName string,
 	service ServiceConfig,
 	proxy *httputil.ReverseProxy,
-	singleBackend bool) error {
-
+	singleBackend bool,
+) error {
 	if singleBackend {
 		key := proxyKey(extName, "", "")
 		if _, exist := registry[key]; exist {
@@ -634,7 +634,6 @@ func (m *Manager) authorize(ctx context.Context, rr *RequestResources, extName s
 // findProxy will search the given registry to find the correct proxy to use
 // based on the given extName and dest.
 func findProxy(registry ProxyRegistry, extName string, dest v1alpha1.ApplicationDestination) (*httputil.ReverseProxy, error) {
-
 	// First try to find the proxy in the registry just by the extension name.
 	// This is the simple case for extensions with only one backend service.
 	key := proxyKey(extName, "", "")

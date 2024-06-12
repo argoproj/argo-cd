@@ -178,14 +178,14 @@ func Test_nativeGitClient_Submodule(t *testing.T) {
 	require.NoError(t, err)
 
 	foo := filepath.Join(tempDir, "foo")
-	err = os.Mkdir(foo, 0755)
+	err = os.Mkdir(foo, 0o755)
 	require.NoError(t, err)
 
 	err = runCmd(foo, "git", "init")
 	require.NoError(t, err)
 
 	bar := filepath.Join(tempDir, "bar")
-	err = os.Mkdir(bar, 0755)
+	err = os.Mkdir(bar, 0o755)
 	require.NoError(t, err)
 
 	err = runCmd(bar, "git", "init")

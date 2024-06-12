@@ -2,11 +2,12 @@ package commit
 
 import (
 	"fmt"
-	"github.com/argoproj/argo-cd/v2/applicationset/services/github_app_auth"
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"net/http"
+
+	"net/http"
+
 	"github.com/bradleyfalzon/ghinstallation/v2"
 	"github.com/google/go-github/v62/github"
-	"net/http"
 )
 
 func isGitHubApp(cred *v1alpha1.Repository) bool {
@@ -41,5 +42,4 @@ func getGitHubAppClient(g github_app_auth.Authentication) (*github.Client, error
 	httpClient := http.Client{Transport: rt}
 	client = github.NewClient(&httpClient)
 	return client, err
-
 }

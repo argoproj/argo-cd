@@ -74,11 +74,13 @@ var defaultCRUDActions = actionTraitMap{
 	rbacpolicy.ActionUpdate: rbacTrait{},
 	rbacpolicy.ActionDelete: rbacTrait{},
 }
+
 var defaultCRDActions = actionTraitMap{
 	rbacpolicy.ActionCreate: rbacTrait{},
 	rbacpolicy.ActionGet:    rbacTrait{},
 	rbacpolicy.ActionDelete: rbacTrait{},
 }
+
 var applicationsActions = actionTraitMap{
 	rbacpolicy.ActionCreate:   rbacTrait{},
 	rbacpolicy.ActionGet:      rbacTrait{},
@@ -88,23 +90,27 @@ var applicationsActions = actionTraitMap{
 	rbacpolicy.ActionOverride: rbacTrait{},
 	rbacpolicy.ActionSync:     rbacTrait{},
 }
+
 var accountsActions = actionTraitMap{
 	rbacpolicy.ActionCreate: rbacTrait{},
 	rbacpolicy.ActionUpdate: rbacTrait{},
 }
+
 var execActions = actionTraitMap{
 	rbacpolicy.ActionCreate: rbacTrait{},
 }
+
 var logsActions = actionTraitMap{
 	rbacpolicy.ActionGet: rbacTrait{},
 }
+
 var extensionActions = actionTraitMap{
 	rbacpolicy.ActionInvoke: rbacTrait{},
 }
 
 // NewRBACCommand is the command for 'rbac'
 func NewRBACCommand() *cobra.Command {
-	var command = &cobra.Command{
+	command := &cobra.Command{
 		Use:   "rbac",
 		Short: "Validate and test RBAC configuration",
 		Run: func(c *cobra.Command, args []string) {
@@ -130,7 +136,7 @@ func NewRBACCanCommand() *cobra.Command {
 		subResource  string
 		clientConfig clientcmd.ClientConfig
 	)
-	var command = &cobra.Command{
+	command := &cobra.Command{
 		Use:   "can ROLE/SUBJECT ACTION RESOURCE [SUB-RESOURCE]",
 		Short: "Check RBAC permissions for a role or subject",
 		Long: `
@@ -238,7 +244,7 @@ func NewRBACValidateCommand() *cobra.Command {
 		clientConfig clientcmd.ClientConfig
 	)
 
-	var command = &cobra.Command{
+	command := &cobra.Command{
 		Use:   "validate [--policy-file POLICYFILE] [--namespace NAMESPACE]",
 		Short: "Validate RBAC policy",
 		Long: `

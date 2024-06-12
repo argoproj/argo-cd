@@ -2,6 +2,7 @@ package sharding
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"hash/fnv"
 	"math"
@@ -11,22 +12,22 @@ import (
 	"strings"
 	"time"
 
-	"encoding/json"
-
-	"github.com/argoproj/argo-cd/v2/common"
-	"github.com/argoproj/argo-cd/v2/controller/sharding/consistent"
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	slices "golang.org/x/exp/slices"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 
+	"github.com/argoproj/argo-cd/v2/common"
+	"github.com/argoproj/argo-cd/v2/controller/sharding/consistent"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+
+	log "github.com/sirupsen/logrus"
+	kubeerrors "k8s.io/apimachinery/pkg/api/errors"
+
 	"github.com/argoproj/argo-cd/v2/util/db"
 	"github.com/argoproj/argo-cd/v2/util/env"
 	"github.com/argoproj/argo-cd/v2/util/errors"
 	"github.com/argoproj/argo-cd/v2/util/settings"
-	log "github.com/sirupsen/logrus"
-	kubeerrors "k8s.io/apimachinery/pkg/api/errors"
 )
 
 // Make it overridable for testing
@@ -42,10 +43,12 @@ var (
 
 const ShardControllerMappingKey = "shardControllerMapping"
 
-type DistributionFunction func(c *v1alpha1.Cluster) int
-type ClusterFilterFunction func(c *v1alpha1.Cluster) bool
-type clusterAccessor func() []*v1alpha1.Cluster
-type appAccessor func() []*v1alpha1.Application
+type (
+	DistributionFunction  func(c *v1alpha1.Cluster) int
+	ClusterFilterFunction func(c *v1alpha1.Cluster) bool
+	clusterAccessor       func() []*v1alpha1.Cluster
+	appAccessor           func() []*v1alpha1.Application
+)
 
 // shardApplicationControllerMapping stores the mapping of Shard Number to Application Controller in ConfigMap.
 // It also stores the heartbeat of last synced time of the application controller.
@@ -207,7 +210,7 @@ func createConsistentHashingWithBoundLoads(replicas int, getCluster clusterAcces
 	consistentHashing := consistent.New()
 	// Adding a shard with id "-1" as a reserved value for clusters that does not have an assigned shard
 	// this happens for clusters that are removed for the clusters list
-	//consistentHashing.Add("-1")
+	// consistentHashing.Add("-1")
 	for i := 0; i < replicas; i++ {
 		shard := strconv.Itoa(i)
 		consistentHashing.Add(shard)
@@ -310,7 +313,7 @@ func GetOrUpdateShardFromConfigMap(kubeClient kubernetes.Interface, settingsMgr 
 
 	if err != nil {
 		if !kubeerrors.IsNotFound(err) {
-			return -1, fmt.Errorf("error getting sharding config map: %s", err)
+			return -1, fmt.Errorf("error getting sharding config map: %w", err)
 		}
 		log.Infof("shard mapping configmap %s not found. Creating default shard mapping configmap.", common.ArgoCDAppControllerShardConfigMapName)
 
@@ -320,10 +323,10 @@ func GetOrUpdateShardFromConfigMap(kubeClient kubernetes.Interface, settingsMgr 
 		}
 		shardMappingCM, err = generateDefaultShardMappingCM(settingsMgr.GetNamespace(), hostname, replicas, shard)
 		if err != nil {
-			return -1, fmt.Errorf("error generating default shard mapping configmap %s", err)
+			return -1, fmt.Errorf("error generating default shard mapping configmap %w", err)
 		}
 		if _, err = kubeClient.CoreV1().ConfigMaps(settingsMgr.GetNamespace()).Create(context.Background(), shardMappingCM, metav1.CreateOptions{}); err != nil {
-			return -1, fmt.Errorf("error creating shard mapping configmap %s", err)
+			return -1, fmt.Errorf("error creating shard mapping configmap %w", err)
 		}
 		// return 0 as the controller is assigned to shard 0 while generating default shard mapping ConfigMap
 		return shard, nil
@@ -333,13 +336,13 @@ func GetOrUpdateShardFromConfigMap(kubeClient kubernetes.Interface, settingsMgr 
 		var shardMappingData []shardApplicationControllerMapping
 		err := json.Unmarshal([]byte(data), &shardMappingData)
 		if err != nil {
-			return -1, fmt.Errorf("error unmarshalling shard config map data: %s", err)
+			return -1, fmt.Errorf("error unmarshalling shard config map data: %w", err)
 		}
 
 		shard, shardMappingData := getOrUpdateShardNumberForController(shardMappingData, hostname, replicas, shard)
 		updatedShardMappingData, err := json.Marshal(shardMappingData)
 		if err != nil {
-			return -1, fmt.Errorf("error marshalling data of shard mapping ConfigMap: %s", err)
+			return -1, fmt.Errorf("error marshalling data of shard mapping ConfigMap: %w", err)
 		}
 		shardMappingCM.Data[ShardControllerMappingKey] = string(updatedShardMappingData)
 
@@ -353,7 +356,6 @@ func GetOrUpdateShardFromConfigMap(kubeClient kubernetes.Interface, settingsMgr 
 
 // getOrUpdateShardNumberForController takes list of shardApplicationControllerMapping and performs computation to find the matching or empty shard number
 func getOrUpdateShardNumberForController(shardMappingData []shardApplicationControllerMapping, hostname string, replicas, shard int) (int, []shardApplicationControllerMapping) {
-
 	// if current length of shardMappingData in shard mapping configMap is less than the number of replicas,
 	// create additional empty entries for missing shard numbers in shardMappingDataconfigMap
 	if len(shardMappingData) < replicas {
@@ -418,7 +420,6 @@ func getOrUpdateShardNumberForController(shardMappingData []shardApplicationCont
 
 // generateDefaultShardMappingCM creates a default shard mapping configMap. Assigns current controller to shard 0.
 func generateDefaultShardMappingCM(namespace, hostname string, replicas, shard int) (*v1.ConfigMap, error) {
-
 	shardingCM := &v1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      common.ArgoCDAppControllerShardConfigMapName,
@@ -438,7 +439,7 @@ func generateDefaultShardMappingCM(namespace, hostname string, replicas, shard i
 
 	data, err := json.Marshal(shardMappingData)
 	if err != nil {
-		return nil, fmt.Errorf("error generating default ConfigMap: %s", err)
+		return nil, fmt.Errorf("error generating default ConfigMap: %w", err)
 	}
 	shardingCM.Data[ShardControllerMappingKey] = string(data)
 
@@ -462,10 +463,9 @@ func GetClusterSharding(kubeClient kubernetes.Interface, settingsMgr *settings.S
 	if enableDynamicClusterDistribution {
 		applicationControllerName := env.StringFromEnv(common.EnvAppControllerName, common.DefaultApplicationControllerName)
 		appControllerDeployment, err := kubeClient.AppsV1().Deployments(settingsMgr.GetNamespace()).Get(context.Background(), applicationControllerName, metav1.GetOptions{})
-
 		// if app controller deployment is not found when dynamic cluster distribution is enabled error out
 		if err != nil {
-			return nil, fmt.Errorf("(dynamic cluster distribution) failed to get app controller deployment: %v", err)
+			return nil, fmt.Errorf("(dynamic cluster distribution) failed to get app controller deployment: %w", err)
 		}
 
 		if appControllerDeployment != nil && appControllerDeployment.Spec.Replicas != nil {
@@ -473,7 +473,6 @@ func GetClusterSharding(kubeClient kubernetes.Interface, settingsMgr *settings.S
 		} else {
 			return nil, fmt.Errorf("(dynamic cluster distribution) failed to get app controller deployment replica count")
 		}
-
 	} else {
 		replicasCount = env.ParseNumFromEnv(common.EnvControllerReplicas, 0, 0, math.MaxInt32)
 	}
@@ -488,7 +487,7 @@ func GetClusterSharding(kubeClient kubernetes.Interface, settingsMgr *settings.S
 			for i := 0; i <= common.AppControllerHeartbeatUpdateRetryCount; i++ {
 				shardNumber, err = GetOrUpdateShardFromConfigMap(kubeClient, settingsMgr, replicasCount, shardNumber)
 				if err != nil && !kubeerrors.IsConflict(err) {
-					err = fmt.Errorf("unable to get shard due to error updating the sharding config map: %s", err)
+					err = fmt.Errorf("unable to get shard due to error updating the sharding config map: %w", err)
 					break
 				}
 				log.Warnf("conflict when getting shard from shard mapping configMap. Retrying (%d/3)", i)

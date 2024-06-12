@@ -119,7 +119,6 @@ func TestEncodeX509KeyPairString(t *testing.T) {
 	if strings.TrimSpace(chain) != strings.TrimSpace(cert) {
 		t.Errorf("Incorrect, got: %s, want: %s", cert, chain)
 	}
-
 }
 
 func TestGetTLSVersionByString(t *testing.T) {
@@ -139,7 +138,7 @@ func TestGetTLSVersionByString(t *testing.T) {
 	t.Run("Empty versions", func(t *testing.T) {
 		r, err := getTLSVersionByString("")
 		assert.NoError(t, err)
-		assert.Equal(t, r, uint16(0))
+		assert.Equal(t, uint16(0), r)
 	})
 }
 
@@ -166,7 +165,6 @@ func TestGetTLSCipherSuitesByString(t *testing.T) {
 		_, err := getTLSCipherSuitesByString(strings.Join(suites, ":"))
 		assert.Error(t, err)
 	})
-
 }
 
 func TestTLSVersionToString(t *testing.T) {
@@ -315,7 +313,7 @@ func TestGetTLSConfigCustomizer(t *testing.T) {
 		cfunc(&config)
 		assert.Equal(t, config.MinVersion, uint16(tls.VersionTLS13))
 		assert.Equal(t, config.MaxVersion, uint16(tls.VersionTLS13))
-		assert.Len(t, config.CipherSuites, 0)
+		assert.Empty(t, config.CipherSuites)
 	})
 
 	t.Run("Valid TLS customization - No cipher customization for TLSv1.3 only with custom ciphers", func(t *testing.T) {
@@ -326,7 +324,7 @@ func TestGetTLSConfigCustomizer(t *testing.T) {
 		cfunc(&config)
 		assert.Equal(t, config.MinVersion, uint16(tls.VersionTLS13))
 		assert.Equal(t, config.MaxVersion, uint16(tls.VersionTLS13))
-		assert.Len(t, config.CipherSuites, 0)
+		assert.Empty(t, config.CipherSuites)
 	})
 
 	t.Run("Invalid TLS customization - Min version higher than max version", func(t *testing.T) {
@@ -352,7 +350,6 @@ func TestGetTLSConfigCustomizer(t *testing.T) {
 		assert.Error(t, err)
 		assert.Nil(t, cfunc)
 	})
-
 }
 
 func TestBestEffortSystemCertPool(t *testing.T) {

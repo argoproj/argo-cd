@@ -1,9 +1,10 @@
 package commitserver
 
 import (
+	"google.golang.org/grpc"
+
 	"github.com/argoproj/argo-cd/v2/commitserver/apiclient"
 	"github.com/argoproj/argo-cd/v2/commitserver/commit"
-	"google.golang.org/grpc"
 )
 
 type ArgoCDCommitServer struct {
@@ -11,7 +12,6 @@ type ArgoCDCommitServer struct {
 }
 
 func NewServer() *ArgoCDCommitServer {
-
 	return &ArgoCDCommitServer{commitService: commit.NewService()}
 }
 

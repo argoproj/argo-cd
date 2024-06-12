@@ -179,9 +179,9 @@ func TestWebhookHandler(t *testing.T) {
 	fakeClient := newFakeClient(namespace)
 	scheme := runtime.NewScheme()
 	err := v1alpha1.AddToScheme(scheme)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	err = v1alpha1.AddToScheme(scheme)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	for _, test := range tt {
 		t.Run(test.desc, func(t *testing.T) {
@@ -205,7 +205,7 @@ func TestWebhookHandler(t *testing.T) {
 			).Build()
 			set := argosettings.NewSettingsManager(context.TODO(), fakeClient, namespace)
 			h, err := NewWebhookHandler(namespace, set, fc, mockGenerators())
-			assert.Nil(t, err)
+			assert.NoError(t, err)
 
 			req := httptest.NewRequest(http.MethodPost, "/api/webhook", nil)
 			req.Header.Set(test.headerKey, test.headerValue)
@@ -215,11 +215,11 @@ func TestWebhookHandler(t *testing.T) {
 			w := httptest.NewRecorder()
 
 			h.Handler(w, req)
-			assert.Equal(t, w.Code, test.expectedStatusCode)
+			assert.Equal(t, test.expectedStatusCode, w.Code)
 
 			list := &v1alpha1.ApplicationSetList{}
 			err = fc.List(context.TODO(), list)
-			assert.Nil(t, err)
+			assert.NoError(t, err)
 			effectedAppSetsAsExpected := make(map[string]bool)
 			for _, appSetName := range test.effectedAppSets {
 				effectedAppSetsAsExpected[appSetName] = false

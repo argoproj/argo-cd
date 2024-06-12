@@ -2,13 +2,17 @@ package apiclient
 
 import (
 	"fmt"
-	"github.com/argoproj/argo-cd/v2/util/io"
+
+
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+
+	"github.com/argoproj/argo-cd/v2/util/io"
 )
 
 //go:generate go run github.com/vektra/mockery/v2@v2.40.2 --name=CommitServiceClient
+//go:generate go run github.com/vektra/mockery/v2@v2.40.2 --name=Clientset
 
 // Clientset represents commit server api clients
 type Clientset interface {

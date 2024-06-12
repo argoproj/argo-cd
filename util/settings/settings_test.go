@@ -67,7 +67,7 @@ func TestSaveRepositories(t *testing.T) {
 	assert.NoError(t, err)
 	cm, err := kubeClient.CoreV1().ConfigMaps("default").Get(context.Background(), common.ArgoCDConfigMapName, metav1.GetOptions{})
 	assert.NoError(t, err)
-	assert.Equal(t, cm.Data["repositories"], "- url: http://foo\n")
+	assert.Equal(t, "- url: http://foo\n", cm.Data["repositories"])
 
 	repos, err := settingsManager.GetRepositories()
 	assert.NoError(t, err)
@@ -82,7 +82,7 @@ func TestSaveRepositoriesNoConfigMap(t *testing.T) {
 	assert.NoError(t, err)
 	cm, err := kubeClient.CoreV1().ConfigMaps("default").Get(context.Background(), common.ArgoCDConfigMapName, metav1.GetOptions{})
 	assert.NoError(t, err)
-	assert.Equal(t, cm.Data["repositories"], "- url: http://foo\n")
+	assert.Equal(t, "- url: http://foo\n", cm.Data["repositories"])
 }
 
 func TestSaveRepositoryCredentials(t *testing.T) {
@@ -91,7 +91,7 @@ func TestSaveRepositoryCredentials(t *testing.T) {
 	assert.NoError(t, err)
 	cm, err := kubeClient.CoreV1().ConfigMaps("default").Get(context.Background(), common.ArgoCDConfigMapName, metav1.GetOptions{})
 	assert.NoError(t, err)
-	assert.Equal(t, cm.Data["repository.credentials"], "- url: http://foo\n")
+	assert.Equal(t, "- url: http://foo\n", cm.Data["repository.credentials"])
 
 	creds, err := settingsManager.GetRepositoryCredentials()
 	assert.NoError(t, err)
@@ -127,14 +127,14 @@ func TestInClusterServerAddressEnabled(t *testing.T) {
 	})
 	argoCDCM, err := settingsManager.getConfigMap()
 	assert.NoError(t, err)
-	assert.True(t, argoCDCM.Data[inClusterEnabledKey] == "true")
+	assert.Equal(t, "true", argoCDCM.Data[inClusterEnabledKey])
 
 	_, settingsManager = fixtures(map[string]string{
 		"cluster.inClusterEnabled": "false",
 	})
 	argoCDCM, err = settingsManager.getConfigMap()
 	assert.NoError(t, err)
-	assert.False(t, argoCDCM.Data[inClusterEnabledKey] == "true")
+	assert.NotEqual(t, "true", argoCDCM.Data[inClusterEnabledKey])
 }
 
 func TestInClusterServerAddressEnabledByDefault(t *testing.T) {
@@ -310,8 +310,7 @@ func TestGetResourceOverrides(t *testing.T) {
 	})
 	overrides, err = settingsManager.GetResourceOverrides()
 	assert.NoError(t, err)
-	assert.Equal(t, 0, len(overrides))
-
+	assert.Empty(t, overrides)
 }
 
 func TestGetResourceOverridesHealthWithWildcard(t *testing.T) {
@@ -327,7 +326,7 @@ func TestGetResourceOverridesHealthWithWildcard(t *testing.T) {
 
 		overrides, err := settingsManager.GetResourceOverrides()
 		assert.NoError(t, err)
-		assert.Equal(t, 2, len(overrides))
+		assert.Len(t, overrides, 2)
 		assert.Equal(t, "foo", overrides["*.aws.crossplane.io/*"].HealthLua)
 	})
 }
@@ -370,11 +369,11 @@ func TestGetResourceOverrides_with_splitted_keys(t *testing.T) {
 
 		overrides, err := settingsManager.GetResourceOverrides()
 		assert.NoError(t, err)
-		assert.Equal(t, 5, len(overrides))
-		assert.Equal(t, 2, len(overrides[crdGK].IgnoreDifferences.JSONPointers))
-		assert.Equal(t, 1, len(overrides["admissionregistration.k8s.io/MutatingWebhookConfiguration"].IgnoreDifferences.JSONPointers))
+		assert.Len(t, overrides, 5)
+		assert.Len(t, overrides[crdGK].IgnoreDifferences.JSONPointers, 2)
+		assert.Len(t, overrides["admissionregistration.k8s.io/MutatingWebhookConfiguration"].IgnoreDifferences.JSONPointers, 1)
 		assert.Equal(t, "foo", overrides["admissionregistration.k8s.io/MutatingWebhookConfiguration"].IgnoreDifferences.JSONPointers[0])
-		assert.Equal(t, 1, len(overrides["admissionregistration.k8s.io/MutatingWebhookConfiguration"].IgnoreResourceUpdates.JSONPointers))
+		assert.Len(t, overrides["admissionregistration.k8s.io/MutatingWebhookConfiguration"].IgnoreResourceUpdates.JSONPointers, 1)
 		assert.Equal(t, "foo", overrides["admissionregistration.k8s.io/MutatingWebhookConfiguration"].IgnoreResourceUpdates.JSONPointers[0])
 		assert.Equal(t, "foo\n", overrides["certmanager.k8s.io/Certificate"].HealthLua)
 		assert.True(t, overrides["certmanager.k8s.io/Certificate"].UseOpenLibs)
@@ -419,15 +418,15 @@ func TestGetResourceOverrides_with_splitted_keys(t *testing.T) {
 
 		overrides, err := settingsManager.GetResourceOverrides()
 		assert.NoError(t, err)
-		assert.Equal(t, 9, len(overrides))
-		assert.Equal(t, 2, len(overrides[crdGK].IgnoreDifferences.JSONPointers))
+		assert.Len(t, overrides, 9)
+		assert.Len(t, overrides[crdGK].IgnoreDifferences.JSONPointers, 2)
 		assert.Equal(t, "/status", overrides[crdGK].IgnoreDifferences.JSONPointers[0])
 		assert.Equal(t, "/spec/preserveUnknownFields", overrides[crdGK].IgnoreDifferences.JSONPointers[1])
-		assert.Equal(t, 1, len(overrides["admissionregistration.k8s.io/MutatingWebhookConfiguration"].IgnoreDifferences.JSONPointers))
+		assert.Len(t, overrides["admissionregistration.k8s.io/MutatingWebhookConfiguration"].IgnoreDifferences.JSONPointers, 1)
 		assert.Equal(t, "bar", overrides["admissionregistration.k8s.io/MutatingWebhookConfiguration"].IgnoreDifferences.JSONPointers[0])
-		assert.Equal(t, 1, len(overrides["admissionregistration.k8s.io/MutatingWebhookConfiguration"].IgnoreResourceUpdates.JSONPointers))
+		assert.Len(t, overrides["admissionregistration.k8s.io/MutatingWebhookConfiguration"].IgnoreResourceUpdates.JSONPointers, 1)
 		assert.Equal(t, "bar", overrides["admissionregistration.k8s.io/MutatingWebhookConfiguration"].IgnoreResourceUpdates.JSONPointers[0])
-		assert.Equal(t, 1, len(overrides["admissionregistration.k8s.io/MutatingWebhookConfiguration"].KnownTypeFields))
+		assert.Len(t, overrides["admissionregistration.k8s.io/MutatingWebhookConfiguration"].KnownTypeFields, 1)
 		assert.Equal(t, "bar", overrides["admissionregistration.k8s.io/MutatingWebhookConfiguration"].KnownTypeFields[0].Type)
 		assert.Equal(t, "bar", overrides["admissionregistration.k8s.io/MutatingWebhookConfiguration"].HealthLua)
 		assert.Equal(t, "bar", overrides["certmanager.k8s.io/Certificate"].HealthLua)
@@ -438,14 +437,14 @@ func TestGetResourceOverrides_with_splitted_keys(t *testing.T) {
 		assert.Equal(t, "bar", overrides["Deployment"].Actions)
 		assert.Equal(t, "bar", overrides["iam-manager.k8s.io/Iamrole"].HealthLua)
 		assert.Equal(t, "bar", overrides["Iamrole"].HealthLua)
-		assert.Equal(t, 1, len(overrides["iam-manager.k8s.io/Iamrole"].IgnoreDifferences.JSONPointers))
-		assert.Equal(t, 1, len(overrides["apps/Deployment"].IgnoreDifferences.JQPathExpressions))
+		assert.Len(t, overrides["iam-manager.k8s.io/Iamrole"].IgnoreDifferences.JSONPointers, 1)
+		assert.Len(t, overrides["apps/Deployment"].IgnoreDifferences.JQPathExpressions, 1)
 		assert.Equal(t, "bar", overrides["apps/Deployment"].IgnoreDifferences.JQPathExpressions[0])
-		assert.Equal(t, 2, len(overrides["*/*"].IgnoreDifferences.ManagedFieldsManagers))
+		assert.Len(t, overrides["*/*"].IgnoreDifferences.ManagedFieldsManagers, 2)
 		assert.Equal(t, "kube-controller-manager", overrides["*/*"].IgnoreDifferences.ManagedFieldsManagers[0])
 		assert.Equal(t, "argo-rollouts", overrides["*/*"].IgnoreDifferences.ManagedFieldsManagers[1])
-		assert.Equal(t, 1, len(overrides["iam-manager.k8s.io/Iamrole"].IgnoreResourceUpdates.JSONPointers))
-		assert.Equal(t, 1, len(overrides["apps/Deployment"].IgnoreResourceUpdates.JQPathExpressions))
+		assert.Len(t, overrides["iam-manager.k8s.io/Iamrole"].IgnoreResourceUpdates.JSONPointers, 1)
+		assert.Len(t, overrides["apps/Deployment"].IgnoreResourceUpdates.JQPathExpressions, 1)
 		assert.Equal(t, "bar", overrides["apps/Deployment"].IgnoreResourceUpdates.JQPathExpressions[0])
 	})
 
@@ -459,9 +458,9 @@ func TestGetResourceOverrides_with_splitted_keys(t *testing.T) {
 
 		overrides, err := settingsManager.GetResourceOverrides()
 		assert.NoError(t, err)
-		assert.Equal(t, 5, len(overrides))
-		assert.Equal(t, 1, len(overrides["*/*"].IgnoreDifferences.JSONPointers))
-		assert.Equal(t, 1, len(overrides["admissionregistration.k8s.io/MutatingWebhookConfiguration"].IgnoreDifferences.JSONPointers))
+		assert.Len(t, overrides, 5)
+		assert.Len(t, overrides["*/*"].IgnoreDifferences.JSONPointers, 1)
+		assert.Len(t, overrides["admissionregistration.k8s.io/MutatingWebhookConfiguration"].IgnoreDifferences.JSONPointers, 1)
 		assert.Equal(t, "foo\n", overrides["certmanager.k8s.io/Certificate"].HealthLua)
 		assert.Equal(t, "bar", overrides["cert-manager.io/Certificate"].HealthLua)
 		assert.Equal(t, "bar", overrides["apps/Deployment"].Actions)
@@ -477,8 +476,8 @@ func TestGetResourceOverrides_with_splitted_keys(t *testing.T) {
 
 		overrides, err := settingsManager.GetResourceOverrides()
 		assert.NoError(t, err)
-		assert.Equal(t, 4, len(overrides))
-		assert.Equal(t, 1, len(overrides["admissionregistration.k8s.io/MutatingWebhookConfiguration"].IgnoreDifferences.JSONPointers))
+		assert.Len(t, overrides, 4)
+		assert.Len(t, overrides["admissionregistration.k8s.io/MutatingWebhookConfiguration"].IgnoreDifferences.JSONPointers, 1)
 		assert.Equal(t, "foo\n", overrides["certmanager.k8s.io/Certificate"].HealthLua)
 		assert.Equal(t, "bar", overrides["cert-manager.io/Certificate"].HealthLua)
 		assert.Equal(t, "bar", overrides["apps/Deployment"].Actions)
@@ -560,7 +559,7 @@ func TestConvertToOverrideKey(t *testing.T) {
 	assert.Equal(t, "Certificate", key)
 
 	_, err = convertToOverrideKey("")
-	assert.NotNil(t, err)
+	assert.Error(t, err)
 
 	_, err = convertToOverrideKey("_")
 	assert.NoError(t, err)
@@ -723,7 +722,8 @@ func TestKustomizeSettings_GetOptions(t *testing.T) {
 
 	t.Run("VersionDoesNotExist", func(t *testing.T) {
 		_, err := settings.GetOptions(v1alpha1.ApplicationSource{
-			Kustomize: &v1alpha1.ApplicationSourceKustomize{Version: "v4"}})
+			Kustomize: &v1alpha1.ApplicationSourceKustomize{Version: "v4"},
+		})
 		assert.Error(t, err)
 	})
 
@@ -738,7 +738,8 @@ func TestKustomizeSettings_GetOptions(t *testing.T) {
 
 	t.Run("VersionExists", func(t *testing.T) {
 		ver, err := settings.GetOptions(v1alpha1.ApplicationSource{
-			Kustomize: &v1alpha1.ApplicationSourceKustomize{Version: "v2"}})
+			Kustomize: &v1alpha1.ApplicationSourceKustomize{Version: "v2"},
+		})
 		if !assert.NoError(t, err) {
 			return
 		}
@@ -748,7 +749,8 @@ func TestKustomizeSettings_GetOptions(t *testing.T) {
 
 	t.Run("VersionExistsWithBuildOption", func(t *testing.T) {
 		ver, err := settings.GetOptions(v1alpha1.ApplicationSource{
-			Kustomize: &v1alpha1.ApplicationSourceKustomize{Version: "v3"}})
+			Kustomize: &v1alpha1.ApplicationSourceKustomize{Version: "v3"},
+		})
 		if !assert.NoError(t, err) {
 			return
 		}
@@ -774,7 +776,6 @@ func TestSettingsManager_GetHelp(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Empty(t, h.ChatURL)
 		assert.Empty(t, h.ChatText)
-
 	})
 	t.Run("Set", func(t *testing.T) {
 		_, settingsManager := fixtures(map[string]string{
@@ -1289,11 +1290,11 @@ requestedIDTokenClaims: {"groups": {"essential": true}}`,
 
 	settings, err := settingsManager.GetSettings()
 	assert.NoError(t, err)
-	assert.Equal(t, settings.WebhookGitHubSecret, "mywebhooksecret")
+	assert.Equal(t, "mywebhooksecret", settings.WebhookGitHubSecret)
 
 	oidcConfig := settings.OIDCConfig()
-	assert.Equal(t, oidcConfig.Issuer, "https://dev-123456.oktapreview.com")
-	assert.Equal(t, oidcConfig.ClientSecret, "deadbeef")
+	assert.Equal(t, "https://dev-123456.oktapreview.com", oidcConfig.Issuer)
+	assert.Equal(t, "deadbeef", oidcConfig.ClientSecret)
 }
 
 func TestGetEnableManifestGeneration(t *testing.T) {
@@ -1421,6 +1422,7 @@ func TestGetHelmSettings(t *testing.T) {
 		})
 	}
 }
+
 func TestArgoCDSettings_OIDCTLSConfig_OIDCTLSInsecureSkipVerify(t *testing.T) {
 	certParsed, err := tls.X509KeyPair(test.Cert, test.PrivateKey)
 	require.NoError(t, err)
