@@ -163,7 +163,7 @@ func (s *Server) Create(ctx context.Context, q *applicationset.ApplicationSetCre
 	}
 
 	if err := s.checkCreatePermissions(ctx, appset, projectName); err != nil {
-		return nil, fmt.Errorf("error checking create permissions for ApplicationSets %s : %s", appset.Name, err)
+		return nil, fmt.Errorf("error checking create permissions for ApplicationSets %s : %w", appset.Name, err)
 	}
 
 	s.projectLock.RLock(projectName)

@@ -491,7 +491,7 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 		// Store the map of all sources having ref field into a map for applications with sources field
 		refSources, err := argo.GetRefSources(context.Background(), sources, appSpec.Project, s.db.GetRepository, []string{}, false)
 		if err != nil {
-			return fmt.Errorf("failed to get ref sources: %v", err)
+			return fmt.Errorf("failed to get ref sources: %w", err)
 		}
 
 		for _, source := range sources {
@@ -1048,7 +1048,8 @@ func (s *Server) getAppProject(ctx context.Context, a *appv1.Application, logCtx
 		return nil, vagueError
 	}
 
-	if _, ok := err.(*appv1.ErrApplicationNotAllowedToUseProject); ok {
+	var applicationNotAllowedToUseProjectErr *appv1.ErrApplicationNotAllowedToUseProject
+	if errors.As(err, &applicationNotAllowedToUseProjectErr) {
 		logCtx.WithFields(map[string]interface{}{
 			"project":                a.Spec.Project,
 			argocommon.SecurityField: argocommon.SecurityMedium,
@@ -1289,7 +1290,7 @@ func (s *Server) getApplicationClusterConfig(ctx context.Context, a *appv1.Appli
 // getCachedAppState loads the cached state and trigger app refresh if cache is missing
 func (s *Server) getCachedAppState(ctx context.Context, a *appv1.Application, getFromCache func() error) error {
 	err := getFromCache()
-	if err != nil && err == servercache.ErrCacheMiss {
+	if err != nil && errors.Is(err, servercache.ErrCacheMiss) {
 		conditions := a.Status.GetConditions(map[appv1.ApplicationConditionType]bool{
 			appv1.ApplicationConditionComparisonError:  true,
 			appv1.ApplicationConditionInvalidSpecError: true,
@@ -1323,7 +1324,7 @@ func (s *Server) getAppResources(ctx context.Context, a *appv1.Application) (*ap
 
 func (s *Server) getAppLiveResource(ctx context.Context, action string, q *application.ApplicationResourceRequest) (*appv1.ResourceNode, *rest.Config, *appv1.Application, error) {
 	a, _, err := s.getApplicationEnforceRBACInformer(ctx, action, q.GetProject(), q.GetAppNamespace(), q.GetName())
-	if err == permissionDeniedErr && (action == rbacpolicy.ActionDelete || action == rbacpolicy.ActionUpdate) {
+	if err != nil && errors.Is(err, permissionDeniedErr) && (action == rbacpolicy.ActionDelete || action == rbacpolicy.ActionUpdate) {
 		// If users dont have permission on the whole applications, maybe they have fine-grained access to the specific resources
 		action = fmt.Sprintf("%s/%s/%s/%s/%s", action, q.GetGroup(), q.GetKind(), q.GetNamespace(), q.GetResourceName())
 		a, _, err = s.getApplicationEnforceRBACInformer(ctx, action, q.GetProject(), q.GetAppNamespace(), q.GetName())
@@ -1671,7 +1672,7 @@ func (s *Server) PodLogs(q *application.ApplicationPodLogsQuery, ws application.
 	var untilTime *metav1.Time
 	if q.GetUntilTime() != "" {
 		if val, err := time.Parse(time.RFC3339Nano, q.GetUntilTime()); err != nil {
-			return fmt.Errorf("invalid untilTime parameter value: %v", err)
+			return fmt.Errorf("invalid untilTime parameter value: %w", err)
 		} else {
 			untilTimeVal := metav1.NewTime(val)
 			untilTime = &untilTimeVal
