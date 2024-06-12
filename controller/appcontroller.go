@@ -260,7 +260,7 @@ func NewApplicationController(
 				if kubeerrors.IsNotFound(err) {
 					appControllerDeployment = nil
 				} else {
-					return fmt.Errorf("error retrieving Application Controller Deployment: %s", err)
+					return fmt.Errorf("error retrieving Application Controller Deployment: %w", err)
 				}
 			}
 			if appControllerDeployment != nil {
@@ -269,7 +269,7 @@ func NewApplicationController(
 				}
 				shard := env.ParseNumFromEnv(common.EnvControllerShard, -1, -math.MaxInt32, math.MaxInt32)
 				if _, err := sharding.GetOrUpdateShardFromConfigMap(kubeClientset.(*kubernetes.Clientset), settingsMgr, int(*appControllerDeployment.Spec.Replicas), shard); err != nil {
-					return fmt.Errorf("error while updating the heartbeat for to the Shard Mapping ConfigMap: %s", err)
+					return fmt.Errorf("error while updating the heartbeat for to the Shard Mapping ConfigMap: %w", err)
 				}
 			}
 		}
@@ -381,7 +381,7 @@ func (ctrl *ApplicationController) getAppProj(app *appv1.Application) (*appv1.Ap
 		if apierr.IsNotFound(err) {
 			return nil, err
 		} else {
-			return nil, fmt.Errorf("could not retrieve AppProject '%s' from cache: %v", app.Spec.Project, err)
+			return nil, fmt.Errorf("could not retrieve AppProject '%s' from cache: %w", app.Spec.Project, err)
 		}
 	}
 	if !proj.IsAppNamespacePermitted(app, ctrl.namespace) {
@@ -457,19 +457,19 @@ func (ctrl *ApplicationController) handleObjectUpdated(managedByApp map[string]b
 func (ctrl *ApplicationController) setAppManagedResources(a *appv1.Application, comparisonResult *comparisonResult) (*appv1.ApplicationTree, error) {
 	managedResources, err := ctrl.hideSecretData(a, comparisonResult)
 	if err != nil {
-		return nil, fmt.Errorf("error getting managed resources: %s", err)
+		return nil, fmt.Errorf("error getting managed resources: %w", err)
 	}
 	tree, err := ctrl.getResourceTree(a, managedResources)
 	if err != nil {
-		return nil, fmt.Errorf("error getting resource tree: %s", err)
+		return nil, fmt.Errorf("error getting resource tree: %w", err)
 	}
 	err = ctrl.cache.SetAppResourcesTree(a.InstanceName(ctrl.namespace), tree)
 	if err != nil {
-		return nil, fmt.Errorf("error setting app resource tree: %s", err)
+		return nil, fmt.Errorf("error setting app resource tree: %w", err)
 	}
 	err = ctrl.cache.SetAppManagedResources(a.InstanceName(ctrl.namespace), managedResources)
 	if err != nil {
-		return nil, fmt.Errorf("error setting app managed resources: %s", err)
+		return nil, fmt.Errorf("error setting app managed resources: %w", err)
 	}
 	return tree, nil
 }
@@ -716,28 +716,28 @@ func (ctrl *ApplicationController) hideSecretData(app *appv1.Application, compar
 			var err error
 			target, live, err = diff.HideSecretData(res.Target, res.Live)
 			if err != nil {
-				return nil, fmt.Errorf("error hiding secret data: %s", err)
+				return nil, fmt.Errorf("error hiding secret data: %w", err)
 			}
 			compareOptions, err := ctrl.settingsMgr.GetResourceCompareOptions()
 			if err != nil {
-				return nil, fmt.Errorf("error getting resource compare options: %s", err)
+				return nil, fmt.Errorf("error getting resource compare options: %w", err)
 			}
 			resourceOverrides, err := ctrl.settingsMgr.GetResourceOverrides()
 			if err != nil {
-				return nil, fmt.Errorf("error getting resource overrides: %s", err)
+				return nil, fmt.Errorf("error getting resource overrides: %w", err)
 			}
 			appLabelKey, err := ctrl.settingsMgr.GetAppInstanceLabelKey()
 			if err != nil {
-				return nil, fmt.Errorf("error getting app instance label key: %s", err)
+				return nil, fmt.Errorf("error getting app instance label key: %w", err)
 			}
 			trackingMethod, err := ctrl.settingsMgr.GetTrackingMethod()
 			if err != nil {
-				return nil, fmt.Errorf("error getting tracking method: %s", err)
+				return nil, fmt.Errorf("error getting tracking method: %w", err)
 			}
 
 			clusterCache, err := ctrl.stateCache.GetClusterCache(app.Spec.Destination.Server)
 			if err != nil {
-				return nil, fmt.Errorf("error getting cluster cache: %s", err)
+				return nil, fmt.Errorf("error getting cluster cache: %w", err)
 			}
 			diffConfig, err := argodiff.NewDiffConfigBuilder().
 				WithDiffSettings(app.Spec.IgnoreDifferences, resourceOverrides, compareOptions.IgnoreAggregatedRoles, ctrl.ignoreNormalizerOpts).
@@ -747,12 +747,12 @@ func (ctrl *ApplicationController) hideSecretData(app *appv1.Application, compar
 				WithGVKParser(clusterCache.GetGVKParser()).
 				Build()
 			if err != nil {
-				return nil, fmt.Errorf("appcontroller error building diff config: %s", err)
+				return nil, fmt.Errorf("appcontroller error building diff config: %w", err)
 			}
 
 			diffResult, err := argodiff.StateDiff(live, target, diffConfig)
 			if err != nil {
-				return nil, fmt.Errorf("error applying diff: %s", err)
+				return nil, fmt.Errorf("error applying diff: %w", err)
 			}
 			resDiff = diffResult
 		}
@@ -760,7 +760,7 @@ func (ctrl *ApplicationController) hideSecretData(app *appv1.Application, compar
 		if live != nil {
 			data, err := json.Marshal(live)
 			if err != nil {
-				return nil, fmt.Errorf("error marshaling live json: %s", err)
+				return nil, fmt.Errorf("error marshaling live json: %w", err)
 			}
 			item.LiveState = string(data)
 		} else {
@@ -770,7 +770,7 @@ func (ctrl *ApplicationController) hideSecretData(app *appv1.Application, compar
 		if target != nil {
 			data, err := json.Marshal(target)
 			if err != nil {
-				return nil, fmt.Errorf("error marshaling target json: %s", err)
+				return nil, fmt.Errorf("error marshaling target json: %w", err)
 			}
 			item.TargetState = string(data)
 		} else {

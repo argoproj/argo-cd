@@ -396,12 +396,17 @@ func isResourceQuotaConflictErr(err error) bool {
 }
 
 func isTransientNetworkErr(err error) bool {
-	switch err.(type) {
-	case net.Error:
-		switch err.(type) {
-		case *net.DNSError, *net.OpError, net.UnknownNetworkError:
+	var netErr net.Error
+	switch {
+	case errors.As(err, &netErr):
+		var dnsErr *net.DNSError
+		var opErr *net.OpError
+		var unknownNetworkErr net.UnknownNetworkError
+		var urlErr *url.Error
+		switch {
+		case errors.As(err, &dnsErr), errors.As(err, &opErr), errors.As(err, &unknownNetworkErr):
 			return true
-		case *url.Error:
+		case errors.As(err, &urlErr):
 			// For a URL error, where it replies "connection closed"
 			// retry again.
 			return strings.Contains(err.Error(), "Connection closed by foreign host")
@@ -409,7 +414,8 @@ func isTransientNetworkErr(err error) bool {
 	}
 
 	errorString := err.Error()
-	if exitErr, ok := err.(*exec.ExitError); ok {
+	var exitErr *exec.ExitError
+	if errors.As(err, &exitErr) {
 		errorString = fmt.Sprintf("%s %s", errorString, exitErr.Stderr)
 	}
 	if strings.Contains(errorString, "net/http: TLS handshake timeout") ||
