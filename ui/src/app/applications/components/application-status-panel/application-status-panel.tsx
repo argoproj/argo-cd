@@ -5,7 +5,14 @@ import {Revision} from '../../../shared/components/revision';
 import {Timestamp} from '../../../shared/components/timestamp';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
-import {ApplicationSyncWindowStatusIcon, ComparisonStatusIcon, getAppDefaultSource, getAppDefaultSyncRevisionExtra, getAppOperationState, HydrateOperationPhaseIcon} from '../utils';
+import {
+    ApplicationSyncWindowStatusIcon,
+    ComparisonStatusIcon,
+    getAppDefaultSource,
+    getAppDefaultSyncRevisionExtra,
+    getAppOperationState,
+    HydrateOperationPhaseIcon
+} from '../utils';
 import {getConditionCategory, HealthStatusIcon, OperationState, syncStatusMessage, getAppDefaultSyncRevision} from '../utils';
 import {RevisionMetadataPanel} from './revision-metadata-panel';
 import * as utils from '../utils';

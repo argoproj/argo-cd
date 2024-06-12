@@ -244,7 +244,7 @@ export const HydrateOperationPhaseIcon = ({operationState}: {operationState?: ap
             break;
     }
     return <i title={operationState.status} qe-id='utils-operations-status-title' className={className} style={{color}} />;
-}
+};
 
 export const ComparisonStatusIcon = ({
     status,
@@ -1168,8 +1168,8 @@ export function getAppSpecDefaultSource(spec: appModels.ApplicationSpec) {
         return {
             repoURL: spec.sourceHydrator.drySource.repoURL,
             targetRevision: spec.sourceHydrator.syncSource.targetRevision,
-            path: spec.sourceHydrator.syncSource.path,
-        }
+            path: spec.sourceHydrator.syncSource.path
+        };
     }
     return spec.sources && spec.sources.length > 0 ? spec.sources[0] : spec.source;
 }

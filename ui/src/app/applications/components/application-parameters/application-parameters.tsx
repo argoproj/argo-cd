@@ -192,8 +192,8 @@ export const ApplicationParameters = (props: {
             v.push({
                 repoURL: app.spec.sourceHydrator.drySource.repoURL,
                 targetRevision: app.spec.sourceHydrator.syncSource.targetRevision,
-                path: app.spec.sourceHydrator.syncSource.path,
-            })
+                path: app.spec.sourceHydrator.syncSource.path
+            });
         } else {
             v.push(app.spec.source);
         }
