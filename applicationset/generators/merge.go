@@ -178,7 +178,7 @@ func (m *MergeGenerator) getParams(appSetBaseGenerator argoprojiov1alpha1.Applic
 		appSet,
 		map[string]interface{}{}, client)
 	if err != nil {
-		return nil, fmt.Errorf("child generator returned an error on parameter generation: %v", err)
+		return nil, fmt.Errorf("child generator returned an error on parameter generation: %w", err)
 	}
 
 	if len(t) == 0 {

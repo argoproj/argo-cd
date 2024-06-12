@@ -140,7 +140,7 @@ func CheckResponse(resp *http.Response) error {
 
 	data, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return fmt.Errorf("API error with status code %d: %v", resp.StatusCode, err)
+		return fmt.Errorf("API error with status code %d: %w", resp.StatusCode, err)
 	}
 
 	var raw map[string]interface{}
