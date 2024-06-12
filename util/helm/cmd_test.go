@@ -16,7 +16,7 @@ func Test_cmd_redactor(t *testing.T) {
 func TestCmd_template_kubeVersion(t *testing.T) {
 	cmd, err := NewCmdWithVersion(".", HelmV3, false, "")
 	assert.NoError(t, err)
-	s, err := cmd.template("testdata/redis", &TemplateOpts{
+	s, _, err := cmd.template("testdata/redis", &TemplateOpts{
 		KubeVersion: "1.14",
 	})
 	assert.NoError(t, err)
@@ -26,7 +26,7 @@ func TestCmd_template_kubeVersion(t *testing.T) {
 func TestCmd_template_noApiVersionsInError(t *testing.T) {
 	cmd, err := NewCmdWithVersion(".", HelmV3, false, "")
 	assert.NoError(t, err)
-	_, err = cmd.template("testdata/chart-does-not-exist", &TemplateOpts{
+	_, _, err = cmd.template("testdata/chart-does-not-exist", &TemplateOpts{
 		KubeVersion: "1.14",
 		APIVersions: []string{"foo", "bar"},
 	})

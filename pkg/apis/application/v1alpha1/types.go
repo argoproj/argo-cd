@@ -84,6 +84,9 @@ type ApplicationSpec struct {
 
 	// Sources is a reference to the location of the application's manifests or chart
 	Sources ApplicationSources `json:"sources,omitempty" protobuf:"bytes,8,opt,name=sources"`
+
+	// SourceHydrator provides a way to push hydrated manifests back to git before syncing them to the cluster.
+	SourceHydrator *SourceHydrator `json:"sourceHydrator,omitempty" protobuf:"bytes,9,opt,name=sourceHydrator"`
 }
 
 type IgnoreDifferences []ResourceIgnoreDifferences
@@ -216,8 +219,27 @@ func (a *ApplicationSpec) GetSource() ApplicationSource {
 	if a.HasMultipleSources() {
 		return a.Sources[0]
 	}
+	if a.SourceHydrator != nil {
+		return a.SourceHydrator.GetApplicationSource()
+	}
 	if a.Source != nil {
 		return *a.Source
+	}
+	return ApplicationSource{}
+}
+
+// GetHydrateToSource returns the hydrateTo source if it exists, otherwise returns the sync source.
+func (a *ApplicationSpec) GetHydrateToSource() ApplicationSource {
+	if a.SourceHydrator != nil {
+		targetRevision := a.SourceHydrator.SyncSource.TargetBranch
+		if a.SourceHydrator.HydrateTo != nil {
+			targetRevision = a.SourceHydrator.HydrateTo.TargetBranch
+		}
+		return ApplicationSource{
+			RepoURL:        a.SourceHydrator.DrySource.RepoURL,
+			Path:           a.SourceHydrator.SyncSource.Path,
+			TargetRevision: targetRevision,
+		}
 	}
 	return ApplicationSource{}
 }
@@ -226,6 +248,9 @@ func (a *ApplicationSpec) GetSources() ApplicationSources {
 	if a.HasMultipleSources() {
 		return a.Sources
 	}
+	if a.SourceHydrator != nil {
+		return ApplicationSources{a.SourceHydrator.GetApplicationSource()}
+	}
 	if a.Source != nil {
 		return ApplicationSources{*a.Source}
 	}
@@ -233,7 +258,7 @@ func (a *ApplicationSpec) GetSources() ApplicationSources {
 }
 
 func (a *ApplicationSpec) HasMultipleSources() bool {
-	return a.Sources != nil && len(a.Sources) > 0
+	return a.SourceHydrator == nil && a.Sources != nil && len(a.Sources) > 0
 }
 
 func (a *ApplicationSpec) GetSourcePtrByPosition(sourcePosition int) *ApplicationSource {
@@ -248,6 +273,10 @@ func (a *ApplicationSpec) GetSourcePtrByIndex(sourceIndex int) *ApplicationSourc
 			return &a.Sources[sourceIndex]
 		}
 		return &a.Sources[0]
+	}
+	if a.SourceHydrator != nil {
+		source := a.SourceHydrator.GetApplicationSource()
+		return &source
 	}
 	return a.Source
 }
@@ -302,6 +331,48 @@ const (
 	ApplicationSourceTypePlugin    ApplicationSourceType = "Plugin"
 )
 
+// SourceHydrator specifies a dry "don't repeat yourself" source for manifests, a sync source from which to sync
+// hydrated manifests, and an optional hydrateTo location to act as a "staging" aread for hydrated manifests.
+type SourceHydrator struct {
+	// DrySource specifies where the dry "don't repeat yourself" manifest source lives.
+	DrySource DrySource `json:"drySource" protobuf:"bytes,1,name=drySource"`
+	// SyncSource specifies where to sync hydrated manifests from.
+	SyncSource SyncSource `json:"syncSource" protobuf:"bytes,2,name=syncSource"`
+	// HydrateTo specifies an optional "staging" location to push hydrated manifests to. An external system would then
+	// have to move manifests to the SyncSource, e.g. by pull request.
+	HydrateTo *HydrateTo `json:"hydrateTo,omitempty" protobuf:"bytes,3,opt,name=hydrateTo"`
+}
+
+// GetApplicationSource gets the source from which we should sync when a source hydrator is configured.
+func (s SourceHydrator) GetApplicationSource() ApplicationSource {
+	return ApplicationSource{
+		// Pull the RepoURL from the dry source. The SyncSource's RepoURL is assumed to be the same.
+		RepoURL:        s.DrySource.RepoURL,
+		Path:           s.SyncSource.Path,
+		TargetRevision: s.SyncSource.TargetBranch,
+	}
+}
+
+// DrySource specifies a location for dry "don't repeat yourself" manifest source information.
+type DrySource struct {
+	RepoURL        string `json:"repoURL" protobuf:"bytes,1,name=repoURL"`
+	TargetRevision string `json:"targetRevision" protobuf:"bytes,2,name=targetRevision"`
+	Path           string `json:"path" protobuf:"bytes,3,name=path"`
+}
+
+// SyncSource specifies a location from which hydrated manifests may be synced. RepoURL is assumed based on the
+// associated DrySource config in the SourceHydrator.
+type SyncSource struct {
+	TargetBranch string `json:"targetBranch" protobuf:"bytes,1,name=targetBranch"`
+	Path         string `json:"path" protobuf:"bytes,2,name=path"`
+}
+
+// HydrateTo specifies a location to which hydrated manifests should be pushed as a "staging area" before being moved to
+// the SyncSource. The RepoURL and Path are assumed based on the associated SyncSource config in the SourceHydrator.
+type HydrateTo struct {
+	TargetBranch string `json:"targetBranch" protobuf:"bytes,1,name=targetBranch"`
+}
+
 // RefreshType specifies how to refresh the sources of a given application
 type RefreshType string
 
@@ -342,6 +413,12 @@ type ApplicationSourceHelm struct {
 	// ValuesObject specifies Helm values to be passed to helm template, defined as a map. This takes precedence over Values.
 	// +kubebuilder:pruning:PreserveUnknownFields
 	ValuesObject *runtime.RawExtension `json:"valuesObject,omitempty" protobuf:"bytes,10,opt,name=valuesObject"`
+	// KubeVersions is the Kubernetes version to use for templating. If not set, defaults to the server's current Kubernetes version.
+	KubeVersion string `json:"kubeVersion,omitempty" protobuf:"bytes,11,opt,name=kubeVersion"`
+	// APIVersions is a list of Kubernetes API versions to use for templating. If not set, defaults to the server's preferred API versions.
+	ApiVersions []string `json:"apiVersions,omitempty" protobuf:"bytes,12,opt,name=apiVersions"`
+	// ReleaseName is the namespace scope to use. If omitted it will use the application name
+	Namespace string `json:"namespace,omitempty" protobuf:"bytes,13,opt,name=namespace"`
 }
 
 // HelmParameter is a parameter that's passed to helm template during manifest generation
@@ -974,7 +1051,37 @@ type ApplicationStatus struct {
 	SourceTypes []ApplicationSourceType `json:"sourceTypes,omitempty" protobuf:"bytes,12,opt,name=sourceTypes"`
 	// ControllerNamespace indicates the namespace in which the application controller is located
 	ControllerNamespace string `json:"controllerNamespace,omitempty" protobuf:"bytes,13,opt,name=controllerNamespace"`
+	// SourceHydrator stores information about the current state of source hydration
+	SourceHydrator SourceHydratorStatus `json:"sourceHydrator,omitempty" protobuf:"bytes,14,opt,name=sourceHydrator"`
 }
+
+type SourceHydratorStatus struct {
+	// DrySource holds the dry source configuration as of the most recent reconciliation
+	DrySource DrySource `json:"drySource,omitempty" protobuf:"bytes,1,opt,name=drySource"`
+	// Revision holds the resolved revision (sha) of the dry source as of the most recent reconciliation
+	Revision string `json:"revision,omitempty" protobuf:"bytes,2,opt,name=revision"`
+	// HydrateOperation holds the status of the hydrate operation
+	HydrateOperation *HydrateOperation `json:"hydrateOperation,omitempty" protobuf:"bytes,3,opt,name=hydrateOperation"`
+}
+
+type HydrateOperation struct {
+	// StartedAt indicates when the hydrate operation started
+	StartedAt metav1.Time `json:"startedAt,omitempty" protobuf:"bytes,1,opt,name=startedAt"`
+	// FinishedAt indicates when the hydrate operation finished
+	FinishedAt *metav1.Time `json:"finishedAt,omitempty" protobuf:"bytes,2,opt,name=finishedAt"`
+	// Status indicates the status of the hydrate operation
+	Status HydrateOperationPhase `json:"status" protobuf:"bytes,3,opt,name=status"`
+	// Message contains a message describing the current status of the hydrate operation
+	Message string `json:"message" protobuf:"bytes,4,opt,name=message"`
+}
+
+type HydrateOperationPhase string
+
+const (
+	HydrateOperationPhaseRunning   HydrateOperationPhase = "Running"
+	HydrateOperationPhaseFailed    HydrateOperationPhase = "Failed"
+	HydrateOperationPhaseSucceeded HydrateOperationPhase = "Succeeded"
+)
 
 // GetRevisions will return the current revision associated with the Application.
 // If app has multisources, it will return all corresponding revisions preserving

@@ -8,7 +8,6 @@ import (
 	v1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	labels "k8s.io/apimachinery/pkg/labels"
-	schema "k8s.io/apimachinery/pkg/runtime/schema"
 	types "k8s.io/apimachinery/pkg/types"
 	watch "k8s.io/apimachinery/pkg/watch"
 	testing "k8s.io/client-go/testing"
@@ -20,9 +19,9 @@ type FakeApplicationSets struct {
 	ns   string
 }
 
-var applicationsetsResource = schema.GroupVersionResource{Group: "argoproj.io", Version: "v1alpha1", Resource: "applicationsets"}
+var applicationsetsResource = v1alpha1.SchemeGroupVersion.WithResource("applicationsets")
 
-var applicationsetsKind = schema.GroupVersionKind{Group: "argoproj.io", Version: "v1alpha1", Kind: "ApplicationSet"}
+var applicationsetsKind = v1alpha1.SchemeGroupVersion.WithKind("ApplicationSet")
 
 // Get takes name of the applicationSet, and returns the corresponding applicationSet object, and an error if there is any.
 func (c *FakeApplicationSets) Get(ctx context.Context, name string, options v1.GetOptions) (result *v1alpha1.ApplicationSet, err error) {

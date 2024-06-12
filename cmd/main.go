@@ -9,6 +9,7 @@ import (
 	appcontroller "github.com/argoproj/argo-cd/v2/cmd/argocd-application-controller/commands"
 	applicationset "github.com/argoproj/argo-cd/v2/cmd/argocd-applicationset-controller/commands"
 	cmpserver "github.com/argoproj/argo-cd/v2/cmd/argocd-cmp-server/commands"
+	commitserver "github.com/argoproj/argo-cd/v2/cmd/argocd-commit-server/commands"
 	dex "github.com/argoproj/argo-cd/v2/cmd/argocd-dex/commands"
 	gitaskpass "github.com/argoproj/argo-cd/v2/cmd/argocd-git-ask-pass/commands"
 	k8sauth "github.com/argoproj/argo-cd/v2/cmd/argocd-k8s-auth/commands"
@@ -40,6 +41,8 @@ func main() {
 		command = reposerver.NewCommand()
 	case "argocd-cmp-server":
 		command = cmpserver.NewCommand()
+	case "argocd-commit-server":
+		command = commitserver.NewCommand()
 	case "argocd-dex":
 		command = dex.NewCommand()
 	case "argocd-notifications":

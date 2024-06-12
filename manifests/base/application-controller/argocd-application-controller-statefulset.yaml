@@ -64,6 +64,12 @@ spec:
               name: argocd-cmd-params-cm
               key: controller.repo.server.timeout.seconds
               optional: true
+        - name: ARGOCD_APPLICATION_CONTROLLER_COMMIT_SERVER
+          valueFrom:
+            configMapKeyRef:
+              name: argocd-cmd-params-cm
+              key: commit.server
+              optional: true
         - name: ARGOCD_APPLICATION_CONTROLLER_STATUS_PROCESSORS
           valueFrom:
             configMapKeyRef:
