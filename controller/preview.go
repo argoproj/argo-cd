@@ -12,6 +12,14 @@ import (
 	"strings"
 	"time"
 
+	"github.com/bradleyfalzon/ghinstallation/v2"
+	"github.com/google/go-github/v62/github"
+	"github.com/google/shlex"
+	log "github.com/sirupsen/logrus"
+	"gopkg.in/yaml.v3"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/labels"
+
 	"github.com/argoproj/argo-cd/v2/applicationset/services/github_app_auth"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	applisters "github.com/argoproj/argo-cd/v2/pkg/client/listers/application/v1alpha1"

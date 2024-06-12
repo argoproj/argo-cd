@@ -8,14 +8,12 @@ import (
 	"path"
 	"text/template"
 
-	"os"
-	"path"
-	"text/template"
-
 	securejoin "github.com/cyphar/filepath-securejoin"
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v3"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+
+	"github.com/argoproj/argo-cd/v2/commitserver/apiclient"
 )
 
 // HydratorHelper is an interface for writing metadata, readme, and manifests for hydrator.

@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"net"
 
+	"github.com/spf13/cobra"
+
 	cmdutil "github.com/argoproj/argo-cd/v2/cmd/util"
 	"github.com/argoproj/argo-cd/v2/commitserver"
 	"github.com/argoproj/argo-cd/v2/common"

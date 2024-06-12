@@ -12,8 +12,9 @@ import (
 	"strings"
 	"time"
 
-	exec2 "github.com/argoproj/argo-cd/v2/util/exec"
 	"github.com/argoproj/pkg/rand"
+
+	exec2 "github.com/argoproj/argo-cd/v2/util/exec"
 
 	"github.com/argoproj/argo-cd/v2/cmpserver/apiclient"
 	"github.com/argoproj/argo-cd/v2/common"

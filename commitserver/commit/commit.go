@@ -7,6 +7,13 @@ import (
 	"path"
 	"strings"
 
+	securejoin "github.com/cyphar/filepath-securejoin"
+	"github.com/google/uuid"
+	log "github.com/sirupsen/logrus"
+
+	"github.com/argoproj/argo-cd/v2/applicationset/services/github_app_auth"
+	"github.com/argoproj/argo-cd/v2/commitserver/apiclient"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 )
 
 type Service struct{}

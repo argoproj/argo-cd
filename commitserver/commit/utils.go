@@ -4,10 +4,11 @@ import (
 	"fmt"
 	"net/http"
 
-	"net/http"
-
 	"github.com/bradleyfalzon/ghinstallation/v2"
 	"github.com/google/go-github/v62/github"
+
+	"github.com/argoproj/argo-cd/v2/applicationset/services/github_app_auth"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 )
 
 func isGitHubApp(cred *v1alpha1.Repository) bool {

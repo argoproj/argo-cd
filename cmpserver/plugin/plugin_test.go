@@ -14,8 +14,6 @@ import (
 
 	exec2 "github.com/argoproj/argo-cd/v2/util/exec"
 
-	exec2 "github.com/argoproj/argo-cd/v2/util/exec"
-
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/metadata"
