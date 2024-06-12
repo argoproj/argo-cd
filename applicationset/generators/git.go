@@ -11,11 +11,14 @@ import (
 
 	"github.com/jeremywohl/flatten"
 	log "github.com/sirupsen/logrus"
+	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/yaml"
 
 	"github.com/argoproj/argo-cd/v2/applicationset/services"
 	"github.com/argoproj/argo-cd/v2/applicationset/utils"
 	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/util/gpg"
 )
 
 var _ Generator = (*GitGenerator)(nil)
@@ -45,7 +48,7 @@ func (g *GitGenerator) GetRequeueAfter(appSetGenerator *argoprojiov1alpha1.Appli
 	return DefaultRequeueAfterSeconds
 }
 
-func (g *GitGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator, appSet *argoprojiov1alpha1.ApplicationSet) ([]map[string]interface{}, error) {
+func (g *GitGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator, appSet *argoprojiov1alpha1.ApplicationSet, client client.Client) ([]map[string]interface{}, error) {
 	if appSetGenerator == nil {
 		return nil, EmptyAppSetGeneratorError
 	}
@@ -56,12 +59,27 @@ func (g *GitGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.Applic
 
 	noRevisionCache := appSet.RefreshRequired()
 
+	var project string
+	if strings.Contains(appSet.Spec.Template.Spec.Project, "{{") {
+		project = appSetGenerator.Git.Template.Spec.Project
+	} else {
+		project = appSet.Spec.Template.Spec.Project
+	}
+
+	appProject := &argoprojiov1alpha1.AppProject{}
+	if err := client.Get(context.TODO(), types.NamespacedName{Name: appSet.Spec.Template.Spec.Project, Namespace: appSet.Namespace}, appProject); err != nil {
+		return nil, fmt.Errorf("error getting project %s: %w", project, err)
+	}
+
+	// we need to verify the signature on the Git revision if GPG is enabled
+	verifyCommit := appProject.Spec.SignatureKeys != nil && len(appProject.Spec.SignatureKeys) > 0 && gpg.IsGPGEnabled()
+
 	var err error
 	var res []map[string]interface{}
 	if len(appSetGenerator.Git.Directories) != 0 {
-		res, err = g.generateParamsForGitDirectories(appSetGenerator, noRevisionCache, appSet.Spec.GoTemplate, appSet.Spec.GoTemplateOptions)
+		res, err = g.generateParamsForGitDirectories(appSetGenerator, noRevisionCache, verifyCommit, appSet.Spec.GoTemplate, appSet.Spec.GoTemplateOptions)
 	} else if len(appSetGenerator.Git.Files) != 0 {
-		res, err = g.generateParamsForGitFiles(appSetGenerator, noRevisionCache, appSet.Spec.GoTemplate, appSet.Spec.GoTemplateOptions)
+		res, err = g.generateParamsForGitFiles(appSetGenerator, noRevisionCache, verifyCommit, appSet.Spec.GoTemplate, appSet.Spec.GoTemplateOptions)
 	} else {
 		return nil, EmptyAppSetGeneratorError
 	}
@@ -72,9 +90,9 @@ func (g *GitGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.Applic
 	return res, nil
 }
 
-func (g *GitGenerator) generateParamsForGitDirectories(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator, noRevisionCache bool, useGoTemplate bool, goTemplateOptions []string) ([]map[string]interface{}, error) {
+func (g *GitGenerator) generateParamsForGitDirectories(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator, noRevisionCache, verifyCommit bool, useGoTemplate bool, goTemplateOptions []string) ([]map[string]interface{}, error) {
 	// Directories, not files
-	allPaths, err := g.repos.GetDirectories(context.TODO(), appSetGenerator.Git.RepoURL, appSetGenerator.Git.Revision, noRevisionCache)
+	allPaths, err := g.repos.GetDirectories(context.TODO(), appSetGenerator.Git.RepoURL, appSetGenerator.Git.Revision, noRevisionCache, verifyCommit)
 	if err != nil {
 		return nil, fmt.Errorf("error getting directories from repo: %w", err)
 	}
@@ -97,11 +115,11 @@ func (g *GitGenerator) generateParamsForGitDirectories(appSetGenerator *argoproj
 	return res, nil
 }
 
-func (g *GitGenerator) generateParamsForGitFiles(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator, noRevisionCache bool, useGoTemplate bool, goTemplateOptions []string) ([]map[string]interface{}, error) {
+func (g *GitGenerator) generateParamsForGitFiles(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator, noRevisionCache, verifyCommit bool, useGoTemplate bool, goTemplateOptions []string) ([]map[string]interface{}, error) {
 	// Get all files that match the requested path string, removing duplicates
 	allFiles := make(map[string][]byte)
 	for _, requestedPath := range appSetGenerator.Git.Files {
-		files, err := g.repos.GetFiles(context.TODO(), appSetGenerator.Git.RepoURL, appSetGenerator.Git.Revision, requestedPath.Path, noRevisionCache)
+		files, err := g.repos.GetFiles(context.TODO(), appSetGenerator.Git.RepoURL, appSetGenerator.Git.Revision, requestedPath.Path, noRevisionCache, verifyCommit)
 		if err != nil {
 			return nil, err
 		}

@@ -179,7 +179,7 @@ func (m *appStateManager) GetRepoObjs(app *v1alpha1.Application, sources []v1alp
 	// revisions for the rollback
 	refSources, err := argo.GetRefSources(context.Background(), sources, app.Spec.Project, m.db.GetRepository, revisions, rollback)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to get ref sources: %v", err)
+		return nil, nil, fmt.Errorf("failed to get ref sources: %w", err)
 	}
 
 	for i, source := range sources {
@@ -539,7 +539,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 		permitted, err := project.IsLiveResourcePermitted(v, app.Spec.Destination.Server, app.Spec.Destination.Name, func(project string) ([]*v1alpha1.Cluster, error) {
 			clusters, err := m.db.GetProjectClusters(context.TODO(), project)
 			if err != nil {
-				return nil, fmt.Errorf("failed to get clusters for project %q: %v", project, err)
+				return nil, fmt.Errorf("failed to get clusters for project %q: %w", project, err)
 			}
 			return clusters, nil
 		})
