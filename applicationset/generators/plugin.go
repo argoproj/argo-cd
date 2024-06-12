@@ -93,7 +93,7 @@ func (g *PluginGenerator) getPluginFromGenerator(ctx context.Context, appSetName
 	}
 	token, err := g.getToken(ctx, cm["token"])
 	if err != nil {
-		return nil, fmt.Errorf("error fetching Secret token: %v", err)
+		return nil, fmt.Errorf("error fetching Secret token: %w", err)
 	}
 
 	var requestTimeout int
@@ -165,7 +165,7 @@ func (g *PluginGenerator) getToken(ctx context.Context, tokenRef string) (string
 		},
 		secret)
 	if err != nil {
-		return "", fmt.Errorf("error fetching secret %s/%s: %v", g.namespace, secretName, err)
+		return "", fmt.Errorf("error fetching secret %s/%s: %w", g.namespace, secretName, err)
 	}
 
 	secretValues := make(map[string]string, len(secret.Data))

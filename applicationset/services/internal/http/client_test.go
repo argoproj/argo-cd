@@ -17,7 +17,7 @@ func TestClient(t *testing.T) {
 		w.WriteHeader(http.StatusOK)
 		_, err := w.Write([]byte("Hello, World!"))
 		if err != nil {
-			assert.NoError(t, fmt.Errorf("Error Write %v", err))
+			assert.NoError(t, fmt.Errorf("Error Write %w", err))
 		}
 	}))
 	defer server.Close()
@@ -61,7 +61,7 @@ func TestClientDo(t *testing.T) {
 					"key3": 123
 				 }]`))
 				if err != nil {
-					assert.NoError(t, fmt.Errorf("Error Write %v", err))
+					assert.NoError(t, fmt.Errorf("Error Write %w", err))
 				}
 			})),
 			clientOptionFns: nil,
@@ -104,7 +104,7 @@ func TestClientDo(t *testing.T) {
 					"key3": 123
 				 }]`))
 				if err != nil {
-					assert.NoError(t, fmt.Errorf("Error Write %v", err))
+					assert.NoError(t, fmt.Errorf("Error Write %w", err))
 				}
 			})),
 			clientOptionFns: nil,
