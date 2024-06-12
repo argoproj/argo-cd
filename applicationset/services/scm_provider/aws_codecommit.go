@@ -2,6 +2,7 @@ package scm_provider
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	pathpkg "path"
 	"path/filepath"
@@ -327,7 +328,8 @@ func getCodeCommitFIPSEndpoint(repoUrl string) (string, error) {
 }
 
 func hasAwsError(err error, codes ...string) bool {
-	if awsErr, ok := err.(awserr.Error); ok {
+	var awsErr awserr.Error
+	if errors.As(err, &awsErr) {
 		return slices.Contains(codes, awsErr.Code())
 	}
 	return false
@@ -356,7 +358,7 @@ func createAWSDiscoveryClients(_ context.Context, role string, region string) (*
 			Credentials: assumeRoleCreds,
 		})
 		if err != nil {
-			return nil, nil, fmt.Errorf("error creating new AWS discovery session: %s", err)
+			return nil, nil, fmt.Errorf("error creating new AWS discovery session: %w", err)
 		}
 	} else {
 		log.Debugf("role is not provided for AWS CodeCommit discovery, using pod role")

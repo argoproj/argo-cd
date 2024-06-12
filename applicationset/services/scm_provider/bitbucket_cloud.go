@@ -65,13 +65,13 @@ func (g *BitBucketCloudProvider) GetBranches(ctx context.Context, repo *Reposito
 	repos := []*Repository{}
 	branches, err := g.listBranches(repo)
 	if err != nil {
-		return nil, fmt.Errorf("error listing branches for %s/%s: %v", repo.Organization, repo.Repository, err)
+		return nil, fmt.Errorf("error listing branches for %s/%s: %w", repo.Organization, repo.Repository, err)
 	}
 
 	for _, branch := range branches {
 		hash, ok := branch.Target["hash"].(string)
 		if !ok {
-			return nil, fmt.Errorf("error getting SHA for branch for %s/%s/%s: %v", g.owner, repo.Repository, branch.Name, err)
+			return nil, fmt.Errorf("error getting SHA for branch for %s/%s/%s: %w", g.owner, repo.Repository, branch.Name, err)
 		}
 		repos = append(repos, &Repository{
 			Organization: repo.Organization,
@@ -97,12 +97,12 @@ func (g *BitBucketCloudProvider) ListRepos(ctx context.Context, cloneProtocol st
 	repos := []*Repository{}
 	accountReposResp, err := g.client.Repositories.ListForAccount(opt)
 	if err != nil {
-		return nil, fmt.Errorf("error listing repositories for %s: %v", g.owner, err)
+		return nil, fmt.Errorf("error listing repositories for %s: %w", g.owner, err)
 	}
 	for _, bitBucketRepo := range accountReposResp.Items {
 		cloneUrl, err := findCloneURL(cloneProtocol, &bitBucketRepo)
 		if err != nil {
-			return nil, fmt.Errorf("error fetching clone url for repo %s: %v", bitBucketRepo.Slug, err)
+			return nil, fmt.Errorf("error fetching clone url for repo %s: %w", bitBucketRepo.Slug, err)
 		}
 		repos = append(repos, &Repository{
 			Organization: g.owner,
