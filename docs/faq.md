@@ -291,7 +291,7 @@ kubectl rollout restart statefulset argocd-application-controller
 
 ## How to turn off Redis auth if users really want to?
 
-Argo CD default installation is now configured automatically enable Redis authentication. 
+Argo CD default installation is now configured to automatically enable Redis authentication.
 If for some reason authenticated Redis does not work for you and you want to use non-authenticated Redis, here are the steps:
 
 * You need to have your own Redis installation.
