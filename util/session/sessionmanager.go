@@ -366,11 +366,9 @@ func (mgr *SessionManager) updateFailureCount(username string, failed bool) {
 		attempt.LastFailed = time.Now()
 		failures[username] = attempt
 		log.Warnf("User %s failed login %d time(s)", username, attempt.FailCount)
-	} else {
-		if attempt.FailCount > 0 {
-			// Forget username for cache size enforcement, since entry in cache was deleted
-			delete(failures, username)
-		}
+	} else if attempt.FailCount > 0 {
+		// Forget username for cache size enforcement, since entry in cache was deleted
+		delete(failures, username)
 	}
 
 	err := mgr.storage.SetLoginAttempts(failures)
@@ -429,7 +427,7 @@ func (mgr *SessionManager) VerifyUsernamePassword(username string, password stri
 			delayNanoseconds := verificationDelayNoiseMin.Nanoseconds() +
 				int64(rand.Intn(int(verificationDelayNoiseMax.Nanoseconds()-verificationDelayNoiseMin.Nanoseconds())))
 			// take into account amount of time spent since the request start
-			delayNanoseconds = delayNanoseconds - time.Since(start).Nanoseconds()
+			delayNanoseconds -= time.Since(start).Nanoseconds()
 			if delayNanoseconds > 0 {
 				mgr.sleep(time.Duration(delayNanoseconds))
 			}

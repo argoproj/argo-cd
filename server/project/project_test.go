@@ -646,7 +646,7 @@ p, role:admin, projects, update, *, allow`)
 
 		projWithRole := existingProj.DeepCopy()
 		role := v1alpha1.ProjectRole{Name: roleName, JWTTokens: []v1alpha1.JWTToken{{IssuedAt: 1}}}
-		noSpacesPolicyTemplate := strings.Replace(policyTemplate, " ", "", -1)
+		noSpacesPolicyTemplate := strings.ReplaceAll(policyTemplate, " ", "")
 		invalidPolicy := fmt.Sprintf(noSpacesPolicyTemplate, projWithRole.Name, roleName, action, projWithRole.Name, object, effect)
 		role.Policies = append(role.Policies, invalidPolicy)
 		projWithRole.Spec.Roles = append(projWithRole.Spec.Roles, role)

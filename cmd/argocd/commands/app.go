@@ -783,7 +783,7 @@ func NewApplicationSetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 			}
 
 			// sourcePosition startes with 1, thus, it needs to be decreased by 1 to find the correct index in the list of sources
-			sourcePosition = sourcePosition - 1
+			sourcePosition--
 			visited := cmdutil.SetAppSpecOptions(c.Flags(), &app.Spec, &appOpts, sourcePosition)
 			if visited == 0 {
 				log.Error("Please set at least one option to update")
@@ -1602,7 +1602,7 @@ func formatSyncPolicy(app argoappv1.Application) string {
 	}
 	policy := "Auto"
 	if app.Spec.SyncPolicy.Automated.Prune {
-		policy = policy + "-Prune"
+		policy += "-Prune"
 	}
 	return policy
 }
@@ -2544,10 +2544,8 @@ func setParameterOverrides(app *argoappv1.Application, parameters []string, sour
 		sourceType = *st
 	} else if app.Status.SourceType != "" {
 		sourceType = app.Status.SourceType
-	} else {
-		if len(strings.SplitN(parameters[0], "=", 2)) == 2 {
-			sourceType = argoappv1.ApplicationSourceTypeHelm
-		}
+	} else if len(strings.SplitN(parameters[0], "=", 2)) == 2 {
+		sourceType = argoappv1.ApplicationSourceTypeHelm
 	}
 
 	switch sourceType {

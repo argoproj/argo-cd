@@ -1450,7 +1450,7 @@ clientSecret: yyy
 requestedScopes: ["oidc"]
 rootCA: |
   %s
-`, strings.Replace(string(test.Cert), "\n", "\n  ", -1))},
+`, strings.ReplaceAll(string(test.Cert), "\n", "\n  "))},
 		},
 		{
 			name: "OIDC configured, invalid root CA",
