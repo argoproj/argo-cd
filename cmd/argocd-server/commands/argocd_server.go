@@ -3,10 +3,11 @@ package commands
 import (
 	"context"
 	"fmt"
-	"github.com/redis/go-redis/v9"
 	"math"
 	"strings"
 	"time"
+
+	"github.com/redis/go-redis/v9"
 
 	"github.com/argoproj/pkg/stats"
 	log "github.com/sirupsen/logrus"
