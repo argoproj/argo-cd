@@ -19,6 +19,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 )
 
@@ -150,7 +151,7 @@ func TestMatrixGenerate(t *testing.T) {
 					Git:  g.Git,
 					List: g.List,
 				}
-				genMock.On("GenerateParams", mock.AnythingOfType("*v1alpha1.ApplicationSetGenerator"), appSet).Return([]map[string]interface{}{
+				genMock.On("GenerateParams", mock.AnythingOfType("*v1alpha1.ApplicationSetGenerator"), appSet, mock.Anything).Return([]map[string]interface{}{
 					{
 						"path":                    "app1",
 						"path.basename":           "app1",
@@ -179,7 +180,7 @@ func TestMatrixGenerate(t *testing.T) {
 					Generators: testCaseCopy.baseGenerators,
 					Template:   argoprojiov1alpha1.ApplicationSetTemplate{},
 				},
-			}, appSet)
+			}, appSet, nil)
 
 			if testCaseCopy.expectedErr != nil {
 				assert.ErrorIs(t, err, testCaseCopy.expectedErr)
@@ -359,7 +360,7 @@ func TestMatrixGenerateGoTemplate(t *testing.T) {
 					Git:  g.Git,
 					List: g.List,
 				}
-				genMock.On("GenerateParams", mock.AnythingOfType("*v1alpha1.ApplicationSetGenerator"), appSet).Return([]map[string]interface{}{
+				genMock.On("GenerateParams", mock.AnythingOfType("*v1alpha1.ApplicationSetGenerator"), appSet, mock.Anything).Return([]map[string]interface{}{
 					{
 						"path": map[string]string{
 							"path":               "app1",
@@ -392,7 +393,7 @@ func TestMatrixGenerateGoTemplate(t *testing.T) {
 					Generators: testCaseCopy.baseGenerators,
 					Template:   argoprojiov1alpha1.ApplicationSetTemplate{},
 				},
-			}, appSet)
+			}, appSet, nil)
 
 			if testCaseCopy.expectedErr != nil {
 				assert.ErrorIs(t, err, testCaseCopy.expectedErr)
@@ -678,7 +679,7 @@ func TestInterpolatedMatrixGenerate(t *testing.T) {
 					Generators: testCaseCopy.baseGenerators,
 					Template:   argoprojiov1alpha1.ApplicationSetTemplate{},
 				},
-			}, appSet)
+			}, appSet, nil)
 
 			if testCaseCopy.expectedErr != nil {
 				assert.ErrorIs(t, err, testCaseCopy.expectedErr)
@@ -863,7 +864,7 @@ func TestInterpolatedMatrixGenerateGoTemplate(t *testing.T) {
 					Generators: testCaseCopy.baseGenerators,
 					Template:   argoprojiov1alpha1.ApplicationSetTemplate{},
 				},
-			}, appSet)
+			}, appSet, nil)
 
 			if testCaseCopy.expectedErr != nil {
 				assert.ErrorIs(t, err, testCaseCopy.expectedErr)
@@ -1024,7 +1025,7 @@ func TestMatrixGenerateListElementsYaml(t *testing.T) {
 					Generators: testCaseCopy.baseGenerators,
 					Template:   argoprojiov1alpha1.ApplicationSetTemplate{},
 				},
-			}, appSet)
+			}, appSet, nil)
 
 			if testCaseCopy.expectedErr != nil {
 				assert.ErrorIs(t, err, testCaseCopy.expectedErr)
@@ -1046,7 +1047,7 @@ func (g *generatorMock) GetTemplate(appSetGenerator *argoprojiov1alpha1.Applicat
 	return args.Get(0).(*argoprojiov1alpha1.ApplicationSetTemplate)
 }
 
-func (g *generatorMock) GenerateParams(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator, appSet *argoprojiov1alpha1.ApplicationSet) ([]map[string]interface{}, error) {
+func (g *generatorMock) GenerateParams(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator, appSet *argoprojiov1alpha1.ApplicationSet, _ client.Client) ([]map[string]interface{}, error) {
 	args := g.Called(appSetGenerator, appSet)
 
 	return args.Get(0).([]map[string]interface{}), args.Error(1)
@@ -1085,7 +1086,7 @@ func TestGitGenerator_GenerateParams_list_x_git_matrix_generator(t *testing.T) {
 	}
 
 	repoServiceMock := &mocks.Repos{}
-	repoServiceMock.On("GetFiles", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(map[string][]byte{
+	repoServiceMock.On("GetFiles", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(map[string][]byte{
 		"some/path.json": []byte("test: content"),
 	}, nil)
 	gitGenerator := NewGitGenerator(repoServiceMock)
@@ -1111,9 +1112,17 @@ func TestGitGenerator_GenerateParams_list_x_git_matrix_generator(t *testing.T) {
 			},
 		},
 	}
+
+	scheme := runtime.NewScheme()
+	err := v1alpha1.AddToScheme(scheme)
+	assert.NoError(t, err)
+	appProject := argoprojiov1alpha1.AppProject{}
+
+	client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&appProject).Build()
+
 	params, err := matrixGenerator.GenerateParams(&argoprojiov1alpha1.ApplicationSetGenerator{
 		Matrix: matrixGeneratorSpec,
-	}, &argoprojiov1alpha1.ApplicationSet{})
+	}, &argoprojiov1alpha1.ApplicationSet{}, client)
 	require.NoError(t, err)
 	assert.Equal(t, []map[string]interface{}{{
 		"path":                    "some",

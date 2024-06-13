@@ -55,7 +55,7 @@ func ValidateDestination(ctx context.Context, dest *appv1.ApplicationDestination
 		if dest.Server == "" {
 			server, err := getDestinationServer(ctx, dest.Name, clientset, argoCDNamespace)
 			if err != nil {
-				return fmt.Errorf("unable to find destination server: %v", err)
+				return fmt.Errorf("unable to find destination server: %w", err)
 			}
 			if server == "" {
 				return fmt.Errorf("application references destination cluster %s which does not exist", dest.Name)
@@ -113,7 +113,7 @@ func ListClusters(ctx context.Context, clientset kubernetes.Interface, namespace
 		// This line has changed from the original Argo CD code: now receives an error, and handles it
 		cluster, err := secretToCluster(&clusterSecret)
 		if err != nil || cluster == nil {
-			return nil, fmt.Errorf("unable to convert cluster secret to cluster object '%s': %v", clusterSecret.Name, err)
+			return nil, fmt.Errorf("unable to convert cluster secret to cluster object '%s': %w", clusterSecret.Name, err)
 		}
 
 		clusterList.Items[i] = *cluster

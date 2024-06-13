@@ -1517,23 +1517,23 @@ func mergeSourceParameters(source *v1alpha1.ApplicationSource, path, appName str
 
 		data, err := json.Marshal(merged)
 		if err != nil {
-			return fmt.Errorf("%s: %v", filename, err)
+			return fmt.Errorf("%s: %w", filename, err)
 		}
 		patch, err := os.ReadFile(filename)
 		if err != nil {
-			return fmt.Errorf("%s: %v", filename, err)
+			return fmt.Errorf("%s: %w", filename, err)
 		}
 		patch, err = yaml.YAMLToJSON(patch)
 		if err != nil {
-			return fmt.Errorf("%s: %v", filename, err)
+			return fmt.Errorf("%s: %w", filename, err)
 		}
 		data, err = jsonpatch.MergePatch(data, patch)
 		if err != nil {
-			return fmt.Errorf("%s: %v", filename, err)
+			return fmt.Errorf("%s: %w", filename, err)
 		}
 		err = json.Unmarshal(data, &merged)
 		if err != nil {
-			return fmt.Errorf("%s: %v", filename, err)
+			return fmt.Errorf("%s: %w", filename, err)
 		}
 	}
 
@@ -1551,7 +1551,7 @@ func mergeSourceParameters(source *v1alpha1.ApplicationSource, path, appName str
 func GetAppSourceType(ctx context.Context, source *v1alpha1.ApplicationSource, appPath, repoPath, appName string, enableGenerateManifests map[string]bool, tarExcludedGlobs []string, env []string) (v1alpha1.ApplicationSourceType, error) {
 	err := mergeSourceParameters(source, appPath, appName)
 	if err != nil {
-		return "", fmt.Errorf("error while parsing source parameters: %v", err)
+		return "", fmt.Errorf("error while parsing source parameters: %w", err)
 	}
 
 	appSourceType, err := source.ExplicitType()
@@ -1567,7 +1567,7 @@ func GetAppSourceType(ctx context.Context, source *v1alpha1.ApplicationSource, a
 	}
 	appType, err := discovery.AppType(ctx, appPath, repoPath, enableGenerateManifests, tarExcludedGlobs, env)
 	if err != nil {
-		return "", fmt.Errorf("error getting app source type: %v", err)
+		return "", fmt.Errorf("error getting app source type: %w", err)
 	}
 	return v1alpha1.ApplicationSourceType(appType), nil
 }
@@ -1699,10 +1699,10 @@ func splitYAMLOrJSON(reader goio.Reader) ([]*unstructured.Unstructured, error) {
 	for {
 		u := &unstructured.Unstructured{}
 		if err := d.Decode(&u); err != nil {
-			if err == goio.EOF {
+			if errors.Is(err, goio.EOF) {
 				break
 			}
-			return objs, fmt.Errorf("failed to unmarshal manifest: %v", err)
+			return objs, fmt.Errorf("failed to unmarshal manifest: %w", err)
 		}
 		if u == nil {
 			continue
@@ -1928,7 +1928,7 @@ func runConfigManagementPluginSidecars(ctx context.Context, appPath, repoPath, p
 	// generate manifests using commands provided in plugin config file in detected cmp-server sidecar
 	cmpManifests, err := generateManifestsCMP(ctx, appPath, repoPath, env, cmpClient, tarDoneCh, tarExcludedGlobs)
 	if err != nil {
-		return nil, fmt.Errorf("error generating manifests in cmp: %s", err)
+		return nil, fmt.Errorf("error generating manifests in cmp: %w", err)
 	}
 	var manifests []*unstructured.Unstructured
 	for _, manifestString := range cmpManifests.Manifests {
@@ -1960,7 +1960,7 @@ func generateManifestsCMP(ctx context.Context, appPath, repoPath string, env []s
 
 	err = cmp.SendRepoStream(generateManifestStream.Context(), appPath, repoPath, generateManifestStream, env, tarExcludedGlobs, opts...)
 	if err != nil {
-		return nil, fmt.Errorf("error sending file to cmp-server: %s", err)
+		return nil, fmt.Errorf("error sending file to cmp-server: %w", err)
 	}
 
 	return generateManifestStream.CloseAndRecv()
@@ -2186,7 +2186,7 @@ func populatePluginAppDetails(ctx context.Context, res *apiclient.RepoAppDetails
 
 	err = cmp.SendRepoStream(parametersAnnouncementStream.Context(), appPath, repoPath, parametersAnnouncementStream, env, tarExcludedGlobs)
 	if err != nil {
-		return fmt.Errorf("error sending file to cmp-server: %s", err)
+		return fmt.Errorf("error sending file to cmp-server: %w", err)
 	}
 
 	announcement, err := parametersAnnouncementStream.CloseAndRecv()
@@ -2291,25 +2291,25 @@ func (s *Service) GetRevisionChartDetails(ctx context.Context, q *apiclient.Repo
 	}
 	helmClient, revision, err := s.newHelmClientResolveRevision(q.Repo, q.Revision, q.Name, true)
 	if err != nil {
-		return nil, fmt.Errorf("helm client error: %v", err)
+		return nil, fmt.Errorf("helm client error: %w", err)
 	}
 	chartPath, closer, err := helmClient.ExtractChart(q.Name, revision, q.Repo.Project, false, s.initConstants.HelmManifestMaxExtractedSize, s.initConstants.DisableHelmManifestMaxExtractedSize)
 	if err != nil {
-		return nil, fmt.Errorf("error extracting chart: %v", err)
+		return nil, fmt.Errorf("error extracting chart: %w", err)
 	}
 	defer io.Close(closer)
 	helmCmd, err := helm.NewCmdWithVersion(chartPath, helm.HelmV3, q.Repo.EnableOCI, q.Repo.Proxy)
 	if err != nil {
-		return nil, fmt.Errorf("error creating helm cmd: %v", err)
+		return nil, fmt.Errorf("error creating helm cmd: %w", err)
 	}
 	defer helmCmd.Close()
 	helmDetails, err := helmCmd.InspectChart()
 	if err != nil {
-		return nil, fmt.Errorf("error inspecting chart: %v", err)
+		return nil, fmt.Errorf("error inspecting chart: %w", err)
 	}
 	details, err = getChartDetails(helmDetails)
 	if err != nil {
-		return nil, fmt.Errorf("error getting chart details: %v", err)
+		return nil, fmt.Errorf("error getting chart details: %w", err)
 	}
 	_ = s.cache.SetRevisionChartDetails(q.Repo.Repo, q.Name, q.Revision, details)
 	return details, nil
@@ -2358,18 +2358,18 @@ func (s *Service) newHelmClientResolveRevision(repo *v1alpha1.Repository, revisi
 	}
 	constraints, err := semver.NewConstraint(revision)
 	if err != nil {
-		return nil, "", fmt.Errorf("invalid revision '%s': %v", revision, err)
+		return nil, "", fmt.Errorf("invalid revision '%s': %w", revision, err)
 	}
 
 	if enableOCI {
 		tags, err := helmClient.GetTags(chart, noRevisionCache)
 		if err != nil {
-			return nil, "", fmt.Errorf("unable to get tags: %v", err)
+			return nil, "", fmt.Errorf("unable to get tags: %w", err)
 		}
 
 		version, err := tags.MaxVersion(constraints)
 		if err != nil {
-			return nil, "", fmt.Errorf("no version for constraints: %v", err)
+			return nil, "", fmt.Errorf("no version for constraints: %w", err)
 		}
 		return helmClient, version.String(), nil
 	}
@@ -2557,6 +2557,10 @@ func (s *Service) GetGitFiles(_ context.Context, request *apiclient.GitFilesRequ
 		return nil, status.Errorf(codes.Internal, "unable to resolve git revision %s: %v", revision, err)
 	}
 
+	if err := verifyCommitSignature(request.VerifyCommit, gitClient, revision, repo); err != nil {
+		return nil, err
+	}
+
 	// check the cache and return the results if present
 	if cachedFiles, err := s.cache.GetGitFiles(repo.Repo, revision, gitPath); err == nil {
 		log.Debugf("cache hit for repo: %s revision: %s pattern: %s", repo.Repo, revision, gitPath)
@@ -2602,6 +2606,28 @@ func (s *Service) GetGitFiles(_ context.Context, request *apiclient.GitFilesRequ
 	}, nil
 }
 
+func verifyCommitSignature(verifyCommit bool, gitClient git.Client, revision string, repo *v1alpha1.Repository) error {
+	if gpg.IsGPGEnabled() && verifyCommit {
+		cs, err := gitClient.VerifyCommitSignature(revision)
+		if err != nil {
+			log.Errorf("error verifying signature of commit '%s' in repo '%s': %v", revision, repo.Repo, err)
+			return err
+		}
+
+		if cs == "" {
+			return fmt.Errorf("revision %s is not signed", revision)
+		} else {
+			vr := gpg.ParseGitCommitVerification(cs)
+			if vr.Result == gpg.VerifyResultUnknown {
+				return fmt.Errorf("UNKNOWN signature: %s", vr.Message)
+			} else {
+				log.Debugf("%s signature from %s key %s", vr.Result, vr.Cipher, gpg.KeyID(vr.KeyID))
+			}
+		}
+	}
+	return nil
+}
+
 func (s *Service) GetGitDirectories(_ context.Context, request *apiclient.GitDirectoriesRequest) (*apiclient.GitDirectoriesResponse, error) {
 	repo := request.GetRepo()
 	revision := request.GetRevision()
@@ -2613,6 +2639,10 @@ func (s *Service) GetGitDirectories(_ context.Context, request *apiclient.GitDir
 	gitClient, revision, err := s.newClientResolveRevision(repo, revision, git.WithCache(s.cache, !noRevisionCache))
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "unable to resolve git revision %s: %v", revision, err)
+	}
+
+	if err := verifyCommitSignature(request.VerifyCommit, gitClient, revision, repo); err != nil {
+		return nil, err
 	}
 
 	// check the cache and return the results if present

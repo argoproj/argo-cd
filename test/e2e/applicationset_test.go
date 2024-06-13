@@ -15,6 +15,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 
+	"github.com/argoproj/pkg/rand"
+
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	argov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/test/e2e/fixture"
@@ -1429,6 +1431,213 @@ func TestSimpleGitDirectoryGeneratorGoTemplate(t *testing.T) {
 		Delete().Then().Expect(ApplicationsDoNotExist(expectedAppsNewNamespace))
 }
 
+func TestSimpleGitDirectoryGeneratorGPGEnabledUnsignedCommits(t *testing.T) {
+	expectedErrorMessage := `error generating params from git: error getting directories from repo: error retrieving Git Directories: rpc error: code = Unknown desc = permission denied`
+	expectedConditionsParamsError := []v1alpha1.ApplicationSetCondition{
+		{
+			Type:    v1alpha1.ApplicationSetConditionErrorOccurred,
+			Status:  v1alpha1.ApplicationSetConditionStatusTrue,
+			Message: expectedErrorMessage,
+			Reason:  v1alpha1.ApplicationSetReasonApplicationParamsGenerationError,
+		},
+		{
+			Type:    v1alpha1.ApplicationSetConditionParametersGenerated,
+			Status:  v1alpha1.ApplicationSetConditionStatusFalse,
+			Message: expectedErrorMessage,
+			Reason:  v1alpha1.ApplicationSetReasonErrorOccurred,
+		},
+		{
+			Type:    v1alpha1.ApplicationSetConditionResourcesUpToDate,
+			Status:  v1alpha1.ApplicationSetConditionStatusFalse,
+			Message: expectedErrorMessage,
+			Reason:  v1alpha1.ApplicationSetReasonApplicationParamsGenerationError,
+		},
+	}
+	generateExpectedApp := func(name string) argov1alpha1.Application {
+		return argov1alpha1.Application{
+			TypeMeta: metav1.TypeMeta{
+				Kind:       application.ApplicationKind,
+				APIVersion: "argoproj.io/v1alpha1",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:       name,
+				Namespace:  fixture.TestNamespace(),
+				Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
+			},
+			Spec: argov1alpha1.ApplicationSpec{
+				Project: "default",
+				Source: &argov1alpha1.ApplicationSource{
+					RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
+					TargetRevision: "HEAD",
+					Path:           name,
+				},
+				Destination: argov1alpha1.ApplicationDestination{
+					Server:    "https://kubernetes.default.svc",
+					Namespace: name,
+				},
+			},
+		}
+	}
+
+	expectedApps := []argov1alpha1.Application{
+		generateExpectedApp("guestbook"),
+	}
+	project := "gpg"
+
+	fixture.EnsureCleanState(t)
+	Given(t).
+		Project(project).
+		When().
+		// Create a GitGenerator-based ApplicationSet
+		Create(v1alpha1.ApplicationSet{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "simple-git-generator",
+			},
+			Spec: v1alpha1.ApplicationSetSpec{
+				Template: v1alpha1.ApplicationSetTemplate{
+					ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "{{path.basename}}"},
+					Spec: argov1alpha1.ApplicationSpec{
+						Project: project,
+						Source: &argov1alpha1.ApplicationSource{
+							RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
+							TargetRevision: "HEAD",
+							Path:           "{{path}}",
+						},
+						Destination: argov1alpha1.ApplicationDestination{
+							Server:    "https://kubernetes.default.svc",
+							Namespace: "{{path.basename}}",
+						},
+					},
+				},
+				Generators: []v1alpha1.ApplicationSetGenerator{
+					{
+						Git: &v1alpha1.GitGenerator{
+							RepoURL: "https://github.com/argoproj/argocd-example-apps.git",
+							Directories: []v1alpha1.GitDirectoryGeneratorItem{
+								{
+									Path: guestbookPath,
+								},
+							},
+						},
+					},
+				},
+			},
+		}).
+		Then().Expect(ApplicationsDoNotExist(expectedApps)).
+		// verify the ApplicationSet error status conditions were set correctly
+		Expect(ApplicationSetHasConditions("simple-git-generator", expectedConditionsParamsError)).
+		When().
+		Delete().Then().Expect(ApplicationsDoNotExist(expectedApps))
+}
+
+func TestSimpleGitDirectoryGeneratorGPGEnabledWithoutKnownKeys(t *testing.T) {
+	expectedErrorMessage := `error generating params from git: error getting directories from repo: error retrieving Git Directories: rpc error: code = Unknown desc = permission denied`
+	expectedConditionsParamsError := []v1alpha1.ApplicationSetCondition{
+		{
+			Type:    v1alpha1.ApplicationSetConditionErrorOccurred,
+			Status:  v1alpha1.ApplicationSetConditionStatusTrue,
+			Message: expectedErrorMessage,
+			Reason:  v1alpha1.ApplicationSetReasonApplicationParamsGenerationError,
+		},
+		{
+			Type:    v1alpha1.ApplicationSetConditionParametersGenerated,
+			Status:  v1alpha1.ApplicationSetConditionStatusFalse,
+			Message: expectedErrorMessage,
+			Reason:  v1alpha1.ApplicationSetReasonErrorOccurred,
+		},
+		{
+			Type:    v1alpha1.ApplicationSetConditionResourcesUpToDate,
+			Status:  v1alpha1.ApplicationSetConditionStatusFalse,
+			Message: expectedErrorMessage,
+			Reason:  v1alpha1.ApplicationSetReasonApplicationParamsGenerationError,
+		},
+	}
+	generateExpectedApp := func(name string) argov1alpha1.Application {
+		return argov1alpha1.Application{
+			TypeMeta: metav1.TypeMeta{
+				Kind:       application.ApplicationKind,
+				APIVersion: "argoproj.io/v1alpha1",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:       name,
+				Namespace:  fixture.TestNamespace(),
+				Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
+			},
+			Spec: argov1alpha1.ApplicationSpec{
+				Project: "default",
+				Source: &argov1alpha1.ApplicationSource{
+					RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
+					TargetRevision: "HEAD",
+					Path:           name,
+				},
+				Destination: argov1alpha1.ApplicationDestination{
+					Server:    "https://kubernetes.default.svc",
+					Namespace: name,
+				},
+			},
+		}
+	}
+
+	expectedApps := []argov1alpha1.Application{
+		generateExpectedApp("guestbook"),
+	}
+
+	project := "gpg"
+
+	str, _ := rand.RandString(1)
+
+	Given(t).
+		Project(project).
+		Path(guestbookPath).
+		When().
+		AddSignedFile("test.yaml", str).IgnoreErrors().
+		IgnoreErrors().
+		// Create a GitGenerator-based ApplicationSet
+		Create(v1alpha1.ApplicationSet{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "simple-git-generator",
+			},
+			Spec: v1alpha1.ApplicationSetSpec{
+				Template: v1alpha1.ApplicationSetTemplate{
+					ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "{{path.basename}}"},
+					Spec: argov1alpha1.ApplicationSpec{
+						Project: project,
+						Source: &argov1alpha1.ApplicationSource{
+							RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
+							TargetRevision: "HEAD",
+							Path:           "{{path}}",
+						},
+						Destination: argov1alpha1.ApplicationDestination{
+							Server:    "https://kubernetes.default.svc",
+							Namespace: "{{path.basename}}",
+						},
+						// Automatically create resources
+						SyncPolicy: &argov1alpha1.SyncPolicy{
+							Automated: &argov1alpha1.SyncPolicyAutomated{},
+						},
+					},
+				},
+				Generators: []v1alpha1.ApplicationSetGenerator{
+					{
+						Git: &v1alpha1.GitGenerator{
+							RepoURL: "https://github.com/argoproj/argocd-example-apps.git",
+							Directories: []v1alpha1.GitDirectoryGeneratorItem{
+								{
+									Path: guestbookPath,
+								},
+							},
+						},
+					},
+				},
+			},
+		}).Then().
+		// verify the ApplicationSet error status conditions were set correctly
+		Expect(ApplicationSetHasConditions("simple-git-generator", expectedConditionsParamsError)).
+		Expect(ApplicationsDoNotExist(expectedApps)).
+		When().
+		Delete().Then().Expect(ApplicationsDoNotExist(expectedApps))
+}
+
 func TestSimpleGitFilesGenerator(t *testing.T) {
 	generateExpectedApp := func(name string) argov1alpha1.Application {
 		return argov1alpha1.Application{
@@ -1536,6 +1745,210 @@ func TestSimpleGitFilesGenerator(t *testing.T) {
 		// Delete the ApplicationSet, and verify it deletes the Applications
 		When().
 		Delete().Then().Expect(ApplicationsDoNotExist(expectedAppsNewNamespace))
+}
+
+func TestSimpleGitFilesGeneratorGPGEnabledUnsignedCommits(t *testing.T) {
+	expectedErrorMessage := `error generating params from git: error retrieving Git files: rpc error: code = Unknown desc = permission denied`
+	expectedConditionsParamsError := []v1alpha1.ApplicationSetCondition{
+		{
+			Type:    v1alpha1.ApplicationSetConditionErrorOccurred,
+			Status:  v1alpha1.ApplicationSetConditionStatusTrue,
+			Message: expectedErrorMessage,
+			Reason:  v1alpha1.ApplicationSetReasonApplicationParamsGenerationError,
+		},
+		{
+			Type:    v1alpha1.ApplicationSetConditionParametersGenerated,
+			Status:  v1alpha1.ApplicationSetConditionStatusFalse,
+			Message: expectedErrorMessage,
+			Reason:  v1alpha1.ApplicationSetReasonErrorOccurred,
+		},
+		{
+			Type:    v1alpha1.ApplicationSetConditionResourcesUpToDate,
+			Status:  v1alpha1.ApplicationSetConditionStatusFalse,
+			Message: expectedErrorMessage,
+			Reason:  v1alpha1.ApplicationSetReasonApplicationParamsGenerationError,
+		},
+	}
+	project := "gpg"
+	generateExpectedApp := func(name string) argov1alpha1.Application {
+		return argov1alpha1.Application{
+			TypeMeta: metav1.TypeMeta{
+				Kind:       application.ApplicationKind,
+				APIVersion: "argoproj.io/v1alpha1",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:       name,
+				Namespace:  fixture.TestNamespace(),
+				Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
+			},
+			Spec: argov1alpha1.ApplicationSpec{
+				Project: project,
+				Source: &argov1alpha1.ApplicationSource{
+					RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
+					TargetRevision: "HEAD",
+					Path:           "guestbook",
+				},
+				Destination: argov1alpha1.ApplicationDestination{
+					Server:    "https://kubernetes.default.svc",
+					Namespace: "guestbook",
+				},
+			},
+		}
+	}
+
+	expectedApps := []argov1alpha1.Application{
+		generateExpectedApp("engineering-dev-guestbook"),
+		generateExpectedApp("engineering-prod-guestbook"),
+	}
+
+	fixture.EnsureCleanState(t)
+	Given(t).
+		Project(project).
+		When().
+		// Create a GitGenerator-based ApplicationSet
+		Create(v1alpha1.ApplicationSet{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "simple-git-generator",
+			},
+			Spec: v1alpha1.ApplicationSetSpec{
+				Template: v1alpha1.ApplicationSetTemplate{
+					ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "{{cluster.name}}-guestbook"},
+					Spec: argov1alpha1.ApplicationSpec{
+						Project: project,
+						Source: &argov1alpha1.ApplicationSource{
+							RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
+							TargetRevision: "HEAD",
+							Path:           "guestbook",
+						},
+						Destination: argov1alpha1.ApplicationDestination{
+							Server:    "https://kubernetes.default.svc",
+							Namespace: "guestbook",
+						},
+					},
+				},
+				Generators: []v1alpha1.ApplicationSetGenerator{
+					{
+						Git: &v1alpha1.GitGenerator{
+							RepoURL: "https://github.com/argoproj/applicationset.git",
+							Files: []v1alpha1.GitFileGeneratorItem{
+								{
+									Path: "examples/git-generator-files-discovery/cluster-config/**/config.json",
+								},
+							},
+						},
+					},
+				},
+			},
+		}).Then().Expect(ApplicationsDoNotExist(expectedApps)).
+		// verify the ApplicationSet error status conditions were set correctly
+		Expect(ApplicationSetHasConditions("simple-git-generator", expectedConditionsParamsError)).
+		When().
+		Delete().Then().Expect(ApplicationsDoNotExist(expectedApps))
+}
+
+func TestSimpleGitFilesGeneratorGPGEnabledWithoutKnownKeys(t *testing.T) {
+	expectedErrorMessage := `error generating params from git: error retrieving Git files: rpc error: code = Unknown desc = permission denied`
+	expectedConditionsParamsError := []v1alpha1.ApplicationSetCondition{
+		{
+			Type:    v1alpha1.ApplicationSetConditionErrorOccurred,
+			Status:  v1alpha1.ApplicationSetConditionStatusTrue,
+			Message: expectedErrorMessage,
+			Reason:  v1alpha1.ApplicationSetReasonApplicationParamsGenerationError,
+		},
+		{
+			Type:    v1alpha1.ApplicationSetConditionParametersGenerated,
+			Status:  v1alpha1.ApplicationSetConditionStatusFalse,
+			Message: expectedErrorMessage,
+			Reason:  v1alpha1.ApplicationSetReasonErrorOccurred,
+		},
+		{
+			Type:    v1alpha1.ApplicationSetConditionResourcesUpToDate,
+			Status:  v1alpha1.ApplicationSetConditionStatusFalse,
+			Message: expectedErrorMessage,
+			Reason:  v1alpha1.ApplicationSetReasonApplicationParamsGenerationError,
+		},
+	}
+	project := "gpg"
+	generateExpectedApp := func(name string) argov1alpha1.Application {
+		return argov1alpha1.Application{
+			TypeMeta: metav1.TypeMeta{
+				Kind:       application.ApplicationKind,
+				APIVersion: "argoproj.io/v1alpha1",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:       name,
+				Namespace:  fixture.TestNamespace(),
+				Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
+			},
+			Spec: argov1alpha1.ApplicationSpec{
+				Project: project,
+				Source: &argov1alpha1.ApplicationSource{
+					RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
+					TargetRevision: "HEAD",
+					Path:           "guestbook",
+				},
+				Destination: argov1alpha1.ApplicationDestination{
+					Server:    "https://kubernetes.default.svc",
+					Namespace: "guestbook",
+				},
+			},
+		}
+	}
+
+	str, _ := rand.RandString(1)
+
+	expectedApps := []argov1alpha1.Application{
+		generateExpectedApp("engineering-dev-guestbook"),
+		generateExpectedApp("engineering-prod-guestbook"),
+	}
+
+	fixture.EnsureCleanState(t)
+	Given(t).
+		Project(project).
+		Path(guestbookPath).
+		When().
+		AddSignedFile("test.yaml", str).IgnoreErrors().
+		IgnoreErrors().
+		// Create a GitGenerator-based ApplicationSet
+		Create(v1alpha1.ApplicationSet{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "simple-git-generator",
+			},
+			Spec: v1alpha1.ApplicationSetSpec{
+				Template: v1alpha1.ApplicationSetTemplate{
+					ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "{{cluster.name}}-guestbook"},
+					Spec: argov1alpha1.ApplicationSpec{
+						Project: project,
+						Source: &argov1alpha1.ApplicationSource{
+							RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
+							TargetRevision: "HEAD",
+							Path:           "guestbook",
+						},
+						Destination: argov1alpha1.ApplicationDestination{
+							Server:    "https://kubernetes.default.svc",
+							Namespace: "guestbook",
+						},
+					},
+				},
+				Generators: []v1alpha1.ApplicationSetGenerator{
+					{
+						Git: &v1alpha1.GitGenerator{
+							RepoURL: "https://github.com/argoproj/applicationset.git",
+							Files: []v1alpha1.GitFileGeneratorItem{
+								{
+									Path: "examples/git-generator-files-discovery/cluster-config/**/config.json",
+								},
+							},
+						},
+					},
+				},
+			},
+		}).Then().
+		// verify the ApplicationSet error status conditions were set correctly
+		Expect(ApplicationSetHasConditions("simple-git-generator", expectedConditionsParamsError)).
+		Expect(ApplicationsDoNotExist(expectedApps)).
+		When().
+		Delete().Then().Expect(ApplicationsDoNotExist(expectedApps))
 }
 
 func TestSimpleGitFilesGeneratorGoTemplate(t *testing.T) {

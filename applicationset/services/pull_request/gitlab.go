@@ -43,7 +43,7 @@ func NewGitLabService(ctx context.Context, token, url, project string, labels []
 
 	client, err := gitlab.NewClient(token, clientOptionFns...)
 	if err != nil {
-		return nil, fmt.Errorf("error creating Gitlab client: %v", err)
+		return nil, fmt.Errorf("error creating Gitlab client: %w", err)
 	}
 
 	return &GitLabService{
@@ -76,7 +76,7 @@ func (g *GitLabService) List(ctx context.Context) ([]*PullRequest, error) {
 	for {
 		mrs, resp, err := g.client.MergeRequests.ListProjectMergeRequests(g.project, opts)
 		if err != nil {
-			return nil, fmt.Errorf("error listing merge requests for project '%s': %v", g.project, err)
+			return nil, fmt.Errorf("error listing merge requests for project '%s': %w", g.project, err)
 		}
 		for _, mr := range mrs {
 			pullRequests = append(pullRequests, &PullRequest{

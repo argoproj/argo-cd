@@ -429,7 +429,7 @@ func (r *ApplicationSetReconciler) setApplicationSetStatusCondition(ctx context.
 			if client.IgnoreNotFound(err) != nil {
 				return nil
 			}
-			return fmt.Errorf("error fetching updated application set: %v", err)
+			return fmt.Errorf("error fetching updated application set: %w", err)
 		}
 
 		applicationSet.Status.SetConditions(
@@ -439,7 +439,7 @@ func (r *ApplicationSetReconciler) setApplicationSetStatusCondition(ctx context.
 		// Update the newly fetched object with new set of conditions
 		err := r.Client.Status().Update(ctx, applicationSet)
 		if err != nil && !apierr.IsNotFound(err) {
-			return fmt.Errorf("unable to set application set condition: %v", err)
+			return fmt.Errorf("unable to set application set condition: %w", err)
 		}
 	}
 
@@ -514,7 +514,7 @@ func (r *ApplicationSetReconciler) generateApplications(logCtx *log.Entry, appli
 	var applicationSetReason argov1alpha1.ApplicationSetReasonType
 
 	for _, requestedGenerator := range applicationSetInfo.Spec.Generators {
-		t, err := generators.Transform(requestedGenerator, r.Generators, applicationSetInfo.Spec.Template, &applicationSetInfo, map[string]interface{}{})
+		t, err := generators.Transform(requestedGenerator, r.Generators, applicationSetInfo.Spec.Template, &applicationSetInfo, map[string]interface{}{}, r.Client)
 		if err != nil {
 			logCtx.WithError(err).WithField("generator", requestedGenerator).
 				Error("error generating application from params")
@@ -1364,14 +1364,14 @@ func (r *ApplicationSetReconciler) updateResourcesStatus(ctx context.Context, lo
 	err := r.Client.Status().Update(ctx, appset)
 	if err != nil {
 		logCtx.Errorf("unable to set application set status: %v", err)
-		return fmt.Errorf("unable to set application set status: %v", err)
+		return fmt.Errorf("unable to set application set status: %w", err)
 	}
 
 	if err := r.Get(ctx, namespacedName, appset); err != nil {
 		if client.IgnoreNotFound(err) != nil {
 			return nil
 		}
-		return fmt.Errorf("error fetching updated application set: %v", err)
+		return fmt.Errorf("error fetching updated application set: %w", err)
 	}
 
 	return nil
@@ -1465,14 +1465,14 @@ func (r *ApplicationSetReconciler) setAppSetApplicationStatus(ctx context.Contex
 		err := r.Client.Status().Update(ctx, applicationSet)
 		if err != nil {
 			logCtx.Errorf("unable to set application set status: %v", err)
-			return fmt.Errorf("unable to set application set status: %v", err)
+			return fmt.Errorf("unable to set application set status: %w", err)
 		}
 
 		if err := r.Get(ctx, namespacedName, applicationSet); err != nil {
 			if client.IgnoreNotFound(err) != nil {
 				return nil
 			}
-			return fmt.Errorf("error fetching updated application set: %v", err)
+			return fmt.Errorf("error fetching updated application set: %w", err)
 		}
 	}
 

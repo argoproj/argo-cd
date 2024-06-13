@@ -38,7 +38,7 @@ func TestGenerateListParams(t *testing.T) {
 			List: &argoprojiov1alpha1.ListGenerator{
 				Elements: testCase.elements,
 			},
-		}, &applicationSetInfo)
+		}, &applicationSetInfo, nil)
 
 		assert.NoError(t, err)
 		assert.ElementsMatch(t, testCase.expected, got)
@@ -75,7 +75,7 @@ func TestGenerateListParamsGoTemplate(t *testing.T) {
 			List: &argoprojiov1alpha1.ListGenerator{
 				Elements: testCase.elements,
 			},
-		}, &applicationSetInfo)
+		}, &applicationSetInfo, nil)
 
 		assert.NoError(t, err)
 		assert.ElementsMatch(t, testCase.expected, got)
