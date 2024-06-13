@@ -2,9 +2,6 @@ issues:
   exclude:
     - SA5011
   exclude-rules:
-    - path: "(cmpserver|reposerver)/"
-      linters:
-        - errorlint
     - path: "(applicationset|cmd|cmpserver|controller|pkg|reposerver|server|test)/"
       text: "require-error:"
       linters:
