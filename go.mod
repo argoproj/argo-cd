@@ -12,7 +12,7 @@ require (
 	github.com/alicebob/miniredis/v2 v2.30.4
 	github.com/antonmedv/expr v1.15.2
 	github.com/argoproj/gitops-engine v0.7.1-0.20240514190100-8a3ce6d85caa
-	github.com/argoproj/notifications-engine v0.4.1-0.20240403133627-f48567108f01
+	github.com/argoproj/notifications-engine v0.4.1-0.20240606074338-0802cd427621
 	github.com/argoproj/pkg v0.13.7-0.20230626144333-d56162821bd1
 	github.com/aws/aws-sdk-go v1.50.8
 	github.com/bmatcuk/doublestar/v4 v4.6.0
