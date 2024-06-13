@@ -645,7 +645,7 @@ func TestPluginGenerateParams(t *testing.T) {
 			handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				authHeader := r.Header.Get("Authorization")
 				_, tokenKey := plugin.ParseSecretKey(testCase.configmap.Data["token"])
-				expectedToken := testCase.secret.Data[strings.Replace(tokenKey, "$", "", -1)]
+				expectedToken := testCase.secret.Data[strings.ReplaceAll(tokenKey, "$", "")]
 				if authHeader != "Bearer "+string(expectedToken) {
 					w.WriteHeader(http.StatusUnauthorized)
 					return
