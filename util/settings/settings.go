@@ -2230,7 +2230,7 @@ func (mgr *SettingsManager) GetIncludeEventLabelKeys() []string {
 	labelKeys := []string{}
 	argoCDCM, err := mgr.getConfigMap()
 	if err != nil {
-		log.Error(fmt.Errorf("failed getting configmap: %v", err))
+		log.Error(fmt.Errorf("failed getting configmap: %w", err))
 		return labelKeys
 	}
 	if value, ok := argoCDCM.Data[resourceIncludeEventLabelKeys]; ok {
@@ -2246,7 +2246,7 @@ func (mgr *SettingsManager) GetExcludeEventLabelKeys() []string {
 	labelKeys := []string{}
 	argoCDCM, err := mgr.getConfigMap()
 	if err != nil {
-		log.Error(fmt.Errorf("failed getting configmap: %v", err))
+		log.Error(fmt.Errorf("failed getting configmap: %w", err))
 		return labelKeys
 	}
 	if value, ok := argoCDCM.Data[resourceExcludeEventLabelKeys]; ok {
