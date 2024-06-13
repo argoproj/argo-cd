@@ -315,3 +315,11 @@ If for some reason authenticated Redis does not work for you and you want to use
 ## How do I provide my own Redis credentials?
 The Redis password is stored in Kubernetes secret `argocd-redis` with key `auth` in the namespace where Argo CD is installed.
 You can config your secret provider to generate Kubernetes secret accordingly.
+
+## How do I fix `Manifest generation error (cached)`?
+
+`Manifest generation error (cached)` means that there was an error when generating manifests and that the error message has been cached to avoid runaway retries.
+
+Doing a hard refresh (ignoring the cached error) can overcome transient issues. But if there's an ongoing reason manifest generation is failing, a hard refresh will not help.
+
+Instead, try searching the repo-server logs for the app name in order to identify the error that is causing manifest generation to fail.
