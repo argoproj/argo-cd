@@ -294,16 +294,21 @@ kubectl rollout restart statefulset argocd-application-controller
 Argo CD default installation is now configured to automatically enable Redis authentication.
 If for some reason authenticated Redis does not work for you and you want to use non-authenticated Redis, here are the steps:
 
-* You need to have your own Redis installation.
-* Configure Argo CD to use your own Redis instance. See this [doc](https://argo-cd.readthedocs.io/en/stable/operator-manual/argocd-cmd-params-cm-yaml/) for the Argo CD configuration.
-* If you already installed Redis shipped with Argo CD, you also need to clean up the existing components:
-  * When HA Redis is used:
-    * kubectl delete deployment argocd-redis-ha-haproxy
-    * kubectl delete statefulset argocd-redis-ha-server
-  * When non-HA Redis is used:
-    * kubectl delete deployment argocd-redis
-* Remove environment variable `REDIS_PASSWORD` from the following manifests
-    * Deployment: argocd-repo-server:
+1. You need to have your own Redis installation.
+2. Configure Argo CD to use your own Redis instance. See this [doc](https://argo-cd.readthedocs.io/en/stable/operator-manual/argocd-cmd-params-cm-yaml/) for the Argo CD configuration.
+3. If you already installed Redis shipped with Argo CD, you also need to clean up the existing components:
+
+    * When HA Redis is used:
+
+        - kubectl delete deployment argocd-redis-ha-haproxy
+        - kubectl delete statefulset argocd-redis-ha-server
+
+    * When non-HA Redis is used:
+
+        - kubectl delete deployment argocd-redis
+
+4. Remove environment variable `REDIS_PASSWORD` from the following manifests:
+    * Deployment: argocd-repo-server
     * Deployment: argocd-server
     * StatefulSet: argocd-application-controller
 
