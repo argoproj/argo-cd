@@ -193,6 +193,20 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
             );
 
         const getContentForChart = (aRevision: string, aSourceIndex: number, aVersionId: number, indx: number, aSource: models.ApplicationSource, sourceHeader?: JSX.Element) => {
+            const showChartNonMetadataInfo = (aRevision: string, aRepoUrl: string) => {
+                return (
+                    <>
+                        <div className='row white-box__details-row'>
+                            <div className='columns small-3'>Revision:</div>
+                            <div className='columns small-9'>{aRevision}</div>
+                        </div>
+                        <div className='row white-box__details-row'>
+                            <div className='columns small-3'>Chart Source:</div>
+                            <div className='columns small-9'>{aRepoUrl}</div>
+                        </div>
+                    </>
+                );
+            };
             return (
                 <DataLoader
                     key={indx}
@@ -203,14 +217,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                             <div className='white-box' style={{marginTop: '1.5em'}}>
                                 {sourceHeader && sourceHeader}
                                 <div className='white-box__details'>
-                                    <div className='row white-box__details-row'>
-                                        <div className='columns small-3'>Revision:</div>
-                                        <div className='columns small-9'>{aRevision}</div>
-                                    </div>
-                                    <div className='row white-box__details-row'>
-                                        <div className='columns small-3'>Chart Source:</div>
-                                        <div className='columns small-9'>{aSource.repoURL}</div>
-                                    </div>
+                                    {showChartNonMetadataInfo(aRevision, aSource.repoURL)}
                                     <div className='row white-box__details-row'>
                                         <div className='columns small-3'>Helm Chart:</div>
                                         <div className='columns small-9'>
@@ -243,16 +250,9 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                             </div>
                         ) : (
                             <div key={indx} className='white-box' style={{marginTop: '1.5em'}}>
-                                <div>No Chart Source {indx + 1}</div>
+                                <div>Source {indx + 1}</div>
                                 <div className='white-box__details'>
-                                    <div className='row white-box__details-row'>
-                                        <div className='columns small-3'>Revision:</div>
-                                        <div className='columns small-9'>{aRevision}</div>
-                                    </div>
-                                    <div className='row white-box__details-row'>
-                                        <div className='columns small-3'>Chart Source:</div>
-                                        <div className='columns small-9'>{aSource.repoURL}</div>
-                                    </div>
+                                    {showChartNonMetadataInfo(aRevision, aSource.repoURL)}
                                     <div className='row white-box__details-row'>
                                         <div className='columns small-3'>Helm Chart:</div>
                                         <div className='columns small-9'>
@@ -285,28 +285,35 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
             aSource: models.ApplicationSource,
             sourceHeader?: JSX.Element
         ) => {
+            const showNonMetadataInfo = (aSource: models.ApplicationSource, aRevision: string) => {
+                return (
+                    <>
+                        <div className='white-box__details'>
+                            <div className='row white-box__details-row'>
+                                <div className='columns small-3'>SHA:</div>
+                                <div className='columns small-9'>
+                                    <Revision repoUrl={aSource.repoURL} revision={aRevision} />
+                                </div>
+                            </div>
+                        </div>
+                        <div className='white-box__details'>
+                            <div className='row white-box__details-row'>
+                                <div className='columns small-3'>Source:</div>
+                                <div className='columns small-9'>{aSource.repoURL}</div>
+                            </div>
+                        </div>
+                    </>
+                );
+            };
             return (
                 <DataLoader
                     key={indx}
                     load={() => services.applications.revisionMetadata(application.metadata.name, application.metadata.namespace, aRevision, aSourceIndex, aVersionId)}>
                     {metadata =>
                         metadata ? (
-                            <div className='white-box' style={{marginTop: '1.5em'}}>
+                            <div key={indx} className='white-box' style={{marginTop: '1.5em'}}>
                                 {sourceHeader && sourceHeader}
-                                <div className='white-box__details'>
-                                    <div className='row white-box__details-row'>
-                                        <div className='columns small-3'>SHA:</div>
-                                        <div className='columns small-9'>
-                                            <Revision repoUrl={aSource.repoURL} revision={aRevision} />
-                                        </div>
-                                    </div>
-                                </div>
-                                <div className='white-box__details'>
-                                    <div className='row white-box__details-row'>
-                                        <div className='columns small-3'>Source:</div>
-                                        <div className='columns small-9'>{aSource.repoURL}</div>
-                                    </div>
-                                </div>
+                                {showNonMetadataInfo(aSource, aRevision)}
                                 <div className='white-box__details'>
                                     <div className='row white-box__details-row'>
                                         <div className='columns small-3'>Date:</div>
@@ -339,20 +346,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                         ) : (
                             <div key={indx} className='white-box' style={{marginTop: '1.5em'}}>
                                 <div>Source {indx + 1}</div>
-                                <div className='white-box__details'>
-                                    <div className='row white-box__details-row'>
-                                        <div className='columns small-3'>SHA:</div>
-                                        <div className='columns small-9'>
-                                            <Revision repoUrl={aSource.repoURL} revision={aRevision} />
-                                        </div>
-                                    </div>
-                                </div>
-                                <div className='white-box__details'>
-                                    <div className='row white-box__details-row'>
-                                        <div className='columns small-3'>Source:</div>
-                                        <div className='columns small-9'>{aSource.repoURL}</div>
-                                    </div>
-                                </div>
+                                {showNonMetadataInfo(aSource, aRevision)}
                             </div>
                         )
                     }
