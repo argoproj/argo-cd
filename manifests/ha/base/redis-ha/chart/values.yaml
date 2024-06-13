@@ -25,7 +25,7 @@ redis-ha:
       enabled: true
   image:
     repository: redis
-    tag: 7.0.14-alpine
+    tag: 7.0.15-alpine
   containerSecurityContext: null
   sentinel:
     bind: "0.0.0.0"
