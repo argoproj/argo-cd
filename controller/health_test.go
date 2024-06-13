@@ -46,7 +46,8 @@ func TestSetApplicationHealth(t *testing.T) {
 	runningPod := resourceFromFile("./testdata/pod-running-restart-always.yaml")
 
 	resources := []managedResource{{
-		Group: "", Version: "v1", Kind: "Pod", Live: &runningPod}, {
+		Group: "", Version: "v1", Kind: "Pod", Live: &runningPod,
+	}, {
 		Group: "batch", Version: "v1", Kind: "Job", Live: &failedJob,
 	}}
 	resourceStatuses := initStatuses(resources)
@@ -84,7 +85,8 @@ func TestSetApplicationHealth_MissingResource(t *testing.T) {
 	pod := resourceFromFile("./testdata/pod-running-restart-always.yaml")
 
 	resources := []managedResource{{
-		Group: "", Version: "v1", Kind: "Pod", Target: &pod}, {}}
+		Group: "", Version: "v1", Kind: "Pod", Target: &pod,
+	}, {}}
 	resourceStatuses := initStatuses(resources)
 
 	healthStatus, err := setApplicationHealth(resources, resourceStatuses, lua.ResourceHealthOverrides{}, app, true)
@@ -96,7 +98,8 @@ func TestSetApplicationHealth_MissingResourceNoBuiltHealthCheck(t *testing.T) {
 	cm := resourceFromFile("./testdata/configmap.yaml")
 
 	resources := []managedResource{{
-		Group: "", Version: "v1", Kind: "ConfigMap", Target: &cm}}
+		Group: "", Version: "v1", Kind: "ConfigMap", Target: &cm,
+	}}
 	resourceStatuses := initStatuses(resources)
 
 	t.Run("NoOverride", func(t *testing.T) {
@@ -158,7 +161,8 @@ return hs`,
 	t.Run("ChildAppDegraded", func(t *testing.T) {
 		degradedApp := newAppLiveObj(health.HealthStatusDegraded)
 		resources := []managedResource{{
-			Group: application.Group, Version: "v1alpha1", Kind: application.ApplicationKind, Live: degradedApp}, {}}
+			Group: application.Group, Version: "v1alpha1", Kind: application.ApplicationKind, Live: degradedApp,
+		}, {}}
 		resourceStatuses := initStatuses(resources)
 
 		healthStatus, err := setApplicationHealth(resources, resourceStatuses, overrides, app, true)
@@ -169,7 +173,8 @@ return hs`,
 	t.Run("ChildAppMissing", func(t *testing.T) {
 		degradedApp := newAppLiveObj(health.HealthStatusMissing)
 		resources := []managedResource{{
-			Group: application.Group, Version: "v1alpha1", Kind: application.ApplicationKind, Live: degradedApp}, {}}
+			Group: application.Group, Version: "v1alpha1", Kind: application.ApplicationKind, Live: degradedApp,
+		}, {}}
 		resourceStatuses := initStatuses(resources)
 
 		healthStatus, err := setApplicationHealth(resources, resourceStatuses, overrides, app, true)

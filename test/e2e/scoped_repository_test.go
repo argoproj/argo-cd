@@ -192,7 +192,6 @@ func TestDeleteRepository(t *testing.T) {
 		And(func(r *Repository, err error) {
 			assert.Equal(t, "repo not found", err.Error())
 		})
-
 }
 
 func TestListRepoCLIOutput(t *testing.T) {

@@ -119,7 +119,6 @@ func TestEncodeX509KeyPairString(t *testing.T) {
 	if strings.TrimSpace(chain) != strings.TrimSpace(cert) {
 		t.Errorf("Incorrect, got: %s, want: %s", cert, chain)
 	}
-
 }
 
 func TestGetTLSVersionByString(t *testing.T) {
@@ -166,7 +165,6 @@ func TestGetTLSCipherSuitesByString(t *testing.T) {
 		_, err := getTLSCipherSuitesByString(strings.Join(suites, ":"))
 		assert.Error(t, err)
 	})
-
 }
 
 func TestTLSVersionToString(t *testing.T) {
@@ -352,7 +350,6 @@ func TestGetTLSConfigCustomizer(t *testing.T) {
 		assert.Error(t, err)
 		assert.Nil(t, cfunc)
 	})
-
 }
 
 func TestBestEffortSystemCertPool(t *testing.T) {

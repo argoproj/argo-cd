@@ -58,7 +58,7 @@ func (g *GitlabProvider) GetBranches(ctx context.Context, repo *Repository) ([]*
 	repos := []*Repository{}
 	branches, err := g.listBranches(ctx, repo)
 	if err != nil {
-		return nil, fmt.Errorf("error listing branches for %s/%s: %v", repo.Organization, repo.Repository, err)
+		return nil, fmt.Errorf("error listing branches for %s/%s: %w", repo.Organization, repo.Repository, err)
 	}
 
 	for _, branch := range branches {
@@ -87,7 +87,7 @@ func (g *GitlabProvider) ListRepos(ctx context.Context, cloneProtocol string) ([
 	for {
 		gitlabRepos, resp, err := g.client.Groups.ListGroupProjects(g.organization, opt)
 		if err != nil {
-			return nil, fmt.Errorf("error listing projects for %s: %v", g.organization, err)
+			return nil, fmt.Errorf("error listing projects for %s: %w", g.organization, err)
 		}
 		for _, gitlabRepo := range gitlabRepos {
 			var url string

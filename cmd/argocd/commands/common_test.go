@@ -21,6 +21,7 @@ const expectJsonSingle = `{
   "foo": "bar"
 }
 `
+
 const expectYamlList = `one:
   bar: ""
   baz: foo

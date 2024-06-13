@@ -35,7 +35,6 @@ func captureStdout(callback func()) (string, error) {
 	utils.Close(w)
 
 	data, err := io.ReadAll(r)
-
 	if err != nil {
 		return "", err
 	}
@@ -305,7 +304,8 @@ func TestResourceOverrideIgnoreDifferences(t *testing.T) {
 			"resource.customizations": `apps/Deployment:
   ignoreDifferences: |
     jsonPointers:
-    - /spec`}))
+    - /spec`,
+		}))
 		out, err := captureStdout(func() {
 			cmd.SetArgs([]string{"ignore-differences", f})
 			err := cmd.Execute()
@@ -325,7 +325,8 @@ func TestResourceOverrideHealth(t *testing.T) {
 
 	t.Run("NoHealthAssessment", func(t *testing.T) {
 		cmd := NewResourceOverridesCommand(newCmdContext(map[string]string{
-			"resource.customizations": `example.com/ExampleResource: {}`}))
+			"resource.customizations": `example.com/ExampleResource: {}`,
+		}))
 		out, err := captureStdout(func() {
 			cmd.SetArgs([]string{"health", f})
 			err := cmd.Execute()
@@ -340,7 +341,8 @@ func TestResourceOverrideHealth(t *testing.T) {
 			"resource.customizations": `example.com/ExampleResource:
   health.lua: |
     return { status = "Progressing" }
-`}))
+`,
+		}))
 		out, err := captureStdout(func() {
 			cmd.SetArgs([]string{"health", f})
 			err := cmd.Execute()
@@ -355,7 +357,8 @@ func TestResourceOverrideHealth(t *testing.T) {
 			"resource.customizations": `example.com/*:
   health.lua: |
     return { status = "Progressing" }
-`}))
+`,
+		}))
 		out, err := captureStdout(func() {
 			cmd.SetArgs([]string{"health", f})
 			err := cmd.Execute()
@@ -381,7 +384,8 @@ func TestResourceOverrideAction(t *testing.T) {
 
 	t.Run("NoActions", func(t *testing.T) {
 		cmd := NewResourceOverridesCommand(newCmdContext(map[string]string{
-			"resource.customizations": `apps/Deployment: {}`}))
+			"resource.customizations": `apps/Deployment: {}`,
+		}))
 		out, err := captureStdout(func() {
 			cmd.SetArgs([]string{"run-action", f, "test"})
 			err := cmd.Execute()
@@ -405,7 +409,8 @@ func TestResourceOverrideAction(t *testing.T) {
       action.lua: |
         obj.metadata.labels["test"] = 'updated'
         return obj
-`}))
+`,
+		}))
 		out, err := captureStdout(func() {
 			cmd.SetArgs([]string{"run-action", f, "test"})
 			err := cmd.Execute()
@@ -449,7 +454,8 @@ resume   false
         result = {}
         result[1] = impactedResource1
         return result
-`}))
+`,
+		}))
 		out, err := captureStdout(func() {
 			cmd.SetArgs([]string{"run-action", cronJobFile, "test"})
 			err := cmd.Execute()

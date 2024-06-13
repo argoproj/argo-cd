@@ -120,6 +120,7 @@ func TestFilterPathDoesntExists(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Len(t, repos, 2)
 }
+
 func TestFilterRepoMatchBadRegexp(t *testing.T) {
 	provider := &MockProvider{
 		Repos: []*Repository{
@@ -311,8 +312,10 @@ func TestApplicableFilterMap(t *testing.T) {
 		BranchMatch: &regexp.Regexp{},
 		FilterType:  FilterTypeBranch,
 	}
-	filterMap := getApplicableFilters([]*Filter{&branchFilter, &repoFilter,
-		&pathExistsFilter, &labelMatchFilter, &unsetFilter, &additionalBranchFilter, &pathDoesntExistsFilter})
+	filterMap := getApplicableFilters([]*Filter{
+		&branchFilter, &repoFilter,
+		&pathExistsFilter, &labelMatchFilter, &unsetFilter, &additionalBranchFilter, &pathDoesntExistsFilter,
+	})
 
 	assert.Len(t, filterMap[FilterTypeRepo], 2)
 	assert.Len(t, filterMap[FilterTypeBranch], 4)

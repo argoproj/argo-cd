@@ -22,8 +22,10 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
-const defaulRedisInitialPasswordSecretName = "argocd-redis"
-const defaultResisInitialPasswordKey = "auth"
+const (
+	defaulRedisInitialPasswordSecretName = "argocd-redis"
+	defaultResisInitialPasswordKey       = "auth"
+)
 
 func generateRandomPassword() (string, error) {
 	const initialPasswordLength = 16
@@ -42,10 +44,8 @@ func generateRandomPassword() (string, error) {
 
 // NewRedisInitialPasswordCommand defines a new command to ensure Argo CD Redis password secret exists.
 func NewRedisInitialPasswordCommand() *cobra.Command {
-	var (
-		clientConfig clientcmd.ClientConfig
-	)
-	var command = cobra.Command{
+	var clientConfig clientcmd.ClientConfig
+	command := cobra.Command{
 		Use:   "redis-initial-password",
 		Short: "Ensure the Redis password exists, creating a new one if necessary.",
 		Run: func(c *cobra.Command, args []string) {

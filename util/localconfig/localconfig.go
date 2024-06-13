@@ -103,7 +103,7 @@ func ValidateLocalConfig(config LocalConfig) error {
 		return nil
 	}
 	if _, err := config.ResolveContext(config.CurrentContext); err != nil {
-		return fmt.Errorf("Local config invalid: %s", err)
+		return fmt.Errorf("Local config invalid: %w", err)
 	}
 	return nil
 }
@@ -282,7 +282,6 @@ func DefaultConfigDir() (string, error) {
 
 func getHomeDir() (string, error) {
 	homeDir, err := os.UserHomeDir()
-
 	if err != nil {
 		return "", err
 	}

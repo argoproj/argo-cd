@@ -39,7 +39,6 @@ func Test_gitErrToGRPC(t *testing.T) {
 }
 
 func Test_kubeErrToGRPC(t *testing.T) {
-
 	type testCase struct {
 		name               string
 		givenErrFn         func() error

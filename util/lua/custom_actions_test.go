@@ -104,7 +104,7 @@ func TestLuaResourceActionsScript(t *testing.T) {
 		}
 		assert.NoError(t, err)
 		dir := filepath.Dir(path)
-		//TODO: Change to path
+		// TODO: Change to path
 		yamlBytes, err := os.ReadFile(dir + "/action_test.yaml")
 		assert.NoError(t, err)
 		var resourceTest ActionTestStructure
@@ -136,7 +136,7 @@ func TestLuaResourceActionsScript(t *testing.T) {
 					// Uncomment the following line if you need to use lua libraries debugging
 					// purposes. Otherwise, leave this false to ensure tests reflect the same
 					// privileges that API server has.
-					//UseOpenLibs: true,
+					// UseOpenLibs: true,
 				}
 				sourceObj := getObj(filepath.Join(dir, test.InputPath))
 				action, err := vm.GetResourceAction(sourceObj, test.Action)

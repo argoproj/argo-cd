@@ -154,7 +154,6 @@ func TestAddProjectDestination(t *testing.T) {
 		"https://192.168.99.100:8443",
 		"test1",
 	)
-
 	if err != nil {
 		t.Fatalf("Unable to add project destination %v", err)
 	}
@@ -205,7 +204,6 @@ func TestAddProjectDestinationWithName(t *testing.T) {
 		"test1",
 		"--name",
 	)
-
 	if err != nil {
 		t.Fatalf("Unable to add project destination %v", err)
 	}
@@ -234,7 +232,6 @@ func TestRemoveProjectDestination(t *testing.T) {
 			}},
 		},
 	}, metav1.CreateOptions{})
-
 	if err != nil {
 		t.Fatalf("Unable to create project %v", err)
 	}
@@ -243,7 +240,6 @@ func TestRemoveProjectDestination(t *testing.T) {
 		"https://192.168.99.100:8443",
 		"test",
 	)
-
 	if err != nil {
 		t.Fatalf("Unable to remove project destination %v", err)
 	}
@@ -275,7 +271,6 @@ func TestAddProjectSource(t *testing.T) {
 	}
 
 	_, err = fixture.RunCli("proj", "add-source", projectName, "https://github.com/argoproj/argo-cd.git")
-
 	if err != nil {
 		t.Fatalf("Unable to add project source %v", err)
 	}
@@ -395,7 +390,6 @@ func TestUseJWTToken(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Nil(t, newProj.Status.JWTTokensByRole[roleName].Items)
 	assert.Nil(t, newProj.Spec.Roles[0].JWTTokens)
-
 }
 
 func TestAddOrphanedIgnore(t *testing.T) {
@@ -414,7 +408,6 @@ func TestAddOrphanedIgnore(t *testing.T) {
 		"--name",
 		"name",
 	)
-
 	if err != nil {
 		t.Fatalf("Unable to add resource to orphaned ignore %v", err)
 	}
@@ -452,7 +445,6 @@ func TestRemoveOrphanedIgnore(t *testing.T) {
 			},
 		},
 	}, metav1.CreateOptions{})
-
 	if err != nil {
 		t.Fatalf("Unable to create project %v", err)
 	}
@@ -463,7 +455,6 @@ func TestRemoveOrphanedIgnore(t *testing.T) {
 		"--name",
 		"name",
 	)
-
 	if err != nil {
 		t.Fatalf("Unable to remove resource from orphaned ignore list %v", err)
 	}
@@ -585,7 +576,6 @@ func TestGetVirtualProjectNoMatch(t *testing.T) {
 	// app trying to sync a resource which is black listed by global project
 	_, err = fixture.RunCli("app", "sync", fixture.Name(), "--resource", ":Service:guestbook-ui", "--timeout", fmt.Sprintf("%v", 10))
 	assert.NoError(t, err)
-
 }
 
 func TestGetVirtualProjectMatch(t *testing.T) {
@@ -627,5 +617,4 @@ func TestGetVirtualProjectMatch(t *testing.T) {
 	// app trying to sync a resource which is black listed by global project
 	_, err = fixture.RunCli("app", "sync", fixture.Name(), "--resource", ":Service:guestbook-ui", "--timeout", fmt.Sprintf("%v", 10))
 	assert.Contains(t, err.Error(), "blocked by sync window")
-
 }

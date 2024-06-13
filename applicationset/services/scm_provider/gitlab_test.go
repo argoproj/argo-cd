@@ -1046,6 +1046,7 @@ func gitlabMockHandler(t *testing.T) func(http.ResponseWriter, *http.Request) {
 		}
 	}
 }
+
 func TestGitlabListRepos(t *testing.T) {
 	cases := []struct {
 		name, proto, url, topic                                                  string

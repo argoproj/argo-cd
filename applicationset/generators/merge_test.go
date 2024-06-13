@@ -49,7 +49,6 @@ func listOfMapsToSet(maps []map[string]interface{}) (map[string]bool, error) {
 }
 
 func TestMergeGenerate(t *testing.T) {
-
 	testCases := []struct {
 		name           string
 		baseGenerators []argoprojiov1alpha1.ApplicationSetNestedGenerator
@@ -156,7 +155,7 @@ func TestMergeGenerate(t *testing.T) {
 
 			appSet := &argoprojiov1alpha1.ApplicationSet{}
 
-			var mergeGenerator = NewMergeGenerator(
+			mergeGenerator := NewMergeGenerator(
 				map[string]Generator{
 					"List": &ListGenerator{},
 					"Matrix": &MatrixGenerator{
@@ -178,7 +177,7 @@ func TestMergeGenerate(t *testing.T) {
 					MergeKeys:  testCaseCopy.mergeKeys,
 					Template:   argoprojiov1alpha1.ApplicationSetTemplate{},
 				},
-			}, appSet)
+			}, appSet, nil)
 
 			if testCaseCopy.expectedErr != nil {
 				assert.EqualError(t, err, testCaseCopy.expectedErr.Error())
@@ -197,7 +196,6 @@ func TestMergeGenerate(t *testing.T) {
 }
 
 func toAPIExtensionsJSON(t *testing.T, g interface{}) *apiextensionsv1.JSON {
-
 	resVal, err := json.Marshal(g)
 	if err != nil {
 		t.Error("unable to unmarshal json", g)
@@ -344,8 +342,6 @@ func TestParamSetsAreUniqueByMergeKeys(t *testing.T) {
 				assert.NoError(t, err)
 				assert.Equal(t, testCaseCopy.expected, got)
 			}
-
 		})
-
 	}
 }

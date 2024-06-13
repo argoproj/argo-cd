@@ -19,7 +19,7 @@ import (
 // clusterSecretEventHandler is used when watching Secrets to check if they are ArgoCD Cluster Secrets, and if so
 // requeue any related ApplicationSets.
 type clusterSecretEventHandler struct {
-	//handler.EnqueueRequestForOwner
+	// handler.EnqueueRequestForOwner
 	Log    log.FieldLogger
 	Client client.Client
 }
@@ -66,7 +66,6 @@ func (h *clusterSecretEventHandler) queueRelatedAppGenerators(ctx context.Contex
 
 	h.Log.WithField("count", len(appSetList.Items)).Info("listed ApplicationSets")
 	for _, appSet := range appSetList.Items {
-
 		foundClusterGenerator := false
 		for _, generator := range appSet.Spec.Generators {
 			if generator.Clusters != nil {
@@ -109,7 +108,6 @@ func (h *clusterSecretEventHandler) queueRelatedAppGenerators(ctx context.Contex
 			}
 		}
 		if foundClusterGenerator {
-
 			// TODO: only queue the AppGenerator if the labels match this cluster
 			req := ctrl.Request{NamespacedName: types.NamespacedName{Namespace: appSet.Namespace, Name: appSet.Name}}
 			q.Add(req)

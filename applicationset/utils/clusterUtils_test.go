@@ -64,7 +64,6 @@ func Test_secretToCluster_NoConfig(t *testing.T) {
 }
 
 func createClusterSecret(secretName string, clusterName string, clusterServer string) *corev1.Secret {
-
 	secret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      secretName,
@@ -81,15 +80,12 @@ func createClusterSecret(secretName string, clusterName string, clusterServer st
 	}
 
 	return secret
-
 }
 
 // From util/argo/argo_test.go
 // (ported to use kubeclientset)
 func TestValidateDestination(t *testing.T) {
-
 	t.Run("Validate destination with server url", func(t *testing.T) {
-
 		dest := argoappv1.ApplicationDestination{
 			Server:    "https://127.0.0.1:6443",
 			Namespace: "default",
@@ -174,5 +170,4 @@ func TestValidateDestination(t *testing.T) {
 		assert.Equal(t, "unable to find destination server: there are 2 clusters with the same name: [https://127.0.0.1:2443 https://127.0.0.1:8443]", err.Error())
 		assert.False(t, dest.IsServerInferred())
 	})
-
 }

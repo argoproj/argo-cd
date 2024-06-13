@@ -2,16 +2,21 @@ issues:
   exclude:
     - SA5011
   exclude-rules:
-    - path: "(applicationset|cmpserver|controller|reposerver|server|util)/"
+    - path: "(applicationset|cmd|cmpserver|controller|pkg|reposerver|server|test)/"
+      text: "require-error:"
       linters:
-        - errorlint
+        - testifylint
+    - path: "util/(argo|cache|cert|clusterauth|config|db|dex|git|gpg|grpc|helm|http|io|kube|kustomize|lua|notification|oidc|rbac|security|session|settings|tls|webhook)/"
+      text: "require-error:"
+      linters:
+        - testifylint
   max-issues-per-linter: 0
   max-same-issues: 0
 linters:
   enable:
     - errcheck
     - errorlint
-    - gofmt
+    - gofumpt
     - goimports
     - gosimple
     - govet
@@ -20,17 +25,15 @@ linters:
     - staticcheck
     - testifylint
     - unused
+    - whitespace 
 linters-settings:
   goimports:
     local-prefixes: github.com/argoproj/argo-cd/v2
   testifylint:
     enable-all: true
     disable:
-      - compares
       - error-is-as
       - float-compare
       - go-require
-      - nil-compare
-      - require-error
 run:
   timeout: 50m

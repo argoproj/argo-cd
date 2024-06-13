@@ -2,6 +2,7 @@ package scm_provider
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 
@@ -55,12 +56,12 @@ func (b *BitbucketServerProvider) ListRepos(_ context.Context, cloneProtocol str
 	for {
 		response, err := b.client.DefaultApi.GetRepositoriesWithOptions(b.projectKey, paged)
 		if err != nil {
-			return nil, fmt.Errorf("error listing repositories for %s: %v", b.projectKey, err)
+			return nil, fmt.Errorf("error listing repositories for %s: %w", b.projectKey, err)
 		}
 		repositories, err := bitbucketv1.GetRepositoriesResponse(response)
 		if err != nil {
 			log.Errorf("error parsing repositories response '%v'", response.Values)
-			return nil, fmt.Errorf("error parsing repositories response %s: %v", b.projectKey, err)
+			return nil, fmt.Errorf("error parsing repositories response %s: %w", b.projectKey, err)
 		}
 		for _, bitbucketRepo := range repositories {
 			var url string
@@ -127,7 +128,7 @@ func (b *BitbucketServerProvider) GetBranches(_ context.Context, repo *Repositor
 	repos := []*Repository{}
 	branches, err := b.listBranches(repo)
 	if err != nil {
-		return nil, fmt.Errorf("error listing branches for %s/%s: %v", repo.Organization, repo.Repository, err)
+		return nil, fmt.Errorf("error listing branches for %s/%s: %w", repo.Organization, repo.Repository, err)
 	}
 
 	for _, branch := range branches {
@@ -164,12 +165,12 @@ func (b *BitbucketServerProvider) listBranches(repo *Repository) ([]bitbucketv1.
 	for {
 		response, err := b.client.DefaultApi.GetBranches(repo.Organization, repo.Repository, paged)
 		if err != nil {
-			return nil, fmt.Errorf("error listing branches for %s/%s: %v", repo.Organization, repo.Repository, err)
+			return nil, fmt.Errorf("error listing branches for %s/%s: %w", repo.Organization, repo.Repository, err)
 		}
 		bitbucketBranches, err := bitbucketv1.GetBranchesResponse(response)
 		if err != nil {
 			log.Errorf("error parsing branches response '%v'", response.Values)
-			return nil, fmt.Errorf("error parsing branches response for %s/%s: %v", repo.Organization, repo.Repository, err)
+			return nil, fmt.Errorf("error parsing branches response for %s/%s: %w", repo.Organization, repo.Repository, err)
 		}
 
 		branches = append(branches, bitbucketBranches...)
@@ -187,7 +188,7 @@ func (b *BitbucketServerProvider) getDefaultBranch(org string, repo string) (*bi
 	response, err := b.client.DefaultApi.GetDefaultBranch(org, repo)
 	// The API will return 404 if a default branch is set but doesn't exist. In case the repo is empty and default branch is unset,
 	// we will get an EOF and a nil response.
-	if (response != nil && response.StatusCode == 404) || (response == nil && err == io.EOF) {
+	if (response != nil && response.StatusCode == 404) || (response == nil && err != nil && errors.Is(err, io.EOF)) {
 		return nil, nil
 	}
 	if err != nil {

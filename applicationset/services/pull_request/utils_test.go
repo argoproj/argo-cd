@@ -12,6 +12,7 @@ import (
 func strp(s string) *string {
 	return &s
 }
+
 func TestFilterBranchMatchBadRegexp(t *testing.T) {
 	provider, _ := NewFakeService(
 		context.Background(),

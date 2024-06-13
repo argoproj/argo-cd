@@ -258,6 +258,7 @@ func giteaMockHandler(t *testing.T) func(http.ResponseWriter, *http.Request) {
 		}
 	}
 }
+
 func TestGiteaListRepos(t *testing.T) {
 	cases := []struct {
 		name, proto, url                        string

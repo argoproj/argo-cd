@@ -14,7 +14,6 @@ import (
 )
 
 func TestRandomPasswordVerificationDelay(t *testing.T) {
-
 	// !race:
 	//`SessionManager.VerifyUsernamePassword` uses bcrypt to prevent against time-based attacks
 	// and verify the hashed password; however this is a CPU intensive algorithm that is made

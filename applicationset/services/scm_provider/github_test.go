@@ -303,7 +303,7 @@ func TestGithubGetBranches(t *testing.T) {
 	} else {
 		assert.Equal(t, "master", repos[0].Branch)
 	}
-	//Branch Doesn't exists instead of error will return no error
+	// Branch Doesn't exists instead of error will return no error
 	repo2 := &Repository{
 		Organization: "argoproj",
 		Repository:   "applicationset",

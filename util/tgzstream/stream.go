@@ -33,7 +33,7 @@ func CompressFiles(appPath string, included []string, excluded []string) (*os.Fi
 	appName := filepath.Base(appPath)
 	tempDir, err := files.CreateTempDir(os.TempDir())
 	if err != nil {
-		return nil, 0, "", fmt.Errorf("error creating tempDir for compressing files: %s", err)
+		return nil, 0, "", fmt.Errorf("error creating tempDir for compressing files: %w", err)
 	}
 	tgzFile, err := os.CreateTemp(tempDir, appName)
 	if err != nil {

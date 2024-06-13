@@ -753,8 +753,42 @@ func TestNoAppEnumeration(t *testing.T) {
 			},
 		}
 	})
+	testAppMulti := newTestApp(func(app *appsv1.Application) {
+		app.Name = "test-multi"
+		app.Spec.Sources = appsv1.ApplicationSources{
+			appsv1.ApplicationSource{
+				TargetRevision: "something-old",
+			},
+			appsv1.ApplicationSource{
+				TargetRevision: "something-old",
+			},
+		}
+		app.Status.Resources = []appsv1.ResourceStatus{
+			{
+				Group:     deployment.GroupVersionKind().Group,
+				Kind:      deployment.GroupVersionKind().Kind,
+				Version:   deployment.GroupVersionKind().Version,
+				Name:      deployment.Name,
+				Namespace: deployment.Namespace,
+				Status:    "Synced",
+			},
+		}
+		app.Status.History = []appsv1.RevisionHistory{
+			{
+				ID: 1,
+				Sources: appsv1.ApplicationSources{
+					appsv1.ApplicationSource{
+						TargetRevision: "something-old",
+					},
+					appsv1.ApplicationSource{
+						TargetRevision: "something-old",
+					},
+				},
+			},
+		}
+	})
 	testDeployment := kube.MustToUnstructured(&deployment)
-	appServer := newTestAppServerWithEnforcerConfigure(f, t, map[string]string{}, testApp, testHelmApp, testDeployment)
+	appServer := newTestAppServerWithEnforcerConfigure(f, t, map[string]string{}, testApp, testHelmApp, testAppMulti, testDeployment)
 
 	noRoleCtx := context.Background()
 	// nolint:staticcheck
@@ -880,6 +914,8 @@ func TestNoAppEnumeration(t *testing.T) {
 	t.Run("RevisionMetadata", func(t *testing.T) {
 		_, err := appServer.RevisionMetadata(adminCtx, &application.RevisionMetadataQuery{Name: ptr.To("test")})
 		assert.NoError(t, err)
+		_, err = appServer.RevisionMetadata(adminCtx, &application.RevisionMetadataQuery{Name: ptr.To("test-multi"), SourceIndex: ptr.To(int32(0)), VersionId: ptr.To(int32(1))})
+		assert.NoError(t, err)
 		_, err = appServer.RevisionMetadata(noRoleCtx, &application.RevisionMetadataQuery{Name: ptr.To("test")})
 		assert.Equal(t, permissionDeniedErr.Error(), err.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
 		_, err = appServer.RevisionMetadata(adminCtx, &application.RevisionMetadataQuery{Name: ptr.To("doest-not-exist")})
@@ -938,6 +974,8 @@ func TestNoAppEnumeration(t *testing.T) {
 	t.Run("Rollback", func(t *testing.T) {
 		unsetSyncRunningOperationState(t, appServer)
 		_, err := appServer.Rollback(adminCtx, &application.ApplicationRollbackRequest{Name: ptr.To("test")})
+		assert.NoError(t, err)
+		_, err = appServer.Rollback(adminCtx, &application.ApplicationRollbackRequest{Name: ptr.To("test-multi"), Id: ptr.To(int64(1))})
 		assert.NoError(t, err)
 		_, err = appServer.Rollback(noRoleCtx, &application.ApplicationRollbackRequest{Name: ptr.To("test")})
 		assert.Equal(t, permissionDeniedErr.Error(), err.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
@@ -1116,27 +1154,41 @@ func testListAppsWithLabels(t *testing.T, appQuery application.ApplicationQuery,
 		label          string
 		expectedResult []string
 	}{
-		{testName: "Equality based filtering using '=' operator",
+		{
+			testName:       "Equality based filtering using '=' operator",
 			label:          "key1=value1",
-			expectedResult: []string{"App1"}},
-		{testName: "Equality based filtering using '==' operator",
+			expectedResult: []string{"App1"},
+		},
+		{
+			testName:       "Equality based filtering using '==' operator",
 			label:          "key1==value1",
-			expectedResult: []string{"App1"}},
-		{testName: "Equality based filtering using '!=' operator",
+			expectedResult: []string{"App1"},
+		},
+		{
+			testName:       "Equality based filtering using '!=' operator",
 			label:          "key1!=value1",
-			expectedResult: []string{"App2", "App3"}},
-		{testName: "Set based filtering using 'in' operator",
+			expectedResult: []string{"App2", "App3"},
+		},
+		{
+			testName:       "Set based filtering using 'in' operator",
 			label:          "key1 in (value1, value3)",
-			expectedResult: []string{"App1", "App3"}},
-		{testName: "Set based filtering using 'notin' operator",
+			expectedResult: []string{"App1", "App3"},
+		},
+		{
+			testName:       "Set based filtering using 'notin' operator",
 			label:          "key1 notin (value1, value3)",
-			expectedResult: []string{"App2"}},
-		{testName: "Set based filtering using 'exists' operator",
+			expectedResult: []string{"App2"},
+		},
+		{
+			testName:       "Set based filtering using 'exists' operator",
 			label:          "key1",
-			expectedResult: []string{"App1", "App2", "App3"}},
-		{testName: "Set based filtering using 'not exists' operator",
+			expectedResult: []string{"App1", "App2", "App3"},
+		},
+		{
+			testName:       "Set based filtering using 'not exists' operator",
 			label:          "!key2",
-			expectedResult: []string{"App2", "App3"}},
+			expectedResult: []string{"App2", "App3"},
+		},
 	}
 	// test valid scenarios
 	for _, validTest := range validTests {
@@ -1157,12 +1209,16 @@ func testListAppsWithLabels(t *testing.T, appQuery application.ApplicationQuery,
 		label       string
 		errorMesage string
 	}{
-		{testName: "Set based filtering using '>' operator",
+		{
+			testName:    "Set based filtering using '>' operator",
 			label:       "key1>value1",
-			errorMesage: "error parsing the selector"},
-		{testName: "Set based filtering using '<' operator",
+			errorMesage: "error parsing the selector",
+		},
+		{
+			testName:    "Set based filtering using '<' operator",
 			label:       "key1<value1",
-			errorMesage: "error parsing the selector"},
+			errorMesage: "error parsing the selector",
+		},
 	}
 	// test invalid scenarios
 	for _, invalidTest := range invalidTests {
@@ -1916,7 +1972,8 @@ func TestAppMergePatch(t *testing.T) {
 	appServer.enf.SetDefaultRole("")
 
 	app, err := appServer.Patch(ctx, &application.ApplicationPatchRequest{
-		Name: &testApp.Name, Patch: ptr.To(`{"spec": { "source": { "path": "foo" } }}`), PatchType: ptr.To("merge")})
+		Name: &testApp.Name, Patch: ptr.To(`{"spec": { "source": { "path": "foo" } }}`), PatchType: ptr.To("merge"),
+	})
 	assert.NoError(t, err)
 	assert.Equal(t, "foo", app.Spec.Source.Path)
 }
@@ -2116,7 +2173,6 @@ func TestLogsGetSelectedPod(t *testing.T) {
 }
 
 func TestMaxPodLogsRender(t *testing.T) {
-
 	defaultMaxPodLogsToRender, _ := newTestAppServer(t).settingsMgr.GetMaxPodLogsToRender()
 
 	// Case: number of pods to view logs is less than defaultMaxPodLogsToRender
@@ -2262,7 +2318,6 @@ func TestGetAppRefresh_NormalRefresh(t *testing.T) {
 	case <-time.After(10 * time.Second):
 		assert.Fail(t, "Out of time ( 10 seconds )")
 	}
-
 }
 
 func TestGetAppRefresh_HardRefresh(t *testing.T) {

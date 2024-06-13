@@ -127,14 +127,14 @@ func TestInClusterServerAddressEnabled(t *testing.T) {
 	})
 	argoCDCM, err := settingsManager.getConfigMap()
 	assert.NoError(t, err)
-	assert.True(t, argoCDCM.Data[inClusterEnabledKey] == "true")
+	assert.Equal(t, "true", argoCDCM.Data[inClusterEnabledKey])
 
 	_, settingsManager = fixtures(map[string]string{
 		"cluster.inClusterEnabled": "false",
 	})
 	argoCDCM, err = settingsManager.getConfigMap()
 	assert.NoError(t, err)
-	assert.False(t, argoCDCM.Data[inClusterEnabledKey] == "true")
+	assert.NotEqual(t, "true", argoCDCM.Data[inClusterEnabledKey])
 }
 
 func TestInClusterServerAddressEnabledByDefault(t *testing.T) {
@@ -311,7 +311,6 @@ func TestGetResourceOverrides(t *testing.T) {
 	overrides, err = settingsManager.GetResourceOverrides()
 	assert.NoError(t, err)
 	assert.Empty(t, overrides)
-
 }
 
 func TestGetResourceOverridesHealthWithWildcard(t *testing.T) {
@@ -723,7 +722,8 @@ func TestKustomizeSettings_GetOptions(t *testing.T) {
 
 	t.Run("VersionDoesNotExist", func(t *testing.T) {
 		_, err := settings.GetOptions(v1alpha1.ApplicationSource{
-			Kustomize: &v1alpha1.ApplicationSourceKustomize{Version: "v4"}})
+			Kustomize: &v1alpha1.ApplicationSourceKustomize{Version: "v4"},
+		})
 		assert.Error(t, err)
 	})
 
@@ -738,7 +738,8 @@ func TestKustomizeSettings_GetOptions(t *testing.T) {
 
 	t.Run("VersionExists", func(t *testing.T) {
 		ver, err := settings.GetOptions(v1alpha1.ApplicationSource{
-			Kustomize: &v1alpha1.ApplicationSourceKustomize{Version: "v2"}})
+			Kustomize: &v1alpha1.ApplicationSourceKustomize{Version: "v2"},
+		})
 		if !assert.NoError(t, err) {
 			return
 		}
@@ -748,7 +749,8 @@ func TestKustomizeSettings_GetOptions(t *testing.T) {
 
 	t.Run("VersionExistsWithBuildOption", func(t *testing.T) {
 		ver, err := settings.GetOptions(v1alpha1.ApplicationSource{
-			Kustomize: &v1alpha1.ApplicationSourceKustomize{Version: "v3"}})
+			Kustomize: &v1alpha1.ApplicationSourceKustomize{Version: "v3"},
+		})
 		if !assert.NoError(t, err) {
 			return
 		}
@@ -774,7 +776,6 @@ func TestSettingsManager_GetHelp(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Empty(t, h.ChatURL)
 		assert.Empty(t, h.ChatText)
-
 	})
 	t.Run("Set", func(t *testing.T) {
 		_, settingsManager := fixtures(map[string]string{
@@ -1421,6 +1422,7 @@ func TestGetHelmSettings(t *testing.T) {
 		})
 	}
 }
+
 func TestArgoCDSettings_OIDCTLSConfig_OIDCTLSInsecureSkipVerify(t *testing.T) {
 	certParsed, err := tls.X509KeyPair(test.Cert, test.PrivateKey)
 	require.NoError(t, err)

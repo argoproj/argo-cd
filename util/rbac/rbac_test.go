@@ -23,11 +23,9 @@ const (
 	fakeNamespace     = "fake-ns"
 )
 
-var (
-	noOpUpdate = func(cm *apiv1.ConfigMap) error {
-		return nil
-	}
-)
+var noOpUpdate = func(cm *apiv1.ConfigMap) error {
+	return nil
+}
 
 func fakeConfigMap() *apiv1.ConfigMap {
 	cm := apiv1.ConfigMap{
@@ -104,7 +102,6 @@ func TestPolicyCSV(t *testing.T) {
 		assert.Equal(t, "policyb", result[2])
 		assert.Equal(t, "policyc", result[3])
 	})
-
 }
 
 // TestBuiltinPolicyEnforcer tests the builtin policy rules
@@ -212,7 +209,6 @@ p, cathy, repositories, *, foo/*, allow
 
 	assert.True(t, enf.Enforce("bob", "repositories", "delete", "foo/https://github.com/argoproj/argo-cd.git"))
 	assert.False(t, enf.Enforce("bob", "repositories", "delete", "foo/https://github.com/golang/go.git"))
-
 }
 
 func TestEnableDisableEnforce(t *testing.T) {
@@ -399,7 +395,6 @@ func TestEnforceErrorMessage(t *testing.T) {
 	err = enf.EnforceErr(ctx.Value("claims"), "project")
 	assert.Error(t, err)
 	assert.Equal(t, "rpc error: code = PermissionDenied desc = permission denied: project, sub: proj:default:admin", err.Error())
-
 }
 
 func TestDefaultGlobMatchMode(t *testing.T) {
@@ -414,7 +409,6 @@ p, alice, clusters, get, "https://github.com/*/*.git", allow
 
 	assert.True(t, enf.Enforce("alice", "clusters", "get", "https://github.com/argoproj/argo-cd.git"))
 	assert.False(t, enf.Enforce("alice", "repositories", "get", "https://github.com/argoproj/argo-cd.git"))
-
 }
 
 func TestGlobMatchMode(t *testing.T) {
@@ -431,7 +425,6 @@ p, alice, clusters, get, "https://github.com/*/*.git", allow
 
 	assert.True(t, enf.Enforce("alice", "clusters", "get", "https://github.com/argoproj/argo-cd.git"))
 	assert.False(t, enf.Enforce("alice", "clusters", "get", "https://github.com/argo-cd.git"))
-
 }
 
 func TestRegexMatchMode(t *testing.T) {
@@ -448,7 +441,6 @@ p, alice, clusters, get, "https://github.com/argo[a-z]{4}/argo-[a-z]+.git", allo
 
 	assert.True(t, enf.Enforce("alice", "clusters", "get", "https://github.com/argoproj/argo-cd.git"))
 	assert.False(t, enf.Enforce("alice", "clusters", "get", "https://github.com/argoproj/1argo-cd.git"))
-
 }
 
 func TestGlobMatchFunc(t *testing.T) {
