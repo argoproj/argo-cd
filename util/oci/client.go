@@ -41,8 +41,8 @@ type Client interface {
 	GetTags(ctx context.Context, noCache bool) (*TagsList, error)
 	ResolveDigest(ctx context.Context, revision string) (string, error)
 	ResolveRevision(ctx context.Context, revision string, noCache bool) (string, error)
-	CleanCache(revision string) error
-	Extract(ctx context.Context, revision string, manifestMaxExtractedSize int64, disableManifestMaxExtractedSize bool) (string, argoio.Closer, error)
+	CleanCache(revision string, project string) error
+	Extract(ctx context.Context, revision string, project string, manifestMaxExtractedSize int64, disableManifestMaxExtractedSize bool) (string, argoio.Closer, error)
 	TestRepo(ctx context.Context) (bool, error)
 }
 
@@ -147,8 +147,8 @@ func (c *nativeOciClient) TestRepo(ctx context.Context) (bool, error) {
 	return err == nil, err
 }
 
-func (c *nativeOciClient) Extract(ctx context.Context, revision string, manifestMaxExtractedSize int64, disableManifestMaxExtractedSize bool) (string, argoio.Closer, error) {
-	cachedPath, err := c.getCachedPath(revision)
+func (c *nativeOciClient) Extract(ctx context.Context, revision string, project string, manifestMaxExtractedSize int64, disableManifestMaxExtractedSize bool) (string, argoio.Closer, error) {
+	cachedPath, err := c.getCachedPath(revision, project)
 	if err != nil {
 		return "", nil, err
 	}
@@ -176,16 +176,16 @@ func (c *nativeOciClient) Extract(ctx context.Context, revision string, manifest
 	return cachedPath, fs, nil
 }
 
-func (c *nativeOciClient) getCachedPath(version string) (string, error) {
-	keyData, err := json.Marshal(map[string]string{"url": c.repoURL, "version": version})
+func (c *nativeOciClient) getCachedPath(version, project string) (string, error) {
+	keyData, err := json.Marshal(map[string]string{"url": c.repoURL, "project": project, "version": version})
 	if err != nil {
 		return "", err
 	}
 	return c.repoCachePaths.GetPath(string(keyData))
 }
 
-func (c *nativeOciClient) CleanCache(revision string) error {
-	cachePath, err := c.getCachedPath(revision)
+func (c *nativeOciClient) CleanCache(revision, project string) error {
+	cachePath, err := c.getCachedPath(revision, project)
 	if err != nil {
 		return err
 	}

@@ -355,13 +355,13 @@ func (s *Service) runRepoOperation(
 		}
 
 		if settings.noCache {
-			err = ociClient.CleanCache(digest)
+			err = ociClient.CleanCache(digest, repo.Project)
 			if err != nil {
 				return err
 			}
 		}
 
-		ociPath, closer, err := ociClient.Extract(ctx, digest, s.initConstants.HelmManifestMaxExtractedSize, s.initConstants.DisableHelmManifestMaxExtractedSize)
+		ociPath, closer, err := ociClient.Extract(ctx, digest, repo.Project, s.initConstants.HelmManifestMaxExtractedSize, s.initConstants.DisableHelmManifestMaxExtractedSize)
 		if err != nil {
 			return err
 		}
