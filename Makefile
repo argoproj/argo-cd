@@ -81,10 +81,16 @@ CONTAINER_GID=$(shell id -g)
 # Set SUDO to sudo to run privileged commands with sudo
 SUDO?=
 
+# Setup extra docker run flags when using kind cluster
+DOCKER_RUN_EXTRA_FLAGS?=
+ifeq (${ARGOCD_E2E_KIND_CLUSTER}, true)
+override DOCKER_RUN_EXTRA_FLAGS += --network kind
+endif
+
 # Runs any command in the argocd-test-utils container in server mode
 # Server mode container will start with uid 0 and drop privileges during runtime
 define run-in-test-server
-	$(SUDO) $(DOCKER) run --rm -it \
+	$(SUDO) $(DOCKER) run $(DOCKER_RUN_EXTRA_FLAGS) --rm -it \
 		--name argocd-test-server \
 		-u $(CONTAINER_UID):$(CONTAINER_GID) \
 		-e USER_ID=$(CONTAINER_UID) \
@@ -116,7 +122,7 @@ endef
 
 # Runs any command in the argocd-test-utils container in client mode
 define run-in-test-client
-	$(SUDO) $(DOCKER) run --rm -it \
+	$(SUDO) $(DOCKER) run  $(DOCKER_RUN_EXTRA_FLAGS) --rm -it \
 	  --name argocd-test-client \
 		-u $(CONTAINER_UID):$(CONTAINER_GID) \
 		-e HOME=/home/user \
@@ -421,7 +427,7 @@ test-e2e:
 test-e2e-local: cli-local
 	# NO_PROXY ensures all tests don't go out through a proxy if one is configured on the test system
 	export GO111MODULE=off
-	DIST_DIR=${DIST_DIR} RERUN_FAILS=5 PACKAGES="./test/e2e" ARGOCD_E2E_RECORD=${ARGOCD_E2E_RECORD} ARGOCD_GPG_ENABLED=true NO_PROXY=* ./hack/test.sh -timeout $(ARGOCD_E2E_TEST_TIMEOUT) -v
+	DIST_DIR=${DIST_DIR} RERUN_FAILS=5 PACKAGES="./test/e2e" ARGOCD_E2E_RECORD=${ARGOCD_E2E_RECORD} ARGOCD_GPG_ENABLED=${ARGOCD_GPG_ENABLED} NO_PROXY=* ./hack/test.sh -timeout $(ARGOCD_E2E_TEST_TIMEOUT) -v
 
 # Spawns a shell in the test server container for debugging purposes
 debug-test-server: test-tools-image
@@ -565,6 +571,7 @@ install-test-tools-local:
 	./hack/install.sh kustomize
 	./hack/install.sh helm
 	./hack/install.sh gotestsum
+	go install github.com/mattn/goreman@latest
 
 # Installs all tools required for running codegen (Linux packages)
 .PHONY: install-codegen-tools-local
