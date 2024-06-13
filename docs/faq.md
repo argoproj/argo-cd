@@ -70,14 +70,14 @@ kubectl -n argocd patch secret argocd-secret \
 ```
 
 Another option is to delete both the `admin.password` and `admin.passwordMtime` keys and restart argocd-server. This
-will generate a new password as per [the getting started guide](getting_started.md), so either to the name of the pod (
-Argo CD 1.8 and earlier)
+will generate a new password as per [the getting started guide](getting_started.md), so either to the name of the pod
+(Argo CD 1.8 and earlier)
 or a randomly generated password stored in a secret (Argo CD 1.9 and later).
 
 ## How to disable admin user?
 
-Add `admin.enabled: "false"` to the `argocd-cm` ConfigMap (
-see [user management](./operator-manual/user-management/index.md)).
+Add `admin.enabled: "false"` to the `argocd-cm` ConfigMap
+(see [user management](./operator-manual/user-management/index.md)).
 
 ## Argo CD cannot deploy Helm Chart based applications without internet access, how can I solve it?
 
@@ -110,8 +110,8 @@ to all manifest generators.
 ## I've configured [cluster secret](./operator-manual/declarative-setup.md#clusters) but it does not show up in CLI/UI, how do I fix it?
 
 Check if cluster secret has `argocd.argoproj.io/secret-type: cluster` label. If secret has the label but the cluster is
-still not visible then make sure it might be a permission issue. Try to list clusters using `admin` user (
-e.g. `argocd login --username admin && argocd cluster list`).
+still not visible then make sure it might be a permission issue. Try to list clusters using `admin` user
+(e.g. `argocd login --username admin && argocd cluster list`).
 
 ## Argo CD is unable to connect to my cluster, how do I troubleshoot it?
 
