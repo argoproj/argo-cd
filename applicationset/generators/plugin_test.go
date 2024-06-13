@@ -654,7 +654,7 @@ func TestPluginGenerateParams(t *testing.T) {
 				w.Header().Set("Content-Type", "application/json")
 				_, err := w.Write(testCase.content)
 				if err != nil {
-					assert.NoError(t, fmt.Errorf("Error Write %v", err))
+					assert.NoError(t, fmt.Errorf("Error Write %w", err))
 				}
 			})
 
@@ -681,7 +681,7 @@ func TestPluginGenerateParams(t *testing.T) {
 				},
 			}
 
-			got, err := pluginGenerator.GenerateParams(&generatorConfig, &applicationSetInfo)
+			got, err := pluginGenerator.GenerateParams(&generatorConfig, &applicationSetInfo, nil)
 			if err != nil {
 				fmt.Println(err)
 			}

@@ -70,19 +70,19 @@ func NewWebhookHandler(namespace string, argocdSettingsMgr *argosettings.Setting
 	// register the webhook secrets stored under "argocd-secret" for verifying incoming payloads
 	argocdSettings, err := argocdSettingsMgr.GetSettings()
 	if err != nil {
-		return nil, fmt.Errorf("Failed to get argocd settings: %v", err)
+		return nil, fmt.Errorf("Failed to get argocd settings: %w", err)
 	}
 	githubHandler, err := github.New(github.Options.Secret(argocdSettings.WebhookGitHubSecret))
 	if err != nil {
-		return nil, fmt.Errorf("Unable to init GitHub webhook: %v", err)
+		return nil, fmt.Errorf("Unable to init GitHub webhook: %w", err)
 	}
 	gitlabHandler, err := gitlab.New(gitlab.Options.Secret(argocdSettings.WebhookGitLabSecret))
 	if err != nil {
-		return nil, fmt.Errorf("Unable to init GitLab webhook: %v", err)
+		return nil, fmt.Errorf("Unable to init GitLab webhook: %w", err)
 	}
 	azuredevopsHandler, err := azuredevops.New()
 	if err != nil {
-		return nil, fmt.Errorf("Unable to init Azure DevOps webhook: %v", err)
+		return nil, fmt.Errorf("Unable to init Azure DevOps webhook: %w", err)
 	}
 	azuredevopsAuthHandler := func(r *http.Request) error {
 		if argocdSettings.WebhookAzureDevOpsUsername != "" && argocdSettings.WebhookAzureDevOpsPassword != "" {
@@ -512,7 +512,7 @@ func (h *WebhookHandler) shouldRefreshMatrixGenerator(gen *v1alpha1.MatrixGenera
 	relGenerators := generators.GetRelevantGenerators(requestedGenerator0, h.generators)
 	params := []map[string]interface{}{}
 	for _, g := range relGenerators {
-		p, err := g.GenerateParams(requestedGenerator0, appSet)
+		p, err := g.GenerateParams(requestedGenerator0, appSet, h.client)
 		if err != nil {
 			log.Error(err)
 			return false
