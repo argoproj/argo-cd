@@ -5,6 +5,14 @@ issues:
     - path: "(cmpserver|reposerver)/"
       linters:
         - errorlint
+    - path: "(applicationset|cmd|cmpserver|controller|pkg|reposerver|server|test)/"
+      text: "require-error:"
+      linters:
+        - testifylint
+    - path: "util/(argo|cache|cert|clusterauth|config|db|dex|git|gpg|grpc|helm|http|io|kube|kustomize|lua|notification|oidc|rbac|security|session|settings|tls|webhook)/"
+      text: "require-error:"
+      linters:
+        - testifylint
   max-issues-per-linter: 0
   max-same-issues: 0
 linters:
@@ -30,6 +38,5 @@ linters-settings:
       - error-is-as
       - float-compare
       - go-require
-      - require-error
 run:
   timeout: 50m
