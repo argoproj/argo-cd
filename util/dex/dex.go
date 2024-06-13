@@ -102,11 +102,11 @@ func NewDexHTTPReverseProxy(serverAddr string, baseHRef string, tlsConfig *DexTL
 }
 
 // NewDexRewriteURLRoundTripper creates a new DexRewriteURLRoundTripper
-func NewDexRewriteURLRoundTripper(dexServerAddr string, T http.RoundTripper) DexRewriteURLRoundTripper {
+func NewDexRewriteURLRoundTripper(dexServerAddr string, t http.RoundTripper) DexRewriteURLRoundTripper {
 	dexURL, _ := url.Parse(dexServerAddr)
 	return DexRewriteURLRoundTripper{
 		DexURL: dexURL,
-		T:      T,
+		T:      t,
 	}
 }
 
