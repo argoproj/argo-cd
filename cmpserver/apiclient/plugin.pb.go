@@ -468,6 +468,7 @@ func (m *File) GetChunk() []byte {
 	return nil
 }
 
+// CheckPluginConfigurationResponse contains a list of plugin configuration flags.
 type CheckPluginConfigurationResponse struct {
 	IsDiscoveryConfigured bool     `protobuf:"varint,1,opt,name=isDiscoveryConfigured,proto3" json:"isDiscoveryConfigured,omitempty"`
 	XXX_NoUnkeyedLiteral  struct{} `json:"-"`
