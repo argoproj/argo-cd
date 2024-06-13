@@ -153,6 +153,13 @@ DEV_IMAGE?=false
 ARGOCD_GPG_ENABLED?=true
 ARGOCD_E2E_APISERVER_PORT?=8080
 
+ifeq (${COVERAGE_ENABLED}, true)
+# We use this in the cli-local target to enable code coverage for e2e tests.
+COVERAGE_FLAG=-cover
+else
+COVERAGE_FLAG=
+endif
+
 override LDFLAGS += \
   -X ${PACKAGE}.version=${VERSION} \
   -X ${PACKAGE}.buildDate=${BUILD_DATE} \
@@ -240,7 +247,7 @@ cli: test-tools-image
 
 .PHONY: cli-local
 cli-local: clean-debug
-	CGO_ENABLED=${CGO_FLAG} GODEBUG="tarinsecurepath=0,zipinsecurepath=0" go build -cover -v -ldflags '${LDFLAGS}' -o ${DIST_DIR}/${CLI_NAME} ./cmd
+	CGO_ENABLED=${CGO_FLAG} GODEBUG="tarinsecurepath=0,zipinsecurepath=0" go build $(COVERAGE_FLAG) -v -ldflags '${LDFLAGS}' -o ${DIST_DIR}/${CLI_NAME} ./cmd
 
 .PHONY: gen-resources-cli-local
 gen-resources-cli-local: clean-debug
@@ -452,7 +459,7 @@ start-e2e-local: mod-vendor-local dep-ui-local cli-local
 	mkdir -p /tmp/argo-e2e/app/config/gpg/keys && chmod 0700 /tmp/argo-e2e/app/config/gpg/keys
 	mkdir -p /tmp/argo-e2e/app/config/gpg/source && chmod 0700 /tmp/argo-e2e/app/config/gpg/source
 	mkdir -p /tmp/argo-e2e/app/config/plugin && chmod 0700 /tmp/argo-e2e/app/config/plugin
-	# create a folder to hold go coverage results
+	# create folders to hold go coverage results for each component
 	mkdir -p /tmp/coverage/app-controller
 	mkdir -p /tmp/coverage/api-server
 	mkdir -p /tmp/coverage/repo-server
