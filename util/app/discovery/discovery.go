@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/argoproj/argo-cd/v2/util/io/files"
+	"github.com/golang/protobuf/ptypes/empty"
 
 	grpc_retry "github.com/grpc-ecosystem/go-grpc-middleware/retry"
 	log "github.com/sirupsen/logrus"
@@ -165,12 +166,22 @@ func cmpSupports(ctx context.Context, pluginSockFilePath, appPath, repoPath, fil
 		return nil, nil, false
 	}
 
-	// if plugin name is specified, lets return the client directly
-	if namedPlugin {
+	cfg, err := cmpClient.CheckPluginConfiguration(ctx, &empty.Empty{})
+
+	if err != nil {
+		log.WithFields(log.Fields{
+			common.SecurityField:    common.SecurityMedium,
+			common.SecurityCWEField: common.SecurityCWEMissingReleaseOfFileDescriptor,
+		}).Errorf("error checking plugin configuration %s, %v", fileName, err)
+		return nil, nil, false
+	}
+
+	// if discovery is not configured, return the client without further checks
+	if !cfg.IsDiscoveryConfigured {
 		return conn, cmpClient, true
 	}
 
-	isSupported, _, err := matchRepositoryCMP(ctx, appPath, repoPath, cmpClient, env, tarExcludedGlobs)
+	isSupported, isDiscoveryEnabled, err := matchRepositoryCMP(ctx, appPath, repoPath, cmpClient, env, tarExcludedGlobs)
 	if err != nil {
 		log.WithFields(log.Fields{
 			common.SecurityField:    common.SecurityMedium,
@@ -181,6 +192,10 @@ func cmpSupports(ctx context.Context, pluginSockFilePath, appPath, repoPath, fil
 	}
 
 	if !isSupported {
+		// if discovery is not set and the plugin name is specified, let app use the plugin
+		if !isDiscoveryEnabled && namedPlugin {
+			return conn, cmpClient, true
+		}
 		log.WithFields(log.Fields{
 			common.SecurityField:    common.SecurityLow,
 			common.SecurityCWEField: common.SecurityCWEMissingReleaseOfFileDescriptor,

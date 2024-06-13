@@ -4,6 +4,7 @@ option go_package = "github.com/argoproj/argo-cd/v2/cmpserver/apiclient";
 package plugin;
 
 import "github.com/argoproj/argo-cd/v2/reposerver/repository/repository.proto";
+import "google/protobuf/empty.proto";
 
 // AppStreamRequest is the request object used to send the application's
 // files over a stream.
@@ -57,11 +58,21 @@ message File {
     bytes chunk = 1;
 }
 
+// CheckPluginConfigurationResponse contains a list of plugin configuration flags.
+message CheckPluginConfigurationResponse {
+    bool isDiscoveryConfigured = 1;
+}
+
 // ConfigManagementPlugin Service
 service ConfigManagementPluginService {
     // GenerateManifests receive a stream containing a tgz archive with all required files necessary
     // to generate manifests
     rpc GenerateManifest(stream AppStreamRequest) returns (ManifestResponse) {
+    }
+
+    // CheckPluginConfiguration is a pre-flight request  to check the plugin configuration
+    // without sending the whole repo.
+    rpc CheckPluginConfiguration(google.protobuf.Empty) returns (CheckPluginConfigurationResponse) {
     }
 
     // MatchRepository returns whether or not the given application is supported by the plugin
