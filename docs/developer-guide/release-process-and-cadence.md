@@ -15,10 +15,15 @@ These are the upcoming releases dates:
 | v2.10   | Monday, Dec. 18, 2023 | Monday, Feb. 5, 2024 | [Katie Lamkin](https://github.com/kmlamkin9)          |                                                       | [checklist](https://github.com/argoproj/argo-cd/issues/16339) |
 | v2.11   | Friday, Apr. 5,  2024 | Monday, May 6, 2024  | [Pavel Kostohrys](https://github.com/pasha-codefresh) | [Pavel Kostohrys](https://github.com/pasha-codefresh) | [checklist](https://github.com/argoproj/argo-cd/issues/17726) |
 | v2.12   | Monday, Jun. 17, 2024 | Monday, Aug. 5, 2024 | 
+| v2.13 or v3.0  | Monday, Sep. 23, 2024 | Monday, Nov. 4, 2024 |
 
 Actual release dates might differ from the plan by a few days.
 
 ### Release Process
+
+#### Major Releases
+
+A major Argo CD release may occur once a year, in the fall release. These releases follow the same pattern of minor releases but may include removing features that have been previously deprecated. Major releases are optional and may be skipped if no deprecations are required. If enough features or changes are planned to merit, the major release may happen out of the planned phase. Those changes should be minimal.
 
 #### Minor Releases (e.g. 2.x.0)
 
