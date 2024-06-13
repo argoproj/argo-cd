@@ -717,8 +717,6 @@ export function syncStatusMessage(app: appModels.Application) {
         }
     }
 
-    message += getAppDefaultSyncRevisionExtra(app);
-
     switch (app.status.sync.status) {
         case appModels.SyncStatuses.Synced:
             return (
@@ -726,7 +724,8 @@ export function syncStatusMessage(app: appModels.Application) {
                     to{' '}
                     <Revision repoUrl={source.repoURL} revision={rev}>
                         {message}
-                    </Revision>{' '}
+                    </Revision>
+                    {getAppDefaultSyncRevisionExtra(app)}{' '}
                 </span>
             );
         case appModels.SyncStatuses.OutOfSync:
@@ -735,7 +734,8 @@ export function syncStatusMessage(app: appModels.Application) {
                     from{' '}
                     <Revision repoUrl={source.repoURL} revision={rev}>
                         {message}
-                    </Revision>{' '}
+                    </Revision>
+                    {getAppDefaultSyncRevisionExtra(app)}{' '}
                 </span>
             );
         default:
@@ -1118,6 +1118,17 @@ export function getAppDefaultSyncRevision(app?: appModels.Application) {
     return app.status.sync.revisions && app.status.sync.revisions.length > 0 ? app.status.sync.revisions[0] : app.status.sync.revision;
 }
 
+// getAppDefaultOperationSyncRevision gets the first app revisions from `status.operationState.syncResult.revisions` or, if that list is missing or empty, the `revision`
+// field.
+export function getAppDefaultOperationSyncRevision(app?: appModels.Application) {
+    if (!app || !app.status || !app.status.operationState || !app.status.operationState.syncResult) {
+        return '';
+    }
+    return app.status.operationState.syncResult.revisions && app.status.operationState.syncResult.revisions.length > 0
+        ? app.status.operationState.syncResult.revisions[0]
+        : app.status.operationState.syncResult.revision;
+}
+
 // getAppCurrentVersion gets the first app revisions from `status.sync.revisions` or, if that list is missing or empty, the `revision`
 // field.
 export function getAppCurrentVersion(app?: appModels.Application) {
@@ -1137,6 +1148,19 @@ export function getAppDefaultSyncRevisionExtra(app?: appModels.Application) {
         return ` and (${app.status.sync.revisions.length - 1}) more`;
     }
 
+    return '';
+}
+
+// getAppDefaultOperationSyncRevisionExtra gets the first app revisions from `status.operationState.syncResult.revisions` or, if that list is missing or empty, the `revision`
+// field.
+export function getAppDefaultOperationSyncRevisionExtra(app?: appModels.Application) {
+    if (!app || !app.status || !app.status.operationState || !app.status.operationState.syncResult || !app.status.operationState.syncResult.revisions) {
+        return '';
+    }
+
+    if (app.status.operationState.syncResult.revisions.length > 0) {
+        return ` and (${app.status.operationState.syncResult.revisions.length - 1}) more`;
+    }
     return '';
 }
 
