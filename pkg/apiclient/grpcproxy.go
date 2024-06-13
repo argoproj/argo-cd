@@ -198,7 +198,7 @@ func (c *client) useGRPCProxy() (net.Addr, io.Closer, error) {
 			return nil, nil, err
 		}
 	}
-	c.proxyUsersCount++
+	c.proxyUsersCount = c.proxyUsersCount + 1
 
 	return c.proxyListener.Addr(), argoio.NewCloser(func() error {
 		c.proxyMutex.Lock()
