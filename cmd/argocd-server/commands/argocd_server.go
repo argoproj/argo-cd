@@ -226,8 +226,6 @@ func NewCommand() *cobra.Command {
 				if closer != nil {
 					closer()
 				}
-				log.Info("API Server successfully shut down.")
-				break
 			}
 		},
 		Example: templates.Examples(`
