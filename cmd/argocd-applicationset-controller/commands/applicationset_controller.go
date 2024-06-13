@@ -182,6 +182,7 @@ func NewCommand() *cobra.Command {
 				"ClusterDecisionResource": generators.NewDuckTypeGenerator(ctx, dynamicClient, k8sClient, namespace),
 				"PullRequest":             generators.NewPullRequestGenerator(mgr.GetClient(), scmAuth, scmRootCAPath, allowedScmProviders, enableScmProviders),
 				"Plugin":                  generators.NewPluginGenerator(mgr.GetClient(), ctx, k8sClient, namespace),
+				"GitlabEnvironment":       generators.NewGitlabEnvironmentGenerator(mgr.GetClient(), scmAuth, scmRootCAPath),
 			}
 
 			nestedGenerators := map[string]generators.Generator{
@@ -192,6 +193,7 @@ func NewCommand() *cobra.Command {
 				"ClusterDecisionResource": terminalGenerators["ClusterDecisionResource"],
 				"PullRequest":             terminalGenerators["PullRequest"],
 				"Plugin":                  terminalGenerators["Plugin"],
+				"GitlabEnvironment":       terminalGenerators["GitlabEnvironment"],
 				"Matrix":                  generators.NewMatrixGenerator(terminalGenerators),
 				"Merge":                   generators.NewMergeGenerator(terminalGenerators),
 			}
@@ -203,6 +205,7 @@ func NewCommand() *cobra.Command {
 				"SCMProvider":             terminalGenerators["SCMProvider"],
 				"ClusterDecisionResource": terminalGenerators["ClusterDecisionResource"],
 				"PullRequest":             terminalGenerators["PullRequest"],
+				"GitlabEnvironment":       terminalGenerators["GitlabEnvironment"],
 				"Plugin":                  terminalGenerators["Plugin"],
 				"Matrix":                  generators.NewMatrixGenerator(nestedGenerators),
 				"Merge":                   generators.NewMergeGenerator(nestedGenerators),
