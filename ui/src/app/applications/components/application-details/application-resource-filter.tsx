@@ -103,6 +103,14 @@ export const Filters = (props: FiltersProps) => {
         .filter(uniq)
         .sort();
 
+    const revisions = tree.nodes
+        .filter(x => x.kind === 'ReplicaSet')
+        .map(x => x.info.find(i => i.name === 'Revision')?.value)
+        .filter(uniq)
+        .sort();
+
+    const latestRevision = revisions.sort((a: string, b: string) => Number(b.split(':')[1]) - Number(a.split(':')[1]))[0];
+
     const selectedFor = (prefix: string) => {
         return groupedFilters[prefix] ? groupedFilters[prefix].split(',').map(removePrefix(prefix)) : [];
     };
@@ -120,8 +128,18 @@ export const Filters = (props: FiltersProps) => {
         }
     };
 
+    const setRevisionFilter = (val: boolean) => {
+        ctx.navigation.goto('.', {hideOldRevisions: val, latestRevision}, {replace: true});
+        services.viewPreferences.updatePreferences({appDetails: {...pref, hideOldRevisions: val, latestRevision}});
+    };
+
     return (
-        <FiltersGroup content={props.children} appliedFilter={pref.resourceFilter} onClearFilter={onClearFilter} collapsed={props.collapsed}>
+        <FiltersGroup
+            content={props.children}
+            appliedFilter={pref.resourceFilter}
+            hideOldRevisions={pref.hideOldRevisions}
+            onClearFilter={onClearFilter}
+            collapsed={props.collapsed}>
             {ResourceFilter({label: 'NAME', prefix: 'name', options: names.map(toOption), field: true})}
             {ResourceFilter({
                 label: 'KINDS',
@@ -166,6 +184,21 @@ export const Filters = (props: FiltersProps) => {
                         }}
                     />
                     <div className='filter__item__label'>Show Orphaned</div>
+                </div>
+            )}
+            {revisions.length > 1 && (
+                <div className='filter'>
+                    <div className='filter__header'>REVISION</div>
+                    <div className={`filter__item ${pref.hideOldRevisions ? 'filter__item--selected' : ''}`} onClick={() => setRevisionFilter(!pref.hideOldRevisions)}>
+                        <Checkbox
+                            value={!!pref.hideOldRevisions}
+                            onChange={(val: boolean) => setRevisionFilter(val)}
+                            style={{
+                                marginRight: '8px'
+                            }}
+                        />
+                        <div className='filter__item__label'>Hide Old Revisions</div>
+                    </div>
                 </div>
             )}
         </FiltersGroup>

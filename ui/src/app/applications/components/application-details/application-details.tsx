@@ -52,6 +52,8 @@ interface FilterInput {
     health: string[];
     sync: string[];
     namespace: string[];
+    hideOldRevisions: boolean;
+    latestRevision: string;
 }
 
 const ApplicationDetailsFilters = (props: FiltersProps) => {
@@ -417,6 +419,10 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                     if (params.get('orphaned') != null) {
                                         pref.orphanedResources = params.get('orphaned') === 'true';
                                     }
+                                    if (params.get('hideOldRevisions') != null) {
+                                        pref.hideOldRevisions = params.get('hideOldRevisions') === 'true';
+                                        pref.latestRevision = params.get('latestRevision');
+                                    }
                                     if (params.get('podSortMode') != null) {
                                         pref.podView.sortMode = params.get('podSortMode') as PodGroupType;
                                     } else {
@@ -433,12 +439,15 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                         }>
                         {({application, tree, pref}: {application: appModels.Application; tree: appModels.ApplicationTree; pref: AppDetailsPreferences}) => {
                             tree.nodes = tree.nodes || [];
-                            const treeFilter = this.getTreeFilter(pref.resourceFilter);
+                            const treeFilter = this.getTreeFilter(pref.resourceFilter, pref.hideOldRevisions, pref.latestRevision);
                             const setFilter = (items: string[]) => {
                                 this.appContext.apis.navigation.goto('.', {resource: items.join(',')}, {replace: true});
                                 services.viewPreferences.updatePreferences({appDetails: {...pref, resourceFilter: items}});
                             };
-                            const clearFilter = () => setFilter([]);
+                            const clearFilter = () => {
+                                this.appContext.apis.navigation.goto('.', {resource: '', hideOldRevisions: false}, {replace: true});
+                                services.viewPreferences.updatePreferences({appDetails: {...pref, resourceFilter: [], hideOldRevisions: false}});
+                            };
                             const refreshing = application.metadata.annotations && application.metadata.annotations[appModels.AnnotationRefreshKey];
                             const appNodesByName = this.groupAppNodesByKey(application, tree);
                             const selectedItem = (this.selectedNodeKey && appNodesByName.get(this.selectedNodeKey)) || null;
@@ -958,7 +967,11 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                 hook ||
                 (root.health && filterInput.health.indexOf(root.health.status) > -1) ||
                 (node.health && filterInput.health.indexOf(node.health.status) > -1)) &&
-            (filterInput.namespace.length === 0 || filterInput.namespace.includes(node.namespace))
+            (filterInput.namespace.length === 0 || filterInput.namespace.includes(node.namespace)) &&
+            (!filterInput.hideOldRevisions ||
+                (filterInput.hideOldRevisions &&
+                    (!(node.kind === 'Deployment' || node.kind === 'ReplicaSet') ||
+                        ((node.kind === 'Deployment' || node.kind === 'ReplicaSet') && node.info?.find(x => x.name === 'Revision')?.value === filterInput.latestRevision))))
         ) {
             return true;
         }
@@ -1050,7 +1063,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
         return nodeByKey;
     }
 
-    private getTreeFilter(filterInput: string[]): FilterInput {
+    private getTreeFilter(filterInput: string[], hideOldRevisions: boolean, latestRevision: string): FilterInput {
         const name = new Array<string>();
         const kind = new Array<string>();
         const health = new Array<string>();
@@ -1076,7 +1089,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                     break;
             }
         }
-        return {kind, health, sync, namespace, name};
+        return {kind, health, sync, namespace, name, hideOldRevisions, latestRevision};
     }
 
     private setOperationStatusVisible(isVisible: boolean) {
