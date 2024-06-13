@@ -585,15 +585,17 @@ func (a *ArgoCDServer) Run(ctx context.Context, listeners *Listeners) {
 			}
 		}()
 
-		// Shutdown https server
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			err := httpsS.Shutdown(sCtx)
-			if err != nil {
-				log.Errorf("Error shutting down https server: %s", err)
-			}
-		}()
+		if httpsS != nil {
+			// Shutdown https server
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				err := httpsS.Shutdown(sCtx)
+				if err != nil {
+					log.Errorf("Error shutting down https server: %s", err)
+				}
+			}()
+		}
 
 		// Shutdown gRPC server
 		wg.Add(1)
@@ -612,12 +614,14 @@ func (a *ArgoCDServer) Run(ctx context.Context, listeners *Listeners) {
 			}
 		}()
 
-		// Shutdown tls server
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			tlsm.Close()
-		}()
+		if tlsm != nil {
+			// Shutdown tls server
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				tlsm.Close()
+			}()
+		}
 
 		// Shutdown tcp server
 		wg.Add(1)
