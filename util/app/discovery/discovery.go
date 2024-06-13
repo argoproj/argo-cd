@@ -7,8 +7,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/argoproj/argo-cd/v2/util/io/files"
 	"github.com/golang/protobuf/ptypes/empty"
+
+	"github.com/argoproj/argo-cd/v2/util/io/files"
 
 	grpc_retry "github.com/grpc-ecosystem/go-grpc-middleware/retry"
 	log "github.com/sirupsen/logrus"
@@ -167,7 +168,6 @@ func cmpSupports(ctx context.Context, pluginSockFilePath, appPath, repoPath, fil
 	}
 
 	cfg, err := cmpClient.CheckPluginConfiguration(ctx, &empty.Empty{})
-
 	if err != nil {
 		log.WithFields(log.Fields{
 			common.SecurityField:    common.SecurityMedium,
