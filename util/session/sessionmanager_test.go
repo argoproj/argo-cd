@@ -653,7 +653,7 @@ clientSecret: yyy
 requestedScopes: ["oidc"]
 rootCA: |
   %s
-`, oidcTestServer.URL, strings.Replace(string(cert), "\n", "\n  ", -1)),
+`, oidcTestServer.URL, strings.ReplaceAll(string(cert), "\n", "\n  ")),
 		}
 
 		settingsMgr := settings.NewSettingsManager(context.Background(), getKubeClientWithConfig(dexConfig, nil), "argocd")
