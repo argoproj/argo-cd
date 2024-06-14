@@ -7,8 +7,6 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/argoproj/argo-cd/v2/util/git"
-
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/argoproj/gitops-engine/pkg/utils/text"
 	log "github.com/sirupsen/logrus"
