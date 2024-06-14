@@ -44,7 +44,7 @@ func (g *ListGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.Appli
 		var element map[string]interface{}
 		err := json.Unmarshal(tmpItem.Raw, &element)
 		if err != nil {
-			return nil, fmt.Errorf("error unmarshling list element %v", err)
+			return nil, fmt.Errorf("error unmarshling list element %w", err)
 		}
 
 		if appSet.Spec.GoTemplate {
@@ -59,14 +59,14 @@ func (g *ListGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.Appli
 					for k, v := range values {
 						value, ok := v.(string)
 						if !ok {
-							return nil, fmt.Errorf("error parsing value as string %v", err)
+							return nil, fmt.Errorf("error parsing value as string %w", err)
 						}
 						params[fmt.Sprintf("values.%s", k)] = value
 					}
 				} else {
 					v, ok := value.(string)
 					if !ok {
-						return nil, fmt.Errorf("error parsing value as string %v", err)
+						return nil, fmt.Errorf("error parsing value as string %w", err)
 					}
 					params[key] = v
 				}
@@ -80,7 +80,7 @@ func (g *ListGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.Appli
 		var yamlElements []map[string]interface{}
 		err := yaml.Unmarshal([]byte(appSetGenerator.List.ElementsYaml), &yamlElements)
 		if err != nil {
-			return nil, fmt.Errorf("error unmarshling decoded ElementsYaml %v", err)
+			return nil, fmt.Errorf("error unmarshling decoded ElementsYaml %w", err)
 		}
 		res = append(res, yamlElements...)
 	}

@@ -2544,10 +2544,8 @@ func setParameterOverrides(app *argoappv1.Application, parameters []string, sour
 		sourceType = *st
 	} else if app.Status.SourceType != "" {
 		sourceType = app.Status.SourceType
-	} else {
-		if len(strings.SplitN(parameters[0], "=", 2)) == 2 {
-			sourceType = argoappv1.ApplicationSourceTypeHelm
-		}
+	} else if len(strings.SplitN(parameters[0], "=", 2)) == 2 {
+		sourceType = argoappv1.ApplicationSourceTypeHelm
 	}
 
 	switch sourceType {

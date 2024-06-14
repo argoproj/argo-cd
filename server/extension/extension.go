@@ -92,7 +92,7 @@ func ValidateHeaders(r *http.Request) (*RequestResources, error) {
 	}
 	appNamespace, appName, err := getAppName(appHeader)
 	if err != nil {
-		return nil, fmt.Errorf("error getting app details: %s", err)
+		return nil, fmt.Errorf("error getting app details: %w", err)
 	}
 	if !argo.IsValidNamespaceName(appNamespace) {
 		return nil, errors.New("invalid value for namespace")
@@ -370,23 +370,23 @@ func parseAndValidateConfig(s *settings.ArgoCDSettings) (*ExtensionConfigs, erro
 	extConfigMap := map[string]interface{}{}
 	err := yaml.Unmarshal([]byte(s.ExtensionConfig), &extConfigMap)
 	if err != nil {
-		return nil, fmt.Errorf("invalid extension config: %s", err)
+		return nil, fmt.Errorf("invalid extension config: %w", err)
 	}
 
 	parsedExtConfig := settings.ReplaceMapSecrets(extConfigMap, s.Secrets)
 	parsedExtConfigBytes, err := yaml.Marshal(parsedExtConfig)
 	if err != nil {
-		return nil, fmt.Errorf("error marshaling parsed extension config: %s", err)
+		return nil, fmt.Errorf("error marshaling parsed extension config: %w", err)
 	}
 
 	configs := ExtensionConfigs{}
 	err = yaml.Unmarshal(parsedExtConfigBytes, &configs)
 	if err != nil {
-		return nil, fmt.Errorf("invalid parsed extension config: %s", err)
+		return nil, fmt.Errorf("invalid parsed extension config: %w", err)
 	}
 	err = validateConfigs(&configs)
 	if err != nil {
-		return nil, fmt.Errorf("validation error: %s", err)
+		return nil, fmt.Errorf("validation error: %w", err)
 	}
 	return &configs, nil
 }
@@ -442,7 +442,7 @@ func validateConfigs(configs *ExtensionConfigs) error {
 func NewProxy(targetURL string, headers []Header, config ProxyConfig) (*httputil.ReverseProxy, error) {
 	url, err := url.Parse(targetURL)
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse proxy URL: %s", err)
+		return nil, fmt.Errorf("failed to parse proxy URL: %w", err)
 	}
 	proxy := &httputil.ReverseProxy{
 		Transport: newTransport(config),
@@ -497,7 +497,7 @@ func applyProxyConfigDefaults(c *ProxyConfig) {
 func (m *Manager) RegisterExtensions() error {
 	settings, err := m.settings.Get()
 	if err != nil {
-		return fmt.Errorf("error getting settings: %s", err)
+		return fmt.Errorf("error getting settings: %w", err)
 	}
 	if settings.ExtensionConfig == "" {
 		m.log.Infof("No extensions configured.")
@@ -505,7 +505,7 @@ func (m *Manager) RegisterExtensions() error {
 	}
 	err = m.UpdateExtensionRegistry(settings)
 	if err != nil {
-		return fmt.Errorf("error updating extension registry: %s", err)
+		return fmt.Errorf("error updating extension registry: %w", err)
 	}
 	return nil
 }
@@ -517,7 +517,7 @@ func (m *Manager) RegisterExtensions() error {
 func (m *Manager) UpdateExtensionRegistry(s *settings.ArgoCDSettings) error {
 	extConfigs, err := parseAndValidateConfig(s)
 	if err != nil {
-		return fmt.Errorf("error parsing extension config: %s", err)
+		return fmt.Errorf("error parsing extension config: %w", err)
 	}
 	extReg := make(map[string]ProxyRegistry)
 	for _, ext := range extConfigs.Extensions {
@@ -526,11 +526,11 @@ func (m *Manager) UpdateExtensionRegistry(s *settings.ArgoCDSettings) error {
 		for _, service := range ext.Backend.Services {
 			proxy, err := NewProxy(service.URL, service.Headers, ext.Backend.ProxyConfig)
 			if err != nil {
-				return fmt.Errorf("error creating proxy: %s", err)
+				return fmt.Errorf("error creating proxy: %w", err)
 			}
 			err = appendProxy(proxyReg, ext.Name, service, proxy, singleBackend)
 			if err != nil {
-				return fmt.Errorf("error appending proxy: %s", err)
+				return fmt.Errorf("error appending proxy: %w", err)
 			}
 		}
 		extReg[ext.Name] = proxyReg
@@ -593,17 +593,17 @@ func (m *Manager) authorize(ctx context.Context, rr *RequestResources, extName s
 	}
 	appRBACName := security.RBACName(rr.ApplicationNamespace, rr.ProjectName, rr.ApplicationNamespace, rr.ApplicationName)
 	if err := m.rbac.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionGet, appRBACName); err != nil {
-		return nil, fmt.Errorf("application authorization error: %s", err)
+		return nil, fmt.Errorf("application authorization error: %w", err)
 	}
 
 	if err := m.rbac.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceExtensions, rbacpolicy.ActionInvoke, extName); err != nil {
-		return nil, fmt.Errorf("unauthorized to invoke extension %q: %s", extName, err)
+		return nil, fmt.Errorf("unauthorized to invoke extension %q: %w", extName, err)
 	}
 
 	// just retrieve the app after checking if subject has access to it
 	app, err := m.application.Get(rr.ApplicationNamespace, rr.ApplicationName)
 	if err != nil {
-		return nil, fmt.Errorf("error getting application: %s", err)
+		return nil, fmt.Errorf("error getting application: %w", err)
 	}
 	if app == nil {
 		return nil, fmt.Errorf("invalid Application provided in the %q header", HeaderArgoCDApplicationName)
@@ -615,14 +615,14 @@ func (m *Manager) authorize(ctx context.Context, rr *RequestResources, extName s
 
 	proj, err := m.project.Get(app.Spec.GetProject())
 	if err != nil {
-		return nil, fmt.Errorf("error getting project: %s", err)
+		return nil, fmt.Errorf("error getting project: %w", err)
 	}
 	if proj == nil {
 		return nil, fmt.Errorf("invalid project provided in the %q header", HeaderArgoCDProjectName)
 	}
 	permitted, err := proj.IsDestinationPermitted(app.Spec.Destination, m.project.GetClusters)
 	if err != nil {
-		return nil, fmt.Errorf("error validating project destinations: %s", err)
+		return nil, fmt.Errorf("error validating project destinations: %w", err)
 	}
 	if !permitted {
 		return nil, fmt.Errorf("the provided project is not allowed to access the cluster configured in the Application destination")
