@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/argoproj/argo-cd/v2/util/settings"
 )
@@ -30,9 +31,7 @@ func TestRandomPasswordVerificationDelay(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		sleptFor = 0
 		start := time.Now()
-		if !assert.NoError(t, mgr.VerifyUsernamePassword("admin", "password")) {
-			return
-		}
+		require.NoError(t, mgr.VerifyUsernamePassword("admin", "password"))
 		totalDuration := time.Since(start) + sleptFor
 		assert.GreaterOrEqual(t, totalDuration.Nanoseconds(), verificationDelayNoiseMin.Nanoseconds())
 		assert.LessOrEqual(t, totalDuration.Nanoseconds(), verificationDelayNoiseMax.Nanoseconds())

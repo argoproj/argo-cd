@@ -52,7 +52,7 @@ func TestTgz(t *testing.T) {
 
 		// then
 		assert.Equal(t, 3, filesWritten)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		prepareRead(f)
 		files, err := read(f.file)
 		require.NoError(t, err)
@@ -75,7 +75,7 @@ func TestTgz(t *testing.T) {
 
 		// then
 		assert.Equal(t, 2, filesWritten)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		prepareRead(f)
 		files, err := read(f.file)
 		require.NoError(t, err)
@@ -95,7 +95,7 @@ func TestTgz(t *testing.T) {
 
 		// then
 		assert.Equal(t, 1, filesWritten)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		prepareRead(f)
 		files, err := read(f.file)
 		require.NoError(t, err)
@@ -195,7 +195,7 @@ func TestUntgz(t *testing.T) {
 		err := files.Untgz(destDir, tgzFile, math.MaxInt64, false)
 
 		// then
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Contains(t, err.Error(), "illegal filepath in symlink")
 	})
 

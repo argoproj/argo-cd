@@ -423,7 +423,7 @@ func isValidHealthStatusCode(statusCode health.HealthStatusCode) bool {
 // Took logic from the link below and added the int, int32, and int64 types since the value would have type int64
 // while actually running in the controller and it was not reproducible through testing.
 // https://github.com/layeh/gopher-json/blob/97fed8db84274c421dbfffbb28ec859901556b97/json.go#L154
-func decodeValue(L *lua.LState, value interface{}) lua.LValue {
+func decodeValue(l *lua.LState, value interface{}) lua.LValue {
 	switch converted := value.(type) {
 	case bool:
 		return lua.LBool(converted)
@@ -440,15 +440,15 @@ func decodeValue(L *lua.LState, value interface{}) lua.LValue {
 	case int64:
 		return lua.LNumber(converted)
 	case []interface{}:
-		arr := L.CreateTable(len(converted), 0)
+		arr := l.CreateTable(len(converted), 0)
 		for _, item := range converted {
-			arr.Append(decodeValue(L, item))
+			arr.Append(decodeValue(l, item))
 		}
 		return arr
 	case map[string]interface{}:
-		tbl := L.CreateTable(0, len(converted))
+		tbl := l.CreateTable(0, len(converted))
 		for key, item := range converted {
-			tbl.RawSetH(lua.LString(key), decodeValue(L, item))
+			tbl.RawSetH(lua.LString(key), decodeValue(l, item))
 		}
 		return tbl
 	case nil:

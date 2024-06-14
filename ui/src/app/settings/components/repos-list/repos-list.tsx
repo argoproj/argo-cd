@@ -287,8 +287,9 @@ export class ReposList extends React.Component<
                                                 <div className='columns small-1' />
                                                 <div className='columns small-1'>TYPE</div>
                                                 <div className='columns small-2'>NAME</div>
-                                                <div className='columns small-5'>REPOSITORY</div>
-                                                <div className='columns small-3'>CONNECTION STATUS</div>
+                                                <div className='columns small-2'>PROJECT</div>
+                                                <div className='columns small-4'>REPOSITORY</div>
+                                                <div className='columns small-2'>CONNECTION STATUS</div>
                                             </div>
                                         </div>
                                         {repos.map(repo => (
@@ -309,14 +310,19 @@ export class ReposList extends React.Component<
                                                             <span>{repo.name}</span>
                                                         </Tooltip>
                                                     </div>
-                                                    <div className='columns small-5'>
+                                                    <div className='columns small-2'>
+                                                        <Tooltip content={repo.project}>
+                                                            <span>{repo.project}</span>
+                                                        </Tooltip>
+                                                    </div>
+                                                    <div className='columns small-4'>
                                                         <Tooltip content={repo.repo}>
                                                             <span>
                                                                 <Repo url={repo.repo} />
                                                             </span>
                                                         </Tooltip>
                                                     </div>
-                                                    <div className='columns small-3'>
+                                                    <div className='columns small-2'>
                                                         <ConnectionStateIcon state={repo.connectionState} /> {repo.connectionState.status}
                                                         <DropDownMenu
                                                             anchor={() => (

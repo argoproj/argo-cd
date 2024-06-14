@@ -1,12 +1,13 @@
 issues:
   exclude:
+    - SA1019
     - SA5011
   exclude-rules:
     - path: "(applicationset|cmd|cmpserver|controller|pkg|reposerver|server|test)/"
       text: "require-error:"
       linters:
         - testifylint
-    - path: "util/(argo|cache|cert|clusterauth|config|db|dex|git|gpg|grpc|helm|http|io|kube|kustomize|lua|notification|oidc|rbac|security|session|settings|tls|webhook)/"
+    - path: "util/(argo|cache|cert|clusterauth|config|db|dex|git|gpg)/"
       text: "require-error:"
       linters:
         - testifylint
@@ -16,6 +17,7 @@ linters:
   enable:
     - errcheck
     - errorlint
+    - gocritic
     - gofumpt
     - goimports
     - gosimple
@@ -27,6 +29,17 @@ linters:
     - unused
     - whitespace 
 linters-settings:
+  gocritic:
+    disabled-checks:
+      - appendAssign
+      - assignOp  # Keep it disabled for readability
+      - badCond
+      - commentFormatting
+      - exitAfterDefer
+      - ifElseChain
+      - mapKey
+      - singleCaseSwitch
+      - typeSwitchVar
   goimports:
     local-prefixes: github.com/argoproj/argo-cd/v2
   testifylint:

@@ -1092,10 +1092,8 @@ func assertNSResourceActions(t *testing.T, appName string, successful bool) {
 	assertError := func(err error, message string) {
 		if successful {
 			assert.NoError(t, err)
-		} else {
-			if assert.Error(t, err) {
-				assert.Contains(t, err.Error(), message)
-			}
+		} else if assert.Error(t, err) {
+			assert.Contains(t, err.Error(), message)
 		}
 	}
 

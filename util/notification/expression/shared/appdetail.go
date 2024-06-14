@@ -35,26 +35,26 @@ type CustomHelmAppSpec struct {
 	HelmParameterOverrides []v1alpha1.HelmParameter
 }
 
-func (has CustomHelmAppSpec) GetParameterValueByName(Name string) string {
+func (has CustomHelmAppSpec) GetParameterValueByName(name string) string {
 	// Check in overrides first
 	for i := range has.HelmParameterOverrides {
-		if has.HelmParameterOverrides[i].Name == Name {
+		if has.HelmParameterOverrides[i].Name == name {
 			return has.HelmParameterOverrides[i].Value
 		}
 	}
 
 	for i := range has.HelmAppSpec.Parameters {
-		if has.HelmAppSpec.Parameters[i].Name == Name {
+		if has.HelmAppSpec.Parameters[i].Name == name {
 			return has.HelmAppSpec.Parameters[i].Value
 		}
 	}
 	return ""
 }
 
-func (has CustomHelmAppSpec) GetFileParameterPathByName(Name string) string {
+func (has CustomHelmAppSpec) GetFileParameterPathByName(name string) string {
 	var path string
 	for i := range has.HelmAppSpec.FileParameters {
-		if has.HelmAppSpec.FileParameters[i].Name == Name {
+		if has.HelmAppSpec.FileParameters[i].Name == name {
 			path = has.HelmAppSpec.FileParameters[i].Path
 			break
 		}

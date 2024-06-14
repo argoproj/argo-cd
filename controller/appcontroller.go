@@ -305,13 +305,11 @@ func (ctrl *ApplicationController) InvalidateProjectsCache(names ...string) {
 		for _, name := range names {
 			ctrl.projByNameCache.Delete(name)
 		}
-	} else {
-		if ctrl != nil {
-			ctrl.projByNameCache.Range(func(key, _ interface{}) bool {
-				ctrl.projByNameCache.Delete(key)
-				return true
-			})
-		}
+	} else if ctrl != nil {
+		ctrl.projByNameCache.Range(func(key, _ interface{}) bool {
+			ctrl.projByNameCache.Delete(key)
+			return true
+		})
 	}
 }
 

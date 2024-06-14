@@ -2645,14 +2645,14 @@ func schema_pkg_apis_application_v1alpha1_Cluster(ref common.ReferenceCallback) 
 					},
 					"connectionState": {
 						SchemaProps: spec.SchemaProps{
-							Description: "DEPRECATED: use Info.ConnectionState field instead. ConnectionState contains information about cluster connection state",
+							Description: "Deprecated: use Info.ConnectionState field instead. ConnectionState contains information about cluster connection state",
 							Default:     map[string]interface{}{},
 							Ref:         ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ConnectionState"),
 						},
 					},
 					"serverVersion": {
 						SchemaProps: spec.SchemaProps{
-							Description: "DEPRECATED: use Info.ServerVersion field instead. The server version",
+							Description: "Deprecated: use Info.ServerVersion field instead. The server version",
 							Type:        []string{"string"},
 							Format:      "",
 						},

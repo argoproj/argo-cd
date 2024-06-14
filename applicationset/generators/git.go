@@ -226,13 +226,13 @@ func (g *GitGenerator) generateParamsFromGitFile(filePath string, fileContent []
 	return res, nil
 }
 
-func (g *GitGenerator) filterApps(Directories []argoprojiov1alpha1.GitDirectoryGeneratorItem, allPaths []string) []string {
+func (g *GitGenerator) filterApps(directories []argoprojiov1alpha1.GitDirectoryGeneratorItem, allPaths []string) []string {
 	res := []string{}
 	for _, appPath := range allPaths {
 		appInclude := false
 		appExclude := false
 		// Iterating over each appPath and check whether directories object has requestedPath that matches the appPath
-		for _, requestedPath := range Directories {
+		for _, requestedPath := range directories {
 			match, err := path.Match(requestedPath.Path, appPath)
 			if err != nil {
 				log.WithError(err).WithField("requestedPath", requestedPath).

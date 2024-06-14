@@ -1091,11 +1091,9 @@ func (s *Server) Delete(ctx context.Context, q *application.ApplicationDeleteReq
 			a.SetCascadedDeletion(policyFinalizer)
 			patchFinalizer = true
 		}
-	} else {
-		if a.CascadedDeletion() {
-			a.UnSetCascadedDeletion()
-			patchFinalizer = true
-		}
+	} else if a.CascadedDeletion() {
+		a.UnSetCascadedDeletion()
+		patchFinalizer = true
 	}
 
 	if patchFinalizer {

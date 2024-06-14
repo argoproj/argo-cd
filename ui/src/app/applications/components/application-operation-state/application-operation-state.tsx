@@ -96,10 +96,10 @@ export const ApplicationOperationState: React.StatelessComponent<Props> = ({appl
         operationAttributes.push({
             title: 'REVISION',
             value: (
-                <Revision
-                    repoUrl={utils.getAppDefaultSource(application).repoURL}
-                    revision={utils.getAppDefaultSyncRevision(application) + utils.getAppDefaultSyncRevisionExtra(application)}
-                />
+                <div>
+                    <Revision repoUrl={utils.getAppDefaultSource(application).repoURL} revision={utils.getAppDefaultOperationSyncRevision(application)} />
+                    {utils.getAppDefaultOperationSyncRevisionExtra(application)}
+                </div>
             )
         });
     }

@@ -166,9 +166,7 @@ func newInformer(resClient dynamic.ResourceInterface, controllerNamespace string
 		&unstructured.Unstructured{},
 		resyncPeriod,
 		cache.Indexers{
-			cache.NamespaceIndex: func(obj interface{}) ([]string, error) {
-				return cache.MetaNamespaceIndexFunc(obj)
-			},
+			cache.NamespaceIndex: cache.MetaNamespaceIndexFunc,
 		},
 	)
 	return informer

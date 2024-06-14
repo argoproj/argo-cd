@@ -17,7 +17,7 @@ func TestByteReadSeeker_Read(t *testing.T) {
 	assert.Equal(t, len(inString), n)
 	assert.Equal(t, inString, string(bytes))
 	_, err = reader.Read(bytes)
-	assert.ErrorIs(t, err, io.EOF)
+	require.ErrorIs(t, err, io.EOF)
 }
 
 func TestByteReadSeeker_Seek_Start(t *testing.T) {
@@ -66,7 +66,7 @@ func TestByteReadSeeker_Seek_OutOfBounds(t *testing.T) {
 	inString := "hello world"
 	reader := NewByteReadSeeker([]byte(inString))
 	_, err := reader.Seek(12, io.SeekStart)
-	assert.Error(t, err)
+	require.Error(t, err)
 	_, err = reader.Seek(-1, io.SeekStart)
-	assert.Error(t, err)
+	require.Error(t, err)
 }

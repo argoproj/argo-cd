@@ -62,21 +62,21 @@ var (
 		append(descAppDefaultLabels, "autosync_enabled", "repo", "dest_server", "dest_namespace", "sync_status", "health_status", "operation"),
 		nil,
 	)
-	// DEPRECATED
+	// Deprecated
 	descAppCreated = prometheus.NewDesc(
 		"argocd_app_created_time",
 		"Creation time in unix timestamp for an application.",
 		descAppDefaultLabels,
 		nil,
 	)
-	// DEPRECATED: superseded by sync_status label in argocd_app_info
+	// Deprecated: superseded by sync_status label in argocd_app_info
 	descAppSyncStatusCode = prometheus.NewDesc(
 		"argocd_app_sync_status",
 		"The application current sync status.",
 		append(descAppDefaultLabels, "sync_status"),
 		nil,
 	)
-	// DEPRECATED: superseded by health_status label in argocd_app_info
+	// Deprecated: superseded by health_status label in argocd_app_info
 	descAppHealthStatus = prometheus.NewDesc(
 		"argocd_app_health_status",
 		"The application current health status.",

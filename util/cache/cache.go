@@ -96,7 +96,7 @@ func (o *Options) callOnClientCreated(client *redis.Client) {
 }
 
 func (o *Options) getEnvPrefix() string {
-	return strings.Replace(strings.ToUpper(o.FlagPrefix), "-", "_", -1)
+	return strings.ReplaceAll(strings.ToUpper(o.FlagPrefix), "-", "_")
 }
 
 func mergeOptions(opts ...Options) Options {

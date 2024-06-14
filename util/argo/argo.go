@@ -501,10 +501,8 @@ func ValidateDestination(ctx context.Context, dest *argoappv1.ApplicationDestina
 				return fmt.Errorf("application references destination cluster %s which does not exist", dest.Name)
 			}
 			dest.SetInferredServer(server)
-		} else {
-			if !dest.IsServerInferred() {
-				return fmt.Errorf("application destination can't have both name and server defined: %s %s", dest.Name, dest.Server)
-			}
+		} else if !dest.IsServerInferred() {
+			return fmt.Errorf("application destination can't have both name and server defined: %s %s", dest.Name, dest.Server)
 		}
 	}
 	return nil
@@ -1005,7 +1003,7 @@ func GenerateSpecIsDifferentErrorMessage(entity string, a, b interface{}) string
 	if len(difference) == 0 {
 		return basicMsg
 	}
-	return fmt.Sprintf("%s; difference in keys \"%s\"", basicMsg, strings.Join(difference[:], ","))
+	return fmt.Sprintf("%s; difference in keys \"%s\"", basicMsg, strings.Join(difference, ","))
 }
 
 func GetDifferentPathsBetweenStructs(a, b interface{}) ([]string, error) {
