@@ -111,7 +111,7 @@ export const ApplicationStatusPanel = ({application, showDiff, showOperation, sh
                     <div className='application-status-panel__item-name' style={{marginBottom: '0.5em'}}>
                         {application.spec.syncPolicy?.automated ? 'Auto sync is enabled.' : 'Auto sync is not enabled.'}
                     </div>
-                    {application.status && application.status.sync && application.status.sync.revision && revision && !application.spec.source.chart && (
+                    {application.status && application.status.sync && application.status.sync.revision && revision && !application.spec.source?.chart && (
                         <div className='application-status-panel__item-name'>
                             <RevisionMetadataPanel
                                 appName={application.metadata.name}
