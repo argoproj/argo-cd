@@ -37,12 +37,12 @@ func TestIndex(t *testing.T) {
 	t.Run("Invalid", func(t *testing.T) {
 		client := NewClient("", Creds{}, false, "")
 		_, err := client.GetIndex(false, 10000)
-		assert.Error(t, err)
+		require.Error(t, err)
 	})
 	t.Run("Stable", func(t *testing.T) {
 		client := NewClient("https://argoproj.github.io/argo-helm", Creds{}, false, "")
 		index, err := client.GetIndex(false, 10000)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.NotNil(t, index)
 	})
 	t.Run("BasicAuth", func(t *testing.T) {
@@ -51,7 +51,7 @@ func TestIndex(t *testing.T) {
 			Password: "my-username",
 		}, false, "")
 		index, err := client.GetIndex(false, 10000)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.NotNil(t, index)
 	})
 
@@ -64,7 +64,7 @@ func TestIndex(t *testing.T) {
 		client := NewClient("https://argoproj.github.io/argo-helm", Creds{}, false, "", WithIndexCache(&fakeIndexCache{data: data.Bytes()}))
 		index, err := client.GetIndex(false, 10000)
 
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, fakeIndex, *index)
 	})
 
@@ -79,26 +79,26 @@ func TestIndex(t *testing.T) {
 func Test_nativeHelmChart_ExtractChart(t *testing.T) {
 	client := NewClient("https://argoproj.github.io/argo-helm", Creds{}, false, "")
 	path, closer, err := client.ExtractChart("argo-cd", "0.7.1", "", false, math.MaxInt64, true)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	defer io.Close(closer)
 	info, err := os.Stat(path)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.True(t, info.IsDir())
 }
 
 func Test_nativeHelmChart_ExtractChartWithLimiter(t *testing.T) {
 	client := NewClient("https://argoproj.github.io/argo-helm", Creds{}, false, "")
 	_, _, err := client.ExtractChart("argo-cd", "0.7.1", "", false, 100, false)
-	assert.Error(t, err, "error while iterating on tar reader: unexpected EOF")
+	require.Error(t, err, "error while iterating on tar reader: unexpected EOF")
 }
 
 func Test_nativeHelmChart_ExtractChart_insecure(t *testing.T) {
 	client := NewClient("https://argoproj.github.io/argo-helm", Creds{InsecureSkipVerify: true}, false, "")
 	path, closer, err := client.ExtractChart("argo-cd", "0.7.1", "", false, math.MaxInt64, true)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	defer io.Close(closer)
 	info, err := os.Stat(path)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.True(t, info.IsDir())
 }
 
@@ -147,20 +147,20 @@ func TestGetIndexURL(t *testing.T) {
 		want := rawURL + "/index.yaml"
 		got, err := getIndexURL(rawURL)
 		assert.Equal(t, want, got)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 	})
 	t.Run("URL with escaped characters", func(t *testing.T) {
 		rawURL := fmt.Sprintf(urlTemplate, "mygroup%2Fmyproject")
 		want := rawURL + "/index.yaml"
 		got, err := getIndexURL(rawURL)
 		assert.Equal(t, want, got)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 	})
 	t.Run("URL with invalid escaped characters", func(t *testing.T) {
 		rawURL := fmt.Sprintf(urlTemplate, "mygroup%**myproject")
 		got, err := getIndexURL(rawURL)
 		assert.Equal(t, "", got)
-		assert.Error(t, err)
+		require.Error(t, err)
 	})
 }
 
@@ -193,7 +193,7 @@ func TestGetTagsFromUrl(t *testing.T) {
 		client := NewClient(server.URL, Creds{InsecureSkipVerify: true}, true, "")
 
 		tags, err := client.GetTags("mychart", true)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.ElementsMatch(t, tags.Tags, []string{
 			"first",
 			"second",
@@ -246,7 +246,7 @@ func TestGetTagsFromURLPrivateRepoAuthentication(t *testing.T) {
 	t.Cleanup(server.Close)
 
 	serverURL, err := url.Parse(server.URL)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	testCases := []struct {
 		name    string
@@ -280,7 +280,7 @@ func TestGetTagsFromURLPrivateRepoAuthentication(t *testing.T) {
 
 			tags, err := client.GetTags("mychart", true)
 
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			assert.ElementsMatch(t, tags.Tags, []string{
 				"2.8.0",
 				"2.8.0-prerelease",
