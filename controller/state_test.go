@@ -715,6 +715,44 @@ func TestSetHealth(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Equal(t, health.HealthStatusHealthy, compRes.healthStatus.Status)
+	assert.False(t, compRes.healthStatus.LastTransitionTime.IsZero())
+}
+
+func TestPreserveStatusTimestamp(t *testing.T) {
+	timestamp := metav1.Now()
+	app := newFakeAppWithHealthAndTime(health.HealthStatusHealthy, timestamp)
+	deployment := kube.MustToUnstructured(&v1.Deployment{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "apps/v1",
+			Kind:       "Deployment",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "demo",
+			Namespace: "default",
+		},
+	})
+	ctrl := newFakeController(&fakeData{
+		apps: []runtime.Object{app, &defaultProj},
+		manifestResponse: &apiclient.ManifestResponse{
+			Manifests: []string{},
+			Namespace: test.FakeDestNamespace,
+			Server:    test.FakeClusterURL,
+			Revision:  "abc123",
+		},
+		managedLiveObjs: map[kube.ResourceKey]*unstructured.Unstructured{
+			kube.GetResourceKey(deployment): deployment,
+		},
+	}, nil)
+
+	sources := make([]argoappv1.ApplicationSource, 0)
+	sources = append(sources, app.Spec.GetSource())
+	revisions := make([]string, 0)
+	revisions = append(revisions, "")
+	compRes, err := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false, false)
+	assert.NoError(t, err)
+
+	assert.Equal(t, health.HealthStatusHealthy, compRes.healthStatus.Status)
+	assert.Equal(t, timestamp, compRes.healthStatus.LastTransitionTime)
 }
 
 func TestSetHealthSelfReferencedApp(t *testing.T) {
@@ -752,6 +790,7 @@ func TestSetHealthSelfReferencedApp(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Equal(t, health.HealthStatusHealthy, compRes.healthStatus.Status)
+	assert.False(t, compRes.healthStatus.LastTransitionTime.IsZero())
 }
 
 func TestSetManagedResourcesWithOrphanedResources(t *testing.T) {
@@ -827,6 +866,7 @@ func TestReturnUnknownComparisonStateOnSettingLoadError(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Equal(t, health.HealthStatusUnknown, compRes.healthStatus.Status)
+	assert.False(t, compRes.healthStatus.LastTransitionTime.IsZero())
 	assert.Equal(t, argoappv1.SyncStatusCodeUnknown, compRes.syncStatus.Status)
 }
 

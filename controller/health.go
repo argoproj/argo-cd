@@ -8,6 +8,7 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/sync/ignore"
 	kubeutil "github.com/argoproj/gitops-engine/pkg/utils/kube"
 	log "github.com/sirupsen/logrus"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	"github.com/argoproj/argo-cd/v2/common"
@@ -16,12 +17,30 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/lua"
 )
 
+func getLastTransitionTime(statuses []appv1.ResourceStatus, i int) metav1.Time {
+	if len(statuses) == 0 {
+		return metav1.Now()
+	}
+
+	lastTransitionTime := statuses[i].Health.LastTransitionTime
+
+	if lastTransitionTime.IsZero() {
+		lastTransitionTime = metav1.Now()
+	}
+
+	return lastTransitionTime
+}
+
 // setApplicationHealth updates the health statuses of all resources performed in the comparison
 func setApplicationHealth(resources []managedResource, statuses []appv1.ResourceStatus, resourceOverrides map[string]appv1.ResourceOverride, app *appv1.Application, persistResourceHealth bool) (*appv1.HealthStatus, error) {
 	var savedErr error
 	var errCount uint
+
+	// All statuses have the same timestamp, so we can safely get the first one
+	lastTransitionTime := getLastTransitionTime(statuses, 0)
 	appHealth := appv1.HealthStatus{Status: health.HealthStatusHealthy}
 	for i, res := range resources {
+		now := metav1.Now()
 		if res.Target != nil && hookutil.Skip(res.Target) {
 			continue
 		}
@@ -58,7 +77,12 @@ func setApplicationHealth(resources []managedResource, statuses []appv1.Resource
 		}
 
 		if persistResourceHealth {
-			resHealth := appv1.HealthStatus{Status: healthStatus.Status, Message: healthStatus.Message}
+			// If the status didn't change, we don't want to update the timestamp
+			if healthStatus.Status == statuses[i].Health.Status {
+				now = getLastTransitionTime(statuses, i)
+			}
+
+			resHealth := appv1.HealthStatus{Status: healthStatus.Status, Message: healthStatus.Message, LastTransitionTime: now}
 			statuses[i].Health = &resHealth
 		} else {
 			statuses[i].Health = nil
@@ -76,6 +100,13 @@ func setApplicationHealth(resources []managedResource, statuses []appv1.Resource
 
 		if health.IsWorse(appHealth.Status, healthStatus.Status) {
 			appHealth.Status = healthStatus.Status
+			if persistResourceHealth {
+				appHealth.LastTransitionTime = statuses[i].Health.LastTransitionTime
+			} else {
+				appHealth.LastTransitionTime = now
+			}
+		} else if healthStatus.Status == health.HealthStatusHealthy {
+			appHealth.LastTransitionTime = lastTransitionTime
 		}
 	}
 	if persistResourceHealth {
