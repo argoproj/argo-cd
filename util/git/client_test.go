@@ -261,3 +261,38 @@ func TestNewClient_invalidSSHURL(t *testing.T) {
 	assert.Nil(t, client)
 	assert.ErrorIs(t, err, ErrInvalidRepoURL)
 }
+
+func Test_IsRevisionPresent(t *testing.T) {
+	tempDir := t.TempDir()
+
+	client, err := NewClientExt(fmt.Sprintf("file://%s", tempDir), tempDir, NopCreds{}, true, false, "")
+	require.NoError(t, err)
+
+	err = client.Init()
+	require.NoError(t, err)
+
+	p := path.Join(client.Root(), "README")
+	f, err := os.Create(p)
+	require.NoError(t, err)
+	_, err = f.WriteString("Hello.")
+	require.NoError(t, err)
+	err = f.Close()
+	require.NoError(t, err)
+
+	err = runCmd(client.Root(), "git", "add", "README")
+	require.NoError(t, err)
+
+	err = runCmd(client.Root(), "git", "commit", "-m", "Initial Commit", "-a")
+	require.NoError(t, err)
+
+	commitSHA, err := client.LsRemote("HEAD")
+	require.NoError(t, err)
+
+	// Ensure revision for HEAD is present locally.
+	revisionPresent := client.IsRevisionPresent(commitSHA)
+	assert.True(t, revisionPresent)
+
+	// Ensure invalid revision is not returned.
+	revisionPresent = client.IsRevisionPresent("invalid-revision")
+	assert.False(t, revisionPresent)
+}
