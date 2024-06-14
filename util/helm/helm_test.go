@@ -231,5 +231,5 @@ func TestSkipCrds(t *testing.T) {
 
 	objs, err = template(h, &TemplateOpts{SkipCrds: true})
 	require.NoError(t, err)
-	require.Len(t, objs, 1)
+	require.Empty(t, objs)
 }
