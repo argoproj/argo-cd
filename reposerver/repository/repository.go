@@ -2432,7 +2432,7 @@ func checkoutRevision(gitClient git.Client, revision string, submoduleEnabled bo
 
 	log.WithFields(map[string]interface{}{
 		"skipFetch": revisionPresent,
-	}).Infof("Checking out revision %v", revision)
+	}).Debugf("Checking out revision %v", revision)
 
 	// Fetching can be skipped if the revision is already present locally.
 	if !revisionPresent {
