@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"sigs.k8s.io/yaml"
 
 	// "github.com/argoproj/argo-cd/common"
@@ -155,7 +156,7 @@ func Test_GenerateDexConfig(t *testing.T) {
 	t.Run("Empty settings", func(t *testing.T) {
 		s := settings.ArgoCDSettings{}
 		config, err := GenerateDexConfigYAML(&s, false)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Nil(t, config)
 	})
 
@@ -165,7 +166,7 @@ func Test_GenerateDexConfig(t *testing.T) {
 			DexConfig: goodDexConfig,
 		}
 		config, err := GenerateDexConfigYAML(&s, false)
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Nil(t, config)
 	})
 
@@ -175,7 +176,7 @@ func Test_GenerateDexConfig(t *testing.T) {
 			DexConfig: "invalidyaml",
 		}
 		config, err := GenerateDexConfigYAML(&s, false)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Nil(t, config)
 	})
 
@@ -185,7 +186,7 @@ func Test_GenerateDexConfig(t *testing.T) {
 			DexConfig: "invalidyaml",
 		}
 		config, err := GenerateDexConfigYAML(&s, false)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Nil(t, config)
 	})
 
@@ -195,7 +196,7 @@ func Test_GenerateDexConfig(t *testing.T) {
 			DexConfig: malformedDexConfig,
 		}
 		config, err := GenerateDexConfigYAML(&s, false)
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Nil(t, config)
 	})
 
@@ -205,7 +206,7 @@ func Test_GenerateDexConfig(t *testing.T) {
 			DexConfig: badDexConfig,
 		}
 		config, err := GenerateDexConfigYAML(&s, false)
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Nil(t, config)
 	})
 
@@ -215,7 +216,7 @@ func Test_GenerateDexConfig(t *testing.T) {
 			DexConfig: goodDexConfig,
 		}
 		config, err := GenerateDexConfigYAML(&s, false)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.NotNil(t, config)
 	})
 
@@ -226,7 +227,7 @@ func Test_GenerateDexConfig(t *testing.T) {
 			Secrets:   goodSecrets,
 		}
 		config, err := GenerateDexConfigYAML(&s, false)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.NotNil(t, config)
 		var dexCfg map[string]interface{}
 		err = yaml.Unmarshal(config, &dexCfg)
@@ -252,7 +253,7 @@ func Test_GenerateDexConfig(t *testing.T) {
 			Secrets:   goodSecretswithCRLF,
 		}
 		config, err := GenerateDexConfigYAML(&s, false)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.NotNil(t, config)
 		var dexCfg map[string]interface{}
 		err = yaml.Unmarshal(config, &dexCfg)
@@ -286,7 +287,7 @@ func Test_GenerateDexConfig(t *testing.T) {
 			Secrets:   goodSecretswithCRLF,
 		}
 		config, err := GenerateDexConfigYAML(&s, false)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.NotNil(t, config)
 		var dexCfg map[string]interface{}
 		err = yaml.Unmarshal(config, &dexCfg)
@@ -308,7 +309,7 @@ func Test_GenerateDexConfig(t *testing.T) {
 			Secrets:   goodSecretswithCRLF,
 		}
 		config, err := GenerateDexConfigYAML(&s, false)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.NotNil(t, config)
 		var dexCfg map[string]interface{}
 		err = yaml.Unmarshal(config, &dexCfg)
@@ -328,7 +329,7 @@ func Test_GenerateDexConfig(t *testing.T) {
 			DexConfig: goodDexConfigWithOauthOverrides,
 		}
 		config, err := GenerateDexConfigYAML(&s, false)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.NotNil(t, config)
 		var dexCfg map[string]interface{}
 		err = yaml.Unmarshal(config, &dexCfg)
@@ -351,7 +352,7 @@ func Test_GenerateDexConfig(t *testing.T) {
 			DexConfig: goodDexConfigWithEnabledApprovalScreen,
 		}
 		config, err := GenerateDexConfigYAML(&s, false)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.NotNil(t, config)
 		var dexCfg map[string]interface{}
 		err = yaml.Unmarshal(config, &dexCfg)
@@ -385,7 +386,7 @@ func Test_DexReverseProxy(t *testing.T) {
 		target, _ := url.Parse(fakeDex.URL)
 		resp, err := http.Get(server.URL)
 		assert.NotNil(t, resp)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, http.StatusOK, resp.StatusCode)
 		assert.Equal(t, host, target.Host)
 		fmt.Printf("%s\n", resp.Status)
@@ -407,7 +408,7 @@ func Test_DexReverseProxy(t *testing.T) {
 		}
 		resp, err := client.Get(server.URL)
 		assert.NotNil(t, resp)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, http.StatusSeeOther, resp.StatusCode)
 		location, _ := resp.Location()
 		fmt.Printf("%s %s\n", resp.Status, location.RequestURI())
@@ -429,9 +430,9 @@ func Test_DexReverseProxy(t *testing.T) {
 		rt := NewDexRewriteURLRoundTripper(server.URL, http.DefaultTransport)
 		assert.NotNil(t, rt)
 		req, err := http.NewRequest(http.MethodGet, "/", bytes.NewBuffer([]byte("")))
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		_, err = rt.RoundTrip(req)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		target, _ := url.Parse(server.URL)
 		assert.Equal(t, req.Host, target.Host)
 	})

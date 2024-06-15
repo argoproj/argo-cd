@@ -34,17 +34,17 @@ func TestNormalize(t *testing.T) {
 		require.NotNil(t, desiredResult)
 		desiredReplicas, ok, err := unstructured.NestedFloat64(desiredResult.Object, "spec", "replicas")
 		assert.False(t, ok)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		liveReplicas, ok, err := unstructured.NestedFloat64(liveResult.Object, "spec", "replicas")
 		assert.False(t, ok)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, liveReplicas, desiredReplicas)
 		liveRevisionHistory, ok, err := unstructured.NestedFloat64(liveResult.Object, "spec", "revisionHistoryLimit")
 		assert.False(t, ok)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		desiredRevisionHistory, ok, err := unstructured.NestedFloat64(desiredResult.Object, "spec", "revisionHistoryLimit")
 		assert.False(t, ok)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, liveRevisionHistory, desiredRevisionHistory)
 	})
 	t.Run("will keep conflicting fields if not from trusted manager", func(t *testing.T) {
@@ -58,7 +58,7 @@ func TestNormalize(t *testing.T) {
 		liveResult, desiredResult, err := managedfields.Normalize(liveState, desiredState, trustedManagers, &pt)
 
 		// then
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		validateNestedFloat64(t, float64(3), desiredResult, "spec", "replicas")
 		validateNestedFloat64(t, float64(1), desiredResult, "spec", "revisionHistoryLimit")
 		validateNestedFloat64(t, float64(2), liveResult, "spec", "replicas")
@@ -74,7 +74,7 @@ func TestNormalize(t *testing.T) {
 		liveResult, desiredResult, err := managedfields.Normalize(nil, desiredState, trustedManagers, &pt)
 
 		// then
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Nil(t, liveResult)
 		assert.Nil(t, desiredResult)
 		validateNestedFloat64(t, float64(3), desiredState, "spec", "replicas")
@@ -90,7 +90,7 @@ func TestNormalize(t *testing.T) {
 		liveResult, desiredResult, err := managedfields.Normalize(liveState, nil, trustedManagers, &pt)
 
 		// then
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Nil(t, liveResult)
 		assert.Nil(t, desiredResult)
 		validateNestedFloat64(t, float64(2), liveState, "spec", "replicas")
@@ -106,7 +106,7 @@ func TestNormalize(t *testing.T) {
 		liveResult, desiredResult, err := managedfields.Normalize(liveState, desiredState, []string{}, &pt)
 
 		// then
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Nil(t, liveResult)
 		assert.Nil(t, desiredResult)
 		validateNestedFloat64(t, float64(3), desiredState, "spec", "replicas")
@@ -153,7 +153,7 @@ func getNestedFloat64(t *testing.T, obj *unstructured.Unstructured, fields ...st
 	t.Helper()
 	current, ok, err := unstructured.NestedFloat64(obj.Object, fields...)
 	assert.True(t, ok, "nested field not found")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	return current
 }
 

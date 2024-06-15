@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -64,12 +65,12 @@ func TestDb_CreateRepository(t *testing.T) {
 
 	// The repository was indeed created successfully
 	output, err := testee.CreateRepository(context.TODO(), input)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Same(t, input, output)
 
 	// New repositories should not be stored in the settings anymore
 	settingRepositories, err := settingsManager.GetRepositories()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Empty(t, settingRepositories)
 
 	// New repositories should be now stored as secrets
@@ -79,7 +80,7 @@ func TestDb_CreateRepository(t *testing.T) {
 		metav1.GetOptions{},
 	)
 	assert.NotNil(t, secret)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 }
 
 func TestDb_GetRepository(t *testing.T) {
@@ -92,17 +93,17 @@ func TestDb_GetRepository(t *testing.T) {
 	}
 
 	repository, err := testee.GetRepository(context.TODO(), "git@github.com:argoproj/argoproj.git", "")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotNil(t, repository)
 	assert.Equal(t, "OtherRepo", repository.Name)
 
 	repository, err = testee.GetRepository(context.TODO(), "git@github.com:argoproj/argo-cd.git", "")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotNil(t, repository)
 	assert.Equal(t, "SomeRepo", repository.Name)
 
 	repository, err = testee.GetRepository(context.TODO(), "git@github.com:argoproj/not-existing.git", "")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotNil(t, repository)
 	assert.Equal(t, "git@github.com:argoproj/not-existing.git", repository.Repo)
 }
@@ -117,7 +118,7 @@ func TestDb_ListRepositories(t *testing.T) {
 	}
 
 	repositories, err := testee.ListRepositories(context.TODO())
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Len(t, repositories, 2)
 }
 
@@ -148,7 +149,7 @@ func TestDb_UpdateRepository(t *testing.T) {
 	// Verify that legacy repository can still be updated
 	settingRepository.Username = "OtherUpdatedUsername"
 	repository, err := testee.UpdateRepository(context.TODO(), settingRepository)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotNil(t, repository)
 	assert.Same(t, settingRepository, repository)
 
@@ -157,14 +158,14 @@ func TestDb_UpdateRepository(t *testing.T) {
 		"managed-secret",
 		metav1.GetOptions{},
 	)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotNil(t, secret)
 	assert.Equal(t, "OtherUpdatedUsername", string(secret.Data["username"]))
 
 	// Verify that secret-based repository can be updated
 	secretRepository.Username = "UpdatedUsername"
 	repository, err = testee.UpdateRepository(context.TODO(), secretRepository)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotNil(t, repository)
 	assert.Same(t, secretRepository, repository)
 
@@ -173,7 +174,7 @@ func TestDb_UpdateRepository(t *testing.T) {
 		"some-repo-secret",
 		metav1.GetOptions{},
 	)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotNil(t, secret)
 	assert.Equal(t, "UpdatedUsername", string(secret.Data["username"]))
 }
@@ -188,17 +189,17 @@ func TestDb_DeleteRepository(t *testing.T) {
 	}
 
 	err := testee.DeleteRepository(context.TODO(), "git@github.com:argoproj/argoproj.git", "")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	repositories, err := settingsManager.GetRepositories()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Empty(t, repositories)
 
 	err = testee.DeleteRepository(context.TODO(), "git@github.com:argoproj/argo-cd.git", "")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	_, err = clientset.CoreV1().Secrets(testNamespace).Get(context.TODO(), "some-repo-secret", metav1.GetOptions{})
-	assert.Error(t, err)
+	require.Error(t, err)
 }
 
 func TestDb_GetRepositoryCredentials(t *testing.T) {
@@ -232,17 +233,17 @@ func TestDb_GetRepositoryCredentials(t *testing.T) {
 	testee := NewDB(testNamespace, settings.NewSettingsManager(context.TODO(), clientset, testNamespace), clientset)
 
 	repoCreds, err := testee.GetRepositoryCredentials(context.TODO(), "git@github.com:argoproj/argoproj.git")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotNil(t, repoCreds)
 	assert.Equal(t, "git@github.com:argoproj", repoCreds.URL)
 
 	repoCreds, err = testee.GetRepositoryCredentials(context.TODO(), "git@gitlab.com:someorg/foobar.git")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotNil(t, repoCreds)
 	assert.Equal(t, "git@gitlab.com", repoCreds.URL)
 
 	repoCreds, err = testee.GetRepositoryCredentials(context.TODO(), "git@github.com:example/not-existing.git")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Nil(t, repoCreds)
 }
 
@@ -357,7 +358,7 @@ func Test_GetProjectRepositories(t *testing.T) {
 	argoDB := NewDB(testNamespace, settings.NewSettingsManager(context.TODO(), clientset, testNamespace), clientset)
 
 	repos, err := argoDB.GetProjectRepositories(context.TODO(), "some-project")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Len(t, repos, 1)
 	assert.Equal(t, "git@github.com:argoproj/argo-cd", repos[0].Repo)
 }
