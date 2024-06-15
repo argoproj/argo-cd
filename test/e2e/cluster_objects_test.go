@@ -6,6 +6,7 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/health"
 	. "github.com/argoproj/gitops-engine/pkg/sync/common"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	. "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	. "github.com/argoproj/argo-cd/v2/test/e2e/fixture"
@@ -25,7 +26,7 @@ func TestClusterRoleBinding(t *testing.T) {
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		And(func(app *Application) {
 			diffOutput, err := RunCli("app", "diff", app.Name, "--revision=HEAD")
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			assert.Empty(t, diffOutput)
 		}).
 		When().
@@ -37,7 +38,7 @@ func TestClusterRoleBinding(t *testing.T) {
 		Expect(HealthIs(health.HealthStatusHealthy)).
 		And(func(app *Application) {
 			diffOutput, err := RunCli("app", "diff", app.Name, "--revision=HEAD")
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			assert.Empty(t, diffOutput)
 		})
 }
