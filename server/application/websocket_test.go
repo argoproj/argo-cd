@@ -9,6 +9,7 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func reconnect(w http.ResponseWriter, r *http.Request) {
@@ -30,7 +31,7 @@ func TestReconnect(t *testing.T) {
 
 	// Connect to the server
 	ws, _, err := websocket.DefaultDialer.Dial(u, nil)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	defer ws.Close()
 
@@ -40,6 +41,6 @@ func TestReconnect(t *testing.T) {
 
 	err = json.Unmarshal(p, &message)
 
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, ReconnectMessage, message.Data)
 }
