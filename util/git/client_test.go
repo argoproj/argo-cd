@@ -46,7 +46,7 @@ func Test_nativeGitClient_Fetch(t *testing.T) {
 	require.NoError(t, err)
 
 	err = client.Fetch("")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 }
 
 func Test_nativeGitClient_Fetch_Prune(t *testing.T) {
@@ -63,7 +63,7 @@ func Test_nativeGitClient_Fetch_Prune(t *testing.T) {
 	require.NoError(t, err)
 
 	err = client.Fetch("")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	err = runCmd(tempDir, "git", "branch", "-d", "test/foo")
 	require.NoError(t, err)
@@ -71,7 +71,7 @@ func Test_nativeGitClient_Fetch_Prune(t *testing.T) {
 	require.NoError(t, err)
 
 	err = client.Fetch("")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 }
 
 func Test_IsAnnotatedTag(t *testing.T) {
@@ -109,9 +109,9 @@ func Test_IsAnnotatedTag(t *testing.T) {
 	assert.True(t, atag)
 
 	err = runCmd(client.Root(), "git", "rm", "README")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	err = runCmd(client.Root(), "git", "commit", "-m", "remove README", "-a")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	// We moved on, so tag doesn't point to HEAD anymore
 	atag = client.IsAnnotatedTag("HEAD")
@@ -216,28 +216,28 @@ func Test_nativeGitClient_Submodule(t *testing.T) {
 	require.NoError(t, err)
 
 	err = client.Fetch("")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	commitSHA, err := client.LsRemote("HEAD")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	// Call Checkout() with submoduleEnabled=false.
 	err = client.Checkout(commitSHA, false)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	// Check if submodule url does not exist in .git/config
 	err = runCmd(client.Root(), "git", "config", "submodule.bar.url")
-	assert.Error(t, err)
+	require.Error(t, err)
 
 	// Call Submodule() via Checkout() with submoduleEnabled=true.
 	err = client.Checkout(commitSHA, true)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	// Check if the .gitmodule URL is reflected in .git/config
 	cmd := exec.Command("git", "config", "submodule.bar.url")
 	cmd.Dir = client.Root()
 	result, err := cmd.Output()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, bar+"\n", string(result))
 
 	// Change URL of submodule bar
@@ -246,13 +246,13 @@ func Test_nativeGitClient_Submodule(t *testing.T) {
 
 	// Call Submodule()
 	err = client.Submodule()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	// Check if the URL change in .gitmodule is reflected in .git/config
 	cmd = exec.Command("git", "config", "submodule.bar.url")
 	cmd.Dir = client.Root()
 	result, err = cmd.Output()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, bar+"baz\n", string(result))
 }
 

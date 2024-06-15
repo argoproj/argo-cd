@@ -140,7 +140,7 @@ func TestStateDiff(t *testing.T) {
 			result, err := argo.StateDiff(tc.liveState, tc.desiredState, dc)
 
 			// then
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			assert.NotNil(t, result)
 			assert.True(t, result.Modified)
 			normalized := testutil.YamlToUnstructured(string(result.NormalizedLive))
