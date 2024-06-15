@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -33,7 +34,7 @@ func Test_secretToCluster(t *testing.T) {
 		},
 	}
 	cluster, err := secretToCluster(secret)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, argoappv1.Cluster{
 		Name:   "test",
 		Server: "http://mycluster",
@@ -56,7 +57,7 @@ func Test_secretToCluster_NoConfig(t *testing.T) {
 		},
 	}
 	cluster, err := secretToCluster(secret)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, argoappv1.Cluster{
 		Name:   "test",
 		Server: "http://mycluster",
@@ -92,7 +93,7 @@ func TestValidateDestination(t *testing.T) {
 		}
 
 		appCond := ValidateDestination(context.Background(), &dest, nil, fakeNamespace)
-		assert.NoError(t, appCond)
+		require.NoError(t, appCond)
 		assert.False(t, dest.IsServerInferred())
 	})
 
@@ -107,7 +108,7 @@ func TestValidateDestination(t *testing.T) {
 		kubeclientset := fake.NewSimpleClientset(objects...)
 
 		appCond := ValidateDestination(context.Background(), &dest, kubeclientset, fakeNamespace)
-		assert.NoError(t, appCond)
+		require.NoError(t, appCond)
 		assert.Equal(t, "https://127.0.0.1:6443", dest.Server)
 		assert.True(t, dest.IsServerInferred())
 	})
