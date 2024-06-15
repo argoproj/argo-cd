@@ -11,7 +11,7 @@ require (
 	github.com/TomOnTime/utfutil v0.0.0-20180511104225-09c41003ee1d
 	github.com/alicebob/miniredis/v2 v2.30.4
 	github.com/antonmedv/expr v1.15.2
-	github.com/argoproj/gitops-engine v0.7.1-0.20240514190100-8a3ce6d85caa
+	github.com/argoproj/gitops-engine v0.7.1-0.20240615185936-83ce6ca8cedc
 	github.com/argoproj/notifications-engine v0.4.1-0.20240606074338-0802cd427621
 	github.com/argoproj/pkg v0.13.7-0.20230626144333-d56162821bd1
 	github.com/aws/aws-sdk-go v1.50.8
@@ -294,8 +294,6 @@ require (
 )
 
 replace (
-	github.com/argoproj/gitops-engine => github.com/crenshaw-dev/gitops-engine v0.6.1-0.20240614230128-3223c97f9bd2
-
 	// https://github.com/golang/go/issues/33546#issuecomment-519656923
 	github.com/go-check/check => github.com/go-check/check v0.0.0-20180628173108-788fd7840127
 
