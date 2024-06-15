@@ -7,10 +7,6 @@ issues:
       text: "require-error:"
       linters:
         - testifylint
-    - path: "util/(argo|cache|cert|clusterauth|config|db|dex|git|gpg)/"
-      text: "require-error:"
-      linters:
-        - testifylint
   max-issues-per-linter: 0
   max-same-issues: 0
 linters:

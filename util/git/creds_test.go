@@ -187,18 +187,18 @@ func TestHTTPSCreds_Environ_clientCert(t *testing.T) {
 	assert.NotEmpty(t, key)
 
 	certBytes, err := os.ReadFile(cert)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, "clientCertData", string(certBytes))
 	keyBytes, err := os.ReadFile(key)
 	assert.Equal(t, "clientCertKey", string(keyBytes))
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	io.Close(closer)
 
 	_, err = os.Stat(cert)
-	assert.ErrorIs(t, err, os.ErrNotExist)
+	require.ErrorIs(t, err, os.ErrNotExist)
 	_, err = os.Stat(key)
-	assert.ErrorIs(t, err, os.ErrNotExist)
+	require.ErrorIs(t, err, os.ErrNotExist)
 }
 
 func Test_SSHCreds_Environ(t *testing.T) {
@@ -364,16 +364,16 @@ func TestNewGoogleCloudCreds_invalidJSON(t *testing.T) {
 
 	token, err := googleCloudCreds.getAccessToken()
 	assert.Equal(t, "", token)
-	assert.Error(t, err)
+	require.Error(t, err)
 
 	username, err := googleCloudCreds.getUsername()
 	assert.Equal(t, "", username)
-	assert.Error(t, err)
+	require.Error(t, err)
 
 	closer, envStringSlice, err := googleCloudCreds.Environ()
 	assert.Equal(t, NopCloser{}, closer)
 	assert.Equal(t, []string(nil), envStringSlice)
-	assert.Error(t, err)
+	require.Error(t, err)
 }
 
 func TestGoogleCloudCreds_Environ_cleanup(t *testing.T) {
@@ -386,7 +386,7 @@ func TestGoogleCloudCreds_Environ_cleanup(t *testing.T) {
 	}, store}
 
 	closer, env, err := googleCloudCreds.Environ()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	var nonce string
 	for _, envVar := range env {
 		if strings.HasPrefix(envVar, ASKPASS_NONCE_ENV) {
