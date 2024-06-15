@@ -22,6 +22,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/test/e2e/fixture"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	. "github.com/argoproj/argo-cd/v2/test/e2e/fixture/applicationsets"
 	"github.com/argoproj/argo-cd/v2/test/e2e/fixture/applicationsets/utils"
@@ -2612,7 +2613,7 @@ func TestSCMProviderGeneratorSCMProviderNotAllowed(t *testing.T) {
 		And(func() {
 			// app should be listed
 			output, err := fixture.RunCli("appset", "get", "scm-provider-generator-scm-provider-not-allowed")
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			assert.Contains(t, output, "scm provider not allowed")
 		})
 }
@@ -3024,7 +3025,7 @@ func TestPullRequestGeneratorNotAllowedSCMProvider(t *testing.T) {
 		And(func() {
 			// app should be listed
 			output, err := fixture.RunCli("appset", "get", "pull-request-generator-not-allowed-scm")
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			assert.Contains(t, output, "scm provider not allowed")
 		})
 }
