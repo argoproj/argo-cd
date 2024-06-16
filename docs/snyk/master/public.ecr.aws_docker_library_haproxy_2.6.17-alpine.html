@@ -7,7 +7,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <title>Snyk test report</title>
-  <meta name="description" content="3 known vulnerabilities found in 19 vulnerable dependency paths.">
+  <meta name="description" content="3 known vulnerabilities found in 22 vulnerable dependency paths.">
   <base target="_blank">
   <link rel="icon" type="image/png" href="https://res.cloudinary.com/snyk/image/upload/v1468845142/favicon/favicon.png"
     sizes="194x194">
@@ -456,25 +456,33 @@
               <div class="header-wrap">
                   <h1 class="project__header__title">Snyk test report</h1>
     
-                <p class="timestamp">June 16th 2024, 12:23:28 am (UTC+00:00)</p>
+                <p class="timestamp">June 16th 2024, 12:16:25 am (UTC+00:00)</p>
               </div>
               <div class="source-panel">
-                <span>Scanned the following paths:</span>
+                <span>Scanned the following path:</span>
                 <ul>
-                  <li class="paths">redis:7.0.15-alpine (apk)</li>
-                  <li class="paths">redis:7.0.15-alpine/tianon/gosu//usr/local/bin/gosu (gomodules)</li>
+                  <li class="paths">public.ecr.aws/docker/library/haproxy:2.6.17-alpine/docker/library/haproxy (apk)</li>
                 </ul>
               </div>
     
               <div class="meta-counts">
                 <div class="meta-count"><span>3</span> <span>known vulnerabilities</span></div>
-                <div class="meta-count"><span>19 vulnerable dependency paths</span></div>
+                <div class="meta-count"><span>22 vulnerable dependency paths</span></div>
                 <div class="meta-count"><span>18</span> <span>dependencies</span></div>
               </div><!-- .meta-counts -->
             </div><!-- .layout-container--short -->
           </header><!-- .project__header -->
         </div><!-- .layout-stacked__header -->
-
+      <section class="layout-container">
+          <table class="metatable">
+              <tbody>
+              <tr class="meta-row"><th class="meta-row-label">Project</th> <td class="meta-row-value">docker-image|public.ecr.aws/docker/library/haproxy</td></tr>
+              <tr class="meta-row"><th class="meta-row-label">Path</th> <td class="meta-row-value">public.ecr.aws/docker/library/haproxy:2.6.17-alpine/docker/library/haproxy</td></tr>
+              <tr class="meta-row"><th class="meta-row-label">Package Manager</th> <td class="meta-row-value">apk</td></tr>
+              
+              </tbody>
+          </table>
+      </section>
     <div class="layout-container" style="padding-top: 35px;">
       <div class="cards--vuln filter--patch filter--ignore">
         <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
@@ -499,7 +507,7 @@
         
                     <li class="card__meta__item">Introduced through:
         
-                                docker-image|redis@7.0.15-alpine and busybox/busybox@1.36.1-r28
+                                docker-image|public.ecr.aws/docker/library/haproxy@2.6.17-alpine and busybox/busybox@1.36.1-r28
         
                     </li>
                 </ul>
@@ -512,7 +520,7 @@
                     <ul class="card__meta__paths">
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|redis@7.0.15-alpine
+                                        docker-image|public.ecr.aws/docker/library/haproxy@2.6.17-alpine
                                          <span class="list-paths__item__arrow">›</span> 
                                         busybox/busybox@1.36.1-r28
                                         
@@ -521,7 +529,7 @@
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|redis@7.0.15-alpine
+                                        docker-image|public.ecr.aws/docker/library/haproxy@2.6.17-alpine
                                          <span class="list-paths__item__arrow">›</span> 
                                         alpine-baselayout/alpine-baselayout@3.6.5-r0
                                          <span class="list-paths__item__arrow">›</span> 
@@ -534,7 +542,7 @@
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|redis@7.0.15-alpine
+                                        docker-image|public.ecr.aws/docker/library/haproxy@2.6.17-alpine
                                          <span class="list-paths__item__arrow">›</span> 
                                         busybox/busybox-binsh@1.36.1-r28
                                         
@@ -543,7 +551,7 @@
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|redis@7.0.15-alpine
+                                        docker-image|public.ecr.aws/docker/library/haproxy@2.6.17-alpine
                                          <span class="list-paths__item__arrow">›</span> 
                                         alpine-baselayout/alpine-baselayout@3.6.5-r0
                                          <span class="list-paths__item__arrow">›</span> 
@@ -554,7 +562,18 @@
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|redis@7.0.15-alpine
+                                        docker-image|public.ecr.aws/docker/library/haproxy@2.6.17-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        ca-certificates/ca-certificates@20240226-r0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        busybox/busybox-binsh@1.36.1-r28
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|public.ecr.aws/docker/library/haproxy@2.6.17-alpine
                                          <span class="list-paths__item__arrow">›</span> 
                                         busybox/ssl_client@1.36.1-r28
                                         
@@ -607,7 +626,7 @@
         
                     <li class="card__meta__item">Introduced through:
         
-                                docker-image|redis@7.0.15-alpine and busybox/busybox@1.36.1-r28
+                                docker-image|public.ecr.aws/docker/library/haproxy@2.6.17-alpine and busybox/busybox@1.36.1-r28
         
                     </li>
                 </ul>
@@ -620,7 +639,7 @@
                     <ul class="card__meta__paths">
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|redis@7.0.15-alpine
+                                        docker-image|public.ecr.aws/docker/library/haproxy@2.6.17-alpine
                                          <span class="list-paths__item__arrow">›</span> 
                                         busybox/busybox@1.36.1-r28
                                         
@@ -629,7 +648,7 @@
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|redis@7.0.15-alpine
+                                        docker-image|public.ecr.aws/docker/library/haproxy@2.6.17-alpine
                                          <span class="list-paths__item__arrow">›</span> 
                                         alpine-baselayout/alpine-baselayout@3.6.5-r0
                                          <span class="list-paths__item__arrow">›</span> 
@@ -642,7 +661,7 @@
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|redis@7.0.15-alpine
+                                        docker-image|public.ecr.aws/docker/library/haproxy@2.6.17-alpine
                                          <span class="list-paths__item__arrow">›</span> 
                                         busybox/busybox-binsh@1.36.1-r28
                                         
@@ -651,7 +670,7 @@
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|redis@7.0.15-alpine
+                                        docker-image|public.ecr.aws/docker/library/haproxy@2.6.17-alpine
                                          <span class="list-paths__item__arrow">›</span> 
                                         alpine-baselayout/alpine-baselayout@3.6.5-r0
                                          <span class="list-paths__item__arrow">›</span> 
@@ -662,7 +681,18 @@
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|redis@7.0.15-alpine
+                                        docker-image|public.ecr.aws/docker/library/haproxy@2.6.17-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        ca-certificates/ca-certificates@20240226-r0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        busybox/busybox-binsh@1.36.1-r28
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|public.ecr.aws/docker/library/haproxy@2.6.17-alpine
                                          <span class="list-paths__item__arrow">›</span> 
                                         busybox/ssl_client@1.36.1-r28
                                         
@@ -715,7 +745,7 @@
         
                     <li class="card__meta__item">Introduced through:
         
-                                docker-image|redis@7.0.15-alpine and openssl/libcrypto3@3.3.0-r2
+                                docker-image|public.ecr.aws/docker/library/haproxy@2.6.17-alpine and openssl/libcrypto3@3.3.0-r2
         
                     </li>
                 </ul>
@@ -728,7 +758,7 @@
                     <ul class="card__meta__paths">
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|redis@7.0.15-alpine
+                                        docker-image|public.ecr.aws/docker/library/haproxy@2.6.17-alpine
                                          <span class="list-paths__item__arrow">›</span> 
                                         openssl/libcrypto3@3.3.0-r2
                                         
@@ -737,9 +767,9 @@
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|redis@7.0.15-alpine
+                                        docker-image|public.ecr.aws/docker/library/haproxy@2.6.17-alpine
                                          <span class="list-paths__item__arrow">›</span> 
-                                        .redis-rundeps@20240524.005525
+                                        .haproxy-rundeps@20240524.005458
                                          <span class="list-paths__item__arrow">›</span> 
                                         openssl/libcrypto3@3.3.0-r2
                                         
@@ -748,7 +778,7 @@
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|redis@7.0.15-alpine
+                                        docker-image|public.ecr.aws/docker/library/haproxy@2.6.17-alpine
                                          <span class="list-paths__item__arrow">›</span> 
                                         apk-tools/apk-tools@2.14.4-r0
                                          <span class="list-paths__item__arrow">›</span> 
@@ -759,7 +789,7 @@
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|redis@7.0.15-alpine
+                                        docker-image|public.ecr.aws/docker/library/haproxy@2.6.17-alpine
                                          <span class="list-paths__item__arrow">›</span> 
                                         busybox/ssl_client@1.36.1-r28
                                          <span class="list-paths__item__arrow">›</span> 
@@ -770,9 +800,20 @@
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|redis@7.0.15-alpine
+                                        docker-image|public.ecr.aws/docker/library/haproxy@2.6.17-alpine
                                          <span class="list-paths__item__arrow">›</span> 
-                                        .redis-rundeps@20240524.005525
+                                        ca-certificates/ca-certificates@20240226-r0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto3@3.3.0-r2
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|public.ecr.aws/docker/library/haproxy@2.6.17-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        .haproxy-rundeps@20240524.005458
                                          <span class="list-paths__item__arrow">›</span> 
                                         openssl/libssl3@3.3.0-r2
                                          <span class="list-paths__item__arrow">›</span> 
@@ -783,7 +824,7 @@
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|redis@7.0.15-alpine
+                                        docker-image|public.ecr.aws/docker/library/haproxy@2.6.17-alpine
                                          <span class="list-paths__item__arrow">›</span> 
                                         openssl/libssl3@3.3.0-r2
                                         
@@ -792,9 +833,9 @@
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|redis@7.0.15-alpine
+                                        docker-image|public.ecr.aws/docker/library/haproxy@2.6.17-alpine
                                          <span class="list-paths__item__arrow">›</span> 
-                                        .redis-rundeps@20240524.005525
+                                        .haproxy-rundeps@20240524.005458
                                          <span class="list-paths__item__arrow">›</span> 
                                         openssl/libssl3@3.3.0-r2
                                         
@@ -803,7 +844,7 @@
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|redis@7.0.15-alpine
+                                        docker-image|public.ecr.aws/docker/library/haproxy@2.6.17-alpine
                                          <span class="list-paths__item__arrow">›</span> 
                                         apk-tools/apk-tools@2.14.4-r0
                                          <span class="list-paths__item__arrow">›</span> 
@@ -814,7 +855,7 @@
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|redis@7.0.15-alpine
+                                        docker-image|public.ecr.aws/docker/library/haproxy@2.6.17-alpine
                                          <span class="list-paths__item__arrow">›</span> 
                                         busybox/ssl_client@1.36.1-r28
                                          <span class="list-paths__item__arrow">›</span> 
