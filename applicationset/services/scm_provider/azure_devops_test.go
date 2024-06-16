@@ -6,12 +6,11 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
+	"github.com/microsoft/azure-devops-go-api/azuredevops"
+	azureGit "github.com/microsoft/azure-devops-go-api/azuredevops/git"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"k8s.io/utils/ptr"
-
-	"github.com/microsoft/azure-devops-go-api/azuredevops"
-	azureGit "github.com/microsoft/azure-devops-go-api/azuredevops/git"
 
 	azureMock "github.com/argoproj/argo-cd/v2/applicationset/services/scm_provider/azure_devops/git/mocks"
 )

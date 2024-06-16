@@ -6,12 +6,11 @@ import (
 	"time"
 
 	"github.com/imdario/mergo"
+	log "github.com/sirupsen/logrus"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/argoproj/argo-cd/v2/applicationset/utils"
 	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-
-	log "github.com/sirupsen/logrus"
 )
 
 var _ Generator = (*MergeGenerator)(nil)

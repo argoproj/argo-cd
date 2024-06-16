@@ -3,10 +3,10 @@ package kube
 import (
 	"os"
 
-	"github.com/argoproj/argo-cd/v2/util/log"
-
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/argoproj/gitops-engine/pkg/utils/tracing"
+
+	"github.com/argoproj/argo-cd/v2/util/log"
 )
 
 var tracer tracing.Tracer = &tracing.NopTracer{}

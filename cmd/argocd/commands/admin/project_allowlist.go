@@ -17,19 +17,17 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	"sigs.k8s.io/yaml"
 
-	"github.com/argoproj/argo-cd/v2/util/errors"
-
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/util/cli"
+	"github.com/argoproj/argo-cd/v2/util/errors"
 
+	// load the azure plugin (required to authenticate with AKS clusters).
+	_ "k8s.io/client-go/plugin/pkg/client/auth/azure"
 	// load the gcp plugin (required to authenticate against GKE clusters).
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	// load the oidc plugin (required to authenticate with OpenID Connect).
 	_ "k8s.io/client-go/plugin/pkg/client/auth/oidc"
-	// load the azure plugin (required to authenticate with AKS clusters).
-	_ "k8s.io/client-go/plugin/pkg/client/auth/azure"
-
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
 )
 
 // NewProjectAllowListGenCommand generates a project from clusterRole

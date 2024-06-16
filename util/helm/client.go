@@ -18,8 +18,6 @@ import (
 	"strings"
 	"time"
 
-	executil "github.com/argoproj/argo-cd/v2/util/exec"
-
 	"github.com/argoproj/pkg/sync"
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v2"
@@ -27,6 +25,7 @@ import (
 	"oras.land/oras-go/v2/registry/remote/auth"
 
 	"github.com/argoproj/argo-cd/v2/util/cache"
+	executil "github.com/argoproj/argo-cd/v2/util/exec"
 	argoio "github.com/argoproj/argo-cd/v2/util/io"
 	"github.com/argoproj/argo-cd/v2/util/io/files"
 	"github.com/argoproj/argo-cd/v2/util/proxy"

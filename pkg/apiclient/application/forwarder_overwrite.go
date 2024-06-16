@@ -7,15 +7,13 @@ import (
 	gohttp "net/http"
 	"strings"
 
-	"github.com/argoproj/argo-cd/v2/util/kube"
-
 	"github.com/argoproj/pkg/grpc/http"
-	"github.com/grpc-ecosystem/grpc-gateway/runtime"
-
 	// nolint:staticcheck
 	"github.com/golang/protobuf/proto"
+	"github.com/grpc-ecosystem/grpc-gateway/runtime"
 
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/util/kube"
 )
 
 // appFields is a map of fields that can be selected from an application.

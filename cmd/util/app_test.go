@@ -8,10 +8,9 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"k8s.io/apimachinery/pkg/util/intstr"
 
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-
-	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
 func Test_setHelmOpt(t *testing.T) {

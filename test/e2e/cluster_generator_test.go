@@ -4,16 +4,15 @@ import (
 	"testing"
 	"time"
 
-	"github.com/argoproj/argo-cd/v2/test/e2e/fixture"
-
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	argov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	. "github.com/argoproj/argo-cd/v2/test/e2e/fixture/applicationsets"
+	"github.com/argoproj/argo-cd/v2/test/e2e/fixture"
 	"github.com/argoproj/argo-cd/v2/test/e2e/fixture/applicationsets/utils"
 
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
+	. "github.com/argoproj/argo-cd/v2/test/e2e/fixture/applicationsets"
 )
 
 func TestSimpleClusterGeneratorExternalNamespace(t *testing.T) {

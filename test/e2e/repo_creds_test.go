@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/argoproj/argo-cd/v2/test/e2e/fixture"
+
 	. "github.com/argoproj/argo-cd/v2/test/e2e/fixture/app"
 	. "github.com/argoproj/argo-cd/v2/util/errors"
 )

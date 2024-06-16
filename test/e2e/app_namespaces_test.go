@@ -4,7 +4,6 @@ import (
 	"context"
 	"testing"
 
-	. "github.com/argoproj/gitops-engine/pkg/sync/common"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -15,6 +14,7 @@ import (
 	. "github.com/argoproj/argo-cd/v2/test/e2e/fixture/app"
 	. "github.com/argoproj/argo-cd/v2/util/argo"
 	. "github.com/argoproj/argo-cd/v2/util/errors"
+	. "github.com/argoproj/gitops-engine/pkg/sync/common"
 )
 
 func TestAppCreationInOtherNamespace(t *testing.T) {

@@ -3,7 +3,6 @@ package e2e
 import (
 	"testing"
 
-	. "github.com/argoproj/gitops-engine/pkg/sync/common"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -12,6 +11,7 @@ import (
 	. "github.com/argoproj/argo-cd/v2/test/e2e/fixture"
 	. "github.com/argoproj/argo-cd/v2/test/e2e/fixture/app"
 	. "github.com/argoproj/argo-cd/v2/util/errors"
+	. "github.com/argoproj/gitops-engine/pkg/sync/common"
 )
 
 func TestJsonnetAppliedCorrectly(t *testing.T) {

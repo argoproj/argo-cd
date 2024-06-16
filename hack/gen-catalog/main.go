@@ -9,19 +9,18 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/spf13/cobra/doc"
-
-	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/admin"
-
 	"github.com/argoproj/notifications-engine/pkg/services"
 	"github.com/argoproj/notifications-engine/pkg/triggers"
 	"github.com/argoproj/notifications-engine/pkg/util/misc"
 	"github.com/olekukonko/tablewriter"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	"github.com/spf13/cobra/doc"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/yaml"
+
+	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/admin"
 )
 
 func main() {

@@ -12,18 +12,16 @@ import (
 	"strings"
 	"time"
 
+	log "github.com/sirupsen/logrus"
 	slices "golang.org/x/exp/slices"
 	v1 "k8s.io/api/core/v1"
+	kubeerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 
 	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/controller/sharding/consistent"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-
-	log "github.com/sirupsen/logrus"
-	kubeerrors "k8s.io/apimachinery/pkg/api/errors"
-
 	"github.com/argoproj/argo-cd/v2/util/db"
 	"github.com/argoproj/argo-cd/v2/util/env"
 	"github.com/argoproj/argo-cd/v2/util/errors"

@@ -9,23 +9,18 @@ import (
 	"strings"
 	"time"
 
-	v12 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
-	"github.com/argoproj/argo-cd/v2/util/helm"
-
 	"gopkg.in/yaml.v2"
-
-	"k8s.io/client-go/kubernetes/scheme"
-
 	v1 "k8s.io/api/core/v1"
+	v12 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/remotecommand"
-
-	"k8s.io/client-go/kubernetes"
 
 	"github.com/argoproj/argo-cd/v2/hack/gen-resources/util"
 	argoappv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/util/db"
+	"github.com/argoproj/argo-cd/v2/util/helm"
 )
 
 const POD_PREFIX = "vcluster"

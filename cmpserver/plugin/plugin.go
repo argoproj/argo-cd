@@ -14,7 +14,11 @@ import (
 	"time"
 	"unicode"
 
+	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/argoproj/pkg/rand"
+	securejoin "github.com/cyphar/filepath-securejoin"
+	"github.com/mattn/go-zglob"
+	log "github.com/sirupsen/logrus"
 
 	"github.com/argoproj/argo-cd/v2/cmpserver/apiclient"
 	"github.com/argoproj/argo-cd/v2/common"
@@ -22,11 +26,6 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/buffered_context"
 	"github.com/argoproj/argo-cd/v2/util/cmp"
 	"github.com/argoproj/argo-cd/v2/util/io/files"
-
-	"github.com/argoproj/gitops-engine/pkg/utils/kube"
-	securejoin "github.com/cyphar/filepath-securejoin"
-	"github.com/mattn/go-zglob"
-	log "github.com/sirupsen/logrus"
 )
 
 // cmpTimeoutBuffer is the amount of time before the request deadline to timeout server-side work. It makes sure there's

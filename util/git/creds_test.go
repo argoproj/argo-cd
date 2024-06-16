@@ -9,13 +9,12 @@ import (
 	"strings"
 	"testing"
 
+	argoio "github.com/argoproj/gitops-engine/pkg/utils/io"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
-
-	argoio "github.com/argoproj/gitops-engine/pkg/utils/io"
 
 	"github.com/argoproj/argo-cd/v2/util/cert"
 	"github.com/argoproj/argo-cd/v2/util/io"

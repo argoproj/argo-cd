@@ -5,14 +5,13 @@ import (
 	"os"
 	"strings"
 
-	"github.com/argoproj/argo-cd/v2/util/git"
-
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
 	"github.com/argoproj/argo-cd/v2/reposerver/askpass"
 	"github.com/argoproj/argo-cd/v2/util/errors"
+	"github.com/argoproj/argo-cd/v2/util/git"
 	grpc_util "github.com/argoproj/argo-cd/v2/util/grpc"
 	"github.com/argoproj/argo-cd/v2/util/io"
 )

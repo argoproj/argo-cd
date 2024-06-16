@@ -8,12 +8,12 @@ import (
 	"os/exec"
 	"strings"
 
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
-
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	extensionsobj "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"sigs.k8s.io/yaml"
+
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
 )
 
 var kindToCRDPath = map[string]string{

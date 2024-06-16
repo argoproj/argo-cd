@@ -9,10 +9,11 @@ import (
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	client "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
-	. "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/test/e2e/fixture"
 	"github.com/argoproj/argo-cd/v2/util/errors"
 	"github.com/argoproj/argo-cd/v2/util/grpc"
+
+	. "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 )
 
 // this implements the "when" part of given/when/then

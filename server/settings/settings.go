@@ -7,13 +7,11 @@ import (
 	"github.com/golang/protobuf/ptypes/empty"
 	"sigs.k8s.io/yaml"
 
-	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
-	ioutil "github.com/argoproj/argo-cd/v2/util/io"
-
-	sessionmgr "github.com/argoproj/argo-cd/v2/util/session"
-
 	settingspkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/settings"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
+	ioutil "github.com/argoproj/argo-cd/v2/util/io"
+	sessionmgr "github.com/argoproj/argo-cd/v2/util/session"
 	"github.com/argoproj/argo-cd/v2/util/settings"
 )
 

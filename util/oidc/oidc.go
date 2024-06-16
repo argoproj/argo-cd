@@ -26,7 +26,6 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/cache"
 	"github.com/argoproj/argo-cd/v2/util/crypto"
 	"github.com/argoproj/argo-cd/v2/util/dex"
-
 	httputil "github.com/argoproj/argo-cd/v2/util/http"
 	jwtutil "github.com/argoproj/argo-cd/v2/util/jwt"
 	"github.com/argoproj/argo-cd/v2/util/rand"

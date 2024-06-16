@@ -8,12 +8,11 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"k8s.io/client-go/kubernetes"
+	"sigs.k8s.io/controller-runtime/pkg/envtest"
 
 	"github.com/argoproj/argo-cd/v2/util/errors"
-
-	"github.com/argoproj/gitops-engine/pkg/utils/kube"
-	"sigs.k8s.io/controller-runtime/pkg/envtest"
 )
 
 func main() {

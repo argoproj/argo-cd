@@ -4,9 +4,8 @@ import (
 	"errors"
 	"fmt"
 
-	log "github.com/sirupsen/logrus"
-
 	"github.com/Masterminds/semver/v3"
+	log "github.com/sirupsen/logrus"
 )
 
 type TagsList struct {

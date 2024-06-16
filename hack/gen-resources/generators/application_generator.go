@@ -6,18 +6,14 @@ import (
 	"math/rand"
 	"time"
 
-	"github.com/argoproj/argo-cd/v2/util/settings"
-
-	"github.com/argoproj/argo-cd/v2/util/db"
-
-	"github.com/argoproj/argo-cd/v2/hack/gen-resources/util"
-
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
 	"k8s.io/client-go/kubernetes"
 
+	"github.com/argoproj/argo-cd/v2/hack/gen-resources/util"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
+	"github.com/argoproj/argo-cd/v2/util/db"
+	"github.com/argoproj/argo-cd/v2/util/settings"
 )
 
 type ApplicationGenerator struct {

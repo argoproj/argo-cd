@@ -11,10 +11,10 @@ import (
 	"net"
 	"time"
 
-	ioutil "github.com/argoproj/argo-cd/v2/util/io"
-
 	rediscache "github.com/go-redis/cache/v9"
 	"github.com/redis/go-redis/v9"
+
+	ioutil "github.com/argoproj/argo-cd/v2/util/io"
 )
 
 type RedisCompressionType string

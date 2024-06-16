@@ -6,16 +6,6 @@ import (
 	"os"
 	"strings"
 
-	"github.com/argoproj/argo-cd/v2/common"
-	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
-
-	"github.com/argoproj/argo-cd/v2/util/env"
-	"github.com/argoproj/argo-cd/v2/util/errors"
-	service "github.com/argoproj/argo-cd/v2/util/notification/argocd"
-	"github.com/argoproj/argo-cd/v2/util/tls"
-
-	notificationscontroller "github.com/argoproj/argo-cd/v2/notification_controller/controller"
-
 	"github.com/argoproj/notifications-engine/pkg/controller"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -23,8 +13,17 @@ import (
 	"github.com/spf13/cobra"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
-	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	"k8s.io/client-go/tools/clientcmd"
+
+	"github.com/argoproj/argo-cd/v2/common"
+	notificationscontroller "github.com/argoproj/argo-cd/v2/notification_controller/controller"
+	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
+	"github.com/argoproj/argo-cd/v2/util/env"
+	"github.com/argoproj/argo-cd/v2/util/errors"
+	service "github.com/argoproj/argo-cd/v2/util/notification/argocd"
+	"github.com/argoproj/argo-cd/v2/util/tls"
+
+	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 )
 
 const (

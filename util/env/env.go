@@ -8,7 +8,6 @@ import (
 	"time"
 
 	timeutil "github.com/argoproj/pkg/time"
-
 	log "github.com/sirupsen/logrus"
 )
 

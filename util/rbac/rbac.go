@@ -10,10 +10,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/argoproj/argo-cd/v2/util/assets"
-	"github.com/argoproj/argo-cd/v2/util/glob"
-	jwtutil "github.com/argoproj/argo-cd/v2/util/jwt"
-
 	"github.com/Knetic/govaluate"
 	"github.com/casbin/casbin/v2"
 	"github.com/casbin/casbin/v2/model"
@@ -30,6 +26,10 @@ import (
 	v1 "k8s.io/client-go/informers/core/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
+
+	"github.com/argoproj/argo-cd/v2/util/assets"
+	"github.com/argoproj/argo-cd/v2/util/glob"
+	jwtutil "github.com/argoproj/argo-cd/v2/util/jwt"
 )
 
 const (

@@ -10,7 +10,6 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/health"
 	synccommon "github.com/argoproj/gitops-engine/pkg/sync/common"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
-	. "github.com/argoproj/gitops-engine/pkg/utils/testing"
 	"github.com/imdario/mergo"
 	"github.com/sirupsen/logrus"
 	logrustest "github.com/sirupsen/logrus/hooks/test"
@@ -30,6 +29,8 @@ import (
 	mockrepoclient "github.com/argoproj/argo-cd/v2/reposerver/apiclient/mocks"
 	"github.com/argoproj/argo-cd/v2/test"
 	"github.com/argoproj/argo-cd/v2/util/argo"
+
+	. "github.com/argoproj/gitops-engine/pkg/utils/testing"
 )
 
 // TestCompareAppStateEmpty tests comparison when both git and live have no objects

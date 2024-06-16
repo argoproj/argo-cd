@@ -8,10 +8,9 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/argoproj/notifications-engine/pkg/docs"
 	"gopkg.in/yaml.v2"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-
-	"github.com/argoproj/notifications-engine/pkg/docs"
 )
 
 func main() {

@@ -4,7 +4,6 @@ import (
 	"context"
 
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/project"
-
 	"github.com/argoproj/argo-cd/v2/test/e2e/fixture"
 )
 

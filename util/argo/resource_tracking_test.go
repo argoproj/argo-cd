@@ -4,14 +4,13 @@ import (
 	"os"
 	"testing"
 
-	"github.com/argoproj/argo-cd/v2/util/kube"
-
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gopkg.in/yaml.v2"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	"github.com/argoproj/argo-cd/v2/common"
+	"github.com/argoproj/argo-cd/v2/util/kube"
 )
 
 func TestSetAppInstanceLabel(t *testing.T) {

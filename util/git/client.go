@@ -18,7 +18,6 @@ import (
 	"time"
 
 	"github.com/Masterminds/semver/v3"
-
 	argoexec "github.com/argoproj/pkg/exec"
 	"github.com/bmatcuk/doublestar/v4"
 	"github.com/go-git/go-git/v5"

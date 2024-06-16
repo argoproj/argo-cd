@@ -10,8 +10,6 @@ import (
 	goSync "sync"
 	"time"
 
-	v1 "k8s.io/api/core/v1"
-
 	"github.com/argoproj/gitops-engine/pkg/diff"
 	"github.com/argoproj/gitops-engine/pkg/health"
 	"github.com/argoproj/gitops-engine/pkg/sync"
@@ -21,6 +19,7 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/sync/syncwaves"
 	kubeutil "github.com/argoproj/gitops-engine/pkg/utils/kube"
 	log "github.com/sirupsen/logrus"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"

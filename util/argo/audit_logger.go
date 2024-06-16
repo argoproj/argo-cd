@@ -13,7 +13,6 @@ import (
 	"k8s.io/client-go/kubernetes"
 
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
-
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 )
 

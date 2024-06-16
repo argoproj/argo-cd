@@ -3,9 +3,12 @@ package diff
 import (
 	"fmt"
 
+	"github.com/argoproj/gitops-engine/pkg/diff"
+	"github.com/argoproj/gitops-engine/pkg/utils/kube"
+	"github.com/argoproj/gitops-engine/pkg/utils/kube/scheme"
 	"github.com/go-logr/logr"
 	log "github.com/sirupsen/logrus"
-
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	k8smanagedfields "k8s.io/apimachinery/pkg/util/managedfields"
 
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
@@ -13,11 +16,6 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/argo/managedfields"
 	"github.com/argoproj/argo-cd/v2/util/argo/normalizers"
 	appstatecache "github.com/argoproj/argo-cd/v2/util/cache/appstate"
-
-	"github.com/argoproj/gitops-engine/pkg/diff"
-	"github.com/argoproj/gitops-engine/pkg/utils/kube"
-	"github.com/argoproj/gitops-engine/pkg/utils/kube/scheme"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
 // DiffConfigBuilder is used as a safe way to create valid DiffConfigs.

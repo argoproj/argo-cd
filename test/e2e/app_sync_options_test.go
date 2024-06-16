@@ -4,13 +4,13 @@ import (
 	"testing"
 
 	"github.com/argoproj/gitops-engine/pkg/health"
-	. "github.com/argoproj/gitops-engine/pkg/sync/common"
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
 
 	. "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	. "github.com/argoproj/argo-cd/v2/test/e2e/fixture"
 	. "github.com/argoproj/argo-cd/v2/test/e2e/fixture/app"
+	. "github.com/argoproj/gitops-engine/pkg/sync/common"
 )
 
 // Given application is set with --sync-option CreateNamespace=true and --sync-option ServerSideApply=true

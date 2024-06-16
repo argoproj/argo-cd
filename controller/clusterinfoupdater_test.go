@@ -7,11 +7,14 @@ import (
 	"testing"
 	"time"
 
+	clustercache "github.com/argoproj/gitops-engine/pkg/cache"
+	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes/fake"
+	"k8s.io/client-go/tools/cache"
 
 	"github.com/argoproj/argo-cd/v2/common"
-
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	appsfake "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned/fake"
 	appinformers "github.com/argoproj/argo-cd/v2/pkg/client/informers/externalversions/application/v1alpha1"
@@ -20,11 +23,6 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/cache/appstate"
 	"github.com/argoproj/argo-cd/v2/util/db"
 	"github.com/argoproj/argo-cd/v2/util/settings"
-
-	clustercache "github.com/argoproj/gitops-engine/pkg/cache"
-	"github.com/stretchr/testify/assert"
-	"k8s.io/client-go/kubernetes/fake"
-	"k8s.io/client-go/tools/cache"
 )
 
 // Expect cluster cache update is persisted in cluster secret

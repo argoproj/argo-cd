@@ -4,8 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/argoproj/argo-cd/v2/util/settings"
-
 	"github.com/google/uuid"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -14,6 +12,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/server/rbacpolicy"
 	util "github.com/argoproj/argo-cd/v2/util/io"
 	sessionmgr "github.com/argoproj/argo-cd/v2/util/session"
+	"github.com/argoproj/argo-cd/v2/util/settings"
 )
 
 // Server provides a Session service

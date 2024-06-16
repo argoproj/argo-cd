@@ -15,7 +15,6 @@ import (
 	"sync/atomic"
 
 	"github.com/google/btree"
-
 	blake2b "github.com/minio/blake2b-simd"
 )
 

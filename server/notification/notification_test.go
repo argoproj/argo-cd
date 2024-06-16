@@ -9,6 +9,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes/fake"
+	k8scache "k8s.io/client-go/tools/cache"
+	"k8s.io/kubectl/pkg/scheme"
 	"k8s.io/utils/ptr"
 
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/notification"
@@ -16,11 +20,6 @@ import (
 	service "github.com/argoproj/argo-cd/v2/util/notification/argocd"
 	"github.com/argoproj/argo-cd/v2/util/notification/k8s"
 	"github.com/argoproj/argo-cd/v2/util/notification/settings"
-
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes/fake"
-	k8scache "k8s.io/client-go/tools/cache"
-	"k8s.io/kubectl/pkg/scheme"
 )
 
 const testNamespace = "default"

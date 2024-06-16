@@ -17,10 +17,9 @@ import (
 
 	"github.com/Masterminds/sprig/v3"
 	"github.com/gosimple/slug"
+	log "github.com/sirupsen/logrus"
 	"github.com/valyala/fasttemplate"
 	"sigs.k8s.io/yaml"
-
-	log "github.com/sirupsen/logrus"
 
 	argoappsv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 )

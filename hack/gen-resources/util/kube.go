@@ -6,9 +6,8 @@ import (
 	"os/user"
 	"path"
 
-	"k8s.io/client-go/rest"
-
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 
 	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"

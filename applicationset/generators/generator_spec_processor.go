@@ -4,17 +4,14 @@ import (
 	"fmt"
 	"reflect"
 
+	"github.com/imdario/mergo"
 	"github.com/jeremywohl/flatten"
+	log "github.com/sirupsen/logrus"
+	"k8s.io/apimachinery/pkg/labels"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/argoproj/argo-cd/v2/applicationset/utils"
-
-	"k8s.io/apimachinery/pkg/labels"
-
 	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-
-	"github.com/imdario/mergo"
-	log "github.com/sirupsen/logrus"
 )
 
 const (
