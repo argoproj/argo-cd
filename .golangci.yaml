@@ -3,7 +3,7 @@ issues:
     - SA1019
     - SA5011
   exclude-rules:
-    - path: "(cmpserver|controller|reposerver)/"
+    - path: "(cmpserver|reposerver)/"
       text: "require-error:"
       linters:
         - testifylint
