@@ -3,6 +3,7 @@ package e2e
 import (
 	"context"
 	"fmt"
+	"github.com/stretchr/testify/require"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -31,7 +32,7 @@ func TestLabelsOnAppK8sEvents(t *testing.T) {
 			events, err := KubeClientset.CoreV1().Events(app.Namespace).List(context.Background(), metav1.ListOptions{
 				FieldSelector: fmt.Sprintf("involvedObject.name=%s,involvedObject.kind=Application", app.Name),
 			})
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			for _, event := range events.Items {
 				for k, v := range event.Labels {
 					ev, found := expectedLabels[k]
@@ -56,7 +57,7 @@ func TestNoLabelsOnAppK8sEvents(t *testing.T) {
 			events, err := KubeClientset.CoreV1().Events(app.Namespace).List(context.Background(), metav1.ListOptions{
 				FieldSelector: fmt.Sprintf("involvedObject.name=%s,involvedObject.kind=Application", app.Name),
 			})
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			for _, event := range events.Items {
 				assert.Nil(t, event.Labels)
 			}
