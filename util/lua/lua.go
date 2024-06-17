@@ -111,6 +111,7 @@ func (vm VM) ExecuteHealthLua(obj *unstructured.Unstructured, script string) (*h
 		healthStatus := &health.HealthStatus{}
 		err = json.Unmarshal(jsonBytes, healthStatus)
 		if err != nil {
+			// Validate if the error is caused by an empty object
 			typeError := &json.UnmarshalTypeError{Value: "array", Type: reflect.TypeOf(healthStatus)}
 			if errors.As(err, &typeError) {
 				return &health.HealthStatus{}, nil
