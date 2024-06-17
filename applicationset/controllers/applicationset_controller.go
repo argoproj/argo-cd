@@ -57,6 +57,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/argo/normalizers"
 
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
+	"github.com/hashicorp/golang-lru/v2/expirable"
 )
 
 const (
@@ -97,6 +98,7 @@ type ApplicationSetReconciler struct {
 // +kubebuilder:rbac:groups=argoproj.io,resources=applicationsets/status,verbs=get;update;patch
 
 func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+	startReconcile := time.Now()
 	logCtx := log.WithField("applicationset", req.NamespacedName)
 
 	var applicationSetInfo argov1alpha1.ApplicationSet
@@ -334,7 +336,7 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		requeueAfter = ReconcileRequeueOnValidationError
 	}
 
-	logCtx.WithField("requeueAfter", requeueAfter).Info("end reconcile")
+	logCtx.WithField("requeueAfter", requeueAfter).Info("end reconcile in ", time.Since(startReconcile))
 
 	return ctrl.Result{
 		RequeueAfter: requeueAfter,
@@ -460,6 +462,9 @@ func (r *ApplicationSetReconciler) setApplicationSetStatusCondition(ctx context.
 	return nil
 }
 
+// TODO add an option to choose cache expiration
+var argoProjCache = expirable.NewLRU[string, bool](0, nil, time.Hour*24)
+
 // validateGeneratedApplications uses the Argo CD validation functions to verify the correctness of the
 // generated applications.
 func (r *ApplicationSetReconciler) validateGeneratedApplications(ctx context.Context, desiredApplications []argov1alpha1.Application, applicationSetInfo argov1alpha1.ApplicationSet) (map[int]error, error) {
@@ -472,13 +477,18 @@ func (r *ApplicationSetReconciler) validateGeneratedApplications(ctx context.Con
 			errorsByIndex[i] = fmt.Errorf("ApplicationSet %s contains applications with duplicate name: %s", applicationSetInfo.Name, app.Name)
 			continue
 		}
-		_, err := r.ArgoAppClientset.ArgoprojV1alpha1().AppProjects(r.ArgoCDNamespace).Get(ctx, app.Spec.GetProject(), metav1.GetOptions{})
-		if err != nil {
-			if apierr.IsNotFound(err) {
-				errorsByIndex[i] = fmt.Errorf("application references project %s which does not exist", app.Spec.Project)
-				continue
+
+		if !argoProjCache.Contains(app.Spec.GetProject()) {
+			_, err := r.ArgoAppClientset.ArgoprojV1alpha1().AppProjects(r.ArgoCDNamespace).Get(ctx, app.Spec.GetProject(), metav1.GetOptions{})
+			if err != nil {
+				if apierr.IsNotFound(err) {
+					errorsByIndex[i] = fmt.Errorf("application references project %s which does not exist", app.Spec.Project)
+					continue
+				}
+				return nil, err
+			} else {
+				argoProjCache.Add(app.Spec.GetProject(), true)
 			}
-			return nil, err
 		}
 
 		if err := utils.ValidateDestination(ctx, &app.Spec.Destination, r.KubeClientset, r.ArgoCDNamespace); err != nil {
