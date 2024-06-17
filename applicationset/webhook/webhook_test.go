@@ -14,6 +14,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -180,9 +181,9 @@ func TestWebhookHandler(t *testing.T) {
 	fakeClient := newFakeClient(namespace)
 	scheme := runtime.NewScheme()
 	err := v1alpha1.AddToScheme(scheme)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	err = v1alpha1.AddToScheme(scheme)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	for _, test := range tt {
 		t.Run(test.desc, func(t *testing.T) {
@@ -206,12 +207,12 @@ func TestWebhookHandler(t *testing.T) {
 			).Build()
 			set := argosettings.NewSettingsManager(context.TODO(), fakeClient, namespace)
 			h, err := NewWebhookHandler(namespace, set, fc, mockGenerators())
-			assert.NoError(t, err)
+			require.NoError(t, err)
 
 			req := httptest.NewRequest(http.MethodPost, "/api/webhook", nil)
 			req.Header.Set(test.headerKey, test.headerValue)
 			eventJSON, err := os.ReadFile(filepath.Join("testdata", test.payloadFile))
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			req.Body = io.NopCloser(bytes.NewReader(eventJSON))
 			w := httptest.NewRecorder()
 
@@ -220,7 +221,7 @@ func TestWebhookHandler(t *testing.T) {
 
 			list := &v1alpha1.ApplicationSetList{}
 			err = fc.List(context.TODO(), list)
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			effectedAppSetsAsExpected := make(map[string]bool)
 			for _, appSetName := range test.effectedAppSets {
 				effectedAppSetsAsExpected[appSetName] = false
