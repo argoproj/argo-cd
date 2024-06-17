@@ -15,7 +15,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/utils/ptr"
+	"k8s.io/utils/pointer"
 
 	argocdcommon "github.com/argoproj/argo-cd/v2/common"
 
@@ -2969,7 +2969,7 @@ func TestRetryStrategy_NextRetryAtCustomBackoff(t *testing.T) {
 	retry := RetryStrategy{
 		Backoff: &Backoff{
 			Duration:    "2s",
-			Factor:      ptr.To(int64(3)),
+			Factor:      pointer.Int64(3),
 			MaxDuration: "1m",
 		},
 	}
@@ -3078,74 +3078,11 @@ func TestOrphanedResourcesMonitorSettings_IsWarn(t *testing.T) {
 	settings := OrphanedResourcesMonitorSettings{}
 	assert.False(t, settings.IsWarn())
 
-	settings.Warn = ptr.To(false)
+	settings.Warn = pointer.Bool(false)
 	assert.False(t, settings.IsWarn())
 
-	settings.Warn = ptr.To(true)
+	settings.Warn = pointer.Bool(true)
 	assert.True(t, settings.IsWarn())
-}
-
-func Test_isValidPolicy(t *testing.T) {
-	policyTests := []struct {
-		name    string
-		policy  string
-		isValid bool
-	}{
-		{
-			name:    "policy with full wildcard",
-			policy:  "some-project/*",
-			isValid: true,
-		},
-		{
-			name:    "policy with specified project and application",
-			policy:  "some-project/some-application",
-			isValid: true,
-		},
-		{
-			name:    "policy with full wildcard namespace and application",
-			policy:  "some-project/*/*",
-			isValid: true,
-		},
-		{
-			name:    "policy with wildcard namespace and specified application",
-			policy:  "some-project/*/some-application",
-			isValid: true,
-		},
-		{
-			name:    "policy with specified namespace and wildcard application",
-			policy:  "some-project/some-namespace/*",
-			isValid: true,
-		},
-		{
-			name:    "policy with wildcard prefix namespace and specified application",
-			policy:  "some-project/some-name*/some-application",
-			isValid: true,
-		},
-		{
-			name:    "policy with specified namespace and wildcard prefixed application",
-			policy:  "some-project/some-namespace/some-app*",
-			isValid: true,
-		},
-		{
-			name:    "policy with valid namespace and application",
-			policy:  "some-project/some-namespace/some-application",
-			isValid: true,
-		},
-		{
-			name:    "policy with invalid namespace character",
-			policy:  "some-project/some~namespace/some-application",
-			isValid: false,
-		},
-		{
-			name:    "policy with invalid application character",
-			policy:  "some-project/some-namespace/some^application",
-			isValid: false,
-		},
-	}
-
-	for _, policyTest := range policyTests {
-		assert.Equal(t, policyTest.isValid, isValidObject("some-project", policyTest.policy), policyTest.name)
-	}
 }
 
 func Test_validatePolicy_projIsNotRegex(t *testing.T) {
@@ -3439,7 +3376,7 @@ func TestApplicationSourcePluginParameters_Environ_string(t *testing.T) {
 	params := ApplicationSourcePluginParameters{
 		{
 			Name:    "version",
-			String_: ptr.To("1.2.3"),
+			String_: pointer.String("1.2.3"),
 		},
 	}
 	environ, err := params.Environ()
@@ -3496,7 +3433,7 @@ func TestApplicationSourcePluginParameters_Environ_all(t *testing.T) {
 	params := ApplicationSourcePluginParameters{
 		{
 			Name:    "some-name",
-			String_: ptr.To("1.2.3"),
+			String_: pointer.String("1.2.3"),
 			OptionalArray: &OptionalArray{
 				Array: []string{"redis", "minio"},
 			},

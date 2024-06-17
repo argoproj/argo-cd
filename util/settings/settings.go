@@ -171,7 +171,6 @@ func (o *oidcConfig) toExported() *OIDCConfig {
 		LogoutURL:                o.LogoutURL,
 		RootCA:                   o.RootCA,
 		EnablePKCEAuthentication: o.EnablePKCEAuthentication,
-		DomainHint:               o.DomainHint,
 	}
 }
 
@@ -189,7 +188,6 @@ type OIDCConfig struct {
 	LogoutURL                string                 `json:"logoutURL,omitempty"`
 	RootCA                   string                 `json:"rootCA,omitempty"`
 	EnablePKCEAuthentication bool                   `json:"enablePKCEAuthentication,omitempty"`
-	DomainHint               string                 `json:"domainHint,omitempty"`
 }
 
 // DEPRECATED. Helm repository credentials are now managed using RepoCredentials
@@ -756,11 +754,6 @@ func (mgr *SettingsManager) GetAppInstanceLabelKey() (string, error) {
 	}
 	label := argoCDCM.Data[settingsApplicationInstanceLabelKey]
 	if label == "" {
-		return common.LabelKeyAppInstance, nil
-	}
-	// return new label key if user is still using legacy key
-	if label == common.LabelKeyLegacyApplicationName {
-		log.Warnf("deprecated legacy application instance tracking key(%v) is present in configmap, new key(%v) will be used automatically", common.LabelKeyLegacyApplicationName, common.LabelKeyAppInstance)
 		return common.LabelKeyAppInstance, nil
 	}
 	return label, nil

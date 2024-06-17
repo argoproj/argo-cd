@@ -123,8 +123,8 @@ func newServiceWithMocks(t *testing.T, root string, signed bool) (*Service, *git
 			chart:    {{Version: "1.0.0"}, {Version: version}},
 			oobChart: {{Version: "1.0.0"}, {Version: version}},
 		}}, nil)
-		helmClient.On("ExtractChart", chart, version, false, int64(0), false).Return("./testdata/my-chart", io.NopCloser, nil)
-		helmClient.On("ExtractChart", oobChart, version, false, int64(0), false).Return("./testdata2/out-of-bounds-chart", io.NopCloser, nil)
+		helmClient.On("ExtractChart", chart, version).Return("./testdata/my-chart", io.NopCloser, nil)
+		helmClient.On("ExtractChart", oobChart, version).Return("./testdata2/out-of-bounds-chart", io.NopCloser, nil)
 		helmClient.On("CleanChartCache", chart, version).Return(nil)
 		helmClient.On("CleanChartCache", oobChart, version).Return(nil)
 		helmClient.On("DependencyBuild").Return(nil)
@@ -653,7 +653,7 @@ func TestInvalidMetadata(t *testing.T) {
 	q := apiclient.ManifestRequest{Repo: &argoappv1.Repository{}, ApplicationSource: &src, AppLabelKey: "test", AppName: "invalid-metadata", TrackingMethod: "annotation+label"}
 	_, err := service.GenerateManifest(context.Background(), &q)
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "contains non-string value in the map under key \"invalid\"")
+	assert.Contains(t, err.Error(), "contains non-string key in the map")
 }
 
 func TestNilMetadataAccessors(t *testing.T) {
@@ -995,7 +995,7 @@ func TestManifestGenErrorCacheByMinutesElapsed(t *testing.T) {
 
 			// 5) Ensure that the service no longer returns a cached copy of the last error
 			assert.True(t, err != nil && res == nil)
-			assert.False(t, strings.HasPrefix(err.Error(), cachedManifestGenerationPrefix))
+			assert.True(t, !strings.HasPrefix(err.Error(), cachedManifestGenerationPrefix))
 
 		})
 	}
@@ -1043,7 +1043,7 @@ func TestManifestGenErrorCacheRespectsNoCache(t *testing.T) {
 
 	// 3) Ensure that the cache returns a new generation attempt, rather than a previous cached error
 	assert.True(t, err != nil && res == nil)
-	assert.False(t, strings.HasPrefix(err.Error(), cachedManifestGenerationPrefix))
+	assert.True(t, !strings.HasPrefix(err.Error(), cachedManifestGenerationPrefix))
 
 	// 4) Call generateManifest
 	res, err = service.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
@@ -3036,9 +3036,9 @@ func Test_populateHelmAppDetails_values_symlinks(t *testing.T) {
 	})
 }
 
-func TestGetHelmRepos_OCIDependenciesWithHelmRepo(t *testing.T) {
+func TestGetHelmRepos_OCIDependencies(t *testing.T) {
 	src := argoappv1.ApplicationSource{Path: "."}
-	q := apiclient.ManifestRequest{Repos: []*argoappv1.Repository{}, ApplicationSource: &src, HelmRepoCreds: []*argoappv1.RepoCreds{
+	q := apiclient.ManifestRequest{Repo: &argoappv1.Repository{}, ApplicationSource: &src, HelmRepoCreds: []*argoappv1.RepoCreds{
 		{URL: "example.com", Username: "test", Password: "test", EnableOCI: true},
 	}}
 
@@ -3047,20 +3047,7 @@ func TestGetHelmRepos_OCIDependenciesWithHelmRepo(t *testing.T) {
 
 	assert.Equal(t, len(helmRepos), 1)
 	assert.Equal(t, helmRepos[0].Username, "test")
-	assert.True(t, helmRepos[0].EnableOci)
-	assert.Equal(t, helmRepos[0].Repo, "example.com/myrepo")
-}
-
-func TestGetHelmRepos_OCIDependenciesWithRepo(t *testing.T) {
-	src := argoappv1.ApplicationSource{Path: "."}
-	q := apiclient.ManifestRequest{Repos: []*argoappv1.Repository{{Repo: "example.com", Username: "test", Password: "test", EnableOCI: true}}, ApplicationSource: &src, HelmRepoCreds: []*argoappv1.RepoCreds{}}
-
-	helmRepos, err := getHelmRepos("./testdata/oci-dependencies", q.Repos, q.HelmRepoCreds)
-	assert.Nil(t, err)
-
-	assert.Equal(t, len(helmRepos), 1)
-	assert.Equal(t, helmRepos[0].Username, "test")
-	assert.True(t, helmRepos[0].EnableOci)
+	assert.Equal(t, helmRepos[0].EnableOci, true)
 	assert.Equal(t, helmRepos[0].Repo, "example.com/myrepo")
 }
 
@@ -3252,9 +3239,6 @@ func Test_getResolvedValueFiles(t *testing.T) {
 	}
 }
 func TestErrorGetGitDirectories(t *testing.T) {
-	// test not using the cache
-	root := "./testdata/git-files-dirs"
-
 	type fields struct {
 		service *Service
 	}
@@ -3281,7 +3265,6 @@ func TestErrorGetGitDirectories(t *testing.T) {
 			s, _, _ := newServiceWithOpt(t, func(gitClient *gitmocks.Client, helmClient *helmmocks.Client, paths *iomocks.TempPaths) {
 				gitClient.On("Checkout", mock.Anything, mock.Anything).Return(nil)
 				gitClient.On("LsRemote", mock.Anything).Return("", fmt.Errorf("ah error"))
-				gitClient.On("Root").Return(root)
 				paths.On("GetPath", mock.Anything).Return(".", nil)
 				paths.On("GetPathIfExists", mock.Anything).Return(".", nil)
 			}, ".")
@@ -3339,43 +3322,7 @@ func TestGetGitDirectories(t *testing.T) {
 	})
 }
 
-func TestGetGitDirectoriesWithHiddenDirSupported(t *testing.T) {
-	// test not using the cache
-	root := "./testdata/git-files-dirs"
-	s, _, cacheMocks := newServiceWithOpt(t, func(gitClient *gitmocks.Client, helmClient *helmmocks.Client, paths *iomocks.TempPaths) {
-		gitClient.On("Init").Return(nil)
-		gitClient.On("Fetch", mock.Anything).Return(nil)
-		gitClient.On("Checkout", mock.Anything, mock.Anything).Once().Return(nil)
-		gitClient.On("LsRemote", "HEAD").Return("632039659e542ed7de0c170a4fcc1c571b288fc0", nil)
-		gitClient.On("Root").Return(root)
-		paths.On("GetPath", mock.Anything).Return(root, nil)
-		paths.On("GetPathIfExists", mock.Anything).Return(root, nil)
-	}, root)
-	s.initConstants.IncludeHiddenDirectories = true
-	dirRequest := &apiclient.GitDirectoriesRequest{
-		Repo:             &argoappv1.Repository{Repo: "a-url.com"},
-		SubmoduleEnabled: false,
-		Revision:         "HEAD",
-	}
-	directories, err := s.GetGitDirectories(context.TODO(), dirRequest)
-	assert.Nil(t, err)
-	assert.ElementsMatch(t, directories.GetPaths(), []string{"app", "app/bar", "app/foo/bar", "somedir", "app/foo", "app/bar/.hidden"})
-
-	// do the same request again to use the cache
-	// we only allow CheckOut to be called once in the mock
-	directories, err = s.GetGitDirectories(context.TODO(), dirRequest)
-	assert.Nil(t, err)
-	assert.ElementsMatch(t, []string{"app", "app/bar", "app/foo/bar", "somedir", "app/foo", "app/bar/.hidden"}, directories.GetPaths())
-	cacheMocks.mockCache.AssertCacheCalledTimes(t, &repositorymocks.CacheCallCounts{
-		ExternalSets: 1,
-		ExternalGets: 2,
-	})
-}
-
 func TestErrorGetGitFiles(t *testing.T) {
-	// test not using the cache
-	root := ""
-
 	type fields struct {
 		service *Service
 	}
@@ -3402,7 +3349,6 @@ func TestErrorGetGitFiles(t *testing.T) {
 			s, _, _ := newServiceWithOpt(t, func(gitClient *gitmocks.Client, helmClient *helmmocks.Client, paths *iomocks.TempPaths) {
 				gitClient.On("Checkout", mock.Anything, mock.Anything).Return(nil)
 				gitClient.On("LsRemote", mock.Anything).Return("", fmt.Errorf("ah error"))
-				gitClient.On("Root").Return(root)
 				paths.On("GetPath", mock.Anything).Return(".", nil)
 				paths.On("GetPathIfExists", mock.Anything).Return(".", nil)
 			}, ".")
@@ -3473,9 +3419,6 @@ func TestGetGitFiles(t *testing.T) {
 }
 
 func TestErrorUpdateRevisionForPaths(t *testing.T) {
-	// test not using the cache
-	root := ""
-
 	type fields struct {
 		service *Service
 	}
@@ -3502,7 +3445,6 @@ func TestErrorUpdateRevisionForPaths(t *testing.T) {
 			s, _, _ := newServiceWithOpt(t, func(gitClient *gitmocks.Client, helmClient *helmmocks.Client, paths *iomocks.TempPaths) {
 				gitClient.On("Checkout", mock.Anything, mock.Anything).Return(nil)
 				gitClient.On("LsRemote", mock.Anything).Return("", fmt.Errorf("ah error"))
-				gitClient.On("Root").Return(root)
 				paths.On("GetPath", mock.Anything).Return(".", nil)
 				paths.On("GetPathIfExists", mock.Anything).Return(".", nil)
 			}, ".")
@@ -3521,7 +3463,6 @@ func TestErrorUpdateRevisionForPaths(t *testing.T) {
 				gitClient.On("Checkout", mock.Anything, mock.Anything).Return(nil)
 				gitClient.On("LsRemote", "HEAD").Once().Return("632039659e542ed7de0c170a4fcc1c571b288fc0", nil)
 				gitClient.On("LsRemote", mock.Anything).Return("", fmt.Errorf("ah error"))
-				gitClient.On("Root").Return(root)
 				paths.On("GetPath", mock.Anything).Return(".", nil)
 				paths.On("GetPathIfExists", mock.Anything).Return(".", nil)
 			}, ".")
@@ -3629,7 +3570,9 @@ func TestUpdateRevisionForPaths(t *testing.T) {
 				SyncedRevision: "SYNCEDHEAD",
 				Paths:          []string{"."},
 			},
-		}, want: &apiclient.UpdateRevisionForPathsResponse{}, wantErr: assert.NoError},
+		}, want: &apiclient.UpdateRevisionForPathsResponse{
+			Changes: true,
+		}, wantErr: assert.NoError},
 		{name: "NoChangesUpdateCache", fields: func() fields {
 			s, _, c := newServiceWithOpt(t, func(gitClient *gitmocks.Client, helmClient *helmmocks.Client, paths *iomocks.TempPaths) {
 				gitClient.On("Init").Return(nil)

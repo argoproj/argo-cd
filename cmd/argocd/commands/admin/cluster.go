@@ -19,7 +19,7 @@ import (
 	"k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
-	"k8s.io/utils/ptr"
+	"k8s.io/utils/pointer"
 
 	cmdutil "github.com/argoproj/argo-cd/v2/cmd/util"
 	"github.com/argoproj/argo-cd/v2/common"
@@ -141,7 +141,7 @@ func loadClusters(ctx context.Context, kubeClient *kubernetes.Clientset, appClie
 			cluster := batch[i]
 			if replicas > 0 {
 				clusterShard = clusterShards[cluster.Server]
-				cluster.Shard = ptr.To(int64(clusterShard))
+				cluster.Shard = pointer.Int64(int64(clusterShard))
 				log.Infof("Cluster with uid: %s will be processed by shard %d", cluster.ID, clusterShard)
 			}
 			if shard != -1 && clusterShard != shard {
@@ -219,7 +219,7 @@ func NewClusterShardsCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comm
 	clientConfig = cli.AddKubectlFlagsToCmd(&command)
 	command.Flags().IntVar(&shard, "shard", -1, "Cluster shard filter")
 	command.Flags().IntVar(&replicas, "replicas", 0, "Application controller replicas count. Inferred from number of running controller pods if not specified")
-	command.Flags().StringVar(&shardingAlgorithm, "sharding-method", common.DefaultShardingAlgorithm, "Sharding method. Defaults: legacy. Supported sharding methods are : [legacy, round-robin, consistent-hashing] ")
+	command.Flags().StringVar(&shardingAlgorithm, "sharding-method", common.DefaultShardingAlgorithm, "Sharding method. Defaults: legacy. Supported sharding methods are : [legacy, round-robin] ")
 	command.Flags().BoolVar(&portForwardRedis, "port-forward-redis", true, "Automatically port-forward ha proxy redis from current namespace?")
 
 	cacheSrc = appstatecache.AddCacheFlagsToCmd(&command)
@@ -514,7 +514,7 @@ argocd admin cluster stats target-cluster`,
 	clientConfig = cli.AddKubectlFlagsToCmd(&command)
 	command.Flags().IntVar(&shard, "shard", -1, "Cluster shard filter")
 	command.Flags().IntVar(&replicas, "replicas", 0, "Application controller replicas count. Inferred from number of running controller pods if not specified")
-	command.Flags().StringVar(&shardingAlgorithm, "sharding-method", common.DefaultShardingAlgorithm, "Sharding method. Defaults: legacy. Supported sharding methods are : [legacy, round-robin, consistent-hashing] ")
+	command.Flags().StringVar(&shardingAlgorithm, "sharding-method", common.DefaultShardingAlgorithm, "Sharding method. Defaults: legacy. Supported sharding methods are : [legacy, round-robin] ")
 	command.Flags().BoolVar(&portForwardRedis, "port-forward-redis", true, "Automatically port-forward ha proxy redis from current namespace?")
 	cacheSrc = appstatecache.AddCacheFlagsToCmd(&command)
 

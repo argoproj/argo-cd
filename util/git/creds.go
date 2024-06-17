@@ -277,9 +277,6 @@ func (c SSHCreds) Environ() (io.Closer, []string, error) {
 	if err != nil {
 		return nil, nil, err
 	}
-
-	sshCloser := sshPrivateKeyFile(file.Name())
-
 	defer func() {
 		if err = file.Close(); err != nil {
 			log.WithFields(log.Fields{
@@ -291,7 +288,6 @@ func (c SSHCreds) Environ() (io.Closer, []string, error) {
 
 	_, err = file.WriteString(c.sshPrivateKey + "\n")
 	if err != nil {
-		sshCloser.Close()
 		return nil, nil, err
 	}
 
@@ -314,7 +310,6 @@ func (c SSHCreds) Environ() (io.Closer, []string, error) {
 	if c.proxy != "" {
 		parsedProxyURL, err := url.Parse(c.proxy)
 		if err != nil {
-			sshCloser.Close()
 			return nil, nil, fmt.Errorf("failed to set environment variables related to socks5 proxy, could not parse proxy URL '%s': %w", c.proxy, err)
 		}
 		args = append(args, "-o", fmt.Sprintf("ProxyCommand='connect-proxy -S %s:%s -5 %%h %%p'",
@@ -329,7 +324,7 @@ func (c SSHCreds) Environ() (io.Closer, []string, error) {
 	}
 	env = append(env, []string{fmt.Sprintf("GIT_SSH_COMMAND=%s", strings.Join(args, " "))}...)
 	env = append(env, proxyEnv...)
-	return sshCloser, env, nil
+	return sshPrivateKeyFile(file.Name()), env, nil
 }
 
 // GitHubAppCreds to authenticate as GitHub application

@@ -29,7 +29,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	k8swatch "k8s.io/apimachinery/pkg/watch"
-	"k8s.io/utils/ptr"
+	"k8s.io/utils/pointer"
 	"sigs.k8s.io/yaml"
 
 	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/headless"
@@ -51,7 +51,6 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/git"
 	"github.com/argoproj/argo-cd/v2/util/grpc"
 	argoio "github.com/argoproj/argo-cd/v2/util/io"
-	logutils "github.com/argoproj/argo-cd/v2/util/log"
 	"github.com/argoproj/argo-cd/v2/util/manifeststream"
 	"github.com/argoproj/argo-cd/v2/util/templates"
 	"github.com/argoproj/argo-cd/v2/util/text/label"
@@ -497,16 +496,16 @@ func NewApplicationLogsCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				stream, err := appIf.PodLogs(ctx, &application.ApplicationPodLogsQuery{
 					Name:         &appName,
 					Group:        &group,
-					Namespace:    ptr.To(namespace),
+					Namespace:    pointer.String(namespace),
 					Kind:         &kind,
 					ResourceName: &resourceName,
-					Follow:       ptr.To(follow),
-					TailLines:    ptr.To(tail),
-					SinceSeconds: ptr.To(sinceSeconds),
+					Follow:       pointer.Bool(follow),
+					TailLines:    pointer.Int64(tail),
+					SinceSeconds: pointer.Int64(sinceSeconds),
 					UntilTime:    &untilTime,
 					Filter:       &filter,
-					Container:    ptr.To(container),
-					Previous:     ptr.To(previous),
+					Container:    pointer.String(container),
+					Previous:     pointer.Bool(previous),
 					AppNamespace: &appNs,
 				})
 				if err != nil {
@@ -1313,7 +1312,6 @@ func findandPrintDiff(ctx context.Context, app *argoappv1.Application, proj *arg
 			WithDiffSettings(app.Spec.IgnoreDifferences, overrides, ignoreAggregatedRoles, ignoreNormalizerOpts).
 			WithTracking(argoSettings.AppLabelKey, argoSettings.TrackingMethod).
 			WithNoCache().
-			WithLogger(logutils.NewLogrusLogger(logutils.NewWithCurrentConfig())).
 			Build()
 		errors.CheckError(err)
 		diffRes, err := argodiff.StateDiff(item.live, item.target, diffConfig)
@@ -1557,7 +1555,7 @@ func NewApplicationListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			conn, appIf := headless.NewClientOrDie(clientOpts, c).NewApplicationClientOrDie()
 			defer argoio.Close(conn)
 			apps, err := appIf.List(ctx, &application.ApplicationQuery{
-				Selector:     ptr.To(selector),
+				Selector:     pointer.String(selector),
 				AppNamespace: &appNamespace,
 			})
 
@@ -1749,7 +1747,7 @@ func NewApplicationWaitCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			closer, appIf := acdClient.NewApplicationClientOrDie()
 			defer argoio.Close(closer)
 			if selector != "" {
-				list, err := appIf.List(ctx, &application.ApplicationQuery{Selector: ptr.To(selector)})
+				list, err := appIf.List(ctx, &application.ApplicationQuery{Selector: pointer.String(selector)})
 				errors.CheckError(err)
 				for _, i := range list.Items {
 					appNames = append(appNames, i.QualifiedName())
@@ -1899,7 +1897,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			appNames := args
 			if selector != "" || len(projects) > 0 {
 				list, err := appIf.List(ctx, &application.ApplicationQuery{
-					Selector:     ptr.To(selector),
+					Selector:     pointer.String(selector),
 					AppNamespace: &appNamespace,
 					Projects:     projects})
 				errors.CheckError(err)
@@ -2071,7 +2069,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 						Backoff: &argoappv1.Backoff{
 							Duration:    retryBackoffDuration.String(),
 							MaxDuration: retryBackoffMaxDuration.String(),
-							Factor:      ptr.To(retryBackoffFactor),
+							Factor:      pointer.Int64(retryBackoffFactor),
 						},
 					}
 				}
@@ -2099,8 +2097,6 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 						}
 					} else {
 						fmt.Printf("====== No Differences found ======\n")
-						// if no differences found, then no need to sync
-						return
 					}
 				}
 				_, err = appIf.Sync(ctx, &syncReq)
@@ -2159,7 +2155,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 func getAppNamesBySelector(ctx context.Context, appIf application.ApplicationServiceClient, selector string) ([]string, error) {
 	appNames := []string{}
 	if selector != "" {
-		list, err := appIf.List(ctx, &application.ApplicationQuery{Selector: ptr.To(selector)})
+		list, err := appIf.List(ctx, &application.ApplicationQuery{Selector: pointer.String(selector)})
 		if err != nil {
 			return []string{}, err
 		}
@@ -2341,7 +2337,7 @@ func checkResourceStatus(watch watchOpts, healthStatus string, syncStatus string
 func resourceParentChild(ctx context.Context, acdClient argocdclient.Client, appName string, appNs string) (map[string]argoappv1.ResourceNode, map[string][]string, map[string]struct{}, map[string]*resourceState) {
 	_, appIf := acdClient.NewApplicationClientOrDie()
 	mapUidToNode, mapParentToChild, parentNode := parentChildDetails(appIf, ctx, appName, appNs)
-	app, err := appIf.Get(ctx, &application.ApplicationQuery{Name: ptr.To(appName), AppNamespace: ptr.To(appNs)})
+	app, err := appIf.Get(ctx, &application.ApplicationQuery{Name: pointer.String(appName), AppNamespace: pointer.String(appNs)})
 	errors.CheckError(err)
 	mapNodeNameToResourceState := make(map[string]*resourceState)
 	for _, res := range getResourceStates(app, nil) {
@@ -2721,8 +2717,8 @@ func NewApplicationRollbackCommand(clientOpts *argocdclient.ClientOptions) *cobr
 			_, err = appIf.Rollback(ctx, &application.ApplicationRollbackRequest{
 				Name:         &appName,
 				AppNamespace: &appNs,
-				Id:           ptr.To(depInfo.ID),
-				Prune:        ptr.To(prune),
+				Id:           pointer.Int64(depInfo.ID),
+				Prune:        pointer.Bool(prune),
 			})
 			errors.CheckError(err)
 
@@ -2845,7 +2841,7 @@ func NewApplicationManifestsCommand(clientOpts *argocdclient.ClientOptions) *cob
 					q := application.ApplicationManifestQuery{
 						Name:            &appName,
 						AppNamespace:    &appNs,
-						Revision:        ptr.To(revision),
+						Revision:        pointer.String(revision),
 						Revisions:       revisions,
 						SourcePositions: sourcePositions,
 					}
@@ -2861,7 +2857,7 @@ func NewApplicationManifestsCommand(clientOpts *argocdclient.ClientOptions) *cob
 					q := application.ApplicationManifestQuery{
 						Name:         &appName,
 						AppNamespace: &appNs,
-						Revision:     ptr.To(revision),
+						Revision:     pointer.String(revision),
 					}
 					res, err := appIf.GetManifests(ctx, &q)
 					errors.CheckError(err)

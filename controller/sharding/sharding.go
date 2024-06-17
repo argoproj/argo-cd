@@ -14,9 +14,7 @@ import (
 	"encoding/json"
 
 	"github.com/argoproj/argo-cd/v2/common"
-	"github.com/argoproj/argo-cd/v2/controller/sharding/consistent"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	slices "golang.org/x/exp/slices"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -56,7 +54,7 @@ type shardApplicationControllerMapping struct {
 }
 
 // GetClusterFilter returns a ClusterFilterFunction which is a function taking a cluster as a parameter
-// and returns whether or not the cluster should be processed by a given shard. It calls the distributionFunction
+// and returns wheter or not the cluster should be processed by a given shard. It calls the distributionFunction
 // to determine which shard will process the cluster, and if the given shard is equal to the calculated shard
 // the function will return true.
 func GetClusterFilter(db db.ArgoDB, distributionFunction DistributionFunction, replicas, shard int) ClusterFilterFunction {
@@ -86,8 +84,6 @@ func GetDistributionFunction(clusters clusterAccessor, apps appAccessor, shardin
 		distributionFunction = RoundRobinDistributionFunction(clusters, replicasCount)
 	case common.LegacyShardingAlgorithm:
 		distributionFunction = LegacyDistributionFunction(replicasCount)
-	case common.ConsistentHashingWithBoundedLoadsAlgorithm:
-		distributionFunction = ConsistentHashingWithBoundedLoadsDistributionFunction(clusters, apps, replicasCount)
 	default:
 		log.Warnf("distribution type %s is not supported, defaulting to %s", shardingAlgorithm, common.DefaultShardingAlgorithm)
 	}
@@ -132,13 +128,13 @@ func LegacyDistributionFunction(replicas int) DistributionFunction {
 // for a given cluster the function will return the shard number based on the modulo of the cluster rank in
 // the cluster's list sorted by uid on the shard number.
 // This function ensures an homogenous distribution: each shards got assigned the same number of
-// clusters +/-1 , but with the drawback of a reshuffling of clusters across shards in case of some changes
+// clusters +/-1 , but with the drawback of a reshuffling of clusters accross shards in case of some changes
 // in the cluster list
 
 func RoundRobinDistributionFunction(clusters clusterAccessor, replicas int) DistributionFunction {
 	return func(c *v1alpha1.Cluster) int {
 		if replicas > 0 {
-			if c == nil { // in-cluster does not necessarily have a secret assigned. So we are receiving a nil cluster here.
+			if c == nil { // in-cluster does not necessarly have a secret assigned. So we are receiving a nil cluster here.
 				return 0
 			}
 			// if Shard is manually set and the assigned value is lower than the number of replicas,
@@ -160,92 +156,6 @@ func RoundRobinDistributionFunction(clusters clusterAccessor, replicas int) Dist
 		log.Warnf("The number of replicas (%d) is lower than 1", replicas)
 		return -1
 	}
-}
-
-// ConsistentHashingWithBoundedLoadsDistributionFunction returns a DistributionFunction using an almost homogeneous distribution algorithm:
-// for a given cluster the function will return the shard number based on a consistent hashing with bounded loads algorithm.
-// This function ensures an almost homogenous distribution: each shards got assigned the fairly similar number of
-// clusters +/-10% , but with it is resilient to sharding and/or number of clusters changes.
-func ConsistentHashingWithBoundedLoadsDistributionFunction(clusters clusterAccessor, apps appAccessor, replicas int) DistributionFunction {
-	return func(c *v1alpha1.Cluster) int {
-		if replicas > 0 {
-			if c == nil { // in-cluster does not necessarily have a secret assigned. So we are receiving a nil cluster here.
-				return 0
-			}
-
-			// if Shard is manually set and the assigned value is lower than the number of replicas,
-			// then its value is returned otherwise it is the default calculated value
-			if c.Shard != nil && int(*c.Shard) < replicas {
-				return int(*c.Shard)
-			} else {
-				// if the cluster is not in the clusters list anymore, we should unassign it from any shard, so we
-				// return the reserved value of -1
-				if !slices.Contains(clusters(), c) {
-					log.Warnf("Cluster with id=%s not found in cluster map.", c.ID)
-					return -1
-				}
-				shardIndexedByCluster := createConsistentHashingWithBoundLoads(replicas, clusters, apps)
-				shard, ok := shardIndexedByCluster[c.ID]
-				if !ok {
-					log.Warnf("Cluster with id=%s not found in cluster map.", c.ID)
-					return -1
-				}
-				log.Debugf("Cluster with id=%s will be processed by shard %d", c.ID, shard)
-				return shard
-			}
-		}
-		log.Warnf("The number of replicas (%d) is lower than 1", replicas)
-		return -1
-	}
-}
-
-func createConsistentHashingWithBoundLoads(replicas int, getCluster clusterAccessor, getApp appAccessor) map[string]int {
-	clusters := getSortedClustersList(getCluster)
-	appDistribution := getAppDistribution(getCluster, getApp)
-	shardIndexedByCluster := make(map[string]int)
-	appsIndexedByShard := make(map[string]int64)
-	consistentHashing := consistent.New()
-	// Adding a shard with id "-1" as a reserved value for clusters that does not have an assigned shard
-	// this happens for clusters that are removed for the clusters list
-	//consistentHashing.Add("-1")
-	for i := 0; i < replicas; i++ {
-		shard := strconv.Itoa(i)
-		consistentHashing.Add(shard)
-		appsIndexedByShard[shard] = 0
-	}
-
-	for _, c := range clusters {
-		clusterIndex, err := consistentHashing.GetLeast(c.ID)
-		if err != nil {
-			log.Warnf("Cluster with id=%s not found in cluster map.", c.ID)
-		}
-		shardIndexedByCluster[c.ID], err = strconv.Atoi(clusterIndex)
-		if err != nil {
-			log.Errorf("Consistent Hashing was supposed to return a shard index but it returned %d", err)
-		}
-		numApps, ok := appDistribution[c.Server]
-		if !ok {
-			numApps = 0
-		}
-		appsIndexedByShard[clusterIndex] += numApps
-		consistentHashing.UpdateLoad(clusterIndex, appsIndexedByShard[clusterIndex])
-	}
-
-	return shardIndexedByCluster
-}
-
-func getAppDistribution(getCluster clusterAccessor, getApps appAccessor) map[string]int64 {
-	apps := getApps()
-	clusters := getCluster()
-	appDistribution := make(map[string]int64, len(clusters))
-
-	for _, a := range apps {
-		if _, ok := appDistribution[a.Spec.Destination.Server]; !ok {
-			appDistribution[a.Spec.Destination.Server] = 0
-		}
-		appDistribution[a.Spec.Destination.Server]++
-	}
-	return appDistribution
 }
 
 // NoShardingDistributionFunction returns a DistributionFunction that will process all cluster by shard 0

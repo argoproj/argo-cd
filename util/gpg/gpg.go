@@ -674,7 +674,7 @@ func ParseGitCommitVerification(signature string) PGPVerifyResult {
 	}
 
 	if parseOk && linesParsed < MaxVerificationLinesToParse {
-		// Operation successful - return result
+		// Operation successfull - return result
 		return result
 	} else if linesParsed >= MaxVerificationLinesToParse {
 		// Too many output lines, return error

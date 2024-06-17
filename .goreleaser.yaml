@@ -1,5 +1,3 @@
-version: 2
-
 project_name: argocd
 
 before:

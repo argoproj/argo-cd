@@ -23,7 +23,6 @@ import (
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
-	crtcache "sigs.k8s.io/controller-runtime/pkg/cache"
 	crtclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -67,7 +66,7 @@ type fakeCache struct {
 	cache.Cache
 }
 
-func (f *fakeCache) GetInformer(ctx context.Context, obj crtclient.Object, opt ...crtcache.InformerGetOption) (cache.Informer, error) {
+func (f *fakeCache) GetInformer(ctx context.Context, obj crtclient.Object) (cache.Informer, error) {
 	return &fakeInformer{}, nil
 }
 
@@ -2440,7 +2439,7 @@ func TestReconcilerValidationProjectErrorBehaviour(t *testing.T) {
 	argoDBMock := dbmocks.ArgoDB{}
 	argoObjs := []runtime.Object{&project}
 
-	client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&appSet).WithStatusSubresource(&appSet).WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).Build()
+	client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&appSet).WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).Build()
 	goodCluster := v1alpha1.Cluster{Server: "https://good-cluster", Name: "good-cluster"}
 	badCluster := v1alpha1.Cluster{Server: "https://bad-cluster", Name: "bad-cluster"}
 	argoDBMock.On("GetCluster", mock.Anything, "https://good-cluster").Return(&goodCluster, nil)
@@ -2536,7 +2535,7 @@ func TestReconcilerCreateAppsRecoveringRenderError(t *testing.T) {
 	argoDBMock := dbmocks.ArgoDB{}
 	argoObjs := []runtime.Object{&project}
 
-	client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&appSet).WithStatusSubresource(&appSet).WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).Build()
+	client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&appSet).WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).Build()
 
 	r := ApplicationSetReconciler{
 		Client:   client,
@@ -2679,7 +2678,7 @@ func applicationsUpdateSyncPolicyTest(t *testing.T, applicationsSyncPolicy v1alp
 	argoDBMock := dbmocks.ArgoDB{}
 	argoObjs := []runtime.Object{&defaultProject}
 
-	client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&appSet).WithStatusSubresource(&appSet).WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).Build()
+	client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&appSet).WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).Build()
 	goodCluster := v1alpha1.Cluster{Server: "https://good-cluster", Name: "good-cluster"}
 	argoDBMock.On("GetCluster", mock.Anything, "https://good-cluster").Return(&goodCluster, nil)
 	argoDBMock.On("ListClusters", mock.Anything).Return(&v1alpha1.ClusterList{Items: []v1alpha1.Cluster{
@@ -2849,7 +2848,7 @@ func applicationsDeleteSyncPolicyTest(t *testing.T, applicationsSyncPolicy v1alp
 	argoDBMock := dbmocks.ArgoDB{}
 	argoObjs := []runtime.Object{&defaultProject}
 
-	client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&appSet).WithStatusSubresource(&appSet).WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).Build()
+	client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&appSet).WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).Build()
 	goodCluster := v1alpha1.Cluster{Server: "https://good-cluster", Name: "good-cluster"}
 	argoDBMock.On("GetCluster", mock.Anything, "https://good-cluster").Return(&goodCluster, nil)
 	argoDBMock.On("ListClusters", mock.Anything).Return(&v1alpha1.ClusterList{Items: []v1alpha1.Cluster{
@@ -3170,7 +3169,7 @@ func TestPolicies(t *testing.T) {
 				},
 			}
 
-			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&appSet).WithStatusSubresource(&appSet).WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).Build()
+			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&appSet).WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).Build()
 
 			r := ApplicationSetReconciler{
 				Client:   client,
@@ -3333,7 +3332,7 @@ func TestSetApplicationSetApplicationStatus(t *testing.T) {
 
 		t.Run(cc.name, func(t *testing.T) {
 
-			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&cc.appSet).WithStatusSubresource(&cc.appSet).Build()
+			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&cc.appSet).Build()
 
 			r := ApplicationSetReconciler{
 				Client:   client,
@@ -4113,7 +4112,7 @@ func TestBuildAppDependencyList(t *testing.T) {
 			}
 
 			appDependencyList, appStepMap, err := r.buildAppDependencyList(log.NewEntry(log.StandardLogger()), cc.appSet, cc.apps)
-			assert.Equal(t, err, nil, "expected no errors, but errors occurred")
+			assert.Equal(t, err, nil, "expected no errors, but errors occured")
 			assert.Equal(t, cc.expectedList, appDependencyList, "expected appDependencyList did not match actual")
 			assert.Equal(t, cc.expectedStepMap, appStepMap, "expected appStepMap did not match actual")
 		})
@@ -4707,7 +4706,7 @@ func TestBuildAppSyncMap(t *testing.T) {
 			}
 
 			appSyncMap, err := r.buildAppSyncMap(context.TODO(), cc.appSet, cc.appDependencyList, cc.appMap)
-			assert.Equal(t, err, nil, "expected no errors, but errors occurred")
+			assert.Equal(t, err, nil, "expected no errors, but errors occured")
 			assert.Equal(t, cc.expectedMap, appSyncMap, "expected appSyncMap did not match actual")
 		})
 	}
@@ -4780,11 +4779,10 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 			},
 			expectedAppStatus: []v1alpha1.ApplicationSetApplicationStatus{
 				{
-					Application:     "app1",
-					Message:         "Application resource is already Healthy, updating status from Waiting to Healthy.",
-					Status:          "Healthy",
-					Step:            "1",
-					TargetRevisions: []string{},
+					Application: "app1",
+					Message:     "Application resource is already Healthy, updating status from Waiting to Healthy.",
+					Status:      "Healthy",
+					Step:        "1",
 				},
 			},
 		},
@@ -4823,11 +4821,10 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 			},
 			expectedAppStatus: []v1alpha1.ApplicationSetApplicationStatus{
 				{
-					Application:     "app1",
-					Message:         "Application resource is already Healthy, updating status from Waiting to Healthy.",
-					Status:          "Healthy",
-					Step:            "1",
-					TargetRevisions: []string{},
+					Application: "app1",
+					Message:     "Application resource is already Healthy, updating status from Waiting to Healthy.",
+					Status:      "Healthy",
+					Step:        "1",
 				},
 			},
 		},
@@ -4847,18 +4844,10 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 				Status: v1alpha1.ApplicationSetStatus{
 					ApplicationStatus: []v1alpha1.ApplicationSetApplicationStatus{
 						{
-							Application:     "app1",
-							Message:         "",
-							Status:          "Healthy",
-							Step:            "1",
-							TargetRevisions: []string{"Previous"},
-						},
-						{
-							Application:     "app2-multisource",
-							Message:         "",
-							Status:          "Healthy",
-							Step:            "1",
-							TargetRevisions: []string{"Previous", "OtherPrevious"},
+							Application: "app1",
+							Message:     "",
+							Status:      "Healthy",
+							Step:        "1",
 						},
 					},
 				},
@@ -4870,37 +4859,17 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 					},
 					Status: v1alpha1.ApplicationStatus{
 						Sync: v1alpha1.SyncStatus{
-							Status:   v1alpha1.SyncStatusCodeOutOfSync,
-							Revision: "Next",
-						},
-					},
-				},
-				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "app2-multisource",
-					},
-					Status: v1alpha1.ApplicationStatus{
-						Sync: v1alpha1.SyncStatus{
-							Status:    v1alpha1.SyncStatusCodeOutOfSync,
-							Revisions: []string{"Next", "OtherNext"},
+							Status: v1alpha1.SyncStatusCodeOutOfSync,
 						},
 					},
 				},
 			},
 			expectedAppStatus: []v1alpha1.ApplicationSetApplicationStatus{
 				{
-					Application:     "app1",
-					Message:         "Application has pending changes, setting status to Waiting.",
-					Status:          "Waiting",
-					Step:            "1",
-					TargetRevisions: []string{"Next"},
-				},
-				{
-					Application:     "app2-multisource",
-					Message:         "Application has pending changes, setting status to Waiting.",
-					Status:          "Waiting",
-					Step:            "1",
-					TargetRevisions: []string{"Next", "OtherNext"},
+					Application: "app1",
+					Message:     "Application has pending changes, setting status to Waiting.",
+					Status:      "Waiting",
+					Step:        "1",
 				},
 			},
 		},
@@ -5127,13 +5096,9 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 						},
 						OperationState: &v1alpha1.OperationState{
 							Phase: common.OperationSucceeded,
-							SyncResult: &v1alpha1.SyncOperationResult{
-								Revision: "Previous",
-							},
 						},
 						Sync: v1alpha1.SyncStatus{
-							Status:   v1alpha1.SyncStatusCodeOutOfSync,
-							Revision: "Next",
+							Status: v1alpha1.SyncStatusCodeOutOfSync,
 						},
 					},
 				},
@@ -5144,16 +5109,15 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 			},
 			expectedAppStatus: []v1alpha1.ApplicationSetApplicationStatus{
 				{
-					Application:     "app1",
-					Message:         "No Application status found, defaulting status to Waiting.",
-					Status:          "Waiting",
-					Step:            "2",
-					TargetRevisions: []string{"Next"},
+					Application: "app1",
+					Message:     "No Application status found, defaulting status to Waiting.",
+					Status:      "Waiting",
+					Step:        "2",
 				},
 			},
 		},
 		{
-			name: "progresses a pending application with a successful sync triggered by controller to progressing",
+			name: "progresses a pending application with a successful sync to progressing",
 			appSet: v1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "name",
@@ -5172,10 +5136,9 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 							LastTransitionTime: &metav1.Time{
 								Time: time.Now().Add(time.Duration(-1) * time.Minute),
 							},
-							Message:         "",
-							Status:          "Pending",
-							Step:            "1",
-							TargetRevisions: []string{"Next"},
+							Message: "",
+							Status:  "Pending",
+							Step:    "1",
 						},
 					},
 				},
@@ -5194,35 +5157,24 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 							StartedAt: metav1.Time{
 								Time: time.Now(),
 							},
-							Operation: v1alpha1.Operation{
-								InitiatedBy: v1alpha1.OperationInitiator{
-									Username:  "applicationset-controller",
-									Automated: true,
-								},
-							},
-							SyncResult: &v1alpha1.SyncOperationResult{
-								Revision: "Next",
-							},
 						},
 						Sync: v1alpha1.SyncStatus{
-							Status:   v1alpha1.SyncStatusCodeSynced,
-							Revision: "Next",
+							Status: v1alpha1.SyncStatusCodeSynced,
 						},
 					},
 				},
 			},
 			expectedAppStatus: []v1alpha1.ApplicationSetApplicationStatus{
 				{
-					Application:     "app1",
-					Message:         "Application resource completed a sync successfully, updating status from Pending to Progressing.",
-					Status:          "Progressing",
-					Step:            "1",
-					TargetRevisions: []string{"Next"},
+					Application: "app1",
+					Message:     "Application resource completed a sync successfully, updating status from Pending to Progressing.",
+					Status:      "Progressing",
+					Step:        "1",
 				},
 			},
 		},
 		{
-			name: "progresses a pending application with a successful sync trigger by applicationset-controller <1s ago to progressing",
+			name: "progresses a pending application with a successful sync <1s ago to progressing",
 			appSet: v1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "name",
@@ -5241,10 +5193,9 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 							LastTransitionTime: &metav1.Time{
 								Time: time.Now(),
 							},
-							Message:         "",
-							Status:          "Pending",
-							Step:            "1",
-							TargetRevisions: []string{"Next"},
+							Message: "",
+							Status:  "Pending",
+							Step:    "1",
 						},
 					},
 				},
@@ -5263,35 +5214,24 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 							StartedAt: metav1.Time{
 								Time: time.Now().Add(time.Duration(-1) * time.Second),
 							},
-							Operation: v1alpha1.Operation{
-								InitiatedBy: v1alpha1.OperationInitiator{
-									Username:  "applicationset-controller",
-									Automated: true,
-								},
-							},
-							SyncResult: &v1alpha1.SyncOperationResult{
-								Revision: "Next",
-							},
 						},
 						Sync: v1alpha1.SyncStatus{
-							Status:   v1alpha1.SyncStatusCodeSynced,
-							Revision: "Next",
+							Status: v1alpha1.SyncStatusCodeSynced,
 						},
 					},
 				},
 			},
 			expectedAppStatus: []v1alpha1.ApplicationSetApplicationStatus{
 				{
-					Application:     "app1",
-					Message:         "Application resource completed a sync successfully, updating status from Pending to Progressing.",
-					Status:          "Progressing",
-					Step:            "1",
-					TargetRevisions: []string{"Next"},
+					Application: "app1",
+					Message:     "Application resource completed a sync successfully, updating status from Pending to Progressing.",
+					Status:      "Progressing",
+					Step:        "1",
 				},
 			},
 		},
 		{
-			name: "does not progresses a pending application with a successful sync triggered by controller with invalid revision to progressing",
+			name: "does not progresses a pending application with an old successful sync to progressing",
 			appSet: v1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "name",
@@ -5308,12 +5248,11 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 						{
 							Application: "app1",
 							LastTransitionTime: &metav1.Time{
-								Time: time.Now().Add(time.Duration(-1) * time.Minute),
+								Time: time.Now(),
 							},
-							Message:         "",
-							Status:          "Pending",
-							Step:            "1",
-							TargetRevisions: []string{"Next"},
+							Message: "Application moved to Pending status, watching for the Application resource to start Progressing.",
+							Status:  "Pending",
+							Step:    "1",
 						},
 					},
 				},
@@ -5330,16 +5269,7 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 						OperationState: &v1alpha1.OperationState{
 							Phase: common.OperationSucceeded,
 							StartedAt: metav1.Time{
-								Time: time.Now(),
-							},
-							Operation: v1alpha1.Operation{
-								InitiatedBy: v1alpha1.OperationInitiator{
-									Username:  "applicationset-controller",
-									Automated: true,
-								},
-							},
-							SyncResult: &v1alpha1.SyncOperationResult{
-								Revision: "Previous",
+								Time: time.Now().Add(time.Duration(-11) * time.Second),
 							},
 						},
 						Sync: v1alpha1.SyncStatus{
@@ -5350,11 +5280,10 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 			},
 			expectedAppStatus: []v1alpha1.ApplicationSetApplicationStatus{
 				{
-					Application:     "app1",
-					Message:         "",
-					Status:          "Pending",
-					Step:            "1",
-					TargetRevisions: []string{"Next"},
+					Application: "app1",
+					Message:     "Application moved to Pending status, watching for the Application resource to start Progressing.",
+					Status:      "Pending",
+					Step:        "1",
 				},
 			},
 		},
@@ -5423,7 +5352,7 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 			argoDBMock := dbmocks.ArgoDB{}
 			argoObjs := []runtime.Object{}
 
-			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&cc.appSet).WithStatusSubresource(&cc.appSet).Build()
+			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&cc.appSet).Build()
 
 			r := ApplicationSetReconciler{
 				Client:           client,
@@ -5443,7 +5372,7 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 				appStatuses[i].LastTransitionTime = nil
 			}
 
-			assert.Equal(t, err, nil, "expected no errors, but errors occurred")
+			assert.Equal(t, err, nil, "expected no errors, but errors occured")
 			assert.Equal(t, cc.expectedAppStatus, appStatuses, "expected appStatuses did not match actual")
 		})
 	}
@@ -6177,7 +6106,7 @@ func TestUpdateApplicationSetApplicationStatusProgress(t *testing.T) {
 			argoDBMock := dbmocks.ArgoDB{}
 			argoObjs := []runtime.Object{}
 
-			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&cc.appSet).WithStatusSubresource(&cc.appSet).Build()
+			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&cc.appSet).Build()
 
 			r := ApplicationSetReconciler{
 				Client:           client,
@@ -6197,221 +6126,8 @@ func TestUpdateApplicationSetApplicationStatusProgress(t *testing.T) {
 				appStatuses[i].LastTransitionTime = nil
 			}
 
-			assert.Equal(t, err, nil, "expected no errors, but errors occurred")
+			assert.Equal(t, err, nil, "expected no errors, but errors occured")
 			assert.Equal(t, cc.expectedAppStatus, appStatuses, "expected appStatuses did not match actual")
-		})
-	}
-}
-
-func TestUpdateResourceStatus(t *testing.T) {
-
-	scheme := runtime.NewScheme()
-	err := v1alpha1.AddToScheme(scheme)
-	assert.Nil(t, err)
-
-	err = v1alpha1.AddToScheme(scheme)
-	assert.Nil(t, err)
-
-	for _, cc := range []struct {
-		name              string
-		appSet            v1alpha1.ApplicationSet
-		apps              []v1alpha1.Application
-		expectedResources []v1alpha1.ResourceStatus
-	}{
-		{
-			name: "handles an empty application list",
-			appSet: v1alpha1.ApplicationSet{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "name",
-					Namespace: "argocd",
-				},
-				Status: v1alpha1.ApplicationSetStatus{
-					Resources: []v1alpha1.ResourceStatus{},
-				},
-			},
-			apps:              []v1alpha1.Application{},
-			expectedResources: nil,
-		},
-		{
-			name: "adds status if no existing statuses",
-			appSet: v1alpha1.ApplicationSet{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "name",
-					Namespace: "argocd",
-				},
-				Status: v1alpha1.ApplicationSetStatus{
-					ApplicationStatus: []v1alpha1.ApplicationSetApplicationStatus{},
-				},
-			},
-			apps: []v1alpha1.Application{
-				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "app1",
-					},
-					Status: v1alpha1.ApplicationStatus{
-						Sync: v1alpha1.SyncStatus{
-							Status: v1alpha1.SyncStatusCodeSynced,
-						},
-						Health: v1alpha1.HealthStatus{
-							Status:  health.HealthStatusHealthy,
-							Message: "OK",
-						},
-					},
-				},
-			},
-			expectedResources: []v1alpha1.ResourceStatus{
-				{
-					Name:   "app1",
-					Status: v1alpha1.SyncStatusCodeSynced,
-					Health: &v1alpha1.HealthStatus{
-						Status:  health.HealthStatusHealthy,
-						Message: "OK",
-					},
-				},
-			},
-		},
-		{
-			name: "handles an applicationset with existing and up-to-date status",
-			appSet: v1alpha1.ApplicationSet{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "name",
-					Namespace: "argocd",
-				},
-				Status: v1alpha1.ApplicationSetStatus{
-					Resources: []v1alpha1.ResourceStatus{
-						{
-							Name:   "app1",
-							Status: v1alpha1.SyncStatusCodeSynced,
-							Health: &v1alpha1.HealthStatus{
-								Status:  health.HealthStatusHealthy,
-								Message: "OK",
-							},
-						},
-					},
-				},
-			},
-			apps: []v1alpha1.Application{
-				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "app1",
-					},
-					Status: v1alpha1.ApplicationStatus{
-						Sync: v1alpha1.SyncStatus{
-							Status: v1alpha1.SyncStatusCodeSynced,
-						},
-						Health: v1alpha1.HealthStatus{
-							Status:  health.HealthStatusHealthy,
-							Message: "OK",
-						},
-					},
-				},
-			},
-			expectedResources: []v1alpha1.ResourceStatus{
-				{
-					Name:   "app1",
-					Status: v1alpha1.SyncStatusCodeSynced,
-					Health: &v1alpha1.HealthStatus{
-						Status:  health.HealthStatusHealthy,
-						Message: "OK",
-					},
-				},
-			},
-		},
-		{
-			name: "updates an applicationset with existing and out of date status",
-			appSet: v1alpha1.ApplicationSet{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "name",
-					Namespace: "argocd",
-				},
-				Status: v1alpha1.ApplicationSetStatus{
-					Resources: []v1alpha1.ResourceStatus{
-						{
-							Name:   "app1",
-							Status: v1alpha1.SyncStatusCodeOutOfSync,
-							Health: &v1alpha1.HealthStatus{
-								Status:  health.HealthStatusProgressing,
-								Message: "Progressing",
-							},
-						},
-					},
-				},
-			},
-			apps: []v1alpha1.Application{
-				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "app1",
-					},
-					Status: v1alpha1.ApplicationStatus{
-						Sync: v1alpha1.SyncStatus{
-							Status: v1alpha1.SyncStatusCodeSynced,
-						},
-						Health: v1alpha1.HealthStatus{
-							Status:  health.HealthStatusHealthy,
-							Message: "OK",
-						},
-					},
-				},
-			},
-			expectedResources: []v1alpha1.ResourceStatus{
-				{
-					Name:   "app1",
-					Status: v1alpha1.SyncStatusCodeSynced,
-					Health: &v1alpha1.HealthStatus{
-						Status:  health.HealthStatusHealthy,
-						Message: "OK",
-					},
-				},
-			},
-		},
-		{
-			name: "deletes an applicationset status if the application no longer exists",
-			appSet: v1alpha1.ApplicationSet{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "name",
-					Namespace: "argocd",
-				},
-				Status: v1alpha1.ApplicationSetStatus{
-					Resources: []v1alpha1.ResourceStatus{
-						{
-							Name:   "app1",
-							Status: v1alpha1.SyncStatusCodeSynced,
-							Health: &v1alpha1.HealthStatus{
-								Status:  health.HealthStatusHealthy,
-								Message: "OK",
-							},
-						},
-					},
-				},
-			},
-			apps:              []v1alpha1.Application{},
-			expectedResources: nil,
-		},
-	} {
-
-		t.Run(cc.name, func(t *testing.T) {
-
-			kubeclientset := kubefake.NewSimpleClientset([]runtime.Object{}...)
-			argoDBMock := dbmocks.ArgoDB{}
-			argoObjs := []runtime.Object{}
-
-			client := fake.NewClientBuilder().WithScheme(scheme).WithStatusSubresource(&cc.appSet).WithObjects(&cc.appSet).Build()
-
-			r := ApplicationSetReconciler{
-				Client:           client,
-				Scheme:           scheme,
-				Recorder:         record.NewFakeRecorder(1),
-				Cache:            &fakeCache{},
-				Generators:       map[string]generators.Generator{},
-				ArgoDB:           &argoDBMock,
-				ArgoAppClientset: appclientset.NewSimpleClientset(argoObjs...),
-				KubeClientset:    kubeclientset,
-			}
-
-			err := r.updateResourcesStatus(context.TODO(), log.NewEntry(log.StandardLogger()), &cc.appSet, cc.apps)
-
-			assert.Equal(t, err, nil, "expected no errors, but errors occurred")
-			assert.Equal(t, cc.expectedResources, cc.appSet.Status.Resources, "expected resources did not match actual")
 		})
 	}
 }

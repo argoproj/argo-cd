@@ -112,7 +112,7 @@ func TestIncludeResource(t *testing.T) {
 		expectedResult        bool
 	}{
 		//--resource apps:ReplicaSet:backend --resource *:Service:*
-		{testName: "Include ReplicaSet backend resource and all service resources",
+		{testName: "Include ReplicaSet backend resouce and all service resources",
 			name:                  "backend",
 			namespace:             "default",
 			gvk:                   schema.GroupVersionKind{Group: "apps", Kind: "ReplicaSet"},
@@ -120,7 +120,7 @@ func TestIncludeResource(t *testing.T) {
 			expectedResult:        true,
 		},
 		//--resource apps:ReplicaSet:backend --resource *:Service:*
-		{testName: "Include ReplicaSet backend resource and all service resources",
+		{testName: "Include ReplicaSet backend resouce and all service resources",
 			name:                  "main-page-down",
 			namespace:             "default",
 			gvk:                   schema.GroupVersionKind{Group: "batch", Kind: "Job"},
@@ -128,7 +128,7 @@ func TestIncludeResource(t *testing.T) {
 			expectedResult:        false,
 		},
 		//--resource apps:ReplicaSet:backend --resource !*:Service:*
-		{testName: "Include ReplicaSet backend resource and exclude all service resources",
+		{testName: "Include ReplicaSet backend resouce and exclude all service resources",
 			name:                  "main-page-down",
 			namespace:             "default",
 			gvk:                   schema.GroupVersionKind{Group: "batch", Kind: "Job"},
@@ -136,7 +136,7 @@ func TestIncludeResource(t *testing.T) {
 			expectedResult:        true,
 		},
 		// --resource !apps:ReplicaSet:backend --resource !*:Service:*
-		{testName: "Exclude ReplicaSet backend resource and all service resources",
+		{testName: "Exclude ReplicaSet backend resouce and all service resources",
 			name:                  "main-page-down",
 			namespace:             "default",
 			gvk:                   schema.GroupVersionKind{Group: "batch", Kind: "Job"},
@@ -144,7 +144,7 @@ func TestIncludeResource(t *testing.T) {
 			expectedResult:        true,
 		},
 		// --resource !apps:ReplicaSet:backend
-		{testName: "Exclude ReplicaSet backend resource",
+		{testName: "Exclude ReplicaSet backend resouce",
 			name:                  "backend",
 			namespace:             "default",
 			gvk:                   schema.GroupVersionKind{Group: "apps", Kind: "ReplicaSet"},
@@ -152,7 +152,7 @@ func TestIncludeResource(t *testing.T) {
 			expectedResult:        false,
 		},
 		// --resource apps:ReplicaSet:backend
-		{testName: "Include ReplicaSet backend resource",
+		{testName: "Include ReplicaSet backend resouce",
 			name:                  "backend",
 			namespace:             "default",
 			gvk:                   schema.GroupVersionKind{Group: "apps", Kind: "ReplicaSet"},
@@ -160,7 +160,7 @@ func TestIncludeResource(t *testing.T) {
 			expectedResult:        true,
 		},
 		// --resource !*:Service:*
-		{testName: "Exclude Service resources",
+		{testName: "Exclude Service resouces",
 			name:                  "backend",
 			namespace:             "default",
 			gvk:                   schema.GroupVersionKind{Group: "", Kind: "Service"},
@@ -168,7 +168,7 @@ func TestIncludeResource(t *testing.T) {
 			expectedResult:        false,
 		},
 		// --resource *:Service:*
-		{testName: "Include Service resources",
+		{testName: "Include Service resouces",
 			name:                  "backend",
 			namespace:             "default",
 			gvk:                   schema.GroupVersionKind{Group: "", Kind: "Service"},
@@ -176,7 +176,7 @@ func TestIncludeResource(t *testing.T) {
 			expectedResult:        true,
 		},
 		// --resource !*:*:*
-		{testName: "Exclude all resources",
+		{testName: "Exclude all resouces",
 			name:                  "backend",
 			namespace:             "default",
 			gvk:                   schema.GroupVersionKind{Group: "", Kind: "Service"},
@@ -184,7 +184,7 @@ func TestIncludeResource(t *testing.T) {
 			expectedResult:        false,
 		},
 		// --resource *:*:*
-		{testName: "Include all resources",
+		{testName: "Include all resouces",
 			name:                  "backend",
 			namespace:             "default",
 			gvk:                   schema.GroupVersionKind{Group: "", Kind: "Service"},

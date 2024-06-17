@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -28,6 +27,7 @@ func getCustomResourceDefinitions() map[string]*extensionsobj.CustomResourceDefi
 	crdYamlBytes, err := exec.Command(
 		"controller-gen",
 		"paths=./pkg/apis/application/...",
+		"crd:trivialVersions=true",
 		"crd:crdVersions=v1",
 		"output:crd:stdout",
 	).Output()
@@ -117,10 +117,6 @@ func removeDescription(v interface{}) {
 
 func checkErr(err error) {
 	if err != nil {
-		var execError *exec.ExitError
-		if errors.As(err, &execError) {
-			fmt.Println(string(execError.Stderr))
-		}
 		panic(err)
 	}
 }
