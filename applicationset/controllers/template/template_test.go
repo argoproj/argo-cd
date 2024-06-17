@@ -2,9 +2,9 @@ package template
 
 import (
 	"fmt"
-	"github.com/stretchr/testify/mock"
 	"testing"
 
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
 	log "github.com/sirupsen/logrus"
