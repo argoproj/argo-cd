@@ -302,6 +302,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [Swisscom](https://www.swisscom.ch)
 1. [Swissquote](https://github.com/swissquote)
 1. [Syncier](https://syncier.com/)
+1. [Syself](https://syself.com)
 1. [TableCheck](https://tablecheck.com/)
 1. [Tailor Brands](https://www.tailorbrands.com)
 1. [Tamkeen Technologies](https://tamkeentech.sa/)

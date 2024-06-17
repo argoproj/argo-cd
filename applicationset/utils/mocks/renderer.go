@@ -1,8 +1,9 @@
 package mocks
 
 import (
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/stretchr/testify/mock"
+
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 )
 
 type RendererMock struct {
@@ -17,7 +18,6 @@ func (r *RendererMock) RenderTemplateParams(tmpl *v1alpha1.Application, syncPoli
 	}
 
 	return args.Get(0).(*v1alpha1.Application), args.Error(1)
-
 }
 
 func (r *RendererMock) Replace(tmpl string, replaceMap map[string]interface{}, useGoTemplate bool, goTemplateOptions []string) (string, error) {

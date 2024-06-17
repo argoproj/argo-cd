@@ -142,6 +142,24 @@ func (_m *Client) IsAnnotatedTag(_a0 string) bool {
 	return r0
 }
 
+// IsRevisionPresent provides a mock function with given fields: revision
+func (_m *Client) IsRevisionPresent(revision string) bool {
+	ret := _m.Called(revision)
+
+	if len(ret) == 0 {
+		panic("no return value specified for IsRevisionPresent")
+	}
+
+	var r0 bool
+	if rf, ok := ret.Get(0).(func(string) bool); ok {
+		r0 = rf(revision)
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+
+	return r0
+}
+
 // LsFiles provides a mock function with given fields: path, enableNewGitFileGlobbing
 func (_m *Client) LsFiles(path string, enableNewGitFileGlobbing bool) ([]string, error) {
 	ret := _m.Called(path, enableNewGitFileGlobbing)

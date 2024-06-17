@@ -2,7 +2,15 @@ package template
 
 import (
 	"fmt"
+	"github.com/stretchr/testify/mock"
 	"testing"
+
+	"github.com/stretchr/testify/require"
+
+	log "github.com/sirupsen/logrus"
+	"github.com/stretchr/testify/assert"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 
 	"github.com/argoproj/argo-cd/v2/applicationset/generators"
 	genmock "github.com/argoproj/argo-cd/v2/applicationset/generators/mocks"
@@ -11,19 +19,15 @@ import (
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/util/collections"
-	log "github.com/sirupsen/logrus"
-	"github.com/stretchr/testify/assert"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 )
 
 func TestGenerateApplications(t *testing.T) {
 	scheme := runtime.NewScheme()
 	err := v1alpha1.AddToScheme(scheme)
-	assert.Nil(t, err)
+	require.NoError(t, err)
 
 	err = v1alpha1.AddToScheme(scheme)
-	assert.Nil(t, err)
+	require.NoError(t, err)
 
 	for _, c := range []struct {
 		name                string
@@ -82,13 +86,12 @@ func TestGenerateApplications(t *testing.T) {
 		}
 
 		t.Run(cc.name, func(t *testing.T) {
-
-			generatorMock := genmock.GeneratorMock{}
+			generatorMock := genmock.Generator{}
 			generator := v1alpha1.ApplicationSetGenerator{
 				List: &v1alpha1.ListGenerator{},
 			}
 
-			generatorMock.On("GenerateParams", &generator).
+			generatorMock.On("GenerateParams", &generator, mock.AnythingOfType("*v1alpha1.ApplicationSet"), mock.Anything).
 				Return(cc.params, cc.generateParamsError)
 
 			generatorMock.On("GetTemplate", &generator).
@@ -100,7 +103,6 @@ func TestGenerateApplications(t *testing.T) {
 
 			if cc.generateParamsError == nil {
 				for _, p := range cc.params {
-
 					if cc.rendererError != nil {
 						rendererMock.On("RenderTemplateParams", GetTempApplication(cc.template), p, false, []string(nil)).
 							Return(nil, cc.rendererError)
@@ -129,12 +131,13 @@ func TestGenerateApplications(t *testing.T) {
 			},
 				generators,
 				renderer,
+				nil,
 			)
 
 			if cc.expectErr {
-				assert.Error(t, err)
+				require.Error(t, err)
 			} else {
-				assert.NoError(t, err)
+				require.NoError(t, err)
 			}
 			assert.Equal(t, expectedApps, got)
 			assert.Equal(t, cc.expectedReason, reason)
@@ -143,14 +146,11 @@ func TestGenerateApplications(t *testing.T) {
 			if cc.generateParamsError == nil {
 				rendererMock.AssertNumberOfCalls(t, "RenderTemplateParams", len(cc.params))
 			}
-
 		})
 	}
-
 }
 
 func TestMergeTemplateApplications(t *testing.T) {
-
 	for _, c := range []struct {
 		name             string
 		params           []map[string]interface{}
@@ -200,13 +200,12 @@ func TestMergeTemplateApplications(t *testing.T) {
 		cc := c
 
 		t.Run(cc.name, func(t *testing.T) {
-
-			generatorMock := genmock.GeneratorMock{}
+			generatorMock := genmock.Generator{}
 			generator := v1alpha1.ApplicationSetGenerator{
 				List: &v1alpha1.ListGenerator{},
 			}
 
-			generatorMock.On("GenerateParams", &generator).
+			generatorMock.On("GenerateParams", &generator, mock.AnythingOfType("*v1alpha1.ApplicationSet"), mock.AnythingOfType("client.Client")).
 				Return(cc.params, nil)
 
 			generatorMock.On("GetTemplate", &generator).
@@ -234,12 +233,12 @@ func TestMergeTemplateApplications(t *testing.T) {
 			},
 				generators,
 				renderer,
+				nil,
 			)
 
 			assert.Equal(t, cc.expectedApps, got)
 		})
 	}
-
 }
 
 // Test app generation from a go template application set using a pull request generator
@@ -252,16 +251,18 @@ func TestGenerateAppsUsingPullRequestGenerator(t *testing.T) {
 	}{
 		{
 			name: "Generate an application from a go template application set manifest using a pull request generator",
-			params: []map[string]interface{}{{
-				"number":                                "1",
-				"branch":                                "branch1",
-				"branch_slug":                           "branchSlug1",
-				"head_sha":                              "089d92cbf9ff857a39e6feccd32798ca700fb958",
-				"head_short_sha":                        "089d92cb",
-				"branch_slugify_default":                "feat/a_really+long_pull_request_name_to_test_argo_slugification_and_branch_name_shortening_feature",
-				"branch_slugify_smarttruncate_disabled": "feat/areallylongpullrequestnametotestargoslugificationandbranchnameshorteningfeature",
-				"branch_slugify_smarttruncate_enabled":  "feat/testwithsmarttruncateenabledramdomlonglistofcharacters",
-				"labels":                                []string{"label1"}},
+			params: []map[string]interface{}{
+				{
+					"number":                                "1",
+					"branch":                                "branch1",
+					"branch_slug":                           "branchSlug1",
+					"head_sha":                              "089d92cbf9ff857a39e6feccd32798ca700fb958",
+					"head_short_sha":                        "089d92cb",
+					"branch_slugify_default":                "feat/a_really+long_pull_request_name_to_test_argo_slugification_and_branch_name_shortening_feature",
+					"branch_slugify_smarttruncate_disabled": "feat/areallylongpullrequestnametotestargoslugificationandbranchnameshorteningfeature",
+					"branch_slugify_smarttruncate_enabled":  "feat/testwithsmarttruncateenabledramdomlonglistofcharacters",
+					"labels":                                []string{"label1"},
+				},
 			},
 			template: v1alpha1.ApplicationSetTemplate{
 				ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{
@@ -309,15 +310,13 @@ func TestGenerateAppsUsingPullRequestGenerator(t *testing.T) {
 			},
 		},
 	} {
-
 		t.Run(cases.name, func(t *testing.T) {
-
-			generatorMock := genmock.GeneratorMock{}
+			generatorMock := genmock.Generator{}
 			generator := v1alpha1.ApplicationSetGenerator{
 				PullRequest: &v1alpha1.PullRequestGenerator{},
 			}
 
-			generatorMock.On("GenerateParams", &generator).
+			generatorMock.On("GenerateParams", &generator, mock.AnythingOfType("*v1alpha1.ApplicationSet"), mock.AnythingOfType("client.Client")).
 				Return(cases.params, nil)
 
 			generatorMock.On("GetTemplate", &generator).
@@ -339,6 +338,7 @@ func TestGenerateAppsUsingPullRequestGenerator(t *testing.T) {
 			},
 				generators,
 				renderer,
+				nil,
 			)
 			assert.EqualValues(t, cases.expectedApp[0].ObjectMeta.Name, gotApp[0].ObjectMeta.Name)
 			assert.EqualValues(t, cases.expectedApp[0].Spec.Source.TargetRevision, gotApp[0].Spec.Source.TargetRevision)

@@ -12,7 +12,8 @@ There are several ways how Ingress can be configured.
 
 The Ambassador Edge Stack can be used as a Kubernetes ingress controller with [automatic TLS termination](https://www.getambassador.io/docs/latest/topics/running/tls/#host) and routing capabilities for both the CLI and the UI.
 
-The API server should be run with TLS disabled. Edit the `argocd-server` deployment to add the `--insecure` flag to the argocd-server command, or simply set `server.insecure: "true"` in the `argocd-cmd-params-cm` ConfigMap [as described here](server-commands/additional-configuration-method.md). Given the `argocd` CLI includes the port number in the request `host` header, 2 Mappings are required.
+The API server should be run with TLS disabled. Edit the `argocd-server` deployment to add the `--insecure` flag to the argocd-server command, or simply set `server.insecure: "true"` in the `argocd-cmd-params-cm` ConfigMap [as described here](server-commands/additional-configuration-method.md). Given the `argocd` CLI includes the port number in the request `host` header, 2 Mappings are required. 
+Note: Disabling TLS in not required if you are using grpc-web
 
 ### Option 1: Mapping CRD for Host-based Routing
 ```yaml
@@ -24,7 +25,7 @@ metadata:
 spec:
   host: argocd.example.com
   prefix: /
-  service: argocd-server:443
+  service: https://argocd-server:443
 ---
 apiVersion: getambassador.io/v2
 kind: Mapping
@@ -60,7 +61,25 @@ metadata:
 spec:
   prefix: /argo-cd
   rewrite: /argo-cd
-  service: argocd-server:443
+  service: https://argocd-server:443
+```
+
+Example of `argocd-cmd-params-cm` configmap
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-cmd-params-cm
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: argocd-cmd-params-cm
+    app.kubernetes.io/part-of: argocd
+data:
+  ## Server properties
+  # Value for base href in index.html. Used if Argo CD is running behind reverse proxy under subpath different from / (default "/")
+  server.basehref: "/argo-cd"
+  # Used if Argo CD is running behind reverse proxy under subpath different from /
+  server.rootpath: "/argo-cd"
 ```
 
 Login with the `argocd` CLI using the extra `--grpc-web-root-path` flag for non-root paths.

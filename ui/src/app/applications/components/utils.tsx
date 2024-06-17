@@ -705,16 +705,18 @@ export function renderResourceButtons(
 
 export function syncStatusMessage(app: appModels.Application) {
     const source = getAppDefaultSource(app);
+    const revision = getAppDefaultSyncRevision(app);
     const rev = app.status.sync.revision || source.targetRevision || 'HEAD';
     let message = source.targetRevision || 'HEAD';
 
-    if (app.status.sync.revision) {
+    if (revision) {
         if (source.chart) {
-            message += ' (' + app.status.sync.revision + ')';
-        } else if (app.status.sync.revision.length >= 7 && !app.status.sync.revision.startsWith(source.targetRevision)) {
-            message += ' (' + app.status.sync.revision.substr(0, 7) + ')';
+            message += ' (' + revision + ')';
+        } else if (revision.length >= 7 && !revision.startsWith(source.targetRevision)) {
+            message += ' (' + revision.substr(0, 7) + ')';
         }
     }
+
     switch (app.status.sync.status) {
         case appModels.SyncStatuses.Synced:
             return (
@@ -722,7 +724,8 @@ export function syncStatusMessage(app: appModels.Application) {
                     to{' '}
                     <Revision repoUrl={source.repoURL} revision={rev}>
                         {message}
-                    </Revision>{' '}
+                    </Revision>
+                    {getAppDefaultSyncRevisionExtra(app)}{' '}
                 </span>
             );
         case appModels.SyncStatuses.OutOfSync:
@@ -731,7 +734,8 @@ export function syncStatusMessage(app: appModels.Application) {
                     from{' '}
                     <Revision repoUrl={source.repoURL} revision={rev}>
                         {message}
-                    </Revision>{' '}
+                    </Revision>
+                    {getAppDefaultSyncRevisionExtra(app)}{' '}
                 </span>
             );
         default:
@@ -1103,6 +1107,61 @@ export function getAppDefaultSource(app?: appModels.Application) {
         return null;
     }
     return app.spec.sources && app.spec.sources.length > 0 ? app.spec.sources[0] : app.spec.source;
+}
+
+// getAppDefaultSyncRevision gets the first app revisions from `status.sync.revisions` or, if that list is missing or empty, the `revision`
+// field.
+export function getAppDefaultSyncRevision(app?: appModels.Application) {
+    if (!app || !app.status || !app.status.sync) {
+        return '';
+    }
+    return app.status.sync.revisions && app.status.sync.revisions.length > 0 ? app.status.sync.revisions[0] : app.status.sync.revision;
+}
+
+// getAppDefaultOperationSyncRevision gets the first app revisions from `status.operationState.syncResult.revisions` or, if that list is missing or empty, the `revision`
+// field.
+export function getAppDefaultOperationSyncRevision(app?: appModels.Application) {
+    if (!app || !app.status || !app.status.operationState || !app.status.operationState.syncResult) {
+        return '';
+    }
+    return app.status.operationState.syncResult.revisions && app.status.operationState.syncResult.revisions.length > 0
+        ? app.status.operationState.syncResult.revisions[0]
+        : app.status.operationState.syncResult.revision;
+}
+
+// getAppCurrentVersion gets the first app revisions from `status.sync.revisions` or, if that list is missing or empty, the `revision`
+// field.
+export function getAppCurrentVersion(app?: appModels.Application) {
+    if (!app || !app.status || !app.status.history) {
+        return 0;
+    }
+    return app.status.history[app.status.history.length - 1].id;
+}
+
+// getAppDefaultSyncRevisionExtra gets the extra message with others revision count
+export function getAppDefaultSyncRevisionExtra(app?: appModels.Application) {
+    if (!app || !app.status || !app.status.sync) {
+        return '';
+    }
+
+    if (app.status.sync.revisions && app.status.sync.revisions.length > 0) {
+        return ` and (${app.status.sync.revisions.length - 1}) more`;
+    }
+
+    return '';
+}
+
+// getAppDefaultOperationSyncRevisionExtra gets the first app revisions from `status.operationState.syncResult.revisions` or, if that list is missing or empty, the `revision`
+// field.
+export function getAppDefaultOperationSyncRevisionExtra(app?: appModels.Application) {
+    if (!app || !app.status || !app.status.operationState || !app.status.operationState.syncResult || !app.status.operationState.syncResult.revisions) {
+        return '';
+    }
+
+    if (app.status.operationState.syncResult.revisions.length > 0) {
+        return ` and (${app.status.operationState.syncResult.revisions.length - 1}) more`;
+    }
+    return '';
 }
 
 export function getAppSpecDefaultSource(spec: appModels.ApplicationSpec) {

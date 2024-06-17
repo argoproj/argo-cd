@@ -115,7 +115,6 @@ func NewServer(
 }
 
 func (s *Server) Get(ctx context.Context, q *applicationset.ApplicationSetGetQuery) (*v1alpha1.ApplicationSet, error) {
-
 	namespace := s.appsetNamespaceOrDefault(q.AppsetNamespace)
 
 	if !s.isNamespaceEnabled(namespace) {
@@ -123,7 +122,6 @@ func (s *Server) Get(ctx context.Context, q *applicationset.ApplicationSetGetQue
 	}
 
 	a, err := s.appsetLister.ApplicationSets(namespace).Get(q.Name)
-
 	if err != nil {
 		return nil, fmt.Errorf("error getting ApplicationSet: %w", err)
 	}
@@ -154,7 +152,6 @@ func (s *Server) List(ctx context.Context, q *applicationset.ApplicationSetListQ
 
 	newItems := make([]v1alpha1.ApplicationSet, 0)
 	for _, a := range appsets {
-
 		// Skip any application that is neither in the conrol plane's namespace
 		// nor in the list of enabled namespaces.
 		if !security.IsNamespaceEnabled(a.Namespace, s.ns, s.enabledNamespaces) {
@@ -201,13 +198,13 @@ func (s *Server) Create(ctx context.Context, q *applicationset.ApplicationSetCre
 	}
 
 	if err := s.checkCreatePermissions(ctx, appset, projectName); err != nil {
-		return nil, fmt.Errorf("error checking create permissions for ApplicationSets %s : %s", appset.Name, err)
+		return nil, fmt.Errorf("error checking create permissions for ApplicationSets %s : %w", appset.Name, err)
 	}
 
 	if q.GetDryRun() {
 		apps, err := s.generateApplicationSetApps(ctx, *appset, namespace)
 		if err != nil {
-			return nil, fmt.Errorf("unable to generate Applications of ApplicationSet: %v", err)
+			return nil, fmt.Errorf("unable to generate Applications of ApplicationSet: %w", err)
 		}
 
 		statusMap := appsetstatus.GetResourceStatusMap(appset)
@@ -271,17 +268,19 @@ func (s *Server) generateApplicationSetApps(ctx context.Context, appset v1alpha1
 
 	scmConfig := generators.NewSCMConfig(s.ScmRootCAPath, s.AllowedScmProviders, s.EnableScmProviders, github_app.NewAuthCredentials(argoCDDB.(db.RepoCredsDB)))
 
-	argoCDService, err := services.NewArgoCDService(s.db, s.GitSubmoduleEnabled, s.repoClientSet, s.EnableNewGitFileGlobbing)
+	getRepository := func(ctx context.Context, url, project string) (*v1alpha1.Repository, error) {
+		return s.db.GetRepository(ctx, url, project)
+	}
+	argoCDService, err := services.NewArgoCDService(getRepository, s.GitSubmoduleEnabled, s.repoClientSet, s.EnableNewGitFileGlobbing)
 	errors.CheckError(err)
 
 	appSetGenerators := generators.GetGenerators(ctx, s.client, s.k8sClient, namespace, argoCDService, s.dynamicClient, scmConfig)
 
-	apps, _, err := appsettemplate.GenerateApplications(logCtx, appset, appSetGenerators, &appsetutils.Render{})
+	apps, _, err := appsettemplate.GenerateApplications(logCtx, appset, appSetGenerators, &appsetutils.Render{}, s.client)
 	return apps, err
 }
 
 func (s *Server) updateAppSet(appset *v1alpha1.ApplicationSet, newAppset *v1alpha1.ApplicationSet, ctx context.Context, merge bool) (*v1alpha1.ApplicationSet, error) {
-
 	if appset != nil && appset.Spec.Template.Spec.Project != newAppset.Spec.Template.Spec.Project {
 		// When changing projects, caller must have applicationset create and update privileges in new project
 		// NOTE: the update check was already verified in the caller to this function
@@ -323,7 +322,6 @@ func (s *Server) updateAppSet(appset *v1alpha1.ApplicationSet, newAppset *v1alph
 }
 
 func (s *Server) Delete(ctx context.Context, q *applicationset.ApplicationSetDeleteRequest) (*applicationset.ApplicationSetResponse, error) {
-
 	namespace := s.appsetNamespaceOrDefault(q.AppsetNamespace)
 
 	appset, err := s.appclientset.ArgoprojV1alpha1().ApplicationSets(namespace).Get(ctx, q.Name, metav1.GetOptions{})
@@ -344,7 +342,6 @@ func (s *Server) Delete(ctx context.Context, q *applicationset.ApplicationSetDel
 	}
 	s.logAppSetEvent(appset, ctx, argo.EventReasonResourceDeleted, "deleted ApplicationSets")
 	return &applicationset.ApplicationSetResponse{}, nil
-
 }
 
 func (s *Server) ResourceTree(ctx context.Context, q *applicationset.ApplicationSetTreeQuery) (*v1alpha1.ApplicationSetTree, error) {
@@ -355,7 +352,6 @@ func (s *Server) ResourceTree(ctx context.Context, q *applicationset.Application
 	}
 
 	a, err := s.appclientset.ArgoprojV1alpha1().ApplicationSets(namespace).Get(ctx, q.Name, metav1.GetOptions{})
-
 	if err != nil {
 		return nil, fmt.Errorf("error getting ApplicationSet: %w", err)
 	}
@@ -412,7 +408,6 @@ func (s *Server) validateAppSet(ctx context.Context, appset *v1alpha1.Applicatio
 }
 
 func (s *Server) checkCreatePermissions(ctx context.Context, appset *v1alpha1.ApplicationSet, projectName string) error {
-
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplicationSets, rbacpolicy.ActionCreate, appset.RBACName(s.ns)); err != nil {
 		return err
 	}

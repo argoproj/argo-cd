@@ -3,10 +3,11 @@ package notification
 import (
 	"context"
 
-	"github.com/argoproj/argo-cd/v2/pkg/apiclient/notification"
 	"github.com/argoproj/notifications-engine/pkg/api"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/utils/ptr"
+
+	"github.com/argoproj/argo-cd/v2/pkg/apiclient/notification"
 )
 
 // Server provides an Application service

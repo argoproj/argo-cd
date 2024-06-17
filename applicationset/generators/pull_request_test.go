@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
@@ -203,8 +204,12 @@ func TestPullRequestGithubGenerateParams(t *testing.T) {
 			PullRequest: &argoprojiov1alpha1.PullRequestGenerator{},
 		}
 
-		got, gotErr := gen.GenerateParams(&generatorConfig, &c.applicationSet)
-		assert.Equal(t, c.expectedErr, gotErr)
+		got, gotErr := gen.GenerateParams(&generatorConfig, &c.applicationSet, nil)
+		if c.expectedErr != nil {
+			assert.Equal(t, c.expectedErr.Error(), gotErr.Error())
+		} else {
+			require.NoError(t, gotErr)
+		}
 		assert.ElementsMatch(t, c.expected, got)
 	}
 }
@@ -265,9 +270,9 @@ func TestPullRequestGetSecretRef(t *testing.T) {
 		t.Run(c.name, func(t *testing.T) {
 			token, err := gen.getSecretRef(ctx, c.ref, c.namespace)
 			if c.hasError {
-				assert.NotNil(t, err)
+				require.Error(t, err)
 			} else {
-				assert.Nil(t, err)
+				require.NoError(t, err)
 			}
 			assert.Equal(t, c.token, token)
 		})
@@ -343,9 +348,9 @@ func TestAllowedSCMProviderPullRequest(t *testing.T) {
 				},
 			}
 
-			_, err := pullRequestGenerator.GenerateParams(&applicationSetInfo.Spec.Generators[0], &applicationSetInfo)
+			_, err := pullRequestGenerator.GenerateParams(&applicationSetInfo.Spec.Generators[0], &applicationSetInfo, nil)
 
-			assert.Error(t, err, "Must return an error")
+			require.Error(t, err, "Must return an error")
 			assert.ErrorAs(t, err, testCaseCopy.expectedError)
 		})
 	}
@@ -369,6 +374,6 @@ func TestSCMProviderDisabled_PRGenerator(t *testing.T) {
 		},
 	}
 
-	_, err := generator.GenerateParams(&applicationSetInfo.Spec.Generators[0], &applicationSetInfo)
+	_, err := generator.GenerateParams(&applicationSetInfo.Spec.Generators[0], &applicationSetInfo, nil)
 	assert.ErrorIs(t, err, ErrSCMProvidersDisabled)
 }

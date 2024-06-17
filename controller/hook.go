@@ -51,7 +51,7 @@ func (ctrl *ApplicationController) executePostDeleteHooks(app *v1alpha1.Applicat
 		revisions = append(revisions, src.TargetRevision)
 	}
 
-	targets, _, err := ctrl.appStateManager.GetRepoObjs(app, app.Spec.GetSources(), appLabelKey, revisions, false, false, false, proj)
+	targets, _, err := ctrl.appStateManager.GetRepoObjs(app, app.Spec.GetSources(), appLabelKey, revisions, false, false, false, proj, false)
 	if err != nil {
 		return false, err
 	}
@@ -148,7 +148,6 @@ func (ctrl *ApplicationController) cleanupPostDeleteHooks(liveObjs map[kube.Reso
 				}
 			}
 		}
-
 	}
 	if pendingDeletionCount > 0 {
 		logCtx.Infof("Waiting for %d post-delete hooks to be deleted", pendingDeletionCount)

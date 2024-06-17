@@ -11,14 +11,12 @@ import (
 )
 
 func applyTemplatePatch(app *appv1.Application, templatePatch string) (*appv1.Application, error) {
-
 	appString, err := json.Marshal(app)
 	if err != nil {
 		return nil, fmt.Errorf("error while marhsalling Application %w", err)
 	}
 
 	convertedTemplatePatch, err := utils.ConvertYAMLToJSON(templatePatch)
-
 	if err != nil {
 		return nil, fmt.Errorf("error while converting template to json %q: %w", convertedTemplatePatch, err)
 	}
@@ -28,7 +26,6 @@ func applyTemplatePatch(app *appv1.Application, templatePatch string) (*appv1.Ap
 	}
 
 	data, err := strategicpatch.StrategicMergePatch(appString, []byte(convertedTemplatePatch), appv1.Application{})
-
 	if err != nil {
 		return nil, fmt.Errorf("error while applying templatePatch template to json %q: %w", convertedTemplatePatch, err)
 	}

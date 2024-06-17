@@ -3,6 +3,8 @@ package template
 import (
 	"fmt"
 
+	"sigs.k8s.io/controller-runtime/pkg/client"
+
 	log "github.com/sirupsen/logrus"
 
 	"github.com/argoproj/argo-cd/v2/applicationset/generators"
@@ -11,14 +13,14 @@ import (
 	argov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 )
 
-func GenerateApplications(logCtx *log.Entry, applicationSetInfo argov1alpha1.ApplicationSet, g map[string]generators.Generator, renderer utils.Renderer) ([]argov1alpha1.Application, argov1alpha1.ApplicationSetReasonType, error) {
+func GenerateApplications(logCtx *log.Entry, applicationSetInfo argov1alpha1.ApplicationSet, g map[string]generators.Generator, renderer utils.Renderer, client client.Client) ([]argov1alpha1.Application, argov1alpha1.ApplicationSetReasonType, error) {
 	var res []argov1alpha1.Application
 
 	var firstError error
 	var applicationSetReason argov1alpha1.ApplicationSetReasonType
 
 	for _, requestedGenerator := range applicationSetInfo.Spec.Generators {
-		t, err := generators.Transform(requestedGenerator, g, applicationSetInfo.Spec.Template, &applicationSetInfo, map[string]interface{}{})
+		t, err := generators.Transform(requestedGenerator, g, applicationSetInfo.Spec.Template, &applicationSetInfo, map[string]interface{}{}, client)
 		if err != nil {
 			logCtx.WithError(err).WithField("generator", requestedGenerator).
 				Error("error generating application from params")
@@ -47,7 +49,6 @@ func GenerateApplications(logCtx *log.Entry, applicationSetInfo argov1alpha1.App
 
 				if applicationSetInfo.Spec.TemplatePatch != nil {
 					patchedApplication, err := renderTemplatePatch(renderer, app, applicationSetInfo, p)
-
 					if err != nil {
 						log.WithError(err).WithField("params", a.Params).WithField("generator", requestedGenerator).
 							Error("error generating application from params")
@@ -78,7 +79,6 @@ func GenerateApplications(logCtx *log.Entry, applicationSetInfo argov1alpha1.App
 
 func renderTemplatePatch(r utils.Renderer, app *argov1alpha1.Application, applicationSetInfo argov1alpha1.ApplicationSet, params map[string]interface{}) (*argov1alpha1.Application, error) {
 	replacedTemplate, err := r.Replace(*applicationSetInfo.Spec.TemplatePatch, params, applicationSetInfo.Spec.GoTemplate, applicationSetInfo.Spec.GoTemplateOptions)
-
 	if err != nil {
 		return nil, fmt.Errorf("error replacing values in templatePatch: %w", err)
 	}

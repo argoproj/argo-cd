@@ -24,8 +24,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/templates"
 )
 
-var (
-	appSetExample = templates.Examples(`
+var appSetExample = templates.Examples(`
 	# Get an ApplicationSet.
 	argocd appset get APPSETNAME
 
@@ -38,11 +37,10 @@ var (
 	# Delete an ApplicationSet
 	argocd appset delete APPSETNAME (APPSETNAME...)
 	`)
-)
 
 // NewAppSetCommand returns a new instance of an `argocd appset` command
 func NewAppSetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
-	var command = &cobra.Command{
+	command := &cobra.Command{
 		Use:     "appset",
 		Short:   "Manage ApplicationSets",
 		Example: appSetExample,
@@ -64,7 +62,7 @@ func NewApplicationSetGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 		output     string
 		showParams bool
 	)
-	var command = &cobra.Command{
+	command := &cobra.Command{
 		Use:   "get APPSETNAME",
 		Short: "Get ApplicationSet details",
 		Example: templates.Examples(`
@@ -118,8 +116,7 @@ func NewApplicationSetGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 func NewApplicationSetCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var output string
 	var upsert, dryRun bool
-
-	var command = &cobra.Command{
+	command := &cobra.Command{
 		Use:   "create",
 		Short: "Create one or more ApplicationSets",
 		Example: templates.Examples(`
@@ -216,7 +213,7 @@ func NewApplicationSetListCommand(clientOpts *argocdclient.ClientOptions) *cobra
 		projects        []string
 		appSetNamespace string
 	)
-	var command = &cobra.Command{
+	command := &cobra.Command{
 		Use:   "list",
 		Short: "List ApplicationSets",
 		Example: templates.Examples(`
@@ -256,10 +253,8 @@ func NewApplicationSetListCommand(clientOpts *argocdclient.ClientOptions) *cobra
 
 // NewApplicationSetDeleteCommand returns a new instance of an `argocd appset delete` command
 func NewApplicationSetDeleteCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
-	var (
-		noPrompt bool
-	)
-	var command = &cobra.Command{
+	var noPrompt bool
+	command := &cobra.Command{
 		Use:   "delete",
 		Short: "Delete one or more ApplicationSets",
 		Example: templates.Examples(`
@@ -277,13 +272,12 @@ func NewApplicationSetDeleteCommand(clientOpts *argocdclient.ClientOptions) *cob
 			defer argoio.Close(conn)
 			var isTerminal bool = isatty.IsTerminal(os.Stdout.Fd()) || isatty.IsCygwinTerminal(os.Stdout.Fd())
 			var isConfirmAll bool = false
-			var numOfApps = len(args)
-			var promptFlag = c.Flag("yes")
+			numOfApps := len(args)
+			promptFlag := c.Flag("yes")
 			if promptFlag.Changed && promptFlag.Value.String() == "true" {
 				noPrompt = true
 			}
 			for _, appSetQualifiedName := range args {
-
 				appSetName, appSetNs := argo.ParseFromQualifiedName(appSetQualifiedName, "")
 
 				appsetDeleteReq := applicationset.ApplicationSetDeleteRequest{
@@ -398,7 +392,6 @@ func printAppSetSummaryTable(appSet *arogappsetv1.ApplicationSet) {
 		syncPolicyStr = "<none>"
 	}
 	fmt.Printf(printOpFmtStr, "SyncPolicy:", syncPolicyStr)
-
 }
 
 func printAppSetConditions(w io.Writer, appSet *arogappsetv1.ApplicationSet) {

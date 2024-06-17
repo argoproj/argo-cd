@@ -3,10 +3,11 @@ package generators
 import (
 	"context"
 
-	"github.com/argoproj/argo-cd/v2/applicationset/services"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	"github.com/argoproj/argo-cd/v2/applicationset/services"
 )
 
 func GetGenerators(ctx context.Context, c client.Client, k8sClient kubernetes.Interface, namespace string, argoCDService services.Repos, dynamicClient dynamic.Interface, scmConfig SCMConfig) map[string]Generator {

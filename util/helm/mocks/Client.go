@@ -14,17 +14,17 @@ type Client struct {
 	mock.Mock
 }
 
-// CleanChartCache provides a mock function with given fields: chart, version
-func (_m *Client) CleanChartCache(chart string, version string) error {
-	ret := _m.Called(chart, version)
+// CleanChartCache provides a mock function with given fields: chart, version, project
+func (_m *Client) CleanChartCache(chart string, version string, project string) error {
+	ret := _m.Called(chart, version, project)
 
 	if len(ret) == 0 {
 		panic("no return value specified for CleanChartCache")
 	}
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(string, string) error); ok {
-		r0 = rf(chart, version)
+	if rf, ok := ret.Get(0).(func(string, string, string) error); ok {
+		r0 = rf(chart, version, project)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -32,9 +32,9 @@ func (_m *Client) CleanChartCache(chart string, version string) error {
 	return r0
 }
 
-// ExtractChart provides a mock function with given fields: chart, version, passCredentials, manifestMaxExtractedSize, disableManifestMaxExtractedSize
-func (_m *Client) ExtractChart(chart string, version string, passCredentials bool, manifestMaxExtractedSize int64, disableManifestMaxExtractedSize bool) (string, io.Closer, error) {
-	ret := _m.Called(chart, version, passCredentials, manifestMaxExtractedSize, disableManifestMaxExtractedSize)
+// ExtractChart provides a mock function with given fields: chart, version, project, passCredentials, manifestMaxExtractedSize, disableManifestMaxExtractedSize
+func (_m *Client) ExtractChart(chart string, version string, project string, passCredentials bool, manifestMaxExtractedSize int64, disableManifestMaxExtractedSize bool) (string, io.Closer, error) {
+	ret := _m.Called(chart, version, project, passCredentials, manifestMaxExtractedSize, disableManifestMaxExtractedSize)
 
 	if len(ret) == 0 {
 		panic("no return value specified for ExtractChart")
@@ -43,25 +43,25 @@ func (_m *Client) ExtractChart(chart string, version string, passCredentials boo
 	var r0 string
 	var r1 io.Closer
 	var r2 error
-	if rf, ok := ret.Get(0).(func(string, string, bool, int64, bool) (string, io.Closer, error)); ok {
-		return rf(chart, version, passCredentials, manifestMaxExtractedSize, disableManifestMaxExtractedSize)
+	if rf, ok := ret.Get(0).(func(string, string, string, bool, int64, bool) (string, io.Closer, error)); ok {
+		return rf(chart, version, project, passCredentials, manifestMaxExtractedSize, disableManifestMaxExtractedSize)
 	}
-	if rf, ok := ret.Get(0).(func(string, string, bool, int64, bool) string); ok {
-		r0 = rf(chart, version, passCredentials, manifestMaxExtractedSize, disableManifestMaxExtractedSize)
+	if rf, ok := ret.Get(0).(func(string, string, string, bool, int64, bool) string); ok {
+		r0 = rf(chart, version, project, passCredentials, manifestMaxExtractedSize, disableManifestMaxExtractedSize)
 	} else {
 		r0 = ret.Get(0).(string)
 	}
 
-	if rf, ok := ret.Get(1).(func(string, string, bool, int64, bool) io.Closer); ok {
-		r1 = rf(chart, version, passCredentials, manifestMaxExtractedSize, disableManifestMaxExtractedSize)
+	if rf, ok := ret.Get(1).(func(string, string, string, bool, int64, bool) io.Closer); ok {
+		r1 = rf(chart, version, project, passCredentials, manifestMaxExtractedSize, disableManifestMaxExtractedSize)
 	} else {
 		if ret.Get(1) != nil {
 			r1 = ret.Get(1).(io.Closer)
 		}
 	}
 
-	if rf, ok := ret.Get(2).(func(string, string, bool, int64, bool) error); ok {
-		r2 = rf(chart, version, passCredentials, manifestMaxExtractedSize, disableManifestMaxExtractedSize)
+	if rf, ok := ret.Get(2).(func(string, string, string, bool, int64, bool) error); ok {
+		r2 = rf(chart, version, project, passCredentials, manifestMaxExtractedSize, disableManifestMaxExtractedSize)
 	} else {
 		r2 = ret.Error(2)
 	}

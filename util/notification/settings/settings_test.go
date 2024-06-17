@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/argoproj/argo-cd/v2/reposerver/apiclient/mocks"
-	service "github.com/argoproj/argo-cd/v2/util/notification/argocd"
 	"github.com/argoproj/notifications-engine/pkg/api"
 	"github.com/argoproj/notifications-engine/pkg/services"
 	"github.com/stretchr/testify/assert"
@@ -13,11 +11,16 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
+
+	"github.com/argoproj/argo-cd/v2/reposerver/apiclient/mocks"
+	service "github.com/argoproj/argo-cd/v2/util/notification/argocd"
 )
 
-const testNamespace = "default"
-const testContextKey = "test-context-key"
-const testContextKeyValue = "test-context-key-value"
+const (
+	testNamespace       = "default"
+	testContextKey      = "test-context-key"
+	testContextKeyValue = "test-context-key-value"
+)
 
 func TestInitGetVars(t *testing.T) {
 	notificationsCm := corev1.ConfigMap{
@@ -82,7 +85,7 @@ func TestInitGetVars(t *testing.T) {
 		}
 		result := varsProvider(emptyAppData, testDestination)
 		assert.NotNil(t, result["context"])
-		assert.Equal(t, result["context"], expectedContext)
+		assert.Equal(t, expectedContext, result["context"])
 	})
 	t.Run("Vars provider serves notification secrets on secrets key", func(t *testing.T) {
 		result := varsProvider(emptyAppData, testDestination)

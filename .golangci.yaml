@@ -1,17 +1,48 @@
 issues:
   exclude:
+    - SA1019
     - SA5011
+  exclude-rules:
+    - path: "(cmpserver|reposerver)/"
+      text: "require-error:"
+      linters:
+        - testifylint
   max-issues-per-linter: 0
   max-same-issues: 0
 linters:
   enable:
     - errcheck
-    - gofmt
+    - errorlint
+    - gocritic
+    - gofumpt
+    - goimports
     - gosimple
     - govet
     - ineffassign
     - misspell
     - staticcheck
+    - testifylint
     - unused
+    - whitespace 
+linters-settings:
+  gocritic:
+    disabled-checks:
+      - appendAssign
+      - assignOp  # Keep it disabled for readability
+      - badCond
+      - commentFormatting
+      - exitAfterDefer
+      - ifElseChain
+      - mapKey
+      - singleCaseSwitch
+      - typeSwitchVar
+  goimports:
+    local-prefixes: github.com/argoproj/argo-cd/v2
+  testifylint:
+    enable-all: true
+    disable:
+      - error-is-as
+      - float-compare
+      - go-require
 run:
   timeout: 50m
