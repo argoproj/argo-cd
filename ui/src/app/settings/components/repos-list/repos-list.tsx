@@ -42,6 +42,7 @@ export interface NewHTTPSRepoParams {
     project?: string;
     forceHttpBasicAuth?: boolean;
     enableOCI: boolean;
+    insecureHttpOnly: boolean;
     // write should be true if saving as a write credential.
     write: boolean;
 }
