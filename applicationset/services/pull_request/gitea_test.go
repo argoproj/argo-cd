@@ -10,6 +10,7 @@ import (
 
 	"code.gitea.io/sdk/gitea"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func giteaMockHandler(t *testing.T) func(http.ResponseWriter, *http.Request) {
@@ -250,9 +251,9 @@ func TestGiteaList(t *testing.T) {
 		giteaMockHandler(t)(w, r)
 	}))
 	host, err := NewGiteaService(context.Background(), "", ts.URL, "test-argocd", "pr-test", false)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	prs, err := host.List(context.Background())
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Len(t, prs, 1)
 	assert.Equal(t, 1, prs[0].Number)
 	assert.Equal(t, "test", prs[0].Branch)

@@ -88,7 +88,7 @@ func TestMatchValues(t *testing.T) {
 				emptyTemplate(),
 				&applicationSetInfo, nil, nil)
 
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			assert.ElementsMatch(t, testCase.expected, results[0].Params)
 		})
 	}
@@ -172,7 +172,7 @@ func TestMatchValuesGoTemplate(t *testing.T) {
 				emptyTemplate(),
 				&applicationSetInfo, nil, nil)
 
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			assert.ElementsMatch(t, testCase.expected, results[0].Params)
 		})
 	}
@@ -242,7 +242,7 @@ func TestTransForm(t *testing.T) {
 				emptyTemplate(),
 				&applicationSetInfo, nil, nil)
 
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			assert.ElementsMatch(t, testCase.expected, results[0].Params)
 		})
 	}
@@ -553,7 +553,7 @@ func TestInterpolateGeneratorError(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := InterpolateGenerator(tt.args.requestedGenerator, tt.args.params, tt.args.useGoTemplate, tt.args.goTemplateOptions)
 			if tt.expectedErrStr != "" {
-				assert.EqualError(t, err, tt.expectedErrStr)
+				require.EqualError(t, err, tt.expectedErrStr)
 			} else {
 				require.NoError(t, err)
 			}
