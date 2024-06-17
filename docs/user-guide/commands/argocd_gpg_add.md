@@ -8,13 +8,6 @@ Adds a GPG public key to the server's keyring
 argocd gpg add [flags]
 ```
 
-### Examples
-
-```
-  # Add a GPG public key to the server's keyring from a file.
-  argocd gpg add --from /path/to/keyfile
-```
-
 ### Options
 
 ```

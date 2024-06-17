@@ -62,60 +62,6 @@ func TestSetAppInstanceAnnotationAndLabel(t *testing.T) {
 	assert.Equal(t, "my-app", app)
 }
 
-func TestSetAppInstanceAnnotationAndLabelLongName(t *testing.T) {
-	yamlBytes, err := os.ReadFile("testdata/svc.yaml")
-	assert.Nil(t, err)
-	var obj unstructured.Unstructured
-	err = yaml.Unmarshal(yamlBytes, &obj)
-	assert.Nil(t, err)
-
-	resourceTracking := NewResourceTracking()
-
-	err = resourceTracking.SetAppInstance(&obj, common.LabelKeyAppInstance, "my-app-with-an-extremely-long-name-that-is-over-sixty-three-characters", "", TrackingMethodAnnotationAndLabel)
-	assert.Nil(t, err)
-
-	// the annotation should still work, so the name from GetAppName should not be truncated
-	app := resourceTracking.GetAppName(&obj, common.LabelKeyAppInstance, TrackingMethodAnnotationAndLabel)
-	assert.Equal(t, "my-app-with-an-extremely-long-name-that-is-over-sixty-three-characters", app)
-
-	// the label should be truncated to 63 characters
-	assert.Equal(t, obj.GetLabels()[common.LabelKeyAppInstance], "my-app-with-an-extremely-long-name-that-is-over-sixty-three-cha")
-}
-
-func TestSetAppInstanceAnnotationAndLabelLongNameBadEnding(t *testing.T) {
-	yamlBytes, err := os.ReadFile("testdata/svc.yaml")
-	assert.Nil(t, err)
-	var obj unstructured.Unstructured
-	err = yaml.Unmarshal(yamlBytes, &obj)
-	assert.Nil(t, err)
-
-	resourceTracking := NewResourceTracking()
-
-	err = resourceTracking.SetAppInstance(&obj, common.LabelKeyAppInstance, "the-very-suspicious-name-with-precisely-sixty-three-characters-with-hyphen", "", TrackingMethodAnnotationAndLabel)
-	assert.Nil(t, err)
-
-	// the annotation should still work, so the name from GetAppName should not be truncated
-	app := resourceTracking.GetAppName(&obj, common.LabelKeyAppInstance, TrackingMethodAnnotationAndLabel)
-	assert.Equal(t, "the-very-suspicious-name-with-precisely-sixty-three-characters-with-hyphen", app)
-
-	// the label should be truncated to 63 characters, AND the hyphen should be removed
-	assert.Equal(t, obj.GetLabels()[common.LabelKeyAppInstance], "the-very-suspicious-name-with-precisely-sixty-three-characters")
-}
-
-func TestSetAppInstanceAnnotationAndLabelOutOfBounds(t *testing.T) {
-	yamlBytes, err := os.ReadFile("testdata/svc.yaml")
-	assert.Nil(t, err)
-	var obj unstructured.Unstructured
-	err = yaml.Unmarshal(yamlBytes, &obj)
-	assert.Nil(t, err)
-
-	resourceTracking := NewResourceTracking()
-
-	err = resourceTracking.SetAppInstance(&obj, common.LabelKeyAppInstance, "----------------------------------------------------------------", "", TrackingMethodAnnotationAndLabel)
-	// this should error because it can't truncate to a valid value
-	assert.EqualError(t, err, "failed to set app instance label: unable to truncate label to not end with a special character")
-}
-
 func TestSetAppInstanceAnnotationNotFound(t *testing.T) {
 	yamlBytes, err := os.ReadFile("testdata/svc.yaml")
 	assert.Nil(t, err)
@@ -236,5 +182,5 @@ func TestResourceIdNormalizer_Normalize_ConfigHasOldLabel(t *testing.T) {
 }
 
 func TestIsOldTrackingMethod(t *testing.T) {
-	assert.True(t, IsOldTrackingMethod(string(TrackingMethodLabel)))
+	assert.Equal(t, true, IsOldTrackingMethod(string(TrackingMethodLabel)))
 }

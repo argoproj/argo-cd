@@ -127,14 +127,14 @@ func TestInClusterServerAddressEnabled(t *testing.T) {
 	})
 	argoCDCM, err := settingsManager.getConfigMap()
 	assert.NoError(t, err)
-	assert.True(t, argoCDCM.Data[inClusterEnabledKey] == "true")
+	assert.Equal(t, true, argoCDCM.Data[inClusterEnabledKey] == "true")
 
 	_, settingsManager = fixtures(map[string]string{
 		"cluster.inClusterEnabled": "false",
 	})
 	argoCDCM, err = settingsManager.getConfigMap()
 	assert.NoError(t, err)
-	assert.False(t, argoCDCM.Data[inClusterEnabledKey] == "true")
+	assert.Equal(t, false, argoCDCM.Data[inClusterEnabledKey] == "true")
 }
 
 func TestInClusterServerAddressEnabledByDefault(t *testing.T) {
@@ -166,7 +166,7 @@ func TestInClusterServerAddressEnabledByDefault(t *testing.T) {
 	settingsManager := NewSettingsManager(context.Background(), kubeClient, "default")
 	settings, err := settingsManager.GetSettings()
 	assert.NoError(t, err)
-	assert.True(t, settings.InClusterEnabled)
+	assert.Equal(t, true, settings.InClusterEnabled)
 }
 
 func TestGetAppInstanceLabelKey(t *testing.T) {
@@ -182,7 +182,7 @@ func TestGetServerRBACLogEnforceEnableKeyDefaultFalse(t *testing.T) {
 	_, settingsManager := fixtures(nil)
 	serverRBACLogEnforceEnable, err := settingsManager.GetServerRBACLogEnforceEnable()
 	assert.NoError(t, err)
-	assert.False(t, serverRBACLogEnforceEnable)
+	assert.Equal(t, false, serverRBACLogEnforceEnable)
 }
 
 func TestGetIsIgnoreResourceUpdatesEnabled(t *testing.T) {
@@ -207,7 +207,7 @@ func TestGetServerRBACLogEnforceEnableKey(t *testing.T) {
 	})
 	serverRBACLogEnforceEnable, err := settingsManager.GetServerRBACLogEnforceEnable()
 	assert.NoError(t, err)
-	assert.True(t, serverRBACLogEnforceEnable)
+	assert.Equal(t, true, serverRBACLogEnforceEnable)
 }
 
 func TestGetResourceOverrides(t *testing.T) {
@@ -377,9 +377,9 @@ func TestGetResourceOverrides_with_splitted_keys(t *testing.T) {
 		assert.Equal(t, 1, len(overrides["admissionregistration.k8s.io/MutatingWebhookConfiguration"].IgnoreResourceUpdates.JSONPointers))
 		assert.Equal(t, "foo", overrides["admissionregistration.k8s.io/MutatingWebhookConfiguration"].IgnoreResourceUpdates.JSONPointers[0])
 		assert.Equal(t, "foo\n", overrides["certmanager.k8s.io/Certificate"].HealthLua)
-		assert.True(t, overrides["certmanager.k8s.io/Certificate"].UseOpenLibs)
+		assert.Equal(t, true, overrides["certmanager.k8s.io/Certificate"].UseOpenLibs)
 		assert.Equal(t, "foo\n", overrides["cert-manager.io/Certificate"].HealthLua)
-		assert.False(t, overrides["cert-manager.io/Certificate"].UseOpenLibs)
+		assert.Equal(t, false, overrides["cert-manager.io/Certificate"].UseOpenLibs)
 		assert.Equal(t, "foo", overrides["apps/Deployment"].Actions)
 	})
 
@@ -432,8 +432,8 @@ func TestGetResourceOverrides_with_splitted_keys(t *testing.T) {
 		assert.Equal(t, "bar", overrides["admissionregistration.k8s.io/MutatingWebhookConfiguration"].HealthLua)
 		assert.Equal(t, "bar", overrides["certmanager.k8s.io/Certificate"].HealthLua)
 		assert.Equal(t, "bar", overrides["cert-manager.io/Certificate"].HealthLua)
-		assert.False(t, overrides["certmanager.k8s.io/Certificate"].UseOpenLibs)
-		assert.True(t, overrides["cert-manager.io/Certificate"].UseOpenLibs)
+		assert.Equal(t, false, overrides["certmanager.k8s.io/Certificate"].UseOpenLibs)
+		assert.Equal(t, true, overrides["cert-manager.io/Certificate"].UseOpenLibs)
 		assert.Equal(t, "bar", overrides["apps/Deployment"].Actions)
 		assert.Equal(t, "bar", overrides["Deployment"].Actions)
 		assert.Equal(t, "bar", overrides["iam-manager.k8s.io/Iamrole"].HealthLua)
@@ -764,7 +764,7 @@ func TestGetGoogleAnalytics(t *testing.T) {
 	ga, err := settingsManager.GetGoogleAnalytics()
 	assert.NoError(t, err)
 	assert.Equal(t, "123", ga.TrackingID)
-	assert.True(t, ga.AnonymizeUsers)
+	assert.Equal(t, true, ga.AnonymizeUsers)
 }
 
 func TestSettingsManager_GetHelp(t *testing.T) {
@@ -950,7 +950,7 @@ func TestGetOIDCConfig(t *testing.T) {
 
 	claim := oidcConfig.RequestedIDTokenClaims["groups"]
 	assert.NotNil(t, claim)
-	assert.True(t, claim.Essential)
+	assert.Equal(t, true, claim.Essential)
 }
 
 func TestRedirectURL(t *testing.T) {
@@ -1241,9 +1241,9 @@ func TestDownloadArgoCDBinaryUrls(t *testing.T) {
 func TestSecretKeyRef(t *testing.T) {
 	data := map[string]string{
 		"oidc.config": `name: Okta
-issuer: $ext:issuerSecret
+issuer: $acme:issuerSecret
 clientID: aaaabbbbccccddddeee
-clientSecret: $ext:clientSecret
+clientSecret: $acme:clientSecret
 # Optional set of OIDC scopes to request. If omitted, defaults to: ["openid", "profile", "email", "groups"]
 requestedScopes: ["openid", "profile", "email"]
 # Optional set of OIDC claims to request on the ID token.
@@ -1265,23 +1265,21 @@ requestedIDTokenClaims: {"groups": {"essential": true}}`,
 			Namespace: "default",
 		},
 		Data: map[string][]byte{
-			"admin.password":        nil,
-			"server.secretkey":      nil,
-			"webhook.github.secret": []byte("$ext:webhook.github.secret"),
+			"admin.password":   nil,
+			"server.secretkey": nil,
 		},
 	}
 	secret := &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "ext",
+			Name:      "acme",
 			Namespace: "default",
 			Labels: map[string]string{
 				"app.kubernetes.io/part-of": "argocd",
 			},
 		},
 		Data: map[string][]byte{
-			"issuerSecret":          []byte("https://dev-123456.oktapreview.com"),
-			"clientSecret":          []byte("deadbeef"),
-			"webhook.github.secret": []byte("mywebhooksecret"),
+			"issuerSecret": []byte("https://dev-123456.oktapreview.com"),
+			"clientSecret": []byte("deadbeef"),
 		},
 	}
 	kubeClient := fake.NewSimpleClientset(cm, secret, argocdSecret)
@@ -1289,7 +1287,6 @@ requestedIDTokenClaims: {"groups": {"essential": true}}`,
 
 	settings, err := settingsManager.GetSettings()
 	assert.NoError(t, err)
-	assert.Equal(t, settings.WebhookGitHubSecret, "mywebhooksecret")
 
 	oidcConfig := settings.OIDCConfig()
 	assert.Equal(t, oidcConfig.Issuer, "https://dev-123456.oktapreview.com")

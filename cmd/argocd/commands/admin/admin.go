@@ -48,12 +48,6 @@ func NewAdminCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 		Run: func(c *cobra.Command, args []string) {
 			c.HelpFunc()(c, args)
 		},
-		Example: `# Access the Argo CD web UI
-$ argocd admin dashboard
-
-# Reset the initial admin password
-$ argocd admin initial-password reset
-`,
 	}
 
 	command.AddCommand(NewClusterCommand(clientOpts, pathOpts))
