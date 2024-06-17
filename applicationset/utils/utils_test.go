@@ -188,7 +188,7 @@ func TestRenderTemplateParams(t *testing.T) {
 				assert.Equal(t, "default", newApplication.ObjectMeta.Namespace)
 				assert.Equal(t, newApplication.ObjectMeta.UID, types.UID("d546da12-06b7-4f9a-8ea2-3adb16a20e2b"))
 				assert.Equal(t, newApplication.ObjectMeta.CreationTimestamp, application.ObjectMeta.CreationTimestamp)
-				assert.NoError(t, err)
+				require.NoError(t, err)
 			}
 		})
 	}
@@ -237,13 +237,13 @@ func TestRenderHelmValuesObjectJson(t *testing.T) {
 	render := Render{}
 	newApplication, err := render.RenderTemplateParams(application, nil, params, true, []string{})
 
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotNil(t, newApplication)
 
 	var unmarshaled interface{}
 	err = json.Unmarshal(newApplication.Spec.Source.Helm.ValuesObject.Raw, &unmarshaled)
 
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, "Hello world", unmarshaled.(map[string]interface{})["some"].(map[string]interface{})["string"])
 }
 
@@ -287,13 +287,13 @@ func TestRenderHelmValuesObjectYaml(t *testing.T) {
 	render := Render{}
 	newApplication, err := render.RenderTemplateParams(application, nil, params, true, []string{})
 
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotNil(t, newApplication)
 
 	var unmarshaled interface{}
 	err = json.Unmarshal(newApplication.Spec.Source.Helm.ValuesObject.Raw, &unmarshaled)
 
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, "Hello world", unmarshaled.(map[string]interface{})["some"].(map[string]interface{})["string"])
 }
 
@@ -621,10 +621,10 @@ func TestRenderTemplateParamsGoTemplate(t *testing.T) {
 				// Retrieve the value of the target field from the newApplication, then verify that
 				// the target field has been templated into the expected value
 				if test.errorMessage != "" {
-					assert.Error(t, err)
+					require.Error(t, err)
 					assert.Equal(t, test.errorMessage, err.Error())
 				} else {
-					assert.NoError(t, err)
+					require.NoError(t, err)
 					actualValue := *getPtrFunc(newApplication)
 					assert.Equal(t, test.expectedVal, actualValue, "Field '%s' had an unexpected value. expected: '%s' value: '%s'", fieldName, test.expectedVal, actualValue)
 					assert.Equal(t, "annotation-value", newApplication.ObjectMeta.Annotations["annotation-key"])
@@ -666,7 +666,7 @@ func TestRenderGeneratorParams_does_not_panic(t *testing.T) {
 		},
 	}
 	_, err := render.RenderGeneratorParams(generator, params, true, []string{})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 }
 
 func TestRenderTemplateKeys(t *testing.T) {
@@ -716,7 +716,7 @@ func Test_Render_Replace_no_panic_on_missing_closing_brace(t *testing.T) {
 	r := &Render{}
 	assert.NotPanics(t, func() {
 		_, err := r.Replace("{{properly.closed}} {{improperly.closed}", nil, false, []string{})
-		assert.Error(t, err)
+		require.Error(t, err)
 	})
 }
 
@@ -812,7 +812,7 @@ func TestRenderTemplateParamsFinalizers(t *testing.T) {
 			render := Render{}
 
 			res, err := render.RenderTemplateParams(application, c.syncPolicy, params, true, nil)
-			assert.NoError(t, err)
+			require.NoError(t, err)
 
 			assert.ElementsMatch(t, res.Finalizers, c.expectedFinalizers)
 		})
@@ -822,9 +822,9 @@ func TestRenderTemplateParamsFinalizers(t *testing.T) {
 func TestCheckInvalidGenerators(t *testing.T) {
 	scheme := runtime.NewScheme()
 	err := argoappsv1.AddToScheme(scheme)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	err = argoappsv1.AddToScheme(scheme)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	for _, c := range []struct {
 		testName    string
@@ -925,9 +925,9 @@ func TestCheckInvalidGenerators(t *testing.T) {
 func TestInvalidGenerators(t *testing.T) {
 	scheme := runtime.NewScheme()
 	err := argoappsv1.AddToScheme(scheme)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	err = argoappsv1.AddToScheme(scheme)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	for _, c := range []struct {
 		testName        string
