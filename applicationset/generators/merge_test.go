@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 
 	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
@@ -180,15 +181,15 @@ func TestMergeGenerate(t *testing.T) {
 			}, appSet, nil)
 
 			if testCaseCopy.expectedErr != nil {
-				assert.EqualError(t, err, testCaseCopy.expectedErr.Error())
+				require.EqualError(t, err, testCaseCopy.expectedErr.Error())
 			} else {
 				expectedSet, err := listOfMapsToSet(testCaseCopy.expected)
-				assert.NoError(t, err)
+				require.NoError(t, err)
 
 				actualSet, err := listOfMapsToSet(got)
-				assert.NoError(t, err)
+				require.NoError(t, err)
 
-				assert.NoError(t, err)
+				require.NoError(t, err)
 				assert.Equal(t, expectedSet, actualSet)
 			}
 		})
@@ -337,9 +338,9 @@ func TestParamSetsAreUniqueByMergeKeys(t *testing.T) {
 			got, err := getParamSetsByMergeKey(testCaseCopy.mergeKeys, testCaseCopy.paramSets)
 
 			if testCaseCopy.expectedErr != nil {
-				assert.EqualError(t, err, testCaseCopy.expectedErr.Error())
+				require.EqualError(t, err, testCaseCopy.expectedErr.Error())
 			} else {
-				assert.NoError(t, err)
+				require.NoError(t, err)
 				assert.Equal(t, testCaseCopy.expected, got)
 			}
 		})
