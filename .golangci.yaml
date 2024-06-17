@@ -13,9 +13,9 @@ linters:
   enable:
     - errcheck
     - errorlint
-    - gci
     - gocritic
     - gofumpt
+    - goimports
     - gosimple
     - govet
     - ineffassign
@@ -25,15 +25,6 @@ linters:
     - unused
     - whitespace 
 linters-settings:
-  gci:
-    sections:
-      - standard
-      - default
-      - prefix(github.com/argoproj/argo-cd/v2)
-      - blank
-      - dot
-    skip-generated: true
-    custom-order: true
   gocritic:
     disabled-checks:
       - appendAssign
@@ -45,6 +36,8 @@ linters-settings:
       - mapKey
       - singleCaseSwitch
       - typeSwitchVar
+  goimports:
+    local-prefixes: github.com/argoproj/argo-cd/v2
   testifylint:
     enable-all: true
     disable:
