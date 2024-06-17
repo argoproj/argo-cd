@@ -205,7 +205,7 @@ func TestMergeTemplateApplications(t *testing.T) {
 				List: &v1alpha1.ListGenerator{},
 			}
 
-			generatorMock.On("GenerateParams", &generator, mock.AnythingOfType("*v1alpha1.ApplicationSet"), mock.AnythingOfType("client.Client")).
+			generatorMock.On("GenerateParams", &generator, mock.AnythingOfType("*v1alpha1.ApplicationSet"), mock.Anything).
 				Return(cc.params, nil)
 
 			generatorMock.On("GetTemplate", &generator).
