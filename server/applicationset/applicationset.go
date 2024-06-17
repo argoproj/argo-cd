@@ -36,7 +36,6 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/argo"
 	"github.com/argoproj/argo-cd/v2/util/collections"
 	"github.com/argoproj/argo-cd/v2/util/db"
-	"github.com/argoproj/argo-cd/v2/util/errors"
 	"github.com/argoproj/argo-cd/v2/util/github_app"
 	"github.com/argoproj/argo-cd/v2/util/rbac"
 	"github.com/argoproj/argo-cd/v2/util/security"
@@ -272,12 +271,17 @@ func (s *Server) generateApplicationSetApps(ctx context.Context, appset v1alpha1
 		return s.db.GetRepository(ctx, url, project)
 	}
 	argoCDService, err := services.NewArgoCDService(getRepository, s.GitSubmoduleEnabled, s.repoClientSet, s.EnableNewGitFileGlobbing)
-	errors.CheckError(err)
+	if err != nil {
+		return nil, fmt.Errorf("error creating ArgoCDService: %w", err)
+	}
 
 	appSetGenerators := generators.GetGenerators(ctx, s.client, s.k8sClient, namespace, argoCDService, s.dynamicClient, scmConfig)
 
 	apps, _, err := appsettemplate.GenerateApplications(logCtx, appset, appSetGenerators, &appsetutils.Render{}, s.client)
-	return apps, err
+	if err != nil {
+		return nil, fmt.Errorf("error generating applications: %w", err)
+	}
+	return apps, nil
 }
 
 func (s *Server) updateAppSet(appset *v1alpha1.ApplicationSet, newAppset *v1alpha1.ApplicationSet, ctx context.Context, merge bool) (*v1alpha1.ApplicationSet, error) {
