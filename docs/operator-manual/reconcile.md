@@ -4,7 +4,8 @@ By default, an Argo CD Application is refreshed every time a resource that belon
 
 Kubernetes controllers often update the resources they watch periodically, causing continuous reconcile operation on the Application
 and a high CPU usage on the `argocd-application-controller`. Argo CD allows you to optionally ignore resource updates on specific fields
-for [tracked resources](../user-guide/resource_tracking.md).
+for [tracked resources](../user-guide/resource_tracking.md). 
+For untracked resources, you can [use the argocd.argoproj.io/ignore-resource-updates annotations](#ignoring-updates-for-untracked-resources)
 
 When a resource update is ignored, if the resource's [health status](./health.md) does not change, the Application that this resource belongs to will not be reconciled.
 
@@ -134,12 +135,12 @@ spec:
   jobTemplate:
     metadata:
       annotations:
-        argocd.argoproj.io/apply-resources-update: "true"
+        argocd.argoproj.io/ignore-resources-update: "true"
     spec:
       template:
         metadata:
           annotations:
-            argocd.argoproj.io/apply-resources-update: "true"
+            argocd.argoproj.io/ignore-resources-update: "true"
         spec:
           containers:
           - name: hello

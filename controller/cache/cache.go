@@ -71,9 +71,9 @@ const (
 	// EnvClusterCacheRetryUseBackoff is the env variable to control whether to use a backoff strategy with the retry during cluster cache sync
 	EnvClusterCacheRetryUseBackoff = "ARGOCD_CLUSTER_CACHE_RETRY_USE_BACKOFF"
 
-	// AnnotationApplyResourcesUpdate when set to true on an untracked resource,
+	// AnnotationIgnoreResourcesUpdate when set to true on an untracked resource,
 	// argo will apply `ignoreResourceUpdates` configuration on it.
-	AnnotationApplyResourcesUpdate = "argocd.argoproj.io/apply-resources-update"
+	AnnotationIgnoreResourcesUpdate = "argocd.argoproj.io/ignore-resources-update"
 )
 
 // GitOps engine cluster cache tuning options
@@ -361,19 +361,19 @@ func skipResourceUpdate(oldInfo, newInfo *ResourceInfo) bool {
 // If there's an app name from resource tracking, or if this is itself an app, we should generate a hash.
 // Otherwise, the hashing should be skipped to save CPU time.
 func shouldHashManifest(appName string, gvk schema.GroupVersionKind, un *unstructured.Unstructured) bool {
-	// Only hash if the resource belongs to an app OR argocd.argoproj.io/apply-resources-update is present and set to true
+	// Only hash if the resource belongs to an app OR argocd.argoproj.io/ignore-resources-update is present and set to true
 	// Best      - Only hash for resources that are part of an app or their dependencies
 	// (current) - Only hash for resources that are part of an app + all apps that might be from an ApplicationSet
 	// Orphan    - If orphan is enabled, hash should be made on all resource of that namespace and a config to disable it
 	// Worst     - Hash all resources watched by Argo
 	isTrackedResource := appName != "" || (gvk.Group == application.Group && gvk.Kind == application.ApplicationKind)
 
-	// If the resource is not a tracked resource, we will look up argocd.argoproj.io/apply-resources-update and decide
+	// If the resource is not a tracked resource, we will look up argocd.argoproj.io/ignore-resources-update and decide
 	// whether we generate hash or not.
-	// If argocd.argoproj.io/apply-resources-update is presented and is true, return true
+	// If argocd.argoproj.io/ignore-resources-update is presented and is true, return true
 	// Else return false
 	if !isTrackedResource {
-		if val, ok := un.GetAnnotations()[AnnotationApplyResourcesUpdate]; ok {
+		if val, ok := un.GetAnnotations()[AnnotationIgnoreResourcesUpdate]; ok {
 			applyResourcesUpdate, err := strconv.ParseBool(val)
 			if err != nil {
 				applyResourcesUpdate = false
