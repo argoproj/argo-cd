@@ -23,6 +23,7 @@ import (
 
 	clustercache "github.com/argoproj/gitops-engine/pkg/cache"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/tools/cache"
 )
@@ -76,7 +77,7 @@ func TestClusterSecretUpdater(t *testing.T) {
 
 	appCache := appstate.NewCache(cacheutil.NewCache(cacheutil.NewInMemoryCache(time.Minute)), time.Minute)
 	cluster, err := argoDB.CreateCluster(ctx, &v1alpha1.Cluster{Server: "http://minikube"})
-	assert.NoError(t, err, "Test prepare test data create cluster failed")
+	require.NoError(t, err, "Test prepare test data create cluster failed")
 
 	for _, test := range tests {
 		info := &clustercache.ClusterInfo{
@@ -90,11 +91,11 @@ func TestClusterSecretUpdater(t *testing.T) {
 		updater := NewClusterInfoUpdater(nil, argoDB, lister, appCache, nil, nil, fakeNamespace)
 
 		err = updater.updateClusterInfo(context.Background(), *cluster, info)
-		assert.NoError(t, err, "Invoking updateClusterInfo failed.")
+		require.NoError(t, err, "Invoking updateClusterInfo failed.")
 
 		var clusterInfo v1alpha1.ClusterInfo
 		err = appCache.GetClusterInfo(cluster.Server, &clusterInfo)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, updatedK8sVersion, clusterInfo.ServerVersion)
 		assert.Equal(t, test.ExpectedStatus, clusterInfo.ConnectionState.Status)
 	}
@@ -103,7 +104,7 @@ func TestClusterSecretUpdater(t *testing.T) {
 func TestUpdateClusterLabels(t *testing.T) {
 	shouldNotBeInvoked := func(ctx context.Context, cluster *v1alpha1.Cluster) (*v1alpha1.Cluster, error) {
 		shouldNotHappen := errors.New("if an error happens here, something's wrong")
-		assert.NoError(t, shouldNotHappen)
+		require.NoError(t, shouldNotHappen)
 		return nil, shouldNotHappen
 	}
 	tests := []struct {
