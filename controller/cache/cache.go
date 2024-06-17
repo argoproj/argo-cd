@@ -71,9 +71,8 @@ const (
 	// EnvClusterCacheRetryUseBackoff is the env variable to control whether to use a backoff strategy with the retry during cluster cache sync
 	EnvClusterCacheRetryUseBackoff = "ARGOCD_CLUSTER_CACHE_RETRY_USE_BACKOFF"
 
-	// AnnotationApplyResourcesUpdate when set to true on a resource that is not tracked under an app, argocd will generate a
-	// hash and apply `ignoreResourceUpdate` configuration on it. If the annotation is set to false (or not presented) on a resource
-	// that is not tracked under an app, ignoreResourceUpdates configuration will not be applied.
+	// AnnotationApplyResourcesUpdate when set to true on an untracked resource,
+	// argo will apply `ignoreResourceUpdates` configuration on it.
 	AnnotationApplyResourcesUpdate = "argocd.argoproj.io/apply-resources-update"
 )
 
@@ -367,13 +366,13 @@ func shouldHashManifest(appName string, gvk schema.GroupVersionKind, un *unstruc
 	// (current) - Only hash for resources that are part of an app + all apps that might be from an ApplicationSet
 	// Orphan    - If orphan is enabled, hash should be made on all resource of that namespace and a config to disable it
 	// Worst     - Hash all resources watched by Argo
-	isTrackedResources := appName != "" || (gvk.Group == application.Group && gvk.Kind == application.ApplicationKind)
+	isTrackedResource := appName != "" || (gvk.Group == application.Group && gvk.Kind == application.ApplicationKind)
 
 	// If the resource is not a tracked resource, we will look up argocd.argoproj.io/apply-resources-update and decide
 	// whether we generate hash or not.
 	// If argocd.argoproj.io/apply-resources-update is presented and is true, return true
 	// Else return false
-	if !isTrackedResources {
+	if !isTrackedResource {
 		if val, ok := un.GetAnnotations()[AnnotationApplyResourcesUpdate]; ok {
 			applyResourcesUpdate, err := strconv.ParseBool(val)
 			if err != nil {
@@ -384,7 +383,7 @@ func shouldHashManifest(appName string, gvk schema.GroupVersionKind, un *unstruc
 		return false
 	}
 
-	return isTrackedResources
+	return isTrackedResource
 }
 
 // isRetryableError is a helper method to see whether an error

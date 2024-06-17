@@ -112,13 +112,12 @@ data:
     - .status.conditions[].lastTransitionTime
 ```
 
-## Tracking Dependent Resources
+## Ignoring updates for untracked resources
 
-Dependent resources by default are not being tracked. Therefore, we cannot generate any hash of those objects and utilize 
-the `ignoreResourceUpdates` configuration.
+ArgoCD will only apply `ignoreResourceUpdates` configuration to tracked resources of an application. This means dependant resources, such as a `ReplicaSet` and `Pod` created by a `Deployment`, will not ignore any updates and trigger a reconcile of the application for any changes.
 
-If you want to track the dependent object and apply the `ignoreResourceUpdates` configuration, you can add 
-`argocd.argoproj.io/apply-resources-update=true` annotation in the dependent resources manifest:
+If you want to apply the `ignoreResourceUpdates` configuration to an untracked resource, you can add the
+`argocd.argoproj.io/ignore-resource-updates=true` annotation in the dependent resources manifest.
 
 ## Example
 
@@ -153,7 +152,7 @@ spec:
           restartPolicy: OnFailure
 ```
 
-Then you can update `argocd-cm` configMap to ignore the dependent resources:
+The resource updates will be ignored based on your the `ignoreResourceUpdates` configuration in the `argocd-cm` configMap:
 
 `argocd-cm`:
 ```yaml
@@ -164,6 +163,3 @@ resource.customizations.ignoreResourceUpdates.Pod: |
     jsonPointers:
       - /status      
 ```
-
-Note: If you set `argocd.argoproj.io/apply-resources-update: "false"`, no hash will be generated and `ignoreResourceUpdates`
-cannot be applied on those resources.
