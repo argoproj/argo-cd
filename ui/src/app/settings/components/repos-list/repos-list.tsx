@@ -38,6 +38,7 @@ export interface NewHTTPSRepoParams {
     project?: string;
     forceHttpBasicAuth?: boolean;
     enableOCI: boolean;
+    insecureHttpOnly: boolean;
 }
 
 interface NewGitHubAppRepoParams {
