@@ -146,7 +146,7 @@ func NewRunDexCommand() *cobra.Command {
 	command.Flags().StringVar(&cmdutil.LogFormat, "logformat", "text", "Set the logging format. One of: text|json")
 	command.Flags().StringVar(&cmdutil.LogLevel, "loglevel", "info", "Set the logging level. One of: debug|info|warn|error")
 	command.Flags().BoolVar(&disableTLS, "disable-tls", env.ParseBoolFromEnv("ARGOCD_DEX_SERVER_DISABLE_TLS", false), "Disable TLS on the HTTP endpoint")
-	command.Flags().BoolVar(&acceptProtobufContentType, "accept-protobuf-content-type-enabled", env.ParseBoolFromEnv("ARGOCD_ACCEPT_PROTOBUF_CONTENTTYPE_ENABLED", false), "Allows the Argo CD dex server to receive kubernetes api responses in protobuf instead of json, if possible. This may improve performance in serialization but is experimental.")
+	command.Flags().BoolVar(&acceptProtobufContentType, "accept-protobuf-content-type-enabled", env.ParseBoolFromEnv("ARGOCD_ACCEPT_PROTOBUF_CONTENTTYPE_ENABLED", false), "Allows the Argo CD dex server to receive Kubernetes API responses in protobuf instead of json, if possible. This may improve performance in serialization but is experimental.")
 
 	return &command
 }

@@ -253,7 +253,7 @@ func NewCommand() *cobra.Command {
 	command.Flags().StringSliceVar(&globalPreservedAnnotations, "preserved-annotations", env.StringsFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_GLOBAL_PRESERVED_ANNOTATIONS", []string{}, ","), "Sets global preserved field values for annotations")
 	command.Flags().StringSliceVar(&globalPreservedLabels, "preserved-labels", env.StringsFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_GLOBAL_PRESERVED_LABELS", []string{}, ","), "Sets global preserved field values for labels")
 	command.Flags().IntVar(&webhookParallelism, "webhook-parallelism-limit", env.ParseNumFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_WEBHOOK_PARALLELISM_LIMIT", 50, 1, 1000), "Number of webhook requests processed concurrently")
-	command.Flags().BoolVar(&acceptProtobufContentType, "accept-protobuf-content-type-enabled", env.ParseBoolFromEnv("ARGOCD_ACCEPT_PROTOBUF_CONTENTTYPE_ENABLED", false), "Allows the Argo CD applicationset controller to receive kubernetes api responses in protobuf instead of json, if possible. This may improve performance in serialization but is experimental.")
+	command.Flags().BoolVar(&acceptProtobufContentType, "accept-protobuf-content-type-enabled", env.ParseBoolFromEnv("ARGOCD_ACCEPT_PROTOBUF_CONTENTTYPE_ENABLED", false), "Allows the Argo CD applicationset controller to receive Kubernetes API responses in protobuf instead of json, if possible. This may improve performance in serialization but is experimental.")
 
 	return &command
 }

@@ -302,7 +302,7 @@ func NewCommand() *cobra.Command {
 	command.Flags().StringSliceVar(&applicationNamespaces, "application-namespaces", env.StringsFromEnv("ARGOCD_APPLICATION_NAMESPACES", []string{}, ","), "List of additional namespaces where application resources can be managed in")
 	command.Flags().BoolVar(&enableProxyExtension, "enable-proxy-extension", env.ParseBoolFromEnv("ARGOCD_SERVER_ENABLE_PROXY_EXTENSION", false), "Enable Proxy Extension feature")
 	command.Flags().IntVar(&webhookParallelism, "webhook-parallelism-limit", env.ParseNumFromEnv("ARGOCD_SERVER_WEBHOOK_PARALLELISM_LIMIT", 50, 1, 1000), "Number of webhook requests processed concurrently")
-	command.Flags().BoolVar(&acceptProtobufContentType, "accept-protobuf-content-type-enabled", env.ParseBoolFromEnv("ARGOCD_ACCEPT_PROTOBUF_CONTENTTYPE_ENABLED", false), "Allows the Argo CD to receive kubernetes api responses in protobuf instead of json, if possible. This may improve performance in serialization but is experimental.")
+	command.Flags().BoolVar(&acceptProtobufContentType, "accept-protobuf-content-type-enabled", env.ParseBoolFromEnv("ARGOCD_ACCEPT_PROTOBUF_CONTENTTYPE_ENABLED", false), "Allows the Argo CD to receive Kubernetes API responses in protobuf instead of json, if possible. This may improve performance in serialization but is experimental.")
 
 	// Flags related to the applicationSet component.
 	command.Flags().StringVar(&scmRootCAPath, "appset-scm-root-ca-path", env.StringFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_SCM_ROOT_CA_PATH", ""), "Provide Root CA Path for self-signed TLS Certificates")

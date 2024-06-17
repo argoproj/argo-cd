@@ -172,7 +172,7 @@ func NewCommand() *cobra.Command {
 	command.Flags().StringVar(&secretName, "secret-name", "argocd-notifications-secret", "Set notifications Secret name")
 	command.Flags().StringSliceVar(&applicationNamespaces, "application-namespaces", env.StringsFromEnv("ARGOCD_APPLICATION_NAMESPACES", []string{}, ","), "List of additional namespaces that this controller should send notifications for")
 	command.Flags().BoolVar(&selfServiceNotificationEnabled, "self-service-notification-enabled", env.ParseBoolFromEnv("ARGOCD_NOTIFICATION_CONTROLLER_SELF_SERVICE_NOTIFICATION_ENABLED", false), "Allows the Argo CD notification controller to pull notification config from the namespace that the resource is in. This is useful for self-service notification.")
-	command.Flags().BoolVar(&acceptProtobufContentType, "accept-protobuf-content-type-enabled", env.ParseBoolFromEnv("ARGOCD_ACCEPT_PROTOBUF_CONTENTTYPE_ENABLED", false), "Allows the Argo CD notification controller to receive kubernetes api responses in protobuf instead of json, if possible. This may improve performance in serialization but is experimental.")
+	command.Flags().BoolVar(&acceptProtobufContentType, "accept-protobuf-content-type-enabled", env.ParseBoolFromEnv("ARGOCD_ACCEPT_PROTOBUF_CONTENTTYPE_ENABLED", false), "Allows the Argo CD notification controller to receive Kubernetes API responses in protobuf instead of json, if possible. This may improve performance in serialization but is experimental.")
 
 	return &command
 }

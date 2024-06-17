@@ -239,7 +239,7 @@ func NewCommand() *cobra.Command {
 	command.Flags().BoolVar(&enableDynamicClusterDistribution, "dynamic-cluster-distribution-enabled", env.ParseBoolFromEnv(common.EnvEnableDynamicClusterDistribution, false), "Enables dynamic cluster distribution.")
 	command.Flags().BoolVar(&serverSideDiff, "server-side-diff-enabled", env.ParseBoolFromEnv(common.EnvServerSideDiff, false), "Feature flag to enable ServerSide diff. Default (\"false\")")
 	command.Flags().DurationVar(&ignoreNormalizerOpts.JQExecutionTimeout, "ignore-normalizer-jq-execution-timeout-seconds", env.ParseDurationFromEnv("ARGOCD_IGNORE_NORMALIZER_JQ_TIMEOUT", 0*time.Second, 0, math.MaxInt64), "Set ignore normalizer JQ execution timeout")
-	command.Flags().BoolVar(&acceptProtobufContentType, "accept-protobuf-content-type-enabled", env.ParseBoolFromEnv("ARGOCD_ACCEPT_PROTOBUF_CONTENTTYPE_ENABLED", false), "Allows the Argo CD repo server to receive kubernetes api responses in protobuf instead of json, if possible. This may improve performance in serialization but is experimental.")
+	command.Flags().BoolVar(&acceptProtobufContentType, "accept-protobuf-content-type-enabled", env.ParseBoolFromEnv("ARGOCD_ACCEPT_PROTOBUF_CONTENTTYPE_ENABLED", false), "Allows the Argo CD application controller to receive Kubernetes API responses in protobuf instead of json, if possible. This may improve performance in serialization but is experimental.")
 
 	cacheSource = appstatecache.AddCacheFlagsToCmd(&command, cacheutil.Options{
 		OnClientCreated: func(client *redis.Client) {

@@ -11,7 +11,7 @@ argocd-dex rundex [flags]
 ### Options
 
 ```
-      --accept-protobuf-content-type-enabled   Allows the Argo CD dex server to receive kubernetes api responses in protobuf instead of json, if possible. This may improve performance in serialization but is experimental.
+      --accept-protobuf-content-type-enabled   Allows the Argo CD dex server to receive Kubernetes API responses in protobuf instead of json, if possible. This may improve performance in serialization but is experimental.
       --as string                              Username to impersonate for the operation
       --as-group stringArray                   Group to impersonate for the operation, this flag can be repeated to specify multiple groups.
       --as-uid string                          UID to impersonate for the operation
