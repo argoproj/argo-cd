@@ -137,6 +137,45 @@ func TestInvalidHealthStatusStatus(t *testing.T) {
 	assert.Equal(t, expectedStatus, status)
 }
 
+const validReturnNothingHealthStatusStatus = `local healthStatus = {}
+return
+`
+
+func TestNoReturnHealthStatusStatus(t *testing.T) {
+	testObj := StrToUnstructured(objJSON)
+	vm := VM{}
+	status, err := vm.ExecuteHealthLua(testObj, validReturnNothingHealthStatusStatus)
+	require.NoError(t, err)
+	expectedStatus := &health.HealthStatus{}
+	assert.Equal(t, expectedStatus, status)
+}
+
+const validNilHealthStatusStatus = `local healthStatus = {}
+return nil
+`
+
+func TestNilHealthStatusStatus(t *testing.T) {
+	testObj := StrToUnstructured(objJSON)
+	vm := VM{}
+	status, err := vm.ExecuteHealthLua(testObj, validNilHealthStatusStatus)
+	require.NoError(t, err)
+	expectedStatus := &health.HealthStatus{}
+	assert.Equal(t, expectedStatus, status)
+}
+
+const validEmptyArrayHealthStatusStatus = `local healthStatus = {}
+return healthStatus
+`
+
+func TestEmptyHealthStatusStatus(t *testing.T) {
+	testObj := StrToUnstructured(objJSON)
+	vm := VM{}
+	status, err := vm.ExecuteHealthLua(testObj, validEmptyArrayHealthStatusStatus)
+	require.NoError(t, err)
+	expectedStatus := &health.HealthStatus{}
+	assert.Equal(t, expectedStatus, status)
+}
+
 const infiniteLoop = `while true do ; end`
 
 func TestHandleInfiniteLoop(t *testing.T) {
