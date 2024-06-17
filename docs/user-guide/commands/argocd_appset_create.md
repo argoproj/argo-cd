@@ -13,6 +13,9 @@ argocd appset create [flags]
 ```
   # Create ApplicationSets
   argocd appset create <filename or URL> (<filename or URL>...)
+  
+  # Dry-run AppSet creation to see what applications would be managed
+  argocd appset create --dry-run <filename or URL> -o json | jq -r '.status.resources[].name'
 ```
 
 ### Options

@@ -122,6 +122,9 @@ func NewApplicationSetCreateCommand(clientOpts *argocdclient.ClientOptions) *cob
 		Example: templates.Examples(`
 	# Create ApplicationSets
 	argocd appset create <filename or URL> (<filename or URL>...)
+
+	# Dry-run AppSet creation to see what applications would be managed
+	argocd appset create --dry-run <filename or URL> -o json | jq -r '.status.resources[].name' 
 		`),
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
