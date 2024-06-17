@@ -28,7 +28,7 @@ const (
 	DefaultRSABits = 2048
 	// The default TLS cipher suites to provide to clients - see https://cipherlist.eu for updates
 	// Note that for TLS v1.3, cipher suites are not configurable and will be chosen automatically.
-	DefaultTLSCipherSuite = "TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384"
+	DefaultTLSCipherSuite = "TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384:TLS_RSA_WITH_AES_256_GCM_SHA384"
 	// The default minimum TLS version to provide to clients
 	DefaultTLSMinVersion = "1.2"
 	// The default maximum TLS version to provide to clients
@@ -427,7 +427,7 @@ func CreateServerTLSConfig(tlsCertPath, tlsKeyPath string, hosts []string) (*tls
 		log.Infof("Loading TLS configuration from cert=%s and key=%s", tlsCertPath, tlsKeyPath)
 		c, err := tls.LoadX509KeyPair(tlsCertPath, tlsKeyPath)
 		if err != nil {
-			return nil, fmt.Errorf("Unable to initialize TLS configuration with cert=%s and key=%s: %v", tlsCertPath, tlsKeyPath, err)
+			return nil, fmt.Errorf("Unable to initalize TLS configuration with cert=%s and key=%s: %v", tlsCertPath, tlsKeyPath, err)
 		}
 		cert = &c
 	}

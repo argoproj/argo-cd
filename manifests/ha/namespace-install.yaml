@@ -1686,7 +1686,7 @@ spec:
               key: applicationsetcontroller.enable.scm.providers
               name: argocd-cmd-params-cm
               optional: true
-        image: quay.io/argoproj/argocd:latest
+        image: quay.io/argoproj/argocd:v2.10.12
         imagePullPolicy: Always
         name: argocd-applicationset-controller
         ports:
@@ -1780,7 +1780,7 @@ spec:
               key: dexserver.disable.tls
               name: argocd-cmd-params-cm
               optional: true
-        image: ghcr.io/dexidp/dex:v2.38.0
+        image: ghcr.io/dexidp/dex:v2.37.0
         imagePullPolicy: Always
         name: dex
         ports:
@@ -1809,7 +1809,7 @@ spec:
         - -n
         - /usr/local/bin/argocd
         - /shared/argocd-dex
-        image: quay.io/argoproj/argocd:latest
+        image: quay.io/argoproj/argocd:v2.10.12
         imagePullPolicy: Always
         name: copyutil
         securityContext:
@@ -1891,7 +1891,7 @@ spec:
               key: notificationscontroller.selfservice.enabled
               name: argocd-cmd-params-cm
               optional: true
-        image: quay.io/argoproj/argocd:latest
+        image: quay.io/argoproj/argocd:v2.10.12
         imagePullPolicy: Always
         livenessProbe:
           tcpSocket:
@@ -1971,7 +1971,7 @@ spec:
             secretKeyRef:
               key: auth
               name: argocd-redis
-        image: public.ecr.aws/docker/library/haproxy:2.6.14-alpine
+        image: haproxy:2.6.14-alpine
         imagePullPolicy: IfNotPresent
         lifecycle: {}
         livenessProbe:
@@ -2010,7 +2010,7 @@ spec:
         - argocd
         - admin
         - redis-initial-password
-        image: quay.io/argoproj/argocd:latest
+        image: quay.io/argoproj/argocd:v2.10.12
         imagePullPolicy: IfNotPresent
         name: secret-init
         securityContext:
@@ -2026,7 +2026,7 @@ spec:
         - /readonly/haproxy_init.sh
         command:
         - sh
-        image: public.ecr.aws/docker/library/haproxy:2.6.14-alpine
+        image: haproxy:2.6.14-alpine
         imagePullPolicy: IfNotPresent
         name: config-init
         securityContext:
@@ -2249,12 +2249,6 @@ spec:
               key: reposerver.disable.helm.manifest.max.extracted.size
               name: argocd-cmd-params-cm
               optional: true
-        - name: ARGOCD_REVISION_CACHE_LOCK_TIMEOUT
-          valueFrom:
-            configMapKeyRef:
-              key: reposerver.revision.cache.lock.timeout
-              name: argocd-cmd-params-cm
-              optional: true
         - name: ARGOCD_GIT_MODULES_ENABLED
           valueFrom:
             configMapKeyRef:
@@ -2273,25 +2267,13 @@ spec:
               key: reposerver.git.request.timeout
               name: argocd-cmd-params-cm
               optional: true
-        - name: ARGOCD_GRPC_MAX_SIZE_MB
-          valueFrom:
-            configMapKeyRef:
-              key: reposerver.grpc.max.size
-              name: argocd-cmd-params-cm
-              optional: true
-        - name: ARGOCD_REPO_SERVER_INCLUDE_HIDDEN_DIRECTORIES
-          valueFrom:
-            configMapKeyRef:
-              key: reposerver.include.hidden.directories
-              name: argocd-cmd-params-cm
-              optional: true
         - name: HELM_CACHE_HOME
           value: /helm-working-dir
         - name: HELM_CONFIG_HOME
           value: /helm-working-dir
         - name: HELM_DATA_HOME
           value: /helm-working-dir
-        image: quay.io/argoproj/argocd:latest
+        image: quay.io/argoproj/argocd:v2.10.12
         imagePullPolicy: Always
         livenessProbe:
           failureThreshold: 3
@@ -2343,7 +2325,7 @@ spec:
         - -n
         - /usr/local/bin/argocd
         - /var/run/argocd/argocd-cmp-server
-        image: quay.io/argoproj/argocd:latest
+        image: quay.io/argoproj/argocd:v2.10.12
         name: copyutil
         securityContext:
           allowPrivilegeEscalation: false
@@ -2667,7 +2649,7 @@ spec:
               key: server.api.content.types
               name: argocd-cmd-params-cm
               optional: true
-        image: quay.io/argoproj/argocd:latest
+        image: quay.io/argoproj/argocd:v2.10.12
         imagePullPolicy: Always
         livenessProbe:
           httpGet:
@@ -2966,7 +2948,7 @@ spec:
               key: controller.ignore.normalizer.jq.timeout
               name: argocd-cmd-params-cm
               optional: true
-        image: quay.io/argoproj/argocd:latest
+        image: quay.io/argoproj/argocd:v2.10.12
         imagePullPolicy: Always
         name: argocd-application-controller
         ports:
@@ -3049,7 +3031,7 @@ spec:
             secretKeyRef:
               key: auth
               name: argocd-redis
-        image: public.ecr.aws/docker/library/redis:7.0.15-alpine
+        image: redis:7.0.15-alpine
         imagePullPolicy: IfNotPresent
         lifecycle:
           preStop:
@@ -3109,7 +3091,7 @@ spec:
             secretKeyRef:
               key: auth
               name: argocd-redis
-        image: public.ecr.aws/docker/library/redis:7.0.15-alpine
+        image: redis:7.0.15-alpine
         imagePullPolicy: IfNotPresent
         lifecycle: {}
         livenessProbe:
@@ -3167,7 +3149,7 @@ spec:
             secretKeyRef:
               key: auth
               name: argocd-redis
-        image: public.ecr.aws/docker/library/redis:7.0.15-alpine
+        image: redis:7.0.15-alpine
         imagePullPolicy: IfNotPresent
         name: split-brain-fix
         resources: {}
@@ -3202,7 +3184,7 @@ spec:
             secretKeyRef:
               key: auth
               name: argocd-redis
-        image: public.ecr.aws/docker/library/redis:7.0.15-alpine
+        image: redis:7.0.15-alpine
         imagePullPolicy: IfNotPresent
         name: config-init
         securityContext:

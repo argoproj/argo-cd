@@ -21,7 +21,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	kubefake "k8s.io/client-go/kubernetes/fake"
-	"sigs.k8s.io/yaml"
 )
 
 func TestGetShardByID_NotEmptyID(t *testing.T) {
@@ -102,14 +101,13 @@ func TestGetClusterFilterLegacy(t *testing.T) {
 
 func TestGetClusterFilterUnknown(t *testing.T) {
 	clusterAccessor, db, cluster1, cluster2, cluster3, cluster4, _ := createTestClusters()
-	appAccessor, _, _, _, _, _ := createTestApps()
 	// Test with replicas set to 0
 	t.Setenv(common.EnvControllerReplicas, "2")
 	os.Unsetenv(common.EnvControllerShardingAlgorithm)
 	t.Setenv(common.EnvControllerShardingAlgorithm, "unknown")
 	replicasCount := 2
 	db.On("GetApplicationControllerReplicas").Return(replicasCount)
-	distributionFunction := GetDistributionFunction(clusterAccessor, appAccessor, "unknown", replicasCount)
+	distributionFunction := GetDistributionFunction(clusterAccessor, "unknown", replicasCount)
 	assert.Equal(t, 0, distributionFunction(nil))
 	assert.Equal(t, 0, distributionFunction(&cluster1))
 	assert.Equal(t, 1, distributionFunction(&cluster2))
@@ -121,10 +119,9 @@ func TestLegacyGetClusterFilterWithFixedShard(t *testing.T) {
 	//shardIndex := 1 // ensuring that a shard with index 1 will process all the clusters with an "even" id (2,4,6,...)
 	t.Setenv(common.EnvControllerReplicas, "5")
 	clusterAccessor, db, cluster1, cluster2, cluster3, cluster4, _ := createTestClusters()
-	appAccessor, _, _, _, _, _ := createTestApps()
 	replicasCount := 5
 	db.On("GetApplicationControllerReplicas").Return(replicasCount)
-	filter := GetDistributionFunction(clusterAccessor, appAccessor, common.DefaultShardingAlgorithm, replicasCount)
+	filter := GetDistributionFunction(clusterAccessor, common.DefaultShardingAlgorithm, replicasCount)
 	assert.Equal(t, 0, filter(nil))
 	assert.Equal(t, 4, filter(&cluster1))
 	assert.Equal(t, 1, filter(&cluster2))
@@ -134,13 +131,13 @@ func TestLegacyGetClusterFilterWithFixedShard(t *testing.T) {
 	var fixedShard int64 = 4
 	cluster5 := &v1alpha1.Cluster{ID: "5", Shard: &fixedShard}
 	clusterAccessor = getClusterAccessor([]v1alpha1.Cluster{cluster1, cluster2, cluster2, cluster4, *cluster5})
-	filter = GetDistributionFunction(clusterAccessor, appAccessor, common.DefaultShardingAlgorithm, replicasCount)
+	filter = GetDistributionFunction(clusterAccessor, common.DefaultShardingAlgorithm, replicasCount)
 	assert.Equal(t, int(fixedShard), filter(cluster5))
 
 	fixedShard = 1
 	cluster5.Shard = &fixedShard
 	clusterAccessor = getClusterAccessor([]v1alpha1.Cluster{cluster1, cluster2, cluster2, cluster4, *cluster5})
-	filter = GetDistributionFunction(clusterAccessor, appAccessor, common.DefaultShardingAlgorithm, replicasCount)
+	filter = GetDistributionFunction(clusterAccessor, common.DefaultShardingAlgorithm, replicasCount)
 	assert.Equal(t, int(fixedShard), filter(&v1alpha1.Cluster{ID: "4", Shard: &fixedShard}))
 }
 
@@ -148,11 +145,10 @@ func TestRoundRobinGetClusterFilterWithFixedShard(t *testing.T) {
 	//shardIndex := 1 // ensuring that a shard with index 1 will process all the clusters with an "even" id (2,4,6,...)
 	t.Setenv(common.EnvControllerReplicas, "4")
 	clusterAccessor, db, cluster1, cluster2, cluster3, cluster4, _ := createTestClusters()
-	appAccessor, _, _, _, _, _ := createTestApps()
 	replicasCount := 4
 	db.On("GetApplicationControllerReplicas").Return(replicasCount)
 
-	filter := GetDistributionFunction(clusterAccessor, appAccessor, common.RoundRobinShardingAlgorithm, replicasCount)
+	filter := GetDistributionFunction(clusterAccessor, common.RoundRobinShardingAlgorithm, replicasCount)
 	assert.Equal(t, filter(nil), 0)
 	assert.Equal(t, filter(&cluster1), 0)
 	assert.Equal(t, filter(&cluster2), 1)
@@ -165,14 +161,14 @@ func TestRoundRobinGetClusterFilterWithFixedShard(t *testing.T) {
 	cluster5 := v1alpha1.Cluster{Name: "cluster5", ID: "5", Shard: &fixedShard}
 	clusters := []v1alpha1.Cluster{cluster1, cluster2, cluster3, cluster4, cluster5}
 	clusterAccessor = getClusterAccessor(clusters)
-	filter = GetDistributionFunction(clusterAccessor, appAccessor, common.RoundRobinShardingAlgorithm, replicasCount)
+	filter = GetDistributionFunction(clusterAccessor, common.RoundRobinShardingAlgorithm, replicasCount)
 	assert.Equal(t, int(fixedShard), filter(&cluster5))
 
 	fixedShard = 1
 	cluster5 = v1alpha1.Cluster{Name: "cluster5", ID: "5", Shard: &fixedShard}
 	clusters = []v1alpha1.Cluster{cluster1, cluster2, cluster3, cluster4, cluster5}
 	clusterAccessor = getClusterAccessor(clusters)
-	filter = GetDistributionFunction(clusterAccessor, appAccessor, common.RoundRobinShardingAlgorithm, replicasCount)
+	filter = GetDistributionFunction(clusterAccessor, common.RoundRobinShardingAlgorithm, replicasCount)
 	assert.Equal(t, int(fixedShard), filter(&v1alpha1.Cluster{Name: "cluster4", ID: "4", Shard: &fixedShard}))
 }
 
@@ -273,110 +269,6 @@ func TestGetShardByIndexModuloReplicasCountDistributionFunctionWhenClusterIsAdde
 	clusterList.Items = clusterList.Items[:len(clusterList.Items)-1]
 	distributionFunction = RoundRobinDistributionFunction(getClusterAccessor(clusterList.Items), replicasCount)
 	assert.Equal(t, -1, distributionFunction(&cluster6))
-}
-
-func TestConsistentHashingWhenClusterIsAddedAndRemoved(t *testing.T) {
-	db := dbmocks.ArgoDB{}
-	clusterCount := 133
-	prefix := "cluster"
-
-	clusters := []v1alpha1.Cluster{}
-	for i := 0; i < clusterCount; i++ {
-		id := fmt.Sprintf("%06d", i)
-		cluster := fmt.Sprintf("%s-%s", prefix, id)
-		clusters = append(clusters, createCluster(cluster, id))
-	}
-	clusterAccessor := getClusterAccessor(clusters)
-	appAccessor, _, _, _, _, _ := createTestApps()
-	clusterList := &v1alpha1.ClusterList{Items: clusters}
-	db.On("ListClusters", mock.Anything).Return(clusterList, nil)
-	// Test with replicas set to 3
-	replicasCount := 3
-	db.On("GetApplicationControllerReplicas").Return(replicasCount)
-	distributionFunction := ConsistentHashingWithBoundedLoadsDistributionFunction(clusterAccessor, appAccessor, replicasCount)
-	assert.Equal(t, 0, distributionFunction(nil))
-	distributionMap := map[int]int{}
-	assignementMap := map[string]int{}
-	for i := 0; i < clusterCount; i++ {
-		assignedShard := distributionFunction(&clusters[i])
-		assignementMap[clusters[i].ID] = assignedShard
-		distributionMap[assignedShard]++
-
-	}
-
-	// We check that the distribution does not differ for more than 20%
-	var sum float64
-	sum = 0
-	for shard, count := range distributionMap {
-		if shard != -1 {
-			sum = (sum + float64(count))
-		}
-	}
-	average := sum / float64(replicasCount)
-	failedTests := false
-	for shard, count := range distributionMap {
-		if shard != -1 {
-			if float64(count) > average*float64(1.1) || float64(count) < average*float64(0.9) {
-				fmt.Printf("Cluster distribution differs for more than 20%%: %d for shard %d (average: %f)\n", count, shard, average)
-				failedTests = true
-			}
-			if failedTests {
-				t.Fail()
-			}
-		}
-	}
-
-	// Now we will decrease the number of replicas to 2, and we should see only clusters that were attached to shard 2 to be reassigned
-	replicasCount = 2
-	distributionFunction = ConsistentHashingWithBoundedLoadsDistributionFunction(getClusterAccessor(clusterList.Items), appAccessor, replicasCount)
-	removedCluster := clusterList.Items[len(clusterList.Items)-1]
-	for i := 0; i < clusterCount; i++ {
-		c := &clusters[i]
-		assignedShard := distributionFunction(c)
-		prevıouslyAssignedShard := assignementMap[clusters[i].ID]
-		if prevıouslyAssignedShard != 2 && prevıouslyAssignedShard != assignedShard {
-			fmt.Printf("Previously assigned %s cluster has moved from replica %d to %d", c.ID, prevıouslyAssignedShard, assignedShard)
-			t.Fail()
-		}
-	}
-	// Now, we remove the last added cluster, it should be unassigned
-	removedCluster = clusterList.Items[len(clusterList.Items)-1]
-	clusterList.Items = clusterList.Items[:len(clusterList.Items)-1]
-	distributionFunction = ConsistentHashingWithBoundedLoadsDistributionFunction(getClusterAccessor(clusterList.Items), appAccessor, replicasCount)
-	assert.Equal(t, -1, distributionFunction(&removedCluster))
-}
-
-func TestConsistentHashingWhenClusterWithZeroReplicas(t *testing.T) {
-	db := dbmocks.ArgoDB{}
-	clusters := []v1alpha1.Cluster{createCluster("cluster-01", "01")}
-	clusterAccessor := getClusterAccessor(clusters)
-	clusterList := &v1alpha1.ClusterList{Items: clusters}
-	db.On("ListClusters", mock.Anything).Return(clusterList, nil)
-	appAccessor, _, _, _, _, _ := createTestApps()
-	// Test with replicas set to 0
-	replicasCount := 0
-	db.On("GetApplicationControllerReplicas").Return(replicasCount)
-	distributionFunction := ConsistentHashingWithBoundedLoadsDistributionFunction(clusterAccessor, appAccessor, replicasCount)
-	assert.Equal(t, -1, distributionFunction(nil))
-}
-
-func TestConsistentHashingWhenClusterWithFixedShard(t *testing.T) {
-	db := dbmocks.ArgoDB{}
-	var fixedShard int64 = 1
-	cluster := &v1alpha1.Cluster{ID: "1", Shard: &fixedShard}
-	clusters := []v1alpha1.Cluster{*cluster}
-
-	clusterAccessor := getClusterAccessor(clusters)
-	clusterList := &v1alpha1.ClusterList{Items: clusters}
-	db.On("ListClusters", mock.Anything).Return(clusterList, nil)
-
-	// Test with replicas set to 5
-	replicasCount := 5
-	db.On("GetApplicationControllerReplicas").Return(replicasCount)
-	appAccessor, _, _, _, _, _ := createTestApps()
-	distributionFunction := ConsistentHashingWithBoundedLoadsDistributionFunction(clusterAccessor, appAccessor, replicasCount)
-	assert.Equal(t, fixedShard, int64(distributionFunction(cluster)))
-
 }
 
 func TestGetShardByIndexModuloReplicasCountDistributionFunction(t *testing.T) {
@@ -950,7 +842,7 @@ func TestGetClusterSharding(t *testing.T) {
 			useDynamicSharding: true,
 			expectedShard:      0,
 			expectedReplicas:   1,
-			expectedErr:        fmt.Errorf("(dynamic cluster distribution) failed to get app controller deployment: deployments.apps \"missing-deployment\" not found"),
+			expectedErr:        fmt.Errorf("(dymanic cluster distribution) failed to get app controller deployment: deployments.apps \"missing-deployment\" not found"),
 		},
 	}
 
@@ -977,82 +869,4 @@ func TestGetClusterSharding(t *testing.T) {
 			}
 		})
 	}
-}
-
-func TestAppAwareCache(t *testing.T) {
-	_, db, cluster1, cluster2, cluster3, cluster4, cluster5 := createTestClusters()
-	_, app1, app2, app3, app4, app5 := createTestApps()
-
-	clusterSharding := NewClusterSharding(db, 0, 1, "legacy")
-
-	clusterList := &v1alpha1.ClusterList{Items: []v1alpha1.Cluster{cluster1, cluster2, cluster3, cluster4, cluster5}}
-	appList := &v1alpha1.ApplicationList{Items: []v1alpha1.Application{app1, app2, app3, app4, app5}}
-	clusterSharding.Init(clusterList, appList)
-
-	appDistribution := clusterSharding.GetAppDistribution()
-
-	assert.Equal(t, 2, appDistribution["cluster1"])
-	assert.Equal(t, 2, appDistribution["cluster2"])
-	assert.Equal(t, 1, appDistribution["cluster3"])
-
-	app6 := createApp("app6", "cluster4")
-	clusterSharding.AddApp(&app6)
-
-	app1Update := createApp("app1", "cluster2")
-	clusterSharding.UpdateApp(&app1Update)
-
-	clusterSharding.DeleteApp(&app3)
-
-	appDistribution = clusterSharding.GetAppDistribution()
-
-	assert.Equal(t, 1, appDistribution["cluster1"])
-	assert.Equal(t, 2, appDistribution["cluster2"])
-	assert.Equal(t, 1, appDistribution["cluster3"])
-	assert.Equal(t, 1, appDistribution["cluster4"])
-}
-
-func createTestApps() (appAccessor, v1alpha1.Application, v1alpha1.Application, v1alpha1.Application, v1alpha1.Application, v1alpha1.Application) {
-	app1 := createApp("app1", "cluster1")
-	app2 := createApp("app2", "cluster1")
-	app3 := createApp("app3", "cluster2")
-	app4 := createApp("app4", "cluster2")
-	app5 := createApp("app5", "cluster3")
-
-	apps := []v1alpha1.Application{app1, app2, app3, app4, app5}
-
-	return getAppAccessor(apps), app1, app2, app3, app4, app5
-}
-
-func getAppAccessor(apps []v1alpha1.Application) appAccessor {
-	// Convert the array to a slice of pointers
-	appPointers := getAppPointers(apps)
-	appAccessor := func() []*v1alpha1.Application { return appPointers }
-	return appAccessor
-}
-
-func getAppPointers(apps []v1alpha1.Application) []*v1alpha1.Application {
-	var appPointers []*v1alpha1.Application
-	for i := range apps {
-		appPointers = append(appPointers, &apps[i])
-	}
-	return appPointers
-}
-
-func createApp(name string, server string) v1alpha1.Application {
-	var testApp = `
-apiVersion: argoproj.io/v1alpha1
-kind: Application
-metadata:
-  name: ` + name + `
-spec:
-  destination:
-    server: ` + server + `
-`
-
-	var app v1alpha1.Application
-	err := yaml.Unmarshal([]byte(testApp), &app)
-	if err != nil {
-		panic(err)
-	}
-	return app
 }

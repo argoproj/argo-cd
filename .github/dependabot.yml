@@ -17,11 +17,6 @@ updates:
     schedule:
       interval: "daily"
 
-  - package-ecosystem: "npm"
-    directory: "/ui-test/"
-    schedule:
-      interval: "daily"
-
   - package-ecosystem: "docker"
     directory: "/"
     schedule:

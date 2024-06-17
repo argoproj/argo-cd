@@ -1,43 +1,23 @@
 package commands
 
 import (
-	"context"
 	"fmt"
-	"io"
-	"net/http"
 	"os"
 	"testing"
 	"time"
 
 	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
-	accountpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/account"
-	applicationpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
-	applicationsetpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/applicationset"
-	certificatepkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/certificate"
-	clusterpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/cluster"
-	gpgkeypkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/gpgkey"
-	notificationpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/notification"
-	projectpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/project"
-	repocredspkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/repocreds"
-	repositorypkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/repository"
-	sessionpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/session"
-	settingspkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/settings"
-	versionpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/version"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-
 	"github.com/argoproj/gitops-engine/pkg/health"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
-	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/stretchr/testify/assert"
-	"golang.org/x/oauth2"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/intstr"
-	k8swatch "k8s.io/apimachinery/pkg/watch"
 )
 
 func Test_getInfos(t *testing.T) {
@@ -223,10 +203,10 @@ func TestDefaultWaitOptions(t *testing.T) {
 		suspended: false,
 	}
 	opts := getWatchOpts(watch)
-	assert.True(t, opts.sync)
-	assert.True(t, opts.health)
-	assert.True(t, opts.operation)
-	assert.False(t, opts.suspended)
+	assert.Equal(t, true, opts.sync)
+	assert.Equal(t, true, opts.health)
+	assert.Equal(t, true, opts.operation)
+	assert.Equal(t, false, opts.suspended)
 }
 
 func TestOverrideWaitOptions(t *testing.T) {
@@ -237,10 +217,10 @@ func TestOverrideWaitOptions(t *testing.T) {
 		suspended: false,
 	}
 	opts := getWatchOpts(watch)
-	assert.True(t, opts.sync)
-	assert.False(t, opts.health)
-	assert.False(t, opts.operation)
-	assert.False(t, opts.suspended)
+	assert.Equal(t, true, opts.sync)
+	assert.Equal(t, false, opts.health)
+	assert.Equal(t, false, opts.operation)
+	assert.Equal(t, false, opts.suspended)
 }
 
 func TestFindRevisionHistoryWithoutPassedIdAndEmptyHistoryList(t *testing.T) {
@@ -422,8 +402,8 @@ func TestFormatSyncPolicy(t *testing.T) {
 
 		policy := formatSyncPolicy(app)
 
-		if policy != "Manual" {
-			t.Fatalf("Incorrect policy %q, should be Manual", policy)
+		if policy != "<none>" {
+			t.Fatalf("Incorrect policy %q, should be <none>", policy)
 		}
 	})
 
@@ -557,21 +537,18 @@ func TestPrintApplicationHistoryTable(t *testing.T) {
 			ID: 1,
 			Source: v1alpha1.ApplicationSource{
 				TargetRevision: "1",
-				RepoURL:        "test",
 			},
 		},
 		{
 			ID: 2,
 			Source: v1alpha1.ApplicationSource{
 				TargetRevision: "2",
-				RepoURL:        "test",
 			},
 		},
 		{
 			ID: 3,
 			Source: v1alpha1.ApplicationSource{
 				TargetRevision: "3",
-				RepoURL:        "test",
 			},
 		},
 	}
@@ -581,86 +558,7 @@ func TestPrintApplicationHistoryTable(t *testing.T) {
 		return nil
 	})
 
-	expectation := "SOURCE  test\nID      DATE                           REVISION\n1       0001-01-01 00:00:00 +0000 UTC  1\n2       0001-01-01 00:00:00 +0000 UTC  2\n3       0001-01-01 00:00:00 +0000 UTC  3\n"
-
-	if output != expectation {
-		t.Fatalf("Incorrect print operation output %q, should be %q", output, expectation)
-	}
-}
-
-func TestPrintApplicationHistoryTableWithMultipleSources(t *testing.T) {
-	histories := []v1alpha1.RevisionHistory{
-		{
-			ID: 0,
-			Source: v1alpha1.ApplicationSource{
-				TargetRevision: "0",
-				RepoURL:        "test",
-			},
-		},
-		{
-			ID: 1,
-			Revisions: []string{
-				"1a",
-				"1b",
-			},
-			//added Source just for testing the fuction
-			Source: v1alpha1.ApplicationSource{
-				TargetRevision: "-1",
-				RepoURL:        "ignore",
-			},
-			Sources: v1alpha1.ApplicationSources{
-				v1alpha1.ApplicationSource{
-					RepoURL:        "test-1",
-					TargetRevision: "1a",
-				},
-				v1alpha1.ApplicationSource{
-					RepoURL:        "test-2",
-					TargetRevision: "1b",
-				},
-			},
-		},
-		{
-			ID: 2,
-			Revisions: []string{
-				"2a",
-				"2b",
-			},
-			Sources: v1alpha1.ApplicationSources{
-				v1alpha1.ApplicationSource{
-					RepoURL:        "test-1",
-					TargetRevision: "2a",
-				},
-				v1alpha1.ApplicationSource{
-					RepoURL:        "test-2",
-					TargetRevision: "2b",
-				},
-			},
-		},
-		{
-			ID: 3,
-			Revisions: []string{
-				"3a",
-				"3b",
-			},
-			Sources: v1alpha1.ApplicationSources{
-				v1alpha1.ApplicationSource{
-					RepoURL:        "test-1",
-					TargetRevision: "3a",
-				},
-				v1alpha1.ApplicationSource{
-					RepoURL:        "test-2",
-					TargetRevision: "3b",
-				},
-			},
-		},
-	}
-
-	output, _ := captureOutput(func() error {
-		printApplicationHistoryTable(histories)
-		return nil
-	})
-
-	expectation := "SOURCE  test\nID      DATE                           REVISION\n0       0001-01-01 00:00:00 +0000 UTC  0\n\nSOURCE  test-1\nID      DATE                           REVISION\n1       0001-01-01 00:00:00 +0000 UTC  1a\n2       0001-01-01 00:00:00 +0000 UTC  2a\n3       0001-01-01 00:00:00 +0000 UTC  3a\n\nSOURCE  test-2\nID      DATE                           REVISION\n1       0001-01-01 00:00:00 +0000 UTC  1b\n2       0001-01-01 00:00:00 +0000 UTC  2b\n3       0001-01-01 00:00:00 +0000 UTC  3b\n"
+	expectation := "ID  DATE                           REVISION\n1   0001-01-01 00:00:00 +0000 UTC  1\n2   0001-01-01 00:00:00 +0000 UTC  2\n3   0001-01-01 00:00:00 +0000 UTC  3\n"
 
 	if output != expectation {
 		t.Fatalf("Incorrect print operation output %q, should be %q", output, expectation)
@@ -741,110 +639,11 @@ Project:            default
 Server:             local
 Namespace:          argocd
 URL:                url
-Source:
-- Repo:             test
-  Target:           master
-  Path:             /test
-  Helm Values:      path1,path2
-  Name Prefix:      prefix
-SyncWindow:         Sync Denied
-Assigned Windows:   allow:0 0 * * *:24h,deny:0 0 * * *:24h,allow:0 0 * * *:24h
-Sync Policy:        Automated (Prune)
-Sync Status:        OutOfSync from master
-Health Status:      Progressing (health-message)
-`
-	assert.Equalf(t, expectation, output, "Incorrect print app summary output %q, should be %q", output, expectation)
-}
-
-func TestPrintAppSummaryTable_MultipleSources(t *testing.T) {
-	output, _ := captureOutput(func() error {
-		app := &v1alpha1.Application{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "test",
-				Namespace: "argocd",
-			},
-			Spec: v1alpha1.ApplicationSpec{
-				SyncPolicy: &v1alpha1.SyncPolicy{
-					Automated: &v1alpha1.SyncPolicyAutomated{
-						Prune: true,
-					},
-				},
-				Project:     "default",
-				Destination: v1alpha1.ApplicationDestination{Server: "local", Namespace: "argocd"},
-				Sources: v1alpha1.ApplicationSources{
-					{
-						RepoURL:        "test",
-						TargetRevision: "master",
-						Path:           "/test",
-						Helm: &v1alpha1.ApplicationSourceHelm{
-							ValueFiles: []string{"path1", "path2"},
-						},
-						Kustomize: &v1alpha1.ApplicationSourceKustomize{NamePrefix: "prefix"},
-					}, {
-						RepoURL:        "test2",
-						TargetRevision: "master2",
-						Path:           "/test2",
-					},
-				},
-			},
-			Status: v1alpha1.ApplicationStatus{
-				Sync: v1alpha1.SyncStatus{
-					Status: v1alpha1.SyncStatusCodeOutOfSync,
-				},
-				Health: v1alpha1.HealthStatus{
-					Status:  health.HealthStatusProgressing,
-					Message: "health-message",
-				},
-			},
-		}
-
-		windows := &v1alpha1.SyncWindows{
-			{
-				Kind:     "allow",
-				Schedule: "0 0 * * *",
-				Duration: "24h",
-				Applications: []string{
-					"*-prod",
-				},
-				ManualSync: true,
-			},
-			{
-				Kind:     "deny",
-				Schedule: "0 0 * * *",
-				Duration: "24h",
-				Namespaces: []string{
-					"default",
-				},
-			},
-			{
-				Kind:     "allow",
-				Schedule: "0 0 * * *",
-				Duration: "24h",
-				Clusters: []string{
-					"in-cluster",
-					"cluster1",
-				},
-			},
-		}
-
-		printAppSummaryTable(app, "url", windows)
-		return nil
-	})
-
-	expectation := `Name:               argocd/test
-Project:            default
-Server:             local
-Namespace:          argocd
-URL:                url
-Sources:
-- Repo:             test
-  Target:           master
-  Path:             /test
-  Helm Values:      path1,path2
-  Name Prefix:      prefix
-- Repo:             test2
-  Target:           master2
-  Path:             /test2
+Repo:               test
+Target:             master
+Path:               /test
+Helm Values:        path1,path2
+Name Prefix:        prefix
 SyncWindow:         Sync Denied
 Assigned Windows:   allow:0 0 * * *:24h,deny:0 0 * * *:24h,allow:0 0 * * *:24h
 Sync Policy:        Automated (Prune)
@@ -1007,14 +806,6 @@ func TestTargetObjects_invalid(t *testing.T) {
 	assert.Error(t, err)
 }
 
-func TestCheckForDeleteEvent(t *testing.T) {
-
-	ctx := context.Background()
-	fakeClient := new(fakeAcdClient)
-
-	checkForDeleteEvent(ctx, fakeClient, "testApp")
-}
-
 func TestPrintApplicationNames(t *testing.T) {
 	output, _ := captureOutput(func() error {
 		app := &v1alpha1.Application{
@@ -1163,18 +954,18 @@ func Test_unset(t *testing.T) {
 	assert.False(t, updated)
 	assert.False(t, nothingToUnset)
 
-	assert.True(t, helmSource.Helm.IgnoreMissingValueFiles)
+	assert.Equal(t, true, helmSource.Helm.IgnoreMissingValueFiles)
 	updated, nothingToUnset = unset(helmSource, unsetOpts{ignoreMissingValueFiles: true})
-	assert.False(t, helmSource.Helm.IgnoreMissingValueFiles)
+	assert.Equal(t, false, helmSource.Helm.IgnoreMissingValueFiles)
 	assert.True(t, updated)
 	assert.False(t, nothingToUnset)
 	updated, nothingToUnset = unset(helmSource, unsetOpts{ignoreMissingValueFiles: true})
 	assert.False(t, updated)
 	assert.False(t, nothingToUnset)
 
-	assert.True(t, helmSource.Helm.PassCredentials)
+	assert.Equal(t, true, helmSource.Helm.PassCredentials)
 	updated, nothingToUnset = unset(helmSource, unsetOpts{passCredentials: true})
-	assert.False(t, helmSource.Helm.PassCredentials)
+	assert.Equal(t, false, helmSource.Helm.PassCredentials)
 	assert.True(t, updated)
 	assert.False(t, nothingToUnset)
 	updated, nothingToUnset = unset(helmSource, unsetOpts{passCredentials: true})
@@ -1357,47 +1148,47 @@ func TestFilterAppResources(t *testing.T) {
 		expectedResult    []*v1alpha1.SyncOperationResource
 	}{
 		// --resource apps:ReplicaSet:replicaSet-name1 --resource *:Service:*
-		{testName: "Include ReplicaSet replicaSet-name1 resource and all service resources",
+		{testName: "Include ReplicaSet replicaSet-name1 resouce and all service resources",
 			selectedResources: []*v1alpha1.SyncOperationResource{&includeAllServiceResources, &includeReplicaSet1Resource},
 			expectedResult:    []*v1alpha1.SyncOperationResource{&replicaSet1, &service1, &service2},
 		},
 		// --resource apps:ReplicaSet:replicaSet-name1 --resource !*:Service:*
-		{testName: "Include ReplicaSet replicaSet-name1 resource and exclude all service resources",
+		{testName: "Include ReplicaSet replicaSet-name1 resouce and exclude all service resources",
 			selectedResources: []*v1alpha1.SyncOperationResource{&excludeAllServiceResources, &includeReplicaSet1Resource},
 			expectedResult:    []*v1alpha1.SyncOperationResource{&replicaSet1, &replicaSet2, &job, &deployment},
 		},
 		// --resource !apps:ReplicaSet:replicaSet-name2 --resource !*:Service:*
-		{testName: "Exclude ReplicaSet replicaSet-name2 resource and all service resources",
+		{testName: "Exclude ReplicaSet replicaSet-name2 resouce and all service resources",
 			selectedResources: []*v1alpha1.SyncOperationResource{&excludeReplicaSet2Resource, &excludeAllServiceResources},
 			expectedResult:    []*v1alpha1.SyncOperationResource{&replicaSet1, &replicaSet2, &job, &service1, &service2, &deployment},
 		},
 		// --resource !apps:ReplicaSet:replicaSet-name2
-		{testName: "Exclude ReplicaSet replicaSet-name2 resource",
+		{testName: "Exclude ReplicaSet replicaSet-name2 resouce",
 			selectedResources: []*v1alpha1.SyncOperationResource{&excludeReplicaSet2Resource},
 			expectedResult:    []*v1alpha1.SyncOperationResource{&replicaSet1, &job, &service1, &service2, &deployment},
 		},
 		// --resource apps:ReplicaSet:replicaSet-name1
-		{testName: "Include ReplicaSet replicaSet-name1 resource",
+		{testName: "Include ReplicaSet replicaSet-name1 resouce",
 			selectedResources: []*v1alpha1.SyncOperationResource{&includeReplicaSet1Resource},
 			expectedResult:    []*v1alpha1.SyncOperationResource{&replicaSet1},
 		},
 		// --resource !*:Service:*
-		{testName: "Exclude Service resources",
+		{testName: "Exclude Service resouces",
 			selectedResources: []*v1alpha1.SyncOperationResource{&excludeAllServiceResources},
 			expectedResult:    []*v1alpha1.SyncOperationResource{&replicaSet1, &replicaSet2, &job, &deployment},
 		},
 		// --resource *:Service:*
-		{testName: "Include Service resources",
+		{testName: "Include Service resouces",
 			selectedResources: []*v1alpha1.SyncOperationResource{&includeAllServiceResources},
 			expectedResult:    []*v1alpha1.SyncOperationResource{&service1, &service2},
 		},
 		// --resource !*:*:*
-		{testName: "Exclude all resources",
+		{testName: "Exclude all resouces",
 			selectedResources: []*v1alpha1.SyncOperationResource{&excludeAllResources},
 			expectedResult:    nil,
 		},
 		// --resource *:*:*
-		{testName: "Include all resources",
+		{testName: "Include all resouces",
 			selectedResources: []*v1alpha1.SyncOperationResource{&includeAllResources},
 			expectedResult:    []*v1alpha1.SyncOperationResource{&replicaSet1, &replicaSet2, &job, &service1, &service2, &deployment},
 		},
@@ -1510,7 +1301,7 @@ func TestPrintApplicationTableNotWide(t *testing.T) {
 		return nil
 	})
 	assert.NoError(t, err)
-	expectation := "NAME      CLUSTER                NAMESPACE  PROJECT  STATUS     HEALTH   SYNCPOLICY  CONDITIONS\napp-name  http://localhost:8080  default    prj      OutOfSync  Healthy  Manual      <none>\napp-name  http://localhost:8080  default    prj      OutOfSync  Healthy  Manual      <none>\n"
+	expectation := "NAME      CLUSTER                NAMESPACE  PROJECT  STATUS     HEALTH   SYNCPOLICY  CONDITIONS\napp-name  http://localhost:8080  default    prj      OutOfSync  Healthy  <none>      <none>\napp-name  http://localhost:8080  default    prj      OutOfSync  Healthy  <none>      <none>\n"
 	assert.Equal(t, output, expectation)
 }
 
@@ -1546,7 +1337,7 @@ func TestPrintApplicationTableWide(t *testing.T) {
 		return nil
 	})
 	assert.NoError(t, err)
-	expectation := "NAME      CLUSTER                NAMESPACE  PROJECT  STATUS     HEALTH   SYNCPOLICY  CONDITIONS  REPO                                             PATH       TARGET\napp-name  http://localhost:8080  default    prj      OutOfSync  Healthy  Manual      <none>      https://github.com/argoproj/argocd-example-apps  guestbook  123\napp-name  http://localhost:8080  default    prj      OutOfSync  Healthy  Manual      <none>      https://github.com/argoproj/argocd-example-apps  guestbook  123\n"
+	expectation := "NAME      CLUSTER                NAMESPACE  PROJECT  STATUS     HEALTH   SYNCPOLICY  CONDITIONS  REPO                                             PATH       TARGET\napp-name  http://localhost:8080  default    prj      OutOfSync  Healthy  <none>      <none>      https://github.com/argoproj/argocd-example-apps  guestbook  123\napp-name  http://localhost:8080  default    prj      OutOfSync  Healthy  <none>      <none>      https://github.com/argoproj/argocd-example-apps  guestbook  123\n"
 	assert.Equal(t, output, expectation)
 }
 
@@ -1807,105 +1598,4 @@ func testApp(name, project string, labels map[string]string, annotations map[str
 			Project: project,
 		},
 	}
-}
-
-type fakeAcdClient struct{}
-
-func (c *fakeAcdClient) ClientOptions() argocdclient.ClientOptions {
-	return argocdclient.ClientOptions{}
-}
-func (c *fakeAcdClient) HTTPClient() (*http.Client, error) { return nil, nil }
-func (c *fakeAcdClient) OIDCConfig(context.Context, *settingspkg.Settings) (*oauth2.Config, *oidc.Provider, error) {
-	return nil, nil, nil
-}
-func (c *fakeAcdClient) NewRepoClient() (io.Closer, repositorypkg.RepositoryServiceClient, error) {
-	return nil, nil, nil
-}
-func (c *fakeAcdClient) NewRepoClientOrDie() (io.Closer, repositorypkg.RepositoryServiceClient) {
-	return nil, nil
-}
-func (c *fakeAcdClient) NewRepoCredsClient() (io.Closer, repocredspkg.RepoCredsServiceClient, error) {
-	return nil, nil, nil
-}
-func (c *fakeAcdClient) NewRepoCredsClientOrDie() (io.Closer, repocredspkg.RepoCredsServiceClient) {
-	return nil, nil
-}
-func (c *fakeAcdClient) NewCertClient() (io.Closer, certificatepkg.CertificateServiceClient, error) {
-	return nil, nil, nil
-}
-func (c *fakeAcdClient) NewCertClientOrDie() (io.Closer, certificatepkg.CertificateServiceClient) {
-	return nil, nil
-}
-func (c *fakeAcdClient) NewClusterClient() (io.Closer, clusterpkg.ClusterServiceClient, error) {
-	return nil, nil, nil
-}
-func (c *fakeAcdClient) NewClusterClientOrDie() (io.Closer, clusterpkg.ClusterServiceClient) {
-	return nil, nil
-}
-func (c *fakeAcdClient) NewGPGKeyClient() (io.Closer, gpgkeypkg.GPGKeyServiceClient, error) {
-	return nil, nil, nil
-}
-func (c *fakeAcdClient) NewGPGKeyClientOrDie() (io.Closer, gpgkeypkg.GPGKeyServiceClient) {
-	return nil, nil
-}
-func (c *fakeAcdClient) NewApplicationClient() (io.Closer, applicationpkg.ApplicationServiceClient, error) {
-	return nil, nil, nil
-}
-func (c *fakeAcdClient) NewApplicationSetClient() (io.Closer, applicationsetpkg.ApplicationSetServiceClient, error) {
-	return nil, nil, nil
-}
-func (c *fakeAcdClient) NewApplicationClientOrDie() (io.Closer, applicationpkg.ApplicationServiceClient) {
-	return nil, nil
-}
-func (c *fakeAcdClient) NewApplicationSetClientOrDie() (io.Closer, applicationsetpkg.ApplicationSetServiceClient) {
-	return nil, nil
-}
-func (c *fakeAcdClient) NewNotificationClient() (io.Closer, notificationpkg.NotificationServiceClient, error) {
-	return nil, nil, nil
-}
-func (c *fakeAcdClient) NewNotificationClientOrDie() (io.Closer, notificationpkg.NotificationServiceClient) {
-	return nil, nil
-}
-func (c *fakeAcdClient) NewSessionClient() (io.Closer, sessionpkg.SessionServiceClient, error) {
-	return nil, nil, nil
-}
-func (c *fakeAcdClient) NewSessionClientOrDie() (io.Closer, sessionpkg.SessionServiceClient) {
-	return nil, nil
-}
-func (c *fakeAcdClient) NewSettingsClient() (io.Closer, settingspkg.SettingsServiceClient, error) {
-	return nil, nil, nil
-}
-func (c *fakeAcdClient) NewSettingsClientOrDie() (io.Closer, settingspkg.SettingsServiceClient) {
-	return nil, nil
-}
-func (c *fakeAcdClient) NewVersionClient() (io.Closer, versionpkg.VersionServiceClient, error) {
-	return nil, nil, nil
-}
-func (c *fakeAcdClient) NewVersionClientOrDie() (io.Closer, versionpkg.VersionServiceClient) {
-	return nil, nil
-}
-func (c *fakeAcdClient) NewProjectClient() (io.Closer, projectpkg.ProjectServiceClient, error) {
-	return nil, nil, nil
-}
-func (c *fakeAcdClient) NewProjectClientOrDie() (io.Closer, projectpkg.ProjectServiceClient) {
-	return nil, nil
-}
-func (c *fakeAcdClient) NewAccountClient() (io.Closer, accountpkg.AccountServiceClient, error) {
-	return nil, nil, nil
-}
-func (c *fakeAcdClient) NewAccountClientOrDie() (io.Closer, accountpkg.AccountServiceClient) {
-	return nil, nil
-}
-func (c *fakeAcdClient) WatchApplicationWithRetry(ctx context.Context, appName string, revision string) chan *v1alpha1.ApplicationWatchEvent {
-	appEventsCh := make(chan *v1alpha1.ApplicationWatchEvent)
-
-	go func() {
-		modifiedEvent := new(v1alpha1.ApplicationWatchEvent)
-		modifiedEvent.Type = k8swatch.Modified
-		appEventsCh <- modifiedEvent
-		deletedEvent := new(v1alpha1.ApplicationWatchEvent)
-		deletedEvent.Type = k8swatch.Deleted
-		appEventsCh <- deletedEvent
-	}()
-	return appEventsCh
 }
