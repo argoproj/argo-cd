@@ -2925,6 +2925,9 @@ func setFinalizer(meta *metav1.ObjectMeta, name string, exist bool) {
 func SetK8SConfigDefaults(config *rest.Config) error {
 	config.QPS = K8sClientConfigQPS
 	config.Burst = K8sClientConfigBurst
+	if EnvK8sAcceptProtobufContentTypeEnabled {
+		config.AcceptContentTypes = runtime.ContentTypeProtobuf + "," + runtime.ContentTypeJSON
+	}
 	tlsConfig, err := rest.TLSConfigFor(config)
 	if err != nil {
 		return err
@@ -3061,14 +3064,21 @@ func (c *Cluster) RawRestConfig() *rest.Config {
 	return config
 }
 
-// RESTConfig returns a go-client REST config from cluster with tuned throttling and HTTP client settings.
-func (c *Cluster) RESTConfig() *rest.Config {
+func (c *Cluster) RESTConfigWithUserAgent(userAgent string) *rest.Config {
 	config := c.RawRestConfig()
 	err := SetK8SConfigDefaults(config)
 	if err != nil {
 		panic(fmt.Sprintf("Unable to apply K8s REST config defaults: %v", err))
 	}
+	vers := common.GetVersion()
+	config.UserAgent = fmt.Sprintf("argocd-%s/%s (%s)", userAgent, vers.Version, vers.Platform)
 	return config
+}
+
+// RESTConfig returns a go-client REST config from cluster with tuned throttling and HTTP client settings.
+// Deprecated: see RESTConfigWithUserAgent
+func (c *Cluster) RESTConfig() *rest.Config {
+	return c.RESTConfigWithUserAgent("missing-user-agent")
 }
 
 // UnmarshalToUnstructured unmarshals a resource representation in JSON to unstructured data

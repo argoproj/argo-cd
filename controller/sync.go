@@ -210,8 +210,8 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 		return
 	}
 
-	rawConfig := clst.RawRestConfig()
-	restConfig := metrics.AddMetricsTransportWrapper(m.metricsServer, app, clst.RESTConfig())
+	restConfig := clst.RESTConfigWithUserAgent("sync-controller")
+	restConfig = metrics.AddMetricsTransportWrapper(m.metricsServer, app, restConfig)
 
 	resourceOverrides, err := m.settingsMgr.GetResourceOverrides()
 	if err != nil {
@@ -331,7 +331,7 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 		compareResult.syncStatus.Revision,
 		reconciliationResult,
 		restConfig,
-		rawConfig,
+		clst.RawRestConfig(),
 		m.kubectl,
 		app.Spec.Destination.Namespace,
 		openAPISchema,
