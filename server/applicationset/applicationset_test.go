@@ -2,6 +2,7 @@ package applicationset
 
 import (
 	"context"
+	"sort"
 	"testing"
 
 	"github.com/argoproj/gitops-engine/pkg/health"
@@ -386,6 +387,12 @@ func TestCreateAppSetDryRun(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Len(t, result.Status.Resources, 2)
+
+	// Sort resulting application by name
+	sort.Slice(result.Status.Resources, func(i, j int) bool {
+		return result.Status.Resources[i].Name < result.Status.Resources[j].Name
+	})
+
 	assert.Equal(t, "a", result.Status.Resources[0].Name)
 	assert.Equal(t, testAppSet.Namespace, result.Status.Resources[0].Namespace)
 	assert.Equal(t, "b", result.Status.Resources[1].Name)
