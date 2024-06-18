@@ -149,7 +149,7 @@ func LegacyDistributionByURLFunction(replicas int) DistributionFunction {
 			return int(*c.Shard)
 		}
 		server := c.Server
-		log.Debugf("Calculating cluster shard for cluster id=%s and server=%s", c.ID, c.Server)
+		log.Debugf("Calculating cluster shard for cluster id=%s and server=%s", c.ID, server)
 		if server == "" {
 			return 0
 		} else {
