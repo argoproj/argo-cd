@@ -159,9 +159,9 @@ spec:
 			require.NoError(t, err)
 			config, err := ReadPluginConfig(tempDir)
 			if tcc.expectedErr != "" {
-				assert.EqualError(t, err, tcc.expectedErr)
+				require.EqualError(t, err, tcc.expectedErr)
 			} else {
-				assert.NoError(t, err)
+				require.NoError(t, err)
 			}
 			assert.Equal(t, tcc.expected, config)
 		})

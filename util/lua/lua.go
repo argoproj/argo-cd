@@ -4,9 +4,11 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
+	"reflect"
 	"time"
 
 	"github.com/argoproj/gitops-engine/pkg/health"
@@ -109,6 +111,11 @@ func (vm VM) ExecuteHealthLua(obj *unstructured.Unstructured, script string) (*h
 		healthStatus := &health.HealthStatus{}
 		err = json.Unmarshal(jsonBytes, healthStatus)
 		if err != nil {
+			// Validate if the error is caused by an empty object
+			typeError := &json.UnmarshalTypeError{Value: "array", Type: reflect.TypeOf(healthStatus)}
+			if errors.As(err, &typeError) {
+				return &health.HealthStatus{}, nil
+			}
 			return nil, err
 		}
 		if !isValidHealthStatusCode(healthStatus.Status) {
@@ -119,6 +126,8 @@ func (vm VM) ExecuteHealthLua(obj *unstructured.Unstructured, script string) (*h
 		}
 
 		return healthStatus, nil
+	} else if returnValue.Type() == lua.LTNil {
+		return &health.HealthStatus{}, nil
 	}
 	return nil, fmt.Errorf(incorrectReturnType, "table", returnValue.Type().String())
 }

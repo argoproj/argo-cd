@@ -937,7 +937,7 @@ func (ctrl *ApplicationController) processAppOperationQueueItem() (processNext b
 				Message: err.Error(),
 			})
 			message := fmt.Sprintf("Unable to delete application resources: %v", err.Error())
-			ctrl.auditLogger.LogAppEvent(app, argo.EventInfo{Reason: argo.EventReasonStatusRefreshed, Type: v1.EventTypeWarning}, message, "")
+			ctrl.logAppEvent(app, argo.EventInfo{Reason: argo.EventReasonStatusRefreshed, Type: v1.EventTypeWarning}, message, context.TODO())
 		}
 	}
 	return
@@ -1440,7 +1440,7 @@ func (ctrl *ApplicationController) setOperationState(app *appv1.Application, sta
 			eventInfo.Type = v1.EventTypeWarning
 			messages = append(messages, "failed:", state.Message)
 		}
-		ctrl.auditLogger.LogAppEvent(app, eventInfo, strings.Join(messages, " "), "")
+		ctrl.logAppEvent(app, eventInfo, strings.Join(messages, " "), context.TODO())
 		ctrl.metricsServer.IncSync(app, state)
 	}
 }
@@ -1772,11 +1772,11 @@ func (ctrl *ApplicationController) persistAppStatus(orig *appv1.Application, new
 	logCtx := getAppLog(orig)
 	if orig.Status.Sync.Status != newStatus.Sync.Status {
 		message := fmt.Sprintf("Updated sync status: %s -> %s", orig.Status.Sync.Status, newStatus.Sync.Status)
-		ctrl.auditLogger.LogAppEvent(orig, argo.EventInfo{Reason: argo.EventReasonResourceUpdated, Type: v1.EventTypeNormal}, message, "")
+		ctrl.logAppEvent(orig, argo.EventInfo{Reason: argo.EventReasonResourceUpdated, Type: v1.EventTypeNormal}, message, context.TODO())
 	}
 	if orig.Status.Health.Status != newStatus.Health.Status {
 		message := fmt.Sprintf("Updated health status: %s -> %s", orig.Status.Health.Status, newStatus.Health.Status)
-		ctrl.auditLogger.LogAppEvent(orig, argo.EventInfo{Reason: argo.EventReasonResourceUpdated, Type: v1.EventTypeNormal}, message, "")
+		ctrl.logAppEvent(orig, argo.EventInfo{Reason: argo.EventReasonResourceUpdated, Type: v1.EventTypeNormal}, message, context.TODO())
 	}
 	var newAnnotations map[string]string
 	if orig.GetAnnotations() != nil {
@@ -1934,8 +1934,7 @@ func (ctrl *ApplicationController) autoSync(app *appv1.Application, syncStatus *
 		target = desiredCommitSHA
 	}
 	message := fmt.Sprintf("Initiated automated sync to '%s'", target)
-
-	ctrl.auditLogger.LogAppEvent(app, argo.EventInfo{Reason: argo.EventReasonOperationStarted, Type: v1.EventTypeNormal}, message, "")
+	ctrl.logAppEvent(app, argo.EventInfo{Reason: argo.EventReasonOperationStarted, Type: v1.EventTypeNormal}, message, context.TODO())
 	logCtx.Info(message)
 	return nil, setOpTime
 }
@@ -2273,6 +2272,11 @@ func (ctrl *ApplicationController) getAppList(options metav1.ListOptions) (*appv
 	}
 	appList.Items = newItems
 	return appList, nil
+}
+
+func (ctrl *ApplicationController) logAppEvent(a *appv1.Application, eventInfo argo.EventInfo, message string, ctx context.Context) {
+	eventLabels := argo.GetAppEventLabels(a, applisters.NewAppProjectLister(ctrl.projInformer.GetIndexer()), ctrl.namespace, ctrl.settingsMgr, ctrl.db, ctx)
+	ctrl.auditLogger.LogAppEvent(a, eventInfo, message, "", eventLabels)
 }
 
 type ClusterFilterFunction func(c *appv1.Cluster, distributionFunction sharding.DistributionFunction) bool
