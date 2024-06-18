@@ -204,7 +204,6 @@ func TestAllowedSCMProvider(t *testing.T) {
 	cases := []struct {
 		name           string
 		providerConfig *argoprojiov1alpha1.SCMProviderGenerator
-		expectedError  error
 	}{
 		{
 			name: "Error Github",
@@ -213,7 +212,6 @@ func TestAllowedSCMProvider(t *testing.T) {
 					API: "https://myservice.mynamespace.svc.cluster.local",
 				},
 			},
-			expectedError: &ErrDisallowedSCMProvider{},
 		},
 		{
 			name: "Error Gitlab",
@@ -222,7 +220,6 @@ func TestAllowedSCMProvider(t *testing.T) {
 					API: "https://myservice.mynamespace.svc.cluster.local",
 				},
 			},
-			expectedError: &ErrDisallowedSCMProvider{},
 		},
 		{
 			name: "Error Gitea",
@@ -231,7 +228,6 @@ func TestAllowedSCMProvider(t *testing.T) {
 					API: "https://myservice.mynamespace.svc.cluster.local",
 				},
 			},
-			expectedError: &ErrDisallowedSCMProvider{},
 		},
 		{
 			name: "Error Bitbucket",
@@ -240,7 +236,6 @@ func TestAllowedSCMProvider(t *testing.T) {
 					API: "https://myservice.mynamespace.svc.cluster.local",
 				},
 			},
-			expectedError: &ErrDisallowedSCMProvider{},
 		},
 		{
 			name: "Error AzureDevops",
@@ -249,7 +244,6 @@ func TestAllowedSCMProvider(t *testing.T) {
 					API: "https://myservice.mynamespace.svc.cluster.local",
 				},
 			},
-			expectedError: &ErrDisallowedSCMProvider{},
 		},
 	}
 
@@ -284,7 +278,8 @@ func TestAllowedSCMProvider(t *testing.T) {
 			_, err := scmGenerator.GenerateParams(&applicationSetInfo.Spec.Generators[0], &applicationSetInfo, nil)
 
 			require.Error(t, err, "Must return an error")
-			assert.ErrorAs(t, err, testCaseCopy.expectedError)
+			var expectedError ErrDisallowedSCMProvider
+			assert.ErrorAs(t, err, &expectedError)
 		})
 	}
 }
