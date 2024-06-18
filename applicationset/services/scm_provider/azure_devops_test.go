@@ -8,6 +8,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 	"k8s.io/utils/ptr"
 
 	"github.com/microsoft/azure-devops-go-api/azuredevops"
@@ -92,14 +93,14 @@ func TestAzureDevopsRepoHasPath(t *testing.T) {
 			hasPath, err := provider.RepoHasPath(ctx, repo, path)
 
 			if testCase.clientError != nil {
-				assert.ErrorContains(t, err, testCase.clientError.Error())
+				require.ErrorContains(t, err, testCase.clientError.Error())
 				gitClientMock.AssertNotCalled(t, "GetItem", ctx, azureGit.GetItemArgs{Project: &teamProject, Path: &path, VersionDescriptor: &azureGit.GitVersionDescriptor{Version: &branchName}, RepositoryId: repoId})
 
 				return
 			}
 
 			if testCase.returnError {
-				assert.ErrorContains(t, err, testCase.errorMessage)
+				require.ErrorContains(t, err, testCase.errorMessage)
 			}
 
 			assert.Equal(t, testCase.pathFound, hasPath)
@@ -156,9 +157,9 @@ func TestGetDefaultBranchOnDisabledRepo(t *testing.T) {
 			branches, err := provider.GetBranches(ctx, repo)
 
 			if testCase.shouldReturnError {
-				assert.Error(t, err)
+				require.Error(t, err)
 			} else {
-				assert.NoError(t, err)
+				require.NoError(t, err)
 			}
 
 			assert.Empty(t, branches)
@@ -215,9 +216,9 @@ func TestGetAllBranchesOnDisabledRepo(t *testing.T) {
 			branches, err := provider.GetBranches(ctx, repo)
 
 			if testCase.shouldReturnError {
-				assert.Error(t, err)
+				require.Error(t, err)
 			} else {
-				assert.NoError(t, err)
+				require.NoError(t, err)
 			}
 
 			assert.Empty(t, branches)
@@ -251,7 +252,7 @@ func TestAzureDevOpsGetDefaultBranchStripsRefsName(t *testing.T) {
 		provider := AzureDevOpsProvider{organization: organization, teamProject: teamProject, clientFactory: clientFactoryMock, allBranches: false}
 		branches, err := provider.GetBranches(ctx, repo)
 
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Len(t, branches, 1)
 		assert.Equal(t, strippedBranchName, branches[0].Branch)
 
@@ -308,7 +309,7 @@ func TestAzureDevOpsGetBranchesDefultBranchOnly(t *testing.T) {
 			branches, err := provider.GetBranches(ctx, repo)
 
 			if testCase.clientError != nil {
-				assert.ErrorContains(t, err, testCase.clientError.Error())
+				require.ErrorContains(t, err, testCase.clientError.Error())
 				gitClientMock.AssertNotCalled(t, "GetBranch", ctx, azureGit.GetBranchArgs{RepositoryId: &repoName, Project: &teamProject, Name: &defaultBranch})
 
 				return
@@ -316,7 +317,7 @@ func TestAzureDevOpsGetBranchesDefultBranchOnly(t *testing.T) {
 
 			if testCase.getBranchesApiError != nil {
 				assert.Empty(t, branches)
-				assert.ErrorContains(t, err, testCase.getBranchesApiError.Error())
+				require.ErrorContains(t, err, testCase.getBranchesApiError.Error())
 			} else {
 				if testCase.expectedBranch != nil {
 					assert.NotEmpty(t, branches)
@@ -392,20 +393,20 @@ func TestAzureDevopsGetBranches(t *testing.T) {
 			branches, err := provider.GetBranches(ctx, repo)
 
 			if testCase.expectedProcessingErrorMsg != "" {
-				assert.ErrorContains(t, err, testCase.expectedProcessingErrorMsg)
+				require.ErrorContains(t, err, testCase.expectedProcessingErrorMsg)
 				assert.Nil(t, branches)
 
 				return
 			}
 			if testCase.clientError != nil {
-				assert.ErrorContains(t, err, testCase.clientError.Error())
+				require.ErrorContains(t, err, testCase.clientError.Error())
 				gitClientMock.AssertNotCalled(t, "GetBranches", ctx, azureGit.GetBranchesArgs{RepositoryId: &repoName, Project: &teamProject})
 				return
 			}
 
 			if testCase.getBranchesApiError != nil {
 				assert.Empty(t, branches)
-				assert.ErrorContains(t, err, testCase.getBranchesApiError.Error())
+				require.ErrorContains(t, err, testCase.getBranchesApiError.Error())
 			} else {
 				if len(*testCase.expectedBranches) > 0 {
 					assert.NotEmpty(t, branches)
@@ -488,7 +489,7 @@ func TestGetAzureDevopsRepositories(t *testing.T) {
 			repositories, err := provider.ListRepos(ctx, "https")
 
 			if testCase.getRepositoriesError != nil {
-				assert.Error(t, err, "Expected an error from test case %v", testCase.name)
+				require.Error(t, err, "Expected an error from test case %v", testCase.name)
 			}
 
 			if testCase.expectedNumberOfRepos == 0 {
