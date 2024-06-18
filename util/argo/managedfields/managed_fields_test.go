@@ -38,14 +38,14 @@ func TestNormalize(t *testing.T) {
 		liveReplicas, ok, err := unstructured.NestedFloat64(liveResult.Object, "spec", "replicas")
 		assert.False(t, ok)
 		require.NoError(t, err)
-		assert.InEpsilon(t, liveReplicas, desiredReplicas, 0.0001)
+		assert.InEpsilon(t, desiredReplicas, liveReplicas, 0.0001)
 		liveRevisionHistory, ok, err := unstructured.NestedFloat64(liveResult.Object, "spec", "revisionHistoryLimit")
 		assert.False(t, ok)
 		require.NoError(t, err)
 		desiredRevisionHistory, ok, err := unstructured.NestedFloat64(desiredResult.Object, "spec", "revisionHistoryLimit")
 		assert.False(t, ok)
 		require.NoError(t, err)
-		assert.InEpsilon(t, liveRevisionHistory, desiredRevisionHistory, 0.0001)
+		assert.InEpsilon(t, desiredRevisionHistory, liveRevisionHistory, 0.0001)
 	})
 	t.Run("will keep conflicting fields if not from trusted manager", func(t *testing.T) {
 		// given
