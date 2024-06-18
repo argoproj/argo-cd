@@ -25,7 +25,6 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	crtcache "sigs.k8s.io/controller-runtime/pkg/cache"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 	crtclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -35,11 +34,11 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/sync/common"
 
 	"github.com/argoproj/argo-cd/v2/applicationset/generators"
+	"github.com/argoproj/argo-cd/v2/applicationset/generators/mocks"
 	"github.com/argoproj/argo-cd/v2/applicationset/utils"
 
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned/fake"
-	"github.com/argoproj/argo-cd/v2/util/collections"
 	dbmocks "github.com/argoproj/argo-cd/v2/util/db/mocks"
 
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
@@ -71,287 +70,6 @@ type fakeCache struct {
 
 func (f *fakeCache) GetInformer(ctx context.Context, obj crtclient.Object, opt ...crtcache.InformerGetOption) (cache.Informer, error) {
 	return &fakeInformer{}, nil
-}
-
-type generatorMock struct {
-	mock.Mock
-}
-
-func (g *generatorMock) GetTemplate(appSetGenerator *v1alpha1.ApplicationSetGenerator) *v1alpha1.ApplicationSetTemplate {
-	args := g.Called(appSetGenerator)
-
-	return args.Get(0).(*v1alpha1.ApplicationSetTemplate)
-}
-
-func (g *generatorMock) GenerateParams(appSetGenerator *v1alpha1.ApplicationSetGenerator, _ *v1alpha1.ApplicationSet, client client.Client) ([]map[string]interface{}, error) {
-	args := g.Called(appSetGenerator)
-
-	return args.Get(0).([]map[string]interface{}), args.Error(1)
-}
-
-func (g *generatorMock) Replace(tmpl string, replaceMap map[string]interface{}, useGoTemplate bool, goTemplateOptions []string) (string, error) {
-	args := g.Called(tmpl, replaceMap, useGoTemplate, goTemplateOptions)
-
-	return args.Get(0).(string), args.Error(1)
-}
-
-type rendererMock struct {
-	mock.Mock
-}
-
-func (g *generatorMock) GetRequeueAfter(appSetGenerator *v1alpha1.ApplicationSetGenerator) time.Duration {
-	args := g.Called(appSetGenerator)
-
-	return args.Get(0).(time.Duration)
-}
-
-func (r *rendererMock) RenderTemplateParams(tmpl *v1alpha1.Application, syncPolicy *v1alpha1.ApplicationSetSyncPolicy, params map[string]interface{}, useGoTemplate bool, goTemplateOptions []string) (*v1alpha1.Application, error) {
-	args := r.Called(tmpl, params, useGoTemplate, goTemplateOptions)
-
-	if args.Error(1) != nil {
-		return nil, args.Error(1)
-	}
-
-	return args.Get(0).(*v1alpha1.Application), args.Error(1)
-}
-
-func (r *rendererMock) Replace(tmpl string, replaceMap map[string]interface{}, useGoTemplate bool, goTemplateOptions []string) (string, error) {
-	args := r.Called(tmpl, replaceMap, useGoTemplate, goTemplateOptions)
-
-	return args.Get(0).(string), args.Error(1)
-}
-
-func TestExtractApplications(t *testing.T) {
-	scheme := runtime.NewScheme()
-	err := v1alpha1.AddToScheme(scheme)
-	require.NoError(t, err)
-
-	for _, c := range []struct {
-		name                string
-		params              []map[string]interface{}
-		template            v1alpha1.ApplicationSetTemplate
-		generateParamsError error
-		rendererError       error
-		expectErr           bool
-		expectedReason      v1alpha1.ApplicationSetReasonType
-	}{
-		{
-			name:   "Generate two applications",
-			params: []map[string]interface{}{{"name": "app1"}, {"name": "app2"}},
-			template: v1alpha1.ApplicationSetTemplate{
-				ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{
-					Name:      "name",
-					Namespace: "namespace",
-					Labels:    map[string]string{"label_name": "label_value"},
-				},
-				Spec: v1alpha1.ApplicationSpec{},
-			},
-			expectedReason: "",
-		},
-		{
-			name:                "Handles error from the generator",
-			generateParamsError: fmt.Errorf("error"),
-			expectErr:           true,
-			expectedReason:      v1alpha1.ApplicationSetReasonApplicationParamsGenerationError,
-		},
-		{
-			name:   "Handles error from the render",
-			params: []map[string]interface{}{{"name": "app1"}, {"name": "app2"}},
-			template: v1alpha1.ApplicationSetTemplate{
-				ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{
-					Name:      "name",
-					Namespace: "namespace",
-					Labels:    map[string]string{"label_name": "label_value"},
-				},
-				Spec: v1alpha1.ApplicationSpec{},
-			},
-			rendererError:  fmt.Errorf("error"),
-			expectErr:      true,
-			expectedReason: v1alpha1.ApplicationSetReasonRenderTemplateParamsError,
-		},
-	} {
-		cc := c
-		app := v1alpha1.Application{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: "test",
-			},
-		}
-
-		t.Run(cc.name, func(t *testing.T) {
-			appSet := &v1alpha1.ApplicationSet{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "name",
-					Namespace: "namespace",
-				},
-			}
-
-			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(appSet).Build()
-
-			generatorMock := generatorMock{}
-			generator := v1alpha1.ApplicationSetGenerator{
-				List: &v1alpha1.ListGenerator{},
-			}
-
-			generatorMock.On("GenerateParams", &generator).
-				Return(cc.params, cc.generateParamsError)
-
-			generatorMock.On("GetTemplate", &generator).
-				Return(&v1alpha1.ApplicationSetTemplate{})
-
-			rendererMock := rendererMock{}
-
-			var expectedApps []v1alpha1.Application
-
-			if cc.generateParamsError == nil {
-				for _, p := range cc.params {
-					if cc.rendererError != nil {
-						rendererMock.On("RenderTemplateParams", getTempApplication(cc.template), p, false, []string(nil)).
-							Return(nil, cc.rendererError)
-					} else {
-						rendererMock.On("RenderTemplateParams", getTempApplication(cc.template), p, false, []string(nil)).
-							Return(&app, nil)
-						expectedApps = append(expectedApps, app)
-					}
-				}
-			}
-
-			r := ApplicationSetReconciler{
-				Client:   client,
-				Scheme:   scheme,
-				Recorder: record.NewFakeRecorder(1),
-				Generators: map[string]generators.Generator{
-					"List": &generatorMock,
-				},
-				Renderer:      &rendererMock,
-				KubeClientset: kubefake.NewSimpleClientset(),
-				Cache:         &fakeCache{},
-			}
-
-			got, reason, err := r.generateApplications(log.NewEntry(log.StandardLogger()), v1alpha1.ApplicationSet{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "name",
-					Namespace: "namespace",
-				},
-				Spec: v1alpha1.ApplicationSetSpec{
-					Generators: []v1alpha1.ApplicationSetGenerator{generator},
-					Template:   cc.template,
-				},
-			})
-
-			if cc.expectErr {
-				require.Error(t, err)
-			} else {
-				require.NoError(t, err)
-			}
-			assert.Equal(t, expectedApps, got)
-			assert.Equal(t, cc.expectedReason, reason)
-			generatorMock.AssertNumberOfCalls(t, "GenerateParams", 1)
-
-			if cc.generateParamsError == nil {
-				rendererMock.AssertNumberOfCalls(t, "RenderTemplateParams", len(cc.params))
-			}
-		})
-	}
-}
-
-func TestMergeTemplateApplications(t *testing.T) {
-	scheme := runtime.NewScheme()
-	_ = v1alpha1.AddToScheme(scheme)
-	_ = v1alpha1.AddToScheme(scheme)
-
-	client := fake.NewClientBuilder().WithScheme(scheme).Build()
-
-	for _, c := range []struct {
-		name             string
-		params           []map[string]interface{}
-		template         v1alpha1.ApplicationSetTemplate
-		overrideTemplate v1alpha1.ApplicationSetTemplate
-		expectedMerged   v1alpha1.ApplicationSetTemplate
-		expectedApps     []v1alpha1.Application
-	}{
-		{
-			name:   "Generate app",
-			params: []map[string]interface{}{{"name": "app1"}},
-			template: v1alpha1.ApplicationSetTemplate{
-				ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{
-					Name:      "name",
-					Namespace: "namespace",
-					Labels:    map[string]string{"label_name": "label_value"},
-				},
-				Spec: v1alpha1.ApplicationSpec{},
-			},
-			overrideTemplate: v1alpha1.ApplicationSetTemplate{
-				ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{
-					Name:   "test",
-					Labels: map[string]string{"foo": "bar"},
-				},
-				Spec: v1alpha1.ApplicationSpec{},
-			},
-			expectedMerged: v1alpha1.ApplicationSetTemplate{
-				ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{
-					Name:      "test",
-					Namespace: "namespace",
-					Labels:    map[string]string{"label_name": "label_value", "foo": "bar"},
-				},
-				Spec: v1alpha1.ApplicationSpec{},
-			},
-			expectedApps: []v1alpha1.Application{
-				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "test",
-						Namespace: "test",
-						Labels:    map[string]string{"foo": "bar"},
-					},
-					Spec: v1alpha1.ApplicationSpec{},
-				},
-			},
-		},
-	} {
-		cc := c
-
-		t.Run(cc.name, func(t *testing.T) {
-			generatorMock := generatorMock{}
-			generator := v1alpha1.ApplicationSetGenerator{
-				List: &v1alpha1.ListGenerator{},
-			}
-
-			generatorMock.On("GenerateParams", &generator).
-				Return(cc.params, nil)
-
-			generatorMock.On("GetTemplate", &generator).
-				Return(&cc.overrideTemplate)
-
-			rendererMock := rendererMock{}
-
-			rendererMock.On("RenderTemplateParams", getTempApplication(cc.expectedMerged), cc.params[0], false, []string(nil)).
-				Return(&cc.expectedApps[0], nil)
-
-			r := ApplicationSetReconciler{
-				Client:   client,
-				Scheme:   scheme,
-				Recorder: record.NewFakeRecorder(1),
-				Generators: map[string]generators.Generator{
-					"List": &generatorMock,
-				},
-				Renderer:      &rendererMock,
-				KubeClientset: kubefake.NewSimpleClientset(),
-			}
-
-			got, _, _ := r.generateApplications(log.NewEntry(log.StandardLogger()), v1alpha1.ApplicationSet{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "name",
-					Namespace: "namespace",
-				},
-				Spec: v1alpha1.ApplicationSetSpec{
-					Generators: []v1alpha1.ApplicationSetGenerator{generator},
-					Template:   cc.template,
-				},
-			},
-			)
-
-			assert.Equal(t, cc.expectedApps, got)
-		})
-	}
 }
 
 func TestCreateOrUpdateInCluster(t *testing.T) {
@@ -386,8 +104,10 @@ func TestCreateOrUpdateInCluster(t *testing.T) {
 			desiredApps: []v1alpha1.Application{
 				{
 					ObjectMeta: metav1.ObjectMeta{
-						Name: "app1",
+						Name:      "app1",
+						Namespace: "namespace",
 					},
+					Spec: v1alpha1.ApplicationSpec{Project: "default"},
 				},
 			},
 			expected: []v1alpha1.Application{
@@ -439,7 +159,8 @@ func TestCreateOrUpdateInCluster(t *testing.T) {
 			desiredApps: []v1alpha1.Application{
 				{
 					ObjectMeta: metav1.ObjectMeta{
-						Name: "app1",
+						Name:      "app1",
+						Namespace: "namespace",
 					},
 					Spec: v1alpha1.ApplicationSpec{
 						Project: "project",
@@ -497,7 +218,8 @@ func TestCreateOrUpdateInCluster(t *testing.T) {
 			desiredApps: []v1alpha1.Application{
 				{
 					ObjectMeta: metav1.ObjectMeta{
-						Name: "app2",
+						Name:      "app2",
+						Namespace: "namespace",
 					},
 					Spec: v1alpha1.ApplicationSpec{
 						Project: "project",
@@ -556,6 +278,7 @@ func TestCreateOrUpdateInCluster(t *testing.T) {
 				{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:        "app1",
+						Namespace:   "namespace",
 						Labels:      map[string]string{"label-key": "label-value"},
 						Annotations: map[string]string{"annot-key": "annot-value"},
 					},
@@ -619,7 +342,8 @@ func TestCreateOrUpdateInCluster(t *testing.T) {
 			desiredApps: []v1alpha1.Application{
 				{
 					ObjectMeta: metav1.ObjectMeta{
-						Name: "app1",
+						Name:      "app1",
+						Namespace: "namespace",
 					},
 					Spec: v1alpha1.ApplicationSpec{
 						Project: "project",
@@ -685,7 +409,8 @@ func TestCreateOrUpdateInCluster(t *testing.T) {
 			desiredApps: []v1alpha1.Application{
 				{
 					ObjectMeta: metav1.ObjectMeta{
-						Name: "app1",
+						Name:      "app1",
+						Namespace: "namespace",
 					},
 					Spec: v1alpha1.ApplicationSpec{
 						Project: "project",
@@ -758,6 +483,7 @@ func TestCreateOrUpdateInCluster(t *testing.T) {
 				{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:        "app1",
+						Namespace:   "namespace",
 						Labels:      map[string]string{"label-key": "label-value"},
 						Annotations: map[string]string{"annot-key": "annot-value"},
 					},
@@ -835,7 +561,8 @@ func TestCreateOrUpdateInCluster(t *testing.T) {
 			desiredApps: []v1alpha1.Application{
 				{
 					ObjectMeta: metav1.ObjectMeta{
-						Name: "app1",
+						Name:      "app1",
+						Namespace: "namespace",
 					},
 					Spec: v1alpha1.ApplicationSpec{
 						Project: "project",
@@ -904,7 +631,8 @@ func TestCreateOrUpdateInCluster(t *testing.T) {
 			desiredApps: []v1alpha1.Application{
 				{
 					ObjectMeta: metav1.ObjectMeta{
-						Name: "app1",
+						Name:      "app1",
+						Namespace: "namespace",
 					},
 					Spec: v1alpha1.ApplicationSpec{
 						Project: "project",
@@ -954,7 +682,8 @@ func TestCreateOrUpdateInCluster(t *testing.T) {
 			desiredApps: []v1alpha1.Application{
 				{
 					ObjectMeta: metav1.ObjectMeta{
-						Name: "app1",
+						Name:      "app1",
+						Namespace: "namespace",
 					},
 					Spec: v1alpha1.ApplicationSpec{
 						Project: "project",
@@ -1032,7 +761,8 @@ func TestCreateOrUpdateInCluster(t *testing.T) {
 			desiredApps: []v1alpha1.Application{
 				{
 					ObjectMeta: metav1.ObjectMeta{
-						Name: "app1",
+						Name:      "app1",
+						Namespace: "namespace",
 					},
 					Spec: v1alpha1.ApplicationSpec{
 						Project: "project",
@@ -1135,7 +865,8 @@ func TestCreateOrUpdateInCluster(t *testing.T) {
 			desiredApps: []v1alpha1.Application{
 				{
 					ObjectMeta: metav1.ObjectMeta{
-						Name: "app1",
+						Name:      "app1",
+						Namespace: "namespace",
 					},
 					Spec: v1alpha1.ApplicationSpec{
 						Project: "project",
@@ -1236,7 +967,8 @@ func TestCreateOrUpdateInCluster(t *testing.T) {
 			desiredApps: []v1alpha1.Application{
 				{
 					ObjectMeta: metav1.ObjectMeta{
-						Name: "app1",
+						Name:      "app1",
+						Namespace: "namespace",
 					},
 					Spec: v1alpha1.ApplicationSpec{
 						Project: "project",
@@ -1317,7 +1049,8 @@ func TestCreateOrUpdateInCluster(t *testing.T) {
 			desiredApps: []v1alpha1.Application{
 				{
 					ObjectMeta: metav1.ObjectMeta{
-						Name: "app1",
+						Name:      "app1",
+						Namespace: "namespace",
 					},
 					Spec: v1alpha1.ApplicationSpec{
 						Project: "project",
@@ -1761,7 +1494,8 @@ func TestCreateApplications(t *testing.T) {
 			apps: []v1alpha1.Application{
 				{
 					ObjectMeta: metav1.ObjectMeta{
-						Name: "app1",
+						Name:      "app1",
+						Namespace: "namespace",
 					},
 				},
 			},
@@ -1816,7 +1550,8 @@ func TestCreateApplications(t *testing.T) {
 			apps: []v1alpha1.Application{
 				{
 					ObjectMeta: metav1.ObjectMeta{
-						Name: "app1",
+						Name:      "app1",
+						Namespace: "namespace",
 					},
 					Spec: v1alpha1.ApplicationSpec{
 						Project: "project",
@@ -1874,7 +1609,8 @@ func TestCreateApplications(t *testing.T) {
 			apps: []v1alpha1.Application{
 				{
 					ObjectMeta: metav1.ObjectMeta{
-						Name: "app2",
+						Name:      "app2",
+						Namespace: "namespace",
 					},
 					Spec: v1alpha1.ApplicationSpec{
 						Project: "project",
@@ -2106,15 +1842,15 @@ func TestGetMinRequeueAfter(t *testing.T) {
 		Clusters: &v1alpha1.ClusterGenerator{},
 	}
 
-	generatorMock0 := generatorMock{}
+	generatorMock0 := mocks.Generator{}
 	generatorMock0.On("GetRequeueAfter", &generator).
 		Return(generators.NoRequeueAfter)
 
-	generatorMock1 := generatorMock{}
+	generatorMock1 := mocks.Generator{}
 	generatorMock1.On("GetRequeueAfter", &generator).
 		Return(time.Duration(1) * time.Second)
 
-	generatorMock10 := generatorMock{}
+	generatorMock10 := mocks.Generator{}
 	generatorMock10.On("GetRequeueAfter", &generator).
 		Return(time.Duration(10) * time.Second)
 
@@ -2931,120 +2667,6 @@ func TestDeletePerformedWithSyncPolicyCreateOnlyAndAllowPolicyOverrideFalse(t *t
 	apps := applicationsDeleteSyncPolicyTest(t, applicationsSyncPolicy, 3, false)
 
 	assert.Empty(t, apps.Items)
-}
-
-// Test app generation from a go template application set using a pull request generator
-func TestGenerateAppsUsingPullRequestGenerator(t *testing.T) {
-	scheme := runtime.NewScheme()
-	client := fake.NewClientBuilder().WithScheme(scheme).Build()
-
-	for _, cases := range []struct {
-		name        string
-		params      []map[string]interface{}
-		template    v1alpha1.ApplicationSetTemplate
-		expectedApp []v1alpha1.Application
-	}{
-		{
-			name: "Generate an application from a go template application set manifest using a pull request generator",
-			params: []map[string]interface{}{
-				{
-					"number":                                "1",
-					"branch":                                "branch1",
-					"branch_slug":                           "branchSlug1",
-					"head_sha":                              "089d92cbf9ff857a39e6feccd32798ca700fb958",
-					"head_short_sha":                        "089d92cb",
-					"branch_slugify_default":                "feat/a_really+long_pull_request_name_to_test_argo_slugification_and_branch_name_shortening_feature",
-					"branch_slugify_smarttruncate_disabled": "feat/areallylongpullrequestnametotestargoslugificationandbranchnameshorteningfeature",
-					"branch_slugify_smarttruncate_enabled":  "feat/testwithsmarttruncateenabledramdomlonglistofcharacters",
-					"labels":                                []string{"label1"},
-				},
-			},
-			template: v1alpha1.ApplicationSetTemplate{
-				ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{
-					Name: "AppSet-{{.branch}}-{{.number}}",
-					Labels: map[string]string{
-						"app1":         "{{index .labels 0}}",
-						"branch-test1": "AppSet-{{.branch_slugify_default | slugify }}",
-						"branch-test2": "AppSet-{{.branch_slugify_smarttruncate_disabled | slugify 49 false }}",
-						"branch-test3": "AppSet-{{.branch_slugify_smarttruncate_enabled | slugify 50 true }}",
-					},
-				},
-				Spec: v1alpha1.ApplicationSpec{
-					Source: &v1alpha1.ApplicationSource{
-						RepoURL:        "https://testurl/testRepo",
-						TargetRevision: "{{.head_short_sha}}",
-					},
-					Destination: v1alpha1.ApplicationDestination{
-						Server:    "https://kubernetes.default.svc",
-						Namespace: "AppSet-{{.branch_slug}}-{{.head_sha}}",
-					},
-				},
-			},
-			expectedApp: []v1alpha1.Application{
-				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "AppSet-branch1-1",
-						Labels: map[string]string{
-							"app1":         "label1",
-							"branch-test1": "AppSet-feat-a-really-long-pull-request-name-to-test-argo",
-							"branch-test2": "AppSet-feat-areallylongpullrequestnametotestargoslugific",
-							"branch-test3": "AppSet-feat",
-						},
-					},
-					Spec: v1alpha1.ApplicationSpec{
-						Source: &v1alpha1.ApplicationSource{
-							RepoURL:        "https://testurl/testRepo",
-							TargetRevision: "089d92cb",
-						},
-						Destination: v1alpha1.ApplicationDestination{
-							Server:    "https://kubernetes.default.svc",
-							Namespace: "AppSet-branchSlug1-089d92cbf9ff857a39e6feccd32798ca700fb958",
-						},
-					},
-				},
-			},
-		},
-	} {
-		t.Run(cases.name, func(t *testing.T) {
-			generatorMock := generatorMock{}
-			generator := v1alpha1.ApplicationSetGenerator{
-				PullRequest: &v1alpha1.PullRequestGenerator{},
-			}
-
-			generatorMock.On("GenerateParams", &generator).
-				Return(cases.params, nil)
-
-			generatorMock.On("GetTemplate", &generator).
-				Return(&cases.template, nil)
-
-			appSetReconciler := ApplicationSetReconciler{
-				Client:   client,
-				Scheme:   scheme,
-				Recorder: record.NewFakeRecorder(1),
-				Cache:    &fakeCache{},
-				Generators: map[string]generators.Generator{
-					"PullRequest": &generatorMock,
-				},
-				Renderer:      &utils.Render{},
-				KubeClientset: kubefake.NewSimpleClientset(),
-			}
-
-			gotApp, _, _ := appSetReconciler.generateApplications(log.NewEntry(log.StandardLogger()), v1alpha1.ApplicationSet{
-				Spec: v1alpha1.ApplicationSetSpec{
-					GoTemplate: true,
-					Generators: []v1alpha1.ApplicationSetGenerator{{
-						PullRequest: &v1alpha1.PullRequestGenerator{},
-					}},
-					Template: cases.template,
-				},
-			},
-			)
-			assert.EqualValues(t, cases.expectedApp[0].ObjectMeta.Name, gotApp[0].ObjectMeta.Name)
-			assert.EqualValues(t, cases.expectedApp[0].Spec.Source.TargetRevision, gotApp[0].Spec.Source.TargetRevision)
-			assert.EqualValues(t, cases.expectedApp[0].Spec.Destination.Namespace, gotApp[0].Spec.Destination.Namespace)
-			assert.True(t, collections.StringMapsEqual(cases.expectedApp[0].ObjectMeta.Labels, gotApp[0].ObjectMeta.Labels))
-		})
-	}
 }
 
 func TestPolicies(t *testing.T) {
